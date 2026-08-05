@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
-from .silhouette import SilhouetteSignals
+from .silhouette_signals import SilhouetteSignals
 
 PRESENCE_LIVE = "live"
 PRESENCE_SILHOUETTE = "silhouette_only"

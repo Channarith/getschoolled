@@ -8,31 +8,16 @@ Public surface:
 - ``FaceRecognitionEngine`` - detect faces and compute embeddings.
 - ``FaceGallery``           - enroll embeddings and match (1:N) with a threshold.
 - ``DetectedFace``          - a detected face (bbox, score, embedding).
-- ``detect_silhouette`` / ``AbsenceTracker`` - body presence + user absence.
+- ``SilhouetteDetector``    - body presence via MOG2 background subtraction.
+- ``WebcamPresenceTracker`` - debounced absence/presence tracking per session.
 - model helpers in ``aoep_shared.vision.models``.
 """
 
-from .absence import (
-    PRESENCE_ABSENT,
-    PRESENCE_LIVE,
-    PRESENCE_SILHOUETTE,
-    PRESENCE_SPOOF,
-    PRESENCE_STATES,
-    PRESENCE_UNKNOWN,
-    AbsenceDecision,
-    AbsencePolicy,
-    AbsenceTracker,
-    FramePresenceInput,
-)
 from .engagement import EngagementSignals, GestureRecognizer, estimate_engagement
 from .engine import DetectedFace, FaceRecognitionEngine
 from .gallery import FaceGallery, Match
-from .silhouette import (
-    SilhouetteObservation,
-    SilhouetteSignals,
-    detect_silhouette,
-    silhouette_from_counts,
-)
+from .silhouette import SilhouetteDetector, SilhouetteResult, estimate_silhouette_from_fraction
+from .webcam_presence import PresenceFrame, PresenceMetrics, PresenceState, WebcamPresenceTracker
 
 __all__ = [
     "DetectedFace",
@@ -42,18 +27,11 @@ __all__ = [
     "EngagementSignals",
     "GestureRecognizer",
     "estimate_engagement",
-    "SilhouetteObservation",
-    "SilhouetteSignals",
-    "detect_silhouette",
-    "silhouette_from_counts",
-    "AbsenceTracker",
-    "AbsencePolicy",
-    "AbsenceDecision",
-    "FramePresenceInput",
-    "PRESENCE_LIVE",
-    "PRESENCE_SILHOUETTE",
-    "PRESENCE_ABSENT",
-    "PRESENCE_UNKNOWN",
-    "PRESENCE_SPOOF",
-    "PRESENCE_STATES",
+    "SilhouetteDetector",
+    "SilhouetteResult",
+    "estimate_silhouette_from_fraction",
+    "PresenceFrame",
+    "PresenceMetrics",
+    "PresenceState",
+    "WebcamPresenceTracker",
 ]

@@ -15,8 +15,8 @@ from aoep_shared.vision.absence import (
     AbsenceTracker,
     FramePresenceInput,
 )
-from aoep_shared.vision.silhouette import SilhouetteSignals, silhouette_from_counts
-from aoep_shared.xai_voice import VoiceSessionConfig, build_voice_session
+from aoep_shared.vision.silhouette_signals import SilhouetteSignals, silhouette_from_counts
+from aoep_shared.xai_realtime import VoiceSessionConfig, build_voice_session
 
 MODE_SOLO = "solo"
 MODE_GROUP = "group"
@@ -127,7 +127,7 @@ class LabSessionStore:
             learner_names=names or [host_name],
         )
         # Enable presence tool so Grok can ask about webcam state.
-        from aoep_shared.xai_voice import presence_tool_schema
+        from aoep_shared.xai_realtime import presence_tool_schema
 
         voice.tools = [presence_tool_schema()]
 

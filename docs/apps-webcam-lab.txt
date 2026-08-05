@@ -1,0 +1,51 @@
+Webcam lab (PRIVATE) — build & test guide
+=========================================
+
+Location
+  apps/webcam-lab/   (private sub-package inside the monorepo)
+
+What it covers
+  1. Webcam image recognition for solo + group classes
+  2. Theodore (AI) teaching and user self-teaching modes
+  3. xAI Grok Voice Agents for natural speech-to-speech replies
+  4. Silhouette detection (body present when face is turned away)
+  5. User absence tracking with presence-hold / re-engage hints
+
+Modes
+  solo        — one learner; Theodore teaches via xAI voice persona
+  group       — up to 8 learners; Theodore group-host persona
+  self_teach  — learner leads; xAI coach persona quizzes / hints
+
+Shared library pieces (promote from lab when stable)
+  aoep_shared.vision.silhouette   — HOG / energy silhouette detect
+  aoep_shared.vision.absence      — AbsenceTracker state machine
+  aoep_shared.xai_realtime           — ephemeral tokens + session.update
+
+Run locally
+  . .venv/bin/activate
+  pip install -e 'packages/shared[test]' -e 'apps/webcam-lab[test]'
+  export PYTHONPATH=apps/webcam-lab/src:packages/shared/src
+  python3 -m webcam_lab.main
+  # open http://localhost:8011/
+
+Optional live xAI voice
+  export XAI_API_KEY=...
+  # /voice/token returns a real ephemeral client secret
+  # Browser connects with sec-websocket-protocol: xai-client-secret.<token>
+
+Key HTTP routes
+  GET  /health
+  POST /sessions
+  POST /sessions/{id}/participants/{pid}/presence
+  POST /analyze/frame          (multipart webcam still)
+  POST /analyze/report         (hybrid client-reported signals)
+  POST /voice/token            (xAI ephemeral + session.update)
+  GET  /                       (demo UI)
+
+Tests
+  python3 -m pytest apps/webcam-lab/tests packages/shared/tests/test_silhouette_absence.py packages/shared/tests/test_xai_realtime.py -q
+
+Privacy
+  This lab is NOT on public ingress. Treat it as an internal sandbox.
+  Consent gates for biometric identity still apply when wiring into
+  perception / live rooms for production.

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from aoep_shared.vision.absence import FramePresenceInput
 from aoep_shared.vision.engagement import estimate_engagement
-from aoep_shared.vision.silhouette import SilhouetteSignals, detect_silhouette
+from aoep_shared.vision.silhouette_signals import SilhouetteSignals, detect_silhouette
 
 
 @dataclass
@@ -66,7 +66,7 @@ def analyze_reported(
     faces: Optional[List[Dict[str, Any]]] = None,
 ) -> FrameAnalysis:
     """Build analysis from client-reported hybrid signals (no raw frame)."""
-    from aoep_shared.vision.silhouette import silhouette_from_counts
+    from aoep_shared.vision.silhouette_signals import silhouette_from_counts
 
     sil = silhouette_from_counts(
         person_count=1 if silhouette_present else 0,

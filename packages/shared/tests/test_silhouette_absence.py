@@ -14,7 +14,7 @@ from aoep_shared.vision.absence import (
     AbsenceTracker,
     FramePresenceInput,
 )
-from aoep_shared.vision.silhouette import (
+from aoep_shared.vision.silhouette_signals import (
     detect_silhouette,
     silhouette_from_counts,
 )

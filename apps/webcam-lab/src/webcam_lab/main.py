@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from aoep_shared.config import load_config
-from aoep_shared.xai_voice import (
+from aoep_shared.xai_realtime import (
     XaiVoiceError,
     build_voice_session,
     mint_ephemeral_token,

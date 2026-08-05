@@ -1,51 +1,29 @@
-Webcam lab (PRIVATE) — build & test guide
-=========================================
+Webcam recognition lab (private build harness)
+==============================================
 
-Location
-  apps/webcam-lab/   (private sub-package inside the monorepo)
+Location: labs/webcam-recognition/
 
-What it covers
-  1. Webcam image recognition for solo + group classes
-  2. Theodore (AI) teaching and user self-teaching modes
-  3. xAI Grok Voice Agents for natural speech-to-speech replies
-  4. Silhouette detection (body present when face is turned away)
-  5. User absence tracking with presence-hold / re-engage hints
+Isolated sub-project for building and testing webcam image recognition used by
+solo and group classes:
 
-Modes
-  solo        — one learner; Theodore teaches via xAI voice persona
-  group       — up to 8 learners; Theodore group-host persona
-  self_teach  — learner leads; xAI coach persona quizzes / hints
+  - Silhouette detection (body shape when face is unclear)
+  - User absence holds (temporal miss streak)
+  - Theodore (AI) teaching and learner self-teaching modes
+  - xAI Grok Voice Agents for natural spoken replies
+    (wss://api.x.ai/v1/realtime?model=grok-voice-latest)
 
-Shared library pieces (promote from lab when stable)
-  aoep_shared.vision.silhouette   — HOG / energy silhouette detect
-  aoep_shared.vision.absence      — AbsenceTracker state machine
-  aoep_shared.xai_voice           — ephemeral tokens + session.update
+Run
+  pip install -e 'labs/webcam-recognition[vision,voice,server,test]'
+  cd labs/webcam-recognition && PYTHONPATH=src python3 -m pytest -q
+  PYTHONPATH=src python3 -m webcam_lab demo
+  PYTHONPATH=src python3 -m webcam_lab server   # http://localhost:8093
 
-Run locally
-  . .venv/bin/activate
-  pip install -e 'packages/shared[test]' -e 'apps/webcam-lab[test]'
-  export PYTHONPATH=apps/webcam-lab/src:packages/shared/src
-  python3 -m webcam_lab.main
-  # open http://localhost:8011/
+Extract as a standalone private GitHub repo (requires a token that can create
+repos under the org/user):
 
-Optional live xAI voice
-  export XAI_API_KEY=...
-  # /voice/token returns a real ephemeral client secret
-  # Browser connects with sec-websocket-protocol: xai-client-secret.<token>
+  labs/webcam-recognition/scripts/extract_private_repo.sh OWNER/REPO
 
-Key HTTP routes
-  GET  /health
-  POST /sessions
-  POST /sessions/{id}/participants/{pid}/presence
-  POST /analyze/frame          (multipart webcam still)
-  POST /analyze/report         (hybrid client-reported signals)
-  POST /voice/token            (xAI ephemeral + session.update)
-  GET  /                       (demo UI)
-
-Tests
-  python3 -m pytest apps/webcam-lab/tests packages/shared/tests/test_silhouette_absence.py packages/shared/tests/test_xai_voice.py -q
-
-Privacy
-  This lab is NOT on public ingress. Treat it as an internal sandbox.
-  Consent gates for biometric identity still apply when wiring into
-  perception / live rooms for production.
+Promotion path
+  Proven presence logic graduates into aoep_shared.vision + live-room presence
+  probes (apps/web live-room, services/perception). Keep this lab as the
+  experiment surface so production paths stay stable.
