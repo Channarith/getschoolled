@@ -192,6 +192,17 @@ class AppConfig(BaseModel):
     # Webcam vision service (presence + silhouette + voice agent hub).
     webcam_base_url: str = "http://webcam:8300"
 
+    # Multimodal model used for frame analysis by the vision-agent service.
+    xai_vision_model: str = "grok-2-vision-1212"
+
+    # Vision-agent service (webcam session manager).
+    # absence_threshold_s: seconds without face+silhouette before ABSENT fires.
+    # return_threshold_s:  seconds of presence to confirm a return.
+    vision_agent_absence_threshold_s: float = 5.0
+    vision_agent_return_threshold_s: float = 1.0
+    # Max concurrent webcam sessions (soft cap; excess 429s).
+    vision_agent_max_sessions: int = 200
+
     def mode_for(self, component: str) -> DeployMode:
         """Return the effective mode for ``component``."""
         if component not in COMPONENTS:
@@ -310,6 +321,16 @@ def load_config(
         yoomoney_api_key=get("YOOMONEY_API_KEY", ""),
         toss_api_key=get("TOSS_API_KEY", ""),
         local_psp_api_key=get("LOCAL_PSP_API_KEY", ""),
+        xai_vision_model=get("XAI_VISION_MODEL", "grok-2-vision-1212"),
+        vision_agent_absence_threshold_s=float(
+            get("VISION_AGENT_ABSENCE_THRESHOLD_S", "5.0") or "5.0"
+        ),
+        vision_agent_return_threshold_s=float(
+            get("VISION_AGENT_RETURN_THRESHOLD_S", "1.0") or "1.0"
+        ),
+        vision_agent_max_sessions=int(
+            get("VISION_AGENT_MAX_SESSIONS", "200") or "200"
+        ),
         bing_search_key=get("BING_SEARCH_KEY", ""),
         google_cse_key=get("GOOGLE_CSE_KEY", ""),
         google_cse_cx=get("GOOGLE_CSE_CX", ""),

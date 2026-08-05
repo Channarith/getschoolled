@@ -1,0 +1,9 @@
+Webcam Classroom lab - CHANGELOG
+================================
+(newest first)
+
+- 2026-08-04 - v0.1.0 - Initial private sub-repo: silhouette detection, user-absence
+  state machine (solo + group), xAI (Grok) voice agent (chat + Realtime voice-agent
+  session builder) with offline grounded fallback, and a ClassroomSession that ties
+  webcam signals to class pacing for Theodore-led and self-teaching modes. Includes
+  an offline demo CLI and a full pytest suite that runs with no network/GPU/key.

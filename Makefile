@@ -65,7 +65,7 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests labs/webcam-recognition/tests -q
 
 # Count collected tests + map them to the 16 ecosystem sub-apps (release gate).
 # MIN ratchets the per-sub-app minimum upward over time (0 = report only).
@@ -109,7 +109,7 @@ meeting-agents-lab:
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q \
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests labs/webcam-recognition/tests -q \
 		--cov=packages/shared/src/aoep_shared --cov-report=term-missing:skip-covered
 
 lint:
