@@ -272,6 +272,11 @@ export function normalizeVoicePauseSubmitMs(value: unknown, fallback = DEFAULT_V
 export type StartListeningOpts = {
   locale: string;
   onResult: (transcript: string) => void;
+  /**
+   * Live (interim) speech as it is recognised, before the learner pauses. Drive
+   * Mode shows this so the device visibly reacts while you are still talking.
+   */
+  onPartial?: (transcript: string) => void;
   onError: (code: string) => void;
   onEnd: () => void;
   continuous?: boolean;
@@ -322,6 +327,7 @@ function noteHeardSpeech(
   const text = (transcript || "").trim();
   if (!text) return;
   pendingTranscript = text;
+  opts.onPartial?.(text);
   if (!meta.autoSubmitOnPause) {
     if (meta.isFinal && !submittedForSession) {
       submittedForSession = true;
@@ -424,7 +430,14 @@ function startNativeListening(opts: StartListeningOpts): boolean {
     }),
     speech.addSpeechRecognitionListener("error", (event) => {
       const error = String(event.error ?? "");
-      if (error === "aborted" || error === "no-speech") return;
+      // "aborted" is our own stop. "no-speech" is only noise while ambient
+      // listening idles, but during a deliberate capture it is the whole
+      // problem the learner is reporting, so report it instead of hiding it.
+      if (error === "aborted") return;
+      if (error === "no-speech") {
+        if (autoSubmitOnPause && !submittedForSession) opts.onError("no_speech");
+        return;
+      }
       opts.onError(error || "recognition_error");
     }),
     speech.addSpeechRecognitionListener("end", () => {
