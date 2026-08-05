@@ -1,6 +1,14 @@
 Theodore Webcam Lab (private-ready subproject)
 ==============================================
 
+New here? Start with README.md - an illustrated walkthrough with screenshots,
+five numbered steps, and a troubleshooting table. This file is the full
+reference: every endpoint, every tuning knob, and the detailed test procedure.
+
+Not working? Run the step-by-step health check; it names the failing piece and
+how to fix it:
+   python3 subrepos/theodore_webcam_lab/scripts/selfcheck.py --serve
+
 Purpose
 -------
 This subproject isolates webcam-recognition and natural voice-agent prototyping
@@ -50,6 +58,8 @@ API highlights
 
 Screens
 -------
+- docs/screens/monitor-camera-and-tuning.webp           (in this subproject)
+- docs/screens/monitor-student-windows.webp             (in this subproject)
 - docs/screens/theodore_webcam_live_monitor.webp        (live monitor dashboard)
 - docs/screens/theodore_webcam_monitor_xss_escaped.webp (escaped-injection check)
 - docs/demos/theodore_webcam_live_monitor_demo.mp4      (walkthrough recording)
