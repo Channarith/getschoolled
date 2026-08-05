@@ -17,6 +17,12 @@ from .engagement import EngagementSignals, GestureRecognizer, estimate_engagemen
 from .engine import DetectedFace, FaceRecognitionEngine
 from .gallery import FaceGallery, Match
 from .silhouette import SilhouetteDetector, SilhouetteResult, estimate_silhouette_from_fraction
+from .silhouette_fusion import (
+    SilhouetteDetection,
+    SilhouetteSignals,
+    estimate_body_presence,
+    fuse_face_and_silhouette,
+)
 from .webcam_presence import PresenceFrame, PresenceMetrics, PresenceState, WebcamPresenceTracker
 
 __all__ = [
@@ -30,6 +36,10 @@ __all__ = [
     "SilhouetteDetector",
     "SilhouetteResult",
     "estimate_silhouette_from_fraction",
+    "SilhouetteDetection",
+    "SilhouetteSignals",
+    "estimate_body_presence",
+    "fuse_face_and_silhouette",
     "PresenceFrame",
     "PresenceMetrics",
     "PresenceState",
