@@ -279,7 +279,7 @@ def run() -> None:
 
     port = int(os.environ.get("WEBCAM_LAB_PORT", "8011"))
     uvicorn.run(
-        "webcam_lab.main:app",
+        "webcam_lab_app.main:app",
         host=os.environ.get("WEBCAM_LAB_HOST", "0.0.0.0"),
         port=port,
         reload=os.environ.get("WEBCAM_LAB_RELOAD", "").lower() in ("1", "true", "yes"),

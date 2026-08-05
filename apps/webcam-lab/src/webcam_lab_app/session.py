@@ -144,7 +144,7 @@ class LabSessionStore:
             participant_id=f"p-{uuid.uuid4().hex[:8]}",
             display_name=host_name or "Learner",
             role=role,
-            tracker=AbsenceTracker(f"p-pending", policy=self._policy),
+            tracker=AbsenceTracker("p-pending", policy=self._policy),
         )
         primary.tracker = AbsenceTracker(primary.participant_id, policy=self._policy)
         session.participants[primary.participant_id] = primary

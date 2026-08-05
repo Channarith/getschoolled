@@ -7,18 +7,18 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi.testclient import TestClient
 
-from webcam_lab.main import STORE, app
-from webcam_lab.session import LabSessionStore
+from webcam_lab_app.main import STORE, app
+from webcam_lab_app.session import LabSessionStore
 
 
 @pytest.fixture()
 def client(monkeypatch):
     # Fresh store per test.
     fresh = LabSessionStore()
-    monkeypatch.setattr("webcam_lab.main.STORE", fresh)
+    monkeypatch.setattr("webcam_lab_app.main.STORE", fresh)
     # Also patch module-level reference used by handlers via closure — handlers
     # import STORE from main at call time through the module global.
-    import webcam_lab.main as main_mod
+    import webcam_lab_app.main as main_mod
 
     monkeypatch.setattr(main_mod, "STORE", fresh)
     with TestClient(main_mod.app) as c:

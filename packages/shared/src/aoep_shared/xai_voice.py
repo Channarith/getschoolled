@@ -36,7 +36,7 @@ import base64
 import json
 import urllib.error
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterator, List, Optional
 
 # --------------------------------------------------------------------------- #

@@ -16,7 +16,7 @@ Purpose
 Distribution
   aoep-webcam-lab
 Entrypoint
-  python3 -m webcam_lab.main
+  python3 -m webcam_lab_app.main
   (uvicorn on :8011 by default; WEBCAM_LAB_PORT overrides)
 
 Capabilities exercised here

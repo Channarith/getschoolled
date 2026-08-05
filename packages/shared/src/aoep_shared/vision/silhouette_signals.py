@@ -213,15 +213,13 @@ def detect_silhouette(
     h, w = bgr.shape[:2]
     observations: List[SilhouetteObservation] = []
 
-    used_hog = False
     if prefer_hog:
         try:
             import cv2  # noqa: F401
 
             observations = _hog_detect(bgr)
-            used_hog = True
         except Exception:
-            used_hog = False
+            observations = []
 
     if not observations:
         # Grayscale energy fallback (works with or without OpenCV).
@@ -231,7 +229,6 @@ def detect_silhouette(
 
                 gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
             except Exception:
-                import numpy as np
 
                 gray = bgr.mean(axis=2).astype("uint8") if bgr.ndim == 3 else bgr
         else:

@@ -163,7 +163,6 @@ class PresenceTracker:
 
         now = frame.timestamp
         event: Optional[PresenceEvent] = None
-        prev_state = self._state
 
         if frame.face_present:
             # Clear absence tracking.
