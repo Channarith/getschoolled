@@ -175,6 +175,14 @@ class AppConfig(BaseModel):
     # speech gateway prefers it over ElevenLabs/edge-tts for narration.
     cosyvoice_url: str = ""
     cosyvoice_api_key: str = ""
+    # xAI Grok realtime voice agent (natural spoken communication for Theodore,
+    # the AI teacher). Server-side duplex audio over wss://api.x.ai/v1/realtime;
+    # browser/mobile clients get ephemeral tokens minted server-side so the API
+    # key never ships to a device. Empty key => callers fall back to the
+    # platform speech chain (ElevenLabs -> edge-tts -> on-device).
+    xai_realtime_url: str = "wss://api.x.ai/v1/realtime"
+    xai_text_model: str = "grok-3-latest"
+    xai_voice: str = "eve"
     # Embodiment: screen avatar (default) or a humanoid robot (Phases 14-15).
     embodiment: str = "screen"   # screen | robot
     robot_endpoint: str = ""
@@ -289,6 +297,9 @@ def load_config(
         xai_voice_id=get("XAI_VOICE_ID", "eve"),
         cosyvoice_url=get("COSYVOICE_URL", ""),
         cosyvoice_api_key=get("COSYVOICE_API_KEY", ""),
+        xai_realtime_url=get("XAI_REALTIME_URL", "wss://api.x.ai/v1/realtime"),
+        xai_text_model=get("XAI_TEXT_MODEL", "grok-3-latest"),
+        xai_voice=get("XAI_VOICE", "eve"),
         ocr_endpoint=get("OCR_ENDPOINT", ""),
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),
@@ -334,7 +345,7 @@ def load_config(
         brave_search_key=get("BRAVE_SEARCH_KEY", ""),
         kagi_api_key=get("KAGI_API_KEY", ""),
         baidu_api_key=get("BAIDU_API_KEY", ""),
-        xai_api_key=get("XAI_API_KEY", ""),
+        xai_api_key=get_stripped("XAI_API_KEY", ""),
         xai_base_url=get("XAI_BASE_URL", "https://api.x.ai/v1"),
         xai_model=get("XAI_MODEL", "grok-2-1212"),
         xai_audio_model=get("XAI_AUDIO_MODEL", "grok-2-audio"),
