@@ -38,6 +38,25 @@ jobs:
       - name: Run tests
         run: python3 -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests -q
 
+  webcam-lab:
+    # labs/theodore-webcam is a self-contained private sub-repo: it is not in
+    # the monorepo pytest glob above, so it gets its own build + test job.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: labs/theodore-webcam
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install the lab (editable)
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e ".[test]"
+      - name: Run lab tests
+        run: python3 -m pytest -q
+
   web:
     runs-on: ubuntu-latest
     defaults:
