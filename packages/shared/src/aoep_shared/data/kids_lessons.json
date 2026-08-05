@@ -1,0 +1,540 @@
+{
+  "kids-abc-adventures": {
+    "id": "kids-abc-adventures",
+    "title": "ABC Adventures",
+    "emoji": "🔤",
+    "color": "#7c3aed",
+    "scenes": [
+      {
+        "title": "A is for Apple",
+        "instruction": "Say the sound: A, A, apple!",
+        "pictures": [
+          "🔤",
+          "🍎"
+        ],
+        "labels": [
+          "A",
+          "APPLE"
+        ],
+        "question": "Which picture starts with A?",
+        "choices": [
+          "🍎 Apple",
+          "🐶 Dog",
+          "🚗 Car"
+        ],
+        "answer": "🍎 Apple"
+      },
+      {
+        "title": "B is for Bear",
+        "instruction": "Bounce the B sound: B, B, bear!",
+        "pictures": [
+          "🅱️",
+          "🐻"
+        ],
+        "labels": [
+          "B",
+          "BEAR"
+        ],
+        "question": "Which picture starts with B?",
+        "choices": [
+          "☀️ Sun",
+          "🐻 Bear",
+          "🐱 Cat"
+        ],
+        "answer": "🐻 Bear"
+      },
+      {
+        "title": "C is for Car",
+        "instruction": "Click-clack! C, C, car!",
+        "pictures": [
+          "©️",
+          "🚗"
+        ],
+        "labels": [
+          "C",
+          "CAR"
+        ],
+        "question": "Which picture starts with C?",
+        "choices": [
+          "🚗 Car",
+          "🐟 Fish",
+          "🌙 Moon"
+        ],
+        "answer": "🚗 Car"
+      }
+    ]
+  },
+  "kids-first-words": {
+    "id": "kids-first-words",
+    "title": "Read My First Words",
+    "emoji": "📖",
+    "color": "#db2777",
+    "scenes": [
+      {
+        "title": "C-A-T says CAT",
+        "instruction": "Tap each sound in your voice: C… A… T.",
+        "pictures": [
+          "🐱"
+        ],
+        "labels": [
+          "C  A  T",
+          "CAT"
+        ],
+        "question": "Which word matches the picture?",
+        "choices": [
+          "CAT",
+          "SUN",
+          "CAR"
+        ],
+        "answer": "CAT"
+      },
+      {
+        "title": "S-U-N says SUN",
+        "instruction": "Blend it together: S… U… N!",
+        "pictures": [
+          "☀️"
+        ],
+        "labels": [
+          "S  U  N",
+          "SUN"
+        ],
+        "question": "Which word matches the picture?",
+        "choices": [
+          "DOG",
+          "SUN",
+          "PEN"
+        ],
+        "answer": "SUN"
+      },
+      {
+        "title": "I see a DOG",
+        "instruction": "Read the little sentence aloud.",
+        "pictures": [
+          "👀",
+          "🐶"
+        ],
+        "labels": [
+          "I SEE A DOG"
+        ],
+        "question": "What did you see?",
+        "choices": [
+          "A DOG",
+          "A BUS",
+          "A HAT"
+        ],
+        "answer": "A DOG"
+      }
+    ]
+  },
+  "kids-writing-trails": {
+    "id": "kids-writing-trails",
+    "title": "Write Letters & Numbers",
+    "emoji": "✏️",
+    "color": "#ea580c",
+    "scenes": [
+      {
+        "title": "Trace a Big A",
+        "instruction": "Start at the top. Slide down, slide down, then cross!",
+        "pictures": [
+          "✏️",
+          "Ａ"
+        ],
+        "labels": [
+          "① ↘  ② ↙  ③ →"
+        ],
+        "question": "Where do we start?",
+        "choices": [
+          "At the top",
+          "At the bottom",
+          "In the middle"
+        ],
+        "answer": "At the top"
+      },
+      {
+        "title": "Make a Round O",
+        "instruction": "Start at the top and travel all the way around.",
+        "pictures": [
+          "🖍️",
+          "Ｏ"
+        ],
+        "labels": [
+          "↺ ROUND AND ROUND"
+        ],
+        "question": "What shape is O?",
+        "choices": [
+          "Round",
+          "Square",
+          "Pointy"
+        ],
+        "answer": "Round"
+      },
+      {
+        "title": "Write Number 2",
+        "instruction": "Curve around, slide down, then skate across.",
+        "pictures": [
+          "✍️",
+          "２"
+        ],
+        "labels": [
+          "CURVE ↷  DOWN ↙  ACROSS →"
+        ],
+        "question": "Which number did we write?",
+        "choices": [
+          "1",
+          "2",
+          "5"
+        ],
+        "answer": "2"
+      }
+    ]
+  },
+  "kids-telling-time": {
+    "id": "kids-telling-time",
+    "title": "Tell Time with Ticky",
+    "emoji": "🕰️",
+    "color": "#0284c7",
+    "scenes": [
+      {
+        "title": "One O'Clock",
+        "instruction": "The long hand points to 12. The short hand points to 1.",
+        "pictures": [
+          "🕐"
+        ],
+        "labels": [
+          "1:00"
+        ],
+        "question": "What time is it?",
+        "choices": [
+          "1 o'clock",
+          "3 o'clock",
+          "6 o'clock"
+        ],
+        "answer": "1 o'clock"
+      },
+      {
+        "title": "Three O'Clock",
+        "instruction": "Long hand at 12, short hand at 3. Time for a snack!",
+        "pictures": [
+          "🕒",
+          "🍎"
+        ],
+        "labels": [
+          "3:00"
+        ],
+        "question": "Where does the short hand point?",
+        "choices": [
+          "12",
+          "3",
+          "9"
+        ],
+        "answer": "3"
+      },
+      {
+        "title": "Half Past Six",
+        "instruction": "The long hand points down to 6. That means half past!",
+        "pictures": [
+          "🕡",
+          "🌅"
+        ],
+        "labels": [
+          "6:30"
+        ],
+        "question": "Which time means half past six?",
+        "choices": [
+          "6:00",
+          "6:30",
+          "7:30"
+        ],
+        "answer": "6:30"
+      }
+    ]
+  },
+  "kids-animal-friends": {
+    "id": "kids-animal-friends",
+    "title": "Meet the Animal Friends",
+    "emoji": "🦁",
+    "color": "#16a34a",
+    "scenes": [
+      {
+        "title": "Farm Friends",
+        "instruction": "The cow says moo and lives on a farm.",
+        "pictures": [
+          "🐄",
+          "🚜",
+          "🌾"
+        ],
+        "labels": [
+          "COW",
+          "FARM"
+        ],
+        "question": "Which animal says moo?",
+        "choices": [
+          "🐄 Cow",
+          "🐱 Cat",
+          "🦆 Duck"
+        ],
+        "answer": "🐄 Cow"
+      },
+      {
+        "title": "Ocean Friends",
+        "instruction": "Fish use fins to swim through water.",
+        "pictures": [
+          "🐠",
+          "🌊",
+          "🪸"
+        ],
+        "labels": [
+          "FISH",
+          "OCEAN"
+        ],
+        "question": "Where does a fish live?",
+        "choices": [
+          "In water",
+          "In a tree",
+          "In a nest"
+        ],
+        "answer": "In water"
+      },
+      {
+        "title": "Jungle Friends",
+        "instruction": "Monkeys climb, swing, and love fruit.",
+        "pictures": [
+          "🐒",
+          "🌴",
+          "🍌"
+        ],
+        "labels": [
+          "MONKEY",
+          "JUNGLE"
+        ],
+        "question": "What does the monkey like?",
+        "choices": [
+          "🍌 Banana",
+          "🚗 Car",
+          "✏️ Pencil"
+        ],
+        "answer": "🍌 Banana"
+      }
+    ]
+  },
+  "kids-everyday-objects": {
+    "id": "kids-everyday-objects",
+    "title": "What Is That?",
+    "emoji": "🧸",
+    "color": "#c026d3",
+    "scenes": [
+      {
+        "title": "Things That Move",
+        "instruction": "Cars and buses carry people from place to place.",
+        "pictures": [
+          "🚗",
+          "🚌",
+          "🚲"
+        ],
+        "labels": [
+          "CAR",
+          "BUS",
+          "BIKE"
+        ],
+        "question": "Which one has four wheels?",
+        "choices": [
+          "🚗 Car",
+          "🖊️ Pen",
+          "🧸 Toy"
+        ],
+        "answer": "🚗 Car"
+      },
+      {
+        "title": "Things We Play With",
+        "instruction": "Toys can be dolls, blocks, balls, and bears.",
+        "pictures": [
+          "🪆",
+          "🧱",
+          "🧸",
+          "⚽"
+        ],
+        "labels": [
+          "DOLL",
+          "BLOCKS",
+          "BEAR",
+          "BALL"
+        ],
+        "question": "Which object is a toy?",
+        "choices": [
+          "🧸 Teddy bear",
+          "🏢 Building",
+          "🖊️ Pen"
+        ],
+        "answer": "🧸 Teddy bear"
+      },
+      {
+        "title": "Things at School",
+        "instruction": "We use pens and pencils to draw and write.",
+        "pictures": [
+          "🖊️",
+          "✏️",
+          "📚",
+          "🏫"
+        ],
+        "labels": [
+          "PEN",
+          "PENCIL",
+          "BOOKS",
+          "SCHOOL"
+        ],
+        "question": "What can you write with?",
+        "choices": [
+          "✏️ Pencil",
+          "🚙 Car",
+          "🏠 House"
+        ],
+        "answer": "✏️ Pencil"
+      }
+    ]
+  },
+  "kids-connect-the-dots": {
+    "id": "kids-connect-the-dots",
+    "title": "Connect the Dots & Discover",
+    "emoji": "✨",
+    "color": "#0891b2",
+    "scenes": [
+      {
+        "title": "Count 1 to 5",
+        "instruction": "Follow the dots in number order.",
+        "pictures": [
+          "①",
+          "②",
+          "③",
+          "④",
+          "⑤",
+          "⭐"
+        ],
+        "labels": [
+          "1 → 2 → 3 → 4 → 5"
+        ],
+        "question": "What comes after 3?",
+        "choices": [
+          "2",
+          "4",
+          "5"
+        ],
+        "answer": "4"
+      },
+      {
+        "title": "Make a Triangle",
+        "instruction": "Connect three dots and discover a shape.",
+        "pictures": [
+          "①",
+          "②",
+          "③",
+          "🔺"
+        ],
+        "labels": [
+          "THREE SIDES"
+        ],
+        "question": "How many sides does a triangle have?",
+        "choices": [
+          "2",
+          "3",
+          "4"
+        ],
+        "answer": "3"
+      },
+      {
+        "title": "Reveal a Fish",
+        "instruction": "Connect the dots and watch the fish appear!",
+        "pictures": [
+          "①",
+          "②",
+          "③",
+          "④",
+          "⑤",
+          "🐟"
+        ],
+        "labels": [
+          "SPLASH!"
+        ],
+        "question": "What picture did we discover?",
+        "choices": [
+          "🐟 Fish",
+          "🚗 Car",
+          "🌳 Tree"
+        ],
+        "answer": "🐟 Fish"
+      }
+    ]
+  },
+  "kids-shapes-colors": {
+    "id": "kids-shapes-colors",
+    "title": "Shapes & Colors Parade",
+    "emoji": "🔷",
+    "color": "#4f46e5",
+    "scenes": [
+      {
+        "title": "Circle Hunt",
+        "instruction": "Circles are round with no corners.",
+        "pictures": [
+          "🔴",
+          "⚽",
+          "☀️"
+        ],
+        "labels": [
+          "CIRCLE",
+          "BALL",
+          "SUN"
+        ],
+        "question": "Which object is round?",
+        "choices": [
+          "⚽ Ball",
+          "📕 Book",
+          "🚪 Door"
+        ],
+        "answer": "⚽ Ball"
+      },
+      {
+        "title": "Triangle Hunt",
+        "instruction": "Triangles have three straight sides.",
+        "pictures": [
+          "🔺",
+          "🍕",
+          "⛺"
+        ],
+        "labels": [
+          "TRIANGLE",
+          "PIZZA",
+          "TENT"
+        ],
+        "question": "Which food looks like a triangle?",
+        "choices": [
+          "🍕 Pizza",
+          "🍎 Apple",
+          "🍪 Cookie"
+        ],
+        "answer": "🍕 Pizza"
+      },
+      {
+        "title": "Color Parade",
+        "instruction": "Find red, yellow, blue, and green.",
+        "pictures": [
+          "🔴",
+          "🟡",
+          "🔵",
+          "🟢"
+        ],
+        "labels": [
+          "RED",
+          "YELLOW",
+          "BLUE",
+          "GREEN"
+        ],
+        "question": "Which circle is blue?",
+        "choices": [
+          "🔴 Red",
+          "🔵 Blue",
+          "🟢 Green"
+        ],
+        "answer": "🔵 Blue"
+      }
+    ]
+  }
+}

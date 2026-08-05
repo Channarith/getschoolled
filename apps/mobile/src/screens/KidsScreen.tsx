@@ -11,7 +11,7 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 
 interface KidsScreenProps {
-  onOpenCourse: (id: string) => void;
+  onOpenCourse: (id: string, deepLink?: string) => void;
   onBack: () => void;
 }
 
@@ -93,7 +93,7 @@ export default function KidsScreen({ onOpenCourse, onBack }: KidsScreenProps) {
                   title={c.title}
                   category={c.category}
                   format={c.format}
-                  onPress={() => onOpenCourse(c.course_id)}
+                  onPress={() => onOpenCourse(c.course_id, c.deep_link)}
                 />
               )}
             />
