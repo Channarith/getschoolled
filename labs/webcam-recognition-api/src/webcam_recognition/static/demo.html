@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Webcam Recognition Lab</title>
+<style>
+  :root { --bg:#0b1020; --card:#141a2e; --border:#26304d; --fg:#e7ecff; --muted:#9aa6c7; --accent:#4f7cff; --ok:#16a34a; --warn:#e11d48; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .muted { color: var(--muted); }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-top:16px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  video { width:100%; max-width:520px; border-radius:12px; background:#000; }
+  button { padding:10px 16px; border-radius:8px; border:1px solid var(--border); background:var(--accent); color:#fff; cursor:pointer; font-size:14px; }
+  button.secondary { background:#1e2743; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  select, input { padding:9px; border-radius:8px; border:1px solid var(--border); background:#0e1428; color:var(--fg); }
+  .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; border:1px solid var(--border); }
+  .present { background:rgba(22,163,74,.18); border-color:#16a34a; }
+  .absent { background:rgba(225,29,72,.18); border-color:#e11d48; }
+  .stat { font-size:28px; font-weight:600; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap:12px; }
+  #log { max-height:260px; overflow:auto; display:flex; flex-direction:column; gap:8px; }
+  .msg { padding:8px 12px; border-radius:10px; background:#0e1428; border:1px solid var(--border); }
+  .msg .who { color:var(--accent); font-weight:600; }
+  canvas { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Webcam Recognition Lab</h1>
+  <p class="muted">Silhouette detection + user-absence for solo &amp; group classes, with the Theodore (xAI) voice agent. The camera feed stays in your browser; only a JPEG frame is posted for recognition.</p>
+
+  <div class="card">
+    <div class="row">
+      <label>Class:
+        <select id="mode">
+          <option value="solo">Solo</option>
+          <option value="group">Group</option>
+        </select>
+      </label>
+      <label>Teaching:
+        <select id="teaching">
+          <option value="theodore">Theodore (AI teaches)</option>
+          <option value="self">Self-teaching</option>
+        </select>
+      </label>
+      <label>Topic: <input id="topic" placeholder="e.g. fractions" /></label>
+      <button id="start">Start class</button>
+      <button id="stop" class="secondary" disabled>Stop</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="align-items:flex-start;">
+      <video id="video" playsinline muted></video>
+      <div style="flex:1; min-width:220px;">
+        <div class="grid">
+          <div><div class="muted">Presence</div><div><span id="presence" class="pill">—</span></div></div>
+          <div><div class="muted">People</div><div class="stat" id="people">0</div></div>
+          <div><div class="muted">Faces</div><div class="stat" id="faces">0</div></div>
+          <div><div class="muted">Attention</div><div class="stat" id="attention">—</div></div>
+        </div>
+        <p class="muted" id="engine" style="margin-top:12px;">idle</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Theodore says</h3>
+    <div id="log"><div class="msg muted">The agent's spoken responses to classroom events will appear here.</div></div>
+    <div class="row" style="margin-top:12px;">
+      <input id="say" placeholder="Ask Theodore a question…" style="flex:1; min-width:200px;" />
+      <button id="sayBtn" class="secondary">Send</button>
+      <label class="muted"><input type="checkbox" id="tts" checked /> speak aloud</label>
+    </div>
+  </div>
+</div>
+
+<canvas id="canvas"></canvas>
+<script>
+const $ = (id) => document.getElementById(id);
+let stream = null, timer = null, sessionId = null, mode = "solo";
+
+function log(who, text) {
+  const el = document.createElement("div");
+  el.className = "msg";
+  el.innerHTML = `<span class="who">${who}:</span> ${text}`;
+  $("log").appendChild(el);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+function speak(text) {
+  if (!$("tts").checked || !window.speechSynthesis) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 1.0; u.pitch = 1.0;
+  window.speechSynthesis.speak(u);
+}
+function handleActions(actions) {
+  (actions || []).forEach((a) => {
+    if (a.reply && a.reply.text) { log("Theodore", a.reply.text); speak(a.reply.text); }
+  });
+}
+
+async function startClass() {
+  mode = $("mode").value;
+  sessionId = "web-" + Date.now();
+  await fetch("/sessions", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      session_id: sessionId, mode,
+      teaching_mode: $("teaching").value, topic: $("topic").value,
+    }),
+  });
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    $("video").srcObject = stream;
+    await $("video").play();
+  } catch (e) { $("engine").textContent = "camera unavailable: " + e; }
+  $("start").disabled = true; $("stop").disabled = false;
+  $("engine").textContent = "running — analyzing every 1.5s";
+  timer = setInterval(tick, 1500);
+}
+
+function stopClass() {
+  clearInterval(timer); timer = null;
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  $("video").srcObject = null;
+  $("start").disabled = false; $("stop").disabled = true;
+  $("engine").textContent = "stopped";
+}
+
+async function tick() {
+  const v = $("video");
+  if (!v.videoWidth) return;
+  const c = $("canvas");
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+  const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.7));
+  const fd = new FormData();
+  fd.append("file", blob, "frame.jpg");
+  let p;
+  try {
+    p = await (await fetch("/analyze", { method: "POST", body: fd })).json();
+  } catch (e) { return; }
+
+  $("people").textContent = p.people_count;
+  $("faces").textContent = p.face_count;
+  $("attention").textContent = p.face_count ? p.attention.toFixed(2) : "—";
+  const badge = $("presence");
+  badge.textContent = p.person_present ? "present" : "away";
+  badge.className = "pill " + (p.person_present ? "present" : "absent");
+
+  // Drive the session presence/absence state machine + teaching agent.
+  const body = mode === "group"
+    ? { present_ids: p.matched_student_ids && p.matched_student_ids.length ? p.matched_student_ids : (p.person_present ? ["learner"] : []) }
+    : { person_present: p.person_present, face_count: p.face_count, attention: p.attention };
+  try {
+    const res = await (await fetch(`/sessions/${sessionId}/frame`, {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body),
+    })).json();
+    handleActions(res.actions);
+  } catch (e) {}
+}
+
+async function sendMessage() {
+  const text = $("say").value.trim();
+  if (!text) return;
+  log("You", text); $("say").value = "";
+  if (!sessionId) {
+    const r = await (await fetch("/agent/respond", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ user_message: text, topic: $("topic").value }),
+    })).json();
+    log("Theodore", r.text); speak(r.text); return;
+  }
+  const a = await (await fetch(`/sessions/${sessionId}/say`, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ message: text }),
+  })).json();
+  if (a.reply) { log("Theodore", a.reply.text); speak(a.reply.text); }
+}
+
+$("start").onclick = startClass;
+$("stop").onclick = stopClass;
+$("sayBtn").onclick = sendMessage;
+$("say").addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+</script>
+</body>
+</html>

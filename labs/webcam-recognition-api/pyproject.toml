@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoep-webcam-recognition"
+version = "0.1.0"
+description = "Self-contained lab for webcam image recognition (silhouette + user-absence), solo/group class presence, and an xAI (Grok) voice agent for Theodore-led and self-teaching."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.111.0",
+    "uvicorn[standard]==0.30.1",
+    "pydantic==2.7.4",
+    "python-multipart==0.0.32",
+]
+
+[project.optional-dependencies]
+# Real webcam image recognition (CPU-only, self-hosted). Face detection/engagement
+# reuse the monorepo's aoep_shared vision engine when the package is importable.
+vision = [
+    "opencv-contrib-python-headless==4.10.0.84",
+    "numpy==1.26.4",
+]
+test = [
+    "pytest==8.2.2",
+    "httpx==0.27.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+webcam_recognition = ["static/*.html"]
