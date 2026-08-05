@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Animated, Easing, Modal, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -50,6 +50,11 @@ export default function DriveModeScreen({
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
+  // Ambient hands-free and a deliberate tap-to-speak are different things. One
+  // shared flag made "Ask" claim it was listening before you ever tapped it.
+  const [capturing, setCapturing] = useState(false);
+  const [partialTranscript, setPartialTranscript] = useState("");
+  const micPulse = useRef(new Animated.Value(0)).current;
   const [autoListen, setAutoListen] = useState(true);   // hands-free: mic always on
   const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
   const [voiceId, setVoiceId] = useState("");
@@ -292,32 +297,77 @@ export default function DriveModeScreen({
     setListening(false);
   }
 
+  // A visible heartbeat while the mic is open: text alone was too easy to miss,
+  // which is why the device looked like it was not listening.
+  const micLive = capturing || (autoListen && listening);
+  useEffect(() => {
+    if (!micLive) {
+      micPulse.stopAnimation();
+      micPulse.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(micPulse, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(micPulse, {
+          toValue: 0,
+          duration: 700,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [micLive, micPulse]);
+
+  /** Cancel a deliberate capture without waiting for the silence timer. */
+  function stopCapture() {
+    stopVoiceRecognition();
+    setCapturing(false);
+    setPartialTranscript("");
+    setAssistantStatus("");
+    if (autoListenRef.current) setTimeout(() => { void startAmbient(); }, 300);
+  }
+
   function toggleAutoListen() {
     if (autoListen) { setAutoListen(false); stopAmbient(); }
     else { setAutoListen(true); autoListenRef.current = true; void startAmbient(); }
   }
 
-  async function startVoiceRecognition(expectWakeWord = true) {
+  async function startVoiceRecognition(expectWakeWord = false) {
+    // Tapping the mic IS the wake signal, so a spoken wake word is never
+    // required here; only ambient listening needs "Hey Sala".
     expectWakeRef.current = expectWakeWord;
     // Suspend ambient so only one recognizer is active during the manual capture.
     stopAmbientListening();
-    pauseForAssistant(expectWakeWord
-      ? t("drive.listeningWake", { engine: voiceEngine })
-      : t("drive.listeningQuestion"));
+    setPartialTranscript("");
+    pauseForAssistant(t("drive.listeningQuestion"));
 
     const started = await startVoiceListening({
-      locale,
+      // Recognise in the language the lesson is taught in, not the UI language.
+      locale: trainingLang || locale,
       pauseSubmitMs,
       autoSubmitOnPause: true,
+      onPartial: (text) => setPartialTranscript(text),
       onResult: (text) => {
-        setListening(false);
+        setCapturing(false);
+        setPartialTranscript("");
         setAssistantTranscript(text);
         void handleSpokenInput(text, expectWakeRef.current);
       },
       onError: (code) => {
-        setListening(false);
+        setCapturing(false);
+        setPartialTranscript("");
         if (code === "permission_denied") {
           setAssistantStatus(t("drive.voicePermissionDenied", { engine: voiceEngine }));
+        } else if (code === "no_speech") {
+          setAssistantStatus(t("drive.noSpeechHeard"));
         } else if (code === "unavailable") {
           setAssistantStatus(t("drive.voiceUnavailable", { engine: voiceEngine }));
         } else {
@@ -325,13 +375,14 @@ export default function DriveModeScreen({
         }
       },
       onEnd: () => {
-        setListening(false);
+        setCapturing(false);
+        setPartialTranscript("");
         // Resume hands-free ambient listening after the manual one-shot.
         if (autoListenRef.current) setTimeout(() => { void startAmbient(); }, 500);
       },
     });
 
-    if (started) setListening(true);
+    setCapturing(started);
   }
 
   async function handleSpokenInput(raw: string, expectWakeWord: boolean) {
@@ -520,6 +571,28 @@ export default function DriveModeScreen({
           {"\n"}
           {t("drive.autoSubmitHint", { seconds: (pauseSubmitMs / 1000).toFixed(1) })}
         </Text>
+        {micLive ? (
+          <View style={styles.micLiveRow} testID="drive-listening-indicator">
+            <Animated.View
+              style={[
+                styles.micDot,
+                {
+                  opacity: micPulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }),
+                  transform: [
+                    { scale: micPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) },
+                  ],
+                },
+              ]}
+            />
+            <Text style={styles.micLiveText} numberOfLines={2}>
+              {partialTranscript
+                ? partialTranscript
+                : capturing
+                  ? t("drive.listeningQuestion")
+                  : t("drive.assistantWake", { engine: voiceEngine })}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.assistantActions}>
           <AnimatedPressable
             style={[styles.assistantBtn, autoListen ? undefined : styles.assistantBtnGhost]}
@@ -527,13 +600,21 @@ export default function DriveModeScreen({
           >
             <Ionicons name={autoListen ? "radio" : "mic-off"} size={16} color={autoListen ? "#001022" : "#9aa6c2"} />
             <Text style={autoListen ? styles.assistantBtnText : styles.assistantBtnGhostText}>
-              {autoListen ? (listening ? "Listening — say Hey Sala" : "Hands-free on") : "Hands-free off"}
+              {autoListen
+                ? listening
+                  ? t("drive.handsFreeListening", { engine: voiceEngine })
+                  : t("drive.handsFreeOn")
+                : t("drive.handsFreeOff")}
             </Text>
           </AnimatedPressable>
-          <AnimatedPressable style={styles.assistantBtn} onPress={() => void startVoiceRecognition(true)}>
-            <Ionicons name="mic" size={16} color="#001022" />
+          <AnimatedPressable
+            testID="drive-ask"
+            style={styles.assistantBtn}
+            onPress={() => (capturing ? stopCapture() : void startVoiceRecognition(false))}
+          >
+            <Ionicons name={capturing ? "stop" : "mic"} size={16} color="#001022" />
             <Text style={styles.assistantBtnText}>
-              {listening ? t("drive.listening") : t("drive.ask")}
+              {capturing ? t("drive.stopListening") : t("drive.ask")}
             </Text>
           </AnimatedPressable>
           <AnimatedPressable
@@ -747,6 +828,20 @@ const styles = StyleSheet.create({
   speedChipTextOn: { color: "#fff" },
   langLabel: { color: theme.colors.muted, marginBottom: 8, ...theme.typography.caption },
   langRow: { flexDirection: "row", gap: 8, paddingBottom: 4, marginBottom: 4 },
+  micLiveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(46,204,113,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(46,204,113,0.45)",
+  },
+  micDot: { width: 10, height: 10, borderRadius: 999, backgroundColor: "#2ecc71" },
+  micLiveText: { flex: 1, color: "#d6f5e3", fontSize: 12, fontWeight: "600" },
   langChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,

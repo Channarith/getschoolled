@@ -151,6 +151,10 @@ class GroupClass:
     description: str = ""
     created_by_account_id: str = ""
     instructor_account_id: str = ""
+    # True when a person teaches this class ("Teach a class"). instructor_account_id
+    # cannot carry this on its own: it falls back to created_by_account_id, so a
+    # student-scheduled study group would look instructor-led and lose Theodore.
+    human_taught: bool = False
     instructor_name: str = ""
     marketplace_listing: bool = False
     audit_required: bool = False
