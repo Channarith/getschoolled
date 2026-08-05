@@ -2852,7 +2852,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   fill
                   fullscreen={isFullscreen}
                   localStream={iAmHost && cameraOn ? localStream : null}
-                  liveKitTrack={iAmHost && !cameraOn ? null : trackFor(host.id)}
+                  liveKitTrack={iAmHost && cameraOn ? null : trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
                     index: 0,
                     title: "Welcome to Transparent AI",
@@ -3258,7 +3258,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                           showAdminProfile={canModerate}
                           fill
                           localStream={p.id === me?.id && cameraOn ? localStream : null}
-                          liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
+                          liveKitTrack={p.id === me?.id && cameraOn ? null : trackFor(p.id)}
                           hasFloor={onFloor}
                           isMe={p.id === me?.id}
                           presenceFaceCount={p.id === me?.id ? presenceFaceCount : undefined}
@@ -3275,7 +3275,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       +{studentLearners.length - 8}
                     </span>
                   ) : null}
-                  {Array.from({ length: Math.max(0, Math.min(emptySlots, 5 - studentLearners.length)) }).map((_, i) => (
+                  {Array.from({ length: Math.min(emptySlots, Math.max(0, 8 - studentLearners.length)) }).map((_, i) => (
                     <span
                       key={`ph-${i}`}
                       aria-hidden
