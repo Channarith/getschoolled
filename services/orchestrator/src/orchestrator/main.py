@@ -1429,6 +1429,27 @@ def _group_class_payload(gc) -> dict:
     return payload
 
 
+def _human_taught_kwargs(gc) -> dict:
+    """Room kwargs marking a class as taught by a person rather than Theodore.
+
+    A class scheduled by an instructor (as opposed to a student study group, which
+    only carries created_by_account_id) is human-taught: the instructor presents,
+    so no AI host is placed in the room.
+    """
+    instructor_account = (getattr(gc, "instructor_account_id", "") or "").strip()
+    if not getattr(gc, "human_taught", False) or not instructor_account:
+        return {}
+    return {
+        "human_taught": True,
+        "human_host_account_id": instructor_account,
+        "human_host_name": (
+            (getattr(gc, "instructor_name", "") or "").strip()
+            or (getattr(gc, "host", "") or "").strip()
+            or "Instructor"
+        ),
+    }
+
+
 def _class_host_is_caller(gc, authorization: str) -> bool:
     from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
 
@@ -1606,6 +1627,19 @@ def schedule_group_class(
     if account_id and not req.is_student_session:
         payload["instructor_account_id"] = account_id
         payload["created_by_account_id"] = account_id
+        # A signed-in user scheduling a non-student session is teaching it.
+        payload["human_taught"] = True
+        # Label it with the person's name: the "Salareen AI" default would claim an
+        # AI teaches a class that a human actually teaches.
+        from aoep_shared.live_room_rewards import display_name_from_authorization
+
+        teacher_name = (payload.get("instructor_name") or "").strip() or (
+            display_name_from_authorization(authorization) or ""
+        )
+        if teacher_name:
+            payload["instructor_name"] = teacher_name
+            if not (req.host or "").strip() or req.host == "Salareen AI":
+                payload["host"] = teacher_name
     if req.marketplace_listing:
         payload["instructor_account_id"] = account_id
         payload["audit_required"] = True
@@ -2121,6 +2155,7 @@ def start_group_class(
             longitude=req.longitude,
             creator_name=gc.host or "Salareen",
             creator_account_id=gc.instructor_account_id or gc.created_by_account_id,
+            **_human_taught_kwargs(gc),
             scheduled_start=gc.start_time,
             duration_seconds=int(gc.duration_min) * 60,
             presence_enabled=True,
@@ -2591,6 +2626,7 @@ def _ensure_group_class_room(room_id: str):
         slide_narration=slide.narration,
         creator_name=gc.host or "Salareen",
         creator_account_id=gc.instructor_account_id or gc.created_by_account_id,
+        **_human_taught_kwargs(gc),
         scheduled_start=gc.start_time,
         duration_seconds=int(gc.duration_min) * 60,
         presence_enabled=True,
@@ -3046,6 +3082,13 @@ _confirmation_pending: dict[str, tuple[float, str]] = {}
 
 
 def _chat_theodore_reply(room_id: str, participant_id: str, text: str) -> None:
+    # A human-taught class has no Theodore: the instructor answers their own class.
+    try:
+        if _live_rooms().require(room_id).human_taught:
+            return
+    except Exception:
+        return
+
     """Reply to a learner chat message from Theodore in a background thread."""
     import time as _time
     key = f"{room_id}:{participant_id}"
@@ -3424,6 +3467,13 @@ def _advance_room_slide(room_id: str, background: BackgroundTasks) -> dict:
 
 
 def _address_queue(room_id: str, background: BackgroundTasks) -> "dict | None":
+    # Only Theodore auto-answers the Q&A queue; a human instructor does it live.
+    try:
+        if _live_rooms().require(room_id).human_taught:
+            return None
+    except Exception:
+        return None
+
     """AI host pauses the class to address the Q&A queue: answer the next typed
     question itself (no human moderator needed), else call the next raised hand
     to the floor. Returns a summary, or None when there's nothing to address.

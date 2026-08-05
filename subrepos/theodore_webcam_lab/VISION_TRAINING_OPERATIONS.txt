@@ -1,0 +1,187 @@
+Theodore Webcam Vision - SOTA Training and 24/7 Agent Operations Plan
+======================================================================
+
+Goal
+----
+Build and maintain a proprietary, state-of-the-art multimodal perception stack
+for solo and group classes that exceeds baseline commodity webcam systems in:
+1) detection quality, 2) behavioral understanding, 3) robustness, and
+4) operational reliability at 24/7 cadence.
+
+Core capabilities to surpass
+----------------------------
+1) Presence/liveness:
+   - robust live-human verification, anti-spoof, occlusion resilience
+2) Engagement and behavior:
+   - gaze attention, downward-phone behavior, typing-cheat signatures
+3) Expression understanding:
+   - high-confidence emotional signal tracking across lighting/camera variance
+4) Environmental quality:
+   - distance-to-camera, light quality, image quality, mic/noise quality
+5) Group-window orchestration:
+   - multi-student ranking, intervention priority, lesson-level alerts
+6) Continuous adaptation:
+   - online hard-negative mining, frequent retraining, strict promotion gates
+
+Target architecture (recommended)
+---------------------------------
+A) Vision backbone strategy (ensemble + distillation)
+   - detector track: RT-DETR/YOLO-class real-time detector
+   - face/landmark track: RetinaFace/MediaPipe/ViT-based landmarks
+   - expression track: ViT or ConvNeXt model fine-tuned on expression corpora
+   - gaze/headpose track: dedicated gaze estimator + temporal smoothing
+   - anti-spoof/liveness track: texture + temporal liveness model
+   - cheating classifier: multimodal temporal model over gaze, phone, typing
+
+B) Audio quality + behavior track
+   - speech/noise separation: DeepFilterNet or RNNoise class denoiser
+   - mic quality scoring: noise-floor, clipping, SNR, speech intelligibility
+   - keyboard typing audio detector: event classifier over spectral features
+
+C) Fusion layer
+   - temporal transformer/TCN over per-frame and per-second summaries
+   - outputs:
+     - participant metrics
+     - risk/confidence estimates
+     - class-level prioritization
+
+D) Deployment strategy
+   - realtime edge path for instant feedback
+   - server inference path for heavier periodic checks
+   - confidence arbitration:
+     - if model confidence low, keep conservative alerts and request more frames
+
+Proprietary data strategy (must-own data flywheel)
+--------------------------------------------------
+1) Data sources
+   - consented classroom sessions (solo/group), staged adversarial scenarios,
+     device matrix captures (laptops/tablets/phones), varied lighting.
+2) Label taxonomy
+   - presence_state: present/temporarily_missing/absent
+   - liveness_state: live/spoof/unknown
+   - expression: happy/neutral/sad/angry/surprised/fearful/confused/tired
+   - behavior_events: eyes_away_long, phone_visible, typing_activity_high,
+     keyboard_typing_audio, suspicious_sequence, intervention_required
+   - quality metrics: light band, blur band, distance band, noise band
+3) Annotation process
+   - dual-annotator + adjudicator workflow on high-risk labels
+   - disagreement tracking and active-learning loops
+4) Hard-negative mining
+   - continuously collect false positives/false negatives into curated queues
+5) Synthetic augmentation
+   - brightness, contrast, blur, camera-noise, occlusion, motion jitter,
+     codec artifacts, background clutter, replay/spoof simulation
+6) Versioned datasets
+   - immutable dataset snapshots with release IDs and provenance metadata
+
+Training program (extensive, phased)
+------------------------------------
+Phase 1 - Baseline reliability
+   - train per-capability specialist models
+   - optimize low-latency realtime inference profile
+   - establish class-balanced validation and failure dashboards
+
+Phase 2 - Multimodal fusion
+   - train temporal fusion model from specialist outputs + raw embeddings
+   - optimize for cheating-detection precision at fixed recall floor
+   - add confidence calibration (temperature scaling / isotonic)
+
+Phase 3 - Robustness and fairness
+   - adversarial scenario packs (screen glare, backlight, side profile,
+     masks/hats, multilingual speech/noise environments)
+   - fairness audits across skin tones, age bands, camera classes
+   - require demographic parity and error-bound constraints before promotion
+
+Phase 4 - Continuous learning loop
+   - daily hard-negative retrain candidates
+   - weekly full retrain from latest approved data snapshot
+   - monthly architecture sweep (new backbones/losses/distillation recipes)
+
+Model promotion gates (non-negotiable)
+--------------------------------------
+Candidate model is promoted only if all conditions pass:
+1) Beats production on primary metrics:
+   - presence F1, cheating precision/recall, expression macro-F1
+2) Meets quality-metric stability thresholds:
+   - distance/light/image/mic errors and variance under configured limits
+3) Passes adversarial suite:
+   - spoof resilience, low-light, blur, occlusion, noisy-audio cases
+4) Passes fairness/bias audit
+5) Runtime SLA:
+   - latency and memory budget within deployment targets
+
+24/7 training-agent operations (implementation steps)
+-----------------------------------------------------
+Step 1 - Configure runbook
+   - edit:
+     subrepos/theodore_webcam_lab/training/vision_training_runbook.json
+   - enable tasks progressively (`enabled: true`) as each script exists.
+
+Step 2 - Dry-run scheduling validation
+   - command:
+     python3 -m theodore_webcam_lab.training_orchestrator \
+       --runbook subrepos/theodore_webcam_lab/training/vision_training_runbook.json \
+       --dry-run --iterations 1
+
+Step 3 - Launch persistent 24/7 loop in tmux
+   - command:
+     SESSION_NAME="theodore-vision-training-24x7"
+     tmux -f /exec-daemon/tmux.portal.conf has-session -t "=$SESSION_NAME" 2>/dev/null || \
+       tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "$SESSION_NAME" -c "/workspace" -- "${SHELL:-bash}" -l
+     tmux -f /exec-daemon/tmux.portal.conf send-keys -t "$SESSION_NAME:0.0" \
+       'python3 -m theodore_webcam_lab.training_orchestrator --runbook subrepos/theodore_webcam_lab/training/vision_training_runbook.json --state subrepos/theodore_webcam_lab/training/runtime_state.json' C-m
+
+Step 4 - Observe health
+   - output is JSON lines per executed task (task_id, exit_code, errors)
+   - runtime state file:
+     subrepos/theodore_webcam_lab/training/runtime_state.json
+   - monitor the tmux session and export logs to long-term storage.
+
+Step 5 - Escalation and auto-recovery
+   - for non-zero exits:
+     - retry on next cadence if transient
+     - route repeated failures to incident queue
+   - keep a failure budget per task and disable broken tasks automatically
+     until triaged.
+
+Step 6 - Promotion automation
+   - after eval + audit tasks pass, promote candidate model to staging.
+   - require canary pass before full production rollout.
+   - maintain immediate rollback pointer to previous stable model.
+
+Recommended agent roles for continuous operation
+------------------------------------------------
+1) Data Curator Agent:
+   - hard-negative mining, sample balancing, quality checks
+2) Label QA Agent:
+   - disagreement auditing, outlier review queues
+3) Trainer Agent:
+   - launches scheduled training jobs, logs artifacts and metadata
+4) Evaluator Agent:
+   - runs benchmark/adversarial suites and compares to production baseline
+5) Safety Agent:
+   - fairness/bias audits and policy guardrails
+6) Release Agent:
+   - canary rollouts, automated rollback enforcement
+
+Operational KPIs to track continuously
+--------------------------------------
+1) Model quality:
+   - presence F1, cheating precision/recall, expression macro-F1
+2) Reliability:
+   - task success rate, MTTR for failed jobs, queue latency
+3) Runtime performance:
+   - inference latency (p50/p95), CPU/GPU utilization, memory footprint
+4) Data health:
+   - label coverage, class imbalance, drift score, hard-negative volume
+5) Safety:
+   - fairness gap metrics and false-positive harm metrics
+
+Immediate execution checklist
+-----------------------------
+1) Keep current `quality-heartbeat` enabled to maintain baseline regression
+2) Implement and enable each disabled training/eval task script one-by-one
+3) Attach artifact storage path conventions (datasets, checkpoints, eval reports)
+4) Add weekly architecture sweep tasks (new backbones/losses) for SOTA tracking
+5) Gate production promotion strictly through evaluation + safety thresholds
+
