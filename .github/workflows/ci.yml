@@ -108,19 +108,10 @@ jobs:
       - name: Install Playwright (chromium only, no stack needed)
         run: npx playwright install --with-deps chromium
       - name: Regression canary — source-level checks
-        # Runs the subset of e2e specs that use execSync to inspect source files
-        # rather than driving a browser against a live stack. No compose needed.
-        # SKIP_STACK_CHECK bypasses global-setup's assertStackUp() and writes
-        # an empty auth state so storageState: AUTH_STATE doesn't throw.
-        env:
-          SKIP_STACK_CHECK: "1"
-        run: |
-          npx playwright test \
-            e2e/core/release-regression.spec.ts \
-            e2e/core/camera-recognition.spec.ts \
-            e2e/core/teach-flow.spec.ts \
-            e2e/core/languages.spec.ts \
-            --reporter=line
+        # Uses playwright.canary.config.ts which has NO globalSetup, so there
+        # is no stack health check and no auth sign-in. Tests in e2e/canary/
+        # are pure execSync source reads — no browser navigation, no server.
+        run: npx playwright test --config playwright.canary.config.ts
 
   gate-meta:
     runs-on: ubuntu-latest

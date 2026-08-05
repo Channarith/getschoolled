@@ -34,18 +34,6 @@ async function assertStackUp(): Promise<void> {
 }
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
-  // SKIP_STACK_CHECK=1 is set by the CI regression-canary job, which runs
-  // source-level checks (execSync reads source files) that never need a live
-  // stack. Create an empty auth state so storageState: AUTH_STATE doesn't
-  // throw — tests that actually require auth will simply run unauthenticated.
-  if (process.env.SKIP_STACK_CHECK) {
-    fs.mkdirSync(path.dirname(AUTH_STATE), { recursive: true });
-    if (!fs.existsSync(AUTH_STATE)) {
-      fs.writeFileSync(AUTH_STATE, JSON.stringify({ cookies: [], origins: [] }));
-    }
-    return;
-  }
-
   await assertStackUp();
 
   // Sign in once through the real login UI; specs reuse the storage state.
