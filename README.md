@@ -188,8 +188,10 @@ respond:
 
 <img src="docs/screens/theodore_vision_tuning_panel.webp" alt="Recognition Tuning panel with preset selector and live sliders for lighting, Sobel sharpness, distance and audio knobs, beside the failed quality-gate list" />
 
-How to run and test this yourself: `subrepos/theodore_webcam_lab/README.txt`
-(see its RECOGNITION TUNING section for every knob).
+How to run and test this yourself: **[`subrepos/theodore_webcam_lab/README.md`](subrepos/theodore_webcam_lab/README.md)**
+— an illustrated five-step walkthrough with a one-command health check that
+names any broken piece. Full knob and endpoint reference lives beside it in
+`README.txt`.
 
 Per-language Bayon Buddy mascots (distinct colour + physique/pose, same face,
 crown, and S-with-bodhi-leaf medallion):
