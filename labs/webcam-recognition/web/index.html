@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Webcam Recognition Lab</title>
+  <style>
+    :root {
+      --ink: #1a2332;
+      --muted: #5a6a7a;
+      --surface: #e8eef4;
+      --accent: #0d6e6e;
+      --warn: #8a4b1a;
+      --danger: #8b2e2e;
+      --ok: #1f6b3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Source Sans 3", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 20% 0%, #d4e4f0 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, #d8ebe4 0%, transparent 45%),
+        linear-gradient(165deg, #f2f5f8, #e6ecef);
+      min-height: 100vh;
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+    h1 {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 600;
+      font-size: clamp(1.8rem, 4vw, 2.4rem);
+      margin: 0 0 0.35rem;
+      letter-spacing: -0.02em;
+    }
+    .lede { color: var(--muted); margin: 0 0 1.5rem; max-width: 36rem; }
+    .stage {
+      position: relative;
+      background: #0b1218;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      border: 0;
+    }
+    video, canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: scaleX(-1);
+    }
+    canvas { position: absolute; inset: 0; pointer-events: none; }
+    .guide {
+      position: absolute;
+      inset: 12% 28%;
+      border: 2px dashed rgba(255,255,255,0.45);
+      border-radius: 45% 45% 40% 40%;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+    .guide::after {
+      content: "silhouette guide";
+      position: absolute;
+      left: 50%;
+      bottom: -1.6rem;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.7);
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin: 1rem 0;
+    }
+    button, select {
+      font: inherit;
+      padding: 0.55rem 0.9rem;
+      border: 1px solid #b8c4ce;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .status {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .pill {
+      padding: 0.75rem;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid #c9d4de;
+    }
+    .pill strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .pill span { font-size: 1.05rem; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .danger { color: var(--danger); }
+    pre {
+      margin-top: 1rem;
+      padding: 0.9rem;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid #c9d4de;
+      overflow: auto;
+      font-size: 0.8rem;
+      max-height: 220px;
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <main>
+    <h1>Webcam Recognition Lab</h1>
+    <p class="lede">Private build harness for silhouette detection, user absence, Theodore AI / self-teach modes, and xAI voice agents in solo and group classes.</p>
+
+    <div class="stage" id="stage">
+      <video id="cam" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div class="guide" id="guide" aria-hidden="true"></div>
+    </div>
+
+    <div class="row">
+      <button class="primary" id="btnCam">Start camera</button>
+      <button id="btnSession">Create session</button>
+      <select id="classMode">
+        <option value="solo">Solo class</option>
+        <option value="group">Group class</option>
+      </select>
+      <select id="teachMode">
+        <option value="theodore">Theodore (AI)</option>
+        <option value="self_teach">Self teaching</option>
+      </select>
+      <button id="btnTick">Synthetic tick</button>
+      <button id="btnAbsent">Simulate absence</button>
+      <button id="btnSpeak">Ask Theodore</button>
+    </div>
+
+    <div class="status">
+      <div class="pill"><strong>Presence</strong><span id="stPresent">—</span></div>
+      <div class="pill"><strong>State</strong><span id="stState">—</span></div>
+      <div class="pill"><strong>Faces / Silhouette</strong><span id="stCounts">—</span></div>
+      <div class="pill"><strong>Hold</strong><span id="stHold">—</span></div>
+    </div>
+    <pre id="log">Ready.</pre>
+  </main>
+  <script>
+    const logEl = document.getElementById("log");
+    const stPresent = document.getElementById("stPresent");
+    const stState = document.getElementById("stState");
+    const stCounts = document.getElementById("stCounts");
+    const stHold = document.getElementById("stHold");
+    const video = document.getElementById("cam");
+    let sessionReady = false;
+
+    function log(obj) {
+      logEl.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
+    }
+
+    function paint(snapshot, report) {
+      const r = report || (snapshot.participants?.[0]?.last_report);
+      if (!r) return;
+      stPresent.textContent = r.present ? "present" : "absent";
+      stPresent.className = r.present ? "ok" : "danger";
+      stState.textContent = r.liveness_state + " · " + r.reason;
+      stCounts.textContent = `${r.face_count} / ${r.silhouette_count}`;
+      stHold.textContent = snapshot.hold_active ? `HOLD (${snapshot.hold_reason})` : "clear";
+      stHold.className = snapshot.hold_active ? "warn" : "ok";
+    }
+
+    document.getElementById("btnCam").onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        video.srcObject = stream;
+        await video.play();
+        log("Camera on. Use silhouette guide; presence ticks go through the lab API.");
+      } catch (e) {
+        log("Camera unavailable: " + e);
+      }
+    };
+
+    document.getElementById("btnSession").onclick = async () => {
+      const body = {
+        session_id: "demo",
+        class_mode: document.getElementById("classMode").value,
+        teaching_mode: document.getElementById("teachMode").value,
+        topic: "webcam presence lab",
+        participant_id: "learner-1",
+        participant_name: "Ada",
+      };
+      const res = await fetch("/sessions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      sessionReady = res.ok;
+      log(data);
+      paint(data);
+    };
+
+    document.getElementById("btnTick").onclick = async () => {
+      const res = await fetch("/sessions/synthetic-tick", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session_id: "demo", with_body: true, with_face: true }),
+      });
+      const data = await res.json();
+      log(data);
+      if (data.session) paint(data.session, data.analysis?.report);
+    };
+
+    document.getElementById("btnAbsent").onclick = async () => {
+      const res = await fetch("/sessions/synthetic-tick", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session_id: "demo", absent_ticks: 3 }),
+      });
+      const data = await res.json();
+      log(data);
+      if (data.session) paint(data.session, data.reports?.[data.reports.length - 1]);
+    };
+
+    document.getElementById("btnSpeak").onclick = async () => {
+      const res = await fetch("/sessions/speak", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: "demo",
+          text: "Welcome. Center yourself in the silhouette guide and we will begin.",
+        }),
+      });
+      log(await res.json());
+    };
+  </script>
+</body>
+</html>
