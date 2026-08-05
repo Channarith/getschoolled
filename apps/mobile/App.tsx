@@ -26,8 +26,7 @@ import {
   applyVoicePrefsToTts, voicePrefsFromSettings,
 } from "./src/narrationTts";
 import {
-  getMyList, getReadIds, getSettings, listContinue,
-} from "./src/storage";
+  getMyList, getReadIds, getSettings, listContinue, setLastOpenAt } from "./src/storage";
 import AuthScreen, { AuthLoadingScreen, MfaAuthScreen } from "./src/screens/AuthScreen";
 import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import AudioCoursesScreen from "./src/screens/AudioCoursesScreen";
@@ -381,6 +380,9 @@ function AppInner() {
       const readSet = new Set(read);
       setUnreadCount(feed.items.filter((i) => !readSet.has(i.id)).length);
       try { await scheduleAlertsFor(feed.items, settings); } catch {}
+      // Stamp the visit AFTER scheduling: a returning learner should be judged
+      // on their previous visit, not the one happening right now.
+      try { await setLastOpenAt(new Date().toISOString()); } catch {}
     } catch {}
   }
 
