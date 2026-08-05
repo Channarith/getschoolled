@@ -1,260 +1,288 @@
-"""Silhouette and body-presence detection via OpenCV background subtraction.
+"""Person silhouette / body presence detection (face-independent).
 
-Uses MOG2 (Mixture of Gaussians v2) background modelling plus contour analysis to
-detect a human-sized blob in a webcam frame without a separate pose or person
-model. The same opencv-contrib-python-headless that the perception service already
-uses is the only dependency.
+Complements YuNet face detection: when a learner turns away or the face is
+occluded, a body silhouette can still prove they are in the seat. Used by the
+webcam lab and live-room presence policy to distinguish:
 
-Primary use cases (vision_agent service):
-- Detect user presence even when no face is visible (user is looking away, or
-  partially off-camera) so that Theodore can distinguish "user is here but
-  distracted" from "user left the session".
-- Power the absence-detection policy: face_missing AND silhouette_missing ->
-  ABSENT; face_missing but silhouette_present -> PRESENT_SILHOUETTE.
-- Provide a normalized silhouette mask as a lightweight privacy screen that
-  downstream analytics can consume without exposing the raw frame.
+- face present        -> live / attentive path
+- silhouette only     -> present but face not visible (turned away / looking down)
+- neither             -> absent from the frame
 
-Algorithm
----------
-1. Decode the JPEG/PNG frame into a numpy array via OpenCV.
-2. Resize to a fixed analysis size (320x240) for speed.
-3. Apply the per-session MOG2 background subtractor to produce a foreground mask.
-4. Morphological open/close to remove noise, then find contours.
-5. Keep contours whose bounding box satisfies the human-silhouette heuristics
-   (area ≥ min_area, aspect ratio in reasonable range, vertically elongated).
-6. Optionally return the mask (as PNG bytes) for client overlays.
-
-Statefulness
-------------
-``SilhouetteDetector`` is stateful — it holds the MOG2 model which learns the
-scene background over several frames. One instance per webcam session. The
-``PresenceSignal`` dataclass is the serialisation-friendly output.
+Implementation prefers OpenCV HOG pedestrian detection when ``cv2`` is
+available; otherwise a lightweight numpy energy/contrast heuristic keeps the
+offline teaching loop and unit tests runnable without the vision extra.
 """
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from dataclasses import dataclass
+from typing import List, Optional, Sequence, Tuple, Union
 
+ImageLike = Union[bytes, bytearray, "object"]  # bytes | ndarray
 
-# ---------------------------------------------------------------------------
-# Presence signal (returned per-frame; JSON-serialisable)
-# ---------------------------------------------------------------------------
 
 @dataclass
-class SilhouetteResult:
-    """Per-frame result from the silhouette detector."""
-    silhouette_present: bool
-    num_blobs: int
-    largest_blob_area: float   # fraction of frame area, 0..1
-    largest_blob_bbox: Optional[Tuple[int, int, int, int]]  # x, y, w, h in analysis coords
-    confidence: float          # 0..1 — how certain we are that a person is present
-    mask_png: Optional[bytes] = field(default=None, repr=False)
+class SilhouetteObservation:
+    """One detected person-shaped region in a frame."""
+
+    bbox: Tuple[int, int, int, int]  # (x, y, w, h)
+    confidence: float  # 0..1
+    source: str  # hog | energy | synthetic
+    area_ratio: float = 0.0  # bbox area / frame area
 
 
-# ---------------------------------------------------------------------------
-# Heuristic thresholds (tuned for a standard webcam at ~320x240 analysis size)
-# ---------------------------------------------------------------------------
-_ANALYSIS_W = 320
-_ANALYSIS_H = 240
-_ANALYSIS_SIZE = (_ANALYSIS_W, _ANALYSIS_H)
+@dataclass
+class SilhouetteSignals:
+    """Aggregate silhouette presence for a single frame."""
 
-# Minimum foreground area to count as a meaningful blob (fraction of frame).
-_MIN_BLOB_FRACTION = 0.04      # ~4 % of analysis frame = ~3 000 px at 320x240
-# Maximum blob fraction (avoids a fully-lit/all-motion frame as "person").
-_MAX_BLOB_FRACTION = 0.85
-# Aspect ratio (h/w) range for a plausible human silhouette standing or seated.
-_MIN_ASPECT = 0.5              # very wide (lying down or arms spread)
-_MAX_ASPECT = 4.5              # very tall column
+    person_count: int
+    present: bool
+    confidence: float  # max silhouette confidence (0..1)
+    observations: List[SilhouetteObservation]
+    frame_size: Tuple[int, int] = (0, 0)
+
+    @property
+    def primary_bbox(self) -> Optional[Tuple[int, int, int, int]]:
+        if not self.observations:
+            return None
+        return max(self.observations, key=lambda o: o.confidence).bbox
 
 
-def _import_cv2():
+def _decode_bgr(frame: ImageLike):
+    """Decode bytes/ndarray to BGR uint8 array. Raises if unusable."""
+    import numpy as np
+
+    if hasattr(frame, "shape") and hasattr(frame, "dtype"):
+        arr = frame
+        if len(arr.shape) == 2:
+            return arr
+        if len(arr.shape) == 3 and arr.shape[2] >= 3:
+            return arr
+        raise ValueError("unsupported ndarray shape for silhouette")
+
+    data = bytes(frame) if not isinstance(frame, (bytes, bytearray)) else bytes(frame)
     try:
-        import cv2  # type: ignore[import-untyped]
-        return cv2
-    except ImportError as exc:
-        raise ImportError(
-            "opencv-contrib-python-headless is required for silhouette detection. "
-            "Install it: pip install opencv-contrib-python-headless==4.10.0.84"
-        ) from exc
+        import cv2
+
+        buf = np.frombuffer(data, dtype=np.uint8)
+        img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValueError("could not decode image bytes")
+        return img
+    except ImportError:
+        # Without OpenCV we can only analyze pre-decoded arrays.
+        raise ValueError(
+            "silhouette decode of raw image bytes requires opencv "
+            "(aoep-shared[vision]); pass a numpy ndarray instead"
+        ) from None
 
 
-def _import_numpy():
-    try:
-        import numpy as np  # type: ignore[import-untyped]
-        return np
-    except ImportError as exc:
-        raise ImportError(
-            "numpy is required for silhouette detection. "
-            "Install it: pip install numpy==1.26.4"
-        ) from exc
+def _energy_detect(
+    gray,
+    *,
+    min_area_ratio: float = 0.04,
+    threshold_ratio: float = 0.18,
+) -> List[SilhouetteObservation]:
+    """Contrast-energy blob heuristic (no HOG). Offline-safe.
 
-
-# ---------------------------------------------------------------------------
-# Main detector (one instance per session)
-# ---------------------------------------------------------------------------
-
-class SilhouetteDetector:
-    """Stateful per-session silhouette detector backed by OpenCV MOG2.
-
-    Create one instance when a webcam session begins and call ``process_frame``
-    for each frame.  The background model improves over the first ~30 frames.
-
-    Parameters
-    ----------
-    min_blob_fraction:
-        Override for the minimum foreground blob area threshold (fraction of frame
-        area 0..1). Raise for stable scenes; lower for dim/noisy cameras.
-    return_mask:
-        When True, ``SilhouetteResult.mask_png`` is populated with a PNG-encoded
-        foreground mask for client-side overlays. Adds ~2 ms per frame on CPU.
+    Looks for a contiguous mid-frame region whose local variance exceeds the
+    frame mean — a standing/sitting person against a flatter background tends
+    to create such a blob. Not identity-grade; good enough for presence.
     """
+    import numpy as np
 
-    def __init__(
-        self,
-        *,
-        min_blob_fraction: float = _MIN_BLOB_FRACTION,
-        return_mask: bool = False,
-    ) -> None:
-        cv2 = _import_cv2()
-        self._cv2 = cv2
-        self._np = _import_numpy()
-        self._bg_sub = cv2.createBackgroundSubtractorMOG2(
-            history=100,
-            varThreshold=30,
-            detectShadows=False,
-        )
-        self._min_area = min_blob_fraction * _ANALYSIS_W * _ANALYSIS_H
-        self._return_mask = return_mask
-        self._frames_seen: int = 0
-        # Morphological kernels (pre-built once).
-        self._kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        self._kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    h, w = gray.shape[:2]
+    if h < 16 or w < 16:
+        return []
 
-    def process_frame(self, image_bytes: bytes) -> SilhouetteResult:
-        """Detect human silhouette in a JPEG or PNG frame.
+    # Local absolute deviation from a downsampled mean (cheap "edge energy").
+    g = gray.astype(np.float32)
+    mean = float(np.mean(g))
+    energy = np.abs(g - mean)
+    # Soften with a box blur via strided reduce when possible.
+    block = max(4, min(h, w) // 32)
+    eh, ew = h // block, w // block
+    if eh < 2 or ew < 2:
+        return []
+    reduced = energy[: eh * block, : ew * block].reshape(eh, block, ew, block).mean(axis=(1, 3))
+    thr = float(np.mean(reduced)) + threshold_ratio * float(np.std(reduced) + 1e-6)
+    mask = reduced > thr
+    if not mask.any():
+        return []
 
-        Parameters
-        ----------
-        image_bytes:
-            Raw bytes of a JPEG or PNG image (from a webcam capture).
-
-        Returns
-        -------
-        SilhouetteResult
-            Per-frame result; inspect ``silhouette_present`` and ``confidence``.
-        """
-        cv2 = self._cv2
-        np = self._np
-
-        arr = np.frombuffer(image_bytes, dtype=np.uint8)
-        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-        if frame is None:
-            return SilhouetteResult(
-                silhouette_present=False,
-                num_blobs=0,
-                largest_blob_area=0.0,
-                largest_blob_bbox=None,
-                confidence=0.0,
-            )
-
-        small = cv2.resize(frame, _ANALYSIS_SIZE, interpolation=cv2.INTER_AREA)
-        gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-
-        # Warm up the background model for the first 10 frames without signalling.
-        learning_rate = 0.05 if self._frames_seen < 10 else -1
-        self._frames_seen += 1
-
-        fg_mask = self._bg_sub.apply(gray, learningRate=learning_rate)
-
-        # Remove small noise via open, then fill gaps via close.
-        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, self._kernel_open)
-        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, self._kernel_close)
-
-        contours, _ = cv2.findContours(
-            fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-
-        total_px = _ANALYSIS_W * _ANALYSIS_H
-        human_blobs: List[Tuple[int, int, int, int, float]] = []
-
-        for c in contours:
-            area = cv2.contourArea(c)
-            if area < self._min_area:
+    # Largest connected component via simple flood (4-connected).
+    visited = np.zeros_like(mask, dtype=bool)
+    best = None
+    for y in range(eh):
+        for x in range(ew):
+            if not mask[y, x] or visited[y, x]:
                 continue
-            x, y, w, h = cv2.boundingRect(c)
-            aspect = h / max(w, 1)
-            blob_frac = area / total_px
-            if blob_frac > _MAX_BLOB_FRACTION:
-                continue
-            if not (_MIN_ASPECT <= aspect <= _MAX_ASPECT):
-                continue
-            human_blobs.append((x, y, w, h, area))
+            stack = [(y, x)]
+            visited[y, x] = True
+            cells = []
+            while stack:
+                cy, cx = stack.pop()
+                cells.append((cy, cx))
+                for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
+                    if 0 <= ny < eh and 0 <= nx < ew and mask[ny, nx] and not visited[ny, nx]:
+                        visited[ny, nx] = True
+                        stack.append((ny, nx))
+            ys = [c[0] for c in cells]
+            xs = [c[1] for c in cells]
+            area = len(cells)
+            if best is None or area > best[0]:
+                best = (area, min(ys), max(ys), min(xs), max(xs))
 
-        num_blobs = len(human_blobs)
-        if num_blobs == 0:
-            mask_png = _encode_mask(cv2, fg_mask) if self._return_mask else None
-            return SilhouetteResult(
-                silhouette_present=False,
-                num_blobs=0,
-                largest_blob_area=0.0,
-                largest_blob_bbox=None,
-                confidence=0.0,
-                mask_png=mask_png,
-            )
-
-        # Largest qualifying blob.
-        largest = max(human_blobs, key=lambda b: b[4])
-        lx, ly, lw, lh, la = largest
-        blob_frac = la / total_px
-        # Confidence: grows with blob size (up to 1.0 around 30 % of frame).
-        confidence = min(1.0, math.sqrt(blob_frac / 0.30))
-        # Reduce confidence during warm-up (background model not yet stable).
-        if self._frames_seen < 15:
-            confidence *= self._frames_seen / 15.0
-
-        mask_png = _encode_mask(cv2, fg_mask) if self._return_mask else None
-        return SilhouetteResult(
-            silhouette_present=True,
-            num_blobs=num_blobs,
-            largest_blob_area=round(blob_frac, 4),
-            largest_blob_bbox=(lx, ly, lw, lh),
+    if best is None:
+        return []
+    area, y0, y1, x0, x1 = best
+    bx = int(x0 * block)
+    by = int(y0 * block)
+    bw = int(max(block, (x1 - x0 + 1) * block))
+    bh = int(max(block, (y1 - y0 + 1) * block))
+    area_ratio = (bw * bh) / float(w * h)
+    if area_ratio < min_area_ratio:
+        return []
+    # Confidence from how dominant the blob is vs frame.
+    confidence = max(0.15, min(0.85, area_ratio / 0.35))
+    return [
+        SilhouetteObservation(
+            bbox=(bx, by, min(bw, w - bx), min(bh, h - by)),
             confidence=round(confidence, 4),
-            mask_png=mask_png,
+            source="energy",
+            area_ratio=round(area_ratio, 4),
         )
+    ]
 
-    def reset(self) -> None:
-        """Reset the background model (e.g. after a scene cut / background change)."""
-        cv2 = self._cv2
-        self._bg_sub = cv2.createBackgroundSubtractorMOG2(
-            history=100, varThreshold=30, detectShadows=False
+
+def _hog_detect(bgr, *, hit_threshold: float = 0.4) -> List[SilhouetteObservation]:
+    """OpenCV HOG pedestrian detector."""
+    import cv2
+    import numpy as np
+
+    hog = cv2.HOGDescriptor()
+    hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+    h, w = bgr.shape[:2]
+    # Upscale tiny webcam crops so HOG has enough pixels.
+    scale = 1.0
+    img = bgr
+    if max(h, w) < 240:
+        scale = 240.0 / max(h, w)
+        img = cv2.resize(bgr, (int(w * scale), int(h * scale)))
+    rects, weights = hog.detectMultiScale(
+        img, winStride=(8, 8), padding=(8, 8), scale=1.05, hitThreshold=hit_threshold
+    )
+    out: List[SilhouetteObservation] = []
+    frame_area = float(w * h)
+    for rect, weight in zip(rects, weights):
+        x, y, rw, rh = [int(v / scale) for v in rect]
+        x = max(0, min(x, w - 1))
+        y = max(0, min(y, h - 1))
+        rw = max(1, min(rw, w - x))
+        rh = max(1, min(rh, h - y))
+        area_ratio = (rw * rh) / frame_area
+        # HOG weights are unbounded; squash to 0..1.
+        conf = float(1.0 / (1.0 + np.exp(-float(weight))))
+        out.append(
+            SilhouetteObservation(
+                bbox=(x, y, rw, rh),
+                confidence=round(max(0.05, min(0.99, conf)), 4),
+                source="hog",
+                area_ratio=round(area_ratio, 4),
+            )
         )
-        self._frames_seen = 0
+    return out
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+def detect_silhouette(
+    frame: ImageLike,
+    *,
+    prefer_hog: bool = True,
+    min_confidence: float = 0.2,
+) -> SilhouetteSignals:
+    """Detect person silhouettes in ``frame``.
 
-def _encode_mask(cv2, mask) -> bytes:
-    """Encode a uint8 foreground mask as PNG bytes."""
-    ok, buf = cv2.imencode(".png", mask)
-    if not ok:
-        return b""
-    return buf.tobytes()
-
-
-# ---------------------------------------------------------------------------
-# Stateless helper: fast presence check from raw numpy array (for unit tests)
-# ---------------------------------------------------------------------------
-
-def estimate_silhouette_from_fraction(blob_area_fraction: float) -> bool:
-    """Return True if the blob area fraction suggests a person is present.
-
-    A convenience function for tests and the offline fallback path that cannot
-    run the full OpenCV pipeline.
+    Returns an empty ``SilhouetteSignals`` (present=False) when nothing is
+    found. Never raises for ordinary empty/blank frames.
     """
-    return (
-        _MIN_BLOB_FRACTION <= blob_area_fraction <= _MAX_BLOB_FRACTION
+    try:
+        bgr = _decode_bgr(frame)
+    except Exception:
+        return SilhouetteSignals(0, False, 0.0, [], (0, 0))
+
+    h, w = bgr.shape[:2]
+    observations: List[SilhouetteObservation] = []
+
+    used_hog = False
+    if prefer_hog:
+        try:
+            import cv2  # noqa: F401
+
+            observations = _hog_detect(bgr)
+            used_hog = True
+        except Exception:
+            used_hog = False
+
+    if not observations:
+        # Grayscale energy fallback (works with or without OpenCV).
+        if len(bgr.shape) == 3:
+            try:
+                import cv2
+
+                gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+            except Exception:
+                import numpy as np
+
+                gray = bgr.mean(axis=2).astype("uint8") if bgr.ndim == 3 else bgr
+        else:
+            gray = bgr
+        observations = _energy_detect(gray)
+
+    observations = [o for o in observations if o.confidence >= min_confidence]
+    if not observations:
+        return SilhouetteSignals(0, False, 0.0, [], (w, h))
+
+    conf = max(o.confidence for o in observations)
+    return SilhouetteSignals(
+        person_count=len(observations),
+        present=True,
+        confidence=round(conf, 4),
+        observations=observations,
+        frame_size=(w, h),
+    )
+
+
+def silhouette_from_counts(
+    *,
+    person_count: int,
+    confidence: float = 0.8,
+    frame_size: Tuple[int, int] = (640, 480),
+    bboxes: Optional[Sequence[Tuple[int, int, int, int]]] = None,
+) -> SilhouetteSignals:
+    """Build synthetic silhouette signals (tests / client-reported counts)."""
+    count = max(0, int(person_count))
+    if count == 0:
+        return SilhouetteSignals(0, False, 0.0, [], frame_size)
+    obs: List[SilhouetteObservation] = []
+    fw, fh = frame_size
+    for i in range(count):
+        if bboxes and i < len(bboxes):
+            bbox = tuple(bboxes[i])  # type: ignore[assignment]
+        else:
+            bbox = (fw // 4, fh // 8, fw // 2, int(fh * 0.75))
+        area_ratio = (bbox[2] * bbox[3]) / float(max(1, fw * fh))
+        obs.append(
+            SilhouetteObservation(
+                bbox=bbox,  # type: ignore[arg-type]
+                confidence=float(confidence),
+                source="synthetic",
+                area_ratio=round(area_ratio, 4),
+            )
+        )
+    return SilhouetteSignals(
+        person_count=count,
+        present=True,
+        confidence=round(float(confidence), 4),
+        observations=obs,
+        frame_size=frame_size,
     )
