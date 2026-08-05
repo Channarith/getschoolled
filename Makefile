@@ -12,7 +12,8 @@ COMPOSE := infra/compose/docker-compose.yml
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
-	run-identity run-memory run-orchestrator run-livekit validate-pipeline dev-all dev-down dev-status
+	run-identity run-memory run-orchestrator run-livekit validate-pipeline webcam-lab \
+	dev-all dev-down dev-status
 
 help:
 	@echo "Targets:"
@@ -21,6 +22,7 @@ help:
 	@echo "  test           Run all Python tests"
 	@echo "  test-inventory Count tests + map to the 16 sub-apps (MIN=N to gate)"
 	@echo "  validate-pipeline  E2E smoke: harvest -> teach -> present (offline)"
+	@echo "  webcam-lab     Private webcam recognition lab (Theodore + xAI voice)"
 	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
 	@echo "  lint           Ruff lint the Python sources (needs ruff)"
 	@echo "  stress         Stress/perf the running APIs (start services first)"
@@ -64,7 +66,7 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests packages/vision-lab/tests labs/webcam-recognition/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests labs/webcam-recognition-suite/tests packages/vision-lab/tests labs/webcam-recognition/tests apps/webcam-lab/tests -q
 
 # Count collected tests + map them to the 16 ecosystem sub-apps (release gate).
 # MIN ratchets the per-sub-app minimum upward over time (0 = report only).
@@ -105,6 +107,11 @@ homework-grade:
 
 meeting-agents-lab:
 	$(VENV_PY) scripts/meeting_agents_lab.py --all --dialect us_ca
+
+# Private webcam recognition lab (solo/group, silhouette/absence, Theodore + xAI voice).
+webcam-lab:
+	PYTHONPATH=labs/webcam-recognition-suite/src:packages/shared/src $(VENV_PY) labs/webcam-recognition-suite/scripts/run_lab.py --mode theodore_teach --class-mode solo
+	PYTHONPATH=labs/webcam-recognition-suite/src:packages/shared/src $(VENV_PY) labs/webcam-recognition-suite/scripts/run_lab.py --mode self_teach --class-mode group --size 6
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:

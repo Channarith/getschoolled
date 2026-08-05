@@ -1,0 +1,15 @@
+PRIVATE INTERNAL LAB — NOT FOR PUBLIC DISTRIBUTION
+==================================================
+
+This directory is a private sub-repo of Salareen / AOEP used to build and test
+webcam image recognition for solo and group classes before promoting stable
+pieces into production packages (aoep_shared.vision, perception, orchestrator,
+web/mobile live rooms).
+
+Do NOT publish this tree as an open-source package, SDK sample, or marketing
+demo. Biometrics, absence heuristics, and voice-agent wiring stay internal.
+
+Extraction (optional later)
+  This folder is intentionally self-contained (own pyproject, tests, scripts)
+  so it can be split into a private GitHub repository without rewriting imports
+  beyond adjusting the aoep-shared dependency path.

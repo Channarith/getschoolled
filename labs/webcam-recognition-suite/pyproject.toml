@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69.5.1", "wheel>=0.43.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "webcam-lab"
+version = "0.1.0"
+description = "Private Salareen lab: webcam recognition, silhouette/absence, Theodore teaching, xAI voice agents."
+license = { text = "LicenseRef-AOEP-Proprietary" }
+requires-python = ">=3.11"
+dependencies = [
+    "aoep-shared>=0.2.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest==8.2.2"]
+vision = [
+    "opencv-contrib-python-headless==4.10.0.84",
+    "numpy==1.26.4",
+]
+voice = [
+    "websockets==12.0",
+]
+
+[project.scripts]
+webcam-lab = "webcam_recognition_suite.lab:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

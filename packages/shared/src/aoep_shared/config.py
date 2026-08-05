@@ -101,6 +101,11 @@ class AppConfig(BaseModel):
     nemotron_api_key: str = ""
     nemotron_base_url: str = "https://integrate.api.nvidia.com/v1"
     nemotron_model: str = "nvidia/llama-3.1-nemotron-70b-instruct"
+    # xAI Grok Voice Agent (Speech-to-Speech realtime WebSocket). Used by the
+    # private webcam-recognition lab and Theodore natural dialogue. Server-side
+    # key only — browsers must use ephemeral tokens.
+    xai_voice_name: str = "eve"
+    xai_voice_ws_url: str = "wss://api.x.ai/v1/realtime"
     # Bake-off champion pointer (JSON); serving layer uses it to pick the model.
     champion_path: str = ""
     # 24/7 harvester (runs on a separate worker agent).
@@ -267,6 +272,8 @@ def load_config(
         nemotron_api_key=get("NEMOTRON_API_KEY", ""),
         nemotron_base_url=get("NEMOTRON_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         nemotron_model=get("NEMOTRON_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct"),
+        xai_voice_name=get("XAI_VOICE_NAME", "eve"),
+        xai_voice_ws_url=get("XAI_VOICE_WS_URL", "wss://api.x.ai/v1/realtime"),
         champion_path=get("CHAMPION_PATH", ""),
         harvest_user_agent=get("HARVEST_USER_AGENT", "AOEP-Harvester/1.0 (+contact@example.org)"),
         harvest_max_rps=float(get("HARVEST_MAX_RPS", "1.0") or "1.0"),
