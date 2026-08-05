@@ -110,9 +110,10 @@ jobs:
       - name: Regression canary — source-level checks
         # Runs the subset of e2e specs that use execSync to inspect source files
         # rather than driving a browser against a live stack. No compose needed.
-        # Covers: notification default, KidsScreen API, mic restart pattern,
-        # Zelle auth header, webcam module integrity, camera permission test,
-        # language locale map, teach-flow source guards.
+        # SKIP_STACK_CHECK bypasses global-setup's assertStackUp() and writes
+        # an empty auth state so storageState: AUTH_STATE doesn't throw.
+        env:
+          SKIP_STACK_CHECK: "1"
         run: |
           npx playwright test \
             e2e/core/release-regression.spec.ts \
