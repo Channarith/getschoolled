@@ -1,0 +1,106 @@
+# Staging overlay — deploys the AOEP stack into the `aoep-staging` namespace on
+# the SAME VKE cluster as production. See docs/vv-master-plan.txt section 5.
+#
+# Sibling overlay to infra/k8s-vke (the production VKE overlay): both reference
+# the shared base ../k8s. Staging differs from prod only by namespace, replica
+# count, hostnames, and by NOT running its own GPU model servers.
+#
+# What this overlay changes vs the base (../k8s):
+#   - namespace         -> aoep-staging (kustomize rewrites every resource)
+#   - replicas          -> 1 for every app service (no HPA min-2 fan-out)
+#   - GPU model servers -> REMOVED (llm / nemotron / cosyvoice). Staging SHARES
+#                          production's GPU backends to keep cost ~10% of prod;
+#                          point the model URLs at the prod services via the
+#                          staging ConfigMap (TODO below).
+#   - ingress hosts      -> staging.salareen.com / api.staging.salareen.com
+#   - images             -> Vultr Container Registry (same mapping as k8s-vke)
+#
+# Deploy:   kubectl apply -k infra/k8s-staging
+# Validate: kubectl kustomize infra/k8s-staging >/dev/null   (mirrors CI's k8s job)
+#
+# ---------------------------------------------------------------------------
+# TODO before first real deploy (env-specific, intentionally NOT committed):
+#   1. Namespace:  kubectl create namespace aoep-staging
+#   2. Staging Secret into aoep-staging with STAGING/sandbox creds (Stripe TEST
+#      keys, staging LiveKit, rate-limited LLM key). NEVER production secrets.
+#      Template: ../k8s/aoep-secrets.example.yaml
+#   3. Staging ConfigMap override: point LLM/NEMOTRON/COSYVOICE URLs at the shared
+#      prod backends by FQDN (cross-namespace), e.g.
+#      http://cosyvoice.aoep.svc.cluster.local:8000 — because this overlay does
+#      not run those pods. Add as a `patches:` entry here once written.
+#   4. TLS: provision an `aoep-tls` cert for the staging hosts in aoep-staging.
+#   5. DNS: point staging.salareen.com + api.staging.salareen.com at the ingress.
+#   6. Seed SYNTHETIC QA data into staging Redis/DB. NEVER copy production data
+#      (student PII + consent boundary — vv-master-plan.txt section 5a).
+#   7. Digest pinning: CI overrides the image tags below with the immutable digest
+#      at deploy time (vv-master-plan.txt section 4). `latest` here is a scaffold
+#      default only.
+# ---------------------------------------------------------------------------
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aoep-staging
+
+resources:
+  - ../k8s
+
+# Every app service runs a single replica in staging.
+replicas:
+  - { name: orchestrator, count: 1 }
+  - { name: speech,       count: 1 }
+  - { name: perception,   count: 1 }
+  - { name: memory,       count: 1 }
+  - { name: curriculum,   count: 1 }
+  - { name: billing,      count: 1 }
+  - { name: identity,     count: 1 }
+  - { name: integrations, count: 1 }
+  - { name: harvester,    count: 1 }
+  - { name: web,          count: 1 }
+
+patches:
+  # --- Strip the GPU model servers: staging shares prod's backends. ---
+  - target: { kind: Deployment, name: llm }
+    patch: |
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata: { name: llm }
+  - target: { kind: Deployment, name: nemotron }
+    patch: |
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata: { name: nemotron }
+  - target: { kind: Deployment, name: cosyvoice }
+    patch: |
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata: { name: cosyvoice }
+
+  # --- Point the primary ingress at the staging hostnames. ---
+  - target: { kind: Ingress, name: aoep }
+    patch: |
+      - { op: replace, path: /spec/tls/0/hosts/0, value: api.staging.salareen.com }
+      - { op: replace, path: /spec/tls/0/hosts/1, value: app.staging.salareen.com }
+      - { op: replace, path: /spec/rules/0/host,  value: app.staging.salareen.com }
+      - { op: replace, path: /spec/rules/1/host,  value: api.staging.salareen.com }
+  - target: { kind: Ingress, name: aoep-apis }
+    patch: |
+      - { op: replace, path: /spec/tls/0/hosts/0, value: api.staging.salareen.com }
+      - { op: replace, path: /spec/rules/0/host,  value: api.staging.salareen.com }
+
+# Same registry mapping as the production overlay (infra/k8s-vke). CI overrides
+# newTag with the immutable digest at deploy time (see TODO 7).
+images:
+  - { name: ghcr.io/aoep/orchestrator, newName: sjc.vultrcr.com/salareen/orchestrator, newTag: latest }
+  - { name: ghcr.io/aoep/speech,       newName: sjc.vultrcr.com/salareen/speech,       newTag: latest }
+  - { name: ghcr.io/aoep/perception,   newName: sjc.vultrcr.com/salareen/perception,   newTag: latest }
+  - { name: ghcr.io/aoep/memory,       newName: sjc.vultrcr.com/salareen/memory,       newTag: latest }
+  - { name: ghcr.io/aoep/curriculum,   newName: sjc.vultrcr.com/salareen/curriculum,   newTag: latest }
+  - { name: ghcr.io/aoep/billing,      newName: sjc.vultrcr.com/salareen/billing,      newTag: latest }
+  - { name: ghcr.io/aoep/integrations, newName: sjc.vultrcr.com/salareen/integrations, newTag: latest }
+  - { name: ghcr.io/aoep/identity,     newName: sjc.vultrcr.com/salareen/identity,     newTag: latest }
+  - { name: ghcr.io/aoep/web,          newName: sjc.vultrcr.com/salareen/web,          newTag: latest }
+  - { name: aoep/harvester,            newName: sjc.vultrcr.com/salareen/harvester,    newTag: latest }

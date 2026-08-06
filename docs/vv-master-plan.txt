@@ -1,0 +1,295 @@
+SALAREEN / AOEP — VERIFICATION & VALIDATION MASTER PLAN
+=======================================================
+Plain text on purpose (repo no-markdown house rule; see AGENTS.md).
+
+This is the single source of truth for how code moves from a feature branch to
+production, and the quality gates it must clear along the way. It is the document
+referenced (previously missing) by ci.yml, web-e2e.yml, and docs/qa-farm-status.md.
+
+Companions (the "what is actually wired" views):
+  - docs/qa-farm-status.md        automation farm status + promotion roadmap
+  - docs/release-testing.txt      the major (x.0) release gate + 16 sub-apps
+  - qa/RUNBOOK.txt                how to run regression / stress locally + CI
+  - docs/live-room-testing.txt    manual live-room + mobile smoke steps
+
+Guiding principle: THE DISCIPLINE IS IN THE QUALITY GATES, NOT IN THE SPEED.
+This architecture scales whether code is written by humans or AI agents, because
+predictability comes from the gates and the one-PR-per-feature rule — not from
+how fast any single author moves.
+
+
+============================================================================
+1. THE GOLDEN RULE — ONE OWNER, ONE BRANCH, ONE PR
+============================================================================
+Every feature ships as exactly one curated pull request from one feature owner
+on one branch. If multiple people or AI agents collaborate behind the scenes,
+the LEAD agent/owner integrates their work and submits a single, reviewed PR.
+
+Why this is non-negotiable:
+  - Predictable QA: one PR == one revertible unit == one line in the release notes.
+  - Clean conflict story: squash-merge means one commit per feature; a rejected
+    feature is backed out with a single revert.
+  - Attributable ownership: every change on the integration branch traces to one
+    owner, human or agent.
+
+Enforced by:
+  - Squash-merge only (see automerge.yml).
+  - A PR template/checklist the owner must fill (section 8).
+  - CODEOWNERS routing for high-risk paths (section 5c).
+
+
+============================================================================
+2. THE PIPELINE (feature -> integration -> staging -> production)
+============================================================================
+
+  feature/*  --PR--> [FAST CI gate] --auto-merge--> integration (trunk)
+                                                          |
+                                             build-once -> immutable digest
+                                                          |
+                                                          v
+                                          auto-deploy digest -> STAGING cluster
+                                                          |
+                                     integration tests (immediate, post-deploy)
+                                     full regression (nightly, vs a pinned RC)
+                                                          |
+                                                          v
+                              QA review next morning (green report + spot-check)
+                                                          |  approve
+                                                          v
+                          promote the SAME digest -> PRODUCTION cluster
+                                                          |
+                                     post-deploy smoke SUITE (functional, not SHA)
+                                                          v
+                              synthetic monitor + auto-rollback watch
+
+Stage-by-stage:
+
+2a. Feature branch -> PR -> FAST CI (target < 15 min, blocks the merge)
+    Runs on every PR. Must be fast because it gates every agent's velocity.
+      - Backend pytest matrix (ci.yml `python`)                    [required]
+      - Mobile Jest unit + mobile<->API contract                  [required]
+      - Web typecheck + build + `next lint`                        [required]
+      - Ruff lint (F / E9 error classes)                           [required]
+      - Regression canary (source-level pattern checks, no stack)  [required]
+      - Thin E2E smoke: ~5 critical specs vs the compose stack     [required]
+        (auth, class-join, homework-submit, payment, drive-mode)
+      - Coverage floor (--cov-fail-under, ratcheted) + test_inventory --min [required]
+      - Dependency + SAST + container scan (Dependabot/CodeQL/Trivy)[required]
+      - VERSION bump + changelog check                             [required]
+    The FULL E2E suite does NOT run here — it runs on staging (2c), where the
+    integrated stack actually lives. This keeps PR CI fast.
+
+2b. Auto-merge -> integration branch
+    On green CI, the PR squash-merges to the integration trunk (automerge.yml).
+    Auto-merge lands to INTEGRATION, never to production. Human code review is
+    risk-tiered (section 5c), not a blanket blocker — CI is the correctness gate
+    for the common path; a human reviewer is required only on high-risk paths.
+
+2c. Build-once -> deploy digest -> STAGING
+    On merge to integration, build the 10 service/web images ONCE and tag by
+    immutable digest. Deploy THAT digest to the aoep-staging namespace
+    (infra/k8s-staging). Then:
+      - Integration tests run immediately (full-stack, against staging).
+      - The full web E2E + mobile Maestro + stress smoke run nightly against a
+        PINNED release candidate (section 3).
+
+2d. QA review (next morning) -> promote SAME digest -> PRODUCTION
+    QA reviews the pinned RC's green regression report + spot-checks the diff and
+    the live staging demo (section 6). On approval, the EXACT SAME digest is
+    promoted to the aoep (production) namespace. NO REBUILD (section 4).
+
+2e. Post-deploy
+    A functional smoke SUITE runs against production (not just a SHA match).
+    The synthetic monitor probes prod every 30 min; smoke failure auto-rolls-back
+    to the previous production digest and pages a human.
+
+
+============================================================================
+3. RELEASE CANDIDATE — "PROMOTE THE SAME BUILD" MADE LITERAL
+============================================================================
+The promise is: the build QA blesses is the build that reaches production, byte
+for byte. Two mechanisms make that an invariant instead of a hope.
+
+3a. Digest pinning (section 4): promote the image DIGEST, never a git SHA rebuild.
+
+3b. RC cut: the integration branch keeps moving as features auto-merge overnight,
+    so we must freeze WHAT gets validated.
+      - At a nightly cutoff, pin integration@HEAD as an immutable RC tag
+        (e.g. rc-YYYY.MM.DD).
+      - The nightly full regression runs against THAT RC.
+      - QA reviews THAT RC. THAT RC promotes.
+      - Anything merged after the cut waits for the next day's train.
+    Without the RC cut, a feature merged at 03:00 (after the nightly run) could
+    ride to production untested. The RC cut closes that hole.
+
+
+============================================================================
+4. ARTIFACT PROMOTION — BUILD ONCE, DEPLOY THE DIGEST
+============================================================================
+DO: build each image once on merge to integration; record its immutable digest
+    (registry sha256). Deploy that digest to staging; on approval `set image` to
+    the identical digest in production. Rollback == redeploy the previous prod
+    digest.
+
+DO NOT: rebuild images from a git SHA at production-deploy time. A rebuild can
+    drift (base image, transitive deps, build-time resolution), so a green
+    staging run would no longer predict production. (This is the change from the
+    historical deploy.yml, which rebuilt at deploy time.)
+
+Invariant: the sha256 digest running in production == the digest QA approved on
+staging == the digest the nightly regression passed.
+
+
+============================================================================
+5. ENVIRONMENTS
+============================================================================
+5a. Staging (aoep-staging namespace, same VKE cluster)
+    - Namespace-based overlay: infra/k8s-staging (kustomize; sibling of the
+      production overlay infra/k8s-vke, both referencing the base infra/k8s).
+    - Prod-parity manifests: same base, only patched for namespace, replicas=1,
+      hostnames, and its own config/secrets. Structural drift here invalidates
+      the whole gate.
+    - Shares prod's GPU model backends (llm/nemotron/cosyvoice) to keep cost low;
+      the overlay does NOT duplicate those deployments.
+    - Its OWN data: separate Redis + DB, seeded with SYNTHETIC QA data. Never a
+      copy of production data (student PII + consent = compliance boundary).
+    - Sandbox integrations: Stripe test mode, staging webhooks, rate-limited LLM.
+    - Hostnames: staging.salareen.com / api.staging.salareen.com.
+
+5b. Production (aoep namespace, same VKE cluster)
+    - The current live environment; unchanged base manifests.
+    - Graduate staging to a SEPARATE cluster only when cluster/infra changes
+      themselves (ingress controller, node pools, k8s version) need validation —
+      a shared cluster cannot test those.
+
+5c. Risk-tiered human review (CODEOWNERS)
+    A human reviewer is REQUIRED before merge on high-risk paths:
+      - services/billing, services/identity (auth), memory consent/flags/legal,
+        infra/**, .github/workflows/**, deploy + secrets.
+    Everything else: CI is the gate; the lead owner's curation is the review.
+    For AI-authored PRs, an automated review pass (codex / gstack review) runs in
+    CI so obvious defects never reach integration.
+
+
+============================================================================
+6. WHAT "QA REVIEW" MEANS (so it stays ~30 min, not all day)
+============================================================================
+The nightly regression + staging integration tests do the heavy lifting. The
+morning QA gate is a REVIEW, not a manual test pass:
+  [ ] Nightly regression report for the pinned RC is GREEN (all required suites).
+  [ ] E2E flake rate for the RC is within budget (< 2%); no new quarantines.
+  [ ] Skim the diff/PR list in the RC for risk (payments, auth, consent, migrations).
+  [ ] Spot-check the live staging demo for the highest-risk feature(s) in the RC.
+  [ ] No open P1 from the synthetic monitor or a red integration branch.
+  -> Approve == promote the RC digest to production.
+
+If QA finds a bad feature: revert that ONE squash commit, re-cut the RC, re-run.
+The other features in the train are NOT blocked (section 1 makes this a 1-command
+back-out).
+
+
+============================================================================
+7. THE TEST STRATEGY (the pyramid, each layer's home + gate)
+============================================================================
+        / Manual GUI smoke \        release-only, per-sub-app matrix
+       /  E2E (web+mobile)  \       thin smoke on PR; full suite on staging
+      /   Contract / API     \      PR-required (mobile contract; add inter-svc)
+     /  Integration (stack)   \     immediate on staging post-deploy
+    /   Unit (be+web+mobile)   \    PR-required, < 5 min — the bulk
+
+  - Unit (backend/web/mobile): the bulk; fast; PR-required. Backend is strong
+    (~2,300 test fns). Web needs component tests (Vitest + Testing Library);
+    weak sub-apps (homework, harvester, webcam, cosyvoice) must come off ~1 test
+    each — enforced by the ratcheting test_inventory --min gate.
+  - Contract / API: mobile<->API contract exists and gates today; extend the same
+    pattern to inter-service contracts (orchestrator <-> speech/perception/curriculum).
+  - Integration (full stack): runs immediately on staging after each deploy.
+  - E2E: a thin ~5-spec smoke gates the PR; the full 42-case web suite + mobile
+    Maestro run nightly on staging (promote to blocking once flake < 2%).
+  - Performance: qa/stress.py SLA smoke wired into the nightly staging run
+    (--max-p95-ms, --max-error-rate, --min-functional).
+  - Security: dependency + SAST + container scan on PR; bundle secret scan nightly.
+  - Manual GUI smoke: the per-sub-app matrix (docs/release-testing.txt section 5),
+    run at the x.0 gate.
+
+
+============================================================================
+8. PR TEMPLATE / CHECKLIST (the lead owner fills this)
+============================================================================
+  - What changed (one paragraph) + which of the 16 sub-apps it touches.
+  - Risk tier: low / medium / high (high => CODEOWNERS review, section 5c).
+  - Test evidence: which suites/cases cover it; new tests added.
+  - Rollback plan: how to back this feature out (usually: revert the squash commit).
+  - Feature-flag / migration notes, if any.
+
+
+============================================================================
+9. FAILURE-MODE RUNBOOKS
+============================================================================
+9a. Red integration branch
+    Two PRs each pass CI alone but interact badly (logical, not textual, merge
+    conflict) — caught by staging integration tests / nightly regression, not by
+    fast CI. Owner of the last-merged PR triages. PROMOTION HALTS until green.
+
+9b. QA rejects one feature in the train
+    Revert that one squash commit on integration; re-cut the RC; re-run nightly.
+    The rest of the train proceeds.
+
+9c. Production hotfix while integration holds unpromoted risky work
+    Branch from the CURRENT PRODUCTION digest's commit; fast CI; expedited QA on
+    staging; deploy; then forward-merge the fix into integration. Never promote a
+    half-baked integration branch just to ship a hotfix.
+
+9d. Post-deploy smoke fails in production
+    Auto-rollback to the previous production digest (deploy-gate.yml) AND page a
+    human at P1 (same channel as the synthetic monitor issues).
+
+
+============================================================================
+10. VERSIONING & RELEASE CADENCE
+============================================================================
+  - SemVer: patch = fix, minor = feature, major (x.0) = the full gate in
+    docs/release-testing.txt.
+  - VERSION bumped per PR (scripts/bump_pr_version.py); GitHub Release cut on
+    advance (release.yml).
+  - The test_inventory --min threshold ratchets UP each major, forcing coverage
+    toward thousands of cases.
+  - Normal cadence: one promotion train per day (the morning QA gate). Hotfixes
+    use the expedited lane (9c).
+
+
+============================================================================
+11. METRICS / SLOs (govern the program)
+============================================================================
+  - PR CI wall-time: < 15 min (protects velocity as gates are added).
+  - Escaped-defect rate: prod defects / total — the real V&V scorecard.
+  - E2E flake rate: < 2% per spec (the promotion bar).
+  - Deploy success rate & MTTR: rollback frequency, time-to-rollback.
+  - Coverage per sub-app: the 16-app matrix; ratcheting floor.
+  - DORA: deploy frequency, change-failure rate, lead time, MTTR.
+
+
+============================================================================
+12. ROADMAP (foundational -> hardening)
+============================================================================
+Day 0 (backbone — this plan depends on them):
+  - Stand up aoep-staging (infra/k8s-staging — scaffolded alongside this doc).
+  - Digest-pinned promotion: build once, promote the digest, no prod rebuild.
+  - RC cut: pin integration@HEAD nightly; regression + QA + promote that RC.
+
+Days 0-30:
+  - Promote ruff + next lint to PR gates.
+  - Require CODEOWNERS review on high-risk paths; auto-merge-after-approval there.
+  - Thin E2E smoke on PR; full E2E on staging.
+  - Dependabot + CodeQL + Trivy.
+
+Days 30-60:
+  - Wire --cov-fail-under and test_inventory --min into CI (ratcheted).
+  - Bring homework/harvester/webcam/cosyvoice off ~1 test each.
+  - Unblock mobile Maestro (Expo quota + seeded staging backend).
+
+Days 60-90:
+  - Canary the production roll + post-deploy functional smoke suite.
+  - Inter-service contract tests.
+  - Nightly SLA/perf gate; flaky-test quarantine lane.
+  - First ratcheted x.0 dry run against docs/release-testing.txt.
