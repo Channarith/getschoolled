@@ -81,6 +81,22 @@ Env:
   XAI_API_KEY, XAI_BASE_URL, XAI_MODEL, XAI_TIMEOUT_S
   SPEECH_BASE_URL (default http://127.0.0.1:8002)
 
+Where to put XAI_API_KEY (never commit it)
+------------------------------------------
+  - Local Mac: config/local.env (gitignored; copy from config/local.env.example)
+      XAI_API_KEY=xai-...
+    then: set -a; . config/local.env; set +a
+  - Cloud agents: Cursor Dashboard -> Cloud Agents -> Secrets (injected as env).
+  - Cluster: the aoep-secrets k8s Secret (see release-and-deploy skill).
+
+Verify the key is live:
+  curl -sS https://api.x.ai/v1/models -H "Authorization: Bearer $XAI_API_KEY"
+  curl -sS http://127.0.0.1:8040/api/studio/voice/status
+
+`voice.provider` reports "xai" once the key is set. If the xAI API is
+unreachable (blocked egress, rate limit, bad key) the agent still answers with
+deterministic local-fallback text — teaching never hard-fails.
+
 Workflow
 --------
 1. Run training scan — walks all pdf/pptx, parses labels, extracts pages.
