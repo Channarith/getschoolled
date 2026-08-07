@@ -89,11 +89,14 @@ def test_teach_engine_advances(tmp_path: Path):
     )
     builder.save_course(c)
     engine = TeachEngine(builder)
-    first = engine.start(session_id="s1", course_id="course-demo")
+    first = engine.start(
+        session_id="s1", course_id="course-demo", use_voice_agent=False, language="en"
+    )
     assert first["turn"]["title"] == "One"
     assert first["progress"]["total_objectives"] == 2
     assert first["media"]
     assert first["animation"]["enter"] == "fade-up"
+    assert first["language"] == "en"
     second = engine.advance("s1")
     assert second["turn"]["title"] == "Two"
     pop = engine.pop_quiz("s1")

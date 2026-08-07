@@ -14,10 +14,13 @@ from .generate import CourseBuilder
 from .offline_trainer import run_offline_training
 from .quality_model import default_model_path, load_model, model_to_public_dict
 from .review_store import ReviewStore
+from .studio_languages import list_languages, normalize_language
 from .studio_page import render_studio_page
 from .teach import TeachEngine
 from .training_run import run_training_pass
+from .tts_client import build_tts_get_url, tts_client_hints, tts_status
 from .types import CategoryId, LearnerProfileScores, QualityLabel
+from .voice_agent import get_voice_agent
 
 app = FastAPI(
     title="Theodore Course Studio",
@@ -68,6 +71,7 @@ class BuildCourseRequest(BaseModel):
     title: str | None = None
     max_slides: int = Field(default=20, ge=1, le=40)
     only_incorporate: bool = True
+    language: str = "en"
 
 
 class TeachStartRequest(BaseModel):
@@ -77,6 +81,8 @@ class TeachStartRequest(BaseModel):
     learner_id: str = "learner-demo"
     known_objective_ids: list[str] = Field(default_factory=list)
     focus_gaps: bool = True
+    language: str | None = None
+    use_voice_agent: bool = True
 
 
 class TeachSessionRequest(BaseModel):
@@ -86,6 +92,16 @@ class TeachSessionRequest(BaseModel):
 class TeachProfileRequest(BaseModel):
     session_id: str = "studio-teach-1"
     profile: LearnerProfileScores
+
+
+class TeachLanguageRequest(BaseModel):
+    session_id: str = "studio-teach-1"
+    language: str = "en"
+
+
+class VoiceRespondRequest(BaseModel):
+    session_id: str = "studio-teach-1"
+    message: str = Field(min_length=1)
 
 
 class PopAnswerRequest(BaseModel):
@@ -106,10 +122,29 @@ class GameGradeRequest(BaseModel):
 
 @app.get("/health")
 def health() -> dict[str, Any]:
+    voice = get_voice_agent().status()
     return {
         "service": "theodore-course-studio",
         "status": "ok",
         "corpus_root": str(default_corpus_root()),
+        "languages": len(list_languages()),
+        "voice": voice,
+        "tts": tts_status(),
+    }
+
+
+@app.get("/api/studio/languages")
+def studio_languages() -> dict[str, Any]:
+    rows = list_languages()
+    return {"count": len(rows), "languages": rows}
+
+
+@app.get("/api/studio/voice/status")
+def voice_status() -> dict[str, Any]:
+    return {
+        "voice": get_voice_agent().status(),
+        "tts": tts_status(),
+        "languages": len(list_languages()),
     }
 
 
@@ -258,6 +293,7 @@ def build_course(req: BuildCourseRequest) -> dict[str, Any]:
             title=req.title,
             max_slides=req.max_slides,
             only_incorporate=req.only_incorporate,
+            language=normalize_language(req.language),
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -274,6 +310,8 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
             learner_id=req.learner_id,
             known_objective_ids=req.known_objective_ids,
             focus_gaps=req.focus_gaps,
+            language=req.language,
+            use_voice_agent=req.use_voice_agent,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
@@ -296,6 +334,39 @@ def teach_profile(req: TeachProfileRequest) -> dict[str, Any]:
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
 
+
+@app.post("/api/studio/teach/language")
+def teach_language(req: TeachLanguageRequest) -> dict[str, Any]:
+    try:
+        return _teach.set_language(req.session_id, req.language)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
+@app.post("/api/studio/teach/voice/respond")
+def teach_voice_respond(req: VoiceRespondRequest) -> dict[str, Any]:
+    try:
+        return _teach.voice_respond(req.session_id, req.message)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
+@app.post("/api/studio/teach/voice/present")
+def teach_voice_present(req: TeachSessionRequest) -> dict[str, Any]:
+    try:
+        return _teach.voice_present_current(req.session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
+@app.get("/api/studio/tts/url")
+def tts_url(text: str, language: str = "en") -> dict[str, Any]:
+    lang = normalize_language(language)
+    return {
+        "language": lang,
+        "url": build_tts_get_url(text, language=lang),
+        "hints": tts_client_hints(lang),
+    }
 
 @app.post("/api/studio/teach/pop-quiz")
 def teach_pop_quiz(req: TeachSessionRequest) -> dict[str, Any]:

@@ -21,6 +21,8 @@ def test_health_and_studio_page():
     assert "Summary quiz" in page.text
     assert "Play game" in page.text
     assert "Offline long trainer" in page.text
+    assert "Ask Theodore" in page.text
+    assert "teach-lang" in page.text
 
 
 def test_offline_trainer_api_with_empty_corpus(tmp_path, monkeypatch):

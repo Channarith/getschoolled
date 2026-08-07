@@ -79,6 +79,7 @@ class StudioCourse(BaseModel):
     course_id: str
     title: str
     category: CategoryId
+    language: str = "en"  # aoep_shared SUPPORTED_LANGUAGES code
     source_ids: list[str] = Field(default_factory=list)
     slides: list[CourseSlide] = Field(default_factory=list)
     profile_adaptations: dict[str, Any] = Field(default_factory=dict)
