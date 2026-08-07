@@ -1,0 +1,198 @@
+# Deploy to STAGING (aoep-staging namespace) — the integration environment in the
+# V&V pipeline (docs/vv-master-plan.txt sections 2c + 5a).
+#
+# Flow: build the 10 images ONCE, capture each immutable sha256 digest, apply the
+# staging kustomize overlay (infra/k8s-staging), roll every Deployment to the
+# built DIGEST (never a mutable tag), then verify with the digest smoke. The SAME
+# digest artifact is what later promotes to production unchanged — that is the
+# "promote the exact build" bridge (section 4).
+#
+# Triggers:
+#   * workflow_dispatch — deploy staging on demand (always allowed).
+#   * push to main (the integration trunk) — auto-deploys ONLY when the repo
+#     variable STAGING_AUTO_DEPLOY == "true" (Settings > Variables), so it never
+#     fails for forks / before the staging namespace + secrets are bootstrapped.
+#
+# One-time prerequisites (see infra/k8s-staging/kustomization.yaml TODOs):
+#   * `kubectl create namespace aoep-staging` is handled by the overlay's
+#     Namespace object, but the STAGING SECRET (Stripe test keys, staging LiveKit,
+#     rate-limited LLM key) and the ConfigMap override pointing model URLs at the
+#     shared prod GPU backends must be applied into aoep-staging first.
+#
+# Required repo secrets (same as prod deploy): VULTR_REGISTRY_USERNAME/PASSWORD,
+#   VULTR_API_KEY (or KUBE_CONFIG_B64 / KUBE_CONFIG).
+# Optional repo variables: REGISTRY, STAGING_AUTO_DEPLOY, VKE_CLUSTER_ID.
+#
+# Unlike the prod deploy, a failed staging smoke does NOT auto-rollback: a red
+# staging is informative — it halts promotion (runbook 9a) and stays visible for
+# the morning QA review rather than silently reverting.
+name: Deploy Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to build (default: commit SHA)"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ${{ vars.REGISTRY || 'sjc.vultrcr.com/salareen' }}
+  NAMESPACE: aoep-staging
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Manual staging deploy — will build and roll aoep-staging."
+          elif [ "${{ vars.STAGING_AUTO_DEPLOY }}" = "true" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Push to main with STAGING_AUTO_DEPLOY=true — deploying staging."
+          else
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipped: push to main without STAGING_AUTO_DEPLOY=true."
+            echo "::notice::Enable Settings → Variables → STAGING_AUTO_DEPLOY=true,"
+            echo "::notice::or use Actions → Deploy Staging → Run workflow."
+          fi
+
+  build-push:
+    needs: gate
+    if: needs.gate.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: orchestrator, dockerfile: services/orchestrator/Dockerfile, context: . }
+          - { name: speech,       dockerfile: services/speech/Dockerfile,       context: . }
+          - { name: perception,   dockerfile: services/perception/Dockerfile,   context: . }
+          - { name: memory,       dockerfile: services/memory/Dockerfile,       context: . }
+          - { name: curriculum,   dockerfile: services/curriculum/Dockerfile,   context: . }
+          - { name: billing,      dockerfile: services/billing/Dockerfile,      context: . }
+          - { name: identity,     dockerfile: services/identity/Dockerfile,     context: . }
+          - { name: integrations, dockerfile: services/integrations/Dockerfile, context: . }
+          - { name: harvester,    dockerfile: services/harvester/Dockerfile,    context: . }
+          - { name: web,          dockerfile: apps/web/Dockerfile,              context: . }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to Vultr Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.VULTR_REGISTRY_USERNAME }}
+          password: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.tag || github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Build + push ${{ matrix.name }}
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ matrix.name }}:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Record image digest
+        run: |
+          set -euo pipefail
+          mkdir -p digests
+          digest='${{ steps.build.outputs.digest }}'
+          if [ -z "$digest" ]; then
+            echo "::error::build-push-action produced no digest for ${{ matrix.name }}" >&2
+            exit 1
+          fi
+          echo "$digest" > "digests/${{ matrix.name }}.digest"
+          echo "${{ matrix.name }} -> $digest"
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.name }}
+          path: digests/${{ matrix.name }}.digest
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy-staging:
+    needs: [gate, build-push]
+    if: needs.gate.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+      - name: Download image digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
+      - name: Configure kubeconfig
+        env:
+          VULTR_API_KEY: ${{ secrets.VULTR_API_KEY }}
+          VKE_CLUSTER_ID: ${{ vars.VKE_CLUSTER_ID || 'bb09a491-8a40-4262-9a65-03ee5113c5a8' }}
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: bash scripts/github_configure_kubeconfig.sh
+      - name: Apply staging overlay (namespace + config + services)
+        run: |
+          set -euo pipefail
+          # Creates/updates the aoep-staging namespace, config, services, ingress,
+          # redis, and Deployments. Deployments are pinned to the built digest in
+          # the next step (the overlay's image tags are only a scaffold default).
+          kubectl apply -k infra/k8s-staging
+      - name: Roll deployments to the built digest
+        run: |
+          set -euo pipefail
+          for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web; do
+            echo "::group::$svc"
+            digest_file="digests/${svc}.digest"
+            if [ ! -f "$digest_file" ]; then
+              echo "::error::no digest artifact for $svc — refusing to deploy a stale/mutable tag" >&2
+              exit 1
+            fi
+            digest="$(tr -d '[:space:]' < "$digest_file")"
+            kubectl -n "$NAMESPACE" set image "deployment/$svc" "$svc=${REGISTRY}/${svc}@${digest}" || \
+              echo "deployment/$svc not found (skipping)"
+            echo "::endgroup::"
+          done
+          for svc in orchestrator speech perception memory curriculum billing identity integrations web; do
+            kubectl -n "$NAMESPACE" rollout status "deployment/$svc" --timeout=240s
+          done
+      - name: Digest-match smoke (staging)
+        env:
+          DIGEST_DIR: digests
+          NS: aoep-staging
+        run: bash scripts/post_deploy_smoke.sh
+
+      # Integration tests run immediately against staging (vv-master-plan.txt §2c).
+      # The digest smoke above is the always-on gate. The full web E2E + stress
+      # suite belongs here once staging has seeded synthetic data + public hosts
+      # (staging.salareen.com); wire `make e2e` / `qa/stress.py --smoke` against
+      # the staging URLs then. Kept as an explicit TODO rather than a masked pass.
+      - name: Integration test hook (TODO)
+        run: |
+          echo "::notice::Digest smoke passed. Full E2E-against-staging is the next"
+          echo "::notice::step — see infra/k8s-staging TODOs (seed data + DNS) and"
+          echo "::notice::docs/vv-master-plan.txt §2c."
+
+      - name: On failure — keep staging red (no auto-rollback)
+        if: failure()
+        run: |
+          echo "::warning::Staging deploy/smoke failed. NOT rolling back — a red"
+          echo "::warning::staging halts promotion (runbook 9a) and stays visible"
+          echo "::warning::for the morning QA review. Investigate before promoting."
