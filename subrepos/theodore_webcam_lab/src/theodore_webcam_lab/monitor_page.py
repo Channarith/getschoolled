@@ -39,8 +39,21 @@ MONITOR_CSS = """
              border: 1px solid #475569; border-radius: 4px; padding: 2px 8px; }
     button.primary { background: #1d4ed8; border-color: #3b82f6; }
     button:disabled { opacity: 0.5; cursor: default; }
-    .stage { display: grid; grid-template-columns: minmax(360px, 720px) minmax(340px, 1fr);
+    .stage { display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(300px, 1fr) minmax(280px, 0.95fr);
              gap: 12px; padding: 12px; align-items: start; }
+    @media (max-width: 1100px) {
+      .stage { grid-template-columns: 1fr; }
+    }
+    .voice-status { font-size: 11px; margin: 6px 0; padding: 6px 8px; border-radius: 6px;
+                    border: 1px solid #334155; background: #0b1220; color: #cbd5e1; }
+    .voice-status.live { border-color: #166534; color: #86efac; }
+    .voice-status.fallback { border-color: #d97706; color: #fde68a; }
+    .gatesblock.flash { animation: gateflash 0.7s ease; }
+    @keyframes gateflash {
+      0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.0); }
+      35% { box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.55); }
+      100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.0); }
+    }
     /* Standard webcam preview: 16:9 HD Ready (720p). Full HD 1080p is requested
        from the device; the frame stays 16:9 so the picture is never stretched. */
     .cam-frame { position: relative; width: 100%; max-width: 720px; aspect-ratio: 16 / 9;
@@ -775,7 +788,11 @@ MONITOR_JS = (
             gateEl.textContent = 'All quality checks passed';
             gateEl.className = 'pass';
           }
+          const block = gateEl.closest('.gatesblock');
+          if (block) { block.classList.remove('flash'); void block.offsetWidth; block.classList.add('flash'); }
         }
+      } else if (!sessions.length && !quiet) {
+        toast('No webcam/demo frame cached yet — Start camera or Load solo demo, then move a slider.');
       }
       const msg = [
         headline,

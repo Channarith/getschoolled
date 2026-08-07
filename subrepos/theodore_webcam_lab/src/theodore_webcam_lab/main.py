@@ -432,6 +432,27 @@ def voice_languages() -> list[SupportedLanguage]:
     return _voice_agent.supported_languages()
 
 
+@app.get("/api/theodore/voice/status")
+def voice_status() -> dict[str, object]:
+    """Show whether xAI is wired and how many teaching languages are available."""
+    has_key = bool(getattr(_voice_agent, "_api_key", "") or "")
+    return {
+        "service": "theodore-voice-agent",
+        "provider": "xai" if has_key else "local-fallback",
+        "xai_api_key_configured": has_key,
+        "model": _voice_agent.model,
+        "fast_model": _voice_agent.fast_model,
+        "languages": len(_voice_agent.supported_languages()),
+        "tts_engine_chain": ["elevenlabs", "edge-tts", "device"],
+        "note": (
+            "xAI Grok generates the reply text; spoken audio uses the browser/device "
+            "voice (or a speech gateway when configured). Set XAI_API_KEY for live xAI."
+            if not has_key
+            else "xAI Grok is live for replies; spoken audio uses device/edge/ElevenLabs TTS."
+        ),
+    }
+
+
 @app.post("/api/theodore/webcam/evaluate", response_model=ClassEvaluation)
 def evaluate_webcam(req: WebcamEvaluationRequest) -> ClassEvaluation:
     evaluation = _analyzer.evaluate(
