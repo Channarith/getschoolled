@@ -27,6 +27,27 @@ questions, but it does not rewrite the curated child narration into harder text.
 Adult PDF/PPTX corpus generation is still available under the collapsed
 "Advanced: build from adult Good/Better source files" panel.
 
+TEACHING IN OTHER LANGUAGES
+---------------------------
+Choosing a language changes the WORDS, not just the voice. Sending English text
+to a Spanish voice only mispronounces English at the child, so the studio keeps
+text and audio in the same language and tells you which one you are getting:
+
+  curated  Hand-written and reviewed. Spanish (es) ships for all eight lessons.
+  xai      Real Grok translation, constrained to tiny child vocabulary and
+           cached under data/i18n/ so later runs need no network. Needs
+           XAI_API_KEY. Shown as "review before classroom use".
+  english  Honest fallback. Words AND audio stay English, and the UI says so.
+
+Phonics and sight words are never machine translated: "A is for apple" cannot
+become "A is for manzana", because manzana starts with M. Those lessons carry
+properly localized variants instead: Spanish teaches "A de avion, B de bota,
+C de casa".
+
+Audio itself never comes from xAI. Grok writes/translates text; speech comes
+from the gateway chain (ElevenLabs -> edge-tts) or the device voice, using the
+language of the words actually on screen.
+
 SETUP & RUN (copy/paste)
 ------------------------
 Prereqs: Python 3.11+ (3.12 fine). Everything below works OFFLINE.
