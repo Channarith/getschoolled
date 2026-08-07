@@ -9,6 +9,13 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from .corpus import default_corpus_root, default_data_dir, load_corpus_index, scan_corpus, write_corpus_index
+from .early_learning import (
+    EarlyCourseRequest,
+    EarlyLevel,
+    LEVEL_NAMES,
+    build_early_course,
+    list_early_courses,
+)
 from .extract import extract_document
 from .generate import CourseBuilder
 from .offline_trainer import run_offline_training
@@ -274,6 +281,34 @@ def add_comment(req: CommentRequest) -> dict[str, Any]:
 def list_courses() -> dict[str, Any]:
     courses = _builder.list_courses()
     return {"courses": [c.model_dump(mode="json") for c in courses]}
+
+
+@app.get("/api/studio/early-learning/options")
+def early_learning_options(level: EarlyLevel | None = None) -> dict[str, Any]:
+    options = list_early_courses(level)
+    return {
+        "default_level": EarlyLevel.PRE_K.value,
+        "levels": [
+            {"code": item.value, "name": LEVEL_NAMES[item]}
+            for item in EarlyLevel
+        ],
+        "courses": [row.model_dump(mode="json") for row in options],
+    }
+
+
+@app.post("/api/studio/courses/early-learning")
+def build_early_learning_course(req: EarlyCourseRequest) -> dict[str, Any]:
+    try:
+        course = build_early_course(
+            level=req.level,
+            topic_id=req.topic_id,
+            language=req.language,
+            title=req.title,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _builder.save_course(course)
+    return course.model_dump(mode="json")
 
 
 @app.get("/api/studio/courses/{course_id}")
