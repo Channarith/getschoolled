@@ -31,7 +31,10 @@ from .knowledge import (
     objectives_from_slides,
 )
 from .profile_adapt import adapt_slide
+from .studio_languages import normalize_language
+from .tts_client import build_tts_get_url, tts_client_hints
 from .types import LearnerProfileScores, StudioCourse, TeachTurn
+from .voice_agent import CourseStudioVoiceAgent, get_voice_agent
 
 
 @dataclass
@@ -39,6 +42,7 @@ class TeachSession:
     session_id: str
     course_id: str
     learner_id: str = "learner-demo"
+    language: str = "en"
     path: list[int] = field(default_factory=list)
     path_pos: int = 0
     profile: LearnerProfileScores = field(default_factory=LearnerProfileScores)
@@ -48,6 +52,7 @@ class TeachSession:
     history: list[TeachTurn] = field(default_factory=list)
     pending_pop: QuizQuestion | None = None
     summary_quiz: GeneratedQuiz | None = None
+    use_voice_agent: bool = True
 
 
 class TeachEngine:
@@ -55,9 +60,11 @@ class TeachEngine:
         self,
         builder: CourseBuilder | None = None,
         knowledge: KnowledgeStore | None = None,
+        voice: CourseStudioVoiceAgent | None = None,
     ) -> None:
         self._builder = builder or CourseBuilder()
         self._knowledge = knowledge or KnowledgeStore()
+        self._voice = voice or get_voice_agent()
         self._lock = threading.RLock()
         self._sessions: dict[str, TeachSession] = {}
 
@@ -70,12 +77,15 @@ class TeachEngine:
         learner_id: str = "learner-demo",
         known_objective_ids: list[str] | None = None,
         focus_gaps: bool = True,
+        language: str | None = None,
+        use_voice_agent: bool = True,
     ) -> dict[str, Any]:
         course = self._builder.get_course(course_id)
         if course is None:
             raise KeyError(course_id)
         if not course.slides:
             raise ValueError("course has no slides")
+        lang = normalize_language(language or getattr(course, "language", None) or "en")
         objectives = objectives_from_slides(course_id, course.slides)
         knowledge = self._knowledge.assess_prior_knowledge(
             learner_id=learner_id,
@@ -87,17 +97,20 @@ class TeachEngine:
             path = next_slide_indexes(objectives, knowledge)
         else:
             path = [s.index for s in course.slides]
+        self._voice.clear_session(session_id)
         with self._lock:
             session = TeachSession(
                 session_id=session_id,
                 course_id=course_id,
                 learner_id=learner_id,
+                language=lang,
                 path=path or [0],
                 path_pos=0,
                 profile=profile or LearnerProfileScores(),
                 objectives=objectives,
                 knowledge=knowledge,
                 started_at_ms=int(time.time() * 1000),
+                use_voice_agent=use_voice_agent,
             )
             self._sessions[session_id] = session
             return self._turn_payload(course, session)
@@ -215,6 +228,64 @@ class TeachEngine:
         course, _ = self._require(session_id)
         return course
 
+    def set_language(self, session_id: str, language: str) -> dict[str, Any]:
+        course, session = self._require(session_id)
+        session.language = normalize_language(language)
+        return self._turn_payload(course, session)
+
+    def voice_respond(
+        self,
+        session_id: str,
+        learner_message: str,
+    ) -> dict[str, Any]:
+        course, session = self._require(session_id)
+        slide = course.slides[session.path[session.path_pos]]
+        turn = self._voice.respond(
+            session_id=session_id,
+            learner_message=learner_message,
+            language_code=session.language,
+            lesson_context=f"{course.title}\n{slide.title}\n{slide.body}",
+        )
+        return {
+            "voice": turn.model_dump(mode="json"),
+            "tts": {
+                **tts_client_hints(session.language),
+                "get_url": build_tts_get_url(turn.message, language=session.language),
+            },
+            "turn": self._turn_payload(course, session),
+        }
+
+    def voice_present_current(self, session_id: str) -> dict[str, Any]:
+        course, session = self._require(session_id)
+        slide = course.slides[session.path[session.path_pos]]
+        adapted = adapt_slide(slide, session.profile)
+        if session.use_voice_agent:
+            voice = self._voice.present_slide(
+                session_id=session_id,
+                title=adapted.title,
+                body=adapted.display_body or adapted.narration,
+                language_code=session.language,
+                course_title=course.title,
+            )
+        else:
+            from .voice_agent import VoiceTurn
+
+            voice = VoiceTurn(
+                provider="slide-narration",
+                message=adapted.narration,
+                language_code=session.language,
+                fallback_used=True,
+            )
+        return {
+            "voice": voice.model_dump(mode="json"),
+            "tts": {
+                **tts_client_hints(session.language),
+                "get_url": build_tts_get_url(voice.message, language=session.language),
+            },
+            "slide_index": session.path[session.path_pos],
+            "language": session.language,
+        }
+
     def _objective_for_slide(self, session: TeachSession, slide_index: int) -> LearningObjective:
         for obj in session.objectives:
             if slide_index in obj.slide_indexes:
@@ -227,6 +298,9 @@ class TeachEngine:
         )
 
     def _turn_payload(self, course: StudioCourse, session: TeachSession) -> dict[str, Any]:
+        if not session.path:
+            session.path = [0]
+        session.path_pos = max(0, min(session.path_pos, len(session.path) - 1))
         slide_index = session.path[session.path_pos]
         slide = course.slides[slide_index]
         turn = adapt_slide(slide, session.profile)
@@ -236,11 +310,27 @@ class TeachEngine:
         knowledge = (
             session.knowledge.model_dump(mode="json") if session.knowledge else {}
         )
+        voice_meta = None
+        spoken = turn.narration
+        if session.use_voice_agent:
+            # Enrich spoken line via xAI / offline fallback (text only).
+            voice = self._voice.present_slide(
+                session_id=session.session_id,
+                title=turn.title,
+                body=turn.display_body or turn.narration,
+                language_code=session.language,
+                course_title=course.title,
+            )
+            spoken = voice.message
+            voice_meta = voice.model_dump(mode="json")
+        turn_dump = turn.model_dump(mode="json")
+        turn_dump["narration"] = spoken
         return {
-            "turn": turn.model_dump(mode="json"),
+            "turn": turn_dump,
             "slide_index": slide_index,
             "path": session.path,
             "path_pos": session.path_pos,
+            "language": session.language,
             "objective": objective.model_dump(mode="json"),
             "media": media,
             "animation": {
@@ -249,6 +339,11 @@ class TeachEngine:
                 "duration_ms": 650,
             },
             "knowledge": knowledge,
+            "voice": voice_meta,
+            "tts": {
+                **tts_client_hints(session.language),
+                "get_url": build_tts_get_url(spoken, language=session.language),
+            },
             "progress": {
                 "known": len(session.knowledge.known_objective_ids) if session.knowledge else 0,
                 "gaps": len(session.knowledge.gap_objective_ids) if session.knowledge else 0,

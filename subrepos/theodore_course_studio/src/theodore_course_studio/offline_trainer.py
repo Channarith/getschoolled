@@ -323,6 +323,7 @@ class OfflineTrainer:
             course_id=f"course-{uuid.uuid4().hex[:10]}",
             title=f"{cat.value.replace('_', ' ').title()} — offline trained",
             category=cat,
+            language="en",
             source_ids=sorted(set(used_sources)),
             slides=slides,
             profile_adaptations={
