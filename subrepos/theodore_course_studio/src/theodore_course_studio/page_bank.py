@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .content_quality import analyze_document
 from .corpus import default_data_dir, load_corpus_index, scan_corpus, write_corpus_index
 from .extract import extract_document
 from .quality_model import LabeledPage
@@ -64,25 +65,44 @@ def build_page_bank(
                 }
                 for p in extracted.pages
             ]
-        for page in pages_payload:
-            idx = int(page.get("index", 0))
-            review = reviews.get_page(doc.source_id, idx)
+        # Clean + classify so the model trains on teachable prose, and learns
+        # that covers/TOC/reference pages are NOT good course material.
+        analysis = analyze_document(
+            [
+                (
+                    int(p.get("index", 0)),
+                    (p.get("title") or "")[:200],
+                    p.get("text") or "",
+                )
+                for p in pages_payload
+            ]
+        )
+        hints = {int(p.get("index", 0)): p.get("marked_reject_hint") for p in pages_payload}
+        for page in analysis.pages:
+            review = reviews.get_page(doc.source_id, page.index)
             marked = bool(
                 (review and review.marked_reject)
-                or (review is None and page.get("marked_reject_hint"))
+                or (review is None and hints.get(page.index))
             )
-            body = (page.get("text") or "")[:4000]
-            title = (page.get("title") or "")[:200]
+            body = page.body[:4000]
+            title = page.title[:200]
             if len(body.strip()) < 20 and not title.strip():
                 continue
+            if page.teachable:
+                label = _label_for(doc.quality_label, marked)
+            else:
+                # Non-teachable pages are negative regardless of the file label.
+                label = -1.0
             bank.append(
                 LabeledPage(
                     source_id=doc.source_id,
-                    page_index=idx,
+                    page_index=page.index,
                     title=title,
                     body=body,
-                    label=_label_for(doc.quality_label, marked),
-                    quality_name=doc.quality_label.value,
+                    label=label,
+                    quality_name=doc.quality_label.value
+                    if page.teachable
+                    else page.kind.value,
                     category=doc.category.value,
                 )
             )
