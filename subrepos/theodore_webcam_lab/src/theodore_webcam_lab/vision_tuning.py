@@ -71,10 +71,15 @@ class VisionTuning:
     silhouette_foreground_threshold: float = 0.95
     silhouette_motion_threshold: float = 0.08
     silhouette_consecutive_frames: int = 3
-    gaze_frontal_min_threshold: float = 0.35
-    gaze_down_min_threshold: float = 0.60
+    gaze_frontal_min_threshold: float = 0.40
+    gaze_down_min_threshold: float = 0.38
+    eyes_closed_min_threshold: float = 0.45
+    yawn_min_threshold: float = 0.48
+    attention_min_threshold: float = 0.40
+    distraction_min_threshold: float = 0.55
     typing_activity_min_threshold: float = 0.70
     keyboard_typing_audio_min_threshold: float = 0.65
+    hands_on_face_min_threshold: float = 0.50
 
     # --- Image detection quality scoring -------------------------------------
     image_detection_confidence_weight: float = 0.60
@@ -127,6 +132,10 @@ class VisionTuning:
             "silhouette_motion_threshold",
             "gaze_frontal_min_threshold",
             "gaze_down_min_threshold",
+            "eyes_closed_min_threshold",
+            "yawn_min_threshold",
+            "attention_min_threshold",
+            "distraction_min_threshold",
             "typing_activity_min_threshold",
             "keyboard_typing_audio_min_threshold",
             "image_detection_confidence_weight",

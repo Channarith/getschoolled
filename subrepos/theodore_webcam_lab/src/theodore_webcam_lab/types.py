@@ -34,10 +34,29 @@ class WebcamSignal(BaseModel):
     expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     gaze_frontal: float | None = Field(default=None, ge=0.0, le=1.0)
     gaze_down_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    eyes_closed_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    yawn_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # 0–1 probability that the learner's hand(s) are resting on or covering their face
+    # (chin-rest, cheek-prop, head-in-hands). Derived from luminance grid heuristics or
+    # MediaPipe hand landmarks when available.
+    hands_on_face_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Advanced observatory inputs (optional — thin clients may omit).
+    head_pose_pitch: float | None = None
+    head_pose_yaw: float | None = None
+    head_pose_roll: float | None = None
+    body_motion_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    fidget_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    brow_raise_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    smile_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    screen_focus_score: float | None = Field(default=None, ge=0.0, le=1.0)
     phone_visible: bool = False
     typing_activity_score: float | None = Field(default=None, ge=0.0, le=1.0)
     keyboard_typing_audio_score: float | None = Field(default=None, ge=0.0, le=1.0)
     face_size_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Prefer LiDAR / depth-camera metres when the client can measure them.
+    # Server uses this before falling back to face-size-in-frame estimation.
+    distance_from_camera_m: float | None = Field(default=None, ge=0.0)
+    distance_source: str | None = Field(default=None)
     light_quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
     image_detection_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     noise_filter_effectiveness_score: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -62,6 +81,7 @@ class ParticipantEvaluation(BaseModel):
     silhouette_streak: int = Field(ge=0)
     face_count: int = Field(ge=0)
     distance_from_camera_m: float | None = Field(default=None, ge=0.0)
+    distance_source: str = "none"  # lidar | face_size | none
     light_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
     image_detection_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
     expression_behavior_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -80,6 +100,19 @@ class ParticipantEvaluation(BaseModel):
     recognition_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     absent_for_ms: int = Field(ge=0)
     eyes_away_for_ms: int = Field(ge=0)
+    eyes_closed_for_ms: int = Field(default=0, ge=0)
+    eyes_closed_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    yawn_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    yawn_for_ms: int = Field(default=0, ge=0)
+    attention_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    distraction_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    inattentive_for_ms: int = Field(default=0, ge=0)
+    hands_on_face_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    hands_on_face_for_ms: int = Field(default=0, ge=0)
+    behavior_label: str = "unknown"  # focused|yawning|distracted|inattentive|drowsy|away|hands_on_face
+    # Nested advanced observatory snapshot (engagement, cognitive states, head pose, events).
+    advanced_behavior: dict[str, object] | None = None
+    phone_visible: bool = False
     last_live_timestamp_ms: int | None = Field(default=None, ge=0)
     dominant_expression: str = "unknown"
     expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -155,6 +188,10 @@ class ParticipantMetricSeries(BaseModel):
     expression_behavior_score: list[float | None] = Field(default_factory=list)
     microphone_quality_score: list[float | None] = Field(default_factory=list)
     noise_filter_effectiveness_score: list[float | None] = Field(default_factory=list)
+    engagement_index: list[float | None] = Field(default_factory=list)
+    fatigue_score: list[float | None] = Field(default_factory=list)
+    confusion_score: list[float | None] = Field(default_factory=list)
+    multitask_score: list[float | None] = Field(default_factory=list)
     latest: ParticipantEvaluation
 
 
@@ -167,6 +204,24 @@ class LiveSessionMetricsResponse(BaseModel):
     quality_summary: QualitySummary = Field(default_factory=QualitySummary)
     lesson_alerts: list[LessonAlert] = Field(default_factory=list)
     participants: list[ParticipantMetricSeries] = Field(default_factory=list)
+    group_student_windows: list[GroupStudentWindowStatus] = Field(default_factory=list)
+    silhouette_participant_ids: list[str] = Field(default_factory=list)
+    suspected_cheating_participant_ids: list[str] = Field(default_factory=list)
+    acknowledged_alert_keys: list[str] = Field(default_factory=list)
+    absent_participant_ids: list[str] = Field(default_factory=list)
+    happy_participant_ids: list[str] = Field(default_factory=list)
+    keyboard_typing_audio_participant_ids: list[str] = Field(default_factory=list)
+    expression_counts: dict[str, int] = Field(default_factory=dict)
+    class_alerts: list[str] = Field(default_factory=list)
+    no_one_present_for_ms: int = Field(default=0, ge=0)
+    original_participant_id: str = ""
+    unexpected_participant_ids: list[str] = Field(default_factory=list)
+    action_log: list[dict] = Field(default_factory=list)
+    private_messages: list[dict] = Field(default_factory=list)
+    watchlist: list[str] = Field(default_factory=list)
+    rejoin_requests: list[str] = Field(default_factory=list)
+    behavior_events: list[dict] = Field(default_factory=list)
+    observatory_summary: dict[str, object] = Field(default_factory=dict)
 
 
 class VoiceResponse(BaseModel):

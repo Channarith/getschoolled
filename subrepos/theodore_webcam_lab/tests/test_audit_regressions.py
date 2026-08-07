@@ -150,6 +150,7 @@ def test_analyzer_bounds_tracked_sessions():
         )
     assert len(analyzer._state) <= 5
     assert len(analyzer._no_presence_started_ms) <= 5
+    assert len(analyzer._last_eval_ms) <= 5
     assert len(analyzer._original_participant_id) <= 5
 
 

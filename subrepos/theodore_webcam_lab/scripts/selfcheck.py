@@ -9,6 +9,9 @@ exactly how far the system gets instead of guessing.
     python3 subrepos/theodore_webcam_lab/scripts/selfcheck.py --serve    # start the API itself
     python3 subrepos/theodore_webcam_lab/scripts/selfcheck.py --base-url http://127.0.0.1:8015
 
+If bare ``python3`` is missing fastapi/pydantic (common with Homebrew 3.14), the
+script re-runs itself with the repo ``.venv`` automatically when that venv exists.
+
 Exit code is 0 when every step passed, 1 otherwise, so CI can gate on it.
 """
 
@@ -26,14 +29,61 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 LAB_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = LAB_ROOT.parents[1]
 SRC = LAB_ROOT / "src"
 DEFAULT_BASE_URL = "http://127.0.0.1:8015"
+VENV_PYTHON = REPO_ROOT / ".venv" / "bin" / "python3"
 
 GREEN, RED, YELLOW, DIM, RESET = "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[0m"
 
 
 def _colour(text: str, code: str) -> str:
     return text if os.environ.get("NO_COLOR") else f"{code}{text}{RESET}"
+
+
+def _missing_runtime_deps() -> list[str]:
+    missing = []
+    for module in ("fastapi", "pydantic", "uvicorn"):
+        try:
+            __import__(module)
+        except ImportError:
+            missing.append(module)
+    return missing
+
+
+def _already_using_repo_venv() -> bool:
+    try:
+        return Path(sys.executable).resolve() == VENV_PYTHON.resolve()
+    except OSError:
+        return False
+
+
+def _maybe_reexec_into_venv(argv: list[str] | None) -> None:
+    """Prefer the repo ``.venv`` when the current interpreter is missing deps.
+
+    Bare ``python3`` on macOS is often Homebrew 3.14 with no lab packages, while
+    the project venv (3.12) already has them. Re-exec once so selfcheck and the
+    server stay on the same interpreter.
+    """
+    if os.environ.get("AOEP_SELFCHECK_NO_VENV") == "1":
+        return
+    if _already_using_repo_venv():
+        return
+    if not VENV_PYTHON.is_file():
+        return
+    if not _missing_runtime_deps():
+        return
+    env = dict(os.environ)
+    env["AOEP_SELFCHECK_REEXEC"] = "1"
+    cmd = [str(VENV_PYTHON), str(Path(__file__).resolve()), *(argv or sys.argv[1:])]
+    print(
+        _colour(
+            f"Re-running with repo venv ({VENV_PYTHON}) — current "
+            f"{sys.executable} is missing lab dependencies.",
+            YELLOW,
+        )
+    )
+    raise SystemExit(subprocess.call(cmd, env=env))
 
 
 @dataclass
@@ -79,17 +129,22 @@ def _http(
 ) -> tuple[int, object]:
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(
-        base_url.rstrip("/") + path,
+        f"{base_url.rstrip('/')}{path}",
         data=data,
+        headers={"content-type": "application/json"} if data is not None else {},
         method=method,
-        headers={"content-type": "application/json"},
     )
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        raw = response.read().decode("utf-8")
-        try:
-            return response.status, json.loads(raw or "{}")
-        except json.JSONDecodeError:
-            return response.status, raw
+        raw = response.read()
+        payload: object
+        if not raw:
+            payload = {}
+        else:
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except json.JSONDecodeError:
+                payload = raw.decode("utf-8", errors="replace")
+        return response.status, payload
 
 
 # --------------------------------------------------------------- offline steps
@@ -99,25 +154,33 @@ def check_python(report: Report) -> None:
         Step(
             "Python 3.11+",
             ok,
-            detail=f"running {sys.version.split()[0]}",
+            detail=f"running {sys.version.split()[0]} via {sys.executable}",
             fix="install Python 3.11 or newer (the repo targets 3.11/3.12)",
         )
     )
 
 
 def check_dependencies(report: Report) -> None:
-    missing = []
-    for module in ("fastapi", "pydantic", "uvicorn"):
-        try:
-            __import__(module)
-        except ImportError:
-            missing.append(module)
+    missing = _missing_runtime_deps()
+    venv_hint = (
+        f'source {REPO_ROOT / ".venv" / "bin" / "activate"}  '
+        f"# or: {VENV_PYTHON} {Path(__file__).resolve().relative_to(REPO_ROOT)}"
+    )
+    install_hint = (
+        'python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" '
+        '"uvicorn[standard]>=0.30,<0.35"'
+    )
+    fix = venv_hint if VENV_PYTHON.is_file() else install_hint
     report.add(
         Step(
             "Python dependencies",
             not missing,
-            detail="fastapi, pydantic, uvicorn present" if not missing else f"missing: {', '.join(missing)}",
-            fix='python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" "uvicorn[standard]>=0.30,<0.35"',
+            detail=(
+                "fastapi, pydantic, uvicorn present"
+                if not missing
+                else f"missing: {', '.join(missing)}"
+            ),
+            fix=fix,
         )
     )
 
@@ -134,15 +197,23 @@ def check_imports(report: Report) -> bool:
         # A missing third-party package is a different problem from the lab not
         # being importable, and needs a different fix.
         third_party = (exc.name or "") not in {"theodore_webcam_lab", ""}
+        venv_fix = (
+            f'source {REPO_ROOT / ".venv" / "bin" / "activate"}  '
+            f"# then re-run selfcheck"
+        )
         report.add(
             Step(
                 "Lab package imports",
                 False,
                 detail=f"missing module: {exc.name}",
                 fix=(
-                    f'python3 -m pip install "{exc.name}"  (see Step 1 in README.md)'
-                    if third_party
-                    else f"run from the repo root, or add {SRC} to PYTHONPATH"
+                    venv_fix
+                    if third_party and VENV_PYTHON.is_file()
+                    else (
+                        f'python3 -m pip install "{exc.name}"  (see Step 1 in README.md)'
+                        if third_party
+                        else f"run from the repo root, or add {SRC} to PYTHONPATH"
+                    )
                 ),
             )
         )
@@ -463,6 +534,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    _maybe_reexec_into_venv(argv)
     return run(args.base_url, serve=args.serve, port=args.port)
 
 

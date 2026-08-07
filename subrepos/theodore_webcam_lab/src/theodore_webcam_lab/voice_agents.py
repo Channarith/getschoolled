@@ -20,6 +20,7 @@ from .types import (
 )
 
 SUPPORTED_LANGUAGES: list[SupportedLanguage] = [
+    # — European —
     SupportedLanguage(code="en", name="English"),
     SupportedLanguage(code="es", name="Spanish"),
     SupportedLanguage(code="fr", name="French"),
@@ -40,14 +41,58 @@ SUPPORTED_LANGUAGES: list[SupportedLanguage] = [
     SupportedLanguage(code="tr", name="Turkish"),
     SupportedLanguage(code="ru", name="Russian"),
     SupportedLanguage(code="uk", name="Ukrainian"),
+    SupportedLanguage(code="bg", name="Bulgarian"),
+    SupportedLanguage(code="hr", name="Croatian"),
+    SupportedLanguage(code="sr", name="Serbian"),
+    SupportedLanguage(code="ca", name="Catalan"),
+    SupportedLanguage(code="lt", name="Lithuanian"),
+    SupportedLanguage(code="lv", name="Latvian"),
+    SupportedLanguage(code="et", name="Estonian"),
+    SupportedLanguage(code="sl", name="Slovenian"),
+    # — Middle East & Central Asia —
     SupportedLanguage(code="ar", name="Arabic"),
     SupportedLanguage(code="he", name="Hebrew"),
+    SupportedLanguage(code="fa", name="Persian (Farsi)"),
+    SupportedLanguage(code="ur", name="Urdu"),
+    SupportedLanguage(code="az", name="Azerbaijani"),
+    # — South Asia —
     SupportedLanguage(code="hi", name="Hindi"),
+    SupportedLanguage(code="bn", name="Bengali"),
+    SupportedLanguage(code="ta", name="Tamil"),
+    SupportedLanguage(code="te", name="Telugu"),
+    SupportedLanguage(code="mr", name="Marathi"),
+    SupportedLanguage(code="gu", name="Gujarati"),
+    SupportedLanguage(code="pa", name="Punjabi"),
+    SupportedLanguage(code="si", name="Sinhala"),
+    SupportedLanguage(code="ne", name="Nepali"),
+    # — East Asia —
+    SupportedLanguage(code="zh-CN", name="Chinese (Simplified)"),
+    SupportedLanguage(code="zh-TW", name="Chinese (Traditional)"),
+    SupportedLanguage(code="ja", name="Japanese"),
+    SupportedLanguage(code="ko", name="Korean"),
+    SupportedLanguage(code="mn", name="Mongolian"),
+    # — Southeast Asia —
     SupportedLanguage(code="id", name="Indonesian"),
+    SupportedLanguage(code="ms", name="Malay"),
     SupportedLanguage(code="vi", name="Vietnamese"),
     SupportedLanguage(code="th", name="Thai"),
+    SupportedLanguage(code="km", name="Khmer (Cambodian)"),
+    SupportedLanguage(code="lo", name="Lao"),
+    SupportedLanguage(code="my", name="Burmese (Myanmar)"),
+    SupportedLanguage(code="tl", name="Filipino (Tagalog)"),
+    # — Africa —
+    SupportedLanguage(code="sw", name="Swahili"),
+    SupportedLanguage(code="am", name="Amharic"),
+    SupportedLanguage(code="ha", name="Hausa"),
+    SupportedLanguage(code="yo", name="Yoruba"),
+    SupportedLanguage(code="ig", name="Igbo"),
+    SupportedLanguage(code="zu", name="Zulu"),
+    SupportedLanguage(code="af", name="Afrikaans"),
 ]
-_LANG_BY_CODE = {item.code: item for item in SUPPORTED_LANGUAGES}
+# Keys are always lowercased so lookup is case-insensitive.
+# Codes with hyphens (zh-CN, zh-TW) survive: stored as "zh-cn"/"zh-tw" as keys
+# while item.code retains the canonical capitalisation for API/SpeechSynthesis.
+_LANG_BY_CODE = {item.code.lower(): item for item in SUPPORTED_LANGUAGES}
 
 
 class XaiVoiceAgentError(RuntimeError):
