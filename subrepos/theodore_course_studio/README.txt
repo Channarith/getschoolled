@@ -31,12 +31,20 @@ Keep = like / unmarked. Comments on a source or page are stored for training.
 
 Quick start
 -----------
-  cd /Users/cvanthin/getschoolled
+  cd /Users/cvanthin/getschoolled   # or /workspace in cloud agents
   . .venv/bin/activate
   python3 -m pip install -e 'subrepos/theodore_course_studio[all]'
 
   # Index + extract training pass (writes data/training_runs/…)
   python3 subrepos/theodore_course_studio/scripts/run_training.py
+
+  # Offline LONG trainer (no network / no LLM) — run for hours on the labeled corpus:
+  export THEODORE_COURSE_CORPUS_ROOT=~/Downloads/drive-download-20260807T154004Z-1-001
+  export THEODORE_COURSE_STUDIO_DATA=subrepos/theodore_course_studio/data
+  python3 subrepos/theodore_course_studio/scripts/run_offline_trainer.py --hours 8
+  # Resume later:
+  python3 subrepos/theodore_course_studio/scripts/run_offline_trainer.py \
+      --resume-run-id offline-<id> --hours 4 --no-scan
 
   # Studio UI
   PYTHONPATH=subrepos/theodore_course_studio/src python3 -m uvicorn \
@@ -45,12 +53,25 @@ Quick start
 
 Open: http://127.0.0.1:8040/studio
 
+Offline long trainer
+--------------------
+Fully offline quality loop:
+  1) Scan/extract labeled PDFs/PPTXs (or reuse cached extracts).
+  2) Build a page bank labeled Good/Better (+1) vs Bad/reject (-1).
+  3) For many epochs: fit a local quality model → assemble a scored course →
+     mutate generation policy → checkpoint under data/offline_training/.
+  4) CourseBuilder loads data/models/quality_model.json and ranks pages by score.
+
+No GPU, no API keys, no network required after the corpus is local.
+Use --hours for overnight runs; --epochs for fixed budgets; --resume-run-id to continue.
+
 Workflow
 --------
 1. Run training scan — walks all pdf/pptx, parses labels, extracts pages.
-2. Review pages — Keep / Reject; add comments for Theodore training.
-3. Build course — from Good/Better sources, skipping rejected pages (~20 slides).
-4. Teach / present — Theodore narrates slides; tweak learner profile knobs
+2. Run offline long trainer (hours/epochs) to improve page ranking + course picks.
+3. Review pages — Keep / Reject; add comments for Theodore training.
+4. Build course — from Good/Better sources, ranked by the learned model.
+5. Teach / present — Theodore narrates slides; tweak learner profile knobs
    (engagement, literacy, attention, fatigue, confusion, pace, accessibility).
 
 API (high level)
@@ -60,6 +81,8 @@ API (high level)
   GET  /api/studio/corpus
   GET  /api/studio/sources/{source_id}
   POST /api/studio/training/run
+  POST /api/studio/training/offline
+  GET  /api/studio/training/offline/status
   POST /api/studio/pages/verdict
   POST /api/studio/comments
   GET  /api/studio/courses
