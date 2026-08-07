@@ -1,6 +1,56 @@
 Theodore Course Studio (experiment subrepo)
 ===========================================
 
+SETUP & RUN (copy/paste)
+------------------------
+Prereqs: Python 3.11+ (3.12 fine). Everything below works OFFLINE.
+
+  # 0) from the repo root (/workspace in cloud, ~/getschoolled on your Mac)
+  cd "$(git rev-parse --show-toplevel)"
+
+  # 1) make + activate a virtualenv (one time)
+  python3 -m venv .venv
+  . .venv/bin/activate            # Windows: .venv\Scripts\activate
+
+  # 2) install the studio (pdf+pptx+test extras)
+  python3 -m pip install -e 'subrepos/theodore_course_studio[all]'
+
+  # 3) point at your labeled corpus (folders of Good/Bad/Moderate PDFs+PPTX)
+  export THEODORE_COURSE_CORPUS_ROOT=~/Downloads/drive-download-20260807T154004Z-1-001
+  export THEODORE_COURSE_STUDIO_DATA="$PWD/subrepos/theodore_course_studio/data"
+
+  # 4) (optional) natural voice — xAI Grok + neural TTS. Skip = offline fallback.
+  export XAI_API_KEY=xai-...           # put this in config/local.env, NOT in git
+  export SPEECH_BASE_URL=http://127.0.0.1:8002
+
+  # 5) START THE STUDIO UI
+  PYTHONPATH=subrepos/theodore_course_studio/src python3 -m uvicorn \
+    theodore_course_studio.main:app --app-dir subrepos/theodore_course_studio/src \
+    --port 8040 --host 127.0.0.1
+  # then open  http://127.0.0.1:8040/studio
+
+In the browser (top-to-bottom in the page):
+  1. Run training scan       — indexes + extracts your corpus
+  2. Offline long trainer    — (optional) learns Good-vs-Bad quality model
+  3. Review pages            — Keep / Reject (⌀ = circle+line), add comments
+  4. Build course            — pick a language, generate a ranked lesson
+  5. Start teach             — Theodore presents; Pop/Summary quiz; Play game;
+                               Ask Theodore (xAI or offline); auto-speak TTS
+
+Long OFFLINE training (hours) without the UI:
+  python3 subrepos/theodore_course_studio/scripts/run_offline_trainer.py --hours 8
+  # resume later:
+  python3 subrepos/theodore_course_studio/scripts/run_offline_trainer.py \
+      --resume-run-id offline-<id> --hours 4 --no-scan
+
+Run the tests:
+  PYTHONPATH=subrepos/theodore_course_studio/src python3 -m pytest \
+    subrepos/theodore_course_studio/tests -q
+
+Note on docs: this project convention is plain text (no new .md files), so this
+README.txt is the canonical guide — there is no README.md.
+
+
 Purpose
 -------
 Sandbox for building Theodore-taught courses from the manually labeled
