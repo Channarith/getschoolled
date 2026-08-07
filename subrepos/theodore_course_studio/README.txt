@@ -50,6 +50,30 @@ Run the tests:
 Note on docs: this project convention is plain text (no new .md files), so this
 README.txt is the canonical guide — there is no README.md.
 
+TROUBLESHOOTING
+---------------
+"I don't see the language picker or the xAI voice"
+  Your checkout predates them. They shipped in v0.46.33. Update and restart:
+      git pull origin main
+      # restart uvicorn (step 5 above), then HARD-refresh the browser
+  Confirm with:
+      curl -s http://127.0.0.1:8040/health          # -> "languages": 27
+      curl -s http://127.0.0.1:8040/api/studio/voice/status
+  voice.provider is "xai" only when XAI_API_KEY is exported in the SAME shell
+  that runs uvicorn; otherwise it reads "local-fallback" (still works).
+
+"The generated course is full of junk slides"
+  Cover pages, tables of contents, reference lists and running headers are
+  filtered out at build time (see content_quality.py). Rebuild the course after
+  updating. The build side-car lists what was dropped:
+      cat subrepos/theodore_course_studio/data/courses/<course_id>.build.json
+  Anything still bad: mark those pages Reject (⌀) in step 3 and rebuild, then
+  run the offline trainer so the quality model learns your preferences.
+
+"Audio is silent / robotic"
+  Without a speech gateway on SPEECH_BASE_URL the browser's built-in voice is
+  used. Start the speech service (:8002) for neural ElevenLabs/edge-tts audio.
+
 
 Purpose
 -------
