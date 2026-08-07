@@ -176,6 +176,18 @@ STUDIO_JS = """
       toast('Training run complete');
     }
 
+    async function runOfflineTrainer() {
+      $('train-status').textContent = 'Offline trainer running (no network)…';
+      const data = await api('/api/studio/training/offline', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ epochs: 25, run_scan: true, fit_passes: 2 })
+      });
+      $('train-status').textContent =
+        `Offline ${data.run_id}: epochs ${data.epoch}, best ${Number(data.best_course_score || 0).toFixed(3)}, ${data.status}`;
+      await refreshCourses();
+      toast('Offline trainer finished — course builds now use the learned model');
+    }
+
     async function buildCourse() {
       const category = $('build-category').value;
       const title = $('build-title').value.trim() || null;
@@ -337,6 +349,7 @@ STUDIO_JS = """
     }
 
     $('btn-train').onclick = () => runTraining().catch((e) => toast(String(e.message || e)));
+    $('btn-offline').onclick = () => runOfflineTrainer().catch((e) => toast(String(e.message || e)));
     $('btn-comment').onclick = () => postComment().catch((e) => toast(String(e.message || e)));
     $('btn-build').onclick = () => buildCourse().catch((e) => toast(String(e.message || e)));
     $('btn-teach').onclick = () => startTeach().catch((e) => toast(String(e.message || e)));
@@ -369,6 +382,7 @@ def render_studio_page() -> str:
       <h2>1. Labeled corpus</h2>
       <div class="row">
         <button id="btn-train" type="button">Run training scan</button>
+        <button id="btn-offline" class="secondary" type="button">Offline long trainer</button>
         <span class="status" id="train-status"></span>
       </div>
       <div class="status" id="corpus-stats"></div>
