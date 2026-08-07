@@ -247,25 +247,34 @@ Step 2 - start the lab API
    Leave this running in its own terminal. Confirm it is up from another shell:
    curl -s http://127.0.0.1:8015/health        # EXPECT: {"service":"theodore-webcam-lab","status":"ok"}
 
-   Port 8015 already taken? Pass a different --port and reuse it below via
-   --base-url http://127.0.0.1:<port>.
+   Port 8015 already taken? Pass a different --port (e.g. --port 8028). The
+   seed script auto-discovers any healthy lab on 8015–8035, or pin it with
+   --port / --base-url / THEODORE_WEBCAM_LAB_URL.
 
 Step 3 - seed demo webcam frames
 --------------------------------
    python3 subrepos/theodore_webcam_lab/scripts/seed_demo_session.py
 
-   EXPECT: "Seeded 'demo-session' with 60 frames." plus the monitor URL.
+   EXPECT: "Seeding against http://127.0.0.1:<port>" then
+   "Seeded 'demo-session' with 12 frames." plus the monitor URL for that port.
+   If several labs are up, the highest healthy port wins (usually the newest).
+   Pin explicitly when needed:
+     python3 subrepos/theodore_webcam_lab/scripts/seed_demo_session.py --port 8028
+
    Add --rolling to keep posting one frame per second so the dashboard animates
    while you watch it (Ctrl-C to stop). Add --degraded to send dim, soft-focus,
    noisy frames so the recognition quality gates fire and you can practise tuning
    them (see RECOGNITION TUNING above).
 
-   Keep the default 60 frames: student-b's cheating signal only trips after the
-   sustained gaze-away window (45s of simulated time), so a shorter seed will
-   correctly show no cheating alert yet.
+   Prefer the in-page buttons on the live monitor: "Load demo data" and
+   "Start live feed" — they call the same demo payloads without a second terminal.
+
+   Cheating trips by frame 5 because each demo frame advances 10s of simulated
+   time (default gaze-away grace is 45s). student-c is a silhouette-only window.
 
 Step 4 - open the live monitor in a browser
 -------------------------------------------
+   Use the URL printed by the seed script (port may not be 8015), e.g.
    http://127.0.0.1:8015/theodore/webcam/live-monitor/demo-session
 
    EXPECT (compare against docs/screens/theodore_webcam_live_monitor.webp):
@@ -273,13 +282,16 @@ Step 4 - open the live monitor in a browser
      behavior score, mic quality, noise filter. Values refresh every second.
    - Top-right "Lesson Alerts": one [medium] group-intervention alert and one
      [high] cheating alert naming student-b.
-   - "Student Windows (Live Metrics)": TWO windows side by side, each with
-     quality bars plus a live line chart (green=light, blue=image, amber=mic).
+   - "Student Windows (Live Metrics)": THREE windows side by side, each with
+     quality bars plus a live line chart (green=light, blue=image, amber=mic,
+     violet=behavior).
    - Window #1 student-a: State present, Cheating false, and Mic quality / Noise
      filter showing "n/a" on dropout frames. That "n/a" is the point: a missing
      sample stays a gap in the chart instead of being dropped and shifting later
      points onto the wrong timestamp.
-   - Window #2 student-b: Cheating true (eyes down + phone + typing audio).
+   - Window #2 student-b: Cheating true with reasons (eyes down + phone + typing).
+   - Window #3 student-c: Silhouette badge (no face, filled foreground).
+   - Lesson Alerts: click "Run lesson action" to acknowledge and jump to the student.
 
    Prefer to check the raw numbers instead of the UI:
    curl -s http://127.0.0.1:8015/api/theodore/webcam/live-metrics/demo-session | python3 -m json.tool

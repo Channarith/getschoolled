@@ -38,6 +38,10 @@ class WebcamSignal(BaseModel):
     typing_activity_score: float | None = Field(default=None, ge=0.0, le=1.0)
     keyboard_typing_audio_score: float | None = Field(default=None, ge=0.0, le=1.0)
     face_size_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Prefer LiDAR / depth-camera metres when the client can measure them.
+    # Server uses this before falling back to face-size-in-frame estimation.
+    distance_from_camera_m: float | None = Field(default=None, ge=0.0)
+    distance_source: str | None = Field(default=None)
     light_quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
     image_detection_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     noise_filter_effectiveness_score: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -62,6 +66,7 @@ class ParticipantEvaluation(BaseModel):
     silhouette_streak: int = Field(ge=0)
     face_count: int = Field(ge=0)
     distance_from_camera_m: float | None = Field(default=None, ge=0.0)
+    distance_source: str = "none"  # lidar | face_size | none
     light_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
     image_detection_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
     expression_behavior_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -167,6 +172,22 @@ class LiveSessionMetricsResponse(BaseModel):
     quality_summary: QualitySummary = Field(default_factory=QualitySummary)
     lesson_alerts: list[LessonAlert] = Field(default_factory=list)
     participants: list[ParticipantMetricSeries] = Field(default_factory=list)
+    group_student_windows: list[GroupStudentWindowStatus] = Field(default_factory=list)
+    silhouette_participant_ids: list[str] = Field(default_factory=list)
+    suspected_cheating_participant_ids: list[str] = Field(default_factory=list)
+    acknowledged_alert_keys: list[str] = Field(default_factory=list)
+    absent_participant_ids: list[str] = Field(default_factory=list)
+    happy_participant_ids: list[str] = Field(default_factory=list)
+    keyboard_typing_audio_participant_ids: list[str] = Field(default_factory=list)
+    expression_counts: dict[str, int] = Field(default_factory=dict)
+    class_alerts: list[str] = Field(default_factory=list)
+    no_one_present_for_ms: int = Field(default=0, ge=0)
+    original_participant_id: str = ""
+    unexpected_participant_ids: list[str] = Field(default_factory=list)
+    action_log: list[dict] = Field(default_factory=list)
+    private_messages: list[dict] = Field(default_factory=list)
+    watchlist: list[str] = Field(default_factory=list)
+    rejoin_requests: list[str] = Field(default_factory=list)
 
 
 class VoiceResponse(BaseModel):

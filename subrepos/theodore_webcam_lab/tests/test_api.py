@@ -438,7 +438,7 @@ def test_webcam_game_attempt_returns_404_for_unknown_challenge():
     assert resp.status_code == 404
 
 
-def test_webcam_api_pauses_training_after_no_presence_over_4_seconds():
+def test_webcam_api_pauses_training_after_no_presence_quickly():
     first = client.post(
         "/api/theodore/webcam/evaluate",
         json={
@@ -468,7 +468,7 @@ def test_webcam_api_pauses_training_after_no_presence_over_4_seconds():
             "signals": [
                 {
                     "participant_id": "learner-p",
-                    "timestamp_ms": 6_250,
+                    "timestamp_ms": 3_100,
                     "face_count": 0,
                     "liveness_state": "missing",
                     "foreground_ratio": 0.0,
@@ -480,8 +480,8 @@ def test_webcam_api_pauses_training_after_no_presence_over_4_seconds():
     assert second.status_code == 200
     second_body = second.json()
     assert second_body["training_paused"] is True
-    assert second_body["pause_reason"] == "no_learner_detected_over_4s"
-    assert second_body["no_one_present_for_ms"] == 4_250
+    assert second_body["pause_reason"] == "no_learner_detected"
+    assert second_body["no_one_present_for_ms"] == 1_100
 
 
 def test_webcam_api_pauses_when_original_user_is_replaced():

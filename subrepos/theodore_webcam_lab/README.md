@@ -16,7 +16,13 @@ falls back to a local responder when `XAI_API_KEY` is unset.
 
 ## Step 1 — Install what it needs
 
-From the **repo root**:
+From the **repo root**, use the project venv (recommended):
+
+```bash
+source .venv/bin/activate
+```
+
+Or install into whatever `python3` you use:
 
 ```bash
 python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" \
@@ -29,8 +35,10 @@ python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" \
 python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 ```
 
-You should see `88 passed`. If you see `ModuleNotFoundError`, the install above
-did not run in the Python you are using.
+You should see `114 passed`. If you see `ModuleNotFoundError`, the install above
+did not run in the Python you are using. On macOS, bare `python3` is often
+Homebrew 3.14 with no packages — activate `.venv` first (selfcheck does this
+automatically when the venv exists).
 
 ---
 
@@ -73,11 +81,13 @@ Add `--rolling` to keep feeding a frame a second so the dashboard animates, or
 
 ![Live camera preview beside the tuning panel, with sharpness, edge density, light and confidence readings under the video](docs/screens/monitor-camera-and-tuning.webp)
 
-**Left — Camera.** Press **Start camera** for your real webcam, or **Test
-pattern** if this machine has no camera (a server or CI box). Either way the
-frames are analysed by the same code: the readings under the video (sharpness,
-edge density, light, image quality, confidence) update live, and **Live gates**
-turns red and names anything failing.
+**Left — Camera.** Press **Start camera** for your real webcam, **Test
+pattern** if this machine has no camera, or **Silhouette demo** to see the
+person-outline overlay trip silhouette detection. Camera samples no longer
+overwrite the group demo metrics. Use **Load solo demo** / **Load group demo** /
+**Start live feed**
+at the top of the page to populate and animate student windows without a second
+terminal.
 
 **Right — Tuning.** Every accuracy threshold is a slider. Drag one and the gates
 respond within a second. The **Vision** tab holds lighting, sharpness, distance
@@ -165,9 +175,14 @@ It exits `0` when everything passes and `1` otherwise, so CI can gate on it.
 | --- | --- |
 | `ModuleNotFoundError: fastapi` | Step 1 installed into a different Python. Re-run it with the same `python3` you start the server with. |
 | `Address already in use` | Something else holds the port. Use `--port 8016`, or find the owner with `lsof -ti :8015` and stop that specific process. |
-| Dashboard says "No metrics yet" | The session has no frames. Run Step 3, and make sure the session id in the URL matches (`demo-session`). |
-| Charts are flat | Only one batch of frames arrived. Re-seed with `--rolling`. |
-| Camera stays black, status "camera unavailable" | No camera, or permission denied. Use **Test pattern** — it exercises the identical analysis path. |
+| Dashboard says "No metrics yet" | Click **Load solo demo** or **Load group demo**, or run Step 3. Session id in the URL must match (`demo-session`). |
+| Confused by 3 student windows | Group demo is synthetic (not 3 webcams). Use **Load solo demo (1 student)** or **Start camera**. |
+| Charts are flat | Click **Start live feed**, or re-seed with `--rolling`. |
+| Camera stays black, status "camera unavailable" | No camera, or permission denied. Use **Test pattern** or **Silhouette demo**. |
+| Starting the camera wiped student windows | Fixed: camera posts with `persist_live_metrics=false`. Reload demo data if an older lab build already clobbered the session. |
+| No cheating / silhouette | Click **Load group demo (3 students)**. student-b cheats; student-c is silhouette-only. |
+| Lesson alerts do nothing | Click **Run lesson action** — it acknowledges the alert, toasts the action, and jumps to the student window. |
+| Applying a tuning preset changes nothing | Load a demo (solo or group) first, stay on the **Vision** tab, then change a knob/preset. The lab re-scores open sessions immediately — watch **Failed gates (class)** and student distance/quality flags. Voice presets only affect Theodore replies. |
 | Camera blocked on another machine | `getUserMedia` needs a secure context. `127.0.0.1` and `https` work; a plain `http://<lan-ip>` does not. |
 | Voice replies say `local-fallback` | Expected without a key. Set `XAI_API_KEY` for real xAI replies. |
 | Everything looks broken | Run Step 5. It isolates the failing piece. |
@@ -189,14 +204,26 @@ It exits `0` when everything passes and `1` otherwise, so CI can gate on it.
 
 ```text
 POST /api/theodore/webcam/evaluate                 analyse a batch of frames
+POST /api/theodore/webcam/demo/seed                load healthy/cheating/silhouette demo
+POST /api/theodore/webcam/demo/roll/start          animate demo metrics in-process
+POST /api/theodore/webcam/demo/roll/stop           stop the in-process demo feed
+POST /api/theodore/webcam/alerts/acknowledge       mark a lesson alert as handled
+POST /api/theodore/webcam/alerts/action            execute the lesson alert action
 GET  /api/theodore/webcam/live-metrics/{session}   chart-ready metric series
 GET  /theodore/webcam/live-monitor/{session}       the dashboard above
 GET  /api/theodore/vision/tuning                   read accuracy knobs
 PATCH/api/theodore/vision/tuning                   change them live
+POST /api/theodore/vision/tuning/preset/{name}     apply a room preset
+GET  /api/theodore/vision/policy                   read timing/session policy knobs
+PATCH/api/theodore/vision/policy                   change grace windows live
 GET  /api/theodore/voice/tuning                    read xAI conversation knobs
+PATCH/api/theodore/voice/tuning                    change voice knobs live
+POST /api/theodore/voice/tuning/preset/{name}      apply a voice preset
 POST /api/theodore/voice/respond                   talk to Theodore
+POST /api/theodore/voice/ask-question              generate a practice question
 POST /api/theodore/vision/imaging/analyze          Sobel + exposure report
 POST /api/theodore/webcam/games/challenge          issue a reinforcement game
+POST /api/theodore/webcam/games/attempt            score a game attempt
 ```
 
 Full parameter detail for each is in `README.txt`.
