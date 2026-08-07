@@ -57,6 +57,8 @@ STUDIO_CSS = """
                   font-family:Arial,sans-serif; font-weight:700; padding:8px; }
     .activity { margin-top:8px; padding:9px 12px; border-radius:999px; background:#312e81;
                 color:#fff; font:700 15px Arial,sans-serif; text-align:center; }
+    .lang-warning { margin-top:8px; padding:8px 10px; border-radius:8px; background:#4d3d1d;
+                    border:1px solid #9a7d3d; color:#fde68a; font-size:13px; }
     @media (max-width:700px) { .picture-stage { grid-template-columns:1fr; } }
     .quiz-box, .game-box { margin-top:10px; padding:10px; border:1px dashed #3a5548; border-radius:8px; background:#13201a; }
     .quiz-box button, .game-box button { display:block; width:100%; text-align:left; margin:4px 0; }
@@ -482,8 +484,20 @@ STUDIO_JS = """
       const prog = payload.progress || {};
       const obj = payload.objective ? payload.objective.title : '';
       const lang = payload.language || teachLanguage;
+      const spoken = payload.spoken_language || lang;
       $('teach-adapt').textContent =
         `${adapt} · lang ${esc(lang)} · focus: ${esc(obj)} · known ${prog.known || 0} / gaps ${prog.gaps || 0}`;
+      const warn = $('lang-warning');
+      if (payload.translation_source === 'english' && spoken !== lang) {
+        warn.textContent = '⚠ ' + (payload.translation_note ||
+          'Words and audio are English for this lesson.');
+        warn.style.display = 'block';
+      } else if (payload.translation_source === 'xai') {
+        warn.textContent = 'ℹ Machine-translated by Grok — review before classroom use.';
+        warn.style.display = 'block';
+      } else {
+        warn.style.display = 'none';
+      }
       speakText(turn.narration || turn.display_body || '', payload.tts);
     }
 
@@ -605,6 +619,7 @@ def render_studio_page() -> str:
           <img id="teach-motion" hidden alt="" />
         </div>
         <div class="body" id="teach-body">Build or select a course, then Start teach.</div>
+        <div class="lang-warning" id="lang-warning" style="display:none"></div>
         <div class="activity" id="teach-activity" style="display:none"></div>
         <div class="narr" id="teach-narr"></div>
         <div class="status" id="teach-adapt"></div>
