@@ -12,6 +12,7 @@ from .corpus import default_data_dir, load_corpus_index
 from .extract import extract_document
 from .quality_model import QualityModel, default_model_path, load_model
 from .review_store import ReviewStore
+from .studio_languages import normalize_language
 from .types import CategoryId, CourseSlide, QualityLabel, StudioCourse
 
 
@@ -72,6 +73,7 @@ class CourseBuilder:
         title: str | None = None,
         max_slides: int = 20,
         only_incorporate: bool = True,
+        language: str = "en",
     ) -> StudioCourse:
         docs = load_corpus_index(self._data_dir)
         if not docs:
@@ -148,11 +150,13 @@ class CourseBuilder:
             raise ValueError("no keepable pages after reject filtering")
 
         cat = category or chosen[0].category
+        lang = normalize_language(language)
         course = StudioCourse(
             course_id=f"course-{uuid.uuid4().hex[:10]}",
             title=title
             or f"{cat.value.replace('_', ' ').title()} — studio lesson",
             category=cat,
+            language=lang,
             source_ids=used_sources,
             slides=slides,
             created_at_ms=int(time.time() * 1000),
@@ -164,7 +168,8 @@ class CourseBuilder:
             "course_id": course.course_id,
             "sources": used_sources,
             "slide_count": len(slides),
-            "policy": "filename Good/Better + page not marked reject",
+            "language": lang,
+            "policy": "filename Good/Better + page not marked reject + quality model rank",
         }
         (self._courses_dir / f"{course.course_id}.build.json").write_text(
             json.dumps(summary, indent=2), encoding="utf-8"

@@ -59,6 +59,8 @@ STUDIO_JS = """
     let selectedCourse = null;
     let teachSession = 'studio-teach-1';
     let pagesCache = [];
+    let teachLanguage = 'en';
+    let serverAudio = null;
 
     function toast(msg) {
       const el = $('toast');
@@ -191,13 +193,17 @@ STUDIO_JS = """
     async function buildCourse() {
       const category = $('build-category').value;
       const title = $('build-title').value.trim() || null;
+      teachLanguage = $('teach-lang').value || 'en';
       const data = await api('/api/studio/courses/build', {
         method:'POST', headers:{'content-type':'application/json'},
-        body: JSON.stringify({ category: category || null, title, max_slides: 20, only_incorporate: true })
+        body: JSON.stringify({
+          category: category || null, title, max_slides: 20,
+          only_incorporate: true, language: teachLanguage
+        })
       });
       selectedCourse = data.course_id;
       await refreshCourses();
-      toast('Course built: ' + data.course_id);
+      toast('Course built: ' + data.course_id + ' · lang ' + (data.language || teachLanguage));
     }
 
     async function refreshCourses() {
@@ -205,12 +211,33 @@ STUDIO_JS = """
       const box = $('course-list');
       box.innerHTML = (data.courses || []).map((c) => `
         <div class="item" data-cid="${esc(c.course_id)}">
-          <div><strong>${esc(c.title)}</strong> <span class="pill">${esc(c.category)}</span></div>
+          <div><strong>${esc(c.title)}</strong> <span class="pill">${esc(c.category)}</span>
+            <span class="pill">${esc(c.language || 'en')}</span></div>
           <div class="meta">${esc(c.course_id)} · ${c.slides.length} slides · ${esc(c.status)}</div>
         </div>`).join('') || '<div class="item">No courses yet.</div>';
       box.querySelectorAll('.item[data-cid]').forEach((el) => {
         el.onclick = () => { selectedCourse = el.getAttribute('data-cid'); startTeach(); };
       });
+    }
+
+    async function loadLanguages() {
+      const data = await api('/api/studio/languages');
+      const sel = $('teach-lang');
+      sel.innerHTML = (data.languages || []).map((l) =>
+        `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
+      ).join('');
+      sel.value = teachLanguage;
+    }
+
+    async function refreshVoiceStatus() {
+      const data = await api('/api/studio/voice/status');
+      const v = data.voice || {};
+      const t = data.tts || {};
+      $('voice-status').textContent =
+        `xAI: ${v.provider || 'local-fallback'}` +
+        (v.xai_available ? ' (live key)' : ' (offline fallback)') +
+        ` · TTS: ${t.engine || 'device'}` +
+        ` · langs: ${data.languages || 0}`;
     }
 
     function profileFromForm() {
@@ -227,15 +254,31 @@ STUDIO_JS = """
 
     async function startTeach() {
       if (!selectedCourse) return toast('Select or build a course first');
+      teachLanguage = $('teach-lang').value || 'en';
       const data = await api('/api/studio/teach/start', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({
           session_id: teachSession, course_id: selectedCourse, profile: profileFromForm(),
-          focus_gaps: true, known_objective_ids: []
+          focus_gaps: true, known_objective_ids: [],
+          language: teachLanguage, use_voice_agent: true
         })
       });
       renderTeach(data);
-      toast('Theodore teaching session started (gap-focused path)');
+      toast('Theodore teaching · ' + (data.language || teachLanguage) +
+        (data.voice ? ' · ' + data.voice.provider : ''));
+    }
+
+    async function askTheodore() {
+      const msg = $('voice-ask').value.trim();
+      if (!msg) return toast('Type a question for Theodore');
+      const data = await api('/api/studio/teach/voice/respond', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ session_id: teachSession, message: msg })
+      });
+      const voice = data.voice || {};
+      $('teach-narr').textContent = 'Theodore (' + (voice.provider || 'voice') + '): ' + (voice.message || '');
+      speakText(voice.message || '', data.tts);
+      toast(voice.fallback_used ? 'Local fallback reply' : 'xAI voice reply');
     }
 
     async function nextSlide() {
@@ -327,6 +370,35 @@ STUDIO_JS = """
       });
     }
 
+    function stopSpeech() {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if (serverAudio) { try { serverAudio.pause(); } catch (_) {} serverAudio = null; }
+    }
+
+    function speakText(text, ttsMeta) {
+      if (!$('auto-speak').checked) return;
+      stopSpeech();
+      const spoken = text || '';
+      const url = ttsMeta && ttsMeta.get_url;
+      const available = ttsMeta && ttsMeta.speech && ttsMeta.speech.available;
+      if (available && url) {
+        serverAudio = new Audio(url);
+        serverAudio.play().catch(() => {
+          if (window.speechSynthesis) {
+            const u = new SpeechSynthesisUtterance(spoken);
+            u.lang = (ttsMeta.language || teachLanguage || 'en');
+            window.speechSynthesis.speak(u);
+          }
+        });
+        return;
+      }
+      if (window.speechSynthesis) {
+        const u = new SpeechSynthesisUtterance(spoken);
+        u.lang = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
+        window.speechSynthesis.speak(u);
+      }
+    }
+
     function renderTeach(payload) {
       const turn = payload.turn || payload;
       const stage = $('teach-stage');
@@ -335,17 +407,15 @@ STUDIO_JS = """
       stage.classList.add('anim');
       $('teach-title').textContent = turn.title || '—';
       $('teach-body').textContent = turn.display_body || '';
-      $('teach-narr').textContent = 'Theodore: ' + (turn.narration || '');
+      const provider = (payload.voice && payload.voice.provider) || 'slide';
+      $('teach-narr').textContent = 'Theodore (' + provider + '): ' + (turn.narration || '');
       const adapt = (turn.adaptations_applied || []).join(', ') || 'no adaptations';
       const prog = payload.progress || {};
       const obj = payload.objective ? payload.objective.title : '';
+      const lang = payload.language || teachLanguage;
       $('teach-adapt').textContent =
-        `${adapt} · focus: ${esc(obj)} · known ${prog.known || 0} / gaps ${prog.gaps || 0}`;
-      if (window.speechSynthesis && $('auto-speak').checked) {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(turn.narration || turn.display_body || '');
-        window.speechSynthesis.speak(u);
-      }
+        `${adapt} · lang ${esc(lang)} · focus: ${esc(obj)} · known ${prog.known || 0} / gaps ${prog.gaps || 0}`;
+      speakText(turn.narration || turn.display_body || '', payload.tts);
     }
 
     $('btn-train').onclick = () => runTraining().catch((e) => toast(String(e.message || e)));
@@ -358,7 +428,10 @@ STUDIO_JS = """
     $('btn-pop').onclick = () => popQuiz().catch((e) => toast(String(e.message || e)));
     $('btn-summary').onclick = () => summaryQuiz().catch((e) => toast(String(e.message || e)));
     $('btn-game').onclick = () => playGame().catch((e) => toast(String(e.message || e)));
+    $('btn-ask').onclick = () => askTheodore().catch((e) => toast(String(e.message || e)));
 
+    loadLanguages().catch(() => {});
+    refreshVoiceStatus().catch(() => {});
     refreshCorpus().catch(() => {});
     refreshCourses().catch(() => {});
 
@@ -417,6 +490,12 @@ def render_studio_page() -> str:
       <div class="list" id="course-list"></div>
 
       <h2>5. Theodore teach / present</h2>
+      <div class="row">
+        <label>Language
+          <select id="teach-lang" style="min-width:12rem"></select>
+        </label>
+        <span class="status" id="voice-status">xAI / TTS status…</span>
+      </div>
       <div class="teach-stage" id="teach-stage">
         <h3 id="teach-title">—</h3>
         <div class="body" id="teach-body">Build or select a course, then Start teach.</div>
@@ -432,6 +511,10 @@ def render_studio_page() -> str:
         <button id="btn-summary" class="secondary" type="button">Summary quiz</button>
         <button id="btn-game" class="secondary" type="button">Play game</button>
         <label class="pill"><input id="auto-speak" type="checkbox" checked /> auto speak</label>
+      </div>
+      <div class="row">
+        <input id="voice-ask" placeholder="Ask Theodore (xAI voice agent, offline fallback)" style="flex:1; min-width:14rem" />
+        <button id="btn-ask" class="secondary" type="button">Ask Theodore</button>
       </div>
       <h2>Learner profile scoring</h2>
       <div class="row">

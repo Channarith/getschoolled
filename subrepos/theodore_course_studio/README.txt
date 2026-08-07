@@ -65,19 +65,38 @@ Fully offline quality loop:
 No GPU, no API keys, no network required after the corpus is local.
 Use --hours for overnight runs; --epochs for fixed budgets; --resume-run-id to continue.
 
+Languages + xAI voice
+---------------------
+All 27 platform languages (aoep_shared.languages, including Khmer) are available
+in the studio language picker and on StudioCourse.language.
+
+Theodore voice agent:
+  - Uses XAI_API_KEY / Grok when configured (aoep_shared TeacherVoiceAgent or
+    direct chat completions).
+  - Always degrades to deterministic local-fallback text offline.
+  - Spoken audio: speech gateway (:8002) GET/POST /tts when available, else
+    browser/device speechSynthesis. Chain: ElevenLabs → edge-tts → device.
+
+Env:
+  XAI_API_KEY, XAI_BASE_URL, XAI_MODEL, XAI_TIMEOUT_S
+  SPEECH_BASE_URL (default http://127.0.0.1:8002)
+
 Workflow
 --------
 1. Run training scan — walks all pdf/pptx, parses labels, extracts pages.
 2. Run offline long trainer (hours/epochs) to improve page ranking + course picks.
 3. Review pages — Keep / Reject; add comments for Theodore training.
-4. Build course — from Good/Better sources, ranked by the learned model.
-5. Teach / present — Theodore narrates slides; tweak learner profile knobs
-   (engagement, literacy, attention, fatigue, confusion, pace, accessibility).
+4. Build course — from Good/Better sources, ranked by the learned model (pick language).
+5. Teach / present — Theodore (xAI or offline fallback) narrates; TTS speaks;
+   Ask Theodore for conversational help; quizzes/games; profile knobs.
 
 API (high level)
 ----------------
   GET  /health
   GET  /studio
+  GET  /api/studio/languages
+  GET  /api/studio/voice/status
+  GET  /api/studio/tts/url
   GET  /api/studio/corpus
   GET  /api/studio/sources/{source_id}
   POST /api/studio/training/run
@@ -90,6 +109,9 @@ API (high level)
   POST /api/studio/teach/start
   POST /api/studio/teach/advance
   POST /api/studio/teach/profile
+  POST /api/studio/teach/language
+  POST /api/studio/teach/voice/respond
+  POST /api/studio/teach/voice/present
 
 Tests
 -----
@@ -100,7 +122,8 @@ Promotion note
 --------------
 Keep studio logic self-contained. When stable, lift adapters into
 aoep_shared / orchestrator / apps/web / apps/mobile — do not fork production
-paths inside this experiment.
+paths inside this experiment. Realtime S2S can use aoep_shared.xai_realtime
+ephemeral tokens when promoting.
 
 Teach / present (gap-focused)
 -----------------------------
