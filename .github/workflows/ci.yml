@@ -88,8 +88,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Render kustomize manifests
-        run: kubectl kustomize infra/k8s >/dev/null
+      - name: Render kustomize manifests (base + prod + staging overlays)
+        run: |
+          set -euo pipefail
+          # Every kustomize root must render, so overlay drift (a bad patch, a
+          # renamed resource) fails the PR instead of the deploy.
+          for root in infra/k8s infra/k8s-vke infra/k8s-staging; do
+            echo "::group::kustomize $root"
+            kubectl kustomize "$root" >/dev/null
+            echo "OK: $root"
+            echo "::endgroup::"
+          done
 
   mobile:
     runs-on: ubuntu-latest
