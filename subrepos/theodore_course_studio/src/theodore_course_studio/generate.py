@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .corpus import default_data_dir, load_corpus_index
 from .extract import extract_document
+from .quality_model import QualityModel, default_model_path, load_model
 from .review_store import ReviewStore
 from .types import CategoryId, CourseSlide, QualityLabel, StudioCourse
 
@@ -33,11 +34,18 @@ def _narration_for(title: str, body: str) -> str:
 
 
 class CourseBuilder:
-    def __init__(self, data_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        data_dir: Path | None = None,
+        quality_model: QualityModel | None = None,
+    ) -> None:
         self._data_dir = data_dir or default_data_dir()
         self._courses_dir = self._data_dir / "courses"
         self._courses_dir.mkdir(parents=True, exist_ok=True)
         self._reviews = ReviewStore(data_dir=self._data_dir)
+        self._quality_model = quality_model
+        if self._quality_model is None:
+            self._quality_model = load_model(default_model_path(self._data_dir))
 
     def list_courses(self) -> list[StudioCourse]:
         courses: list[StudioCourse] = []
@@ -89,10 +97,9 @@ class CourseBuilder:
         if not chosen:
             raise ValueError("no matching incorporate sources")
 
-        slides: list[CourseSlide] = []
-        used_sources: list[str] = []
+        # Rank candidate pages (offline quality model when available).
+        ranked: list[tuple[float, str, CourseSlide]] = []
         for doc in chosen:
-            used_sources.append(doc.source_id)
             extracted = extract_document(doc.path)
             page_reviews = {
                 p.page_index: p for p in self._reviews.pages_for(doc.source_id)
@@ -109,21 +116,33 @@ class CourseBuilder:
                 if len(body) < 40:
                     continue
                 title_text = (page.title or f"{doc.title_guess} · p{page.index + 1}")[:140]
-                slides.append(
-                    CourseSlide(
-                        index=len(slides),
-                        title=title_text,
-                        body=body,
-                        narration=_narration_for(title_text, body),
-                        source_page=page.index,
-                        keep=True,
-                        tags=[doc.category.value, doc.quality_label.value],
-                    )
+                slide = CourseSlide(
+                    index=0,
+                    title=title_text,
+                    body=body,
+                    narration=_narration_for(title_text, body),
+                    source_page=page.index,
+                    keep=True,
+                    tags=[doc.category.value, doc.quality_label.value],
                 )
-                if len(slides) >= max_slides:
-                    break
-            if len(slides) >= max_slides:
-                break
+                score = 0.5
+                if self._quality_model is not None:
+                    score = self._quality_model.score_text(title_text, body)
+                if doc.quality_label is QualityLabel.BETTER:
+                    score += 0.08
+                elif doc.quality_label is QualityLabel.GOOD:
+                    score += 0.04
+                ranked.append((score, doc.source_id, slide))
+
+        ranked.sort(key=lambda row: row[0], reverse=True)
+        slides: list[CourseSlide] = []
+        used_sources = []
+        for score, sid, slide in ranked[:max_slides]:
+            slide.index = len(slides)
+            slide.tags = list(slide.tags) + [f"q={score:.3f}"]
+            slides.append(slide)
+            if sid not in used_sources:
+                used_sources.append(sid)
 
         if not slides:
             raise ValueError("no keepable pages after reject filtering")

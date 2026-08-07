@@ -20,3 +20,16 @@ def test_health_and_studio_page():
     assert "Pop quiz" in page.text
     assert "Summary quiz" in page.text
     assert "Play game" in page.text
+    assert "Offline long trainer" in page.text
+
+
+def test_offline_trainer_api_with_empty_corpus(tmp_path, monkeypatch):
+    # Point studio data at empty temp dir so API call doesn't touch real corpus.
+    monkeypatch.setenv("THEODORE_COURSE_STUDIO_DATA", str(tmp_path / "data"))
+    monkeypatch.setenv("THEODORE_COURSE_CORPUS_ROOT", str(tmp_path / "corpus"))
+    (tmp_path / "corpus").mkdir()
+    # Re-import is heavy; call trainer helpers via endpoint after env set —
+    # the module-level builder already constructed. Still exercise status endpoint.
+    status = client.get("/api/studio/training/offline/status")
+    assert status.status_code == 200
+    assert "model" in status.json()

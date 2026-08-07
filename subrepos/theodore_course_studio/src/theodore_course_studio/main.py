@@ -8,9 +8,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from .corpus import default_corpus_root, load_corpus_index, scan_corpus, write_corpus_index
+from .corpus import default_corpus_root, default_data_dir, load_corpus_index, scan_corpus, write_corpus_index
 from .extract import extract_document
 from .generate import CourseBuilder
+from .offline_trainer import run_offline_training
+from .quality_model import default_model_path, load_model, model_to_public_dict
 from .review_store import ReviewStore
 from .studio_page import render_studio_page
 from .teach import TeachEngine
@@ -32,6 +34,15 @@ class TrainingRunRequest(BaseModel):
     extract_text: bool = True
     seed_page_hints: bool = True
     max_docs: int | None = None
+
+
+class OfflineTrainRequest(BaseModel):
+    epochs: int = Field(default=20, ge=1, le=500)
+    max_docs: int | None = None
+    run_scan: bool = True
+    resume_run_id: str | None = None
+    fit_passes: int = Field(default=2, ge=1, le=20)
+    target_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class PageVerdictRequest(BaseModel):
@@ -162,6 +173,42 @@ def training_run(req: TrainingRunRequest) -> dict[str, Any]:
     )
     return report.model_dump(mode="json")
 
+
+@app.post("/api/studio/training/offline")
+def offline_training(req: OfflineTrainRequest) -> dict[str, Any]:
+    """Short/medium offline train from the API (long overnight runs use the CLI)."""
+    try:
+        state = run_offline_training(
+            epochs=req.epochs,
+            max_docs=req.max_docs,
+            run_scan=req.run_scan and not req.resume_run_id,
+            resume_run_id=req.resume_run_id,
+            fit_passes=req.fit_passes,
+            target_score=req.target_score,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    # Reload builder model so subsequent course builds use the new weights.
+    global _builder, _teach
+    _builder = CourseBuilder()
+    _teach = TeachEngine(_builder)
+    return state.model_dump(mode="json")
+
+
+@app.get("/api/studio/training/offline/status")
+def offline_training_status() -> dict[str, Any]:
+    data_dir = default_data_dir()
+    latest = data_dir / "offline_training" / "latest.json"
+    model = load_model(default_model_path(data_dir))
+    payload: dict[str, Any] = {
+        "latest": None,
+        "model": model_to_public_dict(model) if model else None,
+    }
+    if latest.is_file():
+        import json
+
+        payload["latest"] = json.loads(latest.read_text(encoding="utf-8"))
+    return payload
 
 @app.post("/api/studio/pages/verdict")
 def page_verdict(req: PageVerdictRequest) -> dict[str, Any]:
