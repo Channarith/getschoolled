@@ -28,6 +28,7 @@ class FacialExperienceEstimate:
     attention: str  # looking | eyes_away | away_from_webcam
     smile_score: float
     sad_score: float
+    yawn_score: float = 0.0
 
 
 def _clamp01(value: float) -> float:

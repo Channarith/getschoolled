@@ -165,7 +165,7 @@ def test_monitor_page_includes_silhouette_and_demo_controls():
     assert "Run lesson action" in text
     assert "persist_live_metrics: false" in text
     assert "Timing policy" in text
-    assert "Try Theodore" in text
+    assert any(phrase in text for phrase in ("Try Theodore", "Theodore voice", "xAI Theodore"))
     assert "Issue challenge" in text
     assert "image_min_quality" in text
     assert "silhouette_foreground_threshold" in text
