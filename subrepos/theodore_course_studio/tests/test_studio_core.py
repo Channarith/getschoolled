@@ -103,3 +103,30 @@ def test_teach_engine_advances(tmp_path: Path):
     assert pop.choices
     graded = engine.answer_pop("s1", pop.correct_index)
     assert graded["result"]["passed"] is True
+
+
+def test_teach_engine_keeps_mastery_in_builder_data_dir(tmp_path: Path):
+    """Mastery must follow the builder's data dir, never the global default."""
+    from theodore_course_studio.types import CategoryId, StudioCourse
+
+    data_dir = tmp_path / "data"
+    builder = CourseBuilder(data_dir=data_dir)
+    builder.save_course(
+        StudioCourse(
+            course_id="course-iso",
+            title="Isolated",
+            category=CategoryId.LEADERSHIP,
+            slides=[
+                CourseSlide(index=0, title="One", body="Alpha point.", narration="Alpha."),
+                CourseSlide(index=1, title="Two", body="Beta point.", narration="Beta."),
+            ],
+            status="ready",
+        )
+    )
+    engine = TeachEngine(builder)
+    engine.start(session_id="iso", course_id="course-iso", use_voice_agent=False)
+    pop = engine.pop_quiz("iso")
+    engine.answer_pop("iso", pop.correct_index)
+
+    written = list((data_dir / "knowledge").glob("*.json"))
+    assert written, "mastery should persist under the builder's data dir"

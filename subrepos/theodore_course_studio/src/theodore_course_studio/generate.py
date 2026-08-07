@@ -48,6 +48,11 @@ class CourseBuilder:
         if self._quality_model is None:
             self._quality_model = load_model(default_model_path(self._data_dir))
 
+    @property
+    def data_dir(self) -> Path:
+        """Root the builder persists under; collaborators share it for isolation."""
+        return self._data_dir
+
     def list_courses(self) -> list[StudioCourse]:
         courses: list[StudioCourse] = []
         for path in sorted(self._courses_dir.glob("*.course.json")):

@@ -63,7 +63,8 @@ class TeachEngine:
         voice: CourseStudioVoiceAgent | None = None,
     ) -> None:
         self._builder = builder or CourseBuilder()
-        self._knowledge = knowledge or KnowledgeStore()
+        # Follow the builder's data dir so mastery never leaks across data roots.
+        self._knowledge = knowledge or KnowledgeStore(data_dir=self._builder.data_dir)
         self._voice = voice or get_voice_agent()
         self._lock = threading.RLock()
         self._sessions: dict[str, TeachSession] = {}
