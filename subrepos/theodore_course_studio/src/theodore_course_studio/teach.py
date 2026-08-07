@@ -287,6 +287,16 @@ class TeachEngine:
             "language": session.language,
         }
 
+    @staticmethod
+    def _spoken_language(course: StudioCourse, session: TeachSession) -> str:
+        """Language the slide WORDS are in — TTS must match the text, not the request.
+
+        When a translation is unavailable the words stay English, so speaking
+        them with the requested voice would mispronounce every word.
+        """
+        spoken = course.profile_adaptations.get("spoken_language")
+        return spoken or session.language
+
     def _objective_for_slide(self, session: TeachSession, slide_index: int) -> LearningObjective:
         for obj in session.objectives:
             if slide_index in obj.slide_indexes:
@@ -327,12 +337,19 @@ class TeachEngine:
             )
             spoken = voice.message
             voice_meta = voice.model_dump(mode="json")
-        elif course.audience != "general":
+        speak_lang = self._spoken_language(course, session)
+        if course.audience != "general":
             voice_meta = {
                 "provider": "curated-child-read-aloud",
                 "message": spoken,
-                "language_code": session.language,
+                "language_code": speak_lang,
                 "fallback_used": False,
+                "translation_source": course.profile_adaptations.get(
+                    "translation_source", "curated"
+                ),
+                "translation_note": course.profile_adaptations.get(
+                    "translation_note", ""
+                ),
             }
         turn_dump = turn.model_dump(mode="json")
         turn_dump["narration"] = spoken
@@ -342,6 +359,9 @@ class TeachEngine:
             "path": session.path,
             "path_pos": session.path_pos,
             "language": session.language,
+            "spoken_language": speak_lang,
+            "translation_source": course.profile_adaptations.get("translation_source"),
+            "translation_note": course.profile_adaptations.get("translation_note", ""),
             "objective": objective.model_dump(mode="json"),
             "media": media,
             "activity_prompt": slide.activity_prompt,
@@ -353,8 +373,8 @@ class TeachEngine:
             "knowledge": knowledge,
             "voice": voice_meta,
             "tts": {
-                **tts_client_hints(session.language),
-                "get_url": build_tts_get_url(spoken, language=session.language),
+                **tts_client_hints(speak_lang),
+                "get_url": build_tts_get_url(spoken, language=speak_lang),
             },
             "progress": {
                 "known": len(session.knowledge.known_objective_ids) if session.knowledge else 0,

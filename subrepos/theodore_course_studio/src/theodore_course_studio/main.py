@@ -304,6 +304,8 @@ def build_early_learning_course(req: EarlyCourseRequest) -> dict[str, Any]:
             topic_id=req.topic_id,
             language=req.language,
             title=req.title,
+            data_dir=_builder.data_dir,
+            allow_xai_translation=req.allow_xai_translation,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

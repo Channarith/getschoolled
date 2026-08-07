@@ -17,10 +17,12 @@ import urllib.parse
 import uuid
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 from pydantic import BaseModel
 
-from .studio_languages import normalize_language
+from .child_i18n import SOUND_SPECIFIC_TOPICS, curated_languages, translate_beats
+from .studio_languages import language_name, normalize_language
 from .types import CategoryId, CourseSlide, StudioCourse
 
 
@@ -64,6 +66,7 @@ class EarlyCourseRequest(BaseModel):
     topic_id: str = "colors"
     language: str = "en"
     title: str | None = None
+    allow_xai_translation: bool = True
 
 
 class EarlyCourseOption(BaseModel):
@@ -305,15 +308,21 @@ def _svg_data(
     return "data:image/svg+xml," + urllib.parse.quote(svg, safe="")
 
 
-def picture_data_url(beat: LessonBeat) -> str:
+def picture_data_url(beat: LessonBeat, label: str | None = None) -> str:
     return _svg_data(
-        title=beat.title, symbol=beat.symbol, color=beat.color, animated=False
+        title=label or beat.title,
+        symbol=beat.symbol,
+        color=beat.color,
+        animated=False,
     )
 
 
-def motion_data_url(beat: LessonBeat) -> str:
+def motion_data_url(beat: LessonBeat, label: str | None = None) -> str:
     return _svg_data(
-        title=beat.title, symbol=beat.symbol, color=beat.color, animated=True
+        title=label or beat.title,
+        symbol=beat.symbol,
+        color=beat.color,
+        animated=True,
     )
 
 
@@ -323,21 +332,38 @@ def build_early_course(
     topic_id: str,
     language: str = "en",
     title: str | None = None,
+    data_dir: Path | None = None,
+    allow_xai_translation: bool = True,
 ) -> StudioCourse:
     template = _find_template(level, topic_id)
+    lang = normalize_language(language)
+
+    # The spoken words and the on-screen words must be the same language, or a
+    # non-English voice just mispronounces English text at the child.
+    translation = translate_beats(
+        topic_id=template.topic_id,
+        language=lang,
+        beats=tuple(
+            (b.title, b.words, b.say, b.activity) for b in template.beats
+        ),
+        data_dir=data_dir,
+        allow_xai=allow_xai_translation,
+    )
+    spoken_language = lang if translation.source != "english" else "en"
+
     slides: list[CourseSlide] = []
-    for i, beat in enumerate(template.beats):
+    for i, (beat, text) in enumerate(zip(template.beats, translation.beats)):
         slides.append(
             CourseSlide(
                 index=i,
-                title=beat.title,
-                body=beat.words,
-                narration=beat.say,
-                picture_url=picture_data_url(beat),
-                picture_alt=f"Colorful picture for {beat.title}",
-                video_url=motion_data_url(beat),
-                video_caption=f"Watch the {beat.title.lower()} picture move.",
-                activity_prompt=beat.activity,
+                title=text.title,
+                body=text.words,
+                narration=text.say,
+                picture_url=picture_data_url(beat, label=text.title),
+                picture_alt=f"Picture for {text.title}",
+                video_url=motion_data_url(beat, label=text.title),
+                video_caption=f"Watch the picture for {text.title} move.",
+                activity_prompt=text.activity,
                 tags=[
                     "early_learning",
                     level.value,
@@ -348,9 +374,9 @@ def build_early_course(
         )
     return StudioCourse(
         course_id=f"kids-{uuid.uuid4().hex[:10]}",
-        title=title or template.title,
+        title=title or (translation.beats[0].title if lang != "en" else template.title),
         category=CategoryId.OTHER,
-        language=normalize_language(language),
+        language=lang,
         audience=level.value,
         subject=template.subject,
         estimated_minutes=max(8, min(20, len(slides) * 2)),
@@ -363,6 +389,14 @@ def build_early_course(
             "picture_led": True,
             "motion_clip": True,
             "level_name": LEVEL_NAMES[level],
+            "requested_language": lang,
+            # The language the WORDS are actually in — what TTS must speak.
+            "spoken_language": spoken_language,
+            "translation_source": translation.source,
+            "translation_note": translation.note,
+            "sound_specific": template.topic_id in SOUND_SPECIFIC_TOPICS,
+            "reviewed_languages": ["en", *curated_languages(template.topic_id)],
+            "language_name": language_name(spoken_language),
         },
         created_at_ms=int(time.time() * 1000),
         status="ready",
