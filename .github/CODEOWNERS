@@ -1,0 +1,37 @@
+# CODEOWNERS — risk-tiered human review.
+# See docs/vv-master-plan.txt section 5c.
+#
+# Philosophy: CI is the gate for the common path; a human reviewer is REQUIRED
+# only on HIGH-RISK paths. There is intentionally NO `*` default line — most PRs
+# are gated by CI + the lead owner's curation, not a blocking review, so the
+# one-owner/one-branch/one-PR flow stays fast.
+#
+# ENFORCEMENT: these rules only block a merge if branch protection on `main` has
+# "Require review from Code Owners" enabled. With that on, the automerge workflow
+# (which merges via GITHUB_TOKEN and cannot approve) will NOT be able to land a
+# high-risk PR until a listed owner approves — which is exactly the intent.
+# An author cannot approve their own PR, so high-risk changes always get a second
+# set of eyes.
+
+# --- Money movement + payments ---
+/services/billing/                 @Channarith @chankrisnachea
+
+# --- Authentication, accounts, identity ---
+/services/identity/                @Channarith @chankrisnachea
+
+# --- Consent, feature flags, legal, compliance (memory service owns these) ---
+/services/memory/                  @Channarith @chankrisnachea
+
+# --- Infrastructure: k8s manifests + overlays, compose, secrets templates ---
+/infra/                            @Channarith @chankrisnachea
+
+# --- CI/CD + deploy automation (deploy, gates, release, automerge) ---
+/.github/workflows/                @Channarith @chankrisnachea
+/.github/CODEOWNERS                @Channarith @chankrisnachea
+
+# --- Deploy + kubeconfig + post-deploy smoke scripts ---
+/scripts/github_configure_kubeconfig.sh   @Channarith @chankrisnachea
+/scripts/post_deploy_smoke.sh             @Channarith @chankrisnachea
+
+# --- The V&V source of truth itself ---
+/docs/vv-master-plan.txt           @Channarith @chankrisnachea
