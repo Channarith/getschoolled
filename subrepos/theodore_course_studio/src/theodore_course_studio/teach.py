@@ -313,7 +313,10 @@ class TeachEngine:
         )
         voice_meta = None
         spoken = turn.narration
-        if session.use_voice_agent:
+        # Early-learning narration is carefully written to a tiny vocabulary and
+        # must not be paraphrased into harder language. xAI remains available for
+        # the learner's explicit "Ask Theodore" questions.
+        if session.use_voice_agent and course.audience == "general":
             # Enrich spoken line via xAI / offline fallback (text only).
             voice = self._voice.present_slide(
                 session_id=session.session_id,
@@ -324,6 +327,13 @@ class TeachEngine:
             )
             spoken = voice.message
             voice_meta = voice.model_dump(mode="json")
+        elif course.audience != "general":
+            voice_meta = {
+                "provider": "curated-child-read-aloud",
+                "message": spoken,
+                "language_code": session.language,
+                "fallback_used": False,
+            }
         turn_dump = turn.model_dump(mode="json")
         turn_dump["narration"] = spoken
         return {
@@ -334,6 +344,7 @@ class TeachEngine:
             "language": session.language,
             "objective": objective.model_dump(mode="json"),
             "media": media,
+            "activity_prompt": slide.activity_prompt,
             "animation": {
                 "enter": "fade-up",
                 "emphasis": "highlight-title",

@@ -1,6 +1,32 @@
 Theodore Course Studio (experiment subrepo)
 ===========================================
 
+EARLY LEARNING (DEFAULT)
+------------------------
+The studio now focuses first on simple Pre-K through Grade 2 classes:
+  - Pre-K: first colors; circles/squares/triangles
+  - Kindergarten: counting 1-10; A/B/C letter sounds
+  - Grade 1: five sight words; addition within 10
+  - Grade 2: story sequence; animal habitats
+
+Open /studio, choose a level + lesson in "Make a children's lesson", then click
+"Make & teach". Every lesson uses:
+  - one short idea per screen (large child-friendly words)
+  - an offline colorful SVG picture
+  - an offline animated motion/video card
+  - carefully leveled read-aloud narration (not paraphrased by xAI)
+  - a movement or point-and-say activity
+  - Pop/Summary quiz and game controls
+
+Theodore reads each screen automatically when auto-speak is checked. "Read
+aloud" repeats it; "Watch video" switches from the still picture to the
+self-contained animated visual. No network, media downloads, or API key is
+needed. The xAI agent remains available for the child's explicit "Ask Theodore"
+questions, but it does not rewrite the curated child narration into harder text.
+
+Adult PDF/PPTX corpus generation is still available under the collapsed
+"Advanced: build from adult Good/Better source files" panel.
+
 SETUP & RUN (copy/paste)
 ------------------------
 Prereqs: Python 3.11+ (3.12 fine). Everything below works OFFLINE.

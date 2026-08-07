@@ -54,7 +54,34 @@ class GameAttemptResult(BaseModel):
 
 
 def media_suggestions_for_slide(slide: CourseSlide) -> list[MediaAsset]:
-    """Placeholder media hooks — wire real URLs/files as corpus media is added."""
+    """Return real slide media first, with placeholders only for generic courses."""
+    assets: list[MediaAsset] = []
+    if slide.picture_url:
+        assets.append(
+            MediaAsset(
+                asset_id=str(uuid.uuid4()),
+                kind=MediaKind.IMAGE,
+                title=slide.picture_alt or slide.title,
+                url=slide.picture_url,
+                slide_index=slide.index,
+                caption=slide.picture_alt,
+            )
+        )
+    if slide.video_url:
+        assets.append(
+            MediaAsset(
+                asset_id=str(uuid.uuid4()),
+                kind=MediaKind.VIDEO,
+                title=f"Watch: {slide.title}",
+                url=slide.video_url,
+                slide_index=slide.index,
+                caption=slide.video_caption,
+            )
+        )
+    if assets:
+        return assets
+
+    # Generic corpus courses do not always have source media yet.
     base = f"studio://course-media/slide-{slide.index}"
     return [
         MediaAsset(

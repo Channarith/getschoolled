@@ -70,6 +70,11 @@ class CourseSlide(BaseModel):
     title: str
     body: str
     narration: str = ""
+    picture_url: str = ""
+    picture_alt: str = ""
+    video_url: str = ""
+    video_caption: str = ""
+    activity_prompt: str = ""
     source_page: int | None = None
     keep: bool = True
     tags: list[str] = Field(default_factory=list)
@@ -80,6 +85,9 @@ class StudioCourse(BaseModel):
     title: str
     category: CategoryId
     language: str = "en"  # aoep_shared SUPPORTED_LANGUAGES code
+    audience: str = "general"  # general | pre_k | kindergarten | grade_1 | grade_2
+    subject: str = ""
+    estimated_minutes: int = 20
     source_ids: list[str] = Field(default_factory=list)
     slides: list[CourseSlide] = Field(default_factory=list)
     profile_adaptations: dict[str, Any] = Field(default_factory=dict)

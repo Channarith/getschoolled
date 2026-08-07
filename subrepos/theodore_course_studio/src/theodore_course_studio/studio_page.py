@@ -43,6 +43,21 @@ STUDIO_CSS = """
     .teach-stage h3 { margin:0 0 8px; font-size:22px; }
     .teach-stage .body { font-size:15px; line-height:1.45; color:#d7e6dc; }
     .teach-stage .narr { margin-top:12px; color:#9fddc0; font-style:italic; }
+    .kids-builder { background:linear-gradient(135deg,#fff7ed,#fef3c7); color:#172554;
+                    border:3px solid #f59e0b; border-radius:16px; padding:14px; margin-bottom:16px; }
+    .kids-builder h2 { color:#7c2d12; font-size:22px; }
+    .kids-builder p { margin:6px 0 10px; }
+    .kids-builder select, .kids-builder input { background:#fff; color:#172554; border-color:#f59e0b; }
+    .kids-builder button { background:#ea580c; border-color:#c2410c; font-weight:700; }
+    .picture-stage { margin:10px 0; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .picture-stage img { width:100%; aspect-ratio:16/9; object-fit:contain; border-radius:14px;
+                         background:#fff; border:2px solid #3a5548; }
+    .picture-stage img[hidden] { display:none; }
+    .kids-words { font-size:28px !important; line-height:1.25 !important; text-align:center;
+                  font-family:Arial,sans-serif; font-weight:700; padding:8px; }
+    .activity { margin-top:8px; padding:9px 12px; border-radius:999px; background:#312e81;
+                color:#fff; font:700 15px Arial,sans-serif; text-align:center; }
+    @media (max-width:700px) { .picture-stage { grid-template-columns:1fr; } }
     .quiz-box, .game-box { margin-top:10px; padding:10px; border:1px dashed #3a5548; border-radius:8px; background:#13201a; }
     .quiz-box button, .game-box button { display:block; width:100%; text-align:left; margin:4px 0; }
   .status { font-size:12px; color:#9bb5a8; min-height:16px; }
@@ -61,6 +76,8 @@ STUDIO_JS = """
     let pagesCache = [];
     let teachLanguage = 'en';
     let serverAudio = null;
+    let lastTeachPayload = null;
+    let earlyOptions = [];
 
     function toast(msg) {
       const el = $('toast');
@@ -204,6 +221,41 @@ STUDIO_JS = """
       selectedCourse = data.course_id;
       await refreshCourses();
       toast('Course built: ' + data.course_id + ' · lang ' + (data.language || teachLanguage));
+    }
+
+    async function loadEarlyOptions() {
+      const data = await api('/api/studio/early-learning/options');
+      earlyOptions = data.courses || [];
+      const level = $('kids-level');
+      level.innerHTML = (data.levels || []).map((row) =>
+        `<option value="${esc(row.code)}">${esc(row.name)}</option>`
+      ).join('');
+      level.value = data.default_level || 'pre_k';
+      renderEarlyTopics();
+    }
+
+    function renderEarlyTopics() {
+      const level = $('kids-level').value;
+      const rows = earlyOptions.filter((row) => row.level === level);
+      $('kids-topic').innerHTML = rows.map((row) =>
+        `<option value="${esc(row.topic_id)}">${esc(row.title)} — ${esc(row.description)}</option>`
+      ).join('');
+    }
+
+    async function buildEarlyCourse() {
+      teachLanguage = $('teach-lang').value || 'en';
+      const data = await api('/api/studio/courses/early-learning', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({
+          level: $('kids-level').value,
+          topic_id: $('kids-topic').value,
+          language: teachLanguage
+        })
+      });
+      selectedCourse = data.course_id;
+      await refreshCourses();
+      await startTeach();
+      toast(`Made ${data.title} · ${data.slides.length} picture-led screens`);
     }
 
     async function refreshCourses() {
@@ -400,6 +452,7 @@ STUDIO_JS = """
     }
 
     function renderTeach(payload) {
+      lastTeachPayload = payload;
       const turn = payload.turn || payload;
       const stage = $('teach-stage');
       stage.classList.remove('anim');
@@ -407,6 +460,22 @@ STUDIO_JS = """
       stage.classList.add('anim');
       $('teach-title').textContent = turn.title || '—';
       $('teach-body').textContent = turn.display_body || '';
+      $('teach-body').classList.toggle('kids-words',
+        (payload.media || []).some((m) => m.kind === 'image'));
+      const media = payload.media || [];
+      const picture = media.find((m) => m.kind === 'image');
+      const motion = media.find((m) => m.kind === 'video');
+      const pictureEl = $('teach-picture');
+      const motionEl = $('teach-motion');
+      pictureEl.hidden = !picture;
+      pictureEl.src = picture ? picture.url : '';
+      pictureEl.alt = picture ? (picture.caption || picture.title || '') : '';
+      motionEl.hidden = true;
+      motionEl.src = motion ? motion.url : '';
+      motionEl.alt = motion ? (motion.caption || motion.title || '') : '';
+      $('btn-video').disabled = !motion;
+      $('teach-activity').textContent = payload.activity_prompt || '';
+      $('teach-activity').style.display = payload.activity_prompt ? 'block' : 'none';
       const provider = (payload.voice && payload.voice.provider) || 'slide';
       $('teach-narr').textContent = 'Theodore (' + provider + '): ' + (turn.narration || '');
       const adapt = (turn.adaptations_applied || []).join(', ') || 'no adaptations';
@@ -418,10 +487,28 @@ STUDIO_JS = """
       speakText(turn.narration || turn.display_body || '', payload.tts);
     }
 
+    function readCurrentAloud() {
+      if (!lastTeachPayload) return toast('Start a lesson first');
+      const turn = lastTeachPayload.turn || lastTeachPayload;
+      speakText(turn.narration || turn.display_body || '', lastTeachPayload.tts);
+    }
+
+    function watchCurrentVideo() {
+      const motion = $('teach-motion');
+      const picture = $('teach-picture');
+      if (!motion.src) return toast('No video clip for this screen');
+      const showing = !motion.hidden;
+      motion.hidden = showing;
+      picture.hidden = !showing;
+      $('btn-video').textContent = showing ? 'Watch video' : 'Show picture';
+    }
+
     $('btn-train').onclick = () => runTraining().catch((e) => toast(String(e.message || e)));
     $('btn-offline').onclick = () => runOfflineTrainer().catch((e) => toast(String(e.message || e)));
     $('btn-comment').onclick = () => postComment().catch((e) => toast(String(e.message || e)));
     $('btn-build').onclick = () => buildCourse().catch((e) => toast(String(e.message || e)));
+    $('btn-kids-build').onclick = () => buildEarlyCourse().catch((e) => toast(String(e.message || e)));
+    $('kids-level').onchange = renderEarlyTopics;
     $('btn-teach').onclick = () => startTeach().catch((e) => toast(String(e.message || e)));
     $('btn-next').onclick = () => nextSlide().catch((e) => toast(String(e.message || e)));
     $('btn-profile').onclick = () => applyProfile().catch((e) => toast(String(e.message || e)));
@@ -429,7 +516,10 @@ STUDIO_JS = """
     $('btn-summary').onclick = () => summaryQuiz().catch((e) => toast(String(e.message || e)));
     $('btn-game').onclick = () => playGame().catch((e) => toast(String(e.message || e)));
     $('btn-ask').onclick = () => askTheodore().catch((e) => toast(String(e.message || e)));
+    $('btn-read').onclick = readCurrentAloud;
+    $('btn-video').onclick = watchCurrentVideo;
 
+    loadEarlyOptions().catch(() => {});
     loadLanguages().catch(() => {});
     refreshVoiceStatus().catch(() => {});
     refreshCorpus().catch(() => {});
@@ -446,9 +536,8 @@ def render_studio_page() -> str:
 <body>
   <header>
     <h1>Theodore Course Studio</h1>
-    <p>Experiment lab for labeled corpus training (Good/Bad/Moderate), page-level reject marks,
-       review comments, course generation, and Theodore teach/present with learner-profile scoring.
-       Learnings here are meant to graduate into the main web/mobile app later.</p>
+    <p>Make simple, picture-led Pre-K–Grade 2 lessons that Theodore reads aloud.
+       Adult corpus training and review tools remain available below as an advanced workflow.</p>
   </header>
   <div class="layout">
     <div class="panel">
@@ -476,7 +565,19 @@ def render_studio_page() -> str:
     </div>
 
     <div class="panel">
-      <h2>4. Build course from Good/Better</h2>
+      <div class="kids-builder">
+        <h2>Make a children's lesson</h2>
+        <p>One idea per screen · big pictures · read aloud · motion video · tiny activities</p>
+        <div class="row">
+          <label>Level <select id="kids-level"></select></label>
+          <label>Lesson <select id="kids-topic" style="max-width:24rem"></select></label>
+          <button id="btn-kids-build" type="button">Make &amp; teach</button>
+        </div>
+      </div>
+
+      <details>
+      <summary><strong>Advanced: build from adult Good/Better source files</strong></summary>
+      <h2>4. Build corpus course</h2>
       <div class="row">
         <select id="build-category">
           <option value="">any category</option>
@@ -487,6 +588,7 @@ def render_studio_page() -> str:
         <input id="build-title" placeholder="Course title (optional)" style="min-width:14rem" />
         <button id="btn-build" type="button">Build course</button>
       </div>
+      </details>
       <div class="list" id="course-list"></div>
 
       <h2>5. Theodore teach / present</h2>
@@ -498,7 +600,12 @@ def render_studio_page() -> str:
       </div>
       <div class="teach-stage" id="teach-stage">
         <h3 id="teach-title">—</h3>
+        <div class="picture-stage">
+          <img id="teach-picture" hidden alt="" />
+          <img id="teach-motion" hidden alt="" />
+        </div>
         <div class="body" id="teach-body">Build or select a course, then Start teach.</div>
+        <div class="activity" id="teach-activity" style="display:none"></div>
         <div class="narr" id="teach-narr"></div>
         <div class="status" id="teach-adapt"></div>
         <div class="quiz-box" id="quiz-box" style="display:none"></div>
@@ -507,6 +614,8 @@ def render_studio_page() -> str:
       <div class="row">
         <button id="btn-teach" type="button">Start teach</button>
         <button id="btn-next" class="secondary" type="button">Next slide</button>
+        <button id="btn-read" class="secondary" type="button">🔊 Read aloud</button>
+        <button id="btn-video" class="secondary" type="button" disabled>▶ Watch video</button>
         <button id="btn-pop" class="secondary" type="button">Pop quiz</button>
         <button id="btn-summary" class="secondary" type="button">Summary quiz</button>
         <button id="btn-game" class="secondary" type="button">Play game</button>
