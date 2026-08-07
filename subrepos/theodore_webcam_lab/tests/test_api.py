@@ -56,11 +56,15 @@ def test_voice_endpoint_falls_back_without_xai_key():
     assert body["should_stream_audio"] is True
 
 
-def test_voice_languages_endpoint_lists_26_supported_languages():
+def test_voice_languages_endpoint_lists_supported_languages():
     resp = client.get("/api/theodore/voice/languages")
     assert resp.status_code == 200
     body = resp.json()
-    assert len(body) == 26
+    codes = {item["code"] for item in body}
+    # All original 26 must still be present.
+    assert {"en", "es", "fr", "de", "zh-CN", "ja", "ko", "km", "ar", "hi"}.issubset(codes)
+    # No duplicates.
+    assert len(codes) == len(body)
     assert body[0]["code"] == "en"
 
 

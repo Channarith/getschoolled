@@ -84,7 +84,7 @@ MONITOR_CSS = """
     .cam-contour-toggle { top: 8px; left: 8px; right: auto; }
     .cam-contour-toggle.on { border-color: #22d3ee; color: #a5f3fc; }
     .cam-contour-toggle.on .sw { background: #0891b2; }
-    .facial-hud { margin-top: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .facial-hud { margin-top: 8px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .audio-hud { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .facial-card { border: 1px solid #334155; border-radius: 6px; padding: 8px 10px;
                    background: #0b1220; }
@@ -94,11 +94,22 @@ MONITOR_CSS = """
     .facial-card .sub { font-size: 11px; color: #cbd5e1; margin-top: 2px; }
     .facial-card.mood-happy .val { color: #86efac; }
     .facial-card.mood-sad .val { color: #fca5a5; }
+    .facial-card.mood-yawning .val { color: #fbbf24; }
     .facial-card.mood-neutral .val { color: #e2e8f0; }
     .facial-card.mood-unknown .val { color: #94a3b8; }
     .facial-card.attn-looking .val { color: #86efac; }
     .facial-card.attn-eyes_away .val { color: #fbbf24; }
+    .facial-card.attn-distracted .val { color: #fb923c; }
+    .facial-card.attn-inattentive .val { color: #fbbf24; }
+    .facial-card.attn-yawning .val { color: #fbbf24; }
+    .facial-card.attn-eyes_closed .val { color: #f87171; }
     .facial-card.attn-away_from_webcam .val { color: #f87171; }
+    .facial-card.beh-focused .val { color: #86efac; }
+    .facial-card.beh-yawning .val { color: #fbbf24; }
+    .facial-card.beh-distracted .val { color: #fb923c; }
+    .facial-card.beh-inattentive .val { color: #fbbf24; }
+    .facial-card.beh-drowsy .val { color: #f87171; }
+    .facial-card.beh-away .val { color: #f87171; }
     .facial-card.dist-lidar .val { color: #67e8f9; }
     .facial-card.dist-face_size .val { color: #93c5fd; }
     .facial-card.dist-none .val { color: #94a3b8; }
@@ -164,7 +175,36 @@ MONITOR_CSS = """
     .tuning-effect .row { display: flex; justify-content: space-between; gap: 8px; margin: 2px 0; }
     .tuning-effect .hit { color: #fca5a5; }
     .tuning-effect .ok { color: #86efac; }
-    .integrity-hud { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+    .integrity-hud { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px; }
+    @media (max-width: 900px) {
+      .integrity-hud { grid-template-columns: 1fr 1fr; }
+      .facial-hud { grid-template-columns: 1fr 1fr; }
+    }
+    .facial-card.attn-eyes_closed .val { color: #f87171; }
+    .obs-panel { margin-top: 10px; border: 1px solid #334155; border-radius: 8px;
+                 background: #0b1220; padding: 10px; }
+    .obs-panel h3 { margin: 0 0 6px; font-size: 13px; color: #93c5fd; }
+    .obs-top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+               align-items: flex-start; margin-bottom: 8px; }
+    .obs-labels .big { font-size: 18px; font-weight: 800; color: #e2e8f0; text-transform: capitalize; }
+    .obs-labels .sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .obs-pose-box { width: 64px; height: 64px; border-radius: 50%; border: 1px solid #475569;
+                    position: relative; background: radial-gradient(circle at center, #1e293b, #0f172a); }
+    .obs-pose-needle { position: absolute; left: 50%; top: 50%; width: 4px; height: 22px;
+                       background: #38bdf8; border-radius: 2px; transform-origin: 50% 100%;
+                       transform: translate(-50%, -50%); }
+    .obs-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+    .obs-bar-row { display: grid; grid-template-columns: 72px 1fr; gap: 6px; align-items: center;
+                   font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+    .obs-track { height: 7px; background: #1f2937; border-radius: 999px; overflow: hidden; }
+    .obs-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #22d3ee, #34d399); }
+    .obs-fill.warn { background: linear-gradient(90deg, #fbbf24, #f97316); }
+    .obs-fill.bad { background: linear-gradient(90deg, #fb7185, #ef4444); }
+    .obs-events { margin-top: 8px; max-height: 120px; overflow-y: auto; font-size: 11px; }
+    .obs-ev { padding: 3px 0; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+    .obs-ev .t { color: #64748b; margin-right: 6px; }
+    .obs-ev.high { color: #fca5a5; }
+    .obs-ev.medium { color: #fde68a; }
     .integrity-card { border: 1px solid #334155; border-radius: 6px; padding: 6px 8px; background: #0b1220; }
     .integrity-card .lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
     .integrity-card .val { font-size: 15px; font-weight: 700; margin-top: 2px; color: #94a3b8; }
@@ -220,8 +260,13 @@ VISION_KNOB_GROUPS = [
             ("silhouette_consecutive_frames", 1, 10, 1),
             ("gaze_frontal_min_threshold", 0, 1, 0.01),
             ("gaze_down_min_threshold", 0, 1, 0.01),
+            ("eyes_closed_min_threshold", 0, 1, 0.01),
+            ("yawn_min_threshold", 0, 1, 0.01),
+            ("attention_min_threshold", 0, 1, 0.01),
+            ("distraction_min_threshold", 0, 1, 0.01),
             ("typing_activity_min_threshold", 0, 1, 0.01),
             ("keyboard_typing_audio_min_threshold", 0, 1, 0.01),
+            ("hands_on_face_min_threshold", 0, 1, 0.01),
         ],
     ),
     (
@@ -989,7 +1034,25 @@ MONITOR_JS = (
         sel.innerHTML = _voiceLangs.map((l) =>
           `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
         ).join('');
+        sel.value = 'en';
       } catch (_) {}
+      await loadVoiceStatus();
+    }
+    async function loadVoiceStatus() {
+      const el = document.getElementById('voice-status');
+      if (!el) return;
+      try {
+        const res = await fetch('/api/theodore/voice/status', { cache: 'no-store' });
+        if (!res.ok) { el.textContent = 'Voice status unavailable'; return; }
+        const s = await res.json();
+        const live = !!s.xai_api_key_configured;
+        el.className = 'voice-status ' + (live ? 'live' : 'fallback');
+        el.innerHTML = live
+          ? `<strong>xAI Grok live</strong> · model ${esc(s.model)} · ${esc(s.languages)} languages · TTS: ${(s.tts_engine_chain||[]).join(' → ')}`
+          : `<strong>xAI key missing</strong> — local-fallback text. Set <code>XAI_API_KEY</code> and restart for live Grok. ${esc(s.languages)} languages still work · spoken audio uses device TTS.`;
+      } catch (_) {
+        el.textContent = 'Could not load voice status';
+      }
     }
     function voiceLangCode() {
       return document.getElementById('voice-lang').value || 'en';
@@ -999,24 +1062,30 @@ MONITOR_JS = (
     function speakTheodore(text, langCode) {
       if (!('speechSynthesis' in window) || !text) return;
       speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
+      const cleaned = String(text).replace(/^\\[[^\\]]+\\]\\s*/, '');
+      const utter = new SpeechSynthesisUtterance(cleaned);
       utter.lang = langCode || voiceLangCode() || 'en';
       utter.rate = 0.92;
       utter.pitch = 1.0;
       utter.volume = 1.0;
+      const voices = speechSynthesis.getVoices() || [];
+      const want = (utter.lang || 'en').slice(0, 2).toLowerCase();
+      const match = voices.find((v) => (v.lang || '').toLowerCase().startsWith(want))
+        || voices.find((v) => (v.lang || '').toLowerCase().startsWith('en'));
+      if (match) utter.voice = match;
       speechSynthesis.speak(utter);
     }
     function autoSpeak() { return document.getElementById('voice-autospeak').checked; }
 
-    // Voice try panel
+    // Voice try panel (xAI Grok + language)
     document.getElementById('voice-ask').addEventListener('click', async () => {
       const topic = document.getElementById('voice-topic').value || 'fractions';
       const lang = voiceLangCode();
       const res = await fetch('/api/theodore/voice/ask-question', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ class_mode: 'group', language_code: lang, topic }),
+        body: JSON.stringify({ class_mode: 'solo', language_code: lang, topic }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       document.getElementById('voice-out').textContent = res.ok
         ? `Q: ${body.question}\\nHint: ${body.hint}\\nprovider=${body.provider} lang=${body.language_code} fallback=${body.fallback_used}`
         : JSON.stringify(body);
@@ -1027,11 +1096,11 @@ MONITOR_JS = (
       const lang = voiceLangCode();
       const res = await fetch('/api/theodore/voice/respond', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ class_mode: 'group', language_code: lang, learner_message: msg, session_id: sessionId }),
+        body: JSON.stringify({ class_mode: 'solo', language_code: lang, learner_message: msg, session_id: sessionId }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       document.getElementById('voice-out').textContent = res.ok
-        ? `${body.message}\\nprovider=${body.provider} style=${body.communication_style} fallback=${body.fallback_used}`
+        ? `${body.message}\\nprovider=${body.provider} style=${body.communication_style} fallback=${body.fallback_used} tts=${(body.tts_engine_chain||[]).join('→')}`
         : JSON.stringify(body);
       if (res.ok && autoSpeak()) speakTheodore(body.message, lang);
     });
@@ -1041,6 +1110,50 @@ MONITOR_JS = (
     });
     document.getElementById('voice-stop-speak').addEventListener('click', () => {
       if ('speechSynthesis' in window) speechSynthesis.cancel();
+    });
+    document.getElementById('voice-absorb').addEventListener('click', async () => {
+      const transcript = document.getElementById('voice-msg').value || '';
+      const lang = voiceLangCode();
+      const res = await fetch('/api/theodore/voice/absorb-audio-answer', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          class_mode: 'solo',
+          language_code: lang,
+          question: document.getElementById('voice-topic').value || 'Explain the idea in your own words',
+          audio_transcript: transcript,
+          expected_answer: 'a short clear explanation',
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      const line = body.feedback_message || body.feedback || body.summary || body.message || JSON.stringify(body);
+      document.getElementById('voice-out').textContent = res.ok
+        ? `Absorb: ${line}\\nunderstood=${body.understood} score=${body.correctness_score} provider=${body.provider}`
+        : JSON.stringify(body);
+      if (res.ok && autoSpeak()) speakTheodore(line, lang);
+    });
+
+    document.getElementById('tuning-prove').addEventListener('click', async () => {
+      // Make scoring effect unmistakable: tighten light gate → expect FAIL, then restore.
+      if (!lastLiveCamParticipant && !(typeof camTimer !== 'undefined' && camTimer)) {
+        toast('Start camera (or Load solo demo) first so knobs have a frame to score.');
+      }
+      const tight = await fetch('/api/theodore/vision/tuning', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ knobs: { light_min_quality: 0.99, image_min_quality: 0.99 } }),
+      });
+      const body = await tight.json().catch(() => ({}));
+      explainTuningResult(body, 'prove: tightened light/image gates');
+      const flags = (body.live_camera && body.live_camera.quality_flags) || [];
+      toast(flags.length
+        ? ('Tuning works — camera now fails: ' + flags.join(', '))
+        : (body.rescored_sessions && body.rescored_sessions.length
+          ? 'Re-scored demo frames — check Failed quality checks / student windows'
+          : 'No frame cached yet. Start camera, wait 1s, click Prove again.'));
+      setTimeout(async () => {
+        const res = await fetch('/api/theodore/vision/tuning/preset/balanced', { method: 'POST' });
+        if (res.ok) explainTuningResult(await res.json(), 'prove: restored balanced preset');
+        await loadTuning();
+      }, 2200);
     });
 
     // Shutdown
@@ -1545,23 +1658,31 @@ MONITOR_JS = (
     }
 
     function detectPhoneFromGrid(grid, gazeDown) {
+      // iPhones are often dark (case/screen off) OR bright (lit screen). Old logic
+      // only looked for bright blobs, so looking down at a phone never fired.
       const h = grid.length, w = grid[0].length;
-
-      // Phone below face (held to look at): scan lower 55% of grid, inner x columns
-      let brightCount = 0, totalCountBelow = 0;
-      const yBelowStart = Math.floor(h * 0.45);
-      const xBelowLeft = Math.floor(w * 0.10);
-      const xBelowRight = Math.floor(w * 0.90);
-      for (let y = yBelowStart; y < h; y++) {
-        for (let x = xBelowLeft; x < xBelowRight; x++) {
-          totalCountBelow++;
-          if (grid[y][x] > 0.60) brightCount++;
+      const y0 = Math.floor(h * 0.42);
+      const x0 = Math.floor(w * 0.15);
+      const x1 = Math.floor(w * 0.85);
+      let bright = 0, dark = 0, n = 0, sum = 0, sum2 = 0;
+      for (let y = y0; y < h; y++) {
+        for (let x = x0; x < x1; x++) {
+          const v = grid[y][x];
+          n += 1; sum += v; sum2 += v * v;
+          if (v > 0.55) bright += 1;
+          if (v < 0.22) dark += 1;
         }
       }
-      const brightRatio = totalCountBelow ? brightCount / totalCountBelow : 0;
-      const below = gazeDown > 0.35 && brightRatio > 0.20;
+      const mean = n ? sum / n : 0;
+      const variance = n ? Math.max(0, sum2 / n - mean * mean) : 0;
+      const brightRatio = n ? bright / n : 0;
+      const darkRatio = n ? dark / n : 0;
+      const litScreen = brightRatio >= 0.08 && variance >= 0.008;
+      const darkDevice = darkRatio >= 0.12 && variance >= 0.006 && mean <= 0.52;
+      // Looking hard down at a phone often has no bright blob (dark case / screen off).
+      const lookingHardDown = gazeDown >= 0.40;
+      const below = gazeDown >= 0.22 && (litScreen || darkDevice || lookingHardDown);
 
-      // Phone to ear (dark occlusion at face sides): scan upper 65% of frame
       const yEarEnd = Math.floor(h * 0.65);
       const xLeftEdge = Math.floor(w * 0.22);
       const xRightStart = Math.floor(w * 0.78);
@@ -1578,25 +1699,88 @@ MONITOR_JS = (
       }
       const darkLeftRatio = totalLeft ? darkLeft / totalLeft : 0;
       const darkRightRatio = totalRight ? darkRight / totalRight : 0;
-      const ear = (darkLeftRatio > 0.40 || darkRightRatio > 0.40) && gazeDown < 0.25;
+      const ear = (darkLeftRatio > 0.40 || darkRightRatio > 0.40) && gazeDown < 0.30;
 
-      return { below, ear };
+      return {
+        below, ear, litScreen, darkDevice,
+        score: Math.max(brightRatio, darkRatio, lookingHardDown ? gazeDown : 0),
+      };
+    }
+
+    // Detect hand(s) resting on the face — chin-rest, cheek-prop, head-in-hands.
+    // Returns a 0..1 score; 0.5+ indicates a sustained tired/bored posture.
+    // Algorithm uses three complementary luminance-grid signals combined into one score.
+    function detectHandsOnFace(grid, gazeDown, facePresent) {
+      if (!grid || grid.length < 8 || !facePresent) return 0;
+      const h = grid.length, w = grid[0].length;
+
+      // 1. Chin-rest: dark mass in lower-central face area where a hand would sit.
+      //    When the chin rests on a hand, the lower face/chin region shows extra dark
+      //    occlusion below the lips (dark hand vs lighter background).
+      let chinDark = 0, chinN = 0;
+      const cY0 = Math.floor(h * 0.62), cX0 = Math.floor(w * 0.28), cX1 = Math.floor(w * 0.72);
+      for (let y = cY0; y < Math.min(h, Math.floor(h * 0.86)); y++) {
+        for (let x = cX0; x < cX1; x++) { chinN++; if (grid[y][x] < 0.27) chinDark++; }
+      }
+      const chinDarkRatio = chinN ? chinDark / chinN : 0;
+      const chinScore = Math.max(0, Math.min(1, (chinDarkRatio - 0.07) / 0.22));
+
+      // 2. Cheek asymmetry: one side much darker than the other — a hand on one cheek
+      //    creates a strong left/right luminance imbalance in the middle face region.
+      let leftSum = 0, leftN = 0, rightSum = 0, rightN = 0;
+      const mY0 = Math.floor(h * 0.30), mY1 = Math.floor(h * 0.65);
+      for (let y = mY0; y < mY1; y++) {
+        for (let x = Math.floor(w * 0.08); x < Math.floor(w * 0.33); x++) { leftSum += grid[y][x]; leftN++; }
+        for (let x = Math.floor(w * 0.67); x < Math.floor(w * 0.92); x++) { rightSum += grid[y][x]; rightN++; }
+      }
+      const leftMean = leftN ? leftSum / leftN : 0.5;
+      const rightMean = rightN ? rightSum / rightN : 0.5;
+      const asymScore = Math.max(0, Math.min(1, (Math.abs(leftMean - rightMean) - 0.04) / 0.18));
+
+      // 3. Reduced face variance: hands covering features flatten the typical face
+      //    contrast (eyes/nose/mouth structure disappears under a palm).
+      const faceVals = [];
+      for (let y = Math.floor(h * 0.10); y < Math.floor(h * 0.75); y++) {
+        for (let x = Math.floor(w * 0.22); x < Math.floor(w * 0.78); x++) faceVals.push(grid[y][x]);
+      }
+      const faceMean = faceVals.reduce((a, b) => a + b, 0) / Math.max(1, faceVals.length);
+      const faceVar = faceVals.reduce((a, v) => a + (v - faceMean) ** 2, 0) / Math.max(1, faceVals.length);
+      const faceStd = Math.sqrt(faceVar);
+      // Typical face: std 0.07–0.18. Covered face drops to <0.05.
+      const varScore = Math.max(0, Math.min(1, (0.065 - faceStd) / 0.038));
+
+      // Combine — chin-rest dominates, cheek asymmetry and variance suppression support it.
+      // A mild gaze-down modifier boosts when the head is also drooping (tired posture).
+      const gazeBoost = gazeDown > 0.20 ? 1.0 + Math.min(0.35, (gazeDown - 0.20) * 1.2) : 1.0;
+      const combined = (chinScore * 0.48 + asymScore * 0.28 + varScore * 0.24) * gazeBoost;
+      return Math.max(0, Math.min(1, combined));
     }
 
     function updateIntegrityHud(signals) {
-      const { gazeDown, gazeDownMs, keyboardScore, phoneBelow, phoneEar, ringtone, phonecall, suspected } = signals;
+      const {
+        gazeDown, gazeDownMs, eyesClosed, eyesClosedMs,
+        handsOnFaceScore = 0, handsOnFaceMs = 0,
+        keyboardScore, phoneBelow, phoneEar, ringtone, phonecall, suspected,
+      } = signals;
 
-      // Gaze card
       const gazeCard = document.getElementById('integrity-gaze');
       const gazeVal = document.getElementById('integrity-gaze-val');
       if (gazeCard && gazeVal) {
-        const gazeLevel = gazeDown >= 0.6 ? 'alert-high' : (gazeDown >= 0.35 ? 'alert-med' : 'alert-low');
+        const gazeLevel = gazeDown >= 0.48 ? 'alert-high' : (gazeDown >= 0.30 ? 'alert-med' : 'alert-low');
         gazeCard.className = 'integrity-card ' + gazeLevel;
         const sec = gazeDownMs > 0 ? (gazeDownMs / 1000).toFixed(1) : 0;
         gazeVal.textContent = Math.round(gazeDown * 100) + '%' + (gazeDownMs > 0 ? ' · ' + sec + 's' : '');
       }
 
-      // Keyboard card
+      const closedCard = document.getElementById('integrity-eyes');
+      const closedVal = document.getElementById('integrity-eyes-val');
+      if (closedCard && closedVal) {
+        const closedLevel = eyesClosed ? 'alert-high' : 'alert-low';
+        closedCard.className = 'integrity-card ' + closedLevel;
+        const sec = eyesClosedMs > 0 ? (eyesClosedMs / 1000).toFixed(1) + 's' : '';
+        closedVal.textContent = eyesClosed ? ('closed' + (sec ? ' · ' + sec : '')) : 'open';
+      }
+
       const kbCard = document.getElementById('integrity-keyboard');
       const kbVal = document.getElementById('integrity-keyboard-val');
       if (kbCard && kbVal) {
@@ -1604,7 +1788,6 @@ MONITOR_JS = (
         kbVal.textContent = keyboardScore > 0 ? Math.round(keyboardScore * 100) + '%' : 'none';
       }
 
-      // Device card
       const devCard = document.getElementById('integrity-device');
       const devVal = document.getElementById('integrity-device-val');
       if (devCard && devVal) {
@@ -1612,7 +1795,17 @@ MONITOR_JS = (
         devVal.textContent = phoneEar ? 'near ear' : (phoneBelow ? 'below face' : 'none');
       }
 
-      // Call card
+      const handsCard = document.getElementById('integrity-hands');
+      const handsVal = document.getElementById('integrity-hands-val');
+      if (handsCard && handsVal) {
+        const handsLevel = handsOnFaceScore >= 0.65 ? 'alert-high' : (handsOnFaceScore >= 0.40 ? 'alert-med' : 'alert-low');
+        handsCard.className = 'integrity-card ' + handsLevel;
+        const hSec = handsOnFaceMs > 0 ? (handsOnFaceMs / 1000).toFixed(0) + 's' : '';
+        handsVal.textContent = handsOnFaceScore >= 0.40
+          ? (Math.round(handsOnFaceScore * 100) + '%' + (hSec ? ' · ' + hSec : ''))
+          : 'none';
+      }
+
       const callCard = document.getElementById('integrity-call');
       const callVal = document.getElementById('integrity-call-val');
       if (callCard && callVal) {
@@ -1620,19 +1813,88 @@ MONITOR_JS = (
         callVal.textContent = phonecall ? 'call active' : (ringtone ? 'ringtone ♪' : 'silent');
       }
 
-      // Status line
       const statusEl = document.getElementById('integrity-status');
       if (statusEl) {
         if (suspected) {
           statusEl.className = 'integrity-status alert';
-          statusEl.textContent = '⚠ Integrity alert';
+          statusEl.textContent = '⚠ Integrity alert — phone / eyes away';
+        } else if (eyesClosed && eyesClosedMs >= 1500) {
+          statusEl.className = 'integrity-status alert';
+          statusEl.textContent = '😴 Eyes closed — please look at the lesson';
+        } else if (phoneBelow && gazeDownMs >= 2000) {
+          statusEl.className = 'integrity-status alert';
+          statusEl.textContent = '📱 Looking down at a phone — please return to the webcam';
+        } else if (gazeDown >= 0.42 && gazeDownMs >= 1500) {
+          statusEl.className = 'integrity-status warn';
+          statusEl.textContent = '👀 Distracted / looking away — refocus on the camera';
         } else if (phonecall) {
           statusEl.className = 'integrity-status warn';
           statusEl.textContent = '📞 Phone call – lesson paused';
         } else {
           statusEl.className = 'integrity-status';
-          statusEl.textContent = 'Monitoring';
+          statusEl.textContent = 'Monitoring yawn, distraction, attention, gaze, and phone';
         }
+      }
+    }
+
+    function updateObservatoryHud(p) {
+      const adv = (p && p.advanced_behavior) || {};
+      const setBar = (id, score) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const v = Math.max(0, Math.min(1, Number(score) || 0));
+        el.style.width = Math.round(v * 100) + '%';
+        el.parentElement && el.parentElement.setAttribute('title', Math.round(v * 100) + '%');
+      };
+      setBar('obs-eng', adv.engagement_index);
+      setBar('obs-flow', adv.flow_score);
+      setBar('obs-conf', adv.confusion_score);
+      setBar('obs-bore', adv.boredom_score);
+      setBar('obs-fat', adv.fatigue_score);
+      setBar('obs-cur', adv.curiosity_score);
+      setBar('obs-fid', adv.fidget_score);
+      setBar('obs-multi', adv.multitask_score);
+      const labelEl = document.getElementById('obs-label');
+      if (labelEl) labelEl.textContent = (adv.observatory_label || p.behavior_label || '—').replace(/_/g, ' ');
+      const cogEl = document.getElementById('obs-cognitive');
+      if (cogEl) cogEl.textContent = (adv.cognitive_label || '—').replace(/_/g, ' ');
+      const hintEl = document.getElementById('obs-hint');
+      if (hintEl) hintEl.textContent = adv.timeline_hint || 'Start camera for live cognitive fusion';
+      const poseEl = document.getElementById('obs-pose');
+      if (poseEl) {
+        const pitch = adv.head_pose_pitch, yaw = adv.head_pose_yaw, roll = adv.head_pose_roll;
+        poseEl.textContent = (pitch == null && yaw == null)
+          ? 'pose n/a'
+          : ('P ' + Number(pitch || 0).toFixed(0) + '° · Y ' + Number(yaw || 0).toFixed(0) + '° · R ' + Number(roll || 0).toFixed(0) + '°');
+      }
+      const needle = document.getElementById('obs-pose-needle');
+      if (needle) {
+        const yaw = Number(adv.head_pose_yaw || 0);
+        const pitch = Number(adv.head_pose_pitch || 0);
+        needle.style.transform = 'translate(-50%,-50%) rotate(' + yaw + 'deg) translateY(' + Math.max(-18, Math.min(18, pitch * 0.35)) + 'px)';
+      }
+      const confEl = document.getElementById('obs-confidence');
+      if (confEl) confEl.textContent = adv.confidence != null ? Math.round(adv.confidence * 100) + '% conf' : '';
+      const events = Array.isArray(adv.events) ? adv.events : [];
+      events.forEach((ev) => {
+        observatoryEvents.push(ev);
+        if (observatoryEvents.length > 24) observatoryEvents.shift();
+      });
+      const log = document.getElementById('obs-events');
+      if (log) {
+        const rows = observatoryEvents.slice().reverse().slice(0, 10).map((ev) => {
+          const t = ev.timestamp_ms ? new Date(ev.timestamp_ms).toLocaleTimeString() : '';
+          return '<div class="obs-ev ' + esc(ev.level || '') + '"><span class="t">' + esc(t) + '</span> '
+            + '<strong>' + esc(ev.code || '') + '</strong> ' + esc(ev.message || '') + '</div>';
+        });
+        log.innerHTML = rows.length ? rows.join('') : '<div class="obs-ev">No behavior events yet.</div>';
+      }
+      if ((adv.confusion_score || 0) >= 0.62) {
+        maybeAnnounceIntegrity('confuse', 'You look a bit confused. Want me to slow down or explain that again?');
+      } else if ((adv.fatigue_score || 0) >= 0.62) {
+        maybeAnnounceIntegrity('fatigue', 'You seem tired. Take a short stretch if you need to, then refocus.');
+      } else if ((adv.engagement_index || 0) >= 0.78) {
+        maybeAnnounceIntegrity('engage', 'Great focus — keep that energy going.');
       }
     }
 
@@ -1663,6 +1925,9 @@ MONITOR_JS = (
     let faceLandmarkerPromise = null;
     let lastFaceContours = null;  // { pts:[{x,y}], connections:[[i,j]], mood }
     let moodHistory = [];
+    let lastLumaFlat = null;
+    let motionEma = 0.15;
+    const observatoryEvents = [];
     const contourToggle = document.getElementById('cam-contour-toggle');
     const contourToggleLabel = document.getElementById('cam-contour-toggle-label');
 
@@ -1695,26 +1960,35 @@ MONITOR_JS = (
           const fileset = await vision.FilesetResolver.forVisionTasks(
             'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
           );
-          faceLandmarker = await vision.FaceLandmarker.createFromOptions(fileset, {
-            baseOptions: {
-              modelAssetPath:
-                'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-              delegate: 'GPU',
-            },
-            runningMode: 'VIDEO',
-            numFaces: 1,
-            outputFaceBlendshapes: true,
-            outputFacialTransformationMatrixes: false,
-          });
-          faceLandmarker._CONNECTIONS = [].concat(
-            vision.FaceLandmarker.FACE_LANDMARKS_FACE_OVAL || [],
-            vision.FaceLandmarker.FACE_LANDMARKS_LIPS || [],
-            vision.FaceLandmarker.FACE_LANDMARKS_LEFT_EYE || [],
-            vision.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE || [],
-            vision.FaceLandmarker.FACE_LANDMARKS_LEFT_EYEBROW || [],
-            vision.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYEBROW || [],
-          );
-          return faceLandmarker;
+          const modelPath =
+            'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+          // GPU fails on some Macs / browsers; fall back to CPU so blink + look-down still work.
+          let lastErr = null;
+          for (const delegate of ['GPU', 'CPU']) {
+            try {
+              faceLandmarker = await vision.FaceLandmarker.createFromOptions(fileset, {
+                baseOptions: { modelAssetPath: modelPath, delegate },
+                runningMode: 'VIDEO',
+                numFaces: 1,
+                outputFaceBlendshapes: true,
+                outputFacialTransformationMatrixes: true,
+              });
+              faceLandmarker._CONNECTIONS = [].concat(
+                vision.FaceLandmarker.FACE_LANDMARKS_FACE_OVAL || [],
+                vision.FaceLandmarker.FACE_LANDMARKS_LIPS || [],
+                vision.FaceLandmarker.FACE_LANDMARKS_LEFT_EYE || [],
+                vision.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE || [],
+                vision.FaceLandmarker.FACE_LANDMARKS_LEFT_EYEBROW || [],
+                vision.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYEBROW || [],
+              );
+              faceLandmarker._delegate = delegate;
+              return faceLandmarker;
+            } catch (err) {
+              lastErr = err;
+              console.warn('Face landmarker ' + delegate + ' failed', err);
+            }
+          }
+          throw lastErr || new Error('FaceLandmarker init failed');
         } catch (err) {
           console.warn('Face landmarker unavailable', err);
           faceLandmarkerFailed = true;
@@ -1725,12 +1999,54 @@ MONITOR_JS = (
       return faceLandmarkerPromise;
     }
 
-    function blendshapeMap(blendshapes) {
-      const out = {};
-      if (!blendshapes || !blendshapes.length) return out;
-      const cats = blendshapes[0].categories || [];
-      cats.forEach((c) => { out[c.categoryName] = c.score; });
-      return out;
+    function headPoseFromMatrix(matrices) {
+      // MediaPipe facialTransformationMatrixes: column-major 4x4.
+      if (!matrices || !matrices.length) return null;
+      const raw = matrices[0];
+      const data = raw.data || raw;
+      if (!data || data.length < 16) return null;
+      const r00 = data[0], r01 = data[4], r02 = data[8];
+      const r10 = data[1], r11 = data[5], r12 = data[9];
+      const r20 = data[2], r21 = data[6], r22 = data[10];
+      const pitch = Math.atan2(-r12, r22) * (180 / Math.PI);
+      const yaw = Math.atan2(r02, Math.sqrt(r00 * r00 + r01 * r01)) * (180 / Math.PI);
+      const roll = Math.atan2(-r01, r00) * (180 / Math.PI);
+      return {
+        head_pose_pitch: Math.max(-90, Math.min(90, pitch)),
+        head_pose_yaw: Math.max(-90, Math.min(90, yaw)),
+        head_pose_roll: Math.max(-90, Math.min(90, roll)),
+      };
+    }
+
+    function headPoseFromLandmarks(pts) {
+      if (!pts || pts.length < 300) return null;
+      const nose = pts[1], left = pts[33], right = pts[263], chin = pts[152], forehead = pts[10];
+      if (!nose || !left || !right || !chin || !forehead) return null;
+      const midX = (left.x + right.x) / 2;
+      const yaw = (nose.x - midX) * 120;
+      const pitch = ((chin.y - forehead.y) - 0.32) * 140;
+      const roll = Math.atan2(right.y - left.y, right.x - left.x) * (180 / Math.PI);
+      return {
+        head_pose_pitch: Math.max(-60, Math.min(60, pitch)),
+        head_pose_yaw: Math.max(-60, Math.min(60, yaw)),
+        head_pose_roll: Math.max(-45, Math.min(45, roll)),
+      };
+    }
+
+    function motionFromGrid(grid) {
+      const flat = [];
+      for (let y = 0; y < grid.length; y += 2) {
+        for (let x = 0; x < grid[y].length; x += 2) flat.push(grid[y][x]);
+      }
+      let delta = 0.12;
+      if (lastLumaFlat && lastLumaFlat.length === flat.length) {
+        let sum = 0;
+        for (let i = 0; i < flat.length; i++) sum += Math.abs(flat[i] - lastLumaFlat[i]);
+        delta = Math.max(0, Math.min(1, (sum / flat.length) * 8));
+      }
+      lastLumaFlat = flat;
+      motionEma = motionEma * 0.65 + delta * 0.35;
+      return Math.max(0, Math.min(1, motionEma));
     }
 
     function emotionFromBlendshapes(bs) {
@@ -1739,15 +2055,23 @@ MONITOR_JS = (
       const jaw = bs.jawOpen || 0;
       const browDown = ((bs.browDownLeft || 0) + (bs.browDownRight || 0)) / 2;
       const browUp = bs.browInnerUp || 0;
+      const funnel = bs.mouthFunnel || 0;
+      // Yawn = jaw wide open without a smile / surprise-brow spike.
+      const yawn = Math.max(0, Math.min(1,
+        jaw * 1.15 * (1 - smile * 1.2) * (1 - Math.max(0, browUp - 0.22) * 1.4) + funnel * 0.25
+      ));
       let expression_label = 'neutral';
       let expression_confidence = 0.45;
-      if (smile >= 0.35 && smile > frown + 0.08) {
+      if (yawn >= 0.48 && yawn >= smile + 0.10 && jaw >= 0.40) {
+        expression_label = 'yawning';
+        expression_confidence = Math.min(0.96, 0.50 + yawn * 0.48);
+      } else if (smile >= 0.35 && smile > frown + 0.08) {
         expression_label = 'happy';
         expression_confidence = Math.min(0.98, 0.50 + smile * 0.55);
       } else if (frown >= 0.28 && frown >= smile) {
         expression_label = 'sad';
         expression_confidence = Math.min(0.95, 0.48 + frown * 0.55);
-      } else if (jaw >= 0.35 && browUp >= 0.25) {
+      } else if (jaw >= 0.35 && browUp >= 0.25 && yawn < 0.45) {
         expression_label = 'surprised';
         expression_confidence = Math.min(0.92, 0.45 + jaw * 0.4);
       } else if (browDown >= 0.40 && frown >= 0.15) {
@@ -1759,6 +2083,7 @@ MONITOR_JS = (
         expression_confidence,
         smile_score: smile,
         sad_score: frown,
+        yawn_score: yawn,
         source: 'face_contours',
       };
     }
@@ -1780,12 +2105,15 @@ MONITOR_JS = (
       const widthRatio = mouthW / eyeW;
       let smile = Math.max(0, Math.min(1, curve * 8 + (widthRatio - 1.15) * 1.2));
       let sad = Math.max(0, Math.min(1, -curve * 8 + Math.max(0, 1.05 - widthRatio) * 1.4));
+      const yawn = Math.max(0, Math.min(1, (mouthOpen - 0.18) / 0.35 * (1 - smile)));
       let expression_label = 'neutral', expression_confidence = 0.42;
-      if (smile >= 0.42 && smile > sad + 0.06) {
+      if (yawn >= 0.50 && mouthOpen >= 0.30 && yawn >= smile + 0.08) {
+        expression_label = 'yawning'; expression_confidence = 0.48 + yawn * 0.42;
+      } else if (smile >= 0.42 && smile > sad + 0.06) {
         expression_label = 'happy'; expression_confidence = 0.48 + smile * 0.45;
       } else if (sad >= 0.40 && sad > smile) {
         expression_label = 'sad'; expression_confidence = 0.46 + sad * 0.45;
-      } else if (mouthOpen >= 0.28) {
+      } else if (mouthOpen >= 0.28 && yawn < 0.45) {
         expression_label = 'surprised'; expression_confidence = 0.45 + mouthOpen * 0.4;
       }
       return {
@@ -1793,6 +2121,7 @@ MONITOR_JS = (
         expression_confidence,
         smile_score: smile,
         sad_score: sad,
+        yawn_score: yawn,
         source: 'face_contours',
       };
     }
@@ -1823,7 +2152,7 @@ MONITOR_JS = (
       const bh = (box.height / vh) * h;
       const ctx = overlay.getContext('2d');
       const color = ({ happy: '#4ade80', sad: '#f87171', neutral: '#67e8f9',
-        surprised: '#fbbf24', angry: '#fb7185' })[mood] || '#67e8f9';
+        surprised: '#fbbf24', angry: '#fb7185', yawning: '#f59e0b' })[mood] || '#67e8f9';
       ctx.save();
       ctx.strokeStyle = color;
       ctx.lineWidth = Math.max(2, w * 0.003);
@@ -1908,26 +2237,62 @@ MONITOR_JS = (
         mood = { ...mood, ...smoothMood(mood.expression_label, mood.expression_confidence) };
         const connections = (lm._CONNECTIONS || []).map((c) => [c.start, c.end]);
         lastFaceContours = { pts, connections, mood: mood.expression_label };
-        // Gaze from nose tip (1) vs face center
         const nose = pts[1], leftEye = pts[33], rightEye = pts[263];
-        let gaze_frontal = 0.85, gaze_down = 0.1;
+        const chin = pts[152], forehead = pts[10];
+        let gaze_frontal = 0.85, geom_down = 0.1;
         if (nose && leftEye && rightEye) {
           const midX = (leftEye.x + rightEye.x) / 2;
+          const midY = (leftEye.y + rightEye.y) / 2;
           gaze_frontal = Math.max(0, Math.min(1, 1 - Math.abs(nose.x - midX) * 6));
-          gaze_down = Math.max(0, Math.min(1, (nose.y - ((leftEye.y + rightEye.y) / 2)) * 4));
+          // Looking at a phone below: nose/chin drop relative to the eyes.
+          geom_down = Math.max(0, Math.min(1, (nose.y - midY) * 5.5));
+          if (chin && forehead) {
+            const pitch = Math.max(0, Math.min(1, ((chin.y - forehead.y) - 0.28) / 0.22));
+            geom_down = Math.max(geom_down, pitch);
+          }
         }
+        const lookDown = ((bs.eyeLookDownLeft || 0) + (bs.eyeLookDownRight || 0)) / 2;
+        const lookUp = ((bs.eyeLookUpLeft || 0) + (bs.eyeLookUpRight || 0)) / 2;
+        const blinkL = bs.eyeBlinkLeft || 0;
+        const blinkR = bs.eyeBlinkRight || 0;
+        const blink = (blinkL + blinkR) / 2;
+        let gaze_down = Math.max(geom_down, lookDown * 1.35, lookDown + geom_down * 0.35);
+        if (lookUp > lookDown + 0.15) gaze_down *= 0.55;
+        // Sustained lid close (not a quick blink): either eye strongly closed, or both moderately.
+        const eyes_closed = blink >= 0.45 || Math.min(blinkL, blinkR) >= 0.40;
+        if (eyes_closed) gaze_frontal = Math.min(gaze_frontal, 0.25);
+        const yawn_score = Math.max(mood.yawn_score || 0, (mood.expression_label === 'yawning') ? 0.62 : 0);
+        const yawning = yawn_score >= 0.48 || mood.expression_label === 'yawning';
+        let attention = 'looking';
+        if (eyes_closed) attention = 'eyes_closed';
+        else if (yawning) attention = 'yawning';
+        else if (gaze_down >= 0.38 || gaze_frontal < 0.40) attention = 'eyes_away';
         const faceH = Math.max(...pts.map((p) => p.y)) - Math.min(...pts.map((p) => p.y));
+        const pose = headPoseFromMatrix(result.facialTransformationMatrixes) || headPoseFromLandmarks(pts) || {};
+        const brow_raise = bs.browInnerUp || 0;
+        const smile = mood.smile_score != null ? mood.smile_score
+          : (((bs.mouthSmileLeft || 0) + (bs.mouthSmileRight || 0)) / 2);
+        // Soft confusion cue from raised brows without a smile.
+        let expression_label = yawning ? 'yawning' : mood.expression_label;
+        if (!yawning && brow_raise >= 0.45 && smile < 0.22 && expression_label === 'neutral') {
+          expression_label = 'confused';
+        }
         return {
           face_count: faces.length,
-          expression_label: mood.expression_label,
+          expression_label,
           expression_confidence: mood.expression_confidence,
           gaze_frontal,
           gaze_down_score: gaze_down,
+          eyes_closed_score: blink,
+          eyes_closed,
+          yawn_score,
+          brow_raise_score: brow_raise,
+          smile_score: smile,
           face_size_ratio: Math.max(0.05, Math.min(0.9, faceH)),
-          attention: (gaze_down >= 0.60 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking',
+          attention,
           source: 'face_contours',
-          smile_score: mood.smile_score,
           sad_score: mood.sad_score,
+          ...pose,
         };
       }
       // Fallback: FaceDetector box + mouth-curve contour (no MediaPipe).
@@ -1999,7 +2364,31 @@ MONITOR_JS = (
       let expression_label = 'neutral', expression_confidence = 0.45;
       if (smile >= 0.55 && smile >= sad + 0.08) { expression_label = 'happy'; expression_confidence = 0.45 + smile * 0.5; }
       else if (sad >= 0.52 && sad > smile + 0.05) { expression_label = 'sad'; expression_confidence = 0.42 + sad * 0.5; }
-      const attention = (gaze_down >= 0.60 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking';
+      // Fallback closed-eye score when MediaPipe is unavailable: open eyes have higher
+      // local contrast in the eye band; closed lids flatten that band.
+      let eyeEdges = 0, eyeBandN = 0;
+      for (let y = Math.floor(h * 0.16); y < Math.floor(h * 0.38); y++) {
+        for (let x = Math.floor(w * 0.28); x < Math.floor(w * 0.72) - 1; x++) {
+          eyeEdges += Math.abs(grid[y][x + 1] - grid[y][x]);
+          eyeBandN++;
+        }
+      }
+      const eyeEdgeMean = eyeBandN ? eyeEdges / eyeBandN : 0;
+      const eyes_closed_score = Math.max(0, Math.min(1, (0.042 - eyeEdgeMean) / 0.032));
+      const eyes_closed = eyes_closed_score >= 0.55 && gaze_down < 0.55;
+      // Grid yawn: dark mouth cavity relative to cheeks + weak smile edges.
+      const yawn_score = Math.max(0, Math.min(1,
+        Math.max(0, (cheekMean - mouthMean) * 2.6)
+        + Math.max(0, 0.045 - me) * 5.5
+        + Math.max(0, 0.35 - smile) * 0.35
+        - smile * 0.55
+      ));
+      const yawning = yawn_score >= 0.55 && yawn_score >= smile + 0.08;
+      if (yawning) { expression_label = 'yawning'; expression_confidence = 0.45 + yawn_score * 0.45; }
+      const attention = eyes_closed
+        ? 'eyes_closed'
+        : (yawning ? 'yawning'
+          : ((gaze_down >= 0.45 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking'));
       // Linear face size from dark-pixel bbox (larger face ⇒ closer to camera).
       let minX = w, minY = h, maxX = -1, maxY = -1;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -2017,6 +2406,7 @@ MONITOR_JS = (
       return {
         face_count: 1, expression_label, expression_confidence,
         gaze_frontal, gaze_down_score: gaze_down,
+        eyes_closed_score, eyes_closed, yawn_score,
         face_size_ratio,
         attention,
         distance_from_camera_m: null,
@@ -2130,13 +2520,18 @@ MONITOR_JS = (
             const cx = (box.x + box.width / 2) / camVideo.videoWidth;
             const gaze_down = Math.max(0, Math.min(1, (cy - 0.35) / 0.4));
             const gaze_frontal = Math.max(0, Math.min(1, 1 - Math.abs(cx - 0.5) * 2.2));
+            const attn = facial.eyes_closed
+              ? 'eyes_closed'
+              : ((gaze_down >= 0.45 || gaze_frontal < 0.35)
+                  ? 'eyes_away'
+                  : (facial.attention || 'looking'));
             facial = {
               ...facial,
               face_count: faces.length,
               face_size_ratio: Math.max(0.04, Math.min(0.9, linear)),
               gaze_down_score: Math.max(facial.gaze_down_score || 0, gaze_down * 0.85),
               gaze_frontal: Math.min(facial.gaze_frontal || 1, gaze_frontal),
-              attention: (gaze_down >= 0.60 || gaze_frontal < 0.35) ? 'eyes_away' : (facial.attention || 'looking'),
+              attention: attn,
             };
           }
         } catch (_) { /* FaceDetector optional */ }
@@ -2158,23 +2553,49 @@ MONITOR_JS = (
       const mood = (p && p.dominant_expression) || (facial && facial.expression_label) || 'unknown';
       const conf = (p && p.expression_confidence != null) ? p.expression_confidence : (facial && facial.expression_confidence);
       const awayMs = (p && p.eyes_away_for_ms) || 0;
+      const closedMs = (p && p.eyes_closed_for_ms) || 0;
+      const yawnMs = (p && p.yawn_for_ms) || 0;
+      const inattMs = (p && p.inattentive_for_ms) || 0;
+      const behavior = (p && p.behavior_label) || 'unknown';
       let attn = 'looking';
       if (p && (p.state === 'absent' || p.face_count === 0)) attn = 'away_from_webcam';
+      else if ((facial && facial.eyes_closed) || closedMs > 0) attn = 'eyes_closed';
+      else if (behavior === 'yawning' || yawnMs > 0 || (facial && facial.attention === 'yawning')) attn = 'yawning';
+      else if (behavior === 'distracted') attn = 'distracted';
+      else if (behavior === 'inattentive' || inattMs >= 4000) attn = 'inattentive';
       else if (awayMs > 0 || (facial && facial.attention === 'eyes_away')) attn = 'eyes_away';
       else if (facial && facial.attention) attn = facial.attention;
       const moodCard = document.getElementById('facial-mood-card');
       const attnCard = document.getElementById('facial-attn-card');
+      const behCard = document.getElementById('facial-beh-card');
       const distCard = document.getElementById('facial-dist-card');
       moodCard.className = 'facial-card mood-' + mood;
       attnCard.className = 'facial-card attn-' + attn;
+      if (behCard) behCard.className = 'facial-card beh-' + behavior;
       document.getElementById('facial-mood').textContent = mood;
       const moodSrc = (facial && facial.source) || 'grid';
       document.getElementById('facial-mood-sub').textContent =
         'confidence ' + (conf == null ? 'n/a' : Math.round(conf * 100) + '%') +
         ' · ' + (moodSrc === 'face_contours' ? 'facial contours' : moodSrc) +
         ' · behavior ' + pct(p && p.expression_behavior_score);
-      const attnLabel = ({ looking: 'looking', eyes_away: 'eyes away', away_from_webcam: 'away from webcam' })[attn] || attn;
+      const attnLabel = ({
+        looking: 'looking', eyes_away: 'eyes away', eyes_closed: 'eyes closed',
+        yawning: 'yawning', distracted: 'distracted', inattentive: 'not paying attention',
+        away_from_webcam: 'away from webcam',
+      })[attn] || attn;
       document.getElementById('facial-attn').textContent = attnLabel;
+      if (behCard) {
+        const behLabel = ({
+          focused: 'focused', yawning: 'yawning', distracted: 'distracted',
+          inattentive: 'not paying attention', drowsy: 'drowsy', away: 'away',
+        })[behavior] || behavior;
+        document.getElementById('facial-beh').textContent = behLabel;
+        const attnPct = (p && p.attention_score != null) ? Math.round(p.attention_score * 100) + '%' : 'n/a';
+        const distPct = (p && p.distraction_score != null) ? Math.round(p.distraction_score * 100) + '%' : 'n/a';
+        document.getElementById('facial-beh-sub').textContent =
+          'attention ' + attnPct + ' · distraction ' + distPct +
+          (inattMs ? (' · ' + (inattMs / 1000).toFixed(1) + 's') : '');
+      }
       const dist = (p && p.distance_from_camera_m != null) ? p.distance_from_camera_m : null;
       const src = (p && p.distance_source) || (facial && facial.distance_source) || (dist != null ? 'face_size' : 'none');
       distCard.className = 'facial-card dist-' + src;
@@ -2184,7 +2605,19 @@ MONITOR_JS = (
           : (src === 'face_size' ? ('face size in frame' + (facial && facial.face_size_ratio != null ? (' · ratio ' + Number(facial.face_size_ratio).toFixed(2)) : ''))
             : 'move closer so your face fills more of the window');
       document.getElementById('facial-attn-sub').textContent =
-        awayMs ? ('eyes away for ' + (awayMs / 1000).toFixed(1) + 's') : 'on-camera attention';
+        closedMs ? ('eyes closed for ' + (closedMs / 1000).toFixed(1) + 's')
+          : (yawnMs ? ('yawning for ' + (yawnMs / 1000).toFixed(1) + 's')
+            : (awayMs ? ('eyes away for ' + (awayMs / 1000).toFixed(1) + 's') : 'on-camera attention'));
+    }
+
+    const integrityAnnounce = { phoneAt: 0, closedAt: 0, awayAt: 0, yawnAt: 0, inattAt: 0, distractAt: 0 };
+    function maybeAnnounceIntegrity(kind, message) {
+      const now = Date.now();
+      const last = integrityAnnounce[kind] || 0;
+      if (now - last < 12000) return;
+      integrityAnnounce[kind] = now;
+      toast(message);
+      if (autoSpeak()) speakTheodore(message, voiceLangCode());
     }
 
     async function sampleFrame() {
@@ -2193,6 +2626,7 @@ MONITOR_JS = (
       if (!grid) return;
       patternPhase += 1;
       const foreground = estimateForeground(grid);
+      const motion = usingSilhouette ? 0.02 : motionFromGrid(grid);
       const facial = await estimateFacialExperience(grid);
       const audio = sampleMicAudio();
       const signal = {
@@ -2201,11 +2635,26 @@ MONITOR_JS = (
             face_count: usingSilhouette ? 0 : facial.face_count,
             liveness_state: usingSilhouette ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
             foreground_ratio: usingSilhouette ? Math.max(0.96, foreground) : Math.min(0.55, Math.max(0.25, foreground)),
-            motion_score: usingSilhouette ? 0.02 : 0.2,
+            motion_score: motion,
+            body_motion_score: motion,
+            fidget_score: Math.max(0, Math.min(1, (motion - 0.12) * 2.4)),
             expression_label: facial.expression_label,
             expression_confidence: facial.expression_confidence,
             gaze_frontal: facial.gaze_frontal,
             gaze_down_score: facial.gaze_down_score,
+            eyes_closed_score: facial.eyes_closed_score || 0,
+            yawn_score: facial.yawn_score || 0,
+            brow_raise_score: facial.brow_raise_score || 0,
+            smile_score: facial.smile_score || 0,
+            head_pose_pitch: facial.head_pose_pitch,
+            head_pose_yaw: facial.head_pose_yaw,
+            head_pose_roll: facial.head_pose_roll,
+            screen_focus_score: (typeof document !== 'undefined' && document.visibilityState === 'visible') ? 1.0 : 0.15,
+            attention: Math.max(0, Math.min(1,
+              (facial.gaze_frontal || 0.5) * (1 - (facial.gaze_down_score || 0) * 0.7)
+              * ((facial.eyes_closed || facial.attention === 'eyes_closed') ? 0.15 : 1)
+              * ((facial.attention === 'yawning' || (facial.yawn_score || 0) >= 0.48) ? 0.45 : 1)
+            )),
             face_size_ratio: facial.face_size_ratio,
             distance_from_camera_m: facial.distance_from_camera_m,
             distance_source: facial.distance_source,
@@ -2220,11 +2669,13 @@ MONITOR_JS = (
       }
       const clickResult = sampleClickDetector();
       const phoneDet = detectPhoneFromGrid(grid, facial.gaze_down_score || 0);
+      const handsScore = detectHandsOnFace(grid, facial.gaze_down_score || 0, (facial.face_count || 0) > 0);
       signal.keyboard_typing_audio_score = clickResult.keyboardScore;
       signal.phone_visible = phoneDet.below || phoneDet.ear || clickResult.phonecall;
+      signal.hands_on_face_score = handsScore > 0.05 ? Math.round(handsScore * 1000) / 1000 : null;
       signal.typing_activity_score = Math.max(
-          Math.max(0, Math.min(1, ((facial.gaze_down_score || 0) - 0.15) * 1.8)),
-          phoneDet.below ? 0.65 : 0
+          Math.max(0, Math.min(1, ((facial.gaze_down_score || 0) - 0.12) * 1.9)),
+          phoneDet.below ? 0.70 : 0
       );
       const res = await fetch('/api/theodore/webcam/evaluate', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -2241,30 +2692,54 @@ MONITOR_JS = (
       refreshSilhouetteGuide();
       updateFacialHud(p, facial);
       updateAudioHud(p, audio);
+      updateObservatoryHud(p);
       updateIntegrityHud({
           gazeDown: facial.gaze_down_score || 0,
           gazeDownMs: p.eyes_away_for_ms || 0,
+          eyesClosed: !!(facial.eyes_closed || (p.eyes_closed_for_ms > 0)),
+          eyesClosedMs: p.eyes_closed_for_ms || 0,
+          handsOnFaceScore: handsScore,
+          handsOnFaceMs: p.hands_on_face_for_ms || 0,
           keyboardScore: clickResult.keyboardScore,
-          phoneBelow: phoneDet.below,
+          phoneBelow: phoneDet.below || !!p.phone_visible,
           phoneEar: phoneDet.ear,
           ringtone: clickResult.ringtone,
           phonecall: clickResult.phonecall,
           suspected: !!p.suspected_cheating,
           cheatingReasons: p.cheating_reasons || [],
       });
+      if ((p.eyes_closed_for_ms || 0) >= 1500) {
+        maybeAnnounceIntegrity('closed', 'I notice your eyes are closed. Please open them and look at the lesson.');
+      } else if ((p.yawn_for_ms || 0) >= 1500) {
+        maybeAnnounceIntegrity('yawn', 'I notice you are yawning. Take a quick stretch if you need to, then refocus on the lesson.');
+      } else if ((p.hands_on_face_for_ms || 0) >= 3000) {
+        maybeAnnounceIntegrity('hands', 'I see you have your hand on your face. Sit up and focus on the screen — we have more to cover!');
+      } else if ((p.phone_visible || phoneDet.below) && (p.eyes_away_for_ms || 0) >= 2000) {
+        maybeAnnounceIntegrity('phone', 'It looks like you are looking at your phone. Please return your attention to the webcam.');
+      } else if ((p.behavior_label === 'distracted' || (p.distraction_score || 0) >= 0.55) && (p.eyes_away_for_ms || 0) >= 2500) {
+        maybeAnnounceIntegrity('distract', 'You seem distracted. Please look back at the camera and stay with the lesson.');
+      } else if ((p.inattentive_for_ms || 0) >= 4000) {
+        maybeAnnounceIntegrity('inatt', 'It looks like you are not paying attention. Please refocus on the lesson.');
+      } else if ((p.eyes_away_for_ms || 0) >= 2500) {
+        maybeAnnounceIntegrity('away', 'Please look back at the camera so we can continue.');
+      }
       if (clickResult.phonecall) toast('📞 Phone call detected – lesson paused.');
       if (clickResult.ringtone && !clickResult.phonecall) toast('🔔 Ringtone detected.');
       lastLiveCamParticipant = p;
       updateTuningEffect(p, visionKnobs, 'Live frame scored with current Vision knobs');
       notifyLiveAway(p, facial, data);
       document.getElementById('cam-readings').innerHTML = [
-        ['mood', p.dominant_expression], ['attn', (p.face_count === 0 ? 'away' : (p.eyes_away_for_ms > 0 ? 'eyes away' : 'looking'))],
+        ['mood', p.dominant_expression],
+        ['behavior', p.behavior_label || '—'],
+        ['attention', pct(p.attention_score)],
+        ['distraction', pct(p.distraction_score)],
+        ['attn', (p.face_count === 0 ? 'away' : (p.eyes_away_for_ms > 0 ? 'eyes away' : 'looking'))],
         ['paused', data.training_paused ? 'yes' : 'no'],
         ['state', p.state],
         ['sharpness', num(p.sharpness_score)], ['edge', num(p.edge_density, 3)],
         ['light', pct(p.light_quality_score)], ['image', pct(p.image_detection_quality_score)],
         ['confidence', pct(p.recognition_confidence)], ['silhouette', p.silhouette_detected ? 'yes' : 'no'],
-        ['distance', num(p.distance_from_camera_m)], ['behavior', pct(p.expression_behavior_score)],
+        ['distance', num(p.distance_from_camera_m)], ['engagement', pct(p.expression_behavior_score)],
         ['mic', pct(p.microphone_quality_score)], ['noise filter', pct(p.noise_filter_effectiveness_score)],
       ].map(([k, v]) => `<span class="pill">${esc(k)}: ${esc(v)}</span>`).join(' ');
       const gates = p.quality_flags || [];
@@ -2489,7 +2964,12 @@ MONITOR_PAGE_TEMPLATE = (
         <div class="facial-card attn-looking" id="facial-attn-card">
           <div class="lbl">Attention</div>
           <div class="val" id="facial-attn">—</div>
-          <div class="sub" id="facial-attn-sub">looking · eyes away · left frame</div>
+          <div class="sub" id="facial-attn-sub">looking · eyes away · yawn · left frame</div>
+        </div>
+        <div class="facial-card beh-focused" id="facial-beh-card">
+          <div class="lbl">Behavior</div>
+          <div class="val" id="facial-beh">—</div>
+          <div class="sub" id="facial-beh-sub">focused · yawning · distracted · not paying attention</div>
         </div>
         <div class="facial-card dist-none" id="facial-dist-card">
           <div class="lbl">Distance</div>
@@ -2511,23 +2991,56 @@ MONITOR_PAGE_TEMPLATE = (
       </div>
       <div class="integrity-hud">
         <div class="integrity-card alert-low" id="integrity-gaze">
-          <div class="lbl">Eyes away</div>
+          <div class="lbl">Looking down</div>
           <div class="val" id="integrity-gaze-val">—</div>
+        </div>
+        <div class="integrity-card alert-low" id="integrity-eyes">
+          <div class="lbl">Eyes</div>
+          <div class="val" id="integrity-eyes-val">open</div>
         </div>
         <div class="integrity-card alert-low" id="integrity-keyboard">
           <div class="lbl">Keyboard audio</div>
           <div class="val" id="integrity-keyboard-val">—</div>
         </div>
         <div class="integrity-card alert-low" id="integrity-device">
-          <div class="lbl">Device visible</div>
+          <div class="lbl">Phone in frame</div>
           <div class="val" id="integrity-device-val">—</div>
+        </div>
+        <div class="integrity-card alert-low" id="integrity-hands">
+          <div class="lbl">Hands on face</div>
+          <div class="val" id="integrity-hands-val">—</div>
         </div>
         <div class="integrity-card alert-low" id="integrity-call">
           <div class="lbl">Phone / ringtone</div>
           <div class="val" id="integrity-call-val">—</div>
         </div>
       </div>
-      <div class="integrity-status" id="integrity-status">Start camera to monitor integrity signals.</div>
+      <div class="integrity-status" id="integrity-status">Start camera to monitor yawn, distraction, gaze, closed eyes, hands on face, and phone use.</div>
+      <div class="obs-panel" id="obs-panel">
+        <h3>Behavior Observatory</h3>
+        <div class="obs-top">
+          <div class="obs-labels">
+            <div class="big" id="obs-label">—</div>
+            <div class="sub">cognitive: <span id="obs-cognitive">—</span> · <span id="obs-confidence"></span></div>
+            <div class="sub" id="obs-hint">Start camera for live cognitive fusion</div>
+            <div class="sub" id="obs-pose">pose n/a</div>
+          </div>
+          <div class="obs-pose-box" title="Head pose compass (yaw/pitch)">
+            <div class="obs-pose-needle" id="obs-pose-needle"></div>
+          </div>
+        </div>
+        <div class="obs-bars">
+          <div class="obs-bar-row"><span>Engage</span><div class="obs-track"><div class="obs-fill" id="obs-eng"></div></div></div>
+          <div class="obs-bar-row"><span>Flow</span><div class="obs-track"><div class="obs-fill" id="obs-flow"></div></div></div>
+          <div class="obs-bar-row"><span>Confused</span><div class="obs-track"><div class="obs-fill warn" id="obs-conf"></div></div></div>
+          <div class="obs-bar-row"><span>Bored</span><div class="obs-track"><div class="obs-fill warn" id="obs-bore"></div></div></div>
+          <div class="obs-bar-row"><span>Fatigue</span><div class="obs-track"><div class="obs-fill bad" id="obs-fat"></div></div></div>
+          <div class="obs-bar-row"><span>Curious</span><div class="obs-track"><div class="obs-fill" id="obs-cur"></div></div></div>
+          <div class="obs-bar-row"><span>Fidget</span><div class="obs-track"><div class="obs-fill warn" id="obs-fid"></div></div></div>
+          <div class="obs-bar-row"><span>Multitask</span><div class="obs-track"><div class="obs-fill bad" id="obs-multi"></div></div></div>
+        </div>
+        <div class="obs-events" id="obs-events">No behavior events yet.</div>
+      </div>
       <div class="gatesblock">
         <div class="gateslabel">Camera quality checks</div>
         <div id="cam-gates">Waiting for camera…</div>
@@ -2559,9 +3072,14 @@ MONITOR_PAGE_TEMPLATE = (
       <div class="tuning-help">
         Vision knobs change how the <strong>server scores</strong> your webcam
         (pass/fail thresholds for light, blur, distance, mic). They do
-        <strong>not</strong> change the video image itself. Start the camera, then
-        drag a slider or pick a preset — changes apply live. Watch <em>Camera quality checks</em> and
-        <em>Tuning → live webcam</em> below flip when a threshold is crossed.
+        <strong>not</strong> change the video picture. Start the camera, then
+        drag a slider or pick a preset — watch <em>Camera quality checks</em> and
+        <em>Tuning → live webcam</em> flip when a threshold is crossed.
+      </div>
+      <div class="camrow">
+        <button id="tuning-prove" class="primary" type="button" title="Temporarily tighten light/image gates so you can see FAIL, then restore">
+          Prove knobs work
+        </button>
       </div>
       <div id="tuning-effect" class="tuning-effect">
         <h3>Tuning → live webcam</h3>
@@ -2574,19 +3092,21 @@ MONITOR_PAGE_TEMPLATE = (
         <div class="gateshelp">Counts of students currently failing a quality check. “none” means nobody is failing those lighting/blur/distance gates.</div>
       </div>
     </div>
-  </div>
 
-  <div class="tools">
-    <div class="panel">
-      <h2>Try Theodore (voice)</h2>
+    <div class="panel" id="voice-panel">
+      <h2>xAI Theodore voice agent</h2>
+      <div id="voice-status" class="voice-status fallback">Loading voice status…</div>
       <div class="camrow" style="align-items:center;gap:6px;">
-        <select id="voice-lang" style="font-size:11px;background:#1f2937;color:#e2e8f0;border:1px solid #334155;border-radius:4px;padding:2px 4px;"></select>
+        <label class="check" for="voice-lang">Language</label>
+        <select id="voice-lang" title="Teaching language for xAI replies + spoken pronunciation"
+                style="font-size:11px;background:#1f2937;color:#e2e8f0;border:1px solid #334155;border-radius:4px;padding:2px 4px;min-width:9rem;"></select>
         <input id="voice-topic" type="text" value="fractions" placeholder="question topic" style="flex:1;" />
         <button id="voice-ask" type="button">Ask question</button>
       </div>
       <textarea id="voice-msg">Can you explain that again more slowly?</textarea>
       <div class="camrow">
         <button id="voice-reply" class="primary" type="button">Get reply</button>
+        <button id="voice-absorb" type="button" title="Score a spoken/typed answer transcript">Absorb answer</button>
         <label class="check"><input id="voice-autospeak" type="checkbox" checked /> Auto-speak</label>
       </div>
       <div class="log" id="voice-out">Voice output appears here.</div>
@@ -2594,7 +3114,11 @@ MONITOR_PAGE_TEMPLATE = (
         <button id="voice-speak" type="button">&#x1F50A; Speak again</button>
         <button id="voice-stop-speak" type="button">&#x23F9; Stop</button>
       </div>
+      <div class="tuning-help">xAI writes the reply; spoken audio uses your device voice matched to the selected language (ElevenLabs/edge-tts when a speech gateway is configured).</div>
     </div>
+  </div>
+
+  <div class="tools">
     <div class="panel">
       <h2>Webcam games</h2>
       <textarea id="game-prompt">Stay focused while we check integrity.</textarea>

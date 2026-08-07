@@ -68,3 +68,27 @@ def test_monitor_page_explains_tuning_affects_scoring_not_pixels():
     assert "do" in text.lower() and "not" in text.lower() and "video" in text.lower()
     assert "updateTuningEffect" in text
     assert "liveCamSessionId" in text
+    assert "tuning-prove" in text
+    assert "Prove knobs work" in text
+
+
+def test_monitor_page_surfaces_xai_voice_agent_and_language():
+    page = client.get("/theodore/webcam/live-monitor/demo-session")
+    assert page.status_code == 200
+    text = page.text
+    assert "xAI Theodore voice agent" in text
+    assert "voice-lang" in text
+    assert "voice-status" in text
+    assert "voice-absorb" in text
+    assert "/api/theodore/voice/status" in text
+    assert "loadVoiceStatus" in text
+
+
+def test_voice_status_endpoint():
+    status = client.get("/api/theodore/voice/status")
+    assert status.status_code == 200
+    body = status.json()
+    assert body["service"] == "theodore-voice-agent"
+    assert body["languages"] >= 26  # expanded to 62 languages; floor remains the original 26
+    assert body["provider"] in {"xai", "local-fallback"}
+    assert "tts_engine_chain" in body
