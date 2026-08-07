@@ -89,7 +89,10 @@ SUPPORTED_LANGUAGES: list[SupportedLanguage] = [
     SupportedLanguage(code="zu", name="Zulu"),
     SupportedLanguage(code="af", name="Afrikaans"),
 ]
-_LANG_BY_CODE = {item.code: item for item in SUPPORTED_LANGUAGES}
+# Keys are always lowercased so lookup is case-insensitive.
+# Codes with hyphens (zh-CN, zh-TW) survive: stored as "zh-cn"/"zh-tw" as keys
+# while item.code retains the canonical capitalisation for API/SpeechSynthesis.
+_LANG_BY_CODE = {item.code.lower(): item for item in SUPPORTED_LANGUAGES}
 
 
 class XaiVoiceAgentError(RuntimeError):
