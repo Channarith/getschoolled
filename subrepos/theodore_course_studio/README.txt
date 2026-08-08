@@ -33,7 +33,10 @@ Choosing a language changes the WORDS, not just the voice. Sending English text
 to a Spanish voice only mispronounces English at the child, so the studio keeps
 text and audio in the same language and tells you which one you are getting:
 
-  curated  Hand-written and reviewed. Spanish (es) ships for all eight lessons.
+  curated  Hand-written per language. Spanish (es), Khmer (km), and Mandarin
+           Chinese (zh) each ship all eight lessons. Khmer and Mandarin are
+           marked "pending native-speaker review" in the UI until a native
+           teacher signs off.
   xai      Real Grok translation, constrained to tiny child vocabulary and
            cached under data/i18n/ so later runs need no network. Needs
            XAI_API_KEY. Shown as "review before classroom use".
@@ -41,8 +44,13 @@ text and audio in the same language and tells you which one you are getting:
 
 Phonics and sight words are never machine translated: "A is for apple" cannot
 become "A is for manzana", because manzana starts with M. Those lessons carry
-properly localized variants instead: Spanish teaches "A de avion, B de bota,
-C de casa".
+properly localized variants instead, and each language teaches its OWN script:
+  - Spanish teaches Spanish phonics: A de avion, B de bota, C de casa
+  - Khmer teaches Khmer consonants with their own picture symbols: ក, ខ, គ
+  - Mandarin teaches pictographic characters: 人, 山, 水 (and sight characters
+    我, 你, 好, 是, 大)
+A curated lesson may override the picture symbol so the visual matches the
+native script instead of the English A/B/C card.
 
 Audio itself never comes from xAI. Grok writes/translates text; speech comes
 from the gateway chain (ElevenLabs -> edge-tts) or the device voice, using the

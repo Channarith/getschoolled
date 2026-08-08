@@ -308,19 +308,23 @@ def _svg_data(
     return "data:image/svg+xml," + urllib.parse.quote(svg, safe="")
 
 
-def picture_data_url(beat: LessonBeat, label: str | None = None) -> str:
+def picture_data_url(
+    beat: LessonBeat, label: str | None = None, symbol: str | None = None
+) -> str:
     return _svg_data(
         title=label or beat.title,
-        symbol=beat.symbol,
+        symbol=symbol or beat.symbol,
         color=beat.color,
         animated=False,
     )
 
 
-def motion_data_url(beat: LessonBeat, label: str | None = None) -> str:
+def motion_data_url(
+    beat: LessonBeat, label: str | None = None, symbol: str | None = None
+) -> str:
     return _svg_data(
         title=label or beat.title,
-        symbol=beat.symbol,
+        symbol=symbol or beat.symbol,
         color=beat.color,
         animated=True,
     )
@@ -353,15 +357,17 @@ def build_early_course(
 
     slides: list[CourseSlide] = []
     for i, (beat, text) in enumerate(zip(template.beats, translation.beats)):
+        # Native-script reading lessons override the picture symbol.
+        symbol = text.symbol or beat.symbol
         slides.append(
             CourseSlide(
                 index=i,
                 title=text.title,
                 body=text.words,
                 narration=text.say,
-                picture_url=picture_data_url(beat, label=text.title),
+                picture_url=picture_data_url(beat, label=text.title, symbol=symbol),
                 picture_alt=f"Picture for {text.title}",
-                video_url=motion_data_url(beat, label=text.title),
+                video_url=motion_data_url(beat, label=text.title, symbol=symbol),
                 video_caption=f"Watch the picture for {text.title} move.",
                 activity_prompt=text.activity,
                 tags=[
