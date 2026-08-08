@@ -495,6 +495,9 @@ STUDIO_JS = """
       } else if (payload.translation_source === 'xai') {
         warn.textContent = 'ℹ Machine-translated by Grok — review before classroom use.';
         warn.style.display = 'block';
+      } else if (payload.translation_source === 'curated' && payload.translation_note) {
+        warn.textContent = 'ℹ ' + payload.translation_note;
+        warn.style.display = 'block';
       } else {
         warn.style.display = 'none';
       }
