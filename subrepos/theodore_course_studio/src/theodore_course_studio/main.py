@@ -8,6 +8,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from .certification_prep import (
+    CertCourseRequest,
+    CertTrackId,
+    TRACK_NAMES,
+    build_cert_course,
+    list_cert_courses,
+)
 from .corpus import default_corpus_root, default_data_dir, load_corpus_index, scan_corpus, write_corpus_index
 from .early_learning import (
     EarlyCourseRequest,
@@ -76,7 +83,7 @@ class BuildCourseRequest(BaseModel):
     source_ids: list[str] | None = None
     category: CategoryId | None = None
     title: str | None = None
-    max_slides: int = Field(default=20, ge=1, le=40)
+    max_slides: int = Field(default=12, ge=1, le=40)
     only_incorporate: bool = True
     language: str = "en"
 
@@ -90,10 +97,17 @@ class TeachStartRequest(BaseModel):
     focus_gaps: bool = True
     language: str | None = None
     use_voice_agent: bool = True
+    resume: bool = False
+    soft_limit_minutes: int | None = Field(default=None, ge=5, le=90)
 
 
 class TeachSessionRequest(BaseModel):
     session_id: str = "studio-teach-1"
+
+
+class TeachCheckpointLookup(BaseModel):
+    learner_id: str = "learner-demo"
+    course_id: str | None = None
 
 
 class TeachProfileRequest(BaseModel):
@@ -313,6 +327,42 @@ def build_early_learning_course(req: EarlyCourseRequest) -> dict[str, Any]:
     return course.model_dump(mode="json")
 
 
+@app.get("/api/studio/certification/options")
+def certification_options(track: CertTrackId | None = None) -> dict[str, Any]:
+    courses = list_cert_courses(track)
+    return {
+        "default_track": CertTrackId.CA_DMV_PERMIT.value,
+        "prep_only": True,
+        "tracks": [
+            {
+                "code": item.value,
+                "name": TRACK_NAMES[item],
+                "jurisdiction": (
+                    "us-ca" if item is CertTrackId.CA_DMV_PERMIT else "us-ca-alameda"
+                ),
+            }
+            for item in CertTrackId
+        ],
+        "courses": [row.model_dump(mode="json") for row in courses],
+    }
+
+
+@app.post("/api/studio/courses/certification")
+def build_certification_course(req: CertCourseRequest) -> dict[str, Any]:
+    try:
+        course = build_cert_course(
+            track=req.track,
+            lesson_id=req.lesson_id,
+            language=normalize_language(req.language),
+            title=req.title,
+            data_dir=_builder.data_dir,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _builder.save_course(course)
+    return course.model_dump(mode="json")
+
+
 @app.get("/api/studio/courses/{course_id}")
 def get_course(course_id: str) -> dict[str, Any]:
     course = _builder.get_course(course_id)
@@ -349,6 +399,8 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
             focus_gaps=req.focus_gaps,
             language=req.language,
             use_voice_agent=req.use_voice_agent,
+            resume=req.resume,
+            soft_limit_minutes=req.soft_limit_minutes,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
@@ -362,6 +414,37 @@ def teach_advance(req: TeachSessionRequest) -> dict[str, Any]:
         return _teach.advance(req.session_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
+@app.post("/api/studio/teach/continue")
+def teach_continue(req: TeachSessionRequest) -> dict[str, Any]:
+    try:
+        return _teach.continue_past_checkpoint(req.session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
+@app.post("/api/studio/teach/come-back-later")
+def teach_come_back_later(req: TeachSessionRequest) -> dict[str, Any]:
+    try:
+        return _teach.come_back_later(req.session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
+@app.get("/api/studio/teach/checkpoints")
+def teach_checkpoints(learner_id: str = "learner-demo", course_id: str | None = None) -> dict[str, Any]:
+    if course_id:
+        row = _teach.get_checkpoint(learner_id, course_id)
+        return {
+            "learner_id": learner_id,
+            "checkpoints": [row.model_dump(mode="json")] if row else [],
+        }
+    rows = _teach.list_checkpoints(learner_id)
+    return {
+        "learner_id": learner_id,
+        "checkpoints": [r.model_dump(mode="json") for r in rows],
+    }
 
 
 @app.post("/api/studio/teach/profile")

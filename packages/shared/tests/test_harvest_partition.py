@@ -1,4 +1,4 @@
-"""Harvested material is split into ~20-30 min lessons instead of one huge deck."""
+"""Harvested material is split into ~15-20 min lessons instead of one huge deck."""
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ def test_each_lesson_rebuilds_composition():
         assert lesson.composition.course_id == lesson.course_id
 
 
-def test_default_cap_is_twenty():
-    assert MAX_SLIDES_PER_LESSON == 20
-    lessons = partition_course_into_lessons(_course(21))
+def test_default_cap_is_twelve():
+    assert MAX_SLIDES_PER_LESSON == 12
+    lessons = partition_course_into_lessons(_course(13))
     assert len(lessons) == 2

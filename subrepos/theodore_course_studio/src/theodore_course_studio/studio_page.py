@@ -49,6 +49,16 @@ STUDIO_CSS = """
     .kids-builder p { margin:6px 0 10px; }
     .kids-builder select, .kids-builder input { background:#fff; color:#172554; border-color:#f59e0b; }
     .kids-builder button { background:#ea580c; border-color:#c2410c; font-weight:700; }
+    .cert-builder { background:linear-gradient(135deg,#ecfeff,#e0f2fe); color:#0c4a6e;
+                    border:3px solid #0284c7; border-radius:16px; padding:14px; margin-bottom:16px; }
+    .cert-builder h2 { color:#075985; font-size:20px; margin:0 0 6px; }
+    .cert-builder p { margin:6px 0 10px; font-size:13px; }
+    .cert-builder select { background:#fff; color:#0c4a6e; border-color:#0284c7; }
+    .cert-builder button { background:#0369a1; border-color:#075985; font-weight:700; }
+    .checkpoint-box { margin-top:12px; padding:12px; border-radius:10px; background:#1e3a5f;
+                      border:1px solid #3b82f6; display:none; }
+    .checkpoint-box.show { display:block; }
+    .checkpoint-box .row { margin-top:8px; }
     .picture-stage { margin:10px 0; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .picture-stage img { width:100%; aspect-ratio:16/9; object-fit:contain; border-radius:14px;
                          background:#fff; border:2px solid #3a5548; }
@@ -80,6 +90,8 @@ STUDIO_JS = """
     let serverAudio = null;
     let lastTeachPayload = null;
     let earlyOptions = [];
+    let certOptions = [];
+    let learnerId = 'learner-demo';
 
     function toast(msg) {
       const el = $('toast');
@@ -216,13 +228,48 @@ STUDIO_JS = """
       const data = await api('/api/studio/courses/build', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({
-          category: category || null, title, max_slides: 20,
+          category: category || null, title, max_slides: 12,
           only_incorporate: true, language: teachLanguage
         })
       });
       selectedCourse = data.course_id;
       await refreshCourses();
       toast('Course built: ' + data.course_id + ' · lang ' + (data.language || teachLanguage));
+    }
+
+    async function loadCertOptions() {
+      const data = await api('/api/studio/certification/options');
+      certOptions = data.courses || [];
+      const track = $('cert-track');
+      track.innerHTML = (data.tracks || []).map((row) =>
+        `<option value="${esc(row.code)}">${esc(row.name)} (${esc(row.jurisdiction)})</option>`
+      ).join('');
+      track.value = data.default_track || 'ca_dmv_permit';
+      renderCertLessons();
+    }
+
+    function renderCertLessons() {
+      const track = $('cert-track').value;
+      const rows = certOptions.filter((row) => row.track === track);
+      $('cert-lesson').innerHTML = rows.map((row) =>
+        `<option value="${esc(row.lesson_id)}">${esc(row.title)} · ~${row.estimated_minutes} min</option>`
+      ).join('');
+    }
+
+    async function buildCertCourse() {
+      teachLanguage = $('teach-lang').value || 'en';
+      const data = await api('/api/studio/courses/certification', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({
+          track: $('cert-track').value,
+          lesson_id: $('cert-lesson').value,
+          language: teachLanguage
+        })
+      });
+      selectedCourse = data.course_id;
+      await refreshCourses();
+      toast('Certification prep ready: ' + (data.title || data.course_id));
+      await startTeach({ resume: false });
     }
 
     async function loadEarlyOptions() {
@@ -306,20 +353,48 @@ STUDIO_JS = """
       };
     }
 
-    async function startTeach() {
+    async function startTeach(opts) {
+      opts = opts || {};
       if (!selectedCourse) return toast('Select or build a course first');
       teachLanguage = $('teach-lang').value || 'en';
       const data = await api('/api/studio/teach/start', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({
           session_id: teachSession, course_id: selectedCourse, profile: profileFromForm(),
+          learner_id: learnerId,
           focus_gaps: true, known_objective_ids: [],
-          language: teachLanguage, use_voice_agent: true
+          language: teachLanguage, use_voice_agent: true,
+          resume: !!opts.resume
         })
       });
       renderTeach(data);
-      toast('Theodore teaching · ' + (data.language || teachLanguage) +
+      if (data.resume_message) toast(data.resume_message);
+      else if (data.bookmark_available) toast('Saved place found — use Resume saved to continue');
+      else toast('Theodore teaching · ' + (data.language || teachLanguage) +
         (data.voice ? ' · ' + data.voice.provider : ''));
+    }
+
+    async function resumeTeach() {
+      if (!selectedCourse) return toast('Select a course first');
+      await startTeach({ resume: true });
+    }
+
+    async function continueSession() {
+      const data = await api('/api/studio/teach/continue', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ session_id: teachSession })
+      });
+      renderTeach(data);
+      toast('Continuing this block');
+    }
+
+    async function comeBackLater() {
+      const data = await api('/api/studio/teach/come-back-later', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ session_id: teachSession })
+      });
+      $('checkpoint-box').classList.remove('show');
+      toast(data.message || 'Saved — come back later');
     }
 
     async function askTheodore() {
@@ -488,7 +563,10 @@ STUDIO_JS = """
       $('teach-adapt').textContent =
         `${adapt} · lang ${esc(lang)} · focus: ${esc(obj)} · known ${prog.known || 0} / gaps ${prog.gaps || 0}`;
       const warn = $('lang-warning');
-      if (payload.translation_source === 'english' && spoken !== lang) {
+      if (payload.disclaimer) {
+        warn.textContent = 'ℹ ' + payload.disclaimer;
+        warn.style.display = 'block';
+      } else if (payload.translation_source === 'english' && spoken !== lang) {
         warn.textContent = '⚠ ' + (payload.translation_note ||
           'Words and audio are English for this lesson.');
         warn.style.display = 'block';
@@ -500,6 +578,14 @@ STUDIO_JS = """
         warn.style.display = 'block';
       } else {
         warn.style.display = 'none';
+      }
+      const cp = payload.checkpoint || {};
+      const box = $('checkpoint-box');
+      if (cp.due) {
+        $('checkpoint-msg').textContent = cp.message || 'Take a short break?';
+        box.classList.add('show');
+      } else {
+        box.classList.remove('show');
       }
       speakText(turn.narration || turn.display_body || '', payload.tts);
     }
@@ -526,8 +612,13 @@ STUDIO_JS = """
     $('btn-build').onclick = () => buildCourse().catch((e) => toast(String(e.message || e)));
     $('btn-kids-build').onclick = () => buildEarlyCourse().catch((e) => toast(String(e.message || e)));
     $('kids-level').onchange = renderEarlyTopics;
+    $('btn-cert-build').onclick = () => buildCertCourse().catch((e) => toast(String(e.message || e)));
+    $('cert-track').onchange = renderCertLessons;
     $('btn-teach').onclick = () => startTeach().catch((e) => toast(String(e.message || e)));
+    $('btn-resume').onclick = () => resumeTeach().catch((e) => toast(String(e.message || e)));
     $('btn-next').onclick = () => nextSlide().catch((e) => toast(String(e.message || e)));
+    $('btn-continue').onclick = () => continueSession().catch((e) => toast(String(e.message || e)));
+    $('btn-later').onclick = () => comeBackLater().catch((e) => toast(String(e.message || e)));
     $('btn-profile').onclick = () => applyProfile().catch((e) => toast(String(e.message || e)));
     $('btn-pop').onclick = () => popQuiz().catch((e) => toast(String(e.message || e)));
     $('btn-summary').onclick = () => summaryQuiz().catch((e) => toast(String(e.message || e)));
@@ -537,6 +628,7 @@ STUDIO_JS = """
     $('btn-video').onclick = watchCurrentVideo;
 
     loadEarlyOptions().catch(() => {});
+    loadCertOptions().catch(() => {});
     loadLanguages().catch(() => {});
     refreshVoiceStatus().catch(() => {});
     refreshCorpus().catch(() => {});
@@ -554,7 +646,9 @@ def render_studio_page() -> str:
   <header>
     <h1>Theodore Course Studio</h1>
     <p>Make simple, picture-led Pre-K–Grade 2 lessons that Theodore reads aloud.
-       Adult corpus training and review tools remain available below as an advanced workflow.</p>
+       Certification prep (CA DMV / Alameda food handler) is a peer track with
+       short 15–20 minute sessions you can pause and resume. Adult corpus tools
+       remain below as an advanced workflow.</p>
   </header>
   <div class="layout">
     <div class="panel">
@@ -592,6 +686,16 @@ def render_studio_page() -> str:
         </div>
       </div>
 
+      <div class="cert-builder">
+        <h2>Certification prep</h2>
+        <p>Short 15–20 min blocks · CA / Alameda jurisdiction · study aid only (not DMV-approved or county-accredited)</p>
+        <div class="row">
+          <label>Track <select id="cert-track"></select></label>
+          <label>Lesson <select id="cert-lesson" style="max-width:26rem"></select></label>
+          <button id="btn-cert-build" type="button">Make &amp; teach</button>
+        </div>
+      </div>
+
       <details>
       <summary><strong>Advanced: build from adult Good/Better source files</strong></summary>
       <h2>4. Build corpus course</h2>
@@ -601,6 +705,8 @@ def render_studio_page() -> str:
           <option value="communication">communication</option>
           <option value="leadership">leadership</option>
           <option value="sexual_harassment">sexual_harassment</option>
+          <option value="driver_education">driver_education</option>
+          <option value="food_safety">food_safety</option>
         </select>
         <input id="build-title" placeholder="Course title (optional)" style="min-width:14rem" />
         <button id="btn-build" type="button">Build course</button>
@@ -626,11 +732,19 @@ def render_studio_page() -> str:
         <div class="activity" id="teach-activity" style="display:none"></div>
         <div class="narr" id="teach-narr"></div>
         <div class="status" id="teach-adapt"></div>
+        <div class="checkpoint-box" id="checkpoint-box">
+          <div id="checkpoint-msg">Session soft stop</div>
+          <div class="row">
+            <button id="btn-continue" type="button">Continue</button>
+            <button id="btn-later" class="secondary" type="button">Come back later</button>
+          </div>
+        </div>
         <div class="quiz-box" id="quiz-box" style="display:none"></div>
         <div class="game-box" id="game-box" style="display:none"></div>
       </div>
       <div class="row">
         <button id="btn-teach" type="button">Start teach</button>
+        <button id="btn-resume" class="secondary" type="button">Resume saved</button>
         <button id="btn-next" class="secondary" type="button">Next slide</button>
         <button id="btn-read" class="secondary" type="button">🔊 Read aloud</button>
         <button id="btn-video" class="secondary" type="button" disabled>▶ Watch video</button>

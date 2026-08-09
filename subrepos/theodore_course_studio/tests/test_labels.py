@@ -28,6 +28,11 @@ def test_category_aliases():
     assert normalize_category("3. Communication") is CategoryId.COMMUNICATION
     assert normalize_category("Leadership") is CategoryId.LEADERSHIP
     assert normalize_category("Sexual Harassment") is CategoryId.SEXUAL_HARASSMENT
+    assert normalize_category("Driver Education") is CategoryId.DRIVER_EDUCATION
+    assert normalize_category("CA DMV") is CategoryId.DRIVER_EDUCATION
+    assert normalize_category("Food Safety") is CategoryId.FOOD_SAFETY
+    assert normalize_category("Food Handler") is CategoryId.FOOD_SAFETY
+    assert normalize_category("Alameda Food") is CategoryId.FOOD_SAFETY
 
 
 def test_title_guess_strips_catalog_noise():

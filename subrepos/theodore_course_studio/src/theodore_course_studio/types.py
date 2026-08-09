@@ -26,6 +26,8 @@ class CategoryId(str, Enum):
     COMMUNICATION = "communication"
     LEADERSHIP = "leadership"
     SEXUAL_HARASSMENT = "sexual_harassment"
+    DRIVER_EDUCATION = "driver_education"
+    FOOD_SAFETY = "food_safety"
     OTHER = "other"
 
 
@@ -87,7 +89,7 @@ class StudioCourse(BaseModel):
     language: str = "en"  # aoep_shared SUPPORTED_LANGUAGES code
     audience: str = "general"  # general | pre_k | kindergarten | grade_1 | grade_2
     subject: str = ""
-    estimated_minutes: int = 20
+    estimated_minutes: int = 18
     source_ids: list[str] = Field(default_factory=list)
     slides: list[CourseSlide] = Field(default_factory=list)
     profile_adaptations: dict[str, Any] = Field(default_factory=dict)
