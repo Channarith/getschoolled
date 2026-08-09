@@ -34,14 +34,14 @@ from .tagging import CourseTags
 
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
-# A single lesson should be a ~20-30 minute session. At the instructional pace
-# (~20 slides in 30 minutes) we cap a lesson at this many slides and partition
-# anything longer into Lesson 1..N. Harvested material (a scraped page or a big
-# file) can yield 1000+ sections/slides — far too much for one lesson — so we
-# split it into evenly-sized lessons instead of emitting one giant deck.
-MAX_SLIDES_PER_LESSON = 20
+# A single lesson should be a ~15-20 minute session. At instructional pace
+# (~12 slides in ~15-18 minutes) we cap a lesson at this many slides and
+# partition anything longer into Lesson 1..N. Harvested material (a scraped
+# page or a big file) can yield 1000+ sections/slides — far too much for one
+# lesson — so we split it into evenly-sized lessons instead of one giant deck.
+MAX_SLIDES_PER_LESSON = 12
 # Absolute ceiling for a single lesson regardless of caller override.
-HARD_MAX_SLIDES_PER_LESSON = 40
+HARD_MAX_SLIDES_PER_LESSON = 24
 
 
 def _condense(text: str, *, max_sentences: int = 8, max_chars: int = 1200) -> str:
@@ -200,7 +200,7 @@ def partition_course_into_lessons(
 ) -> List[GeneratedCourse]:
     """Split an oversized course deck into evenly-sized lessons.
 
-    A lesson targets a ~20-30 minute session, so it may hold at most
+    A lesson targets a ~15-20 minute session, so it may hold at most
     ``max_slides`` slides (clamped to ``HARD_MAX_SLIDES_PER_LESSON``). Courses at
     or under the cap are returned unchanged as a single lesson. Longer decks are
     balanced across ``ceil(n / cap)`` lessons titled "<title> — Lesson i of N",

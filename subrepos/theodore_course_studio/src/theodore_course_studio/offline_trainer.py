@@ -33,7 +33,7 @@ class GenerationPolicy(BaseModel):
     """Knobs the offline trainer mutates to improve course assembly."""
 
     min_body_chars: int = 40
-    max_slides: int = 20
+    max_slides: int = 12
     better_bonus: float = 0.08
     good_bonus: float = 0.04
     reject_hard_filter: bool = True

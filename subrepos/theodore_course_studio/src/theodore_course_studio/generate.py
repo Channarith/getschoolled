@@ -109,7 +109,7 @@ class CourseBuilder:
         source_ids: list[str] | None = None,
         category: CategoryId | None = None,
         title: str | None = None,
-        max_slides: int = 20,
+        max_slides: int = 12,
         only_incorporate: bool = True,
         language: str = "en",
     ) -> StudioCourse:

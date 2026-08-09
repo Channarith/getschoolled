@@ -1,0 +1,50 @@
+LESSON: Alameda / CA Food Handler — Temperatures
+LANGUAGE: en
+JURISDICTION: us-ca-alameda
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+SUMMARY: Danger zone, cooking, holding, cooling, and reheating. Prep only.
+
+SLIDE 1 | Temperature danger zone
+Bacteria grow fast between 41°F and 135°F. Limit time in this zone. Time and temperature control is core to California food safety practice.
+NARRATION: Keep food out of the 41 to 135 degree danger zone.
+
+SLIDE 2 | Cold holding
+Hold cold TCS foods at 41°F or below. Check refrigerators with a calibrated thermometer. Store raw animal foods below ready-to-eat items.
+NARRATION: Cold food stays at 41 or below, with raw protein stored underneath.
+
+SLIDE 3 | Hot holding
+Hold hot TCS foods at 135°F or above. Hot-holding equipment is not for reheating from cold — reheat properly first.
+NARRATION: Hot hold at 135 or above after food is already reheated correctly.
+
+SLIDE 4 | Safe cooking targets
+Common minimum internal temps: poultry 165°F; ground meats 155°F; whole cuts of beef, pork, or lamb and fish 145°F with rest where required. Always verify with a food thermometer.
+NARRATION: Poultry 165, ground meat 155, whole cuts and fish 145.
+
+SLIDE 5 | Cooling cooked food
+Cool from 135°F to 70°F within 2 hours, then to 41°F within 4 more hours — 6 hours total. Use shallow pans, ice baths, or blast chillers.
+NARRATION: Cool in two steps: 135 to 70 in two hours, then to 41 in four more.
+
+SLIDE 6 | Reheating
+Reheat previously cooked TCS food to 165°F within 2 hours before hot holding. Do not rely on steam tables or slow cookers to reheat.
+NARRATION: Reheat leftovers to 165 within two hours.
+
+SLIDE 7 | Thawing safely
+Thaw in a refrigerator, under cold running water, in a microwave if cooking immediately, or as part of cooking. Never thaw on the counter.
+NARRATION: Never thaw food on the counter at room temperature.
+
+SLIDE 8 | Receiving checks
+Reject deliveries that arrive too warm, damaged, pest-infested, or past safe dating. Keep the cold chain unbroken from dock to storage.
+NARRATION: Inspect every delivery before you accept it.
+
+SLIDE 9 | Date marking
+Label prepared ready-to-eat TCS foods and follow the typical 7-day refrigerated hold rule unless your code or policy is stricter.
+NARRATION: Date-mark prepared foods and discard them on time.
+
+SLIDE 10 | Thermometer habits
+Calibrate and clean thermometers. Probe the thickest part of food. Log temperatures when your site requires it — inspectors look for consistent control.
+NARRATION: Use a clean, calibrated thermometer every time.
+
+FACT: The temperature danger zone is 41°F to 135°F.
+FACT: Poultry must reach 165°F internally.
+FACT: Cool from 135°F to 41°F within 6 hours total.

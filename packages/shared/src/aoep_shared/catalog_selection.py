@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List
 from .learning_profile import decode_profile_score
 from .learnable.models import LearnableItem
 
-SESSION_BUDGET_MINUTES = {"short": 10, "medium": 25, "long": 45}
+SESSION_BUDGET_MINUTES = {"short": 10, "medium": 18, "long": 30}
 DEVICE_MODES = frozenset({"browse", "class", "drive", "offline"})
 NETWORK_QUALITIES = frozenset({"high", "standard", "low", "offline"})
 
@@ -21,7 +21,7 @@ def resolve_session_budget(
     """Resolve a safe 5–90 minute budget from survey and observed pace."""
     if explicit_minutes is not None:
         return max(5, min(90, int(explicit_minutes)))
-    budget = SESSION_BUDGET_MINUTES.get(session_length, 25)
+    budget = SESSION_BUDGET_MINUTES.get(session_length, 18)
     if observed_pace == "fast":
         budget = max(10, budget - 5)
     elif observed_pace == "slow":

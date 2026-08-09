@@ -21,6 +21,16 @@ _CATEGORY_ALIASES: dict[str, CategoryId] = {
     "sexual harassment": CategoryId.SEXUAL_HARASSMENT,
     "s.harassment": CategoryId.SEXUAL_HARASSMENT,
     "sexual_harassment": CategoryId.SEXUAL_HARASSMENT,
+    "driver education": CategoryId.DRIVER_EDUCATION,
+    "driver_education": CategoryId.DRIVER_EDUCATION,
+    "drivers education": CategoryId.DRIVER_EDUCATION,
+    "dmv": CategoryId.DRIVER_EDUCATION,
+    "ca dmv": CategoryId.DRIVER_EDUCATION,
+    "food safety": CategoryId.FOOD_SAFETY,
+    "food_safety": CategoryId.FOOD_SAFETY,
+    "food handler": CategoryId.FOOD_SAFETY,
+    "food_handler": CategoryId.FOOD_SAFETY,
+    "alameda food": CategoryId.FOOD_SAFETY,
 }
 
 

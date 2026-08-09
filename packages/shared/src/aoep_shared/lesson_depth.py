@@ -18,8 +18,8 @@ from __future__ import annotations
 import re
 from typing import Callable, List, Sequence, Tuple, TypeVar
 
-TARGET_MIN_MINUTES = 20
-TARGET_MAX_MINUTES = 30
+TARGET_MIN_MINUTES = 15
+TARGET_MAX_MINUTES = 20
 TEACHING_WPM = 120  # instructional pace (slower than catalog skim rate)
 DEFAULT_SLIDE_MINUTES = 1.25
 
