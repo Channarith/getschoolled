@@ -45,6 +45,7 @@ EXPECTED_CORPORATE_LESSON_IDS = {
     "osha-general-safety",
     "osha-forklift-safety",
     "food-handler-safety",
+    "ca-alameda-food-handler-hygiene",
     "lab-safety-fundamentals",
     "liquid-cooling-thermal-materials",
     "hipaa-privacy-security",
