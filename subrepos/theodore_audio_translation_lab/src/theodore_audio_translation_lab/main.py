@@ -23,7 +23,14 @@ from .languages import (
     language_rows,
     normalize_input_language,
 )
-from .models import AudienceRole, SessionConfig, SessionUpdate, TranscriptInput
+from .models import (
+    AudienceRole,
+    SessionConfig,
+    SessionUpdate,
+    TheodoreMode,
+    TheodoreReplyRequest,
+    TranscriptInput,
+)
 from .providers import ASREngine, ProviderUnavailable, provider_status
 from .sessions import TranslationHub
 from .studio_page import render_lab_page
@@ -71,6 +78,19 @@ def providers() -> dict[str, Any]:
     return provider_status().model_dump(mode="json")
 
 
+@app.get("/api/theodore/status")
+def theodore_status() -> dict[str, Any]:
+    return {
+        "live_xai_configured": hub.theodore.live_configured,
+        "languages": len(language_rows()),
+        "modes": [mode.value for mode in TheodoreMode],
+        "fallback": (
+            "English teaching template translated by NLLB/xAI when available; "
+            "otherwise honest English fallback"
+        ),
+    }
+
+
 @app.get("/api/audio-policy")
 def audio_policy() -> dict[str, Any]:
     return AudioPolicy.from_env().public_dict()
@@ -102,6 +122,19 @@ async def get_session(session_id: str) -> dict[str, Any]:
     if snapshot is None:
         raise HTTPException(status_code=404, detail="translation session not found")
     return snapshot.model_dump(mode="json")
+
+
+@app.post("/api/sessions/{session_id}/theodore/reply")
+async def request_theodore_reply(
+    session_id: str, request: TheodoreReplyRequest
+) -> dict[str, Any]:
+    try:
+        reply = await hub.reply_to_learner(session_id, request)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="translation session not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return reply.model_dump(mode="json")
 
 
 @app.post("/api/sessions/{session_id}/transcript")
