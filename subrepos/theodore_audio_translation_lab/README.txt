@@ -64,6 +64,20 @@ translation feed:
 - Explicit API: POST /api/sessions/{id}/theodore/reply. Status:
   GET /api/theodore/status.
 
+Audio policy and quality telemetry
+----------------------------------
+audio_policy.AudioPolicy is one frozen dataclass of 30+ knobs (capture windows,
+the Web Audio filter/compressor chain, the adaptive noise gate, provider
+timeouts, Theodore reply shaping, and latency/quality targets). Read it at
+GET /api/audio-policy and live-tune it with PATCH /api/audio-policy (partial
+knob dict; {"reset": true} reloads env defaults). quality_telemetry records
+per-session counters/gauges (transcripts, ASR/MT latency, phrasebook vs
+source-fallback coverage, gate skips, viewer peaks, a computed quality score)
+at GET /api/sessions/{id}/telemetry and GET /api/telemetry/overview.
+Server-Whisper chunks are treated as end-of-turn so silence-ended windows
+trigger Theodore's auto-reply. The offline phrasebook covers 40+ common
+classroom phrases across en/es/fr/zh/km.
+
 This supports all 27 language codes at the routing/provider level; natural
 quality requires a live xAI model or NLLB translation provider for that language.
 The lab never claims an English fallback is a 27-language response.
