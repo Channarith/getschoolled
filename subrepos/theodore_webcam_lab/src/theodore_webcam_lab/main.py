@@ -34,6 +34,8 @@ from .types import (
 from .vision_tuning import PRESETS, VisionTuning
 from .voice_tuning import PRESETS as VOICE_PRESETS
 from .voice_tuning import VoiceTuning
+from .responsiveness_tuning import PRESETS as RESP_PRESETS
+from .responsiveness_tuning import ResponsivenessTuning
 from .voice_agents import XaiVoiceAgent
 
 app = FastAPI(
@@ -52,6 +54,8 @@ _game_engine = WebcamLearningGameEngine(_analyzer)
 _live_metrics_store = LiveMetricsStore()
 _lesson_actions = LessonActionLog()
 _voice_agent = XaiVoiceAgent.from_env()
+_responsiveness = ResponsivenessTuning.from_env()
+_responsiveness_preset_name: str | None = None
 _demo_roll_stop: dict[str, threading.Event] = {}
 _demo_roll_lock = threading.Lock()
 
@@ -377,6 +381,77 @@ def apply_voice_preset(name: str) -> dict[str, object]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     _voice_agent.tuning = preset
     return {"preset": name.strip().lower(), "knobs": preset.to_dict()}
+
+
+@app.get("/api/theodore/responsiveness/tuning")
+def get_responsiveness_tuning() -> dict[str, object]:
+    return {
+        "knobs": _responsiveness.to_dict(),
+        "presets": sorted(RESP_PRESETS),
+        "active_preset": _responsiveness_preset_name,
+        "env_prefix": "AOEP_RESP_",
+        "knob_count": len(_responsiveness.to_dict()),
+    }
+
+
+@app.patch("/api/theodore/responsiveness/tuning")
+def patch_responsiveness_tuning(req: TuningPatchRequest) -> dict[str, object]:
+    global _responsiveness, _responsiveness_preset_name
+    before = _responsiveness.to_dict()
+    try:
+        updated = _responsiveness.patched(req.knobs)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _responsiveness = updated
+    _responsiveness_preset_name = None
+    return {
+        "knobs": updated.to_dict(),
+        "applied": sorted(req.knobs),
+        "changed_knobs": _knob_diff(before, updated.to_dict()),
+        "knob_count": len(updated.to_dict()),
+    }
+
+
+@app.post("/api/theodore/responsiveness/tuning/preset/{name}")
+def apply_responsiveness_preset(name: str) -> dict[str, object]:
+    global _responsiveness, _responsiveness_preset_name
+    before = _responsiveness.to_dict()
+    try:
+        preset = ResponsivenessTuning.preset(name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    _responsiveness = preset
+    _responsiveness_preset_name = name.strip().lower()
+    return {
+        "preset": _responsiveness_preset_name,
+        "knobs": preset.to_dict(),
+        "changed_knobs": _knob_diff(before, preset.to_dict()),
+        "knob_count": len(preset.to_dict()),
+    }
+
+
+@app.get("/api/theodore/quality/inventory")
+def quality_inventory() -> dict[str, object]:
+    """Catalog of knobs + telemetry surfaces for world-class lab QA."""
+    vision = _analyzer.tuning.to_dict()
+    voice = _voice_agent.tuning.to_dict()
+    resp = _responsiveness.to_dict()
+    return {
+        "vision_knob_count": len(vision),
+        "voice_knob_count": len(voice),
+        "responsiveness_knob_count": len(resp),
+        "total_knob_count": len(vision) + len(voice) + len(resp),
+        "vision_knobs": sorted(vision),
+        "voice_knobs": sorted(voice),
+        "responsiveness_knobs": sorted(resp),
+        "telemetry_surfaces": [
+            "live_session_metrics.observatory_summary",
+            "live_session_metrics.quality_summary",
+            "live_session_metrics.participant_series",
+            "class_evaluation.quality_summary",
+            "advanced_behavior_snapshot",
+        ],
+    }
 
 
 @app.post("/api/theodore/vision/imaging/analyze")

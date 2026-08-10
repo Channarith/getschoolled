@@ -70,20 +70,30 @@ def test_login_history_recorded():
 
 
 def test_passkey_register_and_login():
+    import json
+
     tok = _signup("pk@example.com")["token"]
     h = _auth(tok)
     opts = client.post("/auth/passkey/register/options", headers=h).json()
     reg = client.post("/auth/passkey/register/verify", headers=h, json={
         "challenge": opts["challenge"],
         "credential_id": "cred-test-1",
-        "client_data_json": '{"type":"webauthn.create"}',
+        "client_data_json": json.dumps({
+            "type": "webauthn.create",
+            "challenge": opts["challenge"],
+            "origin": "http://localhost",
+        }),
     })
-    assert reg.status_code == 200
+    assert reg.status_code == 200, reg.text
     login_opts = client.post("/auth/passkey/login/options", json={"email": "pk@example.com"}).json()
     login = client.post("/auth/passkey/login/verify", json={
         "account_id": login_opts["account_id"],
         "challenge": login_opts["challenge"],
         "credential_id": "cred-test-1",
-        "client_data_json": '{"type":"webauthn.get"}',
+        "client_data_json": json.dumps({
+            "type": "webauthn.get",
+            "challenge": login_opts["challenge"],
+            "origin": "http://localhost",
+        }),
     }).json()
     assert login.get("token")
