@@ -324,20 +324,82 @@ def provider_status() -> ProviderStatus:
     )
 
 
-_PHRASEBOOK: dict[tuple[str, str, str], str] = {
-    ("en", "es", "hello"): "Hola",
-    ("en", "es", "yes"): "Sí",
-    ("en", "es", "no"): "No",
-    ("en", "es", "i need help"): "Necesito ayuda",
-    ("es", "en", "hola"): "Hello",
-    ("es", "en", "sí"): "Yes",
-    ("es", "en", "necesito ayuda"): "I need help",
-    ("en", "zh", "hello"): "你好",
-    ("en", "zh", "i need help"): "我需要帮助",
-    ("zh", "en", "你好"): "Hello",
-    ("zh", "en", "我需要帮助"): "I need help",
-    ("en", "km", "hello"): "សួស្តី",
-    ("en", "km", "i need help"): "ខ្ញុំត្រូវការជំនួយ",
-    ("km", "en", "សួស្តី"): "Hello",
-    ("km", "en", "ខ្ញុំត្រូវការជំនួយ"): "I need help",
-}
+# Curated common classroom phrases across en/es/fr/zh/km. Each row is one
+# concept with display-cased text per language; the flat lookup table below is
+# generated for every directed language pair so short spoken phrases translate
+# instantly even with no MT provider configured.
+_PHRASE_TABLE: list[dict[str, str]] = [
+    {"en": "Hello", "es": "Hola", "fr": "Bonjour", "zh": "你好", "km": "សួស្តី"},
+    {"en": "Goodbye", "es": "Adiós", "fr": "Au revoir", "zh": "再见", "km": "លាហើយ"},
+    {"en": "Yes", "es": "Sí", "fr": "Oui", "zh": "是的", "km": "បាទ"},
+    {"en": "No", "es": "No", "fr": "Non", "zh": "不是", "km": "ទេ"},
+    {"en": "Thank you", "es": "Gracias", "fr": "Merci", "zh": "谢谢", "km": "អរគុណ"},
+    {"en": "Please", "es": "Por favor", "fr": "S'il vous plaît", "zh": "请", "km": "សូម"},
+    {
+        "en": "Good morning",
+        "es": "Buenos días",
+        "fr": "Bonjour",
+        "zh": "早上好",
+        "km": "អរុណសួស្តី",
+    },
+    {
+        "en": "I need help",
+        "es": "Necesito ayuda",
+        "fr": "J'ai besoin d'aide",
+        "zh": "我需要帮助",
+        "km": "ខ្ញុំត្រូវការជំនួយ",
+    },
+    {
+        "en": "I don't understand",
+        "es": "No entiendo",
+        "fr": "Je ne comprends pas",
+        "zh": "我不明白",
+        "km": "ខ្ញុំមិនយល់ទេ",
+    },
+    {
+        "en": "Can you repeat that",
+        "es": "¿Puede repetir?",
+        "fr": "Pouvez-vous répéter",
+        "zh": "你能再说一遍吗",
+        "km": "សូមនិយាយម្តងទៀត",
+    },
+    {
+        "en": "I have a question",
+        "es": "Tengo una pregunta",
+        "fr": "J'ai une question",
+        "zh": "我有一个问题",
+        "km": "ខ្ញុំមានសំណួរ",
+    },
+    {
+        "en": "Please wait",
+        "es": "Por favor espere",
+        "fr": "Veuillez patienter",
+        "zh": "请稍等",
+        "km": "សូមរង់ចាំ",
+    },
+    {
+        "en": "Well done",
+        "es": "Bien hecho",
+        "fr": "Bien joué",
+        "zh": "做得好",
+        "km": "ល្អណាស់",
+    },
+]
+
+
+def _phrase_key(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip()).casefold().rstrip(".!?")
+
+
+def _build_phrasebook() -> dict[tuple[str, str, str], str]:
+    book: dict[tuple[str, str, str], str] = {}
+    for row in _PHRASE_TABLE:
+        for source, source_text in row.items():
+            for target, target_text in row.items():
+                if source == target:
+                    continue
+                book[(source, target, _phrase_key(source_text))] = target_text
+    return book
+
+
+_PHRASEBOOK: dict[tuple[str, str, str], str] = _build_phrasebook()

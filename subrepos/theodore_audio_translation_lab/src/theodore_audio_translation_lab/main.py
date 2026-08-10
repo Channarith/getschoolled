@@ -16,7 +16,7 @@ from fastapi import (
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
-from .audio_policy import AudioPolicy
+from .audio_policy import get_policy, patch_policy, reset_policy
 from .languages import (
     AUTO_LANGUAGE,
     SOURCE,
@@ -32,6 +32,7 @@ from .models import (
     TranscriptInput,
 )
 from .providers import ASREngine, ProviderUnavailable, provider_status
+from .quality_telemetry import get_store
 from .sessions import TranslationHub
 from .studio_page import render_lab_page
 
@@ -93,7 +94,32 @@ def theodore_status() -> dict[str, Any]:
 
 @app.get("/api/audio-policy")
 def audio_policy() -> dict[str, Any]:
-    return AudioPolicy.from_env().public_dict()
+    return get_policy().public_dict()
+
+
+@app.patch("/api/audio-policy")
+def update_audio_policy(overrides: dict[str, Any]) -> dict[str, Any]:
+    """Live-tune capture/gate/latency knobs. Unknown keys are ignored.
+
+    Send `{"reset": true}` (or an empty body) semantics: an explicit reset flag
+    reloads defaults from the environment before applying any other overrides.
+    """
+    body = dict(overrides or {})
+    if body.pop("reset", False):
+        reset_policy()
+    if body:
+        patch_policy(body)
+    return get_policy().public_dict()
+
+
+@app.get("/api/telemetry/overview")
+def telemetry_overview() -> dict[str, Any]:
+    return get_store().overview()
+
+
+@app.get("/api/sessions/{session_id}/telemetry")
+def session_telemetry(session_id: str) -> dict[str, Any]:
+    return get_store().snapshot(session_id)
 
 
 @app.post("/api/sessions")
@@ -180,14 +206,23 @@ async def submit_audio(
     except Exception as exc:  # noqa: BLE001 — provider/network boundary
         raise HTTPException(status_code=502, detail=f"ASR failed: {exc}") from exc
 
+    # A server-Whisper chunk is a completed, silence-ended capture window, so it
+    # is the end of a learner turn — this drives Theodore's auto-reply. (Browser
+    # streaming ASR sets end_of_turn itself.)
     item = TranscriptInput(
         text=transcript.text,
         source_language=transcript.language,
         is_final=True,
+        end_of_turn=True,
         confidence=transcript.confidence,
         asr_provider=transcript.provider,
         speaker_id=speaker_id,
     )
+    store = get_store()
+    store.record_asr(
+        session_id, latency_ms=transcript.duration_ms, language=transcript.language
+    )
+    store.record_upload(session_id, accepted=True, bytes_size=len(payload))
     events = await hub.process_transcript(session_id, item)
     return {
         "transcript": transcript.model_dump(mode="json"),

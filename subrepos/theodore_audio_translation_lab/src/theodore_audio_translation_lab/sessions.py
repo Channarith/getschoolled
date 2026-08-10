@@ -20,6 +20,7 @@ from .models import (
     TranslationEvent,
 )
 from .providers import TranslationEngine
+from .quality_telemetry import SessionQualityStore, get_store
 from .theodore import TheodoreReplyEngine
 
 
@@ -61,9 +62,11 @@ class TranslationHub:
         self,
         translator: TranslationEngine | None = None,
         theodore: TheodoreReplyEngine | None = None,
+        telemetry: SessionQualityStore | None = None,
     ) -> None:
         self.translator = translator or TranslationEngine()
         self.theodore = theodore or TheodoreReplyEngine(self.translator)
+        self.telemetry = telemetry or get_store()
         self._sessions: dict[str, LiveSession] = {}
         self._sessions_lock = asyncio.Lock()
 
@@ -135,6 +138,7 @@ class TranslationHub:
         conn = Connection(websocket, role, target, participant_id)
         async with live.lock:
             live.connections.append(conn)
+            viewer_count = len(live.connections)
             history = [
                 e.model_dump(mode="json")
                 for e in live.history
@@ -152,6 +156,7 @@ class TranslationHub:
                 "your_language": target,
             }
         )
+        self.telemetry.record_viewers(session_id, viewer_count)
         await self._broadcast_presence(live)
         return conn
 
@@ -202,6 +207,13 @@ class TranslationHub:
                 asr_provider=item.asr_provider,
                 translation_provider="interim-source",
             )
+            self.telemetry.record_transcript(
+                session_id,
+                is_final=False,
+                end_of_turn=item.end_of_turn,
+                language=source,
+                role=item.speaker_id,
+            )
             await self._broadcast_events(live, [event])
             return [event]
 
@@ -235,6 +247,20 @@ class TranslationHub:
             live.history.extend(events)
             if len(live.history) > live.config.max_history:
                 live.history = live.history[-live.config.max_history :]
+        self.telemetry.record_transcript(
+            session_id,
+            is_final=item.is_final,
+            end_of_turn=item.end_of_turn,
+            language=source,
+            role=item.speaker_id,
+        )
+        for result in results:
+            self.telemetry.record_mt(
+                session_id,
+                latency_ms=total_ms,
+                provider=result.provider,
+                target_language=result.target_language,
+            )
         await self._broadcast_events(live, events)
         if item.is_final and item.end_of_turn and live.config.theodore_auto_reply:
             await self.reply_to_learner(
@@ -272,6 +298,11 @@ class TranslationHub:
             live.theodore_replies.append(reply)
             if len(live.theodore_replies) > live.config.max_history:
                 live.theodore_replies = live.theodore_replies[-live.config.max_history :]
+        self.telemetry.record_theodore(
+            session_id,
+            latency_ms=reply.latency_ms,
+            fallback="fallback" in (reply.provider or "").lower(),
+        )
         await self._broadcast_theodore_reply(live, reply)
         return reply
 
