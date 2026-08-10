@@ -63,3 +63,34 @@ def language_rows() -> list[dict]:
         }
         for code in SUPPORTED_LANGUAGES
     ]
+
+AUTO_LANGUAGE = "auto"
+
+
+def normalize_input_language(value: str, default: str = "") -> str:
+    """Normalize a selected source language, preserving Whisper auto-detect."""
+    raw = (value or "").strip().lower()
+    if raw in {"auto", "detect", "auto-detect", "automatic"}:
+        return AUTO_LANGUAGE
+    return normalize_language(value, default=default)
+
+
+def resolve_detected_language(value: str, default: str = "") -> str:
+    """Map Whisper's language code/name output to a platform ISO code."""
+    code = normalize_language(value)
+    if code:
+        return code
+    name = (value or "").strip().casefold()
+    aliases = {
+        "mandarin": "zh",
+        "mandarin chinese": "zh",
+        "chinese": "zh",
+        "farsi": "fa",
+        "persian": "fa",
+    }
+    if name in aliases:
+        return aliases[name]
+    for lang, display in LANGUAGE_NAMES.items():
+        if name == display.casefold() or name == display.split("(", 1)[0].strip().casefold():
+            return lang
+    return default

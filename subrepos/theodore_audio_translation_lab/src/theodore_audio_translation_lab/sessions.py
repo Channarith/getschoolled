@@ -13,6 +13,7 @@ from .models import (
     AudienceRole,
     SessionConfig,
     SessionSnapshot,
+    SessionUpdate,
     TranscriptInput,
     TranslationEvent,
 )
@@ -87,6 +88,21 @@ class TranslationHub:
     async def snapshot(self, session_id: str) -> SessionSnapshot | None:
         live = self._sessions.get(session_id)
         return live.snapshot() if live else None
+
+    async def configure(
+        self, session_id: str, update: SessionUpdate
+    ) -> SessionSnapshot:
+        """Change source/targets while a stream stays connected."""
+        live = self._sessions.get(session_id)
+        if live is None:
+            raise KeyError(session_id)
+        changes = update.model_dump(exclude_none=True)
+        proposed = live.config.model_copy(update=changes).normalized()
+        async with live.lock:
+            live.config = proposed
+        snapshot = live.snapshot()
+        await self._broadcast_config(live)
+        return snapshot
 
     async def register(
         self,
@@ -233,6 +249,23 @@ class TranslationHub:
                     }
                 )
             except Exception:  # noqa: BLE001 — disconnect cleanup
+                dead.append(conn)
+        if dead:
+            async with live.lock:
+                for conn in dead:
+                    if conn in live.connections:
+                        live.connections.remove(conn)
+
+    async def _broadcast_config(self, live: LiveSession) -> None:
+        payload = {
+            "type": "config",
+            "config": live.config.model_dump(mode="json"),
+        }
+        dead: list[Connection] = []
+        for conn in list(live.connections):
+            try:
+                await conn.websocket.send_json(payload)
+            except Exception:  # noqa: BLE001
                 dead.append(conn)
         if dead:
             async with live.lock:

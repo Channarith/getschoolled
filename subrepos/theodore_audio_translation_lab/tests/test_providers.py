@@ -126,3 +126,33 @@ def test_openai_compatible_whisper_upload(monkeypatch):
     assert b"whisper-large-v3" in captured["body"]
     assert b'name="language"' in captured["body"]
     assert b"km" in captured["body"]
+
+
+def test_whisper_auto_detect_omits_language_hint(monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv("ASR_BASE_URL", "http://whisper:9000")
+    captured = {}
+
+    def fake(req, timeout=None):
+        captured["body"] = req.data
+        return _Resp({"text": "你好", "language": "Chinese", "confidence": 0.94})
+
+    monkeypatch.setattr("urllib.request.urlopen", fake)
+    result = ASREngine().transcribe(
+        b"fake-audio", filename="chunk.webm", content_type="audio/webm", language="auto"
+    )
+    assert result.language == "zh"
+    assert b"verbose_json" in captured["body"]
+    assert b'name="language"' not in captured["body"]
+
+
+def test_whisper_auto_detect_requires_detected_language(monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv("ASR_BASE_URL", "http://whisper:9000")
+    monkeypatch.setattr(
+        "urllib.request.urlopen", lambda req, timeout=None: _Resp({"text": "hello"})
+    )
+    with pytest.raises(ProviderUnavailable, match="did not return"):
+        ASREngine().transcribe(
+            b"fake-audio", filename="chunk.webm", content_type="audio/webm", language="auto"
+        )
