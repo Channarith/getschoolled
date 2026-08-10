@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .languages import normalize_language
+from .languages import normalize_input_language, normalize_language
 
 
 class AudienceRole(str, Enum):
@@ -28,7 +28,7 @@ class SessionConfig(BaseModel):
     max_history: int = Field(default=200, ge=10, le=2000)
 
     def normalized(self) -> "SessionConfig":
-        source = normalize_language(self.source_language)
+        source = normalize_input_language(self.source_language)
         if not source:
             raise ValueError(f"unsupported source language: {self.source_language}")
         targets: list[str] = []
@@ -41,6 +41,12 @@ class SessionConfig(BaseModel):
         if not targets:
             raise ValueError("at least one target language is required")
         return self.model_copy(update={"source_language": source, "target_languages": targets})
+
+
+class SessionUpdate(BaseModel):
+    source_language: str | None = None
+    target_languages: list[str] | None = None
+    translate_interim: bool | None = None
 
 
 class TranscriptInput(BaseModel):

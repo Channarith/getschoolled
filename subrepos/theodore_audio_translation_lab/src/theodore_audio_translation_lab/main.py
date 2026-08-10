@@ -16,8 +16,13 @@ from fastapi import (
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
-from .languages import SOURCE, language_rows, normalize_language
-from .models import AudienceRole, SessionConfig, TranscriptInput
+from .languages import (
+    AUTO_LANGUAGE,
+    SOURCE,
+    language_rows,
+    normalize_input_language,
+)
+from .models import AudienceRole, SessionConfig, SessionUpdate, TranscriptInput
 from .providers import ASREngine, ProviderUnavailable, provider_status
 from .sessions import TranslationHub
 from .studio_page import render_lab_page
@@ -74,6 +79,17 @@ async def create_session(config: SessionConfig) -> dict[str, Any]:
     return snapshot.model_dump(mode="json")
 
 
+@app.patch("/api/sessions/{session_id}")
+async def update_session(session_id: str, update: SessionUpdate) -> dict[str, Any]:
+    try:
+        snapshot = await hub.configure(session_id, update)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="translation session not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return snapshot.model_dump(mode="json")
+
+
 @app.get("/api/sessions/{session_id}")
 async def get_session(session_id: str) -> dict[str, Any]:
     snapshot = await hub.snapshot(session_id)
@@ -101,9 +117,14 @@ async def submit_audio(
     source_language: Annotated[str, Form()] = "en",
     speaker_id: Annotated[str, Form()] = "learner",
 ) -> dict[str, Any]:
-    source = normalize_language(source_language)
+    source = normalize_input_language(source_language)
     if not source:
         raise HTTPException(status_code=422, detail="unsupported source language")
+    if source == AUTO_LANGUAGE and not asr.configured:
+        raise HTTPException(
+            status_code=503,
+            detail="Auto-detect requires server Whisper; configure ASR_BASE_URL.",
+        )
     payload = await audio.read()
     try:
         transcript = await __import__("asyncio").to_thread(
