@@ -67,6 +67,9 @@ let socket = null;
 let running = false;
 let manualStop = false;
 let lastInterim = null;
+let providerInfo = {};
+let captureEpoch = 0;
+let activeSourceLanguage = 'es';
 
 function status(text, cls='') {
   $('run-state').textContent = text;
@@ -89,18 +92,19 @@ async function api(path, options) {
 
 async function loadLanguages() {
   const data = await api('/api/languages'); langs = data.languages || [];
-  for (const id of ['source-lang','target-lang']) {
-    $(id).innerHTML = langs.map(l=>`<option value="${l.code}">${esc(l.name)} (${l.code})</option>`).join('');
-  }
+  $('source-lang').innerHTML = `<option value="auto">Auto-detect (server Whisper)</option>` +
+    langs.map(l=>`<option value="${l.code}">${esc(l.name)} (${l.code})</option>`).join('');
+  $('target-lang').innerHTML = langs.map(l=>`<option value="${l.code}">${esc(l.name)} (${l.code})</option>`).join('');
   const q = new URLSearchParams(location.search);
   $('source-lang').value = q.get('source') || 'es';
   $('target-lang').value = q.get('target') || 'en';
   $('role').value = q.get('role') || 'speaker';
   $('session-id').value = q.get('session') || 'translation-demo';
+  activeSourceLanguage = $('source-lang').value;
 }
 
 async function loadProviders() {
-  const p = await api('/api/providers');
+  const p = await api('/api/providers'); providerInfo = p;
   $('asr-state').textContent = p.remote_asr_configured ? 'Whisper: ready' : 'Whisper: not configured';
   $('asr-state').className = 'badge ' + (p.remote_asr_configured?'ok':'warn');
   const translation = p.translation_gateway_configured ? 'NLLB: ready' :
@@ -108,6 +112,7 @@ async function loadProviders() {
   $('mt-state').textContent = translation;
   $('mt-state').className = 'badge ' + ((p.translation_gateway_configured||p.xai_translation_configured)?'ok':'warn');
   $('capture-engine').querySelector('[value=server]').disabled = !p.remote_asr_configured;
+  $('auto-note').style.display = p.remote_asr_configured ? 'none' : 'block';
 }
 
 async function ensureSession() {
@@ -141,6 +146,7 @@ function connectSocket() {
       const msg=JSON.parse(evt.data);
       if(msg.type==='translation') (msg.events||[]).forEach(renderEvent);
       if(msg.type==='presence') $('presence').textContent = Object.entries(msg.connected||{}).map(([k,v])=>`${k}:${v}`).join(' · ');
+      if(msg.type==='config') $('session-source').textContent = `session input: ${msg.config.source_language}`;
       if(msg.type==='connected') {
         (msg.history||[]).forEach(renderEvent);
         $('presence').textContent = Object.entries(msg.session.connected||{}).map(([k,v])=>`${k}:${v}`).join(' · ');
@@ -150,9 +156,11 @@ function connectSocket() {
   });
 }
 
-function sendTranscript(text, isFinal, provider='browser-speech-recognition', confidence=0) {
+function sendTranscript(text, isFinal, provider='browser-speech-recognition', confidence=0, sourceOverride='') {
   text=(text||'').trim(); if(!text || !socket || socket.readyState!==1) return;
-  socket.send(JSON.stringify({type:'transcript',text,source_language:$('source-lang').value,
+  const source=sourceOverride||$('source-lang').value;
+  if(source==='auto'){ status('Manual/browser transcript needs a specific input language','bad'); return; }
+  socket.send(JSON.stringify({type:'transcript',text,source_language:source,
     is_final:isFinal,confidence,asr_provider:provider,speaker_id:$('participant').value||'learner'}));
 }
 
@@ -205,53 +213,101 @@ function startMeter(s) {
 }
 
 function recognitionCtor() { return window.SpeechRecognition||window.webkitSpeechRecognition||null; }
-function startBrowserRecognition() {
+function startBrowserRecognition(epoch) {
   const Ctor=recognitionCtor(); if(!Ctor) throw new Error('Browser speech recognition unavailable; configure server Whisper.');
+  const sourceAtStart=activeSourceLanguage;
+  if(sourceAtStart==='auto') throw new Error('Auto-detect requires server Whisper; browser recognition needs a language hint.');
   manualStop=false; recognition=new Ctor();
-  const row=langs.find(l=>l.code===$('source-lang').value); recognition.lang=row?.bcp47||$('source-lang').value;
+  const row=langs.find(l=>l.code===sourceAtStart); recognition.lang=row?.bcp47||sourceAtStart;
   recognition.continuous=true; recognition.interimResults=true;
   recognition.onresult=(event)=>{
+    if(epoch!==captureEpoch) return;
     for(let i=event.resultIndex;i<event.results.length;i++){
       const result=event.results[i]; const alt=result[0]||{};
-      sendTranscript(alt.transcript||'',Boolean(result.isFinal),'browser-speech-recognition',Number(alt.confidence||0));
+      sendTranscript(alt.transcript||'',Boolean(result.isFinal),'browser-speech-recognition',Number(alt.confidence||0),sourceAtStart);
     }
   };
   recognition.onerror=(e)=>status(`Recognition: ${e.error||'error'}`,'bad');
-  recognition.onend=()=>{ if(running&&!manualStop){ try{recognition.start()}catch(_){setTimeout(()=>recognition.start(),300)} } };
-  recognition.start(); status('Listening + translating','ok');
+  recognition.onend=()=>{ if(running&&!manualStop&&epoch===captureEpoch){ try{recognition.start()}catch(_){setTimeout(()=>{if(epoch===captureEpoch)recognition.start()},300)} } };
+  recognition.start(); status(`Listening in ${row?.name||sourceAtStart}`,'ok');
 }
 
 function mimeType() {
   for(const m of ['audio/webm;codecs=opus','audio/webm','audio/mp4']) if(MediaRecorder.isTypeSupported?.(m)) return m;
   return 'audio/webm';
 }
-async function recordOneWindow() {
-  if(!running||!stream) return; const chunks=[]; const type=mimeType();
+async function recordOneWindow(epoch) {
+  if(!running||!stream||epoch!==captureEpoch) return;
+  const chunks=[]; const type=mimeType(); const sourceAtStart=activeSourceLanguage;
   recorder=new MediaRecorder(stream,{mimeType:type}); recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
   recorder.onstop=async()=>{
-    if(chunks.length){ const blob=new Blob(chunks,{type}); const form=new FormData();
+    if(chunks.length && epoch===captureEpoch){ const blob=new Blob(chunks,{type}); const form=new FormData();
       form.append('audio',blob,type.includes('mp4')?'chunk.mp4':'chunk.webm');
-      form.append('source_language',$('source-lang').value); form.append('speaker_id',$('participant').value||'learner');
+      form.append('source_language',sourceAtStart); form.append('speaker_id',$('participant').value||'learner');
       try { const res=await api(`/api/sessions/${encodeURIComponent(sessionId())}/audio`,{method:'POST',body:form});
-        $('last-asr').textContent=`ASR: ${res.transcript.text}`;
+        const detected=res.transcript.language; const row=langs.find(l=>l.code===detected);
+        $('last-asr').textContent=`ASR (${row?.name||detected}): ${res.transcript.text}`;
+        $('detected-state').textContent=`detected: ${row?.name||detected}`;
+        $('detected-state').className='badge ok';
       } catch(e){ status(e.message,'bad'); }
     }
-    if(running) recordOneWindow();
+    if(running&&epoch===captureEpoch) recordOneWindow(epoch);
   };
-  recorder.start(); setTimeout(()=>{if(recorder?.state==='recording')recorder.stop()},3500);
-  status('Recording 3.5s Whisper windows','ok');
+  recorder.start(); setTimeout(()=>{if(recorder?.state==='recording'&&epoch===captureEpoch)recorder.stop()},3500);
+  status(sourceAtStart==='auto'?'Listening · auto-detecting each window':`Whisper input: ${sourceAtStart}`,'ok');
+}
+
+function selectedCaptureEngine() {
+  const requested=$('capture-engine').value;
+  if(activeSourceLanguage==='auto') return 'server';
+  if(requested==='server'||(requested==='auto'&&!recognitionCtor())) return 'server';
+  return 'browser';
+}
+function startCapture() {
+  captureEpoch += 1; const epoch=captureEpoch;
+  manualStop=false;
+  const engine=selectedCaptureEngine();
+  if(engine==='server') {
+    if(!providerInfo.remote_asr_configured) throw new Error('Auto-detect/server ASR requires ASR_BASE_URL. Choose a language for browser recognition.');
+    $('capture-engine').value='server'; recordOneWindow(epoch);
+  } else startBrowserRecognition(epoch);
+}
+async function switchInputLanguage() {
+  const next=$('source-lang').value;
+  if(next==='auto'&&!providerInfo.remote_asr_configured) {
+    $('source-lang').value=activeSourceLanguage;
+    status('Auto-detect needs server Whisper (ASR_BASE_URL)','bad'); return;
+  }
+  activeSourceLanguage=next;
+  await api(`/api/sessions/${encodeURIComponent(sessionId())}`,{
+    method:'PATCH',headers:{'content-type':'application/json'},
+    body:JSON.stringify({source_language:next})
+  }).catch(()=>{});
+  $('session-source').textContent=`session input: ${next}`;
+  if(!running||$('role').value!=='speaker') return;
+  captureEpoch += 1; manualStop=true;
+  try{recognition?.stop()}catch(_){};
+  try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
+  startCapture();
+}
+async function switchCaptureEngine() {
+  if(!running||$('role').value!=='speaker') return;
+  captureEpoch += 1; manualStop=true;
+  try{recognition?.stop()}catch(_){};
+  try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
+  startCapture();
 }
 
 async function start() {
+  activeSourceLanguage=$('source-lang').value;
+  if(activeSourceLanguage==='auto'&&!providerInfo.remote_asr_configured)
+    throw new Error('Auto-detect requires server Whisper. Set ASR_BASE_URL or choose an input language.');
   await ensureSession(); await connectSocket();
   if($('role').value!=='speaker'){ status('Viewing translations','ok'); return; }
-  await openWebcam(); running=true;
-  const requested=$('capture-engine').value;
-  if(requested==='server'||(requested==='auto'&&!recognitionCtor())) recordOneWindow();
-  else startBrowserRecognition();
+  await openWebcam(); running=true; startCapture();
 }
 function stop() {
-  running=false; manualStop=true; try{recognition?.stop()}catch(_){}; try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
+  running=false; captureEpoch+=1; manualStop=true; try{recognition?.stop()}catch(_){}; try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
   stream?.getTracks().forEach(t=>t.stop()); stream=null; $('preview').srcObject=null;
   if(meterFrame)cancelAnimationFrame(meterFrame); try{audioContext?.close()}catch(_){}; audioContext=null;
   try{socket?.close()}catch(_){}; socket=null; status('Stopped','');
@@ -266,6 +322,8 @@ $('stop').onclick=stop;
 $('send-manual').onclick=()=>sendTranscript($('manual-text').value,true,'manual-test',1);
 $('share').onclick=shareViewer;
 $('stop-audio').onclick=stopTranslatedAudio;
+$('source-lang').onchange=()=>switchInputLanguage().catch(e=>status(e.message,'bad'));
+$('capture-engine').onchange=()=>switchCaptureEngine().catch(e=>status(e.message,'bad'));
 $('role').onchange=()=>{ $('speaker-controls').style.display=$('role').value==='speaker'?'block':'none'; };
 loadLanguages().then(loadProviders).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
 """
@@ -281,13 +339,14 @@ def render_lab_page() -> str:
 <div class="row"><label>Session<br/><input id="session-id" value="translation-demo"/></label>
 <label>I am<br/><select id="role"><option value="speaker">Speaker / learner</option><option value="theodore">Theodore</option><option value="teacher">Teacher</option><option value="customer">Customer</option><option value="viewer">Viewer</option></select></label>
 <label>Name<br/><input id="participant" value="learner"/></label></div>
-<div class="row"><label>Spoken language<br/><select id="source-lang"></select></label>
+<div class="row"><label>Spoken language (change anytime)<br/><select id="source-lang"></select></label>
 <label>Translate for me into<br/><select id="target-lang"></select></label></div>
+<div id="auto-note" class="note warn">Auto-detect needs server Whisper (`ASR_BASE_URL`). Browser recognition requires a selected language.</div>
 <div id="speaker-controls"><video id="preview" autoplay muted playsinline></video>
 <div class="meter"><div id="meter-fill"></div></div>
 <div class="row"><label>Capture engine<br/><select id="capture-engine"><option value="auto">Auto (browser first)</option><option value="browser">Browser realtime ASR</option><option value="server">Server Whisper chunks</option></select></label>
 <button id="start">Start webcam + translation</button><button id="stop" class="danger">Stop</button></div></div>
-<div class="statusbar"><span id="run-state" class="badge">Idle</span><span id="socket-state" class="badge">feed: disconnected</span><span id="asr-state" class="badge">ASR…</span><span id="mt-state" class="badge">translation…</span></div>
+<div class="statusbar"><span id="run-state" class="badge">Idle</span><span id="socket-state" class="badge">feed: disconnected</span><span id="asr-state" class="badge">ASR…</span><span id="mt-state" class="badge">translation…</span><span id="session-source" class="badge">session input</span><span id="detected-state" class="badge">detected: —</span></div>
 <div id="last-asr" class="note">Browser mode sends transcript text only. Server mode sends ephemeral 3.5-second audio windows to configured Whisper.</div>
 <h2>Debug without a microphone</h2><textarea id="manual-text" placeholder="Type a sentence in the selected spoken language…"></textarea>
 <div class="row"><button id="send-manual" class="secondary">Send transcript</button></div>

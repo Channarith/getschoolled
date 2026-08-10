@@ -16,7 +16,13 @@ import urllib.error
 import urllib.request
 import uuid
 from collections import OrderedDict
-from .languages import LANGUAGE_NAMES, normalize_language
+from .languages import (
+    AUTO_LANGUAGE,
+    LANGUAGE_NAMES,
+    normalize_input_language,
+    normalize_language,
+    resolve_detected_language,
+)
 from .models import AudioTranscription, ProviderStatus, TranslationResult
 
 
@@ -208,14 +214,22 @@ class ASREngine:
             raise ValueError("audio chunk is empty")
         if len(audio) > self.max_bytes:
             raise ValueError(f"audio chunk exceeds {self.max_bytes} bytes")
-        language = normalize_language(language)
+        language = normalize_input_language(language)
         if not language:
             raise ValueError("unsupported ASR language")
+        auto_detect = language == AUTO_LANGUAGE
+        fields = {
+            "model": self.model,
+            # verbose_json asks compatible Whisper servers to return detected language.
+            "response_format": "verbose_json" if auto_detect else "json",
+        }
+        if not auto_detect:
+            fields["language"] = language
 
         boundary = f"----aoep-{uuid.uuid4().hex}"
         body = _multipart(
             boundary,
-            fields={"model": self.model, "language": language, "response_format": "json"},
+            fields=fields,
             file_field="file",
             filename=filename or "audio.webm",
             content_type=content_type or "audio/webm",
@@ -233,7 +247,15 @@ class ASREngine:
         text = str(raw.get("text") or "").strip()
         if not text:
             raise ProviderUnavailable("Whisper returned no transcript")
-        detected = normalize_language(str(raw.get("language") or language), default=language)
+        detected_default = "" if auto_detect else language
+        detected = resolve_detected_language(
+            str(raw.get("language") or ""), default=detected_default
+        )
+        if not detected:
+            raise ProviderUnavailable(
+                "Whisper auto-detect did not return a supported language; "
+                "use verbose_json or choose an input language manually."
+            )
         return AudioTranscription(
             text=text,
             language=detected,

@@ -30,3 +30,10 @@ def test_session_config_normalizes_and_deduplicates():
 def test_session_rejects_unknown_language():
     with pytest.raises(ValueError, match="unsupported source"):
         SessionConfig(source_language="zz").normalized()
+
+
+def test_auto_input_language_is_valid_source_only():
+    config = SessionConfig(
+        session_id="auto-room", source_language="auto", target_languages=["en"]
+    ).normalized()
+    assert config.source_language == "auto"

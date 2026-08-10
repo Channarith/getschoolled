@@ -93,6 +93,8 @@ def test_health_languages_and_lab_page():
         "Teacher / Theodore / customer feed",
         "Server Whisper chunks",
         "Speak translated audio",
+        "Auto-detect needs server Whisper",
+        "change anytime",
     ):
         assert phrase in page.text
 
@@ -153,3 +155,56 @@ def test_websocket_realtime_delivery():
         event = packet["events"][0]
         assert event["target_language"] == "es"
         assert event["translated_text"] == "Hola"
+
+
+def test_source_language_can_toggle_while_session_is_live():
+    sid = unique("toggle")
+    made = client.post(
+        "/api/sessions",
+        json={"session_id": sid, "source_language": "en", "target_languages": ["es"]},
+    )
+    assert made.status_code == 200
+    switched = client.patch(f"/api/sessions/{sid}", json={"source_language": "zh"})
+    assert switched.status_code == 200
+    assert switched.json()["config"]["source_language"] == "zh"
+    auto = client.patch(f"/api/sessions/{sid}", json={"source_language": "auto"})
+    assert auto.status_code == 200
+    assert auto.json()["config"]["source_language"] == "auto"
+
+
+def test_auto_audio_is_rejected_when_server_whisper_is_missing():
+    sid = unique("auto-audio")
+    response = client.post(
+        f"/api/sessions/{sid}/audio",
+        data={"source_language": "auto", "speaker_id": "learner"},
+        files={"audio": ("chunk.webm", b"not-real-audio", "audio/webm")},
+    )
+    assert response.status_code == 503
+    assert "Auto-detect requires server Whisper" in response.json()["detail"]
+
+
+def test_connected_viewers_are_notified_of_input_toggle():
+    from theodore_audio_translation_lab.models import SessionUpdate
+
+    async def scenario():
+        hub = TranslationHub(TranslationEngine())
+        await hub.create(
+            SessionConfig(session_id="cfg-live", source_language="en", target_languages=["es"])
+        )
+        viewer = FakeWebSocket()
+        await hub.register(
+            "cfg-live",
+            viewer,
+            role=AudienceRole.THEODORE,
+            target_language="es",
+            participant_id="theodore",
+        )
+        snap = await hub.configure(
+            "cfg-live", SessionUpdate(source_language="auto")
+        )
+        return viewer, snap
+
+    viewer, snap = asyncio.run(scenario())
+    assert snap.config.source_language == "auto"
+    config_packets = [m for m in viewer.messages if m.get("type") == "config"]
+    assert config_packets[-1]["config"]["source_language"] == "auto"

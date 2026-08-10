@@ -105,8 +105,21 @@ Speaker / learner:
 2. Choose spoken language and desired local translation.
 3. Leave role = Speaker / learner.
 4. Click Start webcam + translation and allow camera/microphone.
-5. Auto mode uses browser recognition when available; choose Server Whisper
-   chunks to test the configured server ASR path.
+5. Change Spoken language at ANY time. Browser recognition is stopped and
+   restarted with the new BCP-47 language without dropping the session/viewers.
+
+Automatic input-language detection:
+- Choose "Auto-detect (server Whisper)" under Spoken language.
+- Auto-detect requires ASR_BASE_URL. The lab omits Whisper's language hint,
+  requests verbose_json, then uses the detected language returned for EACH
+  3.5-second audio window. This supports a speaker changing languages mid-call.
+- Browser Web Speech recognition cannot reliably auto-detect: its API requires
+  a language hint. The UI refuses Auto when server Whisper is unavailable rather
+  than pretending it can detect.
+- The detected language appears in the status bar and on every translation card.
+- You can switch from Auto to a specific language (or between any two languages)
+  while recording; connected Theodore/teacher/customer viewers receive a live
+  config update and remain connected.
 
 Teacher / Theodore / customer:
 1. The speaker clicks Copy viewer link and chooses a role.
