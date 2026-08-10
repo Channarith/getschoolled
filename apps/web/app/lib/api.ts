@@ -565,7 +565,12 @@ export async function unsaveForLater(courseId: string): Promise<void> {
 export async function setEnrollmentStatus(
   courseId: string,
   status: "enrolled" | "in_progress" | "passed" | "failed",
-  opts: { score?: number; level?: string; hands_on?: boolean } = {}
+  opts: {
+    score?: number;
+    level?: string;
+    hands_on?: boolean;
+    pass_decision_token?: string;
+  } = {}
 ): Promise<Enrollment & { points_balance: number }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/enrollments/${encodeURIComponent(courseId)}/status`, {

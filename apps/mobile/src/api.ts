@@ -1658,7 +1658,12 @@ export async function enrollCourse(courseId: string, title: string, status = "en
 export async function setEnrollmentStatus(
   courseId: string,
   status: "enrolled" | "in_progress" | "passed" | "failed",
-  opts: { score?: number; level?: string; hands_on?: boolean } = {},
+  opts: {
+    score?: number;
+    level?: string;
+    hands_on?: boolean;
+    pass_decision_token?: string;
+  } = {},
 ): Promise<Enrollment & { points_balance: number }> {
   return get(IDENTITY_URL, `/enrollments/${encodeURIComponent(courseId)}/status`, {
     method: "POST",
