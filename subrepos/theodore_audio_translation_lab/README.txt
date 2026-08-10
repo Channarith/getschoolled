@@ -16,9 +16,10 @@ What is real
    language and may use the browser vendor's speech service.
 
 2. Server Whisper ASR
-   MediaRecorder makes complete 3.5-second WebM/MP4 windows and uploads them to
-   an OpenAI-compatible /v1/audio/transcriptions endpoint. Configure ASR_BASE_URL.
-   Raw audio is held in memory for the request and is NOT persisted by the lab.
+   MediaRecorder makes complete low-latency WebM/MP4 windows: 1.2 seconds for a
+   known language (0.8-second Fast option), 2.0 seconds for Auto because language
+   ID needs more speech. It uploads to an OpenAI-compatible
+   /v1/audio/transcriptions endpoint. Raw audio is never persisted by the lab.
 
 3. Realtime translation fan-out
    Each viewer connects with a target language and role (Theodore, teacher,
@@ -97,6 +98,13 @@ Other env:
   TRANSLATION_TIMEOUT_S=15
   XAI_BASE_URL=https://api.x.ai/v1
   XAI_MODEL=grok-2-1212
+  AUDIO_CAPTURE_WINDOW_MS=1200
+  AUDIO_AUTO_WINDOW_MS=2000
+  AUDIO_HIGHPASS_HZ=80
+  AUDIO_LOWPASS_HZ=7500
+  AUDIO_GATE_MARGIN_DB=9
+  AUDIO_ABSOLUTE_GATE_DB=-48
+  AUDIO_MIN_SPEECH_RATIO=0.12
 
 How to use
 ----------
@@ -112,7 +120,7 @@ Automatic input-language detection:
 - Choose "Auto-detect (server Whisper)" under Spoken language.
 - Auto-detect requires ASR_BASE_URL. The lab omits Whisper's language hint,
   requests verbose_json, then uses the detected language returned for EACH
-  3.5-second audio window. This supports a speaker changing languages mid-call.
+  2.0-second audio window. This supports a speaker changing languages mid-call.
 - Browser Web Speech recognition cannot reliably auto-detect: its API requires
   a language hint. The UI refuses Auto when server Whisper is unavailable rather
   than pretending it can detect.
@@ -120,6 +128,23 @@ Automatic input-language detection:
 - You can switch from Auto to a specific language (or between any two languages)
   while recording; connected Theodore/teacher/customer viewers receive a live
   config update and remain connected.
+
+Low delay + noise filtering
+---------------------------
+- Browser recognition streams interim words immediately (lowest delay).
+- Server defaults to complete 1.2-second windows; choose Fast for 0.8 seconds.
+  Auto-detect enforces at least 2.0 seconds for reliable language identification.
+- Microphone constraints request echoCancellation, noiseSuppression,
+  autoGainControl, mono, 16 kHz, and low interactive latency.
+- Server-bound audio passes through a real Web Audio chain: 80 Hz high-pass
+  (rumble/hum), 7.5 kHz low-pass (unneeded high-frequency noise), and dynamics
+  compressor (more consistent speech level).
+- The first 900 ms calibrates the room noise floor. An adaptive gate uses the
+  floor + 9 dB (never below -48 dB) and requires 12% speech-active frames.
+  Silence/noise windows are skipped before upload, saving ASR cost and delay.
+- The UI shows room noise, gate threshold, voice ratio, capture/ASR/translation/
+  total latency, and whether silence was skipped. All thresholds/windows can be
+  tuned with AUDIO_* env vars or the latency selector.
 
 Teacher / Theodore / customer:
 1. The speaker clicks Copy viewer link and chooses a role.

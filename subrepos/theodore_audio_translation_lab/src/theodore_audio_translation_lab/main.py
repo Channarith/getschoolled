@@ -16,6 +16,7 @@ from fastapi import (
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
+from .audio_policy import AudioPolicy
 from .languages import (
     AUTO_LANGUAGE,
     SOURCE,
@@ -68,6 +69,11 @@ def languages() -> dict[str, Any]:
 @app.get("/api/providers")
 def providers() -> dict[str, Any]:
     return provider_status().model_dump(mode="json")
+
+
+@app.get("/api/audio-policy")
+def audio_policy() -> dict[str, Any]:
+    return AudioPolicy.from_env().public_dict()
 
 
 @app.post("/api/sessions")

@@ -62,7 +62,22 @@ let stream = null;
 let recognition = null;
 let recorder = null;
 let audioContext = null;
+let processedStream = null;
+let audioAnalyser = null;
 let meterFrame = 0;
+let audioPolicy = {
+  capture_window_ms:1200, auto_detect_window_ms:2000, highpass_hz:80,
+  lowpass_hz:7500, noise_gate_margin_db:9, absolute_gate_db:-48,
+  min_speech_ratio:.12, calibration_ms:900,
+  compressor:{threshold_db:-30,knee_db:18,ratio:4,attack_s:.003,release_s:.18}
+};
+let noiseFloorDb = -60;
+let gateThresholdDb = -48;
+let calibrationValues = [];
+let calibrationUntil = 0;
+let windowSpeechFrames = 0;
+let windowTotalFrames = 0;
+let windowPeakDb = -100;
 let socket = null;
 let running = false;
 let manualStop = false;
@@ -101,6 +116,12 @@ async function loadLanguages() {
   $('role').value = q.get('role') || 'speaker';
   $('session-id').value = q.get('session') || 'translation-demo';
   activeSourceLanguage = $('source-lang').value;
+}
+
+async function loadAudioPolicy() {
+  audioPolicy = await api('/api/audio-policy');
+  $('window-ms').value = String(audioPolicy.capture_window_ms);
+  $('filter-state').textContent = `filter: ${audioPolicy.highpass_hz}–${audioPolicy.lowpass_hz}Hz`;
 }
 
 async function loadProviders() {
@@ -199,17 +220,60 @@ async function openWebcam() {
   if(stream) return stream;
   stream=await navigator.mediaDevices.getUserMedia({
     video:{width:{ideal:960},height:{ideal:540},aspectRatio:{ideal:16/9}},
-    audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
+    audio:{
+      echoCancellation:{ideal:true}, noiseSuppression:{ideal:true},
+      autoGainControl:{ideal:true}, channelCount:{ideal:1}, sampleRate:{ideal:16000},
+      latency:{ideal:.01}
+    }
   });
-  $('preview').srcObject=stream; startMeter(stream); return stream;
+  $('preview').srcObject=stream; await startAudioPipeline(stream); return stream;
 }
 
-function startMeter(s) {
-  const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
-  audioContext=new AC(); const analyser=audioContext.createAnalyser(); analyser.fftSize=256;
-  audioContext.createMediaStreamSource(s).connect(analyser); const data=new Uint8Array(analyser.frequencyBinCount);
-  const tick=()=>{ analyser.getByteFrequencyData(data); const avg=data.reduce((a,b)=>a+b,0)/data.length;
-    $('meter-fill').style.width=`${Math.min(100,avg*1.5)}%`; meterFrame=requestAnimationFrame(tick); }; tick();
+async function startAudioPipeline(s) {
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC){ processedStream=s; return; }
+  audioContext=new AC({latencyHint:'interactive',sampleRate:audioPolicy.sample_rate_hz||16000});
+  await audioContext.resume();
+  const source=audioContext.createMediaStreamSource(s);
+  const highpass=audioContext.createBiquadFilter(); highpass.type='highpass'; highpass.frequency.value=audioPolicy.highpass_hz;
+  const lowpass=audioContext.createBiquadFilter(); lowpass.type='lowpass'; lowpass.frequency.value=audioPolicy.lowpass_hz;
+  const compressor=audioContext.createDynamicsCompressor();
+  compressor.threshold.value=audioPolicy.compressor.threshold_db;
+  compressor.knee.value=audioPolicy.compressor.knee_db;
+  compressor.ratio.value=audioPolicy.compressor.ratio;
+  compressor.attack.value=audioPolicy.compressor.attack_s;
+  compressor.release.value=audioPolicy.compressor.release_s;
+  audioAnalyser=audioContext.createAnalyser(); audioAnalyser.fftSize=512; audioAnalyser.smoothingTimeConstant=.25;
+  const dest=audioContext.createMediaStreamDestination();
+  source.connect(highpass).connect(lowpass).connect(compressor);
+  compressor.connect(audioAnalyser); compressor.connect(dest);
+  processedStream=new MediaStream([...s.getVideoTracks(),...dest.stream.getAudioTracks()]);
+  calibrationValues=[]; calibrationUntil=performance.now()+audioPolicy.calibration_ms;
+  startMeter();
+  $('filter-state').textContent=`filter: echo/NS + ${audioPolicy.highpass_hz}–${audioPolicy.lowpass_hz}Hz + compressor`;
+}
+
+function startMeter() {
+  if(!audioAnalyser) return;
+  const data=new Float32Array(audioAnalyser.fftSize);
+  const tick=()=>{
+    audioAnalyser.getFloatTimeDomainData(data);
+    let sum=0; for(const sample of data) sum+=sample*sample;
+    const rms=Math.sqrt(sum/data.length); const db=Math.max(-100,20*Math.log10(rms||1e-5));
+    if(performance.now()<calibrationUntil) {
+      calibrationValues.push(db);
+      const sorted=[...calibrationValues].sort((a,b)=>a-b);
+      noiseFloorDb=sorted[Math.floor(sorted.length*.2)]??-60;
+    }
+    gateThresholdDb=Math.max(audioPolicy.absolute_gate_db,noiseFloorDb+audioPolicy.noise_gate_margin_db);
+    if(recorder?.state==='recording') {
+      windowTotalFrames+=1; windowPeakDb=Math.max(windowPeakDb,db);
+      if(db>=gateThresholdDb) windowSpeechFrames+=1;
+    }
+    const level=Math.max(0,Math.min(100,(db+70)*1.65)); $('meter-fill').style.width=`${level}%`;
+    $('noise-state').textContent=`noise ${noiseFloorDb.toFixed(0)}dB · gate ${gateThresholdDb.toFixed(0)}dB`;
+    meterFrame=requestAnimationFrame(tick);
+  }; tick();
 }
 
 function recognitionCtor() { return window.SpeechRecognition||window.webkitSpeechRecognition||null; }
@@ -236,25 +300,54 @@ function mimeType() {
   for(const m of ['audio/webm;codecs=opus','audio/webm','audio/mp4']) if(MediaRecorder.isTypeSupported?.(m)) return m;
   return 'audio/webm';
 }
+function captureWindowMs(source) {
+  const selected=Number($('window-ms').value||audioPolicy.capture_window_ms);
+  return source==='auto' ? Math.max(selected,audioPolicy.auto_detect_window_ms) : selected;
+}
 async function recordOneWindow(epoch) {
   if(!running||!stream||epoch!==captureEpoch) return;
   const chunks=[]; const type=mimeType(); const sourceAtStart=activeSourceLanguage;
-  recorder=new MediaRecorder(stream,{mimeType:type}); recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  const windowMs=captureWindowMs(sourceAtStart); const captureStarted=performance.now();
+  windowSpeechFrames=0; windowTotalFrames=0; windowPeakDb=-100;
+  recorder=new MediaRecorder(processedStream||stream,{mimeType:type});
+  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
   recorder.onstop=async()=>{
-    if(chunks.length && epoch===captureEpoch){ const blob=new Blob(chunks,{type}); const form=new FormData();
-      form.append('audio',blob,type.includes('mp4')?'chunk.mp4':'chunk.webm');
-      form.append('source_language',sourceAtStart); form.append('speaker_id',$('participant').value||'learner');
-      try { const res=await api(`/api/sessions/${encodeURIComponent(sessionId())}/audio`,{method:'POST',body:form});
-        const detected=res.transcript.language; const row=langs.find(l=>l.code===detected);
-        $('last-asr').textContent=`ASR (${row?.name||detected}): ${res.transcript.text}`;
-        $('detected-state').textContent=`detected: ${row?.name||detected}`;
-        $('detected-state').className='badge ok';
-      } catch(e){ status(e.message,'bad'); }
+    if(chunks.length && epoch===captureEpoch){
+      const blob=new Blob(chunks,{type});
+      const speechRatio=windowSpeechFrames/Math.max(1,windowTotalFrames);
+      const gateOn=$('noise-gate').checked;
+      const enoughSpeech=(windowTotalFrames<3)||(
+        windowPeakDb>=gateThresholdDb && speechRatio>=audioPolicy.min_speech_ratio
+      );
+      $('vad-state').textContent=`voice ${(speechRatio*100).toFixed(0)}% · peak ${windowPeakDb.toFixed(0)}dB`;
+      if(!gateOn||enoughSpeech) {
+        const form=new FormData();
+        form.append('audio',blob,type.includes('mp4')?'chunk.mp4':'chunk.webm');
+        form.append('source_language',sourceAtStart); form.append('speaker_id',$('participant').value||'learner');
+        const uploadStarted=performance.now();
+        try { const res=await api(`/api/sessions/${encodeURIComponent(sessionId())}/audio`,{method:'POST',body:form});
+          const detected=res.transcript.language; const row=langs.find(l=>l.code===detected);
+          const totalMs=Math.round(performance.now()-captureStarted);
+          const networkMs=Math.round(performance.now()-uploadStarted);
+          const mtMs=Math.max(0,...(res.events||[]).map(e=>e.latency_ms||0));
+          $('last-asr').textContent=`ASR (${row?.name||detected}): ${res.transcript.text}`;
+          $('detected-state').textContent=`detected: ${row?.name||detected}`;
+          $('detected-state').className='badge ok';
+          $('latency-state').textContent=`capture ${windowMs} · ASR ${res.transcript.duration_ms} · MT ${mtMs} · total ${totalMs}ms`;
+          $('latency-state').className='badge '+(totalMs<2500?'ok':'warn');
+          $('network-state').textContent=`request ${networkMs}ms`;
+        } catch(e){ status(e.message,'bad'); }
+      } else {
+        $('last-asr').textContent=`Silence/noise skipped (${(speechRatio*100).toFixed(0)}% above gate)`;
+        $('latency-state').textContent='no upload · 0 ASR cost'; $('latency-state').className='badge ok';
+      }
     }
     if(running&&epoch===captureEpoch) recordOneWindow(epoch);
   };
-  recorder.start(); setTimeout(()=>{if(recorder?.state==='recording'&&epoch===captureEpoch)recorder.stop()},3500);
-  status(sourceAtStart==='auto'?'Listening · auto-detecting each window':`Whisper input: ${sourceAtStart}`,'ok');
+  recorder.start(); setTimeout(()=>{
+    if(recorder?.state==='recording'&&epoch===captureEpoch)recorder.stop()
+  },windowMs);
+  status(sourceAtStart==='auto'?`Listening · auto-detect · ${windowMs}ms windows`:`Whisper ${sourceAtStart} · ${windowMs}ms windows`,'ok');
 }
 
 function selectedCaptureEngine() {
@@ -308,7 +401,8 @@ async function start() {
 }
 function stop() {
   running=false; captureEpoch+=1; manualStop=true; try{recognition?.stop()}catch(_){}; try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
-  stream?.getTracks().forEach(t=>t.stop()); stream=null; $('preview').srcObject=null;
+  stream?.getTracks().forEach(t=>t.stop()); processedStream?.getTracks().forEach(t=>t.stop());
+  stream=null; processedStream=null; audioAnalyser=null; $('preview').srcObject=null;
   if(meterFrame)cancelAnimationFrame(meterFrame); try{audioContext?.close()}catch(_){}; audioContext=null;
   try{socket?.close()}catch(_){}; socket=null; status('Stopped','');
 }
@@ -325,7 +419,7 @@ $('stop-audio').onclick=stopTranslatedAudio;
 $('source-lang').onchange=()=>switchInputLanguage().catch(e=>status(e.message,'bad'));
 $('capture-engine').onchange=()=>switchCaptureEngine().catch(e=>status(e.message,'bad'));
 $('role').onchange=()=>{ $('speaker-controls').style.display=$('role').value==='speaker'?'block':'none'; };
-loadLanguages().then(loadProviders).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
+loadLanguages().then(()=>Promise.all([loadProviders(),loadAudioPolicy()])).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
 """
 
 
@@ -345,9 +439,12 @@ def render_lab_page() -> str:
 <div id="speaker-controls"><video id="preview" autoplay muted playsinline></video>
 <div class="meter"><div id="meter-fill"></div></div>
 <div class="row"><label>Capture engine<br/><select id="capture-engine"><option value="auto">Auto (browser first)</option><option value="browser">Browser realtime ASR</option><option value="server">Server Whisper chunks</option></select></label>
+<label>Server latency<br/><select id="window-ms"><option value="800">Fast · 0.8s</option><option value="1200" selected>Balanced · 1.2s</option><option value="2000">Accuracy · 2.0s</option></select></label>
+<label><input id="noise-gate" type="checkbox" checked/> Skip silence/noise</label>
 <button id="start">Start webcam + translation</button><button id="stop" class="danger">Stop</button></div></div>
-<div class="statusbar"><span id="run-state" class="badge">Idle</span><span id="socket-state" class="badge">feed: disconnected</span><span id="asr-state" class="badge">ASR…</span><span id="mt-state" class="badge">translation…</span><span id="session-source" class="badge">session input</span><span id="detected-state" class="badge">detected: —</span></div>
-<div id="last-asr" class="note">Browser mode sends transcript text only. Server mode sends ephemeral 3.5-second audio windows to configured Whisper.</div>
+<div class="statusbar"><span id="run-state" class="badge">Idle</span><span id="socket-state" class="badge">feed: disconnected</span><span id="asr-state" class="badge">ASR…</span><span id="mt-state" class="badge">translation…</span><span id="session-source" class="badge">session input</span><span id="detected-state" class="badge">detected: —</span><span id="filter-state" class="badge">filter…</span><span id="noise-state" class="badge">noise…</span><span id="vad-state" class="badge">voice…</span></div>
+<div class="statusbar"><span id="latency-state" class="badge">latency: —</span><span id="network-state" class="badge">request: —</span></div>
+<div id="last-asr" class="note">Browser mode provides low-latency interim text. Server mode uses filtered 0.8–2.0 second complete audio windows; Auto uses at least 2 seconds for reliable language ID.</div>
 <h2>Debug without a microphone</h2><textarea id="manual-text" placeholder="Type a sentence in the selected spoken language…"></textarea>
 <div class="row"><button id="send-manual" class="secondary">Send transcript</button></div>
 <div class="note warn">Raw audio is held in memory only for ASR and is never saved by this lab. Use headphones to reduce teacher/audio echo.</div>
