@@ -27,7 +27,14 @@ from .extract import extract_document
 from .generate import CourseBuilder
 from .offline_trainer import run_offline_training
 from .quality_model import default_model_path, load_model, model_to_public_dict
+from .quality_telemetry import get_telemetry
 from .review_store import ReviewStore
+from .studio_tuning import (
+    apply_preset,
+    get_tuning,
+    patch_tuning,
+    reset_tuning,
+)
 from .studio_languages import list_languages, normalize_language
 from .studio_page import render_studio_page
 from .teach import TeachEngine
@@ -169,6 +176,41 @@ def voice_status() -> dict[str, Any]:
     }
 
 
+@app.get("/api/studio/tuning")
+def studio_tuning() -> dict[str, Any]:
+    from .studio_tuning import PRESETS
+
+    return {"tuning": get_tuning().to_dict(), "presets": sorted(PRESETS)}
+
+
+@app.patch("/api/studio/tuning")
+def update_studio_tuning(overrides: dict[str, Any]) -> dict[str, Any]:
+    """Live-tune studio knobs. Unknown keys ignored; `reset` reloads env defaults."""
+    body = dict(overrides or {})
+    if body.pop("reset", False):
+        reset_tuning()
+    if body:
+        try:
+            patch_tuning(body)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"tuning": get_tuning().to_dict()}
+
+
+@app.post("/api/studio/tuning/preset/{name}")
+def studio_tuning_preset(name: str) -> dict[str, Any]:
+    try:
+        apply_preset(name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"tuning": get_tuning().to_dict(), "preset": name}
+
+
+@app.get("/api/studio/telemetry")
+def studio_telemetry() -> dict[str, Any]:
+    return get_telemetry().snapshot()
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/studio", response_class=HTMLResponse)
 def studio() -> HTMLResponse:
@@ -244,6 +286,7 @@ def offline_training(req: OfflineTrainRequest) -> dict[str, Any]:
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    get_telemetry().record_offline_epochs(req.epochs)
     # Reload builder model so subsequent course builds use the new weights.
     global _builder, _teach
     _builder = CourseBuilder()
@@ -274,6 +317,7 @@ def page_verdict(req: PageVerdictRequest) -> dict[str, Any]:
         marked_reject=req.marked_reject,
         comment=req.comment,
     )
+    get_telemetry().record_review(keep=not req.marked_reject)
     return review.model_dump(mode="json")
 
 
@@ -324,6 +368,7 @@ def build_early_learning_course(req: EarlyCourseRequest) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     _builder.save_course(course)
+    get_telemetry().record_early_course()
     return course.model_dump(mode="json")
 
 
@@ -360,6 +405,7 @@ def build_certification_course(req: CertCourseRequest) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     _builder.save_course(course)
+    get_telemetry().record_cert_course()
     return course.model_dump(mode="json")
 
 
@@ -384,6 +430,7 @@ def build_course(req: BuildCourseRequest) -> dict[str, Any]:
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    get_telemetry().record_course_built(audience=getattr(course, "audience", "general"))
     return course.model_dump(mode="json")
 
 

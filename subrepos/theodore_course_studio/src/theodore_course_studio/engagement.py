@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from enum import Enum
 
@@ -146,6 +147,90 @@ def build_order_steps_game(
     )
 
 
+def build_spot_gap_game(
+    slide: CourseSlide,
+    objective_id: str = "",
+    options: int = 3,
+) -> GameChallenge:
+    """Blank a key phrase from the slide body and offer multiple choices.
+
+    The learner picks the word/phrase that fills the gap. Distractors are drawn
+    from other salient words on the same slide (falling back to honest generic
+    options) so the game stays grounded in the real lesson text.
+    """
+    body = re.sub(r"\s+", " ", (slide.body or "").strip())
+    title = (slide.title or "").strip()
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", body) if s.strip()]
+    sentence = sentences[0] if sentences else (body or title or "Key idea")
+
+    # Salient words = longer alphabetic tokens; prefer the longest as the answer.
+    candidates = re.findall(r"[A-Za-z][A-Za-z'-]{3,}", sentence)
+    if not candidates:
+        candidates = re.findall(r"[A-Za-z][A-Za-z'-]{3,}", f"{title} {body}")
+    key_phrase = max(candidates, key=len) if candidates else (title.split(" ")[0] if title else "concept")
+
+    gapped = re.sub(
+        re.escape(key_phrase), "_____", sentence, count=1
+    ) if key_phrase in sentence else f"{sentence} (fill the blank: _____)"
+
+    distractor_pool = [w for w in candidates if w.casefold() != key_phrase.casefold()]
+    # De-duplicate case-insensitively, preserve order.
+    seen: set[str] = set()
+    distractors: list[str] = []
+    for word in distractor_pool:
+        if word.casefold() not in seen:
+            seen.add(word.casefold())
+            distractors.append(word)
+
+    want = max(2, int(options) - 1)
+    generic = ["none of these", "skip this", "not covered here", "all of the above"]
+    gi = 0
+    while len(distractors) < want:
+        distractors.append(generic[gi % len(generic)])
+        gi += 1
+
+    choices = [key_phrase] + distractors[:want]
+    # Rotate so the answer is not always first; deterministic per slide.
+    rot = slide.index % len(choices)
+    choices = choices[rot:] + choices[:rot]
+    correct_index = choices.index(key_phrase)
+
+    return GameChallenge(
+        game_id=str(uuid.uuid4()),
+        kind=GameKind.SPOT_GAP,
+        title="Spot the missing word",
+        prompt=f"Fill the blank: “{gapped}”",
+        payload={
+            "sentence_with_gap": gapped,
+            "answer": key_phrase,
+            "options": choices,
+            "correct_index": correct_index,
+        },
+        objective_id=objective_id,
+    )
+
+
+_GAME_ROTATION = (
+    GameKind.MATCH_TERM,
+    GameKind.ORDER_STEPS,
+    GameKind.SPOT_GAP,
+)
+
+
+def pick_game_for_slide(
+    slide: CourseSlide,
+    objective_id: str = "",
+    rotate_index: int = 0,
+) -> GameChallenge:
+    """Cycle match_term → order_steps → spot_gap based on `rotate_index`."""
+    kind = _GAME_ROTATION[int(rotate_index) % len(_GAME_ROTATION)]
+    if kind is GameKind.ORDER_STEPS:
+        return build_order_steps_game(slide, objective_id)
+    if kind is GameKind.SPOT_GAP:
+        return build_spot_gap_game(slide, objective_id)
+    return build_match_term_game(slide, objective_id)
+
+
 def grade_game(challenge: GameChallenge, response: dict) -> GameAttemptResult:
     if challenge.kind is GameKind.MATCH_TERM:
         selected = int(response.get("selected_index", -1))
@@ -177,6 +262,23 @@ def grade_game(challenge: GameChallenge, response: dict) -> GameAttemptResult:
             score=score,
             passed=passed,
             feedback="Order looks solid." if passed else "Reorder using the lesson sequence.",
+            objective_id=challenge.objective_id,
+        )
+    if challenge.kind is GameKind.SPOT_GAP:
+        correct = int(challenge.payload.get("correct_index", 0))
+        selected = response.get("selected_index", None)
+        if selected is None:
+            # Allow answering by text as well as by index.
+            answer = str(response.get("selected_text", "")).strip().casefold()
+            expected = str(challenge.payload.get("answer", "")).strip().casefold()
+            ok = bool(answer) and answer == expected
+        else:
+            ok = int(selected) == correct
+        return GameAttemptResult(
+            game_id=challenge.game_id,
+            score=1.0 if ok else 0.0,
+            passed=ok,
+            feedback="You spotted it." if ok else "Re-read the sentence and try the blank again.",
             objective_id=challenge.objective_id,
         )
     return GameAttemptResult(
