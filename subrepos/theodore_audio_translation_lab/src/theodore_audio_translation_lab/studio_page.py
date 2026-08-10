@@ -62,7 +62,24 @@ let stream = null;
 let recognition = null;
 let recorder = null;
 let audioContext = null;
+let processedStream = null;
+let audioAnalyser = null;
 let meterFrame = 0;
+let audioPolicy = {
+  capture_window_ms:1200, auto_detect_window_ms:2000, highpass_hz:80,
+  lowpass_hz:7500, noise_gate_margin_db:9, absolute_gate_db:-48,
+  min_speech_ratio:.12, calibration_ms:900,
+  compressor:{threshold_db:-30,knee_db:18,ratio:4,attack_s:.003,release_s:.18}
+};
+let noiseFloorDb = -60;
+let gateThresholdDb = -48;
+let calibrationValues = [];
+let calibrationUntil = 0;
+let windowSpeechFrames = 0;
+let windowTotalFrames = 0;
+let windowPeakDb = -100;
+let activeAudioDevice = '';
+let deviceListenerInstalled = false;
 let socket = null;
 let running = false;
 let manualStop = false;
@@ -103,6 +120,12 @@ async function loadLanguages() {
   activeSourceLanguage = $('source-lang').value;
 }
 
+async function loadAudioPolicy() {
+  audioPolicy = await api('/api/audio-policy');
+  $('window-ms').value = String(audioPolicy.capture_window_ms);
+  $('filter-state').textContent = `filter: ${audioPolicy.highpass_hz}–${audioPolicy.lowpass_hz}Hz`;
+}
+
 async function loadProviders() {
   const p = await api('/api/providers'); providerInfo = p;
   $('asr-state').textContent = p.remote_asr_configured ? 'Whisper: ready' : 'Whisper: not configured';
@@ -113,6 +136,65 @@ async function loadProviders() {
   $('mt-state').className = 'badge ' + ((p.translation_gateway_configured||p.xai_translation_configured)?'ok':'warn');
   $('capture-engine').querySelector('[value=server]').disabled = !p.remote_asr_configured;
   $('auto-note').style.display = p.remote_asr_configured ? 'none' : 'block';
+}
+
+async function refreshAudioDevices(requestPermission=false) {
+  if(!navigator.mediaDevices?.enumerateDevices) {
+    $('device-state').textContent='device selection unsupported'; return;
+  }
+  let temporary=null;
+  if(requestPermission&&!stream) {
+    temporary=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  }
+  try {
+    const previous=$('audio-device').value;
+    const devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput');
+    const seen=new Set(); const rows=[];
+    for(const device of devices) {
+      if(!device.deviceId||device.deviceId==='default'||seen.has(device.deviceId)) continue;
+      seen.add(device.deviceId); rows.push(device);
+    }
+    $('audio-device').innerHTML='<option value="">System default microphone</option>'+rows.map((d,i)=>
+      `<option value="${esc(d.deviceId)}">${esc(d.label||`Microphone ${i+1} (allow permission for name)`)}</option>`
+    ).join('');
+    const stillPresent=previous&&rows.some(d=>d.deviceId===previous);
+    $('audio-device').value=stillPresent?previous:'';
+    if(previous&&!stillPresent) {
+      activeAudioDevice=''; status('Selected microphone disconnected; using system default','warn');
+      if(running) await switchAudioDevice();
+    }
+    $('device-state').textContent=`${rows.length||devices.length} microphone input(s)`;
+  } finally {
+    temporary?.getTracks().forEach(t=>t.stop());
+  }
+  if(!deviceListenerInstalled&&navigator.mediaDevices?.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange',()=>refreshAudioDevices(false).catch(()=>{}));
+    deviceListenerInstalled=true;
+  }
+}
+
+function selectedDeviceNeedsServer() {
+  return Boolean($('audio-device').value);
+}
+
+async function switchAudioDevice() {
+  const next=$('audio-device').value;
+  if(next&&!providerInfo.remote_asr_configured) {
+    $('audio-device').value=activeAudioDevice;
+    throw new Error('Direct Bluetooth/USB selection requires server Whisper. Set it as the OS default or configure ASR_BASE_URL.');
+  }
+  if(next&&$('capture-engine').value!=='server') {
+    $('capture-engine').value='server';
+    status('Selected microphone uses server Whisper (browser ASR only uses OS default)','warn');
+  }
+  activeAudioDevice=$('audio-device').value;
+  if(!running||$('role').value!=='speaker') return;
+  captureEpoch+=1; manualStop=true;
+  try{recognition?.stop()}catch(_){}; try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
+  stream?.getTracks().forEach(t=>t.stop()); processedStream?.getTracks().forEach(t=>t.stop());
+  stream=null; processedStream=null; audioAnalyser=null;
+  if(meterFrame)cancelAnimationFrame(meterFrame); try{await audioContext?.close()}catch(_){}; audioContext=null;
+  await openWebcam(); startCapture();
 }
 
 async function ensureSession() {
@@ -197,19 +279,73 @@ function stopTranslatedAudio() {
 
 async function openWebcam() {
   if(stream) return stream;
+  const audioConstraints={
+    echoCancellation:{ideal:true}, noiseSuppression:{ideal:true},
+    autoGainControl:{ideal:true}, channelCount:{ideal:1}, sampleRate:{ideal:16000},
+    latency:{ideal:.01}
+  };
+  const deviceId=$('audio-device').value;
+  if(deviceId) audioConstraints.deviceId={exact:deviceId};
   stream=await navigator.mediaDevices.getUserMedia({
     video:{width:{ideal:960},height:{ideal:540},aspectRatio:{ideal:16/9}},
-    audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
+    audio:audioConstraints
   });
-  $('preview').srcObject=stream; startMeter(stream); return stream;
+  $('preview').srcObject=stream; await startAudioPipeline(stream);
+  const track=stream.getAudioTracks()[0]; const settings=track?.getSettings?.()||{};
+  $('active-device').textContent=`active: ${track?.label||'system default'} · ${settings.sampleRate||'?'}Hz · ${settings.channelCount||1}ch`;
+  activeAudioDevice=deviceId;
+  await refreshAudioDevices(false);
+  // enumerateDevices may rebuild options; restore the active device if present.
+  if(activeAudioDevice&&[...$('audio-device').options].some(o=>o.value===activeAudioDevice))
+    $('audio-device').value=activeAudioDevice;
+  return stream;
 }
 
-function startMeter(s) {
-  const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
-  audioContext=new AC(); const analyser=audioContext.createAnalyser(); analyser.fftSize=256;
-  audioContext.createMediaStreamSource(s).connect(analyser); const data=new Uint8Array(analyser.frequencyBinCount);
-  const tick=()=>{ analyser.getByteFrequencyData(data); const avg=data.reduce((a,b)=>a+b,0)/data.length;
-    $('meter-fill').style.width=`${Math.min(100,avg*1.5)}%`; meterFrame=requestAnimationFrame(tick); }; tick();
+async function startAudioPipeline(s) {
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC){ processedStream=s; return; }
+  audioContext=new AC({latencyHint:'interactive',sampleRate:audioPolicy.sample_rate_hz||16000});
+  await audioContext.resume();
+  const source=audioContext.createMediaStreamSource(s);
+  const highpass=audioContext.createBiquadFilter(); highpass.type='highpass'; highpass.frequency.value=audioPolicy.highpass_hz;
+  const lowpass=audioContext.createBiquadFilter(); lowpass.type='lowpass'; lowpass.frequency.value=audioPolicy.lowpass_hz;
+  const compressor=audioContext.createDynamicsCompressor();
+  compressor.threshold.value=audioPolicy.compressor.threshold_db;
+  compressor.knee.value=audioPolicy.compressor.knee_db;
+  compressor.ratio.value=audioPolicy.compressor.ratio;
+  compressor.attack.value=audioPolicy.compressor.attack_s;
+  compressor.release.value=audioPolicy.compressor.release_s;
+  audioAnalyser=audioContext.createAnalyser(); audioAnalyser.fftSize=512; audioAnalyser.smoothingTimeConstant=.25;
+  const dest=audioContext.createMediaStreamDestination();
+  source.connect(highpass).connect(lowpass).connect(compressor);
+  compressor.connect(audioAnalyser); compressor.connect(dest);
+  processedStream=new MediaStream([...s.getVideoTracks(),...dest.stream.getAudioTracks()]);
+  calibrationValues=[]; calibrationUntil=performance.now()+audioPolicy.calibration_ms;
+  startMeter();
+  $('filter-state').textContent=`filter: echo/NS + ${audioPolicy.highpass_hz}–${audioPolicy.lowpass_hz}Hz + compressor`;
+}
+
+function startMeter() {
+  if(!audioAnalyser) return;
+  const data=new Float32Array(audioAnalyser.fftSize);
+  const tick=()=>{
+    audioAnalyser.getFloatTimeDomainData(data);
+    let sum=0; for(const sample of data) sum+=sample*sample;
+    const rms=Math.sqrt(sum/data.length); const db=Math.max(-100,20*Math.log10(rms||1e-5));
+    if(performance.now()<calibrationUntil) {
+      calibrationValues.push(db);
+      const sorted=[...calibrationValues].sort((a,b)=>a-b);
+      noiseFloorDb=sorted[Math.floor(sorted.length*.2)]??-60;
+    }
+    gateThresholdDb=Math.max(audioPolicy.absolute_gate_db,noiseFloorDb+audioPolicy.noise_gate_margin_db);
+    if(recorder?.state==='recording') {
+      windowTotalFrames+=1; windowPeakDb=Math.max(windowPeakDb,db);
+      if(db>=gateThresholdDb) windowSpeechFrames+=1;
+    }
+    const level=Math.max(0,Math.min(100,(db+70)*1.65)); $('meter-fill').style.width=`${level}%`;
+    $('noise-state').textContent=`noise ${noiseFloorDb.toFixed(0)}dB · gate ${gateThresholdDb.toFixed(0)}dB`;
+    meterFrame=requestAnimationFrame(tick);
+  }; tick();
 }
 
 function recognitionCtor() { return window.SpeechRecognition||window.webkitSpeechRecognition||null; }
@@ -236,29 +372,59 @@ function mimeType() {
   for(const m of ['audio/webm;codecs=opus','audio/webm','audio/mp4']) if(MediaRecorder.isTypeSupported?.(m)) return m;
   return 'audio/webm';
 }
+function captureWindowMs(source) {
+  const selected=Number($('window-ms').value||audioPolicy.capture_window_ms);
+  return source==='auto' ? Math.max(selected,audioPolicy.auto_detect_window_ms) : selected;
+}
 async function recordOneWindow(epoch) {
   if(!running||!stream||epoch!==captureEpoch) return;
   const chunks=[]; const type=mimeType(); const sourceAtStart=activeSourceLanguage;
-  recorder=new MediaRecorder(stream,{mimeType:type}); recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  const windowMs=captureWindowMs(sourceAtStart); const captureStarted=performance.now();
+  windowSpeechFrames=0; windowTotalFrames=0; windowPeakDb=-100;
+  recorder=new MediaRecorder(processedStream||stream,{mimeType:type});
+  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
   recorder.onstop=async()=>{
-    if(chunks.length && epoch===captureEpoch){ const blob=new Blob(chunks,{type}); const form=new FormData();
-      form.append('audio',blob,type.includes('mp4')?'chunk.mp4':'chunk.webm');
-      form.append('source_language',sourceAtStart); form.append('speaker_id',$('participant').value||'learner');
-      try { const res=await api(`/api/sessions/${encodeURIComponent(sessionId())}/audio`,{method:'POST',body:form});
-        const detected=res.transcript.language; const row=langs.find(l=>l.code===detected);
-        $('last-asr').textContent=`ASR (${row?.name||detected}): ${res.transcript.text}`;
-        $('detected-state').textContent=`detected: ${row?.name||detected}`;
-        $('detected-state').className='badge ok';
-      } catch(e){ status(e.message,'bad'); }
+    if(chunks.length && epoch===captureEpoch){
+      const blob=new Blob(chunks,{type});
+      const speechRatio=windowSpeechFrames/Math.max(1,windowTotalFrames);
+      const gateOn=$('noise-gate').checked;
+      const enoughSpeech=(windowTotalFrames<3)||(
+        windowPeakDb>=gateThresholdDb && speechRatio>=audioPolicy.min_speech_ratio
+      );
+      $('vad-state').textContent=`voice ${(speechRatio*100).toFixed(0)}% · peak ${windowPeakDb.toFixed(0)}dB`;
+      if(!gateOn||enoughSpeech) {
+        const form=new FormData();
+        form.append('audio',blob,type.includes('mp4')?'chunk.mp4':'chunk.webm');
+        form.append('source_language',sourceAtStart); form.append('speaker_id',$('participant').value||'learner');
+        const uploadStarted=performance.now();
+        try { const res=await api(`/api/sessions/${encodeURIComponent(sessionId())}/audio`,{method:'POST',body:form});
+          const detected=res.transcript.language; const row=langs.find(l=>l.code===detected);
+          const totalMs=Math.round(performance.now()-captureStarted);
+          const networkMs=Math.round(performance.now()-uploadStarted);
+          const mtMs=Math.max(0,...(res.events||[]).map(e=>e.latency_ms||0));
+          $('last-asr').textContent=`ASR (${row?.name||detected}): ${res.transcript.text}`;
+          $('detected-state').textContent=`detected: ${row?.name||detected}`;
+          $('detected-state').className='badge ok';
+          $('latency-state').textContent=`capture ${windowMs} · ASR ${res.transcript.duration_ms} · MT ${mtMs} · total ${totalMs}ms`;
+          $('latency-state').className='badge '+(totalMs<2500?'ok':'warn');
+          $('network-state').textContent=`request ${networkMs}ms`;
+        } catch(e){ status(e.message,'bad'); }
+      } else {
+        $('last-asr').textContent=`Silence/noise skipped (${(speechRatio*100).toFixed(0)}% above gate)`;
+        $('latency-state').textContent='no upload · 0 ASR cost'; $('latency-state').className='badge ok';
+      }
     }
     if(running&&epoch===captureEpoch) recordOneWindow(epoch);
   };
-  recorder.start(); setTimeout(()=>{if(recorder?.state==='recording'&&epoch===captureEpoch)recorder.stop()},3500);
-  status(sourceAtStart==='auto'?'Listening · auto-detecting each window':`Whisper input: ${sourceAtStart}`,'ok');
+  recorder.start(); setTimeout(()=>{
+    if(recorder?.state==='recording'&&epoch===captureEpoch)recorder.stop()
+  },windowMs);
+  status(sourceAtStart==='auto'?`Listening · auto-detect · ${windowMs}ms windows`:`Whisper ${sourceAtStart} · ${windowMs}ms windows`,'ok');
 }
 
 function selectedCaptureEngine() {
   const requested=$('capture-engine').value;
+  if(selectedDeviceNeedsServer()) return 'server';
   if(activeSourceLanguage==='auto') return 'server';
   if(requested==='server'||(requested==='auto'&&!recognitionCtor())) return 'server';
   return 'browser';
@@ -302,13 +468,16 @@ async function start() {
   activeSourceLanguage=$('source-lang').value;
   if(activeSourceLanguage==='auto'&&!providerInfo.remote_asr_configured)
     throw new Error('Auto-detect requires server Whisper. Set ASR_BASE_URL or choose an input language.');
+  if($('audio-device').value&&!providerInfo.remote_asr_configured)
+    throw new Error('Direct Bluetooth/USB microphone selection requires ASR_BASE_URL. Otherwise set that mic as your OS default.');
   await ensureSession(); await connectSocket();
   if($('role').value!=='speaker'){ status('Viewing translations','ok'); return; }
   await openWebcam(); running=true; startCapture();
 }
 function stop() {
   running=false; captureEpoch+=1; manualStop=true; try{recognition?.stop()}catch(_){}; try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
-  stream?.getTracks().forEach(t=>t.stop()); stream=null; $('preview').srcObject=null;
+  stream?.getTracks().forEach(t=>t.stop()); processedStream?.getTracks().forEach(t=>t.stop());
+  stream=null; processedStream=null; audioAnalyser=null; $('preview').srcObject=null;
   if(meterFrame)cancelAnimationFrame(meterFrame); try{audioContext?.close()}catch(_){}; audioContext=null;
   try{socket?.close()}catch(_){}; socket=null; status('Stopped','');
 }
@@ -323,9 +492,11 @@ $('send-manual').onclick=()=>sendTranscript($('manual-text').value,true,'manual-
 $('share').onclick=shareViewer;
 $('stop-audio').onclick=stopTranslatedAudio;
 $('source-lang').onchange=()=>switchInputLanguage().catch(e=>status(e.message,'bad'));
+$('audio-device').onchange=()=>switchAudioDevice().catch(e=>status(e.message,'bad'));
+$('refresh-devices').onclick=()=>refreshAudioDevices(true).catch(e=>status(e.message,'bad'));
 $('capture-engine').onchange=()=>switchCaptureEngine().catch(e=>status(e.message,'bad'));
 $('role').onchange=()=>{ $('speaker-controls').style.display=$('role').value==='speaker'?'block':'none'; };
-loadLanguages().then(loadProviders).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
+loadLanguages().then(()=>Promise.all([loadProviders(),loadAudioPolicy(),refreshAudioDevices(false)])).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
 """
 
 
@@ -341,13 +512,19 @@ def render_lab_page() -> str:
 <label>Name<br/><input id="participant" value="learner"/></label></div>
 <div class="row"><label>Spoken language (change anytime)<br/><select id="source-lang"></select></label>
 <label>Translate for me into<br/><select id="target-lang"></select></label></div>
-<div id="auto-note" class="note warn">Auto-detect needs server Whisper (`ASR_BASE_URL`). Browser recognition requires a selected language.</div>
+<div class="row"><label>Microphone input (Bluetooth / USB / built-in)<br/><select id="audio-device"><option value="">System default microphone</option></select></label>
+<button id="refresh-devices" class="secondary">Allow / refresh microphones</button>
+<span id="device-state" class="badge">devices: permission needed</span><span id="active-device" class="badge">active: system default</span></div>
+<div id="auto-note" class="note warn">Auto-detect needs server Whisper (`ASR_BASE_URL`). Browser recognition requires a selected language. Direct Bluetooth/USB selection also uses server Whisper; browser Web Speech can only use the OS default mic.</div>
 <div id="speaker-controls"><video id="preview" autoplay muted playsinline></video>
 <div class="meter"><div id="meter-fill"></div></div>
 <div class="row"><label>Capture engine<br/><select id="capture-engine"><option value="auto">Auto (browser first)</option><option value="browser">Browser realtime ASR</option><option value="server">Server Whisper chunks</option></select></label>
+<label>Server latency<br/><select id="window-ms"><option value="800">Fast · 0.8s</option><option value="1200" selected>Balanced · 1.2s</option><option value="2000">Accuracy · 2.0s</option></select></label>
+<label><input id="noise-gate" type="checkbox" checked/> Skip silence/noise</label>
 <button id="start">Start webcam + translation</button><button id="stop" class="danger">Stop</button></div></div>
-<div class="statusbar"><span id="run-state" class="badge">Idle</span><span id="socket-state" class="badge">feed: disconnected</span><span id="asr-state" class="badge">ASR…</span><span id="mt-state" class="badge">translation…</span><span id="session-source" class="badge">session input</span><span id="detected-state" class="badge">detected: —</span></div>
-<div id="last-asr" class="note">Browser mode sends transcript text only. Server mode sends ephemeral 3.5-second audio windows to configured Whisper.</div>
+<div class="statusbar"><span id="run-state" class="badge">Idle</span><span id="socket-state" class="badge">feed: disconnected</span><span id="asr-state" class="badge">ASR…</span><span id="mt-state" class="badge">translation…</span><span id="session-source" class="badge">session input</span><span id="detected-state" class="badge">detected: —</span><span id="filter-state" class="badge">filter…</span><span id="noise-state" class="badge">noise…</span><span id="vad-state" class="badge">voice…</span></div>
+<div class="statusbar"><span id="latency-state" class="badge">latency: —</span><span id="network-state" class="badge">request: —</span></div>
+<div id="last-asr" class="note">Browser mode provides low-latency interim text. Server mode uses filtered 0.8–2.0 second complete audio windows; Auto uses at least 2 seconds for reliable language ID.</div>
 <h2>Debug without a microphone</h2><textarea id="manual-text" placeholder="Type a sentence in the selected spoken language…"></textarea>
 <div class="row"><button id="send-manual" class="secondary">Send transcript</button></div>
 <div class="note warn">Raw audio is held in memory only for ASR and is never saved by this lab. Use headphones to reduce teacher/audio echo.</div>

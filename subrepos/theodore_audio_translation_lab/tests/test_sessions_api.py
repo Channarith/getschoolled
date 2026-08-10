@@ -81,6 +81,10 @@ def test_health_languages_and_lab_page():
     assert health.status_code == 200
     assert health.json()["languages"] == 27
     assert "not persisted" in health.json()["privacy"]
+    policy = client.get("/api/audio-policy")
+    assert policy.status_code == 200
+    assert policy.json()["capture_window_ms"] <= 1200
+    assert policy.json()["browser_constraints"]["noiseSuppression"] is True
     langs = client.get("/api/languages")
     assert langs.status_code == 200
     assert langs.json()["count"] == 27
@@ -95,6 +99,11 @@ def test_health_languages_and_lab_page():
         "Speak translated audio",
         "Auto-detect needs server Whisper",
         "change anytime",
+        "Skip silence/noise",
+        "Fast · 0.8s",
+        "Bluetooth / USB / built-in",
+        "Allow / refresh microphones",
+        "browser Web Speech can only use the OS default mic",
     ):
         assert phrase in page.text
 
