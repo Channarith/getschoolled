@@ -6,6 +6,7 @@ import {
   getCompliance,
   getLegalNotices,
   acceptLegal,
+  getMe,
   type LegalNotice,
 } from "../lib/api";
 import { useT } from "../lib/i18n";
@@ -37,7 +38,8 @@ export default function LegalPage() {
   async function onAccept() {
     setError("");
     try {
-      const r = await acceptLegal("current-user", required);
+      const me = await getMe();
+      const r = await acceptLegal(me.id, required);
       setStatus(
         r.all_required_accepted
           ? t("legal.accepted")
