@@ -104,6 +104,10 @@ def test_health_languages_and_lab_page():
         "Bluetooth / USB / built-in",
         "Allow / refresh microphones",
         "browser Web Speech can only use the OS default mic",
+        "Theodore replies after each learner turn",
+        "Reply language",
+        "Teach + check",
+        "Ask Theodore using debug text",
     ):
         assert phrase in page.text
 
@@ -217,3 +221,36 @@ def test_connected_viewers_are_notified_of_input_toggle():
     assert snap.config.source_language == "auto"
     config_packets = [m for m in viewer.messages if m.get("type") == "config"]
     assert config_packets[-1]["config"]["source_language"] == "auto"
+
+
+def test_theodore_status_and_explicit_reply_api():
+    status_response = client.get("/api/theodore/status")
+    assert status_response.status_code == 200
+    status = status_response.json()
+    assert status["languages"] == 27
+    assert set(status["modes"]) == {"teach", "answer", "coach", "clarify"}
+
+    sid = unique("theodore")
+    client.post(
+        "/api/sessions",
+        json={
+            "session_id": sid,
+            "source_language": "en",
+            "target_languages": ["es"],
+        },
+    )
+    response = client.post(
+        f"/api/sessions/{sid}/theodore/reply",
+        json={
+            "text": "What is a habitat?",
+            "source_language": "en",
+            "reply_language": "en",
+            "mode": "teach",
+        },
+    )
+    assert response.status_code == 200
+    reply = response.json()
+    assert reply["language"] == "en"
+    assert reply["mode"] == "teach"
+    assert reply["provider"] == "english-teaching-fallback"
+    assert reply["text"]

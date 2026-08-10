@@ -44,6 +44,8 @@ video { width:100%; aspect-ratio:16/9; border-radius:12px; background:#02060a;
 .feed { max-height:570px; overflow:auto; display:flex; flex-direction:column; gap:9px; }
 .card { border:1px solid var(--line); border-radius:11px; padding:11px; background:#0b1727; }
 .card.interim { opacity:.62; border-style:dashed; }
+.theodore-card { border-color:#6d57ba; background:linear-gradient(135deg,#211b43,#101d30); }
+.theodore-card .translation { color:#ddd4ff; }
 .meta { display:flex; gap:8px; color:var(--muted); font-size:11px; margin-bottom:5px; }
 .source { color:#c8d8ec; font-size:13px; }
 .translation { font-size:19px; font-weight:650; margin-top:5px; unicode-bidi:plaintext; }
@@ -80,6 +82,8 @@ let windowTotalFrames = 0;
 let windowPeakDb = -100;
 let activeAudioDevice = '';
 let deviceListenerInstalled = false;
+let serverTurnBuffer = [];
+let serverTurnLanguage = 'en';
 let socket = null;
 let running = false;
 let manualStop = false;
@@ -112,12 +116,20 @@ async function loadLanguages() {
   $('source-lang').innerHTML = `<option value="auto">Auto-detect (server Whisper)</option>` +
     langs.map(l=>`<option value="${l.code}">${esc(l.name)} (${l.code})</option>`).join('');
   $('target-lang').innerHTML = langs.map(l=>`<option value="${l.code}">${esc(l.name)} (${l.code})</option>`).join('');
+  $('theodore-lang').innerHTML = '<option value="same">Same as learner</option>' +
+    langs.map(l=>`<option value="${l.code}">${esc(l.name)} (${l.code})</option>`).join('');
   const q = new URLSearchParams(location.search);
   $('source-lang').value = q.get('source') || 'es';
   $('target-lang').value = q.get('target') || 'en';
   $('role').value = q.get('role') || 'speaker';
   $('session-id').value = q.get('session') || 'translation-demo';
   activeSourceLanguage = $('source-lang').value;
+}
+
+async function loadTheodore() {
+  const data=await api('/api/theodore/status');
+  $('theodore-state').textContent=data.live_xai_configured?'Theodore: live xAI':'Theodore: teaching fallback';
+  $('theodore-state').className='badge '+(data.live_xai_configured?'ok':'warn');
 }
 
 async function loadAudioPolicy() {
@@ -200,7 +212,10 @@ async function switchAudioDevice() {
 async function ensureSession() {
   const payload = {
     session_id: sessionId(), source_language:$('source-lang').value,
-    target_languages:[$('target-lang').value], translate_interim:false
+    target_languages:[$('target-lang').value], translate_interim:false,
+    theodore_auto_reply:$('theodore-auto').checked,
+    theodore_language:$('theodore-lang').value,
+    theodore_mode:$('theodore-mode').value
   };
   try {
     await api('/api/sessions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
@@ -227,10 +242,12 @@ function connectSocket() {
     socket.onmessage = (evt) => {
       const msg=JSON.parse(evt.data);
       if(msg.type==='translation') (msg.events||[]).forEach(renderEvent);
+      if(msg.type==='theodore_reply') renderTheodoreReply(msg.reply);
       if(msg.type==='presence') $('presence').textContent = Object.entries(msg.connected||{}).map(([k,v])=>`${k}:${v}`).join(' · ');
       if(msg.type==='config') $('session-source').textContent = `session input: ${msg.config.source_language}`;
       if(msg.type==='connected') {
         (msg.history||[]).forEach(renderEvent);
+        (msg.theodore_replies||[]).forEach(renderTheodoreReply);
         $('presence').textContent = Object.entries(msg.session.connected||{}).map(([k,v])=>`${k}:${v}`).join(' · ');
       }
       if(msg.type==='error') status(msg.detail,'bad');
@@ -243,7 +260,8 @@ function sendTranscript(text, isFinal, provider='browser-speech-recognition', co
   const source=sourceOverride||$('source-lang').value;
   if(source==='auto'){ status('Manual/browser transcript needs a specific input language','bad'); return; }
   socket.send(JSON.stringify({type:'transcript',text,source_language:source,
-    is_final:isFinal,confidence,asr_provider:provider,speaker_id:$('participant').value||'learner'}));
+    is_final:isFinal,end_of_turn:Boolean(isFinal),confidence,asr_provider:provider,
+    speaker_id:$('participant').value||'learner'}));
 }
 
 function renderEvent(e) {
@@ -261,6 +279,44 @@ function renderEvent(e) {
   const empty=$('empty'); if(empty) empty.remove();
   $('feed').prepend(card); if(!e.is_final) lastInterim=card;
   if(e.is_final && $('speak-output').checked) speakTranslation(e);
+}
+
+function renderTheodoreReply(reply) {
+  const card=document.createElement('div'); card.className='card theodore-card';
+  const row=langs.find(l=>l.code===reply.language);
+  card.innerHTML=`<div class="meta"><strong>🎓 Theodore</strong><span>${esc(reply.mode)}</span>
+    <span>${esc(row?.name||reply.language)}</span><span>${esc(reply.provider)}</span><span>${reply.latency_ms||0}ms</span></div>
+    <div class="translation" dir="${row?.rtl?'rtl':'auto'}">${esc(reply.text)}</div>
+    ${reply.warning?`<div class="warning">⚠ ${esc(reply.warning)}</div>`:''}`;
+  const empty=$('empty'); if(empty) empty.remove(); $('feed').prepend(card);
+  if($('speak-theodore').checked) speakTheodore(reply);
+}
+function speakTheodore(reply) {
+  if(!window.speechSynthesis||!reply.text)return;
+  const utter=new SpeechSynthesisUtterance(reply.text);
+  const row=langs.find(l=>l.code===reply.language); utter.lang=row?.bcp47||reply.language;
+  utter.rate=Number($('theodore-rate').value||.95); window.speechSynthesis.speak(utter);
+  $('theodore-audio-state').textContent=`speaking ${row?.name||reply.language}`;
+  utter.onend=()=>{$('theodore-audio-state').textContent='Theodore audio ready'};
+}
+async function updateTheodoreConfig() {
+  await api(`/api/sessions/${encodeURIComponent(sessionId())}`,{
+    method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({
+      theodore_auto_reply:$('theodore-auto').checked,
+      theodore_language:$('theodore-lang').value,
+      theodore_mode:$('theodore-mode').value
+    })
+  }).catch(()=>{});
+}
+async function requestTheodore(text, sourceLanguage) {
+  text=(text||'').trim(); if(!text)return;
+  await api(`/api/sessions/${encodeURIComponent(sessionId())}/theodore/reply`,{
+    method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+      text,source_language:sourceLanguage||activeSourceLanguage,
+      reply_language:$('theodore-lang').value,mode:$('theodore-mode').value,
+      speaker_id:$('participant').value||'learner'
+    })
+  });
 }
 
 function speakTranslation(event) {
@@ -403,6 +459,8 @@ async function recordOneWindow(epoch) {
           const networkMs=Math.round(performance.now()-uploadStarted);
           const mtMs=Math.max(0,...(res.events||[]).map(e=>e.latency_ms||0));
           $('last-asr').textContent=`ASR (${row?.name||detected}): ${res.transcript.text}`;
+          serverTurnBuffer.push(res.transcript.text); serverTurnBuffer=serverTurnBuffer.slice(-8);
+          serverTurnLanguage=detected;
           $('detected-state').textContent=`detected: ${row?.name||detected}`;
           $('detected-state').className='badge ok';
           $('latency-state').textContent=`capture ${windowMs} · ASR ${res.transcript.duration_ms} · MT ${mtMs} · total ${totalMs}ms`;
@@ -412,6 +470,12 @@ async function recordOneWindow(epoch) {
       } else {
         $('last-asr').textContent=`Silence/noise skipped (${(speechRatio*100).toFixed(0)}% above gate)`;
         $('latency-state').textContent='no upload · 0 ASR cost'; $('latency-state').className='badge ok';
+        // Silence closes the server-ASR learner turn. Reply once to the joined
+        // speech windows instead of interrupting after every 0.8–2.0s chunk.
+        if($('theodore-auto').checked&&serverTurnBuffer.length) {
+          const learnerTurn=serverTurnBuffer.join(' '); serverTurnBuffer=[];
+          requestTheodore(learnerTurn,serverTurnLanguage).catch(e=>status(e.message,'bad'));
+        }
       }
     }
     if(running&&epoch===captureEpoch) recordOneWindow(epoch);
@@ -470,12 +534,13 @@ async function start() {
     throw new Error('Auto-detect requires server Whisper. Set ASR_BASE_URL or choose an input language.');
   if($('audio-device').value&&!providerInfo.remote_asr_configured)
     throw new Error('Direct Bluetooth/USB microphone selection requires ASR_BASE_URL. Otherwise set that mic as your OS default.');
+  serverTurnBuffer=[];
   await ensureSession(); await connectSocket();
   if($('role').value!=='speaker'){ status('Viewing translations','ok'); return; }
   await openWebcam(); running=true; startCapture();
 }
 function stop() {
-  running=false; captureEpoch+=1; manualStop=true; try{recognition?.stop()}catch(_){}; try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
+  running=false; serverTurnBuffer=[]; captureEpoch+=1; manualStop=true; try{recognition?.stop()}catch(_){}; try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
   stream?.getTracks().forEach(t=>t.stop()); processedStream?.getTracks().forEach(t=>t.stop());
   stream=null; processedStream=null; audioAnalyser=null; $('preview').srcObject=null;
   if(meterFrame)cancelAnimationFrame(meterFrame); try{audioContext?.close()}catch(_){}; audioContext=null;
@@ -491,12 +556,18 @@ $('stop').onclick=stop;
 $('send-manual').onclick=()=>sendTranscript($('manual-text').value,true,'manual-test',1);
 $('share').onclick=shareViewer;
 $('stop-audio').onclick=stopTranslatedAudio;
+$('theodore-auto').onchange=()=>updateTheodoreConfig();
+$('theodore-lang').onchange=()=>updateTheodoreConfig();
+$('theodore-mode').onchange=()=>updateTheodoreConfig();
+$('ask-theodore').onclick=()=>requestTheodore(
+  $('manual-text').value,$('source-lang').value==='auto'?serverTurnLanguage:$('source-lang').value
+).catch(e=>status(e.message,'bad'));
 $('source-lang').onchange=()=>switchInputLanguage().catch(e=>status(e.message,'bad'));
 $('audio-device').onchange=()=>switchAudioDevice().catch(e=>status(e.message,'bad'));
 $('refresh-devices').onclick=()=>refreshAudioDevices(true).catch(e=>status(e.message,'bad'));
 $('capture-engine').onchange=()=>switchCaptureEngine().catch(e=>status(e.message,'bad'));
 $('role').onchange=()=>{ $('speaker-controls').style.display=$('role').value==='speaker'?'block':'none'; };
-loadLanguages().then(()=>Promise.all([loadProviders(),loadAudioPolicy(),refreshAudioDevices(false)])).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
+loadLanguages().then(()=>Promise.all([loadProviders(),loadAudioPolicy(),loadTheodore(),refreshAudioDevices(false)])).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
 """
 
 
@@ -530,6 +601,13 @@ def render_lab_page() -> str:
 <div class="note warn">Raw audio is held in memory only for ASR and is never saved by this lab. Use headphones to reduce teacher/audio echo.</div>
 <p class="privacy">Browser recognition may use your browser/OS speech service. Server Whisper uses ASR_BASE_URL. Confirm data policy before real customer use.</p></section>
 <section class="panel"><h2>Teacher / Theodore / customer feed</h2>
+<div class="row"><label><input id="theodore-auto" type="checkbox"/> Theodore replies after each learner turn</label>
+<label>Teach mode <select id="theodore-mode"><option value="teach">Teach + check</option><option value="answer">Answer directly</option><option value="coach">Coach with a hint</option><option value="clarify">Clarify simply</option></select></label>
+<label>Reply language <select id="theodore-lang"></select></label></div>
+<div class="row"><label><input id="speak-theodore" type="checkbox" checked/> Speak Theodore aloud</label>
+<label>Speed <input id="theodore-rate" type="number" value="0.95" min="0.6" max="1.3" step="0.05" style="width:65px"/></label>
+<button id="ask-theodore" class="secondary">Ask Theodore using debug text</button>
+<span id="theodore-state" class="badge">Theodore…</span><span id="theodore-audio-state" class="badge">Theodore audio ready</span></div>
 <div class="row"><span class="connected" id="presence"></span>
 <label><input id="speak-output" type="checkbox"/> Speak translated audio</label>
 <label>Speed <input id="speech-rate" type="number" value="1" min="0.6" max="1.4" step="0.1" style="width:65px"/></label>

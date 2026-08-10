@@ -14,10 +14,13 @@ from .models import (
     SessionConfig,
     SessionSnapshot,
     SessionUpdate,
+    TheodoreReplyEvent,
+    TheodoreReplyRequest,
     TranscriptInput,
     TranslationEvent,
 )
 from .providers import TranslationEngine
+from .theodore import TheodoreReplyEngine
 
 
 @dataclass(eq=False)
@@ -32,6 +35,7 @@ class Connection:
 class LiveSession:
     config: SessionConfig
     history: list[TranslationEvent] = field(default_factory=list)
+    theodore_replies: list[TheodoreReplyEvent] = field(default_factory=list)
     sequence: int = 0
     created_at_ms: int = field(default_factory=lambda: int(time.time() * 1000))
     connections: list[Connection] = field(default_factory=list)
@@ -46,14 +50,20 @@ class LiveSession:
             config=self.config,
             connected=connected,
             history=list(self.history),
+            theodore_replies=list(self.theodore_replies),
             sequence=self.sequence,
             created_at_ms=self.created_at_ms,
         )
 
 
 class TranslationHub:
-    def __init__(self, translator: TranslationEngine | None = None) -> None:
+    def __init__(
+        self,
+        translator: TranslationEngine | None = None,
+        theodore: TheodoreReplyEngine | None = None,
+    ) -> None:
         self.translator = translator or TranslationEngine()
+        self.theodore = theodore or TheodoreReplyEngine(self.translator)
         self._sessions: dict[str, LiveSession] = {}
         self._sessions_lock = asyncio.Lock()
 
@@ -135,6 +145,9 @@ class TranslationHub:
                 "type": "connected",
                 "session": live.snapshot().model_dump(mode="json"),
                 "history": history,
+                "theodore_replies": [
+                    reply.model_dump(mode="json") for reply in live.theodore_replies
+                ],
                 "your_role": role.value,
                 "your_language": target,
             }
@@ -223,7 +236,60 @@ class TranslationHub:
             if len(live.history) > live.config.max_history:
                 live.history = live.history[-live.config.max_history :]
         await self._broadcast_events(live, events)
+        if item.is_final and item.end_of_turn and live.config.theodore_auto_reply:
+            await self.reply_to_learner(
+                session_id,
+                TheodoreReplyRequest(
+                    text=item.text,
+                    source_language=source,
+                    reply_language=live.config.theodore_language,
+                    mode=live.config.theodore_mode,
+                    speaker_id=item.speaker_id,
+                ),
+            )
         return events
+
+    async def reply_to_learner(
+        self, session_id: str, request: TheodoreReplyRequest
+    ) -> TheodoreReplyEvent:
+        live = self._sessions.get(session_id)
+        if live is None:
+            raise KeyError(session_id)
+        async with live.lock:
+            live.sequence += 1
+            sequence = live.sequence
+        reply = await asyncio.to_thread(
+            self.theodore.reply,
+            session_id=session_id,
+            sequence=sequence,
+            learner_text=request.text,
+            learner_language=request.source_language,
+            reply_language=request.reply_language,
+            mode=request.mode,
+            context=request.context,
+        )
+        async with live.lock:
+            live.theodore_replies.append(reply)
+            if len(live.theodore_replies) > live.config.max_history:
+                live.theodore_replies = live.theodore_replies[-live.config.max_history :]
+        await self._broadcast_theodore_reply(live, reply)
+        return reply
+
+    async def _broadcast_theodore_reply(
+        self, live: LiveSession, reply: TheodoreReplyEvent
+    ) -> None:
+        packet = {"type": "theodore_reply", "reply": reply.model_dump(mode="json")}
+        dead: list[Connection] = []
+        for conn in list(live.connections):
+            try:
+                await conn.websocket.send_json(packet)
+            except Exception:  # noqa: BLE001
+                dead.append(conn)
+        if dead:
+            async with live.lock:
+                for conn in dead:
+                    if conn in live.connections:
+                        live.connections.remove(conn)
 
     async def _broadcast_events(
         self, live: LiveSession, events: list[TranslationEvent]

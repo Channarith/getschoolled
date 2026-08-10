@@ -40,6 +40,34 @@ What is real
 Important: xAI translates transcript TEXT; it does not transcribe microphone
 AUDIO in this lab. Whisper/browser recognition performs ASR.
 
+Realtime Theodore replies and teaching
+--------------------------------------
+Theodore can participate in the same live session rather than only reading the
+translation feed:
+
+- Enable "Theodore replies after each learner turn".
+- Reply language can follow the detected learner language (`same`) or be any of
+  the 27 platform languages.
+- Modes: Teach + check, Answer directly, Coach with a hint, Clarify simply.
+- Browser Speech final results are natural end-of-turn signals, so Theodore can
+  reply immediately. Server Whisper windows are buffered and Theodore waits for
+  an adaptive-gate silence window before replying, avoiding an interruption
+  every 0.8–2.0 seconds.
+- Real open-ended teaching uses XAI_API_KEY. The system prompt requires the
+  selected language, under three short spoken sentences, and one teaching action.
+- Without xAI, Theodore uses a safe English teaching template and asks NLLB/xAI
+  translation for the reply language. If translation is unavailable, it remains
+  English AND the reply language/voice stays English with a visible warning.
+- Theodore replies are broadcast over WebSocket to speaker, teacher, customer,
+  and viewer clients. "Speak Theodore aloud" uses the matching BCP-47 device
+  voice for realtime speech output.
+- Explicit API: POST /api/sessions/{id}/theodore/reply. Status:
+  GET /api/theodore/status.
+
+This supports all 27 language codes at the routing/provider level; natural
+quality requires a live xAI model or NLLB translation provider for that language.
+The lab never claims an English fallback is a 27-language response.
+
 Languages
 ---------
 English, Spanish, French, German, Italian, Portuguese, Dutch, Polish, Russian,
