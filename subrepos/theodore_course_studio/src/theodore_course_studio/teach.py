@@ -26,9 +26,9 @@ from .checkpoints import (
 from .engagement import (
     GameAttemptResult,
     GameChallenge,
-    build_match_term_game,
     grade_game,
     media_suggestions_for_slide,
+    pick_game_for_slide,
 )
 from .generate import CourseBuilder
 from .knowledge import (
@@ -39,6 +39,7 @@ from .knowledge import (
     objectives_from_slides,
 )
 from .profile_adapt import adapt_slide
+from .quality_telemetry import StudioTelemetryStore, get_telemetry
 from .studio_languages import normalize_language
 from .tts_client import build_tts_get_url, tts_client_hints
 from .types import LearnerProfileScores, StudioCourse, TeachTurn
@@ -66,6 +67,7 @@ class TeachSession:
     checkpoint_ack: bool = False
     completed_slide_indexes: list[int] = field(default_factory=list)
     resumed_from_checkpoint: bool = False
+    game_rotation: int = 0
 
 
 class TeachEngine:
@@ -75,12 +77,14 @@ class TeachEngine:
         knowledge: KnowledgeStore | None = None,
         voice: CourseStudioVoiceAgent | None = None,
         checkpoints: CheckpointStore | None = None,
+        telemetry: StudioTelemetryStore | None = None,
     ) -> None:
         self._builder = builder or CourseBuilder()
         # Follow the builder's data dir so mastery never leaks across data roots.
         self._knowledge = knowledge or KnowledgeStore(data_dir=self._builder.data_dir)
         self._voice = voice or get_voice_agent()
         self._checkpoints = checkpoints or CheckpointStore(data_dir=self._builder.data_dir)
+        self._telemetry = telemetry or get_telemetry()
         self._lock = threading.RLock()
         self._sessions: dict[str, TeachSession] = {}
 
@@ -196,6 +200,7 @@ class TeachEngine:
             session.path_pos += 1
             session.checkpoint_ack = False
         self._persist_live(session, status="in_progress")
+        self._telemetry.record_slide_taught()
         return self._turn_payload(course, session)
 
     def continue_past_checkpoint(self, session_id: str) -> dict[str, Any]:
@@ -221,6 +226,7 @@ class TeachEngine:
             if cur not in session.completed_slide_indexes:
                 session.completed_slide_indexes.append(cur)
         checkpoint = self._persist_live(session, status="paused")
+        self._telemetry.record_checkpoint_pause()
         with self._lock:
             self._sessions.pop(session_id, None)
         return {
@@ -271,6 +277,9 @@ class TeachEngine:
             correct=bool(result.attempts and result.attempts[0].correct),
         )
         session.knowledge = self._knowledge.load(session.learner_id, session.course_id)
+        self._telemetry.record_quiz(
+            kind="pop", score=1.0 if result.passed else 0.0, passed=result.passed
+        )
         session.pending_pop = None
         session.path = next_slide_indexes(session.objectives, session.knowledge)
         session.path_pos = min(session.path_pos, max(0, len(session.path) - 1))
@@ -312,6 +321,8 @@ class TeachEngine:
                     correct=attempt.correct,
                 )
         session.knowledge = self._knowledge.load(session.learner_id, session.course_id)
+        score = result.correct / max(1, result.total)
+        self._telemetry.record_quiz(kind="summary", score=score, passed=result.passed)
         self._persist_live(session, status="in_progress")
         return result
 
@@ -319,7 +330,11 @@ class TeachEngine:
         course, session = self._require(session_id)
         slide = course.slides[session.path[session.path_pos]]
         objective = self._objective_for_slide(session, slide.index)
-        return build_match_term_game(slide, objective.objective_id)
+        game = pick_game_for_slide(
+            slide, objective.objective_id, rotate_index=session.game_rotation
+        )
+        session.game_rotation += 1
+        return game
 
     def grade_game_response(
         self,
@@ -330,6 +345,9 @@ class TeachEngine:
         _, session = self._require(session_id)
         game = GameChallenge.model_validate(challenge)
         result = grade_game(game, response)
+        self._telemetry.record_game(
+            kind=game.kind.value, score=result.score, passed=result.passed
+        )
         if result.objective_id:
             self._knowledge.record_outcome(
                 learner_id=session.learner_id,
@@ -348,6 +366,7 @@ class TeachEngine:
     def set_language(self, session_id: str, language: str) -> dict[str, Any]:
         course, session = self._require(session_id)
         session.language = normalize_language(language)
+        self._telemetry.record_language_switch()
         self._persist_live(session, status="in_progress")
         return self._turn_payload(course, session)
 
@@ -364,6 +383,7 @@ class TeachEngine:
             language_code=session.language,
             lesson_context=f"{course.title}\n{slide.title}\n{slide.body}",
         )
+        self._telemetry.record_voice_turn(tts=True)
         return {
             "voice": turn.model_dump(mode="json"),
             "tts": {
@@ -394,6 +414,7 @@ class TeachEngine:
                 language_code=session.language,
                 fallback_used=True,
             )
+        self._telemetry.record_voice_turn(tts=True)
         return {
             "voice": voice.model_dump(mode="json"),
             "tts": {

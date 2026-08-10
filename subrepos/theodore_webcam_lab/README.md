@@ -35,7 +35,7 @@ python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" \
 python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 ```
 
-You should see `116 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
+You should see `121 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
 did not run in the Python you are using. On macOS, bare `python3` is often
 Homebrew 3.14 with no packages — activate `.venv` first (selfcheck does this
 automatically when the venv exists).

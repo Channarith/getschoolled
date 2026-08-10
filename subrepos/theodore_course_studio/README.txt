@@ -257,6 +257,23 @@ API (high level)
   POST /api/studio/teach/language
   POST /api/studio/teach/voice/respond
   POST /api/studio/teach/voice/present
+  GET  /api/studio/tuning
+  PATCH /api/studio/tuning
+  POST /api/studio/tuning/preset/{name}
+  GET  /api/studio/telemetry
+
+Tuning and telemetry
+--------------------
+studio_tuning.StudioTuning is one frozen dataclass of 30+ pipeline knobs
+(quiz/game pass scores, slide/narration shaping, checkpoint pacing, course-size
+caps, content-quality thresholds, voice/TTS behaviour, engagement-game rotation).
+It loads from AOEP_STUDIO_* env vars, supports live PATCH, and ships named
+presets (balanced, kids_fast, cert_strict, adult_deep). quality_telemetry
+records teach/build signals (courses built, slides taught, quiz/game starts +
+passes by kind, voice/TTS turns, checkpoint pauses, review keep/reject, offline
+epochs, quality rejects) and a blended engagement_score at GET
+/api/studio/telemetry. Engagement games rotate match_term -> order_steps ->
+spot_gap via engagement.pick_game_for_slide.
 
 Tests
 -----
