@@ -101,6 +101,9 @@ def test_health_languages_and_lab_page():
         "change anytime",
         "Skip silence/noise",
         "Fast · 0.8s",
+        "Bluetooth / USB / built-in",
+        "Allow / refresh microphones",
+        "browser Web Speech can only use the OS default mic",
     ):
         assert phrase in page.text
 

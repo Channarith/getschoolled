@@ -129,6 +129,23 @@ Automatic input-language detection:
   while recording; connected Theodore/teacher/customer viewers receive a live
   config update and remain connected.
 
+Bluetooth, USB, and other microphones
+------------------------------------
+- Click Allow / refresh microphones after opening the lab. Browsers hide device
+  names until microphone permission is granted.
+- The input picker lists every `audioinput` returned by `enumerateDevices()`:
+  Bluetooth headsets, USB microphones/audio interfaces, wired headsets, and
+  built-in microphones. Hot-plug changes refresh automatically.
+- Selecting a different mic while running rebuilds the filtered capture stream
+  and restarts capture WITHOUT closing the session or viewer WebSockets.
+- Explicit device selection uses `deviceId: {exact: ...}` and server Whisper.
+  This is necessary because the browser Web Speech API cannot consume a chosen
+  MediaStream; it always uses the OS/browser default input. Without ASR_BASE_URL,
+  make the Bluetooth/USB mic the OS default and use Browser realtime ASR.
+- The UI shows the active track label, actual sample rate and channel count.
+- On iOS/Android browsers, available Bluetooth routing is ultimately controlled
+  by the OS and browser. A native app can offer stronger routing controls.
+
 Low delay + noise filtering
 ---------------------------
 - Browser recognition streams interim words immediately (lowest delay).

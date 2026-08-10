@@ -78,6 +78,8 @@ let calibrationUntil = 0;
 let windowSpeechFrames = 0;
 let windowTotalFrames = 0;
 let windowPeakDb = -100;
+let activeAudioDevice = '';
+let deviceListenerInstalled = false;
 let socket = null;
 let running = false;
 let manualStop = false;
@@ -134,6 +136,65 @@ async function loadProviders() {
   $('mt-state').className = 'badge ' + ((p.translation_gateway_configured||p.xai_translation_configured)?'ok':'warn');
   $('capture-engine').querySelector('[value=server]').disabled = !p.remote_asr_configured;
   $('auto-note').style.display = p.remote_asr_configured ? 'none' : 'block';
+}
+
+async function refreshAudioDevices(requestPermission=false) {
+  if(!navigator.mediaDevices?.enumerateDevices) {
+    $('device-state').textContent='device selection unsupported'; return;
+  }
+  let temporary=null;
+  if(requestPermission&&!stream) {
+    temporary=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  }
+  try {
+    const previous=$('audio-device').value;
+    const devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput');
+    const seen=new Set(); const rows=[];
+    for(const device of devices) {
+      if(!device.deviceId||device.deviceId==='default'||seen.has(device.deviceId)) continue;
+      seen.add(device.deviceId); rows.push(device);
+    }
+    $('audio-device').innerHTML='<option value="">System default microphone</option>'+rows.map((d,i)=>
+      `<option value="${esc(d.deviceId)}">${esc(d.label||`Microphone ${i+1} (allow permission for name)`)}</option>`
+    ).join('');
+    const stillPresent=previous&&rows.some(d=>d.deviceId===previous);
+    $('audio-device').value=stillPresent?previous:'';
+    if(previous&&!stillPresent) {
+      activeAudioDevice=''; status('Selected microphone disconnected; using system default','warn');
+      if(running) await switchAudioDevice();
+    }
+    $('device-state').textContent=`${rows.length||devices.length} microphone input(s)`;
+  } finally {
+    temporary?.getTracks().forEach(t=>t.stop());
+  }
+  if(!deviceListenerInstalled&&navigator.mediaDevices?.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange',()=>refreshAudioDevices(false).catch(()=>{}));
+    deviceListenerInstalled=true;
+  }
+}
+
+function selectedDeviceNeedsServer() {
+  return Boolean($('audio-device').value);
+}
+
+async function switchAudioDevice() {
+  const next=$('audio-device').value;
+  if(next&&!providerInfo.remote_asr_configured) {
+    $('audio-device').value=activeAudioDevice;
+    throw new Error('Direct Bluetooth/USB selection requires server Whisper. Set it as the OS default or configure ASR_BASE_URL.');
+  }
+  if(next&&$('capture-engine').value!=='server') {
+    $('capture-engine').value='server';
+    status('Selected microphone uses server Whisper (browser ASR only uses OS default)','warn');
+  }
+  activeAudioDevice=$('audio-device').value;
+  if(!running||$('role').value!=='speaker') return;
+  captureEpoch+=1; manualStop=true;
+  try{recognition?.stop()}catch(_){}; try{if(recorder?.state==='recording')recorder.stop()}catch(_){};
+  stream?.getTracks().forEach(t=>t.stop()); processedStream?.getTracks().forEach(t=>t.stop());
+  stream=null; processedStream=null; audioAnalyser=null;
+  if(meterFrame)cancelAnimationFrame(meterFrame); try{await audioContext?.close()}catch(_){}; audioContext=null;
+  await openWebcam(); startCapture();
 }
 
 async function ensureSession() {
@@ -218,15 +279,26 @@ function stopTranslatedAudio() {
 
 async function openWebcam() {
   if(stream) return stream;
+  const audioConstraints={
+    echoCancellation:{ideal:true}, noiseSuppression:{ideal:true},
+    autoGainControl:{ideal:true}, channelCount:{ideal:1}, sampleRate:{ideal:16000},
+    latency:{ideal:.01}
+  };
+  const deviceId=$('audio-device').value;
+  if(deviceId) audioConstraints.deviceId={exact:deviceId};
   stream=await navigator.mediaDevices.getUserMedia({
     video:{width:{ideal:960},height:{ideal:540},aspectRatio:{ideal:16/9}},
-    audio:{
-      echoCancellation:{ideal:true}, noiseSuppression:{ideal:true},
-      autoGainControl:{ideal:true}, channelCount:{ideal:1}, sampleRate:{ideal:16000},
-      latency:{ideal:.01}
-    }
+    audio:audioConstraints
   });
-  $('preview').srcObject=stream; await startAudioPipeline(stream); return stream;
+  $('preview').srcObject=stream; await startAudioPipeline(stream);
+  const track=stream.getAudioTracks()[0]; const settings=track?.getSettings?.()||{};
+  $('active-device').textContent=`active: ${track?.label||'system default'} · ${settings.sampleRate||'?'}Hz · ${settings.channelCount||1}ch`;
+  activeAudioDevice=deviceId;
+  await refreshAudioDevices(false);
+  // enumerateDevices may rebuild options; restore the active device if present.
+  if(activeAudioDevice&&[...$('audio-device').options].some(o=>o.value===activeAudioDevice))
+    $('audio-device').value=activeAudioDevice;
+  return stream;
 }
 
 async function startAudioPipeline(s) {
@@ -352,6 +424,7 @@ async function recordOneWindow(epoch) {
 
 function selectedCaptureEngine() {
   const requested=$('capture-engine').value;
+  if(selectedDeviceNeedsServer()) return 'server';
   if(activeSourceLanguage==='auto') return 'server';
   if(requested==='server'||(requested==='auto'&&!recognitionCtor())) return 'server';
   return 'browser';
@@ -395,6 +468,8 @@ async function start() {
   activeSourceLanguage=$('source-lang').value;
   if(activeSourceLanguage==='auto'&&!providerInfo.remote_asr_configured)
     throw new Error('Auto-detect requires server Whisper. Set ASR_BASE_URL or choose an input language.');
+  if($('audio-device').value&&!providerInfo.remote_asr_configured)
+    throw new Error('Direct Bluetooth/USB microphone selection requires ASR_BASE_URL. Otherwise set that mic as your OS default.');
   await ensureSession(); await connectSocket();
   if($('role').value!=='speaker'){ status('Viewing translations','ok'); return; }
   await openWebcam(); running=true; startCapture();
@@ -417,9 +492,11 @@ $('send-manual').onclick=()=>sendTranscript($('manual-text').value,true,'manual-
 $('share').onclick=shareViewer;
 $('stop-audio').onclick=stopTranslatedAudio;
 $('source-lang').onchange=()=>switchInputLanguage().catch(e=>status(e.message,'bad'));
+$('audio-device').onchange=()=>switchAudioDevice().catch(e=>status(e.message,'bad'));
+$('refresh-devices').onclick=()=>refreshAudioDevices(true).catch(e=>status(e.message,'bad'));
 $('capture-engine').onchange=()=>switchCaptureEngine().catch(e=>status(e.message,'bad'));
 $('role').onchange=()=>{ $('speaker-controls').style.display=$('role').value==='speaker'?'block':'none'; };
-loadLanguages().then(()=>Promise.all([loadProviders(),loadAudioPolicy()])).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
+loadLanguages().then(()=>Promise.all([loadProviders(),loadAudioPolicy(),refreshAudioDevices(false)])).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
 """
 
 
@@ -435,7 +512,10 @@ def render_lab_page() -> str:
 <label>Name<br/><input id="participant" value="learner"/></label></div>
 <div class="row"><label>Spoken language (change anytime)<br/><select id="source-lang"></select></label>
 <label>Translate for me into<br/><select id="target-lang"></select></label></div>
-<div id="auto-note" class="note warn">Auto-detect needs server Whisper (`ASR_BASE_URL`). Browser recognition requires a selected language.</div>
+<div class="row"><label>Microphone input (Bluetooth / USB / built-in)<br/><select id="audio-device"><option value="">System default microphone</option></select></label>
+<button id="refresh-devices" class="secondary">Allow / refresh microphones</button>
+<span id="device-state" class="badge">devices: permission needed</span><span id="active-device" class="badge">active: system default</span></div>
+<div id="auto-note" class="note warn">Auto-detect needs server Whisper (`ASR_BASE_URL`). Browser recognition requires a selected language. Direct Bluetooth/USB selection also uses server Whisper; browser Web Speech can only use the OS default mic.</div>
 <div id="speaker-controls"><video id="preview" autoplay muted playsinline></video>
 <div class="meter"><div id="meter-fill"></div></div>
 <div class="row"><label>Capture engine<br/><select id="capture-engine"><option value="auto">Auto (browser first)</option><option value="browser">Browser realtime ASR</option><option value="server">Server Whisper chunks</option></select></label>
