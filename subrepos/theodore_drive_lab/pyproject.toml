@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "theodore-drive-lab"
+version = "0.1.0"
+description = "Private lab: Drive Mode audio-agent fine-tuning (wake, echo, TTS, Q&A)."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111,<0.116",
+  "pydantic>=2.7,<3",
+  "uvicorn[standard]>=0.30,<0.35",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
+
+[project.scripts]
+theodore-drive-lab = "theodore_drive_lab.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

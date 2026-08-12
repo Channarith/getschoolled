@@ -1,0 +1,20 @@
+RAG knowledge auto-tune + Drive Mode fine-tune labs
+===================================================
+
+Private subrepos (promote into production only after champion knobs stabilize):
+
+  subrepos/theodore_rag_lab/
+    Hours-a-day RAG bakeoff over curriculum + golden QA.
+    Tunable top_k / min_score / groundedness; OptimizationLedger promote/revert.
+    APIs on :8095 — see subrepos/theodore_rag_lab/README.txt
+
+  subrepos/theodore_drive_lab/
+    Drive Mode wake-word, echo rejection, pause-submit, segment Q&A grounding.
+    Bakeoff promotes non-regressing DriveTuning champions.
+    APIs on :8096 — see subrepos/theodore_drive_lab/README.txt
+
+Quick checks
+  make rag-lab
+  make drive-lab
+  PYTHONPATH=subrepos/theodore_rag_lab/src:packages/shared/src python3 -m pytest subrepos/theodore_rag_lab/tests -q
+  PYTHONPATH=subrepos/theodore_drive_lab/src:packages/shared/src python3 -m pytest subrepos/theodore_drive_lab/tests -q
