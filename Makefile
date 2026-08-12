@@ -14,7 +14,7 @@ COMPOSE := infra/compose/docker-compose.yml
 	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
 	run-identity run-memory run-orchestrator run-livekit validate-pipeline webcam-lab \
-	rag-lab drive-lab dev-all dev-down dev-status
+	rag-lab drive-lab homework-lab music-lab dev-all dev-down dev-status
 
 help:
 	@echo "Targets:"
@@ -24,6 +24,8 @@ help:
 	@echo "  test-inventory Count tests + map to the 16 sub-apps (MIN=N to gate)"
 	@echo "  validate-pipeline  E2E smoke: harvest -> teach -> present (offline)"
 	@echo "  webcam-lab     Private webcam recognition lab (Theodore + xAI voice)"
+	@echo "  homework-lab   Private homework lab (50+ methodologies generate/grade)"
+	@echo "  music-lab      Private learn-through-music lab (100+ original songs)"
 	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
 	@echo "  lint           Ruff lint the Python sources (needs ruff)"
 	@echo "  stress         Stress/perf the running APIs (start services first)"
@@ -67,7 +69,7 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_drive_lab/tests labs/*/tests private/*/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q
 
 # Count collected tests + map them to the 16 ecosystem sub-apps (release gate).
 # MIN ratchets the per-sub-app minimum upward over time (0 = report only).
@@ -120,9 +122,15 @@ rag-lab:
 drive-lab:
 	PYTHONPATH=subrepos/theodore_drive_lab/src:packages/shared/src $(VENV_PY) -c "from theodore_drive_lab.bakeoff import DriveBakeoffRunner; print(DriveBakeoffRunner().run_bakeoff(rounds=8)['champion']['metrics'])"
 
+homework-lab:
+	PYTHONPATH=subrepos/theodore_homework_lab/src:packages/shared/src $(VENV_PY) -c "from theodore_homework_lab.quality import run_gold_battery; r=run_gold_battery(); print(r['methodology_count'], r['percentage'])"
+
+music-lab:
+	PYTHONPATH=subrepos/theodore_music_lab/src:packages/shared/src $(VENV_PY) -c "from theodore_music_lab.catalog import Catalog, MEANING_LANGUAGES; c=Catalog(); print(len(c.songs), len(MEANING_LANGUAGES))"
+
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_drive_lab/tests labs/*/tests private/*/tests -q \
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q \
 		--cov=packages/shared/src/aoep_shared --cov-report=term-missing:skip-covered
 
 lint:
