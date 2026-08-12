@@ -1,0 +1,16 @@
+{"query": "how do plants use sunlight", "expected_doc_ids": ["photosynthesis"], "expected_answer": "Plants convert sunlight into energy through photosynthesis.", "topic": "bio"}
+{"query": "what is gravity", "expected_doc_ids": ["gravity"], "expected_answer": "Gravity pulls objects toward the earth.", "topic": "physics"}
+{"query": "variables and data types in python", "expected_doc_ids": ["python"], "expected_answer": "Python variables hold values of types like int, str, and list.", "topic": "cs"}
+{"query": "what is a fraction numerator", "expected_doc_ids": ["fractions", "fraction"], "expected_answer": "A fraction has a numerator and a denominator.", "topic": "math"}
+{"query": "supply and demand market price", "expected_doc_ids": ["supply", "demand", "economics"], "expected_answer": "Prices move when supply and demand change.", "topic": "econ"}
+{"query": "photosynthesis chloroplasts", "expected_doc_ids": ["photosynthesis"], "expected_answer": "Photosynthesis happens in chloroplasts.", "topic": "bio"}
+{"query": "python list dict float", "expected_doc_ids": ["python"], "expected_answer": "Python includes list, dict, and float types.", "topic": "cs"}
+{"query": "objects fall toward earth", "expected_doc_ids": ["gravity"], "expected_answer": "Objects fall toward the earth due to gravity.", "topic": "physics"}
+{"query": "algebra equations solve for x", "expected_doc_ids": ["algebra", "equation"], "expected_answer": "Solve equations for the unknown variable x.", "topic": "curriculum"}
+{"query": "machine learning supervised labels", "expected_doc_ids": ["machine", "learning", "ml"], "expected_answer": "Supervised learning uses labeled examples.", "topic": "curriculum"}
+{"query": "cybersecurity phishing attack", "expected_doc_ids": ["cyber", "security", "phish"], "expected_answer": "Phishing tricks users into revealing secrets.", "topic": "curriculum"}
+{"query": "digital marketing SEO content", "expected_doc_ids": ["marketing", "seo"], "expected_answer": "SEO improves content visibility in search.", "topic": "curriculum"}
+{"query": "excel pivot table summary", "expected_doc_ids": ["excel", "pivot"], "expected_answer": "Pivot tables summarize spreadsheet data.", "topic": "curriculum"}
+{"query": "power bi dashboard visual", "expected_doc_ids": ["power", "bi", "dashboard"], "expected_answer": "Dashboards visualize business data.", "topic": "curriculum"}
+{"query": "first aid CPR chest compressions", "expected_doc_ids": ["cpr", "first", "aid"], "expected_answer": "CPR uses chest compressions to circulate blood.", "topic": "curriculum"}
+{"query": "climate change greenhouse gases", "expected_doc_ids": ["climate", "greenhouse"], "expected_answer": "Greenhouse gases trap heat in the atmosphere.", "topic": "curriculum"}

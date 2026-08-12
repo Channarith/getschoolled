@@ -135,11 +135,11 @@ def lesson_category(lesson_id: str, title: str) -> str:
         "workplace-violence", "security-policies", "trade-compliance",
         "social-media-at-work", "export-control", "liquid-cooling",
         "data-privacy-workplace", "anti-bribery", "lab-safety",
-        "automotive-safety",
+        "automotive-safety", "alameda-food",
     )):
         return "Workplace Compliance"
     if any(k in lid for k in (
-        "comptia", "hvac", "drivers-permit", "ase-automotive", "pharmacy",
+        "comptia", "hvac", "drivers-permit", "ca-dmv", "ase-automotive", "pharmacy",
         "real-estate", "cpr", "security-guard",
     )):
         return "Certifications"

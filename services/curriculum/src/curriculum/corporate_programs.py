@@ -77,9 +77,13 @@ DEFAULT_CORPORATE_PROGRAMS = [
         audience=CORPORATE_AUDIENCE,
         description=(
             "ServSafe-aligned food safety for hospitality and cafeteria teams: "
-            "hazards, temperatures, hygiene, and cross-contamination control."
+            "hazards, temperatures, hygiene, and cross-contamination control, "
+            "plus CA/Alameda short-session hygiene prep."
         ),
-        course_ids=["food-handler-safety"],
+        course_ids=[
+            "food-handler-safety",
+            "ca-alameda-food-handler-hygiene",
+        ],
     ),
     Program(
         program_id="corp-trade-export",

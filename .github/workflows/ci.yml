@@ -30,13 +30,17 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -e "packages/shared[test,harvest]"
           python3 -m pip install -e "packages/sdk[test]"
+          python3 -m pip install -e "packages/webcam-vision[test]"
           for pkg in services/orchestrator services/speech \
             services/perception services/memory services/curriculum \
             services/billing apps/agent-runtime; do
             python3 -m pip install -e "$pkg[test]"
           done
+          # The webcam labs analyse frames, so they need the vision stack.
+          python3 -m pip install \
+            "opencv-contrib-python-headless==4.10.0.84" "numpy==1.26.4"
       - name: Run tests
-        run: python3 -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests -q
+        run: python3 -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_audio_translation_lab/tests subrepos/theodore_course_studio/tests subrepos/theodore_rag_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests -q
 
   webcam-lab:
     # labs/theodore-webcam is a self-contained private sub-repo: it is not in
@@ -84,8 +88,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Render kustomize manifests
-        run: kubectl kustomize infra/k8s >/dev/null
+      - name: Render kustomize manifests (base + prod + staging overlays)
+        run: |
+          set -euo pipefail
+          # Every kustomize root must render, so overlay drift (a bad patch, a
+          # renamed resource) fails the PR instead of the deploy.
+          for root in infra/k8s infra/k8s-vke infra/k8s-staging; do
+            echo "::group::kustomize $root"
+            kubectl kustomize "$root" >/dev/null
+            echo "OK: $root"
+            echo "::endgroup::"
+          done
 
   mobile:
     runs-on: ubuntu-latest

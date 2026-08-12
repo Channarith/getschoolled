@@ -366,7 +366,8 @@ def test_monitor_page_shows_camera_and_tuning_together():
     assert 'id="tab-voice"' in page.text
     assert "sobel_binary_threshold" in page.text
     assert "reply_temperature_fast" in page.text
-    assert "Failed gates (class)" in page.text
+    assert "Failed quality checks (whole class)" in page.text
+    assert "Tuning → live webcam" in page.text
 
 
 # -------------------------------------------------------------- voice tuning

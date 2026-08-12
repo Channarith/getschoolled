@@ -67,10 +67,19 @@ def test_respond_uses_short_ttl_cache_for_repeated_turn(monkeypatch):
 
 
 def test_supported_languages_cover_26_language_codes():
+    """Original 26 languages must still be present; list now extends beyond them."""
     languages = XaiVoiceAgent.supported_languages()
-    assert len(languages) == 26
-    assert len({item.code for item in languages}) == 26
-    assert [item.code for item in languages] == [item.code for item in SUPPORTED_LANGUAGES]
+    codes = {item.code for item in languages}
+    original_26 = {
+        "en", "es", "fr", "de", "it", "pt", "nl", "sv", "no", "da",
+        "fi", "pl", "cs", "sk", "ro", "hu", "el", "tr", "ru", "uk",
+        "ar", "he", "hi", "id", "vi", "th",
+    }
+    assert original_26.issubset(codes), f"Missing original languages: {original_26 - codes}"
+    # Must also include the newly added East/Southeast-Asian languages.
+    assert {"zh-CN", "ja", "ko", "km", "my", "tl"}.issubset(codes)
+    # No duplicate codes.
+    assert len(codes) == len(languages)
 
 
 def test_ask_question_fallback_for_supported_language():

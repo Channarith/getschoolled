@@ -550,6 +550,8 @@ transcript all run without it.
 | `apps/web` | Next.js web app and admin/user surfaces |
 | `apps/mobile` | Expo React Native mobile app |
 | `apps/agent-runtime` | LiveKit agent runtime and edge packaging |
+| `subrepos/theodore_rag_lab` | Private RAG knowledge-base auto-tune / hours-a-day bakeoff |
+| `subrepos/theodore_drive_lab` | Private Drive Mode audio-agent fine-tune (wake/echo/TTS/Q&A) |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |
 | `packages/sdk` | Installable Python SDK for safely extending AOEP (`AOEPClient.local()`, in-process APIs) |
 | `services/orchestrator` | Teaching Director, sessions, Tutor Q&A, HIL, assessment |

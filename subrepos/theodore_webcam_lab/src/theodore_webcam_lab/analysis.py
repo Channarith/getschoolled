@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import os
+import threading
 from dataclasses import dataclass, fields as dc_fields
 
+from .advanced_behavior import AdvancedBehaviorEngine
+from .audio_quality import estimate_noise_filter_effectiveness
+from .distance import resolve_distance
+from .facial_experience import estimate_from_luminance_grid
 from .imaging import analyze_luminance_grid
 from .vision_tuning import VisionTuning
 from .types import (
@@ -39,22 +44,28 @@ _EXPRESSION_ALIASES = {
     "tired": "tired",
     "sleepy": "tired",
     "drowsy": "tired",
+    "yawn": "yawning",
+    "yawning": "yawning",
+    "yawns": "yawning",
 }
 
 
 @dataclass
 class AnalyzerPolicy:
-    absence_grace_ms: int = 90_000
-    silhouette_foreground_threshold: float = 0.95
-    silhouette_motion_threshold: float = 0.08
-    silhouette_consecutive_frames: int = 3
+    """Timing and session-cap knobs for the webcam analyzer.
+
+    Detection thresholds (silhouette fill, gaze, typing) live on ``VisionTuning``
+    so room presets and the live monitor sliders actually change behaviour.
+
+    Defaults favour quick away-from-webcam identification: pause + absent within
+    about a second so the learner gets an on-screen pause and spoken nudge right
+    away (longer boot/cheating grace windows remain separately tunable).
+    """
+
+    absence_grace_ms: int = 1_500
     solo_max_faces: int = 1
     gaze_away_grace_ms: int = 45_000
-    gaze_frontal_min_threshold: float = 0.35
-    gaze_down_min_threshold: float = 0.6
-    typing_activity_min_threshold: float = 0.7
-    keyboard_typing_audio_min_threshold: float = 0.65
-    pause_training_no_presence_ms: int = 4_000
+    pause_training_no_presence_ms: int = 1_000
     # Caps retained per-session state so a long-lived server cannot grow without bound.
     max_tracked_sessions: int = 512
 
@@ -82,6 +93,9 @@ class _ParticipantState:
     absent_since_ms: int | None = None
     silhouette_streak: int = 0
     gaze_away_started_ms: int | None = None
+    eyes_closed_started_ms: int | None = None
+    yawn_started_ms: int | None = None
+    inattentive_started_ms: int | None = None
 
 
 class WebcamSessionAnalyzer:
@@ -94,9 +108,13 @@ class WebcamSessionAnalyzer:
     ) -> None:
         self._policy = policy or AnalyzerPolicy()
         self._tuning = tuning or VisionTuning()
+        self._lock = threading.RLock()
         self._state: dict[str, dict[str, _ParticipantState]] = {}
         self._no_presence_started_ms: dict[str, int | None] = {}
+        self._last_eval_ms: dict[str, int] = {}
         self._original_participant_id: dict[str, str] = {}
+        self._booted_participants: dict[str, set[str]] = {}
+        self._behavior_engine = AdvancedBehaviorEngine()
 
     @property
     def tuning(self) -> VisionTuning:
@@ -110,9 +128,34 @@ class WebcamSessionAnalyzer:
     def policy(self) -> AnalyzerPolicy:
         return self._policy
 
+    @policy.setter
+    def policy(self, value: AnalyzerPolicy) -> None:
+        self._policy = value
+
+    def boot_participant(self, *, session_id: str, participant_id: str) -> None:
+        """Remove a participant from the session permanently.
+
+        Future signals from them are ignored so they cannot re-enter.
+        """
+        with self._lock:
+            self._booted_participants.setdefault(session_id, set()).add(participant_id)
+            self._state.get(session_id, {}).pop(participant_id, None)
+            self._behavior_engine.boot_participant(
+                session_id=session_id, participant_id=participant_id
+            )
+            # Clear the original-participant lock so a legitimate new user is not
+            # permanently blocked in SOLO mode (Fix: stale original_participant_id).
+            if self._original_participant_id.get(session_id) == participant_id:
+                self._original_participant_id.pop(session_id, None)
+
     def _touch_session(self, session_id: str) -> None:
         """Mark a session as most-recently used and evict the oldest ones past the cap."""
-        for store in (self._state, self._no_presence_started_ms, self._original_participant_id):
+        for store in (
+            self._state,
+            self._no_presence_started_ms,
+            self._last_eval_ms,
+            self._original_participant_id,
+        ):
             if session_id in store:
                 store[session_id] = store.pop(session_id)
         limit = max(1, self._policy.max_tracked_sessions)
@@ -120,7 +163,9 @@ class WebcamSessionAnalyzer:
             oldest = next(iter(self._state))
             self._state.pop(oldest, None)
             self._no_presence_started_ms.pop(oldest, None)
+            self._last_eval_ms.pop(oldest, None)
             self._original_participant_id.pop(oldest, None)
+            self._booted_participants.pop(oldest, None)
 
     @staticmethod
     def _clamp01(value: float) -> float:
@@ -134,26 +179,23 @@ class WebcamSessionAnalyzer:
         if snr_db is None:
             return None
         tuning = self._tuning
-        return self._clamp01((snr_db - tuning.audio_snr_floor_db) / tuning.audio_snr_span_db)
+        span = tuning.audio_snr_span_db
+        if span <= 0:
+            return None
+        return self._clamp01((snr_db - tuning.audio_snr_floor_db) / span)
 
     def _noise_db_to_quality(self, noise_db: float | None) -> float | None:
         if noise_db is None:
             return None
         tuning = self._tuning
         span = tuning.audio_noise_loud_db - tuning.audio_noise_clean_db
+        if span <= 0:
+            return None
         return self._clamp01((tuning.audio_noise_loud_db - noise_db) / span)
 
     def _estimate_distance_from_face_ratio(self, ratio: float | None) -> float | None:
         """Convert an observed face-box ratio to metres using the calibration knobs."""
-        if ratio is None or ratio <= 0.0:
-            return None
-        tuning = self._tuning
-        effective_ratio = max(tuning.distance_min_face_ratio, ratio)
-        distance = tuning.distance_reference_metres * (
-            tuning.distance_reference_face_ratio / effective_ratio
-        )
-        distance = min(tuning.distance_max_metres, max(tuning.distance_min_metres, distance))
-        return round(distance, 2)
+        return resolve_distance(face_size_ratio=ratio, tuning=self._tuning).distance_m
 
     @staticmethod
     def _avg(values: list[float]) -> float:
@@ -175,10 +217,31 @@ class WebcamSessionAnalyzer:
         signals: list[WebcamSignal],
         expected_participant_ids: list[str] | None = None,
     ) -> ClassEvaluation:
+        with self._lock:
+            return self._evaluate_locked(
+                session_id=session_id,
+                mode=mode,
+                signals=signals,
+                expected_participant_ids=expected_participant_ids,
+            )
+
+    def _evaluate_locked(
+        self,
+        *,
+        session_id: str,
+        mode: ClassMode,
+        signals: list[WebcamSignal],
+        expected_participant_ids: list[str] | None = None,
+    ) -> ClassEvaluation:
         expected = {p.strip() for p in (expected_participant_ids or []) if p.strip()}
         # Never mutate the caller's list: synthetic "missing" heartbeats are appended below,
         # and callers legitimately reuse the same list across evaluate() calls.
         signals = list(signals)
+        # Drop signals from booted participants so they cannot re-enter the session.
+        booted = self._booted_participants.get(session_id, set())
+        if booted:
+            signals = [s for s in signals if s.participant_id not in booted]
+            expected -= booted
         if not signals and not expected:
             return ClassEvaluation(
                 session_id=session_id,
@@ -228,13 +291,17 @@ class WebcamSessionAnalyzer:
         else:
             started = self._no_presence_started_ms.get(session_id)
             if started is None:
-                started = now_ms
+                # Count from the previous eval time when we just lost presence, so the
+                # first away frame after a live face can trip the quick pause window.
+                prev = self._last_eval_ms.get(session_id)
+                started = prev if prev is not None else now_ms
                 self._no_presence_started_ms[session_id] = started
             no_one_present_for_ms = max(0, now_ms - started)
-        training_paused = no_one_present_for_ms > self._policy.pause_training_no_presence_ms
-        pause_reason = "no_learner_detected_over_4s" if training_paused else ""
+        training_paused = no_one_present_for_ms >= self._policy.pause_training_no_presence_ms
+        pause_reason = "no_learner_detected" if training_paused else ""
         if training_paused:
-            class_alerts.append("training_paused:no_learner_detected_over_4s")
+            class_alerts.append("training_paused:no_learner_detected")
+        self._last_eval_ms[session_id] = now_ms
 
         live_present_ids = sorted(
             {
@@ -377,6 +444,24 @@ class WebcamSessionAnalyzer:
                             action="notify_student_privately_and_reinforce_integrity",
                         )
                     )
+                elif participant.silhouette_detected:
+                    severity = "medium"
+                    needs_intervention = True
+                    message = (
+                        "Silhouette without a live face; confirm the learner is present."
+                    )
+                    lesson_alerts.append(
+                        LessonAlert(
+                            level="medium",
+                            code="student_silhouette",
+                            participant_id=participant.participant_id,
+                            message=(
+                                f"Silhouette detected for {participant.participant_id} "
+                                "(no live face)."
+                            ),
+                            action="review_silhouette_and_confirm_presence",
+                        )
+                    )
                 elif participant.state is PresenceState.ABSENT:
                     severity = "medium"
                     needs_intervention = True
@@ -428,7 +513,7 @@ class WebcamSessionAnalyzer:
                         message=(
                             f"{intervention_count} student window(s) need intervention."
                         ),
-                        action="review_flagged_windows",
+                        action="review_group_interventions",
                     ),
                 )
                 class_alerts.append(
@@ -436,6 +521,215 @@ class WebcamSessionAnalyzer:
                 )
         for participant in evaluations:
             class_alerts.extend(participant.alerts)
+            # Facial-experience lesson alerts (solo + group). Soft eyes-away fires
+            # after a few seconds so the dashboard reacts before the long grace.
+            conf = participant.expression_confidence or 0.0
+            if (
+                participant.dominant_expression == "sad"
+                and conf >= 0.45
+            ):
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="low",
+                        code="learner_mood_sad",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} looks sad/upset "
+                            f"(confidence {conf:.0%})."
+                        ),
+                        action="check_in_privately_and_offer_support",
+                    )
+                )
+            if (
+                participant.dominant_expression == "happy"
+                and conf >= 0.55
+            ):
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="info",
+                        code="learner_mood_happy",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} looks happy/engaged "
+                            f"(confidence {conf:.0%})."
+                        ),
+                        action="acknowledge_positive_engagement",
+                    )
+                )
+            if participant.eyes_away_for_ms >= 1_500:
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="medium" if participant.eyes_away_for_ms >= 10_000 else "low",
+                        code="learner_eyes_away",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} eyes away from webcam "
+                            f"for {participant.eyes_away_for_ms / 1000:.1f}s."
+                        ),
+                        action="prompt_learner_to_refocus",
+                    )
+                )
+            if participant.eyes_closed_for_ms >= 1_500:
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="medium" if participant.eyes_closed_for_ms >= 10_000 else "low",
+                        code="learner_eyes_closed",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} eyes closed "
+                            f"for {participant.eyes_closed_for_ms / 1000:.1f}s."
+                        ),
+                        action="prompt_learner_to_open_eyes_and_refocus",
+                    )
+                )
+            if participant.yawn_for_ms >= 1_500:
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="low",
+                        code="learner_yawning",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} appears to be yawning "
+                            f"({participant.yawn_for_ms / 1000:.1f}s)."
+                        ),
+                        action="acknowledge_fatigue_and_offer_break",
+                    )
+                )
+            if (
+                participant.phone_visible
+                and participant.eyes_away_for_ms >= 2_000
+            ):
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="high" if participant.eyes_away_for_ms >= 15_000 else "medium",
+                        code="learner_phone_distraction",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} appears to be looking at a phone "
+                            f"({participant.eyes_away_for_ms / 1000:.1f}s)."
+                        ),
+                        action="notify_student_privately_and_reinforce_integrity",
+                    )
+                )
+            if (
+                participant.distraction_score >= 0.55
+                and participant.eyes_away_for_ms >= 2_500
+                and not participant.phone_visible
+            ):
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="medium" if participant.eyes_away_for_ms >= 12_000 else "low",
+                        code="learner_distracted",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} looks distracted "
+                            f"(score {participant.distraction_score:.0%}, "
+                            f"{participant.eyes_away_for_ms / 1000:.1f}s)."
+                        ),
+                        action="prompt_learner_to_refocus",
+                    )
+                )
+            if participant.inattentive_for_ms >= 4_000:
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="medium" if participant.inattentive_for_ms >= 15_000 else "low",
+                        code="learner_inattentive",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} is not paying attention "
+                            f"(attention {participant.attention_score:.0%} for "
+                            f"{participant.inattentive_for_ms / 1000:.1f}s)."
+                        ),
+                        action="prompt_learner_to_refocus",
+                    )
+                )
+            adv = participant.advanced_behavior or {}
+            if float(adv.get("confusion_score") or 0) >= 0.62:
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="medium",
+                        code="learner_confused",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} may be confused "
+                            f"(score {float(adv.get('confusion_score') or 0):.0%})."
+                        ),
+                        action="check_in_privately_and_offer_support",
+                    )
+                )
+            if float(adv.get("boredom_score") or 0) >= 0.62:
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="low",
+                        code="learner_bored",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} shows boredom / zoning-out "
+                            f"(score {float(adv.get('boredom_score') or 0):.0%})."
+                        ),
+                        action="prompt_learner_to_refocus",
+                    )
+                )
+            if float(adv.get("fatigue_score") or 0) >= 0.62 and participant.yawn_for_ms < 1_500:
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="low",
+                        code="learner_fatigued",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} shows fatigue signals "
+                            f"(score {float(adv.get('fatigue_score') or 0):.0%})."
+                        ),
+                        action="acknowledge_fatigue_and_offer_break",
+                    )
+                )
+            if float(adv.get("engagement_index") or 0) >= 0.78:
+                lesson_alerts.append(
+                    LessonAlert(
+                        level="info",
+                        code="learner_highly_engaged",
+                        participant_id=participant.participant_id,
+                        message=(
+                            f"{participant.participant_id} is highly engaged "
+                            f"(index {float(adv.get('engagement_index') or 0):.0%})."
+                        ),
+                        action="acknowledge_positive_engagement",
+                    )
+                )
+            if participant.state is PresenceState.ABSENT:
+                if not any(
+                    a.code == "student_absent"
+                    and a.participant_id == participant.participant_id
+                    for a in lesson_alerts
+                ):
+                    lesson_alerts.append(
+                        LessonAlert(
+                            level="medium",
+                            code="student_absent",
+                            participant_id=participant.participant_id,
+                            message=(
+                                f"{participant.participant_id} is away from the webcam."
+                            ),
+                            action="alert_lesson_and_request_student_rejoin",
+                        )
+                    )
+            elif participant.state is PresenceState.TEMPORARILY_MISSING:
+                if not any(
+                    a.code == "student_temporarily_missing"
+                    and a.participant_id == participant.participant_id
+                    for a in lesson_alerts
+                ):
+                    lesson_alerts.append(
+                        LessonAlert(
+                            level="low",
+                            code="student_temporarily_missing",
+                            participant_id=participant.participant_id,
+                            message=(
+                                f"{participant.participant_id} may have stepped away briefly."
+                            ),
+                            action="monitor_and_prompt_if_state_persists",
+                        )
+                    )
 
         return ClassEvaluation(
             session_id=session_id,
@@ -474,22 +768,80 @@ class WebcamSessionAnalyzer:
         alerts: list[str] = []
 
         liveness = signal.liveness_state.strip().lower()
-        has_live_face = signal.face_count > 0 and liveness not in {"spoof", "fake"}
-        dominant_expression = self._normalize_expression(signal.expression_label)
-        silhouette_candidate = (
-            signal.face_count == 0
-            and signal.foreground_ratio >= self._policy.silhouette_foreground_threshold
-            and signal.motion_score <= self._policy.silhouette_motion_threshold
-        )
         tuning = self._tuning
-        gaze_down_score = signal.gaze_down_score if signal.gaze_down_score is not None else 0.0
-        gaze_frontal = signal.gaze_frontal if signal.gaze_frontal is not None else 1.0
-        eyes_away = (
-            signal.face_count > 0
-            and (
-                gaze_down_score >= self._policy.gaze_down_min_threshold
-                or gaze_frontal < self._policy.gaze_frontal_min_threshold
-            )
+        face_count = signal.face_count
+        expression_label = signal.expression_label
+        expression_confidence = signal.expression_confidence
+        gaze_down_score = signal.gaze_down_score
+        gaze_frontal = signal.gaze_frontal
+        face_size_ratio = signal.face_size_ratio
+
+        # Thin clients (browser camera) often omit mood/gaze. Derive them from the
+        # luminance grid so happiness / sadness / away-from-webcam actually move.
+        estimate = (
+            estimate_from_luminance_grid(signal.luminance_grid)
+            if signal.luminance_grid
+            else None
+        )
+        if estimate is not None:
+            if self._normalize_expression(expression_label) == "unknown":
+                expression_label = estimate.expression_label
+                if expression_confidence is None:
+                    expression_confidence = estimate.expression_confidence
+            if gaze_frontal is None:
+                gaze_frontal = estimate.gaze_frontal
+            if gaze_down_score is None:
+                gaze_down_score = estimate.gaze_down_score
+            if face_size_ratio is None:
+                face_size_ratio = estimate.face_size_ratio
+            if signal.yawn_score is None and estimate.yawn_score > 0:
+                # Thin clients: promote grid yawn into the signal path below.
+                signal = signal.model_copy(update={"yawn_score": estimate.yawn_score})
+                if (
+                    estimate.expression_label == "yawning"
+                    and self._normalize_expression(expression_label) in {"unknown", "neutral"}
+                ):
+                    expression_label = "yawning"
+                    if expression_confidence is None:
+                        expression_confidence = estimate.expression_confidence
+            if (
+                not estimate.face_present
+                and self._normalize_expression(signal.expression_label) == "unknown"
+                and signal.gaze_frontal is None
+                and signal.gaze_down_score is None
+                and face_count > 0
+            ):
+                # Client claimed a face but the frame looks empty (stepped away).
+                face_count = 0
+
+        has_live_face = face_count > 0 and liveness not in {"spoof", "fake"}
+        dominant_expression = self._normalize_expression(expression_label)
+        # Detection thresholds live on VisionTuning so room presets (high_accuracy,
+        # noisy_room, …) actually change behaviour. AnalyzerPolicy still owns
+        # timing/session caps (grace windows, max faces, eviction).
+        silhouette_candidate = (
+            face_count == 0
+            and signal.foreground_ratio >= tuning.silhouette_foreground_threshold
+            and signal.motion_score <= tuning.silhouette_motion_threshold
+        )
+        gaze_down_score = gaze_down_score if gaze_down_score is not None else 0.0
+        gaze_frontal = gaze_frontal if gaze_frontal is not None else 1.0
+        eyes_closed_score = (
+            float(signal.eyes_closed_score)
+            if signal.eyes_closed_score is not None
+            else 0.0
+        )
+        eyes_closed = eyes_closed_score >= tuning.eyes_closed_min_threshold
+        yawn_score = float(signal.yawn_score) if signal.yawn_score is not None else 0.0
+        if dominant_expression == "yawning" and yawn_score < tuning.yawn_min_threshold:
+            yawn_score = max(yawn_score, 0.62)
+        yawning = yawn_score >= tuning.yawn_min_threshold or dominant_expression == "yawning"
+        if yawning and dominant_expression in {"unknown", "neutral", "surprised"}:
+            dominant_expression = "yawning"
+        eyes_away = face_count > 0 and (
+            eyes_closed
+            or gaze_down_score >= tuning.gaze_down_min_threshold
+            or gaze_frontal < tuning.gaze_frontal_min_threshold
         )
         if eyes_away:
             if participant_state.gaze_away_started_ms is None:
@@ -497,20 +849,131 @@ class WebcamSessionAnalyzer:
         else:
             participant_state.gaze_away_started_ms = None
 
+        if eyes_closed:
+            if participant_state.eyes_closed_started_ms is None:
+                participant_state.eyes_closed_started_ms = signal.timestamp_ms
+        else:
+            participant_state.eyes_closed_started_ms = None
+
+        if yawning and has_live_face:
+            if participant_state.yawn_started_ms is None:
+                participant_state.yawn_started_ms = signal.timestamp_ms
+        else:
+            participant_state.yawn_started_ms = None
+
         eyes_away_for_ms = 0
         if participant_state.gaze_away_started_ms is not None:
             eyes_away_for_ms = max(
                 0, signal.timestamp_ms - participant_state.gaze_away_started_ms
             )
-        long_eyes_away = eyes_away_for_ms >= self._policy.gaze_away_grace_ms
+        eyes_closed_for_ms = 0
+        if participant_state.eyes_closed_started_ms is not None:
+            eyes_closed_for_ms = max(
+                0, signal.timestamp_ms - participant_state.eyes_closed_started_ms
+            )
+        yawn_for_ms = 0
+        if participant_state.yawn_started_ms is not None:
+            yawn_for_ms = max(
+                0, signal.timestamp_ms - participant_state.yawn_started_ms
+            )
+
+        hands_on_face_score = (
+            float(signal.hands_on_face_score)
+            if signal.hands_on_face_score is not None
+            else 0.0
+        )
+        hands_on_face = hands_on_face_score >= tuning.hands_on_face_min_threshold
+        if hands_on_face and has_live_face:
+            if participant_state.inattentive_started_ms is None:
+                participant_state.inattentive_started_ms = signal.timestamp_ms
+        hands_on_face_for_ms = 0
+        if hands_on_face and participant_state.inattentive_started_ms is not None:
+            hands_on_face_for_ms = max(
+                0, signal.timestamp_ms - participant_state.inattentive_started_ms
+            )
+
+        distraction_score = 0.0
+        if has_live_face:
+            distraction_score = max(
+                distraction_score,
+                gaze_down_score,
+                max(0.0, 1.0 - gaze_frontal),
+                0.85 if signal.phone_visible else 0.0,
+                0.70 if eyes_closed else 0.0,
+                0.60 if hands_on_face else 0.0,
+                0.55 if yawning else 0.0,
+                float(signal.typing_activity_score or 0.0) * 0.8,
+            )
+            if eyes_away:
+                distraction_score = max(distraction_score, 0.50)
+
+        attention_score = 0.0
+        if has_live_face:
+            attention_score = self._clamp01(
+                gaze_frontal * (1.0 - gaze_down_score * 0.75)
+            )
+            if eyes_closed:
+                attention_score = min(attention_score, 0.12)
+            elif eyes_away:
+                attention_score = min(attention_score, 0.32)
+            if yawning:
+                attention_score = min(attention_score, 0.45)
+            if signal.phone_visible:
+                attention_score = min(attention_score, 0.20)
+            if signal.attention is not None:
+                attention_score = self._clamp01(
+                    0.55 * attention_score + 0.45 * float(signal.attention)
+                )
+
+        inattentive_now = has_live_face and (
+            attention_score < tuning.attention_min_threshold
+            or distraction_score >= tuning.distraction_min_threshold
+            or eyes_away
+            or yawning
+            or eyes_closed
+            or hands_on_face
+        )
+        if inattentive_now:
+            if participant_state.inattentive_started_ms is None:
+                participant_state.inattentive_started_ms = signal.timestamp_ms
+        else:
+            participant_state.inattentive_started_ms = None
+        inattentive_for_ms = 0
+        if participant_state.inattentive_started_ms is not None:
+            inattentive_for_ms = max(
+                0, signal.timestamp_ms - participant_state.inattentive_started_ms
+            )
+
+        if not has_live_face:
+            behavior_label = "away"
+        elif eyes_closed:
+            behavior_label = "drowsy"
+        elif yawning:
+            behavior_label = "yawning"
+        elif hands_on_face:
+            behavior_label = "hands_on_face"
+        elif signal.phone_visible or (
+            distraction_score >= tuning.distraction_min_threshold and eyes_away
+        ):
+            behavior_label = "distracted"
+        elif attention_score < tuning.attention_min_threshold:
+            behavior_label = "inattentive"
+        else:
+            behavior_label = "focused"
+
+        # Trip integrity/cheating faster when a phone is also visible.
+        cheat_grace_ms = self._policy.gaze_away_grace_ms
+        if signal.phone_visible:
+            cheat_grace_ms = min(cheat_grace_ms, 8_000)
+        long_eyes_away = eyes_away_for_ms >= cheat_grace_ms
         keyboard_typing_audio_detected = (
             signal.keyboard_typing_audio_score is not None
             and signal.keyboard_typing_audio_score
-            >= self._policy.keyboard_typing_audio_min_threshold
+            >= tuning.keyboard_typing_audio_min_threshold
         )
         typing_activity_high = (
             signal.typing_activity_score is not None
-            and signal.typing_activity_score >= self._policy.typing_activity_min_threshold
+            and signal.typing_activity_score >= tuning.typing_activity_min_threshold
         )
         typing_active = typing_activity_high or keyboard_typing_audio_detected
         suspected_cheating = long_eyes_away and (signal.phone_visible or typing_active)
@@ -524,9 +987,16 @@ class WebcamSessionAnalyzer:
         if keyboard_typing_audio_detected:
             cheating_reasons.append("keyboard_typing_audio")
 
-        distance_from_camera_m = self._estimate_distance_from_face_ratio(
-            signal.face_size_ratio
+        distance_est = resolve_distance(
+            measured_m=signal.distance_from_camera_m,
+            face_size_ratio=face_size_ratio,
+            luminance_grid=signal.luminance_grid,
+            tuning=tuning,
         )
+        distance_from_camera_m = distance_est.distance_m
+        distance_source = distance_est.source
+        if face_size_ratio is None and distance_est.face_size_ratio is not None:
+            face_size_ratio = distance_est.face_size_ratio
         light_quality_score = (
             signal.light_quality_score
             if signal.light_quality_score is not None
@@ -548,19 +1018,24 @@ class WebcamSessionAnalyzer:
         )
         if dominant_expression == "happy":
             expression_component = tuning.behavior_happy_weight
+        elif dominant_expression == "yawning":
+            expression_component = tuning.behavior_unknown_expression_weight * 0.5
         elif dominant_expression != "unknown":
             expression_component = tuning.behavior_known_expression_weight
         else:
             expression_component = tuning.behavior_unknown_expression_weight
         expression_behavior_score = self._clamp01(
             expression_component
-            + (tuning.behavior_focus_weight if not long_eyes_away else 0.0)
+            + (tuning.behavior_focus_weight if not long_eyes_away and not yawning else 0.0)
             + (tuning.behavior_integrity_weight if not suspected_cheating else 0.0)
+            + (0.15 * attention_score)
+            - (0.20 * distraction_score)
         )
-        noise_filter_effectiveness_score = (
-            signal.noise_filter_effectiveness_score
-            if signal.noise_filter_effectiveness_score is not None
-            else None
+        noise_filter_effectiveness_score = estimate_noise_filter_effectiveness(
+            noise_filter_effectiveness_score=signal.noise_filter_effectiveness_score,
+            audio_noise_level_db=signal.audio_noise_level_db,
+            audio_snr_db=signal.audio_snr_db,
+            tuning=tuning,
         )
         noise_quality = self._noise_db_to_quality(signal.audio_noise_level_db)
         snr_quality = self._snr_to_quality(signal.audio_snr_db)
@@ -588,7 +1063,7 @@ class WebcamSessionAnalyzer:
         else:
             participant_state.silhouette_streak = 0
         silhouette_detected = (
-            participant_state.silhouette_streak >= self._policy.silhouette_consecutive_frames
+            participant_state.silhouette_streak >= tuning.silhouette_consecutive_frames
         )
 
         reason = "live_face_detected"
@@ -621,7 +1096,7 @@ class WebcamSessionAnalyzer:
 
         if silhouette_detected:
             alerts.append(f"silhouette_detected:{signal.participant_id}")
-        if mode is ClassMode.SOLO and signal.face_count > self._policy.solo_max_faces:
+        if mode is ClassMode.SOLO and face_count > self._policy.solo_max_faces:
             alerts.append(f"solo_mode_multiple_faces:{signal.participant_id}")
         if dominant_expression != "unknown":
             alerts.append(f"expression:{signal.participant_id}:{dominant_expression}")
@@ -722,13 +1197,30 @@ class WebcamSessionAnalyzer:
         for flag in quality_flags:
             alerts.append(f"{flag}:{signal.participant_id}")
 
+        advanced = self._behavior_engine.evaluate(
+            session_id=session_id,
+            signal=signal,
+            attention_score=attention_score,
+            distraction_score=distraction_score,
+            behavior_label=behavior_label,
+            eyes_away_for_ms=eyes_away_for_ms,
+            eyes_closed_for_ms=eyes_closed_for_ms,
+            yawn_for_ms=yawn_for_ms,
+            inattentive_for_ms=inattentive_for_ms,
+            dominant_expression=dominant_expression,
+            expression_confidence=expression_confidence,
+            suspected_cheating=suspected_cheating,
+            tuning=tuning,
+        )
+
         return ParticipantEvaluation(
             participant_id=signal.participant_id,
             state=state,
             silhouette_detected=silhouette_detected,
             silhouette_streak=participant_state.silhouette_streak,
-            face_count=signal.face_count,
+            face_count=face_count,
             distance_from_camera_m=distance_from_camera_m,
+            distance_source=distance_source,
             light_quality_score=light_quality_score,
             image_detection_quality_score=image_detection_quality_score,
             expression_behavior_score=expression_behavior_score,
@@ -742,9 +1234,21 @@ class WebcamSessionAnalyzer:
             recognition_confidence=recognition_confidence,
             absent_for_ms=absent_for_ms,
             eyes_away_for_ms=eyes_away_for_ms,
+            eyes_closed_for_ms=eyes_closed_for_ms,
+            eyes_closed_score=eyes_closed_score if eyes_closed_score > 0 else None,
+            yawn_score=yawn_score if yawn_score > 0 else None,
+            yawn_for_ms=yawn_for_ms,
+            hands_on_face_score=hands_on_face_score if hands_on_face_score > 0 else None,
+            hands_on_face_for_ms=hands_on_face_for_ms,
+            attention_score=attention_score,
+            distraction_score=distraction_score,
+            inattentive_for_ms=inattentive_for_ms,
+            behavior_label=behavior_label,
+            advanced_behavior=advanced.as_dict(),
+            phone_visible=bool(signal.phone_visible),
             last_live_timestamp_ms=participant_state.last_live_timestamp_ms,
             dominant_expression=dominant_expression,
-            expression_confidence=signal.expression_confidence,
+            expression_confidence=expression_confidence,
             keyboard_typing_audio_detected=keyboard_typing_audio_detected,
             suspected_cheating=suspected_cheating,
             cheating_reasons=sorted(cheating_reasons),

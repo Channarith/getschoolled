@@ -1,0 +1,4 @@
+PRIVATE INTERNAL LAB — NOT FOR PUBLIC DISTRIBUTION
+==================================================
+theodore_drive_lab: Drive Mode audio-agent fine-tuning (wake, echo, TTS, Q&A).
+Promote proven knobs into apps/web drive + mobile DriveMode + speech gateway.

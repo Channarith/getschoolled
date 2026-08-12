@@ -1,0 +1,50 @@
+LESSON: California DMV Permit Prep — Signs & Signals
+LANGUAGE: en
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+SUMMARY: Regulatory, warning, and guide signs for the California knowledge test. Prep only.
+
+SLIDE 1 | Regulatory signs
+White rectangular signs with black or red markings tell you what you must or must not do: speed limits, Do Not Enter, One Way, and No U-Turn. A red octagon is always STOP.
+NARRATION: Red octagon always means stop — no rolling through.
+
+SLIDE 2 | Yield and stop
+A red-and-white triangle is YIELD — slow and give way. A stop sign requires a complete stop behind the limit line or crosswalk before proceeding when clear.
+NARRATION: Yield means give way; stop means full stop first.
+
+SLIDE 3 | Warning signs
+Yellow diamond signs warn of curves, merges, pedestrians, school zones, and slippery roads. Slow and prepare to react; they do not always require a full stop.
+NARRATION: Yellow diamonds warn you to slow and get ready.
+
+SLIDE 4 | Guide and service signs
+Green signs guide routes and exits. Blue signs mark services such as fuel, food, and lodging. Brown signs mark parks and recreation.
+NARRATION: Green for destinations, blue for services, brown for parks.
+
+SLIDE 5 | Traffic signals
+Green means go if clear; yellow means prepare to stop if safe; red means stop. Flashing red equals a stop sign. Flashing yellow means proceed with caution.
+NARRATION: Treat flashing red like a stop sign every time.
+
+SLIDE 6 | Pavement markings
+Yellow lines separate opposite directions; white lines separate same-direction lanes. A solid line on your side means do not pass or change lanes across it.
+NARRATION: Solid yellow on your side means stay put — no passing.
+
+SLIDE 7 | Railroad crossings
+Never cross when lights flash or gates lower. Stop at least 15 feet from the nearest rail. If stalled on tracks, exit immediately and move away at an angle toward the oncoming train.
+NARRATION: Get out and away from stalled vehicles on railroad tracks immediately.
+
+SLIDE 8 | Roundabouts
+Yield to traffic already in the circle, enter when clear, and signal when exiting. Do not stop inside the circulating roadway.
+NARRATION: Yield before you enter a roundabout, then keep moving with traffic.
+
+SLIDE 9 | Parking clearances
+Do not park too close to hydrants, crosswalks, stop signs, or driveways. Check local curb colors and posted restrictions — California cities enforce colored curb zones.
+NARRATION: Colored curbs and posted signs control where you may park.
+
+SLIDE 10 | Night headlights
+Use headlights from 30 minutes after sunset to 30 minutes before sunrise and whenever visibility is poor. Dim high beams for oncoming traffic and when following closely.
+NARRATION: Dim high beams for oncoming drivers and when you are following.
+
+FACT: A red octagon is always a stop sign.
+FACT: Yellow diamond signs warn of hazards ahead.
+FACT: Yellow pavement lines separate opposite directions of travel.

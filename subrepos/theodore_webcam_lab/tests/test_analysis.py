@@ -2,16 +2,17 @@ from __future__ import annotations
 
 from theodore_webcam_lab.analysis import AnalyzerPolicy, WebcamSessionAnalyzer
 from theodore_webcam_lab.types import ClassMode, PresenceState, WebcamSignal
+from theodore_webcam_lab.vision_tuning import VisionTuning
 
 
 def test_silhouette_detection_and_absence_grace():
     analyzer = WebcamSessionAnalyzer(
-        policy=AnalyzerPolicy(
-            absence_grace_ms=1_000,
+        policy=AnalyzerPolicy(absence_grace_ms=1_000),
+        tuning=VisionTuning(
             silhouette_foreground_threshold=0.2,
             silhouette_motion_threshold=0.05,
             silhouette_consecutive_frames=2,
-        )
+        ),
     )
 
     session_id = "solo-1"
@@ -197,7 +198,7 @@ def test_group_mode_builds_student_window_alerts_for_cheating_and_missing():
 
 def test_silhouette_requires_95_percent_foreground_fill():
     analyzer = WebcamSessionAnalyzer(
-        policy=AnalyzerPolicy(
+        tuning=VisionTuning(
             silhouette_foreground_threshold=0.95,
             silhouette_motion_threshold=0.08,
             silhouette_consecutive_frames=1,
@@ -286,12 +287,12 @@ def test_expression_detection_tracks_happiness_and_summary_counts():
 
 def test_long_gaze_away_with_phone_or_typing_flags_suspected_cheating():
     analyzer = WebcamSessionAnalyzer(
-        policy=AnalyzerPolicy(
-            gaze_away_grace_ms=1_000,
+        policy=AnalyzerPolicy(gaze_away_grace_ms=1_000),
+        tuning=VisionTuning(
             gaze_frontal_min_threshold=0.4,
             gaze_down_min_threshold=0.7,
             typing_activity_min_threshold=0.8,
-        )
+        ),
     )
     session_id = "cheat-1"
     first = analyzer.evaluate(
@@ -387,10 +388,8 @@ def test_gaze_away_timer_resets_when_learner_refocuses_on_screen():
 
 def test_keyboard_typing_audio_detection_flags_cheating_after_long_eyes_away():
     analyzer = WebcamSessionAnalyzer(
-        policy=AnalyzerPolicy(
-            gaze_away_grace_ms=1_000,
-            keyboard_typing_audio_min_threshold=0.6,
-        )
+        policy=AnalyzerPolicy(gaze_away_grace_ms=1_000),
+        tuning=VisionTuning(keyboard_typing_audio_min_threshold=0.6),
     )
     session_id = "audio-cheat-1"
     analyzer.evaluate(
@@ -440,9 +439,9 @@ def test_keyboard_typing_audio_detection_flags_cheating_after_long_eyes_away():
     assert second.suspected_cheating_participant_ids == ["learner"]
 
 
-def test_training_pauses_when_no_learner_present_for_over_4_seconds():
+def test_training_pauses_when_no_learner_present_quickly():
     analyzer = WebcamSessionAnalyzer(
-        policy=AnalyzerPolicy(pause_training_no_presence_ms=4_000)
+        policy=AnalyzerPolicy(pause_training_no_presence_ms=1_000)
     )
     session_id = "pause-1"
     first = analyzer.evaluate(
@@ -468,7 +467,7 @@ def test_training_pauses_when_no_learner_present_for_over_4_seconds():
         signals=[
             WebcamSignal(
                 participant_id="learner",
-                timestamp_ms=5_001,
+                timestamp_ms=2_001,
                 face_count=0,
                 liveness_state="missing",
                 foreground_ratio=0.0,
@@ -477,8 +476,66 @@ def test_training_pauses_when_no_learner_present_for_over_4_seconds():
         ],
     )
     assert second.training_paused is True
-    assert second.pause_reason == "no_learner_detected_over_4s"
-    assert second.no_one_present_for_ms == 4_001
+    assert second.pause_reason == "no_learner_detected"
+    assert second.no_one_present_for_ms == 1_001
+
+
+def test_default_policy_pauses_within_about_one_second():
+    """Away-from-webcam should pause quickly (not after the old 4s / 90s windows)."""
+    analyzer = WebcamSessionAnalyzer()  # product defaults
+    assert analyzer.policy.pause_training_no_presence_ms <= 1_000
+    assert analyzer.policy.absence_grace_ms <= 2_000
+    session_id = "pause-default"
+    analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.2,
+            )
+        ],
+    )
+    gone = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=2_100,
+                face_count=0,
+                liveness_state="missing",
+                foreground_ratio=0.0,
+                motion_score=0.0,
+            )
+        ],
+    )
+    assert gone.training_paused is True
+    assert gone.participants[0].state in (
+        PresenceState.ABSENT,
+        PresenceState.TEMPORARILY_MISSING,
+    )
+    # After absence_grace (1.5s default) from last live face at t=1000 → absent by 2600.
+    absent = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=2_600,
+                face_count=0,
+                liveness_state="missing",
+                foreground_ratio=0.0,
+                motion_score=0.0,
+            )
+        ],
+    )
+    assert absent.participants[0].state is PresenceState.ABSENT
+    assert "learner" in absent.absent_participant_ids
 
 
 def test_training_pauses_if_different_user_replaces_original_user():

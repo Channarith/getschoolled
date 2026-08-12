@@ -1,0 +1,25 @@
+Homework generate/grade quality lab (50+ methodologies)
+=======================================================
+
+Private subrepo (promote into services/homework only after gold battery stabilizes):
+
+  subrepos/theodore_homework_lab/
+    75 registered methodologies with offline generate + grade.
+    Families: choice, open, match, media, audio, language, reading,
+    concept, stem, social, metacog, drill, game, phonics, speaking,
+    interactive.
+    Covers MCQ, picture ID, matching, video, listen-and-learn, grammar,
+    spelling, pronunciation, summarize, translate-verse, karaoke fill,
+    drag-drop, games, and more.
+    Also wraps aoep_shared.homework classic mcq/short/essay path.
+    APIs on :8098 — see subrepos/theodore_homework_lab/README.txt
+
+Related learn-through-music lab (verse translate homework feeds):
+  subrepos/theodore_music_lab/ — 100+ original songs, line pause/repeat,
+  meaning in 26+ languages, APIs on :8097.
+
+Quick checks
+  make homework-lab
+  make music-lab
+  PYTHONPATH=subrepos/theodore_homework_lab/src:packages/shared/src \
+    python3 -m pytest subrepos/theodore_homework_lab/tests -q

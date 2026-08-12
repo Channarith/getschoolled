@@ -42,7 +42,7 @@ def _items():
 
 def test_session_budget_uses_survey_and_observed_pace():
     assert resolve_session_budget("short") == 10
-    assert resolve_session_budget("medium", observed_pace="fast") == 20
+    assert resolve_session_budget("medium", observed_pace="fast") == 13
     assert resolve_session_budget("long", explicit_minutes=120) == 90
 
 

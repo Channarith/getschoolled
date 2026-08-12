@@ -38,20 +38,16 @@ GET    /health                        Service health.
 
 from __future__ import annotations
 
-import asyncio
-import io
 import json
 import time
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from aoep_shared.presence import (
     GroupPresenceTracker,
     GroupPresenceSummary,
-    PresenceEvent,
     PresenceFrame,
-    PresenceState,
     PresenceStatus,
     PresenceTracker,
 )

@@ -20,6 +20,7 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -e "packages/shared[test,harvest]"
           python3 -m pip install -e "packages/sdk[test]"
+          python3 -m pip install -e "packages/webcam-vision[test]"
           for pkg in services/orchestrator services/speech \
             services/perception services/memory services/curriculum \
             services/billing apps/agent-runtime; do
@@ -28,8 +29,8 @@ jobs:
           python3 -m pip install pytest-cov==5.0.0 ruff==0.6.9 PyYAML==6.0.2
       - name: Backend tests + coverage
         run: |
-          python3 -m pytest packages/shared/tests packages/sdk/tests services/*/tests \
-            apps/agent-runtime/tests training/tests scripts/tests qa/tests -q \
+          python3 -m pytest packages/shared/tests packages/sdk/tests packages/webcam-vision/tests \
+            services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q \
             --cov=packages/shared/src/aoep_shared --cov-report=term-missing:skip-covered
       - name: Ruff lint
-        run: python3 -m ruff check packages/shared/src packages/sdk/src services/*/src qa training
+        run: python3 -m ruff check packages/shared/src packages/sdk/src packages/webcam-vision/src services/*/src qa training

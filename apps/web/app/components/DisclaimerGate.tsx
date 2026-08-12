@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { acceptLegal, DISCLAIMER_ACCEPTED_EVENT, getToken } from "../lib/api";
+import { acceptLegal, DISCLAIMER_ACCEPTED_EVENT, getMe, getToken } from "../lib/api";
 
 // One-time AI & consent + legal disclaimer, shown ONCE AFTER LOGIN. Anonymous
 // visitors can browse the catalog freely; the consent/legal acknowledgement
@@ -12,13 +12,35 @@ import { acceptLegal, DISCLAIMER_ACCEPTED_EVENT, getToken } from "../lib/api";
 const STORAGE_KEY = "aoep_disclaimer_accepted_v1";
 const REQUIRED = ["disclaimer", "terms", "privacy", "aup"];
 
+/** Legal/consent routes must remain readable under the gate (no overlay). */
+const LEGAL_PATH_PREFIXES = [
+  "/legal",
+  "/privacy",
+  "/terms",
+  "/data-deletion",
+  "/consent",
+  "/transparency",
+];
+
+function isLegalPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return LEGAL_PATH_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
 export default function DisclaimerGate() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
   // Re-evaluate on every route change so it triggers right after login (which
-  // redirects, changing the pathname).
+  // redirects, changing the pathname). Exempt legal pages so users can read
+  // the notices the gate itself links to.
   useEffect(() => {
+    if (isLegalPath(pathname)) {
+      setOpen(false);
+      return;
+    }
     try {
       const accepted = Boolean(localStorage.getItem(STORAGE_KEY));
       setOpen(Boolean(getToken()) && !accepted);
@@ -33,8 +55,13 @@ export default function DisclaimerGate() {
     } catch {
       /* ignore storage errors */
     }
-    // Best-effort server-side record; UI proceeds regardless.
-    acceptLegal("current-user", REQUIRED).catch(() => undefined);
+    // Best-effort server-side record with the real account id (not a sentinel).
+    try {
+      const me = await getMe();
+      await acceptLegal(me.id, REQUIRED);
+    } catch {
+      /* offline / unsigned — UI still proceeds */
+    }
     setOpen(false);
     try {
       window.dispatchEvent(new Event(DISCLAIMER_ACCEPTED_EVENT));
