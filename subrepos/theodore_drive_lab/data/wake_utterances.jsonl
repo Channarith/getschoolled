@@ -1,0 +1,12 @@
+{"text": "hey sala pause", "expect_wake": true, "expect_kind": "pause"}
+{"text": "hey salareen resume", "expect_wake": true, "expect_kind": "resume"}
+{"text": "salareen what is photosynthesis", "expect_wake": true, "expect_kind": "question"}
+{"text": "hey sala next", "expect_wake": true, "expect_kind": "next"}
+{"text": "hey sala previous", "expect_wake": true, "expect_kind": "previous"}
+{"text": "hey sala repeat", "expect_wake": true, "expect_kind": "repeat"}
+{"text": "sala explain gravity", "expect_wake": true, "expect_kind": "question"}
+{"text": "what is photosynthesis", "expect_wake": false, "expect_kind": "none"}
+{"text": "continue please", "expect_wake": false, "expect_kind": "none"}
+{"text": "plants convert sunlight into energy", "expect_wake": false, "expect_kind": "none", "last_tts": "Plants convert sunlight into energy through photosynthesis.", "expect_echo": true}
+{"text": "I need coffee", "expect_wake": false, "expect_kind": "none", "last_tts": "Plants convert sunlight into energy.", "expect_echo": false}
+{"text": "hey sala how do fractions work", "expect_wake": true, "expect_kind": "question"}
