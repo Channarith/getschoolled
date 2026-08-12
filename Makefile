@@ -14,7 +14,7 @@ COMPOSE := infra/compose/docker-compose.yml
 	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
 	run-identity run-memory run-orchestrator run-livekit validate-pipeline webcam-lab \
-	dev-all dev-down dev-status
+	rag-lab drive-lab dev-all dev-down dev-status
 
 help:
 	@echo "Targets:"
