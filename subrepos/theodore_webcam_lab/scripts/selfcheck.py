@@ -302,15 +302,48 @@ def check_tuning(report: Report) -> None:
         VoiceTuning().validate()
         report.add(
             Step(
-                "Tuning knobs",
+                "Tuning knobs in range",
                 True,
                 detail=f"{len(VisionTuning().to_dict())} vision knobs, "
                        f"{len(VoiceTuning().to_dict())} voice knobs, presets: {', '.join(sorted(PRESETS))}",
             )
         )
     except Exception as exc:  # noqa: BLE001
-        report.add(Step("Tuning knobs", False, detail=f"{type(exc).__name__}: {exc}",
+        report.add(Step("Tuning knobs in range", False, detail=f"{type(exc).__name__}: {exc}",
                         fix="a preset holds an out-of-range value; see vision_tuning.py validate()"))
+
+
+def check_tuning_effect(report: Report) -> None:
+    """Prove each knob changes a decision, not merely that it exists.
+
+    Range-validating a knob says nothing about whether the pipeline reads it: a
+    disconnected knob still validates, still renders a slider and still PATCHes
+    cleanly. This perturbs every knob against a matrix of frames and fails on
+    any that cannot move an output — the check behind "the knobs do nothing".
+    """
+    from theodore_webcam_lab.tuning_probe import probe_knob_effects
+
+    try:
+        result = probe_knob_effects()
+        report.add(
+            Step(
+                "Tuning knobs change scoring",
+                result.ok,
+                detail=(
+                    result.summary()
+                    if result.ok
+                    else f"{result.summary()}; dead: {', '.join(result.dead)}"
+                ),
+                fix=(
+                    "these knobs are declared and PATCHable but no frame scenario "
+                    "changes when they move — wire them into analysis.py, or add a "
+                    "scenario to tuning_probe.py that reaches their branch"
+                ),
+            )
+        )
+    except Exception as exc:  # noqa: BLE001
+        report.add(Step("Tuning knobs change scoring", False, detail=f"{type(exc).__name__}: {exc}",
+                        fix="run: python3 -m pytest subrepos/theodore_webcam_lab/tests -q"))
 
 
 # ------------------------------------------------------------------ API steps
@@ -422,6 +455,69 @@ def check_tuning_api(report: Report, base_url: str) -> None:
         report.add(Step("Tuning API", False, detail=f"{type(exc).__name__}: {exc}"))
 
 
+def check_tuning_applies_live(report: Report, base_url: str) -> None:
+    """PATCH a knob and confirm the already-stored session is re-scored.
+
+    Offline knob effect is not enough: the monitor only appears to react when a
+    PATCH re-scores the frames the server is already holding. If that re-score
+    is skipped the sliders move and the student windows stay frozen, which is
+    exactly what "the knobs do nothing on screen" looks like.
+    """
+    knob = "light_min_quality"
+    original: float | None = None
+    try:
+        status, body = _http(base_url, "/api/theodore/vision/tuning")
+        if status != 200 or not isinstance(body, dict):
+            report.add(Step("Tuning re-scores live session", False, detail=f"status {status}",
+                            fix="GET /api/theodore/vision/tuning failed; check the server log"))
+            return
+        original = body["knobs"][knob]
+
+        def flags() -> list[str]:
+            _, metrics = _http(base_url, "/api/theodore/webcam/live-metrics/selfcheck")
+            if not isinstance(metrics, dict) or not metrics.get("participants"):
+                return []
+            return list(metrics["participants"][0]["latest"]["quality_flags"])
+
+        before = flags()
+        # 0.99 is above the 0.80 light score posted by the frame-evaluation step,
+        # so the lighting gate must trip; 0.0 cannot trip it.
+        _, hot = _http(base_url, "/api/theodore/vision/tuning", method="PATCH",
+                       body={"knobs": {knob: 0.99}})
+        tripped = flags()
+        _, _cold = _http(base_url, "/api/theodore/vision/tuning", method="PATCH",
+                         body={"knobs": {knob: 0.0}})
+        cleared = flags()
+
+        rescored = isinstance(hot, dict) and "selfcheck" in (hot.get("rescored_sessions") or [])
+        gate_on = "lighting_below_min_quality" in tripped
+        gate_off = "lighting_below_min_quality" not in cleared
+        ok = rescored and gate_on and gate_off
+        report.add(
+            Step(
+                "Tuning re-scores live session",
+                ok,
+                detail=(
+                    f"{knob} {original}->0.99 flags {before or ['none']}->{tripped or ['none']}, "
+                    f"->0.0 clears to {cleared or ['none']}"
+                ),
+                fix=(
+                    "PATCH did not re-score stored frames; check "
+                    "_rescore_stored_sessions() in main.py"
+                ),
+            )
+        )
+    except Exception as exc:  # noqa: BLE001
+        report.add(Step("Tuning re-scores live session", False, detail=f"{type(exc).__name__}: {exc}"))
+    finally:
+        if original is not None:
+            try:
+                _http(base_url, "/api/theodore/vision/tuning", method="PATCH",
+                      body={"knobs": {knob: original}})
+            except Exception:  # noqa: BLE001 - restoring is best effort
+                pass
+
+
 def check_games(report: Report, base_url: str) -> None:
     try:
         status, body = _http(
@@ -481,6 +577,7 @@ def run(base_url: str, *, serve: bool, port: int) -> int:
         check_analyzer(report)
         check_imaging(report)
         check_tuning(report)
+        check_tuning_effect(report)
 
     server: subprocess.Popen[bytes] | None = None
     if serve:
@@ -497,6 +594,7 @@ def run(base_url: str, *, serve: bool, port: int) -> int:
             check_live_metrics(report, base_url)
             check_monitor_page(report, base_url)
             check_tuning_api(report, base_url)
+            check_tuning_applies_live(report, base_url)
             check_voice(report, base_url)
             check_games(report, base_url)
         else:

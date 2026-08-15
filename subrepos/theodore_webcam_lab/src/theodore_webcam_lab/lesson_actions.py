@@ -15,6 +15,110 @@ from .games import WebcamLearningGameEngine
 from .types import ClassMode, WebcamGameType
 
 
+def _action_presentation(
+    action_key: str,
+    participant_id: str,
+) -> dict[str, str]:
+    """Return the visual direction and spoken line for the live Theodore stage."""
+    learner = participant_id.replace("-", " ").replace("_", " ").strip().title()
+    learner = learner or "everyone"
+    presentations = {
+        "notify_student_privately_and_reinforce_integrity": {
+            "visual_effect": "shield",
+            "visual_icon": "🛡️",
+            "visual_title": "Integrity focus challenge",
+            "visual_body": f"Theodore is starting a private focus check for {learner}.",
+            "speech_text": (
+                f"{learner}, let's reset together. Please face the lesson and show me "
+                "you are ready. I have started a quick focus challenge for you."
+            ),
+        },
+        "alert_lesson_and_request_student_rejoin": {
+            "visual_effect": "wave",
+            "visual_icon": "👋",
+            "visual_title": "Come back to the lesson",
+            "visual_body": f"Theodore is calling {learner} back into class.",
+            "speech_text": (
+                f"{learner}, we paused your part of the lesson. Come back when you "
+                "are ready, and I will help you continue where you stopped."
+            ),
+        },
+        "monitor_and_prompt_if_state_persists": {
+            "visual_effect": "scan",
+            "visual_icon": "🔎",
+            "visual_title": "Watching for a change",
+            "visual_body": f"Theodore is monitoring {learner} before intervening.",
+            "speech_text": (
+                f"I am keeping an eye on the learning signal for {learner}. "
+                "If it continues, I will step in with a helpful prompt."
+            ),
+        },
+        "review_silhouette_and_confirm_presence": {
+            "visual_effect": "spotlight",
+            "visual_icon": "💡",
+            "visual_title": "Camera presence check",
+            "visual_body": f"Theodore is checking whether {learner} is visible.",
+            "speech_text": (
+                f"{learner}, I can see a shape but not your face. Please move into "
+                "the light, sit a little closer, and look toward the screen."
+            ),
+        },
+        "acknowledge_positive_engagement": {
+            "visual_effect": "celebrate",
+            "visual_icon": "⭐",
+            "visual_title": "Great learning energy",
+            "visual_body": f"Theodore is celebrating {learner}'s engagement.",
+            "speech_text": (
+                f"Great work, {learner}! Your focus and energy are helping the "
+                "lesson. Keep it going!"
+            ),
+        },
+        "check_in_privately_and_offer_support": {
+            "visual_effect": "heart",
+            "visual_icon": "💙",
+            "visual_title": "Private wellbeing check-in",
+            "visual_body": f"Theodore is offering {learner} support.",
+            "speech_text": (
+                f"Hey {learner}, I am checking in. If you need help or a short "
+                "break, tell me. We can work through this together."
+            ),
+        },
+        "prompt_learner_to_refocus": {
+            "visual_effect": "refocus",
+            "visual_icon": "🎯",
+            "visual_title": "Refocus with Theodore",
+            "visual_body": f"Theodore is guiding {learner} back to the lesson.",
+            "speech_text": (
+                f"{learner}, eyes back to the lesson. Take one breath, find the "
+                "current step, and let's continue together."
+            ),
+        },
+        "review_group_interventions": {
+            "visual_effect": "dashboard",
+            "visual_icon": "📊",
+            "visual_title": "Reviewing class support",
+            "visual_body": "Theodore is reviewing interventions for the whole class.",
+            "speech_text": (
+                "I am reviewing the class now. I will prioritize learners who need "
+                "help, invite missing students back, and keep the lesson moving."
+            ),
+        },
+    }
+    return presentations.get(
+        action_key,
+        {
+            "visual_effect": "announce",
+            "visual_icon": "✨",
+            "visual_title": "Theodore takes action",
+            "visual_body": f"Theodore is responding for {learner}.",
+            "speech_text": (
+                f"I have recorded the lesson action for {learner}. "
+                "I will keep the class informed."
+            ),
+        },
+    )
+
+
 @dataclass
 class LessonActionResult:
     ok: bool
@@ -79,6 +183,7 @@ class LessonActionLog:
         action_key = (action or "").strip().lower()
         now = int(time() * 1000)
         details: dict[str, Any] = {"timestamp_ms": now, "code": code}
+        details["presentation"] = _action_presentation(action_key, participant_id)
 
         if action_key == "notify_student_privately_and_reinforce_integrity":
             note = {

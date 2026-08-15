@@ -47,6 +47,24 @@ app = FastAPI(
     ),
 )
 
+# Self-hosted face-mesh assets. When this directory exists the live monitor loads
+# the landmark model from here instead of the public CDN, so eye/gaze/expression
+# tracking keeps working offline or behind a proxy. Populate it with:
+#   tasks-vision.mjs, wasm/, face_landmarker.task
+# See README.txt "Offline face mesh". Override the location with
+# AOEP_VISION_ASSET_DIR; when it is absent the page falls back to the CDN.
+VISION_ASSET_DIR = os.environ.get("AOEP_VISION_ASSET_DIR") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "vendor", "vision"
+)
+if os.path.isdir(VISION_ASSET_DIR):
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount(
+        "/vendor/vision",
+        StaticFiles(directory=VISION_ASSET_DIR),
+        name="vision-assets",
+    )
+
 _analyzer = WebcamSessionAnalyzer(
     policy=AnalyzerPolicy.from_env(), tuning=VisionTuning.from_env()
 )
@@ -726,10 +744,14 @@ def live_monitor_page(
     session_id: str = Path(min_length=1, max_length=256),
 ) -> HTMLResponse:
     safe_title = html.escape(session_id)
+    # Tell the page whether /vendor/vision is actually mounted. When it is not,
+    # the client must not try the self-hosted path first (it would 404 and delay
+    # the CDN load of the face mesh, blanking the contours and mood cards).
+    local_assets = "true" if os.path.isdir(VISION_ASSET_DIR) else "false"
     return HTMLResponse(
-        _MONITOR_PAGE_TEMPLATE.replace("__SESSION_TITLE__", safe_title).replace(
-            "__SESSION_ID_JSON__", _js_string_literal(session_id)
-        )
+        _MONITOR_PAGE_TEMPLATE.replace("__SESSION_TITLE__", safe_title)
+        .replace("__SESSION_ID_JSON__", _js_string_literal(session_id))
+        .replace("__VISION_LOCAL_ASSETS__", local_assets)
     )
 
 

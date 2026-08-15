@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import os
 import time
-import urllib.request
 
 from .languages import LANGUAGE_NAMES, normalize_language
 from .models import TheodoreMode, TheodoreReplyEvent
-from .providers import TranslationEngine
+from .providers import XAI_DEFAULT_MODEL, TranslationEngine, xai_chat
 
 
 _FALLBACKS = {
@@ -44,7 +42,7 @@ class TheodoreReplyEngine:
         self.translator = translator or TranslationEngine()
         self.api_key = os.environ.get("XAI_API_KEY", "").strip()
         self.base_url = os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1").rstrip("/")
-        self.model = os.environ.get("XAI_MODEL", "grok-2-1212")
+        self.model = os.environ.get("XAI_MODEL", "").strip() or XAI_DEFAULT_MODEL
         self.timeout_s = float(os.environ.get("THEODORE_TIMEOUT_S", "18"))
 
     @property
@@ -165,27 +163,18 @@ class TheodoreReplyEngine:
         )
         if context.strip():
             system += f"\nLesson context:\n{context.strip()[:4000]}"
-        payload = {
-            "model": self.model,
-            "messages": [
+        text = xai_chat(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            model=self.model,
+            messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": learner_text},
             ],
-            "temperature": 0.55,
-            "max_tokens": 350,
-        }
-        req = urllib.request.Request(
-            f"{self.base_url}/chat/completions",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
-            method="POST",
+            temperature=0.55,
+            max_tokens=350,
+            timeout_s=self.timeout_s,
         )
-        with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
-            raw = json.loads(resp.read().decode("utf-8"))
-        text = raw["choices"][0]["message"]["content"].strip()
         if not text:
             raise RuntimeError("empty xAI Theodore reply")
         return text

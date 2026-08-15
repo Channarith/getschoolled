@@ -60,9 +60,13 @@ Screens
 -------
 - docs/screens/monitor-camera-and-tuning.webp           (in this subproject)
 - docs/screens/monitor-student-windows.webp             (in this subproject)
+- docs/screens/theodore_webcam_lab_overview.webp        (gallery board; also docs/screens/)
 - docs/screens/theodore_webcam_live_monitor.webp        (live monitor dashboard)
 - docs/screens/theodore_webcam_monitor_xss_escaped.webp (escaped-injection check)
 - docs/demos/theodore_webcam_live_monitor_demo.mp4      (walkthrough recording)
+
+Regenerate overview boards for all Theodore labs:
+  python3 scripts/render_lab_docs_screenshots.py
 
 RECOGNITION TUNING
 ==================
@@ -215,6 +219,47 @@ controls as sliders under "Recognition Tuning", so you can watch the failed-gate
 list change as you drag.
 
 
+Proving the knobs are not inert
+-------------------------------
+"The knobs do nothing" is usually one of three things, in this order:
+
+  1. You are watching the wrong number. Nearly every knob is a THRESHOLD, so it
+     flips gate flags and behaviour labels, not the scores. Raising
+     light_min_quality above a frame's light score does not change 0.80 - it adds
+     lighting_below_min_quality. Watch "Failed gates (class)" and the per-student
+     badges instead of the raw scores.
+  2. The frame never reaches that knob's branch. Silhouette knobs need a face-less
+     filled frame, exposure knobs a blown-out one, audio knobs audio. On an
+     ordinary well-framed frame roughly a dozen knobs are simply not consulted.
+  3. Nothing is loaded to re-score. A PATCH re-scores the frames the server is
+     already holding; with no demo or camera feed there is nothing to change.
+
+The self check now settles it instead of leaving you to guess:
+
+   python3 subrepos/theodore_webcam_lab/scripts/selfcheck.py --serve
+
+   [PASS] Tuning knobs change scoring
+          50/50 knobs change a scoring decision across 11 frame scenarios
+   [PASS] Tuning re-scores live session
+          light_min_quality 0.35->0.99 flags [none]->[lighting_below_min_quality]
+
+The first step perturbs each knob on its own against a matrix of frames
+(src/theodore_webcam_lab/tuning_probe.py) and FAILS naming any knob that cannot
+move an output. The second PATCHes a live knob and confirms the stored session is
+re-scored, which is what makes the dashboard react. Earlier builds only checked
+that presets were in range and that GET /vision/tuning returned a non-empty dict
+- both pass for a knob wired to nothing, which is how inert sliders could sit
+behind an all-green health check.
+
+To prove it yourself against the running API:
+
+   curl -s -X PATCH http://127.0.0.1:8015/api/theodore/vision/tuning \
+     -H 'content-type: application/json' \
+     -d '{"knobs": {"light_min_quality": 0.99}}' \
+     | python3 -c "import json,sys; d=json.load(sys.stdin); \
+print(d['changed_knobs'], d['rescored_sessions'], d['quality_flag_counts'])"
+
+
 HOW TO TEST
 ===========
 Every command below is run from the REPO ROOT and is copy-pasteable. Nothing here
@@ -231,7 +276,7 @@ Step 1 - automated tests (fastest confidence check, ~1 second)
 --------------------------------------------------------------
    python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 
-   EXPECT: "81 passed". These cover the analyzer, games, voice agent, the API,
+   EXPECT: "136 passed". These cover the analyzer, games, voice agent, the API,
    the vision and voice tuning knobs, Sobel imaging, the quality gates,
    the 24/7 training orchestrator, and one regression test per audited bug fix
    (see tests/test_audit_regressions.py).
@@ -291,7 +336,13 @@ Step 4 - open the live monitor in a browser
      points onto the wrong timestamp.
    - Window #2 student-b: Cheating true with reasons (eyes down + phone + typing).
    - Window #3 student-c: Silhouette badge (no face, filled foreground).
-   - Lesson Alerts: click "Run lesson action" to acknowledge and jump to the student.
+   - Lesson Alerts: click "Run lesson action". Theodore appears in a large animated
+     action stage, performs an action-specific visual (shield, wave, scan,
+     spotlight, celebration, support, or refocus), and speaks the intervention
+     through device TTS when Auto-speak is checked. "Say it again" replays audio;
+     "Continue lesson", Escape, or the dark backdrop closes the stage. The action
+     still acknowledges the alert, records the side effect, and jumps to the
+     affected student.
 
    Prefer to check the raw numbers instead of the UI:
    curl -s http://127.0.0.1:8015/api/theodore/webcam/live-metrics/demo-session | python3 -m json.tool
@@ -363,10 +414,49 @@ Step 8 - 24/7 training orchestrator (dry run, no side effects)
    Drop --dry-run to actually execute tasks; see VISION_TRAINING_OPERATIONS.txt
    for the continuous 24/7 launch procedure.
 
+Face mesh, the detector badge, and running offline
+--------------------------------------------------
+Eye state, gaze, head pose and expression come from a real MediaPipe
+FaceLandmarker mesh. Everything else the lab can do without it (presence,
+framing, lighting/sharpness, audio) is a coarse luminance heuristic that is NOT
+allowed to claim per-feature behavior — a luminance heuristic cannot see eyelids.
+
+The Camera panel shows which detector is live, next to the camera state pill:
+
+  detector: face mesh (accurate)          landmarks tracking - all signals valid
+  detector: face box only (no eye/mood)   browser FaceDetector - presence only
+  detector: coarse - eye/mood disabled    no detector - presence only
+  detector: off (pattern/silhouette)      synthetic source, nothing to track
+
+If the badge is not green, the contour overlay will not draw and eyes/gaze/mood
+are deliberately reported as unknown rather than guessed. Hover the badge for
+the exact load errors.
+
+Mesh assets load in this order, first hit wins:
+  1. window.AOEP_VISION_ASSETS (set it to any base URL)
+  2. /vendor/vision/            (self-hosted - works offline)
+  3. the public jsDelivr + storage.googleapis.com CDN
+
+To run fully offline, populate the self-hosted directory
+(src/theodore_webcam_lab/vendor/vision/, or point AOEP_VISION_ASSET_DIR
+elsewhere) with three things and restart the server:
+
+  vendor/vision/tasks-vision.mjs      the @mediapipe/tasks-vision 0.10.14 ESM build
+  vendor/vision/wasm/                 that package's wasm/ directory
+  vendor/vision/face_landmarker.task  the float16 face_landmarker model
+
+The route is only mounted when that directory exists; otherwise the page falls
+back to the CDN. A failed load retries every 15s (up to 8 attempts) so a
+transient proxy or network hiccup does not disable face tracking for the whole
+session.
+
 Troubleshooting
 ---------------
 - "No metrics yet. Start posting /evaluate frames." on the monitor page: the
   session has no data. Run Step 3 (session id in the URL must match).
+- Contours never appear / eyes and mood look wrong: check the detector badge. A
+  non-green badge means the face mesh did not load - self-host the assets as
+  described above. The lab will report presence only until it does.
 - Address already in use: another process holds the port. Choose a new --port
   and reuse it via --base-url; find the owner with `lsof -ti :8015` and kill
   that specific PID only.

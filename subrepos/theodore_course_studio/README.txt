@@ -56,8 +56,67 @@ Audio itself never comes from xAI. Grok writes/translates text; speech comes
 from the gateway chain (ElevenLabs -> edge-tts) or the device voice, using the
 language of the words actually on screen.
 
-SETUP & RUN (copy/paste)
-------------------------
+Screens
+-------
+docs/screens/theodore_course_studio.webp
+  (also copied under this subrepo at docs/screens/theodore_course_studio.webp)
+  Early-learning Make & teach panel, teach stage, corpus review, studio tuning.
+
+Regenerate after UI changes:
+  python3 scripts/render_lab_docs_screenshots.py
+
+STEP BY STEP — early-learning Make & teach (from repo root)
+-----------------------------------------------------------
+No corpus download and no API key required for this path.
+
+Step 0 — activate the project venv
+
+  cd "$(git rev-parse --show-toplevel)"
+  . .venv/bin/activate
+  python3 -m pip install -e 'subrepos/theodore_course_studio[all]'
+
+Step 1 — run the automated tests
+
+  PYTHONPATH=subrepos/theodore_course_studio/src \
+    python3 -m pytest subrepos/theodore_course_studio/tests -q
+
+Step 2 — start the studio UI
+
+  PYTHONPATH=subrepos/theodore_course_studio/src python3 -m uvicorn \
+    theodore_course_studio.main:app --app-dir subrepos/theodore_course_studio/src \
+    --port 8040 --host 127.0.0.1
+
+  Check:  curl -s http://127.0.0.1:8040/health
+  Open:   http://127.0.0.1:8040/studio
+
+Step 3 — make a children's lesson
+
+  In the orange "Make a children's lesson" panel:
+    1. Choose Level (e.g. Kindergarten)
+    2. Choose Topic (e.g. Counting 1-10)
+    3. Choose Language (en / es / km / zh …)
+    4. Click "Make & teach"
+
+  Expect a teach stage with large kid words, an offline SVG picture, narration,
+  and a movement / point-and-say activity. Compare against
+  docs/screens/theodore_course_studio.webp.
+
+Step 4 — teach the lesson
+
+  - Auto-speak (checked) → Theodore reads each screen
+  - "Read aloud" → repeat the current narration
+  - "Watch video" → switch to the animated motion card
+  - Pop / Summary quiz and Play game when offered
+  - "Ask Theodore" → xAI if XAI_API_KEY is set, else local fallback
+
+Step 5 — (optional) adult corpus / certification path
+
+  Collapse "Advanced: build from adult Good/Better source files" for PDF/PPTX
+  training, or use the Certification prep panel for CA DMV / food-handler
+  short lessons. Full copy/paste for that path is under SETUP & RUN below.
+
+SETUP & RUN (copy/paste — full / adult corpus)
+----------------------------------------------
 Prereqs: Python 3.11+ (3.12 fine). Everything below works OFFLINE.
 
   # 0) from the repo root (/workspace in cloud, ~/getschoolled on your Mac)

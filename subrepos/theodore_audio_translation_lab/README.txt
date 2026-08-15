@@ -59,10 +59,65 @@ translation feed:
   translation for the reply language. If translation is unavailable, it remains
   English AND the reply language/voice stays English with a visible warning.
 - Theodore replies are broadcast over WebSocket to speaker, teacher, customer,
-  and viewer clients. "Speak Theodore aloud" uses the matching BCP-47 device
-  voice for realtime speech output.
+  and viewer clients.
 - Explicit API: POST /api/sessions/{id}/theodore/reply. Status:
   GET /api/theodore/status.
+
+
+Theodore's voice (server neural audio, device voice as fallback)
+---------------------------------------------------------------
+"Speak Theodore aloud" is on by default, and so is auto-reply, so a learner turn
+produces spoken teaching without touching a checkbox. Audio is rendered by the
+first engine that is actually configured:
+
+  speech gateway /tts  ->  ElevenLabs  ->  edge-tts neural  ->  device voice
+
+The browser's own speechSynthesis is LAST on purpose. It has no usable voice for
+most of the 27 languages, so a Khmer or Tamil reply used to be silent or robotic
+while the badge still claimed it had spoken. The page probes GET /api/tts/status
+once; when no engine exists the server answers 501 (not 500) and the page falls
+back to the device voice rather than going quiet. The badge always names what
+spoke — "speaking Khmer · elevenlabs" or "· device voice".
+
+Pick an engine:
+  TTS_BASE_URL / SPEECH_BASE_URL   AOEP speech gateway (POST /tts -> audio bytes)
+  ELEVENLABS_API_KEY               best quality; eleven_multilingual_v2
+  pip install -e 'subrepos/theodore_audio_translation_lab[speech]'
+                                   edge-tts neural voices, no key required
+
+Endpoints:
+  GET  /api/tts/status                        {available, engine, engines, note}
+  GET  /api/tts?text=...&language=km          audio bytes (GET so <audio src> works)
+  POST /api/tts                               same, for larger bodies
+Responses carry X-TTS-Engine so you can see which engine served the audio.
+"Say it again" replays the last reply; "Stop Theodore audio" cancels both server
+audio and any device utterance.
+
+
+Troubleshooting xAI ("Translation unavailable" / HTTP 400)
+---------------------------------------------------------
+A valid XAI_API_KEY that still fails with
+
+  ⚠ Translation unavailable ... Provider errors: xai: HTTP Error 400: Bad Request
+
+was almost always a retired model. xAI removed the grok-2 family from the API in
+January 2026, and this lab used to default to XAI_MODEL=grok-2-1212, so a correct
+key got a blanket 400. The default is now grok-4.3 (a current canonical model;
+grok-4.5 exists but is not offered to EU API Console accounts, so it is not a
+safe default). Override with XAI_MODEL.
+
+The old message was also unhelpful because urllib's HTTPError stringifies as just
+"HTTP Error 400: Bad Request" and throws away the response body — which is the
+only place xAI explains itself. Errors now carry that body, name the model that
+failed, and suggest the current default:
+
+  xai: xAI HTTP 400 for model 'grok-2-1212': {"error":"The model does not
+  exist"} The configured model is 'grok-2-1212'; set XAI_MODEL to a current one
+  (default is grok-4.3).
+
+Check what the server is actually using:
+  curl -s http://127.0.0.1:8099/api/theodore/status | python3 -m json.tool
+  # -> "xai_model": "grok-4.3", plus a "speech" block for the voice chain
 
 Audio policy and quality telemetry
 ----------------------------------
@@ -88,6 +143,73 @@ English, Spanish, French, German, Italian, Portuguese, Dutch, Polish, Russian,
 Ukrainian, Turkish, Arabic, Hebrew, Hindi, Bengali, Urdu, Persian, Mandarin
 Chinese, Japanese, Korean, Vietnamese, Thai, Indonesian, Swahili, Greek, Czech,
 and Khmer (27 total).
+
+Screens
+-------
+docs/screens/theodore_audio_translation_lab.webp
+  (also under this subrepo at docs/screens/theodore_audio_translation_lab.webp)
+  Capture panel (mic/webcam, gate, ASR) and live multilingual translation feed
+  with Theodore replies.
+
+Regenerate after UI changes:
+  python3 scripts/render_lab_docs_screenshots.py
+
+STEP BY STEP (from repo root)
+-----------------------------
+Works offline with the phrasebook fallback. Mic optional — use the debug text
+box if the browser has no microphone permission.
+
+Step 0 — activate the project venv
+
+  cd "$(git rev-parse --show-toplevel)"
+  . .venv/bin/activate
+  python3 -m pip install -e 'subrepos/theodore_audio_translation_lab[all]'
+
+Step 1 — run the automated tests
+
+  PYTHONPATH=subrepos/theodore_audio_translation_lab/src:packages/shared/src \
+    python3 -m pytest subrepos/theodore_audio_translation_lab/tests -q
+
+Step 2 — start the lab UI
+
+  PYTHONPATH=subrepos/theodore_audio_translation_lab/src \
+    python3 subrepos/theodore_audio_translation_lab/scripts/run_lab.py
+  # default port 8041; or:
+  #   python3 -m uvicorn theodore_audio_translation_lab.main:app \
+  #     --app-dir subrepos/theodore_audio_translation_lab/src --port 8041
+
+  Check:  curl -s http://127.0.0.1:8041/health
+  # status=ok, languages=27
+  Open:   http://127.0.0.1:8041/lab
+
+Step 3 — start a speaker session
+
+  1. Allow mic (or use the manual / debug text input)
+  2. Pick source language (or Auto — requires Whisper / ASR_BASE_URL)
+  3. Click Start session
+  4. Speak a short classroom phrase (e.g. "Buenos días clase")
+     or type it into the debug box and submit
+
+  Expect interim then final transcript cards on the right. Compare against
+  docs/screens/theodore_audio_translation_lab.webp.
+
+Step 4 — join as Theodore / teacher / viewer
+
+  Open the shareable viewer link (or a second tab) with a different target
+  language + role. Final transcripts fan out translated; interim stays source
+  text by default.
+
+  Enable "Theodore replies after each learner turn" to get a short spoken
+  teach/coach/clarify reply (xAI when XAI_API_KEY is set; otherwise English
+  template + translation when available).
+
+Step 5 — tune quality + check telemetry
+
+  curl -s http://127.0.0.1:8041/api/audio-policy | python3 -m json.tool
+  curl -s http://127.0.0.1:8041/api/telemetry/overview | python3 -m json.tool
+
+  Headphones recommended so Speak-translated-audio does not loop into the mic.
+  Provider wiring (Whisper / NLLB / xAI) is under Provider setup below.
 
 Standalone setup and launch
 ---------------------------
@@ -139,7 +261,12 @@ Other env:
   ASR_MAX_AUDIO_BYTES=8388608
   TRANSLATION_TIMEOUT_S=15
   XAI_BASE_URL=https://api.x.ai/v1
-  XAI_MODEL=grok-2-1212
+  XAI_MODEL=grok-4.3
+  TTS_BASE_URL=http://127.0.0.1:8002     (server neural voice for Theodore)
+  ELEVENLABS_API_KEY=...                 (best-quality Theodore voice)
+  ELEVENLABS_MODEL=eleven_multilingual_v2
+  AOEP_TTS_VOICE_KM=km-KH-SreymomNeural  (per-language edge-tts override)
+  TTS_TIMEOUT_S=20
   AUDIO_CAPTURE_WINDOW_MS=1200
   AUDIO_AUTO_WINDOW_MS=2000
   AUDIO_HIGHPASS_HZ=80

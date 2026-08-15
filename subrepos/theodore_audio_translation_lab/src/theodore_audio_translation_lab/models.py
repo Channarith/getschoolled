@@ -155,7 +155,10 @@ class ProviderStatus(BaseModel):
     translation_gateway_configured: bool = False
     translation_gateway_url: str = ""
     xai_translation_configured: bool = False
+    xai_model: str = ""
     offline_phrasebook: bool = True
+    server_tts_configured: bool = False
+    server_tts_engine: str = ""
     notes: list[str] = Field(default_factory=list)
 
 

@@ -21,6 +21,12 @@ from pydantic import BaseModel, Field
 
 from .studio_languages import language_instruction, language_name, normalize_language
 
+# xAI retired the grok-2 family from the API (grok-2-1212 was removed in January
+# 2026), so the old default returned a bare HTTP 400 even with a valid key.
+# grok-4.3 rather than the newer grok-4.5 because 4.5 is not offered to EU API
+# Console accounts and a default has to work everywhere; override with XAI_MODEL.
+XAI_DEFAULT_MODEL = "grok-4.3"
+
 
 class VoiceTurn(BaseModel):
     provider: str = "local-fallback"  # xai | local-fallback | aoep_shared
@@ -52,7 +58,7 @@ class CourseStudioVoiceAgent:
             base_url
             or os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1")
         ).rstrip("/")
-        self._model = model or os.environ.get("XAI_MODEL", "grok-2-1212")
+        self._model = model or os.environ.get("XAI_MODEL", "").strip() or XAI_DEFAULT_MODEL
         self._timeout_s = float(os.environ.get("XAI_TIMEOUT_S", timeout_s))
         self._history: dict[str, list[dict[str, str]]] = {}
 

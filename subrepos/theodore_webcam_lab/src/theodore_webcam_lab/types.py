@@ -36,6 +36,10 @@ class WebcamSignal(BaseModel):
     gaze_down_score: float | None = Field(default=None, ge=0.0, le=1.0)
     eyes_closed_score: float | None = Field(default=None, ge=0.0, le=1.0)
     yawn_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Which client detector produced the per-feature scores above. "face_mesh"
+    # means real landmarks; "face_detector" is a bounding box only; "coarse" is a
+    # luminance heuristic that must not be trusted for eyes/gaze/expression.
+    detector_source: str | None = Field(default=None)
     # 0–1 probability that the learner's hand(s) are resting on or covering their face
     # (chin-rest, cheek-prop, head-in-hands). Derived from luminance grid heuristics or
     # MediaPipe hand landmarks when available.

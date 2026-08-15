@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .studio_languages import language_name, normalize_language
+from .voice_agent import XAI_DEFAULT_MODEL
 
 
 @dataclass(frozen=True)
@@ -341,7 +342,7 @@ def _xai_translate(
     if not api_key:
         return None
     base = os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1").rstrip("/")
-    model = os.environ.get("XAI_MODEL", "grok-2-1212")
+    model = os.environ.get("XAI_MODEL", "").strip() or XAI_DEFAULT_MODEL
     target = language_name(language)
     payload_in = [
         {"i": i, "title": t, "words": w, "say": s, "activity": a}
