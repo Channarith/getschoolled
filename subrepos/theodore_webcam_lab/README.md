@@ -35,7 +35,7 @@ python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" \
 python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 ```
 
-You should see `121 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
+You should see `136 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
 did not run in the Python you are using. On macOS, bare `python3` is often
 Homebrew 3.14 with no packages — activate `.venv` first (selfcheck does this
 automatically when the venv exists).
@@ -128,8 +128,10 @@ Offline (no server needed)
          distance=1.0m confidence=0.85
   [PASS] Sobel imaging
          backend=numpy sharp=0.81 blurred=0.08
-  [PASS] Tuning knobs
-         45 vision knobs, 13 voice knobs, presets: balanced, bright_room, ...
+  [PASS] Tuning knobs in range
+         50 vision knobs, 13 voice knobs, presets: balanced, bright_room, ...
+  [PASS] Tuning knobs change scoring
+         50/50 knobs change a scoring decision across 11 frame scenarios
 
 API (http://127.0.0.1:8015)
   [PASS] API reachable
@@ -140,13 +142,41 @@ API (http://127.0.0.1:8015)
   [PASS] Live monitor page
          camera panel and tuning sliders present
   [PASS] Tuning API
+         50 knobs live
+  [PASS] Tuning re-scores live session
+         light_min_quality 0.35->0.99 flags [none]->[lighting_below_min_quality],
+         ->0.0 clears to [none]
   [PASS] Voice agent
          provider=local-fallback (set XAI_API_KEY for real xAI replies)
   [PASS] Webcam games
 
 ============================================================
-All 13 checks passed.
+All 15 checks passed.
 ```
+
+### Does the self check actually check the knobs?
+
+Yes — that was a real gap, and it is now closed. The check used to confirm only
+that the presets held in-range values and that `GET /vision/tuning` returned a
+non-empty dict. A knob wired to nothing passes both, so the sliders could look
+inert while every step was green.
+
+Two steps now prove the knobs do something:
+
+- **Tuning knobs change scoring** (offline) perturbs each of the 50 knobs on its
+  own and re-scores a matrix of frames, failing on any knob that cannot move an
+  output. Scenarios exist because a knob is only observable when a frame reaches
+  its branch — silhouette knobs need a face-less filled frame, exposure knobs a
+  blown-out one, audio knobs audio. One frame cannot exercise all 50.
+- **Tuning re-scores live session** (API) PATCHes a knob and confirms the frames
+  the server already holds are re-scored, so the change reaches the dashboard
+  instead of only moving the slider.
+
+Note what a knob actually changes. Almost all of them are **thresholds**, so they
+flip **gate flags and behaviour labels** rather than the score numbers. Raising
+`light_min_quality` above a frame's light score does not change `0.80`; it adds
+`lighting_below_min_quality`. Watch **Failed gates (class)** and the per-student
+badges, not the raw scores.
 
 When a step fails it tells you what to do about it:
 
@@ -181,8 +211,10 @@ It exits `0` when everything passes and `1` otherwise, so CI can gate on it.
 | Camera stays black, status "camera unavailable" | No camera, or permission denied. Use **Test pattern** or **Silhouette demo**. |
 | Starting the camera wiped student windows | Fixed: camera posts with `persist_live_metrics=false`. Reload demo data if an older lab build already clobbered the session. |
 | No cheating / silhouette | Click **Load group demo (3 students)**. student-b cheats; student-c is silhouette-only. |
-| Lesson alerts do nothing | Click **Run lesson action** — it acknowledges the alert, toasts the action, and jumps to the student window. |
+| Lesson alerts do nothing | Click **Run lesson action** — Theodore now appears in an animated action stage, says the intervention aloud (when Auto-speak is checked), offers **Say it again**, acknowledges the alert, and jumps to the student window. |
 | Applying a tuning preset changes nothing | Load a demo (solo or group) first, stay on the **Vision** tab, then change a knob/preset. The lab re-scores open sessions immediately — watch **Failed gates (class)** and student distance/quality flags. Voice presets only affect Theodore replies. |
+| Knobs seem to do nothing on screen | Most knobs are thresholds: they flip **gate flags and behaviour labels**, not the score numbers, and many only apply to frames that reach their branch (silhouette knobs need no face, audio knobs need audio). Run Step 5 — **Tuning knobs change scoring** proves all 50 move a decision, and **Tuning re-scores live session** proves a PATCH reaches the dashboard. |
+| No facial contours / mood, or "smiling/neutral" stopped showing | The green contour mesh and its mood colour come from MediaPipe FaceLandmarker, loaded from the jsdelivr CDN by default. Check the **detector badge** on the Camera panel: `face mesh (accurate)` means it loaded; `coarse` means it did not (blocked CDN, offline, or a strict content-security setup) and the lab now draws an approximate oval + mood from the luminance grid instead. To restore the full mesh offline, self-host the assets (`tasks-vision.mjs`, `wasm/`, `face_landmarker.task`) under the lab's `src/theodore_webcam_lab/vendor/vision/` dir, or point `AOEP_VISION_ASSET_DIR` at them and restart — the page then loads the mesh locally first. |
 | Camera blocked on another machine | `getUserMedia` needs a secure context. `127.0.0.1` and `https` work; a plain `http://<lan-ip>` does not. |
 | Voice replies say `local-fallback` | Expected without a key. Set `XAI_API_KEY` for real xAI replies. |
 | Everything looks broken | Run Step 5. It isolates the failing piece. |

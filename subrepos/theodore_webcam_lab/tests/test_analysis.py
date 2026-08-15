@@ -636,3 +636,171 @@ def test_quality_metrics_include_distance_light_image_and_audio():
     assert summary.participants_count == 1
     assert summary.avg_light_quality_score == 0.82
     assert summary.avg_image_detection_quality_score > 0.8
+
+
+def _dark_room_grid() -> list[list[float]]:
+    """A person-shaped dark blob: enough contrast for the coarse heuristic to
+    latch onto, which is exactly what used to fabricate eye/distance readings."""
+    grid: list[list[float]] = []
+    for y in range(16):
+        row = []
+        for x in range(16):
+            row.append(0.18 if 3 <= y <= 13 and 4 <= x <= 12 else 0.62)
+        grid.append(row)
+    return grid
+
+
+def test_no_live_face_never_reports_eyes_closed():
+    """Regression: the live monitor showed 'absent' and 'eyes closed for 39.9s'
+    at the same time, because eye state was thresholded without a tracked face."""
+    analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy(absence_grace_ms=500))
+    session_id = "no-face-eyes"
+
+    for index, timestamp in enumerate((0, 1_000, 2_000)):
+        result = analyzer.evaluate(
+            session_id=session_id,
+            mode=ClassMode.SOLO,
+            signals=[
+                WebcamSignal(
+                    participant_id="learner",
+                    timestamp_ms=timestamp,
+                    face_count=0,
+                    liveness_state="unknown",
+                    foreground_ratio=0.40,
+                    motion_score=0.20,
+                    # A coarse client keeps insisting the lids are down.
+                    eyes_closed_score=0.95,
+                    yawn_score=0.90,
+                    luminance_grid=_dark_room_grid(),
+                )
+            ],
+        )
+        p = result.participants[0]
+        assert p.eyes_closed_for_ms == 0, f"frame {index} claimed closed eyes with no face"
+        assert p.yawn_for_ms == 0
+        assert p.behavior_label == "away"
+
+
+def test_no_live_face_does_not_invent_a_distance():
+    """Regression: a dark blob bounding box produced a bogus 0.30 m 'too close'
+    reading (and a failed quality gate) while nobody was in frame."""
+    analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy(absence_grace_ms=500))
+    result = analyzer.evaluate(
+        session_id="no-face-distance",
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=0,
+                face_count=0,
+                liveness_state="unknown",
+                foreground_ratio=0.40,
+                motion_score=0.20,
+                luminance_grid=_dark_room_grid(),
+            )
+        ],
+    )
+    p = result.participants[0]
+    assert p.distance_from_camera_m is None
+    assert p.distance_source == "none"
+
+
+def test_measured_depth_still_reported_without_a_face():
+    """LiDAR/depth does not need a tracked face, so it must survive the guard."""
+    analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy(absence_grace_ms=500))
+    result = analyzer.evaluate(
+        session_id="no-face-lidar",
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=0,
+                face_count=0,
+                liveness_state="unknown",
+                foreground_ratio=0.40,
+                motion_score=0.20,
+                distance_from_camera_m=1.4,
+                distance_source="lidar",
+            )
+        ],
+    )
+    p = result.participants[0]
+    assert p.distance_from_camera_m == 1.4
+    assert p.distance_source == "lidar"
+
+
+def test_coarse_detector_may_not_claim_closed_eyes():
+    """Only real landmarks may assert eye state; a luminance heuristic may not,
+    even when it is confident and a face is present."""
+    analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy(absence_grace_ms=500))
+
+    def evaluate(detector_source: str | None):
+        return analyzer.evaluate(
+            session_id=f"detector-{detector_source}",
+            mode=ClassMode.SOLO,
+            signals=[
+                WebcamSignal(
+                    participant_id="learner",
+                    timestamp_ms=0,
+                    face_count=1,
+                    liveness_state="live",
+                    foreground_ratio=0.30,
+                    motion_score=0.30,
+                    eyes_closed_score=0.95,
+                    detector_source=detector_source,
+                )
+            ],
+        ).participants[0]
+
+    assert evaluate("coarse").behavior_label != "drowsy"
+    assert evaluate("face_detector").behavior_label != "drowsy"
+    # Real landmarks are still trusted, as are older clients that omit the field.
+    assert evaluate("face_mesh").behavior_label == "drowsy"
+    assert evaluate(None).behavior_label == "drowsy"
+
+
+def _face_like_grid() -> list[list[float]]:
+    """A grid the luminance heuristic happily reads as a face: on its own it
+    yields face_present, a ~0.30 size ratio (=> a distance) and a 'neutral' mood."""
+    return [
+        [0.22 if (5 <= y <= 13 and 7 <= x <= 13) else 0.68 for x in range(20)]
+        for y in range(20)
+    ]
+
+
+def test_coarse_detector_is_presence_only():
+    """A luminance heuristic has no eyelids or mouth corners. It may report that
+    somebody is in frame, but must not drive gaze/mood/distance conclusions."""
+    analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy(absence_grace_ms=500))
+
+    def evaluate(detector_source: str | None):
+        return analyzer.evaluate(
+            session_id=f"presence-only-{detector_source}",
+            mode=ClassMode.SOLO,
+            signals=[
+                WebcamSignal(
+                    participant_id="learner",
+                    timestamp_ms=0,
+                    face_count=1,
+                    liveness_state="live",
+                    foreground_ratio=0.30,
+                    motion_score=0.30,
+                    detector_source=detector_source,
+                    luminance_grid=_face_like_grid(),
+                )
+            ],
+        ).participants[0]
+
+    coarse = evaluate("coarse")
+    assert coarse.state is PresenceState.PRESENT
+    assert coarse.eyes_away_for_ms == 0
+    assert coarse.eyes_closed_for_ms == 0
+    assert coarse.yawn_for_ms == 0
+    assert coarse.distance_from_camera_m is None
+    assert coarse.dominant_expression == "unknown"
+
+    # The same frame from a thin client that never declares a detector keeps the
+    # existing grid-derived behaviour, so this guard is opt-in and not a regression.
+    legacy = evaluate(None)
+    assert legacy.dominant_expression == "neutral"
+    assert legacy.distance_from_camera_m is not None

@@ -13,7 +13,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import ValidationError
 
 from .audio_policy import get_policy, patch_policy, reset_policy
@@ -35,6 +35,7 @@ from .providers import ASREngine, ProviderUnavailable, provider_status
 from .quality_telemetry import get_store
 from .sessions import TranslationHub
 from .studio_page import render_lab_page
+from . import tts as tts_module
 
 app = FastAPI(
     title="Theodore Audio Translation Lab",
@@ -83,13 +84,48 @@ def providers() -> dict[str, Any]:
 def theodore_status() -> dict[str, Any]:
     return {
         "live_xai_configured": hub.theodore.live_configured,
+        # Naming the model matters: a retired slug is the most common cause of a
+        # blanket xAI 400, and the operator cannot see XAI_MODEL from the browser.
+        "xai_model": hub.theodore.model,
         "languages": len(language_rows()),
         "modes": [mode.value for mode in TheodoreMode],
+        "speech": tts_module.tts_status(),
         "fallback": (
             "English teaching template translated by NLLB/xAI when available; "
             "otherwise honest English fallback"
         ),
     }
+
+
+@app.get("/api/tts/status")
+def speech_status() -> dict[str, Any]:
+    """Probed once by the page so it knows whether to expect server audio."""
+    return tts_module.tts_status()
+
+
+@app.get("/api/tts")
+@app.post("/api/tts")
+def speak(text: str = "", language: str = "en", style: str = "warm") -> Response:
+    """Render Theodore's words to audio.
+
+    GET as well as POST because ``<audio src=...>`` and mobile players can only
+    load a URI. Returns 501 (not 500) when nothing is configured so the client can
+    tell "speak it yourself" apart from a real failure.
+    """
+    try:
+        audio, mime, engine = tts_module.synthesize(text, language=language, style=style)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ProviderUnavailable as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return Response(
+        content=audio,
+        media_type=mime,
+        headers={
+            "X-TTS-Engine": engine,
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @app.get("/api/audio-policy")

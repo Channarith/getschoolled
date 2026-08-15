@@ -30,6 +30,73 @@ class ProviderUnavailable(RuntimeError):
     pass
 
 
+# xAI retired the grok-2 family from the API (grok-2-1212 was removed in January
+# 2026), so calling it with a perfectly valid key returns a bare HTTP 400. Point
+# at a current canonical model instead. grok-4.3 rather than the newer grok-4.5
+# because 4.5 is not offered to EU API Console accounts, and a default has to
+# work everywhere; override with XAI_MODEL to pick something else.
+XAI_DEFAULT_MODEL = "grok-4.3"
+
+
+def xai_chat(
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    timeout_s: float,
+) -> str:
+    """POST an xAI chat completion and return the reply text.
+
+    Raises ``ProviderUnavailable`` carrying xAI's own explanation. urllib's
+    HTTPError stringifies as just "HTTP Error 400: Bad Request" and drops the
+    response body, which is where xAI says things like "model X does not exist" —
+    so a retired model default looked like an unexplained failure.
+    """
+    body = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    request = urllib.request.Request(
+        f"{base_url.rstrip('/')}/chat/completions",
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            raw = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace").strip()[:400]
+        except Exception:  # noqa: BLE001 - the status code is still worth reporting
+            pass
+        hint = ""
+        if exc.code in {400, 404} and "model" in detail.lower():
+            hint = (
+                f" The configured model is '{model}'; set XAI_MODEL to a current "
+                f"one (default is {XAI_DEFAULT_MODEL})."
+            )
+        raise ProviderUnavailable(
+            f"xAI HTTP {exc.code} for model '{model}': {detail or exc.reason}{hint}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise ProviderUnavailable(f"xAI unreachable: {exc.reason}") from exc
+
+    try:
+        return (raw["choices"][0]["message"]["content"] or "").strip()
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ProviderUnavailable(f"unexpected xAI response shape: {raw}") from exc
+
+
 class TranslationEngine:
     def __init__(self) -> None:
         self.gateway_url = (
@@ -39,7 +106,7 @@ class TranslationEngine:
         ).rstrip("/")
         self.xai_key = os.environ.get("XAI_API_KEY", "").strip()
         self.xai_url = os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1").rstrip("/")
-        self.xai_model = os.environ.get("XAI_MODEL", "grok-2-1212")
+        self.xai_model = os.environ.get("XAI_MODEL", "").strip() or XAI_DEFAULT_MODEL
         self.timeout_s = float(os.environ.get("TRANSLATION_TIMEOUT_S", "15"))
         self._cache: OrderedDict[tuple[str, str, str], TranslationResult] = OrderedDict()
         self._cache_max = 1000
@@ -143,34 +210,26 @@ class TranslationEngine:
     def _xai_translate(self, text: str, source: str, target: str) -> TranslationResult:
         source_name = LANGUAGE_NAMES[source]
         target_name = LANGUAGE_NAMES[target]
-        body = {
-            "model": self.xai_model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        f"Translate spoken {source_name} into natural {target_name}. "
-                        "Preserve meaning, names, tone, and questions. Return only the "
-                        "translation, with no explanation."
-                    ),
-                },
-                {"role": "user", "content": text},
-            ],
-            "temperature": 0.1,
-            "max_tokens": 800,
-        }
-        req = urllib.request.Request(
-            f"{self.xai_url}/chat/completions",
-            data=json.dumps(body).encode(),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.xai_key}",
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    f"Translate spoken {source_name} into natural {target_name}. "
+                    "Preserve meaning, names, tone, and questions. Return only the "
+                    "translation, with no explanation."
+                ),
             },
-            method="POST",
+            {"role": "user", "content": text},
+        ]
+        translated = xai_chat(
+            base_url=self.xai_url,
+            api_key=self.xai_key,
+            model=self.xai_model,
+            messages=messages,
+            temperature=0.1,
+            max_tokens=800,
+            timeout_s=self.timeout_s,
         )
-        with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
-            raw = json.loads(resp.read().decode("utf-8"))
-        translated = raw["choices"][0]["message"]["content"].strip()
         if not translated:
             raise ProviderUnavailable("empty xAI translation")
         return TranslationResult(
@@ -314,12 +373,27 @@ def provider_status() -> ProviderStatus:
         notes.append("Set ASR_BASE_URL for server-side Whisper audio transcription.")
     if not mt.gateway_url and not mt.xai_key:
         notes.append("Set TRANSLATION_BASE_URL/SPEECH_BASE_URL (NLLB) or XAI_API_KEY.")
+
+    # Imported here: tts imports this module for ProviderUnavailable.
+    from .tts import engine_chain
+
+    chain = engine_chain()
+    if chain:
+        notes.append(f"Theodore speaks server-side via {' → '.join(chain)}.")
+    else:
+        notes.append(
+            "No server TTS; Theodore uses the device voice. Set TTS_BASE_URL/"
+            "SPEECH_BASE_URL, ELEVENLABS_API_KEY, or install edge-tts for neural audio."
+        )
     return ProviderStatus(
         remote_asr_configured=asr.configured,
         remote_asr_url=asr.base_url,
         translation_gateway_configured=bool(mt.gateway_url),
         translation_gateway_url=mt.gateway_url,
         xai_translation_configured=bool(mt.xai_key),
+        xai_model=mt.xai_model if mt.xai_key else "",
+        server_tts_configured=bool(chain),
+        server_tts_engine=chain[0] if chain else "",
         notes=notes,
     )
 

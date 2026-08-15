@@ -5,6 +5,7 @@ data/corpus/
 data/knowledge/
 data/models/
 data/offline_training/
+data/teach_checkpoints/
 !data/corpus/.gitkeep
 __pycache__/
 *.pyc

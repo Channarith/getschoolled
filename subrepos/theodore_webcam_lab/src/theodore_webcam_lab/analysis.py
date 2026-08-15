@@ -776,6 +776,14 @@ class WebcamSessionAnalyzer:
         gaze_frontal = signal.gaze_frontal
         face_size_ratio = signal.face_size_ratio
 
+        # What the reporting client could actually see. A luminance heuristic has
+        # no eyelids, pupils or mouth corners, so it may report presence and
+        # framing but never eye/gaze/expression state. Clients that omit the
+        # field (thin clients, older builds, tests) stay trusted as before.
+        detector = (signal.detector_source or "").strip().lower()
+        landmark_detector = detector in {"", "face_mesh"}
+        face_localised = landmark_detector or detector == "face_detector"
+
         # Thin clients (browser camera) often omit mood/gaze. Derive them from the
         # luminance grid so happiness / sadness / away-from-webcam actually move.
         estimate = (
@@ -784,17 +792,17 @@ class WebcamSessionAnalyzer:
             else None
         )
         if estimate is not None:
-            if self._normalize_expression(expression_label) == "unknown":
+            if landmark_detector and self._normalize_expression(expression_label) == "unknown":
                 expression_label = estimate.expression_label
                 if expression_confidence is None:
                     expression_confidence = estimate.expression_confidence
-            if gaze_frontal is None:
+            if landmark_detector and gaze_frontal is None:
                 gaze_frontal = estimate.gaze_frontal
-            if gaze_down_score is None:
+            if landmark_detector and gaze_down_score is None:
                 gaze_down_score = estimate.gaze_down_score
-            if face_size_ratio is None:
+            if face_localised and face_size_ratio is None:
                 face_size_ratio = estimate.face_size_ratio
-            if signal.yawn_score is None and estimate.yawn_score > 0:
+            if landmark_detector and signal.yawn_score is None and estimate.yawn_score > 0:
                 # Thin clients: promote grid yawn into the signal path below.
                 signal = signal.model_copy(update={"yawn_score": estimate.yawn_score})
                 if (
@@ -831,17 +839,32 @@ class WebcamSessionAnalyzer:
             if signal.eyes_closed_score is not None
             else 0.0
         )
-        eyes_closed = eyes_closed_score >= tuning.eyes_closed_min_threshold
+        # Eyes/mouth/gaze claims are only meaningful when a face is actually being
+        # tracked by a detector that can see those features. Without this guard the
+        # dashboard reported "eyes closed for 39s" on a frame it scored as absent.
+        eyes_closed = (
+            has_live_face
+            and landmark_detector
+            and eyes_closed_score >= tuning.eyes_closed_min_threshold
+        )
         yawn_score = float(signal.yawn_score) if signal.yawn_score is not None else 0.0
         if dominant_expression == "yawning" and yawn_score < tuning.yawn_min_threshold:
             yawn_score = max(yawn_score, 0.62)
-        yawning = yawn_score >= tuning.yawn_min_threshold or dominant_expression == "yawning"
+        yawning = (
+            has_live_face
+            and landmark_detector
+            and (yawn_score >= tuning.yawn_min_threshold or dominant_expression == "yawning")
+        )
         if yawning and dominant_expression in {"unknown", "neutral", "surprised"}:
             dominant_expression = "yawning"
-        eyes_away = face_count > 0 and (
-            eyes_closed
-            or gaze_down_score >= tuning.gaze_down_min_threshold
-            or gaze_frontal < tuning.gaze_frontal_min_threshold
+        eyes_away = (
+            face_count > 0
+            and landmark_detector
+            and (
+                eyes_closed
+                or gaze_down_score >= tuning.gaze_down_min_threshold
+                or gaze_frontal < tuning.gaze_frontal_min_threshold
+            )
         )
         if eyes_away:
             if participant_state.gaze_away_started_ms is None:
@@ -987,10 +1010,14 @@ class WebcamSessionAnalyzer:
         if keyboard_typing_audio_detected:
             cheating_reasons.append("keyboard_typing_audio")
 
+        # A dark-pixel bounding box is a person-or-furniture blob, not a face, so
+        # deriving metres from it without a localised face reports a bogus "0.30 m
+        # / too close". Measured depth (LiDAR) needs no face and is still honoured.
+        face_sized = has_live_face and face_localised
         distance_est = resolve_distance(
             measured_m=signal.distance_from_camera_m,
-            face_size_ratio=face_size_ratio,
-            luminance_grid=signal.luminance_grid,
+            face_size_ratio=face_size_ratio if face_sized else None,
+            luminance_grid=signal.luminance_grid if face_sized else None,
             tuning=tuning,
         )
         distance_from_camera_m = distance_est.distance_m

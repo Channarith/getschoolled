@@ -147,6 +147,87 @@ MONITOR_CSS = """
              padding: 10px 12px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
              display: none; }
     .toast.show { display: block; }
+    .theodore-action { position: fixed; inset: 0; z-index: 80; display: none;
+                       align-items: center; justify-content: center; padding: 20px;
+                       background: rgba(2, 6, 23, 0.78); backdrop-filter: blur(5px); }
+    .theodore-action.show { display: flex; animation: action-fade 0.2s ease-out; }
+    .theodore-action-card { width: min(680px, 94vw); position: relative; overflow: hidden;
+                            display: grid; grid-template-columns: 210px 1fr; gap: 22px;
+                            align-items: center; padding: 26px; border-radius: 24px;
+                            border: 2px solid #38bdf8; color: #e0f2fe;
+                            background: radial-gradient(circle at 18% 20%, #164e63 0, #0f172a 48%, #020617 100%);
+                            box-shadow: 0 24px 80px rgba(0,0,0,.65), 0 0 34px rgba(56,189,248,.25); }
+    .theodore-action-card::before { content: ''; position: absolute; inset: -45%;
+                                    background: conic-gradient(from 90deg, transparent, rgba(56,189,248,.13), transparent 30%);
+                                    animation: action-rays 7s linear infinite; pointer-events: none; }
+    .theodore-avatar-wrap { position: relative; min-height: 210px; display: grid; place-items: center; }
+    .theodore-avatar { position: relative; z-index: 2; width: 150px; height: 165px;
+                       border-radius: 48% 48% 44% 44%; background: #b96f42;
+                       border: 5px solid #fbbf24; box-shadow: inset 0 -16px 0 rgba(91,42,24,.20),
+                       0 0 0 8px rgba(251,191,36,.12), 0 16px 35px rgba(0,0,0,.35);
+                       animation: theodore-breathe 1.8s ease-in-out infinite; }
+    .theodore-crown { position: absolute; z-index: 3; top: -27px; left: 25px; width: 92px; height: 48px;
+                      background: #fbbf24; clip-path: polygon(0 100%, 3% 27%, 27% 67%, 49% 5%, 72% 67%, 97% 27%, 100% 100%);
+                      filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); }
+    .theodore-eye { position: absolute; top: 62px; width: 18px; height: 11px;
+                    border-radius: 50%; background: #111827; animation: theodore-blink 4.6s infinite; }
+    .theodore-eye.left { left: 35px; } .theodore-eye.right { right: 35px; }
+    .theodore-nose { position: absolute; top: 78px; left: 67px; width: 12px; height: 20px;
+                     border: 3px solid rgba(67,29,15,.55); border-top: 0; border-left: 0;
+                     border-radius: 0 0 8px 0; }
+    .theodore-mouth { position: absolute; left: 54px; top: 111px; width: 38px; height: 8px;
+                      border-radius: 0 0 22px 22px; background: #4c1d1d;
+                      border-bottom: 3px solid #fecaca; transition: height .08s, top .08s; }
+    .theodore-action.speaking .theodore-mouth { animation: theodore-talk .18s ease-in-out infinite alternate; }
+    .theodore-medallion { position: absolute; z-index: 4; bottom: -10px; left: 51px; width: 42px; height: 42px;
+                          display: grid; place-items: center; border-radius: 50%; color: #082f49;
+                          background: #fde68a; border: 4px solid #f59e0b; font-size: 23px; font-weight: 900; }
+    .theodore-action-icon { position: absolute; z-index: 5; right: 0; top: 10px; font-size: 52px;
+                            filter: drop-shadow(0 5px 8px rgba(0,0,0,.45)); }
+    .theodore-action.effect-shield .theodore-action-icon { animation: shield-pop .7s ease-out both; }
+    .theodore-action.effect-wave .theodore-action-icon { animation: action-wave .55s ease-in-out infinite alternate; transform-origin: 20% 90%; }
+    .theodore-action.effect-scan .theodore-avatar-wrap::after,
+    .theodore-action.effect-spotlight .theodore-avatar-wrap::after {
+      content: ''; position: absolute; z-index: 1; inset: 5px; border: 3px solid #22d3ee;
+      border-radius: 50%; animation: action-scan 1.2s ease-out infinite; }
+    .theodore-action.effect-celebrate .theodore-action-icon { animation: action-celebrate .7s ease-in-out infinite alternate; }
+    .theodore-action.effect-heart .theodore-action-icon { animation: action-heart .8s ease-in-out infinite; }
+    .theodore-action.effect-refocus .theodore-action-icon { animation: action-refocus 1s ease-in-out infinite; }
+    .theodore-action-copy { position: relative; z-index: 2; }
+    .theodore-action-kicker { color: #67e8f9; font-size: 12px; font-weight: 800;
+                              text-transform: uppercase; letter-spacing: .12em; }
+    .theodore-action-title { margin: 5px 0 9px; color: #fef3c7; font-size: clamp(23px, 4vw, 34px); line-height: 1.08; }
+    .theodore-action-body { color: #bae6fd; font-size: 14px; margin-bottom: 12px; }
+    .theodore-speech { position: relative; margin: 12px 0 16px; padding: 14px 16px;
+                       border-radius: 14px; background: rgba(255,255,255,.95); color: #172554;
+                       font-size: 17px; line-height: 1.4; font-weight: 650; }
+    .theodore-speech::before { content: ''; position: absolute; left: -13px; top: 24px;
+                               border-width: 9px 14px 9px 0; border-style: solid;
+                               border-color: transparent rgba(255,255,255,.95) transparent transparent; }
+    .theodore-action-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    .theodore-action-controls button { padding: 7px 12px; font-size: 12px; }
+    .theodore-action-controls .speak { background: #0369a1; border-color: #38bdf8; }
+    @media (max-width: 620px) {
+      .theodore-action-card { grid-template-columns: 1fr; text-align: center; padding: 20px; }
+      .theodore-avatar-wrap { min-height: 175px; }
+      .theodore-speech::before { display: none; }
+      .theodore-action-controls { justify-content: center; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .theodore-action *, .theodore-action-card::before { animation-duration: .001ms !important;
+                                                           animation-iteration-count: 1 !important; }
+    }
+    @keyframes action-fade { from { opacity: 0; transform: scale(.97); } }
+    @keyframes action-rays { to { transform: rotate(360deg); } }
+    @keyframes theodore-breathe { 50% { transform: translateY(-4px) rotate(-1deg); } }
+    @keyframes theodore-blink { 0%,45%,49%,100% { transform: scaleY(1); } 47% { transform: scaleY(.08); } }
+    @keyframes theodore-talk { from { height: 8px; top: 111px; } to { height: 24px; top: 105px; } }
+    @keyframes shield-pop { 0% { transform: scale(.2) rotate(-25deg); } 70% { transform: scale(1.2) rotate(5deg); } }
+    @keyframes action-wave { to { transform: rotate(24deg); } }
+    @keyframes action-scan { from { transform: scale(.65); opacity: .9; } to { transform: scale(1.15); opacity: 0; } }
+    @keyframes action-celebrate { to { transform: translateY(-12px) rotate(14deg) scale(1.1); } }
+    @keyframes action-heart { 50% { transform: scale(1.25); } }
+    @keyframes action-refocus { 50% { transform: scale(1.18); filter: drop-shadow(0 0 16px #fbbf24); } }
     .banner { margin: 0 12px; padding: 8px 10px; border-radius: 6px; font-size: 12px;
               background: #1e293b; border: 1px solid #475569; }
     .banner.cheat { background: #3f1d1d; border-color: #ef4444; color: #fecaca; }
@@ -365,6 +446,10 @@ MONITOR_JS = (
     const sessionId = __SESSION_ID_JSON__;
     const liveCamSessionId = sessionId + '__livecam';
     const endpoint = `/api/theodore/webcam/live-metrics/${encodeURIComponent(sessionId)}`;
+    // True only when the server actually mounted /vendor/vision. Without local
+    // assets that path 404s, so trying it first just delays the CDN that works
+    // for everyone — which is what stopped the face mesh from showing up.
+    const VISION_LOCAL_ASSETS = __VISION_LOCAL_ASSETS__;
     const VISION_GROUPS = __VISION_GROUPS__;
     const VOICE_GROUPS = __VOICE_GROUPS__;
     const POLICY_KNOBS = __POLICY_KNOBS__;
@@ -399,6 +484,48 @@ MONITOR_JS = (
       return `<progress value="${v === null || v === undefined ? 0 : v}" max="1"></progress>`;
     }
     function alertKey(a) { return `${a.code || ''}:${a.participant_id || '-'}`; }
+
+    let currentActionSpeech = '';
+
+    function closeTheodoreAction() {
+      const stage = document.getElementById('theodore-action');
+      if (!stage) return;
+      stage.classList.remove('show', 'speaking');
+      stage.setAttribute('aria-hidden', 'true');
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
+    }
+
+    function speakCurrentAction() {
+      if (currentActionSpeech) speakTheodore(currentActionSpeech, voiceLangCode());
+    }
+
+    function presentTheodoreAction(presentation, fallbackText) {
+      const p = presentation || {};
+      const stage = document.getElementById('theodore-action');
+      if (!stage) return;
+      const effect = String(p.visual_effect || 'announce').replace(/[^a-z_-]/gi, '');
+      stage.className = `theodore-action show effect-${effect}`;
+      stage.setAttribute('aria-hidden', 'false');
+      document.getElementById('theodore-action-icon').textContent = p.visual_icon || '✨';
+      document.getElementById('theodore-action-title').textContent =
+        p.visual_title || 'Theodore takes action';
+      document.getElementById('theodore-action-body').textContent =
+        p.visual_body || fallbackText || 'The lesson action is underway.';
+      currentActionSpeech = p.speech_text || fallbackText || 'I am taking care of it.';
+      document.getElementById('theodore-action-speech').textContent = currentActionSpeech;
+      // An explicit action click permits browser TTS. Respect Auto-speak and keep
+      // a replay button visible so audio is never a one-shot hidden side effect.
+      if (autoSpeak()) speakCurrentAction();
+    }
+
+    document.getElementById('theodore-action-speak').addEventListener('click', speakCurrentAction);
+    document.getElementById('theodore-action-close').addEventListener('click', closeTheodoreAction);
+    document.getElementById('theodore-action').addEventListener('click', (ev) => {
+      if (ev.target === ev.currentTarget) closeTheodoreAction();
+    });
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') closeTheodoreAction();
+    });
 
     function drawLines(canvas, seriesList, colors) {
       const ctx = canvas.getContext('2d');
@@ -439,6 +566,10 @@ MONITOR_JS = (
       const body = await res.json().catch(() => ({}));
       if (!res.ok) { toast('Action failed: ' + (body.detail || res.status)); return; }
       toast(body.summary || 'Lesson action completed');
+      presentTheodoreAction(
+        body.details && body.details.presentation,
+        body.summary || 'Lesson action completed',
+      );
       if (body.details && body.details.challenge_id) {
         activeChallenge = body.details;
         document.getElementById('game-status').textContent =
@@ -1073,6 +1204,17 @@ MONITOR_JS = (
       const match = voices.find((v) => (v.lang || '').toLowerCase().startsWith(want))
         || voices.find((v) => (v.lang || '').toLowerCase().startsWith('en'));
       if (match) utter.voice = match;
+      const actionStage = document.getElementById('theodore-action');
+      utter.onstart = () => {
+        if (actionStage && actionStage.classList.contains('show')) {
+          actionStage.classList.add('speaking');
+        }
+      };
+      const stopMouth = () => {
+        if (actionStage) actionStage.classList.remove('speaking');
+      };
+      utter.onend = stopMouth;
+      utter.onerror = stopMouth;
       speechSynthesis.speak(utter);
     }
     function autoSpeak() { return document.getElementById('voice-autospeak').checked; }
@@ -1453,6 +1595,21 @@ MONITOR_JS = (
       camVideo.style.visibility = 'hidden';
     }
 
+    function paintTestPattern() {
+      // One bar per analysis column, so downsampling to GRID_W reproduces exactly
+      // the alternating light/dark values the Sobel and exposure gates expect.
+      const w = patternCanvas.width = CAM_FALLBACK_W;
+      const h = patternCanvas.height = CAM_FALLBACK_H;
+      const ctx = patternCanvas.getContext('2d');
+      const barW = w / GRID_W;
+      for (let x = 0; x < GRID_W; x++) {
+        ctx.fillStyle = (((x + patternPhase) % 8) < 4) ? '#d8d8d8' : '#202020';
+        ctx.fillRect(x * barW, 0, barW, h);
+      }
+      patternCanvas.style.display = 'block';
+      camVideo.style.visibility = 'hidden';
+    }
+
     function luminanceGrid() {
       grab.width = GRID_W;
       grab.height = GRID_H;
@@ -1461,13 +1618,12 @@ MONITOR_JS = (
         paintSilhouettePattern();
         ctx.drawImage(patternCanvas, 0, 0, GRID_W, GRID_H);
       } else if (usingPattern) {
-        patternCanvas.style.display = 'none';
-        camVideo.style.visibility = 'visible';
+        // Draw into the on-screen canvas and sample that, so the operator sees the
+        // same frame the gates are scoring. This used to render the bars straight
+        // into the hidden analysis canvas and show an empty <video> instead.
         patternPhase = (patternPhase + 1) % GRID_W;
-        for (let x = 0; x < GRID_W; x++) {
-          ctx.fillStyle = (((x + patternPhase) % 8) < 4) ? '#d8d8d8' : '#202020';
-          ctx.fillRect(x, 0, 1, GRID_H);
-        }
+        paintTestPattern();
+        ctx.drawImage(patternCanvas, 0, 0, GRID_W, GRID_H);
       } else {
         patternCanvas.style.display = 'none';
         camVideo.style.visibility = 'visible';
@@ -1921,8 +2077,9 @@ MONITOR_JS = (
     // --- Facial contour / landmark mood tracking ---------------------------
     let faceContoursOn = true;
     let faceLandmarker = null;
-    let faceLandmarkerFailed = false;
     let faceLandmarkerPromise = null;
+    let faceLandmarkerAttempts = 0;
+    let faceLandmarkerRetryAtMs = 0;
     let lastFaceContours = null;  // { pts:[{x,y}], connections:[[i,j]], mood }
     let moodHistory = [];
     let lastLumaFlat = null;
@@ -1930,6 +2087,65 @@ MONITOR_JS = (
     const observatoryEvents = [];
     const contourToggle = document.getElementById('cam-contour-toggle');
     const contourToggleLabel = document.getElementById('cam-contour-toggle-label');
+
+    // Which detector is actually producing the numbers on screen. Behavior claims
+    // (eyes closed, gaze, mood) are only trustworthy under 'face_mesh'; anything
+    // else must be shown as degraded instead of silently guessing.
+    const DETECTOR_LABELS = {
+      starting: ['detector: loading face mesh…', 'warn'],
+      face_mesh: ['detector: face mesh (accurate)', 'good'],
+      face_detector: ['detector: face box only (no eye/mood)', 'warn'],
+      coarse: ['detector: coarse — eye/mood disabled', 'bad'],
+      off: ['detector: off (pattern/silhouette)', 'warn'],
+    };
+    let detectorSource = 'starting';
+    let detectorDetail = '';
+
+    function setDetectorStatus(source, detail) {
+      detectorSource = source;
+      detectorDetail = detail || '';
+      const el = document.getElementById('cam-detector');
+      if (!el) return;
+      const [text, tone] = DETECTOR_LABELS[source] || DETECTOR_LABELS.coarse;
+      el.textContent = text;
+      el.className = 'pill ' + tone;
+      el.title = detectorDetail
+        || 'Face mesh gives real eye/gaze/expression tracking. Without it the lab '
+           + 'reports presence only and stops guessing per-feature behavior.';
+    }
+
+    // Order matters. An explicit override always wins; self-hosted is only tried
+    // when the server confirms the assets exist (otherwise the 404 just stalls
+    // loading); the public CDN is the default that works out of the box. Getting
+    // this wrong is what made the face mesh — and with it the contours and mood —
+    // stop appearing: self-hosted-first 404'd on every session before the CDN.
+    function visionAssetSources() {
+      const override = (typeof window !== 'undefined' && window.AOEP_VISION_ASSETS) || '';
+      const sources = [];
+      if (override) {
+        sources.push({
+          label: 'override',
+          esm: override.replace(/\\/$/, '') + '/tasks-vision.mjs',
+          wasm: override.replace(/\\/$/, '') + '/wasm',
+          model: override.replace(/\\/$/, '') + '/face_landmarker.task',
+        });
+      }
+      if (VISION_LOCAL_ASSETS) {
+        sources.push({
+          label: 'self-hosted',
+          esm: '/vendor/vision/tasks-vision.mjs',
+          wasm: '/vendor/vision/wasm',
+          model: '/vendor/vision/face_landmarker.task',
+        });
+      }
+      sources.push({
+        label: 'cdn',
+        esm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm',
+        wasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
+        model: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+      });
+      return sources;
+    }
 
     function syncContourToggleUi() {
       if (!contourToggle) return;
@@ -1950,51 +2166,73 @@ MONITOR_JS = (
       syncContourToggleUi();
     }
 
+    const FACE_LANDMARKER_MAX_ATTEMPTS = 8;
+    const FACE_LANDMARKER_RETRY_MS = 15000;
+
+    async function buildFaceLandmarker(src) {
+      const vision = await import(/* webpackIgnore: true */ src.esm);
+      const fileset = await vision.FilesetResolver.forVisionTasks(src.wasm);
+      // GPU fails on some Macs / browsers; fall back to CPU so blink + look-down still work.
+      let lastErr = null;
+      for (const delegate of ['GPU', 'CPU']) {
+        try {
+          const lm = await vision.FaceLandmarker.createFromOptions(fileset, {
+            baseOptions: { modelAssetPath: src.model, delegate },
+            runningMode: 'VIDEO',
+            numFaces: 1,
+            outputFaceBlendshapes: true,
+            outputFacialTransformationMatrixes: true,
+          });
+          lm._CONNECTIONS = [].concat(
+            vision.FaceLandmarker.FACE_LANDMARKS_FACE_OVAL || [],
+            vision.FaceLandmarker.FACE_LANDMARKS_LIPS || [],
+            vision.FaceLandmarker.FACE_LANDMARKS_LEFT_EYE || [],
+            vision.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE || [],
+            vision.FaceLandmarker.FACE_LANDMARKS_LEFT_EYEBROW || [],
+            vision.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYEBROW || [],
+          );
+          lm._delegate = delegate;
+          lm._assetLabel = src.label;
+          return lm;
+        } catch (err) {
+          lastErr = err;
+          console.warn('Face landmarker ' + src.label + '/' + delegate + ' failed', err);
+        }
+      }
+      throw lastErr || new Error('FaceLandmarker init failed');
+    }
+
     async function ensureFaceLandmarker() {
       if (faceLandmarker) return faceLandmarker;
-      if (faceLandmarkerFailed) return null;
       if (faceLandmarkerPromise) return faceLandmarkerPromise;
+      // A transient network/proxy hiccup must not disable face tracking for the
+      // whole session, so retry on a backoff instead of failing permanently.
+      const now = Date.now();
+      if (faceLandmarkerAttempts > 0 && now < faceLandmarkerRetryAtMs) return null;
+      if (faceLandmarkerAttempts >= FACE_LANDMARKER_MAX_ATTEMPTS) return null;
+      faceLandmarkerAttempts += 1;
       faceLandmarkerPromise = (async () => {
-        try {
-          const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
-          const fileset = await vision.FilesetResolver.forVisionTasks(
-            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
-          );
-          const modelPath =
-            'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
-          // GPU fails on some Macs / browsers; fall back to CPU so blink + look-down still work.
-          let lastErr = null;
-          for (const delegate of ['GPU', 'CPU']) {
-            try {
-              faceLandmarker = await vision.FaceLandmarker.createFromOptions(fileset, {
-                baseOptions: { modelAssetPath: modelPath, delegate },
-                runningMode: 'VIDEO',
-                numFaces: 1,
-                outputFaceBlendshapes: true,
-                outputFacialTransformationMatrixes: true,
-              });
-              faceLandmarker._CONNECTIONS = [].concat(
-                vision.FaceLandmarker.FACE_LANDMARKS_FACE_OVAL || [],
-                vision.FaceLandmarker.FACE_LANDMARKS_LIPS || [],
-                vision.FaceLandmarker.FACE_LANDMARKS_LEFT_EYE || [],
-                vision.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE || [],
-                vision.FaceLandmarker.FACE_LANDMARKS_LEFT_EYEBROW || [],
-                vision.FaceLandmarker.FACE_LANDMARKS_RIGHT_EYEBROW || [],
-              );
-              faceLandmarker._delegate = delegate;
-              return faceLandmarker;
-            } catch (err) {
-              lastErr = err;
-              console.warn('Face landmarker ' + delegate + ' failed', err);
-            }
+        const errors = [];
+        for (const src of visionAssetSources()) {
+          try {
+            faceLandmarker = await buildFaceLandmarker(src);
+            setDetectorStatus('face_mesh',
+              'face mesh via ' + src.label + ' (' + faceLandmarker._delegate + ')');
+            return faceLandmarker;
+          } catch (err) {
+            errors.push(src.label + ': ' + (err && err.message ? err.message : err));
           }
-          throw lastErr || new Error('FaceLandmarker init failed');
-        } catch (err) {
-          console.warn('Face landmarker unavailable', err);
-          faceLandmarkerFailed = true;
-          faceLandmarker = null;
-          return null;
         }
+        console.warn('Face landmarker unavailable', errors);
+        faceLandmarker = null;
+        faceLandmarkerPromise = null;
+        faceLandmarkerRetryAtMs = Date.now() + FACE_LANDMARKER_RETRY_MS;
+        const exhausted = faceLandmarkerAttempts >= FACE_LANDMARKER_MAX_ATTEMPTS;
+        setDetectorStatus(('FaceDetector' in window) ? 'face_detector' : 'coarse',
+          'face mesh did not load (' + errors.join(' | ') + ').'
+          + (exhausted ? ' Giving up; reload after self-hosting assets.'
+                       : ' Retrying every 15s.'));
+        return null;
       })();
       return faceLandmarkerPromise;
     }
@@ -2126,6 +2364,24 @@ MONITOR_JS = (
       };
     }
 
+    // A blink lasts ~100-300 ms. The old check called any single frame with the
+    // lids down "eyes closed", so ordinary blinking clamped attention to 12% and
+    // started the drowsy timer. Require a sustained closure in wall-clock time.
+    const EYES_CLOSED_MIN_MS = 900;
+    let eyesClosedSinceMs = 0;
+
+    function sustainedEyesClosed(lidsDown, nowMs) {
+      if (!lidsDown) {
+        eyesClosedSinceMs = 0;
+        return false;
+      }
+      if (!eyesClosedSinceMs) {
+        eyesClosedSinceMs = nowMs;
+        return false;
+      }
+      return (nowMs - eyesClosedSinceMs) >= EYES_CLOSED_MIN_MS;
+    }
+
     function smoothMood(label, confidence) {
       moodHistory.push({ label, confidence });
       if (moodHistory.length > 6) moodHistory.shift();
@@ -2215,6 +2471,7 @@ MONITOR_JS = (
     async function trackFaceContoursAndMood() {
       if (usingSilhouette || usingPattern || !camVideo.videoWidth) {
         lastFaceContours = null;
+        setDetectorStatus('off', 'synthetic source — no real face to track');
         return null;
       }
       const lm = await ensureFaceLandmarker();
@@ -2224,10 +2481,14 @@ MONITOR_JS = (
         if (!faces.length) {
           lastFaceContours = null;
           moodHistory = [];
+          eyesClosedSinceMs = 0;
+          setDetectorStatus('face_mesh', 'face mesh running — no face in frame');
           return { face_count: 0, expression_label: 'unknown', expression_confidence: 0.55,
             gaze_frontal: 0.12, gaze_down_score: 0.2, face_size_ratio: null,
             attention: 'away_from_webcam', source: 'face_contours' };
         }
+        setDetectorStatus('face_mesh',
+          'face mesh tracking (' + (lm._assetLabel || 'assets') + '/' + (lm._delegate || '?') + ')');
         const pts = faces[0];
         const bs = blendshapeMap(result.faceBlendshapes);
         let mood = Object.keys(bs).length
@@ -2258,8 +2519,8 @@ MONITOR_JS = (
         const blink = (blinkL + blinkR) / 2;
         let gaze_down = Math.max(geom_down, lookDown * 1.35, lookDown + geom_down * 0.35);
         if (lookUp > lookDown + 0.15) gaze_down *= 0.55;
-        // Sustained lid close (not a quick blink): either eye strongly closed, or both moderately.
-        const eyes_closed = blink >= 0.45 || Math.min(blinkL, blinkR) >= 0.40;
+        const lids_down = blink >= 0.45 || Math.min(blinkL, blinkR) >= 0.40;
+        const eyes_closed = sustainedEyesClosed(lids_down, Date.now());
         if (eyes_closed) gaze_frontal = Math.min(gaze_frontal, 0.25);
         const yawn_score = Math.max(mood.yawn_score || 0, (mood.expression_label === 'yawning') ? 0.62 : 0);
         const yawning = yawn_score >= 0.48 || mood.expression_label === 'yawning';
@@ -2283,7 +2544,11 @@ MONITOR_JS = (
           expression_confidence: mood.expression_confidence,
           gaze_frontal,
           gaze_down_score: gaze_down,
-          eyes_closed_score: blink,
+          // Report the debounced decision, not the raw per-frame lid score: the
+          // server thresholds this field at 0.45 and would otherwise reintroduce
+          // blink sensitivity we just filtered out.
+          eyes_closed_score: eyes_closed ? Math.max(0.60, blink) : Math.min(blink, 0.30),
+          eyes_closed_raw_score: blink,
           eyes_closed,
           yawn_score,
           brow_raise_score: brow_raise,
@@ -2302,17 +2567,23 @@ MONITOR_JS = (
             window.__twFaceDetector = new FaceDetector({ fastMode: false, maxDetectedFaces: 1 });
           }
           const faces = await window.__twFaceDetector.detect(camVideo);
+          setDetectorStatus('face_detector',
+            'browser FaceDetector box only — eye/gaze/mood claims are suppressed');
           if (!faces.length) {
             lastFaceContours = null;
+            eyesClosedSinceMs = 0;
             return { face_count: 0, expression_label: 'unknown', expression_confidence: 0.5,
               gaze_frontal: 0.1, gaze_down_score: 0.2, face_size_ratio: null,
               attention: 'away_from_webcam', source: 'face_detector' };
           }
           const box = faces[0].boundingBox;
-          // Use grid mouth heuristic as mood until MediaPipe loads; contour still drawn.
+          // Box only: presence + framing. Mood/eye state stay unclaimed.
           return { face_count: 1, box, source: 'face_detector' };
         } catch (_) {}
       }
+      setDetectorStatus('coarse',
+        'no face-mesh and no browser FaceDetector — presence only, '
+        + 'per-feature behavior (eyes, gaze, mood) is not reported');
       return null;
     }
 
@@ -2364,18 +2635,13 @@ MONITOR_JS = (
       let expression_label = 'neutral', expression_confidence = 0.45;
       if (smile >= 0.55 && smile >= sad + 0.08) { expression_label = 'happy'; expression_confidence = 0.45 + smile * 0.5; }
       else if (sad >= 0.52 && sad > smile + 0.05) { expression_label = 'sad'; expression_confidence = 0.42 + sad * 0.5; }
-      // Fallback closed-eye score when MediaPipe is unavailable: open eyes have higher
-      // local contrast in the eye band; closed lids flatten that band.
-      let eyeEdges = 0, eyeBandN = 0;
-      for (let y = Math.floor(h * 0.16); y < Math.floor(h * 0.38); y++) {
-        for (let x = Math.floor(w * 0.28); x < Math.floor(w * 0.72) - 1; x++) {
-          eyeEdges += Math.abs(grid[y][x + 1] - grid[y][x]);
-          eyeBandN++;
-        }
-      }
-      const eyeEdgeMean = eyeBandN ? eyeEdges / eyeBandN : 0;
-      const eyes_closed_score = Math.max(0, Math.min(1, (0.042 - eyeEdgeMean) / 0.032));
-      const eyes_closed = eyes_closed_score >= 0.55 && gaze_down < 0.55;
+      // Eye state is deliberately NOT guessed here. The old edge-contrast proxy
+      // (low horizontal detail in a fixed 16-38% band == closed lids) fires on any
+      // soft or low-contrast webcam image and reported "eyes closed" for minutes
+      // while the learner was looking straight at the camera. Only real landmarks
+      // (MediaPipe blendshapes) may claim eye state; see trackFaceContoursAndMood.
+      const eyes_closed_score = null;
+      const eyes_closed = false;
       // Grid yawn: dark mouth cavity relative to cheeks + weak smile edges.
       const yawn_score = Math.max(0, Math.min(1,
         Math.max(0, (cheekMean - mouthMean) * 2.6)
@@ -2385,10 +2651,9 @@ MONITOR_JS = (
       ));
       const yawning = yawn_score >= 0.55 && yawn_score >= smile + 0.08;
       if (yawning) { expression_label = 'yawning'; expression_confidence = 0.45 + yawn_score * 0.45; }
-      const attention = eyes_closed
-        ? 'eyes_closed'
-        : (yawning ? 'yawning'
-          : ((gaze_down >= 0.45 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking'));
+      const attention = yawning
+        ? 'yawning'
+        : ((gaze_down >= 0.45 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking');
       // Linear face size from dark-pixel bbox (larger face ⇒ closer to camera).
       let minX = w, minY = h, maxX = -1, maxY = -1;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -2398,19 +2663,58 @@ MONITOR_JS = (
         }
       }
       let face_size_ratio = Math.max(0.05, Math.min(0.45, darkRatio * 1.8));
+      // Normalised (0..1) face box for the coarse contour overlay. Lets the user
+      // still see a tracked outline + mood colour when the mesh cannot load,
+      // without claiming landmark-grade accuracy.
+      let grid_box = null;
       if (maxX >= minX && maxY >= minY) {
         const boxW = (maxX - minX + 1) / w;
         const boxH = (maxY - minY + 1) / h;
         face_size_ratio = Math.max(0.04, Math.min(0.85, Math.max(boxW * 0.85, boxH * 0.55)));
+        grid_box = {
+          x: minX / w,
+          y: minY / h,
+          width: (maxX - minX + 1) / w,
+          height: (maxY - minY + 1) / h,
+        };
       }
       return {
         face_count: 1, expression_label, expression_confidence,
         gaze_frontal, gaze_down_score: gaze_down,
         eyes_closed_score, eyes_closed, yawn_score,
         face_size_ratio,
+        grid_box,
         attention,
         distance_from_camera_m: null,
         distance_source: null,
+        // "Something person-shaped is in frame", not a tracked face. Callers must
+        // not promote coarse output into confident per-feature behavior claims.
+        coarse: true,
+        source: 'coarse',
+      };
+    }
+
+    // Clean "no face in frame" reading. Built fresh instead of spreading over the
+    // coarse grid estimate, so stale grid scores cannot leak out alongside
+    // face_count 0 (that combination produced "absent" + "eyes closed for 39.9s").
+    function noFaceFacial(source) {
+      return {
+        face_count: 0,
+        expression_label: 'unknown',
+        expression_confidence: 0.55,
+        gaze_frontal: null,
+        gaze_down_score: null,
+        eyes_closed_score: null,
+        eyes_closed: false,
+        yawn_score: null,
+        smile_score: null,
+        sad_score: null,
+        brow_raise_score: null,
+        face_size_ratio: null,
+        attention: 'away_from_webcam',
+        distance_from_camera_m: null,
+        distance_source: null,
+        source: source || 'none',
       };
     }
 
@@ -2464,7 +2768,9 @@ MONITOR_JS = (
       const contourMood = await trackFaceContoursAndMood();
       if (contourMood) {
         if (contourMood.face_count === 0) {
-          facial = { ...facial, ...contourMood };
+          // A real detector ran and saw nobody: drop the coarse grid reading
+          // entirely rather than merging over it.
+          facial = noFaceFacial(contourMood.source);
         } else if (contourMood.expression_label) {
           facial = {
             ...facial,
@@ -2488,27 +2794,16 @@ MONITOR_JS = (
           };
         }
       }
-      const gridFaceSize = facial.face_size_ratio;
-      if (!usingSilhouette && !usingPattern && camVideo.videoWidth && ('FaceDetector' in window)) {
+      // The landmark mesh is the strongest detector we have. When it is tracking a
+      // face, the coarse FaceDetector box must not run: a single missed box used to
+      // wipe good landmark data and flip a present learner to "away from webcam".
+      const meshTracked = facial.source === 'face_contours' && (facial.face_count || 0) > 0;
+      if (!meshTracked && !usingSilhouette && !usingPattern && camVideo.videoWidth && ('FaceDetector' in window)) {
         try {
           if (!window.__twFaceDetector) window.__twFaceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 2 });
           const faces = await window.__twFaceDetector.detect(camVideo);
           if (!faces.length) {
-            // Keep grid face-size if the silhouette/person is still in frame.
-            facial = {
-              ...facial,
-              face_count: facial.face_count || 0,
-              attention: facial.face_count ? facial.attention : 'away_from_webcam',
-              face_size_ratio: facial.face_count ? (facial.face_size_ratio || gridFaceSize) : null,
-            };
-            if (!facial.face_count) {
-              facial.expression_label = 'unknown';
-              facial.expression_confidence = 0.6;
-              facial.gaze_frontal = 0.1;
-              facial.gaze_down_score = 0.2;
-              facial.attention = 'away_from_webcam';
-              facial.face_size_ratio = null;
-            }
+            facial = noFaceFacial('face_detector');
           } else {
             const box = faces[0].boundingBox;
             // Linear size vs window frame (NOT area) — larger face ⇒ closer.
@@ -2535,6 +2830,30 @@ MONITOR_JS = (
             };
           }
         } catch (_) { /* FaceDetector optional */ }
+      }
+      // Coarse visual fallback: no mesh and no FaceDetector, but the grid sees a
+      // person. Draw an approximate oval + mood-coloured mouth so the operator
+      // still gets visible face tracking and a mood read instead of a blank card.
+      // This is a UX affordance only — the detector badge still says "coarse" and
+      // no eye/gaze/distance behaviour is claimed from it.
+      if (
+        !meshTracked && !usingSilhouette && !usingPattern &&
+        faceContoursOn && facial.source === 'coarse' &&
+        (facial.face_count || 0) > 0 && facial.grid_box &&
+        camVideo.videoWidth
+      ) {
+        const gb = facial.grid_box;
+        lastFaceContours = {
+          pts: null,
+          connections: null,
+          mood: facial.expression_label || 'neutral',
+          fallbackBox: {
+            x: gb.x * camVideo.videoWidth,
+            y: gb.y * camVideo.videoHeight,
+            width: gb.width * camVideo.videoWidth,
+            height: gb.height * camVideo.videoHeight,
+          },
+        };
       }
       const lidar = (!usingSilhouette && !usingPattern) ? await sampleLidarDistanceMeters() : null;
       if (lidar) {
@@ -2574,10 +2893,14 @@ MONITOR_JS = (
       if (behCard) behCard.className = 'facial-card beh-' + behavior;
       document.getElementById('facial-mood').textContent = mood;
       const moodSrc = (facial && facial.source) || 'grid';
-      document.getElementById('facial-mood-sub').textContent =
-        'confidence ' + (conf == null ? 'n/a' : Math.round(conf * 100) + '%') +
-        ' · ' + (moodSrc === 'face_contours' ? 'facial contours' : moodSrc) +
-        ' · behavior ' + pct(p && p.expression_behavior_score);
+      const SRC_LABELS = { face_contours: 'facial contours', coarse: 'coarse heuristic' };
+      document.getElementById('facial-mood-sub').textContent = (usingPattern || usingSilhouette)
+        // Synthetic frames have no face on purpose; say so instead of looking broken.
+        ? (usingPattern ? 'test pattern' : 'silhouette demo')
+          + ' · synthetic frame, no face to read · exercising the quality gates'
+        : 'confidence ' + (conf == null ? 'n/a' : Math.round(conf * 100) + '%') +
+          ' · ' + (SRC_LABELS[moodSrc] || moodSrc) +
+          ' · behavior ' + pct(p && p.expression_behavior_score);
       const attnLabel = ({
         looking: 'looking', eyes_away: 'eyes away', eyes_closed: 'eyes closed',
         yawning: 'yawning', distracted: 'distracted', inattentive: 'not paying attention',
@@ -2620,6 +2943,11 @@ MONITOR_JS = (
       if (autoSpeak()) speakTheodore(message, voiceLangCode());
     }
 
+    // Finite numbers pass through; anything unmeasured becomes null.
+    function num(value) {
+      return (typeof value === 'number' && isFinite(value)) ? value : null;
+    }
+
     async function sampleFrame() {
       refreshSilhouetteGuide();
       const grid = luminanceGrid();
@@ -2642,10 +2970,13 @@ MONITOR_JS = (
             expression_confidence: facial.expression_confidence,
             gaze_frontal: facial.gaze_frontal,
             gaze_down_score: facial.gaze_down_score,
-            eyes_closed_score: facial.eyes_closed_score || 0,
-            yawn_score: facial.yawn_score || 0,
-            brow_raise_score: facial.brow_raise_score || 0,
-            smile_score: facial.smile_score || 0,
+            // null (not 0) when no real detector measured it, so the server can
+            // tell "measured as open" apart from "nobody looked".
+            eyes_closed_score: num(facial.eyes_closed_score),
+            yawn_score: num(facial.yawn_score),
+            brow_raise_score: num(facial.brow_raise_score),
+            smile_score: num(facial.smile_score),
+            detector_source: detectorSource,
             head_pose_pitch: facial.head_pose_pitch,
             head_pose_yaw: facial.head_pose_yaw,
             head_pose_roll: facial.head_pose_roll,
@@ -2953,6 +3284,8 @@ MONITOR_PAGE_TEMPLATE = (
         <button id="cam-pattern" type="button">Test pattern</button>
         <button id="cam-silhouette" type="button">Silhouette demo</button>
         <span class="pill" id="cam-state">idle</span>
+        <span class="pill warn" id="cam-detector"
+              title="Which detector is producing the numbers below.">detector: loading face mesh…</span>
       </div>
       <div class="camrow" id="cam-readings"></div>
       <div class="facial-hud" id="facial-hud">
@@ -3137,6 +3470,32 @@ MONITOR_PAGE_TEMPLATE = (
   <div class="panel" style="margin:0 12px 12px 12px;">
     <h2>Student Windows (Live Metrics)</h2>
     <div class="windows" id="windows"></div>
+  </div>
+  <div id="theodore-action" class="theodore-action" role="dialog" aria-modal="true"
+       aria-labelledby="theodore-action-title" aria-hidden="true">
+    <div class="theodore-action-card">
+      <div class="theodore-avatar-wrap" aria-hidden="true">
+        <div class="theodore-avatar">
+          <div class="theodore-crown"></div>
+          <div class="theodore-eye left"></div>
+          <div class="theodore-eye right"></div>
+          <div class="theodore-nose"></div>
+          <div class="theodore-mouth"></div>
+          <div class="theodore-medallion">S</div>
+        </div>
+        <div id="theodore-action-icon" class="theodore-action-icon">✨</div>
+      </div>
+      <div class="theodore-action-copy">
+        <div class="theodore-action-kicker">Theodore is taking action</div>
+        <h2 id="theodore-action-title" class="theodore-action-title">Theodore takes action</h2>
+        <div id="theodore-action-body" class="theodore-action-body"></div>
+        <div id="theodore-action-speech" class="theodore-speech" aria-live="assertive"></div>
+        <div class="theodore-action-controls">
+          <button id="theodore-action-speak" class="speak" type="button">🔊 Say it again</button>
+          <button id="theodore-action-close" type="button">Continue lesson</button>
+        </div>
+      </div>
+    </div>
   </div>
   <div id="toast" class="toast" role="status"></div>
   <script>"""

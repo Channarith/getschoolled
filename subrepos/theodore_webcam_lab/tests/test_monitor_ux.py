@@ -193,10 +193,58 @@ def test_lesson_alert_action_sends_private_message_and_game():
     assert body["ok"] is True
     assert "student-b" in body["summary"]
     assert body["details"]["challenge_id"]
+    presentation = body["details"]["presentation"]
+    assert presentation["visual_effect"] == "shield"
+    assert presentation["visual_title"] == "Integrity focus challenge"
+    assert "Student B" in presentation["speech_text"]
     metrics = client.get("/api/theodore/webcam/live-metrics/ux-action-1").json()
     assert metrics["private_messages"]
     assert any("Integrity" in m["body"] for m in metrics["private_messages"])
     assert "student_cheating_signal:student-b" in metrics["acknowledged_alert_keys"]
+
+
+def test_lesson_actions_render_and_speak_as_theodore():
+    page = client.get("/theodore/webcam/live-monitor/action-stage")
+    assert page.status_code == 200
+    text = page.text
+    assert 'id="theodore-action"' in text
+    assert 'id="theodore-action-speech"' in text
+    assert 'id="theodore-action-speak"' in text
+    assert "presentTheodoreAction" in text
+    assert "speakCurrentAction" in text
+    assert "speakTheodore(currentActionSpeech" in text
+    assert "theodore-action show effect-" in text
+    assert "theodore-action.speaking .theodore-mouth" in text
+    assert "Theodore is taking action" in text
+
+
+def test_face_mesh_loads_cdn_first_without_local_assets():
+    """Regression: making the self-hosted /vendor/vision path first meant every
+    session 404'd on it before reaching the CDN, so the face mesh — and the
+    contours + mood cards it feeds — silently stopped appearing. With no local
+    assets the page must say so and try the CDN, not the dead local path first."""
+    page = client.get("/theodore/webcam/live-monitor/mesh-order").text
+    assert "__VISION_LOCAL_ASSETS__" not in page, "server left the flag unsubstituted"
+    assert "const VISION_LOCAL_ASSETS = false;" in page
+    # The self-hosted source is only pushed when the flag is true.
+    assert "if (VISION_LOCAL_ASSETS) {" in page
+    # The CDN source is unconditional so it always loads out of the box.
+    assert "cdn.jsdelivr.net/npm/@mediapipe/tasks-vision" in page
+
+
+def test_coarse_mode_still_draws_a_contour_and_mood():
+    """Regression: when the mesh cannot load and the browser has no FaceDetector,
+    the accuracy pass left the panel blank. The coarse grid path must still draw
+    an approximate outline (fallbackBox) and keep a mood label so the operator
+    sees live face tracking — clearly badged 'coarse', not landmark-accurate."""
+    page = client.get("/theodore/webcam/live-monitor/coarse-contour").text
+    # Grid estimator exposes a normalised box for the coarse overlay.
+    assert "grid_box" in page
+    # estimateFacialExperience promotes it into a drawable fallback contour.
+    assert "fallbackBox: {" in page
+    assert "facial.source === 'coarse'" in page
+    # The coarse oval is drawn by the existing fallback renderer.
+    assert "function drawDetectorFaceContour" in page
 
 
 def test_policy_timing_endpoint_and_all_vision_knobs_listed():
@@ -263,3 +311,17 @@ def test_vision_preset_rescores_demo_session_immediately():
     assert after_dist["student-a"] != before_dist["student-a"]
 
     client.post("/api/theodore/vision/tuning/preset/balanced")
+
+
+def test_synthetic_sources_render_to_the_visible_canvas():
+    """Regression: "Test pattern" drew its bars straight into the hidden 64x36
+    analysis canvas and left the empty <video> showing, so the operator saw a
+    black box while the gates scored a pattern nobody could see."""
+    text = client.get("/theodore/webcam/live-monitor/demo-session").text
+    assert "function paintTestPattern" in text
+    assert "function paintSilhouettePattern" in text
+    # Both synthetic modes must sample the very canvas that is shown on screen.
+    assert text.count("ctx.drawImage(patternCanvas, 0, 0, GRID_W, GRID_H)") == 2
+    # One bar per analysis column keeps the downsample identical to the old grid.
+    assert "const barW = w / GRID_W;" in text
+    assert "synthetic frame, no face to read" in text

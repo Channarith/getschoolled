@@ -289,14 +289,65 @@ function renderTheodoreReply(reply) {
     <div class="translation" dir="${row?.rtl?'rtl':'auto'}">${esc(reply.text)}</div>
     ${reply.warning?`<div class="warning">⚠ ${esc(reply.warning)}</div>`:''}`;
   const empty=$('empty'); if(empty) empty.remove(); $('feed').prepend(card);
+  lastTheodoreReply=reply;
   if($('speak-theodore').checked) speakTheodore(reply);
 }
-function speakTheodore(reply) {
-  if(!window.speechSynthesis||!reply.text)return;
+let lastTheodoreReply=null;
+// Server neural audio when the lab has an engine, else the device voice. Probed
+// once (serverTts) so a lab with no TTS configured never pays a round-trip per
+// reply. The device voice is missing or robotic for most of the 27 languages,
+// which is why server audio is preferred rather than merely offered.
+let serverTts={available:false,engine:''};
+let theodoreAudio=null;
+
+async function loadTtsStatus() {
+  try { serverTts=await api('/api/tts/status'); } catch(_) { serverTts={available:false,engine:''}; }
+  $('theodore-audio-state').textContent=serverTts.available
+    ? `Theodore voice: ${serverTts.engine}` : 'Theodore voice: device';
+}
+
+function stopTheodoreAudio() {
+  window.speechSynthesis?.cancel();
+  if(theodoreAudio){ theodoreAudio.pause(); theodoreAudio=null; }
+  $('theodore-audio-state').textContent='Theodore audio stopped';
+}
+
+async function speakTheodore(reply) {
+  if(!reply.text) return;
+  const row=langs.find(l=>l.code===reply.language);
+  const name=row?.name||reply.language;
+  const rate=Number($('theodore-rate').value||.95);
+  stopTheodoreAudio();
+
+  if(serverTts.available) {
+    try {
+      const url=`/api/tts?text=${encodeURIComponent(reply.text)}`+
+        `&language=${encodeURIComponent(reply.language)}&style=warm`;
+      const res=await fetch(url);
+      // 501 means "no engine here" — fall through to the device voice rather
+      // than leaving Theodore silent.
+      if(res.ok) {
+        const engine=res.headers.get('X-TTS-Engine')||serverTts.engine;
+        const blob=await res.blob();
+        theodoreAudio=new Audio(URL.createObjectURL(blob));
+        theodoreAudio.playbackRate=rate;
+        $('theodore-audio-state').textContent=`speaking ${name} · ${engine}`;
+        theodoreAudio.onended=()=>{$('theodore-audio-state').textContent=`Theodore voice: ${engine}`};
+        await theodoreAudio.play();
+        return;
+      }
+      if(res.status===501) serverTts.available=false;
+    } catch(_) { /* fall back to the device voice below */ }
+  }
+
+  if(!window.speechSynthesis) {
+    $('theodore-audio-state').textContent='no voice available on this device';
+    return;
+  }
   const utter=new SpeechSynthesisUtterance(reply.text);
-  const row=langs.find(l=>l.code===reply.language); utter.lang=row?.bcp47||reply.language;
-  utter.rate=Number($('theodore-rate').value||.95); window.speechSynthesis.speak(utter);
-  $('theodore-audio-state').textContent=`speaking ${row?.name||reply.language}`;
+  utter.lang=row?.bcp47||reply.language;
+  utter.rate=rate; window.speechSynthesis.speak(utter);
+  $('theodore-audio-state').textContent=`speaking ${name} · device voice`;
   utter.onend=()=>{$('theodore-audio-state').textContent='Theodore audio ready'};
 }
 async function updateTheodoreConfig() {
@@ -556,6 +607,8 @@ $('stop').onclick=stop;
 $('send-manual').onclick=()=>sendTranscript($('manual-text').value,true,'manual-test',1);
 $('share').onclick=shareViewer;
 $('stop-audio').onclick=stopTranslatedAudio;
+$('stop-theodore-audio').onclick=stopTheodoreAudio;
+$('replay-theodore').onclick=()=>{ if(lastTheodoreReply) speakTheodore(lastTheodoreReply); };
 $('theodore-auto').onchange=()=>updateTheodoreConfig();
 $('theodore-lang').onchange=()=>updateTheodoreConfig();
 $('theodore-mode').onchange=()=>updateTheodoreConfig();
@@ -567,7 +620,7 @@ $('audio-device').onchange=()=>switchAudioDevice().catch(e=>status(e.message,'ba
 $('refresh-devices').onclick=()=>refreshAudioDevices(true).catch(e=>status(e.message,'bad'));
 $('capture-engine').onchange=()=>switchCaptureEngine().catch(e=>status(e.message,'bad'));
 $('role').onchange=()=>{ $('speaker-controls').style.display=$('role').value==='speaker'?'block':'none'; };
-loadLanguages().then(()=>Promise.all([loadProviders(),loadAudioPolicy(),loadTheodore(),refreshAudioDevices(false)])).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
+loadLanguages().then(()=>Promise.all([loadProviders(),loadAudioPolicy(),loadTheodore(),loadTtsStatus(),refreshAudioDevices(false)])).then(()=>{ $('role').onchange(); }).catch(e=>status(e.message,'bad'));
 """
 
 
@@ -601,12 +654,14 @@ def render_lab_page() -> str:
 <div class="note warn">Raw audio is held in memory only for ASR and is never saved by this lab. Use headphones to reduce teacher/audio echo.</div>
 <p class="privacy">Browser recognition may use your browser/OS speech service. Server Whisper uses ASR_BASE_URL. Confirm data policy before real customer use.</p></section>
 <section class="panel"><h2>Teacher / Theodore / customer feed</h2>
-<div class="row"><label><input id="theodore-auto" type="checkbox"/> Theodore replies after each learner turn</label>
+<div class="row"><label><input id="theodore-auto" type="checkbox" checked/> Theodore replies after each learner turn</label>
 <label>Teach mode <select id="theodore-mode"><option value="teach">Teach + check</option><option value="answer">Answer directly</option><option value="coach">Coach with a hint</option><option value="clarify">Clarify simply</option></select></label>
 <label>Reply language <select id="theodore-lang"></select></label></div>
 <div class="row"><label><input id="speak-theodore" type="checkbox" checked/> Speak Theodore aloud</label>
 <label>Speed <input id="theodore-rate" type="number" value="0.95" min="0.6" max="1.3" step="0.05" style="width:65px"/></label>
 <button id="ask-theodore" class="secondary">Ask Theodore using debug text</button>
+<button id="replay-theodore" class="secondary">Say it again</button>
+<button id="stop-theodore-audio" class="secondary">Stop Theodore audio</button>
 <span id="theodore-state" class="badge">Theodore…</span><span id="theodore-audio-state" class="badge">Theodore audio ready</span></div>
 <div class="row"><span class="connected" id="presence"></span>
 <label><input id="speak-output" type="checkbox"/> Speak translated audio</label>

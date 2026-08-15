@@ -94,6 +94,13 @@ SUPPORTED_LANGUAGES: list[SupportedLanguage] = [
 # while item.code retains the canonical capitalisation for API/SpeechSynthesis.
 _LANG_BY_CODE = {item.code.lower(): item for item in SUPPORTED_LANGUAGES}
 
+# "grok-4" is a retired alias: xAI's May 2026 retirement redirects the grok-4-0709
+# family to grok-4.3 and bills at 4.3 rates, so relying on it means depending on a
+# redirect that can be withdrawn. Name the canonical model instead. grok-4.3 and
+# not the newer grok-4.5 because 4.5 is withheld from EU API Console accounts and
+# a default has to work everywhere; override with XAI_MODEL / XAI_FAST_MODEL.
+XAI_DEFAULT_MODEL = "grok-4.3"
+
 
 class XaiVoiceAgentError(RuntimeError):
     """Raised when the xAI voice-agent endpoint call fails."""
@@ -116,8 +123,8 @@ class XaiVoiceAgent:
         *,
         api_key: str = "",
         base_url: str = "https://api.x.ai/v1",
-        model: str = "grok-4",
-        fast_model: str = "grok-4",
+        model: str = XAI_DEFAULT_MODEL,
+        fast_model: str = XAI_DEFAULT_MODEL,
         timeout_s: float = 25.0,
         fast_timeout_s: float = 6.0,
         cache_ttl_s: float = 20.0,
@@ -145,8 +152,12 @@ class XaiVoiceAgent:
         return cls(
             api_key=os.environ.get("XAI_API_KEY", ""),
             base_url=os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1"),
-            model=os.environ.get("XAI_MODEL", "grok-4"),
-            fast_model=os.environ.get("XAI_FAST_MODEL", os.environ.get("XAI_MODEL", "grok-4")),
+            model=os.environ.get("XAI_MODEL", "").strip() or XAI_DEFAULT_MODEL,
+            fast_model=(
+                os.environ.get("XAI_FAST_MODEL", "").strip()
+                or os.environ.get("XAI_MODEL", "").strip()
+                or XAI_DEFAULT_MODEL
+            ),
             timeout_s=float(os.environ.get("XAI_TIMEOUT_S", "25")),
             fast_timeout_s=float(os.environ.get("XAI_FAST_TIMEOUT_S", "6")),
             cache_ttl_s=float(os.environ.get("XAI_CACHE_TTL_S", "20")),
