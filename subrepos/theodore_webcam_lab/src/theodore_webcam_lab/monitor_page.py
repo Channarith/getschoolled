@@ -3102,7 +3102,8 @@ MONITOR_JS = (
       if (!faceCount) {
         return {
           index: -1, owner_enrolled: faceOwnerState.enrolled,
-          owner_match: faceOwnerState.enrolled ? false : null,
+          // Empty frame is absence, not substitution.
+          owner_match: null,
           match_score: 0, secondary_count: 0, face_count: 0,
         };
       }
@@ -3163,7 +3164,7 @@ MONITOR_JS = (
       return {
         index: bestI, owner_enrolled: true, owner_match: false,
         match_score: Math.max(0, bestScore),
-        secondary_count: faceCount, face_count: faceCount,
+        secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
       };
     }
 
@@ -3854,7 +3855,7 @@ MONITOR_JS = (
             gaze_frontal: 0.12, gaze_down_score: 0.2, face_size_ratio: null,
             attention: 'away_from_webcam', source: 'face_contours',
             owner_face_enrolled: faceOwnerState.enrolled,
-            owner_face_match: faceOwnerState.enrolled ? false : null,
+            owner_face_match: null,
             owner_match_score: 0,
             secondary_face_count: 0,
           };
@@ -3969,7 +3970,7 @@ MONITOR_JS = (
               gaze_frontal: 0.1, gaze_down_score: 0.2, face_size_ratio: null,
               attention: 'away_from_webcam', source: 'face_detector',
               owner_face_enrolled: faceOwnerState.enrolled,
-              owner_face_match: faceOwnerState.enrolled ? false : null,
+              owner_face_match: null,
               owner_match_score: 0, secondary_face_count: 0,
             };
           }
@@ -4578,7 +4579,8 @@ MONITOR_JS = (
       // coaching. Resting a chin on a hand is normal and should not interrupt.
       if ((p.eyes_closed_for_ms || 0) >= 1500) {
         maybeAnnounceIntegrity('closed', 'I notice your eyes are closed. Please open them and look at the lesson.');
-      } else if (facial && facial.owner_face_enrolled && facial.owner_face_match === false) {
+      } else if (facial && facial.owner_face_enrolled && facial.owner_face_match === false
+                 && (facial.face_count || 0) > 0) {
         maybeAnnounceIntegrity('owner', 'A different person appears to be in front of the camera. Please return the enrolled learner.');
       } else if ((p.yawn_for_ms || 0) >= 1500) {
         maybeAnnounceIntegrity('yawn', 'I notice you are yawning. Take a quick stretch if you need to, then refocus on the lesson.');

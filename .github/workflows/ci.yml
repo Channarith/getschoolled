@@ -39,6 +39,14 @@ jobs:
           # The webcam labs analyse frames, so they need the vision stack.
           python3 -m pip install \
             "opencv-contrib-python-headless==4.10.0.84" "numpy==1.26.4"
+          # Theodore experiment subrepos (audio upload Form needs python-multipart).
+          python3 -m pip install -e "subrepos/theodore_audio_translation_lab[test]"
+          python3 -m pip install -e "subrepos/theodore_webcam_lab[test]"
+          python3 -m pip install -e "subrepos/theodore_homework_lab[test]"
+          python3 -m pip install -e "subrepos/theodore_music_lab[test]"
+          python3 -m pip install -e "subrepos/theodore_rag_lab[test]"
+          python3 -m pip install -e "subrepos/theodore_drive_lab[test]"
+          python3 -m pip install -e "subrepos/theodore_course_studio[test]"
       - name: Run tests
         run: python3 -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_audio_translation_lab/tests subrepos/theodore_course_studio/tests subrepos/theodore_rag_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests -q
 

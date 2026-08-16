@@ -497,7 +497,54 @@ STUDIO_JS = """
       });
       const box = $('game-box');
       box.style.display = 'block';
-      const opts = (pendingGame.payload && pendingGame.payload.options) || [];
+      const kind = pendingGame.kind || (pendingGame.payload && pendingGame.payload.kind) || '';
+      const payload = pendingGame.payload || {};
+      // Multimodal kits use order_steps (reorder) as well as match_term (pick one).
+      if (kind === 'order_steps' || (payload.steps_shown && payload.steps_shown.length)) {
+        const steps = (payload.steps_shown || []).slice();
+        box.innerHTML = `<strong>${esc(pendingGame.prompt)}</strong>
+          <p style="font-size:12px;opacity:.85;margin:8px 0;">Click steps in the correct order (first → last).</p>
+          <div id="order-steps"></div>
+          <button type="button" id="order-submit" class="primary" style="margin-top:8px;">Check order</button>
+          <button type="button" id="order-reset" style="margin-top:8px;">Reset</button>`;
+        const list = box.querySelector('#order-steps');
+        const picked = [];
+        function paint() {
+          list.innerHTML = steps.map((s, i) => {
+            const used = picked.includes(i);
+            return `<button type="button" data-si="${i}" ${used ? 'disabled' : ''} style="display:block;width:100%;text-align:left;margin:4px 0;opacity:${used ? 0.45 : 1}">${esc(s)}</button>`;
+          }).join('') + (picked.length
+            ? `<div style="margin-top:8px;font-size:12px;">Order: ${picked.map((i) => esc(steps[i])).join(' → ')}</div>`
+            : '');
+          list.querySelectorAll('button[data-si]').forEach((b) => {
+            b.onclick = () => {
+              const i = +b.dataset.si;
+              if (!picked.includes(i)) { picked.push(i); paint(); }
+            };
+          });
+        }
+        paint();
+        box.querySelector('#order-reset').onclick = () => { picked.length = 0; paint(); };
+        box.querySelector('#order-submit').onclick = async () => {
+          if (picked.length !== steps.length) {
+            toast('Pick every step in order first');
+            return;
+          }
+          const ordered = picked.map((i) => steps[i]);
+          const res = await api('/api/studio/teach/game-grade', {
+            method:'POST', headers:{'content-type':'application/json'},
+            body: JSON.stringify({
+              session_id: teachSession,
+              challenge: pendingGame,
+              response: { ordered_steps: ordered }
+            })
+          });
+          toast(res.feedback || (res.passed ? 'Game passed' : 'Try again'));
+          box.style.display = 'none';
+        };
+        return;
+      }
+      const opts = payload.options || [];
       box.innerHTML = `<strong>${esc(pendingGame.prompt)}</strong>` +
         opts.map((c, i) => `<button type="button" data-i="${i}">${esc(c)}</button>`).join('');
       box.querySelectorAll('button[data-i]').forEach((b) => {

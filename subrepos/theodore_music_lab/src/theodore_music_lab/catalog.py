@@ -201,40 +201,17 @@ def load_songs(path: Optional[os.PathLike[str] | str] = None) -> list[Song]:
 def import_songs(records: Iterable[dict[str, Any]]) -> list[Song]:
     """Validate and normalize imported original song packs (no copyrighted lyrics)."""
     songs: list[Song] = []
-    for rec in records:
+    for i, rec in enumerate(records):
         license_ = str(rec.get("license") or "").lower()
         if license_ and "copyright" in license_ and "original" not in license_:
             raise ValueError(
                 f"Refusing import of '{rec.get('song_id')}': "
                 "only original/educational licenses are allowed in this lab"
             )
-        lines_raw = rec.get("lines") or rec.get("verses") or []
-        if not lines_raw:
+        song = _song_from_record(rec, fallback_id=f"import-{i + 1}")
+        if song is None:
             raise ValueError(f"Song '{rec.get('song_id')}' has no lines")
-        songs.append(
-            Song(
-                song_id=str(rec["song_id"]),
-                language=str(rec.get("language") or "en"),
-                title_en=str(rec.get("title_en") or rec["song_id"]),
-                topic=str(rec.get("topic") or "general"),
-                style=str(rec.get("style") or "imported"),
-                license=str(rec.get("license") or "original-salareen"),
-                source=str(rec.get("source") or "import"),
-                lines=[
-                    SongLine(
-                        line_no=int(row.get("line_no") or i),
-                        text=str(row["text"]),
-                        meaning_en=str(row.get("meaning_en") or row["text"]),
-                        tts_text=str(row.get("tts_text") or row["text"]),
-                        section=str(row.get("section") or ""),
-                    )
-                    for i, row in enumerate(lines_raw, start=1)
-                ],
-                audio_file=str(rec.get("audio_file") or ""),
-                animation=str(rec.get("animation") or "pulse"),
-                featured=bool(rec.get("featured") or False),
-            )
-        )
+        songs.append(song)
     return songs
 
 

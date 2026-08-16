@@ -395,9 +395,12 @@ class WebcamSessionAnalyzer:
                     "unexpected_user_present:" + ",".join(unexpected_participant_ids)
                 )
         # Same participant_id can still be a different physical person on one webcam.
-        # Client enrolls the first stable face and reports owner_face_match=False on swap.
+        # Only when a live face is present — an empty frame is absence, not substitution.
         owner_face_mismatch = any(
-            bool(s.owner_face_enrolled) and s.owner_face_match is False for s in signals
+            bool(s.owner_face_enrolled)
+            and s.owner_face_match is False
+            and int(s.face_count or 0) > 0
+            for s in signals
         )
         if mode is ClassMode.SOLO and owner_face_mismatch:
             training_paused = True
@@ -1156,7 +1159,9 @@ class WebcamSessionAnalyzer:
         )
         typing_active = typing_activity_high or keyboard_typing_audio_detected
         owner_mismatch = bool(
-            signal.owner_face_enrolled and signal.owner_face_match is False
+            signal.owner_face_enrolled
+            and signal.owner_face_match is False
+            and face_count > 0
         )
         secondary_faces = max(0, int(signal.secondary_face_count or 0))
         suspected_cheating = (

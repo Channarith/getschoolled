@@ -162,7 +162,8 @@ def pick_owner_face(
             index=-1,
             state=state,
             owner_enrolled=state.enrolled,
-            owner_match=False if state.enrolled else None,
+            # Empty frame is absence, not a substitution — leave match unset.
+            owner_match=None,
             match_score=0.0,
             secondary_count=0,
             face_count=0,
@@ -254,7 +255,7 @@ def pick_owner_face(
         owner_enrolled=True,
         owner_match=False,
         match_score=max(0.0, best_score),
-        secondary_count=face_count,
+        secondary_count=max(0, face_count - 1),
         face_count=face_count,
     )
 

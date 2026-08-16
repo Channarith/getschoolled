@@ -1,10 +1,10 @@
-Theodore Homework Lab (50+ methodologies)
+Theodore Homework Lab (75 methodologies)
 =========================================
 
 Private quality lab wrapping and extending aoep_shared.homework before
 promoting richer item types into services/homework.
 
-Registered methodologies (must stay >= 50)
+Registered methodologies (must stay >= 50; currently 75)
   choice, open, match, media, audio, language, reading, concept, stem,
   social, metacog, drill, game, phonics, speaking, interactive
   — see GET /api/homework/methodologies

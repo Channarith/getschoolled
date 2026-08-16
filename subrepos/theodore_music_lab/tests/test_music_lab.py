@@ -65,6 +65,30 @@ def test_import_rejects_copyright_pack():
         assert "original" in str(exc).lower() or "refusing" in str(exc).lower()
 
 
+def test_import_accepts_string_lines():
+    songs = import_songs(
+        [
+            {
+                "song_id": "string-lines-ok",
+                "title_en": "String Lines",
+                "license": "original-salareen",
+                "lines": ["hello", "world"],
+            }
+        ]
+    )
+    assert len(songs) == 1
+    assert songs[0].line_count == 2
+    assert songs[0].lines[0].text == "hello"
+
+
+def test_player_page_uses_timeupdate_lyric_sync():
+    with TestClient(app) as client:
+        page = client.get("/")
+        assert page.status_code == 200
+        assert "timeupdate" in page.text
+        assert "syncActiveLineFromPlayer" in page.text
+
+
 def test_api_health_and_session_flow():
     with TestClient(app) as client:
         h = client.get("/health")
