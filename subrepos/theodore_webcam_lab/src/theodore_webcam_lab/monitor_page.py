@@ -515,6 +515,7 @@ MONITOR_JS = (
       'face_motion_energy', 'hand_gesture_energy', 'head_sag_rate',
       'excitement_score', 'interest_score', 'dozing_score',
       'external_music_score', 'phone_in_hand_score', 'held_object_score',
+      'owner_match_score',
     ];
     function clampSignal(signal) {
       UNIT_SIGNAL_FIELDS.forEach((field) => {
@@ -761,24 +762,65 @@ MONITOR_JS = (
       };
     })();
 
+    let metricsRefreshTimer = null;
+    let labOffline = false;
+    let metricsFailStreak = 0;
+
+    function setTextSafe(id, text) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    }
+    function setHtmlSafe(id, html) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = html;
+    }
+
+    function stopMetricsPolling() {
+      if (metricsRefreshTimer) {
+        clearInterval(metricsRefreshTimer);
+        metricsRefreshTimer = null;
+      }
+    }
+
+    function markLabOffline(reason) {
+      if (labOffline) return;
+      labOffline = true;
+      stopMetricsPolling();
+      try { if (typeof stopCamera === 'function') stopCamera(); } catch (_) {}
+      setTextSafe('state', reason || 'Lab server offline — refresh after restarting.');
+    }
+
     async function refresh() {
+      if (labOffline || document.getElementById('state') == null) {
+        stopMetricsPolling();
+        return;
+      }
       let res;
       try { res = await fetch(endpoint, { cache: 'no-store' }); }
       catch (err) {
-        document.getElementById('state').textContent = 'Waiting for metrics stream...';
+        metricsFailStreak += 1;
+        setTextSafe('state', 'Lab server unreachable — waiting to reconnect…');
+        // After a few refused polls (typical when the process was killed), stop
+        // hammering the closed port so DevTools is not flooded with errors.
+        if (metricsFailStreak >= 3) {
+          markLabOffline('Lab server stopped. Restart uvicorn, then reload this page.');
+        }
         return;
       }
+      metricsFailStreak = 0;
+      if (labOffline || document.getElementById('state') == null) return;
       const data = res.ok ? await res.json().catch(() => null) : null;
       // An unseeded session answers 200 with updated_at_ms 0 and no participants.
       if (!data || !data.updated_at_ms) {
-        document.getElementById('state').innerHTML =
-          'No metrics yet. Click <strong>Load solo demo (1 student)</strong> or use Start camera.';
-        document.getElementById('cheat-banner').style.display = 'none';
+        setHtmlSafe('state',
+          'No metrics yet. Click <strong>Load solo demo (1 student)</strong> or use Start camera.');
+        const banner = document.getElementById('cheat-banner');
+        if (banner) banner.style.display = 'none';
         return;
       }
       const acked = new Set(data.acknowledged_alert_keys || []);
       const s = data.quality_summary || {};
-      document.getElementById('state').innerHTML =
+      setHtmlSafe('state',
         `<div class="kv"><span>Training paused</span><strong>${data.training_paused}</strong></div>` +
         `<div class="kv"><span>Pause reason</span><strong>${esc(data.pause_reason || 'none')}</strong></div>` +
         `<div class="kv"><span>Mode</span><strong>${esc(data.mode)}</strong></div>` +
@@ -790,10 +832,11 @@ MONITOR_JS = (
         `<div class="kv"><span>Absent</span><strong>${esc((data.absent_participant_ids || []).join(', ') || 'none')}</strong></div>` +
         `<div class="kv"><span>Watchlist</span><strong>${esc((data.watchlist || []).join(', ') || 'none')}</strong></div>` +
         `<div class="kv"><span>Rejoin requests</span><strong>${esc((data.rejoin_requests || []).join(', ') || 'none')}</strong></div>` +
-        `<div class="kv"><span>Expressions</span><strong>${esc(JSON.stringify(data.expression_counts || {}))}</strong></div>`;
+        `<div class="kv"><span>Expressions</span><strong>${esc(JSON.stringify(data.expression_counts || {}))}</strong></div>`);
 
       const cheatIds = data.suspected_cheating_participant_ids || [];
       const banner = document.getElementById('cheat-banner');
+      if (banner) {
       if (cheatIds.length) {
         banner.style.display = 'block';
         banner.className = 'banner cheat';
@@ -803,10 +846,13 @@ MONITOR_JS = (
         banner.className = 'banner pause';
         const why = data.pause_reason === 'original_user_not_present'
           ? 'Original learner not in frame — lesson paused.'
-          : 'Away from webcam — lesson paused. Please return to the camera.';
+          : (data.pause_reason === 'owner_face_mismatch'
+            ? 'Camera owner mismatch — another person may have substituted. Lesson paused.'
+            : 'Away from webcam — lesson paused. Please return to the camera.');
         banner.textContent = '⏸ ' + why;
       } else {
         banner.style.display = 'none';
+      }
       }
 
       // Session-level pause / absent → spoken Theodore nudges (quick defaults ~1s).
@@ -825,7 +871,12 @@ MONITOR_JS = (
         pauseReason: data.pause_reason || '',
       });
 
-      document.getElementById('summary').innerHTML = `
+      if (document.getElementById('summary') == null) {
+        stopMetricsPolling();
+        return;
+      }
+
+      setHtmlSafe('summary', `
         <div class="metric"><div>Participants</div><div class="v">${esc(s.participants_count || (data.participants || []).length)}</div></div>
         <div class="metric"><div>Avg distance (m)</div><div class="v">${num(s.avg_distance_from_camera_m)}</div></div>
         <div class="metric"><div>Light quality</div><div class="v">${pct(s.avg_light_quality_score)}</div></div>
@@ -834,11 +885,11 @@ MONITOR_JS = (
         <div class="metric"><div>Mic quality</div><div class="v">${num(s.avg_microphone_quality_score)}</div></div>
         <div class="metric"><div>Noise filter</div><div class="v">${num(s.avg_noise_filter_effectiveness_score)}</div></div>
         <div class="metric"><div>Recognition</div><div class="v">${pct(s.avg_recognition_confidence)}</div></div>
-      `;
+      `);
 
       const gates = s.quality_flag_counts || {};
-      document.getElementById('gatecounts').textContent = Object.keys(gates).length
-        ? Object.entries(gates).map(([k, v]) => `${k}=${v}`).join(', ') : 'none';
+      setTextSafe('gatecounts', Object.keys(gates).length
+        ? Object.entries(gates).map(([k, v]) => `${k}=${v}`).join(', ') : 'none');
 
       const windowById = {};
       (data.group_student_windows || []).forEach((w) => { windowById[w.participant_id] = w; });
@@ -852,7 +903,7 @@ MONITOR_JS = (
       });
       if (fresh.length) toast(`New lesson alert [${fresh[0].level}] ${fresh[0].message}`);
 
-      document.getElementById('alerts').innerHTML = alerts.length
+      setHtmlSafe('alerts', alerts.length
         ? alerts.map((a) => {
             const key = alertKey(a);
             const isAcked = acked.has(key);
@@ -867,7 +918,7 @@ MONITOR_JS = (
               </div>
             </li>`;
           }).join('')
-        : '<li>No lesson alerts</li>';
+        : '<li>No lesson alerts</li>');
 
       document.querySelectorAll('[data-alert-act]').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -887,9 +938,9 @@ MONITOR_JS = (
         });
       });
 
-      document.getElementById('action-log').textContent =
+      setTextSafe('action-log',
         (data.action_log || []).slice().reverse().map((e) =>
-          `${e.timestamp_ms}: ${e.summary}`).join('\\n') || 'No actions yet.';
+          `${e.timestamp_ms}: ${e.summary}`).join('\\n') || 'No actions yet.');
       document.getElementById('private-msgs').textContent =
         (data.private_messages || []).slice().reverse().map((m) =>
           `${m.participant_id}: ${m.body}`).join('\\n') || 'No private messages.';
@@ -957,7 +1008,7 @@ MONITOR_JS = (
           </div>
         </div>`;
       }).join('');
-      document.getElementById('windows').innerHTML = windows || '<div>No participant windows yet.</div>';
+      setHtmlSafe('windows', windows || '<div>No participant windows yet.</div>');
 
       (data.participants || []).forEach((p) => {
         const canvas = document.querySelector(`canvas[data-chart-for="${CSS.escape(p.participant_id)}"]`);
@@ -1358,9 +1409,11 @@ MONITOR_JS = (
       }, 2200);
     });
 
-    // Shutdown
+    // Shutdown — stop polls BEFORE wiping the DOM so refresh cannot throw on null nodes.
     document.getElementById('shutdown-btn').addEventListener('click', async () => {
       if (!confirm('Shut down the lab server and free the port?')) return;
+      labOffline = true;
+      stopMetricsPolling();
       stopCamera();
       try { await fetch('/admin/shutdown', { method: 'POST' }); } catch (_) {}
       document.body.innerHTML = '<div style="padding:60px;text-align:center;font-family:Arial,sans-serif;color:#94a3b8;background:#0f172a;min-height:100vh;">'
@@ -1368,6 +1421,11 @@ MONITOR_JS = (
         + '<p>The server has stopped and the port is free.</p>'
         + '<p style="font-size:12px;">Run <code style="background:#1f2937;padding:2px 6px;border-radius:4px;">python3 -m uvicorn theodore_webcam_lab.main:app --app-dir subrepos/theodore_webcam_lab/src --host 0.0.0.0 --port 8015</code> to restart.</p>'
         + '</div>';
+    });
+    window.addEventListener('pagehide', () => {
+      labOffline = true;
+      stopMetricsPolling();
+      try { if (typeof stopCamera === 'function') stopCamera(); } catch (_) {}
     });
 
     // Games panel
@@ -2922,10 +2980,202 @@ MONITOR_JS = (
     let faceLandmarkerPromise = null;
     let faceLandmarkerAttempts = 0;
     let faceLandmarkerRetryAtMs = 0;
-    let lastFaceContours = null;  // { pts:[{x,y}], connections:[[i,j]], mood }
+    let lastFaceContours = null;  // { pts, connections, mood, secondaryBoxes, ownerStatus }
     let handLandmarker = null;
     let handLandmarkerFailed = false;
     let handLandmarkerPromise = null;
+    // Original-owner lock (parity with face_owner.py). Detect up to N faces, enroll
+    // the first stable largest face, then keep meshing that person — not faces[0].
+    const FACE_OWNER_MAX_FACES = 4;
+    const OWNER_ENROLL_HOLD_MS = 1500;
+    const OWNER_MATCH_IOU_MIN = 0.22;
+    const OWNER_MATCH_FP_MAX = 0.38;
+    const OWNER_MATCH_SCORE_MIN = 0.35;
+    const OWNER_FP_IDX = [33, 263, 1, 61, 291, 10, 152];
+    let faceOwnerState = {
+      enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null, matchScore: 0,
+    };
+
+    function quietMediaPipeConsole() {
+      if (window.__aoepMpQuiet) return;
+      window.__aoepMpQuiet = true;
+      const origErr = console.error.bind(console);
+      const origWarn = console.warn.bind(console);
+      const origLog = console.log.bind(console);
+      // MediaPipe WASM writes INFO/WARN via stderr → console.error with stacks.
+      const noise = /(?:^|[\\s[])(?:[WI]\\d{4}\\b|vision_wasm|XNNPACK|gl_context|FaceBlendshapes|Graph successfully|OpenGL error checking|TensorFlow Lite|face_landmarker_graph|Created TensorFlow)/i;
+      function isNoise(args) {
+        try {
+          for (let i = 0; i < Math.min(args.length, 3); i++) {
+            const s = typeof args[i] === 'string' ? args[i] : String(args[i] || '');
+            if (noise.test(s)) return true;
+          }
+        } catch (_) {}
+        return false;
+      }
+      console.error = function (...args) {
+        if (isNoise(args)) { console.debug.apply(console, args); return; }
+        origErr.apply(console, args);
+      };
+      console.warn = function (...args) {
+        if (isNoise(args)) { console.debug.apply(console, args); return; }
+        origWarn.apply(console, args);
+      };
+      console.log = function (...args) {
+        if (isNoise(args)) { console.debug.apply(console, args); return; }
+        origLog.apply(console, args);
+      };
+    }
+    quietMediaPipeConsole();
+
+    function resetFaceOwner() {
+      faceOwnerState = {
+        enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null, matchScore: 0,
+      };
+    }
+
+    function faceBoxFromPts(pts) {
+      if (!pts || !pts.length) return null;
+      let minX = 1, maxX = 0, minY = 1, maxY = 0;
+      pts.forEach((p) => {
+        if (!p) return;
+        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      });
+      return { x: minX, y: minY, w: Math.max(0, maxX - minX), h: Math.max(0, maxY - minY) };
+    }
+
+    function boxIoU(a, b) {
+      if (!a || !b) return 0;
+      const x0 = Math.max(a.x, b.x), y0 = Math.max(a.y, b.y);
+      const x1 = Math.min(a.x + a.w, b.x + b.w), y1 = Math.min(a.y + a.h, b.y + b.h);
+      const inter = Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+      if (inter <= 0) return 0;
+      const union = a.w * a.h + b.w * b.h - inter;
+      return union > 0 ? inter / union : 0;
+    }
+
+    function faceFingerprint(pts) {
+      if (!pts) return null;
+      const left = pts[33], right = pts[263];
+      if (!left || !right) return null;
+      const iod = Math.hypot(right.x - left.x, right.y - left.y);
+      if (iod < 1e-6) return null;
+      const midX = (left.x + right.x) / 2, midY = (left.y + right.y) / 2;
+      const out = [];
+      for (let i = 0; i < OWNER_FP_IDX.length; i++) {
+        const p = pts[OWNER_FP_IDX[i]];
+        if (!p) return null;
+        out.push((p.x - midX) / iod, (p.y - midY) / iod);
+      }
+      return out;
+    }
+
+    function fingerprintDistance(a, b) {
+      if (!a || !b || a.length !== b.length) return 1;
+      let acc = 0;
+      for (let i = 0; i < a.length; i++) acc += (a[i] - b[i]) * (a[i] - b[i]);
+      return Math.sqrt(acc / a.length);
+    }
+
+    function largestFaceIndex(faces) {
+      let bestI = 0, bestA = -1;
+      for (let i = 0; i < faces.length; i++) {
+        const box = faceBoxFromPts(faces[i]);
+        const area = box ? box.w * box.h : 0;
+        if (area > bestA) { bestA = area; bestI = i; }
+      }
+      return bestI;
+    }
+
+    function matchScoreForFace(pts, state) {
+      const box = faceBoxFromPts(pts);
+      const iou = boxIoU(box, state.lastBox);
+      const fp = faceFingerprint(pts);
+      const fpDist = fingerprintDistance(fp, state.fingerprint);
+      const fpPart = Math.max(0, 1 - fpDist / Math.max(OWNER_MATCH_FP_MAX, 1e-6));
+      return Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart));
+    }
+
+    function pickOwnerFace(faces, nowMs) {
+      const faceCount = faces.length;
+      if (!faceCount) {
+        return {
+          index: -1, owner_enrolled: faceOwnerState.enrolled,
+          owner_match: faceOwnerState.enrolled ? false : null,
+          match_score: 0, secondary_count: 0, face_count: 0,
+        };
+      }
+      if (!faceOwnerState.enrolled) {
+        const idx = largestFaceIndex(faces);
+        const box = faceBoxFromPts(faces[idx]);
+        const fp = faceFingerprint(faces[idx]);
+        if (faceOwnerState.lastBox && boxIoU(box, faceOwnerState.lastBox) >= OWNER_MATCH_IOU_MIN) {
+          if (!faceOwnerState.enrollStartedMs) faceOwnerState.enrollStartedMs = nowMs;
+          if ((nowMs - faceOwnerState.enrollStartedMs) >= OWNER_ENROLL_HOLD_MS && fp && box) {
+            faceOwnerState.enrolled = true;
+            faceOwnerState.fingerprint = fp.slice();
+            faceOwnerState.lastBox = box;
+            faceOwnerState.matchScore = 1;
+            return {
+              index: idx, owner_enrolled: true, owner_match: true, match_score: 1,
+              secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
+            };
+          }
+        } else {
+          faceOwnerState.enrollStartedMs = nowMs;
+          faceOwnerState.lastBox = box;
+          faceOwnerState.fingerprint = fp ? fp.slice() : null;
+        }
+        return {
+          index: idx, owner_enrolled: false, owner_match: null, match_score: 0,
+          secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
+        };
+      }
+      let bestI = 0, bestScore = -1;
+      for (let i = 0; i < faces.length; i++) {
+        const score = matchScoreForFace(faces[i], faceOwnerState);
+        if (score > bestScore) { bestScore = score; bestI = i; }
+      }
+      const matched = bestScore >= OWNER_MATCH_SCORE_MIN;
+      if (matched) {
+        const box = faceBoxFromPts(faces[bestI]);
+        if (box) {
+          const lb = faceOwnerState.lastBox;
+          faceOwnerState.lastBox = lb
+            ? { x: 0.7 * lb.x + 0.3 * box.x, y: 0.7 * lb.y + 0.3 * box.y,
+                w: 0.7 * lb.w + 0.3 * box.w, h: 0.7 * lb.h + 0.3 * box.h }
+            : box;
+          const fp = faceFingerprint(faces[bestI]);
+          if (fp && faceOwnerState.fingerprint) {
+            faceOwnerState.fingerprint = faceOwnerState.fingerprint.map(
+              (v, i) => 0.85 * v + 0.15 * fp[i]
+            );
+          }
+        }
+        faceOwnerState.matchScore = bestScore;
+        return {
+          index: bestI, owner_enrolled: true, owner_match: true, match_score: bestScore,
+          secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
+        };
+      }
+      faceOwnerState.matchScore = Math.max(0, bestScore);
+      return {
+        index: bestI, owner_enrolled: true, owner_match: false,
+        match_score: Math.max(0, bestScore),
+        secondary_count: faceCount, face_count: faceCount,
+      };
+    }
+
+    function secondaryBoxesFromFaces(faces, ownerIdx) {
+      const boxes = [];
+      for (let i = 0; i < faces.length; i++) {
+        if (i === ownerIdx) continue;
+        const box = faceBoxFromPts(faces[i]);
+        if (box) boxes.push(box);
+      }
+      return boxes;
+    }
     // { hands: [[{x,y}]], connections: [[i,j]], labels: ['Left'|'Right'] } — null when
     // no hand is in frame, which is what keeps hand contours off the overlay.
     let lastHandContours = null;
@@ -3025,6 +3275,7 @@ MONITOR_JS = (
     const FACE_LANDMARKER_RETRY_MS = 15000;
 
     async function buildFaceLandmarker(src) {
+      quietMediaPipeConsole();
       const vision = await import(/* webpackIgnore: true */ src.esm);
       const fileset = await vision.FilesetResolver.forVisionTasks(src.wasm);
       // GPU fails on some Macs / browsers; fall back to CPU so blink + look-down still work.
@@ -3034,7 +3285,8 @@ MONITOR_JS = (
           const lm = await vision.FaceLandmarker.createFromOptions(fileset, {
             baseOptions: { modelAssetPath: src.model, delegate },
             runningMode: 'VIDEO',
-            numFaces: 1,
+            // Multi-face so we can lock onto the enrolled owner instead of faces[0].
+            numFaces: FACE_OWNER_MAX_FACES,
             outputFaceBlendshapes: true,
             outputFacialTransformationMatrixes: true,
           });
@@ -3092,10 +3344,11 @@ MONITOR_JS = (
       return faceLandmarkerPromise;
     }
 
-    function blendshapeMap(blendshapes) {
+    function blendshapeMap(blendshapes, idx) {
       const out = {};
       if (!blendshapes || !blendshapes.length) return out;
-      const cats = blendshapes[0].categories || [];
+      const entry = blendshapes[(idx == null || idx < 0) ? 0 : idx] || blendshapes[0];
+      const cats = (entry && entry.categories) || [];
       cats.forEach((c) => { out[c.categoryName] = c.score; });
       return out;
     }
@@ -3264,10 +3517,11 @@ MONITOR_JS = (
       ctx.restore();
     }
 
-    function headPoseFromMatrix(matrices) {
+    function headPoseFromMatrix(matrices, idx) {
       // MediaPipe facialTransformationMatrixes: column-major 4x4.
       if (!matrices || !matrices.length) return null;
-      const raw = matrices[0];
+      const raw = matrices[(idx == null || idx < 0) ? 0 : idx] || matrices[0];
+      if (!raw) return null;
       const data = raw.data || raw;
       if (!data || data.length < 16) return null;
       const r00 = data[0], r01 = data[4], r02 = data[8];
@@ -3531,15 +3785,30 @@ MONITOR_JS = (
         drawDetectorFaceContour(lastFaceContours.fallbackBox, lastFaceContours.mood || 'neutral');
         return;
       }
-      if (!lastFaceContours.pts) return;
       const { w, h } = syncOverlaySize();
       const ctx = overlay.getContext('2d');
+      // Secondary faces: yellow dashed ovals so the operator sees everyone, not only the owner mesh.
+      (lastFaceContours.secondaryBoxes || []).forEach((box) => {
+        if (!box) return;
+        ctx.save();
+        ctx.strokeStyle = '#fbbf24';
+        ctx.setLineDash([6, 4]);
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        ctx.beginPath();
+        const cx = (1 - (box.x + box.w / 2)) * w;
+        const cy = (box.y + box.h / 2) * h;
+        ctx.ellipse(cx, cy, (box.w * w) * 0.48, (box.h * h) * 0.52, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      });
+      if (!lastFaceContours.pts) return;
       const pts = lastFaceContours.pts;
       const mood = lastFaceContours.mood || 'neutral';
-      const color = ({
+      const mismatch = lastFaceContours.ownerStatus === 'mismatch';
+      const color = mismatch ? '#f87171' : (({
         happy: '#4ade80', sad: '#f87171', surprised: '#fbbf24',
         angry: '#fb7185', neutral: '#67e8f9', unknown: '#94a3b8',
-      })[mood] || '#67e8f9';
+      })[mood] || '#67e8f9');
       ctx.save();
       ctx.lineWidth = Math.max(1.5, w * 0.0025);
       ctx.strokeStyle = color;
@@ -3580,21 +3849,37 @@ MONITOR_JS = (
           eyesClosedSinceMs = 0;
           resetBehaviorSmoothing();
           setDetectorStatus('face_mesh', 'face mesh running — no face in frame');
-          return { face_count: 0, expression_label: 'unknown', expression_confidence: 0.55,
+          return {
+            face_count: 0, expression_label: 'unknown', expression_confidence: 0.55,
             gaze_frontal: 0.12, gaze_down_score: 0.2, face_size_ratio: null,
-            attention: 'away_from_webcam', source: 'face_contours' };
+            attention: 'away_from_webcam', source: 'face_contours',
+            owner_face_enrolled: faceOwnerState.enrolled,
+            owner_face_match: faceOwnerState.enrolled ? false : null,
+            owner_match_score: 0,
+            secondary_face_count: 0,
+          };
         }
+        const pick = pickOwnerFace(faces, Date.now());
+        const faceIdx = pick.index >= 0 ? pick.index : 0;
+        const pts = faces[faceIdx];
+        const ownerStatus = !pick.owner_enrolled ? 'enrolling'
+          : (pick.owner_match ? 'owner' : 'mismatch');
         setDetectorStatus('face_mesh',
-          'face mesh tracking (' + (lm._assetLabel || 'assets') + '/' + (lm._delegate || '?') + ')');
-        const pts = faces[0];
-        const bs = blendshapeMap(result.faceBlendshapes);
+          'face mesh tracking (' + (lm._assetLabel || 'assets') + '/' + (lm._delegate || '?')
+          + ') · ' + faces.length + ' face' + (faces.length === 1 ? '' : 's')
+          + ' · ' + ownerStatus);
+        const bs = blendshapeMap(result.faceBlendshapes, faceIdx);
         let mood = Object.keys(bs).length
           ? emotionFromBlendshapes(bs)
           : emotionFromLandmarkGeometry(pts);
         if (!mood) mood = { expression_label: 'neutral', expression_confidence: 0.4, source: 'face_contours' };
         mood = { ...mood, ...smoothMood(mood.expression_label, mood.expression_confidence) };
         const connections = (lm._CONNECTIONS || []).map((c) => [c.start, c.end]);
-        lastFaceContours = { pts, connections, mood: mood.expression_label };
+        lastFaceContours = {
+          pts, connections, mood: mood.expression_label,
+          secondaryBoxes: secondaryBoxesFromFaces(faces, faceIdx),
+          ownerStatus,
+        };
         const nose = pts[1], leftEye = pts[33], rightEye = pts[263];
         let gaze_frontal = 0.85;
         if (nose && leftEye && rightEye) {
@@ -3629,7 +3914,7 @@ MONITOR_JS = (
         // (positive = down), which is what teaches the stare lab which way the
         // matrix pitch runs instead of making the operator press "Set down".
         const geomPitch = facePitchFromLandmarks(pts, aspect);
-        const matrixPose = headPoseFromMatrix(result.facialTransformationMatrixes);
+        const matrixPose = headPoseFromMatrix(result.facialTransformationMatrixes, faceIdx);
         const pose = matrixPose || headPoseFromLandmarks(pts, aspect) || {};
         const brow_raise = bs.browInnerUp || 0;
         const smile = mood.smile_score != null ? mood.smile_score
@@ -3658,6 +3943,10 @@ MONITOR_JS = (
           sad_score: mood.sad_score,
           head_pitch_geom_deg: geomPitch,
           pose_source: matrixPose ? 'matrix' : 'landmarks',
+          owner_face_enrolled: !!pick.owner_enrolled,
+          owner_face_match: pick.owner_match,
+          owner_match_score: pick.match_score,
+          secondary_face_count: pick.secondary_count,
           ...pose,
         };
       }
@@ -3665,7 +3954,9 @@ MONITOR_JS = (
       if ('FaceDetector' in window && camVideo.videoWidth) {
         try {
           if (!window.__twFaceDetector) {
-            window.__twFaceDetector = new FaceDetector({ fastMode: false, maxDetectedFaces: 1 });
+            window.__twFaceDetector = new FaceDetector({
+              fastMode: false, maxDetectedFaces: FACE_OWNER_MAX_FACES,
+            });
           }
           const faces = await window.__twFaceDetector.detect(camVideo);
           setDetectorStatus('face_detector',
@@ -3673,13 +3964,28 @@ MONITOR_JS = (
           if (!faces.length) {
             lastFaceContours = null;
             eyesClosedSinceMs = 0;
-            return { face_count: 0, expression_label: 'unknown', expression_confidence: 0.5,
+            return {
+              face_count: 0, expression_label: 'unknown', expression_confidence: 0.5,
               gaze_frontal: 0.1, gaze_down_score: 0.2, face_size_ratio: null,
-              attention: 'away_from_webcam', source: 'face_detector' };
+              attention: 'away_from_webcam', source: 'face_detector',
+              owner_face_enrolled: faceOwnerState.enrolled,
+              owner_face_match: faceOwnerState.enrolled ? false : null,
+              owner_match_score: 0, secondary_face_count: 0,
+            };
           }
-          const box = faces[0].boundingBox;
-          // Box only: presence + framing. Mood/eye state stay unclaimed.
-          return { face_count: 1, box, source: 'face_detector' };
+          // Prefer largest box (closest to "owner" heuristic without landmarks).
+          let best = faces[0], bestA = 0;
+          faces.forEach((f) => {
+            const b = f.boundingBox;
+            const a = (b.width || 0) * (b.height || 0);
+            if (a > bestA) { bestA = a; best = f; }
+          });
+          const box = best.boundingBox;
+          return {
+            face_count: faces.length, box, source: 'face_detector',
+            owner_face_enrolled: false, owner_face_match: null,
+            owner_match_score: null, secondary_face_count: Math.max(0, faces.length - 1),
+          };
         } catch (_) {}
       }
       setDetectorStatus('coarse',
@@ -3901,7 +4207,9 @@ MONITOR_JS = (
       const meshTracked = facial.source === 'face_contours' && (facial.face_count || 0) > 0;
       if (!meshTracked && !usingSilhouette && !usingPattern && camVideo.videoWidth && ('FaceDetector' in window)) {
         try {
-          if (!window.__twFaceDetector) window.__twFaceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 2 });
+          if (!window.__twFaceDetector) window.__twFaceDetector = new FaceDetector({
+            fastMode: true, maxDetectedFaces: FACE_OWNER_MAX_FACES,
+          });
           const faces = await window.__twFaceDetector.detect(camVideo);
           if (!faces.length) {
             facial = noFaceFacial('face_detector');
@@ -4052,7 +4360,7 @@ MONITOR_JS = (
             : (awayMs ? ('eyes away for ' + (awayMs / 1000).toFixed(1) + 's') : 'on-camera attention'));
     }
 
-    const integrityAnnounce = { phoneAt: 0, closedAt: 0, awayAt: 0, yawnAt: 0, inattAt: 0, distractAt: 0 };
+    const integrityAnnounce = { phoneAt: 0, closedAt: 0, awayAt: 0, yawnAt: 0, inattAt: 0, distractAt: 0, ownerAt: 0 };
     function maybeAnnounceIntegrity(kind, message) {
       const now = Date.now();
       const last = integrityAnnounce[kind] || 0;
@@ -4068,6 +4376,7 @@ MONITOR_JS = (
     }
 
     async function sampleFrame() {
+      if (labOffline) return;
       refreshSilhouetteGuide();
       const grid = luminanceGrid();
       if (!grid) return;
@@ -4092,6 +4401,10 @@ MONITOR_JS = (
             timestamp_ms: liveCamTimestampMs(),
             face_count: usingSilhouette ? 0 : facial.face_count,
             liveness_state: usingSilhouette ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
+            owner_face_enrolled: !!(facial.owner_face_enrolled),
+            owner_face_match: facial.owner_face_match == null ? null : !!facial.owner_face_match,
+            owner_match_score: num(facial.owner_match_score),
+            secondary_face_count: usingSilhouette ? 0 : Math.max(0, facial.secondary_face_count || 0),
             foreground_ratio: usingSilhouette ? Math.max(0.96, foreground) : Math.min(0.55, Math.max(0.25, foreground)),
             motion_score: motion,
             body_motion_score: motion,
@@ -4265,6 +4578,8 @@ MONITOR_JS = (
       // coaching. Resting a chin on a hand is normal and should not interrupt.
       if ((p.eyes_closed_for_ms || 0) >= 1500) {
         maybeAnnounceIntegrity('closed', 'I notice your eyes are closed. Please open them and look at the lesson.');
+      } else if (facial && facial.owner_face_enrolled && facial.owner_face_match === false) {
+        maybeAnnounceIntegrity('owner', 'A different person appears to be in front of the camera. Please return the enrolled learner.');
       } else if ((p.yawn_for_ms || 0) >= 1500) {
         maybeAnnounceIntegrity('yawn', 'I notice you are yawning. Take a quick stretch if you need to, then refocus on the lesson.');
       } else if (p.phone_visible && (p.eyes_away_for_ms || 0) >= 2000) {
@@ -4292,6 +4607,10 @@ MONITOR_JS = (
         ['sharpness', num(p.sharpness_score)], ['edge', num(p.edge_density, 3)],
         ['light', pct(p.light_quality_score)], ['image', pct(p.image_detection_quality_score)],
         ['confidence', pct(p.recognition_confidence)], ['silhouette', p.silhouette_detected ? 'yes' : 'no'],
+        ['faces', facial ? facial.face_count : p.face_count],
+        ['owner', facial && facial.owner_face_enrolled
+          ? (facial.owner_face_match ? 'locked' : 'mismatch')
+          : 'enrolling'],
         ['distance', num(p.distance_from_camera_m)], ['engagement', pct(p.expression_behavior_score)],
         ['mic', pct(p.microphone_quality_score)], ['noise filter', pct(p.noise_filter_effectiveness_score)],
       ].map(([k, v]) => `<span class="pill">${esc(k)}: ${esc(v)}</span>`).join(' ');
@@ -4309,6 +4628,7 @@ MONITOR_JS = (
     function startSampling() {
       if (camTimer) clearInterval(camTimer);
       lastSilhouetteDetected = false;
+      resetFaceOwner();
       resetLiveAway(true);
       refreshSilhouetteGuide();
       camTimer = setInterval(sampleFrame, 300);
@@ -4321,6 +4641,7 @@ MONITOR_JS = (
       stopAudioMeter();
       camVideo.srcObject = null; usingPattern = false; usingSilhouette = false;
       lastSilhouetteDetected = false;
+      resetFaceOwner();
       resetLiveAway(true);
       patternCanvas.style.display = 'none'; camVideo.style.visibility = 'visible';
       clearSilhouetteOverlay();
@@ -4539,7 +4860,7 @@ MONITOR_JS = (
     loadTuning();
     loadVoiceLanguages();
     refresh();
-    setInterval(refresh, 1000);
+    metricsRefreshTimer = setInterval(refresh, 1000);
 
 """
     .replace("__VISION_GROUPS__", _js_knob_groups(VISION_KNOB_GROUPS))
