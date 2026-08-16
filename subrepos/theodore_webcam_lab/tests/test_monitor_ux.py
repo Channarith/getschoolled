@@ -634,6 +634,15 @@ def test_hands_confirmation_uses_hold_ms_not_behavior_label():
     assert "handsOnFaceConfirmed: p.behavior_label === 'hands_on_face'" not in MONITOR_JS
 
 
+def test_hands_on_face_is_not_spoken_aloud():
+    """Hands-on-face is fine posture — record it, do not coach over audio."""
+    assert "hand on your face" not in MONITOR_JS
+    assert "maybeAnnounceIntegrity('hands'" not in MONITOR_JS
+    # Still wired into the integrity HUD / evaluate payload for telemetry.
+    assert "handsOnFaceConfirmed:" in MONITOR_JS
+    assert "hands_on_face_for_ms" in MONITOR_JS
+
+
 def test_confused_expression_override_is_removed():
     assert "expression_label = 'confused'" not in MONITOR_JS
     assert "You look a bit confused" not in MONITOR_JS
