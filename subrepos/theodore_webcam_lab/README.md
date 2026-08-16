@@ -35,7 +35,7 @@ python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" \
 python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 ```
 
-You should see `212 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
+You should see `214 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
 did not run in the Python you are using. On macOS, bare `python3` is often
 Homebrew 3.14 with no packages — activate `.venv` first (selfcheck does this
 automatically when the venv exists).
@@ -103,6 +103,15 @@ default `VisionTuning` to trip exactly the flags it names:
 Watch *Tuning → live webcam* while it runs: each stage flips the matching gate
 red and the next one clears it. Drag `sharpness_min_quality` or
 `light_min_quality` and you move the point where a stage starts failing.
+
+### Original-owner face lock (anti-substitution)
+
+With two people in frame the lab used to mesh whoever MediaPipe returned as
+`faces[0]` (often the wrong person). It now detects up to four faces, enrolls the
+largest stable face for ~1.5s, keeps meshing that owner, draws secondary faces as
+yellow dashed ovals, and pauses solo training on a real face mismatch. An empty
+frame is treated as absence — not substitution. **Shut down server** clears the
+metrics poll before wiping the page so DevTools stays quiet.
 
 ### Stare geometry lab — measuring the phone-vs-lesson angle
 

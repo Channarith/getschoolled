@@ -193,19 +193,25 @@ _JS = r"""
   function scheduleLineHighlights() {
     clearLineTimers();
     if (!current || !current.lines.length) return;
+    syncActiveLineFromPlayer();
+  }
+  function syncActiveLineFromPlayer() {
+    if (!current || !current.lines.length) return;
     const player = $("player");
     const duration = (Number.isFinite(player.duration) && player.duration > 0)
       ? player.duration
       : (current.duration_hint_sec || Math.max(30, current.lines.length * 2.2));
     const slice = duration / current.lines.length;
-    const start = player.currentTime || 0;
-    current.lines.forEach((line, idx) => {
-      const delay = Math.max(0, (idx * slice - start) * 1000);
-      lineTimers.push(setTimeout(() => {
-        renderLyrics(line.line_no);
-        refreshMeaning(line.line_no);
-      }, delay));
-    });
+    const t = Math.max(0, player.currentTime || 0);
+    const idx = Math.min(current.lines.length - 1, Math.floor(t / Math.max(slice, 0.01)));
+    const line = current.lines[idx];
+    if (!line) return;
+    const active = $("lyrics").querySelector(".line.active");
+    const activeNo = active ? +active.getAttribute("data-no") : -1;
+    if (activeNo !== line.line_no) {
+      renderLyrics(line.line_no);
+      refreshMeaning(line.line_no);
+    }
   }
   $("btn-play").onclick = async () => {
     const player = $("player");
@@ -235,7 +241,9 @@ _JS = r"""
   };
   $("player").addEventListener("ended", () => { $("stage").classList.remove("playing"); clearLineTimers(); });
   $("player").addEventListener("pause", () => { if (!$("player").ended) $("stage").classList.remove("playing"); });
-  $("player").addEventListener("play", () => { $("stage").classList.add("playing"); });
+  $("player").addEventListener("play", () => { $("stage").classList.add("playing"); scheduleLineHighlights(); });
+  $("player").addEventListener("timeupdate", syncActiveLineFromPlayer);
+  $("player").addEventListener("seeked", syncActiveLineFromPlayer);
   $("meaning-lang").onchange = () => {
     const active = $("lyrics").querySelector(".line.active");
     refreshMeaning(active ? +active.getAttribute("data-no") : 1);

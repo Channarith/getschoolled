@@ -23,6 +23,9 @@ def test_health_and_studio_page():
     assert "Offline long trainer" in page.text
     assert "Ask Theodore" in page.text
     assert "teach-lang" in page.text
+    # Multimodal order_steps games must be playable (not only match_term options).
+    assert "order_steps" in page.text
+    assert "ordered_steps" in page.text
 
 
 def test_offline_trainer_api_with_empty_corpus(tmp_path, monkeypatch):

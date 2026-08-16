@@ -686,6 +686,53 @@ def test_owner_face_mismatch_pauses_solo_and_flags_cheating():
     assert any(a.startswith("owner_face_mismatch:") for a in p.alerts)
 
 
+def test_owner_empty_frame_is_absence_not_substitution():
+    """Leaving the camera briefly must not trip owner_face_mismatch cheating."""
+    analyzer = WebcamSessionAnalyzer(
+        policy=AnalyzerPolicy(absence_grace_ms=5_000, pause_training_no_presence_ms=5_000),
+    )
+    session_id = "owner-empty-frame-1"
+    analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="camera-local",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.2,
+                motion_score=0.1,
+                owner_face_enrolled=True,
+                owner_face_match=True,
+                owner_match_score=0.9,
+            )
+        ],
+    )
+    away = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="camera-local",
+                timestamp_ms=1_200,
+                face_count=0,
+                liveness_state="missing",
+                foreground_ratio=0.0,
+                motion_score=0.0,
+                owner_face_enrolled=True,
+                owner_face_match=None,
+                owner_match_score=0.0,
+                secondary_face_count=0,
+            )
+        ],
+    )
+    assert away.training_paused is False
+    assert away.pause_reason != "owner_face_mismatch"
+    assert away.participants[0].suspected_cheating is False
+    assert "owner_face_mismatch" not in away.participants[0].cheating_reasons
+
+
 def _posture_signal(timestamp_ms: int, **overrides) -> WebcamSignal:
     base = dict(
         participant_id="learner",

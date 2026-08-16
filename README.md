@@ -198,17 +198,17 @@ names any broken piece. Full knob and endpoint reference lives beside it in
 Documentation screenshots for every Theodore subrepo (regenerate with
 `python3 scripts/render_lab_docs_screenshots.py`):
 
+| Drive Mode fine-tune | Homework (75 methodologies) | Music (featured player) |
+| --- | --- | --- |
+| <img src="docs/screens/theodore_drive_lab.webp" alt="Theodore Drive Lab wake echo TTS knobs and eval console" /> | <img src="docs/screens/theodore_homework_lab.webp" alt="Theodore Homework Lab 75-methodology roster and generate grade console" /> | <img src="docs/screens/theodore_music_lab.webp" alt="Theodore Music Lab featured MP3 player with lyric sync and meaning glosses" /> |
+
 | Course Studio | Audio Translation |
 | --- | --- |
-| <img src="docs/screens/theodore_course_studio.webp" alt="Theodore Course Studio early-learning Make and teach panel with teach stage and corpus review" /> | <img src="docs/screens/theodore_audio_translation_lab.webp" alt="Theodore Audio Translation Lab capture panel and live multilingual feed with Theodore replies" /> |
+| <img src="docs/screens/theodore_course_studio.webp" alt="Theodore Course Studio Make and teach with multimodal cert kits examples quiz and games" /> | <img src="docs/screens/theodore_audio_translation_lab.webp" alt="Theodore Audio Translation Lab capture panel and live multilingual feed with Theodore replies" /> |
 
-| Webcam overview | RAG auto-tune |
+| Webcam overview (owner lock) | RAG auto-tune |
 | --- | --- |
-| <img src="docs/screens/theodore_webcam_lab_overview.webp" alt="Theodore Webcam Lab live monitor overview with two student windows and quality bars" /> | <img src="docs/screens/theodore_rag_lab.webp" alt="Theodore RAG Lab live tuning knobs and bakeoff console" /> |
-
-| Drive Mode fine-tune | Homework (50+ methodologies) | Music (learn through songs) |
-| --- | --- | --- |
-| <img src="docs/screens/theodore_drive_lab.webp" alt="Theodore Drive Lab wake echo TTS knobs and eval console" /> | <img src="docs/screens/theodore_homework_lab.webp" alt="Theodore Homework Lab methodology roster and generate grade console" /> | <img src="docs/screens/theodore_music_lab.webp" alt="Theodore Music Lab song catalog and line-by-line session console" /> |
+| <img src="docs/screens/theodore_webcam_lab_overview.webp" alt="Theodore Webcam Lab overview with owner face lock multi-face and integrity metrics" /> | <img src="docs/screens/theodore_rag_lab.webp" alt="Theodore RAG Lab live tuning knobs and bakeoff console" /> |
 
 Each lab keeps a copy under `subrepos/<lab>/docs/screens/` and a numbered
 **STEP BY STEP** walkthrough in its `README.txt` (webcam also has the
@@ -572,13 +572,13 @@ transcript all run without it.
 | `apps/web` | Next.js web app and admin/user surfaces |
 | `apps/mobile` | Expo React Native mobile app |
 | `apps/agent-runtime` | LiveKit agent runtime and edge packaging |
-| `subrepos/theodore_webcam_lab` | Private webcam recognition + voice lab (illustrated README + live monitor) |
-| `subrepos/theodore_course_studio` | Early-learning / certification course studio (Make & teach UI) |
+| `subrepos/theodore_webcam_lab` | Private webcam recognition + voice lab (owner face lock, multi-face, stare geometry) |
+| `subrepos/theodore_course_studio` | Early-learning / certification course studio (multimodal kits + Make & teach UI) |
 | `subrepos/theodore_audio_translation_lab` | Realtime mic translation across 27 languages + Theodore replies |
 | `subrepos/theodore_rag_lab` | Private RAG knowledge-base auto-tune / hours-a-day bakeoff |
 | `subrepos/theodore_drive_lab` | Private Drive Mode audio-agent fine-tune (wake/echo/TTS/Q&A) |
-| `subrepos/theodore_homework_lab` | Private homework lab (50+ methodologies generate/grade) |
-| `subrepos/theodore_music_lab` | Private learn-through-music lab (100+ original songs) |
+| `subrepos/theodore_homework_lab` | Private homework lab (75 methodologies generate/grade) |
+| `subrepos/theodore_music_lab` | Private learn-through-music lab (100+ songs + featured MP3 player) |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |
 | `packages/sdk` | Installable Python SDK for safely extending AOEP (`AOEPClient.local()`, in-process APIs) |
 | `services/orchestrator` | Teaching Director, sessions, Tutor Q&A, HIL, assessment |

@@ -90,6 +90,18 @@ def test_substitution_when_owner_leaves_and_stranger_remains():
     assert pick.owner_enrolled is True
     assert pick.owner_match is False
     assert pick.face_count == 1
+    assert pick.secondary_count == 0
+
+
+def test_empty_frame_after_enroll_is_not_a_mismatch():
+    state = reset_owner_state()
+    owner = _face(0.4, 0.45, scale=0.15)
+    pick_owner_face([owner], state, now_ms=100)
+    pick_owner_face([owner], state, now_ms=100 + OWNER_ENROLL_HOLD_MS + 10)
+    empty = pick_owner_face([], state, now_ms=5_000)
+    assert empty.owner_enrolled is True
+    assert empty.owner_match is None
+    assert empty.face_count == 0
 
 
 def test_fingerprint_distance_is_small_for_same_geometry():
