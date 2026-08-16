@@ -268,7 +268,8 @@ STUDIO_JS = """
       });
       selectedCourse = data.course_id;
       await refreshCourses();
-      toast('Certification prep ready: ' + (data.title || data.course_id));
+      toast('Certification prep ready: ' + (data.title || data.course_id) +
+        ' · picture + motion on each page');
       await startTeach({ resume: false });
     }
 
@@ -647,8 +648,9 @@ def render_studio_page() -> str:
     <h1>Theodore Course Studio</h1>
     <p>Make simple, picture-led Pre-K–Grade 2 lessons that Theodore reads aloud.
        Certification prep (CA DMV / Alameda food handler) is a peer track with
-       short 15–20 minute sessions you can pause and resume. Adult corpus tools
-       remain below as an advanced workflow.</p>
+       short 15–20 minute sessions you can pause and resume — each page has an
+       offline picture, a Watch-video motion clip, and read-aloud narration.
+       Adult corpus tools remain below as an advanced workflow.</p>
   </header>
   <div class="layout">
     <div class="panel">
@@ -688,7 +690,9 @@ def render_studio_page() -> str:
 
       <div class="cert-builder">
         <h2>Certification prep</h2>
-        <p>Short 15–20 min blocks · CA / Alameda jurisdiction · study aid only (not DMV-approved or county-accredited)</p>
+        <p>Short 15–20 min blocks · each page has a picture + motion video ·
+           CA / Alameda jurisdiction · study aid only (not DMV-approved or county-accredited).
+           Make &amp; teach plays narration per page; use Watch video for the animation.</p>
         <div class="row">
           <label>Track <select id="cert-track"></select></label>
           <label>Lesson <select id="cert-lesson" style="max-width:26rem"></select></label>
