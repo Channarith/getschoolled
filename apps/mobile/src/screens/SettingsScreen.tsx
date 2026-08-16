@@ -12,6 +12,7 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import DropdownListSelector from "../components/DropdownListSelector";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import CameraTrackingCheck from "../components/CameraTrackingCheck";
 import { DEPLOY_MODE } from "../config";
 import { useIntroSplash } from "../introSplash";
 import {
@@ -54,6 +55,7 @@ export default function SettingsScreen({
   const { playFullIntro } = useIntroSplash();
   const { account, signOut, refreshAccount } = useAuth();
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
+  const [showCameraCheck, setShowCameraCheck] = useState(false);
   const [permission, setPermission] = useState<"unknown" | "granted" | "denied">("unknown");
   const [scheduled, setScheduled] = useState<number>(0);
   const [student, setStudent] = useState<StudentProfile | null>(null);
@@ -322,6 +324,24 @@ export default function SettingsScreen({
               setVoiceOpen(false);
             }}
           />
+        </View>
+      </Section>
+
+      <Section title="Camera check">
+        <Text style={styles.desc}>
+          Test lighting, focus, and tracking cues (look up/down/left/right, raise
+          hands) before solo or group class. Dark or blurry cameras cannot take class.
+        </Text>
+        <View style={{ marginTop: 10 }}>
+          {showCameraCheck ? (
+            <CameraTrackingCheck onDone={() => setShowCameraCheck(false)} />
+          ) : (
+            <PrimaryButton
+              label="Open camera & tracking check"
+              onPress={() => setShowCameraCheck(true)}
+              variant="brand"
+            />
+          )}
         </View>
       </Section>
 
