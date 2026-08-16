@@ -4,6 +4,9 @@
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
     "version": "0.46.59",
+=======
+    "version": "0.46.59",
+>>>>>>> origin/main
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -68,6 +71,9 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "buildNumber": "0.46.59"
+=======
+      "buildNumber": "0.46.58"
+>>>>>>> origin/main
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -86,6 +92,9 @@
         "ACTIVITY_RECOGNITION"
       ],
       "versionCode": 4659
+=======
+      "versionCode": 4658
+>>>>>>> origin/main
     },
     "extra": {
       "deployMode": "cloud",
