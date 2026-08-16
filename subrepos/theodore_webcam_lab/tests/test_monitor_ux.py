@@ -679,6 +679,10 @@ def test_tilt_calibration_survives_a_reload():
     """Re-calibrating on every page load would make trials incomparable."""
     assert "localStorage.getItem(TILT_STORE_KEY)" in MONITOR_JS
     assert "localStorage.setItem(TILT_STORE_KEY" in MONITOR_JS
+    # Stored neutrals are only comparable within one definition of raw pitch, so
+    # the key is versioned and v1 (pitch = face height in frame) stays retired.
+    assert "twl.tilt.calibration.v2" in MONITOR_JS
+    assert "twl.tilt.calibration.v1'" not in MONITOR_JS
     page = client.get("/theodore/webcam/live-monitor/demo-session").text
     for control in ("tilt-set-neutral", "tilt-set-down", "tilt-reset-peak", "tilt-trip"):
         assert control in page, f"tilt lab control {control} missing from the page"
