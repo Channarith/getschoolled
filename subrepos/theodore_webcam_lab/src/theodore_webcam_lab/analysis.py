@@ -394,6 +394,16 @@ class WebcamSessionAnalyzer:
                 class_alerts.append(
                     "unexpected_user_present:" + ",".join(unexpected_participant_ids)
                 )
+        # Same participant_id can still be a different physical person on one webcam.
+        # Client enrolls the first stable face and reports owner_face_match=False on swap.
+        owner_face_mismatch = any(
+            bool(s.owner_face_enrolled) and s.owner_face_match is False for s in signals
+        )
+        if mode is ClassMode.SOLO and owner_face_mismatch:
+            training_paused = True
+            pause_reason = "owner_face_mismatch"
+            original_user_present = False
+            class_alerts.append("training_paused:owner_face_mismatch")
 
         self._state.setdefault(session_id, {})
         self._touch_session(session_id)
@@ -1145,7 +1155,13 @@ class WebcamSessionAnalyzer:
             and signal.typing_activity_score >= tuning.typing_activity_min_threshold
         )
         typing_active = typing_activity_high or keyboard_typing_audio_detected
-        suspected_cheating = long_eyes_away and (phone_visible or typing_active)
+        owner_mismatch = bool(
+            signal.owner_face_enrolled and signal.owner_face_match is False
+        )
+        secondary_faces = max(0, int(signal.secondary_face_count or 0))
+        suspected_cheating = (
+            (long_eyes_away and (phone_visible or typing_active)) or owner_mismatch
+        )
         cheating_reasons: list[str] = []
         if long_eyes_away:
             cheating_reasons.append("eyes_away_long")
@@ -1155,6 +1171,10 @@ class WebcamSessionAnalyzer:
             cheating_reasons.append("typing_activity_high")
         if keyboard_typing_audio_detected:
             cheating_reasons.append("keyboard_typing_audio")
+        if owner_mismatch:
+            cheating_reasons.append("owner_face_mismatch")
+        if secondary_faces > 0 and (mode is ClassMode.SOLO or owner_mismatch):
+            cheating_reasons.append("secondary_faces_in_frame")
 
         # A dark-pixel bounding box is a person-or-furniture blob, not a face, so
         # deriving metres from it without a localised face reports a bogus "0.30 m
@@ -1271,6 +1291,12 @@ class WebcamSessionAnalyzer:
             alerts.append(f"silhouette_detected:{signal.participant_id}")
         if mode is ClassMode.SOLO and face_count > self._policy.solo_max_faces:
             alerts.append(f"solo_mode_multiple_faces:{signal.participant_id}")
+        if owner_mismatch:
+            alerts.append(f"owner_face_mismatch:{signal.participant_id}")
+        if secondary_faces > 0:
+            alerts.append(
+                f"secondary_faces:{signal.participant_id}:{secondary_faces}"
+            )
         if dominant_expression != "unknown":
             alerts.append(f"expression:{signal.participant_id}:{dominant_expression}")
         if long_eyes_away:
