@@ -3889,6 +3889,51 @@ MONITOR_JS = (
       startSampling();
     });
     document.getElementById('cam-stop').addEventListener('click', stopCamera);
+    document.getElementById('class-gate-run')?.addEventListener('click', () => {
+      const grid = luminanceGrid();
+      const out = document.getElementById('class-gate-result');
+      if (!out) return;
+      if (!grid) {
+        out.textContent = 'blocked_no_face — start the camera or a Test pattern first.';
+        return;
+      }
+      const night = !!document.getElementById('class-gate-night')?.checked;
+      // Mirror apps/web cameraLighting DEFAULT / NIGHT_VISION thresholds.
+      const t = night
+        ? { under: 0.08, over: 0.82, maxBlack: 0.45, maxWhite: 0.12, minLight: 0.12, minSharp: 0.12, minEdge: 0.008 }
+        : { under: 0.22, over: 0.82, maxBlack: 0.18, maxWhite: 0.12, minLight: 0.35, minSharp: 0.30, minEdge: 0.035 };
+      const flat = grid.flat();
+      const mean = flat.reduce((a, b) => a + b, 0) / flat.length;
+      const underRatio = flat.filter((v) => v <= t.under).length / flat.length;
+      const overRatio = flat.filter((v) => v >= t.over).length / flat.length;
+      const underexposed = mean <= t.under || underRatio > t.maxBlack;
+      const overexposed = mean >= t.over || overRatio > t.maxWhite;
+      // Coarse sharpness: neighbour absolute diffs (lab already has server Sobel).
+      let edge = 0, n = 0;
+      for (let y = 1; y < grid.length - 1; y++) {
+        for (let x = 1; x < grid[0].length - 1; x++) {
+          const g = Math.abs(grid[y][x] - grid[y][x - 1]) + Math.abs(grid[y][x] - grid[y - 1][x]);
+          if (g > 0.12) edge += 1;
+          n += 1;
+        }
+      }
+      const edgeDensity = n ? edge / n : 0;
+      const blurry = edgeDensity < t.minEdge;
+      const mid = grid.slice(8, 28).flatMap((row) => row.slice(16, 48));
+      const mMean = mid.reduce((a, b) => a + b, 0) / Math.max(1, mid.length);
+      const mVar = mid.reduce((a, b) => a + (b - mMean) ** 2, 0) / Math.max(1, mid.length);
+      const face = usingPattern ? false : (mVar > 0.004 && mMean > 0.08 && mMean < 0.92);
+      let verdict = 'ready';
+      if (!face && !usingPattern) verdict = 'blocked_no_face';
+      else if (usingPattern && (underexposed || overexposed || blurry)) {
+        verdict = underexposed ? 'blocked_dark' : (overexposed ? 'blocked_bright' : 'blocked_blurry');
+      } else if (underexposed && !night) verdict = 'blocked_dark';
+      else if (overexposed) verdict = 'blocked_bright';
+      else if (blurry && !night) verdict = 'blocked_blurry';
+      else if (night) verdict = 'ready';
+      out.textContent = `${verdict} · mean=${mean.toFixed(2)} · edges=${edgeDensity.toFixed(3)} · face=${face ? 'yes' : 'no'}${night ? ' · night vision' : ''}`;
+      toast('Class lighting gate: ' + verdict);
+    });
     if (silToggle) {
       silToggle.addEventListener('click', (ev) => {
         ev.preventDefault();
@@ -4135,6 +4180,18 @@ MONITOR_PAGE_TEMPLATE = (
         </div>
       </div>
       <div class="integrity-status" id="integrity-status">Start camera to monitor yawn, distraction, gaze, closed eyes, hands on face, and phone use.</div>
+      <div class="card" style="margin-top:10px;padding:10px">
+        <h3 style="margin:0 0 6px">Class lighting gate</h3>
+        <p class="muted" style="margin:0 0 8px;font-size:12px">
+          Same pre-class Camera and lighting check used on web/mobile. Score the
+          live camera (or Test pattern exposure stages) before a lesson would start.
+        </p>
+        <label style="font-size:12px;display:flex;gap:6px;align-items:center;margin-bottom:8px">
+          <input type="checkbox" id="class-gate-night" /> Night vision
+        </label>
+        <button type="button" id="class-gate-run">Simulate class gate</button>
+        <div id="class-gate-result" class="muted" style="margin-top:8px;font-size:12px">Not run yet</div>
+      </div>
       <div class="obs-panel" id="obs-panel">
         <h3>Behavior Observatory</h3>
         <div class="obs-top">

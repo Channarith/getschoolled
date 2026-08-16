@@ -648,6 +648,13 @@ def test_confused_expression_override_is_removed():
     assert "You look a bit confused" not in MONITOR_JS
 
 
+def test_class_lighting_gate_panel_is_present():
+    page = client.get("/theodore/webcam/live-monitor/demo-session").text
+    assert "Class lighting gate" in page
+    assert "class-gate-run" in page
+    assert "Simulate class gate" in page
+
+
 def test_build_demo_payload_accelerates_cheating_timeline():
     first = build_demo_payload(session_id="x", step=0)
     later = build_demo_payload(session_id="x", step=5)

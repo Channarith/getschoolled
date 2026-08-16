@@ -54,6 +54,7 @@ import {
 import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
 import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
+import CameraLightingScreener from "./CameraLightingScreener";
 import { useT } from "../lib/i18n";
 import { buildNarrationSpeakOptions } from "../lib/narrationTts";
 import { cancelSpeech, speakNaturally } from "../lib/tts";
@@ -130,6 +131,7 @@ export default function ClassRoom({
   >([]);
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [lightingReady, setLightingReady] = useState(false);
   const [disclosure, setDisclosure] = useState<Disclosure | null>(null);
   const [survey, setSurvey] = useState<SurveyTemplate | null>(null);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string | number | boolean>>({});
@@ -242,15 +244,23 @@ export default function ClassRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Locked mode (corporate course): start the session automatically once, so the
-  // learner lands directly on the slides + AI teacher instead of a picker.
+  // Locked mode (corporate course): start only after the camera/lighting gate
+  // passes, so dark/blurry rooms never land mid-lesson with broken tracking.
   useEffect(() => {
-    if (locked && loggedIn && !view && !busy && !finish && !autoStartedRef.current) {
+    if (
+      locked &&
+      loggedIn &&
+      lightingReady &&
+      !view &&
+      !busy &&
+      !finish &&
+      !autoStartedRef.current
+    ) {
       autoStartedRef.current = true;
       onStart();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locked, loggedIn, view, busy, finish]);
+  }, [locked, loggedIn, lightingReady, view, busy, finish]);
 
   // When the language switches mid-class, cancel any in-flight narration so it
   // doesn't keep talking in the previous language; the next spoken line (slide
@@ -1105,7 +1115,7 @@ export default function ClassRoom({
           )}
           {locked && (
             <div className="row" style={{ marginTop: 10 }}>
-              <button onClick={() => { autoStartedRef.current = false; setFinish(null); }}>
+              <button onClick={() => { autoStartedRef.current = false; setLightingReady(false); setFinish(null); }}>
                 {t("class.takeAgain")}
               </button>
               {backHref && (
@@ -1122,8 +1132,15 @@ export default function ClassRoom({
 
       {!view && !loggedIn && <SignInToUse />}
 
+      {!view && loggedIn && !finish && !lightingReady && (
+        <CameraLightingScreener
+          onReady={() => setLightingReady(true)}
+          title="Camera and lighting check"
+        />
+      )}
+
       {/* Picker mode (Live Class): choose a lesson and class type. */}
-      {!view && !locked && (
+      {!view && !locked && lightingReady && (
         <div className="card">
           <h3>{t("class.startSession")}</h3>
           <p className="muted" style={{ marginTop: 0 }}>{t("class.startSessionDesc")}</p>
@@ -1178,15 +1195,20 @@ export default function ClassRoom({
         </div>
       )}
 
-      {/* Locked mode (corporate course): auto-starting; show a starting state or
-          a manual start button if the learner is signed in but auto-start hasn't
-          fired (e.g. they hit "Take it again"). */}
-      {!view && locked && loggedIn && !finish && (
+      {/* Locked mode (corporate course): auto-starting after lighting gate. */}
+      {!view && locked && loggedIn && lightingReady && !finish && (
         <div className="card">
           {busy ? (
             <p className="muted" style={{ margin: 0 }}>{t("class.startingCourse")}</p>
           ) : (
-            <button onClick={onStart} disabled={!lessonId}>{startBtn}</button>
+            <button
+              onClick={() => {
+                autoStartedRef.current = false;
+                setLightingReady(false);
+              }}
+            >
+              Re-check camera
+            </button>
           )}
         </div>
       )}
