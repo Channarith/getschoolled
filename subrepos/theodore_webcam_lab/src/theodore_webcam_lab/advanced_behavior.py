@@ -136,7 +136,12 @@ class AdvancedBehaviorEngine:
         expression_confidence: float | None,
         suspected_cheating: bool,
         tuning: VisionTuning,
+        phone_visible: bool | None = None,
     ) -> AdvancedBehaviorSnapshot:
+        # The analyzer passes the sustained verdict; fall back to the raw frame
+        # flag for callers that predate the hold window.
+        if phone_visible is None:
+            phone_visible = bool(signal.phone_visible)
         room = self._state.setdefault(session_id, {})
         st = room.setdefault(signal.participant_id, _ObsState())
         used: list[str] = ["attention", "distraction", "expression", "gaze"]
@@ -184,13 +189,9 @@ class AdvancedBehaviorEngine:
             used.append("smile")
 
         # Cognitive state heuristics (pedagogical, not clinical).
-        confusion = _clamp01(
-            (0.55 if expr == "confused" else 0.0)
-            + brow * 0.55
-            + max(0.0, 0.45 - attention_score) * 0.35
-            + (0.25 if expr in {"surprised", "fearful"} and conf >= 0.4 else 0.0)
-            - smile * 0.2
-        )
+        # Confusion is not inferred from brow raise / "confused" labels — resting
+        # faces vary widely and that path false-positived on ordinary neutrals.
+        confusion = 0.0
         boredom = _clamp01(
             (0.50 if expr in {"neutral", "tired"} and attention_score < 0.55 else 0.0)
             + max(0.0, distraction_score - 0.35) * 0.55
@@ -236,14 +237,14 @@ class AdvancedBehaviorEngine:
             screen_loss = _clamp01(1.0 - float(signal.screen_focus_score))
             used.append("screen_focus")
         multitask = _clamp01(
-            (0.85 if signal.phone_visible else 0.0)
+            (0.85 if phone_visible else 0.0)
             + float(signal.typing_activity_score or 0.0) * 0.7
             + float(signal.keyboard_typing_audio_score or 0.0) * 0.65
             + (0.45 if eyes_away_for_ms >= 2_000 and distraction_score >= 0.55 else 0.0)
             + (0.35 if suspected_cheating else 0.0)
             + screen_loss * 0.5
         )
-        if signal.phone_visible or signal.typing_activity_score or signal.keyboard_typing_audio_score:
+        if phone_visible or signal.typing_activity_score or signal.keyboard_typing_audio_score:
             used.append("multitask")
 
         engagement = _clamp01(
@@ -273,9 +274,6 @@ class AdvancedBehaviorEngine:
         elif fatigue >= 0.62 or yawn_for_ms >= 1_500 or eyes_closed_for_ms >= 1_500:
             cognitive = "fatigued"
             observatory = "drowsy"
-        elif confusion >= 0.58:
-            cognitive = "confused"
-            observatory = "needs_support"
         elif boredom >= 0.58 or inattentive_for_ms >= 4_000:
             cognitive = "bored"
             observatory = "disengaged"
@@ -325,8 +323,6 @@ class AdvancedBehaviorEngine:
             _emit("engagement_peak", "info", "High engagement detected", engagement)
         if engagement <= 0.28 and signal.face_count > 0:
             _emit("engagement_drop", "medium", "Engagement dropped sharply", engagement, 10_000)
-        if confusion >= 0.62:
-            _emit("confusion_spike", "medium", "Learner may be confused", confusion)
         if boredom >= 0.62:
             _emit("boredom_rising", "low", "Boredom / zoning-out signals rising", boredom)
         if fatigue >= 0.62:

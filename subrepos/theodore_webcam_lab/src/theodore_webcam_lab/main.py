@@ -728,7 +728,13 @@ def live_metrics(session_id: str) -> LiveSessionMetricsResponse:
     try:
         snap = _live_metrics_store.snapshot(session_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="session metrics not found") from None
+        # The monitor polls this every second from page load, before any frame
+        # exists. An empty snapshot keeps that idle state out of the error log.
+        return LiveSessionMetricsResponse(
+            session_id=session_id,
+            updated_at_ms=0,
+            mode=ClassMode.SOLO,
+        )
     return snap.model_copy(
         update={
             "action_log": _lesson_actions.events(session_id),

@@ -96,6 +96,10 @@ class _ParticipantState:
     eyes_closed_started_ms: int | None = None
     yawn_started_ms: int | None = None
     inattentive_started_ms: int | None = None
+    hands_on_face_started_ms: int | None = None
+    hands_on_face_last_seen_ms: int | None = None
+    phone_started_ms: int | None = None
+    phone_last_seen_ms: int | None = None
 
 
 class WebcamSessionAnalyzer:
@@ -174,6 +178,42 @@ class WebcamSessionAnalyzer:
         if value > 1.0:
             return 1.0
         return value
+
+    @staticmethod
+    def _sustained_for_ms(
+        *,
+        active: bool,
+        timestamp_ms: int,
+        started_ms: int | None,
+        last_seen_ms: int | None,
+        release_grace_ms: float,
+    ) -> tuple[int, int | None, int | None]:
+        """Track how long a per-frame posture has held across consecutive frames.
+
+        Returns ``(held_for_ms, started_ms, last_seen_ms)``. A gap shorter than
+        ``release_grace_ms`` is treated as detector flicker and keeps the streak
+        alive; anything longer restarts it.
+        """
+        if active:
+            if started_ms is None:
+                started_ms = timestamp_ms
+            elif last_seen_ms is not None:
+                gap = timestamp_ms - last_seen_ms
+                if gap > release_grace_ms:
+                    # Do not credit a long unobserved stretch as continuous hold
+                    # (failed POSTs / paused sampling). Bridge at most one grace
+                    # window so demos that jump wall-clock still make progress
+                    # without a single 10s leap counting as 10s of evidence.
+                    held_before = max(0, last_seen_ms - started_ms)
+                    started_ms = timestamp_ms - held_before - int(release_grace_ms)
+            return max(0, timestamp_ms - started_ms), started_ms, timestamp_ms
+        if (
+            started_ms is not None
+            and last_seen_ms is not None
+            and timestamp_ms - last_seen_ms <= release_grace_ms
+        ):
+            return max(0, last_seen_ms - started_ms), started_ms, last_seen_ms
+        return 0, None, None
 
     def _snr_to_quality(self, snr_db: float | None) -> float | None:
         if snr_db is None:
@@ -644,19 +684,6 @@ class WebcamSessionAnalyzer:
                     )
                 )
             adv = participant.advanced_behavior or {}
-            if float(adv.get("confusion_score") or 0) >= 0.62:
-                lesson_alerts.append(
-                    LessonAlert(
-                        level="medium",
-                        code="learner_confused",
-                        participant_id=participant.participant_id,
-                        message=(
-                            f"{participant.participant_id} may be confused "
-                            f"(score {float(adv.get('confusion_score') or 0):.0%})."
-                        ),
-                        action="check_in_privately_and_offer_support",
-                    )
-                )
             if float(adv.get("boredom_score") or 0) >= 0.62:
                 lesson_alerts.append(
                     LessonAlert(
@@ -905,15 +932,43 @@ class WebcamSessionAnalyzer:
             if signal.hands_on_face_score is not None
             else 0.0
         )
-        hands_on_face = hands_on_face_score >= tuning.hands_on_face_min_threshold
-        if hands_on_face and has_live_face:
-            if participant_state.inattentive_started_ms is None:
-                participant_state.inattentive_started_ms = signal.timestamp_ms
-        hands_on_face_for_ms = 0
-        if hands_on_face and participant_state.inattentive_started_ms is not None:
-            hands_on_face_for_ms = max(
-                0, signal.timestamp_ms - participant_state.inattentive_started_ms
-            )
+        # Both postures below are reported only once they have held for their
+        # configured window. A hand brushing past the face, or one glance down at
+        # a desk, is not "hands on face" / "on their phone".
+        (
+            hands_on_face_for_ms,
+            participant_state.hands_on_face_started_ms,
+            participant_state.hands_on_face_last_seen_ms,
+        ) = self._sustained_for_ms(
+            active=(
+                has_live_face
+                and hands_on_face_score >= tuning.hands_on_face_min_threshold
+            ),
+            timestamp_ms=signal.timestamp_ms,
+            started_ms=participant_state.hands_on_face_started_ms,
+            last_seen_ms=participant_state.hands_on_face_last_seen_ms,
+            release_grace_ms=tuning.posture_release_grace_ms,
+        )
+        hands_on_face = (
+            participant_state.hands_on_face_started_ms is not None
+            and hands_on_face_for_ms >= tuning.hands_on_face_min_hold_ms
+        )
+
+        (
+            phone_visible_for_ms,
+            participant_state.phone_started_ms,
+            participant_state.phone_last_seen_ms,
+        ) = self._sustained_for_ms(
+            active=bool(signal.phone_visible),
+            timestamp_ms=signal.timestamp_ms,
+            started_ms=participant_state.phone_started_ms,
+            last_seen_ms=participant_state.phone_last_seen_ms,
+            release_grace_ms=tuning.posture_release_grace_ms,
+        )
+        phone_visible = (
+            participant_state.phone_started_ms is not None
+            and phone_visible_for_ms >= tuning.phone_visible_min_hold_ms
+        )
 
         distraction_score = 0.0
         if has_live_face:
@@ -921,7 +976,7 @@ class WebcamSessionAnalyzer:
                 distraction_score,
                 gaze_down_score,
                 max(0.0, 1.0 - gaze_frontal),
-                0.85 if signal.phone_visible else 0.0,
+                0.85 if phone_visible else 0.0,
                 0.70 if eyes_closed else 0.0,
                 0.60 if hands_on_face else 0.0,
                 0.55 if yawning else 0.0,
@@ -941,7 +996,7 @@ class WebcamSessionAnalyzer:
                 attention_score = min(attention_score, 0.32)
             if yawning:
                 attention_score = min(attention_score, 0.45)
-            if signal.phone_visible:
+            if phone_visible:
                 attention_score = min(attention_score, 0.20)
             if signal.attention is not None:
                 attention_score = self._clamp01(
@@ -975,7 +1030,7 @@ class WebcamSessionAnalyzer:
             behavior_label = "yawning"
         elif hands_on_face:
             behavior_label = "hands_on_face"
-        elif signal.phone_visible or (
+        elif phone_visible or (
             distraction_score >= tuning.distraction_min_threshold and eyes_away
         ):
             behavior_label = "distracted"
@@ -986,7 +1041,7 @@ class WebcamSessionAnalyzer:
 
         # Trip integrity/cheating faster when a phone is also visible.
         cheat_grace_ms = self._policy.gaze_away_grace_ms
-        if signal.phone_visible:
+        if phone_visible:
             cheat_grace_ms = min(cheat_grace_ms, 8_000)
         long_eyes_away = eyes_away_for_ms >= cheat_grace_ms
         keyboard_typing_audio_detected = (
@@ -999,11 +1054,11 @@ class WebcamSessionAnalyzer:
             and signal.typing_activity_score >= tuning.typing_activity_min_threshold
         )
         typing_active = typing_activity_high or keyboard_typing_audio_detected
-        suspected_cheating = long_eyes_away and (signal.phone_visible or typing_active)
+        suspected_cheating = long_eyes_away and (phone_visible or typing_active)
         cheating_reasons: list[str] = []
         if long_eyes_away:
             cheating_reasons.append("eyes_away_long")
-        if signal.phone_visible:
+        if phone_visible:
             cheating_reasons.append("phone_visible")
         if typing_activity_high:
             cheating_reasons.append("typing_activity_high")
@@ -1238,6 +1293,7 @@ class WebcamSessionAnalyzer:
             expression_confidence=expression_confidence,
             suspected_cheating=suspected_cheating,
             tuning=tuning,
+            phone_visible=phone_visible,
         )
 
         return ParticipantEvaluation(
@@ -1272,7 +1328,8 @@ class WebcamSessionAnalyzer:
             inattentive_for_ms=inattentive_for_ms,
             behavior_label=behavior_label,
             advanced_behavior=advanced.as_dict(),
-            phone_visible=bool(signal.phone_visible),
+            phone_visible=phone_visible,
+            phone_visible_for_ms=phone_visible_for_ms,
             last_live_timestamp_ms=participant_state.last_live_timestamp_ms,
             dominant_expression=dominant_expression,
             expression_confidence=expression_confidence,

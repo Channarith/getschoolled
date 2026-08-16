@@ -157,32 +157,35 @@ def test_group_mode_builds_student_window_alerts_for_cheating_and_missing():
         expected_participant_ids=["alice", "bob", "carol"],
     )
 
-    second = analyzer.evaluate(
-        session_id=session_id,
-        mode=ClassMode.GROUP,
-        signals=[
-            WebcamSignal(
-                participant_id="alice",
-                timestamp_ms=1_700,
-                face_count=1,
-                liveness_state="live",
-                foreground_ratio=0.3,
-                motion_score=0.2,
-            ),
-            WebcamSignal(
-                participant_id="carol",
-                timestamp_ms=1_700,
-                face_count=1,
-                liveness_state="live",
-                foreground_ratio=0.3,
-                motion_score=0.2,
-                gaze_frontal=0.1,
-                gaze_down_score=0.9,
-                phone_visible=True,
-            ),
-        ],
-        expected_participant_ids=["alice", "bob", "carol"],
-    )
+    # Phone must hold across consecutive frames inside the release grace —
+    # a single 7s wall-clock jump is not continuous evidence.
+    for ts in (2_000, 3_000, 4_000, 5_000, 6_000, 7_000, 8_000):
+        second = analyzer.evaluate(
+            session_id=session_id,
+            mode=ClassMode.GROUP,
+            signals=[
+                WebcamSignal(
+                    participant_id="alice",
+                    timestamp_ms=ts,
+                    face_count=1,
+                    liveness_state="live",
+                    foreground_ratio=0.3,
+                    motion_score=0.2,
+                ),
+                WebcamSignal(
+                    participant_id="carol",
+                    timestamp_ms=ts,
+                    face_count=1,
+                    liveness_state="live",
+                    foreground_ratio=0.3,
+                    motion_score=0.2,
+                    gaze_frontal=0.1,
+                    gaze_down_score=0.9,
+                    phone_visible=True,
+                ),
+            ],
+            expected_participant_ids=["alice", "bob", "carol"],
+        )
     windows = {window.participant_id: window for window in second.group_student_windows}
     assert windows["alice"].needs_intervention is False
     assert windows["bob"].severity == "medium"
@@ -335,15 +338,44 @@ def test_long_gaze_away_with_phone_or_typing_flags_suspected_cheating():
             )
         ],
     )
+    # Typing already trips cheating, but one frame of phone is not yet enough:
+    # phone_visible has to hold for phone_visible_min_hold_ms first.
     p2 = second.participants[0]
     assert p2.eyes_away_for_ms == 1_300
     assert p2.suspected_cheating is True
-    assert p2.cheating_reasons == [
+    assert p2.cheating_reasons == ["eyes_away_long", "typing_activity_high"]
+    assert p2.phone_visible is False
+    assert p2.phone_visible_for_ms == 0
+    assert second.suspected_cheating_participant_ids == ["learner"]
+
+    # Build the phone hold with 1s steps (inside posture_release_grace_ms).
+    for ts in (3_300, 4_300, 5_300, 6_300, 7_300, 8_000):
+        third = analyzer.evaluate(
+            session_id=session_id,
+            mode=ClassMode.SOLO,
+            signals=[
+                WebcamSignal(
+                    participant_id="learner",
+                    timestamp_ms=ts,
+                    face_count=1,
+                    liveness_state="live",
+                    foreground_ratio=0.5,
+                    motion_score=0.2,
+                    gaze_frontal=0.15,
+                    gaze_down_score=0.9,
+                    phone_visible=True,
+                    typing_activity_score=0.85,
+                )
+            ],
+        )
+    p3 = third.participants[0]
+    assert p3.phone_visible is True
+    assert p3.phone_visible_for_ms == 5_700
+    assert p3.cheating_reasons == [
         "eyes_away_long",
         "phone_visible",
         "typing_activity_high",
     ]
-    assert second.suspected_cheating_participant_ids == ["learner"]
 
 
 def test_gaze_away_timer_resets_when_learner_refocuses_on_screen():
@@ -596,6 +628,96 @@ def test_training_pauses_if_different_user_replaces_original_user():
     )
     assert resumed.training_paused is False
     assert resumed.original_user_present is True
+
+
+def _posture_signal(timestamp_ms: int, **overrides) -> WebcamSignal:
+    base = dict(
+        participant_id="learner",
+        timestamp_ms=timestamp_ms,
+        face_count=1,
+        liveness_state="live",
+        foreground_ratio=0.3,
+        motion_score=0.1,
+        gaze_frontal=0.9,
+    )
+    base.update(overrides)
+    return WebcamSignal(**base)
+
+
+def _posture_frames(analyzer, session_id, stamps, **overrides):
+    return [
+        analyzer.evaluate(
+            session_id=session_id,
+            mode=ClassMode.SOLO,
+            signals=[_posture_signal(ts, **overrides)],
+        ).participants[0]
+        for ts in stamps
+    ]
+
+
+def test_hands_on_face_needs_five_seconds_before_it_is_reported():
+    analyzer = WebcamSessionAnalyzer()
+    frames = _posture_frames(
+        analyzer,
+        "hands-hold",
+        [0, 1_000, 2_000, 3_000, 4_000, 5_000, 6_000],
+        hands_on_face_score=0.9,
+    )
+    # Below the 5s hold the streak is tracked but the behaviour is not claimed.
+    assert [p.hands_on_face_for_ms for p in frames[:5]] == [0, 1_000, 2_000, 3_000, 4_000]
+    assert all(p.behavior_label != "hands_on_face" for p in frames[:5])
+    assert frames[5].hands_on_face_for_ms == 5_000
+    assert frames[5].behavior_label == "hands_on_face"
+    assert frames[6].behavior_label == "hands_on_face"
+
+
+def test_single_frame_of_hands_on_face_is_ignored():
+    analyzer = WebcamSessionAnalyzer()
+    frames = [
+        _posture_frames(analyzer, "hands-blip", [0], hands_on_face_score=0.9)[0],
+        _posture_frames(analyzer, "hands-blip", [2_000], hands_on_face_score=0.0)[0],
+        _posture_frames(analyzer, "hands-blip", [3_000], hands_on_face_score=0.9)[0],
+    ]
+    assert all(p.behavior_label != "hands_on_face" for p in frames)
+    # The gap exceeded the release grace, so the streak restarted from zero.
+    assert frames[2].hands_on_face_for_ms == 0
+
+
+def test_brief_detector_flicker_does_not_restart_the_hold():
+    analyzer = WebcamSessionAnalyzer()
+    session_id = "hands-flicker"
+    _posture_frames(analyzer, session_id, [0, 1_000, 2_000], hands_on_face_score=0.9)
+    # One dropped frame inside posture_release_grace_ms keeps the streak alive.
+    dropped = _posture_frames(analyzer, session_id, [2_800], hands_on_face_score=0.0)[0]
+    assert dropped.hands_on_face_for_ms == 2_000
+    # Resume within grace of last_seen (2000); then keep steps inside grace.
+    resumed = _posture_frames(
+        analyzer, session_id, [3_000, 4_000, 5_200], hands_on_face_score=0.9
+    )
+    assert resumed[-1].hands_on_face_for_ms == 5_200
+    assert resumed[-1].behavior_label == "hands_on_face"
+
+
+def test_active_frame_after_a_long_gap_does_not_credit_the_whole_gap():
+    """Unobserved time past the grace must not fully accrue toward the hold."""
+    analyzer = WebcamSessionAnalyzer()
+    session_id = "hands-gap"
+    _posture_frames(analyzer, session_id, [0, 1_000, 2_000], hands_on_face_score=0.9)
+    # 8s silent gap, then active again: credit at most posture_release_grace_ms.
+    resumed = _posture_frames(analyzer, session_id, [10_000], hands_on_face_score=0.9)[0]
+    grace = int(VisionTuning().posture_release_grace_ms)
+    assert resumed.hands_on_face_for_ms == 2_000 + grace
+    assert resumed.behavior_label != "hands_on_face"
+
+
+def test_phone_hold_window_is_tunable():
+    analyzer = WebcamSessionAnalyzer(
+        tuning=VisionTuning(phone_visible_min_hold_ms=1_000)
+    )
+    frames = _posture_frames(
+        analyzer, "phone-tuned", [0, 500, 1_200], phone_visible=True
+    )
+    assert [p.phone_visible for p in frames] == [False, False, True]
 
 
 def test_quality_metrics_include_distance_light_image_and_audio():
