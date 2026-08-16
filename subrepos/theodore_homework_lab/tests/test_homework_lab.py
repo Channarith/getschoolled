@@ -136,6 +136,13 @@ def test_api_methodologies_generate_grade_gold():
         tel = client.get("/api/homework/telemetry")
         assert tel.status_code == 200
 
+        page = client.get("/")
+        assert page.status_code == 200
+        assert "Theodore Homework Lab" in page.text
+        assert "/api/homework/generate" in page.text
+        assert "Grade answers" in page.text
+        assert client.get("/lab").status_code == 200
+
 
 def test_run_gold_battery_helper():
     result = run_gold_battery()

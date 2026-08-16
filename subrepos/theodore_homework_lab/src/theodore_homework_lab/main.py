@@ -5,15 +5,23 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from .generate import generate_assignment, generate_full_battery, wrap_shared_classic
 from .grade import grade_assignment
 from .methodologies import list_methodologies, methodology_count
 from .models import LabAssignment
+from .qualify_page import render_qualify_page
 from .quality import PRESETS, HomeworkTuning, get_runner
 
 app = FastAPI(title="Theodore Homework Lab", version="0.1.0")
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/lab", response_class=HTMLResponse)
+def qualify() -> HTMLResponse:
+    return HTMLResponse(render_qualify_page())
 
 
 class GenerateRequest(BaseModel):

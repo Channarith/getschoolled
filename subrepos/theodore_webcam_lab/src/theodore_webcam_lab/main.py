@@ -15,6 +15,7 @@ from .analysis import AnalyzerPolicy, WebcamSessionAnalyzer
 from .demo_seed import DEFAULT_SESSION_ID, DemoScenario, build_demo_payload
 from .imaging import analyze_luminance_grid
 from .games import WebcamLearningGameEngine
+from .landing_page import render_landing_page
 from .lesson_actions import LessonActionLog
 from .live_metrics import LiveMetricsStore
 from .monitor_page import MONITOR_PAGE_TEMPLATE as _MONITOR_PAGE_TEMPLATE
@@ -503,6 +504,13 @@ def analyze_imaging(req: ImagingAnalyzeRequest) -> dict[str, object]:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"service": "theodore-webcam-lab", "status": "ok"}
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/lab", response_class=HTMLResponse)
+def landing() -> HTMLResponse:
+    """Browser entry for manual qualification — seed demo + open live monitor."""
+    return HTMLResponse(render_landing_page(DEFAULT_SESSION_ID))
 
 
 @app.post("/admin/shutdown")

@@ -39,12 +39,16 @@ Step 1 — run the automated tests
 
   Expect all tests passed.
 
-Step 2 — start the lab API
+Step 2 — start the lab and open the web UI
 
   PYTHONPATH=subrepos/theodore_drive_lab/src:packages/shared/src \
     python3 -m uvicorn theodore_drive_lab.main:app --port 8096 --host 127.0.0.1
 
-  Leave that running. From another terminal:
+  Open in a browser:
+    http://127.0.0.1:8096/     (same page at /lab)
+
+  Use Wake eval, Answer eval, Parse utterance, Bakeoff, Champion, Telemetry.
+  Leave the server running for curl too:
 
   curl -s http://127.0.0.1:8096/health | python3 -m json.tool
   # ok=true, service=theodore-drive-lab, wake_cases + tuning present
@@ -85,6 +89,7 @@ Step 5 — read champion + telemetry, then promote when green
   TTS prefs into speech gateway /tts defaults.
 
 APIs
+  GET  /  and /lab          # browser qualification console
   GET  /health
   GET|PATCH /api/drive/tuning (+ /preset/{name})
   POST /api/drive/wake/eval

@@ -47,12 +47,16 @@ Step 1 — run the automated tests + gold battery
   make homework-lab
   # prints methodology_count and gold-battery percentage (expect >= 50 methods)
 
-Step 2 — start the lab API
+Step 2 — start the lab and open the web UI
 
   PYTHONPATH=subrepos/theodore_homework_lab/src:packages/shared/src \
     python3 -m uvicorn theodore_homework_lab.main:app --port 8098 --host 127.0.0.1
 
-  Leave that running. From another terminal:
+  Open in a browser:
+    http://127.0.0.1:8098/     (same page at /lab)
+
+  List methodologies, Generate / Full battery, answer items in the page,
+  Grade answers, or run Gold eval. Leave the server running for curl too:
 
   curl -s http://127.0.0.1:8098/health | python3 -m json.tool
   # ok=true, methodologies >= 50
@@ -101,6 +105,7 @@ Step 5 — check tuning + telemetry, then promote when ready
   after the gold battery stays green.
 
 APIs on :8098
+  GET  /  and /lab          # browser qualification console (generate/grade UI)
   GET  /health
   GET  /api/homework/methodologies
   POST /api/homework/generate

@@ -5,12 +5,20 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from .bakeoff_loop import get_runner
+from .qualify_page import render_qualify_page
 from .rag_tuning import PRESETS, RagTuning
 
 app = FastAPI(title="Theodore RAG Lab", version="0.1.0")
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/lab", response_class=HTMLResponse)
+def qualify() -> HTMLResponse:
+    return HTMLResponse(render_qualify_page())
 
 
 class TuningPatch(BaseModel):

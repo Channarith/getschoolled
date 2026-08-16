@@ -39,6 +39,7 @@ Feature scope
 
 API highlights
 --------------
+- GET  /  and /lab                                        (seed + open monitor landing)
 - POST /api/theodore/webcam/evaluate
 - GET  /api/theodore/webcam/live-metrics/{session_id}
 - GET  /theodore/webcam/live-monitor/{session_id}
@@ -284,13 +285,16 @@ Step 1 - automated tests (fastest confidence check, ~1 second)
 Optional lint gate (matches repo CI config):
    python3 -m ruff check subrepos/theodore_webcam_lab      # EXPECT: All checks passed!
 
-Step 2 - start the lab API
---------------------------
+Step 2 - start the lab and open the web UI
+------------------------------------------
    python3 -m uvicorn theodore_webcam_lab.main:app \
        --app-dir subrepos/theodore_webcam_lab/src --host 0.0.0.0 --port 8015
 
    Leave this running in its own terminal. Confirm it is up from another shell:
    curl -s http://127.0.0.1:8015/health        # EXPECT: {"service":"theodore-webcam-lab","status":"ok"}
+
+   Fastest manual path: open http://127.0.0.1:8015/ (or /lab) and click
+   "Seed + open monitor" — that seeds demo-session and jumps to the live monitor.
 
    Port 8015 already taken? Pass a different --port (e.g. --port 8028). The
    seed script auto-discovers any healthy lab on 8015–8035, or pin it with
@@ -319,7 +323,8 @@ Step 3 - seed demo webcam frames
 
 Step 4 - open the live monitor in a browser
 -------------------------------------------
-   Use the URL printed by the seed script (port may not be 8015), e.g.
+   Prefer http://127.0.0.1:8015/ then "Seed + open monitor", or use the URL
+   printed by the seed script (port may not be 8015), e.g.
    http://127.0.0.1:8015/theodore/webcam/live-monitor/demo-session
 
    EXPECT (compare against docs/screens/theodore_webcam_live_monitor.webp):

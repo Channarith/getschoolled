@@ -212,7 +212,10 @@ Documentation screenshots for every Theodore subrepo (regenerate with
 
 Each lab keeps a copy under `subrepos/<lab>/docs/screens/` and a numbered
 **STEP BY STEP** walkthrough in its `README.txt` (webcam also has the
-illustrated `README.md`). Regenerate screens with
+illustrated `README.md`). Every lab serves a browser qualification UI at `/`
+(or `/lab` / `/studio`): webcam `:8015`, course studio `:8040`, audio
+translation `:8041`, RAG `:8095`, Drive `:8096`, music `:8097`, homework
+`:8098`. Regenerate screens with
 `python3 scripts/render_lab_docs_screenshots.py`.
 
 Per-language Bayon Buddy mascots (distinct colour + physique/pose, same face,
@@ -572,13 +575,13 @@ transcript all run without it.
 | `apps/web` | Next.js web app and admin/user surfaces |
 | `apps/mobile` | Expo React Native mobile app |
 | `apps/agent-runtime` | LiveKit agent runtime and edge packaging |
-| `subrepos/theodore_webcam_lab` | Private webcam recognition + voice lab (owner face lock, multi-face, stare geometry) |
-| `subrepos/theodore_course_studio` | Early-learning / certification course studio (multimodal kits + Make & teach UI) |
-| `subrepos/theodore_audio_translation_lab` | Realtime mic translation across 27 languages + Theodore replies |
-| `subrepos/theodore_rag_lab` | Private RAG knowledge-base auto-tune / hours-a-day bakeoff |
-| `subrepos/theodore_drive_lab` | Private Drive Mode audio-agent fine-tune (wake/echo/TTS/Q&A) |
-| `subrepos/theodore_homework_lab` | Private homework lab (75 methodologies generate/grade) |
-| `subrepos/theodore_music_lab` | Private learn-through-music lab (100+ songs + featured MP3 player) |
+| `subrepos/theodore_webcam_lab` | Private webcam recognition + voice lab (owner face lock; UI `:8015/`) |
+| `subrepos/theodore_course_studio` | Early-learning / certification course studio (UI `:8040/studio`) |
+| `subrepos/theodore_audio_translation_lab` | Realtime mic translation across 27 languages (UI `:8041/lab`) |
+| `subrepos/theodore_rag_lab` | Private RAG auto-tune / bakeoff (browser console `:8095/`) |
+| `subrepos/theodore_drive_lab` | Private Drive Mode fine-tune (browser console `:8096/`) |
+| `subrepos/theodore_homework_lab` | Private homework lab, 75 methodologies (browser UI `:8098/`) |
+| `subrepos/theodore_music_lab` | Learn-through-music lab (featured player `:8097/`) |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |
 | `packages/sdk` | Installable Python SDK for safely extending AOEP (`AOEPClient.local()`, in-process APIs) |
 | `services/orchestrator` | Teaching Director, sessions, Tutor Q&A, HIL, assessment |
