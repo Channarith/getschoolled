@@ -15,6 +15,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from .page_media import motion_data_url, picture_data_url
 from .types import CategoryId, CourseSlide, StudioCourse
 
 # Soft session target for adult cert prep (kids stay on early_learning budgets).
@@ -49,6 +50,9 @@ class CertBeat:
     title: str
     body: str
     say: str
+    symbol: str = "📘"
+    color: str = "#2563eb"
+    activity: str = ""
 
 
 @dataclass(frozen=True)
@@ -82,8 +86,342 @@ class CertCourseOption(BaseModel):
     prep_only: bool = True
 
 
-def _b(title: str, body: str, say: str | None = None) -> CertBeat:
-    return CertBeat(title=title, body=body, say=say or body)
+# Topic-aware still/motion card visuals + a short do/say activity per beat.
+_VISUALS: dict[str, tuple[str, str, str]] = {
+    "Prep, not a DMV course": (
+        "📋",
+        "#64748b",
+        "Say: this is prep only — the handbook is the authority.",
+    ),
+    "California learner's permit": (
+        "🪪",
+        "#0ea5e9",
+        "Name two steps you need before a provisional permit.",
+    ),
+    "Right-of-way at stops": (
+        "🛑",
+        "#dc2626",
+        "At a four-way stop, who goes first if you arrive together?",
+    ),
+    "California speed basics": (
+        "⏱",
+        "#f59e0b",
+        "Say the Basic Speed Law in one sentence.",
+    ),
+    "Following distance": (
+        "🚗",
+        "#2563eb",
+        "Count a three-second gap out loud.",
+    ),
+    "Signals and lane changes": (
+        "↻",
+        "#7c3aed",
+        "List the mirror–signal–blind-spot order.",
+    ),
+    "Turning and red lights": (
+        "🚦",
+        "#ef4444",
+        "When is a right turn on red allowed in California?",
+    ),
+    "School buses in California": (
+        "🚌",
+        "#eab308",
+        "Who must stop for flashing red bus lights on an undivided road?",
+    ),
+    "Seat belts and phones": (
+        "📱",
+        "#334155",
+        "Name one legal way to use a phone while driving in CA.",
+    ),
+    "DUI limits (California)": (
+        "🚫",
+        "#b91c1c",
+        "What BAC limit applies to drivers 21 and older?",
+    ),
+    "What to do after a crash": (
+        "🆘",
+        "#f97316",
+        "List three things to do after a crash if it is safe.",
+    ),
+    "Study next": (
+        "✅",
+        "#16a34a",
+        "Name the next topic you will review after this lesson.",
+    ),
+    "Regulatory signs": (
+        "⬛",
+        "#111827",
+        "What shape and color is a STOP sign?",
+    ),
+    "Yield and stop": (
+        "▽",
+        "#dc2626",
+        "Difference between yield and a full stop?",
+    ),
+    "Warning signs": (
+        "◆",
+        "#eab308",
+        "What do yellow diamond signs tell you to do?",
+    ),
+    "Guide and service signs": (
+        "🛣",
+        "#16a34a",
+        "Match green / blue / brown signs to their purpose.",
+    ),
+    "Traffic signals": (
+        "🚥",
+        "#22c55e",
+        "What does flashing red mean?",
+    ),
+    "Pavement markings": (
+        "〰",
+        "#facc15",
+        "Yellow vs white lines — which separates opposite traffic?",
+    ),
+    "Railroad crossings": (
+        "🚂",
+        "#991b1b",
+        "How far from the rail should you stop when lights flash?",
+    ),
+    "Roundabouts": (
+        "🌀",
+        "#0ea5e9",
+        "Who has the right-of-way when you enter a roundabout?",
+    ),
+    "Parking clearances": (
+        "🅿",
+        "#6366f1",
+        "Name two places you must not park near.",
+    ),
+    "Night headlights": (
+        "💡",
+        "#1e3a8a",
+        "When must you use headlights in California?",
+    ),
+    "Pedestrians and bikes": (
+        "🚶",
+        "#14b8a6",
+        "Where must you yield to pedestrians?",
+    ),
+    "Motorcycle awareness": (
+        "🏍",
+        "#a855f7",
+        "Why leave motorcycles a full lane?",
+    ),
+    "Large truck no-zones": (
+        "🚛",
+        "#475569",
+        "Name one truck blind-spot “no-zone.”",
+    ),
+    "Freeway merging": (
+        "🔀",
+        "#0284c7",
+        "What should you do on the on-ramp before merging?",
+    ),
+    "Weather and hydroplaning": (
+        "🌧",
+        "#0369a1",
+        "If you hydroplane, what should you do first?",
+    ),
+    "Emergency vehicles": (
+        "🚨",
+        "#dc2626",
+        "How do you yield to lights and sirens?",
+    ),
+    "Work zones": (
+        "🚧",
+        "#ea580c",
+        "Why are work-zone fines often higher?",
+    ),
+    "Before you drive": (
+        "🔧",
+        "#64748b",
+        "Name three vehicle checks before you move.",
+    ),
+    "Handbook checkpoint": (
+        "📖",
+        "#0f766e",
+        "Which handbook sections will you re-read next?",
+    ),
+    "Practice test habit": (
+        "📝",
+        "#4f46e5",
+        "How long should each study block be?",
+    ),
+    "Prep card, not accreditation": (
+        "📋",
+        "#64748b",
+        "Say: this track is practice, not accredited training.",
+    ),
+    "Why food handler cards matter": (
+        "🪪",
+        "#0d9488",
+        "Who enforces food safety during inspections in Alameda?",
+    ),
+    "Handwashing that works": (
+        "🧼",
+        "#06b6d4",
+        "How many seconds should you wash with soap?",
+    ),
+    "Gloves done right": (
+        "🧤",
+        "#38bdf8",
+        "When must you change gloves?",
+    ),
+    "Illness reporting": (
+        "🤒",
+        "#e11d48",
+        "Name two symptoms you must report before working.",
+    ),
+    "Personal cleanliness": (
+        "👕",
+        "#8b5cf6",
+        "List two personal hygiene rules on the line.",
+    ),
+    "Ready-to-eat foods": (
+        "🥗",
+        "#22c55e",
+        "How do you avoid bare-hand contact with RTE food?",
+    ),
+    "Cuts and bandages": (
+        "🩹",
+        "#f43f5e",
+        "What covers a hand wound before gloves?",
+    ),
+    "Customer allergen basics": (
+        "🥜",
+        "#d97706",
+        "What do you do if unsure about an allergen?",
+    ),
+    "Your next short block": (
+        "✅",
+        "#16a34a",
+        "Name the next food-safety topic to study.",
+    ),
+    "Temperature danger zone": (
+        "🌡",
+        "#ef4444",
+        "What Fahrenheit range is the danger zone?",
+    ),
+    "Cold holding": (
+        "❄️",
+        "#0284c7",
+        "Cold TCS foods must stay at or below what temp?",
+    ),
+    "Hot holding": (
+        "🔥",
+        "#ea580c",
+        "Hot TCS foods must stay at or above what temp?",
+    ),
+    "Safe cooking targets": (
+        "🍗",
+        "#b45309",
+        "What internal temp for poultry?",
+    ),
+    "Cooling cooked food": (
+        "🧊",
+        "#0ea5e9",
+        "Cool 135°F to 70°F within how many hours?",
+    ),
+    "Reheating": (
+        "♨️",
+        "#dc2626",
+        "Reheat previously cooked TCS food to what temp?",
+    ),
+    "Thawing safely": (
+        "💧",
+        "#38bdf8",
+        "Name one safe thawing method (not the counter).",
+    ),
+    "Receiving checks": (
+        "📦",
+        "#6366f1",
+        "When should you reject a delivery?",
+    ),
+    "Date marking": (
+        "🗓",
+        "#7c3aed",
+        "What is the typical refrigerated RTE hold window?",
+    ),
+    "Thermometer habits": (
+        "📏",
+        "#334155",
+        "Where do you probe food with a thermometer?",
+    ),
+    "Cross-contamination": (
+        "🔀",
+        "#b91c1c",
+        "How do you keep raw proteins off ready-to-eat food?",
+    ),
+    "Clean then sanitize": (
+        "✨",
+        "#0d9488",
+        "Say the clean → rinse → sanitize order.",
+    ),
+    "Sanitizer strength": (
+        "🧪",
+        "#0891b2",
+        "How do you verify sanitizer strength?",
+    ),
+    "FIFO stock rotation": (
+        "↕",
+        "#4f46e5",
+        "What does FIFO stand for?",
+    ),
+    "Pest prevention": (
+        "🪳",
+        "#78716c",
+        "Name two pest-prevention habits in a kitchen.",
+    ),
+    "Allergen cross-contact": (
+        "⚠",
+        "#f59e0b",
+        "Why is cleaning alone not enough for allergens?",
+    ),
+    "Common pathogens": (
+        "🦠",
+        "#be123c",
+        "Name one high-risk food linked to Salmonella.",
+    ),
+    "Health inspections": (
+        "🏛",
+        "#1d4ed8",
+        "What should you do when a critical violation is found?",
+    ),
+    "If a guest gets sick": (
+        "📞",
+        "#c2410c",
+        "Who do you notify first if a guest reports illness?",
+    ),
+    "Finish strong": (
+        "🎓",
+        "#15803d",
+        "Where do you take the official food handler assessment?",
+    ),
+}
+
+
+def _b(
+    title: str,
+    body: str,
+    say: str | None = None,
+    *,
+    symbol: str | None = None,
+    color: str | None = None,
+    activity: str | None = None,
+) -> CertBeat:
+    default_symbol, default_color, default_activity = _VISUALS.get(
+        title,
+        ("📘", "#2563eb", f"Recall one key point about “{title}.”"),
+    )
+    return CertBeat(
+        title=title,
+        body=body,
+        say=say or body,
+        symbol=symbol or default_symbol,
+        color=color or default_color,
+        activity=activity or default_activity,
+    )
 
 
 _DMV_DISCLAIMER = (
@@ -580,22 +918,38 @@ def build_cert_course(
     template = _find_template(track or CertTrackId.CA_DMV_PERMIT, lesson_id)
     category = CATEGORIES[template.track]
     jurisdiction = JURISDICTIONS[template.track]
-    slides = [
-        CourseSlide(
-            index=i,
-            title=beat.title,
-            body=beat.body,
-            narration=beat.say,
-            tags=[
-                "certification_prep",
-                template.track.value,
-                jurisdiction,
-                template.lesson_id,
-                category.value,
-            ],
+    slides: list[CourseSlide] = []
+    for i, beat in enumerate(template.beats):
+        slides.append(
+            CourseSlide(
+                index=i,
+                title=beat.title,
+                body=beat.body,
+                narration=beat.say,
+                picture_url=picture_data_url(
+                    title=beat.title, symbol=beat.symbol, color=beat.color
+                ),
+                picture_alt=f"Picture for {beat.title}",
+                video_url=motion_data_url(
+                    title=beat.title,
+                    symbol=beat.symbol,
+                    color=beat.color,
+                    bounce_px=20,
+                    bounce_dur_s=2.4,
+                ),
+                video_caption=f"Watch: {beat.title}",
+                activity_prompt=beat.activity,
+                tags=[
+                    "certification_prep",
+                    template.track.value,
+                    jurisdiction,
+                    template.lesson_id,
+                    category.value,
+                    "picture_led",
+                    "motion_clip",
+                ],
+            )
         )
-        for i, beat in enumerate(template.beats)
-    ]
     minutes = max(
         CERT_SESSION_MIN_MINUTES,
         min(CERT_SESSION_MAX_MINUTES, template.estimated_minutes),
@@ -618,6 +972,9 @@ def build_cert_course(
             "disclaimer": template.disclaimer,
             "session_soft_minutes": CERT_SESSION_MAX_MINUTES,
             "lesson_id": template.lesson_id,
+            "picture_led": True,
+            "motion_clip": True,
+            "read_aloud": True,
         },
         created_at_ms=int(time.time() * 1000),
         status="ready",

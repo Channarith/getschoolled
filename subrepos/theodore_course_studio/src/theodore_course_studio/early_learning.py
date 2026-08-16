@@ -11,9 +11,7 @@ that pairs with Theodore's read-aloud narration without requiring an MP4.
 
 from __future__ import annotations
 
-import html
 import time
-import urllib.parse
 import uuid
 from dataclasses import dataclass
 from enum import Enum
@@ -22,6 +20,8 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from .child_i18n import SOUND_SPECIFIC_TOPICS, curated_languages, translate_beats
+from .page_media import motion_data_url as shared_motion_data_url
+from .page_media import picture_data_url as shared_picture_data_url
 from .studio_languages import language_name, normalize_language
 from .types import CategoryId, CourseSlide, StudioCourse
 
@@ -254,79 +254,23 @@ def _find_template(level: EarlyLevel, topic_id: str) -> LessonTemplate:
     )
 
 
-def _svg_data(
-    *,
-    title: str,
-    symbol: str,
-    color: str,
-    animated: bool,
-) -> str:
-    safe_title = html.escape(title[:34])
-    safe_symbol = html.escape(symbol[:24])
-    motion = (
-        """
-        <animateTransform attributeName="transform" type="translate"
-          values="0 0;0 -18;0 0" dur="2s" repeatCount="indefinite"/>
-        """
-        if animated
-        else ""
-    )
-    sparkles = (
-        """
-        <circle cx="80" cy="70" r="8" fill="#fff" opacity=".75">
-          <animate attributeName="opacity" values=".2;1;.2" dur="1.4s"
-            repeatCount="indefinite"/>
-        </circle>
-        <circle cx="720" cy="130" r="12" fill="#fff" opacity=".6">
-          <animate attributeName="r" values="6;15;6" dur="1.8s"
-            repeatCount="indefinite"/>
-        </circle>
-        """
-        if animated
-        else ""
-    )
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"
-      viewBox="0 0 800 450" role="img" aria-label="{safe_title}">
-      <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="{color}"/>
-          <stop offset="1" stop-color="#172554"/>
-        </linearGradient>
-      </defs>
-      <rect width="800" height="450" rx="32" fill="url(#bg)"/>
-      {sparkles}
-      <g transform="translate(0 0)">
-        {motion}
-        <rect x="175" y="65" width="450" height="250" rx="36"
-          fill="#fff" opacity=".96"/>
-        <text x="400" y="225" text-anchor="middle" font-family="Arial,sans-serif"
-          font-size="108" font-weight="700" fill="#172554">{safe_symbol}</text>
-      </g>
-      <text x="400" y="382" text-anchor="middle" font-family="Arial,sans-serif"
-        font-size="42" font-weight="700" fill="#fff">{safe_title}</text>
-    </svg>"""
-    return "data:image/svg+xml," + urllib.parse.quote(svg, safe="")
-
-
 def picture_data_url(
     beat: LessonBeat, label: str | None = None, symbol: str | None = None
 ) -> str:
-    return _svg_data(
+    return shared_picture_data_url(
         title=label or beat.title,
         symbol=symbol or beat.symbol,
         color=beat.color,
-        animated=False,
     )
 
 
 def motion_data_url(
     beat: LessonBeat, label: str | None = None, symbol: str | None = None
 ) -> str:
-    return _svg_data(
+    return shared_motion_data_url(
         title=label or beat.title,
         symbol=symbol or beat.symbol,
         color=beat.color,
-        animated=True,
     )
 
 

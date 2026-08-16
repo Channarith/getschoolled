@@ -30,8 +30,26 @@ def test_build_ca_dmv_course_has_jurisdiction_metadata():
     assert course.estimated_minutes <= 20
     assert course.profile_adaptations["jurisdiction"] == "us-ca"
     assert course.profile_adaptations["prep_only"] is True
+    assert course.profile_adaptations["picture_led"] is True
+    assert course.profile_adaptations["motion_clip"] is True
     assert "not a dmv-approved" in course.profile_adaptations["disclaimer"].lower()
     assert any("us-ca" in slide.tags for slide in course.slides)
+
+
+def test_all_cert_lessons_have_picture_and_motion():
+    from urllib.parse import unquote
+
+    for row in list_cert_courses():
+        course = build_cert_course(lesson_id=row.lesson_id)
+        assert course.slides, row.lesson_id
+        for slide in course.slides:
+            assert slide.picture_url.startswith("data:image/svg+xml,"), slide.title
+            assert slide.video_url.startswith("data:image/svg+xml,"), slide.title
+            assert slide.activity_prompt, slide.title
+            motion_svg = unquote(slide.video_url.split(",", 1)[1])
+            still_svg = unquote(slide.picture_url.split(",", 1)[1])
+            assert "animateTransform" in motion_svg
+            assert "animateTransform" not in still_svg
 
 
 def test_build_alameda_food_course():
@@ -42,6 +60,8 @@ def test_build_alameda_food_course():
     assert course.category is CategoryId.FOOD_SAFETY
     assert course.profile_adaptations["jurisdiction"] == "us-ca-alameda"
     assert "alameda" in course.profile_adaptations["disclaimer"].lower()
+    assert course.slides[0].picture_url.startswith("data:image/svg+xml,")
+    assert course.slides[0].video_url.startswith("data:image/svg+xml,")
 
 
 def test_certification_api_builds_and_teaches(monkeypatch, tmp_path):
@@ -67,6 +87,9 @@ def test_certification_api_builds_and_teaches(monkeypatch, tmp_path):
     payload = made.json()
     assert payload["category"] == "driver_education"
     assert payload["profile_adaptations"]["jurisdiction"] == "us-ca"
+    assert payload["profile_adaptations"]["picture_led"] is True
+    assert payload["slides"][0]["picture_url"].startswith("data:image/svg+xml,")
+    assert payload["slides"][0]["video_url"].startswith("data:image/svg+xml,")
     assert builder.get_course(payload["course_id"]) is not None
 
 
@@ -75,6 +98,8 @@ def test_studio_shows_certification_panel_beside_kids():
     assert page.status_code == 200
     assert "Make a children's lesson" in page.text
     assert "Certification prep" in page.text
+    assert "picture + motion" in page.text
+    assert "Watch video" in page.text
     assert "Come back later" in page.text
     assert "driver_education" in page.text
     assert "food_safety" in page.text
