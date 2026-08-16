@@ -407,3 +407,181 @@ export async function tryApplyExposureConstraints(
 export function isLightingReady(verdict: LightingVerdict): boolean {
   return verdict === "ready";
 }
+
+/** Hard blocks that must not continue a solo/group class (tracking unreliable). */
+export const BLOCKING_QUALITY_VERDICTS: ReadonlySet<LightingVerdict> = new Set([
+  "blocked_dark",
+  "blocked_bright",
+  "blocked_blurry",
+  "blocked_no_face",
+]);
+
+export function isBlockingQualityVerdict(verdict: LightingVerdict): boolean {
+  return BLOCKING_QUALITY_VERDICTS.has(verdict);
+}
+
+/** Seconds shown before we disconnect a learner whose camera stays unusable. */
+export const QUALITY_DISCONNECT_SECONDS = 10;
+
+/** How long a bad reading must persist before the disconnect countdown starts. */
+export const QUALITY_FAIL_HOLD_MS = 2500;
+
+export function qualityDisconnectCopy(verdict: LightingVerdict): {
+  title: string;
+  message: string;
+  tips: string[];
+} {
+  switch (verdict) {
+    case "blocked_dark":
+      return {
+        title: "We need better lighting",
+        message:
+          "Your room is too dark for reliable presence, attention, and integrity tracking. Please add a lamp or face a brighter area.",
+        tips: [
+          "Turn on a desk lamp aimed at your face",
+          "Avoid sitting with a bright window behind you",
+          "You can practice this check anytime in Account → Camera check",
+        ],
+      };
+    case "blocked_blurry":
+      return {
+        title: "Your camera image is too blurry",
+        message:
+          "A blurry feed cannot track where you look or whether you are present. Please clean the lens, hold still, and move a little closer.",
+        tips: [
+          "Wipe the camera lens",
+          "Hold the device steady",
+          "Make sure your face fills more of the frame",
+        ],
+      };
+    case "blocked_bright":
+      return {
+        title: "The image is washed out",
+        message:
+          "Strong backlight or glare is hiding your face from our recognition checks. Please reduce glare and try again.",
+        tips: ["Face away from bright windows", "Lower harsh lights behind you"],
+      };
+    case "blocked_no_face":
+      return {
+        title: "We cannot see your face",
+        message:
+          "Please center your face in the camera so we can confirm you are present for class.",
+        tips: ["Sit facing the camera", "Remove covers or heavy shadows"],
+      };
+    default:
+      return {
+        title: "Camera quality needs a quick fix",
+        message:
+          "Lighting or focus is not good enough for class tracking. Please adjust, then rejoin.",
+        tips: ["Improve room light", "Hold still until the picture looks clear"],
+      };
+  }
+}
+
+export type FaceBox = { x: number; y: number; width: number; height: number };
+
+export type TrackingPose =
+  | "center"
+  | "look_up"
+  | "look_down"
+  | "look_left"
+  | "look_right"
+  | "raise_hands"
+  | "unknown";
+
+/**
+ * Infer a coarse head/pose cue from a face box normalized to the frame (0..1).
+ * Selfie preview is typically mirrored: looking left moves the box left.
+ */
+export function inferTrackingPose(
+  box: FaceBox | null,
+  opts?: { raiseHandsHint?: boolean },
+): TrackingPose {
+  if (!box) return "unknown";
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  if (opts?.raiseHandsHint) return "raise_hands";
+  if (cy < 0.38) return "look_up";
+  if (cy > 0.62) return "look_down";
+  if (cx < 0.38) return "look_left";
+  if (cx > 0.62) return "look_right";
+  return "center";
+}
+
+/** Upper-side motion energy vs prior grid — used as a raise-hands stand-in. */
+export function raiseHandsHintFromGrids(
+  prev: number[][] | null,
+  next: number[][],
+): boolean {
+  if (!prev || !prev.length || !next.length) return false;
+  const h = Math.min(prev.length, next.length);
+  const w = Math.min(prev[0].length, next[0].length);
+  let diff = 0;
+  let n = 0;
+  for (let y = 0; y < Math.floor(h * 0.55); y++) {
+    for (let x = 0; x < w; x++) {
+      const edge = x < w * 0.28 || x > w * 0.72;
+      if (!edge) continue;
+      diff += Math.abs(next[y][x] - prev[y][x]);
+      n += 1;
+    }
+  }
+  return n > 0 && diff / n > 0.045;
+}
+
+export type SustainedQualityState = {
+  badSinceMs: number | null;
+  countdownStartedMs: number | null;
+  lastVerdict: LightingVerdict | null;
+};
+
+export function tickSustainedQuality(
+  state: SustainedQualityState,
+  readiness: LightingReadiness,
+  nowMs: number,
+  opts?: { failHoldMs?: number },
+): SustainedQualityState & { shouldStartCountdown: boolean; shouldDisconnect: boolean; secondsLeft: number } {
+  const failHoldMs = opts?.failHoldMs ?? QUALITY_FAIL_HOLD_MS;
+  const blocking = isBlockingQualityVerdict(readiness.verdict);
+  // fixable is a soft warning — do not disconnect yet, but keep pressure on dark/blurry.
+  const hard =
+    blocking ||
+    (readiness.verdict === "fixable" &&
+      (readiness.metrics.underexposed || readiness.metrics.blurry));
+
+  if (!hard) {
+    return {
+      badSinceMs: null,
+      countdownStartedMs: null,
+      lastVerdict: readiness.verdict,
+      shouldStartCountdown: false,
+      shouldDisconnect: false,
+      secondsLeft: QUALITY_DISCONNECT_SECONDS,
+    };
+  }
+
+  const badSinceMs = state.badSinceMs ?? nowMs;
+  const heldLongEnough = nowMs - badSinceMs >= failHoldMs;
+  let countdownStartedMs = state.countdownStartedMs;
+  let shouldStartCountdown = false;
+  if (heldLongEnough && countdownStartedMs == null) {
+    countdownStartedMs = nowMs;
+    shouldStartCountdown = true;
+  }
+  const secondsLeft =
+    countdownStartedMs == null
+      ? QUALITY_DISCONNECT_SECONDS
+      : Math.max(
+          0,
+          QUALITY_DISCONNECT_SECONDS -
+            Math.floor((nowMs - countdownStartedMs) / 1000),
+        );
+  return {
+    badSinceMs,
+    countdownStartedMs,
+    lastVerdict: readiness.verdict,
+    shouldStartCountdown,
+    shouldDisconnect: countdownStartedMs != null && secondsLeft <= 0,
+    secondsLeft,
+  };
+}

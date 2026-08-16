@@ -53,6 +53,17 @@ import { buildNarrationSpeakOptions } from "../../lib/narrationTts";
 import { speakNaturally, cancelSpeech } from "../../lib/tts";
 import { resumeSharedAudioContext, unlockWebAudio } from "../../lib/webAudioUnlock";
 import { createVisionEngine, type VisionEngine } from "../../lib/vision";
+import CameraLightingScreener from "../../components/CameraLightingScreener";
+import CameraQualityGateOverlay from "../../components/CameraQualityGateOverlay";
+import {
+  DEFAULT_LIGHTING_THRESHOLDS,
+  analyzeLuminanceGrid,
+  luminanceGridFromImageData,
+  tickSustainedQuality,
+  verdictFromMetrics,
+  type LightingVerdict,
+  type SustainedQualityState,
+} from "../../lib/cameraLighting";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 // Design A "calm studio" primary CTA color — a warm gold used for the key
@@ -706,6 +717,16 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [cameraOn, setCameraOn] = useState(true);
   const [cameraNote, setCameraNote] = useState("");
   const [insecureOrigin, setInsecureOrigin] = useState(false);
+  // Pre-class gate: dark/blurry rooms cannot enter solo or group live class.
+  const [lightingReady, setLightingReady] = useState(false);
+  const [qualityVerdict, setQualityVerdict] = useState<LightingVerdict | null>(null);
+  const [qualitySecondsLeft, setQualitySecondsLeft] = useState<number | null>(null);
+  const qualityStateRef = useRef<SustainedQualityState>({
+    badSinceMs: null,
+    countdownStartedMs: null,
+    lastVerdict: null,
+  });
+  const qualityDisconnectedRef = useRef(false);
   const [moderatorKey, setModeratorKey] = useState("");
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   // Can this viewer moderate the room? The room's first-joiner admin (has the
@@ -1269,6 +1290,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // fallback.
   const autoJoinedRef = useRef(false);
   useEffect(() => {
+    if (!lightingReady) return;
     if (autoJoinedRef.current || joinInfo || !getToken()) return;
     autoJoinedRef.current = true;
     void getMe()
@@ -1287,7 +1309,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         autoJoinedRef.current = false; // not signed in / error -> show the prompt
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, joinInfo]);
+  }, [roomId, joinInfo, lightingReady]);
 
   async function enableLiveKitAv() {
     unlockWebAudio();
@@ -1313,6 +1335,79 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       go();
     }
   }, [joinInfo, roomId, localStream]);
+
+  // Mid-class lighting/blur gate: recognition needs a usable frame. Sustained
+  // dark or blurry video shows a friendly fix message, then a 10s disconnect.
+  useEffect(() => {
+    if (!lightingReady || !cameraOn || !localStream || qualityDisconnectedRef.current) {
+      qualityStateRef.current = {
+        badSinceMs: null,
+        countdownStartedMs: null,
+        lastVerdict: null,
+      };
+      setQualityVerdict(null);
+      setQualitySecondsLeft(null);
+      return;
+    }
+    let cancelled = false;
+    const canvas = document.createElement("canvas");
+    const tick = () => {
+      if (cancelled || qualityDisconnectedRef.current) return;
+      const source = presenceProbeVideoRef.current;
+      if (!source || source.readyState < 2 || !source.videoWidth) return;
+      const w = 64;
+      const h = 36;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+      try {
+        ctx.drawImage(source, 0, 0, w, h);
+        const { data } = ctx.getImageData(0, 0, w, h);
+        const grid = luminanceGridFromImageData(data, w, h, w, h);
+        const metrics = analyzeLuminanceGrid(grid, DEFAULT_LIGHTING_THRESHOLDS);
+        const mid = grid.slice(8, 28).flatMap((row) => row.slice(16, 48));
+        const mean = mid.reduce((a, b) => a + b, 0) / Math.max(1, mid.length);
+        const varSum =
+          mid.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, mid.length);
+        const facePresent = varSum > 0.004 && mean > 0.08 && mean < 0.92;
+        const readiness = verdictFromMetrics(metrics, {
+          facePresent,
+          nightVision: false,
+          thresholds: DEFAULT_LIGHTING_THRESHOLDS,
+        });
+        const next = tickSustainedQuality(
+          qualityStateRef.current,
+          readiness,
+          Date.now(),
+        );
+        qualityStateRef.current = {
+          badSinceMs: next.badSinceMs,
+          countdownStartedMs: next.countdownStartedMs,
+          lastVerdict: next.lastVerdict,
+        };
+        if (next.countdownStartedMs != null) {
+          setQualityVerdict(next.lastVerdict);
+          setQualitySecondsLeft(next.secondsLeft);
+          if (next.shouldDisconnect) {
+            qualityDisconnectedRef.current = true;
+            excuseFromClass();
+          }
+        } else {
+          setQualityVerdict(null);
+          setQualitySecondsLeft(null);
+        }
+      } catch {
+        /* sample failures are non-fatal; next tick retries */
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [cameraOn, excuseFromClass, lightingReady, localStream]);
 
   async function handleLeave() {
     if (!me) return;
@@ -2366,13 +2461,35 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         padding: "12px 16px 24px",
       }}
     >
-      {room?.status === "ended" && (
+      {!lightingReady && (
+        <div style={{ maxWidth: 560, margin: "24px auto" }}>
+          <CameraLightingScreener
+            title="Camera and lighting check before class"
+            onReady={() => setLightingReady(true)}
+          />
+          <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
+            Solo and group classes need a clear, well-lit camera for presence,
+            attention, and integrity tracking. Practice anytime in{" "}
+            <a href="/account/camera-check">Account → Camera check</a>.
+          </p>
+        </div>
+      )}
+      {lightingReady && qualityVerdict && qualitySecondsLeft != null && (
+        <CameraQualityGateOverlay
+          verdict={qualityVerdict}
+          secondsLeft={qualitySecondsLeft}
+          onLeaveNow={excuseFromClass}
+        />
+      )}
+      {lightingReady && room?.status === "ended" && (
         <ClassCompleteOverlay
           onDone={excuseFromClass}
           primaryLang={me?.language || locale}
           exitLabel={isSolo ? "Live Class" : "Group Classes"}
         />
       )}
+      {lightingReady && (
+      <>
       <header
         style={{
           display: "flex",
@@ -4394,6 +4511,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           </button>
         </div>
       </div>
+      </>
+      )}
       <video
         ref={presenceProbeVideoRef}
         autoPlay
