@@ -58,6 +58,10 @@ REQUIRED_MONITOR_JS_HELPERS = (
     "faceBoxFromPts",
     "faceFingerprint",
     "secondaryBoxesFromFaces",
+    "setTextSafe",
+    "setHtmlSafe",
+    "stopMetricsPolling",
+    "markLabOffline",
 )
 
 
@@ -812,3 +816,27 @@ def test_trajectory_and_music_hud_are_wired():
     # Music must not fire the pause toast path.
     assert "maybeToastAudio('music'" not in MONITOR_JS
     assert "outside music" in MONITOR_JS.lower() or "Outside music" in page
+
+
+def test_shutdown_stops_metrics_poll_before_wiping_dom():
+    """Stopping the server used to leave setInterval(refresh) writing to null nodes."""
+    assert "function stopMetricsPolling()" in MONITOR_JS
+    assert "function markLabOffline(" in MONITOR_JS
+    assert "metricsRefreshTimer = setInterval(refresh, 1000)" in MONITOR_JS
+    assert "labOffline = true" in MONITOR_JS
+    # Order matters: flag + clear timer, then stop camera, then wipe body.
+    shutdown = MONITOR_JS.split("shutdown-btn').addEventListener('click'")[1].split(
+        "\n    });\n    window.addEventListener('pagehide'"
+    )[0]
+    assert "labOffline = true" in shutdown
+    assert "stopMetricsPolling()" in shutdown
+    assert "stopCamera()" in shutdown
+    assert "document.body.innerHTML" in shutdown
+    assert shutdown.index("stopMetricsPolling()") < shutdown.index("document.body.innerHTML")
+    # Fetch failures must not throw when #state was already removed.
+    refresh = MONITOR_JS.split("async function refresh()")[1].split(
+        "\n    async function"
+    )[0]
+    assert "setTextSafe('state'" in refresh or "setTextSafe(\"state\"" in refresh
+    assert "document.getElementById('state') == null" in refresh
+    assert "metricsFailStreak >= 3" in refresh

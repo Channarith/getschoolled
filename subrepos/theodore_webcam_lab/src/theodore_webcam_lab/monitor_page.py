@@ -762,24 +762,65 @@ MONITOR_JS = (
       };
     })();
 
+    let metricsRefreshTimer = null;
+    let labOffline = false;
+    let metricsFailStreak = 0;
+
+    function setTextSafe(id, text) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    }
+    function setHtmlSafe(id, html) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = html;
+    }
+
+    function stopMetricsPolling() {
+      if (metricsRefreshTimer) {
+        clearInterval(metricsRefreshTimer);
+        metricsRefreshTimer = null;
+      }
+    }
+
+    function markLabOffline(reason) {
+      if (labOffline) return;
+      labOffline = true;
+      stopMetricsPolling();
+      try { if (typeof stopCamera === 'function') stopCamera(); } catch (_) {}
+      setTextSafe('state', reason || 'Lab server offline — refresh after restarting.');
+    }
+
     async function refresh() {
+      if (labOffline || document.getElementById('state') == null) {
+        stopMetricsPolling();
+        return;
+      }
       let res;
       try { res = await fetch(endpoint, { cache: 'no-store' }); }
       catch (err) {
-        document.getElementById('state').textContent = 'Waiting for metrics stream...';
+        metricsFailStreak += 1;
+        setTextSafe('state', 'Lab server unreachable — waiting to reconnect…');
+        // After a few refused polls (typical when the process was killed), stop
+        // hammering the closed port so DevTools is not flooded with errors.
+        if (metricsFailStreak >= 3) {
+          markLabOffline('Lab server stopped. Restart uvicorn, then reload this page.');
+        }
         return;
       }
+      metricsFailStreak = 0;
+      if (labOffline || document.getElementById('state') == null) return;
       const data = res.ok ? await res.json().catch(() => null) : null;
       // An unseeded session answers 200 with updated_at_ms 0 and no participants.
       if (!data || !data.updated_at_ms) {
-        document.getElementById('state').innerHTML =
-          'No metrics yet. Click <strong>Load solo demo (1 student)</strong> or use Start camera.';
-        document.getElementById('cheat-banner').style.display = 'none';
+        setHtmlSafe('state',
+          'No metrics yet. Click <strong>Load solo demo (1 student)</strong> or use Start camera.');
+        const banner = document.getElementById('cheat-banner');
+        if (banner) banner.style.display = 'none';
         return;
       }
       const acked = new Set(data.acknowledged_alert_keys || []);
       const s = data.quality_summary || {};
-      document.getElementById('state').innerHTML =
+      setHtmlSafe('state',
         `<div class="kv"><span>Training paused</span><strong>${data.training_paused}</strong></div>` +
         `<div class="kv"><span>Pause reason</span><strong>${esc(data.pause_reason || 'none')}</strong></div>` +
         `<div class="kv"><span>Mode</span><strong>${esc(data.mode)}</strong></div>` +
@@ -791,10 +832,11 @@ MONITOR_JS = (
         `<div class="kv"><span>Absent</span><strong>${esc((data.absent_participant_ids || []).join(', ') || 'none')}</strong></div>` +
         `<div class="kv"><span>Watchlist</span><strong>${esc((data.watchlist || []).join(', ') || 'none')}</strong></div>` +
         `<div class="kv"><span>Rejoin requests</span><strong>${esc((data.rejoin_requests || []).join(', ') || 'none')}</strong></div>` +
-        `<div class="kv"><span>Expressions</span><strong>${esc(JSON.stringify(data.expression_counts || {}))}</strong></div>`;
+        `<div class="kv"><span>Expressions</span><strong>${esc(JSON.stringify(data.expression_counts || {}))}</strong></div>`);
 
       const cheatIds = data.suspected_cheating_participant_ids || [];
       const banner = document.getElementById('cheat-banner');
+      if (banner) {
       if (cheatIds.length) {
         banner.style.display = 'block';
         banner.className = 'banner cheat';
@@ -810,6 +852,7 @@ MONITOR_JS = (
         banner.textContent = '⏸ ' + why;
       } else {
         banner.style.display = 'none';
+      }
       }
 
       // Session-level pause / absent → spoken Theodore nudges (quick defaults ~1s).
@@ -828,7 +871,12 @@ MONITOR_JS = (
         pauseReason: data.pause_reason || '',
       });
 
-      document.getElementById('summary').innerHTML = `
+      if (document.getElementById('summary') == null) {
+        stopMetricsPolling();
+        return;
+      }
+
+      setHtmlSafe('summary', `
         <div class="metric"><div>Participants</div><div class="v">${esc(s.participants_count || (data.participants || []).length)}</div></div>
         <div class="metric"><div>Avg distance (m)</div><div class="v">${num(s.avg_distance_from_camera_m)}</div></div>
         <div class="metric"><div>Light quality</div><div class="v">${pct(s.avg_light_quality_score)}</div></div>
@@ -837,11 +885,11 @@ MONITOR_JS = (
         <div class="metric"><div>Mic quality</div><div class="v">${num(s.avg_microphone_quality_score)}</div></div>
         <div class="metric"><div>Noise filter</div><div class="v">${num(s.avg_noise_filter_effectiveness_score)}</div></div>
         <div class="metric"><div>Recognition</div><div class="v">${pct(s.avg_recognition_confidence)}</div></div>
-      `;
+      `);
 
       const gates = s.quality_flag_counts || {};
-      document.getElementById('gatecounts').textContent = Object.keys(gates).length
-        ? Object.entries(gates).map(([k, v]) => `${k}=${v}`).join(', ') : 'none';
+      setTextSafe('gatecounts', Object.keys(gates).length
+        ? Object.entries(gates).map(([k, v]) => `${k}=${v}`).join(', ') : 'none');
 
       const windowById = {};
       (data.group_student_windows || []).forEach((w) => { windowById[w.participant_id] = w; });
@@ -855,7 +903,7 @@ MONITOR_JS = (
       });
       if (fresh.length) toast(`New lesson alert [${fresh[0].level}] ${fresh[0].message}`);
 
-      document.getElementById('alerts').innerHTML = alerts.length
+      setHtmlSafe('alerts', alerts.length
         ? alerts.map((a) => {
             const key = alertKey(a);
             const isAcked = acked.has(key);
@@ -870,7 +918,7 @@ MONITOR_JS = (
               </div>
             </li>`;
           }).join('')
-        : '<li>No lesson alerts</li>';
+        : '<li>No lesson alerts</li>');
 
       document.querySelectorAll('[data-alert-act]').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -890,9 +938,9 @@ MONITOR_JS = (
         });
       });
 
-      document.getElementById('action-log').textContent =
+      setTextSafe('action-log',
         (data.action_log || []).slice().reverse().map((e) =>
-          `${e.timestamp_ms}: ${e.summary}`).join('\\n') || 'No actions yet.';
+          `${e.timestamp_ms}: ${e.summary}`).join('\\n') || 'No actions yet.');
       document.getElementById('private-msgs').textContent =
         (data.private_messages || []).slice().reverse().map((m) =>
           `${m.participant_id}: ${m.body}`).join('\\n') || 'No private messages.';
@@ -960,7 +1008,7 @@ MONITOR_JS = (
           </div>
         </div>`;
       }).join('');
-      document.getElementById('windows').innerHTML = windows || '<div>No participant windows yet.</div>';
+      setHtmlSafe('windows', windows || '<div>No participant windows yet.</div>');
 
       (data.participants || []).forEach((p) => {
         const canvas = document.querySelector(`canvas[data-chart-for="${CSS.escape(p.participant_id)}"]`);
@@ -1361,9 +1409,11 @@ MONITOR_JS = (
       }, 2200);
     });
 
-    // Shutdown
+    // Shutdown — stop polls BEFORE wiping the DOM so refresh cannot throw on null nodes.
     document.getElementById('shutdown-btn').addEventListener('click', async () => {
       if (!confirm('Shut down the lab server and free the port?')) return;
+      labOffline = true;
+      stopMetricsPolling();
       stopCamera();
       try { await fetch('/admin/shutdown', { method: 'POST' }); } catch (_) {}
       document.body.innerHTML = '<div style="padding:60px;text-align:center;font-family:Arial,sans-serif;color:#94a3b8;background:#0f172a;min-height:100vh;">'
@@ -1371,6 +1421,11 @@ MONITOR_JS = (
         + '<p>The server has stopped and the port is free.</p>'
         + '<p style="font-size:12px;">Run <code style="background:#1f2937;padding:2px 6px;border-radius:4px;">python3 -m uvicorn theodore_webcam_lab.main:app --app-dir subrepos/theodore_webcam_lab/src --host 0.0.0.0 --port 8015</code> to restart.</p>'
         + '</div>';
+    });
+    window.addEventListener('pagehide', () => {
+      labOffline = true;
+      stopMetricsPolling();
+      try { if (typeof stopCamera === 'function') stopCamera(); } catch (_) {}
     });
 
     // Games panel
@@ -2946,18 +3001,32 @@ MONITOR_JS = (
       window.__aoepMpQuiet = true;
       const origErr = console.error.bind(console);
       const origWarn = console.warn.bind(console);
-      const noise = /vision_wasm|XNNPACK|gl_context|FaceBlendshapes|Graph successfully|OpenGL error checking|TensorFlow Lite|face_landmarker_graph/i;
+      const origLog = console.log.bind(console);
+      // MediaPipe WASM writes INFO/WARN via stderr → console.error with stacks.
+      const noise = /(?:^|[\\s[])(?:[WI]\\d{4}\\b|vision_wasm|XNNPACK|gl_context|FaceBlendshapes|Graph successfully|OpenGL error checking|TensorFlow Lite|face_landmarker_graph|Created TensorFlow)/i;
+      function isNoise(args) {
+        try {
+          for (let i = 0; i < Math.min(args.length, 3); i++) {
+            const s = typeof args[i] === 'string' ? args[i] : String(args[i] || '');
+            if (noise.test(s)) return true;
+          }
+        } catch (_) {}
+        return false;
+      }
       console.error = function (...args) {
-        const s = String(args[0] || '');
-        if (noise.test(s)) { console.debug.apply(console, args); return; }
+        if (isNoise(args)) { console.debug.apply(console, args); return; }
         origErr.apply(console, args);
       };
       console.warn = function (...args) {
-        const s = String(args[0] || '');
-        if (noise.test(s)) { console.debug.apply(console, args); return; }
+        if (isNoise(args)) { console.debug.apply(console, args); return; }
         origWarn.apply(console, args);
       };
+      console.log = function (...args) {
+        if (isNoise(args)) { console.debug.apply(console, args); return; }
+        origLog.apply(console, args);
+      };
     }
+    quietMediaPipeConsole();
 
     function resetFaceOwner() {
       faceOwnerState = {
@@ -4307,6 +4376,7 @@ MONITOR_JS = (
     }
 
     async function sampleFrame() {
+      if (labOffline) return;
       refreshSilhouetteGuide();
       const grid = luminanceGrid();
       if (!grid) return;
@@ -4790,7 +4860,7 @@ MONITOR_JS = (
     loadTuning();
     loadVoiceLanguages();
     refresh();
-    setInterval(refresh, 1000);
+    metricsRefreshTimer = setInterval(refresh, 1000);
 
 """
     .replace("__VISION_GROUPS__", _js_knob_groups(VISION_KNOB_GROUPS))
