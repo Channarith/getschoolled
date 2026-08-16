@@ -2,12 +2,57 @@
 
 from __future__ import annotations
 
+import math
+import re
+
 from fastapi.testclient import TestClient
 
 from theodore_webcam_lab.demo_seed import build_demo_payload
+from theodore_webcam_lab.imaging import analyze_luminance_grid
 from theodore_webcam_lab.main import app
+from theodore_webcam_lab.monitor_page import MONITOR_JS
+from theodore_webcam_lab.types import WebcamSignal
+from theodore_webcam_lab.vision_tuning import VisionTuning
 
 client = TestClient(app)
+
+# Helpers the webcam sampling loop calls. Deleting any of them during a refactor
+# throws a ReferenceError that silently kills contours and expression tracking.
+REQUIRED_MONITOR_JS_HELPERS = (
+    "blendshapeMap",
+    "emotionFromBlendshapes",
+    "emotionFromLandmarkGeometry",
+    "smoothMood",
+    "headPoseFromMatrix",
+    "headPoseFromLandmarks",
+    "ensureFaceLandmarker",
+    "drawFaceContoursOnOverlay",
+    "drawDetectorFaceContour",
+    "trackFaceContoursAndMood",
+    "estimateFacialExperience",
+    "sampleFrame",
+    "ensureHandLandmarker",
+    "trackHands",
+    "handsOnFaceFromLandmarks",
+    "drawHandContoursOnOverlay",
+    "clamp01",
+    "clampSignal",
+    "holdSeconds",
+    "smoothLabel",
+    "smoothScore",
+    "resetBehaviorSmoothing",
+    "pollAudioDetector",
+    "sampleClickDetector",
+    "openRawMicStream",
+    "resetClickDetectorState",
+    "maybeToastAudio",
+    "updateTiltLab",
+    "renderTiltLab",
+    "drawTiltGauge",
+    "resetTiltPeaks",
+    "loadTiltCalibration",
+    "saveTiltCalibration",
+)
 
 
 def test_demo_seed_shows_cheating_silhouette_and_alerts():
@@ -118,6 +163,60 @@ def test_lesson_alert_acknowledge_is_recorded():
     assert "student_cheating_signal:student-b" in ack.json()["acknowledged_alert_keys"]
     metrics = client.get("/api/theodore/webcam/live-metrics/ux-demo-3").json()
     assert "student_cheating_signal:student-b" in metrics["acknowledged_alert_keys"]
+
+
+def test_monitor_js_defines_every_helper_the_sampling_loop_calls():
+    declared = set(re.findall(r"function\s+([A-Za-z_$][\w$]*)", MONITOR_JS))
+    missing = [name for name in REQUIRED_MONITOR_JS_HELPERS if name not in declared]
+    assert not missing, f"monitor JS calls undeclared helpers: {missing}"
+
+
+def test_monitor_js_clamps_every_unit_interval_signal_field():
+    """An out-of-range 0..1 field 422s the whole frame, so none may be missed."""
+    declared = re.search(
+        r"const UNIT_SIGNAL_FIELDS = \[(.*?)\];", MONITOR_JS, re.DOTALL
+    )
+    assert declared, "UNIT_SIGNAL_FIELDS is no longer declared in the monitor JS"
+    clamped = set(re.findall(r"'([a-z_]+)'", declared.group(1)))
+
+    constrained = {
+        name
+        for name, field in WebcamSignal.model_fields.items()
+        if any(getattr(m, "le", None) == 1.0 for m in field.metadata)
+    }
+    assert constrained - clamped == set()
+
+
+def test_monitor_page_tracks_hands_only_while_they_are_in_frame():
+    page = client.get("/theodore/webcam/live-monitor/demo-session")
+    text = page.text
+    assert "hand_landmarker.task" in text
+    assert "HAND_CONNECTIONS" in text
+    # Hand contours are skipped unless the detector returned landmarks this frame.
+    assert "if (!faceContoursOn || !lastHandContours || !lastHandContours.hands.length) return;" in text
+
+
+def test_monitor_page_smooths_attention_and_behavior_like_mood():
+    text = client.get("/theodore/webcam/live-monitor/demo-session").text
+    # Both labels go through the rolling majority vote, not the raw frame value.
+    assert "attn = smoothLabel(attnHistory, attn);" in text
+    assert "behavior = smoothLabel(behaviorHistory, behavior);" in text
+    # The sub-line reports the averaged scores.
+    assert "avg attention" in text
+    assert "avg distraction" in text
+
+
+def test_live_metrics_for_unseeded_session_is_empty_not_404():
+    res = client.get("/api/theodore/webcam/live-metrics/never-seeded-session")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["updated_at_ms"] == 0
+    assert body["participants"] == []
+
+
+def test_monitor_page_declares_a_favicon():
+    page = client.get("/theodore/webcam/live-monitor/demo-session")
+    assert 'rel="icon"' in page.text
 
 
 def test_monitor_page_includes_silhouette_and_demo_controls():
@@ -266,6 +365,280 @@ def test_policy_timing_endpoint_and_all_vision_knobs_listed():
         assert name in page, f"vision knob {name} missing from monitor UI"
 
 
+def test_click_detector_polls_faster_than_the_video_sampling_loop():
+    """Keystrokes and ring onsets are missed if audio is only read per video frame.
+
+    The analyser exposes ~21ms of audio per read, so sampling it on the 300ms
+    video cadence observes about 7% of the stream and never lands on a transient.
+    """
+    poll_ms = re.search(r"const AUDIO_POLL_MS = (\d+)", MONITOR_JS)
+    assert poll_ms, "AUDIO_POLL_MS must define the audio detector cadence"
+    assert int(poll_ms.group(1)) <= 40
+
+    assert "setInterval(pollAudioDetector, AUDIO_POLL_MS)" in MONITOR_JS
+    # The video loop stays at its own slower cadence.
+    assert "setInterval(sampleFrame, 300)" in MONITOR_JS
+
+    # sampleClickDetector must be a pure reader of accumulated state; if it
+    # pulls from the analyser itself we are back to the 7% duty cycle.
+    reader = MONITOR_JS.split("function sampleClickDetector()")[1].split("\n    }")[0]
+    assert "getFloatTimeDomainData" not in reader
+    assert "getFloatFrequencyData" not in reader
+
+
+def test_click_detector_listens_to_an_unprocessed_microphone_track():
+    """Browser noise suppression is built to delete keystrokes and ringtones.
+
+    The processed track is still what feeds noise-filter scoring, but detection
+    has to run on a separate capture with all WebRTC processing disabled.
+    """
+    raw = MONITOR_JS.split("async function openRawMicStream()")[1].split("\n    }")[0]
+    for constraint in ("echoCancellation: false", "noiseSuppression: false", "autoGainControl: false"):
+        assert constraint in raw, f"raw mic capture must set {constraint}"
+
+    # The detector analyser is fed by the raw source when one is available.
+    assert "rawMicSource.connect(clickAnalyser)" in MONITOR_JS
+    # ...and the processed graph still drives the noise-filter meter.
+    assert "audioSource.connect(audioAnalyser)" in MONITOR_JS
+    # The raw track must be released with the rest of the meter.
+    stop = MONITOR_JS.split("function stopAudioMeter()")[1].split("\n    }")[0]
+    assert "rawMicStream.getTracks().forEach((t) => t.stop())" in stop
+    assert "clearInterval(audioPollTimer)" in stop
+
+
+def test_audio_context_is_resumed_before_detection():
+    """A suspended AudioContext reports silence forever, disabling every detector."""
+    assert "audioCtx.state === 'suspended'" in MONITOR_JS
+    assert "audioCtx.resume()" in MONITOR_JS
+    # startAudioMeter awaits the resume + raw capture, so callers must await it.
+    assert "async function startAudioMeter(stream)" in MONITOR_JS
+    assert "await startAudioMeter(camStream)" in MONITOR_JS
+
+
+def test_ringtone_detection_separates_a_steady_tone_from_speech():
+    """A ring holds one prominent, stationary peak; a voice never stays still."""
+    poll = MONITOR_JS.split("function pollAudioDetector()")[1].split("\n    }")[0]
+    # Peak prominence over the band median, peak-bin stability, and spectral flux
+    # are the three signals that keep a held vowel from reading as a ringtone.
+    assert "prominence" in poll
+    assert "steadyPeak" in poll
+    assert "flux" in poll
+    assert "const tonal = elevated && prominence >" in poll
+    # Flux must ignore near-floor bins, which swing several dB on their own.
+    assert "fluxGate" in poll
+    # Ring cadences pause between bursts, so the verdict latches.
+    assert "ringtoneLatchUntil" in poll
+    assert "now < ringtoneLatchUntil" in MONITOR_JS
+
+
+def test_keyboard_detection_uses_a_floor_that_cannot_swallow_typing():
+    """A floor that rises with the signal would absorb a burst of keystrokes."""
+    poll = MONITOR_JS.split("function pollAudioDetector()")[1].split("\n    }")[0]
+    # Fast decay toward quiet, slow rise.
+    assert "if (rms < clickNoiseFloor) clickNoiseFloor += (rms - clickNoiseFloor) * 0.25;" in poll
+    assert "else clickNoiseFloor += (rms - clickNoiseFloor) * 0.002;" in poll
+    # Keystrokes are sharp, HF-rich attacks - not just "louder than the floor".
+    assert "sharpAttack" in poll
+    assert "hfRatio" in poll
+
+
+def test_audio_integrity_cards_stay_diagnosable_when_nothing_is_detected():
+    """'none'/'silent' hides a dead mic; show the live input level instead."""
+    hud = MONITOR_JS.split("function updateIntegrityHud(signals)")[1].split("\n    }\n\n    function")[0]
+    assert "micDead" in hud
+    assert "micHint" in hud
+    assert "mic off" in hud
+
+
+def _parse_pattern_stages() -> list[dict]:
+    found = re.findall(
+        r"\{\s*name:\s*'([^']+)',\s*dark:\s*(\d+),\s*light:\s*(\d+),"
+        r"\s*sigma:\s*([\d.]+),\s*expects:\s*'([^']+)'\s*\}",
+        MONITOR_JS,
+    )
+    return [
+        {
+            "name": name,
+            "dark": int(dark),
+            "light": int(light),
+            "sigma": float(sigma),
+            "expects": expects,
+        }
+        for name, dark, light, sigma, expects in found
+    ]
+
+
+def _render_pattern_grid(
+    stage: dict, phase: int, *, period: int = 8, grid_w: int = 64, grid_h: int = 36
+) -> list[list[float]]:
+    """Mirror paintTestPattern() + the exact 20x box downsample to the grid.
+
+    The JS renders at 1280 wide, which is exactly 20x the 64-wide Sobel grid, so
+    the browser's drawImage reduction is a plain box average we can reproduce.
+    """
+    scale = 20
+    hard = stage["sigma"] < 0.05
+    harmonics = [] if hard else [
+        (k, (2 / (k * math.pi)) * math.exp(
+            -2 * math.pi**2 * stage["sigma"] ** 2 * (k / period) ** 2))
+        for k in (1, 3, 5, 7, 9)
+    ]
+    shift = (phase % period) / period
+    period_px = scale * period
+    cols = []
+    for x in range(grid_w * scale):
+        u = ((x / period_px) + shift) % 1
+        if hard:
+            profile = 1.0 if u < 0.5 else 0.0
+        else:
+            profile = 0.5 + sum(a * math.sin(2 * math.pi * k * u) for k, a in harmonics)
+            profile = min(1.0, max(0.0, profile))
+        cols.append(round(stage["dark"] + (stage["light"] - stage["dark"]) * profile))
+    row = [
+        sum(cols[gx * scale:(gx + 1) * scale]) / scale / 255.0
+        for gx in range(grid_w)
+    ]
+    return [list(row) for _ in range(grid_h)]
+
+
+def test_test_pattern_stages_trip_exactly_their_documented_gates():
+    """The pattern is only useful if each stage provably fires the gate it names.
+
+    Renders every stage through the same maths the page uses and scores it with
+    the real Sobel/exposure analyzer, so drifting a stage constant (or a default
+    threshold) out of range fails here instead of silently making the button a
+    no-op again.
+    """
+    expected = {
+        "sharp · well lit": set(),
+        "mild blur": set(),
+        "heavy blur": {"image_blurry", "low_edge_detail"},
+        "low contrast": {"low_edge_detail"},
+        "underexposed": {"lighting_underexposed", "lighting_below_min_quality"},
+        "overexposed": {"lighting_overexposed", "lighting_below_min_quality"},
+    }
+    stages = _parse_pattern_stages()
+    assert {s["name"] for s in stages} == set(expected), "pattern stage set changed"
+
+    tuning = VisionTuning()
+    for stage in stages:
+        # Every scroll phase must agree; a gate that flickers with the bar
+        # offset would read as noise rather than a demonstration.
+        for phase in range(8):
+            grid = _render_pattern_grid(stage, phase)
+            analysis = analyze_luminance_grid(grid, tuning=tuning)
+            assert set(analysis.flags) == expected[stage["name"]], (
+                f"stage {stage['name']!r} phase {phase} produced {analysis.flags}, "
+                f"expected {sorted(expected[stage['name']])}"
+            )
+
+
+def test_test_pattern_renders_to_the_canvas_the_grid_is_sampled_from():
+    """The old code drew bars into the offscreen grid only, so the preview was black."""
+    paint = MONITOR_JS.split("function paintTestPattern()")[1].split("\n    }")[0]
+    assert "patternCanvas.style.display = 'block'" in paint
+    assert "camVideo.style.visibility = 'hidden'" in paint
+
+    grid_fn = MONITOR_JS.split("function luminanceGrid()")[1].split("\n    }")[0]
+    assert "paintTestPattern()" in grid_fn
+    # The grid must come from the same canvas that is on screen.
+    assert grid_fn.count("ctx.drawImage(patternCanvas, 0, 0, GRID_W, GRID_H)") == 2
+    # The old invisible path must not come back.
+    assert "patternPhase = (patternPhase + 1) % GRID_W" not in grid_fn
+
+
+def test_test_pattern_replaces_the_person_guide_with_a_stage_caption():
+    """There is nobody to frame in a synthetic pattern; the outline just confused it."""
+    guide = MONITOR_JS.split("function refreshSilhouetteGuide()")[1].split("\n    }")[0]
+    assert "if (usingPattern)" in guide
+    assert "drawPatternCaption()" in guide
+    # Caption text names the stage and what it should trip.
+    caption = MONITOR_JS.split("function drawPatternCaption()")[1].split("\n    }")[0]
+    assert "currentPatternStage()" in caption
+    assert "stage.name" in caption
+    assert "stage.expects" in caption
+
+
+def test_tilt_is_measured_from_a_calibrated_neutral_not_from_level():
+    """A low-mounted laptop makes the resting head pitch already negative.
+
+    Measuring absolute pitch would call that a downward tilt, so the gauge has to
+    subtract a per-seat neutral before it can separate "looking at the laptop
+    webcam" from "looking at a phone".
+    """
+    update = MONITOR_JS.split("function updateTiltLab(facial)")[1].split("\n    }")[0]
+    assert "(tiltRawDeg - tiltNeutralDeg) * tiltDownSign" in update
+    # Peaks track the calibrated value, which is what a trial is read off.
+    assert "tiltPeakDown" in update and "tiltPeakUp" in update
+
+    # The down direction is learned, because the matrix and landmark pose paths
+    # do not agree on the sign of head_pose_pitch.
+    assert "tiltSignCalibrated" in MONITOR_JS
+    assert "tiltDownSign = delta > 0 ? 1 : -1" in MONITOR_JS
+
+
+def test_tilt_peak_reset_also_clears_the_smoothing_window():
+    """Otherwise the previous pose bleeds into the next trial's recorded peak."""
+    reset = MONITOR_JS.split("function resetTiltPeaks()")[1].split("\n    }")[0]
+    assert "tiltPeakDown = null" in reset
+    assert "tiltPeakUp = null" in reset
+    assert "tiltRawHistory = []" in reset
+
+
+def test_tilt_gauge_is_drawn_after_the_overlay_is_cleared():
+    """drawSilhouetteGuide clears the overlay, so an earlier gauge would be wiped."""
+    guide = MONITOR_JS.split("function refreshSilhouetteGuide()")[1].split("\n    }")[0]
+    assert "drawTiltGauge()" in guide
+    assert guide.index("drawSilhouetteGuide(") < guide.index("drawTiltGauge()")
+
+    gauge = MONITOR_JS.split("function drawTiltGauge()")[1].split("\n    }\n")[0]
+    # Reads degrees below neutral, marks the operator's trip line and the peak.
+    assert "tiltTripDeg" in gauge
+    assert "tiltPeakDown" in gauge
+    assert "if (tiltRawDeg == null) return" in gauge
+
+
+def test_tilt_lab_ignores_synthetic_camera_modes():
+    """Test pattern and silhouette have no real head, so they must not log tilt."""
+    assert "updateTiltLab(usingPattern || usingSilhouette ? null : facial)" in MONITOR_JS
+
+
+def test_tilt_calibration_survives_a_reload():
+    """Re-calibrating on every page load would make trials incomparable."""
+    assert "localStorage.getItem(TILT_STORE_KEY)" in MONITOR_JS
+    assert "localStorage.setItem(TILT_STORE_KEY" in MONITOR_JS
+    page = client.get("/theodore/webcam/live-monitor/demo-session").text
+    for control in ("tilt-set-neutral", "tilt-set-down", "tilt-reset-peak", "tilt-trip"):
+        assert control in page, f"tilt lab control {control} missing from the page"
+
+
+def test_hands_on_face_falls_back_when_face_landmarks_are_missing():
+    """Hand model alone cannot score hands-on-face without face points."""
+    sample = MONITOR_JS.split("const handTrack = await trackHands(")[1].split(
+        "signal.keyboard_typing_audio_score"
+    )[0]
+    assert "lastFaceContours && lastFaceContours.pts" in sample
+    assert "detectHandsOnFace(" in sample
+
+
+def test_integrity_hud_does_not_confirm_phone_from_raw_ear_alone():
+    hud = MONITOR_JS.split("function updateIntegrityHud(signals)")[1].split(
+        "\n    }\n\n    function"
+    )[0]
+    assert "const confirmed = phoneBelow;" in hud
+    assert "phoneEar || phoneBelow" not in hud
+
+
+def test_hands_confirmation_uses_hold_ms_not_behavior_label():
+    assert "handsOnFaceConfirmed: (p.hands_on_face_for_ms || 0)" in MONITOR_JS
+    assert "handsOnFaceConfirmed: p.behavior_label === 'hands_on_face'" not in MONITOR_JS
+
+
+def test_confused_expression_override_is_removed():
+    assert "expression_label = 'confused'" not in MONITOR_JS
+    assert "You look a bit confused" not in MONITOR_JS
+
+
 def test_build_demo_payload_accelerates_cheating_timeline():
     first = build_demo_payload(session_id="x", step=0)
     later = build_demo_payload(session_id="x", step=5)
@@ -322,6 +695,6 @@ def test_synthetic_sources_render_to_the_visible_canvas():
     assert "function paintSilhouettePattern" in text
     # Both synthetic modes must sample the very canvas that is shown on screen.
     assert text.count("ctx.drawImage(patternCanvas, 0, 0, GRID_W, GRID_H)") == 2
-    # One bar per analysis column keeps the downsample identical to the old grid.
-    assert "const barW = w / GRID_W;" in text
+    # Harmonic bars are sized in GRID pixels so the 20x box downsample matches Sobel.
+    assert "const periodPx = (w / GRID_W) * PATTERN_PERIOD_GRID;" in text
     assert "synthetic frame, no face to read" in text

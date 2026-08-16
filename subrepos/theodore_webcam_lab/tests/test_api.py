@@ -190,37 +190,41 @@ def test_group_webcam_api_returns_window_alerts_for_missing_and_cheating():
     )
     assert first.status_code == 200
 
-    second = client.post(
-        "/api/theodore/webcam/evaluate",
-        json={
-            "session_id": "group-window-alert-api",
-            "mode": "group",
-            "signals": [
-                {
-                    "participant_id": "student-a",
-                    "timestamp_ms": 52_000,
-                    "face_count": 1,
-                    "liveness_state": "live",
-                    "foreground_ratio": 0.4,
-                    "motion_score": 0.2,
-                },
-                {
-                    "participant_id": "student-c",
-                    "timestamp_ms": 52_000,
-                    "face_count": 1,
-                    "liveness_state": "live",
-                    "foreground_ratio": 0.4,
-                    "motion_score": 0.2,
-                    "gaze_frontal": 0.1,
-                    "gaze_down_score": 0.9,
-                    "phone_visible": True,
-                },
-            ],
-            "expected_participant_ids": ["student-a", "student-b", "student-c"],
-        },
-    )
-    assert second.status_code == 200
-    body = second.json()
+    # Build phone hold + long gaze-away with 1s steps (posture grace is ~1.2s;
+    # a single leap to 52s would not credit the whole span as phone evidence).
+    body = first.json()
+    for ts in range(2_000, 53_000, 1_000):
+        second = client.post(
+            "/api/theodore/webcam/evaluate",
+            json={
+                "session_id": "group-window-alert-api",
+                "mode": "group",
+                "signals": [
+                    {
+                        "participant_id": "student-a",
+                        "timestamp_ms": ts,
+                        "face_count": 1,
+                        "liveness_state": "live",
+                        "foreground_ratio": 0.4,
+                        "motion_score": 0.2,
+                    },
+                    {
+                        "participant_id": "student-c",
+                        "timestamp_ms": ts,
+                        "face_count": 1,
+                        "liveness_state": "live",
+                        "foreground_ratio": 0.4,
+                        "motion_score": 0.2,
+                        "gaze_frontal": 0.1,
+                        "gaze_down_score": 0.9,
+                        "phone_visible": True,
+                    },
+                ],
+                "expected_participant_ids": ["student-a", "student-b", "student-c"],
+            },
+        )
+        assert second.status_code == 200
+        body = second.json()
     windows = {item["participant_id"]: item for item in body["group_student_windows"]}
     assert windows["student-b"]["needs_intervention"] is True
     assert windows["student-c"]["suspected_cheating"] is True

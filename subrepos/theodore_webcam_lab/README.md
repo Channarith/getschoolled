@@ -35,7 +35,7 @@ python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" \
 python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 ```
 
-You should see `136 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
+You should see `165 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
 did not run in the Python you are using. On macOS, bare `python3` is often
 Homebrew 3.14 with no packages — activate `.venv` first (selfcheck does this
 automatically when the venv exists).
@@ -89,6 +89,43 @@ overwrite the group demo metrics. Use **Load solo demo** / **Load group demo** /
 at the top of the page to populate and animate student windows without a second
 terminal.
 
+**Test pattern** is the camera-free way to prove the image gates work. It sweeps
+six stages, about two seconds each, and each one is calibrated against the
+default `VisionTuning` to trip exactly the flags it names:
+
+    sharp · well lit    no flags (baseline)         sharpness 0.90  edge 0.50  light 93%
+    mild blur           no flags, sharpness drops   sharpness 0.56  edge 0.50  light 93%
+    heavy blur          image_blurry, low_edge_detail   sharpness 0.22  edge 0.00
+    low contrast        low_edge_detail             sharpness 0.36  edge 0.00
+    underexposed        lighting_underexposed + lighting_below_min_quality   light 0%
+    overexposed         lighting_overexposed + lighting_below_min_quality    light 0%
+
+Watch *Tuning → live webcam* while it runs: each stage flips the matching gate
+red and the next one clears it. Drag `sharpness_min_quality` or
+`light_min_quality` and you move the point where a stage starts failing.
+
+### Head tilt lab — measuring the phone-vs-laptop angle
+
+Looking at a phone and looking at a low-mounted laptop webcam both pitch the head
+down, so an absolute angle cannot tell them apart. Tilt measured from where the
+learner actually sits can. The **Head tilt lab** under the camera is the
+instrument for finding that number:
+
+1. Start the camera, sit as you normally do, press **Set neutral**. Your resting
+   pitch becomes 0, which cancels out however low the laptop sits.
+2. Look at your phone and press **Set down** once. That fixes which direction is
+   "down" (the two head-pose paths disagree on the sign of `head_pose_pitch`, so
+   it is learned rather than assumed).
+3. Run trials. **Reset peaks**, hold a pose, and read *peak down*. A phone glance
+   and a laptop glance will separate by a wide margin — typically the phone is
+   20-30° past neutral while the screen is under 10°.
+
+The gauge on the right of the video shows degrees below neutral, a red dashed
+**trip line** you can move with the number input, and an amber caret at the peak
+of the current trial. The trip line is only a marker — nothing is enforced from
+it yet. `gaze_down` is shown next to the angle so you can correlate the existing
+0..1 signal with real degrees before choosing a threshold.
+
 **Right — Tuning.** Every accuracy threshold is a slider. Drag one and the gates
 respond within a second. The **Vision** tab holds lighting, sharpness, distance
 and audio knobs; the **Voice (xAI)** tab holds the conversation knobs. The
@@ -127,11 +164,11 @@ Offline (no server needed)
   [PASS] Webcam analysis
          distance=1.0m confidence=0.85
   [PASS] Sobel imaging
-         backend=numpy sharp=0.81 blurred=0.08
+         backend=python sharp=0.81 blurred=0.08
   [PASS] Tuning knobs in range
-         50 vision knobs, 13 voice knobs, presets: balanced, bright_room, ...
+         53 vision knobs, 13 voice knobs, presets: balanced, bright_room, ...
   [PASS] Tuning knobs change scoring
-         50/50 knobs change a scoring decision across 11 frame scenarios
+         53/53 knobs change a scoring decision across 15 frame scenarios
 
 API (http://127.0.0.1:8015)
   [PASS] API reachable
@@ -142,7 +179,7 @@ API (http://127.0.0.1:8015)
   [PASS] Live monitor page
          camera panel and tuning sliders present
   [PASS] Tuning API
-         50 knobs live
+         53 knobs live
   [PASS] Tuning re-scores live session
          light_min_quality 0.35->0.99 flags [none]->[lighting_below_min_quality],
          ->0.0 clears to [none]
@@ -163,11 +200,11 @@ inert while every step was green.
 
 Two steps now prove the knobs do something:
 
-- **Tuning knobs change scoring** (offline) perturbs each of the 50 knobs on its
+- **Tuning knobs change scoring** (offline) perturbs each of the 53 knobs on its
   own and re-scores a matrix of frames, failing on any knob that cannot move an
   output. Scenarios exist because a knob is only observable when a frame reaches
   its branch — silhouette knobs need a face-less filled frame, exposure knobs a
-  blown-out one, audio knobs audio. One frame cannot exercise all 50.
+  blown-out one, audio knobs audio. One frame cannot exercise all 53.
 - **Tuning re-scores live session** (API) PATCHes a knob and confirms the frames
   the server already holds are re-scored, so the change reaches the dashboard
   instead of only moving the slider.

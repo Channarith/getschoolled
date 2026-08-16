@@ -81,6 +81,17 @@ class VisionTuning:
     keyboard_typing_audio_min_threshold: float = 0.65
     hands_on_face_min_threshold: float = 0.50
 
+    # --- Sustained-posture gating --------------------------------------------
+    # A single frame above threshold is noise, not a behaviour: a hand passing the
+    # face or one glance down would otherwise flip the learner to "hands on face"
+    # or "on their phone". Both must hold for this long before they are reported.
+    hands_on_face_min_hold_ms: float = 5_000.0
+    phone_visible_min_hold_ms: float = 5_000.0
+    # Detection flickers frame to frame (a finger leaves the cheek, the phone is
+    # briefly occluded). Drop-outs shorter than this do not restart the timer,
+    # otherwise the hold above could never be reached in practice.
+    posture_release_grace_ms: float = 1_200.0
+
     # --- Image detection quality scoring -------------------------------------
     image_detection_confidence_weight: float = 0.60
     image_liveness_weight: float = 0.40
@@ -183,6 +194,13 @@ class VisionTuning:
             raise ValueError("audio_noise_clean_db must be below audio_noise_loud_db")
         if self.audio_clipping_penalty < 0.0:
             raise ValueError("audio_clipping_penalty must be >= 0")
+        for name in (
+            "hands_on_face_min_hold_ms",
+            "phone_visible_min_hold_ms",
+            "posture_release_grace_ms",
+        ):
+            if float(getattr(self, name)) < 0.0:
+                raise ValueError(f"{name} must be >= 0")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

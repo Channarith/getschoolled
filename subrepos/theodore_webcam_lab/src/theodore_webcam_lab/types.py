@@ -116,7 +116,10 @@ class ParticipantEvaluation(BaseModel):
     behavior_label: str = "unknown"  # focused|yawning|distracted|inattentive|drowsy|away|hands_on_face
     # Nested advanced observatory snapshot (engagement, cognitive states, head pose, events).
     advanced_behavior: dict[str, object] | None = None
+    # True only after the phone has been visible for phone_visible_min_hold_ms;
+    # phone_visible_for_ms exposes the running streak so the UI can count up to it.
     phone_visible: bool = False
+    phone_visible_for_ms: int = Field(default=0, ge=0)
     last_live_timestamp_ms: int | None = Field(default=None, ge=0)
     dominant_expression: str = "unknown"
     expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)

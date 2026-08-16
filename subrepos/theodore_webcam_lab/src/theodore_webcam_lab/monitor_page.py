@@ -84,6 +84,23 @@ MONITOR_CSS = """
     .cam-contour-toggle { top: 8px; left: 8px; right: auto; }
     .cam-contour-toggle.on { border-color: #22d3ee; color: #a5f3fc; }
     .cam-contour-toggle.on .sw { background: #0891b2; }
+    .tilt-lab { margin-top: 8px; border: 1px solid #334155; border-radius: 6px;
+                padding: 8px 10px; background: #0b1220; }
+    .tilt-lab h4 { margin: 0 0 6px; font-size: 11px; color: #93c5fd; font-weight: 700;
+                   letter-spacing: 0.05em; text-transform: uppercase; }
+    .tilt-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .tilt-row + .tilt-row { margin-top: 6px; }
+    .tilt-lab button { font-size: 11px; padding: 3px 8px; }
+    .tilt-lab input[type=number] { width: 58px; background: #0b1220; color: #e2e8f0;
+                                   border: 1px solid #334155; border-radius: 4px;
+                                   font-size: 11px; padding: 2px 4px; }
+    .tilt-chip { font-size: 11px; padding: 2px 7px; border-radius: 999px;
+                 border: 1px solid #475569; background: rgba(15,23,42,0.75);
+                 color: #cbd5e1; font-variant-numeric: tabular-nums; }
+    .tilt-chip.hot { border-color: #ef4444; color: #fca5a5; }
+    .tilt-chip.warm { border-color: #f59e0b; color: #fde68a; }
+    .tilt-chip.cool { border-color: #22c55e; color: #86efac; }
+    .tilt-hint { font-size: 11px; color: #94a3b8; line-height: 1.4; }
     .facial-hud { margin-top: 8px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .audio-hud { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .facial-card { border: 1px solid #334155; border-radius: 6px; padding: 8px 10px;
@@ -348,6 +365,9 @@ VISION_KNOB_GROUPS = [
             ("typing_activity_min_threshold", 0, 1, 0.01),
             ("keyboard_typing_audio_min_threshold", 0, 1, 0.01),
             ("hands_on_face_min_threshold", 0, 1, 0.01),
+            ("hands_on_face_min_hold_ms", 0, 20000, 250),
+            ("phone_visible_min_hold_ms", 0, 20000, 250),
+            ("posture_release_grace_ms", 0, 5000, 100),
         ],
     ),
     (
@@ -464,6 +484,31 @@ MONITOR_JS = (
       return String(value === null || value === undefined ? '' : value)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+    function clamp01(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return 0;
+      return n < 0 ? 0 : (n > 1 ? 1 : n);
+    }
+    // WebcamSignal fields the server constrains to 0..1. Anything outside that
+    // range fails the whole POST with a 422, so every frame is clamped on the way out.
+    const UNIT_SIGNAL_FIELDS = [
+      'foreground_ratio', 'motion_score', 'attention', 'expression_confidence',
+      'gaze_frontal', 'gaze_down_score', 'eyes_closed_score', 'yawn_score',
+      'hands_on_face_score', 'body_motion_score', 'fidget_score', 'brow_raise_score',
+      'smile_score', 'screen_focus_score', 'typing_activity_score',
+      'keyboard_typing_audio_score', 'face_size_ratio', 'light_quality_score',
+      'image_detection_confidence', 'noise_filter_effectiveness_score',
+      'microphone_input_level_score', 'mic_clipping_ratio', 'sharpness_score',
+      'edge_density', 'mean_luminance', 'underexposed_ratio', 'overexposed_ratio',
+    ];
+    function clampSignal(signal) {
+      UNIT_SIGNAL_FIELDS.forEach((field) => {
+        const value = signal[field];
+        if (value === null || value === undefined) return;
+        signal[field] = clamp01(value);
+      });
+      return signal;
     }
     function toast(message) {
       const el = document.getElementById('toast');
@@ -709,13 +754,14 @@ MONITOR_JS = (
         document.getElementById('state').textContent = 'Waiting for metrics stream...';
         return;
       }
-      if (!res.ok) {
+      const data = res.ok ? await res.json().catch(() => null) : null;
+      // An unseeded session answers 200 with updated_at_ms 0 and no participants.
+      if (!data || !data.updated_at_ms) {
         document.getElementById('state').innerHTML =
           'No metrics yet. Click <strong>Load solo demo (1 student)</strong> or use Start camera.';
         document.getElementById('cheat-banner').style.display = 'none';
         return;
       }
-      const data = await res.json();
       const acked = new Set(data.acknowledged_alert_keys || []);
       const s = data.quality_summary || {};
       document.getElementById('state').innerHTML =
@@ -1362,6 +1408,28 @@ MONITOR_JS = (
     const CAM_IDEAL_W = 1920, CAM_IDEAL_H = 1080;  // Full HD request
     const CAM_FALLBACK_W = 1280, CAM_FALLBACK_H = 720;  // HD Ready
     const GRID_W = 64, GRID_H = 36;  // 16:9 downsample for Sobel
+    // Test pattern: a camera-free way to drive the Sobel/exposure gates. Each
+    // stage is tuned against the default VisionTuning so it trips exactly the
+    // flags named in `expects` - sweeping them proves the gates really fire.
+    // `sigma` is Gaussian blur in GRID pixels; `dark`/`light` are 0..255 luma.
+    const PATTERN_PERIOD_GRID = 8;   // bar period, in grid pixels
+    const PATTERN_STAGE_FRAMES = 7;  // ~2.1s per stage at the 300ms sample rate
+    const PATTERN_STAGES = [
+      { name: 'sharp · well lit', dark: 71, light: 184, sigma: 0,
+        expects: 'baseline — no gates should trip' },
+      { name: 'mild blur', dark: 71, light: 184, sigma: 1,
+        expects: 'sharpness falls, still above the floor' },
+      { name: 'heavy blur', dark: 71, light: 184, sigma: 2,
+        expects: 'image_blurry + low_edge_detail' },
+      { name: 'low contrast', dark: 104, light: 150, sigma: 0,
+        expects: 'low_edge_detail (sharp, but no usable detail)' },
+      // Kept high-contrast on purpose so these two isolate the lighting gates
+      // instead of also tripping low_edge_detail.
+      { name: 'underexposed', dark: 10, light: 92, sigma: 0,
+        expects: 'lighting_underexposed + lighting_below_min_quality' },
+      { name: 'overexposed', dark: 175, light: 255, sigma: 0,
+        expects: 'lighting_overexposed + lighting_below_min_quality' },
+    ];
     const camVideo = document.getElementById('cam');
     const grab = document.getElementById('grab');
     const overlay = document.getElementById('cam-overlay');
@@ -1377,10 +1445,221 @@ MONITOR_JS = (
     let clickAnalyser = null, clickData = null;
     let clickNoiseFloor = 0.003, clickPrevRms = 0;
     let clickEvents = [];
-    let toneStartMs = 0, toneActiveMs = 0;
-    let phoneCallStartMs = 0;
+    let toneActiveMs = 0, ringtoneLatchUntil = 0;
+    let voiceActiveMs = 0;
+    // The click/ringtone detector runs on its own fast timer: the 300ms video
+    // cadence only exposes ~21ms of audio per tick (a 7% duty cycle), which is
+    // far too sparse to catch a keystroke transient or the onset of a ring.
+    const AUDIO_POLL_MS = 25;
+    let audioPollTimer = null;
+    let rawMicStream = null, rawMicSource = null;
+    let clickSourceRaw = false;
+    let clickBins = null;
+    let clickLevelDb = -120, clickFloorDb = -120;
+    let clickPrevFreq = null, tonePeakBin = -1;
     const silToggle = document.getElementById('cam-sil-toggle');
     const silToggleLabel = document.getElementById('cam-sil-toggle-label');
+
+    // --- Head tilt lab -------------------------------------------------------
+    // Looking at a phone and looking at a low-mounted laptop webcam both pitch the
+    // head down, so an absolute angle cannot separate them. What does separate them
+    // is tilt measured FROM WHERE THE LEARNER ACTUALLY SITS, which is what the
+    // neutral calibration captures. The sign of head_pose_pitch differs between the
+    // matrix and landmark pose paths, so the "down" direction is learned rather than
+    // assumed - the assumed default just keeps the gauge usable before calibration.
+    const TILT_STORE_KEY = 'twl.tilt.calibration.v1';
+    const TILT_SMOOTH_FRAMES = 3;
+    let tiltNeutralDeg = null;
+    let tiltDownSign = -1;
+    let tiltSignCalibrated = false;
+    let tiltTripDeg = 20;
+    let tiltRawDeg = null, tiltDownDeg = null;
+    let tiltPeakDown = null, tiltPeakUp = null;
+    let tiltRawHistory = [];
+    let tiltGazeDown = null;
+
+    function loadTiltCalibration() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(TILT_STORE_KEY) || 'null');
+        if (!stored) return;
+        if (Number.isFinite(stored.neutral)) tiltNeutralDeg = stored.neutral;
+        if (stored.sign === 1 || stored.sign === -1) {
+          tiltDownSign = stored.sign;
+          tiltSignCalibrated = !!stored.signCalibrated;
+        }
+        if (Number.isFinite(stored.trip)) tiltTripDeg = stored.trip;
+      } catch (_) { /* private mode / disabled storage */ }
+    }
+
+    function saveTiltCalibration() {
+      try {
+        localStorage.setItem(TILT_STORE_KEY, JSON.stringify({
+          neutral: tiltNeutralDeg, sign: tiltDownSign,
+          signCalibrated: tiltSignCalibrated, trip: tiltTripDeg,
+        }));
+      } catch (_) { /* non-fatal */ }
+    }
+
+    function resetTiltPeaks() {
+      tiltPeakDown = null;
+      tiltPeakUp = null;
+      // Drop the smoothing window too: leftover frames from the previous pose
+      // would otherwise bleed into the next trial's peak.
+      tiltRawHistory = [];
+      renderTiltLab();
+    }
+
+    function updateTiltLab(facial) {
+      const raw = facial ? facial.head_pose_pitch : null;
+      if (raw == null || !Number.isFinite(Number(raw))) {
+        tiltRawDeg = null;
+        tiltDownDeg = null;
+        tiltRawHistory = [];
+        renderTiltLab();
+        return;
+      }
+      tiltRawHistory.push(Number(raw));
+      if (tiltRawHistory.length > TILT_SMOOTH_FRAMES) tiltRawHistory.shift();
+      tiltRawDeg = tiltRawHistory.reduce((a, b) => a + b, 0) / tiltRawHistory.length;
+      tiltGazeDown = (facial.gaze_down_score != null) ? Number(facial.gaze_down_score) : null;
+      if (tiltNeutralDeg != null) {
+        tiltDownDeg = (tiltRawDeg - tiltNeutralDeg) * tiltDownSign;
+        if (tiltPeakDown == null || tiltDownDeg > tiltPeakDown) tiltPeakDown = tiltDownDeg;
+        if (tiltPeakUp == null || tiltDownDeg < tiltPeakUp) tiltPeakUp = tiltDownDeg;
+      } else {
+        tiltDownDeg = null;
+      }
+      renderTiltLab();
+    }
+
+    function tiltDeg(value, digits) {
+      if (value == null || !Number.isFinite(value)) return '—';
+      const d = digits == null ? 1 : digits;
+      return (value >= 0 ? '+' : '') + value.toFixed(d) + '°';
+    }
+
+    function renderTiltLab() {
+      const set = (id, text, cls) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'tilt-chip' + (cls ? ' ' + cls : '');
+      };
+      const suffix = tiltSignCalibrated ? '' : ' (direction assumed)';
+      set('tilt-down', tiltDownDeg == null
+        ? (tiltRawDeg == null ? 'down —' : 'down — press Set neutral')
+        : 'down ' + tiltDeg(tiltDownDeg) + suffix);
+      set('tilt-raw', 'raw pitch ' + tiltDeg(tiltRawDeg)
+        + (tiltNeutralDeg != null ? ' · neutral ' + tiltDeg(tiltNeutralDeg) : ''));
+      set('tilt-gaze', 'gaze_down ' + (tiltGazeDown == null ? '—' : tiltGazeDown.toFixed(2)));
+      set('tilt-peak', 'peak down ' + tiltDeg(tiltPeakDown) + ' / up ' + tiltDeg(tiltPeakUp));
+
+      if (tiltDownDeg == null) {
+        set('tilt-verdict', tiltRawDeg == null ? 'no face yet' : 'not calibrated');
+      } else if (tiltDownDeg >= tiltTripDeg) {
+        set('tilt-verdict', 'past trip line (' + tiltTripDeg + '°)', 'hot');
+      } else if (tiltDownDeg >= tiltTripDeg * 0.7) {
+        set('tilt-verdict', 'approaching ' + tiltTripDeg + '°', 'warm');
+      } else {
+        set('tilt-verdict', 'below trip line', 'cool');
+      }
+    }
+
+    // Vertical protractor down the right edge of the video: degrees below the
+    // calibrated neutral, with the trip line and the trial peak marked.
+    function drawTiltGauge() {
+      if (tiltRawDeg == null) return;
+      const { w, h } = syncOverlaySize();
+      const ctx = overlay.getContext('2d');
+      const top = h * 0.14, bottom = h * 0.86;
+      const cx = w - Math.max(46, w * 0.085);
+      const minDeg = -20, maxDeg = 60;   // up ... down
+      const yFor = (deg) => top + ((Math.max(minDeg, Math.min(maxDeg, deg)) - minDeg)
+        / (maxDeg - minDeg)) * (bottom - top);
+      const tickPx = Math.max(9, Math.round(w * 0.016));
+      const labelPx = Math.max(10, Math.round(w * 0.017));
+      const barW = Math.max(4, w * 0.006);
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(8, 12, 20, 0.72)';
+      ctx.fillRect(cx - Math.max(30, w * 0.055), top - tickPx * 2.4,
+        Math.max(64, w * 0.11), (bottom - top) + tickPx * 4.4);
+
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.85)';
+      ctx.lineWidth = Math.max(1.5, w * 0.0022);
+      ctx.beginPath();
+      ctx.moveTo(cx, top);
+      ctx.lineTo(cx, bottom);
+      ctx.stroke();
+
+      ctx.font = `${tickPx}px Arial, sans-serif`;
+      ctx.textBaseline = 'middle';
+      for (let deg = minDeg; deg <= maxDeg; deg += 10) {
+        const y = yFor(deg);
+        const major = deg % 20 === 0;
+        ctx.beginPath();
+        ctx.moveTo(cx - (major ? barW * 2.2 : barW), y);
+        ctx.lineTo(cx + (major ? barW * 2.2 : barW), y);
+        ctx.strokeStyle = deg === 0 ? '#e2e8f0' : 'rgba(148, 163, 184, 0.7)';
+        ctx.lineWidth = deg === 0 ? Math.max(2, w * 0.003) : Math.max(1, w * 0.0016);
+        ctx.stroke();
+        if (major) {
+          ctx.fillStyle = deg === 0 ? '#e2e8f0' : '#94a3b8';
+          ctx.textAlign = 'right';
+          ctx.fillText(String(deg), cx - barW * 3, y);
+        }
+      }
+
+      // Trip line the operator is evaluating.
+      const tripY = yFor(tiltTripDeg);
+      ctx.setLineDash([Math.max(5, w * 0.01), Math.max(4, w * 0.007)]);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = Math.max(1.5, w * 0.0022);
+      ctx.beginPath();
+      ctx.moveTo(cx - barW * 2.6, tripY);
+      ctx.lineTo(cx + barW * 3.4, tripY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Furthest tilt of the current trial.
+      if (tiltPeakDown != null) {
+        const py = yFor(tiltPeakDown);
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.95)';
+        ctx.beginPath();
+        ctx.moveTo(cx + barW * 1.2, py);
+        ctx.lineTo(cx + barW * 3.4, py - barW * 1.1);
+        ctx.lineTo(cx + barW * 3.4, py + barW * 1.1);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      if (tiltDownDeg != null) {
+        const y = yFor(tiltDownDeg);
+        const hot = tiltDownDeg >= tiltTripDeg;
+        ctx.fillStyle = hot ? '#f87171' : '#5eead4';
+        ctx.beginPath();
+        ctx.moveTo(cx - barW * 1.2, y);
+        ctx.lineTo(cx - barW * 3.6, y - barW * 1.3);
+        ctx.lineTo(cx - barW * 3.6, y + barW * 1.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx, y, barW * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = `bold ${labelPx}px Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = hot ? '#fecaca' : '#99f6e4';
+        ctx.fillText(tiltDeg(tiltDownDeg, 0), cx, top - tickPx * 0.9);
+      }
+      ctx.font = `${tickPx}px Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('tilt', cx, bottom + tickPx * 2.6);
+      ctx.restore();
+    }
 
     function setCamState(text, kind) {
       const el = document.getElementById('cam-state');
@@ -1488,12 +1767,49 @@ MONITOR_JS = (
     }
 
     function refreshSilhouetteGuide() {
+      // The person outline is a framing aid for a real camera. Over the test
+      // pattern there is nobody to frame, and drawing it there is what made the
+      // pattern look like "a black screen with a silhouette".
+      if (usingPattern) {
+        drawPatternCaption();
+        return;
+      }
       if (silhouetteGuideOn) drawSilhouetteGuide(lastSilhouetteDetected);
       else clearSilhouetteOverlay();
       drawFaceContoursOnOverlay();
-      if (faceContoursOn && lastFaceContours && lastFaceContours.fallbackBox && lastFaceContours.mood) {
-        /* fallback contour already drawn in drawDetectorFaceContour */
-      }
+      drawHandContoursOnOverlay();
+      // Last: drawSilhouetteGuide clears the overlay, so the gauge has to come
+      // after it or it is wiped on the next frame.
+      drawTiltGauge();
+    }
+
+    function drawPatternCaption() {
+      const { w, h } = syncOverlaySize();
+      const ctx = overlay.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+      const stage = currentPatternStage();
+      const titlePx = Math.max(13, Math.round(w * 0.026));
+      const subPx = Math.max(11, Math.round(w * 0.018));
+      const title = 'Test pattern · ' + stage.name;
+      const sub = 'expect: ' + stage.expects;
+      const pad = Math.max(10, Math.round(w * 0.012));
+      ctx.font = `bold ${titlePx}px Arial, sans-serif`;
+      const tw = Math.max(ctx.measureText(title).width, (() => {
+        ctx.font = `${subPx}px Arial, sans-serif`;
+        return ctx.measureText(sub).width;
+      })());
+      // Anchored above the resolution chip: the contour/guide toggles own the
+      // top corners, so a top-left caption lands underneath them.
+      const boxH = titlePx + subPx + 14;
+      const top = h - boxH - Math.max(34, Math.round(h * 0.12));
+      ctx.fillStyle = 'rgba(8, 12, 20, 0.82)';
+      ctx.fillRect(pad - 4, top, tw + 14, boxH);
+      ctx.font = `bold ${titlePx}px Arial, sans-serif`;
+      ctx.fillStyle = '#93c5fd';
+      ctx.fillText(title, pad, top + titlePx + 4);
+      ctx.font = `${subPx}px Arial, sans-serif`;
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText(sub, pad, top + titlePx + subPx + 8);
     }
 
     function syncOverlaySize() {
@@ -1595,16 +1911,49 @@ MONITOR_JS = (
       camVideo.style.visibility = 'hidden';
     }
 
+    function currentPatternStage() {
+      const i = Math.floor(patternPhase / PATTERN_STAGE_FRAMES) % PATTERN_STAGES.length;
+      return PATTERN_STAGES[i];
+    }
+
+    // Gaussian blur of a square wave, in closed form: attenuate each odd
+    // harmonic by exp(-2*pi^2*sigma^2*f^2). Doing it analytically rather than via
+    // ctx.filter keeps sigma expressed in GRID pixels, which is the scale the
+    // Sobel gate actually measures, and behaves identically in every browser.
+    function patternHarmonics(sigmaGrid) {
+      const out = [];
+      for (let k = 1; k <= 9; k += 2) {
+        const f = k / PATTERN_PERIOD_GRID;
+        const atten = Math.exp(-2 * Math.PI * Math.PI * sigmaGrid * sigmaGrid * f * f);
+        out.push({ k, amp: (2 / (k * Math.PI)) * atten });
+      }
+      return out;
+    }
+
     function paintTestPattern() {
-      // One bar per analysis column, so downsampling to GRID_W reproduces exactly
-      // the alternating light/dark values the Sobel and exposure gates expect.
       const w = patternCanvas.width = CAM_FALLBACK_W;
       const h = patternCanvas.height = CAM_FALLBACK_H;
       const ctx = patternCanvas.getContext('2d');
-      const barW = w / GRID_W;
-      for (let x = 0; x < GRID_W; x++) {
-        ctx.fillStyle = (((x + patternPhase) % 8) < 4) ? '#d8d8d8' : '#202020';
-        ctx.fillRect(x * barW, 0, barW, h);
+      const stage = currentPatternStage();
+      // Exact 20x box downsample to the 64x36 grid, so what is displayed is
+      // precisely what gets scored.
+      const periodPx = (w / GRID_W) * PATTERN_PERIOD_GRID;
+      const shift = (patternPhase % PATTERN_PERIOD_GRID) / PATTERN_PERIOD_GRID;
+      const hard = stage.sigma < 0.05;
+      const harmonics = hard ? null : patternHarmonics(stage.sigma);
+      for (let x = 0; x < w; x++) {
+        const u = ((x / periodPx) + shift) % 1;
+        let profile;
+        if (hard) {
+          profile = u < 0.5 ? 1 : 0;
+        } else {
+          profile = 0.5;
+          for (const harm of harmonics) profile += harm.amp * Math.sin(2 * Math.PI * harm.k * u);
+          profile = Math.max(0, Math.min(1, profile));
+        }
+        const v = Math.round(stage.dark + (stage.light - stage.dark) * profile);
+        ctx.fillStyle = `rgb(${v}, ${v}, ${v})`;
+        ctx.fillRect(x, 0, 1, h);
       }
       patternCanvas.style.display = 'block';
       camVideo.style.visibility = 'hidden';
@@ -1618,10 +1967,9 @@ MONITOR_JS = (
         paintSilhouettePattern();
         ctx.drawImage(patternCanvas, 0, 0, GRID_W, GRID_H);
       } else if (usingPattern) {
-        // Draw into the on-screen canvas and sample that, so the operator sees the
-        // same frame the gates are scoring. This used to render the bars straight
-        // into the hidden analysis canvas and show an empty <video> instead.
-        patternPhase = (patternPhase + 1) % GRID_W;
+        // Sample the same canvas the user is looking at; the old code drew the
+        // bars straight into the offscreen grid and left a hidden canvas over a
+        // stopped <video>, so the preview was just black.
         paintTestPattern();
         ctx.drawImage(patternCanvas, 0, 0, GRID_W, GRID_H);
       } else {
@@ -1650,17 +1998,48 @@ MONITOR_JS = (
     }
 
     function stopAudioMeter() {
+      if (audioPollTimer) { clearInterval(audioPollTimer); audioPollTimer = null; }
       try { if (audioSource) audioSource.disconnect(); } catch (_) {}
       try { if (audioAnalyser) audioAnalyser.disconnect(); } catch (_) {}
+      try { if (rawMicSource) rawMicSource.disconnect(); } catch (_) {}
+      try { if (rawMicStream) rawMicStream.getTracks().forEach((t) => t.stop()); } catch (_) {}
       try { if (audioCtx && audioCtx.state !== 'closed') audioCtx.close(); } catch (_) {}
       audioCtx = null; audioAnalyser = null; audioSource = null; audioData = null;
       audioRmsHistory = []; lastAudioSample = null; noiseSuppressionOn = null;
       try { if (clickAnalyser) clickAnalyser.disconnect(); } catch(_) {}
-      clickAnalyser = null; clickData = null;
-      clickEvents = []; toneStartMs = 0; toneActiveMs = 0; phoneCallStartMs = 0;
+      clickAnalyser = null; clickData = null; clickBins = null;
+      rawMicStream = null; rawMicSource = null; clickSourceRaw = false;
+      resetClickDetectorState();
     }
 
-    function startAudioMeter(stream) {
+    function resetClickDetectorState() {
+      clickNoiseFloor = 0.003; clickPrevRms = 0; clickEvents = [];
+      toneActiveMs = 0; ringtoneLatchUntil = 0; voiceActiveMs = 0;
+      clickLevelDb = -120; clickFloorDb = -120;
+      clickPrevFreq = null; tonePeakBin = -1;
+    }
+
+    // The processed WebRTC track (echoCancellation/noiseSuppression/autoGainControl)
+    // is what we want for noise-filter scoring, but browser noise suppression is
+    // explicitly designed to delete keystrokes and ringtones — the exact events the
+    // click detector looks for. Grab a second, unprocessed capture for detection.
+    async function openRawMicStream() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
+      try {
+        return await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            channelCount: 1,
+          },
+        });
+      } catch (_) {
+        return null;
+      }
+    }
+
+    async function startAudioMeter(stream) {
       stopAudioMeter();
       const tracks = stream.getAudioTracks();
       if (!tracks.length) return false;
@@ -1673,19 +2052,45 @@ MONITOR_JS = (
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AC();
+        // Autoplay policy can leave the context suspended; a suspended analyser
+        // reports silence forever, which silently disables every audio detector.
+        if (audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch (_) {} }
         audioSource = audioCtx.createMediaStreamSource(stream);
         audioAnalyser = audioCtx.createAnalyser();
         audioAnalyser.fftSize = 2048;
         audioAnalyser.smoothingTimeConstant = 0.8;
         audioSource.connect(audioAnalyser);
+
         clickAnalyser = audioCtx.createAnalyser();
         clickAnalyser.fftSize = 1024;
         clickAnalyser.smoothingTimeConstant = 0;
-        audioSource.connect(clickAnalyser);
-        clickData = { time: new Float32Array(1024), freq: new Float32Array(512) };
-        clickNoiseFloor = 0.003; clickPrevRms = 0; clickEvents = [];
-        toneStartMs = 0; toneActiveMs = 0; phoneCallStartMs = 0;
+        clickAnalyser.minDecibels = -110;
+        clickAnalyser.maxDecibels = -10;
+
+        rawMicStream = await openRawMicStream();
+        if (rawMicStream) {
+          rawMicSource = audioCtx.createMediaStreamSource(rawMicStream);
+          rawMicSource.connect(clickAnalyser);
+          clickSourceRaw = true;
+        } else {
+          audioSource.connect(clickAnalyser);
+          clickSourceRaw = false;
+        }
+
+        const bins = clickAnalyser.frequencyBinCount;
+        clickData = { time: new Float32Array(clickAnalyser.fftSize), freq: new Float32Array(bins) };
+        const binHz = (audioCtx.sampleRate / 2) / bins;
+        const binOf = (hz) => Math.max(0, Math.min(bins - 1, Math.round(hz / binHz)));
+        clickBins = {
+          count: bins,
+          bandLo: binOf(250), bandHi: binOf(9000),
+          speechLo: binOf(300), speechHi: binOf(3400),
+          hfLo: binOf(2500), hfHi: binOf(9000),
+          toneLo: binOf(300), toneHi: binOf(5000),
+        };
+        resetClickDetectorState();
         audioData = new Float32Array(audioAnalyser.fftSize);
+        audioPollTimer = setInterval(pollAudioDetector, AUDIO_POLL_MS);
         return true;
       } catch (_) {
         stopAudioMeter();
@@ -1733,13 +2138,14 @@ MONITOR_JS = (
       return lastAudioSample;
     }
 
-    function sampleClickDetector() {
-      if (!clickAnalyser || !clickData) return { keyboardScore: 0, ringtone: false, phonecall: false };
+    // Runs every AUDIO_POLL_MS so the analyser's ~21ms window tiles the stream
+    // continuously. Accumulates rolling evidence; sampleClickDetector() only reads it.
+    function pollAudioDetector() {
+      if (!clickAnalyser || !clickData || !clickBins) return;
       const now = Date.now();
       clickAnalyser.getFloatTimeDomainData(clickData.time);
       clickAnalyser.getFloatFrequencyData(clickData.freq);
 
-      // Compute rms and peak from time domain (1024 samples)
       let sumSq = 0, peak = 0;
       for (let i = 0; i < clickData.time.length; i++) {
         const v = clickData.time[i];
@@ -1748,69 +2154,122 @@ MONITOR_JS = (
       }
       const rms = Math.sqrt(sumSq / clickData.time.length);
 
-      // Adapt noise floor
-      if (rms < clickNoiseFloor * 1.8) {
-        clickNoiseFloor = clickNoiseFloor * 0.97 + rms * 0.03;
-      }
-      clickNoiseFloor = Math.max(0.0003, Math.min(0.025, clickNoiseFloor));
+      // Background floor: drop quickly toward quiet, rise slowly, so a burst of
+      // typing can never raise the floor above the very transients it must detect.
+      if (rms < clickNoiseFloor) clickNoiseFloor += (rms - clickNoiseFloor) * 0.25;
+      else clickNoiseFloor += (rms - clickNoiseFloor) * 0.002;
+      clickNoiseFloor = Math.max(0.0002, Math.min(0.05, clickNoiseFloor));
+      clickLevelDb = 20 * Math.log10(Math.max(1e-7, rms));
+      clickFloorDb = 20 * Math.log10(Math.max(1e-7, clickNoiseFloor));
 
-      // Keyboard click detection (broadband transient)
-      const delta = rms - clickPrevRms;
-      clickPrevRms = rms;
-      if (rms > clickNoiseFloor * 5 && delta > clickNoiseFloor * 2.5 && peak < 0.95) {
-        const last = clickEvents.length ? clickEvents[clickEvents.length - 1] : 0;
-        if (now - last >= 65) {
-          clickEvents.push(now);
+      const b = clickBins;
+      let bandPower = 0, bandCount = 0;
+      let speechPower = 0, speechCount = 0;
+      let hfPower = 0, hfCount = 0;
+      let peakDb = -Infinity, peakBin = -1, bandPeakDb = -Infinity;
+      const toneDbs = [];
+      for (let i = b.bandLo; i <= b.bandHi; i++) {
+        const db = clickData.freq[i];
+        const pw = Math.pow(10, db / 10);
+        bandPower += pw; bandCount += 1;
+        if (db > bandPeakDb) bandPeakDb = db;
+        if (i >= b.speechLo && i <= b.speechHi) { speechPower += pw; speechCount += 1; }
+        if (i >= b.hfLo && i <= b.hfHi) { hfPower += pw; hfCount += 1; }
+        if (i >= b.toneLo && i <= b.toneHi) {
+          toneDbs.push(db);
+          if (db > peakDb) { peakDb = db; peakBin = i; }
         }
       }
-      // Prune to last 4 seconds
+      const speechRatio = bandPower > 0 ? (speechPower / bandPower) : 0;
+      const hfRatio = bandPower > 0 ? (hfPower / bandPower) : 0;
+
+      // Spectral flux is the tone-vs-voice discriminator: a ring holds the same
+      // spectrum frame to frame while speech is never still. Only bins within
+      // 30 dB of the peak count — bins down at the noise floor swing several dB
+      // on their own and would drown the real signal.
+      let flux = 0;
+      if (clickPrevFreq) {
+        const fluxGate = bandPeakDb - 30;
+        let acc = 0, n = 0;
+        for (let i = b.bandLo; i <= b.bandHi; i++) {
+          const cur = clickData.freq[i], prv = clickPrevFreq[i];
+          if (cur < fluxGate && prv < fluxGate) continue;
+          acc += Math.abs(cur - prv); n += 1;
+        }
+        flux = n ? acc / n : 0;
+      }
+      if (!clickPrevFreq) clickPrevFreq = new Float32Array(clickData.freq.length);
+      clickPrevFreq.set(clickData.freq);
+
+      // Peak prominence over the band median separates a narrow-band ring
+      // (>14 dB) from broadband speech or room noise.
+      let prominence = 0;
+      if (toneDbs.length) {
+        const sortedDbs = toneDbs.slice().sort((x, y) => x - y);
+        const medianDb = sortedDbs[Math.floor(sortedDbs.length / 2)];
+        if (Number.isFinite(peakDb) && Number.isFinite(medianDb)) prominence = peakDb - medianDb;
+      }
+
+      const elevated = rms > clickNoiseFloor * 2.2;
+
+      // Keystrokes are sharp broadband attacks with strong high-frequency energy,
+      // which is what separates them from a voice onset.
+      const prev = clickPrevRms;
+      clickPrevRms = rms;
+      const sharpAttack = rms > clickNoiseFloor * 3.0 && rms > prev * 1.7;
+      if (sharpAttack && peak < 0.99 && hfRatio > 0.18) {
+        const last = clickEvents.length ? clickEvents[clickEvents.length - 1] : 0;
+        if (now - last >= 60) clickEvents.push(now);
+      }
+      const cutoff4s = now - 4000;
+      while (clickEvents.length && clickEvents[0] < cutoff4s) clickEvents.shift();
+
+      // Ringtone: a prominent peak that stays put. A melody steps between notes,
+      // so stability is only required within a note, which is long enough at 25ms
+      // polling to clear the hold; a moving voice never accumulates.
+      const steadyPeak = tonePeakBin >= 0 && Math.abs(peakBin - tonePeakBin) <= 2;
+      tonePeakBin = peakBin;
+      const tonal = elevated && prominence > 14 && peakBin >= 0 && steadyPeak && flux < 2.5;
+      toneActiveMs = Math.max(0, Math.min(1500,
+        toneActiveMs + (tonal ? AUDIO_POLL_MS : -AUDIO_POLL_MS * 0.8)));
+      // Ring cadences pause for seconds between bursts; latch so the verdict
+      // does not flicker off in the gap.
+      if (toneActiveMs >= 350) ringtoneLatchUntil = now + 6000;
+
+      const voiceLike = rms > clickNoiseFloor * 2.0
+        && speechRatio > 0.45 && hfRatio < 0.45 && !tonal
+        && (flux > 1.2 || prominence < 14);
+      voiceActiveMs = Math.max(0, Math.min(4000,
+        voiceActiveMs + (voiceLike ? AUDIO_POLL_MS : -AUDIO_POLL_MS * 0.5)));
+    }
+
+    // The verdicts latch for seconds while the 300ms loop keeps firing, so the
+    // toast needs its own cooldown or it repeats ~20 times per event.
+    const audioToastAt = {};
+    function maybeToastAudio(key, message) {
+      const now = Date.now();
+      if (audioToastAt[key] && now - audioToastAt[key] < 8000) return;
+      audioToastAt[key] = now;
+      toast(message);
+    }
+
+    function sampleClickDetector() {
+      if (!clickAnalyser || !clickData) {
+        return { keyboardScore: 0, ringtone: false, phonecall: false, clickRate: 0, levelDb: -120 };
+      }
+      const now = Date.now();
       const cutoff4s = now - 4000;
       while (clickEvents.length && clickEvents[0] < cutoff4s) clickEvents.shift();
       const clickRate = clickEvents.length / 4;
-      const keyboardScore = Math.min(1, clickRate / 5);
-
-      // Spectral flatness (bins 5-280, covering ~200 Hz - 11 kHz)
-      const powers = [];
-      for (let i = 5; i <= 280; i++) {
-        const db = clickData.freq[i];
-        powers.push(Math.pow(10, db / 10));
-      }
-      let arithMean = 0;
-      for (const pw of powers) arithMean += pw;
-      arithMean /= powers.length;
-      let logSum = 0;
-      for (const pw of powers) logSum += Math.log(Math.max(1e-30, pw));
-      const geomMean = Math.exp(logSum / powers.length);
-      const flatness = Math.max(0, Math.min(1, geomMean / (arithMean + 1e-10)));
-
-      // Ringtone detection (narrow-band sustained tone)
-      const elevated = rms > clickNoiseFloor * 2.5;
-      const tonal = flatness < 0.12;
-      const isRingtone = elevated && tonal;
-      if (isRingtone) {
-        if (toneStartMs === 0) toneStartMs = now;
-        toneActiveMs = now - toneStartMs;
-      } else if (toneStartMs > 0) {
-        toneActiveMs = Math.max(0, toneActiveMs - 150);
-        if (toneActiveMs === 0) toneStartMs = 0;
-      }
-      const ringtone = toneActiveMs > 250;
-
-      // Phone call / one-sided conversation detection
-      // Speech band bins 7-85 correspond to powers array indices (7-5)..(85-5) = 2..80
-      let speechPower = 0;
-      for (let i = 7; i <= 85; i++) speechPower += powers[i - 5];
-      speechPower /= (85 - 7 + 1);
-      const speechRatio = speechPower / (arithMean + 1e-10);
-      const voiceLike = rms > clickNoiseFloor * 2 && flatness > 0.12 && flatness < 0.55 && speechRatio > 0.30;
-      if (voiceLike) {
-        if (phoneCallStartMs === 0) phoneCallStartMs = now;
-      } else if (phoneCallStartMs > 0 && (now - phoneCallStartMs) > 2500) {
-        phoneCallStartMs = 0;
-      }
-      const phonecall = phoneCallStartMs > 0 && (now - phoneCallStartMs) > 1800;
-
-      return { keyboardScore, ringtone, phonecall };
+      return {
+        keyboardScore: Math.min(1, clickRate / 4),
+        clickRate,
+        ringtone: now < ringtoneLatchUntil,
+        phonecall: voiceActiveMs >= 1800,
+        levelDb: clickLevelDb,
+        floorDb: clickFloorDb,
+        rawMic: clickSourceRaw,
+      };
     }
 
     function detectPhoneFromGrid(grid, gazeDown) {
@@ -1912,11 +2371,20 @@ MONITOR_JS = (
       return Math.max(0, Math.min(1, combined));
     }
 
+    // Seconds a posture must hold before it counts, read from the live knobs so
+    // the HUD countdown always matches what the server is actually enforcing.
+    function holdSeconds(knob) {
+      const ms = Number(visionKnobs && visionKnobs[knob]);
+      return Math.round((Number.isFinite(ms) ? ms : 5000) / 1000);
+    }
+
     function updateIntegrityHud(signals) {
       const {
         gazeDown, gazeDownMs, eyesClosed, eyesClosedMs,
-        handsOnFaceScore = 0, handsOnFaceMs = 0,
+        handsOnFaceScore = 0, handsOnFaceMs = 0, handsOnFaceConfirmed = false,
+        handCount = 0, phoneForMs = 0,
         keyboardScore, phoneBelow, phoneEar, ringtone, phonecall, suspected,
+        clickRate = 0, micLevelDb = null, micRaw = false,
       } = signals;
 
       const gazeCard = document.getElementById('integrity-gaze');
@@ -1937,36 +2405,53 @@ MONITOR_JS = (
         closedVal.textContent = eyesClosed ? ('closed' + (sec ? ' · ' + sec : '')) : 'open';
       }
 
+      // A dead mic and a silent room look identical in a bare percentage, so the
+      // audio cards fall back to the live input level to stay diagnosable.
+      const micDead = micLevelDb == null || micLevelDb <= -119;
+      const micHint = micDead ? 'mic off' : (Math.round(micLevelDb) + ' dB' + (micRaw ? '' : ' · filtered'));
+
       const kbCard = document.getElementById('integrity-keyboard');
       const kbVal = document.getElementById('integrity-keyboard-val');
       if (kbCard && kbVal) {
         kbCard.className = 'integrity-card ' + (keyboardScore >= 0.5 ? 'alert-high' : (keyboardScore > 0 ? 'alert-med' : 'alert-low'));
-        kbVal.textContent = keyboardScore > 0 ? Math.round(keyboardScore * 100) + '%' : 'none';
+        kbVal.textContent = keyboardScore > 0
+          ? (Math.round(keyboardScore * 100) + '% · ' + clickRate.toFixed(1) + '/s')
+          : micHint;
       }
 
+      // Both cards below show "building" while the streak is still short of the
+      // hold window, so a brief glance or gesture reads as pending, not a hit.
       const devCard = document.getElementById('integrity-device');
       const devVal = document.getElementById('integrity-device-val');
       if (devCard && devVal) {
-        devCard.className = 'integrity-card ' + ((phoneEar || phoneBelow) ? 'alert-high' : 'alert-low');
-        devVal.textContent = phoneEar ? 'near ear' : (phoneBelow ? 'below face' : 'none');
+        const phoneHold = holdSeconds('phone_visible_min_hold_ms');
+        // Server hold already gates ear+below+call into phone_visible; raw ear
+        // alone must not paint alert-high before the streak completes.
+        const confirmed = phoneBelow;
+        devCard.className = 'integrity-card ' + (confirmed ? 'alert-high' : (phoneForMs > 0 ? 'alert-med' : 'alert-low'));
+        devVal.textContent = confirmed && phoneEar ? 'near ear'
+          : (confirmed ? ('below face · ' + (phoneForMs / 1000).toFixed(0) + 's')
+            : (phoneForMs > 0 ? ((phoneForMs / 1000).toFixed(1) + 's / ' + phoneHold + 's') : 'none'));
       }
 
       const handsCard = document.getElementById('integrity-hands');
       const handsVal = document.getElementById('integrity-hands-val');
       if (handsCard && handsVal) {
-        const handsLevel = handsOnFaceScore >= 0.65 ? 'alert-high' : (handsOnFaceScore >= 0.40 ? 'alert-med' : 'alert-low');
-        handsCard.className = 'integrity-card ' + handsLevel;
-        const hSec = handsOnFaceMs > 0 ? (handsOnFaceMs / 1000).toFixed(0) + 's' : '';
-        handsVal.textContent = handsOnFaceScore >= 0.40
-          ? (Math.round(handsOnFaceScore * 100) + '%' + (hSec ? ' · ' + hSec : ''))
-          : 'none';
+        const handsHold = holdSeconds('hands_on_face_min_hold_ms');
+        const building = handsOnFaceMs > 0 && !handsOnFaceConfirmed;
+        handsCard.className = 'integrity-card '
+          + (handsOnFaceConfirmed ? 'alert-high' : (building ? 'alert-med' : 'alert-low'));
+        handsVal.textContent = handsOnFaceConfirmed
+          ? (Math.round(handsOnFaceScore * 100) + '% · ' + (handsOnFaceMs / 1000).toFixed(0) + 's')
+          : (building ? ((handsOnFaceMs / 1000).toFixed(1) + 's / ' + handsHold + 's')
+            : (handCount > 0 ? (handCount + ' hand' + (handCount > 1 ? 's' : '') + ' in frame') : 'none'));
       }
 
       const callCard = document.getElementById('integrity-call');
       const callVal = document.getElementById('integrity-call-val');
       if (callCard && callVal) {
         callCard.className = 'integrity-card ' + (phonecall ? 'alert-high' : (ringtone ? 'alert-med' : 'alert-low'));
-        callVal.textContent = phonecall ? 'call active' : (ringtone ? 'ringtone ♪' : 'silent');
+        callVal.textContent = phonecall ? 'call active' : (ringtone ? 'ringtone ♪' : micHint);
       }
 
       const statusEl = document.getElementById('integrity-status');
@@ -2004,7 +2489,7 @@ MONITOR_JS = (
       };
       setBar('obs-eng', adv.engagement_index);
       setBar('obs-flow', adv.flow_score);
-      setBar('obs-conf', adv.confusion_score);
+      setBar('obs-conf', 0);  // confused detection removed — keep slot for layout stability
       setBar('obs-bore', adv.boredom_score);
       setBar('obs-fat', adv.fatigue_score);
       setBar('obs-cur', adv.curiosity_score);
@@ -2045,9 +2530,7 @@ MONITOR_JS = (
         });
         log.innerHTML = rows.length ? rows.join('') : '<div class="obs-ev">No behavior events yet.</div>';
       }
-      if ((adv.confusion_score || 0) >= 0.62) {
-        maybeAnnounceIntegrity('confuse', 'You look a bit confused. Want me to slow down or explain that again?');
-      } else if ((adv.fatigue_score || 0) >= 0.62) {
+      if ((adv.fatigue_score || 0) >= 0.62) {
         maybeAnnounceIntegrity('fatigue', 'You seem tired. Take a short stretch if you need to, then refocus.');
       } else if ((adv.engagement_index || 0) >= 0.78) {
         maybeAnnounceIntegrity('engage', 'Great focus — keep that energy going.');
@@ -2081,7 +2564,20 @@ MONITOR_JS = (
     let faceLandmarkerAttempts = 0;
     let faceLandmarkerRetryAtMs = 0;
     let lastFaceContours = null;  // { pts:[{x,y}], connections:[[i,j]], mood }
+    let handLandmarker = null;
+    let handLandmarkerFailed = false;
+    let handLandmarkerPromise = null;
+    // { hands: [[{x,y}]], connections: [[i,j]], labels: ['Left'|'Right'] } — null when
+    // no hand is in frame, which is what keeps hand contours off the overlay.
+    let lastHandContours = null;
     let moodHistory = [];
+    // Attention and behaviour flicker frame to frame (~3 samples/sec), so — like
+    // mood — they are smoothed over a short rolling window instead of shown raw.
+    let attnHistory = [];
+    let behaviorHistory = [];
+    let attnScoreHistory = [];
+    let distractScoreHistory = [];
+    const BEHAVIOR_SMOOTH_WINDOW = 8;  // ~2.4s at the 300ms sample rate
     let lastLumaFlat = null;
     let motionEma = 0.15;
     const observatoryEvents = [];
@@ -2160,7 +2656,7 @@ MONITOR_JS = (
         ev.preventDefault();
         faceContoursOn = !faceContoursOn;
         syncContourToggleUi();
-        if (!faceContoursOn) lastFaceContours = null;
+        if (!faceContoursOn) { lastFaceContours = null; lastHandContours = null; }
         refreshSilhouetteGuide();
       });
       syncContourToggleUi();
@@ -2235,6 +2731,147 @@ MONITOR_JS = (
         return null;
       })();
       return faceLandmarkerPromise;
+    }
+
+    function blendshapeMap(blendshapes) {
+      const out = {};
+      if (!blendshapes || !blendshapes.length) return out;
+      const cats = blendshapes[0].categories || [];
+      cats.forEach((c) => { out[c.categoryName] = c.score; });
+      return out;
+    }
+
+    async function ensureHandLandmarker() {
+      if (handLandmarker) return handLandmarker;
+      if (handLandmarkerFailed) return null;
+      if (handLandmarkerPromise) return handLandmarkerPromise;
+      handLandmarkerPromise = (async () => {
+        try {
+          const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
+          const fileset = await vision.FilesetResolver.forVisionTasks(
+            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+          );
+          const modelPath =
+            'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+          let lastErr = null;
+          for (const delegate of ['GPU', 'CPU']) {
+            try {
+              handLandmarker = await vision.HandLandmarker.createFromOptions(fileset, {
+                baseOptions: { modelAssetPath: modelPath, delegate },
+                runningMode: 'VIDEO',
+                numHands: 2,
+              });
+              handLandmarker._CONNECTIONS = (vision.HandLandmarker.HAND_CONNECTIONS || [])
+                .map((c) => [c.start, c.end]);
+              return handLandmarker;
+            } catch (err) {
+              lastErr = err;
+              console.warn('Hand landmarker ' + delegate + ' failed', err);
+            }
+          }
+          throw lastErr || new Error('HandLandmarker init failed');
+        } catch (err) {
+          console.warn('Hand landmarker unavailable', err);
+          handLandmarkerFailed = true;
+          handLandmarker = null;
+          return null;
+        }
+      })();
+      return handLandmarkerPromise;
+    }
+
+    // Detect hands and, when a face is present, how much of the hand sits on the
+    // face. Returns null when no hand is in frame so nothing is drawn.
+    async function trackHands(facePts) {
+      if (usingSilhouette || usingPattern || !camVideo.videoWidth) {
+        lastHandContours = null;
+        return null;
+      }
+      const hl = await ensureHandLandmarker();
+      if (!hl) {
+        lastHandContours = null;
+        return null;
+      }
+      const result = hl.detectForVideo(camVideo, performance.now());
+      const hands = result.landmarks || [];
+      if (!hands.length) {
+        lastHandContours = null;
+        return { hand_count: 0, hands_on_face_score: 0 };
+      }
+      const labels = (result.handedness || []).map((h) => (h && h[0] && h[0].categoryName) || '');
+      lastHandContours = { hands, connections: hl._CONNECTIONS || [], labels };
+      return {
+        hand_count: hands.length,
+        hands_on_face_score: handsOnFaceFromLandmarks(hands, facePts),
+      };
+    }
+
+    // Fraction of hand landmarks that fall inside the face's bounding ellipse,
+    // padded slightly so a chin-rest or cheek-prop counts. Real geometry, not a
+    // luminance guess: a hand beside the head no longer reads as "hands on face".
+    function handsOnFaceFromLandmarks(hands, facePts) {
+      if (!hands || !hands.length || !facePts || !facePts.length) return 0;
+      let minX = 1, maxX = 0, minY = 1, maxY = 0;
+      facePts.forEach((p) => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      });
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+      const rx = Math.max(1e-4, (maxX - minX) / 2) * 1.15;
+      const ry = Math.max(1e-4, (maxY - minY) / 2) * 1.15;
+      let best = 0;
+      hands.forEach((pts) => {
+        let inside = 0;
+        pts.forEach((p) => {
+          const dx = (p.x - cx) / rx, dy = (p.y - cy) / ry;
+          if (dx * dx + dy * dy <= 1) inside += 1;
+        });
+        best = Math.max(best, inside / Math.max(1, pts.length));
+      });
+      // A resting hand puts roughly half its 21 landmarks over the face; scale so
+      // that reads ~1.0 and a stray fingertip stays well under the threshold.
+      return clamp01((best - 0.15) / 0.40);
+    }
+
+    function drawHandContoursOnOverlay() {
+      if (!faceContoursOn || !lastHandContours || !lastHandContours.hands.length) return;
+      const { w, h } = syncOverlaySize();
+      const ctx = overlay.getContext('2d');
+      const connections = lastHandContours.connections || [];
+      ctx.save();
+      ctx.lineWidth = Math.max(1.5, w * 0.0028);
+      lastHandContours.hands.forEach((pts, index) => {
+        const color = index === 0 ? '#a78bfa' : '#f0abfc';
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.95;
+        connections.forEach((pair) => {
+          const a = pts[pair[0]], b = pts[pair[1]];
+          if (!a || !b) return;
+          ctx.beginPath();
+          ctx.moveTo((1 - a.x) * w, a.y * h);
+          ctx.lineTo((1 - b.x) * w, b.y * h);
+          ctx.stroke();
+        });
+        // Fingertips + wrist, so the pose is readable at a glance.
+        [0, 4, 8, 12, 16, 20].forEach((i) => {
+          const p = pts[i];
+          if (!p) return;
+          ctx.beginPath();
+          ctx.arc((1 - p.x) * w, p.y * h, Math.max(2, w * 0.0042), 0, Math.PI * 2);
+          ctx.fill();
+        });
+        const wrist = pts[0];
+        const label = (lastHandContours.labels || [])[index];
+        if (wrist && label) {
+          ctx.globalAlpha = 0.85;
+          ctx.font = Math.max(10, Math.round(w * 0.016)) + 'px Arial, sans-serif';
+          ctx.fillText(label, (1 - wrist.x) * w + 6, wrist.y * h - 6);
+        }
+      });
+      ctx.restore();
     }
 
     function headPoseFromMatrix(matrices) {
@@ -2397,6 +3034,35 @@ MONITOR_JS = (
       return { expression_label: best, expression_confidence: Math.min(0.99, avgConf) };
     }
 
+    // Rolling most-frequent label over the window — a single odd frame cannot flip
+    // the shown state, but a sustained change wins within a couple of seconds.
+    function smoothLabel(history, label) {
+      history.push(label);
+      if (history.length > BEHAVIOR_SMOOTH_WINDOW) history.shift();
+      const counts = {};
+      history.forEach((l) => { counts[l] = (counts[l] || 0) + 1; });
+      let best = label, bestScore = -1;
+      Object.keys(counts).forEach((k) => {
+        if (counts[k] > bestScore) { bestScore = counts[k]; best = k; }
+      });
+      return best;
+    }
+
+    function smoothScore(history, value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return null;
+      history.push(n);
+      if (history.length > BEHAVIOR_SMOOTH_WINDOW) history.shift();
+      return history.reduce((a, b) => a + b, 0) / history.length;
+    }
+
+    function resetBehaviorSmoothing() {
+      attnHistory = [];
+      behaviorHistory = [];
+      attnScoreHistory = [];
+      distractScoreHistory = [];
+    }
+
     function drawDetectorFaceContour(box, mood) {
       // Fallback contour when MediaPipe is offline: face oval + eye/mouth lines.
       const { w, h } = syncOverlaySize();
@@ -2482,6 +3148,7 @@ MONITOR_JS = (
           lastFaceContours = null;
           moodHistory = [];
           eyesClosedSinceMs = 0;
+          resetBehaviorSmoothing();
           setDetectorStatus('face_mesh', 'face mesh running — no face in frame');
           return { face_count: 0, expression_label: 'unknown', expression_confidence: 0.55,
             gaze_frontal: 0.12, gaze_down_score: 0.2, face_size_ratio: null,
@@ -2517,7 +3184,8 @@ MONITOR_JS = (
         const blinkL = bs.eyeBlinkLeft || 0;
         const blinkR = bs.eyeBlinkRight || 0;
         const blink = (blinkL + blinkR) / 2;
-        let gaze_down = Math.max(geom_down, lookDown * 1.35, lookDown + geom_down * 0.35);
+        // Clamped: the server rejects any 0..1 signal above 1.0 with a 422.
+        let gaze_down = clamp01(Math.max(geom_down, lookDown * 1.35, lookDown + geom_down * 0.35));
         if (lookUp > lookDown + 0.15) gaze_down *= 0.55;
         const lids_down = blink >= 0.45 || Math.min(blinkL, blinkR) >= 0.40;
         const eyes_closed = sustainedEyesClosed(lids_down, Date.now());
@@ -2533,11 +3201,9 @@ MONITOR_JS = (
         const brow_raise = bs.browInnerUp || 0;
         const smile = mood.smile_score != null ? mood.smile_score
           : (((bs.mouthSmileLeft || 0) + (bs.mouthSmileRight || 0)) / 2);
-        // Soft confusion cue from raised brows without a smile.
-        let expression_label = yawning ? 'yawning' : mood.expression_label;
-        if (!yawning && brow_raise >= 0.45 && smile < 0.22 && expression_label === 'neutral') {
-          expression_label = 'confused';
-        }
+        // Do not invent "confused" from raised brows — resting faces vary widely
+        // and a neutral brow raise is not pedagogical confusion.
+        const expression_label = yawning ? 'yawning' : mood.expression_label;
         return {
           face_count: faces.length,
           expression_label,
@@ -2875,15 +3541,31 @@ MONITOR_JS = (
       const closedMs = (p && p.eyes_closed_for_ms) || 0;
       const yawnMs = (p && p.yawn_for_ms) || 0;
       const inattMs = (p && p.inattentive_for_ms) || 0;
-      const behavior = (p && p.behavior_label) || 'unknown';
+      const absent = !!(p && (p.state === 'absent' || p.face_count === 0));
+      let behavior = (p && p.behavior_label) || 'unknown';
       let attn = 'looking';
-      if (p && (p.state === 'absent' || p.face_count === 0)) attn = 'away_from_webcam';
+      if (absent) attn = 'away_from_webcam';
       else if ((facial && facial.eyes_closed) || closedMs > 0) attn = 'eyes_closed';
       else if (behavior === 'yawning' || yawnMs > 0 || (facial && facial.attention === 'yawning')) attn = 'yawning';
       else if (behavior === 'distracted') attn = 'distracted';
       else if (behavior === 'inattentive' || inattMs >= 4000) attn = 'inattentive';
       else if (awayMs > 0 || (facial && facial.attention === 'eyes_away')) attn = 'eyes_away';
       else if (facial && facial.attention) attn = facial.attention;
+      // Absence is reported immediately (and clears the window); otherwise both
+      // the attention and behaviour labels are the rolling majority, so a lone
+      // noisy frame no longer swings the card.
+      if (absent) {
+        resetBehaviorSmoothing();
+      } else {
+        attn = smoothLabel(attnHistory, attn);
+        behavior = smoothLabel(behaviorHistory, behavior);
+      }
+      const attnScore = absent
+        ? (p && p.attention_score)
+        : smoothScore(attnScoreHistory, p && p.attention_score);
+      const distractScore = absent
+        ? (p && p.distraction_score)
+        : smoothScore(distractScoreHistory, p && p.distraction_score);
       const moodCard = document.getElementById('facial-mood-card');
       const attnCard = document.getElementById('facial-attn-card');
       const behCard = document.getElementById('facial-beh-card');
@@ -2913,10 +3595,10 @@ MONITOR_JS = (
           inattentive: 'not paying attention', drowsy: 'drowsy', away: 'away',
         })[behavior] || behavior;
         document.getElementById('facial-beh').textContent = behLabel;
-        const attnPct = (p && p.attention_score != null) ? Math.round(p.attention_score * 100) + '%' : 'n/a';
-        const distPct = (p && p.distraction_score != null) ? Math.round(p.distraction_score * 100) + '%' : 'n/a';
+        const attnPct = (attnScore != null) ? Math.round(attnScore * 100) + '%' : 'n/a';
+        const distPct = (distractScore != null) ? Math.round(distractScore * 100) + '%' : 'n/a';
         document.getElementById('facial-beh-sub').textContent =
-          'attention ' + attnPct + ' · distraction ' + distPct +
+          'avg attention ' + attnPct + ' · avg distraction ' + distPct +
           (inattMs ? (' · ' + (inattMs / 1000).toFixed(1) + 's') : '');
       }
       const dist = (p && p.distance_from_camera_m != null) ? p.distance_from_camera_m : null;
@@ -2956,6 +3638,7 @@ MONITOR_JS = (
       const foreground = estimateForeground(grid);
       const motion = usingSilhouette ? 0.02 : motionFromGrid(grid);
       const facial = await estimateFacialExperience(grid);
+      updateTiltLab(usingPattern || usingSilhouette ? null : facial);
       const audio = sampleMicAudio();
       const signal = {
             participant_id: 'camera-local',
@@ -3000,7 +3683,12 @@ MONITOR_JS = (
       }
       const clickResult = sampleClickDetector();
       const phoneDet = detectPhoneFromGrid(grid, facial.gaze_down_score || 0);
-      const handsScore = detectHandsOnFace(grid, facial.gaze_down_score || 0, (facial.face_count || 0) > 0);
+      const handTrack = await trackHands(lastFaceContours && lastFaceContours.pts);
+      // Landmark score needs face points; without them (FaceDetector-only path)
+      // fall back to the luminance heuristic even when the hand model loaded.
+      const handsScore = (handTrack && lastFaceContours && lastFaceContours.pts)
+        ? handTrack.hands_on_face_score
+        : detectHandsOnFace(grid, facial.gaze_down_score || 0, (facial.face_count || 0) > 0);
       signal.keyboard_typing_audio_score = clickResult.keyboardScore;
       signal.phone_visible = phoneDet.below || phoneDet.ear || clickResult.phonecall;
       signal.hands_on_face_score = handsScore > 0.05 ? Math.round(handsScore * 1000) / 1000 : null;
@@ -3008,14 +3696,24 @@ MONITOR_JS = (
           Math.max(0, Math.min(1, ((facial.gaze_down_score || 0) - 0.12) * 1.9)),
           phoneDet.below ? 0.70 : 0
       );
+      // Redraw before the round trip so face + hand contours keep up with the
+      // video even when the POST is slow or fails.
+      refreshSilhouetteGuide();
       const res = await fetch('/api/theodore/webcam/evaluate', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           session_id: liveCamSessionId, mode: 'solo', persist_live_metrics: false,
-          signals: [signal],
+          signals: [clampSignal(signal)],
         }),
       }).catch(() => null);
-      if (!res || !res.ok) { setCamState(res ? ('evaluate ' + res.status) : 'post failed', 'bad'); return; }
+      if (!res || !res.ok) {
+        setCamState(res ? ('evaluate ' + res.status) : 'post failed', 'bad');
+        if (res) {
+          const detail = await res.json().catch(() => null);
+          if (detail) console.warn('evaluate rejected the frame', detail);
+        }
+        return;
+      }
       const data = await res.json();
       const p = (data.participants || []).find((x) => x.participant_id === 'camera-local');
       if (!p) return;
@@ -3031,8 +3729,17 @@ MONITOR_JS = (
           eyesClosedMs: p.eyes_closed_for_ms || 0,
           handsOnFaceScore: handsScore,
           handsOnFaceMs: p.hands_on_face_for_ms || 0,
+          // Hold time is the source of truth; behavior_label is mutually exclusive
+          // with drowsy/yawning so it can miss a confirmed hands-on-face streak.
+          handsOnFaceConfirmed: (p.hands_on_face_for_ms || 0)
+            >= holdSeconds('hands_on_face_min_hold_ms') * 1000,
+          handCount: handTrack ? handTrack.hand_count : 0,
+          phoneForMs: p.phone_visible_for_ms || 0,
           keyboardScore: clickResult.keyboardScore,
-          phoneBelow: phoneDet.below || !!p.phone_visible,
+          clickRate: clickResult.clickRate || 0,
+          micLevelDb: clickResult.levelDb,
+          micRaw: clickResult.rawMic,
+          phoneBelow: !!p.phone_visible,
           phoneEar: phoneDet.ear,
           ringtone: clickResult.ringtone,
           phonecall: clickResult.phonecall,
@@ -3043,9 +3750,9 @@ MONITOR_JS = (
         maybeAnnounceIntegrity('closed', 'I notice your eyes are closed. Please open them and look at the lesson.');
       } else if ((p.yawn_for_ms || 0) >= 1500) {
         maybeAnnounceIntegrity('yawn', 'I notice you are yawning. Take a quick stretch if you need to, then refocus on the lesson.');
-      } else if ((p.hands_on_face_for_ms || 0) >= 3000) {
+      } else if ((p.hands_on_face_for_ms || 0) >= holdSeconds('hands_on_face_min_hold_ms') * 1000) {
         maybeAnnounceIntegrity('hands', 'I see you have your hand on your face. Sit up and focus on the screen — we have more to cover!');
-      } else if ((p.phone_visible || phoneDet.below) && (p.eyes_away_for_ms || 0) >= 2000) {
+      } else if (p.phone_visible && (p.eyes_away_for_ms || 0) >= 2000) {
         maybeAnnounceIntegrity('phone', 'It looks like you are looking at your phone. Please return your attention to the webcam.');
       } else if ((p.behavior_label === 'distracted' || (p.distraction_score || 0) >= 0.55) && (p.eyes_away_for_ms || 0) >= 2500) {
         maybeAnnounceIntegrity('distract', 'You seem distracted. Please look back at the camera and stay with the lesson.');
@@ -3054,8 +3761,8 @@ MONITOR_JS = (
       } else if ((p.eyes_away_for_ms || 0) >= 2500) {
         maybeAnnounceIntegrity('away', 'Please look back at the camera so we can continue.');
       }
-      if (clickResult.phonecall) toast('📞 Phone call detected – lesson paused.');
-      if (clickResult.ringtone && !clickResult.phonecall) toast('🔔 Ringtone detected.');
+      if (clickResult.phonecall) maybeToastAudio('call', '📞 Phone call detected – lesson paused.');
+      else if (clickResult.ringtone) maybeToastAudio('ring', '🔔 Ringtone detected.');
       lastLiveCamParticipant = p;
       updateTuningEffect(p, visionKnobs, 'Live frame scored with current Vision knobs');
       notifyLiveAway(p, facial, data);
@@ -3154,7 +3861,7 @@ MONITOR_JS = (
       const settings = track && track.getSettings ? track.getSettings() : {};
       const rw = settings.width || camVideo.videoWidth || CAM_FALLBACK_W;
       const rh = settings.height || camVideo.videoHeight || CAM_FALLBACK_H;
-      const hasMic = startAudioMeter(camStream);
+      const hasMic = await startAudioMeter(camStream);
       setCamResolutionLabel(`${rw}×${rh} · 16:9 webcam` + (hasMic ? ' · mic on' : ' · mic off'));
       setCamState('live', 'good');
       document.getElementById('cam-note').textContent =
@@ -3165,9 +3872,13 @@ MONITOR_JS = (
       startSampling();
     });
     document.getElementById('cam-pattern').addEventListener('click', () => {
-      stopCamera(); usingPattern = true; setCamState('test pattern', 'good');
+      stopCamera(); usingPattern = true; patternPhase = 0;
+      setCamState('test pattern', 'good');
       setCamResolutionLabel(`${CAM_FALLBACK_W}×${CAM_FALLBACK_H} · test pattern`);
-      document.getElementById('cam-note').textContent = 'Synthetic bars exercise Sobel/exposure gates.';
+      document.getElementById('cam-note').textContent =
+        'No camera needed. Sweeps sharp → blurred → low contrast → under/over exposed '
+        + '(~2s each) so you can watch Live gates trip and clear. Drag a sharpness or '
+        + 'lighting slider to move the point where each stage fails.';
       startSampling();
     });
     document.getElementById('cam-silhouette').addEventListener('click', () => {
@@ -3187,6 +3898,51 @@ MONITOR_JS = (
       });
       syncSilhouetteToggleUi();
     }
+    const tiltNeutralBtn = document.getElementById('tilt-set-neutral');
+    if (tiltNeutralBtn) {
+      tiltNeutralBtn.addEventListener('click', () => {
+        if (tiltRawDeg == null) { toast('No face detected yet — start the camera first.'); return; }
+        tiltNeutralDeg = tiltRawDeg;
+        resetTiltPeaks();
+        saveTiltCalibration();
+        toast('Neutral set at raw pitch ' + tiltDeg(tiltNeutralDeg) + '. Tilt is now measured from here.');
+      });
+    }
+    const tiltDownBtn = document.getElementById('tilt-set-down');
+    if (tiltDownBtn) {
+      tiltDownBtn.addEventListener('click', () => {
+        if (tiltRawDeg == null) { toast('No face detected yet — start the camera first.'); return; }
+        if (tiltNeutralDeg == null) { toast('Set neutral first, then look down and press this.'); return; }
+        const delta = tiltRawDeg - tiltNeutralDeg;
+        if (Math.abs(delta) < 3) {
+          toast('That reads the same as neutral — tilt further down and press again.');
+          return;
+        }
+        tiltDownSign = delta > 0 ? 1 : -1;
+        tiltSignCalibrated = true;
+        resetTiltPeaks();
+        saveTiltCalibration();
+        toast('Down direction locked. That pose reads ' + tiltDeg(Math.abs(delta)) + ' below neutral.');
+      });
+    }
+    const tiltResetBtn = document.getElementById('tilt-reset-peak');
+    if (tiltResetBtn) tiltResetBtn.addEventListener('click', resetTiltPeaks);
+    const tiltTripInput = document.getElementById('tilt-trip');
+    if (tiltTripInput) {
+      tiltTripInput.addEventListener('input', () => {
+        const v = Number(tiltTripInput.value);
+        if (Number.isFinite(v) && v > 0) {
+          tiltTripDeg = v;
+          saveTiltCalibration();
+          renderTiltLab();
+          refreshSilhouetteGuide();
+        }
+      });
+    }
+    loadTiltCalibration();
+    if (tiltTripInput) tiltTripInput.value = String(tiltTripDeg);
+    renderTiltLab();
+
     if (window.ResizeObserver) {
       new ResizeObserver(() => {
         if (camTimer) refreshSilhouetteGuide();
@@ -3213,6 +3969,7 @@ MONITOR_PAGE_TEMPLATE = (
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Theodore Live Monitor - __SESSION_TITLE__</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f172a'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%2367e8f9' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2367e8f9'/%3E%3C/svg%3E" />
   <style>"""
     + MONITOR_CSS
     + """</style>
@@ -3288,6 +4045,35 @@ MONITOR_PAGE_TEMPLATE = (
               title="Which detector is producing the numbers below.">detector: loading face mesh…</span>
       </div>
       <div class="camrow" id="cam-readings"></div>
+      <div class="tilt-lab" id="tilt-lab">
+        <h4>Head tilt lab</h4>
+        <div class="tilt-row">
+          <span class="tilt-chip" id="tilt-down">down —</span>
+          <span class="tilt-chip" id="tilt-raw">raw pitch —</span>
+          <span class="tilt-chip" id="tilt-gaze">gaze_down —</span>
+          <span class="tilt-chip" id="tilt-verdict">no face yet</span>
+        </div>
+        <div class="tilt-row">
+          <span class="tilt-chip" id="tilt-peak">peak down — / up —</span>
+          <button type="button" id="tilt-set-neutral">Set neutral (look at screen)</button>
+          <button type="button" id="tilt-set-down">Set down (look at phone)</button>
+          <button type="button" id="tilt-reset-peak">Reset peaks</button>
+        </div>
+        <div class="tilt-row">
+          <label class="tilt-hint" for="tilt-trip">Trip line</label>
+          <input type="number" id="tilt-trip" min="1" max="80" step="1" value="20">
+          <span class="tilt-hint">degrees below neutral — nothing is enforced yet, this only
+            marks the line on the gauge so you can see which trials would fall past it.</span>
+        </div>
+        <div class="tilt-hint" id="tilt-hint">
+          Start the camera, sit as you normally do and press <strong>Set neutral</strong>.
+          That cancels out a low-mounted laptop, so tilt is measured from where you
+          actually sit rather than from level. Then look at your phone and press
+          <strong>Set down</strong> once to fix which direction is "down". Read degrees
+          off the gauge on the video; <strong>peak</strong> records the furthest tilt of a
+          trial so you can compare a phone glance against a laptop glance.
+        </div>
+      </div>
       <div class="facial-hud" id="facial-hud">
         <div class="facial-card mood-unknown" id="facial-mood-card">
           <div class="lbl">Mood</div>
@@ -3365,7 +4151,7 @@ MONITOR_PAGE_TEMPLATE = (
         <div class="obs-bars">
           <div class="obs-bar-row"><span>Engage</span><div class="obs-track"><div class="obs-fill" id="obs-eng"></div></div></div>
           <div class="obs-bar-row"><span>Flow</span><div class="obs-track"><div class="obs-fill" id="obs-flow"></div></div></div>
-          <div class="obs-bar-row"><span>Confused</span><div class="obs-track"><div class="obs-fill warn" id="obs-conf"></div></div></div>
+          <div class="obs-bar-row" style="display:none" aria-hidden="true"><span>Confused</span><div class="obs-track"><div class="obs-fill warn" id="obs-conf"></div></div></div>
           <div class="obs-bar-row"><span>Bored</span><div class="obs-track"><div class="obs-fill warn" id="obs-bore"></div></div></div>
           <div class="obs-bar-row"><span>Fatigue</span><div class="obs-track"><div class="obs-fill bad" id="obs-fat"></div></div></div>
           <div class="obs-bar-row"><span>Curious</span><div class="obs-track"><div class="obs-fill" id="obs-cur"></div></div></div>

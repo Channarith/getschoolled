@@ -168,6 +168,84 @@ def _scenarios() -> list[tuple[str, list[WebcamSignal]]]:
             "very_close",
             [_signal(face_size_ratio=0.55, luminance_grid=_face_blob())],
         ),
+        (
+            # Hold knobs only flip after several seconds of the same posture.
+            "hands_on_face_hold",
+            [
+                _signal(
+                    timestamp_ms=t,
+                    hands_on_face_score=0.90,
+                    eyes_closed_score=0.0,
+                    yawn_score=0.0,
+                    gaze_down_score=0.0,
+                    typing_activity_score=0.0,
+                    keyboard_typing_audio_score=0.0,
+                    luminance_grid=_face_blob(),
+                )
+                for t in (0, 1_000, 2_000, 3_000, 4_000, 5_000, 6_000)
+            ],
+        ),
+        (
+            # Score sits between 0.0 and the default 0.50 threshold so lowering
+            # hands_on_face_min_threshold is the only way the hold can start.
+            "hands_on_face_threshold",
+            [
+                _signal(
+                    timestamp_ms=t,
+                    hands_on_face_score=0.45,
+                    eyes_closed_score=0.0,
+                    yawn_score=0.0,
+                    gaze_down_score=0.0,
+                    typing_activity_score=0.0,
+                    keyboard_typing_audio_score=0.0,
+                    luminance_grid=_face_blob(),
+                )
+                for t in (0, 1_000, 2_000, 3_000, 4_000, 5_000, 6_000)
+            ],
+        ),
+        (
+            "phone_visible_hold",
+            [
+                _signal(
+                    timestamp_ms=t,
+                    phone_visible=True,
+                    hands_on_face_score=0.0,
+                    eyes_closed_score=0.0,
+                    yawn_score=0.0,
+                    gaze_down_score=0.0,
+                    typing_activity_score=0.0,
+                    keyboard_typing_audio_score=0.0,
+                    luminance_grid=_face_blob(),
+                )
+                for t in (0, 1_000, 2_000, 3_000, 4_000, 5_000, 6_000)
+            ],
+        ),
+        (
+            # A 500ms detector drop sits inside the default grace and outside a
+            # zero grace, so posture_release_grace_ms is the only moving part.
+            "posture_release_grace",
+            [
+                _signal(
+                    timestamp_ms=t,
+                    hands_on_face_score=score,
+                    eyes_closed_score=0.0,
+                    yawn_score=0.0,
+                    gaze_down_score=0.0,
+                    typing_activity_score=0.0,
+                    keyboard_typing_audio_score=0.0,
+                    luminance_grid=_face_blob(),
+                )
+                for t, score in (
+                    (0, 0.9),
+                    (1_000, 0.9),
+                    (2_000, 0.9),
+                    (2_500, 0.0),
+                    (3_000, 0.9),
+                    (4_000, 0.9),
+                    (5_500, 0.9),
+                )
+            ],
+        ),
     ]
 
 
