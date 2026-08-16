@@ -98,7 +98,7 @@ def test_studio_shows_certification_panel_beside_kids():
     assert page.status_code == 200
     assert "Make a children's lesson" in page.text
     assert "Certification prep" in page.text
-    assert "picture + motion" in page.text
+    assert "examples, quiz, and a game" in page.text or "picture + motion" in page.text
     assert "Watch video" in page.text
     assert "Come back later" in page.text
     assert "driver_education" in page.text

@@ -27,6 +27,12 @@ STUDIO_CSS = """
   .pill.good { background:#1d4d35; border-color:#3d9a74; }
   .pill.bad { background:#4d1d1d; border-color:#9a3d3d; }
   .pill.moderate { background:#4d3d1d; border-color:#9a7d3d; }
+  .pill.ready { background:#1d4d35; border-color:#3d9a74; }
+  .modality-row { display:none; flex-wrap:wrap; gap:6px; margin:8px 0; }
+  .examples-box { display:none; margin-top:10px; padding:10px 12px; border-radius:10px;
+                  background:#13241c; border:1px solid #3a5548; font-size:14px; line-height:1.4; }
+  .examples-box ol { margin:6px 0 0 1.1rem; padding:0; }
+  .examples-box li { margin:4px 0; color:#d7e6dc; }
   .list { max-height:280px; overflow:auto; font-size:13px; }
   .item { padding:8px; border-bottom:1px solid #24362d; cursor:pointer; }
   .item:hover, .item.active { background:#21362c; }
@@ -351,6 +357,13 @@ STUDIO_JS = """
         confusion: +$('pf-confusion').value,
         pace_preference: +$('pf-pace').value,
         accessibility_need: +$('pf-access').value,
+        learn_from_images: +$('pf-img').value,
+        learn_from_text: +$('pf-text').value,
+        learn_from_video: +$('pf-video').value,
+        learn_from_examples: +$('pf-examples').value,
+        learn_from_quiz: +$('pf-quiz').value,
+        learn_from_games: +$('pf-games').value,
+        learn_from_activity: +$('pf-activity').value,
       };
     }
 
@@ -401,6 +414,8 @@ STUDIO_JS = """
     async function askTheodore() {
       const msg = $('voice-ask').value.trim();
       if (!msg) return toast('Type a question for Theodore');
+      if (!teachSession) return toast('Start a lesson first');
+      stopSpeech();
       const data = await api('/api/studio/teach/voice/respond', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession, message: msg })
@@ -408,6 +423,7 @@ STUDIO_JS = """
       const voice = data.voice || {};
       $('teach-narr').textContent = 'Theodore (' + (voice.provider || 'voice') + '): ' + (voice.message || '');
       speakText(voice.message || '', data.tts);
+      $('voice-ask').value = '';
       toast(voice.fallback_used ? 'Local fallback reply' : 'xAI voice reply');
     }
 
@@ -554,6 +570,38 @@ STUDIO_JS = """
       $('btn-video').disabled = !motion;
       $('teach-activity').textContent = payload.activity_prompt || '';
       $('teach-activity').style.display = payload.activity_prompt ? 'block' : 'none';
+      const examples = payload.examples || [];
+      const exBox = $('teach-examples');
+      if (examples.length) {
+        exBox.style.display = 'block';
+        exBox.innerHTML = '<strong>Examples</strong><ol>' +
+          examples.map((e) => `<li>${esc(e)}</li>`).join('') + '</ol>';
+      } else {
+        exBox.style.display = 'none';
+        exBox.innerHTML = '';
+      }
+      const kit = payload.learning_kit || {};
+      const mods = kit.preferred || payload.modalities || [];
+      const modBox = $('teach-modalities');
+      if (mods.length) {
+        modBox.style.display = 'flex';
+        modBox.innerHTML = mods.map((m) => {
+          const ready =
+            (m === 'image' && kit.has_picture) ||
+            (m === 'video' && kit.has_video) ||
+            (m === 'examples' && kit.has_examples) ||
+            (m === 'quiz' && kit.has_quiz) ||
+            (m === 'game' && kit.has_game) ||
+            (m === 'activity' && kit.has_activity) ||
+            (m === 'text');
+          return `<span class="pill ${ready ? 'ready' : ''}">${esc(m)}</span>`;
+        }).join('');
+      } else {
+        modBox.style.display = 'none';
+        modBox.innerHTML = '';
+      }
+      $('btn-pop').disabled = !teachSession;
+      $('btn-game').disabled = !teachSession;
       const provider = (payload.voice && payload.voice.provider) || 'slide';
       $('teach-narr').textContent = 'Theodore (' + provider + '): ' + (turn.narration || '');
       const adapt = (turn.adaptations_applied || []).join(', ') || 'no adaptations';
@@ -625,6 +673,12 @@ STUDIO_JS = """
     $('btn-summary').onclick = () => summaryQuiz().catch((e) => toast(String(e.message || e)));
     $('btn-game').onclick = () => playGame().catch((e) => toast(String(e.message || e)));
     $('btn-ask').onclick = () => askTheodore().catch((e) => toast(String(e.message || e)));
+    $('voice-ask').addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        askTheodore().catch((e) => toast(String(e.message || e)));
+      }
+    });
     $('btn-read').onclick = readCurrentAloud;
     $('btn-video').onclick = watchCurrentVideo;
 
@@ -690,9 +744,10 @@ def render_studio_page() -> str:
 
       <div class="cert-builder">
         <h2>Certification prep</h2>
-        <p>Short 15–20 min blocks · each page has a picture + motion video ·
-           CA / Alameda jurisdiction · study aid only (not DMV-approved or county-accredited).
-           Make &amp; teach plays narration per page; use Watch video for the animation.</p>
+        <p>Short 15–20 min blocks · every segment has text, picture, motion video,
+           examples, quiz, and a game · tune learning preferences below ·
+           CA / Alameda study aid only (not DMV-approved or county-accredited).
+           Make &amp; teach plays narration per page; Ask Theodore anytime.</p>
         <div class="row">
           <label>Track <select id="cert-track"></select></label>
           <label>Lesson <select id="cert-lesson" style="max-width:26rem"></select></label>
@@ -732,6 +787,8 @@ def render_studio_page() -> str:
           <img id="teach-motion" hidden alt="" />
         </div>
         <div class="body" id="teach-body">Build or select a course, then Start teach.</div>
+        <div class="modality-row" id="teach-modalities"></div>
+        <div class="examples-box" id="teach-examples"></div>
         <div class="lang-warning" id="lang-warning" style="display:none"></div>
         <div class="activity" id="teach-activity" style="display:none"></div>
         <div class="narr" id="teach-narr"></div>
@@ -762,6 +819,8 @@ def render_studio_page() -> str:
         <button id="btn-ask" class="secondary" type="button">Ask Theodore</button>
       </div>
       <h2>Learner profile scoring</h2>
+      <p class="status">Every cert segment includes text, image, video, examples, quiz, and game.
+         Raise the styles you prefer — Theodore nudges those paths first.</p>
       <div class="row">
         <label>engage <input id="pf-engagement" type="number" min="0" max="1" step="0.05" value="0.7" style="width:4rem"/></label>
         <label>literacy <input id="pf-literacy" type="number" min="0" max="1" step="0.05" value="0.6" style="width:4rem"/></label>
@@ -770,6 +829,15 @@ def render_studio_page() -> str:
         <label>confusion <input id="pf-confusion" type="number" min="0" max="1" step="0.05" value="0.2" style="width:4rem"/></label>
         <label>pace <input id="pf-pace" type="number" min="0" max="1" step="0.05" value="0.5" style="width:4rem"/></label>
         <label>access <input id="pf-access" type="number" min="0" max="1" step="0.05" value="0.3" style="width:4rem"/></label>
+      </div>
+      <div class="row">
+        <label>images <input id="pf-img" type="number" min="0" max="1" step="0.05" value="0.7" style="width:4rem"/></label>
+        <label>text <input id="pf-text" type="number" min="0" max="1" step="0.05" value="0.7" style="width:4rem"/></label>
+        <label>video <input id="pf-video" type="number" min="0" max="1" step="0.05" value="0.7" style="width:4rem"/></label>
+        <label>examples <input id="pf-examples" type="number" min="0" max="1" step="0.05" value="0.75" style="width:4rem"/></label>
+        <label>quiz <input id="pf-quiz" type="number" min="0" max="1" step="0.05" value="0.55" style="width:4rem"/></label>
+        <label>games <input id="pf-games" type="number" min="0" max="1" step="0.05" value="0.55" style="width:4rem"/></label>
+        <label>activity <input id="pf-activity" type="number" min="0" max="1" step="0.05" value="0.5" style="width:4rem"/></label>
         <button id="btn-profile" class="secondary" type="button">Apply profile</button>
       </div>
     </div>

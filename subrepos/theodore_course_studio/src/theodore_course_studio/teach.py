@@ -15,6 +15,7 @@ from .assessment import (
     build_summary_quiz,
     grade_quiz,
 )
+from .cert_multimodal import preferred_modalities
 from .checkpoints import (
     DEFAULT_SOFT_LIMIT_MINUTES,
     DEFAULT_SOFT_LIMIT_SLIDES,
@@ -552,6 +553,20 @@ class TeachEngine:
             "objective": objective.model_dump(mode="json"),
             "media": media,
             "activity_prompt": slide.activity_prompt,
+            "examples": list(slide.examples or []),
+            "modalities": list(slide.modalities or []),
+            "learning_kit": {
+                "modalities": list(slide.modalities or []),
+                "preferred": preferred_modalities(session.profile.model_dump()),
+                "has_picture": bool(slide.picture_url),
+                "has_video": bool(slide.video_url),
+                "has_examples": bool(slide.examples),
+                "has_quiz": bool(slide.quiz_spec),
+                "has_game": bool(slide.game_spec),
+                "has_activity": bool(slide.activity_prompt),
+                "quiz_ready": bool(slide.quiz_spec),
+                "game_ready": bool(slide.game_spec),
+            },
             "animation": {
                 "enter": "fade-up",
                 "emphasis": "highlight-title",
