@@ -222,7 +222,15 @@ def pick_game_for_slide(
     objective_id: str = "",
     rotate_index: int = 0,
 ) -> GameChallenge:
-    """Cycle match_term → order_steps → spot_gap based on `rotate_index`."""
+    """Prefer curated cert game specs; else cycle match/order/spot_gap."""
+    try:
+        from .cert_multimodal import game_from_slide
+
+        curated = game_from_slide(slide, objective_id=objective_id)
+        if curated is not None:
+            return curated
+    except Exception:
+        pass
     kind = _GAME_ROTATION[int(rotate_index) % len(_GAME_ROTATION)]
     if kind is GameKind.ORDER_STEPS:
         return build_order_steps_game(slide, objective_id)

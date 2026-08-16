@@ -77,6 +77,10 @@ class CourseSlide(BaseModel):
     video_url: str = ""
     video_caption: str = ""
     activity_prompt: str = ""
+    examples: list[str] = Field(default_factory=list)
+    modalities: list[str] = Field(default_factory=list)
+    quiz_spec: dict[str, Any] = Field(default_factory=dict)
+    game_spec: dict[str, Any] = Field(default_factory=dict)
     source_page: int | None = None
     keep: bool = True
     tags: list[str] = Field(default_factory=list)
@@ -107,6 +111,14 @@ class LearnerProfileScores(BaseModel):
     confusion: float = Field(default=0.2, ge=0.0, le=1.0)
     pace_preference: float = Field(default=0.5, ge=0.0, le=1.0)  # 0 slow .. 1 fast
     accessibility_need: float = Field(default=0.3, ge=0.0, le=1.0)
+    # How the learner prefers to take in each segment (all available; ranking guides UI).
+    learn_from_images: float = Field(default=0.7, ge=0.0, le=1.0)
+    learn_from_text: float = Field(default=0.7, ge=0.0, le=1.0)
+    learn_from_video: float = Field(default=0.7, ge=0.0, le=1.0)
+    learn_from_examples: float = Field(default=0.75, ge=0.0, le=1.0)
+    learn_from_quiz: float = Field(default=0.55, ge=0.0, le=1.0)
+    learn_from_games: float = Field(default=0.55, ge=0.0, le=1.0)
+    learn_from_activity: float = Field(default=0.5, ge=0.0, le=1.0)
 
 
 class TeachTurn(BaseModel):

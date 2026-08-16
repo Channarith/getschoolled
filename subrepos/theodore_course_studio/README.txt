@@ -113,10 +113,13 @@ Step 5 — (optional) adult corpus / certification path
 
   Collapse "Advanced: build from adult Good/Better source files" for PDF/PPTX
   training, or use the Certification prep panel for CA DMV / food-handler
-  short lessons. Every cert page ships an offline SVG picture and an animated
-  motion/"Watch video" clip (same pattern as early learning), with Theodore
-  reading each page aloud as you advance. Full copy/paste for that path is
-  under SETUP & RUN below.
+  short lessons. Every cert segment ships a full multimodal kit: offline SVG
+  picture, animated motion/"Watch video" clip, friendly examples, curated
+  multiple-choice quiz, and a short game, plus read-aloud narration. Tune
+  learner profile preferences (images / text / video / examples / quiz / games)
+  so Theodore nudges the paths that fit how the person learns. Ask Theodore
+  anytime — it interrupts speech and answers from the current page. Full
+  copy/paste for that path is under SETUP & RUN below.
 
 SETUP & RUN (copy/paste — full / adult corpus)
 ----------------------------------------------
