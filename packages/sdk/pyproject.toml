@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aoep-sdk"
-version = "0.46.57"
+version = "0.46.58"
 description = "Python SDK for building applications on the Salareen Agentic Online Education Platform."
 license = { text = "LicenseRef-AOEP-Proprietary" }
 requires-python = ">=3.11"

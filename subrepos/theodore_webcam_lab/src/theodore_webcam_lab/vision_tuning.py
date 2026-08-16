@@ -92,6 +92,20 @@ class VisionTuning:
     # otherwise the hold above could never be reached in practice.
     posture_release_grace_ms: float = 1_200.0
 
+    # --- Trajectory attention (face/hand history) ----------------------------
+    excitement_min_threshold: float = 0.42
+    interest_min_threshold: float = 0.45
+    dozing_min_threshold: float = 0.48
+    interest_min_hold_ms: float = 1_500.0
+    dozing_min_hold_ms: float = 2_500.0
+    excitement_attention_boost: float = 0.12
+    interest_attention_boost: float = 0.18
+    # Outside music + held object — record-only holds (no cheating).
+    external_music_min_threshold: float = 0.45
+    external_music_min_hold_ms: float = 2_500.0
+    held_object_min_threshold: float = 0.45
+    held_object_min_hold_ms: float = 2_500.0
+
     # --- Image detection quality scoring -------------------------------------
     image_detection_confidence_weight: float = 0.60
     image_liveness_weight: float = 0.40
@@ -149,6 +163,13 @@ class VisionTuning:
             "distraction_min_threshold",
             "typing_activity_min_threshold",
             "keyboard_typing_audio_min_threshold",
+            "excitement_min_threshold",
+            "interest_min_threshold",
+            "dozing_min_threshold",
+            "excitement_attention_boost",
+            "interest_attention_boost",
+            "external_music_min_threshold",
+            "held_object_min_threshold",
             "image_detection_confidence_weight",
             "image_liveness_weight",
             "image_no_face_penalty",
@@ -198,6 +219,10 @@ class VisionTuning:
             "hands_on_face_min_hold_ms",
             "phone_visible_min_hold_ms",
             "posture_release_grace_ms",
+            "interest_min_hold_ms",
+            "dozing_min_hold_ms",
+            "external_music_min_hold_ms",
+            "held_object_min_hold_ms",
         ):
             if float(getattr(self, name)) < 0.0:
                 raise ValueError(f"{name} must be >= 0")

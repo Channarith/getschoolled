@@ -35,7 +35,7 @@ python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" \
 python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 ```
 
-You should see `189 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
+You should see `204 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
 did not run in the Python you are using. On macOS, bare `python3` is often
 Homebrew 3.14 with no packages — activate `.venv` first (selfcheck does this
 automatically when the venv exists).
@@ -129,6 +129,25 @@ The gauge on the right of the video shows degrees below neutral, an indigo
 line** you can move with the number input, and an amber caret at the peak of the
 current trial. Nothing here is enforced — `phone_stare` and `screen_match` are
 readings, not gates, and `phone_visible` / cheating logic is untouched.
+
+### Trajectory attention + record-only music / held objects
+
+Face and hand landmark history (~2.5 s) feed three soft scores that *do* affect
+attention and behaviour labels:
+
+- **excitement** — short burst of face-local + hand energy that settles (soft
+  attention boost; observatory curiosity).
+- **interest** — sustained lean / frontal gaze with moderate brow activity and
+  low global fidget (soft attention boost; observatory engagement).
+- **dozing** — head-sag drift + low face motion; held dozing can label `drowsy`
+  before full eyes-closed.
+
+Separately, **outside music** (`external_music_score`) and **held object /
+phone-in-hand** scores are **record-only**: integrity HUD chips + live metrics,
+no toast, no spoken coaching, and they do **not** inflate distraction or
+`suspected_cheating`. Ringtone detection stays the narrow stationary-tone path;
+broadband / high-flux audio is music, not a ring. The existing 5 s
+`phone_visible` cheating path is unchanged.
 
 Pitch itself is a ratio of the face's own spans (how much of hairline-to-chin
 sits above the eye line), so sitting closer cannot masquerade as tilt, and
