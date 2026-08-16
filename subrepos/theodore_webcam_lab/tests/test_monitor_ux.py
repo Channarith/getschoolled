@@ -566,7 +566,7 @@ def test_tilt_is_measured_from_a_calibrated_neutral_not_from_level():
     subtract a per-seat neutral before it can separate "looking at the laptop
     webcam" from "looking at a phone".
     """
-    update = MONITOR_JS.split("function updateTiltLab(facial)")[1].split("\n    }")[0]
+    update = MONITOR_JS.split("function updateTiltLab(facial, distanceM)")[1].split("\n    }")[0]
     assert "(tiltRawDeg - tiltNeutralDeg) * tiltDownSign" in update
     # Peaks track the calibrated value, which is what a trial is read off.
     assert "tiltPeakDown" in update and "tiltPeakUp" in update
@@ -575,6 +575,78 @@ def test_tilt_is_measured_from_a_calibrated_neutral_not_from_level():
     # do not agree on the sign of head_pose_pitch.
     assert "tiltSignCalibrated" in MONITOR_JS
     assert "tiltDownSign = delta > 0 ? 1 : -1" in MONITOR_JS
+
+
+def test_the_gauge_self_starts_instead_of_waiting_for_a_button():
+    """An uncalibrated gauge drew nothing but the trip line.
+
+    That reads as a needle frozen at the trip degree, so the neutral is seeded
+    from the first steady second of tracking and Set neutral only overrides it.
+    """
+    update = MONITOR_JS.split("function updateTiltLab(facial, distanceM)")[1].split("\n    }")[0]
+    assert "if (tiltNeutralDeg == null)" in update
+    assert "tiltNeutralSamples.length >= TILT_AUTO_NEUTRAL_FRAMES" in update
+    assert "tiltNeutralAuto = true" in update
+    # Pressing Set neutral has to clear the auto flag, otherwise the label lies.
+    assert "tiltNeutralAuto = false" in MONITOR_JS
+    # An auto neutral is per-seat, so it must not be persisted as a calibration.
+    save = MONITOR_JS.split("function saveTiltCalibration()")[1].split("\n    }")[0]
+    assert "tiltNeutralAuto ? null : tiltNeutralDeg" in save
+
+
+def test_head_pitch_is_not_face_height_in_frame():
+    """Pitch used to be ((chin.y - forehead.y) - 0.32) * 140.
+
+    That is face height, i.e. how close the learner sits: it pinned raw pitch at
+    a constant while the head nodded, and it never moved the gauge.
+    """
+    assert "((chin.y - forehead.y) - 0.32) * 140" not in MONITOR_JS
+    pose = MONITOR_JS.split("function headPoseFromLandmarks(pts, aspect)")[1].split("\n    }")[0]
+    assert "facePitchFromLandmarks(pts, aspect)" in pose
+
+    # The proxy is a ratio of two spans of the same face, so it cannot move when
+    # only the distance changes.
+    pitch = MONITOR_JS.split("function facePitchFromLandmarks(pts, aspect)")[1].split("\n    }")[0]
+    assert "geometricPitchDeg(upper, lower)" in pitch
+    # Projected onto the face's own vertical axis, so head roll does not leak in.
+    assert "along(chin)" in pitch and "along(forehead)" in pitch
+
+
+def test_looking_down_is_scored_from_the_stare_residual():
+    """A learner staring straight at the monitor scored 0.55 "looking down".
+
+    The nose sits below the eye line and eyeLookDown rests around 0.2-0.3 for
+    everyone seated, so both cues had to stop being absolute.
+    """
+    assert "(nose.y - midY) * 5.5" not in MONITOR_JS
+    assert "lookDown * 1.35" not in MONITOR_JS
+    mesh = MONITOR_JS.split("const lookDown = ((bs.eyeLookDownLeft")[1].split("const lids_down")[0]
+    assert "clamp01((lookDown - lookUp - 0.25) / 0.5)" in mesh
+
+    sample = MONITOR_JS.split("async function sampleFrame()")[1].split("const signal = {")[0]
+    assert "if (stareGazeDown != null)" in sample
+    assert "Math.max(stareGazeDown, facial.gaze_down_score || 0)" in sample
+
+
+def test_down_direction_is_learned_from_the_signed_geometric_pitch():
+    """Otherwise the operator has to press Set down before the gauge means anything."""
+    learn = MONITOR_JS.split("function learnTiltSign(rawPitch, geomPitch)")[1].split("\n    }")[0]
+    assert "tiltDownSign = cov > 0 ? 1 : -1" in learn
+    # Only once the head has actually moved: a still head correlates noise.
+    assert "TILT_SIGN_MIN_SPREAD_DEG" in learn
+
+
+def test_stare_lab_reports_the_geometry_it_uses():
+    page = client.get("/theodore/webcam/live-monitor/demo-session").text
+    assert "Stare geometry lab" in page
+    for chip in ("stare-distance", "stare-expected", "stare-residual", "stare-scores"):
+        assert chip in page, f"stare chip {chip} missing from the page"
+    # Layout is editable, because y_screen is what makes residual zero on-screen.
+    assert "stare-layout" in page and "stare-yscreen" in page
+
+    # The expected angle is drawn on the gauge, not just printed as a number.
+    gauge = MONITOR_JS.split("function drawTiltGauge()")[1].split("\n    }\n")[0]
+    assert "stareExpectedDeg" in gauge
 
 
 def test_tilt_peak_reset_also_clears_the_smoothing_window():
@@ -600,7 +672,7 @@ def test_tilt_gauge_is_drawn_after_the_overlay_is_cleared():
 
 def test_tilt_lab_ignores_synthetic_camera_modes():
     """Test pattern and silhouette have no real head, so they must not log tilt."""
-    assert "updateTiltLab(usingPattern || usingSilhouette ? null : facial)" in MONITOR_JS
+    assert "updateTiltLab(usingPattern || usingSilhouette ? null : facial," in MONITOR_JS
 
 
 def test_tilt_calibration_survives_a_reload():

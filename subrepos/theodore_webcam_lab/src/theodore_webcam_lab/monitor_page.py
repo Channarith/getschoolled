@@ -1460,15 +1460,38 @@ MONITOR_JS = (
     const silToggle = document.getElementById('cam-sil-toggle');
     const silToggleLabel = document.getElementById('cam-sil-toggle-label');
 
-    // --- Head tilt lab -------------------------------------------------------
+    // --- Stare geometry lab --------------------------------------------------
     // Looking at a phone and looking at a low-mounted laptop webcam both pitch the
     // head down, so an absolute angle cannot separate them. What does separate them
-    // is tilt measured FROM WHERE THE LEARNER ACTUALLY SITS, which is what the
-    // neutral calibration captures. The sign of head_pose_pitch differs between the
-    // matrix and landmark pose paths, so the "down" direction is learned rather than
-    // assumed - the assumed default just keeps the gauge usable before calibration.
+    // is tilt measured FROM WHERE THE LEARNER ACTUALLY SITS (the neutral
+    // calibration) compared against the angle THIS screen needs from THIS distance:
+    // theta_screen = atan(y_screen / D). The leftover is the residual, and a
+    // residual near zero means the learner is on the lesson band.
+    //
+    // These formulas are duplicated from stare_geometry.py because the lab needs
+    // them before the round trip; tests/test_stare_geometry.py parses this JS and
+    // asserts the two sides produce the same numbers.
     const TILT_STORE_KEY = 'twl.tilt.calibration.v1';
     const TILT_SMOOTH_FRAMES = 3;
+    const STARE_MIN_DISTANCE_M = 0.25;
+    const STARE_RESIDUAL_SOFT_DEG = 12;
+    const STARE_PHONE_RESIDUAL_DEG = 14;
+    const STARE_RESIDUAL_SPAN_DEG = 16;
+    const STARE_GAZE_DOWN_DEADBAND_DEG = 6;
+    const STARE_GAZE_DOWN_SPAN_DEG = 30;
+    const STARE_LAYOUTS = {
+      laptop_14: { label: '14" laptop', yScreen: 0.14 },
+      laptop_16: { label: '16" laptop', yScreen: 0.18 },
+      external_monitor_webcam_top: { label: 'Monitor, webcam on top', yScreen: 0.24 },
+    };
+    // Enough frames to average out landmark jitter, few enough that the gauge is
+    // live about a second after the face appears.
+    const TILT_AUTO_NEUTRAL_FRAMES = 12;
+    // Sign learning: the matrix and landmark pose paths disagree on which way
+    // head_pose_pitch runs, so correlate it against the geometric proxy (whose
+    // sign is fixed by construction) instead of asking the operator.
+    const TILT_SIGN_WINDOW = 40;
+    const TILT_SIGN_MIN_SPREAD_DEG = 4;
     let tiltNeutralDeg = null;
     let tiltDownSign = -1;
     let tiltSignCalibrated = false;
@@ -1477,6 +1500,15 @@ MONITOR_JS = (
     let tiltPeakDown = null, tiltPeakUp = null;
     let tiltRawHistory = [];
     let tiltGazeDown = null;
+    let tiltNeutralAuto = false;
+    let tiltNeutralSamples = [];
+    let tiltPoseSource = null;
+    let stareLayoutKey = 'laptop_16';
+    let stareYScreenM = STARE_LAYOUTS.laptop_16.yScreen;
+    let stareDistanceM = null;
+    let stareExpectedDeg = null, stareResidualDeg = null;
+    let stareMatch = null, starePhone = null, stareGazeDown = null;
+    let tiltSignPitchSamples = [], tiltSignGeomSamples = [];
 
     function loadTiltCalibration() {
       try {
@@ -1488,14 +1520,18 @@ MONITOR_JS = (
           tiltSignCalibrated = !!stored.signCalibrated;
         }
         if (Number.isFinite(stored.trip)) tiltTripDeg = stored.trip;
+        if (STARE_LAYOUTS[stored.layout]) stareLayoutKey = stored.layout;
+        stareYScreenM = Number.isFinite(stored.yScreen)
+          ? stored.yScreen : STARE_LAYOUTS[stareLayoutKey].yScreen;
       } catch (_) { /* private mode / disabled storage */ }
     }
 
     function saveTiltCalibration() {
       try {
         localStorage.setItem(TILT_STORE_KEY, JSON.stringify({
-          neutral: tiltNeutralDeg, sign: tiltDownSign,
+          neutral: tiltNeutralAuto ? null : tiltNeutralDeg, sign: tiltDownSign,
           signCalibrated: tiltSignCalibrated, trip: tiltTripDeg,
+          layout: stareLayoutKey, yScreen: stareYScreenM,
         }));
       } catch (_) { /* non-fatal */ }
     }
@@ -1509,19 +1545,92 @@ MONITOR_JS = (
       renderTiltLab();
     }
 
-    function updateTiltLab(facial) {
+    function expectedScreenPitchDeg(distanceM) {
+      if (distanceM == null || !Number.isFinite(distanceM) || distanceM <= 0) return null;
+      const d = Math.max(distanceM, STARE_MIN_DISTANCE_M);
+      return Math.atan(stareYScreenM / d) * (180 / Math.PI);
+    }
+
+    function screenMatchScore(residual) {
+      if (residual == null) return null;
+      return clamp01(1 - Math.abs(residual) / STARE_RESIDUAL_SOFT_DEG);
+    }
+
+    function phoneStareScore(residual) {
+      if (residual == null) return null;
+      return clamp01((residual - STARE_PHONE_RESIDUAL_DEG) / STARE_RESIDUAL_SPAN_DEG);
+    }
+
+    function gazeDownFromResidual(residual) {
+      if (residual == null) return null;
+      return clamp01((residual - STARE_GAZE_DOWN_DEADBAND_DEG) / STARE_GAZE_DOWN_SPAN_DEG);
+    }
+
+    // Which way does head_pose_pitch grow when the head goes down? Compare its
+    // spread against the geometric proxy over a rolling window; they move
+    // together (+1) or opposite (-1). Falls back to the assumed sign until the
+    // learner has actually moved enough for the answer to mean anything.
+    function learnTiltSign(rawPitch, geomPitch) {
+      if (tiltSignCalibrated || geomPitch == null || rawPitch == null) return;
+      tiltSignPitchSamples.push(rawPitch);
+      tiltSignGeomSamples.push(geomPitch);
+      if (tiltSignPitchSamples.length > TILT_SIGN_WINDOW) {
+        tiltSignPitchSamples.shift();
+        tiltSignGeomSamples.shift();
+      }
+      if (tiltSignPitchSamples.length < TILT_SIGN_WINDOW) return;
+      const spread = (arr) => Math.max(...arr) - Math.min(...arr);
+      if (spread(tiltSignGeomSamples) < TILT_SIGN_MIN_SPREAD_DEG) return;
+      if (spread(tiltSignPitchSamples) < TILT_SIGN_MIN_SPREAD_DEG) return;
+      const mean = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+      const mp = mean(tiltSignPitchSamples), mg = mean(tiltSignGeomSamples);
+      let cov = 0;
+      for (let i = 0; i < tiltSignPitchSamples.length; i++) {
+        cov += (tiltSignPitchSamples[i] - mp) * (tiltSignGeomSamples[i] - mg);
+      }
+      if (cov === 0) return;
+      tiltDownSign = cov > 0 ? 1 : -1;
+      tiltSignCalibrated = true;
+      saveTiltCalibration();
+    }
+
+    function updateTiltLab(facial, distanceM) {
       const raw = facial ? facial.head_pose_pitch : null;
+      const geom = facial ? facial.head_pitch_geom_deg : null;
+      const poseSource = facial ? (facial.pose_source || null) : null;
       if (raw == null || !Number.isFinite(Number(raw))) {
         tiltRawDeg = null;
         tiltDownDeg = null;
         tiltRawHistory = [];
+        stareExpectedDeg = null; stareResidualDeg = null;
+        stareMatch = null; starePhone = null; stareGazeDown = null;
         renderTiltLab();
         return;
       }
+      // A neutral learned against one pose source means nothing to the other.
+      if (tiltPoseSource && poseSource && poseSource !== tiltPoseSource && tiltNeutralAuto) {
+        tiltNeutralDeg = null;
+        tiltNeutralSamples = [];
+      }
+      if (poseSource) tiltPoseSource = poseSource;
       tiltRawHistory.push(Number(raw));
       if (tiltRawHistory.length > TILT_SMOOTH_FRAMES) tiltRawHistory.shift();
       tiltRawDeg = tiltRawHistory.reduce((a, b) => a + b, 0) / tiltRawHistory.length;
       tiltGazeDown = (facial.gaze_down_score != null) ? Number(facial.gaze_down_score) : null;
+      if (Number.isFinite(Number(geom))) learnTiltSign(tiltRawDeg, Number(geom));
+      // Auto-neutral: the gauge used to sit blank until someone pressed Set
+      // neutral, so the only mark on it was the trip line and it read as a needle
+      // frozen at 20 degrees. Seed a neutral from the first steady second of
+      // tracking instead; Set neutral still overrides it.
+      if (tiltNeutralDeg == null) {
+        tiltNeutralSamples.push(tiltRawDeg);
+        if (tiltNeutralSamples.length >= TILT_AUTO_NEUTRAL_FRAMES) {
+          const sorted = tiltNeutralSamples.slice().sort((a, b) => a - b);
+          tiltNeutralDeg = sorted[Math.floor(sorted.length / 2)];
+          tiltNeutralAuto = true;
+          tiltNeutralSamples = [];
+        }
+      }
       if (tiltNeutralDeg != null) {
         tiltDownDeg = (tiltRawDeg - tiltNeutralDeg) * tiltDownSign;
         if (tiltPeakDown == null || tiltDownDeg > tiltPeakDown) tiltPeakDown = tiltDownDeg;
@@ -1529,7 +1638,21 @@ MONITOR_JS = (
       } else {
         tiltDownDeg = null;
       }
+      if (distanceM != null && Number.isFinite(Number(distanceM))) stareDistanceM = Number(distanceM);
+      recomputeStare();
+    }
+
+    // Also called when the layout controls change, so editing y_screen updates
+    // the residual and the overlay marker without waiting for the next frame.
+    function recomputeStare() {
+      stareExpectedDeg = expectedScreenPitchDeg(stareDistanceM);
+      stareResidualDeg = (tiltDownDeg != null && stareExpectedDeg != null)
+        ? tiltDownDeg - stareExpectedDeg : null;
+      stareMatch = screenMatchScore(stareResidualDeg);
+      starePhone = phoneStareScore(stareResidualDeg);
+      stareGazeDown = gazeDownFromResidual(stareResidualDeg);
       renderTiltLab();
+      if (camTimer) refreshSilhouetteGuide();
     }
 
     function tiltDeg(value, digits) {
@@ -1547,21 +1670,31 @@ MONITOR_JS = (
       };
       const suffix = tiltSignCalibrated ? '' : ' (direction assumed)';
       set('tilt-down', tiltDownDeg == null
-        ? (tiltRawDeg == null ? 'down —' : 'down — press Set neutral')
+        ? (tiltRawDeg == null ? 'down —' : 'down — calibrating')
         : 'down ' + tiltDeg(tiltDownDeg) + suffix);
       set('tilt-raw', 'raw pitch ' + tiltDeg(tiltRawDeg)
-        + (tiltNeutralDeg != null ? ' · neutral ' + tiltDeg(tiltNeutralDeg) : ''));
+        + (tiltNeutralDeg != null
+          ? ' · neutral ' + tiltDeg(tiltNeutralDeg) + (tiltNeutralAuto ? ' (auto)' : '')
+          : ''));
       set('tilt-gaze', 'gaze_down ' + (tiltGazeDown == null ? '—' : tiltGazeDown.toFixed(2)));
       set('tilt-peak', 'peak down ' + tiltDeg(tiltPeakDown) + ' / up ' + tiltDeg(tiltPeakUp));
+      set('stare-distance', 'D ' + (stareDistanceM == null ? '—' : stareDistanceM.toFixed(2) + ' m'));
+      set('stare-expected', 'θ_screen ' + tiltDeg(stareExpectedDeg)
+        + ' · y ' + stareYScreenM.toFixed(2) + ' m');
+      set('stare-residual', 'residual ' + tiltDeg(stareResidualDeg));
+      set('stare-scores', 'match ' + (stareMatch == null ? '—' : stareMatch.toFixed(2))
+        + ' · phone-stare ' + (starePhone == null ? '—' : starePhone.toFixed(2)));
 
       if (tiltDownDeg == null) {
-        set('tilt-verdict', tiltRawDeg == null ? 'no face yet' : 'not calibrated');
-      } else if (tiltDownDeg >= tiltTripDeg) {
-        set('tilt-verdict', 'past trip line (' + tiltTripDeg + '°)', 'hot');
-      } else if (tiltDownDeg >= tiltTripDeg * 0.7) {
-        set('tilt-verdict', 'approaching ' + tiltTripDeg + '°', 'warm');
+        set('tilt-verdict', tiltRawDeg == null ? 'no face yet' : 'learning neutral…');
+      } else if (stareResidualDeg == null) {
+        set('tilt-verdict', 'no distance yet — start the camera');
+      } else if (starePhone > 0) {
+        set('tilt-verdict', 'staring below the screen', 'hot');
+      } else if (stareResidualDeg >= STARE_RESIDUAL_SOFT_DEG) {
+        set('tilt-verdict', 'past the lesson band', 'warm');
       } else {
-        set('tilt-verdict', 'below trip line', 'cool');
+        set('tilt-verdict', 'on the lesson band', 'cool');
       }
     }
 
@@ -1620,6 +1753,29 @@ MONITOR_JS = (
       ctx.lineTo(cx + barW * 3.4, tripY);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      // Where the lesson band actually sits for this seat: atan(y_screen / D).
+      // The needle resting on this line is "watching the lesson"; well below it
+      // is a stare the screen does not explain.
+      if (stareExpectedDeg != null) {
+        const ey = yFor(stareExpectedDeg);
+        ctx.strokeStyle = 'rgba(129, 140, 248, 0.95)';
+        ctx.lineWidth = Math.max(1.5, w * 0.0024);
+        ctx.beginPath();
+        ctx.moveTo(cx - barW * 3.4, ey);
+        ctx.lineTo(cx + barW * 3.4, ey);
+        ctx.stroke();
+        const bandDeg = Math.min(STARE_RESIDUAL_SOFT_DEG, maxDeg - stareExpectedDeg);
+        if (bandDeg > 0) {
+          ctx.fillStyle = 'rgba(129, 140, 248, 0.20)';
+          ctx.fillRect(cx - barW * 3.4, yFor(stareExpectedDeg - bandDeg),
+            barW * 6.8, yFor(stareExpectedDeg + bandDeg) - yFor(stareExpectedDeg - bandDeg));
+        }
+        ctx.font = `${Math.max(8, Math.round(tickPx * 0.8))}px Arial, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#c7d2fe';
+        ctx.fillText('screen', cx + barW * 4, ey);
+      }
 
       // Furthest tilt of the current trial.
       if (tiltPeakDown != null) {
@@ -2893,13 +3049,53 @@ MONITOR_JS = (
       };
     }
 
-    function headPoseFromLandmarks(pts) {
+    // Scale-invariant pitch proxy — mirrored by stare_geometry.geometric_pitch_deg
+    // in Python and pinned by tests/test_stare_geometry.py. Positive = down.
+    // It scores what fraction of the hairline->chin span sits above the eye line:
+    // tilting down rotates the top of the skull toward the camera and foreshortens
+    // the chin, so the fraction grows. Being a ratio, sitting closer cannot move
+    // it - the pitch this replaced was (chin_y - forehead_y - 0.32) * 140, which
+    // is face height in frame, i.e. it reported distance as if it were tilt.
+    const STARE_NEUTRAL_UPPER_FRACTION = 0.42;
+    const STARE_FRACTION_DEG_PER_UNIT = 250;
+    const STARE_GEOM_PITCH_LIMIT_DEG = 60;
+
+    function geometricPitchDeg(upper, lower) {
+      const total = upper + lower;
+      if (!Number.isFinite(total) || total <= 1e-6) return null;
+      const fraction = upper / total;
+      const deg = (fraction - STARE_NEUTRAL_UPPER_FRACTION) * STARE_FRACTION_DEG_PER_UNIT;
+      return Math.max(-STARE_GEOM_PITCH_LIMIT_DEG, Math.min(STARE_GEOM_PITCH_LIMIT_DEG, deg));
+    }
+
+    // Spans are projected onto the face's own vertical axis (perpendicular to the
+    // eye line) so head roll cancels, and x is rescaled by the frame aspect first
+    // because landmark x/y are normalized by width/height separately.
+    function facePitchFromLandmarks(pts, aspect) {
+      if (!pts) return null;
+      const left = pts[33], right = pts[263], chin = pts[152], forehead = pts[10];
+      if (!left || !right || !chin || !forehead) return null;
+      const ar = (Number.isFinite(aspect) && aspect > 0) ? aspect : 1;
+      const ex = (right.x - left.x) * ar, ey = right.y - left.y;
+      const elen = Math.hypot(ex, ey);
+      if (elen <= 1e-6) return null;
+      let vx = -ey / elen, vy = ex / elen;
+      const midX = ((left.x + right.x) / 2) * ar, midY = (left.y + right.y) / 2;
+      const along = (p) => (p.x * ar - midX) * vx + (p.y - midY) * vy;
+      if (along(chin) < 0) { vx = -vx; vy = -vy; }
+      const lower = along(chin);
+      const upper = -along(forehead);
+      return geometricPitchDeg(upper, lower);
+    }
+
+    function headPoseFromLandmarks(pts, aspect) {
       if (!pts || pts.length < 300) return null;
       const nose = pts[1], left = pts[33], right = pts[263], chin = pts[152], forehead = pts[10];
       if (!nose || !left || !right || !chin || !forehead) return null;
       const midX = (left.x + right.x) / 2;
       const yaw = (nose.x - midX) * 120;
-      const pitch = ((chin.y - forehead.y) - 0.32) * 140;
+      const pitch = facePitchFromLandmarks(pts, aspect);
+      if (pitch == null) return null;
       const roll = Math.atan2(right.y - left.y, right.x - left.x) * (180 / Math.PI);
       return {
         head_pose_pitch: Math.max(-60, Math.min(60, pitch)),
@@ -3166,27 +3362,23 @@ MONITOR_JS = (
         const connections = (lm._CONNECTIONS || []).map((c) => [c.start, c.end]);
         lastFaceContours = { pts, connections, mood: mood.expression_label };
         const nose = pts[1], leftEye = pts[33], rightEye = pts[263];
-        const chin = pts[152], forehead = pts[10];
-        let gaze_frontal = 0.85, geom_down = 0.1;
+        let gaze_frontal = 0.85;
         if (nose && leftEye && rightEye) {
           const midX = (leftEye.x + rightEye.x) / 2;
-          const midY = (leftEye.y + rightEye.y) / 2;
           gaze_frontal = Math.max(0, Math.min(1, 1 - Math.abs(nose.x - midX) * 6));
-          // Looking at a phone below: nose/chin drop relative to the eyes.
-          geom_down = Math.max(0, Math.min(1, (nose.y - midY) * 5.5));
-          if (chin && forehead) {
-            const pitch = Math.max(0, Math.min(1, ((chin.y - forehead.y) - 0.28) / 0.22));
-            geom_down = Math.max(geom_down, pitch);
-          }
         }
         const lookDown = ((bs.eyeLookDownLeft || 0) + (bs.eyeLookDownRight || 0)) / 2;
         const lookUp = ((bs.eyeLookUpLeft || 0) + (bs.eyeLookUpRight || 0)) / 2;
         const blinkL = bs.eyeBlinkLeft || 0;
         const blinkR = bs.eyeBlinkRight || 0;
         const blink = (blinkL + blinkR) / 2;
+        // Eye-gaze cue only, as a *difference* with a dead band: every seated
+        // learner has the nose below the eye line and a resting eyeLookDown of
+        // 0.2-0.3, and the old scoring turned both into "looking down" (a learner
+        // staring straight at the monitor read 0.55). Head-pose truth comes from
+        // the stare residual, which sampleFrame folds in after calibration.
         // Clamped: the server rejects any 0..1 signal above 1.0 with a 422.
-        let gaze_down = clamp01(Math.max(geom_down, lookDown * 1.35, lookDown + geom_down * 0.35));
-        if (lookUp > lookDown + 0.15) gaze_down *= 0.55;
+        const gaze_down = clamp01((lookDown - lookUp - 0.25) / 0.5);
         const lids_down = blink >= 0.45 || Math.min(blinkL, blinkR) >= 0.40;
         const eyes_closed = sustainedEyesClosed(lids_down, Date.now());
         if (eyes_closed) gaze_frontal = Math.min(gaze_frontal, 0.25);
@@ -3197,7 +3389,14 @@ MONITOR_JS = (
         else if (yawning) attention = 'yawning';
         else if (gaze_down >= 0.38 || gaze_frontal < 0.40) attention = 'eyes_away';
         const faceH = Math.max(...pts.map((p) => p.y)) - Math.min(...pts.map((p) => p.y));
-        const pose = headPoseFromMatrix(result.facialTransformationMatrixes) || headPoseFromLandmarks(pts) || {};
+        const aspect = (camVideo.videoWidth && camVideo.videoHeight)
+          ? (camVideo.videoWidth / camVideo.videoHeight) : 1;
+        // Kept alongside the pose: the geometric proxy has a guaranteed sign
+        // (positive = down), which is what teaches the stare lab which way the
+        // matrix pitch runs instead of making the operator press "Set down".
+        const geomPitch = facePitchFromLandmarks(pts, aspect);
+        const matrixPose = headPoseFromMatrix(result.facialTransformationMatrixes);
+        const pose = matrixPose || headPoseFromLandmarks(pts, aspect) || {};
         const brow_raise = bs.browInnerUp || 0;
         const smile = mood.smile_score != null ? mood.smile_score
           : (((bs.mouthSmileLeft || 0) + (bs.mouthSmileRight || 0)) / 2);
@@ -3223,6 +3422,8 @@ MONITOR_JS = (
           attention,
           source: 'face_contours',
           sad_score: mood.sad_score,
+          head_pitch_geom_deg: geomPitch,
+          pose_source: matrixPose ? 'matrix' : 'landmarks',
           ...pose,
         };
       }
@@ -3602,6 +3803,8 @@ MONITOR_JS = (
           (inattMs ? (' · ' + (inattMs / 1000).toFixed(1) + 's') : '');
       }
       const dist = (p && p.distance_from_camera_m != null) ? p.distance_from_camera_m : null;
+      // Same D the stare lab needs for atan(y_screen / D).
+      if (dist != null) stareDistanceM = Number(dist);
       const src = (p && p.distance_source) || (facial && facial.distance_source) || (dist != null ? 'face_size' : 'none');
       distCard.className = 'facial-card dist-' + src;
       document.getElementById('facial-dist').textContent = dist == null ? 'n/a' : (Number(dist).toFixed(2) + ' m');
@@ -3638,7 +3841,17 @@ MONITOR_JS = (
       const foreground = estimateForeground(grid);
       const motion = usingSilhouette ? 0.02 : motionFromGrid(grid);
       const facial = await estimateFacialExperience(grid);
-      updateTiltLab(usingPattern || usingSilhouette ? null : facial);
+      // Distance comes from LiDAR when present, otherwise from the face-size
+      // estimate the server returned for the previous frame (stareDistanceM
+      // keeps the last value) — one frame of lag on a seat that barely moves.
+      updateTiltLab(usingPattern || usingSilhouette ? null : facial,
+        facial ? facial.distance_from_camera_m : null);
+      // Head-pose truth for "looking down" is the stare residual: how far below
+      // the lesson band this seat is actually staring. The eye-blendshape cue
+      // stays as a floor for eyes-down-without-head-movement.
+      if (stareGazeDown != null) {
+        facial.gaze_down_score = clamp01(Math.max(stareGazeDown, facial.gaze_down_score || 0));
+      }
       const audio = sampleMicAudio();
       const signal = {
             participant_id: 'camera-local',
@@ -3948,6 +4161,8 @@ MONITOR_JS = (
       tiltNeutralBtn.addEventListener('click', () => {
         if (tiltRawDeg == null) { toast('No face detected yet — start the camera first.'); return; }
         tiltNeutralDeg = tiltRawDeg;
+        tiltNeutralAuto = false;
+        tiltNeutralSamples = [];
         resetTiltPeaks();
         saveTiltCalibration();
         toast('Neutral set at raw pitch ' + tiltDeg(tiltNeutralDeg) + '. Tilt is now measured from here.');
@@ -3984,8 +4199,32 @@ MONITOR_JS = (
         }
       });
     }
+    const stareLayoutSelect = document.getElementById('stare-layout');
+    const stareYScreenInput = document.getElementById('stare-yscreen');
+    if (stareLayoutSelect) {
+      stareLayoutSelect.addEventListener('change', () => {
+        const preset = STARE_LAYOUTS[stareLayoutSelect.value];
+        if (!preset) return;
+        stareLayoutKey = stareLayoutSelect.value;
+        stareYScreenM = preset.yScreen;
+        if (stareYScreenInput) stareYScreenInput.value = stareYScreenM.toFixed(2);
+        saveTiltCalibration();
+        recomputeStare();
+      });
+    }
+    if (stareYScreenInput) {
+      stareYScreenInput.addEventListener('input', () => {
+        const v = Number(stareYScreenInput.value);
+        if (!Number.isFinite(v) || v <= 0) return;
+        stareYScreenM = v;
+        saveTiltCalibration();
+        recomputeStare();
+      });
+    }
     loadTiltCalibration();
     if (tiltTripInput) tiltTripInput.value = String(tiltTripDeg);
+    if (stareLayoutSelect) stareLayoutSelect.value = stareLayoutKey;
+    if (stareYScreenInput) stareYScreenInput.value = stareYScreenM.toFixed(2);
     renderTiltLab();
 
     if (window.ResizeObserver) {
@@ -4091,12 +4330,30 @@ MONITOR_PAGE_TEMPLATE = (
       </div>
       <div class="camrow" id="cam-readings"></div>
       <div class="tilt-lab" id="tilt-lab">
-        <h4>Head tilt lab</h4>
+        <h4>Stare geometry lab</h4>
         <div class="tilt-row">
           <span class="tilt-chip" id="tilt-down">down —</span>
           <span class="tilt-chip" id="tilt-raw">raw pitch —</span>
           <span class="tilt-chip" id="tilt-gaze">gaze_down —</span>
           <span class="tilt-chip" id="tilt-verdict">no face yet</span>
+        </div>
+        <div class="tilt-row">
+          <span class="tilt-chip" id="stare-distance">D —</span>
+          <span class="tilt-chip" id="stare-expected">θ_screen —</span>
+          <span class="tilt-chip" id="stare-residual">residual —</span>
+          <span class="tilt-chip" id="stare-scores">match — · phone-stare —</span>
+        </div>
+        <div class="tilt-row">
+          <label class="tilt-hint" for="stare-layout">Device layout</label>
+          <select id="stare-layout">
+            <option value="laptop_14">14" laptop</option>
+            <option value="laptop_16" selected>16" laptop</option>
+            <option value="external_monitor_webcam_top">Monitor, webcam on top</option>
+          </select>
+          <label class="tilt-hint" for="stare-yscreen">y_screen (m)</label>
+          <input type="number" id="stare-yscreen" min="0.02" max="0.60" step="0.01" value="0.18">
+          <span class="tilt-hint">webcam → middle of the lesson band. Edit until looking
+            at mid-screen reads residual ≈ 0 for your seat.</span>
         </div>
         <div class="tilt-row">
           <span class="tilt-chip" id="tilt-peak">peak down — / up —</span>
@@ -4111,12 +4368,16 @@ MONITOR_PAGE_TEMPLATE = (
             marks the line on the gauge so you can see which trials would fall past it.</span>
         </div>
         <div class="tilt-hint" id="tilt-hint">
-          Start the camera, sit as you normally do and press <strong>Set neutral</strong>.
-          That cancels out a low-mounted laptop, so tilt is measured from where you
-          actually sit rather than from level. Then look at your phone and press
-          <strong>Set down</strong> once to fix which direction is "down". Read degrees
-          off the gauge on the video; <strong>peak</strong> records the furthest tilt of a
-          trial so you can compare a phone glance against a laptop glance.
+          The gauge self-starts: after about a second of tracking it takes the pose
+          you are holding as neutral, so tilt is measured from where you actually
+          sit rather than from level. Sit normally and press <strong>Set neutral</strong>
+          to pin it yourself. The indigo <strong>screen</strong> band on the gauge is
+          the angle this seat needs to see mid-screen — θ_screen = atan(y_screen / D)
+          — so a needle inside the band is watching the lesson and a needle well
+          below it is a stare the screen does not explain (that is the residual).
+          <strong>Peak</strong> records the furthest tilt of a trial, so you can
+          compare a phone glance against a mid-screen glance. Nothing here enforces
+          anything yet; it is a measuring instrument.
         </div>
       </div>
       <div class="facial-hud" id="facial-hud">

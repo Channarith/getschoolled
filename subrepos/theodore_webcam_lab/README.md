@@ -35,7 +35,7 @@ python3 -m pip install "fastapi>=0.111,<0.116" "pydantic>=2.7,<3" \
 python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 ```
 
-You should see `170 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
+You should see `189 passed` (or higher as new tests are added). If you see `ModuleNotFoundError`, the install above
 did not run in the Python you are using. On macOS, bare `python3` is often
 Homebrew 3.14 with no packages — activate `.venv` first (selfcheck does this
 automatically when the venv exists).
@@ -104,27 +104,38 @@ Watch *Tuning → live webcam* while it runs: each stage flips the matching gate
 red and the next one clears it. Drag `sharpness_min_quality` or
 `light_min_quality` and you move the point where a stage starts failing.
 
-### Head tilt lab — measuring the phone-vs-laptop angle
+### Stare geometry lab — measuring the phone-vs-lesson angle
 
 Looking at a phone and looking at a low-mounted laptop webcam both pitch the head
-down, so an absolute angle cannot tell them apart. Tilt measured from where the
-learner actually sits can. The **Head tilt lab** under the camera is the
-instrument for finding that number:
+down, so an absolute angle cannot tell them apart. What can is the angle *this
+screen* needs from *this seat*: the lesson band sits `y_screen` metres below the
+webcam, so from `D` metres away it is `theta_screen = atan(y_screen / D)` degrees
+down. Tilt past that is a **residual** the screen does not explain.
 
-1. Start the camera, sit as you normally do, press **Set neutral**. Your resting
-   pitch becomes 0, which cancels out however low the laptop sits.
-2. Look at your phone and press **Set down** once. That fixes which direction is
-   "down" (the two head-pose paths disagree on the sign of `head_pose_pitch`, so
-   it is learned rather than assumed).
-3. Run trials. **Reset peaks**, hold a pose, and read *peak down*. A phone glance
-   and a laptop glance will separate by a wide margin — typically the phone is
-   20-30° past neutral while the screen is under 10°.
+The **Stare geometry lab** under the camera is the instrument:
 
-The gauge on the right of the video shows degrees below neutral, a red dashed
-**trip line** you can move with the number input, and an amber caret at the peak
-of the current trial. The trip line is only a marker — nothing is enforced from
-it yet. `gaze_down` is shown next to the angle so you can correlate the existing
-0..1 signal with real degrees before choosing a threshold.
+1. Start the camera and sit as you normally do. After about a second of tracking
+   the gauge takes your resting pose as neutral (chip reads `neutral … (auto)`),
+   which cancels out however low the laptop sits. Press **Set neutral** to pin it
+   yourself; that overrides the automatic one.
+2. Pick your **Device layout** (or type a measured `y_screen`). Look at
+   mid-screen: residual should read near 0. If it is systematically off, edit
+   `y_screen` until it is — that number is the calibration.
+3. Run trials. **Reset peaks**, hold a pose, and read *peak down* and *residual*.
+   A phone glance and a mid-screen glance separate by a wide margin.
+
+The gauge on the right of the video shows degrees below neutral, an indigo
+**screen** band at `theta_screen` for the live distance, a red dashed **trip
+line** you can move with the number input, and an amber caret at the peak of the
+current trial. Nothing here is enforced — `phone_stare` and `screen_match` are
+readings, not gates, and `phone_visible` / cheating logic is untouched.
+
+Pitch itself is a ratio of the face's own spans (how much of hairline-to-chin
+sits above the eye line), so sitting closer cannot masquerade as tilt, and
+`gaze_down` is scored from the residual rather than from the nose sitting below
+the eye line — otherwise every seated learner reads as "looking down". The
+formulas live in `stare_geometry.py`; the browser copy is pinned against it by
+`tests/test_stare_geometry.py`.
 
 **Right — Tuning.** Every accuracy threshold is a slider. Drag one and the gates
 respond within a second. The **Vision** tab holds lighting, sharpness, distance
