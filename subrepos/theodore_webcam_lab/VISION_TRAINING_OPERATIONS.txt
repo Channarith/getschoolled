@@ -59,7 +59,8 @@ Proprietary data strategy (must-own data flywheel)
 2) Label taxonomy
    - presence_state: present/temporarily_missing/absent
    - liveness_state: live/spoof/unknown
-   - expression: happy/neutral/sad/angry/surprised/fearful/confused/tired
+   - expression: happy/neutral/sad/angry/surprised/fearful/tired
+     (confused is not a live detector — brow-raise false-positived on neutrals)
    - behavior_events: eyes_away_long, phone_visible, typing_activity_high,
      keyboard_typing_audio, suspicious_sequence, intervention_required
    - quality metrics: light band, blur band, distance band, noise band

@@ -22,6 +22,7 @@ import {
 } from "../assessmentFlow";
 import AnimatedPressable from "../components/AnimatedPressable";
 import AssessmentCheckpointCard from "../components/AssessmentCheckpointCard";
+import CameraLightingScreener from "../components/CameraLightingScreener";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import SurveySheet from "../components/SurveySheet";
@@ -56,7 +57,8 @@ export default function LessonScreen({
   const { account } = useAuth();
   const [view, setView] = useState<LessonSessionView | null>(null);
   const [slide, setSlide] = useState<LessonSlide | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [lightingReady, setLightingReady] = useState(false);
   const [error, setError] = useState("");
   const [advancing, setAdvancing] = useState(false);
   const [atEnd, setAtEnd] = useState(false);
@@ -90,6 +92,7 @@ export default function LessonScreen({
   const MIDROLL_EVERY_ADVANCES = 4;
 
   useEffect(() => {
+    if (!lightingReady) return;
     let alive = true;
     (async () => {
       setLoading(true);
@@ -134,7 +137,7 @@ export default function LessonScreen({
       mountedRef.current = false;
       Speech.stop();
     };
-  }, [lessonId, classType, account]);
+  }, [lessonId, classType, account, lightingReady]);
 
   function stopNarration() {
     Speech.stop();
@@ -519,7 +522,11 @@ export default function LessonScreen({
         </View>
       </View>
 
-      {loading ? (
+      {!lightingReady ? (
+        <ScrollView contentContainerStyle={styles.body}>
+          <CameraLightingScreener onReady={() => setLightingReady(true)} />
+        </ScrollView>
+      ) : loading ? (
         <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 24 }} />
       ) : error && !slide ? (
         <ScrollView contentContainerStyle={styles.body}>
