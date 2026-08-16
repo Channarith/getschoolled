@@ -363,3 +363,7 @@ def test_new_apis_and_player_ui(offline):
         assert "Short lyric clips" in page
         assert "Lyric videos" in page
         assert "This line, translated" in page
+        # Sing-along scrolling: lead the active line, never chase the bottom edge.
+        assert "const LOOKAHEAD_LINES = 2;" in page
+        assert "keepLineVisible" in page
+        assert "scrollIntoView" not in page

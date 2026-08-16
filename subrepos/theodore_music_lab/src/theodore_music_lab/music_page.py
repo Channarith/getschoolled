@@ -75,7 +75,8 @@ _CSS = """
   button.ghost { padding:.3rem .6rem; font-size:.8rem; }
   button:disabled { opacity:.45; cursor:not-allowed; }
   audio { width:100%; margin-top:.65rem; }
-  .lyrics { position:relative; margin-top:.85rem; max-height:320px; overflow:auto; padding:1.6rem .75rem .75rem;
+  .lyrics { position:relative; margin-top:.85rem; max-height:clamp(320px, 46vh, 520px);
+    overflow:auto; overscroll-behavior:contain; padding:1.6rem .75rem .75rem;
     border-radius:14px; background:#0f172a; border:1px solid #334155; }
   .line { padding:.4rem .5rem .3rem; border-radius:10px; transition:background .2s; }
   .line.active { background:color-mix(in srgb, var(--accent) 14%, transparent); }
@@ -378,13 +379,35 @@ _JS = r"""
     });
   }
 
+  // A singer needs to read ahead, so the box scrolls while LOOKAHEAD_LINES upcoming
+  // lines are still below the active one instead of waiting for the bottom edge.
+  const LOOKAHEAD_LINES = 2;
+
+  function keepLineVisible(el, smooth) {
+    const box = $("lyrics");
+    let lead = 0;
+    let next = el.nextElementSibling;
+    for (let i = 0; i < LOOKAHEAD_LINES && next; i += 1) {
+      lead += next.offsetHeight;
+      next = next.nextElementSibling;
+    }
+    const top = el.offsetTop;
+    const leadBottom = top + el.offsetHeight + lead;
+    const viewTop = box.scrollTop;
+    let target = null;
+    if (leadBottom > viewTop + box.clientHeight) target = leadBottom - box.clientHeight;
+    else if (top < viewTop) target = top - 8;
+    if (target === null) return;
+    box.scrollTo({ top: Math.max(0, target), behavior: smooth === false ? "auto" : "smooth" });
+  }
+
   function setActiveLine(lineNo, scroll) {
     if (lineNo === activeLineNo) return;
     activeLineNo = lineNo;
     const player = $("player");
     repaintLineStates(lineNo, player.currentTime + syncOffset);
     const el = $("lyrics").querySelector(`.line[data-no="${lineNo}"]`);
-    if (el && scroll !== false) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (el && scroll !== false) keepLineVisible(el, !player.paused);
     renderNowLine(lineNo);
   }
 

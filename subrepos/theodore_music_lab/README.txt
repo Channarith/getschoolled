@@ -9,6 +9,8 @@ language_learning / content packs.
     the Bus learning version, Words This Way) at http://127.0.0.1:8097/
   • Karaoke: a bouncing ball rides the current word, the sung word is colour
     highlighted, finished lines dim to gold, and a ±0.25s sync nudge trims drift
+  • Sing-along scrolling: the lyric box keeps two upcoming lines below the sung
+    line, so you read the next line before you have to sing it
   • Real per-line translation in all 27 languages, shown under every line at
     once (not only the active one) plus key-vocabulary chips and examples
   • Ask the AI about any line at any time — while the track is playing
