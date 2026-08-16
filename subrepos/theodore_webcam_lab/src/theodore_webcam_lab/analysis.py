@@ -100,6 +100,14 @@ class _ParticipantState:
     hands_on_face_last_seen_ms: int | None = None
     phone_started_ms: int | None = None
     phone_last_seen_ms: int | None = None
+    dozing_started_ms: int | None = None
+    dozing_last_seen_ms: int | None = None
+    interest_started_ms: int | None = None
+    interest_last_seen_ms: int | None = None
+    music_started_ms: int | None = None
+    music_last_seen_ms: int | None = None
+    held_object_started_ms: int | None = None
+    held_object_last_seen_ms: int | None = None
 
 
 class WebcamSessionAnalyzer:
@@ -970,10 +978,80 @@ class WebcamSessionAnalyzer:
             and phone_visible_for_ms >= tuning.phone_visible_min_hold_ms
         )
 
+        excitement_raw = float(signal.excitement_score or 0.0)
+        interest_raw = float(signal.interest_score or 0.0)
+        dozing_raw = float(signal.dozing_score or 0.0)
+        music_raw = float(signal.external_music_score or 0.0)
+        held_raw = max(
+            float(signal.held_object_score or 0.0),
+            float(signal.phone_in_hand_score or 0.0),
+        )
+
+        (
+            dozing_for_ms,
+            participant_state.dozing_started_ms,
+            participant_state.dozing_last_seen_ms,
+        ) = self._sustained_for_ms(
+            active=has_live_face and dozing_raw >= tuning.dozing_min_threshold,
+            timestamp_ms=signal.timestamp_ms,
+            started_ms=participant_state.dozing_started_ms,
+            last_seen_ms=participant_state.dozing_last_seen_ms,
+            release_grace_ms=tuning.posture_release_grace_ms,
+        )
+        dozing_held = (
+            participant_state.dozing_started_ms is not None
+            and dozing_for_ms >= tuning.dozing_min_hold_ms
+        )
+
+        (
+            interest_for_ms,
+            participant_state.interest_started_ms,
+            participant_state.interest_last_seen_ms,
+        ) = self._sustained_for_ms(
+            active=has_live_face and interest_raw >= tuning.interest_min_threshold,
+            timestamp_ms=signal.timestamp_ms,
+            started_ms=participant_state.interest_started_ms,
+            last_seen_ms=participant_state.interest_last_seen_ms,
+            release_grace_ms=tuning.posture_release_grace_ms,
+        )
+
+        (
+            external_music_for_ms,
+            participant_state.music_started_ms,
+            participant_state.music_last_seen_ms,
+        ) = self._sustained_for_ms(
+            active=music_raw >= tuning.external_music_min_threshold,
+            timestamp_ms=signal.timestamp_ms,
+            started_ms=participant_state.music_started_ms,
+            last_seen_ms=participant_state.music_last_seen_ms,
+            release_grace_ms=tuning.posture_release_grace_ms,
+        )
+        external_music_detected = (
+            participant_state.music_started_ms is not None
+            and external_music_for_ms >= tuning.external_music_min_hold_ms
+        )
+
+        (
+            held_object_for_ms,
+            participant_state.held_object_started_ms,
+            participant_state.held_object_last_seen_ms,
+        ) = self._sustained_for_ms(
+            active=held_raw >= tuning.held_object_min_threshold,
+            timestamp_ms=signal.timestamp_ms,
+            started_ms=participant_state.held_object_started_ms,
+            last_seen_ms=participant_state.held_object_last_seen_ms,
+            release_grace_ms=tuning.posture_release_grace_ms,
+        )
+        held_object_detected = (
+            participant_state.held_object_started_ms is not None
+            and held_object_for_ms >= tuning.held_object_min_hold_ms
+        )
+
         distraction_score = 0.0
         if has_live_face:
-            # Hands-on-face is telemetry-only: do not inflate distraction (that
-            # would cascade into spoken "inattentive" / "distracted" coaching).
+            # Hands-on-face, external music, and held-object telemetry must not
+            # inflate distraction (that would cascade into spoken coaching).
+            # Excitement motion is also excluded — it is engagement, not distraction.
             distraction_score = max(
                 distraction_score,
                 gaze_down_score,
@@ -1003,6 +1081,18 @@ class WebcamSessionAnalyzer:
                 attention_score = self._clamp01(
                     0.55 * attention_score + 0.45 * float(signal.attention)
                 )
+            # Soft boosts from trajectory — cannot override eyes-closed / phone caps.
+            if not eyes_closed and not eyes_away and not phone_visible:
+                if excitement_raw >= tuning.excitement_min_threshold:
+                    attention_score = self._clamp01(
+                        attention_score + tuning.excitement_attention_boost * excitement_raw
+                    )
+                if interest_for_ms >= tuning.interest_min_hold_ms:
+                    attention_score = self._clamp01(
+                        attention_score + tuning.interest_attention_boost * interest_raw
+                    )
+            if dozing_held:
+                attention_score = min(attention_score, 0.28)
 
         inattentive_now = has_live_face and (
             attention_score < tuning.attention_min_threshold
@@ -1010,6 +1100,7 @@ class WebcamSessionAnalyzer:
             or eyes_away
             or yawning
             or eyes_closed
+            or dozing_held
         )
         if inattentive_now:
             if participant_state.inattentive_started_ms is None:
@@ -1024,7 +1115,7 @@ class WebcamSessionAnalyzer:
 
         if not has_live_face:
             behavior_label = "away"
-        elif eyes_closed:
+        elif eyes_closed or dozing_held:
             behavior_label = "drowsy"
         elif yawning:
             behavior_label = "yawning"
@@ -1336,6 +1427,22 @@ class WebcamSessionAnalyzer:
             keyboard_typing_audio_detected=keyboard_typing_audio_detected,
             suspected_cheating=suspected_cheating,
             cheating_reasons=sorted(cheating_reasons),
+            excitement_score=excitement_raw if excitement_raw > 0 else None,
+            interest_score=interest_raw if interest_raw > 0 else None,
+            dozing_score=dozing_raw if dozing_raw > 0 else None,
+            dozing_for_ms=dozing_for_ms,
+            interest_for_ms=interest_for_ms,
+            external_music_score=music_raw if music_raw > 0 else None,
+            external_music_for_ms=external_music_for_ms,
+            external_music_detected=external_music_detected,
+            phone_in_hand_score=(
+                float(signal.phone_in_hand_score)
+                if signal.phone_in_hand_score
+                else None
+            ),
+            held_object_score=held_raw if held_raw > 0 else None,
+            held_object_for_ms=held_object_for_ms,
+            held_object_detected=held_object_detected,
             reason=reason,
             alerts=alerts,
         )

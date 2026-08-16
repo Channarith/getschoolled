@@ -368,6 +368,17 @@ VISION_KNOB_GROUPS = [
             ("hands_on_face_min_hold_ms", 0, 20000, 250),
             ("phone_visible_min_hold_ms", 0, 20000, 250),
             ("posture_release_grace_ms", 0, 5000, 100),
+            ("excitement_min_threshold", 0, 1, 0.01),
+            ("interest_min_threshold", 0, 1, 0.01),
+            ("dozing_min_threshold", 0, 1, 0.01),
+            ("interest_min_hold_ms", 0, 10000, 100),
+            ("dozing_min_hold_ms", 0, 10000, 100),
+            ("excitement_attention_boost", 0, 1, 0.01),
+            ("interest_attention_boost", 0, 1, 0.01),
+            ("external_music_min_threshold", 0, 1, 0.01),
+            ("external_music_min_hold_ms", 0, 10000, 100),
+            ("held_object_min_threshold", 0, 1, 0.01),
+            ("held_object_min_hold_ms", 0, 10000, 100),
         ],
     ),
     (
@@ -501,6 +512,9 @@ MONITOR_JS = (
       'image_detection_confidence', 'noise_filter_effectiveness_score',
       'microphone_input_level_score', 'mic_clipping_ratio', 'sharpness_score',
       'edge_density', 'mean_luminance', 'underexposed_ratio', 'overexposed_ratio',
+      'face_motion_energy', 'hand_gesture_energy', 'head_sag_rate',
+      'excitement_score', 'interest_score', 'dozing_score',
+      'external_music_score', 'phone_in_hand_score', 'held_object_score',
     ];
     function clampSignal(signal) {
       UNIT_SIGNAL_FIELDS.forEach((field) => {
@@ -1447,6 +1461,7 @@ MONITOR_JS = (
     let clickEvents = [];
     let toneActiveMs = 0, ringtoneLatchUntil = 0;
     let voiceActiveMs = 0;
+    let musicActiveMs = 0;
     // The click/ringtone detector runs on its own fast timer: the 300ms video
     // cadence only exposes ~21ms of audio per tick (a 7% duty cycle), which is
     // far too sparse to catch a keystroke transient or the onset of a ring.
@@ -1567,6 +1582,140 @@ MONITOR_JS = (
     function gazeDownFromResidual(residual) {
       if (residual == null) return null;
       return clamp01((residual - STARE_GAZE_DOWN_DEADBAND_DEG) / STARE_GAZE_DOWN_SPAN_DEG);
+    }
+
+    // --- Trajectory attention (face/hand history) ---------------------------
+    // Mirrored by trajectory_geometry.py; parity-tested in test_trajectory_geometry.py.
+    const TRAJ_HISTORY_MAX = 12;  // ~3.6 s at 300 ms sample rate
+    const TRAJ_GLOBAL_MOTION_SUPPRESS = 0.55;
+    const TRAJ_FACE_ENERGY_REF = 0.35;
+    const TRAJ_HAND_ENERGY_REF = 0.55;
+    const TRAJ_SAG_REF_DEG_PER_S = 8;
+    let faceLandmarkHistory = [];
+    let lastTrajectory = null;
+
+    function trajMeanSpeed(history, getter) {
+      if (!history || history.length < 3) return 0;
+      let sum = 0, n = 0;
+      for (let i = 1; i < history.length; i++) {
+        const prev = history[i - 1], cur = history[i];
+        const a = getter(prev), b = getter(cur);
+        if (a == null || b == null) continue;
+        const dt = Math.max(1, cur.t - prev.t) / 1000;
+        sum += Math.abs(b - a) / dt;
+        n += 1;
+      }
+      return n ? sum / n : 0;
+    }
+
+    function trajFaceMotionEnergy(history) {
+      if (!history || history.length < 3) return 0;
+      const size = history.reduce((s, h) => s + Math.max(0.05, h.faceSize), 0) / history.length;
+      const scaled = (getter) => trajMeanSpeed(history, getter) / size;
+      const energy = (scaled((h) => h.noseY) + scaled((h) => h.browY)
+        + scaled((h) => h.chinY) + scaled((h) => h.eyeMidX) * 0.5) / 3.5;
+      return clamp01(energy / TRAJ_FACE_ENERGY_REF);
+    }
+
+    function trajHandGestureEnergy(history) {
+      if (!history || history.length < 3) return 0;
+      const energy = Math.max(
+        trajMeanSpeed(history, (h) => h.handWristY),
+        trajMeanSpeed(history, (h) => h.handTipY),
+      );
+      return clamp01(energy / TRAJ_HAND_ENERGY_REF);
+    }
+
+    function trajHeadSagRate(history) {
+      const pitched = (history || []).filter((h) => h.pitch != null && Number.isFinite(h.pitch));
+      if (pitched.length < 3) return 0;
+      const first = pitched[0], last = pitched[pitched.length - 1];
+      const dt = Math.max(1, last.t - first.t) / 1000;
+      let rate = Math.max(0, last.pitch - first.pitch) / dt;
+      let steps = 0, down = 0;
+      for (let i = 1; i < pitched.length; i++) {
+        const d = pitched[i].pitch - pitched[i - 1].pitch;
+        steps += 1;
+        if (d > 0.05) down += 1;
+      }
+      if (steps && down / steps < 0.55) rate *= 0.35;
+      return clamp01(rate / TRAJ_SAG_REF_DEG_PER_S);
+    }
+
+    function trajExcitementScore(faceE, handE, globalMotion, brow, smile) {
+      if (globalMotion >= TRAJ_GLOBAL_MOTION_SUPPRESS) return 0;
+      const burst = Math.max(faceE, handE * 0.85);
+      const express = Math.max(brow || 0, smile || 0) * 0.35;
+      const shaped = clamp01((burst - 0.18) / 0.55) * (1 - clamp01((burst - 0.85) / 0.20));
+      return clamp01(shaped * 0.75 + express + faceE * 0.15);
+    }
+
+    function trajInterestScore(faceSizeDelta, gazeFrontal, brow, faceE, globalMotion, fidget) {
+      if (globalMotion >= TRAJ_GLOBAL_MOTION_SUPPRESS || (fidget || 0) >= 0.70) return 0;
+      const lean = clamp01(faceSizeDelta / 0.08);
+      const quiet = 1 - clamp01((faceE - 0.25) / 0.55);
+      return clamp01(0.45 * lean + 0.30 * clamp01(gazeFrontal || 0)
+        + 0.15 * (brow || 0) + 0.10 * quiet);
+    }
+
+    function trajDozingScore(sag, faceE, eyesClosed) {
+      const still = 1 - clamp01(faceE / 0.40);
+      let base = 0.55 * sag + 0.35 * still + 0.25 * clamp01(eyesClosed || 0);
+      if (sag < 0.15 && (eyesClosed || 0) < 0.35) base *= 0.25;
+      return clamp01(base);
+    }
+
+    function trajExternalMusicScore(elevated, flux, prominence, steadyPeak, speechRatio, sharpAttack, musicActiveMs) {
+      if (sharpAttack || !elevated) return 0;
+      let musical = (flux >= 2.0 || !steadyPeak) && prominence < 14.0;
+      if (speechRatio > 0.62 && flux < 2.0) musical = false;
+      if (!musical) return 0;
+      return clamp01(musicActiveMs / 2000);
+    }
+
+    function trajHeldObjectScore(phoneGrid, phoneStare, handBelow, lowerBlob) {
+      const grid = clamp01(phoneGrid || 0);
+      const stare = clamp01(phoneStare || 0);
+      const hand = clamp01(handBelow || 0);
+      const blob = clamp01(lowerBlob || 0);
+      if (grid < 0.20 && stare < 0.25 && blob < 0.25) return 0;
+      return clamp01(Math.max(
+        grid * 0.55 + hand * 0.45,
+        stare * 0.70 + hand * 0.30,
+        blob * 0.50 + hand * 0.40,
+      ));
+    }
+
+    function pushTrajectorySample(sample) {
+      faceLandmarkHistory.push(sample);
+      while (faceLandmarkHistory.length > TRAJ_HISTORY_MAX) faceLandmarkHistory.shift();
+    }
+
+    function computeTrajectoryFeatures(opts) {
+      const history = faceLandmarkHistory;
+      if (!history.length || (opts && opts.detector !== 'face_mesh')) {
+        lastTrajectory = null;
+        return null;
+      }
+      const faceE = trajFaceMotionEnergy(history);
+      const handE = trajHandGestureEnergy(history);
+      const sag = trajHeadSagRate(history);
+      const last = history[history.length - 1];
+      const first = history[0];
+      const faceSizeDelta = last.faceSize - first.faceSize;
+      const reading = {
+        face_motion_energy: faceE,
+        hand_gesture_energy: handE,
+        head_sag_rate: sag,
+        excitement_score: trajExcitementScore(
+          faceE, handE, opts.globalMotion || 0, last.brow, last.smile),
+        interest_score: trajInterestScore(
+          faceSizeDelta, last.gazeFrontal, last.brow, faceE,
+          opts.globalMotion || 0, opts.fidget || 0),
+        dozing_score: trajDozingScore(sag, faceE, opts.eyesClosed || 0),
+      };
+      lastTrajectory = reading;
+      return reading;
     }
 
     // Which way does head_pose_pitch grow when the head goes down? Compare its
@@ -2173,7 +2322,7 @@ MONITOR_JS = (
 
     function resetClickDetectorState() {
       clickNoiseFloor = 0.003; clickPrevRms = 0; clickEvents = [];
-      toneActiveMs = 0; ringtoneLatchUntil = 0; voiceActiveMs = 0;
+      toneActiveMs = 0; ringtoneLatchUntil = 0; voiceActiveMs = 0; musicActiveMs = 0;
       clickLevelDb = -120; clickFloorDb = -120;
       clickPrevFreq = null; tonePeakBin = -1;
     }
@@ -2400,6 +2549,16 @@ MONITOR_JS = (
         && (flux > 1.2 || prominence < 14);
       voiceActiveMs = Math.max(0, Math.min(4000,
         voiceActiveMs + (voiceLike ? AUDIO_POLL_MS : -AUDIO_POLL_MS * 0.5)));
+
+      // Outside music: broadband / moving spectrum — opposite of a ringtone.
+      // Sustained elevation without keystroke attacks; pure speech stays on
+      // the phone-call path. Music-with-vocals still scores as ambient music.
+      const sharpThisTick = sharpAttack && peak < 0.99 && hfRatio > 0.18;
+      const musical = elevated && !sharpThisTick && !tonal
+        && (flux >= 2.0 || !steadyPeak) && prominence < 14.0
+        && !(speechRatio > 0.62 && flux < 2.0);
+      musicActiveMs = Math.max(0, Math.min(5000,
+        musicActiveMs + (musical ? AUDIO_POLL_MS : -AUDIO_POLL_MS * 0.6)));
     }
 
     // The verdicts latch for seconds while the 300ms loop keeps firing, so the
@@ -2414,7 +2573,10 @@ MONITOR_JS = (
 
     function sampleClickDetector() {
       if (!clickAnalyser || !clickData) {
-        return { keyboardScore: 0, ringtone: false, phonecall: false, clickRate: 0, levelDb: -120 };
+        return {
+          keyboardScore: 0, ringtone: false, phonecall: false, clickRate: 0,
+          levelDb: -120, externalMusicScore: 0,
+        };
       }
       const now = Date.now();
       const cutoff4s = now - 4000;
@@ -2425,6 +2587,9 @@ MONITOR_JS = (
         clickRate,
         ringtone: now < ringtoneLatchUntil,
         phonecall: voiceActiveMs >= 1800,
+        // musicActiveMs only accumulates when the musical heuristic is true.
+        externalMusicScore: clamp01(musicActiveMs / 2000),
+        musicActiveMs,
         levelDb: clickLevelDb,
         floorDb: clickFloorDb,
         rawMic: clickSourceRaw,
@@ -2544,6 +2709,9 @@ MONITOR_JS = (
         handCount = 0, phoneForMs = 0,
         keyboardScore, phoneBelow, phoneEar, ringtone, phonecall, suspected,
         clickRate = 0, micLevelDb = null, micRaw = false,
+        musicScore = 0, musicDetected = false, musicForMs = 0,
+        heldScore = 0, heldDetected = false, heldForMs = 0,
+        excitement = 0, interest = 0, dozing = 0,
       } = signals;
 
       const gazeCard = document.getElementById('integrity-gaze');
@@ -2613,6 +2781,35 @@ MONITOR_JS = (
         callVal.textContent = phonecall ? 'call active' : (ringtone ? 'ringtone ♪' : micHint);
       }
 
+      // Record-only: outside music and held objects — no spoken coaching / pause.
+      const musicCard = document.getElementById('integrity-music');
+      const musicVal = document.getElementById('integrity-music-val');
+      if (musicCard && musicVal) {
+        musicCard.className = 'integrity-card ' + (musicDetected ? 'alert-med' : (musicScore > 0.2 ? 'alert-med' : 'alert-low'));
+        musicVal.textContent = musicDetected
+          ? ('outside music · ' + (musicForMs / 1000).toFixed(0) + 's')
+          : (musicScore > 0.05
+            ? (Math.round(musicScore * 100) + '%' + (musicForMs > 0 ? ' · ' + (musicForMs / 1000).toFixed(1) + 's' : ''))
+            : micHint);
+      }
+      const heldCard = document.getElementById('integrity-held');
+      const heldVal = document.getElementById('integrity-held-val');
+      if (heldCard && heldVal) {
+        heldCard.className = 'integrity-card ' + (heldDetected ? 'alert-med' : (heldScore > 0.25 ? 'alert-med' : 'alert-low'));
+        heldVal.textContent = heldDetected
+          ? ('object in hand · ' + (heldForMs / 1000).toFixed(0) + 's')
+          : (heldScore > 0.05 ? (Math.round(heldScore * 100) + '%') : 'none');
+      }
+      const trajCard = document.getElementById('integrity-traj');
+      const trajVal = document.getElementById('integrity-traj-val');
+      if (trajCard && trajVal) {
+        const hot = dozing >= 0.48 ? 'alert-med' : ((excitement >= 0.42 || interest >= 0.45) ? 'alert-low' : 'alert-low');
+        trajCard.className = 'integrity-card ' + hot;
+        trajVal.textContent = 'ex ' + Math.round((excitement || 0) * 100)
+          + '% · in ' + Math.round((interest || 0) * 100)
+          + '% · doz ' + Math.round((dozing || 0) * 100) + '%';
+      }
+
       const statusEl = document.getElementById('integrity-status');
       if (statusEl) {
         if (suspected) {
@@ -2654,6 +2851,9 @@ MONITOR_JS = (
       setBar('obs-cur', adv.curiosity_score);
       setBar('obs-fid', adv.fidget_score);
       setBar('obs-multi', adv.multitask_score);
+      setBar('obs-exc', adv.excitement_score);
+      setBar('obs-int', adv.interest_score);
+      setBar('obs-doz', adv.dozing_score);
       const labelEl = document.getElementById('obs-label');
       if (labelEl) labelEl.textContent = (adv.observatory_label || p.behavior_label || '—').replace(/_/g, ' ');
       const cogEl = document.getElementById('obs-cognitive');
@@ -2992,6 +3192,37 @@ MONITOR_JS = (
       // A resting hand puts roughly half its 21 landmarks over the face; scale so
       // that reads ~1.0 and a stray fingertip stays well under the threshold.
       return clamp01((best - 0.15) / 0.40);
+    }
+
+    // How much of each hand sits below the face midline (phone / object in lap).
+    function handBelowFaceFromLandmarks(hands, facePts) {
+      if (!hands || !hands.length || !facePts || !facePts.length) return 0;
+      let faceMaxY = 0, faceMinY = 1;
+      facePts.forEach((p) => {
+        if (p.y > faceMaxY) faceMaxY = p.y;
+        if (p.y < faceMinY) faceMinY = p.y;
+      });
+      const chinLine = faceMaxY - (faceMaxY - faceMinY) * 0.05;
+      let best = 0;
+      hands.forEach((pts) => {
+        let below = 0;
+        pts.forEach((p) => { if (p.y > chinLine) below += 1; });
+        best = Math.max(best, below / Math.max(1, pts.length));
+      });
+      return clamp01((best - 0.35) / 0.50);
+    }
+
+    function handWristTipFromContours() {
+      if (!lastHandContours || !lastHandContours.hands || !lastHandContours.hands.length) {
+        return { wristY: null, tipY: null, wristX: null };
+      }
+      const pts = lastHandContours.hands[0];
+      const wrist = pts[0], tip = pts[12] || pts[8];
+      return {
+        wristY: wrist ? wrist.y : null,
+        tipY: tip ? tip.y : null,
+        wristX: wrist ? wrist.x : null,
+      };
     }
 
     function drawHandContoursOnOverlay() {
@@ -3905,9 +4136,68 @@ MONITOR_JS = (
       const handsScore = (handTrack && lastFaceContours && lastFaceContours.pts)
         ? handTrack.hands_on_face_score
         : detectHandsOnFace(grid, facial.gaze_down_score || 0, (facial.face_count || 0) > 0);
+      const handBelow = (handTrack && lastFaceContours && lastFaceContours.pts)
+        ? handBelowFaceFromLandmarks(lastHandContours && lastHandContours.hands, lastFaceContours.pts)
+        : 0;
+      // Trajectory history from face mesh landmarks only.
+      if (detectorSource === 'face_mesh' && lastFaceContours && lastFaceContours.pts) {
+        const pts = lastFaceContours.pts;
+        const nose = pts[1], left = pts[33], right = pts[263], chin = pts[152], brow = pts[10];
+        const ht = handWristTipFromContours();
+        if (nose && left && right && chin && brow) {
+          pushTrajectorySample({
+            t: Date.now(),
+            noseY: nose.y,
+            browY: brow.y,
+            chinY: chin.y,
+            eyeMidX: (left.x + right.x) / 2,
+            eyeMidY: (left.y + right.y) / 2,
+            faceSize: Math.max(0.05, facial.face_size_ratio || (chin.y - brow.y)),
+            pitch: facial.head_pose_pitch,
+            brow: facial.brow_raise_score || 0,
+            smile: facial.smile_score || 0,
+            gazeFrontal: facial.gaze_frontal || 0.5,
+            handWristY: ht.wristY,
+            handTipY: ht.tipY,
+            handWristX: ht.wristX,
+          });
+        }
+      } else if (!usingPattern && !usingSilhouette) {
+        faceLandmarkHistory = [];
+      }
+      const fidget = Math.max(0, Math.min(1, (motion - 0.12) * 2.4));
+      const traj = computeTrajectoryFeatures({
+        detector: detectorSource,
+        globalMotion: motion,
+        fidget,
+        eyesClosed: facial.eyes_closed_score || 0,
+      });
+      if (traj) {
+        signal.face_motion_energy = traj.face_motion_energy;
+        signal.hand_gesture_energy = traj.hand_gesture_energy;
+        signal.head_sag_rate = traj.head_sag_rate;
+        signal.excitement_score = traj.excitement_score;
+        signal.interest_score = traj.interest_score;
+        signal.dozing_score = traj.dozing_score;
+      }
+      const phoneGridScore = Math.max(
+        phoneDet.below ? (phoneDet.score || 0.7) : 0,
+        phoneDet.ear ? 0.55 : 0,
+      );
+      const held = trajHeldObjectScore(
+        phoneGridScore,
+        starePhone || 0,
+        handBelow,
+        phoneDet.below ? 0.6 : 0,
+      );
       signal.keyboard_typing_audio_score = clickResult.keyboardScore;
+      signal.external_music_score = clickResult.externalMusicScore > 0.05
+        ? Math.round(clickResult.externalMusicScore * 1000) / 1000 : null;
       signal.phone_visible = phoneDet.below || phoneDet.ear || clickResult.phonecall;
       signal.hands_on_face_score = handsScore > 0.05 ? Math.round(handsScore * 1000) / 1000 : null;
+      signal.phone_in_hand_score = held > 0.05 && phoneGridScore >= 0.35
+        ? Math.round(held * 1000) / 1000 : null;
+      signal.held_object_score = held > 0.05 ? Math.round(held * 1000) / 1000 : null;
       signal.typing_activity_score = Math.max(
           Math.max(0, Math.min(1, ((facial.gaze_down_score || 0) - 0.12) * 1.9)),
           phoneDet.below ? 0.70 : 0
@@ -3961,6 +4251,15 @@ MONITOR_JS = (
           phonecall: clickResult.phonecall,
           suspected: !!p.suspected_cheating,
           cheatingReasons: p.cheating_reasons || [],
+          musicScore: clickResult.externalMusicScore || 0,
+          musicDetected: !!p.external_music_detected,
+          musicForMs: p.external_music_for_ms || 0,
+          heldScore: Math.max(p.held_object_score || 0, p.phone_in_hand_score || 0, held || 0),
+          heldDetected: !!p.held_object_detected,
+          heldForMs: p.held_object_for_ms || 0,
+          excitement: p.excitement_score || (traj && traj.excitement_score) || 0,
+          interest: p.interest_score || (traj && traj.interest_score) || 0,
+          dozing: p.dozing_score || (traj && traj.dozing_score) || 0,
       });
       // Hands-on-face stays in telemetry + the integrity HUD only — no spoken
       // coaching. Resting a chin on a hand is normal and should not interrupt.
@@ -4442,8 +4741,20 @@ MONITOR_PAGE_TEMPLATE = (
           <div class="lbl">Phone / ringtone</div>
           <div class="val" id="integrity-call-val">—</div>
         </div>
+        <div class="integrity-card alert-low" id="integrity-music">
+          <div class="lbl">Outside music</div>
+          <div class="val" id="integrity-music-val">—</div>
+        </div>
+        <div class="integrity-card alert-low" id="integrity-held">
+          <div class="lbl">Held object</div>
+          <div class="val" id="integrity-held-val">—</div>
+        </div>
+        <div class="integrity-card alert-low" id="integrity-traj">
+          <div class="lbl">Trajectory</div>
+          <div class="val" id="integrity-traj-val">—</div>
+        </div>
       </div>
-      <div class="integrity-status" id="integrity-status">Start camera to monitor yawn, distraction, gaze, closed eyes, hands on face, and phone use.</div>
+      <div class="integrity-status" id="integrity-status">Start camera to monitor yawn, distraction, gaze, closed eyes, hands on face, phone use, outside music, and held objects.</div>
       <div class="card" style="margin-top:10px;padding:10px">
         <h3 style="margin:0 0 6px">Class lighting gate</h3>
         <p class="muted" style="margin:0 0 8px;font-size:12px">
@@ -4478,6 +4789,9 @@ MONITOR_PAGE_TEMPLATE = (
           <div class="obs-bar-row"><span>Curious</span><div class="obs-track"><div class="obs-fill" id="obs-cur"></div></div></div>
           <div class="obs-bar-row"><span>Fidget</span><div class="obs-track"><div class="obs-fill warn" id="obs-fid"></div></div></div>
           <div class="obs-bar-row"><span>Multitask</span><div class="obs-track"><div class="obs-fill bad" id="obs-multi"></div></div></div>
+          <div class="obs-bar-row"><span>Excited</span><div class="obs-track"><div class="obs-fill" id="obs-exc"></div></div></div>
+          <div class="obs-bar-row"><span>Interest</span><div class="obs-track"><div class="obs-fill" id="obs-int"></div></div></div>
+          <div class="obs-bar-row"><span>Dozing</span><div class="obs-track"><div class="obs-fill bad" id="obs-doz"></div></div></div>
         </div>
         <div class="obs-events" id="obs-events">No behavior events yet.</div>
       </div>

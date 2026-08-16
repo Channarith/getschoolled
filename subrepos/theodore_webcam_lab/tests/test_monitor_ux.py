@@ -790,3 +790,19 @@ def test_synthetic_sources_render_to_the_visible_canvas():
     # Harmonic bars are sized in GRID pixels so the 20x box downsample matches Sobel.
     assert "const periodPx = (w / GRID_W) * PATTERN_PERIOD_GRID;" in text
     assert "synthetic frame, no face to read" in text
+
+
+def test_trajectory_and_music_hud_are_wired():
+    page = client.get("/theodore/webcam/live-monitor/demo-session").text
+    assert "integrity-music" in page
+    assert "Outside music" in page
+    assert "integrity-held" in page
+    assert "Held object" in page
+    assert "integrity-traj" in page
+    assert "obs-exc" in page and "obs-int" in page and "obs-doz" in page
+    assert "external_music_score" in MONITOR_JS
+    assert "held_object_score" in MONITOR_JS
+    assert "excitement_score" in MONITOR_JS
+    # Music must not fire the pause toast path.
+    assert "maybeToastAudio('music'" not in MONITOR_JS
+    assert "outside music" in MONITOR_JS.lower() or "Outside music" in page

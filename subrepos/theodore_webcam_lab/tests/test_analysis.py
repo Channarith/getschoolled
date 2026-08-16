@@ -930,3 +930,109 @@ def test_coarse_detector_is_presence_only():
     legacy = evaluate(None)
     assert legacy.dominant_expression == "neutral"
     assert legacy.distance_from_camera_m is not None
+
+
+def test_excitement_boosts_attention_without_raising_distraction():
+    analyzer = WebcamSessionAnalyzer()
+    base = analyzer.evaluate(
+        session_id="traj-excite-base",
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=0,
+                face_count=1,
+                liveness_state="live",
+                detector_source="face_mesh",
+                gaze_frontal=0.70,
+                gaze_down_score=0.10,
+                motion_score=0.15,
+            )
+        ],
+    ).participants[0]
+    boosted = analyzer.evaluate(
+        session_id="traj-excite-hot",
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=0,
+                face_count=1,
+                liveness_state="live",
+                detector_source="face_mesh",
+                gaze_frontal=0.70,
+                gaze_down_score=0.10,
+                motion_score=0.15,
+                excitement_score=0.85,
+            )
+        ],
+    ).participants[0]
+    assert boosted.attention_score > base.attention_score
+    assert boosted.distraction_score <= base.distraction_score + 0.01
+    assert boosted.behavior_label != "distracted"
+
+
+def test_dozing_hold_marks_drowsy_without_eyes_fully_closed():
+    analyzer = WebcamSessionAnalyzer(
+        tuning=VisionTuning(dozing_min_hold_ms=2_000, dozing_min_threshold=0.48)
+    )
+    frames = []
+    for t in (0, 1_000, 2_000, 2_500):
+        frames.append(
+            analyzer.evaluate(
+                session_id="traj-doze",
+                mode=ClassMode.SOLO,
+                signals=[
+                    WebcamSignal(
+                        participant_id="learner",
+                        timestamp_ms=t,
+                        face_count=1,
+                        liveness_state="live",
+                        detector_source="face_mesh",
+                        gaze_frontal=0.60,
+                        gaze_down_score=0.15,
+                        eyes_closed_score=0.20,
+                        dozing_score=0.75,
+                    )
+                ],
+            ).participants[0]
+        )
+    assert frames[-1].dozing_for_ms >= 2_000
+    assert frames[-1].behavior_label == "drowsy"
+
+
+def test_external_music_and_held_object_are_record_only():
+    """Music and held-object telemetry must not trip cheating or distraction."""
+    analyzer = WebcamSessionAnalyzer(
+        tuning=VisionTuning(
+            external_music_min_hold_ms=2_000,
+            held_object_min_hold_ms=2_000,
+        )
+    )
+    last = None
+    for t in (0, 1_000, 2_000, 3_000):
+        last = analyzer.evaluate(
+            session_id="record-only",
+            mode=ClassMode.SOLO,
+            signals=[
+                WebcamSignal(
+                    participant_id="learner",
+                    timestamp_ms=t,
+                    face_count=1,
+                    liveness_state="live",
+                    detector_source="face_mesh",
+                    gaze_frontal=0.80,
+                    gaze_down_score=0.05,
+                    external_music_score=0.90,
+                    held_object_score=0.85,
+                    phone_in_hand_score=0.80,
+                    phone_visible=False,
+                )
+            ],
+        ).participants[0]
+    assert last is not None
+    assert last.external_music_detected is True
+    assert last.held_object_detected is True
+    assert last.suspected_cheating is False
+    assert last.distraction_score < 0.55
+    assert last.behavior_label == "focused"

@@ -246,6 +246,62 @@ def _scenarios() -> list[tuple[str, list[WebcamSignal]]]:
                 )
             ],
         ),
+        (
+            "trajectory_attention",
+            [
+                _signal(
+                    timestamp_ms=t,
+                    excitement_score=0.70,
+                    interest_score=0.65,
+                    dozing_score=0.0,
+                    gaze_frontal=0.75,
+                    gaze_down_score=0.10,
+                    eyes_closed_score=0.0,
+                    luminance_grid=_face_blob(),
+                )
+                for t in (0, 500, 1_000, 1_500, 2_000, 2_500)
+            ],
+        ),
+        (
+            "dozing_hold",
+            [
+                _signal(
+                    timestamp_ms=t,
+                    dozing_score=0.70,
+                    excitement_score=0.0,
+                    interest_score=0.0,
+                    gaze_frontal=0.55,
+                    gaze_down_score=0.20,
+                    eyes_closed_score=0.20,
+                    luminance_grid=_face_blob(),
+                )
+                for t in (0, 1_000, 2_000, 3_000, 4_000)
+            ],
+        ),
+        (
+            "external_music_hold",
+            [
+                _signal(
+                    timestamp_ms=t,
+                    external_music_score=0.80,
+                    luminance_grid=_face_blob(),
+                )
+                for t in (0, 1_000, 2_000, 3_000, 4_000)
+            ],
+        ),
+        (
+            "held_object_hold",
+            [
+                _signal(
+                    timestamp_ms=t,
+                    held_object_score=0.80,
+                    phone_in_hand_score=0.75,
+                    phone_visible=False,
+                    luminance_grid=_face_blob(),
+                )
+                for t in (0, 1_000, 2_000, 3_000, 4_000)
+            ],
+        ),
     ]
 
 

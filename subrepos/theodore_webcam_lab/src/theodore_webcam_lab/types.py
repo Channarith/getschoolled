@@ -56,6 +56,18 @@ class WebcamSignal(BaseModel):
     phone_visible: bool = False
     typing_activity_score: float | None = Field(default=None, ge=0.0, le=1.0)
     keyboard_typing_audio_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Trajectory features (face/hand landmark history) — optional thin clients omit.
+    face_motion_energy: float | None = Field(default=None, ge=0.0, le=1.0)
+    hand_gesture_energy: float | None = Field(default=None, ge=0.0, le=1.0)
+    head_sag_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    excitement_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    interest_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    dozing_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Outside-classroom music (broadband / moving spectrum). Record-only.
+    external_music_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Phone-in-hand / held object fusion. Record-only — does not set phone_visible.
+    phone_in_hand_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    held_object_score: float | None = Field(default=None, ge=0.0, le=1.0)
     face_size_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
     # Prefer LiDAR / depth-camera metres when the client can measure them.
     # Server uses this before falling back to face-size-in-frame estimation.
@@ -126,6 +138,19 @@ class ParticipantEvaluation(BaseModel):
     keyboard_typing_audio_detected: bool = False
     suspected_cheating: bool = False
     cheating_reasons: list[str] = Field(default_factory=list)
+    # Trajectory / ambient telemetry (record-only for music + held object).
+    excitement_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    interest_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    dozing_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    dozing_for_ms: int = Field(default=0, ge=0)
+    interest_for_ms: int = Field(default=0, ge=0)
+    external_music_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    external_music_for_ms: int = Field(default=0, ge=0)
+    external_music_detected: bool = False
+    phone_in_hand_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    held_object_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    held_object_for_ms: int = Field(default=0, ge=0)
+    held_object_detected: bool = False
     reason: str = ""
     alerts: list[str] = Field(default_factory=list)
 
@@ -199,6 +224,11 @@ class ParticipantMetricSeries(BaseModel):
     fatigue_score: list[float | None] = Field(default_factory=list)
     confusion_score: list[float | None] = Field(default_factory=list)
     multitask_score: list[float | None] = Field(default_factory=list)
+    excitement_score: list[float | None] = Field(default_factory=list)
+    interest_score: list[float | None] = Field(default_factory=list)
+    dozing_score: list[float | None] = Field(default_factory=list)
+    external_music_score: list[float | None] = Field(default_factory=list)
+    held_object_score: list[float | None] = Field(default_factory=list)
     latest: ParticipantEvaluation
 
 

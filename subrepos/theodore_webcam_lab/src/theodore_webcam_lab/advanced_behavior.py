@@ -57,6 +57,9 @@ class AdvancedBehaviorSnapshot:
     curiosity_score: float = 0.0
     fidget_score: float = 0.0
     multitask_score: float = 0.0
+    excitement_score: float = 0.0
+    interest_score: float = 0.0
+    dozing_score: float = 0.0
     head_pose_pitch: float | None = None
     head_pose_yaw: float | None = None
     head_pose_roll: float | None = None
@@ -78,6 +81,9 @@ class AdvancedBehaviorSnapshot:
             "curiosity_score": round(self.curiosity_score, 4),
             "fidget_score": round(self.fidget_score, 4),
             "multitask_score": round(self.multitask_score, 4),
+            "excitement_score": round(self.excitement_score, 4),
+            "interest_score": round(self.interest_score, 4),
+            "dozing_score": round(self.dozing_score, 4),
             "head_pose_pitch": self.head_pose_pitch,
             "head_pose_yaw": self.head_pose_yaw,
             "head_pose_roll": self.head_pose_roll,
@@ -205,13 +211,21 @@ class AdvancedBehaviorEngine:
             + min(1.0, yawn_for_ms / 4_000.0) * 0.7
             + min(1.0, eyes_closed_for_ms / 5_000.0) * 0.65
             + max(0.0, (pitch or 0.0) / 40.0) * 0.25
+            + float(signal.dozing_score or 0.0) * 0.55
+            + float(signal.head_sag_rate or 0.0) * 0.35
             - smile * 0.15
         )
+        excitement = float(signal.excitement_score or 0.0)
+        interest = float(signal.interest_score or 0.0)
+        if signal.excitement_score is not None or signal.interest_score is not None:
+            used.append("trajectory")
         curiosity = _clamp01(
             (0.45 if expr in {"surprised", "happy"} else 0.0)
             + brow * 0.35
             + max(0.0, attention_score - 0.55) * 0.5
             + smile * 0.25
+            + excitement * 0.40
+            + interest * 0.35
             - boredom * 0.35
             - fatigue * 0.25
         )
@@ -219,6 +233,7 @@ class AdvancedBehaviorEngine:
             attention_score * 0.55
             + (1.0 - distraction_score) * 0.25
             + smile * 0.15
+            + interest * 0.20
             + (0.2 if behavior_label == "focused" else 0.0)
             - fidget * 0.2
             - confusion * 0.15
@@ -251,6 +266,8 @@ class AdvancedBehaviorEngine:
             0.38 * attention_score
             + 0.18 * flow
             + 0.12 * curiosity
+            + 0.08 * excitement
+            + 0.08 * interest
             + 0.10 * (1.0 - boredom)
             + 0.08 * (1.0 - fatigue)
             + 0.07 * (1.0 - confusion)
@@ -271,7 +288,9 @@ class AdvancedBehaviorEngine:
         elif suspected_cheating or multitask >= 0.75:
             cognitive = "multitasking"
             observatory = "integrity_risk"
-        elif fatigue >= 0.62 or yawn_for_ms >= 1_500 or eyes_closed_for_ms >= 1_500:
+        elif fatigue >= 0.62 or yawn_for_ms >= 1_500 or eyes_closed_for_ms >= 1_500 or (
+            float(signal.dozing_score or 0.0) >= tuning.dozing_min_threshold
+        ):
             cognitive = "fatigued"
             observatory = "drowsy"
         elif boredom >= 0.58 or inattentive_for_ms >= 4_000:
@@ -283,6 +302,12 @@ class AdvancedBehaviorEngine:
         elif flow >= 0.68 and engagement >= 0.62:
             cognitive = "in_flow"
             observatory = "deeply_engaged"
+        elif excitement >= tuning.excitement_min_threshold and engagement >= 0.50:
+            cognitive = "curious"
+            observatory = "excited"
+        elif interest >= tuning.interest_min_threshold and attention_score >= tuning.attention_min_threshold:
+            cognitive = "curious"
+            observatory = "interested"
         elif engagement >= 0.55 and attention_score >= tuning.attention_min_threshold:
             cognitive = "engaged"
             observatory = "focused"
@@ -327,6 +352,12 @@ class AdvancedBehaviorEngine:
             _emit("boredom_rising", "low", "Boredom / zoning-out signals rising", boredom)
         if fatigue >= 0.62:
             _emit("fatigue_rising", "medium", "Fatigue / drowsiness rising", fatigue)
+        if float(signal.dozing_score or 0.0) >= tuning.dozing_min_threshold:
+            _emit("dozing_onset", "medium", "Head-sag / dozing trajectory", float(signal.dozing_score or 0.0))
+        if excitement >= tuning.excitement_min_threshold:
+            _emit("excitement_burst", "info", "Excited / animated face-hand motion", excitement)
+        if interest >= tuning.interest_min_threshold:
+            _emit("interest_lean", "info", "Lean-in / interest trajectory", interest, 10_000)
         if multitask >= 0.70:
             _emit("multitask_detected", "high", "Multitasking / secondary device activity", multitask)
         if fidget >= 0.70:
@@ -365,6 +396,9 @@ class AdvancedBehaviorEngine:
             curiosity_score=curiosity,
             fidget_score=fidget,
             multitask_score=multitask,
+            excitement_score=excitement,
+            interest_score=interest,
+            dozing_score=float(signal.dozing_score or 0.0),
             head_pose_pitch=None if pitch is None else round(float(pitch), 2),
             head_pose_yaw=None if yaw is None else round(float(yaw), 2),
             head_pose_roll=None if roll is None else round(float(roll), 2),

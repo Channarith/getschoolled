@@ -31,6 +31,11 @@ class _MetricPoint:
     multitask_score: float | None = None
     flow_score: float | None = None
     boredom_score: float | None = None
+    excitement_score: float | None = None
+    interest_score: float | None = None
+    dozing_score: float | None = None
+    external_music_score: float | None = None
+    held_object_score: float | None = None
     eval_latency_ms: float | None = None
 
 
@@ -238,6 +243,11 @@ class LiveMetricsStore:
                     multitask_score=_adv_float(adv, "multitask_score"),
                     flow_score=_adv_float(adv, "flow_score"),
                     boredom_score=_adv_float(adv, "boredom_score"),
+                    excitement_score=_adv_float(adv, "excitement_score"),
+                    interest_score=_adv_float(adv, "interest_score"),
+                    dozing_score=_adv_float(adv, "dozing_score"),
+                    external_music_score=participant.external_music_score,
+                    held_object_score=participant.held_object_score,
                     eval_latency_ms=self._eval_latency_ms.get(session_id),
                 )
             )
@@ -396,6 +406,21 @@ class LiveMetricsStore:
                     ),
                     multitask_score=self._series(
                         [point.multitask_score for point in points]
+                    ),
+                    excitement_score=self._series(
+                        [point.excitement_score for point in points]
+                    ),
+                    interest_score=self._series(
+                        [point.interest_score for point in points]
+                    ),
+                    dozing_score=self._series(
+                        [point.dozing_score for point in points]
+                    ),
+                    external_music_score=self._series(
+                        [point.external_music_score for point in points]
+                    ),
+                    held_object_score=self._series(
+                        [point.held_object_score for point in points]
                     ),
                     latest=participant,
                 )
