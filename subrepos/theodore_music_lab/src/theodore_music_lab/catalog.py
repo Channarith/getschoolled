@@ -76,6 +76,7 @@ class SongLine(BaseModel):
     text: str
     meaning_en: str = ""
     tts_text: str = ""
+    section: str = ""  # verse / chorus / bridge / …
 
 
 class Song(BaseModel):
@@ -87,10 +88,23 @@ class Song(BaseModel):
     license: str = "original-salareen"
     source: str = "ai-generated-educational"
     lines: list[SongLine] = Field(default_factory=list)
+    # Optional MP3 + motion theme for the player UI (featured pack).
+    audio_file: str = ""
+    animation: str = "pulse"  # travel | bus | words | pulse
+    featured: bool = False
+    duration_hint_sec: float | None = None
 
     @property
     def line_count(self) -> int:
         return len(self.lines)
+
+    @property
+    def audio_url(self) -> str:
+        if not self.audio_file:
+            return ""
+        name = Path(self.audio_file).name
+        return f"/api/music/audio/{name}"
+
 
 
 def _default_data_path() -> Path:
@@ -98,50 +112,89 @@ def _default_data_path() -> Path:
     return here.parent.parent / "data" / "songs.jsonl"
 
 
+def _featured_data_path() -> Path:
+    here = Path(__file__).resolve().parent
+    return here.parent.parent / "data" / "featured_songs.jsonl"
+
+
+def _audio_dir() -> Path:
+    here = Path(__file__).resolve().parent
+    return here.parent.parent / "data" / "audio"
+
+
+def _song_from_record(rec: dict[str, Any], *, fallback_id: str) -> Song | None:
+    lines_raw = rec.get("lines") or rec.get("verses") or []
+    lines: list[SongLine] = []
+    for i, row in enumerate(lines_raw, start=1):
+        if isinstance(row, str):
+            lines.append(SongLine(line_no=i, text=row, meaning_en=row, tts_text=row))
+            continue
+        text = str(row.get("text") or row.get("target") or row.get("en") or "").strip()
+        if not text:
+            continue
+        meaning = str(row.get("meaning_en") or row.get("en") or text)
+        tts = str(row.get("tts_text") or text)
+        lines.append(
+            SongLine(
+                line_no=int(row.get("line_no") or row.get("verse_no") or i),
+                text=text,
+                meaning_en=meaning,
+                tts_text=tts,
+                section=str(row.get("section") or ""),
+            )
+        )
+    if not lines:
+        return None
+    return Song(
+        song_id=str(rec.get("song_id") or rec.get("id") or fallback_id),
+        language=str(rec.get("language") or "en"),
+        title_en=str(rec.get("title_en") or rec.get("title") or "Untitled"),
+        topic=str(rec.get("topic") or "general"),
+        style=str(rec.get("style") or "suno-educational-original"),
+        license=str(rec.get("license") or "original-salareen"),
+        source=str(rec.get("source") or "imported"),
+        lines=lines,
+        audio_file=str(rec.get("audio_file") or ""),
+        animation=str(rec.get("animation") or "pulse"),
+        featured=bool(rec.get("featured") or False),
+        duration_hint_sec=(
+            float(rec["duration_hint_sec"])
+            if rec.get("duration_hint_sec") is not None
+            else None
+        ),
+    )
+
+
 def load_songs(path: Optional[os.PathLike[str] | str] = None) -> list[Song]:
     p = Path(path) if path else _default_data_path()
-    if not p.is_file():
-        return []
     out: list[Song] = []
-    with p.open(encoding="utf-8") as fh:
-        for raw in fh:
-            raw = raw.strip()
-            if not raw:
-                continue
-            rec = json.loads(raw)
-            lines_raw = rec.get("lines") or rec.get("verses") or []
-            lines: list[SongLine] = []
-            for i, row in enumerate(lines_raw, start=1):
-                if isinstance(row, str):
-                    lines.append(SongLine(line_no=i, text=row, meaning_en=row, tts_text=row))
+    if p.is_file():
+        with p.open(encoding="utf-8") as fh:
+            for raw in fh:
+                raw = raw.strip()
+                if not raw:
                     continue
-                text = str(row.get("text") or row.get("target") or row.get("en") or "").strip()
-                if not text:
+                rec = json.loads(raw)
+                song = _song_from_record(rec, fallback_id=f"import-{len(out)+1}")
+                if song:
+                    out.append(song)
+    # Featured MP3 pack (player UI) — prepend so they show first.
+    featured_path = _featured_data_path()
+    if featured_path.is_file():
+        featured: list[Song] = []
+        with featured_path.open(encoding="utf-8") as fh:
+            for raw in fh:
+                raw = raw.strip()
+                if not raw:
                     continue
-                meaning = str(row.get("meaning_en") or row.get("en") or text)
-                tts = str(row.get("tts_text") or text)
-                lines.append(
-                    SongLine(
-                        line_no=int(row.get("line_no") or row.get("verse_no") or i),
-                        text=text,
-                        meaning_en=meaning,
-                        tts_text=tts,
-                    )
-                )
-            if not lines:
-                continue
-            out.append(
-                Song(
-                    song_id=str(rec.get("song_id") or rec.get("id") or f"import-{len(out)+1}"),
-                    language=str(rec.get("language") or "en"),
-                    title_en=str(rec.get("title_en") or rec.get("title") or "Untitled"),
-                    topic=str(rec.get("topic") or "general"),
-                    style=str(rec.get("style") or "suno-educational-original"),
-                    license=str(rec.get("license") or "original-salareen"),
-                    source=str(rec.get("source") or "imported"),
-                    lines=lines,
-                )
-            )
+                rec = json.loads(raw)
+                rec["featured"] = True
+                song = _song_from_record(rec, fallback_id=f"featured-{len(featured)+1}")
+                if song:
+                    featured.append(song)
+        # Prefer featured ids; drop duplicates from the big catalog.
+        featured_ids = {s.song_id for s in featured}
+        out = featured + [s for s in out if s.song_id not in featured_ids]
     return out
 
 
@@ -173,9 +226,13 @@ def import_songs(records: Iterable[dict[str, Any]]) -> list[Song]:
                         text=str(row["text"]),
                         meaning_en=str(row.get("meaning_en") or row["text"]),
                         tts_text=str(row.get("tts_text") or row["text"]),
+                        section=str(row.get("section") or ""),
                     )
                     for i, row in enumerate(lines_raw, start=1)
                 ],
+                audio_file=str(rec.get("audio_file") or ""),
+                animation=str(rec.get("animation") or "pulse"),
+                featured=bool(rec.get("featured") or False),
             )
         )
     return songs
@@ -244,9 +301,17 @@ class Catalog:
                 "style": s.style,
                 "license": s.license,
                 "line_count": s.line_count,
+                "featured": s.featured,
+                "audio_url": s.audio_url,
+                "audio_file": s.audio_file,
+                "animation": s.animation,
+                "duration_hint_sec": s.duration_hint_sec,
             }
             for s in rows[: max(1, limit)]
         ]
+
+    def featured(self) -> list[Song]:
+        return [s for s in self._songs if s.featured and s.audio_file]
 
     def extend(self, songs: list[Song]) -> int:
         added = 0

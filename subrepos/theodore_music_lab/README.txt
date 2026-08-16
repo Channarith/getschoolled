@@ -5,12 +5,16 @@ Private quality lab for line-by-line song learning before promoting into
 language_learning / content packs.
 
   • 100+ original / Suno-style educational songs (data/songs.jsonl)
-  • Play → pause → repeat per line; continuous mode skips the pause gate
-  • Meaning / translation hints for 26+ platform languages
+  • Featured MP3 player UI with animation + lyrics (Travel Words, Wheels on
+    the Bus learning version, Words This Way) at http://127.0.0.1:8097/
+  • Play → pause → restart; lyric lines highlight while the track plays
+  • Meaning / translation glosses for 26+ platform languages
   • Import schema for additional original packs (JSON/JSONL)
 
-Everything below runs offline. No audio files or API keys are required for
-catalog / session smoke checks.
+Featured audio: data/audio/*.mp3 + data/featured_songs.jsonl.
+
+Everything below runs offline for catalog / session smoke checks. The player
+UI needs the local MP3 files present under data/audio/.
 
 Screens
   docs/screens/theodore_music_lab.webp
@@ -37,15 +41,16 @@ Step 1 — run the automated tests + catalog smoke
   make music-lab
   # prints song count (>= 100) and meaning-language count (>= 26)
 
-Step 2 — start the lab API
+Step 2 — start the lab API + open the player
 
   PYTHONPATH=subrepos/theodore_music_lab/src:packages/shared/src \
     python3 -m uvicorn theodore_music_lab.main:app --port 8097 --host 127.0.0.1
 
-  Leave that running. From another terminal:
+  Open http://127.0.0.1:8097/ (or /lab). Pick a featured song, hit Play, and
+  change Meaning language to any of the 26+ codes.
 
   curl -s http://127.0.0.1:8097/health | python3 -m json.tool
-  # ok=true, songs >= 100, meaning_language_count >= 26
+  # ok=true, songs >= 100, featured_songs >= 3, meaning_language_count >= 26
 
 Step 3 — browse the catalog
 
@@ -79,10 +84,14 @@ Step 5 — (optional) import an extra pack, then promote when ready
   # Promote stable songs + meaning glosses into language_learning content packs.
 
 APIs on :8097
+  GET  / and /lab          — featured player UI (audio + animation + lyrics)
   GET  /health
   GET  /api/music/languages
+  GET  /api/music/featured
   GET  /api/music/songs
   GET  /api/music/songs/{song_id}
+  GET  /api/music/audio/{filename}
+  POST /api/music/meaning
   POST /api/music/import
   POST /api/music/session/start
   GET  /api/music/session/{session_id}

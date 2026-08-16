@@ -73,10 +73,45 @@ def test_api_health_and_session_flow():
         assert body["ok"] is True
         assert body["songs"] >= 100
         assert body["meaning_language_count"] >= 26
+        assert body.get("featured_songs", 0) >= 3
+        assert body.get("player") == "/"
 
         songs = client.get("/api/music/songs", params={"limit": 5})
         assert songs.status_code == 200
         song_id = songs.json()["songs"][0]["song_id"]
+
+        page = client.get("/")
+        assert page.status_code == 200
+        assert "Theodore Music Lab" in page.text
+        assert "Featured songs" in page.text
+
+        featured = client.get("/api/music/featured")
+        assert featured.status_code == 200
+        pack = featured.json()
+        assert pack["count"] >= 3
+        first = pack["songs"][0]
+        assert first["audio_url"].startswith("/api/music/audio/")
+        assert first["animation"]
+
+        detail = client.get(f"/api/music/songs/{first['song_id']}")
+        assert detail.status_code == 200
+        assert detail.json()["lines"]
+        assert detail.json()["audio_url"]
+
+        audio = client.get(first["audio_url"])
+        assert audio.status_code == 200
+        assert len(audio.content) > 1000
+
+        meaning = client.post(
+            "/api/music/meaning",
+            json={
+                "song_id": first["song_id"],
+                "line_no": 1,
+                "target_lang": "es",
+            },
+        )
+        assert meaning.status_code == 200
+        assert meaning.json()["meaning"]["target_language"] == "es"
 
         start = client.post(
             "/api/music/session/start",
