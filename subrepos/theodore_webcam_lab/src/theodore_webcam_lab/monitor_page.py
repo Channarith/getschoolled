@@ -1471,7 +1471,10 @@ MONITOR_JS = (
     // These formulas are duplicated from stare_geometry.py because the lab needs
     // them before the round trip; tests/test_stare_geometry.py parses this JS and
     // asserts the two sides produce the same numbers.
-    const TILT_STORE_KEY = 'twl.tilt.calibration.v1';
+    // v2: a v1 neutral was captured against the old pitch (face height in frame),
+    // so restoring one would offset the new gauge by tens of degrees. Any change
+    // to what raw pitch means has to retire stored calibrations with it.
+    const TILT_STORE_KEY = 'twl.tilt.calibration.v2';
     const TILT_SMOOTH_FRAMES = 3;
     const STARE_MIN_DISTANCE_M = 0.25;
     const STARE_RESIDUAL_SOFT_DEG = 12;
