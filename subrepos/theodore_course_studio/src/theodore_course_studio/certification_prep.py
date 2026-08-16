@@ -16,6 +16,12 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from .page_media import motion_data_url, picture_data_url
+from .cert_multimodal import (
+    CERT_MODALITIES,
+    format_body_with_examples,
+    kit_for_title,
+    narration_with_examples,
+)
 from .types import CategoryId, CourseSlide, StudioCourse
 
 # Soft session target for adult cert prep (kids stay on early_learning budgets).
@@ -920,12 +926,15 @@ def build_cert_course(
     jurisdiction = JURISDICTIONS[template.track]
     slides: list[CourseSlide] = []
     for i, beat in enumerate(template.beats):
+        kit = kit_for_title(beat.title, beat.body)
+        body = format_body_with_examples(beat.body, kit.examples)
+        narration = narration_with_examples(beat.say, kit.examples)
         slides.append(
             CourseSlide(
                 index=i,
                 title=beat.title,
-                body=beat.body,
-                narration=beat.say,
+                body=body,
+                narration=narration,
                 picture_url=picture_data_url(
                     title=beat.title, symbol=beat.symbol, color=beat.color
                 ),
@@ -939,6 +948,21 @@ def build_cert_course(
                 ),
                 video_caption=f"Watch: {beat.title}",
                 activity_prompt=beat.activity,
+                examples=list(kit.examples),
+                modalities=list(CERT_MODALITIES),
+                quiz_spec={
+                    "prompt": kit.quiz_prompt,
+                    "choices": list(kit.quiz_choices),
+                    "correct_index": kit.quiz_correct_index,
+                    "explanation": kit.quiz_explanation,
+                },
+                game_spec={
+                    "kind": kit.game_kind,
+                    "prompt": kit.game_prompt,
+                    "options": list(kit.game_options),
+                    "correct_index": kit.game_correct_index,
+                    "steps": list(kit.game_steps),
+                },
                 tags=[
                     "certification_prep",
                     template.track.value,
@@ -947,6 +971,10 @@ def build_cert_course(
                     category.value,
                     "picture_led",
                     "motion_clip",
+                    "multimodal",
+                    "examples",
+                    "quiz",
+                    "game",
                 ],
             )
         )
@@ -975,6 +1003,11 @@ def build_cert_course(
             "picture_led": True,
             "motion_clip": True,
             "read_aloud": True,
+            "multimodal": True,
+            "modalities": list(CERT_MODALITIES),
+            "examples_per_segment": True,
+            "quiz_per_segment": True,
+            "game_per_segment": True,
         },
         created_at_ms=int(time.time() * 1000),
         status="ready",

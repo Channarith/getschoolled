@@ -57,8 +57,18 @@ def build_pop_quiz_for_slide(
     objective: LearningObjective,
 ) -> QuizQuestion:
     """One quick check tied to the current learning point."""
+    try:
+        from .cert_multimodal import quiz_from_slide
+
+        curated = quiz_from_slide(slide, objective)
+        if curated is not None:
+            return curated
+    except Exception:
+        pass
     body = (slide.body or objective.description or slide.title or "").strip()
-    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", body) if s.strip()]
+    # Prefer the rule text before the Examples block when present.
+    rule = body.split("\nExamples:", 1)[0].strip()
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", rule) if s.strip()]
     correct = _stem_choice(sentences[0] if sentences else slide.title)
     distractors = [
         _stem_choice(sentences[1])
