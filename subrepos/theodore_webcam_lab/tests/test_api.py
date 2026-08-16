@@ -13,6 +13,17 @@ def test_health():
     assert resp.json()["service"] == "theodore-webcam-lab"
 
 
+def test_landing_page_is_manual_qualification_entry():
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "Theodore Webcam Lab" in resp.text
+    assert "Seed + open monitor" in resp.text
+    assert "/theodore/webcam/live-monitor/demo-session" in resp.text
+    assert "/api/theodore/webcam/demo/seed" in resp.text
+    lab = client.get("/lab")
+    assert lab.status_code == 200
+
+
 def test_webcam_evaluation_api_returns_solo_multiple_face_alert():
     resp = client.post(
         "/api/theodore/webcam/evaluate",

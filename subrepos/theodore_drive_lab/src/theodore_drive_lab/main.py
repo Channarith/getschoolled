@@ -5,14 +5,22 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from .answer_grounding import evaluate_answers
 from .bakeoff import get_runner
 from .drive_tuning import PRESETS, DriveTuning
+from .qualify_page import render_qualify_page
 from .wake_eval import evaluate_wake, load_wake_cases, parse_wake_utterance
 
 app = FastAPI(title="Theodore Drive Lab", version="0.1.0")
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/lab", response_class=HTMLResponse)
+def qualify() -> HTMLResponse:
+    return HTMLResponse(render_qualify_page())
 
 
 class TuningPatch(BaseModel):

@@ -76,6 +76,15 @@ def test_api_health_eval_train():
         assert tel.status_code == 200
         assert "bakeoff_rounds" in tel.json()
 
+        page = client.get("/")
+        assert page.status_code == 200
+        assert "Theodore RAG Lab" in page.text
+        assert "/api/rag/eval" in page.text
+        assert "Blocking bakeoff" in page.text
+        lab = client.get("/lab")
+        assert lab.status_code == 200
+        assert "Manual qualification" in lab.text
+
 
 def test_invalid_preset_404():
     bl._RUNNER = RagBakeoffRunner()

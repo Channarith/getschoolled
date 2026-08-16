@@ -37,12 +37,16 @@ Step 1 — run the automated tests (fastest confidence check)
 
   Expect all tests passed. ModuleNotFoundError → finish Step 0.
 
-Step 2 — start the lab API
+Step 2 — start the lab and open the web UI
 
   PYTHONPATH=subrepos/theodore_rag_lab/src:packages/shared/src \
     python3 -m uvicorn theodore_rag_lab.main:app --port 8095 --host 127.0.0.1
 
-  Leave that running. From another terminal:
+  Open in a browser:
+    http://127.0.0.1:8095/     (same page at /lab)
+
+  Use the console to Run eval, Sweep, apply a preset, run a Blocking bakeoff,
+  and inspect Champion / Telemetry. Leave the server running for curl too:
 
   curl -s http://127.0.0.1:8095/health | python3 -m json.tool
   # ok=true, service=theodore-rag-lab, golden examples + tuning knobs present
@@ -77,6 +81,7 @@ Step 5 — read champion + telemetry, then promote when green
   retrieve() + groundedness thresholds.
 
 APIs
+  GET  /  and /lab          # browser qualification console
   GET  /health
   GET|PATCH /api/rag/tuning  (+ /preset/{name})
   POST /api/rag/eval

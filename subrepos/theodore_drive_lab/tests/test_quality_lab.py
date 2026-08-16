@@ -78,6 +78,13 @@ def test_api_endpoints():
         bad = client.post("/api/drive/tuning/preset/nope")
         assert bad.status_code == 404
 
+        page = client.get("/")
+        assert page.status_code == 200
+        assert "Theodore Drive Lab" in page.text
+        assert "/api/drive/wake/eval" in page.text
+        assert "Parse utterance" in page.text
+        assert client.get("/lab").status_code == 200
+
 
 def test_tuning_validation():
     with pytest.raises(ValueError):
