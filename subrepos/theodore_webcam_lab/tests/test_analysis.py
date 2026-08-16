@@ -630,6 +630,62 @@ def test_training_pauses_if_different_user_replaces_original_user():
     assert resumed.original_user_present is True
 
 
+def test_owner_face_mismatch_pauses_solo_and_flags_cheating():
+    """Same participant_id, different physical face → pause + integrity alert."""
+    analyzer = WebcamSessionAnalyzer()
+    session_id = "owner-face-lock-1"
+
+    enrolled = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="camera-local",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.2,
+                motion_score=0.1,
+                owner_face_enrolled=True,
+                owner_face_match=True,
+                owner_match_score=0.92,
+                secondary_face_count=0,
+            )
+        ],
+    )
+    assert enrolled.training_paused is False
+    assert enrolled.participants[0].suspected_cheating is False
+
+    swapped = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="camera-local",
+                timestamp_ms=2_000,
+                face_count=2,
+                liveness_state="live",
+                foreground_ratio=0.2,
+                motion_score=0.1,
+                owner_face_enrolled=True,
+                owner_face_match=False,
+                owner_match_score=0.12,
+                secondary_face_count=2,
+            )
+        ],
+    )
+    assert swapped.training_paused is True
+    assert swapped.pause_reason == "owner_face_mismatch"
+    assert swapped.original_user_present is False
+    assert "training_paused:owner_face_mismatch" in swapped.alerts
+    p = swapped.participants[0]
+    assert p.suspected_cheating is True
+    assert "owner_face_mismatch" in p.cheating_reasons
+    assert "secondary_faces_in_frame" in p.cheating_reasons
+    assert any(a.startswith("solo_mode_multiple_faces:") for a in p.alerts)
+    assert any(a.startswith("owner_face_mismatch:") for a in p.alerts)
+
+
 def _posture_signal(timestamp_ms: int, **overrides) -> WebcamSignal:
     base = dict(
         participant_id="learner",

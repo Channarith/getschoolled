@@ -52,6 +52,12 @@ REQUIRED_MONITOR_JS_HELPERS = (
     "resetTiltPeaks",
     "loadTiltCalibration",
     "saveTiltCalibration",
+    "quietMediaPipeConsole",
+    "resetFaceOwner",
+    "pickOwnerFace",
+    "faceBoxFromPts",
+    "faceFingerprint",
+    "secondaryBoxesFromFaces",
 )
 
 
