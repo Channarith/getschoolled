@@ -3746,12 +3746,12 @@ MONITOR_JS = (
           suspected: !!p.suspected_cheating,
           cheatingReasons: p.cheating_reasons || [],
       });
+      // Hands-on-face stays in telemetry + the integrity HUD only — no spoken
+      // coaching. Resting a chin on a hand is normal and should not interrupt.
       if ((p.eyes_closed_for_ms || 0) >= 1500) {
         maybeAnnounceIntegrity('closed', 'I notice your eyes are closed. Please open them and look at the lesson.');
       } else if ((p.yawn_for_ms || 0) >= 1500) {
         maybeAnnounceIntegrity('yawn', 'I notice you are yawning. Take a quick stretch if you need to, then refocus on the lesson.');
-      } else if ((p.hands_on_face_for_ms || 0) >= holdSeconds('hands_on_face_min_hold_ms') * 1000) {
-        maybeAnnounceIntegrity('hands', 'I see you have your hand on your face. Sit up and focus on the screen — we have more to cover!');
       } else if (p.phone_visible && (p.eyes_away_for_ms || 0) >= 2000) {
         maybeAnnounceIntegrity('phone', 'It looks like you are looking at your phone. Please return your attention to the webcam.');
       } else if ((p.behavior_label === 'distracted' || (p.distraction_score || 0) >= 0.55) && (p.eyes_away_for_ms || 0) >= 2500) {

@@ -669,6 +669,10 @@ def test_hands_on_face_needs_five_seconds_before_it_is_reported():
     assert frames[5].hands_on_face_for_ms == 5_000
     assert frames[5].behavior_label == "hands_on_face"
     assert frames[6].behavior_label == "hands_on_face"
+    # Telemetry only: do not treat resting a hand on the face as distraction
+    # or inattention (those paths drive spoken coaching).
+    assert frames[5].distraction_score < 0.55
+    assert frames[5].inattentive_for_ms == 0
 
 
 def test_single_frame_of_hands_on_face_is_ignored():

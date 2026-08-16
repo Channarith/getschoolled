@@ -972,13 +972,14 @@ class WebcamSessionAnalyzer:
 
         distraction_score = 0.0
         if has_live_face:
+            # Hands-on-face is telemetry-only: do not inflate distraction (that
+            # would cascade into spoken "inattentive" / "distracted" coaching).
             distraction_score = max(
                 distraction_score,
                 gaze_down_score,
                 max(0.0, 1.0 - gaze_frontal),
                 0.85 if phone_visible else 0.0,
                 0.70 if eyes_closed else 0.0,
-                0.60 if hands_on_face else 0.0,
                 0.55 if yawning else 0.0,
                 float(signal.typing_activity_score or 0.0) * 0.8,
             )
@@ -1009,7 +1010,6 @@ class WebcamSessionAnalyzer:
             or eyes_away
             or yawning
             or eyes_closed
-            or hands_on_face
         )
         if inattentive_now:
             if participant_state.inattentive_started_ms is None:
