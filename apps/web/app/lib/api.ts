@@ -3160,17 +3160,19 @@ export async function adminListBugReports(
 }
 
 export async function recordConsent(args: {
-  student_id: string;
   scope: string;
   granted: boolean;
   region?: string;
   written?: boolean;
   retention_days?: number | null;
+  student_id?: string;
 }): Promise<{ student_id: string; scope: string; granted: boolean }> {
+  // Goes through the identity service (user-authenticated) — the memory
+  // service's /consent endpoint is internal-only and rejects browser calls.
   return jsonOrThrow(
-    await fetch(`${MEMORY_URL}/consent`, {
+    await fetch(`${IDENTITY_URL}/consent`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
     })
   );

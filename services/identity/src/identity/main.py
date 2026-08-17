@@ -1416,6 +1416,60 @@ def internal_rewards_earn(req: InternalEarnRequest) -> dict:
     return {"balance": balance, "earned": req.amount}
 
 
+# --------------------------------------------------------------------------- #
+# Consent (user-facing proxy to the memory service's internal-only endpoint)
+# --------------------------------------------------------------------------- #
+class ConsentRecordRequest(BaseModel):
+    scope: str
+    granted: bool
+    region: str = "us"
+    written: bool = False
+    retention_days: int | None = None
+    student_id: str | None = None
+
+
+@app.post("/consent")
+def record_own_consent(req: ConsentRecordRequest, acct=Depends(current_account)) -> dict:
+    """Record a privacy-consent decision for the caller's own learner.
+
+    The memory service's /consent is internal-only, so the browser consent page
+    could never persist anything (and it hardcoded student_id "current-user",
+    which would have collided every account onto one row). This resolves the
+    real student and forwards with the internal service token.
+    """
+    student_id = req.student_id or next(iter(acct.students.keys()), None) or acct.id
+    if req.student_id and req.student_id not in acct.students:
+        raise HTTPException(status_code=403, detail="not your student")
+    base = (getattr(app.state.config, "memory_base_url", "") or "").strip()
+    if not base:
+        raise HTTPException(status_code=503, detail="memory service not configured")
+    import json as _json
+    import urllib.request as _urlreq
+
+    from aoep_shared.identity_sync import internal_token
+
+    body = _json.dumps({
+        "student_id": student_id,
+        "scope": req.scope,
+        "granted": req.granted,
+        "region": req.region,
+        "written": req.written,
+        "retention_days": req.retention_days,
+    }).encode()
+    forward = _urlreq.Request(
+        f"{base.rstrip('/')}/consent",
+        data=body,
+        headers={"Content-Type": "application/json", "X-Internal-Token": internal_token()},
+        method="POST",
+    )
+    try:
+        with _urlreq.urlopen(forward, timeout=5) as resp:
+            resp.read()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"consent store unavailable: {exc}")
+    return {"student_id": student_id, "scope": req.scope, "granted": req.granted}
+
+
 @app.get("/portfolio")
 def portfolio(acct=Depends(current_account)) -> dict:
     enrollments = [e.model_dump() for e in app.state.accounts.enrollments(acct.id)]

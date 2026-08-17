@@ -152,6 +152,59 @@ def test_phone_number_does_not_validate_billing():
     assert status["billing_validated"] is False
 
 
+# HIGH-16 (consent proxy) ---------------------------------------------------- #
+
+def test_consent_requires_auth():
+    out = client.post("/consent", json={"scope": "face_recognition", "granted": True})
+    assert out.status_code == 401
+
+
+def test_consent_forwards_to_memory_with_real_student(monkeypatch):
+    import json as _json
+
+    import identity.main as identity_main
+
+    monkeypatch.setattr(identity_main.app.state.config, "memory_base_url", "http://memory.test")
+    captured = {}
+
+    class _Resp:
+        def read(self):
+            return b"{}"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(req, timeout=0):
+        captured["url"] = req.full_url
+        captured["body"] = _json.loads(req.data.decode())
+        captured["internal"] = req.headers.get("X-internal-token", "")
+        return _Resp()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    h = _auth(_new_user("audit-consent@example.com"))
+    out = client.post("/consent", headers=h,
+                      json={"scope": "face_recognition", "granted": True, "region": "us"})
+    assert out.status_code == 200, out.text
+    assert captured["url"] == "http://memory.test/consent"
+    # The literal "current-user" placeholder is gone — a real id is stored.
+    assert captured["body"]["student_id"] != "current-user"
+    assert captured["body"]["student_id"] == out.json()["student_id"]
+    assert captured["internal"], "internal service token not attached"
+
+
+def test_consent_rejects_foreign_student(monkeypatch):
+    import identity.main as identity_main
+
+    monkeypatch.setattr(identity_main.app.state.config, "memory_base_url", "http://memory.test")
+    h = _auth(_new_user("audit-consent2@example.com"))
+    out = client.post("/consent", headers=h, json={
+        "scope": "recording", "granted": True, "student_id": "someone-else"})
+    assert out.status_code == 403
+
+
 # MED-31 --------------------------------------------------------------------- #
 
 def test_pass_decision_token_score_overrides_body_score():
