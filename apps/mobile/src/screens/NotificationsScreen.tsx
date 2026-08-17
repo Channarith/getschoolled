@@ -39,8 +39,9 @@ function useRelTime() {
   };
 }
 
-export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
+export default function NotificationsScreen({ onOpenCourse, onOpenDrive, onUnreadChange }: {
   onOpenCourse: (id: string) => void;
+  onOpenDrive?: () => void;
   onUnreadChange?: (unread: number) => void;
 }) {
   const { t, locale } = useT();
@@ -95,7 +96,17 @@ export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
       onUnreadChange?.(stillUnread);
       return next;
     });
-    if (i.course_id) onOpenCourse(i.course_id);
+    if (i.course_id) {
+      onOpenCourse(i.course_id);
+      return;
+    }
+    // Items with only a deep link (streak/reminder cards) must not be dead
+    // taps: aiclassroom://drive/<id> opens that course, the bare drive link
+    // opens the Drive tab.
+    const link = i.deep_link ?? "";
+    const m = link.match(/^aiclassroom:\/\/drive\/(.+)$/);
+    if (m) onOpenCourse(m[1]);
+    else if (link === "aiclassroom://drive") onOpenDrive?.();
   };
 
   const onMarkAllRead = async () => {

@@ -91,6 +91,14 @@ export default function LessonScreen({
   const advanceCountRef = useRef(0);
   const MIDROLL_EVERY_ADVANCES = 4;
 
+  // mountedRef must only flip on UNMOUNT. It was cleared in the lesson-loading
+  // effect's cleanup, which also runs on every re-run (account/lightingReady
+  // changes) — leaving it permanently false and killing narrate()'s callbacks.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   useEffect(() => {
     if (!lightingReady) return;
     let alive = true;
@@ -134,7 +142,6 @@ export default function LessonScreen({
     })();
     return () => {
       alive = false;
-      mountedRef.current = false;
       Speech.stop();
     };
   }, [lessonId, classType, account, lightingReady]);

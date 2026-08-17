@@ -3070,14 +3070,12 @@ export async function getAllTelemetry(): Promise<TelemetrySummary[]> {
 }
 
 export async function getServiceErrors(name: string, url: string, limit = 20): Promise<TelemetryError[]> {
-  try {
-    const res = await fetch(`${url}/telemetry/errors?limit=${limit}`, { cache: "no-store" });
-    if (!res.ok) return [];
-    const j = await res.json();
-    return (j.errors ?? []) as TelemetryError[];
-  } catch {
-    return [];
-  }
+  // Throw on failure: returning [] made the admin panel report a green
+  // "No recent errors" for services that were unreachable or rejecting us.
+  const res = await fetch(`${url}/telemetry/errors?limit=${limit}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${name} telemetry returned ${res.status}`);
+  const j = await res.json();
+  return (j.errors ?? []) as TelemetryError[];
 }
 
 export async function adminSurveyInsights(secret: string): Promise<{

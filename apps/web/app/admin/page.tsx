@@ -234,6 +234,7 @@ export default function AdminPage() {
   const [telemetry, setTelemetry] = useState<TelemetrySummary[] | null>(null);
   const [errorsFor, setErrorsFor] = useState<string>("");
   const [svcErrors, setSvcErrors] = useState<TelemetryError[]>([]);
+  const [svcErrorsFailed, setSvcErrorsFailed] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [readinessSummary, setReadinessSummary] = useState<{
     count?: number;
@@ -284,8 +285,15 @@ export default function AdminPage() {
 
   async function viewErrors(name: string) {
     setErrorsFor(name);
+    setSvcErrorsFailed(false);
     const url = SERVICE_URLS[name];
-    setSvcErrors(url ? await getServiceErrors(name, url, 25) : []);
+    if (!url) { setSvcErrors([]); return; }
+    try {
+      setSvcErrors(await getServiceErrors(name, url, 25));
+    } catch {
+      setSvcErrors([]);
+      setSvcErrorsFailed(true);
+    }
   }
 
   async function load(s: string) {
@@ -582,10 +590,14 @@ export default function AdminPage() {
         {errorsFor && (
           <div style={{ marginTop: 12 }}>
             <h4 style={{ marginBottom: 6 }}>Recent errors — {errorsFor}
-              <button onClick={() => { setErrorsFor(""); setSvcErrors([]); }}
+              <button onClick={() => { setErrorsFor(""); setSvcErrors([]); setSvcErrorsFailed(false); }}
                 style={{ marginLeft: 10, fontSize: 12, cursor: "pointer" }}>close</button>
             </h4>
-            {svcErrors.length === 0 ? (
+            {svcErrorsFailed ? (
+              <p className="muted" style={{ color: "#b91c1c" }}>
+                Couldn&apos;t load errors for {errorsFor} — the service may be down or rejecting requests.
+              </p>
+            ) : svcErrors.length === 0 ? (
               <p className="muted" style={{ color: "#16a34a" }}>No recent errors. 🎉</p>
             ) : (
               svcErrors.map((e, i) => (

@@ -1493,7 +1493,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       const res = await liveRoomPlayGame(roomId, me.id, action);
       applyRoom(res.room);
       setGameResponse("");
-      if (res.event.points) setError(`Correct! You earned ${res.event.points} points.`);
+      // A win is not an error — the red role="alert" box scared learners.
+      if (res.event.points) setNotice(`Correct! You earned ${res.event.points} points.`);
     } catch (e) {
       setError(friendlyError(e, "Game action failed"));
     } finally {

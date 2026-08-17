@@ -43,7 +43,7 @@ export type StringKey =
   | "drive.setupPermissionNeeded" | "drive.setupWakeNotice"
   | "drive.setupSiriSteps" | "drive.setupGoogleSteps" | "drive.setupChecking"
   | "drive.setupEnable" | "drive.setupContinue" | "drive.setupSettings"
-  | "drive.setupGuide" | "drive.setupButton" | "drive.autoSubmitHint"
+  | "drive.setupGuide" | "drive.setupButton" | "drive.setupListenAnyway" | "drive.autoSubmitHint"
   // MyList
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
@@ -108,7 +108,7 @@ export type StringKey =
   | "auth.qaHint" | "auth.useQa" | "auth.backendDown" | "auth.backendDownLocal"
   | "auth.backendDownCloud" | "auth.backendUp"
   | "auth.forgot" | "auth.sendReset" | "auth.resetPw" | "auth.resetToken"
-  | "auth.resetSent" | "auth.resetDone" | "auth.browseGuest"
+  | "auth.resetSent" | "auth.resetDone" | "auth.resetTokenRequired" | "auth.browseGuest"
   | "auth.mfaTitle" | "auth.mfaSub" | "auth.mfaCode" | "auth.mfaVerify" | "auth.mfaCancel"
   // Preview / guest browse
   | "preview.lockedTitle" | "preview.lockedBody" | "preview.signIn"
@@ -384,6 +384,7 @@ const EN: Record<StringKey, string> = {
   "drive.setupSettings": "Open phone voice settings",
   "drive.setupGuide": "How to enable Hey {engine}",
   "drive.setupButton": "Voice setup",
+  "drive.setupListenAnyway": "Listen without voice control",
   "drive.autoSubmitHint": "After you pause speaking, Salareen auto-submits in about {seconds}s (tunable in admin flags).",
 
   "mylist.title": "★ My List",
@@ -535,7 +536,8 @@ const EN: Record<StringKey, string> = {
   "auth.forgot": "Forgot password?",
   "auth.sendReset": "Send reset link",
   "auth.resetPw": "Set new password",
-  "auth.resetToken": "Reset token (local dev)",
+  "auth.resetToken": "Reset token from the email",
+  "auth.resetTokenRequired": "Paste the reset token from your email to continue.",
   "auth.resetSent": "Reset instructions sent — check your email (or use the dev token below).",
   "auth.resetDone": "Password updated — sign in with your new password.",
   "auth.browseGuest": "Browse without signing in",

@@ -4,6 +4,7 @@ import {
 } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { CURRICULUM_URL } from "../config";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 
 const WORLDS_URL = `${CURRICULUM_URL.replace("/curriculum", "")}/worlds`;
 
@@ -33,6 +34,10 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [xpEarned, setXpEarned] = useState(0);
+
+  // Android hardware/gesture back leaves Worlds instead of exiting the app
+  // (the on-screen back control is iOS-only).
+  useAndroidBackTo(onBack);
 
   const handleMessage = useCallback((event: WebViewMessageEvent) => {
     try {
