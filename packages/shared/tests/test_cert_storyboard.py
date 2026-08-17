@@ -30,7 +30,19 @@ LIVE_LESSONS = (
     "ca-alameda-food-handler-hygiene",
     "ca-alameda-food-handler-temps",
     "ca-alameda-food-handler-contamination",
+    "ca-alameda-food-handler-cleaning",
+    "ca-alameda-food-handler-pathogens",
+    "ca-alameda-food-handler-service",
     "food-handler-safety",
+)
+
+FOOD_2HR_LESSONS = (
+    "ca-alameda-food-handler-hygiene",
+    "ca-alameda-food-handler-temps",
+    "ca-alameda-food-handler-contamination",
+    "ca-alameda-food-handler-cleaning",
+    "ca-alameda-food-handler-pathogens",
+    "ca-alameda-food-handler-service",
 )
 
 
@@ -50,7 +62,8 @@ def test_live_lessons_have_storyboards(lesson_id: str) -> None:
 
 @pytest.mark.parametrize("lesson_id", LIVE_LESSONS)
 def test_every_slide_renders_animated_svg(lesson_id: str) -> None:
-    for i in range(10):
+    n = len(storyboard_for_lesson(lesson_id, include_svg=False))
+    for i in range(min(n, 20)):
         seg = storyboard_scene_for_slide(lesson_id, i)
         assert seg is not None, f"missing scene {lesson_id}#{i}"
         svg = render_scene_svg(seg.scene)
@@ -58,6 +71,17 @@ def test_every_slide_renders_animated_svg(lesson_id: str) -> None:
         assert "keyframes" in svg or "@keyframes" in svg
         assert seg.scene.title in svg or "Storyboard" in svg
         assert '<g class="cast"' in svg or '<g class="callout"' in svg
+
+
+@pytest.mark.parametrize("lesson_id", FOOD_2HR_LESSONS)
+def test_food_handler_modules_are_full_length(lesson_id: str) -> None:
+    """Six ~20-slide modules ≈ 2-hour CA / Alameda food handler prep track."""
+    segments = storyboard_for_lesson(lesson_id, include_svg=False)
+    assert len(segments) >= 20
+    cur = Path(__file__).resolve().parents[3] / "sample-curriculum" / lesson_id / "lesson.txt"
+    text = cur.read_text(encoding="utf-8")
+    assert text.count("\nSLIDE ") + (1 if text.startswith("SLIDE ") else 0) >= 20 or text.count("SLIDE ") >= 20
+    assert "~2 hour" in text or "2-hour" in text or "2 hour" in text
 
 
 def test_storyboard_slide_api_shape() -> None:
@@ -70,8 +94,10 @@ def test_storyboard_slide_api_shape() -> None:
 
 
 def test_food_handwashing_scene_has_sink_and_soap() -> None:
-    seg = storyboard_scene_for_slide("ca-alameda-food-handler-hygiene", 2)
+    # Slide index 3 in the expanded ~2-hour hygiene module.
+    seg = storyboard_scene_for_slide("ca-alameda-food-handler-hygiene", 3)
     assert seg is not None
+    assert "handwash" in seg.scene.title.lower() or "handwashing" in seg.scene.title.lower()
     kinds = {c.kind for c in seg.scene.cast}
     assert "sink" in kinds
     assert "soap" in kinds

@@ -6,8 +6,11 @@ from typing import Any, Callable, Optional
 
 from .catalog_dmv import build_dmv_basics, build_dmv_sharing, build_dmv_signs
 from .catalog_food import (
+    build_food_cleaning,
     build_food_contamination,
     build_food_hygiene,
+    build_food_pathogens,
+    build_food_service,
     build_food_temps,
 )
 from .driver_ed_bank import (
@@ -40,6 +43,18 @@ _BUILDERS: dict[str, Callable[[], list[SegmentStoryboard]]] = {
     "alameda-food-contamination": lambda: build_food_contamination(
         "alameda-food-contamination"
     ),
+    "ca-alameda-food-handler-cleaning": lambda: build_food_cleaning(
+        "ca-alameda-food-handler-cleaning"
+    ),
+    "alameda-food-cleaning": lambda: build_food_cleaning("alameda-food-cleaning"),
+    "ca-alameda-food-handler-pathogens": lambda: build_food_pathogens(
+        "ca-alameda-food-handler-pathogens"
+    ),
+    "alameda-food-pathogens": lambda: build_food_pathogens("alameda-food-pathogens"),
+    "ca-alameda-food-handler-service": lambda: build_food_service(
+        "ca-alameda-food-handler-service"
+    ),
+    "alameda-food-service": lambda: build_food_service("alameda-food-service"),
 }
 
 # Full CA driver-ed bank (200+ scenarios across 22 lessons).
