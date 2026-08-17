@@ -267,7 +267,41 @@ _CSS = """
     width:min(100%, 360px); }
   .embed-player iframe, .embed-player #yt-host, .embed-player video {
     width:100%; height:100%; border:0; object-fit:contain; background:#000; }
-  .embed-tools { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
+  /* overlay caption strip — live verse + translation on top of the video */
+  .embed-caption-overlay {
+    display:none; position:absolute; bottom:0; left:0; right:0;
+    background:linear-gradient(transparent,rgba(2,6,23,.82) 28%,rgba(2,6,23,.96));
+    padding:2.2rem 1.2rem .9rem; pointer-events:none; z-index:4; }
+  .embed-caption-overlay .ecap-line {
+    font-size:1.25rem; font-weight:700; color:#f8fafc; line-height:1.35;
+    text-shadow:0 2px 6px rgba(0,0,0,.8); }
+  .embed-caption-overlay .ecap-tr {
+    font-size:.95rem; color:#6ee7b7; margin-top:.3rem;
+    text-shadow:0 1px 4px rgba(0,0,0,.8); }
+  /* overlay pause card — shown on top of the video in theater mode */
+  .embed-pause-overlay {
+    display:none; position:absolute; inset:0; z-index:8;
+    background:rgba(2,6,23,.78); overflow-y:auto;
+    padding:1.5rem 2rem 1.2rem; backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px); }
+  /* theater mode for the embed section */
+  .embed-stage.embed-theater {
+    position:fixed; inset:0; z-index:60; background:#020617;
+    overflow:hidden; display:flex; flex-direction:column; gap:0; }
+  body.embed-theater-on { overflow:hidden; }
+  .embed-stage.embed-theater .embed-player {
+    flex:1; aspect-ratio:unset; border-radius:0; border:none; }
+  .embed-stage.embed-theater .embed-caption-overlay { display:block; }
+  .embed-stage.embed-theater .embed-tools {
+    flex-shrink:0; padding:.5rem .9rem; background:#0b1220;
+    border-top:1px solid #1e293b; gap:.5rem; }
+  .embed-stage.embed-theater .verse-list { display:none; }
+  .embed-stage.embed-theater #pause-card { display:none !important; }
+  .embed-stage.embed-theater .embed-pause-overlay[data-visible=true] { display:flex;
+    flex-direction:column; gap:.6rem; }
+  .embed-stage.embed-theater .embed-pause-overlay .pause-card {
+    flex:1; max-width:760px; margin:auto; width:100%; }
+  .embed-theater-btn { margin-left:auto; }
   .embed-tools label { font-size:.85rem; color:var(--muted); }
   .verse-list { display:grid; gap:.45rem; max-height:320px; overflow:auto; }
   .verse { text-align:left; width:100%; padding:.55rem .7rem; border-radius:10px;
@@ -391,14 +425,40 @@ _HTML = """
           your language.</p>
         <div class="embed-picker" id="embed-picker">Loading…</div>
         <div class="embed-stage" id="embed-stage" hidden>
-          <div class="embed-player" id="embed-player-box"><div id="yt-host"></div>
-            <video id="local-video" playsinline controls preload="metadata" hidden></video></div>
+          <div class="embed-player" id="embed-player-box">
+            <div id="yt-host"></div>
+            <video id="local-video" playsinline controls preload="metadata" hidden></video>
+            <!-- live caption overlay on top of video -->
+            <div class="embed-caption-overlay" id="embed-caption-overlay" aria-live="polite">
+              <div class="ecap-line" id="ecap-line"></div>
+              <div class="ecap-tr" id="ecap-tr"></div>
+            </div>
+            <!-- fullscreen pause overlay on top of video -->
+            <div class="embed-pause-overlay" id="embed-pause-overlay" data-visible="false">
+              <div class="pause-card" id="pause-card-overlay">
+                <h3 id="pause-title-ov">Paused for learning</h3>
+                <div id="pause-line-ov"></div>
+                <div class="tr" id="pause-tr-ov"></div>
+                <div class="chips" id="pause-vocab-ov"></div>
+                <div class="q-list" id="pause-questions-ov"></div>
+                <div class="ask-row" style="margin-top:.65rem">
+                  <input type="text" id="embed-ask-input-ov"
+                    placeholder="Ask about grammar, vocabulary, or this verse…" />
+                  <button class="primary" id="embed-ask-send-ov" type="button">Ask</button>
+                </div>
+                <div class="chips" id="embed-ask-quick-ov"></div>
+                <div class="answer" id="embed-ask-answer-ov">Answers stay grounded in the paused verse.</div>
+              </div>
+            </div>
+          </div>
           <div class="embed-tools">
             <button class="primary" id="btn-embed-play" type="button">Play</button>
             <button class="ghost" id="btn-embed-pause" type="button">Pause</button>
             <button class="ghost" id="btn-embed-continue" type="button">Continue after ask</button>
             <label><input type="checkbox" id="auto-pause" checked /> Pause at each verse</label>
             <span class="meta" id="embed-meta"></span>
+            <button class="ghost embed-theater-btn" id="btn-embed-theater" type="button"
+              title="Fullscreen with translation overlay (F)">⛶ Full screen</button>
           </div>
           <div class="pause-card" id="pause-card" hidden>
             <h3 id="pause-title">Paused for learning</h3>
@@ -677,8 +737,23 @@ _JS = r"""
   }
 
   function checkVersePause() {
-    if (!currentEmbed || !$("auto-pause").checked || pauseLocked) return;
+    if (!currentEmbed) return;
     const t = getPlayhead();
+
+    // Track which verse is playing and update the live caption overlay
+    let nowVerse = null;
+    for (const verse of currentEmbed.verses || []) {
+      if (t >= verse.start_sec) nowVerse = verse;
+    }
+    if (nowVerse && !pauseLocked) {
+      if (nowVerse.verse_no !== activeVerseNo) {
+        activeVerseNo = nowVerse.verse_no;
+        markVerseActive(activeVerseNo);
+      }
+      updateEmbedCaption(nowVerse);
+    }
+
+    if (!$("auto-pause").checked || pauseLocked) return;
     for (const verse of currentEmbed.verses || []) {
       const pauseAt = Number(verse.pause_sec);
       if (!pauseAt || firedPauses.has(verse.verse_no)) continue;
@@ -689,14 +764,6 @@ _JS = r"""
         toast(`Paused at line ${verse.verse_no} — read, ask, then Continue`);
         return;
       }
-    }
-    let current = null;
-    for (const verse of currentEmbed.verses || []) {
-      if (t >= verse.start_sec) current = verse;
-    }
-    if (current && current.verse_no !== activeVerseNo && !pauseLocked) {
-      activeVerseNo = current.verse_no;
-      markVerseActive(activeVerseNo);
     }
   }
 
@@ -748,6 +815,72 @@ _JS = r"""
     });
   }
 
+  // ---- embed theater (fullscreen with overlay) ----
+  let embedTheaterOn = false;
+
+  function updateEmbedCaption(verse) {
+    // Updates the live caption strip overlaid on the video.
+    if (!verse) {
+      $("ecap-line").textContent = "";
+      $("ecap-tr").textContent = "";
+      return;
+    }
+    $("ecap-line").textContent = verse.text || "";
+    const bits = [verse.translation];
+    if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
+      bits.push(`(${verse.text_en})`);
+    }
+    $("ecap-tr").textContent = bits.filter(Boolean).join(" · ");
+  }
+
+  function toggleEmbedTheater(on) {
+    const stage = $("embed-stage");
+    if (!stage || stage.hidden) return;
+    const want = on === undefined ? !embedTheaterOn : !!on;
+    embedTheaterOn = want;
+    stage.classList.toggle("embed-theater", want);
+    document.body.classList.toggle("embed-theater-on", want);
+    $("btn-embed-theater").textContent = want ? "✕ Exit full screen" : "⛶ Full screen";
+    if (want && !document.fullscreenElement && stage.requestFullscreen) {
+      stage.requestFullscreen().catch(() => undefined);
+    }
+    if (!want && document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => undefined);
+    }
+    // Sync overlay pause card visibility with normal pause card state
+    if (!want) {
+      $("embed-pause-overlay").dataset.visible = "false";
+    } else if (!$("pause-card").hidden) {
+      $("embed-pause-overlay").dataset.visible = "true";
+    }
+  }
+
+  function fillPauseOverlay(verse, verseNo, locked) {
+    // Populates the fullscreen overlay pause card (mirrors the normal pause card).
+    if (!verse) return;
+    const title = locked ? `Paused at line ${verseNo} — read & ask` : `Line ${verseNo} — grammar & vocabulary`;
+    $("pause-title-ov").textContent = title;
+    $("pause-line-ov").textContent = verse.text;
+    const bits = [verse.translation];
+    if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
+      bits.push(verse.text_en);
+    }
+    $("pause-tr-ov").textContent = bits.filter(Boolean).join(" · ");
+    $("pause-vocab-ov").innerHTML = (verse.vocabulary || []).filter((r) => r.target).slice(0, 8).map((r) =>
+      `<span class="chip"><b>${esc(r.en)}</b> \u2192 ${esc(r.target)}</span>`).join("");
+    $("pause-questions-ov").innerHTML = (verse.questions || []).map((q, i) => `
+      <div class="q-item" data-i="${i}">
+        <div class="kind">${esc(q.kind)}</div>
+        <div>${esc(q.prompt_translation || q.prompt)}</div>
+        <button class="ghost" type="button" data-reveal="${i}">Show answer</button>
+        <div class="ans">${esc(q.answer_translation || q.answer)}</div>
+      </div>`).join("");
+    $("pause-questions-ov").querySelectorAll("button[data-reveal]").forEach((btn) => {
+      btn.onclick = () => { btn.closest(".q-item").classList.add("open"); btn.remove(); };
+    });
+    $("embed-ask-answer-ov").textContent = "Ask about this verse, or reveal a prepared answer above.";
+  }
+
   function showPauseCard(verseNo, locked) {
     if (!currentEmbed) return;
     const verse = currentEmbed.verses.find((v) => v.verse_no === verseNo);
@@ -755,10 +888,14 @@ _JS = r"""
     activeVerseNo = verseNo;
     pauseLocked = !!locked;
     markVerseActive(verseNo);
+
+    // Always update the live overlay caption with the paused verse
+    updateEmbedCaption(verse);
+
+    // Normal (non-theater) pause card
     $("pause-card").hidden = false;
-    $("pause-title").textContent = locked
-      ? `Paused at line ${verseNo} — read & ask`
-      : `Line ${verseNo} — grammar & vocabulary`;
+    const title = locked ? `Paused at line ${verseNo} — read & ask` : `Line ${verseNo} — grammar & vocabulary`;
+    $("pause-title").textContent = title;
     $("pause-line").textContent = verse.text;
     const bits = [verse.translation];
     if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
@@ -782,6 +919,10 @@ _JS = r"""
       };
     });
     $("embed-ask-answer").textContent = "Ask about this verse, or reveal a prepared answer above.";
+
+    // Theater overlay: show the overlay pause card on top of the video
+    fillPauseOverlay(verse, verseNo, locked);
+    if (embedTheaterOn) $("embed-pause-overlay").dataset.visible = "true";
   }
 
   function clearPlayers() {
@@ -868,6 +1009,9 @@ _JS = r"""
     renderEmbedPicker();
     renderVerses();
     $("pause-card").hidden = true;
+    $("embed-pause-overlay").dataset.visible = "false";
+    $("ecap-line").textContent = "";
+    $("ecap-tr").textContent = "";
     if (currentEmbed.video_url) {
       await ensureLocalPlayer(currentEmbed.video_url, currentEmbed.kind === "local-karaoke");
       if (activeVerseNo) showPauseCard(activeVerseNo, false);
@@ -1480,6 +1624,7 @@ _JS = r"""
   $("btn-embed-continue").onclick = () => {
     pauseLocked = false;
     $("pause-card").hidden = true;
+    $("embed-pause-overlay").dataset.visible = "false";
     playMedia();
   };
   $("embed-ask-send").onclick = () => askEmbed();
@@ -1491,6 +1636,52 @@ _JS = r"""
   $("embed-ask-quick").querySelectorAll("button").forEach((b) => {
     b.onclick = () => askEmbed(b.getAttribute("data-q"));
   });
+
+  // ---- overlay "Continue" and "Ask" in the fullscreen pause overlay ----
+  // Wire a Continue action from the overlay
+  $("embed-pause-overlay").addEventListener("click", (e) => {
+    // Clicking the dark backdrop (not a card element) resumes playback
+    if (e.target === $("embed-pause-overlay")) {
+      pauseLocked = false;
+      $("pause-card").hidden = true;
+      $("embed-pause-overlay").dataset.visible = "false";
+      playMedia();
+    }
+  });
+  // Overlay Ask button
+  $("embed-ask-send-ov").onclick = () => askEmbedOverlay();
+  $("embed-ask-input-ov").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") askEmbedOverlay();
+  });
+  $("embed-ask-quick-ov").innerHTML = EMBED_QUICK.map((q) =>
+    `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
+  $("embed-ask-quick-ov").querySelectorAll("button").forEach((b) => {
+    b.onclick = () => askEmbedOverlay(b.getAttribute("data-q"));
+  });
+
+  async function askEmbedOverlay(question) {
+    // Same as askEmbed() but writes response to the overlay element.
+    if (!currentEmbed || !currentEmbed.has_pause_ask) return;
+    const q = (question || $("embed-ask-input-ov").value || "").trim();
+    if (!q) return;
+    $("embed-ask-answer-ov").textContent = "Thinking…";
+    const verse = currentEmbed.verses.find((v) => v.verse_no === activeVerseNo) || {};
+    try {
+      const r = await post("/api/music/embeds/ask", {
+        embed_id: currentEmbed.embed_id,
+        verse_no: activeVerseNo,
+        question: q,
+        verse_text: verse.text || "",
+        target_lang: lang(),
+      });
+      $("embed-ask-answer-ov").textContent = r.answer || "No answer.";
+    } catch (err) {
+      $("embed-ask-answer-ov").textContent = `Error: ${err.message || err}`;
+    }
+  }
+
+  // ---- embed theater button ----
+  $("btn-embed-theater").onclick = () => toggleEmbedTheater();
 
   async function togglePlay() {
     const player = $("player");
@@ -1516,16 +1707,43 @@ _JS = r"""
     if (scene) speakNarration(scene);
   };
   document.addEventListener("fullscreenchange", () => {
-    if (!document.fullscreenElement && $("stage").classList.contains("theater")) {
-      toggleTheater(false);
+    if (!document.fullscreenElement) {
+      if ($("stage").classList.contains("theater")) toggleTheater(false);
+      if (embedTheaterOn) toggleEmbedTheater(false);
     }
   });
   document.addEventListener("keydown", (e) => {
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || "");
     if (typing) return;
-    if (e.key === "f" || e.key === "F") toggleTheater();
-    if (e.key === "Escape" && $("stage").classList.contains("theater")) toggleTheater(false);
-    if (e.key === " " || e.code === "Space") { e.preventDefault(); togglePlay(); }
+    // F toggles whichever theater mode is relevant; if embed-stage is visible, prefer it
+    if (e.key === "f" || e.key === "F") {
+      const embedVisible = $("embed-stage") && !$("embed-stage").hidden;
+      if (embedVisible) {
+        toggleEmbedTheater();
+      } else {
+        toggleTheater();
+      }
+    }
+    if (e.key === "Escape") {
+      if (embedTheaterOn) toggleEmbedTheater(false);
+      else if ($("stage").classList.contains("theater")) toggleTheater(false);
+    }
+    // Spacebar resumes/pauses embed if theater is on, else toggles the song player
+    if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+      if (embedTheaterOn && currentEmbed) {
+        if (pauseLocked) {
+          pauseLocked = false;
+          $("pause-card").hidden = true;
+          $("embed-pause-overlay").dataset.visible = "false";
+          playMedia();
+        } else {
+          pauseMedia();
+        }
+      } else {
+        togglePlay();
+      }
+    }
   });
   $("show-inline").onchange = () => {
     const no = activeLineNo;
