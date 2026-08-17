@@ -338,8 +338,8 @@ def test_new_apis_and_player_ui(offline):
         health = client.get("/health").json()
         assert health["clips"] >= 4
         assert health["videos"] >= 4
-        assert health["embeds"] >= 3
-        assert health["embed_pause_ask"] >= 3
+        assert health["embeds"] >= 4
+        assert health["embed_pause_ask"] >= 4
         assert health["karaoke"] is True
         assert health["ask_ai"] is True
 
@@ -415,8 +415,12 @@ def test_new_apis_and_player_ui(offline):
         ).status_code == 422
 
         embeds = client.get("/api/music/embeds", params={"target_lang": "es"}).json()
-        assert embeds["count"] >= 3
-        lesson = next(row for row in embeds["embeds"] if row["has_pause_ask"])
+        assert embeds["count"] >= 4
+        lesson = next(
+            row
+            for row in embeds["embeds"]
+            if row["has_pause_ask"] and row["kind"] != "local-karaoke"
+        )
         detail = client.get(
             f"/api/music/embeds/{lesson['embed_id']}",
             params={"target_lang": "es", "allow_llm": False},
@@ -438,6 +442,14 @@ def test_new_apis_and_player_ui(offline):
         assert asked["answer"]
         assert asked["cited_verse"]["verse_no"] == 1
         assert client.get("/api/music/embeds/does-not-exist").status_code == 404
+
+        karaoke = client.get(
+            "/api/music/embeds/karaoke-love-of-learning-km",
+            params={"target_lang": "es", "allow_llm": False},
+        ).json()
+        assert karaoke["verse_count"] == 60
+        assert karaoke["video_url"].endswith("love_of_learning_khmer.mp4")
+        assert karaoke["bilingual"] is True
 
         page = client.get("/").text
         assert 'id="ball"' in page
@@ -461,6 +473,8 @@ def test_new_apis_and_player_ui(offline):
         assert "youtube.com/iframe_api" in page
         assert "Pause at each verse" in page
         assert "YouTube movie lessons" in page
+        assert 'id="local-video"' in page
+        assert "Continue after ask" in page
         assert "requestFullscreen" in page
         for camera in CAMERA_MOVES:
             assert f".cam-{camera} " in page, camera
@@ -496,11 +510,52 @@ def test_every_song_storyboard_covers_every_line_in_order():
         assert previous_end == pytest.approx(board["duration_sec"], abs=0.05)
 
 
+def test_khmer_english_karaoke_pauses_every_line(offline):
+    from theodore_music_lab.love_of_learning import DURATION_SEC, love_of_learning_embed
+
+    raw = love_of_learning_embed()
+    assert raw["video_file"] == "love_of_learning_khmer.mp4"
+    assert len(raw["verses"]) == 60
+    assert raw["verses"][0]["source_lang"] == "en"
+    assert raw["verses"][2]["source_lang"] == "km"
+    assert raw["verses"][-1]["text_en"] == "I was born to learn"
+    previous = 0.0
+    for verse in raw["verses"]:
+        assert verse["start_sec"] >= previous - 0.001
+        assert verse["pause_sec"] > verse["start_sec"]
+        previous = verse["pause_sec"]
+    assert previous <= DURATION_SEC
+
+    spanish = resolve_embed(raw, "es", allow_llm=False)
+    assert spanish["video_url"] == "/api/music/video/love_of_learning_khmer.mp4"
+    assert spanish["bilingual"] is True
+    assert spanish["verses"][0]["tier"] == "curated"
+    khmer = resolve_embed(raw, "km", allow_llm=False)
+    assert khmer["verses"][2]["translation"] == raw["verses"][2]["text_km"]
+    english = resolve_embed(raw, "en", allow_llm=False)
+    assert english["verses"][2]["translation"] == raw["verses"][2]["text_en"]
+
+    with TestClient(app) as client:
+        detail = client.get(
+            "/api/music/embeds/karaoke-love-of-learning-km",
+            params={"target_lang": "fr", "allow_llm": False},
+        ).json()
+        assert detail["verse_count"] == 60
+        video = client.get(detail["video_url"])
+        assert video.status_code == 200
+        assert video.headers["accept-ranges"] == "bytes"
+        partial = client.get(detail["video_url"], headers={"Range": "bytes=0-1023"})
+        assert partial.status_code == 206
+        assert len(partial.content) == 1024
+
+
 def test_youtube_embeds_pause_and_ask_in_curated_languages(offline):
     rows = load_embeds()
-    assert len(rows) >= 3
+    assert len(rows) >= 4
     assert embed_url("2owVccYAIRg").endswith("2owVccYAIRg?enablejsapi=1&rel=0&modestbranding=1")
-    pause_ask = [r for r in rows if r.get("verses")]
+    pause_ask = [
+        r for r in rows if r.get("verses") and r.get("kind") != "local-karaoke"
+    ]
     assert len(pause_ask) >= 3
     for raw in pause_ask:
         assert raw["youtube_id"]
@@ -526,6 +581,7 @@ def test_youtube_embeds_pause_and_ask_in_curated_languages(offline):
                 assert resolved["verses"][0]["tier"] == "curated"
     catalogue = list_embeds("es", allow_llm=False)
     assert any(row["embed_id"] == "movie-incredibles-lesson-1" for row in catalogue)
+    assert any(row["embed_id"] == "karaoke-love-of-learning-km" for row in catalogue)
     explained = explain_verse(
         "legend-cambodia-neang-neak", 1, "es", allow_llm=False
     )

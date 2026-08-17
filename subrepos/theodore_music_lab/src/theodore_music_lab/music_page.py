@@ -263,7 +263,10 @@ _CSS = """
   .embed-stage { display:grid; gap:.75rem; }
   .embed-player { position:relative; width:100%; aspect-ratio:16/9; background:#020617;
     border-radius:14px; overflow:hidden; border:1px solid #334155; }
-  .embed-player iframe, .embed-player #yt-host { width:100%; height:100%; border:0; }
+  .embed-player.portrait { aspect-ratio:9/16; max-height:min(70vh, 640px); margin:0 auto;
+    width:min(100%, 360px); }
+  .embed-player iframe, .embed-player #yt-host, .embed-player video {
+    width:100%; height:100%; border:0; object-fit:contain; background:#000; }
   .embed-tools { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
   .embed-tools label { font-size:.85rem; color:var(--muted); }
   .verse-list { display:grid; gap:.45rem; max-height:320px; overflow:auto; }
@@ -388,7 +391,8 @@ _HTML = """
           your language.</p>
         <div class="embed-picker" id="embed-picker">Loading…</div>
         <div class="embed-stage" id="embed-stage" hidden>
-          <div class="embed-player"><div id="yt-host"></div></div>
+          <div class="embed-player" id="embed-player-box"><div id="yt-host"></div>
+            <video id="local-video" playsinline controls preload="metadata" hidden></video></div>
           <div class="embed-tools">
             <button class="primary" id="btn-embed-play" type="button">Play</button>
             <button class="ghost" id="btn-embed-pause" type="button">Pause</button>
@@ -450,6 +454,8 @@ _JS = r"""
   let ytPlayer = null;
   let ytReady = false;
   let ytPoll = 0;
+  let localVideo = null;
+  let usingLocalVideo = false;
   let firedPauses = new Set();
   let pauseLocked = false;
   const EMBED_QUICK = [
@@ -633,22 +639,57 @@ _JS = r"""
     ytPoll = setInterval(checkVersePause, 250);
   }
 
+  function getPlayhead() {
+    if (usingLocalVideo && localVideo) return localVideo.currentTime || 0;
+    if (ytPlayer && ytReady) {
+      try { return ytPlayer.getCurrentTime() || 0; } catch (_) { return 0; }
+    }
+    return 0;
+  }
+
+  function pauseMedia() {
+    if (usingLocalVideo && localVideo) { localVideo.pause(); return; }
+    if (ytPlayer && ytReady) { try { ytPlayer.pauseVideo(); } catch (_) { /* ignore */ } }
+  }
+
+  function playMedia() {
+    if (usingLocalVideo && localVideo) {
+      localVideo.play().catch(() => toast("Press play on the video once"));
+      return;
+    }
+    if (ytPlayer && ytReady) {
+      try { ytPlayer.playVideo(); } catch (_) { toast("Press play on the video once"); }
+    }
+  }
+
+  function seekMedia(sec) {
+    if (usingLocalVideo && localVideo) {
+      localVideo.currentTime = Math.max(0, sec);
+      localVideo.pause();
+      return;
+    }
+    if (ytPlayer && ytReady) {
+      try {
+        ytPlayer.seekTo(Math.max(0, sec), true);
+        ytPlayer.pauseVideo();
+      } catch (_) { /* ignore */ }
+    }
+  }
+
   function checkVersePause() {
-    if (!ytPlayer || !currentEmbed || !$("auto-pause").checked || pauseLocked) return;
-    let t = 0;
-    try { t = ytPlayer.getCurrentTime() || 0; } catch (_) { return; }
+    if (!currentEmbed || !$("auto-pause").checked || pauseLocked) return;
+    const t = getPlayhead();
     for (const verse of currentEmbed.verses || []) {
       const pauseAt = Number(verse.pause_sec);
       if (!pauseAt || firedPauses.has(verse.verse_no)) continue;
       if (t >= pauseAt - 0.15) {
         firedPauses.add(verse.verse_no);
-        try { ytPlayer.pauseVideo(); } catch (_) { /* ignore */ }
+        pauseMedia();
         showPauseCard(verse.verse_no, true);
-        toast(`Paused at verse ${verse.verse_no} — answer, then Continue`);
+        toast(`Paused at line ${verse.verse_no} — read, ask, then Continue`);
         return;
       }
     }
-    // Keep the active verse highlight in sync while playing.
     let current = null;
     for (const verse of currentEmbed.verses || []) {
       if (t >= verse.start_sec) current = verse;
@@ -692,9 +733,11 @@ _JS = r"""
     box.innerHTML = currentEmbed.verses.map((v) => `
       <button type="button" class="verse ${v.verse_no === activeVerseNo ? "active" : ""}"
         data-no="${v.verse_no}">
-        <strong>Verse ${v.verse_no} \u00b7 ${esc(v.focus)} \u00b7 ${Math.round(v.start_sec)}s</strong>
+        <strong>Line ${v.verse_no} \u00b7 ${esc(v.section || v.focus)} \u00b7 ${esc(v.source_lang || "")}
+          \u00b7 ${Math.round(v.start_sec)}s</strong>
         <span>${esc(v.text)}</span>
         <div class="tr">${esc(v.translation)}</div>
+        ${v.text_en && v.source_lang === "km" ? `<div class="meta">${esc(v.text_en)}</div>` : ""}
       </button>`).join("");
     box.querySelectorAll(".verse").forEach((btn) => {
       btn.onclick = () => {
@@ -714,10 +757,14 @@ _JS = r"""
     markVerseActive(verseNo);
     $("pause-card").hidden = false;
     $("pause-title").textContent = locked
-      ? `Paused at verse ${verseNo} — grammar & vocabulary`
-      : `Verse ${verseNo} — grammar & vocabulary`;
+      ? `Paused at line ${verseNo} — read & ask`
+      : `Line ${verseNo} — grammar & vocabulary`;
     $("pause-line").textContent = verse.text;
-    $("pause-tr").textContent = verse.translation;
+    const bits = [verse.translation];
+    if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
+      bits.push(verse.text_en);
+    }
+    $("pause-tr").textContent = bits.filter(Boolean).join(" · ");
     $("pause-vocab").innerHTML = (verse.vocabulary || []).filter((r) => r.target).slice(0, 8).map((r) =>
       `<span class="chip"><b>${esc(r.en)}</b> \u2192 ${esc(r.target)}</span>`).join("");
     $("pause-questions").innerHTML = (verse.questions || []).map((q, i) => `
@@ -737,16 +784,54 @@ _JS = r"""
     $("embed-ask-answer").textContent = "Ask about this verse, or reveal a prepared answer above.";
   }
 
+  function clearPlayers() {
+    stopYtPoll();
+    usingLocalVideo = false;
+    localVideo = $("local-video");
+    localVideo.pause();
+    localVideo.removeAttribute("src");
+    localVideo.load();
+    localVideo.hidden = true;
+    $("yt-host").hidden = false;
+    $("yt-host").innerHTML = "";
+    $("embed-player-box").classList.remove("portrait");
+    if (ytPlayer && ytPlayer.destroy) {
+      try { ytPlayer.destroy(); } catch (_) { /* ignore */ }
+      ytPlayer = null;
+    }
+    ytReady = false;
+  }
+
+  function wireLocalVideo() {
+    localVideo = $("local-video");
+    localVideo.onplay = () => { pauseLocked = false; startYtPoll(); };
+    localVideo.onpause = () => { stopYtPoll(); };
+    localVideo.onended = () => { stopYtPoll(); };
+    localVideo.ontimeupdate = () => {
+      if (!document.hidden) checkVersePause();
+    };
+  }
+
+  async function ensureLocalPlayer(videoUrl, portrait) {
+    clearPlayers();
+    usingLocalVideo = true;
+    localVideo = $("local-video");
+    $("yt-host").hidden = true;
+    localVideo.hidden = false;
+    if (portrait) $("embed-player-box").classList.add("portrait");
+    wireLocalVideo();
+    localVideo.src = videoUrl;
+    await new Promise((resolve) => {
+      const done = () => { localVideo.removeEventListener("loadedmetadata", done); resolve(); };
+      localVideo.addEventListener("loadedmetadata", done);
+      localVideo.load();
+    });
+  }
+
   async function ensureYtPlayer(youtubeId) {
+    clearPlayers();
     await loadYtApi();
     return new Promise((resolve) => {
-      stopYtPoll();
-      if (ytPlayer && ytPlayer.destroy) {
-        try { ytPlayer.destroy(); } catch (_) { /* ignore */ }
-        ytPlayer = null;
-      }
-      $("yt-host").innerHTML = "";
-      ytReady = false;
       ytPlayer = new YT.Player("yt-host", {
         videoId: youtubeId,
         playerVars: {
@@ -779,14 +864,18 @@ _JS = r"""
     pauseLocked = false;
     $("embed-stage").hidden = false;
     $("embed-meta").textContent =
-      `${currentEmbed.channel} \u00b7 ${currentEmbed.verse_count} verses \u00b7 ${currentEmbed.topic}`;
+      `${currentEmbed.channel} \u00b7 ${currentEmbed.verse_count} lines \u00b7 ${currentEmbed.topic}`;
     renderEmbedPicker();
     renderVerses();
     $("pause-card").hidden = true;
-    if (currentEmbed.youtube_id && currentEmbed.has_pause_ask) {
+    if (currentEmbed.video_url) {
+      await ensureLocalPlayer(currentEmbed.video_url, currentEmbed.kind === "local-karaoke");
+      if (activeVerseNo) showPauseCard(activeVerseNo, false);
+    } else if (currentEmbed.youtube_id && currentEmbed.has_pause_ask) {
       await ensureYtPlayer(currentEmbed.youtube_id);
       if (activeVerseNo) showPauseCard(activeVerseNo, false);
     } else if (currentEmbed.playlist_url) {
+      clearPlayers();
       $("yt-host").innerHTML =
         `<div class="meta" style="padding:1rem">Open the playlist on YouTube, then come back and
          pick a lesson with pause points.
@@ -795,14 +884,11 @@ _JS = r"""
   }
 
   function seekVerse(verseNo) {
-    if (!ytPlayer || !ytReady || !currentEmbed) return;
+    if (!currentEmbed) return;
     const verse = currentEmbed.verses.find((v) => v.verse_no === verseNo);
     if (!verse) return;
     activeVerseNo = verseNo;
-    try {
-      ytPlayer.seekTo(Math.max(0, verse.start_sec), true);
-      ytPlayer.pauseVideo();
-    } catch (_) { /* ignore */ }
+    seekMedia(verse.start_sec);
     markVerseActive(verseNo);
   }
 
@@ -1384,20 +1470,17 @@ _JS = r"""
   $("sing-lang").onchange = () => { toggleSinging(); };
   $("btn-theater").onclick = () => toggleTheater();
   $("btn-embed-play").onclick = () => {
-    if (!ytPlayer || !ytReady) return;
     pauseLocked = false;
-    try { ytPlayer.playVideo(); } catch (_) { toast("Press play on the video once"); }
+    playMedia();
   };
   $("btn-embed-pause").onclick = () => {
-    if (!ytPlayer || !ytReady) return;
-    try { ytPlayer.pauseVideo(); } catch (_) { /* ignore */ }
+    pauseMedia();
     if (activeVerseNo) showPauseCard(activeVerseNo, true);
   };
   $("btn-embed-continue").onclick = () => {
     pauseLocked = false;
     $("pause-card").hidden = true;
-    if (!ytPlayer || !ytReady) return;
-    try { ytPlayer.playVideo(); } catch (_) { /* ignore */ }
+    playMedia();
   };
   $("embed-ask-send").onclick = () => askEmbed();
   $("embed-ask-input").addEventListener("keydown", (e) => {

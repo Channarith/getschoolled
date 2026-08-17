@@ -17,7 +17,9 @@ from typing import Any, Optional
 
 from .curated_embeds import curated_embed
 from .curated_lines import normalize
+from .curated_love import curated_love
 from .lexicon import EXAMPLES, gloss, terms_in_line, vocabulary_for_line
+from .love_of_learning import love_of_learning_embed
 from .translations import (
     TIER_NOTES,
     XAI_DEFAULT_MODEL,
@@ -52,7 +54,14 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def load_embeds(path: Optional[Path] = None) -> list[dict[str, Any]]:
-    return _load_jsonl(path or _data_dir() / "embeds.jsonl")
+    rows = _load_jsonl(path or _data_dir() / "embeds.jsonl")
+    local = love_of_learning_embed()
+    # Local karaoke leads the catalogue so learners see it first.
+    return [local, *[row for row in rows if row.get("embed_id") != local["embed_id"]]]
+
+
+def video_dir() -> Path:
+    return _data_dir() / "video"
 
 
 def get_embed(embed_id: str) -> dict[str, Any]:
@@ -91,7 +100,7 @@ def _translate_text(
             "note": TIER_NOTES["english"],
             "vocabulary": vocab,
         }
-    translation = curated_embed(english, lang)
+    translation = curated_love(english, lang) or curated_embed(english, lang)
     tier = "curated" if translation else ""
     if not translation and cache:
         translation = cache.get(normalize(english), "")
@@ -111,6 +120,38 @@ def _translate_text(
         "note": TIER_NOTES[tier],
         "vocabulary": vocab,
     }
+
+
+def _line_display(
+    raw: dict[str, Any],
+    language: str,
+    *,
+    cache: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Pick the on-screen original + translation for a bilingual karaoke line."""
+    lang = validate_language(language)
+    text = str(raw.get("text") or "").strip()
+    text_en = str(raw.get("text_en") or text).strip()
+    text_km = str(raw.get("text_km") or "").strip()
+
+    if lang == "km" and text_km:
+        return {
+            "text": text,
+            "translation": text_km,
+            "tier": "curated",
+            "note": "Khmer line (source script or hand gloss).",
+            "vocabulary": vocabulary_for_line(text_en, lang),
+        }
+    if lang == "en":
+        return {
+            "text": text,
+            "translation": text_en,
+            "tier": "english",
+            "note": TIER_NOTES["english"],
+            "vocabulary": vocabulary_for_line(text_en, lang),
+        }
+    # Translate from the English gloss so Khmer script is never fed to Latin tiers.
+    return _translate_text(text_en, lang, cache=cache)
 
 
 def _fill_llm_gaps(
@@ -165,16 +206,27 @@ def resolve_embed(
         if not isinstance(raw, dict):
             continue
         text = str(raw.get("text") or "").strip()
-        translated = _translate_text(text, lang, cache=cache)
+        text_en = str(raw.get("text_en") or text).strip()
+        text_km = str(raw.get("text_km") or "").strip()
+        translated = _line_display(raw, lang, cache=cache)
         text_rows.append(translated)
         questions: list[dict[str, Any]] = []
         for q in raw.get("questions") or []:
             if not isinstance(q, dict):
                 continue
             prompt = str(q.get("prompt") or "").strip()
-            answer = str(q.get("answer") or "").strip()
+            answer = str(q.get("answer") or text_en).strip()
             prompt_tr = _translate_text(prompt, lang, cache=cache)
-            answer_tr = _translate_text(answer, lang, cache=cache)
+            answer_tr = _line_display(
+                {
+                    "text": answer,
+                    "text_en": answer,
+                    "text_km": text_km if answer == text_en else "",
+                    "source_lang": "en",
+                },
+                lang,
+                cache=cache,
+            )
             text_rows.extend([prompt_tr, answer_tr])
             questions.append(
                 {
@@ -188,7 +240,7 @@ def resolve_embed(
                 }
             )
         terms = [str(t) for t in (raw.get("terms") or []) if t]
-        vocab = vocabulary_for_line(text, lang)
+        vocab = vocabulary_for_line(text_en, lang)
         for term in terms:
             if not any(row.get("en") == term for row in vocab):
                 target = gloss(term, lang) if lang != "en" else term
@@ -196,9 +248,13 @@ def resolve_embed(
         verses_out.append(
             {
                 "verse_no": int(raw.get("verse_no") or len(verses_out) + 1),
+                "section": str(raw.get("section") or ""),
+                "source_lang": str(raw.get("source_lang") or "en"),
                 "start_sec": float(raw.get("start_sec") or 0),
                 "pause_sec": float(raw.get("pause_sec") or 0),
                 "text": text,
+                "text_en": text_en,
+                "text_km": text_km,
                 "translation": translated["translation"],
                 "tier": translated["tier"],
                 "note": translated["note"],
@@ -227,15 +283,26 @@ def resolve_embed(
             question["answer_tier"] = answer_tr["tier"]
             cursor += 2
 
+    video_file = str(embed.get("video_file") or "").strip()
+    video_url = ""
+    if video_file:
+        safe = Path(video_file).name
+        if safe == video_file and (video_dir() / safe).is_file():
+            video_url = f"/api/music/video/{safe}"
+    elif str(embed.get("url") or "").startswith("/api/music/video/"):
+        video_url = str(embed["url"])
+
     return {
         "embed_id": embed_id,
         "kind": str(embed.get("kind") or "video"),
         "youtube_id": youtube_id,
+        "video_file": video_file,
+        "video_url": video_url,
         "title": str(embed.get("title") or ""),
         "channel": str(embed.get("channel") or ""),
-        "url": str(embed.get("url") or ""),
+        "url": str(embed.get("url") or video_url or ""),
         "playlist_url": str(embed.get("playlist_url") or ""),
-        "embed_url": embed_url(youtube_id),
+        "embed_url": embed_url(youtube_id) if youtube_id else "",
         "thumbnail_url": (
             f"https://i.ytimg.com/vi/{youtube_id}/hqdefault.jpg" if youtube_id else ""
         ),
@@ -248,6 +315,9 @@ def resolve_embed(
         "pause_points": len(verses_out),
         "verses": verses_out,
         "has_pause_ask": bool(verses_out),
+        "bilingual": any(
+            str(v.get("source_lang") or "") == "km" for v in verses_out
+        ),
     }
 
 
@@ -266,12 +336,14 @@ def list_embeds(language: str = "en", *, allow_llm: bool = False) -> list[dict[s
                 "url": resolved["url"],
                 "playlist_url": resolved["playlist_url"],
                 "embed_url": resolved["embed_url"],
+                "video_url": resolved.get("video_url") or "",
                 "thumbnail_url": resolved["thumbnail_url"],
                 "duration_sec": resolved["duration_sec"],
                 "topic": resolved["topic"],
                 "note": resolved["note"],
                 "verse_count": resolved["verse_count"],
                 "has_pause_ask": resolved["has_pause_ask"],
+                "bilingual": resolved.get("bilingual", False),
             }
         )
     return rows

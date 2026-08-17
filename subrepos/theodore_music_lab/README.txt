@@ -26,6 +26,9 @@ language_learning / content packs.
   • YouTube movie lessons embedded on the page: pause at each verse, answer
     grammar/vocabulary prompts, ask the AI about the line, and read the verse in
     any of 27 languages (Cambodia & Laos legends + Learn English with Movies)
+  • Local Khmer/English karaoke (សេចក្ដីស្រឡាញ់ការរៀនសូត្រ — Love of Learning):
+    60 timed lines, pause on every line, translate Khmer+English into any of 27
+    languages, then ask about the line before continuing
   • Import schema for additional original packs (JSON/JSONL)
 
 Featured audio: data/audio/*.mp3 + data/featured_songs.jsonl.
@@ -89,6 +92,10 @@ YouTube embeds (embeds.py + data/embeds.jsonl)
             paused verse (Grok when keyed, otherwise the prepared Q&A)
   examples  Preah Thong & Neang Neak, Sang Sinxay, The Incredibles movie lesson,
             plus the Learn English with Movies playlist pointer
+  karaoke   local MP4 Love of Learning (Khmer+English, 60 pause lines) served
+            from /api/music/video/ with Range seeking; bilingual text_en/text_km
+            so any target language translates from the English gloss while Khmer
+            display stays the source script
 
 Ask AI uses Grok when XAI_API_KEY is set and otherwise answers from the lyrics
 themselves (line + translation + key words + example), so it works offline.
@@ -224,6 +231,7 @@ APIs on :8097
                                       tag and speech rate (?target_lang=&duration=)
   GET  /api/music/embeds            — YouTube movie/legend lessons (?target_lang=)
   GET  /api/music/embeds/{embed_id} — verses, translations, questions, embed URL
+  GET  /api/music/video/{filename}  — local karaoke MP4, honours Range (206)
   POST /api/music/embeds/explain    — one verse: meaning, vocab, prepared Q&A
   POST /api/music/embeds/ask        — ask grammar/vocab about the paused verse
   GET  /api/music/audio/{filename}  — MP3, honours Range (206) so seeking works

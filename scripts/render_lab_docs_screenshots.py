@@ -433,6 +433,7 @@ def render_music_lab() -> None:
             ("narration", "on screen, spoken on request"),
             ("sing-along", "English track → 27 languages"),
             ("YouTube embeds", "pause · ask · translate"),
+            ("Khmer karaoke", "60 lines · Love of Learning"),
             ("clips / videos", "6 clips · 9 lyric videos"),
         ],
         right_title="Full-screen theater",
@@ -443,13 +444,11 @@ def render_music_lab() -> None:
             "El autobús cruza la ciudad. Sus ruedas giran.",
             "  Wheels on the bus go ●round● and round",
             "    Las ruedas del autobús giran y giran",
-            "  → All through the town · Por toda la ciudad",
-            "  [x] Sing in Spanish · English ducked to backing",
             "YouTube: The Incredibles · paused at verse 3",
-            "  ask: What does We've got to go mean?",
-            "→ spoken urgency = we have to leave",
+            "Karaoke: សេចក្ដីស្រឡាញ់ការរៀនសូត្រ · line 15",
+            "  → The love of learning · El amor por aprender",
         ],
-        pills=["full-screen scenes", "movie camera moves", "YouTube pause & ask"],
+        pills=["Khmer karaoke", "movie pause & ask", "27 languages"],
     )
 
 

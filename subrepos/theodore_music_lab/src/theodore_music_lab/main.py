@@ -11,7 +11,15 @@ from pydantic import BaseModel, Field
 
 from .ask_ai import ask, explain_line
 from .catalog import MEANING_LANGUAGES, Catalog, _audio_dir, import_songs, meaning_for_line
-from .embeds import ask_verse, explain_verse, get_embed, list_embeds, load_embeds, resolve_embed
+from .embeds import (
+    ask_verse,
+    explain_verse,
+    get_embed,
+    list_embeds,
+    load_embeds,
+    resolve_embed,
+    video_dir,
+)
 from .media import load_clips, resolve_clip, videos_for
 from .music_page import render_music_page
 from .session import SessionMode, SessionStore
@@ -351,23 +359,39 @@ def get_song(song_id: str) -> dict[str, Any]:
 
 @app.get("/api/music/audio/{filename}")
 def get_audio(filename: str, request: Request) -> Response:
-    """Serve a featured MP3.
+    """Serve a featured MP3 with byte-range seeking."""
+    return _ranged_file(
+        filename, request, _audio_dir(), "audio/mpeg", "Invalid audio filename"
+    )
 
-    Byte ranges are handled explicitly: without them a browser cannot seek, and
-    seeking is what Restart, clip playback and click-a-line-to-jump all rely on.
-    """
+
+@app.get("/api/music/video/{filename}")
+def get_video(filename: str, request: Request) -> Response:
+    """Serve a local karaoke / lesson MP4 with byte-range seeking."""
+    return _ranged_file(
+        filename, request, video_dir(), "video/mp4", "Invalid video filename"
+    )
+
+
+def _ranged_file(
+    filename: str,
+    request: Request,
+    root: Path,
+    media_type: str,
+    bad_name_detail: str,
+) -> Response:
     safe = Path(filename).name
     if safe != filename or ".." in filename or "/" in filename or "\\" in filename:
-        raise HTTPException(status_code=400, detail="Invalid audio filename")
-    path = _audio_dir() / safe
+        raise HTTPException(status_code=400, detail=bad_name_detail)
+    path = root / safe
     if not path.is_file():
-        raise HTTPException(status_code=404, detail=f"Audio not found: {safe}")
+        raise HTTPException(status_code=404, detail=f"File not found: {safe}")
 
     size = path.stat().st_size
     headers = {"accept-ranges": "bytes", "cache-control": "public, max-age=3600"}
     raw_range = request.headers.get("range", "")
     if not raw_range.startswith("bytes="):
-        return FileResponse(path, media_type="audio/mpeg", headers=headers)
+        return FileResponse(path, media_type=media_type, headers=headers)
 
     spec = raw_range.split("=", 1)[1].split(",")[0].strip()
     first, _, last = spec.partition("-")
@@ -398,7 +422,7 @@ def get_audio(filename: str, request: Request) -> Response:
     return StreamingResponse(
         stream(),
         status_code=206,
-        media_type="audio/mpeg",
+        media_type=media_type,
         headers={
             **headers,
             "content-range": f"bytes {start}-{end}/{size}",
