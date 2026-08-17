@@ -63,6 +63,7 @@ def test_password_reset_token_is_not_a_session():
     # And the reset flow itself still works.
     ok = client.post("/auth/reset-password", json={
         "token": reset_token, "new_password": "Newpass12"})
+    assert ok.status_code == 200
 
 
 # HIGH-27b ------------------------------------------------------------------- #

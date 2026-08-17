@@ -181,7 +181,7 @@ _TINY_JPEG = bytes.fromhex(
 def test_tiny_frame_does_not_crash_silhouette_detector():
     """A 1x1/corrupt frame used to segfault OpenCV HOG (window 64x128 > frame),
     killing the whole webcam process. Now it returns a normal result."""
-    cv2 = pytest.importorskip("cv2")
+    pytest.importorskip("cv2")
     from aoep_shared.silhouette import SilhouetteDetector
 
     d = SilhouetteDetector()
