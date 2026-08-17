@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { translateText } from "../lib/api";
 import { useT } from "../lib/i18n";
 
@@ -33,7 +33,7 @@ export default function CourseStoryboardPlayer({
   profileMode = "mixed",
   sourceLanguage = "en",
 }: Props) {
-  const examples = examplesProp || [];
+  const examples = useMemo(() => examplesProp || [], [examplesProp]);
   const { locale } = useT();
   const [localized, setLocalized] = useState<{
     concept: string; examples: string[]; activity: string;
@@ -59,7 +59,7 @@ export default function CourseStoryboardPlayer({
       });
     });
     return () => { active = false; };
-  }, [concept, examplesProp, activity, locale, sourceLanguage, translatedConcept]);
+  }, [concept, examples, activity, locale, sourceLanguage, translatedConcept]);
   if (!svg) return null;
   const shownConcept = translatedConcept || localized?.concept || concept;
   const shownExamples = localized?.examples || examples;
