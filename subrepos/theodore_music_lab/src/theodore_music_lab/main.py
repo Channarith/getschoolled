@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from .ask_ai import ask, explain_line
 from .catalog import MEANING_LANGUAGES, Catalog, _audio_dir, import_songs, meaning_for_line
+from .embeds import ask_verse, explain_verse, get_embed, list_embeds, load_embeds, resolve_embed
 from .media import load_clips, resolve_clip, videos_for
 from .music_page import render_music_page
 from .session import SessionMode, SessionStore
@@ -19,7 +20,7 @@ from .storyboard import STORYBOARDS, storyboard_for
 from .timing import song_timings
 from .translations import language_catalog, translate_song, validate_language
 
-app = FastAPI(title="Theodore Music Lab", version="0.4.0")
+app = FastAPI(title="Theodore Music Lab", version="0.5.0")
 
 _CATALOG = Catalog()
 _STORE = SessionStore(_CATALOG)
@@ -65,6 +66,21 @@ class AskRequest(BaseModel):
     target_lang: str = "en"
 
 
+class EmbedAskRequest(BaseModel):
+    embed_id: str = Field(min_length=1)
+    question: str = Field(min_length=1)
+    verse_no: Optional[int] = None
+    target_lang: str = "en"
+    allow_llm: bool = True
+
+
+class EmbedExplainRequest(BaseModel):
+    embed_id: str = Field(min_length=1)
+    verse_no: Optional[int] = None
+    target_lang: str = "en"
+    allow_llm: bool = True
+
+
 def _song_or_404(song_id: str):
     try:
         return _CATALOG.get(song_id)
@@ -95,6 +111,10 @@ def health() -> dict[str, Any]:
         "storyboards": len(STORYBOARDS),
         "storyboard_scenes": sum(len(scenes) for scenes in STORYBOARDS.values()),
         "sing_along_languages": len(VOICE_TAGS),
+        "embeds": len(load_embeds()),
+        "embed_pause_ask": sum(
+            1 for row in load_embeds() if (row.get("verses") or [])
+        ),
         "player": "/",
     }
 
@@ -207,6 +227,61 @@ def videos(song_id: str = "") -> dict[str, Any]:
     """Curated external lyric videos and channels (all have lyrics available)."""
     rows = videos_for(song_id)
     return {"count": len(rows), "videos": rows}
+
+
+@app.get("/api/music/embeds")
+def embeds(target_lang: str = "en", allow_llm: bool = False) -> dict[str, Any]:
+    """YouTube embeds with optional pause-and-ask verse sheets."""
+    try:
+        rows = list_embeds(target_lang, allow_llm=allow_llm)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"count": len(rows), "embeds": rows}
+
+
+@app.get("/api/music/embeds/{embed_id}")
+def embed_detail(
+    embed_id: str, target_lang: str = "en", allow_llm: bool = True
+) -> dict[str, Any]:
+    """One embed: YouTube player URL, verses, translations and teaching questions."""
+    try:
+        raw = get_embed(embed_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown embed '{embed_id}'") from exc
+    try:
+        return resolve_embed(raw, target_lang, allow_llm=allow_llm)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/embeds/explain")
+def embed_explain(req: EmbedExplainRequest) -> dict[str, Any]:
+    """Meaning, vocabulary and prepared grammar/vocab questions for one verse."""
+    try:
+        return explain_verse(
+            req.embed_id, req.verse_no, req.target_lang, allow_llm=req.allow_llm
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown embed '{req.embed_id}'") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/embeds/ask")
+def embed_ask(req: EmbedAskRequest) -> dict[str, Any]:
+    """Ask grammar, vocabulary or comprehension questions about the paused verse."""
+    try:
+        return ask_verse(
+            req.embed_id,
+            req.question,
+            verse_no=req.verse_no,
+            language=req.target_lang,
+            allow_llm=req.allow_llm,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown embed '{req.embed_id}'") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/music/featured")

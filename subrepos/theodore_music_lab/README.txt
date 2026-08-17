@@ -23,6 +23,9 @@ language_learning / content packs.
   • Ask the AI about any line at any time — while the track is playing
   • Short lyric clips (chorus-sized line ranges) with lyrics + translation
   • Curated external lyric videos / channels with printed-lyrics links
+  • YouTube movie lessons embedded on the page: pause at each verse, answer
+    grammar/vocabulary prompts, ask the AI about the line, and read the verse in
+    any of 27 languages (Cambodia & Laos legends + Learn English with Movies)
   • Import schema for additional original packs (JSON/JSONL)
 
 Featured audio: data/audio/*.mp3 + data/featured_songs.jsonl.
@@ -73,6 +76,19 @@ Sing-along (sing.py)
             restored when the toggle goes off, on pause, and on song change
   device    the voice comes from the OS/browser; with no voice for that language
             installed the toggle refuses and says so rather than failing silently
+
+YouTube embeds (embeds.py + data/embeds.jsonl)
+  player    privacy-friendly youtube-nocookie iframe with the IFrame API so the
+            page can pause, seek and poll the playhead
+  verses    each lesson has timed start/pause points with English teaching text,
+            focus (grammar/vocabulary/comprehension), key terms and 2 prepared
+            questions per verse
+  i18n      curated es/fr/de/it/pt for every verse + prompt + answer; other
+            languages use the same lexicon/LLM/cache stack as song lyrics
+  ask       POST /api/music/embeds/ask answers grammar/vocab questions about the
+            paused verse (Grok when keyed, otherwise the prepared Q&A)
+  examples  Preah Thong & Neang Neak, Sang Sinxay, The Incredibles movie lesson,
+            plus the Learn English with Movies playlist pointer
 
 Ask AI uses Grok when XAI_API_KEY is set and otherwise answers from the lyrics
 themselves (line + translation + key words + example), so it works offline.
@@ -185,6 +201,15 @@ Step 6 — check the karaoke, translation and Ask-AI APIs
     | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["voice_tag"]); [print(r["start"], r["rate"], r["speak"]) for r in d["lines"][:6]]'
   # sing the English recording in another language: what to say, when, how fast
 
+  curl -s "http://127.0.0.1:8097/api/music/embeds?target_lang=es" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(e["embed_id"], e["verse_count"], e["title"]) for e in d["embeds"]]'
+  curl -s "http://127.0.0.1:8097/api/music/embeds/movie-incredibles-lesson-1?target_lang=fr&allow_llm=false" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(v["verse_no"], v["pause_sec"], v["translation"]) for v in d["verses"]]'
+  curl -s -X POST http://127.0.0.1:8097/api/music/embeds/ask \
+    -H 'content-type: application/json' \
+    -d '{"embed_id":"legend-cambodia-neang-neak","question":"What does sailed across the sea mean?","verse_no":1,"target_lang":"es","allow_llm":false}' \
+    | python3 -m json.tool
+
 APIs on :8097
   GET  / and /lab          — player UI (storyboard theater, karaoke, Ask AI)
   GET  /health
@@ -197,6 +222,10 @@ APIs on :8097
                                          (?target_lang=&duration=)
   GET  /api/music/sing/{song_id}    — sing plan: per-line text, window, voice
                                       tag and speech rate (?target_lang=&duration=)
+  GET  /api/music/embeds            — YouTube movie/legend lessons (?target_lang=)
+  GET  /api/music/embeds/{embed_id} — verses, translations, questions, embed URL
+  POST /api/music/embeds/explain    — one verse: meaning, vocab, prepared Q&A
+  POST /api/music/embeds/ask        — ask grammar/vocab about the paused verse
   GET  /api/music/audio/{filename}  — MP3, honours Range (206) so seeking works
   GET  /api/music/clips             — short lyric clips (?song_id=&target_lang=)
   GET  /api/music/videos            — curated lyric videos (?song_id=)

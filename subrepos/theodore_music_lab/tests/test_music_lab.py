@@ -7,6 +7,14 @@ from fastapi.testclient import TestClient
 
 from theodore_music_lab.ask_ai import ask, explain_line
 from theodore_music_lab.catalog import MEANING_LANGUAGES, Catalog, import_songs
+from theodore_music_lab.embeds import (
+    ask_verse,
+    embed_url,
+    explain_verse,
+    list_embeds,
+    load_embeds,
+    resolve_embed,
+)
 from theodore_music_lab.main import app
 from theodore_music_lab.media import load_clips, load_videos, resolve_clip
 from theodore_music_lab.session import SessionMode, SessionStore
@@ -330,6 +338,8 @@ def test_new_apis_and_player_ui(offline):
         health = client.get("/health").json()
         assert health["clips"] >= 4
         assert health["videos"] >= 4
+        assert health["embeds"] >= 3
+        assert health["embed_pause_ask"] >= 3
         assert health["karaoke"] is True
         assert health["ask_ai"] is True
 
@@ -404,6 +414,31 @@ def test_new_apis_and_player_ui(offline):
             f"/api/music/sing/{song_id}", params={"target_lang": "xx"}
         ).status_code == 422
 
+        embeds = client.get("/api/music/embeds", params={"target_lang": "es"}).json()
+        assert embeds["count"] >= 3
+        lesson = next(row for row in embeds["embeds"] if row["has_pause_ask"])
+        detail = client.get(
+            f"/api/music/embeds/{lesson['embed_id']}",
+            params={"target_lang": "es", "allow_llm": False},
+        ).json()
+        assert detail["embed_url"].startswith("https://www.youtube-nocookie.com/embed/")
+        assert "enablejsapi=1" in detail["embed_url"]
+        assert detail["verse_count"] >= 4
+        assert detail["verses"][0]["questions"]
+        asked = client.post(
+            "/api/music/embeds/ask",
+            json={
+                "embed_id": lesson["embed_id"],
+                "question": "Explain the grammar here",
+                "verse_no": 1,
+                "target_lang": "es",
+                "allow_llm": False,
+            },
+        ).json()
+        assert asked["answer"]
+        assert asked["cited_verse"]["verse_no"] == 1
+        assert client.get("/api/music/embeds/does-not-exist").status_code == 404
+
         page = client.get("/").text
         assert 'id="ball"' in page
         assert "Ask the AI about the lyrics" in page
@@ -418,9 +453,14 @@ def test_new_apis_and_player_ui(offline):
         for hook in ('id="camera"', 'id="backdrop"', 'id="cast"', 'id="scene-tag"',
                      'id="cap-narration"', 'id="cap-line"', 'id="cap-ball"',
                      'id="btn-theater"', 'id="narrate"',
-                     'id="sing-lang"', 'id="sing-label"'):
+                     'id="sing-lang"', 'id="sing-label"',
+                     'id="embed-picker"', 'id="yt-host"', 'id="pause-card"',
+                     'id="auto-pause"', 'id="embed-ask-send"'):
             assert hook in page, hook
         assert "SpeechSynthesisUtterance" in page
+        assert "youtube.com/iframe_api" in page
+        assert "Pause at each verse" in page
+        assert "YouTube movie lessons" in page
         assert "requestFullscreen" in page
         for camera in CAMERA_MOVES:
             assert f".cam-{camera} " in page, camera
@@ -454,6 +494,53 @@ def test_every_song_storyboard_covers_every_line_in_order():
                 assert member["height_pct"] == SPRITE_HEIGHT_PCT[member["kind"]]
         assert covered == [line.line_no for line in song.lines]
         assert previous_end == pytest.approx(board["duration_sec"], abs=0.05)
+
+
+def test_youtube_embeds_pause_and_ask_in_curated_languages(offline):
+    rows = load_embeds()
+    assert len(rows) >= 3
+    assert embed_url("2owVccYAIRg").endswith("2owVccYAIRg?enablejsapi=1&rel=0&modestbranding=1")
+    pause_ask = [r for r in rows if r.get("verses")]
+    assert len(pause_ask) >= 3
+    for raw in pause_ask:
+        assert raw["youtube_id"]
+        for language in ("en", "es", "fr", "de", "it", "pt"):
+            resolved = resolve_embed(raw, language, allow_llm=False)
+            assert resolved["verse_count"] >= 4
+            for verse in resolved["verses"]:
+                assert verse["text"]
+                assert verse["translation"]
+                assert verse["pause_sec"] > verse["start_sec"]
+                assert verse["questions"]
+                for question in verse["questions"]:
+                    assert question["kind"] in {
+                        "vocabulary",
+                        "grammar",
+                        "comprehension",
+                        "pronunciation",
+                        "strategy",
+                    }
+                    assert question["prompt"]
+                    assert question["answer"]
+            if language != "en":
+                assert resolved["verses"][0]["tier"] == "curated"
+    catalogue = list_embeds("es", allow_llm=False)
+    assert any(row["embed_id"] == "movie-incredibles-lesson-1" for row in catalogue)
+    explained = explain_verse(
+        "legend-cambodia-neang-neak", 1, "es", allow_llm=False
+    )
+    assert "príncipe" in explained["translation"].lower() or "principe" in explained[
+        "translation"
+    ].lower()
+    answer = ask_verse(
+        "movie-incredibles-lesson-1",
+        "What does listen for mean?",
+        verse_no=1,
+        language="es",
+        allow_llm=False,
+    )
+    assert answer["answer"]
+    assert answer["cited_verse"]["verse_no"] == 1
 
 
 def test_cast_is_pulled_into_the_action_safe_band():
