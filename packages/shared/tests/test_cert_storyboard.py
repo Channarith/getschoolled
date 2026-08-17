@@ -18,6 +18,8 @@ from aoep_shared.cert_storyboard import (
 from aoep_shared.cert_storyboard.art import BACKDROPS, SPRITES
 from aoep_shared.cert_storyboard.catalog import storyboard_scene_for_slide
 from aoep_shared.cert_storyboard.driver_ed_bank import DRIVER_ED_LESSONS
+from aoep_shared.cert_storyboard.generic import build_generic_storyboard
+from aoep_shared.languages import SUPPORTED_LANGUAGES
 
 
 LIVE_LESSONS = (
@@ -117,3 +119,29 @@ def test_driver_ed_sample_svgs_render(lesson_id: str) -> None:
     svg = render_scene_svg(seg.scene)
     assert '<g class="cast"' in svg
     assert "@keyframes" in svg
+
+
+def test_generic_storyboard_is_multimodal_and_profile_aware() -> None:
+    visual = build_generic_storyboard(
+        lesson_id="ai-fluency-essentials",
+        slide_index=0,
+        title="Prompt design",
+        body="A clear prompt states the goal. It supplies context and constraints.",
+        narration="Give the model a clear goal, useful context, and constraints.",
+        profile={"primary_style": "visual"},
+    )
+    auditory = build_generic_storyboard(
+        lesson_id="ai-fluency-essentials",
+        slide_index=0,
+        title="Prompt design",
+        body="A clear prompt states the goal. It supplies context and constraints.",
+        narration="Give the model a clear goal, useful context, and constraints.",
+        profile={"primary_style": "auditory"},
+    )
+    assert visual.profile_mode == "visual"
+    assert auditory.profile_mode == "auditory"
+    assert len(visual.segment.scene.cast) > len(auditory.segment.scene.cast)
+    assert visual.examples
+    assert visual.activity_prompt
+    assert visual.translation_ready is True
+    assert len(SUPPORTED_LANGUAGES) >= 27

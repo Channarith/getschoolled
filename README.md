@@ -168,14 +168,17 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | --- | --- | --- | --- | --- |
 | <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/solo_live_room.webp" alt="Solo 1:1 Salareen live room — AI host slide tile plus one learner, chat and Q&A" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
-Cert prep storyboards (animated SVG scenes per slide for CA DMV / driver-ed and
-Alameda / CA food-handler practice courses — **226+ driver-ed scenarios** across
-22 lessons, plus food-handler tracks, with cars, signs, pedestrians, kitchen
-props, and narration cues):
+Multimodal course storyboards cover all 115 corporate + solo lessons (6,440
+parsed teaching slides) on web and mobile. Every slide has an animated scene,
+domain background, characters/objects, examples, an activity, captions, and
+neural/device narration; overlays route through the 27-language translation
+stack and adapt for visual, auditory, reading, hands-on, or mixed profiles.
+Hand-authored DMV/food scenes remain the curated tier; the semantic builder
+covers the rest.
 
-| DMV school bus | DMV emergency vehicles | Food handwashing |
-| --- | --- | --- |
-| <img src="docs/screens/storyboard_dmv_school_bus.png" alt="Animated storyboard: California school bus stop law with bus, car, pedestrian, and school-zone sign" /> | <img src="docs/screens/storyboard_dmv_ambulance.png" alt="Animated storyboard: pull right for emergency vehicles with ambulance and cars on a freeway" /> | <img src="docs/screens/storyboard_food_handwash.png" alt="Animated storyboard: food-handler handwashing at a prep station with sink, soap, and raw vs ready-to-eat zones" /> |
+| Corporate AI | Solo algebra | DMV school bus | Food handwashing |
+| --- | --- | --- | --- |
+| <img src="docs/screens/storyboard_corporate_ai.png" alt="Animated corporate AI prompt-design storyboard with office background, characters, laptop, and charts" /> | <img src="docs/screens/storyboard_solo_algebra.png" alt="Animated solo algebra storyboard with classroom background, characters, chart, and document" /> | <img src="docs/screens/storyboard_dmv_school_bus.png" alt="Animated storyboard: California school bus stop law with bus, car, pedestrian, and school-zone sign" /> | <img src="docs/screens/storyboard_food_handwash.png" alt="Animated storyboard: food-handler handwashing at a prep station with sink, soap, and raw vs ready-to-eat zones" /> |
 
 | Salareen mobile — Android home | Drive Mode (mockup) |
 | --- | --- |

@@ -71,6 +71,21 @@ export const SERVICE_URLS: Record<string, string> = {
   identity: IDENTITY_URL,
 };
 
+export async function translateText(
+  text: string,
+  source: string,
+  target: string,
+): Promise<{ text: string; source: string; target: string }> {
+  if (!text || source === target) return { text, source, target };
+  return jsonOrThrow(
+    await fetch(`${SPEECH_URL}/translate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text, source, target }),
+    }),
+  );
+}
+
 // --- account / session (token in localStorage) --------------------------- //
 const TOKEN_KEY = "aoep_token";
 const PREVIEW_KEY = "aoep_preview";
@@ -1128,6 +1143,12 @@ export type Slide = {
   storyboard_svg?: string;
   storyboard_concept?: string;
   storyboard_scene_id?: string;
+  storyboard_examples?: string[];
+  storyboard_activity?: string;
+  storyboard_modalities?: string[];
+  storyboard_profile_mode?: string;
+  storyboard_source_language?: string;
+  storyboard_translation_ready?: boolean;
 };
 
 export type Lesson = {
@@ -1892,7 +1913,20 @@ export type LiveRoomState = {
   participants: LiveParticipant[];
   chat: LiveRoomChatMessage[];
   recording: { status: string; started_at?: string; stopped_at?: string; recording_id?: string; note?: string };
-  slide: { index: number; title: string; body: string; narration: string };
+  slide: {
+    index: number;
+    title: string;
+    body: string;
+    narration: string;
+    storyboard_svg?: string;
+    storyboard_concept?: string;
+    storyboard_scene_id?: string;
+    storyboard_examples?: string[];
+    storyboard_activity?: string;
+    storyboard_profile_mode?: string;
+    storyboard_source_language?: string;
+    storyboard_translation_ready?: boolean;
+  };
   raised_hands: LiveParticipant[];
   banned?: { identity: string; name: string; reason: string; banned_at: string; banned_by: string }[];
   speaking_queue?: {

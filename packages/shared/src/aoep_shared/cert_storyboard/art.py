@@ -292,6 +292,33 @@ def _guide_sign() -> str:
     </svg>"""
 
 
+def _laptop() -> str:
+    return """<svg viewBox="0 0 150 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="20" y="8" width="110" height="72" rx="7" fill="#1e293b"/>
+      <rect x="28" y="16" width="94" height="56" rx="3" fill="#38bdf8"/>
+      <path d="M8 82 H142 L130 96 H20 Z" fill="#94a3b8"/>
+      <path d="M45 45 H105 M55 57 H95" stroke="#f8fafc" stroke-width="5" stroke-linecap="round"/>
+    </svg>"""
+
+
+def _document() -> str:
+    return """<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M15 5 H68 L88 25 V122 H15 Z" fill="#fff" stroke="#64748b" stroke-width="4"/>
+      <path d="M68 5 V25 H88" fill="#cbd5e1"/>
+      <path d="M28 45 H74 M28 62 H74 M28 79 H64 M28 96 H70" stroke="#3b82f6" stroke-width="6" stroke-linecap="round"/>
+    </svg>"""
+
+
+def _chart() -> str:
+    return """<svg viewBox="0 0 150 110" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="8" y="8" width="134" height="94" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="4"/>
+      <rect x="28" y="62" width="18" height="26" fill="#38bdf8"/>
+      <rect x="58" y="44" width="18" height="44" fill="#8b5cf6"/>
+      <rect x="88" y="26" width="18" height="62" fill="#14b8a6"/>
+      <path d="M24 78 L56 56 L88 40 L120 20" fill="none" stroke="#f59e0b" stroke-width="5"/>
+    </svg>"""
+
+
 SPRITES: dict[str, str] = {
     "car": _car(),
     "car-blue": _car("#2563eb", "#1e40af"),
@@ -348,6 +375,9 @@ SPRITES: dict[str, str] = {
     "pest": _pest(),
     "ambulance": _ambulance(),
     "phone-ban": _phone_ban(),
+    "laptop": _laptop(),
+    "document": _document(),
+    "chart": _chart(),
 }
 
 
@@ -369,6 +399,7 @@ SPRITE_WIDTH: dict[str, float] = {
     "fridge": 10, "stove": 12, "sink": 14, "cutting-board": 14,
     "soap": 5, "glove": 7, "plate": 10, "pest": 6, "ambulance": 20,
     "phone-ban": 7,
+    "laptop": 15, "document": 9, "chart": 15,
 }
 
 
@@ -506,6 +537,45 @@ def _backdrop_prep_station() -> str:
     """
 
 
+def _backdrop_office() -> str:
+    return """
+      <rect width="800" height="450" fill="#e0f2fe"/>
+      <rect y="310" width="800" height="140" fill="#d6d3d1"/>
+      <rect x="60" y="65" width="260" height="170" rx="10" fill="#fff" stroke="#94a3b8" stroke-width="4"/>
+      <path d="M90 190 L145 145 L205 165 L275 95" fill="none" stroke="#2563eb" stroke-width="8"/>
+      <rect x="460" y="90" width="250" height="150" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="4"/>
+      <rect x="490" y="130" width="45" height="80" fill="#38bdf8"/>
+      <rect x="555" y="105" width="45" height="105" fill="#8b5cf6"/>
+      <rect x="620" y="155" width="45" height="55" fill="#14b8a6"/>
+      <rect x="100" y="285" width="600" height="28" rx="8" fill="#78716c"/>
+    """
+
+
+def _backdrop_classroom() -> str:
+    return """
+      <rect width="800" height="450" fill="#fef3c7"/>
+      <rect y="325" width="800" height="125" fill="#a16207" opacity=".45"/>
+      <rect x="90" y="70" width="620" height="180" rx="8" fill="#1f6f5c" stroke="#475569" stroke-width="8"/>
+      <path d="M145 130 H350 M145 175 H440 M510 115 L620 200 M620 115 L510 200" stroke="#f8fafc" stroke-width="8" stroke-linecap="round"/>
+      <rect x="110" y="300" width="170" height="25" rx="6" fill="#92400e"/>
+      <rect x="320" y="300" width="170" height="25" rx="6" fill="#92400e"/>
+      <rect x="530" y="300" width="170" height="25" rx="6" fill="#92400e"/>
+    """
+
+
+def _backdrop_lab() -> str:
+    return """
+      <rect width="800" height="450" fill="#e2e8f0"/>
+      <rect y="320" width="800" height="130" fill="#64748b"/>
+      <rect x="60" y="85" width="680" height="200" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="5"/>
+      <circle cx="180" cy="180" r="58" fill="#38bdf8" opacity=".35"/>
+      <circle cx="180" cy="180" r="30" fill="#8b5cf6" opacity=".55"/>
+      <path d="M340 230 L390 115 L440 230 Z" fill="#14b8a6" opacity=".65"/>
+      <path d="M520 220 Q580 80 650 220" fill="none" stroke="#f59e0b" stroke-width="12"/>
+      <rect x="90" y="290" width="620" height="32" rx="8" fill="#334155"/>
+    """
+
+
 def _backdrop_night_road() -> str:
     return """
       <rect width="800" height="450" fill="#0f172a"/>
@@ -558,4 +628,7 @@ BACKDROPS: dict[str, str] = {
     "night-road": _backdrop_night_road(),
     "work-zone": _backdrop_work_zone(),
     "dock": _backdrop_dock(),
+    "office": _backdrop_office(),
+    "classroom": _backdrop_classroom(),
+    "lab": _backdrop_lab(),
 }

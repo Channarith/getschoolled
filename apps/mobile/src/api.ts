@@ -6,6 +6,19 @@ import { getToken, clearAuthToken } from "./storage";
 
 export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL };
 
+export function translateText(
+  text: string,
+  source: string,
+  target: string,
+): Promise<{ text: string; source: string; target: string }> {
+  if (!text || source === target) return Promise.resolve({ text, source, target });
+  return get<{ text: string; source: string; target: string }>(SPEECH_URL, "/translate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, source, target }),
+  });
+}
+
 export type AudioCourseRow = {
   id: string; title: string; category: string; subject: string; level: string;
   duration_min: number; tags: string[]; segments: number; drive_safe: boolean;
@@ -688,7 +701,17 @@ export type LiveRoomState = {
     primary_style?: string;
   }[];
   chat: { id: string; from_name: string; text: string }[];
-  slide: { index: number; title: string; body: string; narration: string };
+  slide: {
+    index: number; title: string; body: string; narration: string;
+    storyboard_svg?: string;
+    storyboard_concept?: string;
+    storyboard_scene_id?: string;
+    storyboard_examples?: string[];
+    storyboard_activity?: string;
+    storyboard_profile_mode?: string;
+    storyboard_source_language?: string;
+    storyboard_translation_ready?: boolean;
+  };
   recording: { status: string };
   banned?: { identity: string; name: string; reason: string }[];
   speaking_queue?: {
@@ -1000,6 +1023,15 @@ export function submitGame(
 // --- Lesson teaching sessions (orchestrator) --- //
 export type LessonSlide = {
   index: number; title: string; body: string; narration: string;
+  storyboard_svg?: string;
+  storyboard_concept?: string;
+  storyboard_scene_id?: string;
+  storyboard_examples?: string[];
+  storyboard_activity?: string;
+  storyboard_modalities?: string[];
+  storyboard_profile_mode?: string;
+  storyboard_source_language?: string;
+  storyboard_translation_ready?: boolean;
 };
 export type LessonDetail = {
   lesson_id: string; title: string; language?: string; summary?: string;

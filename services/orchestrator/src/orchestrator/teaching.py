@@ -28,22 +28,50 @@ from .memory_client import MemoryClient
 from .sessions import SessionStore, build_session_store
 
 
-def enrich_slide_storyboard(lesson_id: str, slide: Slide, *, source_index: int | None = None) -> Slide:
-    """Attach animated storyboard SVG when the lesson/slide has a catalog scene."""
+def enrich_slide_storyboard(
+    lesson_id: str,
+    slide: Slide,
+    *,
+    source_index: int | None = None,
+    language: str = "en",
+    profile_score: str = "",
+) -> Slide:
+    """Attach a curated or generated multimodal storyboard to every slide."""
     try:
         from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
         from aoep_shared.cert_storyboard.catalog import storyboard_for_lesson
+        from aoep_shared.cert_storyboard.generic import (
+            build_generic_storyboard,
+            experience_dict,
+        )
+        from aoep_shared.catalog_selection import profile_dimensions
     except Exception:
         return slide
-    if not has_storyboard(lesson_id):
-        return slide
     idx = source_index if source_index is not None else slide.index
-    data = storyboard_for_slide(lesson_id, idx, include_svg=True)
+    data = None
+    if has_storyboard(lesson_id):
+        curated = storyboard_for_lesson(lesson_id, include_svg=True)
+        data = next(
+            (seg for seg in curated if seg.get("title") == slide.title),
+            None,
+        )
+        if data is None:
+            indexed = storyboard_for_slide(lesson_id, idx, include_svg=True)
+            if indexed and indexed.get("title") == slide.title:
+                data = indexed
     if data is None:
-        for seg in storyboard_for_lesson(lesson_id, include_svg=True):
-            if seg.get("title") == slide.title:
-                data = seg
-                break
+        profile = profile_dimensions(profile_score) if profile_score else {}
+        data = experience_dict(
+            build_generic_storyboard(
+                lesson_id=lesson_id,
+                slide_index=idx,
+                title=slide.title,
+                body=slide.body,
+                narration=slide.narration,
+                language=language,
+                profile=profile,
+            )
+        )
     if not data:
         return slide
     return slide.model_copy(
@@ -51,6 +79,17 @@ def enrich_slide_storyboard(lesson_id: str, slide: Slide, *, source_index: int |
             "storyboard_svg": data.get("svg") or "",
             "storyboard_concept": data.get("concept") or "",
             "storyboard_scene_id": data.get("scene_id") or "",
+            "storyboard_examples": data.get("examples") or [],
+            "storyboard_activity": data.get("activity_prompt") or "",
+            "storyboard_modalities": data.get("modalities")
+            or ["scene", "narration", "captions"],
+            "storyboard_profile_mode": data.get("profile_mode") or "mixed",
+            "storyboard_source_language": data.get("source_language")
+            or language
+            or "en",
+            "storyboard_translation_ready": bool(
+                data.get("translation_ready", True)
+            ),
         }
     )
 
@@ -65,6 +104,7 @@ class SessionState(BaseModel):
     class_type: str
     lesson_id: str
     student_id: Optional[str] = None
+    profile_score: str = ""
     current_slide: int = 0
     session_budget_min: Optional[int] = None
     planned_duration_min: Optional[float] = None
@@ -216,6 +256,7 @@ class TeachingSessions:
         class_type: str,
         student_id: Optional[str] = None,
         session_budget_min: Optional[int] = None,
+        profile_score: str = "",
     ) -> SessionState:
         lesson = self.curriculum.get(lesson_id)
         if lesson is None:
@@ -235,6 +276,7 @@ class TeachingSessions:
             class_type=class_type,
             lesson_id=lesson_id,
             student_id=student_id,
+            profile_score=profile_score,
             session_budget_min=session_budget_min,
             planned_duration_min=planned_duration,
             slide_indices=slide_indices,
@@ -296,7 +338,13 @@ class TeachingSessions:
             source_index = session.current_slide
             position = session.current_slide
         slide = lesson.slides[source_index].model_copy(update={"index": position})
-        return enrich_slide_storyboard(session.lesson_id, slide, source_index=source_index)
+        return enrich_slide_storyboard(
+            session.lesson_id,
+            slide,
+            source_index=source_index,
+            language=lesson.language,
+            profile_score=session.profile_score,
+        )
 
     def advance(self, session_id: str) -> Slide:
         # WARNING: cross-replica race; use Redis INCR for multi-replica deployments

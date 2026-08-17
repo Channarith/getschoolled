@@ -26,6 +26,7 @@ import { buildNarrationSpeakOptions } from "../narrationTts";
 import GlassPanel from "../components/GlassPanel";
 import CameraLightingScreener from "../components/CameraLightingScreener";
 import CameraQualityGateOverlay from "../components/CameraQualityGateOverlay";
+import CourseStoryboardView from "../components/CourseStoryboardView";
 import { analyzePhotoBase64 } from "../components/CameraLightingScreener";
 import {
   QUALITY_DISCONNECT_SECONDS,
@@ -2092,6 +2093,15 @@ export default function LiveRoomScreen({
                     🎓 {fsName} · Slide {(room.slide.index ?? 0) + 1}
                   </Text>
                   <Text style={styles.fsSlideTitle}>{room.slide.title}</Text>
+                  <CourseStoryboardView
+                    svg={room.slide.storyboard_svg}
+                    concept={room.slide.storyboard_concept}
+                    examples={room.slide.storyboard_examples}
+                    activity={room.slide.storyboard_activity}
+                    profileMode={room.slide.storyboard_profile_mode}
+                    sourceLanguage={room.slide.storyboard_source_language}
+                    fullscreen
+                  />
                   <Text style={styles.fsSlideBody}>
                     {room.slide.narration || room.slide.body}
                   </Text>

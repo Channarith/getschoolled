@@ -55,6 +55,7 @@ import { resumeSharedAudioContext, unlockWebAudio } from "../../lib/webAudioUnlo
 import { createVisionEngine, type VisionEngine } from "../../lib/vision";
 import CameraLightingScreener from "../../components/CameraLightingScreener";
 import CameraQualityGateOverlay from "../../components/CameraQualityGateOverlay";
+import CourseStoryboardPlayer from "../../components/CourseStoryboardPlayer";
 import {
   DEFAULT_LIGHTING_THRESHOLDS,
   analyzeLuminanceGrid,
@@ -310,7 +311,7 @@ function ParticipantTile({
   localStream?: MediaStream | null;
   liveKitTrack?: MediaStreamTrack | null;
   hasFloor?: boolean;
-  slide?: { index: number; title: string; body: string; narration: string } | null;
+  slide?: LiveRoomState["slide"] | null;
   // Lets the parent grab this tile's element (e.g. to fullscreen the host).
   onContainerRef?: (el: HTMLDivElement | null) => void;
   // Native fullscreen only renders descendants of the fullscreen element, so
@@ -493,6 +494,18 @@ function ParticipantTile({
             >
               {slide.title}
             </div>
+            {slide.storyboard_svg ? (
+              <CourseStoryboardPlayer
+                svg={slide.storyboard_svg}
+                concept={slide.storyboard_concept}
+                examples={slide.storyboard_examples}
+                activity={slide.storyboard_activity}
+                profileMode={slide.storyboard_profile_mode}
+                sourceLanguage={slide.storyboard_source_language}
+                sceneId={slide.storyboard_scene_id}
+                fullscreen={fullscreen}
+              />
+            ) : null}
             <div
               aria-hidden
               style={{

@@ -238,12 +238,43 @@ def api_driver_ed_storyboard_index() -> dict:
 
 @app.get("/api/lessons/{lesson_id}/storyboard")
 def api_lesson_storyboard(lesson_id: str, include_svg: bool = True) -> dict:
-    """Animated storyboard scenes for food-handler / DMV / driver-ed cert prep."""
+    """Animated storyboard scenes for every corporate and solo course."""
     from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_lesson
+    from aoep_shared.cert_storyboard.generic import (
+        build_generic_storyboard,
+        experience_dict,
+    )
 
-    if not has_storyboard(lesson_id):
-        raise HTTPException(status_code=404, detail=f"no storyboard for lesson {lesson_id}")
-    segments = storyboard_for_lesson(lesson_id, include_svg=include_svg)
+    lesson = get_sessions().curriculum.get(lesson_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
+    curated = (
+        storyboard_for_lesson(lesson_id, include_svg=include_svg)
+        if has_storyboard(lesson_id)
+        else []
+    )
+    curated_by_title = {seg["title"]: seg for seg in curated}
+    segments = []
+    for slide in lesson.slides:
+        segment = curated_by_title.get(slide.title)
+        if segment is not None:
+            segment = {**segment, "slide_index": slide.index}
+        else:
+            segment = experience_dict(
+                build_generic_storyboard(
+                    lesson_id=lesson_id,
+                    slide_index=slide.index,
+                    title=slide.title,
+                    body=slide.body,
+                    narration=slide.narration,
+                    language=lesson.language,
+                )
+            )
+        if not include_svg:
+            segment.pop("svg", None)
+            segment.pop("svg_data_url", None)
+            segment.pop("html", None)
+        segments.append(segment)
     return {
         "lesson_id": lesson_id,
         "segment_count": len(segments),
@@ -253,12 +284,48 @@ def api_lesson_storyboard(lesson_id: str, include_svg: bool = True) -> dict:
 
 @app.get("/api/lessons/{lesson_id}/storyboard/{slide_index}")
 def api_lesson_storyboard_slide(lesson_id: str, slide_index: int, include_svg: bool = True) -> dict:
-    """One slide/verse storyboard for a cert prep lesson."""
-    from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
+    """One slide/verse storyboard for any library lesson."""
+    from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_lesson
+    from aoep_shared.cert_storyboard.generic import (
+        build_generic_storyboard,
+        experience_dict,
+    )
 
-    if not has_storyboard(lesson_id):
-        raise HTTPException(status_code=404, detail=f"no storyboard for lesson {lesson_id}")
-    segment = storyboard_for_slide(lesson_id, slide_index, include_svg=include_svg)
+    lesson = get_sessions().curriculum.get(lesson_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
+    segment = None
+    if 0 <= slide_index < len(lesson.slides):
+        slide = lesson.slides[slide_index]
+        if has_storyboard(lesson_id):
+            segment = next(
+                (
+                    seg
+                    for seg in storyboard_for_lesson(
+                        lesson_id, include_svg=include_svg
+                    )
+                    if seg.get("title") == slide.title
+                ),
+                None,
+            )
+            if segment is not None:
+                segment = {**segment, "slide_index": slide_index}
+    if segment is None and 0 <= slide_index < len(lesson.slides):
+        slide = lesson.slides[slide_index]
+        segment = experience_dict(
+            build_generic_storyboard(
+                lesson_id=lesson_id,
+                slide_index=slide_index,
+                title=slide.title,
+                body=slide.body,
+                narration=slide.narration,
+                language=lesson.language,
+            )
+        )
+        if not include_svg:
+            segment.pop("svg", None)
+            segment.pop("svg_data_url", None)
+            segment.pop("html", None)
     if segment is None:
         raise HTTPException(
             status_code=404,
@@ -336,6 +403,7 @@ def api_start_session(req: StartSessionRequest) -> SessionView:
             req.class_type.value,
             student_id=req.student_id,
             session_budget_min=budget,
+            profile_score=req.profile_score,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {req.lesson_id}")
@@ -2203,6 +2271,14 @@ def start_group_class(
             slide_title=slide.title,
             slide_body=slide.body,
             slide_narration=slide.narration,
+            slide_storyboard_svg=slide.storyboard_svg,
+            slide_storyboard_concept=slide.storyboard_concept,
+            slide_storyboard_scene_id=slide.storyboard_scene_id,
+            slide_storyboard_examples=slide.storyboard_examples,
+            slide_storyboard_activity=slide.storyboard_activity,
+            slide_storyboard_profile_mode=slide.storyboard_profile_mode,
+            slide_storyboard_source_language=slide.storyboard_source_language,
+            slide_storyboard_translation_ready=slide.storyboard_translation_ready,
             country=req.country,
             state=req.state,
             city=req.city,
@@ -2593,6 +2669,7 @@ def start_solo_live_room(
             "solo",
             student_id=req.student_id,
             session_budget_min=budget,
+            profile_score=req.profile_score,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
@@ -2613,6 +2690,14 @@ def start_solo_live_room(
             slide_title=slide.title,
             slide_body=slide.body,
             slide_narration=slide.narration,
+            slide_storyboard_svg=slide.storyboard_svg,
+            slide_storyboard_concept=slide.storyboard_concept,
+            slide_storyboard_scene_id=slide.storyboard_scene_id,
+            slide_storyboard_examples=slide.storyboard_examples,
+            slide_storyboard_activity=slide.storyboard_activity,
+            slide_storyboard_profile_mode=slide.storyboard_profile_mode,
+            slide_storyboard_source_language=slide.storyboard_source_language,
+            slide_storyboard_translation_ready=slide.storyboard_translation_ready,
             creator_name=(req.creator_name or "").strip() or "You",
             creator_account_id=account_id,
         )
@@ -2679,6 +2764,14 @@ def _ensure_group_class_room(room_id: str):
         slide_title=slide.title,
         slide_body=slide.body,
         slide_narration=slide.narration,
+        slide_storyboard_svg=slide.storyboard_svg,
+        slide_storyboard_concept=slide.storyboard_concept,
+        slide_storyboard_scene_id=slide.storyboard_scene_id,
+        slide_storyboard_examples=slide.storyboard_examples,
+        slide_storyboard_activity=slide.storyboard_activity,
+        slide_storyboard_profile_mode=slide.storyboard_profile_mode,
+        slide_storyboard_source_language=slide.storyboard_source_language,
+        slide_storyboard_translation_ready=slide.storyboard_translation_ready,
         creator_name=gc.host or "Salareen",
         creator_account_id=gc.instructor_account_id or gc.created_by_account_id,
         **_human_taught_kwargs(gc),
@@ -2709,6 +2802,18 @@ def _ensure_group_class_room(room_id: str):
                 live.slide.title = slide.title
                 live.slide.body = slide.body
                 live.slide.narration = slide.narration
+                live.slide.storyboard_svg = slide.storyboard_svg
+                live.slide.storyboard_concept = slide.storyboard_concept
+                live.slide.storyboard_scene_id = slide.storyboard_scene_id
+                live.slide.storyboard_examples = slide.storyboard_examples
+                live.slide.storyboard_activity = slide.storyboard_activity
+                live.slide.storyboard_profile_mode = slide.storyboard_profile_mode
+                live.slide.storyboard_source_language = (
+                    slide.storyboard_source_language
+                )
+                live.slide.storyboard_translation_ready = (
+                    slide.storyboard_translation_ready
+                )
             store._commit(live)  # noqa: SLF001 — resume flag on reopen
     _group_store().save(gc)
     return live
@@ -3503,6 +3608,14 @@ def _advance_room_slide(room_id: str, background: BackgroundTasks) -> dict:
         title=slide.title,
         body=slide.body,
         narration=slide.narration,
+        storyboard_svg=slide.storyboard_svg,
+        storyboard_concept=slide.storyboard_concept,
+        storyboard_scene_id=slide.storyboard_scene_id,
+        storyboard_examples=slide.storyboard_examples,
+        storyboard_activity=slide.storyboard_activity,
+        storyboard_profile_mode=slide.storyboard_profile_mode,
+        storyboard_source_language=slide.storyboard_source_language,
+        storyboard_translation_ready=slide.storyboard_translation_ready,
     )
     store.note_slide_started(room_id)  # reset the auto-advance dwell timer
     if narration:

@@ -34,6 +34,12 @@ class Slide(BaseModel):
     storyboard_svg: str = ""
     storyboard_concept: str = ""
     storyboard_scene_id: str = ""
+    storyboard_examples: List[str] = Field(default_factory=list)
+    storyboard_activity: str = ""
+    storyboard_modalities: List[str] = Field(default_factory=list)
+    storyboard_profile_mode: str = "mixed"
+    storyboard_source_language: str = "en"
+    storyboard_translation_ready: bool = False
 
 
 class KSBItem(BaseModel):

@@ -80,6 +80,12 @@ class SegmentStoryboard:
             "duration_hint_s": scene.duration_hint_s,
             "cast": [asdict(c) for c in scene.cast],
             "objects": [asdict(o) for o in scene.objects],
+            "examples": [],
+            "activity_prompt": "",
+            "modalities": ["scene", "narration", "captions"],
+            "profile_mode": "mixed",
+            "source_language": "en",
+            "translation_ready": True,
         }
         if include_svg:
             from .render import render_scene_html, render_scene_svg, scene_data_url
