@@ -2986,7 +2986,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "inherit", gap: 8 }}>
                     {hasFloor && !canModerate ? (
                       <div style={{ padding: "12px 16px", borderRadius: 14, textAlign: "center", fontSize: 15, fontWeight: 700, color: "#7a5c12", background: "color-mix(in srgb, " + STUDIO_GOLD + " 16%, var(--panel))", border: "1px solid color-mix(in srgb, " + STUDIO_GOLD + " 45%, var(--border))" }}>
-                        ✍️ You&apos;re up! Solve on the whiteboard — everyone can see you
+                        ✍️ You&apos;re up! Solve on the whiteboard — your screen shows your work
                       </div>
                     ) : null}
                     <div style={{ flex: 1, minHeight: "min(62vh, 640px)", padding: 12, borderRadius: 14, border: "1px solid var(--border)", background: "var(--panel)" }}>
@@ -4417,7 +4417,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 <button
                   type="button"
                   onClick={() => setWhiteboardOn((v) => !v)}
-                  title="Open a shared whiteboard; the student you call on can draw on it"
+                  title="Open a whiteboard; the student you call on can draw on it (local to this device for now)"
                   style={{ ...railBtnStyle, ...(whiteboardOn ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}) }}
                 >
                   🧑‍🏫 Whiteboard

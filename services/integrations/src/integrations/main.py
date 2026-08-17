@@ -482,7 +482,7 @@ def bridge_connect(platform: str, req: BridgeConnectRequest) -> dict:
     except BridgeUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     sid = uuid.uuid4().hex[:12]
-    app.state.bridge_sessions[sid] = session
+    _bridge_sessions_put(sid, session)
     return {
         "session_id": sid,
         "simulated": bool(transport),
@@ -496,6 +496,32 @@ def _session(session_id: str):
     if session is None:
         raise HTTPException(status_code=404, detail="unknown bridge session")
     return session
+
+
+# Bound the bridge-session registry: entries were only removed by an explicit
+# disconnect call, so an abandoned bridge leaked its session (and its live
+# MediaTransport) forever.
+_MAX_BRIDGE_SESSIONS = int(os.environ.get("BRIDGE_MAX_SESSIONS", "500"))
+
+
+def _bridge_sessions_put(sid: str, session) -> None:
+    sessions = app.state.bridge_sessions
+    if sid not in sessions and len(sessions) >= _MAX_BRIDGE_SESSIONS:
+        # Evict closed/failed sessions first (oldest insertion order).
+        for old_sid, old in list(sessions.items()):
+            if getattr(old, "state", None) is not None and old.state.value in ("closed", "failed"):
+                try:
+                    old.stop()
+                except Exception:  # noqa: BLE001
+                    pass
+                sessions.pop(old_sid, None)
+                break
+        else:
+            raise HTTPException(
+                status_code=429,
+                detail="too many active bridge sessions; disconnect one first",
+            )
+    sessions[sid] = session
 
 
 @app.get("/bridges/sessions/{session_id}")
