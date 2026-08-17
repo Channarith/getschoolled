@@ -620,14 +620,19 @@ _JS = r"""
   function loadYtApi() {
     return new Promise((resolve) => {
       if (window.YT && window.YT.Player) { resolve(); return; }
+      // If the script fails to load (offline, blocked), settle instead of
+      // hanging selectEmbed forever.
+      const timer = setTimeout(() => resolve(false), 12000);
       const prior = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => {
+        clearTimeout(timer);
         if (typeof prior === "function") prior();
-        resolve();
+        resolve(true);
       };
       if (![...document.scripts].some((s) => (s.src || "").includes("youtube.com/iframe_api"))) {
         const tag = document.createElement("script");
         tag.src = "https://www.youtube.com/iframe_api";
+        tag.onerror = () => { clearTimeout(timer); resolve(false); };
         document.head.appendChild(tag);
       }
     });
@@ -847,16 +852,33 @@ _JS = r"""
     wireLocalVideo();
     localVideo.src = videoUrl;
     await new Promise((resolve) => {
-      const done = () => { localVideo.removeEventListener("loadedmetadata", done); resolve(); };
+      // Settle on metadata OR error OR a timeout — a 404/aborted load used to
+      // hang selectEmbed forever (dead pause card, leaked listener).
+      const timer = setTimeout(() => { cleanup(); resolve(); }, 15000);
+      const cleanup = () => {
+        localVideo.removeEventListener("loadedmetadata", done);
+        localVideo.removeEventListener("error", fail);
+        clearTimeout(timer);
+      };
+      const done = () => { cleanup(); resolve(); };
+      const fail = () => { cleanup(); resolve(); };
       localVideo.addEventListener("loadedmetadata", done);
+      localVideo.addEventListener("error", fail);
       localVideo.load();
     });
   }
 
   async function ensureYtPlayer(youtubeId) {
     clearPlayers();
-    await loadYtApi();
+    const apiReady = await loadYtApi();
+    if (!apiReady || !(window.YT && window.YT.Player)) {
+      toast("YouTube player could not load — check the connection and retry.");
+      return null;
+    }
     return new Promise((resolve) => {
+      // If onReady never fires (e.g. a dead embed), settle instead of hanging
+      // selectEmbed forever.
+      const timer = setTimeout(() => resolve(null), 12000);
       ytPlayer = new YT.Player("yt-host", {
         videoId: youtubeId,
         playerVars: {
@@ -867,7 +889,7 @@ _JS = r"""
           origin: window.location.origin,
         },
         events: {
-          onReady: () => { ytReady = true; resolve(ytPlayer); },
+          onReady: () => { clearTimeout(timer); ytReady = true; resolve(ytPlayer); },
           onStateChange: (ev) => {
             if (ev.data === YT.PlayerState.PLAYING) {
               pauseLocked = false;
@@ -1281,10 +1303,15 @@ _JS = r"""
     // render loop, and loops piled up while the tab was hidden.
     if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
     const player = $("player");
-    if (!timings) return;
+    if (!timings) {
+      // Timings still loading over a slow network — keep the loop alive or
+      // the karaoke ball never starts when Play was pressed early.
+      if (player && !player.paused && !player.ended) rafId = requestAnimationFrame(tick);
+      return;
+    }
     const t = player.currentTime + syncOffset;
     syncScene(t);
-    if (activeClip && player.currentTime >= activeClip.end_sec) {
+    if (activeClip && t >= activeClip.end_sec) {
       player.pause();
       activeClip = null;
       renderClips();
@@ -1622,8 +1649,12 @@ _JS = r"""
 
   (async function boot() {
     // Chrome fills the voice list asynchronously; ask early so the sing toggle
-    // does not report "no voice" on a first click.
-    if (window.speechSynthesis) window.speechSynthesis.getVoices();
+    // does not report "no voice" on a first click, and re-warm when the async
+    // list arrives (voiceschanged) so the check sees the real voices.
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
     $("ask-quick").innerHTML = QUICK_ASKS.map((q) =>
       `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
     $("ask-quick").querySelectorAll("button").forEach((b) => {
