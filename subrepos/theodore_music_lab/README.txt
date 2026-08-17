@@ -7,15 +7,28 @@ language_learning / content packs.
   • 100+ original / Suno-style educational songs (data/songs.jsonl)
   • Featured MP3 player UI with animation + lyrics (Travel Words, Wheels on
     the Bus learning version, Words This Way) at http://127.0.0.1:8097/
+  • Full-screen storyboard theater: every featured song is a sequence of scenes
+    (22 in all) with drawn characters on a drawn background, a movie camera move
+    per scene, and the scene's narration on screen under the sung line — press
+    "Full screen" (or F) to fill the window, Esc to come back
   • Karaoke: a bouncing ball rides the current word, the sung word is colour
     highlighted, finished lines dim to gold, and a ±0.25s sync nudge trims drift
   • Sing-along scrolling: the lyric box keeps two upcoming lines below the sung
     line, so you read the next line before you have to sing it
   • Real per-line translation in all 27 languages, shown under every line at
     once (not only the active one) plus key-vocabulary chips and examples
+  • Sing in another language: tick "Sing in <language>" and a neural device voice
+    speaks each translated line inside that line's own window while the English
+    recording drops to a backing-track level — the same MP3 in any of the 27
   • Ask the AI about any line at any time — while the track is playing
   • Short lyric clips (chorus-sized line ranges) with lyrics + translation
   • Curated external lyric videos / channels with printed-lyrics links
+  • YouTube movie lessons embedded on the page: pause at each verse, answer
+    grammar/vocabulary prompts, ask the AI about the line, and read the verse in
+    any of 27 languages (Cambodia & Laos legends + Learn English with Movies)
+  • Local Khmer/English karaoke (សេចក្ដីស្រឡាញ់ការរៀនសូត្រ — Love of Learning):
+    60 timed lines, pause on every line, translate Khmer+English into any of 27
+    languages, then ask about the line before continuing
   • Import schema for additional original packs (JSON/JSONL)
 
 Featured audio: data/audio/*.mp3 + data/featured_songs.jsonl.
@@ -31,6 +44,58 @@ Translation tiers (best available wins; every line always resolves)
 
 Karaoke timings are syllable-weighted estimates (timing.py); hand-tuned values
 win when a line carries start_sec/end_sec or a song carries lead_in_sec.
+
+Storyboard (storyboard.py, no external art assets)
+  scenes    hand-authored per song, each pinned to a lyric line range, so the
+            cuts land on line boundaries at any real audio duration
+  backdrops 15 layered SVG sets (town street, park, bus interior, market row,
+            airport hall, cafe, sunrise hill, stage lights, night map, …)
+  cast      23 SVG characters and props (kids, grown-up, dog, bus, car, train,
+            plane, sun, clouds, rain, tree, signs, arrows, food, ticket, …) with
+            their own motion: wave, walk, hop, sway, drive, spinning wheels,
+            opening doors, falling rain
+  camera    push-in, pull-out, pan-left/right, tilt-up, ken-burns, zoom-punch,
+            dolly-shake — the move runs for exactly the scene's length
+  narration English scene notes, hand-translated for es/fr/de/it/pt; other
+            languages show the English note (narration_tier says which) while
+            the sung line underneath stays translated in all 27
+  motion     everything is CSS on inline SVG, pauses with the audio, and honours
+            prefers-reduced-motion
+  framing   cameras zoom up to ~1.26x, so cast x is clamped into the action-safe
+            band (SAFE_X_MIN..SAFE_X_MAX); only "drive"/"cross-*" leave the frame
+            on purpose
+
+Tick "Narrate scenes" to have the device voice read the scene note; the music
+ducks while it speaks and comes back up afterwards.
+
+Sing-along (sing.py)
+  plan      one row per line: the translated text, the line's start/end window,
+            a BCP-47 voice tag, and the speech rate that makes the sentence fit
+  rate      chars / (chars-per-second budget × window), clamped 0.85–1.8 so a
+            dense script (zh/ja/ko) speeds up instead of overrunning the line
+  speech    romanization hints shown on screen ("你好 (nǐ hǎo)") are stripped
+            before speaking, and "·" between glosses becomes a comma pause
+  backing   the English MP3 drops to backing_volume (0.22) while singing and is
+            restored when the toggle goes off, on pause, and on song change
+  device    the voice comes from the OS/browser; with no voice for that language
+            installed the toggle refuses and says so rather than failing silently
+
+YouTube embeds (embeds.py + data/embeds.jsonl)
+  player    privacy-friendly youtube-nocookie iframe with the IFrame API so the
+            page can pause, seek and poll the playhead
+  verses    each lesson has timed start/pause points with English teaching text,
+            focus (grammar/vocabulary/comprehension), key terms and 2 prepared
+            questions per verse
+  i18n      curated es/fr/de/it/pt for every verse + prompt + answer; other
+            languages use the same lexicon/LLM/cache stack as song lyrics
+  ask       POST /api/music/embeds/ask answers grammar/vocab questions about the
+            paused verse (Grok when keyed, otherwise the prepared Q&A)
+  examples  Preah Thong & Neang Neak, Sang Sinxay, The Incredibles movie lesson,
+            plus the Learn English with Movies playlist pointer
+  karaoke   local MP4 Love of Learning (Khmer+English, 60 pause lines) served
+            from /api/music/video/ with Range seeking; bilingual text_en/text_km
+            so any target language translates from the English gloss while Khmer
+            display stays the source script
 
 Ask AI uses Grok when XAI_API_KEY is set and otherwise answers from the lyrics
 themselves (line + translation + key words + example), so it works offline.
@@ -135,14 +200,40 @@ Step 6 — check the karaoke, translation and Ask-AI APIs
     | python3 -m json.tool | head -30
   curl -s http://127.0.0.1:8097/api/music/videos | python3 -m json.tool | head -20
 
+  curl -s "http://127.0.0.1:8097/api/music/storyboard/$SONG?target_lang=es&duration=74" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(s["index"], s["camera"], s["backdrop"], s["narration"]) for s in d["scenes"]]'
+  # timed scenes with their backdrop, camera move, cast and narration
+
+  curl -s "http://127.0.0.1:8097/api/music/sing/$SONG?target_lang=es&duration=74" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["voice_tag"]); [print(r["start"], r["rate"], r["speak"]) for r in d["lines"][:6]]'
+  # sing the English recording in another language: what to say, when, how fast
+
+  curl -s "http://127.0.0.1:8097/api/music/embeds?target_lang=es" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(e["embed_id"], e["verse_count"], e["title"]) for e in d["embeds"]]'
+  curl -s "http://127.0.0.1:8097/api/music/embeds/movie-incredibles-lesson-1?target_lang=fr&allow_llm=false" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(v["verse_no"], v["pause_sec"], v["translation"]) for v in d["verses"]]'
+  curl -s -X POST http://127.0.0.1:8097/api/music/embeds/ask \
+    -H 'content-type: application/json' \
+    -d '{"embed_id":"legend-cambodia-neang-neak","question":"What does sailed across the sea mean?","verse_no":1,"target_lang":"es","allow_llm":false}' \
+    | python3 -m json.tool
+
 APIs on :8097
-  GET  / and /lab          — player UI (karaoke, translations, Ask AI, clips)
+  GET  / and /lab          — player UI (storyboard theater, karaoke, Ask AI)
   GET  /health
   GET  /api/music/languages         — codes + per-language translation quality
   GET  /api/music/featured
   GET  /api/music/songs
   GET  /api/music/songs/{song_id}
   GET  /api/music/timing/{song_id}  — line + word timings (?duration=&lead_in=)
+  GET  /api/music/storyboard/{song_id} — timed scenes + SVG art + narration
+                                         (?target_lang=&duration=)
+  GET  /api/music/sing/{song_id}    — sing plan: per-line text, window, voice
+                                      tag and speech rate (?target_lang=&duration=)
+  GET  /api/music/embeds            — YouTube movie/legend lessons (?target_lang=)
+  GET  /api/music/embeds/{embed_id} — verses, translations, questions, embed URL
+  GET  /api/music/video/{filename}  — local karaoke MP4, honours Range (206)
+  POST /api/music/embeds/explain    — one verse: meaning, vocab, prepared Q&A
+  POST /api/music/embeds/ask        — ask grammar/vocab about the paused verse
   GET  /api/music/audio/{filename}  — MP3, honours Range (206) so seeking works
   GET  /api/music/clips             — short lyric clips (?song_id=&target_lang=)
   GET  /api/music/videos            — curated lyric videos (?song_id=)

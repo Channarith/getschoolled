@@ -7,17 +7,37 @@ from fastapi.testclient import TestClient
 
 from theodore_music_lab.ask_ai import ask, explain_line
 from theodore_music_lab.catalog import MEANING_LANGUAGES, Catalog, import_songs
+from theodore_music_lab.embeds import (
+    ask_verse,
+    embed_url,
+    explain_verse,
+    list_embeds,
+    load_embeds,
+    resolve_embed,
+)
 from theodore_music_lab.main import app
 from theodore_music_lab.media import load_clips, load_videos, resolve_clip
 from theodore_music_lab.session import SessionMode, SessionStore
+from theodore_music_lab.sing import (
+    MAX_RATE,
+    MIN_RATE,
+    VOICE_TAGS,
+    chars_per_second,
+    sing_plan,
+    speakable,
+    speech_rate,
+)
 from theodore_music_lab.storyboard import (
     BACKDROPS,
     CAMERA_MOVES,
     MOTIONS,
     NARRATION_LANGUAGES,
+    SAFE_X_MAX,
+    SAFE_X_MIN,
     SPRITE_HEIGHT_PCT,
     SPRITES,
     STORYBOARDS,
+    safe_x,
     scene_at,
     storyboard_for,
 )
@@ -318,6 +338,8 @@ def test_new_apis_and_player_ui(offline):
         health = client.get("/health").json()
         assert health["clips"] >= 4
         assert health["videos"] >= 4
+        assert health["embeds"] >= 4
+        assert health["embed_pause_ask"] >= 4
         assert health["karaoke"] is True
         assert health["ask_ai"] is True
 
@@ -382,6 +404,53 @@ def test_new_apis_and_player_ui(offline):
         )
         assert bad_lang.status_code == 422
 
+        plan = client.get(
+            f"/api/music/sing/{song_id}",
+            params={"target_lang": "es", "duration": 74, "allow_llm": False},
+        ).json()
+        assert plan["voice_tag"] == "es-ES"
+        assert plan["line_count"] == len(plan["lines"])
+        assert client.get(
+            f"/api/music/sing/{song_id}", params={"target_lang": "xx"}
+        ).status_code == 422
+
+        embeds = client.get("/api/music/embeds", params={"target_lang": "es"}).json()
+        assert embeds["count"] >= 4
+        lesson = next(
+            row
+            for row in embeds["embeds"]
+            if row["has_pause_ask"] and row["kind"] != "local-karaoke"
+        )
+        detail = client.get(
+            f"/api/music/embeds/{lesson['embed_id']}",
+            params={"target_lang": "es", "allow_llm": False},
+        ).json()
+        assert detail["embed_url"].startswith("https://www.youtube-nocookie.com/embed/")
+        assert "enablejsapi=1" in detail["embed_url"]
+        assert detail["verse_count"] >= 4
+        assert detail["verses"][0]["questions"]
+        asked = client.post(
+            "/api/music/embeds/ask",
+            json={
+                "embed_id": lesson["embed_id"],
+                "question": "Explain the grammar here",
+                "verse_no": 1,
+                "target_lang": "es",
+                "allow_llm": False,
+            },
+        ).json()
+        assert asked["answer"]
+        assert asked["cited_verse"]["verse_no"] == 1
+        assert client.get("/api/music/embeds/does-not-exist").status_code == 404
+
+        karaoke = client.get(
+            "/api/music/embeds/karaoke-love-of-learning-km",
+            params={"target_lang": "es", "allow_llm": False},
+        ).json()
+        assert karaoke["verse_count"] == 60
+        assert karaoke["video_url"].endswith("love_of_learning_khmer.mp4")
+        assert karaoke["bilingual"] is True
+
         page = client.get("/").text
         assert 'id="ball"' in page
         assert "Ask the AI about the lyrics" in page
@@ -395,8 +464,17 @@ def test_new_apis_and_player_ui(offline):
         # Full-screen storyboard stage.
         for hook in ('id="camera"', 'id="backdrop"', 'id="cast"', 'id="scene-tag"',
                      'id="cap-narration"', 'id="cap-line"', 'id="cap-ball"',
-                     'id="btn-theater"', 'id="narrate"'):
+                     'id="btn-theater"', 'id="narrate"',
+                     'id="sing-lang"', 'id="sing-label"',
+                     'id="embed-picker"', 'id="yt-host"', 'id="pause-card"',
+                     'id="auto-pause"', 'id="embed-ask-send"'):
             assert hook in page, hook
+        assert "SpeechSynthesisUtterance" in page
+        assert "youtube.com/iframe_api" in page
+        assert "Pause at each verse" in page
+        assert "YouTube movie lessons" in page
+        assert 'id="local-video"' in page
+        assert "Continue after ask" in page
         assert "requestFullscreen" in page
         for camera in CAMERA_MOVES:
             assert f".cam-{camera} " in page, camera
@@ -423,10 +501,108 @@ def test_every_song_storyboard_covers_every_line_in_order():
             for member in scene["cast"]:
                 assert member["kind"] in SPRITES
                 assert member["motion"] in MOTIONS
-                assert 0 <= member["x"] <= 100 and 0 <= member["y"] <= 100
+                # Cameras zoom in, so anything at the very edge would leave the
+                # frame mid-scene.
+                assert SAFE_X_MIN <= member["x"] <= SAFE_X_MAX
+                assert 0 <= member["y"] <= 100
                 assert member["height_pct"] == SPRITE_HEIGHT_PCT[member["kind"]]
         assert covered == [line.line_no for line in song.lines]
         assert previous_end == pytest.approx(board["duration_sec"], abs=0.05)
+
+
+def test_khmer_english_karaoke_pauses_every_line(offline):
+    from theodore_music_lab.love_of_learning import DURATION_SEC, love_of_learning_embed
+
+    raw = love_of_learning_embed()
+    assert raw["video_file"] == "love_of_learning_khmer.mp4"
+    assert len(raw["verses"]) == 60
+    assert raw["verses"][0]["source_lang"] == "en"
+    assert raw["verses"][2]["source_lang"] == "km"
+    assert raw["verses"][-1]["text_en"] == "I was born to learn"
+    previous = 0.0
+    for verse in raw["verses"]:
+        assert verse["start_sec"] >= previous - 0.001
+        assert verse["pause_sec"] > verse["start_sec"]
+        previous = verse["pause_sec"]
+    assert previous <= DURATION_SEC
+
+    spanish = resolve_embed(raw, "es", allow_llm=False)
+    assert spanish["video_url"] == "/api/music/video/love_of_learning_khmer.mp4"
+    assert spanish["bilingual"] is True
+    assert spanish["verses"][0]["tier"] == "curated"
+    khmer = resolve_embed(raw, "km", allow_llm=False)
+    assert khmer["verses"][2]["translation"] == raw["verses"][2]["text_km"]
+    english = resolve_embed(raw, "en", allow_llm=False)
+    assert english["verses"][2]["translation"] == raw["verses"][2]["text_en"]
+
+    with TestClient(app) as client:
+        detail = client.get(
+            "/api/music/embeds/karaoke-love-of-learning-km",
+            params={"target_lang": "fr", "allow_llm": False},
+        ).json()
+        assert detail["verse_count"] == 60
+        video = client.get(detail["video_url"])
+        assert video.status_code == 200
+        assert video.headers["accept-ranges"] == "bytes"
+        partial = client.get(detail["video_url"], headers={"Range": "bytes=0-1023"})
+        assert partial.status_code == 206
+        assert len(partial.content) == 1024
+
+
+def test_youtube_embeds_pause_and_ask_in_curated_languages(offline):
+    rows = load_embeds()
+    assert len(rows) >= 4
+    assert embed_url("2owVccYAIRg").endswith("2owVccYAIRg?enablejsapi=1&rel=0&modestbranding=1")
+    pause_ask = [
+        r for r in rows if r.get("verses") and r.get("kind") != "local-karaoke"
+    ]
+    assert len(pause_ask) >= 3
+    for raw in pause_ask:
+        assert raw["youtube_id"]
+        for language in ("en", "es", "fr", "de", "it", "pt"):
+            resolved = resolve_embed(raw, language, allow_llm=False)
+            assert resolved["verse_count"] >= 4
+            for verse in resolved["verses"]:
+                assert verse["text"]
+                assert verse["translation"]
+                assert verse["pause_sec"] > verse["start_sec"]
+                assert verse["questions"]
+                for question in verse["questions"]:
+                    assert question["kind"] in {
+                        "vocabulary",
+                        "grammar",
+                        "comprehension",
+                        "pronunciation",
+                        "strategy",
+                    }
+                    assert question["prompt"]
+                    assert question["answer"]
+            if language != "en":
+                assert resolved["verses"][0]["tier"] == "curated"
+    catalogue = list_embeds("es", allow_llm=False)
+    assert any(row["embed_id"] == "movie-incredibles-lesson-1" for row in catalogue)
+    assert any(row["embed_id"] == "karaoke-love-of-learning-km" for row in catalogue)
+    explained = explain_verse(
+        "legend-cambodia-neang-neak", 1, "es", allow_llm=False
+    )
+    assert "príncipe" in explained["translation"].lower() or "principe" in explained[
+        "translation"
+    ].lower()
+    answer = ask_verse(
+        "movie-incredibles-lesson-1",
+        "What does listen for mean?",
+        verse_no=1,
+        language="es",
+        allow_llm=False,
+    )
+    assert answer["answer"]
+    assert answer["cited_verse"]["verse_no"] == 1
+
+
+def test_cast_is_pulled_into_the_action_safe_band():
+    assert safe_x(90) == SAFE_X_MAX
+    assert safe_x(4) == SAFE_X_MIN
+    assert safe_x(50) == 50.0
 
 
 def test_storyboard_art_is_self_contained_svg():
@@ -467,6 +643,47 @@ def test_scene_at_maps_playback_position_to_a_scene():
     for scene in board["scenes"]:
         middle = (scene["start"] + scene["end"]) / 2
         assert scene_at(board, middle)["scene_id"] == scene["scene_id"]
+
+
+def test_sing_plan_lets_every_language_carry_the_english_recording(offline):
+    cat = Catalog()
+    song = cat.get("en-wheels-bus-audio-v1")
+    for language in MEANING_LANGUAGES:
+        plan = sing_plan(song, language, duration_sec=74.0, allow_llm=False)
+        assert plan["line_count"] == len(song.lines)
+        assert plan["voice_tag"] == VOICE_TAGS[language]
+        assert 0.0 < plan["backing_volume"] < 1.0
+        for row in plan["lines"]:
+            assert row["speak"], f"{language} line {row['line_no']} has nothing to say"
+            assert MIN_RATE <= row["rate"] <= MAX_RATE
+            # Speech has to start with the line, not after it.
+            assert row["start"] < row["end"]
+        # A window is only "crowded" when even MAX_RATE overruns it; a nursery
+        # rhyme line should never be that dense.
+        assert plan["crowded_lines"] == 0, language
+
+
+def test_sing_speech_drops_the_romanization_shown_on_screen():
+    assert speakable("\u4f60\u597d (n\u01d0 h\u01ceo) \u00b7 \u670b\u53cb (p\u00e9ngyou)") == (
+        "\u4f60\u597d, \u670b\u53cb"
+    )
+    assert speakable("Hola amigo") == "Hola amigo"
+    assert speakable("") == ""
+    cat = Catalog()
+    plan = sing_plan(cat.get("en-wheels-bus-audio-v1"), "zh", allow_llm=False)
+    assert plan["word_by_word"] is True
+    assert all("(" not in row["speak"] for row in plan["lines"])
+
+
+def test_sing_rate_fits_the_line_into_its_window():
+    # A dense script gets a faster rate than a roomy Latin script in the same
+    # window, because it carries more meaning per character.
+    long_line = "x" * 60
+    assert speech_rate(long_line, 3.0, "es") > speech_rate(long_line, 12.0, "es")
+    assert speech_rate("short", 6.0, "es") == MIN_RATE
+    assert speech_rate("", 3.0, "es") == 1.0
+    assert speech_rate("anything", 0.0, "es") == 1.0
+    assert chars_per_second("zh") < chars_per_second("es")
 
 
 def test_storyboard_scenes_stretch_with_the_real_audio_duration():

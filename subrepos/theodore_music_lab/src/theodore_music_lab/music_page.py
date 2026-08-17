@@ -177,13 +177,14 @@ _CSS = """
   .cap-ball.on { opacity:1; }
   .stage.theater .cap-ball, .stage.theater .cap-ball .dot { width:26px; height:26px; }
   .cap-narration { color:#cbd5e1; font-size:.86rem; margin-bottom:.3rem; }
-  .cap-line { font-size:1.4rem; font-weight:800; line-height:1.5; }
+  /* padding-top leaves the bouncing ball its own lane above the words */
+  .cap-line { font-size:1.4rem; font-weight:800; line-height:1.5; padding-top:1.4rem; }
   .cap-line .w { padding:.05rem .2rem; }
   .cap-tr { color:var(--good); font-size:1rem; }
   .cap-next { color:#94a3b8; font-size:.9rem; margin-top:.2rem; }
   .stage.theater .captions { padding:4rem 3rem 2.2rem; }
   .stage.theater .cap-narration { font-size:1.25rem; }
-  .stage.theater .cap-line { font-size:2.6rem; }
+  .stage.theater .cap-line { font-size:2.6rem; padding-top:2.2rem; }
   .stage.theater .cap-tr { font-size:1.6rem; }
   .stage.theater .cap-next { font-size:1.2rem; }
   .stage.theater .scene-tag { font-size:1rem; top:1.4rem; left:2rem; }
@@ -259,6 +260,36 @@ _CSS = """
   .video p { margin:.25rem 0 .5rem; color:var(--muted); font-size:.85rem; }
   .video a { color:var(--accent); margin-right:.9rem; }
   .video iframe { width:100%; aspect-ratio:16/9; border:0; border-radius:10px; margin-top:.5rem; }
+  .embed-stage { display:grid; gap:.75rem; }
+  .embed-player { position:relative; width:100%; aspect-ratio:16/9; background:#020617;
+    border-radius:14px; overflow:hidden; border:1px solid #334155; }
+  .embed-player.portrait { aspect-ratio:9/16; max-height:min(70vh, 640px); margin:0 auto;
+    width:min(100%, 360px); }
+  .embed-player iframe, .embed-player #yt-host, .embed-player video {
+    width:100%; height:100%; border:0; object-fit:contain; background:#000; }
+  .embed-tools { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
+  .embed-tools label { font-size:.85rem; color:var(--muted); }
+  .verse-list { display:grid; gap:.45rem; max-height:320px; overflow:auto; }
+  .verse { text-align:left; width:100%; padding:.55rem .7rem; border-radius:10px;
+    background:#0f172a; border:1px solid #334155; color:var(--ink); cursor:pointer; }
+  .verse.active { border-color:var(--warm); box-shadow:0 0 0 1px var(--warm); }
+  .verse strong { display:block; font-size:.9rem; }
+  .verse .tr { color:var(--good); font-size:.82rem; margin-top:.15rem; }
+  .verse .meta { font-size:.72rem; }
+  .pause-card { padding:.75rem .9rem; border-radius:12px; background:#111827; border:1px solid #fbbf24; }
+  .pause-card h3 { margin:0 0 .35rem; font-size:1rem; color:#fde68a; }
+  .q-list { display:grid; gap:.45rem; margin-top:.55rem; }
+  .q-item { padding:.55rem .7rem; border-radius:10px; background:#0f172a; border:1px solid #334155; }
+  .q-item .kind { font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; color:#fbbf24; }
+  .q-item .ans { margin-top:.35rem; color:var(--muted); display:none; }
+  .q-item.open .ans { display:block; color:var(--good); }
+  .embed-picker { display:grid; gap:.45rem; }
+  .embed-pick { display:flex; gap:.7rem; align-items:center; text-align:left; width:100%;
+    padding:.5rem .65rem; border-radius:12px; background:#0f172a; border:1px solid #334155;
+    color:var(--ink); cursor:pointer; }
+  .embed-pick.active { border-color:var(--accent); }
+  .embed-pick img { width:72px; height:40px; object-fit:cover; border-radius:6px; background:#020617; }
+  .embed-pick strong { display:block; font-size:.88rem; }
   .meta { color:var(--muted); font-size:.85rem; margin-top:.35rem; }
   .toast { position:fixed; right:1rem; bottom:1rem; display:none; background:#0f766e;
     border:1px solid #5eead4; padding:.7rem .9rem; border-radius:10px; }
@@ -269,8 +300,9 @@ _HTML = """
   <header>
     <h1>Theodore Music Lab</h1>
     <p>Follow the bouncing ball, watch each word light up as it is sung, and read the
-       translation of every line in any of 26+ languages. Ask the AI about a line at
-       any time — while the song is still playing.</p>
+       translation of every line in any of 26+ languages. Embed YouTube movie lessons,
+       pause on each verse to practise grammar and vocabulary, and ask the AI about a
+       line at any time — while the song or clip is still playing.</p>
   </header>
   <div class="layout">
     <div class="stack">
@@ -301,6 +333,8 @@ _HTML = """
           <div class="stage-tools">
             <button class="ghost" id="btn-stage-play" type="button">Play</button>
             <button class="ghost" id="btn-theater" type="button">Full screen</button>
+            <label><input type="checkbox" id="sing-lang" /> <span id="sing-label">Sing in
+              Spanish</span></label>
             <label><input type="checkbox" id="narrate" /> Narrate scenes</label>
             <span class="dots" id="scene-dots"></span>
           </div>
@@ -351,6 +385,39 @@ _HTML = """
         </section>
       </div>
       <section class="panel">
+        <h2>YouTube movie lessons</h2>
+        <p class="meta">Embed a short film or legend, pause on each verse, answer grammar and
+          vocabulary prompts, then ask the AI anything about that line — translated into
+          your language.</p>
+        <div class="embed-picker" id="embed-picker">Loading…</div>
+        <div class="embed-stage" id="embed-stage" hidden>
+          <div class="embed-player" id="embed-player-box"><div id="yt-host"></div>
+            <video id="local-video" playsinline controls preload="metadata" hidden></video></div>
+          <div class="embed-tools">
+            <button class="primary" id="btn-embed-play" type="button">Play</button>
+            <button class="ghost" id="btn-embed-pause" type="button">Pause</button>
+            <button class="ghost" id="btn-embed-continue" type="button">Continue after ask</button>
+            <label><input type="checkbox" id="auto-pause" checked /> Pause at each verse</label>
+            <span class="meta" id="embed-meta"></span>
+          </div>
+          <div class="pause-card" id="pause-card" hidden>
+            <h3 id="pause-title">Paused for learning</h3>
+            <div id="pause-line"></div>
+            <div class="tr" id="pause-tr"></div>
+            <div class="chips" id="pause-vocab"></div>
+            <div class="q-list" id="pause-questions"></div>
+            <div class="ask-row" style="margin-top:.65rem">
+              <input type="text" id="embed-ask-input"
+                placeholder="Ask about grammar, vocabulary, or this verse…" />
+              <button class="primary" id="embed-ask-send" type="button">Ask</button>
+            </div>
+            <div class="chips" id="embed-ask-quick"></div>
+            <div class="answer" id="embed-ask-answer">Answers stay grounded in the paused verse.</div>
+          </div>
+          <div class="verse-list" id="verse-list"></div>
+        </div>
+      </section>
+      <section class="panel">
         <h2>Lyric videos</h2>
         <div class="videos" id="video-list">Loading…</div>
       </section>
@@ -378,6 +445,26 @@ _JS = r"""
   let translation = null;
   let clips = [];
   let board = null;
+  let singPlan = null;
+  let singingLineNo = 0;
+  let singBackedFrom = null;
+  let embeds = [];
+  let currentEmbed = null;
+  let activeVerseNo = 0;
+  let ytPlayer = null;
+  let ytReady = false;
+  let ytPoll = 0;
+  let localVideo = null;
+  let usingLocalVideo = false;
+  let firedPauses = new Set();
+  let pauseLocked = false;
+  const EMBED_QUICK = [
+    "What does this verse mean?",
+    "Explain the grammar here",
+    "Which vocabulary should I learn?",
+    "Give me an example sentence",
+  ];
+
   let syncOffset = 0;
   let activeLineNo = 0;
   let activeWordKey = "";
@@ -525,6 +612,316 @@ _JS = r"""
     });
   }
 
+  /* ---------- YouTube embeds: pause, ask, translate ---------- */
+
+  function loadYtApi() {
+    return new Promise((resolve) => {
+      if (window.YT && window.YT.Player) { resolve(); return; }
+      const prior = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (typeof prior === "function") prior();
+        resolve();
+      };
+      if (![...document.scripts].some((s) => (s.src || "").includes("youtube.com/iframe_api"))) {
+        const tag = document.createElement("script");
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+      }
+    });
+  }
+
+  function stopYtPoll() {
+    if (ytPoll) { clearInterval(ytPoll); ytPoll = 0; }
+  }
+
+  function startYtPoll() {
+    stopYtPoll();
+    ytPoll = setInterval(checkVersePause, 250);
+  }
+
+  function getPlayhead() {
+    if (usingLocalVideo && localVideo) return localVideo.currentTime || 0;
+    if (ytPlayer && ytReady) {
+      try { return ytPlayer.getCurrentTime() || 0; } catch (_) { return 0; }
+    }
+    return 0;
+  }
+
+  function pauseMedia() {
+    if (usingLocalVideo && localVideo) { localVideo.pause(); return; }
+    if (ytPlayer && ytReady) { try { ytPlayer.pauseVideo(); } catch (_) { /* ignore */ } }
+  }
+
+  function playMedia() {
+    if (usingLocalVideo && localVideo) {
+      localVideo.play().catch(() => toast("Press play on the video once"));
+      return;
+    }
+    if (ytPlayer && ytReady) {
+      try { ytPlayer.playVideo(); } catch (_) { toast("Press play on the video once"); }
+    }
+  }
+
+  function seekMedia(sec) {
+    if (usingLocalVideo && localVideo) {
+      localVideo.currentTime = Math.max(0, sec);
+      localVideo.pause();
+      return;
+    }
+    if (ytPlayer && ytReady) {
+      try {
+        ytPlayer.seekTo(Math.max(0, sec), true);
+        ytPlayer.pauseVideo();
+      } catch (_) { /* ignore */ }
+    }
+  }
+
+  function checkVersePause() {
+    if (!currentEmbed || !$("auto-pause").checked || pauseLocked) return;
+    const t = getPlayhead();
+    for (const verse of currentEmbed.verses || []) {
+      const pauseAt = Number(verse.pause_sec);
+      if (!pauseAt || firedPauses.has(verse.verse_no)) continue;
+      if (t >= pauseAt - 0.15) {
+        firedPauses.add(verse.verse_no);
+        pauseMedia();
+        showPauseCard(verse.verse_no, true);
+        toast(`Paused at line ${verse.verse_no} — read, ask, then Continue`);
+        return;
+      }
+    }
+    let current = null;
+    for (const verse of currentEmbed.verses || []) {
+      if (t >= verse.start_sec) current = verse;
+    }
+    if (current && current.verse_no !== activeVerseNo && !pauseLocked) {
+      activeVerseNo = current.verse_no;
+      markVerseActive(activeVerseNo);
+    }
+  }
+
+  function markVerseActive(verseNo) {
+    $("verse-list").querySelectorAll(".verse").forEach((el) => {
+      el.classList.toggle("active", Number(el.getAttribute("data-no")) === verseNo);
+    });
+  }
+
+  function renderEmbedPicker() {
+    const box = $("embed-picker");
+    if (!embeds.length) { box.textContent = "No embeds configured."; return; }
+    box.innerHTML = embeds.map((e) => `
+      <button type="button" class="embed-pick ${currentEmbed && currentEmbed.embed_id === e.embed_id ? "active" : ""}"
+        data-id="${esc(e.embed_id)}">
+        ${e.thumbnail_url ? `<img src="${esc(e.thumbnail_url)}" alt="" loading="lazy" />` : ""}
+        <span>
+          <strong>${esc(e.title)}<span class="badge">${esc(e.kind)}</span></strong>
+          <span class="meta">${esc(e.channel)} \u00b7 ${e.verse_count} pause points
+            ${e.has_pause_ask ? "\u00b7 pause & ask" : ""}</span>
+        </span>
+      </button>`).join("");
+    box.querySelectorAll(".embed-pick").forEach((btn) => {
+      btn.onclick = () => selectEmbed(btn.getAttribute("data-id"));
+    });
+  }
+
+  function renderVerses() {
+    const box = $("verse-list");
+    if (!currentEmbed || !(currentEmbed.verses || []).length) {
+      box.innerHTML = "<div class='meta'>This item is a playlist pointer — open a lesson above to pause and ask.</div>";
+      return;
+    }
+    box.innerHTML = currentEmbed.verses.map((v) => `
+      <button type="button" class="verse ${v.verse_no === activeVerseNo ? "active" : ""}"
+        data-no="${v.verse_no}">
+        <strong>Line ${v.verse_no} \u00b7 ${esc(v.section || v.focus)} \u00b7 ${esc(v.source_lang || "")}
+          \u00b7 ${Math.round(v.start_sec)}s</strong>
+        <span>${esc(v.text)}</span>
+        <div class="tr">${esc(v.translation)}</div>
+        ${v.text_en && v.source_lang === "km" ? `<div class="meta">${esc(v.text_en)}</div>` : ""}
+      </button>`).join("");
+    box.querySelectorAll(".verse").forEach((btn) => {
+      btn.onclick = () => {
+        const no = Number(btn.getAttribute("data-no"));
+        seekVerse(no);
+        showPauseCard(no, false);
+      };
+    });
+  }
+
+  function showPauseCard(verseNo, locked) {
+    if (!currentEmbed) return;
+    const verse = currentEmbed.verses.find((v) => v.verse_no === verseNo);
+    if (!verse) return;
+    activeVerseNo = verseNo;
+    pauseLocked = !!locked;
+    markVerseActive(verseNo);
+    $("pause-card").hidden = false;
+    $("pause-title").textContent = locked
+      ? `Paused at line ${verseNo} — read & ask`
+      : `Line ${verseNo} — grammar & vocabulary`;
+    $("pause-line").textContent = verse.text;
+    const bits = [verse.translation];
+    if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
+      bits.push(verse.text_en);
+    }
+    $("pause-tr").textContent = bits.filter(Boolean).join(" · ");
+    $("pause-vocab").innerHTML = (verse.vocabulary || []).filter((r) => r.target).slice(0, 8).map((r) =>
+      `<span class="chip"><b>${esc(r.en)}</b> \u2192 ${esc(r.target)}</span>`).join("");
+    $("pause-questions").innerHTML = (verse.questions || []).map((q, i) => `
+      <div class="q-item" data-i="${i}">
+        <div class="kind">${esc(q.kind)}</div>
+        <div>${esc(q.prompt_translation || q.prompt)}</div>
+        <button class="ghost" type="button" data-reveal="${i}">Show answer</button>
+        <div class="ans">${esc(q.answer_translation || q.answer)}</div>
+      </div>`).join("");
+    $("pause-questions").querySelectorAll("button[data-reveal]").forEach((btn) => {
+      btn.onclick = () => {
+        const item = btn.closest(".q-item");
+        item.classList.add("open");
+        btn.remove();
+      };
+    });
+    $("embed-ask-answer").textContent = "Ask about this verse, or reveal a prepared answer above.";
+  }
+
+  function clearPlayers() {
+    stopYtPoll();
+    usingLocalVideo = false;
+    localVideo = $("local-video");
+    localVideo.pause();
+    localVideo.removeAttribute("src");
+    localVideo.load();
+    localVideo.hidden = true;
+    $("yt-host").hidden = false;
+    $("yt-host").innerHTML = "";
+    $("embed-player-box").classList.remove("portrait");
+    if (ytPlayer && ytPlayer.destroy) {
+      try { ytPlayer.destroy(); } catch (_) { /* ignore */ }
+      ytPlayer = null;
+    }
+    ytReady = false;
+  }
+
+  function wireLocalVideo() {
+    localVideo = $("local-video");
+    localVideo.onplay = () => { pauseLocked = false; startYtPoll(); };
+    localVideo.onpause = () => { stopYtPoll(); };
+    localVideo.onended = () => { stopYtPoll(); };
+    localVideo.ontimeupdate = () => {
+      if (!document.hidden) checkVersePause();
+    };
+  }
+
+  async function ensureLocalPlayer(videoUrl, portrait) {
+    clearPlayers();
+    usingLocalVideo = true;
+    localVideo = $("local-video");
+    $("yt-host").hidden = true;
+    localVideo.hidden = false;
+    if (portrait) $("embed-player-box").classList.add("portrait");
+    wireLocalVideo();
+    localVideo.src = videoUrl;
+    await new Promise((resolve) => {
+      const done = () => { localVideo.removeEventListener("loadedmetadata", done); resolve(); };
+      localVideo.addEventListener("loadedmetadata", done);
+      localVideo.load();
+    });
+  }
+
+  async function ensureYtPlayer(youtubeId) {
+    clearPlayers();
+    await loadYtApi();
+    return new Promise((resolve) => {
+      ytPlayer = new YT.Player("yt-host", {
+        videoId: youtubeId,
+        playerVars: {
+          enablejsapi: 1,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          origin: window.location.origin,
+        },
+        events: {
+          onReady: () => { ytReady = true; resolve(ytPlayer); },
+          onStateChange: (ev) => {
+            if (ev.data === YT.PlayerState.PLAYING) {
+              pauseLocked = false;
+              startYtPoll();
+            } else if (ev.data === YT.PlayerState.PAUSED || ev.data === YT.PlayerState.ENDED) {
+              stopYtPoll();
+            }
+          },
+        },
+      });
+    });
+  }
+
+  async function selectEmbed(embedId) {
+    currentEmbed = await api(`/api/music/embeds/${encodeURIComponent(embedId)}` +
+      `?target_lang=${encodeURIComponent(lang())}&allow_llm=false`);
+    activeVerseNo = currentEmbed.verses[0] ? currentEmbed.verses[0].verse_no : 0;
+    firedPauses = new Set();
+    pauseLocked = false;
+    $("embed-stage").hidden = false;
+    $("embed-meta").textContent =
+      `${currentEmbed.channel} \u00b7 ${currentEmbed.verse_count} lines \u00b7 ${currentEmbed.topic}`;
+    renderEmbedPicker();
+    renderVerses();
+    $("pause-card").hidden = true;
+    if (currentEmbed.video_url) {
+      await ensureLocalPlayer(currentEmbed.video_url, currentEmbed.kind === "local-karaoke");
+      if (activeVerseNo) showPauseCard(activeVerseNo, false);
+    } else if (currentEmbed.youtube_id && currentEmbed.has_pause_ask) {
+      await ensureYtPlayer(currentEmbed.youtube_id);
+      if (activeVerseNo) showPauseCard(activeVerseNo, false);
+    } else if (currentEmbed.playlist_url) {
+      clearPlayers();
+      $("yt-host").innerHTML =
+        `<div class="meta" style="padding:1rem">Open the playlist on YouTube, then come back and
+         pick a lesson with pause points.
+         <a href="${esc(currentEmbed.playlist_url)}" target="_blank" rel="noopener">Open playlist</a></div>`;
+    }
+  }
+
+  function seekVerse(verseNo) {
+    if (!currentEmbed) return;
+    const verse = currentEmbed.verses.find((v) => v.verse_no === verseNo);
+    if (!verse) return;
+    activeVerseNo = verseNo;
+    seekMedia(verse.start_sec);
+    markVerseActive(verseNo);
+  }
+
+  async function askEmbed(question) {
+    if (!currentEmbed || !currentEmbed.has_pause_ask) return;
+    const q = (question || $("embed-ask-input").value || "").trim();
+    if (!q) return;
+    $("embed-ask-answer").textContent = "Thinking…";
+    try {
+      const data = await post("/api/music/embeds/ask", {
+        embed_id: currentEmbed.embed_id,
+        question: q,
+        verse_no: activeVerseNo || null,
+        target_lang: lang(),
+        allow_llm: true,
+      });
+      $("embed-ask-answer").textContent = data.answer;
+      $("embed-ask-input").value = "";
+    } catch (e) {
+      $("embed-ask-answer").textContent = String(e.message || e);
+    }
+  }
+
+  async function loadEmbeds() {
+    const data = await api(`/api/music/embeds?target_lang=${encodeURIComponent(lang())}`);
+    embeds = data.embeds || [];
+    renderEmbedPicker();
+    if (currentEmbed) {
+      const still = embeds.find((e) => e.embed_id === currentEmbed.embed_id);
+      if (still) await selectEmbed(still.embed_id);
+    }
+  }
+
   /* ---------- karaoke loop ---------- */
 
   /* Word classes are painted per frame for the active line only, so every line
@@ -574,6 +971,7 @@ _JS = r"""
     if (el && scroll !== false) keepLineVisible(el, !player.paused);
     renderNowLine(lineNo);
     renderCaption(lineNo);
+    speakLine(lineNo);
   }
 
   function moveBall(span) {
@@ -724,6 +1122,92 @@ _JS = r"""
     synth.speak(utter);
   }
 
+  /* ---------- sing along in the learner's language ---------- */
+
+  function voiceFor(tag) {
+    const synth = window.speechSynthesis;
+    if (!synth) return null;
+    const voices = synth.getVoices() || [];
+    const want = String(tag || "").toLowerCase().replace("_", "-");
+    const base = want.split("-")[0];
+    return voices.find((v) => (v.lang || "").toLowerCase().replace("_", "-") === want)
+      || voices.find((v) => (v.lang || "").toLowerCase().replace("_", "-").startsWith(base))
+      || null;
+  }
+
+  async function loadSingPlan() {
+    singPlan = null;
+    singingLineNo = 0;
+    if (!current) return;
+    const player = $("player");
+    const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : 0;
+    singPlan = await api(`/api/music/sing/${encodeURIComponent(current.song_id)}` +
+      `?target_lang=${encodeURIComponent(lang())}` +
+      (duration ? `&duration=${duration.toFixed(2)}` : ""));
+  }
+
+  function speakLine(lineNo) {
+    const synth = window.speechSynthesis;
+    if (!synth || !singPlan || !$("sing-lang").checked) return;
+    if (lineNo === singingLineNo) return;
+    const row = singPlan.lines.find((r) => r.line_no === lineNo);
+    if (!row || !row.speak) return;
+    singingLineNo = lineNo;
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(row.speak);
+    utter.lang = singPlan.voice_tag;
+    utter.rate = row.rate;
+    // A tagged voice is better, but an engine that rejects the object should
+    // still sing the line from the language tag alone.
+    try {
+      const voice = voiceFor(singPlan.voice_tag);
+      if (voice) utter.voice = voice;
+    } catch (_) { /* keep utter.lang */ }
+    synth.speak(utter);
+  }
+
+  function stopSinging() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    singingLineNo = 0;
+    const player = $("player");
+    if (singBackedFrom !== null) { player.volume = singBackedFrom; singBackedFrom = null; }
+  }
+
+  async function toggleSinging() {
+    const box = $("sing-lang");
+    if (!box.checked) { stopSinging(); return; }
+    if ($("narrate").checked) { $("narrate").checked = false; }
+    if (!window.speechSynthesis) {
+      box.checked = false;
+      toast("This browser has no speech voices");
+      return;
+    }
+    try {
+      await loadSingPlan();
+    } catch (e) {
+      box.checked = false;
+      toast(String(e.message || e));
+      return;
+    }
+    if (!voiceFor(singPlan.voice_tag)) {
+      box.checked = false;
+      toast(`No ${singPlan.language_name} voice installed on this device`);
+      return;
+    }
+    const player = $("player");
+    singBackedFrom = player.volume;
+    player.volume = singPlan.backing_volume;
+    toast(singPlan.word_by_word
+      ? `${singPlan.language_name}: word by word (no full-line translation yet)`
+      : `Singing in ${singPlan.language_name} \u00b7 English is now the backing track`);
+    speakLine(activeLineNo);
+  }
+
+  function refreshSingLabel() {
+    const name = ($("meaning-lang").selectedOptions[0] || {}).textContent || "";
+    $("sing-label").textContent = `Sing in ${name.replace(" \u2713", "").trim()}`;
+  }
+
   function toggleTheater(on) {
     const stage = $("stage");
     const want = on === undefined ? !stage.classList.contains("theater") : !!on;
@@ -850,6 +1334,7 @@ _JS = r"""
     player.pause();
     cancelAnimationFrame(rafId);
     activeClip = null;
+    stopSinging();
     current = await api("/api/music/songs/" + encodeURIComponent(songId));
     $("now-title").textContent = current.title_en;
     $("now-meta").textContent =
@@ -866,6 +1351,9 @@ _JS = r"""
     setActiveLine(current.lines[0] ? current.lines[0].line_no : 0, false);
     renderSongList();
     await loadStoryboard();
+    if ($("sing-lang").checked) {
+      try { await loadSingPlan(); } catch (_) { $("sing-lang").checked = false; }
+    }
     await Promise.all([loadClips(), loadVideos()]);
   }
 
@@ -943,15 +1431,22 @@ _JS = r"""
     $("stage").classList.remove("playing");
     $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    singingLineNo = 0;
   });
   $("player").addEventListener("ended", () => {
     $("stage").classList.remove("playing");
     $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
     clearWordPaint();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    singingLineNo = 0;
   });
   $("player").addEventListener("seeked", () => {
     activeWordKey = "";
+    // A seek lands mid-line: forget what was sung so the new line speaks again.
+    singingLineNo = 0;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     repaintLineStates(activeLineNo, $("player").currentTime + syncOffset);
     tick();
   });
@@ -963,14 +1458,40 @@ _JS = r"""
     await loadStoryboard();
   });
   $("meaning-lang").onchange = async () => {
+    refreshSingLabel();
     await loadTranslation();
     renderLyrics();
     const no = activeLineNo || (current && current.lines[0] ? current.lines[0].line_no : 0);
     activeLineNo = 0;
     if (no) setActiveLine(no, false);
-    await Promise.all([loadClips(), loadStoryboard()]);
+    if ($("sing-lang").checked) { stopSinging(); await loadSingPlan(); }
+    await Promise.all([loadClips(), loadStoryboard(), loadEmbeds()]);
   };
+  $("sing-lang").onchange = () => { toggleSinging(); };
   $("btn-theater").onclick = () => toggleTheater();
+  $("btn-embed-play").onclick = () => {
+    pauseLocked = false;
+    playMedia();
+  };
+  $("btn-embed-pause").onclick = () => {
+    pauseMedia();
+    if (activeVerseNo) showPauseCard(activeVerseNo, true);
+  };
+  $("btn-embed-continue").onclick = () => {
+    pauseLocked = false;
+    $("pause-card").hidden = true;
+    playMedia();
+  };
+  $("embed-ask-send").onclick = () => askEmbed();
+  $("embed-ask-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") askEmbed();
+  });
+  $("embed-ask-quick").innerHTML = EMBED_QUICK.map((q) =>
+    `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
+  $("embed-ask-quick").querySelectorAll("button").forEach((b) => {
+    b.onclick = () => askEmbed(b.getAttribute("data-q"));
+  });
+
   async function togglePlay() {
     const player = $("player");
     if (!player.src) return;
@@ -982,6 +1503,10 @@ _JS = r"""
   }
   $("btn-stage-play").onclick = () => togglePlay();
   $("narrate").onchange = () => {
+    if ($("narrate").checked && $("sing-lang").checked) {
+      $("sing-lang").checked = false;
+      stopSinging();
+    }
     if (!$("narrate").checked) {
       if (window.speechSynthesis) window.speechSynthesis.cancel();
       if (ducked) { ducked = false; $("player").volume = duckedFrom; }
@@ -1020,6 +1545,9 @@ _JS = r"""
   $("ask-input").addEventListener("keydown", (e) => { if (e.key === "Enter") askAI(); });
 
   (async function boot() {
+    // Chrome fills the voice list asynchronously; ask early so the sing toggle
+    // does not report "no voice" on a first click.
+    if (window.speechSynthesis) window.speechSynthesis.getVoices();
     $("ask-quick").innerHTML = QUICK_ASKS.map((q) =>
       `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
     $("ask-quick").querySelectorAll("button").forEach((b) => {
@@ -1030,11 +1558,13 @@ _JS = r"""
     $("meaning-lang").innerHTML = cat.map((row) =>
       `<option value="${esc(row.code)}">${esc(row.name)}${row.curated ? " \u2713" : ""}</option>`).join("");
     $("meaning-lang").value = "es";
+    refreshSingLabel();
     const data = await api("/api/music/featured");
     featured = data.songs || [];
     $("catalog-meta").textContent =
       `${featured.length} featured with audio \u00b7 ${langs.count || 26} translation languages`;
     renderSongList();
+    await loadEmbeds();
     if (featured[0]) await selectSong(featured[0].song_id);
   })().catch((e) => toast(String(e.message || e)));
 """

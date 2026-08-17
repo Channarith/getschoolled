@@ -56,6 +56,15 @@ MOTIONS: tuple[str, ...] = (
 # Languages with hand-written narration. Same five as the curated lyric lines.
 NARRATION_LANGUAGES: tuple[str, ...] = ("es", "fr", "de", "it", "pt")
 
+# Cameras zoom up to ~1.26x and pan ~3.5%, so the outer tenth of the stage is
+# cropped for part of every scene. Cast members live inside this action-safe
+# band, which leaves room for a wide sprite's own half-width on top of the zoom.
+SAFE_X_MIN = 15.0
+SAFE_X_MAX = 82.0
+
+# Motions that deliberately drive a sprite across the frame and out of it.
+CROSSING_MOTIONS: frozenset[str] = frozenset({"drive", "cross-right", "cross-left"})
+
 
 @dataclass(frozen=True)
 class Cast:
@@ -1212,6 +1221,16 @@ STORYBOARDS: dict[str, tuple[Scene, ...]] = {
 }
 
 
+def safe_x(x: float) -> float:
+    """Pull a cast member inside the frame the camera never crops.
+
+    A push-in or ken-burns move zooms about the centre, so anything authored at
+    the very edge slides out of shot exactly when the camera closes in. Film
+    crews solve this with a title-safe area; SAFE_X_MIN/MAX is ours.
+    """
+    return round(min(SAFE_X_MAX, max(SAFE_X_MIN, float(x))), 2)
+
+
 def has_storyboard(song_id: str) -> bool:
     return song_id in STORYBOARDS
 
@@ -1270,6 +1289,7 @@ def storyboard_for(
                 "cast": [
                     {
                         **asdict(member),
+                        "x": safe_x(member.x),
                         "height_pct": SPRITE_HEIGHT_PCT.get(member.kind, 20),
                     }
                     for member in scene.cast

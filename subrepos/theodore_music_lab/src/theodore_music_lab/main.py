@@ -11,14 +11,24 @@ from pydantic import BaseModel, Field
 
 from .ask_ai import ask, explain_line
 from .catalog import MEANING_LANGUAGES, Catalog, _audio_dir, import_songs, meaning_for_line
+from .embeds import (
+    ask_verse,
+    explain_verse,
+    get_embed,
+    list_embeds,
+    load_embeds,
+    resolve_embed,
+    video_dir,
+)
 from .media import load_clips, resolve_clip, videos_for
 from .music_page import render_music_page
 from .session import SessionMode, SessionStore
+from .sing import VOICE_TAGS, sing_plan
 from .storyboard import STORYBOARDS, storyboard_for
 from .timing import song_timings
 from .translations import language_catalog, translate_song, validate_language
 
-app = FastAPI(title="Theodore Music Lab", version="0.4.0")
+app = FastAPI(title="Theodore Music Lab", version="0.5.0")
 
 _CATALOG = Catalog()
 _STORE = SessionStore(_CATALOG)
@@ -64,6 +74,21 @@ class AskRequest(BaseModel):
     target_lang: str = "en"
 
 
+class EmbedAskRequest(BaseModel):
+    embed_id: str = Field(min_length=1)
+    question: str = Field(min_length=1)
+    verse_no: Optional[int] = None
+    target_lang: str = "en"
+    allow_llm: bool = True
+
+
+class EmbedExplainRequest(BaseModel):
+    embed_id: str = Field(min_length=1)
+    verse_no: Optional[int] = None
+    target_lang: str = "en"
+    allow_llm: bool = True
+
+
 def _song_or_404(song_id: str):
     try:
         return _CATALOG.get(song_id)
@@ -93,6 +118,11 @@ def health() -> dict[str, Any]:
         "ask_ai": True,
         "storyboards": len(STORYBOARDS),
         "storyboard_scenes": sum(len(scenes) for scenes in STORYBOARDS.values()),
+        "sing_along_languages": len(VOICE_TAGS),
+        "embeds": len(load_embeds()),
+        "embed_pause_ask": sum(
+            1 for row in load_embeds() if (row.get("verses") or [])
+        ),
         "player": "/",
     }
 
@@ -132,6 +162,23 @@ def song_storyboard(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return storyboard_for(song, language=language, duration_sec=duration or None)
+
+
+@app.get("/api/music/sing/{song_id}")
+def song_sing_plan(
+    song_id: str, target_lang: str = "es", duration: float = 0.0, allow_llm: bool = True
+) -> dict[str, Any]:
+    """Sing the English recording in another language: text, window, voice, rate."""
+    song = _song_or_404(song_id)
+    try:
+        return sing_plan(
+            song,
+            target_lang,
+            duration_sec=duration or None,
+            allow_llm=allow_llm,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/api/music/translate")
@@ -188,6 +235,61 @@ def videos(song_id: str = "") -> dict[str, Any]:
     """Curated external lyric videos and channels (all have lyrics available)."""
     rows = videos_for(song_id)
     return {"count": len(rows), "videos": rows}
+
+
+@app.get("/api/music/embeds")
+def embeds(target_lang: str = "en", allow_llm: bool = False) -> dict[str, Any]:
+    """YouTube embeds with optional pause-and-ask verse sheets."""
+    try:
+        rows = list_embeds(target_lang, allow_llm=allow_llm)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"count": len(rows), "embeds": rows}
+
+
+@app.get("/api/music/embeds/{embed_id}")
+def embed_detail(
+    embed_id: str, target_lang: str = "en", allow_llm: bool = True
+) -> dict[str, Any]:
+    """One embed: YouTube player URL, verses, translations and teaching questions."""
+    try:
+        raw = get_embed(embed_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown embed '{embed_id}'") from exc
+    try:
+        return resolve_embed(raw, target_lang, allow_llm=allow_llm)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/embeds/explain")
+def embed_explain(req: EmbedExplainRequest) -> dict[str, Any]:
+    """Meaning, vocabulary and prepared grammar/vocab questions for one verse."""
+    try:
+        return explain_verse(
+            req.embed_id, req.verse_no, req.target_lang, allow_llm=req.allow_llm
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown embed '{req.embed_id}'") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/embeds/ask")
+def embed_ask(req: EmbedAskRequest) -> dict[str, Any]:
+    """Ask grammar, vocabulary or comprehension questions about the paused verse."""
+    try:
+        return ask_verse(
+            req.embed_id,
+            req.question,
+            verse_no=req.verse_no,
+            language=req.target_lang,
+            allow_llm=req.allow_llm,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown embed '{req.embed_id}'") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/music/featured")
@@ -257,23 +359,39 @@ def get_song(song_id: str) -> dict[str, Any]:
 
 @app.get("/api/music/audio/{filename}")
 def get_audio(filename: str, request: Request) -> Response:
-    """Serve a featured MP3.
+    """Serve a featured MP3 with byte-range seeking."""
+    return _ranged_file(
+        filename, request, _audio_dir(), "audio/mpeg", "Invalid audio filename"
+    )
 
-    Byte ranges are handled explicitly: without them a browser cannot seek, and
-    seeking is what Restart, clip playback and click-a-line-to-jump all rely on.
-    """
+
+@app.get("/api/music/video/{filename}")
+def get_video(filename: str, request: Request) -> Response:
+    """Serve a local karaoke / lesson MP4 with byte-range seeking."""
+    return _ranged_file(
+        filename, request, video_dir(), "video/mp4", "Invalid video filename"
+    )
+
+
+def _ranged_file(
+    filename: str,
+    request: Request,
+    root: Path,
+    media_type: str,
+    bad_name_detail: str,
+) -> Response:
     safe = Path(filename).name
     if safe != filename or ".." in filename or "/" in filename or "\\" in filename:
-        raise HTTPException(status_code=400, detail="Invalid audio filename")
-    path = _audio_dir() / safe
+        raise HTTPException(status_code=400, detail=bad_name_detail)
+    path = root / safe
     if not path.is_file():
-        raise HTTPException(status_code=404, detail=f"Audio not found: {safe}")
+        raise HTTPException(status_code=404, detail=f"File not found: {safe}")
 
     size = path.stat().st_size
     headers = {"accept-ranges": "bytes", "cache-control": "public, max-age=3600"}
     raw_range = request.headers.get("range", "")
     if not raw_range.startswith("bytes="):
-        return FileResponse(path, media_type="audio/mpeg", headers=headers)
+        return FileResponse(path, media_type=media_type, headers=headers)
 
     spec = raw_range.split("=", 1)[1].split(",")[0].strip()
     first, _, last = spec.partition("-")
@@ -304,7 +422,7 @@ def get_audio(filename: str, request: Request) -> Response:
     return StreamingResponse(
         stream(),
         status_code=206,
-        media_type="audio/mpeg",
+        media_type=media_type,
         headers={
             **headers,
             "content-range": f"bytes {start}-{end}/{size}",
