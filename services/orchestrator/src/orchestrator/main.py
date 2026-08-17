@@ -248,6 +248,15 @@ def api_lesson_storyboard(lesson_id: str, include_svg: bool = True) -> dict:
     lesson = get_sessions().curriculum.get(lesson_id)
     if lesson is None:
         raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
+    if lesson.audio_only:
+        # Audio / Drive Mode courses are hands-free and eyes-free by design.
+        return {
+            "lesson_id": lesson_id,
+            "segment_count": 0,
+            "segments": [],
+            "audio_only": True,
+            "note": "Audio / Drive Mode course — no pictures or animations by design.",
+        }
     curated = (
         storyboard_for_lesson(lesson_id, include_svg=include_svg)
         if has_storyboard(lesson_id)
@@ -294,6 +303,11 @@ def api_lesson_storyboard_slide(lesson_id: str, slide_index: int, include_svg: b
     lesson = get_sessions().curriculum.get(lesson_id)
     if lesson is None:
         raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
+    if lesson.audio_only:
+        raise HTTPException(
+            status_code=404,
+            detail=f"lesson {lesson_id} is an audio / Drive Mode course (no storyboards)",
+        )
     segment = None
     if 0 <= slide_index < len(lesson.slides):
         slide = lesson.slides[slide_index]

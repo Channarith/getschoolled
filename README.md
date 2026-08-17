@@ -174,7 +174,10 @@ domain background, characters/objects, examples, an activity, captions, and
 neural/device narration; overlays route through the 27-language translation
 stack and adapt for visual, auditory, reading, hands-on, or mixed profiles.
 Hand-authored DMV/food scenes remain the curated tier; the semantic builder
-covers the rest.
+covers the rest. **Exception:** audio courses and Drive Mode (while-driving)
+courses stay audio-only — no pictures or animations — since they are consumed
+hands-free and eyes-free. This is about consumption mode, not subject: seated
+driver's-ed *study* courses keep their full animated scenes.
 
 | Corporate AI | Solo algebra | DMV school bus | Food handwashing |
 | --- | --- | --- | --- |

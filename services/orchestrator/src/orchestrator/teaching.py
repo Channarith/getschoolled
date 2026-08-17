@@ -35,8 +35,15 @@ def enrich_slide_storyboard(
     source_index: int | None = None,
     language: str = "en",
     profile_score: str = "",
+    audio_only: bool = False,
 ) -> Slide:
-    """Attach a curated or generated multimodal storyboard to every slide."""
+    """Attach a curated or generated multimodal storyboard to every slide.
+
+    Audio / Drive Mode courses are consumed hands-free and eyes-free, so they
+    get NO pictures or animations — the slide is returned unchanged.
+    """
+    if audio_only:
+        return slide
     try:
         from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
         from aoep_shared.cert_storyboard.catalog import storyboard_for_lesson
@@ -344,6 +351,7 @@ class TeachingSessions:
             source_index=source_index,
             language=lesson.language,
             profile_score=session.profile_score,
+            audio_only=lesson.audio_only,
         )
 
     def advance(self, session_id: str) -> Slide:

@@ -88,7 +88,51 @@ class Lesson(BaseModel):
     delivery: str = ""     # e.g. "13 month delivery"
     fit: str = ""          # "Who's it for" one-liner
     summary: str = ""      # short marketing blurb for the card
+    # Delivery mode. Blank/"visual" = seated learning that gets animated
+    # storyboards. "audio" or "drive" = hands-free / eyes-free listening
+    # (Drive Mode / audio catalog) — NO pictures or animations are produced,
+    # by design. Note: this is about how the course is CONSUMED, not its
+    # subject — driver's-ed STUDY courses are seated/visual and keep scenes.
+    mode: str = ""
     slides: List[Slide] = Field(default_factory=list)
+
+    @property
+    def audio_only(self) -> bool:
+        """True when this lesson is a hands-free audio / Drive Mode experience."""
+        return lesson_is_audio_only(
+            mode=self.mode,
+            track=self.track,
+            delivery=self.delivery,
+            audience=self.audience,
+        )
+
+
+# Explicit audio/drive markers. Matched against MODE/track/delivery/audience —
+# NEVER against lesson_id, so "ca-driver-ed-*" / "drivers-permit-test" (seated
+# study courses) are not mistaken for while-driving audio courses.
+_AUDIO_MODE_VALUES = frozenset({"audio", "drive", "drive-mode", "drive_mode", "listen"})
+_AUDIO_TEXT_MARKERS = (
+    "audio only",
+    "audio-only",
+    "audio course",
+    "drive mode",
+    "drive-mode",
+    "podcast",
+    "listen only",
+    "listen-only",
+    "hands-free",
+    "eyes-free",
+)
+
+
+def lesson_is_audio_only(
+    *, mode: str = "", track: str = "", delivery: str = "", audience: str = ""
+) -> bool:
+    """Detect hands-free audio / Drive Mode courses (no visuals by design)."""
+    if (mode or "").strip().lower() in _AUDIO_MODE_VALUES:
+        return True
+    hay = f"{track} {delivery} {audience}".lower()
+    return any(marker in hay for marker in _AUDIO_TEXT_MARKERS)
 
 
 def curriculum_root() -> str:
@@ -154,7 +198,7 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
     title = lesson_id
     language = "en"
     audience = "general"
-    meta = {"track": "", "level": "", "role": "", "delivery": "", "fit": "", "summary": ""}
+    meta = {"track": "", "level": "", "role": "", "delivery": "", "fit": "", "summary": "", "mode": ""}
     slides: List[Slide] = []
     passages: List[str] = []
 
