@@ -1181,8 +1181,16 @@ class PracticeResult(BaseModel):
     stars: int = 0
 
 
+# One practice set never legitimately exceeds this many items; the cap bounds
+# how many points a single self-reported /language/practice call can mint.
+MAX_PRACTICE_ITEMS = 500
+
+
 def practice_xp(skill: str, correct: int, total: int) -> int:
     """XP for completing a practice set (feeds points/rewards)."""
+    total = max(0, min(int(total), MAX_PRACTICE_ITEMS))
+    ceiling = total if total else MAX_PRACTICE_ITEMS
+    correct = max(0, min(int(correct), ceiling))
     base = correct * 8
     bonus = 16 if total and correct == total else 0
     hard = {"pronunciation", "writing", "conversation", "music-video"}

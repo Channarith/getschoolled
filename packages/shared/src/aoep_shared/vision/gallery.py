@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
@@ -32,9 +33,28 @@ class FaceGallery:
         self.match_threshold = match_threshold
         self._embeddings: Dict[str, List[List[float]]] = {}
 
+    def _gallery_dim(self) -> Optional[int]:
+        for embs in self._embeddings.values():
+            if embs:
+                return len(embs[0])
+        return None
+
     def enroll(self, student_id: str, embedding: List[float]) -> int:
-        """Add an embedding for ``student_id``; returns the new enrollment count."""
-        self._embeddings.setdefault(student_id, []).append(list(embedding))
+        """Add an embedding for ``student_id``; returns the new enrollment count.
+
+        Every embedding in a gallery must share one dimension (the prototype
+        mean and cosine match index by position). A mismatched embedding is
+        rejected with ``ValueError`` instead of poisoning the gallery — a short
+        vector used to corrupt the prototype and make every later identify()
+        raise IndexError.
+        """
+        vec = list(embedding)
+        dim = self._gallery_dim()
+        if dim is not None and len(vec) != dim:
+            raise ValueError(
+                f"embedding dimension {len(vec)} does not match gallery dimension {dim}"
+            )
+        self._embeddings.setdefault(student_id, []).append(vec)
         return len(self._embeddings[student_id])
 
     def remove(self, student_id: str) -> None:
@@ -65,25 +85,53 @@ class FaceGallery:
     @classmethod
     def from_dict(cls, data: Dict[str, object]) -> "FaceGallery":
         gallery = cls(match_threshold=float(data.get("match_threshold", DEFAULT_MATCH_THRESHOLD)))
-        gallery._embeddings = {
+        raw = {
             str(k): [list(map(float, v)) for v in vs]
             for k, vs in dict(data.get("embeddings", {})).items()
         }
+        # Self-heal files written before dimension validation existed: keep the
+        # modal dimension, drop mismatched embeddings instead of crash-looping
+        # identify() on a poisoned gallery.
+        dim_counts: Dict[int, int] = {}
+        for embs in raw.values():
+            for e in embs:
+                dim_counts[len(e)] = dim_counts.get(len(e), 0) + 1
+        if dim_counts:
+            canonical = max(dim_counts.items(), key=lambda kv: kv[1])[0]
+            gallery._embeddings = {
+                sid: [e for e in embs if len(e) == canonical]
+                for sid, embs in raw.items()
+            }
+            gallery._embeddings = {
+                sid: embs for sid, embs in gallery._embeddings.items() if embs
+            }
         return gallery
 
     def save_json(self, path: str) -> None:
         """Persist enrolled embeddings so students are remembered across sessions.
 
         In production these are the encrypted face_embeddings rows; this file
-        backend keeps the same recognition behavior durable for local/dev.
+        backend keeps the same recognition behavior durable for local/dev. The
+        temp file is unique per call so concurrent saves cannot clobber each
+        other (a fixed ``path + ".tmp"`` could be interleaved/truncated).
         """
         directory = os.path.dirname(path)
         if directory:
             os.makedirs(directory, exist_ok=True)
-        tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(self.to_dict(), fh)
-        os.replace(tmp, path)
+        fd, tmp = tempfile.mkstemp(
+            prefix=os.path.basename(path) + ".", suffix=".tmp",
+            dir=directory or None,
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(self.to_dict(), fh)
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
 
     @classmethod
     def load_json(cls, path: str) -> "FaceGallery":
@@ -116,6 +164,11 @@ class FaceGallery:
             proto = self.prototype(sid)
             if proto is None:
                 continue
+            if len(embedding) != len(proto):
+                raise ValueError(
+                    f"query embedding dimension {len(embedding)} does not match "
+                    f"gallery dimension {len(proto)}"
+                )
             score = cosine_similarity(embedding, proto)
             if score > best_score:
                 best_score = score

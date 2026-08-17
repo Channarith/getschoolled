@@ -39,6 +39,7 @@ GET    /health                        Service health.
 from __future__ import annotations
 
 import json
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -110,12 +111,48 @@ class WebcamSession:
 
 _sessions: Dict[str, WebcamSession] = {}
 
+# Sessions idle longer than this are reaped (each session pins per-participant
+# SilhouetteDetectors with OpenCV background models, so leaking them grows
+# memory without bound). Override with WEBCAM_SESSION_TTL_S.
+_SESSION_TTL_S = float(os.environ.get("WEBCAM_SESSION_TTL_S", "7200"))
+# Bound on distinct participants per session — participant_id comes from the
+# client, and each new id allocates a MOG2 background model.
+_MAX_PARTICIPANTS_PER_SESSION = int(
+    os.environ.get("WEBCAM_MAX_PARTICIPANTS_PER_SESSION", "100")
+)
+
+
+def _reap_idle_sessions(now: Optional[float] = None) -> int:
+    """Drop sessions with no activity for `_SESSION_TTL_S`. Returns count reaped."""
+    now = time.monotonic() if now is None else now
+    stale = [
+        sid for sid, s in _sessions.items()
+        if now - s.last_activity > _SESSION_TTL_S
+    ]
+    for sid in stale:
+        _sessions.pop(sid, None)
+    return len(stale)
+
 
 def _get_session(session_id: str) -> WebcamSession:
     s = _sessions.get(session_id)
     if s is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return s
+
+
+def _check_participant(session: WebcamSession, participant_id: str) -> None:
+    """Validate a client-supplied participant id before it allocates state."""
+    pid = (participant_id or "").strip()
+    if not pid or len(pid) > 128:
+        raise HTTPException(status_code=422, detail="invalid participant_id")
+    if session.student_ids and pid not in session.student_ids:
+        raise HTTPException(status_code=403, detail="participant not in session roster")
+    known = set(session.trackers) | set(session.detectors)
+    if session.group_tracker is not None:
+        known |= set(session.group_tracker.participant_ids)
+    if pid not in known and len(known) >= _MAX_PARTICIPANTS_PER_SESSION:
+        raise HTTPException(status_code=409, detail="session participant limit reached")
 
 
 # --------------------------------------------------------------------------- #
@@ -203,6 +240,7 @@ def _analyze_frame_data(
     face_present: bool,
 ) -> FrameAnalysisResponse:
     """Run silhouette detection + presence update for one frame."""
+    _check_participant(session, participant_id)
     detector = session.detector_for(participant_id)
     sil_result: SilhouetteResult = detector.analyze(image_data)
 
@@ -215,8 +253,19 @@ def _analyze_frame_data(
         face_absence_confidence=0.9 if not face_present else 0.0,
     )
 
-    tracker = session.tracker_for(participant_id)
-    status: PresenceStatus = tracker.push(pframe)
+    if session.group_tracker is not None:
+        # Group sessions: route through the group tracker so roll-call and
+        # quorum actually update (it was previously created but never fed, so
+        # every group summary reported zero participants). Share its
+        # per-participant tracker with session.trackers so the state/presence
+        # endpoints keep working without double-pushing.
+        status: PresenceStatus = session.group_tracker.push(participant_id, pframe)
+        session.trackers[participant_id] = session.group_tracker.ensure_participant(
+            participant_id
+        )
+    else:
+        tracker = session.tracker_for(participant_id)
+        status = tracker.push(pframe)
     session.frame_count += 1
     session.last_activity = time.monotonic()
 
@@ -243,6 +292,7 @@ def _analyze_frame_data(
 
 @app.post("/sessions", response_model=CreateSessionResponse)
 def create_session(req: CreateSessionRequest) -> CreateSessionResponse:
+    _reap_idle_sessions()
     session_id = str(uuid.uuid4())
     s = WebcamSession(
         session_id=session_id,
@@ -300,6 +350,7 @@ async def submit_frame(
     these are not provided the frame is analyzed purely on silhouette/HOG.
     """
     s = _get_session(session_id)
+    _reap_idle_sessions()
     image_data = await file.read()
     face_att = attention if attention >= 0.0 else None
     return _analyze_frame_data(s, participant_id, image_data, face_att, face_present)

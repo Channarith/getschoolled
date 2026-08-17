@@ -102,8 +102,10 @@ def current_account(authorization: str = Header(default="")):
     claims = verify_token(token, _token_key()) if token else None
     if not claims:
         raise HTTPException(status_code=401, detail="invalid or expired session")
-    purpose = claims.get("purpose")
-    if purpose in ("mfa_pending", "profile_share"):
+    # Session tokens carry neither a `purpose` nor a `kind` claim — anything
+    # stamped with one is a scoped token (mfa_pending, password_reset,
+    # profile_share, assessment_pass, ...) and must not act as a session.
+    if claims.get("purpose") or claims.get("kind"):
         raise HTTPException(status_code=401, detail="incomplete authentication")
     acct = app.state.accounts.by_id(claims.get("sub", ""))
     if acct is None:
@@ -599,6 +601,7 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
     # PASSED awards points. In cloud, require an orchestrator-signed
     # pass_decision_token so clients cannot self-award. Local/dev still
     # allows unverified Drive/live completions for demos and existing tests.
+    score = req.score
     if req.status is EnrollmentStatus.PASSED:
         if req.pass_decision_token:
             claims = verify_token(req.pass_decision_token, _assessment_signing_key())
@@ -612,6 +615,10 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
             if token_course and token_course != course_id:
                 raise HTTPException(
                     status_code=403, detail="pass_decision_token is for a different course")
+            # The signed token carries the authoritative score — never trust
+            # the request body when a token is presented (points derive from it).
+            if claims.get("score") is not None:
+                score = float(claims["score"])
         elif not _unverified_pass_allowed():
             raise HTTPException(
                 status_code=403,
@@ -620,7 +627,7 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
     # TODO: derive level from catalog instead of client-supplied value
     try:
         enr = app.state.accounts.set_status(
-            acct.id, course_id, req.status, score=req.score, level=req.level,
+            acct.id, course_id, req.status, score=score, level=req.level,
             hands_on=req.hands_on)
     except KeyError:
         raise HTTPException(status_code=404, detail="not enrolled in that course")
@@ -1289,7 +1296,10 @@ def language_practice(req: LanguagePracticeRequest, acct=Depends(current_account
 
     xp = practice_xp(req.skill, req.correct, req.total)
     if xp > 0:
-        acct.points.earn(xp, reason=f"language:{req.language}", ref=req.skill)
+        # Go through the store so the award is persisted (direct ledger writes
+        # skip _persist and can vanish on restart).
+        app.state.accounts.earn_points(
+            acct.id, xp, reason=f"language:{req.language}", ref=req.skill)
     return {"language": req.language, "skill": req.skill, "xp": xp,
             "balance": app.state.accounts.points_balance(acct.id)}
 
