@@ -10,11 +10,16 @@ from __future__ import annotations
 
 import os
 
+from aoep_shared.env_bootstrap import ensure_lab_env
 from aoep_shared.languages import SUPPORTED_LANGUAGES
 from aoep_shared.service import create_service
 from aoep_shared.translation import is_pair_supported, plan_delivery
 from fastapi import HTTPException, Response
 from pydantic import BaseModel
+
+# Load config/local.env (+ .env.local) so XAI_API_KEY / ELEVENLABS_API_KEY
+# are present when the gateway is started without scripts/run_local_service.sh.
+ensure_lab_env()
 
 app = create_service("speech")
 

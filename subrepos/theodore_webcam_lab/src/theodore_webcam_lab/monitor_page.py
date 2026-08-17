@@ -1290,8 +1290,8 @@ MONITOR_JS = (
         const live = !!s.xai_api_key_configured;
         el.className = 'voice-status ' + (live ? 'live' : 'fallback');
         el.innerHTML = live
-          ? `<strong>xAI Grok live</strong> · model ${esc(s.model)} · ${esc(s.languages)} languages · TTS: ${(s.tts_engine_chain||[]).join(' → ')}`
-          : `<strong>xAI key missing</strong> — local-fallback text. Set <code>XAI_API_KEY</code> and restart for live Grok. ${esc(s.languages)} languages still work · spoken audio uses device TTS.`;
+          ? `<strong>xAI Grok live</strong> · model ${esc(s.model)} · ${esc(s.languages)} languages · TTS: ${(s.tts_engine_chain||[]).join(' → ') || 'device'}`
+          : `<strong>xAI key missing</strong> — local-fallback text. Set <code>XAI_API_KEY</code> and restart for live Grok. ${esc(s.languages)} languages still work · spoken audio prefers neural TTS when configured.`;
       } catch (_) {
         el.textContent = 'Could not load voice status';
       }
@@ -1300,11 +1300,55 @@ MONITOR_JS = (
       return document.getElementById('voice-lang').value || 'en';
     }
 
-    // Theodore speech synthesis — respects the selected language for pronunciation
-    function speakTheodore(text, langCode) {
-      if (!('speechSynthesis' in window) || !text) return;
-      speechSynthesis.cancel();
-      const cleaned = String(text).replace(/^\\[[^\\]]+\\]\\s*/, '');
+    // Theodore speech — neural TTS first (gateway/ElevenLabs/edge), device fallback
+    let serverTts = {available: false, engine: ''};
+    let theodoreAudio = null;
+    async function loadTtsStatus() {
+      try {
+        const res = await fetch('/api/tts/status', { cache: 'no-store' });
+        if (res.ok) serverTts = await res.json();
+      } catch (_) { serverTts = {available: false, engine: ''}; }
+    }
+    loadTtsStatus();
+    function stopTheodoreAudio() {
+      if (theodoreAudio) {
+        try { theodoreAudio.pause(); theodoreAudio.src = ''; } catch (_) {}
+        theodoreAudio = null;
+      }
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      const actionStage = document.getElementById('theodore-action');
+      if (actionStage) actionStage.classList.remove('speaking');
+    }
+    async function speakTheodore(text, langCode) {
+      if (!text) return;
+      const cleaned = String(text).replace(/^\[[^\]]+\]\s*/, '');
+      stopTheodoreAudio();
+      const actionStage = document.getElementById('theodore-action');
+      const markSpeaking = (on) => {
+        if (actionStage && actionStage.classList.contains('show')) {
+          actionStage.classList.toggle('speaking', !!on);
+        }
+      };
+      if (serverTts.available) {
+        try {
+          const lang = langCode || voiceLangCode() || 'en';
+          const res = await fetch(
+            `/api/tts?text=${encodeURIComponent(cleaned)}&language=${encodeURIComponent(lang)}&style=warm`
+          );
+          if (res.status === 501) {
+            serverTts.available = false;
+          } else if (res.ok) {
+            const blob = await res.blob();
+            theodoreAudio = new Audio(URL.createObjectURL(blob));
+            theodoreAudio.onplay = () => markSpeaking(true);
+            theodoreAudio.onended = () => markSpeaking(false);
+            theodoreAudio.onerror = () => markSpeaking(false);
+            await theodoreAudio.play();
+            return;
+          }
+        } catch (_) { /* device fallback */ }
+      }
+      if (!('speechSynthesis' in window) || !cleaned) return;
       const utter = new SpeechSynthesisUtterance(cleaned);
       utter.lang = langCode || voiceLangCode() || 'en';
       utter.rate = 0.92;
@@ -1315,17 +1359,9 @@ MONITOR_JS = (
       const match = voices.find((v) => (v.lang || '').toLowerCase().startsWith(want))
         || voices.find((v) => (v.lang || '').toLowerCase().startsWith('en'));
       if (match) utter.voice = match;
-      const actionStage = document.getElementById('theodore-action');
-      utter.onstart = () => {
-        if (actionStage && actionStage.classList.contains('show')) {
-          actionStage.classList.add('speaking');
-        }
-      };
-      const stopMouth = () => {
-        if (actionStage) actionStage.classList.remove('speaking');
-      };
-      utter.onend = stopMouth;
-      utter.onerror = stopMouth;
+      utter.onstart = () => markSpeaking(true);
+      utter.onend = () => markSpeaking(false);
+      utter.onerror = () => markSpeaking(false);
       speechSynthesis.speak(utter);
     }
     function autoSpeak() { return document.getElementById('voice-autospeak').checked; }
@@ -1362,7 +1398,7 @@ MONITOR_JS = (
       speakTheodore(text, voiceLangCode());
     });
     document.getElementById('voice-stop-speak').addEventListener('click', () => {
-      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      stopTheodoreAudio();
     });
     document.getElementById('voice-absorb').addEventListener('click', async () => {
       const transcript = document.getElementById('voice-msg').value || '';

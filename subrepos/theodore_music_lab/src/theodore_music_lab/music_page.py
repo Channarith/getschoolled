@@ -1102,14 +1102,64 @@ _JS = r"""
       : "";
   }
 
-  function speakNarration(scene) {
+  let serverTts = {available:false, engine:''};
+  let neuralAudio = null;
+
+  async function loadTtsStatus() {
+    try { serverTts = await api('/api/tts/status'); } catch (_) { serverTts = {available:false, engine:''}; }
+  }
+  loadTtsStatus();
+
+  function stopNeuralAudio() {
+    if (neuralAudio) {
+      try { neuralAudio.pause(); neuralAudio.src = ''; } catch (_) {}
+      neuralAudio = null;
+    }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+
+  function speakDevice(text, langTag, rate) {
     const synth = window.speechSynthesis;
-    if (!synth || !scene.narration) return;
-    const player = $("player");
+    if (!synth || !text) return;
     synth.cancel();
-    const utter = new SpeechSynthesisUtterance(scene.narration);
-    utter.lang = scene.narration_language === "en" ? "en-US" : scene.narration_language;
-    utter.rate = 0.98;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = langTag || 'en-US';
+    utter.rate = rate || 0.98;
+    try {
+      const voice = voiceFor(utter.lang);
+      if (voice) utter.voice = voice;
+    } catch (_) {}
+    synth.speak(utter);
+    return utter;
+  }
+
+  async function speakNeural(text, language, rate) {
+    if (!text) return;
+    stopNeuralAudio();
+    if (serverTts.available) {
+      try {
+        const res = await fetch(
+          `/api/tts?text=${encodeURIComponent(text)}&language=${encodeURIComponent(language || 'en')}&style=warm`
+        );
+        if (res.status === 501) {
+          serverTts.available = false;
+        } else if (res.ok) {
+          const blob = await res.blob();
+          const engine = res.headers.get('X-TTS-Engine') || serverTts.engine || 'neural';
+          neuralAudio = new Audio(URL.createObjectURL(blob));
+          neuralAudio.playbackRate = Math.min(1.15, Math.max(0.85, rate || 1));
+          await neuralAudio.play();
+          toast(`Speaking · ${engine}`);
+          return;
+        }
+      } catch (_) { /* fall through to device */ }
+    }
+    speakDevice(text, language === 'en' ? 'en-US' : language, rate);
+  }
+
+  function speakNarration(scene) {
+    if (!scene.narration) return;
+    const player = $("player");
     if (!ducked) { duckedFrom = player.volume; ducked = true; }
     player.volume = Math.min(duckedFrom, 0.3);
     const restore = () => {
@@ -1117,9 +1167,15 @@ _JS = r"""
       ducked = false;
       player.volume = duckedFrom;
     };
-    utter.onend = restore;
-    utter.onerror = restore;
-    synth.speak(utter);
+    speakNeural(scene.narration, scene.narration_language || 'en', 0.98).then(() => {
+      if (neuralAudio) {
+        neuralAudio.onended = restore;
+        neuralAudio.onerror = restore;
+      } else {
+        // device utter has no promise handle; restore after a short duck window
+        setTimeout(restore, Math.min(12000, 800 + scene.narration.length * 60));
+      }
+    }).catch(restore);
   }
 
   /* ---------- sing along in the learner's language ---------- */
@@ -1147,27 +1203,17 @@ _JS = r"""
   }
 
   function speakLine(lineNo) {
-    const synth = window.speechSynthesis;
-    if (!synth || !singPlan || !$("sing-lang").checked) return;
+    if (!singPlan || !$("sing-lang").checked) return;
     if (lineNo === singingLineNo) return;
     const row = singPlan.lines.find((r) => r.line_no === lineNo);
     if (!row || !row.speak) return;
     singingLineNo = lineNo;
-    synth.cancel();
-    const utter = new SpeechSynthesisUtterance(row.speak);
-    utter.lang = singPlan.voice_tag;
-    utter.rate = row.rate;
-    // A tagged voice is better, but an engine that rejects the object should
-    // still sing the line from the language tag alone.
-    try {
-      const voice = voiceFor(singPlan.voice_tag);
-      if (voice) utter.voice = voice;
-    } catch (_) { /* keep utter.lang */ }
-    synth.speak(utter);
+    const langCode = (singPlan.voice_tag || lang() || 'en').split('-')[0];
+    void speakNeural(row.speak, langCode, row.rate || 1);
   }
 
   function stopSinging() {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    stopNeuralAudio();
     singingLineNo = 0;
     const player = $("player");
     if (singBackedFrom !== null) { player.volume = singBackedFrom; singBackedFrom = null; }

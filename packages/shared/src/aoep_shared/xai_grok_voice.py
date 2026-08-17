@@ -1,32 +1,12 @@
 """xAI Grok voice agent client for AOEP.
 
 Wraps xAI's OpenAI-compatible REST API (https://api.x.ai/v1) for:
-- Text responses (grok-2-1212 / grok-3-mini)
+- Text responses (default model grok-4.3; override with XAI_MODEL)
 - Vision analysis of webcam frames (grok-2-vision-1212)
 - Persona-aware teaching responses as Theodore AI
 
 The xAI API is fully OpenAI-compatible so this uses the same stdlib urllib
 pattern as ``elevenlabs_tts.py`` — no extra dependencies.
-
-Voice agent lifecycle for a teaching session:
-  1. Create a ``GrokVoiceAgent`` with the session context.
-  2. Call ``respond_to_frame`` to let Theodore react to the learner's webcam
-     frame (engagement check, greeting, encouragement).
-  3. Call ``respond_to_query`` whenever the student asks a question (text or
-     STT-transcribed speech).
-  4. Call ``generate_absence_prompt`` when the presence tracker fires on_absent.
-
-Graceful degradation
---------------------
-When ``XAI_API_KEY`` is not set the methods raise ``NotImplementedError`` with a
-clear message so the caller can fall back to the existing LLM provider.  The
-service sets ``xai_available()`` to let clients probe once.
-
-Theodore persona
-----------------
-The default system prompt casts the assistant as Theodore, Salareen's AI teacher:
-calm, encouraging, culturally aware, and direct. The prompt is injected once as
-the system role and reused across turns in a session so token usage stays bounded.
 """
 
 from __future__ import annotations
@@ -44,7 +24,7 @@ from typing import Any, Dict, List, Optional
 # ---------------------------------------------------------------------------
 
 XAI_DEFAULT_BASE_URL = "https://api.x.ai/v1"
-XAI_DEFAULT_MODEL = "grok-2-1212"
+XAI_DEFAULT_MODEL = "grok-4.3"
 XAI_VISION_MODEL = "grok-2-vision-1212"
 
 # Theodore's persona system prompt (injected once per session).

@@ -45,6 +45,7 @@ _TTS_ENV = (
 def _clear(monkeypatch):
     for key in _TTS_ENV:
         monkeypatch.delenv(key, raising=False)
+    tts.reset_disabled_engines()
 
 
 class _Resp:

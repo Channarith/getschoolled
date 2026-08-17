@@ -2,6 +2,17 @@
 
 from __future__ import annotations
 
+
+# Load config/local.env so XAI_API_KEY / ELEVENLABS_API_KEY / SPEECH_BASE_URL
+# work without a manual `set -a; . config/local.env` in every shell.
+try:
+    from aoep_shared.env_bootstrap import ensure_lab_env
+
+    ensure_lab_env()
+except Exception:  # noqa: BLE001 — labs must still boot offline / without shared
+    pass
+
+
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -39,11 +50,19 @@ class BakeoffRequest(BaseModel):
 @app.get("/health")
 def health() -> dict[str, Any]:
     runner = get_runner()
+    readiness: dict[str, Any] = {}
+    try:
+        from aoep_shared.env_bootstrap import speech_readiness
+
+        readiness = speech_readiness()
+    except Exception:  # noqa: BLE001
+        pass
     return {
         "ok": True,
         "service": "theodore-drive-lab",
         "wake_cases": len(runner.cases),
         "tuning": runner.tuning.to_dict(),
+        **readiness,
     }
 
 

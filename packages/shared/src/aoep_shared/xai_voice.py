@@ -25,7 +25,7 @@ is expected to run TTS via the platform speech gateway.
 Configuration (env):
 - XAI_API_KEY      — secret; enables the Grok voice agent path.
 - XAI_BASE_URL     — override API root (default https://api.x.ai/v1).
-- XAI_MODEL        — model slug (default grok-2-1212).
+- XAI_MODEL        — model slug (default grok-4.3).
 - XAI_AUDIO_MODEL  — audio model slug (default grok-2-audio; empty to disable).
 - XAI_MAX_TOKENS   — default 512.
 """
@@ -82,7 +82,7 @@ class XAIVoiceClient:
     """
 
     _DEFAULT_BASE = "https://api.x.ai/v1"
-    _DEFAULT_MODEL = "grok-2-1212"
+    _DEFAULT_MODEL = "grok-4.3"
     _DEFAULT_AUDIO_MODEL = "grok-2-audio"
     _DEFAULT_MAX_TOKENS = 512
     _TIMEOUT_S = 30
