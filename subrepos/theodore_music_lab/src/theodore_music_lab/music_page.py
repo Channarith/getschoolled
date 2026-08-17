@@ -732,17 +732,13 @@ _JS = r"""
     if (!row) { toast("Pick a line first"); return; }
     const mode = practiceMode();
     const text = mode === "translation" ? (row.translation || row.text) : row.text;
-    const synth = window.speechSynthesis;
-    if (!synth) { toast("No speech voices in this browser"); return; }
-    synth.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = mode === "translation"
+    const code = mode === "translation" ? lang() : "en";
+    const tag = mode === "translation"
       ? ((singPlan && singPlan.voice_tag) || lang())
       : "en-US";
-    const voice = voiceFor(utter.lang);
-    if (voice) utter.voice = voice;
-    utter.rate = 0.92;
-    synth.speak(utter);
+    if (!canSpeak(code, tag)) { toast("No voice available for this language"); return; }
+    // Slower than the sung rate: this is the model to copy.
+    speak(text, { lang: code, tag: tag, rate: 0.92 });
   }
 
   let pronounceRec = null;
@@ -773,7 +769,7 @@ _JS = r"""
     const player = $("player");
     if (player && !player.paused) player.pause();
     stopSinging();
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    cancelSpeech();
     pronounceRec = rec;
     rec.lang = practiceMode() === "translation"
       ? ((singPlan && singPlan.voice_tag) || lang())
@@ -1344,27 +1340,27 @@ _JS = r"""
       : "";
   }
 
-  function speakNarration(scene) {
-    const synth = window.speechSynthesis;
-    if (!synth || !scene.narration) return;
-    const player = $("player");
-    synth.cancel();
-    const utter = new SpeechSynthesisUtterance(scene.narration);
-    utter.lang = scene.narration_language === "en" ? "en-US" : scene.narration_language;
-    utter.rate = 0.98;
-    if (!ducked) { duckedFrom = player.volume; ducked = true; }
-    player.volume = Math.min(duckedFrom, 0.3);
-    const restore = () => {
-      if (!ducked) return;
-      ducked = false;
-      player.volume = duckedFrom;
-    };
-    utter.onend = restore;
-    utter.onerror = restore;
-    synth.speak(utter);
+  /* ---------- speech: server neural voices first, device voice as fallback ----------
+
+     A device can only speak the languages its OS shipped — macOS has no Khmer
+     voice at all — so "Sing in Khmer" used to refuse outright. The server renders
+     any of the 27 languages with a neural voice and the browser plays the MP3;
+     the device voice remains the fallback when the server cannot render. */
+
+  let serverVoices = null;
+  let ttsAudio = null;
+  let ttsToken = 0;
+  let ttsFellBack = false;
+
+  async function probeServerVoices() {
+    try { serverVoices = await api("/api/music/tts/status"); }
+    catch (_) { serverVoices = { available: false, engine: "none" }; }
+    return serverVoices;
   }
 
-  /* ---------- sing along in the learner's language ---------- */
+  function serverVoicesReady() {
+    return !!(serverVoices && serverVoices.available);
+  }
 
   function voiceFor(tag) {
     const synth = window.speechSynthesis;
@@ -1376,6 +1372,91 @@ _JS = r"""
       || voices.find((v) => (v.lang || "").toLowerCase().replace("_", "-").startsWith(base))
       || null;
   }
+
+  function canSpeak(langCode, tag) {
+    return serverVoicesReady() || !!voiceFor(tag || langCode);
+  }
+
+  // Stops BOTH engines. Every pause/seek/stop path must call this, or server
+  // audio would keep singing over the recording.
+  function cancelSpeech() {
+    ttsToken += 1;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (ttsAudio) {
+      try { ttsAudio.pause(); } catch (_) { /* not started yet */ }
+      ttsAudio.removeAttribute("src");
+    }
+  }
+
+  function speakOnDevice(text, tag, rate, onDone) {
+    const synth = window.speechSynthesis;
+    if (!synth) return false;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = tag || "en-US";
+    utter.rate = rate || 1;
+    // A tagged voice is better, but an engine that rejects the object should
+    // still speak the line from the language tag alone.
+    try {
+      const voice = voiceFor(utter.lang);
+      if (voice) utter.voice = voice;
+    } catch (_) { /* keep utter.lang */ }
+    if (onDone) { utter.onend = onDone; utter.onerror = onDone; }
+    synth.speak(utter);
+    return true;
+  }
+
+  function speak(text, opts) {
+    const line = String(text || "").trim();
+    const o = opts || {};
+    const done = typeof o.onend === "function" ? o.onend : null;
+    cancelSpeech();
+    if (!line) { if (done) done(); return; }
+    if (serverVoicesReady()) {
+      if (!ttsAudio) ttsAudio = new Audio();
+      const token = ttsToken;
+      const stale = () => token !== ttsToken;
+      ttsAudio.onended = () => { if (!stale() && done) done(); };
+      ttsAudio.onerror = () => {
+        // 501 (no engine, empty cache) or offline: try the device voice, and say
+        // so once — silence with no explanation is what "not working" felt like.
+        if (stale()) return;
+        if (!ttsFellBack) {
+          ttsFellBack = true;
+          toast("Neural voice unavailable \u2014 using this device's voice");
+        }
+        if (!speakOnDevice(line, o.tag, o.rate, done) && done) done();
+      };
+      ttsAudio.src = `/api/music/tts?lang=${encodeURIComponent(o.lang || "en")}` +
+        `&rate=${encodeURIComponent(Number(o.rate || 1).toFixed(2))}` +
+        `&text=${encodeURIComponent(line)}`;
+      const playing = ttsAudio.play();
+      if (playing && playing.catch) playing.catch(() => { /* onerror handles it */ });
+      return;
+    }
+    if (!speakOnDevice(line, o.tag, o.rate, done) && done) done();
+  }
+
+  function speakNarration(scene) {
+    if (!scene.narration) return;
+    const player = $("player");
+    const code = scene.narration_language || "en";
+    if (!canSpeak(code, code === "en" ? "en-US" : code)) return;
+    if (!ducked) { duckedFrom = player.volume; ducked = true; }
+    player.volume = Math.min(duckedFrom, 0.3);
+    const restore = () => {
+      if (!ducked) return;
+      ducked = false;
+      player.volume = duckedFrom;
+    };
+    speak(scene.narration, {
+      lang: code,
+      tag: code === "en" ? "en-US" : code,
+      rate: 0.98,
+      onend: restore,
+    });
+  }
+
+  /* ---------- sing along in the learner's language ---------- */
 
   async function loadSingPlan() {
     singPlan = null;
@@ -1389,27 +1470,23 @@ _JS = r"""
   }
 
   function speakLine(lineNo) {
-    const synth = window.speechSynthesis;
-    if (!synth || !singPlan || !$("sing-lang").checked) return;
+    if (!singPlan || !$("sing-lang").checked) return;
+    // Sing-along follows the recording: a paused player must stay silent, or the
+    // pause handler's cancel is undone by the next tick and the line sings on.
+    if ($("player").paused) return;
     if (lineNo === singingLineNo) return;
     const row = singPlan.lines.find((r) => r.line_no === lineNo);
     if (!row || !row.speak) return;
     singingLineNo = lineNo;
-    synth.cancel();
-    const utter = new SpeechSynthesisUtterance(row.speak);
-    utter.lang = singPlan.voice_tag;
-    utter.rate = row.rate;
-    // A tagged voice is better, but an engine that rejects the object should
-    // still sing the line from the language tag alone.
-    try {
-      const voice = voiceFor(singPlan.voice_tag);
-      if (voice) utter.voice = voice;
-    } catch (_) { /* keep utter.lang */ }
-    synth.speak(utter);
+    speak(row.speak, {
+      lang: singPlan.language,
+      tag: singPlan.voice_tag,
+      rate: row.rate,
+    });
   }
 
   function stopSinging() {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    cancelSpeech();
     singingLineNo = 0;
     const player = $("player");
     if (singBackedFrom !== null) { player.volume = singBackedFrom; singBackedFrom = null; }
@@ -1419,11 +1496,6 @@ _JS = r"""
     const box = $("sing-lang");
     if (!box.checked) { stopSinging(); return; }
     if ($("narrate").checked) { $("narrate").checked = false; }
-    if (!window.speechSynthesis) {
-      box.checked = false;
-      toast("This browser has no speech voices");
-      return;
-    }
     try {
       await loadSingPlan();
     } catch (e) {
@@ -1431,17 +1503,26 @@ _JS = r"""
       toast(String(e.message || e));
       return;
     }
-    if (!voiceFor(singPlan.voice_tag)) {
+    // Ticking the box while the first song is still loading leaves no plan.
+    if (!singPlan) {
       box.checked = false;
-      toast(`No ${singPlan.language_name} voice installed on this device`);
+      toast("Pick a song first");
+      return;
+    }
+    if (!canSpeak(singPlan.language, singPlan.voice_tag)) {
+      box.checked = false;
+      toast(`No ${singPlan.language_name} voice on this device and the neural ` +
+            `voice service is unavailable`);
       return;
     }
     const player = $("player");
     singBackedFrom = player.volume;
     player.volume = singPlan.backing_volume;
+    const via = serverVoicesReady() ? "neural voice" : "device voice";
     toast(singPlan.word_by_word
       ? `${singPlan.language_name}: word by word (no full-line translation yet)`
-      : `Singing in ${singPlan.language_name} \u00b7 English is now the backing track`);
+      : `Singing in ${singPlan.language_name} (${via}) \u00b7 English is now the ` +
+        `backing track`);
     speakLine(activeLineNo);
   }
 
@@ -1756,7 +1837,7 @@ _JS = r"""
     $("stage").classList.remove("playing");
     $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    cancelSpeech();
     singingLineNo = 0;
   });
   $("player").addEventListener("ended", () => {
@@ -1764,14 +1845,14 @@ _JS = r"""
     $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
     clearWordPaint();
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    cancelSpeech();
     singingLineNo = 0;
   });
   $("player").addEventListener("seeked", () => {
     activeWordKey = "";
     // A seek lands mid-line: forget what was sung so the new line speaks again.
     singingLineNo = 0;
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    cancelSpeech();
     repaintLineStates(activeLineNo, $("player").currentTime + syncOffset);
     tick();
   });
@@ -1834,7 +1915,7 @@ _JS = r"""
       stopSinging();
     }
     if (!$("narrate").checked) {
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      cancelSpeech();
       if (ducked) { ducked = false; $("player").volume = duckedFrom; }
       return;
     }
@@ -1904,6 +1985,9 @@ _JS = r"""
     // Chrome fills the voice list asynchronously; ask early so the sing toggle
     // does not report "no voice" on a first click.
     if (window.speechSynthesis) window.speechSynthesis.getVoices();
+    // Probed once, not per line: the sing toggle needs to know whether the
+    // server can render a language the device has no voice for.
+    await probeServerVoices();
     $("ask-quick").innerHTML = QUICK_ASKS.map((q) =>
       `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
     $("ask-quick").querySelectorAll("button").forEach((b) => {
@@ -1927,9 +2011,12 @@ _JS = r"""
     refreshSingLabel();
     const data = await api("/api/music/featured");
     featured = data.songs || [];
+    const voiceNote = serverVoicesReady()
+      ? ` \u00b7 neural voices for ${serverVoices.languages} languages`
+      : " \u00b7 singing uses this device's installed voices";
     $("catalog-meta").textContent =
       `${featured.length} featured with audio \u00b7 ${langs.count || 26} translation ` +
-      `languages \u00b7 ${full.length} with full-line sentences`;
+      `languages \u00b7 ${full.length} with full-line sentences${voiceNote}`;
     renderSongList();
     await loadEmbeds();
     if (featured[0]) await selectSong(featured[0].song_id);

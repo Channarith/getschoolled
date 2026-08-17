@@ -43,6 +43,14 @@ from theodore_music_lab.storyboard import (
     storyboard_for,
 )
 from theodore_music_lab.timing import alignment_for, song_timings, syllable_count
+from theodore_music_lab.tts import (
+    VOICES,
+    TTSUnavailable,
+    clip_path,
+    rate_percent,
+    synthesize,
+    voice_for,
+)
 from theodore_music_lab.translations import translate_song
 from theodore_music_lab.vocal_align import (
     VocalSpan,
@@ -55,6 +63,14 @@ from theodore_music_lab.vocal_align import (
 def offline(monkeypatch):
     """No LLM key: exercises the offline curated/lexicon + fallback paths."""
     monkeypatch.delenv("XAI_API_KEY", raising=False)
+
+
+@pytest.fixture()
+def tts_cache(monkeypatch, tmp_path):
+    """An empty clip cache, so a test never depends on the developer's real one."""
+    monkeypatch.setenv("MUSIC_LAB_TTS_CACHE", str(tmp_path / "tts"))
+    monkeypatch.delenv("MUSIC_LAB_TTS", raising=False)
+    return tmp_path / "tts"
 
 
 def _featured(cat: Catalog):
@@ -159,6 +175,110 @@ def test_language_picker_offers_every_language_grouped_by_quality():
         for code in ("zh", "km"):
             row = next(r for r in catalog["catalog"] if r["code"] == code)
             assert row["curated_coverage"] == pytest.approx(1.0, abs=0.001)
+
+
+def test_every_translation_language_has_a_neural_voice():
+    """Device voices are why "Sing in Khmer" failed; the server must cover all 27."""
+    assert set(VOICES) == set(MEANING_LANGUAGES)
+    for code in MEANING_LANGUAGES:
+        female, male = VOICES[code]
+        locale = VOICE_TAGS[code]
+        for voice in (female, male):
+            assert voice.startswith(f"{locale}-"), (code, voice)
+            assert voice.endswith("Neural"), (code, voice)
+    assert voice_for("km") == "km-KH-SreymomNeural"
+    assert voice_for("km", gender="male") == "km-KH-PisethNeural"
+    assert voice_for("zh") == "zh-CN-XiaoxiaoNeural"
+    # An unknown code still speaks rather than crashing the sing toggle.
+    assert voice_for("xx").startswith("en-US-")
+
+
+def test_speech_rate_is_quantised_so_two_visits_reuse_one_clip():
+    # The rate follows the audio duration the browser reports, which wobbles by a
+    # fraction of a percent between encodes; neighbours share a 5% bucket.
+    assert rate_percent(1.11) == rate_percent(1.12) == "+10%"
+    assert rate_percent(1.23) == rate_percent(1.24) == "+25%"
+    for multiplier in (0.9, 1.03, 1.27, 1.68, 1.8):
+        assert int(rate_percent(multiplier).rstrip("%")) % 5 == 0
+    assert rate_percent(1.0) == "+0%"
+    assert rate_percent(1.5) == "+50%"
+    assert rate_percent(0.85) == "-15%"
+    # Absurd values are clamped, not passed to the voice service.
+    assert rate_percent(9.0) == "+100%"
+    assert rate_percent("nonsense") == "+0%"
+
+
+def test_a_cached_clip_is_served_without_any_engine(tts_cache, monkeypatch):
+    """Prefetched clips make every language work offline."""
+    monkeypatch.setenv("MUSIC_LAB_TTS", "off")
+    text = "ខ្ញុំទៅធ្វើការ"
+    path = clip_path(text, voice=voice_for("km"), rate=rate_percent(1.0))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"ID3-fake-khmer-clip")
+    assert synthesize(text, "km") == b"ID3-fake-khmer-clip"
+    with TestClient(app) as client:
+        got = client.get("/api/music/tts", params={"text": text, "lang": "km"})
+    assert got.status_code == 200
+    assert got.headers["content-type"] == "audio/mpeg"
+    assert got.content == b"ID3-fake-khmer-clip"
+
+
+def test_tts_answers_501_so_the_player_falls_back_to_the_device(tts_cache, monkeypatch):
+    monkeypatch.setenv("MUSIC_LAB_TTS", "off")
+    with TestClient(app) as client:
+        got = client.get("/api/music/tts", params={"text": "hola", "lang": "es"})
+        status = client.get("/api/music/tts/status").json()
+    # 501, not 500: the client treats it as "use the device voice", not an error.
+    assert got.status_code == 501
+    assert status["available"] is False
+    assert status["languages"] == len(MEANING_LANGUAGES)
+
+
+def test_rendered_clips_are_cached_once_and_reused(tts_cache, monkeypatch):
+    calls: list[tuple[str, str, str]] = []
+
+    def fake_render(text, path, *, voice, rate):
+        calls.append((text, voice, rate))
+        path.write_bytes(b"rendered-mp3")
+
+    monkeypatch.setattr("theodore_music_lab.tts._render", fake_render)
+    monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
+    assert synthesize("你好", "zh", rate=1.2) == b"rendered-mp3"
+    assert synthesize("你好", "zh", rate=1.2) == b"rendered-mp3"
+    assert calls == [("你好", "zh-CN-XiaoxiaoNeural", "+20%")]
+
+
+def test_a_failed_render_leaves_no_truncated_clip(tts_cache, monkeypatch):
+    def boom(text, path, *, voice, rate):
+        path.write_bytes(b"half")
+        raise RuntimeError("connection reset")
+
+    monkeypatch.setattr("theodore_music_lab.tts._render", boom)
+    monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
+    with pytest.raises(TTSUnavailable):
+        synthesize("bonjour", "fr")
+    assert not clip_path("bonjour", voice=voice_for("fr"), rate="+0%").exists()
+    assert list(tts_cache.glob("*.mp3")) == []
+
+
+def test_the_player_speaks_through_the_server_and_can_fall_back():
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert "probeServerVoices" in page
+    assert "/api/music/tts?lang=" in page
+    # One cancel path must stop device speech AND server audio.
+    assert "function cancelSpeech" in page
+    assert "speakOnDevice" in page
+    body = page.split("function cancelSpeech", 1)[1].split("\n  function ", 1)[0]
+    assert "window.speechSynthesis.cancel()" in body
+    # It must stop the device engine, not recurse into itself (it did once, and
+    # the stack overflow left the player stuck on "Choose a song").
+    assert "cancelSpeech()" not in body
+    # The old dead end: refusing a language because the OS had no voice.
+    assert "voice installed on this device" not in page
+    # Pausing must not be followed by another sung line from the next tick.
+    sing = page.split("function speakLine", 1)[1].split("\n  function ", 1)[0]
+    assert 'if ($("player").paused) return;' in sing
 
 
 def test_the_page_carries_an_icon_and_favicon_ico_is_served():

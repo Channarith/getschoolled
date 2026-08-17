@@ -21,9 +21,11 @@ language_learning / content packs.
     line, so you read the next line before you have to sing it
   • Real per-line translation in all 27 languages, shown under every line at
     once (not only the active one) plus key-vocabulary chips and examples
-  • Sing in another language: tick "Sing in <language>" and a neural device voice
-    speaks each translated line inside that line's own window while the English
-    recording drops to a backing-track level — the same MP3 in any of the 27
+  • Sing in another language: tick "Sing in <language>" and a neural voice speaks
+    each translated line inside that line's own window while the English
+    recording drops to a backing-track level — the same MP3 in any of the 27.
+    The voice is rendered by the server, so Khmer/Chinese/Thai sing on a device
+    whose OS ships no such voice (see "Neural voices" below)
   • Ask the AI about any line at any time — while the track is playing
   • Say / sing this line: hear a model reading, speak into the mic (or type),
     get a 0–100 score with missed/wrong-word corrections and mouth tips
@@ -48,6 +50,28 @@ Translation tiers (best available wins; every line always resolves)
   lexicon  real target-language words for the line's content words (lexicon.py),
            covering all 27 languages offline — 69 terms, romanized where the
            script differs; km/bn/ur/fa/th/sw/he/ar/hi are flagged for native review
+
+Neural voices (all 27 languages, no OS voice needed)
+"Sing in Khmer" used to refuse: the player spoke with window.speechSynthesis, so a
+language only worked if the listener's OS had a voice for it, and macOS has none
+for Khmer. The server now renders each line with a Microsoft Edge neural voice
+(tts.py, one verified voice pair per language — km-KH-SreymomNeural for Khmer) and
+the browser plays the MP3:
+
+  pip install -e '.[voices]'                 # edge-tts==6.1.12
+  GET /api/music/tts?lang=km&rate=0.86&text=…  -> audio/mpeg (501 = no engine)
+  GET /api/music/tts/status                    -> {available, engine, languages}
+
+Clips are cached on disk by (voice, rate, text) — default
+~/.cache/theodore-music-lab/tts, override with MUSIC_LAB_TTS_CACHE — so a line is
+rendered once and then replays offline. Warm a whole song ahead of a lesson:
+
+  python3 scripts/prefetch_voices.py --lang km --lang zh
+  python3 scripts/prefetch_voices.py --dry-run    # count what is missing
+
+Rendering needs network once per clip (Microsoft's voice service). With no engine
+and an empty cache the endpoint answers 501 and the player falls back to the
+device voice, saying so once. MUSIC_LAB_TTS=off forces that fallback.
 
 Karaoke timings for the featured MP3s are measured against the recording itself
 (vocal_align.py). Vocals sit in the centre of the stereo image, so the centre

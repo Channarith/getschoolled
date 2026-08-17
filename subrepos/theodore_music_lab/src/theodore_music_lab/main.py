@@ -28,6 +28,8 @@ from .sing import VOICE_TAGS, sing_plan
 from .storyboard import STORYBOARDS, storyboard_for
 from .timing import alignment_for, song_timings
 from .translations import language_catalog, translate_song, validate_language
+from .tts import TTSUnavailable, synthesize
+from .tts import status as tts_status
 
 app = FastAPI(title="Theodore Music Lab", version="0.5.0")
 
@@ -139,6 +141,7 @@ def health() -> dict[str, Any]:
         "storyboards": len(STORYBOARDS),
         "storyboard_scenes": sum(len(scenes) for scenes in STORYBOARDS.values()),
         "sing_along_languages": len(VOICE_TAGS),
+        "neural_voices": tts_status(),
         "pronunciation_check": True,
         "vocal_aligned_songs": sum(
             1 for song in featured if alignment_for(song.song_id)
@@ -158,6 +161,30 @@ def languages() -> dict[str, Any]:
         "count": len(MEANING_LANGUAGES),
         "catalog": language_catalog(),
     }
+
+
+@app.get("/api/music/tts/status")
+def tts_availability() -> dict[str, Any]:
+    """Probed once by the player to choose server voices over device voices."""
+    return tts_status()
+
+
+@app.get("/api/music/tts")
+def tts(text: str, lang: str = "en", rate: float = 1.0, gender: str = "female") -> Response:
+    """One spoken line as MP3, so every language sings without an OS voice.
+
+    501 (not 500) when no engine can render it: that is the client's cue to fall
+    back to the device voice rather than show an error.
+    """
+    try:
+        audio = synthesize(text, lang, rate=rate, gender=gender)
+    except TTSUnavailable as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return Response(
+        content=audio,
+        media_type="audio/mpeg",
+        headers={"cache-control": "public, max-age=86400"},
+    )
 
 
 @app.get("/api/music/timing/{song_id}")
