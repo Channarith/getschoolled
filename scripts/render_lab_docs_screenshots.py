@@ -109,7 +109,7 @@ def render_course_studio() -> None:
         (0, 0, WIDTH, 96),
         "#1b3a2f",
         "Theodore Course Studio",
-        "Make & teach  ·  multimodal cert kits  ·  examples · quiz · order_steps game",
+        "Early-learning Make & teach  ·  Pre-K–Grade 2  ·  Certification prep",
         "#3d9a74",
     )
     # Kids builder
@@ -131,9 +131,8 @@ def render_course_studio() -> None:
     draw.text((58, 204), "Make & teach", font=BODY, fill="#fff")
     draw.rounded_rectangle((196, 196, 310, 232), radius=8, fill="#fff", outline="#f59e0b")
     draw.text((214, 204), "Read aloud", font=BODY, fill="#7c2d12")
-    draw.text((330, 204), "Cert kit: picture · motion · quiz · game", font=SMALL, fill="#9a3412")
 
-    _panel(draw, (18, 268, 690, 870), "#18261f", "#2f5a48", "Teach stage + multimodal", "#9fddc0")
+    _panel(draw, (18, 268, 690, 870), "#18261f", "#2f5a48", "Teach stage", "#9fddc0")
     draw.rounded_rectangle((36, 310, 672, 520), radius=10, fill="#0f1a15", outline="#3a5548")
     draw.text((56, 330), "Count the apples", font=KIDS, fill="#e8efe9")
     draw.text(
@@ -237,15 +236,15 @@ def render_webcam_lab() -> None:
         (0, 0, WIDTH, 96),
         "#162028",
         "Theodore Webcam Lab",
-        "Owner face lock  ·  multi-face  ·  stare geometry  ·  quiet MediaPipe",
+        "Live monitor  ·  vision tuning  ·  lesson alerts  ·  26-language voice",
         "#5ec8ff",
     )
     metrics = [
-        ("Faces", "2 · owner locked"),
-        ("Owner", "match 0.91"),
+        ("Avg distance", "0.82 m"),
         ("Light", "0.91"),
+        ("Image", "0.88"),
         ("Mic", "ok"),
-        ("Integrity", "clean"),
+        ("Presence", "2 / 2"),
     ]
     for i, (k, v) in enumerate(metrics):
         x0 = 20 + i * 275
@@ -257,8 +256,7 @@ def render_webcam_lab() -> None:
         x0 = 20 + i * 690
         draw.rounded_rectangle((x0, 240, x0 + 660, 860), radius=14, fill="#152029", outline="#2f4554")
         draw.rounded_rectangle((x0 + 18, 270, x0 + 642, 520), radius=10, fill="#0a1016")
-        draw.text((x0 + 40, 360), "owner mesh + secondary", font=BODY, fill="#67e8f9")
-        draw.text((x0 + 40, 400), "camera frame", font=BODY, fill="#5a7386")
+        draw.text((x0 + 40, 380), "camera frame", font=BODY, fill="#5a7386")
         draw.text((x0 + 24, 540), name, font=H2, fill="#e8f2ff")
         for j, (label, pct) in enumerate(
             (("sharpness", 0.8 if i == 0 else 0.35), ("light", 0.9 if i == 0 else 0.45), ("mic", 0.7 if i == 0 else 0.2))
@@ -388,11 +386,11 @@ def render_homework_lab() -> None:
         lab="theodore_homework_lab",
         filename="theodore_homework_lab.webp",
         title="Theodore Homework Lab",
-        subtitle="75 methodologies  ·  generate + grade quality battery  ·  :8098",
+        subtitle="50+ methodologies  ·  generate + grade quality battery  ·  :8098",
         accent="#7DD3A8",
         left_title="Methodologies (sample)",
         left_rows=[
-            ("registered", "75"),
+            ("registered", "52"),
             ("choice", "mcq · multi_select · true_false"),
             ("open", "short_answer · essay"),
             ("media", "picture_id · hotspot · video"),
@@ -405,7 +403,7 @@ def render_homework_lab() -> None:
         right_lines=[
             "$ uvicorn theodore_homework_lab.main:app --port 8098",
             "# GET /api/homework/methodologies",
-            "→ count 75  families 16",
+            "→ count 52  families 16",
             "# POST /api/homework/generate",
             "→ assignment 12 items  subject=science",
             "# POST /api/homework/grade",
@@ -413,7 +411,7 @@ def render_homework_lab() -> None:
             "# GET /api/homework/telemetry",
             "→ generated=40  graded=40",
         ],
-        pills=["offline", "75 methods", "gold battery"],
+        pills=["offline", "50+ methods", "gold battery"],
     )
 
 
@@ -422,32 +420,32 @@ def render_music_lab() -> None:
         lab="theodore_music_lab",
         filename="theodore_music_lab.webp",
         title="Theodore Music Lab",
-        subtitle="Featured MP3 player  ·  100+ tracks  ·  26+ meaning langs  ·  :8097",
+        subtitle="Karaoke  ·  every line translated  ·  ask the AI while it plays  ·  :8097",
         accent="#C4B5FD",
-        left_title="Catalog",
+        left_title="Player",
         left_rows=[
-            ("songs", "100+"),
-            ("meaning languages", "27"),
-            ("featured audio", "3 MP3s · lyric sync"),
-            ("sample", "colors_song_en"),
-            ("topic", "early_learning"),
-            ("hints", "es · fr · km · zh …"),
-            ("import", "JSON / JSONL packs"),
-            ("session", "play → pause → repeat"),
+            ("featured MP3s", "3 (+100 text songs)"),
+            ("karaoke", "bouncing ball · word colour"),
+            ("timings", "line + word (syllable weighted)"),
+            ("sync nudge", "±0.25s"),
+            ("translation", "27 languages, every line"),
+            ("tiers", "curated · cached · llm · lexicon"),
+            ("ask AI", "Grok or offline teacher"),
+            ("clips / videos", "6 clips · 6 lyric videos"),
         ],
-        right_title="Featured player",
+        right_title="Now playing",
         right_lines=[
-            "$ uvicorn theodore_music_lab.main:app --port 8097",
-            "# open /  → featured player UI",
-            "# GET /api/music/featured",
-            "→ wheels_on_the_bus  travel_words  …",
-            "# GET /api/music/audio/<file>.mp3",
-            "→ lyric highlight via timeupdate",
-            "# POST /api/music/meaning",
-            "→ 26+ language glosses",
-            "# POST /api/music/import  (string lines OK)",
+            "♪ Wheels on the Bus (learning version)",
+            "  Wheels on the bus go round and round",
+            "    Las ruedas del autobús giran y giran",
+            "  All through the town        [curated]",
+            "    Por toda la ciudad",
+            "  Open ●shut● the door goes   ← ball",
+            "    Se abre y se cierra la puerta",
+            "ask: why 'round and round'?",
+            "→ chorus repeats one pattern · town = pueblo",
         ],
-        pills=["featured MP3", "26+ langs", "lyric sync"],
+        pills=["bouncing ball", "27 langs / line", "ask anytime"],
     )
 
 

@@ -77,6 +77,9 @@ class SongLine(BaseModel):
     meaning_en: str = ""
     tts_text: str = ""
     section: str = ""  # verse / chorus / bridge / …
+    # Hand-tuned karaoke timings; when unset they are estimated in timing.py.
+    start_sec: float | None = None
+    end_sec: float | None = None
 
 
 class Song(BaseModel):
@@ -93,6 +96,9 @@ class Song(BaseModel):
     animation: str = "pulse"  # travel | bus | words | pulse
     featured: bool = False
     duration_hint_sec: float | None = None
+    # Instrumental intro before the first sung line, and trailing outro.
+    lead_in_sec: float = 0.0
+    tail_sec: float = 0.0
 
     @property
     def line_count(self) -> int:
@@ -122,6 +128,15 @@ def _audio_dir() -> Path:
     return here.parent.parent / "data" / "audio"
 
 
+def _opt_float(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _song_from_record(rec: dict[str, Any], *, fallback_id: str) -> Song | None:
     lines_raw = rec.get("lines") or rec.get("verses") or []
     lines: list[SongLine] = []
@@ -141,6 +156,8 @@ def _song_from_record(rec: dict[str, Any], *, fallback_id: str) -> Song | None:
                 meaning_en=meaning,
                 tts_text=tts,
                 section=str(row.get("section") or ""),
+                start_sec=_opt_float(row.get("start_sec")),
+                end_sec=_opt_float(row.get("end_sec")),
             )
         )
     if not lines:
@@ -157,11 +174,9 @@ def _song_from_record(rec: dict[str, Any], *, fallback_id: str) -> Song | None:
         audio_file=str(rec.get("audio_file") or ""),
         animation=str(rec.get("animation") or "pulse"),
         featured=bool(rec.get("featured") or False),
-        duration_hint_sec=(
-            float(rec["duration_hint_sec"])
-            if rec.get("duration_hint_sec") is not None
-            else None
-        ),
+        duration_hint_sec=_opt_float(rec.get("duration_hint_sec")),
+        lead_in_sec=_opt_float(rec.get("lead_in_sec")) or 0.0,
+        tail_sec=_opt_float(rec.get("tail_sec")) or 0.0,
     )
 
 
@@ -216,31 +231,24 @@ def import_songs(records: Iterable[dict[str, Any]]) -> list[Song]:
 
 
 def meaning_for_line(line: SongLine, target_lang: str) -> dict[str, Any]:
-    """Best-effort meaning/translation hint for 26+ languages (offline)."""
+    """Real per-line translation for 26+ languages (see translations.py tiers)."""
+    from .translations import translate_line  # local import: translations needs Song
+
     code = (target_lang or "en").strip().lower()
     if code not in MEANING_LANGUAGES:
         raise ValueError(
             f"Unsupported language '{target_lang}'. "
             f"Supported: {', '.join(MEANING_LANGUAGES)}"
         )
-    en = (line.meaning_en or line.text).strip()
-    label = _LANG_LABEL.get(code, code)
-    if code == "en":
-        text = en
-        note = "English gloss"
-    else:
-        # Offline lab: structured gloss rather than machine translation API.
-        text = f"[{label}] Meaning: {en}"
-        note = (
-            "Offline educational gloss — production may swap in neural MT; "
-            "facts stay grounded in the English meaning."
-        )
+    row = translate_line(line, code)
     return {
         "target_language": code,
-        "target_language_name": label,
-        "text": text,
-        "meaning_en": en,
-        "note": note,
+        "target_language_name": _LANG_LABEL.get(code, code),
+        "text": row["translation"],
+        "meaning_en": row["meaning_en"],
+        "tier": row["tier"],
+        "note": row["note"],
+        "vocabulary": row["vocabulary"],
     }
 
 

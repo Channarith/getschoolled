@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from .ask_ai import ask, explain_line
 from .catalog import MEANING_LANGUAGES, Catalog, _audio_dir, import_songs, meaning_for_line
+from .media import load_clips, resolve_clip, videos_for
 from .music_page import render_music_page
 from .session import SessionMode, SessionStore
+from .storyboard import STORYBOARDS, storyboard_for
+from .timing import song_timings
+from .translations import language_catalog, translate_song, validate_language
 
-app = FastAPI(title="Theodore Music Lab", version="0.2.0")
+app = FastAPI(title="Theodore Music Lab", version="0.4.0")
 
 _CATALOG = Catalog()
 _STORE = SessionStore(_CATALOG)
@@ -40,6 +45,32 @@ class ImportPack(BaseModel):
     songs: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class SongTranslationRequest(BaseModel):
+    song_id: str = Field(min_length=1)
+    target_lang: str = "en"
+    allow_llm: bool = True
+
+
+class ExplainRequest(BaseModel):
+    song_id: str = Field(min_length=1)
+    line_no: Optional[int] = None
+    target_lang: str = "en"
+
+
+class AskRequest(BaseModel):
+    song_id: str = Field(min_length=1)
+    question: str = Field(min_length=1)
+    line_no: Optional[int] = None
+    target_lang: str = "en"
+
+
+def _song_or_404(song_id: str):
+    try:
+        return _CATALOG.get(song_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown song '{song_id}'") from exc
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def music_lab_page() -> str:
@@ -56,13 +87,107 @@ def health() -> dict[str, Any]:
         "featured_songs": len(featured),
         "meaning_languages": list(MEANING_LANGUAGES),
         "meaning_language_count": len(MEANING_LANGUAGES),
+        "clips": len(load_clips()),
+        "videos": len(videos_for()),
+        "karaoke": True,
+        "ask_ai": True,
+        "storyboards": len(STORYBOARDS),
+        "storyboard_scenes": sum(len(scenes) for scenes in STORYBOARDS.values()),
         "player": "/",
     }
 
 
 @app.get("/api/music/languages")
 def languages() -> dict[str, Any]:
-    return {"languages": list(MEANING_LANGUAGES), "count": len(MEANING_LANGUAGES)}
+    return {
+        "languages": list(MEANING_LANGUAGES),
+        "count": len(MEANING_LANGUAGES),
+        "catalog": language_catalog(),
+    }
+
+
+@app.get("/api/music/timing/{song_id}")
+def song_timing(
+    song_id: str, duration: float = 0.0, lead_in: float = -1.0
+) -> dict[str, Any]:
+    """Line + word timings that drive the bouncing ball and word highlighting."""
+    song = _song_or_404(song_id)
+    return song_timings(
+        song,
+        duration_sec=duration or None,
+        lead_in_sec=None if lead_in < 0 else lead_in,
+    )
+
+
+@app.get("/api/music/storyboard/{song_id}")
+def song_storyboard(
+    song_id: str, target_lang: str = "en", duration: float = 0.0
+) -> dict[str, Any]:
+    """Timed scenes, backdrop art, cast and camera moves for the full-screen stage."""
+    song = _song_or_404(song_id)
+    if song_id not in STORYBOARDS:
+        raise HTTPException(status_code=404, detail=f"No storyboard for '{song_id}'")
+    try:
+        language = validate_language(target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return storyboard_for(song, language=language, duration_sec=duration or None)
+
+
+@app.post("/api/music/translate")
+def translate(req: SongTranslationRequest) -> dict[str, Any]:
+    """Every line of a song translated into one language (comprehensive)."""
+    song = _song_or_404(req.song_id)
+    try:
+        return translate_song(song, req.target_lang, allow_llm=req.allow_llm)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/explain")
+def explain(req: ExplainRequest) -> dict[str, Any]:
+    """Meaning, translation, key vocabulary and examples for one lyric line."""
+    song = _song_or_404(req.song_id)
+    try:
+        return explain_line(song, req.line_no, req.target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/ask")
+def ask_about_lyrics(req: AskRequest) -> dict[str, Any]:
+    """Ask the AI anything about the lyrics, playing or paused."""
+    song = _song_or_404(req.song_id)
+    try:
+        return ask(song, req.question, line_no=req.line_no, language=req.target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/music/clips")
+def clips(song_id: str = "", target_lang: str = "en") -> dict[str, Any]:
+    """Short lyric clips (line ranges of the featured songs) with translations."""
+    rows: list[dict[str, Any]] = []
+    for clip in load_clips():
+        clip_song = str(clip.get("song_id") or "")
+        if song_id and clip_song != song_id:
+            continue
+        try:
+            song = _CATALOG.get(clip_song)
+        except KeyError:
+            continue
+        try:
+            rows.append(resolve_clip(song, clip, target_lang))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"count": len(rows), "clips": rows}
+
+
+@app.get("/api/music/videos")
+def videos(song_id: str = "") -> dict[str, Any]:
+    """Curated external lyric videos and channels (all have lyrics available)."""
+    rows = videos_for(song_id)
+    return {"count": len(rows), "videos": rows}
 
 
 @app.get("/api/music/featured")
@@ -131,14 +256,61 @@ def get_song(song_id: str) -> dict[str, Any]:
 
 
 @app.get("/api/music/audio/{filename}")
-def get_audio(filename: str) -> FileResponse:
+def get_audio(filename: str, request: Request) -> Response:
+    """Serve a featured MP3.
+
+    Byte ranges are handled explicitly: without them a browser cannot seek, and
+    seeking is what Restart, clip playback and click-a-line-to-jump all rely on.
+    """
     safe = Path(filename).name
     if safe != filename or ".." in filename or "/" in filename or "\\" in filename:
         raise HTTPException(status_code=400, detail="Invalid audio filename")
     path = _audio_dir() / safe
     if not path.is_file():
         raise HTTPException(status_code=404, detail=f"Audio not found: {safe}")
-    return FileResponse(path, media_type="audio/mpeg", filename=safe)
+
+    size = path.stat().st_size
+    headers = {"accept-ranges": "bytes", "cache-control": "public, max-age=3600"}
+    raw_range = request.headers.get("range", "")
+    if not raw_range.startswith("bytes="):
+        return FileResponse(path, media_type="audio/mpeg", headers=headers)
+
+    spec = raw_range.split("=", 1)[1].split(",")[0].strip()
+    first, _, last = spec.partition("-")
+    try:
+        start = int(first) if first else 0
+        end = int(last) if last else size - 1
+    except ValueError:
+        raise HTTPException(status_code=416, detail="Malformed Range header") from None
+    if start < 0 or start >= size:
+        return Response(
+            status_code=416,
+            headers={**headers, "content-range": f"bytes */{size}"},
+        )
+    end = min(end, size - 1)
+    length = end - start + 1
+
+    def stream() -> Iterator[bytes]:
+        remaining = length
+        with path.open("rb") as fh:
+            fh.seek(start)
+            while remaining > 0:
+                chunk = fh.read(min(65536, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+                yield chunk
+
+    return StreamingResponse(
+        stream(),
+        status_code=206,
+        media_type="audio/mpeg",
+        headers={
+            **headers,
+            "content-range": f"bytes {start}-{end}/{size}",
+            "content-length": str(length),
+        },
+    )
 
 
 @app.post("/api/music/meaning")

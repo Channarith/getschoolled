@@ -1,0 +1,764 @@
+AUDIT — 2026-08-16 — v0.46.63
+Comprehensive backend + frontend bug hunt. Read-only; no code changed.
+
+BASELINE
+  pytest (excl. subrepos, packages/sdk): 2489 passed, 16 skipped
+  apps/web tsc --noEmit: clean
+  Mechanical sweep of apps/web: 538 buttons, 0 no-op onClick, 0 dead href="#"
+  => every finding below passes CI today.
+
+  Excluded: subrepos/theodore_music_lab (uncommitted work in progress).
+  packages/sdk tests fail to collect locally (aoep_sdk not installed editable)
+  — local env gap, not a repo defect.
+
+
+==========================================================================
+MEDIA / AI SERVICES (perception, vision_agent, webcam, speech, integrations)
+==========================================================================
+
+HIGH-1  services/perception/src/perception/main.py:67,93
+  POST /identify returns 500 whenever expression is None.
+  FaceResult.expression is declared non-optional str; _observe
+  (packages/shared/.../providers/vision.py:135) sets it to None when
+  emotion_recognition_allowed(region) is False — i.e. REGION=eu, REGION=other,
+  or any unrecognized value (_coerce_region falls back to OTHER).
+  Sibling /identify-embedding:156 already guards with `o.expression or "unknown"`.
+  VERIFIED EMPIRICALLY: stubbed provider returning None -> 500.
+  Scenario: in any EU deployment every frame to /identify 500s. Face
+  recognition is completely dead in that region.
+  BROADER THAN REGION (confirmed by re-reading vision.py:128-136): `expression`
+  is initialized to None and only assigned inside
+  `if landmarks and bbox is not None and frame_size is not None:` — so a face
+  detected without landmarks/bbox/frame_size 500s in EVERY region, not just EU.
+  The one-line guard already present on the sibling endpoint fixes both.
+
+HIGH-2  packages/shared/src/aoep_shared/vision/webcam_presence.py:194-208
+  on_return can never fire at the production default.
+  First presence frame after ABSENT sets _returned_at = now (line 202), then
+  line 203 tests now - _returned_at >= threshold — structurally 0 >= threshold,
+  always false. Line 200 already moved _state off ABSENT, so the next frame
+  takes the else branch and resets _returned_at = None.
+  Default vision_agent_return_threshold_s = 1.0 (config.py:209).
+  Consequence: metrics.return_events stays 0 forever; the absence_end SSE event
+  (vision_agent/main.py:99-103) never fires; Theodore never welcomes a student
+  back. The existing test dodges this by passing return_threshold_s=0.0
+  (test_presence.py:69, comment "fire immediately").
+
+HIGH-3  packages/shared/src/aoep_shared/providers/vision.py:105
+  Per-request consent set stored on a process-wide singleton, mutated from
+  concurrent threadpool handlers. CONSENT-GATE BYPASS ON BIOMETRIC DATA.
+  ProviderFactory._select caches one LocalVisionProvider per process.
+  _apply_identity_gate writes self._consented; _observe reads it.
+  /identify-embedding (main.py:137) and /enroll-embedding (:114) are sync def,
+  so Starlette runs them in the anyio threadpool and they genuinely interleave.
+  Scenario: request A sends consented_student_ids=["alice"], B sends ["bob"];
+  B overwrites _consented between A's gate call and A's _observe -> A's frame
+  is matched against bob's prototype and returns matched_student_id="bob" to a
+  caller with no consent for bob. The module docstring states the consent gate
+  is enforced here. may_identify() is unreliable for the same reason.
+
+HIGH-4  services/webcam/src/webcam/main.py:254,351
+  GroupPresenceTracker is created but never fed — every group presence summary
+  is empty. _analyze_frame_data:218 pushes into session.tracker_for(...);
+  GroupPresenceTracker.push is called nowhere in the repo (verified by grep).
+  GET /sessions/{id}/presence:351 calls s.group_tracker.summary() on a tracker
+  whose _trackers is always {} -> total_participants=0, present_count=0,
+  quorum_met=False permanently regardless of who is on camera.
+  The orchestrator uses quorum_met to decide whether to continue or wait.
+  The only group test asserts nothing but class_type == "group".
+
+HIGH-5  services/vision_agent/src/vision_agent/main.py:167,293-299
+  Session records never removed from _sessions — unbounded permanent leak.
+  end_session only sets ended=True ("retained for metrics"); nothing ever
+  deletes a key. Each retained SessionState pins a WebcamPresenceTracker
+  (60-frame history), a SilhouetteDetector (OpenCV MOG2 background model +
+  morphology kernels), a GrokVoiceAgent with conversation history, and a
+  100-slot asyncio.Queue.
+  The stated justification is false: get_metrics:305 calls _get_session, which
+  raises 404 for ended sessions (:172) — the retained record is unreachable.
+  Pure leak; a long-running pod grows without bound.
+
+HIGH-6  services/webcam/src/webcam/main.py:111
+  _sessions has no TTL/reaper, and per-session detector dicts are keyed by a
+  client-supplied string. last_activity is recorded (:84, :221) but never read.
+  detector_for/tracker_for (:96-108) create a new SilhouetteDetector (MOG2
+  model) per distinct participant_id, and participant_id comes straight from
+  the Form field on POST /sessions/{id}/frame:291 with no validation against
+  session.student_ids.
+  Scenario: a client posting frames with a random participant_id each time
+  allocates one MOG2 background model per request until OOM.
+
+MED-7   services/speech/src/speech_gw/main.py:237,270
+  One TTS engine's failure mode escapes the fallback chain and 500s.
+  The chain is asymmetric: CosyVoice wrapped in except Exception (:220),
+  edge-tts swallows everything internally (natural_tts.py:107), but ElevenLabs
+  is narrowed to except ElevenLabsError. _http_post (elevenlabs_tts.py:79-93)
+  only converts HTTPError/URLError; a socket read timeout from getresponse()/
+  read() surfaces as bare TimeoutError, as do IncompleteRead and
+  RemoteDisconnected.
+  Scenario: ELEVENLABS_API_KEY set, long narration, ElevenLabs slow -> 30s read
+  timeout -> TimeoutError propagates past edge-tts and the on-device fallback
+  entirely -> client gets 500 instead of audio.
+
+MED-8   services/perception/src/perception/main.py:51,83
+  ModelsUnavailable escapes as a 500. _vision().enroll/.analyze_image ->
+  engine() -> from_models -> ensure_models raises ModelsUnavailable (a
+  RuntimeError) when weights are missing and download fails (vision/models.py:79).
+  /enroll catches ValueError/NotImplementedError, /identify catches
+  NotImplementedError — neither catches it. /vision/models/{name}:183 DOES
+  catch it and returns 503, which shows the intended contract.
+  Scenario: cold pod, empty VISION_MODEL_DIR, egress blocked -> every enroll/
+  identify 500s instead of 503; clients cannot distinguish "not ready" from
+  "broken".
+
+MED-9   packages/shared/src/aoep_shared/vision/gallery.py:49-59
+        packages/shared/src/aoep_shared/providers/vision.py:84-86
+  A short embedding poisons the gallery permanently.
+  enroll_embedding validates only `if not vec` — no dimension check against the
+  128-d SFace shape. prototype() takes dim = len(embs[0]) and indexes e[i]
+  across all embeddings.
+  VERIFIED EMPIRICALLY: enrolling [0.1]*128 then [0.5,0.5,0.5] for the same
+  student makes identify() raise IndexError. Every subsequent /identify and
+  /identify-embedding against that gallery 500s, and because _persist_gallery
+  writes to VISION_GALLERY_PATH the poison survives restarts.
+  (A shorter FIRST embedding silently truncates the prototype instead — wrong
+  scores, no error.)
+
+MED-10  packages/shared/src/aoep_shared/vision/models.py:46-50
+        packages/shared/src/aoep_shared/vision/gallery.py:83-86
+  Fixed-name temp files clobber under concurrency. _download writes to
+  dest + ".part" and save_json writes to path + ".tmp" — process-wide
+  constants, no lock. GET /vision/models/{name} (perception/main.py:170) is
+  sync def -> threadpool, so two concurrent cold-cache requests for the 37 MB
+  SFace weights both urlretrieve into the same .part and both os.replace it;
+  interleaved writes produce a corrupt ONNX. _valid only checks size >= 30 MB
+  (:42), so the corrupt file passes validation and is served/loaded thereafter.
+  Same shape for two concurrent /enroll-embedding calls truncating the gallery
+  JSON. On download failure the .part is also left on disk.
+
+MED-11  Blocking CPU/network work on the event loop in two real-time services.
+  vision_agent/main.py:361,370 — process_frame is async def but runs
+  SilhouetteDetector.process_frame (MOG2 + morphology + contours) and
+  vision.analyze_image (YuNet detect + SFace embedding per face, hundreds of ms
+  on CPU) synchronously.
+  webcam/main.py:305 — same for submit_frame -> detector.analyze.
+  vision_agent/main.py:426 — _schedule_absence_prompt's _task is async def but
+  makes a blocking xAI HTTP call.
+  Consequence: each frame stalls the loop, head-of-line blocking the /events
+  SSE heartbeat (:567, 15s timeout) and the webcam WebSocket stream for all
+  other sessions on the pod.
+  NOTE: these handlers being async def is also what currently keeps the
+  non-thread-safe shared cv2.FaceDetectorYN from actually racing — the two
+  issues are coupled, so fix them together.
+
+LOW-12  services/vision_agent/src/vision_agent/main.py:562
+  The SSE "connected" frame is not valid JSON — emits
+  data: {'kind': 'connected', ...} with Python single quotes, while every
+  subsequent event uses json.dumps (:569). Any client doing JSON.parse(e.data)
+  throws on the first message of every stream. No web/mobile consumer exists
+  yet, hence low.
+
+LOW-13  services/integrations/src/integrations/main.py:485
+  app.state.bridge_sessions grows unbounded. Entries are removed only by
+  POST /bridges/sessions/{id}/disconnect; an abandoned bridge leaks its
+  BridgeSession and live MediaTransport forever. No TTL, no cap.
+
+LOW-14  packages/shared/src/aoep_shared/presence.py (PresenceTracker.push)
+  On PRESENT->AWAY, _absent_since_ts is set to _last_present_ts, so ABSENT is
+  confirmed at absent_confirm_s after LAST PRESENCE (30s) rather than after
+  entering AWAY as the docstring states ("Seconds in AWAY before confirming
+  ABSENT", which would be 35s). Off by the away_grace_s window.
+
+
+==========================================================================
+IDENTITY & BILLING — ⚠ CRITICAL SECURITY FINDINGS ⚠
+==========================================================================
+All items below reproduced against the running app via fastapi.testclient.
+
+CRIT-26 services/identity/src/identity/main.py:1285-1294
+        packages/shared/src/aoep_shared/language_learning.py:1184
+  Unbounded self-reported points redeemable for real-money gift cards.
+  practice_xp(skill, correct, total) computes correct * 8 with no clamp of
+  correct against total, and the handler calls acct.points.earn(xp,...) directly
+  — bypassing earn_points, so no cap and no _persist().
+  Scenario: POST /language/practice {"language":"en","skill":"pronunciation",
+  "correct":1000000,"total":0} -> 10,000,000 points on a new account, then
+  POST /rewards/redeem {"prize_id":"gift_amazon_25"} -> 200, voucher issued.
+  Points are directly convertible to real-money gift cards (rewards.py:140-149).
+  DIRECT FINANCIAL LOSS.
+
+HIGH-27a services/identity/src/identity/main.py:106
+   Password-reset tokens act as full session tokens.
+   issue_reset_token (aoep_shared/password_reset.py:12) signs
+   {sub, email, purpose:"password_reset"} with the same _token_key() as session
+   tokens. The current_account deny-list only blocks "mfa_pending" and
+   "profile_share" — not "password_reset".
+   Scenario: GET /auth/me with Authorization: Bearer <reset_token> -> 200 +
+   victim's account. POST /enrollments -> 200. This still works AFTER
+   /auth/reset-password consumes the token (the single-use guard at
+   auth_security.py:339 only covers that one route). A reset link in a
+   mailbox or proxy log is a 1-hour full-account session that never needs to
+   be redeemed.
+
+HIGH-27b services/identity/src/identity/main.py:106
+   Profile-share tokens also act as full session tokens.
+   create_profile_share_grant mints {kind:"profile_share",...} (main.py:1176)
+   and never sets `purpose`, so the deny-list branch checking purpose never
+   fires. A scoped share token (scopes:["mastery"], TTL up to 86400) returns
+   200 on /auth/me, /rewards, /rewards/redeem, /rewards/spend (draining the
+   learner's points), and — critically — on POST /students/{id}/profile-share-
+   grants, so the token holder mints fresh 24h grants with any scope set,
+   making grant.revoked useless.
+
+HIGH-28 services/identity/src/identity/auth_security.py:357-364
+        services/identity/src/identity/store.py:485-489
+  POST /auth/2fa/setup disables active 2FA with no second factor required.
+  set_totp_secret() unconditionally sets totp_enabled = False.
+  /auth/2fa/disable correctly requires a valid TOTP code; /auth/2fa/setup
+  requires only a valid session (which includes a reset token per HIGH-27a).
+  Scenario: account with 2FA on -> /auth/login returns {requires_2fa:true}.
+  Attacker holding any session token sends POST /auth/2fa/setup with no body
+  -> next /auth/login returns a full session token, requires_2fa absent.
+  Verified. No test asserts the current behavior.
+
+HIGH-29 services/identity/src/identity/auth_security.py:305-309
+  The 2FA brute-force lockout never locks.
+  _mfa_fail_increment is keyed on req.mfa_token. The mfa_token payload is
+  {sub, purpose, iat, exp} with no nonce, so re-login one second later yields
+  a different token and a counter of zero. authenticate() only bumps
+  failed_logins on a bad password (store.py:358) — no account-level throttle.
+  Scenario: attacker with victim's password loops login -> 5 wrong codes ->
+  login again. Measured 24 wrong TOTP guesses with zero lockout, account still
+  logging in normally. The only ceiling is the generic per-IP limiter
+  (aoep_shared/service.py:57, 120 req/60s) keyed on the first
+  X-Forwarded-For value — client-supplied, so evaded by header rotation.
+  The intended 5-attempt control is entirely inert.
+
+MED-30  services/identity/src/identity/main.py:503-507
+        services/identity/src/identity/store.py:545
+  Supplying a phone number marks billing as validated.
+  The if req.phone.strip(): branch calls set_billing_profile() for the phone
+  field alone; that helper unconditionally sets acct.billing_validated_at =
+  time.time(). That field is the payment step gate at main.py:545-549.
+  Scenario (DEPLOY_MODE=production): POST /onboarding/profile {"phone":"555-1234"}
+  -> /auth/onboarding-status reports billing_validated:true with no card.
+  In sandbox mode: POST /onboarding/plan {"tier":"premium"} and
+  POST /membership/subscribe both return 200 and activate VIP with no card.
+  (Paid-tier activation requires PAYMENT_MODE=sandbox; the wrong
+  billing_validated flag is unconditional.)
+
+MED-31  services/identity/src/identity/main.py:597-627
+  /enrollments/{course_id}/status awards points from the client request body,
+  ignoring the orchestrator-signed token's authoritative score claim.
+  The handler validates pass_decision_token's student and course bindings
+  but then passes the REQUEST BODY's score, level, and hands_on into
+  set_status(). The signed token carries an authoritative score —
+  record_assessment_pass (main.py:778) reads it — and this handler discards it.
+  Scenario: valid pass_decision_token for course c7 with score:0.51, body
+  {"score":1.0,"level":"advanced","hands_on":true} -> stored score 1.0,
+  500 points awarded instead of ~125. Feeds CRIT-26's redemption path.
+
+LOW-32  services/identity/src/identity/vouchers.py:106
+  free_pass class restriction is opt-in on a client-supplied argument.
+  if v.kind == "free_pass" and v.class_id and class_id and ...: — when the
+  caller omits class_id, the restriction check is skipped.
+  Scenario: a free_pass scoped to algebra-101 correctly rejects class_id=
+  "chem-999" but validate("AUDITPASS", 49.0, class_id=None) returns valid,
+  final_price 0.0. Reachability is limited: the real checkout path
+  (orchestrator/main.py:1880-1883) re-validates server-side and does pass
+  class_id, so a direct call only misleads the caller. Latent gap.
+
+ADJACENT (lives in orchestrator, flagged here for visibility)
+  /vouchers/validate and /vouchers/consume are separate calls with no shared
+  state. consume() (vouchers.py:111) never re-checks is_valid() — it increments
+  uses past max_uses and past expires_at. A max_uses=1 coupon can be validated
+  by N concurrent checkouts (TOCTOU). The orchestrator consumes only after
+  payment succeeds, so this is a low-rate race window, not a trivial bypass.
+
+IDENTITY/BILLING — CHECKED, NOT DEFECTS
+  Admin/internal authorization complete: every /admin/* and /internal/* route
+  carries require_admin_account or require_internal.
+  OAuth verification sound (Google/Facebook/Apple all verify correctly; no email
+  collision merge; sandbox bypass fenced behind DEPLOY_MODE=="local").
+  Password hashing: PBKDF2-SHA256 @ 200k with hmac.compare_digest.
+  Point double-award guards correct and persisted (Enrollment.points_awarded,
+  award_grant nonce set, _submitted_game_ids).
+  /checkout enforces customer_id == acct_id.
+
+
+CHECKED, NOT DEFECTS
+  Match-threshold direction (gallery.py:123 — higher cosine = same identity).
+  YuNet row layout (engine.py:117-121 — row[-1] score, landmarks 4..13, correct
+    for the 15-column output).
+  _render_tts edge-tts temp file (speech/main.py:246-259 — finally unlinks on
+    every path including success).
+  WebcamPresenceTracker._history (bounded at 60).
+  integrations webhook idempotency set (capped at 10 000).
+  /vision/models/{name} lacking require_internal (serving weights to on-device
+    clients is the stated design).
+
+
+==========================================================================
+WEB — CORE USER FLOWS
+==========================================================================
+
+HIGH-15 apps/web/lib/api.ts:5
+  Orchestrator URL is always localhost:8000 in the browser.
+  `export const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL ?? "http://localhost:8000"`
+  is imported by the client component app/class/[room]/page.tsx:4. The variable
+  lacks the NEXT_PUBLIC_ prefix and next.config.mjs has no env block, so it is
+  never inlined into the client bundle — the fallback always wins.
+  The contrast is the tell: app/lib/api.ts:34 uses NEXT_PUBLIC_ORCHESTRATOR_URL
+  with a same-origin /orchestrator prefix for exactly this reason; lib/api.ts
+  uses the bare name.
+  Scenario: user opens /class/<anything>, clicks "Join class" -> request goes to
+  http://localhost:8000/classes/.../join, which fails (and is blocked as mixed
+  content on an https origin) -> "Could not reach the orchestrator" every time
+  in production.
+  Also: fetchJoinToken sends no Authorization header, unlike every call in
+  app/lib/api.ts.
+
+HIGH-16 apps/web/app/consent/page.tsx:38
+  The Save button on the biometrics-consent page can never persist anything.
+  recordConsent (app/lib/api.ts:3172) POSTs to ${MEMORY_URL}/consent with only
+  a content-type header. That endpoint is
+  @app.post("/consent", dependencies=[Depends(require_internal)])
+  (services/memory/src/memory/main.py:121) and require_internal demands
+  X-Internal-Token / a service JWT. On a deployed host MEMORY_URL is the
+  relative prefix /memory, which next.config.mjs rewrites server-side to
+  http://memory:8000 — a transparent proxy, so the request arrives carrying
+  exactly the headers the browser sent: none. INTERNAL_AUTH_DISABLED is set
+  nowhere under infra/, so the documented bypass is absent.
+  Scenario: user ticks "face recognition" + "recording", clicks Save -> red
+  error, consent never recorded.
+  Compounding: student_id is hardcoded to the literal "current-user" (line 39)
+  and the backend stores it verbatim, so even with auth fixed every account
+  collides on one row; and the loop at 37-45 awaits the four scopes
+  sequentially with no rollback, so a mid-loop failure persists a partial
+  consent set.
+
+HIGH-17 apps/web/app/live-room/[roomId]/page.tsx:1067,4347
+  "Share your screen" shares nothing. handleScreenShare calls getDisplayMedia,
+  stores the stream in screenShareStreamRef, sets screenSharing. That ref is
+  only ever read to stop the tracks (1069, 1215). useLiveKitRoom
+  (components/LiveKitRoomGrid.tsx:39) takes no screen-share argument and
+  contains no getDisplayMedia/publish path.
+  Scenario: an instructor clicks "Share", grants the OS picker, sees a red
+  "Sharing screen" indicator — and no participant ever receives the stream,
+  with no error to reveal it.
+
+MED-18  apps/web/app/live-room/[roomId]/page.tsx:2988,4419
+  The whiteboard is labelled shared but is client-local. whiteboardOn /
+  whiteboardStrokes (757-758) are local state with no network call anywhere;
+  the comment at 755 confirms the broadcast is an unbuilt backend addition.
+  The defect is the copy: the toggle's title reads "Open a SHARED whiteboard;
+  the student you call on can draw on it" and the student banner reads "You're
+  up! Solve on the whiteboard — EVERYONE CAN SEE YOU".
+  Scenario: instructor opens the whiteboard and calls on a student; the student
+  draws their work believing the class can see it, and no one can.
+
+MED-19  apps/web/app/live-room/[roomId]/page.tsx:1496
+  A game win renders as a red error alert. playGroupGame does
+  setError(`Correct! You earned ${res.event.points} points.`). error renders at
+  2694 with role="alert" and a red #ef4444 border. A dedicated `notice` state
+  exists for exactly this (comment at 687).
+
+MED-20  apps/web/app/admin/page.tsx:317,325,787
+  The auth token is not attached to memory-service admin calls. Operator admins
+  reach authed=true via the session path at 253-267 without ever typing a
+  secret, so `secret` stays "". adminSurveyInsights (app/lib/api.ts:3092) and
+  adminListBugReports (:3159) send only X-Admin-Secret: "" and no
+  Authorization; services/memory/src/memory/main.py:88 accepts only the header
+  secret.
+  Scenario: signed-in admin clicks "Load insights" or "Load bug reports" ->
+  always fails. Worse, the bug-report attachment link (791) fetches with the
+  same empty secret and ends in .catch(() => undefined), so clicking an
+  attachment does nothing at all — no window, no error.
+
+MED-21  apps/web/app/admin/page.tsx:285
+  A failed telemetry fetch is reported as "no errors". getServiceErrors
+  (app/lib/api.ts:3072) returns [] on any non-ok response or thrown fetch, and
+  viewErrors has no error branch. The panel then renders the green
+  "No recent errors." at 589.
+  Scenario: an admin clicks a service's error count to triage an incident; the
+  endpoint 403s or the service is unreachable, and they are told the service is
+  clean.
+
+MED-22  apps/web/app/components/ClassRoom.tsx:782
+  "Submit quiz" silently discards answers on failure. submitPopQuiz is
+  try { ... } finally { setPopQuiz(null); ... } with no catch; gradeQuizItem
+  (793) is the one call in the loop not defensively .catch()-ed.
+  onClick={submitPopQuiz} (1499) doesn't handle the rejection either.
+  Scenario: on /corporate/learn a learner answers the pop quiz and clicks
+  Submit; the grading call fails -> the quiz card vanishes, no error appears,
+  mastery/behavior are never recorded.
+  The same handler also silently dismisses via dismissPopQuiz() when studentId
+  is empty (783).
+
+MED-23  apps/web/app/group-classes/page.tsx:871
+  The Zelle "I've sent the payment" button always claims success. The fetch is
+  wrapped in catch { /* best-effort */ } and the alert("Thank you! ...We will
+  grant access within 1 hour.") fires unconditionally outside it. The body also
+  hardcodes name: '' and email: '', dropping the identity the operator needs to
+  match the payment.
+  Scenario: a learner pays via Zelle and clicks confirm; the request 403s or the
+  service is down -> they are told access is coming within the hour, and no
+  record exists.
+
+MED-24  apps/web/app/onboarding/page.tsx:98 (with :126, :309)
+  Free-plan users are dropped onto a payment form they skipped. nextFromPlan
+  jumps 1 -> 3 for the free tier, which pushes maxStep to 3 (94-96); goToStep
+  then permits step 2 because 2 <= maxStep.
+  Scenario: user picks Free, lands on "Who's learning?", clicks "Back" and gets
+  "Payment details"; "Validate & continue" posts an empty card, fails Luhn
+  server-side, and the only escape is Back again. The "3. Payment" step pill
+  also becomes clickable.
+
+
+==========================================================================
+WEB — CONTENT, BROWSE & ARCADE
+==========================================================================
+
+CRIT-33 apps/web/app/components/CourseRail.tsx:11-23
+  Course tiles route users to a flag-disabled dead page.
+  The backend assigns video catalog items deep_link = "/watch?course=<id>"
+  (aoep_shared/learnable/index.py:129-131), and Tile.open()'s own fallback is
+  also /watch?course=. But /watch is gated on the feature flag
+  engagement.watch_window, default False (flags.py:79; no override seeded
+  anywhere), so app/watch/page.tsx:117-125 renders "Watch is temporarily
+  unavailable." LocalizedNav.tsx:61 correctly hides the nav entry when the flag
+  is off — course routing was never updated to match.
+  Same dead target from browse/page.tsx:68-70 ("Open" button),
+  NavSearchBox.tsx:220-226 (global search results), and
+  corporate/page.tsx:214 (program course links).
+  Scenario: a signed-in user clicks essentially any video course on the home
+  feed and gets "Watch is temporarily unavailable."
+
+HIGH-34 apps/web/app/components/NavSearchBox.tsx:225
+  Global nav search results land on a page that ignores the query.
+  Course results without a specific format fall back to /browse?q=<title>, but
+  browse/page.tsx:29-32,54-61 initialises filters.q to "" and never reads
+  useSearchParams. Same broken hop from recommended/page.tsx:201.
+  Scenario: search "Photosynthesis", click the result, get the unfiltered full
+  catalog with an empty search box.
+
+HIGH-35 apps/web/app/arcade/ (all 33 game pages)
+  No standalone arcade game reports anything to the backend. All 33 pages under
+  app/arcade/*/page.tsx and app/arcade/challenge-ai/*/page.tsx import nothing
+  from app/lib/api — only the hub (arcade/page.tsx:6-16) calls
+  submitGame/getLeaderboard. Scores live in component state + localStorage only.
+  Scenario: a user plays Jeopardy or Kart Race, sees "Score 480", earns 0
+  reward points, never appears on the arcade leaderboard the hub page displays,
+  and loses everything on another device.
+
+MED-36  apps/web/app/my-list/page.tsx:14-35
+  Sign-in flash plus two unreachable branches. loggedIn only becomes true inside
+  getPortfolio().then(...), but if (!loggedIn) return <SignInToUse/> is
+  evaluated first. So a signed-in user sees "Sign in to use" until the fetch
+  resolves; the loading skeleton (:47-56) is dead code; and the error card
+  (:58-62) is dead code — a portfolio fetch failure silently shows "sign in"
+  instead of the error.
+
+MED-37  apps/web/app/arcade/challenge-ai/page.tsx:94-118
+  The age/difficulty selector is ignored by 5 of its games.
+  The hub appends ?age= to every card; tic-tac-toe, connect-four, number-duel,
+  ai-duel, and stock-rush never read it (tic-tac-toe hardcodes full minimax
+  "hard"; the others have no difficulty concept).
+  Scenario: a parent selects "Kids", launches Tic-Tac-Toe, child faces an
+  unbeatable perfect-play AI.
+
+MED-38  apps/web/app/arcade/solar-3d/page.tsx:45-227
+  Solar Quiz 3D has no terminal state and no persistence. Score accumulates
+  (+10/-3) indefinitely — no lives, timer, round cap, game-over screen, or
+  best-score save. Every other arcade game has a done/over phase.
+
+MED-39  apps/web/app/arcade/zoo-safari/page.tsx:23-27,60-75
+        apps/web/app/arcade/reef-quest/page.tsx:23-27,64-70
+        apps/web/app/arcade/card-match/page.tsx:78-84
+  Per-age best scores cross-contaminate. best is read once on mount from the
+  key derived from URL ?age=; switching age with in-page buttons never reloads
+  it, and game end writes Math.max(final, best) under the NEW age's key.
+  Scenario: score 12 as an adult, switch to Kids, score 3 — the Kids best is
+  written as 12.
+
+MED-40  apps/web/app/arcade/reef-quest/page.tsx:57-61
+  Reef Quest discards your best score when you run out of lives. The
+  lives-exhausted branch returns early with no localStorage.setItem; only the
+  pool-exhausted branch (:63-71) saves. Losing is the common exit path.
+
+LOW-41  apps/web/app/arcade/ai-duel/page.tsx:223-231
+  Countdown interval leaks on unmount. const iv = setInterval(...) isn't stored
+  in tickRef, so neither clearTimers() (:141) nor the unmount cleanup (:144)
+  can cancel it. Navigating away during the 3-second countdown leaves a live
+  interval calling setCountdown/startRound after unmount.
+
+LOW-42  apps/web/app/kids/learn/page.tsx:26
+  Celebration timeout has no cleanup. window.setTimeout(() => setCelebrating
+  (false), 900) with no clear on unmount.
+
+LOW-43  apps/web/app/arcade/page.tsx:86
+  Arcade leaderboard "All ages" can't be held. lbAge is force-synced to the
+  game picker's ageGroup on every change, silently overriding the user's
+  explicit "All ages" selection at :598.
+
+LOW-44  apps/web/app/arcade/pro-scenarios/page.tsx:85
+  Mislabelled stat: renders "Best streak: {best}" but best is the best total-
+  correct count, not a streak.
+
+CONTENT/ARCADE — CHECKED, NOT DEFECTS
+  i18n: zero missing keys across all scoped pages/components.
+  Navigation: every Link/router.push in scope resolves to a real route.
+  /worlds is a real 78 KB Three.js game, not a placeholder.
+  BookmarkButton persists correctly via saveForLater/unsaveForLater with cache
+    invalidation on toggle and sign-out.
+  drive, jobs, corporate, kids, corporate/learn, vision — all correctly wired.
+  No duplicate arcade engines — five geometry games and five market games are
+    genuinely distinct implementations.
+  house ad media_url cdn.example — onError fires and fallback ticker path works.
+
+
+==========================================================================
+CURRICULUM & ORCHESTRATOR
+==========================================================================
+All items below reproduced with TestClient (INTERNAL_AUTH_DISABLED=1).
+
+HIGH-45 packages/shared/src/aoep_shared/learnable/index.py:409
+  core_skill filter ignores the explicit course flag.
+  search_learnable derives core-skill status from "core_skill" in c.tags — a
+  literal tag name — but the catalog->item converter (_from_catalog_course,
+  index.py:132-154) never copies Course.core_skill, so the explicit boolean is
+  invisible to the filter.
+  Scenario: POST /courses {..."core_skill":true} -> stored correctly,
+  GET /courses/<id>/relevance returns core_skill:true. But
+  GET /courses/search?core_skill=true -> [] (empty), while core_skill=false
+  returns the item. Same defect on /learn/search. Contrast: /relevance passes
+  course.core_skill correctly — that is what makes this a bug, not design.
+
+HIGH-46 services/orchestrator/src/orchestrator/main.py:1098-1102
+  Formative checkpoints inherit required_domains=[KNOWLEDGE] and fail passing
+  students. assessment_checkpoint_start recomputes policy.required_domains
+  from the actual item domains only for SUMMATIVE. Formative keeps the
+  CheckpointPolicy class default [EvidenceDomain.KNOWLEDGE]
+  (assessment_policy.py:44-46), while _assessment_ksb_maps cycles items across
+  knowledge/skill/behaviour. evaluate_checkpoint then requires the domain set
+  to be a subset of evidenced domains (:222-230).
+  Scenario: 5 items spanning knowledge/skill/behaviour. Student answers 3
+  skill/behaviour items correctly, misses both knowledge items -> score:0.6,
+  passed:False, domains_evidenced:['behaviour','skill']. Student meets the
+  threshold and still fails. Affects the progress-mid pop quiz for corporate
+  courses that ship ksb.json.
+
+MED-47  services/orchestrator/src/orchestrator/main.py:1144
+  A malformed assessment submit destroys the run. run = app.state.assessment_
+  runs.pop(run_id, None) happens before grading. The account-mismatch branch
+  (1147-1150) puts the run back; the evaluate_checkpoint ValueError path (1163)
+  does not.
+  Scenario: start a summative course-final run with 5 items ->
+  POST .../submit {chosen_indices: <only 4 answers>} -> 422 (one answer
+  required per item); the run is gone from assessment_runs; resubmitting
+  with all 5 correct answers -> 404 unknown or already submitted assessment run.
+  No attempt is consumed but the in-progress exam run and item ordering are lost.
+
+MED-48  packages/shared/src/aoep_shared/learnable/index.py:494
+  /courses/facets advertises a different media_format vocabulary than search
+  results. Facets expose raw item.format; result items report the mapped legacy
+  value (models.py:38-48). Scenario: GET /courses/facets ->
+  media_formats:['audio','game','interactive','live_class','program','video'].
+  GET /courses/search?media_format=live_class -> 93 items, all reporting
+  media_format:"interactive". GET /courses/search?media_format=text (value 10
+  result cards actually display) -> 0 items. A UI round-tripping the
+  media_format it renders gets an empty list.
+
+MED-49  packages/shared/src/aoep_shared/learnable/index.py:471
+  /courses/search silently clamps limit to 200 with no way to detect it.
+  /learn/search echoes the corrected limit/total so a client can adapt;
+  /courses/search returns a bare list with no total or limit, so the clamp is
+  undetectable.
+  Scenario: index has 1166 items. GET /courses/search?limit=500 -> 200 items.
+  A client paginating offset=0,500,1000 receives rows 0-199, 500-699, 1000-1165
+  — 300 items silently dropped per page.
+
+MED-50  services/curriculum/src/curriculum/main.py:945-956
+  POST /courses/{id}/view is a no-op for all non-CatalogStore content.
+  bump_popularity only knows the CatalogStore; on a miss the handler confirms
+  the id exists and returns {"popularity":0} without recording anything, despite
+  the docstring "Record a view/open to feed the 'Popular now' rail."
+  Scenario: POST /courses/audio-401k.../view three times -> {"popularity":0}
+  each time; GET /learn/items/audio:401k... still reports popularity:0. Covers
+  essentially the whole 1166-item index outside CatalogStore (audio, live
+  lessons, languages, games) — the "Popular now" rail can never reflect real
+  views for that content.
+
+ADJACENT (lives in identity, surfaced here)
+  /vouchers/validate and /vouchers/consume are separate calls with no shared
+  state. consume() (vouchers.py:111) never re-checks is_valid() — increments
+  uses past max_uses and past expires_at. A max_uses=1 coupon validated by N
+  concurrent checkouts (TOCTOU). Orchestrator consumes only after payment
+  succeeds so this is a low-rate race window, not a trivial bypass.
+
+CURRICULUM/ORCHESTRATOR — CHECKED, NOT DEFECTS
+  All /homework/* routes carry require_internal (enumerated programmatically).
+  grade_submission has no other HTTP caller — only the homework CLI.
+  /admin/* in memory all carry require_admin_header.
+  /assessment/quiz item-id cache: grade never flips (answer_index = i %
+    num_options is invariant for a given i — verified by running it).
+  /courses/search ignoring delivery_mode (documented at main.py:451).
+  emergency_action re-creating its run (self-documented "stateless demo mode").
+
+
+==========================================================================
+MOBILE APP (React Native / Expo — apps/mobile)
+==========================================================================
+API base URL is correctly wired: cloudServiceUrl rejects any configured value
+containing "localhost" and falls through to CLOUD_BASE_URL (src/config.ts:76-82);
+auth token attached to every call via get() in src/api.ts:149-153; clearAuthToken
+runs on logout and on any 401.
+
+HIGH-51 src/screens/MyListScreen.tsx:31-36
+  My List never populates from anything saved on mobile. Every mobile bookmark
+  control (AudioCoursesScreen.tsx:159, DriveModeScreen.tsx:489) calls
+  toggleMyList, which is AsyncStorage-only (src/storage.ts:131-137). The only
+  enrollCourse calls pass status "enrolled" — nothing ever posts status "saved".
+  Secondary: listAudioCourses is clamped server-side at 100 of ~997 courses,
+  so even web-saved courses outside the first 100 are silently dropped.
+  Scenario: user taps the bookmark (icon turns gold), the My List tab stays on
+  the empty state forever.
+
+HIGH-52 src/screens/DriveModeScreen.tsx:148-175
+  Denying the mic makes Drive Mode courses permanently unplayable.
+  prepareHandsFree only calls playFrom() on the success path; if the mic
+  permission is denied it returns early after opening a modal whose root is a
+  full-screen touch-absorbing View (backgroundColor: "rgba(11,16,32,0.92)").
+  The sheet offers only Enable / Open settings / Guide / Back (which exits Drive
+  Mode). No way to just listen, even though playback is pure TTS and needs no mic.
+  Web deliberately degrades instead (apps/web/app/drive/page.tsx:293-300 sets
+  micDenied and continues to startCourse).
+  Scenario: user declines the microphone prompt once; every audio course opens
+  to a blocking sheet with no dismiss path.
+
+HIGH-53 App.tsx:512-515,434-457,178-204
+  Kids lesson traps navigation. kidsLessonId is the only overlay state missing
+  from mainTabsVisible, from the onTabChange reset block, and from the sign-out
+  reset block. Three manifestations:
+  (a) BottomTabs renders over KidsLessonScreen — tapping a tab sets tab without
+    clearing kidsLessonId; the render chain tests kidsLessonId before tab,
+    so the tab bar is visibly live but completely inert.
+  (b) SwipeTabContainer enabled={mainTabsVisible && ...} — horizontal swipes
+    inside a lesson "change tabs" with no visual result.
+  (c) Signing out from a kids lesson and back in drops you straight back into it.
+  Android back: useAndroidBack at line 520 returns false (tab is still "home")
+  so Android back exits the app from inside a kids lesson.
+
+HIGH-54 src/screens/WorldsScreen.tsx:77 + App.tsx:515
+  Worlds has no way out on Android. The only back control is
+  {Platform.OS === 'ios' && (...)}. The file never calls useAndroidBackTo, and
+  mainTabsVisible includes && !showWorlds so no BackHandler is subscribed at all.
+  Scenario: Android user opens Worlds, presses back during loading — app exits.
+
+MED-55  src/screens/AuthScreen.tsx:111,184
+  Password reset sends the email address as the reset token. await resetPassword(
+  resetToken || email.trim(), password) — the token TextInput is gated on
+  DEPLOY_MODE === "local", and the server only returns reset_token when its own
+  DEPLOY_MODE is local (auth_security.py:329-332). In a cloud build resetToken
+  is always empty, so the email is POSTed as the token.
+  Web always shows a required token field (forgot-password/page.tsx:66).
+  Scenario: user completes the reset form and gets "invalid or expired reset
+  link" instead of an honest "check your email".
+
+MED-56  src/screens/CorporateScreen.tsx:36
+  Corporate Training is always empty. listAudioCourses("corporate") sends
+  category=corporate. There is no "Corporate" key in catalog_i18n.py:60, so
+  list_courses returns zero rows in every locale.
+
+MED-57  src/screens/GroupClassesScreen.tsx:179,252,434
+  Group-class registration and reviews are unreachable dead code. handleReview
+  and promptRegister are defined but never called from any control (grepped all
+  src/). The card action row renders only "Start My Class" or "Join". The fully-
+  built Register modal at line 434 is unreachable. Web does wire the equivalent
+  (group-classes/page.tsx:684 onClick={() => onRate(gc)}).
+  Scenario: the screen shows "Rating 4.30 / 5 · 12 reviews" but there is no
+  way to leave one, and no way to reserve a seat.
+
+MED-58  src/screens/LessonScreen.tsx:89,135-139
+  mountedRef is permanently false in the lesson player. The effect's
+  if (!lightingReady) return guard still registers a cleanup. When lightingReady
+  flips false→true, the cleanup fires mountedRef.current = false and it is never
+  reset to true. Every guarded callback is dead: narrate()'s onDone/onStopped/
+  onError (157-159) never run; onReengage's setQuestion/setError (320-322) never
+  fire.
+  Scenario: tap Narrate, let it finish — the button still reads "Stop narration"
+  and must be tapped twice to narrate again.
+
+MED-59  src/drivingDetection.ts:199-210
+  Leaked GPS watcher in driving detection. running = true is set, then
+  await requestDrivingPermissions() yields before locSub = await Location.
+  watchPositionAsync(...). A stopDrivingDetection() during that window nulls a
+  locSub that doesn't exist yet; the resuming start installs a watcher nothing
+  will ever remove. Both races are reachable: App.tsx:233 calls void
+  stopDrivingDetection() unawaited on sign-out; App.tsx:755 fires an
+  unserialized start on every drive-mode toggle.
+  Scenario: location arrow stays on and battery drains for the rest of the
+  process lifetime with drive mode off.
+
+LOW-60  src/screens/CareersScreen.tsx:42
+  Search race — listJobs().then(r => setJobs(r.jobs)) has no cancelled flag;
+  typing "eng" then "engineer" can leave the slower "eng" results rendered under
+  the newer query. Same at LanguagesScreen.tsx:84.
+
+LOW-61  src/screens/WorldsScreen.tsx:41
+  Worlds XP/gem/quest bridge is inert. xp_earned/gem_earned/quest_done are
+  declared in the message union but the only postMessage in apps/web/app/worlds/
+  is exit_game, and nothing calls the injected window.__notifyNative. The
+  "⭐ +N XP" toast (line 114) can never appear; Worlds play never affects the
+  rewards balance.
+
+LOW-62  src/screens/NotificationsScreen.tsx:98
+  Inbox items with only a deep link do nothing. if (i.course_id) onOpenCourse(...)
+  — deep_link is ignored. streak and reminder items are built with deep_link=
+  "aiclassroom://drive" and no course_id (notifications.py:334,344), and the
+  reminder is appended unconditionally, so at least one row in every feed is a
+  no-op tap.
+
+MOBILE VERDICT
+  ~80% of web by surface area, ~65% by working feature depth. Live rooms,
+  lessons/assessments, arcade, kids lessons, and notifications are genuinely
+  complete. The gap is concentrated in "shelf" features: My List disconnected
+  from its own save button, Corporate permanently empty, group-class registration
+  never wired, Worlds bridge dead. Navigation is the weakest system — hand-rolled
+  boolean state in App.tsx with no navigator, and two of the newest screens
+  (Kids lesson, Worlds) were added without being registered in the
+  mainTabsVisible / onTabChange / sign-out reset lists.
+
+MOBILE — CHECKED, NOT DEFECTS
+  API base URL: cloudServiceUrl rejects localhost, falls to CLOUD_BASE_URL.
+  Auth token: get() merges authHeaders() into every request (api.ts:149-153).
+  clearAuthToken runs on logout and on any 401.
+  LiveRoomScreen (2485 lines): every interval cleared, refs guard double-joins,
+    LiveKit teardown correct.
+  RewardsScreen, SecurityScreen, GameScreen, ArcadeScreen, KidsScreen,
+    LiveRoomsScreen, PotionLab, HomeScreen, BugReportScreen, tts.ts,
+    notifications.ts, cameraPermission.ts, locationPermission.ts,
+    useLiveKitRoom.ts, liveRoomWs.ts — no confirmed defects.
+
+
+LOW-25  apps/web/app/components/ClassRoom.tsx:507
+  Speech recognition is never torn down on unmount. recognitionRef is set at
+  592; the only unmount cleanups are stopSpeaking() (243, TTS only) and the
+  auto-advance timeout (504). Nothing calls recognitionRef.current?.stop().
+  Compare live-room/[roomId]/page.tsx:2066, which does exactly this.
+  Scenario: learner taps "Speak now" on a repeat-after-me slide then navigates
+  away mid-utterance — the browser mic indicator stays lit and the onend/onerror
+  handlers call setError/setListening on an unmounted component.
+
+DEAD CODE (not a bug, but worth knowing)
+  apps/web/app/class/page.tsx:898-1296 is unreachable. classType is the
+  constant "solo" at line 90, so onStart always routes to /live-room/... and
+  doStart — the only caller of setView — never runs.
+
+CHECKED, NOT DEFECTS
+  /account/camera-check exists (not a dead link).
+  /xr/[sessionId] matches the /xr/${roomId} link.
+  ?tab=teach is read at group-classes/page.tsx:112.
+  clearToken not clearing aoep_admin has no effect — nothing reads
+    isAdminUnlocked.
+  Sign-in gating throughout is intended behavior.
