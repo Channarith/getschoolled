@@ -65,7 +65,8 @@ class VisionTuning:
     distance_min_metres: float = 0.30
     distance_max_metres: float = 4.0
     distance_too_close_m: float = 0.45
-    distance_too_far_m: float = 2.20
+    # Anything farther than 0.70 m is too far to take the class (attention formula).
+    distance_too_far_m: float = 0.70
 
     # --- Detection decision thresholds ---------------------------------------
     silhouette_foreground_threshold: float = 0.95
@@ -289,7 +290,7 @@ PRESETS: dict[str, dict[str, Any]] = {
         "sobel_min_edge_density": 0.055,
         "sharpness_min_quality": 0.45,
         "image_min_quality": 0.60,
-        "distance_too_far_m": 1.60,
+        "distance_too_far_m": 0.70,
         "gaze_down_min_threshold": 0.50,
         "typing_activity_min_threshold": 0.55,
         "keyboard_typing_audio_min_threshold": 0.55,
@@ -300,6 +301,6 @@ PRESETS: dict[str, dict[str, Any]] = {
     "wide_angle_laptop": {
         "distance_reference_face_ratio": 0.28,
         "distance_too_close_m": 0.30,
-        "distance_too_far_m": 1.80,
+        "distance_too_far_m": 0.70,
     },
 }

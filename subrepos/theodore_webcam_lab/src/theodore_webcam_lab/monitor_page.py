@@ -505,7 +505,8 @@ MONITOR_JS = (
     // range fails the whole POST with a 422, so every frame is clamped on the way out.
     const UNIT_SIGNAL_FIELDS = [
       'foreground_ratio', 'motion_score', 'attention', 'expression_confidence',
-      'gaze_frontal', 'gaze_down_score', 'eyes_closed_score', 'yawn_score',
+      'gaze_frontal', 'gaze_down_score', 'gaze_up_score', 'gaze_left_score', 'gaze_right_score',
+      'eyes_closed_score', 'yawn_score',
       'hands_on_face_score', 'body_motion_score', 'fidget_score', 'brow_raise_score',
       'smile_score', 'screen_focus_score', 'typing_activity_score',
       'keyboard_typing_audio_score', 'face_size_ratio', 'light_quality_score',
@@ -848,8 +849,30 @@ MONITOR_JS = (
           ? 'Original learner not in frame — lesson paused.'
           : (data.pause_reason === 'owner_face_mismatch'
             ? 'Camera owner mismatch — another person may have substituted. Lesson paused.'
-            : 'Away from webcam — lesson paused. Please return to the camera.');
+            : (data.pause_reason === 'camera_quality'
+              ? 'Camera quality is too poor to continue — improve lighting/focus, or remove this webcam.'
+              : (data.pause_reason === 'pitch_dark_needs_light'
+                ? 'It is too dark. Trying auto-brightness — please turn on a light before continuing.'
+                : (data.pause_reason === 'too_far_from_camera'
+                  ? 'You are too far from the camera. Please move closer to continue the class.'
+                  : (data.pause_reason === 'attention_integrity'
+                    ? 'Looking away from the lesson — please look at the screen to continue.'
+                    : 'Away from webcam — lesson paused. Please return to the camera.')))));
         banner.textContent = '⏸ ' + why;
+        if (data.pause_reason === 'pitch_dark_needs_light') {
+          void tryAutoLighting();
+          maybeAnnounceIntegrity('dark',
+            'It is too dark to continue. I tried brightening the camera — please turn on a light.');
+        } else if (data.pause_reason === 'too_far_from_camera') {
+          maybeAnnounceIntegrity('far',
+            'You are too far from the camera to take this class. Please move closer.');
+        } else if (data.pause_reason === 'camera_quality') {
+          maybeAnnounceIntegrity('quality',
+            'Camera quality is too poor to continue. Improve the lighting or focus, or switch cameras.');
+        } else if (data.pause_reason === 'attention_integrity') {
+          maybeAnnounceIntegrity('away',
+            'Please look at the lesson on screen. Looking away counts as not paying attention.');
+        }
       } else {
         banner.style.display = 'none';
       }
@@ -1508,6 +1531,38 @@ MONITOR_JS = (
     const patternCanvas = document.getElementById('pattern-canvas');
     const camFrame = document.querySelector('.cam-frame');
     let camStream = null, camTimer = null, patternPhase = 0;
+    let lastAutoLightAt = 0;
+    async function tryAutoLighting() {
+      // Best-effort continuous exposure / brightness when the room is pitch dark.
+      if (!camStream) return;
+      const now = Date.now();
+      if (now - lastAutoLightAt < 8000) return;
+      lastAutoLightAt = now;
+      const track = camStream.getVideoTracks()[0];
+      if (!track || !track.getCapabilities || !track.applyConstraints) return;
+      let caps = {};
+      try { caps = track.getCapabilities() || {}; } catch (_) { return; }
+      const advanced = {};
+      if (caps.exposureMode && caps.exposureMode.includes && caps.exposureMode.includes('continuous')) {
+        advanced.exposureMode = 'continuous';
+      }
+      if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes && caps.whiteBalanceMode.includes('continuous')) {
+        advanced.whiteBalanceMode = 'continuous';
+      }
+      if (caps.exposureCompensation && typeof caps.exposureCompensation.max === 'number' && caps.exposureCompensation.max > 0) {
+        advanced.exposureCompensation = Math.min(caps.exposureCompensation.max, 0.7);
+      }
+      if (caps.brightness && typeof caps.brightness.min === 'number' && typeof caps.brightness.max === 'number') {
+        advanced.brightness = (caps.brightness.min + caps.brightness.max) / 2 + (caps.brightness.max - caps.brightness.min) * 0.15;
+      }
+      if (!Object.keys(advanced).length) return;
+      try {
+        await track.applyConstraints({ advanced: [advanced] });
+        toast('Tried auto-brighten the camera — please also turn on a room light.');
+      } catch (_) {
+        try { await track.applyConstraints(advanced); } catch (__) {}
+      }
+    }
     let usingPattern = false, usingSilhouette = false, lastSilhouetteDetected = false;
     let silhouetteGuideOn = true;
     let audioCtx = null, audioAnalyser = null, audioSource = null, audioData = null;
@@ -4414,6 +4469,13 @@ MONITOR_JS = (
             expression_confidence: facial.expression_confidence,
             gaze_frontal: facial.gaze_frontal,
             gaze_down_score: facial.gaze_down_score,
+            gaze_up_score: (stareResidualDeg != null && stareResidualDeg < -6)
+              ? clamp01((-stareResidualDeg - 6) / 30) : null,
+            gaze_left_score: (facial.head_pose_yaw != null && facial.head_pose_yaw < -10)
+              ? clamp01((-facial.head_pose_yaw - 10) / 30) : null,
+            gaze_right_score: (facial.head_pose_yaw != null && facial.head_pose_yaw > 10)
+              ? clamp01((facial.head_pose_yaw - 10) / 30) : null,
+            stare_residual_deg: num(stareResidualDeg),
             // null (not 0) when no real detector measured it, so the server can
             // tell "measured as open" apart from "nobody looked".
             eyes_closed_score: num(facial.eyes_closed_score),
