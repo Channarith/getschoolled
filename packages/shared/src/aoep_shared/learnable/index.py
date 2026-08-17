@@ -426,7 +426,12 @@ def search_learnable(
             return False
         if not _matches_eq(c.source, source):
             return False
-        if format and not _matches_eq(c.format, format):
+        # Accept both the raw format and the mapped legacy vocabulary the
+        # result cards display (catalog_media_format) — a UI round-tripping
+        # the badge it renders ("interactive", "text") used to get zero rows.
+        if format and not (
+            _matches_eq(c.format, format) or _matches_eq(c.catalog_media_format(), format)
+        ):
             return False
         if not _matches_eq(c.level, level):
             return False

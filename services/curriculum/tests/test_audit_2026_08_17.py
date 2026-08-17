@@ -48,6 +48,17 @@ def test_search_echoes_applied_limit_and_total():
     assert total >= len(r.json())
 
 
+# MED-48 ------------------------------------------------------------------- #
+
+def test_search_accepts_the_displayed_media_format_vocabulary():
+    # Result cards report the mapped legacy format ("interactive" for
+    # live_class/game); filtering by the displayed value must not return 0.
+    facets = client.get("/courses/facets").json()
+    assert "live_class" in facets["media_formats"]  # raw filter vocabulary
+    mapped = client.get("/courses/search", params={"media_format": "interactive"}).json()
+    assert len(mapped) > 0, "filtering by the card-displayed format returned nothing"
+
+
 # MED-50 ------------------------------------------------------------------- #
 
 def test_view_recording_for_audio_course_feeds_popularity():
