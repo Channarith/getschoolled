@@ -209,37 +209,43 @@ def test_consent_rejects_foreign_student(monkeypatch):
 # Voucher TOCTOU + LOW-32 ---------------------------------------------------- #
 
 def test_voucher_consume_rechecks_validity():
+    import uuid as _uuid
+
     import identity.main as identity_main
 
     store = identity_main._voucher_store()
-    store.create(code="AUDIT-TOCTOU", kind="coupon", value=10.0, max_uses=1)
-    store.consume("AUDIT-TOCTOU")  # first and only use
+    code = f"AUDIT-TOCTOU-{_uuid.uuid4().hex[:8]}"
+    store.create(code=code, kind="coupon", value=10.0, max_uses=1)
+    store.consume(code)  # first and only use
     try:
-        store.consume("AUDIT-TOCTOU")
+        store.consume(code)
         raise AssertionError("second consume past max_uses succeeded")
     except ValueError:
         pass
 
 
 def test_class_scoped_free_pass_requires_the_class():
+    import uuid as _uuid
+
     import identity.main as identity_main
 
     store = identity_main._voucher_store()
-    store.create(code="AUDIT-PASS", kind="free_pass", value=0.0, max_uses=5,
+    code = f"AUDIT-PASS-{_uuid.uuid4().hex[:8]}"
+    store.create(code=code, kind="free_pass", value=0.0, max_uses=5,
                  class_id="algebra-101")
     # Omitting class_id must not bypass the restriction.
     try:
-        store.validate("AUDIT-PASS", 49.0)
+        store.validate(code, 49.0)
         raise AssertionError("class-scoped free pass validated without class_id")
     except ValueError:
         pass
     # Wrong class rejected, right class works.
     try:
-        store.validate("AUDIT-PASS", 49.0, class_id="chem-999")
+        store.validate(code, 49.0, class_id="chem-999")
         raise AssertionError("class-scoped free pass validated for another class")
     except ValueError:
         pass
-    v, final, _ = store.validate("AUDIT-PASS", 49.0, class_id="algebra-101")
+    v, final, _ = store.validate(code, 49.0, class_id="algebra-101")
     assert final == 0.0
 
 
