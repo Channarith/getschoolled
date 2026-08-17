@@ -58,8 +58,12 @@ def _shared_key() -> Optional[bytes]:
 
 def _static_token() -> Optional[str]:
     """A simple shared-secret token, for local development only. Falls
-    back to None in production (use the signed-token path instead)."""
-    tok = _env("INTERNAL_TOKEN")
+    back to None in production (use the signed-token path instead).
+
+    ``INTERNAL_SERVICE_TOKEN`` is accepted as a legacy alias used by older
+    cluster configs / payment webhooks.
+    """
+    tok = _env("INTERNAL_TOKEN") or _env("INTERNAL_SERVICE_TOKEN")
     return tok or None
 
 

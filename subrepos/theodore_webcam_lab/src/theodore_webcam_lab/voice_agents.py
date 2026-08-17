@@ -10,6 +10,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
+from .voice_tuning import VoiceTuning
 from .types import (
     AudioAnswerAssessment,
     ClassMode,
@@ -19,6 +20,7 @@ from .types import (
 )
 
 SUPPORTED_LANGUAGES: list[SupportedLanguage] = [
+    # — European —
     SupportedLanguage(code="en", name="English"),
     SupportedLanguage(code="es", name="Spanish"),
     SupportedLanguage(code="fr", name="French"),
@@ -39,14 +41,65 @@ SUPPORTED_LANGUAGES: list[SupportedLanguage] = [
     SupportedLanguage(code="tr", name="Turkish"),
     SupportedLanguage(code="ru", name="Russian"),
     SupportedLanguage(code="uk", name="Ukrainian"),
+    SupportedLanguage(code="bg", name="Bulgarian"),
+    SupportedLanguage(code="hr", name="Croatian"),
+    SupportedLanguage(code="sr", name="Serbian"),
+    SupportedLanguage(code="ca", name="Catalan"),
+    SupportedLanguage(code="lt", name="Lithuanian"),
+    SupportedLanguage(code="lv", name="Latvian"),
+    SupportedLanguage(code="et", name="Estonian"),
+    SupportedLanguage(code="sl", name="Slovenian"),
+    # — Middle East & Central Asia —
     SupportedLanguage(code="ar", name="Arabic"),
     SupportedLanguage(code="he", name="Hebrew"),
+    SupportedLanguage(code="fa", name="Persian (Farsi)"),
+    SupportedLanguage(code="ur", name="Urdu"),
+    SupportedLanguage(code="az", name="Azerbaijani"),
+    # — South Asia —
     SupportedLanguage(code="hi", name="Hindi"),
+    SupportedLanguage(code="bn", name="Bengali"),
+    SupportedLanguage(code="ta", name="Tamil"),
+    SupportedLanguage(code="te", name="Telugu"),
+    SupportedLanguage(code="mr", name="Marathi"),
+    SupportedLanguage(code="gu", name="Gujarati"),
+    SupportedLanguage(code="pa", name="Punjabi"),
+    SupportedLanguage(code="si", name="Sinhala"),
+    SupportedLanguage(code="ne", name="Nepali"),
+    # — East Asia —
+    SupportedLanguage(code="zh-CN", name="Chinese (Simplified)"),
+    SupportedLanguage(code="zh-TW", name="Chinese (Traditional)"),
+    SupportedLanguage(code="ja", name="Japanese"),
+    SupportedLanguage(code="ko", name="Korean"),
+    SupportedLanguage(code="mn", name="Mongolian"),
+    # — Southeast Asia —
     SupportedLanguage(code="id", name="Indonesian"),
+    SupportedLanguage(code="ms", name="Malay"),
     SupportedLanguage(code="vi", name="Vietnamese"),
     SupportedLanguage(code="th", name="Thai"),
+    SupportedLanguage(code="km", name="Khmer (Cambodian)"),
+    SupportedLanguage(code="lo", name="Lao"),
+    SupportedLanguage(code="my", name="Burmese (Myanmar)"),
+    SupportedLanguage(code="tl", name="Filipino (Tagalog)"),
+    # — Africa —
+    SupportedLanguage(code="sw", name="Swahili"),
+    SupportedLanguage(code="am", name="Amharic"),
+    SupportedLanguage(code="ha", name="Hausa"),
+    SupportedLanguage(code="yo", name="Yoruba"),
+    SupportedLanguage(code="ig", name="Igbo"),
+    SupportedLanguage(code="zu", name="Zulu"),
+    SupportedLanguage(code="af", name="Afrikaans"),
 ]
-_LANG_BY_CODE = {item.code: item for item in SUPPORTED_LANGUAGES}
+# Keys are always lowercased so lookup is case-insensitive.
+# Codes with hyphens (zh-CN, zh-TW) survive: stored as "zh-cn"/"zh-tw" as keys
+# while item.code retains the canonical capitalisation for API/SpeechSynthesis.
+_LANG_BY_CODE = {item.code.lower(): item for item in SUPPORTED_LANGUAGES}
+
+# "grok-4" is a retired alias: xAI's May 2026 retirement redirects the grok-4-0709
+# family to grok-4.3 and bills at 4.3 rates, so relying on it means depending on a
+# redirect that can be withdrawn. Name the canonical model instead. grok-4.3 and
+# not the newer grok-4.5 because 4.5 is withheld from EU API Console accounts and
+# a default has to work everywhere; override with XAI_MODEL / XAI_FAST_MODEL.
+XAI_DEFAULT_MODEL = "grok-4.3"
 
 
 class XaiVoiceAgentError(RuntimeError):
@@ -70,15 +123,17 @@ class XaiVoiceAgent:
         *,
         api_key: str = "",
         base_url: str = "https://api.x.ai/v1",
-        model: str = "grok-4",
-        fast_model: str = "grok-4",
+        model: str = XAI_DEFAULT_MODEL,
+        fast_model: str = XAI_DEFAULT_MODEL,
         timeout_s: float = 25.0,
         fast_timeout_s: float = 6.0,
         cache_ttl_s: float = 20.0,
         max_history_turns: int = 4,
         max_cache_entries: int = 512,
         max_tracked_sessions: int = 512,
+        tuning: VoiceTuning | None = None,
     ) -> None:
+        self._tuning = tuning or VoiceTuning()
         self._api_key = (api_key or "").strip()
         self._base_url = base_url.rstrip("/")
         self._model = model
@@ -97,15 +152,42 @@ class XaiVoiceAgent:
         return cls(
             api_key=os.environ.get("XAI_API_KEY", ""),
             base_url=os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1"),
-            model=os.environ.get("XAI_MODEL", "grok-4"),
-            fast_model=os.environ.get("XAI_FAST_MODEL", os.environ.get("XAI_MODEL", "grok-4")),
+            model=os.environ.get("XAI_MODEL", "").strip() or XAI_DEFAULT_MODEL,
+            fast_model=(
+                os.environ.get("XAI_FAST_MODEL", "").strip()
+                or os.environ.get("XAI_MODEL", "").strip()
+                or XAI_DEFAULT_MODEL
+            ),
             timeout_s=float(os.environ.get("XAI_TIMEOUT_S", "25")),
             fast_timeout_s=float(os.environ.get("XAI_FAST_TIMEOUT_S", "6")),
             cache_ttl_s=float(os.environ.get("XAI_CACHE_TTL_S", "20")),
             max_history_turns=int(os.environ.get("XAI_MAX_HISTORY_TURNS", "4")),
             max_cache_entries=int(os.environ.get("XAI_MAX_CACHE_ENTRIES", "512")),
             max_tracked_sessions=int(os.environ.get("XAI_MAX_TRACKED_SESSIONS", "512")),
+            tuning=VoiceTuning.from_env(),
         )
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    @property
+    def fast_model(self) -> str:
+        return self._fast_model
+
+    @property
+    def tuning(self) -> VoiceTuning:
+        return self._tuning
+
+    @tuning.setter
+    def tuning(self, value: VoiceTuning) -> None:
+        self._tuning = value
+        # Timing knobs are read through the tuning object so a live PATCH applies
+        # to the very next turn instead of only to newly constructed agents.
+        self._fast_timeout_s = value.fast_timeout_s
+        self._timeout_s = value.full_timeout_s
+        self._cache_ttl_ms = int(max(1.0, value.cache_ttl_s) * 1000)
+        self._max_history_turns = max(1, value.max_history_turns)
 
     @staticmethod
     def supported_languages() -> list[SupportedLanguage]:
@@ -168,11 +250,16 @@ class XaiVoiceAgent:
             self._remember_turn(session_key, learner_text, response.message)
             return response
 
+        tuning = self._tuning
         payload = {
             "model": self._fast_model if fast_mode else self._model,
             "messages": prompt,
-            "temperature": 0.45 if fast_mode else 0.55,
-            "max_tokens": 140 if fast_mode else 240,
+            "temperature": (
+                tuning.reply_temperature_fast if fast_mode else tuning.reply_temperature_full
+            ),
+            "max_tokens": (
+                tuning.reply_max_tokens_fast if fast_mode else tuning.reply_max_tokens_full
+            ),
             "stream": False,
         }
         try:
@@ -228,8 +315,8 @@ class XaiVoiceAgent:
             payload = {
                 "model": self._model,
                 "messages": prompt,
-                "temperature": 0.6,
-                "max_tokens": 280,
+                "temperature": self._tuning.question_temperature,
+                "max_tokens": self._tuning.question_max_tokens,
                 "stream": False,
                 "response_format": {"type": "json_object"},
             }
@@ -443,6 +530,190 @@ class XaiVoiceAgent:
         while len(self._response_cache) > self._max_cache_entries:
             self._response_cache.pop(next(iter(self._response_cache)), None)
 
+    def absorb_audio_answer(
+        self,
+        *,
+        class_mode: ClassMode,
+        language_code: str,
+        question: str,
+        audio_transcript: str,
+        expected_answer: str = "",
+        context: str = "",
+    ) -> AudioAnswerAssessment:
+        started_ms = self._now_ms()
+        language = self._resolve_language(language_code)
+        transcript = (audio_transcript or "").strip()
+        if not transcript:
+            return AudioAnswerAssessment(
+                provider="local-fallback",
+                language_code=language.code,
+                language_name=language.name,
+                absorbed_transcript="",
+                understood=False,
+                understanding_confidence=0.0,
+                correctness_score=0.0,
+                feedback_message="I could not hear your answer clearly. Please repeat.",
+                follow_up_question=question,
+                fallback_used=True,
+                latency_ms=self._elapsed_ms(started_ms),
+            )
+
+        prompt = self._build_audio_assessment_prompt(
+            class_mode=class_mode,
+            language=language,
+            question=question,
+            transcript=transcript,
+            expected_answer=expected_answer,
+            context=context,
+        )
+        if self._api_key:
+            payload = {
+                "model": self._model,
+                "messages": prompt,
+                "temperature": self._tuning.assessment_temperature,
+                "max_tokens": self._tuning.assessment_max_tokens,
+                "stream": False,
+                "response_format": {"type": "json_object"},
+            }
+            try:
+                body = self._transport(payload, timeout_s=self._fast_timeout_s)
+                parsed = self._extract_json_message(body)
+                if parsed:
+                    understood = bool(parsed.get("understood", True))
+                    u_conf = self._clamp01(parsed.get("understanding_confidence", 0.7))
+                    score = self._clamp01(parsed.get("correctness_score", 0.6))
+                    feedback = (
+                        str(parsed.get("feedback_message", "")).strip()
+                        or "Good effort. Let's refine your answer."
+                    )
+                    follow_up = (
+                        str(parsed.get("follow_up_question", "")).strip()
+                        or "Can you add one more key detail?"
+                    )
+                    return AudioAnswerAssessment(
+                        provider="xai",
+                        language_code=language.code,
+                        language_name=language.name,
+                        absorbed_transcript=transcript,
+                        understood=understood,
+                        understanding_confidence=u_conf,
+                        correctness_score=score,
+                        feedback_message=feedback,
+                        follow_up_question=follow_up,
+                        fallback_used=False,
+                        latency_ms=self._elapsed_ms(started_ms),
+                    )
+            except XaiVoiceAgentError:
+                pass
+        return self._fallback_audio_assessment(
+            language_code=language.code,
+            language_name=language.name,
+            question=question,
+            transcript=transcript,
+            expected_answer=expected_answer,
+            latency_ms=self._elapsed_ms(started_ms),
+        )
+
+    @staticmethod
+    def _now_ms() -> int:
+        return int(time.perf_counter() * 1000)
+
+    def _elapsed_ms(self, started_ms: int) -> int:
+        return max(0, self._now_ms() - started_ms)
+
+    @staticmethod
+    def _normalize_text(value: str) -> str:
+        return (value or "").strip()
+
+    def _history_for_session(self, session_id: str) -> list[dict[str, str]]:
+        if not session_id:
+            return []
+        rows = self._session_history.get(session_id, [])
+        if not rows:
+            return []
+        max_messages = self._max_history_turns * 2
+        return list(rows[-max_messages:])
+
+    def _remember_turn(
+        self, session_id: str, learner_message: str, assistant_message: str
+    ) -> None:
+        if not session_id:
+            return
+        if not learner_message or not assistant_message:
+            return
+        bucket = self._session_history.setdefault(session_id, [])
+        bucket.append({"role": "user", "content": learner_message})
+        bucket.append({"role": "assistant", "content": assistant_message})
+        max_messages = self._max_history_turns * 2
+        if len(bucket) > max_messages:
+            bucket = bucket[-max_messages:]
+        # Re-insert so this session counts as most-recently used for eviction.
+        self._session_history.pop(session_id, None)
+        self._session_history[session_id] = bucket
+        while len(self._session_history) > self._max_tracked_sessions:
+            self._session_history.pop(next(iter(self._session_history)), None)
+
+    @staticmethod
+    def _build_cache_key(
+        *,
+        session_id: str,
+        learner_text: str,
+        class_mode: ClassMode,
+        language: str,
+        context: str,
+        fast_mode: bool,
+    ) -> str:
+        """Key a reply by session + request content.
+
+        Deliberately excludes the running history: every recorded turn would change
+        the key, so a duplicate submit inside a live session could never be deduped
+        (and real sessions always carry a session_id). Within the short TTL an
+        identical turn is treated as a repeat of the same request.
+        """
+        payload = {
+            # Scoped per session so one learner never receives another learner's reply.
+            "session_id": session_id,
+            "learner_text": learner_text,
+            "class_mode": class_mode.value,
+            "language": language,
+            "context": context,
+            "fast_mode": fast_mode,
+        }
+        return hashlib.sha256(
+            json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")
+        ).hexdigest()
+
+    def _get_cached(self, key: str, *, now_ms: int) -> _CachedResponse | None:
+        row = self._response_cache.get(key)
+        if row is None:
+            return None
+        if now_ms - row.created_ms > self._cache_ttl_ms:
+            self._response_cache.pop(key, None)
+            return None
+        return row
+
+    def _set_cached(self, key: str, response: VoiceResponse, *, now_ms: int) -> None:
+        self._response_cache[key] = _CachedResponse(
+            provider=response.provider,
+            message=response.message,
+            fallback_used=response.fallback_used,
+            communication_style=response.communication_style,
+            created_ms=now_ms,
+        )
+        self._prune_cache(now_ms=now_ms)
+
+    def _prune_cache(self, *, now_ms: int) -> None:
+        """Drop expired entries eagerly, then cap the cache so it cannot grow forever."""
+        expired = [
+            key
+            for key, row in self._response_cache.items()
+            if now_ms - row.created_ms > self._cache_ttl_ms
+        ]
+        for key in expired:
+            self._response_cache.pop(key, None)
+        while len(self._response_cache) > self._max_cache_entries:
+            self._response_cache.pop(next(iter(self._response_cache)), None)
+
     def _build_prompt(
         self,
         *,
@@ -456,7 +727,8 @@ class XaiVoiceAgent:
             "You are Theodore, an educational AI teacher. Reply in clear, warm "
             "speech-ready language that sounds natural when spoken aloud. "
             f"Always reply in {language.name} (code: {language.code}). "
-            "Keep feedback actionable and concise in 1-2 short sentences unless asked for more."
+            "Keep feedback actionable and concise in at most "
+            f"{self._tuning.reply_max_sentences} short sentence(s) unless asked for more."
         )
         mode_text = "group class" if class_mode is ClassMode.GROUP else "solo session"
         user_parts = [

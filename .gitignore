@@ -99,6 +99,9 @@ coverage/
 /CLAUDE.md
 .gstack/
 
+# ---- Music lab machine-translation cache (regenerates itself) ----
+subrepos/theodore_music_lab/data/i18n_cache/
+
 # ---- Playwright E2E artifacts ----
 apps/web/e2e/.auth/
 apps/web/playwright-report/

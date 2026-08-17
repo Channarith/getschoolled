@@ -1,0 +1,15 @@
+data/reviews/
+data/training_runs/
+data/courses/
+data/corpus/
+data/knowledge/
+data/models/
+data/offline_training/
+data/teach_checkpoints/
+!data/corpus/.gitkeep
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+.DS_Store

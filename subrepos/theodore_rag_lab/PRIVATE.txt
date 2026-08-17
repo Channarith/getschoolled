@@ -1,0 +1,4 @@
+PRIVATE INTERNAL LAB — NOT FOR PUBLIC DISTRIBUTION
+==================================================
+theodore_rag_lab: RAG knowledge-base auto-tune / hours-a-day training.
+Promote proven knobs into aoep_shared.rag + knowledge_store + orchestrator.

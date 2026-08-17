@@ -53,6 +53,17 @@ import { buildNarrationSpeakOptions } from "../../lib/narrationTts";
 import { speakNaturally, cancelSpeech } from "../../lib/tts";
 import { resumeSharedAudioContext, unlockWebAudio } from "../../lib/webAudioUnlock";
 import { createVisionEngine, type VisionEngine } from "../../lib/vision";
+import CameraLightingScreener from "../../components/CameraLightingScreener";
+import CameraQualityGateOverlay from "../../components/CameraQualityGateOverlay";
+import {
+  DEFAULT_LIGHTING_THRESHOLDS,
+  analyzeLuminanceGrid,
+  luminanceGridFromImageData,
+  tickSustainedQuality,
+  verdictFromMetrics,
+  type LightingVerdict,
+  type SustainedQualityState,
+} from "../../lib/cameraLighting";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 // Design A "calm studio" primary CTA color — a warm gold used for the key
@@ -291,6 +302,7 @@ function ParticipantTile({
   fill,
   showAdminProfile,
   presenceFaceCount,
+  aiHost = true,
 }: {
   p: LiveParticipant;
   large?: boolean;
@@ -316,6 +328,8 @@ function ParticipantTile({
   showAdminProfile?: boolean;
   /** Face count from on-device presence probe; -1 = not probed, 0 = absent, >0 = present. Only set for isMe tile. */
   presenceFaceCount?: number;
+  /** False when a person teaches this class, so the host tile must never show Theodore. */
+  aiHost?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -432,10 +446,14 @@ function ParticipantTile({
                   boxShadow: "0 14px 34px rgba(0,0,0,0.38)",
                 }}
               >
-                🎓
+                {aiHost ? "🎓" : (p.name || "?").trim().charAt(0).toUpperCase()}
               </div>
-              <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>Theodore</div>
-              <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 12 }}>AI teacher</div>
+              <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>
+                {aiHost ? "Theodore" : p.name}
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 12 }}>
+                {aiHost ? "AI teacher" : "Instructor · camera off"}
+              </div>
             </div>
           ) : null}
           <div
@@ -699,6 +717,16 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [cameraOn, setCameraOn] = useState(true);
   const [cameraNote, setCameraNote] = useState("");
   const [insecureOrigin, setInsecureOrigin] = useState(false);
+  // Pre-class gate: dark/blurry rooms cannot enter solo or group live class.
+  const [lightingReady, setLightingReady] = useState(false);
+  const [qualityVerdict, setQualityVerdict] = useState<LightingVerdict | null>(null);
+  const [qualitySecondsLeft, setQualitySecondsLeft] = useState<number | null>(null);
+  const qualityStateRef = useRef<SustainedQualityState>({
+    badSinceMs: null,
+    countdownStartedMs: null,
+    lastVerdict: null,
+  });
+  const qualityDisconnectedRef = useRef(false);
   const [moderatorKey, setModeratorKey] = useState("");
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   // Can this viewer moderate the room? The room's first-joiner admin (has the
@@ -1262,6 +1290,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // fallback.
   const autoJoinedRef = useRef(false);
   useEffect(() => {
+    if (!lightingReady) return;
     if (autoJoinedRef.current || joinInfo || !getToken()) return;
     autoJoinedRef.current = true;
     void getMe()
@@ -1280,7 +1309,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         autoJoinedRef.current = false; // not signed in / error -> show the prompt
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, joinInfo]);
+  }, [roomId, joinInfo, lightingReady]);
 
   async function enableLiveKitAv() {
     unlockWebAudio();
@@ -1306,6 +1335,79 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       go();
     }
   }, [joinInfo, roomId, localStream]);
+
+  // Mid-class lighting/blur gate: recognition needs a usable frame. Sustained
+  // dark or blurry video shows a friendly fix message, then a 10s disconnect.
+  useEffect(() => {
+    if (!lightingReady || !cameraOn || !localStream || qualityDisconnectedRef.current) {
+      qualityStateRef.current = {
+        badSinceMs: null,
+        countdownStartedMs: null,
+        lastVerdict: null,
+      };
+      setQualityVerdict(null);
+      setQualitySecondsLeft(null);
+      return;
+    }
+    let cancelled = false;
+    const canvas = document.createElement("canvas");
+    const tick = () => {
+      if (cancelled || qualityDisconnectedRef.current) return;
+      const source = presenceProbeVideoRef.current;
+      if (!source || source.readyState < 2 || !source.videoWidth) return;
+      const w = 64;
+      const h = 36;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+      try {
+        ctx.drawImage(source, 0, 0, w, h);
+        const { data } = ctx.getImageData(0, 0, w, h);
+        const grid = luminanceGridFromImageData(data, w, h, w, h);
+        const metrics = analyzeLuminanceGrid(grid, DEFAULT_LIGHTING_THRESHOLDS);
+        const mid = grid.slice(8, 28).flatMap((row) => row.slice(16, 48));
+        const mean = mid.reduce((a, b) => a + b, 0) / Math.max(1, mid.length);
+        const varSum =
+          mid.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, mid.length);
+        const facePresent = varSum > 0.004 && mean > 0.08 && mean < 0.92;
+        const readiness = verdictFromMetrics(metrics, {
+          facePresent,
+          nightVision: false,
+          thresholds: DEFAULT_LIGHTING_THRESHOLDS,
+        });
+        const next = tickSustainedQuality(
+          qualityStateRef.current,
+          readiness,
+          Date.now(),
+        );
+        qualityStateRef.current = {
+          badSinceMs: next.badSinceMs,
+          countdownStartedMs: next.countdownStartedMs,
+          lastVerdict: next.lastVerdict,
+        };
+        if (next.countdownStartedMs != null) {
+          setQualityVerdict(next.lastVerdict);
+          setQualitySecondsLeft(next.secondsLeft);
+          if (next.shouldDisconnect) {
+            qualityDisconnectedRef.current = true;
+            excuseFromClass();
+          }
+        } else {
+          setQualityVerdict(null);
+          setQualitySecondsLeft(null);
+        }
+      } catch {
+        /* sample failures are non-fatal; next tick retries */
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [cameraOn, excuseFromClass, lightingReady, localStream]);
 
   async function handleLeave() {
     if (!me) return;
@@ -1424,11 +1526,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         setAskThread((prev) =>
           prev.map((e) =>
             e.id === entryId
-              ? { ...e, done: true, queued: true, answer: e.answer || "Theodore will call on you in turn." }
+              ? { ...e, done: true, queued: true, answer: e.answer || `${hostLabel} will call on you in turn.` }
               : e,
           ),
         );
-        setNotice(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. Theodore will call on you in turn.`);
+        setNotice(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. ${hostLabel} will call on you in turn.`);
       } else {
         const finalText = res.text || res.host_message?.text || "";
         // Record the mirrored chat copies BEFORE applying the room so Theodore's
@@ -1447,7 +1549,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       setError(friendlyError(e, "Question failed"));
       setAskThread((prev) =>
         prev.map((e) =>
-          e.id === entryId ? { ...e, done: true, answer: e.answer || "Couldn't reach Theodore — try again." } : e,
+          e.id === entryId ? { ...e, done: true, answer: e.answer || `Couldn't reach ${hostLabel} — try again.` } : e,
         ),
       );
     } finally {
@@ -1701,7 +1803,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         setRoom(await liveRoomFinishTurn(roomId, pid, moderatorKey));
       }
     } catch (e) {
-      setError(friendlyError(e, "Couldn't send your question to Theodore"));
+      setError(friendlyError(e, `Couldn't send your question to ${hostLabel}`));
     } finally {
       setBusy(false);
     }
@@ -2093,9 +2195,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       <main className="container" style={{ maxWidth: 480 }}>
         <h1>Salareen Live Room</h1>
         <p className="muted">
-          {isSoloLiveRoom(roomId, room)
+          {room?.human_taught && isSoloLiveRoom(roomId, room)
+            ? `Your private 1:1 session with ${room?.human_host_name || "your instructor"}. It starts when your instructor begins the class.`
+            : isSoloLiveRoom(roomId, room)
             ? "Your private 1:1 session with Theodore. The class starts automatically once you enter."
-            : `Join Theodore's multi-user class — up to ${room?.room_size ?? 6} seats in the grid.`}
+            : room?.human_taught
+              ? `Join ${room?.human_host_name || "your instructor"}'s live class — up to ${room?.room_size ?? 6} seats in the grid.`
+              : `Join Theodore's multi-user class — up to ${room?.room_size ?? 6} seats in the grid.`}
         </p>
         {room && (
           <div className="card" style={{ marginBottom: 12 }}>
@@ -2105,7 +2211,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 {room.learner_count}/{room.learner_capacity} learners · {room.seats_left} seats left
               </div>
             ) : (
-              <div className="muted">Just you and Theodore — camera and mic ready when you join.</div>
+              <div className="muted">
+                {room?.human_taught
+                  ? `Just you and ${room?.human_host_name || "your instructor"} — camera and mic ready when you join.`
+                  : "Just you and Theodore — camera and mic ready when you join."}
+              </div>
             )}
           </div>
         )}
@@ -2149,6 +2259,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // moderator/admin previewing a Theodore-led class is a participant, not the
   // presenter. (`learners` already excludes whoever is the host.)
   const iAmHost = Boolean(me?.id && host?.id === me?.id);
+  // "Teach a class": a person presents, so Theodore is absent from the room
+  // entirely and the instructor owns the main tile.
+  const humanTaught = Boolean(room?.human_taught);
+  const hostLabel = humanTaught ? (room?.human_host_name || host?.name || "Instructor") : "Theodore";
   const isSolo = isSoloLiveRoom(roomId, room);
   // In a group class the human teacher (the moderator) belongs in the main host
   // tile, not in the student strip. Filter them out so only actual students appear
@@ -2236,7 +2350,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 {isSolo ? "Start game" : "Start for everyone"} · 25 points
               </button>
             </div>
-          ) : <p>Waiting for Theodore or the class admin to start a game.</p>
+          ) : <p>Waiting for {hostLabel} or the class admin to start a game.</p>
         ) : (
           <div style={{ display: "grid", gap: 12, textAlign: "center" }}>
             <div style={{ fontSize: 13, color: "#c4b5fd", textTransform: "uppercase" }}>
@@ -2347,13 +2461,35 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         padding: "12px 16px 24px",
       }}
     >
-      {room?.status === "ended" && (
+      {!lightingReady && (
+        <div style={{ maxWidth: 560, margin: "24px auto" }}>
+          <CameraLightingScreener
+            title="Camera and lighting check before class"
+            onReady={() => setLightingReady(true)}
+          />
+          <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
+            Solo and group classes need a clear, well-lit camera for presence,
+            attention, and integrity tracking. Practice anytime in{" "}
+            <a href="/account/camera-check">Account → Camera check</a>.
+          </p>
+        </div>
+      )}
+      {lightingReady && qualityVerdict && qualitySecondsLeft != null && (
+        <CameraQualityGateOverlay
+          verdict={qualityVerdict}
+          secondsLeft={qualitySecondsLeft}
+          onLeaveNow={excuseFromClass}
+        />
+      )}
+      {lightingReady && room?.status === "ended" && (
         <ClassCompleteOverlay
           onDone={excuseFromClass}
           primaryLang={me?.language || locale}
           exitLabel={isSolo ? "Live Class" : "Group Classes"}
         />
       )}
+      {lightingReady && (
+      <>
       <header
         style={{
           display: "flex",
@@ -2623,7 +2759,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 : ""}
             </div>
             <div style={{ opacity: 0.78, marginTop: 4 }}>
-              Private administrator view. Theodore uses anonymous class aggregates
+              Private administrator view. {hostLabel} uses anonymous class aggregates
               when adapting explanations and Q&amp;A; authored slide text itself is
               unchanged.
             </div>
@@ -2647,8 +2783,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             color: "var(--muted)",
           }}
         >
-          🔇 Live audio/video for participants is unavailable right now — the AI
-          teacher’s narration, chat and Q&amp;A continue as normal.
+          🔇 Live audio/video for participants is unavailable right now —{" "}
+          {humanTaught ? "chat and Q&A continue as normal." : "the AI teacher’s narration, chat and Q&A continue as normal."}
         </div>
       )}
 
@@ -2695,7 +2831,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             flexWrap: "wrap",
           }}
         >
-          <span>🎓 Tap to hear Theodore narrate this slide (browser blocks autoplay until you interact).</span>
+          <span>🎓 Tap to hear {hostLabel} narrate this slide (browser blocks autoplay until you interact).</span>
           <button
             type="button"
             onClick={() => {
@@ -2786,7 +2922,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           >
             <h2 style={{ marginTop: 0 }}>Ready to join live audio &amp; video?</h2>
             <p className="muted" style={{ marginBottom: 16 }}>
-              Your browser requires a tap before WebRTC audio can start. The AI teacher,
+              Your browser requires a tap before WebRTC audio can start. {humanTaught ? "Your instructor" : "The AI teacher"},
               chat and slides are already running — tap below to hear other participants.
             </p>
             <button
@@ -2870,12 +3006,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   p={host}
                   large
                   fill
+                  aiHost={!humanTaught}
                   fullscreen={isFullscreen}
                   localStream={iAmHost && cameraOn ? localStream : null}
-                  liveKitTrack={iAmHost && !cameraOn ? null : trackFor(host.id)}
+                  liveKitTrack={iAmHost && cameraOn ? null : trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
                     index: 0,
-                    title: "Welcome to Transparent AI",
+                    title: humanTaught ? `Welcome to ${room.title}` : "Welcome to Transparent AI",
                     body: room.welcome_message,
                     narration: room.welcome_message,
                   } : room?.slide}
@@ -2948,7 +3085,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       {hasFloor ? (
                         <>
                           <div style={{ fontSize: "clamp(14px, 2.8vw, 20px)", fontWeight: 700, textAlign: "center" }}>
-                            {listening ? "🎙️ Listening — ask Theodore out loud" : "🎤 You have the floor"}
+                            {listening ? `🎙️ Listening — ask ${hostLabel} out loud` : "🎤 You have the floor"}
                           </div>
                           {spokenText ? (
                             <div
@@ -2991,7 +3128,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                                 background: "#059669", color: "#fff", fontWeight: 800,
                               }}
                             >
-                              ✓ Done — ask Theodore
+                              ✓ Done — ask {hostLabel}
                             </button>
                           </div>
                         </>
@@ -3017,7 +3154,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                           </button>
                           {inQueue ? (
                             <div style={{ fontSize: 13, opacity: 0.9, textAlign: "center" }}>
-                              Stay fullscreen. Your microphone opens when Theodore gives you the floor.
+                              Stay fullscreen. Your microphone opens when {hostLabel} gives you the floor.
                             </div>
                           ) : null}
                         </>
@@ -3278,7 +3415,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                           showAdminProfile={canModerate}
                           fill
                           localStream={p.id === me?.id && cameraOn ? localStream : null}
-                          liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
+                          liveKitTrack={p.id === me?.id && cameraOn ? null : trackFor(p.id)}
                           hasFloor={onFloor}
                           isMe={p.id === me?.id}
                           presenceFaceCount={p.id === me?.id ? presenceFaceCount : undefined}
@@ -3295,7 +3432,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       +{studentLearners.length - 8}
                     </span>
                   ) : null}
-                  {Array.from({ length: Math.max(0, Math.min(emptySlots, 5 - studentLearners.length)) }).map((_, i) => (
+                  {Array.from({ length: Math.min(emptySlots, Math.max(0, 8 - studentLearners.length)) }).map((_, i) => (
                     <span
                       key={`ph-${i}`}
                       aria-hidden
@@ -3391,7 +3528,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 ) : null}
               </div>
               <p style={{ margin: "6px 0 10px", fontSize: 13, color: "var(--muted)" }}>
-                Theodore is listening. Speak naturally, then tap “Done — ask Theodore”. You can also type it below.
+                {hostLabel} is listening. Speak naturally, then tap “Done — ask {hostLabel}”. You can also type it below.
               </p>
               <div
                 style={{
@@ -3429,7 +3566,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   disabled={busy}
                   style={{ background: "#059669", color: "#fff" }}
                 >
-                  Done — ask Theodore
+                  Done — ask {hostLabel}
                 </button>
               </div>
             </div>
@@ -3553,7 +3690,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           {/* Underline tabs: class chat vs. asking Theodore directly (Design A). */}
           <div
             role="tablist"
-            aria-label="Chat or Ask Theodore"
+            aria-label={humanTaught ? `Chat or Ask ${hostLabel}` : "Chat or Ask Theodore"}
             style={{
               display: "flex",
               gap: 8,
@@ -3576,7 +3713,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               onClick={() => setPanelTab("ask")}
               style={panelTabStyle(panelTab === "ask")}
             >
-              🎓 Ask Theodore
+              🎓 Ask {hostLabel}
             </button>
           </div>
 
@@ -3602,12 +3739,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 // identical chat text.
                 if (!askMineRef.current.has(m.text)) return true;
                 const fromMe = m.from_id === me?.id;
-                const fromTheodore = /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
+                const fromTheodore = !humanTaught && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
                 return !(fromMe || fromTheodore);
               })
               .map((m) => {
               const isSystem = m.from_id === "system";
-              const isTheodore = !isSystem && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
+              // In a human-taught class nobody is Theodore — and the instructor's
+              // placeholder id ("human-host") would otherwise match this heuristic.
+              const isTheodore =
+                !humanTaught && !isSystem && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
               return (
                 <div key={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                   <span
@@ -3807,7 +3947,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           >
             {askThread.length === 0 ? (
               <p className="muted" style={{ fontSize: 12.5, margin: "4px 0", lineHeight: 1.5 }}>
-                Ask Theodore anything about the lesson — your questions and his answers
+                Ask {hostLabel} anything about the lesson — your questions and the answers
                 stay here in this tab. You can also raise your hand on your tile to ask by voice.
               </p>
             ) : (
@@ -3846,7 +3986,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     </span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700 }}>
-                        Theodore · AI teacher
+                        {humanTaught ? hostLabel : "Theodore · AI teacher"}
                         {!e.done ? " · answering…" : ""}
                       </div>
                       <div
@@ -3876,7 +4016,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <input
               value={askDraft}
               onChange={(e) => setAskDraft(e.target.value)}
-              placeholder="Ask Theodore a question…"
+              placeholder={humanTaught ? `Ask ${hostLabel} a question…` : "Ask Theodore a question…"}
               style={{ flex: 1, borderRadius: 999, border: "1px solid var(--border)", padding: "10px 14px", background: "var(--panel)", color: "var(--text)" }}
               onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
               disabled={busy}
@@ -3884,8 +4024,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <button
               onClick={() => void askQuestion()}
               disabled={busy}
-              aria-label="Ask Theodore"
-              title="Ask Theodore"
+              aria-label={humanTaught ? `Ask ${hostLabel}` : "Ask Theodore"}
+              title={humanTaught ? `Ask ${hostLabel}` : "Ask Theodore"}
               style={{
                 flex: "0 0 auto",
                 width: 42,
@@ -4021,7 +4161,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               {learnerCtx.learnerCategory && learnerCtx.learnerCategory !== "skipped" ? (
                 <> · {learnerCtx.learnerCategory.replace(/_/g, " ")}</>
               ) : null}
-              <span className="muted"> — Theodore uses this to adapt your Q&amp;A.</span>
+              <span className="muted"> — {hostLabel} uses this to adapt your Q&amp;A.</span>
             </div>
           ) : null}
           {/* A short horizontal transcript preserves vertical space for video. */}
@@ -4057,7 +4197,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               </div>
             )) : (
               <span className="muted" style={{ alignSelf: "center", fontSize: 12 }}>
-                Chat and Theodore’s answers appear here.
+                Chat and {hostLabel}’s answers appear here.
               </span>
             )}
             <div ref={chatEndRef} />
@@ -4117,8 +4257,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <input
               value={askDraft}
               onChange={(e) => setAskDraft(e.target.value)}
-              placeholder="Ask Theodore…"
-              aria-label="Question for Theodore"
+              placeholder={humanTaught ? `Ask ${hostLabel}…` : "Ask Theodore…"}
+              aria-label={humanTaught ? `Question for ${hostLabel}` : "Question for Theodore"}
               onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
               disabled={busy}
               style={{ flex: "1 1 180px", minWidth: 150, padding: "7px 9px" }}
@@ -4227,7 +4367,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <button
               onClick={() => void doneSpeaking()}
               disabled={busy}
-              title="Send your spoken (or typed) question to Theodore and hand back the floor"
+              title={`Send your spoken (or typed) question to ${hostLabel} and hand back the floor`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -4371,6 +4511,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           </button>
         </div>
       </div>
+      </>
+      )}
       <video
         ref={presenceProbeVideoRef}
         autoPlay

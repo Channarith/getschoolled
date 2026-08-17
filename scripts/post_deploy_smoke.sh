@@ -15,16 +15,30 @@
 #     what set-image + a completed rollout guarantees, and it needs nothing inside
 #     the container.
 #
-# Required env: TAG (the image tag / git sha that was deployed)
+# Two verification modes:
+#   * DIGEST mode (preferred): set DIGEST_DIR=<dir> containing <svc>.digest files
+#     (one immutable sha256 digest per service, as produced by deploy.yml). Each
+#     Deployment must run an image pinned to EXACTLY that digest
+#     (registry/svc@sha256:...). This is the "promote the exact artifact" gate —
+#     see docs/vv-master-plan.txt section 4.
+#   * TAG mode (legacy/manual): set TAG=<git-sha>. Each Deployment must run
+#     registry/svc:<TAG>. Kept for deploy-gate.yml and partial manual deploys.
+#
+# Required env: DIGEST_DIR *or* TAG.
 # Optional env: NS (namespace, default: aoep)
-# Exit 0 = all services on TAG and available. Exit 1 = mismatch/unavailable
-# (triggers auto-rollback).
+# Exit 0 = all services on the expected artifact and available. Exit 1 =
+# mismatch/unavailable (triggers auto-rollback).
 set -euo pipefail
 
 NS="${NS:-aoep}"
 
-if [ -z "${TAG:-}" ]; then
-  echo "ERROR: TAG env var is required (the deployed image tag)" >&2
+MODE=""
+if [ -n "${DIGEST_DIR:-}" ]; then
+  MODE="digest"
+elif [ -n "${TAG:-}" ]; then
+  MODE="tag"
+else
+  echo "ERROR: set DIGEST_DIR (preferred) or TAG (legacy) — neither is set" >&2
   exit 1
 fi
 
@@ -40,7 +54,11 @@ fi
 PASS=0
 FAIL=0
 
-echo "=== image-tag smoke: verifying tag=${TAG} in ns=${NS} ==="
+if [ "$MODE" = "digest" ]; then
+  echo "=== digest smoke: verifying built digests (DIGEST_DIR=${DIGEST_DIR}) in ns=${NS} ==="
+else
+  echo "=== image-tag smoke: verifying tag=${TAG} in ns=${NS} ==="
+fi
 
 for svc in "${SERVICES[@]}"; do
   # The image the Deployment's pod template is set to.
@@ -53,14 +71,35 @@ for svc in "${SERVICES[@]}"; do
     continue
   fi
 
-  # Everything after the last ':' is the tag (registry host may itself contain a
-  # ':port', so only split on the final colon).
-  IMG_TAG="${IMG##*:}"
-
-  if [ "$IMG_TAG" != "$TAG" ]; then
-    echo "  [$svc] FAIL: image tag=$IMG_TAG != expected=$TAG ($IMG)"
-    FAIL=$((FAIL + 1))
-    continue
+  if [ "$MODE" = "digest" ]; then
+    # Expected immutable digest for this service (sha256:...).
+    digest_file="${DIGEST_DIR}/${svc}.digest"
+    if [ ! -f "$digest_file" ]; then
+      echo "  [$svc] FAIL: no digest file $digest_file"
+      FAIL=$((FAIL + 1))
+      continue
+    fi
+    EXPECTED="$(tr -d '[:space:]' < "$digest_file")"
+    # A digest-pinned image is registry/svc@sha256:... — the ref after '@'.
+    case "$IMG" in
+      *@*) DEPLOYED="${IMG#*@}" ;;
+      *)   echo "  [$svc] FAIL: image is not digest-pinned ($IMG)"
+           FAIL=$((FAIL + 1)); continue ;;
+    esac
+    if [ "$DEPLOYED" != "$EXPECTED" ]; then
+      echo "  [$svc] FAIL: digest=$DEPLOYED != expected=$EXPECTED ($IMG)"
+      FAIL=$((FAIL + 1))
+      continue
+    fi
+  else
+    # Everything after the last ':' is the tag (registry host may itself contain
+    # a ':port', so only split on the final colon).
+    IMG_TAG="${IMG##*:}"
+    if [ "$IMG_TAG" != "$TAG" ]; then
+      echo "  [$svc] FAIL: image tag=$IMG_TAG != expected=$TAG ($IMG)"
+      FAIL=$((FAIL + 1))
+      continue
+    fi
   fi
 
   # Confirm the rollout is complete: updated/available replicas meet the spec.
@@ -69,7 +108,7 @@ for svc in "${SERVICES[@]}"; do
   AVAILABLE="${AVAILABLE:-0}"
 
   if [ -n "$DESIRED" ] && [ "$AVAILABLE" -lt "$DESIRED" ]; then
-    echo "  [$svc] FAIL: only $AVAILABLE/$DESIRED replicas available on $TAG"
+    echo "  [$svc] FAIL: only $AVAILABLE/$DESIRED replicas available"
     FAIL=$((FAIL + 1))
     continue
   fi
@@ -78,13 +117,14 @@ for svc in "${SERVICES[@]}"; do
   PASS=$((PASS + 1))
 done
 
+EXPECTED_DESC="$([ "$MODE" = "digest" ] && echo "built digests" || echo "tag=$TAG")"
 echo ""
-echo "=== Summary: $PASS passed, $FAIL failed (tag=$TAG) ==="
+echo "=== Summary: $PASS passed, $FAIL failed ($EXPECTED_DESC) ==="
 
 if [ "$FAIL" -gt 0 ]; then
-  echo "RESULT: FAIL — $FAIL service(s) not on tag $TAG" >&2
+  echo "RESULT: FAIL — $FAIL service(s) not on $EXPECTED_DESC" >&2
   exit 1
 fi
 
-echo "RESULT: OK — all services on $TAG"
+echo "RESULT: OK — all services on $EXPECTED_DESC"
 exit 0

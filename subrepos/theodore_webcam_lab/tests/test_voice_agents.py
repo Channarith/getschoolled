@@ -1,7 +1,34 @@
 from __future__ import annotations
 
 from theodore_webcam_lab.types import ClassMode
-from theodore_webcam_lab.voice_agents import SUPPORTED_LANGUAGES, XaiVoiceAgent
+from theodore_webcam_lab.voice_agents import (
+    SUPPORTED_LANGUAGES,
+    XAI_DEFAULT_MODEL,
+    XaiVoiceAgent,
+)
+
+
+def test_default_model_is_a_current_canonical_slug(monkeypatch):
+    """xAI retired the grok-2 family outright and redirects the grok-4-0709/"grok-4"
+    aliases to grok-4.3. Depending on a retired slug means depending on a redirect
+    that can be withdrawn, so the default must name a live model."""
+    for key in ("XAI_MODEL", "XAI_FAST_MODEL"):
+        monkeypatch.delenv(key, raising=False)
+    assert not XAI_DEFAULT_MODEL.startswith("grok-2")
+    assert XAI_DEFAULT_MODEL != "grok-4"
+
+    agent = XaiVoiceAgent.from_env()
+    assert agent.model == XAI_DEFAULT_MODEL
+    assert agent.fast_model == XAI_DEFAULT_MODEL
+
+
+def test_blank_model_env_does_not_defeat_the_default(monkeypatch):
+    """An exported-but-empty XAI_MODEL used to win and send an empty model."""
+    monkeypatch.setenv("XAI_MODEL", "  ")
+    monkeypatch.setenv("XAI_FAST_MODEL", "")
+    agent = XaiVoiceAgent.from_env()
+    assert agent.model == XAI_DEFAULT_MODEL
+    assert agent.fast_model == XAI_DEFAULT_MODEL
 
 
 def test_local_fallback_when_no_api_key():
@@ -19,10 +46,13 @@ def test_local_fallback_when_no_api_key():
 
 
 def test_xai_response_when_transport_succeeds(monkeypatch):
-    agent = XaiVoiceAgent(api_key="test-key", model="grok-4")
+    # Distinct models on purpose: respond() defaults to fast_mode, so it must send
+    # the FAST model. Both used to default to "grok-4", so passing only `model`
+    # asserted nothing about which knob the call actually honoured.
+    agent = XaiVoiceAgent(api_key="test-key", model="full-model", fast_model="fast-model")
 
     def _fake_transport(payload: dict, *, timeout_s=None) -> dict:
-        assert payload["model"] == "grok-4"
+        assert payload["model"] == "fast-model"
         return {
             "choices": [
                 {"message": {"content": "Great question. Let's solve it together."}}
@@ -67,10 +97,19 @@ def test_respond_uses_short_ttl_cache_for_repeated_turn(monkeypatch):
 
 
 def test_supported_languages_cover_26_language_codes():
+    """Original 26 languages must still be present; list now extends beyond them."""
     languages = XaiVoiceAgent.supported_languages()
-    assert len(languages) == 26
-    assert len({item.code for item in languages}) == 26
-    assert [item.code for item in languages] == [item.code for item in SUPPORTED_LANGUAGES]
+    codes = {item.code for item in languages}
+    original_26 = {
+        "en", "es", "fr", "de", "it", "pt", "nl", "sv", "no", "da",
+        "fi", "pl", "cs", "sk", "ro", "hu", "el", "tr", "ru", "uk",
+        "ar", "he", "hi", "id", "vi", "th",
+    }
+    assert original_26.issubset(codes), f"Missing original languages: {original_26 - codes}"
+    # Must also include the newly added East/Southeast-Asian languages.
+    assert {"zh-CN", "ja", "ko", "km", "my", "tl"}.issubset(codes)
+    # No duplicate codes.
+    assert len(codes) == len(languages)
 
 
 def test_ask_question_fallback_for_supported_language():

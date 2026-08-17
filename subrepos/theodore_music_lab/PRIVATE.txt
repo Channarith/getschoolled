@@ -1,0 +1,2 @@
+Private lab — do not promote into production services until quality gates pass.
+Learn-through-music: original/educational lyrics only (no copyrighted popular songs).

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "theodore-course-studio"
+version = "0.1.0"
+description = "Experiment lab for Theodore course creation, labeled-corpus training, review comments, and teach/present demos."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111,<0.116",
+  "pydantic>=2.7,<3",
+  "uvicorn[standard]>=0.30,<0.35",
+]
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4.2,<6"]
+pptx = ["python-pptx>=1.0,<2"]
+test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
+all = ["theodore-course-studio[pdf,pptx,test]"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

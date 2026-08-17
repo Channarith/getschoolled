@@ -85,6 +85,8 @@ def classify(path: str, name: str) -> str:
         return "Courses & catalog"
     if "job" in n or "skills_taxonomy" in p:
         return "Careers"
+    if "apps/webcam-lab/" in p or "silhouette" in n or "xai_voice" in n or "absence" in n:
+        return "Machine vision"
     if "services/orchestrator/" in p or "apps/agent-runtime/" in p:
         if "hil" in n:
             return "Human-in-the-loop"
@@ -125,7 +127,13 @@ def collect_node_ids() -> list[str]:
     py = str(venv_py) if venv_py.exists() else sys.executable
     dirs = [ROOT / "packages/shared/tests"]
     dirs += sorted((ROOT / "services").glob("*/tests"))
-    for extra in ("apps/agent-runtime/tests", "training/tests", "scripts/tests", "qa/tests"):
+    for extra in (
+        "apps/agent-runtime/tests",
+        "apps/webcam-lab/tests",
+        "training/tests",
+        "scripts/tests",
+        "qa/tests",
+    ):
         if (ROOT / extra).exists():
             dirs.append(ROOT / extra)
     env = {**os.environ, "DEPLOY_MODE": "local", "INTERNAL_AUTH_DISABLED": "1",

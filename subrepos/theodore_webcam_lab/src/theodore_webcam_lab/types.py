@@ -26,6 +26,12 @@ class WebcamSignal(BaseModel):
     participant_id: str = Field(min_length=1)
     timestamp_ms: int = Field(ge=0)
     face_count: int = Field(default=0, ge=0)
+    # Client-side original-owner face lock (same webcam, different physical person).
+    # When enrolled + owner_face_match is False, the frame is a substitution risk.
+    owner_face_enrolled: bool = False
+    owner_face_match: bool | None = Field(default=None)
+    owner_match_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    secondary_face_count: int = Field(default=0, ge=0)
     liveness_state: str = Field(default="unknown")
     foreground_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
     motion_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -34,10 +40,45 @@ class WebcamSignal(BaseModel):
     expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     gaze_frontal: float | None = Field(default=None, ge=0.0, le=1.0)
     gaze_down_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    eyes_closed_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    yawn_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Which client detector produced the per-feature scores above. "face_mesh"
+    # means real landmarks; "face_detector" is a bounding box only; "coarse" is a
+    # luminance heuristic that must not be trusted for eyes/gaze/expression.
+    detector_source: str | None = Field(default=None)
+    # 0–1 probability that the learner's hand(s) are resting on or covering their face
+    # (chin-rest, cheek-prop, head-in-hands). Derived from luminance grid heuristics or
+    # MediaPipe hand landmarks when available.
+    hands_on_face_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Advanced observatory inputs (optional — thin clients may omit).
+    head_pose_pitch: float | None = None
+    head_pose_yaw: float | None = None
+    head_pose_roll: float | None = None
+    body_motion_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    fidget_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    brow_raise_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    smile_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    screen_focus_score: float | None = Field(default=None, ge=0.0, le=1.0)
     phone_visible: bool = False
     typing_activity_score: float | None = Field(default=None, ge=0.0, le=1.0)
     keyboard_typing_audio_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Trajectory features (face/hand landmark history) — optional thin clients omit.
+    face_motion_energy: float | None = Field(default=None, ge=0.0, le=1.0)
+    hand_gesture_energy: float | None = Field(default=None, ge=0.0, le=1.0)
+    head_sag_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    excitement_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    interest_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    dozing_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Outside-classroom music (broadband / moving spectrum). Record-only.
+    external_music_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Phone-in-hand / held object fusion. Record-only — does not set phone_visible.
+    phone_in_hand_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    held_object_score: float | None = Field(default=None, ge=0.0, le=1.0)
     face_size_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Prefer LiDAR / depth-camera metres when the client can measure them.
+    # Server uses this before falling back to face-size-in-frame estimation.
+    distance_from_camera_m: float | None = Field(default=None, ge=0.0)
+    distance_source: str | None = Field(default=None)
     light_quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
     image_detection_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     noise_filter_effectiveness_score: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -45,6 +86,14 @@ class WebcamSignal(BaseModel):
     audio_noise_level_db: float | None = None
     audio_snr_db: float | None = None
     mic_clipping_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Sobel/exposure readings. Either send them pre-computed, or send
+    # luminance_grid and the server derives them with the active tuning.
+    sharpness_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    edge_density: float | None = Field(default=None, ge=0.0, le=1.0)
+    mean_luminance: float | None = Field(default=None, ge=0.0, le=1.0)
+    underexposed_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    overexposed_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    luminance_grid: list[list[float]] | None = None
 
 
 class ParticipantEvaluation(BaseModel):
@@ -54,6 +103,7 @@ class ParticipantEvaluation(BaseModel):
     silhouette_streak: int = Field(ge=0)
     face_count: int = Field(ge=0)
     distance_from_camera_m: float | None = Field(default=None, ge=0.0)
+    distance_source: str = "none"  # lidar | face_size | none
     light_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
     image_detection_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
     expression_behavior_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -63,14 +113,50 @@ class ParticipantEvaluation(BaseModel):
     noise_filter_effectiveness_score: float | None = Field(
         default=None, ge=0.0, le=1.0
     )
+    sharpness_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    edge_density: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Which tuning gates this frame failed, e.g. lighting_underexposed, image_blurry,
+    # too_far_from_camera, high_background_noise.
+    quality_flags: list[str] = Field(default_factory=list)
+    # Overall 0..1 confidence that this frame is good enough to recognise from.
+    recognition_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     absent_for_ms: int = Field(ge=0)
     eyes_away_for_ms: int = Field(ge=0)
+    eyes_closed_for_ms: int = Field(default=0, ge=0)
+    eyes_closed_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    yawn_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    yawn_for_ms: int = Field(default=0, ge=0)
+    attention_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    distraction_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    inattentive_for_ms: int = Field(default=0, ge=0)
+    hands_on_face_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    hands_on_face_for_ms: int = Field(default=0, ge=0)
+    behavior_label: str = "unknown"  # focused|yawning|distracted|inattentive|drowsy|away|hands_on_face
+    # Nested advanced observatory snapshot (engagement, cognitive states, head pose, events).
+    advanced_behavior: dict[str, object] | None = None
+    # True only after the phone has been visible for phone_visible_min_hold_ms;
+    # phone_visible_for_ms exposes the running streak so the UI can count up to it.
+    phone_visible: bool = False
+    phone_visible_for_ms: int = Field(default=0, ge=0)
     last_live_timestamp_ms: int | None = Field(default=None, ge=0)
     dominant_expression: str = "unknown"
     expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     keyboard_typing_audio_detected: bool = False
     suspected_cheating: bool = False
     cheating_reasons: list[str] = Field(default_factory=list)
+    # Trajectory / ambient telemetry (record-only for music + held object).
+    excitement_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    interest_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    dozing_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    dozing_for_ms: int = Field(default=0, ge=0)
+    interest_for_ms: int = Field(default=0, ge=0)
+    external_music_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    external_music_for_ms: int = Field(default=0, ge=0)
+    external_music_detected: bool = False
+    phone_in_hand_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    held_object_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    held_object_for_ms: int = Field(default=0, ge=0)
+    held_object_detected: bool = False
     reason: str = ""
     alerts: list[str] = Field(default_factory=list)
 
@@ -103,6 +189,8 @@ class QualitySummary(BaseModel):
     avg_noise_filter_effectiveness_score: float | None = Field(
         default=None, ge=0.0, le=1.0
     )
+    avg_recognition_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    quality_flag_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class ClassEvaluation(BaseModel):
@@ -138,6 +226,15 @@ class ParticipantMetricSeries(BaseModel):
     expression_behavior_score: list[float | None] = Field(default_factory=list)
     microphone_quality_score: list[float | None] = Field(default_factory=list)
     noise_filter_effectiveness_score: list[float | None] = Field(default_factory=list)
+    engagement_index: list[float | None] = Field(default_factory=list)
+    fatigue_score: list[float | None] = Field(default_factory=list)
+    confusion_score: list[float | None] = Field(default_factory=list)
+    multitask_score: list[float | None] = Field(default_factory=list)
+    excitement_score: list[float | None] = Field(default_factory=list)
+    interest_score: list[float | None] = Field(default_factory=list)
+    dozing_score: list[float | None] = Field(default_factory=list)
+    external_music_score: list[float | None] = Field(default_factory=list)
+    held_object_score: list[float | None] = Field(default_factory=list)
     latest: ParticipantEvaluation
 
 
@@ -150,6 +247,24 @@ class LiveSessionMetricsResponse(BaseModel):
     quality_summary: QualitySummary = Field(default_factory=QualitySummary)
     lesson_alerts: list[LessonAlert] = Field(default_factory=list)
     participants: list[ParticipantMetricSeries] = Field(default_factory=list)
+    group_student_windows: list[GroupStudentWindowStatus] = Field(default_factory=list)
+    silhouette_participant_ids: list[str] = Field(default_factory=list)
+    suspected_cheating_participant_ids: list[str] = Field(default_factory=list)
+    acknowledged_alert_keys: list[str] = Field(default_factory=list)
+    absent_participant_ids: list[str] = Field(default_factory=list)
+    happy_participant_ids: list[str] = Field(default_factory=list)
+    keyboard_typing_audio_participant_ids: list[str] = Field(default_factory=list)
+    expression_counts: dict[str, int] = Field(default_factory=dict)
+    class_alerts: list[str] = Field(default_factory=list)
+    no_one_present_for_ms: int = Field(default=0, ge=0)
+    original_participant_id: str = ""
+    unexpected_participant_ids: list[str] = Field(default_factory=list)
+    action_log: list[dict] = Field(default_factory=list)
+    private_messages: list[dict] = Field(default_factory=list)
+    watchlist: list[str] = Field(default_factory=list)
+    rejoin_requests: list[str] = Field(default_factory=list)
+    behavior_events: list[dict] = Field(default_factory=list)
+    observatory_summary: dict[str, object] = Field(default_factory=dict)
 
 
 class VoiceResponse(BaseModel):

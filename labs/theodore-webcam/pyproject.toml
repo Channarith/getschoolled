@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "theodore-webcam-lab"
+version = "0.1.0"
+description = "Private lab: webcam silhouette/presence recognition for Theodore (AI) solo + group classes, with xAI Grok voice agents."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111,<0.116",
+  "uvicorn[standard]>=0.30,<0.35",
+  "pydantic>=2.7,<3",
+  "opencv-contrib-python-headless==4.10.0.84",
+  "numpy==1.26.4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+theodore_webcam = ["web/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

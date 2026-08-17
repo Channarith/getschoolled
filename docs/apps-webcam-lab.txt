@@ -1,0 +1,29 @@
+Webcam recognition lab (private build harness)
+==============================================
+
+Location: labs/webcam-recognition/
+
+Isolated sub-project for building and testing webcam image recognition used by
+solo and group classes:
+
+  - Silhouette detection (body shape when face is unclear)
+  - User absence holds (temporal miss streak)
+  - Theodore (AI) teaching and learner self-teaching modes
+  - xAI Grok Voice Agents for natural spoken replies
+    (wss://api.x.ai/v1/realtime?model=grok-voice-latest)
+
+Run
+  pip install -e 'labs/webcam-recognition[vision,voice,server,test]'
+  cd labs/webcam-recognition && PYTHONPATH=src python3 -m pytest -q
+  PYTHONPATH=src python3 -m webcam_lab_app demo
+  PYTHONPATH=src python3 -m webcam_lab_app server   # http://localhost:8093
+
+Extract as a standalone private GitHub repo (requires a token that can create
+repos under the org/user):
+
+  labs/webcam-recognition/scripts/extract_private_repo.sh OWNER/REPO
+
+Promotion path
+  Proven presence logic graduates into aoep_shared.vision + live-room presence
+  probes (apps/web live-room, services/perception). Keep this lab as the
+  experiment surface so production paths stay stable.

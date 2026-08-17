@@ -21,11 +21,37 @@ def identity_base_url() -> str:
 
 
 def internal_token() -> str:
-    return os.environ.get("INTERNAL_SERVICE_TOKEN", "dev-internal-token")
+    """Return a token that identity's ``require_internal`` will accept.
+
+    Preference order:
+      1. ``INTERNAL_TOKEN`` (static shared secret — preferred for webhooks)
+      2. ``INTERNAL_SERVICE_TOKEN`` (legacy alias used by older configs)
+      3. Short-lived HMAC token signed with ``INTERNAL_TOKEN_KEY``
+    """
+    static = (
+        os.environ.get("INTERNAL_TOKEN")
+        or os.environ.get("INTERNAL_SERVICE_TOKEN")
+        or ""
+    ).strip()
+    if static:
+        return static
+    key = os.environ.get("INTERNAL_TOKEN_KEY", "").strip()
+    if key:
+        from .auth import sign_token
+
+        return sign_token(
+            {"sub": "integrations", "scope": "internal"},
+            key.encode("utf-8"),
+            ttl_s=120,
+        )
+    # Last-resort local default — only works if identity also has the same
+    # INTERNAL_TOKEN set (or INTERNAL_AUTH_DISABLED=1 in tests).
+    return "dev-internal-token"
 
 
 def sync_account_tier(account_id: str, tier: str, *, timeout_s: float = 5.0) -> bool:
     """POST tier upgrade to identity internal endpoint. Returns True on success."""
+    # Canonical route: /internal/membership/tier (account_id in body, no user JWT).
     url = f"{identity_base_url()}/internal/membership/tier"
     body = json.dumps({"account_id": account_id, "tier": tier}).encode()
     req = urllib.request.Request(

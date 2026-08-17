@@ -1,0 +1,30 @@
+EXTRACTING WEBCAM-VISION-LAB AS A PRIVATE SUB-REPO
+==================================================
+
+This directory is a self-contained Python package that can live as a private
+GitHub repository while the main AOEP monorepo remains public (or separate).
+
+Option A — git submodule (recommended for monorepo consumers)
+  1. Create a new PRIVATE repo, e.g. salareen/webcam-vision-lab (GitHub/GitLab).
+  2. Push the contents of labs/webcam-vision-lab/ as the root of that repo.
+  3. From the AOEP monorepo root:
+       git submodule add git@github.com:YOUR_ORG/webcam-vision-lab.git labs/webcam-vision-lab
+  4. Commit the submodule pointer. Clone with: git submodule update --init
+
+Option B — standalone clone for R&D only
+  1. Copy labs/webcam-vision-lab/ to a new directory.
+  2. pip install aoep-shared from the monorepo (editable) or from a published wheel:
+       pip install -e /path/to/aoep/packages/shared
+  3. pip install -e ".[dev]" inside the lab directory.
+
+Option C — git subtree (no submodule workflow)
+  git subtree split --prefix=labs/webcam-vision-lab -b webcam-vision-lab-export
+  Push webcam-vision-lab-export to the private remote.
+
+Secrets
+  Never commit XAI_API_KEY. Use config/lab.env (gitignored) or your shell env.
+  For browser clients, mint ephemeral tokens via xAI POST /v1/realtime/client_secrets.
+
+CI in the private repo
+  - pytest tests/ (no network, no API key required)
+  - Optional nightly job with XAI_API_KEY for live voice smoke (manual approval)

@@ -101,6 +101,11 @@ class AppConfig(BaseModel):
     nemotron_api_key: str = ""
     nemotron_base_url: str = "https://integrate.api.nvidia.com/v1"
     nemotron_model: str = "nvidia/llama-3.1-nemotron-70b-instruct"
+    # xAI Grok Voice Agent (Speech-to-Speech realtime WebSocket). Used by the
+    # private webcam-recognition lab and Theodore natural dialogue. Server-side
+    # key only — browsers must use ephemeral tokens.
+    xai_voice_name: str = "eve"
+    xai_voice_ws_url: str = "wss://api.x.ai/v1/realtime"
     # Bake-off champion pointer (JSON); serving layer uses it to pick the model.
     champion_path: str = ""
     # 24/7 harvester (runs on a separate worker agent).
@@ -160,16 +165,50 @@ class AppConfig(BaseModel):
     # then to the browser's on-device voice.
     elevenlabs_api_key: str = ""
     elevenlabs_model: str = "eleven_multilingual_v2"
+    # xAI Grok Voice Agent (Speech-to-Speech realtime). Used by the private
+    # webcam-lab for Theodore + self-teach natural conversation. Blank key ->
+    # ephemeral token mint returns an offline mock so demos still run.
+    xai_voice_model: str = "grok-voice-latest"
+    xai_voice_id: str = "eve"
     # CosyVoice 2 (self-hosted, FunAudioLLM): a streaming multilingual neural TTS
     # you run yourself. When COSYVOICE_URL points at your inference server the
     # speech gateway prefers it over ElevenLabs/edge-tts for narration.
     cosyvoice_url: str = ""
     cosyvoice_api_key: str = ""
+    # xAI Grok realtime voice agent (natural spoken communication for Theodore,
+    # the AI teacher). Server-side duplex audio over wss://api.x.ai/v1/realtime;
+    # browser/mobile clients get ephemeral tokens minted server-side so the API
+    # key never ships to a device. Empty key => callers fall back to the
+    # platform speech chain (ElevenLabs -> edge-tts -> on-device).
+    xai_realtime_url: str = "wss://api.x.ai/v1/realtime"
+    xai_text_model: str = "grok-3-latest"
+    xai_voice: str = "eve"
     # Embodiment: screen avatar (default) or a humanoid robot (Phases 14-15).
     embodiment: str = "screen"   # screen | robot
     robot_endpoint: str = ""
     # Deployment region for the compliance policy engine (us | eu | us_il | other).
     region: str = "us"
+    # xAI Grok voice agent (webcam teaching sessions). When XAI_API_KEY is set
+    # Theodore and the self-teach coach use Grok for natural dialogue + audio.
+    # Leave empty to fall back to the platform LLM + ElevenLabs/edge-tts chain.
+    xai_api_key: str = ""
+    xai_base_url: str = "https://api.x.ai/v1"
+    xai_model: str = "grok-2-1212"
+    xai_audio_model: str = "grok-2-audio"
+    xai_max_tokens: int = 512
+    # Webcam vision service (presence + silhouette + voice agent hub).
+    webcam_base_url: str = "http://webcam:8300"
+
+    # Multimodal model used for frame analysis by the vision-agent service.
+    xai_vision_model: str = "grok-2-vision-1212"
+
+    # Vision-agent service (webcam session manager).
+    # absence_threshold_s: seconds without face+silhouette before ABSENT fires.
+    # return_threshold_s:  seconds of presence to confirm a return.
+    vision_agent_absence_threshold_s: float = 5.0
+    vision_agent_return_threshold_s: float = 1.0
+    # Max concurrent webcam sessions (soft cap; excess 429s).
+    vision_agent_max_sessions: int = 200
 
     def mode_for(self, component: str) -> DeployMode:
         """Return the effective mode for ``component``."""
@@ -241,6 +280,8 @@ def load_config(
         nemotron_api_key=get("NEMOTRON_API_KEY", ""),
         nemotron_base_url=get("NEMOTRON_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         nemotron_model=get("NEMOTRON_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct"),
+        xai_voice_name=get("XAI_VOICE_NAME", "eve"),
+        xai_voice_ws_url=get("XAI_VOICE_WS_URL", "wss://api.x.ai/v1/realtime"),
         champion_path=get("CHAMPION_PATH", ""),
         harvest_user_agent=get("HARVEST_USER_AGENT", "AOEP-Harvester/1.0 (+contact@example.org)"),
         harvest_max_rps=float(get("HARVEST_MAX_RPS", "1.0") or "1.0"),
@@ -252,8 +293,13 @@ def load_config(
         ocr_api_key=get("OCR_API_KEY", ""),
         elevenlabs_api_key=get("ELEVENLABS_API_KEY", ""),
         elevenlabs_model=get("ELEVENLABS_MODEL", "eleven_multilingual_v2"),
+        xai_voice_model=get("XAI_VOICE_MODEL", "grok-voice-latest"),
+        xai_voice_id=get("XAI_VOICE_ID", "eve"),
         cosyvoice_url=get("COSYVOICE_URL", ""),
         cosyvoice_api_key=get("COSYVOICE_API_KEY", ""),
+        xai_realtime_url=get("XAI_REALTIME_URL", "wss://api.x.ai/v1/realtime"),
+        xai_text_model=get("XAI_TEXT_MODEL", "grok-3-latest"),
+        xai_voice=get("XAI_VOICE", "eve"),
         ocr_endpoint=get("OCR_ENDPOINT", ""),
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),
@@ -283,10 +329,26 @@ def load_config(
         yoomoney_api_key=get("YOOMONEY_API_KEY", ""),
         toss_api_key=get("TOSS_API_KEY", ""),
         local_psp_api_key=get("LOCAL_PSP_API_KEY", ""),
+        xai_vision_model=get("XAI_VISION_MODEL", "grok-2-vision-1212"),
+        vision_agent_absence_threshold_s=float(
+            get("VISION_AGENT_ABSENCE_THRESHOLD_S", "5.0") or "5.0"
+        ),
+        vision_agent_return_threshold_s=float(
+            get("VISION_AGENT_RETURN_THRESHOLD_S", "1.0") or "1.0"
+        ),
+        vision_agent_max_sessions=int(
+            get("VISION_AGENT_MAX_SESSIONS", "200") or "200"
+        ),
         bing_search_key=get("BING_SEARCH_KEY", ""),
         google_cse_key=get("GOOGLE_CSE_KEY", ""),
         google_cse_cx=get("GOOGLE_CSE_CX", ""),
         brave_search_key=get("BRAVE_SEARCH_KEY", ""),
         kagi_api_key=get("KAGI_API_KEY", ""),
         baidu_api_key=get("BAIDU_API_KEY", ""),
+        xai_api_key=get_stripped("XAI_API_KEY", ""),
+        xai_base_url=get("XAI_BASE_URL", "https://api.x.ai/v1"),
+        xai_model=get("XAI_MODEL", "grok-2-1212"),
+        xai_audio_model=get("XAI_AUDIO_MODEL", "grok-2-audio"),
+        xai_max_tokens=int(get("XAI_MAX_TOKENS", "512") or "512"),
+        webcam_base_url=get("WEBCAM_BASE_URL", "http://webcam:8300"),
     )

@@ -361,6 +361,30 @@ class SubscribeRequest(BaseModel):
     tier: PlanTier
 
 
+def _self_serve_paid_tiers_allowed() -> bool:
+    """Paid self-subscribe is for local/sandbox demos only.
+
+    Cloud must activate paid tiers via verified payment +
+    ``POST /internal/membership/tier`` (or the JWT-scoped
+    ``POST /membership/tier`` with ``X-Internal-Token``).
+    """
+    if os.environ.get("ALLOW_SANDBOX_SUBSCRIBE", "").lower() in ("1", "true", "yes"):
+        return True
+    mode = os.environ.get("DEPLOY_MODE", "local").lower()
+    if mode in ("local", "dev", "development"):
+        return True
+    payment = os.environ.get("PAYMENT_MODE", "").lower()
+    return payment in ("sandbox", "local", "dev")
+
+
+def _unverified_pass_allowed() -> bool:
+    """Drive/live completions may mark PASSED without a token in local demos."""
+    if os.environ.get("ALLOW_UNVERIFIED_PASS", "").lower() in ("1", "true", "yes"):
+        return True
+    mode = os.environ.get("DEPLOY_MODE", "local").lower()
+    return mode in ("local", "dev", "development")
+
+
 @app.post("/membership/subscribe")
 def subscribe(req: SubscribeRequest, acct=Depends(current_account)) -> dict:
     """Activate Standard ($19.99) or VIP ($29.99) with calendar-day billing.
@@ -373,6 +397,11 @@ def subscribe(req: SubscribeRequest, acct=Depends(current_account)) -> dict:
     tier_val = req.tier.value
     if tier_val not in CONSUMER_TIERS:
         raise HTTPException(status_code=422, detail=f"tier {tier_val!r} is not a consumer plan")
+    if tier_requires_payment(tier_val) and not _self_serve_paid_tiers_allowed():
+        raise HTTPException(
+            status_code=402,
+            detail="paid tiers require verified payment; complete checkout or wait for billing sync",
+        )
     if tier_requires_payment(tier_val):
         updated = app.state.accounts.activate_subscription(acct.id, req.tier)
     else:
@@ -400,6 +429,34 @@ def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
     else:
         updated = app.state.accounts.set_tier(acct.id, req.tier)
     return {"tier": updated.tier.value}
+
+
+class InternalTierChange(BaseModel):
+    account_id: str
+    tier: PlanTier
+
+
+@app.post("/internal/membership/tier", dependencies=[Depends(require_internal)])
+def internal_set_tier(req: InternalTierChange) -> dict:
+    """Server-to-server tier sync after verified payment (no user JWT).
+
+    Used by ``aoep_shared.identity_sync.sync_account_tier`` from billing /
+    integrations webhooks. Body carries ``account_id`` + ``tier``.
+    """
+    from aoep_shared.plan_pricing import tier_requires_payment
+
+    acct = app.state.accounts.by_id(req.account_id)
+    if acct is None:
+        raise HTTPException(status_code=404, detail="unknown account")
+    if tier_requires_payment(req.tier.value):
+        updated = app.state.accounts.activate_subscription(req.account_id, req.tier)
+    else:
+        updated = app.state.accounts.set_tier(req.account_id, req.tier)
+    return {
+        "account_id": updated.id,
+        "tier": updated.tier.value,
+        "membership_class": updated.membership_class,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -480,6 +537,11 @@ def onboarding_plan(req: OnboardingPlanRequest, acct=Depends(current_account)) -
     from aoep_shared.plan_pricing import tier_requires_payment
 
     tier = req.tier
+    if tier_requires_payment(tier.value) and not _self_serve_paid_tiers_allowed():
+        raise HTTPException(
+            status_code=402,
+            detail="paid tiers require verified payment; complete checkout or wait for billing sync",
+        )
     if tier_requires_payment(tier.value) and acct.billing_validated_at is None:
         raise HTTPException(
             status_code=402,
@@ -534,19 +596,27 @@ class StatusUpdate(BaseModel):
 
 @app.post("/enrollments/{course_id}/status")
 def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_account)) -> dict:
-    # When a pass_decision_token is present, verify it before crediting PASSED status.
-    # Omitting the token is still allowed (Drive/live-class completions don't issue tokens).
-    # TODO: make token mandatory once all completion paths issue signed tokens.
-    if req.pass_decision_token:
-        claims = verify_token(req.pass_decision_token, _assessment_signing_key())
-        if not claims or claims.get("kind") != "assessment_pass":
-            raise HTTPException(status_code=403, detail="invalid pass_decision_token")
-        token_student = str(claims.get("student_id", ""))
-        if token_student and token_student not in acct.students:
-            raise HTTPException(status_code=403, detail="pass_decision_token belongs to another account")
-        token_course = str(claims.get("course_id", ""))
-        if token_course and token_course != course_id:
-            raise HTTPException(status_code=403, detail="pass_decision_token is for a different course")
+    # PASSED awards points. In cloud, require an orchestrator-signed
+    # pass_decision_token so clients cannot self-award. Local/dev still
+    # allows unverified Drive/live completions for demos and existing tests.
+    if req.status is EnrollmentStatus.PASSED:
+        if req.pass_decision_token:
+            claims = verify_token(req.pass_decision_token, _assessment_signing_key())
+            if not claims or claims.get("kind") != "assessment_pass":
+                raise HTTPException(status_code=403, detail="invalid pass_decision_token")
+            token_student = str(claims.get("student_id", ""))
+            if token_student and token_student not in acct.students:
+                raise HTTPException(
+                    status_code=403, detail="pass_decision_token belongs to another account")
+            token_course = str(claims.get("course_id", ""))
+            if token_course and token_course != course_id:
+                raise HTTPException(
+                    status_code=403, detail="pass_decision_token is for a different course")
+        elif not _unverified_pass_allowed():
+            raise HTTPException(
+                status_code=403,
+                detail="pass_decision_token required to mark PASSED in cloud",
+            )
     # TODO: derive level from catalog instead of client-supplied value
     try:
         enr = app.state.accounts.set_status(

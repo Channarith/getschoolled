@@ -1,0 +1,50 @@
+LESSON: Alameda / CA Food Handler — Contamination Control
+LANGUAGE: en
+JURISDICTION: us-ca-alameda
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+SUMMARY: Cross-contamination, sanitizing, pests, and inspection readiness. Prep only.
+
+SLIDE 1 | Cross-contamination
+Keep raw proteins separate from ready-to-eat foods. Use separate boards and utensils or wash-rinse-sanitize between uses. Never let raw juices drip onto other foods.
+NARRATION: Keep raw and ready-to-eat foods completely separate.
+
+SLIDE 2 | Clean then sanitize
+Scrape, wash with detergent, rinse, sanitize at correct concentration, then air dry. Sanitizing dirty surfaces does not work.
+NARRATION: Clean first, then sanitize — never skip the wash step.
+
+SLIDE 3 | Sanitizer strength
+Mix chlorine, quat, or iodine per label. Verify with test strips and replace dirty or weak solutions.
+NARRATION: Test sanitizer strength with strips before each use.
+
+SLIDE 4 | FIFO stock rotation
+First In, First Out: place new stock behind older product and use the oldest first to reduce spoilage risk.
+NARRATION: Use older stock first — FIFO every time.
+
+SLIDE 5 | Pest prevention
+Seal gaps, store food sealed, clean spills, and remove clutter. Use licensed pest control — do not spray pesticides over food areas yourself.
+NARRATION: Deny pests food, water, and shelter, and call licensed pest control.
+
+SLIDE 6 | Allergen cross-contact
+Allergens need dedicated handling: clean equipment, separate prep, and accurate menu communication. Cleaning alone may not remove allergen residues.
+NARRATION: Treat allergen requests as critical every time.
+
+SLIDE 7 | Common pathogens
+Know high-risk associations: Salmonella with poultry and eggs, STEC with ground beef and produce, Listeria with deli and ready-to-eat foods, norovirus with hands and ready-to-eat foods.
+NARRATION: Hygiene and correct cooking temperatures stop the most common pathogens.
+
+SLIDE 8 | Health inspections
+Alameda County Environmental Health inspects for critical violations that can cause illness. Keep logs, fix problems immediately, and ask supervisors when unsure.
+NARRATION: Critical violations get fixed immediately — ask if you are unsure.
+
+SLIDE 9 | If a guest gets sick
+Take complaints seriously, notify a manager, preserve suspected food if instructed, and cooperate with investigators.
+NARRATION: Report foodborne illness complaints to a manager right away.
+
+SLIDE 10 | Finish with the official course
+Review your employer’s approved California food handler course materials, then take the official assessment for your card. This studio track is practice only.
+NARRATION: Finish with your employer’s approved course — this lesson is practice only.
+
+FACT: Clean then sanitize is the required sequence.
+FACT: FIFO means First In, First Out.
+FACT: Alameda County Environmental Health enforces local food safety rules.
