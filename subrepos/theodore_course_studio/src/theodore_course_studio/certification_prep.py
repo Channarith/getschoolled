@@ -24,6 +24,24 @@ from .cert_multimodal import (
 )
 from .types import CategoryId, CourseSlide, StudioCourse
 
+
+def _storyboard_media(lesson_id: str, slide_index: int, *, title: str, symbol: str, color: str) -> tuple[str, str]:
+    """Prefer full cert storyboard scenes; fall back to simple motion cards."""
+    try:
+        from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
+
+        if has_storyboard(lesson_id):
+            seg = storyboard_for_slide(lesson_id, slide_index, include_svg=True)
+            if seg and seg.get("svg_data_url"):
+                return seg["svg_data_url"], seg.get("svg_data_url", "")
+    except Exception:
+        pass
+    still = picture_data_url(title=title, symbol=symbol, color=color)
+    motion = motion_data_url(
+        title=title, symbol=symbol, color=color, bounce_px=20, bounce_dur_s=2.4
+    )
+    return still, motion
+
 # Soft session target for adult cert prep (kids stay on early_learning budgets).
 CERT_SESSION_MIN_MINUTES = 15
 CERT_SESSION_MAX_MINUTES = 20
@@ -929,23 +947,22 @@ def build_cert_course(
         kit = kit_for_title(beat.title, beat.body)
         body = format_body_with_examples(beat.body, kit.examples)
         narration = narration_with_examples(beat.say, kit.examples)
+        picture_url, video_url = _storyboard_media(
+            template.lesson_id,
+            i,
+            title=beat.title,
+            symbol=beat.symbol,
+            color=beat.color,
+        )
         slides.append(
             CourseSlide(
                 index=i,
                 title=beat.title,
                 body=body,
                 narration=narration,
-                picture_url=picture_data_url(
-                    title=beat.title, symbol=beat.symbol, color=beat.color
-                ),
+                picture_url=picture_url,
                 picture_alt=f"Picture for {beat.title}",
-                video_url=motion_data_url(
-                    title=beat.title,
-                    symbol=beat.symbol,
-                    color=beat.color,
-                    bounce_px=20,
-                    bounce_dur_s=2.4,
-                ),
+                video_url=video_url,
                 video_caption=f"Watch: {beat.title}",
                 activity_prompt=beat.activity,
                 examples=list(kit.examples),
@@ -971,6 +988,7 @@ def build_cert_course(
                     category.value,
                     "picture_led",
                     "motion_clip",
+                    "storyboard",
                     "multimodal",
                     "examples",
                     "quiz",

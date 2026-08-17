@@ -1124,6 +1124,10 @@ export type Slide = {
   // say_aloud is set, the player pauses to listen to and score the learner.
   kind?: string;
   say_aloud?: string;
+  // Animated storyboard for DMV / food-handler cert prep slides.
+  storyboard_svg?: string;
+  storyboard_concept?: string;
+  storyboard_scene_id?: string;
 };
 
 export type Lesson = {
@@ -1243,6 +1247,48 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
 
 export async function listLessons(): Promise<Lesson[]> {
   return jsonOrThrow(await fetch(`${ORCHESTRATOR_URL}/api/lessons`, { cache: "no-store" }));
+}
+
+export type StoryboardSegment = {
+  lesson_id: string;
+  slide_index: number;
+  verse_label?: string;
+  learning_goal?: string;
+  scene_id: string;
+  title: string;
+  backdrop: string;
+  camera: string;
+  narration: string;
+  concept?: string;
+  caption?: string;
+  svg?: string;
+  svg_data_url?: string;
+  html?: string;
+};
+
+export async function fetchLessonStoryboard(
+  lessonId: string,
+  opts?: { includeSvg?: boolean },
+): Promise<{ lesson_id: string; segment_count: number; segments: StoryboardSegment[] }> {
+  const q = opts?.includeSvg === false ? "?include_svg=false" : "";
+  return jsonOrThrow(
+    await fetch(
+      `${ORCHESTRATOR_URL}/api/lessons/${encodeURIComponent(lessonId)}/storyboard${q}`,
+      { cache: "no-store" },
+    ),
+  );
+}
+
+export async function fetchLessonStoryboardSlide(
+  lessonId: string,
+  slideIndex: number,
+): Promise<StoryboardSegment> {
+  return jsonOrThrow(
+    await fetch(
+      `${ORCHESTRATOR_URL}/api/lessons/${encodeURIComponent(lessonId)}/storyboard/${slideIndex}`,
+      { cache: "no-store" },
+    ),
+  );
 }
 
 export async function startSession(

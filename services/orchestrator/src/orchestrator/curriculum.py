@@ -30,6 +30,10 @@ class Slide(BaseModel):
     # to and score the learner's speech (``say_aloud`` holds the phrase to say).
     kind: str = "teach"
     say_aloud: str = ""
+    # Optional animated storyboard for cert prep (DMV / food-handler) slides.
+    storyboard_svg: str = ""
+    storyboard_concept: str = ""
+    storyboard_scene_id: str = ""
 
 
 class KSBItem(BaseModel):

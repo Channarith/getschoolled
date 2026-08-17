@@ -28,6 +28,33 @@ from .memory_client import MemoryClient
 from .sessions import SessionStore, build_session_store
 
 
+def enrich_slide_storyboard(lesson_id: str, slide: Slide, *, source_index: int | None = None) -> Slide:
+    """Attach animated storyboard SVG when the lesson/slide has a catalog scene."""
+    try:
+        from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
+        from aoep_shared.cert_storyboard.catalog import storyboard_for_lesson
+    except Exception:
+        return slide
+    if not has_storyboard(lesson_id):
+        return slide
+    idx = source_index if source_index is not None else slide.index
+    data = storyboard_for_slide(lesson_id, idx, include_svg=True)
+    if data is None:
+        for seg in storyboard_for_lesson(lesson_id, include_svg=True):
+            if seg.get("title") == slide.title:
+                data = seg
+                break
+    if not data:
+        return slide
+    return slide.model_copy(
+        update={
+            "storyboard_svg": data.get("svg") or "",
+            "storyboard_concept": data.get("concept") or "",
+            "storyboard_scene_id": data.get("scene_id") or "",
+        }
+    )
+
+
 class ChatTurn(BaseModel):
     role: str  # "student" | "teacher"
     text: str
@@ -259,7 +286,17 @@ class TeachingSessions:
 
     def current_slide(self, session_id: str) -> Slide:
         session = self._require(session_id)
-        return self.lesson_for(session_id).slides[session.current_slide]
+        lesson = self.curriculum.get(session.lesson_id)
+        if lesson is None:
+            raise KeyError(session.lesson_id)
+        if session.slide_indices:
+            source_index = session.slide_indices[session.current_slide]
+            position = session.current_slide
+        else:
+            source_index = session.current_slide
+            position = session.current_slide
+        slide = lesson.slides[source_index].model_copy(update={"index": position})
+        return enrich_slide_storyboard(session.lesson_id, slide, source_index=source_index)
 
     def advance(self, session_id: str) -> Slide:
         # WARNING: cross-replica race; use Redis INCR for multi-replica deployments

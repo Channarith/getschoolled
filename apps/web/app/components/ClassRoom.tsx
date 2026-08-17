@@ -53,6 +53,7 @@ import {
 } from "../lib/assessmentFlow";
 import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
+import CourseStoryboardPlayer from "./CourseStoryboardPlayer";
 import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
 import CameraLightingScreener from "./CameraLightingScreener";
 import { useT } from "../lib/i18n";
@@ -1258,6 +1259,14 @@ export default function ClassRoom({
               )}
             </div>
             <h2 style={isFullscreen ? { fontSize: "clamp(30px, 4.2vw, 52px)", lineHeight: 1.15, color: "#fff", margin: "6px 0" } : undefined}>{slide.title}</h2>
+            {slide.storyboard_svg ? (
+              <CourseStoryboardPlayer
+                svg={slide.storyboard_svg}
+                concept={slide.storyboard_concept}
+                sceneId={slide.storyboard_scene_id}
+                fullscreen={isFullscreen}
+              />
+            ) : null}
             <p style={isFullscreen ? { fontSize: "clamp(18px, 2.2vw, 26px)", lineHeight: 1.6, color: "#e8ecf6" } : undefined}>{slide.body}</p>
             <p className="muted" style={isFullscreen ? { fontSize: 16, color: "#9fb4d8" } : undefined}>🔊 {slide.narration}</p>
 

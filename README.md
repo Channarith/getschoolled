@@ -168,6 +168,14 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | --- | --- | --- | --- | --- |
 | <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/solo_live_room.webp" alt="Solo 1:1 Salareen live room — AI host slide tile plus one learner, chat and Q&A" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
+Cert prep storyboards (animated SVG scenes per slide for CA DMV permit and
+Alameda / CA food-handler practice courses — cars, signs, pedestrians, kitchen
+props, narration cues):
+
+| DMV school bus | DMV emergency vehicles | Food handwashing |
+| --- | --- | --- |
+| <img src="docs/screens/storyboard_dmv_school_bus.png" alt="Animated storyboard: California school bus stop law with bus, car, pedestrian, and school-zone sign" /> | <img src="docs/screens/storyboard_dmv_ambulance.png" alt="Animated storyboard: pull right for emergency vehicles with ambulance and cars on a freeway" /> | <img src="docs/screens/storyboard_food_handwash.png" alt="Animated storyboard: food-handler handwashing at a prep station with sink, soap, and raw vs ready-to-eat zones" /> |
+
 | Salareen mobile — Android home | Drive Mode (mockup) |
 | --- | --- |
 | <img src="docs/screens/mobile_android_home.webp" alt="Salareen mobile app home on Android — bodhi-tree hero, Careers CTA, Netflix-style course rails, bottom tabs" width="320" /> | <img src="docs/screens/mobile_app_mockup.webp" alt="Salareen mobile Drive Mode audio player" width="320" /> |

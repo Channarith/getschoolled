@@ -212,6 +212,37 @@ def api_lesson_ksb(lesson_id: str) -> CourseKSB:
     return ksb
 
 
+@app.get("/api/lessons/{lesson_id}/storyboard")
+def api_lesson_storyboard(lesson_id: str, include_svg: bool = True) -> dict:
+    """Animated storyboard scenes for food-handler / DMV cert prep lessons."""
+    from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_lesson
+
+    if not has_storyboard(lesson_id):
+        raise HTTPException(status_code=404, detail=f"no storyboard for lesson {lesson_id}")
+    segments = storyboard_for_lesson(lesson_id, include_svg=include_svg)
+    return {
+        "lesson_id": lesson_id,
+        "segment_count": len(segments),
+        "segments": segments,
+    }
+
+
+@app.get("/api/lessons/{lesson_id}/storyboard/{slide_index}")
+def api_lesson_storyboard_slide(lesson_id: str, slide_index: int, include_svg: bool = True) -> dict:
+    """One slide/verse storyboard for a cert prep lesson."""
+    from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
+
+    if not has_storyboard(lesson_id):
+        raise HTTPException(status_code=404, detail=f"no storyboard for lesson {lesson_id}")
+    segment = storyboard_for_slide(lesson_id, slide_index, include_svg=include_svg)
+    if segment is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"no storyboard for lesson {lesson_id} slide {slide_index}",
+        )
+    return segment
+
+
 @app.post("/api/lessons/{lesson_id}/plan")
 def api_lesson_plan(lesson_id: str, req: LessonPlanRequest) -> dict:
     """Build a shorter or deeper path through the same canonical lesson."""
