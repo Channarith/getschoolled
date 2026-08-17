@@ -120,7 +120,11 @@ def test_absent_confirmed_after_time_in_away_not_after_last_presence():
     from aoep_shared.presence import PresenceFrame, PresenceState, PresenceTracker
 
     t = PresenceTracker("p1", away_grace_s=10.0, absent_confirm_s=30.0)
-    t0 = time.monotonic()
+    # Fixed synthetic base — mixing a real time.monotonic() read with synthetic
+    # offsets made the boundary comparisons environment-dependent (a coarse or
+    # unusual monotonic clock shifted the grace arithmetic and CI saw AWAY
+    # where the exact math says ABSENT).
+    t0 = 1_000_000.0
     t.push(PresenceFrame(face_present=True, silhouette_present=False, timestamp=t0))
     # 10s later: enters AWAY (grace elapsed).
     s = t.push(PresenceFrame(face_present=False, silhouette_present=False, timestamp=t0 + 10.0))
