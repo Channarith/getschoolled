@@ -27,3 +27,13 @@ Promotion path
   Proven presence logic graduates into aoep_shared.vision + live-room presence
   probes (apps/web live-room, services/perception). Keep this lab as the
   experiment surface so production paths stay stable.
+
+Production xAI voice (web + mobile)
+  Speech gateway (services/speech) mints ephemeral client secrets:
+    GET  /speech/voice/status
+    POST /speech/voice/token
+  Web: apps/web/app/lib/xaiVoice.ts + class page "Grok voice" toggle
+  Mobile: apps/mobile/src/xaiVoice.ts + LessonScreen "Grok voice" button
+  Secret: XAI_API_KEY in config/local.env (gitignored) or aoep-secrets
+  Non-secret: XAI_VOICE_MODEL / XAI_VOICE_ID in configmaps
+  Never commit XAI_API_KEY.
