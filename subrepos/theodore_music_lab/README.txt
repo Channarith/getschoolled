@@ -60,6 +60,17 @@ ffmpeg needed to serve). Regenerate after adding or replacing an MP3:
   python3 scripts/align_songs.py            # writes data/alignment.jsonl
   python3 scripts/align_songs.py --report   # print the timings, write nothing
 
+To answer "is this song actually in sync?" without listening to all of it,
+verify_alignment.py re-measures the audio and audits what the app serves — a
+stale alignment.jsonl, a replaced MP3 or a bad scale becomes a number:
+
+  python3 scripts/verify_alignment.py       # exits 1 when a song is off
+  python3 scripts/verify_alignment.py --song en-travel-words-audio-v1 --report
+
+Nothing is highlighted before the first sung word: the intro queues line 1 in a
+muted "upcoming" state, hides the ball, and counts in ("Singing starts in 3...")
+so a 3.1s instrumental opening does not read as lyrics running early.
+
 Songs with no measured alignment fall back to a syllable-weighted estimate
 (timing.py). Hand-tuned values still win when a line carries start_sec/end_sec
 or a song carries lead_in_sec. A listener's ±0.25s sync nudge is remembered per

@@ -412,6 +412,27 @@ def test_the_stage_never_goes_blank_during_intro_or_outro():
             )
 
 
+def test_no_lyric_line_starts_before_the_singing_does():
+    """The complaint was line 1 lighting up during an instrumental intro."""
+    for song in Catalog().featured():
+        timings = song_timings(song)
+        first = min(float(row["start"]) for row in timings["lines"])
+        assert first == pytest.approx(float(timings["lead_in_sec"]), abs=0.01)
+        if timings["source"] == "measured vocal alignment":
+            # Every featured song opens on instrumental bars; lyrics must wait.
+            assert first > 1.0
+
+
+def test_the_intro_counts_in_instead_of_highlighting_the_first_line():
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert "showCountIn" in page
+    assert "Singing starts in" in page
+    assert "line.upcoming" in page
+    # The old behaviour marked line 1 active through the intro.
+    assert "setActiveLine(first.line_no, false, false)" not in page
+
+
 def test_syllable_counts_are_sane():
     assert syllable_count("bus") == 1
     assert syllable_count("supermarket") == 4

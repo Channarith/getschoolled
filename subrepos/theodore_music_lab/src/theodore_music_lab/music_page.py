@@ -232,6 +232,9 @@ _CSS = """
     border-radius:14px; background:#0f172a; border:1px solid #334155; }
   .line { padding:.4rem .5rem .3rem; border-radius:10px; transition:background .2s; }
   .line.active { background:color-mix(in srgb, var(--accent) 14%, transparent); }
+  /* Queued during the instrumental intro: readable, but clearly not being sung yet. */
+  .line.upcoming { background:transparent; box-shadow:inset 0 0 0 1px #334155; }
+  .line.upcoming .words { color:#94a3b8; }
   .line .section { font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); opacity:.8; }
   .line .words { color:var(--muted); font-size:1.05rem; line-height:1.9; }
   .line.active .words { color:var(--ink); }
@@ -613,6 +616,8 @@ _JS = r"""
     });
     activeLineNo = 0;
     activeWordKey = "";
+    // The rebuilt rows carry no state classes, so the count-in must re-apply its own.
+    countInLineNo = 0;
   }
 
   function renderTierMeta() {
@@ -1329,6 +1334,9 @@ _JS = r"""
       `<span class="w" data-i="${w.index}">${esc(w.text)}</span>`).join(" ");
     const tr = trRow(lineNo);
     $("cap-tr").textContent = tr && tr.translation ? tr.translation : "";
+    // While counting in, this line is the caption's tail — a "next line" hint here
+    // would overwrite the countdown whenever the storyboard repaints.
+    if (countInLineNo) return;
     const next = current.lines.find((l) => l.line_no === lineNo + 1);
     const nextTr = next ? trRow(next.line_no) : null;
     $("cap-next").textContent = next
@@ -1486,6 +1494,43 @@ _JS = r"""
     return found;
   }
 
+  /* Songs open on instrumental bars — the travel words wait 3.1s. Highlighting
+     line 1 there put the ball on a lyric nobody was singing yet, which reads as
+     "the lyrics start too early", so the intro queues the line and counts in. */
+  let countInLineNo = 0;
+
+  function showCountIn(t) {
+    const first = timings.lines[0];
+    if (!first) return;
+    if (countInLineNo !== first.line_no) {
+      countInLineNo = first.line_no;
+      activeLineNo = 0;
+      clearWordPaint();
+      $("lyrics").querySelectorAll(".line").forEach((el) => {
+        el.classList.remove("active");
+        const no = Number(el.getAttribute("data-no"));
+        el.classList.toggle("upcoming", no === first.line_no);
+      });
+      // Read-ahead text without paint: the stage stays full, nothing looks sung.
+      renderNowLine(first.line_no);
+      renderCaption(first.line_no);
+      clearWordPaint();
+    }
+    // Re-asserted rather than cached: loading the storyboard repaints the caption.
+    const away = Math.ceil(Math.max(0, first.start - t));
+    const label = away > 0 ? `Singing starts in ${away}\u2026` : "";
+    const cap = $("cap-next");
+    if (cap.textContent !== label) cap.textContent = label;
+  }
+
+  function clearCountIn() {
+    if (!countInLineNo) return;
+    countInLineNo = 0;
+    $("lyrics").querySelectorAll(".line.upcoming").forEach((el) => {
+      el.classList.remove("upcoming");
+    });
+  }
+
   function tick() {
     const player = $("player");
     if (!timings) return;
@@ -1503,14 +1548,13 @@ _JS = r"""
       row = lineBefore(t);
     }
     if (row) {
+      clearCountIn();
       setActiveLine(row.line_no, true);
-      // Also speak when the line was already showing through the intro or a rest.
+      // Also speak when the line was already showing through a rest.
       speakLine(row.line_no);
       paintWords(row, t);
     } else {
-      const first = timings.lines[0];
-      if (first) setActiveLine(first.line_no, false, false);
-      clearWordPaint();
+      showCountIn(t);
     }
     if (!player.paused && !player.ended) rafId = requestAnimationFrame(tick);
   }
@@ -1625,13 +1669,17 @@ _JS = r"""
     await loadTimings();
     await loadTranslation();
     renderLyrics();
-    setActiveLine(current.lines[0] ? current.lines[0].line_no : 0, false);
+    // Paused at 0:00 the song has not started, so queue line 1 rather than
+    // lighting it up as if it were being sung.
+    showCountIn(0);
     renderSongList();
     await loadStoryboard();
     if ($("sing-lang").checked) {
       try { await loadSingPlan(); } catch (_) { $("sing-lang").checked = false; }
     }
     await Promise.all([loadClips(), loadVideos()]);
+    // The storyboard and sing plan repaint the captions, so the count-in goes last.
+    if (!activeLineNo) showCountIn(player.currentTime + syncOffset);
   }
 
   async function loadVideos() {
@@ -1732,6 +1780,7 @@ _JS = r"""
     await loadTimings();
     renderLyrics();
     if (activeLineNo) { const no = activeLineNo; activeLineNo = 0; setActiveLine(no, false); }
+    else showCountIn($("player").currentTime + syncOffset);
     await loadStoryboard();
   });
   $("meaning-lang").onchange = async () => {
