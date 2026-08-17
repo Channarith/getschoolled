@@ -61,6 +61,14 @@ import { splitForSpeech, startSpeechKeepAlive, stopSpeechKeepAlive, synthChunk }
 import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
 import { useVoicePauseSubmitMs } from "../lib/flags";
 import { createVoicePauseSubmitter } from "../lib/voiceCommands";
+import {
+  closeXaiVoiceSession,
+  connectXaiVoiceSession,
+  getXaiVoiceStatus,
+  mintXaiVoiceToken,
+  playPcm16Base64,
+  sendTextTurn,
+} from "../lib/xaiVoice";
 
 // Minimal Web Speech API typing for the repeat-after-me checkpoint.
 type SpeechRec = {
@@ -114,6 +122,11 @@ export default function ClassPage() {
   const [showChat, setShowChat] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   const [spokenText, setSpokenText] = useState("");   // live caption for the presenter
+  const [xaiVoiceReady, setXaiVoiceReady] = useState(false);
+  const [xaiVoiceLive, setXaiVoiceLive] = useState(false);
+  const [xaiVoiceHint, setXaiVoiceHint] = useState("");
+  const xaiWsRef = useRef<WebSocket | null>(null);
+  const xaiAudioCtxRef = useRef<AudioContext | null>(null);
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
   const [tier, setTier] = useState("basic");
   const [adBreak, setAdBreak] = useState<AdBreak | null>(null);
@@ -149,6 +162,12 @@ export default function ClassPage() {
       getMe().then((a) => setTier((a.tier || "basic").toLowerCase())).catch(() => {});
       listStudents().then((r) => setStudentProfile(r.students[0] ?? null)).catch(() => {});
     }
+    getXaiVoiceStatus()
+      .then((s) => {
+        setXaiVoiceReady(Boolean(s.available));
+        setXaiVoiceHint(s.hint || "");
+      })
+      .catch(() => setXaiVoiceReady(false));
     listLessons()
       .then((ls) => {
         setLessons(ls);
@@ -158,7 +177,12 @@ export default function ClassPage() {
     getDisclosure()
       .then(setDisclosure)
       .catch(() => setDisclosure(null));
-    return () => stopSpeaking();
+    return () => {
+      stopSpeaking();
+      closeXaiVoiceSession(xaiWsRef.current);
+      xaiWsRef.current = null;
+      try { xaiAudioCtxRef.current?.close(); } catch { /* */ }
+    };
   }, []);
 
   function stopSpeaking() {
@@ -168,6 +192,69 @@ export default function ClassPage() {
     voiceRef.current = null;
     speechRef.current = null;
     setSpeaking(false);
+  }
+
+  function stopXaiVoice() {
+    closeXaiVoiceSession(xaiWsRef.current);
+    xaiWsRef.current = null;
+    try { xaiAudioCtxRef.current?.close(); } catch { /* */ }
+    xaiAudioCtxRef.current = null;
+    setXaiVoiceLive(false);
+  }
+
+  async function toggleXaiVoice() {
+    if (xaiVoiceLive) {
+      stopXaiVoice();
+      setXaiVoiceHint("Grok voice ended.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      stopSpeaking();
+      const lessonTitle = lessons.find((l) => l.lesson_id === lessonId)?.title || "";
+      const slideText = view?.slide?.narration || view?.slide?.body || view?.slide?.title || "";
+      const token = await mintXaiVoiceToken({
+        mode: "solo",
+        lesson_context: [lessonTitle, slideText].filter(Boolean).join("\n"),
+        learner_names: studentProfile?.display_name ? [studentProfile.display_name] : [],
+      });
+      if (!xaiAudioCtxRef.current) {
+        xaiAudioCtxRef.current = new AudioContext({ sampleRate: 24000 });
+      }
+      const ctx = xaiAudioCtxRef.current;
+      const ws = connectXaiVoiceSession(token, {
+        onOpen: () => {
+          setXaiVoiceLive(true);
+          setXaiVoiceHint("Theodore (Grok voice) is listening — ask out loud or type below.");
+        },
+        onClose: () => {
+          setXaiVoiceLive(false);
+          xaiWsRef.current = null;
+        },
+        onError: () => {
+          setXaiVoiceHint("Grok voice connection error — check speech service / XAI_API_KEY.");
+        },
+        onAudioDelta: (b64) => {
+          void playPcm16Base64(b64, ctx).catch(() => {});
+        },
+        onTranscriptDelta: (t) => {
+          if (t) setSpokenText((prev) => prev + t);
+        },
+        onTranscriptDone: (t) => {
+          if (t) {
+            setChat((c) => [...c, { role: "teacher", text: t }]);
+            setSpokenText(t);
+          }
+        },
+      });
+      xaiWsRef.current = ws;
+    } catch (e) {
+      setError(String(e));
+      setXaiVoiceHint("Could not start Grok voice.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function speak(text: string) {
@@ -714,6 +801,12 @@ export default function ClassPage() {
     setChat((c) => [...c, { role: "student", text: q }]);
     setBusy(true);
     try {
+      // Prefer live xAI Grok Voice S2S when the learner started a voice session.
+      if (xaiVoiceLive && xaiWsRef.current?.readyState === WebSocket.OPEN) {
+        sendTextTurn(xaiWsRef.current, q);
+        setBusy(false);
+        return;
+      }
       // Real-time chunked voice: stream LLM tokens (Nemotron when configured) ->
       // cut into tiny chunks -> synthesize + play each immediately so the first
       // audio is heard within ~a few words. Falls back to a buffered ask.
@@ -1015,8 +1108,28 @@ export default function ClassPage() {
                   />
                   Speak answers
                 </label>
+                <button
+                  type="button"
+                  onClick={() => void toggleXaiVoice()}
+                  disabled={busy || (!xaiVoiceReady && !xaiVoiceLive)}
+                  title={xaiVoiceHint || (xaiVoiceReady
+                    ? "Talk with Theodore via xAI Grok Voice"
+                    : "Set XAI_API_KEY on the speech service to enable Grok Voice")}
+                  style={{
+                    fontSize: 13, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+                    border: "1px solid #0d6e6e",
+                    background: xaiVoiceLive ? "#0d6e6e" : "#fff",
+                    color: xaiVoiceLive ? "#f7faf9" : "#0d6e6e",
+                    opacity: (!xaiVoiceReady && !xaiVoiceLive) ? 0.5 : 1,
+                  }}
+                >
+                  {xaiVoiceLive ? "● Grok voice on" : "Grok voice"}
+                </button>
               </div>
             </div>
+            {xaiVoiceHint ? (
+              <p className="muted" style={{ margin: "6px 0 0", fontSize: 12 }}>{xaiVoiceHint}</p>
+            ) : null}
             {showChat && (
             <div className="chat">
               {chat.map((m, i) => (

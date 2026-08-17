@@ -25,6 +25,10 @@ data:
   # When set, the speech gateway + presenter render narration through it. Empty
   # (or the Deployment absent) -> ElevenLabs/edge-tts/device-voice fallback.
   COSYVOICE_URL: "http://cosyvoice:9880"
+  # xAI Grok Voice Agent (non-secret model/voice id). The API key lives in
+  # aoep-secrets as XAI_API_KEY. Speech exposes POST /voice/token for web/mobile.
+  XAI_VOICE_MODEL: "grok-voice-latest"
+  XAI_VOICE_ID: "eve"
   LIVEKIT_URL: "wss://livekit.aoep.example"
   OBJECT_STORE_ENDPOINT: "https://s3.amazonaws.com"
   OBJECT_STORE_BUCKET: "aoep-prod"

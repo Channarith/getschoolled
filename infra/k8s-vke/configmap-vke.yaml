@@ -19,6 +19,8 @@ data:
   VISION_BASE_URL: "http://perception:8000"
   # CosyVoice 2 GPU TTS (vLLM-accelerated) in-cluster; see infra/k8s/cosyvoice.yaml.
   COSYVOICE_URL: "http://cosyvoice:9880"
+  XAI_VOICE_MODEL: "grok-voice-latest"
+  XAI_VOICE_ID: "eve"
   # LiveKit Cloud project URL (managed — NOT the self-hosted infra/k8s/livekit.yaml
   # server, which is unused when on Cloud). The orchestrator stamps this URL into
   # every join token, so clients connect here. It MUST belong to the same LiveKit
