@@ -144,6 +144,23 @@ def test_player_page_uses_timeupdate_lyric_sync():
         assert "syncActiveLineFromPlayer" in page.text
 
 
+def test_language_picker_offers_every_language_grouped_by_quality():
+    """A tick beside six names read as "only six supported"; groups say it plainly."""
+    with TestClient(app) as client:
+        page = client.get("/").text
+        assert "<optgroup" in page
+        assert "Full-line translations" in page
+        assert "Word-by-word glosses" in page
+        catalog = client.get("/api/music/languages").json()
+        assert catalog["count"] >= 26
+        curated = {row["code"] for row in catalog["catalog"] if row["curated"]}
+        # Chinese and Khmer must be full-line, not lexicon glosses.
+        assert {"zh", "km"} <= curated
+        for code in ("zh", "km"):
+            row = next(r for r in catalog["catalog"] if r["code"] == code)
+            assert row["curated_coverage"] == pytest.approx(1.0, abs=0.001)
+
+
 def test_the_page_carries_an_icon_and_favicon_ico_is_served():
     """An undeclared icon makes every visit log a 404 for /favicon.ico."""
     with TestClient(app) as client:

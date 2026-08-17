@@ -1862,14 +1862,25 @@ _JS = r"""
     });
     const langs = await api("/api/music/languages");
     const cat = langs.catalog || [];
-    $("meaning-lang").innerHTML = cat.map((row) =>
-      `<option value="${esc(row.code)}">${esc(row.name)}${row.curated ? " \u2713" : ""}</option>`).join("");
+    // Every language is selectable; the groups say which ones have hand-authored
+    // sentences, because a bare tick beside six of them read as "only these six".
+    const full = cat.filter((row) => row.curated);
+    const glossed = cat.filter((row) => !row.curated);
+    const optionsFor = (rows) => rows.map((row) =>
+      `<option value="${esc(row.code)}">${esc(row.name)}</option>`).join("");
+    $("meaning-lang").innerHTML = [
+      ["Full-line translations", full],
+      ["Word-by-word glosses", glossed],
+    ].filter(([, rows]) => rows.length).map(([label, rows]) =>
+      `<optgroup label="${esc(label)} (${rows.length})">${optionsFor(rows)}</optgroup>`
+    ).join("");
     $("meaning-lang").value = "es";
     refreshSingLabel();
     const data = await api("/api/music/featured");
     featured = data.songs || [];
     $("catalog-meta").textContent =
-      `${featured.length} featured with audio \u00b7 ${langs.count || 26} translation languages`;
+      `${featured.length} featured with audio \u00b7 ${langs.count || 26} translation ` +
+      `languages \u00b7 ${full.length} with full-line sentences`;
     renderSongList();
     await loadEmbeds();
     if (featured[0]) await selectSong(featured[0].song_id);
