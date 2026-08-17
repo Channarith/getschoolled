@@ -189,7 +189,10 @@ def load_songs(path: Optional[os.PathLike[str] | str] = None) -> list[Song]:
                 raw = raw.strip()
                 if not raw:
                     continue
-                rec = json.loads(raw)
+                try:
+                    rec = json.loads(raw)
+                except ValueError:
+                    continue  # one corrupt line must not kill the whole catalog
                 song = _song_from_record(rec, fallback_id=f"import-{len(out)+1}")
                 if song:
                     out.append(song)
@@ -202,7 +205,10 @@ def load_songs(path: Optional[os.PathLike[str] | str] = None) -> list[Song]:
                 raw = raw.strip()
                 if not raw:
                     continue
-                rec = json.loads(raw)
+                try:
+                    rec = json.loads(raw)
+                except ValueError:
+                    continue
                 rec["featured"] = True
                 song = _song_from_record(rec, fallback_id=f"featured-{len(featured)+1}")
                 if song:
@@ -292,7 +298,7 @@ class Catalog:
                 "animation": s.animation,
                 "duration_hint_sec": s.duration_hint_sec,
             }
-            for s in rows[: max(1, limit)]
+            for s in rows[: max(0, limit)]
         ]
 
     def featured(self) -> list[Song]:

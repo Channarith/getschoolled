@@ -2990,7 +2990,12 @@ MONITOR_JS = (
     const OWNER_ENROLL_HOLD_MS = 1500;
     const OWNER_MATCH_IOU_MIN = 0.22;
     const OWNER_MATCH_FP_MAX = 0.38;
-    const OWNER_MATCH_SCORE_MIN = 0.35;
+    // Above the IoU-only ceiling (0.45): continuity alone can never pass.
+    const OWNER_MATCH_SCORE_MIN = 0.55;
+    // Identity veto: below this fingerprint sub-score it is not the owner.
+    const OWNER_MATCH_FP_MIN = 0.25;
+    // Template adapts only on a strong identity match.
+    const OWNER_ADAPT_FP_MIN = 0.5;
     const OWNER_FP_IDX = [33, 263, 1, 61, 291, 10, 152];
     let faceOwnerState = {
       enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null, matchScore: 0,
@@ -3088,13 +3093,13 @@ MONITOR_JS = (
       return bestI;
     }
 
-    function matchScoreForFace(pts, state) {
+    function matchPartsForFace(pts, state) {
       const box = faceBoxFromPts(pts);
       const iou = boxIoU(box, state.lastBox);
       const fp = faceFingerprint(pts);
       const fpDist = fingerprintDistance(fp, state.fingerprint);
       const fpPart = Math.max(0, 1 - fpDist / Math.max(OWNER_MATCH_FP_MAX, 1e-6));
-      return Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart));
+      return { score: Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart)), fpPart };
     }
 
     function pickOwnerFace(faces, nowMs) {
@@ -3133,12 +3138,12 @@ MONITOR_JS = (
           secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
         };
       }
-      let bestI = 0, bestScore = -1;
+      let bestI = 0, bestScore = -1, bestFpPart = 0;
       for (let i = 0; i < faces.length; i++) {
-        const score = matchScoreForFace(faces[i], faceOwnerState);
-        if (score > bestScore) { bestScore = score; bestI = i; }
+        const parts = matchPartsForFace(faces[i], faceOwnerState);
+        if (parts.score > bestScore) { bestScore = parts.score; bestFpPart = parts.fpPart; bestI = i; }
       }
-      const matched = bestScore >= OWNER_MATCH_SCORE_MIN;
+      const matched = bestScore >= OWNER_MATCH_SCORE_MIN && bestFpPart >= OWNER_MATCH_FP_MIN;
       if (matched) {
         const box = faceBoxFromPts(faces[bestI]);
         if (box) {
@@ -3148,7 +3153,7 @@ MONITOR_JS = (
                 w: 0.7 * lb.w + 0.3 * box.w, h: 0.7 * lb.h + 0.3 * box.h }
             : box;
           const fp = faceFingerprint(faces[bestI]);
-          if (fp && faceOwnerState.fingerprint) {
+          if (fp && faceOwnerState.fingerprint && bestFpPart >= OWNER_ADAPT_FP_MIN) {
             faceOwnerState.fingerprint = faceOwnerState.fingerprint.map(
               (v, i) => 0.85 * v + 0.15 * fp[i]
             );
@@ -4040,7 +4045,9 @@ MONITOR_JS = (
       const smileRaw = Math.max(0, Math.min(1, (me - 0.035) / 0.08 + Math.max(0, mouthMean - cheekMean) * 1.8));
       const smile = smileRaw * Math.max(0, 1 - Math.max(0, gaze_down - 0.20) / 0.50);
       const sad = Math.max(0, Math.min(1, Math.max(0, (cheekMean - eyeMean) * 2.2) + Math.max(0, 0.05 - me) * 8 + Math.max(0, 0.55 - smile) * 0.35));
-      let expression_label = 'neutral', expression_confidence = 0.45;
+      // Parity with facial_experience.py (the server reference): neutral
+      // confidence scales with how undecided the smile/sad scores are.
+      let expression_label = 'neutral', expression_confidence = Math.max(0, Math.min(1, 0.40 + (1 - Math.abs(smile - sad)) * 0.35));
       if (smile >= 0.55 && smile >= sad + 0.08) { expression_label = 'happy'; expression_confidence = 0.45 + smile * 0.5; }
       else if (sad >= 0.52 && sad > smile + 0.05) { expression_label = 'sad'; expression_confidence = 0.42 + sad * 0.5; }
       // Eye state is deliberately NOT guessed here. The old edge-contrast proxy
@@ -4050,18 +4057,15 @@ MONITOR_JS = (
       // (MediaPipe blendshapes) may claim eye state; see trackFaceContoursAndMood.
       const eyes_closed_score = null;
       const eyes_closed = false;
-      // Grid yawn: dark mouth cavity relative to cheeks + weak smile edges.
-      const yawn_score = Math.max(0, Math.min(1,
-        Math.max(0, (cheekMean - mouthMean) * 2.6)
-        + Math.max(0, 0.045 - me) * 5.5
-        + Math.max(0, 0.35 - smile) * 0.35
-        - smile * 0.55
-      ));
-      const yawning = yawn_score >= 0.55 && yawn_score >= smile + 0.08;
-      if (yawning) { expression_label = 'yawning'; expression_confidence = 0.45 + yawn_score * 0.45; }
-      const attention = yawning
-        ? 'yawning'
-        : ((gaze_down >= 0.45 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking');
+      // Grid yawn removed: the dark-mouth-cavity proxy false-fired on head-low
+      // and dark-torso frames (same class of false positive as the removed
+      // eyes-closed proxy above), and the server never computed it either —
+      // the promotion branch there was dead code. Only real landmarks may
+      // claim yawning.
+      const yawn_score = null;
+      const yawning = false;
+      // Parity with facial_experience.py: eyes_away at gaze_down >= 0.60.
+      const attention = (gaze_down >= 0.60 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking';
       // Linear face size from dark-pixel bbox (larger face ⇒ closer to camera).
       let minX = w, minY = h, maxX = -1, maxY = -1;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
