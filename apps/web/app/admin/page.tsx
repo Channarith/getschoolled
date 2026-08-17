@@ -797,21 +797,26 @@ export default function AdminPage() {
                     {(r.attachments ?? []).map((name) => (
                       <div key={name}>
                         <a
-                          href={`${SERVICE_URLS.memory}/admin/bugs/${encodeURIComponent(r.id)}/attachments/${encodeURIComponent(name)}`}
+                          href={`/api/admin/bugs/${encodeURIComponent(r.id)}/attachments/${encodeURIComponent(name)}`}
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => {
                             e.preventDefault();
+                            // Same-origin route attaches the admin credential
+                            // server-side (session admins never type a secret).
                             void fetch(
-                              `${SERVICE_URLS.memory}/admin/bugs/${encodeURIComponent(r.id)}/attachments/${encodeURIComponent(name)}`,
-                              { headers: { "X-Admin-Secret": secret } },
+                              `/api/admin/bugs/${encodeURIComponent(r.id)}/attachments/${encodeURIComponent(name)}`,
+                              { headers: { "X-Admin-Secret": secret, ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) } },
                             )
-                              .then((resp) => resp.blob())
+                              .then((resp) => {
+                                if (!resp.ok) throw new Error(`attachment ${resp.status}`);
+                                return resp.blob();
+                              })
                               .then((blob) => {
                                 const url = URL.createObjectURL(blob);
                                 window.open(url, "_blank", "noopener,noreferrer");
                               })
-                              .catch(() => undefined);
+                              .catch((err) => setError(`Couldn't open attachment: ${String(err)}`));
                           }}
                         >
                           {name}

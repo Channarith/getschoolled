@@ -3087,9 +3087,11 @@ export async function adminSurveyInsights(secret: string): Promise<{
     top_suggestions: { term: string; count: number }[];
   };
 }> {
+  // Same-origin server route: attaches the operator-admin session's
+  // server-side secret, or falls back to the typed X-Admin-Secret.
   return jsonOrThrow(
-    await fetch(`${MEMORY_URL}/admin/survey/insights`, {
-      cache: "no-store", headers: { "X-Admin-Secret": secret },
+    await fetch("/api/admin/survey-insights", {
+      cache: "no-store", headers: { "X-Admin-Secret": secret, ...authHeaders() },
     })
   );
 }
@@ -3152,9 +3154,9 @@ export async function adminListBugReports(
   limit = 50,
 ): Promise<{ count: number; reports: BugReportRow[] }> {
   return jsonOrThrow(
-    await fetch(`${MEMORY_URL}/admin/bugs?limit=${limit}`, {
+    await fetch(`/api/admin/bugs?limit=${limit}`, {
       cache: "no-store",
-      headers: { "X-Admin-Secret": secret },
+      headers: { "X-Admin-Secret": secret, ...authHeaders() },
     }),
   );
 }
