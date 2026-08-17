@@ -189,6 +189,20 @@ def test_tiny_frame_does_not_crash_silhouette_detector():
     assert result.present in (True, False)  # any answer, as long as we survive
 
 
+def test_wide_short_frame_does_not_crash_silhouette_signals():
+    """The second HOG call site (vision/silhouette_signals.py) only upscaled on
+    the larger dimension, so a 240x80 frame (height < 128 window) segfaulted."""
+    pytest.importorskip("cv2")
+    import numpy as np
+
+    from aoep_shared.vision.silhouette_signals import detect_silhouette
+
+    for h, w in ((80, 240), (60, 200), (1, 1)):
+        frame = np.zeros((h, w, 3), dtype=np.uint8)
+        sig = detect_silhouette(frame, prefer_hog=True)
+        assert sig.present in (True, False)
+
+
 # MED-7 -------------------------------------------------------------------- #
 
 def test_elevenlabs_http_post_wraps_read_timeouts(monkeypatch):
