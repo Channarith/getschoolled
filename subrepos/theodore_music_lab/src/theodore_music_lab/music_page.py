@@ -278,6 +278,18 @@ _CSS = """
   .embed-caption-overlay .ecap-tr {
     font-size:.95rem; color:#6ee7b7; margin-top:.3rem;
     text-shadow:0 1px 4px rgba(0,0,0,.8); }
+  .ecap-lang-badge {
+    font-size:.75rem; color:#94a3b8; margin-top:.18rem;
+    text-shadow:0 1px 3px rgba(0,0,0,.7); letter-spacing:.03em; }
+  .pause-speak-btn {
+    background:none; border:1px solid #4ade80; color:#4ade80; border-radius:8px;
+    padding:.3rem .65rem; font-size:.82rem; cursor:pointer; margin-top:.55rem;
+    display:inline-flex; align-items:center; gap:.35rem; }
+  .pause-speak-btn:hover { background:rgba(74,222,128,.12); }
+  .pause-speak-btn.speaking { border-color:#fbbf24; color:#fbbf24; }
+  .speak-tr-row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin-top:.4rem; }
+  .lang-badge { font-size:.7rem; color:#64748b; background:#1e293b;
+    border-radius:5px; padding:.2rem .45rem; letter-spacing:.04em; }
   /* overlay pause card — shown on top of the video in theater mode */
   .embed-pause-overlay {
     display:none; position:absolute; inset:0; z-index:8;
@@ -432,6 +444,7 @@ _HTML = """
             <div class="embed-caption-overlay" id="embed-caption-overlay" aria-live="polite">
               <div class="ecap-line" id="ecap-line"></div>
               <div class="ecap-tr" id="ecap-tr"></div>
+              <div class="ecap-lang-badge" id="ecap-lang-badge"></div>
             </div>
             <!-- fullscreen pause overlay on top of video -->
             <div class="embed-pause-overlay" id="embed-pause-overlay" data-visible="false">
@@ -441,6 +454,11 @@ _HTML = """
                 <div class="tr" id="pause-tr-ov"></div>
                 <div class="chips" id="pause-vocab-ov"></div>
                 <div class="q-list" id="pause-questions-ov"></div>
+                <div class="speak-tr-row">
+                  <span class="lang-badge" id="pause-lang-badge-ov"></span>
+                  <div class="tr" id="pause-tr-ov" style="flex:1"></div>
+                  <button class="pause-speak-btn" id="btn-speak-tr-ov" type="button" title="Hear translation in your language">🔊 Hear</button>
+                </div>
                 <div class="ask-row" style="margin-top:.65rem">
                   <input type="text" id="embed-ask-input-ov"
                     placeholder="Ask about grammar, vocabulary, or this verse…" />
@@ -456,6 +474,7 @@ _HTML = """
             <button class="ghost" id="btn-embed-pause" type="button">Pause</button>
             <button class="ghost" id="btn-embed-continue" type="button">Continue after ask</button>
             <label><input type="checkbox" id="auto-pause" checked /> Pause at each verse</label>
+            <label><input type="checkbox" id="auto-speak-tr" /> 🔊 Speak translation</label>
             <span class="meta" id="embed-meta"></span>
             <button class="ghost embed-theater-btn" id="btn-embed-theater" type="button"
               title="Fullscreen with translation overlay (F)">⛶ Full screen</button>
@@ -463,7 +482,11 @@ _HTML = """
           <div class="pause-card" id="pause-card" hidden>
             <h3 id="pause-title">Paused for learning</h3>
             <div id="pause-line"></div>
-            <div class="tr" id="pause-tr"></div>
+            <div class="speak-tr-row">
+              <span class="lang-badge" id="pause-lang-badge"></span>
+              <div class="tr" id="pause-tr" style="flex:1"></div>
+              <button class="pause-speak-btn" id="btn-speak-tr" type="button" title="Hear translation">🔊 Hear</button>
+            </div>
             <div class="chips" id="pause-vocab"></div>
             <div class="q-list" id="pause-questions"></div>
             <div class="ask-row" style="margin-top:.65rem">
@@ -797,13 +820,18 @@ _JS = r"""
       box.innerHTML = "<div class='meta'>This item is a playlist pointer — open a lesson above to pause and ask.</div>";
       return;
     }
+    const tlName = (currentEmbed.target_lang_name && currentEmbed.target_lang_name !== "English")
+      ? currentEmbed.target_lang_name : "";
+    const showTlLabel = !!tlName;
     box.innerHTML = currentEmbed.verses.map((v) => `
       <button type="button" class="verse ${v.verse_no === activeVerseNo ? "active" : ""}"
         data-no="${v.verse_no}">
-        <strong>Line ${v.verse_no} \u00b7 ${esc(v.section || v.focus)} \u00b7 ${esc(v.source_lang || "")}
-          \u00b7 ${Math.round(v.start_sec)}s</strong>
+        <strong>Line ${v.verse_no} \u00b7 ${esc(v.section || v.focus)} \u00b7 ${Math.round(v.start_sec)}s</strong>
         <span>${esc(v.text)}</span>
-        <div class="tr">${esc(v.translation)}</div>
+        ${v.translation && v.translation !== v.text ? `
+          <div class="tr">${esc(v.translation)}
+            ${showTlLabel ? `<span class="lang-badge" style="margin-left:.3rem">${esc(tlName)}${v.tier ? " · " + esc(v.tier) : ""}</span>` : ""}
+          </div>` : ""}
         ${v.text_en && v.source_lang === "km" ? `<div class="meta">${esc(v.text_en)}</div>` : ""}
       </button>`).join("");
     box.querySelectorAll(".verse").forEach((btn) => {
@@ -815,6 +843,101 @@ _JS = r"""
     });
   }
 
+  // ---- per-language BCP-47 and audio translation ----
+  const LANG_BCP47 = {
+    en:"en-US", es:"es-ES", fr:"fr-FR", de:"de-DE", it:"it-IT",
+    pt:"pt-BR", nl:"nl-NL", pl:"pl-PL", ru:"ru-RU", uk:"uk-UA",
+    tr:"tr-TR", ar:"ar-SA", he:"he-IL", hi:"hi-IN", bn:"bn-IN",
+    ur:"ur-PK", fa:"fa-IR", zh:"zh-CN", ja:"ja-JP", ko:"ko-KR",
+    vi:"vi-VN", th:"th-TH", id:"id-ID", sw:"sw-KE", el:"el-GR",
+    cs:"cs-CZ", km:"km-KH",
+  };
+  const LANG_NAMES = {
+    en:"English", es:"Spanish", fr:"French", de:"German", it:"Italian",
+    pt:"Portuguese", nl:"Dutch", pl:"Polish", ru:"Russian", uk:"Ukrainian",
+    tr:"Turkish", ar:"Arabic", he:"Hebrew", hi:"Hindi", bn:"Bengali",
+    ur:"Urdu", fa:"Persian", zh:"Chinese", ja:"Japanese", ko:"Korean",
+    vi:"Vietnamese", th:"Thai", id:"Indonesian", sw:"Swahili", el:"Greek",
+    cs:"Czech", km:"Khmer",
+  };
+
+  let embedSpeakUtterance = null;
+  let embedSpeakTimer = 0;
+
+  function bcp47(code) { return LANG_BCP47[code] || code; }
+  function langName(code) { return LANG_NAMES[code] || code.toUpperCase(); }
+
+  function bestVoiceFor(code) {
+    const synth = window.speechSynthesis;
+    if (!synth) return null;
+    const voices = synth.getVoices() || [];
+    const want = bcp47(code).toLowerCase();
+    const base = want.split("-")[0];
+    return (
+      voices.find((v) => (v.lang || "").toLowerCase() === want) ||
+      voices.find((v) => (v.lang || "").toLowerCase().startsWith(base + "-")) ||
+      voices.find((v) => (v.lang || "").toLowerCase().startsWith(base)) ||
+      null
+    );
+  }
+
+  function speakTranslation(text, code, {onStart, onEnd, onError} = {}) {
+    const synth = window.speechSynthesis;
+    if (!synth || !text || !code || code === "en") {
+      if (onEnd) onEnd();
+      return;
+    }
+    clearTimeout(embedSpeakTimer);
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = bcp47(code);
+    // RTL languages need slightly slower delivery; tonal languages slower still.
+    const slow = ["ar","he","fa","ur","th","km","zh","ja","ko"].includes(code);
+    utter.rate = slow ? 0.82 : 0.92;
+    try {
+      const voice = bestVoiceFor(code);
+      if (voice) utter.voice = voice;
+    } catch (_) { /* keep utter.lang */ }
+    embedSpeakUtterance = utter;
+    utter.onstart = () => { if (onStart) onStart(); };
+    utter.onend = () => { embedSpeakUtterance = null; if (onEnd) onEnd(); };
+    utter.onerror = (e) => {
+      embedSpeakUtterance = null;
+      if (e.error !== "interrupted" && e.error !== "canceled") {
+        if (onError) onError(e.error);
+        else toast(`Speech: ${e.error || "failed"} — try a different language`);
+      }
+      if (onEnd) onEnd();
+    };
+    // Chrome can have a 15-second TTS bug; schedule a recovery
+    embedSpeakTimer = setTimeout(() => { synth.cancel(); if (onEnd) onEnd(); }, 20000);
+    synth.speak(utter);
+  }
+
+  function stopEmbedSpeech() {
+    clearTimeout(embedSpeakTimer);
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    embedSpeakUtterance = null;
+    // Reset any speaking button states
+    [$("btn-speak-tr"), $("btn-speak-tr-ov")].forEach((btn) => {
+      if (btn) btn.classList.remove("speaking");
+    });
+  }
+
+  function speakEmbedPause(translation, code) {
+    if (!translation || code === "en") return;
+    const buttons = [$("btn-speak-tr"), $("btn-speak-tr-ov")];
+    buttons.forEach((b) => b && b.classList.add("speaking"));
+    speakTranslation(translation, code, {
+      onEnd: () => buttons.forEach((b) => b && b.classList.remove("speaking")),
+      onError: (err) => {
+        buttons.forEach((b) => b && b.classList.remove("speaking"));
+        const name = langName(code);
+        toast(`No ${name} voice found — install it in your OS settings`);
+      },
+    });
+  }
+
   // ---- embed theater (fullscreen with overlay) ----
   let embedTheaterOn = false;
 
@@ -823,14 +946,19 @@ _JS = r"""
     if (!verse) {
       $("ecap-line").textContent = "";
       $("ecap-tr").textContent = "";
+      $("ecap-lang-badge").textContent = "";
       return;
     }
     $("ecap-line").textContent = verse.text || "";
+    const currentLang = lang();
     const bits = [verse.translation];
     if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
       bits.push(`(${verse.text_en})`);
     }
     $("ecap-tr").textContent = bits.filter(Boolean).join(" · ");
+    $("ecap-lang-badge").textContent = currentLang !== "en"
+      ? `${langName(currentLang)} · ${verse.tier || ""}`.trim().replace(/·\s*$/, "")
+      : "";
   }
 
   function toggleEmbedTheater(on) {
@@ -841,6 +969,7 @@ _JS = r"""
     stage.classList.toggle("embed-theater", want);
     document.body.classList.toggle("embed-theater-on", want);
     $("btn-embed-theater").textContent = want ? "✕ Exit full screen" : "⛶ Full screen";
+    if (!want) stopEmbedSpeech();
     if (want && !document.fullscreenElement && stage.requestFullscreen) {
       stage.requestFullscreen().catch(() => undefined);
     }
@@ -858,6 +987,7 @@ _JS = r"""
   function fillPauseOverlay(verse, verseNo, locked) {
     // Populates the fullscreen overlay pause card (mirrors the normal pause card).
     if (!verse) return;
+    const currentLang = lang();
     const title = locked ? `Paused at line ${verseNo} — read & ask` : `Line ${verseNo} — grammar & vocabulary`;
     $("pause-title-ov").textContent = title;
     $("pause-line-ov").textContent = verse.text;
@@ -865,7 +995,12 @@ _JS = r"""
     if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
       bits.push(verse.text_en);
     }
-    $("pause-tr-ov").textContent = bits.filter(Boolean).join(" · ");
+    const trTextOv = bits.filter(Boolean).join(" · ");
+    $("pause-tr-ov").textContent = trTextOv;
+    $("pause-lang-badge-ov").textContent = currentLang !== "en" ? langName(currentLang) : "";
+    if ($("btn-speak-tr-ov")) {
+      $("btn-speak-tr-ov").style.display = (trTextOv && currentLang !== "en") ? "" : "none";
+    }
     $("pause-vocab-ov").innerHTML = (verse.vocabulary || []).filter((r) => r.target).slice(0, 8).map((r) =>
       `<span class="chip"><b>${esc(r.en)}</b> \u2192 ${esc(r.target)}</span>`).join("");
     $("pause-questions-ov").innerHTML = (verse.questions || []).map((q, i) => `
@@ -894,6 +1029,7 @@ _JS = r"""
 
     // Normal (non-theater) pause card
     $("pause-card").hidden = false;
+    const currentLang = lang();
     const title = locked ? `Paused at line ${verseNo} — read & ask` : `Line ${verseNo} — grammar & vocabulary`;
     $("pause-title").textContent = title;
     $("pause-line").textContent = verse.text;
@@ -901,7 +1037,13 @@ _JS = r"""
     if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
       bits.push(verse.text_en);
     }
-    $("pause-tr").textContent = bits.filter(Boolean).join(" · ");
+    const trText = bits.filter(Boolean).join(" · ");
+    $("pause-tr").textContent = trText;
+    $("pause-lang-badge").textContent = currentLang !== "en" ? langName(currentLang) : "";
+    // Show speak button only when there is a translation
+    if ($("btn-speak-tr")) {
+      $("btn-speak-tr").style.display = (trText && currentLang !== "en") ? "" : "none";
+    }
     $("pause-vocab").innerHTML = (verse.vocabulary || []).filter((r) => r.target).slice(0, 8).map((r) =>
       `<span class="chip"><b>${esc(r.en)}</b> \u2192 ${esc(r.target)}</span>`).join("");
     $("pause-questions").innerHTML = (verse.questions || []).map((q, i) => `
@@ -923,6 +1065,12 @@ _JS = r"""
     // Theater overlay: show the overlay pause card on top of the video
     fillPauseOverlay(verse, verseNo, locked);
     if (embedTheaterOn) $("embed-pause-overlay").dataset.visible = "true";
+
+    // Auto-speak translation when the verse pauses (if opt-in checkbox is on)
+    if (locked && $("auto-speak-tr") && $("auto-speak-tr").checked && trText && currentLang !== "en") {
+      // Small delay so the visual pause-card animation settles first
+      setTimeout(() => speakEmbedPause(trText, currentLang), 420);
+    }
   }
 
   function clearPlayers() {
@@ -1004,8 +1152,10 @@ _JS = r"""
     firedPauses = new Set();
     pauseLocked = false;
     $("embed-stage").hidden = false;
+    const tlDisplay = (currentEmbed.target_lang_name && currentEmbed.target_lang_name !== "English")
+      ? ` \u00b7 ${currentEmbed.target_lang_name}` : "";
     $("embed-meta").textContent =
-      `${currentEmbed.channel} \u00b7 ${currentEmbed.verse_count} lines \u00b7 ${currentEmbed.topic}`;
+      `${currentEmbed.channel} \u00b7 ${currentEmbed.verse_count} lines \u00b7 ${currentEmbed.topic}${tlDisplay}`;
     renderEmbedPicker();
     renderVerses();
     $("pause-card").hidden = true;
@@ -1602,6 +1752,7 @@ _JS = r"""
     await loadStoryboard();
   });
   $("meaning-lang").onchange = async () => {
+    stopEmbedSpeech();
     refreshSingLabel();
     await loadTranslation();
     renderLyrics();
@@ -1609,12 +1760,19 @@ _JS = r"""
     activeLineNo = 0;
     if (no) setActiveLine(no, false);
     if ($("sing-lang").checked) { stopSinging(); await loadSingPlan(); }
-    await Promise.all([loadClips(), loadStoryboard(), loadEmbeds()]);
+    // Reload the current embed so all verse translations update to the new language.
+    if (currentEmbed) {
+      await selectEmbed(currentEmbed.embed_id);
+    } else {
+      await loadEmbeds();
+    }
+    await Promise.all([loadClips(), loadStoryboard()]);
   };
   $("sing-lang").onchange = () => { toggleSinging(); };
   $("btn-theater").onclick = () => toggleTheater();
   $("btn-embed-play").onclick = () => {
     pauseLocked = false;
+    stopEmbedSpeech();
     playMedia();
   };
   $("btn-embed-pause").onclick = () => {
@@ -1625,6 +1783,7 @@ _JS = r"""
     pauseLocked = false;
     $("pause-card").hidden = true;
     $("embed-pause-overlay").dataset.visible = "false";
+    stopEmbedSpeech();
     playMedia();
   };
   $("embed-ask-send").onclick = () => askEmbed();
@@ -1637,6 +1796,26 @@ _JS = r"""
     b.onclick = () => askEmbed(b.getAttribute("data-q"));
   });
 
+  // ---- Speak-translation buttons (normal card + fullscreen overlay) ----
+  if ($("btn-speak-tr")) {
+    $("btn-speak-tr").onclick = () => {
+      const text = $("pause-tr").textContent;
+      const code = lang();
+      if (!text || code === "en") return;
+      if (embedSpeakUtterance) { stopEmbedSpeech(); return; }
+      speakEmbedPause(text, code);
+    };
+  }
+  if ($("btn-speak-tr-ov")) {
+    $("btn-speak-tr-ov").onclick = () => {
+      const text = $("pause-tr-ov").textContent;
+      const code = lang();
+      if (!text || code === "en") return;
+      if (embedSpeakUtterance) { stopEmbedSpeech(); return; }
+      speakEmbedPause(text, code);
+    };
+  }
+
   // ---- overlay "Continue" and "Ask" in the fullscreen pause overlay ----
   // Wire a Continue action from the overlay
   $("embed-pause-overlay").addEventListener("click", (e) => {
@@ -1645,6 +1824,7 @@ _JS = r"""
       pauseLocked = false;
       $("pause-card").hidden = true;
       $("embed-pause-overlay").dataset.visible = "false";
+      stopEmbedSpeech();
       playMedia();
     }
   });
@@ -1736,6 +1916,7 @@ _JS = r"""
           pauseLocked = false;
           $("pause-card").hidden = true;
           $("embed-pause-overlay").dataset.visible = "false";
+          stopEmbedSpeech();
           playMedia();
         } else {
           pauseMedia();
