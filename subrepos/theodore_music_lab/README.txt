@@ -17,6 +17,9 @@ language_learning / content packs.
     line, so you read the next line before you have to sing it
   • Real per-line translation in all 27 languages, shown under every line at
     once (not only the active one) plus key-vocabulary chips and examples
+  • Sing in another language: tick "Sing in <language>" and a neural device voice
+    speaks each translated line inside that line's own window while the English
+    recording drops to a backing-track level — the same MP3 in any of the 27
   • Ask the AI about any line at any time — while the track is playing
   • Short lyric clips (chorus-sized line ranges) with lyrics + translation
   • Curated external lyric videos / channels with printed-lyrics links
@@ -52,9 +55,24 @@ Storyboard (storyboard.py, no external art assets)
             the sung line underneath stays translated in all 27
   motion     everything is CSS on inline SVG, pauses with the audio, and honours
             prefers-reduced-motion
+  framing   cameras zoom up to ~1.26x, so cast x is clamped into the action-safe
+            band (SAFE_X_MIN..SAFE_X_MAX); only "drive"/"cross-*" leave the frame
+            on purpose
 
 Tick "Narrate scenes" to have the device voice read the scene note; the music
 ducks while it speaks and comes back up afterwards.
+
+Sing-along (sing.py)
+  plan      one row per line: the translated text, the line's start/end window,
+            a BCP-47 voice tag, and the speech rate that makes the sentence fit
+  rate      chars / (chars-per-second budget × window), clamped 0.85–1.8 so a
+            dense script (zh/ja/ko) speeds up instead of overrunning the line
+  speech    romanization hints shown on screen ("你好 (nǐ hǎo)") are stripped
+            before speaking, and "·" between glosses becomes a comma pause
+  backing   the English MP3 drops to backing_volume (0.22) while singing and is
+            restored when the toggle goes off, on pause, and on song change
+  device    the voice comes from the OS/browser; with no voice for that language
+            installed the toggle refuses and says so rather than failing silently
 
 Ask AI uses Grok when XAI_API_KEY is set and otherwise answers from the lyrics
 themselves (line + translation + key words + example), so it works offline.
@@ -163,6 +181,10 @@ Step 6 — check the karaoke, translation and Ask-AI APIs
     | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(s["index"], s["camera"], s["backdrop"], s["narration"]) for s in d["scenes"]]'
   # timed scenes with their backdrop, camera move, cast and narration
 
+  curl -s "http://127.0.0.1:8097/api/music/sing/$SONG?target_lang=es&duration=74" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["voice_tag"]); [print(r["start"], r["rate"], r["speak"]) for r in d["lines"][:6]]'
+  # sing the English recording in another language: what to say, when, how fast
+
 APIs on :8097
   GET  / and /lab          — player UI (storyboard theater, karaoke, Ask AI)
   GET  /health
@@ -173,6 +195,8 @@ APIs on :8097
   GET  /api/music/timing/{song_id}  — line + word timings (?duration=&lead_in=)
   GET  /api/music/storyboard/{song_id} — timed scenes + SVG art + narration
                                          (?target_lang=&duration=)
+  GET  /api/music/sing/{song_id}    — sing plan: per-line text, window, voice
+                                      tag and speech rate (?target_lang=&duration=)
   GET  /api/music/audio/{filename}  — MP3, honours Range (206) so seeking works
   GET  /api/music/clips             — short lyric clips (?song_id=&target_lang=)
   GET  /api/music/videos            — curated lyric videos (?song_id=)

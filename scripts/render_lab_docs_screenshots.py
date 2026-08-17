@@ -420,7 +420,7 @@ def render_music_lab() -> None:
         lab="theodore_music_lab",
         filename="theodore_music_lab.webp",
         title="Theodore Music Lab",
-        subtitle="Storyboard theater  ·  karaoke  ·  every line translated  ·  :8097",
+        subtitle="Storyboard theater  ·  karaoke  ·  sing in 27 languages  ·  :8097",
         accent="#C4B5FD",
         left_title="Player",
         left_rows=[
@@ -431,6 +431,7 @@ def render_music_lab() -> None:
             ("karaoke", "bouncing ball · word colour"),
             ("translation", "27 languages, every line"),
             ("narration", "on screen, spoken on request"),
+            ("sing-along", "English track → 27 languages"),
             ("clips / videos", "6 clips · 6 lyric videos"),
         ],
         right_title="Full-screen theater",
@@ -442,10 +443,11 @@ def render_music_lab() -> None:
             "  Wheels on the bus go ●round● and round",
             "    Las ruedas del autobús giran y giran",
             "  → All through the town · Por toda la ciudad",
+            "  [x] Sing in Spanish · English ducked to backing",
             "ask: why 'round and round'?",
             "→ chorus repeats one pattern · town = pueblo",
         ],
-        pills=["full-screen scenes", "movie camera moves", "narration on screen"],
+        pills=["full-screen scenes", "movie camera moves", "sing in any language"],
     )
 
 

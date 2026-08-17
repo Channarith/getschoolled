@@ -302,6 +302,8 @@ _HTML = """
           <div class="stage-tools">
             <button class="ghost" id="btn-stage-play" type="button">Play</button>
             <button class="ghost" id="btn-theater" type="button">Full screen</button>
+            <label><input type="checkbox" id="sing-lang" /> <span id="sing-label">Sing in
+              Spanish</span></label>
             <label><input type="checkbox" id="narrate" /> Narrate scenes</label>
             <span class="dots" id="scene-dots"></span>
           </div>
@@ -379,6 +381,9 @@ _JS = r"""
   let translation = null;
   let clips = [];
   let board = null;
+  let singPlan = null;
+  let singingLineNo = 0;
+  let singBackedFrom = null;
   let syncOffset = 0;
   let activeLineNo = 0;
   let activeWordKey = "";
@@ -575,6 +580,7 @@ _JS = r"""
     if (el && scroll !== false) keepLineVisible(el, !player.paused);
     renderNowLine(lineNo);
     renderCaption(lineNo);
+    speakLine(lineNo);
   }
 
   function moveBall(span) {
@@ -725,6 +731,92 @@ _JS = r"""
     synth.speak(utter);
   }
 
+  /* ---------- sing along in the learner's language ---------- */
+
+  function voiceFor(tag) {
+    const synth = window.speechSynthesis;
+    if (!synth) return null;
+    const voices = synth.getVoices() || [];
+    const want = String(tag || "").toLowerCase().replace("_", "-");
+    const base = want.split("-")[0];
+    return voices.find((v) => (v.lang || "").toLowerCase().replace("_", "-") === want)
+      || voices.find((v) => (v.lang || "").toLowerCase().replace("_", "-").startsWith(base))
+      || null;
+  }
+
+  async function loadSingPlan() {
+    singPlan = null;
+    singingLineNo = 0;
+    if (!current) return;
+    const player = $("player");
+    const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : 0;
+    singPlan = await api(`/api/music/sing/${encodeURIComponent(current.song_id)}` +
+      `?target_lang=${encodeURIComponent(lang())}` +
+      (duration ? `&duration=${duration.toFixed(2)}` : ""));
+  }
+
+  function speakLine(lineNo) {
+    const synth = window.speechSynthesis;
+    if (!synth || !singPlan || !$("sing-lang").checked) return;
+    if (lineNo === singingLineNo) return;
+    const row = singPlan.lines.find((r) => r.line_no === lineNo);
+    if (!row || !row.speak) return;
+    singingLineNo = lineNo;
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(row.speak);
+    utter.lang = singPlan.voice_tag;
+    utter.rate = row.rate;
+    // A tagged voice is better, but an engine that rejects the object should
+    // still sing the line from the language tag alone.
+    try {
+      const voice = voiceFor(singPlan.voice_tag);
+      if (voice) utter.voice = voice;
+    } catch (_) { /* keep utter.lang */ }
+    synth.speak(utter);
+  }
+
+  function stopSinging() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    singingLineNo = 0;
+    const player = $("player");
+    if (singBackedFrom !== null) { player.volume = singBackedFrom; singBackedFrom = null; }
+  }
+
+  async function toggleSinging() {
+    const box = $("sing-lang");
+    if (!box.checked) { stopSinging(); return; }
+    if ($("narrate").checked) { $("narrate").checked = false; }
+    if (!window.speechSynthesis) {
+      box.checked = false;
+      toast("This browser has no speech voices");
+      return;
+    }
+    try {
+      await loadSingPlan();
+    } catch (e) {
+      box.checked = false;
+      toast(String(e.message || e));
+      return;
+    }
+    if (!voiceFor(singPlan.voice_tag)) {
+      box.checked = false;
+      toast(`No ${singPlan.language_name} voice installed on this device`);
+      return;
+    }
+    const player = $("player");
+    singBackedFrom = player.volume;
+    player.volume = singPlan.backing_volume;
+    toast(singPlan.word_by_word
+      ? `${singPlan.language_name}: word by word (no full-line translation yet)`
+      : `Singing in ${singPlan.language_name} \u00b7 English is now the backing track`);
+    speakLine(activeLineNo);
+  }
+
+  function refreshSingLabel() {
+    const name = ($("meaning-lang").selectedOptions[0] || {}).textContent || "";
+    $("sing-label").textContent = `Sing in ${name.replace(" \u2713", "").trim()}`;
+  }
+
   function toggleTheater(on) {
     const stage = $("stage");
     const want = on === undefined ? !stage.classList.contains("theater") : !!on;
@@ -851,6 +943,7 @@ _JS = r"""
     player.pause();
     cancelAnimationFrame(rafId);
     activeClip = null;
+    stopSinging();
     current = await api("/api/music/songs/" + encodeURIComponent(songId));
     $("now-title").textContent = current.title_en;
     $("now-meta").textContent =
@@ -867,6 +960,9 @@ _JS = r"""
     setActiveLine(current.lines[0] ? current.lines[0].line_no : 0, false);
     renderSongList();
     await loadStoryboard();
+    if ($("sing-lang").checked) {
+      try { await loadSingPlan(); } catch (_) { $("sing-lang").checked = false; }
+    }
     await Promise.all([loadClips(), loadVideos()]);
   }
 
@@ -944,15 +1040,22 @@ _JS = r"""
     $("stage").classList.remove("playing");
     $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    singingLineNo = 0;
   });
   $("player").addEventListener("ended", () => {
     $("stage").classList.remove("playing");
     $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
     clearWordPaint();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    singingLineNo = 0;
   });
   $("player").addEventListener("seeked", () => {
     activeWordKey = "";
+    // A seek lands mid-line: forget what was sung so the new line speaks again.
+    singingLineNo = 0;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     repaintLineStates(activeLineNo, $("player").currentTime + syncOffset);
     tick();
   });
@@ -964,13 +1067,16 @@ _JS = r"""
     await loadStoryboard();
   });
   $("meaning-lang").onchange = async () => {
+    refreshSingLabel();
     await loadTranslation();
     renderLyrics();
     const no = activeLineNo || (current && current.lines[0] ? current.lines[0].line_no : 0);
     activeLineNo = 0;
     if (no) setActiveLine(no, false);
+    if ($("sing-lang").checked) { stopSinging(); await loadSingPlan(); }
     await Promise.all([loadClips(), loadStoryboard()]);
   };
+  $("sing-lang").onchange = () => { toggleSinging(); };
   $("btn-theater").onclick = () => toggleTheater();
   async function togglePlay() {
     const player = $("player");
@@ -983,6 +1089,10 @@ _JS = r"""
   }
   $("btn-stage-play").onclick = () => togglePlay();
   $("narrate").onchange = () => {
+    if ($("narrate").checked && $("sing-lang").checked) {
+      $("sing-lang").checked = false;
+      stopSinging();
+    }
     if (!$("narrate").checked) {
       if (window.speechSynthesis) window.speechSynthesis.cancel();
       if (ducked) { ducked = false; $("player").volume = duckedFrom; }
@@ -1021,6 +1131,9 @@ _JS = r"""
   $("ask-input").addEventListener("keydown", (e) => { if (e.key === "Enter") askAI(); });
 
   (async function boot() {
+    // Chrome fills the voice list asynchronously; ask early so the sing toggle
+    // does not report "no voice" on a first click.
+    if (window.speechSynthesis) window.speechSynthesis.getVoices();
     $("ask-quick").innerHTML = QUICK_ASKS.map((q) =>
       `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
     $("ask-quick").querySelectorAll("button").forEach((b) => {
@@ -1031,6 +1144,7 @@ _JS = r"""
     $("meaning-lang").innerHTML = cat.map((row) =>
       `<option value="${esc(row.code)}">${esc(row.name)}${row.curated ? " \u2713" : ""}</option>`).join("");
     $("meaning-lang").value = "es";
+    refreshSingLabel();
     const data = await api("/api/music/featured");
     featured = data.songs || [];
     $("catalog-meta").textContent =

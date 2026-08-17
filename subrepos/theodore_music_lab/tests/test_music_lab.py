@@ -10,14 +10,26 @@ from theodore_music_lab.catalog import MEANING_LANGUAGES, Catalog, import_songs
 from theodore_music_lab.main import app
 from theodore_music_lab.media import load_clips, load_videos, resolve_clip
 from theodore_music_lab.session import SessionMode, SessionStore
+from theodore_music_lab.sing import (
+    MAX_RATE,
+    MIN_RATE,
+    VOICE_TAGS,
+    chars_per_second,
+    sing_plan,
+    speakable,
+    speech_rate,
+)
 from theodore_music_lab.storyboard import (
     BACKDROPS,
     CAMERA_MOVES,
     MOTIONS,
     NARRATION_LANGUAGES,
+    SAFE_X_MAX,
+    SAFE_X_MIN,
     SPRITE_HEIGHT_PCT,
     SPRITES,
     STORYBOARDS,
+    safe_x,
     scene_at,
     storyboard_for,
 )
@@ -382,6 +394,16 @@ def test_new_apis_and_player_ui(offline):
         )
         assert bad_lang.status_code == 422
 
+        plan = client.get(
+            f"/api/music/sing/{song_id}",
+            params={"target_lang": "es", "duration": 74, "allow_llm": False},
+        ).json()
+        assert plan["voice_tag"] == "es-ES"
+        assert plan["line_count"] == len(plan["lines"])
+        assert client.get(
+            f"/api/music/sing/{song_id}", params={"target_lang": "xx"}
+        ).status_code == 422
+
         page = client.get("/").text
         assert 'id="ball"' in page
         assert "Ask the AI about the lyrics" in page
@@ -395,8 +417,10 @@ def test_new_apis_and_player_ui(offline):
         # Full-screen storyboard stage.
         for hook in ('id="camera"', 'id="backdrop"', 'id="cast"', 'id="scene-tag"',
                      'id="cap-narration"', 'id="cap-line"', 'id="cap-ball"',
-                     'id="btn-theater"', 'id="narrate"'):
+                     'id="btn-theater"', 'id="narrate"',
+                     'id="sing-lang"', 'id="sing-label"'):
             assert hook in page, hook
+        assert "SpeechSynthesisUtterance" in page
         assert "requestFullscreen" in page
         for camera in CAMERA_MOVES:
             assert f".cam-{camera} " in page, camera
@@ -423,10 +447,19 @@ def test_every_song_storyboard_covers_every_line_in_order():
             for member in scene["cast"]:
                 assert member["kind"] in SPRITES
                 assert member["motion"] in MOTIONS
-                assert 0 <= member["x"] <= 100 and 0 <= member["y"] <= 100
+                # Cameras zoom in, so anything at the very edge would leave the
+                # frame mid-scene.
+                assert SAFE_X_MIN <= member["x"] <= SAFE_X_MAX
+                assert 0 <= member["y"] <= 100
                 assert member["height_pct"] == SPRITE_HEIGHT_PCT[member["kind"]]
         assert covered == [line.line_no for line in song.lines]
         assert previous_end == pytest.approx(board["duration_sec"], abs=0.05)
+
+
+def test_cast_is_pulled_into_the_action_safe_band():
+    assert safe_x(90) == SAFE_X_MAX
+    assert safe_x(4) == SAFE_X_MIN
+    assert safe_x(50) == 50.0
 
 
 def test_storyboard_art_is_self_contained_svg():
@@ -467,6 +500,47 @@ def test_scene_at_maps_playback_position_to_a_scene():
     for scene in board["scenes"]:
         middle = (scene["start"] + scene["end"]) / 2
         assert scene_at(board, middle)["scene_id"] == scene["scene_id"]
+
+
+def test_sing_plan_lets_every_language_carry_the_english_recording(offline):
+    cat = Catalog()
+    song = cat.get("en-wheels-bus-audio-v1")
+    for language in MEANING_LANGUAGES:
+        plan = sing_plan(song, language, duration_sec=74.0, allow_llm=False)
+        assert plan["line_count"] == len(song.lines)
+        assert plan["voice_tag"] == VOICE_TAGS[language]
+        assert 0.0 < plan["backing_volume"] < 1.0
+        for row in plan["lines"]:
+            assert row["speak"], f"{language} line {row['line_no']} has nothing to say"
+            assert MIN_RATE <= row["rate"] <= MAX_RATE
+            # Speech has to start with the line, not after it.
+            assert row["start"] < row["end"]
+        # A window is only "crowded" when even MAX_RATE overruns it; a nursery
+        # rhyme line should never be that dense.
+        assert plan["crowded_lines"] == 0, language
+
+
+def test_sing_speech_drops_the_romanization_shown_on_screen():
+    assert speakable("\u4f60\u597d (n\u01d0 h\u01ceo) \u00b7 \u670b\u53cb (p\u00e9ngyou)") == (
+        "\u4f60\u597d, \u670b\u53cb"
+    )
+    assert speakable("Hola amigo") == "Hola amigo"
+    assert speakable("") == ""
+    cat = Catalog()
+    plan = sing_plan(cat.get("en-wheels-bus-audio-v1"), "zh", allow_llm=False)
+    assert plan["word_by_word"] is True
+    assert all("(" not in row["speak"] for row in plan["lines"])
+
+
+def test_sing_rate_fits_the_line_into_its_window():
+    # A dense script gets a faster rate than a roomy Latin script in the same
+    # window, because it carries more meaning per character.
+    long_line = "x" * 60
+    assert speech_rate(long_line, 3.0, "es") > speech_rate(long_line, 12.0, "es")
+    assert speech_rate("short", 6.0, "es") == MIN_RATE
+    assert speech_rate("", 3.0, "es") == 1.0
+    assert speech_rate("anything", 0.0, "es") == 1.0
+    assert chars_per_second("zh") < chars_per_second("es")
 
 
 def test_storyboard_scenes_stretch_with_the_real_audio_duration():

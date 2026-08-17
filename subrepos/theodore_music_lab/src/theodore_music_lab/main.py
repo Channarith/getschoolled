@@ -14,6 +14,7 @@ from .catalog import MEANING_LANGUAGES, Catalog, _audio_dir, import_songs, meani
 from .media import load_clips, resolve_clip, videos_for
 from .music_page import render_music_page
 from .session import SessionMode, SessionStore
+from .sing import VOICE_TAGS, sing_plan
 from .storyboard import STORYBOARDS, storyboard_for
 from .timing import song_timings
 from .translations import language_catalog, translate_song, validate_language
@@ -93,6 +94,7 @@ def health() -> dict[str, Any]:
         "ask_ai": True,
         "storyboards": len(STORYBOARDS),
         "storyboard_scenes": sum(len(scenes) for scenes in STORYBOARDS.values()),
+        "sing_along_languages": len(VOICE_TAGS),
         "player": "/",
     }
 
@@ -132,6 +134,23 @@ def song_storyboard(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return storyboard_for(song, language=language, duration_sec=duration or None)
+
+
+@app.get("/api/music/sing/{song_id}")
+def song_sing_plan(
+    song_id: str, target_lang: str = "es", duration: float = 0.0, allow_llm: bool = True
+) -> dict[str, Any]:
+    """Sing the English recording in another language: text, window, voice, rate."""
+    song = _song_or_404(song_id)
+    try:
+        return sing_plan(
+            song,
+            target_lang,
+            duration_sec=duration or None,
+            allow_llm=allow_llm,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/api/music/translate")
