@@ -258,8 +258,53 @@ def api_lesson_plan(lesson_id: str, req: LessonPlanRequest) -> dict:
     }
 
 
+@app.get("/api/lessons/{lesson_id}/accreditation")
+def api_lesson_accreditation(lesson_id: str) -> dict:
+    """Return whether a lesson awards accreditation and requires a registered account.
+
+    HARD RULE: certifiable / certification courses require sign-up. Guests may
+    still take sample (non-certifiable) courses.
+    """
+    from aoep_shared.accreditation import (
+        certification_meta,
+        is_certifiable_lesson,
+        requires_registered_account,
+    )
+
+    body, ceu = certification_meta(lesson_id)
+    certifiable = is_certifiable_lesson(lesson_id)
+    return {
+        "lesson_id": lesson_id,
+        "certifiable": certifiable,
+        "requires_registered_account": requires_registered_account(lesson_id),
+        "certification_body": body,
+        "ceu_credits": ceu,
+    }
+
+
 @app.post("/api/sessions", response_model=SessionView)
-def api_start_session(req: StartSessionRequest) -> SessionView:
+def api_start_session(
+    req: StartSessionRequest,
+    authorization: str = Header(default=""),
+) -> SessionView:
+    # HARD RULE: accreditation / certification courses require a registered
+    # account. Guests may start sample (non-certifiable) lessons only.
+    from aoep_shared.accreditation import (
+        ACCREDITATION_ACCOUNT_REQUIRED_DETAIL,
+        may_start_for_accreditation,
+    )
+
+    account_id = _assessment_account_id(authorization)
+    allowed, reason = may_start_for_accreditation(
+        req.lesson_id, account_id=account_id or None,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=401,
+            detail=ACCREDITATION_ACCOUNT_REQUIRED_DETAIL,
+            headers={"X-AOEP-Gate": reason},
+        )
+
     sessions = get_sessions()
     try:
         budget = req.session_budget_min

@@ -596,10 +596,26 @@ class StatusUpdate(BaseModel):
 
 @app.post("/enrollments/{course_id}/status")
 def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_account)) -> dict:
-    # PASSED awards points. In cloud, require an orchestrator-signed
-    # pass_decision_token so clients cannot self-award. Local/dev still
-    # allows unverified Drive/live completions for demos and existing tests.
+    # PASSED awards points. HARD RULE: accreditation/certification courses
+    # always require an orchestrator-signed pass_decision_token (even in
+    # local/dev) so guests / unverified clients cannot self-award credit.
+    # Non-certifiable sample courses still allow unverified pass in local/dev.
     if req.status is EnrollmentStatus.PASSED:
+        from aoep_shared.accreditation import (
+            ACCREDITATION_VERIFIED_PASS_DETAIL,
+            may_mark_accreditation_passed,
+        )
+
+        has_token = bool(req.pass_decision_token)
+        ok, reason = may_mark_accreditation_passed(
+            course_id, has_verified_pass_token=has_token,
+        )
+        if not ok:
+            raise HTTPException(
+                status_code=403,
+                detail=ACCREDITATION_VERIFIED_PASS_DETAIL,
+                headers={"X-AOEP-Gate": reason},
+            )
         if req.pass_decision_token:
             claims = verify_token(req.pass_decision_token, _assessment_signing_key())
             if not claims or claims.get("kind") != "assessment_pass":
