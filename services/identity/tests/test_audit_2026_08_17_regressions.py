@@ -206,6 +206,43 @@ def test_consent_rejects_foreign_student(monkeypatch):
     assert out.status_code == 403
 
 
+# Voucher TOCTOU + LOW-32 ---------------------------------------------------- #
+
+def test_voucher_consume_rechecks_validity():
+    import identity.main as identity_main
+
+    store = identity_main._voucher_store()
+    store.create(code="AUDIT-TOCTOU", kind="coupon", value=10.0, max_uses=1)
+    store.consume("AUDIT-TOCTOU")  # first and only use
+    try:
+        store.consume("AUDIT-TOCTOU")
+        raise AssertionError("second consume past max_uses succeeded")
+    except ValueError:
+        pass
+
+
+def test_class_scoped_free_pass_requires_the_class():
+    import identity.main as identity_main
+
+    store = identity_main._voucher_store()
+    store.create(code="AUDIT-PASS", kind="free_pass", value=0.0, max_uses=5,
+                 class_id="algebra-101")
+    # Omitting class_id must not bypass the restriction.
+    try:
+        store.validate("AUDIT-PASS", 49.0)
+        raise AssertionError("class-scoped free pass validated without class_id")
+    except ValueError:
+        pass
+    # Wrong class rejected, right class works.
+    try:
+        store.validate("AUDIT-PASS", 49.0, class_id="chem-999")
+        raise AssertionError("class-scoped free pass validated for another class")
+    except ValueError:
+        pass
+    v, final, _ = store.validate("AUDIT-PASS", 49.0, class_id="algebra-101")
+    assert final == 0.0
+
+
 # MED-31 --------------------------------------------------------------------- #
 
 def test_pass_decision_token_score_overrides_body_score():

@@ -1603,7 +1603,10 @@ def consume_voucher(req: VoucherConsumeRequest) -> dict:
     v = _voucher_store().lookup(req.code)
     if v is None:
         raise HTTPException(status_code=404, detail=f"voucher {req.code!r} not found")
-    _voucher_store().consume(req.code)
+    try:
+        _voucher_store().consume(req.code)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     return {"consumed": True, "code": v.code, "uses": v.uses, "max_uses": v.max_uses}
 
 
