@@ -7,6 +7,10 @@ language_learning / content packs.
   • 100+ original / Suno-style educational songs (data/songs.jsonl)
   • Featured MP3 player UI with animation + lyrics (Travel Words, Wheels on
     the Bus learning version, Words This Way) at http://127.0.0.1:8097/
+  • Full-screen storyboard theater: every featured song is a sequence of scenes
+    (22 in all) with drawn characters on a drawn background, a movie camera move
+    per scene, and the scene's narration on screen under the sung line — press
+    "Full screen" (or F) to fill the window, Esc to come back
   • Karaoke: a bouncing ball rides the current word, the sung word is colour
     highlighted, finished lines dim to gold, and a ±0.25s sync nudge trims drift
   • Sing-along scrolling: the lyric box keeps two upcoming lines below the sung
@@ -31,6 +35,26 @@ Translation tiers (best available wins; every line always resolves)
 
 Karaoke timings are syllable-weighted estimates (timing.py); hand-tuned values
 win when a line carries start_sec/end_sec or a song carries lead_in_sec.
+
+Storyboard (storyboard.py, no external art assets)
+  scenes    hand-authored per song, each pinned to a lyric line range, so the
+            cuts land on line boundaries at any real audio duration
+  backdrops 15 layered SVG sets (town street, park, bus interior, market row,
+            airport hall, cafe, sunrise hill, stage lights, night map, …)
+  cast      23 SVG characters and props (kids, grown-up, dog, bus, car, train,
+            plane, sun, clouds, rain, tree, signs, arrows, food, ticket, …) with
+            their own motion: wave, walk, hop, sway, drive, spinning wheels,
+            opening doors, falling rain
+  camera    push-in, pull-out, pan-left/right, tilt-up, ken-burns, zoom-punch,
+            dolly-shake — the move runs for exactly the scene's length
+  narration English scene notes, hand-translated for es/fr/de/it/pt; other
+            languages show the English note (narration_tier says which) while
+            the sung line underneath stays translated in all 27
+  motion     everything is CSS on inline SVG, pauses with the audio, and honours
+            prefers-reduced-motion
+
+Tick "Narrate scenes" to have the device voice read the scene note; the music
+ducks while it speaks and comes back up afterwards.
 
 Ask AI uses Grok when XAI_API_KEY is set and otherwise answers from the lyrics
 themselves (line + translation + key words + example), so it works offline.
@@ -135,14 +159,20 @@ Step 6 — check the karaoke, translation and Ask-AI APIs
     | python3 -m json.tool | head -30
   curl -s http://127.0.0.1:8097/api/music/videos | python3 -m json.tool | head -20
 
+  curl -s "http://127.0.0.1:8097/api/music/storyboard/$SONG?target_lang=es&duration=74" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(s["index"], s["camera"], s["backdrop"], s["narration"]) for s in d["scenes"]]'
+  # timed scenes with their backdrop, camera move, cast and narration
+
 APIs on :8097
-  GET  / and /lab          — player UI (karaoke, translations, Ask AI, clips)
+  GET  / and /lab          — player UI (storyboard theater, karaoke, Ask AI)
   GET  /health
   GET  /api/music/languages         — codes + per-language translation quality
   GET  /api/music/featured
   GET  /api/music/songs
   GET  /api/music/songs/{song_id}
   GET  /api/music/timing/{song_id}  — line + word timings (?duration=&lead_in=)
+  GET  /api/music/storyboard/{song_id} — timed scenes + SVG art + narration
+                                         (?target_lang=&duration=)
   GET  /api/music/audio/{filename}  — MP3, honours Range (206) so seeking works
   GET  /api/music/clips             — short lyric clips (?song_id=&target_lang=)
   GET  /api/music/videos            — curated lyric videos (?song_id=)

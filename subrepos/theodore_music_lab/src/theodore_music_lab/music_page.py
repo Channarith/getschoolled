@@ -177,13 +177,14 @@ _CSS = """
   .cap-ball.on { opacity:1; }
   .stage.theater .cap-ball, .stage.theater .cap-ball .dot { width:26px; height:26px; }
   .cap-narration { color:#cbd5e1; font-size:.86rem; margin-bottom:.3rem; }
-  .cap-line { font-size:1.4rem; font-weight:800; line-height:1.5; }
+  /* padding-top leaves the bouncing ball its own lane above the words */
+  .cap-line { font-size:1.4rem; font-weight:800; line-height:1.5; padding-top:1.4rem; }
   .cap-line .w { padding:.05rem .2rem; }
   .cap-tr { color:var(--good); font-size:1rem; }
   .cap-next { color:#94a3b8; font-size:.9rem; margin-top:.2rem; }
   .stage.theater .captions { padding:4rem 3rem 2.2rem; }
   .stage.theater .cap-narration { font-size:1.25rem; }
-  .stage.theater .cap-line { font-size:2.6rem; }
+  .stage.theater .cap-line { font-size:2.6rem; padding-top:2.2rem; }
   .stage.theater .cap-tr { font-size:1.6rem; }
   .stage.theater .cap-next { font-size:1.2rem; }
   .stage.theater .scene-tag { font-size:1rem; top:1.4rem; left:2rem; }
