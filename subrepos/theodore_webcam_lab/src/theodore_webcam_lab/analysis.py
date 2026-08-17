@@ -69,6 +69,24 @@ class AnalyzerPolicy:
     # Caps retained per-session state so a long-lived server cannot grow without bound.
     max_tracked_sessions: int = 512
 
+    def validate(self) -> None:
+        """Reject values that break the state machine (negative windows make
+        every missing frame instantly ABSENT / pause training immediately)."""
+        for name in (
+            "absence_grace_ms",
+            "gaze_away_grace_ms",
+            "pause_training_no_presence_ms",
+        ):
+            value = int(getattr(self, name))
+            if value < 0 or value > 3_600_000:
+                raise ValueError(f"{name} must be 0..3600000 ms (got {value})")
+        if not 1 <= int(self.solo_max_faces) <= 8:
+            raise ValueError(f"solo_max_faces must be 1..8 (got {self.solo_max_faces})")
+        if not 1 <= int(self.max_tracked_sessions) <= 100_000:
+            raise ValueError(
+                f"max_tracked_sessions must be 1..100000 (got {self.max_tracked_sessions})"
+            )
+
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> AnalyzerPolicy:
         """Load timing/session knobs from AOEP_VISION_* environment variables."""

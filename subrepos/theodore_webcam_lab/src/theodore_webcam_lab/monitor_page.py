@@ -527,10 +527,11 @@ MONITOR_JS = (
     }
     function toast(message) {
       const el = document.getElementById('toast');
+      if (!el) return;  // post-shutdown the DOM is wiped
       el.textContent = message;
       el.classList.add('show');
       clearTimeout(toast._t);
-      toast._t = setTimeout(() => el.classList.remove('show'), 5000);
+      toast._t = setTimeout(() => { if (el.isConnected) el.classList.remove('show'); }, 5000);
     }
     function pct(v) {
       if (v === null || v === undefined) return 'n/a';
@@ -807,9 +808,17 @@ MONITOR_JS = (
         }
         return;
       }
-      metricsFailStreak = 0;
       if (labOffline || document.getElementById('state') == null) return;
-      const data = res.ok ? await res.json().catch(() => null) : null;
+      if (!res.ok) {
+        // A persistent HTTP 500 is a down/broken server, not "no metrics yet".
+        metricsFailStreak += 1;
+        if (metricsFailStreak >= 3) {
+          markLabOffline('Lab server is erroring (HTTP ' + res.status + '). Restart uvicorn, then reload this page.');
+        }
+        return;
+      }
+      metricsFailStreak = 0;
+      const data = await res.json().catch(() => null);
       // An unseeded session answers 200 with updated_at_ms 0 and no participants.
       if (!data || !data.updated_at_ms) {
         setHtmlSafe('state',
@@ -1026,7 +1035,8 @@ MONITOR_JS = (
     }
 
     function setStatus(text) {
-      document.getElementById('tuning-status').textContent = text;
+      const el = document.getElementById('tuning-status');
+      if (el) el.textContent = text;
     }
     function updateTuningEffect(p, knobs, note) {
       const host = document.getElementById('tuning-effect');
@@ -1178,11 +1188,12 @@ MONITOR_JS = (
         : (tuningScope === 'voice'
           ? '/api/theodore/voice/tuning'
           : '/api/theodore/vision/tuning');
-      const res = await fetch(base, { cache: 'no-store' });
-      if (!res.ok) return;
+      const res = await fetch(base, { cache: 'no-store' }).catch(() => null);
+      if (!res || !res.ok) return;
       const data = await res.json();
       const select = document.getElementById('preset');
       const presetWrap = document.getElementById('preset-wrap');
+      if (!select || !presetWrap) return;  // post-shutdown the DOM is wiped
       if (tuningScope === 'policy') {
         presetWrap.style.display = 'none';
         renderKnobGroups(document.getElementById('knobs'), [['Timing / session', POLICY_KNOBS]], data.knobs || {}, base);
@@ -1273,6 +1284,7 @@ MONITOR_JS = (
         if (!res.ok) return;
         _voiceLangs = await res.json();
         const sel = document.getElementById('voice-lang');
+        if (!sel) return;  // post-shutdown the DOM is wiped
         sel.innerHTML = _voiceLangs.map((l) =>
           `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
         ).join('');
@@ -1403,9 +1415,12 @@ MONITOR_JS = (
           ? 'Re-scored demo frames — check Failed quality checks / student windows'
           : 'No frame cached yet. Start camera, wait 1s, click Prove again.'));
       setTimeout(async () => {
-        const res = await fetch('/api/theodore/vision/tuning/preset/balanced', { method: 'POST' });
-        if (res.ok) explainTuningResult(await res.json(), 'prove: restored balanced preset');
-        await loadTuning();
+        if (labOffline) return;  // the server is gone — don't fire a dead fetch
+        try {
+          const res = await fetch('/api/theodore/vision/tuning/preset/balanced', { method: 'POST' });
+          if (res.ok) explainTuningResult(await res.json(), 'prove: restored balanced preset');
+          await loadTuning();
+        } catch (_) { /* server went away */ }
       }, 2200);
     });
 
@@ -1659,7 +1674,10 @@ MONITOR_JS = (
         const prev = history[i - 1], cur = history[i];
         const a = getter(prev), b = getter(cur);
         if (a == null || b == null) continue;
-        const dt = Math.max(1, cur.t - prev.t) / 1000;
+        // Skip duplicate/out-of-order timestamps — clamping dt to 1ms
+        // amplified tiny jitter into a 1000x phantom speed.
+        if (cur.t - prev.t <= 0) continue;
+        const dt = (cur.t - prev.t) / 1000;
         sum += Math.abs(b - a) / dt;
         n += 1;
       }
@@ -1688,7 +1706,8 @@ MONITOR_JS = (
       const pitched = (history || []).filter((h) => h.pitch != null && Number.isFinite(h.pitch));
       if (pitched.length < 3) return 0;
       const first = pitched[0], last = pitched[pitched.length - 1];
-      const dt = Math.max(1, last.t - first.t) / 1000;
+      if (last.t <= first.t) return 0;  // no real interval — no 1ms amplification
+      const dt = (last.t - first.t) / 1000;
       let rate = Math.max(0, last.pitch - first.pitch) / dt;
       let steps = 0, down = 0;
       for (let i = 1; i < pitched.length; i++) {
@@ -4376,7 +4395,10 @@ MONITOR_JS = (
     }
 
     // Finite numbers pass through; anything unmeasured becomes null.
-    function num(value) {
+    // Named signalNum: this file also has a display formatter `num(v, digits)`
+    // — the duplicate declaration silently replaced it and the dashboard
+    // rendered literal "null" strings / unrounded floats.
+    function signalNum(value) {
       return (typeof value === 'number' && isFinite(value)) ? value : null;
     }
 
@@ -4404,26 +4426,29 @@ MONITOR_JS = (
       const signal = {
             participant_id: 'camera-local',
             timestamp_ms: liveCamTimestampMs(),
-            face_count: usingSilhouette ? 0 : facial.face_count,
-            liveness_state: usingSilhouette ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
+            // Synthetic modes (test pattern, silhouette demo) have no real
+            // face — the coarse grid estimator reads the bars as a happy,
+            // focused learner. Zero the face fields for both.
+            face_count: (usingSilhouette || usingPattern) ? 0 : facial.face_count,
+            liveness_state: (usingSilhouette || usingPattern) ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
             owner_face_enrolled: !!(facial.owner_face_enrolled),
             owner_face_match: facial.owner_face_match == null ? null : !!facial.owner_face_match,
-            owner_match_score: num(facial.owner_match_score),
+            owner_match_score: signalNum(facial.owner_match_score),
             secondary_face_count: usingSilhouette ? 0 : Math.max(0, facial.secondary_face_count || 0),
             foreground_ratio: usingSilhouette ? Math.max(0.96, foreground) : Math.min(0.55, Math.max(0.25, foreground)),
             motion_score: motion,
             body_motion_score: motion,
             fidget_score: Math.max(0, Math.min(1, (motion - 0.12) * 2.4)),
-            expression_label: facial.expression_label,
-            expression_confidence: facial.expression_confidence,
-            gaze_frontal: facial.gaze_frontal,
-            gaze_down_score: facial.gaze_down_score,
+            expression_label: usingPattern ? 'unknown' : facial.expression_label,
+            expression_confidence: usingPattern ? null : facial.expression_confidence,
+            gaze_frontal: usingPattern ? null : facial.gaze_frontal,
+            gaze_down_score: usingPattern ? null : facial.gaze_down_score,
             // null (not 0) when no real detector measured it, so the server can
             // tell "measured as open" apart from "nobody looked".
-            eyes_closed_score: num(facial.eyes_closed_score),
-            yawn_score: num(facial.yawn_score),
-            brow_raise_score: num(facial.brow_raise_score),
-            smile_score: num(facial.smile_score),
+            eyes_closed_score: signalNum(facial.eyes_closed_score),
+            yawn_score: signalNum(facial.yawn_score),
+            brow_raise_score: signalNum(facial.brow_raise_score),
+            smile_score: signalNum(facial.smile_score),
             detector_source: detectorSource,
             head_pose_pitch: facial.head_pose_pitch,
             head_pose_yaw: facial.head_pose_yaw,
@@ -4471,7 +4496,10 @@ MONITOR_JS = (
             eyeMidX: (left.x + right.x) / 2,
             eyeMidY: (left.y + right.y) / 2,
             faceSize: Math.max(0.05, facial.face_size_ratio || (chin.y - brow.y)),
-            pitch: facial.head_pose_pitch,
+            // Use the geometric pitch (guaranteed positive = down) — the matrix
+            // and landmark paths disagree on head_pose_pitch's sign, and the
+            // dozing head-sag term requires positive = down.
+            pitch: (facial.head_pitch_geom_deg != null ? facial.head_pitch_geom_deg : facial.head_pose_pitch),
             brow: facial.brow_raise_score || 0,
             smile: facial.smile_score || 0,
             gazeFrontal: facial.gaze_frontal || 0.5,
@@ -4511,7 +4539,9 @@ MONITOR_JS = (
       signal.keyboard_typing_audio_score = clickResult.keyboardScore;
       signal.external_music_score = clickResult.externalMusicScore > 0.05
         ? Math.round(clickResult.externalMusicScore * 1000) / 1000 : null;
-      signal.phone_visible = phoneDet.below || phoneDet.ear || clickResult.phonecall;
+      // The ear cue needs a face — an empty dark room reads darkLeftRatio > 0.40
+      // with gazeDown 0 and false-fired "phone at ear" while nobody was present.
+      signal.phone_visible = phoneDet.below || (phoneDet.ear && facial.face_count > 0) || clickResult.phonecall;
       signal.hands_on_face_score = handsScore > 0.05 ? Math.round(handsScore * 1000) / 1000 : null;
       signal.phone_in_hand_score = held > 0.05 && phoneGridScore >= 0.35
         ? Math.round(held * 1000) / 1000 : null;
@@ -4636,6 +4666,7 @@ MONITOR_JS = (
       lastSilhouetteDetected = false;
       resetFaceOwner();
       resetLiveAway(true);
+      faceLandmarkHistory = [];  // no stale samples across a camera restart
       refreshSilhouetteGuide();
       camTimer = setInterval(sampleFrame, 300);
       sampleFrame();

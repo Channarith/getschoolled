@@ -57,6 +57,49 @@ def _empty_grid() -> list[list[float]]:
     return [[0.05 for _ in range(64)] for _ in range(36)]
 
 
+def test_policy_patch_rejects_out_of_range_values():
+    from fastapi.testclient import TestClient
+
+    from theodore_webcam_lab.main import app
+
+    client = TestClient(app)
+    out = client.patch("/api/theodore/vision/policy", json={
+        "knobs": {"absence_grace_ms": -1000},
+    })
+    assert out.status_code == 422
+    out2 = client.patch("/api/theodore/vision/policy", json={
+        "knobs": {"pause_training_no_presence_ms": -1},
+    })
+    assert out2.status_code == 422
+    # A sane value still applies.
+    ok = client.patch("/api/theodore/vision/policy", json={
+        "knobs": {"absence_grace_ms": 2000},
+    })
+    assert ok.status_code == 200
+
+
+def test_client_attention_blend_does_not_defeat_eyes_closed_cap():
+    from theodore_webcam_lab.analysis import ClassMode, WebcamSessionAnalyzer
+    from theodore_webcam_lab.types import WebcamSignal
+
+    analyzer = WebcamSessionAnalyzer()
+    signal = WebcamSignal(
+        participant_id="learner",
+        timestamp_ms=1_000,
+        face_count=1,
+        liveness_state="live",
+        foreground_ratio=0.5,
+        motion_score=0.1,
+        eyes_closed_score=0.95,  # eyes fully closed
+        attention=1.0,           # but the client claims full attention
+    )
+    out = analyzer.evaluate(session_id="s-blend", mode=ClassMode.SOLO, signals=[signal])
+    participant = out.participants[0]
+    assert participant.attention_score <= 0.12 + 1e-9, (
+        f"client attention inflated an eyes-closed learner to {participant.attention_score}"
+    )
+
+
 def test_class_pause_uses_empty_frame_face_correction():
     analyzer = WebcamSessionAnalyzer()
     # Thin client claims a face, but the luminance grid looks empty and no
