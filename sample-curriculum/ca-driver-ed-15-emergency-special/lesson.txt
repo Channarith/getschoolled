@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Emergency & special situations
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Sirens, move-over, stalls, and animals. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Pull right for sirens
+Clear a path to the right edge. When you hear a siren or see emergency lights, check mirrors, signal, pull to the right, and stop.
+NARRATION: When you hear a siren or see emergency lights, check mirrors, signal, pull to the right, and stop.
+
+SLIDE 2 | Move-over law
+Change lanes away from stopped responders. When approaching stopped emergency or tow vehicles with lights, move over a lane if safe or slow significantly.
+NARRATION: When approaching stopped emergency or tow vehicles with lights, move over a lane if safe or slow significantly.
+
+SLIDE 3 | Do not block intersections for EMS
+Clear the box first. Never stop in an intersection for an emergency vehicle — clear it, then pull over.
+NARRATION: Never stop in an intersection for an emergency vehicle — clear it, then pull over.
+
+SLIDE 4 | Tire blowout
+Grip, ease off gas, steer straight. If a tire blows, hold the wheel firmly, ease off the gas, and steer straight to a safe stop.
+NARRATION: If a tire blows, hold the wheel firmly, ease off the gas, and steer straight to a safe stop.
+
+SLIDE 5 | Brake failure
+Pump, downshift, parking brake gradual. If brakes fail, pump the pedal, downshift, and apply the parking brake gradually while steering to safety.
+NARRATION: If brakes fail, pump the pedal, downshift, and apply the parking brake gradually while steering to safety.
+
+SLIDE 6 | Engine stall in traffic
+Signal, steer to safety, hazards on. If the engine stalls, shift to neutral if needed, steer off the roadway, and turn on hazard lights.
+NARRATION: If the engine stalls, shift to neutral if needed, steer off the roadway, and turn on hazard lights.
+
+SLIDE 7 | Animals in roadway
+Brake firmly; do not swerve into traffic. If an animal appears, brake firmly in a straight line — swerving can cause a worse crash.
+NARRATION: If an animal appears, brake firmly in a straight line — swerving can cause a worse crash.
+
+SLIDE 8 | Flooded roadway
+Turn around, don't drown. Never drive into flooded roadway — water hides depth and current. Turn around.
+NARRATION: Never drive into flooded roadway — water hides depth and current. Turn around.
+
+SLIDE 9 | Smoke or dust cloud
+Slow; be ready for stopped traffic. Smoke or dust can hide stopped cars — slow immediately and increase following distance.
+NARRATION: Smoke or dust can hide stopped cars — slow immediately and increase following distance.
+
+SLIDE 10 | Police traffic stop
+Signal, pull right, stay calm. When signaled to stop, pull safely to the right, stay in the vehicle, and keep hands visible.
+NARRATION: When signaled to stop, pull safely to the right, stay in the vehicle, and keep hands visible.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

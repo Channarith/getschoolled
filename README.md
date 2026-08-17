@@ -168,9 +168,10 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | --- | --- | --- | --- | --- |
 | <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/solo_live_room.webp" alt="Solo 1:1 Salareen live room — AI host slide tile plus one learner, chat and Q&A" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
-Cert prep storyboards (animated SVG scenes per slide for CA DMV permit and
-Alameda / CA food-handler practice courses — cars, signs, pedestrians, kitchen
-props, narration cues):
+Cert prep storyboards (animated SVG scenes per slide for CA DMV / driver-ed and
+Alameda / CA food-handler practice courses — **226+ driver-ed scenarios** across
+22 lessons, plus food-handler tracks, with cars, signs, pedestrians, kitchen
+props, and narration cues):
 
 | DMV school bus | DMV emergency vehicles | Food handwashing |
 | --- | --- | --- |

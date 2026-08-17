@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — School buses & school zones
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Red lights, stop arms, and child unpredictability. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Red lights and stop arm
+Both directions stop on undivided roads. When a school bus shows red flashing lights and a stop arm on an undivided road, traffic both ways must stop.
+NARRATION: When a school bus shows red flashing lights and a stop arm on an undivided road, traffic both ways must stop.
+
+SLIDE 2 | Divided highway exception
+Only same-direction traffic stops on divided roads. On a divided highway, usually only traffic traveling the same direction as the bus must stop.
+NARRATION: On a divided highway, usually only traffic traveling the same direction as the bus must stop.
+
+SLIDE 3 | Yellow bus lights
+Prepare to stop — children may load soon. Flashing yellow bus lights mean slow down and prepare to stop.
+NARRATION: Flashing yellow bus lights mean slow down and prepare to stop.
+
+SLIDE 4 | Children darting out
+Expect kids from behind the bus. Children may cross in front of or dash from behind a bus — wait until clear.
+NARRATION: Children may cross in front of or dash from behind a bus — wait until clear.
+
+SLIDE 5 | School zone flashing beacons
+Obey reduced limits when lights flash. Flashing school-zone beacons often activate lower speed limits — obey them.
+NARRATION: Flashing school-zone beacons often activate lower speed limits — obey them.
+
+SLIDE 6 | Crossing guards
+Follow the guard's directions. Crossing guards control the crosswalk — stop when they signal and wait for their clearance.
+NARRATION: Crossing guards control the crosswalk — stop when they signal and wait for their clearance.
+
+SLIDE 7 | Arrival and dismissal peaks
+Extra caution at bell times. Traffic near schools peaks at arrival and dismissal — expect congestion and double-parked cars.
+NARRATION: Traffic near schools peaks at arrival and dismissal — expect congestion and double-parked cars.
+
+SLIDE 8 | No passing near schools
+Do not pass vehicles stopped for kids. Never pass a vehicle that is stopped for pedestrians in a school crosswalk.
+NARRATION: Never pass a vehicle that is stopped for pedestrians in a school crosswalk.
+
+SLIDE 9 | Field trip buses
+Same stop rules apply to school activity buses. Activity buses loading students generally follow the same stop-arm rules — treat them seriously.
+NARRATION: Activity buses loading students generally follow the same stop-arm rules — treat them seriously.
+
+SLIDE 10 | Parking near schools
+Keep crosswalks and bus zones clear. Do not park in bus loading zones or block crosswalks near schools.
+NARRATION: Do not park in bus loading zones or block crosswalks near schools.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

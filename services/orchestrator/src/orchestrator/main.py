@@ -212,9 +212,33 @@ def api_lesson_ksb(lesson_id: str) -> CourseKSB:
     return ksb
 
 
+@app.get("/api/lessons/storyboards/driver-ed")
+def api_driver_ed_storyboard_index() -> dict:
+    """Directory of the 200+ CA driver-ed scenario bank (lesson ids + counts)."""
+    from aoep_shared.cert_storyboard import (
+        DRIVER_ED_LESSON_IDS,
+        DRIVER_ED_LESSONS,
+        driver_scenario_count,
+    )
+
+    return {
+        "lesson_count": len(DRIVER_ED_LESSON_IDS),
+        "scenario_count": driver_scenario_count(),
+        "lessons": [
+            {
+                "lesson_id": lesson.lesson_id,
+                "title": lesson.title,
+                "summary": lesson.summary,
+                "scenario_count": len(lesson.scenarios),
+            }
+            for lesson in DRIVER_ED_LESSONS
+        ],
+    }
+
+
 @app.get("/api/lessons/{lesson_id}/storyboard")
 def api_lesson_storyboard(lesson_id: str, include_svg: bool = True) -> dict:
-    """Animated storyboard scenes for food-handler / DMV cert prep lessons."""
+    """Animated storyboard scenes for food-handler / DMV / driver-ed cert prep."""
     from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_lesson
 
     if not has_storyboard(lesson_id):

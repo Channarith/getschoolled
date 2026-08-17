@@ -1,11 +1,15 @@
-"""Tests for certification course storyboards (DMV + food handler)."""
+"""Tests for certification course storyboards (DMV + food handler + driver-ed bank)."""
 
 from __future__ import annotations
+
+from pathlib import Path
 
 import pytest
 
 from aoep_shared.cert_storyboard import (
+    DRIVER_ED_LESSON_IDS,
     STORYBOARD_LESSONS,
+    driver_scenario_count,
     has_storyboard,
     render_scene_svg,
     storyboard_for_lesson,
@@ -13,6 +17,7 @@ from aoep_shared.cert_storyboard import (
 )
 from aoep_shared.cert_storyboard.art import BACKDROPS, SPRITES
 from aoep_shared.cert_storyboard.catalog import storyboard_scene_for_slide
+from aoep_shared.cert_storyboard.driver_ed_bank import DRIVER_ED_LESSONS
 
 
 LIVE_LESSONS = (
@@ -50,8 +55,7 @@ def test_every_slide_renders_animated_svg(lesson_id: str) -> None:
         assert svg.startswith("<svg")
         assert "keyframes" in svg or "@keyframes" in svg
         assert seg.scene.title in svg or "Storyboard" in svg
-        # Cast sprites or callouts present
-        assert "<g class=\"cast\"" in svg or "<g class=\"callout\"" in svg
+        assert '<g class="cast"' in svg or '<g class="callout"' in svg
 
 
 def test_storyboard_slide_api_shape() -> None:
@@ -81,3 +85,35 @@ def test_dmv_emergency_scene_has_ambulance() -> None:
 def test_registry_lists_lessons() -> None:
     assert "ca-dmv-permit-basics" in STORYBOARD_LESSONS
     assert "ca-alameda-food-handler-temps" in STORYBOARD_LESSONS
+
+
+def test_driver_ed_bank_exceeds_200_scenarios() -> None:
+    count = driver_scenario_count()
+    assert count >= 200, count
+    assert len(DRIVER_ED_LESSON_IDS) >= 20
+    assert len(DRIVER_ED_LESSONS) == len(DRIVER_ED_LESSON_IDS)
+
+
+def test_every_driver_ed_lesson_has_storyboard_and_curriculum() -> None:
+    cur_root = Path(__file__).resolve().parents[3] / "sample-curriculum"
+    titles: set[str] = set()
+    for lesson_id in DRIVER_ED_LESSON_IDS:
+        assert has_storyboard(lesson_id)
+        segments = storyboard_for_lesson(lesson_id, include_svg=False)
+        assert len(segments) >= 10
+        lesson_dir = cur_root / lesson_id
+        assert (lesson_dir / "lesson.txt").is_file(), lesson_id
+        for seg in segments:
+            titles.add(f"{lesson_id}:{seg['title']}")
+            assert seg["backdrop"] in BACKDROPS
+            assert any(c["kind"] in SPRITES for c in seg["cast"])
+    assert len(titles) >= 200
+
+
+@pytest.mark.parametrize("lesson_id", list(DRIVER_ED_LESSON_IDS)[::5])
+def test_driver_ed_sample_svgs_render(lesson_id: str) -> None:
+    seg = storyboard_scene_for_slide(lesson_id, 0)
+    assert seg is not None
+    svg = render_scene_svg(seg.scene)
+    assert '<g class="cast"' in svg
+    assert "@keyframes" in svg

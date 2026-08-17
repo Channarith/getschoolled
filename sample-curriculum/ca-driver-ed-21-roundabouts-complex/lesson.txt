@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Roundabouts & complex moves
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Circles, multi-lane choices, and unusual controls. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Single-lane roundabout
+Yield, enter, signal to exit. Yield to circulating traffic, enter when clear, and signal before your exit.
+NARRATION: Yield to circulating traffic, enter when clear, and signal before your exit.
+
+SLIDE 2 | Multi-lane roundabout
+Choose the lane before you enter. Pick the correct lane for your exit before entering a multi-lane roundabout.
+NARRATION: Pick the correct lane for your exit before entering a multi-lane roundabout.
+
+SLIDE 3 | Do not stop in the circle
+Keep moving once inside unless blocked. Avoid stopping in the circulating roadway except to avoid a collision.
+NARRATION: Avoid stopping in the circulating roadway except to avoid a collision.
+
+SLIDE 4 | Trucks in roundabouts
+Give large vehicles extra room. Trucks may use more than one lane in a roundabout — give them space.
+NARRATION: Trucks may use more than one lane in a roundabout — give them space.
+
+SLIDE 5 | Pedestrians at roundabouts
+Yield at each crosswalk. Yield to pedestrians at the entry and exit crosswalks of a roundabout.
+NARRATION: Yield to pedestrians at the entry and exit crosswalks of a roundabout.
+
+SLIDE 6 | Traffic circles vs roundabouts
+Follow the specific signs on site. Older traffic circles may differ from modern roundabouts — obey the signs you see.
+NARRATION: Older traffic circles may differ from modern roundabouts — obey the signs you see.
+
+SLIDE 7 | Jughandle turns
+Some lefts are made by turning right first. Jughandle designs send left-turning traffic to the right first — follow the markings.
+NARRATION: Jughandle designs send left-turning traffic to the right first — follow the markings.
+
+SLIDE 8 | Protected-permissive lefts
+Green ball means yield to oncoming. A green ball left turn is permissive — yield to oncoming traffic; a green arrow is protected.
+NARRATION: A green ball left turn is permissive — yield to oncoming traffic; a green arrow is protected.
+
+SLIDE 9 | Dual right-turn lanes
+Stay in your lane through the turn. Where two lanes may turn right, stay in your lane and watch for merges after the turn.
+NARRATION: Where two lanes may turn right, stay in your lane and watch for merges after the turn.
+
+SLIDE 10 | Complex signal timing
+Wait for your arrow; do not jump. At complex signals, wait for the indication that applies to your movement — do not assume.
+NARRATION: At complex signals, wait for the indication that applies to your movement — do not assume.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

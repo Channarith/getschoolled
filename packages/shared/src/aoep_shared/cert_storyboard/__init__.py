@@ -20,6 +20,11 @@ from .catalog import (
     storyboard_for_lesson,
     storyboard_for_slide,
 )
+from .driver_ed_bank import (
+    DRIVER_ED_LESSON_IDS,
+    DRIVER_ED_LESSONS,
+    driver_scenario_count,
+)
 from .render import render_scene_html, render_scene_svg, scene_data_url
 from .types import Cast, ObjectCallout, Scene, SegmentStoryboard
 
@@ -29,6 +34,9 @@ __all__ = [
     "Scene",
     "SegmentStoryboard",
     "STORYBOARD_LESSONS",
+    "DRIVER_ED_LESSON_IDS",
+    "DRIVER_ED_LESSONS",
+    "driver_scenario_count",
     "has_storyboard",
     "storyboard_for_lesson",
     "storyboard_for_slide",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from .catalog_dmv import build_dmv_basics, build_dmv_sharing, build_dmv_signs
 from .catalog_food import (
@@ -10,10 +10,14 @@ from .catalog_food import (
     build_food_hygiene,
     build_food_temps,
 )
+from .driver_ed_bank import (
+    DRIVER_ED_LESSON_IDS,
+    build_driver_ed_segments,
+)
 from .types import SegmentStoryboard
 
 # Canonical live-class lesson ids → builders. Aliases map studio / alternate ids.
-_BUILDERS = {
+_BUILDERS: dict[str, Callable[[], list[SegmentStoryboard]]] = {
     "ca-dmv-permit-basics": lambda: build_dmv_basics("ca-dmv-permit-basics"),
     "ca-dmv-basics": lambda: build_dmv_basics("ca-dmv-basics"),
     "drivers-permit-test": lambda: build_dmv_basics("drivers-permit-test"),
@@ -37,6 +41,12 @@ _BUILDERS = {
         "alameda-food-contamination"
     ),
 }
+
+# Full CA driver-ed bank (200+ scenarios across 22 lessons).
+for _lesson_id in DRIVER_ED_LESSON_IDS:
+    _BUILDERS[_lesson_id] = (
+        lambda lid=_lesson_id: build_driver_ed_segments(lid)
+    )
 
 STORYBOARD_LESSONS: tuple[str, ...] = tuple(sorted(_BUILDERS.keys()))
 

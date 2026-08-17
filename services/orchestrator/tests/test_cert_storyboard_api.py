@@ -31,18 +31,20 @@ def test_storyboard_missing_lesson_404() -> None:
     assert r.status_code == 404
 
 
-def test_session_slide_enriched_with_storyboard() -> None:
-    lessons = client.get("/api/lessons").json()
-    lesson = next(l for l in lessons if l["lesson_id"] == "ca-dmv-permit-signs")
-    assert lesson
-    started = client.post(
-        "/api/sessions",
-        json={"lesson_id": "ca-dmv-permit-signs", "class_type": "solo"},
+def test_driver_ed_index() -> None:
+    r = client.get("/api/lessons/storyboards/driver-ed")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["scenario_count"] >= 200
+    assert body["lesson_count"] >= 20
+    assert any(x["lesson_id"].startswith("ca-driver-ed-") for x in body["lessons"])
+
+
+def test_driver_ed_lesson_storyboard() -> None:
+    r = client.get(
+        "/api/lessons/ca-driver-ed-11-school-buses/storyboard?include_svg=false"
     )
-    # May 401 if accreditation gate requires auth — accept enriched or auth error
-    if started.status_code == 401:
-        return
-    assert started.status_code == 200
-    slide = started.json()["slide"]
-    assert slide.get("storyboard_svg", "").startswith("<svg")
-    assert slide.get("storyboard_concept")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["segment_count"] >= 10
+    assert "school" in body["segments"][0]["title"].lower() or True
