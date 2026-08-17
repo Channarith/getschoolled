@@ -15,6 +15,17 @@ from .models import LabAssignment
 from .qualify_page import render_qualify_page
 from .quality import PRESETS, HomeworkTuning, get_runner
 
+try:
+    from aoep_shared.languages import SUPPORTED_LANGUAGES as _LOCALES
+except Exception:  # noqa: BLE001 — standalone lab
+    _LOCALES = (
+        "en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "uk",
+        "tr", "ar", "he", "hi", "bn", "ur", "fa", "zh", "ja", "ko",
+        "vi", "th", "id", "sw", "el", "cs", "km",
+    )
+
+SUPPORTED_LOCALES: tuple[str, ...] = tuple(_LOCALES)
+
 app = FastAPI(title="Theodore Homework Lab", version="0.1.0")
 
 
@@ -58,6 +69,8 @@ def health() -> dict[str, Any]:
         "methodologies": methodology_count(),
         "tuning": runner.tuning.to_dict(),
         "champion": runner.champion,
+        "supported_locales": list(SUPPORTED_LOCALES),
+        "supported_locale_count": len(SUPPORTED_LOCALES),
     }
 
 
@@ -82,6 +95,12 @@ def methodologies(family: str = "") -> dict[str, Any]:
 
 @app.post("/api/homework/generate")
 def api_generate(req: GenerateRequest) -> dict[str, Any]:
+    locale = (req.locale or "en").strip().lower().split("-")[0]
+    if locale not in SUPPORTED_LOCALES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported locale '{req.locale}'. Supported: {', '.join(SUPPORTED_LOCALES)}",
+        )
     context = {}
     if req.verse:
         context["verse"] = req.verse
@@ -95,7 +114,7 @@ def api_generate(req: GenerateRequest) -> dict[str, Any]:
             passages=req.passages,
             subject=req.subject,
             source=req.source,
-            locale=req.locale,
+            locale=locale,
             methodologies=req.methodologies,
             max_items=req.max_items,
             context=context,

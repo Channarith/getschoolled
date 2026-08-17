@@ -10,10 +10,10 @@ Scene start/end seconds come from the same syllable-weighted estimator that
 drives the karaoke ball (``timing.song_timings``), so a scene cut lands on a
 line boundary at any audio duration.
 
-Narration is authored in English and hand-translated into the five curated
-languages; other languages fall back to English narration, while the lyric
-caption underneath stays translated in all 27 (the player joins scene lines to
-the translation it already loaded).
+Narration is authored in English and hand-translated into the Romance set in
+``_n``; remaining platform languages reuse the featured curated lyric pack /
+lexicon stack via ``translations.translate_line`` so every meaning language
+gets spoken narration instead of English-only.
 """
 
 from __future__ import annotations
@@ -21,8 +21,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from .catalog import Song
+from .catalog import MEANING_LANGUAGES, Song, SongLine
 from . import timing
+from .translations import translate_line
 
 CAMERA_MOVES: tuple[str, ...] = (
     "push-in",
@@ -53,8 +54,10 @@ MOTIONS: tuple[str, ...] = (
     "cross-left",
 )
 
-# Languages with hand-written narration. Same five as the curated lyric lines.
-NARRATION_LANGUAGES: tuple[str, ...] = ("es", "fr", "de", "it", "pt")
+# Every non-English platform language can receive storyboard narration.
+NARRATION_LANGUAGES: tuple[str, ...] = tuple(
+    code for code in MEANING_LANGUAGES if code != "en"
+)
 
 # Cameras zoom up to ~1.26x and pan ~3.5%, so the outer tenth of the stage is
 # cropped for part of every scene. Cast members live inside this action-safe
@@ -1241,10 +1244,24 @@ def scene_count(song_id: str) -> int:
 
 def narration_for(scene: Scene, language: str) -> tuple[str, str]:
     """Return (text, language_actually_used) for a scene's narration."""
-    text = scene.narration.get(language)
+    lang = (language or "en").strip().lower() or "en"
+    text = scene.narration.get(lang)
     if text:
-        return text, language
-    return scene.narration["en"], "en"
+        return text, lang
+    if lang == "en":
+        return scene.narration["en"], "en"
+    # Fall through the same curated/lexicon stack used for lyric lines so a
+    # learner never hears English narration after picking Khmer / Hindi / etc.
+    english = scene.narration.get("en") or scene.title
+    row = translate_line(
+        SongLine(line_no=0, text=english, meaning_en=english),
+        lang,
+        cache=None,
+    )
+    translated = (row.get("translation") or "").strip()
+    if translated and row.get("tier") != "english":
+        return translated, lang
+    return english, "en"
 
 
 def storyboard_for(

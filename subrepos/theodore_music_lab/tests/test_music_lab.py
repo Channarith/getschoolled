@@ -348,6 +348,12 @@ def test_new_apis_and_player_ui(offline):
         spanish = next(row for row in langs["catalog"] if row["code"] == "es")
         assert spanish["curated"] is True
         assert spanish["curated_coverage"] == 1.0
+        # Featured-song full-line pack covers every platform language, not just Romance.
+        for row in langs["catalog"]:
+            if row["code"] == "en":
+                continue
+            assert row["curated"] is True, row
+            assert row["curated_coverage"] == 1.0, row
 
         song_id = "en-wheels-bus-audio-v1"
         timing = client.get(f"/api/music/timing/{song_id}", params={"duration": 74}).json()
@@ -616,7 +622,7 @@ def test_storyboard_art_is_self_contained_svg():
         assert name in SPRITE_HEIGHT_PCT
 
 
-def test_scene_narration_is_translated_for_the_curated_languages():
+def test_scene_narration_is_translated_for_all_platform_languages():
     cat = Catalog()
     song = cat.get("en-wheels-bus-audio-v1")
     english = storyboard_for(song, language="en")
@@ -624,14 +630,13 @@ def test_scene_narration_is_translated_for_the_curated_languages():
         board = storyboard_for(song, language=language)
         for scene, base in zip(board["scenes"], english["scenes"]):
             assert scene["narration_language"] == language
-            assert scene["narration_tier"] == "curated"
             assert scene["narration"] != base["narration"]
             assert scene["narration_en"] == base["narration"]
-    # A language without hand-written narration keeps the English scene note and
-    # says so, rather than pretending it was translated.
+    # Khmer (and every other non-Romance language) must no longer fall back to
+    # English-only scene notes — that was the "partial language support" bug.
     khmer = storyboard_for(song, language="km")
-    assert khmer["scenes"][0]["narration_language"] == "en"
-    assert khmer["scenes"][0]["narration_tier"] == "english"
+    assert khmer["scenes"][0]["narration_language"] == "km"
+    assert khmer["scenes"][0]["narration"] != english["scenes"][0]["narration"]
 
 
 def test_scene_at_maps_playback_position_to_a_scene():
@@ -670,9 +675,15 @@ def test_sing_speech_drops_the_romanization_shown_on_screen():
     assert speakable("Hola amigo") == "Hola amigo"
     assert speakable("") == ""
     cat = Catalog()
+    # Featured Chinese lines are now full curated sentences (no romanization),
+    # so the singer speaks them whole rather than word-by-word lexicon glosses.
     plan = sing_plan(cat.get("en-wheels-bus-audio-v1"), "zh", allow_llm=False)
-    assert plan["word_by_word"] is True
+    assert plan["word_by_word"] is False
+    assert all(row["speak"] for row in plan["lines"])
     assert all("(" not in row["speak"] for row in plan["lines"])
+    # Lexicon-only languages still strip romanization before speech.
+    lexiconish = speakable("\u1781\u17d2\u1789\u17bb\u17c6 (khnyom) \u00b7 \u1798\u17b7\u178f\u17d2\u178f (mit)")
+    assert "(" not in lexiconish
 
 
 def test_sing_rate_fits_the_line_into_its_window():

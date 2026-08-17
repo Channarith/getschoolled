@@ -66,6 +66,7 @@ SUPPORTED_LANGUAGES: list[SupportedLanguage] = [
     SupportedLanguage(code="si", name="Sinhala"),
     SupportedLanguage(code="ne", name="Nepali"),
     # — East Asia —
+    SupportedLanguage(code="zh", name="Chinese"),
     SupportedLanguage(code="zh-CN", name="Chinese (Simplified)"),
     SupportedLanguage(code="zh-TW", name="Chinese (Traditional)"),
     SupportedLanguage(code="ja", name="Japanese"),
@@ -856,6 +857,9 @@ class XaiVoiceAgent:
 
     def _resolve_language(self, language_code: str) -> SupportedLanguage:
         code = (language_code or "").strip().lower()
+        # Platform uses bare "zh"; accept it alongside zh-CN / zh-TW.
+        if code == "zh" and "zh" not in _LANG_BY_CODE and "zh-cn" in _LANG_BY_CODE:
+            code = "zh-cn"
         if code not in _LANG_BY_CODE:
             supported = ", ".join(item.code for item in SUPPORTED_LANGUAGES)
             raise ValueError(f"Unsupported language code '{language_code}'. Supported: {supported}")
