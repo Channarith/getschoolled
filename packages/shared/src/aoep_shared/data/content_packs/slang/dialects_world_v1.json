@@ -1,0 +1,1566 @@
+{
+  "pack": "dialects_world_v1",
+  "description": "Extensive slang/idiom dictionary for world dialects used in RAG lab training: Southern US, NYC, New England, California, Canadian, British, Australian, Singaporean, Irish, Indian English, South African, Beijing, Shanghai, Guangzhou Cantonese, Fujianese/Hokkien, plus professional idioms.",
+  "records": [
+    {
+      "phrase": "y'all",
+      "meaning": "you all (plural you)",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "fixin' to",
+      "meaning": "about to / preparing to",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "over yonder",
+      "meaning": "over there / in that direction",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "bless your heart",
+      "meaning": "sympathy or polite criticism",
+      "language": "en",
+      "region": "us-south",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "fixer than a June bug",
+      "meaning": "crazier than usual / eccentric",
+      "language": "en",
+      "region": "us-south",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "might could",
+      "meaning": "might be able to / possibly can",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "fixers",
+      "meaning": "people / folks",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "I reckon",
+      "meaning": "I think / I suppose",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "holler",
+      "meaning": "call out / shout / contact",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "cattywampus",
+      "meaning": "askew / disordered",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "mash the button",
+      "meaning": "press the button",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "coke",
+      "meaning": "any soft drink (regional)",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "boiled peanuts",
+      "meaning": "a Southern snack (literal cultural marker)",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "sugar",
+      "meaning": "term of endearment",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "ain't",
+      "meaning": "is not / are not / am not",
+      "language": "en",
+      "region": "us-south",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "fuhgeddaboudit",
+      "meaning": "forget about it / don't worry / no chance",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "you good?",
+      "meaning": "are you okay? / are we settled?",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "deadass",
+      "meaning": "seriously / for real",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "brick",
+      "meaning": "very cold weather",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "mad",
+      "meaning": "very / a lot",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "bodega",
+      "meaning": "corner convenience store",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "schlep",
+      "meaning": "to carry or travel with effort",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "on line",
+      "meaning": "in a queue (NYC)",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "the city",
+      "meaning": "Manhattan (local shorthand)",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "regular coffee",
+      "meaning": "coffee with milk and sugar",
+      "language": "en",
+      "region": "us-ny",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "wicked",
+      "meaning": "very / extremely",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "bang a uey",
+      "meaning": "make a U-turn",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "packie",
+      "meaning": "liquor store",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "bubbler",
+      "meaning": "drinking fountain",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "frappe",
+      "meaning": "milkshake",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "jimmies",
+      "meaning": "ice cream sprinkles",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "clicker",
+      "meaning": "TV remote control",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "down cellar",
+      "meaning": "in the basement",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "so don't I",
+      "meaning": "so do I (regional affirmation)",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "pissa",
+      "meaning": "excellent / awesome",
+      "language": "en",
+      "region": "us-ne",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "hella",
+      "meaning": "very / a lot",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "the 405",
+      "meaning": "Interstate 405 (SoCal freeway naming)",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "gnarly",
+      "meaning": "intense / impressive / rough",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "stoked",
+      "meaning": "excited / enthusiastic",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "dude",
+      "meaning": "person (casual address)",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "totally",
+      "meaning": "completely / agreed",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "lowkey",
+      "meaning": "somewhat / quietly",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "hella tight",
+      "meaning": "very cool / excellent",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "the bay",
+      "meaning": "San Francisco Bay Area",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "freeway",
+      "meaning": "controlled-access highway (SoCal term)",
+      "language": "en",
+      "region": "us",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "eh",
+      "meaning": "right? / don't you agree?",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "double-double",
+      "meaning": "coffee with two creams and two sugars",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "toque",
+      "meaning": "knitted winter hat",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "loonie",
+      "meaning": "one-dollar coin",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "toonie",
+      "meaning": "two-dollar coin",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "homo milk",
+      "meaning": "whole milk",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "runners",
+      "meaning": "athletic shoes",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "washroom",
+      "meaning": "restroom / bathroom",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "give'r",
+      "meaning": "give it your all / go for it",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "kerfuffle",
+      "meaning": "a commotion or fuss",
+      "language": "en",
+      "region": "ca",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "brilliant",
+      "meaning": "excellent",
+      "language": "en",
+      "region": "uk",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "mate",
+      "meaning": "friend (casual address)",
+      "language": "en",
+      "region": "uk",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "queue",
+      "meaning": "a line of people waiting",
+      "language": "en",
+      "region": "uk",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "loo",
+      "meaning": "toilet / bathroom",
+      "language": "en",
+      "region": "uk",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "cheers",
+      "meaning": "thanks / goodbye",
+      "language": "en",
+      "region": "uk",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "naff",
+      "meaning": "unfashionable or poor quality",
+      "language": "en",
+      "region": "uk",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "proper",
+      "meaning": "genuine / thoroughly",
+      "language": "en",
+      "region": "uk",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "sorted",
+      "meaning": "arranged / taken care of",
+      "language": "en",
+      "region": "uk",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "having a laugh",
+      "meaning": "joking / not serious",
+      "language": "en",
+      "region": "uk",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "keen",
+      "meaning": "eager / interested",
+      "language": "en",
+      "region": "uk",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "servo",
+      "meaning": "petrol / gas station",
+      "language": "en",
+      "region": "au",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "ute",
+      "meaning": "utility pickup truck",
+      "language": "en",
+      "region": "au",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "brekkie",
+      "meaning": "breakfast",
+      "language": "en",
+      "region": "au",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "avo",
+      "meaning": "avocado",
+      "language": "en",
+      "region": "au",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "macca's",
+      "meaning": "McDonald's",
+      "language": "en",
+      "region": "au",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "ta",
+      "meaning": "thank you",
+      "language": "en",
+      "region": "au",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "reckon",
+      "meaning": "think / suppose",
+      "language": "en",
+      "region": "au",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "flat out",
+      "meaning": "extremely busy",
+      "language": "en",
+      "region": "au",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "she'll be right",
+      "meaning": "it will be fine",
+      "language": "en",
+      "region": "au",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "stickybeak",
+      "meaning": "nosy person / to snoop",
+      "language": "en",
+      "region": "au",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "lah",
+      "meaning": "discourse particle softening/asserting a statement",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "leh",
+      "meaning": "discourse particle seeking agreement",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "lor",
+      "meaning": "discourse particle indicating resignation",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "can",
+      "meaning": "yes / possible / okay",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "cannot",
+      "meaning": "no / not possible",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "blur",
+      "meaning": "confused / clueless",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "paiseh",
+      "meaning": "embarrassed / shy",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "kiasu",
+      "meaning": "afraid of losing out",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "shiok",
+      "meaning": "great / delicious / satisfying",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "chop",
+      "meaning": "to reserve / claim",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "uncle",
+      "meaning": "older man (polite address)",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "auntie",
+      "meaning": "older woman (polite address)",
+      "language": "en",
+      "region": "sg",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "catch no ball",
+      "meaning": "do not understand",
+      "language": "en",
+      "region": "sg",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "on the ball",
+      "meaning": "competent / prepared",
+      "language": "en",
+      "region": "sg",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "steady pom pi pi",
+      "meaning": "calm and reliable under pressure",
+      "language": "en",
+      "region": "sg",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "倍儿",
+      "meaning": "very / extremely (Beijing)",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "得嘞",
+      "meaning": "okay / got it (Beijing assent)",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "您",
+      "meaning": "polite you (Beijing courtesy)",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "咱",
+      "meaning": "we / us (inclusive, Beijing)",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "老",
+      "meaning": "what (Beijing colloquial)",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "溜达",
+      "meaning": "to stroll / walk around",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "着急",
+      "meaning": "anxious / in a hurry",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "靠谱",
+      "meaning": "reliable / trustworthy",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "废话",
+      "meaning": "nonsense / unnecessary talk",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "哥们儿",
+      "meaning": "buddy / bro",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "特",
+      "meaning": "especially / very (Beijing)",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "颠儿了",
+      "meaning": "left / took off (Beijing)",
+      "language": "zh",
+      "region": "cn-bj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "侬好",
+      "meaning": "hello (Shanghainese)",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "吾伲",
+      "meaning": "we / us (Shanghainese)",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "晓得",
+      "meaning": "to know (Shanghainese/Wu)",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "勿要",
+      "meaning": "don't want / no need",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "灵光",
+      "meaning": "clever / sharp",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "吃力",
+      "meaning": "exhausting / strenuous",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "上台面",
+      "meaning": "presentable / fit for formal occasions",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "轧闹猛",
+      "meaning": "to join the excitement / crowd",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "嗲",
+      "meaning": "cute / endearing (Shanghai)",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "蛮好",
+      "meaning": "pretty good",
+      "language": "zh",
+      "region": "cn-sh",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "唔该",
+      "meaning": "please / thank you (Cantonese)",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "多谢",
+      "meaning": "thank you (Cantonese)",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "得唔得",
+      "meaning": "is it okay? / can it work?",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "冇问题",
+      "meaning": "no problem",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "边度",
+      "meaning": "where",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "几时",
+      "meaning": "when",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "好靓",
+      "meaning": "very pretty / nice",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "饮茶",
+      "meaning": "to go for dim sum / drink tea",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "慢慢行",
+      "meaning": "take it easy / walk slowly",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "加油",
+      "meaning": "keep going / you can do it",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "搞掂",
+      "meaning": "done / sorted",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "唔使",
+      "meaning": "no need",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "啦",
+      "meaning": "sentence particle (softener)",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "喺",
+      "meaning": "at / in (Cantonese)",
+      "language": "zh",
+      "region": "cn-gz",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "食饱未",
+      "meaning": "have you eaten? (Hokkien greeting)",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "多谢",
+      "meaning": "thank you (Hokkien/Min)",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "歹势",
+      "meaning": "excuse me / sorry (awkward)",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "好势",
+      "meaning": "okay / alright",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "今仔日",
+      "meaning": "today",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "明仔载",
+      "meaning": "tomorrow",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "厝",
+      "meaning": "house / home",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "水",
+      "meaning": "pretty / handsome (Hokkien slang)",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "加油",
+      "meaning": "keep going",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "无要紧",
+      "meaning": "it's alright / no problem",
+      "language": "zh",
+      "region": "cn-fj",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "grand",
+      "meaning": "fine / okay",
+      "language": "en",
+      "region": "ie",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "craic",
+      "meaning": "fun / good time / news",
+      "language": "en",
+      "region": "ie",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "ye",
+      "meaning": "you (plural)",
+      "language": "en",
+      "region": "ie",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "eejit",
+      "meaning": "fool (affectionate or mild)",
+      "language": "en",
+      "region": "ie",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "fair play",
+      "meaning": "well done / respect",
+      "language": "en",
+      "region": "ie",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "giving out",
+      "meaning": "scolding / complaining",
+      "language": "en",
+      "region": "ie",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "on the tear",
+      "meaning": "out drinking heavily",
+      "language": "en",
+      "region": "ie",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "shift",
+      "meaning": "to kiss (Irish slang)",
+      "language": "en",
+      "region": "ie",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "prepone",
+      "meaning": "to move an event earlier",
+      "language": "en",
+      "region": "in",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "do the needful",
+      "meaning": "do what is necessary",
+      "language": "en",
+      "region": "in",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "out of station",
+      "meaning": "away / not in town",
+      "language": "en",
+      "region": "in",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "pass out",
+      "meaning": "to graduate",
+      "language": "en",
+      "region": "in",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "good name",
+      "meaning": "full name (polite ask)",
+      "language": "en",
+      "region": "in",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "only",
+      "meaning": "emphasis particle (Indian English)",
+      "language": "en",
+      "region": "in",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "itself",
+      "meaning": "emphasis particle",
+      "language": "en",
+      "region": "in",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "kindly revert",
+      "meaning": "please reply",
+      "language": "en",
+      "region": "in",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "howzit",
+      "meaning": "hello / how's it going",
+      "language": "en",
+      "region": "za",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "lekker",
+      "meaning": "nice / great / tasty",
+      "language": "en",
+      "region": "za",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "sharp",
+      "meaning": "okay / goodbye / cool",
+      "language": "en",
+      "region": "za",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "braai",
+      "meaning": "barbecue",
+      "language": "en",
+      "region": "za",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "robot",
+      "meaning": "traffic light",
+      "language": "en",
+      "region": "za",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "just now",
+      "meaning": "soon / in a little while (not immediately)",
+      "language": "en",
+      "region": "za",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "now now",
+      "meaning": "very soon",
+      "language": "en",
+      "region": "za",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "eish",
+      "meaning": "expression of surprise or frustration",
+      "language": "en",
+      "region": "za",
+      "kind": "slang",
+      "register": "casual"
+    },
+    {
+      "phrase": "move the goalposts",
+      "meaning": "change the success criteria mid-process",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "boil the ocean",
+      "meaning": "attempt an impossibly large task",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "drink from the firehose",
+      "meaning": "absorb overwhelming amounts of information",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "put a pin in it",
+      "meaning": "pause a topic to revisit later",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "take it offline",
+      "meaning": "discuss privately later",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "bandwidth",
+      "meaning": "available capacity or attention",
+      "language": "en",
+      "region": "global",
+      "kind": "slang",
+      "register": "professional"
+    },
+    {
+      "phrase": "synergy",
+      "meaning": "combined effect greater than parts (often jargon)",
+      "language": "en",
+      "region": "global",
+      "kind": "slang",
+      "register": "professional"
+    },
+    {
+      "phrase": "action item",
+      "meaning": "a concrete task to complete",
+      "language": "en",
+      "region": "global",
+      "kind": "slang",
+      "register": "professional"
+    },
+    {
+      "phrase": "north star",
+      "meaning": "guiding long-term goal",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "table stakes",
+      "meaning": "minimum requirements to compete",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "greenfield",
+      "meaning": "built from scratch with no legacy constraints",
+      "language": "en",
+      "region": "global",
+      "kind": "slang",
+      "register": "professional"
+    },
+    {
+      "phrase": "bike-shedding",
+      "meaning": "debating trivial details while ignoring hard problems",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "rubber ducking",
+      "meaning": "debugging by explaining code aloud",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "yak shaving",
+      "meaning": "doing nested side tasks before the real goal",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "bus factor",
+      "meaning": "risk if key people become unavailable",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "professional"
+    },
+    {
+      "phrase": "hit the ground running",
+      "meaning": "start a task with immediate effectiveness",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "keep someone in the loop",
+      "meaning": "keep someone informed",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "read between the lines",
+      "meaning": "understand an implied meaning",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "the tip of the iceberg",
+      "meaning": "a small visible part of a larger problem",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "a blessing in disguise",
+      "meaning": "something that seems bad but turns out good",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "call it a day",
+      "meaning": "stop working for now",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "cross that bridge when we come to it",
+      "meaning": "deal with a problem only when it arises",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "don't cry over spilled milk",
+      "meaning": "don't dwell on irreversible mistakes",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "every cloud has a silver lining",
+      "meaning": "there is something good in every bad situation",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "go the extra mile",
+      "meaning": "do more than what is expected",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "hang in there",
+      "meaning": "persist through difficulty",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "it's not rocket science",
+      "meaning": "it is not extremely difficult",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "let the cat out of the bag",
+      "meaning": "reveal a secret",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "once in a blue moon",
+      "meaning": "very rarely",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "pull someone's leg",
+      "meaning": "tease someone playfully",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "see eye to eye",
+      "meaning": "agree",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "speak of the devil",
+      "meaning": "the person just mentioned appears",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "under the weather",
+      "meaning": "feeling slightly ill",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "when pigs fly",
+      "meaning": "never / extremely unlikely",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    },
+    {
+      "phrase": "you can't have your cake and eat it too",
+      "meaning": "you cannot enjoy two incompatible benefits",
+      "language": "en",
+      "region": "global",
+      "kind": "idiom",
+      "register": "casual"
+    }
+  ]
+}
