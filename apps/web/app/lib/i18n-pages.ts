@@ -629,6 +629,7 @@ const SHARED: Record<string, string> = {
   "consent.scope.memory": "Cross-class memory of my progress",
   "consent.written": "I provide written consent (required for biometrics in this region, e.g. BIPA / GDPR).",
   "consent.save": "Save consent",
+  "consent.signInRequired": "Sign in to save your consent choices.",
   "consent.savedEnabled": "Saved. Enabled: {list}.",
   "consent.savedOff": "Saved. All optional vision/biometric features remain off.",
   "arcade.title": "🎮 Learning Arcade",

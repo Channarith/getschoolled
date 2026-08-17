@@ -101,11 +101,12 @@ describe("cameraLighting readiness", () => {
     expect(end.shouldDisconnect).toBe(true);
     expect(end.secondsLeft).toBe(0);
 
+    // Raw (unmirrored) detector frames: the user's left is the image's right.
     expect(inferTrackingPose({ x: 0.1, y: 0.4, width: 0.2, height: 0.3 })).toBe(
-      "look_left",
+      "look_right",
     );
     expect(inferTrackingPose({ x: 0.6, y: 0.4, width: 0.2, height: 0.3 })).toBe(
-      "look_right",
+      "look_left",
     );
     expect(inferTrackingPose({ x: 0.4, y: 0.1, width: 0.2, height: 0.2 })).toBe(
       "look_up",

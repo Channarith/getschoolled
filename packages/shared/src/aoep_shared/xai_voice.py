@@ -92,13 +92,15 @@ class XAIVoiceClient:
         api_key: str = "",
         base_url: str = "",
         model: str = "",
-        audio_model: str = "",
+        audio_model: Optional[str] = None,
         max_tokens: int = 0,
     ) -> None:
         self._api_key = api_key
         self._base_url = (base_url or self._DEFAULT_BASE).rstrip("/")
         self._model = model or self._DEFAULT_MODEL
-        self._audio_model = audio_model if audio_model is not None else self._DEFAULT_AUDIO_MODEL
+        # None -> default audio model; explicit "" -> audio disabled. The old
+        # signature default ("") made the documented default unreachable.
+        self._audio_model = self._DEFAULT_AUDIO_MODEL if audio_model is None else audio_model
         self._max_tokens = max_tokens or self._DEFAULT_MAX_TOKENS
 
     @property
@@ -235,12 +237,19 @@ class XAIVoiceClient:
 
         choice = body.get("choices", [{}])[0]
         message = choice.get("message", {})
-        text = message.get("content") or message.get("text") or ""
 
         audio_b64: Optional[str] = None
+        audio_transcript = ""
         if use_audio:
             audio_block = message.get("audio", {})
-            audio_b64 = audio_block.get("data") if isinstance(audio_block, dict) else None
+            if isinstance(audio_block, dict):
+                audio_b64 = audio_block.get("data")
+                # OpenAI-compatible audio responses carry the text at
+                # message.audio.transcript with content:null — read it or the
+                # reply text (and the conversation history) is empty.
+                audio_transcript = audio_block.get("transcript") or ""
+
+        text = message.get("content") or message.get("text") or audio_transcript or ""
 
         usage = body.get("usage", {})
         return VoiceAgentResponse(

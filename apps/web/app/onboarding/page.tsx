@@ -96,6 +96,9 @@ export default function OnboardingPage() {
   }, [step, maxStep]);
 
   function goToStep(i: number) {
+    // Free plans skip payment entirely — never land on step 2 for them, even
+    // though maxStep reaches 3 after the 1 -> 3 jump.
+    if (i === 2 && !needsPayment) i = 1;
     // Only allow navigating to steps already reached
     if (i <= maxStep) { setError(""); setStep(i); }
   }

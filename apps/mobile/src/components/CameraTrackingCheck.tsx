@@ -1,21 +1,22 @@
-/** Settings camera check: lighting + look up/down/left/right + raise hands. */
+/** Settings camera check: lighting + look up/down/left/right + raise hands.
+ *
+ * The previous build synthesized a "face grid" from the current step id and
+ * then matched the pose against it — every photo passed every step (integrity
+ * theater). Mobile has no pixel-level pose access without a native module, so
+ * the check is now a guided self-verify: capture per step, see the photo, and
+ * confirm the pose was captured. That still walks the learner through every
+ * tracking dimension their camera must cover.
+ */
 
 import * as ImagePicker from "expo-image-picker";
 import { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 
-import {
-  analyzeLuminanceGrid,
-  inferTrackingPose,
-  isLightingReady,
-  type TrackingPose,
-} from "../cameraLighting";
-import { analyzePhotoBase64 } from "./CameraLightingScreener";
 import { ensureCameraPermission } from "./cameraPermission";
 import PrimaryButton from "./PrimaryButton";
 import { theme } from "../theme";
 
-type StepId = "lighting" | TrackingPose;
+type StepId = "lighting" | "look_up" | "look_down" | "look_left" | "look_right" | "raise_hands";
 
 type Step = { id: StepId; title: string; instruction: string };
 
@@ -52,38 +53,6 @@ const STEPS: Step[] = [
   },
 ];
 
-function faceBoxFromGrid(grid: number[][]): { x: number; y: number; width: number; height: number } | null {
-  const h = grid.length;
-  const w = grid[0]?.length || 0;
-  if (!h || !w) return null;
-  let best = { score: 0, x: 0, y: 0 };
-  const bw = Math.floor(w * 0.35);
-  const bh = Math.floor(h * 0.45);
-  for (let y = 0; y < h - bh; y += 2) {
-    for (let x = 0; x < w - bw; x += 2) {
-      let sum = 0;
-      let n = 0;
-      for (let yy = y; yy < y + bh; yy++) {
-        for (let xx = x; xx < x + bw; xx++) {
-          sum += grid[yy][xx];
-          n += 1;
-        }
-      }
-      const mean = sum / Math.max(1, n);
-      // Prefer mid-bright blobs (face-like) over pure black/white.
-      const score = 1 - Math.abs(mean - 0.45);
-      if (score > best.score) best = { score, x, y };
-    }
-  }
-  if (best.score < 0.35) return null;
-  return {
-    x: best.x / w,
-    y: best.y / h,
-    width: bw / w,
-    height: bh / h,
-  };
-}
-
 type Props = {
   onDone?: () => void;
 };
@@ -94,6 +63,7 @@ export default function CameraTrackingCheck({ onDone }: Props) {
   const [busy, setBusy] = useState(false);
   const [passed, setPassed] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const step = STEPS[stepIndex];
   const progress = useMemo(
@@ -113,75 +83,35 @@ export default function CameraTrackingCheck({ onDone }: Props) {
       const shot = await ImagePicker.launchCameraAsync({
         allowsEditing: false,
         quality: 0.4,
-        base64: true,
+        base64: false,
         exif: false,
       });
-      if (shot.canceled || !shot.assets?.[0]?.base64) {
+      if (shot.canceled || !shot.assets?.[0]?.uri) {
         setStatus("Capture canceled — try again.");
         return;
       }
-      const readiness = analyzePhotoBase64(shot.assets[0].base64, false);
-      const grid = Array.from({ length: 36 }, (_, y) =>
-        Array.from({ length: 64 }, (_, x) => {
-          // Rebuild a coarse grid proxy from metrics for pose — use luminance
-          // extremes from the readiness sample by synthesizing a face blob.
-          const face = readiness.facePresent;
-          const inFace = face && y >= 8 && y <= 27 && x >= 16 && x <= 48;
-          if (step.id === "look_up" && inFace) return y < 14 ? 0.55 : 0.35;
-          if (step.id === "look_down" && inFace) return y > 22 ? 0.55 : 0.35;
-          if (step.id === "look_left" && inFace) return x < 28 ? 0.55 : 0.35;
-          if (step.id === "look_right" && inFace) return x > 36 ? 0.55 : 0.35;
-          if (step.id === "raise_hands") {
-            const side = x < 12 || x > 52;
-            return side && y < 18 ? 0.7 : inFace ? 0.45 : 0.2;
-          }
-          return inFace ? 0.45 : readiness.metrics.meanLuminance;
-        }),
-      );
-      // Prefer analyzing the actual photo grid when possible via analyzePhotoBase64 metrics.
-      void analyzeLuminanceGrid(
-        Array.from({ length: 36 }, () =>
-          Array(64).fill(readiness.metrics.meanLuminance),
-        ),
-      );
-
-      const target = step.id;
-      let matched = false;
-      if (target === "lighting") {
-        matched = isLightingReady(readiness.verdict);
-        setStatus(matched ? "Lighting looks good." : readiness.message);
-      } else if (target === "raise_hands") {
-        matched = readiness.facePresent;
-        setStatus(
-          matched
-            ? "Hands pose captured."
-            : "We need your face in frame with hands raised — try again.",
-        );
-      } else {
-        const box = faceBoxFromGrid(grid);
-        const pose = inferTrackingPose(box);
-        matched = pose === target || readiness.facePresent;
-        setStatus(
-          matched
-            ? `${target.replace(/_/g, " ")} captured.`
-            : `Could not confirm ${target.replace(/_/g, " ")} — try again.`,
-        );
-      }
-
-      if (!matched) return;
-      setPassed((p) => ({ ...p, [target]: true }));
-      if (stepIndex + 1 >= STEPS.length) {
-        setDone(true);
-        setStatus("All checks passed — tracking looks good.");
-        onDone?.();
-        return;
-      }
-      setStepIndex((i) => i + 1);
+      // Show the photo and let the learner confirm the pose — the app cannot
+      // measure pose from a compressed file without a native decoder.
+      setPhotoUri(shot.assets[0].uri);
+      setStatus("Check the photo, then confirm below.");
     } catch (e) {
       setStatus((e as Error).message || "Camera check failed.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const confirmStep = () => {
+    setPassed((p) => ({ ...p, [step.id]: true }));
+    setPhotoUri(null);
+    if (stepIndex + 1 >= STEPS.length) {
+      setDone(true);
+      setStatus("All checks complete — your camera covers every tracking angle.");
+      onDone?.();
+      return;
+    }
+    setStepIndex((i) => i + 1);
+    setStatus("Tap Capture for the next step.");
   };
 
   return (
@@ -194,6 +124,7 @@ export default function CameraTrackingCheck({ onDone }: Props) {
       <Text style={styles.progress}>{progress}</Text>
       <Text style={styles.stepTitle}>{step.title}</Text>
       <Text style={styles.instruction}>{step.instruction}</Text>
+      {photoUri ? <Image source={{ uri: photoUri }} style={styles.preview} /> : null}
       <Text style={styles.status}>{status}</Text>
       <View style={styles.list}>
         {STEPS.map((s, i) => (
@@ -203,15 +134,20 @@ export default function CameraTrackingCheck({ onDone }: Props) {
           </Text>
         ))}
       </View>
-      {!done ? (
+      {photoUri && !done ? (
+        <PrimaryButton label="Photo matches the step — continue" onPress={confirmStep} />
+      ) : null}
+      {!done && !photoUri ? (
         <PrimaryButton
           label={busy ? "Working…" : "Capture"}
           onPress={() => void capture()}
           disabled={busy}
         />
-      ) : (
-        <PrimaryButton label="Done" onPress={() => onDone?.()} />
-      )}
+      ) : null}
+      {done ? <PrimaryButton label="Done" onPress={() => onDone?.()} /> : null}
+      {photoUri && !done ? (
+        <PrimaryButton label="Retake" variant="ghost" onPress={() => void capture()} />
+      ) : null}
       <PrimaryButton
         label="Restart"
         variant="ghost"
@@ -219,6 +155,7 @@ export default function CameraTrackingCheck({ onDone }: Props) {
           setStepIndex(0);
           setPassed({});
           setDone(false);
+          setPhotoUri(null);
           setStatus("Tap Capture to begin.");
         }}
       />
@@ -233,6 +170,13 @@ const styles = StyleSheet.create({
   progress: { color: theme.colors.accent, fontWeight: "600", marginTop: 4 },
   stepTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "700" },
   instruction: { color: theme.colors.text, lineHeight: 20 },
+  preview: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    backgroundColor: "#0b1220",
+    marginVertical: 6,
+  },
   status: { color: theme.colors.muted, fontSize: 13 },
   list: { marginVertical: 6 },
   listItem: { color: theme.colors.muted, fontSize: 13, marginBottom: 2 },

@@ -12,6 +12,7 @@ cloud mode the same files ship in the GPU image, so download is skipped.
 from __future__ import annotations
 
 import os
+import tempfile
 import urllib.request
 from typing import Tuple
 
@@ -44,10 +45,25 @@ def _valid(path: str, min_bytes: int) -> bool:
 
 
 def _download(url: str, dest: str) -> None:
-    tmp = dest + ".part"
+    # Unique temp file per call: two concurrent cold-cache downloads of the
+    # same model used to share "<dest>.part" and could interleave writes into
+    # a corrupt ONNX that still passed the size check. The temp file is also
+    # removed when the download fails instead of being left on disk.
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    urllib.request.urlretrieve(url, tmp)  # noqa: S310 - fixed, trusted URL
-    os.replace(tmp, dest)
+    fd, tmp = tempfile.mkstemp(
+        prefix=os.path.basename(dest) + ".", suffix=".part",
+        dir=os.path.dirname(dest),
+    )
+    os.close(fd)
+    try:
+        urllib.request.urlretrieve(url, tmp)  # noqa: S310 - fixed, trusted URL
+        os.replace(tmp, dest)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def ensure_models(

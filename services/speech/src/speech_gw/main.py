@@ -234,7 +234,9 @@ def _render_tts(text: str, *, language: str, voice_style: str,
             )
             return Response(content=audio, media_type="audio/mpeg",
                             headers={**headers, "X-TTS-Engine": "elevenlabs"})
-        except elevenlabs_tts.ElevenLabsError:
+        except Exception:
+            # Any engine error (HTTP, timeout, truncated read) falls through to
+            # the next engine — a single failing engine must never 500 narration.
             pass
 
     # 2) edge-tts neural — TRUE per-accent voices (British/Aussie/Mandarin/…).
@@ -267,7 +269,7 @@ def _render_tts(text: str, *, language: str, voice_style: str,
             )
             return Response(content=audio, media_type="audio/mpeg",
                             headers={**headers, "X-TTS-Engine": "elevenlabs"})
-        except elevenlabs_tts.ElevenLabsError:
+        except Exception:
             pass
 
     # 4) No server engine — client uses on-device speech synthesis.
