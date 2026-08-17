@@ -1115,6 +1115,18 @@ export async function redeemReward(prizeId: string):
   );
 }
 
+export type SegmentBreak = {
+  due: boolean;
+  segment: number;
+  slide_index: number;
+  slides_done: number;
+  slides_remaining: number;
+  approx_minutes_done: number;
+  approx_minutes_remaining: number;
+  message: string;
+  choices: { id: string; label: string }[];
+};
+
 export type Slide = {
   index: number;
   title: string;
@@ -1124,6 +1136,9 @@ export type Slide = {
   // say_aloud is set, the player pauses to listen to and score the learner.
   kind?: string;
   say_aloud?: string;
+  // Present at segment boundaries (every ~10/15/20 minutes) so the UI can
+  // ask the learner "Take a break or keep going?".
+  segment_break?: SegmentBreak | null;
 };
 
 export type Lesson = {

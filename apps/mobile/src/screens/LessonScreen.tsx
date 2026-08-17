@@ -62,6 +62,7 @@ export default function LessonScreen({
   const [error, setError] = useState("");
   const [advancing, setAdvancing] = useState(false);
   const [atEnd, setAtEnd] = useState(false);
+  const [segmentBreak, setSegmentBreak] = useState<import("../api").SegmentBreak | null>(null);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
   const [answer, setAnswer] = useState<LessonAnswer | null>(null);
@@ -280,7 +281,7 @@ export default function LessonScreen({
   }
 
   async function next() {
-    if (!view || assessmentRun) return;
+    if (!view || assessmentRun || segmentBreak) return;
     stopNarration();
     // Mid-lesson interstitial for ad-supported tiers (best-effort; proceeds if
     // no ad is loaded). show() presents the full-screen AdMob ad on iOS/Android.
@@ -294,6 +295,10 @@ export default function LessonScreen({
       const s = await advanceLessonSession(view.session.session_id);
       const prevIdx = slideRef.current?.index ?? -1;
       if (s.index <= prevIdx) setAtEnd(true);
+      if (s.segment_break?.due) {
+        setSegmentBreak(s.segment_break);
+        stopNarration();
+      }
       setSlide(s);
       slideRef.current = s;
       void tickLx(s);
@@ -558,6 +563,34 @@ export default function LessonScreen({
             </Text>
           ) : null}
 
+          {segmentBreak ? (
+            <GlassPanel style={[styles.card, { borderColor: "#7c3aed" }]}>
+              <Text style={[styles.slideTitle, { color: "#c4b5fd" }]}>☕ Good stopping point</Text>
+              <Text style={styles.slideBody}>{segmentBreak.message}</Text>
+              <Text style={[styles.meta, { marginBottom: 14, color: "#a78bfa" }]}>
+                Segment {segmentBreak.segment} complete · {segmentBreak.slides_done} slides done
+                {segmentBreak.slides_remaining > 0
+                  ? ` · ~${segmentBreak.approx_minutes_remaining} min left`
+                  : ""}
+              </Text>
+              <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
+                <PrimaryButton
+                  label="Keep going →"
+                  onPress={() => setSegmentBreak(null)}
+                  variant="brand"
+                />
+                <PrimaryButton
+                  label="Take a break"
+                  onPress={() => {
+                    setSegmentBreak(null);
+                    void onFinish();
+                  }}
+                  variant="ghost"
+                />
+              </View>
+            </GlassPanel>
+          ) : null}
+
           {slide ? (
             <GlassPanel style={styles.card}>
               <Text style={styles.slideTitle}>{slide.title}</Text>
@@ -575,7 +608,7 @@ export default function LessonScreen({
                     label={t("lesson.next")}
                     onPress={() => void next()}
                     loading={advancing}
-                    disabled={advancing}
+                    disabled={advancing || Boolean(segmentBreak)}
                     variant="netflix"
                   />
                 ) : (
