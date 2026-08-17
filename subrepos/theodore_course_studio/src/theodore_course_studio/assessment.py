@@ -77,9 +77,22 @@ def build_pop_quiz_for_slide(
         "This topic is optional and can be skipped entirely.",
         f"The opposite of: {slide.title}",
     ]
-    choices = [correct, distractors[0], distractors[1], distractors[2]]
-    rot = slide.index % len(choices)
-    choices = choices[rot:] + choices[:rot]
+    # Dedupe by text: if a distractor equals the correct sentence (duplicate
+    # sentences in the slide, or a fixed distractor string colliding),
+    # choices.index(correct) after rotation could point at the distractor's
+    # slot — the identical correct text at the other position graded wrong.
+    seen: set[str] = set()
+    unique_choices: list[str] = []
+    for choice in [correct, distractors[0], distractors[1], distractors[2]]:
+        key = choice.strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_choices.append(choice)
+    if len(unique_choices) < 2:
+        unique_choices.append(f"Unrelated idea about {slide.title}")
+    rot = slide.index % len(unique_choices)
+    choices = unique_choices[rot:] + unique_choices[:rot]
     correct_index = choices.index(correct)
     return QuizQuestion(
         question_id=str(uuid.uuid4()),
