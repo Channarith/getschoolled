@@ -150,6 +150,10 @@ class SilhouetteDetector:
 
         arr = np.frombuffer(image_bytes, dtype=np.uint8)
         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        # Count undecodable frames too — otherwise a client streaming garbage
+        # keeps _frames_seen at 0 and the warm-up gate never ends (the session
+        # would sit in WARMING_UP forever with no presence detection).
+        self._frames_seen += 1
         if frame is None:
             return SilhouetteResult(
                 silhouette_present=False,
@@ -163,8 +167,8 @@ class SilhouetteDetector:
         gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
 
         # Warm up the background model for the first 10 frames without signalling.
-        learning_rate = 0.05 if self._frames_seen < 10 else -1
-        self._frames_seen += 1
+        # (_frames_seen was already incremented above, before the decode check.)
+        learning_rate = 0.05 if self._frames_seen <= 10 else -1
 
         fg_mask = self._bg_sub.apply(gray, learningRate=learning_rate)
 

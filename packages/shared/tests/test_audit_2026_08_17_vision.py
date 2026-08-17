@@ -203,6 +203,132 @@ def test_wide_short_frame_does_not_crash_silhouette_signals():
         assert sig.present in (True, False)
 
 
+# AbsenceTracker dead silhouette arm (audit 2026-08-17) ---------------------- #
+
+def test_low_attention_with_silhouette_takes_silhouette_path():
+    from aoep_shared.vision.absence import (
+        PRESENCE_SILHOUETTE,
+        AbsenceTracker,
+        FramePresenceInput,
+    )
+    from aoep_shared.vision.silhouette_signals import SilhouetteSignals
+
+    tracker = AbsenceTracker("p1")
+    sil = SilhouetteSignals(person_count=1, present=True, confidence=0.9, observations=[])
+    decision = tracker.update(
+        FramePresenceInput(face_count=1, attention=0.0, silhouette=sil, liveness_ok=True)
+    )
+    assert decision.state == PRESENCE_SILHOUETTE
+    assert decision.reason == "low_attention"
+
+
+# xAI voice client (audit 2026-08-17) ---------------------------------------- #
+
+def test_xai_voice_client_audio_model_default_and_disable():
+    from aoep_shared.xai_voice import XAIVoiceClient
+
+    # Default construction enables the documented default audio model.
+    assert XAIVoiceClient(api_key="k")._audio_model == "grok-2-audio"
+    # Explicit empty string disables audio.
+    assert XAIVoiceClient(api_key="k", audio_model="")._audio_model == ""
+
+
+def test_xai_audio_response_reads_transcript(monkeypatch):
+    from aoep_shared import xai_voice
+
+    body = {
+        "choices": [{"message": {"content": None, "audio": {
+            "data": "QUJD", "transcript": "Hello student",
+        }}, "finish_reason": "stop"}],
+        "model": "grok-2-audio",
+        "usage": {},
+    }
+
+    class _Resp:
+        def read(self):
+            import json as _json
+            return _json.dumps(body).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(xai_voice.urllib.request, "urlopen", lambda *a, **k: _Resp())
+    client = xai_voice.XAIVoiceClient(api_key="sk-test")
+    resp = client.chat(
+        [xai_voice.ConversationMessage(role="user", content="hi")], audio=True
+    )
+    assert resp.text == "Hello student"
+    assert resp.has_audio
+
+
+def test_absence_prompt_does_not_evict_real_history():
+    from aoep_shared import xai_grok_voice
+
+    agent = xai_grok_voice.GrokVoiceAgent(api_key="sk-test", max_history=2)
+    agent._history = [
+        xai_grok_voice.GrokMessage(role="user", content="q0"),
+        xai_grok_voice.GrokMessage(role="assistant", content="a0"),
+        xai_grok_voice.GrokMessage(role="user", content="q1"),
+        xai_grok_voice.GrokMessage(role="assistant", content="a1"),
+    ]
+
+    def fake_call(messages, *, model):
+        agent._history.append(xai_grok_voice.GrokMessage(role="user", content="abs"))
+        agent._history.append(xai_grok_voice.GrokMessage(role="assistant", content="prompt"))
+        if len(agent._history) > agent._max_history * 2:
+            agent._history = agent._history[-(agent._max_history * 2):]
+        return xai_grok_voice.GrokResponse(
+            text="come back", model="m",
+            usage_prompt_tokens=0, usage_completion_tokens=0, latency_ms=0.0,
+        )
+
+    agent._call = fake_call  # type: ignore[assignment]
+    agent.generate_absence_prompt(12.0)
+    contents = [m.content for m in agent._history]
+    assert contents == ["q0", "a0", "q1", "a1"], contents
+
+
+# PresenceTracker PARTIAL spam (audit 2026-08-17) ---------------------------- #
+
+def test_partial_event_fires_once_not_per_frame():
+    from aoep_shared.presence import PresenceEvent, PresenceTracker
+
+    events = []
+    t = PresenceTracker("p1", on_event=lambda s: events.append(s.event))
+    for _ in range(5):
+        t.push(__import__("aoep_shared.presence", fromlist=["PresenceFrame"]).PresenceFrame(
+            face_present=False, silhouette_present=True))
+    partials = [e for e in events if e == PresenceEvent.PARTIAL]
+    assert len(partials) == 1, f"PARTIAL fired {len(partials)} times for 5 frames"
+
+
+# Warm-up age-out on undecodable frames (audit 2026-08-17) ------------------- #
+
+def test_undecodable_frames_age_out_of_warmup():
+    cv2 = pytest.importorskip("cv2")
+    from aoep_shared.vision.silhouette import SilhouetteDetector
+
+    d = SilhouetteDetector()
+    for _ in range(20):
+        d.process_frame(b"not a real image")
+    assert d._frames_seen >= 20, "undecodable frames never aged the warm-up counter"
+
+
+# Ephemeral-token error hygiene (audit 2026-08-17) --------------------------- #
+
+def test_ephemeral_token_errors_do_not_embed_response_body(monkeypatch):
+    from aoep_shared import xai_realtime
+
+    monkeypatch.setattr(xai_realtime, "_http_post", lambda *a, **k: b'{"secret_token_value": "xai-abc123"}')
+    with pytest.raises(xai_realtime.XaiVoiceError) as exc:
+        xai_realtime.mint_ephemeral_token(api_key="sk-test")
+    assert "xai-abc123" not in str(exc.value)
+    assert "secret_token_value" not in str(exc.value)
+
+
 # MED-7 -------------------------------------------------------------------- #
 
 def test_elevenlabs_http_post_wraps_read_timeouts(monkeypatch):

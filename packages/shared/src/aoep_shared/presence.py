@@ -187,8 +187,8 @@ class PresenceTracker:
                 event = PresenceEvent.RETURNED
                 self._state = PresenceState.PRESENT
                 self._last_present_ts = now
-            else:
-                event = PresenceEvent.PARTIAL
+            # Already PRESENT: no event — the old else fired PARTIAL on every
+            # silhouette-only frame, spamming on_event callbacks per frame.
             self._consecutive_absent = 0
             self._absent_since_ts = None
 

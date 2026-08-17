@@ -72,3 +72,22 @@ def test_idle_sessions_are_reaped():
     _create("solo", [])  # any new session triggers the reaper
     assert sid not in _sessions
     assert client.get(f"/sessions/{sid}").status_code == 404
+
+
+def test_voice_agent_keeps_conversation_memory_across_calls(monkeypatch):
+    """A fresh agent per /voice call defeated multi-turn memory — the agent is
+    now cached per (session, participant, agent_type)."""
+    from webcam.main import _voice_agent_for
+
+    sid = _create("solo", [])
+    session = _sessions[sid]
+
+    class _FakeClient:
+        available = True
+
+    a1 = _voice_agent_for(session, "alice", "teacher", _FakeClient())
+    a2 = _voice_agent_for(session, "alice", "teacher", _FakeClient())
+    assert a1 is a2, "voice agent not cached — conversation memory lost"
+    other = _voice_agent_for(session, "alice", "self_teach", _FakeClient())
+    assert other is not a1  # different agent type gets its own thread
+    _sessions.pop(sid, None)

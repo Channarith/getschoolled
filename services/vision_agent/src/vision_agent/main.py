@@ -97,6 +97,11 @@ class SessionState:
                     "engagement_fraction": metrics.engagement_fraction,
                     "session_id": self.session_id,
                 })
+                # Prompt once per absence episode (the tracker fires on_absent
+                # on the transition). The old per-frame guard fired on every
+                # frame of the FIRST episode and never again after.
+                absent_since = getattr(self._tracker, "_absent_since", None)
+                _schedule_absence_prompt(self, cfg, absent_since)
             def _on_return(metrics):
                 self._push_event("absence_end", {
                     "return_events": metrics.return_events,
@@ -421,9 +426,8 @@ async def process_frame(
         warming_up=warming_up,
     )
 
-    # ---- Absence prompt (async, fire-and-forget) ---- #
-    if pf.state.value == "absent" and tracker.metrics.absence_events == 1:
-        _schedule_absence_prompt(session, cfg)
+    # Absence prompts are scheduled from the tracker's on_absent transition
+    # callback (once per episode) — see get_tracker().
 
     m = tracker.metrics
     return FrameAnalysisResponse(
@@ -442,14 +446,22 @@ async def process_frame(
     )
 
 
-def _schedule_absence_prompt(session: SessionState, cfg) -> None:
+def _schedule_absence_prompt(
+    session: SessionState, cfg, absent_since_mono: Optional[float] = None
+) -> None:
     """Fire-and-forget: ask Theodore to generate an absence prompt."""
     async def _task():
         agent = session.get_voice_agent(cfg)
         if agent is None:
             return
         try:
-            elapsed = time.time() - (session.last_frame_at or session.created_at)
+            # The tracker records absence start on its monotonic clock —
+            # session.last_frame_at is wall-clock and is refreshed by the very
+            # request that schedules this prompt, so it always read ~0s.
+            if absent_since_mono is not None:
+                elapsed = max(0.0, time.monotonic() - absent_since_mono)
+            else:
+                elapsed = float(getattr(cfg, "vision_agent_absence_threshold_s", 5.0))
             resp = agent.generate_absence_prompt(
                 elapsed, lesson_title=session.lesson_title
             )

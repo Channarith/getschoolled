@@ -91,6 +91,11 @@ class WebcamSession:
     # Per-participant silhouette detectors (reset_background on session start).
     detectors: Dict[str, SilhouetteDetector] = field(default_factory=dict)
 
+    # Voice agents cached per (participant, agent_type) so conversation
+    # history accumulates across /voice calls — a fresh agent per request
+    # defeated the multi-turn design (every call started with no memory).
+    voice_agents: Dict[str, Any] = field(default_factory=dict)
+
     # Running frame count (used for rate-limiting + debug).
     frame_count: int = 0
 
@@ -230,6 +235,21 @@ def _xai_client():
     """Lazy-load the xAI client from app config."""
     from aoep_shared.xai_voice import make_client_from_config
     return make_client_from_config(app.state.config)
+
+
+def _voice_agent_for(session: WebcamSession, participant_id: str, agent_type: str, client):
+    """Session-cached voice agent so conversation history survives across calls."""
+    key = f"{participant_id}:{agent_type}"
+    agent = session.voice_agents.get(key)
+    if agent is None:
+        from aoep_shared.xai_voice import SelfTeachVoiceAgent, TeacherVoiceAgent
+
+        if agent_type == "self_teach":
+            agent = SelfTeachVoiceAgent(client, topic=session.lesson_context)
+        else:
+            agent = TeacherVoiceAgent(client, extra_context=session.lesson_context)
+        session.voice_agents[key] = agent
+    return agent
 
 
 def _analyze_frame_data(
@@ -447,12 +467,7 @@ def voice_ask(session_id: str, req: VoiceRequest) -> VoiceResponse:
         )
 
     try:
-        from aoep_shared.xai_voice import SelfTeachVoiceAgent, TeacherVoiceAgent
-
-        if req.agent_type == "self_teach":
-            agent = SelfTeachVoiceAgent(client, topic=s.lesson_context)
-        else:
-            agent = TeacherVoiceAgent(client, extra_context=s.lesson_context)
+        agent = _voice_agent_for(s, req.participant_id, req.agent_type, client)
 
         resp = agent.speak(req.text, audio=req.audio)
         return VoiceResponse(
@@ -498,12 +513,7 @@ def voice_stream(session_id: str, req: VoiceRequest):  # type: ignore[return]
         return StreamingResponse(_stub_stream(), media_type="text/event-stream")
 
     try:
-        from aoep_shared.xai_voice import SelfTeachVoiceAgent, TeacherVoiceAgent
-
-        if req.agent_type == "self_teach":
-            agent = SelfTeachVoiceAgent(client, topic=s.lesson_context)
-        else:
-            agent = TeacherVoiceAgent(client, extra_context=s.lesson_context)
+        agent = _voice_agent_for(s, req.participant_id, req.agent_type, client)
 
         def _gen():
             try:
