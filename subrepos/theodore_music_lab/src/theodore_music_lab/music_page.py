@@ -7,6 +7,19 @@ that works while the track plays, short lyric clips, and curated lyric videos.
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
+# A quaver on the lab's night-blue tile. It is inlined in the page head so a
+# browser never falls back to requesting /favicon.ico, and served at that path
+# too for the pages that are pure JSON (/health, /docs).
+FAVICON_SVG = (
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>"
+    "<rect width='32' height='32' rx='7' fill='#0f172a'/>"
+    "<path d='M13 7v13.2a3.6 3.6 0 1 0 2 3.2V11l7-2V6z' fill='#fbbf24'/>"
+    "</svg>"
+)
+_FAVICON_DATA_URI = "data:image/svg+xml," + quote(FAVICON_SVG, safe="")
+
 
 def render_music_page() -> str:
     return (
@@ -14,6 +27,8 @@ def render_music_page() -> str:
         "  <meta charset=\"utf-8\" />\n"
         "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n"
         "  <title>Theodore Music Lab</title>\n"
+        # Without a declared icon a browser requests /favicon.ico and logs a 404.
+        "  <link rel=\"icon\" href=\"" + _FAVICON_DATA_URI + "\" />\n"
         "  <style>\n"
         + _CSS
         + "\n  </style>\n</head>\n<body>\n"
@@ -36,7 +51,7 @@ _CSS = """
   header p { margin:.35rem 0 0; color:var(--muted); max-width:46rem; }
   .layout { display:grid; gap:1rem; padding:1rem 1.5rem 2rem; grid-template-columns:minmax(230px,290px) 1fr; }
   .layout > .stack { display:grid; gap:1rem; align-content:start; }
-  .bottom { display:grid; gap:1rem; grid-template-columns:1fr 1fr; }
+  .bottom { display:grid; gap:1rem; grid-template-columns:1fr 1fr 1fr; }
   @media (max-width:980px){ .layout { grid-template-columns:1fr; } .bottom { grid-template-columns:1fr; } }
   .panel { background:color-mix(in srgb, var(--panel) 92%, black); border:1px solid #334155;
     border-radius:18px; padding:1rem; }
@@ -249,6 +264,25 @@ _CSS = """
   .ask-row input { flex:1; }
   .answer { margin-top:.65rem; padding:.7rem .85rem; border-radius:12px; background:#0f172a;
     border:1px solid #334155; white-space:pre-wrap; min-height:3rem; }
+  .pronounce-target { padding:.65rem .8rem; border-radius:12px; background:#122033;
+    border:1px solid #334155; margin-bottom:.55rem; }
+  .pronounce-target .label { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted); }
+  .pronounce-target .say { font-weight:700; font-size:1.05rem; margin-top:.2rem; }
+  .pronounce-target .hint { color:var(--muted); font-size:.82rem; margin-top:.25rem; }
+  .pronounce-row { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; margin:.45rem 0; }
+  .pronounce-row input[type=text] { flex:1; min-width:10rem; }
+  .score-card { margin-top:.55rem; padding:.7rem .85rem; border-radius:12px; background:#0f172a;
+    border:1px solid #334155; }
+  .score-card.pass { border-color:#34d399; }
+  .score-card.retry { border-color:#fbbf24; }
+  .score-card .stars { color:#fbbf24; letter-spacing:.1em; font-size:1.1rem; }
+  .word-chip { display:inline-block; margin:.15rem .2rem 0 0; padding:.15rem .45rem;
+    border-radius:999px; font-size:.78rem; border:1px solid #334155; }
+  .word-chip.ok { background:#064e3b; border-color:#34d399; color:#a7f3d0; }
+  .word-chip.missed, .word-chip.wrong { background:#7c2d12; border-color:#fb923c; color:#fed7aa; }
+  .word-chip.extra { background:#334155; color:#cbd5e1; }
+  .btn-mic.listening { background:#b91c1c; border-color:#f87171; color:#fff; }
   .clip { display:block; width:100%; text-align:left; margin:0 0 .45rem; padding:.55rem .7rem;
     border-radius:10px; background:#0f172a; border:1px solid #334155; color:var(--ink); cursor:pointer; }
   .clip strong { display:block; font-size:.92rem; }
@@ -300,9 +334,9 @@ _HTML = """
   <header>
     <h1>Theodore Music Lab</h1>
     <p>Follow the bouncing ball, watch each word light up as it is sung, and read the
-       translation of every line in any of 26+ languages. Embed YouTube movie lessons,
-       pause on each verse to practise grammar and vocabulary, and ask the AI about a
-       line at any time — while the song or clip is still playing.</p>
+       translation of every line in any of 26+ languages. Say or sing each line into the
+       mic to check your pronunciation, embed YouTube movie lessons, and ask the AI about
+       a line at any time — while the song or clip is still playing.</p>
   </header>
   <div class="layout">
     <div class="stack">
@@ -356,7 +390,9 @@ _HTML = """
             <button class="ghost" id="sync-back" type="button">−0.25s</button>
             <span id="sync-value">0.00s</span>
             <button class="ghost" id="sync-fwd" type="button">+0.25s</button>
+            <button class="ghost" id="sync-reset" type="button">Reset</button>
           </label>
+          <span class="meta" id="timing-source"></span>
         </div>
         <audio id="player" controls preload="metadata"></audio>
         <div class="lyrics" id="lyrics">
@@ -371,6 +407,34 @@ _HTML = """
             translation appear here.</div>
           <div class="chips" id="now-vocab"></div>
           <ul class="examples" id="now-examples"></ul>
+        </section>
+        <section class="panel">
+          <h2>Say / sing this line</h2>
+          <p class="meta">Practise the English lyric or the translation, then get a score
+            and corrections before the next line.</p>
+          <div class="pronounce-target" id="pronounce-target">
+            <div class="label">Line to say</div>
+            <div class="say" id="pronounce-say">Choose a song and press play.</div>
+            <div class="hint" id="pronounce-hint"></div>
+          </div>
+          <div class="pronounce-row">
+            <label><input type="radio" name="practice-mode" id="practice-en" value="english"
+              checked /> English lyric</label>
+            <label><input type="radio" name="practice-mode" id="practice-tr" value="translation" />
+              My language</label>
+          </div>
+          <div class="pronounce-row">
+            <button class="ghost" id="btn-hear-model" type="button">Hear model</button>
+            <button class="primary btn-mic" id="btn-mic" type="button">Speak line</button>
+            <button class="ghost" id="btn-check-typed" type="button">Check typed</button>
+          </div>
+          <div class="pronounce-row">
+            <input type="text" id="pronounce-heard"
+              placeholder="Or type what you said / sang…" />
+          </div>
+          <div class="meta" id="pronounce-status">Mic uses the browser speech recognizer
+            when available.</div>
+          <div class="score-card" id="pronounce-result" hidden></div>
         </section>
         <section class="panel">
           <h2>Ask the AI about the lyrics</h2>
@@ -465,6 +529,9 @@ _JS = r"""
     "Give me an example sentence",
   ];
 
+  // A listener's sync nudge is remembered per song: ears differ, and a device
+  // with slow audio output needs the same correction on every visit.
+  const SYNC_STORAGE_KEY = "twl.sync.v1";
   let syncOffset = 0;
   let activeLineNo = 0;
   let activeWordKey = "";
@@ -574,6 +641,171 @@ _JS = r"""
     $("now-examples").innerHTML = examples.map((v) =>
       `<li>${esc(v.example_en)}</li>`).join("");
     $("ask-context").textContent = `Asking about line ${lineNo}: "${row.text}"`;
+    refreshPronounceTarget();
+  }
+
+  function practiceMode() {
+    const tr = $("practice-tr");
+    return (tr && tr.checked) ? "translation" : "english";
+  }
+
+  function refreshPronounceTarget() {
+    const say = $("pronounce-say");
+    const hint = $("pronounce-hint");
+    if (!say || !hint) return;
+    const row = trRow(activeLineNo);
+    if (!row) {
+      say.textContent = "Choose a song and press play.";
+      hint.textContent = "";
+      return;
+    }
+    const mode = practiceMode();
+    const target = mode === "translation" ? (row.translation || row.text) : row.text;
+    say.textContent = target;
+    hint.textContent = mode === "translation"
+      ? `Say this in ${translation ? translation.language_name : "your language"} (line ${activeLineNo}).`
+      : `Sing or say the English lyric (line ${activeLineNo}).`;
+  }
+
+  function renderPronounceResult(result) {
+    const box = $("pronounce-result");
+    if (!box) return;
+    box.hidden = false;
+    box.className = "score-card " + (result.passed ? "pass" : "retry");
+    const stars = "\u2605".repeat(result.stars || 0) + "\u2606".repeat(Math.max(0, 3 - (result.stars || 0)));
+    const chips = (result.words || []).map((w) => {
+      const label = w.status === "extra" ? (w.heard || "") : (w.word || w.heard || "");
+      if (!label) return "";
+      return `<span class="word-chip ${esc(w.status)}">${esc(label)}</span>`;
+    }).join("");
+    const tips = (result.corrections || []).map((c) =>
+      `<li>${esc(c.tip)}</li>`).join("");
+    box.innerHTML =
+      `<div class="stars">${stars}</div>
+       <div><strong>${result.score}/100</strong> \u00b7 ${esc(result.feedback)}</div>
+       <div class="meta" style="margin-top:.35rem">Heard: ${esc(result.heard || "(nothing)")}</div>
+       <div style="margin-top:.45rem">${chips}</div>
+       <div class="meta" style="margin-top:.45rem">${esc(result.mouth_tip || "")}</div>
+       <div class="meta">${esc(result.syllables || "")}</div>
+       ${tips ? `<ul class="examples">${tips}</ul>` : ""}`;
+  }
+
+  async function checkPronunciation(heard) {
+    if (!current || !activeLineNo) {
+      toast("Pick a song line first");
+      return;
+    }
+    const text = (heard || "").trim();
+    if (!text) {
+      toast("Say or type the line first");
+      return;
+    }
+    $("pronounce-status").textContent = "Checking pronunciation\u2026";
+    try {
+      const result = await post("/api/music/pronounce", {
+        song_id: current.song_id,
+        line_no: activeLineNo,
+        heard: text,
+        target_lang: lang(),
+        practice: practiceMode(),
+      });
+      $("pronounce-heard").value = result.heard || text;
+      renderPronounceResult(result);
+      $("pronounce-status").textContent = result.passed
+        ? "Passed — try the next line, or sing it with the track."
+        : "Not quite — use the tips, Hear model, then try again.";
+      toast(result.passed
+        ? `Pronunciation ${result.score}/100`
+        : `Try again \u00b7 ${result.score}/100`);
+    } catch (err) {
+      $("pronounce-status").textContent = String(err.message || err);
+    }
+  }
+
+  function hearPronounceModel() {
+    const row = trRow(activeLineNo);
+    if (!row) { toast("Pick a line first"); return; }
+    const mode = practiceMode();
+    const text = mode === "translation" ? (row.translation || row.text) : row.text;
+    const synth = window.speechSynthesis;
+    if (!synth) { toast("No speech voices in this browser"); return; }
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = mode === "translation"
+      ? ((singPlan && singPlan.voice_tag) || lang())
+      : "en-US";
+    const voice = voiceFor(utter.lang);
+    if (voice) utter.voice = voice;
+    utter.rate = 0.92;
+    synth.speak(utter);
+  }
+
+  let pronounceRec = null;
+  let micListening = false;
+
+  function speechRecognizer() {
+    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    return Ctor ? new Ctor() : null;
+  }
+
+  function stopMic() {
+    micListening = false;
+    const btn = $("btn-mic");
+    if (btn) btn.classList.remove("listening");
+    if (pronounceRec) {
+      try { pronounceRec.stop(); } catch (_) {}
+    }
+  }
+
+  function startMic() {
+    const rec = speechRecognizer();
+    if (!rec) {
+      $("pronounce-status").textContent =
+        "Speech recognition is not available here — type what you said, then Check typed.";
+      $("pronounce-heard").focus();
+      return;
+    }
+    const player = $("player");
+    if (player && !player.paused) player.pause();
+    stopSinging();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    pronounceRec = rec;
+    rec.lang = practiceMode() === "translation"
+      ? ((singPlan && singPlan.voice_tag) || lang())
+      : "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    micListening = true;
+    $("btn-mic").classList.add("listening");
+    $("pronounce-status").textContent = "Listening\u2026 say the line clearly.";
+    let finalText = "";
+    rec.onresult = (ev) => {
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const chunk = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += chunk + " ";
+        else interim += chunk;
+      }
+      $("pronounce-heard").value = (finalText + interim).trim();
+    };
+    rec.onerror = (ev) => {
+      stopMic();
+      $("pronounce-status").textContent = "Mic error: " + (ev.error || "unknown")
+        + " — you can still type the line.";
+    };
+    rec.onend = () => {
+      const was = micListening;
+      stopMic();
+      const heard = ($("pronounce-heard").value || "").trim();
+      if (was && heard) checkPronunciation(heard);
+      else if (was) $("pronounce-status").textContent = "No speech heard — try again or type it.";
+    };
+    try { rec.start(); }
+    catch (_) {
+      stopMic();
+      $("pronounce-status").textContent = "Could not start the mic — check browser permission.";
+    }
   }
 
   function renderClips() {
@@ -962,7 +1194,7 @@ _JS = r"""
     box.scrollTo({ top: Math.max(0, target), behavior: smooth === false ? "auto" : "smooth" });
   }
 
-  function setActiveLine(lineNo, scroll) {
+  function setActiveLine(lineNo, scroll, speak) {
     if (lineNo === activeLineNo) return;
     activeLineNo = lineNo;
     const player = $("player");
@@ -971,7 +1203,9 @@ _JS = r"""
     if (el && scroll !== false) keepLineVisible(el, !player.paused);
     renderNowLine(lineNo);
     renderCaption(lineNo);
-    speakLine(lineNo);
+    // The intro shows the first line to read ahead of; singing it there would
+    // run the translated voice ahead of the recording.
+    if (speak !== false) speakLine(lineNo);
   }
 
   function moveBall(span) {
@@ -1222,6 +1456,36 @@ _JS = r"""
     }
   }
 
+  function syncStore() {
+    try { return JSON.parse(localStorage.getItem(SYNC_STORAGE_KEY) || "{}") || {}; }
+    catch (_) { return {}; }
+  }
+
+  function saveSync() {
+    if (!current) return;
+    const store = syncStore();
+    if (syncOffset) store[current.song_id] = syncOffset;
+    else delete store[current.song_id];
+    try { localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(store)); }
+    catch (_) { /* private mode: the nudge just won't outlive the tab */ }
+  }
+
+  function loadSync() {
+    const saved = current ? Number(syncStore()[current.song_id]) : 0;
+    syncOffset = Number.isFinite(saved) ? saved : 0;
+    showSync();
+  }
+
+  // Latest line already started at t (null during the intro).
+  function lineBefore(t) {
+    if (!timings) return null;
+    let found = null;
+    for (const row of timings.lines) {
+      if (row.start <= t) found = row; else break;
+    }
+    return found;
+  }
+
   function tick() {
     const player = $("player");
     if (!timings) return;
@@ -1234,12 +1498,18 @@ _JS = r"""
     }
     let row = timings.lines.find((r) => t >= r.start && t < r.end);
     if (!row && timings.lines.length) {
-      row = t < timings.lines[0].start ? null : timings.lines[timings.lines.length - 1];
+      // Measured timings leave the instrumental bars empty. Hold the line that
+      // was just sung instead of snapping to the end of the song.
+      row = lineBefore(t);
     }
     if (row) {
       setActiveLine(row.line_no, true);
+      // Also speak when the line was already showing through the intro or a rest.
+      speakLine(row.line_no);
       paintWords(row, t);
     } else {
+      const first = timings.lines[0];
+      if (first) setActiveLine(first.line_no, false, false);
       clearWordPaint();
     }
     if (!player.paused && !player.ended) rafId = requestAnimationFrame(tick);
@@ -1286,6 +1556,12 @@ _JS = r"""
     const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : 0;
     timings = await api(`/api/music/timing/${encodeURIComponent(current.song_id)}` +
       (duration ? `?duration=${duration.toFixed(2)}` : ""));
+    const el = $("timing-source");
+    if (el) {
+      el.textContent = timings.aligned
+        ? `Lyrics aligned to the vocals \u00b7 sings from ${timings.lead_in_sec.toFixed(1)}s`
+        : "Lyrics timed by syllable estimate";
+    }
   }
 
   async function loadStoryboard() {
@@ -1336,6 +1612,7 @@ _JS = r"""
     activeClip = null;
     stopSinging();
     current = await api("/api/music/songs/" + encodeURIComponent(songId));
+    loadSync();
     $("now-title").textContent = current.title_en;
     $("now-meta").textContent =
       `${current.topic} \u00b7 ${current.lines.length} lines \u00b7 ${current.license}`;
@@ -1532,17 +1809,47 @@ _JS = r"""
     renderLyrics();
     if (no) setActiveLine(no, false);
   };
+  function showSync() {
+    const sign = syncOffset >= 0 ? "" : "\u2212";
+    $("sync-value").textContent = `${sign}${Math.abs(syncOffset).toFixed(2)}s`;
+  }
   function setSync(delta) {
     syncOffset = Math.round((syncOffset + delta) * 100) / 100;
-    $("sync-value").textContent = `${syncOffset >= 0 ? "" : "\u2212"}${Math.abs(syncOffset).toFixed(2)}s`;
+    showSync();
+    saveSync();
     activeWordKey = "";
     repaintLineStates(activeLineNo, $("player").currentTime + syncOffset);
     tick();
   }
   $("sync-back").onclick = () => setSync(-0.25);
   $("sync-fwd").onclick = () => setSync(0.25);
+  $("sync-reset").onclick = () => {
+    syncOffset = 0;
+    showSync();
+    saveSync();
+    activeWordKey = "";
+    repaintLineStates(activeLineNo, $("player").currentTime);
+    tick();
+  };
   $("ask-send").onclick = () => askAI();
   $("ask-input").addEventListener("keydown", (e) => { if (e.key === "Enter") askAI(); });
+  $("btn-hear-model").onclick = () => hearPronounceModel();
+  $("btn-mic").onclick = () => {
+    if (micListening) { stopMic(); return; }
+    startMic();
+  };
+  $("btn-check-typed").onclick = () => checkPronunciation($("pronounce-heard").value);
+  $("pronounce-heard").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") checkPronunciation($("pronounce-heard").value);
+  });
+  ["practice-en", "practice-tr"].forEach((id) => {
+    const el = $(id);
+    if (el) el.onchange = () => {
+      refreshPronounceTarget();
+      const box = $("pronounce-result");
+      if (box) box.hidden = true;
+    };
+  });
 
   (async function boot() {
     // Chrome fills the voice list asynchronously; ask early so the sing toggle

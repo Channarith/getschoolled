@@ -21,11 +21,12 @@ from .embeds import (
     video_dir,
 )
 from .media import load_clips, resolve_clip, videos_for
-from .music_page import render_music_page
+from .music_page import FAVICON_SVG, render_music_page
+from .pronounce import check_pronunciation
 from .session import SessionMode, SessionStore
 from .sing import VOICE_TAGS, sing_plan
 from .storyboard import STORYBOARDS, storyboard_for
-from .timing import song_timings
+from .timing import alignment_for, song_timings
 from .translations import language_catalog, translate_song, validate_language
 
 app = FastAPI(title="Theodore Music Lab", version="0.5.0")
@@ -74,6 +75,15 @@ class AskRequest(BaseModel):
     target_lang: str = "en"
 
 
+class PronounceRequest(BaseModel):
+    song_id: str = Field(min_length=1)
+    heard: str = ""
+    line_no: Optional[int] = None
+    target_lang: str = "en"
+    # english = sing the lyric; translation = say the line in the learner's language
+    practice: str = "english"
+
+
 class EmbedAskRequest(BaseModel):
     embed_id: str = Field(min_length=1)
     question: str = Field(min_length=1)
@@ -102,6 +112,16 @@ def music_lab_page() -> str:
     return render_music_page()
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> Response:
+    """Browsers ask for this on every page, including /health and /docs."""
+    return Response(
+        content=FAVICON_SVG,
+        media_type="image/svg+xml",
+        headers={"cache-control": "public, max-age=86400"},
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     featured = _CATALOG.featured()
@@ -119,6 +139,10 @@ def health() -> dict[str, Any]:
         "storyboards": len(STORYBOARDS),
         "storyboard_scenes": sum(len(scenes) for scenes in STORYBOARDS.values()),
         "sing_along_languages": len(VOICE_TAGS),
+        "pronunciation_check": True,
+        "vocal_aligned_songs": sum(
+            1 for song in featured if alignment_for(song.song_id)
+        ),
         "embeds": len(load_embeds()),
         "embed_pause_ask": sum(
             1 for row in load_embeds() if (row.get("verses") or [])
@@ -207,6 +231,22 @@ def ask_about_lyrics(req: AskRequest) -> dict[str, Any]:
     song = _song_or_404(req.song_id)
     try:
         return ask(song, req.question, line_no=req.line_no, language=req.target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/pronounce")
+def pronounce_line(req: PronounceRequest) -> dict[str, Any]:
+    """Score a spoken/typed attempt at the current lyric line and coach corrections."""
+    song = _song_or_404(req.song_id)
+    try:
+        return check_pronunciation(
+            song,
+            line_no=req.line_no,
+            heard=req.heard,
+            language=req.target_lang,
+            practice=req.practice,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

@@ -12,7 +12,11 @@ language_learning / content packs.
     per scene, and the scene's narration on screen under the sung line — press
     "Full screen" (or F) to fill the window, Esc to come back
   • Karaoke: a bouncing ball rides the current word, the sung word is colour
-    highlighted, finished lines dim to gold, and a ±0.25s sync nudge trims drift
+    highlighted, finished lines dim to gold, and a ±0.25s sync nudge (remembered
+    per song) trims any residual drift
+  • Lyrics measured against the recording: the words wait out the instrumental
+    intro, hold through the rests between sections, and stop at the last sung
+    line instead of being spread evenly from 0.0s to the final sample
   • Sing-along scrolling: the lyric box keeps two upcoming lines below the sung
     line, so you read the next line before you have to sing it
   • Real per-line translation in all 27 languages, shown under every line at
@@ -21,6 +25,9 @@ language_learning / content packs.
     speaks each translated line inside that line's own window while the English
     recording drops to a backing-track level — the same MP3 in any of the 27
   • Ask the AI about any line at any time — while the track is playing
+  • Say / sing this line: hear a model reading, speak into the mic (or type),
+    get a 0–100 score with missed/wrong-word corrections and mouth tips
+    (POST /api/music/pronounce) — practice English lyric or the translation
   • Short lyric clips (chorus-sized line ranges) with lyrics + translation
   • Curated external lyric videos / channels with printed-lyrics links
   • YouTube movie lessons embedded on the page: pause at each verse, answer
@@ -42,8 +49,21 @@ Translation tiers (best available wins; every line always resolves)
            covering all 27 languages offline — 69 terms, romanized where the
            script differs; km/bn/ur/fa/th/sw/he/ar/hi are flagged for native review
 
-Karaoke timings are syllable-weighted estimates (timing.py); hand-tuned values
-win when a line carries start_sec/end_sec or a song carries lead_in_sec.
+Karaoke timings for the featured MP3s are measured against the recording itself
+(vocal_align.py). Vocals sit in the centre of the stereo image, so the centre
+estimate "mid - side" in the 300-3500 Hz band tracks where someone is singing;
+each lyric line is then assigned a run of those sung phrases, which keeps the
+instrumental intro, the rests between sections and the outro out of the lyrics.
+The result is committed to data/alignment.jsonl and read at request time (no
+ffmpeg needed to serve). Regenerate after adding or replacing an MP3:
+
+  python3 scripts/align_songs.py            # writes data/alignment.jsonl
+  python3 scripts/align_songs.py --report   # print the timings, write nothing
+
+Songs with no measured alignment fall back to a syllable-weighted estimate
+(timing.py). Hand-tuned values still win when a line carries start_sec/end_sec
+or a song carries lead_in_sec. A listener's ±0.25s sync nudge is remembered per
+song, so a device with slow audio output keeps its correction.
 
 Storyboard (storyboard.py, no external art assets)
   scenes    hand-authored per song, each pinned to a lyric line range, so the
@@ -144,7 +164,8 @@ Step 2 — start the lab API + open the player
 
   curl -s http://127.0.0.1:8097/health | python3 -m json.tool
   # ok=true, songs >= 100, featured_songs >= 3, meaning_language_count >= 26,
-  # clips >= 6, videos >= 6, karaoke=true, ask_ai=true
+  # clips >= 6, videos >= 6, karaoke=true, ask_ai=true,
+  # vocal_aligned_songs == featured_songs (every MP3 aligned to its vocals)
 
 Step 3 — browse the catalog
 
@@ -183,7 +204,9 @@ Step 6 — check the karaoke, translation and Ask-AI APIs
 
   curl -s "http://127.0.0.1:8097/api/music/timing/$SONG?duration=74" \
     | python3 -m json.tool | head -40
-  # per-line start/end plus per-word start/end (drives the bouncing ball)
+  # per-line start/end plus per-word start/end (drives the bouncing ball).
+  # aligned=true and source="measured vocal alignment" mean the timings came
+  # from the audio; lead_in_sec is where the singing starts.
 
   curl -s -X POST http://127.0.0.1:8097/api/music/translate \
     -H 'content-type: application/json' \
@@ -240,6 +263,9 @@ APIs on :8097
   POST /api/music/translate         — whole song, one language
   POST /api/music/explain           — one line: meaning, vocabulary, examples
   POST /api/music/ask               — ask the AI about the lyrics
+  POST /api/music/pronounce         — score a spoken/typed attempt at a lyric line
+                                      (practice=english|translation; returns score,
+                                      missed/wrong words, corrections, mouth tip)
   POST /api/music/meaning
   POST /api/music/import
   POST /api/music/session/start

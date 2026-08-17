@@ -1,9 +1,13 @@
-"""Original-owner face lock helpers (browser + server parity).
+"""Original-owner Face ID helpers (browser + server parity).
 
-The live monitor enrolls the first stable largest face, then keeps tracking that
-person when others enter the frame. Matching is lightweight (bbox IoU + a
-landmark geometry fingerprint) — enough to stop "wrong person mesh" and flag
-substitution without a full recognition model.
+The live monitor enrolls the first stable face as a named Face ID, then keeps
+tracking that person when others enter the frame. Matching is lightweight
+(bbox IoU + a landmark geometry fingerprint) — enough to stop "wrong person
+mesh" and pause teaching on substitution without a full recognition model.
+
+Setup can overwrite the Face ID (re-enroll) and assign a display name. Non-
+matching faces are secondary only: they do not drive attention / mood, and a
+mismatch pauses solo teaching.
 """
 
 from __future__ import annotations
@@ -17,6 +21,8 @@ OWNER_ENROLL_HOLD_MS = 1500
 OWNER_MATCH_IOU_MIN = 0.22
 OWNER_MATCH_FP_MAX = 0.38
 OWNER_MATCH_SCORE_MIN = 0.35
+# Softer gate while we are still holding the first-seen candidate.
+OWNER_ENROLL_SCORE_MIN = 0.28
 
 # MediaPipe Face Mesh indices used for the geometry fingerprint.
 _FP_IDX = (33, 263, 1, 61, 291, 10, 152)
@@ -42,6 +48,7 @@ class OwnerState:
     last_box: FaceBox | None = None
     match_score: float = 0.0
     candidate_hold_ms: int = 0
+    display_name: str = ""
 
 
 @dataclass
@@ -53,6 +60,7 @@ class OwnerPick:
     match_score: float
     secondary_count: int
     face_count: int
+    display_name: str = ""
 
 
 def face_box_from_landmarks(pts: Sequence[object]) -> FaceBox | None:
@@ -140,14 +148,58 @@ def match_score_for_face(
     pts: Sequence[object],
     state: OwnerState,
 ) -> float:
-    """0..1 similarity to the enrolled owner (IoU + fingerprint)."""
+    """0..1 similarity to the enrolled / candidate Face ID (IoU + fingerprint)."""
     box = face_box_from_landmarks(pts)
     iou = box_iou(box, state.last_box)
     fp = face_fingerprint(pts)
     fp_dist = fingerprint_distance(fp, state.fingerprint)
     fp_part = max(0.0, 1.0 - fp_dist / max(OWNER_MATCH_FP_MAX, 1e-6))
-    # Weight continuity (IoU) and identity (fingerprint) together.
     return max(0.0, min(1.0, 0.45 * iou + 0.55 * fp_part))
+
+
+def best_face_index(
+    faces: Sequence[Sequence[object]],
+    state: OwnerState,
+    *,
+    min_score: float,
+) -> tuple[int, float]:
+    best_i, best_score = -1, -1.0
+    for i, pts in enumerate(faces):
+        score = match_score_for_face(pts, state)
+        if score > best_score:
+            best_score = score
+            best_i = i
+    if best_i < 0 or best_score < min_score:
+        return -1, max(0.0, best_score)
+    return best_i, best_score
+
+
+def enroll_owner(
+    pts: Sequence[object],
+    state: OwnerState,
+    *,
+    name: str = "",
+    now_ms: int = 0,
+) -> OwnerState:
+    """Overwrite Face ID with this face (setup / re-enroll)."""
+    box = face_box_from_landmarks(pts)
+    fp = face_fingerprint(pts)
+    if box is None or fp is None:
+        raise ValueError("Cannot enroll Face ID without a usable face mesh")
+    state.enrolled = True
+    state.fingerprint = list(fp)
+    state.last_box = box
+    state.match_score = 1.0
+    state.enroll_started_ms = now_ms
+    state.candidate_hold_ms = OWNER_ENROLL_HOLD_MS
+    cleaned = (name or state.display_name or "").strip()
+    state.display_name = cleaned or "Learner"
+    return state
+
+
+def clear_owner(state: OwnerState | None = None) -> OwnerState:
+    _ = state  # name is intentionally cleared with the profile
+    return OwnerState()
 
 
 def pick_owner_face(
@@ -155,34 +207,61 @@ def pick_owner_face(
     state: OwnerState,
     now_ms: int,
 ) -> OwnerPick:
-    """Choose which detected face is the original owner and update enrollment."""
+    """Choose the Face ID face; ignore non-matching faces for tracking."""
     face_count = len(faces)
+    name = (state.display_name or "").strip()
     if face_count == 0:
         return OwnerPick(
             index=-1,
             state=state,
             owner_enrolled=state.enrolled,
-            # Empty frame is absence, not a substitution — leave match unset.
             owner_match=None,
             match_score=0.0,
             secondary_count=0,
             face_count=0,
+            display_name=name,
         )
 
     if not state.enrolled:
-        idx = largest_face_index(faces)
-        box = face_box_from_landmarks(faces[idx])
-        fp = face_fingerprint(faces[idx])
-        if state.last_box is not None and box_iou(box, state.last_box) >= OWNER_MATCH_IOU_MIN:
+        # First sighting: lock the largest face as the candidate and do not
+        # switch to a different (even larger) person mid-hold.
+        has_candidate = state.fingerprint is not None or state.last_box is not None
+        if has_candidate:
+            idx, score = best_face_index(
+                faces, state, min_score=OWNER_ENROLL_SCORE_MIN
+            )
+            if idx < 0:
+                # Candidate left the frame — start over with whoever is largest.
+                idx = largest_face_index(faces)
+                state.enroll_started_ms = now_ms
+                state.candidate_hold_ms = 0
+                state.last_box = face_box_from_landmarks(faces[idx])
+                fp = face_fingerprint(faces[idx])
+                state.fingerprint = list(fp) if fp else None
+                return OwnerPick(
+                    index=idx,
+                    state=state,
+                    owner_enrolled=False,
+                    owner_match=None,
+                    match_score=0.0,
+                    secondary_count=max(0, face_count - 1),
+                    face_count=face_count,
+                    display_name=name,
+                )
+            box = face_box_from_landmarks(faces[idx])
+            fp = face_fingerprint(faces[idx])
             if state.enroll_started_ms <= 0:
                 state.enroll_started_ms = now_ms
             held = now_ms - state.enroll_started_ms
             state.candidate_hold_ms = max(0, held)
+            state.last_box = box
+            if fp is not None:
+                state.fingerprint = list(fp)
             if held >= OWNER_ENROLL_HOLD_MS and fp is not None and box is not None:
                 state.enrolled = True
-                state.fingerprint = list(fp)
-                state.last_box = box
                 state.match_score = 1.0
+                if not state.display_name.strip():
+                    state.display_name = "Learner"
                 return OwnerPick(
                     index=idx,
                     state=state,
@@ -191,12 +270,26 @@ def pick_owner_face(
                     match_score=1.0,
                     secondary_count=max(0, face_count - 1),
                     face_count=face_count,
+                    display_name=state.display_name,
                 )
-        else:
-            state.enroll_started_ms = now_ms
-            state.candidate_hold_ms = 0
-            state.last_box = box
-            state.fingerprint = list(fp) if fp else None
+            return OwnerPick(
+                index=idx,
+                state=state,
+                owner_enrolled=False,
+                owner_match=None,
+                match_score=score,
+                secondary_count=max(0, face_count - 1),
+                face_count=face_count,
+                display_name=name,
+            )
+
+        idx = largest_face_index(faces)
+        box = face_box_from_landmarks(faces[idx])
+        fp = face_fingerprint(faces[idx])
+        state.enroll_started_ms = now_ms
+        state.candidate_hold_ms = 0
+        state.last_box = box
+        state.fingerprint = list(fp) if fp else None
         return OwnerPick(
             index=idx,
             state=state,
@@ -205,22 +298,16 @@ def pick_owner_face(
             match_score=0.0,
             secondary_count=max(0, face_count - 1),
             face_count=face_count,
+            display_name=name,
         )
 
-    # Enrolled: score every face against the owner template.
-    best_i, best_score = 0, -1.0
-    scores: list[float] = []
-    for i, pts in enumerate(faces):
-        score = match_score_for_face(pts, state)
-        scores.append(score)
-        if score > best_score:
-            best_score = score
-            best_i = i
-    matched = best_score >= OWNER_MATCH_SCORE_MIN
-    if matched:
+    # Enrolled Face ID: only the matching face drives tracking.
+    best_i, best_score = best_face_index(
+        faces, state, min_score=OWNER_MATCH_SCORE_MIN
+    )
+    if best_i >= 0:
         box = face_box_from_landmarks(faces[best_i])
         if box is not None:
-            # EMA so a brief occlusion does not erase the track box.
             if state.last_box is None:
                 state.last_box = box
             else:
@@ -244,21 +331,24 @@ def pick_owner_face(
             match_score=best_score,
             secondary_count=max(0, face_count - 1),
             face_count=face_count,
+            display_name=name or state.display_name,
         )
 
-    # Nobody matches the enrolled owner — still return the best-scoring face for
-    # overlay diagnostics, but mark a mismatch (substitution / wrong person).
-    state.match_score = max(0.0, best_score)
+    # Someone is in frame but nobody matches Face ID — do not hand metrics to
+    # the stranger (index=-1). Teaching must pause until the enrolled person returns.
+    _, raw_best = best_face_index(faces, state, min_score=0.0)
+    state.match_score = raw_best
     return OwnerPick(
-        index=best_i,
+        index=-1,
         state=state,
         owner_enrolled=True,
         owner_match=False,
-        match_score=max(0.0, best_score),
-        secondary_count=max(0, face_count - 1),
+        match_score=raw_best,
+        secondary_count=face_count,
         face_count=face_count,
+        display_name=name or state.display_name,
     )
 
 
-def reset_owner_state() -> OwnerState:
-    return OwnerState()
+def reset_owner_state(*, display_name: str = "") -> OwnerState:
+    return OwnerState(display_name=(display_name or "").strip())

@@ -17,6 +17,7 @@ from theodore_music_lab.embeds import (
 )
 from theodore_music_lab.main import app
 from theodore_music_lab.media import load_clips, load_videos, resolve_clip
+from theodore_music_lab.pronounce import check_pronunciation, score_attempt
 from theodore_music_lab.session import SessionMode, SessionStore
 from theodore_music_lab.sing import (
     MAX_RATE,
@@ -41,8 +42,13 @@ from theodore_music_lab.storyboard import (
     scene_at,
     storyboard_for,
 )
-from theodore_music_lab.timing import song_timings, syllable_count
+from theodore_music_lab.timing import alignment_for, song_timings, syllable_count
 from theodore_music_lab.translations import translate_song
+from theodore_music_lab.vocal_align import (
+    VocalSpan,
+    align_lines_to_spans,
+    align_weights_to_spans,
+)
 
 
 @pytest.fixture()
@@ -138,6 +144,18 @@ def test_player_page_uses_timeupdate_lyric_sync():
         assert "syncActiveLineFromPlayer" in page.text
 
 
+def test_the_page_carries_an_icon_and_favicon_ico_is_served():
+    """An undeclared icon makes every visit log a 404 for /favicon.ico."""
+    with TestClient(app) as client:
+        page = client.get("/")
+        assert 'rel="icon"' in page.text
+        assert "data:image/svg+xml," in page.text
+        icon = client.get("/favicon.ico")
+        assert icon.status_code == 200
+        assert icon.headers["content-type"].startswith("image/svg+xml")
+        assert icon.text.startswith("<svg")
+
+
 def test_api_health_and_session_flow():
     with TestClient(app) as client:
         h = client.get("/health")
@@ -228,6 +246,155 @@ def test_word_timings_cover_every_word_in_order():
     assert timings["lines"][-1]["end"] <= 90.0 + 0.01
 
 
+def test_every_featured_song_is_aligned_to_its_own_vocals():
+    """A featured MP3 without measured alignment drifts, so guard the data file."""
+    for song in Catalog().featured():
+        record = alignment_for(song.song_id)
+        assert record, f"{song.song_id} has no entry in data/alignment.jsonl"
+        assert record["duration_sec"] > 0
+        assert [row["line_no"] for row in record["lines"]] == [
+            line.line_no for line in song.lines
+        ]
+
+
+def test_lyrics_wait_for_the_intro_and_stop_before_the_outro():
+    for song in Catalog().featured():
+        record = alignment_for(song.song_id)
+        timings = song_timings(song, duration_sec=record["duration_sec"])
+        assert timings["aligned"] is True
+        assert timings["source"] == "measured vocal alignment"
+        first = timings["lines"][0]
+        last = timings["lines"][-1]
+        # The old estimate started line 1 at 0.0s, ahead of every intro.
+        assert first["start"] > 0.5
+        assert first["start"] == pytest.approx(timings["lead_in_sec"], abs=0.01)
+        assert last["end"] < timings["duration_sec"] - 0.2
+        previous_end = 0.0
+        for row in timings["lines"]:
+            assert row["start"] >= previous_end - 0.001
+            assert row["end"] > row["start"]
+            previous_end = row["end"]
+
+
+def test_no_line_is_sung_faster_than_a_human_can():
+    """A line squeezed into a fraction of its syllables means a slipped mapping."""
+    for song in Catalog().featured():
+        timings = song_timings(song)
+        for row in timings["lines"]:
+            syllables = sum(syllable_count(w) for w in row["text"].split())
+            span = row["end"] - row["start"]
+            assert syllables / span <= 8.0, f"{song.song_id} line {row['line_no']}"
+
+
+def test_alignment_stretches_to_a_different_encode_of_the_same_song():
+    song = Catalog().get("en-wheels-bus-audio-v1")
+    reference = alignment_for(song.song_id)["duration_sec"]
+    native = song_timings(song, duration_sec=reference)
+    stretched = song_timings(song, duration_sec=reference * 1.1)
+    ratio = stretched["lines"][0]["start"] / native["lines"][0]["start"]
+    assert ratio == pytest.approx(1.1, abs=0.01)
+    assert stretched["lines"][-1]["end"] < reference * 1.1
+
+
+def test_hand_tuned_line_timing_still_wins_over_the_measurement():
+    song = Catalog().get("en-wheels-bus-audio-v1").model_copy(deep=True)
+    song.lines[0].start_sec = 9.5
+    song.lines[0].end_sec = 12.5
+    timings = song_timings(song, duration_sec=74.76)
+    assert timings["lines"][0]["start"] == 9.5
+    assert timings["lines"][0]["end"] == 12.5
+    assert timings["lines"][0]["words"][0]["start"] == pytest.approx(9.5, abs=0.01)
+
+
+def test_a_song_without_measured_alignment_falls_back_to_the_estimate():
+    song = next(s for s in Catalog().songs if not alignment_for(s.song_id))
+    timings = song_timings(song, duration_sec=60.0)
+    assert timings["aligned"] is False
+    assert timings["source"] == "syllable-weighted estimate"
+    assert timings["line_count"] == song.line_count
+
+
+def test_replacing_an_mp3_without_realigning_falls_back_to_the_estimate(monkeypatch):
+    """Stale timings against a new encode would drift, so they are discarded."""
+    import theodore_music_lab.timing as timing_module
+
+    song = Catalog().get("en-wheels-bus-audio-v1")
+    assert song_timings(song)["aligned"] is True
+    record = dict(alignment_for(song.song_id))
+    record["audio_bytes"] = int(record["audio_bytes"]) + 1024
+    monkeypatch.setattr(
+        timing_module, "alignment_for", lambda song_id: record, raising=True
+    )
+    timings = song_timings(song)
+    assert timings["aligned"] is False
+    assert timings["source"] == "syllable-weighted estimate"
+
+
+def test_phrase_segmentation_puts_every_line_boundary_on_a_measured_onset():
+    spans = [
+        VocalSpan(2.0, 3.0),
+        VocalSpan(3.4, 4.4),
+        VocalSpan(8.0, 9.0),
+        VocalSpan(9.3, 10.5),
+    ]
+    placed = align_lines_to_spans([4.0, 4.0], spans)
+    starts = {span.start for span in spans}
+    ends = {span.end for span in spans}
+    assert len(placed) == 2
+    for start, end in placed:
+        assert start in starts
+        assert end in ends
+    # The instrumental bar between 4.4s and 8.0s belongs to neither line.
+    assert placed[0][1] <= 4.4
+    assert placed[1][0] >= 8.0
+
+
+def test_phrase_segmentation_declines_when_there_are_fewer_phrases_than_lines():
+    assert align_lines_to_spans([1.0, 1.0, 1.0], [VocalSpan(0.0, 4.0)]) == []
+
+
+def test_sung_time_share_skips_the_instrumental_break():
+    spans = [VocalSpan(1.0, 5.0), VocalSpan(20.0, 24.0)]
+    placed = align_weights_to_spans([1.0, 1.0, 1.0, 1.0], spans)
+    assert len(placed) == 4
+    assert placed[0][0] == 1.0
+    assert placed[-1][1] == 24.0
+    for start, end in placed:
+        # No line may live inside 5.0s-20.0s, where nobody is singing.
+        assert not (5.0 < start < 20.0)
+        assert not (5.0 < end < 20.0)
+
+
+def test_sing_along_speech_may_run_through_the_instrumental_rest(offline):
+    song = Catalog().get("en-wheels-bus-audio-v1")
+    plan = sing_plan(song, "es", allow_llm=False)
+    timings = song_timings(song)
+    starts = [row["start"] for row in timings["lines"]]
+    stretched = 0
+    for index, row in enumerate(plan["lines"]):
+        assert row["end"] >= row["sung_end"]
+        if index + 1 < len(starts):
+            assert row["end"] == pytest.approx(
+                max(row["sung_end"], starts[index + 1]), abs=0.01
+            )
+        if row["end"] > row["sung_end"] + 0.01:
+            stretched += 1
+    assert stretched, "measured timings leave rests a translated line can use"
+
+
+def test_the_stage_never_goes_blank_during_intro_or_outro():
+    for song in Catalog().featured():
+        board = storyboard_for(song, language="en")
+        assert board["scenes"][0]["start"] == 0.0
+        assert board["scenes"][-1]["end"] == pytest.approx(
+            board["duration_sec"], abs=0.05
+        )
+        for index in range(len(board["scenes"]) - 1):
+            assert board["scenes"][index]["end"] == pytest.approx(
+                board["scenes"][index + 1]["start"], abs=0.001
+            )
+
+
 def test_syllable_counts_are_sane():
     assert syllable_count("bus") == 1
     assert syllable_count("supermarket") == 4
@@ -243,6 +410,24 @@ def test_curated_translation_is_real_target_language(offline):
     assert chorus["translation"] == "Las ruedas del autobús giran y giran"
     assert chorus["tier"] == "curated"
     assert "Meaning:" not in chorus["translation"]
+
+
+def test_chinese_and_khmer_have_full_line_translations_offline(offline):
+    for song in Catalog().featured():
+        for code in ("zh", "km"):
+            payload = translate_song(song, code, allow_llm=False)
+            assert payload["language_name"] in {"Chinese", "Khmer"}
+            assert payload["tiers"] == {"curated": song.line_count}
+            for row in payload["lines"]:
+                assert row["tier"] == "curated"
+                assert row["translation"] != row["text"]
+                assert " · " not in row["translation"]
+
+    travel = next(s for s in Catalog().featured() if s.song_id == "en-travel-words-audio-v1")
+    chinese = translate_song(travel, "zh", allow_llm=False)
+    khmer = translate_song(travel, "km", allow_llm=False)
+    assert chinese["lines"][0]["translation"] == "我去上班"
+    assert khmer["lines"][0]["translation"] == "ខ្ញុំទៅធ្វើការ"
 
 
 def test_every_line_has_a_translation_in_every_language(offline):
@@ -284,6 +469,48 @@ def test_ask_ai_works_offline_and_stays_grounded(offline):
 
     pronounce = ask(song, "How do I pronounce it?", line_no=5, language="en")
     assert "syllable" in pronounce["answer"].lower() or "(" in pronounce["answer"]
+
+
+def test_pronunciation_check_scores_and_coaches(offline):
+    perfect = score_attempt("Wheels on the bus go round and round",
+                            "wheels on the bus go round and round")
+    assert perfect["score"] >= 95
+    assert perfect["passed"] is True
+    assert perfect["missed_words"] == []
+
+    partial = score_attempt(
+        "Wheels on the bus go round and round",
+        "wheels on the bus go around",
+    )
+    assert 40 <= partial["score"] < 95
+    assert "round" in partial["missed_words"] or partial["wrong_words"]
+    assert partial["corrections"]
+    assert partial["mouth_tip"]
+
+    song = next(s for s in Catalog().featured() if s.song_id == "en-wheels-bus-audio-v1")
+    result = check_pronunciation(
+        song,
+        line_no=5,
+        heard="wheels on the bus go round and round",
+        language="es",
+        practice="english",
+    )
+    assert result["passed"] is True
+    assert result["practice"] == "english"
+    assert result["recognition_lang"] == "en-US"
+    assert result["syllables"]
+
+    spanish = check_pronunciation(
+        song,
+        line_no=5,
+        heard="Las ruedas del autobus giran y giran",
+        language="es",
+        practice="translation",
+    )
+    assert spanish["practice"] == "translation"
+    assert spanish["language"] == "es"
+    assert spanish["score"] >= 70
+    assert spanish["recognition_lang"].startswith("es")
 
 
 def test_clips_are_windows_of_a_song_with_translations(offline):
@@ -342,6 +569,7 @@ def test_new_apis_and_player_ui(offline):
         assert health["embed_pause_ask"] >= 4
         assert health["karaoke"] is True
         assert health["ask_ai"] is True
+        assert health["pronunciation_check"] is True
 
         langs = client.get("/api/music/languages").json()
         assert len(langs["catalog"]) == len(MEANING_LANGUAGES)
@@ -377,6 +605,24 @@ def test_new_apis_and_player_ui(offline):
         ).json()
         assert answer["answer"]
         assert answer["cited_lines"]
+
+        pronounced = client.post(
+            "/api/music/pronounce",
+            json={
+                "song_id": song_id,
+                "line_no": 5,
+                "heard": "wheels on the bus go round and round",
+                "target_lang": "es",
+                "practice": "english",
+            },
+        ).json()
+        assert pronounced["passed"] is True
+        assert pronounced["score"] >= 90
+        assert pronounced["corrections"] is not None
+        assert client.post(
+            "/api/music/pronounce",
+            json={"song_id": song_id, "heard": "x", "practice": "nope"},
+        ).status_code == 422
 
         clips = client.get("/api/music/clips", params={"song_id": song_id}).json()
         assert clips["count"] >= 2
@@ -454,6 +700,7 @@ def test_new_apis_and_player_ui(offline):
         page = client.get("/").text
         assert 'id="ball"' in page
         assert "Ask the AI about the lyrics" in page
+        assert "Say / sing this line" in page
         assert "Short lyric clips" in page
         assert "Lyric videos" in page
         assert "This line, translated" in page
@@ -467,9 +714,13 @@ def test_new_apis_and_player_ui(offline):
                      'id="btn-theater"', 'id="narrate"',
                      'id="sing-lang"', 'id="sing-label"',
                      'id="embed-picker"', 'id="yt-host"', 'id="pause-card"',
-                     'id="auto-pause"', 'id="embed-ask-send"'):
+                     'id="auto-pause"', 'id="embed-ask-send"',
+                     'id="btn-mic"', 'id="btn-hear-model"', 'id="pronounce-result"',
+                     'id="practice-en"', 'id="practice-tr"'):
             assert hook in page, hook
+        assert "SpeechRecognition" in page or "webkitSpeechRecognition" in page
         assert "SpeechSynthesisUtterance" in page
+        assert "/api/music/pronounce" in page
         assert "youtube.com/iframe_api" in page
         assert "Pause at each verse" in page
         assert "YouTube movie lessons" in page
@@ -671,7 +922,8 @@ def test_sing_speech_drops_the_romanization_shown_on_screen():
     assert speakable("") == ""
     cat = Catalog()
     plan = sing_plan(cat.get("en-wheels-bus-audio-v1"), "zh", allow_llm=False)
-    assert plan["word_by_word"] is True
+    assert plan["word_by_word"] is False
+    assert all(row["tier"] == "curated" for row in plan["lines"])
     assert all("(" not in row["speak"] for row in plan["lines"])
 
 
