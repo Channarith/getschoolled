@@ -14,10 +14,11 @@ from .catalog import MEANING_LANGUAGES, Catalog, _audio_dir, import_songs, meani
 from .media import load_clips, resolve_clip, videos_for
 from .music_page import render_music_page
 from .session import SessionMode, SessionStore
+from .storyboard import STORYBOARDS, storyboard_for
 from .timing import song_timings
-from .translations import language_catalog, translate_song
+from .translations import language_catalog, translate_song, validate_language
 
-app = FastAPI(title="Theodore Music Lab", version="0.3.0")
+app = FastAPI(title="Theodore Music Lab", version="0.4.0")
 
 _CATALOG = Catalog()
 _STORE = SessionStore(_CATALOG)
@@ -90,6 +91,8 @@ def health() -> dict[str, Any]:
         "videos": len(videos_for()),
         "karaoke": True,
         "ask_ai": True,
+        "storyboards": len(STORYBOARDS),
+        "storyboard_scenes": sum(len(scenes) for scenes in STORYBOARDS.values()),
         "player": "/",
     }
 
@@ -114,6 +117,21 @@ def song_timing(
         duration_sec=duration or None,
         lead_in_sec=None if lead_in < 0 else lead_in,
     )
+
+
+@app.get("/api/music/storyboard/{song_id}")
+def song_storyboard(
+    song_id: str, target_lang: str = "en", duration: float = 0.0
+) -> dict[str, Any]:
+    """Timed scenes, backdrop art, cast and camera moves for the full-screen stage."""
+    song = _song_or_404(song_id)
+    if song_id not in STORYBOARDS:
+        raise HTTPException(status_code=404, detail=f"No storyboard for '{song_id}'")
+    try:
+        language = validate_language(target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return storyboard_for(song, language=language, duration_sec=duration or None)
 
 
 @app.post("/api/music/translate")

@@ -10,6 +10,17 @@ from theodore_music_lab.catalog import MEANING_LANGUAGES, Catalog, import_songs
 from theodore_music_lab.main import app
 from theodore_music_lab.media import load_clips, load_videos, resolve_clip
 from theodore_music_lab.session import SessionMode, SessionStore
+from theodore_music_lab.storyboard import (
+    BACKDROPS,
+    CAMERA_MOVES,
+    MOTIONS,
+    NARRATION_LANGUAGES,
+    SPRITE_HEIGHT_PCT,
+    SPRITES,
+    STORYBOARDS,
+    scene_at,
+    storyboard_for,
+)
 from theodore_music_lab.timing import song_timings, syllable_count
 from theodore_music_lab.translations import translate_song
 
@@ -357,6 +368,20 @@ def test_new_apis_and_player_ui(offline):
         )
         assert bad.status_code == 422
 
+        board = client.get(
+            f"/api/music/storyboard/{song_id}",
+            params={"target_lang": "es", "duration": 74},
+        ).json()
+        assert board["scene_count"] == 6
+        assert board["scenes"][0]["narration_tier"] == "curated"
+
+        missing = client.get("/api/music/storyboard/en-song-0001")
+        assert missing.status_code == 404
+        bad_lang = client.get(
+            f"/api/music/storyboard/{song_id}", params={"target_lang": "xx"}
+        )
+        assert bad_lang.status_code == 422
+
         page = client.get("/").text
         assert 'id="ball"' in page
         assert "Ask the AI about the lyrics" in page
@@ -367,3 +392,90 @@ def test_new_apis_and_player_ui(offline):
         assert "const LOOKAHEAD_LINES = 2;" in page
         assert "keepLineVisible" in page
         assert "scrollIntoView" not in page
+        # Full-screen storyboard stage.
+        for hook in ('id="camera"', 'id="backdrop"', 'id="cast"', 'id="scene-tag"',
+                     'id="cap-narration"', 'id="cap-line"', 'id="cap-ball"',
+                     'id="btn-theater"', 'id="narrate"'):
+            assert hook in page, hook
+        assert "requestFullscreen" in page
+        for camera in CAMERA_MOVES:
+            assert f".cam-{camera} " in page, camera
+        for motion in MOTIONS:
+            assert f"m-{motion}" in page, motion
+
+
+def test_every_song_storyboard_covers_every_line_in_order():
+    cat = Catalog()
+    assert len(STORYBOARDS) == len(cat.featured())
+    for song in cat.featured():
+        board = storyboard_for(song, language="en")
+        assert board["scene_count"] >= 5
+        covered: list[int] = []
+        previous_end = 0.0
+        for scene in board["scenes"]:
+            covered.extend(scene["line_numbers"])
+            assert scene["camera"] in CAMERA_MOVES
+            assert scene["backdrop"] in BACKDROPS
+            assert scene["cast"], f"{scene['scene_id']} has no characters"
+            assert scene["start"] == pytest.approx(previous_end, abs=0.01)
+            assert scene["end"] > scene["start"]
+            previous_end = scene["end"]
+            for member in scene["cast"]:
+                assert member["kind"] in SPRITES
+                assert member["motion"] in MOTIONS
+                assert 0 <= member["x"] <= 100 and 0 <= member["y"] <= 100
+                assert member["height_pct"] == SPRITE_HEIGHT_PCT[member["kind"]]
+        assert covered == [line.line_no for line in song.lines]
+        assert previous_end == pytest.approx(board["duration_sec"], abs=0.05)
+
+
+def test_storyboard_art_is_self_contained_svg():
+    for name, svg in BACKDROPS.items():
+        assert svg.startswith("<svg ") and svg.endswith("</svg>"), name
+        assert "http://www.w3.org/2000/svg" in svg
+        assert "<image" not in svg, f"{name} must not need an external asset"
+    for name, svg in SPRITES.items():
+        assert svg.startswith("<svg ") and svg.endswith("</svg>"), name
+        assert "<image" not in svg, f"{name} must not need an external asset"
+        assert name in SPRITE_HEIGHT_PCT
+
+
+def test_scene_narration_is_translated_for_the_curated_languages():
+    cat = Catalog()
+    song = cat.get("en-wheels-bus-audio-v1")
+    english = storyboard_for(song, language="en")
+    for language in NARRATION_LANGUAGES:
+        board = storyboard_for(song, language=language)
+        for scene, base in zip(board["scenes"], english["scenes"]):
+            assert scene["narration_language"] == language
+            assert scene["narration_tier"] == "curated"
+            assert scene["narration"] != base["narration"]
+            assert scene["narration_en"] == base["narration"]
+    # A language without hand-written narration keeps the English scene note and
+    # says so, rather than pretending it was translated.
+    khmer = storyboard_for(song, language="km")
+    assert khmer["scenes"][0]["narration_language"] == "en"
+    assert khmer["scenes"][0]["narration_tier"] == "english"
+
+
+def test_scene_at_maps_playback_position_to_a_scene():
+    cat = Catalog()
+    song = cat.get("en-wheels-bus-audio-v1")
+    board = storyboard_for(song, language="en", duration_sec=60.0)
+    assert scene_at(board, -5.0)["index"] == 0
+    assert scene_at(board, 999.0)["index"] == board["scene_count"] - 1
+    for scene in board["scenes"]:
+        middle = (scene["start"] + scene["end"]) / 2
+        assert scene_at(board, middle)["scene_id"] == scene["scene_id"]
+
+
+def test_storyboard_scenes_stretch_with_the_real_audio_duration():
+    cat = Catalog()
+    song = cat.get("en-travel-words-audio-v1")
+    short = storyboard_for(song, language="en", duration_sec=60.0)
+    long_board = storyboard_for(song, language="en", duration_sec=180.0)
+    assert short["scenes"][-1]["end"] == pytest.approx(60.0, abs=0.05)
+    assert long_board["scenes"][-1]["end"] == pytest.approx(180.0, abs=0.05)
+    for a, b in zip(short["scenes"], long_board["scenes"]):
+        assert a["line_numbers"] == b["line_numbers"]
+        assert b["duration"] > a["duration"]

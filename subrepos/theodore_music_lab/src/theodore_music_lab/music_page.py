@@ -46,26 +46,162 @@ _CSS = """
   .song-card.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
   .song-card strong { display:block; }
   .song-card span { color:var(--muted); font-size:.8rem; }
-  .stage { position:relative; overflow:hidden; border-radius:18px; min-height:180px;
-    background:linear-gradient(160deg,#0c4a6e,#1e293b 55%,#0f172a); border:1px solid #334155;
-    display:grid; place-items:center; }
-  .stage[data-anim="travel"]{ background:linear-gradient(160deg,#0369a1,#0f766e 60%,#0f172a); }
-  .stage[data-anim="bus"]{ background:linear-gradient(160deg,#b45309,#ea580c 45%,#0f172a); }
-  .stage[data-anim="words"]{ background:linear-gradient(160deg,#7c3aed,#2563eb 55%,#0f172a); }
+  /* ---------- storyboard stage ---------- */
+  .stage { position:relative; overflow:hidden; border-radius:18px; aspect-ratio:16/9;
+    min-height:300px; background:linear-gradient(160deg,#0c4a6e,#1e293b 55%,#0f172a);
+    border:1px solid #334155; }
+  .stage.theater { position:fixed; inset:0; z-index:60; width:100vw; height:100vh;
+    aspect-ratio:auto; border-radius:0; border:0; }
+  body.theater-on { overflow:hidden; }
+  .camera { position:absolute; inset:-5%; will-change:transform; }
+  .backdrop, .backdrop svg, .cast { position:absolute; inset:0; width:100%; height:100%; }
+  .backdrop svg { display:block; }
+  .sprite { position:absolute; height:calc(var(--h,20) * var(--s,1) * 1%);
+    transform:translate(-50%,-100%); }
+  .sprite-motion, .sprite-fit, .sprite svg { height:100%; width:auto; }
+  .sprite-motion { display:block; }
+  .stage:not(.playing) .camera, .stage:not(.playing) .cast *,
+  .stage:not(.playing) .backdrop * { animation-play-state:paused; }
+  /* camera moves */
+  .cam-push-in { animation:camPushIn var(--cam-dur,10s) ease-in-out both; }
+  .cam-pull-out { animation:camPullOut var(--cam-dur,10s) ease-in-out both; }
+  .cam-pan-right { animation:camPanRight var(--cam-dur,10s) linear both; }
+  .cam-pan-left { animation:camPanLeft var(--cam-dur,10s) linear both; }
+  .cam-ken-burns { animation:camKenBurns var(--cam-dur,10s) ease-in-out both; }
+  .cam-zoom-punch { animation:camZoomPunch var(--cam-dur,10s) ease-in-out both; }
+  .cam-tilt-up { animation:camTiltUp var(--cam-dur,10s) ease-in-out both; }
+  .cam-dolly-shake { animation:camDollyShake var(--cam-dur,10s) ease-in-out both; }
+  @keyframes camPushIn { from{transform:scale(1.02)} to{transform:scale(1.24)} }
+  @keyframes camPullOut { from{transform:scale(1.26)} to{transform:scale(1.02)} }
+  @keyframes camPanRight { from{transform:scale(1.16) translateX(-3.5%)}
+    to{transform:scale(1.16) translateX(3.5%)} }
+  @keyframes camPanLeft { from{transform:scale(1.16) translateX(3.5%)}
+    to{transform:scale(1.16) translateX(-3.5%)} }
+  @keyframes camKenBurns { from{transform:scale(1.06) translate(-1.5%,1.5%)}
+    to{transform:scale(1.2) translate(1.5%,-1.5%)} }
+  @keyframes camZoomPunch { 0%{transform:scale(1.04)} 22%{transform:scale(1.2)}
+    46%{transform:scale(1.07)} 70%{transform:scale(1.22)} 100%{transform:scale(1.1)} }
+  @keyframes camTiltUp { from{transform:scale(1.18) translateY(4.5%)}
+    to{transform:scale(1.18) translateY(-4.5%)} }
+  @keyframes camDollyShake { 0%{transform:scale(1.1) translate(0,0)}
+    25%{transform:scale(1.13) translate(-.8%,.5%)} 50%{transform:scale(1.16) translate(.8%,-.4%)}
+    75%{transform:scale(1.13) translate(-.5%,-.6%)} 100%{transform:scale(1.18) translate(0,0)} }
+  /* character + prop motion */
+  .m-bob { animation:mBob 2.2s ease-in-out infinite; }
+  .m-float { animation:mFloat 5s ease-in-out infinite; }
+  .m-hop { animation:mHop 1.1s ease-in-out infinite; }
+  .m-sway { animation:mSway 3.4s ease-in-out infinite; }
+  .m-walk { animation:mBob 1s ease-in-out infinite; }
+  .m-drive { animation:mDrive 2.6s ease-in-out infinite; }
+  .m-turn { animation:mTurn 3.2s ease-in-out infinite; }
+  .m-cross-right { animation:mCrossRight 9s linear infinite; }
+  .m-cross-left { animation:mCrossLeft 9s linear infinite; }
+  .m-shine .figure { animation:mSpinSlow 22s linear infinite; transform-box:fill-box;
+    transform-origin:center; }
+  .m-wave .arm-r { animation:armWave .9s ease-in-out infinite; }
+  .m-point-up .arm-r { animation:armPointUp 2.4s ease-in-out infinite; }
+  .m-point-down .arm-r { animation:armPointDown 2.4s ease-in-out infinite; }
+  .m-walk .leg-l, .m-walk .leg-r { animation:legSwing .8s ease-in-out infinite; }
+  .m-walk .leg-r { animation-delay:-.4s; }
+  .m-walk .arm-l, .m-walk .arm-r { animation:armSwing .8s ease-in-out infinite; }
+  .m-walk .arm-r { animation-delay:-.4s; }
+  .sprite .arm-l, .sprite .arm-r, .sprite .leg-l, .sprite .leg-r, .sprite .tail,
+  .sprite .wheel, .sprite .door, .sprite .crown, .sprite .figure {
+    transform-box:fill-box; }
+  .sprite .arm-l, .sprite .arm-r, .sprite .leg-l, .sprite .leg-r { transform-origin:top center; }
+  .sprite .wheel, .sprite .crown { transform-origin:center; }
+  .sprite .door { transform-origin:left center; }
+  .m-spin .wheel, .m-drive .wheel, .m-cross-right .wheel, .m-cross-left .wheel {
+    animation:wheelSpin .9s linear infinite; }
+  .m-spin .door, .m-drive .door { animation:doorOpen 3s ease-in-out infinite; }
+  .m-hop .tail, .m-bob .tail { animation:tailWag .5s ease-in-out infinite; }
+  .m-fall { animation:mSway 6s ease-in-out infinite; }
+  .m-fall .drop { animation:dropFall .9s linear infinite; }
+  .sprite .crown { animation:crownBreathe 4.5s ease-in-out infinite; }
+  .drop { animation:dropFall 1.2s linear infinite; }
+  .twinkle { animation:twinkle 2.8s ease-in-out infinite; }
+  .beam { animation:beamSweep 7s ease-in-out infinite alternate; transform-box:fill-box;
+    transform-origin:top center; }
+  .puff { animation:puffUp 2.4s ease-out infinite; }
+  .dash { animation:dashRun 4s linear infinite; }
+  @keyframes mBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4%)} }
+  @keyframes mFloat { 0%,100%{transform:translate(0,0) rotate(-2deg)}
+    50%{transform:translate(3%,-8%) rotate(2deg)} }
+  @keyframes mHop { 0%,100%{transform:translateY(0) scaleY(1)}
+    35%{transform:translateY(-12%) scaleY(1.04)} 60%{transform:translateY(0) scaleY(.96)} }
+  @keyframes mSway { 0%,100%{transform:rotate(-2.5deg)} 50%{transform:rotate(2.5deg)} }
+  @keyframes mDrive { 0%,100%{transform:translate(-2%,0)} 50%{transform:translate(2%,-1.5%)} }
+  @keyframes mTurn { 0%,100%{transform:scaleX(1)} 50%{transform:scaleX(-1)} }
+  @keyframes mCrossRight { from{transform:translateX(-160%)} to{transform:translateX(160%)} }
+  @keyframes mCrossLeft { from{transform:translateX(160%)} to{transform:translateX(-160%)} }
+  @keyframes mSpinSlow { to{transform:rotate(360deg)} }
+  @keyframes armWave { 0%,100%{transform:rotate(8deg)} 50%{transform:rotate(148deg)} }
+  @keyframes armSwing { 0%,100%{transform:rotate(-16deg)} 50%{transform:rotate(16deg)} }
+  @keyframes armPointUp { 0%,100%{transform:rotate(6deg)} 45%,65%{transform:rotate(172deg)} }
+  @keyframes armPointDown { 0%,100%{transform:rotate(4deg)} 45%,65%{transform:rotate(-24deg)} }
+  @keyframes legSwing { 0%,100%{transform:rotate(-14deg)} 50%{transform:rotate(14deg)} }
+  @keyframes wheelSpin { to{transform:rotate(360deg)} }
+  @keyframes doorOpen { 0%,40%{transform:scaleX(1)} 55%,80%{transform:scaleX(.18)}
+    100%{transform:scaleX(1)} }
+  @keyframes tailWag { 0%,100%{transform:rotate(-12deg)} 50%{transform:rotate(16deg)} }
+  @keyframes crownBreathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+  @keyframes dropFall { 0%{transform:translateY(0);opacity:0}
+    20%{opacity:1} 100%{transform:translateY(70px);opacity:0} }
+  @keyframes twinkle { 0%,100%{opacity:.25} 50%{opacity:1} }
+  @keyframes beamSweep { from{transform:rotate(-7deg)} to{transform:rotate(7deg)} }
+  @keyframes puffUp { 0%{transform:translateY(0);opacity:.9}
+    100%{transform:translateY(-40px) scale(1.7);opacity:0} }
+  @keyframes dashRun { to{stroke-dashoffset:-240} }
+  /* stage furniture */
+  .scene-tag { position:absolute; top:.7rem; left:.9rem; padding:.3rem .7rem; border-radius:999px;
+    background:rgba(2,6,23,.62); color:#e2e8f0; font-size:.78rem; letter-spacing:.02em;
+    animation:tagIn .5s ease-out both; }
+  @keyframes tagIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+  .stage-tools { position:absolute; top:.6rem; right:.8rem; display:flex; gap:.4rem;
+    align-items:center; flex-wrap:wrap; justify-content:flex-end; max-width:70%;
+    background:rgba(2,6,23,.55); border-radius:999px; padding:.3rem .5rem; }
+  .stage-tools label { color:#e2e8f0; font-size:.78rem; display:inline-flex; gap:.3rem;
+    align-items:center; }
+  .dots { display:flex; gap:.25rem; }
+  .dots button { padding:.1rem .42rem; font-size:.72rem; border-radius:8px; background:#0f172a;
+    border:1px solid #475569; color:var(--muted); }
+  .dots button.on { background:var(--accent); border-color:var(--accent); color:#04202f;
+    font-weight:700; }
+  .captions { position:absolute; left:0; right:0; bottom:0; padding:2.6rem 1rem .9rem;
+    background:linear-gradient(transparent, rgba(2,6,23,.55) 42%, rgba(2,6,23,.92)); }
+  .cap-ball { position:absolute; left:0; top:0; width:16px; height:16px; opacity:0;
+    pointer-events:none; transition:transform .16s ease-out, opacity .2s; }
+  .cap-ball .dot { width:16px; height:16px; border-radius:50%; animation:ballhop .5s ease-in-out infinite;
+    background:radial-gradient(circle at 32% 30%, #fff, var(--warm) 60%, #b45309);
+    box-shadow:0 0 12px rgba(251,191,36,.7); }
+  .cap-ball.on { opacity:1; }
+  .stage.theater .cap-ball, .stage.theater .cap-ball .dot { width:26px; height:26px; }
+  .cap-narration { color:#cbd5e1; font-size:.86rem; margin-bottom:.3rem; }
+  .cap-line { font-size:1.4rem; font-weight:800; line-height:1.5; }
+  .cap-line .w { padding:.05rem .2rem; }
+  .cap-tr { color:var(--good); font-size:1rem; }
+  .cap-next { color:#94a3b8; font-size:.9rem; margin-top:.2rem; }
+  .stage.theater .captions { padding:4rem 3rem 2.2rem; }
+  .stage.theater .cap-narration { font-size:1.25rem; }
+  .stage.theater .cap-line { font-size:2.6rem; }
+  .stage.theater .cap-tr { font-size:1.6rem; }
+  .stage.theater .cap-next { font-size:1.2rem; }
+  .stage.theater .scene-tag { font-size:1rem; top:1.4rem; left:2rem; }
+  .stage.theater .stage-tools { top:1.3rem; right:2rem; }
+  .fallback-orb { position:absolute; inset:0; display:grid; place-items:center; }
+  .stage:not(.no-board) .fallback-orb { display:none; }
+  .stage.no-board .camera, .stage.no-board .captions, .stage.no-board .scene-tag { display:none; }
   .orb { width:110px; height:110px; border-radius:50%;
     background:radial-gradient(circle at 30% 30%,#fff,var(--accent) 45%,transparent 70%); opacity:.85; }
   .stage.playing .orb { animation:bounce 1.1s ease-in-out infinite; }
-  .stage.playing[data-anim="bus"] .orb { animation:spin 2.4s linear infinite; }
-  .stage.playing[data-anim="travel"] .orb { animation:slide 2s ease-in-out infinite; }
-  .stage.playing[data-anim="words"] .orb { animation:pulse 1.4s ease-in-out infinite; }
   .symbol { position:absolute; font-size:3.4rem; text-shadow:0 8px 24px rgba(0,0,0,.35); }
   .stage.playing .symbol { animation:bob 1.2s ease-in-out infinite; }
   @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-18px)} }
-  @keyframes spin { to { transform:rotate(360deg) } }
-  @keyframes slide { 0%,100%{transform:translateX(-24px)} 50%{transform:translateX(24px)} }
-  @keyframes pulse { 0%,100%{transform:scale(1);opacity:.75} 50%{transform:scale(1.18);opacity:1} }
   @keyframes bob { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-10px) scale(1.05)} }
   @keyframes ballhop { 0%,100%{transform:translateY(0) scale(1)} 45%{transform:translateY(-9px) scale(1.12)} }
+  @media (prefers-reduced-motion: reduce) {
+    .camera, .cast *, .backdrop * { animation:none !important; }
+  }
   .controls { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-top:.85rem; }
   .controls label { color:var(--muted); font-size:.85rem; display:inline-flex; gap:.35rem; align-items:center; }
   button, select, input[type=text] { font:inherit; border-radius:10px; border:1px solid #475569;
@@ -152,9 +288,29 @@ _HTML = """
       <main class="panel">
         <h2 id="now-title">Choose a song</h2>
         <div class="meta" id="now-meta"></div>
-        <div class="stage" id="stage" data-anim="pulse">
-          <div class="orb" aria-hidden="true"></div>
-          <div class="symbol" id="stage-symbol">♪</div>
+        <div class="stage no-board" id="stage" data-anim="pulse">
+          <div class="camera" id="camera">
+            <div class="backdrop" id="backdrop" aria-hidden="true"></div>
+            <div class="cast" id="cast" aria-hidden="true"></div>
+          </div>
+          <div class="fallback-orb">
+            <div class="orb" aria-hidden="true"></div>
+            <div class="symbol" id="stage-symbol">♪</div>
+          </div>
+          <div class="scene-tag" id="scene-tag"></div>
+          <div class="stage-tools">
+            <button class="ghost" id="btn-stage-play" type="button">Play</button>
+            <button class="ghost" id="btn-theater" type="button">Full screen</button>
+            <label><input type="checkbox" id="narrate" /> Narrate scenes</label>
+            <span class="dots" id="scene-dots"></span>
+          </div>
+          <div class="captions" id="captions">
+            <div class="cap-ball" id="cap-ball"><div class="dot"></div></div>
+            <div class="cap-narration" id="cap-narration"></div>
+            <div class="cap-line" id="cap-line"></div>
+            <div class="cap-tr" id="cap-tr"></div>
+            <div class="cap-next" id="cap-next"></div>
+          </div>
         </div>
         <div class="controls">
           <button class="primary" id="btn-play" type="button" disabled>Play</button>
@@ -213,15 +369,23 @@ _JS = r"""
     "How do I pronounce it?",
   ];
 
+  const CAMERAS = ["push-in", "pull-out", "pan-right", "pan-left", "ken-burns",
+    "zoom-punch", "tilt-up", "dolly-shake"];
+
   let featured = [];
   let current = null;
   let timings = null;
   let translation = null;
   let clips = [];
+  let board = null;
   let syncOffset = 0;
   let activeLineNo = 0;
   let activeWordKey = "";
   let activeClip = null;
+  let activeSceneId = "";
+  let activeSceneIndex = -1;
+  let ducked = false;
+  let duckedFrom = 1;
   let rafId = 0;
   const trCache = new Map();
 
@@ -409,6 +573,7 @@ _JS = r"""
     const el = $("lyrics").querySelector(`.line[data-no="${lineNo}"]`);
     if (el && scroll !== false) keepLineVisible(el, !player.paused);
     renderNowLine(lineNo);
+    renderCaption(lineNo);
   }
 
   function moveBall(span) {
@@ -420,11 +585,30 @@ _JS = r"""
     ball.classList.add("on");
   }
 
+  function moveCapBall(span) {
+    const ball = $("cap-ball");
+    if (!span) { ball.classList.remove("on"); return; }
+    const size = ball.offsetWidth || 16;
+    const x = span.offsetLeft + span.offsetWidth / 2 - size / 2;
+    const y = span.offsetTop - size - 4;
+    ball.style.transform = `translate(${x}px, ${y}px)`;
+    ball.classList.add("on");
+  }
+
   function paintWords(row, t) {
     const box = $("lyrics");
+    const cap = $("cap-line");
     let activeSpan = null;
+    let activeCapSpan = null;
     let key = "";
     row.words.forEach((w) => {
+      const capSpan = cap.querySelector(`.w[data-i="${w.index}"]`);
+      if (capSpan) {
+        const capNow = t >= w.start && t < w.end;
+        capSpan.classList.toggle("now", capNow);
+        capSpan.classList.toggle("sung", t >= w.end);
+        if (capNow) activeCapSpan = capSpan;
+      }
       const span = box.querySelector(`.w[data-no="${row.line_no}"][data-i="${w.index}"]`);
       if (!span) return;
       const isNow = t >= w.start && t < w.end;
@@ -442,21 +626,123 @@ _JS = r"""
     if (key !== activeWordKey) {
       activeWordKey = key;
       moveBall(activeSpan);
+      moveCapBall(activeCapSpan || cap.querySelector(".w.sung:last-of-type"));
     }
   }
 
   function clearWordPaint() {
     const box = $("lyrics");
+    $("cap-line").querySelectorAll(".w").forEach((s) => s.classList.remove("now", "sung"));
     box.querySelectorAll(".w").forEach((s) => s.classList.remove("now", "sung"));
     box.querySelectorAll(".line.done").forEach((el) => el.classList.remove("done"));
     activeWordKey = "";
     $("ball").classList.remove("on");
+    $("cap-ball").classList.remove("on");
+  }
+
+  /* ---------- storyboard: backdrops, cast, camera, captions ---------- */
+
+  function spriteHtml(member) {
+    const svg = (board && board.sprites[member.kind]) || "";
+    if (!svg) return "";
+    const fit = [];
+    if (member.flip) fit.push("scaleX(-1)");
+    if (member.rot) fit.push(`rotate(${member.rot}deg)`);
+    const style = `left:${member.x}%; top:${member.y}%; --s:${member.scale};` +
+      ` --h:${member.height_pct || 20};`;
+    const motionStyle = member.delay ? ` style="animation-delay:${member.delay}s"` : "";
+    const fitStyle = fit.length ? ` style="transform:${fit.join(" ")}"` : "";
+    return `<div class="sprite" style="${style}" data-kind="${esc(member.kind)}">` +
+      `<div class="sprite-motion m-${esc(member.motion)}"${motionStyle}>` +
+      `<div class="sprite-fit"${fitStyle}>${svg}</div></div></div>`;
+  }
+
+  function markSceneDots() {
+    $("scene-dots").querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("on", Number(b.getAttribute("data-i")) === activeSceneIndex);
+    });
+  }
+
+  function setScene(scene, force) {
+    if (!scene) return;
+    if (scene.scene_id === activeSceneId && !force) return;
+    activeSceneId = scene.scene_id;
+    activeSceneIndex = scene.index;
+    $("backdrop").innerHTML = (board && board.backdrops[scene.backdrop]) || "";
+    $("cast").innerHTML = scene.cast.map(spriteHtml).join("");
+    $("scene-tag").textContent =
+      `Scene ${scene.index + 1}/${board.scene_count} \u00b7 ${scene.title} \u00b7 ${scene.camera}`;
+    $("cap-narration").textContent = scene.narration;
+    const cam = $("camera");
+    CAMERAS.forEach((name) => cam.classList.remove(`cam-${name}`));
+    cam.style.setProperty("--cam-dur", `${Math.max(4, scene.duration).toFixed(2)}s`);
+    void cam.offsetWidth;
+    cam.classList.add(`cam-${scene.camera}`);
+    markSceneDots();
+    if ($("narrate").checked) speakNarration(scene);
+  }
+
+  function syncScene(t) {
+    if (!board || !board.scenes.length) return;
+    let scene = board.scenes.find((s) => t >= s.start && t < s.end);
+    if (!scene) scene = t < board.scenes[0].start ? board.scenes[0] : board.scenes[board.scenes.length - 1];
+    setScene(scene, false);
+  }
+
+  function renderCaption(lineNo) {
+    const row = timings ? timings.lines.find((r) => r.line_no === lineNo) : null;
+    const line = current ? current.lines.find((l) => l.line_no === lineNo) : null;
+    if (!row || !line) { $("cap-line").innerHTML = ""; $("cap-tr").textContent = ""; return; }
+    $("cap-line").innerHTML = row.words.map((w) =>
+      `<span class="w" data-i="${w.index}">${esc(w.text)}</span>`).join(" ");
+    const tr = trRow(lineNo);
+    $("cap-tr").textContent = tr && tr.translation ? tr.translation : "";
+    const next = current.lines.find((l) => l.line_no === lineNo + 1);
+    const nextTr = next ? trRow(next.line_no) : null;
+    $("cap-next").textContent = next
+      ? `\u2192 ${next.text}${nextTr && nextTr.translation ? ` \u00b7 ${nextTr.translation}` : ""}`
+      : "";
+  }
+
+  function speakNarration(scene) {
+    const synth = window.speechSynthesis;
+    if (!synth || !scene.narration) return;
+    const player = $("player");
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(scene.narration);
+    utter.lang = scene.narration_language === "en" ? "en-US" : scene.narration_language;
+    utter.rate = 0.98;
+    if (!ducked) { duckedFrom = player.volume; ducked = true; }
+    player.volume = Math.min(duckedFrom, 0.3);
+    const restore = () => {
+      if (!ducked) return;
+      ducked = false;
+      player.volume = duckedFrom;
+    };
+    utter.onend = restore;
+    utter.onerror = restore;
+    synth.speak(utter);
+  }
+
+  function toggleTheater(on) {
+    const stage = $("stage");
+    const want = on === undefined ? !stage.classList.contains("theater") : !!on;
+    stage.classList.toggle("theater", want);
+    document.body.classList.toggle("theater-on", want);
+    $("btn-theater").textContent = want ? "Exit full screen" : "Full screen";
+    if (want && !document.fullscreenElement && stage.requestFullscreen) {
+      stage.requestFullscreen().catch(() => undefined);
+    }
+    if (!want && document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => undefined);
+    }
   }
 
   function tick() {
     const player = $("player");
     if (!timings) return;
     const t = player.currentTime + syncOffset;
+    syncScene(t);
     if (activeClip && player.currentTime >= activeClip.end_sec) {
       player.pause();
       activeClip = null;
@@ -478,6 +764,12 @@ _JS = r"""
   function startLoop() {
     cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(tick);
+  }
+
+  // requestAnimationFrame is throttled in background tabs, so timeupdate keeps
+  // the line, the scene and the captions honest while the tab is hidden.
+  function syncActiveLineFromPlayer() {
+    if (document.hidden || $("player").paused) tick();
   }
 
   /* ---------- data loading ---------- */
@@ -512,6 +804,47 @@ _JS = r"""
       (duration ? `?duration=${duration.toFixed(2)}` : ""));
   }
 
+  async function loadStoryboard() {
+    const stage = $("stage");
+    board = null;
+    activeSceneId = "";
+    activeSceneIndex = -1;
+    if (!current) return;
+    const player = $("player");
+    const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : 0;
+    try {
+      board = await api(`/api/music/storyboard/${encodeURIComponent(current.song_id)}` +
+        `?target_lang=${encodeURIComponent(lang())}` +
+        (duration ? `&duration=${duration.toFixed(2)}` : ""));
+    } catch (_) {
+      board = null;
+    }
+    if (!board || !board.scenes.length) {
+      stage.classList.add("no-board");
+      $("scene-dots").innerHTML = "";
+      $("btn-theater").disabled = true;
+      return;
+    }
+    stage.classList.remove("no-board");
+    $("btn-theater").disabled = false;
+    $("scene-dots").innerHTML = board.scenes.map((s) =>
+      `<button type="button" data-i="${s.index}" title="${esc(s.title)}">${s.index + 1}</button>`
+    ).join("");
+    $("scene-dots").querySelectorAll("button").forEach((b) => {
+      b.onclick = () => {
+        const scene = board.scenes[Number(b.getAttribute("data-i"))];
+        if (!scene) return;
+        $("player").currentTime = Math.max(0, scene.start - syncOffset);
+        setScene(scene, true);
+      };
+    });
+    const at = board.scenes.find((s) => {
+      const t = $("player").currentTime + syncOffset;
+      return t >= s.start && t < s.end;
+    });
+    setScene(at || board.scenes[0], true);
+  }
+
   async function selectSong(songId) {
     const player = $("player");
     player.pause();
@@ -532,6 +865,7 @@ _JS = r"""
     renderLyrics();
     setActiveLine(current.lines[0] ? current.lines[0].line_no : 0, false);
     renderSongList();
+    await loadStoryboard();
     await Promise.all([loadClips(), loadVideos()]);
   }
 
@@ -600,13 +934,19 @@ _JS = r"""
     clearWordPaint();
     try { await player.play(); startLoop(); } catch (_) { /* user gesture needed */ }
   };
-  $("player").addEventListener("play", () => { $("stage").classList.add("playing"); startLoop(); });
+  $("player").addEventListener("play", () => {
+    $("stage").classList.add("playing");
+    $("btn-stage-play").textContent = "Pause";
+    startLoop();
+  });
   $("player").addEventListener("pause", () => {
     $("stage").classList.remove("playing");
+    $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
   });
   $("player").addEventListener("ended", () => {
     $("stage").classList.remove("playing");
+    $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
     clearWordPaint();
   });
@@ -615,10 +955,12 @@ _JS = r"""
     repaintLineStates(activeLineNo, $("player").currentTime + syncOffset);
     tick();
   });
+  $("player").addEventListener("timeupdate", syncActiveLineFromPlayer);
   $("player").addEventListener("loadedmetadata", async () => {
     await loadTimings();
     renderLyrics();
     if (activeLineNo) { const no = activeLineNo; activeLineNo = 0; setActiveLine(no, false); }
+    await loadStoryboard();
   });
   $("meaning-lang").onchange = async () => {
     await loadTranslation();
@@ -626,8 +968,40 @@ _JS = r"""
     const no = activeLineNo || (current && current.lines[0] ? current.lines[0].line_no : 0);
     activeLineNo = 0;
     if (no) setActiveLine(no, false);
-    await loadClips();
+    await Promise.all([loadClips(), loadStoryboard()]);
   };
+  $("btn-theater").onclick = () => toggleTheater();
+  async function togglePlay() {
+    const player = $("player");
+    if (!player.src) return;
+    if (player.paused) {
+      try { await player.play(); startLoop(); } catch (_) { toast("Press play again"); }
+    } else {
+      player.pause();
+    }
+  }
+  $("btn-stage-play").onclick = () => togglePlay();
+  $("narrate").onchange = () => {
+    if (!$("narrate").checked) {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if (ducked) { ducked = false; $("player").volume = duckedFrom; }
+      return;
+    }
+    const scene = board && board.scenes.find((s) => s.scene_id === activeSceneId);
+    if (scene) speakNarration(scene);
+  };
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && $("stage").classList.contains("theater")) {
+      toggleTheater(false);
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || "");
+    if (typing) return;
+    if (e.key === "f" || e.key === "F") toggleTheater();
+    if (e.key === "Escape" && $("stage").classList.contains("theater")) toggleTheater(false);
+    if (e.key === " " || e.code === "Space") { e.preventDefault(); togglePlay(); }
+  });
   $("show-inline").onchange = () => {
     const no = activeLineNo;
     renderLyrics();
