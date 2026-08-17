@@ -107,6 +107,7 @@ def _from_catalog_course(c: Any) -> LearnableItem:
         preview = (c.preview or c.description or "")[:200]
         popularity = int(c.popularity or 0)
         custom_deep_link = getattr(c, "deep_link", "") or ""
+        core_skill = bool(getattr(c, "core_skill", False))
     else:
         course_id = c["course_id"]
         title = c.get("title", "")
@@ -125,6 +126,7 @@ def _from_catalog_course(c: Any) -> LearnableItem:
         preview = (c.get("preview", "") or c.get("description", ""))[:200]
         popularity = int(c.get("popularity", 0) or 0)
         custom_deep_link = c.get("deep_link", "") or ""
+        core_skill = bool(c.get("core_skill", False))
     fmt = "audio" if media == "audio" else media
     deep = custom_deep_link or (
         f"/drive?course={course_id}" if fmt == "audio" else f"/watch?course={course_id}"
@@ -151,6 +153,7 @@ def _from_catalog_course(c: Any) -> LearnableItem:
         preview=preview,
         deep_link=deep,
         popularity=popularity,
+        core_skill=core_skill,
     )
 
 
@@ -406,7 +409,10 @@ def search_learnable(
         for c in rows:
             rel = course_relevance({
                 "title": c.title, "subject": c.subject, "category": c.category,
-                "tags": c.tags, "audiences": c.audiences, "core_skill": "core_skill" in c.tags,
+                "tags": c.tags, "audiences": c.audiences,
+                # The explicit catalog flag wins; the literal tag is a fallback
+                # for sources that never set the field.
+                "core_skill": c.core_skill or "core_skill" in c.tags,
             })
             if audience and audience.lower() not in rel["audiences"]:
                 continue
@@ -510,7 +516,7 @@ def _audience_facet(items: Sequence[LearnableItem]) -> List[dict]:
         rel = course_relevance({
             "title": c.title, "subject": c.subject, "category": c.category,
             "tags": c.tags, "audiences": c.audiences,
-            "core_skill": "core_skill" in c.tags,
+            "core_skill": c.core_skill or "core_skill" in c.tags,
         })
         seen |= set(rel["audiences"])
     return sorted(
