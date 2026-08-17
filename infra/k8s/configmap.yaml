@@ -26,13 +26,15 @@ data:
   # (or the Deployment absent) -> ElevenLabs/edge-tts/device-voice fallback.
   COSYVOICE_URL: "http://cosyvoice:9880"
   # xAI Grok realtime voice agent (Theodore's natural voice in solo/group
-  # classes; packages/webcam-vision). Add XAI_API_KEY to aoep-secrets to enable;
-  # empty -> platform speech-chain fallback (ElevenLabs -> edge-tts -> device).
+  # classes). Add XAI_API_KEY to aoep-secrets to enable; speech exposes
+  # GET /voice/status + POST /voice/token for web/mobile. Empty key ->
+  # platform speech-chain fallback (ElevenLabs -> edge-tts -> device).
   XAI_BASE_URL: "https://api.x.ai/v1"
   XAI_REALTIME_URL: "wss://api.x.ai/v1/realtime"
   XAI_VOICE_MODEL: "grok-voice-latest"
   XAI_TEXT_MODEL: "grok-3-latest"
   XAI_VOICE: "eve"
+  XAI_VOICE_ID: "eve"
   LIVEKIT_URL: "wss://livekit.aoep.example"
   OBJECT_STORE_ENDPOINT: "https://s3.amazonaws.com"
   OBJECT_STORE_BUCKET: "aoep-prod"
