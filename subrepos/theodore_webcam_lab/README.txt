@@ -70,7 +70,6 @@ Regenerate overview boards for all Theodore labs:
   python3 scripts/render_lab_docs_screenshots.py
 
 RECOGNITION TUNING
-==================
 Nothing about recognition accuracy is hardcoded any more. Every threshold,
 calibration constant and scoring weight lives in VisionTuning
 (src/theodore_webcam_lab/vision_tuning.py) and can be set three ways:
@@ -171,7 +170,6 @@ a plain http://<lan-ip> does not (use the test pattern there).
 
 
 XAI VOICE-AGENT TUNING
-======================
 The voice agent is tuned the same three ways as vision - environment, live API,
 or preset - using the XAI_TUNE_ prefix:
 
