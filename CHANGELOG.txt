@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-08-18 - v0.46.83 - Version bump to unblock CI after merge with main.
 - 2026-08-17 - v0.46.70 - Theodore labs audio/language coverage: music featured songs now have curated full-line translations for all 26+ platform languages (not Romance-only); storyboard narration no longer English-falls-back for km/zh/hi/etc; audio-lab edge-tts adds cs/el; webcam accepts bare zh; Drive Mode wake commands recognize multilingual pause/next/repeat glosses with fixtures; homework validates locale against the 27-language set.
 - 2026-08-18 - v0.46.80 - Add apps/web/app/lib/courseLinks.ts helpers for resolving catalog deep links away from the engagement-gated /watch route.
 - 2026-08-18 - v0.46.79 - Catalog deep links for non-audio courses point at /class?lesson=<id> instead of the non-existent /watch route, and FaceGallery.add rejects an empty embedding up front (it previously slipped past the dimension check and poisoned the gallery). Adds the 2026-08-16 audit regression tests for both.
