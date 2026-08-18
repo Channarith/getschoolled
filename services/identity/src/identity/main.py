@@ -859,6 +859,106 @@ class AdaptationEvent(BaseModel):
     payload: dict = {}
 
 
+class VoiceEnrollRequest(BaseModel):
+    """Payload for voice-name enrollment during the face + voice ID check.
+
+    ``voice_name_sample_b64`` is a base64-encoded audio blob (WebM/WAV/MP3) of
+    the student saying their name. ``voice_name_text`` is the typed or detected
+    name that was spoken (same value already stored as student display_name in
+    most flows; stored separately so analytics can compare what was said vs what
+    was typed). ``voice_name_sample_mime`` records the container format so the
+    player/analyser knows how to decode it.
+    """
+
+    voice_name_sample_b64: str
+    voice_name_sample_mime: str = "audio/webm"
+    voice_name_text: str = ""
+
+
+@app.post("/students/{student_id}/voice-enrollment")
+def enroll_voice(
+    student_id: str,
+    req: VoiceEnrollRequest,
+    acct=Depends(current_account),
+) -> dict:
+    """Store a voice-name sample on the student profile.
+
+    Called from the settings page after the user completes the face + voice
+    check: the audio blob is stored on the profile so later analytics can
+    use it for voice-based identity verification and engagement tracking.
+    """
+    if not req.voice_name_sample_b64.strip():
+        raise HTTPException(status_code=422, detail="voice_name_sample_b64 must not be empty")
+    try:
+        prof = app.state.accounts.enroll_voice(
+            acct.id,
+            student_id,
+            voice_name_sample_b64=req.voice_name_sample_b64,
+            voice_name_sample_mime=req.voice_name_sample_mime,
+            voice_name_text=req.voice_name_text or prof_display_name(acct, student_id),
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {
+        "student_id": prof.id,
+        "voice_enrolled": True,
+        "voice_enrolled_at": prof.voice_enrolled_at,
+        "voice_name_text": prof.voice_name_text,
+        "voice_name_sample_mime": prof.voice_name_sample_mime,
+    }
+
+
+@app.get("/students/{student_id}/voice-enrollment")
+def get_voice_enrollment(student_id: str, acct=Depends(current_account)) -> dict:
+    """Return voice enrollment status and metadata for a student profile.
+
+    The audio blob itself is intentionally excluded from this GET to keep the
+    response small; call the ``/voice-enrollment/blob`` endpoint to retrieve it.
+    """
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {
+        "student_id": student_id,
+        "voice_enrolled": bool(prof.voice_enrolled_at),
+        "voice_enrolled_at": prof.voice_enrolled_at,
+        "voice_name_text": prof.voice_name_text,
+        "voice_name_sample_mime": prof.voice_name_sample_mime,
+        "has_sample": bool(prof.voice_name_sample_b64),
+    }
+
+
+@app.get("/students/{student_id}/voice-enrollment/blob")
+def get_voice_blob(student_id: str, acct=Depends(current_account)) -> dict:
+    """Return the raw base64 audio blob for a student's voice-name sample.
+
+    Consumers (analytics pipeline, verification flow) fetch this to replay
+    or process the voice sample. The blob may be empty if the student has not
+    completed voice enrollment.
+    """
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    if not prof.voice_name_sample_b64:
+        raise HTTPException(status_code=404, detail="no voice sample enrolled")
+    return {
+        "student_id": student_id,
+        "voice_name_sample_b64": prof.voice_name_sample_b64,
+        "voice_name_sample_mime": prof.voice_name_sample_mime,
+        "voice_name_text": prof.voice_name_text,
+        "voice_enrolled_at": prof.voice_enrolled_at,
+    }
+
+
+def prof_display_name(acct, student_id: str) -> str:
+    """Safely look up a student's display name (fallback to empty string)."""
+    try:
+        p = acct.students.get(student_id)
+        return p.display_name if p else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 @app.post("/students/{student_id}/adaptation")
 def record_adaptation(student_id: str, req: AdaptationEvent, acct=Depends(current_account)) -> dict:
     try:
