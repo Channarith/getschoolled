@@ -241,7 +241,15 @@ export default function ClassRoom({
         setPulseTemplate(r.template);
       })
       .catch(() => {});
-    return () => stopSpeaking();
+    return () => {
+      stopSpeaking();
+      // Tear down speech recognition too — otherwise the mic stays live after
+      // the learner navigates away mid-utterance.
+      try { recognitionRef.current?.stop(); } catch { /* already stopped */ }
+      recognitionRef.current = null;
+      pauseSubmitterRef.current?.cancelPending();
+      pauseSubmitterRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -819,12 +827,17 @@ export default function ClassRoom({
         }).catch(() => {});
       }
       await refreshLxTick(slide?.index ?? 0, view.lesson.slides.length);
-    } finally {
-      setPopQuiz(null);
-      setPopQuizAnswers({});
+    } catch (e) {
+      // Keep the quiz open with answers intact so the learner can retry —
+      // previously the card vanished with no error and the work was lost.
+      setError(`Couldn't submit the quiz: ${String(e)}`);
       setBusy(false);
-      resumeAutoplay();
+      return;
     }
+    setPopQuiz(null);
+    setPopQuizAnswers({});
+    setBusy(false);
+    resumeAutoplay();
   }
 
   function dismissPopQuiz() {

@@ -108,7 +108,13 @@ export default function AuthScreen() {
         return;
       }
       if (mode === "reset") {
-        await resetPassword(resetToken || email.trim(), password);
+        // Never send the email address as the token — require the real token
+        // (auto-filled in local dev; pasted from the email in cloud builds).
+        if (!resetToken.trim()) {
+          setError(t("auth.resetTokenRequired"));
+          return;
+        }
+        await resetPassword(resetToken.trim(), password);
         setMode("login");
         setError(t("auth.resetDone"));
         return;
@@ -181,7 +187,7 @@ export default function AuthScreen() {
             value={email}
             onChangeText={setEmail}
           />
-          {mode === "reset" && DEPLOY_MODE === "local" ? (
+          {mode === "reset" ? (
             <TextInput
               style={styles.input}
               placeholder={t("auth.resetToken")}

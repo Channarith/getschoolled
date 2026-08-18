@@ -138,7 +138,13 @@ def api_grade(req: GradeRequest) -> dict[str, Any]:
         assignment = LabAssignment.model_validate(req.assignment)
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Invalid assignment: {exc}") from exc
-    report = grade_assignment(assignment, req.answers)
+    # answers is typed Any — a null/scalar body must be a 422, not a 500.
+    if req.answers is None or not isinstance(req.answers, (list, dict)):
+        raise HTTPException(status_code=422, detail="answers must be a list or an object")
+    try:
+        report = grade_assignment(assignment, req.answers)
+    except (TypeError, ValueError, KeyError, IndexError) as exc:
+        raise HTTPException(status_code=422, detail=f"Could not grade answers: {exc}") from exc
     get_runner().telemetry.grade_calls += 1
     get_runner().telemetry.items_graded += len(report.items)
     return {"report": report.model_dump()}
