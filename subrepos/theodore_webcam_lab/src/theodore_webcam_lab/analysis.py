@@ -69,6 +69,24 @@ class AnalyzerPolicy:
     # Caps retained per-session state so a long-lived server cannot grow without bound.
     max_tracked_sessions: int = 512
 
+    def validate(self) -> None:
+        """Reject values that break the state machine (negative windows make
+        every missing frame instantly ABSENT / pause training immediately)."""
+        for name in (
+            "absence_grace_ms",
+            "gaze_away_grace_ms",
+            "pause_training_no_presence_ms",
+        ):
+            value = int(getattr(self, name))
+            if value < 0 or value > 3_600_000:
+                raise ValueError(f"{name} must be 0..3600000 ms (got {value})")
+        if not 1 <= int(self.solo_max_faces) <= 8:
+            raise ValueError(f"solo_max_faces must be 1..8 (got {self.solo_max_faces})")
+        if not 1 <= int(self.max_tracked_sessions) <= 100_000:
+            raise ValueError(
+                f"max_tracked_sessions must be 1..100000 (got {self.max_tracked_sessions})"
+            )
+
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> AnalyzerPolicy:
         """Load timing/session knobs from AOEP_VISION_* environment variables."""
@@ -92,6 +110,7 @@ class _ParticipantState:
     last_live_timestamp_ms: int | None = None
     absent_since_ms: int | None = None
     silhouette_streak: int = 0
+    silhouette_streak_last_ms: int | None = None
     gaze_away_started_ms: int | None = None
     eyes_closed_started_ms: int | None = None
     yawn_started_ms: int | None = None
@@ -330,7 +349,8 @@ class WebcamSessionAnalyzer:
             )
 
         any_live_face_in_frame = any(
-            s.face_count > 0 and s.liveness_state.strip().lower() not in {"spoof", "fake"}
+            self._face_count_after_empty_frame_check(s) > 0
+            and s.liveness_state.strip().lower() not in {"spoof", "fake"}
             for s in signals
         )
         if any_live_face_in_frame:
@@ -355,7 +375,8 @@ class WebcamSessionAnalyzer:
             {
                 s.participant_id
                 for s in signals
-                if s.face_count > 0 and s.liveness_state.strip().lower() not in {"spoof", "fake"}
+                if self._face_count_after_empty_frame_check(s) > 0
+                and s.liveness_state.strip().lower() not in {"spoof", "fake"}
             }
         )
         # The original-learner lock is a solo-session concept. In a group class every
@@ -808,6 +829,34 @@ class WebcamSessionAnalyzer:
             return "unknown"
         return _EXPRESSION_ALIASES.get(key, "unknown")
 
+    @staticmethod
+    def _face_count_after_empty_frame_check(signal: WebcamSignal) -> int:
+        """Client-claimed face count, corrected for an empty-looking frame.
+
+        A thin client can keep reporting face_count=1 after the learner steps
+        away; when the luminance grid shows no face and no expression/gaze data
+        backs the claim, the frame is treated as empty. _evaluate_signal applies
+        the same correction per participant — the class-level aggregates must
+        use it too or training_paused/original_user_present never trip for
+        exactly the thin-client case the correction exists for.
+        """
+        face_count = signal.face_count
+        if face_count <= 0:
+            return face_count
+        if signal.gaze_frontal is not None or signal.gaze_down_score is not None:
+            return face_count
+        if not signal.luminance_grid:
+            return face_count
+        estimate = estimate_from_luminance_grid(signal.luminance_grid)
+        if estimate is None:
+            return face_count
+        if (
+            not estimate.face_present
+            and WebcamSessionAnalyzer._normalize_expression(signal.expression_label) == "unknown"
+        ):
+            return 0
+        return face_count
+
     def _evaluate_signal(
         self, *, session_id: str, mode: ClassMode, signal: WebcamSignal
     ) -> ParticipantEvaluation:
@@ -850,16 +899,6 @@ class WebcamSessionAnalyzer:
                 gaze_down_score = estimate.gaze_down_score
             if face_localised and face_size_ratio is None:
                 face_size_ratio = estimate.face_size_ratio
-            if landmark_detector and signal.yawn_score is None and estimate.yawn_score > 0:
-                # Thin clients: promote grid yawn into the signal path below.
-                signal = signal.model_copy(update={"yawn_score": estimate.yawn_score})
-                if (
-                    estimate.expression_label == "yawning"
-                    and self._normalize_expression(expression_label) in {"unknown", "neutral"}
-                ):
-                    expression_label = "yawning"
-                    if expression_confidence is None:
-                        expression_confidence = estimate.expression_confidence
             if (
                 not estimate.face_present
                 and self._normalize_expression(signal.expression_label) == "unknown"
@@ -1090,7 +1129,15 @@ class WebcamSessionAnalyzer:
                 attention_score = min(attention_score, 0.45)
             if phone_visible:
                 attention_score = min(attention_score, 0.20)
-            if signal.attention is not None:
+            # The client-reported attention blend must not defeat the
+            # eyes-closed / eyes-away / phone caps applied above (same guard
+            # as the trajectory boosts below).
+            if (
+                signal.attention is not None
+                and not eyes_closed
+                and not eyes_away
+                and not phone_visible
+            ):
                 attention_score = self._clamp01(
                     0.55 * attention_score + 0.45 * float(signal.attention)
                 )
@@ -1256,10 +1303,16 @@ class WebcamSessionAnalyzer:
         ]
         microphone_quality_score = self._avg(mic_parts) if mic_parts else None
 
+        # Timestamp-guarded: re-scoring the stored last frame (tuning PATCH /
+        # preset apply) must not inflate the streak — it is a counter, not a
+        # timestamp-derived hold.
         if silhouette_candidate:
-            participant_state.silhouette_streak += 1
+            if participant_state.silhouette_streak_last_ms != signal.timestamp_ms:
+                participant_state.silhouette_streak += 1
+                participant_state.silhouette_streak_last_ms = signal.timestamp_ms
         else:
             participant_state.silhouette_streak = 0
+            participant_state.silhouette_streak_last_ms = None
         silhouette_detected = (
             participant_state.silhouette_streak >= tuning.silhouette_consecutive_frames
         )
@@ -1409,7 +1462,14 @@ class WebcamSessionAnalyzer:
 
         advanced = self._behavior_engine.evaluate(
             session_id=session_id,
-            signal=signal,
+            # The behavior engine keys absence off signal.face_count — give it
+            # the corrected count when the empty-frame check fired, or frames
+            # the analyzer scored as away look present to the engine.
+            signal=(
+                signal.model_copy(update={"face_count": face_count})
+                if face_count != signal.face_count
+                else signal
+            ),
             attention_score=attention_score,
             distraction_score=distraction_score,
             behavior_label=behavior_label,

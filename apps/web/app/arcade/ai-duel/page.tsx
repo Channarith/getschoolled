@@ -132,6 +132,7 @@ export default function AIDuel() {
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const aiAnswerRef = useRef<{ idx: number } | null>(null);
   const playerAnsweredRef = useRef(false);
 
@@ -139,6 +140,7 @@ export default function AIDuel() {
     if (aiTimerRef.current) { clearTimeout(aiTimerRef.current); aiTimerRef.current = null; }
     if (qTimerRef.current) { clearTimeout(qTimerRef.current); qTimerRef.current = null; }
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
+    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
   }, []);
 
   useEffect(() => () => clearTimers(), [clearTimers]);
@@ -220,11 +222,13 @@ export default function AIDuel() {
     setDuelState("countdown");
 
     let c = 3;
-    const iv = setInterval(() => {
+    // Stored in a ref so unmount/clearTimers can cancel it — a bare interval
+    // kept firing setState after navigation.
+    countdownRef.current = setInterval(() => {
       c -= 1;
       setCountdown(c);
       if (c <= 0) {
-        clearInterval(iv);
+        if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
         startRound(qs, 0);
       }
     }, 1000);

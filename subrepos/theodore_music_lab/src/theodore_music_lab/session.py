@@ -52,6 +52,10 @@ class MusicSession(BaseModel):
 
 
 class SessionStore:
+    # Sessions are in-memory and created by unauthenticated traffic — bound the
+    # registry so a long-lived process doesn't grow forever.
+    MAX_SESSIONS = 1000
+
     def __init__(self, catalog: Optional[Catalog] = None) -> None:
         self.catalog = catalog or Catalog()
         self._sessions: dict[str, MusicSession] = {}
@@ -66,6 +70,10 @@ class SessionStore:
         song = self.catalog.get(song_id)
         if not song.lines:
             raise ValueError(f"Song '{song_id}' has no lines")
+        if len(self._sessions) >= self.MAX_SESSIONS:
+            # Evict the oldest sessions (dicts keep insertion order).
+            for old_sid in list(self._sessions)[: len(self._sessions) // 2]:
+                self._sessions.pop(old_sid, None)
         sid = uuid.uuid4().hex[:12]
         sess = MusicSession(
             session_id=sid,

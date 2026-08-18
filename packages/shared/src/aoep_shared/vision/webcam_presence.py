@@ -117,7 +117,6 @@ class WebcamPresenceTracker:
         self._metrics = PresenceMetrics()
         self._last_seen: float = time.monotonic()
         self._absent_since: Optional[float] = None
-        self._returned_at: Optional[float] = None
         self._history: List[PresenceFrame] = []
 
     @property
@@ -195,24 +194,25 @@ class WebcamPresenceTracker:
                 # Transition immediately on the first confident presence frame.
                 # The return_threshold controls how long the state must have been
                 # absent before we fire the on_return callback (avoids noise
-                # from very brief absence blips).
+                # from very brief absence blips). Measure against _absent_since —
+                # the old code compared against a just-initialized _returned_at,
+                # so the callback could never fire at any threshold > 0.
+                absence_long_enough = (
+                    self._absent_since is not None
+                    and now - self._absent_since >= self._return_threshold
+                )
                 self._absent_since = None
                 self._state = raw_state
-                if self._returned_at is None:
-                    self._returned_at = now
-                if now - self._returned_at >= self._return_threshold:
+                if absence_long_enough:
                     self._metrics.return_events += 1
                     self._metrics.last_state_change = now
-                    self._returned_at = None
                     if self._on_return:
                         self._on_return(self._metrics)
             else:
                 self._state = raw_state
                 self._absent_since = None
-                self._returned_at = None
         else:
             # User appears absent.
-            self._returned_at = None
             elapsed_absent = now - self._last_seen
             if elapsed_absent >= self._absence_threshold:
                 if self._state != PresenceState.ABSENT:
@@ -245,5 +245,4 @@ class WebcamPresenceTracker:
         self._metrics = PresenceMetrics()
         self._last_seen = time.monotonic()
         self._absent_since = None
-        self._returned_at = None
         self._history = []

@@ -82,7 +82,7 @@ export default function ProScenarios() {
           <button key={t} onClick={() => setTrack(t)} disabled={phase === "playing"}
             style={{ opacity: track === t ? 1 : 0.55 }}>{TRACK_LABELS[t]}</button>
         ))}
-        <span className="muted" style={{ marginLeft: "auto" }}>Best streak: {best}</span>
+        <span className="muted" style={{ marginLeft: "auto" }}>Best score: {best}</span>
       </div>
 
       {phase === "idle" && (

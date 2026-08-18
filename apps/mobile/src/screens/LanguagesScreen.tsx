@@ -75,15 +75,20 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     };
   }, []);
 
+  const openCourseGenRef = useRef(0);
   const openCourse = useCallback(async (code: string) => {
     setError("");
     setEx(null);
     setDone(null);
     setPron(null);
+    // Generation guard: tapping two languages quickly must not let the slower
+    // response overwrite the newer course.
+    const gen = ++openCourseGenRef.current;
     try {
-      setCourse(await getLangCourse(code));
+      const c = await getLangCourse(code);
+      if (gen === openCourseGenRef.current) setCourse(c);
     } catch (e) {
-      setError((e as Error).message);
+      if (gen === openCourseGenRef.current) setError((e as Error).message);
     }
   }, []);
 

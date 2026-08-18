@@ -51,7 +51,7 @@ from aoep_shared.validation import (
     validate_claim,
     validate_course,
 )
-from fastapi import Body, Depends, File, Form, Header, HTTPException, UploadFile
+from fastapi import Body, Depends, File, Form, Header, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
 from aoep_shared.internal_auth import require_internal
@@ -424,24 +424,55 @@ def search_courses(
     limit: int = 100,
     offset: int = 0,
     authorization: str | None = Header(default=None),
+    *,
+    response: Response,
 ) -> list[Course]:
-    """Unified faceted search across catalog, audio, live lessons, languages, games."""
-    return _search_learnable_as_courses(
+    """Unified faceted search across catalog, audio, live lessons, languages, games.
+
+    ``limit`` is capped at 200 server-side; the applied limit and the true
+    total are echoed in ``X-Limit`` / ``X-Total-Count`` so paginating clients
+    can detect the clamp instead of silently dropping rows.
+    """
+    items, total, applied_limit = _search_learnable_as_courses(
         q=q, category=category, language=language, audio=audio,
         media_format=media_format, level=level, tag=tag, hands_on=hands_on,
         delivery_mode=delivery_mode, access_tier=access_tier, maturity=maturity,
         audience=audience, core_skill=core_skill, source=source,
         limit=limit, offset=offset,
     )
+    response.headers["X-Total-Count"] = str(total)
+    response.headers["X-Limit"] = str(applied_limit)
+    return items
+
+
+def _view_counts() -> dict:
+    """In-memory view overlay for content the CatalogStore doesn't own (audio,
+    live lessons, languages, games) — the index is rebuilt per request, so
+    views on those items need somewhere durable-in-process to live."""
+    counts = getattr(app.state, "view_counts", None)
+    if counts is None:
+        counts = app.state.view_counts = {}
+    return counts
 
 
 def _learnable_index(locale: str = "en"):
     from curriculum.learnable_service import build_index_for_store
 
-    return build_index_for_store(app.state.catalog, locale=locale)
+    items = build_index_for_store(app.state.catalog, locale=locale)
+    counts = getattr(app.state, "view_counts", None)
+    if counts:
+        for item in items:
+            # Catalog items bump popularity on the store itself; the overlay
+            # only applies to ids the store doesn't know (no double counting).
+            if app.state.catalog.get_course(item.source_id) is not None:
+                continue
+            extra = counts.get(item.source_id) or counts.get(item.id)
+            if extra:
+                item.popularity += extra
+    return items
 
 
-def _search_learnable_as_courses(**kwargs) -> list[Course]:
+def _search_learnable_as_courses(**kwargs) -> tuple[list[Course], int, int]:
     from aoep_shared.learnable import search_learnable
 
     limit = int(kwargs.pop("limit", 100))
@@ -467,7 +498,11 @@ def _search_learnable_as_courses(**kwargs) -> list[Course]:
         offset=offset,
         limit=limit,
     )
-    return [_course_from_learnable_item(i) for i in result["items"]]
+    return (
+        [_course_from_learnable_item(i) for i in result["items"]],
+        result["total"],
+        result["limit"],
+    )
 
 
 def _course_from_learnable_item(item) -> Course:
@@ -946,14 +981,20 @@ def notifications_locales() -> dict:
 def course_view(course_id: str) -> dict:
     """Record a view/open to feed the 'Popular now' rail."""
     c = app.state.catalog.bump_popularity(course_id)
-    if c is None:
-        # Try learnable index (audio courses, drive courses)
-        from curriculum.learnable_service import find_item
-        item = find_item(_learnable_index(), source_id=course_id) or find_item(_learnable_index(), global_id=course_id)
-        if item is None:
-            raise HTTPException(status_code=404, detail="unknown course")
-        return {"course_id": course_id, "popularity": 0}
-    return {"course_id": course_id, "popularity": c.popularity}
+    if c is not None:
+        return {"course_id": course_id, "popularity": c.popularity}
+    # Non-CatalogStore content (audio, live lessons, languages, games): the
+    # index is rebuilt per request, so record the view in the overlay that
+    # _learnable_index folds into popularity — previously this returned
+    # popularity:0 without recording anything.
+    from curriculum.learnable_service import find_item
+    index = _learnable_index()
+    item = find_item(index, source_id=course_id) or find_item(index, global_id=course_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="unknown course")
+    counts = _view_counts()
+    counts[course_id] = counts.get(course_id, 0) + 1
+    return {"course_id": course_id, "popularity": item.popularity + 1}
 
 
 class RecommendRequest(BaseModel):

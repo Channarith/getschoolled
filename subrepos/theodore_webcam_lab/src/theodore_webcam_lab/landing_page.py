@@ -4,7 +4,19 @@ from __future__ import annotations
 
 
 def render_landing_page(default_session_id: str = "demo-session") -> str:
-    sid = default_session_id.replace("\\", "\\\\").replace('"', '\\"')
+    import json as _json
+
+    # The id lands in BOTH an HTML attribute and a JS string. JS-escaping alone
+    # (\" is not an HTML escape) does not protect the attribute, and neither
+    # neutralizes </script> — JSON-encode for the JS context (safe inside
+    # <script> once < is escaped) and HTML-escape for the attribute.
+    sid_js = _json.dumps(default_session_id).replace("<", "\\u003c")
+    sid_attr = (
+        default_session_id.replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -35,13 +47,13 @@ def render_landing_page(default_session_id: str = "demo-session") -> str:
        (owner face lock, multi-face integrity, lesson actions).</p>
     <div class="row">
       <button class="primary" id="btn-open" type="button">Seed + open monitor</button>
-      <a class="btn" id="link-monitor" href="/theodore/webcam/live-monitor/{sid}">Open monitor only</a>
+      <a class="btn" id="link-monitor" href="/theodore/webcam/live-monitor/{sid_attr}">Open monitor only</a>
       <button id="btn-health" type="button">Health</button>
     </div>
     <div id="status">Ready.</div>
   </div>
   <script>
-    const SESSION = "{sid}";
+    const SESSION = {sid_js};
     const status = document.getElementById('status');
     async function seedAndOpen() {{
       status.textContent = 'Seeding demo session…';

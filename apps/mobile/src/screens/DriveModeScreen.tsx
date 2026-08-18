@@ -5,7 +5,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getAudioCourse, getTtsVoices, listStudents, SPEECH_URL, type AudioCourse, type VoiceGroup } from "../api";
+import { getAudioCourse, getTtsVoices, listStudents, SPEECH_URL, syncMyListToggle, type AudioCourse, type VoiceGroup } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -161,6 +161,10 @@ export default function DriveModeScreen({
           ? t("drive.voicePermissionDenied", { engine: readiness.engine })
           : t("drive.voiceUnavailable", { engine: readiness.engine }),
       );
+      // Playback is pure TTS and needs no mic — start the course anyway (the
+      // web client degrades the same way) instead of trapping the learner on
+      // a blocking setup sheet.
+      playFrom(c, 0, tloc);
       return;
     }
     setVoiceSetupOpen(false);
@@ -169,6 +173,7 @@ export default function DriveModeScreen({
       setupStartedRef.current = false;
       setVoiceSetupOpen(true);
       setAssistantStatus(t("drive.voiceUnavailable", { engine: readiness.engine }));
+      playFrom(c, 0, tloc);
       return;
     }
     playFrom(c, 0, tloc);
@@ -465,6 +470,8 @@ export default function DriveModeScreen({
   const onToggleSave = async () => {
     const next = await toggleMyList(courseId);
     setSaved(next);
+    // Best-effort server sync so the save appears on other devices.
+    void syncMyListToggle(courseId, next, course?.title ?? courseId);
   };
 
   if (!course) {
@@ -712,6 +719,11 @@ export default function DriveModeScreen({
                 <PrimaryButton
                   label={t("drive.setupGuide", { engine: voiceEngine })}
                   onPress={() => void openWakeAssistantSetupGuide()}
+                  variant="ghost"
+                />
+                <PrimaryButton
+                  label={t("drive.setupListenAnyway")}
+                  onPress={() => setVoiceSetupOpen(false)}
                   variant="ghost"
                 />
                 <PrimaryButton label={t("drive.back")} onPress={onBack} variant="ghost" />
