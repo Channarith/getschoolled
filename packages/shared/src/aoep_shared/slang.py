@@ -184,21 +184,32 @@ def _pack_entries() -> List[SlangEntry]:
 
 
 def all_entries() -> List[SlangEntry]:
-    """Built-in lexicon plus every entry merged from slang packs."""
-    return list(LEXICON) + _pack_entries()
+    """Built-in lexicon plus slang packs plus feedback-learned entries."""
+    out = list(LEXICON) + _pack_entries()
+    try:
+        from .slang_feedback import learned_slang_entries
+
+        out.extend(learned_slang_entries())
+    except Exception:  # pragma: no cover - feedback optional at import time
+        pass
+    return out
 
 
 def lexicon_stats() -> dict:
     entries = all_entries()
     by_lang: dict = {}
     by_region: dict = {}
+    learned = 0
     for e in entries:
         by_lang[e.language] = by_lang.get(e.language, 0) + 1
         by_region[e.region] = by_region.get(e.region, 0) + 1
+        if e.register == "learned":
+            learned += 1
     return {
         "total": len(entries),
         "builtin": len(LEXICON),
         "from_packs": len(_pack_entries()),
+        "learned": learned,
         "languages": by_lang,
         "regions": by_region,
     }

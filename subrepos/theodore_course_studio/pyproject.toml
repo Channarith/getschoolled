@@ -17,10 +17,23 @@ dependencies = [
 pdf = ["pypdf>=4.2,<6"]
 pptx = ["python-pptx>=1.0,<2"]
 test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
-all = ["theodore-course-studio[pdf,pptx,test]"]
+# Server-rendered neural voices (edge-tts) so Khmer and every other language
+# speak even when the speech gateway is down. Without it the page falls back
+# to whatever voices the listener's OS installed (macOS has no Khmer voice).
+voices = ["edge-tts==7.2.8"]
+all = ["theodore-course-studio[pdf,pptx,test,voices]"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+theodore_course_studio = [
+  "avatar_static/*.js",
+  "avatar_static/*.glb",
+  "avatar_static/*.json",
+  "avatar_static/loaders/*.js",
+  "avatar_static/utils/*.js",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

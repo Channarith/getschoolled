@@ -1,0 +1,61 @@
+LESSON: CA Driver Ed — Speed & space cushion
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Basic Speed Law, following distance, and space management. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Basic Speed Law
+Never drive faster than is safe. California's Basic Speed Law requires a speed that is safe for conditions even below the posted limit.
+NARRATION: California's Basic Speed Law requires a speed that is safe for conditions even below the posted limit.
+
+SLIDE 2 | Residential 25 mph
+Expect 25 unless posted otherwise. Business and residential districts are often 25 mph unless signs say otherwise.
+NARRATION: Business and residential districts are often 25 mph unless signs say otherwise.
+
+SLIDE 3 | School zone speeds
+Slow when children are present. School zones often reduce speed when children are present or lights flash.
+NARRATION: School zones often reduce speed when children are present or lights flash.
+
+SLIDE 4 | Three-second rule
+Pick a marker and count three seconds. When the vehicle ahead passes a marker, you should not reach it before counting three seconds.
+NARRATION: When the vehicle ahead passes a marker, you should not reach it before counting three seconds.
+
+SLIDE 5 | Add time in bad conditions
+Rain, fog, and night need more gap. Increase following distance in rain, fog, night, heavy traffic, and behind large vehicles.
+NARRATION: Increase following distance in rain, fog, night, heavy traffic, and behind large vehicles.
+
+SLIDE 6 | Space beside you
+Avoid lingering in others' blind spots. Do not cruise beside other vehicles — pass promptly or drop back.
+NARRATION: Do not cruise beside other vehicles — pass promptly or drop back.
+
+SLIDE 7 | Space behind you
+If tailgated, create room ahead and change lanes. When someone is too close behind, increase your forward gap and move over when safe.
+NARRATION: When someone is too close behind, increase your forward gap and move over when safe.
+
+SLIDE 8 | Stopping distance factors
+Speed, tires, brakes, and road all matter. Stopping distance grows with speed and shrinks with good tires and dry pavement.
+NARRATION: Stopping distance grows with speed and shrinks with good tires and dry pavement.
+
+SLIDE 9 | Cover the brake
+Hover your foot when hazards appear. Covering the brake cuts reaction time when you see potential hazards ahead.
+NARRATION: Covering the brake cuts reaction time when you see potential hazards ahead.
+
+SLIDE 10 | Speed on ramps
+Match freeway flow before merging. Use the ramp to accelerate to near freeway speed so merging is smoother and safer.
+NARRATION: Use the ramp to accelerate to near freeway speed so merging is smoother and safer.
+
+SLIDE 11 | Slow vehicle pullouts
+Use turnouts so others can pass. On two-lane roads, use turnouts when five or more vehicles are backed up behind you.
+NARRATION: On two-lane roads, use turnouts when five or more vehicles are backed up behind you.
+
+SLIDE 12 | Minimum speed sense
+Too slow can also be unsafe. Driving far below traffic speed without cause can create hazards — keep with the flow when safe and legal.
+NARRATION: Driving far below traffic speed without cause can create hazards — keep with the flow when safe and legal.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

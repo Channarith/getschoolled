@@ -487,6 +487,42 @@ export type SustainedQualityState = {
   lastVerdict: LightingVerdict | null;
 };
 
+/**
+ * In-class quality probe from a captured JPEG base64 string.
+ * Mobile cannot pixel-decode JPEG without a native module; use base64 length
+ * as a proxy for capture success (very short = blank/failed frame).
+ */
+export function analyzePhotoBase64(
+  base64: string,
+  _nightVision: boolean,
+): LightingReadiness {
+  const byteEstimate = base64.length * 0.75;
+  const captured = byteEstimate > 1000;
+  const meanLuminance = captured ? 0.45 : 0.0;
+  const sharpnessScore = captured ? 0.5 : 0.0;
+  const metrics: LightingMetrics = {
+    meanLuminance,
+    underexposedRatio: 0,
+    overexposedRatio: 0,
+    edgeDensity: sharpnessScore,
+    sharpnessScore,
+    lightQualityScore: captured ? 0.7 : 0,
+    underexposed: false,
+    overexposed: false,
+    blurry: !captured,
+    lowEdgeDetail: false,
+    flags: captured ? [] : ["blank_frame"],
+  };
+  return {
+    verdict: captured ? "ready" : "blocked_blurry",
+    metrics,
+    facePresent: captured,
+    nightVision: false,
+    message: captured ? "" : "Blank frame — skipping",
+    tips: [],
+  };
+}
+
 export function tickSustainedQuality(
   state: SustainedQualityState,
   readiness: LightingReadiness,

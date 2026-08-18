@@ -10,6 +10,7 @@ import {
   listStudents, reengageLessonSession, recordAssessmentAttempt, recordAssessmentPass,
   setEnrollmentStatus, startAssessmentCheckpoint, startLessonSession,
   submitPostClassSurvey, submitPulseSurvey,
+  translateText,
   type AssessmentCheckpointSpec, type AssessmentRun, type AssessmentSubmitResult,
   type LessonAnswer, type LessonSessionView, type LessonSlide,
   type QuizGrade, type QuizItemView, type StudentProfile, type SurveyTemplate,
@@ -23,6 +24,7 @@ import {
 import AnimatedPressable from "../components/AnimatedPressable";
 import AssessmentCheckpointCard from "../components/AssessmentCheckpointCard";
 import CameraLightingScreener from "../components/CameraLightingScreener";
+import CourseStoryboardView from "../components/CourseStoryboardView";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import SurveySheet from "../components/SurveySheet";
@@ -64,11 +66,13 @@ export default function LessonScreen({
   const { account } = useAuth();
   const [view, setView] = useState<LessonSessionView | null>(null);
   const [slide, setSlide] = useState<LessonSlide | null>(null);
+  const [localizedSlide, setLocalizedSlide] = useState<LessonSlide | null>(null);
   const [loading, setLoading] = useState(false);
   const [lightingReady, setLightingReady] = useState(false);
   const [error, setError] = useState("");
   const [advancing, setAdvancing] = useState(false);
   const [atEnd, setAtEnd] = useState(false);
+  const [segmentBreak, setSegmentBreak] = useState<import("../api").SegmentBreak | null>(null);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
   const [answer, setAnswer] = useState<LessonAnswer | null>(null);
@@ -228,7 +232,8 @@ export default function LessonScreen({
     const s = slideRef.current;
     if (!s) return;
     Speech.stop();
-    const text = s.narration || s.body || s.title;
+    const localized = localizedSlide?.index === s.index ? localizedSlide : s;
+    const text = localized.narration || localized.body || localized.title;
     if (!text) return;
     setNarrating(true);
     void buildNarrationSpeakOptions(locale).then((base) => {
@@ -240,6 +245,43 @@ export default function LessonScreen({
       });
     });
   }
+
+  useEffect(() => {
+    let active = true;
+    if (!slide) {
+      setLocalizedSlide(null);
+      return () => { active = false; };
+    }
+    const source = slide.storyboard_source_language || view?.lesson.language || "en";
+    if (locale === source) {
+      setLocalizedSlide(slide);
+      return () => { active = false; };
+    }
+    setLocalizedSlide(null);
+    void Promise.all(
+      [slide.title, slide.body, slide.narration, slide.storyboard_concept || "",
+        ...(slide.storyboard_examples || []), slide.storyboard_activity || ""].map(
+        async (text) => {
+          if (!text) return "";
+          try { return (await translateText(text, source, locale)).text; }
+          catch { return text; }
+        },
+      ),
+    ).then((values) => {
+      if (!active) return;
+      const exampleCount = (slide.storyboard_examples || []).length;
+      setLocalizedSlide({
+        ...slide,
+        title: values[0],
+        body: values[1],
+        narration: values[2],
+        storyboard_concept: values[3],
+        storyboard_examples: values.slice(4, 4 + exampleCount),
+        storyboard_activity: values[4 + exampleCount] || "",
+      });
+    });
+    return () => { active = false; };
+  }, [slide?.index, slide?.storyboard_scene_id, locale]);
 
   async function tickLx(s: LessonSlide) {
     if (!view) return;
@@ -360,7 +402,7 @@ export default function LessonScreen({
   }
 
   async function next() {
-    if (!view || assessmentRun) return;
+    if (!view || assessmentRun || segmentBreak) return;
     stopNarration();
     // Mid-lesson interstitial for ad-supported tiers (best-effort; proceeds if
     // no ad is loaded). show() presents the full-screen AdMob ad on iOS/Android.
@@ -374,6 +416,10 @@ export default function LessonScreen({
       const s = await advanceLessonSession(view.session.session_id);
       const prevIdx = slideRef.current?.index ?? -1;
       if (s.index <= prevIdx) setAtEnd(true);
+      if (s.segment_break?.due) {
+        setSegmentBreak(s.segment_break);
+        stopNarration();
+      }
       setSlide(s);
       slideRef.current = s;
       void tickLx(s);
@@ -643,10 +689,47 @@ export default function LessonScreen({
             </Text>
           ) : null}
 
+          {segmentBreak ? (
+            <GlassPanel style={[styles.card, { borderColor: "#7c3aed" }]}>
+              <Text style={[styles.slideTitle, { color: "#c4b5fd" }]}>☕ Good stopping point</Text>
+              <Text style={styles.slideBody}>{segmentBreak.message}</Text>
+              <Text style={[styles.meta, { marginBottom: 14, color: "#a78bfa" }]}>
+                Segment {segmentBreak.segment} complete · {segmentBreak.slides_done} slides done
+                {segmentBreak.slides_remaining > 0
+                  ? ` · ~${segmentBreak.approx_minutes_remaining} min left`
+                  : ""}
+              </Text>
+              <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
+                <PrimaryButton
+                  label="Keep going →"
+                  onPress={() => setSegmentBreak(null)}
+                  variant="brand"
+                />
+                <PrimaryButton
+                  label="Take a break"
+                  onPress={() => {
+                    setSegmentBreak(null);
+                    void onFinish();
+                  }}
+                  variant="ghost"
+                />
+              </View>
+            </GlassPanel>
+          ) : null}
+
           {slide ? (
             <GlassPanel style={styles.card}>
-              <Text style={styles.slideTitle}>{slide.title}</Text>
-              <Text style={styles.slideBody}>{slide.body}</Text>
+              <Text style={styles.slideTitle}>{localizedSlide?.title || slide.title}</Text>
+              <CourseStoryboardView
+                svg={slide.storyboard_svg}
+                concept={slide.storyboard_concept}
+                translatedConcept={localizedSlide?.storyboard_concept}
+                examples={localizedSlide?.storyboard_examples || slide.storyboard_examples}
+                activity={localizedSlide?.storyboard_activity || slide.storyboard_activity}
+                profileMode={slide.storyboard_profile_mode}
+                sourceLanguage={slide.storyboard_source_language}
+              />
+              <Text style={styles.slideBody}>{localizedSlide?.body || slide.body}</Text>
               <View style={styles.slideActions}>
                 <PrimaryButton
                   label={narrating ? t("lesson.stopNarration") : t("lesson.narrate")}
@@ -660,7 +743,7 @@ export default function LessonScreen({
                     label={t("lesson.next")}
                     onPress={() => void next()}
                     loading={advancing}
-                    disabled={advancing}
+                    disabled={advancing || Boolean(segmentBreak)}
                     variant="netflix"
                   />
                 ) : (

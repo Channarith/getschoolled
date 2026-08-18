@@ -27,6 +27,40 @@ questions, but it does not rewrite the curated child narration into harder text.
 Adult PDF/PPTX corpus generation is still available under the collapsed
 "Advanced: build from adult Good/Better source files" panel.
 
+THEODORE 3D AVATAR TEACHER
+--------------------------
+The teach stage now includes Theodore as an adult, translucent Salareen
+hologram teacher. The original GLB and the pinned Three.js 0.169.0 runtime are
+served locally from /api/studio/avatar; the page never loads avatar code or art
+from a CDN. The committed model includes a full major-joint hierarchy (spine,
+neck, head, shoulders, elbows, wrists, fingers, hips, knees, ankles and feet),
+eye/brow/jaw/ear/crown controls, and mouth-open / mouth-wide blendshapes.
+
+Theodore breathes, shifts weight, blinks, looks between the learner and lesson,
+speaks with text-derived visemes, and blends gestures instead of freezing
+between lines. Server TTS audio duration and browser speech boundary events keep
+the mouth timeline synchronized. Next, Ask Theodore, quizzes, games,
+checkpoints and interrupted audio reset the face/body state.
+
+Every one of the 32 Driver's Ed screens and all 30 Food Handler Safety screens
+has a curated cue sequence. Driver gestures cover stop/yield, following
+distance, shoulder checks, seat belts, phone-away, steering and road hazards.
+Food gestures cover 20-second handwashing, gloves, thermometers, sanitizing,
+temperature comparisons, allergens and inspection response. Other courses use
+the same deterministic offline director to infer safe explain, point, count,
+compare, ask and transition cues.
+
+Controls beside the teach stage turn the avatar on/off, adjust motion intensity,
+and force reduced motion. prefers-reduced-motion is honored automatically. If
+WebGL or the model cannot load, the same state machine drives an accessible
+static Theodore silhouette, while all lesson text, audio and controls continue
+to work.
+
+To rebuild the committed offline assets after changing avatar source:
+  cd subrepos/theodore_course_studio/avatar
+  npm install
+  npm run build
+
 TEACHING IN OTHER LANGUAGES
 ---------------------------
 Choosing a language changes the WORDS, not just the voice. Sending English text
@@ -61,6 +95,10 @@ Screens
 docs/screens/theodore_course_studio.webp
   (also copied under this subrepo at docs/screens/theodore_course_studio.webp)
   Early-learning Make & teach panel, teach stage, corpus review, studio tuning.
+docs/screens/theodore_avatar_driver_ed.png
+  Fresh Driver's Ed teach-stage capture with the local 3D Theodore hologram.
+docs/demos/theodore_avatar_driver_ed_demo.gif
+  Short walkthrough of Theodore moving through three Driver's Ed lesson beats.
 
 Regenerate after UI changes:
   python3 scripts/render_lab_docs_screenshots.py

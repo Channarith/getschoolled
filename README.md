@@ -151,6 +151,11 @@ plus the escaped-injection security check):
 
 Full-quality video: [docs/demos/theodore_webcam_live_monitor_demo.mp4](docs/demos/theodore_webcam_live_monitor_demo.mp4)
 
+Theodore 3D Avatar Teacher — local rigged GLB presenting the Driver's Ed cue
+sequence with hologram body, facial motion, visemes, gaze and joint gestures:
+
+![Theodore 3D Avatar Teacher walkthrough](docs/demos/theodore_avatar_driver_ed_demo.gif)
+
 ### More recorded flows (animated)
 
 | Live AI class | Drive Mode audio | Netflix catalog | Learning arcade |
@@ -167,6 +172,21 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | Signed-out landing | Profile dropdown | Live class answer | Solo (1:1) live room | Themes |
 | --- | --- | --- | --- | --- |
 | <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/solo_live_room.webp" alt="Solo 1:1 Salareen live room — AI host slide tile plus one learner, chat and Q&A" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
+
+Multimodal course storyboards cover all 115 corporate + solo lessons (6,440
+parsed teaching slides) on web and mobile. Every slide has an animated scene,
+domain background, characters/objects, examples, an activity, captions, and
+neural/device narration; overlays route through the 27-language translation
+stack and adapt for visual, auditory, reading, hands-on, or mixed profiles.
+Hand-authored DMV/food scenes remain the curated tier; the semantic builder
+covers the rest. **Exception:** audio courses and Drive Mode (while-driving)
+courses stay audio-only — no pictures or animations — since they are consumed
+hands-free and eyes-free. This is about consumption mode, not subject: seated
+driver's-ed *study* courses keep their full animated scenes.
+
+| Corporate AI | Solo algebra | DMV school bus | Food handwashing |
+| --- | --- | --- | --- |
+| <img src="docs/screens/storyboard_corporate_ai.png" alt="Animated corporate AI prompt-design storyboard with office background, characters, laptop, and charts" /> | <img src="docs/screens/storyboard_solo_algebra.png" alt="Animated solo algebra storyboard with classroom background, characters, chart, and document" /> | <img src="docs/screens/storyboard_dmv_school_bus.png" alt="Animated storyboard: California school bus stop law with bus, car, pedestrian, and school-zone sign" /> | <img src="docs/screens/storyboard_food_handwash.png" alt="Animated storyboard: food-handler handwashing at a prep station with sink, soap, and raw vs ready-to-eat zones" /> |
 
 | Salareen mobile — Android home | Drive Mode (mockup) |
 | --- | --- |
@@ -204,11 +224,30 @@ Documentation screenshots for every Theodore subrepo (regenerate with
 
 | Course Studio | Audio Translation |
 | --- | --- |
-| <img src="docs/screens/theodore_course_studio.webp" alt="Theodore Course Studio Make and teach with multimodal cert kits examples quiz and games" /> | <img src="docs/screens/theodore_audio_translation_lab.webp" alt="Theodore Audio Translation Lab capture panel and live multilingual feed with Theodore replies" /> |
+| <img src="docs/screens/theodore_avatar_driver_ed.png" alt="Theodore Course Studio Driver's Ed lesson with the full-body translucent Salareen 3D avatar teacher beside the lesson media" /> | <img src="docs/screens/theodore_audio_translation_lab.webp" alt="Theodore Audio Translation Lab capture panel and live multilingual feed with Theodore replies" /> |
 
 | Webcam overview (owner lock) | RAG auto-tune |
 | --- | --- |
 | <img src="docs/screens/theodore_webcam_lab_overview.webp" alt="Theodore Webcam Lab overview with owner face lock multi-face and integrity metrics" /> | <img src="docs/screens/theodore_rag_lab.webp" alt="Theodore RAG Lab live tuning knobs and bakeoff console" /> |
+
+Course Studio presenters (chibi canon, 2.75 heads tall, gendered pair swapped by
+the voice picker). Rebuild the models with
+`node subrepos/theodore_course_studio/avatar/build_avatar.mjs`, verify proportions
+with `inspect_avatar.mjs`, and regenerate these renders with
+`node subrepos/theodore_course_studio/avatar/render_avatar.mjs docs/screens`:
+
+| Theodora (stage / face / profile) | Theodore (stage / face / profile) |
+| --- | --- |
+| <img src="docs/screens/presenter_female_stage.png" alt="Theodora presenter, full body, chibi proportions with round head, crown and Salareen medallion" width="180" /> <img src="docs/screens/presenter_female_face.png" alt="Theodora presenter face close-up with large eyes and resting smile" width="180" /> <img src="docs/screens/presenter_female_side.png" alt="Theodora presenter profile showing the forward teaching lean" width="180" /> | <img src="docs/screens/presenter_male_stage.png" alt="Theodore presenter, full body, chibi proportions with broader shoulders" width="180" /> <img src="docs/screens/presenter_male_face.png" alt="Theodore presenter face close-up with large eyes and resting smile" width="180" /> <img src="docs/screens/presenter_male_side.png" alt="Theodore presenter profile showing the forward teaching lean" width="180" /> |
+
+For a higher-fidelity presenter, the runtime is rig-agnostic: drop in an artist-
+or Meshy-generated GLB built to `subrepos/theodore_course_studio/avatar/avatar_rig_config_v2.json`
+(Serenity V2 rig) as `custom_female.glb` / `custom_male.glb` in
+`avatar_static/`. `avatar_rig.js` maps its bones/blendshapes into our teach cues
+and applies the hologram material; the backend `GET /api/studio/presenter/manifest`
+prefers it over the procedural model. Validate any GLB offline with
+`node subrepos/theodore_course_studio/avatar/validate_rig.mjs <model.glb>`; see
+`avatar/AVATAR_IMPORT.txt` for the generation prompt and drop-in steps.
 
 Each lab keeps a copy under `subrepos/<lab>/docs/screens/` and a numbered
 **STEP BY STEP** walkthrough in its `README.txt` (webcam also has the
@@ -581,7 +620,7 @@ transcript all run without it.
 | `subrepos/theodore_rag_lab` | Private RAG auto-tune / bakeoff (browser console `:8095/`) |
 | `subrepos/theodore_drive_lab` | Private Drive Mode fine-tune (browser console `:8096/`) |
 | `subrepos/theodore_homework_lab` | Private homework lab, 75 methodologies (browser UI `:8098/`) |
-| `subrepos/theodore_music_lab` | Learn-through-music lab (featured player `:8097/`) |
+| `subrepos/theodore_music_lab` | Learn-through-music lab (featured player `:8097/`; curated lyric translations in all 26+ langs) |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |
 | `packages/sdk` | Installable Python SDK for safely extending AOEP (`AOEPClient.local()`, in-process APIs) |
 | `services/orchestrator` | Teaching Director, sessions, Tutor Q&A, HIL, assessment |
