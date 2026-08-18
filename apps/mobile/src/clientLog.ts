@@ -25,8 +25,10 @@ function push(line: string) {
   if (buffer.length > MAX_LINES) buffer.splice(0, buffer.length - MAX_LINES);
 }
 
-function safeRequestLabel(input: RequestInfo): string {
-  const raw = typeof input === "string" ? input : input.url;
+function safeRequestLabel(input: Parameters<typeof fetch>[0]): string {
+  const raw = typeof input === "string" ? input
+    : input instanceof URL ? input.href
+    : input.url;
   try {
     const parsed = new URL(raw);
     return `${parsed.origin}${parsed.pathname}`;
@@ -65,13 +67,13 @@ export function installClientLog(): void {
   const host = globalThis as FetchHost;
   const originalFetch = host.fetch?.bind(globalThis);
   if (originalFetch) {
-    host.fetch = async (input: RequestInfo, init?: RequestInit) => {
+    host.fetch = async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
       const started = Date.now();
       const method = (init?.method || (typeof Request !== "undefined" && input instanceof Request
         ? input.method : "GET")).toUpperCase();
       const label = safeRequestLabel(input);
       try {
-        const response = await originalFetch(input, init);
+        const response = await originalFetch(input as RequestInfo, init);
         push(`api ${method} ${label} -> ${response.status} ${Date.now() - started}ms`);
         return response;
       } catch (error) {

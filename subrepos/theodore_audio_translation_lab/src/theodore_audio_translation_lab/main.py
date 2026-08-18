@@ -2,6 +2,17 @@
 
 from __future__ import annotations
 
+
+# Load config/local.env so XAI_API_KEY / ELEVENLABS_API_KEY / SPEECH_BASE_URL
+# work without a manual `set -a; . config/local.env` in every shell.
+try:
+    from aoep_shared.env_bootstrap import ensure_lab_env
+
+    ensure_lab_env()
+except Exception:  # noqa: BLE001 — labs must still boot offline / without shared
+    pass
+
+
 from typing import Annotated, Any
 
 from fastapi import (
@@ -53,6 +64,13 @@ asr = ASREngine()
 @app.get("/health")
 def health() -> dict[str, Any]:
     status = provider_status()
+    readiness: dict[str, Any] = {}
+    try:
+        from aoep_shared.env_bootstrap import speech_readiness
+
+        readiness = speech_readiness()
+    except Exception:  # noqa: BLE001
+        pass
     return {
         "service": "theodore-audio-translation-lab",
         "status": "ok",
@@ -60,6 +78,8 @@ def health() -> dict[str, Any]:
         "language_source": SOURCE,
         "providers": status.model_dump(mode="json"),
         "privacy": "ephemeral audio; raw microphone chunks are not persisted",
+        "speech": tts_module.tts_status(),
+        **readiness,
     }
 
 
@@ -116,7 +136,7 @@ def speak(text: str = "", language: str = "en", style: str = "warm") -> Response
         audio, mime, engine = tts_module.synthesize(text, language=language, style=style)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except ProviderUnavailable as exc:
+    except tts_module.ProviderUnavailable as exc:
         raise HTTPException(status_code=501, detail=str(exc)) from exc
     return Response(
         content=audio,

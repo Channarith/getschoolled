@@ -1,12 +1,14 @@
 """Hand-authored translations for YouTube embed verses and question prompts.
 
-Same five curated languages as lyric lines (es/fr/de/it/pt). Lookup is by the
-English source text after ``normalize``, so verse and question strings share
-one dictionary.
+Same curated languages as lyric lines: es/fr/de/it/pt here, plus the Simplified
+Chinese and Khmer pack in ``curated_embeds_zh_km.py``. Lookup is by the English
+source text after ``normalize``, so verse and question strings share one
+dictionary.
 """
 
 from __future__ import annotations
 
+from .curated_embeds_zh_km import CURATED_EMBEDS_ZH_KM
 from .curated_lines import CURATED_LANGUAGES, normalize
 
 CURATED_EMBEDS: dict[str, dict[str, str]] = {
@@ -536,6 +538,11 @@ CURATED_EMBEDS: dict[str, dict[str, str]] = {
         "pt": "Primeiro assista pelo significado, depois estude a língua, depois fale. A repetição torna o inglês usável.",
     },
 }
+
+# Keep the Unicode packs isolated and merge them into the same tier-1 lookup the
+# verse list, pause card, spoken line and Ask AI all read from.
+for _text, _translations in CURATED_EMBEDS_ZH_KM.items():
+    CURATED_EMBEDS.setdefault(_text, {}).update(_translations)
 
 
 _INDEX: dict[str, dict[str, str]] | None = None

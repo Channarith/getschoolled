@@ -10,3 +10,28 @@
 {"text": "plants convert sunlight into energy", "expect_wake": false, "expect_kind": "none", "last_tts": "Plants convert sunlight into energy through photosynthesis.", "expect_echo": true}
 {"text": "I need coffee", "expect_wake": false, "expect_kind": "none", "last_tts": "Plants convert sunlight into energy.", "expect_echo": false}
 {"text": "hey sala how do fractions work", "expect_wake": true, "expect_kind": "question"}
+{"text": "hey sala pausa", "expect_wake": true, "expect_kind": "pause", "language": "es"}
+{"text": "hey sala anhalten", "expect_wake": true, "expect_kind": "pause", "language": "de"}
+{"text": "hey sala siguiente", "expect_wake": true, "expect_kind": "next", "language": "es"}
+{"text": "hey sala suivant", "expect_wake": true, "expect_kind": "next", "language": "fr"}
+{"text": "hey sala 下一个", "expect_wake": true, "expect_kind": "next", "language": "zh"}
+{"text": "hey sala 次", "expect_wake": true, "expect_kind": "next", "language": "ja"}
+{"text": "hey sala 다음", "expect_wake": true, "expect_kind": "next", "language": "ko"}
+{"text": "hey sala tiếp", "expect_wake": true, "expect_kind": "next", "language": "vi"}
+{"text": "hey sala หยุด", "expect_wake": true, "expect_kind": "pause", "language": "th"}
+{"text": "hey sala jeda", "expect_wake": true, "expect_kind": "pause", "language": "id"}
+{"text": "hey sala simama", "expect_wake": true, "expect_kind": "pause", "language": "sw"}
+{"text": "hey sala पाउज़", "expect_wake": true, "expect_kind": "pause", "language": "hi"}
+{"text": "hey sala توقف", "expect_wake": true, "expect_kind": "pause", "language": "ar"}
+{"text": "hey sala пауза", "expect_wake": true, "expect_kind": "pause", "language": "ru"}
+{"text": "hey sala pozastavit", "expect_wake": true, "expect_kind": "pause", "language": "cs"}
+{"text": "hey sala παύση", "expect_wake": true, "expect_kind": "pause", "language": "el"}
+{"text": "hey sala ផ្អាក", "expect_wake": true, "expect_kind": "pause", "language": "km"}
+{"text": "hey sala herhaal", "expect_wake": true, "expect_kind": "repeat", "language": "nl"}
+{"text": "hey sala powtórz", "expect_wake": true, "expect_kind": "repeat", "language": "pl"}
+{"text": "hey sala tekrar", "expect_wake": true, "expect_kind": "repeat", "language": "tr"}
+{"text": "hey sala חזור", "expect_wake": true, "expect_kind": "repeat", "language": "he"}
+{"text": "hey sala আবার", "expect_wake": true, "expect_kind": "repeat", "language": "bn"}
+{"text": "hey sala دہراؤ", "expect_wake": true, "expect_kind": "repeat", "language": "ur"}
+{"text": "hey sala تکرار", "expect_wake": true, "expect_kind": "repeat", "language": "fa"}
+{"text": "hey sala попередній", "expect_wake": true, "expect_kind": "previous", "language": "uk"}

@@ -3476,6 +3476,73 @@ export async function enrollEmbedding(
   );
 }
 
+// -------------------------------------------------------------------------- //
+// Voice-name enrollment (settings face + voice ID check)
+// -------------------------------------------------------------------------- //
+
+export type VoiceEnrollmentStatus = {
+  student_id: string;
+  voice_enrolled: boolean;
+  voice_enrolled_at: number | null;
+  voice_name_text: string;
+  voice_name_sample_mime: string;
+  has_sample: boolean;
+};
+
+export type VoiceEnrollResponse = {
+  student_id: string;
+  voice_enrolled: boolean;
+  voice_enrolled_at: number;
+  voice_name_text: string;
+  voice_name_sample_mime: string;
+};
+
+/**
+ * Upload a voice-name audio sample for a student profile.
+ * @param studentId  Profile id (from listStudents / getStudent)
+ * @param audioBlob  Raw audio blob from MediaRecorder (WebM/WAV/MP3)
+ * @param nameText   The name the student said (typed or transcribed)
+ */
+export async function enrollVoiceSample(
+  studentId: string,
+  audioBlob: Blob,
+  nameText: string
+): Promise<VoiceEnrollResponse> {
+  // Convert Blob → base64 without atob/btoa size limits.
+  const arrayBuf = await audioBlob.arrayBuffer();
+  const uint8 = new Uint8Array(arrayBuf);
+  let binary = "";
+  for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+  const b64 = btoa(binary);
+
+  return jsonOrThrow(
+    await fetch(
+      `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/voice-enrollment`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          voice_name_sample_b64: b64,
+          voice_name_sample_mime: audioBlob.type || "audio/webm",
+          voice_name_text: nameText,
+        }),
+      }
+    )
+  );
+}
+
+/** Get voice enrollment status for a student (without the audio blob). */
+export async function getVoiceEnrollmentStatus(
+  studentId: string
+): Promise<VoiceEnrollmentStatus> {
+  return jsonOrThrow(
+    await fetch(
+      `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/voice-enrollment`,
+      { headers: authHeaders(), cache: "no-store" }
+    )
+  );
+}
+
 export async function ask(sessionId: string, text: string, language = "en"): Promise<Answer> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/ask`, {

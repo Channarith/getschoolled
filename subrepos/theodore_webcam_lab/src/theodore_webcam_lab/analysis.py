@@ -5,6 +5,15 @@ import threading
 from dataclasses import dataclass, fields as dc_fields
 
 from .advanced_behavior import AdvancedBehaviorEngine
+from .attention_formula import (
+    DEFAULT_ATTENTION_FORMULA,
+    AttentionFormulaTuning,
+    active_gaze_channels,
+    blocking_camera_quality_flags,
+    derive_directional_gaze,
+    evaluate_attention_formula,
+    is_pitch_dark,
+)
 from .audio_quality import estimate_noise_filter_effectiveness
 from .distance import resolve_distance
 from .facial_experience import estimate_from_luminance_grid
@@ -127,6 +136,9 @@ class _ParticipantState:
     music_last_seen_ms: int | None = None
     held_object_started_ms: int | None = None
     held_object_last_seen_ms: int | None = None
+    # Any of gaze_down/up/left/right active (attention formula hold).
+    gaze_direction_started_ms: int | None = None
+    quality_blocking_started_ms: int | None = None
 
 
 class WebcamSessionAnalyzer:
@@ -136,9 +148,11 @@ class WebcamSessionAnalyzer:
         self,
         policy: AnalyzerPolicy | None = None,
         tuning: VisionTuning | None = None,
+        attention_formula: AttentionFormulaTuning | None = None,
     ) -> None:
         self._policy = policy or AnalyzerPolicy()
         self._tuning = tuning or VisionTuning()
+        self._attention_formula = attention_formula or DEFAULT_ATTENTION_FORMULA
         self._lock = threading.RLock()
         self._state: dict[str, dict[str, _ParticipantState]] = {}
         self._no_presence_started_ms: dict[str, int | None] = {}
@@ -146,6 +160,15 @@ class WebcamSessionAnalyzer:
         self._original_participant_id: dict[str, str] = {}
         self._booted_participants: dict[str, set[str]] = {}
         self._behavior_engine = AdvancedBehaviorEngine()
+
+    @property
+    def attention_formula(self) -> AttentionFormulaTuning:
+        return self._attention_formula
+
+    @attention_formula.setter
+    def attention_formula(self, value: AttentionFormulaTuning) -> None:
+        value.validate()
+        self._attention_formula = value
 
     @property
     def tuning(self) -> VisionTuning:
@@ -441,6 +464,37 @@ class WebcamSessionAnalyzer:
                     signal=signal,
                 )
             )
+
+        # Course-continue gates (after per-participant scoring). Priority:
+        # away / identity → camera quality / pitch dark → too far → attention formula.
+        if not training_paused:
+            if any(p.pitch_dark and p.camera_quality_blocking for p in evaluations):
+                training_paused = True
+                pause_reason = "pitch_dark_needs_light"
+                class_alerts.append("training_paused:pitch_dark_needs_light")
+            elif any(p.camera_quality_blocking for p in evaluations):
+                training_paused = True
+                pause_reason = "camera_quality"
+                class_alerts.append("training_paused:camera_quality")
+            elif any(p.too_far_for_class for p in evaluations):
+                training_paused = True
+                pause_reason = "too_far_from_camera"
+                class_alerts.append("training_paused:too_far_from_camera")
+            elif any(p.attention_formula_triggered for p in evaluations):
+                training_paused = True
+                pause_reason = "attention_integrity"
+                class_alerts.append("training_paused:attention_integrity")
+
+        # Auto-boot candidates: sustained unusable camera (solo).
+        for participant in evaluations:
+            if (
+                mode is ClassMode.SOLO
+                and "camera_quality_boot_candidate:" + participant.participant_id
+                in participant.alerts
+            ):
+                class_alerts.append(
+                    f"recommend_remove_participant:{participant.participant_id}:camera_quality"
+                )
 
         absent_participant_ids = sorted(
             e.participant_id for e in evaluations if e.state is PresenceState.ABSENT
@@ -1242,6 +1296,58 @@ class WebcamSessionAnalyzer:
         distance_source = distance_est.source
         if face_size_ratio is None and distance_est.face_size_ratio is not None:
             face_size_ratio = distance_est.face_size_ratio
+
+        # --- Distance × gaze × residual attention formula --------------------
+        residual_deg = (
+            float(signal.stare_residual_deg)
+            if signal.stare_residual_deg is not None
+            else None
+        )
+        derived_gaze = derive_directional_gaze(
+            gaze_down_score=gaze_down_score,
+            gaze_frontal=gaze_frontal,
+            head_pose_pitch=signal.head_pose_pitch,
+            head_pose_yaw=signal.head_pose_yaw,
+            residual_deg=residual_deg,
+        )
+        if signal.gaze_up_score is not None:
+            derived_gaze["gaze_up"] = float(signal.gaze_up_score)
+        if signal.gaze_left_score is not None:
+            derived_gaze["gaze_left"] = float(signal.gaze_left_score)
+        if signal.gaze_right_score is not None:
+            derived_gaze["gaze_right"] = float(signal.gaze_right_score)
+        formula_channels = active_gaze_channels(
+            gaze_down=derived_gaze["gaze_down"],
+            gaze_up=derived_gaze["gaze_up"],
+            gaze_left=derived_gaze["gaze_left"],
+            gaze_right=derived_gaze["gaze_right"],
+            active_min=self._attention_formula.gaze_active_min,
+        )
+        if has_live_face and formula_channels:
+            if participant_state.gaze_direction_started_ms is None:
+                participant_state.gaze_direction_started_ms = signal.timestamp_ms
+        else:
+            participant_state.gaze_direction_started_ms = None
+        gaze_direction_for_ms = 0
+        if participant_state.gaze_direction_started_ms is not None:
+            gaze_direction_for_ms = max(
+                0, signal.timestamp_ms - participant_state.gaze_direction_started_ms
+            )
+        attention_result = evaluate_attention_formula(
+            distance_m=distance_from_camera_m if has_live_face else None,
+            residual_deg=residual_deg,
+            gaze_away_for_ms=gaze_direction_for_ms,
+            gaze_channels=formula_channels,
+            tuning=self._attention_formula,
+        )
+        attention_formula_triggered = bool(attention_result.inattentive_or_cheating)
+        too_far_for_class = bool(attention_result.too_far and has_live_face)
+        if attention_formula_triggered:
+            suspected_cheating = True
+            cheating_reasons.extend(attention_result.reasons)
+        if too_far_for_class:
+            cheating_reasons.append("too_far_for_class")
+
         light_quality_score = (
             signal.light_quality_score
             if signal.light_quality_score is not None
@@ -1350,7 +1456,13 @@ class WebcamSessionAnalyzer:
         if mode is ClassMode.SOLO and face_count > self._policy.solo_max_faces:
             alerts.append(f"solo_mode_multiple_faces:{signal.participant_id}")
         if owner_mismatch:
-            alerts.append(f"owner_face_mismatch:{signal.participant_id}")
+            face_id = (signal.owner_face_name or "").strip()
+            if face_id:
+                alerts.append(
+                    f"owner_face_mismatch:{signal.participant_id}:{face_id}"
+                )
+            else:
+                alerts.append(f"owner_face_mismatch:{signal.participant_id}")
         if secondary_faces > 0:
             alerts.append(
                 f"secondary_faces:{signal.participant_id}:{secondary_faces}"
@@ -1443,6 +1555,40 @@ class WebcamSessionAnalyzer:
         if signal.audio_snr_db is not None and signal.audio_snr_db < tuning.audio_min_snr_db:
             quality_flags.append("low_audio_snr")
 
+        blocking_flags = blocking_camera_quality_flags(quality_flags)
+        pitch_dark = is_pitch_dark(
+            mean_luminance=mean_luminance,
+            underexposed_ratio=underexposed_ratio,
+            tuning=self._attention_formula,
+        )
+        if pitch_dark and "lighting_pitch_dark" not in quality_flags:
+            quality_flags.append("lighting_pitch_dark")
+            blocking_flags = blocking_camera_quality_flags(
+                list(blocking_flags) + ["lighting_underexposed"]
+            )
+        camera_quality_blocking = bool(blocking_flags)
+        if camera_quality_blocking or pitch_dark:
+            if participant_state.quality_blocking_started_ms is None:
+                participant_state.quality_blocking_started_ms = signal.timestamp_ms
+        else:
+            participant_state.quality_blocking_started_ms = None
+        quality_blocking_for_ms = 0
+        if participant_state.quality_blocking_started_ms is not None:
+            quality_blocking_for_ms = max(
+                0, signal.timestamp_ms - participant_state.quality_blocking_started_ms
+            )
+        quality_pause_ready = (
+            quality_blocking_for_ms >= self._attention_formula.quality_pause_hold_ms
+        )
+        if quality_pause_ready:
+            alerts.append(f"camera_quality_blocking:{signal.participant_id}")
+        if (
+            quality_blocking_for_ms >= self._attention_formula.quality_boot_hold_ms
+        ):
+            alerts.append(f"camera_quality_boot_candidate:{signal.participant_id}")
+            if pitch_dark:
+                alerts.append(f"pitch_dark_needs_light:{signal.participant_id}")
+
         # Recognition confidence blends the visual gates that actually govern whether
         # a frame is usable, then penalises each failed gate.
         confidence_parts = [image_detection_quality_score, light_quality_score]
@@ -1508,6 +1654,17 @@ class WebcamSessionAnalyzer:
             attention_score=attention_score,
             distraction_score=distraction_score,
             inattentive_for_ms=inattentive_for_ms,
+            stare_residual_deg=residual_deg,
+            gaze_up_score=derived_gaze["gaze_up"] or None,
+            gaze_left_score=derived_gaze["gaze_left"] or None,
+            gaze_right_score=derived_gaze["gaze_right"] or None,
+            gaze_down_score=derived_gaze["gaze_down"] or None,
+            attention_band_m=attention_result.band_center_m,
+            attention_residual_floor_deg=attention_result.min_residual_deg,
+            attention_formula_triggered=attention_formula_triggered,
+            too_far_for_class=too_far_for_class,
+            camera_quality_blocking=quality_pause_ready,
+            pitch_dark=pitch_dark,
             behavior_label=behavior_label,
             advanced_behavior=advanced.as_dict(),
             phone_visible=phone_visible,

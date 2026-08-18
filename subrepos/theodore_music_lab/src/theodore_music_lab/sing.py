@@ -124,13 +124,26 @@ def sing_plan(
     rows = {row["line_no"]: row for row in timings["lines"]}
     translation = translate_song(song, lang, allow_llm=allow_llm)
 
+    # A translated line may be longer than the English it replaces, and measured
+    # timings end a line when the singing stops. The voice can keep going through
+    # the instrumental rest, so a line's window runs up to the next line's start.
+    ordered = sorted(timings["lines"], key=lambda r: float(r["start"]))
+    next_start = {
+        ordered[i]["line_no"]: float(ordered[i + 1]["start"])
+        for i in range(len(ordered) - 1)
+    }
+    track_end = float(timings["duration_sec"])
+
     lines: list[dict[str, Any]] = []
     crowded = 0
     for row in translation["lines"]:
         window = rows.get(row["line_no"])
         if not window:
             continue
-        seconds = max(0.0, float(window["end"]) - float(window["start"]))
+        window_end = max(
+            float(window["end"]), next_start.get(row["line_no"], track_end)
+        )
+        seconds = max(0.0, window_end - float(window["start"]))
         text = (row["translation"] or row["text"]).strip()
         spoken = speakable(text) or row["text"].strip()
         rate = speech_rate(spoken, seconds, lang)
@@ -145,7 +158,8 @@ def sing_plan(
                 "line_no": row["line_no"],
                 "section": row.get("section", ""),
                 "start": round(float(window["start"]), 3),
-                "end": round(float(window["end"]), 3),
+                "end": round(window_end, 3),
+                "sung_end": round(float(window["end"]), 3),
                 "seconds": round(seconds, 3),
                 "text": row["text"],
                 "sing": text,
