@@ -67,7 +67,7 @@
         "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "0.46.77"
+      "buildNumber": "0.46.76"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -85,7 +85,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 4677
+      "versionCode": 4676
     },
     "extra": {
       "deployMode": "cloud",

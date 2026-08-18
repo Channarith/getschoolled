@@ -148,7 +148,7 @@ def test_resetup_cannot_disable_active_2fa_without_a_code():
     ).status_code == 200
 
     denied = client.post("/auth/2fa/setup", json={}, headers=_auth(tok))
-    assert denied.status_code == 400, "re-provisioning must require a current code"
+    assert denied.status_code == 409, "re-provisioning must require a current code"
 
     login = client.post("/auth/login", json={"email": email, "password": "Sup3rSecret!23"})
     assert login.json().get("requires_2fa") is True, "2FA must still be enforced"

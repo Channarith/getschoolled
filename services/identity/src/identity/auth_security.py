@@ -392,11 +392,15 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         return {"reset": True}
 
     @app.post("/auth/2fa/setup")
-    def setup_2fa(req: Setup2faRequest, acct=Depends(current_account)) -> dict:
+    def setup_2fa(
+        acct=Depends(current_account),
+        req: Setup2faRequest | None = None,
+    ) -> dict:
+        body = req or Setup2faRequest()
         if acct.totp_enabled:
-            if not req.code or not verify_totp(acct.totp_secret, req.code):
+            if not body.code or not verify_totp(acct.totp_secret, body.code):
                 raise HTTPException(
-                    status_code=400,
+                    status_code=409,
                     detail="current 2FA code required to re-provision authenticator",
                 )
         secret = generate_totp_secret()
