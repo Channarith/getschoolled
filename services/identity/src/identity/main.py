@@ -615,6 +615,7 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
                 detail=ACCREDITATION_VERIFIED_PASS_DETAIL,
                 headers={"X-AOEP-Gate": reason},
             )
+        final_score = req.score
         if req.pass_decision_token:
             claims = verify_token(req.pass_decision_token, _assessment_signing_key())
             if not claims or claims.get("kind") != "assessment_pass":
@@ -627,15 +628,19 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
             if token_course and token_course != course_id:
                 raise HTTPException(
                     status_code=403, detail="pass_decision_token is for a different course")
+            if claims.get("score") is not None:
+                final_score = float(claims["score"])
         elif not _unverified_pass_allowed():
             raise HTTPException(
                 status_code=403,
                 detail="pass_decision_token required to mark PASSED in cloud",
             )
+    else:
+        final_score = req.score
     # TODO: derive level from catalog instead of client-supplied value
     try:
         enr = app.state.accounts.set_status(
-            acct.id, course_id, req.status, score=req.score, level=req.level,
+            acct.id, course_id, req.status, score=final_score, level=req.level,
             hands_on=req.hands_on)
     except KeyError:
         raise HTTPException(status_code=404, detail="not enrolled in that course")
@@ -1200,6 +1205,50 @@ def create_profile_share_grant(student_id: str, req: ProfileShareGrantRequest,
 def shared_profile_context(share=Depends(current_profile_share)) -> dict:
     acct, grant = share
     return app.state.accounts.profile_context(acct.id, grant.student_id, scopes=grant.scopes)
+
+
+# --------------------------------------------------------------------------- #
+# Consent management — forward consent records to the memory service
+# --------------------------------------------------------------------------- #
+
+class ConsentRequest(BaseModel):
+    scope: str
+    granted: bool
+    region: str | None = None
+    student_id: str | None = None
+    written: str | None = None
+    retention_days: int | None = None
+
+
+@app.post("/consent")
+def record_consent(req: ConsentRequest, acct=Depends(current_account)) -> dict:
+    import json as _json
+    import urllib.request
+
+    if req.student_id and req.student_id not in acct.students:
+        raise HTTPException(status_code=403, detail="student_id does not belong to this account")
+    student_id = req.student_id or (next(iter(acct.students)) if acct.students else acct.id)
+    memory_url = getattr(app.state.config, "memory_base_url", "")
+    if memory_url:
+        from aoep_shared.identity_sync import internal_token
+        body = _json.dumps({
+            "student_id": student_id, "scope": req.scope, "granted": req.granted,
+            **({"region": req.region} if req.region else {}),
+            **({"written": req.written} if req.written else {}),
+            **({"retention_days": req.retention_days} if req.retention_days is not None else {}),
+        }).encode("utf-8")
+        http_req = urllib.request.Request(
+            memory_url.rstrip("/") + "/consent", data=body,
+            headers={"Content-Type": "application/json",
+                     "X-Internal-Token": internal_token()},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(http_req, timeout=2.0):
+                pass
+        except Exception:
+            pass
+    return {"student_id": student_id, "scope": req.scope, "granted": req.granted}
 
 
 # --------------------------------------------------------------------------- #
