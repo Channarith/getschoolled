@@ -22,7 +22,7 @@ def _auth(token: str) -> dict:
 
 
 def test_password_reset_token_cannot_access_account():
-    tok = _signup("reset-scope@example.com")["token"]
+    tok = _signup("audit17-reset-scope@example.com")["token"]
     acct = client.get("/auth/me", headers=_auth(tok)).json()
     reset = issue_reset_token(acct["id"], acct["email"], _token_key())
     assert client.get("/auth/me", headers=_auth(reset)).status_code == 401
@@ -89,7 +89,7 @@ def test_2fa_setup_blocked_when_already_enabled():
 
 def test_mfa_lockout_survives_fresh_mfa_token(monkeypatch):
     monkeypatch.setenv("DEPLOY_MODE", "local")
-    email = "mfa-lock@example.com"
+    email = "audit17-mfa-lock@example.com"
     password = "S3cretpass"
     h = _auth(_signup(email, password)["token"])
     secret = client.post("/auth/2fa/setup", headers=h).json()["secret"]
