@@ -1134,6 +1134,31 @@ def game_from_slide(slide: CourseSlide, objective_id: str = "") -> GameChallenge
             },
             objective_id=objective_id,
         )
+    if kind is GameKind.SPOT_GAP:
+        # A valid spot_gap spec must not fall through to the match-term builder
+        # (wrong payload shape). Build the real spot-the-gap payload.
+        gap_options = [str(o) for o in (spec.get("options") or []) if str(o).strip()]
+        answer = str(spec.get("answer") or "").strip()
+        sentence = str(
+            spec.get("sentence_with_gap") or spec.get("sentence") or ""
+        ).strip()
+        if len(gap_options) < 2 or not answer or not sentence:
+            return None
+        default_correct = gap_options.index(answer) if answer in gap_options else 0
+        gap_correct = max(0, min(int(spec.get("correct_index", default_correct)), len(gap_options) - 1))
+        return GameChallenge(
+            game_id=str(uuid.uuid4()),
+            kind=GameKind.SPOT_GAP,
+            title=f"Game: {slide.title}",
+            prompt=str(spec.get("prompt") or "Fill the blank"),
+            payload={
+                "sentence_with_gap": sentence,
+                "answer": answer,
+                "options": gap_options,
+                "correct_index": gap_correct,
+            },
+            objective_id=objective_id,
+        )
     options = [str(o) for o in (spec.get("options") or []) if str(o).strip()]
     if len(options) < 2:
         return None

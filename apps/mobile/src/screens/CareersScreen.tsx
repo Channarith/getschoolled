@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, FlatList, Linking, StyleSheet, Text,
   TextInput, View,
@@ -36,13 +36,16 @@ export default function CareersScreen({ onBack, onOpenCourse }: Props) {
   const [match, setMatch] = useState<JobMatch | null>(null);
   const [matchLoading, setMatchLoading] = useState(false);
 
+  const refreshGenRef = useRef(0);
   const refresh = useCallback(() => {
     setLoading(true);
     setError("");
+    // Generation guard: a slower earlier query must not overwrite newer results.
+    const gen = ++refreshGenRef.current;
     listJobs(q || undefined, loc || undefined)
-      .then((r) => { setJobs(r.jobs); setSource(r.source); })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
+      .then((r) => { if (gen === refreshGenRef.current) { setJobs(r.jobs); setSource(r.source); } })
+      .catch((e) => { if (gen === refreshGenRef.current) setError(String(e)); })
+      .finally(() => { if (gen === refreshGenRef.current) setLoading(false); });
   }, [q, loc]);
 
   useEffect(() => {

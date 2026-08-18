@@ -234,7 +234,9 @@ def _render_tts(text: str, *, language: str, voice_style: str,
             )
             return Response(content=audio, media_type="audio/mpeg",
                             headers={**headers, "X-TTS-Engine": "elevenlabs"})
-        except elevenlabs_tts.ElevenLabsError:
+        except Exception:
+            # Any engine error (HTTP, timeout, truncated read) falls through to
+            # the next engine — a single failing engine must never 500 narration.
             pass
 
     # 2) edge-tts neural — TRUE per-accent voices (British/Aussie/Mandarin/…).
@@ -267,7 +269,7 @@ def _render_tts(text: str, *, language: str, voice_style: str,
             )
             return Response(content=audio, media_type="audio/mpeg",
                             headers={**headers, "X-TTS-Engine": "elevenlabs"})
-        except elevenlabs_tts.ElevenLabsError:
+        except Exception:
             pass
 
     # 4) No server engine — client uses on-device speech synthesis.
@@ -550,3 +552,107 @@ def learn_music_video_score(req: MusicVideoScoreRequest) -> dict:
         section_id=req.section_id,
         translation=req.translation,
     )
+
+
+# --------------------------------------------------------------------------- #
+# xAI Grok Voice Agent (Speech-to-Speech realtime) — ephemeral client secrets
+# --------------------------------------------------------------------------- #
+
+
+class VoiceTokenRequest(BaseModel):
+    """Mint an ephemeral xAI realtime client secret for web/mobile browsers.
+
+    The API key never leaves the speech service; clients connect to
+    ``wss://api.x.ai/v1/realtime`` with the short-lived token.
+    """
+
+    mode: str = "solo"  # solo | group | self_teach | theodore | …
+    lesson_context: str = ""
+    learner_names: list[str] = []
+    expires_seconds: int = 300
+    instructions: str = ""
+
+
+@app.get("/voice/status")
+def voice_status() -> dict:
+    """Whether xAI Grok Voice is configured for Theodore / self-teach S2S."""
+    from aoep_shared.xai_realtime import REALTIME_WS, xai_configured
+
+    cfg = app.state.config
+    # Pass the config value explicitly (including "") so we do NOT fall through
+    # to a process-env XAI_API_KEY when the AppConfig field is blank.
+    api_key = getattr(cfg, "xai_api_key", "") or ""
+    configured = xai_configured(api_key)
+    return {
+        "available": configured,
+        "engine": "xai-grok-voice" if configured else "none",
+        "model": getattr(cfg, "xai_voice_model", "grok-voice-latest") or "grok-voice-latest",
+        "voice": (
+            getattr(cfg, "xai_voice_id", "")
+            or getattr(cfg, "xai_voice", "")
+            or getattr(cfg, "xai_voice_name", "")
+            or "eve"
+        ),
+        "realtime_ws": REALTIME_WS,
+        "hint": (
+            "xAI Grok Voice ready — clients mint an ephemeral token via POST /voice/token."
+            if configured
+            else "Set XAI_API_KEY in aoep-secrets / config/local.env to enable Grok Voice Agents."
+        ),
+    }
+
+
+@app.post("/voice/token")
+def voice_token(req: VoiceTokenRequest) -> dict:
+    """Mint an ephemeral xAI client secret + Theodore/self-teach session.update.
+
+    Web/mobile call this once (or on reconnect), then open the realtime
+    WebSocket with ``sec-websocket-protocol: xai-client-secret.<token>``.
+    """
+    from aoep_shared.xai_realtime import (
+        XaiVoiceError,
+        build_voice_session,
+        mint_ephemeral_token,
+        presence_tool_schema,
+        xai_configured,
+    )
+
+    cfg = app.state.config
+    api_key = getattr(cfg, "xai_api_key", "") or ""
+    model = getattr(cfg, "xai_voice_model", "grok-voice-latest") or "grok-voice-latest"
+    voice_id = (
+        getattr(cfg, "xai_voice_id", "")
+        or getattr(cfg, "xai_voice", "")
+        or getattr(cfg, "xai_voice_name", "")
+        or "eve"
+    )
+    if not xai_configured(api_key):
+        raise HTTPException(
+            status_code=503,
+            detail="XAI_API_KEY is not configured on the speech service",
+        )
+    voice_cfg = build_voice_session(
+        req.mode,
+        voice=voice_id,
+        model=model,
+        lesson_context=req.lesson_context or "",
+        learner_names=list(req.learner_names or []),
+        instructions=req.instructions or "",
+    )
+    voice_cfg.tools = [presence_tool_schema()]
+    try:
+        token = mint_ephemeral_token(
+            api_key=api_key,
+            expires_seconds=req.expires_seconds,
+            model=model,
+            allow_mock=False,
+        )
+    except XaiVoiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {
+        "token": token.to_dict(),
+        "session_update": voice_cfg.session_update_event(),
+        "mode": req.mode,
+        "xai_configured": True,
+        "engine": "xai-grok-voice",
+    }

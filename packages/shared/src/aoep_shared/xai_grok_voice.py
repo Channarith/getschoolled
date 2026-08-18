@@ -265,15 +265,13 @@ class GrokVoiceAgent:
             "Write a single warm, non-judgmental sentence to invite them back to the lesson."
         )
         messages = self._build_messages(system=self._system, user_content=msg)
-        resp = self._call(messages, model=self._model)
         # Do NOT pollute conversation history with absence prompts (they are
-        # context-specific one-shots, not part of the Q&A thread). Remove
-        # the user+assistant pair that _call just appended.
-        if len(self._history) >= 2:
-            self._history.pop()  # assistant
-            self._history.pop()  # user
-        elif self._history:
-            self._history.pop()
+        # context-specific one-shots, not part of the Q&A thread). Restore the
+        # exact prior history — _call trims at capacity, so popping only the
+        # new pair used to silently delete the oldest real Q&A exchange.
+        prior_history = list(self._history)
+        resp = self._call(messages, model=self._model)
+        self._history = prior_history
         return resp
 
     def clear_history(self) -> None:

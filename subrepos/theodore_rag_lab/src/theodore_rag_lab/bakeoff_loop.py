@@ -209,6 +209,12 @@ class RagBakeoffRunner:
 
     def run_blocking(self, *, hours: float = 0.01) -> dict[str, Any]:
         """Synchronous short bakeoff for CLI/CI (no background thread)."""
+        # Refuse to share the singleton's status block with a live background
+        # run — resetting running/rounds_done/target_hours mid-run clobbered
+        # it (status reported "not running" while the thread kept looping).
+        thread = self._thread
+        if thread and thread.is_alive():
+            raise RuntimeError("a background training run is active — stop it first")
         target_rounds = max(1, int(float(hours) * max(1, self.tuning.bakeoff_rounds_per_hour)))
         # Cap for safety in tests.
         target_rounds = min(target_rounds, 50)

@@ -91,6 +91,9 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
   const [passed, setPassed] = useState<Record<string, boolean>>({});
   const [lighting, setLighting] = useState<LightingReadiness | null>(null);
   const [done, setDone] = useState(false);
+  // FaceDetector (Shape Detection API) is absent in stable Chrome/Safari/
+  // Firefox — pose steps then get a manual confirm instead of never completing.
+  const [detectorReady, setDetectorReady] = useState(true);
 
   const step = STEPS[stepIndex];
   const progressLabel = useMemo(
@@ -191,35 +194,40 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
     }
   }, [advance, done, stepIndex]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setError("");
-      detectorRef.current = faceDetectorAvailable();
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => undefined);
-        }
-        setStatus("Camera ready");
-      } catch {
-        if (!cancelled) setError("Camera permission is required for this check.");
+  const streamRefAlive = useRef(true);
+  const openStream = useCallback(async () => {
+    setError("");
+    detectorRef.current = faceDetectorAvailable();
+    setDetectorReady(detectorRef.current !== null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      if (!streamRefAlive.current) {
+        // Unmounted (or restarted) while the prompt was pending — don't leak.
+        stream.getTracks().forEach((t) => t.stop());
+        return;
       }
-    })();
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+      }
+      setStatus("Camera ready");
+    } catch {
+      setError("Camera permission is required for this check.");
+    }
+  }, []);
+
+  useEffect(() => {
+    streamRefAlive.current = true;
+    void openStream();
     return () => {
-      cancelled = true;
+      streamRefAlive.current = false;
       stopStream();
     };
-  }, [stopStream]);
+  }, [stopStream, openStream]);
 
   useEffect(() => {
     if (done || error) return;
@@ -289,6 +297,11 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
       )}
 
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+        {!done && !detectorReady && step.id !== "lighting" && step.id !== "raise_hands" ? (
+          <button type="button" onClick={advance}>
+            I held the pose — continue
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => {
@@ -297,6 +310,8 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
             setPassed({});
             holdRef.current = null;
             setStatus("Restarting…");
+            // advance() stopped the stream on completion — reopen it.
+            if (!streamRef.current) void openStream();
           }}
         >
           Restart check

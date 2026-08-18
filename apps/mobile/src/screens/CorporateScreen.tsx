@@ -32,8 +32,10 @@ export default function CorporateScreen({ onOpenCourse, onBack }: CorporateScree
   const load = async (alive?: { current: boolean }) => {
     setError("");
     try {
-      // Filter by corporate category (first param), not free-text search
-      const result = await listAudioCourses("corporate", undefined, 80, locale);
+      // The audio catalog has no "corporate" category (that audience exists
+      // only for programs on web) — "Business & Career" is the corporate
+      // training shelf. The old value matched zero rows in every locale.
+      const result = await listAudioCourses("Business & Career", undefined, 80, locale);
       if (!alive || alive.current) setCourses(result.courses);
     } catch (e) {
       if (!alive || alive.current) setError(String(e));

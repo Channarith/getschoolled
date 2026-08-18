@@ -32,6 +32,25 @@ export default function MyListPage() {
     }
   }
 
+  // Loading first: loggedIn only becomes true after the portfolio fetch, so
+  // checking it first flashed "Sign in to use" at signed-in users and made
+  // the skeleton and error card unreachable.
+  if (loading) {
+    return (
+      <main className="container" style={{ maxWidth: 900 }}>
+        <h1 style={{ margin: "0 0 20px" }}>🔖 Saved</h1>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card" style={{ minHeight: 120, opacity: 0.4 }}>
+              <div style={{ background: "var(--border)", borderRadius: 6, height: 18, width: "70%", marginBottom: 10 }} />
+              <div style={{ background: "var(--border)", borderRadius: 6, height: 12, width: "50%" }} />
+            </div>
+          ))}
+        </div>
+      </main>
+    );
+  }
+
   if (!loggedIn) return <SignInToUse />;
 
   return (
@@ -43,17 +62,6 @@ export default function MyListPage() {
           + Browse more courses
         </Link>
       </div>
-
-      {loading && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="card" style={{ minHeight: 120, opacity: 0.4 }}>
-              <div style={{ background: "var(--border)", borderRadius: 6, height: 18, width: "70%", marginBottom: 10 }} />
-              <div style={{ background: "var(--border)", borderRadius: 6, height: 12, width: "50%" }} />
-            </div>
-          ))}
-        </div>
-      )}
 
       {error && (
         <div className="card" style={{ borderColor: "#ff6b6b" }}>
