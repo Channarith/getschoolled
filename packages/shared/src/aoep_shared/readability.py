@@ -176,7 +176,7 @@ def _simple_map() -> Dict[str, str]:
     except Exception:  # pragma: no cover
         return dict(_BUILTIN_SIMPLE_MAP)
     if _simple_map_cache["fingerprint"] == fp and _simple_map_cache["map"] is not None:
-        return _simple_map_cache["map"]
+        return dict(_simple_map_cache["map"])
     merged = dict(_BUILTIN_SIMPLE_MAP)
     for rec in load_records("readability"):
         complex_w = rec.get("complex")
@@ -185,14 +185,15 @@ def _simple_map() -> Dict[str, str]:
             merged[str(complex_w).lower()] = str(simple_w)
     _simple_map_cache["fingerprint"] = fp
     _simple_map_cache["map"] = merged
-    return merged
+    return dict(merged)
 
 
 def _apply_word_map(text: str, mapping: Dict[str, str]) -> str:
     # Multi-word phrases first (longest), then single words.
     phrases = sorted((k for k in mapping if " " in k), key=len, reverse=True)
     for phrase in phrases:
-        text = re.sub(re.escape(phrase), mapping[phrase], text, flags=re.IGNORECASE)
+        repl = mapping[phrase]
+        text = re.sub(re.escape(phrase), lambda m, r=repl: r, text, flags=re.IGNORECASE)
 
     def _repl(m: re.Match) -> str:
         word = m.group(0)

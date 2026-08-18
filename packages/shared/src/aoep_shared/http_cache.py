@@ -61,7 +61,7 @@ class CacheRegistry:
 
     def match(self, path: str) -> Optional[CacheRule]:
         for prefix, rule in self._rules:
-            if path.startswith(prefix):
+            if path == prefix or path.startswith(prefix + "/"):
                 return rule
         return None
 
@@ -80,6 +80,10 @@ def install(app, registry: CacheRegistry, *, etag: bool = True) -> None:
             return response
         rule = registry.match(request.url.path)
         if rule is None:
+            return response
+        _auth_headers = ("authorization", "x-internal-token", "x-admin-secret")
+        if any(request.headers.get(h) for h in _auth_headers):
+            response.headers["Cache-Control"] = "no-store"
             return response
         response.headers.setdefault("Cache-Control", rule.header())
         if rule.vary:

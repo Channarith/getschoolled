@@ -94,7 +94,7 @@ def _read_records(path: Path, kind: str) -> List[dict]:
 def load_records(kind: str) -> List[dict]:
     """Return all records for ``kind`` merged across every pack root/file."""
     fp = _fingerprint(kind)
-    return list(_load_cached(kind, fp))
+    return [dict(r) for r in _load_cached(kind, fp)]
 
 
 @lru_cache(maxsize=None)

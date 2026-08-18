@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import random
 from functools import lru_cache
@@ -109,7 +110,7 @@ def get_scenario(scenario_id: str) -> Optional[ScenarioDefinition]:
 
     found = _load_scenarios().get(scenario_id)
     if found is not None:
-        return attach_references(found)
+        return attach_references(copy.deepcopy(found))
     # Fall back to deterministic procedural generation for <family>__<index> ids.
     from .procedural import resolve_procedural
 
