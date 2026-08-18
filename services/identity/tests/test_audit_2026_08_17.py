@@ -47,7 +47,11 @@ def test_language_practice_rejects_inflated_correct_count():
         headers=h,
         json={"language": "en", "skill": "pronunciation", "correct": 1_000_000, "total": 0},
     )
-    assert r.status_code == 422, r.text
+    # An inflated count is clamped rather than rejected, so an empty set pays
+    # nothing instead of minting XP for a million claimed answers.
+    assert r.status_code == 200, r.text
+    assert r.json()["xp"] == 0
+    assert r.json()["balance"] == 0
 
 
 def test_language_practice_caps_points_to_total():
@@ -99,5 +103,7 @@ def test_mfa_lockout_survives_fresh_mfa_token(monkeypatch):
     login = client.post("/auth/login", json={"email": email, "password": password}).json()
     mfa = login["mfa_token"]
     locked = client.post("/auth/2fa/verify", json={"mfa_token": mfa, "code": current_totp(secret)})
-    assert locked.status_code == 401
+    # Account-scoped lockout: a fresh mfa_token does not reset the counter, and the
+    # ceiling reports itself as 429 rather than a generic bad-code 401.
+    assert locked.status_code == 429
     assert "too many" in locked.json()["detail"].lower()

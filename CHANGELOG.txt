@@ -3,6 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-08-18 - v0.46.79 - WebcamPresenceTracker now defers on_return for brief absences instead of dropping the callback: a return that is shorter than return_threshold_s starts a timer and fires once the learner has been continuously present for that long, and going absent again cancels it.
+- 2026-08-18 - v0.46.78 - Cap self-reported language-practice XP at MAX_PRACTICE_XP (500) per set, so a forged set size cannot mint redeemable points even within the item cap; align the 2026-08-16 audit tests with main's canonical 2FA behaviour (409 when re-provisioning an enabled authenticator, 429 from the account-scoped MFA lockout that survives mfa_token rotation).
+- 2026-08-18 - v0.46.77 - Bug audit fixes: MFA account-scoped lockout, practice XP clamping, 2FA re-provisioning guard
+- 2026-08-18 - v0.46.77 - Identity audit CI: restore session token scoping + /consent proxy from main; optional 2FA setup body; clamp practice XP when total=0
+- 2026-08-18 - v0.46.76 - Voucher store now picks the first writable directory (probing up front, falling back to the temp dir) instead of failing mid-redemption when the home cache is read-only.
 - 2026-08-18 - v0.46.76 - Bug audit fixes (2026-08-16 audit, continued): additional targeted fixes from the comprehensive audit in docs/audit-2026-08-16.txt, covering identity security, curriculum, web UI, mobile, music lab, webcam lab, and shared infrastructure.
 - 2026-08-18 - v0.46.75 - Bug audit fixes (2026-08-16 audit, continued): additional targeted fixes from the comprehensive audit in docs/audit-2026-08-16.txt, covering identity security, media/vision, curriculum/orchestrator, web UI, mobile, music lab, and webcam lab.
 - 2026-08-17 - v0.46.72 - Bug audit fixes (2026-08-16 audit, continued): additional targeted fixes from the comprehensive audit in docs/audit-2026-08-16.txt, covering identity security, media/vision, curriculum/orchestrator, web UI, mobile, music lab, and webcam lab.

@@ -120,8 +120,8 @@ def test_2fa_lockout_survives_relogin():
             "email": "audit29@example.com", "password": "S3cretpass"}).json()
         return step1["mfa_token"]
 
-    # Five wrong codes spread across FIVE different mfa tokens (a re-login
-    # between each) must still engage the lockout.
+    # Five wrong codes across FIVE different mfa tokens (a re-login
+    # between each) must still engage the account-level lockout.
     last_token = ""
     for _ in range(5):
         last_token = fresh_mfa_token()
@@ -129,17 +129,15 @@ def test_2fa_lockout_survives_relogin():
                           json={"mfa_token": last_token, "code": "000000"})
         assert out.status_code == 401
 
-    # The fifth failure burned the token...
-    burned = client.post("/auth/2fa/verify",
+    # Account is locked: even the correct code is refused (429), and a
+    # brand-new mfa_token cannot reset the counter.
+    locked = client.post("/auth/2fa/verify",
                          json={"mfa_token": last_token, "code": current_totp(secret)})
-    assert burned.status_code == 401
-    # ...and the account-level counter persists: the very next wrong code on a
-    # brand-new token immediately burns that token too.
+    assert locked.status_code == 429
     sixth = fresh_mfa_token()
-    client.post("/auth/2fa/verify", json={"mfa_token": sixth, "code": "000000"})
     replay = client.post("/auth/2fa/verify",
                          json={"mfa_token": sixth, "code": current_totp(secret)})
-    assert replay.status_code == 401
+    assert replay.status_code == 429
 
 
 # MED-30 --------------------------------------------------------------------- #
