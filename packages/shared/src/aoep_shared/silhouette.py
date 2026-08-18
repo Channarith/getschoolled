@@ -154,8 +154,12 @@ class SilhouetteDetector:
         self._frame_count += 1
 
         # ---- HOG detection (primary) ----------------------------------- #
+        # The default people-detector window is 64x128; detectMultiScale on a
+        # smaller frame crashes OpenCV natively (segfault, not a catchable
+        # cv2.error). Floor the scaled size at the window so one tiny/corrupt
+        # frame cannot kill the whole process.
         small_w = max(64, int(fw * self._scale))
-        small_h = max(64, int(fh * self._scale))
+        small_h = max(128, int(fh * self._scale))
         small = cv2.resize(frame, (small_w, small_h))
         gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
 

@@ -108,3 +108,6 @@ apps/web/playwright-report/
 apps/web/test-results/
 docs/diagrams/overview-screens/
 docs/diagrams/fundraising-screens/
+
+# ---- Test-generated host uploads (curriculum tests write here) ----
+sample-curriculum/host-uploads/

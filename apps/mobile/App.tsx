@@ -201,6 +201,7 @@ function AppInner() {
       setShowDemo(false);
       setShowBugReport(false);
       setActiveLesson(null);
+      setKidsLessonId(null);
     }
     prevAuthStatusRef.current = authStatus;
   }, [authStatus]);
@@ -452,6 +453,7 @@ function AppInner() {
     setShowLanguages(false);
     setShowSearch(false);
     setShowBugReport(false);
+    setKidsLessonId(null);
     void refreshUnreadAndAlerts();
     setTab(id);
   };
@@ -510,7 +512,7 @@ function AppInner() {
   }
 
   const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
-    && !showLiveRooms && !showArcade && !showCorporate && !showKids && !gameSubject && !activeLesson
+    && !showLiveRooms && !showArcade && !showCorporate && !showKids && !kidsLessonId && !gameSubject && !activeLesson
     && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages
     && !showSearch && !showBugReport && !showWorlds;
 
@@ -745,7 +747,7 @@ function AppInner() {
       />
     );
   } else if (tab === "notifications") {
-    screen = <NotificationsScreen onOpenCourse={openCourse} onUnreadChange={setUnreadCount} />;
+    screen = <NotificationsScreen onOpenCourse={openCourse} onOpenDrive={() => setTab("drive")} onUnreadChange={setUnreadCount} />;
   } else if (tab === "settings") {
     screen = (
       <SettingsScreen
