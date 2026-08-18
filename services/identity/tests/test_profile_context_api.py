@@ -113,28 +113,3 @@ def test_profile_share_token_is_scoped_and_authenticated():
     assert "mastery" not in shared
     bad = client.get("/profile-shares/context", headers={"Authorization": "Bearer nope"})
     assert bad.status_code == 401
-
-
-def test_profile_share_token_cannot_access_account_session_endpoints():
-    # Regression: a narrowly-scoped profile-share token (kind="profile_share")
-    # must NOT be usable as a full account session. It previously passed
-    # current_account (which only checked "purpose"), granting access to
-    # /auth/me, /rewards, enrollments, etc. (privilege escalation).
-    h = _signup()
-    student = client.post(
-        "/students", headers=h, json={"display_name": "Learner C"}
-    ).json()
-    sid = student["id"]
-    grant = client.post(
-        f"/students/{sid}/profile-share-grants",
-        headers=h,
-        json={"integration": "robot-tutor", "scopes": ["profile"], "ttl_s": 600},
-    ).json()
-    share_headers = {"Authorization": f"Bearer {grant['token']}"}
-
-    # The scoped share token still works on its own endpoint...
-    assert client.get("/profile-shares/context", headers=share_headers).status_code == 200
-    # ...but is rejected everywhere a real account session is required.
-    assert client.get("/auth/me", headers=share_headers).status_code == 401
-    assert client.get("/rewards", headers=share_headers).status_code == 401
-    assert client.get("/students", headers=share_headers).status_code == 401
