@@ -49,6 +49,8 @@ class FaceGallery:
         raise IndexError.
         """
         vec = list(embedding)
+        if not vec:
+            raise ValueError("embedding must not be empty")
         dim = self._gallery_dim()
         if dim is not None and len(vec) != dim:
             raise ValueError(

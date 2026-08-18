@@ -129,7 +129,7 @@ def _from_catalog_course(c: Any) -> LearnableItem:
         core_skill = bool(c.get("core_skill", False))
     fmt = "audio" if media == "audio" else media
     deep = custom_deep_link or (
-        f"/drive?course={course_id}" if fmt == "audio" else f"/watch?course={course_id}"
+        f"/drive?course={course_id}" if fmt == "audio" else f"/class?lesson={course_id}"
     )
     return LearnableItem(
         id=f"catalog:{course_id}",
