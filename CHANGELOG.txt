@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-08-18 - v0.46.84 - Version bump to unblock CI after merge with main.
 - 2026-08-17 - v0.46.70 - Wire XAI_API_KEY + neural TTS through all Theodore labs and local/k8s runners for natural speech without hiccups. New aoep_shared.env_bootstrap auto-loads config/local.env (never clears secrets with blank lines; soft-upgrades retired grok-2* to grok-4.3). Shared aoep_shared.lab_tts (speech gateway → ElevenLabs → edge-tts) with fail-fast engine disable so a dead gateway does not stall every utterance. Music + webcam lab UIs prefer /api/tts neural audio over device speechSynthesis; lab /health reports xai_configured / elevenlabs / speech. scripts/run_theodore_lab.sh + safer run_local_service.sh; k8s secrets bootstrap + configmap include XAI + ElevenLabs; default chat model grok-4.3. Web/mobile stay server-side only (NEXT_PUBLIC_SPEECH_URL → speech gateway; never embed XAI_API_KEY).
 - 2026-08-18 - v0.46.80 - Add apps/web/app/lib/courseLinks.ts helpers for resolving catalog deep links away from the engagement-gated /watch route.
 - 2026-08-18 - v0.46.79 - Catalog deep links for non-audio courses point at /class?lesson=<id> instead of the non-existent /watch route, and FaceGallery.add rejects an empty embedding up front (it previously slipped past the dimension check and poisoned the gallery). Adds the 2026-08-16 audit regression tests for both.
