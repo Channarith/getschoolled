@@ -464,7 +464,8 @@ function VoiceEnrollPanel({ step, name, status, error, onStart, onStop, onDismis
       {step === "prompting" && (
         <div style={{ display: "flex", gap: 8 }}>
           <p className="muted" style={{ flex: 1, margin: 0, fontSize: 13 }}>
-            Your microphone will record for up to 5 seconds. Say your name clearly and naturally — for example, <em>"{name}"</em>.
+            Your microphone will record for up to 5 seconds. Say your name clearly and naturally — for example,{" "}
+            <em>{`"${name}"`}</em>.
             This voice sample will be saved to your profile for identity tracking and attendance analytics.
           </p>
         </div>
