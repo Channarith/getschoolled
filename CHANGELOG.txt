@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-08-18 - v0.46.90 - Version bump to unblock CI after merge with main.
 - 2026-08-17 - v0.46.70 - All long lessons are now automatically segmented into ~10, 15, or 20-minute blocks. After each block the advance endpoint returns a segment_break prompt ("Keep going" / "Take a break") so learners can pause and resume at a natural stopping point. Segment size is chosen by lesson length: ≤24 slides → 20-min blocks; ≤40 slides → 15-min blocks; larger → 10-min blocks. The break card is shown in both web ClassRoom and mobile LessonScreen; choosing "Keep going" resumes autoplay. Logic lives in aoep_shared.session_break (pure, offline, fully tested).
 - 2026-08-18 - v0.46.80 - Add apps/web/app/lib/courseLinks.ts helpers for resolving catalog deep links away from the engagement-gated /watch route.
 - 2026-08-18 - v0.46.79 - Catalog deep links for non-audio courses point at /class?lesson=<id> instead of the non-existent /watch route, and FaceGallery.add rejects an empty embedding up front (it previously slipped past the dimension check and poisoned the gallery). Adds the 2026-08-16 audit regression tests for both.
