@@ -1021,8 +1021,22 @@ export function submitGame(
 }
 
 // --- Lesson teaching sessions (orchestrator) --- //
+export type SegmentBreak = {
+  due: boolean;
+  segment: number;
+  slide_index: number;
+  slides_done: number;
+  slides_remaining: number;
+  approx_minutes_done: number;
+  approx_minutes_remaining: number;
+  message: string;
+  choices: { id: string; label: string }[];
+};
+
 export type LessonSlide = {
   index: number; title: string; body: string; narration: string;
+  kind?: string; say_aloud?: string;
+  segment_break?: SegmentBreak | null;
   storyboard_svg?: string;
   storyboard_concept?: string;
   storyboard_scene_id?: string;

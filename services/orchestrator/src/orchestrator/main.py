@@ -34,7 +34,7 @@ from pydantic import BaseModel
 
 from .curriculum import CourseKSB, Lesson, Slide
 from .director import ClassContext, Director, LessonState
-from .teaching import Answer, Reengagement, SessionView, TeachingSessions
+from .teaching import Answer, Reengagement, SessionView, SlideWithBreak, TeachingSessions
 
 app = create_service("orchestrator")
 
@@ -489,8 +489,8 @@ def api_get_session(session_id: str, _=Depends(require_internal)) -> SessionView
     )
 
 
-@app.post("/api/sessions/{session_id}/advance", response_model=Slide)
-def api_advance(session_id: str) -> Slide:
+@app.post("/api/sessions/{session_id}/advance", response_model=SlideWithBreak)
+def api_advance(session_id: str) -> SlideWithBreak:
     try:
         return get_sessions().advance(session_id)
     except KeyError:

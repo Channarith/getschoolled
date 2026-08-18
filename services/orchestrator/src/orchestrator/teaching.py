@@ -149,6 +149,21 @@ class SessionView(BaseModel):
     slide: Slide
 
 
+class SlideWithBreak(BaseModel):
+    """Slide returned by /advance — includes an optional segment-break prompt."""
+
+    index: int
+    title: str
+    body: str
+    narration: str
+    kind: str = "teach"
+    say_aloud: str = ""
+    # When the learner just finished a segment boundary, this is set.
+    # None (absent) means no break is due; a dict with "due", "message", and
+    # "choices" means the UI should offer "Keep going / Take a break".
+    segment_break: dict | None = None
+
+
 class Reengagement(BaseModel):
     """A re-engagement beat: a short recap to pull a drifting learner back in."""
 
@@ -354,8 +369,10 @@ class TeachingSessions:
             audio_only=lesson.audio_only,
         )
 
-    def advance(self, session_id: str) -> Slide:
+    def advance(self, session_id: str) -> "SlideWithBreak":
         # WARNING: cross-replica race; use Redis INCR for multi-replica deployments
+        from aoep_shared.session_break import segment_break_payload
+
         with _lock_for(session_id):
             session = self._require(session_id)
             lesson = self.lesson_for(session_id)
@@ -372,7 +389,22 @@ class TeachingSessions:
                 self.memory.record_behavior(
                     counters.student_id, session.lesson_id, saw_slide=True
                 )
-            return self.current_slide(session_id)
+            current = self.current_slide(session_id)
+            total = len(lesson.slides)
+            brk = segment_break_payload(
+                current.index,
+                total,
+                elapsed_slides=counters.slides_seen,
+            )
+            return SlideWithBreak(
+                index=current.index,
+                title=current.title,
+                body=current.body,
+                narration=current.narration,
+                kind=getattr(current, "kind", "teach") or "teach",
+                say_aloud=getattr(current, "say_aloud", "") or "",
+                segment_break=brk,
+            )
 
     def _ask_prompt(self, session, question: str, language: str, dialect: str | None):
         """Shared retrieval + prompt build for ask() and ask_stream()."""

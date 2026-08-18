@@ -157,6 +157,7 @@ export default function ClassRoom({
     | { kind: "guest" }
     | null
   >(null);
+  const [segmentBreak, setSegmentBreak] = useState<import("../lib/api").SegmentBreak | null>(null);
   const [speakAnswers, setSpeakAnswers] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   // Immersive presenter: the text currently being narrated (for live captions)
@@ -318,6 +319,13 @@ export default function ClassRoom({
   }
 
   useEffect(() => { autoplayRef.current = autoplay; }, [autoplay]);
+
+  function pauseAutoplay() {
+    if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+    autoAdvanceRef.current = null;
+    cancelSpeech();
+    setSpeaking(false);
+  }
 
   // Continue the lecture after a quiz / pulse check / assessment closes (autoplay only).
   function resumeAutoplay() {
@@ -760,10 +768,15 @@ export default function ClassRoom({
   }
 
   async function onAdvance() {
-    if (!view || popQuiz || showPulse || assessmentRun) return;
+    if (!view || popQuiz || showPulse || assessmentRun || segmentBreak) return;
     setBusy(true);
     try {
       const s = await advance(view.session.session_id);
+      // Surface a segment-break prompt before rendering the new slide.
+      if (s.segment_break?.due) {
+        setSegmentBreak(s.segment_break);
+        pauseAutoplay();
+      }
       setSlide(s);
       if (studentId) {
         recordBehavior({
@@ -1521,6 +1534,49 @@ export default function ClassRoom({
                   Continue
                 </button>
               )}
+            </div>
+          )}
+
+          {segmentBreak && (
+            <div className="card" style={{
+              borderColor: "#7c3aed",
+              background: "linear-gradient(135deg, rgba(124,58,237,0.10) 0%, rgba(16,185,129,0.07) 100%)",
+              boxShadow: "0 2px 16px rgba(124,58,237,0.15)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 28 }}>☕</span>
+                <strong style={{ fontSize: "1.1rem" }}>Good stopping point</strong>
+              </div>
+              <p className="muted" style={{ marginBottom: 10 }}>{segmentBreak.message}</p>
+              <div style={{ fontSize: 13, color: "#a78bfa", marginBottom: 14 }}>
+                Segment {segmentBreak.segment} complete · {segmentBreak.slides_done} slides done
+                {segmentBreak.slides_remaining > 0 && (
+                  <> · ~{segmentBreak.approx_minutes_remaining} min left</>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  style={{ background: "#7c3aed", color: "#fff", fontWeight: 700, padding: "10px 22px" }}
+                  onClick={() => {
+                    setSegmentBreak(null);
+                    resumeAutoplay();
+                  }}
+                >
+                  Keep going →
+                </button>
+                <button
+                  type="button"
+                  style={{ background: "transparent", border: "1.5px solid #7c3aed", color: "#c4b5fd", padding: "10px 22px" }}
+                  onClick={() => {
+                    setSegmentBreak(null);
+                    pauseAutoplay();
+                    void onFinish();
+                  }}
+                >
+                  Take a break
+                </button>
+              </div>
             </div>
           )}
 
