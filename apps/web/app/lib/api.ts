@@ -71,6 +71,21 @@ export const SERVICE_URLS: Record<string, string> = {
   identity: IDENTITY_URL,
 };
 
+export async function translateText(
+  text: string,
+  source: string,
+  target: string,
+): Promise<{ text: string; source: string; target: string }> {
+  if (!text || source === target) return { text, source, target };
+  return jsonOrThrow(
+    await fetch(`${SPEECH_URL}/translate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text, source, target }),
+    }),
+  );
+}
+
 // --- account / session (token in localStorage) --------------------------- //
 const TOKEN_KEY = "aoep_token";
 const PREVIEW_KEY = "aoep_preview";
@@ -1124,6 +1139,16 @@ export type Slide = {
   // say_aloud is set, the player pauses to listen to and score the learner.
   kind?: string;
   say_aloud?: string;
+  // Animated storyboard for DMV / food-handler cert prep slides.
+  storyboard_svg?: string;
+  storyboard_concept?: string;
+  storyboard_scene_id?: string;
+  storyboard_examples?: string[];
+  storyboard_activity?: string;
+  storyboard_modalities?: string[];
+  storyboard_profile_mode?: string;
+  storyboard_source_language?: string;
+  storyboard_translation_ready?: boolean;
 };
 
 export type Lesson = {
@@ -1245,6 +1270,45 @@ export async function listLessons(): Promise<Lesson[]> {
   return jsonOrThrow(await fetch(`${ORCHESTRATOR_URL}/api/lessons`, { cache: "no-store" }));
 }
 
+export type StoryboardSegment = {
+  lesson_id: string;
+  slide_index: number;
+  verse_label?: string;
+  learning_goal?: string;
+  scene_id: string;
+  title: string;
+  backdrop: string;
+  camera: string;
+  narration: string;
+  concept?: string;
+  caption?: string;
+  svg?: string;
+  svg_data_url?: string;
+  html?: string;
+};
+
+export async function fetchLessonStoryboard(
+  lessonId: string,
+  opts?: { includeSvg?: boolean },
+): Promise<{ lesson_id: string; segment_count: number; segments: StoryboardSegment[] }> {
+  const q = opts?.includeSvg === false ? "?include_svg=false" : "";
+  return jsonOrThrow(
+    await fetch(
+      `${ORCHESTRATOR_URL}/api/lessons/${encodeURIComponent(lessonId)}/storyboard${q}`,
+      { cache: "no-store" },
+    ),
+  );
+}
+
+export async function fetchLessonStoryboardSlide(
+  lessonId: string,
+  slideIndex: number,
+): Promise<StoryboardSegment> {
+  return jsonOrThrow(
+    await fetch(
+      `${ORCHESTRATOR_URL}/api/lessons/${encodeURIComponent(lessonId)}/storyboard/${slideIndex}`,
+      { cache: "no-store" },
+    ),
 export type LessonAccreditation = {
   lesson_id: string;
   certifiable: boolean;
@@ -1866,7 +1930,20 @@ export type LiveRoomState = {
   participants: LiveParticipant[];
   chat: LiveRoomChatMessage[];
   recording: { status: string; started_at?: string; stopped_at?: string; recording_id?: string; note?: string };
-  slide: { index: number; title: string; body: string; narration: string };
+  slide: {
+    index: number;
+    title: string;
+    body: string;
+    narration: string;
+    storyboard_svg?: string;
+    storyboard_concept?: string;
+    storyboard_scene_id?: string;
+    storyboard_examples?: string[];
+    storyboard_activity?: string;
+    storyboard_profile_mode?: string;
+    storyboard_source_language?: string;
+    storyboard_translation_ready?: boolean;
+  };
   raised_hands: LiveParticipant[];
   banned?: { identity: string; name: string; reason: string; banned_at: string; banned_by: string }[];
   speaking_queue?: {

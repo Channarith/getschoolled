@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Distracted & impaired driving
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Phones, fatigue, alcohol, and drugs. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Handheld phone ban
+Handheld calling and texting while driving are illegal. California restricts handheld phone use while driving — use hands-free or pull over safely.
+NARRATION: California restricts handheld phone use while driving — use hands-free or pull over safely.
+
+SLIDE 2 | Hands-free still distracts
+Conversation still steals attention. Hands-free is safer legally but still distracts — keep calls short or pull over for complex talks.
+NARRATION: Hands-free is safer legally but still distracts — keep calls short or pull over for complex talks.
+
+SLIDE 3 | Dashboard screens
+Set navigation before you move. Program navigation and playlists before you drive — do not stare at screens in motion.
+NARRATION: Program navigation and playlists before you drive — do not stare at screens in motion.
+
+SLIDE 4 | Eating and grooming
+Pull over for tasks that need hands or eyes. Eating, makeup, and reaching for dropped items take eyes and hands off the driving task.
+NARRATION: Eating, makeup, and reaching for dropped items take eyes and hands off the driving task.
+
+SLIDE 5 | Passenger distraction
+You control the cabin. Ask passengers to keep noise down when you need focus — the driver owns the cabin safety.
+NARRATION: Ask passengers to keep noise down when you need focus — the driver owns the cabin safety.
+
+SLIDE 6 | Drowsy driving
+Sleep beats caffeine for fatigue. If you are drowsy, stop and rest — microsleeps at highway speed are deadly.
+NARRATION: If you are drowsy, stop and rest — microsleeps at highway speed are deadly.
+
+SLIDE 7 | BAC 0.08 adult limit
+Adults 21+ face 0.08 percent BAC limit. For drivers 21 and older, the BAC limit is 0.08 percent — impairment starts earlier.
+NARRATION: For drivers 21 and older, the BAC limit is 0.08 percent — impairment starts earlier.
+
+SLIDE 8 | Zero tolerance under 21
+Any measurable alcohol can mean sanctions. Drivers under 21 face zero-tolerance rules for alcohol — arrange another ride.
+NARRATION: Drivers under 21 face zero-tolerance rules for alcohol — arrange another ride.
+
+SLIDE 9 | Medication impairment
+Read labels; ask a pharmacist. Some prescriptions and over-the-counter meds impair driving — check warnings before you drive.
+NARRATION: Some prescriptions and over-the-counter meds impair driving — check warnings before you drive.
+
+SLIDE 10 | Cannabis and driving
+Impaired is impaired — wait it out. Cannabis can impair judgment and reaction time. Do not drive until you are fully sober.
+NARRATION: Cannabis can impair judgment and reaction time. Do not drive until you are fully sober.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

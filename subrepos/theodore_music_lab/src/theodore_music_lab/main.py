@@ -528,7 +528,13 @@ def embeds(target_lang: str = "en", allow_llm: bool = False) -> dict[str, Any]:
         rows = list_embeds(target_lang, allow_llm=allow_llm)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"count": len(rows), "embeds": rows}
+    lang_name = language_name(target_lang) if target_lang != "en" else "English"
+    return {
+        "count": len(rows),
+        "embeds": rows,
+        "target_lang": target_lang,
+        "target_lang_name": lang_name,
+    }
 
 
 @app.get("/api/music/embeds/{embed_id}")
@@ -541,9 +547,12 @@ def embed_detail(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"Unknown embed '{embed_id}'") from exc
     try:
-        return resolve_embed(raw, target_lang, allow_llm=allow_llm)
+        result = resolve_embed(raw, target_lang, allow_llm=allow_llm)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    result["target_lang"] = target_lang
+    result["target_lang_name"] = language_name(target_lang) if target_lang != "en" else "English"
+    return result
 
 
 @app.post("/api/music/embeds/explain")

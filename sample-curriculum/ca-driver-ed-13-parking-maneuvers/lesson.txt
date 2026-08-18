@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Parking & maneuvers
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Curb colors, hills, parallel parking, and clearances. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Colored curb meanings
+Read curb colors before you leave the car. Red, blue, green, yellow, and white curbs each carry different parking rules — learn your city's code.
+NARRATION: Red, blue, green, yellow, and white curbs each carry different parking rules — learn your city's code.
+
+SLIDE 2 | Hydrant clearance
+Stay far enough from fire hydrants. Do not park too close to a fire hydrant — emergency crews need immediate access.
+NARRATION: Do not park too close to a fire hydrant — emergency crews need immediate access.
+
+SLIDE 3 | Crosswalk and driveway clearance
+Keep crossings and driveways open. Parking too close to crosswalks, stop signs, or driveways blocks sight lines and access.
+NARRATION: Parking too close to crosswalks, stop signs, or driveways blocks sight lines and access.
+
+SLIDE 4 | Hill parking uphill curb
+Turn wheels away from the curb uphill. When parking uphill with a curb, turn wheels away from the curb and set the parking brake.
+NARRATION: When parking uphill with a curb, turn wheels away from the curb and set the parking brake.
+
+SLIDE 5 | Hill parking downhill curb
+Turn wheels toward the curb downhill. When parking downhill with a curb, turn wheels toward the curb so a roll hits the curb.
+NARRATION: When parking downhill with a curb, turn wheels toward the curb so a roll hits the curb.
+
+SLIDE 6 | Parallel parking steps
+Signal, align, reverse slowly, straighten. Signal, align with the car ahead, reverse into the space, then straighten and center.
+NARRATION: Signal, align with the car ahead, reverse into the space, then straighten and center.
+
+SLIDE 7 | Perpendicular parking
+Center in the stall; wheels straight. Pull into the stall centered with wheels straight so you do not stick out into the aisle.
+NARRATION: Pull into the stall centered with wheels straight so you do not stick out into the aisle.
+
+SLIDE 8 | Backing out of stalls
+Creep and yield to aisle traffic. Back out slowly, check both sides, and yield to pedestrians and cars in the aisle.
+NARRATION: Back out slowly, check both sides, and yield to pedestrians and cars in the aisle.
+
+SLIDE 9 | No double parking
+Never block a travel lane to wait. Double parking blocks traffic and emergency access — find a legal space.
+NARRATION: Double parking blocks traffic and emergency access — find a legal space.
+
+SLIDE 10 | Disabled parking rules
+Only with a valid placard or plates. Blue curb and disabled stalls require a valid placard or plates — misuse is heavily fined.
+NARRATION: Blue curb and disabled stalls require a valid placard or plates — misuse is heavily fined.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

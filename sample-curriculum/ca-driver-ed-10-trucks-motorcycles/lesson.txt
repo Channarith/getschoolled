@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Trucks & motorcycles
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: No-zones, wide turns, and motorcycle visibility. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Truck no-zones
+If you cannot see their mirrors, they cannot see you. Trucks have large blind spots on all sides — avoid lingering beside or close behind.
+NARRATION: Trucks have large blind spots on all sides — avoid lingering beside or close behind.
+
+SLIDE 2 | Truck stopping distance
+Never cut in and brake after passing. After passing a truck, leave a large gap before you pull in — they need long stopping distance.
+NARRATION: After passing a truck, leave a large gap before you pull in — they need long stopping distance.
+
+SLIDE 3 | Wide right turns
+Give trucks room to swing left before turning right. Trucks may move left before a right turn — do not squeeze inside.
+NARRATION: Trucks may move left before a right turn — do not squeeze inside.
+
+SLIDE 4 | Mountain downgrades
+Trucks may use runaway ramps — stay clear. On steep grades, give trucks space and never block a runaway truck ramp.
+NARRATION: On steep grades, give trucks space and never block a runaway truck ramp.
+
+SLIDE 5 | Look twice for motorcycles
+Motorcycles hide in blind spots. Shoulder-check for motorcycles before every lane change — they are easy to miss.
+NARRATION: Shoulder-check for motorcycles before every lane change — they are easy to miss.
+
+SLIDE 6 | Full lane for motorcycles
+Give motorcycles a full lane width. Do not share a lane side-by-side with a motorcycle unless lane splitting is occurring safely.
+NARRATION: Do not share a lane side-by-side with a motorcycle unless lane splitting is occurring safely.
+
+SLIDE 7 | Motorcycle following gap
+Leave extra space behind bikes. Motorcycles can stop quickly — keep a generous following distance.
+NARRATION: Motorcycles can stop quickly — keep a generous following distance.
+
+SLIDE 8 | Lane splitting safe response
+Hold your lane; do not squeeze the rider. If a motorcycle splits lanes near you, hold a steady line and avoid sudden moves.
+NARRATION: If a motorcycle splits lanes near you, hold a steady line and avoid sudden moves.
+
+SLIDE 9 | Filter at lights
+Expect bikes between stopped cars. At red lights, motorcycles may filter forward — check before you inch up.
+NARRATION: At red lights, motorcycles may filter forward — check before you inch up.
+
+SLIDE 10 | Truck wind blast
+Grip the wheel when passing large vehicles. Passing trucks can buffet your car — keep both hands on the wheel and a steady speed.
+NARRATION: Passing trucks can buffet your car — keep both hands on the wheel and a steady speed.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.
