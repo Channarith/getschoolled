@@ -22,7 +22,16 @@ _VOWELS = {
 def narration_duration(text: str) -> float:
     """Estimate speech duration for timeline planning before TTS metadata arrives."""
     tokens = _TOKEN_RE.findall(text or "")
+    if not tokens:
+        return 2.4
     latin_words = [token for token in tokens if len(token) > 1 and token.isascii()]
+    # Khmer/Han are matched per character; do not pace them like Latin words.
+    non_latin = [token for token in tokens if not token.isascii()]
+    if non_latin and len(non_latin) >= max(1, len(latin_words)):
+        return max(
+            2.4,
+            min(90.0, len(non_latin) / 11.0 + len(latin_words) / 2.45 + 0.7),
+        )
     if latin_words:
         return max(2.4, min(90.0, len(tokens) / 2.45 + 0.7))
     return max(2.4, min(90.0, len(tokens) / 4.2 + 0.7))
@@ -72,10 +81,13 @@ def _cue_rows(rows: tuple[CueRow, ...], duration_s: float) -> list[AvatarCue]:
     for start, duration, gesture, gaze, hand, intensity, expression in rows:
         start_s = min(duration_s - 0.1, max(0.0, start * duration_s))
         available = max(0.1, duration_s - start_s)
+        # AvatarCue.duration_s is capped at 30s; long Khmer narrations scale
+        # fractional cue rows past that, so clamp before validation.
+        cue_dur = min(30.0, available, max(0.1, duration * duration_s))
         cues.append(
             AvatarCue(
                 start_s=round(start_s, 3),
-                duration_s=round(min(available, max(0.1, duration * duration_s)), 3),
+                duration_s=round(cue_dur, 3),
                 gesture=gesture,
                 gaze=gaze,
                 hand=hand,
@@ -125,7 +137,12 @@ def avatar_script_for_slide(
         validate_avatar_script(explicit)
         return explicit
 
-    rows = DRIVER_AVATAR_CUES.get(slide.title) or FOOD_AVATAR_CUES.get(slide.title)
+    rows = (
+        DRIVER_AVATAR_CUES.get(slide.slide_key)
+        or FOOD_AVATAR_CUES.get(slide.slide_key)
+        or DRIVER_AVATAR_CUES.get(slide.title)
+        or FOOD_AVATAR_CUES.get(slide.title)
+    )
     source = "curated" if rows else "inferred"
     script = AvatarScript(
         state="presenting",

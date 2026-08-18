@@ -58,6 +58,7 @@ from theodore_music_lab.tts import (
     clip_path,
     rate_percent,
     synthesize,
+    voice_candidates,
     voice_for,
 )
 from theodore_music_lab.translations import translate_song
@@ -257,6 +258,36 @@ def test_rendered_clips_are_cached_once_and_reused(tts_cache, monkeypatch):
     assert calls == [("你好", "zh-CN-XiaoxiaoNeural", "+20%")]
 
 
+def test_polish_turkish_arabic_have_alternate_voices_for_flaky_renders():
+    # Primary female first; same-language male next; Polish/Arabic extras after.
+    assert voice_candidates("pl")[0] == "pl-PL-AgnieszkaNeural"
+    assert "pl-PL-ZofiaNeural" in voice_candidates("pl")
+    assert voice_candidates("tr")[:2] == ["tr-TR-EmelNeural", "tr-TR-AhmetNeural"]
+    assert "ar-EG-SalmaNeural" in voice_candidates("ar")
+    # An explicit voice short-circuits the candidate list.
+    assert voice_candidates("pl", voice="pl-PL-ZofiaNeural") == ["pl-PL-ZofiaNeural"]
+
+
+def test_transient_empty_audio_retries_then_falls_back_to_alternate_voice(
+    tts_cache, monkeypatch
+):
+    attempts: list[str] = []
+
+    def flaky(text, path, *, voice, rate):
+        attempts.append(voice)
+        if voice in {"pl-PL-AgnieszkaNeural", "pl-PL-MarekNeural"}:
+            raise RuntimeError("No audio was received. Please verify that your parameters are correct.")
+        path.write_bytes(b"zofia-mp3")
+
+    monkeypatch.setattr("theodore_music_lab.tts._render", flaky)
+    monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
+    monkeypatch.setattr("theodore_music_lab.tts.time.sleep", lambda _s: None)
+    assert synthesize("dzień dobry", "pl") == b"zofia-mp3"
+    assert attempts.count("pl-PL-AgnieszkaNeural") == 3
+    assert attempts.count("pl-PL-MarekNeural") == 3
+    assert "pl-PL-ZofiaNeural" in attempts
+
+
 def test_a_failed_render_leaves_no_truncated_clip(tts_cache, monkeypatch):
     def boom(text, path, *, voice, rate):
         path.write_bytes(b"half")
@@ -264,10 +295,12 @@ def test_a_failed_render_leaves_no_truncated_clip(tts_cache, monkeypatch):
 
     monkeypatch.setattr("theodore_music_lab.tts._render", boom)
     monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
+    monkeypatch.setattr("theodore_music_lab.tts.time.sleep", lambda _s: None)
     with pytest.raises(TTSUnavailable):
         synthesize("bonjour", "fr")
     assert not clip_path("bonjour", voice=voice_for("fr"), rate="+0%").exists()
     assert list(tts_cache.glob("*.mp3")) == []
+    assert list(tts_cache.glob("*.part")) == []
 
 
 def test_the_player_speaks_through_the_server_and_can_fall_back():

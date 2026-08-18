@@ -58,3 +58,7 @@ DRIVER_AVATAR_CUES: dict[str, tuple[CueRow, ...]] = {
 
 
 DRIVER_AVATAR_TITLES = frozenset(DRIVER_AVATAR_CUES)
+
+from .slide_keys import register_title_aliases  # noqa: E402
+
+register_title_aliases(DRIVER_AVATAR_CUES)

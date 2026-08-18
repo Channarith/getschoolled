@@ -134,6 +134,9 @@ class ReviewComment(BaseModel):
 
 class CourseSlide(BaseModel):
     index: int = Field(ge=0)
+    # Stable id that survives title translation (e.g. ca-dmv-basics.following-distance).
+    # Avatar cues and multimodal kits look this up first; English title is the fallback.
+    slide_key: str = ""
     title: str
     body: str
     narration: str = ""

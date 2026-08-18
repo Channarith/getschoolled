@@ -108,3 +108,6 @@ apps/web/playwright-report/
 apps/web/test-results/
 docs/diagrams/overview-screens/
 docs/diagrams/fundraising-screens/
+
+# ---- Local avatar render scratch dir (render_avatar.mjs default output) ----
+subrepos/theodore_course_studio/avatar/preview/

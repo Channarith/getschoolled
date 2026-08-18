@@ -55,3 +55,7 @@ FOOD_AVATAR_CUES: dict[str, tuple[CueRow, ...]] = {
 
 
 FOOD_AVATAR_TITLES = frozenset(FOOD_AVATAR_CUES)
+
+from .slide_keys import register_title_aliases  # noqa: E402
+
+register_title_aliases(FOOD_AVATAR_CUES)

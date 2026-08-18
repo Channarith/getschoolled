@@ -43,7 +43,7 @@ from .knowledge import (
 from .profile_adapt import adapt_slide
 from .quality_telemetry import StudioTelemetryStore, get_telemetry
 from .studio_languages import normalize_language
-from .tts_client import build_tts_get_url, tts_client_hints
+from .tts_client import normalize_voice_gender, tts_client_hints
 from .types import LearnerProfileScores, StudioCourse, TeachTurn
 from .voice_agent import CourseStudioVoiceAgent, get_voice_agent
 
@@ -60,6 +60,9 @@ class TeachSession:
     objectives: list[LearningObjective] = field(default_factory=list)
     knowledge: LearnerKnowledgeState | None = None
     started_at_ms: int = 0
+    # Persona drives BOTH the on-screen avatar model and the TTS voice so a
+    # female voice is always paired with the female presenter (and vice versa).
+    voice_gender: str = "female"
     history: list[TeachTurn] = field(default_factory=list)
     pending_pop: QuizQuestion | None = None
     summary_quiz: GeneratedQuiz | None = None
@@ -103,6 +106,7 @@ class TeachEngine:
         use_voice_agent: bool = True,
         resume: bool = False,
         soft_limit_minutes: int | None = None,
+        voice_gender: str = "female",
     ) -> dict[str, Any]:
         course = self._builder.get_course(course_id)
         if course is None:
@@ -167,6 +171,7 @@ class TeachEngine:
                 knowledge=knowledge,
                 started_at_ms=started_at,
                 use_voice_agent=use_voice_agent,
+                voice_gender=normalize_voice_gender(voice_gender),
                 soft_limit_minutes=soft_minutes,
                 soft_limit_slides=soft_slides,
                 completed_slide_indexes=completed,
@@ -388,9 +393,11 @@ class TeachEngine:
         self._telemetry.record_voice_turn(tts=True)
         return {
             "voice": turn.model_dump(mode="json"),
+            "voice_gender": session.voice_gender,
             "tts": {
-                **tts_client_hints(session.language),
-                "get_url": build_tts_get_url(turn.message, language=session.language),
+                **tts_client_hints(
+                    session.language, session.voice_gender, text=turn.message
+                ),
             },
             "turn": self._turn_payload(course, session),
         }
@@ -419,9 +426,11 @@ class TeachEngine:
         self._telemetry.record_voice_turn(tts=True)
         return {
             "voice": voice.model_dump(mode="json"),
+            "voice_gender": session.voice_gender,
             "tts": {
-                **tts_client_hints(session.language),
-                "get_url": build_tts_get_url(voice.message, language=session.language),
+                **tts_client_hints(
+                    session.language, session.voice_gender, text=voice.message
+                ),
             },
             "slide_index": session.path[session.path_pos],
             "language": session.language,
@@ -578,11 +587,13 @@ class TeachEngine:
                 "duration_ms": 650,
             },
             "avatar": avatar.model_dump(mode="json"),
+            "voice_gender": session.voice_gender,
             "knowledge": knowledge,
             "voice": voice_meta,
             "tts": {
-                **tts_client_hints(speak_lang),
-                "get_url": build_tts_get_url(spoken, language=speak_lang),
+                **tts_client_hints(
+                    speak_lang, session.voice_gender, text=spoken
+                ),
             },
             "progress": {
                 "known": len(session.knowledge.known_objective_ids) if session.knowledge else 0,

@@ -14,7 +14,10 @@ from typing import List, Optional
 
 _IS_WINDOWS = os.name == "nt" or sys.platform.startswith("win")
 
-# Microsoft Edge neural voices (edge-tts). Warm, non-robotic; needs network once per clip.
+# Microsoft Edge neural voices (edge-tts). Warm, non-robotic; needs network once
+# per clip. Female default per language — matches the music-lab / course-studio
+# catalogues so Khmer (and every other supported code) no longer silently falls
+# through to an English Aria reading native script.
 DEFAULT_NEURAL_VOICE = "en-US-AriaNeural"
 _NEURAL_VOICES = {
     "en": "en-US-AriaNeural",
@@ -23,8 +26,56 @@ _NEURAL_VOICES = {
     "de": "de-DE-KatjaNeural",
     "it": "it-IT-ElsaNeural",
     "pt": "pt-BR-FranciscaNeural",
-    "ja": "ja-JP-NanamiNeural",
+    "nl": "nl-NL-FennaNeural",
+    "pl": "pl-PL-AgnieszkaNeural",
+    "ru": "ru-RU-SvetlanaNeural",
+    "uk": "uk-UA-PolinaNeural",
+    "tr": "tr-TR-EmelNeural",
+    "ar": "ar-SA-ZariyahNeural",
+    "he": "he-IL-HilaNeural",
+    "hi": "hi-IN-SwaraNeural",
+    "bn": "bn-IN-TanishaaNeural",
+    "ur": "ur-PK-UzmaNeural",
+    "fa": "fa-IR-DilaraNeural",
     "zh": "zh-CN-XiaoxiaoNeural",
+    "ja": "ja-JP-NanamiNeural",
+    "ko": "ko-KR-SunHiNeural",
+    "vi": "vi-VN-HoaiMyNeural",
+    "th": "th-TH-PremwadeeNeural",
+    "id": "id-ID-GadisNeural",
+    "sw": "sw-KE-ZuriNeural",
+    "el": "el-GR-AthinaNeural",
+    "cs": "cs-CZ-VlastaNeural",
+    "km": "km-KH-SreymomNeural",
+}
+_NEURAL_VOICES_MALE = {
+    "en": "en-US-GuyNeural",
+    "es": "es-ES-AlvaroNeural",
+    "fr": "fr-FR-HenriNeural",
+    "de": "de-DE-ConradNeural",
+    "it": "it-IT-DiegoNeural",
+    "pt": "pt-BR-AntonioNeural",
+    "nl": "nl-NL-MaartenNeural",
+    "pl": "pl-PL-MarekNeural",
+    "ru": "ru-RU-DmitryNeural",
+    "uk": "uk-UA-OstapNeural",
+    "tr": "tr-TR-AhmetNeural",
+    "ar": "ar-SA-HamedNeural",
+    "he": "he-IL-AvriNeural",
+    "hi": "hi-IN-MadhurNeural",
+    "bn": "bn-IN-BashkarNeural",
+    "ur": "ur-PK-AsadNeural",
+    "fa": "fa-IR-FaridNeural",
+    "zh": "zh-CN-YunxiNeural",
+    "ja": "ja-JP-KeitaNeural",
+    "ko": "ko-KR-InJoonNeural",
+    "vi": "vi-VN-NamMinhNeural",
+    "th": "th-TH-NiwatNeural",
+    "id": "id-ID-ArdiNeural",
+    "sw": "sw-KE-RafikiNeural",
+    "el": "el-GR-NestorasNeural",
+    "cs": "cs-CZ-AntoninNeural",
+    "km": "km-KH-PisethNeural",
 }
 
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
@@ -38,13 +89,19 @@ def _edge_tts_available() -> bool:
         return False
 
 
-def neural_voice_for(language: str = "en", voice: str = "") -> str:
+def neural_voice_for(
+    language: str = "en",
+    voice: str = "",
+    *,
+    gender: str = "female",
+) -> str:
     if voice and "Neural" in voice:
         return voice
     if voice and not voice.startswith("en-"):
         return voice
     lang = (language or "en").split("-")[0].lower()
-    return _NEURAL_VOICES.get(lang, DEFAULT_NEURAL_VOICE)
+    table = _NEURAL_VOICES_MALE if str(gender or "").lower() == "male" else _NEURAL_VOICES
+    return table.get(lang) or _NEURAL_VOICES.get(lang, DEFAULT_NEURAL_VOICE)
 
 
 def chunk_for_speech(text: str, *, max_chars: int = 320) -> List[str]:

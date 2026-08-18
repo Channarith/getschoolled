@@ -84,6 +84,34 @@ STUDIO_CSS = """
     @keyframes fallbackTalk { to { height:18px; width:17px; left:37px; } }
     @keyframes fallbackCelebrate { 50% { transform:translateY(-9px) scale(1.03); } }
     .lesson-stage-content { min-width:0; }
+    /* Presenter mode: a fixed overlay that also takes the real display through the
+       Fullscreen API, so Theodore is not boxed inside the dashboard column. */
+    .presenter-overlay { position:fixed; inset:0; z-index:9999; display:none;
+                         background:radial-gradient(ellipse at 32% 62%,rgba(56,190,240,.20),#04121a 68%); }
+    .presenter-overlay.show { display:block; }
+    .presenter-overlay .presenter-body { position:absolute; inset:0; overflow:hidden; }
+    .presenter-overlay #teach-stage { position:absolute; inset:0; margin:0; padding:0;
+                                      border:0; border-radius:0; background:transparent;
+                                      display:flex; flex-direction:column; min-height:0; }
+    .presenter-overlay #teach-stage h3 { flex:0 0 auto; margin:0; padding:18px 96px 12px 30px;
+                                         font-size:clamp(22px,3vw,40px); color:#eafcff; }
+    .presenter-overlay .teacher-stage-grid { flex:1 1 auto; min-height:0;
+                                             grid-template-columns:1fr minmax(320px,36%); gap:0; }
+    .presenter-overlay .theodore-avatar-wrap { min-height:0; height:100%; border:0; border-radius:0;
+                                               background:radial-gradient(ellipse at 50% 64%,rgba(68,214,255,.20),rgba(4,18,26,.4) 70%);
+                                               box-shadow:none; }
+    .presenter-overlay .lesson-stage-content { height:100%; overflow:auto; padding:20px 30px 26px;
+                                               background:rgba(4,20,29,.62); backdrop-filter:blur(7px);
+                                               border-left:1px solid rgba(94,224,255,.26); }
+    .presenter-overlay .teach-stage .body { font-size:clamp(16px,1.5vw,23px); }
+    .presenter-overlay .avatar-label { left:50%; right:auto; transform:translateX(-50%);
+                                       bottom:16px; white-space:nowrap; }
+    .presenter-exit { position:absolute; top:14px; right:16px; z-index:3; }
+    body.presenting { overflow:hidden; }
+    @media (max-width:760px) {
+      .presenter-overlay .teacher-stage-grid { grid-template-columns:1fr; grid-template-rows:46% 1fr; }
+      .presenter-overlay .lesson-stage-content { border-left:0; border-top:1px solid rgba(94,224,255,.26); }
+    }
     .kids-builder { background:linear-gradient(135deg,#fff7ed,#fef3c7); color:#172554;
                     border:3px solid #f59e0b; border-radius:16px; padding:14px; margin-bottom:16px; }
     .kids-builder h2 { color:#7c2d12; font-size:22px; }
@@ -156,10 +184,35 @@ STUDIO_JS = """
           ? 'Theodore · accessible silhouette'
           : 'Theodore · 3D hologram ready';
       } catch (error) {
-        host.dataset.avatarReady = 'fallback';
         host.innerHTML = '<div class="theodore-avatar-fallback" role="img" aria-label="Theodore teacher silhouette"><div class="fallback-crown">♜</div><div class="fallback-head"><i></i><i></i><b></b></div><div class="fallback-body"><span></span><span></span></div><div class="fallback-glow"></div></div>';
         $('avatar-state').textContent = 'Theodore · accessible silhouette';
       }
+    }
+
+    function presenterActive() {
+      return $('presenter-overlay').classList.contains('show');
+    }
+
+    function enterPresenterMode() {
+      if (presenterActive()) return;
+      $('presenter-body').appendChild($('teach-stage'));
+      $('presenter-overlay').classList.add('show');
+      document.body.classList.add('presenting');
+      const overlay = $('presenter-overlay');
+      if (overlay.requestFullscreen) overlay.requestFullscreen().catch(() => {});
+      // The renderer sizes off the container, which just changed by a lot.
+      requestAnimationFrame(() => theodoreAvatar?.resize());
+    }
+
+    function exitPresenterMode() {
+      if (!presenterActive()) return;
+      $('teach-stage-home').appendChild($('teach-stage'));
+      $('presenter-overlay').classList.remove('show');
+      document.body.classList.remove('presenting');
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      requestAnimationFrame(() => theodoreAvatar?.resize());
     }
 
     function toast(msg) {
@@ -441,6 +494,7 @@ STUDIO_JS = """
           learner_id: learnerId,
           focus_gaps: true, known_objective_ids: [],
           language: teachLanguage, use_voice_agent: true,
+          voice_gender: ($('teach-voice-gender').value || 'female'),
           resume: !!opts.resume
         })
       });
@@ -650,24 +704,17 @@ STUDIO_JS = """
       if (!$('auto-speak').checked) return;
       stopSpeech();
       const spoken = text || '';
-      const url = ttsMeta && ttsMeta.get_url;
+      // Prefer the URL the server already chose (gateway or /api/studio/tts).
+      // Fall back to local_url, then device speechSynthesis (no Khmer on macOS).
+      const url = (ttsMeta && (ttsMeta.get_url || ttsMeta.local_url)) || '';
       const available = ttsMeta && ttsMeta.speech && ttsMeta.speech.available;
-      if (available && url) {
-        serverAudio = new Audio(url);
+      const playServer = (src) => {
+        serverAudio = new Audio(src);
         theodoreAvatar?.speak(spoken, serverAudio);
-        serverAudio.play().catch(() => {
-          if (window.speechSynthesis) {
-            const u = new SpeechSynthesisUtterance(spoken);
-            u.lang = (ttsMeta.language || teachLanguage || 'en');
-            u.onboundary = (event) => theodoreAvatar?.speechBoundary(event.charIndex || 0);
-            u.onend = () => theodoreAvatar?.stopSpeaking();
-            theodoreAvatar?.speak(spoken);
-            window.speechSynthesis.speak(u);
-          }
-        });
-        return;
-      }
-      if (window.speechSynthesis) {
+        return serverAudio.play();
+      };
+      const playDevice = () => {
+        if (!window.speechSynthesis) return;
         const u = new SpeechSynthesisUtterance(spoken);
         u.lang = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
         u.onboundary = (event) => theodoreAvatar?.speechBoundary(event.charIndex || 0);
@@ -675,12 +722,29 @@ STUDIO_JS = """
         u.onerror = () => theodoreAvatar?.stopSpeaking();
         theodoreAvatar?.speak(spoken);
         window.speechSynthesis.speak(u);
+      };
+      if (available && url) {
+        playServer(url).catch(() => {
+          const local = ttsMeta.local_url;
+          if (local && local !== url) {
+            playServer(local).catch(() => playDevice());
+          } else {
+            playDevice();
+          }
+        });
+        return;
       }
+      if (ttsMeta && ttsMeta.local_url) {
+        playServer(ttsMeta.local_url).catch(() => playDevice());
+        return;
+      }
+      playDevice();
     }
 
     function renderTeach(payload) {
       lastTeachPayload = payload;
       const turn = payload.turn || payload;
+      if (payload.voice_gender) theodoreAvatar?.setPersona(payload.voice_gender);
       theodoreAvatar?.setScript(payload.avatar || { state:'presenting', cues:[] });
       const stage = $('teach-stage');
       stage.classList.remove('anim');
@@ -816,6 +880,16 @@ STUDIO_JS = """
     });
     $('btn-read').onclick = readCurrentAloud;
     $('btn-video').onclick = watchCurrentVideo;
+    $('btn-present').onclick = enterPresenterMode;
+    $('btn-present-exit').onclick = exitPresenterMode;
+    $('teach-voice-gender').addEventListener('change', (ev) => {
+      theodoreAvatar?.setPersona(ev.target.value || 'female');
+      if (teachSession && lastTeachPayload) startTeach().catch(() => {});
+    });
+    // Escape leaves fullscreen without telling us, so follow the browser back.
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) exitPresenterMode();
+    });
     $('avatar-enabled').onchange = (event) => {
       theodoreAvatar?.setEnabled(event.target.checked);
       $('theodore-avatar-wrap').hidden = !event.target.checked;
@@ -842,7 +916,6 @@ def render_studio_page() -> str:
         """<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1" />\n  <title>Theodore Course Studio</title>\n  <style>\n"""
         + STUDIO_CSS
         + """</style>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%2354d8f2'/%3E%3Cpath d='M17 25h30v24H17z' fill='%23122f3b'/%3E%3Cpath d='M22 20l10-10 10 10-5 5H27z' fill='%23f4d276'/%3E%3C/svg%3E" />
   <script type="importmap">
     {"imports":{"three":"/api/studio/avatar/three.module.js"}}
   </script>
@@ -928,8 +1001,15 @@ def render_studio_page() -> str:
         <label>Language
           <select id="teach-lang" style="min-width:12rem"></select>
         </label>
+        <label>Presenter
+          <select id="teach-voice-gender" style="min-width:10rem">
+            <option value="female">Theodora · female voice</option>
+            <option value="male">Theodore · male voice</option>
+          </select>
+        </label>
         <span class="status" id="voice-status">xAI / TTS status…</span>
       </div>
+      <div id="teach-stage-home">
       <div class="teach-stage" id="teach-stage">
         <h3 id="teach-title">—</h3>
         <div class="teacher-stage-grid">
@@ -961,7 +1041,9 @@ def render_studio_page() -> str:
         <div class="quiz-box" id="quiz-box" style="display:none"></div>
         <div class="game-box" id="game-box" style="display:none"></div>
       </div>
+      </div>
       <div class="row">
+        <button id="btn-present" type="button">⛶ Present full screen</button>
         <button id="btn-teach" type="button">Start teach</button>
         <button id="btn-resume" class="secondary" type="button">Resume saved</button>
         <button id="btn-next" class="secondary" type="button">Next slide</button>
@@ -1006,6 +1088,10 @@ def render_studio_page() -> str:
         <button id="btn-profile" class="secondary" type="button">Apply profile</button>
       </div>
     </div>
+  </div>
+  <div class="presenter-overlay" id="presenter-overlay" role="region" aria-label="Theodore presenter stage">
+    <div class="presenter-body" id="presenter-body"></div>
+    <button class="presenter-exit secondary" id="btn-present-exit" type="button">✕ Exit full screen</button>
   </div>
   <div class="toast" id="toast"></div>
   <script>"""

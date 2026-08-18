@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -37,8 +38,25 @@ from theodore_music_lab.tts import (  # noqa: E402
     engine_available,
     rate_percent,
     synthesize,
+    voice_candidates,
     voice_for,
 )
+
+# Microsoft quietly drops audio when a long prefetch bursts too hard. A short
+# pause between clips keeps Polish / Turkish / Arabic filling instead of
+# failing after a few thousand earlier languages.
+_CLIP_PAUSE_SEC = 0.08
+_MAX_CONSECUTIVE_FAILURES = 3
+
+
+def clip_cached(text: str, language: str, rate: float) -> bool:
+    """True if any candidate voice already has this line on disk."""
+    percent = rate_percent(rate)
+    return any(
+        (path := clip_path(text, voice=voice, rate=percent)).is_file()
+        and path.stat().st_size > 0
+        for voice in voice_candidates(language)
+    )
 
 
 def wanted_lines(song, language: str) -> list[tuple[str, float]]:
@@ -91,8 +109,7 @@ def main() -> int:
         missing: list[tuple[str, float]] = []
         for song in songs:
             for text, rate in wanted_lines(song, language):
-                path = clip_path(text, voice=voice, rate=rate_percent(rate))
-                if not (path.is_file() and path.stat().st_size > 0):
+                if not clip_cached(text, language, rate):
                     missing.append((text, rate))
         total_missing += len(missing)
         label = f"{language_name(language)} ({voice})"
@@ -103,14 +120,28 @@ def main() -> int:
             print(f"  {label}: {len(missing)} clip(s) to render")
             continue
         print(f"  {label}: rendering {len(missing)} clip(s)")
-        for text, rate in missing:
+        consecutive = 0
+        lang_failed = 0
+        for index, (text, rate) in enumerate(missing):
             try:
                 synthesize(text, language, rate=rate)
                 total_rendered += 1
+                consecutive = 0
             except TTSUnavailable as exc:
+                lang_failed += 1
+                consecutive += 1
                 failures.append(f"{language}: {exc}")
-                # One dead voice should not abort the other languages.
-                break
+                if consecutive >= _MAX_CONSECUTIVE_FAILURES:
+                    print(
+                        f"    stopping {language} after {consecutive} consecutive "
+                        f"failures ({index + 1}/{len(missing)})",
+                        file=sys.stderr,
+                    )
+                    break
+            if index + 1 < len(missing):
+                time.sleep(_CLIP_PAUSE_SEC)
+        if lang_failed and consecutive < _MAX_CONSECUTIVE_FAILURES:
+            print(f"    {language}: finished with {lang_failed} failed clip(s)")
 
     if args.dry_run:
         print(f"\n{total_missing} clip(s) missing from the cache")
@@ -118,8 +149,16 @@ def main() -> int:
     print(f"\nrendered {total_rendered} clip(s)")
     if failures:
         print("failures:")
-        for message in failures[:10]:
+        for message in failures[:12]:
             print(f"  - {message}")
+        if len(failures) > 12:
+            print(f"  … and {len(failures) - 12} more")
+        failed_langs = sorted({row.split(":", 1)[0] for row in failures})
+        flags = " ".join(f"--lang {code}" for code in failed_langs)
+        print(
+            f"\nresume just the failed languages (cache is resumable):\n"
+            f"  python3 scripts/prefetch_voices.py {flags}"
+        )
         return 1
     return 0
 

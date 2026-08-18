@@ -11,6 +11,12 @@ Clips are cached on disk by (voice, rate, text), so a line is rendered once and
 replays offline afterwards; scripts/prefetch_voices.py warms a whole song. With
 no edge-tts and an empty cache the API answers 501 and the player falls back to
 the device voice, exactly as before.
+
+Microsoft's free Edge TTS endpoint is flaky under burst load: a long
+prefetch can suddenly return ``No audio was received`` (or an empty error) for
+a voice that worked moments earlier. Retries + alternate voices keep Polish /
+Turkish / Arabic and the rest filling the cache instead of abandoning a
+language on the first drop.
 """
 
 from __future__ import annotations
@@ -18,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import time
 from pathlib import Path
 
 # Verified against the Microsoft neural voice catalogue: (female, male) per
@@ -53,9 +60,20 @@ VOICES: dict[str, tuple[str, str]] = {
     "km": ("km-KH-SreymomNeural", "km-KH-PisethNeural"),
 }
 
+# Extra voices tried after the primary pair when Microsoft returns empty audio
+# mid-batch. Prefer same-locale alternates; Arabic also has Egyptian as a
+# last resort because SA voices are often the first ones throttled.
+VOICE_FALLBACKS: dict[str, tuple[str, ...]] = {
+    "pl": ("pl-PL-ZofiaNeural",),
+    "tr": (),
+    "ar": ("ar-EG-SalmaNeural", "ar-EG-ShakirNeural"),
+}
+
 ENGINE = "edge-tts-neural"
 MAX_CHARS = 600
 _TIMEOUT_SEC = 20.0
+_RENDER_ATTEMPTS = 3
+_RETRY_BACKOFF_SEC = (0.6, 1.4, 2.8)
 # A sung line's rate is computed from the audio duration the browser reports, so
 # two visits can ask for 1.12 and 1.13. Quantising to 5% keeps the cache useful
 # and is inaudible.
@@ -96,6 +114,24 @@ def voice_for(language: str, *, gender: str = "female", voice: str = "") -> str:
     return pair[1] if gender == "male" else pair[0]
 
 
+def voice_candidates(
+    language: str, *, gender: str = "female", voice: str = ""
+) -> list[str]:
+    """Primary voice first, then same-language alternates for flaky renders."""
+    if voice:
+        return [voice]
+    lang = (language or "en").split("-")[0].lower()
+    pair = VOICES.get(lang) or VOICES["en"]
+    primary = pair[1] if gender == "male" else pair[0]
+    secondary = pair[0] if gender == "male" else pair[1]
+    extras = list(VOICE_FALLBACKS.get(lang, ()))
+    ordered: list[str] = []
+    for name in (primary, secondary, *extras):
+        if name and name not in ordered:
+            ordered.append(name)
+    return ordered
+
+
 def rate_percent(rate: float) -> str:
     """Speech-rate multiplier as the +/-N% string edge-tts expects."""
     try:
@@ -124,6 +160,23 @@ def _render(text: str, path: Path, *, voice: str, rate: str) -> None:
     asyncio.run(run())
 
 
+def _transient_render_error(exc: BaseException) -> bool:
+    """True for Microsoft empty-audio / network drops that often clear on retry."""
+    name = type(exc).__name__
+    message = str(exc).strip().lower()
+    if name in {"NoAudioReceived", "TimeoutError", "ClientConnectorError"}:
+        return True
+    needles = (
+        "no audio was received",
+        "websocket",
+        "timed out",
+        "temporarily",
+        "connection reset",
+        "server disconnected",
+    )
+    return any(needle in message for needle in needles) or message == ""
+
+
 def synthesize(
     text: str,
     language: str,
@@ -136,24 +189,40 @@ def synthesize(
     line = (text or "").strip()[:MAX_CHARS]
     if not line:
         raise TTSUnavailable("nothing to speak")
-    chosen = voice_for(language, gender=gender, voice=voice)
+    candidates = voice_candidates(language, gender=gender, voice=voice)
     percent = rate_percent(rate)
-    path = clip_path(line, voice=chosen, rate=percent)
-    if path.is_file() and path.stat().st_size > 0:
-        return path.read_bytes()
+    # Prefer an already-cached clip from any candidate before hitting the network.
+    for chosen in candidates:
+        path = clip_path(line, voice=chosen, rate=percent)
+        if path.is_file() and path.stat().st_size > 0:
+            return path.read_bytes()
     if not engine_available():
         raise TTSUnavailable("no neural voice engine available")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    partial = path.with_suffix(".part")
-    try:
-        _render(line, partial, voice=chosen, rate=percent)
-        # Rendering straight to the final name would publish a truncated clip if
-        # the network dropped halfway through.
-        partial.replace(path)
-    except Exception as exc:  # network, auth, voice retired…
-        partial.unlink(missing_ok=True)
-        raise TTSUnavailable(f"{chosen} render failed: {exc}") from exc
-    return path.read_bytes()
+
+    errors: list[str] = []
+    for chosen in candidates:
+        path = clip_path(line, voice=chosen, rate=percent)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        for attempt in range(_RENDER_ATTEMPTS):
+            partial = path.with_suffix(".part")
+            try:
+                _render(line, partial, voice=chosen, rate=percent)
+                # Rendering straight to the final name would publish a truncated
+                # clip if the network dropped halfway through.
+                if not partial.is_file() or partial.stat().st_size <= 0:
+                    raise TTSUnavailable("empty audio file")
+                partial.replace(path)
+                return path.read_bytes()
+            except Exception as exc:  # network, auth, voice retired…
+                partial.unlink(missing_ok=True)
+                detail = str(exc).strip() or type(exc).__name__
+                errors.append(f"{chosen} attempt {attempt + 1}: {detail}")
+                if attempt + 1 < _RENDER_ATTEMPTS and _transient_render_error(exc):
+                    time.sleep(_RETRY_BACKOFF_SEC[min(attempt, len(_RETRY_BACKOFF_SEC) - 1)])
+                    continue
+                # Non-transient (or last attempt for this voice): try next voice.
+                break
+    raise TTSUnavailable("; ".join(errors) or "render failed")
 
 
 def cached_clips() -> int:
