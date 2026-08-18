@@ -187,8 +187,8 @@ class PresenceTracker:
                 event = PresenceEvent.RETURNED
                 self._state = PresenceState.PRESENT
                 self._last_present_ts = now
-            else:
-                event = PresenceEvent.PARTIAL
+            # Already PRESENT: no event — the old else fired PARTIAL on every
+            # silhouette-only frame, spamming on_event callbacks per frame.
             self._consecutive_absent = 0
             self._absent_since_ts = None
 
@@ -199,7 +199,11 @@ class PresenceTracker:
                 if (self._last_present_ts is not None
                         and now - self._last_present_ts >= self._away_grace):
                     self._state = PresenceState.AWAY
-                    self._absent_since_ts = self._last_present_ts
+                    # AWAY starts now — not at the last presence frame. Using
+                    # _last_present_ts confirmed ABSENT absent_confirm_s after
+                    # last presence, one away_grace window earlier than the
+                    # documented "seconds in AWAY before confirming ABSENT".
+                    self._absent_since_ts = now
                     event = PresenceEvent.AWAY
             elif self._state == PresenceState.AWAY:
                 absent_elapsed = (
@@ -354,6 +358,10 @@ class GroupPresenceTracker:
 
     def remove_participant(self, participant_id: str) -> None:
         self._trackers.pop(participant_id, None)
+
+    @property
+    def participant_ids(self) -> List[str]:
+        return list(self._trackers.keys())
 
     def summary(self) -> GroupPresenceSummary:
         """Return the current group-level presence summary."""

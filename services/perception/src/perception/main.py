@@ -18,6 +18,7 @@ from __future__ import annotations
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.providers.base import EmbeddedFace
 from aoep_shared.service import create_service
+from aoep_shared.vision.models import ModelsUnavailable
 from fastapi import Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -53,6 +54,8 @@ async def enroll(student_id: str, file: UploadFile = File(...)) -> EnrollRespons
         raise HTTPException(status_code=422, detail=str(exc))
     except NotImplementedError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+    except ModelsUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     return EnrollResponse(student_id=student_id, enrollments=count)
 
 
@@ -85,13 +88,17 @@ async def identify(
         )
     except NotImplementedError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+    except ModelsUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     faces = [
         FaceResult(
             track_id=o.track_id,
             matched_student_id=o.matched_student_id,
             attention=o.attention_score,
             gaze_frontal=o.gaze_frontal,
-            expression=o.expression,
+            # expression is None where emotion recognition is disallowed (EU)
+            # or when landmarks/bbox/frame_size were not supplied.
+            expression=o.expression or "unknown",
             identified=o.matched_student_id is not None,
         )
         for o in observations

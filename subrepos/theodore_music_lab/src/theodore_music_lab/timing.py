@@ -102,12 +102,24 @@ def song_timings(
             pause = _SECTION_PAUSE_WEIGHT
         weights.append(line_weight(line) + pause)
         previous_section = line.section
-    total_weight = sum(weights) or 1.0
+
+    def _pinned(line: SongLine) -> bool:
+        return line.start_sec is not None and line.end_sec is not None
+
+    # Hand-timed lines are placed verbatim, so their spans come OUT of the
+    # budget — the old code distributed the whole singable span across all
+    # lines, and a pinned line's share was never subtracted, so estimated lines
+    # overran the declared duration.
+    pinned_span = sum(
+        float(line.end_sec) - float(line.start_sec) for line in lines if _pinned(line)
+    )
+    unpinned_weight = sum(w for line, w in zip(lines, weights) if not _pinned(line))
+    budget = max(0.0, singable - pinned_span)
 
     rows: list[dict[str, Any]] = []
     cursor = lead
     for line, weight in zip(lines, weights):
-        share = singable * (weight / total_weight)
+        share = budget * (weight / unpinned_weight) if unpinned_weight else 0.0
         start = float(line.start_sec) if line.start_sec is not None else cursor
         end = float(line.end_sec) if line.end_sec is not None else start + share
         end = max(start + _MIN_WORD_SEC, end)

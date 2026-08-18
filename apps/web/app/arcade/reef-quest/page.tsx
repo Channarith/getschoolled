@@ -23,8 +23,13 @@ export default function ReefQuest() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("age");
     if (q === "kids" || q === "tween" || q === "teen" || q === "adult") setAge(q);
-    try { setBest(Number(localStorage.getItem(`aoep_reef_best_${q || "tween"}`) || 0)); } catch { /* */ }
   }, []);
+
+  // Reload the best score whenever the age group changes — reading it once at
+  // mount meant an in-page age switch compared/saved against the WRONG age's best.
+  useEffect(() => {
+    try { setBest(Number(localStorage.getItem(`aoep_reef_best_${age}`) || 0)); } catch { /* */ }
+  }, [age]);
 
   const current = pool[idx];
 
@@ -57,6 +62,13 @@ export default function ReefQuest() {
     setTimeout(() => {
       if (!correct && lives - 1 <= 0) {
         setPhase("done");
+        // Running out of lives is the common exit — still record the best.
+        const final = score;
+        try {
+          const b = Math.max(final, best);
+          localStorage.setItem(`aoep_reef_best_${age}`, String(b));
+          setBest(b);
+        } catch { /* */ }
         return;
       }
       const next = idx + 1;

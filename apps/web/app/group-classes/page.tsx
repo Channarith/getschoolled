@@ -870,23 +870,36 @@ export default function GroupClassesPage() {
               ) : (
                 <button
                   onClick={async () => {
-                    // Record Zelle payment intent (best-effort, admin will verify manually)
+                    // Record Zelle payment intent so the admin can verify it.
                     try {
                       const _tok = getToken();
-                      await fetch(`${window.location.origin}/orchestrator/api/group-classes/${encodeURIComponent(checkoutTarget!.id)}/checkout`, {
+                      const me = _tok ? await getMe().catch(() => null) : null;
+                      const res = await fetch(`${window.location.origin}/orchestrator/api/group-classes/${encodeURIComponent(checkoutTarget!.id)}/checkout`, {
                         method: 'POST',
                         headers: {
                           'content-type': 'application/json',
                           ...(_tok ? { 'authorization': `Bearer ${_tok}` } : {}),
                         },
-                        body: JSON.stringify({ name: '', email: '', payment_method: 'zelle', voucher_code: '' })
+                        body: JSON.stringify({
+                          name: me?.display_name || '',
+                          email: me?.email || '',
+                          payment_method: 'zelle',
+                          voucher_code: '',
+                        }),
                       });
-                    } catch { /* best-effort */ }
-                    alert('Thank you! Please email support@salareen.com with your Zelle confirmation. We will grant access within 1 hour.');
-                    setCheckoutTarget(null);
-                    setPaymentMethod('card');
-                    setVoucherCode('');
-                    setVoucherResult(null);
+                      if (!res.ok) {
+                        setError('Could not record your payment intent. Please email support@salareen.com manually with your Zelle confirmation.');
+                        return;
+                      }
+                      alert('Thank you! Please email support@salareen.com with your Zelle confirmation. We will grant access within 1 hour.');
+                      setCheckoutTarget(null);
+                      setPaymentMethod('card');
+                      setVoucherCode('');
+                      setVoucherResult(null);
+                    } catch (e) {
+                      setError(`Could not record your payment intent: ${String(e)}. Please email support@salareen.com manually.`);
+                      return;
+                    }
                   }}
                   style={{ flex: 2, padding: "12px", borderRadius: 10, background: "#ca8a04", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>
                   {"I've sent the Zelle payment"}

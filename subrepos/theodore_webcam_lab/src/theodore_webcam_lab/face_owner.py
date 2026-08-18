@@ -16,7 +16,15 @@ FACE_OWNER_MAX_FACES = 4
 OWNER_ENROLL_HOLD_MS = 1500
 OWNER_MATCH_IOU_MIN = 0.22
 OWNER_MATCH_FP_MAX = 0.38
-OWNER_MATCH_SCORE_MIN = 0.35
+# Above the IoU-only ceiling (0.45): continuity alone can never pass — the
+# fingerprint (identity) must contribute.
+OWNER_MATCH_SCORE_MIN = 0.55
+# Identity veto: below this fingerprint sub-score the face is not the owner no
+# matter how well the box overlaps (a same-seat stranger passed on IoU alone).
+OWNER_MATCH_FP_MIN = 0.25
+# The template only adapts on a strong identity match — a marginal match must
+# not drift the enrolled fingerprint toward a substitute.
+OWNER_ADAPT_FP_MIN = 0.5
 
 # MediaPipe Face Mesh indices used for the geometry fingerprint.
 _FP_IDX = (33, 263, 1, 61, 291, 10, 152)
@@ -136,18 +144,26 @@ def largest_face_index(faces: Sequence[Sequence[object]]) -> int:
     return best_i
 
 
-def match_score_for_face(
+def match_parts_for_face(
     pts: Sequence[object],
     state: OwnerState,
-) -> float:
-    """0..1 similarity to the enrolled owner (IoU + fingerprint)."""
+) -> tuple[float, float]:
+    """Return (combined 0..1 score, fingerprint sub-score 0..1)."""
     box = face_box_from_landmarks(pts)
     iou = box_iou(box, state.last_box)
     fp = face_fingerprint(pts)
     fp_dist = fingerprint_distance(fp, state.fingerprint)
     fp_part = max(0.0, 1.0 - fp_dist / max(OWNER_MATCH_FP_MAX, 1e-6))
     # Weight continuity (IoU) and identity (fingerprint) together.
-    return max(0.0, min(1.0, 0.45 * iou + 0.55 * fp_part))
+    return max(0.0, min(1.0, 0.45 * iou + 0.55 * fp_part)), fp_part
+
+
+def match_score_for_face(
+    pts: Sequence[object],
+    state: OwnerState,
+) -> float:
+    """0..1 similarity to the enrolled owner (IoU + fingerprint)."""
+    return match_parts_for_face(pts, state)[0]
 
 
 def pick_owner_face(
@@ -208,15 +224,18 @@ def pick_owner_face(
         )
 
     # Enrolled: score every face against the owner template.
-    best_i, best_score = 0, -1.0
+    best_i, best_score, best_fp_part = 0, -1.0, 0.0
     scores: list[float] = []
     for i, pts in enumerate(faces):
-        score = match_score_for_face(pts, state)
+        score, fp_part = match_parts_for_face(pts, state)
         scores.append(score)
         if score > best_score:
             best_score = score
+            best_fp_part = fp_part
             best_i = i
-    matched = best_score >= OWNER_MATCH_SCORE_MIN
+    # Combined threshold AND identity floor — IoU alone (max 0.45) can no
+    # longer carry a same-seat stranger past the lock.
+    matched = best_score >= OWNER_MATCH_SCORE_MIN and best_fp_part >= OWNER_MATCH_FP_MIN
     if matched:
         box = face_box_from_landmarks(faces[best_i])
         if box is not None:
@@ -231,7 +250,11 @@ def pick_owner_face(
                     h=0.7 * state.last_box.h + 0.3 * box.h,
                 )
             fp = face_fingerprint(faces[best_i])
-            if fp is not None and state.fingerprint is not None:
+            if (
+                fp is not None
+                and state.fingerprint is not None
+                and best_fp_part >= OWNER_ADAPT_FP_MIN
+            ):
                 state.fingerprint = [
                     0.85 * a + 0.15 * b for a, b in zip(state.fingerprint, fp)
                 ]
