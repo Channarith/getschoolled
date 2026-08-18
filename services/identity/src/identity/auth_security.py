@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 import time as _time
 
 _log = logging.getLogger(__name__)
@@ -61,13 +62,14 @@ def _bounded_dict_add(d: dict, key: str, value, name: str) -> None:
     d[key] = value
 
 
-# Bug 7: 2FA brute-force lockout — wrong-code attempts are counted per ACCOUNT
-# (re-login no longer resets the counter) and the current mfa_token is burned
-# after 5 cumulative failures. Falls back to in-process dicts/sets when Redis
-# is unavailable (single-pod deployments or dev). In production multi-pod
-# deployments Redis is required for correct cross-pod enforcement.
-_mfa_fail_counts: dict[str, int] = {}  # account_id -> failure count (in-process fallback)
+# Bug 7: 2FA brute-force lockout — after 5 wrong codes the mfa_token is burned.
+# These fall back to in-process dicts/sets when Redis is unavailable (single-pod
+# deployments or dev). In production multi-pod deployments Redis is required for
+# correct cross-pod enforcement.
+MFA_MAX_ACCOUNT_FAILURES = 5  # account-scoped ceiling; survives mfa_token rotation
+_mfa_fail_counts: dict[str, int] = {}  # mfa_token -> failure count (in-process fallback)
 _mfa_burned: set[str] = set()         # mfa_tokens invalidated by lockout (in-process fallback)
+_mfa_account_fail_counts: dict[str, int] = {}  # account_id -> cumulative failures (bypass-resistant)
 
 # Bug 8: Password-reset token single-use (in-process fallback).
 _used_reset_tokens: set[str] = set()
@@ -85,6 +87,7 @@ def _get_redis():
 
 _MFA_FAIL_KEY = "identity:mfa_fail:{token}"
 _MFA_BURN_KEY = "identity:mfa_burned:{token}"
+_MFA_ACCOUNT_FAIL_KEY = "identity:mfa_account_fail:{account_id}"
 _RESET_USED_KEY = "identity:reset_used:{token}"
 _MFA_TTL = 300  # 5 minutes (mfa_token lifetime)
 _RESET_TTL = 3600  # 1 hour (reset token lifetime)
@@ -100,34 +103,19 @@ def _mfa_fail_count(token: str) -> int:
     return _mfa_fail_counts.get(token, 0)
 
 
-def _mfa_fail_increment(account_id: str) -> int:
-    """Count wrong 2FA codes per ACCOUNT, not per mfa_token.
-
-    Keying on the token let an attacker re-login to mint a fresh token and
-    reset the counter to zero, so the 5-attempt lockout never engaged.
-    """
+def _mfa_fail_increment(token: str) -> int:
     r = _get_redis()
     if r:
         try:
-            key = _MFA_FAIL_KEY.format(token=account_id)
+            key = _MFA_FAIL_KEY.format(token=token)
             count = r.incr(key)
             r.expire(key, _MFA_TTL)
             return int(count)
         except Exception:
             pass
-    count = _mfa_fail_counts.get(account_id, 0) + 1
-    _mfa_fail_counts[account_id] = count
+    count = _mfa_fail_counts.get(token, 0) + 1
+    _mfa_fail_counts[token] = count
     return count
-
-
-def _mfa_fail_reset(account_id: str) -> None:
-    r = _get_redis()
-    if r:
-        try:
-            r.delete(_MFA_FAIL_KEY.format(token=account_id))
-        except Exception:
-            pass
-    _mfa_fail_counts.pop(account_id, None)
 
 
 def _mfa_is_burned(token: str) -> bool:
@@ -150,6 +138,32 @@ def _mfa_burn(token: str) -> None:
         except Exception:
             pass
     _bounded_set_add(_mfa_burned, token, "_mfa_burned")
+
+
+def _mfa_account_fail_increment(account_id: str) -> int:
+    """Increment account-level MFA failure count. Survives mfa_token rotation."""
+    r = _get_redis()
+    if r:
+        try:
+            key = _MFA_ACCOUNT_FAIL_KEY.format(account_id=account_id)
+            count = r.incr(key)
+            r.expire(key, 3600)
+            return int(count)
+        except Exception:
+            pass
+    count = _mfa_account_fail_counts.get(account_id, 0) + 1
+    _bounded_dict_add(_mfa_account_fail_counts, account_id, count, "_mfa_account_fail_counts")
+    return count
+
+
+def _mfa_account_fail_count(account_id: str) -> int:
+    r = _get_redis()
+    if r:
+        try:
+            return int(r.get(_MFA_ACCOUNT_FAIL_KEY.format(account_id=account_id)) or 0)
+        except Exception:
+            pass
+    return _mfa_account_fail_counts.get(account_id, 0)
 
 
 def _reset_token_is_used(token: str) -> bool:
@@ -246,6 +260,10 @@ class TotpCodeRequest(BaseModel):
     code: str
 
 
+class Setup2faRequest(BaseModel):
+    code: str = ""  # required when 2FA is already active (re-provisioning)
+
+
 class OAuthGoogleRequest(BaseModel):
     id_token: str
 
@@ -300,7 +318,13 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             raise HTTPException(status_code=401, detail="invalid email or password")
         if acct.totp_enabled and acct.totp_secret:
             mfa = sign_token(
-                {"sub": acct.id, "purpose": "mfa_pending"},
+                {
+                    "sub": acct.id,
+                    "purpose": "mfa_pending",
+                    # Unique per login so re-auth cannot reuse/reset a prior
+                    # mfa_token's failure counter by minting an identical JWT.
+                    "jti": secrets.token_hex(8),
+                },
                 token_key_fn(),
                 ttl_s=300,
             )
@@ -318,11 +342,14 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         acct = app.state.accounts.by_id(body.get("sub", ""))
         if acct is None or not acct.totp_enabled:
             raise HTTPException(status_code=401, detail="2FA not enabled")
+        # Account-level lockout check (survives mfa_token rotation by attacker re-login).
+        if _mfa_account_fail_count(acct.id) >= MFA_MAX_ACCOUNT_FAILURES:
+            raise HTTPException(status_code=429, detail="too many 2FA failures; account locked")
         if not verify_totp(acct.totp_secret, req.code):
-            # Bug 7: Track failures per account (survives re-login); burn the
-            # current mfa_token after 5 cumulative bad codes.
-            count = _mfa_fail_increment(acct.id)
-            if count >= 5:
+            # Bug 7: Track failures per mfa_token; burn after limit attempts (Redis-backed).
+            count = _mfa_fail_increment(req.mfa_token)
+            _mfa_account_fail_increment(acct.id)
+            if count >= MFA_MAX_ACCOUNT_FAILURES:
                 _mfa_burn(req.mfa_token)
             ctx = _ctx(request)
             app.state.accounts.record_login_event(
@@ -333,7 +360,6 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         if _totp_is_used(acct.id, req.code):
             raise HTTPException(status_code=401, detail="TOTP code already used")
         _totp_mark_used(acct.id, req.code)
-        _mfa_fail_reset(acct.id)
         ctx = _ctx(request)
         app.state.accounts.oauth_login_success(acct.id, method="mfa", **ctx)
         return session_fn(acct)
@@ -373,15 +399,17 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         return {"reset": True}
 
     @app.post("/auth/2fa/setup")
-    def setup_2fa(acct=Depends(current_account)) -> dict:
-        # set_totp_secret resets totp_enabled=False, so calling setup on an
-        # enabled account silently downgrades it to password-only. Require the
-        # code-gated disable route first so re-enrollment is always deliberate.
+    def setup_2fa(
+        acct=Depends(current_account),
+        req: Setup2faRequest | None = None,
+    ) -> dict:
+        body = req or Setup2faRequest()
         if acct.totp_enabled:
-            raise HTTPException(
-                status_code=409,
-                detail="2FA is already enabled; disable it (with a valid code) before re-enrolling",
-            )
+            if not body.code or not verify_totp(acct.totp_secret, body.code):
+                raise HTTPException(
+                    status_code=409,
+                    detail="current 2FA code required to re-provision authenticator",
+                )
         secret = generate_totp_secret()
         app.state.accounts.set_totp_secret(acct.id, secret)
         return {
