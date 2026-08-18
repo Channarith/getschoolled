@@ -517,7 +517,8 @@ MONITOR_JS = (
     // range fails the whole POST with a 422, so every frame is clamped on the way out.
     const UNIT_SIGNAL_FIELDS = [
       'foreground_ratio', 'motion_score', 'attention', 'expression_confidence',
-      'gaze_frontal', 'gaze_down_score', 'eyes_closed_score', 'yawn_score',
+      'gaze_frontal', 'gaze_down_score', 'gaze_up_score', 'gaze_left_score', 'gaze_right_score',
+      'eyes_closed_score', 'yawn_score',
       'hands_on_face_score', 'body_motion_score', 'fidget_score', 'brow_raise_score',
       'smile_score', 'screen_focus_score', 'typing_activity_score',
       'keyboard_typing_audio_score', 'face_size_ratio', 'light_quality_score',
@@ -539,11 +540,10 @@ MONITOR_JS = (
     }
     function toast(message) {
       const el = document.getElementById('toast');
-      if (!el) return;  // post-shutdown the DOM is wiped
       el.textContent = message;
       el.classList.add('show');
       clearTimeout(toast._t);
-      toast._t = setTimeout(() => { if (el.isConnected) el.classList.remove('show'); }, 5000);
+      toast._t = setTimeout(() => el.classList.remove('show'), 5000);
     }
     function pct(v) {
       if (v === null || v === undefined) return 'n/a';
@@ -820,17 +820,9 @@ MONITOR_JS = (
         }
         return;
       }
-      if (labOffline || document.getElementById('state') == null) return;
-      if (!res.ok) {
-        // A persistent HTTP 500 is a down/broken server, not "no metrics yet".
-        metricsFailStreak += 1;
-        if (metricsFailStreak >= 3) {
-          markLabOffline('Lab server is erroring (HTTP ' + res.status + '). Restart uvicorn, then reload this page.');
-        }
-        return;
-      }
       metricsFailStreak = 0;
-      const data = await res.json().catch(() => null);
+      if (labOffline || document.getElementById('state') == null) return;
+      const data = res.ok ? await res.json().catch(() => null) : null;
       // An unseeded session answers 200 with updated_at_ms 0 and no participants.
       if (!data || !data.updated_at_ms) {
         setHtmlSafe('state',
@@ -868,9 +860,33 @@ MONITOR_JS = (
         const why = data.pause_reason === 'original_user_not_present'
           ? 'Original learner not in frame — lesson paused.'
           : (data.pause_reason === 'owner_face_mismatch'
+            ? 'Camera owner mismatch — another person may have substituted. Lesson paused.'
+            : (data.pause_reason === 'camera_quality'
+              ? 'Camera quality is too poor to continue — improve lighting/focus, or remove this webcam.'
+              : (data.pause_reason === 'pitch_dark_needs_light'
+                ? 'It is too dark. Trying auto-brightness — please turn on a light before continuing.'
+                : (data.pause_reason === 'too_far_from_camera'
+                  ? 'You are too far from the camera. Please move closer to continue the class.'
+                  : (data.pause_reason === 'attention_integrity'
+                    ? 'Looking away from the lesson — please look at the screen to continue.'
+                    : 'Away from webcam — lesson paused. Please return to the camera.')))));
             ? 'Face ID mismatch — enrolled learner is not in frame. Teaching paused until they return.'
             : 'Away from webcam — lesson paused. Please return to the camera.');
         banner.textContent = '⏸ ' + why;
+        if (data.pause_reason === 'pitch_dark_needs_light') {
+          void tryAutoLighting();
+          maybeAnnounceIntegrity('dark',
+            'It is too dark to continue. I tried brightening the camera — please turn on a light.');
+        } else if (data.pause_reason === 'too_far_from_camera') {
+          maybeAnnounceIntegrity('far',
+            'You are too far from the camera to take this class. Please move closer.');
+        } else if (data.pause_reason === 'camera_quality') {
+          maybeAnnounceIntegrity('quality',
+            'Camera quality is too poor to continue. Improve the lighting or focus, or switch cameras.');
+        } else if (data.pause_reason === 'attention_integrity') {
+          maybeAnnounceIntegrity('away',
+            'Please look at the lesson on screen. Looking away counts as not paying attention.');
+        }
       } else {
         banner.style.display = 'none';
       }
@@ -1047,8 +1063,7 @@ MONITOR_JS = (
     }
 
     function setStatus(text) {
-      const el = document.getElementById('tuning-status');
-      if (el) el.textContent = text;
+      document.getElementById('tuning-status').textContent = text;
     }
     function updateTuningEffect(p, knobs, note) {
       const host = document.getElementById('tuning-effect');
@@ -1200,12 +1215,11 @@ MONITOR_JS = (
         : (tuningScope === 'voice'
           ? '/api/theodore/voice/tuning'
           : '/api/theodore/vision/tuning');
-      const res = await fetch(base, { cache: 'no-store' }).catch(() => null);
-      if (!res || !res.ok) return;
+      const res = await fetch(base, { cache: 'no-store' });
+      if (!res.ok) return;
       const data = await res.json();
       const select = document.getElementById('preset');
       const presetWrap = document.getElementById('preset-wrap');
-      if (!select || !presetWrap) return;  // post-shutdown the DOM is wiped
       if (tuningScope === 'policy') {
         presetWrap.style.display = 'none';
         renderKnobGroups(document.getElementById('knobs'), [['Timing / session', POLICY_KNOBS]], data.knobs || {}, base);
@@ -1296,7 +1310,6 @@ MONITOR_JS = (
         if (!res.ok) return;
         _voiceLangs = await res.json();
         const sel = document.getElementById('voice-lang');
-        if (!sel) return;  // post-shutdown the DOM is wiped
         sel.innerHTML = _voiceLangs.map((l) =>
           `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
         ).join('');
@@ -1463,12 +1476,9 @@ MONITOR_JS = (
           ? 'Re-scored demo frames — check Failed quality checks / student windows'
           : 'No frame cached yet. Start camera, wait 1s, click Prove again.'));
       setTimeout(async () => {
-        if (labOffline) return;  // the server is gone — don't fire a dead fetch
-        try {
-          const res = await fetch('/api/theodore/vision/tuning/preset/balanced', { method: 'POST' });
-          if (res.ok) explainTuningResult(await res.json(), 'prove: restored balanced preset');
-          await loadTuning();
-        } catch (_) { /* server went away */ }
+        const res = await fetch('/api/theodore/vision/tuning/preset/balanced', { method: 'POST' });
+        if (res.ok) explainTuningResult(await res.json(), 'prove: restored balanced preset');
+        await loadTuning();
       }, 2200);
     });
 
@@ -1571,6 +1581,38 @@ MONITOR_JS = (
     const patternCanvas = document.getElementById('pattern-canvas');
     const camFrame = document.querySelector('.cam-frame');
     let camStream = null, camTimer = null, patternPhase = 0;
+    let lastAutoLightAt = 0;
+    async function tryAutoLighting() {
+      // Best-effort continuous exposure / brightness when the room is pitch dark.
+      if (!camStream) return;
+      const now = Date.now();
+      if (now - lastAutoLightAt < 8000) return;
+      lastAutoLightAt = now;
+      const track = camStream.getVideoTracks()[0];
+      if (!track || !track.getCapabilities || !track.applyConstraints) return;
+      let caps = {};
+      try { caps = track.getCapabilities() || {}; } catch (_) { return; }
+      const advanced = {};
+      if (caps.exposureMode && caps.exposureMode.includes && caps.exposureMode.includes('continuous')) {
+        advanced.exposureMode = 'continuous';
+      }
+      if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes && caps.whiteBalanceMode.includes('continuous')) {
+        advanced.whiteBalanceMode = 'continuous';
+      }
+      if (caps.exposureCompensation && typeof caps.exposureCompensation.max === 'number' && caps.exposureCompensation.max > 0) {
+        advanced.exposureCompensation = Math.min(caps.exposureCompensation.max, 0.7);
+      }
+      if (caps.brightness && typeof caps.brightness.min === 'number' && typeof caps.brightness.max === 'number') {
+        advanced.brightness = (caps.brightness.min + caps.brightness.max) / 2 + (caps.brightness.max - caps.brightness.min) * 0.15;
+      }
+      if (!Object.keys(advanced).length) return;
+      try {
+        await track.applyConstraints({ advanced: [advanced] });
+        toast('Tried auto-brighten the camera — please also turn on a room light.');
+      } catch (_) {
+        try { await track.applyConstraints(advanced); } catch (__) {}
+      }
+    }
     let usingPattern = false, usingSilhouette = false, lastSilhouetteDetected = false;
     let silhouetteGuideOn = true;
     let audioCtx = null, audioAnalyser = null, audioSource = null, audioData = null;
@@ -1722,10 +1764,7 @@ MONITOR_JS = (
         const prev = history[i - 1], cur = history[i];
         const a = getter(prev), b = getter(cur);
         if (a == null || b == null) continue;
-        // Skip duplicate/out-of-order timestamps — clamping dt to 1ms
-        // amplified tiny jitter into a 1000x phantom speed.
-        if (cur.t - prev.t <= 0) continue;
-        const dt = (cur.t - prev.t) / 1000;
+        const dt = Math.max(1, cur.t - prev.t) / 1000;
         sum += Math.abs(b - a) / dt;
         n += 1;
       }
@@ -1754,8 +1793,7 @@ MONITOR_JS = (
       const pitched = (history || []).filter((h) => h.pitch != null && Number.isFinite(h.pitch));
       if (pitched.length < 3) return 0;
       const first = pitched[0], last = pitched[pitched.length - 1];
-      if (last.t <= first.t) return 0;  // no real interval — no 1ms amplification
-      const dt = (last.t - first.t) / 1000;
+      const dt = Math.max(1, last.t - first.t) / 1000;
       let rate = Math.max(0, last.pitch - first.pitch) / dt;
       let steps = 0, down = 0;
       for (let i = 1; i < pitched.length; i++) {
@@ -3242,13 +3280,13 @@ MONITOR_JS = (
       return bestI;
     }
 
-    function matchPartsForFace(pts, state) {
+    function matchScoreForFace(pts, state) {
       const box = faceBoxFromPts(pts);
       const iou = boxIoU(box, state.lastBox);
       const fp = faceFingerprint(pts);
       const fpDist = fingerprintDistance(fp, state.fingerprint);
       const fpPart = Math.max(0, 1 - fpDist / Math.max(OWNER_MATCH_FP_MAX, 1e-6));
-      return { score: Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart)), fpPart };
+      return Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart));
     }
 
     function matchScoreForFace(pts, state) {
@@ -3331,12 +3369,12 @@ MONITOR_JS = (
           display_name: displayName,
         };
       }
-      let bestI = 0, bestScore = -1, bestFpPart = 0;
+      let bestI = 0, bestScore = -1;
       for (let i = 0; i < faces.length; i++) {
-        const parts = matchPartsForFace(faces[i], faceOwnerState);
-        if (parts.score > bestScore) { bestScore = parts.score; bestFpPart = parts.fpPart; bestI = i; }
+        const score = matchScoreForFace(faces[i], faceOwnerState);
+        if (score > bestScore) { bestScore = score; bestI = i; }
       }
-      const matched = bestScore >= OWNER_MATCH_SCORE_MIN && bestFpPart >= OWNER_MATCH_FP_MIN;
+      const matched = bestScore >= OWNER_MATCH_SCORE_MIN;
       if (matched) {
         const box = faceBoxFromPts(faces[bestI]);
         if (box) {
@@ -3346,7 +3384,7 @@ MONITOR_JS = (
                 w: 0.7 * lb.w + 0.3 * box.w, h: 0.7 * lb.h + 0.3 * box.h }
             : box;
           const fp = faceFingerprint(faces[bestI]);
-          if (fp && faceOwnerState.fingerprint && bestFpPart >= OWNER_ADAPT_FP_MIN) {
+          if (fp && faceOwnerState.fingerprint) {
             faceOwnerState.fingerprint = faceOwnerState.fingerprint.map(
               (v, i) => 0.85 * v + 0.15 * fp[i]
             );
@@ -4334,9 +4372,7 @@ MONITOR_JS = (
       const smileRaw = Math.max(0, Math.min(1, (me - 0.035) / 0.08 + Math.max(0, mouthMean - cheekMean) * 1.8));
       const smile = smileRaw * Math.max(0, 1 - Math.max(0, gaze_down - 0.20) / 0.50);
       const sad = Math.max(0, Math.min(1, Math.max(0, (cheekMean - eyeMean) * 2.2) + Math.max(0, 0.05 - me) * 8 + Math.max(0, 0.55 - smile) * 0.35));
-      // Parity with facial_experience.py (the server reference): neutral
-      // confidence scales with how undecided the smile/sad scores are.
-      let expression_label = 'neutral', expression_confidence = Math.max(0, Math.min(1, 0.40 + (1 - Math.abs(smile - sad)) * 0.35));
+      let expression_label = 'neutral', expression_confidence = 0.45;
       if (smile >= 0.55 && smile >= sad + 0.08) { expression_label = 'happy'; expression_confidence = 0.45 + smile * 0.5; }
       else if (sad >= 0.52 && sad > smile + 0.05) { expression_label = 'sad'; expression_confidence = 0.42 + sad * 0.5; }
       // Eye state is deliberately NOT guessed here. The old edge-contrast proxy
@@ -4346,15 +4382,18 @@ MONITOR_JS = (
       // (MediaPipe blendshapes) may claim eye state; see trackFaceContoursAndMood.
       const eyes_closed_score = null;
       const eyes_closed = false;
-      // Grid yawn removed: the dark-mouth-cavity proxy false-fired on head-low
-      // and dark-torso frames (same class of false positive as the removed
-      // eyes-closed proxy above), and the server never computed it either —
-      // the promotion branch there was dead code. Only real landmarks may
-      // claim yawning.
-      const yawn_score = null;
-      const yawning = false;
-      // Parity with facial_experience.py: eyes_away at gaze_down >= 0.60.
-      const attention = (gaze_down >= 0.60 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking';
+      // Grid yawn: dark mouth cavity relative to cheeks + weak smile edges.
+      const yawn_score = Math.max(0, Math.min(1,
+        Math.max(0, (cheekMean - mouthMean) * 2.6)
+        + Math.max(0, 0.045 - me) * 5.5
+        + Math.max(0, 0.35 - smile) * 0.35
+        - smile * 0.55
+      ));
+      const yawning = yawn_score >= 0.55 && yawn_score >= smile + 0.08;
+      if (yawning) { expression_label = 'yawning'; expression_confidence = 0.45 + yawn_score * 0.45; }
+      const attention = yawning
+        ? 'yawning'
+        : ((gaze_down >= 0.45 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking');
       // Linear face size from dark-pixel bbox (larger face ⇒ closer to camera).
       let minX = w, minY = h, maxX = -1, maxY = -1;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -4665,10 +4704,7 @@ MONITOR_JS = (
     }
 
     // Finite numbers pass through; anything unmeasured becomes null.
-    // Named signalNum: this file also has a display formatter `num(v, digits)`
-    // — the duplicate declaration silently replaced it and the dashboard
-    // rendered literal "null" strings / unrounded floats.
-    function signalNum(value) {
+    function num(value) {
       return (typeof value === 'number' && isFinite(value)) ? value : null;
     }
 
@@ -4696,11 +4732,8 @@ MONITOR_JS = (
       const signal = {
             participant_id: 'camera-local',
             timestamp_ms: liveCamTimestampMs(),
-            // Synthetic modes (test pattern, silhouette demo) have no real
-            // face — the coarse grid estimator reads the bars as a happy,
-            // focused learner. Zero the face fields for both.
-            face_count: (usingSilhouette || usingPattern) ? 0 : facial.face_count,
-            liveness_state: (usingSilhouette || usingPattern) ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
+            face_count: usingSilhouette ? 0 : facial.face_count,
+            liveness_state: usingSilhouette ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
             owner_face_enrolled: !!(facial.owner_face_enrolled),
             owner_face_match: facial.owner_face_match == null ? null : !!facial.owner_face_match,
             owner_face_name: facial.owner_face_name || faceOwnerState.displayName || null,
@@ -4710,16 +4743,23 @@ MONITOR_JS = (
             motion_score: motion,
             body_motion_score: motion,
             fidget_score: Math.max(0, Math.min(1, (motion - 0.12) * 2.4)),
-            expression_label: usingPattern ? 'unknown' : facial.expression_label,
-            expression_confidence: usingPattern ? null : facial.expression_confidence,
-            gaze_frontal: usingPattern ? null : facial.gaze_frontal,
-            gaze_down_score: usingPattern ? null : facial.gaze_down_score,
+            expression_label: facial.expression_label,
+            expression_confidence: facial.expression_confidence,
+            gaze_frontal: facial.gaze_frontal,
+            gaze_down_score: facial.gaze_down_score,
+            gaze_up_score: (stareResidualDeg != null && stareResidualDeg < -6)
+              ? clamp01((-stareResidualDeg - 6) / 30) : null,
+            gaze_left_score: (facial.head_pose_yaw != null && facial.head_pose_yaw < -10)
+              ? clamp01((-facial.head_pose_yaw - 10) / 30) : null,
+            gaze_right_score: (facial.head_pose_yaw != null && facial.head_pose_yaw > 10)
+              ? clamp01((facial.head_pose_yaw - 10) / 30) : null,
+            stare_residual_deg: num(stareResidualDeg),
             // null (not 0) when no real detector measured it, so the server can
             // tell "measured as open" apart from "nobody looked".
-            eyes_closed_score: signalNum(facial.eyes_closed_score),
-            yawn_score: signalNum(facial.yawn_score),
-            brow_raise_score: signalNum(facial.brow_raise_score),
-            smile_score: signalNum(facial.smile_score),
+            eyes_closed_score: num(facial.eyes_closed_score),
+            yawn_score: num(facial.yawn_score),
+            brow_raise_score: num(facial.brow_raise_score),
+            smile_score: num(facial.smile_score),
             detector_source: detectorSource,
             head_pose_pitch: facial.head_pose_pitch,
             head_pose_yaw: facial.head_pose_yaw,
@@ -4767,10 +4807,7 @@ MONITOR_JS = (
             eyeMidX: (left.x + right.x) / 2,
             eyeMidY: (left.y + right.y) / 2,
             faceSize: Math.max(0.05, facial.face_size_ratio || (chin.y - brow.y)),
-            // Use the geometric pitch (guaranteed positive = down) — the matrix
-            // and landmark paths disagree on head_pose_pitch's sign, and the
-            // dozing head-sag term requires positive = down.
-            pitch: (facial.head_pitch_geom_deg != null ? facial.head_pitch_geom_deg : facial.head_pose_pitch),
+            pitch: facial.head_pose_pitch,
             brow: facial.brow_raise_score || 0,
             smile: facial.smile_score || 0,
             gazeFrontal: facial.gaze_frontal || 0.5,
@@ -4810,9 +4847,7 @@ MONITOR_JS = (
       signal.keyboard_typing_audio_score = clickResult.keyboardScore;
       signal.external_music_score = clickResult.externalMusicScore > 0.05
         ? Math.round(clickResult.externalMusicScore * 1000) / 1000 : null;
-      // The ear cue needs a face — an empty dark room reads darkLeftRatio > 0.40
-      // with gazeDown 0 and false-fired "phone at ear" while nobody was present.
-      signal.phone_visible = phoneDet.below || (phoneDet.ear && facial.face_count > 0) || clickResult.phonecall;
+      signal.phone_visible = phoneDet.below || phoneDet.ear || clickResult.phonecall;
       signal.hands_on_face_score = handsScore > 0.05 ? Math.round(handsScore * 1000) / 1000 : null;
       signal.phone_in_hand_score = held > 0.05 && phoneGridScore >= 0.35
         ? Math.round(held * 1000) / 1000 : null;
@@ -4941,7 +4976,6 @@ MONITOR_JS = (
       lastSilhouetteDetected = false;
       resetFaceOwner({ clearProfile: false });
       resetLiveAway(true);
-      faceLandmarkHistory = [];  // no stale samples across a camera restart
       refreshSilhouetteGuide();
       camTimer = setInterval(sampleFrame, 300);
       sampleFrame();
