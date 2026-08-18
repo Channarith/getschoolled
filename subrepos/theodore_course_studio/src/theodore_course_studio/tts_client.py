@@ -114,6 +114,9 @@ def tts_client_hints(
     local = neural_tts.status()
     local_ready = bool(local.get("available"))
 
+    # Always attach a language= URL when narration text is present so teach
+    # payloads stay inspectable and the page can try neural playback even when
+    # the preferred engine is currently down (501 → device fallback).
     if gateway.get("available"):
         engine = gateway.get("engine") or "speech-gateway"
         get_url = build_tts_get_url(text, language=lang, voice_gender=gender) if text else ""
@@ -128,8 +131,12 @@ def tts_client_hints(
         source = "local-neural"
     else:
         engine = "device"
-        get_url = ""
         source = "device"
+        get_url = (
+            build_local_tts_get_url(text, language=lang, voice_gender=gender)
+            if text
+            else ""
+        )
 
     return {
         "language": lang,
