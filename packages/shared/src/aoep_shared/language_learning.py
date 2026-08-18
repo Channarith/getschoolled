@@ -1191,7 +1191,7 @@ MAX_PRACTICE_XP = 500
 def practice_xp(skill: str, correct: int, total: int) -> int:
     """XP for completing a practice set (feeds points/rewards)."""
     total = max(0, min(int(total), MAX_PRACTICE_ITEMS))
-    # A set with no items awards nothing, and correct can never exceed total.
+    # Never mint XP against a forged/empty set size — correct cannot exceed total.
     correct = max(0, min(int(correct), total))
     base = correct * 8
     bonus = 16 if total and correct == total else 0
