@@ -1095,11 +1095,14 @@ def assessment_checkpoint_start(
             raise HTTPException(status_code=409, detail="maximum checkpoint attempts exceeded")
         run_id = f"assess-{uuid.uuid4().hex[:16]}"
     ksb_by_item, domain_by_item = _assessment_ksb_maps(course_id, items)
-    if req.stage == AssessmentStage.SUMMATIVE:
-        policy.required_domains = sorted(
-            set(domain_by_item.values()),
-            key=lambda domain: domain.value,
-        )
+    # Derive required_domains from the actual item mix for BOTH stages. The
+    # class default ([KNOWLEDGE]) fails formative students who pass the score
+    # threshold on skill/behaviour items but miss the knowledge items — the
+    # requirement must match what the checkpoint actually asks.
+    policy.required_domains = sorted(
+        set(domain_by_item.values()),
+        key=lambda domain: domain.value,
+    )
     app.state.assessment_runs[run_id] = {
         "student_id": req.student_id,
         "account_id": account_id,
@@ -1161,6 +1164,9 @@ def assessment_checkpoint_submit(
             domain_by_item=run["domain_by_item"],
         )
     except ValueError as exc:
+        # Put the run back: a malformed submission (e.g. wrong answer count)
+        # must not destroy the in-progress exam — no attempt was consumed.
+        app.state.assessment_runs[run_id] = run
         raise HTTPException(status_code=422, detail=str(exc))
     _submit_lock_key = f"{run['student_id']}:{run['course_id']}:{run['policy'].checkpoint_id}"
     with _assessment_lock_for(_submit_lock_key):

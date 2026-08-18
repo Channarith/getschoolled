@@ -1679,6 +1679,19 @@ export async function deleteEnrollment(courseId: string): Promise<void> {
   });
 }
 
+// Best-effort sync of a My List bookmark toggle to the server, so saved
+// courses show up on the user's other devices. Local AsyncStorage stays
+// authoritative offline; failures here are intentionally silent.
+export async function syncMyListToggle(
+  courseId: string, saved: boolean, title = "",
+): Promise<void> {
+  if (!getToken()) return;
+  try {
+    if (saved) await enrollCourse(courseId, title || courseId, "saved");
+    else await deleteEnrollment(courseId);
+  } catch { /* offline or unauthenticated — the local copy still works */ }
+}
+
 export async function getPortfolio(): Promise<Portfolio> {
   return get(IDENTITY_URL, "/portfolio", { headers: authHeaders() });
 }

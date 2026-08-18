@@ -207,7 +207,10 @@ export async function startDrivingDetection(settings: Settings): Promise<Driving
   emit();
 
   if (settings.driveUseLocation && perms.location && Location) {
-    locSub = await Location.watchPositionAsync(
+    // stopDrivingDetection() may have run while permissions were awaited —
+    // installing the watcher anyway would leak it (GPS stays on forever).
+    if (!running) return status;
+    const sub = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.Balanced,
         timeInterval: 3000,
@@ -219,9 +222,16 @@ export async function startDrivingDetection(settings: Settings): Promise<Driving
         onSpeedSample(raw != null && raw >= 0 ? raw : null);
       },
     );
+    if (!running) {
+      // Stopped while the watcher was being installed — remove it immediately.
+      sub.remove();
+      return status;
+    }
+    locSub = sub;
   }
 
   if (settings.driveUseMotionSensors && perms.motion && sensors) {
+    if (!running) return status;  // stopped while awaiting permissions/watch
     const { Accelerometer, Gyroscope } = sensors;
     Accelerometer.setUpdateInterval(1000);
     accelSub = Accelerometer.addListener(({ x, y, z }: { x: number; y: number; z: number }) => {

@@ -550,7 +550,9 @@ class AccountStore:
         acct.billing_address = address
         if card_last4:
             acct.card_last4 = card_last4
-        acct.billing_validated_at = time.time()
+            # Only a real payment method validates billing — saving a phone
+            # number or address alone must not unlock paid-tier activation.
+            acct.billing_validated_at = time.time()
         self._persist()
         return acct
 

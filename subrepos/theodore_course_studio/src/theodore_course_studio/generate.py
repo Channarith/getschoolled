@@ -18,6 +18,9 @@ from .review_store import ReviewStore
 from .studio_languages import normalize_language
 from .types import CategoryId, CourseSlide, QualityLabel, StudioCourse
 
+# Course ids become filenames — slugs only (letters, digits, dash, underscore).
+_COURSE_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
 
 @dataclass
 class _Candidate:
@@ -92,14 +95,33 @@ class CourseBuilder:
             courses.append(StudioCourse.model_validate_json(path.read_text(encoding="utf-8")))
         return courses
 
+    @staticmethod
+    def _safe_course_id(course_id: str) -> str | None:
+        """Return the id when it is a plain slug, else None (path-traversal guard).
+
+        The id is interpolated into a filesystem path — reject anything with
+        separators, dots, or non-slug characters (sibling stores sanitize the
+        same way).
+        """
+        cid = (course_id or "").strip()
+        if not cid or not _COURSE_ID_RE.match(cid):
+            return None
+        return cid
+
     def get_course(self, course_id: str) -> StudioCourse | None:
-        path = self._courses_dir / f"{course_id}.course.json"
+        safe = self._safe_course_id(course_id)
+        if safe is None:
+            return None
+        path = self._courses_dir / f"{safe}.course.json"
         if not path.is_file():
             return None
         return StudioCourse.model_validate_json(path.read_text(encoding="utf-8"))
 
     def save_course(self, course: StudioCourse) -> Path:
-        path = self._courses_dir / f"{course.course_id}.course.json"
+        safe = self._safe_course_id(course.course_id)
+        if safe is None:
+            raise ValueError(f"invalid course_id for storage: {course.course_id!r}")
+        path = self._courses_dir / f"{safe}.course.json"
         path.write_text(course.model_dump_json(indent=2), encoding="utf-8")
         return path
 

@@ -527,10 +527,11 @@ MONITOR_JS = (
     }
     function toast(message) {
       const el = document.getElementById('toast');
+      if (!el) return;  // post-shutdown the DOM is wiped
       el.textContent = message;
       el.classList.add('show');
       clearTimeout(toast._t);
-      toast._t = setTimeout(() => el.classList.remove('show'), 5000);
+      toast._t = setTimeout(() => { if (el.isConnected) el.classList.remove('show'); }, 5000);
     }
     function pct(v) {
       if (v === null || v === undefined) return 'n/a';
@@ -807,9 +808,17 @@ MONITOR_JS = (
         }
         return;
       }
-      metricsFailStreak = 0;
       if (labOffline || document.getElementById('state') == null) return;
-      const data = res.ok ? await res.json().catch(() => null) : null;
+      if (!res.ok) {
+        // A persistent HTTP 500 is a down/broken server, not "no metrics yet".
+        metricsFailStreak += 1;
+        if (metricsFailStreak >= 3) {
+          markLabOffline('Lab server is erroring (HTTP ' + res.status + '). Restart uvicorn, then reload this page.');
+        }
+        return;
+      }
+      metricsFailStreak = 0;
+      const data = await res.json().catch(() => null);
       // An unseeded session answers 200 with updated_at_ms 0 and no participants.
       if (!data || !data.updated_at_ms) {
         setHtmlSafe('state',
@@ -1026,7 +1035,8 @@ MONITOR_JS = (
     }
 
     function setStatus(text) {
-      document.getElementById('tuning-status').textContent = text;
+      const el = document.getElementById('tuning-status');
+      if (el) el.textContent = text;
     }
     function updateTuningEffect(p, knobs, note) {
       const host = document.getElementById('tuning-effect');
@@ -1178,11 +1188,12 @@ MONITOR_JS = (
         : (tuningScope === 'voice'
           ? '/api/theodore/voice/tuning'
           : '/api/theodore/vision/tuning');
-      const res = await fetch(base, { cache: 'no-store' });
-      if (!res.ok) return;
+      const res = await fetch(base, { cache: 'no-store' }).catch(() => null);
+      if (!res || !res.ok) return;
       const data = await res.json();
       const select = document.getElementById('preset');
       const presetWrap = document.getElementById('preset-wrap');
+      if (!select || !presetWrap) return;  // post-shutdown the DOM is wiped
       if (tuningScope === 'policy') {
         presetWrap.style.display = 'none';
         renderKnobGroups(document.getElementById('knobs'), [['Timing / session', POLICY_KNOBS]], data.knobs || {}, base);
@@ -1273,6 +1284,7 @@ MONITOR_JS = (
         if (!res.ok) return;
         _voiceLangs = await res.json();
         const sel = document.getElementById('voice-lang');
+        if (!sel) return;  // post-shutdown the DOM is wiped
         sel.innerHTML = _voiceLangs.map((l) =>
           `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
         ).join('');
@@ -1403,9 +1415,12 @@ MONITOR_JS = (
           ? 'Re-scored demo frames — check Failed quality checks / student windows'
           : 'No frame cached yet. Start camera, wait 1s, click Prove again.'));
       setTimeout(async () => {
-        const res = await fetch('/api/theodore/vision/tuning/preset/balanced', { method: 'POST' });
-        if (res.ok) explainTuningResult(await res.json(), 'prove: restored balanced preset');
-        await loadTuning();
+        if (labOffline) return;  // the server is gone — don't fire a dead fetch
+        try {
+          const res = await fetch('/api/theodore/vision/tuning/preset/balanced', { method: 'POST' });
+          if (res.ok) explainTuningResult(await res.json(), 'prove: restored balanced preset');
+          await loadTuning();
+        } catch (_) { /* server went away */ }
       }, 2200);
     });
 
@@ -1659,7 +1674,10 @@ MONITOR_JS = (
         const prev = history[i - 1], cur = history[i];
         const a = getter(prev), b = getter(cur);
         if (a == null || b == null) continue;
-        const dt = Math.max(1, cur.t - prev.t) / 1000;
+        // Skip duplicate/out-of-order timestamps — clamping dt to 1ms
+        // amplified tiny jitter into a 1000x phantom speed.
+        if (cur.t - prev.t <= 0) continue;
+        const dt = (cur.t - prev.t) / 1000;
         sum += Math.abs(b - a) / dt;
         n += 1;
       }
@@ -1688,7 +1706,8 @@ MONITOR_JS = (
       const pitched = (history || []).filter((h) => h.pitch != null && Number.isFinite(h.pitch));
       if (pitched.length < 3) return 0;
       const first = pitched[0], last = pitched[pitched.length - 1];
-      const dt = Math.max(1, last.t - first.t) / 1000;
+      if (last.t <= first.t) return 0;  // no real interval — no 1ms amplification
+      const dt = (last.t - first.t) / 1000;
       let rate = Math.max(0, last.pitch - first.pitch) / dt;
       let steps = 0, down = 0;
       for (let i = 1; i < pitched.length; i++) {
@@ -2990,7 +3009,12 @@ MONITOR_JS = (
     const OWNER_ENROLL_HOLD_MS = 1500;
     const OWNER_MATCH_IOU_MIN = 0.22;
     const OWNER_MATCH_FP_MAX = 0.38;
-    const OWNER_MATCH_SCORE_MIN = 0.35;
+    // Above the IoU-only ceiling (0.45): continuity alone can never pass.
+    const OWNER_MATCH_SCORE_MIN = 0.55;
+    // Identity veto: below this fingerprint sub-score it is not the owner.
+    const OWNER_MATCH_FP_MIN = 0.25;
+    // Template adapts only on a strong identity match.
+    const OWNER_ADAPT_FP_MIN = 0.5;
     const OWNER_FP_IDX = [33, 263, 1, 61, 291, 10, 152];
     let faceOwnerState = {
       enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null, matchScore: 0,
@@ -3088,13 +3112,13 @@ MONITOR_JS = (
       return bestI;
     }
 
-    function matchScoreForFace(pts, state) {
+    function matchPartsForFace(pts, state) {
       const box = faceBoxFromPts(pts);
       const iou = boxIoU(box, state.lastBox);
       const fp = faceFingerprint(pts);
       const fpDist = fingerprintDistance(fp, state.fingerprint);
       const fpPart = Math.max(0, 1 - fpDist / Math.max(OWNER_MATCH_FP_MAX, 1e-6));
-      return Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart));
+      return { score: Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart)), fpPart };
     }
 
     function pickOwnerFace(faces, nowMs) {
@@ -3133,12 +3157,12 @@ MONITOR_JS = (
           secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
         };
       }
-      let bestI = 0, bestScore = -1;
+      let bestI = 0, bestScore = -1, bestFpPart = 0;
       for (let i = 0; i < faces.length; i++) {
-        const score = matchScoreForFace(faces[i], faceOwnerState);
-        if (score > bestScore) { bestScore = score; bestI = i; }
+        const parts = matchPartsForFace(faces[i], faceOwnerState);
+        if (parts.score > bestScore) { bestScore = parts.score; bestFpPart = parts.fpPart; bestI = i; }
       }
-      const matched = bestScore >= OWNER_MATCH_SCORE_MIN;
+      const matched = bestScore >= OWNER_MATCH_SCORE_MIN && bestFpPart >= OWNER_MATCH_FP_MIN;
       if (matched) {
         const box = faceBoxFromPts(faces[bestI]);
         if (box) {
@@ -3148,7 +3172,7 @@ MONITOR_JS = (
                 w: 0.7 * lb.w + 0.3 * box.w, h: 0.7 * lb.h + 0.3 * box.h }
             : box;
           const fp = faceFingerprint(faces[bestI]);
-          if (fp && faceOwnerState.fingerprint) {
+          if (fp && faceOwnerState.fingerprint && bestFpPart >= OWNER_ADAPT_FP_MIN) {
             faceOwnerState.fingerprint = faceOwnerState.fingerprint.map(
               (v, i) => 0.85 * v + 0.15 * fp[i]
             );
@@ -4040,7 +4064,9 @@ MONITOR_JS = (
       const smileRaw = Math.max(0, Math.min(1, (me - 0.035) / 0.08 + Math.max(0, mouthMean - cheekMean) * 1.8));
       const smile = smileRaw * Math.max(0, 1 - Math.max(0, gaze_down - 0.20) / 0.50);
       const sad = Math.max(0, Math.min(1, Math.max(0, (cheekMean - eyeMean) * 2.2) + Math.max(0, 0.05 - me) * 8 + Math.max(0, 0.55 - smile) * 0.35));
-      let expression_label = 'neutral', expression_confidence = 0.45;
+      // Parity with facial_experience.py (the server reference): neutral
+      // confidence scales with how undecided the smile/sad scores are.
+      let expression_label = 'neutral', expression_confidence = Math.max(0, Math.min(1, 0.40 + (1 - Math.abs(smile - sad)) * 0.35));
       if (smile >= 0.55 && smile >= sad + 0.08) { expression_label = 'happy'; expression_confidence = 0.45 + smile * 0.5; }
       else if (sad >= 0.52 && sad > smile + 0.05) { expression_label = 'sad'; expression_confidence = 0.42 + sad * 0.5; }
       // Eye state is deliberately NOT guessed here. The old edge-contrast proxy
@@ -4050,18 +4076,15 @@ MONITOR_JS = (
       // (MediaPipe blendshapes) may claim eye state; see trackFaceContoursAndMood.
       const eyes_closed_score = null;
       const eyes_closed = false;
-      // Grid yawn: dark mouth cavity relative to cheeks + weak smile edges.
-      const yawn_score = Math.max(0, Math.min(1,
-        Math.max(0, (cheekMean - mouthMean) * 2.6)
-        + Math.max(0, 0.045 - me) * 5.5
-        + Math.max(0, 0.35 - smile) * 0.35
-        - smile * 0.55
-      ));
-      const yawning = yawn_score >= 0.55 && yawn_score >= smile + 0.08;
-      if (yawning) { expression_label = 'yawning'; expression_confidence = 0.45 + yawn_score * 0.45; }
-      const attention = yawning
-        ? 'yawning'
-        : ((gaze_down >= 0.45 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking');
+      // Grid yawn removed: the dark-mouth-cavity proxy false-fired on head-low
+      // and dark-torso frames (same class of false positive as the removed
+      // eyes-closed proxy above), and the server never computed it either —
+      // the promotion branch there was dead code. Only real landmarks may
+      // claim yawning.
+      const yawn_score = null;
+      const yawning = false;
+      // Parity with facial_experience.py: eyes_away at gaze_down >= 0.60.
+      const attention = (gaze_down >= 0.60 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking';
       // Linear face size from dark-pixel bbox (larger face ⇒ closer to camera).
       let minX = w, minY = h, maxX = -1, maxY = -1;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -4372,7 +4395,10 @@ MONITOR_JS = (
     }
 
     // Finite numbers pass through; anything unmeasured becomes null.
-    function num(value) {
+    // Named signalNum: this file also has a display formatter `num(v, digits)`
+    // — the duplicate declaration silently replaced it and the dashboard
+    // rendered literal "null" strings / unrounded floats.
+    function signalNum(value) {
       return (typeof value === 'number' && isFinite(value)) ? value : null;
     }
 
@@ -4400,26 +4426,29 @@ MONITOR_JS = (
       const signal = {
             participant_id: 'camera-local',
             timestamp_ms: liveCamTimestampMs(),
-            face_count: usingSilhouette ? 0 : facial.face_count,
-            liveness_state: usingSilhouette ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
+            // Synthetic modes (test pattern, silhouette demo) have no real
+            // face — the coarse grid estimator reads the bars as a happy,
+            // focused learner. Zero the face fields for both.
+            face_count: (usingSilhouette || usingPattern) ? 0 : facial.face_count,
+            liveness_state: (usingSilhouette || usingPattern) ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
             owner_face_enrolled: !!(facial.owner_face_enrolled),
             owner_face_match: facial.owner_face_match == null ? null : !!facial.owner_face_match,
-            owner_match_score: num(facial.owner_match_score),
+            owner_match_score: signalNum(facial.owner_match_score),
             secondary_face_count: usingSilhouette ? 0 : Math.max(0, facial.secondary_face_count || 0),
             foreground_ratio: usingSilhouette ? Math.max(0.96, foreground) : Math.min(0.55, Math.max(0.25, foreground)),
             motion_score: motion,
             body_motion_score: motion,
             fidget_score: Math.max(0, Math.min(1, (motion - 0.12) * 2.4)),
-            expression_label: facial.expression_label,
-            expression_confidence: facial.expression_confidence,
-            gaze_frontal: facial.gaze_frontal,
-            gaze_down_score: facial.gaze_down_score,
+            expression_label: usingPattern ? 'unknown' : facial.expression_label,
+            expression_confidence: usingPattern ? null : facial.expression_confidence,
+            gaze_frontal: usingPattern ? null : facial.gaze_frontal,
+            gaze_down_score: usingPattern ? null : facial.gaze_down_score,
             // null (not 0) when no real detector measured it, so the server can
             // tell "measured as open" apart from "nobody looked".
-            eyes_closed_score: num(facial.eyes_closed_score),
-            yawn_score: num(facial.yawn_score),
-            brow_raise_score: num(facial.brow_raise_score),
-            smile_score: num(facial.smile_score),
+            eyes_closed_score: signalNum(facial.eyes_closed_score),
+            yawn_score: signalNum(facial.yawn_score),
+            brow_raise_score: signalNum(facial.brow_raise_score),
+            smile_score: signalNum(facial.smile_score),
             detector_source: detectorSource,
             head_pose_pitch: facial.head_pose_pitch,
             head_pose_yaw: facial.head_pose_yaw,
@@ -4467,7 +4496,10 @@ MONITOR_JS = (
             eyeMidX: (left.x + right.x) / 2,
             eyeMidY: (left.y + right.y) / 2,
             faceSize: Math.max(0.05, facial.face_size_ratio || (chin.y - brow.y)),
-            pitch: facial.head_pose_pitch,
+            // Use the geometric pitch (guaranteed positive = down) — the matrix
+            // and landmark paths disagree on head_pose_pitch's sign, and the
+            // dozing head-sag term requires positive = down.
+            pitch: (facial.head_pitch_geom_deg != null ? facial.head_pitch_geom_deg : facial.head_pose_pitch),
             brow: facial.brow_raise_score || 0,
             smile: facial.smile_score || 0,
             gazeFrontal: facial.gaze_frontal || 0.5,
@@ -4507,7 +4539,9 @@ MONITOR_JS = (
       signal.keyboard_typing_audio_score = clickResult.keyboardScore;
       signal.external_music_score = clickResult.externalMusicScore > 0.05
         ? Math.round(clickResult.externalMusicScore * 1000) / 1000 : null;
-      signal.phone_visible = phoneDet.below || phoneDet.ear || clickResult.phonecall;
+      // The ear cue needs a face — an empty dark room reads darkLeftRatio > 0.40
+      // with gazeDown 0 and false-fired "phone at ear" while nobody was present.
+      signal.phone_visible = phoneDet.below || (phoneDet.ear && facial.face_count > 0) || clickResult.phonecall;
       signal.hands_on_face_score = handsScore > 0.05 ? Math.round(handsScore * 1000) / 1000 : null;
       signal.phone_in_hand_score = held > 0.05 && phoneGridScore >= 0.35
         ? Math.round(held * 1000) / 1000 : null;
@@ -4632,6 +4666,7 @@ MONITOR_JS = (
       lastSilhouetteDetected = false;
       resetFaceOwner();
       resetLiveAway(true);
+      faceLandmarkHistory = [];  // no stale samples across a camera restart
       refreshSilhouetteGuide();
       camTimer = setInterval(sampleFrame, 300);
       sampleFrame();

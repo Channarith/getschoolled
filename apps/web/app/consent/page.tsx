@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { recordConsent } from "../lib/api";
+import { getToken, recordConsent } from "../lib/api";
 import { useT } from "../lib/i18n";
 
 const SCOPE_KEYS = [
@@ -33,25 +33,33 @@ export default function ConsentPage() {
   async function onSave() {
     setError("");
     setStatus("");
-    try {
-      for (const s of scopes) {
-        await recordConsent({
-          student_id: "current-user",
+    if (!getToken()) {
+      setError(t("consent.signInRequired"));
+      return;
+    }
+    // Write all scopes in parallel; any failure is reported (a partial set is
+    // still persisted server-side per scope, matching per-scope consent law).
+    const results = await Promise.allSettled(
+      scopes.map((s) =>
+        recordConsent({
           scope: s.id,
           granted: Boolean(granted[s.id]),
           region,
           written,
-        });
-      }
-      const enabled = scopes.filter((s) => granted[s.id]).map((s) => t(s.labelKey));
-      setStatus(
-        enabled.length
-          ? t("consent.savedEnabled", { list: enabled.join("; ") })
-          : t("consent.savedOff")
-      );
-    } catch (e) {
-      setError(String(e));
+        })
+      )
+    );
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length) {
+      setError(String((failed[0] as PromiseRejectedResult).reason));
+      return;
     }
+    const enabled = scopes.filter((s) => granted[s.id]).map((s) => t(s.labelKey));
+    setStatus(
+      enabled.length
+        ? t("consent.savedEnabled", { list: enabled.join("; ") })
+        : t("consent.savedOff")
+    );
   }
 
   const ilNeedsWritten = region === "us_il" || region === "eu";

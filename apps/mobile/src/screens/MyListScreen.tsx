@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { getPortfolio, listAudioCourses, deleteEnrollment, type AudioCourseRow } from "../api";
+import { getMyList, removeFromMyList } from "../storage";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import { useT } from "../i18n";
@@ -23,14 +24,18 @@ export default function MyListScreen({ onOpenCourse }: {
 
   const load = async (aliveObj: { current: boolean }) => {
     try {
-      // Fetch saved course IDs from the server, then hydrate from the audio catalog.
-      const [portfolio, all] = await Promise.all([
-        getPortfolio(),
+      // Saved ids live in TWO places: AsyncStorage (mobile bookmark buttons,
+      // offline-first) and the server portfolio (web saves, other devices).
+      // Union them so a save made anywhere shows up here.
+      const [portfolio, all, localIds] = await Promise.all([
+        getPortfolio().catch(() => null),
         listAudioCourses(undefined, undefined, 200, locale),
+        getMyList(),
       ]);
       const savedIds = new Set(
-        (portfolio.by_status?.saved ?? []).map((e: { course_id: string }) => e.course_id)
+        (portfolio?.by_status?.saved ?? []).map((e: { course_id: string }) => e.course_id)
       );
+      for (const id of localIds) savedIds.add(id);
       const lookup = new Map(all.courses.map((c) => [c.id, c]));
       if (!aliveObj.current) return;
       setRows([...savedIds].map((id) => lookup.get(id)).filter(Boolean) as AudioCourseRow[]);
@@ -49,10 +54,12 @@ export default function MyListScreen({ onOpenCourse }: {
   }, [locale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const remove = async (id: string) => {
-    // Optimistic UI update then sync to server.
+    // Optimistic UI update, then remove from BOTH stores (server portfolio and
+    // local AsyncStorage) so the row does not resurrect on the next load.
     const prev = rows; // snapshot before optimistic update
     setRows((r) => r.filter((c) => c.id !== id));
     try {
+      await removeFromMyList(id);
       await deleteEnrollment(id); // DELETE the enrollment entirely (un-save bookmark)
     } catch {
       setRows(prev); // restore snapshot, do not call load() (which can wipe rows on error)

@@ -83,7 +83,12 @@ def _mean_speed(
     speeds: list[float] = []
     for i in range(1, len(history)):
         prev, cur = history[i - 1], history[i]
-        dt = max(1, cur.timestamp_ms - prev.timestamp_ms) / 1000.0
+        raw_dt = cur.timestamp_ms - prev.timestamp_ms
+        if raw_dt <= 0:
+            # Duplicate/out-of-order timestamp — clamping dt to 1ms amplified
+            # tiny jitter into a 1000x phantom speed.
+            continue
+        dt = raw_dt / 1000.0
         a, b = getter(prev), getter(cur)
         if a is None or b is None:
             continue
@@ -136,7 +141,9 @@ def head_sag_rate(
     if len(pitched) < 3:
         return 0.0
     first, last = pitched[0], pitched[-1]
-    dt = max(1, last.timestamp_ms - first.timestamp_ms) / 1000.0
+    if last.timestamp_ms <= first.timestamp_ms:
+        return 0.0  # no real interval — a 1ms clamp would amplify jitter 1000x
+    dt = (last.timestamp_ms - first.timestamp_ms) / 1000.0
     delta = float(last.pitch_deg) - float(first.pitch_deg)  # type: ignore[arg-type]
     # Only count downward sag; looking up is not dozing.
     rate = max(0.0, delta) / dt

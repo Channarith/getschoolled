@@ -478,7 +478,8 @@ STUDIO_JS = """
       const answers = {};
       for (const q of (quiz.questions || [])) {
         const choice = window.prompt(q.prompt + '\\n\\n' + q.choices.map((c,i)=>`${i+1}. ${c}`).join('\\n'));
-        const idx = Math.max(0, (parseInt(choice || '1', 10) || 1) - 1);
+        if (choice === null) continue;
+        const idx = Math.min(q.choices.length - 1, Math.max(0, (parseInt(choice, 10) || 1) - 1));
         answers[q.question_id] = idx;
       }
       const graded = await api('/api/studio/teach/summary-grade', {
@@ -615,6 +616,9 @@ STUDIO_JS = """
       motionEl.src = motion ? motion.url : '';
       motionEl.alt = motion ? (motion.caption || motion.title || '') : '';
       $('btn-video').disabled = !motion;
+      // The toggle flips the label — reset it or a watched clip leaves the
+      // button reading "Show picture" while the picture is already showing.
+      $('btn-video').textContent = 'Watch video';
       $('teach-activity').textContent = payload.activity_prompt || '';
       $('teach-activity').style.display = payload.activity_prompt ? 'block' : 'none';
       const examples = payload.examples || [];

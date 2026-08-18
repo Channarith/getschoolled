@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import {
-  getLearnFacets, searchLearnable,
+  getLearnFacets, searchLearnable, syncMyListToggle,
   type LearnableItem,
 } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
@@ -78,6 +78,9 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
         if (saved) next.add(id); else next.delete(id);
         return next;
       });
+      // Best-effort server sync so the save appears on other devices.
+      const title = rows.find((r) => r.source_id === id)?.title ?? id;
+      void syncMyListToggle(id, saved, title);
     } catch (e) {
       setError(String(e));
     }
