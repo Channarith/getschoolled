@@ -13,9 +13,35 @@ from __future__ import annotations
 
 import os
 from enum import Enum
-from typing import Mapping, MutableMapping, Optional
+from typing import Mapping, MutableMapping, Optional, Union
 
 from pydantic import BaseModel, Field
+
+
+def env_int(value: Union[str, None], default: int) -> int:
+    """Parse *value* as int; return *default* on blank, None, or non-numeric input."""
+    if value is None:
+        return default
+    stripped = value.strip()
+    if not stripped:
+        return default
+    try:
+        return int(stripped)
+    except (ValueError, TypeError):
+        return default
+
+
+def env_float(value: Union[str, None], default: float) -> float:
+    """Parse *value* as float; return *default* on blank, None, or non-numeric input."""
+    if value is None:
+        return default
+    stripped = value.strip()
+    if not stripped:
+        return default
+    try:
+        return float(stripped)
+    except (ValueError, TypeError):
+        return default
 
 
 class DeployMode(str, Enum):
