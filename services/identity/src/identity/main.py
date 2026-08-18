@@ -102,8 +102,7 @@ def current_account(authorization: str = Header(default="")):
     claims = verify_token(token, _token_key()) if token else None
     if not claims:
         raise HTTPException(status_code=401, detail="invalid or expired session")
-    purpose = claims.get("purpose")
-    if purpose in ("mfa_pending", "profile_share"):
+    if claims.get("purpose") or claims.get("kind"):
         raise HTTPException(status_code=401, detail="incomplete authentication")
     acct = app.state.accounts.by_id(claims.get("sub", ""))
     if acct is None:
