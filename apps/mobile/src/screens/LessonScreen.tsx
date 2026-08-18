@@ -36,6 +36,13 @@ import { getSettings } from "../storage";
 import { theme } from "../theme";
 import { speakNatural } from "../tts";
 import { buildNarrationSpeakOptions } from "../narrationTts";
+import {
+  closeXaiVoiceSession,
+  connectXaiVoiceSession,
+  getXaiVoiceStatus,
+  mintXaiVoiceToken,
+  sendTextTurn,
+} from "../xaiVoice";
 
 type Props = {
   lessonId: string;
@@ -82,6 +89,10 @@ export default function LessonScreen({
   const [assessmentRun, setAssessmentRun] = useState<AssessmentRun | null>(null);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentSubmitResult | null>(null);
   const [passDecisionToken, setPassDecisionToken] = useState<string | null>(null);
+  const [xaiVoiceReady, setXaiVoiceReady] = useState(false);
+  const [xaiVoiceLive, setXaiVoiceLive] = useState(false);
+  const [xaiVoiceHint, setXaiVoiceHint] = useState("");
+  const xaiWsRef = useRef<WebSocket | null>(null);
   const slideRef = useRef<LessonSlide | null>(null);
   const studentIdRef = useRef("guest");
   const completedCheckpointsRef = useRef<Set<string>>(new Set());
@@ -93,6 +104,14 @@ export default function LessonScreen({
   const interstitial = useInterstitial(account?.tier);
   const advanceCountRef = useRef(0);
   const MIDROLL_EVERY_ADVANCES = 4;
+
+  // mountedRef must only flip on UNMOUNT. It was cleared in the lesson-loading
+  // effect's cleanup, which also runs on every re-run (account/lightingReady
+  // changes) — leaving it permanently false and killing narrate()'s callbacks.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!lightingReady) return;
@@ -135,16 +154,77 @@ export default function LessonScreen({
         if (alive) setLoading(false);
       }
     })();
+    void getXaiVoiceStatus().then((s) => {
+      if (!alive) return;
+      setXaiVoiceReady(Boolean(s.available));
+      setXaiVoiceHint(s.hint || "");
+    }).catch(() => {
+      if (alive) setXaiVoiceReady(false);
+    });
     return () => {
       alive = false;
-      mountedRef.current = false;
       Speech.stop();
+      closeXaiVoiceSession(xaiWsRef.current);
+      xaiWsRef.current = null;
     };
   }, [lessonId, classType, account, lightingReady]);
 
   function stopNarration() {
     Speech.stop();
     setNarrating(false);
+  }
+
+  function stopXaiVoice() {
+    closeXaiVoiceSession(xaiWsRef.current);
+    xaiWsRef.current = null;
+    setXaiVoiceLive(false);
+  }
+
+  async function toggleXaiVoice() {
+    if (xaiVoiceLive) {
+      stopXaiVoice();
+      setXaiVoiceHint("Grok voice ended.");
+      return;
+    }
+    setError("");
+    try {
+      stopNarration();
+      const token = await mintXaiVoiceToken({
+        mode: classType === "group" ? "group" : "solo",
+        lesson_context: [view?.lesson.title || title, slide?.title || "", slide?.body || ""]
+          .filter(Boolean)
+          .join("\n"),
+        learner_names: studentProfile?.display_name ? [studentProfile.display_name] : [],
+      });
+      const ws = connectXaiVoiceSession(token, {
+        onOpen: () => {
+          setXaiVoiceLive(true);
+          setXaiVoiceHint("Theodore (Grok voice) connected — type a question to speak with him.");
+        },
+        onClose: () => {
+          setXaiVoiceLive(false);
+          xaiWsRef.current = null;
+        },
+        onError: () => {
+          setXaiVoiceHint("Grok voice connection error — check speech / XAI_API_KEY.");
+        },
+        onTranscriptDone: (t) => {
+          if (t) {
+            setAnswer({
+              text: t,
+              citations: [],
+              language: locale,
+              grounded: true,
+              hallucination_risk: 0,
+            });
+          }
+        },
+      });
+      xaiWsRef.current = ws;
+    } catch (e) {
+      setError((e as Error).message);
+      setXaiVoiceHint("Could not start Grok voice.");
+    }
   }
 
   function narrate() {
@@ -538,6 +618,11 @@ export default function LessonScreen({
     setAnswer(null);
     setError("");
     try {
+      if (xaiVoiceLive && xaiWsRef.current?.readyState === WebSocket.OPEN) {
+        sendTextTurn(xaiWsRef.current, text);
+        setQuestion("");
+        return;
+      }
       const a = await askLessonSession(view.session.session_id, text, locale);
       setAnswer(a);
       setQuestion("");
@@ -708,6 +793,13 @@ export default function LessonScreen({
 
           <GlassPanel style={styles.card}>
             <Text style={styles.cardTitle}>{t("lesson.askTitle")}</Text>
+            <PrimaryButton
+              label={xaiVoiceLive ? "Grok voice on" : "Grok voice"}
+              onPress={() => void toggleXaiVoice()}
+              disabled={!xaiVoiceReady && !xaiVoiceLive}
+              variant={xaiVoiceLive ? "brand" : "ghost"}
+            />
+            {xaiVoiceHint ? <Text style={styles.meta}>{xaiVoiceHint}</Text> : null}
             <TextInput
               style={styles.input}
               placeholder={t("lesson.askPlaceholder")}

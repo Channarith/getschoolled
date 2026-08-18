@@ -82,8 +82,11 @@ export default function ArcadePage() {
   useEffect(() => { loadLeaders(); }, [loadLeaders]);
 
   // Sync the leaderboard age filter with the picker age group so the
-  // leaderboard visibly responds when the user switches age group.
-  useEffect(() => { setLbAge(ageGroup); }, [ageGroup]);
+  // leaderboard visibly responds when the user switches age group — but stop
+  // following once the user picks a leaderboard age explicitly (an explicit
+  // "All ages" selection must not be overridden by the game picker).
+  const lbAgeTouched = useRef(false);
+  useEffect(() => { if (!lbAgeTouched.current) setLbAge(ageGroup); }, [ageGroup]);
 
   const finish = useCallback(async () => {
     if (!round) return;
@@ -595,7 +598,7 @@ export default function ArcadePage() {
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h3 style={{ margin: 0 }}>{t("arcade.leaderboard")}</h3>
-          <select value={lbAge} onChange={(e) => { setLbAge(e.target.value); if (e.target.value) setLbSubject(""); }}>
+          <select value={lbAge} onChange={(e) => { lbAgeTouched.current = true; setLbAge(e.target.value); if (e.target.value) setLbSubject(""); }}>
             <option value="">{t("arcade.allAges")}</option>
             {cat?.age_groups.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>

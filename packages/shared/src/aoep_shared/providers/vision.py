@@ -25,7 +25,6 @@ class _BaseVisionProvider(VisionProvider):
         self._config = config
         self._mode = mode
         self._base_url = config.vision_base_url
-        self._consented: frozenset[str] = frozenset()
         self._engine: Optional[FaceRecognitionEngine] = None
         # Cross-session student memory: load persisted embeddings if configured.
         self._gallery_path = config.vision_gallery_path or None
@@ -91,20 +90,21 @@ class _BaseVisionProvider(VisionProvider):
     def gallery(self) -> FaceGallery:
         return self._gallery
 
-    def _apply_identity_gate(self, consented_student_ids: Iterable[str]) -> None:
+    def _identity_gate(self, consented_student_ids: Iterable[str]) -> frozenset[str]:
         """Resolve who may be matched given the region compliance gate.
 
-        Where real-time biometric identification is prohibited (e.g. EU AI Act),
-        run in anonymous mode - detect/engage but never match an identity,
-        regardless of the consented set.
+        Pure per-request computation: the result is threaded through the call
+        (never stored on the provider singleton) so concurrent requests cannot
+        swap each other's consent sets. Where real-time biometric
+        identification is prohibited (e.g. EU AI Act), run in anonymous mode -
+        detect/engage but never match an identity, regardless of the consented
+        set.
         """
         from ..compliance import FEATURE_REALTIME_BIOMETRIC_ID, feature_allowed
 
         region = getattr(self._config, "region", "us")
         rt_id_allowed = feature_allowed(region, FEATURE_REALTIME_BIOMETRIC_ID)
-        self._consented = (
-            frozenset(consented_student_ids) if rt_id_allowed else frozenset()
-        )
+        return frozenset(consented_student_ids) if rt_id_allowed else frozenset()
 
     def _observe(
         self,
@@ -113,6 +113,7 @@ class _BaseVisionProvider(VisionProvider):
         landmarks: Sequence[Tuple[float, float]],
         bbox: Optional[Tuple[int, int, int, int]],
         frame_size: Optional[Tuple[int, int]],
+        allowed_ids: frozenset[str],
     ) -> FaceObservation:
         """Build a single FaceObservation from an embedding (+ optional geometry).
 
@@ -122,7 +123,7 @@ class _BaseVisionProvider(VisionProvider):
         """
         from ..compliance import emotion_recognition_allowed
 
-        match = self._gallery.identify(embedding, allowed_ids=self._consented)
+        match = self._gallery.identify(embedding, allowed_ids=allowed_ids)
         attention = 0.0
         gaze_frontal = 0.0
         expression: Optional[str] = None
@@ -147,10 +148,11 @@ class _BaseVisionProvider(VisionProvider):
         self, image: bytes | str, *, consented_student_ids: Iterable[str]
     ) -> List[FaceObservation]:
         """Detect faces and match only against the consented set."""
-        self._apply_identity_gate(consented_student_ids)
+        allowed = self._identity_gate(consented_student_ids)
         return [
             self._observe(
-                idx, face.embedding, face.landmarks, face.bbox, face.frame_size
+                idx, face.embedding, face.landmarks, face.bbox, face.frame_size,
+                allowed,
             )
             for idx, face in enumerate(self.engine().detect_faces(image))
         ]
@@ -168,9 +170,9 @@ class _BaseVisionProvider(VisionProvider):
         the same gallery matching as :meth:`analyze_image` apply, so behaviour is
         identical whether the embedding was produced on the server or the client.
         """
-        self._apply_identity_gate(consented_student_ids)
+        allowed = self._identity_gate(consented_student_ids)
         return [
-            self._observe(idx, f.embedding, f.landmarks, f.bbox, f.frame_size)
+            self._observe(idx, f.embedding, f.landmarks, f.bbox, f.frame_size, allowed)
             for idx, f in enumerate(faces)
         ]
 
@@ -183,9 +185,12 @@ class _BaseVisionProvider(VisionProvider):
             frame_object_key, consented_student_ids=consented_student_ids
         )
 
-    def may_identify(self, student_id: str) -> bool:
-        """Whether identity matching is permitted for ``student_id``."""
-        return student_id in self._consented
+    def may_identify(
+        self, student_id: str, consented_student_ids: Iterable[str]
+    ) -> bool:
+        """Whether identity matching is permitted for ``student_id`` given the
+        request's consented set and the region compliance gate."""
+        return student_id in self._identity_gate(consented_student_ids)
 
 
 class LocalVisionProvider(_BaseVisionProvider):

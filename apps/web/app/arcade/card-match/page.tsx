@@ -80,8 +80,16 @@ export default function CardMatch() {
     if (q === "kids" || q === "tween" || q === "teen" || q === "adult") {
       setAge(q as Age); setDeck(buildDeck(PAIRS[q as Age]));
     }
-    try { const b = localStorage.getItem(`aoep_cardmatch_best_${q || "tween"}`); if (b) setBest(Number(b)); } catch { /* */ }
   }, []);
+
+  // Reload the best time whenever the age group changes — reading it once at
+  // mount meant an in-page age switch compared/saved against the WRONG age.
+  useEffect(() => {
+    try {
+      const b = localStorage.getItem(`aoep_cardmatch_best_${age}`);
+      setBest(b ? Number(b) : null);
+    } catch { setBest(null); }
+  }, [age]);
 
   function start() {
     setDeck(buildDeck(PAIRS[age]));

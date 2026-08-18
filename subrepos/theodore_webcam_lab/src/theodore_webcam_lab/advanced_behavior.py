@@ -363,7 +363,9 @@ class AdvancedBehaviorEngine:
         if fidget >= 0.70:
             _emit("restlessness", "low", "Restless / fidgeting motion", fidget)
         if abs(yaw or 0.0) >= 28.0 and pose_quality >= 0.4:
-            _emit("head_turn_away", "low", "Head turned away from camera", abs(yaw or 0.0) / 45.0)
+            # Clamp like every other score — raw yaw/45 exceeded 1.0 past 45°.
+            _emit("head_turn_away", "low", "Head turned away from camera",
+                  min(1.0, abs(yaw or 0.0) / 45.0))
         if st.focused_streak_ms >= 20_000 and observatory in {"focused", "deeply_engaged"}:
             _emit(
                 "focus_streak",

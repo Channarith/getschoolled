@@ -135,10 +135,10 @@ class AbsenceTracker:
             elif (
                 self.policy.require_face_for_live
                 and attention < self.policy.min_attention_for_live
-                and not sil_present
             ):
-                # Face detected but attention collapsed and no body backup —
-                # treat as weak presence (silhouette path if body known).
+                # Face detected but attention collapsed — weak presence; the
+                # silhouette path when the body is still known (the old
+                # `and not sil_present` guard made that arm unreachable).
                 state = PRESENCE_SILHOUETTE if sil_present else PRESENCE_LIVE
                 reason = reason or "low_attention"
             else:

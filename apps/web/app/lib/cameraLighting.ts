@@ -491,7 +491,11 @@ export type TrackingPose =
 
 /**
  * Infer a coarse head/pose cue from a face box normalized to the frame (0..1).
- * Selfie preview is typically mirrored: looking left moves the box left.
+ * The box comes from FaceDetector on RAW (unmirrored) frames — the CSS
+ * scaleX(-1) mirror only affects the on-screen preview. A user turning to
+ * THEIR left moves the raw face box to the RIGHT (they face the sensor), so
+ * raw-right means look_left. Labels are user-centric, matching the step
+ * instructions ("turn toward your left").
  */
 export function inferTrackingPose(
   box: FaceBox | null,
@@ -503,8 +507,8 @@ export function inferTrackingPose(
   if (opts?.raiseHandsHint) return "raise_hands";
   if (cy < 0.38) return "look_up";
   if (cy > 0.62) return "look_down";
-  if (cx < 0.38) return "look_left";
-  if (cx > 0.62) return "look_right";
+  if (cx < 0.38) return "look_right";
+  if (cx > 0.62) return "look_left";
   return "center";
 }
 
@@ -543,11 +547,13 @@ export function tickSustainedQuality(
 ): SustainedQualityState & { shouldStartCountdown: boolean; shouldDisconnect: boolean; secondsLeft: number } {
   const failHoldMs = opts?.failHoldMs ?? QUALITY_FAIL_HOLD_MS;
   const blocking = isBlockingQualityVerdict(readiness.verdict);
-  // fixable is a soft warning — do not disconnect yet, but keep pressure on dark/blurry.
+  // fixable is a soft warning — do not disconnect yet, but keep pressure on
+  // dark/blurry/blown-out cameras. Overexposed was missing: a washed-out
+  // camera stayed "fixable" forever and never escalated.
   const hard =
     blocking ||
     (readiness.verdict === "fixable" &&
-      (readiness.metrics.underexposed || readiness.metrics.blurry));
+      (readiness.metrics.underexposed || readiness.metrics.blurry || readiness.metrics.overexposed));
 
   if (!hard) {
     return {
