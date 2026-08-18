@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .certification_prep import (
@@ -47,6 +49,12 @@ app = FastAPI(
     title="Theodore Course Studio",
     description="Labeled corpus training, review comments, course build, Theodore teach/present.",
     version="0.1.0",
+)
+_AVATAR_STATIC_DIR = Path(__file__).with_name("avatar_static")
+app.mount(
+    "/api/studio/avatar",
+    StaticFiles(directory=_AVATAR_STATIC_DIR, check_dir=True),
+    name="theodore-avatar",
 )
 
 _reviews = ReviewStore()

@@ -22,5 +22,13 @@ all = ["theodore-course-studio[pdf,pptx,test]"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+theodore_course_studio = [
+  "avatar_static/*.js",
+  "avatar_static/*.glb",
+  "avatar_static/loaders/*.js",
+  "avatar_static/utils/*.js",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from .avatar_director import avatar_script_for_slide
 from .assessment import (
     GeneratedQuiz,
     QuizQuestion,
@@ -424,6 +425,9 @@ class TeachEngine:
             },
             "slide_index": session.path[session.path_pos],
             "language": session.language,
+            "avatar": avatar_script_for_slide(
+                slide, narration=voice.message
+            ).model_dump(mode="json"),
         }
 
     @staticmethod
@@ -539,6 +543,7 @@ class TeachEngine:
                 "elapsed_minutes": max(0, round(elapsed_ms / 60_000)),
                 "soft_limit_minutes": session.soft_limit_minutes,
             }
+        avatar = avatar_script_for_slide(slide, narration=spoken)
         return {
             "turn": turn_dump,
             "slide_index": slide_index,
@@ -572,6 +577,7 @@ class TeachEngine:
                 "emphasis": "highlight-title",
                 "duration_ms": 650,
             },
+            "avatar": avatar.model_dump(mode="json"),
             "knowledge": knowledge,
             "voice": voice_meta,
             "tts": {

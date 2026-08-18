@@ -49,6 +49,41 @@ STUDIO_CSS = """
     .teach-stage h3 { margin:0 0 8px; font-size:22px; }
     .teach-stage .body { font-size:15px; line-height:1.45; color:#d7e6dc; }
     .teach-stage .narr { margin-top:12px; color:#9fddc0; font-style:italic; }
+    .teacher-stage-grid { display:grid; grid-template-columns:minmax(180px, 34%) 1fr;
+                          gap:14px; align-items:stretch; }
+    .theodore-avatar-wrap { position:relative; min-height:390px; overflow:hidden; border-radius:18px;
+                            background:radial-gradient(ellipse at 50% 60%,rgba(68,214,255,.2),rgba(5,24,34,.72) 65%);
+                            border:1px solid rgba(94,224,255,.38); box-shadow:inset 0 0 30px rgba(59,215,255,.14); }
+    #theodore-avatar { position:absolute; inset:0; }
+    #theodore-avatar canvas { width:100%; height:100%; display:block; filter:drop-shadow(0 0 14px rgba(86,224,255,.5)); }
+    .avatar-label { position:absolute; left:9px; right:9px; bottom:8px; z-index:2; padding:5px 8px;
+                    border-radius:999px; text-align:center; color:#c9f7ff; background:rgba(3,23,32,.72);
+                    font:600 11px Arial,sans-serif; letter-spacing:.03em; pointer-events:none; }
+    .theodore-avatar-fallback { position:absolute; inset:0; display:grid; place-items:center; color:#8feaff; }
+    .fallback-head { position:absolute; top:23%; width:92px; height:105px; border-radius:48% 48% 44% 44%;
+                     background:rgba(115,225,255,.42); border:2px solid rgba(190,248,255,.78);
+                     box-shadow:0 0 24px #4ad9ff; }
+    .fallback-head:before,.fallback-head:after { content:""; position:absolute; top:31px; width:28px; height:42px;
+                     border-radius:50%; background:rgba(115,225,255,.42); border:2px solid rgba(190,248,255,.68); }
+    .fallback-head:before { left:-24px; } .fallback-head:after { right:-24px; }
+    .fallback-head i { position:absolute; top:36px; width:10px; height:5px; border-radius:50%; background:#123744; }
+    .fallback-head i:first-child { left:24px; } .fallback-head i:nth-child(2) { right:24px; }
+    .fallback-head b { position:absolute; left:33px; top:65px; width:25px; height:10px; border-bottom:3px solid #123744;
+                       border-radius:0 0 50% 50%; }
+    .fallback-crown { position:absolute; z-index:2; top:10%; font-size:58px; color:#f7dc83; text-shadow:0 0 12px #f4ce65; }
+    .fallback-body { position:absolute; top:50%; width:128px; height:170px; border-radius:48% 48% 18% 18%;
+                     background:rgba(94,211,246,.34); border:2px solid rgba(190,248,255,.65); }
+    .fallback-body span { position:absolute; top:24px; width:44px; height:150px; border-radius:28px;
+                          background:rgba(94,211,246,.34); border:2px solid rgba(190,248,255,.55); }
+    .fallback-body span:first-child { left:-35px; transform:rotate(8deg); }
+    .fallback-body span:last-child { right:-35px; transform:rotate(-8deg); }
+    .fallback-glow { position:absolute; bottom:6%; width:75%; height:20px; border-radius:50%;
+                     background:rgba(73,219,255,.3); filter:blur(10px); }
+    .theodore-avatar-fallback[data-state="speaking"] .fallback-head b { animation:fallbackTalk .28s infinite alternate; }
+    .theodore-avatar-fallback[data-state="celebrate"] .fallback-body { animation:fallbackCelebrate .7s ease-in-out 2; }
+    @keyframes fallbackTalk { to { height:18px; width:17px; left:37px; } }
+    @keyframes fallbackCelebrate { 50% { transform:translateY(-9px) scale(1.03); } }
+    .lesson-stage-content { min-width:0; }
     .kids-builder { background:linear-gradient(135deg,#fff7ed,#fef3c7); color:#172554;
                     border:3px solid #f59e0b; border-radius:16px; padding:14px; margin-bottom:16px; }
     .kids-builder h2 { color:#7c2d12; font-size:22px; }
@@ -75,7 +110,14 @@ STUDIO_CSS = """
                 color:#fff; font:700 15px Arial,sans-serif; text-align:center; }
     .lang-warning { margin-top:8px; padding:8px 10px; border-radius:8px; background:#4d3d1d;
                     border:1px solid #9a7d3d; color:#fde68a; font-size:13px; }
-    @media (max-width:700px) { .picture-stage { grid-template-columns:1fr; } }
+    @media (max-width:700px) {
+      .picture-stage { grid-template-columns:1fr; }
+      .teacher-stage-grid { grid-template-columns:1fr; }
+      .theodore-avatar-wrap { min-height:320px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .teach-stage, .teach-stage.anim, .theodore-avatar-fallback * { animation:none !important; }
+    }
     .quiz-box, .game-box { margin-top:10px; padding:10px; border:1px dashed #3a5548; border-radius:8px; background:#13201a; }
     .quiz-box button, .game-box button { display:block; width:100%; text-align:left; margin:4px 0; }
   .status { font-size:12px; color:#9bb5a8; min-height:16px; }
@@ -98,6 +140,27 @@ STUDIO_JS = """
     let earlyOptions = [];
     let certOptions = [];
     let learnerId = 'learner-demo';
+    let theodoreAvatar = null;
+
+    async function initTheodoreAvatar() {
+      const host = $('theodore-avatar');
+      if (!host) return;
+      try {
+        const module = await import('/api/studio/avatar/avatar_runtime.js');
+        theodoreAvatar = await module.createTheodoreAvatar(host, {
+          assetBase: '/api/studio/avatar',
+          motionIntensity: +($('avatar-motion').value || 1)
+        });
+        theodoreAvatar.setReducedMotion($('avatar-reduced').checked);
+        $('avatar-state').textContent = host.dataset.avatarReady === 'fallback'
+          ? 'Theodore · accessible silhouette'
+          : 'Theodore · 3D hologram ready';
+      } catch (error) {
+        host.dataset.avatarReady = 'fallback';
+        host.innerHTML = '<div class="theodore-avatar-fallback" role="img" aria-label="Theodore teacher silhouette"><div class="fallback-crown">♜</div><div class="fallback-head"><i></i><i></i><b></b></div><div class="fallback-body"><span></span><span></span></div><div class="fallback-glow"></div></div>';
+        $('avatar-state').textContent = 'Theodore · accessible silhouette';
+      }
+    }
 
     function toast(msg) {
       const el = $('toast');
@@ -416,18 +479,22 @@ STUDIO_JS = """
       if (!msg) return toast('Type a question for Theodore');
       if (!teachSession) return toast('Start a lesson first');
       stopSpeech();
+      theodoreAvatar?.setState('thinking');
       const data = await api('/api/studio/teach/voice/respond', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession, message: msg })
       });
       const voice = data.voice || {};
       $('teach-narr').textContent = 'Theodore (' + (voice.provider || 'voice') + '): ' + (voice.message || '');
+      if (data.turn && data.turn.avatar) theodoreAvatar?.setScript(data.turn.avatar);
       speakText(voice.message || '', data.tts);
       $('voice-ask').value = '';
       toast(voice.fallback_used ? 'Local fallback reply' : 'xAI voice reply');
     }
 
     async function nextSlide() {
+      stopSpeech();
+      theodoreAvatar?.setState('idle');
       const data = await api('/api/studio/teach/advance', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession })
@@ -448,6 +515,8 @@ STUDIO_JS = """
     let pendingGame = null;
 
     async function popQuiz() {
+      stopSpeech();
+      theodoreAvatar?.setState('ask');
       pendingPop = await api('/api/studio/teach/pop-quiz', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession })
@@ -464,6 +533,7 @@ STUDIO_JS = """
             body: JSON.stringify({ session_id: teachSession, selected_index: +b.dataset.i })
           });
           toast(res.result.passed ? 'Pop quiz correct' : 'Pop quiz missed — path updated');
+          theodoreAvatar?.setState(res.result.passed ? 'celebrate' : 'encouraging');
           box.style.display = 'none';
           renderTeach(res.turn);
         };
@@ -471,6 +541,8 @@ STUDIO_JS = """
     }
 
     async function summaryQuiz() {
+      stopSpeech();
+      theodoreAvatar?.setState('ask');
       const quiz = await api('/api/studio/teach/summary-quiz', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession })
@@ -488,9 +560,12 @@ STUDIO_JS = """
       toast(graded.passed
         ? `Summary passed ${graded.correct}/${graded.total}`
         : `Summary needs work ${graded.correct}/${graded.total} — review weak points`);
+      theodoreAvatar?.setState(graded.passed ? 'celebrate' : 'encouraging');
     }
 
     async function playGame() {
+      stopSpeech();
+      theodoreAvatar?.setState('ask');
       pendingGame = await api('/api/studio/teach/game', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession })
@@ -540,6 +615,7 @@ STUDIO_JS = """
             })
           });
           toast(res.feedback || (res.passed ? 'Game passed' : 'Try again'));
+          theodoreAvatar?.setState(res.passed ? 'celebrate' : 'encouraging');
           box.style.display = 'none';
         };
         return;
@@ -558,6 +634,7 @@ STUDIO_JS = """
             })
           });
           toast(res.feedback || (res.passed ? 'Game passed' : 'Try again'));
+          theodoreAvatar?.setState(res.passed ? 'celebrate' : 'encouraging');
           box.style.display = 'none';
         };
       });
@@ -566,6 +643,7 @@ STUDIO_JS = """
     function stopSpeech() {
       if (window.speechSynthesis) window.speechSynthesis.cancel();
       if (serverAudio) { try { serverAudio.pause(); } catch (_) {} serverAudio = null; }
+      theodoreAvatar?.stopSpeaking();
     }
 
     function speakText(text, ttsMeta) {
@@ -576,10 +654,14 @@ STUDIO_JS = """
       const available = ttsMeta && ttsMeta.speech && ttsMeta.speech.available;
       if (available && url) {
         serverAudio = new Audio(url);
+        theodoreAvatar?.speak(spoken, serverAudio);
         serverAudio.play().catch(() => {
           if (window.speechSynthesis) {
             const u = new SpeechSynthesisUtterance(spoken);
             u.lang = (ttsMeta.language || teachLanguage || 'en');
+            u.onboundary = (event) => theodoreAvatar?.speechBoundary(event.charIndex || 0);
+            u.onend = () => theodoreAvatar?.stopSpeaking();
+            theodoreAvatar?.speak(spoken);
             window.speechSynthesis.speak(u);
           }
         });
@@ -588,6 +670,10 @@ STUDIO_JS = """
       if (window.speechSynthesis) {
         const u = new SpeechSynthesisUtterance(spoken);
         u.lang = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
+        u.onboundary = (event) => theodoreAvatar?.speechBoundary(event.charIndex || 0);
+        u.onend = () => theodoreAvatar?.stopSpeaking();
+        u.onerror = () => theodoreAvatar?.stopSpeaking();
+        theodoreAvatar?.speak(spoken);
         window.speechSynthesis.speak(u);
       }
     }
@@ -595,6 +681,7 @@ STUDIO_JS = """
     function renderTeach(payload) {
       lastTeachPayload = payload;
       const turn = payload.turn || payload;
+      theodoreAvatar?.setScript(payload.avatar || { state:'presenting', cues:[] });
       const stage = $('teach-stage');
       stage.classList.remove('anim');
       void stage.offsetWidth;
@@ -680,6 +767,7 @@ STUDIO_JS = """
       if (cp.due) {
         $('checkpoint-msg').textContent = cp.message || 'Take a short break?';
         box.classList.add('show');
+        theodoreAvatar?.setState('paused');
       } else {
         box.classList.remove('show');
       }
@@ -728,7 +816,18 @@ STUDIO_JS = """
     });
     $('btn-read').onclick = readCurrentAloud;
     $('btn-video').onclick = watchCurrentVideo;
+    $('avatar-enabled').onchange = (event) => {
+      theodoreAvatar?.setEnabled(event.target.checked);
+      $('theodore-avatar-wrap').hidden = !event.target.checked;
+    };
+    $('avatar-motion').oninput = (event) => theodoreAvatar?.setMotionIntensity(event.target.value);
+    $('avatar-reduced').onchange = (event) => theodoreAvatar?.setReducedMotion(event.target.checked);
+    $('voice-ask').addEventListener('focus', () => theodoreAvatar?.setState('listening'));
+    $('voice-ask').addEventListener('blur', () => {
+      if (!serverAudio) theodoreAvatar?.setState('idle');
+    });
 
+    initTheodoreAvatar();
     loadEarlyOptions().catch(() => {});
     loadCertOptions().catch(() => {});
     loadLanguages().catch(() => {});
@@ -743,6 +842,10 @@ def render_studio_page() -> str:
         """<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1" />\n  <title>Theodore Course Studio</title>\n  <style>\n"""
         + STUDIO_CSS
         + """</style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%2354d8f2'/%3E%3Cpath d='M17 25h30v24H17z' fill='%23122f3b'/%3E%3Cpath d='M22 20l10-10 10 10-5 5H27z' fill='%23f4d276'/%3E%3C/svg%3E" />
+  <script type="importmap">
+    {"imports":{"three":"/api/studio/avatar/three.module.js"}}
+  </script>
 </head>
 <body>
   <header>
@@ -829,17 +932,25 @@ def render_studio_page() -> str:
       </div>
       <div class="teach-stage" id="teach-stage">
         <h3 id="teach-title">—</h3>
-        <div class="picture-stage">
-          <img id="teach-picture" hidden alt="" />
-          <img id="teach-motion" hidden alt="" />
+        <div class="teacher-stage-grid">
+          <div class="theodore-avatar-wrap" id="theodore-avatar-wrap">
+            <div id="theodore-avatar" aria-hidden="true"></div>
+            <div class="avatar-label" id="avatar-state" role="status" aria-live="polite">Theodore · loading 3D teacher…</div>
+          </div>
+          <div class="lesson-stage-content">
+            <div class="picture-stage">
+              <img id="teach-picture" hidden alt="" />
+              <img id="teach-motion" hidden alt="" />
+            </div>
+            <div class="body" id="teach-body">Build or select a course, then Start teach.</div>
+            <div class="modality-row" id="teach-modalities"></div>
+            <div class="examples-box" id="teach-examples"></div>
+            <div class="lang-warning" id="lang-warning" style="display:none"></div>
+            <div class="activity" id="teach-activity" style="display:none"></div>
+            <div class="narr" id="teach-narr"></div>
+            <div class="status" id="teach-adapt"></div>
+          </div>
         </div>
-        <div class="body" id="teach-body">Build or select a course, then Start teach.</div>
-        <div class="modality-row" id="teach-modalities"></div>
-        <div class="examples-box" id="teach-examples"></div>
-        <div class="lang-warning" id="lang-warning" style="display:none"></div>
-        <div class="activity" id="teach-activity" style="display:none"></div>
-        <div class="narr" id="teach-narr"></div>
-        <div class="status" id="teach-adapt"></div>
         <div class="checkpoint-box" id="checkpoint-box">
           <div id="checkpoint-msg">Session soft stop</div>
           <div class="row">
@@ -860,6 +971,13 @@ def render_studio_page() -> str:
         <button id="btn-summary" class="secondary" type="button">Summary quiz</button>
         <button id="btn-game" class="secondary" type="button">Play game</button>
         <label class="pill"><input id="auto-speak" type="checkbox" checked /> auto speak</label>
+      </div>
+      <div class="row" aria-label="Theodore avatar controls">
+        <label class="pill"><input id="avatar-enabled" type="checkbox" checked /> 3D Theodore</label>
+        <label class="pill">motion
+          <input id="avatar-motion" type="range" min="0" max="1.5" step="0.1" value="1" aria-label="Avatar motion intensity" />
+        </label>
+        <label class="pill"><input id="avatar-reduced" type="checkbox" /> reduced motion</label>
       </div>
       <div class="row">
         <input id="voice-ask" placeholder="Ask Theodore (xAI voice agent, offline fallback)" style="flex:1; min-width:14rem" />

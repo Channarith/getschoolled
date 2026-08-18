@@ -15,6 +15,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from .avatar_director import avatar_script_for_slide
 from .page_media import motion_data_url, picture_data_url
 from .cert_multimodal import (
     CERT_MODALITIES,
@@ -929,8 +930,7 @@ def build_cert_course(
         kit = kit_for_title(beat.title, beat.body)
         body = format_body_with_examples(beat.body, kit.examples)
         narration = narration_with_examples(beat.say, kit.examples)
-        slides.append(
-            CourseSlide(
+        slide = CourseSlide(
                 index=i,
                 title=beat.title,
                 body=body,
@@ -977,7 +977,8 @@ def build_cert_course(
                     "game",
                 ],
             )
-        )
+        slide.avatar_script = avatar_script_for_slide(slide)
+        slides.append(slide)
     minutes = max(
         CERT_SESSION_MIN_MINUTES,
         min(CERT_SESSION_MAX_MINUTES, template.estimated_minutes),

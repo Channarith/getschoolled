@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -29,6 +29,71 @@ class CategoryId(str, Enum):
     DRIVER_EDUCATION = "driver_education"
     FOOD_SAFETY = "food_safety"
     OTHER = "other"
+
+
+AvatarGesture = Literal[
+    "idle",
+    "explain",
+    "open-palm",
+    "point-to-slide",
+    "point-left",
+    "point-right",
+    "count",
+    "compare",
+    "caution",
+    "stop",
+    "demonstrate",
+    "steer",
+    "shoulder-check",
+    "seatbelt",
+    "phone-away",
+    "wash-hands",
+    "gloves",
+    "thermometer",
+    "sanitize",
+    "ask",
+    "listen",
+    "celebrate",
+    "transition",
+]
+AvatarGaze = Literal["learner", "slide", "left", "right", "down", "neutral"]
+AvatarExpression = Literal[
+    "neutral", "warm", "serious", "concerned", "curious", "encouraging", "celebrating"
+]
+
+
+class AvatarViseme(BaseModel):
+    """A deterministic mouth target derived from narration text."""
+
+    at_s: float = Field(ge=0)
+    shape: Literal["rest", "aa", "ee", "oh", "fv", "mbp", "l", "wq"]
+    weight: float = Field(default=0.8, ge=0, le=1)
+
+
+class AvatarCue(BaseModel):
+    """One blended body/facial action on the narration timeline."""
+
+    start_s: float = Field(ge=0)
+    duration_s: float = Field(default=1.5, gt=0, le=30)
+    gesture: AvatarGesture = "explain"
+    gaze: AvatarGaze = "learner"
+    hand: Literal["left", "right", "both", "none"] = "none"
+    intensity: float = Field(default=0.75, ge=0, le=1.5)
+    expression: AvatarExpression = "warm"
+    target: str = ""
+
+
+class AvatarScript(BaseModel):
+    """Complete offline choreography for one course slide."""
+
+    version: int = 1
+    state: Literal[
+        "idle", "presenting", "speaking", "listening", "thinking", "celebrate", "paused"
+    ] = "presenting"
+    duration_s: float = Field(default=1, gt=0, le=600)
+    cues: list[AvatarCue] = Field(default_factory=list)
+    visemes: list[AvatarViseme] = Field(default_factory=list)
+    source: Literal["curated", "inferred", "explicit"] = "inferred"
 
 
 class SourceDocument(BaseModel):
@@ -84,6 +149,7 @@ class CourseSlide(BaseModel):
     source_page: int | None = None
     keep: bool = True
     tags: list[str] = Field(default_factory=list)
+    avatar_script: AvatarScript | None = None
 
 
 class StudioCourse(BaseModel):

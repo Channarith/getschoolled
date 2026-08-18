@@ -151,6 +151,11 @@ plus the escaped-injection security check):
 
 Full-quality video: [docs/demos/theodore_webcam_live_monitor_demo.mp4](docs/demos/theodore_webcam_live_monitor_demo.mp4)
 
+Theodore 3D Avatar Teacher — local rigged GLB presenting the Driver's Ed cue
+sequence with hologram body, facial motion, visemes, gaze and joint gestures:
+
+![Theodore 3D Avatar Teacher walkthrough](docs/demos/theodore_avatar_driver_ed_demo.gif)
+
 ### More recorded flows (animated)
 
 | Live AI class | Drive Mode audio | Netflix catalog | Learning arcade |
@@ -204,7 +209,7 @@ Documentation screenshots for every Theodore subrepo (regenerate with
 
 | Course Studio | Audio Translation |
 | --- | --- |
-| <img src="docs/screens/theodore_course_studio.webp" alt="Theodore Course Studio Make and teach with multimodal cert kits examples quiz and games" /> | <img src="docs/screens/theodore_audio_translation_lab.webp" alt="Theodore Audio Translation Lab capture panel and live multilingual feed with Theodore replies" /> |
+| <img src="docs/screens/theodore_avatar_driver_ed.png" alt="Theodore Course Studio Driver's Ed lesson with the full-body translucent Salareen 3D avatar teacher beside the lesson media" /> | <img src="docs/screens/theodore_audio_translation_lab.webp" alt="Theodore Audio Translation Lab capture panel and live multilingual feed with Theodore replies" /> |
 
 | Webcam overview (owner lock) | RAG auto-tune |
 | --- | --- |
