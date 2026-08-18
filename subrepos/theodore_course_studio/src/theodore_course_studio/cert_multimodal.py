@@ -1041,9 +1041,29 @@ def narration_with_examples(say: str, examples: tuple[str, ...]) -> str:
 
 
 def kit_for_title(title: str, body: str = "") -> SegmentKit:
-    if title in _KITS:
+    """Back-compat: look up by English title (also accepts a slide_key string)."""
+    return kit_for_slide(title=title, body=body)
+
+
+def kit_for_slide(
+    *,
+    slide_key: str = "",
+    title: str = "",
+    body: str = "",
+) -> SegmentKit:
+    """Prefer the stable slide_key so translated titles still hit curated kits."""
+    if slide_key and slide_key in _KITS:
+        return _KITS[slide_key]
+    if title and title in _KITS:
         return _KITS[title]
-    return _synthesize(title, body)
+    return _synthesize(title or slide_key, body)
+
+
+# Alias every English title under its stable slide_key so translated slides
+# still resolve curated kits after the displayed title changes.
+from .slide_keys import register_title_aliases  # noqa: E402
+
+register_title_aliases(_KITS)
 
 
 def _synthesize(title: str, body: str) -> SegmentKit:

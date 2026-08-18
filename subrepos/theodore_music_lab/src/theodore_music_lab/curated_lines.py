@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import re
 
-CURATED_LANGUAGES: tuple[str, ...] = ("es", "fr", "de", "it", "pt")
+from .curated_zh_km import CURATED_ZH_KM
+
+CURATED_LANGUAGES: tuple[str, ...] = ("es", "fr", "de", "it", "pt", "zh", "km")
 
 
 def normalize(text: str | None) -> str:
@@ -96,6 +98,11 @@ CURATED_LINES: dict[str, dict[str, str]] = {
     "every word can take us": {"es": "Cada palabra puede llevarnos", "fr": "Chaque mot peut nous emmener", "de": "Jedes Wort kann uns bringen", "it": "Ogni parola può portarci", "pt": "Cada palavra pode nos levar"},
     "where we are": {"es": "A donde estamos", "fr": "Là où nous sommes", "de": "Wohin wir gehören", "it": "Dove siamo", "pt": "Onde estamos"},
 }
+
+# Keep the large Unicode packs isolated and merge them into the same tier-1
+# lookup used by lyrics, sing-along, captions, and Ask AI.
+for _line, _translations in CURATED_ZH_KM.items():
+    CURATED_LINES.setdefault(_line, {}).update(_translations)
 
 
 def curated(text: str, language: str) -> str:

@@ -15,13 +15,17 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from .avatar_director import avatar_script_for_slide
+from .cert_i18n import NEEDS_NATIVE_REVIEW, translate_cert_slide
 from .page_media import motion_data_url, picture_data_url
 from .cert_multimodal import (
     CERT_MODALITIES,
     format_body_with_examples,
-    kit_for_title,
+    kit_for_slide,
     narration_with_examples,
 )
+from .slide_keys import slide_key_for
+from .studio_languages import normalize_language
 from .types import CategoryId, CourseSlide, StudioCourse
 
 # Soft session target for adult cert prep (kids stay on early_learning budgets).
@@ -59,6 +63,8 @@ class CertBeat:
     symbol: str = "📘"
     color: str = "#2563eb"
     activity: str = ""
+    # Stable key; empty means "derive from English title via slide_keys".
+    key: str = ""
 
 
 @dataclass(frozen=True)
@@ -415,6 +421,7 @@ def _b(
     symbol: str | None = None,
     color: str | None = None,
     activity: str | None = None,
+    key: str = "",
 ) -> CertBeat:
     default_symbol, default_color, default_activity = _VISUALS.get(
         title,
@@ -427,6 +434,7 @@ def _b(
         symbol=symbol or default_symbol,
         color=color or default_color,
         activity=activity or default_activity,
+        key=key,
     )
 
 
@@ -921,47 +929,77 @@ def build_cert_course(
     data_dir: Path | None = None,
 ) -> StudioCourse:
     del data_dir  # reserved for future pack overrides
+    lang = normalize_language(language)
     template = _find_template(track or CertTrackId.CA_DMV_PERMIT, lesson_id)
     category = CATEGORIES[template.track]
     jurisdiction = JURISDICTIONS[template.track]
     slides: list[CourseSlide] = []
+    translated_count = 0
     for i, beat in enumerate(template.beats):
-        kit = kit_for_title(beat.title, beat.body)
-        body = format_body_with_examples(beat.body, kit.examples)
-        narration = narration_with_examples(beat.say, kit.examples)
-        slides.append(
-            CourseSlide(
+        key = beat.key or slide_key_for(beat.title, lesson_id=template.lesson_id)
+        # English kits stay keyed by slide_key (correct_index / kind from EN).
+        kit = kit_for_slide(slide_key=key, title=beat.title, body=beat.body)
+        tr = translate_cert_slide(key, lang)
+        if tr is not None:
+            translated_count += 1
+            slide_title = tr.title
+            slide_body_base = tr.body
+            slide_say = tr.say
+            slide_activity = tr.activity
+            examples = list(tr.examples) if tr.examples else list(kit.examples)
+            quiz_prompt = tr.quiz_prompt or kit.quiz_prompt
+            quiz_choices = list(tr.quiz_choices) if tr.quiz_choices else list(kit.quiz_choices)
+            quiz_explanation = tr.quiz_explanation or kit.quiz_explanation
+            game_prompt = tr.game_prompt or kit.game_prompt
+            game_options = list(tr.game_options) if tr.game_options else list(kit.game_options)
+            game_steps = list(tr.game_steps) if tr.game_steps else list(kit.game_steps)
+        else:
+            slide_title = beat.title
+            slide_body_base = beat.body
+            slide_say = beat.say
+            slide_activity = beat.activity
+            examples = list(kit.examples)
+            quiz_prompt = kit.quiz_prompt
+            quiz_choices = list(kit.quiz_choices)
+            quiz_explanation = kit.quiz_explanation
+            game_prompt = kit.game_prompt
+            game_options = list(kit.game_options)
+            game_steps = list(kit.game_steps)
+        body = format_body_with_examples(slide_body_base, examples)
+        narration = narration_with_examples(slide_say, examples)
+        slide = CourseSlide(
                 index=i,
-                title=beat.title,
+                slide_key=key,
+                title=slide_title,
                 body=body,
                 narration=narration,
                 picture_url=picture_data_url(
-                    title=beat.title, symbol=beat.symbol, color=beat.color
+                    title=slide_title, symbol=beat.symbol, color=beat.color
                 ),
-                picture_alt=f"Picture for {beat.title}",
+                picture_alt=f"Picture for {slide_title}",
                 video_url=motion_data_url(
-                    title=beat.title,
+                    title=slide_title,
                     symbol=beat.symbol,
                     color=beat.color,
                     bounce_px=20,
                     bounce_dur_s=2.4,
                 ),
-                video_caption=f"Watch: {beat.title}",
-                activity_prompt=beat.activity,
-                examples=list(kit.examples),
+                video_caption=f"Watch: {slide_title}",
+                activity_prompt=slide_activity,
+                examples=examples,
                 modalities=list(CERT_MODALITIES),
                 quiz_spec={
-                    "prompt": kit.quiz_prompt,
-                    "choices": list(kit.quiz_choices),
+                    "prompt": quiz_prompt,
+                    "choices": quiz_choices,
                     "correct_index": kit.quiz_correct_index,
-                    "explanation": kit.quiz_explanation,
+                    "explanation": quiz_explanation,
                 },
                 game_spec={
                     "kind": kit.game_kind,
-                    "prompt": kit.game_prompt,
-                    "options": list(kit.game_options),
+                    "prompt": game_prompt,
+                    "options": game_options,
                     "correct_index": kit.game_correct_index,
-                    "steps": list(kit.game_steps),
+                    "steps": game_steps,
                 },
                 tags=[
                     "certification_prep",
@@ -977,6 +1015,21 @@ def build_cert_course(
                     "game",
                 ],
             )
+        slide.avatar_script = avatar_script_for_slide(slide)
+        slides.append(slide)
+    used_curated = translated_count > 0
+    spoken_language = lang if used_curated else "en"
+    if used_curated:
+        translation_source = "curated"
+        translation_note = f"Curated {lang} overlay for {translated_count}/{len(slides)} slides."
+        if lang in NEEDS_NATIVE_REVIEW:
+            translation_note += " Needs native review."
+    else:
+        translation_source = "english"
+        translation_note = (
+            f"English source; no curated overlay for language={lang!r}."
+            if lang != "en"
+            else "English source."
         )
     minutes = max(
         CERT_SESSION_MIN_MINUTES,
@@ -986,7 +1039,7 @@ def build_cert_course(
         course_id=f"cert-{uuid.uuid4().hex[:10]}",
         title=title or template.title,
         category=category,
-        language=language or "en",
+        language=lang,
         audience="adult_cert_prep",
         subject=TRACK_NAMES[template.track],
         estimated_minutes=minutes,
@@ -1008,6 +1061,9 @@ def build_cert_course(
             "examples_per_segment": True,
             "quiz_per_segment": True,
             "game_per_segment": True,
+            "spoken_language": spoken_language,
+            "translation_source": translation_source,
+            "translation_note": translation_note,
         },
         created_at_ms=int(time.time() * 1000),
         status="ready",

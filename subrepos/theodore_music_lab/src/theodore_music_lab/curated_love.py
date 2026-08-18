@@ -1,12 +1,14 @@
-"""Curated es/fr/de/it/pt glosses for Love of Learning karaoke lines.
+"""Curated glosses for Love of Learning karaoke lines.
 
 Keys are English glosses (``text_en``). Khmer display uses ``text_km`` on the
-line itself; other languages go through this table, then the LLM/lexicon stack.
+line itself; other languages go through this table (es/fr/de/it/pt here, plus
+the Chinese pack in ``curated_love_zh.py``), then the LLM/lexicon stack.
 """
 
 from __future__ import annotations
 
 from .curated_lines import CURATED_LANGUAGES, normalize
+from .curated_love_zh import CURATED_LOVE_ZH
 
 CURATED_LOVE: dict[str, dict[str, str]] = {
     "My life was not worth much.": {
@@ -318,6 +320,9 @@ CURATED_LOVE: dict[str, dict[str, str]] = {
         "pt": "O que significa esta linha?",
     },
 }
+
+for _text, _translations in CURATED_LOVE_ZH.items():
+    CURATED_LOVE.setdefault(_text, {}).update(_translations)
 
 _INDEX: dict[str, dict[str, str]] | None = None
 

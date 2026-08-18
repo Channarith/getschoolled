@@ -1,0 +1,123 @@
+{
+    "avatar_metadata": {
+        "name": "Project Serenity - Holographic Teacher (V2 - Full Articulation)",
+        "style": "Translucent Hologram",
+        "base_model_reference": "salareen_logo_statue"
+    },
+    "required_bones_skeleton": {
+        "core": [
+            "Hips",
+            "Spine",
+            "Chest",
+            "UpperChest",
+            "Neck",
+            "Head",
+            "Jaw",
+            "Eye_L",
+            "Eye_R"
+        ],
+        "arms": [
+            "Shoulder_L",
+            "UpperArm_L",
+            "LowerArm_L",
+            "Hand_L",
+            "Shoulder_R",
+            "UpperArm_R",
+            "LowerArm_R",
+            "Hand_R"
+        ],
+        "fingers_L": [
+            "Thumb_Proximal_L",
+            "Thumb_Intermediate_L",
+            "Thumb_Distal_L",
+            "Index_Proximal_L",
+            "Index_Intermediate_L",
+            "Index_Distal_L",
+            "Middle_Proximal_L",
+            "Middle_Intermediate_L",
+            "Middle_Distal_L",
+            "Ring_Proximal_L",
+            "Ring_Intermediate_L",
+            "Ring_Distal_L",
+            "Pinky_Proximal_L",
+            "Pinky_Intermediate_L",
+            "Pinky_Distal_L"
+        ],
+        "fingers_R": [
+            "Thumb_Proximal_R",
+            "Thumb_Intermediate_R",
+            "Thumb_Distal_R",
+            "Index_Proximal_R",
+            "Index_Intermediate_R",
+            "Index_Distal_R",
+            "Middle_Proximal_R",
+            "Middle_Intermediate_R",
+            "Middle_Distal_R",
+            "Ring_Proximal_R",
+            "Ring_Intermediate_R",
+            "Ring_Distal_R",
+            "Pinky_Proximal_R",
+            "Pinky_Intermediate_R",
+            "Pinky_Distal_R"
+        ],
+        "legs": [
+            "UpperLeg_L",
+            "LowerLeg_L",
+            "Foot_L",
+            "Toes_L",
+            "UpperLeg_R",
+            "LowerLeg_R",
+            "Foot_R",
+            "Toes_R"
+        ]
+    },
+    "required_blendshapes": {
+        "eyes_and_eyelids": [
+            "eyeBlink_L",
+            "eyeBlink_R",
+            "eyeLookUp_L",
+            "eyeLookDown_L",
+            "eyeLookIn_L",
+            "eyeLookOut_L",
+            "eyeLookUp_R",
+            "eyeLookDown_R",
+            "eyeLookIn_R",
+            "eyeLookOut_R",
+            "eyeWide_L",
+            "eyeWide_R",
+            "eyeSquint_L",
+            "eyeSquint_R"
+        ],
+        "visemes_for_lip_sync": [
+            "viseme_sil",
+            "viseme_PP",
+            "viseme_FF",
+            "viseme_TH",
+            "viseme_DD",
+            "viseme_kk",
+            "viseme_CH",
+            "viseme_SS",
+            "viseme_nn",
+            "viseme_RR",
+            "viseme_aa",
+            "viseme_E",
+            "viseme_I",
+            "viseme_O",
+            "viseme_U"
+        ],
+        "expressions": [
+            "smile",
+            "frown",
+            "surprise",
+            "sadness",
+            "eyebrow_raise",
+            "eyebrow_furrow",
+            "jawOpen",
+            "jawForward"
+        ],
+        "ears": [
+            "ear_wiggle_left",
+            "ear_wiggle_right"
+        ]
+    }
+}
