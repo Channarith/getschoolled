@@ -27,8 +27,8 @@ import GlassPanel from "../components/GlassPanel";
 import CameraLightingScreener from "../components/CameraLightingScreener";
 import CameraQualityGateOverlay from "../components/CameraQualityGateOverlay";
 import CourseStoryboardView from "../components/CourseStoryboardView";
-import { analyzePhotoBase64 } from "../components/CameraLightingScreener";
 import {
+  analyzePhotoBase64,
   QUALITY_DISCONNECT_SECONDS,
   tickSustainedQuality,
   type LightingVerdict,
