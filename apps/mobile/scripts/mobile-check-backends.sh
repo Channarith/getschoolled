@@ -11,7 +11,7 @@ read -r DEPLOY_MODE CLOUD_BASE CLOUD_FAILOVER <<< "$(node - <<'NODE'
 const app = require("./app.json");
 const mode = process.env.MOBILE_DEPLOY_MODE || app.expo.extra?.deployMode || "cloud";
 const base = (process.env.MOBILE_CLOUD_BASE_URL || app.expo.extra?.cloudBaseUrl || "https://www.salareen.com").replace(/\/$/, "");
-const failover = (process.env.MOBILE_CLOUD_FAILOVER_BASE_URL || app.expo.extra?.cloudFailoverBaseUrl || "https://api.salareen.com").replace(/\/$/, "");
+const failover = (process.env.MOBILE_CLOUD_FAILOVER_BASE_URL || app.expo.extra?.cloudFailoverBaseUrl || "http://45.63.91.80").replace(/\/$/, "");
 console.log(mode, base, failover);
 NODE
 )"

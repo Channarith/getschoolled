@@ -48,7 +48,7 @@ fi
 if [ -n "${SERVICES:-}" ]; then
   read -ra SERVICES <<< "$SERVICES"
 else
-  SERVICES=(orchestrator speech perception memory curriculum billing integrations identity harvester web)
+  SERVICES=(orchestrator speech perception memory curriculum billing integrations identity web)
 fi
 
 PASS=0

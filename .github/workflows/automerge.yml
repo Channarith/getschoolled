@@ -18,7 +18,7 @@ name: Auto-merge
 
 on:
   workflow_run:
-    workflows: ["ci"]
+    workflows: ["CI"]
     types:
       - completed
 

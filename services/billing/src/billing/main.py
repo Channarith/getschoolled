@@ -48,6 +48,11 @@ def current_account_id(authorization: str = Header(default="")) -> str:
     claims = verify_token(token, _token_key()) if token else None
     if not claims:
         raise HTTPException(status_code=401, detail="invalid or expired session")
+    # Only genuine account session tokens may drive checkout/billing. Scoped
+    # tokens carry a "kind" (profile_share, assessment_pass, ...) or an
+    # incomplete-auth "purpose" (mfa_pending) and must not be accepted here.
+    if claims.get("kind") or claims.get("purpose") in ("mfa_pending", "profile_share"):
+        raise HTTPException(status_code=401, detail="not an account session token")
     acct_id = claims.get("sub", "")
     if not acct_id:
         raise HTTPException(status_code=401, detail="invalid token: missing sub claim")

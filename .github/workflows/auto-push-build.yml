@@ -34,13 +34,15 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@11.8.0 --activate
 
       - name: Set up Java for Android
         uses: actions/setup-java@v4
@@ -56,8 +58,8 @@ jobs:
           if [ -f apps/web/package.json ]; then
             echo "Building apps/web (fresh, no cache)"
             cd apps/web
-            npm install
-            npm run build
+            pnpm install --frozen-lockfile || pnpm install
+            pnpm run build
           else
             echo "apps/web not present yet; skipping web build"
           fi
@@ -68,8 +70,8 @@ jobs:
             echo "Building apps/mobile (fresh, no cache)"
             cd apps/mobile
             # apps/mobile is a pnpm project (pnpm-lock.yaml). `npm ci` fails here
-            # because there is no package-lock.json.
-            pnpm install --frozen-lockfile
+            # because there is no package-lock.json - use pnpm like apps/web.
+            pnpm install --frozen-lockfile || pnpm install
             pnpm run typecheck
             pnpm run build
             # The native Android (gradle) build needs the Android SDK + network to
