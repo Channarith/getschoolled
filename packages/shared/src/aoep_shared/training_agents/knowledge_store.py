@@ -338,6 +338,15 @@ class KnowledgeStore:
         conn = self._connect()
         try:
             return int(conn.execute("SELECT COUNT(*) AS c FROM facts").fetchone()["c"])
+        except sqlite3.DatabaseError:
+            self._ensure()
+            if self.backend == "memory":
+                return len(self._memory_facts or [])
+            conn2 = self._connect()
+            try:
+                return int(conn2.execute("SELECT COUNT(*) AS c FROM facts").fetchone()["c"])
+            finally:
+                conn2.close()
         finally:
             conn.close()
 

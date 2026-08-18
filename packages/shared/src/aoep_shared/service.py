@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .config import AppConfig, load_config
+from .config import AppConfig, env_float, env_int, load_config
 from .factory import ProviderFactory
 from .http_cache import install as _install_http_cache, standard_registry as _std_cache_registry
 from .ratelimit import RateLimit, build_rate_limiter
@@ -54,8 +54,8 @@ def create_service(
     # same as before for everything except egregious abuse. Tighten via env
     # (RATE_LIMIT / RATE_LIMIT_WINDOW). Bypass paths cover health/metrics so
     # liveness probes never get throttled.
-    _rl_limit = int(os.environ.get("RATE_LIMIT", "120"))
-    _rl_window = float(os.environ.get("RATE_LIMIT_WINDOW", "60"))
+    _rl_limit = env_int(os.environ.get("RATE_LIMIT"), 120)
+    _rl_window = env_float(os.environ.get("RATE_LIMIT_WINDOW"), 60.0)
     _bypass_paths = (
         "/health", "/version", "/metrics", "/__meta",
         "/telemetry/summary", "/telemetry/errors", "/telemetry/logs",

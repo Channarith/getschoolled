@@ -19,16 +19,18 @@ _LOCAL_URLS = {
     "identity": "http://localhost:8008",
 }
 
-_LOCAL_HOST_PREFIXES = ("http://localhost", "http://127.0.0.1")
-
-
 def _clean_url(value: str) -> str:
     return value.strip().rstrip("/")
 
 
 def _is_local_url(url: str) -> bool:
-    cleaned = _clean_url(url).lower()
-    return cleaned.startswith(_LOCAL_HOST_PREFIXES)
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(_clean_url(url).lower())
+    except Exception:
+        return False
+    host = parsed.hostname or ""
+    return host in ("localhost", "127.0.0.1", "::1")
 
 
 @dataclass(frozen=True)

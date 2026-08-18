@@ -310,7 +310,7 @@ def load_config(
         xai_voice_ws_url=get("XAI_VOICE_WS_URL", "wss://api.x.ai/v1/realtime"),
         champion_path=get("CHAMPION_PATH", ""),
         harvest_user_agent=get("HARVEST_USER_AGENT", "AOEP-Harvester/1.0 (+contact@example.org)"),
-        harvest_max_rps=float(get("HARVEST_MAX_RPS", "1.0") or "1.0"),
+        harvest_max_rps=env_float(source.get("HARVEST_MAX_RPS"), 1.0),
         harvest_seeds=get("HARVEST_SEEDS", ""),
         speech_base_url=get("SPEECH_BASE_URL", "http://speech:8100"),
         vision_base_url=get("VISION_BASE_URL", "http://perception:8200"),
@@ -330,7 +330,7 @@ def load_config(
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),
         region=get("REGION", "us"),
-        vision_match_threshold=float(get("VISION_MATCH_THRESHOLD", "0.363")),
+        vision_match_threshold=env_float(source.get("VISION_MATCH_THRESHOLD"), 0.363),
         vision_gallery_path=get("VISION_GALLERY_PATH", ""),
         livekit_url=get_stripped("LIVEKIT_URL", "ws://livekit:7880"),
         livekit_api_key=get_stripped("LIVEKIT_API_KEY", "devkey"),
@@ -356,15 +356,9 @@ def load_config(
         toss_api_key=get("TOSS_API_KEY", ""),
         local_psp_api_key=get("LOCAL_PSP_API_KEY", ""),
         xai_vision_model=get("XAI_VISION_MODEL", "grok-2-vision-1212"),
-        vision_agent_absence_threshold_s=float(
-            get("VISION_AGENT_ABSENCE_THRESHOLD_S", "5.0") or "5.0"
-        ),
-        vision_agent_return_threshold_s=float(
-            get("VISION_AGENT_RETURN_THRESHOLD_S", "1.0") or "1.0"
-        ),
-        vision_agent_max_sessions=int(
-            get("VISION_AGENT_MAX_SESSIONS", "200") or "200"
-        ),
+        vision_agent_absence_threshold_s=env_float(source.get("VISION_AGENT_ABSENCE_THRESHOLD_S"), 5.0),
+        vision_agent_return_threshold_s=env_float(source.get("VISION_AGENT_RETURN_THRESHOLD_S"), 1.0),
+        vision_agent_max_sessions=env_int(source.get("VISION_AGENT_MAX_SESSIONS"), 200),
         bing_search_key=get("BING_SEARCH_KEY", ""),
         google_cse_key=get("GOOGLE_CSE_KEY", ""),
         google_cse_cx=get("GOOGLE_CSE_CX", ""),
@@ -375,6 +369,6 @@ def load_config(
         xai_base_url=get("XAI_BASE_URL", "https://api.x.ai/v1"),
         xai_model=get("XAI_MODEL", "grok-2-1212"),
         xai_audio_model=get("XAI_AUDIO_MODEL", "grok-2-audio"),
-        xai_max_tokens=int(get("XAI_MAX_TOKENS", "512") or "512"),
+        xai_max_tokens=env_int(source.get("XAI_MAX_TOKENS"), 512),
         webcam_base_url=get("WEBCAM_BASE_URL", "http://webcam:8300"),
     )
