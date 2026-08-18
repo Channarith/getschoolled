@@ -99,6 +99,22 @@ services:
     ports:
       - "8002:8000"
 
+  # Theodore Music Lab — neural voices for all 28 course languages.
+  # On first start the entrypoint pre-generates all voice clips (≈5–10 min);
+  # subsequent starts are instant because clips are cached in the named volume.
+  music:
+    build:
+      context: ../..
+      dockerfile: subrepos/theodore_music_lab/Dockerfile
+    environment:
+      MUSIC_LAB_TTS_CACHE: /data/tts-cache
+      MUSIC_LAB_TTS: "1"
+    volumes:
+      - music_tts_cache:/data/tts-cache
+    ports:
+      - "8009:8000"
+    restart: unless-stopped
+
   perception:
     build:
       context: ../..
@@ -205,3 +221,8 @@ services:
       - speech
       - billing
       - perception
+      - music
+
+volumes:
+  music_tts_cache:
+    driver: local

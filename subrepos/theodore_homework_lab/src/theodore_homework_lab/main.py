@@ -2,6 +2,17 @@
 
 from __future__ import annotations
 
+
+# Load config/local.env so XAI_API_KEY / ELEVENLABS_API_KEY / SPEECH_BASE_URL
+# work without a manual `set -a; . config/local.env` in every shell.
+try:
+    from aoep_shared.env_bootstrap import ensure_lab_env
+
+    ensure_lab_env()
+except Exception:  # noqa: BLE001 — labs must still boot offline / without shared
+    pass
+
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
@@ -14,6 +25,17 @@ from .methodologies import list_methodologies, methodology_count
 from .models import LabAssignment
 from .qualify_page import render_qualify_page
 from .quality import PRESETS, HomeworkTuning, get_runner
+
+try:
+    from aoep_shared.languages import SUPPORTED_LANGUAGES as _LOCALES
+except Exception:  # noqa: BLE001 — standalone lab
+    _LOCALES = (
+        "en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "uk",
+        "tr", "ar", "he", "hi", "bn", "ur", "fa", "zh", "ja", "ko",
+        "vi", "th", "id", "sw", "el", "cs", "km",
+    )
+
+SUPPORTED_LOCALES: tuple[str, ...] = tuple(_LOCALES)
 
 app = FastAPI(title="Theodore Homework Lab", version="0.1.0")
 
@@ -52,12 +74,22 @@ class TuningPatch(BaseModel):
 @app.get("/health")
 def health() -> dict[str, Any]:
     runner = get_runner()
+    readiness: Dict[str, Any] = {}
+    try:
+        from aoep_shared.env_bootstrap import speech_readiness
+
+        readiness = speech_readiness()
+    except Exception:  # noqa: BLE001
+        pass
     return {
         "ok": True,
         "service": "theodore-homework-lab",
         "methodologies": methodology_count(),
         "tuning": runner.tuning.to_dict(),
         "champion": runner.champion,
+        **readiness,
+        "supported_locales": list(SUPPORTED_LOCALES),
+        "supported_locale_count": len(SUPPORTED_LOCALES),
     }
 
 
@@ -82,6 +114,12 @@ def methodologies(family: str = "") -> dict[str, Any]:
 
 @app.post("/api/homework/generate")
 def api_generate(req: GenerateRequest) -> dict[str, Any]:
+    locale = (req.locale or "en").strip().lower().split("-")[0]
+    if locale not in SUPPORTED_LOCALES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported locale '{req.locale}'. Supported: {', '.join(SUPPORTED_LOCALES)}",
+        )
     context = {}
     if req.verse:
         context["verse"] = req.verse
@@ -95,7 +133,7 @@ def api_generate(req: GenerateRequest) -> dict[str, Any]:
             passages=req.passages,
             subject=req.subject,
             source=req.source,
-            locale=req.locale,
+            locale=locale,
             methodologies=req.methodologies,
             max_items=req.max_items,
             context=context,

@@ -50,6 +50,7 @@ import {
   canAwardCourseCompletion,
   findDueFormativeCheckpoint,
   findDueSummativeCheckpoint,
+  requiresRegisteredAccountForAccreditation,
   shouldOpenSummativeOnAdvance,
 } from "../lib/assessmentFlow";
 import SignInToUse from "./SignInToUse";
@@ -713,7 +714,18 @@ export default function ClassRoom({
   }
 
   async function onStart() {
-    if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
+    // HARD RULE: accreditation / certification courses require a registered account.
+    // Guests may take sample courses only (server also enforces this on /api/sessions).
+    if (!getToken()) {
+      setLoggedIn(false);
+      if (requiresRegisteredAccountForAccreditation(lessonId)) {
+        setError(
+          "Accreditation and certification courses require a registered account. " +
+            "Sign up or sign in to take this course for credit."
+        );
+      }
+      return;
+    }
     setError("");
     setFinish(null);
     setBusy(true);
@@ -1211,7 +1223,15 @@ export default function ClassRoom({
         </div>
       )}
 
-      {!view && !loggedIn && <SignInToUse />}
+      {!view && !loggedIn && (
+        <SignInToUse
+          body={
+            requiresRegisteredAccountForAccreditation(lessonId)
+              ? "Accreditation and certification courses require a registered account. Guests may take sample courses only — sign up or sign in to continue this course for credit."
+              : undefined
+          }
+        />
+      )}
 
       {!view && loggedIn && !finish && !lightingReady && (
         <CameraLightingScreener

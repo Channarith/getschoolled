@@ -52,15 +52,59 @@ def classify_command(text: str) -> dict:
     t = (text or "").strip().lower()
     if not t:
         return {"kind": "none"}
-    if re.search(r"\b(pause|stop|hold on|wait)\b", t):
+    # Boundary that works for Latin AND scripts where \b fails (Devanagari, etc.).
+    b = r"(?:^|[\s,.:;!?¿¡\"\'()\[\]{}|/\\-]+)"
+    e = r"(?:$|[\s,.:;!?¿¡\"\'()\[\]{}|/\\-]+)"
+
+    def has(*words: str) -> bool:
+        return any(re.search(b + re.escape(w) + e, t, re.I) for w in words)
+
+    # English plus common command glosses so Drive Mode works across the
+    # platform's 26+ languages (wake word stays Sala / Salareen).
+    if has(
+        "pause", "stop", "hold on", "wait",
+        "pausa", "pausar", "arrêter", "arrêt", "anhalten", "stopp",
+        "parar", "pauzeren", "zatrzymaj", "пауза", "зупини",
+        "duraklat", "توقف", "השהה", "रुको", "पाउज़", "বিরতি", "رکو", "مکث",
+        "暂停", "一時停止", "일시정지", "tạm dừng", "หยุด", "jeda", "simama",
+        "παύση", "pozastavit", "ផ្អាក",
+    ):
         return {"kind": "pause"}
-    if re.search(r"\b(resume|continue|keep going|go on)\b", t):
+    if has(
+        "resume", "continue", "keep going", "go on",
+        "continuar", "reanudar", "reprendre", "fortsetzen", "weiter",
+        "riprendi", "hervatten", "wznów", "продолжить", "продовжити",
+        "devam", "استئناف", "המשך", "जारी", "চালিয়ে", "جاری", "ادامه",
+        "继续", "再開", "계속", "tiếp tục", "ต่อ", "lanjut", "endelea",
+        "συνέχεια", "pokračovat", "បន្ត",
+    ):
         return {"kind": "resume"}
-    if re.search(r"\b(next|skip|forward)\b", t):
+    if has(
+        "next", "skip", "forward",
+        "siguiente", "suivant", "nächste", "nächster", "prossimo", "próximo",
+        "volgende", "następny", "следующий", "наступний",
+        "sonraki", "التالي", "הבא", "अगला", "পরবর্তী", "اگلا", "بعدی",
+        "下一个", "次", "다음", "tiếp", "ถัดไป", "berikutnya", "ijayo",
+        "επόμενο", "další", "បន្ទាប់",
+    ):
         return {"kind": "next"}
-    if re.search(r"\b(previous|back|last one)\b", t):
+    if has(
+        "previous", "back", "last one",
+        "anterior", "précédent", "vorherige", "precedente",
+        "vorige", "poprzedni", "предыдущий", "попередній",
+        "önceki", "السابق", "הקודם", "पिछला", "পূর্ববর্তী", "پچھلا", "قبلی",
+        "上一个", "前", "이전", "trước", "ก่อนหน้า", "sebelumnya", "iliyotangulia",
+        "προηγούμενο", "předchozí", "មុន",
+    ):
         return {"kind": "previous"}
-    if re.search(r"\b(repeat|say (that|it) again|one more time)\b", t):
+    if has(
+        "repeat", "say that again", "say it again", "one more time",
+        "repetir", "répéter", "wiederholen", "ripeti", "herhaal",
+        "powtórz", "повторить", "повторити",
+        "tekrar", "كرر", "חזור", "दोहराओ", "আবার", "دہراؤ", "تکرار",
+        "重复", "もう一度", "다시", "lặp lại", "ซ้ำ", "ulang", "rudia",
+        "επανάλαβε", "opakovat", "ធ្វើម្តងទៀត",
+    ):
         return {"kind": "repeat"}
     if is_question(t):
         return {"kind": "question", "text": text.strip()}

@@ -151,6 +151,11 @@ plus the escaped-injection security check):
 
 Full-quality video: [docs/demos/theodore_webcam_live_monitor_demo.mp4](docs/demos/theodore_webcam_live_monitor_demo.mp4)
 
+Theodore 3D Avatar Teacher — local rigged GLB presenting the Driver's Ed cue
+sequence with hologram body, facial motion, visemes, gaze and joint gestures:
+
+![Theodore 3D Avatar Teacher walkthrough](docs/demos/theodore_avatar_driver_ed_demo.gif)
+
 ### More recorded flows (animated)
 
 | Live AI class | Drive Mode audio | Netflix catalog | Learning arcade |
@@ -219,11 +224,30 @@ Documentation screenshots for every Theodore subrepo (regenerate with
 
 | Course Studio | Audio Translation |
 | --- | --- |
-| <img src="docs/screens/theodore_course_studio.webp" alt="Theodore Course Studio Make and teach with multimodal cert kits examples quiz and games" /> | <img src="docs/screens/theodore_audio_translation_lab.webp" alt="Theodore Audio Translation Lab capture panel and live multilingual feed with Theodore replies" /> |
+| <img src="docs/screens/theodore_avatar_driver_ed.png" alt="Theodore Course Studio Driver's Ed lesson with the full-body translucent Salareen 3D avatar teacher beside the lesson media" /> | <img src="docs/screens/theodore_audio_translation_lab.webp" alt="Theodore Audio Translation Lab capture panel and live multilingual feed with Theodore replies" /> |
 
 | Webcam overview (owner lock) | RAG auto-tune |
 | --- | --- |
 | <img src="docs/screens/theodore_webcam_lab_overview.webp" alt="Theodore Webcam Lab overview with owner face lock multi-face and integrity metrics" /> | <img src="docs/screens/theodore_rag_lab.webp" alt="Theodore RAG Lab live tuning knobs and bakeoff console" /> |
+
+Course Studio presenters (chibi canon, 2.75 heads tall, gendered pair swapped by
+the voice picker). Rebuild the models with
+`node subrepos/theodore_course_studio/avatar/build_avatar.mjs`, verify proportions
+with `inspect_avatar.mjs`, and regenerate these renders with
+`node subrepos/theodore_course_studio/avatar/render_avatar.mjs docs/screens`:
+
+| Theodora (stage / face / profile) | Theodore (stage / face / profile) |
+| --- | --- |
+| <img src="docs/screens/presenter_female_stage.png" alt="Theodora presenter, full body, chibi proportions with round head, crown and Salareen medallion" width="180" /> <img src="docs/screens/presenter_female_face.png" alt="Theodora presenter face close-up with large eyes and resting smile" width="180" /> <img src="docs/screens/presenter_female_side.png" alt="Theodora presenter profile showing the forward teaching lean" width="180" /> | <img src="docs/screens/presenter_male_stage.png" alt="Theodore presenter, full body, chibi proportions with broader shoulders" width="180" /> <img src="docs/screens/presenter_male_face.png" alt="Theodore presenter face close-up with large eyes and resting smile" width="180" /> <img src="docs/screens/presenter_male_side.png" alt="Theodore presenter profile showing the forward teaching lean" width="180" /> |
+
+For a higher-fidelity presenter, the runtime is rig-agnostic: drop in an artist-
+or Meshy-generated GLB built to `subrepos/theodore_course_studio/avatar/avatar_rig_config_v2.json`
+(Serenity V2 rig) as `custom_female.glb` / `custom_male.glb` in
+`avatar_static/`. `avatar_rig.js` maps its bones/blendshapes into our teach cues
+and applies the hologram material; the backend `GET /api/studio/presenter/manifest`
+prefers it over the procedural model. Validate any GLB offline with
+`node subrepos/theodore_course_studio/avatar/validate_rig.mjs <model.glb>`; see
+`avatar/AVATAR_IMPORT.txt` for the generation prompt and drop-in steps.
 
 Each lab keeps a copy under `subrepos/<lab>/docs/screens/` and a numbered
 **STEP BY STEP** walkthrough in its `README.txt` (webcam also has the
@@ -596,7 +620,7 @@ transcript all run without it.
 | `subrepos/theodore_rag_lab` | Private RAG auto-tune / bakeoff (browser console `:8095/`) |
 | `subrepos/theodore_drive_lab` | Private Drive Mode fine-tune (browser console `:8096/`) |
 | `subrepos/theodore_homework_lab` | Private homework lab, 75 methodologies (browser UI `:8098/`) |
-| `subrepos/theodore_music_lab` | Learn-through-music lab (featured player `:8097/`) |
+| `subrepos/theodore_music_lab` | Learn-through-music lab (featured player `:8097/`; curated lyric translations in all 26+ langs) |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |
 | `packages/sdk` | Installable Python SDK for safely extending AOEP (`AOEPClient.local()`, in-process APIs) |
 | `services/orchestrator` | Teaching Director, sessions, Tutor Q&A, HIL, assessment |

@@ -18,6 +18,10 @@ const SERVICES = [
   "integrations",
   "speech",
   "perception",
+  // Theodore Music Lab — pre-generated neural voices for all 28 course languages.
+  // Served from the `music` compose service; clips are disk-cached so /api/music/tts
+  // replies instantly without re-rendering on every request.
+  "music",
 ];
 
 function serviceOrigin(name) {
