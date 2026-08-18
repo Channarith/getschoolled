@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Vehicle safety checks
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Pre-drive inspections and warning lights. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Walk-around check
+Look for leaks, low tires, and obstacles. Before you drive, walk around the car — check tires, lights, and anything behind the bumper.
+NARRATION: Before you drive, walk around the car — check tires, lights, and anything behind the bumper.
+
+SLIDE 2 | Tire pressure and tread
+Bald or soft tires fail in emergencies. Check tread and pressure regularly — underinflation and worn tread lengthen stopping distance.
+NARRATION: Check tread and pressure regularly — underinflation and worn tread lengthen stopping distance.
+
+SLIDE 3 | Lights and signals
+Confirm brake, turn, and headlamps work. Test headlights, brake lights, and turn signals so others can predict your moves.
+NARRATION: Test headlights, brake lights, and turn signals so others can predict your moves.
+
+SLIDE 4 | Mirrors and seat
+Adjust before you shift into drive. Set seat, mirrors, and steering wheel before you move — not while rolling.
+NARRATION: Set seat, mirrors, and steering wheel before you move — not while rolling.
+
+SLIDE 5 | Windshield and wipers
+See clearly in rain. Keep glass clean and replace streaking wipers before the storm arrives.
+NARRATION: Keep glass clean and replace streaking wipers before the storm arrives.
+
+SLIDE 6 | Fuel and range
+Do not run to empty. Keep enough fuel for traffic delays — running out on a freeway is a hazard.
+NARRATION: Keep enough fuel for traffic delays — running out on a freeway is a hazard.
+
+SLIDE 7 | Warning light response
+Red means stop safely soon. Learn your dash icons — red warnings usually mean stop safely and get help.
+NARRATION: Learn your dash icons — red warnings usually mean stop safely and get help.
+
+SLIDE 8 | Brake feel check
+Soft pedal means get service. If the brake pedal feels soft or sinks, do not drive — have the system checked.
+NARRATION: If the brake pedal feels soft or sinks, do not drive — have the system checked.
+
+SLIDE 9 | Child seat basics
+Install correctly; never front airbag with rear-facing. Use the correct car seat for age and size and never place a rear-facing seat in front of an active airbag.
+NARRATION: Use the correct car seat for age and size and never place a rear-facing seat in front of an active airbag.
+
+SLIDE 10 | Loose cargo
+Secure loads so nothing becomes a projectile. Unsecured cargo can injure occupants in a sudden stop — stash or strap it down.
+NARRATION: Unsecured cargo can injure occupants in a sudden stop — stash or strap it down.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

@@ -10,6 +10,7 @@ import {
   listStudents, reengageLessonSession, recordAssessmentAttempt, recordAssessmentPass,
   setEnrollmentStatus, startAssessmentCheckpoint, startLessonSession,
   submitPostClassSurvey, submitPulseSurvey,
+  translateText,
   type AssessmentCheckpointSpec, type AssessmentRun, type AssessmentSubmitResult,
   type LessonAnswer, type LessonSessionView, type LessonSlide,
   type QuizGrade, type QuizItemView, type StudentProfile, type SurveyTemplate,
@@ -23,6 +24,7 @@ import {
 import AnimatedPressable from "../components/AnimatedPressable";
 import AssessmentCheckpointCard from "../components/AssessmentCheckpointCard";
 import CameraLightingScreener from "../components/CameraLightingScreener";
+import CourseStoryboardView from "../components/CourseStoryboardView";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import SurveySheet from "../components/SurveySheet";
@@ -64,6 +66,7 @@ export default function LessonScreen({
   const { account } = useAuth();
   const [view, setView] = useState<LessonSessionView | null>(null);
   const [slide, setSlide] = useState<LessonSlide | null>(null);
+  const [localizedSlide, setLocalizedSlide] = useState<LessonSlide | null>(null);
   const [loading, setLoading] = useState(false);
   const [lightingReady, setLightingReady] = useState(false);
   const [error, setError] = useState("");
@@ -229,7 +232,8 @@ export default function LessonScreen({
     const s = slideRef.current;
     if (!s) return;
     Speech.stop();
-    const text = s.narration || s.body || s.title;
+    const localized = localizedSlide?.index === s.index ? localizedSlide : s;
+    const text = localized.narration || localized.body || localized.title;
     if (!text) return;
     setNarrating(true);
     void buildNarrationSpeakOptions(locale).then((base) => {
@@ -241,6 +245,43 @@ export default function LessonScreen({
       });
     });
   }
+
+  useEffect(() => {
+    let active = true;
+    if (!slide) {
+      setLocalizedSlide(null);
+      return () => { active = false; };
+    }
+    const source = slide.storyboard_source_language || view?.lesson.language || "en";
+    if (locale === source) {
+      setLocalizedSlide(slide);
+      return () => { active = false; };
+    }
+    setLocalizedSlide(null);
+    void Promise.all(
+      [slide.title, slide.body, slide.narration, slide.storyboard_concept || "",
+        ...(slide.storyboard_examples || []), slide.storyboard_activity || ""].map(
+        async (text) => {
+          if (!text) return "";
+          try { return (await translateText(text, source, locale)).text; }
+          catch { return text; }
+        },
+      ),
+    ).then((values) => {
+      if (!active) return;
+      const exampleCount = (slide.storyboard_examples || []).length;
+      setLocalizedSlide({
+        ...slide,
+        title: values[0],
+        body: values[1],
+        narration: values[2],
+        storyboard_concept: values[3],
+        storyboard_examples: values.slice(4, 4 + exampleCount),
+        storyboard_activity: values[4 + exampleCount] || "",
+      });
+    });
+    return () => { active = false; };
+  }, [slide?.index, slide?.storyboard_scene_id, locale]);
 
   async function tickLx(s: LessonSlide) {
     if (!view) return;
@@ -678,8 +719,17 @@ export default function LessonScreen({
 
           {slide ? (
             <GlassPanel style={styles.card}>
-              <Text style={styles.slideTitle}>{slide.title}</Text>
-              <Text style={styles.slideBody}>{slide.body}</Text>
+              <Text style={styles.slideTitle}>{localizedSlide?.title || slide.title}</Text>
+              <CourseStoryboardView
+                svg={slide.storyboard_svg}
+                concept={slide.storyboard_concept}
+                translatedConcept={localizedSlide?.storyboard_concept}
+                examples={localizedSlide?.storyboard_examples || slide.storyboard_examples}
+                activity={localizedSlide?.storyboard_activity || slide.storyboard_activity}
+                profileMode={slide.storyboard_profile_mode}
+                sourceLanguage={slide.storyboard_source_language}
+              />
+              <Text style={styles.slideBody}>{localizedSlide?.body || slide.body}</Text>
               <View style={styles.slideActions}>
                 <PrimaryButton
                   label={narrating ? t("lesson.stopNarration") : t("lesson.narrate")}

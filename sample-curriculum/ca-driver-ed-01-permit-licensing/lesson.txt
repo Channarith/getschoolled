@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Permit & licensing
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Provisional permit rules, eligibility, and handbook authority. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Study aid, not DMV course
+Confirm every rule in the official handbook. This track is practice only. Always verify rules in the current California Driver's Handbook.
+NARRATION: This track is practice only. Always verify rules in the current California Driver's Handbook.
+
+SLIDE 2 | Who needs a permit
+Instruction permit before solo provisional license. Most new drivers start with an instruction permit, then a provisional license after requirements are met.
+NARRATION: Most new drivers start with an instruction permit, then a provisional license after requirements are met.
+
+SLIDE 3 | Age and driver education
+Teens usually need education plus parent consent. Typical teen applicants need driver education, practice hours, and a parent or guardian signature.
+NARRATION: Typical teen applicants need driver education, practice hours, and a parent or guardian signature.
+
+SLIDE 4 | Vision and knowledge tests
+Pass vision and knowledge before the permit issues. Expect a vision screening and a knowledge test covering signs, rules, and sharing the road.
+NARRATION: Expect a vision screening and a knowledge test covering signs, rules, and sharing the road.
+
+SLIDE 5 | Practice hour log
+Log day and night supervised hours. California requires substantial supervised practice, including night hours, before the road test.
+NARRATION: California requires substantial supervised practice, including night hours, before the road test.
+
+SLIDE 6 | Supervising driver rules
+Licensed adult in the front seat while practicing. With a permit, a qualified licensed driver must supervise from the front passenger seat.
+NARRATION: With a permit, a qualified licensed driver must supervise from the front passenger seat.
+
+SLIDE 7 | Provisional passenger limits
+First-year passenger restrictions apply. Provisional holders usually may carry only immediate family unless a qualified supervisor is present.
+NARRATION: Provisional holders usually may carry only immediate family unless a qualified supervisor is present.
+
+SLIDE 8 | Night curfew for teens
+Honor provisional nighttime limits. Provisional drivers face night driving limits unless an exception applies.
+NARRATION: Provisional drivers face night driving limits unless an exception applies.
+
+SLIDE 9 | License classes overview
+Class C covers most passenger cars. Most learners seek a Class C license. Commercial and motorcycle classes have separate requirements.
+NARRATION: Most learners seek a Class C license. Commercial and motorcycle classes have separate requirements.
+
+SLIDE 10 | Keep documents current
+Carry license and insurance proof when you drive. Drive only with a valid license or permit and carry proof of financial responsibility when required.
+NARRATION: Drive only with a valid license or permit and carry proof of financial responsibility when required.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

@@ -26,11 +26,13 @@ class WebcamSignal(BaseModel):
     participant_id: str = Field(min_length=1)
     timestamp_ms: int = Field(ge=0)
     face_count: int = Field(default=0, ge=0)
-    # Client-side original-owner face lock (same webcam, different physical person).
-    # When enrolled + owner_face_match is False, the frame is a substitution risk.
+    # Client-side named Face ID (same webcam, different physical person).
+    # When enrolled + owner_face_match is False, the frame is a substitution risk
+    # and teaching pauses — non-matching faces must not drive attention/mood.
     owner_face_enrolled: bool = False
     owner_face_match: bool | None = Field(default=None)
     owner_match_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    owner_face_name: str | None = Field(default=None, max_length=80)
     secondary_face_count: int = Field(default=0, ge=0)
     liveness_state: str = Field(default="unknown")
     foreground_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -40,6 +42,13 @@ class WebcamSignal(BaseModel):
     expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     gaze_frontal: float | None = Field(default=None, ge=0.0, le=1.0)
     gaze_down_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Directional gaze channels for the distance×residual attention formula.
+    # Thin clients may omit them; the analyzer derives from head pose / residual.
+    gaze_up_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    gaze_left_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    gaze_right_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Stare residual in degrees (positive = looking below the lesson band).
+    stare_residual_deg: float | None = None
     eyes_closed_score: float | None = Field(default=None, ge=0.0, le=1.0)
     yawn_score: float | None = Field(default=None, ge=0.0, le=1.0)
     # Which client detector produced the per-feature scores above. "face_mesh"
@@ -129,6 +138,18 @@ class ParticipantEvaluation(BaseModel):
     attention_score: float = Field(default=0.0, ge=0.0, le=1.0)
     distraction_score: float = Field(default=0.0, ge=0.0, le=1.0)
     inattentive_for_ms: int = Field(default=0, ge=0)
+    # Distance × gaze × residual attention formula snapshot.
+    stare_residual_deg: float | None = None
+    gaze_up_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    gaze_left_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    gaze_right_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    gaze_down_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    attention_band_m: float | None = None
+    attention_residual_floor_deg: float | None = None
+    attention_formula_triggered: bool = False
+    too_far_for_class: bool = False
+    camera_quality_blocking: bool = False
+    pitch_dark: bool = False
     hands_on_face_score: float | None = Field(default=None, ge=0.0, le=1.0)
     hands_on_face_for_ms: int = Field(default=0, ge=0)
     behavior_label: str = "unknown"  # focused|yawning|distracted|inattentive|drowsy|away|hands_on_face

@@ -1,10 +1,23 @@
 // API client for the Salareen mobile app (curriculum, identity, memory).
 
 import type { MascotResolve } from "./mascot";
-import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL } from "./config";
+import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL, MUSIC_URL, musicTtsUri } from "./config";
 import { getToken, clearAuthToken } from "./storage";
 
-export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL };
+export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL, MUSIC_URL, musicTtsUri };
+
+export function translateText(
+  text: string,
+  source: string,
+  target: string,
+): Promise<{ text: string; source: string; target: string }> {
+  if (!text || source === target) return Promise.resolve({ text, source, target });
+  return get<{ text: string; source: string; target: string }>(SPEECH_URL, "/translate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, source, target }),
+  });
+}
 
 export type AudioCourseRow = {
   id: string; title: string; category: string; subject: string; level: string;
@@ -688,7 +701,17 @@ export type LiveRoomState = {
     primary_style?: string;
   }[];
   chat: { id: string; from_name: string; text: string }[];
-  slide: { index: number; title: string; body: string; narration: string };
+  slide: {
+    index: number; title: string; body: string; narration: string;
+    storyboard_svg?: string;
+    storyboard_concept?: string;
+    storyboard_scene_id?: string;
+    storyboard_examples?: string[];
+    storyboard_activity?: string;
+    storyboard_profile_mode?: string;
+    storyboard_source_language?: string;
+    storyboard_translation_ready?: boolean;
+  };
   recording: { status: string };
   banned?: { identity: string; name: string; reason: string }[];
   speaking_queue?: {
@@ -1014,6 +1037,15 @@ export type LessonSlide = {
   index: number; title: string; body: string; narration: string;
   kind?: string; say_aloud?: string;
   segment_break?: SegmentBreak | null;
+  storyboard_svg?: string;
+  storyboard_concept?: string;
+  storyboard_scene_id?: string;
+  storyboard_examples?: string[];
+  storyboard_activity?: string;
+  storyboard_modalities?: string[];
+  storyboard_profile_mode?: string;
+  storyboard_source_language?: string;
+  storyboard_translation_ready?: boolean;
 };
 export type LessonDetail = {
   lesson_id: string; title: string; language?: string; summary?: string;
@@ -2065,6 +2097,67 @@ export function groupClassCalendarUrl(classId: string, name = "", email = ""): s
   if (email) p.set("email", email);
   const qs = p.toString();
   return `${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/calendar.ics${qs ? `?${qs}` : ""}`;
+}
+
+// ── Voice-name enrollment (settings face + voice ID check) ──────────────────
+
+export type VoiceEnrollmentStatus = {
+  student_id: string;
+  voice_enrolled: boolean;
+  voice_enrolled_at: number | null;
+  voice_name_text: string;
+  voice_name_sample_mime: string;
+  has_sample: boolean;
+};
+
+export type VoiceEnrollResponse = {
+  student_id: string;
+  voice_enrolled: boolean;
+  voice_enrolled_at: number;
+  voice_name_text: string;
+  voice_name_sample_mime: string;
+};
+
+/**
+ * Upload a voice-name sample (base64-encoded audio) to the student profile.
+ * Used during the settings face + voice ID check when the student says their name.
+ */
+export async function enrollVoiceSample(
+  studentId: string,
+  audioBase64: string,
+  mimeType: string,
+  nameText: string,
+): Promise<VoiceEnrollResponse> {
+  const tok = getToken();
+  if (!tok) throw new Error("not signed in");
+  const resp = await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/voice-enrollment`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+      body: JSON.stringify({
+        voice_name_sample_b64: audioBase64,
+        voice_name_sample_mime: mimeType,
+        voice_name_text: nameText,
+      }),
+    },
+  );
+  if (!resp.ok) throw new Error(`voice enrollment failed: ${resp.status}`);
+  return resp.json() as Promise<VoiceEnrollResponse>;
+}
+
+/** Get voice enrollment status for a student (metadata only, not the blob). */
+export async function getVoiceEnrollmentStatus(
+  studentId: string,
+): Promise<VoiceEnrollmentStatus> {
+  const tok = getToken();
+  if (!tok) throw new Error("not signed in");
+  const resp = await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/voice-enrollment`,
+    { headers: { authorization: `Bearer ${tok}` } },
+  );
+  if (!resp.ok) throw new Error(`voice enrollment status: ${resp.status}`);
+  return resp.json() as Promise<VoiceEnrollmentStatus>;
 }
 
 // ── Platform presence ────────────────────────────────────────────────────────

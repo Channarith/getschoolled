@@ -228,7 +228,8 @@ def test_clean_frame_has_high_confidence_and_no_flags():
         mode=ClassMode.SOLO,
         signals=[
             _signal(
-                face_size_ratio=0.20,
+                face_size_ratio=0.40,
+                distance_from_camera_m=0.50,
                 light_quality_score=0.85,
                 mean_luminance=0.5,
                 image_detection_confidence=0.95,

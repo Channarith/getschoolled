@@ -32,12 +32,14 @@ def test_mexican_spanish_intro():
 
 def test_list_dialects_includes_regions():
     ids = {d["id"] for d in list_dialects()}
-    assert {"us_ca", "us_tx", "es_mx", "pt_br"}.issubset(ids)
+    assert {"us_ca", "us_tx", "es_mx", "pt_br", "us_south", "us_ny", "en_sg", "zh_bj"}.issubset(ids)
 
 
 def test_normalize_aliases():
     assert normalize_dialect("californian") == "us_ca"
     assert normalize_dialect("texan") == "us_tx"
+    assert normalize_dialect("singaporean") == "en_sg"
+    assert normalize_dialect("guangzhou") == "zh_yue_gz"
     assert normalize_dialect(None) is None
 
 

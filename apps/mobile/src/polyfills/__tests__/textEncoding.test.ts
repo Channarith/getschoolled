@@ -1,9 +1,7 @@
 /** @jest-environment node */
 
-type TextEncodingHost = typeof globalThis & {
-  TextDecoder?: new () => { decode(input: Uint8Array): string };
-  TextEncoder?: new () => { encode(input: string): Uint8Array };
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TextEncodingHost = typeof globalThis & { TextDecoder?: any; TextEncoder?: any };
 
 const encodingHost = () => globalThis as TextEncodingHost;
 
@@ -12,22 +10,14 @@ describe("ensureTextEncodingGlobals", () => {
   const originalEncoder = encodingHost().TextEncoder;
 
   afterEach(() => {
-    if (originalDecoder === undefined) {
-      delete encodingHost().TextDecoder;
-    } else {
-      encodingHost().TextDecoder = originalDecoder;
-    }
-    if (originalEncoder === undefined) {
-      delete encodingHost().TextEncoder;
-    } else {
-      encodingHost().TextEncoder = originalEncoder;
-    }
+    encodingHost().TextDecoder = originalDecoder;
+    encodingHost().TextEncoder = originalEncoder;
     jest.resetModules();
   });
 
   it("installs TextDecoder and TextEncoder when missing", () => {
-    delete encodingHost().TextDecoder;
-    delete encodingHost().TextEncoder;
+    encodingHost().TextDecoder = undefined;
+    encodingHost().TextEncoder = undefined;
 
     const { ensureTextEncodingGlobals } = require("../textEncoding");
     ensureTextEncodingGlobals();

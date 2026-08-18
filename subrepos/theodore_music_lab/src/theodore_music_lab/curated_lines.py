@@ -4,15 +4,20 @@ Tier 1 of the translation stack: every unique lyric line of the three featured
 songs, translated line-for-line so a learner reads a real sentence rather than a
 word list. Keys are the normalized English line (see ``normalize``).
 
-Languages here are the reviewed set. Everything else is served by the LLM tier
-(cached to disk) or the lexicon tier — see ``translations.py``.
+All platform meaning languages (26 non-English) are curated for the featured
+pack. Romance lines live inline; the remaining languages load from
+``data/curated_lines_extra.json`` so the Python module stays readable.
 """
 
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 
-CURATED_LANGUAGES: tuple[str, ...] = ("es", "fr", "de", "it", "pt")
+from .curated_zh_km import CURATED_ZH_KM
+
+CURATED_LANGUAGES: tuple[str, ...] = ("es", "fr", "de", "it", "pt", "zh", "km")
 
 
 def normalize(text: str | None) -> str:
@@ -22,8 +27,8 @@ def normalize(text: str | None) -> str:
     return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text.lower()).split())
 
 
+# Romance baseline (kept in-repo for easy review). Extra languages merge from JSON.
 CURATED_LINES: dict[str, dict[str, str]] = {
-    # ---- Travel Words ----------------------------------------------------
     "i go to work": {"es": "Voy al trabajo", "fr": "Je vais au travail", "de": "Ich gehe zur Arbeit", "it": "Vado al lavoro", "pt": "Eu vou para o trabalho"},
     "i go to school": {"es": "Voy a la escuela", "fr": "Je vais à l'école", "de": "Ich gehe zur Schule", "it": "Vado a scuola", "pt": "Eu vou para a escola"},
     "i say hello": {"es": "Digo hola", "fr": "Je dis bonjour", "de": "Ich sage hallo", "it": "Dico ciao", "pt": "Eu digo olá"},
@@ -56,7 +61,6 @@ CURATED_LINES: dict[str, dict[str, str]] = {
     "one cup of tea": {"es": "Una taza de té", "fr": "Une tasse de thé", "de": "Eine Tasse Tee", "it": "Una tazza di tè", "pt": "Uma xícara de chá"},
     "how much is this": {"es": "¿Cuánto cuesta esto?", "fr": "Combien ça coûte ?", "de": "Wie viel kostet das?", "it": "Quanto costa questo?", "pt": "Quanto custa isto?"},
     "can you help me": {"es": "¿Puede ayudarme?", "fr": "Pouvez-vous m'aider ?", "de": "Können Sie mir helfen?", "it": "Può aiutarmi?", "pt": "Você pode me ajudar?"},
-    # ---- Wheels on the Bus (learning version) ----------------------------
     "hello friend how are you": {"es": "Hola amigo, ¿cómo estás?", "fr": "Bonjour ami, comment vas-tu ?", "de": "Hallo Freund, wie geht es dir?", "it": "Ciao amico, come stai?", "pt": "Olá amigo, como vai você?"},
     "i am good yes me too": {"es": "Estoy bien, sí, yo también", "fr": "Je vais bien, oui, moi aussi", "de": "Mir geht es gut, ja, mir auch", "it": "Sto bene, sì, anch'io", "pt": "Estou bem, sim, eu também"},
     "look a bus a car a train": {"es": "Mira, un autobús, un coche, un tren", "fr": "Regarde, un bus, une voiture, un train", "de": "Schau, ein Bus, ein Auto, ein Zug", "it": "Guarda, un autobus, un'auto, un treno", "pt": "Olha, um ônibus, um carro, um trem"},
@@ -73,7 +77,6 @@ CURATED_LINES: dict[str, dict[str, str]] = {
     "waving hi waving low": {"es": "Saludando arriba, saludando abajo", "fr": "Ils saluent en haut, ils saluent en bas", "de": "Winken hoch, winken tief", "it": "Salutano in alto, salutano in basso", "pt": "Acenando alto, acenando baixo"},
     "beep beep says the horn": {"es": "Pi pi dice la bocina", "fr": "Bip bip dit le klaxon", "de": "Tut tut sagt die Hupe", "it": "Bip bip dice il clacson", "pt": "Bip bip diz a buzina"},
     "since the early morn": {"es": "Desde temprano en la mañana", "fr": "Depuis le petit matin", "de": "Seit dem frühen Morgen", "it": "Fin dal primo mattino", "pt": "Desde cedo pela manhã"},
-    # ---- Words This Way --------------------------------------------------
     "hello am i wrong": {"es": "Hola, ¿me equivoco?", "fr": "Bonjour, est-ce que je me trompe ?", "de": "Hallo, liege ich falsch?", "it": "Ciao, mi sbaglio?", "pt": "Olá, estou errado?"},
     "morning singing my song": {"es": "Por la mañana canto mi canción", "fr": "Le matin je chante ma chanson", "de": "Am Morgen singe ich mein Lied", "it": "Di mattina canto la mia canzone", "pt": "De manhã canto minha canção"},
     "the sun is shining": {"es": "El sol está brillando", "fr": "Le soleil brille", "de": "Die Sonne scheint", "it": "Il sole sta brillando", "pt": "O sol está brilhando"},
@@ -96,6 +99,37 @@ CURATED_LINES: dict[str, dict[str, str]] = {
     "every word can take us": {"es": "Cada palabra puede llevarnos", "fr": "Chaque mot peut nous emmener", "de": "Jedes Wort kann uns bringen", "it": "Ogni parola può portarci", "pt": "Cada palavra pode nos levar"},
     "where we are": {"es": "A donde estamos", "fr": "Là où nous sommes", "de": "Wohin wir gehören", "it": "Dove siamo", "pt": "Onde estamos"},
 }
+
+# Keep the large Unicode packs isolated and merge them into the same tier-1
+# lookup used by lyrics, sing-along, captions, and Ask AI.
+for _line, _translations in CURATED_ZH_KM.items():
+    CURATED_LINES.setdefault(_line, {}).update(_translations)
+
+
+def _merge_extra_pack() -> None:
+    """Fold the 26-language featured pack into CURATED_LINES (idempotent)."""
+    pack = (
+        Path(__file__).resolve().parent.parent.parent / "data" / "curated_lines_extra.json"
+    )
+    if not pack.is_file():
+        return
+    try:
+        payload = json.loads(pack.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    lines = payload.get("lines")
+    if not isinstance(lines, dict):
+        return
+    for key, row in lines.items():
+        if not isinstance(row, dict):
+            continue
+        bucket = CURATED_LINES.setdefault(str(key), {})
+        for lang, text in row.items():
+            if lang in CURATED_LANGUAGES and isinstance(text, str) and text.strip():
+                bucket[lang] = text.strip()
+
+
+_merge_extra_pack()
 
 
 def curated(text: str, language: str) -> str:

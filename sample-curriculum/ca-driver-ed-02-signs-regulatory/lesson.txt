@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Regulatory signs
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Stop, yield, speed, one-way, and other must-obey signs. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Sign shapes and colors
+Shape and color signal meaning before you read text. Octagon means stop, triangle means yield, diamond warns, and white rectangles regulate.
+NARRATION: Octagon means stop, triangle means yield, diamond warns, and white rectangles regulate.
+
+SLIDE 2 | Stop sign complete stop
+Wheels must fully stop behind the line. At a stop sign, come to a complete stop behind the limit line or crosswalk, then proceed when clear.
+NARRATION: At a stop sign, come to a complete stop behind the limit line or crosswalk, then proceed when clear.
+
+SLIDE 3 | Yield triangle
+Slow and give way when others have priority. A yield sign means prepare to stop and give way to traffic and pedestrians as needed.
+NARRATION: A yield sign means prepare to stop and give way to traffic and pedestrians as needed.
+
+SLIDE 4 | Speed limit maximum
+Posted speed is a maximum in ideal conditions. Never treat the posted limit as a target when weather, traffic, or visibility are poor.
+NARRATION: Never treat the posted limit as a target when weather, traffic, or visibility are poor.
+
+SLIDE 5 | Do not enter
+Wrong-way entry risks a head-on crash. A do-not-enter sign means you are approaching from the wrong direction — turn around safely.
+NARRATION: A do-not-enter sign means you are approaching from the wrong direction — turn around safely.
+
+SLIDE 6 | One-way streets
+Travel only in the marked direction. One-way signs and pavement arrows show the only legal direction of travel.
+NARRATION: One-way signs and pavement arrows show the only legal direction of travel.
+
+SLIDE 7 | No turn signs
+Obey posted turn prohibitions. No-left-turn and no-U-turn signs override what a green light alone might allow.
+NARRATION: No-left-turn and no-U-turn signs override what a green light alone might allow.
+
+SLIDE 8 | Keep right and lane use
+Lane-use signs assign which lane for which move. Lane-use control signs tell you whether a lane is for left, through, or right movements.
+NARRATION: Lane-use control signs tell you whether a lane is for left, through, or right movements.
+
+SLIDE 9 | Weight and truck limits
+Some roads restrict vehicle types or weight. Bridge and road signs may ban trucks or set weight limits — plan another route if needed.
+NARRATION: Bridge and road signs may ban trucks or set weight limits — plan another route if needed.
+
+SLIDE 10 | Regulatory vs guide
+White and black rules; green and blue guide. Regulatory signs create legal duties. Guide signs help you navigate but do not replace rules.
+NARRATION: Regulatory signs create legal duties. Guide signs help you navigate but do not replace rules.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

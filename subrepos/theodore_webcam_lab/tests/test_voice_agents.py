@@ -108,8 +108,12 @@ def test_supported_languages_cover_26_language_codes():
     assert original_26.issubset(codes), f"Missing original languages: {original_26 - codes}"
     # Must also include the newly added East/Southeast-Asian languages.
     assert {"zh-CN", "ja", "ko", "km", "my", "tl"}.issubset(codes)
+    # Platform bare "zh" (aoep_shared.languages) must resolve, not only zh-CN.
+    assert "zh" in codes
     # No duplicate codes.
     assert len(codes) == len(languages)
+    agent = XaiVoiceAgent(api_key="")
+    assert agent._resolve_language("zh").code in {"zh", "zh-CN"}
 
 
 def test_ask_question_fallback_for_supported_language():
