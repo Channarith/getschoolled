@@ -1128,10 +1128,7 @@ def assessment_checkpoint_start(
 
 
 def _assessment_signing_key() -> bytes:
-    return os.environ.get(
-        "ASSESSMENT_SIGNING_KEY",
-        os.environ.get("AUTH_SIGNING_KEY", "dev-assessment-signing-key"),
-    ).encode()
+    return os.environ.get("ASSESSMENT_SIGNING_KEY", "dev-assessment-signing-key").encode()
 
 
 @app.post("/assessment/checkpoints/{run_id}/submit")

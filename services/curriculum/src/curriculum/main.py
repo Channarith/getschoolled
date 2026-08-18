@@ -199,12 +199,12 @@ def _summary(deck: Deck) -> DeckSummary:
     )
 
 
-@app.post("/decks", response_model=Deck)
+@app.post("/decks", response_model=Deck, dependencies=[Depends(require_internal)])
 def create_deck(req: CreateDeckRequest) -> Deck:
     return app.state.decks.create(req.title, req.language, req.slides)
 
 
-@app.post("/decks/import", response_model=Deck)
+@app.post("/decks/import", response_model=Deck, dependencies=[Depends(require_internal)])
 def import_deck(text: str = Body(..., media_type="text/plain")) -> Deck:
     """Import a deck from the plain-text lesson format."""
     deck = parse_deck_text(text)
@@ -242,7 +242,7 @@ def presentation(deck_id: str) -> dict:
     }
 
 
-@app.delete("/decks/{deck_id}")
+@app.delete("/decks/{deck_id}", dependencies=[Depends(require_internal)])
 def delete_deck(deck_id: str) -> dict:
     if not app.state.decks.delete(deck_id):
         raise HTTPException(status_code=404, detail="unknown deck")
