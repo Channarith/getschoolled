@@ -102,10 +102,8 @@ def current_account(authorization: str = Header(default="")):
     claims = verify_token(token, _token_key()) if token else None
     if not claims:
         raise HTTPException(status_code=401, detail="invalid or expired session")
-    # Session tokens carry neither a `purpose` nor a `kind` claim — anything
-    # stamped with one is a scoped token (mfa_pending, password_reset,
-    # profile_share, assessment_pass, ...) and must not act as a session.
-    if claims.get("purpose") or claims.get("kind"):
+    purpose = claims.get("purpose")
+    if purpose in ("mfa_pending", "profile_share"):
         raise HTTPException(status_code=401, detail="incomplete authentication")
     acct = app.state.accounts.by_id(claims.get("sub", ""))
     if acct is None:
@@ -601,7 +599,6 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
     # PASSED awards points. In cloud, require an orchestrator-signed
     # pass_decision_token so clients cannot self-award. Local/dev still
     # allows unverified Drive/live completions for demos and existing tests.
-    score = req.score
     if req.status is EnrollmentStatus.PASSED:
         if req.pass_decision_token:
             claims = verify_token(req.pass_decision_token, _assessment_signing_key())
@@ -615,10 +612,6 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
             if token_course and token_course != course_id:
                 raise HTTPException(
                     status_code=403, detail="pass_decision_token is for a different course")
-            # The signed token carries the authoritative score — never trust
-            # the request body when a token is presented (points derive from it).
-            if claims.get("score") is not None:
-                score = float(claims["score"])
         elif not _unverified_pass_allowed():
             raise HTTPException(
                 status_code=403,
@@ -627,7 +620,7 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
     # TODO: derive level from catalog instead of client-supplied value
     try:
         enr = app.state.accounts.set_status(
-            acct.id, course_id, req.status, score=score, level=req.level,
+            acct.id, course_id, req.status, score=req.score, level=req.level,
             hands_on=req.hands_on)
     except KeyError:
         raise HTTPException(status_code=404, detail="not enrolled in that course")
@@ -1294,12 +1287,10 @@ def language_practice(req: LanguagePracticeRequest, acct=Depends(current_account
     """Award XP/points for a completed language-practice set (feeds rewards)."""
     from aoep_shared.language_learning import practice_xp
 
-    xp = practice_xp(req.skill, req.correct, req.total)
+    correct = min(req.correct, req.total)  # clamp: self-reported score cannot exceed set size
+    xp = practice_xp(req.skill, correct, req.total)
     if xp > 0:
-        # Go through the store so the award is persisted (direct ledger writes
-        # skip _persist and can vanish on restart).
-        app.state.accounts.earn_points(
-            acct.id, xp, reason=f"language:{req.language}", ref=req.skill)
+        acct.points.earn(xp, reason=f"language:{req.language}", ref=req.skill)
     return {"language": req.language, "skill": req.skill, "xp": xp,
             "balance": app.state.accounts.points_balance(acct.id)}
 
@@ -1414,60 +1405,6 @@ def internal_rewards_earn(req: InternalEarnRequest) -> dict:
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"balance": balance, "earned": req.amount}
-
-
-# --------------------------------------------------------------------------- #
-# Consent (user-facing proxy to the memory service's internal-only endpoint)
-# --------------------------------------------------------------------------- #
-class ConsentRecordRequest(BaseModel):
-    scope: str
-    granted: bool
-    region: str = "us"
-    written: bool = False
-    retention_days: int | None = None
-    student_id: str | None = None
-
-
-@app.post("/consent")
-def record_own_consent(req: ConsentRecordRequest, acct=Depends(current_account)) -> dict:
-    """Record a privacy-consent decision for the caller's own learner.
-
-    The memory service's /consent is internal-only, so the browser consent page
-    could never persist anything (and it hardcoded student_id "current-user",
-    which would have collided every account onto one row). This resolves the
-    real student and forwards with the internal service token.
-    """
-    student_id = req.student_id or next(iter(acct.students.keys()), None) or acct.id
-    if req.student_id and req.student_id not in acct.students:
-        raise HTTPException(status_code=403, detail="not your student")
-    base = (getattr(app.state.config, "memory_base_url", "") or "").strip()
-    if not base:
-        raise HTTPException(status_code=503, detail="memory service not configured")
-    import json as _json
-    import urllib.request as _urlreq
-
-    from aoep_shared.identity_sync import internal_token
-
-    body = _json.dumps({
-        "student_id": student_id,
-        "scope": req.scope,
-        "granted": req.granted,
-        "region": req.region,
-        "written": req.written,
-        "retention_days": req.retention_days,
-    }).encode()
-    forward = _urlreq.Request(
-        f"{base.rstrip('/')}/consent",
-        data=body,
-        headers={"Content-Type": "application/json", "X-Internal-Token": internal_token()},
-        method="POST",
-    )
-    try:
-        with _urlreq.urlopen(forward, timeout=5) as resp:
-            resp.read()
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"consent store unavailable: {exc}")
-    return {"student_id": student_id, "scope": req.scope, "granted": req.granted}
 
 
 @app.get("/portfolio")
@@ -1603,10 +1540,7 @@ def consume_voucher(req: VoucherConsumeRequest) -> dict:
     v = _voucher_store().lookup(req.code)
     if v is None:
         raise HTTPException(status_code=404, detail=f"voucher {req.code!r} not found")
-    try:
-        _voucher_store().consume(req.code)
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+    _voucher_store().consume(req.code)
     return {"consumed": True, "code": v.code, "uses": v.uses, "max_uses": v.max_uses}
 
 

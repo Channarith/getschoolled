@@ -117,6 +117,7 @@ class WebcamPresenceTracker:
         self._metrics = PresenceMetrics()
         self._last_seen: float = time.monotonic()
         self._absent_since: Optional[float] = None
+        self._returning_since: Optional[float] = None  # time return started; tracks deferred on_return
         self._history: List[PresenceFrame] = []
 
     @property
@@ -191,12 +192,10 @@ class WebcamPresenceTracker:
             # User appears present.
             self._last_seen = now
             if self._state == PresenceState.ABSENT:
-                # Transition immediately on the first confident presence frame.
-                # The return_threshold controls how long the state must have been
-                # absent before we fire the on_return callback (avoids noise
-                # from very brief absence blips). Measure against _absent_since —
-                # the old code compared against a just-initialized _returned_at,
-                # so the callback could never fire at any threshold > 0.
+                # Transition from ABSENT → PRESENT.
+                # Fire on_return immediately if the absence was long enough;
+                # otherwise start the deferred return timer so on_return fires
+                # after the person has been continuously present for return_threshold_s.
                 absence_long_enough = (
                     self._absent_since is not None
                     and now - self._absent_since >= self._return_threshold
@@ -206,13 +205,24 @@ class WebcamPresenceTracker:
                 if absence_long_enough:
                     self._metrics.return_events += 1
                     self._metrics.last_state_change = now
+                    self._returning_since = None
                     if self._on_return:
                         self._on_return(self._metrics)
+                else:
+                    self._returning_since = now
             else:
+                # Already PRESENT — check deferred return timer.
+                if self._returning_since is not None and now - self._returning_since >= self._return_threshold:
+                    self._metrics.return_events += 1
+                    self._metrics.last_state_change = now
+                    self._returning_since = None
+                    if self._on_return:
+                        self._on_return(self._metrics)
                 self._state = raw_state
                 self._absent_since = None
         else:
             # User appears absent.
+            self._returning_since = None  # cancel any pending return callback
             elapsed_absent = now - self._last_seen
             if elapsed_absent >= self._absence_threshold:
                 if self._state != PresenceState.ABSENT:

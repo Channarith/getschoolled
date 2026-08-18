@@ -1186,12 +1186,15 @@ class PracticeResult(BaseModel):
 MAX_PRACTICE_ITEMS = 500
 
 
+_MAX_PRACTICE_XP = 500  # hard cap per practice call
+
+
 def practice_xp(skill: str, correct: int, total: int) -> int:
     """XP for completing a practice set (feeds points/rewards)."""
     total = max(0, min(int(total), MAX_PRACTICE_ITEMS))
-    ceiling = total if total else MAX_PRACTICE_ITEMS
-    correct = max(0, min(int(correct), ceiling))
+    correct = max(0, min(int(correct), total))  # clamp to actual set size; empty set = 0 XP
     base = correct * 8
     bonus = 16 if total and correct == total else 0
     hard = {"pronunciation", "writing", "conversation", "music-video"}
-    return int((base + bonus) * (1.25 if skill in hard else 1.0))
+    xp = int((base + bonus) * (1.25 if skill in hard else 1.0))
+    return min(xp, _MAX_PRACTICE_XP)
