@@ -15,6 +15,43 @@ from aoep_shared.languages import LANGUAGE_NAMES, normalize_language
 ProviderUnavailable = _lab.ProviderUnavailable
 MAX_TTS_CHARS = _lab.MAX_TTS_CHARS
 reset_disabled_engines = _lab.reset_disabled_engines
+# edge-tts ships no voice for every language; these cover the lab's set well and
+# can each be overridden with AOEP_TTS_VOICE_<LANG> (e.g. AOEP_TTS_VOICE_KM).
+# Full platform 27 (plus a few extras). Missing cs/el previously fell back to
+# English voices and sounded "partial" in the lab UI.
+_EDGE_VOICES = {
+    "en": "en-US-AriaNeural",
+    "es": "es-ES-ElviraNeural",
+    "fr": "fr-FR-DeniseNeural",
+    "de": "de-DE-KatjaNeural",
+    "it": "it-IT-ElsaNeural",
+    "pt": "pt-BR-FranciscaNeural",
+    "nl": "nl-NL-ColetteNeural",
+    "pl": "pl-PL-ZofiaNeural",
+    "ru": "ru-RU-SvetlanaNeural",
+    "uk": "uk-UA-PolinaNeural",
+    "tr": "tr-TR-EmelNeural",
+    "ar": "ar-EG-SalmaNeural",
+    "he": "he-IL-HilaNeural",
+    "hi": "hi-IN-SwaraNeural",
+    "bn": "bn-IN-TanishaaNeural",
+    "ta": "ta-IN-PallaviNeural",
+    "ur": "ur-PK-UzmaNeural",
+    "fa": "fa-IR-DilaraNeural",
+    "id": "id-ID-GadisNeural",
+    "ms": "ms-MY-YasminNeural",
+    "th": "th-TH-PremwadeeNeural",
+    "vi": "vi-VN-HoaiMyNeural",
+    "km": "km-KH-SreymomNeural",
+    "zh": "zh-CN-XiaoxiaoNeural",
+    "ja": "ja-JP-NanamiNeural",
+    "ko": "ko-KR-SunHiNeural",
+    "sw": "sw-KE-ZuriNeural",
+    "el": "el-GR-AthinaNeural",
+    "cs": "cs-CZ-VlastaNeural",
+}
+
+MAX_TTS_CHARS = 1200
 
 
 def _gateway_url() -> str:
@@ -43,6 +80,7 @@ def engine_chain() -> list[str]:
 
 def tts_status() -> dict[str, object]:
     chain = engine_chain()
+    platform = list(LANGUAGE_NAMES)
     return {
         "available": bool(chain),
         "engine": chain[0] if chain else "",
@@ -52,6 +90,10 @@ def tts_status() -> dict[str, object]:
         "elevenlabs_configured": bool(_elevenlabs_key()),
         "xai_configured": bool(__import__("os").environ.get("XAI_API_KEY", "").strip()),
         "languages": sorted(set(_lab._EDGE_VOICES)),
+        #"languages": sorted(_EDGE_VOICES),
+        "platform_languages": platform,
+        "platform_language_count": len(platform),
+        "edge_covers_platform": all(code in _EDGE_VOICES for code in platform),
         "note": (
             f"Server neural speech via {' → '.join(chain)}."
             if chain

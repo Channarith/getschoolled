@@ -1,8 +1,7 @@
 /** @jest-environment node */
 
-type DOMExceptionHost = typeof globalThis & {
-  DOMException?: new (message?: string, name?: string) => Error;
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DOMExceptionHost = typeof globalThis & { DOMException?: any };
 
 const domHost = () => globalThis as DOMExceptionHost;
 
@@ -10,16 +9,12 @@ describe("ensureDOMExceptionGlobal", () => {
   const original = domHost().DOMException;
 
   afterEach(() => {
-    if (original === undefined) {
-      delete domHost().DOMException;
-    } else {
-      domHost().DOMException = original;
-    }
+    domHost().DOMException = original;
     jest.resetModules();
   });
 
   it("installs DOMException when missing", () => {
-    delete domHost().DOMException;
+    domHost().DOMException = undefined;
     const { ensureDOMExceptionGlobal } = require("../domException");
     ensureDOMExceptionGlobal();
     expect(typeof domHost().DOMException).toBe("function");

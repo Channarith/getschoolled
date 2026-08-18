@@ -13,10 +13,12 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
     pass
 
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .certification_prep import (
@@ -51,6 +53,7 @@ from .studio_page import render_studio_page
 from .teach import TeachEngine
 from .training_run import run_training_pass
 from .tts_client import build_tts_get_url, tts_client_hints, tts_status
+from .neural_tts import TTSUnavailable, synthesize as synthesize_local, status as local_tts_status
 from .types import CategoryId, LearnerProfileScores, QualityLabel
 from .voice_agent import get_voice_agent
 
@@ -58,6 +61,12 @@ app = FastAPI(
     title="Theodore Course Studio",
     description="Labeled corpus training, review comments, course build, Theodore teach/present.",
     version="0.1.0",
+)
+_AVATAR_STATIC_DIR = Path(__file__).with_name("avatar_static")
+app.mount(
+    "/api/studio/avatar",
+    StaticFiles(directory=_AVATAR_STATIC_DIR, check_dir=True),
+    name="theodore-avatar",
 )
 
 _reviews = ReviewStore()
@@ -117,6 +126,7 @@ class TeachStartRequest(BaseModel):
     use_voice_agent: bool = True
     resume: bool = False
     soft_limit_minutes: int | None = Field(default=None, ge=5, le=90)
+    voice_gender: str = "female"
 
 
 class TeachSessionRequest(BaseModel):
@@ -177,6 +187,32 @@ def health() -> dict[str, Any]:
         "voice": voice,
         "tts": tts_status(),
         **readiness,
+    }
+
+
+@app.get("/api/studio/presenter/manifest")
+def presenter_manifest() -> dict[str, Any]:
+    """Discover the best available GLB per persona (custom drop-in preferred)."""
+    models: dict[str, dict[str, str]] = {}
+    for persona in ("female", "male"):
+        candidates = (
+            (f"custom_{persona}.glb", "v2", "custom"),
+            ("custom.glb", "v2", "custom"),
+            (f"presenter_{persona}.glb", "procedural", "builtin"),
+            ("theodore.glb", "procedural", "builtin"),
+        )
+        for filename, rig, source in candidates:
+            if (_AVATAR_STATIC_DIR / filename).is_file():
+                models[persona] = {
+                    "file": filename,
+                    "url": f"/api/studio/avatar/{filename}",
+                    "rig": rig,
+                    "source": source,
+                }
+                break
+    return {
+        "models": models,
+        "rig_config_url": "/api/studio/avatar/avatar_rig_config_v2.json",
     }
 
 
@@ -472,6 +508,7 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
             use_voice_agent=req.use_voice_agent,
             resume=req.resume,
             soft_limit_minutes=req.soft_limit_minutes,
+            voice_gender=req.voice_gender,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
@@ -550,13 +587,56 @@ def teach_voice_present(req: TeachSessionRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
 
 
+@app.get("/api/studio/tts/status")
+def studio_tts_status() -> dict[str, Any]:
+    """Combined gateway + local neural status (probed once by the player)."""
+    hints = tts_client_hints("en")
+    return {
+        "available": bool(hints["speech"].get("available")),
+        "engine": hints["speech"].get("engine"),
+        "source": hints["speech"].get("source"),
+        "gateway": tts_status(),
+        "local": local_tts_status(),
+        "engine_chain": hints["engine_chain"],
+    }
+
+
+@app.get("/api/studio/tts")
+def studio_tts(
+    text: str,
+    language: str = "en",
+    gender: str = "female",
+    rate: float = 1.0,
+) -> Response:
+    """One narration as MP3 via local edge-tts (covers Khmer without the gateway).
+
+    501 (not 500) when nothing can render it: that is the client's cue to fall
+    back to the device voice rather than show an error.
+    """
+    try:
+        audio = synthesize_local(text, language, rate=rate, gender=gender)
+    except TTSUnavailable as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return Response(
+        content=audio,
+        media_type="audio/mpeg",
+        headers={"cache-control": "public, max-age=86400"},
+    )
+
+
 @app.get("/api/studio/tts/url")
-def tts_url(text: str, language: str = "en") -> dict[str, Any]:
+def tts_url(
+    text: str,
+    language: str = "en",
+    voice_gender: str = "female",
+) -> dict[str, Any]:
     lang = normalize_language(language)
+    hints = tts_client_hints(lang, voice_gender, text=text)
     return {
         "language": lang,
-        "url": build_tts_get_url(text, language=lang),
-        "hints": tts_client_hints(lang),
+        "url": hints.get("get_url")
+        or build_tts_get_url(text, language=lang, voice_gender=voice_gender),
+        "hints": hints,
     }
 
 @app.post("/api/studio/teach/pop-quiz")

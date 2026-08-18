@@ -1,4 +1,4 @@
-"""Original-owner face lock: enroll largest face, match by IoU + fingerprint."""
+"""Named Face ID: enroll first stable face, match by IoU + fingerprint."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from theodore_webcam_lab.face_owner import (
     OWNER_ENROLL_HOLD_MS,
     FaceBox,
     box_iou,
+    enroll_owner,
     face_box_from_landmarks,
     face_fingerprint,
     fingerprint_distance,
@@ -47,6 +48,10 @@ def test_constants_match_monitor_js():
     assert "function pickOwnerFace(" in MONITOR_JS
     assert "function quietMediaPipeConsole(" in MONITOR_JS
     assert "function resetFaceOwner(" in MONITOR_JS
+    assert "function enrollFaceIdNow(" in MONITOR_JS
+    assert "FACE_ID_STORAGE_KEY" in MONITOR_JS
+    assert "owner_face_name" in MONITOR_JS
+    assert 'Face ID mismatch' in MONITOR_JS
 
 
 def test_largest_face_is_preferred_before_enrollment():
@@ -57,17 +62,18 @@ def test_largest_face_is_preferred_before_enrollment():
 
 
 def test_enrolls_after_hold_then_tracks_owner_not_intruder():
-    state = reset_owner_state()
+    state = reset_owner_state(display_name="Alex")
     owner = _face(0.35, 0.42, scale=0.16)
-    # Hold the same largest face across the enrollment window.
+    # Hold the same first-seen face across the enrollment window.
     pick1 = pick_owner_face([owner], state, now_ms=1_000)
     assert pick1.owner_enrolled is False
     assert pick1.index == 0
     pick2 = pick_owner_face([owner], state, now_ms=1_000 + OWNER_ENROLL_HOLD_MS + 50)
     assert pick2.owner_enrolled is True
     assert pick2.owner_match is True
+    assert pick2.display_name == "Alex"
 
-    # Second person is larger / more frontal — still track the enrolled owner.
+    # Second person is larger / more frontal — still track the enrolled Face ID.
     intruder = _face(0.72, 0.40, scale=0.22, stretch=1.6)
     pick3 = pick_owner_face([intruder, owner], state, now_ms=3_000)
     assert pick3.owner_enrolled is True
@@ -77,8 +83,19 @@ def test_enrolls_after_hold_then_tracks_owner_not_intruder():
     assert pick3.face_count == 2
 
 
-def test_substitution_when_owner_leaves_and_stranger_remains():
+def test_enrollment_does_not_switch_to_larger_stranger_mid_hold():
     state = reset_owner_state()
+    first = _face(0.35, 0.42, scale=0.14)
+    pick_owner_face([first], state, now_ms=1_000)
+    assert state.enrolled is False
+    larger = _face(0.7, 0.4, scale=0.24, stretch=1.8)
+    pick = pick_owner_face([larger, first], state, now_ms=1_200)
+    assert pick.owner_enrolled is False
+    assert pick.index == 1  # still the first-seen candidate, not the larger face
+
+
+def test_substitution_when_owner_leaves_and_stranger_remains():
+    state = reset_owner_state(display_name="Sam")
     owner = _face(0.4, 0.45, scale=0.15)
     pick_owner_face([owner], state, now_ms=100)
     pick_owner_face([owner], state, now_ms=100 + OWNER_ENROLL_HOLD_MS + 10)
@@ -89,8 +106,10 @@ def test_substitution_when_owner_leaves_and_stranger_remains():
     pick = pick_owner_face([stranger], state, now_ms=5_000)
     assert pick.owner_enrolled is True
     assert pick.owner_match is False
+    assert pick.index == -1  # do not score the stranger
     assert pick.face_count == 1
-    assert pick.secondary_count == 0
+    assert pick.secondary_count == 1
+    assert pick.display_name == "Sam"
 
 
 def test_empty_frame_after_enroll_is_not_a_mismatch():
@@ -102,6 +121,20 @@ def test_empty_frame_after_enroll_is_not_a_mismatch():
     assert empty.owner_enrolled is True
     assert empty.owner_match is None
     assert empty.face_count == 0
+
+
+def test_enroll_owner_overwrites_name_and_fingerprint():
+    state = reset_owner_state(display_name="Old")
+    a = _face(0.3, 0.4, scale=0.14)
+    enroll_owner(a, state, name="New", now_ms=10)
+    assert state.enrolled is True
+    assert state.display_name == "New"
+    b = _face(0.7, 0.5, scale=0.12, stretch=2.0)
+    enroll_owner(b, state, name="Replacement", now_ms=20)
+    assert state.display_name == "Replacement"
+    pick = pick_owner_face([a, b], state, now_ms=30)
+    assert pick.owner_match is True
+    assert pick.index == 1
 
 
 def test_fingerprint_distance_is_small_for_same_geometry():

@@ -94,6 +94,18 @@ export const MEMORY_URL = serviceUrl("memoryUrl", 8004, "/memory");
 export const ORCHESTRATOR_URL = serviceUrl("orchestratorUrl", 8000, "");
 export const BILLING_URL = serviceUrl("billingUrl", 8006, "/billing");
 export const SPEECH_URL = serviceUrl("speechUrl", 8002, "/speech");
+// Theodore Music Lab — pre-cached neural voice clips for all 28 course languages.
+// Mobile uses the GET /api/music/tts endpoint so expo-av can load audio by URI.
+export const MUSIC_URL = serviceUrl("musicUrl", 8009, "/music");
+
+/** Build a URI that expo-av can stream/cache directly for a pre-rendered voice clip.
+ *  The music service returns MP3 from its disk cache (no re-synthesis per request).
+ *  Falls back to the generic speech service POST /tts when the music service is unavailable.
+ */
+export function musicTtsUri(text: string, lang: string, rate = 1.0, gender = "female"): string {
+  const params = new URLSearchParams({ text, lang, rate: String(rate), gender });
+  return `${MUSIC_URL}/api/music/tts?${params.toString()}`;
+}
 
 export type QaTestAccount = { label: string; email: string; password: string };
 

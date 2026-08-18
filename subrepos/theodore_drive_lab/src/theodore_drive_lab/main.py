@@ -25,6 +25,13 @@ from .drive_tuning import PRESETS, DriveTuning
 from .qualify_page import render_qualify_page
 from .wake_eval import evaluate_wake, load_wake_cases, parse_wake_utterance
 
+# Platform language set (Drive wake word is English; commands are multilingual).
+DRIVE_LANGUAGES: tuple[str, ...] = (
+    "en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "uk",
+    "tr", "ar", "he", "hi", "bn", "ur", "fa", "zh", "ja", "ko",
+    "vi", "th", "id", "sw", "el", "cs", "km",
+)
+
 app = FastAPI(title="Theodore Drive Lab", version="0.1.0")
 
 
@@ -63,6 +70,8 @@ def health() -> dict[str, Any]:
         "wake_cases": len(runner.cases),
         "tuning": runner.tuning.to_dict(),
         **readiness,
+        "supported_languages": list(DRIVE_LANGUAGES),
+        "supported_language_count": len(DRIVE_LANGUAGES),
     }
 
 

@@ -33,12 +33,24 @@ from .embeds import (
     video_dir,
 )
 from .media import load_clips, resolve_clip, videos_for
-from .music_page import render_music_page
+from .music_page import FAVICON_SVG, render_music_page
+from .practice import (
+    build_memory_drill,
+    build_quiz,
+    check_song_singing,
+    grade_memory,
+    grade_quiz,
+    paraphrase_line,
+    practice_menu,
+)
+from .pronounce import check_pronunciation
 from .session import SessionMode, SessionStore
 from .sing import VOICE_TAGS, sing_plan
 from .storyboard import STORYBOARDS, storyboard_for
-from .timing import song_timings
+from .timing import alignment_for, song_timings
 from .translations import language_catalog, translate_song, validate_language
+from .tts import TTSUnavailable, synthesize
+from .tts import status as tts_status
 
 app = FastAPI(title="Theodore Music Lab", version="0.5.0")
 
@@ -86,6 +98,48 @@ class AskRequest(BaseModel):
     target_lang: str = "en"
 
 
+class PronounceRequest(BaseModel):
+    song_id: str = Field(min_length=1)
+    heard: str = ""
+    line_no: Optional[int] = None
+    target_lang: str = "en"
+    # english = sing the lyric; translation = say the line in the learner's language
+    practice: str = "english"
+    # Optional override so "other ways to say it" can score against an alternate.
+    target: str = ""
+
+
+class QuizGradeRequest(BaseModel):
+    song_id: str = Field(min_length=1)
+    target_lang: str = "es"
+    answers: dict[str, str] = Field(default_factory=dict)
+    count: int = 8
+    seed: str = ""
+
+
+class MemoryGradeRequest(BaseModel):
+    song_id: str = Field(min_length=1)
+    target_lang: str = "es"
+    direction: str = "en_to_target"
+    answers: dict[str, str] = Field(default_factory=dict)
+    count: int = 6
+    seed: str = ""
+
+
+class ParaphraseRequest(BaseModel):
+    song_id: str = Field(min_length=1)
+    line_no: Optional[int] = None
+    target_lang: str = "en"
+    allow_llm: bool = True
+
+
+class SingCheckRequest(BaseModel):
+    song_id: str = Field(min_length=1)
+    target_lang: str = "es"
+    practice: str = "translation"
+    lines: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class EmbedAskRequest(BaseModel):
     embed_id: str = Field(min_length=1)
     question: str = Field(min_length=1)
@@ -114,6 +168,16 @@ def music_lab_page() -> str:
     return render_music_page()
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> Response:
+    """Browsers ask for this on every page, including /health and /docs."""
+    return Response(
+        content=FAVICON_SVG,
+        media_type="image/svg+xml",
+        headers={"cache-control": "public, max-age=86400"},
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     featured = _CATALOG.featured()
@@ -139,6 +203,20 @@ def health() -> dict[str, Any]:
         "storyboards": len(STORYBOARDS),
         "storyboard_scenes": sum(len(scenes) for scenes in STORYBOARDS.values()),
         "sing_along_languages": len(VOICE_TAGS),
+        "neural_voices": tts_status(),
+        "pronunciation_check": True,
+        "song_practice": True,
+        "practice_modes": [
+            "pronounce",
+            "quiz",
+            "memory",
+            "ask",
+            "paraphrase",
+            "sing",
+        ],
+        "vocal_aligned_songs": sum(
+            1 for song in featured if alignment_for(song.song_id)
+        ),
         "embeds": len(load_embeds()),
         "embed_pause_ask": sum(
             1 for row in load_embeds() if (row.get("verses") or [])
@@ -178,6 +256,30 @@ def languages() -> dict[str, Any]:
         "count": len(MEANING_LANGUAGES),
         "catalog": language_catalog(),
     }
+
+
+@app.get("/api/music/tts/status")
+def tts_availability() -> dict[str, Any]:
+    """Probed once by the player to choose server voices over device voices."""
+    return tts_status()
+
+
+@app.get("/api/music/tts")
+def tts(text: str, lang: str = "en", rate: float = 1.0, gender: str = "female") -> Response:
+    """One spoken line as MP3, so every language sings without an OS voice.
+
+    501 (not 500) when no engine can render it: that is the client's cue to fall
+    back to the device voice rather than show an error.
+    """
+    try:
+        audio = synthesize(text, lang, rate=rate, gender=gender)
+    except TTSUnavailable as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return Response(
+        content=audio,
+        media_type="audio/mpeg",
+        headers={"cache-control": "public, max-age=86400"},
+    )
 
 
 @app.get("/api/music/timing/{song_id}")
@@ -251,6 +353,144 @@ def ask_about_lyrics(req: AskRequest) -> dict[str, Any]:
     song = _song_or_404(req.song_id)
     try:
         return ask(song, req.question, line_no=req.line_no, language=req.target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/pronounce")
+def pronounce_line(req: PronounceRequest) -> dict[str, Any]:
+    """Score a spoken/typed attempt at the current lyric line and coach corrections."""
+    song = _song_or_404(req.song_id)
+    try:
+        return check_pronunciation(
+            song,
+            line_no=req.line_no,
+            heard=req.heard,
+            language=req.target_lang,
+            practice=req.practice,
+            target_override=req.target,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/music/practice/{song_id}")
+def practice_modes(song_id: str, target_lang: str = "en") -> dict[str, Any]:
+    """Menu of learning drills for one song (pronounce, quiz, memory, ask, …)."""
+    song = _song_or_404(song_id)
+    try:
+        return practice_menu(song, target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/music/practice/{song_id}/quiz")
+def practice_quiz(
+    song_id: str, target_lang: str = "es", count: int = 8, seed: str = ""
+) -> dict[str, Any]:
+    """Multiple-choice quiz built from this song's vocabulary and lines."""
+    song = _song_or_404(song_id)
+    try:
+        built = build_quiz(
+            song,
+            target_lang,
+            count=count,
+            seed=seed or f"{song_id}:{target_lang}:{count}",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # Never ship the answer key to the browser — grade rebuilds it from the seed.
+    return {k: v for k, v in built.items() if k != "answer_key"} | {
+        "seed": seed or f"{song_id}:{target_lang}:{count}"
+    }
+
+
+@app.post("/api/music/practice/quiz/grade")
+def practice_quiz_grade(req: QuizGradeRequest) -> dict[str, Any]:
+    """Score a quiz attempt (same seed regenerates the same questions)."""
+    song = _song_or_404(req.song_id)
+    try:
+        return grade_quiz(
+            song,
+            language=req.target_lang,
+            answers=req.answers,
+            count=req.count,
+            seed=req.seed or f"{req.song_id}:{req.target_lang}:{req.count}",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/music/practice/{song_id}/memory")
+def practice_memory(
+    song_id: str,
+    target_lang: str = "es",
+    direction: str = "en_to_target",
+    count: int = 6,
+    seed: str = "",
+) -> dict[str, Any]:
+    """Flashcards that hide one side of each lyric line for recall practice."""
+    song = _song_or_404(song_id)
+    try:
+        built = build_memory_drill(
+            song,
+            target_lang,
+            direction=direction,
+            count=count,
+            seed=seed
+            or f"mem:{song_id}:{target_lang}:{direction}:{count}",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {k: v for k, v in built.items() if k != "answer_key"} | {
+        "seed": seed or f"mem:{song_id}:{target_lang}:{direction}:{count}"
+    }
+
+
+@app.post("/api/music/practice/memory/grade")
+def practice_memory_grade(req: MemoryGradeRequest) -> dict[str, Any]:
+    """Score typed/spoken memory answers against the hidden side of each card."""
+    song = _song_or_404(req.song_id)
+    try:
+        return grade_memory(
+            song,
+            language=req.target_lang,
+            direction=req.direction,
+            answers=req.answers,
+            count=req.count,
+            seed=req.seed
+            or f"mem:{req.song_id}:{req.target_lang}:{req.direction}:{req.count}",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/practice/paraphrase")
+def practice_paraphrase(req: ParaphraseRequest) -> dict[str, Any]:
+    """Other natural ways to say the current line, in the learner's language."""
+    song = _song_or_404(req.song_id)
+    try:
+        return paraphrase_line(
+            song,
+            line_no=req.line_no,
+            language=req.target_lang,
+            allow_llm=req.allow_llm,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/music/practice/sing")
+def practice_sing_song(req: SingCheckRequest) -> dict[str, Any]:
+    """Score a whole-song attempt line by line in English or the target language."""
+    song = _song_or_404(req.song_id)
+    try:
+        return check_song_singing(
+            song,
+            language=req.target_lang,
+            practice=req.practice,
+            lines=req.lines,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
