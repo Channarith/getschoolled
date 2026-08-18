@@ -76,7 +76,7 @@ FLAG_CATALOG: List[FlagSpec] = [
     FlagSpec("engagement.mnemonic_memory_aids", FlagType.BOOL, True, "engagement",
              "Teach recall-heavy content with mnemonics, vivid associations, "
              "chunking, and retrieval brainteasers instead of repetition alone."),
-    FlagSpec("engagement.watch_window", FlagType.BOOL, False, "engagement",
+    FlagSpec("engagement.watch_window", FlagType.BOOL, True, "engagement",
              "Expose the experimental course watch window and navigation entry."),
     FlagSpec("engagement.pulse_survey", FlagType.BOOL, True, "engagement",
              "Short 2–3 question check-ins every few slides during a live class; "

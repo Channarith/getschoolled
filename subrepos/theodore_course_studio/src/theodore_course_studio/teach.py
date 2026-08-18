@@ -228,10 +228,9 @@ class TeachEngine:
 
     def come_back_later(self, session_id: str) -> dict[str, Any]:
         course, session = self._require(session_id)
-        if session.path:
-            cur = session.path[session.path_pos]
-            if cur not in session.completed_slide_indexes:
-                session.completed_slide_indexes.append(cur)
+        # Do NOT mark the current slide completed — it isn't finished. Resume
+        # re-teaches the same slide (path_pos is unchanged), so counting it here
+        # double-counted progress.
         checkpoint = self._persist_live(session, status="paused")
         self._telemetry.record_checkpoint_pause()
         with self._lock:
@@ -490,7 +489,11 @@ class TeachEngine:
         slide_index = session.path[session.path_pos]
         slide = course.slides[slide_index]
         turn = adapt_slide(slide, session.profile)
-        session.history.append(turn)
+        # Only record a turn when the slide actually changes — current() polls
+        # and profile/language re-reads call this payload too, and appending
+        # every time grew history unboundedly with duplicates.
+        if not session.history or session.history[-1].slide_index != turn.slide_index:
+            session.history.append(turn)
         objective = self._objective_for_slide(session, slide_index)
         media = [m.model_dump(mode="json") for m in media_suggestions_for_slide(slide)]
         knowledge = (

@@ -1,0 +1,37 @@
+AUDIT FOLLOW-UP — 2026-08-17 — fixes shipped from audit-2026-08-16.txt
+=====================================================================
+Previous agent left a read-only audit (docs/audit-2026-08-16.txt). This
+branch implements the highest-severity CRIT/HIGH items below. Remaining
+items stay open for a subsequent PR.
+
+FIXED ON THIS BRANCH
+--------------------
+CRIT-26  practice_xp clamp + language/practice uses earn_points (persist)
+HIGH-27a password_reset purpose rejected by current_account
+HIGH-27b profile_share kind rejected by current_account
+HIGH-28  /auth/2fa/setup refuses when totp_enabled (409)
+HIGH-29  MFA lockout keyed on account id (survives mfa_token rotation)
+HIGH-1   /identify expression or "unknown"; ModelsUnavailable -> 503
+HIGH-2   on_return fires after real absence duration (not now-_returned_at)
+MED-9    FaceGallery rejects dim-mismatched enrollments
+HIGH-15  apps/web/lib/api.ts uses NEXT_PUBLIC_ORCHESTRATOR_URL + auth header
+CRIT-33  catalog deep_link -> /class?lesson= (not gated /watch)
+HIGH-45  LearnableItem.core_skill + search filter honours explicit flag
+HIGH-46  formative checkpoints set required_domains from item domains
+MED-30   phone-only onboarding does not set billing_validated_at
+MED-31   enrollment PASSED uses score from signed pass_decision_token
+MED-47   malformed assessment submit restores the run (retryable 422)
+HIGH-16  /api/consent BFF + consent page uses owned student id + auth
+HIGH-34  /browse reads ?q= from URL; nav/recommended open /class?lesson=
+
+STILL OPEN (from audit-2026-08-16.txt — next PR candidates)
+-----------------------------------------------------------
+HIGH-3   vision consent singleton race (biometric bypass)
+HIGH-4   GroupPresenceTracker never fed
+HIGH-5/6 vision_agent + webcam session leaks / spoofed participant_id
+HIGH-17  live-room screen share not published to LiveKit
+MED-18   whiteboard is client-local despite "shared" copy
+MED-7    ElevenLabs TimeoutError escapes TTS fallback
+HIGH-35  arcade games don't report scores to backend
+HIGH-51..54 mobile My List / Drive Mode mic / Kids nav / Worlds back
+MED-19..24 assorted web UX (game win as error, admin secret, Zelle, etc.)

@@ -135,6 +135,14 @@ export async function toggleMyList(id: string): Promise<boolean> {
   await writeJSON(KEYS.myList, ids);
   return idx < 0;
 }
+export async function removeFromMyList(id: string): Promise<void> {
+  const ids = await getMyList();
+  const idx = ids.indexOf(id);
+  if (idx >= 0) {
+    ids.splice(idx, 1);
+    await writeJSON(KEYS.myList, ids);
+  }
+}
 
 export async function getSettings(): Promise<Settings> {
   const s = await readJSON<Partial<Settings>>(KEYS.settings, {});

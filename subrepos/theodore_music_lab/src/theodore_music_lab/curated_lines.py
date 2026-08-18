@@ -17,8 +17,10 @@ from .curated_zh_km import CURATED_ZH_KM
 CURATED_LANGUAGES: tuple[str, ...] = ("es", "fr", "de", "it", "pt", "zh", "km")
 
 
-def normalize(text: str) -> str:
+def normalize(text: str | None) -> str:
     """Lookup key for a lyric line: lowercase, punctuation-free, single-spaced."""
+    if not text:
+        return ""
     return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text.lower()).split())
 
 

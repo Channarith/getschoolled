@@ -57,6 +57,7 @@ import CameraLightingScreener from "../../components/CameraLightingScreener";
 import CameraQualityGateOverlay from "../../components/CameraQualityGateOverlay";
 import {
   DEFAULT_LIGHTING_THRESHOLDS,
+  NIGHT_VISION_THRESHOLDS,
   analyzeLuminanceGrid,
   luminanceGridFromImageData,
   tickSustainedQuality,
@@ -719,6 +720,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [insecureOrigin, setInsecureOrigin] = useState(false);
   // Pre-class gate: dark/blurry rooms cannot enter solo or group live class.
   const [lightingReady, setLightingReady] = useState(false);
+  // The pre-class screener's Night vision choice must carry into the mid-class
+  // gate — otherwise a learner who legitimately passed in a dark room gets
+  // flagged blocked_dark within seconds and force-disconnected.
+  const [nightVision, setNightVision] = useState(false);
   const [qualityVerdict, setQualityVerdict] = useState<LightingVerdict | null>(null);
   const [qualitySecondsLeft, setQualitySecondsLeft] = useState<number | null>(null);
   const qualityStateRef = useRef<SustainedQualityState>({
@@ -1365,7 +1370,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         ctx.drawImage(source, 0, 0, w, h);
         const { data } = ctx.getImageData(0, 0, w, h);
         const grid = luminanceGridFromImageData(data, w, h, w, h);
-        const metrics = analyzeLuminanceGrid(grid, DEFAULT_LIGHTING_THRESHOLDS);
+        const activeThresholds = nightVision ? NIGHT_VISION_THRESHOLDS : DEFAULT_LIGHTING_THRESHOLDS;
+        const metrics = analyzeLuminanceGrid(grid, activeThresholds);
         const mid = grid.slice(8, 28).flatMap((row) => row.slice(16, 48));
         const mean = mid.reduce((a, b) => a + b, 0) / Math.max(1, mid.length);
         const varSum =
@@ -1373,8 +1379,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         const facePresent = varSum > 0.004 && mean > 0.08 && mean < 0.92;
         const readiness = verdictFromMetrics(metrics, {
           facePresent,
-          nightVision: false,
-          thresholds: DEFAULT_LIGHTING_THRESHOLDS,
+          nightVision,
+          thresholds: activeThresholds,
         });
         const next = tickSustainedQuality(
           qualityStateRef.current,
@@ -1407,7 +1413,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [cameraOn, excuseFromClass, lightingReady, localStream]);
+  }, [cameraOn, excuseFromClass, lightingReady, localStream, nightVision]);
 
   async function handleLeave() {
     if (!me) return;
@@ -1493,7 +1499,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       const res = await liveRoomPlayGame(roomId, me.id, action);
       applyRoom(res.room);
       setGameResponse("");
-      if (res.event.points) setError(`Correct! You earned ${res.event.points} points.`);
+      // A win is not an error — the red role="alert" box scared learners.
+      if (res.event.points) setNotice(`Correct! You earned ${res.event.points} points.`);
     } catch (e) {
       setError(friendlyError(e, "Game action failed"));
     } finally {
@@ -2465,7 +2472,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         <div style={{ maxWidth: 560, margin: "24px auto" }}>
           <CameraLightingScreener
             title="Camera and lighting check before class"
-            onReady={() => setLightingReady(true)}
+            onReady={(opts) => {
+              setNightVision(Boolean(opts?.nightVision));
+              setLightingReady(true);
+            }}
           />
           <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
             Solo and group classes need a clear, well-lit camera for presence,
@@ -2985,7 +2995,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "inherit", gap: 8 }}>
                     {hasFloor && !canModerate ? (
                       <div style={{ padding: "12px 16px", borderRadius: 14, textAlign: "center", fontSize: 15, fontWeight: 700, color: "#7a5c12", background: "color-mix(in srgb, " + STUDIO_GOLD + " 16%, var(--panel))", border: "1px solid color-mix(in srgb, " + STUDIO_GOLD + " 45%, var(--border))" }}>
-                        ✍️ You&apos;re up! Solve on the whiteboard — everyone can see you
+                        ✍️ You&apos;re up! Solve on the whiteboard — your screen shows your work
                       </div>
                     ) : null}
                     <div style={{ flex: 1, minHeight: "min(62vh, 640px)", padding: 12, borderRadius: 14, border: "1px solid var(--border)", background: "var(--panel)" }}>
@@ -4416,7 +4426,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 <button
                   type="button"
                   onClick={() => setWhiteboardOn((v) => !v)}
-                  title="Open a shared whiteboard; the student you call on can draw on it"
+                  title="Open a whiteboard; the student you call on can draw on it (local to this device for now)"
                   style={{ ...railBtnStyle, ...(whiteboardOn ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}) }}
                 >
                   🧑‍🏫 Whiteboard

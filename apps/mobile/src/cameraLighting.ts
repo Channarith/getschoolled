@@ -455,8 +455,9 @@ export function inferTrackingPose(
   if (opts?.raiseHandsHint) return "raise_hands";
   if (cy < 0.38) return "look_up";
   if (cy > 0.62) return "look_down";
-  if (cx < 0.38) return "look_left";
-  if (cx > 0.62) return "look_right";
+  // Raw (unmirrored) detector frames: the user's left is the image's right.
+  if (cx < 0.38) return "look_right";
+  if (cx > 0.62) return "look_left";
   return "center";
 }
 
@@ -501,7 +502,7 @@ export function tickSustainedQuality(
   const hard =
     blocking ||
     (readiness.verdict === "fixable" &&
-      (readiness.metrics.underexposed || readiness.metrics.blurry));
+      (readiness.metrics.underexposed || readiness.metrics.blurry || readiness.metrics.overexposed));
 
   if (!hard) {
     return {
