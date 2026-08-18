@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Work zones & railroads
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Cones, flaggers, gates, and tracks. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Work zone speed
+Obey reduced speeds; fines often double. Slow to the posted work-zone speed — workers are close to traffic and fines often increase.
+NARRATION: Slow to the posted work-zone speed — workers are close to traffic and fines often increase.
+
+SLIDE 2 | Follow the flagger
+Hand signals override your usual plan. Flaggers control temporary right-of-way — stop or proceed exactly as directed.
+NARRATION: Flaggers control temporary right-of-way — stop or proceed exactly as directed.
+
+SLIDE 3 | Lane shifts and tapers
+Merge early at cones. When cones create a taper, merge as soon as you can do so safely — avoid the last-second dive.
+NARRATION: When cones create a taper, merge as soon as you can do so safely — avoid the last-second dive.
+
+SLIDE 4 | Workers on foot
+Give a wide berth. Expect workers near the edge of the lane — leave extra lateral space.
+NARRATION: Expect workers near the edge of the lane — leave extra lateral space.
+
+SLIDE 5 | Night work zones
+Glare and temporary lights confuse depth. Night construction lighting can hide cones — slow more than you think you need to.
+NARRATION: Night construction lighting can hide cones — slow more than you think you need to.
+
+SLIDE 6 | Railroad flashing lights
+Never drive around gates. When lights flash or gates lower, stop at least 15 feet from the nearest rail.
+NARRATION: When lights flash or gates lower, stop at least 15 feet from the nearest rail.
+
+SLIDE 7 | Multiple tracks
+Wait for a second train. After one train passes, look both ways — another train may come on a second track.
+NARRATION: After one train passes, look both ways — another train may come on a second track.
+
+SLIDE 8 | Stalled on tracks
+Exit immediately; run at an angle toward the train. If your vehicle stalls on tracks, get everyone out and move away at an angle toward the oncoming train.
+NARRATION: If your vehicle stalls on tracks, get everyone out and move away at an angle toward the oncoming train.
+
+SLIDE 9 | Quiet zones
+Trains may not horn — still stop for signals. In quiet zones trains may not sound horns — signals and gates still mean stop.
+NARRATION: In quiet zones trains may not sound horns — signals and gates still mean stop.
+
+SLIDE 10 | Emergency vehicles at tracks
+Never follow EMS onto tracks. Do not follow an emergency vehicle across tracks unless signals are clear for you too.
+NARRATION: Do not follow an emergency vehicle across tracks unless signals are clear for you too.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

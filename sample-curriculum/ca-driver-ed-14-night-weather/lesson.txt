@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Night & weather
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Headlights, fog, rain, and hydroplaning. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Headlight hours
+Lights on from dusk to dawn and in poor visibility. Use headlights from 30 minutes after sunset to 30 minutes before sunrise and whenever visibility is poor.
+NARRATION: Use headlights from 30 minutes after sunset to 30 minutes before sunrise and whenever visibility is poor.
+
+SLIDE 2 | Dim high beams
+Dim for oncoming and when following. Dim high beams for oncoming traffic and when you are following another vehicle closely.
+NARRATION: Dim high beams for oncoming traffic and when you are following another vehicle closely.
+
+SLIDE 3 | Overdriving headlights
+If you cannot stop within what you see, you are too fast. At night, drive so you can stop within the distance your headlights reveal.
+NARRATION: At night, drive so you can stop within the distance your headlights reveal.
+
+SLIDE 4 | Fog low beams
+High beams bounce back in fog. In fog use low beams — high beams reflect and worsen glare.
+NARRATION: In fog use low beams — high beams reflect and worsen glare.
+
+SLIDE 5 | Rain first minutes
+Roads are slickest just as rain begins. Oil and water mix when rain starts — slow down immediately in the first minutes of rain.
+NARRATION: Oil and water mix when rain starts — slow down immediately in the first minutes of rain.
+
+SLIDE 6 | Hydroplaning response
+Ease off the gas; steer straight. If you hydroplane, ease off the gas and steer straight until the tires regain grip — avoid sudden braking.
+NARRATION: If you hydroplane, ease off the gas and steer straight until the tires regain grip — avoid sudden braking.
+
+SLIDE 7 | Standing water
+Slow before the puddle. Standing water can hide potholes and cause hydroplaning — slow before you hit it.
+NARRATION: Standing water can hide potholes and cause hydroplaning — slow before you hit it.
+
+SLIDE 8 | Wind gusts
+Two hands; watch high-profile vehicles. In strong wind, keep both hands on the wheel and give trucks and vans extra space.
+NARRATION: In strong wind, keep both hands on the wheel and give trucks and vans extra space.
+
+SLIDE 9 | Ice and black ice
+Bridges freeze first. Bridges and shaded spots freeze first — slow early and avoid sudden inputs.
+NARRATION: Bridges and shaded spots freeze first — slow early and avoid sudden inputs.
+
+SLIDE 10 | Sun glare
+Visor, clean windshield, slower speed. Low sun can blind you — use the visor, keep glass clean, and slow until you can see.
+NARRATION: Low sun can blind you — use the visor, keep glass clean, and slow until you can see.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

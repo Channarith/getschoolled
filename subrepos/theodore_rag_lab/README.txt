@@ -6,10 +6,16 @@ Purpose
   stack for hours a day before promoting knobs into production
   (aoep_shared.rag, knowledge_store, orchestrator Tutor grounding).
 
+  Also hosts an extensive slang/idiom dictionary, world-dialect rehearsal
+  (Southern US, NYC, New England, California, Canadian, British, Australian,
+  Singaporean, Beijing, Shanghai, Guangzhou Cantonese, Fujianese/Hokkien, …),
+  regurgitation drills, and feedback learning so the lexicon matures.
+
 What it tunes
   - top_k, min_score, groundedness thresholds
   - lexical vs FTS preference, chunk shaping
   - hours-a-day bakeoff loop with OptimizationLedger promote/revert
+  - dialect/slang dictionary growth via confirm/correct/reject feedback
 
 Everything below runs offline. No API key and no GPU are required.
 
@@ -45,11 +51,17 @@ Step 2 — start the lab and open the web UI
   Open in a browser:
     http://127.0.0.1:8095/     (same page at /lab)
 
-  Use the console to Run eval, Sweep, apply a preset, run a Blocking bakeoff,
-  and inspect Champion / Telemetry. Leave the server running for curl too:
+  Tabs:
+    RAG tuning — eval / sweep / bakeoff / champion
+    Dictionary — search 300+ slang/idiom entries by language & region
+    Dialects — humanize sample text in Southern / NYC / Beijing / Cantonese / …
+    Regurgitation — recall plain meanings; hits reinforce feedback learning
+    Feedback learning — confirm / correct / reject entries into the live lexicon
+
+  Leave the server running for curl too:
 
   curl -s http://127.0.0.1:8095/health | python3 -m json.tool
-  # ok=true, service=theodore-rag-lab, golden examples + tuning knobs present
+  # ok=true, lexicon_total, dialects, features include dictionary + regurgitation
 
   Port busy? Use --port 8099 and swap the port below.
 
@@ -72,7 +84,15 @@ Step 4 — peek at tuning, then try a short bakeoff
   make rag-lab
   # runs bakeoff_loop --hours 0.01
 
-Step 5 — read champion + telemetry, then promote when green
+Step 5 — dictionary + dialect + regurgitation
+
+  curl -s 'http://127.0.0.1:8095/api/dictionary?region=us-south&limit=10' | python3 -m json.tool
+  curl -s -X POST http://127.0.0.1:8095/api/dialects/probe \
+    -H 'content-type: application/json' \
+    -d '{"dialect":"en_sg","text":"Welcome! We will walk through the lesson."}' | python3 -m json.tool
+  curl -s 'http://127.0.0.1:8095/api/regurgitate/deck?dialect=zh_yue_gz&n=5' | python3 -m json.tool
+
+Step 6 — read champion + telemetry, then promote when green
 
   curl -s http://127.0.0.1:8095/api/rag/champion | python3 -m json.tool
   curl -s http://127.0.0.1:8095/api/rag/telemetry | python3 -m json.tool
@@ -81,7 +101,7 @@ Step 5 — read champion + telemetry, then promote when green
   retrieve() + groundedness thresholds.
 
 APIs
-  GET  /  and /lab          # browser qualification console
+  GET  /  and /lab          # browser qualification console (multi-tab)
   GET  /health
   GET|PATCH /api/rag/tuning  (+ /preset/{name})
   POST /api/rag/eval
@@ -92,3 +112,9 @@ APIs
   POST /api/rag/train/stop
   GET  /api/rag/champion
   GET  /api/rag/telemetry
+  GET  /api/dictionary
+  GET  /api/dialects
+  POST /api/dialects/probe
+  GET  /api/regurgitate/deck
+  POST /api/regurgitate/grade
+  GET|POST /api/feedback

@@ -370,6 +370,14 @@ class SlideSync:
     title: str = ""
     body: str = ""
     narration: str = ""
+    storyboard_svg: str = ""
+    storyboard_concept: str = ""
+    storyboard_scene_id: str = ""
+    storyboard_examples: list[str] = field(default_factory=list)
+    storyboard_activity: str = ""
+    storyboard_profile_mode: str = "mixed"
+    storyboard_source_language: str = "en"
+    storyboard_translation_ready: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -778,6 +786,14 @@ class LiveRoomStore:
         slide_title: str = "",
         slide_body: str = "",
         slide_narration: str = "",
+        slide_storyboard_svg: str = "",
+        slide_storyboard_concept: str = "",
+        slide_storyboard_scene_id: str = "",
+        slide_storyboard_examples: list[str] | None = None,
+        slide_storyboard_activity: str = "",
+        slide_storyboard_profile_mode: str = "mixed",
+        slide_storyboard_source_language: str = "en",
+        slide_storyboard_translation_ready: bool = False,
         country: str = "",
         state: str = "",
         city: str = "",
@@ -839,7 +855,20 @@ class LiveRoomStore:
             lesson_id=lesson_id,
             title=title,
             room_size=room_size,
-            slide=SlideSync(index=0, title=slide_title, body=slide_body, narration=slide_narration),
+            slide=SlideSync(
+                index=0,
+                title=slide_title,
+                body=slide_body,
+                narration=slide_narration,
+                storyboard_svg=slide_storyboard_svg,
+                storyboard_concept=slide_storyboard_concept,
+                storyboard_scene_id=slide_storyboard_scene_id,
+                storyboard_examples=list(slide_storyboard_examples or []),
+                storyboard_activity=slide_storyboard_activity,
+                storyboard_profile_mode=slide_storyboard_profile_mode,
+                storyboard_source_language=slide_storyboard_source_language,
+                storyboard_translation_ready=slide_storyboard_translation_ready,
+            ),
             country=country.strip(),
             state=state.strip(),
             city=city.strip(),
@@ -2151,9 +2180,30 @@ class LiveRoomStore:
         title: str,
         body: str = "",
         narration: str = "",
+        storyboard_svg: str = "",
+        storyboard_concept: str = "",
+        storyboard_scene_id: str = "",
+        storyboard_examples: list[str] | None = None,
+        storyboard_activity: str = "",
+        storyboard_profile_mode: str = "mixed",
+        storyboard_source_language: str = "en",
+        storyboard_translation_ready: bool = False,
     ) -> SlideSync:
         room = self.require(room_id)
-        room.slide = SlideSync(index=index, title=title, body=body, narration=narration)
+        room.slide = SlideSync(
+            index=index,
+            title=title,
+            body=body,
+            narration=narration,
+            storyboard_svg=storyboard_svg,
+            storyboard_concept=storyboard_concept,
+            storyboard_scene_id=storyboard_scene_id,
+            storyboard_examples=list(storyboard_examples or []),
+            storyboard_activity=storyboard_activity,
+            storyboard_profile_mode=storyboard_profile_mode,
+            storyboard_source_language=storyboard_source_language,
+            storyboard_translation_ready=storyboard_translation_ready,
+        )
         self._commit(room)
         return room.slide
 

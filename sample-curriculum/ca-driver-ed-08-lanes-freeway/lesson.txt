@@ -1,0 +1,61 @@
+LESSON: CA Driver Ed — Lanes & freeway driving
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Merging, passing, HOV, and lane discipline. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Mirror-signal-shoulder
+Every lane change needs a shoulder check. Check mirrors, signal, glance over your shoulder, then move smoothly into the gap.
+NARRATION: Check mirrors, signal, glance over your shoulder, then move smoothly into the gap.
+
+SLIDE 2 | Freeway merge zipper
+Alternate gaps when lanes end. When two lanes merge, take turns — zipper merge reduces last-second cut-ins.
+NARRATION: When two lanes merge, take turns — zipper merge reduces last-second cut-ins.
+
+SLIDE 3 | Left lane for passing
+Pass, then return right when safe. Use the left lane to pass, then move right so faster traffic can continue.
+NARRATION: Use the left lane to pass, then move right so faster traffic can continue.
+
+SLIDE 4 | HOV carpool lanes
+Meet occupancy or enter legally. HOV lanes require the posted number of occupants or an authorized pass.
+NARRATION: HOV lanes require the posted number of occupants or an authorized pass.
+
+SLIDE 5 | Exit early preparation
+Change lanes early for your exit. Read guide signs early and move toward your exit lane with time to spare.
+NARRATION: Read guide signs early and move toward your exit lane with time to spare.
+
+SLIDE 6 | No stopping on freeway
+Only stop fully off the roadway if you must. Do not stop in a travel lane. If you must stop, get fully onto the shoulder and turn on hazards.
+NARRATION: Do not stop in a travel lane. If you must stop, get fully onto the shoulder and turn on hazards.
+
+SLIDE 7 | Weave zones
+Expect conflict where enter and exit meet. In weave areas, scan both sides and keep a flexible gap for entering and exiting cars.
+NARRATION: In weave areas, scan both sides and keep a flexible gap for entering and exiting cars.
+
+SLIDE 8 | Passing on the right
+Legal in some multi-lane cases — still careful. Passing on the right may be allowed on multi-lane roads but watch for right-turning vehicles.
+NARRATION: Passing on the right may be allowed on multi-lane roads but watch for right-turning vehicles.
+
+SLIDE 9 | Truck climbing lanes
+Use extra lanes to pass slow trucks on hills. Climbing lanes let faster traffic pass — return right after you clear the truck.
+NARRATION: Climbing lanes let faster traffic pass — return right after you clear the truck.
+
+SLIDE 10 | Freeway hypnosis
+Break monotony on long trips. On long drives, vary focus, take breaks, and avoid staring at one point ahead.
+NARRATION: On long drives, vary focus, take breaks, and avoid staring at one point ahead.
+
+SLIDE 11 | Wrong-way driver response
+Pull right, slow, warn — never swerve into them. If you see a wrong-way driver, move right, slow, honk, and flash lights.
+NARRATION: If you see a wrong-way driver, move right, slow, honk, and flash lights.
+
+SLIDE 12 | Lane splitting awareness
+Expect motorcycles between lanes in CA. California allows motorcycle lane splitting when done safely — check mirrors before changing lanes.
+NARRATION: California allows motorcycle lane splitting when done safely — check mirrors before changing lanes.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.
