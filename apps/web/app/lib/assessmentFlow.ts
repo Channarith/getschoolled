@@ -47,6 +47,56 @@ export function canAwardCourseCompletion(opts: {
   return Boolean(opts.passDecisionToken);
 }
 
+/**
+ * HARD RULE: accreditation / certification courses require a registered account.
+ * Guests may take sample (non-certifiable) courses only.
+ *
+ * Mirrors ``aoep_shared.accreditation.CERTIFIABLE_LESSONS`` / ``is_certifiable_lesson``.
+ * Keep this list in sync with packages/shared/.../learnable/index.py CERTIFIABLE_LESSONS.
+ * Prefer ``getLessonAccreditation`` from the API when available; this set is the
+ * offline / pre-fetch fallback used by ClassRoom before network responds.
+ */
+export const CERTIFIABLE_LESSON_IDS: ReadonlySet<string> = new Set([
+  "sexual-harassment-prevention",
+  "osha-general-safety",
+  "fire-safety-training",
+  "hipaa-privacy-security",
+  "food-handler-safety",
+  "ca-alameda-food-handler-hygiene",
+  "ca-alameda-food-handler-temps",
+  "ca-alameda-food-handler-contamination",
+  "diversity-equity-inclusion",
+  "workplace-ethics",
+  "osha-forklift-safety",
+  "cybersecurity",
+  "devops",
+  "workplace-violence-prevention",
+  "security-policies-awareness",
+  "trade-compliance-basics",
+  "social-media-at-work",
+  "export-control-us-regulations",
+  "liquid-cooling-thermal-materials",
+  "data-privacy-workplace",
+  "anti-bribery-corruption",
+  "lab-safety-fundamentals",
+  "automotive-safety-awareness",
+  "comptia-a-plus",
+  "hvac-epa-certification",
+  "drivers-permit-test",
+  "ca-dmv-permit-basics",
+  "ca-dmv-permit-signs",
+  "ca-dmv-permit-sharing",
+  "ase-automotive-certification",
+  "pharmacy-technician-certification",
+  "real-estate-license-prep",
+  "cpr-first-aid-certification",
+  "security-guard-certification",
+]);
+
+export function requiresRegisteredAccountForAccreditation(lessonId: string): boolean {
+  return CERTIFIABLE_LESSON_IDS.has(lessonId);
+}
+
 export function isSummativeCompleted(
   checkpoints: AssessmentCheckpointSpec[],
   completedIds: ReadonlySet<string>,

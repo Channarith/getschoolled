@@ -22,7 +22,7 @@ def test_every_cert_title_has_curated_kit():
             if slide.title not in _KITS:
                 missing.append(slide.title)
     assert missing == [], missing
-    assert coverage_report()["curated_kits"] >= 60
+    assert coverage_report()["curated_kits"] >= 120
 
 
 def test_every_segment_is_multimodal():
@@ -35,8 +35,8 @@ def test_every_segment_is_multimodal():
             assert slide.modalities == list(CERT_MODALITIES)
             assert slide.quiz_spec.get("choices")
             assert slide.game_spec
-            assert slide.picture_url.startswith("data:image/svg+xml,")
-            assert slide.video_url.startswith("data:image/svg+xml,")
+            assert slide.picture_url.startswith("data:image/svg+xml")
+            assert slide.video_url.startswith("data:image/svg+xml")
             assert slide.activity_prompt
 
 

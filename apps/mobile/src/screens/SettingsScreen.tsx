@@ -5,11 +5,14 @@ import {
 
 import {
   CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, getTtsInstructors, getTtsVoices,
-  listStudents, type Instructor, type StudentProfile, type VoiceGroup,
+  getVoiceEnrollmentStatus,
+  listStudents,
+  type Instructor, type StudentProfile, type VoiceEnrollmentStatus, type VoiceGroup,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import DropdownListSelector from "../components/DropdownListSelector";
+import FaceVoiceEnrollModal from "../components/FaceVoiceEnrollModal";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import CameraTrackingCheck from "../components/CameraTrackingCheck";
@@ -67,6 +70,8 @@ export default function SettingsScreen({
   const [instructorOpen, setInstructorOpen] = useState(false);
   const [trainingLocaleOpen, setTrainingLocaleOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
+  const [showVoiceEnroll, setShowVoiceEnroll] = useState(false);
+  const [voiceEnrollStatus, setVoiceEnrollStatus] = useState<VoiceEnrollmentStatus | null>(null);
 
   const probeIdentity = useCallback(async () => {
     const up = await checkServiceReachable(IDENTITY_URL);
@@ -85,6 +90,14 @@ export default function SettingsScreen({
     try {
       const students = (await listStudents()).students;
       setStudent(students[0] ?? null);
+      if (students[0]) {
+        try {
+          const vs = await getVoiceEnrollmentStatus(students[0].id);
+          setVoiceEnrollStatus(vs);
+        } catch {
+          setVoiceEnrollStatus(null);
+        }
+      }
     } catch {
       setStudent(null);
     }
@@ -480,6 +493,44 @@ export default function SettingsScreen({
         </Row>
       </Section>
 
+      {/* Face & Voice ID — only shown for signed-in accounts */}
+      {!guestMode && student && (
+        <Section title="Face & Voice ID">
+          <Text style={styles.desc}>
+            Enrol your voice so the platform can verify your identity during lessons
+            and track attendance. Say your name aloud — the recording is stored
+            securely on your profile.
+          </Text>
+          {voiceEnrollStatus?.voice_enrolled ? (
+            <View style={{ marginTop: 8, gap: 4 }}>
+              <Text style={[styles.label, { color: theme.colors.success }]}>
+                ✓ Voice enrolled
+              </Text>
+              <Text style={styles.desc}>
+                Name on file:{" "}
+                <Text style={{ fontWeight: "700", color: theme.colors.text }}>
+                  {voiceEnrollStatus.voice_name_text || student.display_name}
+                </Text>
+                {voiceEnrollStatus.voice_enrolled_at
+                  ? `  ·  ${new Date(voiceEnrollStatus.voice_enrolled_at * 1000).toLocaleDateString()}`
+                  : ""}
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.desc, { marginTop: 6 }]}>
+              No voice sample enrolled yet.
+            </Text>
+          )}
+          <View style={{ marginTop: 10 }}>
+            <PrimaryButton
+              label={voiceEnrollStatus?.voice_enrolled ? "🎤  Re-enrol voice" : "🎤  Enrol my voice"}
+              onPress={() => setShowVoiceEnroll(true)}
+              variant="brand"
+            />
+          </View>
+        </Section>
+      )}
+
       <Section title={t("settings.sectionDiag")}>
         <Row label={t("settings.scheduled", { n: scheduled })} desc={t("settings.scheduledDesc")}>
           <AnimatedPressable onPress={() => void refreshScheduled()} style={styles.btn}>
@@ -525,6 +576,20 @@ export default function SettingsScreen({
       <Section title={t("settings.sectionAbout")}>
         <Text style={styles.about}>{t("settings.aboutBody", { version: APP_VERSION })}</Text>
       </Section>
+
+      {/* Face & voice enrolment modal */}
+      {student && (
+        <FaceVoiceEnrollModal
+          visible={showVoiceEnroll}
+          studentId={student.id}
+          studentName={student.display_name}
+          onDismiss={() => setShowVoiceEnroll(false)}
+          onEnrolled={(status) => {
+            setVoiceEnrollStatus(status);
+            setShowVoiceEnroll(false);
+          }}
+        />
+      )}
     </ScrollView>
   );
 }

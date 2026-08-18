@@ -84,6 +84,18 @@ MONITOR_CSS = """
     .cam-contour-toggle { top: 8px; left: 8px; right: auto; }
     .cam-contour-toggle.on { border-color: #22d3ee; color: #a5f3fc; }
     .cam-contour-toggle.on .sw { background: #0891b2; }
+    .face-id-panel { margin-top: 8px; border: 1px solid #334155; border-radius: 6px;
+      padding: 8px 10px; background: #0b1220; }
+    .face-id-panel h4 { margin: 0 0 6px; font-size: 11px; color: #93c5fd; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase; }
+    .face-id-panel .face-id-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .face-id-panel input[type=text] { width: 140px; background: #0b1220; color: #e2e8f0;
+      border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+    .face-id-panel button { font-size: 11px; padding: 3px 8px; }
+    .face-id-panel .face-id-status { margin-top: 6px; font-size: 11px; color: #94a3b8; }
+    .face-id-panel .face-id-status.ok { color: #86efac; }
+    .face-id-panel .face-id-status.warn { color: #fde68a; }
+    .face-id-panel .face-id-status.bad { color: #fca5a5; }
     .tilt-lab { margin-top: 8px; border: 1px solid #334155; border-radius: 6px;
                 padding: 8px 10px; background: #0b1220; }
     .tilt-lab h4 { margin: 0 0 6px; font-size: 11px; color: #93c5fd; font-weight: 700;
@@ -505,7 +517,8 @@ MONITOR_JS = (
     // range fails the whole POST with a 422, so every frame is clamped on the way out.
     const UNIT_SIGNAL_FIELDS = [
       'foreground_ratio', 'motion_score', 'attention', 'expression_confidence',
-      'gaze_frontal', 'gaze_down_score', 'eyes_closed_score', 'yawn_score',
+      'gaze_frontal', 'gaze_down_score', 'gaze_up_score', 'gaze_left_score', 'gaze_right_score',
+      'eyes_closed_score', 'yawn_score',
       'hands_on_face_score', 'body_motion_score', 'fidget_score', 'brow_raise_score',
       'smile_score', 'screen_focus_score', 'typing_activity_score',
       'keyboard_typing_audio_score', 'face_size_ratio', 'light_quality_score',
@@ -527,11 +540,10 @@ MONITOR_JS = (
     }
     function toast(message) {
       const el = document.getElementById('toast');
-      if (!el) return;  // post-shutdown the DOM is wiped
       el.textContent = message;
       el.classList.add('show');
       clearTimeout(toast._t);
-      toast._t = setTimeout(() => { if (el.isConnected) el.classList.remove('show'); }, 5000);
+      toast._t = setTimeout(() => el.classList.remove('show'), 5000);
     }
     function pct(v) {
       if (v === null || v === undefined) return 'n/a';
@@ -808,17 +820,9 @@ MONITOR_JS = (
         }
         return;
       }
-      if (labOffline || document.getElementById('state') == null) return;
-      if (!res.ok) {
-        // A persistent HTTP 500 is a down/broken server, not "no metrics yet".
-        metricsFailStreak += 1;
-        if (metricsFailStreak >= 3) {
-          markLabOffline('Lab server is erroring (HTTP ' + res.status + '). Restart uvicorn, then reload this page.');
-        }
-        return;
-      }
       metricsFailStreak = 0;
-      const data = await res.json().catch(() => null);
+      if (labOffline || document.getElementById('state') == null) return;
+      const data = res.ok ? await res.json().catch(() => null) : null;
       // An unseeded session answers 200 with updated_at_ms 0 and no participants.
       if (!data || !data.updated_at_ms) {
         setHtmlSafe('state',
@@ -857,8 +861,32 @@ MONITOR_JS = (
           ? 'Original learner not in frame — lesson paused.'
           : (data.pause_reason === 'owner_face_mismatch'
             ? 'Camera owner mismatch — another person may have substituted. Lesson paused.'
+            : (data.pause_reason === 'camera_quality'
+              ? 'Camera quality is too poor to continue — improve lighting/focus, or remove this webcam.'
+              : (data.pause_reason === 'pitch_dark_needs_light'
+                ? 'It is too dark. Trying auto-brightness — please turn on a light before continuing.'
+                : (data.pause_reason === 'too_far_from_camera'
+                  ? 'You are too far from the camera. Please move closer to continue the class.'
+                  : (data.pause_reason === 'attention_integrity'
+                    ? 'Looking away from the lesson — please look at the screen to continue.'
+                    : 'Away from webcam — lesson paused. Please return to the camera.')))));
+            ? 'Face ID mismatch — enrolled learner is not in frame. Teaching paused until they return.'
             : 'Away from webcam — lesson paused. Please return to the camera.');
         banner.textContent = '⏸ ' + why;
+        if (data.pause_reason === 'pitch_dark_needs_light') {
+          void tryAutoLighting();
+          maybeAnnounceIntegrity('dark',
+            'It is too dark to continue. I tried brightening the camera — please turn on a light.');
+        } else if (data.pause_reason === 'too_far_from_camera') {
+          maybeAnnounceIntegrity('far',
+            'You are too far from the camera to take this class. Please move closer.');
+        } else if (data.pause_reason === 'camera_quality') {
+          maybeAnnounceIntegrity('quality',
+            'Camera quality is too poor to continue. Improve the lighting or focus, or switch cameras.');
+        } else if (data.pause_reason === 'attention_integrity') {
+          maybeAnnounceIntegrity('away',
+            'Please look at the lesson on screen. Looking away counts as not paying attention.');
+        }
       } else {
         banner.style.display = 'none';
       }
@@ -1035,8 +1063,7 @@ MONITOR_JS = (
     }
 
     function setStatus(text) {
-      const el = document.getElementById('tuning-status');
-      if (el) el.textContent = text;
+      document.getElementById('tuning-status').textContent = text;
     }
     function updateTuningEffect(p, knobs, note) {
       const host = document.getElementById('tuning-effect');
@@ -1188,12 +1215,11 @@ MONITOR_JS = (
         : (tuningScope === 'voice'
           ? '/api/theodore/voice/tuning'
           : '/api/theodore/vision/tuning');
-      const res = await fetch(base, { cache: 'no-store' }).catch(() => null);
-      if (!res || !res.ok) return;
+      const res = await fetch(base, { cache: 'no-store' });
+      if (!res.ok) return;
       const data = await res.json();
       const select = document.getElementById('preset');
       const presetWrap = document.getElementById('preset-wrap');
-      if (!select || !presetWrap) return;  // post-shutdown the DOM is wiped
       if (tuningScope === 'policy') {
         presetWrap.style.display = 'none';
         renderKnobGroups(document.getElementById('knobs'), [['Timing / session', POLICY_KNOBS]], data.knobs || {}, base);
@@ -1284,7 +1310,6 @@ MONITOR_JS = (
         if (!res.ok) return;
         _voiceLangs = await res.json();
         const sel = document.getElementById('voice-lang');
-        if (!sel) return;  // post-shutdown the DOM is wiped
         sel.innerHTML = _voiceLangs.map((l) =>
           `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
         ).join('');
@@ -1302,8 +1327,8 @@ MONITOR_JS = (
         const live = !!s.xai_api_key_configured;
         el.className = 'voice-status ' + (live ? 'live' : 'fallback');
         el.innerHTML = live
-          ? `<strong>xAI Grok live</strong> · model ${esc(s.model)} · ${esc(s.languages)} languages · TTS: ${(s.tts_engine_chain||[]).join(' → ')}`
-          : `<strong>xAI key missing</strong> — local-fallback text. Set <code>XAI_API_KEY</code> and restart for live Grok. ${esc(s.languages)} languages still work · spoken audio uses device TTS.`;
+          ? `<strong>xAI Grok live</strong> · model ${esc(s.model)} · ${esc(s.languages)} languages · TTS: ${(s.tts_engine_chain||[]).join(' → ') || 'device'}`
+          : `<strong>xAI key missing</strong> — local-fallback text. Set <code>XAI_API_KEY</code> and restart for live Grok. ${esc(s.languages)} languages still work · spoken audio prefers neural TTS when configured.`;
       } catch (_) {
         el.textContent = 'Could not load voice status';
       }
@@ -1312,11 +1337,55 @@ MONITOR_JS = (
       return document.getElementById('voice-lang').value || 'en';
     }
 
-    // Theodore speech synthesis — respects the selected language for pronunciation
-    function speakTheodore(text, langCode) {
-      if (!('speechSynthesis' in window) || !text) return;
-      speechSynthesis.cancel();
-      const cleaned = String(text).replace(/^\\[[^\\]]+\\]\\s*/, '');
+    // Theodore speech — neural TTS first (gateway/ElevenLabs/edge), device fallback
+    let serverTts = {available: false, engine: ''};
+    let theodoreAudio = null;
+    async function loadTtsStatus() {
+      try {
+        const res = await fetch('/api/tts/status', { cache: 'no-store' });
+        if (res.ok) serverTts = await res.json();
+      } catch (_) { serverTts = {available: false, engine: ''}; }
+    }
+    loadTtsStatus();
+    function stopTheodoreAudio() {
+      if (theodoreAudio) {
+        try { theodoreAudio.pause(); theodoreAudio.src = ''; } catch (_) {}
+        theodoreAudio = null;
+      }
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      const actionStage = document.getElementById('theodore-action');
+      if (actionStage) actionStage.classList.remove('speaking');
+    }
+    async function speakTheodore(text, langCode) {
+      if (!text) return;
+      const cleaned = String(text).replace(/^\[[^\]]+\]\s*/, '');
+      stopTheodoreAudio();
+      const actionStage = document.getElementById('theodore-action');
+      const markSpeaking = (on) => {
+        if (actionStage && actionStage.classList.contains('show')) {
+          actionStage.classList.toggle('speaking', !!on);
+        }
+      };
+      if (serverTts.available) {
+        try {
+          const lang = langCode || voiceLangCode() || 'en';
+          const res = await fetch(
+            `/api/tts?text=${encodeURIComponent(cleaned)}&language=${encodeURIComponent(lang)}&style=warm`
+          );
+          if (res.status === 501) {
+            serverTts.available = false;
+          } else if (res.ok) {
+            const blob = await res.blob();
+            theodoreAudio = new Audio(URL.createObjectURL(blob));
+            theodoreAudio.onplay = () => markSpeaking(true);
+            theodoreAudio.onended = () => markSpeaking(false);
+            theodoreAudio.onerror = () => markSpeaking(false);
+            await theodoreAudio.play();
+            return;
+          }
+        } catch (_) { /* device fallback */ }
+      }
+      if (!('speechSynthesis' in window) || !cleaned) return;
       const utter = new SpeechSynthesisUtterance(cleaned);
       utter.lang = langCode || voiceLangCode() || 'en';
       utter.rate = 0.92;
@@ -1327,17 +1396,9 @@ MONITOR_JS = (
       const match = voices.find((v) => (v.lang || '').toLowerCase().startsWith(want))
         || voices.find((v) => (v.lang || '').toLowerCase().startsWith('en'));
       if (match) utter.voice = match;
-      const actionStage = document.getElementById('theodore-action');
-      utter.onstart = () => {
-        if (actionStage && actionStage.classList.contains('show')) {
-          actionStage.classList.add('speaking');
-        }
-      };
-      const stopMouth = () => {
-        if (actionStage) actionStage.classList.remove('speaking');
-      };
-      utter.onend = stopMouth;
-      utter.onerror = stopMouth;
+      utter.onstart = () => markSpeaking(true);
+      utter.onend = () => markSpeaking(false);
+      utter.onerror = () => markSpeaking(false);
       speechSynthesis.speak(utter);
     }
     function autoSpeak() { return document.getElementById('voice-autospeak').checked; }
@@ -1374,7 +1435,7 @@ MONITOR_JS = (
       speakTheodore(text, voiceLangCode());
     });
     document.getElementById('voice-stop-speak').addEventListener('click', () => {
-      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      stopTheodoreAudio();
     });
     document.getElementById('voice-absorb').addEventListener('click', async () => {
       const transcript = document.getElementById('voice-msg').value || '';
@@ -1415,12 +1476,9 @@ MONITOR_JS = (
           ? 'Re-scored demo frames — check Failed quality checks / student windows'
           : 'No frame cached yet. Start camera, wait 1s, click Prove again.'));
       setTimeout(async () => {
-        if (labOffline) return;  // the server is gone — don't fire a dead fetch
-        try {
-          const res = await fetch('/api/theodore/vision/tuning/preset/balanced', { method: 'POST' });
-          if (res.ok) explainTuningResult(await res.json(), 'prove: restored balanced preset');
-          await loadTuning();
-        } catch (_) { /* server went away */ }
+        const res = await fetch('/api/theodore/vision/tuning/preset/balanced', { method: 'POST' });
+        if (res.ok) explainTuningResult(await res.json(), 'prove: restored balanced preset');
+        await loadTuning();
       }, 2200);
     });
 
@@ -1523,6 +1581,38 @@ MONITOR_JS = (
     const patternCanvas = document.getElementById('pattern-canvas');
     const camFrame = document.querySelector('.cam-frame');
     let camStream = null, camTimer = null, patternPhase = 0;
+    let lastAutoLightAt = 0;
+    async function tryAutoLighting() {
+      // Best-effort continuous exposure / brightness when the room is pitch dark.
+      if (!camStream) return;
+      const now = Date.now();
+      if (now - lastAutoLightAt < 8000) return;
+      lastAutoLightAt = now;
+      const track = camStream.getVideoTracks()[0];
+      if (!track || !track.getCapabilities || !track.applyConstraints) return;
+      let caps = {};
+      try { caps = track.getCapabilities() || {}; } catch (_) { return; }
+      const advanced = {};
+      if (caps.exposureMode && caps.exposureMode.includes && caps.exposureMode.includes('continuous')) {
+        advanced.exposureMode = 'continuous';
+      }
+      if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes && caps.whiteBalanceMode.includes('continuous')) {
+        advanced.whiteBalanceMode = 'continuous';
+      }
+      if (caps.exposureCompensation && typeof caps.exposureCompensation.max === 'number' && caps.exposureCompensation.max > 0) {
+        advanced.exposureCompensation = Math.min(caps.exposureCompensation.max, 0.7);
+      }
+      if (caps.brightness && typeof caps.brightness.min === 'number' && typeof caps.brightness.max === 'number') {
+        advanced.brightness = (caps.brightness.min + caps.brightness.max) / 2 + (caps.brightness.max - caps.brightness.min) * 0.15;
+      }
+      if (!Object.keys(advanced).length) return;
+      try {
+        await track.applyConstraints({ advanced: [advanced] });
+        toast('Tried auto-brighten the camera — please also turn on a room light.');
+      } catch (_) {
+        try { await track.applyConstraints(advanced); } catch (__) {}
+      }
+    }
     let usingPattern = false, usingSilhouette = false, lastSilhouetteDetected = false;
     let silhouetteGuideOn = true;
     let audioCtx = null, audioAnalyser = null, audioSource = null, audioData = null;
@@ -1674,10 +1764,7 @@ MONITOR_JS = (
         const prev = history[i - 1], cur = history[i];
         const a = getter(prev), b = getter(cur);
         if (a == null || b == null) continue;
-        // Skip duplicate/out-of-order timestamps — clamping dt to 1ms
-        // amplified tiny jitter into a 1000x phantom speed.
-        if (cur.t - prev.t <= 0) continue;
-        const dt = (cur.t - prev.t) / 1000;
+        const dt = Math.max(1, cur.t - prev.t) / 1000;
         sum += Math.abs(b - a) / dt;
         n += 1;
       }
@@ -1706,8 +1793,7 @@ MONITOR_JS = (
       const pitched = (history || []).filter((h) => h.pitch != null && Number.isFinite(h.pitch));
       if (pitched.length < 3) return 0;
       const first = pitched[0], last = pitched[pitched.length - 1];
-      if (last.t <= first.t) return 0;  // no real interval — no 1ms amplification
-      const dt = (last.t - first.t) / 1000;
+      const dt = Math.max(1, last.t - first.t) / 1000;
       let rate = Math.max(0, last.pitch - first.pitch) / dt;
       let steps = 0, down = 0;
       for (let i = 1; i < pitched.length; i++) {
@@ -2117,11 +2203,18 @@ MONITOR_JS = (
         return;
       }
       const secs = Math.max(1, Math.round(((p && p.absent_for_ms) ? p.absent_for_ms : goneMs) / 1000));
-      const detail = serverPaused
-        ? 'Lesson paused — no learner in the camera frame.'
-        : ('Away from webcam (~' + secs + 's). Please step back into view.');
+      const detail = (evalData && evalData.pause_reason === 'owner_face_mismatch')
+        ? ('Face ID mismatch — ' + ((facial && facial.owner_face_name) || 'enrolled learner')
+           + ' is not in frame. Teaching paused.')
+        : (serverPaused
+          ? 'Lesson paused — no learner in the camera frame.'
+          : ('Away from webcam (~' + secs + 's). Please step back into view.'));
       setLiveAwayOverlay(true, detail);
-      setCamState('PAUSED — away', 'bad');
+      setCamState(
+        (evalData && evalData.pause_reason === 'owner_face_mismatch')
+          ? 'PAUSED — Face ID' : 'PAUSED — away',
+        'bad'
+      );
       const canAnnounce = !liveAway.announced
         || (now - liveAway.lastAnnounceMs) >= LIVE_AWAY_REANNOUNCE_MS;
       if (canAnnounce) {
@@ -3003,21 +3096,27 @@ MONITOR_JS = (
     let handLandmarker = null;
     let handLandmarkerFailed = false;
     let handLandmarkerPromise = null;
-    // Original-owner lock (parity with face_owner.py). Detect up to N faces, enroll
-    // the first stable largest face, then keep meshing that person — not faces[0].
+    // Named Face ID (parity with face_owner.py). Detect up to N faces, enroll the
+    // first stable person as Face ID, then mesh/score only that person — strangers
+    // are secondary (yellow ovals) and do not drive attention/mood/teaching.
     const FACE_OWNER_MAX_FACES = 4;
     const OWNER_ENROLL_HOLD_MS = 1500;
     const OWNER_MATCH_IOU_MIN = 0.22;
     const OWNER_MATCH_FP_MAX = 0.38;
     // Above the IoU-only ceiling (0.45): continuity alone can never pass.
     const OWNER_MATCH_SCORE_MIN = 0.55;
+    // Softer gate while holding the first-seen Face ID candidate.
+    const OWNER_ENROLL_SCORE_MIN = 0.28;
     // Identity veto: below this fingerprint sub-score it is not the owner.
     const OWNER_MATCH_FP_MIN = 0.25;
     // Template adapts only on a strong identity match.
     const OWNER_ADAPT_FP_MIN = 0.5;
     const OWNER_FP_IDX = [33, 263, 1, 61, 291, 10, 152];
+    const FACE_ID_STORAGE_KEY = 'twl.faceid.v1';
+    let lastDetectedFaces = null;
     let faceOwnerState = {
-      enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null, matchScore: 0,
+      enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null,
+      matchScore: 0, displayName: '',
     };
 
     function quietMediaPipeConsole() {
@@ -3052,10 +3151,79 @@ MONITOR_JS = (
     }
     quietMediaPipeConsole();
 
-    function resetFaceOwner() {
+    function loadFaceIdProfile() {
+      try {
+        const raw = localStorage.getItem(FACE_ID_STORAGE_KEY);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (!data || !Array.isArray(data.fingerprint) || data.fingerprint.length < 4) return null;
+        return {
+          name: String(data.name || '').trim() || 'Learner',
+          fingerprint: data.fingerprint.map(Number),
+          lastBox: data.lastBox && typeof data.lastBox.x === 'number' ? data.lastBox : null,
+        };
+      } catch (_) { return null; }
+    }
+
+    function saveFaceIdProfile() {
+      if (!faceOwnerState.enrolled || !faceOwnerState.fingerprint) return;
+      try {
+        localStorage.setItem(FACE_ID_STORAGE_KEY, JSON.stringify({
+          name: faceOwnerState.displayName || 'Learner',
+          fingerprint: faceOwnerState.fingerprint.slice(),
+          lastBox: faceOwnerState.lastBox,
+          savedAt: Date.now(),
+        }));
+      } catch (_) {}
+    }
+
+    function clearFaceIdProfile() {
+      try { localStorage.removeItem(FACE_ID_STORAGE_KEY); } catch (_) {}
       faceOwnerState = {
-        enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null, matchScore: 0,
+        enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null,
+        matchScore: 0, displayName: '',
       };
+      lastDetectedFaces = null;
+      updateFaceIdUi('cleared');
+    }
+
+    function resetFaceOwner(opts) {
+      const keepProfile = !(opts && opts.clearProfile);
+      const saved = keepProfile ? loadFaceIdProfile() : null;
+      faceOwnerState = {
+        enrolled: !!(saved && saved.fingerprint),
+        enrollStartedMs: 0,
+        fingerprint: saved ? saved.fingerprint.slice() : null,
+        lastBox: saved && saved.lastBox ? Object.assign({}, saved.lastBox) : null,
+        matchScore: 0,
+        displayName: saved ? (saved.name || 'Learner') : '',
+      };
+      if (!keepProfile) lastDetectedFaces = null;
+      updateFaceIdUi();
+    }
+
+    function updateFaceIdUi(hint) {
+      const nameEl = document.getElementById('face-id-name');
+      const statusEl = document.getElementById('face-id-status');
+      if (nameEl && document.activeElement !== nameEl) {
+        nameEl.value = faceOwnerState.displayName || '';
+      }
+      if (!statusEl) return;
+      statusEl.className = 'face-id-status';
+      if (hint === 'cleared') {
+        statusEl.textContent = 'Face ID cleared — first person on camera will enroll after ~1.5s, or use Enroll now.';
+        statusEl.classList.add('warn');
+        return;
+      }
+      if (!faceOwnerState.enrolled) {
+        statusEl.textContent = 'No Face ID yet — sit in view ~1.5s to enroll the first person, or Enroll now.';
+        statusEl.classList.add('warn');
+        return;
+      }
+      const who = faceOwnerState.displayName || 'Learner';
+      statusEl.textContent = 'Face ID locked: ' + who
+        + ' — only this person counts for attention/behavior; others are ignored for teaching.';
+      statusEl.classList.add('ok');
     }
 
     function faceBoxFromPts(pts) {
@@ -3112,57 +3280,101 @@ MONITOR_JS = (
       return bestI;
     }
 
-    function matchPartsForFace(pts, state) {
+    function matchScoreForFace(pts, state) {
       const box = faceBoxFromPts(pts);
       const iou = boxIoU(box, state.lastBox);
       const fp = faceFingerprint(pts);
       const fpDist = fingerprintDistance(fp, state.fingerprint);
       const fpPart = Math.max(0, 1 - fpDist / Math.max(OWNER_MATCH_FP_MAX, 1e-6));
-      return { score: Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart)), fpPart };
+      return Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart));
+    }
+
+    function matchScoreForFace(pts, state) {
+      return matchPartsForFace(pts, state).score;
+    }
+
+    function bestFaceIndex(faces, state, minScore) {
+      let bestI = -1, bestScore = -1;
+      for (let i = 0; i < faces.length; i++) {
+        const score = matchScoreForFace(faces[i], state);
+        if (score > bestScore) { bestScore = score; bestI = i; }
+      }
+      if (bestI < 0 || bestScore < minScore) return { index: -1, score: Math.max(0, bestScore) };
+      return { index: bestI, score: bestScore };
     }
 
     function pickOwnerFace(faces, nowMs) {
       const faceCount = faces.length;
+      const displayName = faceOwnerState.displayName || '';
       if (!faceCount) {
         return {
           index: -1, owner_enrolled: faceOwnerState.enrolled,
           // Empty frame is absence, not substitution.
           owner_match: null,
-          match_score: 0, secondary_count: 0, face_count: 0,
+          match_score: 0, secondary_count: 0, face_count: 0, display_name: displayName,
         };
       }
       if (!faceOwnerState.enrolled) {
-        const idx = largestFaceIndex(faces);
-        const box = faceBoxFromPts(faces[idx]);
-        const fp = faceFingerprint(faces[idx]);
-        if (faceOwnerState.lastBox && boxIoU(box, faceOwnerState.lastBox) >= OWNER_MATCH_IOU_MIN) {
+        const hasCandidate = !!(faceOwnerState.fingerprint || faceOwnerState.lastBox);
+        if (hasCandidate) {
+          const best = bestFaceIndex(faces, faceOwnerState, OWNER_ENROLL_SCORE_MIN);
+          if (best.index < 0) {
+            const idx = largestFaceIndex(faces);
+            faceOwnerState.enrollStartedMs = nowMs;
+            faceOwnerState.lastBox = faceBoxFromPts(faces[idx]);
+            const fp = faceFingerprint(faces[idx]);
+            faceOwnerState.fingerprint = fp ? fp.slice() : null;
+            return {
+              index: idx, owner_enrolled: false, owner_match: null, match_score: 0,
+              secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
+              display_name: displayName,
+            };
+          }
+          const idx = best.index;
+          const box = faceBoxFromPts(faces[idx]);
+          const fp = faceFingerprint(faces[idx]);
           if (!faceOwnerState.enrollStartedMs) faceOwnerState.enrollStartedMs = nowMs;
+          faceOwnerState.lastBox = box;
+          if (fp) faceOwnerState.fingerprint = fp.slice();
           if ((nowMs - faceOwnerState.enrollStartedMs) >= OWNER_ENROLL_HOLD_MS && fp && box) {
             faceOwnerState.enrolled = true;
-            faceOwnerState.fingerprint = fp.slice();
-            faceOwnerState.lastBox = box;
             faceOwnerState.matchScore = 1;
+            if (!(faceOwnerState.displayName || '').trim()) {
+              const nameEl = document.getElementById('face-id-name');
+              faceOwnerState.displayName = ((nameEl && nameEl.value) || '').trim() || 'Learner';
+            }
+            saveFaceIdProfile();
+            updateFaceIdUi();
             return {
               index: idx, owner_enrolled: true, owner_match: true, match_score: 1,
               secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
+              display_name: faceOwnerState.displayName,
             };
           }
-        } else {
-          faceOwnerState.enrollStartedMs = nowMs;
-          faceOwnerState.lastBox = box;
-          faceOwnerState.fingerprint = fp ? fp.slice() : null;
+          return {
+            index: idx, owner_enrolled: false, owner_match: null, match_score: best.score,
+            secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
+            display_name: displayName,
+          };
         }
+        const idx = largestFaceIndex(faces);
+        const box = faceBoxFromPts(faces[idx]);
+        const fp = faceFingerprint(faces[idx]);
+        faceOwnerState.enrollStartedMs = nowMs;
+        faceOwnerState.lastBox = box;
+        faceOwnerState.fingerprint = fp ? fp.slice() : null;
         return {
           index: idx, owner_enrolled: false, owner_match: null, match_score: 0,
           secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
+          display_name: displayName,
         };
       }
-      let bestI = 0, bestScore = -1, bestFpPart = 0;
+      let bestI = 0, bestScore = -1;
       for (let i = 0; i < faces.length; i++) {
-        const parts = matchPartsForFace(faces[i], faceOwnerState);
-        if (parts.score > bestScore) { bestScore = parts.score; bestFpPart = parts.fpPart; bestI = i; }
+        const score = matchScoreForFace(faces[i], faceOwnerState);
+        if (score > bestScore) { bestScore = score; bestI = i; }
       }
-      const matched = bestScore >= OWNER_MATCH_SCORE_MIN && bestFpPart >= OWNER_MATCH_FP_MIN;
+      const matched = bestScore >= OWNER_MATCH_SCORE_MIN;
       if (matched) {
         const box = faceBoxFromPts(faces[bestI]);
         if (box) {
@@ -3172,7 +3384,7 @@ MONITOR_JS = (
                 w: 0.7 * lb.w + 0.3 * box.w, h: 0.7 * lb.h + 0.3 * box.h }
             : box;
           const fp = faceFingerprint(faces[bestI]);
-          if (fp && faceOwnerState.fingerprint && bestFpPart >= OWNER_ADAPT_FP_MIN) {
+          if (fp && faceOwnerState.fingerprint) {
             faceOwnerState.fingerprint = faceOwnerState.fingerprint.map(
               (v, i) => 0.85 * v + 0.15 * fp[i]
             );
@@ -3182,14 +3394,49 @@ MONITOR_JS = (
         return {
           index: bestI, owner_enrolled: true, owner_match: true, match_score: bestScore,
           secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
+          display_name: faceOwnerState.displayName || displayName,
         };
       }
-      faceOwnerState.matchScore = Math.max(0, bestScore);
+      // Stranger in frame — do not hand metrics to them (index=-1).
+      const raw = bestFaceIndex(faces, faceOwnerState, 0);
+      faceOwnerState.matchScore = Math.max(0, raw.score);
       return {
-        index: bestI, owner_enrolled: true, owner_match: false,
-        match_score: Math.max(0, bestScore),
-        secondary_count: Math.max(0, faceCount - 1), face_count: faceCount,
+        index: -1, owner_enrolled: true, owner_match: false,
+        match_score: Math.max(0, raw.score),
+        secondary_count: faceCount, face_count: faceCount,
+        display_name: faceOwnerState.displayName || displayName,
       };
+    }
+
+    function enrollFaceIdNow() {
+      const nameEl = document.getElementById('face-id-name');
+      const name = ((nameEl && nameEl.value) || '').trim() || 'Learner';
+      if (!lastDetectedFaces || !lastDetectedFaces.length) {
+        toast('Start the camera and face the lens, then Enroll Face ID.');
+        return;
+      }
+      let idx = -1;
+      if (faceOwnerState.fingerprint || faceOwnerState.lastBox) {
+        const best = bestFaceIndex(lastDetectedFaces, faceOwnerState, OWNER_ENROLL_SCORE_MIN);
+        idx = best.index;
+      }
+      if (idx < 0) idx = largestFaceIndex(lastDetectedFaces);
+      const pts = lastDetectedFaces[idx];
+      const box = faceBoxFromPts(pts);
+      const fp = faceFingerprint(pts);
+      if (!box || !fp) {
+        toast('Could not read a face mesh — move closer and try again.');
+        return;
+      }
+      faceOwnerState.enrolled = true;
+      faceOwnerState.displayName = name;
+      faceOwnerState.fingerprint = fp.slice();
+      faceOwnerState.lastBox = box;
+      faceOwnerState.matchScore = 1;
+      faceOwnerState.enrollStartedMs = Date.now();
+      saveFaceIdProfile();
+      updateFaceIdUi();
+      toast('Face ID enrolled: ' + name + ' — teaching tracks only this person.');
     }
 
     function secondaryBoxesFromFaces(faces, ownerIdx) {
@@ -3855,6 +4102,25 @@ MONITOR_JS = (
         ctx.arc((1 - p.x) * w, p.y * h, Math.max(2, w * 0.004), 0, Math.PI * 2);
         ctx.fill();
       });
+      const label = (lastFaceContours.displayName || '').trim();
+      if (label && !mismatch) {
+        let minY = 1, minX = 1, maxX = 0;
+        pts.forEach((p) => {
+          if (!p) return;
+          if (p.y < minY) minY = p.y;
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+        });
+        const lx = (1 - (minX + maxX) / 2) * w;
+        const ly = Math.max(14, minY * h - 10);
+        ctx.font = 'bold 12px ui-sans-serif, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+        const tw = ctx.measureText(label).width + 10;
+        ctx.fillRect(lx - tw / 2, ly - 12, tw, 16);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillText(label, lx, ly);
+      }
       ctx.restore();
     }
 
@@ -3869,6 +4135,7 @@ MONITOR_JS = (
         const result = lm.detectForVideo(camVideo, performance.now());
         const faces = result.faceLandmarks || [];
         if (!faces.length) {
+          lastDetectedFaces = null;
           lastFaceContours = null;
           moodHistory = [];
           eyesClosedSinceMs = 0;
@@ -3880,19 +4147,58 @@ MONITOR_JS = (
             attention: 'away_from_webcam', source: 'face_contours',
             owner_face_enrolled: faceOwnerState.enrolled,
             owner_face_match: null,
+            owner_face_name: faceOwnerState.displayName || null,
             owner_match_score: 0,
             secondary_face_count: 0,
           };
         }
+        lastDetectedFaces = faces;
         const pick = pickOwnerFace(faces, Date.now());
+        // Face ID mismatch: strangers do not drive mood/attention/teaching metrics.
+        if (pick.owner_enrolled && pick.owner_match === false) {
+          const statusEl = document.getElementById('face-id-status');
+          if (statusEl) {
+            statusEl.className = 'face-id-status bad';
+            statusEl.textContent = 'Face ID mismatch — '
+              + (pick.display_name || faceOwnerState.displayName || 'enrolled learner')
+              + ' not in frame. Teaching paused; other faces ignored.';
+          }
+          lastFaceContours = {
+            pts: null, connections: [], mood: 'unknown',
+            secondaryBoxes: faces.map((f) => faceBoxFromPts(f)).filter(Boolean),
+            ownerStatus: 'mismatch',
+            displayName: pick.display_name || faceOwnerState.displayName || '',
+          };
+          return {
+            face_count: faces.length,
+            expression_label: 'unknown',
+            expression_confidence: 0,
+            gaze_frontal: 0,
+            gaze_down_score: 0,
+            eyes_closed_score: 0,
+            yawn_score: 0,
+            face_size_ratio: null,
+            attention: 'away_from_webcam',
+            source: 'face_contours',
+            owner_face_enrolled: true,
+            owner_face_match: false,
+            owner_face_name: pick.display_name || faceOwnerState.displayName || null,
+            owner_match_score: pick.match_score,
+            secondary_face_count: pick.secondary_count,
+          };
+        }
         const faceIdx = pick.index >= 0 ? pick.index : 0;
         const pts = faces[faceIdx];
         const ownerStatus = !pick.owner_enrolled ? 'enrolling'
           : (pick.owner_match ? 'owner' : 'mismatch');
+        if (pick.owner_enrolled && pick.owner_match) {
+          updateFaceIdUi();
+        }
         setDetectorStatus('face_mesh',
           'face mesh tracking (' + (lm._assetLabel || 'assets') + '/' + (lm._delegate || '?')
           + ') · ' + faces.length + ' face' + (faces.length === 1 ? '' : 's')
-          + ' · ' + ownerStatus);
+          + ' · ' + ownerStatus
+          + (pick.display_name ? (' · ' + pick.display_name) : ''));
         const bs = blendshapeMap(result.faceBlendshapes, faceIdx);
         let mood = Object.keys(bs).length
           ? emotionFromBlendshapes(bs)
@@ -3904,6 +4210,7 @@ MONITOR_JS = (
           pts, connections, mood: mood.expression_label,
           secondaryBoxes: secondaryBoxesFromFaces(faces, faceIdx),
           ownerStatus,
+          displayName: pick.display_name || faceOwnerState.displayName || '',
         };
         const nose = pts[1], leftEye = pts[33], rightEye = pts[263];
         let gaze_frontal = 0.85;
@@ -3970,6 +4277,7 @@ MONITOR_JS = (
           pose_source: matrixPose ? 'matrix' : 'landmarks',
           owner_face_enrolled: !!pick.owner_enrolled,
           owner_face_match: pick.owner_match,
+          owner_face_name: pick.display_name || faceOwnerState.displayName || null,
           owner_match_score: pick.match_score,
           secondary_face_count: pick.secondary_count,
           ...pose,
@@ -4064,9 +4372,7 @@ MONITOR_JS = (
       const smileRaw = Math.max(0, Math.min(1, (me - 0.035) / 0.08 + Math.max(0, mouthMean - cheekMean) * 1.8));
       const smile = smileRaw * Math.max(0, 1 - Math.max(0, gaze_down - 0.20) / 0.50);
       const sad = Math.max(0, Math.min(1, Math.max(0, (cheekMean - eyeMean) * 2.2) + Math.max(0, 0.05 - me) * 8 + Math.max(0, 0.55 - smile) * 0.35));
-      // Parity with facial_experience.py (the server reference): neutral
-      // confidence scales with how undecided the smile/sad scores are.
-      let expression_label = 'neutral', expression_confidence = Math.max(0, Math.min(1, 0.40 + (1 - Math.abs(smile - sad)) * 0.35));
+      let expression_label = 'neutral', expression_confidence = 0.45;
       if (smile >= 0.55 && smile >= sad + 0.08) { expression_label = 'happy'; expression_confidence = 0.45 + smile * 0.5; }
       else if (sad >= 0.52 && sad > smile + 0.05) { expression_label = 'sad'; expression_confidence = 0.42 + sad * 0.5; }
       // Eye state is deliberately NOT guessed here. The old edge-contrast proxy
@@ -4076,15 +4382,18 @@ MONITOR_JS = (
       // (MediaPipe blendshapes) may claim eye state; see trackFaceContoursAndMood.
       const eyes_closed_score = null;
       const eyes_closed = false;
-      // Grid yawn removed: the dark-mouth-cavity proxy false-fired on head-low
-      // and dark-torso frames (same class of false positive as the removed
-      // eyes-closed proxy above), and the server never computed it either —
-      // the promotion branch there was dead code. Only real landmarks may
-      // claim yawning.
-      const yawn_score = null;
-      const yawning = false;
-      // Parity with facial_experience.py: eyes_away at gaze_down >= 0.60.
-      const attention = (gaze_down >= 0.60 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking';
+      // Grid yawn: dark mouth cavity relative to cheeks + weak smile edges.
+      const yawn_score = Math.max(0, Math.min(1,
+        Math.max(0, (cheekMean - mouthMean) * 2.6)
+        + Math.max(0, 0.045 - me) * 5.5
+        + Math.max(0, 0.35 - smile) * 0.35
+        - smile * 0.55
+      ));
+      const yawning = yawn_score >= 0.55 && yawn_score >= smile + 0.08;
+      if (yawning) { expression_label = 'yawning'; expression_confidence = 0.45 + yawn_score * 0.45; }
+      const attention = yawning
+        ? 'yawning'
+        : ((gaze_down >= 0.45 || gaze_frontal < 0.35) ? 'eyes_away' : 'looking');
       // Linear face size from dark-pixel bbox (larger face ⇒ closer to camera).
       let minX = w, minY = h, maxX = -1, maxY = -1;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -4395,10 +4704,7 @@ MONITOR_JS = (
     }
 
     // Finite numbers pass through; anything unmeasured becomes null.
-    // Named signalNum: this file also has a display formatter `num(v, digits)`
-    // — the duplicate declaration silently replaced it and the dashboard
-    // rendered literal "null" strings / unrounded floats.
-    function signalNum(value) {
+    function num(value) {
       return (typeof value === 'number' && isFinite(value)) ? value : null;
     }
 
@@ -4426,29 +4732,34 @@ MONITOR_JS = (
       const signal = {
             participant_id: 'camera-local',
             timestamp_ms: liveCamTimestampMs(),
-            // Synthetic modes (test pattern, silhouette demo) have no real
-            // face — the coarse grid estimator reads the bars as a happy,
-            // focused learner. Zero the face fields for both.
-            face_count: (usingSilhouette || usingPattern) ? 0 : facial.face_count,
-            liveness_state: (usingSilhouette || usingPattern) ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
+            face_count: usingSilhouette ? 0 : facial.face_count,
+            liveness_state: usingSilhouette ? 'unknown' : (facial.face_count > 0 ? 'live' : 'unknown'),
             owner_face_enrolled: !!(facial.owner_face_enrolled),
             owner_face_match: facial.owner_face_match == null ? null : !!facial.owner_face_match,
+            owner_face_name: facial.owner_face_name || faceOwnerState.displayName || null,
             owner_match_score: signalNum(facial.owner_match_score),
             secondary_face_count: usingSilhouette ? 0 : Math.max(0, facial.secondary_face_count || 0),
             foreground_ratio: usingSilhouette ? Math.max(0.96, foreground) : Math.min(0.55, Math.max(0.25, foreground)),
             motion_score: motion,
             body_motion_score: motion,
             fidget_score: Math.max(0, Math.min(1, (motion - 0.12) * 2.4)),
-            expression_label: usingPattern ? 'unknown' : facial.expression_label,
-            expression_confidence: usingPattern ? null : facial.expression_confidence,
-            gaze_frontal: usingPattern ? null : facial.gaze_frontal,
-            gaze_down_score: usingPattern ? null : facial.gaze_down_score,
+            expression_label: facial.expression_label,
+            expression_confidence: facial.expression_confidence,
+            gaze_frontal: facial.gaze_frontal,
+            gaze_down_score: facial.gaze_down_score,
+            gaze_up_score: (stareResidualDeg != null && stareResidualDeg < -6)
+              ? clamp01((-stareResidualDeg - 6) / 30) : null,
+            gaze_left_score: (facial.head_pose_yaw != null && facial.head_pose_yaw < -10)
+              ? clamp01((-facial.head_pose_yaw - 10) / 30) : null,
+            gaze_right_score: (facial.head_pose_yaw != null && facial.head_pose_yaw > 10)
+              ? clamp01((facial.head_pose_yaw - 10) / 30) : null,
+            stare_residual_deg: num(stareResidualDeg),
             // null (not 0) when no real detector measured it, so the server can
             // tell "measured as open" apart from "nobody looked".
-            eyes_closed_score: signalNum(facial.eyes_closed_score),
-            yawn_score: signalNum(facial.yawn_score),
-            brow_raise_score: signalNum(facial.brow_raise_score),
-            smile_score: signalNum(facial.smile_score),
+            eyes_closed_score: num(facial.eyes_closed_score),
+            yawn_score: num(facial.yawn_score),
+            brow_raise_score: num(facial.brow_raise_score),
+            smile_score: num(facial.smile_score),
             detector_source: detectorSource,
             head_pose_pitch: facial.head_pose_pitch,
             head_pose_yaw: facial.head_pose_yaw,
@@ -4496,10 +4807,7 @@ MONITOR_JS = (
             eyeMidX: (left.x + right.x) / 2,
             eyeMidY: (left.y + right.y) / 2,
             faceSize: Math.max(0.05, facial.face_size_ratio || (chin.y - brow.y)),
-            // Use the geometric pitch (guaranteed positive = down) — the matrix
-            // and landmark paths disagree on head_pose_pitch's sign, and the
-            // dozing head-sag term requires positive = down.
-            pitch: (facial.head_pitch_geom_deg != null ? facial.head_pitch_geom_deg : facial.head_pose_pitch),
+            pitch: facial.head_pose_pitch,
             brow: facial.brow_raise_score || 0,
             smile: facial.smile_score || 0,
             gazeFrontal: facial.gaze_frontal || 0.5,
@@ -4539,9 +4847,7 @@ MONITOR_JS = (
       signal.keyboard_typing_audio_score = clickResult.keyboardScore;
       signal.external_music_score = clickResult.externalMusicScore > 0.05
         ? Math.round(clickResult.externalMusicScore * 1000) / 1000 : null;
-      // The ear cue needs a face — an empty dark room reads darkLeftRatio > 0.40
-      // with gazeDown 0 and false-fired "phone at ear" while nobody was present.
-      signal.phone_visible = phoneDet.below || (phoneDet.ear && facial.face_count > 0) || clickResult.phonecall;
+      signal.phone_visible = phoneDet.below || phoneDet.ear || clickResult.phonecall;
       signal.hands_on_face_score = handsScore > 0.05 ? Math.round(handsScore * 1000) / 1000 : null;
       signal.phone_in_hand_score = held > 0.05 && phoneGridScore >= 0.35
         ? Math.round(held * 1000) / 1000 : null;
@@ -4615,7 +4921,10 @@ MONITOR_JS = (
         maybeAnnounceIntegrity('closed', 'I notice your eyes are closed. Please open them and look at the lesson.');
       } else if (facial && facial.owner_face_enrolled && facial.owner_face_match === false
                  && (facial.face_count || 0) > 0) {
-        maybeAnnounceIntegrity('owner', 'A different person appears to be in front of the camera. Please return the enrolled learner.');
+        const who = facial.owner_face_name || faceOwnerState.displayName || 'the enrolled learner';
+        maybeAnnounceIntegrity('owner',
+          'A different person is in front of the camera. Teaching is paused until '
+          + who + ' returns.');
       } else if ((p.yawn_for_ms || 0) >= 1500) {
         maybeAnnounceIntegrity('yawn', 'I notice you are yawning. Take a quick stretch if you need to, then refocus on the lesson.');
       } else if (p.phone_visible && (p.eyes_away_for_ms || 0) >= 2000) {
@@ -4644,8 +4953,9 @@ MONITOR_JS = (
         ['light', pct(p.light_quality_score)], ['image', pct(p.image_detection_quality_score)],
         ['confidence', pct(p.recognition_confidence)], ['silhouette', p.silhouette_detected ? 'yes' : 'no'],
         ['faces', facial ? facial.face_count : p.face_count],
-        ['owner', facial && facial.owner_face_enrolled
-          ? (facial.owner_face_match ? 'locked' : 'mismatch')
+        ['Face ID', facial && facial.owner_face_enrolled
+          ? ((facial.owner_face_name || faceOwnerState.displayName || 'Learner')
+             + (facial.owner_face_match ? ' · locked' : ' · mismatch'))
           : 'enrolling'],
         ['distance', num(p.distance_from_camera_m)], ['engagement', pct(p.expression_behavior_score)],
         ['mic', pct(p.microphone_quality_score)], ['noise filter', pct(p.noise_filter_effectiveness_score)],
@@ -4664,9 +4974,8 @@ MONITOR_JS = (
     function startSampling() {
       if (camTimer) clearInterval(camTimer);
       lastSilhouetteDetected = false;
-      resetFaceOwner();
+      resetFaceOwner({ clearProfile: false });
       resetLiveAway(true);
-      faceLandmarkHistory = [];  // no stale samples across a camera restart
       refreshSilhouetteGuide();
       camTimer = setInterval(sampleFrame, 300);
       sampleFrame();
@@ -4678,7 +4987,7 @@ MONITOR_JS = (
       stopAudioMeter();
       camVideo.srcObject = null; usingPattern = false; usingSilhouette = false;
       lastSilhouetteDetected = false;
-      resetFaceOwner();
+      resetFaceOwner({ clearProfile: false });
       resetLiveAway(true);
       patternCanvas.style.display = 'none'; camVideo.style.visibility = 'visible';
       clearSilhouetteOverlay();
@@ -4762,6 +5071,22 @@ MONITOR_JS = (
       startSampling();
     });
     document.getElementById('cam-stop').addEventListener('click', stopCamera);
+    document.getElementById('face-id-enroll')?.addEventListener('click', () => {
+      enrollFaceIdNow();
+    });
+    document.getElementById('face-id-clear')?.addEventListener('click', () => {
+      clearFaceIdProfile();
+      toast('Face ID cleared.');
+    });
+    document.getElementById('face-id-name')?.addEventListener('change', () => {
+      const nameEl = document.getElementById('face-id-name');
+      const name = ((nameEl && nameEl.value) || '').trim();
+      if (!name) return;
+      faceOwnerState.displayName = name;
+      if (faceOwnerState.enrolled) saveFaceIdProfile();
+      updateFaceIdUi();
+    });
+    resetFaceOwner({ clearProfile: false });
     document.getElementById('class-gate-run')?.addEventListener('click', () => {
       const grid = luminanceGrid();
       const out = document.getElementById('class-gate-result');
@@ -4989,6 +5314,20 @@ MONITOR_PAGE_TEMPLATE = (
               title="Which detector is producing the numbers below.">detector: loading face mesh…</span>
       </div>
       <div class="camrow" id="cam-readings"></div>
+      <div class="face-id-panel" id="face-id-panel">
+        <h4>Face ID (named profile)</h4>
+        <div class="face-id-row">
+          <input type="text" id="face-id-name" maxlength="80" placeholder="Learner name"
+                 autocomplete="name" aria-label="Face ID display name" />
+          <button type="button" id="face-id-enroll"
+                  title="Overwrite Face ID with the person currently in view">Enroll now</button>
+          <button type="button" id="face-id-clear"
+                  title="Clear Face ID so the next person can enroll">Clear</button>
+        </div>
+        <div class="face-id-status warn" id="face-id-status">
+          No Face ID yet — start the camera; the first stable person enrolls after ~1.5s.
+        </div>
+      </div>
       <div class="tilt-lab" id="tilt-lab">
         <h4>Stare geometry lab</h4>
         <div class="tilt-row">

@@ -1,18 +1,23 @@
 """Line and word timings for karaoke highlighting and the bouncing ball.
 
-The featured MP3s ship without a forced-alignment track, so timings are derived
-from syllable weight: a line with more syllables holds the spotlight longer, and
-each word inside a line gets its share of that line's slice. That is accurate
-enough for a follow-the-ball reading aid, and the player exposes a live sync
-nudge so a listener can trim any residual drift.
+Featured tracks are aligned against their own audio: ``scripts/align_songs.py``
+measures where the singing actually is and commits the result to
+``data/alignment.jsonl``, which is what the player gets. That keeps the intro,
+the rests between sections and the outro out of the lyrics.
 
-Hand-tuned values always win: a line with ``start_sec``/``end_sec`` in the song
-data is used verbatim, and a song can declare ``lead_in_sec`` for its intro.
+Anything without measured alignment falls back to syllable weight: a line with
+more syllables holds the spotlight longer, and each word inside a line gets its
+share of that line's slice.
+
+Precedence is hand-tuned song data, then measured alignment, then the estimate.
 """
 
 from __future__ import annotations
 
+import json
 import re
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from .catalog import Song, SongLine
@@ -24,6 +29,52 @@ _MIN_WORD_SEC = 0.12
 
 _VOWEL_GROUPS = re.compile(r"[aeiouy]+")
 _WORD_CHARS = re.compile(r"[^a-z']+")
+
+# Playback duration this far from the aligned reference means a different
+# encode; the measured timings are stretched to fit rather than thrown away.
+_DURATION_TOLERANCE_SEC = 0.5
+
+
+def _alignment_path() -> Path:
+    here = Path(__file__).resolve().parent
+    return here.parent.parent / "data" / "alignment.jsonl"
+
+
+@lru_cache(maxsize=1)
+def _alignments() -> dict[str, dict[str, Any]]:
+    """Measured per-line timings keyed by song id (empty when never aligned)."""
+    path = _alignment_path()
+    if not path.is_file():
+        return {}
+    rows: dict[str, dict[str, Any]] = {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            rec = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        song_id = str(rec.get("song_id") or "")
+        if song_id:
+            rows[song_id] = rec
+    return rows
+
+
+def alignment_for(song_id: str) -> dict[str, Any] | None:
+    return _alignments().get(song_id)
+
+
+def _audio_matches(record: dict[str, Any]) -> bool:
+    """False when the MP3 was replaced after alignment was measured."""
+    expected = record.get("audio_bytes")
+    name = str(record.get("audio_file") or "")
+    if not expected or not name:
+        return True
+    audio = _alignment_path().parent / "audio" / name
+    if not audio.is_file():
+        return True
+    return audio.stat().st_size == int(expected)
 
 
 def syllable_count(word: str) -> int:
@@ -78,6 +129,61 @@ def word_timings(text: str, start: float, end: float) -> list[dict[str, Any]]:
     return out
 
 
+def _aligned_timings(
+    song: Song, *, duration_sec: float | None = None
+) -> dict[str, Any] | None:
+    """Measured timings for a featured song, stretched to the played encode."""
+    record = alignment_for(song.song_id)
+    if not record or not _audio_matches(record):
+        return None
+    by_line = {
+        int(row["line_no"]): row
+        for row in record.get("lines", [])
+        if row.get("line_no") is not None
+    }
+    if not all(line.line_no in by_line for line in song.lines):
+        return None
+
+    reference = float(record.get("duration_sec") or 0.0)
+    played = float(duration_sec or 0.0) or reference
+    scale = 1.0
+    if reference > 0 and played > 0 and abs(played - reference) > _DURATION_TOLERANCE_SEC:
+        scale = played / reference
+
+    rows: list[dict[str, Any]] = []
+    for line in song.lines:
+        measured = by_line[line.line_no]
+        start = float(measured["start_sec"]) * scale
+        end = float(measured["end_sec"]) * scale
+        # Hand-tuned song data still wins over the measurement.
+        if line.start_sec is not None:
+            start = float(line.start_sec)
+        if line.end_sec is not None:
+            end = float(line.end_sec)
+        end = max(start + _MIN_WORD_SEC, end)
+        rows.append(
+            {
+                "line_no": line.line_no,
+                "text": line.text,
+                "section": line.section,
+                "start": round(start, 3),
+                "end": round(end, 3),
+                "words": word_timings(line.text, start, end),
+            }
+        )
+    duration = played or (rows[-1]["end"] if rows else 0.0)
+    return {
+        "song_id": song.song_id,
+        "duration_sec": round(duration, 3),
+        "lead_in_sec": round(float(record.get("lead_in_sec") or 0.0) * scale, 3),
+        "line_count": len(rows),
+        "word_count": sum(len(r["words"]) for r in rows),
+        "source": "measured vocal alignment",
+        "aligned": True,
+        "lines": rows,
+    }
+
+
 def song_timings(
     song: Song,
     *,
@@ -86,6 +192,9 @@ def song_timings(
 ) -> dict[str, Any]:
     """Per-line + per-word timings covering the whole song."""
     lines = song.lines
+    aligned = _aligned_timings(song, duration_sec=duration_sec)
+    if aligned is not None:
+        return aligned
     duration = float(duration_sec or song.duration_hint_sec or 0.0)
     if duration <= 0.0:
         duration = 3.0 * max(1, len(lines))
@@ -141,6 +250,7 @@ def song_timings(
         "line_count": len(rows),
         "word_count": sum(len(r["words"]) for r in rows),
         "source": "syllable-weighted estimate",
+        "aligned": False,
         "lines": rows,
     }
 

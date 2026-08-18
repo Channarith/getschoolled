@@ -31,6 +31,7 @@ import {
   startSession,
   submitPostClassSurvey,
   submitPulseSurvey,
+  translateText,
   updateTopicMastery,
   type Answer,
   type AssessmentCheckpointSpec,
@@ -49,10 +50,12 @@ import {
   canAwardCourseCompletion,
   findDueFormativeCheckpoint,
   findDueSummativeCheckpoint,
+  requiresRegisteredAccountForAccreditation,
   shouldOpenSummativeOnAdvance,
 } from "../lib/assessmentFlow";
 import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
+import CourseStoryboardPlayer from "./CourseStoryboardPlayer";
 import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
 import CameraLightingScreener from "./CameraLightingScreener";
 import { useT } from "../lib/i18n";
@@ -118,6 +121,14 @@ export default function ClassRoom({
   const [classType, setClassType] = useState<string>("group");
   const [view, setView] = useState<SessionView | null>(null);
   const [slide, setSlide] = useState<Slide | null>(null);
+  const [storyboardI18n, setStoryboardI18n] = useState<{
+    title: string;
+    body: string;
+    narration: string;
+    concept: string;
+    examples: string[];
+    activity: string;
+  } | null>(null);
   const [question, setQuestion] = useState("");
   const [chat, setChat] = useState<
     {
@@ -459,6 +470,60 @@ export default function ClassRoom({
     if (el?.requestFullscreen) void el.requestFullscreen().catch(() => undefined);
   }
 
+  // Translate the complete teaching beat (captions, examples, activity and
+  // spoken narration) into any of the platform's 27 languages.  The speech
+  // gateway uses NLLB when available; failure is an honest English fallback.
+  useEffect(() => {
+    let active = true;
+    if (!slide) {
+      setStoryboardI18n(null);
+      return () => { active = false; };
+    }
+    const source = slide.storyboard_source_language || view?.lesson.language || "en";
+    const examples = slide.storyboard_examples || [];
+    if (locale === source) {
+      setStoryboardI18n({
+        title: slide.title,
+        body: slide.body,
+        narration: slide.narration,
+        concept: slide.storyboard_concept || "",
+        examples,
+        activity: slide.storyboard_activity || "",
+      });
+      return () => { active = false; };
+    }
+    setStoryboardI18n(null);
+    const values = [
+      slide.title,
+      slide.body,
+      slide.narration,
+      slide.storyboard_concept || "",
+      ...examples,
+      slide.storyboard_activity || "",
+    ];
+    void Promise.all(
+      values.map(async (value) => {
+        if (!value) return "";
+        try {
+          return (await translateText(value, source, locale)).text;
+        } catch {
+          return value;
+        }
+      }),
+    ).then((translated) => {
+      if (!active) return;
+      setStoryboardI18n({
+        title: translated[0],
+        body: translated[1],
+        narration: translated[2],
+        concept: translated[3],
+        examples: translated.slice(4, 4 + examples.length),
+        activity: translated[4 + examples.length] || "",
+      });
+    });
+    return () => { active = false; };
+  }, [slide, view?.lesson.language, locale]);
+
   // On each slide change, reset any prior speaking-checkpoint result. For a
   // repeat-after-me slide, have the teacher say the phrase so the learner can
   // echo it (the class then pauses here until they speak or advance).
@@ -468,6 +533,8 @@ export default function ClassRoom({
     setListening(false);
     if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; }
     if (!slide || !view || assessmentRun || showPulse || popQuiz) return;
+    const sourceLanguage = slide.storyboard_source_language || view.lesson.language || "en";
+    if (locale !== sourceLanguage && !storyboardI18n) return;
     // The AI instructor narrates EVERY slide as it appears (this is what makes it
     // feel driven/immersive) — a repeat-after-me slide leads with its cue. When
     // the narration finishes, auto-advance so it teaches the whole course end to
@@ -475,8 +542,10 @@ export default function ClassRoom({
     // Narrate the full slide body (a substantive mini-lecture), not just the
     // terse one-line script, so a self-paced course actually teaches in depth.
     const line = slide.say_aloud
-      ? (slide.narration || `Repeat after me: ${slide.say_aloud}`)
-      : `${slide.title}. ${slide.body || slide.narration || ""}`.trim();
+      ? (storyboardI18n?.narration || slide.narration || `Repeat after me: ${slide.say_aloud}`)
+      : `${storyboardI18n?.title || slide.title}. ${
+          storyboardI18n?.body || slide.body || storyboardI18n?.narration || slide.narration || ""
+        }`.trim();
     const isLast = slide.index >= view.lesson.slides.length - 1;
     let advanced = false;
     const goNext = () => {
@@ -506,7 +575,7 @@ export default function ClassRoom({
     }
     return () => { if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slide?.index]);
+  }, [slide?.index, storyboardI18n?.narration]);
 
   // Stop any pending auto-advance when leaving the class.
   useEffect(() => () => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); }, []);
@@ -645,7 +714,18 @@ export default function ClassRoom({
   }
 
   async function onStart() {
-    if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
+    // HARD RULE: accreditation / certification courses require a registered account.
+    // Guests may take sample courses only (server also enforces this on /api/sessions).
+    if (!getToken()) {
+      setLoggedIn(false);
+      if (requiresRegisteredAccountForAccreditation(lessonId)) {
+        setError(
+          "Accreditation and certification courses require a registered account. " +
+            "Sign up or sign in to take this course for credit."
+        );
+      }
+      return;
+    }
     setError("");
     setFinish(null);
     setBusy(true);
@@ -1143,7 +1223,15 @@ export default function ClassRoom({
         </div>
       )}
 
-      {!view && !loggedIn && <SignInToUse />}
+      {!view && !loggedIn && (
+        <SignInToUse
+          body={
+            requiresRegisteredAccountForAccreditation(lessonId)
+              ? "Accreditation and certification courses require a registered account. Guests may take sample courses only — sign up or sign in to continue this course for credit."
+              : undefined
+          }
+        />
+      )}
 
       {!view && loggedIn && !finish && !lightingReady && (
         <CameraLightingScreener
@@ -1270,9 +1358,22 @@ export default function ClassRoom({
                 </span>
               )}
             </div>
-            <h2 style={isFullscreen ? { fontSize: "clamp(30px, 4.2vw, 52px)", lineHeight: 1.15, color: "#fff", margin: "6px 0" } : undefined}>{slide.title}</h2>
-            <p style={isFullscreen ? { fontSize: "clamp(18px, 2.2vw, 26px)", lineHeight: 1.6, color: "#e8ecf6" } : undefined}>{slide.body}</p>
-            <p className="muted" style={isFullscreen ? { fontSize: 16, color: "#9fb4d8" } : undefined}>🔊 {slide.narration}</p>
+            <h2 style={isFullscreen ? { fontSize: "clamp(30px, 4.2vw, 52px)", lineHeight: 1.15, color: "#fff", margin: "6px 0" } : undefined}>{storyboardI18n?.title || slide.title}</h2>
+            {slide.storyboard_svg ? (
+              <CourseStoryboardPlayer
+                svg={slide.storyboard_svg}
+                concept={slide.storyboard_concept}
+                translatedConcept={storyboardI18n?.concept}
+                examples={storyboardI18n?.examples || slide.storyboard_examples}
+                activity={storyboardI18n?.activity || slide.storyboard_activity}
+                profileMode={slide.storyboard_profile_mode}
+                sourceLanguage={slide.storyboard_source_language}
+                sceneId={slide.storyboard_scene_id}
+                fullscreen={isFullscreen}
+              />
+            ) : null}
+            <p style={isFullscreen ? { fontSize: "clamp(18px, 2.2vw, 26px)", lineHeight: 1.6, color: "#e8ecf6" } : undefined}>{storyboardI18n?.body || slide.body}</p>
+            <p className="muted" style={isFullscreen ? { fontSize: 16, color: "#9fb4d8" } : undefined}>🔊 {storyboardI18n?.narration || slide.narration}</p>
 
             {slide.say_aloud && (
               <div className="card" style={{ borderColor: "#7c3aed", background: "rgba(124,58,237,0.08)", marginTop: 8 }}>

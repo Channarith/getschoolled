@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
+
+# Load config/local.env so XAI_API_KEY / ELEVENLABS_API_KEY / SPEECH_BASE_URL
+# work without a manual `set -a; . config/local.env` in every shell.
+try:
+    from aoep_shared.env_bootstrap import ensure_lab_env
+
+    ensure_lab_env()
+except Exception:  # noqa: BLE001 — labs must still boot offline / without shared
+    pass
+
+
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -69,7 +80,13 @@ class FeedbackReq(BaseModel):
 @app.get("/health")
 def health() -> dict[str, Any]:
     runner = get_runner()
-    cat = lab_catalog()
+    readiness: dict[str, Any] = {}
+    try:
+        from aoep_shared.env_bootstrap import speech_readiness
+
+        readiness = speech_readiness()
+    except Exception:  # noqa: BLE001
+        pass
     return {
         "ok": True,
         "service": "theodore-rag-lab",
@@ -86,6 +103,7 @@ def health() -> dict[str, Any]:
             "regurgitation",
             "feedback_learning",
         ],
+        **readiness,
     }
 
 

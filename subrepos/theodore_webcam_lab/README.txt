@@ -34,6 +34,10 @@ Feature scope
   light, image quality, expression/behavior, mic quality, noise filtering)
 - Tunable recognition accuracy: every threshold, calibration and scoring weight is
   a named knob (env, live API, or room preset) - see RECOGNITION TUNING below
+- Named Face ID: enroll the first stable person on camera (name + geometry
+  fingerprint, overwriteable in the Face ID panel), track only that person when
+  others appear, ignore non-matching faces for attention/behavior, and pause
+  teaching on Face ID mismatch
 - Sobel binary-edge imaging for sharpness/blur and exposure analysis, computed
   on-device or server-side from a posted luminance grid
 

@@ -2,10 +2,8 @@
  * Hermes lacks DOMException. livekit-client's bundled webrtc-adapter throws it
  * during connect/publish on both iOS and Android once WebRTC paths execute.
  */
-type DOMExceptionCtor = new (message?: string, name?: string) => Error;
-type DOMExceptionHost = typeof globalThis & {
-  DOMException?: DOMExceptionCtor;
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DOMExceptionHost = typeof globalThis & { DOMException?: any };
 
 export function ensureDOMExceptionGlobal(): void {
   const host = globalThis as DOMExceptionHost;
