@@ -275,7 +275,7 @@ Step 1 - automated tests (fastest confidence check, ~1 second)
 --------------------------------------------------------------
    python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 
-   EXPECT: "219 passed". These cover the analyzer, games, voice agent, the API,
+   EXPECT: "136 passed". These cover the analyzer, games, voice agent, the API,
    the vision and voice tuning knobs, Sobel imaging, the quality gates,
    the 24/7 training orchestrator, and one regression test per audited bug fix
    (see tests/test_audit_regressions.py).

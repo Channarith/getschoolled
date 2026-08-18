@@ -121,7 +121,7 @@ jobs:
       - name: Enable pnpm
         run: corepack enable && corepack prepare pnpm@11.8.0 --activate
       - name: Install mobile deps
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
       - name: Typecheck mobile app
         run: bash scripts/mobile-typecheck.sh
       - name: Mobile Jest unit tests

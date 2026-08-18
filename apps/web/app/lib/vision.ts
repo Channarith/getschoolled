@@ -194,11 +194,6 @@ export async function createVisionEngine(): Promise<VisionEngine> {
     } catch {
       /* best-effort */
     }
-    try {
-      recognizer.delete?.();
-    } catch {
-      /* best-effort */
-    }
   }
 
   return { detectAndEmbed, dispose };

@@ -18,7 +18,6 @@ const SERVICES = [
   "integrations",
   "speech",
   "perception",
-  "webcam",
 ];
 
 function serviceOrigin(name) {
