@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 import time as _time
 
 _log = logging.getLogger(__name__)
@@ -317,7 +318,13 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             raise HTTPException(status_code=401, detail="invalid email or password")
         if acct.totp_enabled and acct.totp_secret:
             mfa = sign_token(
-                {"sub": acct.id, "purpose": "mfa_pending"},
+                {
+                    "sub": acct.id,
+                    "purpose": "mfa_pending",
+                    # Unique per login so re-auth cannot reuse/reset a prior
+                    # mfa_token's failure counter by minting an identical JWT.
+                    "jti": secrets.token_hex(8),
+                },
                 token_key_fn(),
                 ttl_s=300,
             )
