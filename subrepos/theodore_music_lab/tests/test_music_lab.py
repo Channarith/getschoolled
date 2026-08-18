@@ -17,6 +17,16 @@ from theodore_music_lab.embeds import (
 )
 from theodore_music_lab.main import app
 from theodore_music_lab.media import load_clips, load_videos, resolve_clip
+from theodore_music_lab.practice import (
+    build_memory_drill,
+    build_quiz,
+    check_song_singing,
+    grade_memory,
+    grade_quiz,
+    paraphrase_line,
+    practice_menu,
+)
+from theodore_music_lab.pronounce import check_pronunciation, score_attempt
 from theodore_music_lab.session import SessionMode, SessionStore
 from theodore_music_lab.sing import (
     MAX_RATE,
@@ -41,14 +51,36 @@ from theodore_music_lab.storyboard import (
     scene_at,
     storyboard_for,
 )
-from theodore_music_lab.timing import song_timings, syllable_count
+from theodore_music_lab.timing import alignment_for, song_timings, syllable_count
+from theodore_music_lab.tts import (
+    VOICES,
+    TTSUnavailable,
+    clip_path,
+    rate_percent,
+    synthesize,
+    voice_candidates,
+    voice_for,
+)
 from theodore_music_lab.translations import translate_song
+from theodore_music_lab.vocal_align import (
+    VocalSpan,
+    align_lines_to_spans,
+    align_weights_to_spans,
+)
 
 
 @pytest.fixture()
 def offline(monkeypatch):
     """No LLM key: exercises the offline curated/lexicon + fallback paths."""
     monkeypatch.delenv("XAI_API_KEY", raising=False)
+
+
+@pytest.fixture()
+def tts_cache(monkeypatch, tmp_path):
+    """An empty clip cache, so a test never depends on the developer's real one."""
+    monkeypatch.setenv("MUSIC_LAB_TTS_CACHE", str(tmp_path / "tts"))
+    monkeypatch.delenv("MUSIC_LAB_TTS", raising=False)
+    return tmp_path / "tts"
 
 
 def _featured(cat: Catalog):
@@ -136,6 +168,171 @@ def test_player_page_uses_timeupdate_lyric_sync():
         assert page.status_code == 200
         assert "timeupdate" in page.text
         assert "syncActiveLineFromPlayer" in page.text
+
+
+def test_language_picker_offers_every_language_grouped_by_quality():
+    """A tick beside six names read as "only six supported"; groups say it plainly."""
+    with TestClient(app) as client:
+        page = client.get("/").text
+        assert "<optgroup" in page
+        assert "Full-line translations" in page
+        assert "Word-by-word glosses" in page
+        catalog = client.get("/api/music/languages").json()
+        assert catalog["count"] >= 26
+        curated = {row["code"] for row in catalog["catalog"] if row["curated"]}
+        # Chinese and Khmer must be full-line, not lexicon glosses.
+        assert {"zh", "km"} <= curated
+        for code in ("zh", "km"):
+            row = next(r for r in catalog["catalog"] if r["code"] == code)
+            assert row["curated_coverage"] == pytest.approx(1.0, abs=0.001)
+
+
+def test_every_translation_language_has_a_neural_voice():
+    """Device voices are why "Sing in Khmer" failed; the server must cover all 27."""
+    assert set(VOICES) == set(MEANING_LANGUAGES)
+    for code in MEANING_LANGUAGES:
+        female, male = VOICES[code]
+        locale = VOICE_TAGS[code]
+        for voice in (female, male):
+            assert voice.startswith(f"{locale}-"), (code, voice)
+            assert voice.endswith("Neural"), (code, voice)
+    assert voice_for("km") == "km-KH-SreymomNeural"
+    assert voice_for("km", gender="male") == "km-KH-PisethNeural"
+    assert voice_for("zh") == "zh-CN-XiaoxiaoNeural"
+    # An unknown code still speaks rather than crashing the sing toggle.
+    assert voice_for("xx").startswith("en-US-")
+
+
+def test_speech_rate_is_quantised_so_two_visits_reuse_one_clip():
+    # The rate follows the audio duration the browser reports, which wobbles by a
+    # fraction of a percent between encodes; neighbours share a 5% bucket.
+    assert rate_percent(1.11) == rate_percent(1.12) == "+10%"
+    assert rate_percent(1.23) == rate_percent(1.24) == "+25%"
+    for multiplier in (0.9, 1.03, 1.27, 1.68, 1.8):
+        assert int(rate_percent(multiplier).rstrip("%")) % 5 == 0
+    assert rate_percent(1.0) == "+0%"
+    assert rate_percent(1.5) == "+50%"
+    assert rate_percent(0.85) == "-15%"
+    # Absurd values are clamped, not passed to the voice service.
+    assert rate_percent(9.0) == "+100%"
+    assert rate_percent("nonsense") == "+0%"
+
+
+def test_a_cached_clip_is_served_without_any_engine(tts_cache, monkeypatch):
+    """Prefetched clips make every language work offline."""
+    monkeypatch.setenv("MUSIC_LAB_TTS", "off")
+    text = "ខ្ញុំទៅធ្វើការ"
+    path = clip_path(text, voice=voice_for("km"), rate=rate_percent(1.0))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"ID3-fake-khmer-clip")
+    assert synthesize(text, "km") == b"ID3-fake-khmer-clip"
+    with TestClient(app) as client:
+        got = client.get("/api/music/tts", params={"text": text, "lang": "km"})
+    assert got.status_code == 200
+    assert got.headers["content-type"] == "audio/mpeg"
+    assert got.content == b"ID3-fake-khmer-clip"
+
+
+def test_tts_answers_501_so_the_player_falls_back_to_the_device(tts_cache, monkeypatch):
+    monkeypatch.setenv("MUSIC_LAB_TTS", "off")
+    with TestClient(app) as client:
+        got = client.get("/api/music/tts", params={"text": "hola", "lang": "es"})
+        status = client.get("/api/music/tts/status").json()
+    # 501, not 500: the client treats it as "use the device voice", not an error.
+    assert got.status_code == 501
+    assert status["available"] is False
+    assert status["languages"] == len(MEANING_LANGUAGES)
+
+
+def test_rendered_clips_are_cached_once_and_reused(tts_cache, monkeypatch):
+    calls: list[tuple[str, str, str]] = []
+
+    def fake_render(text, path, *, voice, rate):
+        calls.append((text, voice, rate))
+        path.write_bytes(b"rendered-mp3")
+
+    monkeypatch.setattr("theodore_music_lab.tts._render", fake_render)
+    monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
+    assert synthesize("你好", "zh", rate=1.2) == b"rendered-mp3"
+    assert synthesize("你好", "zh", rate=1.2) == b"rendered-mp3"
+    assert calls == [("你好", "zh-CN-XiaoxiaoNeural", "+20%")]
+
+
+def test_polish_turkish_arabic_have_alternate_voices_for_flaky_renders():
+    # Primary female first; same-language male next; Polish/Arabic extras after.
+    assert voice_candidates("pl")[0] == "pl-PL-AgnieszkaNeural"
+    assert "pl-PL-ZofiaNeural" in voice_candidates("pl")
+    assert voice_candidates("tr")[:2] == ["tr-TR-EmelNeural", "tr-TR-AhmetNeural"]
+    assert "ar-EG-SalmaNeural" in voice_candidates("ar")
+    # An explicit voice short-circuits the candidate list.
+    assert voice_candidates("pl", voice="pl-PL-ZofiaNeural") == ["pl-PL-ZofiaNeural"]
+
+
+def test_transient_empty_audio_retries_then_falls_back_to_alternate_voice(
+    tts_cache, monkeypatch
+):
+    attempts: list[str] = []
+
+    def flaky(text, path, *, voice, rate):
+        attempts.append(voice)
+        if voice in {"pl-PL-AgnieszkaNeural", "pl-PL-MarekNeural"}:
+            raise RuntimeError("No audio was received. Please verify that your parameters are correct.")
+        path.write_bytes(b"zofia-mp3")
+
+    monkeypatch.setattr("theodore_music_lab.tts._render", flaky)
+    monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
+    monkeypatch.setattr("theodore_music_lab.tts.time.sleep", lambda _s: None)
+    assert synthesize("dzień dobry", "pl") == b"zofia-mp3"
+    assert attempts.count("pl-PL-AgnieszkaNeural") == 3
+    assert attempts.count("pl-PL-MarekNeural") == 3
+    assert "pl-PL-ZofiaNeural" in attempts
+
+
+def test_a_failed_render_leaves_no_truncated_clip(tts_cache, monkeypatch):
+    def boom(text, path, *, voice, rate):
+        path.write_bytes(b"half")
+        raise RuntimeError("connection reset")
+
+    monkeypatch.setattr("theodore_music_lab.tts._render", boom)
+    monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
+    monkeypatch.setattr("theodore_music_lab.tts.time.sleep", lambda _s: None)
+    with pytest.raises(TTSUnavailable):
+        synthesize("bonjour", "fr")
+    assert not clip_path("bonjour", voice=voice_for("fr"), rate="+0%").exists()
+    assert list(tts_cache.glob("*.mp3")) == []
+    assert list(tts_cache.glob("*.part")) == []
+
+
+def test_the_player_speaks_through_the_server_and_can_fall_back():
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert "probeServerVoices" in page
+    assert "/api/music/tts?lang=" in page
+    # One cancel path must stop device speech AND server audio.
+    assert "function cancelSpeech" in page
+    assert "speakOnDevice" in page
+    body = page.split("function cancelSpeech", 1)[1].split("\n  function ", 1)[0]
+    assert "window.speechSynthesis.cancel()" in body
+    # It must stop the device engine, not recurse into itself (it did once, and
+    # the stack overflow left the player stuck on "Choose a song").
+    assert "cancelSpeech()" not in body
+    # The old dead end: refusing a language because the OS had no voice.
+    assert "voice installed on this device" not in page
+    # Pausing must not be followed by another sung line from the next tick.
+    sing = page.split("function speakLine", 1)[1].split("\n  function ", 1)[0]
+    assert 'if ($("player").paused) return;' in sing
+
+
+def test_the_page_carries_an_icon_and_favicon_ico_is_served():
+    """An undeclared icon makes every visit log a 404 for /favicon.ico."""
+    with TestClient(app) as client:
+        page = client.get("/")
+        assert 'rel="icon"' in page.text
+        assert "data:image/svg+xml," in page.text
+        icon = client.get("/favicon.ico")
+        assert icon.status_code == 200
+        assert icon.headers["content-type"].startswith("image/svg+xml")
+        assert icon.text.startswith("<svg")
 
 
 def test_api_health_and_session_flow():
@@ -228,6 +425,176 @@ def test_word_timings_cover_every_word_in_order():
     assert timings["lines"][-1]["end"] <= 90.0 + 0.01
 
 
+def test_every_featured_song_is_aligned_to_its_own_vocals():
+    """A featured MP3 without measured alignment drifts, so guard the data file."""
+    for song in Catalog().featured():
+        record = alignment_for(song.song_id)
+        assert record, f"{song.song_id} has no entry in data/alignment.jsonl"
+        assert record["duration_sec"] > 0
+        assert [row["line_no"] for row in record["lines"]] == [
+            line.line_no for line in song.lines
+        ]
+
+
+def test_lyrics_wait_for_the_intro_and_stop_before_the_outro():
+    for song in Catalog().featured():
+        record = alignment_for(song.song_id)
+        timings = song_timings(song, duration_sec=record["duration_sec"])
+        assert timings["aligned"] is True
+        assert timings["source"] == "measured vocal alignment"
+        first = timings["lines"][0]
+        last = timings["lines"][-1]
+        # The old estimate started line 1 at 0.0s, ahead of every intro.
+        assert first["start"] > 0.5
+        assert first["start"] == pytest.approx(timings["lead_in_sec"], abs=0.01)
+        assert last["end"] < timings["duration_sec"] - 0.2
+        previous_end = 0.0
+        for row in timings["lines"]:
+            assert row["start"] >= previous_end - 0.001
+            assert row["end"] > row["start"]
+            previous_end = row["end"]
+
+
+def test_no_line_is_sung_faster_than_a_human_can():
+    """A line squeezed into a fraction of its syllables means a slipped mapping."""
+    for song in Catalog().featured():
+        timings = song_timings(song)
+        for row in timings["lines"]:
+            syllables = sum(syllable_count(w) for w in row["text"].split())
+            span = row["end"] - row["start"]
+            assert syllables / span <= 8.0, f"{song.song_id} line {row['line_no']}"
+
+
+def test_alignment_stretches_to_a_different_encode_of_the_same_song():
+    song = Catalog().get("en-wheels-bus-audio-v1")
+    reference = alignment_for(song.song_id)["duration_sec"]
+    native = song_timings(song, duration_sec=reference)
+    stretched = song_timings(song, duration_sec=reference * 1.1)
+    ratio = stretched["lines"][0]["start"] / native["lines"][0]["start"]
+    assert ratio == pytest.approx(1.1, abs=0.01)
+    assert stretched["lines"][-1]["end"] < reference * 1.1
+
+
+def test_hand_tuned_line_timing_still_wins_over_the_measurement():
+    song = Catalog().get("en-wheels-bus-audio-v1").model_copy(deep=True)
+    song.lines[0].start_sec = 9.5
+    song.lines[0].end_sec = 12.5
+    timings = song_timings(song, duration_sec=74.76)
+    assert timings["lines"][0]["start"] == 9.5
+    assert timings["lines"][0]["end"] == 12.5
+    assert timings["lines"][0]["words"][0]["start"] == pytest.approx(9.5, abs=0.01)
+
+
+def test_a_song_without_measured_alignment_falls_back_to_the_estimate():
+    song = next(s for s in Catalog().songs if not alignment_for(s.song_id))
+    timings = song_timings(song, duration_sec=60.0)
+    assert timings["aligned"] is False
+    assert timings["source"] == "syllable-weighted estimate"
+    assert timings["line_count"] == song.line_count
+
+
+def test_replacing_an_mp3_without_realigning_falls_back_to_the_estimate(monkeypatch):
+    """Stale timings against a new encode would drift, so they are discarded."""
+    import theodore_music_lab.timing as timing_module
+
+    song = Catalog().get("en-wheels-bus-audio-v1")
+    assert song_timings(song)["aligned"] is True
+    record = dict(alignment_for(song.song_id))
+    record["audio_bytes"] = int(record["audio_bytes"]) + 1024
+    monkeypatch.setattr(
+        timing_module, "alignment_for", lambda song_id: record, raising=True
+    )
+    timings = song_timings(song)
+    assert timings["aligned"] is False
+    assert timings["source"] == "syllable-weighted estimate"
+
+
+def test_phrase_segmentation_puts_every_line_boundary_on_a_measured_onset():
+    spans = [
+        VocalSpan(2.0, 3.0),
+        VocalSpan(3.4, 4.4),
+        VocalSpan(8.0, 9.0),
+        VocalSpan(9.3, 10.5),
+    ]
+    placed = align_lines_to_spans([4.0, 4.0], spans)
+    starts = {span.start for span in spans}
+    ends = {span.end for span in spans}
+    assert len(placed) == 2
+    for start, end in placed:
+        assert start in starts
+        assert end in ends
+    # The instrumental bar between 4.4s and 8.0s belongs to neither line.
+    assert placed[0][1] <= 4.4
+    assert placed[1][0] >= 8.0
+
+
+def test_phrase_segmentation_declines_when_there_are_fewer_phrases_than_lines():
+    assert align_lines_to_spans([1.0, 1.0, 1.0], [VocalSpan(0.0, 4.0)]) == []
+
+
+def test_sung_time_share_skips_the_instrumental_break():
+    spans = [VocalSpan(1.0, 5.0), VocalSpan(20.0, 24.0)]
+    placed = align_weights_to_spans([1.0, 1.0, 1.0, 1.0], spans)
+    assert len(placed) == 4
+    assert placed[0][0] == 1.0
+    assert placed[-1][1] == 24.0
+    for start, end in placed:
+        # No line may live inside 5.0s-20.0s, where nobody is singing.
+        assert not (5.0 < start < 20.0)
+        assert not (5.0 < end < 20.0)
+
+
+def test_sing_along_speech_may_run_through_the_instrumental_rest(offline):
+    song = Catalog().get("en-wheels-bus-audio-v1")
+    plan = sing_plan(song, "es", allow_llm=False)
+    timings = song_timings(song)
+    starts = [row["start"] for row in timings["lines"]]
+    stretched = 0
+    for index, row in enumerate(plan["lines"]):
+        assert row["end"] >= row["sung_end"]
+        if index + 1 < len(starts):
+            assert row["end"] == pytest.approx(
+                max(row["sung_end"], starts[index + 1]), abs=0.01
+            )
+        if row["end"] > row["sung_end"] + 0.01:
+            stretched += 1
+    assert stretched, "measured timings leave rests a translated line can use"
+
+
+def test_the_stage_never_goes_blank_during_intro_or_outro():
+    for song in Catalog().featured():
+        board = storyboard_for(song, language="en")
+        assert board["scenes"][0]["start"] == 0.0
+        assert board["scenes"][-1]["end"] == pytest.approx(
+            board["duration_sec"], abs=0.05
+        )
+        for index in range(len(board["scenes"]) - 1):
+            assert board["scenes"][index]["end"] == pytest.approx(
+                board["scenes"][index + 1]["start"], abs=0.001
+            )
+
+
+def test_no_lyric_line_starts_before_the_singing_does():
+    """The complaint was line 1 lighting up during an instrumental intro."""
+    for song in Catalog().featured():
+        timings = song_timings(song)
+        first = min(float(row["start"]) for row in timings["lines"])
+        assert first == pytest.approx(float(timings["lead_in_sec"]), abs=0.01)
+        if timings["source"] == "measured vocal alignment":
+            # Every featured song opens on instrumental bars; lyrics must wait.
+            assert first > 1.0
+
+
+def test_the_intro_counts_in_instead_of_highlighting_the_first_line():
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert "showCountIn" in page
+    assert "Singing starts in" in page
+    assert "line.upcoming" in page
+    # The old behaviour marked line 1 active through the intro.
+    assert "setActiveLine(first.line_no, false, false)" not in page
+
+
 def test_syllable_counts_are_sane():
     assert syllable_count("bus") == 1
     assert syllable_count("supermarket") == 4
@@ -243,6 +610,24 @@ def test_curated_translation_is_real_target_language(offline):
     assert chorus["translation"] == "Las ruedas del autobús giran y giran"
     assert chorus["tier"] == "curated"
     assert "Meaning:" not in chorus["translation"]
+
+
+def test_chinese_and_khmer_have_full_line_translations_offline(offline):
+    for song in Catalog().featured():
+        for code in ("zh", "km"):
+            payload = translate_song(song, code, allow_llm=False)
+            assert payload["language_name"] in {"Chinese", "Khmer"}
+            assert payload["tiers"] == {"curated": song.line_count}
+            for row in payload["lines"]:
+                assert row["tier"] == "curated"
+                assert row["translation"] != row["text"]
+                assert " · " not in row["translation"]
+
+    travel = next(s for s in Catalog().featured() if s.song_id == "en-travel-words-audio-v1")
+    chinese = translate_song(travel, "zh", allow_llm=False)
+    khmer = translate_song(travel, "km", allow_llm=False)
+    assert chinese["lines"][0]["translation"] == "我去上班"
+    assert khmer["lines"][0]["translation"] == "ខ្ញុំទៅធ្វើការ"
 
 
 def test_every_line_has_a_translation_in_every_language(offline):
@@ -284,6 +669,48 @@ def test_ask_ai_works_offline_and_stays_grounded(offline):
 
     pronounce = ask(song, "How do I pronounce it?", line_no=5, language="en")
     assert "syllable" in pronounce["answer"].lower() or "(" in pronounce["answer"]
+
+
+def test_pronunciation_check_scores_and_coaches(offline):
+    perfect = score_attempt("Wheels on the bus go round and round",
+                            "wheels on the bus go round and round")
+    assert perfect["score"] >= 95
+    assert perfect["passed"] is True
+    assert perfect["missed_words"] == []
+
+    partial = score_attempt(
+        "Wheels on the bus go round and round",
+        "wheels on the bus go around",
+    )
+    assert 40 <= partial["score"] < 95
+    assert "round" in partial["missed_words"] or partial["wrong_words"]
+    assert partial["corrections"]
+    assert partial["mouth_tip"]
+
+    song = next(s for s in Catalog().featured() if s.song_id == "en-wheels-bus-audio-v1")
+    result = check_pronunciation(
+        song,
+        line_no=5,
+        heard="wheels on the bus go round and round",
+        language="es",
+        practice="english",
+    )
+    assert result["passed"] is True
+    assert result["practice"] == "english"
+    assert result["recognition_lang"] == "en-US"
+    assert result["syllables"]
+
+    spanish = check_pronunciation(
+        song,
+        line_no=5,
+        heard="Las ruedas del autobus giran y giran",
+        language="es",
+        practice="translation",
+    )
+    assert spanish["practice"] == "translation"
+    assert spanish["language"] == "es"
+    assert spanish["score"] >= 70
+    assert spanish["recognition_lang"].startswith("es")
 
 
 def test_clips_are_windows_of_a_song_with_translations(offline):
@@ -342,6 +769,7 @@ def test_new_apis_and_player_ui(offline):
         assert health["embed_pause_ask"] >= 4
         assert health["karaoke"] is True
         assert health["ask_ai"] is True
+        assert health["pronunciation_check"] is True
 
         langs = client.get("/api/music/languages").json()
         assert len(langs["catalog"]) == len(MEANING_LANGUAGES)
@@ -383,6 +811,24 @@ def test_new_apis_and_player_ui(offline):
         ).json()
         assert answer["answer"]
         assert answer["cited_lines"]
+
+        pronounced = client.post(
+            "/api/music/pronounce",
+            json={
+                "song_id": song_id,
+                "line_no": 5,
+                "heard": "wheels on the bus go round and round",
+                "target_lang": "es",
+                "practice": "english",
+            },
+        ).json()
+        assert pronounced["passed"] is True
+        assert pronounced["score"] >= 90
+        assert pronounced["corrections"] is not None
+        assert client.post(
+            "/api/music/pronounce",
+            json={"song_id": song_id, "heard": "x", "practice": "nope"},
+        ).status_code == 422
 
         clips = client.get("/api/music/clips", params={"song_id": song_id}).json()
         assert clips["count"] >= 2
@@ -459,7 +905,8 @@ def test_new_apis_and_player_ui(offline):
 
         page = client.get("/").text
         assert 'id="ball"' in page
-        assert "Ask the AI about the lyrics" in page
+        assert "Learn &amp; practice this song" in page
+        assert "Say / sing line" in page
         assert "Short lyric clips" in page
         assert "Lyric videos" in page
         assert "This line, translated" in page
@@ -473,9 +920,16 @@ def test_new_apis_and_player_ui(offline):
                      'id="btn-theater"', 'id="narrate"',
                      'id="sing-lang"', 'id="sing-label"',
                      'id="embed-picker"', 'id="yt-host"', 'id="pause-card"',
-                     'id="auto-pause"', 'id="embed-ask-send"'):
+                     'id="auto-pause"', 'id="embed-ask-send"',
+                     'id="speak-verse"', 'id="btn-hear-verse"',
+                     'id="btn-mic"', 'id="btn-hear-model"', 'id="pronounce-result"',
+                     'id="practice-en"', 'id="practice-tr"',
+                     'id="practice-modes"', 'id="pane-quiz"', 'id="pane-memory"',
+                     'id="pane-paraphrase"', 'id="pane-sing"', 'id="btn-sing-start"'):
             assert hook in page, hook
+        assert "SpeechRecognition" in page or "webkitSpeechRecognition" in page
         assert "SpeechSynthesisUtterance" in page
+        assert "/api/music/pronounce" in page
         assert "youtube.com/iframe_api" in page
         assert "Pause at each verse" in page
         assert "YouTube movie lessons" in page
@@ -605,6 +1059,73 @@ def test_youtube_embeds_pause_and_ask_in_curated_languages(offline):
     assert answer["cited_verse"]["verse_no"] == 1
 
 
+def test_every_video_line_reads_and_speaks_in_khmer_and_chinese(offline):
+    """A learner who picks Khmer must get Khmer on every video line — text and voice.
+
+    The lyric panel was curated for zh/km while the video verses were not, so the
+    song translated and the video below it stayed in English.
+    """
+    videos = [row for row in load_embeds() if row.get("verses")]
+    assert len(videos) >= 4
+    for raw in videos:
+        for language, tag in (("km", "km-KH"), ("zh", "zh-CN")):
+            resolved = resolve_embed(raw, language, allow_llm=False)
+            assert resolved["voice_tag"] == tag
+            assert resolved["spoken_lines"] == resolved["verse_count"]
+            for verse in resolved["verses"]:
+                where = f"{raw['embed_id']} line {verse['verse_no']} ({language})"
+                assert verse["tier"] == "curated", where
+                assert verse["translation"] != verse["text_en"], where
+                # The voice reads exactly what the line shows, in that language.
+                assert verse["speak_lang"] == language, where
+                assert verse["voice_tag"] == tag, where
+                assert verse["speak_text"], where
+                assert "\u00b7" not in verse["speak_text"], where
+                for question in verse["questions"]:
+                    assert question["prompt_tier"] == "curated", where
+                    assert question["answer_tier"] == "curated", where
+                    assert question["prompt_translation"] != question["prompt"], where
+
+
+def test_an_untranslated_line_is_never_read_by_the_wrong_voice(offline):
+    invented = {
+        "embed_id": "test-uncurated",
+        "kind": "video",
+        "youtube_id": "abc12345678",
+        "verses": [
+            {
+                "verse_no": 1,
+                "text": "Zebras juggled spare umbrellas politely.",
+                "start_sec": 0.0,
+                "pause_sec": 5.0,
+                "questions": [],
+            }
+        ],
+    }
+    verse = resolve_embed(invented, "km", allow_llm=False)["verses"][0]
+    assert verse["tier"] == "english"
+    assert verse["speak_lang"] == "en"
+    assert verse["voice_tag"] == "en-US"
+    assert resolve_embed(invented, "km", allow_llm=False)["spoken_lines"] == 0
+
+
+def test_the_player_speaks_each_video_line_in_the_picked_language():
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert 'id="speak-verse"' in page
+    assert 'id="btn-hear-verse"' in page
+    assert 'id="pause-voice"' in page
+    # Verse speech follows the server's per-line voice, not the song's sing plan.
+    assert "lang: verse.speak_lang" in page
+    assert "tag: verse.voice_tag" in page
+    # Only a paused video is silent, so speech never overlaps the soundtrack.
+    assert 'if (locked && $("speak-verse").checked) speakVerse(verse);' in page
+    assert "pauseMedia();\n    speakVerse(verse);" in page
+    # Embeds now translate like the lyric panel does instead of falling to English.
+    assert "allow_llm=false" not in page
+    assert "allow_llm=true" in page
+
+
 def test_cast_is_pulled_into_the_action_safe_band():
     assert safe_x(90) == SAFE_X_MAX
     assert safe_x(4) == SAFE_X_MIN
@@ -679,7 +1200,7 @@ def test_sing_speech_drops_the_romanization_shown_on_screen():
     # so the singer speaks them whole rather than word-by-word lexicon glosses.
     plan = sing_plan(cat.get("en-wheels-bus-audio-v1"), "zh", allow_llm=False)
     assert plan["word_by_word"] is False
-    assert all(row["speak"] for row in plan["lines"])
+    assert all(row["tier"] == "curated" for row in plan["lines"])
     assert all("(" not in row["speak"] for row in plan["lines"])
     # Lexicon-only languages still strip romanization before speech.
     lexiconish = speakable("\u1781\u17d2\u1789\u17bb\u17c6 (khnyom) \u00b7 \u1798\u17b7\u178f\u17d2\u178f (mit)")
@@ -707,3 +1228,185 @@ def test_storyboard_scenes_stretch_with_the_real_audio_duration():
     for a, b in zip(short["scenes"], long_board["scenes"]):
         assert a["line_numbers"] == b["line_numbers"]
         assert b["duration"] > a["duration"]
+
+
+def test_song_practice_quiz_memory_paraphrase_and_full_sing(offline):
+    """Learning a song covers quiz, memory, other ways to say it, and whole-song sing."""
+    cat = Catalog()
+    song = cat.featured()[0]
+    menu = practice_menu(song, "es")
+    assert [m["id"] for m in menu["modes"]] == [
+        "pronounce",
+        "quiz",
+        "memory",
+        "ask",
+        "paraphrase",
+        "sing",
+    ]
+
+    quiz = build_quiz(song, "es", count=6, seed="unit-quiz")
+    assert quiz["count"] >= 4
+    assert "answer_key" in quiz
+    assert all("answer" not in q for q in quiz["questions"])
+    perfect = grade_quiz(
+        song,
+        language="es",
+        answers=quiz["answer_key"],
+        count=6,
+        seed="unit-quiz",
+    )
+    assert perfect["score"] == 100
+    assert perfect["passed"] is True
+    blank = grade_quiz(
+        song, language="es", answers={}, count=6, seed="unit-quiz"
+    )
+    assert blank["score"] == 0
+    assert blank["passed"] is False
+
+    mem = build_memory_drill(
+        song, "es", direction="en_to_target", count=4, seed="unit-mem"
+    )
+    assert mem["count"] >= 2
+    mem_ok = grade_memory(
+        song,
+        language="es",
+        direction="en_to_target",
+        answers=mem["answer_key"],
+        count=4,
+        seed="unit-mem",
+    )
+    assert mem_ok["passed"] is True
+    assert mem_ok["score"] >= 60
+
+    para = paraphrase_line(song, line_no=1, language="es", allow_llm=False)
+    assert para["line_no"] == 1
+    assert len(para["alternatives"]) >= 2
+    assert para["alternatives"][0]["source"] == "song"
+
+    from theodore_music_lab.translations import translate_song as _tr
+
+    rows = _tr(song, "es", allow_llm=False)["lines"]
+    sung = check_song_singing(
+        song,
+        language="es",
+        practice="translation",
+        lines=[{"line_no": r["line_no"], "heard": r["translation"]} for r in rows],
+    )
+    assert sung["line_count"] == len(song.lines)
+    assert sung["score"] == 100
+    assert sung["passed"] is True
+    empty = check_song_singing(
+        song, language="es", practice="translation", lines=[]
+    )
+    assert empty["score"] == 0
+    assert empty["passed"] is False
+
+
+def test_practice_apis_keep_answer_keys_off_the_wire(offline):
+    cat = Catalog()
+    song = cat.featured()[0]
+    with TestClient(app) as client:
+        health = client.get("/health").json()
+        assert health["song_practice"] is True
+        assert "quiz" in health["practice_modes"]
+
+        menu = client.get(
+            f"/api/music/practice/{song.song_id}",
+            params={"target_lang": "es"},
+        ).json()
+        assert len(menu["modes"]) == 6
+
+        quiz = client.get(
+            f"/api/music/practice/{song.song_id}/quiz",
+            params={"target_lang": "es", "count": 5, "seed": "api-quiz"},
+        ).json()
+        assert "answer_key" not in quiz
+        assert quiz["seed"] == "api-quiz"
+        # Rebuild the key server-side the same way /grade does.
+        key = build_quiz(song, "es", count=5, seed="api-quiz")["answer_key"]
+        graded = client.post(
+            "/api/music/practice/quiz/grade",
+            json={
+                "song_id": song.song_id,
+                "target_lang": "es",
+                "answers": key,
+                "count": 5,
+                "seed": "api-quiz",
+            },
+        ).json()
+        assert graded["score"] == 100
+
+        mem = client.get(
+            f"/api/music/practice/{song.song_id}/memory",
+            params={
+                "target_lang": "es",
+                "direction": "en_to_target",
+                "count": 3,
+                "seed": "api-mem",
+            },
+        ).json()
+        assert "answer_key" not in mem
+        mem_key = build_memory_drill(
+            song, "es", direction="en_to_target", count=3, seed="api-mem"
+        )["answer_key"]
+        mem_graded = client.post(
+            "/api/music/practice/memory/grade",
+            json={
+                "song_id": song.song_id,
+                "target_lang": "es",
+                "direction": "en_to_target",
+                "answers": mem_key,
+                "count": 3,
+                "seed": "api-mem",
+            },
+        ).json()
+        assert mem_graded["passed"] is True
+
+        para = client.post(
+            "/api/music/practice/paraphrase",
+            json={
+                "song_id": song.song_id,
+                "line_no": 1,
+                "target_lang": "es",
+                "allow_llm": False,
+            },
+        ).json()
+        assert len(para["alternatives"]) >= 2
+
+        rows = translate_song(song, "es", allow_llm=False)["lines"]
+        sung = client.post(
+            "/api/music/practice/sing",
+            json={
+                "song_id": song.song_id,
+                "target_lang": "es",
+                "practice": "translation",
+                "lines": [
+                    {"line_no": r["line_no"], "heard": r["translation"]} for r in rows
+                ],
+            },
+        ).json()
+        assert sung["passed"] is True
+        assert sung["score"] == 100
+
+        # Ask prompt about other ways stays grounded offline.
+        asked = ask(
+            song,
+            "Other ways to say the same thing?",
+            line_no=1,
+            language="es",
+        )
+        assert "another way" in asked["answer"].lower() or "manera" in asked[
+            "answer"
+        ].lower() or "say" in asked["answer"].lower()
+
+
+def test_the_player_wires_all_six_practice_modes():
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert "setPracticeMode" in page
+    assert "startQuiz" in page
+    assert "startMemory" in page
+    assert "loadParaphrases" in page
+    assert "startSingCheck" in page
+    assert "finishSingCheck" in page
+    assert "Other ways to say the same thing?" in page

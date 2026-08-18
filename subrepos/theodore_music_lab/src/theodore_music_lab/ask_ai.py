@@ -161,7 +161,15 @@ def _fallback_answer(question: str, detail: dict[str, Any]) -> str:
     restates_line = re.sub(r"[^a-z0-9 ]+", "", meaning.lower()).strip() == plain
 
     parts: list[str] = []
-    if any(word in q for word in ("pronounce", "pronunciation", "say it", "sing")):
+    if any(word in q for word in ("other way", "another way", "different way", "paraphrase", "rephrase", "say the same")):
+        parts.append(
+            f'One clear way to say "{line}" in {lang_name} is: {target}.'
+        )
+        parts.append(
+            "You can also shorten it, swap a synonym, or change the word order — "
+            "open Other ways to say it for ready alternatives, then try one out loud."
+        )
+    elif any(word in q for word in ("pronounce", "pronunciation", "say it", "sing")):
         parts.append(f'"{line}" breaks into these syllables: {detail["pronunciation"]}.')
         parts.append("Clap once per syllable, then sing it with the track.")
     elif any(word in q for word in ("grammar", "why", "structure", "tense", "word order")):

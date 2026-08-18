@@ -1313,6 +1313,16 @@ def storyboard_for(
                 ],
             }
         )
+    # Measured line timings leave the intro, the rests between sections and the
+    # outro empty. The stage must never go blank, so a scene holds until the next
+    # one's first line starts, and the pack covers the whole track end to end.
+    if out_scenes:
+        out_scenes[0]["start"] = 0.0
+        for index in range(len(out_scenes) - 1):
+            out_scenes[index]["end"] = out_scenes[index + 1]["start"]
+        out_scenes[-1]["end"] = round(float(timings["duration_sec"]), 3)
+        for scene in out_scenes:
+            scene["duration"] = round(scene["end"] - scene["start"], 3)
     return {
         "song_id": song.song_id,
         "title": song.title_en,

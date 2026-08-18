@@ -34,6 +34,8 @@ def test_build_ca_dmv_course_has_jurisdiction_metadata():
     assert course.profile_adaptations["motion_clip"] is True
     assert "not a dmv-approved" in course.profile_adaptations["disclaimer"].lower()
     assert any("us-ca" in slide.tags for slide in course.slides)
+    assert all(slide.avatar_script for slide in course.slides)
+    assert all(slide.avatar_script.source == "curated" for slide in course.slides)
 
 
 def test_all_cert_lessons_have_picture_and_motion():
@@ -156,3 +158,21 @@ def test_teach_pause_and_resume_persists(tmp_path):
     assert resumed["resumed"] is True
     assert resumed["path_pos"] == paused["checkpoint"]["path_pos"]
     assert "Resumed" in resumed["resume_message"]
+
+
+def test_teach_payload_includes_synchronized_avatar_script(tmp_path):
+    course = build_cert_course(lesson_id="ca-dmv-basics")
+    builder = CourseBuilder(data_dir=tmp_path / "data")
+    builder.save_course(course)
+    payload = TeachEngine(builder).start(
+        session_id="avatar-teach",
+        course_id=course.course_id,
+        use_voice_agent=False,
+    )
+    avatar = payload["avatar"]
+    assert avatar["source"] == "explicit"
+    assert avatar["state"] == "presenting"
+    assert avatar["cues"]
+    assert avatar["visemes"]
+    assert avatar["duration_s"] > 0
+    assert max(c["start_s"] + c["duration_s"] for c in avatar["cues"]) <= avatar["duration_s"] + 0.01

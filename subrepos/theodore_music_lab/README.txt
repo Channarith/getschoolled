@@ -12,20 +12,40 @@ language_learning / content packs.
     per scene, and the scene's narration on screen under the sung line — press
     "Full screen" (or F) to fill the window, Esc to come back
   • Karaoke: a bouncing ball rides the current word, the sung word is colour
-    highlighted, finished lines dim to gold, and a ±0.25s sync nudge trims drift
+    highlighted, finished lines dim to gold, and a ±0.25s sync nudge (remembered
+    per song) trims any residual drift
+  • Lyrics measured against the recording: the words wait out the instrumental
+    intro, hold through the rests between sections, and stop at the last sung
+    line instead of being spread evenly from 0.0s to the final sample
   • Sing-along scrolling: the lyric box keeps two upcoming lines below the sung
     line, so you read the next line before you have to sing it
   • Real per-line translation in all 27 languages, shown under every line at
     once (not only the active one) plus key-vocabulary chips and examples
-  • Sing in another language: tick "Sing in <language>" and a neural device voice
-    speaks each translated line inside that line's own window while the English
-    recording drops to a backing-track level — the same MP3 in any of the 27
+  • Sing in another language: tick "Sing in <language>" and a neural voice speaks
+    each translated line inside that line's own window while the English
+    recording drops to a backing-track level — the same MP3 in any of the 27.
+    The voice is rendered by the server, so Khmer/Chinese/Thai sing on a device
+    whose OS ships no such voice (see "Neural voices" below)
   • Ask the AI about any line at any time — while the track is playing
+  • Say / sing this line: hear a model reading, speak into the mic (or type),
+    get a 0–100 score with missed/wrong-word corrections and mouth tips
+    (POST /api/music/pronounce) — practice English lyric or the translation
+  • Learn & practice this song (six modes in one panel):
+      - Say / sing line — pronunciation check for the current verse
+      - Quiz me — multiple-choice on vocabulary and line meanings
+      - Memory — flashcards (English ↔ your language) without peeking
+      - Ask — free-form questions about the lyrics (also via the prompt)
+      - Other ways — alternate phrasings of the same line, then try one
+      - Sing whole song — walk every line in your language and get a full-song score
   • Short lyric clips (chorus-sized line ranges) with lyrics + translation
   • Curated external lyric videos / channels with printed-lyrics links
   • YouTube movie lessons embedded on the page: pause at each verse, answer
     grammar/vocabulary prompts, ask the AI about the line, and read the verse in
     any of 27 languages (Cambodia & Laos legends + Learn English with Movies)
+  • Every video line is also SPOKEN in the picked language: the paused line is
+    read by that language's neural voice ("Speak each line" / "Hear this line"),
+    and a line with no full-sentence translation is read in English rather than
+    letting a Khmer or Chinese voice sound out English words
   • Local Khmer/English karaoke (សេចក្ដីស្រឡាញ់ការរៀនសូត្រ — Love of Learning):
     60 timed lines, pause on every line, translate Khmer+English into any of 27
     languages, then ask about the line before continuing
@@ -36,14 +56,62 @@ Clips: data/clips.jsonl. Video links: data/video_links.jsonl.
 
 Translation tiers (best available wins; every line always resolves)
   curated  reviewed hand-authored line — es, fr, de, it, pt (curated_lines.py)
+           plus zh and km (curated_zh_km.py); the same tier covers video verses
   cached   an earlier Grok translation persisted to data/i18n_cache/
   llm      Grok/xAI, one request per song+language, only when XAI_API_KEY is set
   lexicon  real target-language words for the line's content words (lexicon.py),
            covering all 27 languages offline — 69 terms, romanized where the
            script differs; km/bn/ur/fa/th/sw/he/ar/hi are flagged for native review
 
-Karaoke timings are syllable-weighted estimates (timing.py); hand-tuned values
-win when a line carries start_sec/end_sec or a song carries lead_in_sec.
+Neural voices (all 27 languages, no OS voice needed)
+"Sing in Khmer" used to refuse: the player spoke with window.speechSynthesis, so a
+language only worked if the listener's OS had a voice for it, and macOS has none
+for Khmer. The server now renders each line with a Microsoft Edge neural voice
+(tts.py, one verified voice pair per language — km-KH-SreymomNeural for Khmer) and
+the browser plays the MP3:
+
+  pip install -e '.[voices]'                 # edge-tts==7.2.8
+  # (6.1.x and earlier get 403 from Microsoft's speech WebSocket)
+  GET /api/music/tts?lang=km&rate=0.86&text=…  -> audio/mpeg (501 = no engine)
+  GET /api/music/tts/status                    -> {available, engine, languages}
+
+Clips are cached on disk by (voice, rate, text) — default
+~/.cache/theodore-music-lab/tts, override with MUSIC_LAB_TTS_CACHE — so a line is
+rendered once and then replays offline. Warm a whole song ahead of a lesson:
+
+  python3 scripts/prefetch_voices.py --lang km --lang zh
+  python3 scripts/prefetch_voices.py --dry-run    # count what is missing
+
+Rendering needs network once per clip (Microsoft's voice service). With no engine
+and an empty cache the endpoint answers 501 and the player falls back to the
+device voice, saying so once. MUSIC_LAB_TTS=off forces that fallback.
+
+Karaoke timings for the featured MP3s are measured against the recording itself
+(vocal_align.py). Vocals sit in the centre of the stereo image, so the centre
+estimate "mid - side" in the 300-3500 Hz band tracks where someone is singing;
+each lyric line is then assigned a run of those sung phrases, which keeps the
+instrumental intro, the rests between sections and the outro out of the lyrics.
+The result is committed to data/alignment.jsonl and read at request time (no
+ffmpeg needed to serve). Regenerate after adding or replacing an MP3:
+
+  python3 scripts/align_songs.py            # writes data/alignment.jsonl
+  python3 scripts/align_songs.py --report   # print the timings, write nothing
+
+To answer "is this song actually in sync?" without listening to all of it,
+verify_alignment.py re-measures the audio and audits what the app serves — a
+stale alignment.jsonl, a replaced MP3 or a bad scale becomes a number:
+
+  python3 scripts/verify_alignment.py       # exits 1 when a song is off
+  python3 scripts/verify_alignment.py --song en-travel-words-audio-v1 --report
+
+Nothing is highlighted before the first sung word: the intro queues line 1 in a
+muted "upcoming" state, hides the ball, and counts in ("Singing starts in 3...")
+so a 3.1s instrumental opening does not read as lyrics running early.
+
+Songs with no measured alignment fall back to a syllable-weighted estimate
+(timing.py). Hand-tuned values still win when a line carries start_sec/end_sec
+or a song carries lead_in_sec. A listener's ±0.25s sync nudge is remembered per
+song, so a device with slow audio output keeps its correction.
 
 Storyboard (storyboard.py, no external art assets)
   scenes    hand-authored per song, each pinned to a lyric line range, so the
@@ -86,8 +154,14 @@ YouTube embeds (embeds.py + data/embeds.jsonl)
   verses    each lesson has timed start/pause points with English teaching text,
             focus (grammar/vocabulary/comprehension), key terms and 2 prepared
             questions per verse
-  i18n      curated es/fr/de/it/pt for every verse + prompt + answer; other
-            languages use the same lexicon/LLM/cache stack as song lyrics
+  i18n      curated es/fr/de/it/pt (curated_embeds.py) plus Simplified Chinese
+            and Khmer (curated_embeds_zh_km.py) for every verse + prompt +
+            answer; other languages use the same LLM/cache/lexicon stack as song
+            lyrics, so a keyed deployment fills all 27
+  voice     each verse also carries speak_text / speak_lang / voice_tag, so the
+            player reads the line with that language's neural voice; an
+            untranslated line falls back to speak_lang "en" instead of having a
+            Khmer voice spell out English
   ask       POST /api/music/embeds/ask answers grammar/vocab questions about the
             paused verse (Grok when keyed, otherwise the prepared Q&A)
   examples  Preah Thong & Neang Neak, Sang Sinxay, The Incredibles movie lesson,
@@ -95,7 +169,8 @@ YouTube embeds (embeds.py + data/embeds.jsonl)
   karaoke   local MP4 Love of Learning (Khmer+English, 60 pause lines) served
             from /api/music/video/ with Range seeking; bilingual text_en/text_km
             so any target language translates from the English gloss while Khmer
-            display stays the source script
+            display stays the source script (Chinese for all 60 lines lives in
+            curated_love_zh.py)
 
 Ask AI uses Grok when XAI_API_KEY is set and otherwise answers from the lyrics
 themselves (line + translation + key words + example), so it works offline.
@@ -144,7 +219,8 @@ Step 2 — start the lab API + open the player
 
   curl -s http://127.0.0.1:8097/health | python3 -m json.tool
   # ok=true, songs >= 100, featured_songs >= 3, meaning_language_count >= 26,
-  # clips >= 6, videos >= 6, karaoke=true, ask_ai=true
+  # clips >= 6, videos >= 6, karaoke=true, ask_ai=true,
+  # vocal_aligned_songs == featured_songs (every MP3 aligned to its vocals)
 
 Step 3 — browse the catalog
 
@@ -183,7 +259,9 @@ Step 6 — check the karaoke, translation and Ask-AI APIs
 
   curl -s "http://127.0.0.1:8097/api/music/timing/$SONG?duration=74" \
     | python3 -m json.tool | head -40
-  # per-line start/end plus per-word start/end (drives the bouncing ball)
+  # per-line start/end plus per-word start/end (drives the bouncing ball).
+  # aligned=true and source="measured vocal alignment" mean the timings came
+  # from the audio; lead_in_sec is where the singing starts.
 
   curl -s -X POST http://127.0.0.1:8097/api/music/translate \
     -H 'content-type: application/json' \
@@ -240,6 +318,17 @@ APIs on :8097
   POST /api/music/translate         — whole song, one language
   POST /api/music/explain           — one line: meaning, vocabulary, examples
   POST /api/music/ask               — ask the AI about the lyrics
+  POST /api/music/pronounce         — score a spoken/typed attempt at a lyric line
+                                      (practice=english|translation; optional target=
+                                      for alternate phrasings; returns score,
+                                      missed/wrong words, corrections, mouth tip)
+  GET  /api/music/practice/{id}     — menu of six learning drills for one song
+  GET  /api/music/practice/{id}/quiz — multiple-choice on vocab + line meanings
+  POST /api/music/practice/quiz/grade — score a quiz (seed regenerates questions)
+  GET  /api/music/practice/{id}/memory — flashcards English ↔ target language
+  POST /api/music/practice/memory/grade — score typed/spoken memory answers
+  POST /api/music/practice/paraphrase — other ways to say the current line
+  POST /api/music/practice/sing     — score a whole-song attempt line by line
   POST /api/music/meaning
   POST /api/music/import
   POST /api/music/session/start

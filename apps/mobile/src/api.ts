@@ -1,10 +1,10 @@
 // API client for the Salareen mobile app (curriculum, identity, memory).
 
 import type { MascotResolve } from "./mascot";
-import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL } from "./config";
+import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL, MUSIC_URL, musicTtsUri } from "./config";
 import { getToken, clearAuthToken } from "./storage";
 
-export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL };
+export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL, MUSIC_URL, musicTtsUri };
 
 export type AudioCourseRow = {
   id: string; title: string; category: string; subject: string; level: string;

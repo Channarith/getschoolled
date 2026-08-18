@@ -7,6 +7,19 @@ that works while the track plays, short lyric clips, and curated lyric videos.
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
+# A quaver on the lab's night-blue tile. It is inlined in the page head so a
+# browser never falls back to requesting /favicon.ico, and served at that path
+# too for the pages that are pure JSON (/health, /docs).
+FAVICON_SVG = (
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>"
+    "<rect width='32' height='32' rx='7' fill='#0f172a'/>"
+    "<path d='M13 7v13.2a3.6 3.6 0 1 0 2 3.2V11l7-2V6z' fill='#fbbf24'/>"
+    "</svg>"
+)
+_FAVICON_DATA_URI = "data:image/svg+xml," + quote(FAVICON_SVG, safe="")
+
 
 def render_music_page() -> str:
     return (
@@ -14,6 +27,8 @@ def render_music_page() -> str:
         "  <meta charset=\"utf-8\" />\n"
         "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n"
         "  <title>Theodore Music Lab</title>\n"
+        # Without a declared icon a browser requests /favicon.ico and logs a 404.
+        "  <link rel=\"icon\" href=\"" + _FAVICON_DATA_URI + "\" />\n"
         "  <style>\n"
         + _CSS
         + "\n  </style>\n</head>\n<body>\n"
@@ -36,7 +51,7 @@ _CSS = """
   header p { margin:.35rem 0 0; color:var(--muted); max-width:46rem; }
   .layout { display:grid; gap:1rem; padding:1rem 1.5rem 2rem; grid-template-columns:minmax(230px,290px) 1fr; }
   .layout > .stack { display:grid; gap:1rem; align-content:start; }
-  .bottom { display:grid; gap:1rem; grid-template-columns:1fr 1fr; }
+  .bottom { display:grid; gap:1rem; grid-template-columns:minmax(16rem, 22rem) 1fr; }
   @media (max-width:980px){ .layout { grid-template-columns:1fr; } .bottom { grid-template-columns:1fr; } }
   .panel { background:color-mix(in srgb, var(--panel) 92%, black); border:1px solid #334155;
     border-radius:18px; padding:1rem; }
@@ -217,6 +232,9 @@ _CSS = """
     border-radius:14px; background:#0f172a; border:1px solid #334155; }
   .line { padding:.4rem .5rem .3rem; border-radius:10px; transition:background .2s; }
   .line.active { background:color-mix(in srgb, var(--accent) 14%, transparent); }
+  /* Queued during the instrumental intro: readable, but clearly not being sung yet. */
+  .line.upcoming { background:transparent; box-shadow:inset 0 0 0 1px #334155; }
+  .line.upcoming .words { color:#94a3b8; }
   .line .section { font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); opacity:.8; }
   .line .words { color:var(--muted); font-size:1.05rem; line-height:1.9; }
   .line.active .words { color:var(--ink); }
@@ -249,6 +267,55 @@ _CSS = """
   .ask-row input { flex:1; }
   .answer { margin-top:.65rem; padding:.7rem .85rem; border-radius:12px; background:#0f172a;
     border:1px solid #334155; white-space:pre-wrap; min-height:3rem; }
+  .pronounce-target { padding:.65rem .8rem; border-radius:12px; background:#122033;
+    border:1px solid #334155; margin-bottom:.55rem; }
+  .pronounce-target .label { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted); }
+  .pronounce-target .say { font-weight:700; font-size:1.05rem; margin-top:.2rem; }
+  .pronounce-target .hint { color:var(--muted); font-size:.82rem; margin-top:.25rem; }
+  .pronounce-row { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; margin:.45rem 0; }
+  .pronounce-row input[type=text] { flex:1; min-width:10rem; }
+  .score-card { margin-top:.55rem; padding:.7rem .85rem; border-radius:12px; background:#0f172a;
+    border:1px solid #334155; }
+  .score-card.pass { border-color:#34d399; }
+  .score-card.retry { border-color:#fbbf24; }
+  .score-card .stars { color:#fbbf24; letter-spacing:.1em; font-size:1.1rem; }
+  .word-chip { display:inline-block; margin:.15rem .2rem 0 0; padding:.15rem .45rem;
+    border-radius:999px; font-size:.78rem; border:1px solid #334155; }
+  .word-chip.ok { background:#064e3b; border-color:#34d399; color:#a7f3d0; }
+  .word-chip.missed, .word-chip.wrong { background:#7c2d12; border-color:#fb923c; color:#fed7aa; }
+  .word-chip.extra { background:#334155; color:#cbd5e1; }
+  .btn-mic.listening { background:#b91c1c; border-color:#f87171; color:#fff; }
+  .practice-modes { display:flex; flex-wrap:wrap; gap:.35rem; margin:.4rem 0 .7rem; }
+  .practice-modes button { font-size:.82rem; padding:.35rem .7rem; border-radius:999px;
+    border:1px solid #475569; background:#0f172a; color:var(--ink); cursor:pointer; }
+  .practice-modes button.active { border-color:var(--warm); color:#fde68a;
+    box-shadow:0 0 0 1px var(--warm); }
+  .practice-pane { display:none; }
+  .practice-pane.active { display:block; }
+  .quiz-q { margin:.55rem 0; padding:.65rem .75rem; border-radius:12px; background:#0f172a;
+    border:1px solid #334155; }
+  .quiz-q .prompt { font-weight:600; white-space:pre-wrap; }
+  .quiz-choices { display:grid; gap:.35rem; margin-top:.45rem; }
+  .quiz-choices label { display:flex; gap:.45rem; align-items:flex-start; cursor:pointer;
+    font-size:.9rem; }
+  .quiz-q.ok { border-color:#34d399; }
+  .quiz-q.bad { border-color:#fb923c; }
+  .memory-card { padding:.75rem .85rem; border-radius:12px; background:#122033;
+    border:1px solid #334155; margin:.45rem 0; }
+  .memory-card .side { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted); }
+  .memory-card .prompt { font-weight:700; font-size:1.05rem; margin:.2rem 0 .45rem; }
+  .alt-list { display:grid; gap:.4rem; margin:.5rem 0; }
+  .alt-item { text-align:left; width:100%; padding:.55rem .7rem; border-radius:10px;
+    background:#0f172a; border:1px solid #334155; color:var(--ink); cursor:pointer; }
+  .alt-item:hover, .alt-item.active { border-color:var(--warm); }
+  .alt-item .meta { font-size:.72rem; color:var(--muted); }
+  .sing-progress { margin:.45rem 0; font-size:.88rem; color:var(--muted); }
+  .sing-line-row { display:flex; justify-content:space-between; gap:.5rem; padding:.35rem 0;
+    border-bottom:1px solid #1e293b; font-size:.88rem; }
+  .sing-line-row.pass { color:#a7f3d0; }
+  .sing-line-row.fail { color:#fed7aa; }
   .clip { display:block; width:100%; text-align:left; margin:0 0 .45rem; padding:.55rem .7rem;
     border-radius:10px; background:#0f172a; border:1px solid #334155; color:var(--ink); cursor:pointer; }
   .clip strong { display:block; font-size:.92rem; }
@@ -300,9 +367,9 @@ _HTML = """
   <header>
     <h1>Theodore Music Lab</h1>
     <p>Follow the bouncing ball, watch each word light up as it is sung, and read the
-       translation of every line in any of 26+ languages. Embed YouTube movie lessons,
-       pause on each verse to practise grammar and vocabulary, and ask the AI about a
-       line at any time — while the song or clip is still playing.</p>
+       translation of every line in any of 26+ languages. Say or sing each line into the
+       mic to check your pronunciation, embed YouTube movie lessons, and ask the AI about
+       a line at any time — while the song or clip is still playing.</p>
   </header>
   <div class="layout">
     <div class="stack">
@@ -356,7 +423,9 @@ _HTML = """
             <button class="ghost" id="sync-back" type="button">−0.25s</button>
             <span id="sync-value">0.00s</span>
             <button class="ghost" id="sync-fwd" type="button">+0.25s</button>
+            <button class="ghost" id="sync-reset" type="button">Reset</button>
           </label>
+          <span class="meta" id="timing-source"></span>
         </div>
         <audio id="player" controls preload="metadata"></audio>
         <div class="lyrics" id="lyrics">
@@ -372,23 +441,144 @@ _HTML = """
           <div class="chips" id="now-vocab"></div>
           <ul class="examples" id="now-examples"></ul>
         </section>
-        <section class="panel">
-          <h2>Ask the AI about the lyrics</h2>
-          <div class="meta" id="ask-context">No line selected yet.</div>
-          <div class="ask-row">
-            <input type="text" id="ask-input" placeholder="e.g. Why does it say 'go round and round'?" />
-            <button class="primary" id="ask-send" type="button">Ask</button>
+        <section class="panel" id="practice-hub">
+          <h2>Learn &amp; practice this song</h2>
+          <p class="meta">Check pronunciation, test what you learned, test your memory, ask
+            questions, try other ways to say the same line, or sing the whole song in your
+            language.</p>
+          <div class="practice-modes" id="practice-modes">
+            <button type="button" class="active" data-mode="pronounce">Say / sing line</button>
+            <button type="button" data-mode="quiz">Quiz me</button>
+            <button type="button" data-mode="memory">Memory</button>
+            <button type="button" data-mode="ask">Ask</button>
+            <button type="button" data-mode="paraphrase">Other ways</button>
+            <button type="button" data-mode="sing">Sing whole song</button>
           </div>
-          <div class="chips" id="ask-quick"></div>
-          <div class="answer" id="ask-answer">Answers stay grounded in the lyrics of the
-            line you are on.</div>
+
+          <div class="practice-pane active" id="pane-pronounce">
+            <p class="meta">Practise the English lyric or the translation, then get a score
+              and corrections before the next line.</p>
+            <div class="pronounce-target" id="pronounce-target">
+              <div class="label">Line to say</div>
+              <div class="say" id="pronounce-say">Choose a song and press play.</div>
+              <div class="hint" id="pronounce-hint"></div>
+            </div>
+            <div class="pronounce-row">
+              <label><input type="radio" name="practice-mode" id="practice-en" value="english"
+                checked /> English lyric</label>
+              <label><input type="radio" name="practice-mode" id="practice-tr" value="translation" />
+                My language</label>
+            </div>
+            <div class="pronounce-row">
+              <button class="ghost" id="btn-hear-model" type="button">Hear model</button>
+              <button class="primary btn-mic" id="btn-mic" type="button">Speak line</button>
+              <button class="ghost" id="btn-check-typed" type="button">Check typed</button>
+            </div>
+            <div class="pronounce-row">
+              <input type="text" id="pronounce-heard"
+                placeholder="Or type what you said / sang…" />
+            </div>
+            <div class="meta" id="pronounce-status">Mic uses the browser speech recognizer
+              when available.</div>
+            <div class="score-card" id="pronounce-result" hidden></div>
+          </div>
+
+          <div class="practice-pane" id="pane-quiz">
+            <p class="meta">Multiple-choice on this song's vocabulary and line meanings.</p>
+            <div class="pronounce-row">
+              <button class="primary" id="btn-quiz-start" type="button">Start quiz</button>
+              <button class="ghost" id="btn-quiz-grade" type="button" hidden>Check answers</button>
+              <span class="meta" id="quiz-status"></span>
+            </div>
+            <div id="quiz-body"></div>
+            <div class="score-card" id="quiz-result" hidden></div>
+          </div>
+
+          <div class="practice-pane" id="pane-memory">
+            <p class="meta">See one side of a line, then recall the other without peeking.</p>
+            <div class="pronounce-row">
+              <label><input type="radio" name="mem-dir" id="mem-en-tr" value="en_to_target"
+                checked /> English → my language</label>
+              <label><input type="radio" name="mem-dir" id="mem-tr-en" value="target_to_en" />
+                My language → English</label>
+            </div>
+            <div class="pronounce-row">
+              <button class="primary" id="btn-memory-start" type="button">Start memory drill</button>
+              <button class="ghost" id="btn-memory-grade" type="button" hidden>Check recall</button>
+              <span class="meta" id="memory-status"></span>
+            </div>
+            <div id="memory-body"></div>
+            <div class="score-card" id="memory-result" hidden></div>
+          </div>
+
+          <div class="practice-pane" id="pane-ask">
+            <div class="meta" id="ask-context">No line selected yet.</div>
+            <div class="ask-row">
+              <input type="text" id="ask-input"
+                placeholder="e.g. Why does it say 'go round and round'?" />
+              <button class="primary" id="ask-send" type="button">Ask</button>
+            </div>
+            <div class="chips" id="ask-quick"></div>
+            <div class="answer" id="ask-answer">Answers stay grounded in the lyrics of the
+              line you are on.</div>
+          </div>
+
+          <div class="practice-pane" id="pane-paraphrase">
+            <p class="meta">See other natural ways to say this line, then try one yourself.</p>
+            <div class="pronounce-row">
+              <button class="primary" id="btn-para-load" type="button">Show alternatives</button>
+              <button class="ghost" id="btn-para-hear" type="button">Hear selected</button>
+              <button class="ghost" id="btn-para-check" type="button">Check my version</button>
+            </div>
+            <div class="pronounce-target">
+              <div class="label" id="para-label">Current line</div>
+              <div class="say" id="para-line">Choose a song and press play.</div>
+              <div class="hint" id="para-hint"></div>
+            </div>
+            <div class="alt-list" id="para-alts"></div>
+            <div class="pronounce-row">
+              <input type="text" id="para-heard"
+                placeholder="Type or speak your own version…" />
+              <button class="primary btn-mic" id="btn-para-mic" type="button">Speak</button>
+            </div>
+            <div class="score-card" id="para-result" hidden></div>
+          </div>
+
+          <div class="practice-pane" id="pane-sing">
+            <p class="meta">Walk through every line of the song in your language (or English)
+              and get a full-song score.</p>
+            <div class="pronounce-row">
+              <label><input type="radio" name="sing-practice" id="sing-pr-tr" value="translation"
+                checked /> Sing in my language</label>
+              <label><input type="radio" name="sing-practice" id="sing-pr-en" value="english" />
+                Sing the English lyric</label>
+            </div>
+            <div class="pronounce-row">
+              <button class="primary" id="btn-sing-start" type="button">Start full-song check</button>
+              <button class="ghost" id="btn-sing-hear" type="button" hidden>Hear model</button>
+              <button class="primary btn-mic" id="btn-sing-mic" type="button" hidden>Speak this line</button>
+              <button class="ghost" id="btn-sing-next" type="button" hidden>Next line</button>
+              <button class="ghost" id="btn-sing-finish" type="button" hidden>Finish &amp; score</button>
+            </div>
+            <div class="sing-progress" id="sing-progress"></div>
+            <div class="pronounce-target" id="sing-target" hidden>
+              <div class="label" id="sing-label-line">Line</div>
+              <div class="say" id="sing-say"></div>
+              <div class="hint" id="sing-hint"></div>
+            </div>
+            <div class="pronounce-row" id="sing-input-row" hidden>
+              <input type="text" id="sing-heard" placeholder="Or type this line…" />
+            </div>
+            <div id="sing-results"></div>
+            <div class="score-card" id="sing-result" hidden></div>
+          </div>
         </section>
       </div>
       <section class="panel">
         <h2>YouTube movie lessons</h2>
         <p class="meta">Embed a short film or legend, pause on each verse, answer grammar and
-          vocabulary prompts, then ask the AI anything about that line — translated into
-          your language.</p>
+          vocabulary prompts, then ask the AI anything about that line. Every line is read
+          aloud in the language you picked above, in the same words the line shows.</p>
         <div class="embed-picker" id="embed-picker">Loading…</div>
         <div class="embed-stage" id="embed-stage" hidden>
           <div class="embed-player" id="embed-player-box"><div id="yt-host"></div>
@@ -398,12 +588,17 @@ _HTML = """
             <button class="ghost" id="btn-embed-pause" type="button">Pause</button>
             <button class="ghost" id="btn-embed-continue" type="button">Continue after ask</button>
             <label><input type="checkbox" id="auto-pause" checked /> Pause at each verse</label>
+            <label><input type="checkbox" id="speak-verse" checked /> Speak each line</label>
             <span class="meta" id="embed-meta"></span>
           </div>
           <div class="pause-card" id="pause-card" hidden>
             <h3 id="pause-title">Paused for learning</h3>
             <div id="pause-line"></div>
             <div class="tr" id="pause-tr"></div>
+            <div class="embed-tools" style="margin-top:.4rem">
+              <button class="ghost" id="btn-hear-verse" type="button">Hear this line</button>
+              <span class="meta" id="pause-voice"></span>
+            </div>
             <div class="chips" id="pause-vocab"></div>
             <div class="q-list" id="pause-questions"></div>
             <div class="ask-row" style="margin-top:.65rem">
@@ -432,8 +627,10 @@ _JS = r"""
   const QUICK_ASKS = [
     "What does this line mean?",
     "How do I say this in my language?",
-    "Why is it worded this way?",
+    "Other ways to say the same thing?",
     "How do I pronounce it?",
+    "Why is it worded this way?",
+    "Give me an example sentence",
   ];
 
   const CAMERAS = ["push-in", "pull-out", "pan-right", "pan-left", "ken-burns",
@@ -458,6 +655,11 @@ _JS = r"""
   let usingLocalVideo = false;
   let firedPauses = new Set();
   let pauseLocked = false;
+  let quizState = null;
+  let memoryState = null;
+  let paraState = null;
+  let paraSelected = "";
+  let singCheck = null;
   const EMBED_QUICK = [
     "What does this verse mean?",
     "Explain the grammar here",
@@ -465,6 +667,9 @@ _JS = r"""
     "Give me an example sentence",
   ];
 
+  // A listener's sync nudge is remembered per song: ears differ, and a device
+  // with slow audio output needs the same correction on every visit.
+  const SYNC_STORAGE_KEY = "twl.sync.v1";
   let syncOffset = 0;
   let activeLineNo = 0;
   let activeWordKey = "";
@@ -549,6 +754,8 @@ _JS = r"""
     });
     activeLineNo = 0;
     activeWordKey = "";
+    // The rebuilt rows carry no state classes, so the count-in must re-apply its own.
+    countInLineNo = 0;
   }
 
   function renderTierMeta() {
@@ -577,6 +784,566 @@ _JS = r"""
     $("now-examples").innerHTML = examples.map((v) =>
       `<li>${esc(v.example_en)}</li>`).join("");
     $("ask-context").textContent = `Asking about line ${lineNo}: "${row.text}"`;
+    refreshPronounceTarget();
+    refreshParaLine();
+  }
+
+  function practiceMode() {
+    const tr = $("practice-tr");
+    return (tr && tr.checked) ? "translation" : "english";
+  }
+
+  function refreshPronounceTarget() {
+    const say = $("pronounce-say");
+    const hint = $("pronounce-hint");
+    if (!say || !hint) return;
+    const row = trRow(activeLineNo);
+    if (!row) {
+      say.textContent = "Choose a song and press play.";
+      hint.textContent = "";
+      return;
+    }
+    const mode = practiceMode();
+    const target = mode === "translation" ? (row.translation || row.text) : row.text;
+    say.textContent = target;
+    hint.textContent = mode === "translation"
+      ? `Say this in ${translation ? translation.language_name : "your language"} (line ${activeLineNo}).`
+      : `Sing or say the English lyric (line ${activeLineNo}).`;
+  }
+
+  function renderPronounceResult(result) {
+    const box = $("pronounce-result");
+    if (!box) return;
+    box.hidden = false;
+    box.className = "score-card " + (result.passed ? "pass" : "retry");
+    const stars = "\u2605".repeat(result.stars || 0) + "\u2606".repeat(Math.max(0, 3 - (result.stars || 0)));
+    const chips = (result.words || []).map((w) => {
+      const label = w.status === "extra" ? (w.heard || "") : (w.word || w.heard || "");
+      if (!label) return "";
+      return `<span class="word-chip ${esc(w.status)}">${esc(label)}</span>`;
+    }).join("");
+    const tips = (result.corrections || []).map((c) =>
+      `<li>${esc(c.tip)}</li>`).join("");
+    box.innerHTML =
+      `<div class="stars">${stars}</div>
+       <div><strong>${result.score}/100</strong> \u00b7 ${esc(result.feedback)}</div>
+       <div class="meta" style="margin-top:.35rem">Heard: ${esc(result.heard || "(nothing)")}</div>
+       <div style="margin-top:.45rem">${chips}</div>
+       <div class="meta" style="margin-top:.45rem">${esc(result.mouth_tip || "")}</div>
+       <div class="meta">${esc(result.syllables || "")}</div>
+       ${tips ? `<ul class="examples">${tips}</ul>` : ""}`;
+  }
+
+  async function checkPronunciation(heard) {
+    if (!current || !activeLineNo) {
+      toast("Pick a song line first");
+      return;
+    }
+    const text = (heard || "").trim();
+    if (!text) {
+      toast("Say or type the line first");
+      return;
+    }
+    $("pronounce-status").textContent = "Checking pronunciation\u2026";
+    try {
+      const result = await post("/api/music/pronounce", {
+        song_id: current.song_id,
+        line_no: activeLineNo,
+        heard: text,
+        target_lang: lang(),
+        practice: practiceMode(),
+      });
+      $("pronounce-heard").value = result.heard || text;
+      renderPronounceResult(result);
+      $("pronounce-status").textContent = result.passed
+        ? "Passed — try the next line, or sing it with the track."
+        : "Not quite — use the tips, Hear model, then try again.";
+      toast(result.passed
+        ? `Pronunciation ${result.score}/100`
+        : `Try again \u00b7 ${result.score}/100`);
+    } catch (err) {
+      $("pronounce-status").textContent = String(err.message || err);
+    }
+  }
+
+  function hearPronounceModel() {
+    const row = trRow(activeLineNo);
+    if (!row) { toast("Pick a line first"); return; }
+    const mode = practiceMode();
+    const text = mode === "translation" ? (row.translation || row.text) : row.text;
+    const code = mode === "translation" ? lang() : "en";
+    const tag = mode === "translation"
+      ? ((singPlan && singPlan.voice_tag) || lang())
+      : "en-US";
+    if (!canSpeak(code, tag)) { toast("No voice available for this language"); return; }
+    // Slower than the sung rate: this is the model to copy.
+    speak(text, { lang: code, tag: tag, rate: 0.92 });
+  }
+
+  let pronounceRec = null;
+  let micListening = false;
+
+  function speechRecognizer() {
+    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    return Ctor ? new Ctor() : null;
+  }
+
+  function stopMic() {
+    micListening = false;
+    const btn = $("btn-mic");
+    if (btn) btn.classList.remove("listening");
+    if (pronounceRec) {
+      try { pronounceRec.stop(); } catch (_) {}
+    }
+  }
+
+  function startMic() {
+    const rec = speechRecognizer();
+    if (!rec) {
+      $("pronounce-status").textContent =
+        "Speech recognition is not available here — type what you said, then Check typed.";
+      $("pronounce-heard").focus();
+      return;
+    }
+    const player = $("player");
+    if (player && !player.paused) player.pause();
+    stopSinging();
+    cancelSpeech();
+    pronounceRec = rec;
+    rec.lang = practiceMode() === "translation"
+      ? ((singPlan && singPlan.voice_tag) || lang())
+      : "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    micListening = true;
+    $("btn-mic").classList.add("listening");
+    $("pronounce-status").textContent = "Listening\u2026 say the line clearly.";
+    let finalText = "";
+    rec.onresult = (ev) => {
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const chunk = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += chunk + " ";
+        else interim += chunk;
+      }
+      $("pronounce-heard").value = (finalText + interim).trim();
+    };
+    rec.onerror = (ev) => {
+      stopMic();
+      $("pronounce-status").textContent = "Mic error: " + (ev.error || "unknown")
+        + " — you can still type the line.";
+    };
+    rec.onend = () => {
+      const was = micListening;
+      stopMic();
+      const heard = ($("pronounce-heard").value || "").trim();
+      if (was && heard) checkPronunciation(heard);
+      else if (was) $("pronounce-status").textContent = "No speech heard — try again or type it.";
+    };
+    try { rec.start(); }
+    catch (_) {
+      stopMic();
+      $("pronounce-status").textContent = "Could not start the mic — check browser permission.";
+    }
+  }
+
+  function setPracticeMode(mode) {
+    $("practice-modes").querySelectorAll("button").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-mode") === mode);
+    });
+    ["pronounce", "quiz", "memory", "ask", "paraphrase", "sing"].forEach((id) => {
+      const pane = $("pane-" + id);
+      if (pane) pane.classList.toggle("active", id === mode);
+    });
+    if (mode === "paraphrase") refreshParaLine();
+    if (mode === "ask") {
+      // Switching into Ask keeps the current line context visible.
+    }
+  }
+
+  function starsHtml(n) {
+    return "\u2605".repeat(n || 0) + "\u2606".repeat(Math.max(0, 3 - (n || 0)));
+  }
+
+  function renderDrillScore(box, result) {
+    if (!box) return;
+    box.hidden = false;
+    box.className = "score-card " + (result.passed ? "pass" : "retry");
+    box.innerHTML =
+      `<div class="stars">${starsHtml(result.stars)}</div>
+       <div><strong>${result.score}/100</strong> \u00b7 ${esc(result.feedback || "")}</div>
+       <div class="meta" style="margin-top:.35rem">${result.correct || 0} of ${result.total || 0} correct</div>`;
+  }
+
+  async function startQuiz() {
+    if (!current) { toast("Pick a song first"); return; }
+    $("quiz-status").textContent = "Building quiz\u2026";
+    $("quiz-result").hidden = true;
+    try {
+      const data = await api(`/api/music/practice/${encodeURIComponent(current.song_id)}/quiz` +
+        `?target_lang=${encodeURIComponent(lang())}&count=8`);
+      quizState = data;
+      $("btn-quiz-grade").hidden = false;
+      $("quiz-status").textContent = `${data.count} questions \u00b7 ${data.language_name}`;
+      $("quiz-body").innerHTML = (data.questions || []).map((q) => `
+        <div class="quiz-q" data-id="${esc(q.id)}">
+          <div class="prompt">${esc(q.prompt)}</div>
+          <div class="quiz-choices">
+            ${(q.choices || []).map((c) => `
+              <label><input type="radio" name="quiz-${esc(q.id)}" value="${esc(c)}" />
+                <span>${esc(c)}</span></label>`).join("")}
+          </div>
+        </div>`).join("");
+    } catch (err) {
+      $("quiz-status").textContent = String(err.message || err);
+    }
+  }
+
+  async function gradeQuiz() {
+    if (!current || !quizState) { toast("Start a quiz first"); return; }
+    const answers = {};
+    (quizState.questions || []).forEach((q) => {
+      const picked = document.querySelector(`input[name="quiz-${q.id}"]:checked`);
+      answers[q.id] = picked ? picked.value : "";
+    });
+    $("quiz-status").textContent = "Checking\u2026";
+    try {
+      const result = await post("/api/music/practice/quiz/grade", {
+        song_id: current.song_id,
+        target_lang: lang(),
+        answers,
+        count: quizState.count,
+        seed: quizState.seed || "",
+      });
+      renderDrillScore($("quiz-result"), result);
+      $("quiz-status").textContent = result.passed
+        ? `Passed \u00b7 ${result.score}/100`
+        : `Keep practising \u00b7 ${result.score}/100`;
+      (result.results || []).forEach((row) => {
+        const el = $("quiz-body").querySelector(`.quiz-q[data-id="${row.id}"]`);
+        if (!el) return;
+        el.classList.toggle("ok", !!row.correct);
+        el.classList.toggle("bad", !row.correct);
+        if (!row.correct) {
+          const note = document.createElement("div");
+          note.className = "meta";
+          note.style.marginTop = ".35rem";
+          note.textContent = `Answer: ${row.answer}`;
+          el.appendChild(note);
+        }
+      });
+      toast(`Quiz ${result.score}/100`);
+    } catch (err) {
+      $("quiz-status").textContent = String(err.message || err);
+    }
+  }
+
+  function memoryDirection() {
+    const tr = $("mem-tr-en");
+    return (tr && tr.checked) ? "target_to_en" : "en_to_target";
+  }
+
+  async function startMemory() {
+    if (!current) { toast("Pick a song first"); return; }
+    $("memory-status").textContent = "Building cards\u2026";
+    $("memory-result").hidden = true;
+    try {
+      const dir = memoryDirection();
+      const data = await api(`/api/music/practice/${encodeURIComponent(current.song_id)}/memory` +
+        `?target_lang=${encodeURIComponent(lang())}&direction=${encodeURIComponent(dir)}&count=6`);
+      memoryState = data;
+      $("btn-memory-grade").hidden = false;
+      $("memory-status").textContent = `${data.count} cards \u00b7 ${data.language_name}`;
+      $("memory-body").innerHTML = (data.cards || []).map((c) => `
+        <div class="memory-card" data-id="${esc(c.id)}">
+          <div class="side">${esc(c.prompt_label)} \u2192 ${esc(c.answer_label)}</div>
+          <div class="prompt">${esc(c.prompt)}</div>
+          <input type="text" data-mem="${esc(c.id)}"
+            placeholder="Type the ${esc(c.answer_label)} side…" />
+        </div>`).join("");
+    } catch (err) {
+      $("memory-status").textContent = String(err.message || err);
+    }
+  }
+
+  async function gradeMemory() {
+    if (!current || !memoryState) { toast("Start a memory drill first"); return; }
+    const answers = {};
+    $("memory-body").querySelectorAll("input[data-mem]").forEach((inp) => {
+      answers[inp.getAttribute("data-mem")] = inp.value || "";
+    });
+    $("memory-status").textContent = "Checking recall\u2026";
+    try {
+      const result = await post("/api/music/practice/memory/grade", {
+        song_id: current.song_id,
+        target_lang: lang(),
+        direction: memoryState.direction,
+        answers,
+        count: memoryState.count,
+        seed: memoryState.seed || "",
+      });
+      renderDrillScore($("memory-result"), result);
+      $("memory-status").textContent = result.passed
+        ? `Passed \u00b7 ${result.score}/100`
+        : `Review the misses \u00b7 ${result.score}/100`;
+      (result.results || []).forEach((row) => {
+        const el = $("memory-body").querySelector(`.memory-card[data-id="${row.id}"]`);
+        if (!el) return;
+        el.style.borderColor = row.passed ? "#34d399" : "#fb923c";
+        const note = document.createElement("div");
+        note.className = "meta";
+        note.style.marginTop = ".35rem";
+        note.textContent = row.passed
+          ? `Correct (${row.score}/100)`
+          : `Answer: ${row.answer}`;
+        el.appendChild(note);
+      });
+      toast(`Memory ${result.score}/100`);
+    } catch (err) {
+      $("memory-status").textContent = String(err.message || err);
+    }
+  }
+
+  function refreshParaLine() {
+    const row = trRow(activeLineNo);
+    if (!row) {
+      $("para-line").textContent = "Choose a song and press play.";
+      $("para-hint").textContent = "";
+      return;
+    }
+    $("para-label").textContent = `Line ${activeLineNo}`;
+    $("para-line").textContent = row.text;
+    $("para-hint").textContent = row.translation
+      ? `Song translation: ${row.translation}`
+      : "";
+  }
+
+  async function loadParaphrases() {
+    if (!current || !activeLineNo) { toast("Pick a song line first"); return; }
+    refreshParaLine();
+    $("para-result").hidden = true;
+    try {
+      const data = await post("/api/music/practice/paraphrase", {
+        song_id: current.song_id,
+        line_no: activeLineNo,
+        target_lang: lang(),
+        allow_llm: true,
+      });
+      paraState = data;
+      paraSelected = (data.alternatives || [])[0] ? data.alternatives[0].text : "";
+      $("para-hint").textContent = data.prompt || "";
+      $("para-alts").innerHTML = (data.alternatives || []).map((alt, i) => `
+        <button type="button" class="alt-item ${i === 0 ? "active" : ""}"
+          data-text="${esc(alt.text)}">
+          <div>${esc(alt.text)}</div>
+          <div class="meta">${esc(alt.source || "")}${alt.english ? " \u00b7 EN: " + esc(alt.english) : ""}</div>
+        </button>`).join("");
+      $("para-alts").querySelectorAll(".alt-item").forEach((btn) => {
+        btn.onclick = () => {
+          $("para-alts").querySelectorAll(".alt-item").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          paraSelected = btn.getAttribute("data-text") || "";
+          $("para-heard").value = paraSelected;
+        };
+      });
+      toast(`${(data.alternatives || []).length} ways to say it`);
+    } catch (err) {
+      toast(String(err.message || err));
+    }
+  }
+
+  function hearParaphrase() {
+    const text = paraSelected || ($("para-heard").value || "").trim();
+    if (!text) { toast("Pick or type a phrase first"); return; }
+    const tag = (paraState && paraState.voice_tag) || lang();
+    if (!canSpeak(lang(), tag)) { toast("No voice available"); return; }
+    speak(text, { lang: lang(), tag: tag, rate: 0.92 });
+  }
+
+  async function checkParaphrase() {
+    if (!current || !activeLineNo) { toast("Pick a line first"); return; }
+    const heard = ($("para-heard").value || "").trim();
+    if (!heard) { toast("Type or speak your version first"); return; }
+    const target = paraSelected
+      || (trRow(activeLineNo) || {}).translation
+      || (trRow(activeLineNo) || {}).text
+      || "";
+    try {
+      const result = await post("/api/music/pronounce", {
+        song_id: current.song_id,
+        line_no: activeLineNo,
+        heard,
+        target_lang: lang(),
+        practice: "translation",
+        target,
+      });
+      const box = $("para-result");
+      box.hidden = false;
+      box.className = "score-card " + (result.passed ? "pass" : "retry");
+      const stars = starsHtml(result.stars);
+      box.innerHTML =
+        `<div class="stars">${stars}</div>
+         <div><strong>${result.score}/100</strong> \u00b7 ${esc(
+           result.passed
+             ? "Nice — that works as another way to say this line."
+             : result.feedback
+         )}</div>
+         <div class="meta" style="margin-top:.35rem">Target: ${esc(result.target)}</div>
+         <div class="meta">Heard: ${esc(result.heard || "(nothing)")}</div>`;
+      toast(result.passed ? `Alt phrasing ${result.score}/100` : `Try again \u00b7 ${result.score}/100`);
+    } catch (err) {
+      toast(String(err.message || err));
+    }
+  }
+
+  function listenInto(inputId, statusId, onDone, recLang) {
+    const rec = speechRecognizer();
+    if (!rec) {
+      if (statusId) $(statusId).textContent = "Type instead — mic unavailable here.";
+      $(inputId).focus();
+      return;
+    }
+    const player = $("player");
+    if (player && !player.paused) player.pause();
+    stopSinging();
+    cancelSpeech();
+    stopMic();
+    pronounceRec = rec;
+    rec.lang = recLang || "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    micListening = true;
+    let finalText = "";
+    rec.onresult = (ev) => {
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const chunk = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += chunk + " ";
+        else interim += chunk;
+      }
+      $(inputId).value = (finalText + interim).trim();
+    };
+    rec.onerror = () => { stopMic(); };
+    rec.onend = () => {
+      const was = micListening;
+      stopMic();
+      const heard = ($(inputId).value || "").trim();
+      if (was && heard && onDone) onDone(heard);
+    };
+    try { rec.start(); } catch (_) { stopMic(); }
+  }
+
+  function singPracticeMode() {
+    const en = $("sing-pr-en");
+    return (en && en.checked) ? "english" : "translation";
+  }
+
+  async function startSingCheck() {
+    if (!current) { toast("Pick a song first"); return; }
+    // Need the translation rows as targets for each line.
+    if (!translation) await loadTranslation();
+    const mode = singPracticeMode();
+    const rows = (translation && translation.lines) || [];
+    if (!rows.length) { toast("No lines to practise"); return; }
+    singCheck = {
+      mode,
+      index: 0,
+      rows: rows.map((r) => ({
+        line_no: r.line_no,
+        target: mode === "english" ? r.text : (r.translation || r.text),
+        text: r.text,
+        translation: r.translation,
+      })),
+      heard: {},
+    };
+    $("sing-target").hidden = false;
+    $("sing-input-row").hidden = false;
+    $("btn-sing-hear").hidden = false;
+    $("btn-sing-mic").hidden = false;
+    $("btn-sing-next").hidden = false;
+    $("btn-sing-finish").hidden = false;
+    $("sing-result").hidden = true;
+    $("sing-results").innerHTML = "";
+    showSingLine();
+  }
+
+  function showSingLine() {
+    if (!singCheck) return;
+    const row = singCheck.rows[singCheck.index];
+    if (!row) return;
+    $("sing-label-line").textContent =
+      `Line ${row.line_no} of ${singCheck.rows.length}` +
+      (singCheck.mode === "english" ? " · English" : ` · ${lang()}`);
+    $("sing-say").textContent = row.target;
+    $("sing-hint").textContent = singCheck.mode === "english"
+      ? row.translation || ""
+      : row.text;
+    $("sing-heard").value = singCheck.heard[row.line_no] || "";
+    $("sing-progress").textContent =
+      `Progress: ${Object.keys(singCheck.heard).length}/${singCheck.rows.length} lines attempted`;
+  }
+
+  function saveSingHeard() {
+    if (!singCheck) return;
+    const row = singCheck.rows[singCheck.index];
+    if (!row) return;
+    singCheck.heard[row.line_no] = ($("sing-heard").value || "").trim();
+  }
+
+  function hearSingModel() {
+    if (!singCheck) return;
+    const row = singCheck.rows[singCheck.index];
+    if (!row) return;
+    const code = singCheck.mode === "english" ? "en" : lang();
+    const tag = singCheck.mode === "english"
+      ? "en-US"
+      : ((singPlan && singPlan.voice_tag) || lang());
+    if (!canSpeak(code, tag)) { toast("No voice available"); return; }
+    speak(row.target, { lang: code, tag: tag, rate: 0.92 });
+  }
+
+  function nextSingLine() {
+    if (!singCheck) return;
+    saveSingHeard();
+    if (singCheck.index < singCheck.rows.length - 1) {
+      singCheck.index += 1;
+      showSingLine();
+    } else {
+      toast("Last line — Finish & score when ready");
+    }
+  }
+
+  async function finishSingCheck() {
+    if (!current || !singCheck) return;
+    saveSingHeard();
+    const lines = singCheck.rows.map((r) => ({
+      line_no: r.line_no,
+      heard: singCheck.heard[r.line_no] || "",
+    }));
+    $("sing-progress").textContent = "Scoring the whole song\u2026";
+    try {
+      const result = await post("/api/music/practice/sing", {
+        song_id: current.song_id,
+        target_lang: lang(),
+        practice: singCheck.mode,
+        lines,
+      });
+      renderDrillScore($("sing-result"), result);
+      $("sing-progress").textContent =
+        `${result.correct}/${result.line_count} lines passed \u00b7 ${result.attempted} attempted`;
+      $("sing-results").innerHTML = (result.lines || []).map((r) => `
+        <div class="sing-line-row ${r.passed ? "pass" : "fail"}">
+          <span>Line ${r.line_no}: ${esc((r.target || "").slice(0, 48))}</span>
+          <span>${r.score}/100</span>
+        </div>`).join("");
+      toast(result.passed
+        ? `Full song ${result.score}/100 — you can sing it!`
+        : `Full song ${result.score}/100 — keep practising`);
+    } catch (err) {
+      $("sing-progress").textContent = String(err.message || err);
+    }
   }
 
   function renderClips() {
@@ -753,7 +1520,8 @@ _JS = r"""
       <button type="button" class="verse ${v.verse_no === activeVerseNo ? "active" : ""}"
         data-no="${v.verse_no}">
         <strong>Line ${v.verse_no} \u00b7 ${esc(v.section || v.focus)} \u00b7 ${esc(v.source_lang || "")}
-          \u00b7 ${Math.round(v.start_sec)}s</strong>
+          \u00b7 ${Math.round(v.start_sec)}s
+          <span class="badge ${esc(v.tier || "english")}">${esc(v.tier || "english")}</span></strong>
         <span>${esc(v.text)}</span>
         <div class="tr">${esc(v.translation)}</div>
         ${v.text_en && v.source_lang === "km" ? `<div class="meta">${esc(v.text_en)}</div>` : ""}
@@ -761,10 +1529,40 @@ _JS = r"""
     box.querySelectorAll(".verse").forEach((btn) => {
       btn.onclick = () => {
         const no = Number(btn.getAttribute("data-no"));
+        // seekVerse leaves the video paused, so the line can be read aloud.
         seekVerse(no);
-        showPauseCard(no, false);
+        showPauseCard(no, true);
       };
     });
+  }
+
+  function activeVerse() {
+    if (!currentEmbed) return null;
+    return (currentEmbed.verses || []).find((v) => v.verse_no === activeVerseNo) || null;
+  }
+
+  // The verse is read in the learner's language, so the video teaches the same
+  // translation the line shows. An untranslated line carries an English voice
+  // tag from the server, so no voice ever reads the wrong script.
+  function speakVerse(verse) {
+    if (!verse || !verse.speak_text) return;
+    if (!canSpeak(verse.speak_lang, verse.voice_tag)) {
+      toast("No voice available for this language");
+      return;
+    }
+    speak(verse.speak_text, {
+      lang: verse.speak_lang,
+      tag: verse.voice_tag,
+      rate: 0.95,
+    });
+  }
+
+  function hearVerse() {
+    const verse = activeVerse();
+    if (!verse) { toast("Pick a lesson first"); return; }
+    // Speaking over the soundtrack is unintelligible: hold the video instead.
+    pauseMedia();
+    speakVerse(verse);
   }
 
   function showPauseCard(verseNo, locked) {
@@ -784,6 +1582,9 @@ _JS = r"""
       bits.push(verse.text_en);
     }
     $("pause-tr").textContent = bits.filter(Boolean).join(" · ");
+    $("pause-voice").textContent = verse.speak_lang === currentEmbed.language
+      ? `Spoken in ${currentEmbed.language_name} (${verse.voice_tag})`
+      : `No ${currentEmbed.language_name} translation for this line yet — spoken in English`;
     $("pause-vocab").innerHTML = (verse.vocabulary || []).filter((r) => r.target).slice(0, 8).map((r) =>
       `<span class="chip"><b>${esc(r.en)}</b> \u2192 ${esc(r.target)}</span>`).join("");
     $("pause-questions").innerHTML = (verse.questions || []).map((q, i) => `
@@ -801,6 +1602,9 @@ _JS = r"""
       };
     });
     $("embed-ask-answer").textContent = "Ask about this verse, or reveal a prepared answer above.";
+    // Only a locked pause is silent; speaking during playback would talk over
+    // the soundtrack.
+    if (locked && $("speak-verse").checked) speakVerse(verse);
   }
 
   function clearPlayers() {
@@ -905,8 +1709,11 @@ _JS = r"""
   }
 
   async function selectEmbed(embedId) {
+    cancelSpeech();
+    // allow_llm mirrors the lyric panel: any line the curated tier misses is
+    // machine-translated (and cached server-side) instead of shown in English.
     currentEmbed = await api(`/api/music/embeds/${encodeURIComponent(embedId)}` +
-      `?target_lang=${encodeURIComponent(lang())}&allow_llm=false`);
+      `?target_lang=${encodeURIComponent(lang())}&allow_llm=true`);
     activeVerseNo = currentEmbed.verses[0] ? currentEmbed.verses[0].verse_no : 0;
     firedPauses = new Set();
     pauseLocked = false;
@@ -935,6 +1742,7 @@ _JS = r"""
     if (!currentEmbed) return;
     const verse = currentEmbed.verses.find((v) => v.verse_no === verseNo);
     if (!verse) return;
+    cancelSpeech();
     activeVerseNo = verseNo;
     seekMedia(verse.start_sec);
     markVerseActive(verseNo);
@@ -1015,7 +1823,7 @@ _JS = r"""
     box.scrollTo({ top: Math.max(0, target), behavior: smooth === false ? "auto" : "smooth" });
   }
 
-  function setActiveLine(lineNo, scroll) {
+  function setActiveLine(lineNo, scroll, speak) {
     if (lineNo === activeLineNo) return;
     activeLineNo = lineNo;
     const player = $("player");
@@ -1024,7 +1832,9 @@ _JS = r"""
     if (el && scroll !== false) keepLineVisible(el, !player.paused);
     renderNowLine(lineNo);
     renderCaption(lineNo);
-    speakLine(lineNo);
+    // The intro shows the first line to read ahead of; singing it there would
+    // run the translated voice ahead of the recording.
+    if (speak !== false) speakLine(lineNo);
   }
 
   function moveBall(span) {
@@ -1148,6 +1958,9 @@ _JS = r"""
       `<span class="w" data-i="${w.index}">${esc(w.text)}</span>`).join(" ");
     const tr = trRow(lineNo);
     $("cap-tr").textContent = tr && tr.translation ? tr.translation : "";
+    // While counting in, this line is the caption's tail — a "next line" hint here
+    // would overwrite the countdown whenever the storyboard repaints.
+    if (countInLineNo) return;
     const next = current.lines.find((l) => l.line_no === lineNo + 1);
     const nextTr = next ? trRow(next.line_no) : null;
     $("cap-next").textContent = next
@@ -1155,39 +1968,27 @@ _JS = r"""
       : "";
   }
 
-  let narrationGen = 0;
+  /* ---------- speech: server neural voices first, device voice as fallback ----------
 
-  function stopNarrationSpeech() {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    narrationGen += 1;  // pending restore() callbacks become stale
-    if (ducked) { ducked = false; $("player").volume = duckedFrom; }
+     A device can only speak the languages its OS shipped — macOS has no Khmer
+     voice at all — so "Sing in Khmer" used to refuse outright. The server renders
+     any of the 27 languages with a neural voice and the browser plays the MP3;
+     the device voice remains the fallback when the server cannot render. */
+
+  let serverVoices = null;
+  let ttsAudio = null;
+  let ttsToken = 0;
+  let ttsFellBack = false;
+
+  async function probeServerVoices() {
+    try { serverVoices = await api("/api/music/tts/status"); }
+    catch (_) { serverVoices = { available: false, engine: "none" }; }
+    return serverVoices;
   }
 
-  function speakNarration(scene) {
-    const synth = window.speechSynthesis;
-    if (!synth || !scene.narration) return;
-    const player = $("player");
-    synth.cancel();
-    const gen = ++narrationGen;
-    const utter = new SpeechSynthesisUtterance(scene.narration);
-    utter.lang = scene.narration_language === "en" ? "en-US" : scene.narration_language;
-    utter.rate = 0.98;
-    if (!ducked) { duckedFrom = player.volume; ducked = true; }
-    player.volume = Math.min(duckedFrom, 0.3);
-    const restore = () => {
-      // The cancelled utterance's end event arrives asynchronously — without
-      // this guard it un-ducks the NEXT scene's narration mid-speech.
-      if (gen !== narrationGen) return;
-      if (!ducked) return;
-      ducked = false;
-      player.volume = duckedFrom;
-    };
-    utter.onend = restore;
-    utter.onerror = restore;
-    synth.speak(utter);
+  function serverVoicesReady() {
+    return !!(serverVoices && serverVoices.available);
   }
-
-  /* ---------- sing along in the learner's language ---------- */
 
   function voiceFor(tag) {
     const synth = window.speechSynthesis;
@@ -1199,6 +2000,91 @@ _JS = r"""
       || voices.find((v) => (v.lang || "").toLowerCase().replace("_", "-").startsWith(base))
       || null;
   }
+
+  function canSpeak(langCode, tag) {
+    return serverVoicesReady() || !!voiceFor(tag || langCode);
+  }
+
+  // Stops BOTH engines. Every pause/seek/stop path must call this, or server
+  // audio would keep singing over the recording.
+  function cancelSpeech() {
+    ttsToken += 1;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (ttsAudio) {
+      try { ttsAudio.pause(); } catch (_) { /* not started yet */ }
+      ttsAudio.removeAttribute("src");
+    }
+  }
+
+  function speakOnDevice(text, tag, rate, onDone) {
+    const synth = window.speechSynthesis;
+    if (!synth) return false;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = tag || "en-US";
+    utter.rate = rate || 1;
+    // A tagged voice is better, but an engine that rejects the object should
+    // still speak the line from the language tag alone.
+    try {
+      const voice = voiceFor(utter.lang);
+      if (voice) utter.voice = voice;
+    } catch (_) { /* keep utter.lang */ }
+    if (onDone) { utter.onend = onDone; utter.onerror = onDone; }
+    synth.speak(utter);
+    return true;
+  }
+
+  function speak(text, opts) {
+    const line = String(text || "").trim();
+    const o = opts || {};
+    const done = typeof o.onend === "function" ? o.onend : null;
+    cancelSpeech();
+    if (!line) { if (done) done(); return; }
+    if (serverVoicesReady()) {
+      if (!ttsAudio) ttsAudio = new Audio();
+      const token = ttsToken;
+      const stale = () => token !== ttsToken;
+      ttsAudio.onended = () => { if (!stale() && done) done(); };
+      ttsAudio.onerror = () => {
+        // 501 (no engine, empty cache) or offline: try the device voice, and say
+        // so once — silence with no explanation is what "not working" felt like.
+        if (stale()) return;
+        if (!ttsFellBack) {
+          ttsFellBack = true;
+          toast("Neural voice unavailable \u2014 using this device's voice");
+        }
+        if (!speakOnDevice(line, o.tag, o.rate, done) && done) done();
+      };
+      ttsAudio.src = `/api/music/tts?lang=${encodeURIComponent(o.lang || "en")}` +
+        `&rate=${encodeURIComponent(Number(o.rate || 1).toFixed(2))}` +
+        `&text=${encodeURIComponent(line)}`;
+      const playing = ttsAudio.play();
+      if (playing && playing.catch) playing.catch(() => { /* onerror handles it */ });
+      return;
+    }
+    if (!speakOnDevice(line, o.tag, o.rate, done) && done) done();
+  }
+
+  function speakNarration(scene) {
+    if (!scene.narration) return;
+    const player = $("player");
+    const code = scene.narration_language || "en";
+    if (!canSpeak(code, code === "en" ? "en-US" : code)) return;
+    if (!ducked) { duckedFrom = player.volume; ducked = true; }
+    player.volume = Math.min(duckedFrom, 0.3);
+    const restore = () => {
+      if (!ducked) return;
+      ducked = false;
+      player.volume = duckedFrom;
+    };
+    speak(scene.narration, {
+      lang: code,
+      tag: code === "en" ? "en-US" : code,
+      rate: 0.98,
+      onend: restore,
+    });
+  }
+
+  /* ---------- sing along in the learner's language ---------- */
 
   async function loadSingPlan() {
     singPlan = null;
@@ -1212,27 +2098,23 @@ _JS = r"""
   }
 
   function speakLine(lineNo) {
-    const synth = window.speechSynthesis;
-    if (!synth || !singPlan || !$("sing-lang").checked) return;
+    if (!singPlan || !$("sing-lang").checked) return;
+    // Sing-along follows the recording: a paused player must stay silent, or the
+    // pause handler's cancel is undone by the next tick and the line sings on.
+    if ($("player").paused) return;
     if (lineNo === singingLineNo) return;
     const row = singPlan.lines.find((r) => r.line_no === lineNo);
     if (!row || !row.speak) return;
     singingLineNo = lineNo;
-    synth.cancel();
-    const utter = new SpeechSynthesisUtterance(row.speak);
-    utter.lang = singPlan.voice_tag;
-    utter.rate = row.rate;
-    // A tagged voice is better, but an engine that rejects the object should
-    // still sing the line from the language tag alone.
-    try {
-      const voice = voiceFor(singPlan.voice_tag);
-      if (voice) utter.voice = voice;
-    } catch (_) { /* keep utter.lang */ }
-    synth.speak(utter);
+    speak(row.speak, {
+      lang: singPlan.language,
+      tag: singPlan.voice_tag,
+      rate: row.rate,
+    });
   }
 
   function stopSinging() {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    cancelSpeech();
     singingLineNo = 0;
     const player = $("player");
     if (singBackedFrom !== null) { player.volume = singBackedFrom; singBackedFrom = null; }
@@ -1245,12 +2127,8 @@ _JS = r"""
       // Programmatic uncheck fires no change event — run the narrate-off
       // cleanup explicitly or the ducked music volume gets stuck at 0.3.
       $("narrate").checked = false;
-      stopNarrationSpeech();
-    }
-    if (!window.speechSynthesis) {
-      box.checked = false;
-      toast("This browser has no speech voices");
-      return;
+      cancelSpeech();
+      if (ducked) { ducked = false; $("player").volume = duckedFrom; }
     }
     try {
       await loadSingPlan();
@@ -1259,22 +2137,26 @@ _JS = r"""
       toast(String(e.message || e));
       return;
     }
+    // Ticking the box while the first song is still loading leaves no plan.
     if (!singPlan) {
-      // No song loaded yet (or the load failed) — nothing to sing.
       box.checked = false;
+      toast("Pick a song first");
       return;
     }
-    if (!voiceFor(singPlan.voice_tag)) {
+    if (!canSpeak(singPlan.language, singPlan.voice_tag)) {
       box.checked = false;
-      toast(`No ${singPlan.language_name} voice installed on this device`);
+      toast(`No ${singPlan.language_name} voice on this device and the neural ` +
+            `voice service is unavailable`);
       return;
     }
     const player = $("player");
     singBackedFrom = player.volume;
     player.volume = singPlan.backing_volume;
+    const via = serverVoicesReady() ? "neural voice" : "device voice";
     toast(singPlan.word_by_word
       ? `${singPlan.language_name}: word by word (no full-line translation yet)`
-      : `Singing in ${singPlan.language_name} \u00b7 English is now the backing track`);
+      : `Singing in ${singPlan.language_name} (${via}) \u00b7 English is now the ` +
+        `backing track`);
     speakLine(activeLineNo);
   }
 
@@ -1295,6 +2177,73 @@ _JS = r"""
     if (!want && document.fullscreenElement && document.exitFullscreen) {
       document.exitFullscreen().catch(() => undefined);
     }
+  }
+
+  function syncStore() {
+    try { return JSON.parse(localStorage.getItem(SYNC_STORAGE_KEY) || "{}") || {}; }
+    catch (_) { return {}; }
+  }
+
+  function saveSync() {
+    if (!current) return;
+    const store = syncStore();
+    if (syncOffset) store[current.song_id] = syncOffset;
+    else delete store[current.song_id];
+    try { localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(store)); }
+    catch (_) { /* private mode: the nudge just won't outlive the tab */ }
+  }
+
+  function loadSync() {
+    const saved = current ? Number(syncStore()[current.song_id]) : 0;
+    syncOffset = Number.isFinite(saved) ? saved : 0;
+    showSync();
+  }
+
+  // Latest line already started at t (null during the intro).
+  function lineBefore(t) {
+    if (!timings) return null;
+    let found = null;
+    for (const row of timings.lines) {
+      if (row.start <= t) found = row; else break;
+    }
+    return found;
+  }
+
+  /* Songs open on instrumental bars — the travel words wait 3.1s. Highlighting
+     line 1 there put the ball on a lyric nobody was singing yet, which reads as
+     "the lyrics start too early", so the intro queues the line and counts in. */
+  let countInLineNo = 0;
+
+  function showCountIn(t) {
+    const first = timings.lines[0];
+    if (!first) return;
+    if (countInLineNo !== first.line_no) {
+      countInLineNo = first.line_no;
+      activeLineNo = 0;
+      clearWordPaint();
+      $("lyrics").querySelectorAll(".line").forEach((el) => {
+        el.classList.remove("active");
+        const no = Number(el.getAttribute("data-no"));
+        el.classList.toggle("upcoming", no === first.line_no);
+      });
+      // Read-ahead text without paint: the stage stays full, nothing looks sung.
+      renderNowLine(first.line_no);
+      renderCaption(first.line_no);
+      clearWordPaint();
+    }
+    // Re-asserted rather than cached: loading the storyboard repaints the caption.
+    const away = Math.ceil(Math.max(0, first.start - t));
+    const label = away > 0 ? `Singing starts in ${away}\u2026` : "";
+    const cap = $("cap-next");
+    if (cap.textContent !== label) cap.textContent = label;
+  }
+
+  function clearCountIn() {
+    if (!countInLineNo) return;
+    countInLineNo = 0;
+    $("lyrics").querySelectorAll(".line.upcoming").forEach((el) => {
+      el.classList.remove("upcoming");
+    });
   }
 
   function tick() {
@@ -1318,13 +2267,18 @@ _JS = r"""
     }
     let row = timings.lines.find((r) => t >= r.start && t < r.end);
     if (!row && timings.lines.length) {
-      row = t < timings.lines[0].start ? null : timings.lines[timings.lines.length - 1];
+      // Measured timings leave the instrumental bars empty. Hold the line that
+      // was just sung instead of snapping to the end of the song.
+      row = lineBefore(t);
     }
     if (row) {
+      clearCountIn();
       setActiveLine(row.line_no, true);
+      // Also speak when the line was already showing through a rest.
+      speakLine(row.line_no);
       paintWords(row, t);
     } else {
-      clearWordPaint();
+      showCountIn(t);
     }
     if (!player.paused && !player.ended) rafId = requestAnimationFrame(tick);
   }
@@ -1370,6 +2324,12 @@ _JS = r"""
     const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : 0;
     timings = await api(`/api/music/timing/${encodeURIComponent(current.song_id)}` +
       (duration ? `?duration=${duration.toFixed(2)}` : ""));
+    const el = $("timing-source");
+    if (el) {
+      el.textContent = timings.aligned
+        ? `Lyrics aligned to the vocals \u00b7 sings from ${timings.lead_in_sec.toFixed(1)}s`
+        : "Lyrics timed by syllable estimate";
+    }
   }
 
   async function loadStoryboard() {
@@ -1431,6 +2391,7 @@ _JS = r"""
     const song = await api("/api/music/songs/" + encodeURIComponent(songId));
     if (gen !== songGen) return;
     current = song;
+    loadSync();
     $("now-title").textContent = current.title_en;
     $("now-meta").textContent =
       `${current.topic} \u00b7 ${current.lines.length} lines \u00b7 ${current.license}`;
@@ -1445,7 +2406,9 @@ _JS = r"""
     await loadTranslation();
     if (gen !== songGen) return;
     renderLyrics();
-    setActiveLine(current.lines[0] ? current.lines[0].line_no : 0, false);
+    // Paused at 0:00 the song has not started, so queue line 1 rather than
+    // lighting it up as if it were being sung.
+    showCountIn(0);
     renderSongList();
     await loadStoryboard();
     if (gen !== songGen) return;
@@ -1453,6 +2416,8 @@ _JS = r"""
       try { await loadSingPlan(); } catch (_) { $("sing-lang").checked = false; }
     }
     await Promise.all([loadClips(), loadVideos()]);
+    // The storyboard and sing plan repaint the captions, so the count-in goes last.
+    if (!activeLineNo) showCountIn(player.currentTime + syncOffset);
   }
 
   async function loadVideos() {
@@ -1529,7 +2494,7 @@ _JS = r"""
     $("stage").classList.remove("playing");
     $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    cancelSpeech();
     singingLineNo = 0;
   });
   $("player").addEventListener("ended", () => {
@@ -1537,14 +2502,14 @@ _JS = r"""
     $("btn-stage-play").textContent = "Play";
     cancelAnimationFrame(rafId);
     clearWordPaint();
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    cancelSpeech();
     singingLineNo = 0;
   });
   $("player").addEventListener("seeked", () => {
     activeWordKey = "";
     // A seek lands mid-line: forget what was sung so the new line speaks again.
     singingLineNo = 0;
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    cancelSpeech();
     repaintLineStates(activeLineNo, $("player").currentTime + syncOffset);
     tick();
   });
@@ -1553,6 +2518,7 @@ _JS = r"""
     await loadTimings();
     renderLyrics();
     if (activeLineNo) { const no = activeLineNo; activeLineNo = 0; setActiveLine(no, false); }
+    else showCountIn($("player").currentTime + syncOffset);
     // The sing plan's per-line rates were computed with the hint duration
     // (metadata wasn't loaded yet) — rebuild against the real duration.
     if ($("sing-lang").checked) await loadSingPlan();
@@ -1575,6 +2541,7 @@ _JS = r"""
   $("btn-theater").onclick = () => toggleTheater();
   $("btn-embed-play").onclick = () => {
     pauseLocked = false;
+    cancelSpeech();
     playMedia();
   };
   $("btn-embed-pause").onclick = () => {
@@ -1583,9 +2550,11 @@ _JS = r"""
   };
   $("btn-embed-continue").onclick = () => {
     pauseLocked = false;
+    cancelSpeech();
     $("pause-card").hidden = true;
     playMedia();
   };
+  $("btn-hear-verse").onclick = () => hearVerse();
   $("embed-ask-send").onclick = () => askEmbed();
   $("embed-ask-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") askEmbed();
@@ -1612,7 +2581,8 @@ _JS = r"""
       stopSinging();
     }
     if (!$("narrate").checked) {
-      stopNarrationSpeech();
+      cancelSpeech();
+      if (ducked) { ducked = false; $("player").volume = duckedFrom; }
       return;
     }
     const scene = board && board.scenes.find((s) => s.scene_id === activeSceneId);
@@ -1635,17 +2605,78 @@ _JS = r"""
     renderLyrics();
     if (no) setActiveLine(no, false);
   };
+  function showSync() {
+    const sign = syncOffset >= 0 ? "" : "\u2212";
+    $("sync-value").textContent = `${sign}${Math.abs(syncOffset).toFixed(2)}s`;
+  }
   function setSync(delta) {
     syncOffset = Math.round((syncOffset + delta) * 100) / 100;
-    $("sync-value").textContent = `${syncOffset >= 0 ? "" : "\u2212"}${Math.abs(syncOffset).toFixed(2)}s`;
+    showSync();
+    saveSync();
     activeWordKey = "";
     repaintLineStates(activeLineNo, $("player").currentTime + syncOffset);
     tick();
   }
   $("sync-back").onclick = () => setSync(-0.25);
   $("sync-fwd").onclick = () => setSync(0.25);
+  $("sync-reset").onclick = () => {
+    syncOffset = 0;
+    showSync();
+    saveSync();
+    activeWordKey = "";
+    repaintLineStates(activeLineNo, $("player").currentTime);
+    tick();
+  };
   $("ask-send").onclick = () => askAI();
   $("ask-input").addEventListener("keydown", (e) => { if (e.key === "Enter") askAI(); });
+  $("btn-hear-model").onclick = () => hearPronounceModel();
+  $("btn-mic").onclick = () => {
+    if (micListening) { stopMic(); return; }
+    startMic();
+  };
+  $("btn-check-typed").onclick = () => checkPronunciation($("pronounce-heard").value);
+  $("pronounce-heard").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") checkPronunciation($("pronounce-heard").value);
+  });
+  ["practice-en", "practice-tr"].forEach((id) => {
+    const el = $(id);
+    if (el) el.onchange = () => {
+      refreshPronounceTarget();
+      const box = $("pronounce-result");
+      if (box) box.hidden = true;
+    };
+  });
+  $("practice-modes").querySelectorAll("button[data-mode]").forEach((btn) => {
+    btn.onclick = () => setPracticeMode(btn.getAttribute("data-mode"));
+  });
+  $("btn-quiz-start").onclick = () => startQuiz();
+  $("btn-quiz-grade").onclick = () => gradeQuiz();
+  $("btn-memory-start").onclick = () => startMemory();
+  $("btn-memory-grade").onclick = () => gradeMemory();
+  $("btn-para-load").onclick = () => loadParaphrases();
+  $("btn-para-hear").onclick = () => hearParaphrase();
+  $("btn-para-check").onclick = () => checkParaphrase();
+  $("btn-para-mic").onclick = () => {
+    const tag = (paraState && paraState.recognition_lang) || lang();
+    listenInto("para-heard", null, () => checkParaphrase(), tag);
+  };
+  $("btn-sing-start").onclick = () => startSingCheck();
+  $("btn-sing-hear").onclick = () => hearSingModel();
+  $("btn-sing-mic").onclick = () => {
+    if (!singCheck) return;
+    const tag = singCheck.mode === "english"
+      ? "en-US"
+      : ((singPlan && singPlan.voice_tag) || lang());
+    listenInto("sing-heard", "sing-progress", (heard) => {
+      saveSingHeard();
+      $("sing-progress").textContent = `Captured line — ${heard.slice(0, 40)}`;
+    }, tag);
+  };
+  $("btn-sing-next").onclick = () => nextSingLine();
+  $("btn-sing-finish").onclick = () => finishSingCheck();
+  $("sing-heard").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") nextSingLine();
+  });
 
   (async function boot() {
     // Chrome fills the voice list asynchronously; ask early so the sing toggle
@@ -1655,21 +2686,49 @@ _JS = r"""
       window.speechSynthesis.getVoices();
       window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     }
+    // Probed once, not per line: the sing toggle needs to know whether the
+    // server can render a language the device has no voice for.
+    await probeServerVoices();
     $("ask-quick").innerHTML = QUICK_ASKS.map((q) =>
       `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
     $("ask-quick").querySelectorAll("button").forEach((b) => {
-      b.onclick = () => askAI(b.getAttribute("data-q"));
+      b.onclick = () => {
+        const q = b.getAttribute("data-q") || "";
+        if (/other ways|same thing/i.test(q)) {
+          setPracticeMode("paraphrase");
+          loadParaphrases();
+          return;
+        }
+        if (/pronounce/i.test(q)) {
+          setPracticeMode("pronounce");
+        }
+        askAI(q);
+      };
     });
     const langs = await api("/api/music/languages");
     const cat = langs.catalog || [];
-    $("meaning-lang").innerHTML = cat.map((row) =>
-      `<option value="${esc(row.code)}">${esc(row.name)}${row.curated ? " \u2713" : ""}</option>`).join("");
+    // Every language is selectable; the groups say which ones have hand-authored
+    // sentences, because a bare tick beside six of them read as "only these six".
+    const full = cat.filter((row) => row.curated);
+    const glossed = cat.filter((row) => !row.curated);
+    const optionsFor = (rows) => rows.map((row) =>
+      `<option value="${esc(row.code)}">${esc(row.name)}</option>`).join("");
+    $("meaning-lang").innerHTML = [
+      ["Full-line translations", full],
+      ["Word-by-word glosses", glossed],
+    ].filter(([, rows]) => rows.length).map(([label, rows]) =>
+      `<optgroup label="${esc(label)} (${rows.length})">${optionsFor(rows)}</optgroup>`
+    ).join("");
     $("meaning-lang").value = "es";
     refreshSingLabel();
     const data = await api("/api/music/featured");
     featured = data.songs || [];
+    const voiceNote = serverVoicesReady()
+      ? ` \u00b7 neural voices for ${serverVoices.languages} languages`
+      : " \u00b7 singing uses this device's installed voices";
     $("catalog-meta").textContent =
-      `${featured.length} featured with audio \u00b7 ${langs.count || 26} translation languages`;
+      `${featured.length} featured with audio \u00b7 ${langs.count || 26} translation ` +
+      `languages \u00b7 ${full.length} with full-line sentences${voiceNote}`;
     renderSongList();
     await loadEmbeds();
     if (featured[0]) await selectSong(featured[0].song_id);
