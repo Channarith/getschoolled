@@ -1,7 +1,7 @@
 // Resolve backend URLs for simulator, physical device, and deployed cluster.
 //
 // deployMode=cloud (default): primary https://www.salareen.com + path prefixes;
-//   on network/5xx failure retries the Vultr failover (http://45.63.91.80 + same paths).
+//   on network/5xx failure retries the API failover (https://api.salareen.com + same paths).
 // deployMode=local: iOS Simulator uses localhost; Android emulator uses 10.0.2.2.
 // Override via MOBILE_DEPLOY_MODE / MOBILE_CLOUD_BASE_URL (see app.config.js).
 

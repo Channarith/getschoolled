@@ -872,15 +872,10 @@ export default function GroupClassesPage() {
                   onClick={async () => {
                     // Record Zelle payment intent (best-effort, admin will verify manually)
                     try {
-                      const _tok = getToken();
-                      await fetch(`${window.location.origin}/orchestrator/api/group-classes/${encodeURIComponent(checkoutTarget!.id)}/checkout`, {
-                        method: 'POST',
-                        headers: {
-                          'content-type': 'application/json',
-                          ...(_tok ? { 'authorization': `Bearer ${_tok}` } : {}),
-                        },
-                        body: JSON.stringify({ name: '', email: '', payment_method: 'zelle', voucher_code: '' })
-                      });
+                      const gc = checkoutTarget;
+                      if (gc) {
+                        await checkoutGroupClass(gc.id, "", "", { payment_method: "zelle" });
+                      }
                     } catch { /* best-effort */ }
                     alert('Thank you! Please email support@salareen.com with your Zelle confirmation. We will grant access within 1 hour.');
                     setCheckoutTarget(null);

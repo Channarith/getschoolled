@@ -114,15 +114,59 @@ test("teach: host joining live class gets moderator_key in sessionStorage", () =
   expect(src).toContain("sessionStorage.setItem");
 });
 
-test("teach: Zelle payment POST includes Authorization header", () => {
+test("teach: Zelle payment uses the shared group-class checkout client", () => {
   const src = execSync(
     `cat "${REPO}/apps/web/app/group-classes/page.tsx"`,
     { encoding: "utf8" }
   );
-  const zelleIdx = src.indexOf("payment_method: 'zelle'");
+  const zelleIdx = src.indexOf('payment_method: "zelle"');
   const zelleBlock = src.slice(zelleIdx - 600, zelleIdx + 300);
-  expect(zelleBlock).toContain("authorization");
-  expect(zelleBlock).toContain("Bearer");
+  expect(zelleBlock).toContain("checkoutGroupClass");
+  expect(zelleBlock).not.toContain("window.location.origin");
+  expect(zelleBlock).not.toContain("/orchestrator/api/group-classes");
+
+  const api = execSync(
+    `cat "${REPO}/apps/web/app/lib/api.ts"`,
+    { encoding: "utf8" }
+  );
+  const checkoutIdx = api.indexOf("export async function checkoutGroupClass");
+  const checkoutBlock = api.slice(checkoutIdx, checkoutIdx + 700);
+  expect(checkoutBlock).toContain("${ORCHESTRATOR_URL}");
+  expect(checkoutBlock).toContain("authHeaders()");
+});
+
+test("web routing: deployed service rewrites include webcam", () => {
+  const src = execSync(
+    `cat "${REPO}/apps/web/next.config.mjs"`,
+    { encoding: "utf8" }
+  );
+  expect(src).toContain('"webcam"');
+});
+
+test("legacy class page: join helper uses canonical app service URL", () => {
+  const src = execSync(
+    `cat "${REPO}/apps/web/lib/api.ts"`,
+    { encoding: "utf8" }
+  );
+  expect(src).toContain('from "../app/lib/api"');
+  expect(src).not.toContain('process.env.ORCHESTRATOR_URL ?? "http://localhost:8000"');
+});
+
+test("live room: recording badge tolerates partial room payloads", () => {
+  const src = execSync(
+    `cat "${REPO}/apps/web/app/live-room/[roomId]/page.tsx"`,
+    { encoding: "utf8" }
+  );
+  expect(src).toContain("room?.recording?.status");
+});
+
+test("vision: dispose frees detector and recognizer handles", () => {
+  const src = execSync(
+    `cat "${REPO}/apps/web/app/lib/vision.ts"`,
+    { encoding: "utf8" }
+  );
+  expect(src).toContain("detector.delete?.()");
+  expect(src).toContain("recognizer.delete?.()");
 });
 
 // ---------------------------------------------------------------------------
