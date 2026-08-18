@@ -54,6 +54,7 @@ Endpoints (summary)
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -96,6 +97,11 @@ class SessionState:
                     "engagement_fraction": metrics.engagement_fraction,
                     "session_id": self.session_id,
                 })
+                # Prompt once per absence episode (the tracker fires on_absent
+                # on the transition). The old per-frame guard fired on every
+                # frame of the FIRST episode and never again after.
+                absent_since = getattr(self._tracker, "_absent_since", None)
+                _schedule_absence_prompt(self, cfg, absent_since)
             def _on_return(metrics):
                 self._push_event("absence_end", {
                     "return_events": metrics.return_events,
@@ -165,6 +171,25 @@ class _NullSilhouette:
 
 
 _sessions: Dict[str, SessionState] = {}
+
+# Sessions idle longer than this are reaped on the next create. Each retained
+# session pins a WebcamPresenceTracker, a SilhouetteDetector (MOG2 model), a
+# voice agent with conversation history, and a 100-slot event queue, so
+# leaking them grows pod memory without bound. Override with
+# VISION_AGENT_SESSION_TTL_S.
+_SESSION_TTL_S = float(os.environ.get("VISION_AGENT_SESSION_TTL_S", "7200"))
+
+
+def _reap_idle_sessions(now: Optional[float] = None) -> int:
+    """Drop ended sessions and sessions idle past the TTL. Returns count reaped."""
+    now = time.time() if now is None else now
+    stale = [
+        sid for sid, s in _sessions.items()
+        if s.ended or now - (s.last_frame_at or s.created_at) > _SESSION_TTL_S
+    ]
+    for sid in stale:
+        _sessions.pop(sid, None)
+    return len(stale)
 
 
 def _get_session(session_id: str) -> SessionState:
@@ -266,6 +291,7 @@ def create_session(req: CreateSessionRequest) -> SessionResponse:
         Current lesson name (used by Theodore's persona).
     """
     cfg = _cfg()
+    _reap_idle_sessions()
     active = sum(1 for s in _sessions.values() if not s.ended)
     if active >= cfg.vision_agent_max_sessions:
         raise HTTPException(status_code=429, detail="max concurrent sessions reached")
@@ -292,11 +318,17 @@ def get_session(session_id: str) -> SessionResponse:
 
 @app.delete("/sessions/{session_id}", response_model=SessionResponse)
 def end_session(session_id: str) -> SessionResponse:
-    """End a webcam session. The session record is retained for metrics."""
+    """End a webcam session and release its state.
+
+    The record was previously "retained for metrics", but every metrics/state
+    route 404s on ended sessions, so retention was unreachable — a pure leak.
+    """
     session = _get_session(session_id)
     session.ended = True
     session._push_event("session_ended", {"session_id": session_id})
-    return _session_to_response(session)
+    response = _session_to_response(session)
+    _sessions.pop(session_id, None)
+    return response
 
 
 @app.get("/sessions/{session_id}/metrics", response_model=MetricsResponse)
@@ -394,9 +426,8 @@ async def process_frame(
         warming_up=warming_up,
     )
 
-    # ---- Absence prompt (async, fire-and-forget) ---- #
-    if pf.state.value == "absent" and tracker.metrics.absence_events == 1:
-        _schedule_absence_prompt(session, cfg)
+    # Absence prompts are scheduled from the tracker's on_absent transition
+    # callback (once per episode) — see get_tracker().
 
     m = tracker.metrics
     return FrameAnalysisResponse(
@@ -415,14 +446,22 @@ async def process_frame(
     )
 
 
-def _schedule_absence_prompt(session: SessionState, cfg) -> None:
+def _schedule_absence_prompt(
+    session: SessionState, cfg, absent_since_mono: Optional[float] = None
+) -> None:
     """Fire-and-forget: ask Theodore to generate an absence prompt."""
     async def _task():
         agent = session.get_voice_agent(cfg)
         if agent is None:
             return
         try:
-            elapsed = time.time() - (session.last_frame_at or session.created_at)
+            # The tracker records absence start on its monotonic clock —
+            # session.last_frame_at is wall-clock and is refreshed by the very
+            # request that schedules this prompt, so it always read ~0s.
+            if absent_since_mono is not None:
+                elapsed = max(0.0, time.monotonic() - absent_since_mono)
+            else:
+                elapsed = float(getattr(cfg, "vision_agent_absence_threshold_s", 5.0))
             resp = agent.generate_absence_prompt(
                 elapsed, lesson_title=session.lesson_title
             )
@@ -559,13 +598,15 @@ async def events_stream(session_id: str, request: Request) -> StreamingResponse:
     q = session.get_event_queue()
 
     async def _generator() -> AsyncIterator[str]:
-        yield f"data: {{'kind': 'connected', 'session_id': '{session_id}'}}\n\n"
+        import json as _json
+        # Valid JSON like every later event — the old single-quoted frame broke
+        # any client doing JSON.parse on the first message.
+        yield f"data: {_json.dumps({'kind': 'connected', 'session_id': session_id})}\n\n"
         while True:
             if await request.is_disconnected():
                 break
             try:
                 event = await asyncio.wait_for(q.get(), timeout=15.0)
-                import json as _json
                 yield f"data: {_json.dumps(event)}\n\n"
                 if event.get("kind") == "session_ended":
                     break

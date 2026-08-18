@@ -112,9 +112,11 @@ def train_start(req: TrainStart) -> dict[str, Any]:
 def train_blocking(req: TrainStart) -> dict[str, Any]:
     """Short synchronous bakeoff for CI / scripts (caps rounds)."""
     runner = get_runner()
-    # Use a fresh blocking run without fighting a background thread.
     hours = min(float(req.hours), 0.05)
-    return runner.run_blocking(hours=hours)
+    try:
+        return runner.run_blocking(hours=hours)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.get("/api/rag/train/status")

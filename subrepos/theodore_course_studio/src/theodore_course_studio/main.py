@@ -307,9 +307,14 @@ def offline_training(req: OfflineTrainRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     get_telemetry().record_offline_epochs(req.epochs)
     # Reload builder model so subsequent course builds use the new weights.
+    # Carry live teach sessions over — rebinding a fresh engine used to strand
+    # every in-flight session (their next advance/pop-quiz 404'd).
     global _builder, _teach
+    old_teach = _teach
     _builder = CourseBuilder()
     _teach = TeachEngine(_builder)
+    if old_teach is not None:
+        _teach._sessions.update(old_teach._sessions)
     return state.model_dump(mode="json")
 
 
@@ -611,3 +616,7 @@ def teach_game_grade(req: GameGradeRequest) -> dict[str, Any]:
         ).model_dump(mode="json")
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+    except (ValueError, TypeError) as exc:
+        # Malformed challenge/response payloads (e.g. missing fields, null or
+        # non-numeric selected_index) are client errors, not 500s.
+        raise HTTPException(status_code=422, detail=f"invalid game grade request: {exc}") from exc

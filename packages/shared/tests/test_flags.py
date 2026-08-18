@@ -34,7 +34,7 @@ def test_default_resolution():
     s = FlagStore()
     assert s.resolve("engagement.post_class_survey") is False  # default off
     assert s.resolve("engagement.in_app_bug_reporter") is True  # QA default on
-    assert s.resolve("engagement.watch_window") is False
+    assert s.resolve("engagement.watch_window") is True
     assert s.resolve("sales_demo.enabled") is False  # default off (v0.45.17)
     # sales_demo.featured_courses is now a JSON array of course IDs (not a bool)
     featured = s.resolve("sales_demo.featured_courses")

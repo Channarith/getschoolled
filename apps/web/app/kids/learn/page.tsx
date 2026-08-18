@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { KIDS_LESSONS } from "../../lib/kidsLearning";
 
 function KidsLessonPlayer() {
@@ -19,11 +19,17 @@ function KidsLessonPlayer() {
     setSelected("");
   }, [lesson.id]);
 
+  const celebrateTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (celebrateTimer.current !== null) window.clearTimeout(celebrateTimer.current);
+  }, []);
+
   function choose(choice: string) {
     setSelected(choice);
     if (choice === scene.answer) {
       setCelebrating(true);
-      window.setTimeout(() => setCelebrating(false), 900);
+      if (celebrateTimer.current !== null) window.clearTimeout(celebrateTimer.current);
+      celebrateTimer.current = window.setTimeout(() => setCelebrating(false), 900);
     }
   }
 

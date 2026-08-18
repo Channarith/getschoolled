@@ -370,7 +370,8 @@ def patch_vision_policy(req: TuningPatchRequest) -> dict[str, object]:
     coerced = {key: int(round(float(value))) for key, value in req.knobs.items()}
     try:
         updated = replace(_analyzer.policy, **coerced)
-    except TypeError as exc:
+        updated.validate()
+    except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     _analyzer.policy = updated
     rescore = _rescore_stored_sessions()

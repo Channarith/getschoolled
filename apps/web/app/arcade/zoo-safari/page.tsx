@@ -23,8 +23,13 @@ export default function ZooSafari() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("age");
     if (q === "kids" || q === "tween" || q === "teen" || q === "adult") setAge(q);
-    try { setBest(Number(localStorage.getItem(`aoep_zoo_best_${q || "tween"}`) || 0)); } catch { /* */ }
   }, []);
+
+  // Reload the best score whenever the age group changes — reading it once at
+  // mount meant an in-page age switch compared/saved against the WRONG age's best.
+  useEffect(() => {
+    try { setBest(Number(localStorage.getItem(`aoep_zoo_best_${age}`) || 0)); } catch { /* */ }
+  }, [age]);
 
   const current = pool[idx];
 

@@ -25,16 +25,7 @@ import { speakNatural, stopSpeech } from "../tts";
 import { buildNarrationSpeakOptions } from "../narrationTts";
 import GlassPanel from "../components/GlassPanel";
 import CameraLightingScreener from "../components/CameraLightingScreener";
-import CameraQualityGateOverlay from "../components/CameraQualityGateOverlay";
-import { analyzePhotoBase64 } from "../components/CameraLightingScreener";
-import {
-  QUALITY_DISCONNECT_SECONDS,
-  tickSustainedQuality,
-  type LightingVerdict,
-  type SustainedQualityState,
-} from "../cameraLighting";
 import { isLiveKitMediaDowngraded, isLiveKitMediaUsable } from "../components/liveKitMedia";
-import { captureRef } from "react-native-view-shot";
 import { LiveKitVideoView } from "../components/liveKitRuntime";
 import { useLiveKitRoom } from "../components/useLiveKitRoom";
 import PrimaryButton from "../components/PrimaryButton";
@@ -334,15 +325,6 @@ export default function LiveRoomScreen({
   const [endLeft, setEndLeft] = useState(CLASS_END_COUNTDOWN);
   const [muted, setMuted] = useState(false);
   const [lightingReady, setLightingReady] = useState(false);
-  const [qualityVerdict, setQualityVerdict] = useState<LightingVerdict | null>(null);
-  const [qualitySecondsLeft, setQualitySecondsLeft] = useState<number | null>(null);
-  const qualityStateRef = useRef<SustainedQualityState>({
-    badSinceMs: null,
-    countdownStartedMs: null,
-    lastVerdict: null,
-  });
-  const qualityDisconnectedRef = useRef(false);
-  const qualityShotRef = useRef<View>(null);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [chatSeen, setChatSeen] = useState(0);
   const chatSeenInit = useRef(false);
@@ -866,89 +848,12 @@ export default function LiveRoomScreen({
     onBack();
   };
 
-  // Mid-class: silently snapshot the room surface and score lighting/blur.
-  // Dark or blurry frames start a friendly 10s disconnect countdown.
-  useEffect(() => {
-    if (!lightingReady || !participantId || !cameraOn || classEnded) {
-      qualityStateRef.current = {
-        badSinceMs: null,
-        countdownStartedMs: null,
-        lastVerdict: null,
-      };
-      setQualityVerdict(null);
-      setQualitySecondsLeft(null);
-      return;
-    }
-    let cancelled = false;
-    const sample = async () => {
-      if (cancelled || qualityDisconnectedRef.current || !qualityShotRef.current) return;
-      try {
-        const b64 = await captureRef(qualityShotRef, {
-          format: "jpg",
-          quality: 0.35,
-          result: "base64",
-        });
-        if (cancelled || !b64) return;
-        const readiness = analyzePhotoBase64(b64, false);
-        // Ignore frames that look like a failed capture (near-empty decode).
-        if (
-          readiness.metrics.meanLuminance < 0.02 &&
-          readiness.metrics.sharpnessScore < 0.05
-        ) {
-          return;
-        }
-        const next = tickSustainedQuality(
-          qualityStateRef.current,
-          readiness,
-          Date.now(),
-        );
-        qualityStateRef.current = {
-          badSinceMs: next.badSinceMs,
-          countdownStartedMs: next.countdownStartedMs,
-          lastVerdict: next.lastVerdict,
-        };
-        if (next.countdownStartedMs != null && next.lastVerdict) {
-          setQualityVerdict(next.lastVerdict);
-          setQualitySecondsLeft(next.secondsLeft);
-          if (next.shouldDisconnect) {
-            qualityDisconnectedRef.current = true;
-            leaveAndBack();
-          }
-        } else {
-          setQualityVerdict(null);
-          setQualitySecondsLeft(null);
-        }
-      } catch {
-        /* view-shot may fail on some devices — skip tick */
-      }
-    };
-    const first = setTimeout(() => {
-      void sample();
-    }, 5000);
-    const iv = setInterval(() => {
-      void sample();
-    }, 4000);
-    const cd = setInterval(() => {
-      const started = qualityStateRef.current.countdownStartedMs;
-      if (!started || qualityDisconnectedRef.current) return;
-      const left = Math.max(
-        0,
-        QUALITY_DISCONNECT_SECONDS - Math.floor((Date.now() - started) / 1000),
-      );
-      setQualitySecondsLeft(left);
-      if (left <= 0) {
-        qualityDisconnectedRef.current = true;
-        leaveAndBack();
-      }
-    }, 400);
-    return () => {
-      cancelled = true;
-      clearTimeout(first);
-      clearInterval(iv);
-      clearInterval(cd);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraOn, classEnded, lightingReady, participantId]);
+  // NOTE: the mid-class camera-quality disconnect was removed on mobile. It
+  // view-shotted the app's OWN UI (LiveKit RTCVideo surfaces are not captured
+  // by view-shot) and scored the JPEG's compressed bytes as pixels, so every
+  // camera-on learner was ejected ~15-20s after joining regardless of their
+  // actual lighting. A real mobile quality gate needs pixel access
+  // (expo-image-manipulator in a native build) or server-side frame analysis.
 
   // Ensure leave is called on unmount even if the user navigates away without
   // tapping Leave explicitly (e.g. hardware back, deep link). Skip if leaveAndBack
@@ -1042,13 +947,7 @@ export default function LiveRoomScreen({
   }
 
   return (
-    <View style={styles.wrap} ref={qualityShotRef} collapsable={false}>
-      <CameraQualityGateOverlay
-        visible={Boolean(qualityVerdict && qualitySecondsLeft != null)}
-        verdict={qualityVerdict || "blocked_dark"}
-        secondsLeft={qualitySecondsLeft ?? QUALITY_DISCONNECT_SECONDS}
-        onLeaveNow={leaveAndBack}
-      />
+    <View style={styles.wrap}>
       {socket.presenceToast ? (
         <View style={styles.toast}>
           <Text style={styles.toastText}>

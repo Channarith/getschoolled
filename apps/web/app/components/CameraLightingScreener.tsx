@@ -15,7 +15,7 @@ import {
 
 type Props = {
   /** Called once when the learner may start class. */
-  onReady: () => void;
+  onReady: (opts?: { nightVision: boolean }) => void;
   /** Optional skip for staff/demo — not shown by default. */
   allowSkip?: boolean;
   onSkip?: () => void;
@@ -107,6 +107,7 @@ export default function CameraLightingScreener({
     return verdictFromMetrics(metrics, { facePresent, nightVision, thresholds });
   }, [nightVision]);
 
+  const aliveRef = useRef(true);
   const openCamera = useCallback(async () => {
     setBusy(true);
     setError("");
@@ -121,25 +122,37 @@ export default function CameraLightingScreener({
         },
         audio: false,
       });
+      if (!aliveRef.current) {
+        // Unmounted while the permission prompt was pending — stop the tracks
+        // immediately or the camera LED stays on forever.
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => undefined);
       }
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Camera permission is required for class.",
-      );
+      if (aliveRef.current) {
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Camera permission is required for class.",
+        );
+      }
     } finally {
-      setBusy(false);
+      if (aliveRef.current) setBusy(false);
     }
   }, [stopStream]);
 
   useEffect(() => {
+    aliveRef.current = true;
     void openCamera();
-    return () => stopStream();
+    return () => {
+      aliveRef.current = false;
+      stopStream();
+    };
   }, [openCamera, stopStream]);
 
   useEffect(() => {
@@ -158,7 +171,9 @@ export default function CameraLightingScreener({
       ) {
         optimizedRef.current = true;
         setOptimizing(true);
-        const track = streamRef.current.getVideoTracks()[0];
+        // The stream may have been torn down (Re-check / unmount) while the
+        // sample was in flight — re-check before touching tracks.
+        const track = streamRef.current?.getVideoTracks()[0];
         if (track) await tryApplyExposureConstraints(track);
         setOptimizing(false);
       }
@@ -273,7 +288,7 @@ export default function CameraLightingScreener({
           type="button"
           onClick={() => {
             stopStream();
-            onReady();
+            onReady({ nightVision });
           }}
           disabled={!ready || busy}
         >

@@ -1,0 +1,264 @@
+AUDIT - 2026-08-17 - v0.46.71
+Follow-up to docs/audit-2026-08-16.txt (62 findings, read-only, no code changed).
+This pass FIXED 11 bugs and catalogued the rest. Four parallel reviewers covered
+identity/services, the theodore_webcam_lab, the other theodore_* labs, and
+apps/web + apps/mobile.
+
+BASELINE AFTER THIS PASS
+  pytest (repo root, CI invocation): 2990 passed, 2 skipped, 0 failed
+    (main was 2972 passed / 1 FAILED / 3 silently skipped)
+  ruff (CI scope): clean.  apps/web tsc --noEmit + next build: clean.
+  apps/mobile scripts/mobile-typecheck.sh: clean.
+  The suite no longer modifies the working tree.
+
+
+==========================================================================
+FIXED IN v0.46.71 (each reproduced before the fix, each now has a test)
+==========================================================================
+CRIT-26  identity  /language/practice awarded correct*8 with no clamp against
+         total. A new account self-reporting 1,000,000 correct answers minted
+         10,000,000 points and redeemed a $25 gift card. Clamped + capped +
+         routed through earn_points so the credit persists.
+HIGH-27a identity  password-reset tokens were accepted as full session tokens,
+         and still were AFTER /auth/reset-password consumed them.
+HIGH-27b identity  profile-share tokens were full session tokens and could mint
+         fresh grants, making grant.revoked meaningless.
+         Both: current_account now allow-lists (a session token carries no
+         purpose/kind claim) instead of deny-listing two known values.
+HIGH-28  identity  /auth/2fa/setup cleared totp_enabled, so any session token
+         silently switched 2FA off. Re-provisioning now needs a current code.
+HIGH-29  identity  the 2FA lockout counted failures per mfa_token and every
+         login minted a fresh one, so it never locked. Account-scoped counter.
+MED-30   identity  a phone number alone set billing_validated_at, satisfying
+         the payment gate with no card.
+MED-31   identity  /enrollments/{id}/status awarded points from the request
+         body's score while holding a token carrying the authoritative one.
+HIGH-1   perception  POST /identify 500'd whenever expression was None (region
+         eu/other, or any region where a face lacks landmarks/bbox/frame_size).
+         Face recognition was dead in those deployments.
+HIGH-2   shared/vision  WebcamPresenceTracker.on_return could never fire at the
+         production default return_threshold_s=1.0 (it tested 0 >= 1.0), so
+         return_events stayed 0 and absence_end never reached the client.
+NEW-A    homework lab  _grade_rubric contained "(not c_toks or True)"; any
+         answer of 12+ chars with 4+ distinct tokens scored 100% on every
+         criterion. An essay about football passed a photosynthesis rubric.
+NEW-B    webcam lab  monitor_page.py declared function num() twice; the signal
+         sanitizer replaced the display formatter for the whole script scope,
+         so 13 dashboard metrics rendered "null" and lost .toFixed().
+
+TEST-INTEGRITY DEFECTS FIXED (see CHANGELOG v0.46.71)
+  - test_build_release.py rewrote the REAL apps/mobile/* and
+    packages/sdk/pyproject.toml to 0.3.1 on every run (the "clobbered version
+    files" gotcha in AGENTS.md is this bug). Guard test added.
+  - 12 junk host-uploads lessons had been committed into sample-curriculum/ by
+    a test; purged, test isolated, directory gitignored.
+  - labs/webcam-recognition never depended on pytest-asyncio AND the CI python
+    job never installed the lab package, so 3 async tests were skipped while
+    counting as passes on every CI run.
+  - theodore_webcam_lab README test-count assertion left main red.
+  - test_tuning_live_camera.py asserted "quality_flags == [] or True".
+  - XaiVoiceAgent carried a dead 183-line duplicate of absorb_audio_answer and
+    9 helpers; the unreachable copy hardcoded values the live one reads from
+    tuning knobs.
+
+
+==========================================================================
+OPEN - AUTH / AUTHORIZATION (highest remaining risk)
+==========================================================================
+Note: several of these are unauthenticated endpoints whose exposure depends on
+ingress. Confirm what is reachable from the public ingress before ranking.
+
+OPEN-1  perception/main.py:75-99,136-161  CRITICAL-if-exposed
+  /identify and /identify-embedding take consented_student_ids from the CALLER
+  and never verify consent server-side. Any client can pass arbitrary student
+  IDs and receive matched_student_id for gallery faces. The module docstring
+  claims this is the consent gate. Fix: require internal auth and resolve
+  consent against memory before analyze_image.
+  RELATED (still open from 2026-08-16, HIGH-3): the consent set is stored on a
+  process-wide singleton provider and mutated per request from sync handlers
+  running in the anyio threadpool, so concurrent requests overwrite each
+  other's consent list. Fix both together.
+
+OPEN-2  orchestrator/main.py:1274-1294  HIGH
+  POST /assessment/grade has no auth. Anyone reaching the orchestrator can
+  POST any student_id/topic and repeatedly flip BKT mastery and behavior
+  signals that drive adaptive difficulty.
+
+OPEN-3  orchestrator/main.py:1023-1124  HIGH
+  Assessment checkpoints authenticate the caller but never check that
+  req.student_id belongs to that account. Knowing another learner's 12-char
+  student ID lets you start/submit checkpoints as them and mint assessment
+  tokens bound to their student_id.
+
+OPEN-4  identity vs orchestrator assessment signing key  HIGH
+  identity/main.py:706-714 falls back to the hardcoded dev key; the
+  orchestrator (main.py:1127-1131) falls back to AUTH_SIGNING_KEY. An operator
+  who sets only AUTH_SIGNING_KEY gets orchestrator-signed tokens that identity
+  cannot verify, silently breaking verified passes and retention recording.
+
+OPEN-5  memory/main.py:164-169  MEDIUM
+  POST /legal/accept is unauthenticated and takes user_id from the body, so
+  anyone can forge compliance acceptance for any user.
+
+OPEN-6  memory/main.py:308-321  MEDIUM
+  Post-class survey submit is unauthenticated and dedups on (course_id,
+  student_id), so an attacker can pre-submit for a victim and lock them out
+  with a permanent 409.
+
+OPEN-7  orchestrator/main.py:4137-4156  MEDIUM
+  /api/live-rooms/{id}/reactions takes participant_id with no auth; anyone who
+  sees a participant_id can broadcast reactions as them.
+
+OPEN-8  integrations/main.py:277-291  MEDIUM
+  /lms/lti/launch parses claims with no JWT signature verification (carries its
+  own TODO). Forged claims yield arbitrary user_id/roles/context_id.
+
+OPEN-9  perception/main.py:230-233  LOW
+  GET /gallery enumerates enrolled student IDs and sample counts, unauthed.
+
+UNVERIFIED, needs ingress context: unauthenticated session routes on
+orchestrator (/api/sessions, /advance, /ask), /classes/{room}/join (mints a
+LiveKit token for any room/identity), curriculum /ingest/url|/ingest/html, and
+all vision_agent + webcam session routes.
+
+
+==========================================================================
+OPEN - MONEY, POINTS AND DURABILITY
+==========================================================================
+OPEN-10 identity/main.py:630-640  MEDIUM
+  Deleting an enrollment drops points_awarded with it, so delete + re-enroll +
+  pass awards course points a second time. Carries its own TODO; needs an
+  account-level awarded-course set.
+
+OPEN-11 identity persistence.py:147-186  MEDIUM
+  The Redis snapshot is last-writer-wins across replicas and the import-time
+  load swallows every exception. Concurrent _persist() calls can lose points,
+  enrollments and grant nonces. Needs WATCH/MULTI or a single writer.
+
+OPEN-12 identity/main.py:1253-1257  MEDIUM
+  Arcade game submit checks app.state.game_submitted then adds to it
+  non-atomically (TOCTOU on one pod), and that set is per-replica.
+
+OPEN-13 identity/vouchers.py:111-115  MEDIUM
+  consume() is a non-atomic read-modify-write and never re-checks is_valid(),
+  so it increments past max_uses and past expires_at.
+
+OPEN-14 orchestrator/main.py:1085-1114  MEDIUM
+  Assessment max_attempts counts only submitted results, and the lock is
+  released before the run is registered, so concurrent starts each compute
+  attempt_number=1. Attempt history is also in-memory, so a restart resets it.
+
+
+==========================================================================
+OPEN - WEBCAM LAB SCORING INTEGRITY
+==========================================================================
+OPEN-15 monitor_page.py ~4515  HIGH
+  typing_activity_score is derived from gaze_down_score, so any sustained
+  downward gaze (notes, second monitor) reads as typing and can raise
+  suspected_cheating with no keyboard/phone audio. Reproduced:
+  eyes_away_ms 3000 -> reasons ['eyes_away_long','typing_activity_high'].
+
+OPEN-16 analysis.py ~1063-1096  HIGH
+  attention_score and distraction_score consume gaze with no landmark_detector
+  guard, while eyes_away/eyes_closed correctly require one. With
+  detector_source="coarse" a seated learner scores distraction 0.88 /
+  attention 0.04 from grid heuristics while eyes_away_for_ms stays 0. This
+  contradicts test_coarse_detector_is_presence_only.
+
+OPEN-17 monitor_page.py ~2679,~4510  MEDIUM
+  phone_visible is set when gazeDown >= 0.40 alone, with no lit-screen or
+  dark-device cue, so looking at a desk trips the phone path. Compounds
+  OPEN-15.
+
+OPEN-18 analysis.py ~163-180  MEDIUM
+  Session eviction drops _state but never clears _behavior_engine, so engine
+  state grows without bound and a reused session ID inherits stale EMAs.
+  Reproduced: _state {s3,s4} vs _behavior_engine {s0..s4}.
+
+
+==========================================================================
+OPEN - WEB AND MOBILE
+==========================================================================
+Still open from 2026-08-16 (unchanged; see that file for detail):
+  CRIT-33 course tiles route to /watch, which is disabled by the default-off
+    engagement.watch_window flag - most home-feed course clicks dead-end.
+  HIGH-15 lib/api.ts ORCHESTRATOR_URL lacks the NEXT_PUBLIC_ prefix, so the
+    browser always calls http://localhost:8000.
+  HIGH-16 consent page cannot persist (memory /consent needs internal auth).
+  HIGH-17 "Share your screen" publishes nothing.
+  HIGH-35 none of the 33 arcade games report scores to the backend.
+  HIGH-51..54, MED-55..59 mobile: My List, Drive Mode mic denial, kids-lesson
+    and Worlds navigation traps.
+
+New this pass:
+OPEN-19 apps/web/app/hooks/useWebcamSession.ts:174-226  HIGH
+  If getUserMedia succeeds but createWebcamSession throws, the catch path sets
+  error state and never stops the stream - the camera stays on.
+
+OPEN-20 apps/web/app/components/CameraTrackingCheck.tsx:107-119,291-303  HIGH
+  "Restart check" resets React state but never reopens the camera (the open
+  effect is mount-only), so the preview is blank and steps never advance.
+
+OPEN-21 apps/mobile/src/components/CameraTrackingCheck.tsx:153-168  HIGH
+  Pose steps pass on "|| readiness.facePresent", so look up/down/left/right
+  auto-pass with any detected face and "raise both hands" never checks hands.
+  Web requires the actual pose.
+
+OPEN-22 apps/mobile/src/screens/LiveRoomScreen.tsx:745-762  HIGH
+  Mobile reports present/faceCount 1/liveness "live" whenever the camera track
+  exists, so a camera pointed at a wall satisfies presence policy. Web runs
+  real on-device detection.
+
+OPEN-23 apps/web/app/hooks/useWebcamSession.ts:155-161  MEDIUM
+  The WebSocket path hardcodes face_present:false on every frame.
+
+OPEN-24 web  MEDIUM
+  No stale-response guard on the Drive Mode deep-link/locale refetch; no
+  in-flight guard on live-room "Ask Theodore" (double submit); class page can
+  strand an empty teacher chat bubble when askStream returns falsy.
+
+
+==========================================================================
+OPEN - OTHER LABS
+==========================================================================
+OPEN-25 course_studio/certification_prep.py:903-912  HIGH
+  _find_template falls back to matching lesson_id alone, so requesting
+  track=alameda_food_handler with lesson_id=ca-dmv-basics silently returns the
+  DMV course. Reproduced.
+
+OPEN-26 music_lab/session.py:91-114  HIGH
+  In CONTINUOUS mode play() advances line_index before returning, so
+  last_event.line_no is 1 while current_line/line_index are 2. Clients driving
+  UI from line_index show the wrong line.
+
+OPEN-27 music_lab/timing.py:51-78  MEDIUM
+  The per-word 0.12s floor is applied without renormalising to the line span,
+  so short lines produce zero-duration words that paintWords never highlights.
+
+OPEN-28 music_lab/music_page.py:1228-1233 vs 1372  MEDIUM
+  Clip start subtracts syncOffset but clip end does not, so a nudged sync makes
+  every clip overrun by the offset.
+
+OPEN-29 course_studio/studio_page.py:479-482  MEDIUM
+  Cancelling the quiz prompt() yields null, defaults to '1', and submits choice
+  index 0 as the learner's answer.
+
+OPEN-30 rag_lab  MEDIUM
+  golden_qa.jsonl holds 16 queries but the demo index has 5 docs, so 8 can
+  never hit; recall@k caps at 0.5 and the bakeoff tunes against that.
+
+
+==========================================================================
+SUGGESTED ORDER
+==========================================================================
+1. OPEN-1 (+ the open HIGH-3 consent race) - biometric consent is the one
+   remaining item with both a legal and a privacy dimension.
+2. OPEN-2, OPEN-3, OPEN-5..OPEN-9 - the unauthenticated write endpoints, as a
+   single auth-hardening sweep once ingress exposure is confirmed.
+3. OPEN-4 - a one-line fallback mismatch that silently breaks accreditation.
+4. OPEN-15..OPEN-18 - webcam scoring integrity: false cheating flags are worse
+   than no flags, because they are acted on.
+5. CRIT-33 + HIGH-15 - the two web defects that break the primary browse and
+   join paths for signed-in users.
+6. OPEN-19..OPEN-22 - camera correctness: two leaks and two checks that pass
+   without measuring anything.
