@@ -1245,6 +1245,26 @@ export async function listLessons(): Promise<Lesson[]> {
   return jsonOrThrow(await fetch(`${ORCHESTRATOR_URL}/api/lessons`, { cache: "no-store" }));
 }
 
+export type LessonAccreditation = {
+  lesson_id: string;
+  certifiable: boolean;
+  requires_registered_account: boolean;
+  certification_body: string;
+  ceu_credits: number;
+};
+
+/** Whether a lesson awards accreditation and requires a registered account (HARD RULE). */
+export async function getLessonAccreditation(
+  lessonId: string
+): Promise<LessonAccreditation> {
+  return jsonOrThrow(
+    await fetch(
+      `${ORCHESTRATOR_URL}/api/lessons/${encodeURIComponent(lessonId)}/accreditation`,
+      { cache: "no-store" }
+    )
+  );
+}
+
 export async function startSession(
   lessonId: string,
   classType: string,
@@ -1253,7 +1273,7 @@ export async function startSession(
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         lesson_id: lessonId,
         class_type: classType,
