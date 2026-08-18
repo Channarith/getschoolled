@@ -345,6 +345,9 @@ def test_api_health_and_session_flow():
         assert body["meaning_language_count"] >= 26
         assert body.get("featured_songs", 0) >= 3
         assert body.get("player") == "/"
+        assert "xai_configured" in body
+        assert "speech" in body
+        assert "engines" in body["speech"]
 
         songs = client.get("/api/music/songs", params={"limit": 5})
         assert songs.status_code == 200

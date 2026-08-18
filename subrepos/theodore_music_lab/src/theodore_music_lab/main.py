@@ -2,6 +2,17 @@
 
 from __future__ import annotations
 
+
+# Load config/local.env so XAI_API_KEY / ELEVENLABS_API_KEY / SPEECH_BASE_URL
+# work without a manual `set -a; . config/local.env` in every shell.
+try:
+    from aoep_shared.env_bootstrap import ensure_lab_env
+
+    ensure_lab_env()
+except Exception:  # noqa: BLE001 — labs must still boot offline / without shared
+    pass
+
+
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
@@ -9,6 +20,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from . import tts as tts_module
 from .ask_ai import ask, explain_line
 from .catalog import MEANING_LANGUAGES, Catalog, _audio_dir, import_songs, meaning_for_line
 from .embeds import (
@@ -169,6 +181,14 @@ def favicon() -> Response:
 @app.get("/health")
 def health() -> dict[str, Any]:
     featured = _CATALOG.featured()
+    readiness: dict[str, Any] = {}
+    try:
+        from aoep_shared.env_bootstrap import speech_readiness
+
+        readiness = speech_readiness()
+    except Exception:  # noqa: BLE001
+        pass
+    speech = tts_module.tts_status()
     return {
         "ok": True,
         "service": "theodore-music-lab",
@@ -202,7 +222,31 @@ def health() -> dict[str, Any]:
             1 for row in load_embeds() if (row.get("verses") or [])
         ),
         "player": "/",
+        "speech": speech,
+        **readiness,
     }
+
+
+@app.get("/api/tts/status")
+def music_tts_status() -> dict[str, Any]:
+    return tts_module.tts_status()
+
+
+@app.get("/api/tts")
+@app.post("/api/tts")
+def music_speak(text: str = "", language: str = "en", style: str = "warm") -> Response:
+    """Neural speech for sing-along / narration (501 => client device voice)."""
+    try:
+        audio, mime, engine = tts_module.synthesize(text, language=language, style=style)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except tts_module.ProviderUnavailable as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return Response(
+        content=audio,
+        media_type=mime,
+        headers={"X-TTS-Engine": engine, "Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/music/languages")

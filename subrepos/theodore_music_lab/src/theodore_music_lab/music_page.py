@@ -216,7 +216,7 @@ _CSS = """
   @keyframes bob { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-10px) scale(1.05)} }
   @keyframes ballhop { 0%,100%{transform:translateY(0) scale(1)} 45%{transform:translateY(-9px) scale(1.12)} }
   @media (prefers-reduced-motion: reduce) {
-    .camera, .cast *, .backdrop *, .orb, .symbol, #ball .dot, #cap-ball .dot { animation:none !important; }
+    .camera, .cast *, .backdrop * { animation:none !important; }
   }
   .controls { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-top:.85rem; }
   .controls label { color:var(--muted); font-size:.85rem; display:inline-flex; gap:.35rem; align-items:center; }
@@ -681,14 +681,11 @@ _JS = r"""
   let rafId = 0;
   const trCache = new Map();
 
-  let toastTimer = 0;
   function toast(msg) {
     const el = $("toast");
     el.textContent = msg;
     el.classList.add("show");
-    // One timer total — an earlier toast's timeout used to hide a later toast.
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.classList.remove("show"); toastTimer = 0; }, 2400);
+    setTimeout(() => el.classList.remove("show"), 2400);
   }
   async function api(path, opts) {
     const res = await fetch(path, opts);
@@ -1387,19 +1384,14 @@ _JS = r"""
   function loadYtApi() {
     return new Promise((resolve) => {
       if (window.YT && window.YT.Player) { resolve(); return; }
-      // If the script fails to load (offline, blocked), settle instead of
-      // hanging selectEmbed forever.
-      const timer = setTimeout(() => resolve(false), 12000);
       const prior = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => {
-        clearTimeout(timer);
         if (typeof prior === "function") prior();
-        resolve(true);
+        resolve();
       };
       if (![...document.scripts].some((s) => (s.src || "").includes("youtube.com/iframe_api"))) {
         const tag = document.createElement("script");
         tag.src = "https://www.youtube.com/iframe_api";
-        tag.onerror = () => { clearTimeout(timer); resolve(false); };
         document.head.appendChild(tag);
       }
     });
@@ -1438,25 +1430,14 @@ _JS = r"""
   }
 
   function seekMedia(sec) {
-    const target = Math.max(0, sec);
-    // Seeking back before a verse's pause point re-arms its auto-pause —
-    // otherwise a re-watch never pauses again (firedPauses was only reset on
-    // embed switch).
-    if (currentEmbed) {
-      for (const v of currentEmbed.verses || []) {
-        if (firedPauses.has(v.verse_no) && Number(v.pause_sec) > target) {
-          firedPauses.delete(v.verse_no);
-        }
-      }
-    }
     if (usingLocalVideo && localVideo) {
-      localVideo.currentTime = target;
+      localVideo.currentTime = Math.max(0, sec);
       localVideo.pause();
       return;
     }
     if (ytPlayer && ytReady) {
       try {
-        ytPlayer.seekTo(target, true);
+        ytPlayer.seekTo(Math.max(0, sec), true);
         ytPlayer.pauseVideo();
       } catch (_) { /* ignore */ }
     }
@@ -1615,24 +1596,13 @@ _JS = r"""
     localVideo.removeAttribute("src");
     localVideo.load();
     localVideo.hidden = true;
+    $("yt-host").hidden = false;
+    $("yt-host").innerHTML = "";
+    $("embed-player-box").classList.remove("portrait");
     if (ytPlayer && ytPlayer.destroy) {
       try { ytPlayer.destroy(); } catch (_) { /* ignore */ }
       ytPlayer = null;
     }
-    // The YT IFrame API REPLACES #yt-host with the player <iframe>, and
-    // destroy() removes that iframe — so after any YouTube embed the host div
-    // is gone from the DOM. Re-create it or every later embed switch throws
-    // on $("yt-host") and the panel dies.
-    let host = document.getElementById("yt-host");
-    if (!host) {
-      host = document.createElement("div");
-      host.id = "yt-host";
-      const box = $("embed-player-box");
-      box.insertBefore(host, box.querySelector("#local-video"));
-    }
-    host.hidden = false;
-    host.innerHTML = "";
-    $("embed-player-box").classList.remove("portrait");
     ytReady = false;
   }
 
@@ -1640,7 +1610,7 @@ _JS = r"""
     localVideo = $("local-video");
     localVideo.onplay = () => { pauseLocked = false; startYtPoll(); };
     localVideo.onpause = () => { stopYtPoll(); };
-    localVideo.onended = () => { stopYtPoll(); firedPauses = new Set(); };
+    localVideo.onended = () => { stopYtPoll(); };
     localVideo.ontimeupdate = () => {
       if (!document.hidden) checkVersePause();
     };
@@ -1656,33 +1626,16 @@ _JS = r"""
     wireLocalVideo();
     localVideo.src = videoUrl;
     await new Promise((resolve) => {
-      // Settle on metadata OR error OR a timeout — a 404/aborted load used to
-      // hang selectEmbed forever (dead pause card, leaked listener).
-      const timer = setTimeout(() => { cleanup(); resolve(); }, 15000);
-      const cleanup = () => {
-        localVideo.removeEventListener("loadedmetadata", done);
-        localVideo.removeEventListener("error", fail);
-        clearTimeout(timer);
-      };
-      const done = () => { cleanup(); resolve(); };
-      const fail = () => { cleanup(); resolve(); };
+      const done = () => { localVideo.removeEventListener("loadedmetadata", done); resolve(); };
       localVideo.addEventListener("loadedmetadata", done);
-      localVideo.addEventListener("error", fail);
       localVideo.load();
     });
   }
 
   async function ensureYtPlayer(youtubeId) {
     clearPlayers();
-    const apiReady = await loadYtApi();
-    if (!apiReady || !(window.YT && window.YT.Player)) {
-      toast("YouTube player could not load — check the connection and retry.");
-      return null;
-    }
+    await loadYtApi();
     return new Promise((resolve) => {
-      // If onReady never fires (e.g. a dead embed), settle instead of hanging
-      // selectEmbed forever.
-      const timer = setTimeout(() => resolve(null), 12000);
       ytPlayer = new YT.Player("yt-host", {
         videoId: youtubeId,
         playerVars: {
@@ -1693,14 +1646,13 @@ _JS = r"""
           origin: window.location.origin,
         },
         events: {
-          onReady: () => { clearTimeout(timer); ytReady = true; resolve(ytPlayer); },
+          onReady: () => { ytReady = true; resolve(ytPlayer); },
           onStateChange: (ev) => {
             if (ev.data === YT.PlayerState.PLAYING) {
               pauseLocked = false;
               startYtPoll();
             } else if (ev.data === YT.PlayerState.PAUSED || ev.data === YT.PlayerState.ENDED) {
               stopYtPoll();
-              if (ev.data === YT.PlayerState.ENDED) firedPauses = new Set();
             }
           },
         },
@@ -1794,11 +1746,6 @@ _JS = r"""
         el.querySelectorAll(".w").forEach((s) => s.classList.remove("now", "sung"));
       }
     });
-    // Word-level paint for the active line too — paintWords otherwise only
-    // runs inside tick (playing), so a lyrics re-render while paused (language
-    // switch, "show every line" toggle) used to strip the karaoke colors.
-    const activeRow = timings ? timings.lines.find((r) => r.line_no === lineNo) : null;
-    if (activeRow) paintWords(activeRow, t);
   }
 
   // A singer needs to read ahead, so the box scrolls while LOOKAHEAD_LINES upcoming
@@ -2076,6 +2023,15 @@ _JS = r"""
       ducked = false;
       player.volume = duckedFrom;
     };
+    speakNeural(scene.narration, scene.narration_language || 'en', 0.98).then(() => {
+      if (neuralAudio) {
+        neuralAudio.onended = restore;
+        neuralAudio.onerror = restore;
+      } else {
+        // device utter has no promise handle; restore after a short duck window
+        setTimeout(restore, Math.min(12000, 800 + scene.narration.length * 60));
+      }
+    }).catch(restore);
     speak(scene.narration, {
       lang: code,
       tag: code === "en" ? "en-US" : code,
@@ -2247,20 +2203,11 @@ _JS = r"""
   }
 
   function tick() {
-    // Cancel any pending scheduled tick first — direct tick() calls (seek,
-    // sync nudge, hidden-tab timeupdate) used to each add one PERMANENT extra
-    // render loop, and loops piled up while the tab was hidden.
-    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
     const player = $("player");
-    if (!timings) {
-      // Timings still loading over a slow network — keep the loop alive or
-      // the karaoke ball never starts when Play was pressed early.
-      if (player && !player.paused && !player.ended) rafId = requestAnimationFrame(tick);
-      return;
-    }
+    if (!timings) return;
     const t = player.currentTime + syncOffset;
     syncScene(t);
-    if (activeClip && t >= activeClip.end_sec) {
+    if (activeClip && player.currentTime >= activeClip.end_sec) {
       player.pause();
       activeClip = null;
       renderClips();
@@ -2360,9 +2307,6 @@ _JS = r"""
     ).join("");
     $("scene-dots").querySelectorAll("button").forEach((b) => {
       b.onclick = () => {
-        // board is nulled while a new storyboard loads — the previous song's
-        // dots are still visible in that window.
-        if (!board) return;
         const scene = board.scenes[Number(b.getAttribute("data-i"))];
         if (!scene) return;
         $("player").currentTime = Math.max(0, scene.start - syncOffset);
@@ -2376,13 +2320,7 @@ _JS = r"""
     setScene(at || board.scenes[0], true);
   }
 
-  // Generation guard: two rapid song/language selections interleave their
-  // awaited fetches; without this, a slow stale response (the LLM translate
-  // path can take tens of seconds) overwrites the fresh song's state.
-  let songGen = 0;
-
   async function selectSong(songId) {
-    const gen = ++songGen;
     const player = $("player");
     player.pause();
     cancelAnimationFrame(rafId);
@@ -2402,16 +2340,13 @@ _JS = r"""
     player.src = current.audio_url || "";
     ["btn-play", "btn-pause", "btn-restart"].forEach((id) => { $(id).disabled = !player.src; });
     await loadTimings();
-    if (gen !== songGen) return;
     await loadTranslation();
-    if (gen !== songGen) return;
     renderLyrics();
     // Paused at 0:00 the song has not started, so queue line 1 rather than
     // lighting it up as if it were being sung.
     showCountIn(0);
     renderSongList();
     await loadStoryboard();
-    if (gen !== songGen) return;
     if ($("sing-lang").checked) {
       try { await loadSingPlan(); } catch (_) { $("sing-lang").checked = false; }
     }
@@ -2525,16 +2460,13 @@ _JS = r"""
     await loadStoryboard();
   });
   $("meaning-lang").onchange = async () => {
-    const gen = ++songGen;  // abort any in-flight song/language load
     refreshSingLabel();
     await loadTranslation();
-    if (gen !== songGen) return;
     renderLyrics();
     const no = activeLineNo || (current && current.lines[0] ? current.lines[0].line_no : 0);
     activeLineNo = 0;
     if (no) setActiveLine(no, false);
     if ($("sing-lang").checked) { stopSinging(); await loadSingPlan(); }
-    if (gen !== songGen) return;
     await Promise.all([loadClips(), loadStoryboard(), loadEmbeds()]);
   };
   $("sing-lang").onchange = () => { toggleSinging(); };
