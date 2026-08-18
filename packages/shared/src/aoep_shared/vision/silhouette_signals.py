@@ -163,12 +163,14 @@ def _hog_detect(bgr, *, hit_threshold: float = 0.4) -> List[SilhouetteObservatio
     hog = cv2.HOGDescriptor()
     hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
     h, w = bgr.shape[:2]
-    # Upscale tiny webcam crops so HOG has enough pixels.
-    scale = 1.0
-    img = bgr
+    # HOG's detection window is 64x128 — BOTH dimensions must meet it or OpenCV
+    # crashes natively (SIGSEGV, not a catchable cv2.error). The old guard only
+    # upscaled on the larger dimension, so a wide-short frame (e.g. 240x80)
+    # killed the worker process. Also upscale tiny crops for detection quality.
+    scale = max(1.0, 128.0 / h, 64.0 / w)
     if max(h, w) < 240:
-        scale = 240.0 / max(h, w)
-        img = cv2.resize(bgr, (int(w * scale), int(h * scale)))
+        scale = max(scale, 240.0 / max(h, w))
+    img = cv2.resize(bgr, (int(round(w * scale)), int(round(h * scale)))) if scale > 1.0 else bgr
     rects, weights = hog.detectMultiScale(
         img, winStride=(8, 8), padding=(8, 8), scale=1.05, hitThreshold=hit_threshold
     )

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AUTH_EVENT,
   enrollCourse,
@@ -16,9 +16,10 @@ import { CoursePosterImg } from "../components/CoursePosterImg";
 import BookmarkButton from "../components/BookmarkButton";
 import { useT } from "../lib/i18n";
 
-export default function BrowsePage() {
+function BrowseInner() {
   const router = useRouter();
   const { t, locale } = useT();
+  const searchParams = useSearchParams();
   const [loggedIn, setLoggedIn] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [facets, setFacets] = useState<Facets | null>(null);
@@ -26,9 +27,11 @@ export default function BrowsePage() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
+  // Seed the search box from the URL (?q=) so global nav search results
+  // actually land on a filtered list — the query used to be dropped.
   const [filters, setFilters] = useState<Record<string, string>>({
-    q: "", category: "", language: "", format: "", source: "", level: "",
-    hands_on: "", audience: "", core_skill: "",
+    q: searchParams.get("q") ?? "", category: "", language: "", format: "",
+    source: "", level: "", hands_on: "", audience: "", core_skill: "",
   });
 
   const formatLabel = (f: string) => t(`browse.format.${f}`) !== `browse.format.${f}` ? t(`browse.format.${f}`) : f;
@@ -198,6 +201,14 @@ export default function BrowsePage() {
         ))}
       </div>
     </main>
+  );
+}
+
+export default function BrowsePage() {
+  return (
+    <Suspense fallback={<main className="container"><p className="muted">Loading…</p></main>}>
+      <BrowseInner />
+    </Suspense>
   );
 }
 

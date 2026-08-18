@@ -91,6 +91,11 @@ def _http_post(url: str, *, data: bytes, headers: Dict[str, str], timeout: float
         raise ElevenLabsError(f"ElevenLabs HTTP {exc.code}: {detail}") from exc
     except urllib.error.URLError as exc:
         raise ElevenLabsError(f"ElevenLabs unreachable: {exc.reason}") from exc
+    except Exception as exc:
+        # Read timeouts (TimeoutError), IncompleteRead, RemoteDisconnected and
+        # friends must not escape the documented ElevenLabsError contract —
+        # callers build their fallback chain on it.
+        raise ElevenLabsError(f"ElevenLabs request failed: {exc}") from exc
 
 
 def synthesize(

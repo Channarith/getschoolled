@@ -8,6 +8,7 @@ Three types:
 from __future__ import annotations
 import json
 import os
+import tempfile
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -55,9 +56,22 @@ class VoucherStore:
     @classmethod
     def open(cls) -> "VoucherStore":
         raw = os.environ.get(VOUCHER_DIR_ENV, "").strip()
-        root = Path(raw) if raw else Path.home() / ".cache" / "aoep" / "vouchers"
-        root.mkdir(parents=True, exist_ok=True)
-        return cls(root)
+        candidates = []
+        if raw:
+            candidates.append(Path(raw))
+        candidates.append(Path.home() / ".cache" / "aoep" / "vouchers")
+        candidates.append(Path(tempfile.gettempdir()) / "aoep-vouchers")
+        last_exc: OSError | None = None
+        for root in candidates:
+            try:
+                root.mkdir(parents=True, exist_ok=True)
+                probe = root / ".write_probe"
+                probe.write_text("ok")
+                probe.unlink(missing_ok=True)
+                return cls(root)
+            except OSError as exc:
+                last_exc = exc
+        raise OSError(f"could not open voucher store: {last_exc}")
 
     def _load(self) -> None:
         if self._path.is_file():
@@ -103,16 +117,24 @@ class VoucherStore:
             raise ValueError(f"Code {code!r} is not valid")
         if not v.is_valid():
             raise ValueError(f"Code {code!r} has expired or reached its usage limit")
-        if v.kind == "free_pass" and v.class_id and class_id and v.class_id != class_id:
+        # A class-scoped free pass is only valid for that class — including
+        # when the caller omits class_id (the restriction used to be opt-in).
+        if v.kind == "free_pass" and v.class_id and v.class_id != (class_id or ""):
             raise ValueError("This free pass is not valid for this class")
         final, desc = v.apply_to_price(price_usd)
         return v, final, desc
 
     def consume(self, code: str) -> None:
         v = self._vouchers.get(code.upper().strip())
-        if v:
-            v.uses += 1
-            self._save()
+        if v is None:
+            raise ValueError(f"Code {code!r} is not valid")
+        # Re-check at consume time: validate() and consume() are separate calls,
+        # so N concurrent checkouts could all pass validation and over-consume
+        # past max_uses/expires_at (TOCTOU).
+        if not v.is_valid():
+            raise ValueError(f"Code {code!r} has expired or reached its usage limit")
+        v.uses += 1
+        self._save()
 
     def list_all(self) -> list[Voucher]:
         return list(self._vouchers.values())

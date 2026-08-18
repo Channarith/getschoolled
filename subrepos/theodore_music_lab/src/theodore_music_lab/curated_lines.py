@@ -21,8 +21,10 @@ from .catalog import MEANING_LANGUAGES
 CURATED_LANGUAGES: tuple[str, ...] = tuple(code for code in MEANING_LANGUAGES if code != "en")
 
 
-def normalize(text: str) -> str:
+def normalize(text: str | None) -> str:
     """Lookup key for a lyric line: lowercase, punctuation-free, single-spaced."""
+    if not text:
+        return ""
     return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text.lower()).split())
 
 

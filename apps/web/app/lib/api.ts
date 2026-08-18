@@ -3070,14 +3070,12 @@ export async function getAllTelemetry(): Promise<TelemetrySummary[]> {
 }
 
 export async function getServiceErrors(name: string, url: string, limit = 20): Promise<TelemetryError[]> {
-  try {
-    const res = await fetch(`${url}/telemetry/errors?limit=${limit}`, { cache: "no-store" });
-    if (!res.ok) return [];
-    const j = await res.json();
-    return (j.errors ?? []) as TelemetryError[];
-  } catch {
-    return [];
-  }
+  // Throw on failure: returning [] made the admin panel report a green
+  // "No recent errors" for services that were unreachable or rejecting us.
+  const res = await fetch(`${url}/telemetry/errors?limit=${limit}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${name} telemetry returned ${res.status}`);
+  const j = await res.json();
+  return (j.errors ?? []) as TelemetryError[];
 }
 
 export async function adminSurveyInsights(secret: string): Promise<{
@@ -3089,9 +3087,11 @@ export async function adminSurveyInsights(secret: string): Promise<{
     top_suggestions: { term: string; count: number }[];
   };
 }> {
+  // Same-origin server route: attaches the operator-admin session's
+  // server-side secret, or falls back to the typed X-Admin-Secret.
   return jsonOrThrow(
-    await fetch(`${MEMORY_URL}/admin/survey/insights`, {
-      cache: "no-store", headers: { "X-Admin-Secret": secret },
+    await fetch("/api/admin/survey-insights", {
+      cache: "no-store", headers: { "X-Admin-Secret": secret, ...authHeaders() },
     })
   );
 }
@@ -3154,25 +3154,27 @@ export async function adminListBugReports(
   limit = 50,
 ): Promise<{ count: number; reports: BugReportRow[] }> {
   return jsonOrThrow(
-    await fetch(`${MEMORY_URL}/admin/bugs?limit=${limit}`, {
+    await fetch(`/api/admin/bugs?limit=${limit}`, {
       cache: "no-store",
-      headers: { "X-Admin-Secret": secret },
+      headers: { "X-Admin-Secret": secret, ...authHeaders() },
     }),
   );
 }
 
 export async function recordConsent(args: {
-  student_id: string;
   scope: string;
   granted: boolean;
   region?: string;
   written?: boolean;
   retention_days?: number | null;
+  student_id?: string;
 }): Promise<{ student_id: string; scope: string; granted: boolean }> {
+  // Goes through the identity service (user-authenticated) — the memory
+  // service's /consent endpoint is internal-only and rejects browser calls.
   return jsonOrThrow(
-    await fetch(`${MEMORY_URL}/consent`, {
+    await fetch(`${IDENTITY_URL}/consent`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
     })
   );

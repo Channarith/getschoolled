@@ -133,9 +133,12 @@ def build_order_steps_game(
     objective_id: str = "",
 ) -> GameChallenge:
     parts = [(p or "").strip() for p in (slide.body or "").split(".") if (p or "").strip()]
-    steps = parts[:3] if len(parts) >= 3 else ([slide.title] + parts)[:3]
+    titled = (slide.title or "").strip()
+    # Drop empties before the fallback check — [""] is truthy, so an empty
+    # title + empty body used to ship a game whose only step was "".
+    steps = [s for s in (parts[:3] if len(parts) >= 3 else ([titled] + parts)[:3]) if s]
     if not steps:
-        steps = [slide.title or "Practice"]
+        steps = [titled or "Practice"]
     scrambled = list(reversed(steps))
     return GameChallenge(
         game_id=str(uuid.uuid4()),

@@ -210,10 +210,15 @@ def mint_ephemeral_token(
     try:
         data = json.loads(raw.decode("utf-8"))
     except json.JSONDecodeError as exc:
-        raise XaiVoiceError(f"invalid JSON from xAI client_secrets: {raw[:200]!r}") from exc
-    value = (data.get("value") or data.get("client_secret") or "").strip()
+        # Never embed the response body — a malformed reply could carry the
+        # minted token into logs.
+        raise XaiVoiceError("invalid JSON from xAI client_secrets") from exc
+    if not isinstance(data, dict):
+        raise XaiVoiceError("client_secrets response was not an object")
+    raw_value = data.get("value") or data.get("client_secret") or ""
+    value = raw_value.strip() if isinstance(raw_value, str) else ""
     if not value:
-        raise XaiVoiceError(f"client_secrets response missing value: {data!r}")
+        raise XaiVoiceError("client_secrets response missing value")
     expires_at = int(data.get("expires_at") or (time.time() + expires_seconds))
     return EphemeralToken(value=value, expires_at=expires_at, mock=False, model=model)
 
