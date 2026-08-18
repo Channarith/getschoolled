@@ -65,6 +65,9 @@ class VoucherStore:
         for root in candidates:
             try:
                 root.mkdir(parents=True, exist_ok=True)
+                probe = root / ".write_probe"
+                probe.write_text("ok")
+                probe.unlink(missing_ok=True)
                 return cls(root)
             except OSError as exc:
                 last_exc = exc
