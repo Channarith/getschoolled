@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+
+# Load config/local.env so XAI_API_KEY / ELEVENLABS_API_KEY / SPEECH_BASE_URL
+# work without a manual `set -a; . config/local.env` in every shell.
+try:
+    from aoep_shared.env_bootstrap import ensure_lab_env
+
+    ensure_lab_env()
+except Exception:  # noqa: BLE001 — labs must still boot offline / without shared
+    pass
+
+
 import html
 import json
 import os
@@ -8,9 +19,10 @@ import threading
 import time
 
 from fastapi import FastAPI, HTTPException, Path
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
+from . import tts as tts_module
 from .analysis import AnalyzerPolicy, WebcamSessionAnalyzer
 from .demo_seed import DEFAULT_SESSION_ID, DemoScenario, build_demo_payload
 from .imaging import analyze_luminance_grid
@@ -538,6 +550,7 @@ def voice_languages() -> list[SupportedLanguage]:
 def voice_status() -> dict[str, object]:
     """Show whether xAI is wired and how many teaching languages are available."""
     has_key = bool(getattr(_voice_agent, "_api_key", "") or "")
+    speech = tts_module.tts_status()
     return {
         "service": "theodore-voice-agent",
         "provider": "xai" if has_key else "local-fallback",
@@ -545,14 +558,37 @@ def voice_status() -> dict[str, object]:
         "model": _voice_agent.model,
         "fast_model": _voice_agent.fast_model,
         "languages": len(_voice_agent.supported_languages()),
-        "tts_engine_chain": ["elevenlabs", "edge-tts", "device"],
+        "tts_engine_chain": speech.get("engines") or ["device"],
+        "speech": speech,
         "note": (
-            "xAI Grok generates the reply text; spoken audio uses the browser/device "
-            "voice (or a speech gateway when configured). Set XAI_API_KEY for live xAI."
+            "xAI Grok generates the reply text; spoken audio uses neural TTS "
+            "(speech gateway → ElevenLabs → edge-tts) when configured, else device. "
+            "Set XAI_API_KEY for live xAI and ELEVENLABS_API_KEY / SPEECH_BASE_URL for natural speech."
             if not has_key
-            else "xAI Grok is live for replies; spoken audio uses device/edge/ElevenLabs TTS."
+            else "xAI Grok is live for replies; spoken audio prefers neural TTS over device voice."
         ),
     }
+
+
+@app.get("/api/tts/status")
+def webcam_tts_status() -> dict[str, object]:
+    return tts_module.tts_status()
+
+
+@app.get("/api/tts")
+@app.post("/api/tts")
+def webcam_speak(text: str = "", language: str = "en", style: str = "warm") -> Response:
+    try:
+        audio, mime, engine = tts_module.synthesize(text, language=language, style=style)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except tts_module.ProviderUnavailable as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return Response(
+        content=audio,
+        media_type=mime,
+        headers={"X-TTS-Engine": engine, "Cache-Control": "no-store"},
+    )
 
 
 @app.post("/api/theodore/webcam/evaluate", response_model=ClassEvaluation)

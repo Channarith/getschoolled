@@ -669,6 +669,7 @@ def test_owner_face_mismatch_pauses_solo_and_flags_cheating():
                 motion_score=0.1,
                 owner_face_enrolled=True,
                 owner_face_match=False,
+                owner_face_name="Alex",
                 owner_match_score=0.12,
                 secondary_face_count=2,
             )
@@ -683,7 +684,7 @@ def test_owner_face_mismatch_pauses_solo_and_flags_cheating():
     assert "owner_face_mismatch" in p.cheating_reasons
     assert "secondary_faces_in_frame" in p.cheating_reasons
     assert any(a.startswith("solo_mode_multiple_faces:") for a in p.alerts)
-    assert any(a.startswith("owner_face_mismatch:") for a in p.alerts)
+    assert any(a.startswith("owner_face_mismatch:") and "Alex" in a for a in p.alerts)
 
 
 def test_owner_empty_frame_is_absence_not_substitution():

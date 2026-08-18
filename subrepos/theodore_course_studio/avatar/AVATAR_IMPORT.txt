@@ -1,0 +1,109 @@
+THEODORE PRESENTER — HIGH-FIDELITY GLB IMPORT
+=============================================
+
+This is the "option 3" path: bring in an artist- or Meshy-generated GLB built to
+the Serenity V2 rig (avatar_rig_config_v2.json) and let the existing teach cues
+drive it. No engine fork — the runtime resolves the V2 rig into our logical
+joints via avatar_rig.js, applies the holographic look, and lip-syncs through the
+same viseme stream. Our procedural GLB remains the automatic fallback.
+
+WHAT CURSOR / THIS REPO CANNOT DO
+---------------------------------
+Generating rigged, skinned 3D geometry from an image is a 3D-modeling task. It
+must be produced outside this repo by one of:
+  - Meshy.ai (image-to-3D / text-to-3D, then auto-rig + export GLB), or
+  - Luma / Rodin / other image-to-3D, or
+  - a human 3D artist in Blender.
+Everything AROUND that asset is already built here and waiting.
+
+
+STEP 1 — GENERATE THE MODEL
+---------------------------
+Reference art: docs/screens/presenter_female_*.png and presenter_male_*.png
+(the chibi Salareen presenter). Feed the front/side views as image references.
+
+Suggested Meshy text prompt (pair with the reference images):
+
+  "A friendly chibi teacher character, 3-head-tall proportions, rounded oversized
+   head, large expressive eyes, soft smile, chunky simplified hands, standing in
+   a slight forward-leaning welcoming pose. Smooth stylized surfaces, clean
+   topology, symmetrical. Neutral A-pose for rigging. One version female, one
+   version male. Translucent cyan hologram aesthetic is applied later in-engine,
+   so export with a clean light base color (no baked emission)."
+
+Export target: glTF-Binary (.glb), Y-up, meters, single mesh or few meshes,
+with morph targets (blendshapes) included.
+
+
+STEP 2 — RIG TO avatar_rig_config_v2.json
+-----------------------------------------
+Bones (humanoid): Hips, Spine, Chest, UpperChest, Neck, Head, Jaw, Eye_L, Eye_R,
+Shoulder/UpperArm/LowerArm/Hand _L and _R, full finger chains, and the legs.
+The runtime NEEDS at minimum (to score PASS in the validator):
+  Hips, Spine, Chest, Neck, Head, and both UpperArm/LowerArm/Hand chains.
+Fingers, legs, eyes, jaw are used when present and safely ignored when absent.
+
+Blendshapes (ARKit-style names): the viseme_* set for lip-sync
+(viseme_sil/PP/FF/aa/E/I/O/U ...), eyeBlink_L / eyeBlink_R for blinking, and the
+expression shapes smile / eyebrow_raise / eyebrow_furrow / jawOpen.
+If visemes are missing, lip-sync falls back to a jaw/mouth pulse; if eyelids are
+missing, blink falls back to eye-scale. Neither breaks playback.
+
+Alias tolerance: the adapter also accepts common Mixamo/UE names (mixamorigHead,
+upperarm_l, thigh_r, ...). See BONE_ALIASES / FACE_ALIASES in avatar_rig.js for
+the full accepted-name list.
+
+
+STEP 3 — VALIDATE OFFLINE (before wiring in)
+--------------------------------------------
+From this avatar/ directory:
+
+  node validate_rig.mjs /absolute/path/to/your_model.glb
+
+It reports V2-spec coverage AND alias-aware drivability, and exits non-zero if
+the core skeleton or mouth cannot be driven. Fix the rig until it prints:
+  "PASS — core skeleton and mouth are drivable by the teach runtime."
+
+
+STEP 4 — DROP IT IN
+-------------------
+Copy the validated GLB(s) into the served asset directory:
+  src/theodore_course_studio/avatar_static/
+
+Naming (the backend manifest picks these up automatically, custom preferred over
+procedural):
+  custom_female.glb   -> female persona, V2 rig
+  custom_male.glb     -> male persona,   V2 rig
+  custom.glb          -> used for a persona that has no custom_<persona>.glb
+
+The endpoint GET /api/studio/presenter/manifest reports which model each persona
+resolves to and its rig ("v2" | "procedural"). The browser runtime fetches this
+on load, prefers the custom GLB, and (for a v2 rig) applies the holographic
+material automatically. No code change needed to switch models.
+
+
+STEP 5 — VERIFY IN THE STUDIO
+-----------------------------
+Start the studio, open the presenter, and confirm:
+  - container dataset avatarRig == "v2" (DevTools: the #theodore-avatar element)
+  - avatar-state shows "3D hologram ready"
+  - mouth moves with narration; blinks; gestures fire on cue.
+
+If anything is off, re-run validate_rig.mjs — a failing bone/blendshape name is
+almost always the cause.
+
+
+HOW THE PIECES CONNECT (for maintainers)
+----------------------------------------
+avatar_rig_config_v2.json  — the rig contract (bones + blendshapes) to model to.
+avatar_rig.js              — adapter: resolveSkeleton() maps any rig into logical
+                             joints; createFaceDriver() abstracts mouth/blink/
+                             expression over procedural morphs OR V2 visemes;
+                             applyHologram() injects the translucent look into a
+                             standard material (keeps skinning + morphs working).
+avatar_runtime.js          — unchanged cue vocabulary; now drives logical joints
+                             and the face driver, so it is rig-agnostic.
+validate_rig.mjs           — offline contract check for any GLB.
+test/rig.test.mjs          — proves resolve + face driver on synthetic V2 and
+                             procedural rigs (node --test).
+main.py                    — GET /api/studio/presenter/manifest (custom-preferred).

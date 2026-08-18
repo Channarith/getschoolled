@@ -1456,7 +1456,13 @@ class WebcamSessionAnalyzer:
         if mode is ClassMode.SOLO and face_count > self._policy.solo_max_faces:
             alerts.append(f"solo_mode_multiple_faces:{signal.participant_id}")
         if owner_mismatch:
-            alerts.append(f"owner_face_mismatch:{signal.participant_id}")
+            face_id = (signal.owner_face_name or "").strip()
+            if face_id:
+                alerts.append(
+                    f"owner_face_mismatch:{signal.participant_id}:{face_id}"
+                )
+            else:
+                alerts.append(f"owner_face_mismatch:{signal.participant_id}")
         if secondary_faces > 0:
             alerts.append(
                 f"secondary_faces:{signal.participant_id}:{secondary_faces}"
