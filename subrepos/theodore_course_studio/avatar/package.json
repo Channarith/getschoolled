@@ -1,0 +1,14 @@
+{
+  "name": "@salareen/theodore-course-avatar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build_avatar.mjs",
+    "test": "node --test",
+    "validate": "node validate_rig.mjs"
+  },
+  "dependencies": {
+    "three": "0.169.0"
+  }
+}

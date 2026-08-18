@@ -20,6 +20,7 @@ from .curated_lines import normalize
 from .curated_love import curated_love
 from .lexicon import EXAMPLES, gloss, terms_in_line, vocabulary_for_line
 from .love_of_learning import love_of_learning_embed
+from .sing import speakable, voice_tag
 from .translations import (
     TIER_NOTES,
     XAI_DEFAULT_MODEL,
@@ -154,6 +155,27 @@ def _line_display(
     return _translate_text(text_en, lang, cache=cache)
 
 
+def _speech(translation: str, tier: str, text_en: str, language: str) -> dict[str, Any]:
+    """What a voice should say for a verse, and which voice should say it.
+
+    An untranslated line must not be read out by a Khmer or Chinese voice, so the
+    ``english`` tier falls back to the English gloss with an English voice tag.
+    """
+    spoken = speakable(translation) if tier != "english" else ""
+    if language == "en" or not spoken:
+        english = speakable(text_en) or text_en
+        return {
+            "speak_text": english,
+            "speak_lang": "en",
+            "voice_tag": voice_tag("en"),
+        }
+    return {
+        "speak_text": spoken,
+        "speak_lang": language,
+        "voice_tag": voice_tag(language),
+    }
+
+
 def _fill_llm_gaps(
     cache_key: str,
     language: str,
@@ -242,9 +264,13 @@ def resolve_embed(
         terms = [str(t) for t in (raw.get("terms") or []) if t]
         vocab = vocabulary_for_line(text_en, lang)
         for term in terms:
-            if not any(row.get("en") == term for row in vocab):
-                target = gloss(term, lang) if lang != "en" else term
-                vocab.append({"en": term, "target": target or term})
+            if any(row.get("en") == term for row in vocab):
+                continue
+            target = term if lang == "en" else gloss(term, lang)
+            # A chip reading "married -> married" teaches nothing: drop the term
+            # rather than echo English back as the translation.
+            if target:
+                vocab.append({"en": term, "target": target})
         verses_out.append(
             {
                 "verse_no": int(raw.get("verse_no") or len(verses_out) + 1),
@@ -258,6 +284,9 @@ def resolve_embed(
                 "translation": translated["translation"],
                 "tier": translated["tier"],
                 "note": translated["note"],
+                "speak_text": "",
+                "speak_lang": lang,
+                "voice_tag": voice_tag(lang),
                 "focus": str(raw.get("focus") or "vocabulary"),
                 "terms": terms,
                 "vocabulary": vocab,
@@ -273,6 +302,9 @@ def resolve_embed(
         verse["translation"] = tr["translation"]
         verse["tier"] = tr["tier"]
         verse["note"] = tr["note"]
+        verse.update(
+            _speech(tr["translation"], tr["tier"], verse["text_en"], lang)
+        )
         cursor += 1
         for question in verse["questions"]:
             prompt_tr = text_rows[cursor]
@@ -309,6 +341,10 @@ def resolve_embed(
         "duration_sec": float(embed.get("duration_sec") or 0),
         "language": lang,
         "language_name": language_name(lang),
+        "voice_tag": voice_tag(lang),
+        "spoken_lines": sum(
+            1 for v in verses_out if v["speak_lang"] == lang and v["speak_text"]
+        ),
         "topic": str(embed.get("topic") or ""),
         "note": str(embed.get("note") or ""),
         "verse_count": len(verses_out),
