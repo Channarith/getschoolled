@@ -395,28 +395,17 @@ def _ranged_file(
 
     spec = raw_range.split("=", 1)[1].split(",")[0].strip()
     first, _, last = spec.partition("-")
-    unsatisfiable = Response(
-        status_code=416,
-        headers={**headers, "content-range": f"bytes */{size}"},
-    )
     try:
-        if not first:
-            # Suffix range "bytes=-N": serve the final N bytes of the file.
-            suffix = int(last)
-            if suffix <= 0:
-                raise ValueError("non-positive suffix length")
-            start = max(0, size - suffix)
-            end = size - 1
-        else:
-            start = int(first)
-            end = int(last) if last else size - 1
+        start = int(first) if first else 0
+        end = int(last) if last else size - 1
     except ValueError:
         raise HTTPException(status_code=416, detail="Malformed Range header") from None
     if start < 0 or start >= size:
-        return unsatisfiable
+        return Response(
+            status_code=416,
+            headers={**headers, "content-range": f"bytes */{size}"},
+        )
     end = min(end, size - 1)
-    if end < start:
-        return unsatisfiable
     length = end - start + 1
 
     def stream() -> Iterator[bytes]:

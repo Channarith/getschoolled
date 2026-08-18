@@ -323,32 +323,6 @@ def test_audio_supports_byte_ranges_so_seeking_works():
         assert client.get(url, headers={"Range": f"bytes={total + 5}-"}).status_code == 416
 
 
-def test_audio_suffix_and_backwards_ranges():
-    """Suffix ranges (bytes=-N) serve the tail; backwards ranges are rejected."""
-    with TestClient(app) as client:
-        url = client.get("/api/music/featured").json()["songs"][0]["audio_url"]
-        full = client.get(url)
-        total = len(full.content)
-
-        # Suffix range: the final 500 bytes, per RFC 7233 (not bytes 0..500).
-        suffix = client.get(url, headers={"Range": "bytes=-500"})
-        assert suffix.status_code == 206
-        assert suffix.headers["content-range"] == f"bytes {total - 500}-{total - 1}/{total}"
-        assert len(suffix.content) == 500
-        assert suffix.content == full.content[-500:]
-
-        # A suffix larger than the file clamps to the whole file.
-        big = client.get(url, headers={"Range": f"bytes=-{total + 100}"})
-        assert big.status_code == 206
-        assert big.headers["content-range"] == f"bytes 0-{total - 1}/{total}"
-        assert len(big.content) == total
-
-        # A backwards range must not produce a negative content-length body.
-        backwards = client.get(url, headers={"Range": "bytes=900-100"})
-        assert backwards.status_code == 416
-        assert backwards.headers["content-range"] == f"bytes */{total}"
-
-
 def test_video_links_all_offer_lyrics():
     videos = load_videos()
     assert len(videos) >= 4

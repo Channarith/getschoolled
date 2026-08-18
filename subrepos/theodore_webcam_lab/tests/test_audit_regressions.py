@@ -6,6 +6,7 @@ future change cannot quietly reintroduce it.
 
 from __future__ import annotations
 
+import inspect
 import json
 from pathlib import Path
 
@@ -187,6 +188,23 @@ def test_voice_agent_bounds_cache_and_session_history():
         )
     assert len(agent._response_cache) <= 10
     assert len(agent._session_history) <= 6
+
+
+def test_voice_agent_has_no_duplicate_method_definitions():
+    src = inspect.getsource(XaiVoiceAgent)
+    for name in (
+        "absorb_audio_answer",
+        "_now_ms",
+        "_elapsed_ms",
+        "_normalize_text",
+        "_history_for_session",
+        "_remember_turn",
+        "_build_cache_key",
+        "_get_cached",
+        "_set_cached",
+        "_prune_cache",
+    ):
+        assert src.count(f"def {name}(") == 1, name
 
 
 def test_voice_cache_is_scoped_per_session(monkeypatch):
