@@ -1181,20 +1181,19 @@ class PracticeResult(BaseModel):
     stars: int = 0
 
 
-# One practice set never legitimately exceeds this many items; the cap bounds
-# how many points a single self-reported /language/practice call can mint.
+# One practice set never legitimately exceeds this many items, and a single
+# self-reported /language/practice call can never mint more than MAX_PRACTICE_XP
+# points — these bound the payout of a forged payload.
 MAX_PRACTICE_ITEMS = 500
-
-
-_MAX_PRACTICE_XP = 500  # hard cap per practice call
+MAX_PRACTICE_XP = 500
 
 
 def practice_xp(skill: str, correct: int, total: int) -> int:
     """XP for completing a practice set (feeds points/rewards)."""
     total = max(0, min(int(total), MAX_PRACTICE_ITEMS))
-    correct = max(0, min(int(correct), total))  # clamp to actual set size; empty set = 0 XP
+    # Never mint XP against a forged/empty set size — correct cannot exceed total.
+    correct = max(0, min(int(correct), total))
     base = correct * 8
     bonus = 16 if total and correct == total else 0
     hard = {"pronunciation", "writing", "conversation", "music-video"}
-    xp = int((base + bonus) * (1.25 if skill in hard else 1.0))
-    return min(xp, _MAX_PRACTICE_XP)
+    return min(MAX_PRACTICE_XP, int((base + bonus) * (1.25 if skill in hard else 1.0)))

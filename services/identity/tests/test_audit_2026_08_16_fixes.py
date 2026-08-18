@@ -104,7 +104,9 @@ def test_2fa_lockout_survives_mfa_token_rotation():
         "/auth/2fa/verify",
         json={"mfa_token": step1["mfa_token"], "code": current_totp(setup["secret"])},
     )
-    assert locked.status_code == 401
+    # The lockout is account-scoped, so rotating in a fresh mfa_token buys nothing:
+    # the correct code is still refused, and the ceiling reports itself as 429.
+    assert locked.status_code == 429
 
 
 def test_phone_alone_does_not_validate_billing():
