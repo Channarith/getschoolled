@@ -30,6 +30,8 @@ from .providers import ProviderUnavailable
 
 # edge-tts ships no voice for every language; these cover the lab's set well and
 # can each be overridden with AOEP_TTS_VOICE_<LANG> (e.g. AOEP_TTS_VOICE_KM).
+# Full platform 27 (plus a few extras). Missing cs/el previously fell back to
+# English voices and sounded "partial" in the lab UI.
 _EDGE_VOICES = {
     "en": "en-US-AriaNeural",
     "es": "es-ES-ElviraNeural",
@@ -58,6 +60,8 @@ _EDGE_VOICES = {
     "ja": "ja-JP-NanamiNeural",
     "ko": "ko-KR-SunHiNeural",
     "sw": "sw-KE-ZuriNeural",
+    "el": "el-GR-AthinaNeural",
+    "cs": "cs-CZ-VlastaNeural",
 }
 
 MAX_TTS_CHARS = 1200
@@ -109,12 +113,16 @@ def tts_status() -> dict[str, object]:
     when nothing is configured.
     """
     chain = engine_chain()
+    platform = list(LANGUAGE_NAMES)
     return {
         "available": bool(chain),
         "engine": chain[0] if chain else "",
         "engines": chain,
         "gateway_url": _gateway_url(),
         "languages": sorted(_EDGE_VOICES),
+        "platform_languages": platform,
+        "platform_language_count": len(platform),
+        "edge_covers_platform": all(code in _EDGE_VOICES for code in platform),
         "note": (
             f"Server neural speech via {' → '.join(chain)}."
             if chain

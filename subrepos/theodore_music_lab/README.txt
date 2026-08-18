@@ -181,7 +181,7 @@ UI needs the local MP3 files present under data/audio/.
 Screens
   docs/screens/theodore_music_lab.webp
   (also under this subrepo at docs/screens/theodore_music_lab.webp)
-  Featured MP3 player with lyric sync + meaning glosses. Regenerate:
+  Featured MP3 player with lyric sync + full-line translations in all 26+ platform languages (curated pack, not Romance-only). Regenerate:
     python3 scripts/render_lab_docs_screenshots.py
 
 STEP BY STEP (from repo root)
