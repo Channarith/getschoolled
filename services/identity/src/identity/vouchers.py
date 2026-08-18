@@ -8,6 +8,7 @@ Three types:
 from __future__ import annotations
 import json
 import os
+import tempfile
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -54,10 +55,27 @@ class VoucherStore:
 
     @classmethod
     def open(cls) -> "VoucherStore":
+        """Open the store in the first candidate directory we can actually write.
+
+        mkdir succeeding does not mean the directory is writable (read-only home,
+        restricted sandbox), and the failure then surfaced much later as an
+        unhandled OSError from _save() mid-redemption. Probe up front instead.
+        """
         raw = os.environ.get(VOUCHER_DIR_ENV, "").strip()
-        root = Path(raw) if raw else Path.home() / ".cache" / "aoep" / "vouchers"
-        root.mkdir(parents=True, exist_ok=True)
-        return cls(root)
+        candidates = [Path(raw)] if raw else []
+        candidates.append(Path.home() / ".cache" / "aoep" / "vouchers")
+        candidates.append(Path(tempfile.gettempdir()) / "aoep-vouchers")
+        last_exc: OSError | None = None
+        for root in candidates:
+            try:
+                root.mkdir(parents=True, exist_ok=True)
+                probe = root / ".write_probe"
+                probe.write_text("ok")
+                probe.unlink(missing_ok=True)
+                return cls(root)
+            except OSError as exc:
+                last_exc = exc
+        raise OSError(f"could not open a writable voucher store: {last_exc}")
 
     def _load(self) -> None:
         if self._path.is_file():

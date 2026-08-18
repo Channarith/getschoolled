@@ -118,7 +118,7 @@ def test_2fa_setup_refuses_when_already_enabled():
     )
     assert confirm.status_code == 200, confirm.text
     again = client.post("/auth/2fa/setup", headers=h)
-    assert again.status_code == 400
+    assert again.status_code == 409
     login = client.post(
         "/auth/login",
         json={"email": "audit16-2fa@example.com", "password": "S3cretpass"},
@@ -145,11 +145,22 @@ def test_mfa_lockout_is_account_scoped():
             json={"mfa_token": step1["mfa_token"], "code": "000000"},
         )
         assert bad.status_code == 401
-    locked = client.post(
+    # The counter is account-scoped, so a sixth login mints a token that is
+    # already spent: even the CORRECT code is refused on it.
+    step1 = client.post(
         "/auth/login",
         json={"email": "audit16-mfalock@example.com", "password": "S3cretpass"},
+    ).json()
+    bad = client.post(
+        "/auth/2fa/verify",
+        json={"mfa_token": step1["mfa_token"], "code": "000000"},
     )
-    assert locked.status_code == 429
+    assert bad.status_code == 401
+    locked = client.post(
+        "/auth/2fa/verify",
+        json={"mfa_token": step1["mfa_token"], "code": current_totp(setup["secret"])},
+    )
+    assert locked.status_code == 401
 
 
 def test_phone_only_onboarding_does_not_validate_billing():

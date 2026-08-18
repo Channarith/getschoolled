@@ -3,6 +3,8 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-08-18 - v0.46.76 - Voucher store now picks the first writable directory (probing up front, falling back to the temp dir) instead of failing mid-redemption when the home cache is read-only.
+- 2026-08-18 - v0.46.76 - Cap self-reported language-practice XP at 500 per set and award 0 for an empty set, so a forged correct/total cannot mint redeemable points; reconcile the 2026-08-16 audit tests with main's canonical 2FA behaviour (409 on re-provisioning an enabled authenticator, account-scoped MFA lockout that burns each freshly minted token).
 - 2026-08-18 - v0.46.76 - Bug audit fixes (2026-08-16 audit, continued): additional targeted fixes from the comprehensive audit in docs/audit-2026-08-16.txt, covering identity security, curriculum, web UI, mobile, music lab, webcam lab, and shared infrastructure.
 - 2026-08-18 - v0.46.75 - Bug audit fixes (2026-08-16 audit, continued): additional targeted fixes from the comprehensive audit in docs/audit-2026-08-16.txt, covering identity security, media/vision, curriculum/orchestrator, web UI, mobile, music lab, and webcam lab.
 - 2026-08-17 - v0.46.72 - Bug audit fixes (2026-08-16 audit, continued): additional targeted fixes from the comprehensive audit in docs/audit-2026-08-16.txt, covering identity security, media/vision, curriculum/orchestrator, web UI, mobile, music lab, and webcam lab.

@@ -66,6 +66,7 @@ def _bounded_dict_add(d: dict, key: str, value, name: str) -> None:
 # after 5 cumulative failures. Falls back to in-process dicts/sets when Redis
 # is unavailable (single-pod deployments or dev). In production multi-pod
 # deployments Redis is required for correct cross-pod enforcement.
+_MFA_MAX_FAILS = 5  # cumulative wrong codes before the account is locked out
 _mfa_fail_counts: dict[str, int] = {}  # account_id -> failure count (in-process fallback)
 _mfa_burned: set[str] = set()         # mfa_tokens invalidated by lockout (in-process fallback)
 
@@ -322,7 +323,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             # Bug 7: Track failures per account (survives re-login); burn the
             # current mfa_token after 5 cumulative bad codes.
             count = _mfa_fail_increment(acct.id)
-            if count >= 5:
+            if count >= _MFA_MAX_FAILS:
                 _mfa_burn(req.mfa_token)
             ctx = _ctx(request)
             app.state.accounts.record_login_event(
