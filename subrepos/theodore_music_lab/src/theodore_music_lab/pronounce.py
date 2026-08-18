@@ -191,6 +191,7 @@ def check_pronunciation(
     heard: str,
     language: str = "en",
     practice: str = "english",
+    target_override: str = "",
 ) -> dict[str, Any]:
     """Score the learner against the lyric (English) or its translation."""
     lang = validate_language(language)
@@ -203,7 +204,10 @@ def check_pronunciation(
 
     english = (line.text or "").strip()
     translated = translate_line(line, lang)
-    target = english if mode == "english" else (translated["translation"] or english)
+    if (target_override or "").strip():
+        target = target_override.strip()
+    else:
+        target = english if mode == "english" else (translated["translation"] or english)
     # Strip romanization / mid-dots so ASR-like typed input compares fairly.
     target_speak = speakable(target) if mode == "translation" else target
     result = score_attempt(target_speak, heard)

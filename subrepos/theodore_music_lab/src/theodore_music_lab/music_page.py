@@ -51,7 +51,7 @@ _CSS = """
   header p { margin:.35rem 0 0; color:var(--muted); max-width:46rem; }
   .layout { display:grid; gap:1rem; padding:1rem 1.5rem 2rem; grid-template-columns:minmax(230px,290px) 1fr; }
   .layout > .stack { display:grid; gap:1rem; align-content:start; }
-  .bottom { display:grid; gap:1rem; grid-template-columns:1fr 1fr 1fr; }
+  .bottom { display:grid; gap:1rem; grid-template-columns:minmax(16rem, 22rem) 1fr; }
   @media (max-width:980px){ .layout { grid-template-columns:1fr; } .bottom { grid-template-columns:1fr; } }
   .panel { background:color-mix(in srgb, var(--panel) 92%, black); border:1px solid #334155;
     border-radius:18px; padding:1rem; }
@@ -286,6 +286,36 @@ _CSS = """
   .word-chip.missed, .word-chip.wrong { background:#7c2d12; border-color:#fb923c; color:#fed7aa; }
   .word-chip.extra { background:#334155; color:#cbd5e1; }
   .btn-mic.listening { background:#b91c1c; border-color:#f87171; color:#fff; }
+  .practice-modes { display:flex; flex-wrap:wrap; gap:.35rem; margin:.4rem 0 .7rem; }
+  .practice-modes button { font-size:.82rem; padding:.35rem .7rem; border-radius:999px;
+    border:1px solid #475569; background:#0f172a; color:var(--ink); cursor:pointer; }
+  .practice-modes button.active { border-color:var(--warm); color:#fde68a;
+    box-shadow:0 0 0 1px var(--warm); }
+  .practice-pane { display:none; }
+  .practice-pane.active { display:block; }
+  .quiz-q { margin:.55rem 0; padding:.65rem .75rem; border-radius:12px; background:#0f172a;
+    border:1px solid #334155; }
+  .quiz-q .prompt { font-weight:600; white-space:pre-wrap; }
+  .quiz-choices { display:grid; gap:.35rem; margin-top:.45rem; }
+  .quiz-choices label { display:flex; gap:.45rem; align-items:flex-start; cursor:pointer;
+    font-size:.9rem; }
+  .quiz-q.ok { border-color:#34d399; }
+  .quiz-q.bad { border-color:#fb923c; }
+  .memory-card { padding:.75rem .85rem; border-radius:12px; background:#122033;
+    border:1px solid #334155; margin:.45rem 0; }
+  .memory-card .side { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted); }
+  .memory-card .prompt { font-weight:700; font-size:1.05rem; margin:.2rem 0 .45rem; }
+  .alt-list { display:grid; gap:.4rem; margin:.5rem 0; }
+  .alt-item { text-align:left; width:100%; padding:.55rem .7rem; border-radius:10px;
+    background:#0f172a; border:1px solid #334155; color:var(--ink); cursor:pointer; }
+  .alt-item:hover, .alt-item.active { border-color:var(--warm); }
+  .alt-item .meta { font-size:.72rem; color:var(--muted); }
+  .sing-progress { margin:.45rem 0; font-size:.88rem; color:var(--muted); }
+  .sing-line-row { display:flex; justify-content:space-between; gap:.5rem; padding:.35rem 0;
+    border-bottom:1px solid #1e293b; font-size:.88rem; }
+  .sing-line-row.pass { color:#a7f3d0; }
+  .sing-line-row.fail { color:#fed7aa; }
   .clip { display:block; width:100%; text-align:left; margin:0 0 .45rem; padding:.55rem .7rem;
     border-radius:10px; background:#0f172a; border:1px solid #334155; color:var(--ink); cursor:pointer; }
   .clip strong { display:block; font-size:.92rem; }
@@ -411,44 +441,137 @@ _HTML = """
           <div class="chips" id="now-vocab"></div>
           <ul class="examples" id="now-examples"></ul>
         </section>
-        <section class="panel">
-          <h2>Say / sing this line</h2>
-          <p class="meta">Practise the English lyric or the translation, then get a score
-            and corrections before the next line.</p>
-          <div class="pronounce-target" id="pronounce-target">
-            <div class="label">Line to say</div>
-            <div class="say" id="pronounce-say">Choose a song and press play.</div>
-            <div class="hint" id="pronounce-hint"></div>
+        <section class="panel" id="practice-hub">
+          <h2>Learn &amp; practice this song</h2>
+          <p class="meta">Check pronunciation, test what you learned, test your memory, ask
+            questions, try other ways to say the same line, or sing the whole song in your
+            language.</p>
+          <div class="practice-modes" id="practice-modes">
+            <button type="button" class="active" data-mode="pronounce">Say / sing line</button>
+            <button type="button" data-mode="quiz">Quiz me</button>
+            <button type="button" data-mode="memory">Memory</button>
+            <button type="button" data-mode="ask">Ask</button>
+            <button type="button" data-mode="paraphrase">Other ways</button>
+            <button type="button" data-mode="sing">Sing whole song</button>
           </div>
-          <div class="pronounce-row">
-            <label><input type="radio" name="practice-mode" id="practice-en" value="english"
-              checked /> English lyric</label>
-            <label><input type="radio" name="practice-mode" id="practice-tr" value="translation" />
-              My language</label>
+
+          <div class="practice-pane active" id="pane-pronounce">
+            <p class="meta">Practise the English lyric or the translation, then get a score
+              and corrections before the next line.</p>
+            <div class="pronounce-target" id="pronounce-target">
+              <div class="label">Line to say</div>
+              <div class="say" id="pronounce-say">Choose a song and press play.</div>
+              <div class="hint" id="pronounce-hint"></div>
+            </div>
+            <div class="pronounce-row">
+              <label><input type="radio" name="practice-mode" id="practice-en" value="english"
+                checked /> English lyric</label>
+              <label><input type="radio" name="practice-mode" id="practice-tr" value="translation" />
+                My language</label>
+            </div>
+            <div class="pronounce-row">
+              <button class="ghost" id="btn-hear-model" type="button">Hear model</button>
+              <button class="primary btn-mic" id="btn-mic" type="button">Speak line</button>
+              <button class="ghost" id="btn-check-typed" type="button">Check typed</button>
+            </div>
+            <div class="pronounce-row">
+              <input type="text" id="pronounce-heard"
+                placeholder="Or type what you said / sang…" />
+            </div>
+            <div class="meta" id="pronounce-status">Mic uses the browser speech recognizer
+              when available.</div>
+            <div class="score-card" id="pronounce-result" hidden></div>
           </div>
-          <div class="pronounce-row">
-            <button class="ghost" id="btn-hear-model" type="button">Hear model</button>
-            <button class="primary btn-mic" id="btn-mic" type="button">Speak line</button>
-            <button class="ghost" id="btn-check-typed" type="button">Check typed</button>
+
+          <div class="practice-pane" id="pane-quiz">
+            <p class="meta">Multiple-choice on this song's vocabulary and line meanings.</p>
+            <div class="pronounce-row">
+              <button class="primary" id="btn-quiz-start" type="button">Start quiz</button>
+              <button class="ghost" id="btn-quiz-grade" type="button" hidden>Check answers</button>
+              <span class="meta" id="quiz-status"></span>
+            </div>
+            <div id="quiz-body"></div>
+            <div class="score-card" id="quiz-result" hidden></div>
           </div>
-          <div class="pronounce-row">
-            <input type="text" id="pronounce-heard"
-              placeholder="Or type what you said / sang…" />
+
+          <div class="practice-pane" id="pane-memory">
+            <p class="meta">See one side of a line, then recall the other without peeking.</p>
+            <div class="pronounce-row">
+              <label><input type="radio" name="mem-dir" id="mem-en-tr" value="en_to_target"
+                checked /> English → my language</label>
+              <label><input type="radio" name="mem-dir" id="mem-tr-en" value="target_to_en" />
+                My language → English</label>
+            </div>
+            <div class="pronounce-row">
+              <button class="primary" id="btn-memory-start" type="button">Start memory drill</button>
+              <button class="ghost" id="btn-memory-grade" type="button" hidden>Check recall</button>
+              <span class="meta" id="memory-status"></span>
+            </div>
+            <div id="memory-body"></div>
+            <div class="score-card" id="memory-result" hidden></div>
           </div>
-          <div class="meta" id="pronounce-status">Mic uses the browser speech recognizer
-            when available.</div>
-          <div class="score-card" id="pronounce-result" hidden></div>
-        </section>
-        <section class="panel">
-          <h2>Ask the AI about the lyrics</h2>
-          <div class="meta" id="ask-context">No line selected yet.</div>
-          <div class="ask-row">
-            <input type="text" id="ask-input" placeholder="e.g. Why does it say 'go round and round'?" />
-            <button class="primary" id="ask-send" type="button">Ask</button>
+
+          <div class="practice-pane" id="pane-ask">
+            <div class="meta" id="ask-context">No line selected yet.</div>
+            <div class="ask-row">
+              <input type="text" id="ask-input"
+                placeholder="e.g. Why does it say 'go round and round'?" />
+              <button class="primary" id="ask-send" type="button">Ask</button>
+            </div>
+            <div class="chips" id="ask-quick"></div>
+            <div class="answer" id="ask-answer">Answers stay grounded in the lyrics of the
+              line you are on.</div>
           </div>
-          <div class="chips" id="ask-quick"></div>
-          <div class="answer" id="ask-answer">Answers stay grounded in the lyrics of the
-            line you are on.</div>
+
+          <div class="practice-pane" id="pane-paraphrase">
+            <p class="meta">See other natural ways to say this line, then try one yourself.</p>
+            <div class="pronounce-row">
+              <button class="primary" id="btn-para-load" type="button">Show alternatives</button>
+              <button class="ghost" id="btn-para-hear" type="button">Hear selected</button>
+              <button class="ghost" id="btn-para-check" type="button">Check my version</button>
+            </div>
+            <div class="pronounce-target">
+              <div class="label" id="para-label">Current line</div>
+              <div class="say" id="para-line">Choose a song and press play.</div>
+              <div class="hint" id="para-hint"></div>
+            </div>
+            <div class="alt-list" id="para-alts"></div>
+            <div class="pronounce-row">
+              <input type="text" id="para-heard"
+                placeholder="Type or speak your own version…" />
+              <button class="primary btn-mic" id="btn-para-mic" type="button">Speak</button>
+            </div>
+            <div class="score-card" id="para-result" hidden></div>
+          </div>
+
+          <div class="practice-pane" id="pane-sing">
+            <p class="meta">Walk through every line of the song in your language (or English)
+              and get a full-song score.</p>
+            <div class="pronounce-row">
+              <label><input type="radio" name="sing-practice" id="sing-pr-tr" value="translation"
+                checked /> Sing in my language</label>
+              <label><input type="radio" name="sing-practice" id="sing-pr-en" value="english" />
+                Sing the English lyric</label>
+            </div>
+            <div class="pronounce-row">
+              <button class="primary" id="btn-sing-start" type="button">Start full-song check</button>
+              <button class="ghost" id="btn-sing-hear" type="button" hidden>Hear model</button>
+              <button class="primary btn-mic" id="btn-sing-mic" type="button" hidden>Speak this line</button>
+              <button class="ghost" id="btn-sing-next" type="button" hidden>Next line</button>
+              <button class="ghost" id="btn-sing-finish" type="button" hidden>Finish &amp; score</button>
+            </div>
+            <div class="sing-progress" id="sing-progress"></div>
+            <div class="pronounce-target" id="sing-target" hidden>
+              <div class="label" id="sing-label-line">Line</div>
+              <div class="say" id="sing-say"></div>
+              <div class="hint" id="sing-hint"></div>
+            </div>
+            <div class="pronounce-row" id="sing-input-row" hidden>
+              <input type="text" id="sing-heard" placeholder="Or type this line…" />
+            </div>
+            <div id="sing-results"></div>
+            <div class="score-card" id="sing-result" hidden></div>
+          </div>
         </section>
       </div>
       <section class="panel">
@@ -504,8 +627,10 @@ _JS = r"""
   const QUICK_ASKS = [
     "What does this line mean?",
     "How do I say this in my language?",
-    "Why is it worded this way?",
+    "Other ways to say the same thing?",
     "How do I pronounce it?",
+    "Why is it worded this way?",
+    "Give me an example sentence",
   ];
 
   const CAMERAS = ["push-in", "pull-out", "pan-right", "pan-left", "ken-burns",
@@ -530,6 +655,11 @@ _JS = r"""
   let usingLocalVideo = false;
   let firedPauses = new Set();
   let pauseLocked = false;
+  let quizState = null;
+  let memoryState = null;
+  let paraState = null;
+  let paraSelected = "";
+  let singCheck = null;
   const EMBED_QUICK = [
     "What does this verse mean?",
     "Explain the grammar here",
@@ -652,6 +782,7 @@ _JS = r"""
       `<li>${esc(v.example_en)}</li>`).join("");
     $("ask-context").textContent = `Asking about line ${lineNo}: "${row.text}"`;
     refreshPronounceTarget();
+    refreshParaLine();
   }
 
   function practiceMode() {
@@ -811,6 +942,404 @@ _JS = r"""
     catch (_) {
       stopMic();
       $("pronounce-status").textContent = "Could not start the mic — check browser permission.";
+    }
+  }
+
+  function setPracticeMode(mode) {
+    $("practice-modes").querySelectorAll("button").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-mode") === mode);
+    });
+    ["pronounce", "quiz", "memory", "ask", "paraphrase", "sing"].forEach((id) => {
+      const pane = $("pane-" + id);
+      if (pane) pane.classList.toggle("active", id === mode);
+    });
+    if (mode === "paraphrase") refreshParaLine();
+    if (mode === "ask") {
+      // Switching into Ask keeps the current line context visible.
+    }
+  }
+
+  function starsHtml(n) {
+    return "\u2605".repeat(n || 0) + "\u2606".repeat(Math.max(0, 3 - (n || 0)));
+  }
+
+  function renderDrillScore(box, result) {
+    if (!box) return;
+    box.hidden = false;
+    box.className = "score-card " + (result.passed ? "pass" : "retry");
+    box.innerHTML =
+      `<div class="stars">${starsHtml(result.stars)}</div>
+       <div><strong>${result.score}/100</strong> \u00b7 ${esc(result.feedback || "")}</div>
+       <div class="meta" style="margin-top:.35rem">${result.correct || 0} of ${result.total || 0} correct</div>`;
+  }
+
+  async function startQuiz() {
+    if (!current) { toast("Pick a song first"); return; }
+    $("quiz-status").textContent = "Building quiz\u2026";
+    $("quiz-result").hidden = true;
+    try {
+      const data = await api(`/api/music/practice/${encodeURIComponent(current.song_id)}/quiz` +
+        `?target_lang=${encodeURIComponent(lang())}&count=8`);
+      quizState = data;
+      $("btn-quiz-grade").hidden = false;
+      $("quiz-status").textContent = `${data.count} questions \u00b7 ${data.language_name}`;
+      $("quiz-body").innerHTML = (data.questions || []).map((q) => `
+        <div class="quiz-q" data-id="${esc(q.id)}">
+          <div class="prompt">${esc(q.prompt)}</div>
+          <div class="quiz-choices">
+            ${(q.choices || []).map((c) => `
+              <label><input type="radio" name="quiz-${esc(q.id)}" value="${esc(c)}" />
+                <span>${esc(c)}</span></label>`).join("")}
+          </div>
+        </div>`).join("");
+    } catch (err) {
+      $("quiz-status").textContent = String(err.message || err);
+    }
+  }
+
+  async function gradeQuiz() {
+    if (!current || !quizState) { toast("Start a quiz first"); return; }
+    const answers = {};
+    (quizState.questions || []).forEach((q) => {
+      const picked = document.querySelector(`input[name="quiz-${q.id}"]:checked`);
+      answers[q.id] = picked ? picked.value : "";
+    });
+    $("quiz-status").textContent = "Checking\u2026";
+    try {
+      const result = await post("/api/music/practice/quiz/grade", {
+        song_id: current.song_id,
+        target_lang: lang(),
+        answers,
+        count: quizState.count,
+        seed: quizState.seed || "",
+      });
+      renderDrillScore($("quiz-result"), result);
+      $("quiz-status").textContent = result.passed
+        ? `Passed \u00b7 ${result.score}/100`
+        : `Keep practising \u00b7 ${result.score}/100`;
+      (result.results || []).forEach((row) => {
+        const el = $("quiz-body").querySelector(`.quiz-q[data-id="${row.id}"]`);
+        if (!el) return;
+        el.classList.toggle("ok", !!row.correct);
+        el.classList.toggle("bad", !row.correct);
+        if (!row.correct) {
+          const note = document.createElement("div");
+          note.className = "meta";
+          note.style.marginTop = ".35rem";
+          note.textContent = `Answer: ${row.answer}`;
+          el.appendChild(note);
+        }
+      });
+      toast(`Quiz ${result.score}/100`);
+    } catch (err) {
+      $("quiz-status").textContent = String(err.message || err);
+    }
+  }
+
+  function memoryDirection() {
+    const tr = $("mem-tr-en");
+    return (tr && tr.checked) ? "target_to_en" : "en_to_target";
+  }
+
+  async function startMemory() {
+    if (!current) { toast("Pick a song first"); return; }
+    $("memory-status").textContent = "Building cards\u2026";
+    $("memory-result").hidden = true;
+    try {
+      const dir = memoryDirection();
+      const data = await api(`/api/music/practice/${encodeURIComponent(current.song_id)}/memory` +
+        `?target_lang=${encodeURIComponent(lang())}&direction=${encodeURIComponent(dir)}&count=6`);
+      memoryState = data;
+      $("btn-memory-grade").hidden = false;
+      $("memory-status").textContent = `${data.count} cards \u00b7 ${data.language_name}`;
+      $("memory-body").innerHTML = (data.cards || []).map((c) => `
+        <div class="memory-card" data-id="${esc(c.id)}">
+          <div class="side">${esc(c.prompt_label)} \u2192 ${esc(c.answer_label)}</div>
+          <div class="prompt">${esc(c.prompt)}</div>
+          <input type="text" data-mem="${esc(c.id)}"
+            placeholder="Type the ${esc(c.answer_label)} side…" />
+        </div>`).join("");
+    } catch (err) {
+      $("memory-status").textContent = String(err.message || err);
+    }
+  }
+
+  async function gradeMemory() {
+    if (!current || !memoryState) { toast("Start a memory drill first"); return; }
+    const answers = {};
+    $("memory-body").querySelectorAll("input[data-mem]").forEach((inp) => {
+      answers[inp.getAttribute("data-mem")] = inp.value || "";
+    });
+    $("memory-status").textContent = "Checking recall\u2026";
+    try {
+      const result = await post("/api/music/practice/memory/grade", {
+        song_id: current.song_id,
+        target_lang: lang(),
+        direction: memoryState.direction,
+        answers,
+        count: memoryState.count,
+        seed: memoryState.seed || "",
+      });
+      renderDrillScore($("memory-result"), result);
+      $("memory-status").textContent = result.passed
+        ? `Passed \u00b7 ${result.score}/100`
+        : `Review the misses \u00b7 ${result.score}/100`;
+      (result.results || []).forEach((row) => {
+        const el = $("memory-body").querySelector(`.memory-card[data-id="${row.id}"]`);
+        if (!el) return;
+        el.style.borderColor = row.passed ? "#34d399" : "#fb923c";
+        const note = document.createElement("div");
+        note.className = "meta";
+        note.style.marginTop = ".35rem";
+        note.textContent = row.passed
+          ? `Correct (${row.score}/100)`
+          : `Answer: ${row.answer}`;
+        el.appendChild(note);
+      });
+      toast(`Memory ${result.score}/100`);
+    } catch (err) {
+      $("memory-status").textContent = String(err.message || err);
+    }
+  }
+
+  function refreshParaLine() {
+    const row = trRow(activeLineNo);
+    if (!row) {
+      $("para-line").textContent = "Choose a song and press play.";
+      $("para-hint").textContent = "";
+      return;
+    }
+    $("para-label").textContent = `Line ${activeLineNo}`;
+    $("para-line").textContent = row.text;
+    $("para-hint").textContent = row.translation
+      ? `Song translation: ${row.translation}`
+      : "";
+  }
+
+  async function loadParaphrases() {
+    if (!current || !activeLineNo) { toast("Pick a song line first"); return; }
+    refreshParaLine();
+    $("para-result").hidden = true;
+    try {
+      const data = await post("/api/music/practice/paraphrase", {
+        song_id: current.song_id,
+        line_no: activeLineNo,
+        target_lang: lang(),
+        allow_llm: true,
+      });
+      paraState = data;
+      paraSelected = (data.alternatives || [])[0] ? data.alternatives[0].text : "";
+      $("para-hint").textContent = data.prompt || "";
+      $("para-alts").innerHTML = (data.alternatives || []).map((alt, i) => `
+        <button type="button" class="alt-item ${i === 0 ? "active" : ""}"
+          data-text="${esc(alt.text)}">
+          <div>${esc(alt.text)}</div>
+          <div class="meta">${esc(alt.source || "")}${alt.english ? " \u00b7 EN: " + esc(alt.english) : ""}</div>
+        </button>`).join("");
+      $("para-alts").querySelectorAll(".alt-item").forEach((btn) => {
+        btn.onclick = () => {
+          $("para-alts").querySelectorAll(".alt-item").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          paraSelected = btn.getAttribute("data-text") || "";
+          $("para-heard").value = paraSelected;
+        };
+      });
+      toast(`${(data.alternatives || []).length} ways to say it`);
+    } catch (err) {
+      toast(String(err.message || err));
+    }
+  }
+
+  function hearParaphrase() {
+    const text = paraSelected || ($("para-heard").value || "").trim();
+    if (!text) { toast("Pick or type a phrase first"); return; }
+    const tag = (paraState && paraState.voice_tag) || lang();
+    if (!canSpeak(lang(), tag)) { toast("No voice available"); return; }
+    speak(text, { lang: lang(), tag: tag, rate: 0.92 });
+  }
+
+  async function checkParaphrase() {
+    if (!current || !activeLineNo) { toast("Pick a line first"); return; }
+    const heard = ($("para-heard").value || "").trim();
+    if (!heard) { toast("Type or speak your version first"); return; }
+    const target = paraSelected
+      || (trRow(activeLineNo) || {}).translation
+      || (trRow(activeLineNo) || {}).text
+      || "";
+    try {
+      const result = await post("/api/music/pronounce", {
+        song_id: current.song_id,
+        line_no: activeLineNo,
+        heard,
+        target_lang: lang(),
+        practice: "translation",
+        target,
+      });
+      const box = $("para-result");
+      box.hidden = false;
+      box.className = "score-card " + (result.passed ? "pass" : "retry");
+      const stars = starsHtml(result.stars);
+      box.innerHTML =
+        `<div class="stars">${stars}</div>
+         <div><strong>${result.score}/100</strong> \u00b7 ${esc(
+           result.passed
+             ? "Nice — that works as another way to say this line."
+             : result.feedback
+         )}</div>
+         <div class="meta" style="margin-top:.35rem">Target: ${esc(result.target)}</div>
+         <div class="meta">Heard: ${esc(result.heard || "(nothing)")}</div>`;
+      toast(result.passed ? `Alt phrasing ${result.score}/100` : `Try again \u00b7 ${result.score}/100`);
+    } catch (err) {
+      toast(String(err.message || err));
+    }
+  }
+
+  function listenInto(inputId, statusId, onDone, recLang) {
+    const rec = speechRecognizer();
+    if (!rec) {
+      if (statusId) $(statusId).textContent = "Type instead — mic unavailable here.";
+      $(inputId).focus();
+      return;
+    }
+    const player = $("player");
+    if (player && !player.paused) player.pause();
+    stopSinging();
+    cancelSpeech();
+    stopMic();
+    pronounceRec = rec;
+    rec.lang = recLang || "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    micListening = true;
+    let finalText = "";
+    rec.onresult = (ev) => {
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const chunk = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += chunk + " ";
+        else interim += chunk;
+      }
+      $(inputId).value = (finalText + interim).trim();
+    };
+    rec.onerror = () => { stopMic(); };
+    rec.onend = () => {
+      const was = micListening;
+      stopMic();
+      const heard = ($(inputId).value || "").trim();
+      if (was && heard && onDone) onDone(heard);
+    };
+    try { rec.start(); } catch (_) { stopMic(); }
+  }
+
+  function singPracticeMode() {
+    const en = $("sing-pr-en");
+    return (en && en.checked) ? "english" : "translation";
+  }
+
+  async function startSingCheck() {
+    if (!current) { toast("Pick a song first"); return; }
+    // Need the translation rows as targets for each line.
+    if (!translation) await loadTranslation();
+    const mode = singPracticeMode();
+    const rows = (translation && translation.lines) || [];
+    if (!rows.length) { toast("No lines to practise"); return; }
+    singCheck = {
+      mode,
+      index: 0,
+      rows: rows.map((r) => ({
+        line_no: r.line_no,
+        target: mode === "english" ? r.text : (r.translation || r.text),
+        text: r.text,
+        translation: r.translation,
+      })),
+      heard: {},
+    };
+    $("sing-target").hidden = false;
+    $("sing-input-row").hidden = false;
+    $("btn-sing-hear").hidden = false;
+    $("btn-sing-mic").hidden = false;
+    $("btn-sing-next").hidden = false;
+    $("btn-sing-finish").hidden = false;
+    $("sing-result").hidden = true;
+    $("sing-results").innerHTML = "";
+    showSingLine();
+  }
+
+  function showSingLine() {
+    if (!singCheck) return;
+    const row = singCheck.rows[singCheck.index];
+    if (!row) return;
+    $("sing-label-line").textContent =
+      `Line ${row.line_no} of ${singCheck.rows.length}` +
+      (singCheck.mode === "english" ? " · English" : ` · ${lang()}`);
+    $("sing-say").textContent = row.target;
+    $("sing-hint").textContent = singCheck.mode === "english"
+      ? row.translation || ""
+      : row.text;
+    $("sing-heard").value = singCheck.heard[row.line_no] || "";
+    $("sing-progress").textContent =
+      `Progress: ${Object.keys(singCheck.heard).length}/${singCheck.rows.length} lines attempted`;
+  }
+
+  function saveSingHeard() {
+    if (!singCheck) return;
+    const row = singCheck.rows[singCheck.index];
+    if (!row) return;
+    singCheck.heard[row.line_no] = ($("sing-heard").value || "").trim();
+  }
+
+  function hearSingModel() {
+    if (!singCheck) return;
+    const row = singCheck.rows[singCheck.index];
+    if (!row) return;
+    const code = singCheck.mode === "english" ? "en" : lang();
+    const tag = singCheck.mode === "english"
+      ? "en-US"
+      : ((singPlan && singPlan.voice_tag) || lang());
+    if (!canSpeak(code, tag)) { toast("No voice available"); return; }
+    speak(row.target, { lang: code, tag: tag, rate: 0.92 });
+  }
+
+  function nextSingLine() {
+    if (!singCheck) return;
+    saveSingHeard();
+    if (singCheck.index < singCheck.rows.length - 1) {
+      singCheck.index += 1;
+      showSingLine();
+    } else {
+      toast("Last line — Finish & score when ready");
+    }
+  }
+
+  async function finishSingCheck() {
+    if (!current || !singCheck) return;
+    saveSingHeard();
+    const lines = singCheck.rows.map((r) => ({
+      line_no: r.line_no,
+      heard: singCheck.heard[r.line_no] || "",
+    }));
+    $("sing-progress").textContent = "Scoring the whole song\u2026";
+    try {
+      const result = await post("/api/music/practice/sing", {
+        song_id: current.song_id,
+        target_lang: lang(),
+        practice: singCheck.mode,
+        lines,
+      });
+      renderDrillScore($("sing-result"), result);
+      $("sing-progress").textContent =
+        `${result.correct}/${result.line_count} lines passed \u00b7 ${result.attempted} attempted`;
+      $("sing-results").innerHTML = (result.lines || []).map((r) => `
+        <div class="sing-line-row ${r.passed ? "pass" : "fail"}">
+          <span>Line ${r.line_no}: ${esc((r.target || "").slice(0, 48))}</span>
+          <span>${r.score}/100</span>
+        </div>`).join("");
+      toast(result.passed
+        ? `Full song ${result.score}/100 — you can sing it!`
+        : `Full song ${result.score}/100 — keep practising`);
+    } catch (err) {
+      $("sing-progress").textContent = String(err.message || err);
     }
   }
 
@@ -2029,6 +2558,37 @@ _JS = r"""
       if (box) box.hidden = true;
     };
   });
+  $("practice-modes").querySelectorAll("button[data-mode]").forEach((btn) => {
+    btn.onclick = () => setPracticeMode(btn.getAttribute("data-mode"));
+  });
+  $("btn-quiz-start").onclick = () => startQuiz();
+  $("btn-quiz-grade").onclick = () => gradeQuiz();
+  $("btn-memory-start").onclick = () => startMemory();
+  $("btn-memory-grade").onclick = () => gradeMemory();
+  $("btn-para-load").onclick = () => loadParaphrases();
+  $("btn-para-hear").onclick = () => hearParaphrase();
+  $("btn-para-check").onclick = () => checkParaphrase();
+  $("btn-para-mic").onclick = () => {
+    const tag = (paraState && paraState.recognition_lang) || lang();
+    listenInto("para-heard", null, () => checkParaphrase(), tag);
+  };
+  $("btn-sing-start").onclick = () => startSingCheck();
+  $("btn-sing-hear").onclick = () => hearSingModel();
+  $("btn-sing-mic").onclick = () => {
+    if (!singCheck) return;
+    const tag = singCheck.mode === "english"
+      ? "en-US"
+      : ((singPlan && singPlan.voice_tag) || lang());
+    listenInto("sing-heard", "sing-progress", (heard) => {
+      saveSingHeard();
+      $("sing-progress").textContent = `Captured line — ${heard.slice(0, 40)}`;
+    }, tag);
+  };
+  $("btn-sing-next").onclick = () => nextSingLine();
+  $("btn-sing-finish").onclick = () => finishSingCheck();
+  $("sing-heard").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") nextSingLine();
+  });
 
   (async function boot() {
     // Chrome fills the voice list asynchronously; ask early so the sing toggle
@@ -2040,7 +2600,18 @@ _JS = r"""
     $("ask-quick").innerHTML = QUICK_ASKS.map((q) =>
       `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
     $("ask-quick").querySelectorAll("button").forEach((b) => {
-      b.onclick = () => askAI(b.getAttribute("data-q"));
+      b.onclick = () => {
+        const q = b.getAttribute("data-q") || "";
+        if (/other ways|same thing/i.test(q)) {
+          setPracticeMode("paraphrase");
+          loadParaphrases();
+          return;
+        }
+        if (/pronounce/i.test(q)) {
+          setPracticeMode("pronounce");
+        }
+        askAI(q);
+      };
     });
     const langs = await api("/api/music/languages");
     const cat = langs.catalog || [];

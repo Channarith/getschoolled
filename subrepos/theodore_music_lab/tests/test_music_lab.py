@@ -17,6 +17,15 @@ from theodore_music_lab.embeds import (
 )
 from theodore_music_lab.main import app
 from theodore_music_lab.media import load_clips, load_videos, resolve_clip
+from theodore_music_lab.practice import (
+    build_memory_drill,
+    build_quiz,
+    check_song_singing,
+    grade_memory,
+    grade_quiz,
+    paraphrase_line,
+    practice_menu,
+)
 from theodore_music_lab.pronounce import check_pronunciation, score_attempt
 from theodore_music_lab.session import SessionMode, SessionStore
 from theodore_music_lab.sing import (
@@ -857,8 +866,8 @@ def test_new_apis_and_player_ui(offline):
 
         page = client.get("/").text
         assert 'id="ball"' in page
-        assert "Ask the AI about the lyrics" in page
-        assert "Say / sing this line" in page
+        assert "Learn &amp; practice this song" in page
+        assert "Say / sing line" in page
         assert "Short lyric clips" in page
         assert "Lyric videos" in page
         assert "This line, translated" in page
@@ -875,7 +884,9 @@ def test_new_apis_and_player_ui(offline):
                      'id="auto-pause"', 'id="embed-ask-send"',
                      'id="speak-verse"', 'id="btn-hear-verse"',
                      'id="btn-mic"', 'id="btn-hear-model"', 'id="pronounce-result"',
-                     'id="practice-en"', 'id="practice-tr"'):
+                     'id="practice-en"', 'id="practice-tr"',
+                     'id="practice-modes"', 'id="pane-quiz"', 'id="pane-memory"',
+                     'id="pane-paraphrase"', 'id="pane-sing"', 'id="btn-sing-start"'):
             assert hook in page, hook
         assert "SpeechRecognition" in page or "webkitSpeechRecognition" in page
         assert "SpeechSynthesisUtterance" in page
@@ -1174,3 +1185,185 @@ def test_storyboard_scenes_stretch_with_the_real_audio_duration():
     for a, b in zip(short["scenes"], long_board["scenes"]):
         assert a["line_numbers"] == b["line_numbers"]
         assert b["duration"] > a["duration"]
+
+
+def test_song_practice_quiz_memory_paraphrase_and_full_sing(offline):
+    """Learning a song covers quiz, memory, other ways to say it, and whole-song sing."""
+    cat = Catalog()
+    song = cat.featured()[0]
+    menu = practice_menu(song, "es")
+    assert [m["id"] for m in menu["modes"]] == [
+        "pronounce",
+        "quiz",
+        "memory",
+        "ask",
+        "paraphrase",
+        "sing",
+    ]
+
+    quiz = build_quiz(song, "es", count=6, seed="unit-quiz")
+    assert quiz["count"] >= 4
+    assert "answer_key" in quiz
+    assert all("answer" not in q for q in quiz["questions"])
+    perfect = grade_quiz(
+        song,
+        language="es",
+        answers=quiz["answer_key"],
+        count=6,
+        seed="unit-quiz",
+    )
+    assert perfect["score"] == 100
+    assert perfect["passed"] is True
+    blank = grade_quiz(
+        song, language="es", answers={}, count=6, seed="unit-quiz"
+    )
+    assert blank["score"] == 0
+    assert blank["passed"] is False
+
+    mem = build_memory_drill(
+        song, "es", direction="en_to_target", count=4, seed="unit-mem"
+    )
+    assert mem["count"] >= 2
+    mem_ok = grade_memory(
+        song,
+        language="es",
+        direction="en_to_target",
+        answers=mem["answer_key"],
+        count=4,
+        seed="unit-mem",
+    )
+    assert mem_ok["passed"] is True
+    assert mem_ok["score"] >= 60
+
+    para = paraphrase_line(song, line_no=1, language="es", allow_llm=False)
+    assert para["line_no"] == 1
+    assert len(para["alternatives"]) >= 2
+    assert para["alternatives"][0]["source"] == "song"
+
+    from theodore_music_lab.translations import translate_song as _tr
+
+    rows = _tr(song, "es", allow_llm=False)["lines"]
+    sung = check_song_singing(
+        song,
+        language="es",
+        practice="translation",
+        lines=[{"line_no": r["line_no"], "heard": r["translation"]} for r in rows],
+    )
+    assert sung["line_count"] == len(song.lines)
+    assert sung["score"] == 100
+    assert sung["passed"] is True
+    empty = check_song_singing(
+        song, language="es", practice="translation", lines=[]
+    )
+    assert empty["score"] == 0
+    assert empty["passed"] is False
+
+
+def test_practice_apis_keep_answer_keys_off_the_wire(offline):
+    cat = Catalog()
+    song = cat.featured()[0]
+    with TestClient(app) as client:
+        health = client.get("/health").json()
+        assert health["song_practice"] is True
+        assert "quiz" in health["practice_modes"]
+
+        menu = client.get(
+            f"/api/music/practice/{song.song_id}",
+            params={"target_lang": "es"},
+        ).json()
+        assert len(menu["modes"]) == 6
+
+        quiz = client.get(
+            f"/api/music/practice/{song.song_id}/quiz",
+            params={"target_lang": "es", "count": 5, "seed": "api-quiz"},
+        ).json()
+        assert "answer_key" not in quiz
+        assert quiz["seed"] == "api-quiz"
+        # Rebuild the key server-side the same way /grade does.
+        key = build_quiz(song, "es", count=5, seed="api-quiz")["answer_key"]
+        graded = client.post(
+            "/api/music/practice/quiz/grade",
+            json={
+                "song_id": song.song_id,
+                "target_lang": "es",
+                "answers": key,
+                "count": 5,
+                "seed": "api-quiz",
+            },
+        ).json()
+        assert graded["score"] == 100
+
+        mem = client.get(
+            f"/api/music/practice/{song.song_id}/memory",
+            params={
+                "target_lang": "es",
+                "direction": "en_to_target",
+                "count": 3,
+                "seed": "api-mem",
+            },
+        ).json()
+        assert "answer_key" not in mem
+        mem_key = build_memory_drill(
+            song, "es", direction="en_to_target", count=3, seed="api-mem"
+        )["answer_key"]
+        mem_graded = client.post(
+            "/api/music/practice/memory/grade",
+            json={
+                "song_id": song.song_id,
+                "target_lang": "es",
+                "direction": "en_to_target",
+                "answers": mem_key,
+                "count": 3,
+                "seed": "api-mem",
+            },
+        ).json()
+        assert mem_graded["passed"] is True
+
+        para = client.post(
+            "/api/music/practice/paraphrase",
+            json={
+                "song_id": song.song_id,
+                "line_no": 1,
+                "target_lang": "es",
+                "allow_llm": False,
+            },
+        ).json()
+        assert len(para["alternatives"]) >= 2
+
+        rows = translate_song(song, "es", allow_llm=False)["lines"]
+        sung = client.post(
+            "/api/music/practice/sing",
+            json={
+                "song_id": song.song_id,
+                "target_lang": "es",
+                "practice": "translation",
+                "lines": [
+                    {"line_no": r["line_no"], "heard": r["translation"]} for r in rows
+                ],
+            },
+        ).json()
+        assert sung["passed"] is True
+        assert sung["score"] == 100
+
+        # Ask prompt about other ways stays grounded offline.
+        asked = ask(
+            song,
+            "Other ways to say the same thing?",
+            line_no=1,
+            language="es",
+        )
+        assert "another way" in asked["answer"].lower() or "manera" in asked[
+            "answer"
+        ].lower() or "say" in asked["answer"].lower()
+
+
+def test_the_player_wires_all_six_practice_modes():
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert "setPracticeMode" in page
+    assert "startQuiz" in page
+    assert "startMemory" in page
+    assert "loadParaphrases" in page
+    assert "startSingCheck" in page
+    assert "finishSingCheck" in page
+    assert "Other ways to say the same thing?" in page

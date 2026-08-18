@@ -30,6 +30,13 @@ language_learning / content packs.
   • Say / sing this line: hear a model reading, speak into the mic (or type),
     get a 0–100 score with missed/wrong-word corrections and mouth tips
     (POST /api/music/pronounce) — practice English lyric or the translation
+  • Learn & practice this song (six modes in one panel):
+      - Say / sing line — pronunciation check for the current verse
+      - Quiz me — multiple-choice on vocabulary and line meanings
+      - Memory — flashcards (English ↔ your language) without peeking
+      - Ask — free-form questions about the lyrics (also via the prompt)
+      - Other ways — alternate phrasings of the same line, then try one
+      - Sing whole song — walk every line in your language and get a full-song score
   • Short lyric clips (chorus-sized line ranges) with lyrics + translation
   • Curated external lyric videos / channels with printed-lyrics links
   • YouTube movie lessons embedded on the page: pause at each verse, answer
@@ -312,8 +319,16 @@ APIs on :8097
   POST /api/music/explain           — one line: meaning, vocabulary, examples
   POST /api/music/ask               — ask the AI about the lyrics
   POST /api/music/pronounce         — score a spoken/typed attempt at a lyric line
-                                      (practice=english|translation; returns score,
+                                      (practice=english|translation; optional target=
+                                      for alternate phrasings; returns score,
                                       missed/wrong words, corrections, mouth tip)
+  GET  /api/music/practice/{id}     — menu of six learning drills for one song
+  GET  /api/music/practice/{id}/quiz — multiple-choice on vocab + line meanings
+  POST /api/music/practice/quiz/grade — score a quiz (seed regenerates questions)
+  GET  /api/music/practice/{id}/memory — flashcards English ↔ target language
+  POST /api/music/practice/memory/grade — score typed/spoken memory answers
+  POST /api/music/practice/paraphrase — other ways to say the current line
+  POST /api/music/practice/sing     — score a whole-song attempt line by line
   POST /api/music/meaning
   POST /api/music/import
   POST /api/music/session/start
