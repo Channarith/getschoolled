@@ -1324,6 +1324,9 @@ export async function fetchLessonStoryboardSlide(
       `${ORCHESTRATOR_URL}/api/lessons/${encodeURIComponent(lessonId)}/storyboard/${slideIndex}`,
       { cache: "no-store" },
     ),
+  );
+}
+
 export type LessonAccreditation = {
   lesson_id: string;
   certifiable: boolean;
