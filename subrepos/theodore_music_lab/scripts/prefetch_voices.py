@@ -77,7 +77,7 @@ def main() -> int:
     if not args.dry_run and not engine_available():
         print(
             "edge-tts is not installed (or MUSIC_LAB_TTS=off); "
-            "install it with: pip install 'edge-tts==6.1.12'",
+            "install it with: pip install 'edge-tts==7.2.8'",
             file=sys.stderr,
         )
         return 2

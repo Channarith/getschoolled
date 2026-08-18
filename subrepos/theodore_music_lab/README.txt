@@ -35,6 +35,10 @@ language_learning / content packs.
   • YouTube movie lessons embedded on the page: pause at each verse, answer
     grammar/vocabulary prompts, ask the AI about the line, and read the verse in
     any of 27 languages (Cambodia & Laos legends + Learn English with Movies)
+  • Every video line is also SPOKEN in the picked language: the paused line is
+    read by that language's neural voice ("Speak each line" / "Hear this line"),
+    and a line with no full-sentence translation is read in English rather than
+    letting a Khmer or Chinese voice sound out English words
   • Local Khmer/English karaoke (សេចក្ដីស្រឡាញ់ការរៀនសូត្រ — Love of Learning):
     60 timed lines, pause on every line, translate Khmer+English into any of 27
     languages, then ask about the line before continuing
@@ -45,6 +49,7 @@ Clips: data/clips.jsonl. Video links: data/video_links.jsonl.
 
 Translation tiers (best available wins; every line always resolves)
   curated  reviewed hand-authored line — es, fr, de, it, pt (curated_lines.py)
+           plus zh and km (curated_zh_km.py); the same tier covers video verses
   cached   an earlier Grok translation persisted to data/i18n_cache/
   llm      Grok/xAI, one request per song+language, only when XAI_API_KEY is set
   lexicon  real target-language words for the line's content words (lexicon.py),
@@ -58,7 +63,8 @@ for Khmer. The server now renders each line with a Microsoft Edge neural voice
 (tts.py, one verified voice pair per language — km-KH-SreymomNeural for Khmer) and
 the browser plays the MP3:
 
-  pip install -e '.[voices]'                 # edge-tts==6.1.12
+  pip install -e '.[voices]'                 # edge-tts==7.2.8
+  # (6.1.x and earlier get 403 from Microsoft's speech WebSocket)
   GET /api/music/tts?lang=km&rate=0.86&text=…  -> audio/mpeg (501 = no engine)
   GET /api/music/tts/status                    -> {available, engine, languages}
 
@@ -141,8 +147,14 @@ YouTube embeds (embeds.py + data/embeds.jsonl)
   verses    each lesson has timed start/pause points with English teaching text,
             focus (grammar/vocabulary/comprehension), key terms and 2 prepared
             questions per verse
-  i18n      curated es/fr/de/it/pt for every verse + prompt + answer; other
-            languages use the same lexicon/LLM/cache stack as song lyrics
+  i18n      curated es/fr/de/it/pt (curated_embeds.py) plus Simplified Chinese
+            and Khmer (curated_embeds_zh_km.py) for every verse + prompt +
+            answer; other languages use the same LLM/cache/lexicon stack as song
+            lyrics, so a keyed deployment fills all 27
+  voice     each verse also carries speak_text / speak_lang / voice_tag, so the
+            player reads the line with that language's neural voice; an
+            untranslated line falls back to speak_lang "en" instead of having a
+            Khmer voice spell out English
   ask       POST /api/music/embeds/ask answers grammar/vocab questions about the
             paused verse (Grok when keyed, otherwise the prepared Q&A)
   examples  Preah Thong & Neang Neak, Sang Sinxay, The Incredibles movie lesson,
@@ -150,7 +162,8 @@ YouTube embeds (embeds.py + data/embeds.jsonl)
   karaoke   local MP4 Love of Learning (Khmer+English, 60 pause lines) served
             from /api/music/video/ with Range seeking; bilingual text_en/text_km
             so any target language translates from the English gloss while Khmer
-            display stays the source script
+            display stays the source script (Chinese for all 60 lines lives in
+            curated_love_zh.py)
 
 Ask AI uses Grok when XAI_API_KEY is set and otherwise answers from the lyrics
 themselves (line + translation + key words + example), so it works offline.

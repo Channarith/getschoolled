@@ -873,6 +873,7 @@ def test_new_apis_and_player_ui(offline):
                      'id="sing-lang"', 'id="sing-label"',
                      'id="embed-picker"', 'id="yt-host"', 'id="pause-card"',
                      'id="auto-pause"', 'id="embed-ask-send"',
+                     'id="speak-verse"', 'id="btn-hear-verse"',
                      'id="btn-mic"', 'id="btn-hear-model"', 'id="pronounce-result"',
                      'id="practice-en"', 'id="practice-tr"'):
             assert hook in page, hook
@@ -1006,6 +1007,73 @@ def test_youtube_embeds_pause_and_ask_in_curated_languages(offline):
     )
     assert answer["answer"]
     assert answer["cited_verse"]["verse_no"] == 1
+
+
+def test_every_video_line_reads_and_speaks_in_khmer_and_chinese(offline):
+    """A learner who picks Khmer must get Khmer on every video line — text and voice.
+
+    The lyric panel was curated for zh/km while the video verses were not, so the
+    song translated and the video below it stayed in English.
+    """
+    videos = [row for row in load_embeds() if row.get("verses")]
+    assert len(videos) >= 4
+    for raw in videos:
+        for language, tag in (("km", "km-KH"), ("zh", "zh-CN")):
+            resolved = resolve_embed(raw, language, allow_llm=False)
+            assert resolved["voice_tag"] == tag
+            assert resolved["spoken_lines"] == resolved["verse_count"]
+            for verse in resolved["verses"]:
+                where = f"{raw['embed_id']} line {verse['verse_no']} ({language})"
+                assert verse["tier"] == "curated", where
+                assert verse["translation"] != verse["text_en"], where
+                # The voice reads exactly what the line shows, in that language.
+                assert verse["speak_lang"] == language, where
+                assert verse["voice_tag"] == tag, where
+                assert verse["speak_text"], where
+                assert "\u00b7" not in verse["speak_text"], where
+                for question in verse["questions"]:
+                    assert question["prompt_tier"] == "curated", where
+                    assert question["answer_tier"] == "curated", where
+                    assert question["prompt_translation"] != question["prompt"], where
+
+
+def test_an_untranslated_line_is_never_read_by_the_wrong_voice(offline):
+    invented = {
+        "embed_id": "test-uncurated",
+        "kind": "video",
+        "youtube_id": "abc12345678",
+        "verses": [
+            {
+                "verse_no": 1,
+                "text": "Zebras juggled spare umbrellas politely.",
+                "start_sec": 0.0,
+                "pause_sec": 5.0,
+                "questions": [],
+            }
+        ],
+    }
+    verse = resolve_embed(invented, "km", allow_llm=False)["verses"][0]
+    assert verse["tier"] == "english"
+    assert verse["speak_lang"] == "en"
+    assert verse["voice_tag"] == "en-US"
+    assert resolve_embed(invented, "km", allow_llm=False)["spoken_lines"] == 0
+
+
+def test_the_player_speaks_each_video_line_in_the_picked_language():
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert 'id="speak-verse"' in page
+    assert 'id="btn-hear-verse"' in page
+    assert 'id="pause-voice"' in page
+    # Verse speech follows the server's per-line voice, not the song's sing plan.
+    assert "lang: verse.speak_lang" in page
+    assert "tag: verse.voice_tag" in page
+    # Only a paused video is silent, so speech never overlaps the soundtrack.
+    assert 'if (locked && $("speak-verse").checked) speakVerse(verse);' in page
+    assert "pauseMedia();\n    speakVerse(verse);" in page
+    # Embeds now translate like the lyric panel does instead of falling to English.
+    assert "allow_llm=false" not in page
+    assert "allow_llm=true" in page
 
 
 def test_cast_is_pulled_into_the_action_safe_band():

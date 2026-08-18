@@ -454,8 +454,8 @@ _HTML = """
       <section class="panel">
         <h2>YouTube movie lessons</h2>
         <p class="meta">Embed a short film or legend, pause on each verse, answer grammar and
-          vocabulary prompts, then ask the AI anything about that line — translated into
-          your language.</p>
+          vocabulary prompts, then ask the AI anything about that line. Every line is read
+          aloud in the language you picked above, in the same words the line shows.</p>
         <div class="embed-picker" id="embed-picker">Loading…</div>
         <div class="embed-stage" id="embed-stage" hidden>
           <div class="embed-player" id="embed-player-box"><div id="yt-host"></div>
@@ -465,12 +465,17 @@ _HTML = """
             <button class="ghost" id="btn-embed-pause" type="button">Pause</button>
             <button class="ghost" id="btn-embed-continue" type="button">Continue after ask</button>
             <label><input type="checkbox" id="auto-pause" checked /> Pause at each verse</label>
+            <label><input type="checkbox" id="speak-verse" checked /> Speak each line</label>
             <span class="meta" id="embed-meta"></span>
           </div>
           <div class="pause-card" id="pause-card" hidden>
             <h3 id="pause-title">Paused for learning</h3>
             <div id="pause-line"></div>
             <div class="tr" id="pause-tr"></div>
+            <div class="embed-tools" style="margin-top:.4rem">
+              <button class="ghost" id="btn-hear-verse" type="button">Hear this line</button>
+              <span class="meta" id="pause-voice"></span>
+            </div>
             <div class="chips" id="pause-vocab"></div>
             <div class="q-list" id="pause-questions"></div>
             <div class="ask-row" style="margin-top:.65rem">
@@ -967,7 +972,8 @@ _JS = r"""
       <button type="button" class="verse ${v.verse_no === activeVerseNo ? "active" : ""}"
         data-no="${v.verse_no}">
         <strong>Line ${v.verse_no} \u00b7 ${esc(v.section || v.focus)} \u00b7 ${esc(v.source_lang || "")}
-          \u00b7 ${Math.round(v.start_sec)}s</strong>
+          \u00b7 ${Math.round(v.start_sec)}s
+          <span class="badge ${esc(v.tier || "english")}">${esc(v.tier || "english")}</span></strong>
         <span>${esc(v.text)}</span>
         <div class="tr">${esc(v.translation)}</div>
         ${v.text_en && v.source_lang === "km" ? `<div class="meta">${esc(v.text_en)}</div>` : ""}
@@ -975,10 +981,40 @@ _JS = r"""
     box.querySelectorAll(".verse").forEach((btn) => {
       btn.onclick = () => {
         const no = Number(btn.getAttribute("data-no"));
+        // seekVerse leaves the video paused, so the line can be read aloud.
         seekVerse(no);
-        showPauseCard(no, false);
+        showPauseCard(no, true);
       };
     });
+  }
+
+  function activeVerse() {
+    if (!currentEmbed) return null;
+    return (currentEmbed.verses || []).find((v) => v.verse_no === activeVerseNo) || null;
+  }
+
+  // The verse is read in the learner's language, so the video teaches the same
+  // translation the line shows. An untranslated line carries an English voice
+  // tag from the server, so no voice ever reads the wrong script.
+  function speakVerse(verse) {
+    if (!verse || !verse.speak_text) return;
+    if (!canSpeak(verse.speak_lang, verse.voice_tag)) {
+      toast("No voice available for this language");
+      return;
+    }
+    speak(verse.speak_text, {
+      lang: verse.speak_lang,
+      tag: verse.voice_tag,
+      rate: 0.95,
+    });
+  }
+
+  function hearVerse() {
+    const verse = activeVerse();
+    if (!verse) { toast("Pick a lesson first"); return; }
+    // Speaking over the soundtrack is unintelligible: hold the video instead.
+    pauseMedia();
+    speakVerse(verse);
   }
 
   function showPauseCard(verseNo, locked) {
@@ -998,6 +1034,9 @@ _JS = r"""
       bits.push(verse.text_en);
     }
     $("pause-tr").textContent = bits.filter(Boolean).join(" · ");
+    $("pause-voice").textContent = verse.speak_lang === currentEmbed.language
+      ? `Spoken in ${currentEmbed.language_name} (${verse.voice_tag})`
+      : `No ${currentEmbed.language_name} translation for this line yet — spoken in English`;
     $("pause-vocab").innerHTML = (verse.vocabulary || []).filter((r) => r.target).slice(0, 8).map((r) =>
       `<span class="chip"><b>${esc(r.en)}</b> \u2192 ${esc(r.target)}</span>`).join("");
     $("pause-questions").innerHTML = (verse.questions || []).map((q, i) => `
@@ -1015,6 +1054,9 @@ _JS = r"""
       };
     });
     $("embed-ask-answer").textContent = "Ask about this verse, or reveal a prepared answer above.";
+    // Only a locked pause is silent; speaking during playback would talk over
+    // the soundtrack.
+    if (locked && $("speak-verse").checked) speakVerse(verse);
   }
 
   function clearPlayers() {
@@ -1090,8 +1132,11 @@ _JS = r"""
   }
 
   async function selectEmbed(embedId) {
+    cancelSpeech();
+    // allow_llm mirrors the lyric panel: any line the curated tier misses is
+    // machine-translated (and cached server-side) instead of shown in English.
     currentEmbed = await api(`/api/music/embeds/${encodeURIComponent(embedId)}` +
-      `?target_lang=${encodeURIComponent(lang())}&allow_llm=false`);
+      `?target_lang=${encodeURIComponent(lang())}&allow_llm=true`);
     activeVerseNo = currentEmbed.verses[0] ? currentEmbed.verses[0].verse_no : 0;
     firedPauses = new Set();
     pauseLocked = false;
@@ -1120,6 +1165,7 @@ _JS = r"""
     if (!currentEmbed) return;
     const verse = currentEmbed.verses.find((v) => v.verse_no === verseNo);
     if (!verse) return;
+    cancelSpeech();
     activeVerseNo = verseNo;
     seekMedia(verse.start_sec);
     markVerseActive(verseNo);
@@ -1878,6 +1924,7 @@ _JS = r"""
   $("btn-theater").onclick = () => toggleTheater();
   $("btn-embed-play").onclick = () => {
     pauseLocked = false;
+    cancelSpeech();
     playMedia();
   };
   $("btn-embed-pause").onclick = () => {
@@ -1886,9 +1933,11 @@ _JS = r"""
   };
   $("btn-embed-continue").onclick = () => {
     pauseLocked = false;
+    cancelSpeech();
     $("pause-card").hidden = true;
     playMedia();
   };
+  $("btn-hear-verse").onclick = () => hearVerse();
   $("embed-ask-send").onclick = () => askEmbed();
   $("embed-ask-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") askEmbed();
