@@ -210,11 +210,13 @@ _ALIASES = {
 }
 
 
-def _normalize(text: str) -> str:
+def _normalize(text: str | None) -> str:
+    if not text:
+        return ""
     return re.sub(r"[^a-z' ]+", " ", text.lower()).strip()
 
 
-def terms_in_line(text: str) -> list[str]:
+def terms_in_line(text: str | None) -> list[str]:
     """Lexicon terms present in a lyric line, in reading order, deduplicated."""
     tokens = [_ALIASES.get(tok, tok) for tok in _normalize(text).split()]
     plain = f" {' '.join(tokens)} "
@@ -243,7 +245,7 @@ def gloss(term: str, language: str) -> str:
     return row.get(language, "")
 
 
-def vocabulary_for_line(text: str, language: str) -> list[dict[str, str]]:
+def vocabulary_for_line(text: str | None, language: str) -> list[dict[str, str]]:
     """Per-line key vocabulary with target word + English example sentence."""
     rows: list[dict[str, str]] = []
     for term in terms_in_line(text):
