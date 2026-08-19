@@ -20,6 +20,15 @@ on:
         required: false
         default: true
 
+# Shares the Deploy workflow's concurrency group so a manual deploy and a
+# push-to-main / dispatch Deploy never run against the aoep namespace at the same
+# time. Concurrent runs previously clobbered each other's image pins (one set a
+# git-SHA tag, the other the resolved sha256 digest) and BOTH smoke gates failed,
+# auto-rolling-back a healthy deploy.
+concurrency:
+  group: vke-deploy-aoep
+  cancel-in-progress: false
+
 env:
   REGISTRY: ${{ vars.REGISTRY || 'sjc.vultrcr.com/salareen' }}
 
@@ -65,13 +74,35 @@ jobs:
         id: tag
         run: echo "tag=${{ github.event.inputs.tag || github.sha }}" >> "$GITHUB_OUTPUT"
       - name: Build + push ${{ matrix.name }}
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
+          # A git-SHA tag stays for browsing the registry, but the roll below pins
+          # the immutable sha256 digest emitted here (same invariant as deploy.yml)
+          # so production runs the exact artifact and the digest smoke can verify it.
           tags: |
             ${{ env.REGISTRY }}/${{ matrix.name }}:${{ steps.tag.outputs.tag }}
+      - name: Record image digest
+        run: |
+          set -euo pipefail
+          mkdir -p digests
+          digest='${{ steps.build.outputs.digest }}'
+          if [ -z "$digest" ]; then
+            echo "::error::build-push-action produced no digest for ${{ matrix.name }}" >&2
+            exit 1
+          fi
+          echo "$digest" > "digests/${{ matrix.name }}.digest"
+          echo "${{ matrix.name }} -> $digest"
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.name }}
+          path: digests/${{ matrix.name }}.digest
+          retention-days: 7
+          if-no-files-found: error
 
   roll:
     needs: [setup-matrix, build-push]
@@ -80,6 +111,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-kubectl@v4
+      - name: Download image digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
       - name: Configure kubeconfig
         env:
           VULTR_API_KEY: ${{ secrets.VULTR_API_KEY }}
@@ -87,21 +124,30 @@ jobs:
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: bash scripts/github_configure_kubeconfig.sh
-      - name: Roll deployments
+      - name: Roll deployments to the built digest
         env:
-          TAG: ${{ github.event.inputs.tag || github.sha }}
           SVCS: ${{ needs.setup-matrix.outputs.services }}
         run: |
           set -euo pipefail
+          # Deploy the IMMUTABLE sha256 digest built above, not a mutable tag. This
+          # matches deploy.yml's "promote the exact artifact" invariant, so the two
+          # workflows pin images the same way and the digest smoke below verifies
+          # the exact bytes that were built (docs/vv-master-plan.txt §4).
           for svc in $SVCS; do
-            kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}"
+            digest_file="digests/${svc}.digest"
+            if [ ! -f "$digest_file" ]; then
+              echo "::error::no digest artifact for $svc — refusing to deploy a stale/mutable tag" >&2
+              exit 1
+            fi
+            digest="$(tr -d '[:space:]' < "$digest_file")"
+            kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/${svc}@${digest}"
             kubectl -n aoep rollout status "deployment/$svc" --timeout=600s
           done
-          echo "Deployed: $SVCS at ${REGISTRY}/*:${TAG}"
+          echo "Deployed: $SVCS at ${REGISTRY}/*@<digest>"
 
-      - name: SHA-match smoke
+      - name: Digest-match smoke
         env:
-          TAG: ${{ github.event.inputs.tag || github.sha }}
+          DIGEST_DIR: digests
           NS: aoep
           # Only check the services actually deployed in this run, not all 9
           SERVICES: ${{ needs.setup-matrix.outputs.services }}
@@ -112,7 +158,7 @@ jobs:
         env:
           SVCS: ${{ needs.setup-matrix.outputs.services }}
         run: |
-          echo "SHA-match failed — rolling back deployed services"
+          echo "Digest-match smoke failed — rolling back deployed services"
           for svc in $SVCS; do
             kubectl -n aoep rollout undo "deployment/$svc" || echo "rollback $svc skipped"
           done
