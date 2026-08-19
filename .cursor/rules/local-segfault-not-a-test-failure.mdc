@@ -1,0 +1,58 @@
+---
+description: How to handle a native segfault (not a test failure) when the pre-push hook or local pytest crashes
+alwaysApply: true
+---
+
+# A segfault is an environment fault, not a failing test
+
+On macOS arm64, `numpy==1.26.4` **segfaults on `import numpy`** (its bundled
+OpenBLAS is incompatible with current macOS). Any local pytest that imports
+numpy dies with SIGSEGV, and the pre-push hook then prints a misleading:
+
+```
+✗ Python tests failed. Fix before pushing.
+```
+
+Nothing is wrong with the code or the tests. Linux CI is unaffected.
+
+## Classify before you react
+
+Never start "fixing" code on this signal. Check the exit code first:
+
+```bash
+python3 -c "import numpy" ; echo "exit=$?"   # 139 => broken env, not your diff
+```
+
+- **exit 139 / `Fatal Python error: Segmentation fault`** → environment fault.
+- **exit 1 with `FAILED test_...`** → a real test failure. Fix it.
+
+Note `python3 -m pytest ... | tail -40` **hides** this: the pipe returns
+`tail`'s status, so a crash can look like a pass. Check `${PIPESTATUS[0]}`, or
+redirect to a file instead of piping.
+
+## Then verify, disclose, and push
+
+Do not reach for `--no-verify` as a reflex. Prove the suite is actually green by
+running the affected files in separate processes so one crash can't take the
+run down:
+
+```bash
+cd services/<svc>
+for f in tests/test_*.py; do python3 -m pytest "$f" -q >/tmp/$(basename $f).log 2>&1 \
+  || echo "CHECK $f ($?)"; done   # 139 = env crash, 1 = real failure
+```
+
+Only once the non-crashing files pass:
+
+```bash
+git push --no-verify
+```
+
+Then **say so in the PR body** — which files could not run locally, the exit
+code, and that CI covers them. A silent `--no-verify` is not acceptable.
+
+## The permanent fix
+
+`numpy>=2` links Accelerate and does not crash; our code uses no numpy-2-removed
+APIs and `opencv-contrib-python-headless==4.10.0.84` imports fine against it.
+Prefer upgrading the pin over repeating this workaround.

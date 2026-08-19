@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# Pre-push hook: run fast CI gates locally before pushing.
+#   1. Mobile TypeScript typecheck (catches TS errors, wrong RN styles)
+#   2. Web TypeScript typecheck
+#   3. Python tests for the specific changed service (not the whole shared suite)
+#
+# THIS IS THE TRACKED SOURCE. .git/hooks/ is not version controlled, so every
+# clone installs from here via `./scripts/setup-git.sh` (or `make git-setup`).
+# Edit this file, never .git/hooks/pre-push, or your fix helps one machine only.
+#
+# Designed to complete in <60s on a normal changeset.
+# To skip in an emergency: git push --no-verify — but see
+# .cursor/rules/local-segfault-not-a-test-failure.mdc first: a native crash
+# (exit >=128) is an environment fault, NOT a failing test, and must be
+# disclosed in the PR rather than silently bypassed.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Determine changed files (compare to upstream or HEAD~1)
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+if [ -n "$UPSTREAM" ]; then
+  CHANGED=$(git diff "$UPSTREAM"..HEAD --name-only 2>/dev/null || true)
+else
+  CHANGED=$(git diff HEAD~1 --name-only 2>/dev/null || true)
+fi
+
+# ── 1. Mobile TypeScript typecheck ─────────────────────────────────────────
+if echo "$CHANGED" | grep -q "^apps/mobile/"; then
+  echo "▶ Mobile TypeScript typecheck…"
+  if [ -f apps/mobile/scripts/mobile-typecheck.sh ]; then
+    (cd apps/mobile && bash scripts/mobile-typecheck.sh) || {
+      echo ""
+      echo "✗ Mobile typecheck failed. Fix TypeScript errors before pushing."
+      echo "  Run: cd apps/mobile && bash scripts/mobile-typecheck.sh"
+      exit 1
+    }
+    echo "✓ Mobile typecheck passed"
+  fi
+fi
+
+# ── 2. Web TypeScript typecheck ─────────────────────────────────────────────
+if echo "$CHANGED" | grep -q "^apps/web/"; then
+  echo "▶ Web TypeScript typecheck…"
+  if [ -f apps/web/package.json ]; then
+    # Capture output; grep exits 1 when no matches (= no errors = success),
+    # so check tsc's own exit code directly rather than piping through grep.
+    _web_tsc_out=$(cd apps/web && npx tsc --noEmit 2>&1)
+    _web_tsc_rc=$?
+    if [ "$_web_tsc_rc" -ne 0 ]; then
+      echo "$_web_tsc_out" | grep -E "error TS" | head -20 || true
+      echo ""
+      echo "✗ Web typecheck failed. Fix TypeScript errors before pushing."
+      echo "  Run: cd apps/web && npx tsc --noEmit"
+      exit 1
+    fi
+    echo "✓ Web typecheck passed"
+  fi
+fi
+
+# ── 3. Python tests — service-scoped, skip large shared suite ───────────────
+CHANGED_PY=$(echo "$CHANGED" | grep "\.py$" || true)
+
+if [ -n "$CHANGED_PY" ]; then
+  TEST_DIRS=""
+  # Service tests are fast (<10s each); run those that match changed files.
+  echo "$CHANGED_PY" | grep -q "services/billing/"      && TEST_DIRS="$TEST_DIRS services/billing/tests"
+  echo "$CHANGED_PY" | grep -q "services/identity/"     && TEST_DIRS="$TEST_DIRS services/identity/tests"
+  echo "$CHANGED_PY" | grep -q "services/memory/"       && TEST_DIRS="$TEST_DIRS services/memory/tests"
+  echo "$CHANGED_PY" | grep -q "services/integrations/" && TEST_DIRS="$TEST_DIRS services/integrations/tests"
+  echo "$CHANGED_PY" | grep -q "services/orchestrator/" && TEST_DIRS="$TEST_DIRS services/orchestrator/tests"
+  echo "$CHANGED_PY" | grep -q "services/curriculum/"   && TEST_DIRS="$TEST_DIRS services/curriculum/tests"
+  echo "$CHANGED_PY" | grep -q "services/speech/"       && TEST_DIRS="$TEST_DIRS services/speech/tests"
+  echo "$CHANGED_PY" | grep -q "training/"              && TEST_DIRS="$TEST_DIRS training/tests"
+
+  # packages/shared is large (~2 min). Scope to the specific changed test file
+  # when possible; otherwise run a targeted subset of the most-broken modules.
+  if echo "$CHANGED_PY" | grep -q "packages/shared/"; then
+    # Find the matching test file(s) for each changed source file.
+    SHARED_TESTS=""
+    while IFS= read -r f; do
+      # e.g. packages/shared/src/aoep_shared/games.py → packages/shared/tests/test_games*.py
+      module=$(basename "$f" .py)
+      found=$(find packages/shared/tests -name "test_${module}*.py" -o -name "test_*${module}*.py" 2>/dev/null | head -3 || true)
+      if [ -n "$found" ]; then
+        SHARED_TESTS="$SHARED_TESTS $found"
+      fi
+    done < <(echo "$CHANGED_PY" | grep "packages/shared/")
+
+    if [ -n "$SHARED_TESTS" ]; then
+      TEST_DIRS="$TEST_DIRS$SHARED_TESTS"
+    else
+      # No direct test mapping found — skip shared suite (CI covers it).
+      echo "⚠ Changed packages/shared but no matching test found — CI will verify"
+    fi
+  fi
+
+  if [ -n "$TEST_DIRS" ]; then
+    echo "▶ Python tests:$TEST_DIRS"
+    if command -v python3 >/dev/null 2>&1; then
+      # Write to a log instead of piping to tail: a pipeline reports tail's
+      # status, which hides a crash (and pipefail would misreport it as a test
+      # failure). We need pytest's own exit code to tell a failing test (1)
+      # apart from a native crash (>=128, e.g. 139 = SIGSEGV).
+      _py_log=$(mktemp -t prepush-pytest)
+      _py_rc=0
+      python3 -m pytest $TEST_DIRS -q --tb=short >"$_py_log" 2>&1 || _py_rc=$?
+      tail -40 "$_py_log"
+      if [ "$_py_rc" -ge 128 ]; then
+        echo ""
+        echo "⚠ pytest CRASHED (exit $_py_rc, signal $((_py_rc - 128))) — this is an"
+        echo "  ENVIRONMENT fault, not a failing test. Known cause: numpy 1.26.4"
+        echo "  segfaults on import on macOS arm64. Confirm with:"
+        echo "      python3 -c 'import numpy'; echo \$?    # 139 = broken env"
+        echo "  Fix the env (numpy>=2), or verify per-file and push --no-verify,"
+        echo "  disclosing it in the PR. Do NOT 'fix' code for this signal."
+        echo "  Log: $_py_log"
+        exit 1
+      fi
+      if [ "$_py_rc" -ne 0 ]; then
+        echo ""
+        echo "✗ Python tests failed. Fix before pushing."
+        echo "  Run: python3 -m pytest$TEST_DIRS -q --tb=short"
+        exit 1
+      fi
+      rm -f "$_py_log"
+      echo "✓ Python tests passed"
+    else
+      echo "⚠ python3 not found — skipping Python tests (CI will catch errors)"
+    fi
+  fi
+fi
+
+echo "✓ Pre-push checks passed"

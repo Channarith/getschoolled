@@ -18,7 +18,7 @@ COMPOSE := infra/compose/docker-compose.yml
 
 help:
 	@echo "Targets:"
-	@echo "  git-setup      Configure merge drivers (CHANGELOG/build-info=union, README=theirs)"
+	@echo "  git-setup      Configure merge drivers + install tracked git hooks (scripts/hooks)"
 	@echo "  install        Create venv and install all Python packages (editable)"
 	@echo "  test           Run all Python tests"
 	@echo "  test-inventory Count tests + map to the 16 sub-apps (MIN=N to gate)"

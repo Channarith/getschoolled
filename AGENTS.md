@@ -8,7 +8,9 @@ changes.
 Merge-conflict policy (keeps the auto-push into main flowing): conflicts in the
 two high-churn docs auto-resolve instead of blocking a merge. This is wired via
 `.gitattributes` merge drivers — run `make git-setup` (or `./scripts/setup-git.sh`)
-once per clone/CI runner that performs a local merge, then merge as usual:
+once per clone/CI runner that performs a local merge, then merge as usual.
+`git-setup` also installs the tracked git hooks from `scripts/hooks/` (symlinked,
+so edit the tracked file — never `.git/hooks/`, which is not version controlled):
 - `CHANGELOG.txt` -> `union` (built-in): keep BOTH sides' appended entries; also
   honored by GitHub's server-side merge.
 - `README.md` -> `theirs` (custom driver): accept the INCOMING (theirs) version.
