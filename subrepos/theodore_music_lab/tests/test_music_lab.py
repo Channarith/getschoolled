@@ -171,6 +171,20 @@ def test_player_page_uses_timeupdate_lyric_sync():
         assert "syncActiveLineFromPlayer" in page.text
 
 
+def test_player_compensates_for_audio_output_latency():
+    """The ball/word paint reads the AUDIBLE playhead, not the decoded one, so it
+    stops leading the vocal by the device's output-buffer latency."""
+    with TestClient(app) as client:
+        page = client.get("/").text
+        # Latency is measured from Web Audio and subtracted from the playhead the
+        # paint reads (and added back when seeking), via shared helpers.
+        assert "refreshAudioLatency" in page
+        assert "outputLatency" in page
+        assert "- audioLatency" in page
+        assert "function playT()" in page
+        assert "function seekT(" in page
+
+
 def test_language_picker_offers_every_language_grouped_by_quality():
     """A tick beside six names read as "only six supported"; groups say it plainly."""
     with TestClient(app) as client:

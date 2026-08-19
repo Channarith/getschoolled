@@ -472,7 +472,7 @@ _HTML = """
           <button id="btn-restart" type="button" disabled>Restart</button>
           <label>Translation <select id="meaning-lang"></select></label>
           <label><input type="checkbox" id="show-inline" checked /> Show every line</label>
-          <label>Sync
+          <label title="The ball is auto-held back by your device's audio-output latency. Nudge here if it still leads or trails what you hear (e.g. Bluetooth).">Sync
             <button class="ghost" id="sync-back" type="button">−0.25s</button>
             <span id="sync-value">0.00s</span>
             <button class="ghost" id="sync-fwd" type="button">+0.25s</button>
@@ -861,6 +861,38 @@ _JS = r"""
   let rafId = 0;
   const trCache = new Map();
 
+  // The <audio> playhead (currentTime) reports the DECODED position, which runs
+  // ahead of what the speakers actually emit by the device's output latency —
+  // buffering plus hardware, and a lot more over Bluetooth. Uncorrected, the
+  // bouncing ball and word highlight lead the vocal you hear. We read the real
+  // figure from Web Audio when the browser exposes it and hold the paint back by
+  // that much; the manual nudge tops up whatever the API can't see (e.g. BT).
+  let audioLatency = 0;
+  let latencyCtx = null;
+
+  function refreshAudioLatency() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!latencyCtx) latencyCtx = new Ctx();
+      if (latencyCtx.state === "suspended") latencyCtx.resume().catch(() => undefined);
+      const raw = Number(latencyCtx.outputLatency || latencyCtx.baseLatency || 0);
+      // Clamp to a sane karaoke range so a bogus reading can't desync the song.
+      audioLatency = Math.min(0.4, Math.max(0, Number.isFinite(raw) ? raw : 0));
+    } catch (_) { /* Web Audio unavailable: the manual nudge still works */ }
+  }
+
+  // Effective playhead the paint reads: the AUDIBLE position (currentTime minus
+  // output latency) plus the listener's per-song nudge.
+  function playT() {
+    return $("player").currentTime + syncOffset - audioLatency;
+  }
+  // Inverse of playT: seek so the chosen line is AUDIBLE from its start, not just
+  // decoded there. Keeps click-to-line honest under the same latency model.
+  function seekT(start) {
+    return Math.max(0, start - syncOffset + audioLatency);
+  }
+
   function toast(msg) {
     const el = $("toast");
     el.textContent = msg;
@@ -925,7 +957,7 @@ _JS = r"""
       el.onclick = () => {
         const no = Number(el.getAttribute("data-no"));
         const row = timings.lines.find((r) => r.line_no === no);
-        if (row) $("player").currentTime = Math.max(0, row.start - syncOffset);
+        if (row) $("player").currentTime = seekT(row.start);
         setActiveLine(no, true);
       };
     });
@@ -2313,7 +2345,7 @@ _JS = r"""
     if (lineNo === activeLineNo) return;
     activeLineNo = lineNo;
     const player = $("player");
-    repaintLineStates(lineNo, player.currentTime + syncOffset);
+    repaintLineStates(lineNo, playT());
     const el = $("lyrics").querySelector(`.line[data-no="${lineNo}"]`);
     if (el && scroll !== false) keepLineVisible(el, !player.paused);
     renderNowLine(lineNo);
@@ -2744,7 +2776,7 @@ _JS = r"""
   function tick() {
     const player = $("player");
     if (!timings) return;
-    const t = player.currentTime + syncOffset;
+    const t = playT();
     syncScene(t);
     if (activeClip && player.currentTime >= activeClip.end_sec) {
       player.pause();
@@ -2848,12 +2880,12 @@ _JS = r"""
       b.onclick = () => {
         const scene = board.scenes[Number(b.getAttribute("data-i"))];
         if (!scene) return;
-        $("player").currentTime = Math.max(0, scene.start - syncOffset);
+        $("player").currentTime = seekT(scene.start);
         setScene(scene, true);
       };
     });
     const at = board.scenes.find((s) => {
-      const t = $("player").currentTime + syncOffset;
+      const t = playT();
       return t >= s.start && t < s.end;
     });
     setScene(at || board.scenes[0], true);
@@ -2891,7 +2923,7 @@ _JS = r"""
     }
     await Promise.all([loadClips(), loadVideos()]);
     // The storyboard and sing plan repaint the captions, so the count-in goes last.
-    if (!activeLineNo) showCountIn(player.currentTime + syncOffset);
+    if (!activeLineNo) showCountIn(playT());
   }
 
   async function loadVideos() {
@@ -2906,7 +2938,7 @@ _JS = r"""
     const player = $("player");
     activeClip = clip;
     renderClips();
-    player.currentTime = Math.max(0, clip.start_sec - syncOffset);
+    player.currentTime = seekT(clip.start_sec);
     try {
       await player.play();
       startLoop();
@@ -2962,6 +2994,9 @@ _JS = r"""
   $("player").addEventListener("play", () => {
     $("stage").classList.add("playing");
     $("btn-stage-play").textContent = "Pause";
+    // Play is a user gesture, so the audio context is allowed to start and
+    // report the device's real output latency for the paint to compensate.
+    refreshAudioLatency();
     startLoop();
   });
   $("player").addEventListener("pause", () => {
@@ -2984,7 +3019,7 @@ _JS = r"""
     // A seek lands mid-line: forget what was sung so the new line speaks again.
     singingLineNo = 0;
     cancelSpeech();
-    repaintLineStates(activeLineNo, $("player").currentTime + syncOffset);
+    repaintLineStates(activeLineNo, playT());
     tick();
   });
   $("player").addEventListener("timeupdate", syncActiveLineFromPlayer);
@@ -2992,7 +3027,7 @@ _JS = r"""
     await loadTimings();
     renderLyrics();
     if (activeLineNo) { const no = activeLineNo; activeLineNo = 0; setActiveLine(no, false); }
-    else showCountIn($("player").currentTime + syncOffset);
+    else showCountIn(playT());
     // The sing plan's per-line rates were computed with the hint duration
     // (metadata wasn't loaded yet) — rebuild against the real duration.
     if ($("sing-lang").checked) await loadSingPlan();
@@ -3188,7 +3223,7 @@ _JS = r"""
     showSync();
     saveSync();
     activeWordKey = "";
-    repaintLineStates(activeLineNo, $("player").currentTime + syncOffset);
+    repaintLineStates(activeLineNo, playT());
     tick();
   }
   $("sync-back").onclick = () => setSync(-0.25);
@@ -3198,7 +3233,7 @@ _JS = r"""
     showSync();
     saveSync();
     activeWordKey = "";
-    repaintLineStates(activeLineNo, $("player").currentTime);
+    repaintLineStates(activeLineNo, playT());
     tick();
   };
   $("ask-send").onclick = () => askAI();
