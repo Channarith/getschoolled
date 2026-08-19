@@ -4,8 +4,10 @@ Mirrors theodore_music_lab.tts so every language Theodore teaches — including
 Khmer — has a Microsoft Edge neural voice even when the speech gateway is down
 and the listener's OS ships no voice for that language.
 
-Clips are cached on disk by (voice, rate, text). With no edge-tts and an empty
-cache the API answers 501 and the page falls back to speechSynthesis.
+Clips are cached on disk by (voice, rate, text), but caching is best-effort: an
+unwritable cache directory renders uncached rather than failing. With no
+edge-tts and an empty cache the API answers 501 and the page falls back to
+speechSynthesis.
 """
 
 from __future__ import annotations
@@ -13,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import tempfile
 import time
 from pathlib import Path
 
@@ -141,6 +144,40 @@ def _render(text: str, path: Path, *, voice: str, rate: str) -> None:
     asyncio.run(run())
 
 
+def cacheable_path(path: Path) -> Path | None:
+    """`path` if the clip can be cached there, else None to render uncached.
+
+    A read-only or sandboxed HOME must never break narration; the clip simply
+    stops being reused by later requests.
+    """
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return None
+    return path if os.access(path.parent, os.W_OK) else None
+
+
+def _render_bytes(text: str, *, voice: str, rate: str, target: Path | None) -> bytes:
+    """MP3 bytes for one clip, cached at `target` when one is writable."""
+    if target is None:
+        with tempfile.TemporaryDirectory() as scratch:
+            clip = Path(scratch) / "clip.mp3"
+            _render(text, clip, voice=voice, rate=rate)
+            if not clip.is_file() or clip.stat().st_size <= 0:
+                raise TTSUnavailable("empty audio file")
+            return clip.read_bytes()
+    partial = target.with_suffix(".part")
+    try:
+        _render(text, partial, voice=voice, rate=rate)
+        if not partial.is_file() or partial.stat().st_size <= 0:
+            raise TTSUnavailable("empty audio file")
+        partial.replace(target)
+    except BaseException:
+        partial.unlink(missing_ok=True)
+        raise
+    return target.read_bytes()
+
+
 def _transient_render_error(exc: BaseException) -> bool:
     name = type(exc).__name__
     message = str(exc).strip().lower()
@@ -173,25 +210,21 @@ def synthesize(
     percent = rate_percent(rate)
     for chosen in candidates:
         path = clip_path(line, voice=chosen, rate=percent)
-        if path.is_file() and path.stat().st_size > 0:
-            return path.read_bytes()
+        try:
+            if path.is_file() and path.stat().st_size > 0:
+                return path.read_bytes()
+        except OSError:
+            continue
     if not engine_available():
         raise TTSUnavailable("no neural voice engine available")
 
     errors: list[str] = []
     for chosen in candidates:
-        path = clip_path(line, voice=chosen, rate=percent)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        target = cacheable_path(clip_path(line, voice=chosen, rate=percent))
         for attempt in range(_RENDER_ATTEMPTS):
-            partial = path.with_suffix(".part")
             try:
-                _render(line, partial, voice=chosen, rate=percent)
-                if not partial.is_file() or partial.stat().st_size <= 0:
-                    raise TTSUnavailable("empty audio file")
-                partial.replace(path)
-                return path.read_bytes()
+                return _render_bytes(line, voice=chosen, rate=percent, target=target)
             except Exception as exc:  # noqa: BLE001 — network / voice flakiness
-                partial.unlink(missing_ok=True)
                 detail = str(exc).strip() or type(exc).__name__
                 errors.append(f"{chosen} attempt {attempt + 1}: {detail}")
                 if attempt + 1 < _RENDER_ATTEMPTS and _transient_render_error(exc):
@@ -205,9 +238,12 @@ def synthesize(
 
 def cached_clips() -> int:
     directory = cache_dir()
-    if not directory.is_dir():
+    try:
+        if not directory.is_dir():
+            return 0
+        return sum(1 for path in directory.glob("*.mp3") if path.stat().st_size > 0)
+    except OSError:
         return 0
-    return sum(1 for path in directory.glob("*.mp3") if path.stat().st_size > 0)
 
 
 def status() -> dict[str, object]:
