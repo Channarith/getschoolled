@@ -14,7 +14,7 @@ dependencies = [
   "python-multipart==0.0.32",
   # Self-hosted silhouette detection (MOG2 background subtraction).
   "opencv-contrib-python-headless==4.10.0.84",
-  "numpy==1.26.4",
+  "numpy==2.2.6",
 ]
 
 [project.optional-dependencies]

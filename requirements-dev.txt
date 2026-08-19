@@ -17,9 +17,13 @@ ruff==0.6.9
 PyYAML==6.0.2
 
 # Perception (face recognition) - CPU only; model weights downloaded at runtime.
+# numpy must stay >=2: the 1.26.x wheels bundle an OpenBLAS that segfaults on
+# `import numpy` on macOS arm64, which crashes local pytest and the pre-push
+# hook. 2.x links Accelerate instead. onnxruntime <1.19 pins numpy<2, so the two
+# versions move together.
 opencv-contrib-python-headless==4.10.0.84
 onnxruntime==1.27.0
-numpy==1.26.4
+numpy==2.2.6
 
 # Content scraper (curriculum ingestion: textbooks / web / video transcripts).
 pypdf==4.2.0

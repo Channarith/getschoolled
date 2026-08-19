@@ -25,8 +25,8 @@ test = [
 # in by services that don't need vision.
 vision = [
     "opencv-contrib-python-headless==4.10.0.84",
-    "onnxruntime==1.18.1",
-    "numpy==1.26.4",
+    "onnxruntime==1.27.0",
+    "numpy==2.2.6",
 ]
 # Harvester binary-source extractors (PowerPoint / Word). Lazy-imported; only
 # required when generating a course from .pptx / .docx files.

@@ -16,7 +16,7 @@ dependencies = [
 test = ["pytest==8.2.2"]
 vision = [
     "opencv-contrib-python-headless==4.10.0.84",
-    "numpy==1.26.4",
+    "numpy==2.2.6",
 ]
 voice = [
     "websockets==12.0",
