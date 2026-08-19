@@ -80,6 +80,7 @@ class FeedbackReq(BaseModel):
 @app.get("/health")
 def health() -> dict[str, Any]:
     runner = get_runner()
+    cat = lab_catalog()
     readiness: dict[str, Any] = {}
     try:
         from aoep_shared.env_bootstrap import speech_readiness

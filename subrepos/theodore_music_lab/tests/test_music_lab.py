@@ -785,11 +785,14 @@ def test_new_apis_and_player_ui(offline):
         spanish = next(row for row in langs["catalog"] if row["code"] == "es")
         assert spanish["curated"] is True
         assert spanish["curated_coverage"] == 1.0
-        # Featured-song full-line pack covers every platform language, not just Romance.
-        for row in langs["catalog"]:
-            if row["code"] == "en":
-                continue
-            assert row["curated"] is True, row
+        # Full-line curated pack is Romance + Chinese + Khmer; other languages
+        # are lexicon glosses (see CURATED_LANGUAGES / language picker groups).
+        curated_codes = {
+            row["code"] for row in langs["catalog"] if row["curated"] and row["code"] != "en"
+        }
+        assert {"es", "fr", "de", "it", "pt", "zh", "km"} <= curated_codes
+        for code in ("es", "zh", "km"):
+            row = next(r for r in langs["catalog"] if r["code"] == code)
             assert row["curated_coverage"] == 1.0, row
 
         song_id = "en-wheels-bus-audio-v1"
@@ -950,11 +953,15 @@ def test_new_apis_and_player_ui(offline):
         assert "yt-frame" in page
         assert "referrerPolicy" in page
         assert 'referrerpolicy="strict-origin-when-cross-origin"' in page
-        assert 'allow = "autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write"' in page
+        assert "autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write" in page
+        assert "hardenYtIframeAttributes" in page
+        assert "ytFrameAllow" in page
         assert "onError" in page
         assert "Open on YouTube" in page
         assert "degradeToStudyMode" in page
         assert "clockMediaAdapter" in page
+        assert "embedGen" in page
+        assert "getIframe" in page
         assert "Pause at each verse" in page
         assert "YouTube movie lessons" in page
         assert 'id="local-video"' in page
