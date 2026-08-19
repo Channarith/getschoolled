@@ -30,7 +30,7 @@ class PresentationTechnique:
     def apply(self, *, topic: str = "", point: str = "") -> str:
         try:
             return self.template.format(topic=topic or "this topic", point=point or "the key idea")
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, ValueError, AttributeError):
             return self.template
 
 
@@ -120,7 +120,7 @@ def _pack_techniques() -> Dict[str, PresentationTechnique]:
     except Exception:  # pragma: no cover
         return dict(_BUILTIN_BY_ID)
     if _cache["fingerprint"] == fp and _cache["by_id"] is not None:
-        return _cache["by_id"]
+        return dict(_cache["by_id"])
     merged: Dict[str, PresentationTechnique] = dict(_BUILTIN_BY_ID)
     for rec in load_records("presentation"):
         tid = rec.get("id")
@@ -137,7 +137,7 @@ def _pack_techniques() -> Dict[str, PresentationTechnique]:
         )
     _cache["fingerprint"] = fp
     _cache["by_id"] = merged
-    return merged
+    return dict(merged)
 
 
 def list_techniques(*, category: Optional[str] = None) -> List[PresentationTechnique]:

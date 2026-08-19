@@ -19,8 +19,12 @@ def test_cert_tracks_cover_dmv_and_food():
     tracks = {row.track for row in list_cert_courses()}
     assert tracks == {CertTrackId.CA_DMV_PERMIT, CertTrackId.ALAMEDA_FOOD_HANDLER}
     assert all(row.prep_only for row in list_cert_courses())
-    assert all(10 <= row.slides <= 12 for row in list_cert_courses())
+    assert all(10 <= row.slides <= 20 for row in list_cert_courses())
     assert all(row.estimated_minutes <= CERT_SESSION_MAX_MINUTES for row in list_cert_courses())
+    food = [row for row in list_cert_courses() if row.track is CertTrackId.ALAMEDA_FOOD_HANDLER]
+    assert len(food) == 6
+    assert sum(row.slides for row in food) >= 120
+    assert all(row.slides == 20 for row in food)
 
 
 def test_build_ca_dmv_course_has_jurisdiction_metadata():
@@ -45,13 +49,18 @@ def test_all_cert_lessons_have_picture_and_motion():
         course = build_cert_course(lesson_id=row.lesson_id)
         assert course.slides, row.lesson_id
         for slide in course.slides:
-            assert slide.picture_url.startswith("data:image/svg+xml,"), slide.title
-            assert slide.video_url.startswith("data:image/svg+xml,"), slide.title
+            assert slide.picture_url.startswith("data:image/svg+xml"), slide.title
+            assert slide.video_url.startswith("data:image/svg+xml"), slide.title
             assert slide.activity_prompt, slide.title
             motion_svg = unquote(slide.video_url.split(",", 1)[1])
             still_svg = unquote(slide.picture_url.split(",", 1)[1])
-            assert "animateTransform" in motion_svg
-            assert "animateTransform" not in still_svg
+            assert (
+                "animateTransform" in motion_svg
+                or "@keyframes" in motion_svg
+                or "keyframes" in motion_svg
+            ), slide.title
+            if "animateTransform" in motion_svg:
+                assert "animateTransform" not in still_svg
 
 
 def test_build_alameda_food_course():
@@ -62,8 +71,9 @@ def test_build_alameda_food_course():
     assert course.category is CategoryId.FOOD_SAFETY
     assert course.profile_adaptations["jurisdiction"] == "us-ca-alameda"
     assert "alameda" in course.profile_adaptations["disclaimer"].lower()
-    assert course.slides[0].picture_url.startswith("data:image/svg+xml,")
-    assert course.slides[0].video_url.startswith("data:image/svg+xml,")
+    assert course.slides[0].picture_url.startswith("data:image/svg+xml")
+    assert course.slides[0].video_url.startswith("data:image/svg+xml")
+    assert len(course.slides) == 20
 
 
 def test_certification_api_builds_and_teaches(monkeypatch, tmp_path):
@@ -90,8 +100,8 @@ def test_certification_api_builds_and_teaches(monkeypatch, tmp_path):
     assert payload["category"] == "driver_education"
     assert payload["profile_adaptations"]["jurisdiction"] == "us-ca"
     assert payload["profile_adaptations"]["picture_led"] is True
-    assert payload["slides"][0]["picture_url"].startswith("data:image/svg+xml,")
-    assert payload["slides"][0]["video_url"].startswith("data:image/svg+xml,")
+    assert payload["slides"][0]["picture_url"].startswith("data:image/svg+xml")
+    assert payload["slides"][0]["video_url"].startswith("data:image/svg+xml")
     assert builder.get_course(payload["course_id"]) is not None
 
 

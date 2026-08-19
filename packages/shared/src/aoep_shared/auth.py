@@ -87,3 +87,24 @@ def verify_token(token: str, key: bytes, *, now: Optional[float] = None) -> Opti
     if exp_f < (now if now is not None else time.time()):
         return None
     return body
+
+
+# --------------------------------------------------------------------------- #
+# Assessment signing key (separate from the session auth key)
+# --------------------------------------------------------------------------- #
+_DEV_ASSESSMENT_KEY = "dev-assessment-signing-key"
+
+
+def assessment_signing_key() -> bytes:
+    """Return the assessment token signing key.
+
+    Always reads ASSESSMENT_SIGNING_KEY directly; never falls back to
+    AUTH_SIGNING_KEY so the two key spaces stay isolated.
+    """
+    return os.environ.get("ASSESSMENT_SIGNING_KEY", _DEV_ASSESSMENT_KEY).encode()
+
+
+def assessment_key_is_dev_default() -> bool:
+    """True when ASSESSMENT_SIGNING_KEY is unset (using the insecure dev default)."""
+    key = os.environ.get("ASSESSMENT_SIGNING_KEY", "")
+    return not key or key == _DEV_ASSESSMENT_KEY

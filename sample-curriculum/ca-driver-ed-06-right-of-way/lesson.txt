@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Right-of-way
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Who goes first — and when to yield anyway. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Right-of-way is given, not taken
+Yielding prevents crashes even if you are 'right'. Having the right-of-way never means forcing others to stop — yield to avoid a collision.
+NARRATION: Having the right-of-way never means forcing others to stop — yield to avoid a collision.
+
+SLIDE 2 | Four-way stop order
+First to arrive goes first. At all-way stops, the first vehicle to arrive proceeds first; ties yield to the right.
+NARRATION: At all-way stops, the first vehicle to arrive proceeds first; ties yield to the right.
+
+SLIDE 3 | Pedestrians always
+Yield to pedestrians in crosswalks. Drivers must yield to pedestrians in marked or unmarked crosswalks.
+NARRATION: Drivers must yield to pedestrians in marked or unmarked crosswalks.
+
+SLIDE 4 | Blind pedestrians
+Stop and give space to white cane or guide dog users. Yield extra space and time to pedestrians using a white cane or guide dog.
+NARRATION: Yield extra space and time to pedestrians using a white cane or guide dog.
+
+SLIDE 5 | Funeral processions
+Yield to processions where required. Do not cut into a funeral procession; yield and proceed only when safe and lawful.
+NARRATION: Do not cut into a funeral procession; yield and proceed only when safe and lawful.
+
+SLIDE 6 | Transit buses pulling out
+Yield when required by local rules. In some areas you must yield to buses re-entering traffic — watch for signals.
+NARRATION: In some areas you must yield to buses re-entering traffic — watch for signals.
+
+SLIDE 7 | Driveway vs sidewalk
+Sidewalk users go first. When leaving a driveway, stop and yield to pedestrians on the sidewalk before entering the street.
+NARRATION: When leaving a driveway, stop and yield to pedestrians on the sidewalk before entering the street.
+
+SLIDE 8 | Private road entry
+Yield to all traffic on the public road. Entering from an alley or private road, yield to vehicles and pedestrians on the public roadway.
+NARRATION: Entering from an alley or private road, yield to vehicles and pedestrians on the public roadway.
+
+SLIDE 9 | Roundabout right-of-way
+Yield to traffic already circulating. At roundabouts, yield to vehicles in the circle, then enter when there is a gap.
+NARRATION: At roundabouts, yield to vehicles in the circle, then enter when there is a gap.
+
+SLIDE 10 | When in doubt, yield
+Uncertainty means wait. If you are unsure who should go, wait — a few seconds of caution beats a crash.
+NARRATION: If you are unsure who should go, wait — a few seconds of caution beats a crash.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

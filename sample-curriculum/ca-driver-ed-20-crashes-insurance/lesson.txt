@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Crashes & insurance
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: What to do after a collision and proof of insurance. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Stop and secure the scene
+Never leave the scene of a crash. If involved in a crash, stop, turn on hazards if safe, and move out of traffic when you can.
+NARRATION: If involved in a crash, stop, turn on hazards if safe, and move out of traffic when you can.
+
+SLIDE 2 | Call for injuries
+People first, then property. Call 911 when anyone is hurt or when the crash blocks a roadway.
+NARRATION: Call 911 when anyone is hurt or when the crash blocks a roadway.
+
+SLIDE 3 | Exchange information
+Names, contacts, license, insurance. Exchange names, contact info, driver license numbers, and insurance details with others involved.
+NARRATION: Exchange names, contact info, driver license numbers, and insurance details with others involved.
+
+SLIDE 4 | Do not argue fault
+Facts and photos beat roadside debate. Do not argue fault at the scene — document facts and let insurers investigate.
+NARRATION: Do not argue fault at the scene — document facts and let insurers investigate.
+
+SLIDE 5 | Hit and run response
+Note details; report promptly. If the other driver flees, note plate, vehicle, and direction, then report to police.
+NARRATION: If the other driver flees, note plate, vehicle, and direction, then report to police.
+
+SLIDE 6 | Proof of insurance
+Carry evidence of financial responsibility. California requires proof of financial responsibility — know how to show it digitally or on paper.
+NARRATION: California requires proof of financial responsibility — know how to show it digitally or on paper.
+
+SLIDE 7 | Uninsured motorist awareness
+Protect yourself with coverage. Uninsured and underinsured motorist coverage helps if the other driver lacks insurance.
+NARRATION: Uninsured and underinsured motorist coverage helps if the other driver lacks insurance.
+
+SLIDE 8 | Report when required
+Some crashes must be reported to DMV or police. Report crashes that meet injury or damage thresholds as required by California law.
+NARRATION: Report crashes that meet injury or damage thresholds as required by California law.
+
+SLIDE 9 | Witnesses and cameras
+Gather neutral evidence. Ask witnesses for contact info and note nearby cameras that may have recorded the crash.
+NARRATION: Ask witnesses for contact info and note nearby cameras that may have recorded the crash.
+
+SLIDE 10 | Aftercare and follow-up
+Seek medical care for delayed symptoms. Some injuries appear later — seek care and notify your insurer promptly.
+NARRATION: Some injuries appear later — seek care and notify your insurer promptly.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

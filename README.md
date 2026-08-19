@@ -173,6 +173,21 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | --- | --- | --- | --- | --- |
 | <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/solo_live_room.webp" alt="Solo 1:1 Salareen live room — AI host slide tile plus one learner, chat and Q&A" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
+Multimodal course storyboards cover all 115 corporate + solo lessons (6,440
+parsed teaching slides) on web and mobile. Every slide has an animated scene,
+domain background, characters/objects, examples, an activity, captions, and
+neural/device narration; overlays route through the 27-language translation
+stack and adapt for visual, auditory, reading, hands-on, or mixed profiles.
+Hand-authored DMV/food scenes remain the curated tier; the semantic builder
+covers the rest. **Exception:** audio courses and Drive Mode (while-driving)
+courses stay audio-only — no pictures or animations — since they are consumed
+hands-free and eyes-free. This is about consumption mode, not subject: seated
+driver's-ed *study* courses keep their full animated scenes.
+
+| Corporate AI | Solo algebra | DMV school bus | Food handwashing |
+| --- | --- | --- | --- |
+| <img src="docs/screens/storyboard_corporate_ai.png" alt="Animated corporate AI prompt-design storyboard with office background, characters, laptop, and charts" /> | <img src="docs/screens/storyboard_solo_algebra.png" alt="Animated solo algebra storyboard with classroom background, characters, chart, and document" /> | <img src="docs/screens/storyboard_dmv_school_bus.png" alt="Animated storyboard: California school bus stop law with bus, car, pedestrian, and school-zone sign" /> | <img src="docs/screens/storyboard_food_handwash.png" alt="Animated storyboard: food-handler handwashing at a prep station with sink, soap, and raw vs ready-to-eat zones" /> |
+
 | Salareen mobile — Android home | Drive Mode (mockup) |
 | --- | --- |
 | <img src="docs/screens/mobile_android_home.webp" alt="Salareen mobile app home on Android — bodhi-tree hero, Careers CTA, Netflix-style course rails, bottom tabs" width="320" /> | <img src="docs/screens/mobile_app_mockup.webp" alt="Salareen mobile Drive Mode audio player" width="320" /> |

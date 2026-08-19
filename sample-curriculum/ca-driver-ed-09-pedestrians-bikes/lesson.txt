@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Pedestrians & bicycles
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Crosswalks, three-foot pass, and door-zone safety. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Marked crosswalk duty
+Stop for people in the crosswalk. Yield to pedestrians in marked crosswalks and do not pass a vehicle stopped at a crosswalk.
+NARRATION: Yield to pedestrians in marked crosswalks and do not pass a vehicle stopped at a crosswalk.
+
+SLIDE 2 | Unmarked crosswalks
+Corners are crosswalks too. Intersections have crosswalks even without paint — yield to people crossing.
+NARRATION: Intersections have crosswalks even without paint — yield to people crossing.
+
+SLIDE 3 | Mid-block joggers
+Expect people outside crosswalks. Scan for joggers and walkers mid-block, especially near parks and schools.
+NARRATION: Scan for joggers and walkers mid-block, especially near parks and schools.
+
+SLIDE 4 | Three-foot bike pass
+Leave at least three feet when passing. When overtaking a bicycle, leave at least three feet of space or wait until you can.
+NARRATION: When overtaking a bicycle, leave at least three feet of space or wait until you can.
+
+SLIDE 5 | Bike lanes respect
+Do not drive or park in bike lanes. Bike lanes are for bicycles — do not drive, stop, or park in them except where allowed.
+NARRATION: Bike lanes are for bicycles — do not drive, stop, or park in them except where allowed.
+
+SLIDE 6 | Dutch reach dooring
+Look back before opening your door. Open the door with the far hand so you naturally look for cyclists first.
+NARRATION: Open the door with the far hand so you naturally look for cyclists first.
+
+SLIDE 7 | Right hook risk
+Check for bikes before right turns. Before turning right, shoulder-check for cyclists coming up on your right.
+NARRATION: Before turning right, shoulder-check for cyclists coming up on your right.
+
+SLIDE 8 | Left cross risk
+Watch bikes when turning left across a lane. Left turns across bike lanes need a clear gap — bikes move faster than you think.
+NARRATION: Left turns across bike lanes need a clear gap — bikes move faster than you think.
+
+SLIDE 9 | Shared-use paths
+Yield where paths meet roads. Where a shared path crosses a road, slow and yield according to signs and markings.
+NARRATION: Where a shared path crosses a road, slow and yield according to signs and markings.
+
+SLIDE 10 | Night bike lights
+Expect poorly lit riders — slow down. At night, scan carefully; not every cyclist has bright lights.
+NARRATION: At night, scan carefully; not every cyclist has bright lights.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

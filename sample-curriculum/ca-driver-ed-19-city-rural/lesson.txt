@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — City & rural driving
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Dense traffic, blind curves, and country roads. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | City scan rhythm
+Eyes move; never stare. In cities, keep your eyes moving among mirrors, signals, bikes, and pedestrians.
+NARRATION: In cities, keep your eyes moving among mirrors, signals, bikes, and pedestrians.
+
+SLIDE 2 | One-way confusion
+Confirm direction before you turn. City grids include one-ways — read signs before you commit to a turn.
+NARRATION: City grids include one-ways — read signs before you commit to a turn.
+
+SLIDE 3 | Delivery double-park risk
+Expect doors and vans. Delivery vans may stop suddenly — leave an out and watch for opening doors.
+NARRATION: Delivery vans may stop suddenly — leave an out and watch for opening doors.
+
+SLIDE 4 | Blind intersections downtown
+Creep until you can see. Where buildings block the view, creep forward until you can see cross traffic.
+NARRATION: Where buildings block the view, creep forward until you can see cross traffic.
+
+SLIDE 5 | Rural two-lane passing
+Pass only with sight distance and legal lines. On two-lane roads, pass only where lines and sight distance allow — never on hills or curves.
+NARRATION: On two-lane roads, pass only where lines and sight distance allow — never on hills or curves.
+
+SLIDE 6 | Gravel and dirt shoulders
+Slow; steering gets light. Loose gravel reduces traction — slow before turns and avoid hard braking.
+NARRATION: Loose gravel reduces traction — slow before turns and avoid hard braking.
+
+SLIDE 7 | Unmarked rural intersections
+Assume cross traffic may not stop. Many rural intersections lack signals — slow and be ready to yield.
+NARRATION: Many rural intersections lack signals — slow and be ready to yield.
+
+SLIDE 8 | Farm equipment
+Pass wide and slow. Farm equipment is wide and slow — wait for a safe gap and give plenty of space.
+NARRATION: Farm equipment is wide and slow — wait for a safe gap and give plenty of space.
+
+SLIDE 9 | Narrow bridges
+Yield when required; one lane at a time. Some rural bridges are one-lane — obey yield signs and wait your turn.
+NARRATION: Some rural bridges are one-lane — obey yield signs and wait your turn.
+
+SLIDE 10 | City freeway transitions
+Ramp meters and short merges. Urban freeways often have ramp meters and short merges — cooperate and match speed.
+NARRATION: Urban freeways often have ramp meters and short merges — cooperate and match speed.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

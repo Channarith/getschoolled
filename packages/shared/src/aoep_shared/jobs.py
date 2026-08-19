@@ -300,7 +300,8 @@ _USER_AGENT = "SalareenCareers/1.0 (+https://salareen.com)"
 # in long-running processes under JOBS_LIVE=1 with diverse queries.
 _LIVE_BY_ID: Dict[str, JobPosting] = {}
 _LIVE_BY_ID_MAX = 5000
-# TTL cache: key -> (expires_at, postings).
+# TTL cache: key -> (expires_at, postings). Bounded to avoid unbounded memory growth.
+_RESULT_CACHE_MAX = 500
 _RESULT_CACHE: Dict[str, tuple] = {}
 
 

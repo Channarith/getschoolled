@@ -1,0 +1,61 @@
+LESSON: CA Driver Ed — Intersections
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Scanning, stopping, and moving through intersections. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Left-right-left scan
+Scan both ways before you enter. At every intersection, look left, right, then left again before proceeding.
+NARRATION: At every intersection, look left, right, then left again before proceeding.
+
+SLIDE 2 | Limit lines
+Stop behind the painted line. Stop with your front bumper behind the limit line so cross traffic and walkers stay clear.
+NARRATION: Stop with your front bumper behind the limit line so cross traffic and walkers stay clear.
+
+SLIDE 3 | Uncontrolled intersections
+Yield to the right when arriving together. With no signs or signals, yield to vehicles already in the intersection and to the right when tied.
+NARRATION: With no signs or signals, yield to vehicles already in the intersection and to the right when tied.
+
+SLIDE 4 | T-intersections
+Through traffic usually has priority. At a T-intersection, traffic on the through road generally has the right of way.
+NARRATION: At a T-intersection, traffic on the through road generally has the right of way.
+
+SLIDE 5 | Blocked intersection
+Never enter if you will block it. Do not enter an intersection unless you can clear it — gridlock is illegal and dangerous.
+NARRATION: Do not enter an intersection unless you can clear it — gridlock is illegal and dangerous.
+
+SLIDE 6 | Turning into correct lane
+Finish turns in the proper lane. Turn into the nearest lane of travel in your direction unless signs direct otherwise.
+NARRATION: Turn into the nearest lane of travel in your direction unless signs direct otherwise.
+
+SLIDE 7 | U-turns in California
+Only where safe and legal. U-turns are restricted near hills, curves, and where signs prohibit them.
+NARRATION: U-turns are restricted near hills, curves, and where signs prohibit them.
+
+SLIDE 8 | Intersection bike boxes
+Respect bike waiting areas where marked. Some cities paint bike boxes — do not stop on top of them when waiting at red.
+NARRATION: Some cities paint bike boxes — do not stop on top of them when waiting at red.
+
+SLIDE 9 | Late arrival at yellow
+If already committed, clear carefully. If you are too close to stop safely on yellow, continue through and clear the intersection.
+NARRATION: If you are too close to stop safely on yellow, continue through and clear the intersection.
+
+SLIDE 10 | Stale green awareness
+Expect yellow if the light has been green long. A long green may turn yellow soon — cover the brake as you approach.
+NARRATION: A long green may turn yellow soon — cover the brake as you approach.
+
+SLIDE 11 | Multi-lane turns
+Stay in your lane through the turn. In multi-lane turns, stay in your lane and watch for vehicles drifting beside you.
+NARRATION: In multi-lane turns, stay in your lane and watch for vehicles drifting beside you.
+
+SLIDE 12 | Emergency in intersection
+Never block for lights and sirens. If an emergency vehicle approaches, clear the intersection, then pull right.
+NARRATION: If an emergency vehicle approaches, clear the intersection, then pull right.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

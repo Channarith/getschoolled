@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Signals & pavement markings
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Lights, arrows, and lane lines. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Steady green
+Go only if the intersection is clear. A green light means proceed if the way is clear and you yield to pedestrians still crossing.
+NARRATION: A green light means proceed if the way is clear and you yield to pedestrians still crossing.
+
+SLIDE 2 | Steady yellow
+Stop if you can do so safely. Yellow means the light is changing to red — stop before the intersection if you can stop safely.
+NARRATION: Yellow means the light is changing to red — stop before the intersection if you can stop safely.
+
+SLIDE 3 | Steady red
+Full stop; turns only when allowed. Red means stop. Right on red is allowed in California after a full stop unless signed otherwise.
+NARRATION: Red means stop. Right on red is allowed in California after a full stop unless signed otherwise.
+
+SLIDE 4 | Flashing red
+Treat like a stop sign. A flashing red signal requires a complete stop, then proceed when safe — like a stop sign.
+NARRATION: A flashing red signal requires a complete stop, then proceed when safe — like a stop sign.
+
+SLIDE 5 | Flashing yellow
+Proceed with caution. Flashing yellow means slow down and proceed carefully through the intersection.
+NARRATION: Flashing yellow means slow down and proceed carefully through the intersection.
+
+SLIDE 6 | Green arrow
+Protected turn — still scan. A green arrow gives a protected turn, but still watch for pedestrians and red-light runners.
+NARRATION: A green arrow gives a protected turn, but still watch for pedestrians and red-light runners.
+
+SLIDE 7 | Yellow center lines
+Separate opposite directions. Yellow lines separate traffic moving in opposite directions.
+NARRATION: Yellow lines separate traffic moving in opposite directions.
+
+SLIDE 8 | White lane lines
+Separate same-direction lanes. White lines separate lanes traveling in the same direction.
+NARRATION: White lines separate lanes traveling in the same direction.
+
+SLIDE 9 | Solid vs broken
+Solid means do not cross for passing. A solid line on your side means do not pass or change lanes across it.
+NARRATION: A solid line on your side means do not pass or change lanes across it.
+
+SLIDE 10 | Crosswalk markings
+Yield to people in the crosswalk. Marked and unmarked crosswalks require you to yield to pedestrians.
+NARRATION: Marked and unmarked crosswalks require you to yield to pedestrians.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

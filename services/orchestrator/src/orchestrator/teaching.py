@@ -28,6 +28,79 @@ from .memory_client import MemoryClient
 from .sessions import SessionStore, build_session_store
 
 
+def enrich_slide_storyboard(
+    lesson_id: str,
+    slide: Slide,
+    *,
+    source_index: int | None = None,
+    language: str = "en",
+    profile_score: str = "",
+    audio_only: bool = False,
+) -> Slide:
+    """Attach a curated or generated multimodal storyboard to every slide.
+
+    Audio / Drive Mode courses are consumed hands-free and eyes-free, so they
+    get NO pictures or animations — the slide is returned unchanged.
+    """
+    if audio_only:
+        return slide
+    try:
+        from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
+        from aoep_shared.cert_storyboard.catalog import storyboard_for_lesson
+        from aoep_shared.cert_storyboard.generic import (
+            build_generic_storyboard,
+            experience_dict,
+        )
+        from aoep_shared.catalog_selection import profile_dimensions
+    except Exception:
+        return slide
+    idx = source_index if source_index is not None else slide.index
+    data = None
+    if has_storyboard(lesson_id):
+        curated = storyboard_for_lesson(lesson_id, include_svg=True)
+        data = next(
+            (seg for seg in curated if seg.get("title") == slide.title),
+            None,
+        )
+        if data is None:
+            indexed = storyboard_for_slide(lesson_id, idx, include_svg=True)
+            if indexed and indexed.get("title") == slide.title:
+                data = indexed
+    if data is None:
+        profile = profile_dimensions(profile_score) if profile_score else {}
+        data = experience_dict(
+            build_generic_storyboard(
+                lesson_id=lesson_id,
+                slide_index=idx,
+                title=slide.title,
+                body=slide.body,
+                narration=slide.narration,
+                language=language,
+                profile=profile,
+            )
+        )
+    if not data:
+        return slide
+    return slide.model_copy(
+        update={
+            "storyboard_svg": data.get("svg") or "",
+            "storyboard_concept": data.get("concept") or "",
+            "storyboard_scene_id": data.get("scene_id") or "",
+            "storyboard_examples": data.get("examples") or [],
+            "storyboard_activity": data.get("activity_prompt") or "",
+            "storyboard_modalities": data.get("modalities")
+            or ["scene", "narration", "captions"],
+            "storyboard_profile_mode": data.get("profile_mode") or "mixed",
+            "storyboard_source_language": data.get("source_language")
+            or language
+            or "en",
+            "storyboard_translation_ready": bool(
+                data.get("translation_ready", True)
+            ),
+        }
+    )
+
+
 class ChatTurn(BaseModel):
     role: str  # "student" | "teacher"
     text: str
@@ -38,6 +111,7 @@ class SessionState(BaseModel):
     class_type: str
     lesson_id: str
     student_id: Optional[str] = None
+    profile_score: str = ""
     current_slide: int = 0
     session_budget_min: Optional[int] = None
     planned_duration_min: Optional[float] = None
@@ -73,6 +147,21 @@ class SessionView(BaseModel):
     session: SessionState
     lesson: Lesson
     slide: Slide
+
+
+class SlideWithBreak(BaseModel):
+    """Slide returned by /advance — includes an optional segment-break prompt."""
+
+    index: int
+    title: str
+    body: str
+    narration: str
+    kind: str = "teach"
+    say_aloud: str = ""
+    # When the learner just finished a segment boundary, this is set.
+    # None (absent) means no break is due; a dict with "due", "message", and
+    # "choices" means the UI should offer "Keep going / Take a break".
+    segment_break: dict | None = None
 
 
 class Reengagement(BaseModel):
@@ -189,6 +278,7 @@ class TeachingSessions:
         class_type: str,
         student_id: Optional[str] = None,
         session_budget_min: Optional[int] = None,
+        profile_score: str = "",
     ) -> SessionState:
         lesson = self.curriculum.get(lesson_id)
         if lesson is None:
@@ -208,6 +298,7 @@ class TeachingSessions:
             class_type=class_type,
             lesson_id=lesson_id,
             student_id=student_id,
+            profile_score=profile_score,
             session_budget_min=session_budget_min,
             planned_duration_min=planned_duration,
             slide_indices=slide_indices,
@@ -259,10 +350,29 @@ class TeachingSessions:
 
     def current_slide(self, session_id: str) -> Slide:
         session = self._require(session_id)
-        return self.lesson_for(session_id).slides[session.current_slide]
+        lesson = self.curriculum.get(session.lesson_id)
+        if lesson is None:
+            raise KeyError(session.lesson_id)
+        if session.slide_indices:
+            source_index = session.slide_indices[session.current_slide]
+            position = session.current_slide
+        else:
+            source_index = session.current_slide
+            position = session.current_slide
+        slide = lesson.slides[source_index].model_copy(update={"index": position})
+        return enrich_slide_storyboard(
+            session.lesson_id,
+            slide,
+            source_index=source_index,
+            language=lesson.language,
+            profile_score=session.profile_score,
+            audio_only=lesson.audio_only,
+        )
 
-    def advance(self, session_id: str) -> Slide:
+    def advance(self, session_id: str) -> "SlideWithBreak":
         # WARNING: cross-replica race; use Redis INCR for multi-replica deployments
+        from aoep_shared.session_break import segment_break_payload
+
         with _lock_for(session_id):
             session = self._require(session_id)
             lesson = self.lesson_for(session_id)
@@ -279,7 +389,22 @@ class TeachingSessions:
                 self.memory.record_behavior(
                     counters.student_id, session.lesson_id, saw_slide=True
                 )
-            return self.current_slide(session_id)
+            current = self.current_slide(session_id)
+            total = len(lesson.slides)
+            brk = segment_break_payload(
+                current.index,
+                total,
+                elapsed_slides=counters.slides_seen,
+            )
+            return SlideWithBreak(
+                index=current.index,
+                title=current.title,
+                body=current.body,
+                narration=current.narration,
+                kind=getattr(current, "kind", "teach") or "teach",
+                say_aloud=getattr(current, "say_aloud", "") or "",
+                segment_break=brk,
+            )
 
     def _ask_prompt(self, session, question: str, language: str, dialect: str | None):
         """Shared retrieval + prompt build for ask() and ask_stream()."""

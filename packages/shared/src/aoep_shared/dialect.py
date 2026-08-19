@@ -174,6 +174,239 @@ DIALECTS: Dict[str, DialectProfile] = {
         ),
         tutor_tone_hint="Brazilian Portuguese colloquial — gente, tá, natural carioca-neutral.",
     ),
+    "us_south": DialectProfile(
+        id="us_south", language="en", label="US Southern", region="us-south",
+        intro_template=(
+            "Hey y'all — glad you made it. Today we're talking {title}. "
+            "We'll go through {preview}{tail}. Holler if something ain't clear."
+        ),
+        outro_template=(
+            "Alright, that's {title} for today. Y'all did good sticking with it. "
+            "Practice a little on your own and it'll stick."
+        ),
+        discourse_markers=("Now look,", "Alright now,", "Listen,", "Here's the thing,"),
+        replacements=(
+            ("Welcome!", "Hey y'all — glad you made it."),
+            ("We will walk through", "We're gonna go through"),
+            ("going to", "gonna"),
+            ("want to", "wanna"),
+            ("Take your time", "No rush now"),
+            ("That is a wrap on", "Alright, that's"),
+            ("Nice work", "Y'all did good"),
+        ),
+        tutor_tone_hint="Southern US English — warm, y'all, ain't sparingly, unhurried.",
+    ),
+    "us_ny": DialectProfile(
+        id="us_ny", language="en", label="New York", region="us-ny",
+        intro_template=(
+            "Alright — let's get into {title}. "
+            "We're covering {preview}{tail}. Ask if you're stuck — don't sit on it."
+        ),
+        outro_template=(
+            "That's {title}. Good work. "
+            "Go practice it — talking about it only gets you so far."
+        ),
+        discourse_markers=("Listen,", "Look,", "Real talk —", "Here's the deal:"),
+        replacements=(
+            ("Welcome!", "Alright — let's get into it."),
+            ("We will walk through", "We're gonna cover"),
+            ("Take your time", "Take a beat"),
+            ("That is a wrap on", "That's"),
+            ("Nice work", "Good work"),
+            ("awesome", "solid"),
+        ),
+        tutor_tone_hint="New York / metro Northeast — direct, fast, plainspoken warmth.",
+    ),
+    "us_ne": DialectProfile(
+        id="us_ne", language="en", label="New England", region="us-ne",
+        intro_template=(
+            "Hi there — good to have you. Today we're on {title}. "
+            "We'll go over {preview}{tail}. Jump in if something's unclear."
+        ),
+        outro_template=(
+            "That covers {title}. Nice job hanging in. "
+            "Try it once on your own and it'll click."
+        ),
+        discourse_markers=("So,", "Anyway,", "Right,", "Here's what matters:"),
+        replacements=(
+            ("Welcome!", "Hi there — good to have you."),
+            ("We will walk through", "We'll go over"),
+            ("Take your time", "No hurry"),
+            ("That is a wrap on", "That covers"),
+            ("awesome", "wicked good"),
+        ),
+        tutor_tone_hint="New England English — dry, understated, 'wicked' lightly, practical.",
+    ),
+    "en_ca": DialectProfile(
+        id="en_ca", language="en", label="Canadian", region="ca",
+        intro_template=(
+            "Hey — glad you're here, eh? Today we're on {title}. "
+            "We'll walk through {preview}{tail}. Ask anytime if something's fuzzy."
+        ),
+        outro_template=(
+            "That's {title} — nice work. "
+            "Give it a try on your own and it'll stick, eh?"
+        ),
+        discourse_markers=("So,", "Alright,", "For sure,", "Here's the thing,"),
+        replacements=(
+            ("Welcome!", "Hey — glad you're here, eh?"),
+            ("We will walk through", "We'll walk through"),
+            ("Take your time", "No rush"),
+            ("That is a wrap on", "That's"),
+            ("awesome", "pretty great"),
+        ),
+        tutor_tone_hint="Canadian English — polite, eh lightly, friendly and clear.",
+    ),
+    "en_sg": DialectProfile(
+        id="en_sg", language="en", label="Singaporean", region="sg",
+        intro_template=(
+            "Okay lah — today we cover {title}. "
+            "We go through {preview}{tail}. Any question, just ask, can."
+        ),
+        outro_template=(
+            "Finish already for {title}. Good job. "
+            "Practice yourself a bit — then sure confirm."
+        ),
+        discourse_markers=("Okay lah,", "So,", "Actually,", "Then,"),
+        replacements=(
+            ("Welcome!", "Okay lah — welcome."),
+            ("We will walk through", "We go through"),
+            ("Take your time", "No need rush"),
+            ("That is a wrap on", "Finish already for"),
+            ("Nice work", "Good job"),
+            ("very easy", "very easy one"),
+        ),
+        tutor_tone_hint="Singapore English / Singlish-lite — lah/can sparingly, clear teaching tone.",
+    ),
+    "en_ie": DialectProfile(
+        id="en_ie", language="en", label="Irish", region="ie",
+        intro_template=(
+            "Ah you're welcome. Today we're looking at {title}. "
+            "We'll go through {preview}{tail}. Give a shout if you're stuck."
+        ),
+        outro_template=(
+            "That's {title} done. Fair play for sticking with it. "
+            "Have a go yourself — that's when it lands."
+        ),
+        discourse_markers=("Right,", "So,", "Look,", "Here's the craic:"),
+        replacements=(
+            ("Welcome!", "Ah you're welcome."),
+            ("We will walk through", "We'll go through"),
+            ("Nice work", "Fair play"),
+            ("awesome", "brilliant"),
+        ),
+        tutor_tone_hint="Irish English — warm, fair play, understated humour.",
+    ),
+    "en_in": DialectProfile(
+        id="en_in", language="en", label="Indian English", region="in",
+        intro_template=(
+            "Welcome. Today we will cover {title}. "
+            "We will go through {preview}{tail}. Please ask doubts anytime."
+        ),
+        outro_template=(
+            "That completes {title}. Very good. "
+            "Please do the needful and practise on your own."
+        ),
+        discourse_markers=("So,", "Basically,", "Actually,", "Please note:"),
+        replacements=(
+            ("Welcome!", "Welcome."),
+            ("We will walk through", "We will go through"),
+            ("questions", "doubts"),
+            ("try it yourself", "please practise on your own"),
+        ),
+        tutor_tone_hint="Indian English — clear, polite, 'doubts/do the needful' naturally.",
+    ),
+    "en_za": DialectProfile(
+        id="en_za", language="en", label="South African", region="za",
+        intro_template=(
+            "Howzit — good to have you. Today we're on {title}. "
+            "We'll go through {preview}{tail}. Shout if something's lekker confusing."
+        ),
+        outro_template=(
+            "Sharp — that's {title}. Well done. "
+            "Give it a bash yourself and it'll stick."
+        ),
+        discourse_markers=("So,", "Look,", "Ja,", "Here's the thing:"),
+        replacements=(
+            ("Welcome!", "Howzit — good to have you."),
+            ("Nice work", "Well done"),
+            ("awesome", "lekker"),
+            ("try it yourself", "give it a bash"),
+        ),
+        tutor_tone_hint="South African English — howzit/sharp/lekker lightly, friendly.",
+    ),
+    "zh_bj": DialectProfile(
+        id="zh_bj", language="zh", label="北京话 (Beijing)", region="cn-bj",
+        intro_template=(
+            "来来来，今天咱们学 {title}。"
+            "主要看看 {preview}{tail}。有问题随时说啊。"
+        ),
+        outro_template=(
+            "行，{title} 就到这儿。干得不错。"
+            "自己再练练，记得更牢。"
+        ),
+        discourse_markers=("哎,", "得嘞,", "您看,", "说白了,"),
+        replacements=(
+            ("Welcome", "来来来"),
+            ("Take your time", "不着急"),
+            ("Nice work", "干得不错"),
+        ),
+        tutor_tone_hint="Beijing Mandarin colloquial — 咱们/您/得嘞, warm and direct.",
+    ),
+    "zh_sh": DialectProfile(
+        id="zh_sh", language="zh", label="上海话 (Shanghai)", region="cn-sh",
+        intro_template=(
+            "侬好 — 今朝吾伲学 {title}。"
+            "主要是 {preview}{tail}。勿明白就问。"
+        ),
+        outro_template=(
+            "好哉，{title} 到此结束。侬蛮好。"
+            "自家再练练，会更牢靠。"
+        ),
+        discourse_markers=("欸,", "晓得伐,", "讲起来,", "其实呢,"),
+        replacements=(
+            ("Welcome", "侬好"),
+            ("Take your time", "慢慢来"),
+            ("Nice work", "侬蛮好"),
+        ),
+        tutor_tone_hint="Shanghai Wu-flavored teaching Chinese — 侬/吾伲 markers, gentle pace.",
+    ),
+    "zh_yue_gz": DialectProfile(
+        id="zh_yue_gz", language="zh", label="广州话 (Cantonese)", region="cn-gz",
+        intro_template=(
+            "唔该晒 — 今日我哋学 {title}。"
+            "会讲吓 {preview}{tail}。有唔明就问啦。"
+        ),
+        outro_template=(
+            "得，{title} 就到呢度。做得好。"
+            "自己再练下，会更稳阵。"
+        ),
+        discourse_markers=("噉,", "其实,", "即系,", "睇嚟,"),
+        replacements=(
+            ("Welcome", "唔该晒"),
+            ("Take your time", "唔使急"),
+            ("Nice work", "做得好"),
+        ),
+        tutor_tone_hint="Guangzhou / HK Cantonese teaching tone — 我哋/唔该/啦 particles.",
+    ),
+    "zh_min_fj": DialectProfile(
+        id="zh_min_fj", language="zh", label="福建话 (Hokkien/Min)", region="cn-fj",
+        intro_template=(
+            "你好 — 今仔日咱来学 {title}。"
+            "会讲 {preview}{tail}。若无清楚就问。"
+        ),
+        outro_template=(
+            "好，{title} 到遮。做了真好。"
+            "家己阁练，会较记牢。"
+        ),
+        discourse_markers=("按呢,", "其实,", "咱看,", "简单讲,"),
+        replacements=(
+            ("Welcome", "你好"),
+            ("Take your time", "免紧张"),
+            ("Nice work", "做了真好"),
+        ),
+        tutor_tone_hint="Fujian / Hokkien-Min teaching Chinese — 咱/今仔日 flavor, clear and warm.",
+    ),
 }
 
 
@@ -187,8 +420,23 @@ def normalize_dialect(dialect: Optional[str], *, language: str = "en") -> Option
     aliases = {
         "california": "us_ca", "ca": "us_ca", "californian": "us_ca",
         "texas": "us_tx", "tx": "us_tx", "texan": "us_tx",
+        "southern": "us_south", "south": "us_south", "us_southern": "us_south",
+        "dixie": "us_south",
+        "newyork": "us_ny", "new_york": "us_ny", "nyc": "us_ny", "ny": "us_ny",
+        "newengland": "us_ne", "new_england": "us_ne", "boston": "us_ne", "ne": "us_ne",
         "british": "en_gb", "uk": "en_gb", "gb": "en_gb", "england": "en_gb",
         "australian": "en_au", "australia": "en_au", "au": "en_au", "aussie": "en_au",
+        "canadian": "en_ca", "canada": "en_ca",
+        "singapore": "en_sg", "singaporean": "en_sg", "singlish": "en_sg", "sg": "en_sg",
+        "irish": "en_ie", "ireland": "en_ie", "ie": "en_ie",
+        "indian": "en_in", "india": "en_in",
+        "southafrican": "en_za", "south_african": "en_za", "za": "en_za",
+        "beijing": "zh_bj", "beijingese": "zh_bj", "mandarin_beijing": "zh_bj",
+        "shanghai": "zh_sh", "shanghainese": "zh_sh", "wu": "zh_sh",
+        "cantonese": "zh_yue_gz", "guangzhou": "zh_yue_gz", "guangdong": "zh_yue_gz",
+        "yue": "zh_yue_gz", "hk": "zh_yue_gz", "hongkong": "zh_yue_gz",
+        "fujian": "zh_min_fj", "fujianese": "zh_min_fj", "hokkien": "zh_min_fj",
+        "minnan": "zh_min_fj", "min": "zh_min_fj",
         "mexican": "es_mx", "mexico": "es_mx", "mx": "es_mx",
         "brazilian": "pt_br", "brazil": "pt_br", "br": "pt_br",
         "en": "us_general", "us": "us_general", "general": "us_general",

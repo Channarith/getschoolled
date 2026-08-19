@@ -216,7 +216,7 @@ _CSS = """
   @keyframes bob { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-10px) scale(1.05)} }
   @keyframes ballhop { 0%,100%{transform:translateY(0) scale(1)} 45%{transform:translateY(-9px) scale(1.12)} }
   @media (prefers-reduced-motion: reduce) {
-    .camera, .cast *, .backdrop *, .orb, .symbol, #ball .dot, #cap-ball .dot { animation:none !important; }
+    .camera, .cast *, .backdrop * { animation:none !important; }
   }
   .controls { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-top:.85rem; }
   .controls label { color:var(--muted); font-size:.85rem; display:inline-flex; gap:.35rem; align-items:center; }
@@ -341,6 +341,53 @@ _CSS = """
   .study-card a { color:var(--accent); font-weight:600; font-size:1.05rem; }
   .study-card .study-actions { display:flex; flex-wrap:wrap; gap:.45rem; }
   .embed-tools { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
+  /* overlay caption strip — live verse + translation on top of the video */
+  .embed-caption-overlay {
+    display:none; position:absolute; bottom:0; left:0; right:0;
+    background:linear-gradient(transparent,rgba(2,6,23,.82) 28%,rgba(2,6,23,.96));
+    padding:2.2rem 1.2rem .9rem; pointer-events:none; z-index:4; }
+  .embed-caption-overlay .ecap-line {
+    font-size:1.25rem; font-weight:700; color:#f8fafc; line-height:1.35;
+    text-shadow:0 2px 6px rgba(0,0,0,.8); }
+  .embed-caption-overlay .ecap-tr {
+    font-size:.95rem; color:#6ee7b7; margin-top:.3rem;
+    text-shadow:0 1px 4px rgba(0,0,0,.8); }
+  .ecap-lang-badge {
+    font-size:.75rem; color:#94a3b8; margin-top:.18rem;
+    text-shadow:0 1px 3px rgba(0,0,0,.7); letter-spacing:.03em; }
+  .pause-speak-btn {
+    background:none; border:1px solid #4ade80; color:#4ade80; border-radius:8px;
+    padding:.3rem .65rem; font-size:.82rem; cursor:pointer; margin-top:.55rem;
+    display:inline-flex; align-items:center; gap:.35rem; }
+  .pause-speak-btn:hover { background:rgba(74,222,128,.12); }
+  .pause-speak-btn.speaking { border-color:#fbbf24; color:#fbbf24; }
+  .speak-tr-row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin-top:.4rem; }
+  .lang-badge { font-size:.7rem; color:#64748b; background:#1e293b;
+    border-radius:5px; padding:.2rem .45rem; letter-spacing:.04em; }
+  /* overlay pause card — shown on top of the video in theater mode */
+  .embed-pause-overlay {
+    display:none; position:absolute; inset:0; z-index:8;
+    background:rgba(2,6,23,.78); overflow-y:auto;
+    padding:1.5rem 2rem 1.2rem; backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px); }
+  /* theater mode for the embed section */
+  .embed-stage.embed-theater {
+    position:fixed; inset:0; z-index:60; background:#020617;
+    overflow:hidden; display:flex; flex-direction:column; gap:0; }
+  body.embed-theater-on { overflow:hidden; }
+  .embed-stage.embed-theater .embed-player {
+    flex:1; aspect-ratio:unset; border-radius:0; border:none; }
+  .embed-stage.embed-theater .embed-caption-overlay { display:block; }
+  .embed-stage.embed-theater .embed-tools {
+    flex-shrink:0; padding:.5rem .9rem; background:#0b1220;
+    border-top:1px solid #1e293b; gap:.5rem; }
+  .embed-stage.embed-theater .verse-list { display:none; }
+  .embed-stage.embed-theater #pause-card { display:none !important; }
+  .embed-stage.embed-theater .embed-pause-overlay[data-visible=true] { display:flex;
+    flex-direction:column; gap:.6rem; }
+  .embed-stage.embed-theater .embed-pause-overlay .pause-card {
+    flex:1; max-width:760px; margin:auto; width:100%; }
+  .embed-theater-btn { margin-left:auto; }
   .embed-tools label { font-size:.85rem; color:var(--muted); }
   .verse-list { display:grid; gap:.45rem; max-height:320px; overflow:auto; }
   .verse { text-align:left; width:100%; padding:.55rem .7rem; border-radius:10px;
@@ -587,22 +634,54 @@ _HTML = """
           aloud in the language you picked above, in the same words the line shows.</p>
         <div class="embed-picker" id="embed-picker">Loading…</div>
         <div class="embed-stage" id="embed-stage" hidden>
-          <div class="embed-player" id="embed-player-box"><div id="yt-host"></div>
-            <video id="local-video" playsinline controls preload="metadata" hidden></video></div>
+          <div class="embed-player" id="embed-player-box">
+            <div id="yt-host"></div>
+            <video id="local-video" playsinline controls preload="metadata" hidden></video>
+            <!-- live caption overlay on top of video -->
+            <div class="embed-caption-overlay" id="embed-caption-overlay" aria-live="polite">
+              <div class="ecap-line" id="ecap-line"></div>
+              <div class="ecap-tr" id="ecap-tr"></div>
+              <div class="ecap-lang-badge" id="ecap-lang-badge"></div>
+            </div>
+            <!-- fullscreen pause overlay on top of video -->
+            <div class="embed-pause-overlay" id="embed-pause-overlay" data-visible="false">
+              <div class="pause-card" id="pause-card-overlay">
+                <h3 id="pause-title-ov">Paused for learning</h3>
+                <div id="pause-line-ov"></div>
+                <div class="tr" id="pause-tr-ov"></div>
+                <div class="chips" id="pause-vocab-ov"></div>
+                <div class="q-list" id="pause-questions-ov"></div>
+                <div class="speak-tr-row">
+                  <span class="lang-badge" id="pause-lang-badge-ov"></span>
+                  <div class="tr" id="pause-tr-ov" style="flex:1"></div>
+                  <button class="pause-speak-btn" id="btn-speak-tr-ov" type="button" title="Hear translation in your language">🔊 Hear</button>
+                </div>
+                <div class="ask-row" style="margin-top:.65rem">
+                  <input type="text" id="embed-ask-input-ov"
+                    placeholder="Ask about grammar, vocabulary, or this verse…" />
+                  <button class="primary" id="embed-ask-send-ov" type="button">Ask</button>
+                </div>
+                <div class="chips" id="embed-ask-quick-ov"></div>
+                <div class="answer" id="embed-ask-answer-ov">Answers stay grounded in the paused verse.</div>
+              </div>
+            </div>
+          </div>
           <div class="embed-tools">
             <button class="primary" id="btn-embed-play" type="button">Play</button>
             <button class="ghost" id="btn-embed-pause" type="button">Pause</button>
             <button class="ghost" id="btn-embed-continue" type="button">Continue after ask</button>
             <label><input type="checkbox" id="auto-pause" checked /> Pause at each verse</label>
-            <label><input type="checkbox" id="speak-verse" checked /> Speak each line</label>
+            <label><input type="checkbox" id="speak-verse" checked /> 🔊 Speak each line</label>
             <span class="meta" id="embed-meta"></span>
+            <button class="ghost embed-theater-btn" id="btn-embed-theater" type="button"
+              title="Fullscreen with translation overlay (F)">⛶ Full screen</button>
           </div>
           <div class="pause-card" id="pause-card" hidden>
             <h3 id="pause-title">Paused for learning</h3>
             <div id="pause-line"></div>
             <div class="tr" id="pause-tr"></div>
             <div class="embed-tools" style="margin-top:.4rem">
-              <button class="ghost" id="btn-hear-verse" type="button">Hear this line</button>
+              <button class="ghost" id="btn-hear-verse" type="button">🔊 Hear this line</button>
               <span class="meta" id="pause-voice"></span>
             </div>
             <div class="chips" id="pause-vocab"></div>
@@ -782,14 +861,11 @@ _JS = r"""
   let rafId = 0;
   const trCache = new Map();
 
-  let toastTimer = 0;
   function toast(msg) {
     const el = $("toast");
     el.textContent = msg;
     el.classList.add("show");
-    // One timer total — an earlier toast's timeout used to hide a later toast.
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.classList.remove("show"); toastTimer = 0; }, 2400);
+    setTimeout(() => el.classList.remove("show"), 2400);
   }
   async function api(path, opts) {
     const res = await fetch(path, opts);
@@ -1492,19 +1568,14 @@ _JS = r"""
   function loadYtApi() {
     return new Promise((resolve) => {
       if (window.YT && window.YT.Player) { resolve(); return; }
-      // If the script fails to load (offline, blocked), settle instead of
-      // hanging selectEmbed forever.
-      const timer = setTimeout(() => resolve(false), 12000);
       const prior = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => {
-        clearTimeout(timer);
         if (typeof prior === "function") prior();
-        resolve(true);
+        resolve();
       };
       if (![...document.scripts].some((s) => (s.src || "").includes("youtube.com/iframe_api"))) {
         const tag = document.createElement("script");
         tag.src = "https://www.youtube.com/iframe_api";
-        tag.onerror = () => { clearTimeout(timer); resolve(false); };
         document.head.appendChild(tag);
       }
     });
@@ -1547,8 +1618,23 @@ _JS = r"""
   }
 
   function checkVersePause() {
-    if (!currentEmbed || !$("auto-pause").checked || pauseLocked) return;
+    if (!currentEmbed) return;
     const t = getPlayhead();
+
+    // Track which verse is playing and update the live caption overlay
+    let nowVerse = null;
+    for (const verse of currentEmbed.verses || []) {
+      if (t >= verse.start_sec) nowVerse = verse;
+    }
+    if (nowVerse && !pauseLocked) {
+      if (nowVerse.verse_no !== activeVerseNo) {
+        activeVerseNo = nowVerse.verse_no;
+        markVerseActive(activeVerseNo);
+      }
+      updateEmbedCaption(nowVerse);
+    }
+
+    if (!$("auto-pause").checked || pauseLocked) return;
     for (const verse of currentEmbed.verses || []) {
       const pauseAt = Number(verse.pause_sec);
       if (!pauseAt || firedPauses.has(verse.verse_no)) continue;
@@ -1559,14 +1645,6 @@ _JS = r"""
         toast(`Paused at line ${verse.verse_no} — read, ask, then Continue`);
         return;
       }
-    }
-    let current = null;
-    for (const verse of currentEmbed.verses || []) {
-      if (t >= verse.start_sec) current = verse;
-    }
-    if (current && current.verse_no !== activeVerseNo && !pauseLocked) {
-      activeVerseNo = current.verse_no;
-      markVerseActive(activeVerseNo);
     }
   }
 
@@ -1600,6 +1678,9 @@ _JS = r"""
       box.innerHTML = "<div class='meta'>This item is a playlist pointer — open a lesson above to pause and ask.</div>";
       return;
     }
+    const tlName = (currentEmbed.target_lang_name && currentEmbed.target_lang_name !== "English")
+      ? currentEmbed.target_lang_name : "";
+    const showTlLabel = !!tlName;
     box.innerHTML = currentEmbed.verses.map((v) => `
       <button type="button" class="verse ${v.verse_no === activeVerseNo ? "active" : ""}"
         data-no="${v.verse_no}">
@@ -1607,7 +1688,10 @@ _JS = r"""
           \u00b7 ${Math.round(v.start_sec)}s
           <span class="badge ${esc(v.tier || "english")}">${esc(v.tier || "english")}</span></strong>
         <span>${esc(v.text)}</span>
-        <div class="tr">${esc(v.translation)}</div>
+        ${v.translation && v.translation !== v.text ? `
+          <div class="tr">${esc(v.translation)}
+            ${showTlLabel ? `<span class="lang-badge" style="margin-left:.3rem">${esc(tlName)}${v.tier ? " · " + esc(v.tier) : ""}</span>` : ""}
+          </div>` : ""}
         ${v.text_en && v.source_lang === "km" ? `<div class="meta">${esc(v.text_en)}</div>` : ""}
       </button>`).join("");
     box.querySelectorAll(".verse").forEach((btn) => {
@@ -1620,6 +1704,177 @@ _JS = r"""
     });
   }
 
+  // ---- per-language BCP-47 and audio translation ----
+  const LANG_BCP47 = {
+    en:"en-US", es:"es-ES", fr:"fr-FR", de:"de-DE", it:"it-IT",
+    pt:"pt-BR", nl:"nl-NL", pl:"pl-PL", ru:"ru-RU", uk:"uk-UA",
+    tr:"tr-TR", ar:"ar-SA", he:"he-IL", hi:"hi-IN", bn:"bn-IN",
+    ur:"ur-PK", fa:"fa-IR", zh:"zh-CN", ja:"ja-JP", ko:"ko-KR",
+    vi:"vi-VN", th:"th-TH", id:"id-ID", sw:"sw-KE", el:"el-GR",
+    cs:"cs-CZ", km:"km-KH",
+  };
+  const LANG_NAMES = {
+    en:"English", es:"Spanish", fr:"French", de:"German", it:"Italian",
+    pt:"Portuguese", nl:"Dutch", pl:"Polish", ru:"Russian", uk:"Ukrainian",
+    tr:"Turkish", ar:"Arabic", he:"Hebrew", hi:"Hindi", bn:"Bengali",
+    ur:"Urdu", fa:"Persian", zh:"Chinese", ja:"Japanese", ko:"Korean",
+    vi:"Vietnamese", th:"Thai", id:"Indonesian", sw:"Swahili", el:"Greek",
+    cs:"Czech", km:"Khmer",
+  };
+
+  let embedSpeakUtterance = null;
+  let embedSpeakTimer = 0;
+
+  function bcp47(code) { return LANG_BCP47[code] || code; }
+  function langName(code) { return LANG_NAMES[code] || code.toUpperCase(); }
+
+  function bestVoiceFor(code) {
+    const synth = window.speechSynthesis;
+    if (!synth) return null;
+    const voices = synth.getVoices() || [];
+    const want = bcp47(code).toLowerCase();
+    const base = want.split("-")[0];
+    return (
+      voices.find((v) => (v.lang || "").toLowerCase() === want) ||
+      voices.find((v) => (v.lang || "").toLowerCase().startsWith(base + "-")) ||
+      voices.find((v) => (v.lang || "").toLowerCase().startsWith(base)) ||
+      null
+    );
+  }
+
+  function speakTranslation(text, code, {onStart, onEnd, onError} = {}) {
+    const synth = window.speechSynthesis;
+    if (!synth || !text || !code || code === "en") {
+      if (onEnd) onEnd();
+      return;
+    }
+    clearTimeout(embedSpeakTimer);
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = bcp47(code);
+    // RTL languages need slightly slower delivery; tonal languages slower still.
+    const slow = ["ar","he","fa","ur","th","km","zh","ja","ko"].includes(code);
+    utter.rate = slow ? 0.82 : 0.92;
+    try {
+      const voice = bestVoiceFor(code);
+      if (voice) utter.voice = voice;
+    } catch (_) { /* keep utter.lang */ }
+    embedSpeakUtterance = utter;
+    utter.onstart = () => { if (onStart) onStart(); };
+    utter.onend = () => { embedSpeakUtterance = null; if (onEnd) onEnd(); };
+    utter.onerror = (e) => {
+      embedSpeakUtterance = null;
+      if (e.error !== "interrupted" && e.error !== "canceled") {
+        if (onError) onError(e.error);
+        else toast(`Speech: ${e.error || "failed"} — try a different language`);
+      }
+      if (onEnd) onEnd();
+    };
+    // Chrome can have a 15-second TTS bug; schedule a recovery
+    embedSpeakTimer = setTimeout(() => { synth.cancel(); if (onEnd) onEnd(); }, 20000);
+    synth.speak(utter);
+  }
+
+  function stopEmbedSpeech() {
+    clearTimeout(embedSpeakTimer);
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    embedSpeakUtterance = null;
+    // Reset any speaking button states
+    [$("btn-speak-tr"), $("btn-speak-tr-ov")].forEach((btn) => {
+      if (btn) btn.classList.remove("speaking");
+    });
+  }
+
+  function speakEmbedPause(translation, code) {
+    if (!translation || code === "en") return;
+    const buttons = [$("btn-speak-tr"), $("btn-speak-tr-ov")];
+    buttons.forEach((b) => b && b.classList.add("speaking"));
+    speakTranslation(translation, code, {
+      onEnd: () => buttons.forEach((b) => b && b.classList.remove("speaking")),
+      onError: (err) => {
+        buttons.forEach((b) => b && b.classList.remove("speaking"));
+        const name = langName(code);
+        toast(`No ${name} voice found — install it in your OS settings`);
+      },
+    });
+  }
+
+  // ---- embed theater (fullscreen with overlay) ----
+  let embedTheaterOn = false;
+
+  function updateEmbedCaption(verse) {
+    // Updates the live caption strip overlaid on the video.
+    if (!verse) {
+      $("ecap-line").textContent = "";
+      $("ecap-tr").textContent = "";
+      $("ecap-lang-badge").textContent = "";
+      return;
+    }
+    $("ecap-line").textContent = verse.text || "";
+    const currentLang = lang();
+    const bits = [verse.translation];
+    if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
+      bits.push(`(${verse.text_en})`);
+    }
+    $("ecap-tr").textContent = bits.filter(Boolean).join(" · ");
+    $("ecap-lang-badge").textContent = currentLang !== "en"
+      ? `${langName(currentLang)} · ${verse.tier || ""}`.trim().replace(/·\s*$/, "")
+      : "";
+  }
+
+  function toggleEmbedTheater(on) {
+    const stage = $("embed-stage");
+    if (!stage || stage.hidden) return;
+    const want = on === undefined ? !embedTheaterOn : !!on;
+    embedTheaterOn = want;
+    stage.classList.toggle("embed-theater", want);
+    document.body.classList.toggle("embed-theater-on", want);
+    $("btn-embed-theater").textContent = want ? "✕ Exit full screen" : "⛶ Full screen";
+    if (!want) stopEmbedSpeech();
+    if (want && !document.fullscreenElement && stage.requestFullscreen) {
+      stage.requestFullscreen().catch(() => undefined);
+    }
+    if (!want && document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => undefined);
+    }
+    // Sync overlay pause card visibility with normal pause card state
+    if (!want) {
+      $("embed-pause-overlay").dataset.visible = "false";
+    } else if (!$("pause-card").hidden) {
+      $("embed-pause-overlay").dataset.visible = "true";
+    }
+  }
+
+  function fillPauseOverlay(verse, verseNo, locked) {
+    // Populates the fullscreen overlay pause card (mirrors the normal pause card).
+    if (!verse) return;
+    const currentLang = lang();
+    const title = locked ? `Paused at line ${verseNo} — read & ask` : `Line ${verseNo} — grammar & vocabulary`;
+    $("pause-title-ov").textContent = title;
+    $("pause-line-ov").textContent = verse.text;
+    const bits = [verse.translation];
+    if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
+      bits.push(verse.text_en);
+    }
+    const trTextOv = bits.filter(Boolean).join(" · ");
+    $("pause-tr-ov").textContent = trTextOv;
+    $("pause-lang-badge-ov").textContent = currentLang !== "en" ? langName(currentLang) : "";
+    if ($("btn-speak-tr-ov")) {
+      $("btn-speak-tr-ov").style.display = (trTextOv && currentLang !== "en") ? "" : "none";
+    }
+    $("pause-vocab-ov").innerHTML = (verse.vocabulary || []).filter((r) => r.target).slice(0, 8).map((r) =>
+      `<span class="chip"><b>${esc(r.en)}</b> \u2192 ${esc(r.target)}</span>`).join("");
+    $("pause-questions-ov").innerHTML = (verse.questions || []).map((q, i) => `
+      <div class="q-item" data-i="${i}">
+        <div class="kind">${esc(q.kind)}</div>
+        <div>${esc(q.prompt_translation || q.prompt)}</div>
+        <button class="ghost" type="button" data-reveal="${i}">Show answer</button>
+        <div class="ans">${esc(q.answer_translation || q.answer)}</div>
+      </div>`).join("");
+    $("pause-questions-ov").querySelectorAll("button[data-reveal]").forEach((btn) => {
+      btn.onclick = () => { btn.closest(".q-item").classList.add("open"); btn.remove(); };
+    });
+    $("embed-ask-answer-ov").textContent = "Ask about this verse, or reveal a prepared answer above.";
   function activeVerse() {
     if (!currentEmbed) return null;
     return (currentEmbed.verses || []).find((v) => v.verse_no === activeVerseNo) || null;
@@ -1656,10 +1911,15 @@ _JS = r"""
     activeVerseNo = verseNo;
     pauseLocked = !!locked;
     markVerseActive(verseNo);
+
+    // Always update the live overlay caption with the paused verse
+    updateEmbedCaption(verse);
+
+    // Normal (non-theater) pause card
     $("pause-card").hidden = false;
-    $("pause-title").textContent = locked
-      ? `Paused at line ${verseNo} — read & ask`
-      : `Line ${verseNo} — grammar & vocabulary`;
+    const currentLang = lang();
+    const title = locked ? `Paused at line ${verseNo} — read & ask` : `Line ${verseNo} — grammar & vocabulary`;
+    $("pause-title").textContent = title;
     $("pause-line").textContent = verse.text;
     const bits = [verse.translation];
     if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
@@ -1686,6 +1946,16 @@ _JS = r"""
       };
     });
     $("embed-ask-answer").textContent = "Ask about this verse, or reveal a prepared answer above.";
+
+    // Theater overlay: show the overlay pause card on top of the video
+    fillPauseOverlay(verse, verseNo, locked);
+    if (embedTheaterOn) $("embed-pause-overlay").dataset.visible = "true";
+
+    // Auto-speak translation when the verse pauses (if opt-in checkbox is on)
+    if (locked && $("auto-speak-tr") && $("auto-speak-tr").checked && trText && currentLang !== "en") {
+      // Small delay so the visual pause-card animation settles first
+      setTimeout(() => speakEmbedPause(trText, currentLang), 420);
+    }
     // Only a locked pause is silent; speaking during playback would talk over
     // the soundtrack.
     if (locked && $("speak-verse").checked) speakVerse(verse);
@@ -1750,18 +2020,8 @@ _JS = r"""
     media = localMediaAdapter(localVideo);
     localVideo.src = videoUrl;
     await new Promise((resolve) => {
-      // Settle on metadata OR error OR a timeout — a 404/aborted load used to
-      // hang selectEmbed forever (dead pause card, leaked listener).
-      const timer = setTimeout(() => { cleanup(); resolve(); }, 15000);
-      const cleanup = () => {
-        localVideo.removeEventListener("loadedmetadata", done);
-        localVideo.removeEventListener("error", fail);
-        clearTimeout(timer);
-      };
-      const done = () => { cleanup(); resolve(); };
-      const fail = () => { cleanup(); resolve(); };
+      const done = () => { localVideo.removeEventListener("loadedmetadata", done); resolve(); };
       localVideo.addEventListener("loadedmetadata", done);
-      localVideo.addEventListener("error", fail);
       localVideo.load();
     });
   }
@@ -1941,11 +2201,16 @@ _JS = r"""
     firedPauses = new Set();
     pauseLocked = false;
     $("embed-stage").hidden = false;
+    const tlDisplay = (currentEmbed.target_lang_name && currentEmbed.target_lang_name !== "English")
+      ? ` \u00b7 ${currentEmbed.target_lang_name}` : "";
     $("embed-meta").textContent =
-      `${currentEmbed.channel} \u00b7 ${currentEmbed.verse_count} lines \u00b7 ${currentEmbed.topic}`;
+      `${currentEmbed.channel} \u00b7 ${currentEmbed.verse_count} lines \u00b7 ${currentEmbed.topic}${tlDisplay}`;
     renderEmbedPicker();
     renderVerses();
     $("pause-card").hidden = true;
+    $("embed-pause-overlay").dataset.visible = "false";
+    $("ecap-line").textContent = "";
+    $("ecap-tr").textContent = "";
     if (currentEmbed.video_url) {
       await ensureLocalPlayer(currentEmbed.video_url, currentEmbed.kind === "local-karaoke", gen);
       if (gen !== embedGen) return;
@@ -2020,11 +2285,6 @@ _JS = r"""
         el.querySelectorAll(".w").forEach((s) => s.classList.remove("now", "sung"));
       }
     });
-    // Word-level paint for the active line too — paintWords otherwise only
-    // runs inside tick (playing), so a lyrics re-render while paused (language
-    // switch, "show every line" toggle) used to strip the karaoke colors.
-    const activeRow = timings ? timings.lines.find((r) => r.line_no === lineNo) : null;
-    if (activeRow) paintWords(activeRow, t);
   }
 
   // A singer needs to read ahead, so the box scrolls while LOOKAHEAD_LINES upcoming
@@ -2302,6 +2562,15 @@ _JS = r"""
       ducked = false;
       player.volume = duckedFrom;
     };
+    speakNeural(scene.narration, scene.narration_language || 'en', 0.98).then(() => {
+      if (neuralAudio) {
+        neuralAudio.onended = restore;
+        neuralAudio.onerror = restore;
+      } else {
+        // device utter has no promise handle; restore after a short duck window
+        setTimeout(restore, Math.min(12000, 800 + scene.narration.length * 60));
+      }
+    }).catch(restore);
     speak(scene.narration, {
       lang: code,
       tag: code === "en" ? "en-US" : code,
@@ -2473,20 +2742,11 @@ _JS = r"""
   }
 
   function tick() {
-    // Cancel any pending scheduled tick first — direct tick() calls (seek,
-    // sync nudge, hidden-tab timeupdate) used to each add one PERMANENT extra
-    // render loop, and loops piled up while the tab was hidden.
-    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
     const player = $("player");
-    if (!timings) {
-      // Timings still loading over a slow network — keep the loop alive or
-      // the karaoke ball never starts when Play was pressed early.
-      if (player && !player.paused && !player.ended) rafId = requestAnimationFrame(tick);
-      return;
-    }
+    if (!timings) return;
     const t = player.currentTime + syncOffset;
     syncScene(t);
-    if (activeClip && t >= activeClip.end_sec) {
+    if (activeClip && player.currentTime >= activeClip.end_sec) {
       player.pause();
       activeClip = null;
       renderClips();
@@ -2586,9 +2846,6 @@ _JS = r"""
     ).join("");
     $("scene-dots").querySelectorAll("button").forEach((b) => {
       b.onclick = () => {
-        // board is nulled while a new storyboard loads — the previous song's
-        // dots are still visible in that window.
-        if (!board) return;
         const scene = board.scenes[Number(b.getAttribute("data-i"))];
         if (!scene) return;
         $("player").currentTime = Math.max(0, scene.start - syncOffset);
@@ -2602,13 +2859,7 @@ _JS = r"""
     setScene(at || board.scenes[0], true);
   }
 
-  // Generation guard: two rapid song/language selections interleave their
-  // awaited fetches; without this, a slow stale response (the LLM translate
-  // path can take tens of seconds) overwrites the fresh song's state.
-  let songGen = 0;
-
   async function selectSong(songId) {
-    const gen = ++songGen;
     const player = $("player");
     player.pause();
     cancelAnimationFrame(rafId);
@@ -2628,16 +2879,13 @@ _JS = r"""
     player.src = current.audio_url || "";
     ["btn-play", "btn-pause", "btn-restart"].forEach((id) => { $(id).disabled = !player.src; });
     await loadTimings();
-    if (gen !== songGen) return;
     await loadTranslation();
-    if (gen !== songGen) return;
     renderLyrics();
     // Paused at 0:00 the song has not started, so queue line 1 rather than
     // lighting it up as if it were being sung.
     showCountIn(0);
     renderSongList();
     await loadStoryboard();
-    if (gen !== songGen) return;
     if ($("sing-lang").checked) {
       try { await loadSingPlan(); } catch (_) { $("sing-lang").checked = false; }
     }
@@ -2751,17 +2999,20 @@ _JS = r"""
     await loadStoryboard();
   });
   $("meaning-lang").onchange = async () => {
-    const gen = ++songGen;  // abort any in-flight song/language load
     refreshSingLabel();
     await loadTranslation();
-    if (gen !== songGen) return;
     renderLyrics();
     const no = activeLineNo || (current && current.lines[0] ? current.lines[0].line_no : 0);
     activeLineNo = 0;
     if (no) setActiveLine(no, false);
     if ($("sing-lang").checked) { stopSinging(); await loadSingPlan(); }
-    if (gen !== songGen) return;
-    await Promise.all([loadClips(), loadStoryboard(), loadEmbeds()]);
+    // Reload the current embed so all verse translations update to the new language.
+    if (currentEmbed) {
+      await selectEmbed(currentEmbed.embed_id);
+    } else {
+      await loadEmbeds();
+    }
+    await Promise.all([loadClips(), loadStoryboard()]);
   };
   $("sing-lang").onchange = () => { toggleSinging(); };
   $("btn-theater").onclick = () => toggleTheater();
@@ -2778,6 +3029,8 @@ _JS = r"""
     pauseLocked = false;
     cancelSpeech();
     $("pause-card").hidden = true;
+    $("embed-pause-overlay").dataset.visible = "false";
+    stopEmbedSpeech();
     playMedia();
   };
   $("btn-hear-verse").onclick = () => hearVerse();
@@ -2790,6 +3043,73 @@ _JS = r"""
   $("embed-ask-quick").querySelectorAll("button").forEach((b) => {
     b.onclick = () => askEmbed(b.getAttribute("data-q"));
   });
+
+  // ---- Speak-translation buttons (normal card + fullscreen overlay) ----
+  if ($("btn-speak-tr")) {
+    $("btn-speak-tr").onclick = () => {
+      const text = $("pause-tr").textContent;
+      const code = lang();
+      if (!text || code === "en") return;
+      if (embedSpeakUtterance) { stopEmbedSpeech(); return; }
+      speakEmbedPause(text, code);
+    };
+  }
+  if ($("btn-speak-tr-ov")) {
+    $("btn-speak-tr-ov").onclick = () => {
+      const text = $("pause-tr-ov").textContent;
+      const code = lang();
+      if (!text || code === "en") return;
+      if (embedSpeakUtterance) { stopEmbedSpeech(); return; }
+      speakEmbedPause(text, code);
+    };
+  }
+
+  // ---- overlay "Continue" and "Ask" in the fullscreen pause overlay ----
+  // Wire a Continue action from the overlay
+  $("embed-pause-overlay").addEventListener("click", (e) => {
+    // Clicking the dark backdrop (not a card element) resumes playback
+    if (e.target === $("embed-pause-overlay")) {
+      pauseLocked = false;
+      $("pause-card").hidden = true;
+      $("embed-pause-overlay").dataset.visible = "false";
+      stopEmbedSpeech();
+      playMedia();
+    }
+  });
+  // Overlay Ask button
+  $("embed-ask-send-ov").onclick = () => askEmbedOverlay();
+  $("embed-ask-input-ov").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") askEmbedOverlay();
+  });
+  $("embed-ask-quick-ov").innerHTML = EMBED_QUICK.map((q) =>
+    `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
+  $("embed-ask-quick-ov").querySelectorAll("button").forEach((b) => {
+    b.onclick = () => askEmbedOverlay(b.getAttribute("data-q"));
+  });
+
+  async function askEmbedOverlay(question) {
+    // Same as askEmbed() but writes response to the overlay element.
+    if (!currentEmbed || !currentEmbed.has_pause_ask) return;
+    const q = (question || $("embed-ask-input-ov").value || "").trim();
+    if (!q) return;
+    $("embed-ask-answer-ov").textContent = "Thinking…";
+    const verse = currentEmbed.verses.find((v) => v.verse_no === activeVerseNo) || {};
+    try {
+      const r = await post("/api/music/embeds/ask", {
+        embed_id: currentEmbed.embed_id,
+        verse_no: activeVerseNo,
+        question: q,
+        verse_text: verse.text || "",
+        target_lang: lang(),
+      });
+      $("embed-ask-answer-ov").textContent = r.answer || "No answer.";
+    } catch (err) {
+      $("embed-ask-answer-ov").textContent = `Error: ${err.message || err}`;
+    }
+  }
+
+  // ---- embed theater button ----
+  $("btn-embed-theater").onclick = () => toggleEmbedTheater();
 
   async function togglePlay() {
     const player = $("player");
@@ -2815,16 +3135,44 @@ _JS = r"""
     if (scene) speakNarration(scene);
   };
   document.addEventListener("fullscreenchange", () => {
-    if (!document.fullscreenElement && $("stage").classList.contains("theater")) {
-      toggleTheater(false);
+    if (!document.fullscreenElement) {
+      if ($("stage").classList.contains("theater")) toggleTheater(false);
+      if (embedTheaterOn) toggleEmbedTheater(false);
     }
   });
   document.addEventListener("keydown", (e) => {
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || "");
     if (typing) return;
-    if (e.key === "f" || e.key === "F") toggleTheater();
-    if (e.key === "Escape" && $("stage").classList.contains("theater")) toggleTheater(false);
-    if (e.key === " " || e.code === "Space") { e.preventDefault(); togglePlay(); }
+    // F toggles whichever theater mode is relevant; if embed-stage is visible, prefer it
+    if (e.key === "f" || e.key === "F") {
+      const embedVisible = $("embed-stage") && !$("embed-stage").hidden;
+      if (embedVisible) {
+        toggleEmbedTheater();
+      } else {
+        toggleTheater();
+      }
+    }
+    if (e.key === "Escape") {
+      if (embedTheaterOn) toggleEmbedTheater(false);
+      else if ($("stage").classList.contains("theater")) toggleTheater(false);
+    }
+    // Spacebar resumes/pauses embed if theater is on, else toggles the song player
+    if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+      if (embedTheaterOn && currentEmbed) {
+        if (pauseLocked) {
+          pauseLocked = false;
+          $("pause-card").hidden = true;
+          $("embed-pause-overlay").dataset.visible = "false";
+          stopEmbedSpeech();
+          playMedia();
+        } else {
+          pauseMedia();
+        }
+      } else {
+        togglePlay();
+      }
+    }
   });
   $("show-inline").onchange = () => {
     const no = activeLineNo;

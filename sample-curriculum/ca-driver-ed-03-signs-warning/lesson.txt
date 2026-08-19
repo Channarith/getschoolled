@@ -1,0 +1,53 @@
+LESSON: CA Driver Ed — Warning signs
+LANGUAGE: en
+AUDIENCE: general
+TRACK: Certifications
+LEVEL: Certification prep
+JURISDICTION: us-ca
+PREP_ONLY: true
+DELIVERY: 15–20 min short session
+FIT: Learners preparing for the California DMV knowledge / permit test.
+SUMMARY: Yellow diamonds and hazard preparation. Study aid only — not a DMV-approved driver education course.
+
+SLIDE 1 | Yellow diamond meaning
+Slow and prepare — not always a full stop. Yellow diamond warning signs alert you to hazards ahead so you can adjust early.
+NARRATION: Yellow diamond warning signs alert you to hazards ahead so you can adjust early.
+
+SLIDE 2 | Curve and winding road
+Reduce speed before the curve, not in it. Curve signs mean ease off the gas before you enter and stay in your lane.
+NARRATION: Curve signs mean ease off the gas before you enter and stay in your lane.
+
+SLIDE 3 | Merge ahead
+Watch for vehicles entering your lane. Merge warning signs remind you to scan and create gaps for entering traffic.
+NARRATION: Merge warning signs remind you to scan and create gaps for entering traffic.
+
+SLIDE 4 | Pedestrian crossing ahead
+Expect people in or near the roadway. Pedestrian warning signs mean slow down and be ready to stop for walkers.
+NARRATION: Pedestrian warning signs mean slow down and be ready to stop for walkers.
+
+SLIDE 5 | Bicycle warning
+Share space with cyclists ahead. Bike warning signs mean scan for cyclists and give them room.
+NARRATION: Bike warning signs mean scan for cyclists and give them room.
+
+SLIDE 6 | Slippery when wet
+Reduce speed on wet pavement. Slippery-road warnings mean tires lose grip — slow down and avoid sudden inputs.
+NARRATION: Slippery-road warnings mean tires lose grip — slow down and avoid sudden inputs.
+
+SLIDE 7 | Deer and animal crossing
+Scan shoulders in rural areas. Animal crossing signs mean wildlife may enter the road, especially at dusk.
+NARRATION: Animal crossing signs mean wildlife may enter the road, especially at dusk.
+
+SLIDE 8 | Hill and downgrade
+Control speed on long descents. Downgrade signs mean use a lower gear and avoid riding the brakes.
+NARRATION: Downgrade signs mean use a lower gear and avoid riding the brakes.
+
+SLIDE 9 | Soft shoulder
+Stay on pavement if the shoulder is soft. Soft-shoulder warnings mean leaving the pavement can pull you off the road.
+NARRATION: Soft-shoulder warnings mean leaving the pavement can pull you off the road.
+
+SLIDE 10 | Two-way traffic ahead
+Opposing traffic begins after a divided section. Two-way traffic signs mean keep right and expect oncoming vehicles.
+NARRATION: Two-way traffic signs mean keep right and expect oncoming vehicles.
+
+FACT: Always verify rules in the current California Driver's Handbook.
+FACT: This Salareen lesson is practice prep, not DMV-approved education.

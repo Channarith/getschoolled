@@ -14,11 +14,24 @@ from aoep_shared.voice_catalog import (
 
 def test_catalog_has_requested_accents():
     accents = {v.accent for v in VOICE_CATALOG}
-    for want in ["Texan (US South)", "British", "Australian", "Mandarin (China)", "Castilian"]:
+    for want in [
+        "Texan (US South)",
+        "British",
+        "Australian",
+        "Mandarin (China)",
+        "Castilian",
+        "Southern US",
+        "New York",
+        "Singaporean",
+        "Beijing Mandarin",
+        "Cantonese (Guangzhou/HK)",
+        "Fujianese / Hokkien",
+        "Canadian",
+    ]:
         assert want in accents, want
     langs = {v.language for v in VOICE_CATALOG}
     assert {"en", "es", "zh", "fr", "de", "pt", "ja", "ar"} <= langs
-    assert len(VOICE_CATALOG) >= 30
+    assert len(VOICE_CATALOG) >= 45
 
 
 def test_ids_unique_and_edge_voices_present():
