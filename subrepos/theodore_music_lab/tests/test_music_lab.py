@@ -14,6 +14,7 @@ from theodore_music_lab.embeds import (
     list_embeds,
     load_embeds,
     resolve_embed,
+    watch_url,
 )
 from theodore_music_lab.main import app
 from theodore_music_lab.media import load_clips, load_videos, resolve_clip
@@ -758,6 +759,11 @@ def test_video_links_all_offer_lyrics():
         assert row["has_lyrics"] is True
         assert row["note"]
     assert any(row["embed_url"] for row in videos)
+    for row in videos:
+        if row["embed_url"]:
+            assert row["embed_url"].startswith("https://www.youtube.com/embed/")
+            assert "youtube-nocookie" not in row["embed_url"]
+            assert "modestbranding" not in row["embed_url"]
 
 
 def test_new_apis_and_player_ui(offline):
@@ -877,8 +883,13 @@ def test_new_apis_and_player_ui(offline):
             f"/api/music/embeds/{lesson['embed_id']}",
             params={"target_lang": "es", "allow_llm": False},
         ).json()
-        assert detail["embed_url"].startswith("https://www.youtube-nocookie.com/embed/")
+        assert detail["embed_url"].startswith("https://www.youtube.com/embed/")
+        assert "youtube-nocookie" not in detail["embed_url"]
         assert "enablejsapi=1" in detail["embed_url"]
+        assert "modestbranding" not in detail["embed_url"]
+        assert "playsinline=1" in detail["embed_url"]
+        assert detail["watch_url"].startswith("https://www.youtube.com/watch?v=")
+        assert detail["watch_url"] == watch_url(detail["youtube_id"])
         assert detail["verse_count"] >= 4
         assert detail["verses"][0]["questions"]
         asked = client.post(
@@ -931,6 +942,16 @@ def test_new_apis_and_player_ui(offline):
         assert "SpeechSynthesisUtterance" in page
         assert "/api/music/pronounce" in page
         assert "youtube.com/iframe_api" in page
+        assert "https://www.youtube.com/embed/" in page
+        assert "buildYtIframe" in page
+        assert "yt-frame" in page
+        assert "referrerPolicy" in page
+        assert 'referrerpolicy="strict-origin-when-cross-origin"' in page
+        assert 'allow = "autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write"' in page
+        assert "onError" in page
+        assert "Open on YouTube" in page
+        assert "degradeToStudyMode" in page
+        assert "clockMediaAdapter" in page
         assert "Pause at each verse" in page
         assert "YouTube movie lessons" in page
         assert 'id="local-video"' in page
@@ -1009,10 +1030,58 @@ def test_khmer_english_karaoke_pauses_every_line(offline):
         assert len(partial.content) == 1024
 
 
+def test_embed_url_uses_youtube_host_not_nocookie():
+    assert embed_url("") == ""
+    assert embed_url("   ") == ""
+    assert embed_url("abc") == ""  # not an 11-char YouTube id
+    assert embed_url("2owVccYAIRg/evil") == ""
+    assert watch_url("") == ""
+    url = embed_url("2owVccYAIRg")
+    assert url.startswith("https://www.youtube.com/embed/2owVccYAIRg?")
+    assert "youtube-nocookie" not in url
+    assert "enablejsapi=1" in url
+    assert "rel=0" in url
+    assert "playsinline=1" in url
+    assert "modestbranding" not in url
+    quiet = embed_url("2owVccYAIRg", jsapi=False)
+    assert "enablejsapi" not in quiet
+    assert quiet.startswith("https://www.youtube.com/embed/2owVccYAIRg?")
+    with_origin = embed_url("2owVccYAIRg", origin="https://lab.example")
+    assert "origin=https%3A%2F%2Flab.example" in with_origin
+    assert "widget_referrer=https%3A%2F%2Flab.example" in with_origin
+    assert watch_url("2owVccYAIRg") == "https://www.youtube.com/watch?v=2owVccYAIRg"
+    assert watch_url("2owVccYAIRg", start=12) == "https://www.youtube.com/watch?v=2owVccYAIRg&t=12"
+
+
+def test_youtube_player_owns_iframe_and_study_mode():
+    """Pause-and-ask player builds its own iframe; lyric Play-here is not nocookie."""
+    with TestClient(app) as client:
+        page = client.get("/").text
+        assert "https://www.youtube.com/embed/" in page
+        assert "buildYtIframe" in page
+        assert "hardenYtIframeAttributes" in page
+        assert "embedGen" in page
+        assert "yt-frame" in page
+        assert "referrerPolicy" in page
+        assert 'referrerpolicy="strict-origin-when-cross-origin"' in page
+        assert "autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write" in page
+        assert "onError" in page
+        assert "getIframe" in page
+        assert "Open on YouTube" in page
+        assert "degradeToStudyMode" in page
+        assert "clockMediaAdapter" in page
+        assert "getPlayerState" in page
+        videos = client.get("/api/music/videos").json()["videos"]
+        for row in videos:
+            if row.get("embed_url"):
+                assert row["embed_url"].startswith("https://www.youtube.com/embed/")
+                assert "youtube-nocookie" not in row["embed_url"]
+
+
 def test_youtube_embeds_pause_and_ask_in_curated_languages(offline):
     rows = load_embeds()
     assert len(rows) >= 4
-    assert embed_url("2owVccYAIRg").endswith("2owVccYAIRg?enablejsapi=1&rel=0&modestbranding=1")
+    assert embed_url("2owVccYAIRg").endswith("2owVccYAIRg?rel=0&playsinline=1&enablejsapi=1")
     pause_ask = [
         r for r in rows if r.get("verses") and r.get("kind") != "local-karaoke"
     ]
@@ -1021,6 +1090,9 @@ def test_youtube_embeds_pause_and_ask_in_curated_languages(offline):
         assert raw["youtube_id"]
         for language in ("en", "es", "fr", "de", "it", "pt"):
             resolved = resolve_embed(raw, language, allow_llm=False)
+            assert resolved["watch_url"] == f"https://www.youtube.com/watch?v={raw['youtube_id']}"
+            assert resolved["embed_url"].startswith("https://www.youtube.com/embed/")
+            assert "youtube-nocookie" not in resolved["embed_url"]
             assert resolved["verse_count"] >= 4
             for verse in resolved["verses"]:
                 assert verse["text"]

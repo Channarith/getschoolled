@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import quote
 
 from .curated_embeds import curated_embed
 from .curated_lines import normalize
@@ -72,15 +74,44 @@ def get_embed(embed_id: str) -> dict[str, Any]:
     raise KeyError(embed_id)
 
 
-def embed_url(youtube_id: str, *, start: float = 0.0) -> str:
-    """Privacy-friendly embed URL with the IFrame API enabled for pause control."""
+_YT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+
+def _normalize_youtube_id(youtube_id: str) -> str:
+    """Accept only canonical 11-char YouTube ids; reject path/query injection."""
     yt = (youtube_id or "").strip()
+    return yt if _YT_ID_RE.fullmatch(yt) else ""
+
+
+def watch_url(youtube_id: str, *, start: float = 0.0) -> str:
+    """Canonical YouTube watch page; optional ``&t=`` deep-link in seconds."""
+    yt = _normalize_youtube_id(youtube_id)
     if not yt:
         return ""
-    params = ["enablejsapi=1", "rel=0", "modestbranding=1"]
+    url = f"https://www.youtube.com/watch?v={yt}"
+    if start > 0:
+        url += f"&t={int(start)}"
+    return url
+
+
+def embed_url(
+    youtube_id: str, *, start: float = 0.0, origin: str = "", jsapi: bool = True
+) -> str:
+    """www.youtube.com embed URL. Use jsapi=True for the pause-and-ask player."""
+    yt = _normalize_youtube_id(youtube_id)
+    if not yt:
+        return ""
+    params = ["rel=0", "playsinline=1"]
+    if jsapi:
+        params.append("enablejsapi=1")
+    host = (origin or "").strip()
+    if host:
+        quoted = quote(host, safe="")
+        params.append(f"origin={quoted}")
+        params.append(f"widget_referrer={quoted}")
     if start > 0:
         params.append(f"start={int(start)}")
-    return f"https://www.youtube-nocookie.com/embed/{yt}?{'&'.join(params)}"
+    return f"https://www.youtube.com/embed/{yt}?{'&'.join(params)}"
 
 
 def _translate_text(
@@ -333,6 +364,7 @@ def resolve_embed(
         "title": str(embed.get("title") or ""),
         "channel": str(embed.get("channel") or ""),
         "url": str(embed.get("url") or video_url or ""),
+        "watch_url": watch_url(youtube_id) if youtube_id else "",
         "playlist_url": str(embed.get("playlist_url") or ""),
         "embed_url": embed_url(youtube_id) if youtube_id else "",
         "thumbnail_url": (
@@ -370,6 +402,7 @@ def list_embeds(language: str = "en", *, allow_llm: bool = False) -> list[dict[s
                 "title": resolved["title"],
                 "channel": resolved["channel"],
                 "url": resolved["url"],
+                "watch_url": resolved.get("watch_url") or "",
                 "playlist_url": resolved["playlist_url"],
                 "embed_url": resolved["embed_url"],
                 "video_url": resolved.get("video_url") or "",
