@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, List, Optional, Tuple
+from typing import Any, Tuple
 
 
 @dataclass(frozen=True)

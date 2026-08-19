@@ -32,7 +32,7 @@ from aoep_shared.service import create_service
 from fastapi import BackgroundTasks, Depends, File, Form, Header, HTTPException, Request, Response, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from .curriculum import CourseKSB, Lesson, Slide
+from .curriculum import CourseKSB, Lesson
 from .director import ClassContext, Director, LessonState
 from .teaching import Answer, Reengagement, SessionView, SlideWithBreak, TeachingSessions
 

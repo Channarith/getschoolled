@@ -54,11 +54,14 @@ from theodore_music_lab.storyboard import (
 )
 from theodore_music_lab.timing import alignment_for, song_timings, syllable_count
 from theodore_music_lab.tts import (
+    ENGINE,
     VOICES,
     TTSUnavailable,
     clip_path,
     rate_percent,
+    speak,
     synthesize,
+    tts_status,
     voice_candidates,
     voice_for,
 )
@@ -243,6 +246,63 @@ def test_tts_answers_501_so_the_player_falls_back_to_the_device(tts_cache, monke
     assert got.status_code == 501
     assert status["available"] is False
     assert status["languages"] == len(MEANING_LANGUAGES)
+
+
+def test_tts_status_is_the_platform_name_and_reports_the_engine_chain(
+    tts_cache, monkeypatch
+):
+    """Every lab exposes `tts.tts_status`; main.py and /api/tts/status use it."""
+    from theodore_music_lab import tts as tts_module
+
+    assert tts_module.tts_status is tts_status
+    assert tts_module.status is tts_status  # older in-lab callers
+
+    monkeypatch.setenv("MUSIC_LAB_TTS", "off")
+    off = tts_status()
+    assert off["available"] is False
+    assert off["engines"] == []
+    assert off["engine"] == "none"
+    assert off["cached_clips"] == 0
+
+    path = clip_path("hola", voice=voice_for("es"), rate=rate_percent(1.0))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"ID3-fake-spanish-clip")
+    cached = tts_status()
+    assert cached["available"] is True
+    assert cached["engines"] == ["cache"]
+    assert cached["engine"] == "cache-only"
+    assert cached["cached_clips"] == 1
+
+    monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
+    live = tts_status()
+    assert live["engines"] == [ENGINE]
+    assert live["languages"] == len(VOICES)
+
+
+def test_api_tts_speaks_with_the_platform_shape(tts_cache, monkeypatch):
+    """/api/tts is the cross-lab endpoint: (audio, mime, engine) + style presets."""
+    monkeypatch.setenv("MUSIC_LAB_TTS", "off")
+    # "deep" must reach for the male half of the pair at a slower rate, so a
+    # style change is a different clip, not the same one relabelled.
+    deep = clip_path("hello", voice=voice_for("en", gender="male"), rate=rate_percent(0.95))
+    deep.parent.mkdir(parents=True, exist_ok=True)
+    deep.write_bytes(b"ID3-fake-deep-clip")
+    audio, mime, engine = speak("hello", language="en", style="deep")
+    assert (audio, mime, engine) == (b"ID3-fake-deep-clip", "audio/mpeg", "cache")
+
+    with TestClient(app) as client:
+        got = client.get("/api/tts", params={"text": "hello", "language": "en", "style": "deep"})
+        assert got.status_code == 200
+        assert got.content == b"ID3-fake-deep-clip"
+        assert got.headers["content-type"] == "audio/mpeg"
+        assert got.headers["X-TTS-Engine"] == "cache"
+        # Empty text is the caller's mistake (422), not a missing engine (501).
+        assert client.get("/api/tts", params={"text": "  "}).status_code == 422
+        # Nothing cached for warm/female Polish and no engine: 501 => device voice.
+        assert client.get(
+            "/api/tts", params={"text": "dzień dobry", "language": "pl"}
+        ).status_code == 501
+        assert client.get("/api/tts/status").json()["engines"] == ["cache"]
 
 
 def test_rendered_clips_are_cached_once_and_reused(tts_cache, monkeypatch):

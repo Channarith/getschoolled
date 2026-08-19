@@ -49,8 +49,7 @@ from .sing import VOICE_TAGS, sing_plan
 from .storyboard import STORYBOARDS, storyboard_for
 from .timing import alignment_for, song_timings
 from .translations import language_catalog, language_name, translate_song, validate_language
-from .tts import TTSUnavailable, synthesize
-from .tts import status as tts_status
+from .tts import TTSUnavailable, synthesize, tts_status
 
 app = FastAPI(title="Theodore Music Lab", version="0.5.0")
 
@@ -237,7 +236,7 @@ def music_tts_status() -> dict[str, Any]:
 def music_speak(text: str = "", language: str = "en", style: str = "warm") -> Response:
     """Neural speech for sing-along / narration (501 => client device voice)."""
     try:
-        audio, mime, engine = tts_module.synthesize(text, language=language, style=style)
+        audio, mime, engine = tts_module.speak(text, language=language, style=style)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except TTSUnavailable as exc:
