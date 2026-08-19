@@ -236,9 +236,15 @@ def status() -> dict[str, object]:
     """What the player probes once at boot to decide server vs device voice."""
     clips = cached_clips()
     engine = engine_available()
+    chain: list[str] = []
+    if engine:
+        chain.append(ENGINE)
+    if clips and ENGINE not in chain:
+        chain.append("cache")
     return {
         "available": bool(engine or clips),
         "engine": ENGINE if engine else ("cache-only" if clips else "none"),
+        "engines": chain,
         "languages": len(VOICES),
         "cached_clips": clips,
         "cache_dir": str(cache_dir()),

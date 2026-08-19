@@ -334,6 +334,13 @@ _CSS = """
     width:min(100%, 360px); }
   .embed-player iframe, .embed-player #yt-host, .embed-player video {
     width:100%; height:100%; border:0; object-fit:contain; background:#000; }
+  .study-card { padding:1rem 1.1rem; height:100%; overflow:auto; display:flex;
+    flex-direction:column; justify-content:center; gap:.55rem; background:#0f172a; }
+  .study-card h3 { margin:0; font-size:1.05rem; color:#fde68a; }
+  .study-card p { margin:0; color:var(--muted); font-size:.9rem; }
+  .study-card a { color:var(--accent); font-weight:600; font-size:1.05rem; }
+  .study-card .study-actions { display:flex; flex-wrap:wrap; gap:.45rem; }
+  .embed-tools { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
   /* overlay caption strip — live verse + translation on top of the video */
   .embed-caption-overlay {
     display:none; position:absolute; bottom:0; left:0; right:0;
@@ -731,6 +738,101 @@ _JS = r"""
   let ytPoll = 0;
   let localVideo = null;
   let usingLocalVideo = false;
+  let media = idleMediaAdapter();
+  // Bumped on every selectEmbed so stale onReady/onError/timeouts cannot
+  // destroy or overwrite a newer lesson (YouTube ↔ local race).
+  let embedGen = 0;
+
+  function idleMediaAdapter() {
+    return {
+      kind: "none",
+      ready() { return false; },
+      time() { return 0; },
+      play() {},
+      pause() {},
+      seek() {},
+    };
+  }
+
+  function localMediaAdapter(video) {
+    return {
+      kind: "local",
+      ready() { return !!video && video.readyState >= 1; },
+      time() { return (video && video.currentTime) || 0; },
+      play() {
+        if (!video) return;
+        video.play().catch(() => toast("Press play on the video once"));
+      },
+      pause() { if (video) video.pause(); },
+      seek(sec) {
+        if (!video) return;
+        video.currentTime = Math.max(0, sec);
+        video.pause();
+      },
+    };
+  }
+
+  function youtubeMediaAdapter(player) {
+    return {
+      kind: "youtube",
+      ready() { return !!(player && ytReady); },
+      time() {
+        try { return player.getCurrentTime() || 0; } catch (_) { return 0; }
+      },
+      play() {
+        try { player.playVideo(); } catch (_) { toast("Press play on the video once"); return; }
+        setTimeout(() => {
+          try {
+            const st = player.getPlayerState();
+            if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING) {
+              toast("Press play on the video");
+            }
+          } catch (_) { /* ignore */ }
+        }, 900);
+      },
+      pause() { try { player.pauseVideo(); } catch (_) { /* ignore */ } },
+      seek(sec) {
+        try {
+          player.seekTo(Math.max(0, sec), true);
+          player.pauseVideo();
+        } catch (_) { /* ignore */ }
+      },
+    };
+  }
+
+  function clockMediaAdapter(initialSec) {
+    let offset = Math.max(0, Number(initialSec) || 0);
+    let origin = 0;
+    let playing = false;
+    return {
+      kind: "clock",
+      ready() { return true; },
+      time() {
+        if (!playing) return offset;
+        return offset + (performance.now() - origin) / 1000;
+      },
+      play() {
+        if (playing) return;
+        origin = performance.now();
+        playing = true;
+        pauseLocked = false;
+        startYtPoll();
+      },
+      pause() {
+        if (playing) {
+          offset += (performance.now() - origin) / 1000;
+          playing = false;
+        }
+        stopYtPoll();
+      },
+      seek(sec) {
+        offset = Math.max(0, Number(sec) || 0);
+        origin = performance.now();
+        playing = false;
+        stopYtPoll();
+      },
+    };
+  }
   let firedPauses = new Set();
   let pauseLocked = false;
   let quizState = null;
@@ -1450,7 +1552,11 @@ _JS = r"""
     box.querySelectorAll("button[data-embed]").forEach((btn) => {
       btn.onclick = () => {
         const slot = btn.parentElement.querySelector(".slot");
-        slot.innerHTML = `<iframe src="${btn.getAttribute("data-embed")}" allowfullscreen
+        const src = (btn.getAttribute("data-embed") || "").replace(
+          "www.youtube-nocookie.com", "www.youtube.com");
+        slot.innerHTML = `<iframe src="${esc(src)}" allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write"
           title="Lyric video" loading="lazy"></iframe>`;
         btn.disabled = true;
       };
@@ -1485,40 +1591,30 @@ _JS = r"""
   }
 
   function getPlayhead() {
-    if (usingLocalVideo && localVideo) return localVideo.currentTime || 0;
-    if (ytPlayer && ytReady) {
-      try { return ytPlayer.getCurrentTime() || 0; } catch (_) { return 0; }
-    }
-    return 0;
+    return media.time();
   }
 
   function pauseMedia() {
-    if (usingLocalVideo && localVideo) { localVideo.pause(); return; }
-    if (ytPlayer && ytReady) { try { ytPlayer.pauseVideo(); } catch (_) { /* ignore */ } }
+    media.pause();
   }
 
   function playMedia() {
-    if (usingLocalVideo && localVideo) {
-      localVideo.play().catch(() => toast("Press play on the video once"));
-      return;
-    }
-    if (ytPlayer && ytReady) {
-      try { ytPlayer.playVideo(); } catch (_) { toast("Press play on the video once"); }
-    }
+    media.play();
   }
 
   function seekMedia(sec) {
-    if (usingLocalVideo && localVideo) {
-      localVideo.currentTime = Math.max(0, sec);
-      localVideo.pause();
-      return;
+    const target = Math.max(0, sec);
+    // Seeking back before a verse's pause point re-arms its auto-pause —
+    // otherwise a re-watch never pauses again (firedPauses was only reset on
+    // embed switch).
+    if (currentEmbed) {
+      for (const v of currentEmbed.verses || []) {
+        if (firedPauses.has(v.verse_no) && Number(v.pause_sec) > target) {
+          firedPauses.delete(v.verse_no);
+        }
+      }
     }
-    if (ytPlayer && ytReady) {
-      try {
-        ytPlayer.seekTo(Math.max(0, sec), true);
-        ytPlayer.pauseVideo();
-      } catch (_) { /* ignore */ }
-    }
+    media.seek(target);
   }
 
   function checkVersePause() {
@@ -1865,21 +1961,40 @@ _JS = r"""
     if (locked && $("speak-verse").checked) speakVerse(verse);
   }
 
+  function ensureYtHost() {
+    // Own the iframe as #yt-frame inside #yt-host. destroy() still removes the
+    // adopted iframe; if an older path replaced #yt-host itself, recreate it.
+    let host = document.getElementById("yt-host");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "yt-host";
+      const box = $("embed-player-box");
+      box.insertBefore(host, box.querySelector("#local-video"));
+    }
+    return host;
+  }
+
   function clearPlayers() {
     stopYtPoll();
     usingLocalVideo = false;
+    media = idleMediaAdapter();
     localVideo = $("local-video");
     localVideo.pause();
     localVideo.removeAttribute("src");
     localVideo.load();
     localVideo.hidden = true;
-    $("yt-host").hidden = false;
-    $("yt-host").innerHTML = "";
-    $("embed-player-box").classList.remove("portrait");
     if (ytPlayer && ytPlayer.destroy) {
       try { ytPlayer.destroy(); } catch (_) { /* ignore */ }
       ytPlayer = null;
     }
+    // The YT IFrame API REPLACES #yt-host with the player <iframe>, and
+    // destroy() removes that iframe — so after any YouTube embed the host div
+    // is gone from the DOM. Re-create it or every later embed switch throws
+    // on $("yt-host") and the panel dies.
+    const host = ensureYtHost();
+    host.hidden = false;
+    host.innerHTML = "";
+    $("embed-player-box").classList.remove("portrait");
     ytReady = false;
   }
 
@@ -1887,20 +2002,22 @@ _JS = r"""
     localVideo = $("local-video");
     localVideo.onplay = () => { pauseLocked = false; startYtPoll(); };
     localVideo.onpause = () => { stopYtPoll(); };
-    localVideo.onended = () => { stopYtPoll(); };
+    localVideo.onended = () => { stopYtPoll(); firedPauses = new Set(); };
     localVideo.ontimeupdate = () => {
       if (!document.hidden) checkVersePause();
     };
   }
 
-  async function ensureLocalPlayer(videoUrl, portrait) {
+  async function ensureLocalPlayer(videoUrl, portrait, gen) {
     clearPlayers();
+    if (gen !== embedGen) return;
     usingLocalVideo = true;
     localVideo = $("local-video");
     $("yt-host").hidden = true;
     localVideo.hidden = false;
     if (portrait) $("embed-player-box").classList.add("portrait");
     wireLocalVideo();
+    media = localMediaAdapter(localVideo);
     localVideo.src = videoUrl;
     await new Promise((resolve) => {
       const done = () => { localVideo.removeEventListener("loadedmetadata", done); resolve(); };
@@ -1909,28 +2026,162 @@ _JS = r"""
     });
   }
 
-  async function ensureYtPlayer(youtubeId) {
+  function ytFrameAllow() {
+    return "autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write";
+  }
+
+  function hardenYtIframeAttributes(frame) {
+    // YT.Player may replace our element; re-apply the attrs that unblock
+    // programmatic play and send a Referer after the API finishes init.
+    if (!frame) return;
+    frame.id = "yt-frame";
+    frame.allow = ytFrameAllow();
+    frame.setAttribute("allow", ytFrameAllow());
+    frame.referrerPolicy = "strict-origin-when-cross-origin";
+    frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+    frame.allowFullscreen = true;
+    frame.setAttribute("allowfullscreen", "");
+    if (!frame.getAttribute("title")) frame.title = "YouTube lesson";
+  }
+
+  function buildYtIframe(youtubeId, startSec) {
+    const origin = window.location.origin;
+    const start = Math.max(0, Math.floor(Number(startSec) || 0));
+    const params = [
+      "enablejsapi=1",
+      "rel=0",
+      "playsinline=1",
+      "origin=" + encodeURIComponent(origin),
+      "widget_referrer=" + encodeURIComponent(origin),
+    ];
+    if (start > 0) params.push("start=" + start);
+    const iframe = document.createElement("iframe");
+    iframe.id = "yt-frame";
+    iframe.type = "text/html";
+    iframe.src = "https://www.youtube.com/embed/" + encodeURIComponent(youtubeId)
+      + "?" + params.join("&");
+    hardenYtIframeAttributes(iframe);
+    return iframe;
+  }
+
+  function ytErrorReason(code) {
+    const reasons = {
+      2: "Invalid YouTube video id.",
+      5: "This video cannot play in the HTML player.",
+      100: "This video was not found or was removed.",
+      101: "The owner does not allow this video to be embedded.",
+      150: "The owner does not allow this video to be embedded.",
+    };
+    return reasons[code] || ("YouTube player error (" + code + ").");
+  }
+
+  function youtubeWatchUrl(startSec) {
+    if (!currentEmbed) return "https://www.youtube.com";
+    const base = currentEmbed.watch_url
+      || (currentEmbed.youtube_id
+        ? ("https://www.youtube.com/watch?v=" + currentEmbed.youtube_id)
+        : (currentEmbed.url || "https://www.youtube.com"));
+    const t = Math.max(0, Math.floor(Number(startSec) || 0));
+    if (!t) return base;
+    return base + (base.indexOf("?") >= 0 ? "&" : "?") + "t=" + t;
+  }
+
+  function degradeToStudyMode(reason, gen) {
+    if (gen !== undefined && gen !== embedGen) return;
+    if (media && media.kind === "clock") {
+      toast(reason || "Study mode");
+      return;
+    }
+    let startAt = 0;
+    try { startAt = media.time(); } catch (_) { startAt = 0; }
+    const verse = activeVerse();
+    const verseStart = verse ? Number(verse.start_sec) || 0 : 0;
+    if (!startAt) startAt = verseStart;
+    stopYtPoll();
+    if (ytPlayer && ytPlayer.destroy) {
+      try { ytPlayer.destroy(); } catch (_) { /* ignore */ }
+      ytPlayer = null;
+    }
+    ytReady = false;
+    usingLocalVideo = false;
+    const host = ensureYtHost();
+    host.hidden = false;
+    if (localVideo) localVideo.hidden = true;
+    const watch = youtubeWatchUrl(verseStart);
+    const message = reason || "YouTube could not play in this page.";
+    host.innerHTML = `
+      <div class="study-card">
+        <h3>Continue without video</h3>
+        <p>${esc(message)}</p>
+        <a href="${esc(watch)}" target="_blank" rel="noopener">Open on YouTube</a>
+        <div class="study-actions">
+          <button class="primary" type="button" id="btn-study-play">Play study timer</button>
+          <button class="ghost" type="button" id="btn-study-pause">Pause study timer</button>
+        </div>
+        <p class="meta">Verse pauses, translations and Ask AI still work.</p>
+      </div>`;
+    media = clockMediaAdapter(startAt);
+    const playBtn = host.querySelector("#btn-study-play");
+    const pauseBtn = host.querySelector("#btn-study-pause");
+    if (playBtn) playBtn.onclick = () => { pauseLocked = false; playMedia(); };
+    if (pauseBtn) pauseBtn.onclick = () => pauseMedia();
+    toast(message);
+  }
+
+  async function ensureYtPlayer(youtubeId, gen) {
     clearPlayers();
-    await loadYtApi();
+    if (gen !== embedGen) return null;
+    const apiReady = await loadYtApi();
+    if (gen !== embedGen) return null;
+    if (!apiReady || !(window.YT && window.YT.Player)) {
+      degradeToStudyMode("YouTube player could not load — check the connection and retry.", gen);
+      return null;
+    }
+    const host = ensureYtHost();
+    host.innerHTML = "";
+    host.appendChild(buildYtIframe(youtubeId, 0));
     return new Promise((resolve) => {
-      ytPlayer = new YT.Player("yt-host", {
-        videoId: youtubeId,
-        playerVars: {
-          enablejsapi: 1,
-          rel: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          origin: window.location.origin,
-        },
+      // If onReady never fires (e.g. a dead embed), settle instead of hanging
+      // selectEmbed forever. A late onReady after this timeout must not wipe
+      // study-mode media with a null YouTube adapter.
+      let failed = false;
+      const timer = setTimeout(() => {
+        if (gen !== embedGen) { resolve(null); return; }
+        failed = true;
+        degradeToStudyMode("YouTube player did not become ready.", gen);
+        resolve(null);
+      }, 12000);
+      ytPlayer = new YT.Player("yt-frame", {
         events: {
-          onReady: () => { ytReady = true; resolve(ytPlayer); },
+          onReady: (ev) => {
+            clearTimeout(timer);
+            if (failed || gen !== embedGen) { resolve(null); return; }
+            ytReady = true;
+            try {
+              const live = (ev && ev.target && ev.target.getIframe)
+                ? ev.target.getIframe()
+                : (ytPlayer && ytPlayer.getIframe ? ytPlayer.getIframe() : null);
+              hardenYtIframeAttributes(live || document.getElementById("yt-frame"));
+            } catch (_) { /* ignore */ }
+            media = youtubeMediaAdapter(ytPlayer);
+            resolve(ytPlayer);
+          },
           onStateChange: (ev) => {
+            if (failed || gen !== embedGen) return;
             if (ev.data === YT.PlayerState.PLAYING) {
               pauseLocked = false;
               startYtPoll();
             } else if (ev.data === YT.PlayerState.PAUSED || ev.data === YT.PlayerState.ENDED) {
               stopYtPoll();
+              if (ev.data === YT.PlayerState.ENDED) firedPauses = new Set();
             }
+          },
+          onError: (ev) => {
+            clearTimeout(timer);
+            if (gen !== embedGen) { resolve(null); return; }
+            failed = true;
+            degradeToStudyMode(ytErrorReason(ev && ev.data), gen);
+            resolve(null);
           },
         },
       });
@@ -1938,11 +2189,14 @@ _JS = r"""
   }
 
   async function selectEmbed(embedId) {
+    const gen = ++embedGen;
     cancelSpeech();
     // allow_llm mirrors the lyric panel: any line the curated tier misses is
     // machine-translated (and cached server-side) instead of shown in English.
-    currentEmbed = await api(`/api/music/embeds/${encodeURIComponent(embedId)}` +
+    const selected = await api(`/api/music/embeds/${encodeURIComponent(embedId)}` +
       `?target_lang=${encodeURIComponent(lang())}&allow_llm=true`);
+    if (gen !== embedGen) return;
+    currentEmbed = selected;
     activeVerseNo = currentEmbed.verses[0] ? currentEmbed.verses[0].verse_no : 0;
     firedPauses = new Set();
     pauseLocked = false;
@@ -1958,13 +2212,16 @@ _JS = r"""
     $("ecap-line").textContent = "";
     $("ecap-tr").textContent = "";
     if (currentEmbed.video_url) {
-      await ensureLocalPlayer(currentEmbed.video_url, currentEmbed.kind === "local-karaoke");
+      await ensureLocalPlayer(currentEmbed.video_url, currentEmbed.kind === "local-karaoke", gen);
+      if (gen !== embedGen) return;
       if (activeVerseNo) showPauseCard(activeVerseNo, false);
     } else if (currentEmbed.youtube_id && currentEmbed.has_pause_ask) {
-      await ensureYtPlayer(currentEmbed.youtube_id);
+      await ensureYtPlayer(currentEmbed.youtube_id, gen);
+      if (gen !== embedGen) return;
       if (activeVerseNo) showPauseCard(activeVerseNo, false);
     } else if (currentEmbed.playlist_url) {
       clearPlayers();
+      if (gen !== embedGen) return;
       $("yt-host").innerHTML =
         `<div class="meta" style="padding:1rem">Open the playlist on YouTube, then come back and
          pick a lesson with pause points.

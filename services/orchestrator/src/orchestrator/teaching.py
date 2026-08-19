@@ -158,6 +158,17 @@ class SlideWithBreak(BaseModel):
     narration: str
     kind: str = "teach"
     say_aloud: str = ""
+    # Cert / live-room storyboard payload (mirrors curriculum.Slide fields so
+    # advance responses can feed live rooms without a second lookup).
+    storyboard_svg: str = ""
+    storyboard_concept: str = ""
+    storyboard_scene_id: str = ""
+    storyboard_examples: list[str] = Field(default_factory=list)
+    storyboard_activity: str = ""
+    storyboard_modalities: list[str] = Field(default_factory=list)
+    storyboard_profile_mode: str = "mixed"
+    storyboard_source_language: str = "en"
+    storyboard_translation_ready: bool = False
     # When the learner just finished a segment boundary, this is set.
     # None (absent) means no break is due; a dict with "due", "message", and
     # "choices" means the UI should offer "Keep going / Take a break".
@@ -403,6 +414,27 @@ class TeachingSessions:
                 narration=current.narration,
                 kind=getattr(current, "kind", "teach") or "teach",
                 say_aloud=getattr(current, "say_aloud", "") or "",
+                storyboard_svg=getattr(current, "storyboard_svg", "") or "",
+                storyboard_concept=getattr(current, "storyboard_concept", "") or "",
+                storyboard_scene_id=getattr(current, "storyboard_scene_id", "") or "",
+                storyboard_examples=list(
+                    getattr(current, "storyboard_examples", None) or []
+                ),
+                storyboard_activity=getattr(current, "storyboard_activity", "") or "",
+                storyboard_modalities=list(
+                    getattr(current, "storyboard_modalities", None) or []
+                ),
+                storyboard_profile_mode=getattr(
+                    current, "storyboard_profile_mode", "mixed"
+                )
+                or "mixed",
+                storyboard_source_language=getattr(
+                    current, "storyboard_source_language", "en"
+                )
+                or "en",
+                storyboard_translation_ready=bool(
+                    getattr(current, "storyboard_translation_ready", False)
+                ),
                 segment_break=brk,
             )
 

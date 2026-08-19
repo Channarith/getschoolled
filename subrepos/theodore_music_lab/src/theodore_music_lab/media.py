@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .catalog import Song
+from .embeds import embed_url
 from .timing import song_timings
 from .translations import translate_line, validate_language
 
@@ -47,8 +48,27 @@ def load_clips(path: Optional[Path] = None) -> list[dict[str, Any]]:
     return _load_jsonl(path or _data_dir() / "clips.jsonl")
 
 
+def _youtube_id_from_embed(url: str) -> str:
+    text = (url or "").strip()
+    marker = "/embed/"
+    if marker not in text:
+        return ""
+    return text.split(marker, 1)[1].split("?", 1)[0].split("&", 1)[0].strip()
+
+
+def _public_video_embed(row: dict[str, Any]) -> dict[str, Any]:
+    """Serve lyric-video embeds from www.youtube.com (never youtube-nocookie)."""
+    raw = str(row.get("embed_url") or "")
+    yt = _youtube_id_from_embed(raw)
+    if not yt:
+        return row
+    out = dict(row)
+    out["embed_url"] = embed_url(yt, jsapi=False)
+    return out
+
+
 def load_videos(path: Optional[Path] = None) -> list[dict[str, Any]]:
-    return _load_jsonl(path or _data_dir() / "video_links.jsonl")
+    return [_public_video_embed(row) for row in _load_jsonl(path or _data_dir() / "video_links.jsonl")]
 
 
 def resolve_clip(

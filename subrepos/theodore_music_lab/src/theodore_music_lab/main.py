@@ -48,7 +48,7 @@ from .session import SessionMode, SessionStore
 from .sing import VOICE_TAGS, sing_plan
 from .storyboard import STORYBOARDS, storyboard_for
 from .timing import alignment_for, song_timings
-from .translations import language_catalog, translate_song, validate_language
+from .translations import language_catalog, language_name, translate_song, validate_language
 from .tts import TTSUnavailable, synthesize
 from .tts import status as tts_status
 
@@ -188,7 +188,7 @@ def health() -> dict[str, Any]:
         readiness = speech_readiness()
     except Exception:  # noqa: BLE001
         pass
-    speech = tts_module.tts_status()
+    speech = tts_status()
     return {
         "ok": True,
         "service": "theodore-music-lab",
@@ -229,7 +229,7 @@ def health() -> dict[str, Any]:
 
 @app.get("/api/tts/status")
 def music_tts_status() -> dict[str, Any]:
-    return tts_module.tts_status()
+    return tts_status()
 
 
 @app.get("/api/tts")
@@ -240,7 +240,7 @@ def music_speak(text: str = "", language: str = "en", style: str = "warm") -> Re
         audio, mime, engine = tts_module.synthesize(text, language=language, style=style)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except tts_module.ProviderUnavailable as exc:
+    except TTSUnavailable as exc:
         raise HTTPException(status_code=501, detail=str(exc)) from exc
     return Response(
         content=audio,
