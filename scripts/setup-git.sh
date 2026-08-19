@@ -36,6 +36,29 @@ git config merge.maxver.driver "$(git rev-parse --show-toplevel)/scripts/merge-v
 # Reuse recorded conflict resolutions to make repeated merges smoother.
 git config rerere.enabled true
 
+# ── Git hooks ───────────────────────────────────────────────────────────────
+# .git/hooks is not version controlled, so hooks are tracked in scripts/hooks
+# and linked into place here. A symlink (not a copy) means editing the tracked
+# file takes effect immediately and the two can never drift.
+HOOK_SRC_DIR="$(pwd)/scripts/hooks"
+HOOK_DST_DIR="$(git rev-parse --git-path hooks)"
+if [ -d "$HOOK_SRC_DIR" ]; then
+  mkdir -p "$HOOK_DST_DIR"
+  for src in "$HOOK_SRC_DIR"/*; do
+    [ -f "$src" ] || continue
+    name=$(basename "$src")
+    chmod +x "$src"
+    # Symlink where supported, else copy (Windows/filesystems without symlinks).
+    if ln -sf "$src" "$HOOK_DST_DIR/$name" 2>/dev/null; then
+      echo "  hook $name -> linked from scripts/hooks/$name"
+    else
+      cp -f "$src" "$HOOK_DST_DIR/$name"
+      chmod +x "$HOOK_DST_DIR/$name"
+      echo "  hook $name -> copied (symlinks unavailable; re-run after edits)"
+    fi
+  done
+fi
+
 echo "git merge drivers configured:"
 echo "  CHANGELOG.txt        -> union  (keep both sides; via .gitattributes)"
 echo "  build-info.txt       -> union  (generated; keep both; via .gitattributes)"
