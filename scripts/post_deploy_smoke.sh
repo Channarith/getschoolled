@@ -92,6 +92,16 @@ for svc in "${SERVICES[@]}"; do
       continue
     fi
   else
+    # A digest-pinned image (registry/svc@sha256:...) carries no readable tag, so
+    # "${IMG##*:}" would yield the digest hex and produce a misleading
+    # "tag=<64-hex> != expected". This happens when a concurrent digest deploy or
+    # an admission webhook rewrote the pod template. Fail with an actionable hint.
+    case "$IMG" in
+      *@sha256:*)
+        echo "  [$svc] FAIL: image is digest-pinned ($IMG) — cannot verify against tag=$TAG. Use DIGEST_DIR (digest mode), or ensure no other deploy is racing this namespace."
+        FAIL=$((FAIL + 1))
+        continue ;;
+    esac
     # Everything after the last ':' is the tag (registry host may itself contain
     # a ':port', so only split on the final colon).
     IMG_TAG="${IMG##*:}"

@@ -30,8 +30,14 @@ on:
   push:
     branches: [main]
 
+# Serialize ALL production deploys to the aoep namespace across workflows. The
+# manual "Deploy VKE (identity + web)" workflow shares this exact group, so the
+# two can never run at the same time and clobber each other's image pins (which
+# once left identity/memory/web half tag-pinned, half digest-pinned and failed
+# both smoke gates). Do NOT key this on github.ref — a push-to-main deploy and a
+# manual dispatch must still serialize.
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: vke-deploy-aoep
   cancel-in-progress: false
 
 env:
