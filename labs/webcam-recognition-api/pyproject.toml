@@ -19,7 +19,7 @@ dependencies = [
 # reuse the monorepo's aoep_shared vision engine when the package is importable.
 vision = [
     "opencv-contrib-python-headless==4.10.0.84",
-    "numpy==1.26.4",
+    "numpy==2.2.6",
 ]
 test = [
     "pytest==8.2.2",

@@ -87,7 +87,7 @@ def _import_numpy():
     except ImportError as exc:
         raise ImportError(
             "numpy is required for silhouette detection. "
-            "Install it: pip install numpy==1.26.4"
+            "Install it: pip install numpy==2.2.6"
         ) from exc
 
 

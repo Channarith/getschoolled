@@ -8,6 +8,6 @@ pytest==8.2.2
 # Self-hosted face recognition (CPU): YuNet detection + SFace embeddings.
 # Model weights are downloaded at runtime and kept OUT of the repo.
 opencv-contrib-python-headless==4.10.0.84
-onnxruntime==1.18.1
-numpy==1.26.4
+onnxruntime==1.27.0
+numpy==2.2.6
 # Installed editable in dev: ../../packages/shared (aoep-shared / eduplatform-shared)

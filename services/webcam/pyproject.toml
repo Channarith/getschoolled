@@ -14,7 +14,7 @@ dependencies = [
   "python-multipart==0.0.32",
   # OpenCV for silhouette (HOG) + face detection. headless = no GUI deps.
   "opencv-contrib-python-headless==4.10.0.84",
-  "numpy==1.26.4",
+  "numpy==2.2.6",
 ]
 
 [project.optional-dependencies]
