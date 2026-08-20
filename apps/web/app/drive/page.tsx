@@ -55,6 +55,7 @@ function DrivePageInner() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [coursesLoading, setCoursesLoading] = useState(false);
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -183,9 +184,11 @@ function DrivePageInner() {
   }
   const refresh = useCallback(() => {
     if (!getToken()) return;
+    setCoursesLoading(true);
     listAudioCourses({ category: cat, q, limit: "60" }, locale, trainingLang)
       .then((r) => { setRows(r.courses); setTotal(r.total); queue.current = r.courses; })
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(String(e)))
+      .finally(() => setCoursesLoading(false));
   }, [cat, q, locale, trainingLang]);
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -730,7 +733,9 @@ function DrivePageInner() {
       )}
       <h1>{t("drive.pageTitle")}</h1>
       <p className="muted">
-        {t("drive.pageIntro", { total })}
+        {coursesLoading
+          ? t("drive.loadingCourses")
+          : t("drive.pageIntro", { total })}
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{friendlyError(error, t("error.offline"))}</div></div>}
 
@@ -880,7 +885,14 @@ function DrivePageInner() {
             <span className="pill" style={{ color: "#16a34a", fontSize: 11 }}>{t("drive.eyesFree")}</span>
           </button>
         ))}
-        {rows.length === 0 && <div className="muted">{t("drive.noMatch")}</div>}
+        {coursesLoading && (
+          <div className="muted" style={{ gridColumn: "1 / -1", padding: "24px 0", textAlign: "center" }}>
+            {t("drive.pendingRefresh")}
+          </div>
+        )}
+        {!coursesLoading && rows.length === 0 && (
+          <div className="muted">{t("drive.noMatch")}</div>
+        )}
       </div>
       </>
       )}
