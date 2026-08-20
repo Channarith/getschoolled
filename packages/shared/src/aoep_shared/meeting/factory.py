@@ -125,7 +125,7 @@ def present_with_provider(
         language=language_resolved,
         tts_engine=tts_engine,
         sync_slides=sync_slides,
-        open_slides=True,
+        open_slides=not os.environ.get("HEADLESS"),
         slide_dir=slide_dir,
         course_title=course_title,
         course_slides=course_slides or [],

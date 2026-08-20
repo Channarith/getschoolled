@@ -117,3 +117,18 @@ def test_local_play_provider_prints_and_speaks(monkeypatch, capsys):
     assert "Presenter:" in out
     assert len(spoken) == 3
     assert result.steps_presented == 3
+
+
+def test_present_with_provider_does_not_open_slides_when_headless(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class Capture:
+        def __init__(self, **kwargs):
+            captured["open_slides"] = kwargs.get("open_slides")
+            raise RuntimeError("captured")
+
+    monkeypatch.setenv("HEADLESS", "1")
+    monkeypatch.setattr("aoep_shared.meeting.factory.LocalPlayMeetingProvider", Capture)
+    with pytest.raises(RuntimeError, match="captured"):
+        present_with_provider(_lesson(), provider="local")
+    assert captured["open_slides"] is False

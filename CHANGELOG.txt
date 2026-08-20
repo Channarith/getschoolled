@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-08-20 - v0.48.2 - meeting presenter: honor HEADLESS so CI and agent runs do not pop a local browser for the synced slide deck. present_with_provider() was hard-coding open_slides=True, and SyncedSlideShow.start() opened webbrowser whenever open_browser was True, so HEADLESS=1 still spawned a window (and failed in sandboxes). Both now skip the browser when HEADLESS is set; the HTTP deck still starts.
 - 2026-08-20 - v0.48.1 - changelog: roll the accrued [unreleased] backlog (149 per-PR bullets) into the dated [0.48.1] release section and start a fresh [unreleased]. The never-rolled block had grown past the auto-minor threshold (>120 pending bullets), so scripts/bump_pr_version.py was promoting every routine patch PR to a MINOR; clearing it lets routine PRs bump PATCH again (AGENTS.md push-to-main checklist gotcha). No code changes.
 
 [0.48.1] - 2026-08-20
