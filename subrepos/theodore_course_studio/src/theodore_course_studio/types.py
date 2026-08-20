@@ -144,6 +144,10 @@ class CourseSlide(BaseModel):
     picture_alt: str = ""
     video_url: str = ""
     video_caption: str = ""
+    # Inline SVG storyboard (CSS keyframes animate when injected as HTML, not <img>).
+    storyboard_svg: str = ""
+    storyboard_concept: str = ""
+    storyboard_scene_id: str = ""
     activity_prompt: str = ""
     examples: list[str] = Field(default_factory=list)
     modalities: list[str] = Field(default_factory=list)

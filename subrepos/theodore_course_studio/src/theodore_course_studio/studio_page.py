@@ -50,7 +50,15 @@ STUDIO_CSS = """
     .teach-stage .body { font-size:15px; line-height:1.45; color:#d7e6dc; }
     .teach-stage .narr { margin-top:12px; color:#9fddc0; font-style:italic; }
     .teacher-stage-grid { display:grid; grid-template-columns:minmax(180px, 34%) 1fr;
-                          gap:14px; align-items:stretch; }
+                          gap:14px; align-items:stretch; position:relative; }
+    .teacher-stage-grid .storyboard-stage { grid-column:2; grid-row:1 / span 2; }
+    .teacher-stage-grid.has-storyboard { grid-template-columns:minmax(180px, 34%) 1fr; }
+    .storyboard-stage { width:100%; aspect-ratio:16/9; border-radius:14px; overflow:hidden; margin:0 0 12px;
+                         background:linear-gradient(160deg,#0b1220 0%,#1e293b 55%,#0f766e 140%);
+                         box-shadow:0 6px 20px rgba(15,23,42,.28); line-height:0; }
+    .storyboard-stage svg { width:100%; height:auto; display:block; }
+    .storyboard-stage[hidden] { display:none !important; }
+    .storyboard-concept { font-size:13px; color:#9fddc0; margin:-4px 0 10px; line-height:1.35; }
     .theodore-avatar-wrap { position:relative; min-height:390px; overflow:hidden; border-radius:18px;
                             background:radial-gradient(ellipse at 50% 60%,rgba(68,214,255,.2),rgba(5,24,34,.72) 65%);
                             border:1px solid rgba(94,224,255,.38); box-shadow:inset 0 0 30px rgba(59,215,255,.14); }
@@ -95,22 +103,38 @@ STUDIO_CSS = """
                                       display:flex; flex-direction:column; min-height:0; }
     .presenter-overlay #teach-stage h3 { flex:0 0 auto; margin:0; padding:18px 96px 12px 30px;
                                          font-size:clamp(22px,3vw,40px); color:#eafcff; }
-    .presenter-overlay .teacher-stage-grid { flex:1 1 auto; min-height:0;
-                                             grid-template-columns:1fr minmax(320px,36%); gap:0; }
-    .presenter-overlay .theodore-avatar-wrap { min-height:0; height:100%; border:0; border-radius:0;
-                                               background:radial-gradient(ellipse at 50% 64%,rgba(68,214,255,.20),rgba(4,18,26,.4) 70%);
-                                               box-shadow:none; }
-    .presenter-overlay .lesson-stage-content { height:100%; overflow:auto; padding:20px 30px 26px;
-                                               background:rgba(4,20,29,.62); backdrop-filter:blur(7px);
-                                               border-left:1px solid rgba(94,224,255,.26); }
-    .presenter-overlay .teach-stage .body { font-size:clamp(16px,1.5vw,23px); }
+    /* Serenity layout: full-bleed animated storyboard with Theodore as a PiP hologram overlay. */
+    .presenter-overlay .teacher-stage-grid { flex:1 1 auto; min-height:0; display:block; position:relative; }
+    .presenter-overlay .storyboard-stage { position:absolute; inset:0; aspect-ratio:unset; margin:0;
+                                           border-radius:0; z-index:0; box-shadow:none; }
+    .presenter-overlay .theodore-avatar-wrap { position:absolute; left:2.4%; bottom:7%;
+                                               width:min(32vw,380px); height:min(58vh,520px);
+                                               min-height:280px; z-index:3; border-radius:18px;
+                                               background:radial-gradient(ellipse at 50% 64%,rgba(68,214,255,.22),rgba(4,18,26,.55) 70%);
+                                               border:1px solid rgba(94,224,255,.45);
+                                               box-shadow:0 0 40px rgba(59,215,255,.18), inset 0 0 24px rgba(59,215,255,.12); }
+    .presenter-overlay .lesson-stage-content { position:absolute; left:0; right:0; bottom:0; z-index:2;
+                                               height:auto; max-height:42%; overflow:auto;
+                                               padding:14px 30px 22px;
+                                               background:linear-gradient(transparent,rgba(4,20,29,.82) 18%,rgba(4,20,29,.96));
+                                               backdrop-filter:blur(8px); border:0; }
+    .presenter-overlay .storyboard-concept { display:none; }
+    .presenter-overlay .picture-stage { display:none; }
+    .presenter-overlay .teach-stage .body { font-size:clamp(16px,1.5vw,23px); max-width:72rem; }
     .presenter-overlay .avatar-label { left:50%; right:auto; transform:translateX(-50%);
-                                       bottom:16px; white-space:nowrap; }
+                                       bottom:12px; white-space:nowrap; }
+    .presenter-overlay.has-storyboard .theodore-avatar-wrap { left:2.4%; bottom:calc(42% + 12px);
+                                                             height:min(48vh,440px); }
+    .presenter-overlay:not(.has-storyboard) .theodore-avatar-wrap { left:0; bottom:0; width:38%; height:100%; border-radius:0; }
+    .presenter-overlay:not(.has-storyboard) .lesson-stage-content { left:38%; right:0; bottom:0; top:0;
+                                                                      max-height:none; background:rgba(4,20,29,.72); }
     .presenter-exit { position:absolute; top:14px; right:16px; z-index:3; }
     body.presenting { overflow:hidden; }
     @media (max-width:760px) {
-      .presenter-overlay .teacher-stage-grid { grid-template-columns:1fr; grid-template-rows:46% 1fr; }
-      .presenter-overlay .lesson-stage-content { border-left:0; border-top:1px solid rgba(94,224,255,.26); }
+      .presenter-overlay .theodore-avatar-wrap { width:min(44vw,260px); height:min(42vh,340px);
+                                                   left:3%; bottom:44%; }
+      .presenter-overlay.has-storyboard .theodore-avatar-wrap { bottom:calc(46% + 8px); height:min(36vh,300px); }
+      .presenter-overlay .lesson-stage-content { max-height:46%; padding:10px 16px 18px; }
     }
     .kids-builder { background:linear-gradient(135deg,#fff7ed,#fef3c7); color:#172554;
                     border:3px solid #f59e0b; border-radius:16px; padding:14px; margin-bottom:16px; }
@@ -760,13 +784,44 @@ STUDIO_JS = """
       const motion = media.find((m) => m.kind === 'video');
       const pictureEl = $('teach-picture');
       const motionEl = $('teach-motion');
-      pictureEl.hidden = !picture;
-      pictureEl.src = picture ? picture.url : '';
-      pictureEl.alt = picture ? (picture.caption || picture.title || '') : '';
-      motionEl.hidden = true;
-      motionEl.src = motion ? motion.url : '';
-      motionEl.alt = motion ? (motion.caption || motion.title || '') : '';
-      $('btn-video').disabled = !motion;
+      const storyboardEl = $('teach-storyboard');
+      const storyConceptEl = $('teach-storyboard-concept');
+      const sbSvg = payload.storyboard_svg || '';
+      const hasStoryboard = Boolean(sbSvg.trim());
+      stage.classList.toggle('has-storyboard', hasStoryboard);
+      $('presenter-overlay').classList.toggle('has-storyboard', hasStoryboard);
+      $('teacher-stage-grid').classList.toggle('has-storyboard', hasStoryboard);
+      if (hasStoryboard) {
+        storyboardEl.hidden = false;
+        storyboardEl.innerHTML = sbSvg;
+        storyboardEl.setAttribute('data-scene', payload.storyboard_scene_id || '');
+        storyboardEl.setAttribute('aria-label',
+          payload.storyboard_concept || turn.title || 'Animated lesson storyboard');
+        const concept = payload.storyboard_concept || '';
+        if (concept) {
+          storyConceptEl.textContent = concept;
+          storyConceptEl.hidden = false;
+        } else {
+          storyConceptEl.textContent = '';
+          storyConceptEl.hidden = true;
+        }
+        pictureEl.hidden = true;
+        motionEl.hidden = true;
+        pictureEl.src = '';
+        motionEl.src = '';
+      } else {
+        storyboardEl.hidden = true;
+        storyboardEl.innerHTML = '';
+        storyConceptEl.hidden = true;
+        storyConceptEl.textContent = '';
+        pictureEl.hidden = !picture;
+        pictureEl.src = picture ? picture.url : '';
+        pictureEl.alt = picture ? (picture.caption || picture.title || '') : '';
+        motionEl.hidden = true;
+        motionEl.src = motion ? motion.url : '';
+        motionEl.alt = motion ? (motion.caption || motion.title || '') : '';
+      }
+      $('btn-video').disabled = !motion || hasStoryboard;
       // The toggle flips the label — reset it or a watched clip leaves the
       // button reading "Show picture" while the picture is already showing.
       $('btn-video').textContent = 'Watch video';
@@ -789,7 +844,7 @@ STUDIO_JS = """
         modBox.style.display = 'flex';
         modBox.innerHTML = mods.map((m) => {
           const ready =
-            (m === 'image' && kit.has_picture) ||
+            (m === 'image' && (kit.has_picture || kit.has_storyboard)) ||
             (m === 'video' && kit.has_video) ||
             (m === 'examples' && kit.has_examples) ||
             (m === 'quiz' && kit.has_quiz) ||
@@ -1016,12 +1071,14 @@ def render_studio_page() -> str:
       <div id="teach-stage-home">
       <div class="teach-stage" id="teach-stage">
         <h3 id="teach-title">—</h3>
-        <div class="teacher-stage-grid">
+        <div class="teacher-stage-grid" id="teacher-stage-grid">
+          <div id="teach-storyboard" class="storyboard-stage" hidden aria-hidden="true"></div>
           <div class="theodore-avatar-wrap" id="theodore-avatar-wrap">
             <div id="theodore-avatar" aria-hidden="true"></div>
             <div class="avatar-label" id="avatar-state" role="status" aria-live="polite">Theodore · loading 3D teacher…</div>
           </div>
           <div class="lesson-stage-content">
+            <div class="storyboard-concept" id="teach-storyboard-concept" hidden></div>
             <div class="picture-stage">
               <img id="teach-picture" hidden alt="" />
               <img id="teach-motion" hidden alt="" />
