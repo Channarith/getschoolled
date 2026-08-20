@@ -140,6 +140,10 @@ class CourseSlide(BaseModel):
     title: str
     body: str
     narration: str = ""
+    # Language the words above are actually in — TTS must follow this, not the
+    # requested course language, which may have no translation for this slide.
+    # Empty means "inherit the course-level spoken_language".
+    spoken_language: str = ""
     picture_url: str = ""
     picture_alt: str = ""
     video_url: str = ""
@@ -199,6 +203,7 @@ class TeachTurn(BaseModel):
     title: str
     display_body: str
     narration: str
+    spoken_language: str = ""
     adaptations_applied: list[str] = Field(default_factory=list)
     profile_snapshot: LearnerProfileScores | None = None
 

@@ -9,6 +9,37 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class CertScaffold:
+    """Connective phrases the kit builders wrap around slide content.
+
+    These are spoken, so they must be in the same language as the slide they
+    wrap — appending the English lead-in to a Khmer narration is what made the
+    audio stop matching the translation.
+    """
+
+    examples_heading: str
+    examples_lead: str
+    practice_nudge: str
+
+
+SCAFFOLD_EN = CertScaffold(
+    examples_heading="Examples:",
+    examples_lead="Here are a few friendly examples.",
+    practice_nudge="When you are ready, try the quiz or a short game to lock it in.",
+)
+
+# language -> scaffolding. Every language in CURATED must appear here.
+SCAFFOLD: dict[str, CertScaffold] = {
+    "en": SCAFFOLD_EN,
+    "km": CertScaffold(
+        examples_heading="ឧទាហរណ៍៖",
+        examples_lead="នេះជាឧទាហរណ៍ខ្លីៗមួយចំនួន។",
+        practice_nudge="ពេលអ្នករួចរាល់ សូមសាកល្បងសំណួរ ឬល្បែងខ្លី ដើម្បីចងចាំ។",
+    ),
+}
+
+
+@dataclass(frozen=True)
 class CertSlideTranslation:
     title: str
     body: str
@@ -1693,21 +1724,29 @@ NEEDS_NATIVE_REVIEW = frozenset({"km"})
 EXPECTED_SLIDE_COUNT = 62
 
 
+def _canonical(language: str) -> str:
+    """Bare language code, so "km-KH" / "km_kh" still find the Khmer overlay."""
+    return (language or "").strip().lower().replace("_", "-").split("-")[0]
+
+
 def translate_cert_slide(slide_key: str, language: str) -> CertSlideTranslation | None:
     """Return curated translation for slide_key, or None if missing."""
-    lang = (language or "").strip().lower().replace("_", "-")
-    if lang.startswith("km"):
-        lang = "km"
-    by_key = CURATED.get(lang)
+    by_key = CURATED.get(_canonical(language))
     if not by_key:
         return None
     return by_key.get(slide_key)
 
 
+def scaffold_for(language: str) -> CertScaffold | None:
+    """Connective phrases for `language`, or None when we have none curated.
+
+    None means "say nothing extra": silence is correct where English would
+    otherwise be spoken in the middle of a translated slide.
+    """
+    return SCAFFOLD.get(_canonical(language))
+
+
 def coverage(language: str) -> tuple[int, int]:
     """(translated_count, expected_62)."""
-    lang = (language or "").strip().lower().replace("_", "-")
-    if lang.startswith("km"):
-        lang = "km"
-    return (len(CURATED.get(lang, {})), EXPECTED_SLIDE_COUNT)
+    return (len(CURATED.get(_canonical(language), {})), EXPECTED_SLIDE_COUNT)
 
