@@ -170,6 +170,18 @@ def test_teach_pause_and_resume_persists(tmp_path):
     assert "Resumed" in resumed["resume_message"]
 
 
+def test_cert_slides_include_animated_storyboards():
+    """Cert lessons with catalog storyboards ship inline SVG for studio/web players."""
+    course = build_cert_course(lesson_id="ca-dmv-sharing")
+    assert course.slides
+    with_storyboard = [s for s in course.slides if s.storyboard_svg]
+    assert with_storyboard, "expected ca-dmv-sharing storyboard scenes"
+    sample = with_storyboard[0]
+    assert "<svg" in sample.storyboard_svg.lower()
+    assert sample.storyboard_concept
+    assert "@keyframes" in sample.storyboard_svg or "animate" in sample.storyboard_svg.lower()
+
+
 def test_teach_payload_includes_synchronized_avatar_script(tmp_path):
     course = build_cert_course(lesson_id="ca-dmv-basics")
     builder = CourseBuilder(data_dir=tmp_path / "data")
@@ -186,3 +198,17 @@ def test_teach_payload_includes_synchronized_avatar_script(tmp_path):
     assert avatar["visemes"]
     assert avatar["duration_s"] > 0
     assert max(c["start_s"] + c["duration_s"] for c in avatar["cues"]) <= avatar["duration_s"] + 0.01
+
+
+def test_teach_payload_includes_storyboard_fields(tmp_path):
+    course = build_cert_course(lesson_id="ca-dmv-sharing")
+    builder = CourseBuilder(data_dir=tmp_path / "data")
+    builder.save_course(course)
+    payload = TeachEngine(builder).start(
+        session_id="storyboard-teach",
+        course_id=course.course_id,
+        use_voice_agent=False,
+    )
+    assert payload.get("storyboard_svg"), "teach payload should expose inline storyboard SVG"
+    assert payload.get("storyboard_concept")
+    assert payload["learning_kit"]["has_storyboard"] is True
