@@ -299,6 +299,7 @@ const SHARED: Record<string, string> = {
   "browse.loading": "Loading…",
   "browse.results": "{total} results",
   "browse.resultOne": "1 result",
+  "browse.loadingResults": "Loading catalog… please wait.",
   "browse.noMatches": "No matches. Try clearing filters or another keyword.",
   "browse.open": "Open",
   "browse.enroll": "Enroll",

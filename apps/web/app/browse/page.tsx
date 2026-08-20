@@ -25,6 +25,7 @@ function BrowseInner() {
   const [facets, setFacets] = useState<Facets | null>(null);
   const [items, setItems] = useState<LearnableItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
   // Seed the search box from the URL (?q=) so global nav search results
@@ -57,9 +58,11 @@ function BrowseInner() {
   useEffect(() => {
     if (!loggedIn) return;
     const controller = new AbortController();
+    setCatalogLoading(true);
     searchLearnable({ ...filters, limit: "80" }, locale, controller.signal)
       .then((r) => { if (controller.signal.aborted) return; setError(""); setItems(r.items); setTotal(r.total); })
-      .catch((e) => { if (controller.signal.aborted) return; setError(String(e)); });
+      .catch((e) => { if (controller.signal.aborted) return; setError(String(e)); })
+      .finally(() => { if (!controller.signal.aborted) setCatalogLoading(false); });
     return () => controller.abort();
   }, [filters, loggedIn, locale]);
 
@@ -157,11 +160,16 @@ function BrowseInner() {
       {msg && <div className="card" style={{ borderColor: "#34d399" }}><div className="muted">{msg}</div></div>}
 
       <p className="muted" style={{ marginBottom: 8 }}>
-        {total === 1 ? t("browse.resultOne") : t("browse.results", { total })}
+        {catalogLoading
+          ? t("browse.loadingResults")
+          : total === 1 ? t("browse.resultOne") : t("browse.results", { total })}
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
-        {items.length === 0 && <div className="muted">{t("browse.noMatches")}</div>}
+        {catalogLoading && (
+          <div className="muted" style={{ gridColumn: "1 / -1" }}>{t("browse.loadingResults")}</div>
+        )}
+        {!catalogLoading && items.length === 0 && <div className="muted">{t("browse.noMatches")}</div>}
         {items.map((c) => (
           <div className="tile browse-tile" key={c.id}>
             <div className="tile-art">
