@@ -309,6 +309,7 @@ def build_early_course(
                 title=text.title,
                 body=text.words,
                 narration=text.say,
+                spoken_language=spoken_language,
                 picture_url=picture_data_url(beat, label=text.title, symbol=symbol),
                 picture_alt=f"Picture for {text.title}",
                 video_url=motion_data_url(beat, label=text.title, symbol=symbol),

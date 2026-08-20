@@ -187,6 +187,7 @@ STUDIO_JS = """
     let teachSession = 'studio-teach-1';
     let pagesCache = [];
     let teachLanguage = 'en';
+    let languageNames = {};
     let serverAudio = null;
     let lastTeachPayload = null;
     let earlyOptions = [];
@@ -471,10 +472,15 @@ STUDIO_JS = """
     async function loadLanguages() {
       const data = await api('/api/studio/languages');
       const sel = $('teach-lang');
+      (data.languages || []).forEach((l) => { languageNames[l.code] = l.name; });
       sel.innerHTML = (data.languages || []).map((l) =>
         `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
       ).join('');
       sel.value = teachLanguage;
+    }
+
+    function languageLabel(code) {
+      return esc(languageNames[code] || code || 'English');
     }
 
     async function refreshVoiceStatus() {
@@ -869,22 +875,20 @@ STUDIO_JS = """
       $('teach-adapt').textContent =
         `${adapt} · lang ${esc(lang)} · focus: ${esc(obj)} · known ${prog.known || 0} / gaps ${prog.gaps || 0}`;
       const warn = $('lang-warning');
-      if (payload.disclaimer) {
-        warn.textContent = 'ℹ ' + payload.disclaimer;
-        warn.style.display = 'block';
-      } else if (payload.translation_source === 'english' && spoken !== lang) {
-        warn.textContent = '⚠ ' + (payload.translation_note ||
-          'Words and audio are English for this lesson.');
-        warn.style.display = 'block';
+      const notices = [];
+      if (payload.disclaimer) notices.push('ℹ ' + payload.disclaimer);
+      if (spoken !== lang) {
+        // Coverage is per-slide, so the voice follows the words rather than
+        // reading English aloud with the requested language's voice.
+        notices.push('⚠ This screen is not translated yet — shown and read aloud in ' +
+          languageLabel(spoken) + '.');
       } else if (payload.translation_source === 'xai') {
-        warn.textContent = 'ℹ Machine-translated by Grok — review before classroom use.';
-        warn.style.display = 'block';
+        notices.push('ℹ Machine-translated by Grok — review before classroom use.');
       } else if (payload.translation_source === 'curated' && payload.translation_note) {
-        warn.textContent = 'ℹ ' + payload.translation_note;
-        warn.style.display = 'block';
-      } else {
-        warn.style.display = 'none';
+        notices.push('ℹ ' + payload.translation_note);
       }
+      warn.textContent = notices.join('  ');
+      warn.style.display = notices.length ? 'block' : 'none';
       const cp = payload.checkpoint || {};
       const box = $('checkpoint-box');
       if (cp.due) {

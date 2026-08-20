@@ -1330,8 +1330,11 @@ def build_cert_course(
             game_prompt = kit.game_prompt
             game_options = list(kit.game_options)
             game_steps = list(kit.game_steps)
-        body = format_body_with_examples(slide_body_base, examples)
-        narration = narration_with_examples(slide_say, examples)
+        # Coverage is per-slide: an uncurated slide keeps its English words even
+        # in a Khmer course, so its scaffolding and its voice must stay English.
+        slide_language = lang if tr is not None else "en"
+        body = format_body_with_examples(slide_body_base, examples, slide_language)
+        narration = narration_with_examples(slide_say, examples, slide_language)
         pic_url, vid_url, sb_svg, sb_concept, sb_scene = _storyboard_media(
             template.lesson_id,
             i,
@@ -1345,6 +1348,7 @@ def build_cert_course(
                 title=slide_title,
                 body=body,
                 narration=narration,
+                spoken_language=slide_language,
                 picture_url=pic_url,
                 picture_alt=f"Picture for {slide_title}",
                 video_url=vid_url,
