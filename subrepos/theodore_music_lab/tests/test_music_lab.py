@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -172,6 +174,54 @@ def test_player_page_uses_timeupdate_lyric_sync():
         assert page.status_code == 200
         assert "timeupdate" in page.text
         assert "syncActiveLineFromPlayer" in page.text
+
+
+def test_page_script_has_no_unclosed_helper_from_a_bad_merge():
+    """A merge that drops one function's closing brace nests every later helper
+    inside it, so the whole page script fails to parse and NOTHING loads - no song
+    list, no lyrics, no API calls at all. That is invisible to endpoint tests, so
+    assert the structural tell: a top-level helper must never directly follow a
+    statement from inside another function's body.
+    """
+    decl = re.compile(r"^  (?:async )?function \w+\(")
+    with TestClient(app) as client:
+        page = client.get("/").text
+    script = re.findall(r"<script[^>]*>(.*?)</script>", page, re.S)[0]
+    lines = script.split("\n")
+    offenders = []
+    for idx, line in enumerate(lines):
+        if not decl.match(line):
+            continue
+        prev_idx = idx - 1
+        while prev_idx >= 0 and not lines[prev_idx].strip():
+            prev_idx -= 1
+        if prev_idx < 0:
+            continue
+        prev = lines[prev_idx]
+        body = prev.strip()
+        # Comments and any closing token are legitimate at any indent.
+        if body.startswith(("*", "//")) or body.endswith("*/"):
+            continue
+        if body in ("}", "};", "});", ");"):
+            continue
+        # Deeper than top level means the previous function never closed.
+        if len(prev) - len(prev.lstrip()) >= 4:
+            offenders.append(f"{line.strip()[:60]!r} follows {body[:60]!r}")
+    assert not offenders, "unclosed function body before: " + "; ".join(offenders)
+
+
+def test_player_compensates_for_audio_output_latency():
+    """The ball/word paint reads the AUDIBLE playhead, not the decoded one, so it
+    stops leading the vocal by the device's output-buffer latency."""
+    with TestClient(app) as client:
+        page = client.get("/").text
+        # Latency is measured from Web Audio and subtracted from the playhead the
+        # paint reads (and added back when seeking), via shared helpers.
+        assert "refreshAudioLatency" in page
+        assert "outputLatency" in page
+        assert "- audioLatency" in page
+        assert "function playT()" in page
+        assert "function seekT(" in page
 
 
 def test_language_picker_offers_every_language_grouped_by_quality():
