@@ -86,23 +86,51 @@ Rendering needs network once per clip (Microsoft's voice service). With no engin
 and an empty cache the endpoint answers 501 and the player falls back to the
 device voice, saying so once. MUSIC_LAB_TTS=off forces that fallback.
 
-Karaoke timings for the featured MP3s are measured against the recording itself
-(vocal_align.py). Vocals sit in the centre of the stereo image, so the centre
-estimate "mid - side" in the 300-3500 Hz band tracks where someone is singing;
-each lyric line is then assigned a run of those sung phrases, which keeps the
-instrumental intro, the rests between sections and the outro out of the lyrics.
-Inside each line, word starts snap onto vocal attacks in that envelope (a held
-note keeps the ball on the last word instead of syllable-clock racing ahead)
-and the player waits ~80ms into a word so highlighting lands on the vowel.
-The result is committed to data/alignment.jsonl and read at request time (no
-ffmpeg needed to serve). Regenerate after adding or replacing an MP3:
+Karaoke timings for the featured MP3s are measured against the recording itself.
+Two signals do different jobs:
 
+  asr_align.py   recognises the words (faster-whisper) and matches every lyric
+                 word to the word actually sung, so each word start is a real
+                 onset rather than a share of a clock.
+  vocal_align.py centre-channel loudness ("mid - side" in the 300-3500 Hz band)
+                 marks where singing begins and ends. Recognition is precise in
+                 the middle of a track and sloppy at the edges — it pads the
+                 opening word ahead of the first note and can stop before the
+                 closing phrase — so the envelope owns those boundaries.
+
+Loudness alone is not enough, and this is why: it can see WHERE someone sings
+but never WHAT. Every chorus of travel_words repeats "I know them too" while the
+lyric sheet prints it once, so the loudness aligner had to shift each remaining
+line onto an earlier phrase. The error compounded — by the middle of the track
+the bouncing ball led the vocal by seconds, "Travel words" lit up at 34.5s when
+it is sung at 35.4s. Matching recognised words removes the guesswork: a repeat
+the sheet omits shows up as an unmatched run in the report instead of corrupting
+every later line. The player still waits ~80ms into a word so highlighting lands
+on the vowel rather than the consonant attack.
+
+The result is committed to data/alignment.jsonl and read at request time, so
+serving needs neither ffmpeg nor a speech model. Authoring needs both:
+
+  pip install -e 'subrepos/theodore_music_lab[asr]'   # plus ffmpeg on PATH
   python3 scripts/align_songs.py            # writes data/alignment.jsonl
   python3 scripts/align_songs.py --report   # print the timings, write nothing
+  python3 scripts/align_songs.py --method energy   # loudness only, no model
+
+Transcripts are cached under ~/.cache/theodore-music-lab/asr, keyed by file size
+and model, so re-running is fast. Read the "NOT IN LYRICS" lines it prints: each
+one is a phrase the recording sings that the sheet does not print. The words are
+placed on the FIRST time a line is sung, so the ball rests through an unprinted
+repeat instead of racing past it.
 
 To answer "is this song actually in sync?" without listening to all of it,
 verify_alignment.py re-measures the audio and audits what the app serves — a
-stale alignment.jsonl, a replaced MP3 or a bad scale becomes a number:
+stale alignment.jsonl, a replaced MP3 or a bad scale becomes a number. It
+compares each line against the time its own words are RECOGNISED. The earlier
+check compared against loudness onsets, which the loudness aligner satisfied by
+construction: it reported 0.00s drift on travel_words while the ball led the
+vocal by four seconds, because a phrase onset says nothing about which line is
+being sung there. Without a transcript the tool says so and downgrades to the
+old loudness comparison instead of claiming a pass:
 
   python3 scripts/verify_alignment.py       # exits 1 when a song is off
   python3 scripts/verify_alignment.py --song en-travel-words-audio-v1 --report

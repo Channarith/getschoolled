@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
+from theodore_music_lab import asr_align  # noqa: E402
 from theodore_music_lab.catalog import Catalog  # noqa: E402
 from theodore_music_lab.timing import (  # noqa: E402
     song_timings,
@@ -43,6 +44,35 @@ MAX_SYLLABLES_PER_SEC = 8.0
 
 def nearest_onset(onsets: list[float], value: float) -> float:
     return min(onsets, key=lambda onset: abs(onset - value))
+
+
+def word_onset_gaps(song, rows: list[dict], analysis: dict) -> list[float] | None:
+    """Per-line drift between what we serve and when the line's words are sung.
+
+    None when there is no transcript and no way to make one. Uses the same
+    singing-window bounds align_songs.py does, so a deliberate clamp on the
+    opening word does not read as drift.
+    """
+    audio = AUDIO_DIR / Path(song.audio_file).name
+    if not asr_align.have_words(audio):
+        return None
+    heard = asr_align.cached_words(audio)
+    if not heard:
+        return None
+    duration = float(analysis["duration_sec"])
+    truth = asr_align.align_lines(
+        ((line.line_no, line.text) for line in song.lines),
+        heard,
+        duration_sec=duration,
+        sing_start=float(analysis["lead_in_sec"]),
+        sing_end=duration - float(analysis["tail_sec"]),
+    )
+    by_no = {int(r["line_no"]): float(r["start_sec"]) for r in truth["lines"]}
+    return [
+        abs(float(row["start"]) - by_no[int(row["line_no"])])
+        for row in rows
+        if int(row["line_no"]) in by_no
+    ]
 
 
 def check_song(song, *, report: bool) -> list[str]:
@@ -95,21 +125,34 @@ def check_song(song, *, report: bool) -> list[str]:
             f"(first: line {early[0]})"
         )
 
-    gaps = [abs(float(r["start"]) - nearest_onset(onsets, float(r["start"])))
-            for r in rows]
-    worst = max(range(len(gaps)), key=gaps.__getitem__)
-    print(
-        f"  onset match: median={statistics.median(gaps):.2f}s "
-        f"worst={gaps[worst]:.2f}s (line {rows[worst]['line_no']})"
-    )
-    loose = [rows[i]["line_no"] for i, gap in enumerate(gaps)
-             if gap > ONSET_TOLERANCE_SEC]
-    if loose:
-        failures.append(
-            f"{song.song_id}: {len(loose)} line(s) do not start on a measured "
-            f"phrase onset (worst line {rows[worst]['line_no']}, "
-            f"{gaps[worst]:.2f}s off)"
+    # Audit against the words that were RECOGNISED, not against loudness. The
+    # old check asked "does this line start on a measured phrase onset?", which
+    # the loudness aligner passed by construction — it reported 0.00s drift
+    # while the ball led the vocal by four seconds, because a phrase onset says
+    # nothing about WHICH line is being sung there.
+    gaps = word_onset_gaps(song, rows, analysis)
+    if gaps is None:
+        loud = [abs(float(r["start"]) - nearest_onset(onsets, float(r["start"])))
+                for r in rows]
+        print(
+            f"  NOTE no transcript available; falling back to phrase onsets "
+            f"(median={statistics.median(loud):.2f}s). Install the asr extra for "
+            f"a real check."
         )
+    else:
+        worst = max(range(len(gaps)), key=gaps.__getitem__)
+        print(
+            f"  word onset match: median={statistics.median(gaps):.2f}s "
+            f"worst={gaps[worst]:.2f}s (line {rows[worst]['line_no']})"
+        )
+        loose = [rows[i]["line_no"] for i, gap in enumerate(gaps)
+                 if gap > ONSET_TOLERANCE_SEC]
+        if loose:
+            failures.append(
+                f"{song.song_id}: {len(loose)} line(s) do not start when their "
+                f"words are sung (worst line {rows[worst]['line_no']}, "
+                f"{gaps[worst]:.2f}s off)"
+            )
 
     by_no = {line.line_no: line for line in song.lines}
     rushed: list[tuple[int, float]] = []
@@ -129,9 +172,13 @@ def check_song(song, *, report: bool) -> list[str]:
         )
 
     if report:
-        for row in rows:
+        for index, row in enumerate(rows):
             line = by_no.get(row["line_no"])
-            gap = abs(float(row["start"]) - nearest_onset(onsets, float(row["start"])))
+            gap = (
+                gaps[index]
+                if gaps is not None and index < len(gaps)
+                else abs(float(row["start"]) - nearest_onset(onsets, float(row["start"])))
+            )
             print(
                 f"    {row['line_no']:>3} {float(row['start']):>7.2f} "
                 f"{float(row['end']):>7.2f}  {gap:>5.2f}s  "
