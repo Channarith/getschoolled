@@ -54,7 +54,13 @@ from theodore_music_lab.storyboard import (
     scene_at,
     storyboard_for,
 )
-from theodore_music_lab.timing import alignment_for, song_timings, syllable_count
+from theodore_music_lab.timing import (
+    alignment_for,
+    song_timings,
+    syllable_count,
+    word_timings,
+)
+from theodore_music_lab.vocal_align import energy_word_bounds
 from theodore_music_lab.tts import (
     ENGINE,
     VOICES,
@@ -534,9 +540,30 @@ def test_word_timings_cover_every_word_in_order():
             assert word["start"] < word["end"] or word["end"] == word["start"]
             if index:
                 assert word["start"] >= words[index - 1]["start"]
-        assert words[0]["start"] == pytest.approx(row["start"], abs=0.01)
+        assert words[0]["start"] >= row["start"] - 0.001
+        assert words[0]["start"] <= row["start"] + 0.09
         assert words[-1]["end"] == pytest.approx(row["end"], abs=0.01)
     assert timings["lines"][-1]["end"] <= 90.0 + 0.01
+
+
+def test_energy_word_bounds_give_the_held_word_more_time():
+    """A short attack then a long sustain: the last word owns the hold."""
+    # 1.0s window at 0.02s frames: quiet 0.3s, then a step into a loud sustain.
+    envelope = [0.1] * 15 + [1.0] * 35
+    bounds = energy_word_bounds(envelope, 0.0, 1.0, [1.0, 1.0], frame_sec=0.02)
+    assert len(bounds) == 2
+    first = bounds[0][1] - bounds[0][0]
+    last = bounds[1][1] - bounds[1][0]
+    assert last > first
+    assert bounds[0][0] == pytest.approx(0.0, abs=0.02)
+    assert bounds[1][1] == pytest.approx(1.0, abs=0.02)
+
+
+def test_word_timings_wait_for_the_vowel():
+    words = word_timings("I go", 0.0, 1.0)
+    assert words[0]["start"] > 0.0
+    assert words[0]["start"] <= 0.08
+    assert words[-1]["end"] == pytest.approx(1.0)
 
 
 def test_every_featured_song_is_aligned_to_its_own_vocals():
@@ -545,9 +572,12 @@ def test_every_featured_song_is_aligned_to_its_own_vocals():
         record = alignment_for(song.song_id)
         assert record, f"{song.song_id} has no entry in data/alignment.jsonl"
         assert record["duration_sec"] > 0
+        assert record.get("word_source") == "vocal-onset-cuts"
         assert [row["line_no"] for row in record["lines"]] == [
             line.line_no for line in song.lines
         ]
+        for row, line in zip(record["lines"], song.lines):
+            assert len(row.get("words") or []) == len(line.text.split())
 
 
 def test_lyrics_wait_for_the_intro_and_stop_before_the_outro():

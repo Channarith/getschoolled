@@ -91,6 +91,9 @@ Karaoke timings for the featured MP3s are measured against the recording itself
 estimate "mid - side" in the 300-3500 Hz band tracks where someone is singing;
 each lyric line is then assigned a run of those sung phrases, which keeps the
 instrumental intro, the rests between sections and the outro out of the lyrics.
+Inside each line, word starts snap onto vocal attacks in that envelope (a held
+note keeps the ball on the last word instead of syllable-clock racing ahead)
+and the player waits ~80ms into a word so highlighting lands on the vowel.
 The result is committed to data/alignment.jsonl and read at request time (no
 ffmpeg needed to serve). Regenerate after adding or replacing an MP3:
 
@@ -149,8 +152,9 @@ Sing-along (sing.py)
             installed the toggle refuses and says so rather than failing silently
 
 YouTube embeds (embeds.py + data/embeds.jsonl)
-  player    privacy-friendly youtube-nocookie iframe with the IFrame API so the
-            page can pause, seek and poll the playhead
+  player    www.youtube.com iframe (not youtube-nocookie — that anonymous host
+            is the traffic class YouTube's bot/sign-in gate challenges) with the
+            IFrame API so the page can pause, seek and poll the playhead
   verses    each lesson has timed start/pause points with English teaching text,
             focus (grammar/vocabulary/comprehension), key terms and 2 prepared
             questions per verse

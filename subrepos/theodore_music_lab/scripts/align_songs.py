@@ -22,10 +22,11 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from theodore_music_lab.catalog import Catalog  # noqa: E402
-from theodore_music_lab.timing import line_weight  # noqa: E402
+from theodore_music_lab.timing import line_weight, syllable_count  # noqa: E402
 from theodore_music_lab.vocal_align import (  # noqa: E402
     FFmpegMissing,
     align_song_lines,
+    energy_word_bounds,
     have_ffmpeg,
 )
 
@@ -44,6 +45,34 @@ def align_song(song) -> dict[str, object] | None:
         print(f"  skip {song.song_id}: no vocal spans detected")
         return None
     spans = analysis["spans"]
+    envelope = analysis.get("envelope") or []
+    frame_sec = float(analysis.get("frame_sec") or 0.02)
+    lines_out: list[dict[str, object]] = []
+    for line, (start, end) in zip(song.lines, placed):
+        words = [w for w in line.text.split() if w]
+        weights = [float(syllable_count(w)) for w in words]
+        bounds = energy_word_bounds(
+            envelope, start, end, weights, frame_sec=frame_sec
+        )
+        if len(bounds) != len(words):
+            bounds = [(start, end)] * len(words) if words else []
+            if bounds:
+                bounds[-1] = (start, end)
+        lines_out.append(
+            {
+                "line_no": line.line_no,
+                "start_sec": start,
+                "end_sec": end,
+                "words": [
+                    {
+                        "text": word,
+                        "start_sec": w_start,
+                        "end_sec": w_end,
+                    }
+                    for word, (w_start, w_end) in zip(words, bounds)
+                ],
+            }
+        )
     return {
         "song_id": song.song_id,
         "audio_file": Path(song.audio_file).name,
@@ -56,10 +85,8 @@ def align_song(song) -> dict[str, object] | None:
         "source": "vocal-centre-channel-alignment",
         "method": analysis["method"],
         "vocal_span_count": len(spans),
-        "lines": [
-            {"line_no": line.line_no, "start_sec": start, "end_sec": end}
-            for line, (start, end) in zip(song.lines, placed)
-        ],
+        "word_source": "vocal-onset-cuts",
+        "lines": lines_out,
     }
 
 

@@ -26,6 +26,10 @@ from .catalog import Song, SongLine
 _LINE_PAUSE_WEIGHT = 0.6
 _SECTION_PAUSE_WEIGHT = 1.4
 _MIN_WORD_SEC = 0.12
+# Karaoke lights the vowel, not the consonant attack. A short holdback on each
+# word start keeps the ball from looking early when the singer is still on the
+# previous syllable. Capped so a 0.12s word does not vanish.
+_WORD_ONSET_LAG_SEC = 0.08
 
 _VOWEL_GROUPS = re.compile(r"[aeiouy]+")
 _WORD_CHARS = re.compile(r"[^a-z']+")
@@ -126,7 +130,50 @@ def word_timings(text: str, start: float, end: float) -> list[dict[str, Any]]:
         cursor = w_end
     if out and span > 0:
         out[-1]["end"] = round(end, 3)
-    return out
+    return _apply_onset_lag(out)
+
+
+def _apply_onset_lag(words: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Nudge each word's start later so highlighting waits for the vowel."""
+    for word in words:
+        span = max(0.0, float(word["end"]) - float(word["start"]))
+        if span <= 0:
+            continue
+        lag = min(_WORD_ONSET_LAG_SEC, span * 0.25)
+        start = round(float(word["start"]) + lag, 3)
+        if start >= float(word["end"]):
+            start = round(float(word["end"]) - min(0.04, span), 3)
+        word["start"] = start
+    return words
+
+
+def _words_from_alignment(
+    text: str, start: float, end: float, measured: dict[str, Any], scale: float
+) -> list[dict[str, Any]]:
+    """Prefer per-word energy cuts written by align_songs.py when they match."""
+    raw = measured.get("words")
+    tokens = _words(text)
+    if not isinstance(raw, list) or len(raw) != len(tokens):
+        return word_timings(text, start, end)
+    out: list[dict[str, Any]] = []
+    for index, (token, row) in enumerate(zip(tokens, raw)):
+        w_start = float(row.get("start_sec", start)) * scale
+        w_end = float(row.get("end_sec", end)) * scale
+        w_start = max(start, min(end, w_start))
+        w_end = max(w_start, min(end, w_end))
+        out.append(
+            {
+                "index": index,
+                "text": token,
+                "syllables": syllable_count(token),
+                "start": round(w_start, 3),
+                "end": round(w_end, 3),
+            }
+        )
+    if out:
+        out[0]["start"] = round(start, 3)
+        out[-1]["end"] = round(end, 3)
+    return _apply_onset_lag(out)
 
 
 def _aligned_timings(
@@ -168,7 +215,9 @@ def _aligned_timings(
                 "section": line.section,
                 "start": round(start, 3),
                 "end": round(end, 3),
-                "words": word_timings(line.text, start, end),
+                "words": _words_from_alignment(
+                    line.text, start, end, measured, scale
+                ),
             }
         )
     duration = played or (rows[-1]["end"] if rows else 0.0)

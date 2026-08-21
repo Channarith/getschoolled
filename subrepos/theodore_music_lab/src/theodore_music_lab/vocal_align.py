@@ -349,7 +349,85 @@ def analyze_audio(path: str, *, line_count: int = 0) -> dict[str, object]:
         "lead_in_sec": round(spans[0].start, 3) if spans else 0.0,
         "tail_sec": round(max(0.0, duration - spans[-1].end), 3) if spans else 0.0,
         "spans": spans,
+        "envelope": envelope,
+        "frame_sec": FRAME_SEC,
     }
+
+
+def energy_word_bounds(
+    envelope: Sequence[float],
+    start: float,
+    end: float,
+    weights: Sequence[float],
+    *,
+    frame_sec: float = FRAME_SEC,
+    min_word_sec: float = 0.12,
+) -> list[tuple[float, float]]:
+    """Split a line at vocal onsets so the held last word keeps the ball.
+
+    Equal clock-share (syllable time) races through the opening words of a
+    held line. Cumulative-energy cuts do the opposite of what karaoke needs:
+    a loud sustain is most of the energy, so the first word eats into the
+    hold to collect its energy share. Word starts instead snap onto the
+    strongest envelope attacks in the window; leftover time (the sustain)
+    stays on the last word.
+    """
+    n = len(weights)
+    if n == 0:
+        return []
+    span = max(0.0, end - start)
+    if n == 1 or span <= 0:
+        return [(round(start, 3), round(max(start, end), 3))]
+
+    def _by_weight() -> list[tuple[float, float]]:
+        held = list(weights)
+        if len(held) >= 2:
+            held[-1] = float(held[-1]) * 1.45
+        total_w = float(sum(held)) or float(n)
+        cursor = start
+        out: list[tuple[float, float]] = []
+        for index, weight in enumerate(held):
+            share = span * (float(weight) / total_w)
+            w_end = end if index == n - 1 else min(end, cursor + max(min_word_sec, share))
+            out.append((round(cursor, 3), round(max(cursor, w_end), 3)))
+            cursor = w_end
+        if out:
+            out[-1] = (out[-1][0], round(end, 3))
+        return out
+
+    if not envelope:
+        return _by_weight()
+    i0 = max(0, int(start / frame_sec))
+    i1 = min(len(envelope), max(i0 + 1, int(math.ceil(end / frame_sec))))
+    chunk = [max(0.0, float(v)) for v in envelope[i0:i1]]
+    if len(chunk) < 3 or sum(chunk) <= 1e-9:
+        return _by_weight()
+
+    onsets: list[tuple[float, float]] = []
+    for fi in range(1, len(chunk)):
+        rise = chunk[fi] - chunk[fi - 1]
+        if rise <= 0:
+            continue
+        t = (i0 + fi) * frame_sec
+        if start + min_word_sec <= t <= end - min_word_sec:
+            onsets.append((rise, t))
+    onsets.sort(reverse=True)
+    cuts: list[float] = []
+    for _rise, t in onsets:
+        if any(abs(t - c) < min_word_sec for c in cuts):
+            continue
+        cuts.append(t)
+        if len(cuts) == n - 1:
+            break
+    if len(cuts) < n - 1:
+        # Not enough attacks (one held note): fall back to last-word hold.
+        return _by_weight()
+    cuts.sort()
+    bounds = [start] + cuts + [end]
+    return [
+        (round(bounds[i], 3), round(max(bounds[i], bounds[i + 1]), 3))
+        for i in range(n)
+    ]
 
 
 def align_song_lines(
