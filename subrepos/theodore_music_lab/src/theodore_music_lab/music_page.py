@@ -742,6 +742,9 @@ _JS = r"""
   // Bumped on every selectEmbed so stale onReady/onError/timeouts cannot
   // destroy or overwrite a newer lesson (YouTube ↔ local race).
   let embedGen = 0;
+  // Same guard for the featured-song picker: clicking a second song must not let
+  // the first song's in-flight fetch finish and clobber the newer selection.
+  let songGen = 0;
 
   function idleMediaAdapter() {
     return {
@@ -1907,6 +1910,8 @@ _JS = r"""
       btn.onclick = () => { btn.closest(".q-item").classList.add("open"); btn.remove(); };
     });
     $("embed-ask-answer-ov").textContent = "Ask about this verse, or reveal a prepared answer above.";
+  }
+
   function activeVerse() {
     if (!currentEmbed) return null;
     return (currentEmbed.verses || []).find((v) => v.verse_no === activeVerseNo) || null;
@@ -1957,7 +1962,8 @@ _JS = r"""
     if (verse.text_en && verse.source_lang === "km" && verse.translation !== verse.text_en) {
       bits.push(verse.text_en);
     }
-    $("pause-tr").textContent = bits.filter(Boolean).join(" · ");
+    const trText = bits.filter(Boolean).join(" · ");
+    $("pause-tr").textContent = trText;
     $("pause-voice").textContent = verse.speak_lang === currentEmbed.language
       ? `Spoken in ${currentEmbed.language_name} (${verse.voice_tag})`
       : `No ${currentEmbed.language_name} translation for this line yet — spoken in English`;
@@ -2594,15 +2600,8 @@ _JS = r"""
       ducked = false;
       player.volume = duckedFrom;
     };
-    speakNeural(scene.narration, scene.narration_language || 'en', 0.98).then(() => {
-      if (neuralAudio) {
-        neuralAudio.onended = restore;
-        neuralAudio.onerror = restore;
-      } else {
-        // device utter has no promise handle; restore after a short duck window
-        setTimeout(restore, Math.min(12000, 800 + scene.narration.length * 60));
-      }
-    }).catch(restore);
+    // speak() already prefers the neural /api/music/tts voice and falls back to
+    // the device voice, restoring the ducked soundtrack through onend either way.
     speak(scene.narration, {
       lang: code,
       tag: code === "en" ? "en-US" : code,
@@ -2892,6 +2891,7 @@ _JS = r"""
   }
 
   async function selectSong(songId) {
+    const gen = ++songGen;
     const player = $("player");
     player.pause();
     cancelAnimationFrame(rafId);
