@@ -60,6 +60,7 @@ from theodore_music_lab.timing import (
     syllable_count,
     word_timings,
 )
+from theodore_music_lab.asr_align import ASRWord, align_lines
 from theodore_music_lab.vocal_align import energy_word_bounds
 from theodore_music_lab.tts import (
     ENGINE,
@@ -566,13 +567,122 @@ def test_word_timings_wait_for_the_vowel():
     assert words[-1]["end"] == pytest.approx(1.0)
 
 
+def _heard(*rows: tuple[str, float, float]) -> list[ASRWord]:
+    return [ASRWord(text=t, start=s, end=e) for t, s, e in rows]
+
+
+def test_asr_alignment_pins_each_lyric_word_to_the_word_that_was_sung():
+    result = align_lines(
+        [(1, "I go to work")],
+        _heard(("I", 2.5, 3.26), ("go", 3.26, 3.5), ("to", 3.5, 3.7), ("work", 3.7, 4.0)),
+        duration_sec=10.0,
+    )
+    line = result["lines"][0]
+    assert line["start_sec"] == pytest.approx(2.5)
+    assert line["end_sec"] == pytest.approx(4.0)
+    assert [w["start_sec"] for w in line["words"]] == pytest.approx([2.5, 3.26, 3.5, 3.7])
+    assert result["match_ratio"] == 1.0
+
+
+def test_asr_alignment_reports_a_repeat_the_lyric_sheet_omits():
+    """The travel_words bug: the recording sings the last chorus line twice.
+
+    Energy alignment had to shift every later line onto an earlier phrase, which
+    is why the ball ran seconds ahead. The words must land on the FIRST time the
+    line is sung, and the unclaimed repeat must be reported, not swallowed.
+    """
+    heard = _heard(
+        ("Travel", 35.44, 36.0),
+        ("words", 36.0, 36.72),
+        ("I", 37.62, 37.96),
+        ("know", 37.96, 38.3),
+        ("them", 38.3, 38.62),
+        ("too", 38.62, 39.08),
+        ("I", 39.54, 39.8),
+        ("know", 39.8, 40.06),
+        ("them", 40.06, 40.4),
+        ("too", 40.4, 40.9),
+    )
+    result = align_lines(
+        [(19, "Travel words"), (20, "I know them too")], heard, duration_sec=114.68
+    )
+    travel, know = result["lines"]
+    assert travel["start_sec"] == pytest.approx(35.44)
+    assert know["start_sec"] == pytest.approx(37.62)
+    assert know["end_sec"] < 39.5, "landed on the repeat instead of the first pass"
+    assert [run["text"] for run in result["unmatched_heard"]] == ["I know them too"]
+
+
+def test_asr_alignment_keeps_a_misheard_word():
+    """"Bank" comes back as "thank"; a rejected match would drift the line."""
+    result = align_lines(
+        [(45, "Bank, bank, bank")],
+        _heard(("Thank,", 94.98, 95.68), ("thank,", 96.0, 96.14), ("thank,", 96.44, 96.56)),
+        duration_sec=114.68,
+    )
+    assert result["match_ratio"] == 1.0
+    assert result["lines"][0]["start_sec"] == pytest.approx(94.98)
+
+
+def test_asr_alignment_rejoins_a_word_the_decoder_split():
+    """"Supermarket" arrives as "super" + "market" — one lyric word covers both."""
+    result = align_lines(
+        [(14, "Supermarket")],
+        _heard(("super", 26.58, 26.78), ("market", 26.78, 27.92)),
+        duration_sec=114.68,
+    )
+    line = result["lines"][0]
+    assert line["start_sec"] == pytest.approx(26.58)
+    assert line["end_sec"] == pytest.approx(27.92)
+    assert result["unmatched_heard"] == []
+
+
+def test_asr_alignment_does_not_let_a_word_latch_onto_a_neighbouring_repeat():
+    """"I need a ticket" must not borrow the "I" from the repeat before it."""
+    heard = _heard(
+        ("I", 39.54, 39.8),
+        ("know", 39.8, 40.06),
+        ("them", 40.06, 40.4),
+        ("too", 40.4, 40.9),
+        ("I", 41.64, 42.12),
+        ("need", 42.12, 42.34),
+        ("a", 42.34, 42.56),
+        ("ticket", 42.56, 42.9),
+    )
+    result = align_lines([(21, "I need a ticket")], heard, duration_sec=114.68)
+    line = result["lines"][0]
+    assert line["start_sec"] == pytest.approx(41.64)
+    assert line["words"][0]["start_sec"] == pytest.approx(41.64)
+
+
+def test_travel_words_chorus_starts_where_the_chorus_is_sung():
+    """Regression for the ball racing ahead: the reported 0:35 chorus.
+
+    The energy aligner put "Travel words" at 34.52 and the next line at 35.56,
+    so by 0:35 the ball had already moved on while the singer was still on
+    "Travel words". Recognised word times put it at 35.44.
+    """
+    song = next(s for s in Catalog().featured() if "travel" in s.song_id)
+    timings = song_timings(song)
+    rows = {row["line_no"]: row for row in timings["lines"]}
+    travel = rows[19]
+    assert travel["text"] == "Travel words"
+    assert travel["start"] > 35.0, "chorus line starts before it is sung"
+    assert travel["end"] > 36.0
+    # The next line must not begin while "Travel words" is still being sung.
+    assert rows[20]["start"] >= travel["end"]
+
+
 def test_every_featured_song_is_aligned_to_its_own_vocals():
     """A featured MP3 without measured alignment drifts, so guard the data file."""
     for song in Catalog().featured():
         record = alignment_for(song.song_id)
         assert record, f"{song.song_id} has no entry in data/alignment.jsonl"
         assert record["duration_sec"] > 0
-        assert record.get("word_source") == "vocal-onset-cuts"
+        # Loudness alone cannot tell which line is being sung; the committed
+        # data must come from the recogniser.
+        assert record.get("word_source") == "asr-word-timestamps"
+        assert float(record.get("match_ratio") or 0.0) >= 0.9
         assert [row["line_no"] for row in record["lines"]] == [
             line.line_no for line in song.lines
         ]

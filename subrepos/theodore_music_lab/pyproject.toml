@@ -20,6 +20,10 @@ test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
 # 6.1.12 and earlier get 403 from Microsoft's speech WebSocket (missing
 # Sec-MS-GEC). 7.2.8 is the current release that still works.
 voices = ["edge-tts==7.2.8"]
+# Word-level speech recognition for scripts/align_songs.py. Offline authoring
+# only: the committed data/alignment.jsonl is what the running app reads, so
+# nobody needs this to serve or test the lab.
+asr = ["faster-whisper==1.0.3"]
 
 [project.scripts]
 theodore-music-lab = "theodore_music_lab.main:main"
