@@ -8,7 +8,7 @@ driver education.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterator, List, Sequence, Tuple
+from typing import Iterator, Tuple
 
 from .types import Cast, ObjectCallout, Scene, SegmentStoryboard
 

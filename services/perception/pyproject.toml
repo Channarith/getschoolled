@@ -14,8 +14,8 @@ dependencies = [
   "python-multipart==0.0.32",
   # Self-hosted face recognition (CPU): YuNet detection + SFace embeddings.
   "opencv-contrib-python-headless==4.10.0.84",
-  "onnxruntime==1.18.1",
-  "numpy==1.26.4",
+  "onnxruntime==1.27.0",
+  "numpy==2.2.6",
 ]
 
 [project.optional-dependencies]

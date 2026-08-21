@@ -17,7 +17,7 @@ dependencies = [
 # no model download) + numpy. Same pinned stack as aoep-shared[vision].
 vision = [
     "opencv-contrib-python-headless==4.10.0.84",
-    "numpy==1.26.4",
+    "numpy==2.2.6",
 ]
 # Realtime websocket transport for the xAI voice agent (server-side).
 voice = [
@@ -26,7 +26,7 @@ voice = [
 test = [
     "pytest==8.2.2",
     "opencv-contrib-python-headless==4.10.0.84",
-    "numpy==1.26.4",
+    "numpy==2.2.6",
 ]
 
 # Private: never uploaded to an index. Marked so an accidental `twine upload`

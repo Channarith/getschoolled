@@ -44,8 +44,20 @@ from .profile_adapt import adapt_slide
 from .quality_telemetry import StudioTelemetryStore, get_telemetry
 from .studio_languages import normalize_language
 from .tts_client import normalize_voice_gender, tts_client_hints
-from .types import LearnerProfileScores, StudioCourse, TeachTurn
-from .voice_agent import CourseStudioVoiceAgent, get_voice_agent
+from .types import CourseSlide, LearnerProfileScores, StudioCourse, TeachTurn
+from .voice_agent import CourseStudioVoiceAgent, VoiceTurn, get_voice_agent
+
+
+def _voice_turn_language(voice: VoiceTurn, slide_language: str) -> str:
+    """Language the agent's words are really in.
+
+    The offline fallback emits an English holding line whatever language was
+    asked for, so trusting its ``language_code`` makes TTS read English aloud in
+    a foreign voice.
+    """
+    if voice.fallback_used:
+        return "en"
+    return voice.language_code or slide_language
 
 
 @dataclass
@@ -390,14 +402,16 @@ class TeachEngine:
             lesson_context=f"{course.title}\n{slide.title}\n{slide.body}",
         )
         self._telemetry.record_voice_turn(tts=True)
+        reply_lang = _voice_turn_language(turn, session.language)
         return {
             "voice": turn.model_dump(mode="json"),
             "voice_gender": session.voice_gender,
             "tts": {
                 **tts_client_hints(
-                    session.language, session.voice_gender, text=turn.message
+                    reply_lang, session.voice_gender, text=turn.message
                 ),
             },
+            "spoken_language": reply_lang,
             "turn": self._turn_payload(course, session),
         }
 
@@ -405,6 +419,7 @@ class TeachEngine:
         course, session = self._require(session_id)
         slide = course.slides[session.path[session.path_pos]]
         adapted = adapt_slide(slide, session.profile)
+        slide_lang = self._spoken_language(course, session, slide)
         if session.use_voice_agent:
             voice = self._voice.present_slide(
                 session_id=session_id,
@@ -413,38 +428,48 @@ class TeachEngine:
                 language_code=session.language,
                 course_title=course.title,
             )
+            speak_lang = _voice_turn_language(voice, slide_lang)
         else:
-            from .voice_agent import VoiceTurn
-
+            # Reading the slide verbatim, so the words are in the slide's language.
             voice = VoiceTurn(
                 provider="slide-narration",
                 message=adapted.narration,
-                language_code=session.language,
+                language_code=slide_lang,
                 fallback_used=True,
             )
+            speak_lang = slide_lang
         self._telemetry.record_voice_turn(tts=True)
         return {
             "voice": voice.model_dump(mode="json"),
             "voice_gender": session.voice_gender,
             "tts": {
                 **tts_client_hints(
-                    session.language, session.voice_gender, text=voice.message
+                    speak_lang, session.voice_gender, text=voice.message
                 ),
             },
             "slide_index": session.path[session.path_pos],
             "language": session.language,
+            "spoken_language": speak_lang,
             "avatar": avatar_script_for_slide(
                 slide, narration=voice.message
             ).model_dump(mode="json"),
         }
 
     @staticmethod
-    def _spoken_language(course: StudioCourse, session: TeachSession) -> str:
+    def _spoken_language(
+        course: StudioCourse,
+        session: TeachSession,
+        slide: CourseSlide | None = None,
+    ) -> str:
         """Language the slide WORDS are in — TTS must match the text, not the request.
 
         When a translation is unavailable the words stay English, so speaking
-        them with the requested voice would mispronounce every word.
+        them with the requested voice would mispronounce every word. Coverage is
+        per-slide: a course can be curated for a third of its slides, so the
+        slide's own language wins over the course-level summary.
         """
+        if slide is not None and slide.spoken_language:
+            return slide.spoken_language
         spoken = course.profile_adaptations.get("spoken_language")
         return spoken or session.language
 
@@ -501,6 +526,7 @@ class TeachEngine:
         )
         voice_meta = None
         spoken = turn.narration
+        speak_lang = self._spoken_language(course, session, slide)
         # Early-learning narration is carefully written to a tiny vocabulary and
         # must not be paraphrased into harder language. xAI remains available for
         # the learner's explicit "Ask Theodore" questions.
@@ -514,8 +540,8 @@ class TeachEngine:
                 course_title=course.title,
             )
             spoken = voice.message
+            speak_lang = _voice_turn_language(voice, speak_lang)
             voice_meta = voice.model_dump(mode="json")
-        speak_lang = self._spoken_language(course, session)
         if course.audience != "general":
             voice_meta = {
                 "provider": (
@@ -569,6 +595,9 @@ class TeachEngine:
             "jurisdiction": course.profile_adaptations.get("jurisdiction", ""),
             "objective": objective.model_dump(mode="json"),
             "media": media,
+            "storyboard_svg": slide.storyboard_svg or "",
+            "storyboard_concept": slide.storyboard_concept or "",
+            "storyboard_scene_id": slide.storyboard_scene_id or "",
             "activity_prompt": slide.activity_prompt,
             "examples": list(slide.examples or []),
             "modalities": list(slide.modalities or []),
@@ -576,6 +605,7 @@ class TeachEngine:
                 "modalities": list(slide.modalities or []),
                 "preferred": preferred_modalities(session.profile.model_dump()),
                 "has_picture": bool(slide.picture_url),
+                "has_storyboard": bool(slide.storyboard_svg),
                 "has_video": bool(slide.video_url),
                 "has_examples": bool(slide.examples),
                 "has_quiz": bool(slide.quiz_spec),

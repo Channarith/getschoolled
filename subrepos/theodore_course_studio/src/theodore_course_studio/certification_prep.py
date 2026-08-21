@@ -29,22 +29,36 @@ from .studio_languages import normalize_language
 from .types import CategoryId, CourseSlide, StudioCourse
 
 
-def _storyboard_media(lesson_id: str, slide_index: int, *, title: str, symbol: str, color: str) -> tuple[str, str]:
+def _storyboard_media(
+    lesson_id: str,
+    slide_index: int,
+    *,
+    title: str,
+    symbol: str,
+    color: str,
+) -> tuple[str, str, str, str, str]:
     """Prefer full cert storyboard scenes; fall back to simple motion cards."""
     try:
         from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
 
         if has_storyboard(lesson_id):
             seg = storyboard_for_slide(lesson_id, slide_index, include_svg=True)
-            if seg and seg.get("svg_data_url"):
-                return seg["svg_data_url"], seg.get("svg_data_url", "")
+            if seg and seg.get("svg"):
+                url = seg.get("svg_data_url") or ""
+                return (
+                    url,
+                    url,
+                    seg["svg"],
+                    seg.get("concept") or seg.get("caption") or title,
+                    seg.get("scene_id") or "",
+                )
     except Exception:
         pass
     still = picture_data_url(title=title, symbol=symbol, color=color)
     motion = motion_data_url(
         title=title, symbol=symbol, color=color, bounce_px=20, bounce_dur_s=2.4
     )
-    return still, motion
+    return still, motion, "", "", ""
 
 # Soft session target for adult cert prep (kids stay on early_learning budgets).
 CERT_SESSION_MIN_MINUTES = 15
@@ -1316,26 +1330,32 @@ def build_cert_course(
             game_prompt = kit.game_prompt
             game_options = list(kit.game_options)
             game_steps = list(kit.game_steps)
-        body = format_body_with_examples(slide_body_base, examples)
-        narration = narration_with_examples(slide_say, examples)
+        # Coverage is per-slide: an uncurated slide keeps its English words even
+        # in a Khmer course, so its scaffolding and its voice must stay English.
+        slide_language = lang if tr is not None else "en"
+        body = format_body_with_examples(slide_body_base, examples, slide_language)
+        narration = narration_with_examples(slide_say, examples, slide_language)
+        pic_url, vid_url, sb_svg, sb_concept, sb_scene = _storyboard_media(
+            template.lesson_id,
+            i,
+            title=slide_title,
+            symbol=beat.symbol,
+            color=beat.color,
+        )
         slide = CourseSlide(
                 index=i,
                 slide_key=key,
                 title=slide_title,
                 body=body,
                 narration=narration,
-                picture_url=picture_data_url(
-                    title=slide_title, symbol=beat.symbol, color=beat.color
-                ),
+                spoken_language=slide_language,
+                picture_url=pic_url,
                 picture_alt=f"Picture for {slide_title}",
-                video_url=motion_data_url(
-                    title=slide_title,
-                    symbol=beat.symbol,
-                    color=beat.color,
-                    bounce_px=20,
-                    bounce_dur_s=2.4,
-                ),
+                video_url=vid_url,
                 video_caption=f"Watch: {slide_title}",
+                storyboard_svg=sb_svg,
+                storyboard_concept=sb_concept,
+                storyboard_scene_id=sb_scene,
                 activity_prompt=slide_activity,
                 examples=examples,
                 modalities=list(CERT_MODALITIES),

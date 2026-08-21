@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import socket
 import threading
 import webbrowser
@@ -370,7 +371,7 @@ class SyncedSlideShow:
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
         self._thread.start()
         url = f"http://127.0.0.1:{self.port}/slide_deck.html"
-        if open_browser and not self._browser_opened:
+        if open_browser and not self._browser_opened and not os.environ.get("HEADLESS"):
             try:
                 webbrowser.open(url)
             except Exception:

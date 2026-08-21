@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from .engagement import GameChallenge, GameKind
 from .assessment import QuizQuestion
+from .cert_i18n import SCAFFOLD_EN, scaffold_for
 from .knowledge import LearningObjective
 from .types import CourseSlide
 
@@ -2587,25 +2588,43 @@ _KITS: dict[str, SegmentKit] = {
 }
 
 
-def format_body_with_examples(rule_text: str, examples: tuple[str, ...]) -> str:
+def format_body_with_examples(
+    rule_text: str,
+    examples: tuple[str, ...],
+    language: str = "en",
+) -> str:
+    """`language` is the language the slide text is actually in, not the request."""
     rule = (rule_text or "").strip()
     if not examples:
         return rule
-    lines = [rule, "", "Examples:"]
+    scaffold = scaffold_for(language) or SCAFFOLD_EN
+    lines = [rule, "", scaffold.examples_heading]
     for i, ex in enumerate(examples, start=1):
         lines.append(f"{i}. {ex}")
     return "\n".join(lines)
 
 
-def narration_with_examples(say: str, examples: tuple[str, ...]) -> str:
+def narration_with_examples(
+    say: str,
+    examples: tuple[str, ...],
+    language: str = "en",
+) -> str:
+    """Spoken line for a slide whose words are in `language`.
+
+    Connective phrases are dropped rather than falling back to English: a
+    translated slide read out with an English tail is worse than a bare one.
+    """
     base = (say or "").strip()
     if not examples:
         return base
-    bits = [base, "Here are a few friendly examples."]
-    for ex in examples[:3]:
-        bits.append(ex)
-    bits.append("When you are ready, try the quiz or a short game to lock it in.")
-    return " ".join(bits)
+    scaffold = scaffold_for(language)
+    bits = [base]
+    if scaffold:
+        bits.append(scaffold.examples_lead)
+    bits.extend(examples[:3])
+    if scaffold:
+        bits.append(scaffold.practice_nudge)
+    return " ".join(bit for bit in bits if bit)
 
 
 def kit_for_title(title: str, body: str = "") -> SegmentKit:

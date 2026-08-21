@@ -232,7 +232,7 @@ def cached_clips() -> int:
     return sum(1 for path in directory.glob("*.mp3") if path.stat().st_size > 0)
 
 
-def status() -> dict[str, object]:
+def tts_status() -> dict[str, object]:
     """What the player probes once at boot to decide server vs device voice."""
     clips = cached_clips()
     engine = engine_available()
@@ -250,3 +250,41 @@ def status() -> dict[str, object]:
         "cache_dir": str(cache_dir()),
         "voices": {code: pair[0] for code, pair in VOICES.items()},
     }
+
+
+# The platform-wide name every other lab exposes (theodore_webcam_lab.tts,
+# theodore_audio_translation_lab.tts, aoep_shared.lab_tts); `status` is kept so
+# older in-lab callers and tests keep working.
+status = tts_status
+
+# Delivery presets for the platform-standard /api/tts, mapped onto the two knobs
+# this lab actually has: which half of the language's (female, male) voice pair
+# to use, and a small speech-rate nudge. Unknown styles fall back to "warm".
+STYLES: dict[str, tuple[str, float]] = {
+    "warm": ("female", 1.0),
+    "standard": ("female", 1.0),
+    "bright": ("female", 1.05),
+    "cheerful": ("female", 1.1),
+    "calm": ("female", 0.95),
+    "soft": ("female", 0.9),
+    "deep": ("male", 0.95),
+    "narrator": ("male", 1.0),
+    "serious": ("male", 0.9),
+}
+
+
+def speak(
+    text: str, *, language: str = "en", style: str = "warm"
+) -> tuple[bytes, str, str]:
+    """`(audio, mime, engine)` for /api/tts — the shape every lab's endpoint uses.
+
+    Raises ValueError for empty text (the endpoint answers 422) and
+    TTSUnavailable when no engine and no cached clip can render it (501, the
+    client's cue to use the device voice).
+    """
+    line = (text or "").strip()
+    if not line:
+        raise ValueError("tts text is empty")
+    gender, rate = STYLES.get((style or "").strip().lower(), STYLES["warm"])
+    audio = synthesize(line, language, rate=rate, gender=gender)
+    return audio, "audio/mpeg", ENGINE if engine_available() else "cache"

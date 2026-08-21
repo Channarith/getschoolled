@@ -197,6 +197,44 @@ export default function AccountPage() {
             )}
           </div>
 
+          <div
+            className="card"
+            style={{
+              border: "2px solid #0ea5e9",
+              background: "linear-gradient(135deg, #0b1020 0%, #0f2744 100%)",
+              color: "#e8ecf6",
+            }}
+          >
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <h3 style={{ margin: "0 0 6px", fontSize: 20 }}>
+                  {t("account.cameraCheckTitle")}
+                </h3>
+                <p style={{ margin: 0, opacity: 0.85, lineHeight: 1.45 }}>
+                  {t("account.cameraCheckDesc")}
+                </p>
+              </div>
+              <Link href="/account/camera-check">
+                <button
+                  type="button"
+                  style={{
+                    padding: "14px 22px",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    background: "#0ea5e9",
+                    color: "#fff",
+                    border: "2px solid #38bdf8",
+                    borderRadius: 12,
+                    boxShadow: "0 4px 14px rgba(14,165,233,0.45)",
+                    cursor: "pointer",
+                  }}
+                >
+                  📷 {t("account.cameraCheckCta")}
+                </button>
+              </Link>
+            </div>
+          </div>
+
           <div className="card">
             <h3>{t("account.settingsTools")}</h3>
             <p className="muted">{t("account.settingsDesc")}</p>
@@ -209,7 +247,6 @@ export default function AccountPage() {
               <Link href="/transparency"><button>{t("account.transparency")}</button></Link>
               <Link href="/legal"><button>{t("account.legal")}</button></Link>
               <Link href="/security"><button>Sign-in security</button></Link>
-              <Link href="/account/camera-check"><button>Camera check</button></Link>
             </div>
           </div>
 
