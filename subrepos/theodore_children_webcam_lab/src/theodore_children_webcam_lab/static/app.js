@@ -1,7 +1,7 @@
 import {
   FIST_MAX_PALMS, HEART_TIPS_PALMS, HEART_THUMBS_PALMS, HEART_WRISTS_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES,
-  handShape, heartRatios, isHeartShape,
+  handShape, heartRatios, isHeartShape, syntheticHand,
 } from "./vision_math.js";
 
 const $ = (id) => document.getElementById(id);
@@ -34,7 +34,20 @@ const MISS_GAGS = {
   hero:[["🐉🤧","Dragon sneeze!"],["🏎️💫","Tiny spin-out!"],["🤖💤","Robot needs a reboot!"],["🥷💨","Ninja vanished!"],["⚔️🛏️","The sword bonked a pillow!"],["🚀🙃","Rocket took a funny turn!"]]
 };
 const OBJECT_GAMES = new Set(["fruit-cut","balloon","fish","popcorn"]);
-const PICTURE_EMOJI = {apple:"🍎",ball:"⚽",cat:"🐱",dragon:"🐉",elephant:"🐘",fish:"🐟",heart:"💖",popcorn:"🍿",rocket:"🚀",star:"⭐",teddy:"🧸"};
+// Keep in lockstep with game_engine.GAME_MENU / /api/child/content. A game in
+// the menu without a matching chooseGame + update* branch is a missing game.
+const GAMES = [
+  "trace-letter","trace-picture","say-letter","oh-behave","heart","idea",
+  "fist-bump","wow","blow-kiss","wink","make-pose","balloon","fish","popcorn",
+  "fruit-cut","air-drums","bird-flap","head-bop","face-chase","stand-sit",
+  "dance-freeze","rainbow-reach",
+];
+const PICTURE_EMOJI = {
+  apple:"🍎",ball:"⚽",cat:"🐱",dragon:"🐉",elephant:"🐘",fish:"🐟",grape:"🍇",
+  heart:"💖","ice cream":"🍦",jellyfish:"🪼",kite:"🪁",lion:"🦁",moon:"🌙",
+  nest:"🪺",octopus:"🐙",popcorn:"🍿",queen:"👑",rocket:"🚀",star:"⭐",teddy:"🧸",
+  umbrella:"☂️",violin:"🎻",whale:"🐋",xylophone:"🎹","yo-yo":"🪀",zebra:"🦓",
+};
 const state = {
   stream:null, face:null, hands:null, running:false, demo:false, lastVideoTime:-1,
   lastMpTs:0, faceData:null, handData:[], trail:[], game:null, startedAt:0,
@@ -68,7 +81,7 @@ function stageBox() { return stageRect; }
 
 function resizeCanvas() {
   const box = stage.getBoundingClientRect();
-  stageRect = {w:box.width,h:box.height};
+  stageRect = {w:box.width,h:box.height,left:box.left,top:box.top};
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = Math.round(box.width * dpr);
   canvas.height = Math.round(box.height * dpr);
@@ -106,6 +119,7 @@ async function start(camera=true) {
   state.seated = $("seated").checked; state.share = $("share").checked;
   state.demo = !camera;
   $("setup").classList.add("hidden"); $("play").classList.remove("hidden");
+  stage.classList.toggle("demo", state.demo);
   resizeCanvas(); loadLocalAnalytics();
   if (camera) {
     try {
@@ -379,7 +393,7 @@ function gestureReadout() {
     }
     case "fist-bump":
       if (!hands.length) return "no hand";
-      return `fingers ${hands.map(h=>h.count).join("/")} · tip ${near(hands[0].tipPalms)}/<${FIST_MAX_PALMS} palms`;
+      return `fist ${hands.some(h=>h.fist)?"yes":"no"} · fingers ${hands.map(h=>h.count).join("/")} · tip ${near(hands[0].tipPalms)}/<${FIST_MAX_PALMS} palms · bump ${hands[0].tip?Math.round(distance(hands[0].tip,targetPoint())):"–"}px`;
     case "idea":
       return hands.length?`index-only ${hands.some(h=>h.indexUp)?"yes":"no"} · fingers ${hands.map(h=>h.count).join("/")}`:"no hand";
     case "blow-kiss": {
@@ -390,7 +404,27 @@ function gestureReadout() {
         : `step 2 · hand ${near(nearest)}/>${KISS_AWAY_FACES} faces`;
     }
     case "wow": case "wink": case "oh-behave":
-      return face?`${face.expression} ${Math.round(face.confidence*100)}% (need 55%)`:"face not tracked";
+      return face?`${face.expression} ${Math.round(face.confidence*100)}% (need 55%)${state.game==="oh-behave"?` · ${face.region}/${state.targetRegion}`:""}`:"face not tracked";
+    case "make-pose":
+      return `hands ${hands.length}/2 high ${hands.filter(h=>h.wrist&&h.wrist.y<stageBox().h*.48).length}`;
+    case "face-chase":
+      return face?`region ${face.region} (need ${state.targetRegion})`:"face not tracked";
+    case "air-drums":
+      return `hits ${state.hitCount}/6 · pad ${state.padHeld?"held":"open"}`;
+    case "bird-flap":
+      return `hands ${hands.length}/2 · flaps ${state.hitCount}/8`;
+    case "head-bop":
+      return face?`bops ${state.hitCount}/7`:"face not tracked";
+    case "stand-sit":
+      return face?`phase ${state.phase} · face y ${face.cy.toFixed(2)}`:"face not tracked";
+    case "rainbow-reach":
+      return `hands ${hands.length}/2`;
+    case "dance-freeze":
+      return `${state.phase===0?"dance":"freeze"} · motion ${state.handMotion.toFixed(1)}`;
+    case "fruit-cut": case "balloon": case "fish": case "popcorn":
+      return `${state.object?.hit?"hit":"seeking"} · ${state.game==="popcorn"?"mouth-o":"index"}`;
+    case "say-letter":
+      return `say ${$("letter")?.value||"?"}`;
     case "trace-letter": case "trace-picture":
       return `${progressLabel()} · index-up ${hands.some(h=>h.indexUp)?"yes":"no"}`;
     default:
@@ -431,22 +465,28 @@ function objectCenter() {
   return rect?{x:rect.left-root.left+rect.width/2,y:rect.top-root.top+rect.height/2}:null;
 }
 
+function catchRadius() {
+  const {w,h}=stageBox();
+  return Math.max(64, Math.min(w,h)*0.09);
+}
+
 function updateObjectGame() {
   if (!OBJECT_GAMES.has(state.game) || !state.object?.el?.isConnected) return;
   const center=objectCenter();if(!center)return;
+  const radius=catchRadius();
   let hit=false;
   if (state.game==="popcorn") {
     if (state.faceData?.expression==="mouth-o") {
       const box=stageBox(),face={x:state.faceData.cx*box.w,y:state.faceData.cy*box.h};
       // Catch radius follows the face, so a child sitting back is not penalised.
-      hit=distance(face,center)<Math.max(70,state.faceData.width*box.w*.75);
+      hit=distance(face,center)<Math.max(radius,state.faceData.width*box.w*.75);
     }
   } else {
     const hand=state.handData.find(h=>h.indexUp)||state.handData[0];
     if(hand?.tip) {
       const last=state.lastTip||hand.tip,velocity=distance(hand.tip,last);
       state.lastTip=hand.tip;
-      hit=distance(hand.tip,center)<90 && (state.game!=="fruit-cut"||velocity>10);
+      hit=distance(hand.tip,center)<radius && (state.game!=="fruit-cut"||velocity>10);
     }
   }
   if(hit && !state.object.hit){
@@ -459,7 +499,10 @@ function updateObjectGame() {
 function updateGestureGame(now) {
   if (state.game==="heart" && isHeart(state.handData)) succeed("A heart made with two hands!");
   else if (state.game==="idea" && state.handData.some(h=>h.indexUp)) succeed("What a bright idea!");
-  else if (state.game==="fist-bump" && state.handData.some(h=>h.fist)) succeed("Fist bump!");
+  else if (state.game==="fist-bump") {
+    const fist=state.handData.find(h=>h.fist);
+    if (fist && distance(fist.tip, targetPoint())<catchRadius()) succeed("Fist bump!");
+  }
   else if (state.game==="wow" && state.faceData?.expression==="surprised") succeed("That is a wonderful wow face!");
   else if (state.game==="wink" && state.faceData?.expression?.startsWith("wink-")) succeed("Wink-tastic!");
   else if (state.game==="blow-kiss") {
@@ -502,7 +545,7 @@ function updateGestureGame(now) {
   } else if (state.game==="face-chase" && state.faceData?.region===state.targetRegion) succeed("You found the face spot!");
   else if (state.game==="air-drums") {
     if(now-state.beatAt>650){state.beatAt=now;state.phase=(state.phase+1)%2;setTarget(state.phase?"left":"right","🥁");state.padHeld=false;}
-    const hand=state.handData.find(h=>h.tip&&distance(h.tip,targetPoint())<95);
+    const hand=state.handData.find(h=>h.tip&&distance(h.tip,targetPoint())<catchRadius());
     if(hand && !state.padHeld){state.padHeld=true;state.hitCount+=1;if(state.hitCount>=6)succeed("Amazing air drums!");}
     if(!hand) state.padHeld=false;
   } else if (state.game==="bird-flap" && state.handData.length>=2) {
@@ -602,6 +645,7 @@ function chooseGame() {
     else setPrompt("Stand up","Step back so Theodore sees you, then stand gently.");
   } else if(state.game==="dance-freeze"){setPrompt("Dance!","Move any way you like… freeze when Theodore says freeze.");spawnObject("","🎵");}
   else if(state.game==="rainbow-reach"){setPrompt("Rainbow reach","Stretch both hands toward opposite top corners.");}
+  else if(!GAMES.includes(state.game)){setPrompt("Pick a game","That activity is not wired yet. Choose another from the list.");}
   speak(state.spokenPrompt);
 }
 
@@ -735,11 +779,44 @@ function renderDashboard(){
   $("dashboard").innerHTML=`<div class="dashboard-grid">${Object.entries(by).map(([id,row])=>`<div class="metric"><strong>${esc(id.replaceAll("-"," "))}</strong>Fun ${Math.round(row.scores.reduce((a,b)=>a+b,0)/row.scores.length)} · ${row.wins}/${row.plays} wins</div>`).join("")||"<p>No games recorded yet.</p>"}</div>`;
 }
 
+function demoExpression(event) {
+  if (event.altKey) return "sleepy";
+  if (event.ctrlKey || event.metaKey) return "surprised";
+  if (event.buttons===2) return "wink-left";
+  if (event.buttons===1) return "mouth-o";
+  return "happy";
+}
+
+function applyDemoPointer(event) {
+  if (!state.demo) return;
+  const box = stage.getBoundingClientRect();
+  const tip = {x:event.clientX-box.left, y:event.clientY-box.top};
+  const w = Math.max(1, box.width), h = Math.max(1, box.height);
+  const nx = clamp01(tip.x/w), ny = clamp01(tip.y/h);
+  const pose = event.altKey ? "fist" : "index";
+  const primary = handMetrics(syntheticHand({x:nx,y:ny}, {pose}), "Pointer");
+  state.handData = primary ? [primary] : [];
+  if (event.shiftKey) {
+    const other = handMetrics(syntheticHand({x:clamp01(1-nx), y:ny}, {pose:"open"}), "Pointer-2");
+    if (other) state.handData.push(other);
+  }
+  const smile = demoExpression(event)==="happy" ? 0.7 : 0.05;
+  const expression = demoExpression(event);
+  const width=0.24, height=0.28;
+  const region=Object.entries(REGIONS).sort((a,b)=>Math.hypot(nx-a[1][0],ny-a[1][1])-Math.hypot(nx-b[1][0],ny-b[1][1]))[0][0];
+  state.faceData={
+    points:[{x:1-nx,y:ny}], bs:{}, cx:nx, cy:ny, width, height,
+    expression, confidence:0.9, region, smile,
+  };
+}
+
 canvas.addEventListener("pointermove",event=>{
-  if(!state.demo)return;const rect=canvas.getBoundingClientRect(),tip={x:event.clientX-rect.left,y:event.clientY-rect.top};
-  state.handData=[{points:[],label:"Pointer",count:1,indexUp:true,fist:false,tip,wrist:tip}];
+  if(!state.demo)return; applyDemoPointer(event);
 });
-canvas.addEventListener("pointerleave",()=>{if(state.demo)state.handData=[];});
+stage.addEventListener("pointermove",applyDemoPointer);
+stage.addEventListener("pointerdown",applyDemoPointer);
+stage.addEventListener("contextmenu",(event)=>{if(state.demo)event.preventDefault();});
+stage.addEventListener("pointerleave",()=>{if(state.demo){state.handData=[];}});
 $("start").addEventListener("click",()=>start(true));$("demo").addEventListener("click",()=>start(false));
 $("play-game").addEventListener("click",()=>chooseGame());
 $("game").addEventListener("change",()=>chooseGame());
