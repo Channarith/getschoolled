@@ -365,6 +365,105 @@ def _ticket() -> str:
     )
 
 
+def _chicken() -> str:
+    return (
+        '<svg viewBox="0 0 180 210" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+        '<g class="figure"><ellipse cx="92" cy="190" rx="58" ry="9" fill="#0f172a" opacity=".24"/>'
+        '<path d="M62 70 Q35 85 38 132 Q41 174 91 179 Q142 175 145 128'
+        ' Q147 84 119 68 Z" fill="#fff7d6" stroke="#d6a84a" stroke-width="4"/>'
+        '<path class="wing" d="M66 92 Q28 108 57 145 Q79 137 87 110 Z" fill="#f5d48a"'
+        ' stroke="#d6a84a" stroke-width="4"/>'
+        '<circle cx="91" cy="57" r="34" fill="#fff7d6" stroke="#d6a84a" stroke-width="4"/>'
+        '<path d="M71 27 Q76 6 87 25 Q94 2 101 25 Q113 8 113 34" fill="#ef4444"/>'
+        '<path d="M119 58 l31 13 l-31 12 Z" fill="#f59e0b"/>'
+        '<circle cx="82" cy="51" r="4.5" fill="#1f2937"/><circle cx="83" cy="49" r="1.5" fill="white"/>'
+        '<path d="M76 178 L70 199 M105 178 L111 199 M58 199 H79 M101 199 H122"'
+        ' stroke="#d97706" stroke-width="6" stroke-linecap="round"/>'
+        '<path class="tail" d="M42 99 Q12 74 28 132" stroke="#f5d48a" stroke-width="16"'
+        ' fill="none" stroke-linecap="round"/></g></svg>'
+    )
+
+
+def _heart() -> str:
+    return (
+        '<svg viewBox="0 0 180 170" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+        '<g class="figure"><defs><linearGradient id="heart-glow" x1="0" y1="0" x2="1" y2="1">'
+        '<stop stop-color="#fb7185"/><stop offset="1" stop-color="#be123c"/></linearGradient></defs>'
+        '<path d="M90 151 C71 128 20 98 20 58 C20 24 63 10 90 43'
+        ' C117 10 160 24 160 58 C160 98 109 128 90 151 Z" fill="url(#heart-glow)"'
+        ' stroke="#ffe4e6" stroke-width="5"/>'
+        '<path d="M48 49 Q61 31 76 43" stroke="white" stroke-width="8"'
+        ' stroke-linecap="round" opacity=".72" fill="none"/></g></svg>'
+    )
+
+
+def _groceries() -> str:
+    return (
+        '<svg viewBox="0 0 230 190" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+        '<g class="figure"><ellipse cx="115" cy="177" rx="93" ry="8" fill="#0f172a" opacity=".22"/>'
+        '<path d="M34 76 H196 L178 168 H52 Z" fill="#b45309" stroke="#78350f" stroke-width="5"/>'
+        '<path d="M44 104 H187 M39 132 H182 M79 78 L84 167 M121 78 V168 M162 78 L157 168"'
+        ' stroke="#fbbf24" stroke-width="5" opacity=".75"/>'
+        '<circle cx="77" cy="66" r="27" fill="#ef4444"/><path d="M77 40 q8-16 17-6"'
+        ' stroke="#166534" stroke-width="6" fill="none"/>'
+        '<path d="M102 72 Q112 21 140 28 L158 77 Z" fill="#f7d794" stroke="#92400e" stroke-width="4"/>'
+        '<rect x="151" y="28" width="42" height="64" rx="7" fill="#e0f2fe" stroke="#0284c7" stroke-width="4"/>'
+        '<path d="M161 28 V16 H182 V28" fill="#f8fafc" stroke="#0284c7" stroke-width="4"/>'
+        '<text x="172" y="66" text-anchor="middle" font-size="18" font-weight="bold" fill="#0369a1">MILK</text>'
+        '</g></svg>'
+    )
+
+
+def _learning_cards() -> str:
+    return (
+        '<svg viewBox="0 0 220 170" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+        '<g class="figure"><rect x="20" y="32" width="112" height="120" rx="12" fill="#fef3c7"'
+        ' stroke="#92400e" stroke-width="5" transform="rotate(-8 76 92)"/>'
+        '<rect x="91" y="18" width="112" height="120" rx="12" fill="#dbeafe"'
+        ' stroke="#1d4ed8" stroke-width="5" transform="rotate(7 147 78)"/>'
+        '<text x="69" y="101" text-anchor="middle" font-size="48" font-weight="bold" fill="#92400e">A</text>'
+        '<text x="150" y="90" text-anchor="middle" font-size="34" font-weight="bold" fill="#1d4ed8">1·2·3</text>'
+        '</g></svg>'
+    )
+
+
+def _drum() -> str:
+    return (
+        '<svg viewBox="0 0 210 170" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+        '<g class="figure"><ellipse cx="105" cy="52" rx="78" ry="30" fill="#fecdd3"'
+        ' stroke="#881337" stroke-width="6"/><path d="M27 52 V125 Q105 164 183 125 V52'
+        ' Q105 89 27 52 Z" fill="#e11d48" stroke="#881337" stroke-width="6"/>'
+        '<path d="M50 70 L160 139 M160 70 L50 139" stroke="#fda4af" stroke-width="7"/>'
+        '<path d="M42 24 L112 101 M171 17 L99 99" stroke="#92400e" stroke-width="8"'
+        ' stroke-linecap="round"/><circle cx="39" cy="21" r="10" fill="#fbbf24"/>'
+        '<circle cx="174" cy="14" r="10" fill="#fbbf24"/></g></svg>'
+    )
+
+
+def _web_hero() -> str:
+    """Original neighborhood helper: teal gold cape, geometric web, no licensed mask."""
+    return (
+        '<svg viewBox="0 0 180 230" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+        '<g class="figure"><ellipse cx="90" cy="216" rx="54" ry="8" fill="#0f172a" opacity=".28"/>'
+        '<path class="cape" d="M54 88 Q18 150 46 198 Q90 168 134 198 Q162 150 126 88 Z"'
+        ' fill="#0f766e" stroke="#115e59" stroke-width="4"/>'
+        '<path d="M90 92 L62 168 L90 148 L118 168 Z" fill="#fbbf24" opacity=".55"/>'
+        '<rect x="62" y="88" width="56" height="72" rx="18" fill="#14b8a6"/>'
+        '<rect class="arm-l" x="38" y="96" width="22" height="58" rx="11" fill="#0d9488"/>'
+        '<rect class="arm-r" x="120" y="96" width="22" height="58" rx="11" fill="#0d9488"/>'
+        '<rect class="leg-l" x="68" y="154" width="16" height="52" rx="8" fill="#134e4a"/>'
+        '<rect class="leg-r" x="96" y="154" width="16" height="52" rx="8" fill="#134e4a"/>'
+        '<circle cx="90" cy="58" r="32" fill="#fde68a" stroke="#0f766e" stroke-width="4"/>'
+        '<path d="M58 46 Q90 18 122 46" fill="none" stroke="#134e4a" stroke-width="6"/>'
+        '<circle cx="78" cy="56" r="4" fill="#1f2937"/><circle cx="102" cy="56" r="4" fill="#1f2937"/>'
+        '<path d="M78 72 Q90 82 102 72" fill="none" stroke="#1f2937" stroke-width="3"'
+        ' stroke-linecap="round"/>'
+        '<path class="web" d="M28 28 Q90 8 152 28 M40 8 Q90 48 140 8"'
+        ' fill="none" stroke="#fde68a" stroke-width="3" opacity=".85"/>'
+        '</g></svg>'
+    )
+
+
 SPRITES: dict[str, str] = {
     "kid-teal": _person("#0d9488", "#1e3a8a", "#3b2417"),
     "kid-red": _person("#e11d48", "#334155", "#111827"),
@@ -389,6 +488,12 @@ SPRITES: dict[str, str] = {
     "sandwich": _sandwich(),
     "bag": _bag(),
     "ticket": _ticket(),
+    "chicken": _chicken(),
+    "heart": _heart(),
+    "groceries": _groceries(),
+    "learning-cards": _learning_cards(),
+    "drum": _drum(),
+    "web-hero": _web_hero(),
 }
 
 # Height of each sprite at scale 1.0, in percent of the frame height. Without
@@ -417,6 +522,12 @@ SPRITE_HEIGHT_PCT: dict[str, float] = {
     "sandwich": 10,
     "bag": 14,
     "ticket": 10,
+    "chicken": 25,
+    "heart": 17,
+    "groceries": 19,
+    "learning-cards": 16,
+    "drum": 18,
+    "web-hero": 32,
 }
 
 
@@ -706,6 +817,118 @@ def _backdrops() -> dict[str, str]:
         + _stars(46)
         + _map_lines()
         + _hills("#1e293b", "#334155"),
+    )
+    add(
+        "cozy-home",
+        _wall("home", "#fde7d7", "#fbcfe8", 690)
+        + '<g class="bg-far"><rect x="1030" y="95" width="390" height="300" rx="18"'
+        ' fill="#bae6fd" stroke="#f8fafc" stroke-width="22"/>'
+        '<path d="M1225 95 V395 M1030 245 H1420" stroke="#f8fafc" stroke-width="14"/>'
+        '<circle cx="1320" cy="170" r="58" fill="#fde047" opacity=".8"/>'
+        '<path d="M1080 395 Q1220 270 1410 395" fill="#86efac"/></g>'
+        '<g class="bg-mid"><rect x="120" y="340" width="570" height="270" rx="70" fill="#7c3aed"/>'
+        '<rect x="165" y="305" width="210" height="125" rx="45" fill="#a78bfa"/>'
+        '<rect x="430" y="305" width="210" height="125" rx="45" fill="#a78bfa"/>'
+        '<rect x="760" y="155" width="205" height="455" rx="14" fill="#92400e"/>'
+        + "".join(
+            f'<rect x="780" y="{y}" width="165" height="18" fill="#fbbf24"/>'
+            for y in (255, 370, 485)
+        )
+        + "".join(
+            f'<rect x="{x}" y="{y}" width="22" height="70" rx="5" fill="{c}"/>'
+            for x, y, c in (
+                (795, 180, "#ef4444"), (825, 195, "#0ea5e9"), (857, 175, "#22c55e"),
+                (803, 286, "#f97316"), (836, 275, "#ec4899"), (872, 292, "#3b82f6"),
+                (800, 400, "#14b8a6"), (835, 418, "#eab308"), (869, 394, "#8b5cf6"),
+            )
+        )
+        + '</g><g class="bg-near"><ellipse cx="625" cy="760" rx="420" ry="105" fill="#fef3c7"/>'
+        '<ellipse cx="625" cy="760" rx="330" ry="70" fill="#fb7185" opacity=".45"/>'
+        '<rect x="0" y="690" width="1600" height="210" fill="#b45309" opacity=".7"/>'
+        '<path d="M0 720 H1600 M0 790 H1600 M0 860 H1600" stroke="#f59e0b"'
+        ' stroke-width="8" opacity=".35"/></g>',
+    )
+    add(
+        "dance-studio",
+        _wall("dance", "#dbeafe", "#bfdbfe", 700)
+        + '<g class="bg-far"><rect x="90" y="80" width="1420" height="500" rx="28"'
+        ' fill="#e0f2fe" stroke="#64748b" stroke-width="16"/>'
+        '<path d="M445 88 V572 M800 88 V572 M1155 88 V572" stroke="#94a3b8"'
+        ' stroke-width="8"/><path d="M105 330 H1495" stroke="#94a3b8" stroke-width="8"/>'
+        '<rect x="0" y="590" width="1600" height="18" fill="#7c2d12"/>'
+        '<circle cx="180" cy="120" r="24" fill="#f472b6"/><circle cx="1420" cy="120"'
+        ' r="24" fill="#38bdf8"/></g>'
+        + '<g class="bg-mid"><path d="M120 515 H1480" stroke="#78350f" stroke-width="22"/>'
+        '<path d="M180 515 V610 M1420 515 V610" stroke="#78350f" stroke-width="14"/></g>'
+        + _floor("#d6a35f", 700, "#efc381")
+        + '<g class="bg-near" stroke="#92400e" stroke-width="4" opacity=".32">'
+        + "".join(f'<path d="M{x} 700 V900"/>' for x in range(0, 1600, 100))
+        + "</g>",
+    )
+    add(
+        "market-aisle",
+        _wall("market", "#f8fafc", "#e2e8f0", 720)
+        + '<g class="bg-far"><rect x="60" y="105" width="1480" height="520" rx="20"'
+        ' fill="#475569"/>'
+        + "".join(
+            f'<rect x="95" y="{y}" width="1410" height="25" fill="#cbd5e1"/>'
+            for y in (225, 350, 475, 600)
+        )
+        + "".join(
+            f'<rect x="{x}" y="{y}" width="62" height="82" rx="10" fill="{color}"/>'
+            for row, y in enumerate((130, 255, 380, 505))
+            for index, x in enumerate(range(115, 1480, 86))
+            for color in (("#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7")[(row + index) % 5],)
+        )
+        + '</g><g class="bg-mid"><rect x="650" y="24" width="300" height="92" rx="16"'
+        ' fill="#166534"/><text x="800" y="84" text-anchor="middle" font-size="48"'
+        ' font-weight="bold" font-family="Trebuchet MS,sans-serif" fill="white">MARKET</text>'
+        '<rect x="1280" y="640" width="250" height="115" rx="16" fill="#0f766e"/>'
+        '<text x="1405" y="710" text-anchor="middle" font-size="36" font-weight="bold"'
+        ' font-family="Trebuchet MS,sans-serif" fill="white">CHECKOUT</text></g>'
+        + _floor("#cbd5e1", 720, "#f8fafc"),
+    )
+    add(
+        "learning-lab",
+        _wall("learn", "#ecfccb", "#bbf7d0", 700)
+        + '<g class="bg-far"><rect x="130" y="95" width="900" height="430" rx="24"'
+        ' fill="#14532d" stroke="#92400e" stroke-width="18"/>'
+        '<text x="580" y="205" text-anchor="middle" font-size="62" font-weight="bold"'
+        ' font-family="Trebuchet MS,sans-serif" fill="#f8fafc">NOUN  →  VERB</text>'
+        '<text x="580" y="310" text-anchor="middle" font-size="54"'
+        ' font-family="Trebuchet MS,sans-serif" fill="#fde68a">teacher · teaches</text>'
+        '<text x="580" y="412" text-anchor="middle" font-size="48"'
+        ' font-family="Trebuchet MS,sans-serif" fill="#bfdbfe">head · shoulder · knee</text>'
+        '<rect x="1130" y="110" width="340" height="480" rx="24" fill="#fef3c7"'
+        ' stroke="#b45309" stroke-width="12"/>'
+        '<circle cx="1210" cy="205" r="42" fill="#fca5a5"/>'
+        '<path d="M1210 247 V390 M1145 305 H1275 M1210 390 L1155 480 M1210 390 L1265 480"'
+        ' stroke="#1e3a8a" stroke-width="22" stroke-linecap="round"/>'
+        '<text x="1370" y="220" font-size="32" font-weight="bold" fill="#92400e">head</text>'
+        '<text x="1370" y="320" font-size="32" font-weight="bold" fill="#92400e">hand</text>'
+        '<text x="1370" y="445" font-size="32" font-weight="bold" fill="#92400e">knee</text></g>'
+        + '<g class="bg-mid"><rect x="120" y="590" width="500" height="120" rx="18" fill="#0f766e"/>'
+        '<rect x="830" y="590" width="500" height="120" rx="18" fill="#1d4ed8"/></g>'
+        + _floor("#a16207", 700, "#ca8a04"),
+    )
+    add(
+        "night-brick",
+        _sky("nb", "#0b1220", "#312e81")
+        + _stars(38)
+        + _buildings("nb", 640, "#1e293b", "#fde68a")
+        + '<g class="bg-mid"><path d="M0 0 L0 900 M80 0 L80 900 M160 0 L160 900"'
+        ' stroke="#334155" stroke-width="10" opacity=".35"/>'
+        '<rect x="920" y="210" width="210" height="250" rx="8" fill="#fbbf24" opacity=".72"/>'
+        '<path d="M920 210 H1130 V460 H920 Z" fill="none" stroke="#fef3c7" stroke-width="10"/>'
+        '<circle cx="1025" cy="175" r="18" fill="#fde047"/></g>'
+        + _road(640, "#111827")
+        + '<g class="bg-near">'
+        + "".join(
+            f'<line x1="{x}" y1="80" x2="{x + 90}" y2="900" stroke="#67e8f9"'
+            ' stroke-width="2" opacity=".18"/>'
+            for x in range(40, 1500, 140)
+        )
+        + "</g>",
     )
     return out
 
@@ -1217,10 +1440,146 @@ _WORDS: tuple[Scene, ...] = (
 )
 
 
+_FEATURED_SCENE_DETAILS: dict[str, tuple[tuple[str, str, str, str, str, str], ...]] = {
+    "love-solid-ground": (
+        ("A bright message arrives", "cozy-home", "push-in", "A child sends a kind message, and the room glows with the warmth of a new friendship.", "heart", "shine"),
+        ("Feelings grow offline", "park-path", "pan-right", "The friends put their screens away, walk together, and discover that real care grows face to face.", "dog", "hop"),
+        ("High-five chorus", "dance-studio", "zoom-punch", "Thumbs rise, fists bump, and every joyful move lands right on the chorus beat.", "heart", "bob"),
+        ("Air-drum rhythm", "stage-lights", "dolly-shake", "On a detailed little stage, the friends play invisible drums beneath moving beams of light.", "drum", "spin"),
+        ("A happy digital space", "cozy-home", "ken-burns", "A thoughtful message can begin a friendship, while honesty and time together make it solid.", "heart", "float"),
+        ("Love on solid ground", "sunrise-hill", "pull-out", "The whole group gathers under the sunrise and celebrates kindness that is real, steady, and shared.", "heart", "shine"),
+    ),
+    "love-me-too": (
+        ("A quiet honest moment", "cozy-home", "push-in", "Two friends sit in a warm, believable room while one carefully finds the courage to speak.", "heart", "float"),
+        ("Tell me straight", "cafe-table", "ken-burns", "Across a café table, an open hand and a patient smile make space for an honest answer.", "cup", "bob"),
+        ("The question in the chorus", "stage-lights", "zoom-punch", "The chorus opens into a dreamlike stage where the big question shines without pressure.", "heart", "shine"),
+        ("A voice in the doorway", "cozy-home", "pan-left", "A remembered hello at the doorway becomes a gentle scene about listening and feeling safe.", "heart", "sway"),
+        ("No more walls", "sunrise-hill", "tilt-up", "At sunrise, both friends choose openness, patience, and respect instead of hiding their feelings.", "heart", "float"),
+        ("An answer given freely", "stage-lights", "pull-out", "The final chorus celebrates a caring answer that is freely given and warmly received.", "heart", "shine"),
+    ),
+    "do-the-chicken": (
+        ("Tiny taps on the floor", "dance-studio", "push-in", "A round, expressive chicken taps realistic little feet across the polished studio floor.", "chicken", "walk"),
+        ("Wings up high", "dance-studio", "pan-right", "Children copy the chicken's wing pose, leaning left and right with safe, playful movement.", "chicken", "sway"),
+        ("Chicken and twist", "stage-lights", "zoom-punch", "The chicken leads the chorus under colorful stage lights while everyone twists in time.", "chicken", "spin"),
+        ("Family dance lesson", "cozy-home", "ken-burns", "In a detailed family room, children teach a grown-up the steps and laugh together.", "chicken", "hop"),
+        ("Left jump, right snap", "dance-studio", "dolly-shake", "The bridge becomes a clear movement lesson: left jump, right snap, wings open, steady landing.", "chicken", "hop"),
+        ("Everybody joins", "stage-lights", "pull-out", "The final chorus fills the stage with dancers, clapping hands, feather-soft colors, and one proud chicken.", "chicken", "wave"),
+    ),
+    "bop-bop-bounce": (
+        ("Tap-tap toes", "dance-studio", "push-in", "Shoes tap the wooden floor as the mirror reflects each careful left-and-right move.", "drum", "bob"),
+        ("Bunny ears and circles", "park-path", "pan-right", "Friends make bunny ears, turn in a circle, and keep a safe space between each dancer.", "dog", "hop"),
+        ("Bop bop bounce", "stage-lights", "zoom-punch", "The chorus bursts into soft lights, bouncing notes, and joyful jumps that land on the beat.", "note", "float"),
+        ("Slow clap, fast clap", "learning-lab", "ken-burns", "A classroom rhythm station shows slow and fast patterns with a real drum and visual beat cards.", "drum", "spin"),
+        ("Freeze like a star", "dance-studio", "dolly-shake", "The room moves, then becomes perfectly still as every dancer freezes like a bright star.", "learning-cards", "float"),
+        ("Head bop finale", "stage-lights", "pull-out", "The final chorus layers claps, bounces, and gentle head bops into one detailed group routine.", "drum", "bob"),
+    ),
+    "first-word": (
+        ("The shopping list", "cozy-home", "push-in", "A child checks a picture list with bread, apples, rice, milk, eggs, and tea before leaving home.", "groceries", "bob"),
+        ("Words in the aisle", "market-aisle", "pan-right", "Realistic shelves and clear labels turn the market aisle into a welcoming vocabulary lesson.", "groceries", "cross-right"),
+        ("Say it at the counter", "market-row", "zoom-punch", "The learner points, names each food slowly, and practises a polite request at the counter.", "sign-food", "bob"),
+        ("Tomato, juice, and beans", "market-aisle", "ken-burns", "Colorful packages, fresh produce, and shelf signs connect each new sound to a useful object.", "groceries", "sway"),
+        ("Please and thank you", "cafe-table", "push-in", "A friendly clerk listens patiently while the learner uses please, thank you, and one more try.", "cup", "bob"),
+        ("Language unlocked", "stage-lights", "pull-out", "The market words return as bright cards while the whole group proudly sings the final chorus.", "learning-cards", "float"),
+    ),
+    "sorting-game": (
+        ("Jobs at work", "learning-lab", "push-in", "Detailed picture cards connect a teacher, plumber, doctor, chef, and artist to the work each one does.", "learning-cards", "float"),
+        ("Body parts in order", "classroom-floor", "pan-right", "A friendly body chart helps children point from head to shoulder, elbow, hand, and knee.", "learning-cards", "bob"),
+        ("What comes first?", "learning-lab", "ken-burns", "Cards slide into a clear first-next-last sequence on two realistic classroom tables.", "learning-cards", "cross-right"),
+        ("Adjective spinner", "stage-lights", "zoom-punch", "Bright word cards spin through tall, bright, stubborn, and kind while examples act out each meaning.", "learning-cards", "spin"),
+        ("Noun then verb", "learning-lab", "pan-left", "The board builds a sentence from subject to action, showing exactly how each piece supports the next.", "learning-cards", "point-up"),
+        ("Everything in its place", "stage-lights", "pull-out", "Jobs, describing words, grammar, and body parts settle into neat rows for the final chorus.", "learning-cards", "float"),
+    ),
+    "be-your-spiderman": (
+        ("You call, I come", "night-brick", "push-in", "A helper hears a call from a glowing window and starts up the brick wall with careful, realistic steps.", "web-hero", "walk"),
+        ("On the ledge", "night-brick", "tilt-up", "One hand finds the ledge, one foot stays sure, and the helper takes the long safe way around.", "web-hero", "point-up"),
+        ("Catch what falls", "stage-lights", "zoom-punch", "The chorus becomes a promise to catch what falls, hold on, and stay close when the night gets loud.", "web-hero", "hop"),
+        ("Through the rain", "town-street", "pan-right", "A late train, a dark phone, and rain at the wrong gate: the helper cuts through the crowd like a thread through smoke.", "raincloud", "fall"),
+        ("No mask, no doubt", "cozy-home", "ken-burns", "At the doorway there is no mask and no doubt: a trusted friend follows every sign and will not unwind.", "heart", "float"),
+        ("Coming through", "night-brick", "pull-out", "The final chorus lifts the whole street as the original neighborhood helper comes through right on the line.", "web-hero", "wave"),
+    ),
+}
+
+
+def _featured_storyboard(
+    slug: str,
+    title: str,
+    line_count: int,
+    *,
+    scene_total: int = 6,
+) -> tuple[Scene, ...]:
+    """Song-specific, detailed animation that still covers every lyric line."""
+    details = _FEATURED_SCENE_DETAILS[slug]
+    if len(details) != scene_total:
+        raise ValueError(f"{slug} needs exactly {scene_total} storyboard scenes")
+    scenes: list[Scene] = []
+    for index, (scene_title, backdrop, camera, narration, prop, prop_motion) in enumerate(details):
+        start = (index * line_count) // scene_total + 1
+        end = ((index + 1) * line_count) // scene_total
+        scenes.append(
+            Scene(
+                scene_id=f"{slug}-{index + 1}",
+                title=scene_title,
+                backdrop=backdrop,
+                camera=camera,
+                start_line=start,
+                end_line=end,
+                narration={"en": narration},
+                cast=(
+                    Cast(
+                        kind=("kid-teal", "kid-red", "kid-purple")[index % 3],
+                        x=26 + (index % 3) * 16,
+                        y=76,
+                        scale=1.05,
+                        motion=("wave", "hop", "turn", "sway", "point-up", "spin")[index],
+                    ),
+                    Cast(
+                        kind=("kid-red", "kid-purple", "grown-up")[index % 3],
+                        x=58 + (index % 2) * 18,
+                        y=76,
+                        scale=1.0,
+                        motion=("sway", "wave", "hop", "turn", "bob", "wave")[index],
+                        flip=True,
+                        delay=0.25,
+                    ),
+                    Cast(
+                        kind=prop,
+                        x=78 if index % 2 == 0 else 20,
+                        y=36 if prop in {"heart", "note"} else 70,
+                        scale=0.72,
+                        motion=prop_motion,
+                        delay=0.5,
+                    ),
+                ),
+            )
+        )
+    return tuple(scenes)
+
+
 STORYBOARDS: dict[str, tuple[Scene, ...]] = {
     "en-wheels-bus-audio-v1": _WHEELS,
     "en-travel-words-audio-v1": _TRAVEL,
     "en-words-this-way-audio-v1": _WORDS,
+    "en-love-solid-ground-audio-v1": _featured_storyboard(
+        "love-solid-ground", "Love on Solid Ground", 24, scene_total=6
+    ),
+    "en-love-me-too-audio-v1": _featured_storyboard(
+        "love-me-too", "Do You Love Me Too?", 61
+    ),
+    "en-do-the-chicken-audio-v1": _featured_storyboard(
+        "do-the-chicken", "Do the Chicken", 41
+    ),
+    "en-bop-bop-bounce-audio-v1": _featured_storyboard(
+        "bop-bop-bounce", "Bop Bop Bounce", 60
+    ),
+    "en-first-word-audio-v1": _featured_storyboard(
+        "first-word", "First Word", 59
+    ),
+    "en-sorting-game-audio-v1": _featured_storyboard(
+        "sorting-game", "Sorting Game", 60
+    ),
+    "en-be-your-spiderman-audio-v1": _featured_storyboard(
+        "be-your-spiderman", "Be Your Spider-Man", 60
+    ),
 }
 
 

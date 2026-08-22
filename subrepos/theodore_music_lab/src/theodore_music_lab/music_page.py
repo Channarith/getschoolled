@@ -114,6 +114,8 @@ _CSS = """
   .m-shine .figure { animation:mSpinSlow 22s linear infinite; transform-box:fill-box;
     transform-origin:center; }
   .m-wave .arm-r { animation:armWave .9s ease-in-out infinite; }
+  .m-wave .wing, .m-sway .wing { animation:armWave .72s ease-in-out infinite;
+    transform-box:fill-box; transform-origin:right center; }
   .m-point-up .arm-r { animation:armPointUp 2.4s ease-in-out infinite; }
   .m-point-down .arm-r { animation:armPointDown 2.4s ease-in-out infinite; }
   .m-walk .leg-l, .m-walk .leg-r { animation:legSwing .8s ease-in-out infinite; }

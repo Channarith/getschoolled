@@ -5,10 +5,13 @@ Private quality lab for line-by-line song learning before promoting into
 language_learning / content packs.
 
   • 100+ original / Suno-style educational songs (data/songs.jsonl)
-  • Featured MP3 player UI with animation + lyrics (Travel Words, Wheels on
-    the Bus learning version, Words This Way) at http://127.0.0.1:8097/
+  • Featured MP3 player UI with animation + lyrics: Travel Words, Wheels on the
+    Bus learning version, Words This Way, Love on Solid Ground, Do You Love Me
+    Too?, Do the Chicken, Bop Bop Bounce, First Word, Sorting Game, and Be Your
+    Spider-Man at
+    http://127.0.0.1:8097/
   • Full-screen storyboard theater: every featured song is a sequence of scenes
-    (22 in all) with drawn characters on a drawn background, a movie camera move
+    with drawn characters on a drawn background, a movie camera move
     per scene, and the scene's narration on screen under the sung line — press
     "Full screen" (or F) to fill the window, Esc to come back
   • Karaoke: a bouncing ball rides the current word, the sung word is colour
@@ -55,13 +58,13 @@ Featured audio: data/audio/*.mp3 + data/featured_songs.jsonl.
 Clips: data/clips.jsonl. Video links: data/video_links.jsonl.
 
 Translation tiers (best available wins; every line always resolves)
-  curated  reviewed hand-authored line — es, fr, de, it, pt (curated_lines.py)
-           plus zh and km (curated_zh_km.py); the same tier covers video verses
+  curated  committed full-line translations for all 26 non-English languages;
+           the baseline is data/curated_lines_extra.json and each new featured
+           song has an independently reviewable data/i18n_packs/*.json file
   cached   an earlier Grok translation persisted to data/i18n_cache/
   llm      Grok/xAI, one request per song+language, only when XAI_API_KEY is set
-  lexicon  real target-language words for the line's content words (lexicon.py),
-           covering all 27 languages offline — 69 terms, romanized where the
-           script differs; km/bn/ur/fa/th/sw/he/ar/hi are flagged for native review
+  lexicon  real target-language words for unfeatured catalog lines (lexicon.py),
+           covering all 27 languages offline and flagged honestly for review
 
 Neural voices (all 27 languages, no OS voice needed)
 "Sing in Khmer" used to refuse: the player spoke with window.speechSynthesis, so a
