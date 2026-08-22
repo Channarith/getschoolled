@@ -15,6 +15,7 @@ GAME_THEME_IDS: tuple[str, ...] = (
     "mothers_day",
     "fathers_day",
     "cute",
+    "jiggy",
 )
 
 WAND_SPELLS: tuple[str, ...] = ("swish", "flick", "loop")
@@ -86,6 +87,14 @@ GAME_THEMES: dict[str, GameThemeSpec] = {
         default_costume="glasses",
         default_accessory="none",
         festive_overlay="sparkle_frame",
+    ),
+    "jiggy": GameThemeSpec(
+        theme_id="jiggy",
+        label="Come get jiggy with me",
+        game_type=WebcamGameType.JIGGY_DANCE,
+        default_costume="party_hat",
+        default_accessory="none",
+        festive_overlay="dance_floor",
     ),
 }
 

@@ -49,3 +49,12 @@ def test_game_theme_ids_include_all_holidays():
     assert "mothers_day" in GAME_THEME_IDS
     assert "fathers_day" in GAME_THEME_IDS
     assert "cute" in GAME_THEME_IDS
+    assert "jiggy" in GAME_THEME_IDS
+
+
+def test_jiggy_theme_maps_to_dance_game():
+    spec = theme_spec("jiggy")
+    assert spec.theme_id == "jiggy"
+    assert spec.label == "Come get jiggy with me"
+    assert spec.game_type is not None
+    assert spec.festive_overlay == "dance_floor"

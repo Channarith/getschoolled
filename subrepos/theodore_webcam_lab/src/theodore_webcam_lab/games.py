@@ -10,6 +10,13 @@ from .cute_score import (
     cute_confidence_score,
     cute_encouragement,
 )
+from .dance_moves import (
+    jiggy_target_duration_ms,
+    move_encouragement,
+    move_prompt,
+    random_jiggy_sequence,
+    sequence_progress,
+)
 from .themed_games import (
     recognize_wand_spell,
     theme_spec,
@@ -113,15 +120,19 @@ class WebcamLearningGameEngine:
             expected_participant_ids=expected_participant_ids or challenge.participant_ids,
         )
 
-        passed, feedback, cute_score, spell_detected = self._evaluate_challenge(
-            challenge=challenge,
-            evaluation=evaluation,
-            signals=signals,
-            state=state,
+        passed, feedback, cute_score, spell_detected, matched_moves, skipped_moves = (
+            self._evaluate_challenge(
+                challenge=challenge,
+                evaluation=evaluation,
+                signals=signals,
+                state=state,
+            )
         )
         score_delta = 12 if passed else -3
         if challenge.game_type is WebcamGameType.CUTE_ENOUGH and cute_score is not None:
             score_delta = max(0, cute_score // 8) if passed else -2
+        if challenge.game_type is WebcamGameType.JIGGY_DANCE:
+            score_delta = 4 * len(matched_moves) + (2 if passed else 0)
         state.score = max(0, state.score + score_delta)
         state.streak = (state.streak + 1) if passed else 0
         state.active_challenge = None
@@ -137,6 +148,8 @@ class WebcamLearningGameEngine:
             leaderboard=self.leaderboard(session_id),
             theme=state.last_theme,
             spell_detected=spell_detected,
+            matched_moves=matched_moves,
+            skipped_moves=skipped_moves,
         )
 
     def _build_challenge(
@@ -264,6 +277,23 @@ class WebcamLearningGameEngine:
                 target_duration_ms=4_000,
                 participant_ids=participant_ids,
             )
+        if game_type is WebcamGameType.JIGGY_DANCE:
+            moves = random_jiggy_sequence()
+            return WebcamLearningChallenge(
+                challenge_id=f"challenge-{uuid4().hex[:12]}",
+                session_id=session_id,
+                mode=mode,
+                game_type=game_type,
+                title="Come get jiggy with me!",
+                instruction=(
+                    "Follow the dance prompts on camera — shake, bop, spin, and move "
+                    "to the beat. Skip any move you cannot or do not want to do."
+                ),
+                learning_prompt=learning_prompt or "Come get jiggy with me!",
+                target_duration_ms=jiggy_target_duration_ms(len(moves)),
+                participant_ids=participant_ids,
+                move_sequence=moves,
+            )
         return WebcamLearningChallenge(
             challenge_id=f"challenge-{uuid4().hex[:12]}",
             session_id=session_id,
@@ -286,12 +316,12 @@ class WebcamLearningGameEngine:
         evaluation: ClassEvaluation,
         signals: list[WebcamSignal],
         state: _GameState,
-    ) -> tuple[bool, str, int | None, str | None]:
+    ) -> tuple[bool, str, int | None, str | None, list[str], list[str]]:
         if not evaluation.participants:
-            return False, "No participants were detected for this challenge attempt.", None, None
+            return False, "No participants were detected for this challenge attempt.", None, None, [], []
         if evaluation.training_paused:
             reason = evaluation.pause_reason or "training_paused"
-            return False, f"Training is paused ({reason}); challenge attempt is blocked.", None, None
+            return False, f"Training is paused ({reason}); challenge attempt is blocked.", None, None, [], []
 
         timestamps = [s.timestamp_ms for s in signals]
         observed_ms = (max(timestamps) - min(timestamps)) if len(timestamps) >= 2 else 0
@@ -314,28 +344,30 @@ class WebcamLearningGameEngine:
                 ),
                 None,
                 None,
+                [],
+                [],
             )
 
         if challenge.game_type is WebcamGameType.HALLOWEEN_WAND:
             spell = self._best_spell(signals)
             if spell:
-                return True, f"Spell cast: {spell}! Your wand trail worked.", None, spell
-            return False, "Try a clearer wand swish, flick, or loop with your index finger.", None, None
+                return True, f"Spell cast: {spell}! Your wand trail worked.", None, spell, [], []
+            return False, "Try a clearer wand swish, flick, or loop with your index finger.", None, None, [], []
 
         if challenge.game_type is WebcamGameType.CHRISTMAS_GINGERBREAD:
             if evaluation.happy_participant_ids:
-                return True, "Gingerbread house glows — lovely festive smile!", None, None
-            return False, "Show a bright smile to light up the gingerbread house.", None, None
+                return True, "Gingerbread house glows — lovely festive smile!", None, None, [], []
+            return False, "Show a bright smile to light up the gingerbread house.", None, None, [], []
 
         if challenge.game_type is WebcamGameType.VALENTINES_HEARTS:
             if self._heart_detected(signals):
-                return True, "Heart matched! Lovely Valentine energy.", None, None
-            return False, "Draw a heart loop in the air or make a heart with your hands.", None, None
+                return True, "Heart matched! Lovely Valentine energy.", None, None, [], []
+            return False, "Draw a heart loop in the air or make a heart with your hands.", None, None, [], []
 
         if challenge.game_type is WebcamGameType.MOTHERS_DAY:
             if evaluation.happy_participant_ids or any((s.smile_score or 0) >= 0.35 for s in signals):
-                return True, "Beautiful Mother's Day warmth — thank-you energy received!", None, None
-            return False, "Share a kind smile or wave for Mother's Day.", None, None
+                return True, "Beautiful Mother's Day warmth — thank-you energy received!", None, None, [], []
+            return False, "Share a kind smile or wave for Mother's Day.", None, None, [], []
 
         if challenge.game_type is WebcamGameType.FATHERS_DAY:
             accessory_ok = any((s.accessory_count or 0) >= 1 for s in signals)
@@ -343,8 +375,8 @@ class WebcamLearningGameEngine:
                 (s.smile_score or 0) >= 0.30 for s in signals
             )
             if accessory_ok or smile_ok:
-                return True, "Hero pose approved — great Father's Day confidence!", None, None
-            return False, "Add a fun prop or confident smile for Father's Day.", None, None
+                return True, "Hero pose approved — great Father's Day confidence!", None, None, [], []
+            return False, "Add a fun prop or confident smile for Father's Day.", None, None, [], []
 
         if challenge.game_type is WebcamGameType.CUTE_ENOUGH:
             score = self._best_cute_score(signals)
@@ -358,24 +390,46 @@ class WebcamLearningGameEngine:
                 msg += f" Cute confidence score: {score}/100."
             else:
                 msg += f" Score {score}/100 — add accessories or a bigger smile!"
-            return passed, msg, score, None
+            return passed, msg, score, None, [], []
+
+        if challenge.game_type is WebcamGameType.JIGGY_DANCE:
+            expected = challenge.move_sequence or random_jiggy_sequence(length=4)
+            count, matched, skipped = sequence_progress(signals, expected)
+            passed = count >= len(expected)
+            if passed:
+                msg = (
+                    f"Jiggy complete! {len(matched)} danced"
+                    + (f", {len(skipped)} skipped" if skipped else "")
+                    + f" — {move_encouragement(matched[-1]) if matched else 'You finished the set!'}"
+                )
+            elif matched:
+                msg = (
+                    f"Nice dancing — camera saw {len(matched)}/{len(expected)} moves. "
+                    "Skip any you cannot do, or keep grooving!"
+                )
+            else:
+                msg = (
+                    "Keep moving with the prompts — shake, bop, and groove "
+                    "when you see each move on screen. Skip is always OK."
+                )
+            return passed, msg, None, None, matched, skipped
 
         if challenge.game_type is WebcamGameType.FOCUS_STREAK:
             if evaluation.suspected_cheating_participant_ids:
-                return False, "Focus challenge failed due to possible cheating signals.", None, None
+                return False, "Focus challenge failed due to possible cheating signals.", None, None, [], []
             any_eyes_away = any(p.eyes_away_for_ms > 0 for p in evaluation.participants)
             if any_eyes_away:
-                return False, "Keep eyes on screen for the full focus streak.", None, None
-            return True, "Great focus control — challenge passed.", None, None
+                return False, "Keep eyes on screen for the full focus streak.", None, None, [], []
+            return True, "Great focus control — challenge passed.", None, None, [], []
 
         if challenge.game_type is WebcamGameType.CONFIDENCE_SMILE:
             if not evaluation.happy_participant_ids:
-                return False, "Show a confident/happy expression while answering.", None, None
-            return True, "Strong confidence signal detected — challenge passed.", None, None
+                return False, "Show a confident/happy expression while answering.", None, None, [], []
+            return True, "Strong confidence signal detected — challenge passed.", None, None, [], []
 
         if evaluation.suspected_cheating_participant_ids:
-            return False, "Integrity challenge failed due to suspicious signals.", None, None
-        return True, "Integrity challenge passed with clean attention signals.", None, None
+            return False, "Integrity challenge failed due to suspicious signals.", None, None, [], []
+        return True, "Integrity challenge passed with clean attention signals.", None, None, [], []
 
     @staticmethod
     def _best_spell(signals: list[WebcamSignal]) -> str | None:

@@ -129,6 +129,16 @@ MONITOR_CSS = """
     .cute-score-chip { font-size: 12px; padding: 4px 10px; border-radius: 999px;
                         border: 1px solid #f472b6; color: #fbcfe8; background: rgba(30, 27, 75, 0.7); }
     .game-leaderboard { font-size: 11px; color: #cbd5e1; margin-top: 6px; line-height: 1.45; }
+    .jiggy-prompt { position: absolute; left: 50%; top: 18%; transform: translate(-50%, -50%);
+                    z-index: 7; pointer-events: none; text-align: center; padding: 10px 18px;
+                    border-radius: 999px; background: rgba(109, 40, 217, 0.82);
+                    border: 2px solid #fde047; color: #fff; font-weight: 800;
+                    font-size: clamp(18px, 4.5vw, 32px); text-shadow: 0 2px 8px rgba(0,0,0,0.45);
+                    animation: jiggy-bop 0.55s ease-in-out infinite alternate; }
+    @keyframes jiggy-bop {
+      from { transform: translate(-50%, -50%) scale(1); }
+      to { transform: translate(-50%, -52%) scale(1.04); }
+    }
     .facial-hud { margin-top: 8px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .audio-hud { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .facial-card { border: 1px solid #334155; border-radius: 6px; padding: 8px 10px;
@@ -550,7 +560,26 @@ MONITOR_JS = (
       { id: 'mothers_day', costume: 'makeup', accessory: 'flower_bouquet', overlay: 'mothers_day' },
       { id: 'fathers_day', costume: 'sunglasses', accessory: 'hero_hammer', overlay: 'fathers_day' },
       { id: 'cute', costume: 'glasses', accessory: 'none', overlay: 'sparkle_frame' },
+      { id: 'jiggy', costume: 'party_hat', accessory: 'none', overlay: 'dance_floor' },
     ];
+    const JIGGY_MOVES = {
+      shake_shake: { prompt: 'Shake shake!', encourage: 'Awesome shakes!' },
+      dance: { prompt: 'Dance dance!', encourage: 'You are grooving!' },
+      spin: { prompt: 'Spin around!', encourage: 'Great spin energy!' },
+      twirl: { prompt: 'Twirl twirl!', encourage: 'Lovely twirl!' },
+      move_hands: { prompt: 'Move your hands!', encourage: 'Hand moves on point!' },
+      bop_head: { prompt: 'Bop your head!', encourage: 'Head bop unlocked!' },
+      get_low: { prompt: 'Get low!', encourage: 'Smooth get-low!' },
+      high_five: { prompt: 'High five the air!', encourage: 'High five hero!' },
+      snake_hands: { prompt: 'Snake your hands!', encourage: 'Sss-super snake hands!' },
+      side_to_side: { prompt: 'Side to side!', encourage: 'Nice side steps!' },
+      jump_bop: { prompt: 'Jump and bop!', encourage: 'Big jump energy!' },
+      wave_hello: { prompt: 'Wave hello!', encourage: 'Friendly wave!' },
+    };
+    const JIGGY_MATCH_THRESHOLD = 0.42;
+    let jiggyMoveSequence = [];
+    let jiggyMoveIndex = 0;
+    let jiggyLastMatchMs = 0;
     let visionKnobs = {};
     let lastLiveCamParticipant = null;
 
@@ -1652,6 +1681,11 @@ MONITOR_JS = (
       gameSignalBuffer = [];
       challengeFirstSignalMs = null;
       gameScoring = false;
+      if (body.game_type === 'jiggy_dance') {
+        resetJiggyDance(body.move_sequence || []);
+      } else {
+        resetJiggyDance([]);
+      }
       updateGameProgress();
       updateGameCostumeLabel();
       refreshSilhouetteGuide();
@@ -4133,6 +4167,98 @@ MONITOR_JS = (
       el.textContent = 'Cute confidence: ' + score + '/100 · energy, not appearance';
     }
 
+    function resetJiggyDance(moves) {
+      jiggyMoveSequence = Array.isArray(moves) ? moves.slice() : [];
+      jiggyMoveIndex = 0;
+      jiggyLastMatchMs = 0;
+    }
+
+    function detectDanceMoveConfidence(moveId, facial, signal) {
+      const motion = signal.motion_score || 0;
+      const body = signal.body_motion_score != null ? signal.body_motion_score : motion;
+      const fidget = signal.fidget_score || 0;
+      const hand = signal.hand_gesture_energy || 0;
+      const faceE = signal.face_motion_energy || 0;
+      const pitch = Math.abs(facial.head_pose_pitch || signal.head_pose_pitch || 0);
+      const yaw = Math.abs(facial.head_pose_yaw || signal.head_pose_yaw || 0);
+      const roll = Math.abs(facial.head_pose_roll || signal.head_pose_roll || 0);
+      const excited = signal.excitement_score || 0;
+      const spell = lastWandSpell || signal.wand_spell_label;
+      if (moveId === 'shake_shake') return Math.min(1, motion * 0.45 + fidget * 0.45 + hand * 0.2);
+      if (moveId === 'dance') return Math.min(1, motion * 0.35 + hand * 0.35 + faceE * 0.25 + excited * 0.15);
+      if (moveId === 'spin') return Math.min(1, (yaw / 22) * 0.55 + motion * 0.35 + body * 0.15);
+      if (moveId === 'twirl') return Math.min(1, (roll / 18) * 0.5 + (yaw / 25) * 0.25 + motion * 0.3);
+      if (moveId === 'move_hands') return Math.min(1, hand * 0.75 + motion * 0.2);
+      if (moveId === 'bop_head') return Math.min(1, faceE * 0.55 + motion * 0.25 + fidget * 0.15);
+      if (moveId === 'get_low') return Math.min(1, (pitch / 14) * 0.65 + motion * 0.25);
+      if (moveId === 'high_five') return Math.min(1, motion * 0.45 + hand * 0.45 + excited * 0.15);
+      if (moveId === 'snake_hands') {
+        const spellOk = (spell === 'swish' || spell === 'loop') ? 1 : 0;
+        return Math.min(1, hand * 0.45 + spellOk * 0.45 + motion * 0.15);
+      }
+      if (moveId === 'side_to_side') return Math.min(1, (yaw / 16) * 0.6 + motion * 0.3);
+      if (moveId === 'jump_bop') return Math.min(1, motion * 0.5 + excited * 0.3 + fidget * 0.25);
+      if (moveId === 'wave_hello') return Math.min(1, hand * 0.5 + motion * 0.25 + faceE * 0.15);
+      return 0;
+    }
+
+    function tickJiggyDance(facial, signal) {
+      if (!activeChallenge || activeChallenge.game_type !== 'jiggy_dance') return;
+      if (!jiggyMoveSequence.length) {
+        resetJiggyDance(activeChallenge.move_sequence || []);
+      }
+      const moveId = jiggyMoveSequence[jiggyMoveIndex];
+      if (!moveId) {
+        if (!gameScoring) void scoreActiveGame(true);
+        return;
+      }
+      const now = Date.now();
+      if (now - jiggyLastMatchMs < 700) return;
+      const conf = detectDanceMoveConfidence(moveId, facial, signal);
+      if (conf < JIGGY_MATCH_THRESHOLD) return;
+      signal.dance_move_matched = moveId;
+      signal.dance_move_index = jiggyMoveIndex;
+      jiggyLastMatchMs = now;
+      const meta = JIGGY_MOVES[moveId];
+      toast(meta ? meta.encourage : 'Great move!');
+      jiggyMoveIndex += 1;
+      if (jiggyMoveIndex >= jiggyMoveSequence.length) {
+        void scoreActiveGame(true);
+      }
+    }
+
+    function drawJiggyDancePrompt(ctx, w, h) {
+      if (!activeChallenge || activeChallenge.game_type !== 'jiggy_dance') return;
+      const moveId = jiggyMoveSequence[jiggyMoveIndex];
+      if (!moveId) return;
+      const meta = JIGGY_MOVES[moveId] || { prompt: moveId.replace(/_/g, ' ') };
+      const text = meta.prompt || moveId;
+      ctx.save();
+      const fontPx = Math.max(20, Math.round(w * 0.048));
+      ctx.font = '800 ' + fontPx + 'px ui-rounded, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = w * 0.5;
+      const cy = h * 0.22;
+      const tw = ctx.measureText(text).width + 36;
+      ctx.fillStyle = 'rgba(109, 40, 217, 0.84)';
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = Math.max(2, w * 0.003);
+      ctx.beginPath();
+      ctx.roundRect(cx - tw / 2, cy - fontPx * 0.85, tw, fontPx * 1.7, fontPx * 0.8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(text, cx, cy);
+      ctx.font = Math.max(11, Math.round(w * 0.014)) + 'px Arial, sans-serif';
+      ctx.fillStyle = '#fde68a';
+      ctx.fillText(
+        'Move ' + (jiggyMoveIndex + 1) + ' / ' + jiggyMoveSequence.length,
+        cx, cy + fontPx * 1.05,
+      );
+      ctx.restore();
+    }
+
     function renderGameLeaderboard(entries) {
       const el = document.getElementById('game-leaderboard');
       if (!el) return;
@@ -4468,6 +4594,16 @@ MONITOR_JS = (
         ctx.setLineDash([10, 8]);
         ctx.strokeRect(w * 0.03, h * 0.05, w * 0.94, h * 0.9);
         ctx.setLineDash([]);
+      } else if (overlayId === 'dance_floor') {
+        ctx.fillStyle = 'rgba(236, 72, 153, 0.18)';
+        ctx.fillRect(0, h * 0.72, w, h * 0.28);
+        for (let i = 0; i < 6; i++) {
+          ctx.fillStyle = i % 2 ? 'rgba(253, 224, 71, 0.35)' : 'rgba(167, 139, 250, 0.35)';
+          ctx.fillRect(i * (w / 6), h * 0.72, w / 6, h * 0.28);
+        }
+        ctx.fillStyle = '#fde68a';
+        ctx.font = `bold ${Math.max(11, w * 0.014)}px Arial`;
+        ctx.fillText('🕺 Come get jiggy!', w * 0.04, h * 0.08);
       }
       ctx.restore();
     }
@@ -4479,6 +4615,7 @@ MONITOR_JS = (
       const themeSpec = themeOption(selectedGameTheme);
       const overlayId = activeChallenge ? themeSpec.overlay : themeSpec.overlay;
       drawFestiveThemeOverlay(ctx, w, h, overlayId);
+      drawJiggyDancePrompt(ctx, w, h);
       if (lastFaceContours && lastFaceContours.pts) {
         const pts = lastFaceContours.pts;
         if (activeChallenge) {
@@ -5696,6 +5833,7 @@ MONITOR_JS = (
       signal.accessory_count = countActiveAccessories();
       signal.cute_confidence_score = cuteLive > 0 ? cuteLive : null;
       signal.game_theme = selectedGameTheme;
+      tickJiggyDance(facial, signal);
       recordGameSignal(signal);
       // Redraw before the round trip so face + hand contours keep up with the
       // video even when the POST is slow or fails.
@@ -6415,9 +6553,10 @@ MONITOR_PAGE_TEMPLATE = (
     <div class="panel">
       <h2>Webcam games</h2>
       <div class="game-theme-row">
-        <label for="game-theme">Holiday theme</label>
-        <select id="game-theme" aria-label="Holiday game theme">
+        <label for="game-theme">Game theme</label>
+        <select id="game-theme" aria-label="Webcam game theme">
           <option value="classic">Classic focus games</option>
+          <option value="jiggy">Come get jiggy with me</option>
           <option value="halloween">Halloween wand spells</option>
           <option value="christmas">Christmas gingerbread</option>
           <option value="valentines">Valentine heart match</option>

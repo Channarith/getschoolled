@@ -52,6 +52,10 @@ REQUIRED_MONITOR_JS_HELPERS = (
     "updateGameAccessoryLabel",
     "computeLiveCuteScore",
     "detectWandSpellFromTrail",
+    "resetJiggyDance",
+    "detectDanceMoveConfidence",
+    "tickJiggyDance",
+    "drawJiggyDancePrompt",
     "shouldDrawGameStudio",
     "clamp01",
     "clampSignal",
@@ -954,7 +958,16 @@ def test_game_overlay_shows_face_tracking_tilt_and_costumes_during_challenges():
     assert 'id="game-theme"' in page
     assert 'id="cam-snap"' in page
     assert "Am I cute enough?" in page
+    assert "Come get jiggy with me" in page
     assert "function drawGamePlayOverlay()" in MONITOR_JS
+    assert "function resetJiggyDance(" in MONITOR_JS
+    assert "function detectDanceMoveConfidence(" in MONITOR_JS
+    assert "function tickJiggyDance(" in MONITOR_JS
+    assert "function drawJiggyDancePrompt(" in MONITOR_JS
+    assert "const JIGGY_MATCH_THRESHOLD = 0.42;" in MONITOR_JS
+    assert "dance_move_matched" in MONITOR_JS
+    assert "dance_floor" in MONITOR_JS
+    assert "Come get jiggy!" in MONITOR_JS
     assert "function shouldDrawGameStudio()" in MONITOR_JS
     assert "function captureCamSnapshot()" in MONITOR_JS
     assert "toast('saved!')" in MONITOR_JS
