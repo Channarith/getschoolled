@@ -25,6 +25,17 @@ def test_page_exposes_core_games_privacy_and_fun_ui():
         "Pop balloons",
         "Fun 0",
         "No recordings or Face ID",
+        "Vision testing overlays",
+        "Face contour",
+        "Hand skeletons",
+        "Distance & measurements",
+        'id="guide-layer"',
+        'id="vision-readout"',
+        'id="show-guide"',
+        'id="show-face"',
+        'id="show-hands"',
+        'id="show-trail"',
+        'id="show-measures"',
         "/static/app.js",
     ):
         assert text in html
@@ -91,15 +102,73 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
     assert 'state.game!=="say-letter"' in script
     assert "OBJECT_GAMES.has(state.game)" in script
     assert "esc(id.replaceAll" in script
-    assert "tipToWrist<0.22" in script
     assert "Hold still like a statue" in script
+    # Gesture thresholds must be hand-relative, never absolute frame distances.
+    assert "tipToWrist<0.22" not in script
+    assert "FIST_MAX_PALMS" in script
+    assert "vision_math.js" in script
+    # The stage box is measured on resize, not per landmark per frame.
+    assert "stage.clientWidth" not in script
+    assert "stage.clientHeight" not in script
+    # Every vision input is visible and independently switchable while testing.
+    assert '$("show-face").checked' in script
+    assert '$("show-hands").checked' in script
+    assert '$("show-trail").checked' in script
+    assert '$("show-measures").checked' in script
+    assert "renderVisionReadout" in script
+    assert "faceDistanceLabel" in script
+    assert "traceProgress" in script
+    assert "updateGuideLayer" in script
+    # Missing optional self-hosted vision assets must not create a noisy 404.
+    assert 'fetch("/vendor/vision/tasks-vision.mjs"' not in script
+    assert 'fetch("/health")' in script
+    # One failed server render disables it for the session; later prompts use
+    # browser speech instead of producing a console full of repeated 501s.
+    assert "state.serverTts=false" in script
+    assert 'fetch("/api/tts/status")' in script
+    assert 'get("demo")==="1"' in script
 
 
-def test_static_javascript_parses_with_node():
+def test_blow_a_kiss_needs_a_tracked_face_for_both_steps():
+    """Losing the face used to satisfy step two, so the round passed itself."""
+    script = (ROOT / "src/theodore_children_webcam_lab/static/app.js").read_text()
+    kiss = script.split('state.game==="blow-kiss"')[1].split("make-pose")[0]
+    # The old success condition was "hand is no longer near", which a dropped
+    # face also satisfied. It must now require outward travel instead.
+    assert "!handNearFace" not in kiss
+    assert "KISS_AWAY_FACES" in kiss
+    assert "if (!state.faceData)" in kiss
+
+
+def test_gesture_geometry_is_distance_invariant():
+    """Run the real geometry: same pose, different camera distances.
+
+    A fist stopped being recognised once the hand filled more than ~0.22 of the
+    frame, because the threshold was an absolute distance in a normalised
+    frame. These assertions execute the shipped module rather than grepping it.
+    """
     node = shutil.which("node")
     if not node:
         pytest.skip("node is not installed")
-    script = ROOT / "src/theodore_children_webcam_lab/static/app.js"
+    check = ROOT / "tests/vision_math_check.mjs"
+    result = subprocess.run(
+        [node, str(check)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "vision geometry OK" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "script_name", ["app.js", "vision_math.js"]
+)
+def test_static_javascript_parses_with_node(script_name):
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    script = ROOT / "src/theodore_children_webcam_lab/static" / script_name
     result = subprocess.run(
         [node, "--check", str(script)],
         check=False,
