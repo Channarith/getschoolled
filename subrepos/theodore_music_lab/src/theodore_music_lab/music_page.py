@@ -2606,10 +2606,18 @@ _JS = r"""
   // The neural engine drops clips when several renders land at once, so the
   // look-ahead is queued two at a time rather than fired as one burst.
   const TTS_PREFETCH_CONCURRENCY = 2;
+  // A clip the server cannot render (501: no engine, no reachable voice service)
+  // will not start working later in the same song. Remembering the miss stops
+  // the look-ahead re-requesting it on every line change, and after a few
+  // failures in a row the prefetcher gives up entirely instead of flooding the
+  // server with requests that all answer 501.
+  const TTS_MAX_FAILURES = 3;
   const ttsClips = new Map();
   const ttsPending = new Map();
+  const ttsMisses = new Set();
   const ttsQueue = [];
   let ttsPrefetching = 0;
+  let ttsFailures = 0;
 
   function ttsUrl(text, o) {
     return `/api/music/tts?lang=${encodeURIComponent(o.lang || "en")}` +
@@ -2640,19 +2648,29 @@ _JS = r"""
     const key = ttsKey(line, o);
     const ready = ttsClips.get(key);
     if (ready) return Promise.resolve(ready);
+    if (ttsMisses.has(key)) return Promise.resolve(null);
     const inflight = ttsPending.get(key);
     if (inflight) return inflight;
     const job = fetch(ttsUrl(line, o))
       .then((res) => (res.ok ? res.blob() : null))
       .then((blob) => {
-        if (!blob || !blob.size) return null;
+        if (!blob || !blob.size) {
+          ttsMisses.add(key);
+          ttsFailures += 1;
+          return null;
+        }
         const url = URL.createObjectURL(blob);
         rememberClip(key, url);
+        ttsFailures = 0;
         return url;
       })
       // A failed prefetch is not an error the listener needs to see: speak()
       // still streams the line directly and falls back to the device voice.
-      .catch(() => null)
+      .catch(() => {
+        ttsMisses.add(key);
+        ttsFailures += 1;
+        return null;
+      })
       .finally(() => ttsPending.delete(key));
     ttsPending.set(key, job);
     return job;
@@ -2662,14 +2680,16 @@ _JS = r"""
     const line = String(text || "").trim();
     const o = opts || {};
     if (!line || !serverVoicesReady()) return;
+    if (ttsFailures >= TTS_MAX_FAILURES) return;
     const key = ttsKey(line, o);
-    if (ttsClips.has(key) || ttsPending.has(key)) return;
+    if (ttsClips.has(key) || ttsPending.has(key) || ttsMisses.has(key)) return;
     if (ttsQueue.some((job) => job.key === key)) return;
     ttsQueue.push({ key, line, opts: o });
     drainClipQueue();
   }
 
   function drainClipQueue() {
+    if (ttsFailures >= TTS_MAX_FAILURES) { ttsQueue.length = 0; return; }
     while (ttsPrefetching < TTS_PREFETCH_CONCURRENCY && ttsQueue.length) {
       const job = ttsQueue.shift();
       ttsPrefetching += 1;
@@ -2698,7 +2718,12 @@ _JS = r"""
         if (stale()) return;
         if (!ttsFellBack) {
           ttsFellBack = true;
-          toast("Neural voice unavailable \u2014 using this device's voice");
+          // Claiming "using this device's voice" for a language the OS has no
+          // voice for is what turned a broken render into a silent mystery.
+          toast(bestVoiceFor(o.lang || "en")
+            ? "Neural voice unavailable \u2014 using this device's voice"
+            : `No ${langName(o.lang || "en")} voice: the speech service is ` +
+              `unreachable and this device has none installed`);
         }
         if (!speakOnDevice(line, o.tag, o.rate, done) && done) done();
       };
