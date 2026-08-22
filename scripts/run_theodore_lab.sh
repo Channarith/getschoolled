@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start one Theodore lab with config/local.env (+ optional .env.local) loaded.
 # Usage: scripts/run_theodore_lab.sh <lab> [port]
-# Labs: audio_translation | course_studio | webcam | homework | music | drive | rag
+# Labs: audio_translation | course_studio | webcam | children | homework | music | drive | rag
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,7 +10,7 @@ PORT_OVERRIDE="${2:-}"
 
 if [[ -z "$LAB" ]]; then
   echo "Usage: $0 <lab> [port]" >&2
-  echo "  labs: audio_translation course_studio webcam homework music drive rag" >&2
+  echo "  labs: audio_translation course_studio webcam children homework music drive rag" >&2
   exit 2
 fi
 
@@ -57,6 +57,7 @@ declare -A LAB_PKG=(
   [audio_translation]=theodore_audio_translation_lab
   [course_studio]=theodore_course_studio_lab
   [webcam]=theodore_webcam_lab
+  [children]=theodore_children_webcam_lab
   [homework]=theodore_homework_lab
   [music]=theodore_music_lab
   [drive]=theodore_drive_lab
@@ -66,6 +67,7 @@ declare -A LAB_PORT=(
   [audio_translation]=8011
   [course_studio]=8012
   [webcam]=8013
+  [children]=8018
   [homework]=8014
   [music]=8015
   [drive]=8016

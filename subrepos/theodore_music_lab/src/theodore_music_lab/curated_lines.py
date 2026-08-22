@@ -17,7 +17,11 @@ from pathlib import Path
 
 from .curated_zh_km import CURATED_ZH_KM
 
-CURATED_LANGUAGES: tuple[str, ...] = ("es", "fr", "de", "it", "pt", "zh", "km")
+CURATED_LANGUAGES: tuple[str, ...] = (
+    "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "uk", "tr", "ar", "he",
+    "hi", "bn", "ur", "fa", "zh", "ja", "ko", "vi", "th", "id", "sw", "el",
+    "cs", "km",
+)
 
 
 def normalize(text: str | None) -> str:
@@ -106,13 +110,8 @@ for _line, _translations in CURATED_ZH_KM.items():
     CURATED_LINES.setdefault(_line, {}).update(_translations)
 
 
-def _merge_extra_pack() -> None:
-    """Fold the 26-language featured pack into CURATED_LINES (idempotent)."""
-    pack = (
-        Path(__file__).resolve().parent.parent.parent / "data" / "curated_lines_extra.json"
-    )
-    if not pack.is_file():
-        return
+def _merge_pack(pack: Path) -> None:
+    """Fold one committed 26-language song pack into the curated lookup."""
     try:
         payload = json.loads(pack.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -129,7 +128,17 @@ def _merge_extra_pack() -> None:
                 bucket[lang] = text.strip()
 
 
-_merge_extra_pack()
+def _merge_extra_packs() -> None:
+    """Load the baseline plus independently reviewable per-song packs."""
+    data = Path(__file__).resolve().parent.parent.parent / "data"
+    packs = [data / "curated_lines_extra.json"]
+    packs.extend(sorted((data / "i18n_packs").glob("*.json")))
+    for pack in packs:
+        if pack.is_file():
+            _merge_pack(pack)
+
+
+_merge_extra_packs()
 
 
 def curated(text: str, language: str) -> str:
