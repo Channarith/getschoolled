@@ -394,9 +394,9 @@ def test_api_tts_speaks_with_the_platform_shape(tts_cache, monkeypatch):
 def test_rendered_clips_are_cached_once_and_reused(tts_cache, monkeypatch):
     calls: list[tuple[str, str, str]] = []
 
-    def fake_render(text, path, *, voice, rate):
+    def fake_render(text, *, voice, rate):
         calls.append((text, voice, rate))
-        path.write_bytes(b"rendered-mp3")
+        return b"rendered-mp3"
 
     monkeypatch.setattr("theodore_music_lab.tts._render", fake_render)
     monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
@@ -420,11 +420,11 @@ def test_transient_empty_audio_retries_then_falls_back_to_alternate_voice(
 ):
     attempts: list[str] = []
 
-    def flaky(text, path, *, voice, rate):
+    def flaky(text, *, voice, rate):
         attempts.append(voice)
         if voice in {"pl-PL-AgnieszkaNeural", "pl-PL-MarekNeural"}:
             raise RuntimeError("No audio was received. Please verify that your parameters are correct.")
-        path.write_bytes(b"zofia-mp3")
+        return b"zofia-mp3"
 
     monkeypatch.setattr("theodore_music_lab.tts._render", flaky)
     monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
@@ -436,8 +436,7 @@ def test_transient_empty_audio_retries_then_falls_back_to_alternate_voice(
 
 
 def test_a_failed_render_leaves_no_truncated_clip(tts_cache, monkeypatch):
-    def boom(text, path, *, voice, rate):
-        path.write_bytes(b"half")
+    def boom(text, *, voice, rate):
         raise RuntimeError("connection reset")
 
     monkeypatch.setattr("theodore_music_lab.tts._render", boom)
@@ -448,6 +447,45 @@ def test_a_failed_render_leaves_no_truncated_clip(tts_cache, monkeypatch):
     assert not clip_path("bonjour", voice=voice_for("fr"), rate="+0%").exists()
     assert list(tts_cache.glob("*.mp3")) == []
     assert list(tts_cache.glob("*.part")) == []
+
+
+def test_a_read_only_clip_cache_still_speaks(monkeypatch, tmp_path):
+    """A cache is an optimisation, so an unwritable one must not mute a song.
+
+    Servers started from a sandboxed shell (or any read-only home) could not
+    create the ``.part`` file, so every uncached line answered 501 and the
+    player fell back to a device voice the OS may not have for that language.
+    """
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0o500)
+    monkeypatch.setenv("MUSIC_LAB_TTS_CACHE", str(locked / "tts"))
+    monkeypatch.delenv("MUSIC_LAB_TTS", raising=False)
+    monkeypatch.setattr(
+        "theodore_music_lab.tts._render", lambda text, *, voice, rate: b"khmer-mp3"
+    )
+    monkeypatch.setattr("theodore_music_lab.tts.engine_available", lambda: True)
+    try:
+        assert synthesize("ដៃ កែងដៃ ស្មា ជង្គង់", "km", rate=0.9) == b"khmer-mp3"
+    finally:
+        locked.chmod(0o700)
+
+
+def test_the_look_ahead_gives_up_instead_of_re_requesting_failed_clips():
+    """A 501 clip must not be re-fetched on every line change.
+
+    The look-ahead used to forget failures, so a language the server could not
+    render produced the same request several times per line — hundreds of 501s
+    for one song.
+    """
+    with TestClient(app) as client:
+        js = _player_source(client)
+    assert "ttsMisses" in js
+    # A remembered miss short-circuits both the queue and the fetch itself.
+    assert "ttsMisses.has(key)" in js
+    assert "ttsFailures >= TTS_MAX_FAILURES" in js
+    # …and a success clears the streak so one blip does not disable prefetch.
+    assert "ttsFailures = 0;" in js
 
 
 def test_the_player_speaks_through_the_server_and_can_fall_back():
