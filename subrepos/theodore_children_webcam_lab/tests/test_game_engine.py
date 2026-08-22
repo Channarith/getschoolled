@@ -12,8 +12,12 @@ from theodore_children_webcam_lab.game_engine import (
 
 
 def test_a_to_z_picture_catalog_is_complete():
+    from theodore_children_webcam_lab.game_engine import PICTURE_EMOJI
+
     assert set(PICTURE_WORDS) == set("abcdefghijklmnopqrstuvwxyz")
     assert PICTURE_WORDS["a"] == "apple"
+    assert set(PICTURE_EMOJI) == set(PICTURE_WORDS.values())
+    assert all(PICTURE_EMOJI[word] for word in PICTURE_WORDS.values())
 
 
 def test_letter_aliases_and_noun_plurals_are_child_friendly():
@@ -63,9 +67,10 @@ def test_oh_behave_timer_ladder_is_age_bounded():
 
 
 def test_resting_hand_is_not_a_closed_fist():
-    assert is_closed_fist(finger_count=0, tip_to_wrist=0.12) is True
-    assert is_closed_fist(finger_count=0, tip_to_wrist=0.4) is False
-    assert is_closed_fist(finger_count=2, tip_to_wrist=0.1) is False
+    # Distances are in palms (wrist to middle knuckle), matching vision_math.js.
+    assert is_closed_fist(finger_count=0, tip_to_wrist=1.1, palm_span=1.0) is True
+    assert is_closed_fist(finger_count=0, tip_to_wrist=2.4, palm_span=1.0) is False
+    assert is_closed_fist(finger_count=2, tip_to_wrist=1.0, palm_span=1.0) is False
 
 
 def test_trace_pass_requires_centered_coverage():

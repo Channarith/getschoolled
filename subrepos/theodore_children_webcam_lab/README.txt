@@ -4,6 +4,13 @@ Ages 4–10. The lab combines live face/hand landmarks, finger tracing,
 music-lab speech, movement games, cute/hero animation themes, success
 fireworks, loving miss gags, and a local-first Fun Score.
 
+The 22 games (Learn / Face & hands / Move) are listed in one catalog
+(`game_engine.GAME_MENU`) so the page menu, `/api/child/content`, and the
+browser loop cannot drift. Trace a picture has a real glyph for every
+A–Z word. Pointer demo (`?demo=1`, or the setup button) drives a
+synthetic hand + face on the stage: index finger by default, Alt for a
+fist, Shift for a second hand, click for a mouth-O.
+
 START
 
 From the repository root:

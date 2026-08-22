@@ -85,7 +85,7 @@ def tts_status() -> dict[str, object]:
         "available": bool(chain),
         "engine": chain[0] if chain else "",
         "engines": chain,
-        "disabled": sorted(e for e in _lab._engine_retry_at if _lab._benched(e)),
+        "disabled": _lab._benched_names(),
         "gateway_url": _gateway_url(),
         "elevenlabs_configured": bool(_elevenlabs_key()),
         "xai_configured": bool(__import__("os").environ.get("XAI_API_KEY", "").strip()),
@@ -122,7 +122,7 @@ def synthesize(text: str, *, language: str = "en", style: str = "warm"):
                 return (*_lab._edge_tts(clean, lang), "edge-tts")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{engine}: {exc}")
-            _lab._bench_engine(engine)
+            _lab._bench_engine(engine, str(exc))
 
     detail = f" Tried: {'; '.join(errors)}" if errors else ""
     raise ProviderUnavailable(
