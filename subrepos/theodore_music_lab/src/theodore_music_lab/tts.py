@@ -150,14 +150,44 @@ def clip_path(text: str, *, voice: str, rate: str) -> Path:
     return cache_dir() / f"{digest}.mp3"
 
 
-def _render(text: str, path: Path, *, voice: str, rate: str) -> None:
+def _render(text: str, *, voice: str, rate: str) -> bytes:
+    """MP3 bytes straight from the engine, without touching the disk.
+
+    Rendering used to go through ``Communicate.save(path)``, which made a clip
+    impossible to produce whenever the cache directory was not writable — a
+    read-only home, a container, or a sandboxed shell. The endpoint then
+    answered 501 for every uncached line and the player fell back to a device
+    voice the OS may not have for that language, so a whole song went silent.
+    The cache is an optimisation; playback must not depend on it.
+    """
     import edge_tts
 
-    async def run() -> None:
+    async def run() -> bytes:
         comm = edge_tts.Communicate(text, voice=voice, rate=rate)
-        await asyncio.wait_for(comm.save(str(path)), timeout=_TIMEOUT_SEC)
+        audio = bytearray()
 
-    asyncio.run(run())
+        async def pump() -> None:
+            async for chunk in comm.stream():
+                if chunk.get("type") == "audio" and chunk.get("data"):
+                    audio.extend(chunk["data"])
+
+        await asyncio.wait_for(pump(), timeout=_TIMEOUT_SEC)
+        return bytes(audio)
+
+    return asyncio.run(run())
+
+
+def _store(path: Path, audio: bytes) -> None:
+    """Cache a rendered clip, best effort. Writing is never required to speak."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Writing straight to the final name would publish a truncated clip if
+        # the process died halfway through.
+        partial = path.with_suffix(".part")
+        partial.write_bytes(audio)
+        partial.replace(path)
+    except OSError:
+        pass
 
 
 def _transient_render_error(exc: BaseException) -> bool:
@@ -201,20 +231,14 @@ def synthesize(
 
     errors: list[str] = []
     for chosen in candidates:
-        path = clip_path(line, voice=chosen, rate=percent)
-        path.parent.mkdir(parents=True, exist_ok=True)
         for attempt in range(_RENDER_ATTEMPTS):
-            partial = path.with_suffix(".part")
             try:
-                _render(line, partial, voice=chosen, rate=percent)
-                # Rendering straight to the final name would publish a truncated
-                # clip if the network dropped halfway through.
-                if not partial.is_file() or partial.stat().st_size <= 0:
-                    raise TTSUnavailable("empty audio file")
-                partial.replace(path)
-                return path.read_bytes()
+                audio = _render(line, voice=chosen, rate=percent)
+                if not audio:
+                    raise TTSUnavailable("empty audio")
+                _store(clip_path(line, voice=chosen, rate=percent), audio)
+                return audio
             except Exception as exc:  # network, auth, voice retired…
-                partial.unlink(missing_ok=True)
                 detail = str(exc).strip() or type(exc).__name__
                 errors.append(f"{chosen} attempt {attempt + 1}: {detail}")
                 if attempt + 1 < _RENDER_ATTEMPTS and _transient_render_error(exc):
