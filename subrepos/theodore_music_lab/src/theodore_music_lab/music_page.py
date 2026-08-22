@@ -1814,7 +1814,8 @@ _JS = r"""
 
   function stopEmbedSpeech() {
     clearTimeout(embedSpeakTimer);
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (typeof cancelSpeech === "function") cancelSpeech();
+    else if (window.speechSynthesis) window.speechSynthesis.cancel();
     embedSpeakUtterance = null;
     // Reset any speaking button states
     [$("btn-speak-tr"), $("btn-speak-tr-ov")].forEach((btn) => {
@@ -1826,13 +1827,12 @@ _JS = r"""
     if (!translation || code === "en") return;
     const buttons = [$("btn-speak-tr"), $("btn-speak-tr-ov")];
     buttons.forEach((b) => b && b.classList.add("speaking"));
-    speakTranslation(translation, code, {
-      onEnd: () => buttons.forEach((b) => b && b.classList.remove("speaking")),
-      onError: (err) => {
-        buttons.forEach((b) => b && b.classList.remove("speaking"));
-        const name = langName(code);
-        toast(`No ${name} voice found — install it in your OS settings`);
-      },
+    const done = () => buttons.forEach((b) => b && b.classList.remove("speaking"));
+    speak(translation, {
+      lang: code,
+      tag: bcp47(code),
+      rate: ["ar","he","fa","ur","th","km","zh","ja","ko"].includes(code) ? 0.82 : 0.92,
+      onend: done,
     });
   }
 
@@ -2404,10 +2404,15 @@ _JS = r"""
       if (isNow) { activeSpan = span; key = `${row.line_no}:${w.index}`; }
     });
     if (!activeSpan && row.words.length) {
-      const last = row.words[row.words.length - 1];
-      if (t >= last.end) {
-        activeSpan = box.querySelector(`.w[data-no="${row.line_no}"][data-i="${last.index}"]`);
-        key = `${row.line_no}:${last.index}`;
+      let held = null;
+      for (const w of row.words) {
+        if (t >= w.start) held = w;
+      }
+      if (held) {
+        activeSpan = box.querySelector(`.w[data-no="${row.line_no}"][data-i="${held.index}"]`);
+        key = `${row.line_no}:${held.index}`;
+        const capHeld = cap.querySelector(`.w[data-i="${held.index}"]`);
+        if (capHeld) activeCapSpan = capHeld;
       }
     }
     if (key !== activeWordKey) {

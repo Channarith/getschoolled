@@ -4,8 +4,8 @@
 # Already-cached clips are skipped, so re-deploys are fast (seconds, not minutes).
 set -euo pipefail
 
-LANGS=(
-  en es it fr de pt nl pl ru uk tr ar he hi bn fa
+    LANGS=(
+  en es it fr de pt nl pl ru uk tr ar he hi bn ur fa
   ja ko vi th id sw el cs zh km
 )
 
@@ -27,5 +27,5 @@ echo "==> Starting Theodore Music Lab on :8000"
 exec uvicorn "theodore_music_lab.main:app" \
      --host 0.0.0.0 \
      --port 8000 \
-     --workers 2 \
+     --workers 1 \
      --log-level info
