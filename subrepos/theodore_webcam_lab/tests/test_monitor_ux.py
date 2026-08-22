@@ -39,6 +39,12 @@ REQUIRED_MONITOR_JS_HELPERS = (
     "trackHands",
     "handsOnFaceFromLandmarks",
     "drawHandContoursOnOverlay",
+    "pushIndexFingerTrailSample",
+    "drawIndexFingerTrail",
+    "drawGamePlayOverlay",
+    "drawGameCostume",
+    "cycleGameCostume",
+    "updateGameCostumeLabel",
     "clamp01",
     "clampSignal",
     "holdSeconds",
@@ -911,3 +917,41 @@ def test_shutdown_stops_metrics_poll_before_wiping_dom():
     assert "setTextSafe('state'" in refresh or "setTextSafe(\"state\"" in refresh
     assert "document.getElementById('state') == null" in refresh
     assert "metricsFailStreak >= 3" in refresh
+
+
+def test_finger_trail_duration_matches_python_constant():
+    from theodore_webcam_lab.game_overlay import (
+        FINGER_TRAIL_DURATION_MS,
+        INDEX_FINGER_TIP,
+    )
+
+    assert "const FINGER_TRAIL_DURATION_MS = 1_500;" in MONITOR_JS
+    assert FINGER_TRAIL_DURATION_MS == 1500
+    assert f"const INDEX_FINGER_TIP = {INDEX_FINGER_TIP};" in MONITOR_JS
+    assert "function pushIndexFingerTrailSample(normX, normY)" in MONITOR_JS
+    assert "function drawIndexFingerTrail()" in MONITOR_JS
+    assert "drawIndexFingerTrail();" in MONITOR_JS
+    assert "overlayPoint(prev.x, prev.y)" in MONITOR_JS.split("function drawIndexFingerTrail")[1].split(
+        "function updateGameCostumeLabel"
+    )[0]
+    assert "pts[INDEX_FINGER_TIP]" in MONITOR_JS
+
+
+def test_game_overlay_shows_face_tracking_tilt_and_costumes_during_challenges():
+    from theodore_webcam_lab.game_overlay import GAME_COSTUME_IDS
+
+    page = client.get("/theodore/webcam/live-monitor/demo-session").text
+    assert 'id="game-costume-cycle"' in page
+    assert "Next fun overlay" in page
+    assert "function drawGamePlayOverlay()" in MONITOR_JS
+    assert "if (!activeChallenge) return;" in MONITOR_JS.split("function drawGamePlayOverlay")[1].split(
+        "function headPoseFromMatrix"
+    )[0]
+    assert "Game face tracking" in MONITOR_JS
+    assert "pitch · yaw · roll" in MONITOR_JS
+    assert "function drawGameCostume(ctx, pts, w, drawW, drawH, costumeId)" in MONITOR_JS
+    assert "function cycleGameCostume()" in MONITOR_JS
+    for costume_id in GAME_COSTUME_IDS:
+        assert f"id: '{costume_id}'" in MONITOR_JS
+    assert "lastGameHeadPose" in MONITOR_JS
+    assert "drawGamePlayOverlay();" in MONITOR_JS

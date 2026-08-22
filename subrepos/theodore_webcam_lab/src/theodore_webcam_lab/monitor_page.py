@@ -113,6 +113,8 @@ MONITOR_CSS = """
     .tilt-chip.warm { border-color: #f59e0b; color: #fde68a; }
     .tilt-chip.cool { border-color: #22c55e; color: #86efac; }
     .tilt-hint { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+    .game-costume-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+    .game-costume-label { font-size: 11px; color: #cbd5e1; }
     .facial-hud { margin-top: 8px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .audio-hud { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .facial-card { border: 1px solid #334155; border-radius: 6px; padding: 8px 10px;
@@ -503,6 +505,18 @@ MONITOR_JS = (
     let gameSignalBuffer = [];
     let gameScoring = false;
     let challengeFirstSignalMs = null;
+    let gameCostumeIndex = 0;
+    let lastGameHeadPose = null;
+    const GAME_COSTUMES = [
+      { id: 'none', label: 'None' },
+      { id: 'glasses', label: 'Glasses' },
+      { id: 'party_hat', label: 'Party hat' },
+      { id: 'makeup', label: 'Makeup' },
+      { id: 'cat_ears', label: 'Cat ears' },
+      { id: 'pumpkin', label: 'Pumpkin' },
+      { id: 'wizard', label: 'Wizard hat' },
+      { id: 'sunglasses', label: 'Cool shades' },
+    ];
     let visionKnobs = {};
     let lastLiveCamParticipant = null;
 
@@ -1600,6 +1614,8 @@ MONITOR_JS = (
       challengeFirstSignalMs = null;
       gameScoring = false;
       updateGameProgress();
+      updateGameCostumeLabel();
+      refreshSilhouetteGuide();
       toast('Challenge issued: ' + body.title);
     });
     document.getElementById('game-attempt').addEventListener('click', async () => {
@@ -1610,6 +1626,9 @@ MONITOR_JS = (
       await scoreActiveGame(false);
     });
     document.getElementById('game-attempt').disabled = true;
+    const gameCostumeBtn = document.getElementById('game-costume-cycle');
+    if (gameCostumeBtn) gameCostumeBtn.addEventListener('click', cycleGameCostume);
+    updateGameCostumeLabel();
 
     // Camera path — HD Ready / Full HD 16:9
     const CAM_IDEAL_W = 1920, CAM_IDEAL_H = 1080;  // Full HD request
@@ -2318,6 +2337,8 @@ MONITOR_JS = (
       else clearSilhouetteOverlay();
       drawFaceContoursOnOverlay();
       drawHandContoursOnOverlay();
+      drawIndexFingerTrail();
+      drawGamePlayOverlay();
       // Last: drawSilhouetteGuide clears the overlay, so the gauge has to come
       // after it or it is wiped on the next frame.
       drawTiltGauge();
@@ -3538,6 +3559,11 @@ MONITOR_JS = (
     // { hands: [[{x,y}]], connections: [[i,j]], labels: ['Left'|'Right'] } — null when
     // no hand is in frame, which is what keeps hand contours off the overlay.
     let lastHandContours = null;
+    // Index fingertip tracing trail — fades over FINGER_TRAIL_DURATION_MS on the
+    // mirrored webcam overlay (overlayPoint handles the mirror flip).
+    const FINGER_TRAIL_DURATION_MS = 1_500;
+    const INDEX_FINGER_TIP = 8;  // MediaPipe hand landmark index
+    let indexFingerTrail = [];
     let moodHistory = [];
     // Attention and behaviour flicker frame to frame (~3 samples/sec), so — like
     // mood — they are smoothed over a short rolling window instead of shown raw.
@@ -3766,6 +3792,7 @@ MONITOR_JS = (
     async function trackHands(facePts) {
       if (usingSilhouette || usingPattern || !camVideo.videoWidth) {
         lastHandContours = null;
+        indexFingerTrail = [];
         return null;
       }
       const hl = await ensureHandLandmarker();
@@ -3788,6 +3815,11 @@ MONITOR_JS = (
       }
       const labels = (result.handedness || []).map((h) => (h && h[0] && h[0].categoryName) || '');
       lastHandContours = { hands, connections: hl._CONNECTIONS || [], labels };
+      // Index fingertip trail — prefer the first hand with a visible index tip.
+      hands.forEach((pts) => {
+        const tip = pts[INDEX_FINGER_TIP];
+        if (tip) pushIndexFingerTrailSample(tip.x, tip.y);
+      });
       return {
         hand_count: hands.length,
         hands_on_face_score: handsOnFaceFromLandmarks(hands, facePts),
@@ -3894,6 +3926,328 @@ MONITOR_JS = (
         }
       });
       ctx.restore();
+    }
+
+    function pushIndexFingerTrailSample(normX, normY) {
+      if (normX == null || normY == null) return;
+      const now = Date.now();
+      const last = indexFingerTrail[indexFingerTrail.length - 1];
+      // Skip duplicate samples when the finger barely moves between 300 ms frames.
+      if (last && Math.hypot(normX - last.x, normY - last.y) < 0.004) return;
+      indexFingerTrail.push({ x: normX, y: normY, t: now });
+      const cutoff = now - FINGER_TRAIL_DURATION_MS;
+      indexFingerTrail = indexFingerTrail.filter((p) => p.t >= cutoff);
+    }
+
+    function drawIndexFingerTrail() {
+      if (indexFingerTrail.length < 2) return;
+      const { w } = syncOverlaySize();
+      const ctx = overlay.getContext('2d');
+      const now = Date.now();
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = Math.max(3, w * 0.006);
+      for (let i = 1; i < indexFingerTrail.length; i++) {
+        const prev = indexFingerTrail[i - 1];
+        const cur = indexFingerTrail[i];
+        const age = now - cur.t;
+        const alpha = clamp01(1 - age / FINGER_TRAIL_DURATION_MS);
+        if (alpha <= 0.02) continue;
+        const ap = overlayPoint(prev.x, prev.y);
+        const bp = overlayPoint(cur.x, cur.y);
+        ctx.strokeStyle = `rgba(244, 114, 182, ${0.12 + alpha * 0.88})`;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.moveTo(ap.x, ap.y);
+        ctx.lineTo(bp.x, bp.y);
+        ctx.stroke();
+      }
+      const tip = indexFingerTrail[indexFingerTrail.length - 1];
+      const tp = overlayPoint(tip.x, tip.y);
+      const tipAlpha = clamp01(1 - (now - tip.t) / FINGER_TRAIL_DURATION_MS);
+      ctx.globalAlpha = tipAlpha;
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, Math.max(4, w * 0.008), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function updateGameCostumeLabel() {
+      const el = document.getElementById('game-costume-label');
+      if (!el) return;
+      const costume = GAME_COSTUMES[gameCostumeIndex] || GAME_COSTUMES[0];
+      const suffix = activeChallenge ? '' : ' · issue a challenge to show on cam';
+      el.textContent = 'Fun overlay: ' + costume.label + suffix;
+    }
+
+    function cycleGameCostume() {
+      gameCostumeIndex = (gameCostumeIndex + 1) % GAME_COSTUMES.length;
+      updateGameCostumeLabel();
+      refreshSilhouetteGuide();
+    }
+
+    function costumeOverlayPoint(pts, index) {
+      const p = pts[index];
+      return p ? overlayPoint(p.x, p.y) : null;
+    }
+
+    function drawGameCostume(ctx, pts, w, drawW, drawH, costumeId) {
+      const eyeL = costumeOverlayPoint(pts, 33);
+      const eyeR = costumeOverlayPoint(pts, 263);
+      const forehead = costumeOverlayPoint(pts, 10);
+      const nose = costumeOverlayPoint(pts, 1);
+      const mouthL = costumeOverlayPoint(pts, 61);
+      const mouthR = costumeOverlayPoint(pts, 291);
+      const chin = costumeOverlayPoint(pts, 152);
+      const cheekL = costumeOverlayPoint(pts, 234);
+      const cheekR = costumeOverlayPoint(pts, 454);
+      if (!eyeL || !eyeR || !forehead) return;
+      const eyeDist = Math.hypot(eyeR.x - eyeL.x, eyeR.y - eyeL.y);
+      const headW = eyeDist * 2.4;
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (costumeId === 'glasses') {
+        const r = eyeDist * 0.24;
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        ctx.fillStyle = 'rgba(147, 197, 253, 0.38)';
+        [eyeL, eyeR].forEach((c) => {
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+        ctx.beginPath();
+        ctx.moveTo(eyeL.x + r, eyeL.y);
+        ctx.lineTo(eyeR.x - r, eyeR.y);
+        ctx.stroke();
+      } else if (costumeId === 'sunglasses') {
+        const r = eyeDist * 0.26;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = Math.max(2, w * 0.0035);
+        [eyeL, eyeR].forEach((c) => {
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+        ctx.beginPath();
+        ctx.moveTo(eyeL.x + r, eyeL.y);
+        ctx.lineTo(eyeR.x - r, eyeR.y);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.beginPath();
+        ctx.ellipse(eyeL.x - r * 0.2, eyeL.y - r * 0.25, r * 0.35, r * 0.18, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (costumeId === 'party_hat') {
+        const top = { x: forehead.x, y: forehead.y - headW * 0.55 };
+        ctx.fillStyle = '#f472b6';
+        ctx.strokeStyle = '#fb7185';
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        ctx.beginPath();
+        ctx.moveTo(forehead.x - headW * 0.35, forehead.y - headW * 0.05);
+        ctx.lineTo(top.x, top.y);
+        ctx.lineTo(forehead.x + headW * 0.35, forehead.y - headW * 0.05);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(top.x, top.y, Math.max(4, w * 0.006), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(forehead.x - headW * 0.38, forehead.y - headW * 0.08,
+          headW * 0.76, headW * 0.12);
+      } else if (costumeId === 'wizard') {
+        const top = { x: forehead.x, y: forehead.y - headW * 0.72 };
+        ctx.fillStyle = '#6366f1';
+        ctx.strokeStyle = '#312e81';
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        ctx.beginPath();
+        ctx.moveTo(forehead.x - headW * 0.42, forehead.y);
+        ctx.lineTo(top.x, top.y);
+        ctx.lineTo(forehead.x + headW * 0.42, forehead.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(top.x, top.y + headW * 0.06, Math.max(3, w * 0.005), 0, Math.PI * 2);
+        ctx.fill();
+      } else if (costumeId === 'cat_ears') {
+        const drawEar = (baseX, tipX) => {
+          ctx.fillStyle = '#fda4af';
+          ctx.strokeStyle = '#fb7185';
+          ctx.lineWidth = Math.max(1.5, w * 0.0025);
+          ctx.beginPath();
+          ctx.moveTo(baseX - headW * 0.12, forehead.y - headW * 0.02);
+          ctx.lineTo(tipX, forehead.y - headW * 0.38);
+          ctx.lineTo(baseX + headW * 0.12, forehead.y - headW * 0.02);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        };
+        drawEar(forehead.x - headW * 0.28, forehead.x - headW * 0.34);
+        drawEar(forehead.x + headW * 0.28, forehead.x + headW * 0.34);
+      } else if (costumeId === 'pumpkin') {
+        const cx = forehead.x;
+        const cy = forehead.y - headW * 0.22;
+        const r = headW * 0.38;
+        ctx.fillStyle = '#fb923c';
+        ctx.strokeStyle = '#c2410c';
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#166534';
+        ctx.beginPath();
+        ctx.moveTo(cx - headW * 0.06, cy - r);
+        ctx.quadraticCurveTo(cx, cy - r - headW * 0.18, cx + headW * 0.08, cy - r);
+        ctx.fill();
+        ctx.fillStyle = '#422006';
+        if (eyeL && eyeR) {
+          [eyeL, eyeR].forEach((c) => {
+            ctx.beginPath();
+            ctx.moveTo(c.x - eyeDist * 0.08, c.y);
+            ctx.lineTo(c.x, c.y + eyeDist * 0.12);
+            ctx.lineTo(c.x + eyeDist * 0.08, c.y);
+            ctx.fill();
+          });
+        }
+        if (mouthL && mouthR) {
+          ctx.beginPath();
+          ctx.moveTo(mouthL.x, mouthL.y);
+          for (let i = 0; i <= 6; i++) {
+            const t = i / 6;
+            const x = mouthL.x + (mouthR.x - mouthL.x) * t;
+            const y = mouthL.y + Math.sin(t * Math.PI) * eyeDist * 0.08;
+            ctx.lineTo(x, y);
+          }
+          ctx.fill();
+        }
+      } else if (costumeId === 'makeup') {
+        const blushR = eyeDist * 0.18;
+        if (cheekL) {
+          ctx.fillStyle = 'rgba(251, 113, 133, 0.42)';
+          ctx.beginPath();
+          ctx.ellipse(cheekL.x, cheekL.y, blushR, blushR * 0.72, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (cheekR) {
+          ctx.fillStyle = 'rgba(251, 113, 133, 0.42)';
+          ctx.beginPath();
+          ctx.ellipse(cheekR.x, cheekR.y, blushR, blushR * 0.72, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (mouthL && mouthR) {
+          ctx.strokeStyle = '#e11d48';
+          ctx.lineWidth = Math.max(2, w * 0.003);
+          ctx.beginPath();
+          ctx.moveTo(mouthL.x, mouthL.y);
+          ctx.quadraticCurveTo(
+            (mouthL.x + mouthR.x) / 2, (mouthL.y + mouthR.y) / 2 + eyeDist * 0.08,
+            mouthR.x, mouthR.y,
+          );
+          ctx.stroke();
+        }
+        if (eyeL && eyeR) {
+          ctx.strokeStyle = '#831843';
+          ctx.lineWidth = Math.max(1.5, w * 0.002);
+          [eyeL, eyeR].forEach((c) => {
+            ctx.beginPath();
+            ctx.moveTo(c.x - eyeDist * 0.14, c.y - eyeDist * 0.06);
+            ctx.quadraticCurveTo(c.x, c.y - eyeDist * 0.14, c.x + eyeDist * 0.14, c.y - eyeDist * 0.06);
+            ctx.stroke();
+          });
+        }
+        if (nose) {
+          ctx.fillStyle = 'rgba(253, 224, 71, 0.35)';
+          ctx.beginPath();
+          ctx.arc(nose.x, nose.y, eyeDist * 0.06, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawGamePlayOverlay() {
+      if (!activeChallenge) return;
+      const { w, h, drawW, drawH } = videoOverlayRect();
+      const ctx = overlay.getContext('2d');
+      if (lastFaceContours && lastFaceContours.pts) {
+        const pts = lastFaceContours.pts;
+        ctx.save();
+        ctx.strokeStyle = '#22d3ee';
+        ctx.setLineDash([8, 5]);
+        ctx.lineWidth = Math.max(2.5, w * 0.004);
+        ctx.globalAlpha = 0.92;
+        let minX = 1, maxX = 0, minY = 1, maxY = 0;
+        pts.forEach((p) => {
+          if (!p) return;
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        });
+        const center = overlayPoint((minX + maxX) / 2, (minY + maxY) / 2);
+        ctx.beginPath();
+        ctx.ellipse(
+          center.x, center.y,
+          Math.max(8, (maxX - minX) * drawW * 0.52),
+          Math.max(10, (maxY - minY) * drawH * 0.58),
+          0, 0, Math.PI * 2,
+        );
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#67e8f9';
+        [33, 263, 1, 10, 61, 291, 152].forEach((i) => {
+          const p = pts[i];
+          if (!p) return;
+          const point = overlayPoint(p.x, p.y);
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, Math.max(3, w * 0.005), 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+        const costume = GAME_COSTUMES[gameCostumeIndex] || GAME_COSTUMES[0];
+        if (costume.id !== 'none') {
+          drawGameCostume(ctx, pts, w, drawW, drawH, costume.id);
+        }
+      }
+      if (lastGameHeadPose) {
+        const pad = Math.max(8, w * 0.012);
+        const boxW = Math.max(148, w * 0.24);
+        const boxH = Math.max(54, h * 0.09);
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.84)';
+        ctx.fillRect(pad, pad, boxW, boxH);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(pad, pad, boxW, boxH);
+        const titlePx = Math.max(11, Math.round(w * 0.014));
+        const bodyPx = Math.max(10, Math.round(w * 0.012));
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = `bold ${titlePx}px ui-monospace, Menlo, monospace`;
+        ctx.fillText('Game face tracking', pad + 8, pad + 16);
+        ctx.font = `${bodyPx}px ui-monospace, Menlo, monospace`;
+        ctx.fillStyle = '#93c5fd';
+        ctx.fillText(
+          'P ' + tiltDeg(lastGameHeadPose.pitch)
+            + '  Y ' + tiltDeg(lastGameHeadPose.yaw)
+            + '  R ' + tiltDeg(lastGameHeadPose.roll),
+          pad + 8, pad + 34,
+        );
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = `${Math.max(9, Math.round(w * 0.011))}px Arial, sans-serif`;
+        ctx.fillText('pitch · yaw · roll (live)', pad + 8, pad + 48);
+        ctx.restore();
+      }
     }
 
     function headPoseFromMatrix(matrices, idx) {
@@ -4869,6 +5223,15 @@ MONITOR_JS = (
       // keeps the last value) — one frame of lag on a seat that barely moves.
       updateTiltLab(usingPattern || usingSilhouette ? null : facial,
         facial ? facial.distance_from_camera_m : null);
+      if (facial && facial.head_pose_pitch != null) {
+        lastGameHeadPose = {
+          pitch: facial.head_pose_pitch,
+          yaw: facial.head_pose_yaw,
+          roll: facial.head_pose_roll,
+        };
+      } else if (!facial || !facial.face_count) {
+        lastGameHeadPose = null;
+      }
       // Head-pose truth for "looking down" is the stare residual: how far below
       // the lesson band this seat is actually staring. The eye-blendshape cue
       // stays as a floor for eyes-down-without-head-movement.
@@ -5724,6 +6087,10 @@ MONITOR_PAGE_TEMPLATE = (
       <div class="camrow">
         <button id="game-issue" class="primary" type="button">Issue challenge</button>
         <button id="game-attempt" type="button">Score focused attempt</button>
+      </div>
+      <div class="game-costume-row">
+        <button id="game-costume-cycle" type="button">Next fun overlay</button>
+        <span class="game-costume-label" id="game-costume-label">Fun overlay: None</span>
       </div>
       <div class="log" id="game-status">No active challenge.</div>
     </div>
