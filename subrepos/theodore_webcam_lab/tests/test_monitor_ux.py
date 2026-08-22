@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import math
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 
 from fastapi.testclient import TestClient
 
@@ -182,6 +186,70 @@ def test_monitor_js_defines_every_helper_the_sampling_loop_calls():
     declared = set(re.findall(r"function\s+([A-Za-z_$][\w$]*)", MONITOR_JS))
     missing = [name for name in REQUIRED_MONITOR_JS_HELPERS if name not in declared]
     assert not missing, f"monitor JS calls undeclared helpers: {missing}"
+
+
+def test_monitor_js_parses_in_node_when_available():
+    node = shutil.which("node")
+    if not node:
+        return
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as handle:
+        handle.write(MONITOR_JS)
+        path = handle.name
+    try:
+        result = subprocess.run(
+            [node, "--check", path], capture_output=True, text=True, timeout=30
+        )
+    finally:
+        os.unlink(path)
+    assert result.returncode == 0, result.stderr
+
+
+def test_contours_accept_mediapipe_classifications_and_survive_detector_errors():
+    adapter = MONITOR_JS.split("function blendshapeMap")[1].split(
+        "\n    async function ensureHandLandmarker"
+    )[0]
+    assert "blendshapes.classifications" in adapter
+    assert "selected.categories || selected.classifications" in adapter
+    assert "category.categoryName || category.displayName || category.label" in adapter
+    face = MONITOR_JS.split("async function trackFaceContoursAndMood()")[1].split(
+        "\n    function noFaceFacial"
+    )[0]
+    assert "lm.detectForVideo" in face
+    assert "catch (err)" in face
+    assert "result = null" in face
+    assert "function videoOverlayRect()" in MONITOR_JS
+    assert "function overlayPoint(x, y)" in MONITOR_JS
+
+
+def test_mood_smoothing_is_wall_clock_weighted_and_hysteretic():
+    smooth = MONITOR_JS.split("function smoothMood")[1].split(
+        "\n    // Rolling most-frequent label"
+    )[0]
+    assert "MOOD_SMOOTH_WINDOW_MS = 2_500" in MONITOR_JS
+    assert "timestamp_ms" in smooth
+    assert "MOOD_SWITCH_MARGIN" in smooth
+    assert "m.confidence * m.confidence" in smooth
+    assert "BEHAVIOR_SMOOTH_WINDOW_MS = 2_500" in MONITOR_JS
+    assert "now - history[0].timestamp_ms" in MONITOR_JS
+    # A dropped face must not erase normal mood history; absence remains an
+    # immediate server/UI state independently.
+    no_face = MONITOR_JS.split("if (!faces.length)")[1].split("return {")[0]
+    assert "moodHistory = []" not in no_face
+
+
+def test_webcam_games_buffer_and_score_real_live_camera_signals():
+    assert "session_id: liveCamSessionId" in MONITOR_JS
+    assert "participant_ids: ['camera-local']" in MONITOR_JS
+    assert "function recordGameSignal(signal)" in MONITOR_JS
+    assert "recordGameSignal(signal);" in MONITOR_JS
+    assert "signals: gameSignalBuffer" not in MONITOR_JS  # submission takes a stable copy
+    assert "const signals = gameSignalBuffer.slice();" in MONITOR_JS
+    assert "gameObservedMs() >= Number(activeChallenge.target_duration_ms || 0)" in MONITOR_JS
+    assert "void scoreActiveGame(true)" in MONITOR_JS
+    assert "expected_participant_ids: ['camera-local']" in MONITOR_JS
+    assert "expression_label: 'happy'" not in MONITOR_JS.split(
+        "// Games panel"
+    )[1].split("// Camera path")[0]
 
 
 def test_monitor_js_clamps_every_unit_interval_signal_field():

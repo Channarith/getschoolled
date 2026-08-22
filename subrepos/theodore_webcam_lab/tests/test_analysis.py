@@ -73,6 +73,84 @@ def test_silhouette_detection_and_absence_grace():
     assert p2.absent_for_ms == 600
 
 
+def test_mood_and_normal_behavior_use_wall_clock_rolling_average():
+    analyzer = WebcamSessionAnalyzer(
+        tuning=VisionTuning(attention_min_threshold=0.7)
+    )
+
+    def evaluate(timestamp_ms: int, expression: str, attention: float):
+        result = analyzer.evaluate(
+            session_id="rolling-output",
+            mode=ClassMode.SOLO,
+            signals=[
+                WebcamSignal(
+                    participant_id="learner",
+                    timestamp_ms=timestamp_ms,
+                    face_count=1,
+                    liveness_state="live",
+                    foreground_ratio=0.3,
+                    motion_score=0.1,
+                    gaze_frontal=1.0,
+                    gaze_down_score=0.0,
+                    attention=attention,
+                    expression_label=expression,
+                    expression_confidence=0.9,
+                )
+            ],
+        )
+        return result.participants[0]
+
+    first = evaluate(1_000, "happy", 1.0)
+    noisy = evaluate(1_300, "sad", 0.0)
+    assert first.dominant_expression == "happy"
+    assert first.behavior_label == "focused"
+    assert noisy.dominant_expression == "happy"
+    assert noisy.behavior_label == "focused"
+    assert noisy.attention_score > 0.55
+
+    # The old samples have expired after 2.5 wall-clock seconds.
+    settled = evaluate(4_000, "sad", 0.0)
+    assert settled.dominant_expression == "sad"
+    assert settled.behavior_label == "inattentive"
+
+
+def test_absence_bypasses_rolling_behavior_immediately():
+    analyzer = WebcamSessionAnalyzer()
+    analyzer.evaluate(
+        session_id="rolling-urgent",
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.1,
+                gaze_frontal=1.0,
+                gaze_down_score=0.0,
+            )
+        ],
+    )
+    away = analyzer.evaluate(
+        session_id="rolling-urgent",
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=1_300,
+                face_count=0,
+                liveness_state="missing",
+                foreground_ratio=0.0,
+                motion_score=0.0,
+            )
+        ],
+    ).participants[0]
+    assert away.behavior_label == "away"
+    assert away.dominant_expression == "unknown"
+    assert away.attention_score == 0.0
+
+
 def test_group_mode_marks_expected_missing_participants():
     analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy(absence_grace_ms=500))
     session_id = "group-1"

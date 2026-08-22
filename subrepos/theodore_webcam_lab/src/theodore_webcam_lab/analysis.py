@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import threading
-from dataclasses import dataclass, fields as dc_fields
+from dataclasses import dataclass, field, fields as dc_fields
 
 from .advanced_behavior import AdvancedBehaviorEngine
 from .attention_formula import (
@@ -57,6 +57,9 @@ _EXPRESSION_ALIASES = {
     "yawning": "yawning",
     "yawns": "yawning",
 }
+
+_ROLLING_OUTPUT_WINDOW_MS = 2_500
+_LABEL_SWITCH_MARGIN = 1.15
 
 
 @dataclass
@@ -139,6 +142,12 @@ class _ParticipantState:
     # Any of gaze_down/up/left/right active (attention formula hold).
     gaze_direction_started_ms: int | None = None
     quality_blocking_started_ms: int | None = None
+    expression_history: list[tuple[int, str, float]] = field(default_factory=list)
+    behavior_history: list[tuple[int, str, float, float, float, float]] = field(
+        default_factory=list
+    )
+    stable_expression: str = "unknown"
+    stable_behavior: str = "unknown"
 
 
 class WebcamSessionAnalyzer:
@@ -298,6 +307,136 @@ class WebcamSessionAnalyzer:
         if not values:
             return None
         return sum(values) / len(values)
+
+    @staticmethod
+    def _weighted_label(
+        weights: dict[str, float], current: str, fallback: str
+    ) -> str:
+        if not weights:
+            return fallback
+        winner = max(weights, key=weights.get)
+        if current in {"", "unknown", "away"} or current not in weights:
+            return winner
+        if winner != current and weights[winner] < weights[current] * _LABEL_SWITCH_MARGIN:
+            return current
+        return winner
+
+    def _smooth_outputs(
+        self,
+        *,
+        participant_state: _ParticipantState,
+        timestamp_ms: int,
+        has_live_face: bool,
+        urgent_behavior: bool,
+        dominant_expression: str,
+        expression_confidence: float | None,
+        behavior_label: str,
+        attention_score: float,
+        distraction_score: float,
+        expression_behavior_score: float,
+        recognition_confidence: float,
+    ) -> tuple[str, float | None, str, float, float, float]:
+        """Stabilize ordinary mood/behavior over 2.5s without delaying safety.
+
+        Histories are wall-clock based, so dropped or slower frames do not stretch
+        the smoothing window. Absence and urgent eye/phone states bypass the
+        averaged behavior immediately.
+        """
+        cutoff = timestamp_ms - _ROLLING_OUTPUT_WINDOW_MS
+        participant_state.expression_history = [
+            item for item in participant_state.expression_history if item[0] >= cutoff
+        ]
+        participant_state.behavior_history = [
+            item for item in participant_state.behavior_history if item[0] >= cutoff
+        ]
+
+        if not has_live_face:
+            return (
+                "unknown",
+                expression_confidence,
+                behavior_label,
+                attention_score,
+                distraction_score,
+                expression_behavior_score,
+            )
+
+        expression_weight = max(0.15, float(expression_confidence or 0.4))
+        if dominant_expression != "unknown":
+            participant_state.expression_history.append(
+                (timestamp_ms, dominant_expression, expression_weight)
+            )
+        expression_weights: dict[str, float] = {}
+        for _, label, weight in participant_state.expression_history:
+            expression_weights[label] = expression_weights.get(label, 0.0) + weight
+        stable_expression = self._weighted_label(
+            expression_weights,
+            participant_state.stable_expression,
+            dominant_expression,
+        )
+        participant_state.stable_expression = stable_expression
+        matching_expression_weights = [
+            weight
+            for _, label, weight in participant_state.expression_history
+            if label == stable_expression
+        ]
+        stable_expression_confidence = (
+            sum(weight * weight for weight in matching_expression_weights)
+            / sum(matching_expression_weights)
+            if matching_expression_weights
+            else expression_confidence
+        )
+
+        if urgent_behavior:
+            return (
+                stable_expression,
+                stable_expression_confidence,
+                behavior_label,
+                attention_score,
+                distraction_score,
+                expression_behavior_score,
+            )
+
+        behavior_weight = max(0.2, recognition_confidence)
+        participant_state.behavior_history.append(
+            (
+                timestamp_ms,
+                behavior_label,
+                behavior_weight,
+                attention_score,
+                distraction_score,
+                expression_behavior_score,
+            )
+        )
+        behavior_weights: dict[str, float] = {}
+        for _, label, weight, _, _, _ in participant_state.behavior_history:
+            behavior_weights[label] = behavior_weights.get(label, 0.0) + weight
+        stable_behavior = self._weighted_label(
+            behavior_weights,
+            participant_state.stable_behavior,
+            behavior_label,
+        )
+        participant_state.stable_behavior = stable_behavior
+        total_weight = sum(item[2] for item in participant_state.behavior_history)
+        if total_weight <= 0:
+            return (
+                stable_expression,
+                stable_expression_confidence,
+                stable_behavior,
+                attention_score,
+                distraction_score,
+                expression_behavior_score,
+            )
+        return (
+            stable_expression,
+            stable_expression_confidence,
+            stable_behavior,
+            sum(item[2] * item[3] for item in participant_state.behavior_history)
+            / total_weight,
+            sum(item[2] * item[4] for item in participant_state.behavior_history)
+            / total_weight,
+            sum(item[2] * item[5] for item in participant_state.behavior_history)
+            / total_weight,
+        )
 
     def evaluate(
         self,
@@ -1599,6 +1738,37 @@ class WebcamSessionAnalyzer:
         )
         for flag in quality_flags:
             alerts.append(f"{flag}:{signal.participant_id}")
+
+        urgent_behavior = (
+            not has_live_face
+            or eyes_closed
+            or dozing_held
+            or eyes_away
+            or hands_on_face
+            or phone_visible
+            or owner_mismatch
+            or attention_formula_triggered
+        )
+        (
+            dominant_expression,
+            expression_confidence,
+            behavior_label,
+            attention_score,
+            distraction_score,
+            expression_behavior_score,
+        ) = self._smooth_outputs(
+            participant_state=participant_state,
+            timestamp_ms=signal.timestamp_ms,
+            has_live_face=has_live_face,
+            urgent_behavior=urgent_behavior,
+            dominant_expression=dominant_expression,
+            expression_confidence=expression_confidence,
+            behavior_label=behavior_label,
+            attention_score=attention_score,
+            distraction_score=distraction_score,
+            expression_behavior_score=expression_behavior_score,
+            recognition_confidence=recognition_confidence,
+        )
 
         advanced = self._behavior_engine.evaluate(
             session_id=session_id,
