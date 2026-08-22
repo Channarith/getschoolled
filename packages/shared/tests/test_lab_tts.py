@@ -53,9 +53,31 @@ def test_dead_gateway_is_disabled_so_retry_skips_timeout(monkeypatch):
     monkeypatch.setattr("urllib.request.urlopen", fake)
     _a, _m, engine = tts.synthesize("Hello", language="en")
     assert engine == "elevenlabs"
-    assert "speech-gateway" in tts._disabled_engines
+    assert tts._benched("speech-gateway")
 
     calls.clear()
     _a, _m, engine2 = tts.synthesize("Again", language="en")
     assert engine2 == "elevenlabs"
     assert not any("speech:8002" in u for u in calls)
+
+
+def test_a_benched_engine_comes_back_after_its_cooldown(monkeypatch):
+    """A single blip must not kill neural speech for the life of the process.
+
+    The bench exists so a dead gateway is not re-waited on for every line, but
+    it used to be permanent: a lab started before the network was up answered
+    501 forever, reporting available=false with no way back but a restart.
+    """
+    tts.reset_disabled_engines()
+    monkeypatch.setattr(tts, "ENGINE_COOLDOWN_SEC", 30.0)
+    now = [1000.0]
+    monkeypatch.setattr(tts.time, "monotonic", lambda: now[0])
+
+    tts._bench_engine("edge-tts")
+    assert tts._benched("edge-tts") is True
+
+    now[0] += 29.0
+    assert tts._benched("edge-tts") is True, "should still be cooling off"
+
+    now[0] += 2.0
+    assert tts._benched("edge-tts") is False, "should be retried after cooldown"

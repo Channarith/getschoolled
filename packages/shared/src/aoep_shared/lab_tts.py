@@ -17,6 +17,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -59,17 +60,38 @@ _EDGE_VOICES = {
 
 MAX_TTS_CHARS = 1200
 
-# Engines that failed this process — skip without re-waiting on timeouts.
-_disabled_engines: set[str] = set()
+# How long a failed engine stays benched. The point of benching one is to avoid
+# re-waiting on a timeout for every line; a permanent bench was worse, because a
+# single blip (a lab started before the network was up, a momentary DNS failure)
+# killed neural speech until someone restarted the process — and the lab then
+# reported "available: false" forever with no way back.
+ENGINE_COOLDOWN_SEC = float(os.environ.get("TTS_ENGINE_COOLDOWN_S", "60"))
+
+# engine name -> monotonic time it may be retried.
+_engine_retry_at: dict[str, float] = {}
 
 
 class ProviderUnavailable(RuntimeError):
     """No configured TTS engine could render audio."""
 
 
+def _bench_engine(engine: str) -> None:
+    _engine_retry_at[engine] = time.monotonic() + ENGINE_COOLDOWN_SEC
+
+
+def _benched(engine: str) -> bool:
+    until = _engine_retry_at.get(engine)
+    if until is None:
+        return False
+    if time.monotonic() >= until:
+        del _engine_retry_at[engine]
+        return False
+    return True
+
+
 def reset_disabled_engines() -> None:
-    """Test helper — clear the fail-fast disable set."""
-    _disabled_engines.clear()
+    """Test helper — clear the fail-fast bench."""
+    _engine_retry_at.clear()
 
 
 def gateway_url() -> str:
@@ -122,8 +144,8 @@ def configured_engines() -> list[str]:
 
 
 def engine_chain() -> list[str]:
-    """Live engines, best first, excluding ones already marked dead."""
-    return [e for e in configured_engines() if e not in _disabled_engines]
+    """Live engines, best first, excluding ones cooling off after a failure."""
+    return [e for e in configured_engines() if not _benched(e)]
 
 
 def tts_status() -> dict[str, object]:
@@ -132,7 +154,11 @@ def tts_status() -> dict[str, object]:
         "available": bool(chain),
         "engine": chain[0] if chain else "",
         "engines": chain,
-        "disabled": sorted(_disabled_engines),
+        "disabled": sorted(e for e in _engine_retry_at if _benched(e)),
+        "retry_in_sec": max(
+            (round(until - time.monotonic()) for until in _engine_retry_at.values()),
+            default=0,
+        ),
         "gateway_url": gateway_url(),
         "elevenlabs_configured": bool(_elevenlabs_key()),
         "xai_configured": bool(os.environ.get("XAI_API_KEY", "").strip()),
@@ -164,9 +190,9 @@ def synthesize(text: str, *, language: str = "en", style: str = "warm") -> tuple
                 return (*_elevenlabs_tts(clean, lang), "elevenlabs")
             if engine == "edge-tts":
                 return (*_edge_tts(clean, lang), "edge-tts")
-        except Exception as exc:  # noqa: BLE001 — try next; disable flaky engines
+        except Exception as exc:  # noqa: BLE001 — try next; bench flaky engines
             errors.append(f"{engine}: {exc}")
-            _disabled_engines.add(engine)
+            _bench_engine(engine)
 
     detail = f" Tried: {'; '.join(errors)}" if errors else ""
     raise ProviderUnavailable(

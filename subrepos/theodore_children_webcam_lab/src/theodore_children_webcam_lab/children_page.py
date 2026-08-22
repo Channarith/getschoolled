@@ -46,13 +46,37 @@ def render_children_page() -> str:
       </div>
       <div id="stage" class="stage">
         <video id="camera" autoplay playsinline muted></video>
+        <div id="guide-layer" class="guide-layer" aria-hidden="true">
+          <span id="guide-glyph" class="guide-glyph">A</span>
+          <i id="guide-start" class="guide-start"></i>
+        </div>
         <canvas id="overlay"></canvas>
         <div id="sprite-layer" class="sprite-layer" aria-hidden="true"></div>
         <div id="target" class="target hidden"></div>
         <div id="prompt" class="prompt"><strong id="prompt-title">Choose a game</strong><span id="prompt-copy">Theodore is ready!</span></div>
         <div id="countdown" class="countdown hidden"></div>
         <div id="vision-status" class="vision-status">Camera off</div>
+        <div id="vision-readout" class="vision-readout" aria-live="off">
+          <span id="face-readout">Face: waiting</span>
+          <span id="hand-readout">Hands: waiting</span>
+          <span id="distance-readout">Distance: waiting</span>
+          <span id="motion-readout">Motion: 0 px</span>
+          <span id="trace-readout">Trace: 0%</span>
+          <span id="game-readout">Gesture: waiting</span>
+        </div>
       </div>
+      <details class="vision-tools" open>
+        <summary>Vision testing overlays</summary>
+        <div class="vision-switches">
+          <label><input id="show-guide" type="checkbox" checked> Letter / character</label>
+          <label><input id="show-face" type="checkbox" checked> Face contour</label>
+          <label><input id="show-hands" type="checkbox" checked> Hand skeletons</label>
+          <label><input id="show-trail" type="checkbox" checked> Hand movement trail</label>
+          <label><input id="show-measures" type="checkbox" checked> Distance & measurements</label>
+          <label><input id="show-readout" type="checkbox" checked> Live recognition readout</label>
+        </div>
+        <p>Face processing means landmark and expression detection only. It does not identify who you are.</p>
+      </details>
       <div class="controls">
         <select id="game" aria-label="Game">
           <optgroup label="Learn">
