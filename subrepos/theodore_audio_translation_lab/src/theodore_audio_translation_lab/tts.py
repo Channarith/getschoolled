@@ -122,7 +122,7 @@ def synthesize(text: str, *, language: str = "en", style: str = "warm"):
                 return (*_lab._edge_tts(clean, lang), "edge-tts")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{engine}: {exc}")
-            _lab._bench_engine(engine)
+            _lab._bench_engine(engine, str(exc))
 
     detail = f" Tried: {'; '.join(errors)}" if errors else ""
     raise ProviderUnavailable(

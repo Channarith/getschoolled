@@ -5,6 +5,15 @@ import {
 } from "./vision_math.js";
 
 const $ = (id) => document.getElementById(id);
+
+// Static files reload from disk but the HTML shell is rendered by the running
+// Python process, so a dev server started before an update serves NEW script
+// against an OLD page — and a browser can hold a cached page too. Reading
+// `.checked` straight off a missing node threw and killed the whole lab, so
+// overlay switches default to on when their control is not there and text
+// targets are skipped rather than fatal.
+const switchedOn = (id) => $(id)?.checked ?? true;
+const setText = (id, text) => { const node = $(id); if (node) node.textContent = text; };
 const VISION_VERSION = "0.10.14";
 const VISION_CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VISION_VERSION}`;
 const MODEL_ROOT = "https://storage.googleapis.com/mediapipe-models";
@@ -237,7 +246,7 @@ function drawVision() {
   ctx.clearRect(0,0,w,h);
   drawGuide(w,h);
   ctx.save();ctx.lineWidth=3;ctx.strokeStyle="#a78bfa";ctx.fillStyle="#fde68a";
-  if ($("show-hands").checked) {
+  if (switchedOn("show-hands")) {
     for (const hand of state.handData) {
       if (!hand.points?.length) continue;
       for (const [a,b] of state.handConnections||[]) {
@@ -250,12 +259,12 @@ function drawVision() {
         ctx.fillStyle=[4,8,12,16,20].includes(i)?"#fde047":"#c4b5fd";
         ctx.beginPath();ctx.arc(p.x,p.y,[4,8,12,16,20].includes(i)?6:3,0,Math.PI*2);ctx.fill();
       }
-      if ($("show-measures").checked && hand.tip && hand.wrist) {
+      if (switchedOn("show-measures") && hand.tip && hand.wrist) {
         ctx.strokeStyle="#fde047";ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(hand.wrist.x,hand.wrist.y);ctx.lineTo(hand.tip.x,hand.tip.y);ctx.stroke();ctx.setLineDash([]);
       }
     }
   }
-  if ($("show-face").checked && state.faceData?.points) {
+  if (switchedOn("show-face") && state.faceData?.points) {
     ctx.strokeStyle="#5eead4";ctx.lineWidth=2;ctx.beginPath();
     let started=false;
     for (const i of [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109]) {
@@ -267,14 +276,14 @@ function drawVision() {
       const p=state.faceData.points[i];if(!p)continue;const q=mirrored(p);
       ctx.fillStyle="#5eead4";ctx.beginPath();ctx.arc(q.x,q.y,3.5,0,Math.PI*2);ctx.fill();
     }
-    if ($("show-measures").checked) {
+    if (switchedOn("show-measures")) {
       const left=(1-(state.faceData.cx+state.faceData.width/2))*w;
       const top=(state.faceData.cy-state.faceData.height/2)*h;
       ctx.strokeStyle="#34d399";ctx.setLineDash([10,7]);
       ctx.strokeRect(left,top,state.faceData.width*w,state.faceData.height*h);ctx.setLineDash([]);
     }
   }
-  if ($("show-trail").checked && state.trail.length) {
+  if (switchedOn("show-trail") && state.trail.length) {
     ctx.lineWidth=12;ctx.lineCap="round";ctx.lineJoin="round";
     const grad=ctx.createLinearGradient(0,0,w,h);grad.addColorStop(0,"#f472b6");grad.addColorStop(.5,"#fde047");grad.addColorStop(1,"#34d399");
     ctx.strokeStyle=grad;ctx.beginPath();state.trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();
@@ -284,7 +293,7 @@ function drawVision() {
 }
 
 function drawGuide(w,h) {
-  if (!$("show-guide").checked || !["trace-letter","trace-picture"].includes(state.game)) return;
+  if (!switchedOn("show-guide") || !["trace-letter","trace-picture"].includes(state.game)) return;
   const letter=$("letter").value;
   ctx.save();ctx.textAlign="center";ctx.textBaseline="middle";ctx.lineJoin="round";
   if (state.game==="trace-letter") {
@@ -345,15 +354,15 @@ function faceDistanceLabel(face) {
 
 function renderVisionReadout() {
   const face=state.faceData, hands=state.handData;
-  $("vision-readout").classList.toggle("hidden",!$("show-readout").checked);
-  $("face-readout").textContent=face?`Face: ${face.expression} · ${Math.round(face.confidence*100)}%`:"Face: not detected";
-  $("hand-readout").textContent=hands.length?`Hands: ${hands.length} · fingers ${hands.map(hand=>hand.count).join("/")}`:"Hands: not detected";
-  $("distance-readout").textContent=`Distance: ${faceDistanceLabel(face)}${face?` · face ${Math.round(face.width*100)}%`:""}`;
-  $("motion-readout").textContent=`Motion: ${state.handMotion.toFixed(1)} px/frame`;
+  $("vision-readout")?.classList.toggle("hidden",!switchedOn("show-readout"));
+  setText("face-readout",face?`Face: ${face.expression} · ${Math.round(face.confidence*100)}%`:"Face: not detected");
+  setText("hand-readout",hands.length?`Hands: ${hands.length} · fingers ${hands.map(hand=>hand.count).join("/")}`:"Hands: not detected");
+  setText("distance-readout",`Distance: ${faceDistanceLabel(face)}${face?` · face ${Math.round(face.width*100)}%`:""}`);
+  setText("motion-readout",`Motion: ${state.handMotion.toFixed(1)} px/frame`);
   const normalized=state.trail.map(point=>({x:point.nx,y:point.ny}));
   const progress=traceProgress(normalized,state.age);
-  $("trace-readout").textContent=`Trace: ${progress.percent}% · ${state.trail.length} points`;
-  $("game-readout").textContent=`Gesture: ${gestureReadout()}`;
+  setText("trace-readout",`Trace: ${progress.percent}% · ${state.trail.length} points`);
+  setText("game-readout",`Gesture: ${gestureReadout()}`);
 }
 
 // Live measurement vs the threshold for the current game, so an adult testing
@@ -394,12 +403,13 @@ function progressLabel() {
 }
 
 function updateGuideLayer() {
-  const enabled=$("show-guide").checked&&["trace-letter","trace-picture"].includes(state.game);
-  $("guide-layer").classList.toggle("hidden",!enabled);
-  if (!enabled) return;
+  const enabled=switchedOn("show-guide")&&["trace-letter","trace-picture"].includes(state.game);
+  $("guide-layer")?.classList.toggle("hidden",!enabled);
+  const glyph=$("guide-glyph");
+  if (!enabled || !glyph) return;
   const letter=$("letter").value, picture=state.game==="trace-picture";
-  $("guide-glyph").textContent=picture?(PICTURE_EMOJI[LETTER_WORDS[letter]]||"✨"):letter;
-  $("guide-glyph").classList.toggle("picture",picture);
+  glyph.textContent=picture?(PICTURE_EMOJI[LETTER_WORDS[letter]]||"✨"):letter;
+  glyph.classList.toggle("picture",picture);
 }
 
 function setTarget(region,content,kind="") {
@@ -738,9 +748,9 @@ $("hear").addEventListener("click",()=>speak(state.spokenPrompt));
 $("mic").addEventListener("click",startListening);
 $("check").addEventListener("click",()=>checkSpeech($("typed").value));
 $("undo").addEventListener("click",()=>{state.trail=[];});
-$("show-guide").addEventListener("change",updateGuideLayer);
+$("show-guide")?.addEventListener("change",updateGuideLayer);
 for (const id of ["show-face","show-hands","show-trail","show-measures","show-readout"]) {
-  $(id).addEventListener("change",renderVisionReadout);
+  $(id)?.addEventListener("change",renderVisionReadout);
 }
 $("mute").addEventListener("click",()=>{state.muted=!state.muted;$("mute").textContent=state.muted?"🔇":"🔊";$("mute").setAttribute("aria-pressed",String(state.muted));if(state.muted)cancelSpeech();});
 $("fullscreen").addEventListener("click",()=>document.fullscreenElement?document.exitFullscreen():$("play").requestFullscreen());
