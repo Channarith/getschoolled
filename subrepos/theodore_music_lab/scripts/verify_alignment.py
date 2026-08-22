@@ -40,6 +40,9 @@ AUDIO_DIR = ROOT / "data" / "audio"
 ONSET_TOLERANCE_SEC = 0.30
 FIRST_LINE_TOLERANCE_SEC = 0.30
 MAX_SYLLABLES_PER_SEC = 8.0
+# One contiguous silence inside a line this long is an instrumental bar the line
+# should not have spanned. Shorter holes are the singer breathing mid-phrase.
+REST_TOLERANCE_SEC = 1.20
 
 
 def nearest_onset(onsets: list[float], value: float) -> float:
@@ -154,28 +157,37 @@ def check_song(song, *, report: bool) -> list[str]:
                 f"{gaps[worst]:.2f}s off)"
             )
 
-    # A line that swallows a rest between phrases parks the ball on one word
-    # while later lyrics are actually sung.
+    # A line that swallows a whole instrumental bar parks the ball on one word
+    # while later lyrics are actually sung. Measure the LARGEST single hole, not
+    # the total quiet time: every sung line breathes between words, and summing
+    # those breaths flagged all ten songs — including the recognised-word ones
+    # that are correct — which made this check useless as a signal.
     swallowed = []
     for row in rows:
-        wall = max(0.0, float(row["end"]) - float(row["start"]))
-        covered = 0.0
-        for span in spans:
-            left = max(float(row["start"]), float(span.start))
-            right = min(float(row["end"]), float(span.end))
-            if right > left:
-                covered += right - left
-        rest = wall - covered
-        if rest > 0.75:
-            swallowed.append((row["line_no"], rest))
+        start, end = float(row["start"]), float(row["end"])
+        covered = sorted(
+            (max(start, float(s.start)), min(end, float(s.end)))
+            for s in spans
+            if min(end, float(s.end)) > max(start, float(s.start))
+        )
+        hole = 0.0
+        cursor = start
+        for left, right in covered:
+            hole = max(hole, left - cursor)
+            cursor = max(cursor, right)
+        hole = max(hole, end - cursor)
+        if hole > REST_TOLERANCE_SEC:
+            swallowed.append((row["line_no"], hole))
     if swallowed:
+        swallowed.sort(key=lambda pair: pair[1], reverse=True)
         print(
             f"  swallowed rests: {len(swallowed)} line(s) "
-            f"(worst {swallowed[0][1]:.2f}s)"
+            f"(worst line {swallowed[0][0]}, {swallowed[0][1]:.2f}s)"
         )
         failures.append(
-            f"{song.song_id}: {len(swallowed)} line(s) include an instrumental "
-            f"hole >0.75s (e.g. line {swallowed[0][0]}, {swallowed[0][1]:.2f}s)"
+            f"{song.song_id}: {len(swallowed)} line(s) span an instrumental hole "
+            f">{REST_TOLERANCE_SEC:.2f}s (worst line {swallowed[0][0]}, "
+            f"{swallowed[0][1]:.2f}s)"
         )
 
     by_no = {line.line_no: line for line in song.lines}

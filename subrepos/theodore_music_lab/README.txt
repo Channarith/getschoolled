@@ -116,8 +116,16 @@ serving needs neither ffmpeg nor a speech model. Authoring needs both:
 
   pip install -e 'subrepos/theodore_music_lab[asr]'   # plus ffmpeg on PATH
   python3 scripts/align_songs.py            # writes data/alignment.jsonl
+  python3 scripts/align_songs.py --only-estimated  # just the loudness-cut songs
   python3 scripts/align_songs.py --report   # print the timings, write nothing
   python3 scripts/align_songs.py --method energy   # loudness only, no model
+
+The first run downloads the faster-whisper model from huggingface.co, so it needs
+outbound network; every run after that reads the cache. A song still carrying
+loudness cuts is not a silent failure — /api/music/timing reports
+word_source/word_accurate and the player labels it "words approximate" so a
+learner knows the ball is a guess between the phrase boundaries, and can reach
+for the ±0.25s nudge. --only-estimated re-runs exactly those songs.
 
 Transcripts are cached under ~/.cache/theodore-music-lab/asr, keyed by file size
 and model, so re-running is fast. Read the "NOT IN LYRICS" lines it prints: each

@@ -33,10 +33,14 @@ def render_music_page() -> str:
         + _CSS
         + "\n  </style>\n</head>\n<body>\n"
         + _HTML
-        + "\n  <script>\n"
-        + _JS
-        + "\n  </script>\n</body>\n</html>\n"
+        + '\n  <script src="/assets/music-lab.js" defer></script>\n'
+        + "</body>\n</html>\n"
     )
+
+
+def render_music_script() -> str:
+    """Return the player JavaScript as a separate, independently cacheable asset."""
+    return _JS
 
 
 _CSS = """
@@ -413,6 +417,7 @@ _CSS = """
   .embed-pick img { width:72px; height:40px; object-fit:cover; border-radius:6px; background:#020617; }
   .embed-pick strong { display:block; font-size:.88rem; }
   .meta { color:var(--muted); font-size:.85rem; margin-top:.35rem; }
+  .meta.approx { color:#fbbf24; }
   .toast { position:fixed; right:1rem; bottom:1rem; display:none; background:#0f766e;
     border:1px solid #5eead4; padding:.7rem .9rem; border-radius:10px; }
   .toast.show { display:block; }
@@ -724,6 +729,11 @@ _JS = r"""
     "zoom-punch", "tilt-up", "dolly-shake"];
 
   let featured = [];
+  let featuredTotal = 0;
+  let featuredNextOffset = 0;
+  let featuredLoading = false;
+  let languageCount = 26;
+  let fullTranslationCount = 0;
   let current = null;
   let timings = null;
   let translation = null;
@@ -929,14 +939,32 @@ _JS = r"""
 
   /* ---------- rendering ---------- */
 
+  function updateCatalogMeta() {
+    const voiceNote = serverVoicesReady()
+      ? ` \u00b7 neural voices for ${serverVoices.languages} languages`
+      : " \u00b7 singing uses this device's installed voices";
+    const loaded = featuredTotal > featured.length
+      ? ` \u00b7 ${featured.length}/${featuredTotal} song cards loaded`
+      : "";
+    $("catalog-meta").textContent =
+      `${featuredTotal || featured.length} featured with audio${loaded} \u00b7 ` +
+      `${languageCount} translation languages \u00b7 ` +
+      `${fullTranslationCount} with full-line sentences${voiceNote}`;
+  }
+
   function renderSongList() {
     const box = $("song-list");
-    box.innerHTML = featured.map((s) => `
+    const cards = featured.map((s) => `
       <button type="button" class="song-card ${current && current.song_id === s.song_id ? "active" : ""}"
         data-id="${esc(s.song_id)}">
         <strong>${esc(s.title_en)}</strong>
         <span>${esc(s.topic)} \u00b7 ${s.line_count} lines \u00b7 MP3</span>
-      </button>`).join("") || "<div class='meta'>No featured songs found.</div>";
+      </button>`).join("");
+    const pending = featuredNextOffset !== null
+      ? `<div class="meta" id="song-list-sentinel">${featuredLoading ? "Loading next song\u2026" : "More songs load when the browser is idle\u2026"}</div>`
+      : "";
+    box.innerHTML = cards + pending ||
+      "<div class='meta'>No featured songs found.</div>";
     box.querySelectorAll(".song-card").forEach((btn) => {
       btn.onclick = () => selectSong(btn.getAttribute("data-id"));
     });
@@ -2564,6 +2592,90 @@ _JS = r"""
     return true;
   }
 
+  // Rendering a neural clip costs a round trip to the speech engine on a cache
+  // miss. Starting that fetch at the moment a line lights up meant the NEXT line
+  // arrived first and cancelled it, so most lines passed in silence and only the
+  // ones after a long instrumental ever spoke. Clips are fetched several lines
+  // ahead and played from a blob, so the voice is ready before the line starts.
+  const TTS_LOOKAHEAD = 5;
+  const TTS_CACHE_MAX = 64;
+  // The neural engine drops clips when several renders land at once, so the
+  // look-ahead is queued two at a time rather than fired as one burst.
+  const TTS_PREFETCH_CONCURRENCY = 2;
+  const ttsClips = new Map();
+  const ttsPending = new Map();
+  const ttsQueue = [];
+  let ttsPrefetching = 0;
+
+  function ttsUrl(text, o) {
+    return `/api/music/tts?lang=${encodeURIComponent(o.lang || "en")}` +
+      `&rate=${encodeURIComponent(Number(o.rate || 1).toFixed(2))}` +
+      `&text=${encodeURIComponent(text)}`;
+  }
+
+  function ttsKey(text, o) {
+    return `${o.lang || "en"}|${Number(o.rate || 1).toFixed(2)}|${text}`;
+  }
+
+  function rememberClip(key, url) {
+    ttsClips.set(key, url);
+    // Oldest-first eviction: a long song in a fresh language would otherwise
+    // hold every rendered line as a blob for the life of the tab.
+    while (ttsClips.size > TTS_CACHE_MAX) {
+      const oldest = ttsClips.keys().next().value;
+      const dropped = ttsClips.get(oldest);
+      ttsClips.delete(oldest);
+      if (dropped) URL.revokeObjectURL(dropped);
+    }
+  }
+
+  function prefetchClip(text, opts) {
+    const line = String(text || "").trim();
+    const o = opts || {};
+    if (!line || !serverVoicesReady()) return Promise.resolve(null);
+    const key = ttsKey(line, o);
+    const ready = ttsClips.get(key);
+    if (ready) return Promise.resolve(ready);
+    const inflight = ttsPending.get(key);
+    if (inflight) return inflight;
+    const job = fetch(ttsUrl(line, o))
+      .then((res) => (res.ok ? res.blob() : null))
+      .then((blob) => {
+        if (!blob || !blob.size) return null;
+        const url = URL.createObjectURL(blob);
+        rememberClip(key, url);
+        return url;
+      })
+      // A failed prefetch is not an error the listener needs to see: speak()
+      // still streams the line directly and falls back to the device voice.
+      .catch(() => null)
+      .finally(() => ttsPending.delete(key));
+    ttsPending.set(key, job);
+    return job;
+  }
+
+  function queueClip(text, opts) {
+    const line = String(text || "").trim();
+    const o = opts || {};
+    if (!line || !serverVoicesReady()) return;
+    const key = ttsKey(line, o);
+    if (ttsClips.has(key) || ttsPending.has(key)) return;
+    if (ttsQueue.some((job) => job.key === key)) return;
+    ttsQueue.push({ key, line, opts: o });
+    drainClipQueue();
+  }
+
+  function drainClipQueue() {
+    while (ttsPrefetching < TTS_PREFETCH_CONCURRENCY && ttsQueue.length) {
+      const job = ttsQueue.shift();
+      ttsPrefetching += 1;
+      prefetchClip(job.line, job.opts).finally(() => {
+        ttsPrefetching -= 1;
+        drainClipQueue();
+      });
+    }
+  }
+
   function speak(text, opts) {
     const line = String(text || "").trim();
     const o = opts || {};
@@ -2585,9 +2697,9 @@ _JS = r"""
         }
         if (!speakOnDevice(line, o.tag, o.rate, done) && done) done();
       };
-      ttsAudio.src = `/api/music/tts?lang=${encodeURIComponent(o.lang || "en")}` +
-        `&rate=${encodeURIComponent(Number(o.rate || 1).toFixed(2))}` +
-        `&text=${encodeURIComponent(line)}`;
+      // A prefetched blob starts instantly; a miss still streams so the line is
+      // never skipped, it just begins as late as it used to.
+      ttsAudio.src = ttsClips.get(ttsKey(line, o)) || ttsUrl(line, o);
       const playing = ttsAudio.play();
       if (playing && playing.catch) playing.catch(() => { /* onerror handles it */ });
       return;
@@ -2622,12 +2734,30 @@ _JS = r"""
   async function loadSingPlan() {
     singPlan = null;
     singingLineNo = 0;
+    // A new song or language makes everything still queued the wrong language,
+    // and those renders would delay the lines now on screen.
+    ttsQueue.length = 0;
     if (!current) return;
     const player = $("player");
     const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : 0;
     singPlan = await api(`/api/music/sing/${encodeURIComponent(current.song_id)}` +
       `?target_lang=${encodeURIComponent(lang())}` +
       (duration ? `&duration=${duration.toFixed(2)}` : ""));
+    primeSingClips(activeLineNo);
+  }
+
+  // Keep the next few translated lines rendered and in memory. Without this the
+  // voice only ever caught the lines that happened to follow a long rest.
+  function primeSingClips(fromLineNo) {
+    if (!singPlan || !serverVoicesReady()) return;
+    const rows = singPlan.lines || [];
+    let index = rows.findIndex((r) => r.line_no >= (fromLineNo || 0));
+    if (index < 0) index = 0;
+    rows.slice(index, index + TTS_LOOKAHEAD).forEach((row) => {
+      if (row.speak) {
+        queueClip(row.speak, { lang: singPlan.language, rate: row.rate });
+      }
+    });
   }
 
   function speakLine(lineNo) {
@@ -2644,6 +2774,7 @@ _JS = r"""
       tag: singPlan.voice_tag,
       rate: row.rate,
     });
+    primeSingClips(lineNo + 1);
   }
 
   function stopSinging() {
@@ -2663,6 +2794,10 @@ _JS = r"""
       cancelSpeech();
       if (ducked) { ducked = false; $("player").volume = duckedFrom; }
     }
+    // The boot probe runs at idle so the first song paints sooner. Ticking the
+    // box before it lands would judge the neural voices missing and sing the
+    // whole song on a device voice the OS may not have for this language.
+    if (serverVoices === null) await probeServerVoices();
     try {
       await loadSingPlan();
     } catch (e) {
@@ -2820,6 +2955,50 @@ _JS = r"""
 
   /* ---------- data loading ---------- */
 
+  function scheduleIdle(work) {
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(() => work(), { timeout: 1200 });
+    } else {
+      window.setTimeout(work, 80);
+    }
+  }
+
+  async function loadMoreFeatured() {
+    if (featuredLoading || featuredNextOffset === null) return;
+    featuredLoading = true;
+    renderSongList();
+    try {
+      const offset = featuredNextOffset || 0;
+      const data = await api(
+        `/api/music/featured?offset=${offset}&limit=1`
+      );
+      featuredTotal = Number(data.total || data.count || 0);
+      featuredNextOffset = data.next_offset;
+      (data.songs || []).forEach((song) => {
+        if (!featured.some((row) => row.song_id === song.song_id)) {
+          featured.push(song);
+        }
+      });
+    } finally {
+      featuredLoading = false;
+      renderSongList();
+      updateCatalogMeta();
+    }
+  }
+
+  function lazyLoadRemainingSongs() {
+    if (featuredNextOffset === null) return;
+    scheduleIdle(async () => {
+      try {
+        await loadMoreFeatured();
+      } catch (e) {
+        toast(`Could not load the next song: ${String(e.message || e)}`);
+        return;
+      }
+      lazyLoadRemainingSongs();
+    });
+  }
+
   async function loadTranslation() {
     if (!current) return;
     const key = `${current.song_id}|${lang()}`;
@@ -2850,9 +3029,21 @@ _JS = r"""
       (duration ? `?duration=${duration.toFixed(2)}` : ""));
     const el = $("timing-source");
     if (el) {
-      el.textContent = timings.aligned
-        ? `Lyrics aligned to the vocals \u00b7 sings from ${timings.lead_in_sec.toFixed(1)}s`
-        : "Lyrics timed by syllable estimate";
+      if (!timings.aligned) {
+        el.textContent = "Lyrics timed by syllable estimate";
+      } else if (timings.word_accurate) {
+        el.textContent =
+          `Words aligned to the sung words \u00b7 sings from ` +
+          `${timings.lead_in_sec.toFixed(1)}s`;
+      } else {
+        // Loudness cuts put every line on a real phrase onset but cannot tell
+        // WHICH line that phrase is, so say the ball is approximate here and
+        // point at the nudge instead of letting it look broken.
+        el.textContent =
+          `Lines aligned to the vocals, words approximate \u00b7 sings from ` +
+          `${timings.lead_in_sec.toFixed(1)}s \u00b7 use \u2212/+ to nudge`;
+      }
+      el.classList.toggle("approx", timings.aligned && !timings.word_accurate);
     }
   }
 
@@ -2907,6 +3098,10 @@ _JS = r"""
     const song = await api("/api/music/songs/" + encodeURIComponent(songId));
     if (gen !== songGen) return;
     current = song;
+    timings = null;
+    translation = null;
+    board = null;
+    clips = [];
     loadSync();
     $("now-title").textContent = current.title_en;
     $("now-meta").textContent =
@@ -2915,22 +3110,32 @@ _JS = r"""
     $("stage").dataset.anim = anim;
     $("stage").classList.remove("playing");
     $("stage-symbol").textContent = SYMBOLS[anim] || "\u266A";
+    $("lyrics").innerHTML = '<div class="meta">Loading this song\u2019s lyrics\u2026</div>';
     player.src = current.audio_url || "";
     ["btn-play", "btn-pause", "btn-restart"].forEach((id) => { $(id).disabled = !player.src; });
-    await loadTimings();
-    await loadTranslation();
+    await Promise.all([loadTimings(), loadTranslation()]);
+    if (gen !== songGen) return;
     renderLyrics();
     // Paused at 0:00 the song has not started, so queue line 1 rather than
     // lighting it up as if it were being sung.
     showCountIn(0);
     renderSongList();
-    await loadStoryboard();
     if ($("sing-lang").checked) {
       try { await loadSingPlan(); } catch (_) { $("sing-lang").checked = false; }
     }
-    await Promise.all([loadClips(), loadVideos()]);
-    // The storyboard and sing plan repaint the captions, so the count-in goes last.
-    if (!activeLineNo) showCountIn(playT());
+    // The first song is usable now. Storyboard, clips and videos are secondary,
+    // so fetch them only after the browser has painted lyrics and controls.
+    scheduleIdle(async () => {
+      if (gen !== songGen) return;
+      try {
+        await Promise.all([loadStoryboard(), loadClips(), loadVideos()]);
+        if (gen === songGen && !activeLineNo) showCountIn(playT());
+      } catch (e) {
+        if (gen === songGen) {
+          toast(`Some extras could not load: ${String(e.message || e)}`);
+        }
+      }
+    });
   }
 
   async function loadVideos() {
@@ -3302,9 +3507,6 @@ _JS = r"""
       window.speechSynthesis.getVoices();
       window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     }
-    // Probed once, not per line: the sing toggle needs to know whether the
-    // server can render a language the device has no voice for.
-    await probeServerVoices();
     $("ask-quick").innerHTML = QUICK_ASKS.map((q) =>
       `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
     $("ask-quick").querySelectorAll("button").forEach((b) => {
@@ -3323,10 +3525,12 @@ _JS = r"""
     });
     const langs = await api("/api/music/languages");
     const cat = langs.catalog || [];
+    languageCount = Number(langs.count || 26);
     // Every language is selectable; the groups say which ones have hand-authored
     // sentences, because a bare tick beside six of them read as "only these six".
     const full = cat.filter((row) => row.curated);
     const glossed = cat.filter((row) => !row.curated);
+    fullTranslationCount = full.length;
     const optionsFor = (rows) => rows.map((row) =>
       `<option value="${esc(row.code)}">${esc(row.name)}</option>`).join("");
     $("meaning-lang").innerHTML = [
@@ -3337,16 +3541,17 @@ _JS = r"""
     ).join("");
     $("meaning-lang").value = "es";
     refreshSingLabel();
-    const data = await api("/api/music/featured");
-    featured = data.songs || [];
-    const voiceNote = serverVoicesReady()
-      ? ` \u00b7 neural voices for ${serverVoices.languages} languages`
-      : " \u00b7 singing uses this device's installed voices";
-    $("catalog-meta").textContent =
-      `${featured.length} featured with audio \u00b7 ${langs.count || 26} translation ` +
-      `languages \u00b7 ${full.length} with full-line sentences${voiceNote}`;
-    renderSongList();
-    await loadEmbeds();
+    // Load one card and its song first. The remaining cards, voice probe and
+    // embedded lessons are secondary and fill in during browser idle time.
+    await loadMoreFeatured();
     if (featured[0]) await selectSong(featured[0].song_id);
+    lazyLoadRemainingSongs();
+    scheduleIdle(async () => {
+      await probeServerVoices();
+      updateCatalogMeta();
+    });
+    scheduleIdle(() => loadEmbeds().catch((e) =>
+      toast(`Could not load video lessons: ${String(e.message || e)}`)
+    ));
   })().catch((e) => toast(String(e.message || e)));
 """

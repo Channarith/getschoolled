@@ -23,7 +23,12 @@ voices = ["edge-tts==7.2.8"]
 # Word-level speech recognition for scripts/align_songs.py. Offline authoring
 # only: the committed data/alignment.jsonl is what the running app reads, so
 # nobody needs this to serve or test the lab.
-asr = ["faster-whisper==1.0.3"]
+#
+# faster-whisper 1.0.3 imports `requests` but never declares it: it used to
+# arrive with huggingface-hub, which has since dropped it for httpx. Installing
+# the extra alone therefore crashed align_songs.py with ModuleNotFoundError, so
+# pin it here.
+asr = ["faster-whisper==1.0.3", "requests>=2.31,<3"]
 
 [project.scripts]
 theodore-music-lab = "theodore_music_lab.main:main"

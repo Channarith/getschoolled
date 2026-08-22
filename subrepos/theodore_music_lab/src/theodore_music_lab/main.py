@@ -34,7 +34,7 @@ from .embeds import (
     video_dir,
 )
 from .media import load_clips, resolve_clip, videos_for
-from .music_page import FAVICON_SVG, render_music_page
+from .music_page import FAVICON_SVG, render_music_page, render_music_script
 from .practice import (
     build_memory_drill,
     build_quiz,
@@ -166,6 +166,16 @@ def _song_or_404(song_id: str):
 @app.get("/lab", response_class=HTMLResponse)
 def music_lab_page() -> str:
     return render_music_page()
+
+
+@app.get("/assets/music-lab.js", include_in_schema=False)
+def music_lab_script() -> Response:
+    """Serve the large player separately so the HTML cannot be truncated mid-script."""
+    return Response(
+        content=render_music_script(),
+        media_type="application/javascript",
+        headers={"cache-control": "no-cache"},
+    )
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -586,7 +596,7 @@ def embed_ask(req: EmbedAskRequest) -> dict[str, Any]:
 
 
 @app.get("/api/music/featured")
-def featured_songs() -> dict[str, Any]:
+def featured_songs(offset: int = 0, limit: int = 0) -> dict[str, Any]:
     rows = []
     for song in _CATALOG.featured():
         rows.append(
@@ -605,9 +615,16 @@ def featured_songs() -> dict[str, Any]:
                 "duration_hint_sec": song.duration_hint_sec,
             }
         )
+    total = len(rows)
+    start = max(0, offset)
+    stop = total if limit <= 0 else min(total, start + min(limit, 25))
+    page = rows[start:stop]
     return {
-        "count": len(rows),
-        "songs": rows,
+        "count": len(page),
+        "total": total,
+        "offset": start,
+        "next_offset": stop if stop < total else None,
+        "songs": page,
         "meaning_language_count": len(MEANING_LANGUAGES),
     }
 
