@@ -196,6 +196,51 @@ class BaiduSearchProvider(_HttpSearchProvider):
                 for it in data.get("results", [])[:max_results]]
 
 
+class GdeltNewsSearchProvider(_HttpSearchProvider):
+    """Public GDELT DOC API, used only for live current-awareness queries."""
+
+    engine = "gdelt"
+    impl = "gdelt-doc-search"
+    endpoint = "https://api.gdeltproject.org/api/v2/doc/doc"
+
+    def _api_key(self) -> str:
+        return "public"
+
+    def ready(self) -> bool:
+        return True
+
+    def _do_search(self, query, max_results):  # pragma: no cover - live public API
+        data = self._request(
+            self.endpoint,
+            params={
+                "query": query,
+                "mode": "ArtList",
+                "maxrecords": min(max_results, 250),
+                "format": "json",
+                "sort": "HybridRel",
+            },
+            headers={"User-Agent": "AOEP-Current-Awareness/1.0"},
+        )
+        return [
+            SearchResult(
+                it.get("title", ""),
+                it.get("url", ""),
+                " ".join(
+                    value
+                    for value in (
+                        it.get("title", ""),
+                        it.get("domain", ""),
+                        it.get("seendate", ""),
+                    )
+                    if value
+                ),
+                self.engine,
+            )
+            for it in data.get("articles", [])[:max_results]
+            if it.get("url")
+        ]
+
+
 # Registry of real engines, in preference order.
 ENGINE_CLASSES = [
     BingSearchProvider,
@@ -214,3 +259,13 @@ def available_engines(config: AppConfig) -> List[SearchProvider]:
         if provider.ready():
             engines.append(provider)
     return engines or [MockSearchProvider(config)]
+
+
+def current_news_engines(config: AppConfig) -> List[SearchProvider]:
+    """Configured search engines plus GDELT's public live-news index."""
+    configured = [
+        engine
+        for engine in available_engines(config)
+        if getattr(engine, "engine", "") != "mock"
+    ]
+    return [*configured, GdeltNewsSearchProvider(config)]

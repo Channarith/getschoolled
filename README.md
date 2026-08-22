@@ -151,6 +151,10 @@ plus the escaped-injection security check):
 
 Full-quality video: [docs/demos/theodore_webcam_live_monitor_demo.mp4](docs/demos/theodore_webcam_live_monitor_demo.mp4)
 
+Theodore RAG Lab current-awareness qualification (live trusted-source routing,
+independent corroboration, transient article reading, and citation guard):
+[docs/demos/theodore_rag_lab_current_awareness.mp4](docs/demos/theodore_rag_lab_current_awareness.mp4)
+
 Theodore 3D Avatar Teacher — local rigged GLB presenting the Driver's Ed cue
 sequence with hologram body, facial motion, visemes, gaze and joint gestures:
 
@@ -228,7 +232,7 @@ Documentation screenshots for every Theodore subrepo (regenerate with
 
 | Webcam overview (owner lock) | RAG auto-tune |
 | --- | --- |
-| <img src="docs/screens/theodore_webcam_lab_overview.webp" alt="Theodore Webcam Lab overview with owner face lock multi-face and integrity metrics" /> | <img src="docs/screens/theodore_rag_lab.webp" alt="Theodore RAG Lab live tuning knobs and bakeoff console" /> |
+| <img src="docs/screens/theodore_webcam_lab_overview.webp" alt="Theodore Webcam Lab overview with owner face lock multi-face and integrity metrics" /> | <img src="docs/screens/theodore_rag_lab.webp" alt="Theodore RAG Lab current-awareness console with trusted-source corroboration and transient evidence controls" /> |
 
 Course Studio presenters (chibi canon, 2.75 heads tall, gendered pair swapped by
 the voice picker). Rebuild the models with
@@ -617,7 +621,7 @@ transcript all run without it.
 | `subrepos/theodore_webcam_lab` | Private webcam recognition + voice lab (owner face lock; UI `:8015/`) |
 | `subrepos/theodore_course_studio` | Early-learning / certification course studio (UI `:8040/studio`) |
 | `subrepos/theodore_audio_translation_lab` | Realtime mic translation across 27 languages (UI `:8041/lab`) |
-| `subrepos/theodore_rag_lab` | Private RAG auto-tune / bakeoff (browser console `:8095/`) |
+| `subrepos/theodore_rag_lab` | Private RAG auto-tune / bakeoff plus live trusted current-awareness qualification (browser console `:8095/`) |
 | `subrepos/theodore_drive_lab` | Private Drive Mode fine-tune (browser console `:8096/`) |
 | `subrepos/theodore_homework_lab` | Private homework lab, 75 methodologies (browser UI `:8098/`) |
 | `subrepos/theodore_music_lab` | Learn-through-music lab (featured player `:8097/`; curated lyric translations in all 26+ langs) |

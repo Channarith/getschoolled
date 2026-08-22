@@ -65,7 +65,7 @@ _CSS = """
 _HTML = """
   <header>
     <h1>Theodore RAG Lab</h1>
-    <p>Tune curriculum RAG, browse an extensive slang/idiom dictionary, rehearse world dialects
+    <p>Tune curriculum RAG, qualify live citation-backed current awareness, browse an extensive slang/idiom dictionary, rehearse world dialects
        (Southern, NYC, New England, California, Canadian, British, Australian, Singaporean,
        Beijing, Shanghai, Guangzhou Cantonese, Fujianese, and more), run regurgitation drills,
        and grow the lexicon with feedback learning.</p>
@@ -73,6 +73,7 @@ _HTML = """
   </header>
   <nav class="tabs" id="tabs">
     <button type="button" data-tab="rag" class="active">RAG tuning</button>
+    <button type="button" data-tab="current">Current awareness</button>
     <button type="button" data-tab="dict">Dictionary</button>
     <button type="button" data-tab="dialect">Dialects</button>
     <button type="button" data-tab="drill">Regurgitation</button>
@@ -111,6 +112,23 @@ _HTML = """
     <main class="panel">
       <h2>Result</h2>
       <pre class="out" id="out-rag">Click an action to qualify RAG tuning.</pre>
+    </main>
+  </div>
+
+  <div class="layout tab-panel hidden" id="panel-current">
+    <aside class="panel">
+      <h2>Research a current question</h2>
+      <div class="row">
+        <textarea id="current-question">Who is the current president of the United States?</textarea>
+      </div>
+      <div class="row">
+        <button class="primary" id="btn-current-research" type="button">Search trusted sources</button>
+      </div>
+      <div class="meta">Live-only: trusted pages are read transiently, checked for independent corroboration, and never stored in the long-lived RAG corpus.</div>
+    </aside>
+    <main class="panel">
+      <h2>Fresh evidence and citations</h2>
+      <pre class="out" id="out-current">Ask about current leaders, global events, announcements, or recent sports results.</pre>
     </main>
   </div>
 
@@ -262,6 +280,13 @@ _JS = """
   document.getElementById('btn-stop').onclick = () => run(outRag, () => api('POST', '/api/rag/train/stop'));
   document.getElementById('btn-champ').onclick = () => run(outRag, () => api('GET', '/api/rag/champion'));
   document.getElementById('btn-tel').onclick = () => run(outRag, () => api('GET', '/api/rag/telemetry'));
+  const outCurrent = document.getElementById('out-current');
+  document.getElementById('btn-current-research').onclick = () => run(
+    outCurrent,
+    () => api('POST', '/api/current-awareness/research', {
+      question: document.getElementById('current-question').value,
+    }),
+  );
 
   function renderEntries(payload) {
     const box = document.getElementById('out-dict');
@@ -381,7 +406,8 @@ _JS = """
     try {
       const health = await api('GET', '/health');
       const pills = document.getElementById('meta-pills');
-      pills.innerHTML = '<span class="pill">offline</span><span class="pill">port 8095</span>' +
+      pills.innerHTML = '<span class="pill">offline tuning</span><span class="pill">port 8095</span>' +
+        '<span class="pill">current awareness ' + (health.current_awareness_live ? 'live' : 'needs search key') + '</span>' +
         '<span class="pill">lexicon ' + (health.lexicon_total || 0) + '</span>' +
         '<span class="pill">dialects ' + (health.dialects || 0) + '</span>';
       const cat = await api('GET', '/api/dialects');

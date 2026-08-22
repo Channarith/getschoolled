@@ -41,6 +41,14 @@ data:
   OBJECT_STORE_BUCKET: "aoep-prod"
   REDIS_URL: "redis://redis:6379/0"
   CURRICULUM_DIR: "/app/sample-curriculum"
+  # Live current-awareness RAG. The public GDELT index works without a key;
+  # configured Bing/Google/Brave/Kagi engines are also consulted. Article text
+  # is transient and restricted to the built-in trusted-source allowlist.
+  CURRENT_AWARENESS_ENABLED: "1"
+  CURRENT_AWARENESS_MAX_RESULTS: "8"
+  CURRENT_AWARENESS_MAX_FETCHES: "4"
+  CURRENT_AWARENESS_TIMEOUT_SEC: "8"
+  CURRENT_AWARENESS_CACHE_TTL_SEC: "300"
   # Default admin seeding (identity service). Accounts persist to Redis when
   # REDIS_URL is set so multi-replica identity pods share the same members.
   SEED_DEFAULT_ADMIN: "1"

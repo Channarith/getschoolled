@@ -1,7 +1,7 @@
 import * as Speech from "expo-speech";
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 
 import {
@@ -851,7 +851,27 @@ export default function LessonScreen({
             {answer ? (
               <View style={styles.answerBox}>
                 <Text style={styles.answerText}>{answer.text}</Text>
-                {answer.citations.length ? (
+                {answer.as_of ? (
+                  <Text style={styles.meta}>
+                    Current information checked {new Date(answer.as_of).toLocaleString()}
+                  </Text>
+                ) : null}
+                {answer.sources?.length ? (
+                  <View style={styles.sourceList}>
+                    {answer.sources.map((source) => (
+                      <Text
+                        key={source.url}
+                        style={styles.sourceLink}
+                        onPress={() => void Linking.openURL(source.url)}
+                      >
+                        {source.title || source.publisher}
+                        {source.published_at
+                          ? ` (${new Date(source.published_at).toLocaleDateString()})`
+                          : ""}
+                      </Text>
+                    ))}
+                  </View>
+                ) : answer.citations.length ? (
                   <Text style={styles.meta}>
                     {t("lesson.sources")}: {answer.citations.join(" · ")}
                   </Text>
@@ -906,5 +926,7 @@ const styles = StyleSheet.create({
   answerBox: { gap: 6, marginTop: 4, padding: 10, borderRadius: 10, backgroundColor: "rgba(110,168,254,0.12)" },
   answerText: { color: theme.colors.text, fontSize: 14, lineHeight: 21 },
   meta: { color: theme.colors.muted, fontSize: 13, lineHeight: 18 },
+  sourceList: { gap: 4 },
+  sourceLink: { color: "#60a5fa", fontSize: 13, lineHeight: 18, textDecorationLine: "underline" },
   error: { color: "#f87171", fontSize: 13 },
 });

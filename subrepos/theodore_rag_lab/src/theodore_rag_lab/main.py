@@ -13,11 +13,14 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
     pass
 
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+
+from aoep_shared.current_awareness import research_current_topic
+from aoep_shared.factory import build_factory
 
 from .bakeoff_loop import get_runner
 from .dictionary_lab import (
@@ -34,6 +37,7 @@ from .qualify_page import render_qualify_page
 from .rag_tuning import PRESETS, RagTuning
 
 app = FastAPI(title="Theodore RAG Lab", version="0.2.0")
+_FACTORY = build_factory()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -77,6 +81,10 @@ class FeedbackReq(BaseModel):
     note: str = ""
 
 
+class CurrentAwarenessReq(BaseModel):
+    question: str = Field(min_length=3, max_length=500)
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     runner = get_runner()
@@ -103,7 +111,12 @@ def health() -> dict[str, Any]:
             "dialects",
             "regurgitation",
             "feedback_learning",
+            "live_current_awareness",
         ],
+        "current_awareness_live": any(
+            getattr(engine, "engine", "") != "mock"
+            for engine in _FACTORY.current_news_engines()
+        ),
         **readiness,
     }
 
@@ -185,6 +198,16 @@ def champion() -> dict[str, Any]:
 @app.get("/api/rag/telemetry")
 def telemetry() -> dict[str, Any]:
     return get_runner().telemetry.snapshot()
+
+
+@app.post("/api/current-awareness/research")
+def current_awareness(req: CurrentAwarenessReq) -> dict[str, Any]:
+    result = research_current_topic(
+        req.question,
+        _FACTORY.current_news_engines(),
+        config=_FACTORY.config,
+    )
+    return result.to_dict()
 
 
 @app.get("/api/dictionary")

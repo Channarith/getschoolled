@@ -1198,6 +1198,8 @@ export type SessionView = {
 export type Answer = {
   text: string;
   citations: string[];
+  sources?: CurrentSource[];
+  as_of?: string | null;
   language: string;
   understood?: string[];
   grounded?: boolean;
@@ -1206,6 +1208,17 @@ export type Answer = {
   // Set when the AI teacher grants points for this question; the client redeems
   // grant_token at /rewards/grant (server-verified).
   reward?: { points: number; reason: string; grant_token: string } | null;
+};
+
+export type CurrentSource = {
+  title: string;
+  url: string;
+  publisher: string;
+  snippet: string;
+  engine: string;
+  excerpt?: string;
+  published_at?: string;
+  fetched_at?: string;
 };
 
 // Re-engagement beat: the Director's REENGAGING action rendered as a short,
@@ -3651,6 +3664,7 @@ export async function ask(sessionId: string, text: string, language = "en"): Pro
 export type AskDone = {
   type: "done"; text: string; citations: string[]; grounded: boolean;
   hallucination_risk: number; understood: string[]; unsupported: string[]; corrected: boolean;
+  sources?: CurrentSource[]; as_of?: string | null;
 };
 
 // Stream the conversational agent's answer (SSE) for a real-time, low-latency

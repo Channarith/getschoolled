@@ -1062,6 +1062,11 @@ export type LessonSessionView = {
 export type LessonAnswer = {
   text: string; citations: string[]; language: string;
   grounded: boolean; hallucination_risk: number;
+  sources?: CurrentSource[]; as_of?: string | null;
+};
+export type CurrentSource = {
+  title: string; url: string; publisher: string; snippet: string; engine: string;
+  excerpt?: string; published_at?: string; fetched_at?: string;
 };
 
 export function startLessonSession(
