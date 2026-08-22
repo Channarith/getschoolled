@@ -155,6 +155,9 @@ Theodore RAG Lab current-awareness qualification (live trusted-source routing,
 independent corroboration, transient article reading, and citation guard):
 [docs/demos/theodore_rag_lab_current_awareness.mp4](docs/demos/theodore_rag_lab_current_awareness.mp4)
 
+Theodore Music Lab fast first-song and idle lazy-loading walkthrough:
+[docs/demos/theodore_music_lab_lazy_loading.mp4](docs/demos/theodore_music_lab_lazy_loading.mp4)
+
 Theodore 3D Avatar Teacher — local rigged GLB presenting the Driver's Ed cue
 sequence with hologram body, facial motion, visemes, gaze and joint gestures:
 
@@ -224,7 +227,7 @@ Documentation screenshots for every Theodore subrepo (regenerate with
 
 | Drive Mode fine-tune | Homework (75 methodologies) | Music (featured player) |
 | --- | --- | --- |
-| <img src="docs/screens/theodore_drive_lab.webp" alt="Theodore Drive Lab wake echo TTS knobs and eval console" /> | <img src="docs/screens/theodore_homework_lab.webp" alt="Theodore Homework Lab 75-methodology roster and generate grade console" /> | <img src="docs/screens/theodore_music_lab.webp" alt="Theodore Music Lab featured MP3 player with lyric sync and meaning glosses" /> |
+| <img src="docs/screens/theodore_drive_lab.webp" alt="Theodore Drive Lab wake echo TTS knobs and eval console" /> | <img src="docs/screens/theodore_homework_lab.webp" alt="Theodore Homework Lab 75-methodology roster and generate grade console" /> | <img src="docs/screens/theodore_music_lab.webp" alt="Theodore Music Lab loading its first featured MP3 immediately and lazy-loading remaining song cards during browser idle time" /> |
 
 | Course Studio | Audio Translation |
 | --- | --- |

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -103,6 +104,14 @@ def _featured(cat: Catalog):
     return cat.featured()[0]
 
 
+def _player_source(client: TestClient) -> str:
+    page = client.get("/")
+    script = client.get("/assets/music-lab.js")
+    assert page.status_code == script.status_code == 200
+    assert 'src="/assets/music-lab.js"' in page.text
+    return page.text + "\n" + script.text
+
+
 def test_catalog_has_100_plus_original_songs():
     cat = Catalog()
     assert len(cat.songs) >= 100
@@ -180,10 +189,26 @@ def test_import_accepts_string_lines():
 
 def test_player_page_uses_timeupdate_lyric_sync():
     with TestClient(app) as client:
+        source = _player_source(client)
+        assert "timeupdate" in source
+        assert "syncActiveLineFromPlayer" in source
+
+
+def test_player_javascript_is_external_complete_and_parseable():
+    with TestClient(app) as client:
         page = client.get("/")
-        assert page.status_code == 200
-        assert "timeupdate" in page.text
-        assert "syncActiveLineFromPlayer" in page.text
+        script = client.get("/assets/music-lab.js")
+    assert len(page.content) < 50_000
+    assert len(script.content) > 50_000
+    assert script.headers["content-type"].startswith("application/javascript")
+    parsed = subprocess.run(
+        ["node", "-e", "new Function(require('fs').readFileSync(0, 'utf8'))"],
+        input=script.text,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert parsed.returncode == 0, parsed.stderr
 
 
 def test_page_script_has_no_unclosed_helper_from_a_bad_merge():
@@ -195,8 +220,7 @@ def test_page_script_has_no_unclosed_helper_from_a_bad_merge():
     """
     decl = re.compile(r"^  (?:async )?function \w+\(")
     with TestClient(app) as client:
-        page = client.get("/").text
-    script = re.findall(r"<script[^>]*>(.*?)</script>", page, re.S)[0]
+        script = client.get("/assets/music-lab.js").text
     lines = script.split("\n")
     offenders = []
     for idx, line in enumerate(lines):
@@ -224,7 +248,7 @@ def test_player_compensates_for_audio_output_latency():
     """The ball/word paint reads the AUDIBLE playhead, not the decoded one, so it
     stops leading the vocal by the device's output-buffer latency."""
     with TestClient(app) as client:
-        page = client.get("/").text
+        page = _player_source(client)
         # Latency is measured from Web Audio and subtracted from the playhead the
         # paint reads (and added back when seeking), via shared helpers.
         assert "refreshAudioLatency" in page
@@ -239,7 +263,7 @@ def test_player_compensates_for_audio_output_latency():
 def test_language_picker_offers_every_language_grouped_by_quality():
     """A tick beside six names read as "only six supported"; groups say it plainly."""
     with TestClient(app) as client:
-        page = client.get("/").text
+        page = _player_source(client)
         assert "<optgroup" in page
         assert "Full-line translations" in page
         assert "Word-by-word glosses" in page
@@ -428,7 +452,7 @@ def test_a_failed_render_leaves_no_truncated_clip(tts_cache, monkeypatch):
 
 def test_the_player_speaks_through_the_server_and_can_fall_back():
     with TestClient(app) as client:
-        page = client.get("/").text
+        page = _player_source(client)
     assert "probeServerVoices" in page
     assert "/api/music/tts?lang=" in page
     # One cancel path must stop device speech AND server audio.
@@ -444,6 +468,72 @@ def test_the_player_speaks_through_the_server_and_can_fall_back():
     # Pausing must not be followed by another sung line from the next tick.
     sing = page.split("function speakLine", 1)[1].split("\n  function ", 1)[0]
     assert 'if ($("player").paused) return;' in sing
+
+
+def test_sing_along_renders_the_next_lines_before_they_are_reached():
+    """Most lines used to pass in silence.
+
+    speak() started the /api/music/tts fetch at the moment a line lit up, and the
+    NEXT line's cancelSpeech() aborted it before a byte of audio played. Only
+    lines that happened to follow a long instrumental ever finished loading,
+    which is exactly "it speaks on some lines, not every one". The clips are now
+    rendered several lines ahead and played from a blob.
+    """
+    with TestClient(app) as client:
+        page = _player_source(client)
+    assert "TTS_LOOKAHEAD" in page
+    assert "function prefetchClip" in page
+    assert "URL.createObjectURL" in page
+
+    # Playback prefers the already-rendered clip and only streams on a miss.
+    speak = page.split("function speak(text, opts)", 1)[1].split("\n  function ", 1)[0]
+    assert "ttsClips.get(ttsKey(line, o)) || ttsUrl(line, o)" in speak
+
+    # Every sung line has to top the look-ahead up, or it drains after the first.
+    sing = page.split("function speakLine", 1)[1].split("\n  function ", 1)[0]
+    assert "primeSingClips(lineNo + 1);" in sing
+
+    # A burst of renders makes the neural engine drop clips, so the queue is
+    # rate-limited rather than fired all at once.
+    assert "TTS_PREFETCH_CONCURRENCY" in page
+    assert "function drainClipQueue" in page
+
+    # Blobs must be released, or a long song in a fresh language leaks the lot.
+    assert "URL.revokeObjectURL" in page
+
+    # A new song or language must not sing the previous language's queue.
+    plan = page.split("async function loadSingPlan", 1)[1].split("\n  //", 1)[0]
+    assert "ttsQueue.length = 0;" in plan
+
+    # The boot probe now runs at idle; ticking the box first must still wait for
+    # it, or the whole song sings on a device voice the OS may not have.
+    toggle = page.split("async function toggleSinging", 1)[1].split("\n  function ", 1)[0]
+    assert "if (serverVoices === null) await probeServerVoices();" in toggle
+
+
+def test_timing_says_whether_word_times_are_recognised_or_estimated():
+    """Loudness cuts know WHERE singing happens, never WHAT.
+
+    A song aligned that way puts every line on a real phrase onset but can put it
+    on the wrong phrase, so the ball drifts against the vocal. That has to be
+    visible rather than reading as a bug in the player.
+    """
+    cat = Catalog()
+    with TestClient(app) as client:
+        for song in cat.featured():
+            timing = client.get(f"/api/music/timing/{song.song_id}").json()
+            assert timing["aligned"] is True
+            assert timing["word_source"] in {
+                "asr-word-timestamps",
+                "vocal-onset-cuts",
+            }
+            assert timing["word_accurate"] == (
+                timing["word_source"] == "asr-word-timestamps"
+            )
+
+        page = _player_source(client)
+    assert "timings.word_accurate" in page
+    assert "words approximate" in page
 
 
 def test_the_page_carries_an_icon_and_favicon_ico_is_served():
@@ -534,6 +624,29 @@ def test_api_health_and_session_flow():
 
         cont = client.post(f"/api/music/session/{sid}/continue")
         assert cont.status_code == 200
+
+
+def test_featured_songs_lazy_load_one_card_at_a_time():
+    with TestClient(app) as client:
+        first = client.get("/api/music/featured", params={"offset": 0, "limit": 1})
+        assert first.status_code == 200
+        first_page = first.json()
+        assert first_page["count"] == 1
+        assert first_page["total"] >= 3
+        assert first_page["next_offset"] == 1
+
+        second = client.get(
+            "/api/music/featured",
+            params={"offset": first_page["next_offset"], "limit": 1},
+        ).json()
+        assert second["count"] == 1
+        assert second["songs"][0]["song_id"] != first_page["songs"][0]["song_id"]
+
+        script = client.get("/assets/music-lab.js").text
+        assert "/api/music/featured?offset=${offset}&limit=1" in script
+        assert "requestIdleCallback" in script
+        assert "await Promise.all([loadTimings(), loadTranslation()]);" in script
+        assert "lazyLoadRemainingSongs();" in script
 
 
 def test_new_child_favorite_song_pack_is_complete():
@@ -896,7 +1009,7 @@ def test_no_lyric_line_starts_before_the_singing_does():
 
 def test_the_intro_counts_in_instead_of_highlighting_the_first_line():
     with TestClient(app) as client:
-        page = client.get("/").text
+        page = _player_source(client)
     assert "showCountIn" in page
     assert "Singing starts in" in page
     assert "line.upcoming" in page
@@ -1243,7 +1356,7 @@ def test_new_apis_and_player_ui(offline):
         assert karaoke["video_url"].endswith("love_of_learning_khmer.mp4")
         assert karaoke["bilingual"] is True
 
-        page = client.get("/").text
+        page = _player_source(client)
         assert 'id="ball"' in page
         assert "Learn &amp; practice this song" in page
         assert "Say / sing line" in page
@@ -1416,7 +1529,7 @@ def test_embed_url_uses_youtube_host_not_nocookie():
 def test_youtube_player_owns_iframe_and_study_mode():
     """Pause-and-ask player builds its own iframe; lyric Play-here is not nocookie."""
     with TestClient(app) as client:
-        page = client.get("/").text
+        page = _player_source(client)
         assert "https://www.youtube.com/embed/" in page
         assert "buildYtIframe" in page
         assert "hardenYtIframeAttributes" in page
@@ -1543,7 +1656,7 @@ def test_an_untranslated_line_is_never_read_by_the_wrong_voice(offline):
 
 def test_the_player_speaks_each_video_line_in_the_picked_language():
     with TestClient(app) as client:
-        page = client.get("/").text
+        page = _player_source(client)
     assert 'id="speak-verse"' in page
     assert 'id="btn-hear-verse"' in page
     assert 'id="pause-voice"' in page
@@ -1834,7 +1947,7 @@ def test_practice_apis_keep_answer_keys_off_the_wire(offline):
 
 def test_the_player_wires_all_six_practice_modes():
     with TestClient(app) as client:
-        page = client.get("/").text
+        page = _player_source(client)
     assert "setPracticeMode" in page
     assert "startQuiz" in page
     assert "startMemory" in page

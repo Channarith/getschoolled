@@ -5,6 +5,7 @@ Run this after adding or replacing a featured MP3:
 
     python3 scripts/align_songs.py            # all featured songs
     python3 scripts/align_songs.py --song en-wheels-bus-audio-v1
+    python3 scripts/align_songs.py --only-estimated  # just the loudness-cut songs
     python3 scripts/align_songs.py --report   # print the timings, write nothing
     python3 scripts/align_songs.py --method energy   # skip speech recognition
 
@@ -43,6 +44,19 @@ from theodore_music_lab.vocal_align import (  # noqa: E402
 
 ALIGNMENT_PATH = ROOT / "data" / "alignment.jsonl"
 AUDIO_DIR = ROOT / "data" / "audio"
+
+
+def existing_rows() -> dict[str, dict[str, object]]:
+    """The committed alignment, keyed by song id."""
+    rows: dict[str, dict[str, object]] = {}
+    if not ALIGNMENT_PATH.is_file():
+        return rows
+    for raw in ALIGNMENT_PATH.read_text(encoding="utf-8").splitlines():
+        raw = raw.strip()
+        if raw:
+            record = json.loads(raw)
+            rows[str(record.get("song_id"))] = record
+    return rows
 
 
 def align_song_asr(song, *, model: str, refresh: bool) -> dict[str, object] | None:
@@ -161,6 +175,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--song", default="", help="align one song id only")
     parser.add_argument(
+        "--only-estimated",
+        action="store_true",
+        help="align just the songs whose committed words are loudness cuts",
+    )
+    parser.add_argument(
         "--report", action="store_true", help="print per-line timings, write nothing"
     )
     parser.add_argument(
@@ -190,6 +209,16 @@ def main() -> int:
         return 2
 
     songs = [s for s in Catalog().featured() if not args.song or s.song_id == args.song]
+    if args.only_estimated:
+        committed = existing_rows()
+        songs = [
+            s
+            for s in songs
+            if committed.get(s.song_id, {}).get("word_source") != "asr-word-timestamps"
+        ]
+        if not songs:
+            print("every featured song already has recognised word times")
+            return 0
     if not songs:
         print("no featured songs matched", file=sys.stderr)
         return 2
@@ -228,13 +257,7 @@ def main() -> int:
     if args.report:
         return 0
 
-    existing: dict[str, dict[str, object]] = {}
-    if ALIGNMENT_PATH.is_file():
-        for raw in ALIGNMENT_PATH.read_text(encoding="utf-8").splitlines():
-            raw = raw.strip()
-            if raw:
-                rec = json.loads(raw)
-                existing[str(rec.get("song_id"))] = rec
+    existing = existing_rows()
     for row in rows:
         existing[str(row["song_id"])] = row
     ALIGNMENT_PATH.write_text(

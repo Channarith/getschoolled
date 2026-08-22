@@ -234,6 +234,10 @@ def _aligned_timings(
             row["end"] = round(widened, 3)
             if row["words"]:
                 row["words"][-1]["end"] = row["end"]
+    # Recognised word times land each word where it is actually sung. Loudness
+    # cuts only know WHERE singing happens, not WHAT, so the ball can sit a
+    # phrase away. The player says so rather than letting it read as a bug.
+    word_source = str(record.get("word_source") or "vocal-onset-cuts")
     return {
         "song_id": song.song_id,
         "duration_sec": round(duration, 3),
@@ -242,6 +246,8 @@ def _aligned_timings(
         "word_count": sum(len(r["words"]) for r in rows),
         "source": "measured vocal alignment",
         "aligned": True,
+        "word_source": word_source,
+        "word_accurate": word_source == "asr-word-timestamps",
         "lines": rows,
     }
 
@@ -313,6 +319,8 @@ def song_timings(
         "word_count": sum(len(r["words"]) for r in rows),
         "source": "syllable-weighted estimate",
         "aligned": False,
+        "word_source": "syllable-estimate",
+        "word_accurate": False,
         "lines": rows,
     }
 
