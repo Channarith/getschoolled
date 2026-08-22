@@ -13,6 +13,7 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
     pass
 
 
+import logging
 import os
 from pathlib import Path
 from typing import Any, Iterator, Optional
@@ -51,6 +52,8 @@ from .storyboard import STORYBOARDS, storyboard_for
 from .timing import alignment_for, song_timings
 from .translations import language_catalog, language_name, translate_song, validate_language
 from .tts import TTSUnavailable, synthesize, tts_status
+
+_LOG = logging.getLogger(__name__)
 
 app = FastAPI(title="Theodore Music Lab", version="0.5.0")
 
@@ -284,6 +287,9 @@ def tts(text: str, lang: str = "en", rate: float = 1.0, gender: str = "female") 
     try:
         audio = synthesize(text, lang, rate=rate, gender=gender)
     except TTSUnavailable as exc:
+        # Access logs show only the bare 501, which reads as "TTS is broken" when
+        # the real cause is a blocked host or an unwritable cache. Say which.
+        _LOG.warning("tts render failed lang=%s rate=%.2f: %s", lang, rate, exc)
         raise HTTPException(status_code=501, detail=str(exc)) from exc
     return Response(
         content=audio,
