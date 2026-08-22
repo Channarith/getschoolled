@@ -148,6 +148,24 @@ def engine_chain() -> list[str]:
     return [e for e in configured_engines() if not _benched(e)]
 
 
+def _status_note(chain: list[str]) -> str:
+    if chain:
+        return f"Server neural speech via {' → '.join(chain)}."
+    benched = sorted(e for e in _engine_retry_at if _benched(e))
+    if benched:
+        # Telling someone to "install edge-tts" when it is installed and simply
+        # could not reach its voice service sent this diagnosis the wrong way.
+        return (
+            f"{', '.join(benched)} is installed but its last render failed, so it "
+            "is cooling off; the page uses the device voice until it is retried. "
+            "Check that this process can reach the voice service."
+        )
+    return (
+        "No server TTS configured; the page uses the device voice. "
+        "Set SPEECH_BASE_URL/TTS_BASE_URL, ELEVENLABS_API_KEY, or install edge-tts."
+    )
+
+
 def tts_status() -> dict[str, object]:
     chain = engine_chain()
     return {
@@ -163,12 +181,7 @@ def tts_status() -> dict[str, object]:
         "elevenlabs_configured": bool(_elevenlabs_key()),
         "xai_configured": bool(os.environ.get("XAI_API_KEY", "").strip()),
         "languages": sorted(set(_EDGE_VOICES) | set(SUPPORTED_LANGUAGES)),
-        "note": (
-            f"Server neural speech via {' → '.join(chain)}."
-            if chain
-            else "No server TTS configured; the page uses the device voice. "
-            "Set SPEECH_BASE_URL/TTS_BASE_URL, ELEVENLABS_API_KEY, or install edge-tts."
-        ),
+        "note": _status_note(chain),
     }
 
 
