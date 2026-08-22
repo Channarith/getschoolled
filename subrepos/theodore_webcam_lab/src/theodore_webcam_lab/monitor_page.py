@@ -500,6 +500,9 @@ MONITOR_JS = (
     let highlightParticipant = '';
     let tuningScope = 'vision';
     let activeChallenge = null;
+    let gameSignalBuffer = [];
+    let gameScoring = false;
+    let challengeFirstSignalMs = null;
     let visionKnobs = {};
     let lastLiveCamParticipant = null;
 
@@ -870,8 +873,6 @@ MONITOR_JS = (
                   : (data.pause_reason === 'attention_integrity'
                     ? 'Looking away from the lesson — please look at the screen to continue.'
                     : 'Away from webcam — lesson paused. Please return to the camera.')))));
-            ? 'Face ID mismatch — enrolled learner is not in frame. Teaching paused until they return.'
-            : 'Away from webcam — lesson paused. Please return to the camera.');
         banner.textContent = '⏸ ' + why;
         if (data.pause_reason === 'pitch_dark_needs_light') {
           void tryAutoLighting();
@@ -1358,7 +1359,7 @@ MONITOR_JS = (
     }
     async function speakTheodore(text, langCode) {
       if (!text) return;
-      const cleaned = String(text).replace(/^\[[^\]]+\]\s*/, '');
+      const cleaned = String(text).replace(/^\\[[^\\]]+\\]\\s*/, '');
       stopTheodoreAudio();
       const actionStage = document.getElementById('theodore-action');
       const markSpeaking = (on) => {
@@ -1501,22 +1502,104 @@ MONITOR_JS = (
       try { if (typeof stopCamera === 'function') stopCamera(); } catch (_) {}
     });
 
-    // Games panel
+    // Games panel — challenges use the same live camera session and the real
+    // signals produced below, never synthetic "happy" placeholders.
+    function gameObservedMs() {
+      if (!activeChallenge || gameSignalBuffer.length < 2) return 0;
+      return Math.max(
+        0,
+        gameSignalBuffer[gameSignalBuffer.length - 1].timestamp_ms
+          - gameSignalBuffer[0].timestamp_ms,
+      );
+    }
+
+    function updateGameProgress() {
+      const button = document.getElementById('game-attempt');
+      if (!activeChallenge) {
+        button.disabled = true;
+        return;
+      }
+      const target = Number(activeChallenge.target_duration_ms || 0);
+      const observed = gameObservedMs();
+      const remaining = Math.max(0, target - observed);
+      button.disabled = gameScoring || observed < target;
+      document.getElementById('game-status').textContent =
+        `${activeChallenge.title}: ${activeChallenge.instruction} · `
+        + `${(observed / 1000).toFixed(1)}s / ${(target / 1000).toFixed(1)}s`
+        + (remaining > 0 ? ` · scoring in ${(remaining / 1000).toFixed(1)}s` : ' · scoring…');
+    }
+
+    function recordGameSignal(signal) {
+      if (!activeChallenge || gameScoring) return;
+      if (challengeFirstSignalMs == null) challengeFirstSignalMs = signal.timestamp_ms;
+      if (signal.timestamp_ms < challengeFirstSignalMs) return;
+      // The luminance grid is useful for the live evaluator but would make a
+      // challenge payload needlessly huge. Every scored behavioral field remains.
+      const sample = { ...signal };
+      delete sample.luminance_grid;
+      gameSignalBuffer.push(sample);
+      const cutoff = signal.timestamp_ms - 15_000;
+      gameSignalBuffer = gameSignalBuffer.filter((item) => item.timestamp_ms >= cutoff);
+      updateGameProgress();
+      if (gameObservedMs() >= Number(activeChallenge.target_duration_ms || 0)) {
+        void scoreActiveGame(true);
+      }
+    }
+
+    async function scoreActiveGame(automatic) {
+      if (!activeChallenge || gameScoring) return;
+      const target = Number(activeChallenge.target_duration_ms || 0);
+      if (gameObservedMs() < target) {
+        updateGameProgress();
+        toast('Keep the camera challenge going until the countdown finishes.');
+        return;
+      }
+      gameScoring = true;
+      updateGameProgress();
+      const challenge = activeChallenge;
+      const signals = gameSignalBuffer.slice();
+      const res = await fetch('/api/theodore/webcam/games/attempt', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          challenge_id: challenge.challenge_id,
+          session_id: liveCamSessionId,
+          mode: 'solo',
+          signals,
+          expected_participant_ids: ['camera-local'],
+        }),
+      }).catch(() => null);
+      const body = res ? await res.json().catch(() => ({})) : {};
+      // Server attempts are single-use. Clear locally before displaying the
+      // result so an eager second click cannot submit the same challenge twice.
+      activeChallenge = null;
+      gameSignalBuffer = [];
+      challengeFirstSignalMs = null;
+      gameScoring = false;
+      document.getElementById('game-attempt').disabled = true;
+      document.getElementById('game-status').textContent = res && res.ok
+        ? `${body.passed ? 'PASSED' : 'FAILED'} Δ${body.score_delta} total=${body.total_score} `
+          + `streak=${body.streak} — ${body.feedback}${automatic ? ' (auto-scored)' : ''}`
+        : ((body && body.detail) || 'attempt failed; issue a new challenge');
+      toast(res && res.ok ? (body.passed ? 'Challenge passed' : 'Challenge failed') : 'Attempt error');
+    }
+
     document.getElementById('game-issue').addEventListener('click', async () => {
       const res = await fetch('/api/theodore/webcam/games/challenge', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          session_id: sessionId,
-          mode: 'group',
+          session_id: liveCamSessionId,
+          mode: 'solo',
           learning_prompt: document.getElementById('game-prompt').value || 'Stay focused on the lesson.',
-          participant_ids: ['student-a', 'student-b'],
+          participant_ids: ['camera-local'],
         }),
       });
       const body = await res.json();
       if (!res.ok) { toast('Challenge failed'); return; }
       activeChallenge = body;
-      document.getElementById('game-status').textContent =
-        `${body.title}: ${body.instruction} [${body.challenge_id}]`;
+      gameSignalBuffer = [];
+      challengeFirstSignalMs = null;
+      gameScoring = false;
+      updateGameProgress();
       toast('Challenge issued: ' + body.title);
     });
     document.getElementById('game-attempt').addEventListener('click', async () => {
@@ -1524,30 +1607,9 @@ MONITOR_JS = (
         toast('Issue a challenge first');
         return;
       }
-      const res = await fetch('/api/theodore/webcam/games/attempt', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          challenge_id: activeChallenge.challenge_id,
-          session_id: sessionId,
-          mode: 'group',
-          signals: [{
-            participant_id: 'student-a',
-            timestamp_ms: Date.now() % 100000000,
-            face_count: 1,
-            liveness_state: 'live',
-            gaze_frontal: 0.9,
-            gaze_down_score: 0.05,
-            expression_label: 'happy',
-            phone_visible: false,
-          }],
-        }),
-      });
-      const body = await res.json();
-      document.getElementById('game-status').textContent = res.ok
-        ? `${body.passed ? 'PASSED' : 'FAILED'} Δ${body.score_delta} total=${body.total_score} streak=${body.streak} — ${body.feedback}`
-        : (body.detail || 'attempt failed');
-      toast(res.ok ? (body.passed ? 'Challenge passed' : 'Challenge failed') : 'Attempt error');
+      await scoreActiveGame(false);
     });
+    document.getElementById('game-attempt').disabled = true;
 
     // Camera path — HD Ready / Full HD 16:9
     const CAM_IDEAL_W = 1920, CAM_IDEAL_H = 1080;  // Full HD request
@@ -2302,6 +2364,31 @@ MONITOR_JS = (
         overlay.height = h;
       }
       return { w, h, cssW, cssH };
+    }
+
+    function videoOverlayRect() {
+      const { w, h } = syncOverlaySize();
+      const vw = camVideo.videoWidth || CAM_FALLBACK_W;
+      const vh = camVideo.videoHeight || CAM_FALLBACK_H;
+      const videoAspect = vw / Math.max(1, vh);
+      const frameAspect = w / Math.max(1, h);
+      let drawW = w, drawH = h, offsetX = 0, offsetY = 0;
+      if (videoAspect > frameAspect) {
+        drawH = w / videoAspect;
+        offsetY = (h - drawH) / 2;
+      } else {
+        drawW = h * videoAspect;
+        offsetX = (w - drawW) / 2;
+      }
+      return { w, h, drawW, drawH, offsetX, offsetY };
+    }
+
+    function overlayPoint(x, y) {
+      const rect = videoOverlayRect();
+      return {
+        x: rect.offsetX + (1 - x) * rect.drawW,
+        y: rect.offsetY + y * rect.drawH,
+      };
     }
 
     function personPath(ctx, w, h) {
@@ -3458,7 +3545,7 @@ MONITOR_JS = (
     let behaviorHistory = [];
     let attnScoreHistory = [];
     let distractScoreHistory = [];
-    const BEHAVIOR_SMOOTH_WINDOW = 8;  // ~2.4s at the 300ms sample rate
+    const BEHAVIOR_SMOOTH_WINDOW_MS = 2_500;
     let lastLumaFlat = null;
     let motionEma = 0.15;
     const observatoryEvents = [];
@@ -3618,10 +3705,20 @@ MONITOR_JS = (
 
     function blendshapeMap(blendshapes, idx) {
       const out = {};
-      if (!blendshapes || !blendshapes.length) return out;
-      const entry = blendshapes[(idx == null || idx < 0) ? 0 : idx] || blendshapes[0];
-      const cats = (entry && entry.categories) || [];
-      cats.forEach((c) => { out[c.categoryName] = c.score; });
+      if (!blendshapes) return out;
+      const entries = Array.isArray(blendshapes)
+        ? blendshapes
+        : (blendshapes.classifications || [blendshapes]);
+      if (!entries.length) return out;
+      const selected = entries[(idx == null || idx < 0) ? 0 : idx] || entries[0];
+      const categories = Array.isArray(selected)
+        ? selected
+        : (selected.categories || selected.classifications || [selected]);
+      categories.forEach((category) => {
+        const name = category.categoryName || category.displayName || category.label;
+        const score = Number(category.score != null ? category.score : category.probability);
+        if (name && Number.isFinite(score)) out[name] = clamp01(score);
+      });
       return out;
     }
 
@@ -3676,7 +3773,14 @@ MONITOR_JS = (
         lastHandContours = null;
         return null;
       }
-      const result = hl.detectForVideo(camVideo, performance.now());
+      let result;
+      try {
+        result = hl.detectForVideo(camVideo, performance.now());
+      } catch (err) {
+        console.warn('[theodore-webcam] hand detection skipped for one frame', err);
+        lastHandContours = null;
+        return null;
+      }
       const hands = result.landmarks || [];
       if (!hands.length) {
         lastHandContours = null;
@@ -3752,7 +3856,7 @@ MONITOR_JS = (
 
     function drawHandContoursOnOverlay() {
       if (!faceContoursOn || !lastHandContours || !lastHandContours.hands.length) return;
-      const { w, h } = syncOverlaySize();
+      const { w } = syncOverlaySize();
       const ctx = overlay.getContext('2d');
       const connections = lastHandContours.connections || [];
       ctx.save();
@@ -3766,8 +3870,9 @@ MONITOR_JS = (
           const a = pts[pair[0]], b = pts[pair[1]];
           if (!a || !b) return;
           ctx.beginPath();
-          ctx.moveTo((1 - a.x) * w, a.y * h);
-          ctx.lineTo((1 - b.x) * w, b.y * h);
+          const ap = overlayPoint(a.x, a.y), bp = overlayPoint(b.x, b.y);
+          ctx.moveTo(ap.x, ap.y);
+          ctx.lineTo(bp.x, bp.y);
           ctx.stroke();
         });
         // Fingertips + wrist, so the pose is readable at a glance.
@@ -3775,7 +3880,8 @@ MONITOR_JS = (
           const p = pts[i];
           if (!p) return;
           ctx.beginPath();
-          ctx.arc((1 - p.x) * w, p.y * h, Math.max(2, w * 0.0042), 0, Math.PI * 2);
+          const point = overlayPoint(p.x, p.y);
+          ctx.arc(point.x, point.y, Math.max(2, w * 0.0042), 0, Math.PI * 2);
           ctx.fill();
         });
         const wrist = pts[0];
@@ -3783,7 +3889,8 @@ MONITOR_JS = (
         if (wrist && label) {
           ctx.globalAlpha = 0.85;
           ctx.font = Math.max(10, Math.round(w * 0.016)) + 'px Arial, sans-serif';
-          ctx.fillText(label, (1 - wrist.x) * w + 6, wrist.y * h - 6);
+          const point = overlayPoint(wrist.x, wrist.y);
+          ctx.fillText(label, point.x + 6, point.y - 6);
         }
       });
       ctx.restore();
@@ -3975,28 +4082,44 @@ MONITOR_JS = (
       return (nowMs - eyesClosedSinceMs) >= EYES_CLOSED_MIN_MS;
     }
 
-    function smoothMood(label, confidence) {
-      moodHistory.push({ label, confidence });
-      if (moodHistory.length > 6) moodHistory.shift();
+    const MOOD_SMOOTH_WINDOW_MS = 2_500;
+    const MOOD_SWITCH_MARGIN = 1.15;
+    let stableMoodLabel = 'unknown';
+    function smoothMood(label, confidence, nowMs) {
+      const t = Number.isFinite(nowMs) ? nowMs : Date.now();
+      const weight = Math.max(0.15, Number(confidence) || 0.4);
+      moodHistory.push({ label, confidence: weight, timestamp_ms: t });
+      moodHistory = moodHistory.filter((m) => t - m.timestamp_ms <= MOOD_SMOOTH_WINDOW_MS);
       const counts = {};
       moodHistory.forEach((m) => {
-        counts[m.label] = (counts[m.label] || 0) + (m.confidence || 0.4);
+        counts[m.label] = (counts[m.label] || 0) + m.confidence;
       });
       let best = label, bestScore = -1;
       Object.keys(counts).forEach((k) => {
         if (counts[k] > bestScore) { bestScore = counts[k]; best = k; }
       });
-      const avgConf = moodHistory.reduce((a, m) => a + m.confidence, 0) / moodHistory.length;
+      if (stableMoodLabel !== 'unknown' && best !== stableMoodLabel
+          && counts[stableMoodLabel] && bestScore < counts[stableMoodLabel] * MOOD_SWITCH_MARGIN) {
+        best = stableMoodLabel;
+      }
+      stableMoodLabel = best;
+      const selected = moodHistory.filter((m) => m.label === best);
+      const avgConf = selected.reduce((a, m) => a + m.confidence * m.confidence, 0)
+        / Math.max(0.001, selected.reduce((a, m) => a + m.confidence, 0));
       return { expression_label: best, expression_confidence: Math.min(0.99, avgConf) };
     }
 
-    // Rolling most-frequent label over the window — a single odd frame cannot flip
-    // the shown state, but a sustained change wins within a couple of seconds.
+    // Wall-clock windows stay 2.5s even if detector errors drop samples.
     function smoothLabel(history, label) {
-      history.push(label);
-      if (history.length > BEHAVIOR_SMOOTH_WINDOW) history.shift();
+      const now = Date.now();
+      history.push({ value: label, timestamp_ms: now });
+      while (history.length && now - history[0].timestamp_ms > BEHAVIOR_SMOOTH_WINDOW_MS) {
+        history.shift();
+      }
       const counts = {};
-      history.forEach((l) => { counts[l] = (counts[l] || 0) + 1; });
+      history.forEach((item) => {
+        counts[item.value] = (counts[item.value] || 0) + 1;
+      });
       let best = label, bestScore = -1;
       Object.keys(counts).forEach((k) => {
         if (counts[k] > bestScore) { bestScore = counts[k]; best = k; }
@@ -4007,9 +4130,12 @@ MONITOR_JS = (
     function smoothScore(history, value) {
       const n = Number(value);
       if (!Number.isFinite(n)) return null;
-      history.push(n);
-      if (history.length > BEHAVIOR_SMOOTH_WINDOW) history.shift();
-      return history.reduce((a, b) => a + b, 0) / history.length;
+      const now = Date.now();
+      history.push({ value: n, timestamp_ms: now });
+      while (history.length && now - history[0].timestamp_ms > BEHAVIOR_SMOOTH_WINDOW_MS) {
+        history.shift();
+      }
+      return history.reduce((a, item) => a + item.value, 0) / history.length;
     }
 
     function resetBehaviorSmoothing() {
@@ -4021,13 +4147,12 @@ MONITOR_JS = (
 
     function drawDetectorFaceContour(box, mood) {
       // Fallback contour when MediaPipe is offline: face oval + eye/mouth lines.
-      const { w, h } = syncOverlaySize();
+      const { w } = syncOverlaySize();
       const vw = camVideo.videoWidth || 1, vh = camVideo.videoHeight || 1;
-      // box is in video pixels; flip X for mirrored preview
-      const x = (1 - (box.x + box.width) / vw) * w;
-      const y = (box.y / vh) * h;
-      const bw = (box.width / vw) * w;
-      const bh = (box.height / vh) * h;
+      const topLeft = overlayPoint((box.x + box.width) / vw, box.y / vh);
+      const bottomRight = overlayPoint(box.x / vw, (box.y + box.height) / vh);
+      const x = topLeft.x, y = topLeft.y;
+      const bw = bottomRight.x - topLeft.x, bh = bottomRight.y - topLeft.y;
       const ctx = overlay.getContext('2d');
       const color = ({ happy: '#4ade80', sad: '#f87171', neutral: '#67e8f9',
         surprised: '#fbbf24', angry: '#fb7185', yawning: '#f59e0b' })[mood] || '#67e8f9';
@@ -4057,7 +4182,7 @@ MONITOR_JS = (
         drawDetectorFaceContour(lastFaceContours.fallbackBox, lastFaceContours.mood || 'neutral');
         return;
       }
-      const { w, h } = syncOverlaySize();
+      const { w, drawW, drawH } = videoOverlayRect();
       const ctx = overlay.getContext('2d');
       // Secondary faces: yellow dashed ovals so the operator sees everyone, not only the owner mesh.
       (lastFaceContours.secondaryBoxes || []).forEach((box) => {
@@ -4067,9 +4192,9 @@ MONITOR_JS = (
         ctx.setLineDash([6, 4]);
         ctx.lineWidth = Math.max(2, w * 0.003);
         ctx.beginPath();
-        const cx = (1 - (box.x + box.w / 2)) * w;
-        const cy = (box.y + box.h / 2) * h;
-        ctx.ellipse(cx, cy, (box.w * w) * 0.48, (box.h * h) * 0.52, 0, 0, Math.PI * 2);
+        const center = overlayPoint(box.x + box.w / 2, box.y + box.h / 2);
+        ctx.ellipse(center.x, center.y, (box.w * drawW) * 0.48,
+          (box.h * drawH) * 0.52, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       });
@@ -4090,8 +4215,10 @@ MONITOR_JS = (
         const b = pair.end != null ? pair.end : pair[1];
         if (!pts[a] || !pts[b]) return;
         ctx.beginPath();
-        ctx.moveTo((1 - pts[a].x) * w, pts[a].y * h);
-        ctx.lineTo((1 - pts[b].x) * w, pts[b].y * h);
+        const ap = overlayPoint(pts[a].x, pts[a].y);
+        const bp = overlayPoint(pts[b].x, pts[b].y);
+        ctx.moveTo(ap.x, ap.y);
+        ctx.lineTo(bp.x, bp.y);
         ctx.stroke();
       });
       ctx.fillStyle = color;
@@ -4099,7 +4226,8 @@ MONITOR_JS = (
         const p = pts[i];
         if (!p) return;
         ctx.beginPath();
-        ctx.arc((1 - p.x) * w, p.y * h, Math.max(2, w * 0.004), 0, Math.PI * 2);
+        const point = overlayPoint(p.x, p.y);
+        ctx.arc(point.x, point.y, Math.max(2, w * 0.004), 0, Math.PI * 2);
         ctx.fill();
       });
       const label = (lastFaceContours.displayName || '').trim();
@@ -4111,8 +4239,9 @@ MONITOR_JS = (
           if (p.x < minX) minX = p.x;
           if (p.x > maxX) maxX = p.x;
         });
-        const lx = (1 - (minX + maxX) / 2) * w;
-        const ly = Math.max(14, minY * h - 10);
+        const labelPoint = overlayPoint((minX + maxX) / 2, minY);
+        const lx = labelPoint.x;
+        const ly = Math.max(14, labelPoint.y - 10);
         ctx.font = 'bold 12px ui-sans-serif, system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
@@ -4132,12 +4261,20 @@ MONITOR_JS = (
       }
       const lm = await ensureFaceLandmarker();
       if (lm) {
-        const result = lm.detectForVideo(camVideo, performance.now());
+        let result;
+        try {
+          result = lm.detectForVideo(camVideo, performance.now());
+        } catch (err) {
+          console.warn('[theodore-webcam] face detection skipped for one frame', err);
+          result = null;
+        }
+        if (!result) {
+          lastFaceContours = null;
+        } else {
         const faces = result.faceLandmarks || [];
         if (!faces.length) {
           lastDetectedFaces = null;
           lastFaceContours = null;
-          moodHistory = [];
           eyesClosedSinceMs = 0;
           resetBehaviorSmoothing();
           setDetectorStatus('face_mesh', 'face mesh running — no face in frame');
@@ -4204,7 +4341,7 @@ MONITOR_JS = (
           ? emotionFromBlendshapes(bs)
           : emotionFromLandmarkGeometry(pts);
         if (!mood) mood = { expression_label: 'neutral', expression_confidence: 0.4, source: 'face_contours' };
-        mood = { ...mood, ...smoothMood(mood.expression_label, mood.expression_confidence) };
+        mood = { ...mood, ...smoothMood(mood.expression_label, mood.expression_confidence, Date.now()) };
         const connections = (lm._CONNECTIONS || []).map((c) => [c.start, c.end]);
         lastFaceContours = {
           pts, connections, mood: mood.expression_label,
@@ -4282,6 +4419,7 @@ MONITOR_JS = (
           secondary_face_count: pick.secondary_count,
           ...pose,
         };
+        }
       }
       // Fallback: FaceDetector box + mouth-curve contour (no MediaPipe).
       if ('FaceDetector' in window && camVideo.videoWidth) {
@@ -4704,11 +4842,20 @@ MONITOR_JS = (
     }
 
     // Finite numbers pass through; anything unmeasured becomes null.
-    function num(value) {
+    function signalNum(value) {
       return (typeof value === 'number' && isFinite(value)) ? value : null;
     }
 
     async function sampleFrame() {
+      try {
+        await sampleFrameBody();
+      } catch (err) {
+        console.error('[theodore-webcam] sampleFrame recovered from an error', err);
+        setCamState('frame degraded', 'bad');
+      }
+    }
+
+    async function sampleFrameBody() {
       if (labOffline) return;
       refreshSilhouetteGuide();
       const grid = luminanceGrid();
@@ -4753,13 +4900,13 @@ MONITOR_JS = (
               ? clamp01((-facial.head_pose_yaw - 10) / 30) : null,
             gaze_right_score: (facial.head_pose_yaw != null && facial.head_pose_yaw > 10)
               ? clamp01((facial.head_pose_yaw - 10) / 30) : null,
-            stare_residual_deg: num(stareResidualDeg),
+            stare_residual_deg: signalNum(stareResidualDeg),
             // null (not 0) when no real detector measured it, so the server can
             // tell "measured as open" apart from "nobody looked".
-            eyes_closed_score: num(facial.eyes_closed_score),
-            yawn_score: num(facial.yawn_score),
-            brow_raise_score: num(facial.brow_raise_score),
-            smile_score: num(facial.smile_score),
+            eyes_closed_score: signalNum(facial.eyes_closed_score),
+            yawn_score: signalNum(facial.yawn_score),
+            brow_raise_score: signalNum(facial.brow_raise_score),
+            smile_score: signalNum(facial.smile_score),
             detector_source: detectorSource,
             head_pose_pitch: facial.head_pose_pitch,
             head_pose_yaw: facial.head_pose_yaw,
@@ -4856,6 +5003,7 @@ MONITOR_JS = (
           Math.max(0, Math.min(1, ((facial.gaze_down_score || 0) - 0.12) * 1.9)),
           phoneDet.below ? 0.70 : 0
       );
+      recordGameSignal(signal);
       // Redraw before the round trip so face + hand contours keep up with the
       // video even when the POST is slow or fails.
       refreshSilhouetteGuide();
