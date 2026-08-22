@@ -12,6 +12,7 @@ import os
 
 from aoep_shared.env_bootstrap import ensure_lab_env
 from aoep_shared.languages import SUPPORTED_LANGUAGES
+from aoep_shared.live_audio_agents import install_live_audio_routes
 from aoep_shared.service import create_service
 from aoep_shared.translation import is_pair_supported, plan_delivery
 from fastapi import HTTPException, Response
@@ -22,6 +23,7 @@ from pydantic import BaseModel
 ensure_lab_env()
 
 app = create_service("speech")
+install_live_audio_routes(app, lab_name="Salareen classroom")
 
 
 class LanguagesResponse(BaseModel):
@@ -645,12 +647,15 @@ def voice_token(req: VoiceTokenRequest) -> dict:
         instructions=req.instructions or "",
     )
     voice_cfg.tools = [presence_tool_schema()]
+    locked_session = dict(voice_cfg.session_update_event()["session"])
+    locked_session["model"] = model
     try:
         token = mint_ephemeral_token(
             api_key=api_key,
             expires_seconds=req.expires_seconds,
             model=model,
             allow_mock=False,
+            session=locked_session,
         )
     except XaiVoiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

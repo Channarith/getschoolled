@@ -2574,6 +2574,10 @@ _JS = r"""
       ttsAudio.removeAttribute("src");
     }
   }
+  const stopLabSpeech = cancelSpeech;
+  window.addEventListener("theodore-live-audio", (event) => {
+    if (event.detail?.active) stopLabSpeech();
+  });
 
   function speakOnDevice(text, tag, rate, onDone) {
     const synth = window.speechSynthesis;
@@ -2681,6 +2685,7 @@ _JS = r"""
     const o = opts || {};
     const done = typeof o.onend === "function" ? o.onend : null;
     cancelSpeech();
+    if (window.__THEODORE_LIVE_AUDIO_ACTIVE__) { if (done) done(); return; }
     if (!line) { if (done) done(); return; }
     if (serverVoicesReady()) {
       if (!ttsAudio) ttsAudio = new Audio();

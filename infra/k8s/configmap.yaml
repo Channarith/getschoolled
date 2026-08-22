@@ -36,6 +36,10 @@ data:
   XAI_MODEL: "grok-4.3"
   XAI_VOICE: "eve"
   XAI_VOICE_ID: "eve"
+  # Gemini Live is a second browser-direct native speech-to-speech option.
+  # GEMINI_API_KEY stays in aoep-secrets; these are non-secret session defaults.
+  GEMINI_LIVE_MODEL: "gemini-2.5-flash-native-audio-preview-12-2025"
+  GEMINI_LIVE_VOICE: "Kore"
   LIVEKIT_URL: "wss://livekit.aoep.example"
   OBJECT_STORE_ENDPOINT: "https://s3.amazonaws.com"
   OBJECT_STORE_BUCKET: "aoep-prod"

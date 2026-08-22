@@ -65,7 +65,13 @@ def test_voice_token_mints(monkeypatch):
                 "websocket_protocol": f"xai-client-secret.{self.value}",
             }
 
-    monkeypatch.setattr(xr, "mint_ephemeral_token", lambda **kw: FakeTok())
+    minted = {}
+
+    def fake_mint(**kwargs):
+        minted.update(kwargs)
+        return FakeTok()
+
+    monkeypatch.setattr(xr, "mint_ephemeral_token", fake_mint)
     r = client.post(
         "/voice/token",
         json={
@@ -80,3 +86,5 @@ def test_voice_token_mints(monkeypatch):
     assert body["session_update"]["type"] == "session.update"
     assert "Theodore" in body["session_update"]["session"]["instructions"]
     assert body["engine"] == "xai-grok-voice"
+    assert minted["session"]["model"] == "grok-voice-latest"
+    assert minted["session"]["tools"][0]["name"] == "get_learner_presence"

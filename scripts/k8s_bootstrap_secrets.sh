@@ -40,12 +40,10 @@ NEMOTRON_API_KEY="${NEMOTRON_API_KEY:-}"
 LLM_API_KEY="${LLM_API_KEY:-}"
 ELEVENLABS_API_KEY="${ELEVENLABS_API_KEY:-}"
 XAI_API_KEY="${XAI_API_KEY:-}"
+GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 BUG_REPORT_GITHUB_TOKEN="${BUG_REPORT_GITHUB_TOKEN:-}"
 DEFAULT_ADMIN_PASSWORD="${DEFAULT_ADMIN_PASSWORD:-88888888}"
 QA_ACCOUNTS_PASSWORD="${QA_ACCOUNTS_PASSWORD:-QaTest123}"
-# Theodore / Grok voice + natural neural TTS (optional; blank => offline fallbacks).
-XAI_API_KEY="${XAI_API_KEY:-}"
-ELEVENLABS_API_KEY="${ELEVENLABS_API_KEY:-}"
 
 echo "Creating aoep-secrets in namespace '$NS'…"
 kubectl -n "$NS" create secret generic aoep-secrets \
@@ -59,10 +57,9 @@ kubectl -n "$NS" create secret generic aoep-secrets \
   --from-literal=LLM_API_KEY="$LLM_API_KEY" \
   --from-literal=ELEVENLABS_API_KEY="$ELEVENLABS_API_KEY" \
   --from-literal=XAI_API_KEY="$XAI_API_KEY" \
+  --from-literal=GEMINI_API_KEY="$GEMINI_API_KEY" \
   --from-literal=BUG_REPORT_GITHUB_TOKEN="$BUG_REPORT_GITHUB_TOKEN" \
   --from-literal=DEFAULT_ADMIN_PASSWORD="$DEFAULT_ADMIN_PASSWORD" \
-  --from-literal=QA_ACCOUNTS_PASSWORD="$QA_ACCOUNTS_PASSWORD" \
-  --from-literal=XAI_API_KEY="$XAI_API_KEY" \
-  --from-literal=ELEVENLABS_API_KEY="$ELEVENLABS_API_KEY"
+  --from-literal=QA_ACCOUNTS_PASSWORD="$QA_ACCOUNTS_PASSWORD"
 
 echo "OK: aoep-secrets created. Future 'kubectl apply -k' runs will NOT modify it."

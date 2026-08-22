@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -53,6 +54,7 @@ from .translations import language_catalog, language_name, translate_song, valid
 from .tts import TTSUnavailable, synthesize, tts_status
 
 app = FastAPI(title="Theodore Music Lab", version="0.5.0")
+install_live_audio_routes(app, lab_name="Theodore Music Lab")
 
 _CATALOG = Catalog()
 _STORE = SessionStore(_CATALOG)
@@ -165,7 +167,7 @@ def _song_or_404(song_id: str):
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def music_lab_page() -> str:
-    return render_music_page()
+    return inject_client(render_music_page())
 
 
 @app.get("/assets/music-lab.js", include_in_schema=False)

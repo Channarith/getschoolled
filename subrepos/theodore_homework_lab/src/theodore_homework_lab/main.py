@@ -19,6 +19,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
+
 from .generate import generate_assignment, generate_full_battery, wrap_shared_classic
 from .grade import grade_assignment
 from .methodologies import list_methodologies, methodology_count
@@ -38,12 +40,13 @@ except Exception:  # noqa: BLE001 — standalone lab
 SUPPORTED_LOCALES: tuple[str, ...] = tuple(_LOCALES)
 
 app = FastAPI(title="Theodore Homework Lab", version="0.1.0")
+install_live_audio_routes(app, lab_name="Theodore Homework Lab")
 
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def qualify() -> HTMLResponse:
-    return HTMLResponse(render_qualify_page())
+    return HTMLResponse(inject_client(render_qualify_page()))
 
 
 class GenerateRequest(BaseModel):

@@ -311,9 +311,12 @@ function stopTheodoreAudio() {
   if(theodoreAudio){ theodoreAudio.pause(); theodoreAudio=null; }
   $('theodore-audio-state').textContent='Theodore audio stopped';
 }
+window.addEventListener('theodore-live-audio',(event)=>{
+  if(event.detail?.active){stopTheodoreAudio();stopTranslatedAudio();}
+});
 
 async function speakTheodore(reply) {
-  if(!reply.text) return;
+  if(!reply.text || window.__THEODORE_LIVE_AUDIO_ACTIVE__) return;
   const row=langs.find(l=>l.code===reply.language);
   const name=row?.name||reply.language;
   const rate=Number($('theodore-rate').value||.95);
@@ -371,7 +374,7 @@ async function requestTheodore(text, sourceLanguage) {
 }
 
 function speakTranslation(event) {
-  if(!window.speechSynthesis || !event.translated_text) return;
+  if(window.__THEODORE_LIVE_AUDIO_ACTIVE__ || !window.speechSynthesis || !event.translated_text) return;
   const utter=new SpeechSynthesisUtterance(event.translated_text);
   const row=langs.find(l=>l.code===event.target_language);
   utter.lang=row?.bcp47||event.target_language;
