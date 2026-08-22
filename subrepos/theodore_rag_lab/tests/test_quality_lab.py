@@ -84,8 +84,22 @@ def test_api_health_eval_train():
         lab = client.get("/lab")
         assert lab.status_code == 200
         assert "Dictionary" in lab.text
+        assert "Current awareness" in lab.text
+        assert "/api/current-awareness/research" in lab.text
         assert "Regurgitation" in lab.text
         assert "Feedback learning" in lab.text
+
+        current = client.post(
+            "/api/current-awareness/research",
+            json={"question": "Who is the current president of the United States?"},
+        )
+        assert current.status_code == 200
+        payload = current.json()
+        assert payload["routed"] is True
+        # CI has no live search key; the mock must never masquerade as current news.
+        assert payload["status"] in {"unavailable", "verified", "unverified"}
+        if payload["status"] == "unavailable":
+            assert payload["sources"] == []
 
 
 def test_invalid_preset_404():

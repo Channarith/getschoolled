@@ -38,6 +38,7 @@ import {
   type AssessmentRun,
   type AssessmentSubmitResult,
   type ClassQuizItem,
+  type CurrentSource,
   type Disclosure,
   type Lesson,
   type Pronounce,
@@ -135,6 +136,8 @@ export default function ClassRoom({
       role: string;
       text: string;
       citations?: string[];
+      sources?: CurrentSource[];
+      asOf?: string | null;
       grounded?: boolean;
       confidence?: number;
       unsupported?: string[];
@@ -1137,6 +1140,8 @@ export default function ClassRoom({
           role: "teacher",
           text: a.text,
           citations: a.citations,
+          sources: a.sources,
+          asOf: a.as_of,
           grounded: a.grounded,
           confidence:
             a.hallucination_risk !== undefined
@@ -1721,8 +1726,24 @@ export default function ClassRoom({
                       )}
                     </div>
                   )}
-                  {m.citations && m.citations.length > 0 && (
+                  {(!m.sources || m.sources.length === 0) && m.citations && m.citations.length > 0 && (
                     <div className="cite">{t("class.sources")} {m.citations.join(" | ")}</div>
+                  )}
+                  {m.asOf && (
+                    <div className="cite">Current information checked {new Date(m.asOf).toLocaleString()}</div>
+                  )}
+                  {m.sources && m.sources.length > 0 && (
+                    <div className="cite">
+                      {m.sources.map((source, index) => (
+                        <span key={`${source.url}-${index}`}>
+                          {index > 0 ? " | " : ""}
+                          <a href={source.url} target="_blank" rel="noopener noreferrer">
+                            {source.title || source.publisher}
+                          </a>
+                          {source.published_at ? ` (${new Date(source.published_at).toLocaleDateString()})` : ""}
+                        </span>
+                      ))}
+                    </div>
                   )}
                   {m.unsupported && m.unsupported.length > 0 && (
                     <div className="cite" style={{ color: "#d97706" }}>

@@ -44,6 +44,18 @@ def env_float(value: Union[str, None], default: float) -> float:
         return default
 
 
+def env_bool(value: Union[str, None], default: bool) -> bool:
+    """Parse common boolean env spellings; return *default* on blank/unknown."""
+    if value is None or not value.strip():
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 class DeployMode(str, Enum):
     """Top-level deployment target."""
 
@@ -182,6 +194,14 @@ class AppConfig(BaseModel):
     brave_search_key: str = ""
     kagi_api_key: str = ""
     baidu_api_key: str = ""
+    # Live current-awareness RAG. News is fetched on demand and never persisted
+    # into the curriculum/knowledge corpus.
+    current_awareness_enabled: bool = True
+    current_awareness_trusted_domains: str = ""
+    current_awareness_max_results: int = 8
+    current_awareness_max_fetches: int = 4
+    current_awareness_timeout_sec: float = 8.0
+    current_awareness_cache_ttl_sec: int = 300
     # OCR (homework scanning; handwriting needs a cloud OCR backend).
     ocr_api_key: str = ""
     ocr_endpoint: str = ""
@@ -364,6 +384,24 @@ def load_config(
         brave_search_key=get("BRAVE_SEARCH_KEY", ""),
         kagi_api_key=get("KAGI_API_KEY", ""),
         baidu_api_key=get("BAIDU_API_KEY", ""),
+        current_awareness_enabled=env_bool(
+            source.get("CURRENT_AWARENESS_ENABLED"), True
+        ),
+        current_awareness_trusted_domains=get(
+            "CURRENT_AWARENESS_TRUSTED_DOMAINS", ""
+        ),
+        current_awareness_max_results=env_int(
+            source.get("CURRENT_AWARENESS_MAX_RESULTS"), 8
+        ),
+        current_awareness_max_fetches=env_int(
+            source.get("CURRENT_AWARENESS_MAX_FETCHES"), 4
+        ),
+        current_awareness_timeout_sec=env_float(
+            source.get("CURRENT_AWARENESS_TIMEOUT_SEC"), 8.0
+        ),
+        current_awareness_cache_ttl_sec=env_int(
+            source.get("CURRENT_AWARENESS_CACHE_TTL_SEC"), 300
+        ),
         xai_api_key=get_stripped("XAI_API_KEY", ""),
         xai_base_url=get("XAI_BASE_URL", "https://api.x.ai/v1"),
         xai_model=get("XAI_MODEL", "grok-4.3"),

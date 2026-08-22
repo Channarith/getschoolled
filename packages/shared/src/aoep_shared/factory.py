@@ -98,6 +98,12 @@ class ProviderFactory:
 
         return available_engines(self._config)
 
+    def current_news_engines(self):
+        """Return configured search plus the public GDELT live-news index."""
+        from .providers.search import current_news_engines
+
+        return current_news_engines(self._config)
+
     def ocr(self):
         """OCR provider for homework scanning. Cloud mode -> CloudOcrProvider;
         local mode -> Tesseract when its binary is present, else the offline
