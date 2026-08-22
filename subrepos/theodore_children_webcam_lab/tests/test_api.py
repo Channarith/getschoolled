@@ -129,6 +129,9 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
     # browser speech instead of producing a console full of repeated 501s.
     assert "state.serverTts=false" in script
     assert 'fetch("/api/tts/status")' in script
+    assert "if (state.serverTts === false) return" in script
+    assert 'stage?.classList.add("demo")' in script or 'stage.classList.add("demo")' in script
+    assert 'target.classList.contains("hidden")' in script
     assert 'get("demo")==="1"' in script
 
 

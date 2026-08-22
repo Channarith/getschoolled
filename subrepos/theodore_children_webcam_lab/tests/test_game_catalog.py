@@ -101,7 +101,7 @@ def test_every_picture_word_has_a_glyph_on_both_sides():
 
 def test_pointer_demo_listens_on_the_stage_not_the_dead_canvas():
     script = _js()
-    assert 'stage.addEventListener("pointermove",applyDemoPointer)' in script
+    assert 'stage?.addEventListener("pointermove",applyDemoPointer)' in script
     assert "syntheticHand" in script
     css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
     assert ".stage.demo" in css

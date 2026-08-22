@@ -85,6 +85,27 @@ def test_a_benched_engine_comes_back_after_its_cooldown(monkeypatch):
     assert tts._benched("edge-tts") is False, "should be retried after cooldown"
 
 
+def test_tts_status_survives_an_expired_bench(monkeypatch):
+    """Expired benches used to 500 the status endpoint (and the webcam lab).
+
+    ``_benched`` deleted the key while ``tts_status`` was iterating the same
+    dict, which is exactly what ``test_voice_status_endpoint`` hit in CI once
+    an earlier test had cooled off.
+    """
+    tts.reset_disabled_engines()
+    monkeypatch.setattr(tts, "ENGINE_COOLDOWN_SEC", 10.0)
+    now = [50.0]
+    monkeypatch.setattr(tts.time, "monotonic", lambda: now[0])
+    tts._bench_engine("edge-tts")
+    tts._bench_engine("elevenlabs")
+    now[0] += 11.0
+    status = tts.tts_status()
+    assert status["disabled"] == []
+    assert status["retry_in_sec"] == 0
+    # A second call must not raise either — the sweep already dropped them.
+    assert tts.tts_status()["disabled"] == []
+
+
 def test_a_benched_engine_still_reports_why_it_failed(monkeypatch):
     """Every 501 must name the real fault, not advise an install already done.
 

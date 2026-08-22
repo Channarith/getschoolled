@@ -61,17 +61,20 @@ const state = {
 };
 
 const canvas = $("overlay");
-const ctx = canvas.getContext("2d");
+const ctx = canvas ? canvas.getContext("2d") : null;
 const video = $("camera");
 const stage = $("stage");
 const spriteLayer = $("sprite-layer");
 const target = $("target");
 
-for (const letter of Object.keys(LETTER_WORDS)) {
-  const option = document.createElement("option");
-  option.value = letter; option.textContent = `${letter} — ${LETTER_WORDS[letter]}`;
-  $("letter").append(option);
-}
+  const letter = $("letter");
+  if (letter) {
+    for (const key of Object.keys(LETTER_WORDS)) {
+      const option = document.createElement("option");
+      option.value = key; option.textContent = `${key} — ${LETTER_WORDS[key]}`;
+      letter.append(option);
+    }
+  }
 
 // mirrored() runs for every landmark of every hand every frame; reading the
 // live rect there forced dozens of synchronous layouts per frame. The observer
@@ -80,6 +83,7 @@ let stageRect = {w:0,h:0};
 function stageBox() { return stageRect; }
 
 function resizeCanvas() {
+  if (!stage || !canvas || !ctx) return stageRect;
   const box = stage.getBoundingClientRect();
   stageRect = {w:box.width,h:box.height,left:box.left,top:box.top};
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -89,14 +93,14 @@ function resizeCanvas() {
   ctx.setTransform(dpr,0,0,dpr,0,0);
   return stageRect;
 }
-new ResizeObserver(resizeCanvas).observe(stage);
+if (stage) new ResizeObserver(resizeCanvas).observe(stage);
 
 function setPrompt(title, copy, speakText="") {
-  $("prompt-title").textContent = title;
-  $("prompt-copy").textContent = copy;
+  setText("prompt-title", title);
+  setText("prompt-copy", copy);
   state.spokenPrompt = speakText || `${title}. ${copy}`;
 }
-function setStatus(text) { $("vision-status").textContent = text; }
+function setStatus(text) { setText("vision-status", text); }
 function clamp01(value) { return Math.max(0, Math.min(1, Number(value) || 0)); }
 function randomOf(items) {
   if (!items || !items.length) return undefined;
@@ -115,11 +119,14 @@ function esc(value) {
 }
 
 async function start(camera=true) {
-  state.age = $("age").value; state.theme = $("theme").value;
-  state.seated = $("seated").checked; state.share = $("share").checked;
+  state.age = $("age")?.value || "7-10";
+  state.theme = $("theme")?.value || "mix";
+  state.seated = Boolean($("seated")?.checked);
+  state.share = Boolean($("share")?.checked);
   state.demo = !camera;
-  $("setup").classList.add("hidden"); $("play").classList.remove("hidden");
-  stage.classList.toggle("demo", state.demo);
+  $("setup")?.classList.add("hidden");
+  $("play")?.classList.remove("hidden");
+  stage?.classList.toggle("demo", state.demo);
   resizeCanvas(); loadLocalAnalytics();
   if (camera) {
     try {
@@ -127,15 +134,20 @@ async function start(camera=true) {
       state.stream = await navigator.mediaDevices.getUserMedia({
         video:{facingMode:"user",width:{ideal:1280},height:{ideal:720}}, audio:false
       });
-      video.srcObject = state.stream;
-      await video.play();
+      if (video) {
+        video.srcObject = state.stream;
+        await video.play();
+      }
       setStatus("Camera live · loading face & hands…");
       await initVision();
     } catch (error) {
       state.demo = true;
       setStatus(`Pointer demo · camera unavailable (${error.name || error.message || "blocked"})`);
     }
-  } else setStatus("Pointer demo · move over the screen");
+  } else {
+    setStatus("Pointer demo · move over the screen");
+  }
+  if (state.demo) stage?.classList.add("demo");
   state.running = true;
   requestAnimationFrame(loop);
   probeSpeech();
@@ -232,7 +244,7 @@ function handToFaceFaces(hand, face) {
 }
 
 function detectFrame() {
-  if ((!state.face && !state.hands) || video.readyState<2) return;
+  if ((!state.face && !state.hands) || !video || video.readyState<2) return;
   if (video.currentTime===state.lastVideoTime) return;
   state.lastVideoTime=video.currentTime;
   const now=Math.max((state.lastMpTs||0)+1, performance.now());
@@ -256,6 +268,7 @@ function detectFrame() {
 }
 
 function drawVision() {
+  if (!ctx) return;
   const {w,h}=stageBox();
   ctx.clearRect(0,0,w,h);
   drawGuide(w,h);
@@ -308,7 +321,7 @@ function drawVision() {
 
 function drawGuide(w,h) {
   if (!switchedOn("show-guide") || !["trace-letter","trace-picture"].includes(state.game)) return;
-  const letter=$("letter").value;
+  const letter=$("letter")?.value;
   ctx.save();ctx.textAlign="center";ctx.textBaseline="middle";ctx.lineJoin="round";
   if (state.game==="trace-letter") {
     ctx.font=`900 ${Math.min(w,h)*.62}px ui-rounded, sans-serif`;
@@ -441,7 +454,7 @@ function updateGuideLayer() {
   $("guide-layer")?.classList.toggle("hidden",!enabled);
   const glyph=$("guide-glyph");
   if (!enabled || !glyph) return;
-  const letter=$("letter").value, picture=state.game==="trace-picture";
+  const letter=$("letter")?.value, picture=state.game==="trace-picture";
   glyph.textContent=picture?(PICTURE_EMOJI[LETTER_WORDS[letter]]||"✨"):letter;
   glyph.classList.toggle("picture",picture);
 }
@@ -451,9 +464,10 @@ function setTarget(region,content,kind="") {
   target.className=`target ${kind}`.trim();target.textContent=content;
   target.style.left=`calc(${x*100}% - 72px)`;target.style.top=`calc(${y*100}% - 72px)`;
 }
-function hideTarget(){target.classList.add("hidden");target.textContent="";}
+function hideTarget(){if(!target)return;target.classList.add("hidden");target.textContent="";}
 
 function spawnObject(kind,content) {
+  if (!spriteLayer) return null;
   for (const node of [...spriteLayer.querySelectorAll(".sprite")]) node.remove();
   const el=document.createElement("div");el.className=`sprite ${kind}`;el.textContent=content;
   el.style.top=`${15+Math.random()*55}%`;if(kind==="balloon")el.style.left=`${10+Math.random()*75}%`;
@@ -539,7 +553,7 @@ function updateGestureGame(now) {
       state.deadline += now - state.pausedAt;
       state.pausedAt = 0;
     }
-    const remaining=Math.max(0,state.deadline-now);$("countdown").textContent=(remaining/1000).toFixed(1);
+    const remaining=Math.max(0,state.deadline-now);setText("countdown",(remaining/1000).toFixed(1));
     if(state.faceData.expression===state.targetExpression&&state.faceData.region===state.targetRegion&&state.faceData.confidence>=.55) succeed("Perfect face match!");
     else if(remaining<=0) fail("Almost — match the face and the spot!");
   } else if (state.game==="face-chase" && state.faceData?.region===state.targetRegion) succeed("You found the face spot!");
@@ -599,7 +613,12 @@ function isDancing() {
   }
   return motion>7;
 }
-function targetPoint(){const r=target.getBoundingClientRect(),s=stage.getBoundingClientRect();return{x:r.left-s.left+r.width/2,y:r.top-s.top+r.height/2};}
+function targetPoint(){
+  if (!target || target.classList.contains("hidden")) return {x:-9999,y:-9999};
+  const r=target.getBoundingClientRect(),s=stage.getBoundingClientRect();
+  if (!r.width || !r.height) return {x:-9999,y:-9999};
+  return{x:r.left-s.left+r.width/2,y:r.top-s.top+r.height/2};
+}
 
 function loop(now) {
   if(!state.running)return;
@@ -611,15 +630,17 @@ function chooseGame() {
   clearTimeout(state.roundTimer);clearTimeout(state.failTimer);cancelSpeech();
   state.roundId += 1; const round = state.roundId; state.roundDone=false;
   clearRound();
-  state.game=$("game").value;state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
+  const select=$("game");
+  if (!select) return;
+  state.game=select.value;state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
   updateGuideLayer();
-  const letter=$("letter").value,word=LETTER_WORDS[letter];
+  const letter=$("letter")?.value,word=LETTER_WORDS[letter];
   if(state.game==="trace-letter")setPrompt(`Trace ${letter}`,"Point one finger up and follow the glowing letter.",`Trace the letter ${letter}.`);
   else if(state.game==="trace-picture")setPrompt(`Trace the ${word}`,"Use one finger to draw around the picture.",`Now trace the ${word}.`);
   else if(state.game==="say-letter")setPrompt(`Say ${letter}`,"Tap the microphone or type what you said.",`Listen, then say the letter ${letter}.`);
   else if(state.game==="oh-behave"){
     state.targetRegion=randomRegion();state.targetExpression=randomOf(EXPRESSIONS);state.deadline=performance.now()+state.timerMs;
-    $("countdown").classList.remove("hidden");setTarget(state.targetRegion,expressionEmoji(state.targetExpression));
+    $("countdown")?.classList.remove("hidden");setTarget(state.targetRegion,expressionEmoji(state.targetExpression));
     setPrompt("Oh behave!",`Make a ${state.targetExpression} face inside the glowing circle.`);
   } else if(state.game==="heart"){setTarget(randomRegion(),"💖");setPrompt("Make a heart","Cup both hands together like a heart.");}
   else if(state.game==="idea"){setTarget("top","☝️");setPrompt("I have an idea!","Hold one index finger up in the air.");}
@@ -655,7 +676,7 @@ function expressionEmoji(kind){return({happy:"😄",surprised:"😮","wink-left"
 function clearRound() {
   hideTarget();
   for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption")]) node.remove();
-  $("countdown").classList.add("hidden");
+  $("countdown")?.classList.add("hidden");
   state.trail=[];state.object=null;state.lastTip=null;state.lastFaceY=null;state.lastHandY=null;
 }
 
@@ -688,7 +709,11 @@ function fail(message) {
   state.roundTimer=setTimeout(()=>{if(state.roundId!==round)return;state.roundDone=false;chooseGame();},1500);
 }
 function nextTimer(hit){const full=[8000,6000,4000,2000,1500],ladder=state.age==="4-6"?full.slice(0,3):full;let i=Math.max(0,ladder.indexOf(state.timerMs));i=hit?Math.min(ladder.length-1,i+1):Math.max(0,i-1);return ladder[i];}
-function renderScore(){$("fun-score").textContent=`Fun ${state.fun}`;$("combo").textContent=`Combo ${state.combo}`;$("stars").textContent=state.fun>=85?"★★★":state.fun>=60?"★★☆":state.fun>0?"★☆☆":"☆☆☆";}
+function renderScore(){
+  setText("fun-score", `Fun ${state.fun}`);
+  setText("combo", `Combo ${state.combo}`);
+  setText("stars", state.fun>=85?"★★★":state.fun>=60?"★★☆":state.fun>0?"★☆☆":"☆☆☆");
+}
 
 function fireworks() {
   const colors=["#fde047","#fb7185","#34d399","#60a5fa","#c084fc","#f97316"];
@@ -714,11 +739,17 @@ function cancelSpeech() {
 }
 
 async function probeSpeech() {
+  // A failed render is more recent than a successful probe. Do not revive the
+  // server path from a racy /api/tts/status that still says available.
+  if (state.serverTts === false) return;
   try {
     const response=await fetch("/api/tts/status");
     const status=response.ok?await response.json():null;
+    if (state.serverTts === false) return;
     state.serverTts=Boolean(status?.available);
-  } catch (_) { state.serverTts=false; }
+  } catch (_) {
+    if (state.serverTts !== false) state.serverTts=false;
+  }
 }
 
 async function speak(text) {
@@ -747,21 +778,22 @@ function startListening() {
     return;
   }
   const Ctor=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!Ctor){setPrompt("Type instead","Speech recognition is unavailable here.");$("typed").focus();return;}
+  if(!Ctor){setPrompt("Type instead","Speech recognition is unavailable here.");$("typed")?.focus();return;}
   if(state.recognition)try{state.recognition.stop();}catch(_){}
   const rec=new Ctor();state.recognition=rec;rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;
-  $("mic").textContent="Listening…";rec.onresult=e=>{const heard=e.results[0][0].transcript;$("typed").value=heard;checkSpeech(heard);};
+  setText("mic","Listening…");rec.onresult=e=>{const heard=e.results[0][0].transcript;const typed=$("typed");if(typed)typed.value=heard;checkSpeech(heard);};
   rec.onerror=e=>setPrompt("Mic paused",`Try typing instead (${e.error}).`);
-  rec.onend=()=>{$("mic").textContent="🎤 Say it";};rec.start();
+  rec.onend=()=>setText("mic","🎤 Say it");rec.start();
 }
 async function checkSpeech(heard) {
   if (state.game!=="say-letter") {
     setPrompt("Say the letter first","Switch to Say the letter, then check what was said.");
     return;
   }
-  const letter=$("letter").value;
+  const letter=$("letter")?.value;
   try{
     const response=await fetch("/api/child/pronounce",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({target:letter,heard,kind:"letter"})});
+    if (!response.ok) throw new Error(String(response.status));
     const result=await response.json();result.passed?succeed(result.feedback):fail(result.feedback);
   }catch(error){setPrompt("Try again","I could not check that answer.");}
 }
@@ -776,7 +808,7 @@ function recordEvent(outcome,result) {
 function loadLocalAnalytics(){try{state.activityEvents=JSON.parse(localStorage.getItem(state.localKey)||"[]");if(!Array.isArray(state.activityEvents))state.activityEvents=[];}catch(_){state.activityEvents=[];}renderDashboard();}
 function renderDashboard(){
   const by={};for(const event of state.activityEvents){const id=String(event.activity_id||"game");const row=by[id]||(by[id]={scores:[],wins:0,plays:0});row.scores.push(Number(event.fun_score)||0);row.plays++;if(event.outcome==="success")row.wins++;}
-  $("dashboard").innerHTML=`<div class="dashboard-grid">${Object.entries(by).map(([id,row])=>`<div class="metric"><strong>${esc(id.replaceAll("-"," "))}</strong>Fun ${Math.round(row.scores.reduce((a,b)=>a+b,0)/row.scores.length)} · ${row.wins}/${row.plays} wins</div>`).join("")||"<p>No games recorded yet.</p>"}</div>`;
+  $("dashboard") && ($("dashboard").innerHTML=`<div class="dashboard-grid">${Object.entries(by).map(([id,row])=>`<div class="metric"><strong>${esc(id.replaceAll("-"," "))}</strong>Fun ${Math.round(row.scores.reduce((a,b)=>a+b,0)/row.scores.length)} · ${row.wins}/${row.plays} wins</div>`).join("")||"<p>No games recorded yet.</p>"}</div>`);
 }
 
 function demoExpression(event) {
@@ -810,29 +842,30 @@ function applyDemoPointer(event) {
   };
 }
 
-canvas.addEventListener("pointermove",event=>{
+canvas?.addEventListener("pointermove",event=>{
   if(!state.demo)return; applyDemoPointer(event);
 });
-stage.addEventListener("pointermove",applyDemoPointer);
-stage.addEventListener("pointerdown",applyDemoPointer);
-stage.addEventListener("contextmenu",(event)=>{if(state.demo)event.preventDefault();});
-stage.addEventListener("pointerleave",()=>{if(state.demo){state.handData=[];}});
-$("start").addEventListener("click",()=>start(true));$("demo").addEventListener("click",()=>start(false));
-$("play-game").addEventListener("click",()=>chooseGame());
-$("game").addEventListener("change",()=>chooseGame());
-$("letter").addEventListener("change",()=>chooseGame());
-$("hear").addEventListener("click",()=>speak(state.spokenPrompt));
-$("mic").addEventListener("click",startListening);
-$("check").addEventListener("click",()=>checkSpeech($("typed").value));
-$("undo").addEventListener("click",()=>{state.trail=[];});
+stage?.addEventListener("pointermove",applyDemoPointer);
+stage?.addEventListener("pointerdown",applyDemoPointer);
+stage?.addEventListener("contextmenu",(event)=>{if(state.demo)event.preventDefault();});
+stage?.addEventListener("pointerleave",()=>{if(state.demo){state.handData=[];state.faceData=null;}});
+$("start")?.addEventListener("click",()=>start(true));
+$("demo")?.addEventListener("click",()=>start(false));
+$("play-game")?.addEventListener("click",()=>chooseGame());
+$("game")?.addEventListener("change",()=>chooseGame());
+$("letter")?.addEventListener("change",()=>chooseGame());
+$("hear")?.addEventListener("click",()=>speak(state.spokenPrompt));
+$("mic")?.addEventListener("click",startListening);
+$("check")?.addEventListener("click",()=>checkSpeech($("typed")?.value || ""));
+$("undo")?.addEventListener("click",()=>{state.trail=[];});
 $("show-guide")?.addEventListener("change",updateGuideLayer);
 for (const id of ["show-face","show-hands","show-trail","show-measures","show-readout"]) {
   $(id)?.addEventListener("change",renderVisionReadout);
 }
-$("mute").addEventListener("click",()=>{state.muted=!state.muted;$("mute").textContent=state.muted?"🔇":"🔊";$("mute").setAttribute("aria-pressed",String(state.muted));if(state.muted)cancelSpeech();});
-$("fullscreen").addEventListener("click",()=>document.fullscreenElement?document.exitFullscreen():$("play").requestFullscreen());
-$("home").addEventListener("click",()=>{if(state.stream)state.stream.getTracks().forEach((t)=>t.stop());location.reload();});
-$("clear-data").addEventListener("click",()=>{localStorage.removeItem(state.localKey);state.activityEvents=[];state.fun=0;state.combo=0;renderScore();renderDashboard();});
+$("mute")?.addEventListener("click",()=>{state.muted=!state.muted;setText("mute",state.muted?"🔇":"🔊");$("mute")?.setAttribute("aria-pressed",String(state.muted));if(state.muted)cancelSpeech();});
+$("fullscreen")?.addEventListener("click",()=>document.fullscreenElement?document.exitFullscreen():$("play")?.requestFullscreen?.());
+$("home")?.addEventListener("click",()=>{if(state.stream)state.stream.getTracks().forEach((t)=>t.stop());location.reload();});
+$("clear-data")?.addEventListener("click",()=>{localStorage.removeItem(state.localKey);state.activityEvents=[];state.fun=0;state.combo=0;renderScore();renderDashboard();});
 
 // Deterministic visual smoke-test entry point: no camera permission prompt and
 // no recording. It is also useful when an adult wants to inspect every overlay
