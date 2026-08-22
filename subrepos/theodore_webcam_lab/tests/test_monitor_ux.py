@@ -43,8 +43,16 @@ REQUIRED_MONITOR_JS_HELPERS = (
     "drawIndexFingerTrail",
     "drawGamePlayOverlay",
     "drawGameCostume",
+    "drawGameAccessory",
+    "drawFestiveThemeOverlay",
+    "captureCamSnapshot",
     "cycleGameCostume",
+    "cycleGameAccessory",
     "updateGameCostumeLabel",
+    "updateGameAccessoryLabel",
+    "computeLiveCuteScore",
+    "detectWandSpellFromTrail",
+    "shouldDrawGameStudio",
     "clamp01",
     "clampSignal",
     "holdSeconds",
@@ -938,20 +946,23 @@ def test_finger_trail_duration_matches_python_constant():
 
 
 def test_game_overlay_shows_face_tracking_tilt_and_costumes_during_challenges():
-    from theodore_webcam_lab.game_overlay import GAME_COSTUME_IDS
+    from theodore_webcam_lab.game_overlay import GAME_COSTUME_IDS, GAME_THEME_IDS
 
     page = client.get("/theodore/webcam/live-monitor/demo-session").text
     assert 'id="game-costume-cycle"' in page
-    assert "Next fun overlay" in page
+    assert 'id="game-accessory-cycle"' in page
+    assert 'id="game-theme"' in page
+    assert 'id="cam-snap"' in page
+    assert "Am I cute enough?" in page
     assert "function drawGamePlayOverlay()" in MONITOR_JS
-    assert "if (!activeChallenge) return;" in MONITOR_JS.split("function drawGamePlayOverlay")[1].split(
-        "function headPoseFromMatrix"
-    )[0]
-    assert "Game face tracking" in MONITOR_JS
-    assert "pitch · yaw · roll" in MONITOR_JS
-    assert "function drawGameCostume(ctx, pts, w, drawW, drawH, costumeId)" in MONITOR_JS
-    assert "function cycleGameCostume()" in MONITOR_JS
+    assert "function shouldDrawGameStudio()" in MONITOR_JS
+    assert "function captureCamSnapshot()" in MONITOR_JS
+    assert "toast('saved!')" in MONITOR_JS
+    assert "function detectWandSpellFromTrail(trail)" in MONITOR_JS
+    assert "gingerbread_house" in MONITOR_JS
     for costume_id in GAME_COSTUME_IDS:
         assert f"id: '{costume_id}'" in MONITOR_JS
+    for theme_id in GAME_THEME_IDS:
+        assert f"id: '{theme_id}'" in MONITOR_JS
     assert "lastGameHeadPose" in MONITOR_JS
     assert "drawGamePlayOverlay();" in MONITOR_JS

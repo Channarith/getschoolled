@@ -1,11 +1,8 @@
-"""Client-side game overlay constants mirrored in monitor_page.js.
-
-The browser draws finger trails and AR costumes on the webcam canvas; this
-module exists so tests can pin the tunable durations and costume ids without
-scraping embedded JavaScript strings alone.
-"""
+"""Client-side game overlay constants mirrored in monitor_page.js."""
 
 from __future__ import annotations
+
+from .themed_games import GAME_THEME_IDS, WAND_SPELLS
 
 # Visible index-fingertip trail fade window on the mirrored webcam overlay (ms).
 FINGER_TRAIL_DURATION_MS = 1_500
@@ -24,3 +21,21 @@ GAME_COSTUME_IDS: tuple[str, ...] = (
     "wizard",
     "sunglasses",
 )
+
+# Extra props for the Am I Cute Enough studio (accessory slot).
+GAME_ACCESSORY_IDS: tuple[str, ...] = (
+    "none",
+    "wand",
+    "heart_wand",
+    "hero_hammer",
+    "flower_bouquet",
+)
+
+__all__ = [
+    "FINGER_TRAIL_DURATION_MS",
+    "GAME_ACCESSORY_IDS",
+    "GAME_COSTUME_IDS",
+    "GAME_THEME_IDS",
+    "INDEX_FINGER_TIP",
+    "WAND_SPELLS",
+]
