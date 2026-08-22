@@ -99,6 +99,17 @@ def _benched(engine: str) -> bool:
     return True
 
 
+def benched_engines() -> list[str]:
+    """Engines still cooling off, dropping any whose cooldown has elapsed.
+
+    ``_benched`` prunes the entry it finds expired, so iterating the dict while
+    calling it raised "dictionary changed size during iteration" as soon as a
+    cooldown lapsed between a bench and a status read. Snapshot the keys first,
+    and give every caller one place to ask.
+    """
+    return sorted(engine for engine in list(_engine_retry_at) if _benched(engine))
+
+
 def reset_disabled_engines() -> None:
     """Test helper — clear the fail-fast bench."""
     _engine_retry_at.clear()
@@ -162,7 +173,7 @@ def engine_chain() -> list[str]:
 def _status_note(chain: list[str]) -> str:
     if chain:
         return f"Server neural speech via {' → '.join(chain)}."
-    benched = sorted(e for e in _engine_retry_at if _benched(e))
+    benched = benched_engines()
     if benched:
         # Telling someone to "install edge-tts" when it is installed and simply
         # could not reach its voice service sent this diagnosis the wrong way.
@@ -183,9 +194,12 @@ def tts_status() -> dict[str, object]:
         "available": bool(chain),
         "engine": chain[0] if chain else "",
         "engines": chain,
-        "disabled": sorted(e for e in _engine_retry_at if _benched(e)),
+        "disabled": benched_engines(),
         "retry_in_sec": max(
-            (round(until - time.monotonic()) for until in _engine_retry_at.values()),
+            (
+                round(_engine_retry_at[engine] - time.monotonic())
+                for engine in benched_engines()
+            ),
             default=0,
         ),
         "gateway_url": gateway_url(),
@@ -218,20 +232,21 @@ def synthesize(text: str, *, language: str = "en", style: str = "warm") -> tuple
             errors.append(f"{engine}: {exc}")
             _bench_engine(engine, str(exc))
 
+    benched = benched_engines()
     if not errors:
         # Nothing was even attempted. Say whether that is because an engine is
         # cooling off (and why it failed) or because none is configured at all,
         # instead of advising an install that is already done.
         errors = [
-            f"{engine} (cooling off {round(until - time.monotonic())}s): "
+            f"{engine} (cooling off "
+            f"{round(_engine_retry_at[engine] - time.monotonic())}s): "
             f"{_engine_error.get(engine, 'render failed')}"
-            for engine, until in sorted(_engine_retry_at.items())
-            if _benched(engine)
+            for engine in benched
         ]
     detail = f" Tried: {'; '.join(errors)}" if errors else ""
     advice = (
         "Check that this process can reach the voice service"
-        if any(_benched(engine) for engine in _engine_retry_at)
+        if benched
         else "Configure SPEECH_BASE_URL/TTS_BASE_URL, ELEVENLABS_API_KEY, or install edge-tts"
     )
     raise ProviderUnavailable(
