@@ -247,7 +247,6 @@ def tts_status() -> dict[str, object]:
         "engines": chain,
         "languages": len(VOICES),
         "cached_clips": clips,
-        "cache_dir": str(cache_dir()),
         "voices": {code: pair[0] for code, pair in VOICES.items()},
     }
 

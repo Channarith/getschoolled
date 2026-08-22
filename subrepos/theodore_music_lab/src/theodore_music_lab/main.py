@@ -13,6 +13,7 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
     pass
 
 
+import os
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
@@ -688,11 +689,23 @@ def _ranged_file(
     spec = raw_range.split("=", 1)[1].split(",")[0].strip()
     first, _, last = spec.partition("-")
     try:
-        start = int(first) if first else 0
-        end = int(last) if last else size - 1
+        if first and last:
+            start = int(first)
+            end = int(last)
+        elif first and not last:
+            start = int(first)
+            end = size - 1
+        elif last and not first:
+            suffix = int(last)
+            if suffix <= 0:
+                raise ValueError("empty suffix")
+            start = max(0, size - suffix)
+            end = size - 1
+        else:
+            raise ValueError("empty range")
     except ValueError:
         raise HTTPException(status_code=416, detail="Malformed Range header") from None
-    if start < 0 or start >= size:
+    if start < 0 or start >= size or end < start:
         return Response(
             status_code=416,
             headers={**headers, "content-range": f"bytes */{size}"},
@@ -730,10 +743,8 @@ def line_meaning(req: LineMeaningRequest) -> dict[str, Any]:
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"Unknown song '{req.song_id}'") from exc
     line = next((ln for ln in song.lines if ln.line_no == req.line_no), None)
-    if line is None and song.lines:
-        line = song.lines[0]
     if line is None:
-        raise HTTPException(status_code=404, detail="Song has no lines")
+        raise HTTPException(status_code=404, detail=f"Unknown line {req.line_no}")
     try:
         meaning = meaning_for_line(line, req.target_lang or "en")
     except ValueError as exc:
@@ -746,8 +757,22 @@ def line_meaning(req: LineMeaningRequest) -> dict[str, Any]:
     }
 
 
+def _require_import_secret(request: Request) -> None:
+    expected = (os.environ.get("MUSIC_LAB_SECRET") or os.environ.get("ADMIN_SECRET") or "").strip()
+    if not expected:
+        raise HTTPException(status_code=403, detail="Catalog import is disabled")
+    got = (
+        request.headers.get("x-music-lab-secret")
+        or request.headers.get("x-admin-secret")
+        or ""
+    ).strip()
+    if got != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
 @app.post("/api/music/import")
-def import_pack(req: ImportPack) -> dict[str, Any]:
+def import_pack(request: Request, req: ImportPack) -> dict[str, Any]:
+    _require_import_secret(request)
     try:
         songs = import_songs(req.songs)
     except (KeyError, ValueError, TypeError) as exc:

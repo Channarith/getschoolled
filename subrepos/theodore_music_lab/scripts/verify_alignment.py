@@ -154,6 +154,30 @@ def check_song(song, *, report: bool) -> list[str]:
                 f"{gaps[worst]:.2f}s off)"
             )
 
+    # A line that swallows a rest between phrases parks the ball on one word
+    # while later lyrics are actually sung.
+    swallowed = []
+    for row in rows:
+        wall = max(0.0, float(row["end"]) - float(row["start"]))
+        covered = 0.0
+        for span in spans:
+            left = max(float(row["start"]), float(span.start))
+            right = min(float(row["end"]), float(span.end))
+            if right > left:
+                covered += right - left
+        rest = wall - covered
+        if rest > 0.75:
+            swallowed.append((row["line_no"], rest))
+    if swallowed:
+        print(
+            f"  swallowed rests: {len(swallowed)} line(s) "
+            f"(worst {swallowed[0][1]:.2f}s)"
+        )
+        failures.append(
+            f"{song.song_id}: {len(swallowed)} line(s) include an instrumental "
+            f"hole >0.75s (e.g. line {swallowed[0][0]}, {swallowed[0][1]:.2f}s)"
+        )
+
     by_no = {line.line_no: line for line in song.lines}
     rushed: list[tuple[int, float]] = []
     for row in rows:

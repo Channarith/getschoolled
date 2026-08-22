@@ -37,6 +37,11 @@ _SNAP_WINDOW_SEC = 0.45
 _MIN_LINE_SEC = 0.35
 # How strongly the segmentation prefers to break where the singer rested.
 _GAP_BONUS = 0.35
+# Crossing a rest inside one lyric dumps later singing onto the bouncing ball.
+# Use a longer threshold than phrase-merge (0.35s): a breath mid-line is OK,
+# a multi-second instrumental is not.
+_LINE_REST_SEC = 0.75
+_CROSS_GAP_PENALTY = 12.0
 # Phrase detection is retried finer until there is room for every line.
 _DETECTION_STEPS: tuple[tuple[float, float], ...] = (
     (_MERGE_GAP_SEC, _MIN_SPAN_SEC),
@@ -302,7 +307,14 @@ def align_lines_to_spans(
                 rushed = 0.0
                 if extent < floor_sec:
                     rushed = _RUSH_PENALTY * ((floor_sec - extent) / floor_sec) ** 2
-                total = previous + fit - rest + rushed
+                crossed = 0.0
+                for gap_idx in range(start_span + 1, end_span):
+                    hole = gaps[gap_idx]
+                    if hole > _LINE_REST_SEC:
+                        crossed += _CROSS_GAP_PENALTY * (
+                            (hole - _LINE_REST_SEC) / _LINE_REST_SEC
+                        ) ** 2
+                total = previous + fit - rest + rushed + crossed
                 if total < cost[line_idx][end_span]:
                     cost[line_idx][end_span] = total
                     back[line_idx][end_span] = start_span

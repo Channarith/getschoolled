@@ -223,8 +223,12 @@ def import_songs(records: Iterable[dict[str, Any]]) -> list[Song]:
     """Validate and normalize imported original song packs (no copyrighted lyrics)."""
     songs: list[Song] = []
     for i, rec in enumerate(records):
-        license_ = str(rec.get("license") or "").lower()
-        if license_ and "copyright" in license_ and "original" not in license_:
+        license_ = str(rec.get("license") or "").strip().lower()
+        if not license_:
+            raise ValueError(
+                f"Refusing import of '{rec.get('song_id')}': license is required"
+            )
+        if "copyright" in license_ and "original" not in license_:
             raise ValueError(
                 f"Refusing import of '{rec.get('song_id')}': "
                 "only original/educational licenses are allowed in this lab"

@@ -77,7 +77,7 @@ def _audio_matches(record: dict[str, Any]) -> bool:
         return True
     audio = _alignment_path().parent / "audio" / name
     if not audio.is_file():
-        return True
+        return False
     return audio.stat().st_size == int(expected)
 
 
@@ -88,8 +88,12 @@ def syllable_count(word: str) -> int:
         return 1
     groups = _VOWEL_GROUPS.findall(plain)
     count = len(groups)
-    # Silent trailing 'e' ("shine"), but keep "the" and "she" at one syllable.
-    if plain.endswith("e") and count > 1 and not plain.endswith(("le", "ee", "ye")):
+    # Silent trailing 'e' ("shine"), but keep "the", "she", and "tiptoe".
+    if (
+        plain.endswith("e")
+        and count > 1
+        and not plain.endswith(("le", "ee", "ye", "oe", "ue"))
+    ):
         count -= 1
     return max(1, count)
 
@@ -115,7 +119,7 @@ def word_timings(text: str, start: float, end: float) -> list[dict[str, Any]]:
     cursor = start
     for index, (word, weight) in enumerate(zip(words, weights)):
         share = span * (weight / total)
-        if span > 0:
+        if span > 0 and len(words) * _MIN_WORD_SEC <= span:
             share = max(_MIN_WORD_SEC, share)
         w_end = min(end, cursor + share) if span > 0 else cursor
         out.append(
@@ -204,9 +208,9 @@ def _aligned_timings(
         end = float(measured["end_sec"]) * scale
         # Hand-tuned song data still wins over the measurement.
         if line.start_sec is not None:
-            start = float(line.start_sec)
+            start = float(line.start_sec) * scale
         if line.end_sec is not None:
-            end = float(line.end_sec)
+            end = float(line.end_sec) * scale
         end = max(start + _MIN_WORD_SEC, end)
         rows.append(
             {
@@ -221,6 +225,15 @@ def _aligned_timings(
             }
         )
     duration = played or (rows[-1]["end"] if rows else 0.0)
+    for index, row in enumerate(rows):
+        syllables = sum(syllable_count(word) for word in row["text"].split())
+        need = syllables / 8.0
+        cap = rows[index + 1]["start"] if index + 1 < len(rows) else duration
+        widened = min(cap, max(row["end"], row["start"] + need))
+        if widened > row["end"]:
+            row["end"] = round(widened, 3)
+            if row["words"]:
+                row["words"][-1]["end"] = row["end"]
     return {
         "song_id": song.song_id,
         "duration_sec": round(duration, 3),

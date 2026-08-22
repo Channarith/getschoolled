@@ -232,6 +232,8 @@ def test_player_compensates_for_audio_output_latency():
         assert "- audioLatency" in page
         assert "function playT()" in page
         assert "function seekT(" in page
+        assert "if (t >= w.start) held = w;" in page
+        assert "speak(translation," in page
 
 
 def test_language_picker_offers_every_language_grouped_by_quality():
@@ -506,6 +508,12 @@ def test_api_health_and_session_flow():
         )
         assert meaning.status_code == 200
         assert meaning.json()["meaning"]["target_language"] == "es"
+        missing_line = client.post(
+            "/api/music/meaning",
+            json={"song_id": first["song_id"], "line_no": 9999, "target_lang": "es"},
+        )
+        assert missing_line.status_code == 404
+        assert client.post("/api/music/import", json={"songs": []}).status_code == 403
 
         start = client.post(
             "/api/music/session/start",
@@ -811,6 +819,24 @@ def test_phrase_segmentation_puts_every_line_boundary_on_a_measured_onset():
     assert placed[1][0] >= 8.0
 
 
+def test_phrase_segmentation_does_not_glue_a_rest_onto_a_short_line():
+    """A 4s hole inside one lyric is how the bouncing ball parked on 'the'."""
+    spans = [
+        VocalSpan(1.0, 2.0),
+        VocalSpan(2.2, 3.0),
+        VocalSpan(7.5, 8.5),
+        VocalSpan(8.7, 9.5),
+        VocalSpan(9.7, 10.5),
+        VocalSpan(10.7, 11.5),
+    ]
+    placed = align_lines_to_spans([2.0, 2.0, 2.0, 2.0, 2.0, 2.0], spans)
+    assert len(placed) == 6
+    for start, end in placed:
+        assert end - start < 2.0
+        # No assigned window may span the 3.0s-7.5s rest.
+        assert not (start < 3.0 and end > 7.5)
+
+
 def test_phrase_segmentation_declines_when_there_are_fewer_phrases_than_lines():
     assert align_lines_to_spans([1.0, 1.0, 1.0], [VocalSpan(0.0, 4.0)]) == []
 
@@ -883,6 +909,7 @@ def test_syllable_counts_are_sane():
     assert syllable_count("supermarket") == 4
     assert syllable_count("restaurant") in {2, 3}
     assert syllable_count("the") == 1
+    assert syllable_count("Tiptoe") == 2
 
 
 def test_curated_translation_is_real_target_language(offline):
@@ -1044,6 +1071,10 @@ def test_audio_supports_byte_ranges_so_seeking_works():
         assert len(tail.content) == total - 1000
 
         assert client.get(url, headers={"Range": f"bytes={total + 5}-"}).status_code == 416
+        suffix = client.get(url, headers={"Range": "bytes=-500"})
+        assert suffix.status_code == 206
+        assert suffix.content == full.content[-500:]
+        assert client.get(url, headers={"Range": "bytes=900-100"}).status_code == 416
 
 
 def test_video_links_all_offer_lyrics():
