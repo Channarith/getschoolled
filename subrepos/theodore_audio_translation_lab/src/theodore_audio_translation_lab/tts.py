@@ -122,13 +122,27 @@ def synthesize(text: str, *, language: str = "en", style: str = "warm"):
                 return (*_lab._edge_tts(clean, lang), "edge-tts")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{engine}: {exc}")
-            _lab._bench_engine(engine)
+            _lab._bench_engine(engine, str(exc))
 
+    if not errors:
+        # Benching an engine empties the chain, so later calls attempt nothing
+        # and would otherwise advise installing an engine that is present. Carry
+        # the recorded cause through instead.
+        errors = [
+            f"{engine} (cooling off {round(until - _lab.time.monotonic())}s): "
+            f"{_lab._engine_error.get(engine, 'render failed')}"
+            for engine, until in sorted(_lab._engine_retry_at.items())
+            if _lab._benched(engine)
+        ]
     detail = f" Tried: {'; '.join(errors)}" if errors else ""
+    advice = (
+        "Check that this process can reach the voice service"
+        if any(_lab._benched(engine) for engine in _lab._engine_retry_at)
+        else "Configure TTS_BASE_URL/SPEECH_BASE_URL, ELEVENLABS_API_KEY, or install edge-tts"
+    )
     raise ProviderUnavailable(
         f"No server TTS engine could render {LANGUAGE_NAMES.get(lang, lang)}."
-        f"{detail} Configure TTS_BASE_URL/SPEECH_BASE_URL, ELEVENLABS_API_KEY, "
-        "or install edge-tts; the client can still use the device voice."
+        f"{detail} {advice}; the client can still use the device voice."
     )
 
 

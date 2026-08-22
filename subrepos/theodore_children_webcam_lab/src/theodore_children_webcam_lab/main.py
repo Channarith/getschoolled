@@ -9,6 +9,7 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
+import hashlib
 import os
 from pathlib import Path
 from typing import Any, Literal
@@ -62,10 +63,26 @@ class AnalyticsRequest(BaseModel):
     seated_only: bool = False
 
 
+def _asset_tag() -> str:
+    """Fingerprint of the front-end sources.
+
+    The version alone is not enough: edits during a release cycle leave it
+    unchanged, so a browser keeps a cached script and the page appears not to
+    pick up any fix. Hashing the files themselves changes the URL exactly when
+    the code changes.
+    """
+    digest = hashlib.sha256(__version__.encode())
+    for name in ("app.js", "vision_math.js", "app.css"):
+        path = STATIC_DIR / name
+        if path.is_file():
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:12]
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def children_lab_page() -> str:
-    return render_children_page()
+    return render_children_page(_asset_tag())
 
 
 @app.get("/favicon.ico", include_in_schema=False)

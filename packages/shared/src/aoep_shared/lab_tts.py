@@ -70,13 +70,23 @@ ENGINE_COOLDOWN_SEC = float(os.environ.get("TTS_ENGINE_COOLDOWN_S", "60"))
 # engine name -> monotonic time it may be retried.
 _engine_retry_at: dict[str, float] = {}
 
+# engine name -> why it was benched. Only the FIRST failure could name a cause,
+# because once an engine is benched the chain is empty and there is nothing left
+# to report; every later 501 then fell back to the generic "install edge-tts"
+# advice even though edge-tts was installed and the real fault was that this
+# process could not resolve the voice host. Keeping the reason makes each
+# response say what actually broke.
+_engine_error: dict[str, str] = {}
+
 
 class ProviderUnavailable(RuntimeError):
     """No configured TTS engine could render audio."""
 
 
-def _bench_engine(engine: str) -> None:
+def _bench_engine(engine: str, reason: str = "") -> None:
     _engine_retry_at[engine] = time.monotonic() + ENGINE_COOLDOWN_SEC
+    if reason:
+        _engine_error[engine] = reason
 
 
 def _benched(engine: str) -> bool:
@@ -92,6 +102,7 @@ def _benched(engine: str) -> bool:
 def reset_disabled_engines() -> None:
     """Test helper — clear the fail-fast bench."""
     _engine_retry_at.clear()
+    _engine_error.clear()
 
 
 def gateway_url() -> str:
@@ -205,13 +216,27 @@ def synthesize(text: str, *, language: str = "en", style: str = "warm") -> tuple
                 return (*_edge_tts(clean, lang), "edge-tts")
         except Exception as exc:  # noqa: BLE001 — try next; bench flaky engines
             errors.append(f"{engine}: {exc}")
-            _bench_engine(engine)
+            _bench_engine(engine, str(exc))
 
+    if not errors:
+        # Nothing was even attempted. Say whether that is because an engine is
+        # cooling off (and why it failed) or because none is configured at all,
+        # instead of advising an install that is already done.
+        errors = [
+            f"{engine} (cooling off {round(until - time.monotonic())}s): "
+            f"{_engine_error.get(engine, 'render failed')}"
+            for engine, until in sorted(_engine_retry_at.items())
+            if _benched(engine)
+        ]
     detail = f" Tried: {'; '.join(errors)}" if errors else ""
+    advice = (
+        "Check that this process can reach the voice service"
+        if any(_benched(engine) for engine in _engine_retry_at)
+        else "Configure SPEECH_BASE_URL/TTS_BASE_URL, ELEVENLABS_API_KEY, or install edge-tts"
+    )
     raise ProviderUnavailable(
         f"No server TTS engine could render {LANGUAGE_NAMES.get(lang, lang)}."
-        f"{detail} Configure SPEECH_BASE_URL/TTS_BASE_URL, ELEVENLABS_API_KEY, "
-        "or install edge-tts; the client can still use the device voice."
+        f"{detail} {advice}; the client can still use the device voice."
     )
 
 
