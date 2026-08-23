@@ -82,12 +82,6 @@ const target = $("target");
 let stageRect = {w:0,h:0};
 function stageBox() { return stageRect; }
 
-// mirrored() runs for every landmark of every hand every frame; reading the
-// live rect there forced dozens of synchronous layouts per frame. The observer
-// already tells us when it changed, so measure once and reuse.
-let stageRect = {w:0,h:0};
-function stageBox() { return stageRect; }
-
 function resizeCanvas() {
   if (!stage || !canvas || !ctx) return stageRect;
   const box = stage.getBoundingClientRect();
@@ -480,6 +474,64 @@ function spawnObject(kind,content) {
   spriteLayer.append(el);state.object={el,kind,hit:false,roundId:state.roundId};return el;
 }
 
+function freezeSprite(el) {
+  if (!el || !stage) return {x:0,y:0};
+  const root=stage.getBoundingClientRect(),rect=el.getBoundingClientRect();
+  const x=rect.left-root.left+rect.width/2,y=rect.top-root.top+rect.height/2;
+  // Hold animation:none until travel classes are stripped, or fly/rise/swim
+  // would restart the instant the inline style is cleared.
+  el.style.animation="none";
+  el.style.left=`${x}px`;el.style.top=`${y}px`;
+  el.style.transform="translate(-50%, -50%)";
+  return {x,y};
+}
+
+function playSpriteReaction(el, extraClass) {
+  el.classList.remove("fruit","balloon","fish","kernel");
+  el.classList.add(extraClass);
+  void el.offsetWidth;
+  el.style.animation="";
+}
+
+function burstAt(x,y,glyph) {
+  if (!spriteLayer || !glyph) return;
+  const spark=document.createElement("div");
+  spark.className="hit-burst";spark.textContent=glyph;
+  spark.style.left=`${x}px`;spark.style.top=`${y}px`;
+  spriteLayer.append(spark);
+  setTimeout(()=>{if(spark.isConnected)spark.remove();},700);
+}
+
+function reactToHit(game) {
+  const el=state.object?.el;if(!el)return;
+  const pos=freezeSprite(el);
+  const reactions={
+    "fruit-cut":{cls:"sliced",burst:"💥",say:"Sliced!"},
+    balloon:{cls:"popped",burst:"💥",emoji:"💥",say:"Popped!"},
+    fish:{cls:"caught-fish",burst:"✨",say:"Caught!"},
+    popcorn:{cls:"eaten",burst:"😋",say:"Yum!"},
+  };
+  const react=reactions[game]||{cls:"sliced",burst:"✨",say:"Great catch!"};
+  const toward=game==="popcorn"&&state.faceData
+    ?{x:state.faceData.cx*stageBox().w,y:state.faceData.cy*stageBox().h}
+    :(state.handData.find(h=>h.tip)?.tip||pos);
+  el.style.setProperty("--react-x",`${toward.x}px`);
+  el.style.setProperty("--react-y",`${toward.y}px`);
+  if(react.emoji)el.textContent=react.emoji;
+  el.classList.add("hit","caught");
+  playSpriteReaction(el, react.cls);
+  burstAt(pos.x,pos.y,react.burst);
+  setTimeout(()=>{if(el.isConnected)el.remove();},650);
+  return react.say;
+}
+
+function fadeMissedObject() {
+  const el=state.object?.el;if(!el||el.classList.contains("caught"))return;
+  freezeSprite(el);
+  playSpriteReaction(el, "missed");
+  setTimeout(()=>{if(el.isConnected)el.remove();},600);
+}
+
 function objectCenter() {
   const rect=state.object?.el?.getBoundingClientRect(),root=stage.getBoundingClientRect();
   return rect?{x:rect.left-root.left+rect.width/2,y:rect.top-root.top+rect.height/2}:null;
@@ -510,9 +562,10 @@ function updateObjectGame() {
     }
   }
   if(hit && !state.object.hit){
-    state.object.hit=true;state.object.el.classList.add("hit");
+    state.object.hit=true;
+    const say=reactToHit(state.game)||"Great catch!";
     const round=state.roundId;
-    setTimeout(()=>{if(state.roundId===round)succeed("Great catch!");},250);
+    setTimeout(()=>{if(state.roundId===round)succeed(say);},280);
   }
 }
 
@@ -708,6 +761,7 @@ function succeed(message) {
 function fail(message) {
   if(state.roundDone)return;state.roundDone=true;state.combo=0;state.attempts+=1;
   const round=state.roundId;
+  fadeMissedObject();
   const result=calculateFun(false);state.fun=result.score;renderScore();missGag();setPrompt("Almost!",message);
   recordEvent("retry",result);speak(`Almost! ${message}`);
   if(state.game==="oh-behave")state.timerMs=nextTimer(false);
