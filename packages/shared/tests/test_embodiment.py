@@ -44,6 +44,34 @@ def test_robot_not_wired_raises():
         RobotProvider().say("hi")
 
 
+def test_robot_http_bridge_posts(monkeypatch):
+    calls = []
+
+    class _Resp:
+        def read(self):
+            return b"{}"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def _fake_urlopen(req, timeout=8):
+        calls.append((req.full_url, req.data.decode("utf-8")))
+        return _Resp()
+
+    monkeypatch.setattr("urllib.request.urlopen", _fake_urlopen)
+    cfg = AppConfig(deploy_mode=DeployMode.EDGE, embodiment="robot", robot_endpoint="http://127.0.0.1:8765/robot")
+    bot = RobotProvider(cfg)
+    assert bot.info().impl == "robot-http"
+    bot.say("Hello", language="en")
+    bot.gesture("wave")
+    assert len(calls) == 2
+    assert "say" in calls[0][1]
+    assert "gesture" in calls[1][1]
+
+
 def test_narrate_maps_teaching_beat():
     actions = narrate(ScreenAvatarProvider(), "Explain fractions", gesture="point")
     assert [a.modality for a in actions] == ["speech", "display"]

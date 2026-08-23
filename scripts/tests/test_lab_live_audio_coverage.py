@@ -13,6 +13,7 @@ LABS = (
     "theodore_homework_lab",
     "theodore_music_lab",
     "theodore_rag_lab",
+    "theodore_llm_lab",
     "theodore_webcam_lab",
 )
 
