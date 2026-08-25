@@ -85,7 +85,7 @@ def tts_status() -> dict[str, object]:
         "available": bool(chain),
         "engine": chain[0] if chain else "",
         "engines": chain,
-        "disabled": _lab.benched_engines(),
+        "disabled": _lab._benched_names(),
         "gateway_url": _gateway_url(),
         "elevenlabs_configured": bool(_elevenlabs_key()),
         "xai_configured": bool(__import__("os").environ.get("XAI_API_KEY", "").strip()),
@@ -124,17 +124,6 @@ def synthesize(text: str, *, language: str = "en", style: str = "warm"):
             errors.append(f"{engine}: {exc}")
             _lab._bench_engine(engine, str(exc))
 
-    benched = _lab.benched_engines()
-    if not errors:
-        # Benching an engine empties the chain, so later calls attempt nothing
-        # and would otherwise advise installing an engine that is present. Carry
-        # the recorded cause through instead.
-        errors = [
-            f"{engine} (cooling off "
-            f"{round(_lab._engine_retry_at[engine] - _lab.time.monotonic())}s): "
-            f"{_lab._engine_error.get(engine, 'render failed')}"
-            for engine in benched
-        ]
     detail = f" Tried: {'; '.join(errors)}" if errors else ""
     advice = (
         "Check that this process can reach the voice service"

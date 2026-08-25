@@ -6,7 +6,7 @@
 // exactly this: a distant child read as a permanent fist.
 import assert from "node:assert/strict";
 import {
-  FIST_MAX_PALMS, handShape, heartRatios, isHeartShape, palmSpan,
+  FIST_MAX_PALMS, handShape, heartRatios, isHeartShape, palmSpan, syntheticHand,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 
 // A canonical right hand, palm size 1.0, fingers pointing up (-y).
@@ -148,5 +148,11 @@ for (const scale of [0.06, 0.1, 0.16]) {
 // A single hand cannot make a two-handed heart.
 assert.equal(heartRatios(canonicalHand(), null, 1), null);
 assert.equal(isHeartShape(null), false);
+
+const demoFist = handShape(syntheticHand({ x: 0.4, y: 0.4 }, { pose: "fist" }));
+assert.equal(demoFist.fist, true, "demo fist pose must classify as a fist");
+const demoIndex = handShape(syntheticHand({ x: 0.4, y: 0.4 }, { pose: "index" }));
+assert.equal(demoIndex.indexUp, true, "demo index pose must raise only the index");
+assert.equal(demoIndex.fist, false);
 
 console.log("vision geometry OK");

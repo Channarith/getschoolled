@@ -45,6 +45,55 @@ PICTURE_WORDS = {
     "y": "yo-yo", "z": "zebra",
 }
 
+# One glyph per picture-word so Trace a picture never falls back to a sparkle
+# for a letter the catalog claims to teach.
+PICTURE_EMOJI = {
+    "apple": "🍎", "ball": "⚽", "cat": "🐱", "dragon": "🐉", "elephant": "🐘",
+    "fish": "🐟", "grape": "🍇", "heart": "💖", "ice cream": "🍦", "jellyfish": "🪼",
+    "kite": "🪁", "lion": "🦁", "moon": "🌙", "nest": "🪺", "octopus": "🐙",
+    "popcorn": "🍿", "queen": "👑", "rocket": "🚀", "star": "⭐", "teddy": "🧸",
+    "umbrella": "☂️", "violin": "🎻", "whale": "🐋", "xylophone": "🎹",
+    "yo-yo": "🪀", "zebra": "🦓",
+}
+
+# The menu the child sees, the content API, and the browser game loop must all
+# name the same ids. Adding a row here without a matching branch in app.js is a
+# test failure, not a silent missing game.
+GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
+    ("Learn", [
+        ("trace-letter", "Trace a letter"),
+        ("trace-picture", "Trace a picture"),
+        ("say-letter", "Say the letter"),
+    ]),
+    ("Face & hands", [
+        ("oh-behave", "Oh behave"),
+        ("heart", "Make hearts"),
+        ("idea", "I have an idea"),
+        ("fist-bump", "Fist bump"),
+        ("wow", "Wow face"),
+        ("blow-kiss", "Blow a kiss"),
+        ("wink", "Wink challenge"),
+        ("make-pose", "Make a hero pose"),
+        ("balloon", "Pop balloons"),
+        ("fish", "Catch flying fish"),
+        ("popcorn", "Catch popcorn"),
+    ]),
+    ("Move", [
+        ("fruit-cut", "Fruit cut"),
+        ("air-drums", "Air drums"),
+        ("bird-flap", "Flap like a bird"),
+        ("head-bop", "Head bop"),
+        ("face-chase", "Face chase"),
+        ("stand-sit", "Stand up, sit down"),
+        ("dance-freeze", "Dance freeze"),
+        ("rainbow-reach", "Rainbow reach"),
+    ]),
+]
+
+
+def all_game_ids() -> tuple[str, ...]:
+    return tuple(game_id for _group, games in GAME_MENU for game_id, _title in games)
+
 OH_BEHAVE_TIMER_MS = (8000, 6000, 4000, 2000, 1500)
 
 
@@ -126,9 +175,20 @@ def next_oh_behave_timer(current_ms: int, *, hit: bool, age_band: str) -> int:
     return ladder[index]
 
 
-def is_closed_fist(*, finger_count: int, tip_to_wrist: float) -> bool:
-    """A rest pose is not a fist; fingertips must be near the wrist."""
-    return int(finger_count) == 0 and float(tip_to_wrist) < 0.22
+# Matches static/vision_math.js FIST_MAX_PALMS. tip_to_wrist is in the same
+# units as palm_span (wrist to middle knuckle), not a fraction of the frame.
+FIST_MAX_PALMS = 1.6
+
+
+def is_closed_fist(
+    *,
+    finger_count: int,
+    tip_to_wrist: float,
+    palm_span: float = 1.0,
+) -> bool:
+    """A rest pose is not a fist; fingertips must be near the wrist, in palms."""
+    scale = max(1e-4, float(palm_span))
+    return int(finger_count) == 0 and (float(tip_to_wrist) / scale) < FIST_MAX_PALMS
 
 
 def trace_pass(
@@ -145,7 +205,9 @@ def trace_pass(
         if 0.22 <= x <= 0.78 and 0.18 <= y <= 0.82:
             inside += 1
             cells.add((round(x * 8), round(y * 8)))
-    need = 16 if age_band == "4-6" else 22
+    # A letter is a narrow path. 16/22 cells made a clean A/B/C fail even when
+    # the child visibly followed the guide; keep these in lockstep with app.js.
+    need = 10 if age_band == "4-6" else 14
     return inside >= len(points) * 0.55 and len(cells) >= need
 
 

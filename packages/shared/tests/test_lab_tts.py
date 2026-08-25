@@ -85,29 +85,25 @@ def test_a_benched_engine_comes_back_after_its_cooldown(monkeypatch):
     assert tts._benched("edge-tts") is False, "should be retried after cooldown"
 
 
-def test_reading_status_while_a_cooldown_lapses_does_not_explode(monkeypatch):
-    """`_benched` prunes what it finds expired, so callers must not iterate live.
+def test_tts_status_survives_an_expired_bench(monkeypatch):
+    """Expired benches used to 500 the status endpoint (and the webcam lab).
 
-    Reading the bench dict directly while calling `_benched` raised
-    "dictionary changed size during iteration" the moment a cooldown lapsed
-    between the bench and the read — a status endpoint 500 that only appeared
-    once real time had passed, which is why it survived local runs.
+    ``_benched`` deleted the key while ``tts_status`` was iterating the same
+    dict, which is exactly what ``test_voice_status_endpoint`` hit in CI once
+    an earlier test had cooled off.
     """
     tts.reset_disabled_engines()
     monkeypatch.setattr(tts, "ENGINE_COOLDOWN_SEC", 10.0)
-    now = [500.0]
+    now = [50.0]
     monkeypatch.setattr(tts.time, "monotonic", lambda: now[0])
-
-    for engine in ("edge-tts", "elevenlabs", "speech-gateway"):
-        tts._bench_engine(engine, "boom")
-    assert tts.benched_engines() == ["edge-tts", "elevenlabs", "speech-gateway"]
-
-    # Every cooldown lapses at once: the prune must not disturb the iteration.
+    tts._bench_engine("edge-tts")
+    tts._bench_engine("elevenlabs")
     now[0] += 11.0
-    assert tts.benched_engines() == []
     status = tts.tts_status()
     assert status["disabled"] == []
     assert status["retry_in_sec"] == 0
+    # A second call must not raise either — the sweep already dropped them.
+    assert tts.tts_status()["disabled"] == []
 
 
 def test_a_benched_engine_still_reports_why_it_failed(monkeypatch):
