@@ -114,6 +114,17 @@ def _benched_names() -> list[str]:
     return sorted(_engine_retry_at)
 
 
+def benched_engines() -> list[str]:
+    """Engines still cooling off, dropping any whose cooldown has elapsed.
+
+    ``_benched`` prunes the entry it finds expired, so iterating the dict while
+    calling it raised "dictionary changed size during iteration" as soon as a
+    cooldown lapsed between a bench and a status read. Snapshot the keys first,
+    and give every caller one place to ask.
+    """
+    return sorted(engine for engine in list(_engine_retry_at) if _benched(engine))
+
+
 def reset_disabled_engines() -> None:
     """Test helper — clear the fail-fast bench."""
     _engine_retry_at.clear()
