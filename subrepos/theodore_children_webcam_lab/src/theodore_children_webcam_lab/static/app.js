@@ -82,6 +82,12 @@ const target = $("target");
 let stageRect = {w:0,h:0};
 function stageBox() { return stageRect; }
 
+// mirrored() runs for every landmark of every hand every frame; reading the
+// live rect there forced dozens of synchronous layouts per frame. The observer
+// already tells us when it changed, so measure once and reuse.
+let stageRect = {w:0,h:0};
+function stageBox() { return stageRect; }
+
 function resizeCanvas() {
   if (!stage || !canvas || !ctx) return stageRect;
   const box = stage.getBoundingClientRect();
@@ -813,7 +819,7 @@ async function probeSpeech() {
 }
 
 async function speak(text) {
-  if(state.muted||!text)return;
+  if(state.muted||!text||window.__THEODORE_LIVE_AUDIO_ACTIVE__)return;
   cancelSpeech();
   const token=state.speechToken;
   try {
@@ -831,6 +837,9 @@ async function speak(text) {
     if("speechSynthesis" in window){const utterance=new SpeechSynthesisUtterance(text);utterance.rate=.94;utterance.pitch=1.08;speechSynthesis.speak(utterance);}
   }
 }
+window.addEventListener("theodore-live-audio",(event)=>{
+  if(event.detail?.active)cancelSpeech();
+});
 
 function startListening() {
   if (state.game!=="say-letter") {

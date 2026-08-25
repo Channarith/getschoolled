@@ -1,0 +1,3 @@
+{"signal": "attention_drop", "audience": {"age_band": "child", "language": "en", "learning_style": "visual"}}
+{"signal": "success_pose", "coach": "Fist bump landed on the glowing target. Celebrate, then offer the next pose.", "audience": {"age_band": "child", "language": "en"}}
+{"event": "confusion", "audience": {"age_band": "teen", "language": "es", "reading_level": "beginner"}}

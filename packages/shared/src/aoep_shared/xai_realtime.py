@@ -177,6 +177,7 @@ def mint_ephemeral_token(
     model: str = DEFAULT_MODEL,
     timeout: float = 15.0,
     allow_mock: bool = True,
+    session: Optional[Dict[str, Any]] = None,
 ) -> EphemeralToken:
     """Mint a short-lived client secret for the realtime Voice API.
 
@@ -196,7 +197,15 @@ def mint_ephemeral_token(
         )
 
     url = f"{API_BASE}{CLIENT_SECRETS_PATH}"
-    payload = json.dumps({"expires_after": {"seconds": expires_seconds}}).encode("utf-8")
+    request_payload: Dict[str, Any] = {
+        "expires_after": {"seconds": expires_seconds}
+    }
+    if session:
+        # Bind browser credentials to the server-selected persona, model,
+        # audio formats, VAD and tool policy. A token that only carries an
+        # expiry lets a modified browser replace all of those settings.
+        request_payload["session"] = dict(session)
+    payload = json.dumps(request_payload).encode("utf-8")
     raw = _http_post(
         url,
         data=payload,

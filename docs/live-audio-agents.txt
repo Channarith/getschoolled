@@ -1,0 +1,69 @@
+THEODORE LAB LIVE AUDIO AGENTS
+
+Every Theodore browser lab exposes one floating "Live audio agent" control.
+This is native speech-to-speech, not text-to-speech:
+
+  microphone PCM -> xAI Voice Agent or Gemini Live -> streamed speaker PCM
+
+The model listens continuously, uses server voice-activity detection, permits
+barge-in, and streams its response audio as it is generated. There is no text
+render followed by MP3 generation, so this path avoids sentence boundaries,
+TTS startup delays, and stitched-clip stammering.
+
+PROVIDERS
+
+xAI Voice Agent
+  Server secret: XAI_API_KEY
+  Model: XAI_VOICE_MODEL (default grok-voice-latest)
+  Voice: XAI_VOICE_ID / XAI_VOICE (default eve)
+  Browser auth: one-use ephemeral xai-client-secret WebSocket protocol
+  Audio: PCM16 24 kHz input and output
+
+Gemini Live
+  Server secret: GEMINI_API_KEY (GOOGLE_API_KEY is also accepted)
+  Model: GEMINI_LIVE_MODEL
+    default gemini-2.5-flash-native-audio-preview-12-2025
+  Voice: GEMINI_LIVE_VOICE (default Kore)
+  Browser auth: one-use v1alpha auth token in access_token
+  Audio: PCM16 16 kHz input, PCM16 24 kHz output
+
+Keys never enter HTML, JavaScript, logs, token responses, or mobile bundles.
+The lab backend mints a short-lived credential; the browser then connects
+directly to the provider to remove an extra streaming hop.
+
+RUN
+
+Add one or both keys to config/local.env, then start any lab normally:
+
+  XAI_API_KEY=...
+  GEMINI_API_KEY=...
+  scripts/run_theodore_lab.sh children
+
+Open the lab, choose a configured provider, and press Start live voice. Browser
+microphone permission is requested only after that explicit click. Echo
+cancellation, noise suppression, and automatic gain control are enabled.
+
+FALLBACK
+
+If neither provider is configured, the widget stays disabled and the lab's
+existing narration path remains available (server neural TTS, then device
+speech). If a live session disconnects, microphone tracks, audio nodes, queued
+speaker buffers, and the WebSocket are closed before normal lab speech resumes.
+
+IMPLEMENTATION
+
+Backend/provider:
+  packages/shared/src/aoep_shared/live_audio_agents.py
+
+Browser capture, resampling, protocols, gapless playback, and barge-in:
+  packages/shared/src/aoep_shared/static/lab_live_audio.js
+
+Same-origin lab routes:
+  GET  /api/live-audio/status
+  POST /api/live-audio/token
+  GET  /api/live-audio/client.js
+
+The page widget is injected through inject_client(). A lab must also call
+install_live_audio_routes(app, lab_name=...). Shared tests verify credentials,
+provider protocol setup, no API-key leakage, JavaScript parsing, gapless output
+scheduling, and barge-in cleanup.

@@ -625,6 +625,7 @@ transcript all run without it.
 | `subrepos/theodore_course_studio` | Early-learning / certification course studio (UI `:8040/studio`) |
 | `subrepos/theodore_audio_translation_lab` | Realtime mic translation across 27 languages (UI `:8041/lab`) |
 | `subrepos/theodore_rag_lab` | Private RAG auto-tune / bakeoff plus live trusted current-awareness qualification (browser console `:8095/`) |
+| `subrepos/theodore_llm_lab` | All-in-one education LLM training lab — library + profiles + webcam/audio/game/RAG corpus, robot GGUF pack (`:8019/`) |
 | `subrepos/theodore_drive_lab` | Private Drive Mode fine-tune (browser console `:8096/`) |
 | `subrepos/theodore_homework_lab` | Private homework lab, 75 methodologies (browser UI `:8098/`) |
 | `subrepos/theodore_music_lab` | Learn-through-music lab (featured player `:8097/`; curated lyric translations in all 26+ langs) |
@@ -641,7 +642,7 @@ transcript all run without it.
 | `services/harvester` | 24/7 crawl/generate/export CLI worker (no HTTP app); posts decks to curriculum |
 | `services/homework` | Offline homework generate / OCR scan / authorship / autograde CLI (HTTP mirror lives in curriculum `/homework/*`) |
 | `services/cosyvoice` | GPU CosyVoice 2 TTS sidecar (`POST /tts`, :9880) for cloud/self-hosted clone narration |
-| `training` | Education-LLM fine-tuning scaffold (dataset export, QLoRA config, promote/runbooks) — not an HTTP service |
+| `training` | Education-LLM fine-tuning scaffold (dataset export, QLoRA config, promote/runbooks) + Theodore LLM Lab UI on `:8019` |
 | `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
 | `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, pipeline validation, voice tools) |
 | `sample-curriculum` | 87 live-class lessons: full math track (Algebra through Differential Equations), economics, professional skills (Power BI, SAP, DevOps, Digital Marketing, UX, Cybersecurity, Excel/Word/PowerPoint), corporate/AI tracks, safety training, and more |

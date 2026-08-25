@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from typing import Any, Literal
 
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -35,6 +36,7 @@ app = FastAPI(
     version=__version__,
     description="Private, playful browser-local face and hand learning games for ages 4-10.",
 )
+install_live_audio_routes(app, lab_name="Theodore Children Webcam Lab")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if VISION_ASSET_DIR.is_dir():
     app.mount("/vendor/vision", StaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")
@@ -82,7 +84,7 @@ def _asset_tag() -> str:
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def children_lab_page() -> str:
-    return render_children_page(_asset_tag())
+    return inject_client(render_children_page(_asset_tag()))
 
 
 @app.get("/favicon.ico", include_in_schema=False)

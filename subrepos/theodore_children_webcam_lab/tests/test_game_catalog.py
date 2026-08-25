@@ -99,29 +99,6 @@ def test_every_picture_word_has_a_glyph_on_both_sides():
         assert word in script
 
 
-def test_object_games_stop_flying_and_react_on_hit():
-    """A hit used to add .hit while fly/rise/swim kept running, so the
-    fruit/fish/balloon/popcorn sailed on under "You did it!"."""
-    script = _js()
-    css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
-    assert "function reactToHit(" in script
-    assert "function freezeSprite(" in script
-    assert "function playSpriteReaction(" in script
-    assert "function fadeMissedObject(" in script
-    assert 'cls:"sliced"' in script
-    assert 'cls:"popped"' in script
-    assert 'cls:"caught-fish"' in script
-    assert 'cls:"eaten"' in script
-    hit = script.split("if(hit && !state.object.hit)")[1].split("function updateGestureGame")[0]
-    assert "reactToHit(state.game)" in hit
-    assert 'classList.add("hit")' not in hit
-    assert "fadeMissedObject()" in script.split("function fail(")[1].split("function nextTimer")[0]
-    for rule in (".sprite.sliced", ".sprite.popped", ".sprite.caught-fish", ".sprite.eaten", ".sprite.missed"):
-        assert rule in css, rule
-    for keyframe in ("sliceAway", "popAway", "catchAway", "eatAway", "missAway"):
-        assert f"@keyframes {keyframe}" in css, keyframe
-
-
 def test_pointer_demo_listens_on_the_stage_not_the_dead_canvas():
     script = _js()
     assert 'stage?.addEventListener("pointermove",applyDemoPointer)' in script

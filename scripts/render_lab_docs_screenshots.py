@@ -381,6 +381,40 @@ def render_drive_lab() -> None:
     )
 
 
+def render_llm_lab() -> None:
+    _lab_console(
+        lab="theodore_llm_lab",
+        filename="theodore_llm_lab.webp",
+        title="Theodore LLM Lab",
+        subtitle="Train portable education LLM  ·  library + profiles + multimodal  ·  :8019",
+        accent="#A78BFA",
+        left_title="Corpus channels",
+        left_rows=[
+            ("library", "lesson.txt + course.json"),
+            ("profiles", "pedagogy only, no PII"),
+            ("webcam", "attention + pose coach"),
+            ("audio", "mic / drive transcripts"),
+            ("games", "play-lab outcomes"),
+            ("rag", "grounded Q&A pairs"),
+            ("export", "instruction JSONL"),
+            ("robot pack", "GGUF + ONNX manifest"),
+        ],
+        right_title="Assemble / deploy",
+        right_lines=[
+            "$ uvicorn theodore_llm_lab.main:app --port 8019",
+            "# POST /api/llm/assemble",
+            "→ 18 examples  by_source{library:6, webcam:3…}",
+            "# POST /api/llm/check",
+            "→ ok=true  protected attrs blocked",
+            "# POST /api/llm/robot-pack",
+            "→ Q4_K_M llm.gguf  edge DEPLOY_MODE",
+            "# GPU host (manual):",
+            "→ training/run_finetune.py --offline …",
+        ],
+        pills=["QLoRA", "humanoid", "offline-first"],
+    )
+
+
 def render_homework_lab() -> None:
     _lab_console(
         lab="theodore_homework_lab",
@@ -458,6 +492,7 @@ def main() -> None:
     render_audio_lab()
     render_webcam_lab()
     render_rag_lab()
+    render_llm_lab()
     render_drive_lab()
     render_homework_lab()
     render_music_lab()

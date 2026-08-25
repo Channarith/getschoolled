@@ -1357,8 +1357,11 @@ MONITOR_JS = (
       const actionStage = document.getElementById('theodore-action');
       if (actionStage) actionStage.classList.remove('speaking');
     }
+    window.addEventListener('theodore-live-audio', (event) => {
+      if (event.detail?.active) stopTheodoreAudio();
+    });
     async function speakTheodore(text, langCode) {
-      if (!text) return;
+      if (!text || window.__THEODORE_LIVE_AUDIO_ACTIVE__) return;
       const cleaned = String(text).replace(/^\\[[^\\]]+\\]\\s*/, '');
       stopTheodoreAudio();
       const actionStage = document.getElementById('theodore-action');
