@@ -125,10 +125,14 @@ def synthesize(text: str, *, language: str = "en", style: str = "warm"):
             _lab._bench_engine(engine, str(exc))
 
     detail = f" Tried: {'; '.join(errors)}" if errors else ""
+    advice = (
+        "Check that this process can reach the voice service"
+        if benched
+        else "Configure TTS_BASE_URL/SPEECH_BASE_URL, ELEVENLABS_API_KEY, or install edge-tts"
+    )
     raise ProviderUnavailable(
         f"No server TTS engine could render {LANGUAGE_NAMES.get(lang, lang)}."
-        f"{detail} Configure TTS_BASE_URL/SPEECH_BASE_URL, ELEVENLABS_API_KEY, "
-        "or install edge-tts; the client can still use the device voice."
+        f"{detail} {advice}; the client can still use the device voice."
     )
 
 

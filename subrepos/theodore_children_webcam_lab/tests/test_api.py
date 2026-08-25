@@ -221,14 +221,24 @@ def test_gesture_geometry_is_distance_invariant():
     "script_name", ["app.js", "vision_math.js"]
 )
 def test_static_javascript_parses_with_node(script_name):
+    """Parse as an ES module — that is how the page loads these files.
+
+    ``node --check file.js`` uses script mode, which allows a second
+    ``function`` / ``let`` of the same name. The browser then dies with
+    ``Identifier has already been declared`` and the start button never
+    binds, which is exactly "I clicked Allow camera and nothing happened".
+    """
     node = shutil.which("node")
     if not node:
         pytest.skip("node is not installed")
     script = ROOT / "src/theodore_children_webcam_lab/static" / script_name
     result = subprocess.run(
-        [node, "--check", str(script)],
+        [node, "--input-type=module", "--check"],
+        input=script.read_text(),
         check=False,
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0, result.stderr
+    if script_name == "app.js":
+        assert script.read_text().count("let stageRect") == 1
