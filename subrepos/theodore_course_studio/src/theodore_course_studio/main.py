@@ -39,6 +39,7 @@ from .early_learning import (
     list_early_courses,
 )
 from .extract import extract_document
+from .compose import ComposeCourseRequest, compose_course_from_segments, trial_demo_plan
 from .generate import CourseBuilder
 from .offline_trainer import run_offline_training
 from .quality_model import default_model_path, load_model, model_to_public_dict
@@ -478,6 +479,54 @@ def get_course(course_id: str) -> dict[str, Any]:
     if course is None:
         raise HTTPException(status_code=404, detail="course not found")
     return course.model_dump(mode="json")
+
+
+@app.post("/api/studio/courses/compose")
+def compose_course(req: ComposeCourseRequest) -> dict[str, Any]:
+    course = compose_course_from_segments(req)
+    _builder.save_course(course)
+    get_telemetry().record_course_built(audience="composed")
+    return course.model_dump(mode="json")
+
+
+@app.get("/api/studio/courses/trial-plan")
+def trial_plan(language: str = "en") -> dict[str, Any]:
+    return trial_demo_plan(language=normalize_language(language))
+
+
+class TrialRunRequest(BaseModel):
+    session_id: str = "studio-teach-trial"
+    language: str = "en"
+    learner_id: str = "learner-demo"
+    profile: LearnerProfileScores = Field(default_factory=LearnerProfileScores)
+
+
+@app.post("/api/studio/teach/trial-run")
+def teach_trial_run(req: TrialRunRequest) -> dict[str, Any]:
+    """Compose the default segment sequence, persist it, and start teaching."""
+    course = compose_course_from_segments(
+        ComposeCourseRequest(title="Trial demo course", language=req.language)
+    )
+    _teach._builder.save_course(course)
+    try:
+        payload = _teach.start(
+            session_id=req.session_id,
+            course_id=course.course_id,
+            profile=req.profile,
+            learner_id=req.learner_id,
+            language=normalize_language(req.language),
+            use_voice_agent=True,
+            resume=False,
+            soft_limit_minutes=18,
+        )
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    payload["course_id"] = course.course_id
+    payload["composed"] = True
+    payload["segment_kinds"] = [
+        (s.tags[0] if s.tags else "lesson") for s in course.slides
+    ]
+    return payload
 
 
 @app.post("/api/studio/courses/build")
