@@ -14,6 +14,13 @@ class WebcamGameType(str, Enum):
     FOCUS_STREAK = "focus_streak"
     CONFIDENCE_SMILE = "confidence_smile"
     INTEGRITY_GUARD = "integrity_guard"
+    HALLOWEEN_WAND = "halloween_wand"
+    CHRISTMAS_GINGERBREAD = "christmas_gingerbread"
+    VALENTINES_HEARTS = "valentines_hearts"
+    MOTHERS_DAY = "mothers_day"
+    FATHERS_DAY = "fathers_day"
+    CUTE_ENOUGH = "cute_enough"
+    JIGGY_DANCE = "jiggy_dance"
 
 
 class PresenceState(str, Enum):
@@ -102,6 +109,14 @@ class WebcamSignal(BaseModel):
     mean_luminance: float | None = Field(default=None, ge=0.0, le=1.0)
     underexposed_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
     overexposed_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Themed webcam games — optional client gesture / accessory telemetry.
+    wand_spell_label: str | None = Field(default=None, max_length=24)
+    accessory_count: int | None = Field(default=None, ge=0, le=20)
+    cute_confidence_score: int | None = Field(default=None, ge=0, le=100)
+    game_theme: str | None = Field(default=None, max_length=32)
+    dance_move_matched: str | None = Field(default=None, max_length=32)
+    dance_move_skipped: str | None = Field(default=None, max_length=32)
+    dance_move_index: int | None = Field(default=None, ge=0, le=32)
     luminance_grid: list[list[float]] | None = None
 
 
@@ -341,6 +356,7 @@ class WebcamLearningChallenge(BaseModel):
     learning_prompt: str
     target_duration_ms: int = Field(ge=0)
     participant_ids: list[str] = Field(default_factory=list)
+    move_sequence: list[str] = Field(default_factory=list)
 
 
 class WebcamGameResult(BaseModel):
@@ -351,3 +367,9 @@ class WebcamGameResult(BaseModel):
     streak: int
     feedback: str
     evaluation: ClassEvaluation
+    cute_score: int | None = Field(default=None, ge=0, le=100)
+    leaderboard: list[dict[str, object]] = Field(default_factory=list)
+    theme: str | None = None
+    spell_detected: str | None = None
+    matched_moves: list[str] = Field(default_factory=list)
+    skipped_moves: list[str] = Field(default_factory=list)
