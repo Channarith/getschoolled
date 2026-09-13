@@ -25,6 +25,7 @@ import {
   spokenMatchesChars,
   spokenMatchesColor,
 } from "../lib/cameraCheckVisionTests";
+import { detectWithTimeout, waitForVideoDimensions } from "../lib/cameraCheckVideo";
 import { localeToBcp47 } from "../lib/tts";
 import { useT } from "../lib/i18n";
 
@@ -152,6 +153,9 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
   const [faceBox, setFaceBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [done, setDone] = useState(false);
   const [detectorReady, setDetectorReady] = useState(true);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [stepStartedMs, setStepStartedMs] = useState(() => Date.now());
+  const [stuckTick, setStuckTick] = useState(0);
 
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [voiceBusy, setVoiceBusy] = useState(false);
@@ -171,6 +175,14 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
     [stepIndex],
   );
   const speechLang = localeToBcp47(locale);
+  void stuckTick;
+  const stepStuckMs = Date.now() - stepStartedMs;
+  const showManualContinue =
+    !done &&
+    !error &&
+    (stepStuckMs >= 12_000 ||
+      (!cameraReady && step.auto) ||
+      (!detectorReady && step.auto && !["lighting", "raise_hands", "vision_blink"].includes(step.id)));
 
   useEffect(() => {
     listStudents().then((r) => setStudents(r.students)).catch(() => setStudents([]));
@@ -195,6 +207,7 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
       return;
     }
     setStepIndex((i) => i + 1);
+    setStepStartedMs(Date.now());
     setStatus("");
   }, [onComplete, stepIndex, stopStream, t]);
 
@@ -247,7 +260,11 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
   const sample = useCallback(async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || !video.videoWidth || done) return;
+    if (!video || !canvas || done) return;
+    if (!video.videoWidth) {
+      setStatus(t("cameraCheck.waitingPreview"));
+      return;
+    }
     const w = 64;
     const h = 36;
     canvas.width = w;
@@ -263,7 +280,7 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
     const detector = detectorRef.current;
     if (detector) {
       try {
-        const faces = await detector.detect(video);
+        const faces = await detectWithTimeout(detector.detect(video), 450, []);
         const face = faces[0];
         if (face) {
           boxNorm = {
@@ -309,8 +326,10 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
     let matched = false;
 
     if (target === "lighting") {
-      matched = readiness.verdict === "ready";
-      setStatus(matched ? readiness.message : readiness.message);
+      matched =
+        readiness.verdict === "ready" ||
+        (readiness.verdict === "fixable" && readiness.metrics.lightQualityScore >= 0.22);
+      setStatus(readiness.message);
     } else if (target === "distance") {
       matched = dist.band === "good";
       if (dist.band === "too_close" && dist.distanceM != null) {
@@ -362,14 +381,19 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
       }
       streamRef.current = stream;
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => undefined);
+        const video = videoRef.current;
+        video.srcObject = stream;
+        await video.play().catch(() => undefined);
+        const ready = await waitForVideoDimensions(video);
+        setCameraReady(ready);
+        setStatus(ready ? t("cameraCheck.previewReady") : t("cameraCheck.waitingPreview"));
+      } else {
+        setCameraReady(false);
       }
-      setStatus("Camera ready");
     } catch {
       setError("Camera permission is required for this check.");
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     streamRefAlive.current = true;
@@ -381,12 +405,22 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
   }, [stopStream, openStream]);
 
   useEffect(() => {
+    setStepStartedMs(Date.now());
+  }, [stepIndex]);
+
+  useEffect(() => {
     if (done || error) return;
+    const id = window.setInterval(() => setStuckTick((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [done, error, stepIndex]);
+
+  useEffect(() => {
+    if (done || error || !cameraReady) return;
     const id = window.setInterval(() => {
       void sample();
     }, 350);
     return () => window.clearInterval(id);
-  }, [done, error, sample]);
+  }, [cameraReady, done, error, sample]);
 
   async function recordVoiceName() {
     setVoiceBusy(true);
@@ -565,6 +599,9 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
             {voiceBusy ? t("cameraCheck.voiceRecording") : t("cameraCheck.voiceRecord")}
           </button>
           {voiceMsg && <p className="muted">{voiceMsg}</p>}
+          <button type="button" style={{ marginLeft: 8 }} onClick={advance}>
+            {t("cameraCheck.skipVoice")}
+          </button>
         </div>
       )}
 
@@ -606,7 +643,7 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
       )}
 
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-        {!done && !detectorReady && step.auto && step.id !== "lighting" && step.id !== "raise_hands" && step.id !== "distance" && step.id !== "vision_blink" ? (
+        {showManualContinue ? (
           <button type="button" onClick={advance}>
             {t("cameraCheck.manualContinue")}
           </button>
@@ -617,6 +654,8 @@ export default function CameraTrackingCheck({ embedded = false, onComplete }: Pr
             setDone(false);
             setStepIndex(0);
             setPassed({});
+            setStepStartedMs(Date.now());
+            setCameraReady(false);
             holdRef.current = null;
             blinkCountRef.current = 0;
             setStatus("Restarting…");
