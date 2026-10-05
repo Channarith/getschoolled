@@ -121,6 +121,19 @@ culturally-inspired character presented as a friendly study companion — never 
 temple, monument, or devotional object — and the leaf is a symbol of knowledge
 and growth, not faith. Keep it respectful and never appropriative.
 
+## Profile avatars
+
+Learners pick a profile avatar from a bundled catalog with two styles —
+**Realistic** (warm illustrated portraits) and **Cute** (friendly rounded
+characters). Assets are local SVG/PNG with stable IDs (`r-*` / `c-*`); legacy
+placeholders (`logo`, `mascot`, initials) migrate automatically. Web Account +
+nav ProfileMenu and mobile Account share the same catalog; live-room tiles show
+the chosen avatar when the camera is off.
+
+Contact sheet: `docs/screens/profile_avatars_catalog.webp`
+
+<img src="docs/screens/profile_avatars_catalog.webp" alt="Contact sheet of Salareen Realistic and Cute profile avatars" width="760" />
+
 ## Screens and videos
 
 ### Video walkthroughs

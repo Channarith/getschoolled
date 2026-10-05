@@ -76,10 +76,12 @@ export type Account = {
   id: string; email: string; display_name: string;
   tier: string; region: string; is_admin?: boolean;
   preferred_language?: string;
+  avatar_id?: string;
 };
 
 export type StudentProfile = {
   id: string; display_name: string; age_band: string;
+  avatar_id?: string;
   mastery: Record<string, number>; completed_course_ids: string[]; interests: string[];
   primary_style?: string; learning_pace?: string; learning_structure?: string;
   session_length?: string; group_preference?: string; reading_level?: string;
@@ -699,6 +701,7 @@ export type LiveRoomState = {
     readiness_score?: number;
     readiness_band?: string;
     primary_style?: string;
+    avatar_id?: string;
   }[];
   chat: { id: string; from_name: string; text: string }[];
   slide: {
@@ -1149,6 +1152,7 @@ export async function joinLiveRoom(
     readinessBand?: string;
     primaryStyle?: string;
     attendeeCode?: string;
+    avatarId?: string;
   },
 ):
   Promise<{
@@ -1172,6 +1176,7 @@ export async function joinLiveRoom(
       readiness_score: opts?.readinessScore || 0,
       readiness_band: opts?.readinessBand || "",
       primary_style: opts?.primaryStyle || "",
+      avatar_id: opts?.avatarId || "",
       attendee_code: opts?.attendeeCode || "",
     }),
   });
@@ -1741,6 +1746,17 @@ export async function syncMyListToggle(
     if (saved) await enrollCourse(courseId, title || courseId, "saved");
     else await deleteEnrollment(courseId);
   } catch { /* offline or unauthenticated — the local copy still works */ }
+}
+
+
+export async function setAccountAvatar(avatarId: string): Promise<{
+  ok: boolean; avatar_id: string; account: Account;
+}> {
+  return get(IDENTITY_URL, "/account/avatar", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ avatar_id: avatarId }),
+  });
 }
 
 export async function getPortfolio(): Promise<Portfolio> {

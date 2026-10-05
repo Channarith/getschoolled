@@ -48,6 +48,8 @@ import { friendlyError } from "../../lib/errors";
 import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
 import Whiteboard, { type WhiteboardStroke } from "./Whiteboard";
+import AvatarImage from "../../components/AvatarImage";
+import { readLocalAvatarId } from "../../lib/avatars";
 import { useT } from "../../lib/i18n";
 import { buildNarrationSpeakOptions } from "../../lib/narrationTts";
 import { speakNaturally, cancelSpeech } from "../../lib/tts";
@@ -448,7 +450,11 @@ function ParticipantTile({
                   boxShadow: "0 14px 34px rgba(0,0,0,0.38)",
                 }}
               >
-                {aiHost ? "🎓" : (p.name || "?").trim().charAt(0).toUpperCase()}
+                <AvatarImage
+                  avatarId={aiHost ? "ai-host" : (p.avatar_id || "logo")}
+                  size={72}
+                  alt={aiHost ? "Theodore" : p.name}
+                />
               </div>
               <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>
                 {aiHost ? "Theodore" : p.name}
@@ -542,7 +548,11 @@ function ParticipantTile({
             color: isHost ? "rgba(255,255,255,0.95)" : "var(--muted)",
           }}
         >
-          {isHost ? "🎓" : initials(p.name)}
+          {isHost ? (
+            <AvatarImage avatarId={aiHost ? "ai-host" : (p.avatar_id || "logo")} size={large ? 96 : 64} alt={p.name} />
+          ) : (
+            <AvatarImage avatarId={p.avatar_id || "initials"} size={large ? 96 : 64} alt={p.name} />
+          )}
         </div>
       )}
       {isMe && cameraOn && hasVideo ? (() => {
@@ -1265,13 +1275,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         || (classId ? sessionStorage.getItem(`${ATTENDEE_CODE_KEY}:${classId}`) : "")
         || ""
       ).trim();
+      const avatarId = readLocalAvatarId();
       const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity, locale, profile ? {
         studentId: profile.studentId,
         readinessScore: profile.readinessScore,
         readinessBand: profile.readinessBand,
         primaryStyle: profile.primaryStyle,
         attendeeCode,
-      } : { attendeeCode });
+        avatarId,
+      } : { attendeeCode, avatarId });
       setJoinInfo(info);
       setRoom(info.room);
       // The admin (first joiner) receives the moderator key so their client can
@@ -3791,7 +3803,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       border: "1px solid var(--border)",
                     }}
                   >
-                    {isTheodore ? "🎓" : initials(m.from_name || "?")}
+                    {isTheodore ? (
+                      <AvatarImage avatarId="ai-host" size={28} alt="Theodore" />
+                    ) : (
+                      <AvatarImage
+                        avatarId={(room?.participants || []).find((x) => x.id === m.from_id)?.avatar_id || "initials"}
+                        size={28}
+                        alt={m.from_name || "Participant"}
+                      />
+                    )}
                   </span>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>

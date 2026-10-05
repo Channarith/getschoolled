@@ -307,6 +307,8 @@ class Participant:
     readiness_score: float = 0.0
     # Learning style from identity profile (privacy-safe aggregate input for Theodore).
     primary_style: str = ""
+    # Profile avatar catalog ID (aoep_shared.avatars); empty = default / initials fallback.
+    avatar_id: str = ""
 
     def __post_init__(self) -> None:
         self.name = (self.name or "").strip()
@@ -342,6 +344,7 @@ class Participant:
             "is_admin": self.is_admin,
             # Band only in public presence — scores stay host/admin-side.
             "readiness_band": self.readiness_band,
+            "avatar_id": self.avatar_id,
         }
 
     def to_host_dict(self) -> dict:
@@ -1089,6 +1092,7 @@ class LiveRoomStore:
         readiness_band: str = "",
         readiness_score: float = 0.0,
         primary_style: str = "",
+        avatar_id: str = "",
     ) -> Participant:
         room = self.require(room_id)
         if room.status != "live":
@@ -1123,11 +1127,16 @@ class LiveRoomStore:
                 style = (primary_style or "").strip()
                 if style:
                     p.primary_style = style
+                if (avatar_id or "").strip():
+                    from .avatars import resolve_avatar_id
+                    p.avatar_id = resolve_avatar_id(avatar_id)
                 p.last_seen = _ts()   # re-join counts as presence
                 self._commit(room)
                 return p
         if room.is_full:
             raise RoomFullError("this live room is full")
+        from .avatars import resolve_avatar_id
+        av = resolve_avatar_id(avatar_id) if (avatar_id or "").strip() else ""
         participant = Participant(
             id=uuid.uuid4().hex[:10],
             name=name,
@@ -1139,6 +1148,7 @@ class LiveRoomStore:
             readiness_band=(readiness_band or "").strip(),
             readiness_score=float(readiness_score or 0.0),
             primary_style=(primary_style or "").strip(),
+            avatar_id=av,
             # Hard mutex: learners join WITHOUT publish rights. Their LiveKit token
             # can't send audio/video until the host/AI grants them the floor
             # (which flips can_publish and lets the client fetch a publish token).

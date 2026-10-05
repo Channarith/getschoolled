@@ -276,6 +276,42 @@ def me(acct=Depends(current_account)) -> dict:
     return acct.public()
 
 
+class AvatarPreference(BaseModel):
+    avatar_id: str
+
+
+@app.get("/avatars/catalog")
+def avatars_catalog(style: str = "") -> dict:
+    """Public catalog of Realistic / Cute profile avatars (bundled assets)."""
+    from aoep_shared.avatars import avatar_catalog_list, avatar_styles, DEFAULT_AVATAR_ID
+
+    filt = style.strip().lower() or None
+    if filt and filt not in ("realistic", "cute"):
+        raise HTTPException(status_code=400, detail="style must be realistic or cute")
+    return {
+        "default_id": DEFAULT_AVATAR_ID,
+        "styles": avatar_styles(),
+        "avatars": avatar_catalog_list(style=filt),
+    }
+
+
+@app.post("/account/avatar")
+def set_account_avatar(req: AvatarPreference, acct=Depends(current_account)) -> dict:
+    """Persist the account profile avatar (stable catalog ID)."""
+    from aoep_shared.avatars import resolve_avatar
+
+    updated = app.state.accounts.set_avatar(acct.id, req.avatar_id)
+    resolved = resolve_avatar(updated.avatar_id)
+    return {"ok": True, "avatar_id": resolved["id"], "avatar": resolved, "account": updated.public()}
+
+
+@app.get("/account/avatar")
+def get_account_avatar(acct=Depends(current_account)) -> dict:
+    from aoep_shared.avatars import resolve_avatar
+
+    return resolve_avatar(acct.avatar_id)
+
+
 class LanguagePreference(BaseModel):
     language: str
 
@@ -465,6 +501,7 @@ class OnboardingProfileRequest(BaseModel):
     display_name: str = ""
     phone: str = ""
     region: Region | None = None
+    avatar_id: str = ""
 
 
 class OnboardingBillingRequest(BaseModel):
@@ -492,11 +529,15 @@ class OnboardingCompleteRequest(BaseModel):
 
 @app.post("/onboarding/profile")
 def onboarding_profile(req: OnboardingProfileRequest, acct=Depends(current_account)) -> dict:
+    from aoep_shared.avatars import resolve_avatar, resolve_avatar_id
+
     patch: dict = {}
     if req.display_name.strip():
         patch["display_name"] = req.display_name.strip()
     if req.region is not None:
         patch["region"] = req.region
+    if req.avatar_id.strip():
+        patch["avatar_id"] = resolve_avatar_id(req.avatar_id)
     if patch:
         acct = app.state.accounts.patch_account(acct.id, **patch)
     if req.phone.strip():
@@ -504,7 +545,11 @@ def onboarding_profile(req: OnboardingProfileRequest, acct=Depends(current_accou
         addr.phone = req.phone.strip()
         app.state.accounts.set_billing_profile(acct.id, addr, card_last4=acct.card_last4 or "")
         acct = app.state.accounts.by_id(acct.id)
-    return {"ok": True, "display_name": acct.display_name}
+    return {
+        "ok": True,
+        "display_name": acct.display_name,
+        "avatar_id": resolve_avatar(acct.avatar_id)["id"],
+    }
 
 
 @app.post("/onboarding/billing")
@@ -688,6 +733,23 @@ def get_student(student_id: str, acct=Depends(current_account)) -> dict:
     if prof is None:
         raise HTTPException(status_code=404, detail="unknown student profile")
     return prof.model_dump()
+
+
+class StudentAvatarPreference(BaseModel):
+    avatar_id: str
+
+
+@app.post("/students/{student_id}/avatar")
+def set_student_avatar(student_id: str, req: StudentAvatarPreference,
+                       acct=Depends(current_account)) -> dict:
+    from aoep_shared.avatars import resolve_avatar
+
+    try:
+        prof = app.state.accounts.set_student_avatar(acct.id, student_id, req.avatar_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    resolved = resolve_avatar(prof.avatar_id)
+    return {"ok": True, "student": prof.model_dump(), "avatar": resolved}
 
 
 class LearningProfileSubmit(BaseModel):

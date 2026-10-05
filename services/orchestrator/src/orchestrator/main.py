@@ -2393,6 +2393,7 @@ class LiveRoomJoinRequest(BaseModel):
     readiness_score: float = 0.0
     readiness_band: str = ""
     primary_style: str = ""
+    avatar_id: str = ""
 
 
 class LiveRoomPresenceReportRequest(BaseModel):
@@ -2959,6 +2960,7 @@ def join_live_room(
             readiness_band=req.readiness_band,
             readiness_score=req.readiness_score,
             primary_style=req.primary_style,
+            avatar_id=req.avatar_id,
         )
     except (KeyError, LiveRoomError, RoomFullError) as exc:
         raise _live_room_http_error(exc)
