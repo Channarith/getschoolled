@@ -113,6 +113,32 @@ MONITOR_CSS = """
     .tilt-chip.warm { border-color: #f59e0b; color: #fde68a; }
     .tilt-chip.cool { border-color: #22c55e; color: #86efac; }
     .tilt-hint { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+    .game-costume-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+    .game-costume-label { font-size: 11px; color: #cbd5e1; }
+    .cam-snap-btn { position: absolute; bottom: 14px; right: 14px; z-index: 6;
+                    width: clamp(56px, 14vw, 72px); height: clamp(56px, 14vw, 72px);
+                    border-radius: 50%; border: 3px solid #fde047; background: linear-gradient(145deg, #f472b6, #a855f7);
+                    color: #fff; font-size: clamp(26px, 6vw, 34px); line-height: 1;
+                    cursor: pointer; pointer-events: auto; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.55);
+                    display: flex; align-items: center; justify-content: center; }
+    .cam-snap-btn:hover { transform: scale(1.04); border-color: #fff; }
+    .cam-snap-btn:active { transform: scale(0.96); }
+    .game-theme-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; font-size: 11px; }
+    .game-theme-row select { min-width: 11rem; background: #1f2937; color: #e2e8f0; border: 1px solid #334155;
+                              border-radius: 4px; padding: 3px 6px; }
+    .cute-score-chip { font-size: 12px; padding: 4px 10px; border-radius: 999px;
+                        border: 1px solid #f472b6; color: #fbcfe8; background: rgba(30, 27, 75, 0.7); }
+    .game-leaderboard { font-size: 11px; color: #cbd5e1; margin-top: 6px; line-height: 1.45; }
+    .jiggy-prompt { position: absolute; left: 50%; top: 18%; transform: translate(-50%, -50%);
+                    z-index: 7; pointer-events: none; text-align: center; padding: 10px 18px;
+                    border-radius: 999px; background: rgba(109, 40, 217, 0.82);
+                    border: 2px solid #fde047; color: #fff; font-weight: 800;
+                    font-size: clamp(18px, 4.5vw, 32px); text-shadow: 0 2px 8px rgba(0,0,0,0.45);
+                    animation: jiggy-bop 0.55s ease-in-out infinite alternate; }
+    @keyframes jiggy-bop {
+      from { transform: translate(-50%, -50%) scale(1); }
+      to { transform: translate(-50%, -52%) scale(1.04); }
+    }
     .facial-hud { margin-top: 8px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .audio-hud { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .facial-card { border: 1px solid #334155; border-radius: 6px; padding: 8px 10px;
@@ -503,6 +529,57 @@ MONITOR_JS = (
     let gameSignalBuffer = [];
     let gameScoring = false;
     let challengeFirstSignalMs = null;
+    let gameCostumeIndex = 0;
+    let gameAccessoryIndex = 0;
+    let selectedGameTheme = 'classic';
+    let lastGameHeadPose = null;
+    let lastWandSpell = null;
+    let lastCuteScore = 0;
+    const GAME_COSTUMES = [
+      { id: 'none', label: 'None' },
+      { id: 'glasses', label: 'Glasses' },
+      { id: 'party_hat', label: 'Party hat' },
+      { id: 'makeup', label: 'Makeup' },
+      { id: 'cat_ears', label: 'Cat ears' },
+      { id: 'pumpkin', label: 'Pumpkin' },
+      { id: 'wizard', label: 'Wizard hat' },
+      { id: 'sunglasses', label: 'Cool shades' },
+    ];
+    const GAME_ACCESSORIES = [
+      { id: 'none', label: 'No prop' },
+      { id: 'wand', label: 'Magic wand' },
+      { id: 'heart_wand', label: 'Heart wand' },
+      { id: 'hero_hammer', label: 'Hero hammer' },
+      { id: 'flower_bouquet', label: 'Flower bouquet' },
+    ];
+    const GAME_THEME_OPTIONS = [
+      { id: 'classic', costume: 'none', accessory: 'none', overlay: 'none' },
+      { id: 'halloween', costume: 'wizard', accessory: 'wand', overlay: 'halloween_moon' },
+      { id: 'christmas', costume: 'party_hat', accessory: 'none', overlay: 'gingerbread_house' },
+      { id: 'valentines', costume: 'makeup', accessory: 'heart_wand', overlay: 'floating_hearts' },
+      { id: 'mothers_day', costume: 'makeup', accessory: 'flower_bouquet', overlay: 'mothers_day' },
+      { id: 'fathers_day', costume: 'sunglasses', accessory: 'hero_hammer', overlay: 'fathers_day' },
+      { id: 'cute', costume: 'glasses', accessory: 'none', overlay: 'sparkle_frame' },
+      { id: 'jiggy', costume: 'party_hat', accessory: 'none', overlay: 'dance_floor' },
+    ];
+    const JIGGY_MOVES = {
+      shake_shake: { prompt: 'Shake shake!', encourage: 'Awesome shakes!' },
+      dance: { prompt: 'Dance dance!', encourage: 'You are grooving!' },
+      spin: { prompt: 'Spin around!', encourage: 'Great spin energy!' },
+      twirl: { prompt: 'Twirl twirl!', encourage: 'Lovely twirl!' },
+      move_hands: { prompt: 'Move your hands!', encourage: 'Hand moves on point!' },
+      bop_head: { prompt: 'Bop your head!', encourage: 'Head bop unlocked!' },
+      get_low: { prompt: 'Get low!', encourage: 'Smooth get-low!' },
+      high_five: { prompt: 'High five the air!', encourage: 'High five hero!' },
+      snake_hands: { prompt: 'Snake your hands!', encourage: 'Sss-super snake hands!' },
+      side_to_side: { prompt: 'Side to side!', encourage: 'Nice side steps!' },
+      jump_bop: { prompt: 'Jump and bop!', encourage: 'Big jump energy!' },
+      wave_hello: { prompt: 'Wave hello!', encourage: 'Friendly wave!' },
+    };
+    const JIGGY_MATCH_THRESHOLD = 0.42;
+    let jiggyMoveSequence = [];
+    let jiggyMoveIndex = 0;
+    let jiggyLastMatchMs = 0;
     let visionKnobs = {};
     let lastLiveCamParticipant = null;
 
@@ -1357,11 +1434,8 @@ MONITOR_JS = (
       const actionStage = document.getElementById('theodore-action');
       if (actionStage) actionStage.classList.remove('speaking');
     }
-    window.addEventListener('theodore-live-audio', (event) => {
-      if (event.detail?.active) stopTheodoreAudio();
-    });
     async function speakTheodore(text, langCode) {
-      if (!text || window.__THEODORE_LIVE_AUDIO_ACTIVE__) return;
+      if (!text) return;
       const cleaned = String(text).replace(/^\\[[^\\]]+\\]\\s*/, '');
       stopTheodoreAudio();
       const actionStage = document.getElementById('theodore-action');
@@ -1579,14 +1653,18 @@ MONITOR_JS = (
       challengeFirstSignalMs = null;
       gameScoring = false;
       document.getElementById('game-attempt').disabled = true;
+      if (body.leaderboard) renderGameLeaderboard(body.leaderboard);
+      if (body.cute_score != null) updateCuteScoreHud(body.cute_score);
       document.getElementById('game-status').textContent = res && res.ok
         ? `${body.passed ? 'PASSED' : 'FAILED'} Δ${body.score_delta} total=${body.total_score} `
-          + `streak=${body.streak} — ${body.feedback}${automatic ? ' (auto-scored)' : ''}`
+          + `streak=${body.streak}${body.cute_score != null ? ' cute=' + body.cute_score : ''}`
+          + ` — ${body.feedback}${automatic ? ' (auto-scored)' : ''}`
         : ((body && body.detail) || 'attempt failed; issue a new challenge');
       toast(res && res.ok ? (body.passed ? 'Challenge passed' : 'Challenge failed') : 'Attempt error');
     }
 
     document.getElementById('game-issue').addEventListener('click', async () => {
+      applyThemeDefaults(selectedGameTheme);
       const res = await fetch('/api/theodore/webcam/games/challenge', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -1594,6 +1672,7 @@ MONITOR_JS = (
           mode: 'solo',
           learning_prompt: document.getElementById('game-prompt').value || 'Stay focused on the lesson.',
           participant_ids: ['camera-local'],
+          theme: selectedGameTheme,
         }),
       });
       const body = await res.json();
@@ -1602,7 +1681,14 @@ MONITOR_JS = (
       gameSignalBuffer = [];
       challengeFirstSignalMs = null;
       gameScoring = false;
+      if (body.game_type === 'jiggy_dance') {
+        resetJiggyDance(body.move_sequence || []);
+      } else {
+        resetJiggyDance([]);
+      }
       updateGameProgress();
+      updateGameCostumeLabel();
+      refreshSilhouetteGuide();
       toast('Challenge issued: ' + body.title);
     });
     document.getElementById('game-attempt').addEventListener('click', async () => {
@@ -1613,6 +1699,22 @@ MONITOR_JS = (
       await scoreActiveGame(false);
     });
     document.getElementById('game-attempt').disabled = true;
+    const gameCostumeBtn = document.getElementById('game-costume-cycle');
+    if (gameCostumeBtn) gameCostumeBtn.addEventListener('click', cycleGameCostume);
+    const gameAccessoryBtn = document.getElementById('game-accessory-cycle');
+    if (gameAccessoryBtn) gameAccessoryBtn.addEventListener('click', cycleGameAccessory);
+    const gameThemeSelect = document.getElementById('game-theme');
+    if (gameThemeSelect) {
+      gameThemeSelect.addEventListener('change', () => {
+        selectedGameTheme = gameThemeSelect.value || 'classic';
+        applyThemeDefaults(selectedGameTheme);
+        refreshSilhouetteGuide();
+      });
+    }
+    const camSnapBtn = document.getElementById('cam-snap');
+    if (camSnapBtn) camSnapBtn.addEventListener('click', captureCamSnapshot);
+    updateGameCostumeLabel();
+    updateGameAccessoryLabel();
 
     // Camera path — HD Ready / Full HD 16:9
     const CAM_IDEAL_W = 1920, CAM_IDEAL_H = 1080;  // Full HD request
@@ -2321,6 +2423,8 @@ MONITOR_JS = (
       else clearSilhouetteOverlay();
       drawFaceContoursOnOverlay();
       drawHandContoursOnOverlay();
+      drawIndexFingerTrail();
+      drawGamePlayOverlay();
       // Last: drawSilhouetteGuide clears the overlay, so the gauge has to come
       // after it or it is wiped on the next frame.
       drawTiltGauge();
@@ -3541,6 +3645,11 @@ MONITOR_JS = (
     // { hands: [[{x,y}]], connections: [[i,j]], labels: ['Left'|'Right'] } — null when
     // no hand is in frame, which is what keeps hand contours off the overlay.
     let lastHandContours = null;
+    // Index fingertip tracing trail — fades over FINGER_TRAIL_DURATION_MS on the
+    // mirrored webcam overlay (overlayPoint handles the mirror flip).
+    const FINGER_TRAIL_DURATION_MS = 1_500;
+    const INDEX_FINGER_TIP = 8;  // MediaPipe hand landmark index
+    let indexFingerTrail = [];
     let moodHistory = [];
     // Attention and behaviour flicker frame to frame (~3 samples/sec), so — like
     // mood — they are smoothed over a short rolling window instead of shown raw.
@@ -3769,6 +3878,7 @@ MONITOR_JS = (
     async function trackHands(facePts) {
       if (usingSilhouette || usingPattern || !camVideo.videoWidth) {
         lastHandContours = null;
+        indexFingerTrail = [];
         return null;
       }
       const hl = await ensureHandLandmarker();
@@ -3791,6 +3901,13 @@ MONITOR_JS = (
       }
       const labels = (result.handedness || []).map((h) => (h && h[0] && h[0].categoryName) || '');
       lastHandContours = { hands, connections: hl._CONNECTIONS || [], labels };
+      // Index fingertip trail — prefer the first hand with a visible index tip.
+      hands.forEach((pts) => {
+        const tip = pts[INDEX_FINGER_TIP];
+        if (tip) pushIndexFingerTrailSample(tip.x, tip.y);
+      });
+      const spell = detectWandSpellFromTrail(indexFingerTrail);
+      if (spell) lastWandSpell = spell;
       return {
         hand_count: hands.length,
         hands_on_face_score: handsOnFaceFromLandmarks(hands, facePts),
@@ -3897,6 +4014,701 @@ MONITOR_JS = (
         }
       });
       ctx.restore();
+    }
+
+    function pushIndexFingerTrailSample(normX, normY) {
+      if (normX == null || normY == null) return;
+      const now = Date.now();
+      const last = indexFingerTrail[indexFingerTrail.length - 1];
+      // Skip duplicate samples when the finger barely moves between 300 ms frames.
+      if (last && Math.hypot(normX - last.x, normY - last.y) < 0.004) return;
+      indexFingerTrail.push({ x: normX, y: normY, t: now });
+      const cutoff = now - FINGER_TRAIL_DURATION_MS;
+      indexFingerTrail = indexFingerTrail.filter((p) => p.t >= cutoff);
+    }
+
+    function drawIndexFingerTrail() {
+      if (indexFingerTrail.length < 2) return;
+      const { w } = syncOverlaySize();
+      const ctx = overlay.getContext('2d');
+      const now = Date.now();
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = Math.max(3, w * 0.006);
+      for (let i = 1; i < indexFingerTrail.length; i++) {
+        const prev = indexFingerTrail[i - 1];
+        const cur = indexFingerTrail[i];
+        const age = now - cur.t;
+        const alpha = clamp01(1 - age / FINGER_TRAIL_DURATION_MS);
+        if (alpha <= 0.02) continue;
+        const ap = overlayPoint(prev.x, prev.y);
+        const bp = overlayPoint(cur.x, cur.y);
+        ctx.strokeStyle = `rgba(244, 114, 182, ${0.12 + alpha * 0.88})`;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.moveTo(ap.x, ap.y);
+        ctx.lineTo(bp.x, bp.y);
+        ctx.stroke();
+      }
+      const tip = indexFingerTrail[indexFingerTrail.length - 1];
+      const tp = overlayPoint(tip.x, tip.y);
+      const tipAlpha = clamp01(1 - (now - tip.t) / FINGER_TRAIL_DURATION_MS);
+      ctx.globalAlpha = tipAlpha;
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, Math.max(4, w * 0.008), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function updateGameCostumeLabel() {
+      const el = document.getElementById('game-costume-label');
+      if (!el) return;
+      const costume = GAME_COSTUMES[gameCostumeIndex] || GAME_COSTUMES[0];
+      el.textContent = 'Outfit: ' + costume.label;
+    }
+
+    function updateGameAccessoryLabel() {
+      const el = document.getElementById('game-accessory-label');
+      if (!el) return;
+      const prop = GAME_ACCESSORIES[gameAccessoryIndex] || GAME_ACCESSORIES[0];
+      el.textContent = 'Prop: ' + prop.label;
+    }
+
+    function themeOption(themeId) {
+      return GAME_THEME_OPTIONS.find((t) => t.id === themeId) || GAME_THEME_OPTIONS[0];
+    }
+
+    function applyThemeDefaults(themeId) {
+      const spec = themeOption(themeId);
+      const costumeIdx = GAME_COSTUMES.findIndex((c) => c.id === spec.costume);
+      const accessoryIdx = GAME_ACCESSORIES.findIndex((a) => a.id === spec.accessory);
+      if (costumeIdx >= 0) gameCostumeIndex = costumeIdx;
+      if (accessoryIdx >= 0) gameAccessoryIndex = accessoryIdx;
+      updateGameCostumeLabel();
+      updateGameAccessoryLabel();
+      const cuteEl = document.getElementById('cute-score-live');
+      if (cuteEl && themeId === 'cute') {
+        cuteEl.textContent = 'Cute confidence: dress up & smile!';
+      }
+    }
+
+    function cycleGameCostume() {
+      gameCostumeIndex = (gameCostumeIndex + 1) % GAME_COSTUMES.length;
+      updateGameCostumeLabel();
+      refreshSilhouetteGuide();
+    }
+
+    function cycleGameAccessory() {
+      gameAccessoryIndex = (gameAccessoryIndex + 1) % GAME_ACCESSORIES.length;
+      updateGameAccessoryLabel();
+      refreshSilhouetteGuide();
+    }
+
+    function countActiveAccessories() {
+      let n = 0;
+      const costume = GAME_COSTUMES[gameCostumeIndex] || GAME_COSTUMES[0];
+      const prop = GAME_ACCESSORIES[gameAccessoryIndex] || GAME_ACCESSORIES[0];
+      if (costume.id !== 'none') n += 1;
+      if (prop.id !== 'none') n += 1;
+      return n;
+    }
+
+    // Mirrors themed_games.recognize_wand_spell — parity-tested in Python.
+    function detectWandSpellFromTrail(trail) {
+      if (!trail || trail.length < 8) return null;
+      const xs = trail.map((p) => p.x);
+      const ys = trail.map((p) => p.y);
+      const spanX = Math.max(...xs) - Math.min(...xs);
+      const spanY = Math.max(...ys) - Math.min(...ys);
+      if (spanX >= 0.22 && spanY <= 0.14) return 'swish';
+      if (spanY >= 0.18 && spanX <= 0.12) return 'flick';
+      const first = trail[0], last = trail[trail.length - 1];
+      const closed = Math.hypot(first.x - last.x, first.y - last.y);
+      if (trail.length >= 12 && closed <= 0.08) {
+        if (spanY >= 0.14 && spanX >= 0.10) return 'heart';
+        return 'loop';
+      }
+      return null;
+    }
+
+    function computeLiveCuteScore(facial) {
+      if (!facial || !(facial.face_count > 0)) return 0;
+      const costume = GAME_COSTUMES[gameCostumeIndex] || GAME_COSTUMES[0];
+      const prop = GAME_ACCESSORIES[gameAccessoryIndex] || GAME_ACCESSORIES[0];
+      let accessories = 0;
+      if (costume.id !== 'none') accessories += 1;
+      if (prop.id !== 'none') accessories += 1;
+      const smile = facial.smile_score || (facial.expression_label === 'happy' ? 0.65 : 0.15);
+      const gaze = facial.gaze_frontal || 0.5;
+      const yaw = Math.abs(facial.head_pose_yaw || 0);
+      const roll = Math.abs(facial.head_pose_roll || 0);
+      const pose = Math.max(0, Math.min(1, 1 - (yaw / 45) * 0.55 - (roll / 35) * 0.35));
+      const base = 45;
+      const score = Math.min(100, Math.round(
+        base
+        + Math.min(25, smile * 28)
+        + Math.min(15, gaze * 18)
+        + Math.min(15, Math.min(accessories, 6) * 3)
+        + Math.min(10, pose * 10),
+      ));
+      return score;
+    }
+
+    function updateCuteScoreHud(score) {
+      lastCuteScore = score;
+      const el = document.getElementById('cute-score-live');
+      if (!el) return;
+      if (!score) {
+        el.textContent = 'Cute confidence: step into the camera';
+        return;
+      }
+      el.textContent = 'Cute confidence: ' + score + '/100 · energy, not appearance';
+    }
+
+    function resetJiggyDance(moves) {
+      jiggyMoveSequence = Array.isArray(moves) ? moves.slice() : [];
+      jiggyMoveIndex = 0;
+      jiggyLastMatchMs = 0;
+    }
+
+    function detectDanceMoveConfidence(moveId, facial, signal) {
+      const motion = signal.motion_score || 0;
+      const body = signal.body_motion_score != null ? signal.body_motion_score : motion;
+      const fidget = signal.fidget_score || 0;
+      const hand = signal.hand_gesture_energy || 0;
+      const faceE = signal.face_motion_energy || 0;
+      const pitch = Math.abs(facial.head_pose_pitch || signal.head_pose_pitch || 0);
+      const yaw = Math.abs(facial.head_pose_yaw || signal.head_pose_yaw || 0);
+      const roll = Math.abs(facial.head_pose_roll || signal.head_pose_roll || 0);
+      const excited = signal.excitement_score || 0;
+      const spell = lastWandSpell || signal.wand_spell_label;
+      if (moveId === 'shake_shake') return Math.min(1, motion * 0.45 + fidget * 0.45 + hand * 0.2);
+      if (moveId === 'dance') return Math.min(1, motion * 0.35 + hand * 0.35 + faceE * 0.25 + excited * 0.15);
+      if (moveId === 'spin') return Math.min(1, (yaw / 22) * 0.55 + motion * 0.35 + body * 0.15);
+      if (moveId === 'twirl') return Math.min(1, (roll / 18) * 0.5 + (yaw / 25) * 0.25 + motion * 0.3);
+      if (moveId === 'move_hands') return Math.min(1, hand * 0.75 + motion * 0.2);
+      if (moveId === 'bop_head') return Math.min(1, faceE * 0.55 + motion * 0.25 + fidget * 0.15);
+      if (moveId === 'get_low') return Math.min(1, (pitch / 14) * 0.65 + motion * 0.25);
+      if (moveId === 'high_five') return Math.min(1, motion * 0.45 + hand * 0.45 + excited * 0.15);
+      if (moveId === 'snake_hands') {
+        const spellOk = (spell === 'swish' || spell === 'loop') ? 1 : 0;
+        return Math.min(1, hand * 0.45 + spellOk * 0.45 + motion * 0.15);
+      }
+      if (moveId === 'side_to_side') return Math.min(1, (yaw / 16) * 0.6 + motion * 0.3);
+      if (moveId === 'jump_bop') return Math.min(1, motion * 0.5 + excited * 0.3 + fidget * 0.25);
+      if (moveId === 'wave_hello') return Math.min(1, hand * 0.5 + motion * 0.25 + faceE * 0.15);
+      return 0;
+    }
+
+    function tickJiggyDance(facial, signal) {
+      if (!activeChallenge || activeChallenge.game_type !== 'jiggy_dance') return;
+      if (!jiggyMoveSequence.length) {
+        resetJiggyDance(activeChallenge.move_sequence || []);
+      }
+      const moveId = jiggyMoveSequence[jiggyMoveIndex];
+      if (!moveId) {
+        if (!gameScoring) void scoreActiveGame(true);
+        return;
+      }
+      const now = Date.now();
+      if (now - jiggyLastMatchMs < 700) return;
+      const conf = detectDanceMoveConfidence(moveId, facial, signal);
+      if (conf < JIGGY_MATCH_THRESHOLD) return;
+      signal.dance_move_matched = moveId;
+      signal.dance_move_index = jiggyMoveIndex;
+      jiggyLastMatchMs = now;
+      const meta = JIGGY_MOVES[moveId];
+      toast(meta ? meta.encourage : 'Great move!');
+      jiggyMoveIndex += 1;
+      if (jiggyMoveIndex >= jiggyMoveSequence.length) {
+        void scoreActiveGame(true);
+      }
+    }
+
+    function drawJiggyDancePrompt(ctx, w, h) {
+      if (!activeChallenge || activeChallenge.game_type !== 'jiggy_dance') return;
+      const moveId = jiggyMoveSequence[jiggyMoveIndex];
+      if (!moveId) return;
+      const meta = JIGGY_MOVES[moveId] || { prompt: moveId.replace(/_/g, ' ') };
+      const text = meta.prompt || moveId;
+      ctx.save();
+      const fontPx = Math.max(20, Math.round(w * 0.048));
+      ctx.font = '800 ' + fontPx + 'px ui-rounded, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = w * 0.5;
+      const cy = h * 0.22;
+      const tw = ctx.measureText(text).width + 36;
+      ctx.fillStyle = 'rgba(109, 40, 217, 0.84)';
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = Math.max(2, w * 0.003);
+      ctx.beginPath();
+      ctx.roundRect(cx - tw / 2, cy - fontPx * 0.85, tw, fontPx * 1.7, fontPx * 0.8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(text, cx, cy);
+      ctx.font = Math.max(11, Math.round(w * 0.014)) + 'px Arial, sans-serif';
+      ctx.fillStyle = '#fde68a';
+      ctx.fillText(
+        'Move ' + (jiggyMoveIndex + 1) + ' / ' + jiggyMoveSequence.length,
+        cx, cy + fontPx * 1.05,
+      );
+      ctx.restore();
+    }
+
+    function renderGameLeaderboard(entries) {
+      const el = document.getElementById('game-leaderboard');
+      if (!el) return;
+      if (!entries || !entries.length) {
+        el.textContent = 'Cute leaderboard: issue Am I Cute Enough to compare scores.';
+        return;
+      }
+      el.textContent = 'Cute leaderboard: '
+        + entries.map((row) => '#' + row.rank + ' ' + row.participant_id + ' (' + row.cute_score + ')').join(' · ');
+    }
+
+    function shouldDrawGameStudio() {
+      return !!(activeChallenge || gameCostumeIndex > 0 || gameAccessoryIndex > 0
+        || selectedGameTheme !== 'classic');
+    }
+
+    function captureCamSnapshot() {
+      refreshSilhouetteGuide();
+      const rect = videoOverlayRect();
+      const snap = document.createElement('canvas');
+      snap.width = rect.w;
+      snap.height = rect.h;
+      const ctx = snap.getContext('2d');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, snap.width, snap.height);
+      if (camVideo.videoWidth && !usingPattern && !usingSilhouette) {
+        ctx.save();
+        ctx.translate(rect.offsetX + rect.drawW, rect.offsetY);
+        ctx.scale(-1, 1);
+        ctx.drawImage(camVideo, 0, 0, rect.drawW, rect.drawH);
+        ctx.restore();
+      } else if (usingPattern || usingSilhouette) {
+        ctx.drawImage(patternCanvas, rect.offsetX, rect.offsetY, rect.drawW, rect.drawH);
+      }
+      ctx.drawImage(overlay, 0, 0);
+      snap.toBlob((blob) => {
+        if (!blob) { toast('Could not save snapshot'); return; }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'theodore-webcam-' + Date.now() + '.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast('saved!');
+      }, 'image/png');
+    }
+
+    function costumeOverlayPoint(pts, index) {
+      const p = pts[index];
+      return p ? overlayPoint(p.x, p.y) : null;
+    }
+
+    function drawGameCostume(ctx, pts, w, drawW, drawH, costumeId) {
+      const eyeL = costumeOverlayPoint(pts, 33);
+      const eyeR = costumeOverlayPoint(pts, 263);
+      const forehead = costumeOverlayPoint(pts, 10);
+      const nose = costumeOverlayPoint(pts, 1);
+      const mouthL = costumeOverlayPoint(pts, 61);
+      const mouthR = costumeOverlayPoint(pts, 291);
+      const chin = costumeOverlayPoint(pts, 152);
+      const cheekL = costumeOverlayPoint(pts, 234);
+      const cheekR = costumeOverlayPoint(pts, 454);
+      if (!eyeL || !eyeR || !forehead) return;
+      const eyeDist = Math.hypot(eyeR.x - eyeL.x, eyeR.y - eyeL.y);
+      const headW = eyeDist * 2.4;
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (costumeId === 'glasses') {
+        const r = eyeDist * 0.24;
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        ctx.fillStyle = 'rgba(147, 197, 253, 0.38)';
+        [eyeL, eyeR].forEach((c) => {
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+        ctx.beginPath();
+        ctx.moveTo(eyeL.x + r, eyeL.y);
+        ctx.lineTo(eyeR.x - r, eyeR.y);
+        ctx.stroke();
+      } else if (costumeId === 'sunglasses') {
+        const r = eyeDist * 0.26;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = Math.max(2, w * 0.0035);
+        [eyeL, eyeR].forEach((c) => {
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+        ctx.beginPath();
+        ctx.moveTo(eyeL.x + r, eyeL.y);
+        ctx.lineTo(eyeR.x - r, eyeR.y);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.beginPath();
+        ctx.ellipse(eyeL.x - r * 0.2, eyeL.y - r * 0.25, r * 0.35, r * 0.18, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (costumeId === 'party_hat') {
+        const top = { x: forehead.x, y: forehead.y - headW * 0.55 };
+        ctx.fillStyle = '#f472b6';
+        ctx.strokeStyle = '#fb7185';
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        ctx.beginPath();
+        ctx.moveTo(forehead.x - headW * 0.35, forehead.y - headW * 0.05);
+        ctx.lineTo(top.x, top.y);
+        ctx.lineTo(forehead.x + headW * 0.35, forehead.y - headW * 0.05);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(top.x, top.y, Math.max(4, w * 0.006), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(forehead.x - headW * 0.38, forehead.y - headW * 0.08,
+          headW * 0.76, headW * 0.12);
+      } else if (costumeId === 'wizard') {
+        const top = { x: forehead.x, y: forehead.y - headW * 0.72 };
+        ctx.fillStyle = '#6366f1';
+        ctx.strokeStyle = '#312e81';
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        ctx.beginPath();
+        ctx.moveTo(forehead.x - headW * 0.42, forehead.y);
+        ctx.lineTo(top.x, top.y);
+        ctx.lineTo(forehead.x + headW * 0.42, forehead.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(top.x, top.y + headW * 0.06, Math.max(3, w * 0.005), 0, Math.PI * 2);
+        ctx.fill();
+      } else if (costumeId === 'cat_ears') {
+        const drawEar = (baseX, tipX) => {
+          ctx.fillStyle = '#fda4af';
+          ctx.strokeStyle = '#fb7185';
+          ctx.lineWidth = Math.max(1.5, w * 0.0025);
+          ctx.beginPath();
+          ctx.moveTo(baseX - headW * 0.12, forehead.y - headW * 0.02);
+          ctx.lineTo(tipX, forehead.y - headW * 0.38);
+          ctx.lineTo(baseX + headW * 0.12, forehead.y - headW * 0.02);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        };
+        drawEar(forehead.x - headW * 0.28, forehead.x - headW * 0.34);
+        drawEar(forehead.x + headW * 0.28, forehead.x + headW * 0.34);
+      } else if (costumeId === 'pumpkin') {
+        const cx = forehead.x;
+        const cy = forehead.y - headW * 0.22;
+        const r = headW * 0.38;
+        ctx.fillStyle = '#fb923c';
+        ctx.strokeStyle = '#c2410c';
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#166534';
+        ctx.beginPath();
+        ctx.moveTo(cx - headW * 0.06, cy - r);
+        ctx.quadraticCurveTo(cx, cy - r - headW * 0.18, cx + headW * 0.08, cy - r);
+        ctx.fill();
+        ctx.fillStyle = '#422006';
+        if (eyeL && eyeR) {
+          [eyeL, eyeR].forEach((c) => {
+            ctx.beginPath();
+            ctx.moveTo(c.x - eyeDist * 0.08, c.y);
+            ctx.lineTo(c.x, c.y + eyeDist * 0.12);
+            ctx.lineTo(c.x + eyeDist * 0.08, c.y);
+            ctx.fill();
+          });
+        }
+        if (mouthL && mouthR) {
+          ctx.beginPath();
+          ctx.moveTo(mouthL.x, mouthL.y);
+          for (let i = 0; i <= 6; i++) {
+            const t = i / 6;
+            const x = mouthL.x + (mouthR.x - mouthL.x) * t;
+            const y = mouthL.y + Math.sin(t * Math.PI) * eyeDist * 0.08;
+            ctx.lineTo(x, y);
+          }
+          ctx.fill();
+        }
+      } else if (costumeId === 'makeup') {
+        const blushR = eyeDist * 0.18;
+        if (cheekL) {
+          ctx.fillStyle = 'rgba(251, 113, 133, 0.42)';
+          ctx.beginPath();
+          ctx.ellipse(cheekL.x, cheekL.y, blushR, blushR * 0.72, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (cheekR) {
+          ctx.fillStyle = 'rgba(251, 113, 133, 0.42)';
+          ctx.beginPath();
+          ctx.ellipse(cheekR.x, cheekR.y, blushR, blushR * 0.72, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (mouthL && mouthR) {
+          ctx.strokeStyle = '#e11d48';
+          ctx.lineWidth = Math.max(2, w * 0.003);
+          ctx.beginPath();
+          ctx.moveTo(mouthL.x, mouthL.y);
+          ctx.quadraticCurveTo(
+            (mouthL.x + mouthR.x) / 2, (mouthL.y + mouthR.y) / 2 + eyeDist * 0.08,
+            mouthR.x, mouthR.y,
+          );
+          ctx.stroke();
+        }
+        if (eyeL && eyeR) {
+          ctx.strokeStyle = '#831843';
+          ctx.lineWidth = Math.max(1.5, w * 0.002);
+          [eyeL, eyeR].forEach((c) => {
+            ctx.beginPath();
+            ctx.moveTo(c.x - eyeDist * 0.14, c.y - eyeDist * 0.06);
+            ctx.quadraticCurveTo(c.x, c.y - eyeDist * 0.14, c.x + eyeDist * 0.14, c.y - eyeDist * 0.06);
+            ctx.stroke();
+          });
+        }
+        if (nose) {
+          ctx.fillStyle = 'rgba(253, 224, 71, 0.35)';
+          ctx.beginPath();
+          ctx.arc(nose.x, nose.y, eyeDist * 0.06, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawGameAccessory(ctx, pts, w, accessoryId) {
+      const wrist = lastHandContours && lastHandContours.hands && lastHandContours.hands[0]
+        ? lastHandContours.hands[0][0] : null;
+      const indexTip = lastHandContours && lastHandContours.hands && lastHandContours.hands[0]
+        ? lastHandContours.hands[0][INDEX_FINGER_TIP] : null;
+      const handPt = indexTip || wrist;
+      const chin = costumeOverlayPoint(pts, 152);
+      const forehead = costumeOverlayPoint(pts, 10);
+      if (!handPt && !chin) return;
+      const anchor = handPt ? overlayPoint(handPt.x, handPt.y) : chin;
+      const scale = Math.max(16, w * 0.035);
+      ctx.save();
+      ctx.lineCap = 'round';
+      if (accessoryId === 'wand' || accessoryId === 'heart_wand') {
+        ctx.strokeStyle = accessoryId === 'heart_wand' ? '#fb7185' : '#a78bfa';
+        ctx.lineWidth = Math.max(3, w * 0.004);
+        ctx.beginPath();
+        ctx.moveTo(anchor.x, anchor.y);
+        ctx.lineTo(anchor.x - scale * 0.35, anchor.y - scale * 1.1);
+        ctx.stroke();
+        ctx.fillStyle = accessoryId === 'heart_wand' ? '#f472b6' : '#fde047';
+        ctx.beginPath();
+        ctx.arc(anchor.x - scale * 0.35, anchor.y - scale * 1.15, scale * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (accessoryId === 'hero_hammer') {
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = Math.max(4, w * 0.005);
+        ctx.beginPath();
+        ctx.moveTo(anchor.x, anchor.y);
+        ctx.lineTo(anchor.x + scale * 0.5, anchor.y - scale * 0.7);
+        ctx.stroke();
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(anchor.x + scale * 0.35, anchor.y - scale * 1.05, scale * 0.35, scale * 0.28);
+      } else if (accessoryId === 'flower_bouquet') {
+        ctx.strokeStyle = '#166534';
+        ctx.lineWidth = Math.max(2, w * 0.003);
+        const base = chin || forehead;
+        if (!base) { ctx.restore(); return; }
+        for (let i = 0; i < 5; i++) {
+          const ang = -Math.PI / 2 + (i - 2) * 0.35;
+          const fx = base.x + Math.cos(ang) * scale * 0.35;
+          const fy = base.y + scale * 0.45 + Math.sin(ang) * scale * 0.15;
+          ctx.fillStyle = ['#f472b6', '#fb7185', '#fde047', '#c084fc', '#86efac'][i];
+          ctx.beginPath();
+          ctx.arc(fx, fy, scale * 0.11, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawFestiveThemeOverlay(ctx, w, h, overlayId) {
+      if (!overlayId || overlayId === 'none') return;
+      ctx.save();
+      if (overlayId === 'halloween_moon') {
+        ctx.fillStyle = 'rgba(253, 224, 71, 0.35)';
+        ctx.beginPath();
+        ctx.arc(w * 0.82, h * 0.16, Math.max(18, w * 0.045), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+        ctx.font = `bold ${Math.max(12, w * 0.016)}px Arial`;
+        ctx.fillText('🎃 Spell time', w * 0.04, h * 0.08);
+      } else if (overlayId === 'gingerbread_house') {
+        const bx = w * 0.08, by = h * 0.62, bw = w * 0.34, bh = h * 0.28;
+        ctx.fillStyle = 'rgba(180, 83, 9, 0.55)';
+        ctx.fillRect(bx, by, bw, bh * 0.65);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+        ctx.beginPath();
+        ctx.moveTo(bx - bw * 0.05, by);
+        ctx.lineTo(bx + bw * 0.5, by - bh * 0.45);
+        ctx.lineTo(bx + bw * 1.05, by);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = `${Math.max(10, w * 0.013)}px Arial`;
+        ctx.fillText('Gingerbread house — smile to decorate!', bx, by - bh * 0.5);
+      } else if (overlayId === 'floating_hearts') {
+        const hearts = [[0.12, 0.2], [0.88, 0.24], [0.18, 0.78], [0.86, 0.72]];
+        ctx.fillStyle = 'rgba(244, 114, 182, 0.55)';
+        hearts.forEach(([nx, ny]) => {
+          ctx.beginPath();
+          ctx.arc(nx * w, ny * h, Math.max(8, w * 0.018), 0, Math.PI * 2);
+          ctx.fill();
+        });
+      } else if (overlayId === 'mothers_day') {
+        ctx.fillStyle = 'rgba(251, 113, 133, 0.75)';
+        ctx.font = `bold ${Math.max(11, w * 0.014)}px Arial`;
+        ctx.fillText("💐 Happy Mother's Day", w * 0.04, h * 0.08);
+      } else if (overlayId === 'fathers_day') {
+        ctx.fillStyle = 'rgba(96, 165, 250, 0.85)';
+        ctx.font = `bold ${Math.max(11, w * 0.014)}px Arial`;
+        ctx.fillText("🦸 Father's Day hero", w * 0.04, h * 0.08);
+      } else if (overlayId === 'sparkle_frame') {
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.65)';
+        ctx.lineWidth = Math.max(3, w * 0.004);
+        ctx.setLineDash([10, 8]);
+        ctx.strokeRect(w * 0.03, h * 0.05, w * 0.94, h * 0.9);
+        ctx.setLineDash([]);
+      } else if (overlayId === 'dance_floor') {
+        ctx.fillStyle = 'rgba(236, 72, 153, 0.18)';
+        ctx.fillRect(0, h * 0.72, w, h * 0.28);
+        for (let i = 0; i < 6; i++) {
+          ctx.fillStyle = i % 2 ? 'rgba(253, 224, 71, 0.35)' : 'rgba(167, 139, 250, 0.35)';
+          ctx.fillRect(i * (w / 6), h * 0.72, w / 6, h * 0.28);
+        }
+        ctx.fillStyle = '#fde68a';
+        ctx.font = `bold ${Math.max(11, w * 0.014)}px Arial`;
+        ctx.fillText('🕺 Come get jiggy!', w * 0.04, h * 0.08);
+      }
+      ctx.restore();
+    }
+
+    function drawGamePlayOverlay() {
+      if (!shouldDrawGameStudio()) return;
+      const { w, h, drawW, drawH } = videoOverlayRect();
+      const ctx = overlay.getContext('2d');
+      const themeSpec = themeOption(selectedGameTheme);
+      const overlayId = activeChallenge ? themeSpec.overlay : themeSpec.overlay;
+      drawFestiveThemeOverlay(ctx, w, h, overlayId);
+      drawJiggyDancePrompt(ctx, w, h);
+      if (lastFaceContours && lastFaceContours.pts) {
+        const pts = lastFaceContours.pts;
+        if (activeChallenge) {
+          ctx.save();
+          ctx.strokeStyle = '#22d3ee';
+          ctx.setLineDash([8, 5]);
+          ctx.lineWidth = Math.max(2.5, w * 0.004);
+          ctx.globalAlpha = 0.92;
+          let minX = 1, maxX = 0, minY = 1, maxY = 0;
+          pts.forEach((p) => {
+            if (!p) return;
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+          });
+          const center = overlayPoint((minX + maxX) / 2, (minY + maxY) / 2);
+          ctx.beginPath();
+          ctx.ellipse(
+            center.x, center.y,
+            Math.max(8, (maxX - minX) * drawW * 0.52),
+            Math.max(10, (maxY - minY) * drawH * 0.58),
+            0, 0, Math.PI * 2,
+          );
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#67e8f9';
+          [33, 263, 1, 10, 61, 291, 152].forEach((i) => {
+            const p = pts[i];
+            if (!p) return;
+            const point = overlayPoint(p.x, p.y);
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, Math.max(3, w * 0.005), 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.restore();
+        }
+        const costume = GAME_COSTUMES[gameCostumeIndex] || GAME_COSTUMES[0];
+        if (costume.id !== 'none') {
+          drawGameCostume(ctx, pts, w, drawW, drawH, costume.id);
+        }
+        const accessory = GAME_ACCESSORIES[gameAccessoryIndex] || GAME_ACCESSORIES[0];
+        if (accessory.id !== 'none') {
+          drawGameAccessory(ctx, pts, w, accessory.id);
+        }
+      }
+      if (lastGameHeadPose && activeChallenge) {
+        const pad = Math.max(8, w * 0.012);
+        const boxW = Math.max(148, w * 0.24);
+        const boxH = Math.max(54, h * 0.09);
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.84)';
+        ctx.fillRect(pad, pad, boxW, boxH);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(pad, pad, boxW, boxH);
+        const titlePx = Math.max(11, Math.round(w * 0.014));
+        const bodyPx = Math.max(10, Math.round(w * 0.012));
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = `bold ${titlePx}px ui-monospace, Menlo, monospace`;
+        ctx.fillText('Game face tracking', pad + 8, pad + 16);
+        ctx.font = `${bodyPx}px ui-monospace, Menlo, monospace`;
+        ctx.fillStyle = '#93c5fd';
+        ctx.fillText(
+          'P ' + tiltDeg(lastGameHeadPose.pitch)
+            + '  Y ' + tiltDeg(lastGameHeadPose.yaw)
+            + '  R ' + tiltDeg(lastGameHeadPose.roll),
+          pad + 8, pad + 34,
+        );
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = `${Math.max(9, Math.round(w * 0.011))}px Arial, sans-serif`;
+        ctx.fillText('pitch · yaw · roll (live)', pad + 8, pad + 48);
+        ctx.restore();
+      }
+      if (lastWandSpell && activeChallenge && selectedGameTheme === 'halloween') {
+        ctx.save();
+        ctx.fillStyle = 'rgba(88, 28, 135, 0.82)';
+        ctx.fillRect(w * 0.04, h * 0.12, w * 0.34, Math.max(24, h * 0.06));
+        ctx.fillStyle = '#fde68a';
+        ctx.font = `bold ${Math.max(11, w * 0.014)}px Arial`;
+        ctx.fillText('Spell: ' + lastWandSpell, w * 0.06, h * 0.16);
+        ctx.restore();
+      }
+      if ((selectedGameTheme === 'cute' || (activeChallenge && activeChallenge.game_type === 'cute_enough'))
+          && lastCuteScore > 0) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(76, 29, 149, 0.82)';
+        ctx.fillRect(w * 0.58, h * 0.08, w * 0.36, Math.max(28, h * 0.07));
+        ctx.fillStyle = '#fbcfe8';
+        ctx.font = `bold ${Math.max(11, w * 0.014)}px Arial`;
+        ctx.fillText('Cute confidence ' + lastCuteScore + '/100', w * 0.60, h * 0.12);
+        ctx.restore();
+      }
     }
 
     function headPoseFromMatrix(matrices, idx) {
@@ -4872,6 +5684,15 @@ MONITOR_JS = (
       // keeps the last value) — one frame of lag on a seat that barely moves.
       updateTiltLab(usingPattern || usingSilhouette ? null : facial,
         facial ? facial.distance_from_camera_m : null);
+      if (facial && facial.head_pose_pitch != null) {
+        lastGameHeadPose = {
+          pitch: facial.head_pose_pitch,
+          yaw: facial.head_pose_yaw,
+          roll: facial.head_pose_roll,
+        };
+      } else if (!facial || !facial.face_count) {
+        lastGameHeadPose = null;
+      }
       // Head-pose truth for "looking down" is the stare residual: how far below
       // the lesson band this seat is actually staring. The eye-blendshape cue
       // stays as a floor for eyes-down-without-head-movement.
@@ -5006,6 +5827,13 @@ MONITOR_JS = (
           Math.max(0, Math.min(1, ((facial.gaze_down_score || 0) - 0.12) * 1.9)),
           phoneDet.below ? 0.70 : 0
       );
+      const cuteLive = computeLiveCuteScore(facial);
+      updateCuteScoreHud(cuteLive);
+      signal.wand_spell_label = lastWandSpell || null;
+      signal.accessory_count = countActiveAccessories();
+      signal.cute_confidence_score = cuteLive > 0 ? cuteLive : null;
+      signal.game_theme = selectedGameTheme;
+      tickJiggyDance(facial, signal);
       recordGameSignal(signal);
       // Redraw before the round trip so face + hand contours keep up with the
       // video even when the POST is slow or fails.
@@ -5453,6 +6281,7 @@ MONITOR_PAGE_TEMPLATE = (
           <span class="sw" aria-hidden="true"></span>
           <span id="cam-sil-toggle-label">Guide on</span>
         </button>
+        <button type="button" id="cam-snap" class="cam-snap-btn" title="Save photo with overlays">📷</button>
       </div>
       <canvas id="grab" style="display:none;"></canvas>
       <div class="camrow">
@@ -5723,11 +6552,32 @@ MONITOR_PAGE_TEMPLATE = (
   <div class="tools">
     <div class="panel">
       <h2>Webcam games</h2>
+      <div class="game-theme-row">
+        <label for="game-theme">Game theme</label>
+        <select id="game-theme" aria-label="Webcam game theme">
+          <option value="classic">Classic focus games</option>
+          <option value="jiggy">Come get jiggy with me</option>
+          <option value="halloween">Halloween wand spells</option>
+          <option value="christmas">Christmas gingerbread</option>
+          <option value="valentines">Valentine heart match</option>
+          <option value="mothers_day">Mother's Day bouquet</option>
+          <option value="fathers_day">Father's Day hero</option>
+          <option value="cute">Am I cute enough?</option>
+        </select>
+        <span class="cute-score-chip" id="cute-score-live">Cute confidence: dress up &amp; smile!</span>
+      </div>
       <textarea id="game-prompt">Stay focused while we check integrity.</textarea>
       <div class="camrow">
         <button id="game-issue" class="primary" type="button">Issue challenge</button>
         <button id="game-attempt" type="button">Score focused attempt</button>
       </div>
+      <div class="game-costume-row">
+        <button id="game-costume-cycle" type="button">Next outfit</button>
+        <span class="game-costume-label" id="game-costume-label">Outfit: None</span>
+        <button id="game-accessory-cycle" type="button">Next prop</button>
+        <span class="game-costume-label" id="game-accessory-label">Prop: No prop</span>
+      </div>
+      <div class="game-leaderboard" id="game-leaderboard">Cute leaderboard: issue Am I Cute Enough to compare scores.</div>
       <div class="log" id="game-status">No active challenge.</div>
     </div>
     <div class="panel">

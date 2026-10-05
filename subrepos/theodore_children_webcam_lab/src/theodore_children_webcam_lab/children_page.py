@@ -10,17 +10,6 @@ FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 <path d="M25 41Q32 47 39 41" fill="none" stroke="#312e81" stroke-width="3" stroke-linecap="round"/></svg>"""
 
 
-def _game_select_html() -> str:
-    lines = ['        <select id="game" aria-label="Game">']
-    for group, games in GAME_MENU:
-        lines.append(f'          <optgroup label="{group}">')
-        for game_id, title in games:
-            lines.append(f'            <option value="{game_id}">{title}</option>')
-        lines.append("          </optgroup>")
-    lines.append("        </select>")
-    return "\n".join(lines)
-
-
 def render_children_page(asset_tag: str = "") -> str:
     """The page shell.
 
@@ -30,10 +19,7 @@ def render_children_page(asset_tag: str = "") -> str:
     disk while this HTML comes from the running process, a stale page can also
     end up paired with a newer script.
     """
-    tag = f"?v={asset_tag}" if asset_tag else ""
-    return (
-        _PAGE.replace("__ASSET_TAG__", tag).replace("__GAME_SELECT__", _game_select_html())
-    )
+    return _PAGE.replace("__ASSET_TAG__", f"?v={asset_tag}" if asset_tag else "")
 
 
 _PAGE = """<!doctype html>
