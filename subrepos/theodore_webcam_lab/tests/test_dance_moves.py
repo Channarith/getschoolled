@@ -98,9 +98,10 @@ def test_sequence_progress_matches_moves_in_order():
             motion_score=0.4,
         ),
     ]
-    count, matched = sequence_progress(signals, expected)
+    count, matched, skipped = sequence_progress(signals, expected)
     assert count == 4
     assert matched == expected
+    assert skipped == []
 
 
 def test_sequence_progress_ignores_wrong_move_labels():
@@ -120,9 +121,10 @@ def test_sequence_progress_ignores_wrong_move_labels():
             excitement_score=0.4,
         ),
     ]
-    count, matched = sequence_progress(signals, expected)
+    count, matched, skipped = sequence_progress(signals, expected)
     assert count == 1
     assert matched == ["high_five"]
+    assert skipped == []
 
 
 def test_jiggy_target_duration_scales_with_move_count():
