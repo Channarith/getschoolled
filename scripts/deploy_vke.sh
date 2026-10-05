@@ -145,3 +145,6 @@ LOCAL_VER="$(cat "$ROOT/VERSION" 2>/dev/null || echo '?')"
 say "this checkout VERSION: ${LOCAL_VER} — the line above should report the same version."
 
 say "Deploy complete: ${REGISTRY}/*:${TAG} rolled to namespace ${NS}."
+# shellcheck disable=SC1091
+source "$ROOT/scripts/print_terminal_link.sh"
+print_terminal_link "${PUBLIC_APP_URL:-https://salareen.com}"

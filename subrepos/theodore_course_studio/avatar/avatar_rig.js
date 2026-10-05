@@ -50,7 +50,10 @@ export const BONE_ALIASES = {
 
 // Node names that only exist on the V2 rig; used to label which convention a
 // loaded GLB follows (purely informational / for the manifest + validator).
-const V2_MARKERS = ["upperarm_l", "hand_r", "eye_l", "lowerleg_r"];
+const V2_MARKERS = [
+  "upperarm_l", "hand_r", "eye_l", "lowerleg_r",
+  "mixamorigLeftArm", "mixamorigRightHand", "mixamorigRightLeg",
+];
 
 // Our text-derived viseme shapes -> the V2 ARKit-style viseme morph. When a GLB
 // exposes these blendshapes we drive them directly for accurate lip-sync.
@@ -68,16 +71,16 @@ export const VISEME_TO_V2 = {
 // Canonical face channel -> candidate blendshape (morph target) names.
 export const FACE_ALIASES = {
   // Procedural mesh exposes mouthOpen/mouthWide/mouthSmile; V2 uses jawOpen/smile.
-  mouthOpen: ["mouthOpen", "jawOpen", "viseme_aa", "MouthOpen"],
-  mouthWide: ["mouthWide", "viseme_I", "viseme_E", "mouthStretch_L"],
-  smile: ["mouthSmile", "smile", "mouthSmile_L", "Smile"],
-  browRaise: ["browRaise", "eyebrow_raise", "browInnerUp", "browOuterUp_L"],
-  browFurrow: ["browFurrow", "eyebrow_furrow", "browDown_L"],
+  mouthOpen: ["mouthOpen", "jawOpen", "jawDrop", "viseme_aa", "MouthOpen"],
+  mouthWide: ["mouthWide", "mouthWider", "viseme_I", "viseme_E", "mouthStretch_L"],
+  smile: ["mouthSmile", "mouthCornersUp", "smile", "mouthSmile_L", "Smile"],
+  browRaise: ["browRaise", "browsUp", "eyebrow_raise", "browInnerUp", "browOuterUp_L"],
+  browFurrow: ["browFurrow", "browsDown", "eyebrow_furrow", "browDown_L"],
   blinkL: ["eyeBlink_L", "eyeBlinkLeft", "blink_l"],
   blinkR: ["eyeBlink_R", "eyeBlinkRight", "blink_r"],
 };
 
-const lc = (s) => String(s || "").toLowerCase();
+const lc = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /**
  * Resolve a loaded GLB scene into logical joints. Returns:
@@ -112,7 +115,7 @@ export function resolveSkeleton(root) {
     else missing.push(logical);
   }
 
-  const rig = V2_MARKERS.some((m) => present.has(m)) ? "v2" : "procedural";
+  const rig = V2_MARKERS.some((m) => present.has(lc(m))) ? "v2" : "procedural";
   return { nodes, rig, matched, missing };
 }
 

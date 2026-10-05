@@ -33,9 +33,13 @@ def test_health_and_studio_page():
     assert 'id="btn-talk"' in page.text
     assert 'id="talk-panel"' in page.text
     assert 'id="btn-talk-mic"' in page.text
+    assert 'id="teach-lang-stage"' in page.text
+    assert 'aria-label="Lesson language"' in page.text
     assert 'id="btn-fullscreen"' in page.text
     assert 'id="btn-captions"' in page.text
-    assert 'aria-pressed="true"' in page.text
+    assert 'class="teach-stage captions-off"' in page.text
+    assert 'aria-pressed="false"' in page.text
+    assert 'aria-label="Show lesson captions"' in page.text
     assert "requestFullscreen" in page.text
     assert "on('teach-stage', 'dblclick'" in page.text
     assert "setCaptionsEnabled" in page.text
@@ -45,6 +49,11 @@ def test_health_and_studio_page():
     assert "Speak your answer" in page.text
     assert "fetchLockedVoice" in page.text
     assert "courseVoiceGender" in page.text
+    assert 'id="avatar-choice"' in page.text
+    assert "loadAvatarChoices" in page.text
+    assert "avatarPrefs.presenter = presenterId" in page.text
+    assert "persona: selectedAvatarId" in page.text
+    assert "motionIntensity: 0.42" in page.text
     assert 'method: \'POST\'' in page.text or "method: 'POST'" in page.text
     assert "Correct answer:" in page.text
     assert "Why:" in page.text

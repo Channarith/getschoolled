@@ -118,8 +118,18 @@ def test_presenter_manifest_defaults_to_builtin():
     response = client.get("/api/studio/presenter/manifest")
     assert response.status_code == 200
     data = response.json()
-    assert data["models"]["female"]["rig"] == "procedural"
-    assert data["models"]["female"]["url"].endswith("presenter_female.glb")
+    assert data["default_model"] == "amina"
+    realistic = {"amina", "mateo", "lin", "priya", "jordan", "elena"}
+    assert realistic < set(data["models"])
+    assert {"classic_female", "classic_male"} < set(data["models"])
+    for presenter_id in realistic:
+        presenter = data["models"][presenter_id]
+        assert presenter["rig"] == "v2"
+        assert presenter["source"] == "cc0-makehuman"
+        assert presenter["url"].endswith("presenter_realistic.glb")
+        assert presenter["texture_url"].endswith(f"presenter_{presenter_id}.png")
+        assert presenter["label"]
+        assert presenter["voice_gender"] in {"female", "male"}
     assert data["rig_config_url"].endswith("avatar_rig_config_v2.json")
 
 
@@ -142,6 +152,31 @@ def _read_glb_json(path: Path) -> dict:
     assert raw[:4] == b"glTF"
     (length,) = struct.unpack_from("<I", raw, 12)
     return json.loads(raw[20 : 20 + length])
+
+
+def test_realistic_presenter_has_mixamo_rig_and_speech_morphs() -> None:
+    document = _read_glb_json(_AVATAR_STATIC / "presenter_realistic.glb")
+    names = {
+        "".join(character for character in node.get("name", "").lower() if character.isalnum())
+        for node in document["nodes"]
+    }
+    assert {
+        "mixamorighead",
+        "mixamorigneck",
+        "mixamorighips",
+        "mixamorigleftarm",
+        "mixamorigleftforearm",
+        "mixamorigleftupleg",
+        "mixamorigrightarm",
+        "mixamorigrightforearm",
+        "mixamorigrightupleg",
+    } <= names
+    target_names = {
+        name
+        for mesh in document["meshes"]
+        for name in mesh.get("extras", {}).get("targetNames", [])
+    }
+    assert {"jawDrop", "mouthWider", "mouthCornersUp", "browsUp"} <= target_names
 
 
 @pytest.mark.parametrize("variant", ["female", "male"])
