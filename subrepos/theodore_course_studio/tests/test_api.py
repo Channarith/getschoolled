@@ -33,6 +33,14 @@ def test_health_and_studio_page():
     assert 'id="btn-talk"' in page.text
     assert 'id="talk-panel"' in page.text
     assert 'id="btn-talk-mic"' in page.text
+    assert 'id="btn-fullscreen"' in page.text
+    assert 'id="btn-captions"' in page.text
+    assert 'aria-pressed="true"' in page.text
+    assert "requestFullscreen" in page.text
+    assert "on('teach-stage', 'dblclick'" in page.text
+    assert "setCaptionsEnabled" in page.text
+    assert "lessonText.setAttribute('lang', spoken || 'en')" in page.text
+    assert "['ar', 'fa', 'he', 'ur'].includes(spoken)" in page.text
     assert "SpeechRecognition" in page.text
     assert "Speak your answer" in page.text
     assert "fetchLockedVoice" in page.text

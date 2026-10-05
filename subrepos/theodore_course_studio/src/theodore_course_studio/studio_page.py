@@ -79,12 +79,12 @@ STUDIO_CSS = """
   .page.rejected { opacity:0.55; text-decoration: line-through; }
   .comments { max-height:180px; overflow:auto; font-size:12px; }
   .comment { padding:6px 0; border-bottom:1px solid #24362d; }
-    .teach-stage { min-height:280px; background:#fffaf3; border:1px solid #eadcc8; border-radius:18px; padding:18px 18px 18px 22px;
+    .teach-stage { position:relative; min-height:280px; background:#fffaf3; border:1px solid #eadcc8; border-radius:18px; padding:18px 18px 18px 22px;
                    box-shadow:inset 5px 0 0 #8c3a2f;
                    animation: fadeUp 0.65s ease; }
     .teach-stage.anim { animation: fadeUp 0.65s ease; }
     @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-    .teach-stage h3 { margin:0 0 10px; font-size:28px; color:#1e3a5f; letter-spacing:-0.02em; }
+    .teach-stage h3 { margin:0 0 10px; padding-right:100px; font-size:28px; color:#1e3a5f; letter-spacing:-0.02em; }
     .page-welcome { display:grid; justify-items:center; text-align:center; gap:8px; padding:18px 8px 8px; color:#5c5146; }
     .page-welcome[hidden] { display:none !important; }
     .page-welcome svg { width:min(100%, 280px); height:auto; }
@@ -92,6 +92,13 @@ STUDIO_CSS = """
     .teach-stage .body { font-size:18px; line-height:1.55; color:#2c241c; }
     .teach-stage .narr { margin-top:14px; padding:10px 12px; border-radius:12px; background:#f7f1e6;
                          color:#5c3b1e; font-style:italic; }
+    .lesson-window-controls { position:absolute; top:12px; right:12px; z-index:8; display:flex; gap:7px; }
+    .lesson-window-controls button { min-width:42px; height:38px; padding:5px 9px; border-radius:10px;
+                                     background:rgba(30,58,95,.92); color:#fffaf3; border:1px solid rgba(255,255,255,.28);
+                                     box-shadow:0 3px 12px rgba(20,16,12,.22); font-weight:800; }
+    .lesson-window-controls button:hover { background:#274c78; }
+    .lesson-window-controls button.is-off { background:rgba(74,64,56,.76); color:#d8cec2; text-decoration:line-through; }
+    .teach-stage.captions-off .lesson-stage-content { display:none; }
     .absorb-note { margin-top:10px; padding:10px 12px; border-radius:12px; background:#fff6e0;
                    border:1px solid #e7c98a; color:#6a4b16; font:600 14px "Avenir Next", "Segoe UI", sans-serif; }
     .absorb-note[hidden] { display:none !important; }
@@ -149,7 +156,7 @@ STUDIO_CSS = """
     .presenter-overlay #teach-stage { position:absolute; inset:0; margin:0; padding:0;
                                       border:0; border-radius:0; background:transparent; box-shadow:none;
                                       display:flex; flex-direction:column; min-height:0; }
-    .presenter-overlay #teach-stage h3 { flex:0 0 auto; margin:0; padding:18px 96px 12px 30px;
+    .presenter-overlay #teach-stage h3 { flex:0 0 auto; margin:0; padding:18px 126px 12px 30px;
                                          font-size:clamp(22px,3vw,40px); color:#f8f1e4; }
     /* Serenity layout: full-bleed animated storyboard with Theodore as a PiP hologram overlay. */
     .presenter-overlay .teacher-stage-grid { flex:1 1 auto; min-height:0; display:block; position:relative; }
@@ -167,6 +174,7 @@ STUDIO_CSS = """
                                                background:linear-gradient(transparent,rgba(36,26,18,.78) 18%,rgba(28,20,14,.94));
                                                backdrop-filter:blur(8px); border:0; color:#f6efe4; }
     .presenter-overlay .teach-stage .body, .presenter-overlay .teach-stage .narr { color:#f6efe4; background:transparent; }
+    .presenter-overlay .lesson-window-controls { position:fixed; top:14px; right:16px; }
     .presenter-overlay .lesson-toolbar { position:absolute; top:62px; right:18px; z-index:5; }
     .presenter-overlay .storyboard-concept { display:none; }
     .presenter-overlay .picture-stage { display:none; }
@@ -318,6 +326,7 @@ STUDIO_JS = """
     let lastCheckPassed = null;
     let beatHandled = false;
     let reviewOpen = false;
+    let captionsEnabled = true;
     const reviewScores = { quizzes: [], games: [] };
 
     async function initTheodoreAvatar() {
@@ -346,14 +355,38 @@ STUDIO_JS = """
       return !!(overlay && overlay.classList.contains('show'));
     }
 
+    function updateLessonWindowControls() {
+      const fullscreen = $('btn-fullscreen');
+      if (fullscreen) {
+        fullscreen.textContent = presenterActive() ? '×' : '⛶';
+        fullscreen.setAttribute(
+          'aria-label',
+          presenterActive() ? 'Exit full screen lesson' : 'Expand lesson to full screen'
+        );
+        fullscreen.title = presenterActive() ? 'Exit full screen' : 'Full screen';
+      }
+      const captions = $('btn-captions');
+      if (captions) {
+        captions.classList.toggle('is-off', !captionsEnabled);
+        captions.setAttribute('aria-pressed', String(captionsEnabled));
+        captions.setAttribute(
+          'aria-label',
+          captionsEnabled ? 'Hide lesson captions' : 'Show lesson captions'
+        );
+        captions.title = captionsEnabled ? 'Hide captions' : 'Show captions';
+      }
+    }
+
     function enterPresenterMode() {
       if (presenterActive()) return;
       $('presenter-body').appendChild($('teach-stage'));
       $('presenter-overlay').classList.add('show');
-      $('presenter-overlay').appendChild($('review-root'));
+      const reviewRoot = $('review-root');
+      if (reviewRoot) $('presenter-overlay').appendChild(reviewRoot);
       document.body.classList.add('presenting');
       const overlay = $('presenter-overlay');
       if (overlay.requestFullscreen) overlay.requestFullscreen().catch(() => {});
+      updateLessonWindowControls();
       // The renderer sizes off the container, which just changed by a lot.
       requestAnimationFrame(() => theodoreAvatar?.resize());
     }
@@ -362,12 +395,25 @@ STUDIO_JS = """
       if (!presenterActive()) return;
       $('teach-stage-home').appendChild($('teach-stage'));
       $('presenter-overlay').classList.remove('show');
-      document.body.appendChild($('review-root'));
+      const reviewRoot = $('review-root');
+      if (reviewRoot) document.body.appendChild(reviewRoot);
       document.body.classList.remove('presenting');
       if (document.fullscreenElement && document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
       }
+      updateLessonWindowControls();
       requestAnimationFrame(() => theodoreAvatar?.resize());
+    }
+
+    function togglePresenterMode() {
+      if (presenterActive()) exitPresenterMode();
+      else enterPresenterMode();
+    }
+
+    function setCaptionsEnabled(enabled) {
+      captionsEnabled = !!enabled;
+      $('teach-stage').classList.toggle('captions-off', !captionsEnabled);
+      updateLessonWindowControls();
     }
 
     function toast(msg) {
@@ -1714,6 +1760,10 @@ STUDIO_JS = """
       const obj = payload.objective ? payload.objective.title : '';
       const lang = payload.language || teachLanguage;
       const spoken = payload.spoken_language || lang;
+      const lessonText = $('teach-stage').querySelector('.lesson-stage-content');
+      const rtl = ['ar', 'fa', 'he', 'ur'].includes(spoken);
+      lessonText.setAttribute('lang', spoken || 'en');
+      lessonText.setAttribute('dir', rtl ? 'rtl' : 'ltr');
       $('teach-adapt').textContent =
         `${adapt} · lang ${esc(lang)} · focus: ${esc(obj)} · known ${prog.known || 0} / gaps ${prog.gaps || 0}`;
       const warn = $('lang-warning');
@@ -1766,6 +1816,12 @@ STUDIO_JS = """
     on('btn-resume', 'click', () => resumeTeach().catch((e) => toast(String(e.message || e))));
     on('btn-next', 'click', () => nextSlide().catch((e) => toast(String(e.message || e))));
     on('btn-pause', 'click', () => toggleLecturePause());
+    on('btn-fullscreen', 'click', togglePresenterMode);
+    on('btn-captions', 'click', () => setCaptionsEnabled(!captionsEnabled));
+    on('teach-stage', 'dblclick', (event) => {
+      if (event.target.closest('button, input, select, textarea, a')) return;
+      togglePresenterMode();
+    });
     on('btn-continue', 'click', () => continueSession().catch((e) => toast(String(e.message || e))));
     on('btn-later', 'click', () => comeBackLater().catch((e) => toast(String(e.message || e))));
     on('btn-profile', 'click', () => applyProfile().catch((e) => toast(String(e.message || e))));
@@ -1807,6 +1863,7 @@ STUDIO_JS = """
     }
     loadLanguages().catch(() => {});
     loadLibrary().catch((e) => toast(String(e.message || e)));
+    updateLessonWindowControls();
 
 """
 
@@ -1868,6 +1925,10 @@ def render_studio_page() -> str:
     <div class="panel">
       <div id="teach-stage-home">
       <div class="teach-stage" id="teach-stage">
+        <div class="lesson-window-controls" aria-label="Lesson window controls">
+          <button id="btn-captions" type="button" aria-pressed="true" aria-label="Hide lesson captions" title="Hide captions">CC</button>
+          <button id="btn-fullscreen" type="button" aria-label="Expand lesson to full screen" title="Full screen">⛶</button>
+        </div>
         <h3 id="teach-title">Your lesson</h3>
         <div class="teacher-stage-grid" id="teacher-stage-grid">
           <div id="teach-storyboard" class="storyboard-stage" hidden aria-hidden="true"></div>
@@ -1924,6 +1985,9 @@ def render_studio_page() -> str:
       </div>
       </div>
     </div>
+  </div>
+  <div class="presenter-overlay" id="presenter-overlay" aria-label="Full screen lesson">
+    <div class="presenter-body" id="presenter-body"></div>
   </div>
   <div class="toast" id="toast"></div>
   <script>"""
