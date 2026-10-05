@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from aoep_shared.current_awareness import research_current_topic
 from aoep_shared.factory import build_factory
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
 from .bakeoff_loop import get_runner
 from .dictionary_lab import (
@@ -37,13 +38,14 @@ from .qualify_page import render_qualify_page
 from .rag_tuning import PRESETS, RagTuning
 
 app = FastAPI(title="Theodore RAG Lab", version="0.2.0")
+install_live_audio_routes(app, lab_name="Theodore RAG Lab")
 _FACTORY = build_factory()
 
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def qualify() -> HTMLResponse:
-    return HTMLResponse(render_qualify_page())
+    return HTMLResponse(inject_client(render_qualify_page()))
 
 
 class TuningPatch(BaseModel):

@@ -104,7 +104,9 @@ if [ -n "$CHANGED_PY" ]; then
       # status, which hides a crash (and pipefail would misreport it as a test
       # failure). We need pytest's own exit code to tell a failing test (1)
       # apart from a native crash (>=128, e.g. 139 = SIGSEGV).
-      _py_log=$(mktemp -t prepush-pytest)
+      # BSD accepts ``mktemp -t name``; GNU requires at least six Xs. Use one
+      # portable path template so Linux cloud agents can push after testing.
+      _py_log=$(mktemp "${TMPDIR:-/tmp}/prepush-pytest.XXXXXX")
       _py_rc=0
       python3 -m pytest $TEST_DIRS -q --tb=short >"$_py_log" 2>&1 || _py_rc=$?
       tail -40 "$_py_log"

@@ -41,6 +41,30 @@ def test_mint_real_path_parses_response(monkeypatch):
     assert token.expires_at == 1_700_000_000
 
 
+def test_mint_can_bind_the_browser_token_to_a_server_session(monkeypatch):
+    monkeypatch.setenv("XAI_API_KEY", "test-key")
+    seen = {}
+
+    def fake_post(url, *, data, headers, timeout):
+        seen.update(json.loads(data))
+        return json.dumps({"value": "bound", "expires_at": 1_700_000_000}).encode()
+
+    monkeypatch.setattr(xv, "_http_post", fake_post)
+    session = {
+        "model": "grok-voice-latest",
+        "voice": "eve",
+        "instructions": "locked",
+        "tools": [],
+    }
+    token = xv.mint_ephemeral_token(
+        expires_seconds=300,
+        allow_mock=False,
+        session=session,
+    )
+    assert seen["session"] == session
+    assert token.value == "bound"
+
+
 def test_build_voice_session_personas():
     solo = xv.build_voice_session("solo", lesson_context="Slide 1")
     assert solo.persona == xv.PERSONA_THEODORE

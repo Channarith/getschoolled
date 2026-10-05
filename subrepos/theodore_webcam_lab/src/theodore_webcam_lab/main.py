@@ -18,6 +18,7 @@ import signal as _signal
 import threading
 import time
 
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 from fastapi import FastAPI, HTTPException, Path
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
@@ -59,6 +60,7 @@ app = FastAPI(
         "and xAI-backed natural responses."
     ),
 )
+install_live_audio_routes(app, lab_name="Theodore Webcam Lab")
 
 # Self-hosted face-mesh assets. When this directory exists the live monitor loads
 # the landmark model from here instead of the public CDN, so eye/gaze/expression
@@ -523,7 +525,7 @@ def health() -> dict[str, str]:
 @app.get("/lab", response_class=HTMLResponse)
 def landing() -> HTMLResponse:
     """Browser entry for manual qualification — seed demo + open live monitor."""
-    return HTMLResponse(render_landing_page(DEFAULT_SESSION_ID))
+    return HTMLResponse(inject_client(render_landing_page(DEFAULT_SESSION_ID)))
 
 
 @app.post("/admin/shutdown")
@@ -800,9 +802,11 @@ def live_monitor_page(
     # the CDN load of the face mesh, blanking the contours and mood cards).
     local_assets = "true" if os.path.isdir(VISION_ASSET_DIR) else "false"
     return HTMLResponse(
-        _MONITOR_PAGE_TEMPLATE.replace("__SESSION_TITLE__", safe_title)
-        .replace("__SESSION_ID_JSON__", _js_string_literal(session_id))
-        .replace("__VISION_LOCAL_ASSETS__", local_assets)
+        inject_client(
+            _MONITOR_PAGE_TEMPLATE.replace("__SESSION_TITLE__", safe_title)
+            .replace("__SESSION_ID_JSON__", _js_string_literal(session_id))
+            .replace("__VISION_LOCAL_ASSETS__", local_assets)
+        )
     )
 
 

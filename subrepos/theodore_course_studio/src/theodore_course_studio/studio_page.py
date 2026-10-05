@@ -732,7 +732,7 @@ STUDIO_JS = """
     }
 
     function speakText(text, ttsMeta) {
-      if (!$('auto-speak').checked) return;
+      if (!$('auto-speak').checked || window.__THEODORE_LIVE_AUDIO_ACTIVE__) return;
       stopSpeech();
       const spoken = text || '';
       // Prefer the URL the server already chose (gateway or /api/studio/tts).
@@ -771,6 +771,9 @@ STUDIO_JS = """
       }
       playDevice();
     }
+    window.addEventListener('theodore-live-audio', (event) => {
+      if (event.detail?.active) stopSpeech();
+    });
 
     function renderTeach(payload) {
       lastTeachPayload = payload;

@@ -70,7 +70,7 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_children_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_children_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_llm_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q
 
 # Count collected tests + map them to the 16 ecosystem sub-apps (release gate).
 # MIN ratchets the per-sub-app minimum upward over time (0 = report only).
@@ -123,6 +123,9 @@ children-lab:
 rag-lab:
 	PYTHONPATH=subrepos/theodore_rag_lab/src:packages/shared/src $(VENV_PY) -m theodore_rag_lab.bakeoff_loop --hours 0.01
 
+llm-lab:
+	PYTHONPATH=subrepos/theodore_llm_lab/src:packages/shared/src $(VENV_PY) -c "from aoep_shared.llm_training import assemble_report; from theodore_llm_lab.paths import fixture_root; print(assemble_report([fixture_root()]))"
+
 drive-lab:
 	PYTHONPATH=subrepos/theodore_drive_lab/src:packages/shared/src $(VENV_PY) -c "from theodore_drive_lab.bakeoff import DriveBakeoffRunner; print(DriveBakeoffRunner().run_bakeoff(rounds=8)['champion']['metrics'])"
 
@@ -134,7 +137,7 @@ music-lab:
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_children_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q \
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_children_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_llm_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q \
 		--cov=packages/shared/src/aoep_shared --cov-report=term-missing:skip-covered
 
 lint:

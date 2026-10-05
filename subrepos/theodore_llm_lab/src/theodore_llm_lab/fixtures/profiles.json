@@ -1,0 +1,20 @@
+[
+  {
+    "age_band": "child",
+    "language": "km",
+    "reading_level": "beginner",
+    "learning_style": "kinesthetic",
+    "professionalism": "casual",
+    "prior_mastery": 0.2,
+    "race": "must-never-train",
+    "name": "must-never-train"
+  },
+  {
+    "age_band": "adult",
+    "language": "en",
+    "reading_level": "advanced",
+    "learning_style": "reading",
+    "professionalism": "formal",
+    "prior_mastery": 0.8
+  }
+]

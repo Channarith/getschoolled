@@ -15,6 +15,7 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
 
 from typing import Annotated, Any
 
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 from fastapi import (
     FastAPI,
     File,
@@ -56,6 +57,7 @@ app = FastAPI(
     ),
     version="0.1.0",
 )
+install_live_audio_routes(app, lab_name="Theodore Audio Translation Lab")
 
 hub = TranslationHub()
 asr = ASREngine()
@@ -86,7 +88,7 @@ def health() -> dict[str, Any]:
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def lab() -> HTMLResponse:
-    return HTMLResponse(render_lab_page())
+    return HTMLResponse(inject_client(render_lab_page()))
 
 
 @app.get("/api/languages")

@@ -27,6 +27,8 @@ data:
   XAI_TEXT_MODEL: "grok-3-latest"
   XAI_VOICE: "eve"
   XAI_VOICE_ID: "eve"
+  GEMINI_LIVE_MODEL: "gemini-2.5-flash-native-audio-preview-12-2025"
+  GEMINI_LIVE_VOICE: "Kore"
   # LiveKit Cloud project URL (managed — NOT the self-hosted infra/k8s/livekit.yaml
   # server, which is unused when on Cloud). The orchestrator stamps this URL into
   # every join token, so clients connect here. It MUST belong to the same LiveKit

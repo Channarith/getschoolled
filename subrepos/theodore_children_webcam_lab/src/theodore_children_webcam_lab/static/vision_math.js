@@ -77,3 +77,35 @@ export function isHeartShape(ratios) {
     ratios.wrists > HEART_WRISTS_PALMS
   );
 }
+
+// Pointer-demo stand-in for MediaPipe: 21 landmarks in normalised frame space
+// so the same handShape / heart / fist code runs without a camera.
+export function syntheticHand(tip, { pose = "open", scale = 0.1 } = {}) {
+  const nx = Math.max(0.08, Math.min(0.92, tip.x));
+  const ny = Math.max(0.08, Math.min(0.75, tip.y));
+  const wrist = { x: nx, y: ny + scale, z: 0 };
+  const knuckle = { x: nx, y: ny + scale * 0.45, z: 0 };
+  const pts = Array.from({ length: 21 }, () => ({ x: nx, y: ny, z: 0 }));
+  pts[0] = wrist;
+  pts[9] = knuckle;
+  pts[2] = { x: nx - scale * 0.15, y: knuckle.y, z: 0 };
+  const curledY = knuckle.y + scale * 0.08;
+  const openY = ny - scale * 0.05;
+  const fingerTips = [
+    [8, 6, 0],
+    [12, 10, 0.18],
+    [16, 14, 0.32],
+    [20, 18, 0.46],
+  ];
+  for (const [tipIdx, pipIdx, dx] of fingerTips) {
+    const extend = pose === "open" || (pose === "index" && tipIdx === 8);
+    pts[tipIdx] = { x: nx + dx * scale, y: extend ? openY : curledY, z: 0 };
+    pts[pipIdx] = { x: nx + dx * scale * 0.5, y: knuckle.y, z: 0 };
+  }
+  pts[4] = {
+    x: nx - scale * (pose === "fist" ? 0.08 : 0.45),
+    y: pose === "fist" ? curledY : openY + scale * 0.12,
+    z: 0,
+  };
+  return pts;
+}

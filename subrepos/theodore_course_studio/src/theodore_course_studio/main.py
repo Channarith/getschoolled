@@ -21,6 +21,8 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
+
 from .certification_prep import (
     CertCourseRequest,
     CertTrackId,
@@ -62,6 +64,7 @@ app = FastAPI(
     description="Labeled corpus training, review comments, course build, Theodore teach/present.",
     version="0.1.0",
 )
+install_live_audio_routes(app, lab_name="Theodore Course Studio")
 _AVATAR_STATIC_DIR = Path(__file__).with_name("avatar_static")
 app.mount(
     "/api/studio/avatar",
@@ -269,7 +272,7 @@ def studio_telemetry() -> dict[str, Any]:
 @app.get("/", response_class=HTMLResponse)
 @app.get("/studio", response_class=HTMLResponse)
 def studio() -> HTMLResponse:
-    return HTMLResponse(render_studio_page())
+    return HTMLResponse(inject_client(render_studio_page()))
 
 
 @app.get("/api/studio/corpus")

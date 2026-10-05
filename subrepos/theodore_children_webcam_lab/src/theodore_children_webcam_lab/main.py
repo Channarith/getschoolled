@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from typing import Any, Literal
 
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -22,7 +23,7 @@ from pydantic import BaseModel, Field
 from . import __version__, tts
 from .analytics import AggregateAnalytics
 from .children_page import FAVICON_SVG, render_children_page
-from .game_engine import PICTURE_WORDS, fun_score, score_spoken
+from .game_engine import PICTURE_WORDS, all_game_ids, fun_score, score_spoken
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PACKAGE_DIR / "static"
@@ -35,6 +36,7 @@ app = FastAPI(
     version=__version__,
     description="Private, playful browser-local face and hand learning games for ages 4-10.",
 )
+install_live_audio_routes(app, lab_name="Theodore Children Webcam Lab")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if VISION_ASSET_DIR.is_dir():
     app.mount("/vendor/vision", StaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")
@@ -116,12 +118,7 @@ def content() -> dict[str, Any]:
             {"letter": letter.upper(), "word": word}
             for letter, word in PICTURE_WORDS.items()
         ],
-        "games": [
-            "trace-letter", "trace-picture", "say-letter", "oh-behave", "heart",
-            "idea", "fist-bump", "wow", "blow-kiss", "wink", "make-pose",
-            "balloon", "fish", "popcorn", "fruit-cut", "air-drums", "bird-flap",
-            "head-bop", "face-chase", "stand-sit", "dance-freeze", "rainbow-reach",
-        ],
+        "games": list(all_game_ids()),
         "themes": ["cuddly", "hero", "mix"],
     }
 
