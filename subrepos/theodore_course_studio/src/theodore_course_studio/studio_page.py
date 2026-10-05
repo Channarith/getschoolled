@@ -224,7 +224,10 @@ STUDIO_CSS = """
     .avatar-resize-handle:focus-visible { outline:2px solid #8feaff; outline-offset:-2px; }
     /* The default min-height would otherwise out-rank the inline height the
        resize grip writes, so the box would refuse to shrink past 390px. */
-    body.avatar-placed .theodore-avatar-wrap { min-height:0; }
+    /* min-height would otherwise out-rank the inline height the resize grip
+       writes, and content-box would make the 1px border drift the stored box
+       2px away from the rendered one on every save/restore round trip. */
+    body.avatar-placed .theodore-avatar-wrap { min-height:0; box-sizing:border-box; }
     .avatar-hide-btn { position:absolute; top:3px; right:5px; z-index:5; width:22px; height:22px;
                        padding:0; border-radius:50%; font-size:13px; line-height:1;
                        background:rgba(4,24,34,.75); color:#bdf0ff; border:1px solid rgba(141,234,255,.4);
@@ -340,6 +343,8 @@ STUDIO_JS = """
     let avatarPrefs = {};
     let avatarVisible = false;
     let avatarInitPromise = null;
+    let avatarHomeParent = null;
+    let avatarHomeNext = null;
     let avatarCatalog = {};
     let selectedAvatarId = 'amina';
     let selectedSource = null;
@@ -401,6 +406,26 @@ STUDIO_JS = """
         return theodoreAvatar;
       })();
       return avatarInitPromise;
+    }
+
+    // A transformed ancestor becomes the containing block for position:fixed, and
+    // .teach-stage.anim animates a transform on every slide change. Left where he
+    // is, a placed Theodore would jump by the stage's offset for 0.65s each slide,
+    // and his saved coordinates would be stage-relative instead of viewport-relative.
+    // So a placed Theodore is hoisted out of that subtree entirely. In presenter
+    // mode the host is the overlay, because it is the fullscreen element and
+    // anything outside it would not render.
+    function avatarPlacedHost() {
+      return presenterActive() ? $('presenter-overlay') : document.body;
+    }
+
+    function rehomeAvatar(wrap) {
+      if (avatarPrefs.placed) {
+        const host = avatarPlacedHost();
+        if (host && wrap.parentElement !== host) host.appendChild(wrap);
+      } else if (avatarHomeParent && wrap.parentElement !== avatarHomeParent) {
+        avatarHomeParent.insertBefore(wrap, avatarHomeNext);
+      }
     }
 
     function loadAvatarPrefs() {
@@ -469,6 +494,7 @@ STUDIO_JS = """
       const wrap = $('theodore-avatar-wrap');
       if (!wrap) return;
       document.body.classList.toggle('avatar-placed', !!avatarPrefs.placed);
+      rehomeAvatar(wrap);
       if (avatarPrefs.placed) {
         wrap.style.position = 'fixed';
         wrap.style.right = 'auto';
@@ -548,6 +574,8 @@ STUDIO_JS = """
       const handle = $('avatar-drag-handle');
       const grip = $('avatar-resize-handle');
       if (!wrap || !handle || !grip) return;
+      avatarHomeParent = wrap.parentElement;
+      avatarHomeNext = wrap.nextSibling;
       let mode = null;
       let startX = 0, startY = 0, baseX = 0, baseY = 0, baseW = 0, baseH = 0;
 
@@ -647,6 +675,9 @@ STUDIO_JS = """
       document.body.classList.add('presenting');
       const overlay = $('presenter-overlay');
       if (overlay.requestFullscreen) overlay.requestFullscreen().catch(() => {});
+      // A placed Theodore lives outside the stage, so he has to cross into the
+      // fullscreen element himself or he simply would not be rendered.
+      applyAvatarPlacement();
       updateLessonWindowControls();
       // The renderer sizes off the container, which just changed by a lot.
       requestAnimationFrame(() => theodoreAvatar?.resize());
@@ -662,6 +693,7 @@ STUDIO_JS = """
       if (document.fullscreenElement && document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
       }
+      applyAvatarPlacement();
       updateLessonWindowControls();
       requestAnimationFrame(() => theodoreAvatar?.resize());
     }

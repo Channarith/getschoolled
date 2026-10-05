@@ -584,7 +584,16 @@ export class TheodoreAvatar {
   setEnabled(enabled) {
     this.container.hidden = !enabled;
     this.motion = !!enabled;
-    if (!enabled) this.stopSpeaking();
+    // Park the render loop while hidden; a WebGL frame budget on a tablet is
+    // the whole reason the avatar is hideable in the first place.
+    if (!enabled) {
+      this.stopSpeaking();
+      cancelAnimationFrame(this.frame);
+      this.frame = 0;
+    } else if (!this.frame && !this.disposed) {
+      this.lastFrameMs = performance.now();
+      this.animate(this.lastFrameMs);
+    }
   }
 
   setMotionIntensity(value) {
