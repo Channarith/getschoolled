@@ -3487,10 +3487,6 @@ MONITOR_JS = (
       return Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart));
     }
 
-    function matchScoreForFace(pts, state) {
-      return matchPartsForFace(pts, state).score;
-    }
-
     function bestFaceIndex(faces, state, minScore) {
       let bestI = -1, bestScore = -1;
       for (let i = 0; i < faces.length; i++) {

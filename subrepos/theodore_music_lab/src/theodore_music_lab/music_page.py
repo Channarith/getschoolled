@@ -1632,11 +1632,11 @@ _JS = r"""
 
   function loadYtApi() {
     return new Promise((resolve) => {
-      if (window.YT && window.YT.Player) { resolve(); return; }
+      if (window.YT && window.YT.Player) { resolve(true); return; }
       const prior = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => {
         if (typeof prior === "function") prior();
-        resolve();
+        resolve(true);
       };
       if (![...document.scripts].some((s) => (s.src || "").includes("youtube.com/iframe_api"))) {
         const tag = document.createElement("script");
