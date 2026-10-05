@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" width="128" height="128">
+
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#7dd3fc"/></linearGradient></defs><circle cx="64" cy="64" r="64" fill="url(#g)"/>
+<!-- hair dome -->
+<ellipse cx="64" cy="56" rx="44" ry="46" fill="#334155"/>
+<ellipse cx="28" cy="48" rx="14" ry="16" fill="#334155"/><ellipse cx="100" cy="48" rx="14" ry="16" fill="#334155"/>
+<!-- body -->
+<path d="M18 128c10-26 30-38 46-38s36 12 46 38" fill="#38bdf8"/>
+<!-- face -->
+<circle cx="64" cy="70" r="34" fill="#ffe0c2"/>
+<!-- ears -->
+<circle cx="30" cy="72" r="8" fill="#ffe0c2"/>
+<circle cx="98" cy="72" r="8" fill="#ffe0c2"/>
+
+<!-- eyes (big cute) -->
+<ellipse cx="48" cy="68" rx="7" ry="9" fill="#0c4a6e"/>
+<ellipse cx="80" cy="68" rx="7" ry="9" fill="#0c4a6e"/>
+<circle cx="50.5" cy="65" r="2.4" fill="#fff"/>
+<circle cx="82.5" cy="65" r="2.4" fill="#fff"/>
+<circle cx="46" cy="71" r="1.2" fill="#fff" opacity="0.7"/>
+<circle cx="78" cy="71" r="1.2" fill="#fff" opacity="0.7"/>
+<!-- brows -->
+<path d="M38 56q10-7 18 0" fill="none" stroke="#0c4a6e" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M72 56q10-7 18 0" fill="none" stroke="#0c4a6e" stroke-width="2.4" stroke-linecap="round"/>
+<!-- cheeks -->
+<ellipse cx="38" cy="80" rx="9" ry="5" fill="#fda4af" opacity="0.7"/>
+<ellipse cx="90" cy="80" rx="9" ry="5" fill="#fda4af" opacity="0.7"/>
+
+<!-- mouth -->
+<path d="M54 86q10 12 20 0" fill="none" stroke="#e36b7a" stroke-width="3" stroke-linecap="round"/>
+
+<path d="M30 52c6-24 62-24 68 0v6H30z" fill="#0ea5e9"/><ellipse cx="64" cy="34" rx="10" ry="8" fill="#0ea5e9"/><circle cx="64" cy="26" r="4" fill="#fff" opacity="0.85"/>
+
+
+</svg>

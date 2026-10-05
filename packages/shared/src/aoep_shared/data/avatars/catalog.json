@@ -1,0 +1,213 @@
+{
+  "default_id": "r-nova",
+  "styles": [
+    {
+      "id": "realistic",
+      "label": "Realistic"
+    },
+    {
+      "id": "cute",
+      "label": "Cute"
+    }
+  ],
+  "avatars": [
+    {
+      "id": "r-nova",
+      "label": "Nova",
+      "style": "realistic",
+      "alt": "Portrait of Nova, medium-brown skin, short curly hair, round glasses",
+      "skin": "medium-brown",
+      "hair": "short curly dark brown",
+      "accessories": "round glasses",
+      "expression": "warm smile",
+      "path": "/avatars/r-nova.svg"
+    },
+    {
+      "id": "r-amir",
+      "label": "Amir",
+      "style": "realistic",
+      "alt": "Portrait of Amir, deep brown skin, short fade haircut, warm smile",
+      "skin": "deep brown",
+      "hair": "short fade black",
+      "accessories": "",
+      "expression": "warm smile",
+      "path": "/avatars/r-amir.svg"
+    },
+    {
+      "id": "r-mei",
+      "label": "Mei",
+      "style": "realistic",
+      "alt": "Portrait of Mei, light-medium skin, sleek bob, soft smile",
+      "skin": "light-medium",
+      "hair": "black bob",
+      "accessories": "",
+      "expression": "warm smile",
+      "path": "/avatars/r-mei.svg"
+    },
+    {
+      "id": "r-sofia",
+      "label": "Sofia",
+      "style": "realistic",
+      "alt": "Portrait of Sofia, olive skin, long wavy hair, gold hoop earrings",
+      "skin": "olive",
+      "hair": "long wavy chestnut",
+      "accessories": "gold hoops",
+      "expression": "warm smile",
+      "path": "/avatars/r-sofia.svg"
+    },
+    {
+      "id": "r-jordan",
+      "label": "Jordan",
+      "style": "realistic",
+      "alt": "Portrait of Jordan, fair skin with freckles, short auburn hair",
+      "skin": "fair freckled",
+      "hair": "short auburn",
+      "accessories": "",
+      "expression": "warm smile",
+      "path": "/avatars/r-jordan.svg"
+    },
+    {
+      "id": "r-kai",
+      "label": "Kai",
+      "style": "realistic",
+      "alt": "Portrait of Kai, tan skin, textured coils under a soft beanie",
+      "skin": "tan",
+      "hair": "textured coils",
+      "accessories": "slate beanie",
+      "expression": "warm smile",
+      "path": "/avatars/r-kai.svg"
+    },
+    {
+      "id": "r-priya",
+      "label": "Priya",
+      "style": "realistic",
+      "alt": "Portrait of Priya, warm brown skin, long dark hair with side part",
+      "skin": "warm brown",
+      "hair": "long dark side-part",
+      "accessories": "",
+      "expression": "warm smile",
+      "path": "/avatars/r-priya.svg"
+    },
+    {
+      "id": "r-leo",
+      "label": "Leo",
+      "style": "realistic",
+      "alt": "Portrait of Leo, medium-dark skin, short locs, clear glasses",
+      "skin": "medium-dark",
+      "hair": "short locs",
+      "accessories": "clear glasses",
+      "expression": "warm smile",
+      "path": "/avatars/r-leo.svg"
+    },
+    {
+      "id": "r-sam",
+      "label": "Sam",
+      "style": "realistic",
+      "alt": "Portrait of Sam, light skin, silver-streak short hair, kind smile",
+      "skin": "light",
+      "hair": "short silver-streak",
+      "accessories": "",
+      "expression": "kind smile",
+      "path": "/avatars/r-sam.svg"
+    },
+    {
+      "id": "c-peach",
+      "label": "Peach",
+      "style": "cute",
+      "alt": "Cute avatar Peach, peachy skin, pigtails, rosy cheeks",
+      "skin": "peach",
+      "hair": "brown pigtails",
+      "accessories": "blush cheeks",
+      "expression": "warm smile",
+      "path": "/avatars/c-peach.svg"
+    },
+    {
+      "id": "c-mint",
+      "label": "Mint",
+      "style": "cute",
+      "alt": "Cute avatar Mint, soft skin, mint bob hair, freckles",
+      "skin": "soft ivory",
+      "hair": "mint bob",
+      "accessories": "freckles",
+      "expression": "warm smile",
+      "path": "/avatars/c-mint.svg"
+    },
+    {
+      "id": "c-coco",
+      "label": "Coco",
+      "style": "cute",
+      "alt": "Cute avatar Coco, deep brown skin, afro puffs, star hair clip",
+      "skin": "deep brown",
+      "hair": "afro puffs",
+      "accessories": "star clip",
+      "expression": "warm smile",
+      "path": "/avatars/c-coco.svg"
+    },
+    {
+      "id": "c-sky",
+      "label": "Sky",
+      "style": "cute",
+      "alt": "Cute avatar Sky, light skin, blue beanie, round cheeks",
+      "skin": "light",
+      "hair": "hidden under beanie",
+      "accessories": "sky-blue beanie",
+      "expression": "warm smile",
+      "path": "/avatars/c-sky.svg"
+    },
+    {
+      "id": "c-honey",
+      "label": "Honey",
+      "style": "cute",
+      "alt": "Cute avatar Honey, golden skin, messy bun, round glasses",
+      "skin": "golden",
+      "hair": "messy bun",
+      "accessories": "round glasses",
+      "expression": "warm smile",
+      "path": "/avatars/c-honey.svg"
+    },
+    {
+      "id": "c-berry",
+      "label": "Berry",
+      "style": "cute",
+      "alt": "Cute avatar Berry, medium skin, curly bangs, heart hair clip",
+      "skin": "medium",
+      "hair": "curly bangs",
+      "accessories": "heart clip",
+      "expression": "warm smile",
+      "path": "/avatars/c-berry.svg"
+    },
+    {
+      "id": "c-moss",
+      "label": "Moss",
+      "style": "cute",
+      "alt": "Cute avatar Moss, olive skin, short fluffy hair, headphones",
+      "skin": "olive",
+      "hair": "short fluffy",
+      "accessories": "headphones",
+      "expression": "warm smile",
+      "path": "/avatars/c-moss.svg"
+    },
+    {
+      "id": "c-luna",
+      "label": "Luna",
+      "style": "cute",
+      "alt": "Cute avatar Luna, pale skin, silver hair, crescent pin",
+      "skin": "pale",
+      "hair": "silver bob",
+      "accessories": "crescent pin",
+      "expression": "warm smile",
+      "path": "/avatars/c-luna.svg"
+    },
+    {
+      "id": "c-sunny",
+      "label": "Sunny",
+      "style": "cute",
+      "alt": "Cute avatar Sunny, warm brown skin, cornrows, bright smile",
+      "skin": "warm brown",
+      "hair": "cornrows",
+      "accessories": "",
+      "expression": "warm smile",
+      "path": "/avatars/c-sunny.svg"
+    }
+  ]
+}

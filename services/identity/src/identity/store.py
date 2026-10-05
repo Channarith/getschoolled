@@ -79,6 +79,8 @@ class StudentProfile(BaseModel):
     can recommend and adapt PER STUDENT."""
     id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
     display_name: str
+    # Stable catalog ID from aoep_shared.avatars (realistic/cute). Empty = default.
+    avatar_id: str = ""
     age_band: str = "adult"            # child | teen | adult
     mastery: Dict[str, float] = Field(default_factory=dict)   # skill -> [0,1]
     completed_course_ids: List[str] = Field(default_factory=list)
@@ -151,6 +153,8 @@ class Account(BaseModel):
     # device. Persisted so a learner's language follows them across web + mobile,
     # and so the AI teacher answers in the language they speak.
     preferred_language: str = ""
+    # Profile avatar catalog ID (aoep_shared.avatars). Empty resolves to default.
+    avatar_id: str = ""
     is_admin: bool = False
     created_at: float = Field(default_factory=lambda: time.time())
     # Subscription billing (Netflix-style calendar-day monthly).
@@ -190,6 +194,7 @@ class Account(BaseModel):
             "tier": self.tier.value, "region": self.region.value,
             "membership_class": self.membership_class,
             "preferred_language": self.preferred_language,
+            "avatar_id": self.avatar_id or "",
             "is_admin": self.is_admin,
             "created_at": self.created_at, "last_login_at": self.last_login_at,
             "login_count": self.login_count,
@@ -569,6 +574,18 @@ class AccountStore:
                 setattr(acct, key, val)
         self._persist()
         return acct
+
+    def set_avatar(self, account_id: str, avatar_id: str) -> Account:
+        from aoep_shared.avatars import resolve_avatar_id
+        return self.patch_account(account_id, avatar_id=resolve_avatar_id(avatar_id))
+
+    def set_student_avatar(self, account_id: str, student_id: str, avatar_id: str) -> StudentProfile:
+        from aoep_shared.avatars import resolve_avatar_id
+        acct = self._by_id[account_id]
+        prof = acct.students[student_id]
+        prof.avatar_id = resolve_avatar_id(avatar_id)
+        self._persist()
+        return prof
 
     def set_tier(self, account_id: str, tier: PlanTier) -> Account:
         acct = self._by_id[account_id]

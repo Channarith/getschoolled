@@ -43,6 +43,9 @@ import { getLiveRoomLocation } from "../liveRoomLocation";
 import { getAttendeeCode } from "../liveRoomAccess";
 import { useLiveRoomSocket } from "../liveRoomWs";
 import { theme } from "../theme";
+import AvatarImage from "../components/AvatarImage";
+import { resolveAvatarId } from "../avatars";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Svg, { Circle, Path } from "react-native-svg";
 
 const STORAGE: Record<string, { participantId: string; identity: string }> = {};
@@ -148,7 +151,7 @@ function initials(name: string): string {
 // slide) — parity with the web participant grid.
 function SeatTile({
   name, host, me, floor, hand, muted, open, track, cameraOn, onToggleCamera,
-  onPress, adminProfileLabel, presenceFaceCount,
+  onPress, adminProfileLabel, presenceFaceCount, avatarId,
 }: {
   name?: string;
   host?: boolean;
@@ -165,6 +168,7 @@ function SeatTile({
   /** Private readiness summary; supplied only to verified moderators/admins. */
   adminProfileLabel?: string;
   presenceFaceCount?: number;
+  avatarId?: string;
 }) {
   if (open) {
     return (
@@ -201,7 +205,11 @@ function SeatTile({
           {hasVideo ? (
             <LiveKitVideoView track={track ?? null} mirror={Boolean(me)} />
           ) : (
-            <Text style={styles.seatAvatar}>{host ? "🎓" : initials(name || "")}</Text>
+            <AvatarImage
+              avatarId={host ? "ai-host" : (avatarId || "initials")}
+              size={40}
+              accessibilityLabel={name || "Participant"}
+            />
           )}
           <View style={styles.seatBadges} pointerEvents="none">
             {floor ? <Text style={styles.seatBadge}>🎤</Text> : null}
@@ -614,7 +622,10 @@ export default function LiveRoomScreen({
         readinessBand?: string;
         primaryStyle?: string;
         attendeeCode?: string;
+        avatarId?: string;
       } | undefined;
+      const storedAvatar = await AsyncStorage.getItem("@aic/avatar_id.v1").catch(() => null);
+      const myAvatarId = resolveAvatarId(account?.avatar_id || storedAvatar || "");
       const classId = roomId.startsWith("class-") ? roomId.slice("class-".length) : "";
       const attendeeCode = getAttendeeCode(roomId) || getAttendeeCode(classId);
       if (account) {
@@ -629,6 +640,7 @@ export default function LiveRoomScreen({
               readinessBand: lx.readiness_band || "",
               primaryStyle: lx.primary_style || student.primary_style || "mixed",
               attendeeCode,
+              avatarId: myAvatarId,
             };
           }
         } catch {
@@ -637,6 +649,7 @@ export default function LiveRoomScreen({
       } else if (attendeeCode) {
         joinOpts = { attendeeCode };
       }
+      joinOpts = { ...(joinOpts || {}), avatarId: myAvatarId };
       let joined: Awaited<ReturnType<typeof joinLiveRoom>>;
       try {
         joined = await joinLiveRoom(roomId, joinName, ident, locale, joinOpts);
@@ -1165,6 +1178,7 @@ export default function LiveRoomScreen({
                     ? `${Math.round(Number(p.readiness_score ?? 0))}/100 · ${p.primary_style || "mixed"}`
                     : "not completed")
                   : undefined}
+                avatarId={p.avatar_id}
                 onPress={() => setFocusedTile({
                   kind: "participant",
                   id: p.id,
@@ -2108,7 +2122,11 @@ export default function LiveRoomScreen({
                 </View>
               ) : (
                 <View style={styles.fsAvatarWrap}>
-                  <Text style={styles.fsAvatar}>{isHost ? "🎓" : initials(fsName)}</Text>
+                  <AvatarImage
+                    avatarId={isHost ? "ai-host" : (room?.participants.find((x) => x.id === fsParticipant?.id)?.avatar_id || "initials")}
+                    size={120}
+                    accessibilityLabel={fsName}
+                  />
                 </View>
               )}
             </View>

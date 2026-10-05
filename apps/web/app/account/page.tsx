@@ -11,6 +11,7 @@ import {
   getPortfolio,
   getRewards,
   getToken,
+  setAccountAvatar,
   listStudents,
   subscribeToPlan,
   setStudentMastery,
@@ -23,6 +24,8 @@ import { OPEN_LEARNING_PROFILE_EVENT } from "../components/LearningProfileSurvey
 import { playIntro, INTRO_AUTOPLAY_KEY } from "../components/IntroSequence";
 import { INTRO_VARIANTS } from "../lib/introAnimations";
 import { useT } from "../lib/i18n";
+import AvatarPicker from "../components/AvatarPicker";
+import { writeLocalAvatarId } from "../lib/avatars";
 
 const PLANS = [
   { id: "free", label: "Free", price: "$0", ads: true },
@@ -47,6 +50,9 @@ export default function AccountPage() {
   const [allAccounts, setAllAccounts] = useState<Account[]>([]);
   const [primaryStudent, setPrimaryStudent] = useState<StudentProfile | null>(null);
   const [introAutoplay, setIntroAutoplay] = useState(true);
+  const [avatarId, setAvatarId] = useState("");
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarMsg, setAvatarMsg] = useState("");
 
   useEffect(() => {
     try { setIntroAutoplay(localStorage.getItem(INTRO_AUTOPLAY_KEY) !== "off"); } catch { /* */ }
@@ -61,6 +67,10 @@ export default function AccountPage() {
     try {
       const me = await getMe();
       setIsAdmin(Boolean(me.is_admin));
+      if (me.avatar_id) {
+        setAvatarId(me.avatar_id);
+        writeLocalAvatarId(me.avatar_id);
+      }
       if (me.is_admin) {
         try {
           setAllAccounts((await adminListAccounts()).accounts);
@@ -195,6 +205,32 @@ export default function AccountPage() {
                 <Link href="/rewards">{t("account.redeem")}</Link>
               </div>
             )}
+          </div>
+
+
+          <div className="card" data-testid="avatar-picker">
+            <AvatarPicker
+              value={avatarId}
+              disabled={avatarBusy}
+              heading="Your avatar"
+              onChange={async (id) => {
+                setAvatarBusy(true);
+                setAvatarMsg("");
+                setAvatarId(id);
+                writeLocalAvatarId(id);
+                try {
+                  const res = await setAccountAvatar(id);
+                  setAvatarId(res.avatar_id);
+                  writeLocalAvatarId(res.avatar_id);
+                  setAvatarMsg("Avatar saved");
+                } catch (e) {
+                  setAvatarMsg(String(e));
+                } finally {
+                  setAvatarBusy(false);
+                }
+              }}
+            />
+            {avatarMsg ? <div className="muted" style={{ marginTop: 8 }}>{avatarMsg}</div> : null}
           </div>
 
           <div

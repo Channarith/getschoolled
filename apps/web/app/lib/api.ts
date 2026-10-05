@@ -235,6 +235,7 @@ export type Account = {
   region: string;
   membership_class?: "standard" | "vip";
   preferred_language?: string;
+  avatar_id?: string;
   subscription?: Subscription;
   is_admin?: boolean;
   onboarding_completed_at?: number | null;
@@ -465,6 +466,45 @@ export async function getOAuthProviderStatus(): Promise<OAuthProviderStatus> {
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/auth/oauth/providers`, { cache: "no-store" }));
 }
 
+
+export type AvatarCatalogResponse = {
+  default_id: string;
+  styles: { id: string; label: string; description?: string }[];
+  avatars: {
+    id: string; label: string; style: string; alt: string; path: string;
+    skin?: string; hair?: string; accessories?: string;
+  }[];
+};
+
+export async function getAvatarCatalog(style = ""): Promise<AvatarCatalogResponse> {
+  const q = style ? `?style=${encodeURIComponent(style)}` : "";
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/avatars/catalog${q}`, { cache: "no-store" }));
+}
+
+export async function setAccountAvatar(avatarId: string): Promise<{
+  ok: boolean; avatar_id: string; account: Account;
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/account/avatar`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ avatar_id: avatarId }),
+    }),
+  );
+}
+
+export async function setStudentAvatar(studentId: string, avatarId: string): Promise<{
+  ok: boolean; student: StudentProfile;
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/avatar`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ avatar_id: avatarId }),
+    }),
+  );
+}
+
 export async function getMe(): Promise<Account> {
   // No token → the visitor is signed out. Skip the request that is guaranteed to
   // 401 (avoids the console error + a pointless round-trip on every guest load
@@ -598,6 +638,7 @@ export async function setEnrollmentStatus(
 // --- student sub-profiles + Foresight recommendations -------------------- //
 export type StudentProfile = {
   id: string; display_name: string; age_band: string;
+  avatar_id?: string;
   mastery: Record<string, number>; completed_course_ids: string[]; interests: string[];
   primary_style?: string; learning_pace?: string; learning_structure?: string;
   session_length?: string; group_preference?: string; reading_level?: string;
@@ -1933,6 +1974,7 @@ export type LiveParticipant = {
   readiness_score?: number;
   readiness_band?: string;
   primary_style?: string;
+  avatar_id?: string;
 };
 
 export type LiveRoomChatMessage = {
@@ -2115,6 +2157,7 @@ export async function joinLiveRoom(
     readinessBand?: string;
     primaryStyle?: string;
     attendeeCode?: string;
+    avatarId?: string;
   },
 ): Promise<LiveRoomJoin> {
   return jsonOrThrow(
@@ -2130,6 +2173,7 @@ export async function joinLiveRoom(
         readiness_band: opts?.readinessBand || "",
         primary_style: opts?.primaryStyle || "",
         attendee_code: opts?.attendeeCode || "",
+        avatar_id: opts?.avatarId || "",
       }),
     })
   );

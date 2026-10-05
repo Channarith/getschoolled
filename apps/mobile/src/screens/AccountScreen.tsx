@@ -4,9 +4,12 @@ import {
 } from "react-native";
 
 import {
-  changePassword, createStudent, getPortfolio, listStudents,
+  changePassword, createStudent, getPortfolio, listStudents, setAccountAvatar,
   type Portfolio, type StudentProfile,
 } from "../api";
+import AvatarPicker from "../components/AvatarPicker";
+import { resolveAvatarId } from "../avatars";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../auth/AuthContext";
 import DropdownListSelector from "../components/DropdownListSelector";
 import GlassPanel from "../components/GlassPanel";
@@ -37,6 +40,8 @@ export default function AccountScreen({
   const [addBusy, setAddBusy] = useState(false);
   const [pwBusy, setPwBusy] = useState(false);
   const [learnersOpen, setLearnersOpen] = useState(false);
+  const [avatarId, setAvatarId] = useState("");
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -55,6 +60,16 @@ export default function AccountScreen({
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    const id = account?.avatar_id || "";
+    if (id) setAvatarId(resolveAvatarId(id));
+    else {
+      AsyncStorage.getItem("@aic/avatar_id.v1").then((v) => {
+        if (v) setAvatarId(resolveAvatarId(v));
+      }).catch(() => undefined);
+    }
+  }, [account?.avatar_id]);
 
   async function switchStudent(id: string) {
     await setSettings({ studentId: id });
@@ -101,6 +116,20 @@ export default function AccountScreen({
       <GlassPanel style={styles.card}>
         <Text style={styles.label}>{account?.display_name}</Text>
         <Text style={styles.meta}>{account?.email} · {account?.tier}</Text>
+        <AvatarPicker
+          value={avatarId}
+          disabled={avatarBusy}
+          heading="Your avatar"
+          onChange={(id) => {
+            setAvatarId(id);
+            setAvatarBusy(true);
+            void AsyncStorage.setItem("@aic/avatar_id.v1", id);
+            void setAccountAvatar(id)
+              .then((res) => setAvatarId(res.avatar_id))
+              .catch(() => undefined)
+              .finally(() => setAvatarBusy(false));
+          }}
+        />
         {portfolio ? (
           <Text style={styles.meta}>{t("account.points", { n: portfolio.points_balance })}</Text>
         ) : null}
