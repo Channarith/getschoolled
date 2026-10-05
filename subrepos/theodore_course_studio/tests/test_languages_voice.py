@@ -131,6 +131,8 @@ def test_talk_stays_on_the_course_and_refuses_other_topics():
     )
     assert relates_to_course("What does the stop sign mean?", course)
     assert relates_to_course("I am confused about this page", course)
+    assert relates_to_course("What is this training material about?", course)
+    assert relates_to_course("What will I learn in this course?", course)
     assert not relates_to_course("Who won the world series?", course)
     assert not relates_to_course("What is the weather in Tokyo?", course)
 
@@ -152,6 +154,15 @@ def test_talk_stays_on_the_course_and_refuses_other_topics():
     )
     assert "stop" in on_topic.message.lower()
     assert "outside this course" not in on_topic.message
+
+    overview = CourseStudioVoiceAgent(api_key="").respond(
+        session_id="overview",
+        learner_message="What is this training material about?",
+        lesson_context=course,
+        scope_to_course=True,
+    )
+    assert "driver education" in overview.message.lower()
+    assert "outside this course" not in overview.message
 
     # Slide narration does not set the scope flag, so it is not refused.
     present = CourseStudioVoiceAgent(api_key="").respond(

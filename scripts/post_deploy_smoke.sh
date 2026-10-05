@@ -137,4 +137,7 @@ if [ "$FAIL" -gt 0 ]; then
 fi
 
 echo "RESULT: OK — all services on $EXPECTED_DESC"
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "$0")" && pwd)/print_terminal_link.sh"
+print_terminal_link "${PUBLIC_APP_URL:-https://salareen.com}"
 exit 0

@@ -84,7 +84,7 @@ STUDIO_CSS = """
                    animation: fadeUp 0.65s ease; }
     .teach-stage.anim { animation: fadeUp 0.65s ease; }
     @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-    .teach-stage h3 { margin:0 0 10px; padding-right:100px; font-size:28px; color:#1e3a5f; letter-spacing:-0.02em; }
+    .teach-stage h3 { margin:0 0 10px; padding-right:300px; font-size:28px; color:#1e3a5f; letter-spacing:-0.02em; }
     .page-welcome { display:grid; justify-items:center; text-align:center; gap:8px; padding:18px 8px 8px; color:#5c5146; }
     .page-welcome[hidden] { display:none !important; }
     .page-welcome svg { width:min(100%, 280px); height:auto; }
@@ -92,7 +92,12 @@ STUDIO_CSS = """
     .teach-stage .body { font-size:18px; line-height:1.55; color:#2c241c; }
     .teach-stage .narr { margin-top:14px; padding:10px 12px; border-radius:12px; background:#f7f1e6;
                          color:#5c3b1e; font-style:italic; }
-    .lesson-window-controls { position:absolute; top:12px; right:12px; z-index:8; display:flex; gap:7px; }
+    .lesson-window-controls { position:absolute; top:12px; right:12px; z-index:8; display:flex; align-items:center; gap:7px; }
+    .lesson-window-controls .lesson-lang { display:flex; align-items:center; gap:6px; margin:0;
+                                           color:#fffaf3; font:700 12px "Avenir Next", "Segoe UI", sans-serif; }
+    .lesson-window-controls select { height:38px; max-width:12rem; padding:0 8px; border-radius:10px;
+                                     background:rgba(30,58,95,.92); color:#fffaf3; border:1px solid rgba(255,255,255,.28);
+                                     box-shadow:0 3px 12px rgba(20,16,12,.22); }
     .lesson-window-controls button { min-width:42px; height:38px; padding:5px 9px; border-radius:10px;
                                      background:rgba(30,58,95,.92); color:#fffaf3; border:1px solid rgba(255,255,255,.28);
                                      box-shadow:0 3px 12px rgba(20,16,12,.22); font-weight:800; }
@@ -156,15 +161,15 @@ STUDIO_CSS = """
     .presenter-overlay #teach-stage { position:absolute; inset:0; margin:0; padding:0;
                                       border:0; border-radius:0; background:transparent; box-shadow:none;
                                       display:flex; flex-direction:column; min-height:0; }
-    .presenter-overlay #teach-stage h3 { flex:0 0 auto; margin:0; padding:18px 126px 12px 30px;
+    .presenter-overlay #teach-stage h3 { flex:0 0 auto; margin:0; padding:18px 340px 12px 30px;
                                          font-size:clamp(22px,3vw,40px); color:#f8f1e4; }
     /* Serenity layout: full-bleed animated storyboard with Theodore as a PiP hologram overlay. */
     .presenter-overlay .teacher-stage-grid { flex:1 1 auto; min-height:0; display:block; position:relative; }
     .presenter-overlay .storyboard-stage { position:absolute; inset:0; aspect-ratio:unset; margin:0;
                                            border-radius:0; z-index:0; box-shadow:none; }
     .presenter-overlay .theodore-avatar-wrap { position:absolute; left:2.4%; bottom:7%;
-                                               width:min(32vw,380px); height:min(58vh,520px);
-                                               min-height:280px; z-index:3; border-radius:18px;
+                                               width:min(24vw,280px); height:min(42vh,360px);
+                                               min-height:220px; z-index:3; border-radius:18px;
                                                background:radial-gradient(ellipse at 50% 64%,rgba(68,214,255,.22),rgba(4,18,26,.55) 70%);
                                                border:1px solid rgba(94,224,255,.45);
                                                box-shadow:0 0 40px rgba(59,215,255,.18), inset 0 0 24px rgba(59,215,255,.12); }
@@ -182,26 +187,53 @@ STUDIO_CSS = """
     .presenter-overlay .avatar-label { left:50%; right:auto; transform:translateX(-50%);
                                        bottom:12px; white-space:nowrap; }
     .presenter-overlay.has-storyboard .theodore-avatar-wrap { left:2.4%; bottom:calc(42% + 12px);
-                                                             height:min(48vh,440px); }
-    .presenter-overlay:not(.has-storyboard) .theodore-avatar-wrap { left:0; bottom:0; width:38%; height:100%; border-radius:0; }
-    .presenter-overlay:not(.has-storyboard) .lesson-stage-content { left:38%; right:0; bottom:0; top:0;
+                                                             height:min(34vh,320px); }
+    .presenter-overlay:not(.has-storyboard) .theodore-avatar-wrap { left:2%; bottom:9%; width:28%; height:82%; }
+    .presenter-overlay:not(.has-storyboard) .lesson-stage-content { left:28%; right:0; bottom:0; top:0;
                                                                       max-height:none; background:rgba(28,20,14,.78); }
     .presenter-exit { position:absolute; top:14px; right:16px; z-index:3; }
-    /* Avatar is off until SHOW_AVATAR is true. Voice and the lesson stay full width. */
-    .theodore-avatar-wrap { display:none !important; }
+    /* Avatar hidden unless body.avatar-on. No !important here: the show/hide
+       toggle has to be able to win, and `hidden` has to keep working. */
+    body:not(.avatar-on) .theodore-avatar-wrap { display:none; }
     .teacher-stage-grid, .teacher-stage-grid.has-storyboard { grid-template-columns:1fr; }
     .teacher-stage-grid .storyboard-stage { grid-column:1; grid-row:auto; }
     .presenter-overlay:not(.has-storyboard) .lesson-stage-content { left:0; right:0; top:0; max-height:none; }
-    body.avatar-on .theodore-avatar-wrap { display:block !important; }
     body.avatar-on .teacher-stage-grid,
     body.avatar-on .teacher-stage-grid.has-storyboard { grid-template-columns:minmax(180px, 34%) 1fr; }
     body.avatar-on .teacher-stage-grid .storyboard-stage { grid-column:2; grid-row:1 / span 2; }
-    body.avatar-on .presenter-overlay:not(.has-storyboard) .lesson-stage-content { left:38%; top:0; max-height:none; }
+    body.avatar-on .presenter-overlay:not(.has-storyboard) .lesson-stage-content { left:28%; top:0; max-height:none; }
+    /* Once the avatar has been dragged it is "placed": one fixed-position code
+       path for both the dashboard and the presenter overlay, so the drag does
+       not have to out-specify the left/bottom rules each mode sets. */
+    body.avatar-placed .teacher-stage-grid,
+    body.avatar-placed .teacher-stage-grid.has-storyboard { grid-template-columns:1fr; }
+    body.avatar-placed .teacher-stage-grid .storyboard-stage { grid-column:1; grid-row:auto; }
+    .avatar-drag-handle { position:absolute; top:0; left:0; right:0; height:30px; z-index:4;
+                          display:flex; align-items:center; justify-content:center; gap:5px;
+                          cursor:grab; touch-action:none; color:#bdf0ff;
+                          background:linear-gradient(rgba(4,24,34,.72), transparent);
+                          border-radius:18px 18px 0 0; }
+    .avatar-drag-handle:focus-visible { outline:2px solid #8feaff; outline-offset:-2px; }
+    .avatar-drag-handle span { display:block; width:26px; height:3px; border-radius:3px;
+                               background:currentColor; opacity:.65; }
+    .theodore-avatar-wrap.dragging .avatar-drag-handle { cursor:grabbing; }
+    .avatar-resize-handle { position:absolute; right:0; bottom:0; width:22px; height:22px; z-index:4;
+                            cursor:nwse-resize; touch-action:none;
+                            background:linear-gradient(135deg, transparent 52%, rgba(141,234,255,.75) 52%);
+                            border-radius:0 0 18px 0; }
+    .avatar-resize-handle:focus-visible { outline:2px solid #8feaff; outline-offset:-2px; }
+    /* The default min-height would otherwise out-rank the inline height the
+       resize grip writes, so the box would refuse to shrink past 390px. */
+    body.avatar-placed .theodore-avatar-wrap { min-height:0; }
+    .avatar-hide-btn { position:absolute; top:3px; right:5px; z-index:5; width:22px; height:22px;
+                       padding:0; border-radius:50%; font-size:13px; line-height:1;
+                       background:rgba(4,24,34,.75); color:#bdf0ff; border:1px solid rgba(141,234,255,.4);
+                       box-shadow:none; cursor:pointer; }
     body.presenting { overflow:hidden; }
     @media (max-width:760px) {
-      .presenter-overlay .theodore-avatar-wrap { width:min(44vw,260px); height:min(42vh,340px);
+      .presenter-overlay .theodore-avatar-wrap { width:min(34vw,210px); height:min(30vh,240px);
                                                    left:3%; bottom:44%; }
-      .presenter-overlay.has-storyboard .theodore-avatar-wrap { bottom:calc(46% + 8px); height:min(36vh,300px); }
+      .presenter-overlay.has-storyboard .theodore-avatar-wrap { bottom:calc(46% + 8px); height:min(28vh,220px); }
       .presenter-overlay .lesson-stage-content { max-height:46%; padding:10px 16px 18px; }
     }
     .kids-builder { background:linear-gradient(135deg,#fff7ed,#fef3c7); color:#172554;
@@ -279,6 +311,11 @@ STUDIO_CSS = """
            padding:12px 14px; border-radius:14px; display:none; max-width:360px;
            box-shadow:0 12px 30px rgba(70,46,22,.16); z-index:10070; }
   .lesson-toolbar { margin-top:10px; }
+  .avatar-choice-label { display:inline-flex; align-items:center; gap:7px; padding:0 10px;
+                         min-height:38px; border:1px solid #d8c6ad; border-radius:10px;
+                         background:rgba(255,250,243,.94); color:#4b3826; font-size:12px; font-weight:700; }
+  .avatar-choice-label select { min-width:128px; border:0; padding:5px 22px 5px 4px;
+                                background:transparent; color:#241c16; font-weight:600; }
   #btn-present::before, #btn-pause::before, #btn-review::before {
     content:""; display:inline-block; width:15px; height:15px; margin-right:7px; vertical-align:-2px;
     background:currentColor; }
@@ -295,6 +332,16 @@ STUDIO_JS = """
     const $ = (id) => document.getElementById(id);
     // Set true to show the 3D teacher again. Narration stays on either way.
     const SHOW_AVATAR = false;
+    // SHOW_AVATAR is only the first-visit default now; the toggle below persists
+    // the learner's own choice, along with where they dragged him.
+    const AVATAR_PREF_KEY = 'theodore.studio.avatar';
+    const AVATAR_MIN_W = 150;
+    const AVATAR_MIN_H = 190;
+    let avatarPrefs = {};
+    let avatarVisible = false;
+    let avatarInitPromise = null;
+    let avatarCatalog = {};
+    let selectedAvatarId = 'amina';
     let selectedSource = null;
     let selectedCourse = null;
     let teachSession = 'studio-teach-1';
@@ -326,28 +373,242 @@ STUDIO_JS = """
     let lastCheckPassed = null;
     let beatHandled = false;
     let reviewOpen = false;
-    let captionsEnabled = true;
+    let captionsEnabled = false;
     const reviewScores = { quizzes: [], games: [] };
 
     async function initTheodoreAvatar() {
       const host = $('theodore-avatar');
-      if (!host) return;
+      if (!host) return null;
+      if (avatarInitPromise) return avatarInitPromise;
+      avatarInitPromise = (async () => {
+        try {
+          const module = await import('/api/studio/avatar/avatar_runtime.js');
+          theodoreAvatar = await module.createTheodoreAvatar(host, {
+            assetBase: '/api/studio/avatar',
+            motionIntensity: 0.42,
+            persona: selectedAvatarId
+          });
+          theodoreAvatar.setReducedMotion(
+            !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+          const presenter = avatarCatalog[selectedAvatarId];
+          $('avatar-state').textContent = host.dataset.avatarReady === 'fallback'
+            ? 'Theodore · accessible silhouette'
+            : `${presenter?.label || 'Presenter'} · 3D teacher`;
+        } catch (error) {
+          host.innerHTML = '<div class="theodore-avatar-fallback" role="img" aria-label="Theodore teacher silhouette"><div class="fallback-crown">♜</div><div class="fallback-head"><i></i><i></i><b></b></div><div class="fallback-body"><span></span><span></span></div><div class="fallback-glow"></div></div>';
+          $('avatar-state').textContent = 'Theodore · accessible silhouette';
+        }
+        return theodoreAvatar;
+      })();
+      return avatarInitPromise;
+    }
+
+    function loadAvatarPrefs() {
       try {
-        const module = await import('/api/studio/avatar/avatar_runtime.js');
-        theodoreAvatar = await module.createTheodoreAvatar(host, {
-          assetBase: '/api/studio/avatar',
-          motionIntensity: $('avatar-motion') ? +$('avatar-motion').value : 1
-        });
-        const reduced = ($('avatar-reduced') && $('avatar-reduced').checked) ||
-          (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-        theodoreAvatar.setReducedMotion(!!reduced);
-        $('avatar-state').textContent = host.dataset.avatarReady === 'fallback'
-          ? 'Theodore · accessible silhouette'
-          : 'Theodore · 3D hologram ready';
+        const raw = window.localStorage.getItem(AVATAR_PREF_KEY);
+        return raw ? JSON.parse(raw) : {};
       } catch (error) {
-        host.innerHTML = '<div class="theodore-avatar-fallback" role="img" aria-label="Theodore teacher silhouette"><div class="fallback-crown">♜</div><div class="fallback-head"><i></i><i></i><b></b></div><div class="fallback-body"><span></span><span></span></div><div class="fallback-glow"></div></div>';
-        $('avatar-state').textContent = 'Theodore · accessible silhouette';
+        return {};
       }
+    }
+
+    function saveAvatarPrefs() {
+      try {
+        window.localStorage.setItem(AVATAR_PREF_KEY, JSON.stringify(avatarPrefs));
+      } catch (error) {
+        /* Private browsing denies writes; the session still works, it just forgets. */
+      }
+    }
+
+    async function loadAvatarChoices() {
+      const data = await api('/api/studio/presenter/manifest');
+      avatarCatalog = data.models || {};
+      if (!avatarCatalog[selectedAvatarId]) {
+        selectedAvatarId = data.default_model || Object.keys(avatarCatalog)[0] || 'amina';
+      }
+      const select = $('avatar-choice');
+      if (!select) return;
+      select.innerHTML = Object.entries(avatarCatalog).map(([id, model]) =>
+        `<option value="${esc(id)}">${esc(model.label || id)}</option>`
+      ).join('');
+      select.value = selectedAvatarId;
+      courseVoiceGender = avatarCatalog[selectedAvatarId]?.voice_gender || courseVoiceGender;
+    }
+
+    async function chooseAvatar(presenterId) {
+      if (!avatarCatalog[presenterId]) return;
+      selectedAvatarId = presenterId;
+      avatarPrefs.presenter = presenterId;
+      saveAvatarPrefs();
+      courseVoiceGender = avatarCatalog[presenterId]?.voice_gender || courseVoiceGender;
+      if (!avatarVisible) setAvatarVisible(true);
+      await initTheodoreAvatar();
+      await theodoreAvatar?.setPersona(presenterId);
+      $('avatar-state').textContent =
+        `${avatarCatalog[presenterId]?.label || 'Presenter'} · 3D teacher`;
+      requestAnimationFrame(() => theodoreAvatar?.resize());
+    }
+
+    // Keep the box reachable even if the window shrank since it was placed.
+    function clampAvatarBox() {
+      const wrap = $('theodore-avatar-wrap');
+      if (!wrap || !avatarPrefs.placed) return;
+      const w = Math.min(Math.max(avatarPrefs.w || wrap.offsetWidth, AVATAR_MIN_W), window.innerWidth);
+      const h = Math.min(Math.max(avatarPrefs.h || wrap.offsetHeight, AVATAR_MIN_H), window.innerHeight);
+      avatarPrefs.w = w;
+      avatarPrefs.h = h;
+      avatarPrefs.x = Math.min(Math.max(avatarPrefs.x || 0, 0), Math.max(window.innerWidth - w, 0));
+      avatarPrefs.y = Math.min(Math.max(avatarPrefs.y || 0, 0), Math.max(window.innerHeight - h, 0));
+      wrap.style.left = avatarPrefs.x + 'px';
+      wrap.style.top = avatarPrefs.y + 'px';
+      wrap.style.width = w + 'px';
+      wrap.style.height = h + 'px';
+    }
+
+    function applyAvatarPlacement() {
+      const wrap = $('theodore-avatar-wrap');
+      if (!wrap) return;
+      document.body.classList.toggle('avatar-placed', !!avatarPrefs.placed);
+      if (avatarPrefs.placed) {
+        wrap.style.position = 'fixed';
+        wrap.style.right = 'auto';
+        wrap.style.bottom = 'auto';
+        wrap.style.zIndex = '10050';
+        clampAvatarBox();
+      } else {
+        // Hand the box back to whichever mode's stylesheet owns it.
+        wrap.style.position = '';
+        wrap.style.left = '';
+        wrap.style.top = '';
+        wrap.style.right = '';
+        wrap.style.bottom = '';
+        wrap.style.width = '';
+        wrap.style.height = '';
+        wrap.style.zIndex = '';
+      }
+      requestAnimationFrame(() => theodoreAvatar?.resize());
+    }
+
+    function setAvatarVisible(on, persist) {
+      avatarVisible = !!on;
+      document.body.classList.toggle('avatar-on', avatarVisible);
+      const btn = $('btn-avatar');
+      if (btn) {
+        btn.setAttribute('aria-pressed', avatarVisible ? 'true' : 'false');
+        btn.textContent = avatarVisible ? 'Hide Theodore' : 'Show Theodore';
+      }
+      if (persist !== false) {
+        avatarPrefs.on = avatarVisible;
+        saveAvatarPrefs();
+      }
+      if (avatarVisible) {
+        applyAvatarPlacement();
+        initTheodoreAvatar();
+        theodoreAvatar?.setEnabled(true);
+        requestAnimationFrame(() => theodoreAvatar?.resize());
+      } else {
+        theodoreAvatar?.setEnabled(false);
+      }
+    }
+
+    // First move freezes the current on-screen box, then switches to fixed, so
+    // drag and keyboard share one coordinate system in both modes.
+    function ensureAvatarPlaced() {
+      const wrap = $('theodore-avatar-wrap');
+      if (!wrap || avatarPrefs.placed) return;
+      const box = wrap.getBoundingClientRect();
+      avatarPrefs.placed = true;
+      avatarPrefs.x = box.left;
+      avatarPrefs.y = box.top;
+      avatarPrefs.w = box.width;
+      avatarPrefs.h = box.height;
+      applyAvatarPlacement();
+    }
+
+    function moveAvatarBy(dx, dy) {
+      ensureAvatarPlaced();
+      if (!avatarPrefs.placed) return;
+      avatarPrefs.x += dx;
+      avatarPrefs.y += dy;
+      clampAvatarBox();
+      saveAvatarPrefs();
+    }
+
+    function resetAvatarPlacement() {
+      avatarPrefs.placed = false;
+      delete avatarPrefs.x; delete avatarPrefs.y;
+      delete avatarPrefs.w; delete avatarPrefs.h;
+      saveAvatarPrefs();
+      applyAvatarPlacement();
+      toast('Theodore is back in his usual spot.');
+    }
+
+    function initAvatarDrag() {
+      const wrap = $('theodore-avatar-wrap');
+      const handle = $('avatar-drag-handle');
+      const grip = $('avatar-resize-handle');
+      if (!wrap || !handle || !grip) return;
+      let mode = null;
+      let startX = 0, startY = 0, baseX = 0, baseY = 0, baseW = 0, baseH = 0;
+
+      const onMove = (event) => {
+        if (!mode) return;
+        const dx = event.clientX - startX;
+        const dy = event.clientY - startY;
+        if (mode === 'drag') {
+          avatarPrefs.x = baseX + dx;
+          avatarPrefs.y = baseY + dy;
+        } else {
+          avatarPrefs.w = Math.max(baseW + dx, AVATAR_MIN_W);
+          avatarPrefs.h = Math.max(baseH + dy, AVATAR_MIN_H);
+        }
+        clampAvatarBox();
+      };
+
+      const onUp = (event) => {
+        if (!mode) return;
+        mode = null;
+        wrap.classList.remove('dragging');
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        theodoreAvatar?.resize();
+        saveAvatarPrefs();
+      };
+
+      const begin = (event, nextMode) => {
+        if (event.button != null && event.button !== 0) return;
+        event.preventDefault();
+        ensureAvatarPlaced();
+        mode = nextMode;
+        startX = event.clientX; startY = event.clientY;
+        baseX = avatarPrefs.x; baseY = avatarPrefs.y;
+        baseW = avatarPrefs.w; baseH = avatarPrefs.h;
+        wrap.classList.add('dragging');
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+      };
+
+      handle.addEventListener('pointerdown', (e) => begin(e, 'drag'));
+      grip.addEventListener('pointerdown', (e) => begin(e, 'resize'));
+      handle.addEventListener('dblclick', resetAvatarPlacement);
+
+      const nudge = (event) => {
+        const step = event.shiftKey ? 1 : 12;
+        const keys = { ArrowLeft:[-step,0], ArrowRight:[step,0], ArrowUp:[0,-step], ArrowDown:[0,step] };
+        if (keys[event.key]) {
+          event.preventDefault();
+          moveAvatarBy(keys[event.key][0], keys[event.key][1]);
+        } else if (event.key === 'Home') {
+          // Not Escape: in presenter mode the browser takes Escape to leave
+          // fullscreen, so it would silently reset the placement as well.
+          event.preventDefault();
+          resetAvatarPlacement();
+        }
+      };
+      handle.addEventListener('keydown', nudge);
+      window.addEventListener('resize', clampAvatarBox);
     }
 
     function presenterActive() {
@@ -767,15 +1028,30 @@ STUDIO_JS = """
       });
     }
 
+    function languageSelects() {
+      return ['teach-lang', 'teach-lang-stage'].map($).filter(Boolean);
+    }
+
+    function syncLanguageSelects() {
+      languageSelects().forEach((sel) => { sel.value = teachLanguage; });
+    }
+
+    function applyTeachLanguage(code) {
+      teachLanguage = code || 'en';
+      syncLanguageSelects();
+      if (activeCourse) teachLibraryLesson().catch((e) => toast(String(e.message || e)));
+    }
+
     async function loadLanguages() {
       const data = await api('/api/studio/languages');
-      const sel = $('teach-lang');
       (data.languages || []).forEach((l) => { languageNames[l.code] = l.name; });
-      if (!sel) return;
-      sel.innerHTML = (data.languages || []).map((l) =>
+      const html = (data.languages || []).map((l) =>
         `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
       ).join('');
-      sel.value = teachLanguage;
+      const selects = languageSelects();
+      if (!selects.length) return;
+      selects.forEach((sel) => { sel.innerHTML = html; });
+      syncLanguageSelects();
     }
 
     function languageLabel(code) {
@@ -831,7 +1107,7 @@ STUDIO_JS = """
           learner_id: learnerId,
           focus_gaps: true, known_objective_ids: [],
           language: teachLanguage, use_voice_agent: true,
-          voice_gender: (($('teach-voice-gender') && $('teach-voice-gender').value) || 'female'),
+          voice_gender: courseVoiceGender,
           resume: !!opts.resume
         })
       });
@@ -1819,7 +2095,7 @@ STUDIO_JS = """
     on('btn-fullscreen', 'click', togglePresenterMode);
     on('btn-captions', 'click', () => setCaptionsEnabled(!captionsEnabled));
     on('teach-stage', 'dblclick', (event) => {
-      if (event.target.closest('button, input, select, textarea, a')) return;
+      if (event.target.closest('button, input, select, textarea, a, .lesson-window-controls')) return;
       togglePresenterMode();
     });
     on('btn-continue', 'click', () => continueSession().catch((e) => toast(String(e.message || e))));
@@ -1838,30 +2114,28 @@ STUDIO_JS = """
       }
     });
     on('teach-voice-gender', 'change', (ev) => {
-      theodoreAvatar?.setPersona(ev.target.value || 'female');
+      courseVoiceGender = ev.target.value || 'female';
       if (teachSession && lastTeachPayload) startTeach().catch(() => {});
     });
-    on('teach-lang', 'change', () => {
-      teachLanguage = $('teach-lang').value || 'en';
-      if (activeCourse) teachLibraryLesson().catch((e) => toast(String(e.message || e)));
+    on('avatar-choice', 'change', (ev) => {
+      chooseAvatar(ev.target.value).catch((error) => toast(String(error.message || error)));
     });
+    on('teach-lang', 'change', (event) => applyTeachLanguage(event.target.value));
+    on('teach-lang-stage', 'change', (event) => applyTeachLanguage(event.target.value));
     // Escape leaves fullscreen without telling us, so follow the browser back.
     document.addEventListener('fullscreenchange', () => {
       if (!document.fullscreenElement) exitPresenterMode();
     });
-    on('avatar-enabled', 'change', (event) => {
-      theodoreAvatar?.setEnabled(event.target.checked);
-      const wrap = $('theodore-avatar-wrap');
-      if (wrap) wrap.hidden = !event.target.checked;
-    });
-    on('avatar-motion', 'input', (event) => theodoreAvatar?.setMotionIntensity(event.target.value));
-    on('avatar-reduced', 'change', (event) => theodoreAvatar?.setReducedMotion(event.target.checked));
+    on('btn-avatar', 'click', () => setAvatarVisible(!avatarVisible));
+    on('btn-avatar-hide', 'click', () => setAvatarVisible(false));
 
-    if (SHOW_AVATAR) {
-      document.body.classList.add('avatar-on');
-      initTheodoreAvatar();
-    }
+    avatarPrefs = loadAvatarPrefs();
+    selectedAvatarId = avatarPrefs.presenter || 'amina';
+    initAvatarDrag();
+    setAvatarVisible(
+      typeof avatarPrefs.on === 'boolean' ? avatarPrefs.on : SHOW_AVATAR, false);
     loadLanguages().catch(() => {});
+    loadAvatarChoices().catch((error) => toast(String(error.message || error)));
     loadLibrary().catch((e) => toast(String(e.message || e)));
     updateLessonWindowControls();
 
@@ -1924,16 +2198,25 @@ def render_studio_page() -> str:
     </div>
     <div class="panel">
       <div id="teach-stage-home">
-      <div class="teach-stage" id="teach-stage">
+      <div class="teach-stage captions-off" id="teach-stage">
         <div class="lesson-window-controls" aria-label="Lesson window controls">
-          <button id="btn-captions" type="button" aria-pressed="true" aria-label="Hide lesson captions" title="Hide captions">CC</button>
+          <label class="lesson-lang">Language
+            <select id="teach-lang-stage" aria-label="Lesson language"></select>
+          </label>
+          <button id="btn-captions" class="is-off" type="button" aria-pressed="false" aria-label="Show lesson captions" title="Show captions">CC</button>
           <button id="btn-fullscreen" type="button" aria-label="Expand lesson to full screen" title="Full screen">⛶</button>
         </div>
         <h3 id="teach-title">Your lesson</h3>
         <div class="teacher-stage-grid" id="teacher-stage-grid">
           <div id="teach-storyboard" class="storyboard-stage" hidden aria-hidden="true"></div>
           <div class="theodore-avatar-wrap" id="theodore-avatar-wrap">
+            <div class="avatar-drag-handle" id="avatar-drag-handle" role="button" tabindex="0"
+                 aria-label="Move Theodore. Arrow keys nudge, Home resets, double-click resets."
+                 title="Drag to move · arrow keys nudge · double-click to reset"><span></span></div>
+            <button class="avatar-hide-btn" id="btn-avatar-hide" type="button" aria-label="Hide Theodore">✕</button>
             <div id="theodore-avatar" aria-hidden="true"></div>
+            <div class="avatar-resize-handle" id="avatar-resize-handle" role="button" tabindex="0"
+                 aria-label="Resize Theodore" title="Drag to resize"></div>
             <div class="avatar-label" id="avatar-state" role="status" aria-live="polite">Theodore · loading 3D teacher…</div>
           </div>
           <div class="lesson-stage-content">
@@ -1970,6 +2253,13 @@ def render_studio_page() -> str:
         <div class="row lesson-toolbar" id="lesson-toolbar">
           <button id="btn-pause" class="secondary" type="button">Pause</button>
           <button id="btn-talk" type="button">Talk</button>
+          <button class="secondary" id="btn-avatar" type="button" aria-pressed="false"
+                  aria-controls="theodore-avatar-wrap">Show Theodore</button>
+          <label class="avatar-choice-label" for="avatar-choice">Presenter
+            <select id="avatar-choice" aria-label="Choose a 3D lesson presenter">
+              <option value="amina">Amina</option>
+            </select>
+          </label>
         </div>
         <div class="talk-panel" id="talk-panel" hidden>
           <h2>Talk about this course</h2>

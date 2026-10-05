@@ -92,5 +92,12 @@ fi
 export PYTHONPATH="${ROOT}/subrepos/${PKG}/src:${ROOT}/packages/shared/src${PYTHONPATH:+:$PYTHONPATH}"
 
 echo "[run_theodore_lab] lab=$LAB pkg=$PKG port=$PORT XAI_API_KEY=$([ -n "${XAI_API_KEY:-}" ] && echo set || echo missing) ELEVENLABS_API_KEY=$([ -n "${ELEVENLABS_API_KEY:-}" ] && echo set || echo missing) XAI_MODEL=${XAI_MODEL:-}"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/print_terminal_link.sh"
+LAB_PATH="/"
+if [[ "$LAB" == "course_studio" ]]; then
+  LAB_PATH="/studio"
+fi
+print_terminal_link "http://127.0.0.1:${PORT}${LAB_PATH}"
 
 exec "$VENV_PY" -m uvicorn "${PKG}.main:app" --host 0.0.0.0 --port "$PORT" --reload

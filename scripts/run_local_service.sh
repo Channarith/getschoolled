@@ -105,4 +105,7 @@ esac
 cd "${ROOT}/services/${svc}"
 export PYTHONPATH=src
 echo "[run_local_service] svc=$svc port=$port XAI_API_KEY=$([ -n "${XAI_API_KEY:-}" ] && echo set || echo missing) ELEVENLABS_API_KEY=$([ -n "${ELEVENLABS_API_KEY:-}" ] && echo set || echo missing) XAI_MODEL=${XAI_MODEL:-} SPEECH_BASE_URL=${SPEECH_BASE_URL:-}"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/print_terminal_link.sh"
+print_terminal_link "http://127.0.0.1:${port}/docs"
 exec "$VENV_PY" -m uvicorn "$module" --host 0.0.0.0 --port "$port"

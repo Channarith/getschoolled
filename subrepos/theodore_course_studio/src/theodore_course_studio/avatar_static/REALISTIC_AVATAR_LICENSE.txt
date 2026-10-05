@@ -1,0 +1,28 @@
+REALISTIC PRESENTER ASSET PROVENANCE
+====================================
+
+Files:
+  presenter_realistic.glb
+  presenter_realistic_regions.png
+  presenter_amina.png
+  presenter_mateo.png
+  presenter_lin.png
+  presenter_priya.png
+  presenter_jordan.png
+  presenter_elena.png
+
+The base mesh, rig, morph targets, and region map are derived from the
+MakeHuman / MPFB2 assets distributed by NAVER's Anny project under the
+Creative Commons CC0 1.0 Universal public-domain dedication.
+
+Upstream source:
+  https://github.com/naver/anny
+
+Browser-ready bake used here:
+  https://github.com/nirholas/three.ws/tree/main/avatar-sources/anny
+
+The six presenter textures were generated locally from the CC0 region map.
+They contain no photographs, biometric data, or third-party likenesses.
+
+CC0 1.0:
+  https://creativecommons.org/publicdomain/zero/1.0/

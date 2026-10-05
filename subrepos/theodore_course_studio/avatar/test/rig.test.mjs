@@ -64,6 +64,22 @@ test("resolveSkeleton keeps our procedural rig identical", () => {
   assert.equal(nodes.Crown.name, "Crown");
 });
 
+test("resolveSkeleton normalizes Mixamo colon-prefixed bone names", () => {
+  const root = boneGroup([
+    "mixamorig:Hips", "mixamorig:Spine", "mixamorig:Spine2",
+    "mixamorig:Neck", "mixamorig:Head",
+    "mixamorig:LeftArm", "mixamorig:LeftForeArm", "mixamorig:LeftHand",
+    "mixamorig:RightArm", "mixamorig:RightForeArm", "mixamorig:RightHand",
+    "mixamorig:LeftUpLeg", "mixamorig:LeftLeg", "mixamorig:LeftFoot",
+    "mixamorig:RightUpLeg", "mixamorig:RightLeg", "mixamorig:RightFoot",
+  ]);
+  const { nodes, rig } = resolveSkeleton(root);
+  assert.equal(rig, "v2");
+  assert.equal(nodes.Head.name, "mixamorig:Head");
+  assert.equal(nodes.LeftElbow.name, "mixamorig:LeftForeArm");
+  assert.equal(nodes.RightHip.name, "mixamorig:RightUpLeg");
+});
+
 test("face driver drives V2 visemes + eyelid blink", () => {
   const root = new THREE.Group();
   const mesh = faceMesh({
@@ -111,4 +127,21 @@ test("face driver falls back to procedural mouth morphs", () => {
   face.update(1);
   assert.ok(mesh.morphTargetInfluences[0] < 0.2, "mouthOpen relaxes when idle");
   assert.ok(mesh.morphTargetInfluences[2] > 0.3, "smile persists when idle");
+});
+
+test("face driver supports MakeHuman speech and expression morphs", () => {
+  const root = new THREE.Group();
+  const mesh = faceMesh({
+    jawDrop: 0, mouthWider: 1, mouthCornersUp: 2, browsUp: 3, browsDown: 4,
+  });
+  root.add(mesh);
+  const face = createFaceDriver(root);
+  face.beginFrame();
+  face.setMouth(1, 0.8);
+  face.setExpression(0.6, 0.7);
+  face.update(1);
+  assert.ok(mesh.morphTargetInfluences[0] > 0.5);
+  assert.ok(mesh.morphTargetInfluences[1] > 0.4);
+  assert.ok(mesh.morphTargetInfluences[2] > 0.3);
+  assert.ok(mesh.morphTargetInfluences[3] > 0.3);
 });

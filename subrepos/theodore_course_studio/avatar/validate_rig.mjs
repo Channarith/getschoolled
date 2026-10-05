@@ -49,7 +49,7 @@ for (const mesh of json.meshes || []) {
     for (const nm of prim.extras?.targetNames || []) morphNames.add(nm);
   }
 }
-const lc = (s) => String(s || "").toLowerCase();
+const lc = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const boneLc = new Set([...boneNames].map(lc));
 const morphLc = new Set([...morphNames].map(lc));
 const hasBone = (name) => boneLc.has(lc(name));
