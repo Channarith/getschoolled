@@ -327,7 +327,7 @@ function drawVision() {
 
 function drawGuide(w,h) {
   if (!switchedOn("show-guide") || !["trace-letter","trace-picture"].includes(state.game)) return;
-  const letter=$("letter")?.value;
+  const letter=$("letter").value;
   ctx.save();ctx.textAlign="center";ctx.textBaseline="middle";ctx.lineJoin="round";
   if (state.game==="trace-letter") {
     ctx.font=`900 ${Math.min(w,h)*.62}px ui-rounded, sans-serif`;
@@ -460,7 +460,7 @@ function updateGuideLayer() {
   $("guide-layer")?.classList.toggle("hidden",!enabled);
   const glyph=$("guide-glyph");
   if (!enabled || !glyph) return;
-  const letter=$("letter")?.value, picture=state.game==="trace-picture";
+  const letter=$("letter").value, picture=state.game==="trace-picture";
   glyph.textContent=picture?(PICTURE_EMOJI[LETTER_WORDS[letter]]||"✨"):letter;
   glyph.classList.toggle("picture",picture);
 }
@@ -914,19 +914,15 @@ function applyDemoPointer(event) {
 canvas?.addEventListener("pointermove",event=>{
   if(!state.demo)return; applyDemoPointer(event);
 });
-stage?.addEventListener("pointermove",applyDemoPointer);
-stage?.addEventListener("pointerdown",applyDemoPointer);
-stage?.addEventListener("contextmenu",(event)=>{if(state.demo)event.preventDefault();});
-stage?.addEventListener("pointerleave",()=>{if(state.demo){state.handData=[];state.faceData=null;}});
-$("start")?.addEventListener("click",()=>start(true));
-$("demo")?.addEventListener("click",()=>start(false));
-$("play-game")?.addEventListener("click",()=>chooseGame());
-$("game")?.addEventListener("change",()=>chooseGame());
-$("letter")?.addEventListener("change",()=>chooseGame());
-$("hear")?.addEventListener("click",()=>speak(state.spokenPrompt));
-$("mic")?.addEventListener("click",startListening);
-$("check")?.addEventListener("click",()=>checkSpeech($("typed")?.value || ""));
-$("undo")?.addEventListener("click",()=>{state.trail=[];});
+canvas.addEventListener("pointerleave",()=>{if(state.demo)state.handData=[];});
+$("start").addEventListener("click",()=>start(true));$("demo").addEventListener("click",()=>start(false));
+$("play-game").addEventListener("click",()=>chooseGame());
+$("game").addEventListener("change",()=>chooseGame());
+$("letter").addEventListener("change",()=>chooseGame());
+$("hear").addEventListener("click",()=>speak(state.spokenPrompt));
+$("mic").addEventListener("click",startListening);
+$("check").addEventListener("click",()=>checkSpeech($("typed").value));
+$("undo").addEventListener("click",()=>{state.trail=[];});
 $("show-guide")?.addEventListener("change",updateGuideLayer);
 for (const id of ["show-face","show-hands","show-trail","show-measures","show-readout"]) {
   $(id)?.addEventListener("change",renderVisionReadout);

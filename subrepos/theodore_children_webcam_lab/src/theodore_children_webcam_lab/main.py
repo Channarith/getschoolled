@@ -84,7 +84,7 @@ def _asset_tag() -> str:
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def children_lab_page() -> str:
-    return inject_client(render_children_page(_asset_tag()))
+    return render_children_page(_asset_tag())
 
 
 @app.get("/favicon.ico", include_in_schema=False)
