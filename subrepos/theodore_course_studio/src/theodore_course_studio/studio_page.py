@@ -535,6 +535,24 @@ STUDIO_JS = """
         (data.voice ? ' · ' + data.voice.provider : ''));
     }
 
+    async function runTrialDemo() {
+      teachLanguage = $('teach-lang').value || 'en';
+      const data = await api('/api/studio/teach/trial-run', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({
+          session_id: teachSession,
+          language: teachLanguage,
+          learner_id: learnerId,
+          profile: profileFromForm(),
+        })
+      });
+      selectedCourse = data.course_id;
+      await refreshCourses();
+      renderTeach(data);
+      const kinds = (data.segment_kinds || []).join(' → ');
+      toast('Trial demo · ' + (data.language || teachLanguage) + ' · ' + kinds);
+    }
+
     async function resumeTeach() {
       if (!selectedCourse) return toast('Select a course first');
       await startTeach({ resume: true });
@@ -929,6 +947,7 @@ STUDIO_JS = """
     $('btn-cert-build').onclick = () => buildCertCourse().catch((e) => toast(String(e.message || e)));
     $('cert-track').onchange = renderCertLessons;
     $('btn-teach').onclick = () => startTeach().catch((e) => toast(String(e.message || e)));
+    $('btn-trial').onclick = () => runTrialDemo().catch((e) => toast(String(e.message || e)));
     $('btn-resume').onclick = () => resumeTeach().catch((e) => toast(String(e.message || e)));
     $('btn-next').onclick = () => nextSlide().catch((e) => toast(String(e.message || e)));
     $('btn-continue').onclick = () => continueSession().catch((e) => toast(String(e.message || e)));
@@ -1113,6 +1132,7 @@ def render_studio_page() -> str:
       <div class="row">
         <button id="btn-present" type="button">⛶ Present full screen</button>
         <button id="btn-teach" type="button">Start teach</button>
+        <button id="btn-trial" class="secondary" type="button">Trial demo (composed)</button>
         <button id="btn-resume" class="secondary" type="button">Resume saved</button>
         <button id="btn-next" class="secondary" type="button">Next slide</button>
         <button id="btn-read" class="secondary" type="button">🔊 Read aloud</button>
