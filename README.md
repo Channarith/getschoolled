@@ -134,6 +134,14 @@ Contact sheet: `docs/screens/profile_avatars_catalog.webp`
 
 <img src="docs/screens/profile_avatars_catalog.webp" alt="Contact sheet of Salareen Realistic and Cute profile avatars" width="760" />
 
+Account picker (Cute / Realistic) and nav avatar:
+
+| Cute picker | Realistic picker | Selected + saved |
+| --- | --- | --- |
+| <img src="docs/screens/profile_avatar_picker_cute.png" alt="Account page Cute avatar picker with Coco selected" /> | <img src="docs/screens/profile_avatar_picker_realistic.png" alt="Account page Realistic avatar picker grid" /> | <img src="docs/screens/profile_avatar_picker_selected.png" alt="Nova avatar selected and saved on account page" /> |
+
+Walkthrough: [docs/demos/profile_avatar_picker_demo.mp4](docs/demos/profile_avatar_picker_demo.mp4)
+
 ## Screens and videos
 
 ### Video walkthroughs
