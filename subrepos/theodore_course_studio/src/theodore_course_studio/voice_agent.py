@@ -45,13 +45,18 @@ _STOP = frozenset(
     ask question comment
     """.split()
 )
-# Words a student uses to talk about the page without naming a course term.
+# Words a student uses to talk about the page or the training as a whole,
+# without naming a specific course term.
 _PAGE_TALK = frozenset(
     """
     explain mean means meaning again repeat example examples confused confusing
     understand understood help helpful hard harder difficult easy easier clear
     unclear good great like love nice tough useful interesting boring long short
     wrong right page slide lesson course sign rule training study studying
+    material materials topic topics content contents subject subjects overview
+    summary purpose idea ideas thing things info information details detail
+    module modules section sections chapter chapters whole entire general overall
+    basics basic simple cover covers covering learn learning teach teaches teaching
     """.split()
 )
 
@@ -75,9 +80,15 @@ def _course_sentence(message: str, lesson_context: str) -> str:
     best = ""
     best_score = 0
     if not content:
-        for line in lines:
-            if line.lower().startswith("current page:"):
-                return line
+        course_line = next(
+            (line for line in lines if line.lower().startswith("course:")), ""
+        )
+        page_line = next(
+            (line for line in lines if line.lower().startswith("current page:")), ""
+        )
+        if course_line and page_line:
+            return f"{course_line}. {page_line}"
+        return page_line or course_line or (lines[0] if lines else "Look at the page in front of you.")
     for index, sentence in enumerate(lines):
         if sentence.lower().startswith("course:") or sentence.lower().startswith("pages in"):
             continue
@@ -106,9 +117,9 @@ def _tokens(text: str) -> list[str]:
 def relates_to_course(message: str, lesson_context: str) -> bool:
     """True when the learner is asking or commenting about this course.
 
-    A content word that never appears in the course (a city, a sport, another
-    school subject) makes the turn off-topic, even if one course word is also
-    present. Short remarks about "this page" stay on topic.
+    General questions about the training stay in scope, including wording the
+    slides never use ("what is this material about?"). A question that names a
+    different subject — a city, a sport, another class — is still off-topic.
     """
     ctx = {w for w in _tokens(lesson_context) if len(w) >= 4 and w not in _STOP}
     words = _tokens(message)
@@ -119,13 +130,17 @@ def relates_to_course(message: str, lesson_context: str) -> bool:
         for w in words
         if len(w) >= 4 and w not in _STOP and w not in _PAGE_TALK and w not in ctx
     ]
+    mentions_training = bool(set(words) & _PAGE_TALK)
+    mentions_course = any(w in ctx for w in words)
+    if mentions_training:
+        return True
+    # A course word plus an unrelated subject ("weather in Tokyo") stays refused.
+    if mentions_course and not outside:
+        return True
     if outside:
         return False
-    if any(w in ctx for w in words):
-        return True
-    # "why?", "explain this", "I am confused" — about the page in front of them.
-    about = _PAGE_TALK | frozenset("why how what when where".split())
-    return bool(set(words) & about)
+    # "why?", "what is this about?" — about the page in front of them.
+    return bool(set(words) & frozenset("why how what when where".split()))
 
 
 def course_context_for(course_title: str, slides: list[tuple[str, str]], current_title: str, current_body: str) -> str:
@@ -253,8 +268,10 @@ class CourseStudioVoiceAgent:
         shared_context = model_context
         if scope_to_course and lesson_context.strip():
             shared_context = (
-                "You may only discuss this course's training. "
-                f"Otherwise reply exactly: {OFF_COURSE_MESSAGE}\n\n{model_context}"
+                "Answer questions about this course, including what the training "
+                "covers and how the current page fits it. Only when the question "
+                "is clearly about a different subject, reply exactly: "
+                f"{OFF_COURSE_MESSAGE}\n\n{model_context}"
             )
         # Prefer shared TeacherVoiceAgent when package + key are available.
         shared = self._try_shared_agent(
@@ -375,10 +392,11 @@ class CourseStudioVoiceAgent:
         )
         if lesson_context.strip():
             system += (
-                "\n\nYou may only discuss this course's training material. "
-                "Questions and comments about the lesson are welcome. "
-                "If the learner asks about anything else, reply with exactly "
-                f"this and nothing more: {OFF_COURSE_MESSAGE}\n\n"
+                "\n\nAnswer questions about this course's training material, "
+                "including general questions about what it covers. "
+                "Only if the learner asks about a clearly different subject, "
+                "reply with exactly this and nothing more: "
+                f"{OFF_COURSE_MESSAGE}\n\n"
                 f"Lesson context:\n{lesson_context.strip()[:2000]}"
             )
         history = self._history.setdefault(session_id, [])

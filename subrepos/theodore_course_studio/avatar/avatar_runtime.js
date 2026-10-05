@@ -12,8 +12,9 @@ const JOINTS = [
 ];
 
 const MODELS = {
-  female: "presenter_female.glb",
-  male: "presenter_male.glb",
+  amina: "presenter_realistic.glb",
+  classic_female: "presenter_female.glb",
+  classic_male: "presenter_male.glb",
 };
 
 // Response speed per joint, in rad/s. Heavy joints answer slower, which is what
@@ -327,7 +328,7 @@ export class TheodoreAvatar {
     this.motion = options.motion !== false;
     this.motionIntensity = Number(options.motionIntensity ?? 1);
     this.reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches || false;
-    this.persona = options.persona === "male" ? "male" : "female";
+    this.persona = options.persona || "amina";
     this.state = "loading";
     this.script = { cues: [] };
     this.cueStart = performance.now();
@@ -410,10 +411,11 @@ export class TheodoreAvatar {
   modelUrlFor(persona) {
     const entry = this.manifest?.models?.[persona];
     if (entry?.url) return entry.url;
-    return `${this.assetBase}/${MODELS[persona] || MODELS.female}`;
+    return `${this.assetBase}/${MODELS[persona] || MODELS.amina}`;
   }
 
   async loadPersona(persona) {
+    const entry = this.manifest?.models?.[persona] || {};
     const data = await this.loader.loadAsync(this.modelUrlFor(persona));
     if (this.model) {
       this.scene.remove(this.model);
@@ -427,6 +429,13 @@ export class TheodoreAvatar {
     this.springs.clear();
     this.model = data.scene;
     this.scene.add(this.model);
+    if (entry.source === "cc0-makehuman") {
+      const bounds = new THREE.Box3().setFromObject(this.model);
+      const height = Math.max(0.01, bounds.max.y - bounds.min.y);
+      this.model.scale.multiplyScalar(4.15 / height);
+      const scaled = new THREE.Box3().setFromObject(this.model);
+      this.model.position.y -= scaled.min.y;
+    }
 
     // Resolve whatever rig this GLB uses (ours or the Serenity V2 rig) into our
     // logical joint names, so every teach cue drives it unchanged.
@@ -434,6 +443,7 @@ export class TheodoreAvatar {
     this.nodes = resolved.nodes;
     this.rig = resolved.rig;
     const imported = resolved.rig === "v2";
+    const realistic = entry.source === "cc0-makehuman";
 
     this.model.traverse((node) => {
       if (node.isMesh || node.isSkinnedMesh) {
@@ -444,7 +454,7 @@ export class TheodoreAvatar {
           : node.material.clone();
         const mats = Array.isArray(node.material) ? node.material : [node.material];
         for (const material of mats) {
-          if (imported) {
+          if (imported && !realistic) {
             // An artist/Meshy GLB gets the full holographic treatment.
             applyHologram(material);
           } else {
@@ -462,6 +472,7 @@ export class TheodoreAvatar {
         }
       }
     });
+    if (realistic) await this.applyRealisticPreset(entry);
 
     this.face = createFaceDriver(this.model);
     this.basePose = snapshot(this.nodes);
@@ -469,8 +480,72 @@ export class TheodoreAvatar {
     this.container.dataset.avatarRig = this.rig;
   }
 
+  async applyRealisticPreset(entry) {
+    const morphs = entry.morphs || {};
+    this.model.traverse((node) => {
+      if (!node.morphTargetDictionary || !node.morphTargetInfluences) return;
+      for (const [name, value] of Object.entries(morphs)) {
+        const index = node.morphTargetDictionary[name];
+        if (index !== undefined) node.morphTargetInfluences[index] = clamp(Number(value));
+      }
+    });
+    if (entry.texture_url) {
+      const texture = await new THREE.TextureLoader().loadAsync(entry.texture_url);
+      texture.flipY = false;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      this.model.traverse((node) => {
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        for (const material of materials) {
+          if (material?.name !== "Parametric_Body") continue;
+          material.map = texture;
+          material.color?.set(0xffffff);
+          material.roughness = 0.78;
+          material.metalness = 0;
+          material.needsUpdate = true;
+        }
+      });
+    }
+    this.addRealisticHair(entry);
+  }
+
+  addRealisticHair(entry) {
+    const head = this.nodes.Head;
+    if (!head) return;
+    const color = new THREE.Color(entry.hair || "#2b211c");
+    const material = new THREE.MeshStandardMaterial({ color, roughness: 0.9 });
+    const group = new THREE.Group();
+    group.name = "PresetHair";
+    const cap = new THREE.Mesh(
+      new THREE.SphereGeometry(0.115, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62),
+      material,
+    );
+    cap.position.set(0, 0.145, -0.002);
+    cap.scale.set(1.03, 0.95, 1.06);
+    group.add(cap);
+    if (entry.hair_style === "bob" || entry.hair_style === "long") {
+      for (const side of [-1, 1]) {
+        const lock = new THREE.Mesh(
+          new THREE.CapsuleGeometry(0.035, entry.hair_style === "long" ? 0.25 : 0.13, 5, 10),
+          material,
+        );
+        lock.position.set(side * 0.105, entry.hair_style === "long" ? 0.03 : 0.07, -0.01);
+        group.add(lock);
+      }
+    } else if (entry.hair_style === "coils") {
+      for (let i = 0; i < 7; i += 1) {
+        const curl = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), material);
+        const angle = (i / 6) * Math.PI;
+        curl.position.set(Math.cos(angle) * 0.1, 0.14 + Math.sin(angle) * 0.055, -0.005);
+        group.add(curl);
+      }
+    }
+    head.add(group);
+  }
+
   async setPersona(persona) {
-    const wanted = persona === "male" ? "male" : "female";
+    const aliases = { female: "classic_female", male: "classic_male" };
+    const requested = aliases[persona] || persona;
+    const wanted = this.manifest?.models?.[requested] ? requested : (this.manifest?.default_model || "amina");
     if (wanted === this.persona || !this.scene) return;
     try {
       await this.loadPersona(wanted);

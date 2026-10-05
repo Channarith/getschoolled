@@ -99,6 +99,7 @@ def test_digest_mode_passes_when_all_services_match(tmp_path: Path) -> None:
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
     assert "[identity] OK" in proc.stdout
+    assert "https://salareen.com" in proc.stdout
 
 
 def test_digest_mode_fails_on_tag_pinned_image(tmp_path: Path) -> None:

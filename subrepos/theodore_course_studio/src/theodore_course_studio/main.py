@@ -207,8 +207,99 @@ def health() -> dict[str, Any]:
 
 @app.get("/api/studio/presenter/manifest")
 def presenter_manifest() -> dict[str, Any]:
-    """Discover the best available GLB per persona (custom drop-in preferred)."""
-    models: dict[str, dict[str, str]] = {}
+    """List bundled realistic presenters plus the original Theodore models."""
+    models: dict[str, dict[str, Any]] = {}
+    realistic_file = "presenter_realistic.glb"
+    if (_AVATAR_STATIC_DIR / realistic_file).is_file():
+        presets = {
+            "amina": {
+                "label": "Amina",
+                "voice_gender": "female",
+                "texture": "presenter_amina.png",
+                "hair": "#2b1b18",
+                "hair_style": "coils",
+                "morphs": {
+                    "bodyFeminine": 0.82,
+                    "bodyAfrican": 0.88,
+                    "bodySofter": 0.18,
+                },
+            },
+            "mateo": {
+                "label": "Mateo",
+                "voice_gender": "male",
+                "texture": "presenter_mateo.png",
+                "hair": "#33231c",
+                "hair_style": "short",
+                "morphs": {
+                    "bodyMasculine": 0.88,
+                    "bodyCaucasian": 0.48,
+                    "bodyAfrican": 0.22,
+                    "bodyMuscular": 0.2,
+                },
+            },
+            "lin": {
+                "label": "Lin",
+                "voice_gender": "female",
+                "texture": "presenter_lin.png",
+                "hair": "#171313",
+                "hair_style": "bob",
+                "morphs": {
+                    "bodyFeminine": 0.82,
+                    "bodyAsian": 0.9,
+                    "bodyThinner": 0.18,
+                },
+            },
+            "priya": {
+                "label": "Priya",
+                "voice_gender": "female",
+                "texture": "presenter_priya.png",
+                "hair": "#211412",
+                "hair_style": "long",
+                "morphs": {
+                    "bodyFeminine": 0.85,
+                    "bodyAsian": 0.42,
+                    "bodyCaucasian": 0.38,
+                    "heightTaller": 0.12,
+                },
+            },
+            "jordan": {
+                "label": "Jordan",
+                "voice_gender": "male",
+                "texture": "presenter_jordan.png",
+                "hair": "#2b211c",
+                "hair_style": "close",
+                "morphs": {
+                    "bodyMasculine": 0.72,
+                    "bodyAfrican": 0.48,
+                    "bodyCaucasian": 0.34,
+                    "bodyThinner": 0.08,
+                },
+            },
+            "elena": {
+                "label": "Elena",
+                "voice_gender": "female",
+                "texture": "presenter_elena.png",
+                "hair": "#6c625d",
+                "hair_style": "bob",
+                "morphs": {
+                    "bodyFeminine": 0.76,
+                    "bodyCaucasian": 0.86,
+                    "bodyOlder": 0.58,
+                    "headAged": 0.35,
+                },
+            },
+        }
+        for presenter_id, preset in presets.items():
+            texture = str(preset["texture"])
+            models[presenter_id] = {
+                "file": realistic_file,
+                "url": f"/api/studio/avatar/{realistic_file}",
+                "texture_url": f"/api/studio/avatar/{texture}",
+                "rig": "v2",
+                "source": "cc0-makehuman",
+                **{key: value for key, value in preset.items() if key != "texture"},
+            }
+
     for persona in ("female", "male"):
         candidates = (
             (f"custom_{persona}.glb", "v2", "custom"),
@@ -218,15 +309,18 @@ def presenter_manifest() -> dict[str, Any]:
         )
         for filename, rig, source in candidates:
             if (_AVATAR_STATIC_DIR / filename).is_file():
-                models[persona] = {
+                models[f"classic_{persona}"] = {
                     "file": filename,
                     "url": f"/api/studio/avatar/{filename}",
                     "rig": rig,
                     "source": source,
+                    "label": f"Classic Theodore ({persona.title()})",
+                    "voice_gender": persona,
                 }
                 break
     return {
         "models": models,
+        "default_model": "amina" if "amina" in models else "classic_female",
         "rig_config_url": "/api/studio/avatar/avatar_rig_config_v2.json",
     }
 
