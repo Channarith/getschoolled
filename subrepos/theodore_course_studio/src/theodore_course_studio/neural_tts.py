@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import re
 import tempfile
 import time
 from pathlib import Path
@@ -192,6 +193,56 @@ def _transient_render_error(exc: BaseException) -> bool:
         "server disconnected",
     )
     return any(needle in message for needle in needles) or message == ""
+
+
+def split_for_speech(text: str, limit: int = 1400) -> list[str]:
+    """Sentence-sized pieces of one narration, all spoken by the same voice."""
+    line = re.sub(r"\s+", " ", (text or "").strip())
+    if not line:
+        return []
+    if len(line) <= limit:
+        return [line]
+    parts: list[str] = []
+    buf = ""
+    for sentence in re.split(r"(?<=[.!?])\s+", line):
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        while len(sentence) > limit:
+            parts.append(sentence[:limit].rstrip())
+            sentence = sentence[limit:].strip()
+        if not sentence:
+            continue
+        if buf and len(buf) + 1 + len(sentence) > limit:
+            parts.append(buf)
+            buf = sentence
+        else:
+            buf = f"{buf} {sentence}".strip()
+    if buf:
+        parts.append(buf)
+    return parts
+
+
+def synthesize_course(
+    text: str,
+    language: str,
+    *,
+    rate: float = 1.0,
+    gender: str = "female",
+) -> bytes:
+    """One MP3 for a whole page, always in the locked course voice.
+
+    Long pages are split and joined. A later page never switches to another
+    speaker just because the line is longer or a request needs a retry.
+    """
+    voice = voice_for(language, gender=gender)
+    chunks = split_for_speech(text)
+    if not chunks:
+        raise TTSUnavailable("nothing to speak")
+    return b"".join(
+        synthesize(chunk, language, rate=rate, gender=gender, voice=voice)
+        for chunk in chunks
+    )
 
 
 def synthesize(

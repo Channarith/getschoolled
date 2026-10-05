@@ -25,7 +25,7 @@ def _c(
 # next to the slide it teaches.
 FOOD_AVATAR_CUES: dict[str, tuple[CueRow, ...]] = {
     # Module 1 — hygiene and illness
-    "Prep card, not accreditation": _c("caution", "point-to-slide", expression="serious"),
+    "Food handler course": _c("open-palm", "point-to-slide"),
     "Why food handler cards matter": _c("point-to-slide", "open-palm", gaze="slide"),
     "Two-hour course map": _c("count", "point-to-slide", gaze="slide"),
     "Handwashing that works": _c("wash-hands", "count", intensity=1.0),

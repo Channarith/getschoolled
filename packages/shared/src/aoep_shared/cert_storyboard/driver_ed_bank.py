@@ -1,8 +1,7 @@
 """California driver-ed scenario bank (200+ scenes across many lessons).
 
 Single source of truth for sample-curriculum driver-ed lessons and
-cert_storyboard animated scenes. Study aid only — not DMV-approved
-driver education.
+cert_storyboard animated scenes.
 """
 
 from __future__ import annotations
@@ -147,7 +146,7 @@ def _build_lessons() -> tuple[DriverLesson, ...]:
             "CA Driver Ed — Permit & licensing",
             "Provisional permit rules, eligibility, and handbook authority.",
             [
-                ("Study aid, not DMV course", "Confirm every rule in the official handbook.", "This track is practice only. Always verify rules in the current California Driver's Handbook.", "residential", "ken-burns", "adult_teen", "Handbook wins"),
+                ("California driver education", "Signs, signals, right-of-way, and speed.", "This course teaches California rules of the road. Move through each lesson in order.", "residential", "ken-burns", "adult_teen", "Rules of the road"),
                 ("Who needs a permit", "Instruction permit before solo provisional license.", "Most new drivers start with an instruction permit, then a provisional license after requirements are met.", "residential", "push-in", "adult_teen_car", "Permit first"),
                 ("Age and driver education", "Teens usually need education plus parent consent.", "Typical teen applicants need driver education, practice hours, and a parent or guardian signature.", "school-zone", "pull-out", "school_bus_kids", "Education required"),
                 ("Vision and knowledge tests", "Pass vision and knowledge before the permit issues.", "Expect a vision screening and a knowledge test covering signs, rules, and sharing the road.", "residential", "pan-right", "adult_car", "Vision + knowledge"),
@@ -510,7 +509,7 @@ def _build_lessons() -> tuple[DriverLesson, ...]:
             "CA Driver Ed — Review & practice habits",
             "Handbook study, quizzes, and calm test-day habits.",
             [
-                ("Handbook is the authority", "Official wording beats any study aid.", "Re-read the California Driver's Handbook sections you find hardest — it is the authority.", "residential", "ken-burns", "adult_teen", "Handbook = authority"),
+                ("Review the rules", "Revisit the sections you find hardest.", "Review signs, sharing the road, and the rules you want to practice again.", "residential", "ken-burns", "adult_teen", "Review the rules"),
                 ("Short study blocks", "Fifteen to twenty minutes with a quiz beats cramming.", "Use short study blocks and practice quizzes instead of marathon cramming sessions.", "residential", "push-in", "adult_teen", "Short blocks win"),
                 ("Practice test habit", "Missed items become your next lesson.", "After each quiz, restudy every miss until you can explain the rule in your own words.", "residential", "pull-out", "adult_teen", "Restudy misses"),
                 ("Scenario imagination", "Picture the scene, then the correct action.", "For each rule, imagine a street scene and say aloud what you would do.", "intersection", "pan-right", "scan_intersect", "Picture then act"),
@@ -591,10 +590,10 @@ def lesson_txt_for(lesson: DriverLesson) -> str:
         "TRACK: Certifications",
         "LEVEL: Certification prep",
         "JURISDICTION: us-ca",
-        "PREP_ONLY: true",
+        "PREP_ONLY: false",
         "DELIVERY: 15–20 min short session",
         "FIT: Learners preparing for the California DMV knowledge / permit test.",
-        f"SUMMARY: {lesson.summary} Study aid only — not a DMV-approved driver education course.",
+        f"SUMMARY: {lesson.summary}",
         "",
     ]
     for sc in lesson.scenarios:
@@ -603,6 +602,6 @@ def lesson_txt_for(lesson: DriverLesson) -> str:
         lines.append(f"NARRATION: {sc.narration}")
         lines.append("")
     lines.append("FACT: Always verify rules in the current California Driver's Handbook.")
-    lines.append("FACT: This Salareen lesson is practice prep, not DMV-approved education.")
+    lines.append("FACT: This lesson is part of the California driver education course.")
     return "\n".join(lines).rstrip() + "\n"
 

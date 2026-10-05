@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: What to do after a collision and proof of insurance. Study aid only — not a DMV-approved driver education course.
+SUMMARY: What to do after a collision and proof of insurance.
 
 SLIDE 1 | Stop and secure the scene
 Never leave the scene of a crash. If involved in a crash, stop, turn on hazards if safe, and move out of traffic when you can.
@@ -50,4 +50,4 @@ Seek medical care for delayed symptoms. Some injuries appear later — seek care
 NARRATION: Some injuries appear later — seek care and notify your insurer promptly.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

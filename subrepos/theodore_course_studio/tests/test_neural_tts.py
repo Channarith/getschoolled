@@ -36,6 +36,22 @@ def test_status_reports_languages_and_cache(monkeypatch, tmp_path):
     assert st["voices"]["km"] == "km-KH-SreymomNeural"
 
 
+def test_course_narration_keeps_one_voice_on_long_pages(monkeypatch):
+    voices: list[str] = []
+
+    def fake(text, language, *, rate=1.0, gender="female", voice=""):
+        voices.append(voice)
+        return b"ID3" + text[:12].encode("utf-8")
+
+    monkeypatch.setattr(neural_tts, "synthesize", fake)
+    long = "A red octagon means a complete stop. " * 80
+    assert len(neural_tts.split_for_speech(long)) > 1
+    audio = neural_tts.synthesize_course(long, "en", gender="female")
+    assert audio.startswith(b"ID3")
+    assert voices
+    assert set(voices) == {"en-US-AriaNeural"}
+
+
 def test_synthesize_empty_text_raises(monkeypatch, tmp_path):
     monkeypatch.setenv("COURSE_STUDIO_TTS_CACHE", str(tmp_path))
     monkeypatch.setenv("COURSE_STUDIO_TTS", "off")

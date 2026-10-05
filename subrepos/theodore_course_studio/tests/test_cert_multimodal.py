@@ -104,9 +104,9 @@ def test_studio_mentions_multimodal_cert_copy():
 
     page = TestClient(app).get("/studio")
     assert page.status_code == 200
-    assert "examples, quiz, and a game" in page.text
-    assert "pf-quiz" in page.text
+    assert "pickLearnVariety" in page.text
     assert "teach-examples" in page.text
+    assert "quiz" in page.text and "game" in page.text
 
 
 def test_kit_for_unknown_title_synthesizes():

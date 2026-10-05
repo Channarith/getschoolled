@@ -9,8 +9,9 @@ The studio now focuses first on simple Pre-K through Grade 2 classes:
   - Grade 1: five sight words; addition within 10
   - Grade 2: story sequence; animal habitats
 
-Open /studio, choose a level + lesson in "Make a children's lesson", then click
-"Make & teach". Every lesson uses:
+Open /studio and pick a course from the library. Driver's ed and food safety
+are the first two. Theodore teaches that course from the first lesson through
+the last. Every lesson uses:
   - one short idea per screen (large child-friendly words)
   - an offline colorful SVG picture
   - an offline animated motion/video card
@@ -29,7 +30,10 @@ Adult PDF/PPTX corpus generation is still available under the collapsed
 
 THEODORE 3D AVATAR TEACHER
 --------------------------
-The teach stage now includes Theodore as an adult, translucent Salareen
+The hologram is hidden for now (SHOW_AVATAR = false in studio_page.py). Lessons
+are voice only. Set that flag to true to bring the 3D teacher back.
+
+The teach stage can include Theodore as an adult, translucent Salareen
 hologram teacher. The original GLB and the pinned Three.js 0.169.0 runtime are
 served locally from /api/studio/avatar; the page never loads avatar code or art
 from a CDN. The committed model includes a full major-joint hierarchy (spine,
@@ -127,25 +131,17 @@ Step 2 — start the studio UI
   Check:  curl -s http://127.0.0.1:8040/health
   Open:   http://127.0.0.1:8040/studio
 
-Step 3 — make a children's lesson
+Step 3 — pick a course
 
-  In the orange "Make a children's lesson" panel:
-    1. Choose Level (e.g. Kindergarten)
-    2. Choose Topic (e.g. Counting 1-10)
-    3. Choose Language (en / es / km / zh …)
-    4. Click "Make & teach"
-
-  Expect a teach stage with large kid words, an offline SVG picture, narration,
-  and a movement / point-and-say activity. Compare against
-  docs/screens/theodore_course_studio.webp.
+  The library is the whole page. Driver's ed is first, food safety is second,
+  then the children's lessons. Choose a language, then click a course.
 
 Step 4 — teach the lesson
 
-  - Auto-speak (checked) → Theodore reads each screen
-  - "Read aloud" → repeat the current narration
-  - "Watch video" → switch to the animated motion card
-  - Pop / Summary quiz and Play game when offered
-  - "Ask Theodore" → xAI if XAI_API_KEY is set, else local fallback
+  Theodore teaches that course from the first part to the last. Slides advance
+  on their own. After the voice finishes, the page stays up so you can study it
+  before the next one. Driver's ed includes a sign section — stop, yield, turns,
+  HOV, merging, railroad, and more than 100 signs, one per page. Pause holds the lesson; Resume continues it. The same neural voice reads every page; it retries that voice instead of switching to the browser's robotic voice. A quiz or game waits 4 slides when the page is hard and up to 8 when it is easy, instead of stopping after every page. If an answer is wrong, Theodore gives the correct answer, explains why, reads the correction aloud, and then continues automatically. Talk opens a box for questions and comments about this course. Speak uses the microphone for a question, and Speak your answer uses it for a quiz or game. Theodore answers course questions and, for any other topic, says kindly that it is outside the training. The lesson stays on the current page while Talk is open.
 
 Step 5 — (optional) adult corpus / certification path
 
@@ -155,8 +151,8 @@ Step 5 — (optional) adult corpus / certification path
   picture, animated motion/"Watch video" clip, friendly examples, curated
   multiple-choice quiz, and a short game, plus read-aloud narration. Tune
   learner profile preferences (images / text / video / examples / quiz / games)
-  so Theodore nudges the paths that fit how the person learns. Ask Theodore
-  anytime — it interrupts speech and answers from the current page. Full
+  so Theodore nudges the paths that fit how the person learns. Use Talk on the
+  lesson page for questions about that course. Full
   copy/paste for that path is under SETUP & RUN below.
 
 SETUP & RUN (copy/paste — full / adult corpus)

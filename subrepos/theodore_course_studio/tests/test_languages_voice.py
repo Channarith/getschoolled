@@ -120,6 +120,48 @@ def test_voice_agent_falls_back_when_api_unreachable(monkeypatch):
     assert turn.language_name == "Khmer"
 
 
+def test_talk_stays_on_the_course_and_refuses_other_topics():
+    from theodore_course_studio.voice_agent import OFF_COURSE_MESSAGE, relates_to_course
+
+    course = (
+        "Course: California driver education\n"
+        "Current page: Stop\n"
+        "A red octagon means a complete stop.\n"
+        "Pages in this course:\nStop\nYield\nWeather and hydroplaning\n"
+    )
+    assert relates_to_course("What does the stop sign mean?", course)
+    assert relates_to_course("I am confused about this page", course)
+    assert not relates_to_course("Who won the world series?", course)
+    assert not relates_to_course("What is the weather in Tokyo?", course)
+
+    agent = CourseStudioVoiceAgent(api_key="test-key")
+    turn = agent.respond(
+        session_id="scope",
+        learner_message="Who won the world series?",
+        lesson_context=course,
+        scope_to_course=True,
+    )
+    assert turn.message == OFF_COURSE_MESSAGE
+    assert turn.fallback_used is True
+
+    on_topic = CourseStudioVoiceAgent(api_key="").respond(
+        session_id="on",
+        learner_message="What does the stop sign mean?",
+        lesson_context=course,
+        scope_to_course=True,
+    )
+    assert "stop" in on_topic.message.lower()
+    assert "outside this course" not in on_topic.message
+
+    # Slide narration does not set the scope flag, so it is not refused.
+    present = CourseStudioVoiceAgent(api_key="").respond(
+        session_id="narr",
+        learner_message="Explain active listening",
+        language_code="es",
+    )
+    assert "outside this course" not in present.message
+
+
 def test_languages_and_voice_api():
     from fastapi.testclient import TestClient
     from theodore_course_studio.main import app
@@ -135,5 +177,4 @@ def test_languages_and_voice_api():
     assert health.json()["languages"] == 27
     page = client.get("/studio")
     assert "teach-lang" in page.text
-    assert "Ask Theodore" in page.text
-    assert "xAI" in page.text or "voice-status" in page.text
+    assert "Course library" in page.text

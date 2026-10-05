@@ -53,7 +53,12 @@ from .studio_page import render_studio_page
 from .teach import TeachEngine
 from .training_run import run_training_pass
 from .tts_client import build_tts_get_url, tts_client_hints, tts_status
-from .neural_tts import TTSUnavailable, synthesize as synthesize_local, status as local_tts_status
+from .neural_tts import (
+    TTSUnavailable,
+    status as local_tts_status,
+    synthesize as synthesize_local,
+    synthesize_course,
+)
 from .types import CategoryId, LearnerProfileScores, QualityLabel
 from .voice_agent import get_voice_agent
 
@@ -131,6 +136,12 @@ class TeachStartRequest(BaseModel):
 
 class TeachSessionRequest(BaseModel):
     session_id: str = "studio-teach-1"
+
+
+class CourseTtsRequest(BaseModel):
+    text: str = Field(min_length=1)
+    language: str = "en"
+    gender: str = "female"
 
 
 class TeachCheckpointLookup(BaseModel):
@@ -437,7 +448,7 @@ def certification_options(track: CertTrackId | None = None) -> dict[str, Any]:
     courses = list_cert_courses(track)
     return {
         "default_track": CertTrackId.CA_DMV_PERMIT.value,
-        "prep_only": True,
+        "prep_only": False,
         "tracks": [
             {
                 "code": item.value,
@@ -599,6 +610,24 @@ def studio_tts_status() -> dict[str, Any]:
         "local": local_tts_status(),
         "engine_chain": hints["engine_chain"],
     }
+
+
+@app.post("/api/studio/tts")
+def studio_tts_locked(req: CourseTtsRequest) -> Response:
+    """Narration in the one course voice, including long pages.
+
+    The player uses this for every slide so the speaker does not change when
+    a gateway quota runs out or a page is too long for a query-string URL.
+    """
+    try:
+        audio = synthesize_course(req.text, req.language, gender=req.gender)
+    except TTSUnavailable as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return Response(
+        content=audio,
+        media_type="audio/mpeg",
+        headers={"cache-control": "public, max-age=86400", "x-tts-voice": "locked"},
+    )
 
 
 @app.get("/api/studio/tts")

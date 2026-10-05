@@ -22,7 +22,7 @@ def _c(
 
 
 DRIVER_AVATAR_CUES: dict[str, tuple[CueRow, ...]] = {
-    "Prep, not a DMV course": _c("caution", "point-to-slide", expression="serious"),
+    "California driver education": _c("open-palm", "point-to-slide"),
     "California learner's permit": _c("count", "open-palm"),
     "Right-of-way at stops": _c("stop", "compare", expression="serious"),
     "California speed basics": _c("caution", "point-to-slide", expression="serious"),
@@ -56,6 +56,13 @@ DRIVER_AVATAR_CUES: dict[str, tuple[CueRow, ...]] = {
     "Practice test habit": _c("count", "celebrate", expression="encouraging"),
 }
 
+
+from .traffic_signs import iter_signs  # noqa: E402
+
+for _sign in iter_signs():
+    DRIVER_AVATAR_CUES[_sign.name] = _c(
+        "point-to-slide", "caution", gaze="slide", expression="serious"
+    )
 
 DRIVER_AVATAR_TITLES = frozenset(DRIVER_AVATAR_CUES)
 

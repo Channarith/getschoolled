@@ -75,21 +75,21 @@ def _kit(
 
 # Curated kits keyed by slide title (unique across cert tracks).
 _KITS: dict[str, SegmentKit] = {
-    "Prep, not a DMV course": _kit(
+    "California driver education": _kit(
         (
-            "You use this studio to review ideas before reading the official handbook.",
-            "A friend says “this replaces DMV school” — you correct them: it does not.",
-            "Before your exam, you still take free practice tests on dmv.ca.gov.",
+            "You start with signs, then signals, right-of-way, and speed.",
+            "Each lesson continues the California driver education course.",
+            "You practice the rule on the page before the next page begins.",
         ),
-        "What is this lesson?",
+        "What does this course teach?",
         (
-            "A study aid — not a DMV-approved driver education course",
-            "An official DMV license class",
-            "A substitute for the California Driver's Handbook",
-            "A court-ordered traffic school",
+            "California rules of the road, including signs, signals, and right-of-way",
+            "Only how to parallel park",
+            "Only freeway etiquette",
+            "Only how to change a tire",
         ),
         0,
-        "Always treat the current California Driver's Handbook as the authority.",
+        "The course covers the rules a California driver has to know.",
     ),
     "California learner's permit": _kit(
         (
@@ -557,7 +557,7 @@ _KITS: dict[str, SegmentKit] = {
             "Outdated photocopies from 1998",
         ),
         0,
-        "Official wording beats any study aid.",
+        "Review the California rules on signs, sharing the road, and special situations.",
     ),
     "Practice test habit": _kit(
         (
@@ -575,21 +575,21 @@ _KITS: dict[str, SegmentKit] = {
         0,
         "Spaced practice beats marathon cramming.",
     ),
-    "Prep card, not accreditation": _kit(
+    "Food handler course": _kit(
         (
-            "You tell a coworker this studio is practice, not county-accredited training.",
-            "You still complete your employer’s approved food handler course.",
-            "You check Alameda Environmental Health guidance for local rules.",
+            "You start with handwashing, illness rules, and ready-to-eat food.",
+            "The next modules cover temperatures, contamination, cleaning, and service.",
+            "You teach the first rule to a new coworker in one minute.",
         ),
-        "This food-handler studio track is:",
+        "What does this food handler course cover first?",
         (
-            "Practice only — not Alameda-accredited training",
-            "Your official county card by itself",
-            "A replacement for employer training",
-            "A health inspection certificate",
+            "Hygiene and illness, then the rest of safe food handling",
+            "Only how to write a menu",
+            "Only how to greet guests",
+            "Only how to stock a cash drawer",
         ),
         0,
-        "Follow approved courses and county guidance.",
+        "Module 1 is hygiene. The course continues through service.",
     ),
     "Why food handler cards matter": _kit(
         (
@@ -1003,19 +1003,19 @@ _KITS: dict[str, SegmentKit] = {
     ),
     "Finish strong": _kit(
         (
-            "You finish your employer’s approved CA food handler course.",
-            "You take the official assessment for your card.",
-            "You treat this studio as practice only.",
+            "You finish every module of the food handler course.",
+            "You take the course assessment.",
+            "You can explain the safety rules on the line.",
         ),
-        "To earn your card you should:",
+        "How do you finish this course?",
         (
-            "Complete approved training and the official assessment",
-            "Only finish this studio track",
+            "Complete every module and the course assessment",
             "Skip the assessment if you feel ready",
+            "Stop after the first module",
             "Borrow a coworker’s card",
         ),
         0,
-        "This studio track is practice only.",
+        "Finish the modules, then take the assessment.",
     ),
     'Two-hour course map': _kit(
         (
@@ -2649,7 +2649,34 @@ def kit_for_slide(
 # Alias every English title under its stable slide_key so translated slides
 # still resolve curated kits after the displayed title changes.
 from .slide_keys import register_title_aliases  # noqa: E402
+from .traffic_signs import iter_signs  # noqa: E402
 
+
+def _register_sign_kits() -> None:
+    """One identification check per road sign, keyed by title and slide key."""
+    for sign in iter_signs():
+        fact = sign.meaning if len(sign.meaning) <= 140 else sign.meaning[:137].rstrip() + "…"
+        kit = _kit(
+            (
+                f"You see the {sign.name} sign and decide before you move.",
+                "Name the shape and color, then the action the sign requires.",
+                "Teach the rule in one sentence to a new driver.",
+            ),
+            f"Which action matches the {sign.name} sign?",
+            (
+                fact,
+                "Ignore the sign when the road looks empty.",
+                "Treat the sign as a suggestion with no legal meaning.",
+                "Speed up so you pass it sooner.",
+            ),
+            0,
+            sign.meaning,
+        )
+        _KITS[sign.name] = kit
+        _KITS[sign.key] = kit
+
+
+_register_sign_kits()
 register_title_aliases(_KITS)
 
 

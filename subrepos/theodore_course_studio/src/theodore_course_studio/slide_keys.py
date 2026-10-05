@@ -9,7 +9,7 @@ when the displayed title is localized.
 from __future__ import annotations
 
 TITLE_TO_SLIDE_KEY: dict[str, str] = {
-    'Prep, not a DMV course': 'ca-dmv-basics.prep-not-a-dmv-course',
+    'California driver education': 'ca-dmv-basics.prep-not-a-dmv-course',
     "California learner's permit": 'ca-dmv-basics.california-learner-s-permit',
     'Right-of-way at stops': 'ca-dmv-basics.right-of-way-at-stops',
     'California speed basics': 'ca-dmv-basics.california-speed-basics',
@@ -41,7 +41,7 @@ TITLE_TO_SLIDE_KEY: dict[str, str] = {
     'Before you drive': 'ca-dmv-sharing.before-you-drive',
     'Handbook checkpoint': 'ca-dmv-sharing.handbook-checkpoint',
     'Practice test habit': 'ca-dmv-sharing.practice-test-habit',
-    'Prep card, not accreditation': 'alameda-food-hygiene.prep-card-not-accreditation',
+    'Food handler course': 'alameda-food-hygiene.prep-card-not-accreditation',
     'Why food handler cards matter': 'alameda-food-hygiene.why-food-handler-cards-matter',
     'Handwashing that works': 'alameda-food-hygiene.handwashing-that-works',
     'Gloves done right': 'alameda-food-hygiene.gloves-done-right',

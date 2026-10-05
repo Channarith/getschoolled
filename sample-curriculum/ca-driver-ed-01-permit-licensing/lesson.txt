@@ -4,14 +4,14 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Provisional permit rules, eligibility, and handbook authority. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Provisional permit rules, eligibility, and handbook authority.
 
-SLIDE 1 | Study aid, not DMV course
-Confirm every rule in the official handbook. This track is practice only. Always verify rules in the current California Driver's Handbook.
-NARRATION: This track is practice only. Always verify rules in the current California Driver's Handbook.
+SLIDE 1 | California driver education
+Confirm the rules in this course. This course teaches California rules of the road.
+NARRATION: This course teaches California rules of the road.
 
 SLIDE 2 | Who needs a permit
 Instruction permit before solo provisional license. Most new drivers start with an instruction permit, then a provisional license after requirements are met.
@@ -50,4 +50,4 @@ Carry license and insurance proof when you drive. Drive only with a valid licens
 NARRATION: Drive only with a valid license or permit and carry proof of financial responsibility when required.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

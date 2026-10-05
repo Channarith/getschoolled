@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Yellow diamonds and hazard preparation. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Yellow diamonds and hazard preparation.
 
 SLIDE 1 | Yellow diamond meaning
 Slow and prepare — not always a full stop. Yellow diamond warning signs alert you to hazards ahead so you can adjust early.
@@ -50,4 +50,4 @@ Opposing traffic begins after a divided section. Two-way traffic signs mean keep
 NARRATION: Two-way traffic signs mean keep right and expect oncoming vehicles.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Circles, multi-lane choices, and unusual controls. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Circles, multi-lane choices, and unusual controls.
 
 SLIDE 1 | Single-lane roundabout
 Yield, enter, signal to exit. Yield to circulating traffic, enter when clear, and signal before your exit.
@@ -50,4 +50,4 @@ Wait for your arrow; do not jump. At complex signals, wait for the indication th
 NARRATION: At complex signals, wait for the indication that applies to your movement — do not assume.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

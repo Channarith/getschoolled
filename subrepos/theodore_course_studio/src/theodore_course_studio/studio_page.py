@@ -4,51 +4,97 @@ from __future__ import annotations
 
 STUDIO_CSS = """
 
-  body { margin:0; font-family: Georgia, 'Times New Roman', serif; background:#14201a; color:#e8efe9; }
-  header { padding:18px 22px; background:linear-gradient(120deg,#1b3a2f,#0f1c18 60%);
-           border-bottom:1px solid #2f5a48; }
-  header h1 { margin:0; font-size:28px; letter-spacing:0.02em; }
-  header p { margin:6px 0 0; color:#a7c4b5; font-size:14px; max-width:52rem; }
-  .layout { display:grid; grid-template-columns: 1.1fr 1fr; gap:14px; padding:14px; }
-  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
-  .panel { background:#18261f; border:1px solid #2f5a48; border-radius:10px; padding:12px; }
-  .panel h2 { margin:0 0 8px; font-size:16px; color:#9fddc0; }
+  body.theme-study { margin:0; color:#241c16;
+    font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+    background:
+      radial-gradient(ellipse at 18% -8%, rgba(255,248,230,.95), transparent 46%),
+      radial-gradient(ellipse at 100% 0%, rgba(196,154,90,.28), transparent 34%),
+      linear-gradient(180deg, #f8f3ea 0%, #f3e7d6 48%, #eadcc8 100%); }
+  button, select, input, textarea, .meta, .status, .review-overlay, .lesson-toolbar {
+    font-family: "Avenir Next", "Segoe UI", sans-serif; }
+  .study-bg { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+  .study-bg .shelf { position:absolute; top:0; height:100%; width:92px; opacity:.34; }
+  .study-bg .shelf-left { left:0; }
+  .study-bg .shelf-right { right:0; transform:scaleX(-1); }
+  .study-bg .wash { position:absolute; inset:0;
+    background:linear-gradient(90deg, rgba(248,243,234,.2), rgba(248,243,234,.72) 8%, rgba(248,243,234,.72) 92%, rgba(248,243,234,.2)); }
+  header, .layout { position:relative; z-index:1; }
+  header.mast { display:flex; gap:24px; align-items:center; justify-content:space-between;
+    margin:18px 22px 0; padding:22px 26px; border-radius:22px;
+    background:linear-gradient(135deg, rgba(255,252,247,.94), rgba(255,246,232,.9));
+    border:1px solid rgba(90,62,32,.12);
+    box-shadow:0 16px 40px rgba(70,46,22,.08); }
+  header h1 { margin:0; font-size:34px; letter-spacing:-0.02em; color:#1e3a5f; font-weight:650; }
+  header .eyebrow { margin:0 0 4px; color:#8c5a2b; font:600 12px "Avenir Next", "Segoe UI", sans-serif;
+    letter-spacing:.14em; text-transform:uppercase; }
+  header p { margin:8px 0 0; color:#5c5146; font-size:16px; line-height:1.45; max-width:46rem; }
+  .mast-art { flex:0 0 168px; }
+  .mast-art svg { width:168px; height:112px; display:block; }
+  .layout { display:grid; grid-template-columns: 1.05fr 1.15fr; gap:16px; padding:16px 22px 28px; }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+    .study-bg .shelf, .mast-art { display:none; }
+    header.mast { margin:12px; padding:18px; }
+  }
+  .panel { background:rgba(255,252,247,.92); border:1px solid rgba(90,62,32,.12); border-radius:22px;
+           padding:16px 16px 14px; box-shadow:0 14px 36px rgba(70,46,22,.07); }
+  .panel h2 { margin:0 0 10px; font-size:20px; color:#1e3a5f; display:flex; align-items:center; gap:8px; }
+  .panel h2 .mark { width:28px; height:28px; display:inline-grid; place-items:center; }
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:6px 0; }
-  button, select, input, textarea { font: inherit; }
-  button { background:#216b4f; color:#f4fff8; border:1px solid #3d9a74; border-radius:6px;
-           padding:6px 10px; cursor:pointer; }
-  button.secondary { background:#24352c; border-color:#3a5548; }
-  button.danger { background:#6b2121; border-color:#9a3d3d; }
-  select, input { background:#0f1a15; color:#e8efe9; border:1px solid #3a5548; border-radius:6px;
-                  padding:5px 8px; }
-  textarea { width:100%; min-height:72px; background:#0f1a15; color:#e8efe9;
-             border:1px solid #3a5548; border-radius:6px; padding:8px; }
-  .pill { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid #3a5548; background:#20332a; }
-  .pill.good { background:#1d4d35; border-color:#3d9a74; }
-  .pill.bad { background:#4d1d1d; border-color:#9a3d3d; }
-  .pill.moderate { background:#4d3d1d; border-color:#9a7d3d; }
-  .pill.ready { background:#1d4d35; border-color:#3d9a74; }
+  button, select, input, textarea { font: 15px/1.2 "Avenir Next", "Segoe UI", sans-serif; }
+  button { background:#1e3a5f; color:#f8f4ec; border:1px solid #162c49; border-radius:999px;
+           padding:9px 16px; cursor:pointer; box-shadow:0 6px 14px rgba(30,58,95,.16); }
+  button.secondary { background:#fffaf3; color:#1e3a5f; border-color:#e0d2bf; box-shadow:none; }
+  button.danger { background:#8c3a2f; border-color:#6e2d24; color:#fff8f4; }
+  select, input { background:#fffaf3; color:#241c16; border:1px solid #e0d2bf; border-radius:12px;
+                  padding:7px 10px; }
+  textarea { width:100%; min-height:72px; background:#fffaf3; color:#241c16;
+             border:1px solid #e0d2bf; border-radius:12px; padding:8px; }
+  label { color:#5c5146; font-family:"Avenir Next", "Segoe UI", sans-serif; font-size:14px; }
+  .pill { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid #e0d2bf; background:#fff6e8; color:#5c3b1e; }
+  .pill.good, .pill.ready { background:#e7f3ea; border-color:#8fbf9b; color:#1d4d35; }
+  .pill.bad { background:#fde8e4; border-color:#e7b2a8; color:#8c3a2f; }
+  .pill.moderate { background:#fff1d6; border-color:#e7c98a; color:#8c5a2b; }
   .modality-row { display:none; flex-wrap:wrap; gap:6px; margin:8px 0; }
-  .examples-box { display:none; margin-top:10px; padding:10px 12px; border-radius:10px;
-                  background:#13241c; border:1px solid #3a5548; font-size:14px; line-height:1.4; }
+  .examples-box { display:none; margin-top:10px; padding:12px 14px; border-radius:14px;
+                  background:#fff6e8; border:1px solid #ead7b8; font-size:16px; line-height:1.45; color:#3a3128; }
   .examples-box ol { margin:6px 0 0 1.1rem; padding:0; }
-  .examples-box li { margin:4px 0; color:#d7e6dc; }
-  .list { max-height:280px; overflow:auto; font-size:13px; }
-  .item { padding:8px; border-bottom:1px solid #24362d; cursor:pointer; }
-  .item:hover, .item.active { background:#21362c; }
-  .item .meta { color:#9bb5a8; font-size:11px; margin-top:2px; }
+  .examples-box li { margin:4px 0; }
+  .list { max-height:280px; overflow:auto; font-size:15px; }
+  .library { max-height:calc(100vh - 250px); padding-right:4px; }
+  .item { display:flex; gap:12px; align-items:center; padding:12px; margin:0 0 8px;
+          border:1px solid transparent; border-radius:16px; cursor:pointer; background:#fffdf9; }
+  .item .mark { width:46px; height:46px; border-radius:14px; display:grid; place-items:center; flex:none;
+                background:#f4eadc; color:#1e3a5f; }
+  .item .mark svg { width:28px; height:28px; display:block; }
+  .item.featured { border-color:#e7d3a4; background:linear-gradient(90deg,#fff8ea,#fffdf9); }
+  .item.featured .mark { background:#1e3a5f; color:#f8f1e4; }
+  .item .focus { display:inline-block; margin-left:8px; color:#8c5a2b; font-size:11px;
+                 letter-spacing:.08em; text-transform:uppercase; font-family:"Avenir Next", "Segoe UI", sans-serif; }
+  .item:hover, .item.active { background:#f7f1e6; border-color:#d9c7a6; }
+  .item.active { box-shadow:inset 3px 0 0 #1e3a5f; }
+  .item .meta { color:#6d5e50; font-size:13px; margin-top:3px; font-family:"Avenir Next", "Segoe UI", sans-serif; }
   .pages { max-height:220px; overflow:auto; }
   .page { display:flex; gap:8px; align-items:flex-start; padding:6px 0; border-bottom:1px solid #24362d; }
   .page.rejected { opacity:0.55; text-decoration: line-through; }
   .comments { max-height:180px; overflow:auto; font-size:12px; }
   .comment { padding:6px 0; border-bottom:1px solid #24362d; }
-    .teach-stage { min-height:220px; background:#0f1a15; border:1px solid #3a5548; border-radius:8px; padding:14px;
+    .teach-stage { min-height:280px; background:#fffaf3; border:1px solid #eadcc8; border-radius:18px; padding:18px 18px 18px 22px;
+                   box-shadow:inset 5px 0 0 #8c3a2f;
                    animation: fadeUp 0.65s ease; }
     .teach-stage.anim { animation: fadeUp 0.65s ease; }
     @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-    .teach-stage h3 { margin:0 0 8px; font-size:22px; }
-    .teach-stage .body { font-size:15px; line-height:1.45; color:#d7e6dc; }
-    .teach-stage .narr { margin-top:12px; color:#9fddc0; font-style:italic; }
+    .teach-stage h3 { margin:0 0 10px; font-size:28px; color:#1e3a5f; letter-spacing:-0.02em; }
+    .page-welcome { display:grid; justify-items:center; text-align:center; gap:8px; padding:18px 8px 8px; color:#5c5146; }
+    .page-welcome[hidden] { display:none !important; }
+    .page-welcome svg { width:min(100%, 280px); height:auto; }
+    .page-welcome p { margin:0; max-width:28rem; font-size:18px; line-height:1.45; }
+    .teach-stage .body { font-size:18px; line-height:1.55; color:#2c241c; }
+    .teach-stage .narr { margin-top:14px; padding:10px 12px; border-radius:12px; background:#f7f1e6;
+                         color:#5c3b1e; font-style:italic; }
+    .absorb-note { margin-top:10px; padding:10px 12px; border-radius:12px; background:#fff6e0;
+                   border:1px solid #e7c98a; color:#6a4b16; font:600 14px "Avenir Next", "Segoe UI", sans-serif; }
+    .absorb-note[hidden] { display:none !important; }
     .teacher-stage-grid { display:grid; grid-template-columns:minmax(180px, 34%) 1fr;
                           gap:14px; align-items:stretch; position:relative; }
     .teacher-stage-grid .storyboard-stage { grid-column:2; grid-row:1 / span 2; }
@@ -58,7 +104,7 @@ STUDIO_CSS = """
                          box-shadow:0 6px 20px rgba(15,23,42,.28); line-height:0; }
     .storyboard-stage svg { width:100%; height:auto; display:block; }
     .storyboard-stage[hidden] { display:none !important; }
-    .storyboard-concept { font-size:13px; color:#9fddc0; margin:-4px 0 10px; line-height:1.35; }
+    .storyboard-concept { font-size:14px; color:#5c5146; margin:8px 0 10px; line-height:1.4; }
     .theodore-avatar-wrap { position:relative; min-height:390px; overflow:hidden; border-radius:18px;
                             background:radial-gradient(ellipse at 50% 60%,rgba(68,214,255,.2),rgba(5,24,34,.72) 65%);
                             border:1px solid rgba(94,224,255,.38); box-shadow:inset 0 0 30px rgba(59,215,255,.14); }
@@ -95,14 +141,16 @@ STUDIO_CSS = """
     /* Presenter mode: a fixed overlay that also takes the real display through the
        Fullscreen API, so Theodore is not boxed inside the dashboard column. */
     .presenter-overlay { position:fixed; inset:0; z-index:9999; display:none;
-                         background:radial-gradient(ellipse at 32% 62%,rgba(56,190,240,.20),#04121a 68%); }
+                         background:
+                           radial-gradient(ellipse at 50% 0%, rgba(255,228,180,.28), transparent 42%),
+                           linear-gradient(180deg, #3a2c22 0%, #1c1612 100%); }
     .presenter-overlay.show { display:block; }
     .presenter-overlay .presenter-body { position:absolute; inset:0; overflow:hidden; }
     .presenter-overlay #teach-stage { position:absolute; inset:0; margin:0; padding:0;
-                                      border:0; border-radius:0; background:transparent;
+                                      border:0; border-radius:0; background:transparent; box-shadow:none;
                                       display:flex; flex-direction:column; min-height:0; }
     .presenter-overlay #teach-stage h3 { flex:0 0 auto; margin:0; padding:18px 96px 12px 30px;
-                                         font-size:clamp(22px,3vw,40px); color:#eafcff; }
+                                         font-size:clamp(22px,3vw,40px); color:#f8f1e4; }
     /* Serenity layout: full-bleed animated storyboard with Theodore as a PiP hologram overlay. */
     .presenter-overlay .teacher-stage-grid { flex:1 1 auto; min-height:0; display:block; position:relative; }
     .presenter-overlay .storyboard-stage { position:absolute; inset:0; aspect-ratio:unset; margin:0;
@@ -116,8 +164,10 @@ STUDIO_CSS = """
     .presenter-overlay .lesson-stage-content { position:absolute; left:0; right:0; bottom:0; z-index:2;
                                                height:auto; max-height:42%; overflow:auto;
                                                padding:14px 30px 22px;
-                                               background:linear-gradient(transparent,rgba(4,20,29,.82) 18%,rgba(4,20,29,.96));
-                                               backdrop-filter:blur(8px); border:0; }
+                                               background:linear-gradient(transparent,rgba(36,26,18,.78) 18%,rgba(28,20,14,.94));
+                                               backdrop-filter:blur(8px); border:0; color:#f6efe4; }
+    .presenter-overlay .teach-stage .body, .presenter-overlay .teach-stage .narr { color:#f6efe4; background:transparent; }
+    .presenter-overlay .lesson-toolbar { position:absolute; top:62px; right:18px; z-index:5; }
     .presenter-overlay .storyboard-concept { display:none; }
     .presenter-overlay .picture-stage { display:none; }
     .presenter-overlay .teach-stage .body { font-size:clamp(16px,1.5vw,23px); max-width:72rem; }
@@ -127,8 +177,18 @@ STUDIO_CSS = """
                                                              height:min(48vh,440px); }
     .presenter-overlay:not(.has-storyboard) .theodore-avatar-wrap { left:0; bottom:0; width:38%; height:100%; border-radius:0; }
     .presenter-overlay:not(.has-storyboard) .lesson-stage-content { left:38%; right:0; bottom:0; top:0;
-                                                                      max-height:none; background:rgba(4,20,29,.72); }
+                                                                      max-height:none; background:rgba(28,20,14,.78); }
     .presenter-exit { position:absolute; top:14px; right:16px; z-index:3; }
+    /* Avatar is off until SHOW_AVATAR is true. Voice and the lesson stay full width. */
+    .theodore-avatar-wrap { display:none !important; }
+    .teacher-stage-grid, .teacher-stage-grid.has-storyboard { grid-template-columns:1fr; }
+    .teacher-stage-grid .storyboard-stage { grid-column:1; grid-row:auto; }
+    .presenter-overlay:not(.has-storyboard) .lesson-stage-content { left:0; right:0; top:0; max-height:none; }
+    body.avatar-on .theodore-avatar-wrap { display:block !important; }
+    body.avatar-on .teacher-stage-grid,
+    body.avatar-on .teacher-stage-grid.has-storyboard { grid-template-columns:minmax(180px, 34%) 1fr; }
+    body.avatar-on .teacher-stage-grid .storyboard-stage { grid-column:2; grid-row:1 / span 2; }
+    body.avatar-on .presenter-overlay:not(.has-storyboard) .lesson-stage-content { left:38%; top:0; max-height:none; }
     body.presenting { overflow:hidden; }
     @media (max-width:760px) {
       .presenter-overlay .theodore-avatar-wrap { width:min(44vw,260px); height:min(42vh,340px);
@@ -153,15 +213,16 @@ STUDIO_CSS = """
     .checkpoint-box.show { display:block; }
     .checkpoint-box .row { margin-top:8px; }
     .picture-stage { margin:10px 0; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .picture-stage img { width:100%; aspect-ratio:16/9; object-fit:contain; border-radius:14px;
-                         background:#fff; border:2px solid #3a5548; }
+    .picture-stage img { width:100%; aspect-ratio:16/9; object-fit:contain; border-radius:16px;
+                         background:#fff; border:1px solid #eadcc8; box-shadow:0 8px 20px rgba(70,46,22,.08); }
     .picture-stage img[hidden] { display:none; }
+    .picture-stage:not(:has(img:not([hidden]))) { display:none; }
     .kids-words { font-size:28px !important; line-height:1.25 !important; text-align:center;
                   font-family:Arial,sans-serif; font-weight:700; padding:8px; }
-    .activity { margin-top:8px; padding:9px 12px; border-radius:999px; background:#312e81;
-                color:#fff; font:700 15px Arial,sans-serif; text-align:center; }
-    .lang-warning { margin-top:8px; padding:8px 10px; border-radius:8px; background:#4d3d1d;
-                    border:1px solid #9a7d3d; color:#fde68a; font-size:13px; }
+    .activity { margin-top:8px; padding:10px 14px; border-radius:999px; background:#fff1d6;
+                color:#5c3b1e; border:1px solid #e7c98a; font:700 15px "Avenir Next", "Segoe UI", sans-serif; text-align:center; }
+    .lang-warning { margin-top:8px; padding:8px 10px; border-radius:12px; background:#fff6e0;
+                    border:1px solid #e7c98a; color:#6a4b16; font-size:14px; }
     @media (max-width:700px) {
       .picture-stage { grid-template-columns:1fr; }
       .teacher-stage-grid { grid-template-columns:1fr; }
@@ -170,11 +231,53 @@ STUDIO_CSS = """
     @media (prefers-reduced-motion: reduce) {
       .teach-stage, .teach-stage.anim, .theodore-avatar-fallback * { animation:none !important; }
     }
-    .quiz-box, .game-box { margin-top:10px; padding:10px; border:1px dashed #3a5548; border-radius:8px; background:#13201a; }
-    .quiz-box button, .game-box button { display:block; width:100%; text-align:left; margin:4px 0; }
-  .status { font-size:12px; color:#9bb5a8; min-height:16px; }
-  .toast { position:fixed; right:14px; bottom:14px; background:#1b3a2f; border:1px solid #3d9a74;
-           padding:10px 12px; border-radius:8px; display:none; max-width:360px; }
+    .quiz-box, .game-box { margin-top:12px; padding:12px; border:1px solid #ead7b8; border-radius:16px; background:#fff6e8; color:#241c16; }
+    .quiz-box button, .game-box button { display:block; width:100%; text-align:left; margin:6px 0;
+      background:#fffaf3; color:#1e3a5f; border-color:#e0d2bf; box-shadow:none; border-radius:12px; }
+    .quiz-correction { margin-top:10px; padding:12px; border-radius:12px;
+      background:#fffaf3; border-left:4px solid #8c3a2f; }
+    .quiz-correction strong { color:#8c3a2f; }
+    .quiz-correction p { margin:6px 0 0; }
+    .status { font-size:13px; color:#6d5e50; min-height:16px; font-family:"Avenir Next", "Segoe UI", sans-serif; }
+    #teach-adapt { display:none; }
+    #review-root { position:fixed; top:92px; left:22px; z-index:10060; }
+    .review-toggle { position:static; }
+    .review-overlay { display:none; width:min(360px, calc(100vw - 32px));
+                      max-height:min(72vh, 720px); overflow:auto; padding:14px 16px 16px;
+                      border-radius:18px; background:rgba(255,250,242,.88); color:#241c16;
+                      border:1px solid rgba(90,62,32,.16); backdrop-filter:blur(14px);
+                      box-shadow:0 18px 48px rgba(70,46,22,.16); font-size:13px; line-height:1.4; }
+    .review-overlay.show { display:block; }
+    .review-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px; }
+    .review-overlay h2 { margin:0; font-size:18px; color:#1e3a5f; }
+    .review-overlay h3 { margin:12px 0 6px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#8c5a2b; }
+    .review-overlay p { margin:0; color:#5c5146; }
+    .review-overlay dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:3px 12px; }
+    .review-overlay dt { color:#6d5e50; }
+    .review-overlay dd { margin:0; text-align:right; }
+    .talk-panel { margin-top:12px; padding:14px 16px; border-radius:16px;
+                  background:#fffaf3; border:1px solid #e0d2bf; color:#241c16; }
+    .talk-panel h2 { margin:0 0 4px; font-size:18px; color:#1e3a5f; }
+    .talk-panel p { margin:0 0 10px; color:#5c5146; font-size:14px; }
+    .talk-panel textarea { width:100%; min-height:72px; resize:vertical; }
+    .talk-reply { margin:10px 0; min-height:1.2em; color:#1e3a5f; font-size:15px; }
+    button.is-listening { background:#8c3a2f; color:#fffaf3; border-color:#8c3a2f; }
+    .quiz-box button.mic-btn, .game-box button.mic-btn { display:inline-block; width:auto; margin-top:8px; }
+    .heard { margin:8px 0 0; font-size:13px; color:#5c5146; }
+    .score-row { display:grid; grid-template-columns:1fr auto; gap:2px 8px; margin:5px 0; }
+    .score-row .meter { grid-column:1 / -1; height:6px; border-radius:99px; background:rgba(30,58,95,.12); overflow:hidden; }
+    .score-row .meter > span { display:block; height:100%; background:#1e3a5f; }
+  .toast { position:fixed; right:18px; bottom:18px; background:#fffaf3; color:#241c16; border:1px solid #e0d2bf;
+           padding:12px 14px; border-radius:14px; display:none; max-width:360px;
+           box-shadow:0 12px 30px rgba(70,46,22,.16); z-index:10070; }
+  .lesson-toolbar { margin-top:10px; }
+  #btn-present::before, #btn-pause::before, #btn-review::before {
+    content:""; display:inline-block; width:15px; height:15px; margin-right:7px; vertical-align:-2px;
+    background:currentColor; }
+  #btn-present::before { -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-9zm5.2 1.3v6.4l4-3.2-4-3.2z'/></svg>") center / contain no-repeat; mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-9zm5.2 1.3v6.4l4-3.2-4-3.2z'/></svg>") center / contain no-repeat; }
+  #btn-pause::before { -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M4 2h3v12H4zM9 2h3v12H9z'/></svg>") center / contain no-repeat; mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M4 2h3v12H4zM9 2h3v12H9z'/></svg>") center / contain no-repeat; }
+  #btn-pause.is-paused::before { -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M4 2.5v11l9-5.5-9-5.5z'/></svg>") center / contain no-repeat; mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M4 2.5v11l9-5.5-9-5.5z'/></svg>") center / contain no-repeat; }
+  #btn-review::before { -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 1.2V6h2.6L9 3.2zM4 8h8v1.2H4V8zm0 2.4h6V12H4v-1.6z'/></svg>") center / contain no-repeat; mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 1.2V6h2.6L9 3.2zM4 8h8v1.2H4V8zm0 2.4h6V12H4v-1.6z'/></svg>") center / contain no-repeat; }
   .toast.show { display:block; }
 
 """
@@ -182,6 +285,8 @@ STUDIO_CSS = """
 STUDIO_JS = """
 
     const $ = (id) => document.getElementById(id);
+    // Set true to show the 3D teacher again. Narration stays on either way.
+    const SHOW_AVATAR = false;
     let selectedSource = null;
     let selectedCourse = null;
     let teachSession = 'studio-teach-1';
@@ -189,11 +294,31 @@ STUDIO_JS = """
     let teachLanguage = 'en';
     let languageNames = {};
     let serverAudio = null;
+    let neuralObjectUrl = null;
+    let courseVoiceGender = 'female';
     let lastTeachPayload = null;
     let earlyOptions = [];
     let certOptions = [];
     let learnerId = 'learner-demo';
     let theodoreAvatar = null;
+    // The lesson plays straight through. Pause is the only hold.
+    let lecturePaused = false;
+    let talkOpen = false;
+    let autoAdvanceTimer = null;
+    let advancing = false;
+    let speechGen = 0;
+    const SLIDE_TRANSITION_MS = 700;
+    // Quiet time after the voice finishes so the page can be studied.
+    const ABSORB_MS = 12000;
+    let library = [];
+    let activeCourse = null;
+    let lessonCursor = 0;
+    let slideVariety = 'straight';
+    let slidesSinceCheck = 0;
+    let lastCheckPassed = null;
+    let beatHandled = false;
+    let reviewOpen = false;
+    const reviewScores = { quizzes: [], games: [] };
 
     async function initTheodoreAvatar() {
       const host = $('theodore-avatar');
@@ -202,9 +327,11 @@ STUDIO_JS = """
         const module = await import('/api/studio/avatar/avatar_runtime.js');
         theodoreAvatar = await module.createTheodoreAvatar(host, {
           assetBase: '/api/studio/avatar',
-          motionIntensity: +($('avatar-motion').value || 1)
+          motionIntensity: $('avatar-motion') ? +$('avatar-motion').value : 1
         });
-        theodoreAvatar.setReducedMotion($('avatar-reduced').checked);
+        const reduced = ($('avatar-reduced') && $('avatar-reduced').checked) ||
+          (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        theodoreAvatar.setReducedMotion(!!reduced);
         $('avatar-state').textContent = host.dataset.avatarReady === 'fallback'
           ? 'Theodore · accessible silhouette'
           : 'Theodore · 3D hologram ready';
@@ -215,13 +342,15 @@ STUDIO_JS = """
     }
 
     function presenterActive() {
-      return $('presenter-overlay').classList.contains('show');
+      const overlay = $('presenter-overlay');
+      return !!(overlay && overlay.classList.contains('show'));
     }
 
     function enterPresenterMode() {
       if (presenterActive()) return;
       $('presenter-body').appendChild($('teach-stage'));
       $('presenter-overlay').classList.add('show');
+      $('presenter-overlay').appendChild($('review-root'));
       document.body.classList.add('presenting');
       const overlay = $('presenter-overlay');
       if (overlay.requestFullscreen) overlay.requestFullscreen().catch(() => {});
@@ -233,6 +362,7 @@ STUDIO_JS = """
       if (!presenterActive()) return;
       $('teach-stage-home').appendChild($('teach-stage'));
       $('presenter-overlay').classList.remove('show');
+      document.body.appendChild($('review-root'));
       document.body.classList.remove('presenting');
       if (document.fullscreenElement && document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
@@ -245,6 +375,22 @@ STUDIO_JS = """
       el.textContent = msg;
       el.classList.add('show');
       setTimeout(() => el.classList.remove('show'), 3200);
+    }
+    function setPauseButton(paused) {
+      const btn = $('btn-pause');
+      if (!btn) return;
+      btn.textContent = paused ? 'Resume' : 'Pause';
+      btn.classList.toggle('is-paused', !!paused);
+    }
+
+    function courseIcon(course) {
+      if (course.id === 'drivers-ed') {
+        return '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="24" cy="24" r="3.5" fill="currentColor"/><path d="M24 9v7M24 32v7M9 24h7M32 24h7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+      }
+      if (course.id === 'food-safety') {
+        return '<svg viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="24" cy="31" rx="14" ry="5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M12 31c2 8 22 8 24 0" fill="none" stroke="currentColor" stroke-width="3"/><path d="M18 16c0 6 12 6 12 0" fill="none" stroke="currentColor" stroke-width="3"/><path d="M20 16V9M24 16V7M28 16V9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+      }
+      return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 12h13c2.2 1.6 4.4 1.6 6.4 0H40v24H27.4c-2 1.6-4.2 1.6-6.4 0H8V12z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M24 13.5v21" stroke="currentColor" stroke-width="2.4"/></svg>';
     }
     function esc(s) {
       return String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -388,11 +534,116 @@ STUDIO_JS = """
       const data = await api('/api/studio/certification/options');
       certOptions = data.courses || [];
       const track = $('cert-track');
+      if (!track) return;
       track.innerHTML = (data.tracks || []).map((row) =>
         `<option value="${esc(row.code)}">${esc(row.name)} (${esc(row.jurisdiction)})</option>`
       ).join('');
       track.value = data.default_track || 'ca_dmv_permit';
       renderCertLessons();
+    }
+
+    async function loadLibrary() {
+      const [cert, early] = await Promise.all([
+        api('/api/studio/certification/options'),
+        api('/api/studio/early-learning/options')
+      ]);
+      certOptions = cert.courses || [];
+      earlyOptions = early.courses || [];
+      const driver = certOptions.filter((row) => row.track === 'ca_dmv_permit');
+      const food = certOptions.filter((row) => row.track === 'alameda_food_handler');
+      library = [
+        {
+          id: 'drivers-ed',
+          title: "Driver's ed",
+          detail: 'California permit prep · ' + driver.length + ' lessons, including 140 traffic signs',
+          kind: 'cert',
+          lessons: driver,
+          featured: true
+        },
+        {
+          id: 'food-safety',
+          title: 'Food safety',
+          detail: 'California food handler prep · ' + food.length + ' modules in order',
+          kind: 'cert',
+          lessons: food,
+          featured: true
+        }
+      ];
+      earlyOptions.forEach((row) => {
+        library.push({
+          id: 'early-' + row.level + '-' + row.topic_id,
+          title: row.title,
+          detail: (row.level_name || row.level) + ' · ' + (row.subject || 'Early learning'),
+          kind: 'early',
+          lessons: [row],
+          featured: false
+        });
+      });
+      renderLibrary();
+    }
+
+    function renderLibrary() {
+      const box = $('library-list');
+      if (!box) return;
+      box.innerHTML = library.map((course) => `
+        <div class="item${course.featured ? ' featured' : ''}${activeCourse && activeCourse.id === course.id ? ' active' : ''}" data-lib="${esc(course.id)}">
+          <div class="mark">${courseIcon(course)}</div>
+          <div>
+            <div><strong>${esc(course.title)}</strong>${course.featured ? '<span class="focus">Start here</span>' : ''}</div>
+            <div class="meta">${esc(course.detail)}</div>
+          </div>
+        </div>`).join('');
+      box.querySelectorAll('.item[data-lib]').forEach((el) => {
+        el.onclick = () => openLibraryCourse(el.getAttribute('data-lib'));
+      });
+    }
+
+    async function openLibraryCourse(id) {
+      const course = library.find((row) => row.id === id);
+      if (!course || !course.lessons.length) return toast('That course has no lessons yet');
+      activeCourse = course;
+      lessonCursor = 0;
+      reviewScores.quizzes = [];
+      reviewScores.games = [];
+      slidesSinceCheck = 0;
+      lastCheckPassed = null;
+      lecturePaused = false;
+      if ($('btn-pause')) setPauseButton(false);
+      renderLibrary();
+      await teachLibraryLesson();
+    }
+
+    async function teachLibraryLesson() {
+      const lesson = activeCourse && activeCourse.lessons[lessonCursor];
+      if (!lesson) return;
+      teachLanguage = ($('teach-lang') && $('teach-lang').value) || teachLanguage || 'en';
+      const now = $('library-now');
+      if (now) {
+        now.textContent = activeCourse.title + ' · part ' + (lessonCursor + 1) +
+          ' of ' + activeCourse.lessons.length + ' · ' + (lesson.title || '');
+      }
+      let data;
+      if (activeCourse.kind === 'cert') {
+        data = await api('/api/studio/courses/certification', {
+          method:'POST', headers:{'content-type':'application/json'},
+          body: JSON.stringify({
+            track: lesson.track,
+            lesson_id: lesson.lesson_id,
+            language: teachLanguage
+          })
+        });
+      } else {
+        data = await api('/api/studio/courses/early-learning', {
+          method:'POST', headers:{'content-type':'application/json'},
+          body: JSON.stringify({
+            level: lesson.level,
+            topic_id: lesson.topic_id,
+            language: teachLanguage
+          })
+        });
+      }
+      selectedCourse = data.course_id;
+      await startTeach({ resume: false });
     }
 
     function renderCertLessons() {
@@ -458,6 +709,7 @@ STUDIO_JS = """
     async function refreshCourses() {
       const data = await api('/api/studio/courses');
       const box = $('course-list');
+      if (!box) return;
       box.innerHTML = (data.courses || []).map((c) => `
         <div class="item" data-cid="${esc(c.course_id)}">
           <div><strong>${esc(c.title)}</strong> <span class="pill">${esc(c.category)}</span>
@@ -473,6 +725,7 @@ STUDIO_JS = """
       const data = await api('/api/studio/languages');
       const sel = $('teach-lang');
       (data.languages || []).forEach((l) => { languageNames[l.code] = l.name; });
+      if (!sel) return;
       sel.innerHTML = (data.languages || []).map((l) =>
         `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
       ).join('');
@@ -487,7 +740,9 @@ STUDIO_JS = """
       const data = await api('/api/studio/voice/status');
       const v = data.voice || {};
       const t = data.tts || {};
-      $('voice-status').textContent =
+      const status = $('voice-status');
+      if (!status) return;
+      status.textContent =
         `xAI: ${v.provider || 'local-fallback'}` +
         (v.xai_available ? ' (live key)' : ' (offline fallback)') +
         ` · TTS: ${t.engine || 'device'}` +
@@ -495,27 +750,33 @@ STUDIO_JS = """
     }
 
     function profileFromForm() {
+      const num = (id, fallback) => {
+        const el = $(id);
+        return el ? +el.value : fallback;
+      };
       return {
-        engagement: +$('pf-engagement').value,
-        literacy: +$('pf-literacy').value,
-        attention: +$('pf-attention').value,
-        fatigue: +$('pf-fatigue').value,
-        confusion: +$('pf-confusion').value,
-        pace_preference: +$('pf-pace').value,
-        accessibility_need: +$('pf-access').value,
-        learn_from_images: +$('pf-img').value,
-        learn_from_text: +$('pf-text').value,
-        learn_from_video: +$('pf-video').value,
-        learn_from_examples: +$('pf-examples').value,
-        learn_from_quiz: +$('pf-quiz').value,
-        learn_from_games: +$('pf-games').value,
-        learn_from_activity: +$('pf-activity').value,
+        engagement: num('pf-engagement', 0.7),
+        literacy: num('pf-literacy', 0.6),
+        attention: num('pf-attention', 0.7),
+        fatigue: num('pf-fatigue', 0.2),
+        confusion: num('pf-confusion', 0.2),
+        pace_preference: num('pf-pace', 0.5),
+        accessibility_need: num('pf-access', 0.3),
+        learn_from_images: num('pf-img', 0.7),
+        learn_from_text: num('pf-text', 0.7),
+        learn_from_video: num('pf-video', 0.7),
+        learn_from_examples: num('pf-examples', 0.75),
+        learn_from_quiz: num('pf-quiz', 0.55),
+        learn_from_games: num('pf-games', 0.55),
+        learn_from_activity: num('pf-activity', 0.5),
       };
     }
 
     async function startTeach(opts) {
       opts = opts || {};
       if (!selectedCourse) return toast('Select or build a course first');
+      lecturePaused = false;
+      if ($('btn-pause')) setPauseButton(false);
       teachLanguage = $('teach-lang').value || 'en';
       const data = await api('/api/studio/teach/start', {
         method:'POST', headers:{'content-type':'application/json'},
@@ -524,7 +785,7 @@ STUDIO_JS = """
           learner_id: learnerId,
           focus_gaps: true, known_objective_ids: [],
           language: teachLanguage, use_voice_agent: true,
-          voice_gender: ($('teach-voice-gender').value || 'female'),
+          voice_gender: (($('teach-voice-gender') && $('teach-voice-gender').value) || 'female'),
           resume: !!opts.resume
         })
       });
@@ -541,6 +802,8 @@ STUDIO_JS = """
     }
 
     async function continueSession() {
+      lecturePaused = false;
+      if ($('btn-pause')) setPauseButton(false);
       const data = await api('/api/studio/teach/continue', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession })
@@ -550,6 +813,9 @@ STUDIO_JS = """
     }
 
     async function comeBackLater() {
+      lecturePaused = true;
+      stopSpeech();
+      if ($('btn-pause')) setPauseButton(true);
       const data = await api('/api/studio/teach/come-back-later', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession })
@@ -558,10 +824,179 @@ STUDIO_JS = """
       toast(data.message || 'Saved — come back later');
     }
 
+    function openTalk() {
+      if (!teachSession) return toast('Start a course first');
+      talkOpen = true;
+      stopSpeech();
+      const panel = $('talk-panel');
+      if (panel) panel.hidden = false;
+      const box = $('voice-ask');
+      if (box) box.focus();
+    }
+
+    function closeTalk() {
+      talkOpen = false;
+      stopStudentMic();
+      const panel = $('talk-panel');
+      if (panel) panel.hidden = true;
+      if (!lecturePaused) readCurrentAloud();
+    }
+
+    let studentRec = null;
+    let micReady = false;
+
+    function speechCtor() {
+      return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    }
+
+    function recognitionLang() {
+      const code = String(teachLanguage || 'en').toLowerCase();
+      const map = {
+        en:'en-US', es:'es-ES', fr:'fr-FR', de:'de-DE', it:'it-IT', pt:'pt-BR',
+        nl:'nl-NL', pl:'pl-PL', ru:'ru-RU', uk:'uk-UA', tr:'tr-TR', ar:'ar-SA',
+        he:'he-IL', hi:'hi-IN', zh:'zh-CN', ja:'ja-JP', ko:'ko-KR', vi:'vi-VN',
+        th:'th-TH', id:'id-ID', km:'km-KH'
+      };
+      return map[code] || code;
+    }
+
+    function stopStudentMic() {
+      if (studentRec) {
+        try { studentRec.onresult = null; studentRec.onerror = null; studentRec.onend = null; studentRec.stop(); } catch (_) {}
+        studentRec = null;
+      }
+      document.querySelectorAll('button.is-listening').forEach((el) => {
+        el.classList.remove('is-listening');
+        if (el.dataset.label) el.textContent = el.dataset.label;
+      });
+    }
+
+    async function ensureMic() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast('This browser cannot use the microphone. Type instead.');
+        return false;
+      }
+      if (micReady) return true;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+        micReady = true;
+        return true;
+      } catch (_) {
+        toast('Allow the microphone to speak your question or answer.');
+        return false;
+      }
+    }
+
+    async function listenOnce(onText, button) {
+      const Ctor = speechCtor();
+      if (!Ctor) {
+        toast('This browser cannot hear speech. Type your question or answer.');
+        return;
+      }
+      const ok = await ensureMic();
+      if (!ok) return;
+      stopSpeech();
+      stopStudentMic();
+      const rec = new Ctor();
+      studentRec = rec;
+      rec.lang = recognitionLang();
+      rec.interimResults = true;
+      rec.continuous = false;
+      rec.maxAlternatives = 1;
+      if (button) {
+        button.dataset.label = button.dataset.label || button.textContent;
+        button.classList.add('is-listening');
+        button.textContent = 'Listening…';
+      }
+      let finalText = '';
+      rec.onresult = (event) => {
+        let interim = '';
+        const results = event.results || [];
+        for (let i = event.resultIndex || 0; i < results.length; i++) {
+          const piece = (results[i][0] && results[i][0].transcript) || '';
+          if (results[i].isFinal) finalText += piece;
+          else interim += piece;
+        }
+        const heard = (finalText || interim).trim();
+        const last = results[results.length - 1];
+        const isFinal = !!(last && last.isFinal) || !!finalText;
+        if (heard) onText(heard, isFinal && !!finalText);
+      };
+      rec.onerror = (event) => {
+        const err = (event && event.error) || '';
+        if (err === 'not-allowed' || err === 'service-not-allowed') {
+          micReady = false;
+          toast('Allow the microphone, then tap Speak again.');
+        } else if (err === 'no-speech') toast('No speech heard. Try again.');
+        else if (err && err !== 'aborted') toast('Could not hear that. Try again or type.');
+      };
+      rec.onend = () => {
+        if (button) {
+          button.classList.remove('is-listening');
+          if (button.dataset.label) button.textContent = button.dataset.label;
+        }
+        if (studentRec === rec) studentRec = null;
+      };
+      try { rec.start(); }
+      catch (_) { toast('Tap Speak again to start the microphone.'); }
+    }
+
+    function spokenWords(text) {
+      return String(text || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\\s+/g, ' ').trim();
+    }
+
+    function matchSpokenChoice(spoken, choices) {
+      const said = spokenWords(spoken);
+      if (!said) return -1;
+      const letters = { a:0, b:1, c:2, d:3, e:4, f:5 };
+      const ordinals = {
+        one:0, first:0, two:1, second:1, three:2, third:2,
+        four:3, fourth:3, five:4, fifth:4, six:5, sixth:5
+      };
+      if (Object.prototype.hasOwnProperty.call(letters, said) && letters[said] < choices.length) return letters[said];
+      if (Object.prototype.hasOwnProperty.call(ordinals, said) && ordinals[said] < choices.length) return ordinals[said];
+      const fillers = { the:1, number:1, option:1, choice:1, answer:1, please:1, its:1, it:1, is:1 };
+      const tokens = said.split(' ').filter((word) => word && !fillers[word]);
+      if (tokens.length === 1 && Object.prototype.hasOwnProperty.call(ordinals, tokens[0]) && ordinals[tokens[0]] < choices.length) {
+        return ordinals[tokens[0]];
+      }
+      if (tokens.length === 1 && Object.prototype.hasOwnProperty.call(letters, tokens[0]) && letters[tokens[0]] < choices.length) {
+        return letters[tokens[0]];
+      }
+      const numbered = said.match(/^(?:number|option|choice|answer)?\\s*(\\d+)$/);
+      const num = numbered ? parseInt(numbered[1], 10) : parseInt(said, 10);
+      if (num >= 1 && num <= choices.length && String(num) === said.replace(/\\D/g, '')) return num - 1;
+      let best = -1;
+      let bestScore = 0;
+      choices.forEach((choice, index) => {
+        const words = spokenWords(choice).split(' ').filter((word) => word.length > 2);
+        const score = words.filter((word) => said.includes(word)).length;
+        if (score > bestScore) { bestScore = score; best = index; }
+      });
+      return bestScore > 0 ? best : -1;
+    }
+
+    function speakQuestion() {
+      if (!teachSession) return toast('Start a course first');
+      if (!talkOpen) openTalk();
+      let sent = false;
+      const box = $('voice-ask');
+      listenOnce((text, isFinal) => {
+        if (box) box.value = text;
+        if (isFinal && !sent && text.trim()) {
+          sent = true;
+          stopStudentMic();
+          askTheodore().catch((e) => toast(String(e.message || e)));
+        }
+      }, $('btn-talk-mic'));
+    }
+
     async function askTheodore() {
-      const msg = $('voice-ask').value.trim();
-      if (!msg) return toast('Type a question for Theodore');
-      if (!teachSession) return toast('Start a lesson first');
+      const box = $('voice-ask');
+      const msg = (box && box.value || '').trim();
+      if (!msg) return toast('Ask a question about this course');
+      if (!teachSession) return toast('Start a course first');
       stopSpeech();
       theodoreAvatar?.setState('thinking');
       const data = await api('/api/studio/teach/voice/respond', {
@@ -569,21 +1004,276 @@ STUDIO_JS = """
         body: JSON.stringify({ session_id: teachSession, message: msg })
       });
       const voice = data.voice || {};
-      $('teach-narr').textContent = 'Theodore (' + (voice.provider || 'voice') + '): ' + (voice.message || '');
+      const reply = voice.message || '';
+      const slot = $('talk-reply');
+      if (slot) slot.textContent = reply;
+      $('teach-narr').textContent = reply;
       if (data.turn && data.turn.avatar) theodoreAvatar?.setScript(data.turn.avatar);
-      speakText(voice.message || '', data.tts);
-      $('voice-ask').value = '';
-      toast(voice.fallback_used ? 'Local fallback reply' : 'xAI voice reply');
+      speakText(reply, data.tts, true);
+      if (box) box.value = '';
     }
 
-    async function nextSlide() {
+    function clearAutoAdvance() {
+      if (autoAdvanceTimer) {
+        clearTimeout(autoAdvanceTimer);
+        autoAdvanceTimer = null;
+      }
+    }
+
+    function isLastSlide(payload) {
+      const p = payload || lastTeachPayload;
+      if (!p || !Array.isArray(p.path) || !p.path.length) return true;
+      return (p.path_pos || 0) >= p.path.length - 1;
+    }
+
+    function narrationDwellMs(text) {
+      const words = String(text || '').trim().split(/\\s+/).filter(Boolean).length;
+      // ~140 words a minute, with a floor so a short scene still finishes its move.
+      return Math.min(90000, Math.max(4500, words * 430));
+    }
+
+    function pageDifficulty(payload) {
+      const turn = (payload && (payload.turn || payload)) || {};
+      const text = String(turn.display_body || turn.narration || '');
+      const words = text.trim().split(/\\s+/).filter(Boolean).length;
+      // A short sign page is easier to hold. A long rule page needs a sooner check.
+      if (words >= 90) return 'hard';
+      if (words <= 45) return 'easy';
+      return 'medium';
+    }
+
+    function checkGapFor(payload) {
+      if (lastCheckPassed === false) return 4;
+      const level = pageDifficulty(payload);
+      if (level === 'hard') return 4;
+      if (level === 'easy') return 8;
+      return 6;
+    }
+
+    function pickLearnVariety(payload) {
+      // Teach straight through. A quiz or game waits 4 slides on hard pages
+      // and up to 8 on easy ones, instead of stopping after every page.
+      slidesSinceCheck += 1;
+      if (slidesSinceCheck < checkGapFor(payload)) {
+        return Math.random() < 0.45 ? 'examples' : 'straight';
+      }
+      slidesSinceCheck = 0;
+      return Math.random() < 0.5 ? 'quiz' : 'game';
+    }
+
+    function pctLabel(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '—';
+      return Math.round(Math.max(0, Math.min(1, n)) * 100) + '%';
+    }
+
+    function scoreRow(label, value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '';
+      const width = Math.max(0, Math.min(100, Math.round(n * 100)));
+      return `<div class="score-row"><span>${esc(label)}</span><b>${pctLabel(n)}</b><div class="meter"><span style="width:${width}%"></span></div></div>`;
+    }
+
+    function averageScore(rows) {
+      if (!rows.length) return null;
+      return rows.reduce((sum, row) => sum + Number(row.score || 0), 0) / rows.length;
+    }
+
+    function noteScore(kind, score, passed) {
+      const bucket = kind === 'game' ? reviewScores.games : reviewScores.quizzes;
+      bucket.push({ score: Number(score) || 0, passed: !!passed });
+      lastCheckPassed = !!passed;
+      if (reviewOpen) renderReview();
+    }
+
+    function toggleReview(force) {
+      reviewOpen = typeof force === 'boolean' ? force : !reviewOpen;
+      const panel = $('review-overlay');
+      if (panel) panel.classList.toggle('show', reviewOpen);
+      const btn = $('btn-review');
+      if (btn) {
+        btn.setAttribute('aria-pressed', reviewOpen ? 'true' : 'false');
+        btn.textContent = reviewOpen ? 'Hide review' : 'Review';
+      }
+      if (reviewOpen) renderReview();
+    }
+
+    function renderReview() {
+      const body = $('review-body');
+      if (!body) return;
+      const payload = lastTeachPayload;
+      if (!payload) {
+        body.innerHTML = '<p>Start a course. Features and scores show up here while it plays.</p>';
+        return;
+      }
+      const turn = payload.turn || {};
+      const kit = payload.learning_kit || {};
+      const prog = payload.progress || {};
+      const profile = turn.profile_snapshot || {};
+      const features = [
+        ['Storyboard', kit.has_storyboard],
+        ['Picture', kit.has_picture],
+        ['Video', kit.has_video],
+        ['Examples', kit.has_examples],
+        ['Quiz', kit.has_quiz],
+        ['Game', kit.has_game],
+        ['Activity', kit.has_activity]
+      ].filter((row) => row[1]).map((row) => row[0]);
+      const variety = { straight: 'Narration', examples: 'Examples', quiz: 'Quiz', game: 'Game' }[slideVariety] || slideVariety;
+      const preferred = (kit.preferred || []).join(', ');
+      const slideNo = (payload.path_pos || 0) + 1;
+      const slideCount = (payload.path || []).length || 1;
+      const lesson = activeCourse
+        ? (lessonCursor + 1) + ' / ' + activeCourse.lessons.length
+        : '—';
+      const lastQuiz = reviewScores.quizzes[reviewScores.quizzes.length - 1];
+      const lastGame = reviewScores.games[reviewScores.games.length - 1];
+      const quizAvg = averageScore(reviewScores.quizzes);
+      const gameAvg = averageScore(reviewScores.games);
+      const profileRows = [
+        ['Engagement', 'engagement'],
+        ['Literacy', 'literacy'],
+        ['Attention', 'attention'],
+        ['Fatigue', 'fatigue'],
+        ['Confusion', 'confusion'],
+        ['Pace', 'pace_preference'],
+        ['Accessibility', 'accessibility_need'],
+        ['Images', 'learn_from_images'],
+        ['Text', 'learn_from_text'],
+        ['Video', 'learn_from_video'],
+        ['Examples', 'learn_from_examples'],
+        ['Quiz', 'learn_from_quiz'],
+        ['Games', 'learn_from_games'],
+        ['Activity', 'learn_from_activity']
+      ];
+      body.innerHTML = `
+        <h3>This screen</h3>
+        <dl>
+          <dt>Learning</dt><dd>${esc(variety)}</dd>
+          <dt>Features</dt><dd>${esc(features.join(', ') || 'Voice')}</dd>
+          <dt>Preferred</dt><dd>${esc(preferred || '—')}</dd>
+          <dt>Objective</dt><dd>${esc((payload.objective && payload.objective.title) || '—')}</dd>
+          <dt>Slide</dt><dd>${slideNo} / ${slideCount}</dd>
+          <dt>Lesson</dt><dd>${esc(String(lesson))}</dd>
+          <dt>Language</dt><dd>${esc(payload.spoken_language || payload.language || '')}</dd>
+          <dt>Adaptations</dt><dd>${esc((turn.adaptations_applied || []).join(', ') || 'none')}</dd>
+        </dl>
+        <h3>Progress</h3>
+        <dl>
+          <dt>Known</dt><dd>${prog.known || 0}</dd>
+          <dt>Gaps</dt><dd>${prog.gaps || 0}</dd>
+          <dt>Objectives</dt><dd>${prog.total_objectives || 0}</dd>
+          <dt>Completed slides</dt><dd>${prog.completed_slides || 0}</dd>
+          <dt>Elapsed</dt><dd>${(payload.checkpoint && payload.checkpoint.elapsed_minutes) || 0} min</dd>
+        </dl>
+        <h3>Scores</h3>
+        ${lastQuiz ? `<dl><dt>Last quiz</dt><dd>${pctLabel(lastQuiz.score)} ${lastQuiz.passed ? 'passed' : 'missed'}</dd></dl>` : '<p>No quiz yet this course.</p>'}
+        ${lastGame ? `<dl><dt>Last game</dt><dd>${pctLabel(lastGame.score)} ${lastGame.passed ? 'passed' : 'missed'}</dd></dl>` : ''}
+        ${quizAvg === null ? '' : scoreRow('Quiz average', quizAvg)}
+        ${gameAvg === null ? '' : scoreRow('Game average', gameAvg)}
+        <div id="review-engagement"></div>
+        <h3>Profile</h3>
+        ${profileRows.map((row) => scoreRow(row[0], profile[row[1]])).join('')}
+      `;
+      if (reviewOpen) refreshReviewTelemetry();
+    }
+
+    async function refreshReviewTelemetry() {
+      if (!reviewOpen) return;
+      try {
+        const data = await api('/api/studio/telemetry');
+        const slot = $('review-engagement');
+        if (!slot || !reviewOpen) return;
+        slot.innerHTML = scoreRow('Engagement', data.engagement_score) +
+          `<dl><dt>Slides taught</dt><dd>${data.slides_taught || 0}</dd>
+             <dt>Quizzes</dt><dd>${data.quizzes_passed || 0} / ${data.quizzes_started || 0}</dd>
+             <dt>Games</dt><dd>${data.games_passed || 0} / ${data.games_started || 0}</dd>
+             <dt>Avg quiz</dt><dd>${pctLabel(data.avg_quiz_score)}</dd>
+             <dt>Avg game</dt><dd>${pctLabel(data.avg_game_score)}</dd></dl>`;
+      } catch (_) {}
+    }
+
+    function scheduleAutoAdvance(delayMs) {
+      clearAutoAdvance();
+      if (lecturePaused || beatHandled || talkOpen) return;
+      autoAdvanceTimer = setTimeout(() => {
+        autoAdvanceTimer = null;
+        finishSlideBeat();
+      }, delayMs);
+    }
+
+    function finishSlideBeat() {
+      if (lecturePaused || beatHandled) return;
+      beatHandled = true;
+      clearAutoAdvance();
+      if (slideVariety === 'quiz') {
+        popQuiz().catch(() => continueAfterActivity());
+        return;
+      }
+      if (slideVariety === 'game') {
+        playGame().catch(() => continueAfterActivity());
+        return;
+      }
+      continueAfterActivity();
+    }
+
+    async function continueAfterActivity() {
+      if (lecturePaused || advancing) return;
+      clearAutoAdvance();
+      if (!isLastSlide()) {
+        await nextSlide({ auto: true });
+        return;
+      }
+      if (activeCourse && lessonCursor < activeCourse.lessons.length - 1) {
+        lessonCursor += 1;
+        await teachLibraryLesson();
+        return;
+      }
+      const name = activeCourse ? activeCourse.title : 'Lesson';
+      toast(name + ' complete');
+    }
+
+    function onNarrationEnded(gen) {
+      if (gen !== speechGen) return;
+      theodoreAvatar?.stopSpeaking();
+      showAbsorb(true);
+      scheduleAutoAdvance(ABSORB_MS);
+    }
+
+    function showAbsorb(on) {
+      const note = $('absorb-note');
+      if (note) note.hidden = !on;
+    }
+
+    async function nextSlide(opts) {
+      const automatic = !!(opts && opts.auto);
+      if (automatic && (lecturePaused || advancing || isLastSlide())) return;
+      if (!teachSession) return;
+      clearAutoAdvance();
+      advancing = true;
       stopSpeech();
       theodoreAvatar?.setState('idle');
-      const data = await api('/api/studio/teach/advance', {
-        method:'POST', headers:{'content-type':'application/json'},
-        body: JSON.stringify({ session_id: teachSession })
-      });
-      renderTeach(data);
+      try {
+        const data = await api('/api/studio/teach/advance', {
+          method:'POST', headers:{'content-type':'application/json'},
+          body: JSON.stringify({ session_id: teachSession })
+        });
+        renderTeach(data);
+      } finally {
+        advancing = false;
+      }
+    }
+
+    function toggleLecturePause() {
+      lecturePaused = !lecturePaused;
+      if (lecturePaused) {
+        stopSpeech();
+        theodoreAvatar?.setState('paused');
+        setPauseButton(true);
+        return;
+      }
+      setPauseButton(false);
+      readCurrentAloud();
     }
 
     async function applyProfile() {
@@ -609,19 +1299,64 @@ STUDIO_JS = """
       box.style.display = 'block';
       box.innerHTML = `<strong>${esc(pendingPop.prompt)}</strong>` +
         (pendingPop.choices || []).map((c, i) =>
-          `<button type="button" data-i="${i}">${esc(c)}</button>`).join('');
-      box.querySelectorAll('button[data-i]').forEach((b) => {
-        b.onclick = async () => {
-          const res = await api('/api/studio/teach/pop-answer', {
-            method:'POST', headers:{'content-type':'application/json'},
-            body: JSON.stringify({ session_id: teachSession, selected_index: +b.dataset.i })
-          });
-          toast(res.result.passed ? 'Pop quiz correct' : 'Pop quiz missed — path updated');
-          theodoreAvatar?.setState(res.result.passed ? 'celebrate' : 'encouraging');
+          `<button type="button" data-i="${i}">${esc(c)}</button>`).join('') +
+        `<button type="button" class="secondary mic-btn" id="quiz-mic">Speak your answer</button>` +
+        `<p class="heard" id="quiz-heard"></p>`;
+      let submitting = false;
+      const submitQuiz = async (index) => {
+        if (submitting) return;
+        submitting = true;
+        box.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+        const res = await api('/api/studio/teach/pop-answer', {
+          method:'POST', headers:{'content-type':'application/json'},
+          body: JSON.stringify({ session_id: teachSession, selected_index: index })
+        });
+        stopStudentMic();
+        const passed = !!(res.result && res.result.passed);
+        noteScore('quiz', passed ? 1 : 0, passed);
+        theodoreAvatar?.setState(passed ? 'celebrate' : 'encouraging');
+        if (passed) {
+          toast('Correct');
           box.style.display = 'none';
-          renderTeach(res.turn);
-        };
+          await continueAfterActivity();
+          return;
+        }
+        const correction = res.correction || {};
+        const correctChoice = correction.correct_choice ||
+          ((pendingPop.choices || [])[pendingPop.correct_index] || '');
+        const explanation = correction.explanation ||
+          ('The key learning point is: ' + correctChoice);
+        const correctionText = 'Not quite. The correct answer is: ' +
+          correctChoice + '. ' + explanation;
+        box.innerHTML = `<div class="quiz-correction" role="status">
+          <strong>Not quite — here is the correction.</strong>
+          <p><b>Correct answer:</b> ${esc(correctChoice)}</p>
+          <p><b>Why:</b> ${esc(explanation)}</p>
+          <p class="heard">Listen to the explanation. The course continues automatically.</p>
+        </div>`;
+        $('teach-narr').textContent = correctionText;
+        speakText(correctionText, null, true);
+        clearAutoAdvance();
+        autoAdvanceTimer = setTimeout(() => {
+          autoAdvanceTimer = null;
+          box.style.display = 'none';
+          continueAfterActivity();
+        }, narrationDwellMs(correctionText) + 5000);
+      };
+      box.querySelectorAll('button[data-i]').forEach((b) => {
+        b.onclick = () => submitQuiz(+b.dataset.i);
       });
+      const quizMic = box.querySelector('#quiz-mic');
+      if (quizMic) quizMic.onclick = () => {
+        listenOnce((text, isFinal) => {
+          const heard = box.querySelector('#quiz-heard');
+          if (heard) heard.textContent = 'Heard: ' + text;
+          if (!isFinal) return;
+          const index = matchSpokenChoice(text, pendingPop.choices || []);
+          if (index < 0) return toast('Say the choice, or a number like 1 or 2.');
+          submitQuiz(index);
+        }, quizMic);
+      };
     }
 
     async function summaryQuiz() {
@@ -645,7 +1380,9 @@ STUDIO_JS = """
       toast(graded.passed
         ? `Summary passed ${graded.correct}/${graded.total}`
         : `Summary needs work ${graded.correct}/${graded.total} — review weak points`);
+      noteScore('quiz', graded.total ? graded.correct / graded.total : 0, graded.passed);
       theodoreAvatar?.setState(graded.passed ? 'celebrate' : 'encouraging');
+      continueAfterActivity();
     }
 
     async function playGame() {
@@ -663,10 +1400,12 @@ STUDIO_JS = """
       if (kind === 'order_steps' || (payload.steps_shown && payload.steps_shown.length)) {
         const steps = (payload.steps_shown || []).slice();
         box.innerHTML = `<strong>${esc(pendingGame.prompt)}</strong>
-          <p style="font-size:12px;opacity:.85;margin:8px 0;">Click steps in the correct order (first → last).</p>
+          <p style="font-size:12px;opacity:.85;margin:8px 0;">Click steps in the correct order, or say them (first → last).</p>
           <div id="order-steps"></div>
           <button type="button" id="order-submit" class="primary" style="margin-top:8px;">Check order</button>
-          <button type="button" id="order-reset" style="margin-top:8px;">Reset</button>`;
+          <button type="button" id="order-reset" style="margin-top:8px;">Reset</button>
+          <button type="button" class="secondary mic-btn" id="game-mic">Speak the next step</button>
+          <p class="heard" id="game-heard"></p>`;
         const list = box.querySelector('#order-steps');
         const picked = [];
         function paint() {
@@ -685,6 +1424,31 @@ STUDIO_JS = """
         }
         paint();
         box.querySelector('#order-reset').onclick = () => { picked.length = 0; paint(); };
+        const orderMic = box.querySelector('#game-mic');
+        if (orderMic) orderMic.onclick = () => {
+          listenOnce((text, isFinal) => {
+            const heard = box.querySelector('#game-heard');
+            if (heard) heard.textContent = 'Heard: ' + text;
+            if (!isFinal) return;
+            const before = picked.length;
+            const said = spokenWords(text);
+            const hits = [];
+            steps.forEach((step, index) => {
+              if (picked.includes(index)) return;
+              const words = spokenWords(step).split(' ').filter((word) => word.length > 3);
+              if (!words.length) return;
+              const overlap = words.filter((word) => said.includes(word)).length;
+              if (overlap >= Math.min(2, words.length) || (words.length === 1 && said.includes(words[0]))) {
+                const pos = said.indexOf(words[0]);
+                hits.push({ index, pos: pos < 0 ? 999 : pos });
+              }
+            });
+            hits.sort((a, b) => a.pos - b.pos);
+            hits.forEach((hit) => { if (!picked.includes(hit.index)) picked.push(hit.index); });
+            paint();
+            if (picked.length === before) toast('Say the next step the way it is written.');
+          }, orderMic);
+        };
         box.querySelector('#order-submit').onclick = async () => {
           if (picked.length !== steps.length) {
             toast('Pick every step in order first');
@@ -700,47 +1464,91 @@ STUDIO_JS = """
             })
           });
           toast(res.feedback || (res.passed ? 'Game passed' : 'Try again'));
+          noteScore('game', res.score, res.passed);
           theodoreAvatar?.setState(res.passed ? 'celebrate' : 'encouraging');
           box.style.display = 'none';
+          continueAfterActivity();
         };
         return;
       }
       const opts = payload.options || [];
       box.innerHTML = `<strong>${esc(pendingGame.prompt)}</strong>` +
-        opts.map((c, i) => `<button type="button" data-i="${i}">${esc(c)}</button>`).join('');
+        opts.map((c, i) => `<button type="button" data-i="${i}">${esc(c)}</button>`).join('') +
+        `<button type="button" class="secondary mic-btn" id="game-mic">Speak your answer</button>` +
+        `<p class="heard" id="game-heard"></p>`;
+      const submitGame = async (index) => {
+        const res = await api('/api/studio/teach/game-grade', {
+          method:'POST', headers:{'content-type':'application/json'},
+          body: JSON.stringify({
+            session_id: teachSession,
+            challenge: pendingGame,
+            response: { selected_index: index }
+          })
+        });
+        stopStudentMic();
+        toast(res.feedback || (res.passed ? 'Game passed' : 'Try again'));
+        noteScore('game', res.score, res.passed);
+        theodoreAvatar?.setState(res.passed ? 'celebrate' : 'encouraging');
+        box.style.display = 'none';
+        continueAfterActivity();
+      };
       box.querySelectorAll('button[data-i]').forEach((b) => {
-        b.onclick = async () => {
-          const res = await api('/api/studio/teach/game-grade', {
-            method:'POST', headers:{'content-type':'application/json'},
-            body: JSON.stringify({
-              session_id: teachSession,
-              challenge: pendingGame,
-              response: { selected_index: +b.dataset.i }
-            })
-          });
-          toast(res.feedback || (res.passed ? 'Game passed' : 'Try again'));
-          theodoreAvatar?.setState(res.passed ? 'celebrate' : 'encouraging');
-          box.style.display = 'none';
-        };
+        b.onclick = () => submitGame(+b.dataset.i);
       });
+      const gameMic = box.querySelector('#game-mic');
+      if (gameMic) gameMic.onclick = () => {
+        listenOnce((text, isFinal) => {
+          const heard = box.querySelector('#game-heard');
+          if (heard) heard.textContent = 'Heard: ' + text;
+          if (!isFinal) return;
+          const index = matchSpokenChoice(text, opts);
+          if (index < 0) return toast('Say the choice, or a number like 1 or 2.');
+          submitGame(index);
+        }, gameMic);
+      };
     }
 
     function stopSpeech() {
+      speechGen += 1;
+      clearAutoAdvance();
       if (window.speechSynthesis) window.speechSynthesis.cancel();
-      if (serverAudio) { try { serverAudio.pause(); } catch (_) {} serverAudio = null; }
+      if (serverAudio) {
+        try { serverAudio.onended = null; serverAudio.onerror = null; } catch (_) {}
+        try { serverAudio.pause(); } catch (_) {}
+        serverAudio = null;
+      }
+      if (neuralObjectUrl) {
+        try { URL.revokeObjectURL(neuralObjectUrl); } catch (_) {}
+        neuralObjectUrl = null;
+      }
       theodoreAvatar?.stopSpeaking();
     }
 
-    function speakText(text, ttsMeta) {
-      if (!$('auto-speak').checked) return;
+    function speakText(text, ttsMeta, holdLesson) {
+      if (lecturePaused && !holdLesson) return;
       stopSpeech();
       const spoken = text || '';
-      // Prefer the URL the server already chose (gateway or /api/studio/tts).
-      // Fall back to local_url, then device speechSynthesis (no Khmer on macOS).
-      const url = (ttsMeta && (ttsMeta.get_url || ttsMeta.local_url)) || '';
-      const available = ttsMeta && ttsMeta.speech && ttsMeta.speech.available;
+      const gen = speechGen;
+      // Silent mode still walks the slides. Pause is the only thing that holds.
+      const speakToggle = $('auto-speak');
+      if (!holdLesson && speakToggle && !speakToggle.checked) {
+        scheduleAutoAdvance(narrationDwellMs(spoken));
+        return;
+      }
+      if (holdLesson && speakToggle && !speakToggle.checked) return;
+      // If the browser never fires "ended", still leave time to study the page.
+      // A Talk reply stays on this page; it does not start the next slide.
+      if (!holdLesson) scheduleAutoAdvance(narrationDwellMs(spoken) + ABSORB_MS);
+      // One neural voice for the whole course. Retry that voice before the
+      // browser's built-in voice, which is a different speaker.
+      const done = () => {
+        if (gen !== speechGen) return;
+        if (holdLesson) theodoreAvatar?.stopSpeaking();
+        else onNarrationEnded(gen);
+      };
       const playServer = (src) => {
         serverAudio = new Audio(src);
+        serverAudio.onended = done;
         theodoreAvatar?.speak(spoken, serverAudio);
         return serverAudio.play();
       };
@@ -748,40 +1556,68 @@ STUDIO_JS = """
         if (!window.speechSynthesis) return;
         const u = new SpeechSynthesisUtterance(spoken);
         u.lang = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
+        const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+        const lang = String(u.lang || 'en').slice(0, 2).toLowerCase();
+        const same = (voices || []).filter((voice) => String(voice.lang || '').toLowerCase().startsWith(lang));
+        const wanted = courseVoiceGender === 'male' ? /male|guy|daniel|alex/i : /female|samantha|aria|victoria|karen/i;
+        const named = same.find((voice) => wanted.test(voice.name || ''));
+        if (named || same[0]) u.voice = named || same[0];
         u.onboundary = (event) => theodoreAvatar?.speechBoundary(event.charIndex || 0);
-        u.onend = () => theodoreAvatar?.stopSpeaking();
+        u.onend = done;
         u.onerror = () => theodoreAvatar?.stopSpeaking();
         theodoreAvatar?.speak(spoken);
         window.speechSynthesis.speak(u);
       };
-      if (available && url) {
-        playServer(url).catch(() => {
-          const local = ttsMeta.local_url;
-          if (local && local !== url) {
-            playServer(local).catch(() => playDevice());
-          } else {
-            playDevice();
-          }
-        });
-        return;
-      }
-      if (ttsMeta && ttsMeta.local_url) {
-        playServer(ttsMeta.local_url).catch(() => playDevice());
-        return;
-      }
-      playDevice();
+      fetchLockedVoice(spoken, ttsMeta).then((src) => {
+        if (gen !== speechGen) {
+          try { URL.revokeObjectURL(src); } catch (_) {}
+          return;
+        }
+        neuralObjectUrl = src;
+        playServer(src).catch(() => { if (gen === speechGen) playDevice(); });
+      }).catch(() => { if (gen === speechGen) playDevice(); });
+    }
+
+    function fetchLockedVoice(text, ttsMeta) {
+      const language = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
+      const gender = courseVoiceGender || (ttsMeta && ttsMeta.voice_gender) || 'female';
+      const attempt = (n) => fetch('/api/studio/tts', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: text, language: language, gender: gender })
+      }).then((res) => {
+        if (!res.ok) throw new Error('tts ' + res.status);
+        return res.blob();
+      }).then((blob) => {
+        if (!blob || !blob.size) throw new Error('empty voice clip');
+        return URL.createObjectURL(blob);
+      }).catch((err) => {
+        if (n >= 2) throw err;
+        return new Promise((resolve) => setTimeout(resolve, 600 * (n + 1)))
+          .then(() => attempt(n + 1));
+      });
+      return attempt(0);
     }
 
     function renderTeach(payload) {
+      stopStudentMic();
       lastTeachPayload = payload;
+      beatHandled = false;
+      showAbsorb(false);
+      slideVariety = pickLearnVariety(payload);
       const turn = payload.turn || payload;
-      if (payload.voice_gender) theodoreAvatar?.setPersona(payload.voice_gender);
+      if (payload.voice_gender) {
+        courseVoiceGender = payload.voice_gender;
+        theodoreAvatar?.setPersona(payload.voice_gender);
+      }
       theodoreAvatar?.setScript(payload.avatar || { state:'presenting', cues:[] });
       const stage = $('teach-stage');
       stage.classList.remove('anim');
       void stage.offsetWidth;
       stage.classList.add('anim');
       $('teach-title').textContent = turn.title || '—';
+      const welcome = $('page-welcome');
+      if (welcome) welcome.hidden = true;
       $('teach-body').textContent = turn.display_body || '';
       $('teach-body').classList.toggle('kids-words',
         (payload.media || []).some((m) => m.kind === 'image'));
@@ -820,51 +1656,35 @@ STUDIO_JS = """
         storyboardEl.innerHTML = '';
         storyConceptEl.hidden = true;
         storyConceptEl.textContent = '';
-        pictureEl.hidden = !picture;
+        const playMotion = Boolean(motion);
+        pictureEl.hidden = playMotion || !picture;
         pictureEl.src = picture ? picture.url : '';
         pictureEl.alt = picture ? (picture.caption || picture.title || '') : '';
-        motionEl.hidden = true;
+        motionEl.hidden = !playMotion;
         motionEl.src = motion ? motion.url : '';
         motionEl.alt = motion ? (motion.caption || motion.title || '') : '';
       }
-      $('btn-video').disabled = !motion || hasStoryboard;
-      // The toggle flips the label — reset it or a watched clip leaves the
-      // button reading "Show picture" while the picture is already showing.
-      $('btn-video').textContent = 'Watch video';
+      const videoBtn = $('btn-video');
+      if (videoBtn) {
+        videoBtn.disabled = !motion || hasStoryboard;
+        videoBtn.textContent = (motion && !hasStoryboard) ? 'Show picture' : 'Watch video';
+      }
       $('teach-activity').textContent = payload.activity_prompt || '';
       $('teach-activity').style.display = payload.activity_prompt ? 'block' : 'none';
       const examples = payload.examples || [];
       const exBox = $('teach-examples');
-      if (examples.length) {
+      if (exBox && examples.length && slideVariety === 'examples') {
         exBox.style.display = 'block';
         exBox.innerHTML = '<strong>Examples</strong><ol>' +
           examples.map((e) => `<li>${esc(e)}</li>`).join('') + '</ol>';
-      } else {
+      } else if (exBox) {
         exBox.style.display = 'none';
         exBox.innerHTML = '';
       }
-      const kit = payload.learning_kit || {};
-      const mods = kit.preferred || payload.modalities || [];
       const modBox = $('teach-modalities');
-      if (mods.length) {
-        modBox.style.display = 'flex';
-        modBox.innerHTML = mods.map((m) => {
-          const ready =
-            (m === 'image' && (kit.has_picture || kit.has_storyboard)) ||
-            (m === 'video' && kit.has_video) ||
-            (m === 'examples' && kit.has_examples) ||
-            (m === 'quiz' && kit.has_quiz) ||
-            (m === 'game' && kit.has_game) ||
-            (m === 'activity' && kit.has_activity) ||
-            (m === 'text');
-          return `<span class="pill ${ready ? 'ready' : ''}">${esc(m)}</span>`;
-        }).join('');
-      } else {
-        modBox.style.display = 'none';
-        modBox.innerHTML = '';
-      }
-      $('btn-pop').disabled = !teachSession;
-      $('btn-game').disabled = !teachSession;
+      if (modBox) { modBox.style.display = 'none'; modBox.innerHTML = ''; }
+      if ($('btn-pop')) $('btn-pop').disabled = !teachSession;
+      if ($('btn-game')) $('btn-game').disabled = !teachSession;
       const provider = (payload.voice && payload.voice.provider) || 'slide';
       $('teach-narr').textContent = 'Theodore (' + provider + '): ' + (turn.narration || '');
       const adapt = (turn.adaptations_applied || []).join(', ') || 'no adaptations';
@@ -889,15 +1709,9 @@ STUDIO_JS = """
       }
       warn.textContent = notices.join('  ');
       warn.style.display = notices.length ? 'block' : 'none';
-      const cp = payload.checkpoint || {};
       const box = $('checkpoint-box');
-      if (cp.due) {
-        $('checkpoint-msg').textContent = cp.message || 'Take a short break?';
-        box.classList.add('show');
-        theodoreAvatar?.setState('paused');
-      } else {
-        box.classList.remove('show');
-      }
+      if (box) box.classList.remove('show');
+      renderReview();
       speakText(turn.narration || turn.display_body || '', payload.tts);
     }
 
@@ -917,60 +1731,60 @@ STUDIO_JS = """
       $('btn-video').textContent = showing ? 'Watch video' : 'Show picture';
     }
 
-    $('btn-train').onclick = () => runTraining().catch((e) => toast(String(e.message || e)));
-    $('btn-offline').onclick = () => runOfflineTrainer().catch((e) => toast(String(e.message || e)));
-    $('btn-comment').onclick = () => postComment().catch((e) => toast(String(e.message || e)));
-    $('btn-build').onclick = () => buildCourse().catch((e) => toast(String(e.message || e)));
-    $('btn-kids-build').onclick = () => buildEarlyCourse().catch((e) => toast(String(e.message || e)));
-    $('kids-level').onchange = renderEarlyTopics;
-    $('btn-cert-build').onclick = () => buildCertCourse().catch((e) => toast(String(e.message || e)));
-    $('cert-track').onchange = renderCertLessons;
-    $('btn-teach').onclick = () => startTeach().catch((e) => toast(String(e.message || e)));
-    $('btn-resume').onclick = () => resumeTeach().catch((e) => toast(String(e.message || e)));
-    $('btn-next').onclick = () => nextSlide().catch((e) => toast(String(e.message || e)));
-    $('btn-continue').onclick = () => continueSession().catch((e) => toast(String(e.message || e)));
-    $('btn-later').onclick = () => comeBackLater().catch((e) => toast(String(e.message || e)));
-    $('btn-profile').onclick = () => applyProfile().catch((e) => toast(String(e.message || e)));
-    $('btn-pop').onclick = () => popQuiz().catch((e) => toast(String(e.message || e)));
-    $('btn-summary').onclick = () => summaryQuiz().catch((e) => toast(String(e.message || e)));
-    $('btn-game').onclick = () => playGame().catch((e) => toast(String(e.message || e)));
-    $('btn-ask').onclick = () => askTheodore().catch((e) => toast(String(e.message || e)));
-    $('voice-ask').addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') {
+    const on = (id, event, fn) => { const el = $(id); if (el) el.addEventListener(event, fn); };
+    on('btn-train', 'click', () => runTraining().catch((e) => toast(String(e.message || e))));
+    on('btn-offline', 'click', () => runOfflineTrainer().catch((e) => toast(String(e.message || e))));
+    on('btn-comment', 'click', () => postComment().catch((e) => toast(String(e.message || e))));
+    on('btn-build', 'click', () => buildCourse().catch((e) => toast(String(e.message || e))));
+    on('btn-kids-build', 'click', () => buildEarlyCourse().catch((e) => toast(String(e.message || e))));
+    on('kids-level', 'change', renderEarlyTopics);
+    on('btn-cert-build', 'click', () => buildCertCourse().catch((e) => toast(String(e.message || e))));
+    on('cert-track', 'change', renderCertLessons);
+    on('btn-teach', 'click', () => startTeach().catch((e) => toast(String(e.message || e))));
+    on('btn-resume', 'click', () => resumeTeach().catch((e) => toast(String(e.message || e))));
+    on('btn-next', 'click', () => nextSlide().catch((e) => toast(String(e.message || e))));
+    on('btn-pause', 'click', () => toggleLecturePause());
+    on('btn-continue', 'click', () => continueSession().catch((e) => toast(String(e.message || e))));
+    on('btn-later', 'click', () => comeBackLater().catch((e) => toast(String(e.message || e))));
+    on('btn-profile', 'click', () => applyProfile().catch((e) => toast(String(e.message || e))));
+    on('btn-read', 'click', readCurrentAloud);
+    on('btn-video', 'click', watchCurrentVideo);
+    on('btn-talk', 'click', openTalk);
+    on('btn-talk-close', 'click', closeTalk);
+    on('btn-talk-send', 'click', () => askTheodore().catch((e) => toast(String(e.message || e))));
+    on('btn-talk-mic', 'click', () => speakQuestion());
+    on('voice-ask', 'keydown', (ev) => {
+      if (ev.key === 'Enter' && !ev.shiftKey) {
         ev.preventDefault();
         askTheodore().catch((e) => toast(String(e.message || e)));
       }
     });
-    $('btn-read').onclick = readCurrentAloud;
-    $('btn-video').onclick = watchCurrentVideo;
-    $('btn-present').onclick = enterPresenterMode;
-    $('btn-present-exit').onclick = exitPresenterMode;
-    $('teach-voice-gender').addEventListener('change', (ev) => {
+    on('teach-voice-gender', 'change', (ev) => {
       theodoreAvatar?.setPersona(ev.target.value || 'female');
       if (teachSession && lastTeachPayload) startTeach().catch(() => {});
+    });
+    on('teach-lang', 'change', () => {
+      teachLanguage = $('teach-lang').value || 'en';
+      if (activeCourse) teachLibraryLesson().catch((e) => toast(String(e.message || e)));
     });
     // Escape leaves fullscreen without telling us, so follow the browser back.
     document.addEventListener('fullscreenchange', () => {
       if (!document.fullscreenElement) exitPresenterMode();
     });
-    $('avatar-enabled').onchange = (event) => {
+    on('avatar-enabled', 'change', (event) => {
       theodoreAvatar?.setEnabled(event.target.checked);
-      $('theodore-avatar-wrap').hidden = !event.target.checked;
-    };
-    $('avatar-motion').oninput = (event) => theodoreAvatar?.setMotionIntensity(event.target.value);
-    $('avatar-reduced').onchange = (event) => theodoreAvatar?.setReducedMotion(event.target.checked);
-    $('voice-ask').addEventListener('focus', () => theodoreAvatar?.setState('listening'));
-    $('voice-ask').addEventListener('blur', () => {
-      if (!serverAudio) theodoreAvatar?.setState('idle');
+      const wrap = $('theodore-avatar-wrap');
+      if (wrap) wrap.hidden = !event.target.checked;
     });
+    on('avatar-motion', 'input', (event) => theodoreAvatar?.setMotionIntensity(event.target.value));
+    on('avatar-reduced', 'change', (event) => theodoreAvatar?.setReducedMotion(event.target.checked));
 
-    initTheodoreAvatar();
-    loadEarlyOptions().catch(() => {});
-    loadCertOptions().catch(() => {});
+    if (SHOW_AVATAR) {
+      document.body.classList.add('avatar-on');
+      initTheodoreAvatar();
+    }
     loadLanguages().catch(() => {});
-    refreshVoiceStatus().catch(() => {});
-    refreshCorpus().catch(() => {});
-    refreshCourses().catch(() => {});
+    loadLibrary().catch((e) => toast(String(e.message || e)));
 
 """
 
@@ -983,98 +1797,56 @@ def render_studio_page() -> str:
     {"imports":{"three":"/api/studio/avatar/three.module.js"}}
   </script>
 </head>
-<body>
-  <header>
-    <h1>Theodore Course Studio</h1>
-    <p>Make simple, picture-led Pre-K–Grade 2 lessons that Theodore reads aloud.
-       Certification prep (CA DMV / Alameda food handler) is a peer track with
-       short 15–20 minute sessions you can pause and resume — each page has an
-       offline picture, a Watch-video motion clip, and read-aloud narration.
-       Adult corpus tools remain below as an advanced workflow.</p>
+<body class="theme-study">
+  <div class="study-bg" aria-hidden="true">
+    <svg class="shelf shelf-left" viewBox="0 0 92 720" preserveAspectRatio="xMidYMin slice">
+      <g fill="#1e3a5f"><rect x="8" y="24" width="16" height="150" rx="2"/><rect x="28" y="40" width="13" height="134" rx="2"/><rect x="46" y="18" width="18" height="156" rx="2"/><rect x="68" y="36" width="14" height="138" rx="2"/></g>
+      <g fill="#8c3a2f"><rect x="10" y="200" width="18" height="148" rx="2"/><rect x="32" y="214" width="12" height="134" rx="2"/><rect x="48" y="196" width="16" height="152" rx="2"/><rect x="68" y="208" width="14" height="140" rx="2"/></g>
+      <g fill="#2f5d46"><rect x="8" y="376" width="15" height="146" rx="2"/><rect x="27" y="390" width="17" height="132" rx="2"/><rect x="48" y="370" width="13" height="152" rx="2"/><rect x="65" y="384" width="16" height="138" rx="2"/></g>
+      <g fill="#c4a15a"><rect x="12" y="552" width="14" height="140" rx="2"/><rect x="30" y="566" width="18" height="126" rx="2"/><rect x="52" y="548" width="12" height="144" rx="2"/><rect x="68" y="560" width="15" height="132" rx="2"/></g>
+    </svg>
+    <svg class="shelf shelf-right" viewBox="0 0 92 720" preserveAspectRatio="xMidYMin slice">
+      <g fill="#1e3a5f"><rect x="8" y="24" width="16" height="150" rx="2"/><rect x="28" y="40" width="13" height="134" rx="2"/><rect x="46" y="18" width="18" height="156" rx="2"/><rect x="68" y="36" width="14" height="138" rx="2"/></g>
+      <g fill="#8c3a2f"><rect x="10" y="200" width="18" height="148" rx="2"/><rect x="32" y="214" width="12" height="134" rx="2"/><rect x="48" y="196" width="16" height="152" rx="2"/><rect x="68" y="208" width="14" height="140" rx="2"/></g>
+      <g fill="#2f5d46"><rect x="8" y="376" width="15" height="146" rx="2"/><rect x="27" y="390" width="17" height="132" rx="2"/><rect x="48" y="370" width="13" height="152" rx="2"/><rect x="65" y="384" width="16" height="138" rx="2"/></g>
+      <g fill="#c4a15a"><rect x="12" y="552" width="14" height="140" rx="2"/><rect x="30" y="566" width="18" height="126" rx="2"/><rect x="52" y="548" width="12" height="144" rx="2"/><rect x="68" y="560" width="15" height="132" rx="2"/></g>
+    </svg>
+    <div class="wash"></div>
+  </div>
+  <header class="mast">
+    <div>
+      <p class="eyebrow">Study hall</p>
+      <h1>Theodore Course Studio</h1>
+      <p>Pick a course from the shelf. Theodore reads it with you, one page at a time.
+         Driver's ed and food safety are the first two books.</p>
+    </div>
+    <div class="mast-art" aria-hidden="true">
+      <svg viewBox="0 0 168 112">
+        <rect x="8" y="78" width="152" height="10" rx="3" fill="#e7d3a8"/>
+        <rect x="18" y="28" width="22" height="52" rx="2" fill="#1e3a5f"/>
+        <rect x="44" y="20" width="18" height="60" rx="2" fill="#8c3a2f"/>
+        <rect x="66" y="34" width="26" height="46" rx="2" fill="#2f5d46"/>
+        <rect x="96" y="24" width="16" height="56" rx="2" fill="#c4a15a"/>
+        <path d="M118 70c8-22 28-22 36 0" fill="none" stroke="#8c5a2b" stroke-width="3"/>
+        <circle cx="136" cy="28" r="10" fill="#f4d48a" stroke="#8c5a2b" stroke-width="2"/>
+        <rect x="132" y="38" width="8" height="28" rx="2" fill="#8c5a2b"/>
+        <path d="M24 36h10M48 30h10M72 44h14" stroke="#f8f1e4" stroke-width="2"/>
+      </svg>
+    </div>
   </header>
   <div class="layout">
-    <div class="panel">
-      <h2>1. Labeled corpus</h2>
+    <div class="panel library-panel">
+      <h2><span class="mark" aria-hidden="true"><svg viewBox="0 0 28 28" width="22" height="22"><path d="M4 6h8c1.4 1 2.8 1 4 0h8v16h-8c-1.2 1-2.6 1-4 0H4V6z" fill="none" stroke="#1e3a5f" stroke-width="1.8"/><path d="M14 7v14" stroke="#1e3a5f" stroke-width="1.4"/></svg></span> Course library</h2>
       <div class="row">
-        <button id="btn-train" type="button">Run training scan</button>
-        <button id="btn-offline" class="secondary" type="button">Offline long trainer</button>
-        <span class="status" id="train-status"></span>
+        <label>Language <select id="teach-lang" style="min-width:12rem"></select></label>
       </div>
-      <div class="status" id="corpus-stats"></div>
-      <div class="list" id="corpus-list"></div>
-
-      <h2>2. Page review (circle+line = reject)</h2>
-      <div id="source-title">Select a document</div>
-      <div id="source-meta" class="row"></div>
-      <div class="pages" id="page-list"></div>
-
-      <h2>3. Training comments</h2>
-      <div class="row">
-        <label>Page # <input id="comment-page" style="width:4rem" placeholder="opt" /></label>
-      </div>
-      <textarea id="comment-body" placeholder="What should Theodore learn from this page or source?"></textarea>
-      <div class="row"><button id="btn-comment" type="button">Save comment</button></div>
-      <div class="comments" id="comment-list"></div>
+      <div class="status" id="library-now">Choose a course to begin.</div>
+      <div class="list library" id="library-list"></div>
     </div>
-
     <div class="panel">
-      <div class="kids-builder">
-        <h2>Make a children's lesson</h2>
-        <p>One idea per screen · big pictures · read aloud · motion video · tiny activities</p>
-        <div class="row">
-          <label>Level <select id="kids-level"></select></label>
-          <label>Lesson <select id="kids-topic" style="max-width:24rem"></select></label>
-          <button id="btn-kids-build" type="button">Make &amp; teach</button>
-        </div>
-      </div>
-
-      <div class="cert-builder">
-        <h2>Certification prep</h2>
-        <p>Short 15–20 min blocks · every segment has text, picture, motion video,
-           examples, quiz, and a game · tune learning preferences below ·
-           CA / Alameda study aid only (not DMV-approved or county-accredited).
-           Make &amp; teach plays narration per page; Ask Theodore anytime.</p>
-        <div class="row">
-          <label>Track <select id="cert-track"></select></label>
-          <label>Lesson <select id="cert-lesson" style="max-width:26rem"></select></label>
-          <button id="btn-cert-build" type="button">Make &amp; teach</button>
-        </div>
-      </div>
-
-      <details>
-      <summary><strong>Advanced: build from adult Good/Better source files</strong></summary>
-      <h2>4. Build corpus course</h2>
-      <div class="row">
-        <select id="build-category">
-          <option value="">any category</option>
-          <option value="communication">communication</option>
-          <option value="leadership">leadership</option>
-          <option value="sexual_harassment">sexual_harassment</option>
-          <option value="driver_education">driver_education</option>
-          <option value="food_safety">food_safety</option>
-        </select>
-        <input id="build-title" placeholder="Course title (optional)" style="min-width:14rem" />
-        <button id="btn-build" type="button">Build course</button>
-      </div>
-      </details>
-      <div class="list" id="course-list"></div>
-
-      <h2>5. Theodore teach / present</h2>
-      <div class="row">
-        <label>Language
-          <select id="teach-lang" style="min-width:12rem"></select>
-        </label>
-        <label>Presenter
-          <select id="teach-voice-gender" style="min-width:10rem">
-            <option value="female">Theodora · female voice</option>
-            <option value="male">Theodore · male voice</option>
-          </select>
-        </label>
-        <span class="status" id="voice-status">xAI / TTS status…</span>
-      </div>
       <div id="teach-stage-home">
       <div class="teach-stage" id="teach-stage">
-        <h3 id="teach-title">—</h3>
+        <h3 id="teach-title">Your lesson</h3>
         <div class="teacher-stage-grid" id="teacher-stage-grid">
           <div id="teach-storyboard" class="storyboard-stage" hidden aria-hidden="true"></div>
           <div class="theodore-avatar-wrap" id="theodore-avatar-wrap">
@@ -1087,76 +1859,49 @@ def render_studio_page() -> str:
               <img id="teach-picture" hidden alt="" />
               <img id="teach-motion" hidden alt="" />
             </div>
-            <div class="body" id="teach-body">Build or select a course, then Start teach.</div>
+            <div class="page-welcome" id="page-welcome">
+              <svg viewBox="0 0 280 150" aria-hidden="true">
+                <rect x="18" y="28" width="150" height="98" rx="8" fill="#fff" stroke="#e0d2bf"/>
+                <path d="M34 48h70M34 66h92M34 84h80M34 102h54" stroke="#d9c7a6" stroke-width="4" stroke-linecap="round"/>
+                <path d="M168 78c10-28 36-28 46 0" fill="none" stroke="#8c5a2b" stroke-width="3"/>
+                <circle cx="191" cy="36" r="14" fill="#f4d48a" stroke="#8c5a2b" stroke-width="2"/>
+                <rect x="185" y="50" width="12" height="34" rx="3" fill="#8c5a2b"/>
+                <rect x="214" y="96" width="46" height="8" rx="3" fill="#1e3a5f"/>
+                <rect x="220" y="70" width="10" height="26" rx="2" fill="#8c3a2f"/>
+                <rect x="234" y="62" width="12" height="34" rx="2" fill="#2f5d46"/>
+              </svg>
+              <p>Choose a course on the left. Theodore will read each page aloud.</p>
+            </div>
+            <div class="body" id="teach-body"></div>
             <div class="modality-row" id="teach-modalities"></div>
             <div class="examples-box" id="teach-examples"></div>
             <div class="lang-warning" id="lang-warning" style="display:none"></div>
             <div class="activity" id="teach-activity" style="display:none"></div>
             <div class="narr" id="teach-narr"></div>
+            <div class="absorb-note" id="absorb-note" hidden>Take a moment with this page. The next one waits so you can study it.</div>
             <div class="status" id="teach-adapt"></div>
-          </div>
-        </div>
-        <div class="checkpoint-box" id="checkpoint-box">
-          <div id="checkpoint-msg">Session soft stop</div>
-          <div class="row">
-            <button id="btn-continue" type="button">Continue</button>
-            <button id="btn-later" class="secondary" type="button">Come back later</button>
           </div>
         </div>
         <div class="quiz-box" id="quiz-box" style="display:none"></div>
         <div class="game-box" id="game-box" style="display:none"></div>
+        <div class="row lesson-toolbar" id="lesson-toolbar">
+          <button id="btn-pause" class="secondary" type="button">Pause</button>
+          <button id="btn-talk" type="button">Talk</button>
+        </div>
+        <div class="talk-panel" id="talk-panel" hidden>
+          <h2>Talk about this course</h2>
+          <p>Ask a question or leave a comment. Theodore answers only about this training.</p>
+          <textarea id="voice-ask" rows="3" placeholder="Ask about a rule, a sign, or this page. You can type or speak."></textarea>
+          <div class="talk-reply" id="talk-reply"></div>
+          <div class="row">
+            <button id="btn-talk-mic" type="button">Speak</button>
+            <button id="btn-talk-send" type="button">Send</button>
+            <button class="secondary" id="btn-talk-close" type="button">Close</button>
+          </div>
+        </div>
       </div>
-      </div>
-      <div class="row">
-        <button id="btn-present" type="button">⛶ Present full screen</button>
-        <button id="btn-teach" type="button">Start teach</button>
-        <button id="btn-resume" class="secondary" type="button">Resume saved</button>
-        <button id="btn-next" class="secondary" type="button">Next slide</button>
-        <button id="btn-read" class="secondary" type="button">🔊 Read aloud</button>
-        <button id="btn-video" class="secondary" type="button" disabled>▶ Watch video</button>
-        <button id="btn-pop" class="secondary" type="button">Pop quiz</button>
-        <button id="btn-summary" class="secondary" type="button">Summary quiz</button>
-        <button id="btn-game" class="secondary" type="button">Play game</button>
-        <label class="pill"><input id="auto-speak" type="checkbox" checked /> auto speak</label>
-      </div>
-      <div class="row" aria-label="Theodore avatar controls">
-        <label class="pill"><input id="avatar-enabled" type="checkbox" checked /> 3D Theodore</label>
-        <label class="pill">motion
-          <input id="avatar-motion" type="range" min="0" max="1.5" step="0.1" value="1" aria-label="Avatar motion intensity" />
-        </label>
-        <label class="pill"><input id="avatar-reduced" type="checkbox" /> reduced motion</label>
-      </div>
-      <div class="row">
-        <input id="voice-ask" placeholder="Ask Theodore (xAI voice agent, offline fallback)" style="flex:1; min-width:14rem" />
-        <button id="btn-ask" class="secondary" type="button">Ask Theodore</button>
-      </div>
-      <h2>Learner profile scoring</h2>
-      <p class="status">Every cert segment includes text, image, video, examples, quiz, and game.
-         Raise the styles you prefer — Theodore nudges those paths first.</p>
-      <div class="row">
-        <label>engage <input id="pf-engagement" type="number" min="0" max="1" step="0.05" value="0.7" style="width:4rem"/></label>
-        <label>literacy <input id="pf-literacy" type="number" min="0" max="1" step="0.05" value="0.6" style="width:4rem"/></label>
-        <label>attention <input id="pf-attention" type="number" min="0" max="1" step="0.05" value="0.7" style="width:4rem"/></label>
-        <label>fatigue <input id="pf-fatigue" type="number" min="0" max="1" step="0.05" value="0.2" style="width:4rem"/></label>
-        <label>confusion <input id="pf-confusion" type="number" min="0" max="1" step="0.05" value="0.2" style="width:4rem"/></label>
-        <label>pace <input id="pf-pace" type="number" min="0" max="1" step="0.05" value="0.5" style="width:4rem"/></label>
-        <label>access <input id="pf-access" type="number" min="0" max="1" step="0.05" value="0.3" style="width:4rem"/></label>
-      </div>
-      <div class="row">
-        <label>images <input id="pf-img" type="number" min="0" max="1" step="0.05" value="0.7" style="width:4rem"/></label>
-        <label>text <input id="pf-text" type="number" min="0" max="1" step="0.05" value="0.7" style="width:4rem"/></label>
-        <label>video <input id="pf-video" type="number" min="0" max="1" step="0.05" value="0.7" style="width:4rem"/></label>
-        <label>examples <input id="pf-examples" type="number" min="0" max="1" step="0.05" value="0.75" style="width:4rem"/></label>
-        <label>quiz <input id="pf-quiz" type="number" min="0" max="1" step="0.05" value="0.55" style="width:4rem"/></label>
-        <label>games <input id="pf-games" type="number" min="0" max="1" step="0.05" value="0.55" style="width:4rem"/></label>
-        <label>activity <input id="pf-activity" type="number" min="0" max="1" step="0.05" value="0.5" style="width:4rem"/></label>
-        <button id="btn-profile" class="secondary" type="button">Apply profile</button>
       </div>
     </div>
-  </div>
-  <div class="presenter-overlay" id="presenter-overlay" role="region" aria-label="Theodore presenter stage">
-    <div class="presenter-body" id="presenter-body"></div>
-    <button class="presenter-exit secondary" id="btn-present-exit" type="button">✕ Exit full screen</button>
   </div>
   <div class="toast" id="toast"></div>
   <script>"""

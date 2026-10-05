@@ -99,12 +99,10 @@ def test_early_learning_api_builds_and_persists_course(monkeypatch, tmp_path):
     assert builder.get_course(payload["course_id"]) is not None
 
 
-def test_studio_defaults_to_children_builder():
+def test_studio_library_includes_early_learning_loader():
     page = TestClient(app).get("/studio")
     assert page.status_code == 200
-    assert "Make a children's lesson" in page.text
-    assert "One idea per screen" in page.text
-    assert "Read aloud" in page.text
-    assert "Watch video" in page.text
-    assert "Advanced: build from adult" in page.text
+    assert "Course library" in page.text
+    assert "early-learning/options" in page.text
+    assert "Make a children's lesson" not in page.text
 

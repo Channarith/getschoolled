@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Scanning, stopping, and moving through intersections. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Scanning, stopping, and moving through intersections.
 
 SLIDE 1 | Left-right-left scan
 Scan both ways before you enter. At every intersection, look left, right, then left again before proceeding.
@@ -58,4 +58,4 @@ Never block for lights and sirens. If an emergency vehicle approaches, clear the
 NARRATION: If an emergency vehicle approaches, clear the intersection, then pull right.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

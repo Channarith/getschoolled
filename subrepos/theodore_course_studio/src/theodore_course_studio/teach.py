@@ -17,6 +17,7 @@ from .assessment import (
     grade_quiz,
 )
 from .cert_multimodal import preferred_modalities
+from .certification_prep import track_training_text
 from .checkpoints import (
     DEFAULT_SOFT_LIMIT_MINUTES,
     DEFAULT_SOFT_LIMIT_SLIDES,
@@ -45,7 +46,12 @@ from .quality_telemetry import StudioTelemetryStore, get_telemetry
 from .studio_languages import normalize_language
 from .tts_client import normalize_voice_gender, tts_client_hints
 from .types import CourseSlide, LearnerProfileScores, StudioCourse, TeachTurn
-from .voice_agent import CourseStudioVoiceAgent, VoiceTurn, get_voice_agent
+from .voice_agent import (
+    CourseStudioVoiceAgent,
+    VoiceTurn,
+    course_context_for,
+    get_voice_agent,
+)
 
 
 def _voice_turn_language(voice: VoiceTurn, slide_language: str) -> str:
@@ -298,12 +304,32 @@ class TeachEngine:
         self._telemetry.record_quiz(
             kind="pop", score=1.0 if result.passed else 0.0, passed=result.passed
         )
+        selected_choice = (
+            q.choices[selected_index]
+            if 0 <= selected_index < len(q.choices)
+            else ""
+        )
+        correct_choice = (
+            q.choices[q.correct_index]
+            if 0 <= q.correct_index < len(q.choices)
+            else ""
+        )
+        correction = {
+            "correct": result.passed,
+            "selected_index": selected_index,
+            "selected_choice": selected_choice,
+            "correct_index": q.correct_index,
+            "correct_choice": correct_choice,
+            "explanation": q.explanation
+            or f"The key learning point is: {correct_choice}",
+        }
         session.pending_pop = None
         session.path = next_slide_indexes(session.objectives, session.knowledge)
         session.path_pos = min(session.path_pos, max(0, len(session.path) - 1))
         self._persist_live(session, status="in_progress")
         return {
             "result": result.model_dump(mode="json"),
+            "correction": correction,
             "knowledge": session.knowledge.model_dump(mode="json"),
             "turn": self._turn_payload(course, session),
         }
@@ -395,11 +421,23 @@ class TeachEngine:
     ) -> dict[str, Any]:
         course, session = self._require(session_id)
         slide = course.slides[session.path[session.path_pos]]
+        context = course_context_for(
+            course.title,
+            [(s.title, s.body) for s in course.slides],
+            slide.title,
+            slide.body,
+        )
+        track = str((course.profile_adaptations or {}).get("track") or "")
+        if track:
+            extra = track_training_text(track)
+            if extra:
+                context = f"{context}\n\nRest of this course:\n{extra}"
         turn = self._voice.respond(
             session_id=session_id,
             learner_message=learner_message,
             language_code=session.language,
-            lesson_context=f"{course.title}\n{slide.title}\n{slide.body}",
+            lesson_context=context,
+            scope_to_course=True,
         )
         self._telemetry.record_voice_turn(tts=True)
         reply_lang = _voice_turn_language(turn, session.language)
