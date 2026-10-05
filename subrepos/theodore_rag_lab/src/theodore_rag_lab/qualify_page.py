@@ -288,6 +288,12 @@ _JS = """
     }),
   );
 
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = String(s ?? '');
+    return d.innerHTML;
+  }
+
   function renderEntries(payload) {
     const box = document.getElementById('out-dict');
     const stats = payload.stats || {};
@@ -295,8 +301,8 @@ _JS = """
     let html = '<div class="meta">total=' + (stats.total || '?') +
       ' packs=' + (stats.from_packs || '?') + ' learned=' + (stats.learned || 0) + '</div>';
     entries.forEach((e) => {
-      html += '<div class="card"><strong>' + e.phrase + '</strong> · ' + e.kind +
-        ' · <span class="pill">' + e.language + '/' + e.region + '</span><div>' + e.meaning + '</div></div>';
+      html += '<div class="card"><strong>' + esc(e.phrase) + '</strong> · ' + esc(e.kind) +
+        ' · <span class="pill">' + esc(e.language) + '/' + esc(e.region) + '</span><div>' + esc(e.meaning) + '</div></div>';
     });
     box.innerHTML = html || '<div class="meta">No hits.</div>';
   }

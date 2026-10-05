@@ -484,6 +484,11 @@ def build_certification_course(req: CertCourseRequest) -> dict[str, Any]:
     return course.model_dump(mode="json")
 
 
+@app.get("/api/studio/courses/trial-plan")
+def trial_plan(language: str = "en") -> dict[str, Any]:
+    return trial_demo_plan(language=normalize_language(language))
+
+
 @app.get("/api/studio/courses/{course_id}")
 def get_course(course_id: str) -> dict[str, Any]:
     course = _builder.get_course(course_id)
@@ -498,11 +503,6 @@ def compose_course(req: ComposeCourseRequest) -> dict[str, Any]:
     _builder.save_course(course)
     get_telemetry().record_course_built(audience="composed")
     return course.model_dump(mode="json")
-
-
-@app.get("/api/studio/courses/trial-plan")
-def trial_plan(language: str = "en") -> dict[str, Any]:
-    return trial_demo_plan(language=normalize_language(language))
 
 
 class TrialRunRequest(BaseModel):
