@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Merging, passing, HOV, and lane discipline. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Merging, passing, HOV, and lane discipline.
 
 SLIDE 1 | Mirror-signal-shoulder
 Every lane change needs a shoulder check. Check mirrors, signal, glance over your shoulder, then move smoothly into the gap.
@@ -58,4 +58,4 @@ Expect motorcycles between lanes in CA. California allows motorcycle lane splitt
 NARRATION: California allows motorcycle lane splitting when done safely — check mirrors before changing lanes.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Sirens, move-over, stalls, and animals. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Sirens, move-over, stalls, and animals.
 
 SLIDE 1 | Pull right for sirens
 Clear a path to the right edge. When you hear a siren or see emergency lights, check mirrors, signal, pull to the right, and stop.
@@ -50,4 +50,4 @@ Signal, pull right, stay calm. When signaled to stop, pull safely to the right, 
 NARRATION: When signaled to stop, pull safely to the right, stay in the vehicle, and keep hands visible.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

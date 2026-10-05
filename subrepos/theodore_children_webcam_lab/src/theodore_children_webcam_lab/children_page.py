@@ -19,7 +19,22 @@ def render_children_page(asset_tag: str = "") -> str:
     disk while this HTML comes from the running process, a stale page can also
     end up paired with a newer script.
     """
-    return _PAGE.replace("__ASSET_TAG__", f"?v={asset_tag}" if asset_tag else "")
+    groups = []
+    for label, games in GAME_MENU:
+        options = "".join(
+            f'<option value="{game_id}">{title}</option>'
+            for game_id, title in games
+        )
+        groups.append(f'<optgroup label="{label}">{options}</optgroup>')
+    game_select = (
+        '<label>Game<select id="game">'
+        + "".join(groups)
+        + "</select></label>"
+    )
+    return (
+        _PAGE.replace("__GAME_SELECT__", game_select)
+        .replace("__ASSET_TAG__", f"?v={asset_tag}" if asset_tag else "")
+    )
 
 
 _PAGE = """<!doctype html>

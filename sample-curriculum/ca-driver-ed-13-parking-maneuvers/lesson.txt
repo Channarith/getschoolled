@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Curb colors, hills, parallel parking, and clearances. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Curb colors, hills, parallel parking, and clearances.
 
 SLIDE 1 | Colored curb meanings
 Read curb colors before you leave the car. Red, blue, green, yellow, and white curbs each carry different parking rules — learn your city's code.
@@ -50,4 +50,4 @@ Only with a valid placard or plates. Blue curb and disabled stalls require a val
 NARRATION: Blue curb and disabled stalls require a valid placard or plates — misuse is heavily fined.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

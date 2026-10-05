@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Stop, yield, speed, one-way, and other must-obey signs. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Stop, yield, speed, one-way, and other must-obey signs.
 
 SLIDE 1 | Sign shapes and colors
 Shape and color signal meaning before you read text. Octagon means stop, triangle means yield, diamond warns, and white rectangles regulate.
@@ -50,4 +50,4 @@ White and black rules; green and blue guide. Regulatory signs create legal dutie
 NARRATION: Regulatory signs create legal duties. Guide signs help you navigate but do not replace rules.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

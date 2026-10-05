@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Red lights, stop arms, and child unpredictability. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Red lights, stop arms, and child unpredictability.
 
 SLIDE 1 | Red lights and stop arm
 Both directions stop on undivided roads. When a school bus shows red flashing lights and a stop arm on an undivided road, traffic both ways must stop.
@@ -50,4 +50,4 @@ Keep crosswalks and bus zones clear. Do not park in bus loading zones or block c
 NARRATION: Do not park in bus loading zones or block crosswalks near schools.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

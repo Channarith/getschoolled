@@ -35,7 +35,7 @@ def _course_titles(track: CertTrackId) -> set[str]:
 def test_all_driver_and_food_slides_have_curated_choreography():
     driver = _course_titles(CertTrackId.CA_DMV_PERMIT)
     food = _course_titles(CertTrackId.ALAMEDA_FOOD_HANDLER)
-    assert len(driver) == 32
+    assert len(driver) == 32 + 140
     assert DRIVER_AVATAR_TITLES == driver
     # Six-module food track: hygiene, temps, contamination, cleaning, pathogens,
     # service. Every beat is hand-authored, so a new or renamed slide must land
@@ -107,9 +107,7 @@ def test_avatar_assets_are_offline_and_studio_wires_accessibility_controls():
     assert "required_blendshapes" in rig_config.text
     assert "three" in page.text
     assert 'id="theodore-avatar"' in page.text
-    assert 'id="avatar-enabled"' in page.text
-    assert 'id="avatar-motion"' in page.text
-    assert 'id="avatar-reduced"' in page.text
+    assert "const SHOW_AVATAR = false" in page.text
     assert "prefers-reduced-motion" in page.text
     assert "theodore-avatar-fallback" in page.text
     assert "speechBoundary" in page.text

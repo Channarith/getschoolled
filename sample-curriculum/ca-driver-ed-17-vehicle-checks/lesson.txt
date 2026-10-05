@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Pre-drive inspections and warning lights. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Pre-drive inspections and warning lights.
 
 SLIDE 1 | Walk-around check
 Look for leaks, low tires, and obstacles. Before you drive, walk around the car — check tires, lights, and anything behind the bumper.
@@ -50,4 +50,4 @@ Secure loads so nothing becomes a projectile. Unsecured cargo can injure occupan
 NARRATION: Unsecured cargo can injure occupants in a sudden stop — stash or strap it down.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

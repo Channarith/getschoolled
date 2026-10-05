@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Phones, fatigue, alcohol, and drugs. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Phones, fatigue, alcohol, and drugs.
 
 SLIDE 1 | Handheld phone ban
 Handheld calling and texting while driving are illegal. California restricts handheld phone use while driving — use hands-free or pull over safely.
@@ -50,4 +50,4 @@ Impaired is impaired — wait it out. Cannabis can impair judgment and reaction 
 NARRATION: Cannabis can impair judgment and reaction time. Do not drive until you are fully sober.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

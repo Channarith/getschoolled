@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Dense traffic, blind curves, and country roads. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Dense traffic, blind curves, and country roads.
 
 SLIDE 1 | City scan rhythm
 Eyes move; never stare. In cities, keep your eyes moving among mirrors, signals, bikes, and pedestrians.
@@ -50,4 +50,4 @@ Ramp meters and short merges. Urban freeways often have ramp meters and short me
 NARRATION: Urban freeways often have ramp meters and short merges — cooperate and match speed.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

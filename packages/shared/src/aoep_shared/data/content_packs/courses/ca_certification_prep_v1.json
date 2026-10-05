@@ -1,10 +1,10 @@
 {
   "pack": "ca_certification_prep_v1",
-  "description": "California DMV permit and Alameda/CA food handler certification-prep courses (study aids; not DMV-approved or county-accredited).",
+  "description": "California driver education and California food handler safety courses.",
   "records": [
     {
       "course_id": "pack-ca-dmv-permit-basics",
-      "title": "CA DMV Permit Prep — Rules of the Road",
+      "title": "California Driver Education — Rules of the Road",
       "subject": "driver-education",
       "category": "Certifications",
       "media_format": "video",
@@ -17,13 +17,13 @@
       "hands_on": false,
       "access_tier": "free",
       "jurisdiction": "us-ca",
-      "prep_only": true,
-      "description": "California right-of-way, speed, signals, and following distance. Prep only — study the official CA Driver's Handbook.",
+      "prep_only": false,
+      "description": "California right-of-way, speed, signals, and following distance.",
       "popularity": 9
     },
     {
       "course_id": "pack-ca-dmv-permit-signs",
-      "title": "CA DMV Permit Prep — Signs & Signals",
+      "title": "California Driver Education — Signs and Signals",
       "subject": "driver-education",
       "category": "Certifications",
       "media_format": "video",
@@ -36,13 +36,13 @@
       "hands_on": false,
       "access_tier": "free",
       "jurisdiction": "us-ca",
-      "prep_only": true,
+      "prep_only": false,
       "description": "Regulatory, warning, and guide signs used on California roads.",
       "popularity": 8
     },
     {
       "course_id": "pack-ca-dmv-permit-sharing",
-      "title": "CA DMV Permit Prep — Sharing the Road",
+      "title": "California Driver Education — Sharing the Road",
       "subject": "driver-education",
       "category": "Certifications",
       "media_format": "video",
@@ -55,7 +55,7 @@
       "hands_on": false,
       "access_tier": "free",
       "jurisdiction": "us-ca",
-      "prep_only": true,
+      "prep_only": false,
       "description": "Pedestrians, bikes, trucks, weather, and freeway habits for CA roads.",
       "popularity": 8
     },
@@ -74,8 +74,8 @@
       "hands_on": false,
       "access_tier": "free",
       "jurisdiction": "us-ca-alameda",
-      "prep_only": true,
-      "description": "Handwashing, gloves, and illness reporting for California food handler card prep (not county-accredited).",
+      "prep_only": false,
+      "description": "Handwashing, gloves, and illness reporting for the California food handler course.",
       "popularity": 9
     },
     {
@@ -93,7 +93,7 @@
       "hands_on": false,
       "access_tier": "free",
       "jurisdiction": "us-ca-alameda",
-      "prep_only": true,
+      "prep_only": false,
       "description": "Danger zone, cooking, holding, cooling, and reheating targets.",
       "popularity": 9
     },
@@ -112,7 +112,7 @@
       "hands_on": false,
       "access_tier": "free",
       "jurisdiction": "us-ca-alameda",
-      "prep_only": true,
+      "prep_only": false,
       "description": "Cross-contamination, sanitizing, pests, and inspection readiness for Alameda County workplaces.",
       "popularity": 8
     }

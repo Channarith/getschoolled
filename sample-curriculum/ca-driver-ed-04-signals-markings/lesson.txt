@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Lights, arrows, and lane lines. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Lights, arrows, and lane lines.
 
 SLIDE 1 | Steady green
 Go only if the intersection is clear. A green light means proceed if the way is clear and you yield to pedestrians still crossing.
@@ -50,4 +50,4 @@ Yield to people in the crosswalk. Marked and unmarked crosswalks require you to 
 NARRATION: Marked and unmarked crosswalks require you to yield to pedestrians.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Headlights, fog, rain, and hydroplaning. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Headlights, fog, rain, and hydroplaning.
 
 SLIDE 1 | Headlight hours
 Lights on from dusk to dawn and in poor visibility. Use headlights from 30 minutes after sunset to 30 minutes before sunrise and whenever visibility is poor.
@@ -50,4 +50,4 @@ Visor, clean windshield, slower speed. Low sun can blind you — use the visor, 
 NARRATION: Low sun can blind you — use the visor, keep glass clean, and slow until you can see.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

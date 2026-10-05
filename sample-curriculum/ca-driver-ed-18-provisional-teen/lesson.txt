@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: California provisional license restrictions and safe habits. Study aid only — not a DMV-approved driver education course.
+SUMMARY: California provisional license restrictions and safe habits.
 
 SLIDE 1 | Provisional overview
 Extra rules for new teen drivers. Provisional licenses add passenger and night limits designed to reduce crash risk for new drivers.
@@ -50,4 +50,4 @@ Safe habits are the real milestone. Logging safe supervised miles matters more t
 NARRATION: Logging safe supervised miles matters more than rushing to drive alone.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

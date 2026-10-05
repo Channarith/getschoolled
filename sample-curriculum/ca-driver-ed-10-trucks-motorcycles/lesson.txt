@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: No-zones, wide turns, and motorcycle visibility. Study aid only — not a DMV-approved driver education course.
+SUMMARY: No-zones, wide turns, and motorcycle visibility.
 
 SLIDE 1 | Truck no-zones
 If you cannot see their mirrors, they cannot see you. Trucks have large blind spots on all sides — avoid lingering beside or close behind.
@@ -50,4 +50,4 @@ Grip the wheel when passing large vehicles. Passing trucks can buffet your car �
 NARRATION: Passing trucks can buffet your car — keep both hands on the wheel and a steady speed.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

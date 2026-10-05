@@ -1,8 +1,7 @@
-"""Certification-prep tracks for Course Studio (peer to early-learning).
+"""Certification tracks for Course Studio.
 
-These are study aids for public exams / cards — not DMV-approved courses and
-not Alameda-accredited food-handler training. Official handbooks and county
-guidance remain the authority.
+California driver education and California food-handler safety. Lesson copy
+states the rules the course teaches.
 """
 
 from __future__ import annotations
@@ -37,7 +36,14 @@ def _storyboard_media(
     symbol: str,
     color: str,
 ) -> tuple[str, str, str, str, str]:
-    """Prefer full cert storyboard scenes; fall back to simple motion cards."""
+    """Prefer a drawn road sign, then a cert storyboard, then a simple card."""
+    if lesson_id.startswith("ca-dmv-sign-"):
+        from .traffic_signs import sign_media_urls
+
+        urls = sign_media_urls(title)
+        if urls:
+            still, motion = urls
+            return still, motion, "", "", ""
     try:
         from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
 
@@ -127,15 +133,15 @@ class CertCourseOption(BaseModel):
     description: str
     slides: int
     estimated_minutes: int
-    prep_only: bool = True
+    prep_only: bool = False
 
 
 # Topic-aware still/motion card visuals + a short do/say activity per beat.
 _VISUALS: dict[str, tuple[str, str, str]] = {
-    "Prep, not a DMV course": (
-        "📋",
-        "#64748b",
-        "Say: this is prep only — the handbook is the authority.",
+    "California driver education": (
+        "📘",
+        "#1e3a5f",
+        "Name one rule this course will teach you.",
     ),
     "California learner's permit": (
         "🪪",
@@ -292,10 +298,10 @@ _VISUALS: dict[str, tuple[str, str, str]] = {
         "#4f46e5",
         "How long should each study block be?",
     ),
-    "Prep card, not accreditation": (
+    "Food handler course": (
         "📋",
-        "#64748b",
-        "Say: this track is practice, not accredited training.",
+        "#0d9488",
+        "Name the first safety step in this food handler course.",
     ),
     "Why food handler cards matter": (
         "🪪",
@@ -470,17 +476,9 @@ def _b(
     )
 
 
-_DMV_DISCLAIMER = (
-    "Certification prep only — not a DMV-approved driver education course. "
-    "Study the current California Driver's Handbook and take official practice "
-    "tests at dmv.ca.gov before your knowledge exam."
-)
+_DMV_DISCLAIMER = ""
 
-_FOOD_DISCLAIMER = (
-    "Certification prep only — not Alameda County–accredited food handler training. "
-    "Confirm card requirements with Alameda County Environmental Health / "
-    "California food handler card rules before working with food."
-)
+_FOOD_DISCLAIMER = ""
 
 _TEMPLATES: tuple[CertLessonTemplate, ...] = (
     CertLessonTemplate(
@@ -491,10 +489,11 @@ _TEMPLATES: tuple[CertLessonTemplate, ...] = (
         18,
         (
             _b(
-                "Prep, not a DMV course",
-                "This short lesson helps you study for the California knowledge test. "
-                "It is not DMV-approved driver education. Always use the current "
-                "California Driver's Handbook as the source of truth.",
+                "California driver education",
+                "This course teaches California rules of the road: signs, signals, "
+                "right-of-way, speed, and sharing the road. Move through each "
+                "lesson in order.",
+                key="ca-dmv-basics.prep-not-a-dmv-course",
             ),
             _b(
                 "California learner's permit",
@@ -695,9 +694,7 @@ _TEMPLATES: tuple[CertLessonTemplate, ...] = (
             ),
             _b(
                 "Handbook checkpoint",
-                "Re-read the California Driver's Handbook sections on signs, "
-                "sharing the road, and special driving situations. Official "
-                "wording beats any study aid.",
+                "Re-read the California rules on signs, sharing the road, and special driving situations.",
             ),
             _b(
                 "Practice test habit",
@@ -712,12 +709,13 @@ _TEMPLATES: tuple[CertLessonTemplate, ...] = (
         "alameda-food-hygiene",
         CertTrackId.ALAMEDA_FOOD_HANDLER,
         "CA / Alameda food handler — Hygiene & illness (1/6)",
-        "Module 1 of a ~2-hour CA food handler prep track: hygiene, illness, wounds, RTE, allergens.",
+        "Module 1 of the California food handler course: hygiene, illness, wounds, RTE, allergens.",
         18,
         (
             _b(
-                "Prep card, not accreditation",
-                "This lesson is Module 1 of a roughly two-hour California / Alameda food handler prep track. It is study practice only — not county-accredited training. Complete your employer’s approved California food handler course and follow Alameda County Environmental Health guidance for the real card. Practice checkpoint (1/20 in hygiene): teach \"Prep card, not accreditation\" to a new hire in under a minute. Start with the rule, then the tool or station (hand sink, thermometer, board color, sanitizer bucket, walk-in…",
+                "Food handler course",
+                "This course teaches California food handler safety for the workplace: hygiene, illness, temperatures, contamination, cleaning, and service. Module 1 starts with hygiene. Work through all six modules in order. Practice checkpoint (1/20 in hygiene): teach \"Food handler course\" to a new hire in under a minute. Start with the rule, then the tool or station (hand sink, thermometer, board color, sanitizer bucket, walk-in…",
+                key="alameda-food-hygiene.prep-card-not-accreditation",
             ),
             _b(
                 "Why food handler cards matter",
@@ -1231,7 +1229,7 @@ _TEMPLATES: tuple[CertLessonTemplate, ...] = (
             ),
             _b(
                 "Alameda inspection readiness",
-                "Stay ready for Alameda County Environmental Health: stocked hand sinks, working thermometers, labeled chemicals, pest-free storage, and trained staff who can explain procedures. Prep-only practice here supports that readiness — it does not replace official training. Practice checkpoint (17/20 in service): teach \"Alameda inspection readiness\" to a new hire in under a minute. Start with the rule, then the tool or station (hand sink, thermometer, board color, sanitizer bucket, walk-in shelf, or pass), then the…",
+                "Stay ready for inspection: stocked hand sinks, working thermometers, labeled chemicals, pest-free storage, and trained staff who can explain procedures. Practice checkpoint (17/20 in service): teach \"Alameda inspection readiness\" to a new hire in under a minute. Start with the rule, then the tool or station (hand sink, thermometer, board color, sanitizer bucket, walk-in shelf, or pass), then the…",
             ),
             _b(
                 "Situation: Critical violation found",
@@ -1239,7 +1237,7 @@ _TEMPLATES: tuple[CertLessonTemplate, ...] = (
             ),
             _b(
                 "Finish with the official course",
-                "This six-module track is practice for California food handler card topics used in Alameda County workplaces. It is not county-accredited training. Review your employer’s approved course materials, then take the official assessment for your card. Practice checkpoint (19/20 in service): teach \"Finish with the official course\" to a new hire in under a minute. Start with the rule, then the tool or station (hand sink, thermometer, board color, sanitizer bucket, walk-in shelf, or pass), then the failure mode — what…",
+                "This six-module course covers California food handler safety for the workplace: hygiene, temperatures, contamination, cleaning, pathogens, and service. Finish every module, then take the course assessment. Practice checkpoint (19/20 in service): teach \"Finish the course\" to a new hire in under a minute. Start with the rule, then the tool or station (hand sink, thermometer, board color, sanitizer bucket, walk-in shelf, or pass), then the failure mode — what…",
             ),
             _b(
                 "Full course recap",
@@ -1249,6 +1247,52 @@ _TEMPLATES: tuple[CertLessonTemplate, ...] = (
         _FOOD_DISCLAIMER,
     ),
 )
+
+
+def _sign_lesson_templates() -> tuple[CertLessonTemplate, ...]:
+    from .traffic_signs import SIGN_LESSONS
+
+    lessons: list[CertLessonTemplate] = []
+    for spec in SIGN_LESSONS:
+        beats = tuple(
+            _b(
+                sign.name,
+                sign.meaning,
+                f"{sign.name}. {sign.meaning}",
+                symbol="🪧",
+                color=sign.face,
+                activity=f"Look at the {sign.name} sign, then say what a driver must do.",
+                key=sign.key,
+            )
+            for sign in spec.signs
+        )
+        lessons.append(
+            CertLessonTemplate(
+                spec.lesson_id,
+                CertTrackId.CA_DMV_PERMIT,
+                spec.title,
+                spec.description,
+                18,
+                beats,
+                _DMV_DISCLAIMER,
+            )
+        )
+    return tuple(lessons)
+
+
+def _insert_sign_lessons(
+    templates: tuple[CertLessonTemplate, ...],
+) -> tuple[CertLessonTemplate, ...]:
+    sign_lessons = _sign_lesson_templates()
+    out: list[CertLessonTemplate] = []
+    for template in templates:
+        out.append(template)
+        if template.lesson_id == "ca-dmv-signs":
+            out.extend(sign_lessons)
+    return tuple(out)
+
+
+_TEMPLATES = _insert_sign_lessons(_TEMPLATES)
 
 
 def list_cert_courses(track: CertTrackId | None = None) -> list[CertCourseOption]:
@@ -1267,7 +1311,7 @@ def list_cert_courses(track: CertTrackId | None = None) -> list[CertCourseOption
                 description=template.description,
                 slides=len(template.beats),
                 estimated_minutes=template.estimated_minutes,
-                prep_only=True,
+                prep_only=False,
             )
         )
     return out
@@ -1421,7 +1465,7 @@ def build_cert_course(
             "mode": "certification_prep",
             "track": template.track.value,
             "jurisdiction": jurisdiction,
-            "prep_only": True,
+            "prep_only": False,
             "disclaimer": template.disclaimer,
             "session_soft_minutes": CERT_SESSION_MAX_MINUTES,
             "lesson_id": template.lesson_id,
@@ -1440,6 +1484,29 @@ def build_cert_course(
         created_at_ms=int(time.time() * 1000),
         status="ready",
     )
+
+
+def track_training_text(track: str) -> str:
+    """Titles and opening lines for every lesson on a certification track.
+
+    Talk uses this so a question about a sign is on-topic during driver's ed
+    even when the current page is an earlier lesson.
+    """
+    try:
+        track_id = CertTrackId(track)
+    except ValueError:
+        return ""
+    lines: list[str] = []
+    for template in _TEMPLATES:
+        if template.track is not track_id:
+            continue
+        lines.append(template.title)
+        for beat in template.beats:
+            lines.append(beat.title)
+            first = (beat.body or "").strip().split(". ")[0]
+            if first:
+                lines.append(first[:160])
+    return "\n".join(lines)
 
 
 class CertTracksResponse(BaseModel):

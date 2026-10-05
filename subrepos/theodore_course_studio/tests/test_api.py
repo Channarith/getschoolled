@@ -14,14 +14,34 @@ def test_health_and_studio_page():
     page = client.get("/studio")
     assert page.status_code == 200
     assert "Theodore Course Studio" in page.text
-    assert "Run training scan" in page.text
-    assert "Learner profile scoring" in page.text
-    assert "Reject" in page.text
-    assert "Pop quiz" in page.text
-    assert "Summary quiz" in page.text
-    assert "Play game" in page.text
-    assert "Offline long trainer" in page.text
-    assert "Ask Theodore" in page.text
+    assert "Course library" in page.text
+    assert "theme-study" in page.text
+    assert "page-welcome" in page.text
+    assert "Driver's ed" in page.text
+    assert "Food safety" in page.text
+    assert 'id="btn-pause"' in page.text
+    assert 'id="btn-pop"' not in page.text
+    assert 'id="btn-summary"' not in page.text
+    assert 'id="btn-game"' not in page.text
+    assert "scheduleAutoAdvance" in page.text
+    assert "ABSORB_MS = 12000" in page.text
+    assert "absorb-note" in page.text
+    assert "lecturePaused" in page.text
+    assert 'id="btn-present"' not in page.text
+    assert 'id="btn-review"' not in page.text
+    assert 'id="review-overlay"' not in page.text
+    assert 'id="btn-talk"' in page.text
+    assert 'id="talk-panel"' in page.text
+    assert 'id="btn-talk-mic"' in page.text
+    assert "SpeechRecognition" in page.text
+    assert "Speak your answer" in page.text
+    assert "fetchLockedVoice" in page.text
+    assert "courseVoiceGender" in page.text
+    assert 'method: \'POST\'' in page.text or "method: 'POST'" in page.text
+    assert "Correct answer:" in page.text
+    assert "Why:" in page.text
+    assert "course continues automatically" in page.text
+    assert "scope_to_course" in page.text or "voice/respond" in page.text
     assert "teach-lang" in page.text
     # Multimodal order_steps games must be playable (not only match_term options).
     assert "order_steps" in page.text

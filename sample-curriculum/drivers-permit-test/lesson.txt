@@ -4,14 +4,14 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: California-focused right-of-way, speed, signals, and following distance. Study aid only — not a DMV-approved driver education course.
+SUMMARY: California-focused right-of-way, speed, signals, and following distance.
 
-SLIDE 1 | Prep, not a DMV course
-This short lesson helps you study for the California knowledge test. It is not DMV-approved driver education. Always use the current California Driver's Handbook as the source of truth and take official practice tests at dmv.ca.gov.
-NARRATION: This is certification prep only — confirm every rule in the official California Driver's Handbook.
+SLIDE 1 | California driver education
+This course teaches California rules of the road: signs, signals, right-of-way, speed, and sharing the road. Move through each lesson in order.
+NARRATION: This course teaches California rules of the road. Move through each lesson in order.
 
 SLIDE 2 | California learner's permit overview
 To get a provisional instruction permit in California you typically need to pass a vision exam and a knowledge test, complete required application steps, and meet age and education requirements. Confirm current rules on dmv.ca.gov before you apply.

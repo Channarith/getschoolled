@@ -1,9 +1,9 @@
 LESSON: California DMV Permit Prep — Sharing the Road
 LANGUAGE: en
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
-SUMMARY: Pedestrians, bikes, trucks, weather, and freeway habits. Prep only.
+SUMMARY: Pedestrians, bikes, trucks, weather, and freeway habits.
 
 SLIDE 1 | Pedestrians and bikes
 Yield to pedestrians in crosswalks. Give bicyclists room when passing and watch for them in bike lanes and at intersections. Never block a crosswalk while waiting at a red light.
@@ -38,8 +38,8 @@ Check brakes, lights, tires, mirrors, and fuel. Adjust mirrors and seats before 
 NARRATION: A quick pre-drive check prevents roadside failures.
 
 SLIDE 9 | Handbook checkpoint
-Re-read the California Driver's Handbook sections on signs, sharing the road, and special driving situations. Official wording beats any study aid.
-NARRATION: The handbook is the authority — use this lesson only as practice.
+Review signs, sharing the road, and special driving situations.
+NARRATION: This lesson is part of the California driver education course.
 
 SLIDE 10 | Practice test habit
 Take short CA DMV practice quizzes after each 15–20 minute study block. Come back later for another lesson instead of cramming for hours.

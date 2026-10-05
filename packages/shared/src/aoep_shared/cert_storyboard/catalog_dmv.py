@@ -46,14 +46,14 @@ def build_dmv_basics(lesson_id: str = "ca-dmv-permit-basics") -> list[SegmentSto
     return [
         _seg(
             lesson_id, 0,
-            title="Prep, not a DMV course",
+            title="California driver education",
             backdrop="residential",
             camera="ken-burns",
-            concept="Practice aid — always verify the current CA Driver's Handbook.",
-            narration="This lesson is study practice, not an official DMV course. Always check the current California Driver's Handbook.",
+            concept="California rules of the road: signs, signals, right-of-way, and speed.",
+            narration="This course teaches California rules of the road. Move through each lesson in order.",
             cast=[C("car-red", 280, 340, motion="drive"), C("adult", 520, 300), C("teen", 580, 310, motion="sway")],
-            objects=[O("Handbook is the authority", 40, 80)],
-            goal="Treat this as practice; confirm rules in the official handbook.",
+            objects=[O("Rules of the road", 40, 80)],
+            goal="Start the California driver education course.",
         ),
         _seg(
             lesson_id, 1,
@@ -496,8 +496,8 @@ def build_dmv_sharing(lesson_id: str = "ca-dmv-permit-sharing") -> list[SegmentS
             title="Handbook checkpoint",
             backdrop="residential",
             camera="static",
-            concept="The official handbook overrides any study aid.",
-            narration="Re-read the California Driver's Handbook sections on signs, sharing the road, and special driving situations. Official wording beats any study aid.",
+            concept="Review signs, sharing the road, and special driving situations.",
+            narration="Review the California rules on signs, sharing the road, and special driving situations.",
             cast=[
                 C("adult", 400, 300, motion="bob"),
                 C("teen", 480, 310, motion="sway"),

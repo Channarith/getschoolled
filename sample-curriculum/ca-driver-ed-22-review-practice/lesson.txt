@@ -4,13 +4,13 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Handbook study, quizzes, and calm test-day habits. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Handbook study, quizzes, and calm test-day habits.
 
 SLIDE 1 | Handbook is the authority
-Official wording beats any study aid. Re-read the California Driver's Handbook sections you find hardest — it is the authority.
+Re-read the California rules on the sections you find hardest.
 NARRATION: Re-read the California Driver's Handbook sections you find hardest — it is the authority.
 
 SLIDE 2 | Short study blocks
@@ -50,4 +50,4 @@ Skills grow with deliberate practice. A license is a starting line — keep prac
 NARRATION: A license is a starting line — keep practicing freeway, night, and rain skills with a mentor.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

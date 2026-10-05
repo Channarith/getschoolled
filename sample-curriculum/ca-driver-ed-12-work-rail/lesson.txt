@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Cones, flaggers, gates, and tracks. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Cones, flaggers, gates, and tracks.
 
 SLIDE 1 | Work zone speed
 Obey reduced speeds; fines often double. Slow to the posted work-zone speed — workers are close to traffic and fines often increase.
@@ -50,4 +50,4 @@ Never follow EMS onto tracks. Do not follow an emergency vehicle across tracks u
 NARRATION: Do not follow an emergency vehicle across tracks unless signals are clear for you too.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

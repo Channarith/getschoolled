@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Crosswalks, three-foot pass, and door-zone safety. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Crosswalks, three-foot pass, and door-zone safety.
 
 SLIDE 1 | Marked crosswalk duty
 Stop for people in the crosswalk. Yield to pedestrians in marked crosswalks and do not pass a vehicle stopped at a crosswalk.
@@ -50,4 +50,4 @@ Expect poorly lit riders — slow down. At night, scan carefully; not every cycl
 NARRATION: At night, scan carefully; not every cyclist has bright lights.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

@@ -103,6 +103,24 @@ def test_teach_engine_advances(tmp_path: Path):
     assert pop.choices
     graded = engine.answer_pop("s1", pop.correct_index)
     assert graded["result"]["passed"] is True
+    assert graded["correction"]["correct"] is True
+    assert graded["correction"]["correct_choice"] == pop.choices[pop.correct_index]
+
+    engine.start(
+        session_id="s1-wrong",
+        course_id="course-demo",
+        use_voice_agent=False,
+        language="en",
+    )
+    wrong_pop = engine.pop_quiz("s1-wrong")
+    wrong_index = (wrong_pop.correct_index + 1) % len(wrong_pop.choices)
+    corrected = engine.answer_pop("s1-wrong", wrong_index)
+    assert corrected["result"]["passed"] is False
+    assert corrected["correction"]["selected_choice"] == wrong_pop.choices[wrong_index]
+    assert corrected["correction"]["correct_choice"] == wrong_pop.choices[
+        wrong_pop.correct_index
+    ]
+    assert corrected["correction"]["explanation"]
 
 
 def test_teach_engine_keeps_mastery_in_builder_data_dir(tmp_path: Path):

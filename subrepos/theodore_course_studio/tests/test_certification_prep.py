@@ -18,7 +18,7 @@ from theodore_course_studio.types import CategoryId
 def test_cert_tracks_cover_dmv_and_food():
     tracks = {row.track for row in list_cert_courses()}
     assert tracks == {CertTrackId.CA_DMV_PERMIT, CertTrackId.ALAMEDA_FOOD_HANDLER}
-    assert all(row.prep_only for row in list_cert_courses())
+    assert all(row.prep_only is False for row in list_cert_courses())
     assert all(10 <= row.slides <= 20 for row in list_cert_courses())
     assert all(row.estimated_minutes <= CERT_SESSION_MAX_MINUTES for row in list_cert_courses())
     food = [row for row in list_cert_courses() if row.track is CertTrackId.ALAMEDA_FOOD_HANDLER]
@@ -27,16 +27,51 @@ def test_cert_tracks_cover_dmv_and_food():
     assert all(row.slides == 20 for row in food)
 
 
+def test_driver_sign_bank_covers_more_than_100_signs():
+    from theodore_course_studio.traffic_signs import SIGN_LESSONS, sign_count
+
+    signs = [
+        row for row in list_cert_courses() if row.lesson_id.startswith("ca-dmv-sign-")
+    ]
+    assert sign_count() >= 120
+    assert len(signs) == len(SIGN_LESSONS) == 7
+    assert all(row.slides == 20 for row in signs)
+    titles = []
+    for row in signs:
+        course = build_cert_course(lesson_id=row.lesson_id)
+        titles.extend(slide.title for slide in course.slides)
+        assert "STOP" in course.slides[0].picture_url or course.slides[0].picture_url.startswith(
+            "data:image/svg+xml"
+        )
+    needed = {
+        "Stop",
+        "Yield",
+        "No left turn",
+        "Merge",
+        "HOV 2 or more",
+        "Railroad crossbuck",
+        "No right turn on red",
+    }
+    assert needed <= set(titles)
+    # Sign lessons sit in driver's ed right after the short signs overview.
+    order = [row.lesson_id for row in list_cert_courses(CertTrackId.CA_DMV_PERMIT)]
+    overview = order.index("ca-dmv-signs")
+    assert order[overview + 1] == "ca-dmv-sign-stop-yield"
+    assert order[overview + 7] == "ca-dmv-sign-work-guide"
+    assert order[overview + 8] == "ca-dmv-sharing"
+
+
 def test_build_ca_dmv_course_has_jurisdiction_metadata():
     course = build_cert_course(lesson_id="ca-dmv-basics")
     assert course.category is CategoryId.DRIVER_EDUCATION
     assert course.audience == "adult_cert_prep"
     assert course.estimated_minutes <= 20
     assert course.profile_adaptations["jurisdiction"] == "us-ca"
-    assert course.profile_adaptations["prep_only"] is True
+    assert course.profile_adaptations["prep_only"] is False
     assert course.profile_adaptations["picture_led"] is True
     assert course.profile_adaptations["motion_clip"] is True
-    assert "not a dmv-approved" in course.profile_adaptations["disclaimer"].lower()
+    assert course.profile_adaptations["disclaimer"] == ""
+    assert "not a dmv-approved" not in " ".join(slide.body.lower() for slide in course.slides)
     assert any("us-ca" in slide.tags for slide in course.slides)
     assert all(slide.avatar_script for slide in course.slides)
     assert all(slide.avatar_script.source == "curated" for slide in course.slides)
@@ -70,7 +105,7 @@ def test_build_alameda_food_course():
     )
     assert course.category is CategoryId.FOOD_SAFETY
     assert course.profile_adaptations["jurisdiction"] == "us-ca-alameda"
-    assert "alameda" in course.profile_adaptations["disclaimer"].lower()
+    assert course.profile_adaptations["disclaimer"] == ""
     assert course.slides[0].picture_url.startswith("data:image/svg+xml")
     assert course.slides[0].video_url.startswith("data:image/svg+xml")
     assert len(course.slides) == 20
@@ -105,16 +140,19 @@ def test_certification_api_builds_and_teaches(monkeypatch, tmp_path):
     assert builder.get_course(payload["course_id"]) is not None
 
 
-def test_studio_shows_certification_panel_beside_kids():
+def test_studio_library_leads_with_driver_and_food():
     page = TestClient(app).get("/studio")
     assert page.status_code == 200
-    assert "Make a children's lesson" in page.text
-    assert "Certification prep" in page.text
-    assert "examples, quiz, and a game" in page.text or "picture + motion" in page.text
-    assert "Watch video" in page.text
-    assert "Come back later" in page.text
-    assert "driver_education" in page.text
-    assert "food_safety" in page.text
+    assert "Course library" in page.text
+    text = page.text
+    assert text.index("Driver's ed") < text.index("Food safety")
+    assert "drivers-ed" in text
+    assert "food-safety" in text
+    assert "pickLearnVariety" in page.text
+    assert "checkGapFor" in page.text
+    assert "slidesSinceCheck" in page.text
+    assert "return 4" in page.text
+    assert "return 8" in page.text
 
 
 def test_soft_checkpoint_skips_kids_audience():

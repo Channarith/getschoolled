@@ -4,10 +4,10 @@ AUDIENCE: general
 TRACK: Certifications
 LEVEL: Certification prep
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
 FIT: Learners preparing for the California DMV knowledge / permit test.
-SUMMARY: Who goes first — and when to yield anyway. Study aid only — not a DMV-approved driver education course.
+SUMMARY: Who goes first — and when to yield anyway.
 
 SLIDE 1 | Right-of-way is given, not taken
 Yielding prevents crashes even if you are 'right'. Having the right-of-way never means forcing others to stop — yield to avoid a collision.
@@ -50,4 +50,4 @@ Uncertainty means wait. If you are unsure who should go, wait — a few seconds 
 NARRATION: If you are unsure who should go, wait — a few seconds of caution beats a crash.
 
 FACT: Always verify rules in the current California Driver's Handbook.
-FACT: This Salareen lesson is practice prep, not DMV-approved education.
+FACT: This lesson is part of the California driver education course.

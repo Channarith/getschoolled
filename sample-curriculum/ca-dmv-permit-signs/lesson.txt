@@ -1,9 +1,9 @@
 LESSON: California DMV Permit Prep — Signs & Signals
 LANGUAGE: en
 JURISDICTION: us-ca
-PREP_ONLY: true
+PREP_ONLY: false
 DELIVERY: 15–20 min short session
-SUMMARY: Regulatory, warning, and guide signs for the California knowledge test. Prep only.
+SUMMARY: Regulatory, warning, and guide signs for the California knowledge test.
 
 SLIDE 1 | Regulatory signs
 White rectangular signs with black or red markings tell you what you must or must not do: speed limits, Do Not Enter, One Way, and No U-Turn. A red octagon is always STOP.

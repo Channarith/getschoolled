@@ -309,7 +309,11 @@ def install_live_audio_routes(app: Any, *, lab_name: str) -> None:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     @app.get("/api/live-audio/client.js", include_in_schema=False)
-    def live_audio_client() -> Response:
+    def live_audio_client():
+        # Response is imported lazily above so FastAPI stays optional for
+        # non-web users of aoep-shared. Do not annotate it here: postponed
+        # annotations are resolved from module globals, where this local import
+        # does not exist, and Pydantic otherwise fails while registering routes.
         return Response(
             CLIENT_JS.read_text(encoding="utf-8"),
             media_type="application/javascript",
