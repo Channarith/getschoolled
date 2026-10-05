@@ -166,6 +166,7 @@ class ChallengeRequest(BaseModel):
     learning_prompt: str = Field(min_length=1)
     participant_ids: list[str] = Field(default_factory=list)
     preferred_game_type: WebcamGameType | None = None
+    theme: str | None = Field(default=None, max_length=32)
 
 
 class ChallengeAttemptRequest(BaseModel):
@@ -817,7 +818,16 @@ def create_challenge(req: ChallengeRequest) -> WebcamLearningChallenge:
         learning_prompt=req.learning_prompt,
         participant_ids=req.participant_ids,
         preferred_game_type=req.preferred_game_type,
+        theme=req.theme,
     )
+
+
+@app.get("/api/theodore/webcam/games/leaderboard/{session_id}")
+def game_leaderboard(session_id: str) -> dict[str, object]:
+    return {
+        "session_id": session_id,
+        "leaderboard": _game_engine.leaderboard(session_id),
+    }
 
 
 @app.post(

@@ -796,6 +796,24 @@ STUDIO_JS = """
         (data.voice ? ' · ' + data.voice.provider : ''));
     }
 
+    async function runTrialDemo() {
+      teachLanguage = $('teach-lang').value || 'en';
+      const data = await api('/api/studio/teach/trial-run', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({
+          session_id: teachSession,
+          language: teachLanguage,
+          learner_id: learnerId,
+          profile: profileFromForm(),
+        })
+      });
+      selectedCourse = data.course_id;
+      await refreshCourses();
+      renderTeach(data);
+      const kinds = (data.segment_kinds || []).join(' → ');
+      toast('Trial demo · ' + (data.language || teachLanguage) + ' · ' + kinds);
+    }
+
     async function resumeTeach() {
       if (!selectedCourse) return toast('Select a course first');
       await startTeach({ resume: true });
@@ -1526,6 +1544,7 @@ STUDIO_JS = """
 
     function speakText(text, ttsMeta, holdLesson) {
       if (lecturePaused && !holdLesson) return;
+      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__) return;
       stopSpeech();
       const spoken = text || '';
       const gen = speechGen;
@@ -1598,6 +1617,9 @@ STUDIO_JS = """
       });
       return attempt(0);
     }
+    window.addEventListener('theodore-live-audio', (event) => {
+      if (event.detail?.active) stopSpeech();
+    });
 
     function renderTeach(payload) {
       stopStudentMic();

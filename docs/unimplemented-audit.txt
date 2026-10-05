@@ -1,0 +1,228 @@
+AOEP UNIMPLEMENTED-CODE AUDIT
+==============================
+Generated: 2026-08-23. Plain-text inventory of stubs, scaffolds, and env-gated
+paths. Items marked FIXED in v0.49.6 were closed in the same release cycle.
+
+SUMMARY
+-------
+Most "unimplemented" code is intentional dual-mode design: local/offline paths work
+without API keys; cloud paths raise NotImplementedError until credentials exist.
+Three gaps were closed automatically in this audit:
+  1. LocalObjectStore now writes to ~/.cache/aoep/object-store (filesystem-local).
+  2. RobotProvider forwards say/gesture/perceive when ROBOT_ENDPOINT is http(s).
+  3. Theodore LLM Lab (:8019) unifies library + profiles + webcam/audio/game/RAG
+     into training JSONL + robot GGUF pack metadata (GPU fine-tune still manual).
+
+AUTOMATED IN THIS RELEASE (no manual setup)
+-------------------------------------------
+[FIXED] Local object store put()
+  Was: LocalObjectStore.put() always raised NotImplementedError.
+  Now: Writes bytes under OBJECT_STORE_LOCAL_DIR or ~/.cache/aoep/object-store.
+  Test: packages/shared/tests/test_object_store_local.py
+
+[FIXED] Robot HTTP bridge
+  Was: RobotProvider.say/gesture always raised NotImplementedError.
+  Now: When ROBOT_ENDPOINT=http(s)://host/path, POST JSON {action,say|gesture}.
+        GET {endpoint}/perceive for sensors (empty dict if bridge has no route).
+  Still raises when ROBOT_ENDPOINT is unset (vendor SDK path).
+  Test: packages/shared/tests/test_embodiment.py::test_robot_http_bridge_posts
+  Manual bridge example:
+    python3 scripts/robot_bridge_demo.py --port 8765
+    export ROBOT_ENDPOINT=http://127.0.0.1:8765/robot
+    python3 -c "from aoep_shared.providers.embodiment import RobotProvider; \
+      from aoep_shared.config import AppConfig, DeployMode; \
+      RobotProvider(AppConfig(deploy_mode=DeployMode.EDGE,robot_endpoint='http://127.0.0.1:8765/robot')).say('hi')"
+
+[FIXED] All-in-one LLM training lab (browser console)
+  Was: training/ CLI scaffold only; no HTTP lab; no unified multimodal export.
+  Now: subrepos/theodore_llm_lab on :8019 — assemble, validate, robot-pack,
+       mock robot turn; shared aoep_shared.llm_training corpus builder.
+  Start: scripts/run_theodore_lab.sh llm
+  GPU step still manual (see MANUAL #1 below).
+
+INTENTIONAL STUBS — WORK OFFLINE; CLOUD NEEDS KEYS (manual setup)
+-----------------------------------------------------------------
+
+#1 Education LLM weight training (QLoRA / GGUF)
+  Code: training/run_finetune.py, training/export.py, training/evaluate.py
+  Status: Data pipeline + --check path fully offline; torch/GPU run is separate.
+  Manual setup:
+    a) On a networked box once: huggingface-cli download <base-model> --local-dir /models/education-base
+    b) pip install -r training/requirements.txt (CUDA box for 4-bit QLoRA)
+    c) Export sessions: python3 training/export.py --in sessions.json --out train.jsonl
+    d) Validate: python3 training/run_finetune.py --check --train train.jsonl
+    e) Train: BASE_MODEL=/models/education-base python3 training/train.sh
+    f) Quantize to GGUF (llama.cpp): see docs/edge-robot-runbook.txt step 1
+    g) Or use Theodore LLM Lab POST /api/llm/assemble then point run_finetune at the JSONL
+  Env: BASE_MODEL, HF_HUB_OFFLINE=1, TRANSFORMERS_OFFLINE=1 for air-gapped runs
+
+#2 Cloud LLM (vLLM / xAI Grok)
+  Code: packages/shared/src/aoep_shared/providers/llm.py
+  Status: Local RAG-grounded tutor works offline; cloud transport raises without endpoint/key.
+  Manual setup:
+    export LLM_MODE=cloud
+    export VLLM_BASE_URL=http://your-vllm:8000/v1   # or XAI_API_KEY + XAI_BASE_URL
+  Docs: config/local.env.example, config/cloud.env
+
+#3 Cloud speech (ElevenLabs / edge-tts network)
+  Code: providers/speech.py, lab_tts.py
+  Status: 501 + device TTS fallback when no engine; intentional.
+  Manual setup:
+    export ELEVENLABS_API_KEY=...
+    # or ensure edge-tts can reach speech.platform.bing.com
+    export SPEECH_BASE_URL=http://localhost:8002  # speech gateway
+
+#4 xAI / Gemini live audio (native S2S)
+  Code: aoep_shared/live_audio_agents.py
+  Status: /api/live-audio/token returns 503 when keys missing.
+  Manual setup:
+    export XAI_API_KEY=...
+    export GEMINI_API_KEY=...
+    export GEMINI_LIVE_MODEL=gemini-2.5-flash-native-audio-preview-12-2025
+  Docs: docs/live-audio-agents.txt
+
+#5 Cloud object store (S3 / MinIO in compose)
+  Code: CloudObjectStore.put() still raises (needs boto3 + live bucket).
+  Local filesystem path works without MinIO (see FIXED above).
+  Manual setup for cloud/compose:
+    docker compose up minio   # infra/compose
+    export OBJECT_STORE_ENDPOINT=http://localhost:9000
+    export OBJECT_STORE_ACCESS_KEY=aoep
+    export OBJECT_STORE_SECRET_KEY=aoep-secret
+    # Wire S3 put in CloudObjectStore when deploying (future PR) or use MinIO SDK
+
+#6 Cloud OCR
+  Code: CloudOcrProvider.read()
+  Status: Local tesseract works when installed; cloud raises without OCR_API_KEY.
+  Manual setup:
+    apt install tesseract-ocr   # local
+    export OCR_API_KEY=...      # cloud vision API
+
+#7 Cloud payments (Stripe, Razorpay, PayPal, ...)
+  Code: providers/payment.py
+  Status: SandboxPaymentProvider works offline in local mode.
+  Manual setup per region:
+    export PAYMENT_MODE=cloud
+    export STRIPE_SECRET_KEY=... / RAZORPAY_KEY_ID=... etc.
+  Docs: docs/payments.txt
+
+#8 Meeting bridges (Zoom / Teams / Google Meet)
+  Code: aoep_shared/meeting/providers.py
+  Status: Scheduling + lesson plan work offline; live media transport raises without OAuth.
+  Manual setup:
+    export MEETING_PROVIDER=zoom|teams|google
+    Zoom: ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET
+    Teams: TEAMS_ACCESS_TOKEN (Microsoft Graph)
+    Google: GOOGLE_ACCESS_TOKEN (Calendar scope)
+  Docs: README meeting providers section
+
+#9 LiveKit group-class video
+  Code: providers/media.py
+  Status: Token minting works offline with LIVEKIT_API_KEY/SECRET; server is LiveKit Cloud.
+  Manual setup:
+    export LIVEKIT_URL=wss://your-project.livekit.cloud
+    export LIVEKIT_API_KEY=...  (>=32 chars)
+    export LIVEKIT_API_SECRET=...
+  Docs: .cursor/skills/live-rooms-video/SKILL.md
+
+#10 Hardware humanoid SDK (vendor-specific)
+  Code: RobotProvider without http endpoint
+  Status: HTTP bridge implemented; native SDK (Unitree, Figure, etc.) still per-robot.
+  Manual setup:
+    Option A — HTTP shim (automated): run your robot's REST/gRPC gateway; set ROBOT_ENDPOINT.
+    Option B — SDK: subclass RobotProvider or replace factory.embodiment() binding;
+              implement say/gesture/perceive per docs/edge-robot-runbook.txt step 4.
+    Safety: keep HIL_AUTONOMY on; wire kill-switch to halt say()/gesture().
+
+#11 Edge on-device models (GGUF + ONNX)
+  Code: apps/agent-runtime/edge/, aoep_shared/edge.py
+  Status: Smoke test runs without weights; inference needs quantized files on disk.
+  Manual setup:
+    1. Quantize LLM to GGUF Q4_K_M, ASR/TTS/vision to ONNX
+    2. Place paths from apps/agent-runtime/edge/manifest.yaml under /models
+    3. apps/agent-runtime/edge/package_edge.sh
+    4. Flash to Jetson Orin / Coral / x86 mini-PC with DEPLOY_MODE=edge
+  Docs: docs/edge-robot-runbook.txt
+
+#12 WebAuthn passkeys (production crypto verify)
+  Code: aoep_shared/passkeys.py
+  Status: Sandbox verify in DEPLOY_MODE=local; cloud fails closed without PASSKEY_SANDBOX=1.
+  Manual setup for production:
+    Wire a real WebAuthn assertion verifier (signature over authenticatorData).
+    Do NOT set PASSKEY_SANDBOX=1 in production.
+    export PASSKEY_RP_ID=salareen.com
+
+#13 OAuth social login (production)
+  Code: aoep_shared/oauth_login.py
+  Status: Sandbox tokens in local mode; live needs provider app registrations.
+  Manual setup:
+    Google: GOOGLE_CLIENT_ID
+    Facebook: FACEBOOK_APP_ID, FACEBOOK_APP_SECRET
+    Apple: APPLE_BUNDLE_ID, APPLE_SERVICES_ID (+ PyJWT[cryptography])
+
+#14 LMS connector live HTTP (Canvas/Moodle/Classroom)
+  Code: aoep_shared/connectors/lms.py ConnectorProvider
+  Status: LTI/OneRoster parsing + MockLMS work offline; roster()/push_grade() abstract.
+  Manual setup: implement ConnectorProvider subclass with institution API tokens.
+
+#15 Finance / cloud storage connectors
+  Code: connectors/finance.py, connectors/cloud.py
+  Status: Data-shape helpers only; live sync raises NotImplementedError.
+  Manual setup: institution-specific API keys + provider implementation.
+
+#16 Server-side MediaPipe GestureRecognizer
+  Code: aoep_shared/vision/engagement.py GestureRecognizer
+  Status: Browser labs use client MediaPipe; server class raises (no Python MediaPipe here).
+  Manual setup: optional vision microservice with MediaPipe Hands/Pose, or keep browser-only.
+
+#17 Live job board providers
+  Code: aoep_shared/jobs.py _LiveJobsProvider subclasses
+  Status: Curated sample board always renders; live _fetch raises in base class.
+  Manual setup: implement _fetch/_parse for Adzuna/Indeed/etc. with API keys.
+
+#18 Cloud search (web/news beyond GDELT current-awareness)
+  Code: providers/search.py CloudSearchProvider
+  Status: current_awareness.py has GDELT + trusted-page path; generic cloud search raises.
+  Manual setup: SEARCH_API_KEY or wire Brave/SerpAPI in CloudSearchProvider.
+
+#19 Scratch LLM pretrain (Track A from-scratch)
+  Code: training/scratch/pretrain/
+  Status: Orchestration + config ladder tested; multi-GPU pretrain is manual HPC job.
+  Manual setup: GPU cluster, training/scratch/pretrain/RUNBOOK.txt
+
+#20 Staging integration E2E hook
+  Code: .github/workflows/deploy-staging.yml "Integration test hook (TODO)"
+  Status: Deploy + digest smoke work; full browser E2E against staging needs DNS + seed data.
+  Manual setup:
+    1. infra/k8s-staging DNS pointing at cluster ingress
+    2. scripts/k8s_reseed_accounts.sh against aoep-staging namespace
+    3. Replace TODO step with Playwright job hitting staging URLs
+    4. Optional repo var STAGING_AUTO_DEPLOY=true for push-to-main staging
+
+#21 CosyVoice GPU sidecar
+  Code: services/cosyvoice/
+  Status: Optional TTS clone server; not started in default dev loop.
+  Manual setup:
+    export COSYVOICE_URL=http://localhost:9880
+    GPU host running CosyVoice 2 (see services/cosyvoice README in repo)
+
+#22 Docker full stack
+  Code: infra/compose/
+  Status: Valid YAML; Docker not assumed in cloud-agent VM.
+  Manual setup: install Docker, make compose-config, docker compose up
+
+SCAFFOLDS THAT ARE COMPLETE FOR THEIR SCOPE (not bugs)
+------------------------------------------------------
+- training/pipeline/ — real, tested JSONL export + fairness guardrails
+- theodore_rag_lab — RAG knob bakeoff (not LLM weight training)
+- theodore_drive_lab — wake/TTS/Q&A tuning (not LLM weight training)
+- theodore_course_studio offline_quality — ranking trainer, not conversational LLM
+- theodore_webcam_lab/training/ — vision runbook JSON, not in-repo weight files
+- MockRobotProvider, SandboxPaymentProvider, MockLMS — intentional test doubles
+- 501 TTS responses — client device-voice fallback contract (not missing impl)
+
+HOW TO RE-RUN THIS AUDIT
+------------------------
+  rg 'NotImplementedError|not wired|scaffold' --glob '*.py' packages services apps subrepos training
+  python3 -m pytest packages/shared/tests/test_embodiment.py packages/shared/tests/test_object_store_local.py subrepos/theodore_llm_lab/tests -q
+  curl -s http://127.0.0.1:8019/health   # after: scripts/run_theodore_lab.sh llm

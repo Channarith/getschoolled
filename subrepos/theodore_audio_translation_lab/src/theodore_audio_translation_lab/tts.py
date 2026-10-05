@@ -75,7 +75,7 @@ def engine_chain() -> list[str]:
         chain.append("elevenlabs")
     if _edge_tts_available():
         chain.append("edge-tts")
-    return [e for e in chain if e not in _lab._disabled_engines]
+    return [e for e in chain if not _lab._benched(e)]
 
 
 def tts_status() -> dict[str, object]:
@@ -85,7 +85,7 @@ def tts_status() -> dict[str, object]:
         "available": bool(chain),
         "engine": chain[0] if chain else "",
         "engines": chain,
-        "disabled": sorted(_lab._disabled_engines),
+        "disabled": _lab.benched_engines(),
         "gateway_url": _gateway_url(),
         "elevenlabs_configured": bool(_elevenlabs_key()),
         "xai_configured": bool(__import__("os").environ.get("XAI_API_KEY", "").strip()),
@@ -122,13 +122,28 @@ def synthesize(text: str, *, language: str = "en", style: str = "warm"):
                 return (*_lab._edge_tts(clean, lang), "edge-tts")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{engine}: {exc}")
-            _lab._disabled_engines.add(engine)
+            _lab._bench_engine(engine, str(exc))
 
+    benched = _lab.benched_engines()
+    if not errors:
+        # Benching an engine empties the chain, so later calls attempt nothing
+        # and would otherwise advise installing an engine that is present. Carry
+        # the recorded cause through instead.
+        errors = [
+            f"{engine} (cooling off "
+            f"{round(_lab._engine_retry_at[engine] - _lab.time.monotonic())}s): "
+            f"{_lab._engine_error.get(engine, 'render failed')}"
+            for engine in benched
+        ]
     detail = f" Tried: {'; '.join(errors)}" if errors else ""
+    advice = (
+        "Check that this process can reach the voice service"
+        if benched
+        else "Configure TTS_BASE_URL/SPEECH_BASE_URL, ELEVENLABS_API_KEY, or install edge-tts"
+    )
     raise ProviderUnavailable(
         f"No server TTS engine could render {LANGUAGE_NAMES.get(lang, lang)}."
-        f"{detail} Configure TTS_BASE_URL/SPEECH_BASE_URL, ELEVENLABS_API_KEY, "
-        "or install edge-tts; the client can still use the device voice."
+        f"{detail} {advice}; the client can still use the device voice."
     )
 
 

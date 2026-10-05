@@ -1,13 +1,16 @@
 """Object store provider implementations.
 
-local  -> MinIO / filesystem.
-cloud  -> S3-compatible bucket.
+local  -> filesystem under OBJECT_STORE_LOCAL_DIR (offline dev) or MinIO URL.
+cloud  -> S3-compatible bucket (requires live endpoint + credentials).
 
 The key layout and URL scheme are identical across modes so recordings,
 transcripts, frames, and slide assets are addressed the same way everywhere.
 """
 
 from __future__ import annotations
+
+import os
+from pathlib import Path
 
 from ..config import AppConfig
 from .base import ObjectStoreProvider, ProviderInfo
@@ -47,11 +50,38 @@ class _BaseObjectStore(ObjectStoreProvider):
         )
 
 
+def _local_store_root(config: AppConfig) -> Path:
+    raw = (os.environ.get("OBJECT_STORE_LOCAL_DIR") or "").strip()
+    base = Path(raw) if raw else Path.home() / ".cache" / "aoep" / "object-store"
+    return base / config.object_store_bucket
+
+
 class LocalObjectStore(_BaseObjectStore):
-    impl = "minio-local"
+    impl = "filesystem-local"
 
     def __init__(self, config: AppConfig) -> None:
         super().__init__(config, mode="local")
+        self._root = _local_store_root(config)
+
+    def info(self) -> ProviderInfo:
+        return ProviderInfo(
+            capability=self.capability,
+            mode="local",
+            impl=self.impl,
+            endpoint=f"file://{self._root}",
+        )
+
+    def put(
+        self,
+        key: str,
+        data: bytes,
+        *,
+        content_type: str = "application/octet-stream",
+    ) -> str:
+        dest = self._root / key.lstrip("/")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        return self.url_for(key)
 
 
 class CloudObjectStore(_BaseObjectStore):

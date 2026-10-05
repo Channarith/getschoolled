@@ -1,55 +1,86 @@
-/** Settings camera check: lighting + look up/down/left/right + raise hands.
+/** Settings camera check: permission → preview/capture → progress → complete.
  *
- * The previous build synthesized a "face grid" from the current step id and
- * then matched the pose against it — every photo passed every step (integrity
- * theater). Mobile has no pixel-level pose access without a native module, so
- * the check is now a guided self-verify: capture per step, see the photo, and
- * confirm the pose was captured. That still walks the learner through every
- * tracking dimension their camera must cover.
+ * Mobile cannot read live pose from pixels without a native module, so pose
+ * steps use a still capture the learner confirms. Lighting and distance use a
+ * guided self-check with an explicit continue so the flow never stalls waiting
+ * on analysis that cannot run locally.
  */
 
 import * as ImagePicker from "expo-image-picker";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 import { ensureCameraPermission } from "./cameraPermission";
 import PrimaryButton from "./PrimaryButton";
 import { theme } from "../theme";
 
-type StepId = "lighting" | "look_up" | "look_down" | "look_left" | "look_right" | "raise_hands";
+type StepId =
+  | "lighting"
+  | "distance"
+  | "look_up"
+  | "look_down"
+  | "look_left"
+  | "look_right"
+  | "raise_hands"
+  | "voice"
+  | "photo_id";
 
-type Step = { id: StepId; title: string; instruction: string };
+type Step = { id: StepId; title: string; instruction: string; needsPhoto: boolean };
 
 const STEPS: Step[] = [
   {
     id: "lighting",
     title: "Lighting & focus",
-    instruction: "Take a clear, well-lit face photo. Avoid dark rooms and blur.",
+    instruction: "Face a lamp or window so your face is bright and sharp.",
+    needsPhoto: false,
+  },
+  {
+    id: "distance",
+    title: "Camera distance",
+    instruction: "Sit about an arm's length from the camera.",
+    needsPhoto: false,
   },
   {
     id: "look_up",
     title: "Look up",
     instruction: "Look toward the ceiling, then take a photo.",
+    needsPhoto: true,
   },
   {
     id: "look_down",
     title: "Look down",
     instruction: "Look toward your desk, then take a photo.",
+    needsPhoto: true,
   },
   {
     id: "look_left",
     title: "Look left",
     instruction: "Turn toward your left, then take a photo.",
+    needsPhoto: true,
   },
   {
     id: "look_right",
     title: "Look right",
     instruction: "Turn toward your right, then take a photo.",
+    needsPhoto: true,
   },
   {
     id: "raise_hands",
     title: "Raise both hands",
     instruction: "Raise both hands beside your head, then take a photo.",
+    needsPhoto: true,
+  },
+  {
+    id: "voice",
+    title: "Voice check",
+    instruction: "In class you may be asked to say your name. Tap continue when ready.",
+    needsPhoto: false,
+  },
+  {
+    id: "photo_id",
+    title: "Photo ID (optional)",
+    instruction: "Hold a photo ID to the camera, or skip if you verify later.",
+    needsPhoto: true,
   },
 ];
 
@@ -59,8 +90,9 @@ type Props = {
 
 export default function CameraTrackingCheck({ onDone }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
-  const [status, setStatus] = useState("Tap Capture to begin.");
+  const [status, setStatus] = useState("Tap Allow camera to begin.");
   const [busy, setBusy] = useState(false);
+  const [permissionOk, setPermissionOk] = useState(false);
   const [passed, setPassed] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -71,27 +103,53 @@ export default function CameraTrackingCheck({ onDone }: Props) {
     [stepIndex],
   );
 
+  useEffect(() => {
+    setPhotoUri(null);
+    if (step.needsPhoto && permissionOk) {
+      setStatus("Tap Capture when you are in position.");
+    } else if (!step.needsPhoto && permissionOk) {
+      setStatus("Follow the step, then tap Continue.");
+    }
+  }, [stepIndex, permissionOk, step.needsPhoto]);
+
+  const requestPermission = async (): Promise<boolean> => {
+    setBusy(true);
+    setStatus("Requesting camera permission…");
+    try {
+      const picker = await ImagePicker.requestCameraPermissionsAsync();
+      if (picker.granted) {
+        setPermissionOk(true);
+        setStatus(
+          step.needsPhoto ? "Tap Capture when you are in position." : "Follow the step, then tap Continue.",
+        );
+        return true;
+      }
+      const legacy = await ensureCameraPermission();
+      setPermissionOk(legacy);
+      setStatus(legacy ? "Camera allowed." : "Camera permission is required.");
+      return legacy;
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const capture = async () => {
     setBusy(true);
     setStatus("Opening camera…");
     try {
-      const ok = await ensureCameraPermission();
-      if (!ok) {
-        setStatus("Camera permission is required.");
-        return;
-      }
+      const ok = permissionOk || (await requestPermission());
+      if (!ok) return;
       const shot = await ImagePicker.launchCameraAsync({
         allowsEditing: false,
         quality: 0.4,
         base64: false,
         exif: false,
+        cameraType: ImagePicker.CameraType.front,
       });
       if (shot.canceled || !shot.assets?.[0]?.uri) {
-        setStatus("Capture canceled — try again.");
+        setStatus("Capture canceled — try again or skip.");
         return;
       }
-      // Show the photo and let the learner confirm the pose — the app cannot
-      // measure pose from a compressed file without a native decoder.
       setPhotoUri(shot.assets[0].uri);
       setStatus("Check the photo, then confirm below.");
     } catch (e) {
@@ -111,7 +169,11 @@ export default function CameraTrackingCheck({ onDone }: Props) {
       return;
     }
     setStepIndex((i) => i + 1);
-    setStatus("Tap Capture for the next step.");
+  };
+
+  const skipStep = () => {
+    setPhotoUri(null);
+    confirmStep();
   };
 
   return (
@@ -134,16 +196,35 @@ export default function CameraTrackingCheck({ onDone }: Props) {
           </Text>
         ))}
       </View>
+
+      {!permissionOk && !done ? (
+        <PrimaryButton
+          label={busy ? "Working…" : "Allow camera"}
+          onPress={() => void requestPermission()}
+          disabled={busy}
+        />
+      ) : null}
+
+      {permissionOk && !done && !step.needsPhoto ? (
+        <PrimaryButton label="Continue" onPress={confirmStep} />
+      ) : null}
+
       {photoUri && !done ? (
         <PrimaryButton label="Photo matches the step — continue" onPress={confirmStep} />
       ) : null}
-      {!done && !photoUri ? (
+
+      {permissionOk && !done && step.needsPhoto && !photoUri ? (
         <PrimaryButton
           label={busy ? "Working…" : "Capture"}
           onPress={() => void capture()}
           disabled={busy}
         />
       ) : null}
+
+      {permissionOk && !done && step.needsPhoto ? (
+        <PrimaryButton label="Skip this step" variant="ghost" onPress={skipStep} />
+      ) : null}
+
       {done ? <PrimaryButton label="Done" onPress={() => onDone?.()} /> : null}
       {photoUri && !done ? (
         <PrimaryButton label="Retake" variant="ghost" onPress={() => void capture()} />
@@ -156,7 +237,8 @@ export default function CameraTrackingCheck({ onDone }: Props) {
           setPassed({});
           setDone(false);
           setPhotoUri(null);
-          setStatus("Tap Capture to begin.");
+          setPermissionOk(false);
+          setStatus("Tap Allow camera to begin.");
         }}
       />
     </View>

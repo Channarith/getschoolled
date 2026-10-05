@@ -9,10 +9,12 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
+import hashlib
 import os
 from pathlib import Path
 from typing import Any, Literal
 
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -21,7 +23,7 @@ from pydantic import BaseModel, Field
 from . import __version__, tts
 from .analytics import AggregateAnalytics
 from .children_page import FAVICON_SVG, render_children_page
-from .game_engine import PICTURE_WORDS, fun_score, score_spoken
+from .game_engine import PICTURE_WORDS, all_game_ids, fun_score, score_spoken
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PACKAGE_DIR / "static"
@@ -34,6 +36,7 @@ app = FastAPI(
     version=__version__,
     description="Private, playful browser-local face and hand learning games for ages 4-10.",
 )
+install_live_audio_routes(app, lab_name="Theodore Children Webcam Lab")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if VISION_ASSET_DIR.is_dir():
     app.mount("/vendor/vision", StaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")
@@ -62,10 +65,26 @@ class AnalyticsRequest(BaseModel):
     seated_only: bool = False
 
 
+def _asset_tag() -> str:
+    """Fingerprint of the front-end sources.
+
+    The version alone is not enough: edits during a release cycle leave it
+    unchanged, so a browser keeps a cached script and the page appears not to
+    pick up any fix. Hashing the files themselves changes the URL exactly when
+    the code changes.
+    """
+    digest = hashlib.sha256(__version__.encode())
+    for name in ("app.js", "vision_math.js", "app.css"):
+        path = STATIC_DIR / name
+        if path.is_file():
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:12]
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def children_lab_page() -> str:
-    return render_children_page()
+    return render_children_page(_asset_tag())
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -99,12 +118,7 @@ def content() -> dict[str, Any]:
             {"letter": letter.upper(), "word": word}
             for letter, word in PICTURE_WORDS.items()
         ],
-        "games": [
-            "trace-letter", "trace-picture", "say-letter", "oh-behave", "heart",
-            "idea", "fist-bump", "wow", "blow-kiss", "wink", "make-pose",
-            "balloon", "fish", "popcorn", "fruit-cut", "air-drums", "bird-flap",
-            "head-bop", "face-chase", "stand-sit", "dance-freeze", "rainbow-reach",
-        ],
+        "games": list(all_game_ids()),
         "themes": ["cuddly", "hero", "mix"],
     }
 

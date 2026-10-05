@@ -19,6 +19,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
+
 from .answer_grounding import evaluate_answers
 from .bakeoff import get_runner
 from .drive_tuning import PRESETS, DriveTuning
@@ -33,12 +35,13 @@ DRIVE_LANGUAGES: tuple[str, ...] = (
 )
 
 app = FastAPI(title="Theodore Drive Lab", version="0.1.0")
+install_live_audio_routes(app, lab_name="Theodore Drive Lab")
 
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def qualify() -> HTMLResponse:
-    return HTMLResponse(render_qualify_page())
+    return HTMLResponse(inject_client(render_qualify_page()))
 
 
 class TuningPatch(BaseModel):
