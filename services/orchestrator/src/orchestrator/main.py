@@ -168,6 +168,8 @@ class StartSessionRequest(BaseModel):
     session_length: str = ""
     session_budget_min: int | None = None
     observed_pace: str = ""
+    # Slide index saved on the learner's account or student profile.
+    start_slide: int = 0
 
     model_config = {"extra": "forbid"}
 
@@ -463,6 +465,7 @@ def api_start_session(
             student_id=req.student_id,
             session_budget_min=budget,
             profile_score=req.profile_score,
+            start_slide=req.start_slide,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {req.lesson_id}")
@@ -2550,6 +2553,7 @@ class StartSoloRoomRequest(BaseModel):
     session_length: str = ""
     session_budget_min: int | None = None
     observed_pace: str = ""
+    start_slide: int = 0
 
     model_config = {"extra": "forbid"}
 
@@ -2733,6 +2737,7 @@ def start_solo_live_room(
             student_id=req.student_id,
             session_budget_min=budget,
             profile_score=req.profile_score,
+            start_slide=req.start_slide,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
@@ -2761,6 +2766,7 @@ def start_solo_live_room(
             slide_storyboard_profile_mode=slide.storyboard_profile_mode,
             slide_storyboard_source_language=slide.storyboard_source_language,
             slide_storyboard_translation_ready=slide.storyboard_translation_ready,
+            slide_index=state.current_slide,
             creator_name=(req.creator_name or "").strip() or "You",
             creator_account_id=account_id,
         )

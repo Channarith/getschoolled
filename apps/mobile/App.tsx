@@ -61,7 +61,7 @@ import DraggableSalesDemoButton from "./src/components/DraggableSalesDemoButton"
 import { DEMO_FEATURES, SALES_DEMO_FLAGS } from "./src/demo";
 import PrimaryButton from "./src/components/PrimaryButton";
 import {
-  createStudent, getFlag, getMe, getNotificationsFeed, listStudents, startSoloLiveRoom,
+  createStudent, getFlag, getMe, getNotificationsFeed, listStudents, resumeSlideForLesson, startSoloLiveRoom,
   type BugScreenshotUpload,
 } from "./src/api";
 import { installClientLog } from "./src/clientLog";
@@ -665,7 +665,11 @@ function AppInner() {
           // tiles, chat, Q&A, narration), just sized for the AI host + you.
           if (classType === "solo") {
             try {
-              const { room_id } = await startSoloLiveRoom(id);
+              const place = await resumeSlideForLesson(id);
+              const { room_id } = await startSoloLiveRoom(id, "", {
+                startSlide: place.slideIndex,
+                studentId: place.studentId,
+              });
               setLiveModeratorKey("");
               setShowLiveClass(false);
               setLiveRoomOrigin("solo");

@@ -8,7 +8,6 @@ from .cert_i18n import CertScaffold, scaffold_for
 from .cert_multimodal import preferred_modalities
 from .types import CourseSlide, LearnerProfileScores, TeachTurn
 
-
 def adapt_slide(slide: CourseSlide, profile: LearnerProfileScores) -> TeachTurn:
     """Reshape display + narration without rewriting the source course file."""
     adaptations: list[str] = []
@@ -59,7 +58,9 @@ def adapt_slide(slide: CourseSlide, profile: LearnerProfileScores) -> TeachTurn:
             narration = f"{narration} You're tracking well — stay with this."
         adaptations.append("affirm_high_engagement")
 
-    # Multimodal nudges — content is always present; narration points at preferred path.
+    # Multimodal preferences shape the UI. Quiz/game invitations are deliberately
+    # absent here: narration may mention an activity only when the server has
+    # scheduled a real section/lesson checkpoint for the current turn.
     prefs = preferred_modalities(profile.model_dump())
     top = prefs[:2] if prefs else []
     if "video" in top and slide.video_url:
@@ -73,13 +74,9 @@ def adapt_slide(slide: CourseSlide, profile: LearnerProfileScores) -> TeachTurn:
     if "examples" in top and examples:
         adaptations.append("nudge_example_learners")
     if "quiz" in top and slide.quiz_spec:
-        if may_coach:
-            narration = f"{narration} When you are ready, try the multiple-choice check."
-        adaptations.append("nudge_quiz_learners")
+        adaptations.append("prefer_quiz_at_checkpoint")
     if "game" in top and slide.game_spec:
-        if may_coach:
-            narration = f"{narration} Or lock it in with a short game."
-        adaptations.append("nudge_game_learners")
+        adaptations.append("prefer_game_at_checkpoint")
     if "text" in top:
         adaptations.append("nudge_text_learners")
 

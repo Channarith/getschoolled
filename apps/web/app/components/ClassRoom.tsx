@@ -26,6 +26,9 @@ import {
   recordBehavior,
   recordWellnessCheckIn,
   reportIssue,
+  reengage,
+  resumeSlideForLesson,
+  saveCourseProgress,
   setEnrollmentStatus,
   startAssessmentCheckpoint,
   startSession,
@@ -59,6 +62,7 @@ import AiPresenter from "./AiPresenter";
 import CourseStoryboardPlayer from "./CourseStoryboardPlayer";
 import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
 import CameraLightingScreener from "./CameraLightingScreener";
+import LessonCameraCorner from "./LessonCameraCorner";
 import { useT } from "../lib/i18n";
 import { buildNarrationSpeakOptions } from "../lib/narrationTts";
 import { cancelSpeech, speakNaturally } from "../lib/tts";
@@ -146,6 +150,12 @@ export default function ClassRoom({
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [lightingReady, setLightingReady] = useState(false);
+  const [lessonCamera, setLessonCamera] = useState<MediaStream | null>(null);
+  const lessonCameraRef = useRef<MediaStream | null>(null);
+  useEffect(() => () => {
+    lessonCameraRef.current?.getTracks().forEach((track) => track.stop());
+    lessonCameraRef.current = null;
+  }, []);
   const [disclosure, setDisclosure] = useState<Disclosure | null>(null);
   const [survey, setSurvey] = useState<SurveyTemplate | null>(null);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string | number | boolean>>({});
@@ -744,7 +754,14 @@ export default function ClassRoom({
       if (studentId && wellness !== "ok") {
         recordWellnessCheckIn(studentId, wellness).catch(() => {});
       }
-      const v = await startSession(lessonId, classType);
+      const place = await resumeSlideForLesson(lessonId, studentId);
+      if (place.studentId && place.studentId !== studentId) setStudentId(place.studentId);
+      const v = await startSession(
+        lessonId,
+        classType,
+        place.studentId || undefined,
+        place.slideIndex,
+      );
       sessionStartRef.current = Date.now();
       frustrationCountRef.current = 0;
       questionsAskedRef.current = 0;
@@ -755,6 +772,12 @@ export default function ClassRoom({
       setPassDecisionToken(null);
       setView(v);
       setSlide(v.slide);
+      void saveCourseProgress({
+        lessonId,
+        slideIndex: v.slide.index,
+        slideTitle: v.slide.title,
+        studentId: place.studentId || null,
+      });
       setChat([]);
       try {
         const policy = await getAssessmentPolicy(v.session.session_id);
@@ -781,6 +804,12 @@ export default function ClassRoom({
         pauseAutoplay();
       }
       setSlide(s);
+      void saveCourseProgress({
+        lessonId: view.lesson.lesson_id,
+        slideIndex: s.index,
+        slideTitle: s.title,
+        studentId: studentId || null,
+      });
       if (studentId) {
         recordBehavior({
           student_id: studentId,
@@ -1253,7 +1282,15 @@ export default function ClassRoom({
 
       {!view && loggedIn && !finish && !lightingReady && (
         <CameraLightingScreener
-          onReady={() => setLightingReady(true)}
+          onReady={(opts) => {
+            const stream = opts?.stream ?? null;
+            if (lessonCameraRef.current && lessonCameraRef.current !== stream) {
+              lessonCameraRef.current.getTracks().forEach((track) => track.stop());
+            }
+            lessonCameraRef.current = stream;
+            setLessonCamera(stream);
+            setLightingReady(true);
+          }}
           title="Camera and lighting check"
         />
       )}
@@ -1323,6 +1360,9 @@ export default function ClassRoom({
             <button
               onClick={() => {
                 autoStartedRef.current = false;
+                lessonCameraRef.current?.getTracks().forEach((track) => track.stop());
+                lessonCameraRef.current = null;
+                setLessonCamera(null);
                 setLightingReady(false);
               }}
             >
@@ -1338,10 +1378,22 @@ export default function ClassRoom({
             ref={stageRef}
             style={
               isFullscreen
-                ? { background: "#060a17", padding: "24px 16px", minHeight: "100vh", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, justifyContent: "flex-start" }
-                : { display: "flex", flexDirection: "column", gap: 12 }
+                ? { position: "relative", background: "#060a17", padding: "24px 16px", minHeight: "100vh", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, justifyContent: "flex-start" }
+                : { position: "relative", display: "flex", flexDirection: "column", gap: 12 }
             }
           >
+            <LessonCameraCorner
+              stream={lessonCamera}
+              lessonContext={view.lesson.title}
+              participantId={studentId || "student"}
+              onAway={() => {
+                const sessionId = view.session.session_id;
+                void reengage(sessionId).then((note) => {
+                  setChat((items) => [...items, { role: "assistant", text: note.text }]);
+                  if (speakAnswers) speak(note.text);
+                }).catch(() => undefined);
+              }}
+            />
             <div style={isFullscreen ? { width: "100%", maxWidth: 760, alignSelf: "center" } : undefined}>
               <AiPresenter
                 speaking={speaking}

@@ -31,6 +31,7 @@ from .certification_prep import (
     list_cert_courses,
 )
 from .corpus import default_corpus_root, default_data_dir, load_corpus_index, scan_corpus, write_corpus_index
+from . import learning_guard
 from .early_learning import (
     EarlyCourseRequest,
     EarlyLevel,
@@ -695,6 +696,53 @@ def teach_come_back_later(req: TeachSessionRequest) -> dict[str, Any]:
         return _teach.come_back_later(req.session_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
+class LearningCameraRequest(BaseModel):
+    session_id: str = "studio"
+    participant_id: str = "learner"
+    timestamp_ms: int = 0
+    signal: dict[str, Any] = Field(default_factory=dict)
+
+
+class LearningCheckRequest(BaseModel):
+    session_id: str = "studio"
+    lesson_text: str = ""
+    spoken: str = ""
+    language: str = "en"
+    spoken_language: str = ""
+
+
+@app.get("/api/studio/learn/status")
+def learn_status() -> dict[str, Any]:
+    return learning_guard.lab_status()
+
+
+@app.post("/api/studio/learn/camera")
+def learn_camera(req: LearningCameraRequest) -> dict[str, Any]:
+    try:
+        return learning_guard.observe_camera(
+            session_id=req.session_id,
+            participant_id=req.participant_id,
+            timestamp_ms=req.timestamp_ms,
+            signal=req.signal,
+        )
+    except Exception as exc:  # noqa: BLE001 — the page shows the reason and keeps teaching
+        raise HTTPException(status_code=503, detail=f"learning camera unavailable: {exc}") from exc
+
+
+@app.post("/api/studio/learn/check")
+def learn_check(req: LearningCheckRequest) -> dict[str, Any]:
+    try:
+        return learning_guard.check_spoken_learning(
+            session_id=req.session_id,
+            lesson_text=req.lesson_text,
+            spoken=req.spoken,
+            language=req.language,
+            spoken_language=req.spoken_language,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"learning check unavailable: {exc}") from exc
 
 
 @app.get("/api/studio/teach/checkpoints")

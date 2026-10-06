@@ -12,7 +12,7 @@ import uuid
 from dataclasses import dataclass
 
 from .engagement import GameChallenge, GameKind
-from .assessment import QuizQuestion
+from .assessment import QuizQuestion, arrange_choices
 from .cert_i18n import SCAFFOLD_EN, scaffold_for
 from .knowledge import LearningObjective
 from .types import CourseSlide
@@ -2622,8 +2622,6 @@ def narration_with_examples(
     if scaffold:
         bits.append(scaffold.examples_lead)
     bits.extend(examples[:3])
-    if scaffold:
-        bits.append(scaffold.practice_nudge)
     return " ".join(bit for bit in bits if bit)
 
 
@@ -2670,7 +2668,9 @@ def _register_sign_kits() -> None:
                 "Speed up so you pass it sooner.",
             ),
             0,
-            sign.meaning,
+            f"The {sign.name} sign means: {sign.meaning.rstrip('.')}. Signs carry legal "
+            "meaning whether or not other traffic is around, so the other "
+            "choices are unsafe.",
         )
         _KITS[sign.name] = kit
         _KITS[sign.key] = kit
@@ -2699,7 +2699,8 @@ def _synthesize(title: str, body: str) -> SegmentKit:
         f"Which statement best matches “{title}”?",
         choices,
         0,
-        fact,
+        f"The lesson on “{title}” teaches: {fact} The other choices skip or "
+        "contradict that rule.",
     )
 
 
@@ -2731,8 +2732,15 @@ def quiz_from_slide(slide: CourseSlide, objective: LearningObjective) -> QuizQue
     choices = [str(c) for c in spec.get("choices") or []]
     if len(choices) < 2:
         return None
-    correct = int(spec.get("correct_index", 0))
-    correct = max(0, min(correct, len(choices) - 1))
+    # Curated kits author the answer first; shuffle per slide (seeded by the
+    # language-independent key) so the answer is not always option one.
+    choices, correct = arrange_choices(
+        choices,
+        int(spec.get("correct_index", 0)),
+        seed=f"quiz|{slide.slide_key or slide.title}",
+    )
+    if len(choices) < 2:
+        return None
     return QuizQuestion(
         question_id=str(uuid.uuid4()),
         objective_id=objective.objective_id,
@@ -2779,7 +2787,11 @@ def game_from_slide(slide: CourseSlide, objective_id: str = "") -> GameChallenge
         if len(gap_options) < 2 or not answer or not sentence:
             return None
         default_correct = gap_options.index(answer) if answer in gap_options else 0
-        gap_correct = max(0, min(int(spec.get("correct_index", default_correct)), len(gap_options) - 1))
+        gap_options, gap_correct = arrange_choices(
+            gap_options,
+            int(spec.get("correct_index", default_correct)),
+            seed=f"gap|{slide.slide_key or slide.title}",
+        )
         return GameChallenge(
             game_id=str(uuid.uuid4()),
             kind=GameKind.SPOT_GAP,
@@ -2796,8 +2808,13 @@ def game_from_slide(slide: CourseSlide, objective_id: str = "") -> GameChallenge
     options = [str(o) for o in (spec.get("options") or []) if str(o).strip()]
     if len(options) < 2:
         return None
-    correct = int(spec.get("correct_index", 0))
-    correct = max(0, min(correct, len(options) - 1))
+    options, correct = arrange_choices(
+        options,
+        int(spec.get("correct_index", 0)),
+        seed=f"game|{slide.slide_key or slide.title}",
+    )
+    if len(options) < 2:
+        return None
     return GameChallenge(
         game_id=str(uuid.uuid4()),
         kind=GameKind.MATCH_TERM,

@@ -24,7 +24,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .composition import CourseComposition
 from .extractors import ExtractedDoc
@@ -51,6 +51,341 @@ def _condense(text: str, *, max_sentences: int = 8, max_chars: int = 1200) -> st
     return body[:max_chars].rstrip()
 
 
+# Visual timeline carried on harvested slides. Sentence ranges stay on the cues;
+# a player compiles them to seconds once audio duration is known. This is a
+# plain dict so the shared package does not import Course Studio models.
+VISUAL_TIMELINE_VERSION = 1
+_TIMELINE_SOURCES = ("curated", "inferred", "explicit")
+
+# Text/diagram fallbacks for harvested slides, which have no authored media.
+# Names match the presentation-style registry; selection here stays local.
+_STYLE_BY_CATEGORY: Dict[str, str] = {
+    "introduction": "question_hook",
+    "history": "timeline",
+    "concept": "sentence_highlight",
+    "definition": "definition_reveal",
+    "example": "process_build",
+    "demo": "diagram_build",
+    "video": "diagram_build",
+    "exercise": "sentence_highlight",
+    "quiz": "sentence_highlight",
+    "qanda": "question_hook",
+    "discussion": "pros_cons",
+    "case_study": "story_sequence",
+    "summary": "recap_layout",
+    "recap": "recap_layout",
+    "project": "decision_path",
+    "assessment": "sentence_highlight",
+    "resources": "sentence_highlight",
+}
+_TEXT_DIAGRAM_STYLES: Tuple[str, ...] = (
+    "question_hook",
+    "story_sequence",
+    "before_after",
+    "timeline",
+    "cause_effect",
+    "process_build",
+    "decision_path",
+    "diagram_build",
+    "kinetic_keywords",
+    "type_on",
+    "sentence_highlight",
+    "quote_card",
+    "definition_reveal",
+    "pros_cons",
+    "recap_layout",
+)
+_DIAGRAM_STYLE_IDS = frozenset({
+    "diagram_build",
+    "process_build",
+    "timeline",
+    "cause_effect",
+    "decision_path",
+    "before_after",
+})
+_SECTION_CHECKPOINT_ACTIVITY = {
+    "exercise": "try_it",
+    "quiz": "quiz",
+    "assessment": "quiz",
+    "recap": "recap",
+}
+
+
+def narration_sentences(text: str) -> List[str]:
+    """Split narration into the sentence ranges visual cues attach to."""
+    parts = _SENTENCE_RE.split((text or "").strip())
+    return [part.strip() for part in parts if part.strip()]
+
+
+def _as_int(value, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_float(value) -> Optional[float]:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number != number:  # NaN
+        return None
+    return number
+
+
+def _json_safe(value):
+    """Copy a presentation payload into JSON-safe builtins."""
+    if value is None or isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return str(value)
+
+
+def infer_presentation_style_id(category: str, *, media_url: str = "") -> str:
+    """Deterministic text/diagram style. Media slides prefer an image style."""
+    cat = (category or "").strip().lower()
+    if media_url:
+        if cat in ("demo", "video"):
+            return "diagram_build"
+        return "annotated_image"
+    return _STYLE_BY_CATEGORY.get(cat, "sentence_highlight")
+
+
+def _avoid_adjacent_style(style_id: str, previous: str) -> str:
+    if not previous or style_id != previous:
+        return style_id
+    for candidate in _TEXT_DIAGRAM_STYLES:
+        if candidate != previous:
+            return candidate
+    return style_id
+
+
+def static_presentation_frame(
+    *,
+    title: str,
+    body: str,
+    style_id: str,
+    media_url: str = "",
+) -> Dict:
+    """Representative still frame. PPTX cannot store the animated timeline."""
+    lines = [line.strip() for line in (body or "").splitlines() if line.strip()]
+    primary = lines[0][:180] if lines else (title or "")[:180]
+    if media_url:
+        kind = "media"
+    elif style_id in _DIAGRAM_STYLE_IDS:
+        kind = "diagram"
+    else:
+        kind = "text"
+    frame: Dict = {
+        "kind": kind,
+        "title": title,
+        "primary_text": primary,
+        "style_id": style_id,
+    }
+    if media_url:
+        frame["media_url"] = media_url
+    return frame
+
+
+def cue_summary_text(cues: List[Dict]) -> str:
+    """One-line summary of sentence-ranged cues."""
+    bits: List[str] = []
+    for cue in cues:
+        if not isinstance(cue, dict):
+            continue
+        start = cue.get("sentence_start", 0)
+        end = cue.get("sentence_end", start)
+        span = str(start) if start == end else f"{start}-{end}"
+        action = str(cue.get("action") or "show")
+        summary = str(cue.get("summary") or "").strip()
+        bits.append(f"{span} {action}: {summary}" if summary else f"{span} {action}")
+    text = "; ".join(bits)
+    if len(text) > 1000:
+        return text[:997] + "..."
+    return text
+
+
+def _clamp_cue(
+    raw: Dict,
+    *,
+    sentence_count: int,
+    style_id: str,
+    sentences: List[str],
+) -> Dict:
+    start = max(0, _as_int(raw.get("sentence_start", 0), 0))
+    end = max(start, _as_int(raw.get("sentence_end", start), start))
+    if sentence_count:
+        start = min(start, sentence_count - 1)
+        end = min(max(start, end), sentence_count - 1)
+    layer = str(raw.get("layer") or ("diagram" if style_id in _DIAGRAM_STYLE_IDS else "text"))
+    summary = str(raw.get("summary") or "").strip()[:160]
+    if not summary and sentences and start < len(sentences):
+        summary = sentences[start][:160]
+    cue: Dict = {
+        "sentence_start": start,
+        "sentence_end": end,
+        "layer": layer,
+        "action": str(raw.get("action") or "show"),
+        "summary": summary,
+    }
+    start_s = _as_float(raw.get("start_s")) if "start_s" in raw else None
+    if start_s is not None and start_s >= 0:
+        cue["start_s"] = start_s
+    duration_s = _as_float(raw.get("duration_s")) if "duration_s" in raw else None
+    if duration_s is not None and duration_s > 0:
+        cue["duration_s"] = duration_s
+    return cue
+
+
+def build_visual_timeline(
+    narration: str,
+    *,
+    style_id: str,
+    title: str = "",
+    body: str = "",
+    media_url: str = "",
+    source: str = "inferred",
+    cues: Optional[List[Dict]] = None,
+    static_frame: Optional[Dict] = None,
+    duration_s: Optional[float] = None,
+) -> Dict:
+    """Serializable VisualTimeline v1. Cues keep inclusive sentence ranges."""
+    sentences = narration_sentences(narration)
+    if not sentences:
+        seed = (title or body or "").strip()
+        if seed:
+            sentences = [seed[:160]]
+    if cues is None:
+        raw_cues = []
+        for index, sentence in enumerate(sentences):
+            raw_cues.append({
+                "sentence_start": index,
+                "sentence_end": index,
+                "layer": "diagram" if style_id in _DIAGRAM_STYLE_IDS else "text",
+                "action": "enter" if index == 0 else "emphasis",
+                "summary": sentence[:160],
+            })
+    else:
+        raw_cues = [cue for cue in cues if isinstance(cue, dict)]
+    built = [
+        _clamp_cue(cue, sentence_count=len(sentences), style_id=style_id, sentences=sentences)
+        for cue in raw_cues
+    ]
+    if isinstance(static_frame, dict) and static_frame.get("kind"):
+        frame = _json_safe(static_frame)
+        frame.setdefault("style_id", style_id)
+    else:
+        frame = static_presentation_frame(
+            title=title, body=body, style_id=style_id, media_url=media_url,
+        )
+    timeline: Dict = {
+        "version": VISUAL_TIMELINE_VERSION,
+        "source": source if source in _TIMELINE_SOURCES else "inferred",
+        "style_id": style_id,
+        "static_frame": frame,
+        "cues": built,
+    }
+    measured = _as_float(duration_s) if duration_s is not None else None
+    if measured is not None and measured > 0:
+        timeline["duration_s"] = measured
+    summary = cue_summary_text(built)
+    if summary:
+        timeline["cue_summary"] = summary
+    return timeline
+
+
+def normalize_visual_timeline(
+    timeline: Dict,
+    *,
+    narration: str,
+    style_id: str,
+    title: str,
+    body: str,
+    media_url: str = "",
+) -> Dict:
+    """Clamp cue bounds and fill the v1 fields a player expects."""
+    raw = timeline if isinstance(timeline, dict) else {}
+    style = style_id or str(raw.get("style_id") or "") or "sentence_highlight"
+    cues = raw.get("cues")
+    duration = raw.get("duration_s")
+    return build_visual_timeline(
+        narration,
+        style_id=style,
+        title=title,
+        body=body,
+        media_url=media_url,
+        source=str(raw.get("source") or "inferred"),
+        cues=list(cues) if isinstance(cues, list) else None,
+        static_frame=raw.get("static_frame") if isinstance(raw.get("static_frame"), dict) else None,
+        duration_s=duration if duration is not None else None,
+    )
+
+
+def default_checkpoints(category: str, *, lesson_end: bool = False) -> List[Dict]:
+    """Section markers on activity slides; a lesson marker at the close."""
+    cat = (category or "").strip().lower()
+    rows: List[Dict] = []
+    activity = _SECTION_CHECKPOINT_ACTIVITY.get(cat)
+    if activity:
+        rows.append({"placement": "section", "activity": activity, "category": cat})
+    if lesson_end or cat == "summary":
+        rows.append({
+            "placement": "lesson",
+            "activity": "close",
+            "category": cat or "summary",
+        })
+    return rows
+
+
+def apply_harvest_presentation(slides: List["GeneratedSlide"]) -> None:
+    """Fill empty presentation fields. Explicit style, timeline, or checkpoints stay."""
+    previous = ""
+    last = len(slides) - 1
+    for index, slide in enumerate(slides):
+        timeline = slide.visual_timeline if isinstance(slide.visual_timeline, dict) else None
+        if not slide.presentation_style_id:
+            authored = str((timeline or {}).get("style_id") or "")
+            if authored:
+                slide.presentation_style_id = authored
+            else:
+                inferred = infer_presentation_style_id(
+                    slide.category, media_url=slide.media_url or "",
+                )
+                slide.presentation_style_id = _avoid_adjacent_style(inferred, previous)
+        if timeline:
+            slide.visual_timeline = normalize_visual_timeline(
+                timeline,
+                narration=slide.narration,
+                style_id=slide.presentation_style_id,
+                title=slide.title,
+                body=slide.body,
+                media_url=slide.media_url or "",
+            )
+        else:
+            slide.visual_timeline = build_visual_timeline(
+                slide.narration,
+                style_id=slide.presentation_style_id,
+                title=slide.title,
+                body=slide.body,
+                media_url=slide.media_url or "",
+            )
+        if slide.checkpoints is None:
+            slide.checkpoints = default_checkpoints(
+                slide.category, lesson_end=(index == last),
+            )
+        previous = slide.presentation_style_id
+
+
 @dataclass
 class GeneratedSlide:
     title: str
@@ -60,6 +395,11 @@ class GeneratedSlide:
     audio_path: Optional[str] = None
     media_url: Optional[str] = None
     media_kind: str = ""   # "audio" | "video" | ""
+    # Optional presentation plan. Empty values are omitted from JSON so older
+    # consumers and older exports keep the previous slide shape.
+    presentation_style_id: str = ""
+    visual_timeline: Optional[Dict] = None
+    checkpoints: Optional[List[Dict]] = None
 
     def to_dict(self) -> Dict:
         d = {"title": self.title, "body": self.body,
@@ -69,7 +409,55 @@ class GeneratedSlide:
         if self.media_url:
             d["media_url"] = self.media_url
             d["media_kind"] = self.media_kind
+        style_id = self.presentation_style_id
+        if not style_id and isinstance(self.visual_timeline, dict):
+            style_id = str(self.visual_timeline.get("style_id") or "")
+        if style_id:
+            d["presentation_style_id"] = style_id
+        if isinstance(self.visual_timeline, dict) and self.visual_timeline:
+            timeline = normalize_visual_timeline(
+                self.visual_timeline,
+                narration=self.narration,
+                style_id=style_id,
+                title=self.title,
+                body=self.body,
+                media_url=self.media_url or "",
+            )
+            d["visual_timeline"] = timeline
+            if timeline.get("cue_summary"):
+                d["cue_summary"] = timeline["cue_summary"]
+        if self.checkpoints:
+            d["checkpoints"] = [
+                _json_safe(item) if isinstance(item, dict) else {"marker": str(item)}
+                for item in self.checkpoints
+            ]
         return d
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "GeneratedSlide":
+        """Load a slide. Missing presentation keys stay empty (older JSON)."""
+        raw = data or {}
+        timeline = raw.get("visual_timeline")
+        if not isinstance(timeline, dict):
+            timeline = None
+        elif raw.get("cue_summary") and not timeline.get("cue_summary"):
+            timeline = dict(timeline)
+            timeline["cue_summary"] = raw["cue_summary"]
+        checkpoints = raw.get("checkpoints")
+        if not isinstance(checkpoints, list):
+            checkpoints = None
+        return cls(
+            title=str(raw.get("title") or ""),
+            body=str(raw.get("body") or ""),
+            narration=str(raw.get("narration") or ""),
+            category=str(raw.get("category") or ""),
+            audio_path=raw.get("audio_path") or None,
+            media_url=raw.get("media_url") or None,
+            media_kind=str(raw.get("media_kind") or ""),
+            presentation_style_id=str(raw.get("presentation_style_id") or ""),
+            visual_timeline=timeline,
+            checkpoints=checkpoints,
+        )
 
 
 @dataclass
@@ -157,6 +545,7 @@ def generate_course(
         subject=subject,
         profile=profile,
     )
+    apply_harvest_presentation(slides)
     comp = CourseComposition(subject=subject, course_id=cid)
     for slide in slides:
         comp.add_node(slide.category, subnode=slide.title)
@@ -204,7 +593,8 @@ def partition_course_into_lessons(
     ``max_slides`` slides (clamped to ``HARD_MAX_SLIDES_PER_LESSON``). Courses at
     or under the cap are returned unchanged as a single lesson. Longer decks are
     balanced across ``ceil(n / cap)`` lessons titled "<title> — Lesson i of N",
-    each with its own course_id and rebuilt composition.
+    each with its own course_id and rebuilt composition. Slide objects are reused,
+    so presentation style, visual timeline, and checkpoint metadata stay put.
     """
     cap = max(1, min(int(max_slides or MAX_SLIDES_PER_LESSON), HARD_MAX_SLIDES_PER_LESSON))
     slides = course.slides
@@ -273,6 +663,10 @@ HOW COURSE CONTENT IS GENERATED FROM INPUT DATA
             try-it checkpoints, demo-video beats, recaps, closing CTA. Speaker
             notes use presentation-skills enrichment.
             (aoep_shared.harvest.pedagogy)
+            Each slide may also carry presentation_style_id, a visual timeline
+            v1 (sentence-ranged cues, cue summary, static frame), and checkpoint
+            markers. Text and diagram styles are the fallback without media.
+            (aoep_shared.harvest.generate)
 4. CLASSIFY Each slide maps to a pedagogical NODE category (introduction,
             history, concept, example, video, quiz, q&a, summary, ...) by
             keyword cues; the slide title is recorded as that node's SUB-NODE

@@ -797,6 +797,7 @@ class LiveRoomStore:
         slide_storyboard_profile_mode: str = "mixed",
         slide_storyboard_source_language: str = "en",
         slide_storyboard_translation_ready: bool = False,
+        slide_index: int = 0,
         country: str = "",
         state: str = "",
         city: str = "",
@@ -859,7 +860,7 @@ class LiveRoomStore:
             title=title,
             room_size=room_size,
             slide=SlideSync(
-                index=0,
+                index=max(0, int(slide_index or 0)),
                 title=slide_title,
                 body=slide_body,
                 narration=slide_narration,

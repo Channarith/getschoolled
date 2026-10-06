@@ -36,6 +36,22 @@ def test_health_and_studio_page():
     assert 'id="teach-lang-stage"' in page.text
     assert 'aria-label="Lesson language"' in page.text
     assert 'id="btn-fullscreen"' in page.text
+    assert 'id="student-cam"' in page.text
+    assert 'id="student-cam-hide"' in page.text
+    assert "setStudentCamHidden" in page.text
+    assert "ensureStudentCamera" in page.text
+    assert "Camera stays on." in page.text
+    assert "/api/studio/learn/camera" in page.text
+    assert "/api/studio/learn/check" in page.text
+    assert "submitLearningCheck" in page.text
+    assert "learningHold" in page.text
+    assert "cameraSessionId" in page.text
+    assert "applyAttentionShift" in page.text
+    assert 'id="attention-aside"' in page.text
+    assert "is-awake" in page.text
+    assert "if (checkpoint.due)" in page.text
+    assert "checkpoint-skip" not in page.text
+    assert "Continue without check" not in page.text
     assert 'id="btn-captions"' in page.text
     assert 'class="teach-stage captions-off"' in page.text
     assert 'aria-pressed="false"' in page.text

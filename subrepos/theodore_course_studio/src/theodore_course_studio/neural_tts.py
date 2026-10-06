@@ -16,6 +16,8 @@ import asyncio
 import hashlib
 import os
 import re
+import shutil
+import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -204,23 +206,71 @@ def split_for_speech(text: str, limit: int = 1400) -> list[str]:
         return [line]
     parts: list[str] = []
     buf = ""
-    for sentence in re.split(r"(?<=[.!?])\s+", line):
+    for sentence in re.split(r"(?<=[.!?。！？؟។])\s*", line):
         sentence = sentence.strip()
         if not sentence:
             continue
         while len(sentence) > limit:
-            parts.append(sentence[:limit].rstrip())
-            sentence = sentence[limit:].strip()
+            split_at = sentence.rfind(" ", 0, limit + 1)
+            if split_at < limit // 2:
+                split_at = limit
+            parts.append(sentence[:split_at].rstrip())
+            sentence = sentence[split_at:].strip()
         if not sentence:
             continue
         if buf and len(buf) + 1 + len(sentence) > limit:
             parts.append(buf)
             buf = sentence
         else:
-            buf = f"{buf} {sentence}".strip()
+            separator = "" if buf.endswith(("。", "！", "？", "។")) else " "
+            buf = f"{buf}{separator}{sentence}".strip()
     if buf:
         parts.append(buf)
     return parts
+
+
+def stitch_mp3_chunks(chunks: list[bytes]) -> bytes:
+    """Decode and re-encode chunks as one continuous, browser-safe MP3."""
+    if not chunks:
+        raise TTSUnavailable("no audio chunks to stitch")
+    if len(chunks) == 1:
+        return chunks[0]
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise TTSUnavailable("ffmpeg is required to stitch long narration")
+    with tempfile.TemporaryDirectory() as scratch:
+        root = Path(scratch)
+        inputs: list[str] = []
+        for index, data in enumerate(chunks):
+            path = root / f"chunk-{index:04d}.mp3"
+            path.write_bytes(data)
+            inputs.extend(["-i", str(path)])
+        output = root / "narration.mp3"
+        filters = "".join(f"[{index}:a]" for index in range(len(chunks)))
+        command = [
+            ffmpeg,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            *inputs,
+            "-filter_complex",
+            f"{filters}concat=n={len(chunks)}:v=0:a=1[out]",
+            "-map",
+            "[out]",
+            "-codec:a",
+            "libmp3lame",
+            "-q:a",
+            "3",
+            "-write_xing",
+            "1",
+            str(output),
+        ]
+        proc = subprocess.run(command, capture_output=True, text=True, timeout=120)
+        if proc.returncode != 0 or not output.is_file() or output.stat().st_size <= 0:
+            detail = (proc.stderr or proc.stdout or "unknown ffmpeg error").strip()
+            raise TTSUnavailable(f"could not stitch narration: {detail}")
+        return output.read_bytes()
 
 
 def synthesize_course(
@@ -239,10 +289,27 @@ def synthesize_course(
     chunks = split_for_speech(text)
     if not chunks:
         raise TTSUnavailable("nothing to speak")
-    return b"".join(
+    percent = rate_percent(rate)
+    combined_path = clip_path(text, voice=f"course:{voice}", rate=percent)
+    try:
+        if combined_path.is_file() and combined_path.stat().st_size > 0:
+            return combined_path.read_bytes()
+    except OSError:
+        pass
+    rendered = [
         synthesize(chunk, language, rate=rate, gender=gender, voice=voice)
         for chunk in chunks
-    )
+    ]
+    audio = stitch_mp3_chunks(rendered)
+    target = cacheable_path(combined_path)
+    if target is not None:
+        partial = target.with_suffix(".part")
+        try:
+            partial.write_bytes(audio)
+            partial.replace(target)
+        except OSError:
+            partial.unlink(missing_ok=True)
+    return audio
 
 
 def synthesize(
@@ -306,5 +373,6 @@ def status() -> dict[str, object]:
         "languages": len(VOICES),
         "cached_clips": clips,
         "cache_dir": str(cache_dir()),
+        "gapless_stitch": bool(shutil.which("ffmpeg")),
         "voices": {code: pair[0] for code, pair in VOICES.items()},
     }

@@ -208,6 +208,47 @@ def test_teach_pause_and_resume_persists(tmp_path):
     assert "Resumed" in resumed["resume_message"]
 
 
+def test_teach_in_progress_resumes_without_explicit_pause():
+    """Closing a lesson mid-way still reopens that slide for the same learner."""
+    builder = CourseBuilder()
+    course = build_cert_course(lesson_id="ca-dmv-sharing")
+    builder.save_course(course)
+    engine = TeachEngine(builder)
+    engine.start(
+        session_id="live",
+        course_id=course.course_id,
+        learner_id="stu:profile-1",
+        use_voice_agent=False,
+    )
+    engine.advance("live")
+    engine.advance("live")
+    place = engine.get_checkpoint("stu:profile-1", course.course_id)
+    assert place is not None and place.status == "in_progress"
+    assert place.path_pos >= 1
+
+    restarted = TeachEngine(builder)
+    resumed = restarted.start(
+        session_id="live-2",
+        course_id=course.course_id,
+        learner_id="stu:profile-1",
+        use_voice_agent=False,
+        resume=True,
+    )
+    assert resumed["resumed"] is True
+    assert resumed["path_pos"] == place.path_pos
+    assert "profile" in resumed["resume_message"]
+
+    other = restarted.start(
+        session_id="someone-else",
+        course_id=course.course_id,
+        learner_id="stu:profile-2",
+        use_voice_agent=False,
+        resume=True,
+    )
+    assert other.get("resumed") is not True
+    assert other["path_pos"] == 0
+
+
 def test_cert_slides_include_animated_storyboards():
     """Cert lessons with catalog storyboards ship inline SVG for studio/web players."""
     course = build_cert_course(lesson_id="ca-dmv-sharing")

@@ -307,6 +307,7 @@ class TeachingSessions:
         student_id: Optional[str] = None,
         session_budget_min: Optional[int] = None,
         profile_score: str = "",
+        start_slide: int = 0,
     ) -> SessionState:
         lesson = self.curriculum.get(lesson_id)
         if lesson is None:
@@ -331,6 +332,8 @@ class TeachingSessions:
             planned_duration_min=planned_duration,
             slide_indices=slide_indices,
         )
+        last = (len(slide_indices) - 1) if slide_indices else (len(lesson.slides) - 1)
+        session.current_slide = max(0, min(int(start_slide or 0), max(0, last)))
         self.store.save(session)
         # One persistent Director + counters per session (the live loop's state).
         self._directors[session.session_id] = Director()

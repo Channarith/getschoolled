@@ -7,6 +7,11 @@ ppt_trainer reader) natively reads ``.pptx``/``.pdf``. This module is the bridge
                                (one slide per generated slide: title + bullet
                                body, with the harvester narration carried in the
                                slide's SPEAKER NOTES so Part 2 can reuse it).
+                               Optional presentation metadata is appended as
+                               ``[Presentation style]`` and ``[Visual timeline v1]``
+                               blocks. Slides without that metadata keep the
+                               legacy notes text. The on-slide frame is static;
+                               cue timing stays in the notes for the web player.
   - ``export_course_json``    -> the rich course package (slides + composition
                                matrix + PCS score + tags) for the meeting layer.
   - ``export_course_package`` -> writes both into one directory and returns a
@@ -50,6 +55,72 @@ def resolve_course_pptx(course_json: str | Path) -> Optional[Path]:
         return candidate
     pptxs = sorted(path.parent.glob("*.pptx"))
     return pptxs[0] if len(pptxs) == 1 else None
+
+
+def presentation_speaker_notes(slide) -> List[str]:
+    """``[Presentation style]`` and ``[Visual timeline v1]`` speaker-note blocks.
+
+    Returns an empty list when the slide has none of the optional presentation
+    fields, so a re-export of an older slide matches the legacy notes.
+    Checkpoint markers are lines inside the style block. The timeline block
+    carries the cue summary and sentence ranges; ``static_frame`` is the still
+    PowerPoint can show.
+    """
+    data = slide.to_dict()
+    timeline = data.get("visual_timeline") if isinstance(data.get("visual_timeline"), dict) else {}
+    style_id = str(data.get("presentation_style_id") or timeline.get("style_id") or "")
+    frame = timeline.get("static_frame") if isinstance(timeline.get("static_frame"), dict) else {}
+    checkpoints = data.get("checkpoints") if isinstance(data.get("checkpoints"), list) else []
+    blocks: List[str] = []
+
+    if style_id or frame or checkpoints:
+        lines = ["[Presentation style]"]
+        if style_id:
+            lines.append(f"id: {style_id}")
+        kind = str(frame.get("kind") or "")
+        if kind:
+            lines.append(f"static_frame: {kind}")
+        primary = str(frame.get("primary_text") or "").strip()
+        if primary:
+            lines.append(f"primary: {primary}")
+        media = str(frame.get("media_url") or "").strip()
+        if media:
+            lines.append(f"media: {media}")
+        for item in checkpoints:
+            if not isinstance(item, dict):
+                lines.append(f"checkpoint: {item}")
+                continue
+            placement = str(item.get("placement") or "section")
+            activity = str(item.get("activity") or item.get("marker") or "marker")
+            lines.append(f"checkpoint: {placement}:{activity}")
+        blocks.append("\n".join(lines))
+
+    if timeline:
+        version = timeline.get("version") or 1
+        lines = [f"[Visual timeline v{version}]"]
+        source = str(timeline.get("source") or "").strip()
+        if source:
+            lines.append(f"source: {source}")
+        if style_id:
+            lines.append(f"style_id: {style_id}")
+        summary = str(data.get("cue_summary") or timeline.get("cue_summary") or "").strip()
+        if summary:
+            lines.append(f"cue_summary: {summary}")
+        for cue in timeline.get("cues") or []:
+            if not isinstance(cue, dict):
+                continue
+            start = cue.get("sentence_start", 0)
+            end = cue.get("sentence_end", start)
+            span = str(start) if start == end else f"{start}-{end}"
+            action = str(cue.get("action") or "show")
+            layer = str(cue.get("layer") or "text")
+            bit = f"{span} {action} {layer}"
+            cue_summary = str(cue.get("summary") or "").strip()
+            if cue_summary:
+                bit += f" | {cue_summary}"
+            lines.append(bit)
+        blocks.append("\n".join(lines))
+    return blocks
 
 
 def _bullets(body: str, *, max_bullets: int = 8) -> List[str]:
@@ -118,6 +189,9 @@ def export_pptx(course: GeneratedCourse, path: str | Path) -> Path:
             notes_parts.append(f"[Slide type: {slide.category}]")
         if len(slide.body) > 400:
             notes_parts.append(f"[Full reference text]\n{slide.body}")
+        # Appended after the legacy note parts so older decks (no style, no
+        # timeline, no checkpoints) keep the same speaker-note text.
+        notes_parts.extend(presentation_speaker_notes(slide))
         if notes_parts:
             notes = s.notes_slide.notes_text_frame
             notes.text = "\n\n".join(notes_parts)

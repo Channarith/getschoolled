@@ -45,6 +45,47 @@ def test_profiles_are_isolated_per_account():
     assert any(s["display_name"] == "Only Me" for s in students)
 
 
+def test_course_progress_follows_profile_then_account():
+    h = _auth()
+    kid = client.post("/students", headers=h, json={"display_name": "Kid Resume"}).json()
+    saved = client.post(
+        f"/students/{kid['id']}/course-progress",
+        headers=h,
+        json={"lesson_id": "intro-photosynthesis", "slide_index": 4, "slide_title": "Leaves"},
+    )
+    assert saved.status_code == 200
+    body = saved.json()
+    assert body["source"] == "profile"
+    assert body["progress"]["slide_index"] == 4
+
+    again = client.get(
+        f"/students/{kid['id']}/course-progress",
+        headers=h,
+        params={"lesson_id": "intro-photosynthesis"},
+    ).json()
+    assert again["progress"]["slide_title"] == "Leaves"
+    assert again["source"] == "profile"
+
+    account = client.post(
+        "/account/course-progress",
+        headers=h,
+        json={"lesson_id": "other-lesson", "slide_index": 2, "status": "in_progress"},
+    ).json()
+    assert account["source"] == "account"
+    assert account["progress"]["slide_index"] == 2
+    # A profile with no row of its own still sees the account place.
+    fallback = client.get(
+        f"/students/{kid['id']}/course-progress",
+        headers=h,
+        params={"lesson_id": "other-lesson"},
+    ).json()
+    assert fallback["source"] == "account"
+    assert fallback["progress"]["slide_index"] == 2
+    assert client.post(
+        "/account/course-progress", headers=h, json={"slide_index": 1},
+    ).status_code == 422
+
+
 def test_unknown_student_404():
     h = _auth()
     assert client.get("/students/ghost", headers=h).status_code == 404

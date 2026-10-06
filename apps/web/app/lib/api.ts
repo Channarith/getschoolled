@@ -654,6 +654,109 @@ export async function listStudents(): Promise<{ students: StudentProfile[] }> {
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/students`, { headers: authHeaders(), cache: "no-store" }));
 }
 
+export type CourseProgress = {
+  lesson_id: string;
+  course_id: string;
+  slide_index: number;
+  slide_title: string;
+  status: string;
+  updated_at: number;
+};
+
+const ACCOUNT_KEY = "aoep_account_id";
+
+function rememberLearner(accountId?: string, studentId?: string): void {
+  try {
+    if (accountId) localStorage.setItem(ACCOUNT_KEY, accountId);
+    if (studentId) localStorage.setItem(STUDENT_KEY, studentId);
+  } catch {
+    /* private mode */
+  }
+}
+
+/** Save the slide this account or student profile should reopen. */
+export async function saveCourseProgress(args: {
+  lessonId: string;
+  slideIndex: number;
+  slideTitle?: string;
+  courseId?: string;
+  status?: string;
+  studentId?: string | null;
+}): Promise<CourseProgress | null> {
+  if (!getToken() || !args.lessonId) return null;
+  const body = {
+    lesson_id: args.lessonId,
+    course_id: args.courseId || "",
+    slide_index: Math.max(0, Math.floor(args.slideIndex || 0)),
+    slide_title: args.slideTitle || "",
+    status: args.status || "in_progress",
+  };
+  const path = args.studentId
+    ? `/students/${encodeURIComponent(args.studentId)}/course-progress`
+    : "/account/course-progress";
+  try {
+    const saved = await jsonOrThrow<{ progress: CourseProgress | null }>(
+      await fetch(`${IDENTITY_URL}${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify(body),
+      }),
+    );
+    return saved.progress ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadCourseProgress(
+  lessonId: string,
+  studentId?: string | null,
+): Promise<CourseProgress | null> {
+  if (!getToken() || !lessonId) return null;
+  const q = `?lesson_id=${encodeURIComponent(lessonId)}`;
+  const path = studentId
+    ? `/students/${encodeURIComponent(studentId)}/course-progress${q}`
+    : `/account/course-progress${q}`;
+  try {
+    const saved = await jsonOrThrow<{ progress: CourseProgress | null }>(
+      await fetch(`${IDENTITY_URL}${path}`, { headers: authHeaders(), cache: "no-store" }),
+    );
+    return saved.progress ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Slide to reopen for this lesson. Profile place wins; otherwise the account place. */
+export async function resumeSlideForLesson(
+  lessonId: string,
+  studentId?: string | null,
+): Promise<{ studentId: string; slideIndex: number }> {
+  let sid = (studentId || "").trim();
+  if (getToken()) {
+    try {
+      const me = await getMe();
+      rememberLearner(me.id, sid || undefined);
+    } catch {
+      /* still try the profile list */
+    }
+    if (!sid) {
+      try {
+        const listed = await listStudents();
+        sid = listed.students[0]?.id || "";
+        if (sid) rememberLearner(undefined, sid);
+      } catch {
+        sid = "";
+      }
+    }
+  }
+  const saved = await loadCourseProgress(lessonId, sid || null);
+  const slide = saved && saved.status !== "completed"
+    ? Math.max(0, Number(saved.slide_index) || 0)
+    : 0;
+  return { studentId: sid, slideIndex: slide };
+}
+
 export async function createStudent(displayName: string, ageBand = "adult", interests: string[] = []):
   Promise<StudentProfile> {
   return jsonOrThrow(
@@ -1404,7 +1507,8 @@ export async function getLessonAccreditation(
 export async function startSession(
   lessonId: string,
   classType: string,
-  studentId?: string
+  studentId?: string,
+  startSlide = 0,
 ): Promise<SessionView> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
@@ -1414,6 +1518,7 @@ export async function startSession(
         lesson_id: lessonId,
         class_type: classType,
         student_id: studentId ?? null,
+        start_slide: Math.max(0, Math.floor(startSlide || 0)),
       }),
     })
   );
@@ -2136,12 +2241,21 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
 
 /** Open a private 1:1 (AI + you) Salareen live room for a lesson and return its
  * id. Reuses the group-class live-room UI, just sized for two seats. */
-export async function startSoloLiveRoom(lessonId: string, creatorName = ""): Promise<{ room_id: string }> {
+export async function startSoloLiveRoom(
+  lessonId: string,
+  creatorName = "",
+  opts?: { startSlide?: number; studentId?: string },
+): Promise<{ room_id: string }> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/solo`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ lesson_id: lessonId, creator_name: creatorName }),
+      body: JSON.stringify({
+        lesson_id: lessonId,
+        creator_name: creatorName,
+        student_id: opts?.studentId || null,
+        start_slide: Math.max(0, Math.floor(opts?.startSlide || 0)),
+      }),
     })
   );
 }

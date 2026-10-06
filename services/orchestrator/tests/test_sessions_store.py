@@ -122,6 +122,18 @@ def test_shared_store_lets_a_second_pod_serve_the_session():
     assert len(pod_a.get_session(sid).history) == 2
 
 
+def test_start_session_resumes_at_saved_slide():
+    sessions = TeachingSessions(_factory(), store=InMemorySessionStore())
+    fresh = sessions.start_session(LESSON, "solo")
+    count = len(sessions.lesson_for(fresh.session_id).slides)
+    want = min(2, count - 1)
+    state = sessions.start_session(LESSON, "solo", student_id="stu-1", start_slide=want)
+    assert state.current_slide == want
+    assert sessions.current_slide(state.session_id).index == want
+    clamped = sessions.start_session(LESSON, "solo", start_slide=10_000)
+    assert clamped.current_slide == count - 1
+
+
 def test_separate_in_memory_stores_reproduce_the_404():
     """Without a shared store, a second pod doesn't know the session (the bug)."""
     pod_a = TeachingSessions(_factory(), store=InMemorySessionStore())

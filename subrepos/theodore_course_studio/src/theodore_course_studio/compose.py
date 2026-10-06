@@ -231,7 +231,7 @@ def default_trial_segments() -> list[CourseSegmentSnippet]:
         CourseSegmentSnippet(
             kind=SegmentKind.GAME,
             title="Play a quick game",
-            body="Match the term to lock in the idea.",
+            body="Match the term to the idea you just learned.",
             activity="Tap the best answer or say it aloud.",
         ),
         CourseSegmentSnippet(

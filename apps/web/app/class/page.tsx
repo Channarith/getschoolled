@@ -26,6 +26,8 @@ import {
   recordAssessmentAttempt,
   recordAssessmentPass,
   reportIssue,
+  resumeSlideForLesson,
+  saveCourseProgress,
   setEnrollmentStatus,
   startAssessmentCheckpoint,
   startSession,
@@ -413,9 +415,21 @@ export default function ClassPage() {
     setFinish(null);
     setBusy(true);
     try {
-      const v = await startSession(lessonId, classType, getStudentId());
+      const place = await resumeSlideForLesson(lessonId, studentProfile?.id);
+      const v = await startSession(
+        lessonId,
+        classType,
+        place.studentId || getStudentId(),
+        place.slideIndex,
+      );
       setView(v);
       setSlide(v.slide);
+      void saveCourseProgress({
+        lessonId,
+        slideIndex: v.slide.index,
+        slideTitle: v.slide.title,
+        studentId: place.studentId || null,
+      });
       setChat([]);
       setQuiz(null);
       setAssessmentRun(null);
@@ -565,7 +579,11 @@ export default function ClassPage() {
       setError("");
       setBusy(true);
       try {
-        const { room_id } = await startSoloLiveRoom(lessonId);
+        const place = await resumeSlideForLesson(lessonId, studentProfile?.id);
+        const { room_id } = await startSoloLiveRoom(lessonId, "", {
+          startSlide: place.slideIndex,
+          studentId: place.studentId,
+        });
         router.push(`/live-room/${encodeURIComponent(room_id)}`);
         return;
       } catch (e) {
@@ -585,6 +603,12 @@ export default function ClassPage() {
     try {
       const s = await advance(view.session.session_id);
       setSlide(s);
+      void saveCourseProgress({
+        lessonId,
+        slideIndex: s.index,
+        slideTitle: s.title,
+        studentId: studentProfile?.id || null,
+      });
       await maybeOpenDueCheckpoint(s.index, false);
     } catch (e) {
       setError(String(e));

@@ -73,6 +73,16 @@ class ProfileShareGrant(BaseModel):
     revoked: bool = False
 
 
+class LessonProgress(BaseModel):
+    """The slide a learner last reached in one lesson."""
+    lesson_id: str = ""
+    course_id: str = ""
+    slide_index: int = 0
+    slide_title: str = ""
+    status: str = "in_progress"  # in_progress | paused | completed
+    updated_at: float = 0.0
+
+
 class StudentProfile(BaseModel):
     """A learner sub-profile under an account (one account, many students -
     like Netflix profiles). Each carries its own mastery + history so Foresight
@@ -120,6 +130,8 @@ class StudentProfile(BaseModel):
     voice_name_sample_mime: str = ""      # MIME type: "audio/webm" | "audio/wav" | "audio/mpeg"
     voice_name_text: str = ""            # the name the student said (typed or transcribed)
     voice_enrolled_at: Optional[float] = None  # Unix timestamp of enrollment
+    # Where this learner left each lesson. Keyed by lesson_id (or course_id).
+    course_progress: Dict[str, "LessonProgress"] = Field(default_factory=dict)
 
 
 class BillingAddress(BaseModel):
@@ -177,6 +189,8 @@ class Account(BaseModel):
     card_last4: str = ""
     billing_validated_at: Optional[float] = None
     enrollments: Dict[str, Enrollment] = Field(default_factory=dict)
+    # Lesson place for the account itself, used when no student profile is selected.
+    course_progress: Dict[str, "LessonProgress"] = Field(default_factory=dict)
     # Learner sub-profiles (one account, multiple students).
     students: Dict[str, StudentProfile] = Field(default_factory=dict)
     profile_share_grants: Dict[str, ProfileShareGrant] = Field(default_factory=dict)
@@ -578,6 +592,70 @@ class AccountStore:
     def set_avatar(self, account_id: str, avatar_id: str) -> Account:
         from aoep_shared.avatars import resolve_avatar_id
         return self.patch_account(account_id, avatar_id=resolve_avatar_id(avatar_id))
+
+    def save_course_progress(
+        self,
+        account_id: str,
+        *,
+        lesson_id: str = "",
+        course_id: str = "",
+        slide_index: int = 0,
+        slide_title: str = "",
+        status: str = "in_progress",
+        student_id: Optional[str] = None,
+    ) -> "LessonProgress":
+        """Remember the slide a learner was on.
+
+        A student profile keeps its own place. With no profile, the place is
+        stored on the account so the same person can resume on another device.
+        """
+        key = (lesson_id or course_id or "").strip()[:120]
+        if not key:
+            raise ValueError("lesson_id or course_id is required")
+        allowed = {"in_progress", "paused", "completed"}
+        row = LessonProgress(
+            lesson_id=(lesson_id or key).strip()[:120],
+            course_id=(course_id or "").strip()[:120],
+            slide_index=max(0, min(10000, int(slide_index or 0))),
+            slide_title=(slide_title or "").strip()[:200],
+            status=status if status in allowed else "in_progress",
+            updated_at=time.time(),
+        )
+        acct = self._by_id[account_id]
+        if student_id:
+            prof = acct.students.get(student_id)
+            if prof is None:
+                raise KeyError(student_id)
+            prof.course_progress[key] = row
+        else:
+            acct.course_progress[key] = row
+        self._persist()
+        return row
+
+    def get_course_progress(
+        self,
+        account_id: str,
+        *,
+        lesson_id: str = "",
+        course_id: str = "",
+        student_id: Optional[str] = None,
+    ) -> tuple[Optional["LessonProgress"], str]:
+        """Return (progress, source) where source is profile, account, or empty."""
+        key = (lesson_id or course_id or "").strip()
+        if not key:
+            return None, ""
+        acct = self._by_id[account_id]
+        if student_id:
+            prof = acct.students.get(student_id)
+            if prof is None:
+                raise KeyError(student_id)
+            row = prof.course_progress.get(key)
+            if row is not None:
+                return row, "profile"
+        row = acct.course_progress.get(key)
+        if row is not None:
+            return row, "account"
+        return None, ""
 
     def set_student_avatar(self, account_id: str, student_id: str, avatar_id: str) -> StudentProfile:
         from aoep_shared.avatars import resolve_avatar_id
