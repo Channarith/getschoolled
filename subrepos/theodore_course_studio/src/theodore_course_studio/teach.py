@@ -32,6 +32,7 @@ from .engagement import (
     grade_game,
     media_suggestions_for_slide,
     pick_game_for_slide,
+    pick_visual_game_for_slide,
 )
 from .generate import CourseBuilder
 from .knowledge import (
@@ -41,6 +42,7 @@ from .knowledge import (
     next_slide_indexes,
     objectives_from_slides,
 )
+from .lesson_locale import localize_lesson, localize_quiz
 from .narration_runtime import clip_hints
 from .profile_adapt import adapt_slide
 from .quality_telemetry import StudioTelemetryStore, get_telemetry
@@ -347,6 +349,7 @@ class TeachEngine:
         )
         course, _ = self._require(session_id)
         quiz = build_summary_quiz(course.slides, gap_objs, max_questions=max_questions)
+        localize_quiz(quiz, session.language)
         session.summary_quiz = quiz
         return quiz
 
@@ -375,10 +378,21 @@ class TeachEngine:
         self._persist_live(session, status="in_progress")
         return result
 
-    def game_for_current(self, session_id: str) -> GameChallenge:
+    def game_for_current(self, session_id: str, *, prefer_visual: bool = False) -> GameChallenge:
         course, session = self._require(session_id)
         slide = course.slides[session.path[session.path_pos]]
         objective = self._objective_for_slide(session, slide.index)
+        # Checkpoint play prefers a labeled picture challenge. Slides with an
+        # authored game spec keep that spec, and the plain rotation is unchanged
+        # when the caller does not ask for a picture challenge.
+        authored = isinstance(slide.game_spec, dict) and bool(slide.game_spec)
+        if prefer_visual and not authored:
+            visual = pick_visual_game_for_slide(
+                slide, objective.objective_id, rotate_index=session.game_rotation
+            )
+            if visual is not None:
+                session.game_rotation += 1
+                return visual
         game = pick_game_for_slide(
             slide, objective.objective_id, rotate_index=session.game_rotation
         )
@@ -576,11 +590,19 @@ class TeachEngine:
         voice_meta = None
         spoken = turn.narration
         speak_lang = self._spoken_language(course, session, slide)
+        translation_source = course.profile_adaptations.get("translation_source")
+        translation_note = course.profile_adaptations.get("translation_note", "")
         # Early-learning narration is carefully written to a tiny vocabulary and
         # must not be paraphrased into harder language. xAI remains available for
         # the learner's explicit "Ask Theodore" questions.
-        if session.use_voice_agent and course.audience == "general":
-            # Enrich spoken line via xAI / offline fallback (text only).
+        # Only rewrite English slides in English. A failed voice call used to
+        # replace Khmer (and every other language) with an English holding line.
+        if (
+            session.use_voice_agent
+            and course.audience == "general"
+            and session.language == "en"
+            and speak_lang == "en"
+        ):
             voice = self._voice.present_slide(
                 session_id=session.session_id,
                 title=turn.title,
@@ -591,6 +613,28 @@ class TeachEngine:
             spoken = voice.message
             speak_lang = _voice_turn_language(voice, speak_lang)
             voice_meta = voice.model_dump(mode="json")
+        localized = localize_lesson(
+            title=turn.title,
+            body=turn.display_body or spoken,
+            narration=spoken,
+            activity=slide.activity_prompt or "",
+            examples=list(slide.examples or []),
+            source_language=speak_lang,
+            target_language=session.language,
+        )
+        activity_prompt = slide.activity_prompt or ""
+        examples = list(slide.examples or [])
+        if localized.applied:
+            spoken = localized.narration
+            speak_lang = session.language
+            turn.title = localized.title or turn.title
+            turn.display_body = localized.body or spoken
+            turn.narration = spoken
+            turn.spoken_language = speak_lang
+            activity_prompt = localized.activity or activity_prompt
+            examples = localized.examples or examples
+            translation_source = localized.provider or "translated"
+            translation_note = f"Spoken in the selected language ({speak_lang})."
         if course.audience != "general":
             voice_meta = {
                 "provider": (
@@ -645,28 +689,27 @@ class TeachEngine:
             )
         is_lesson_end = session.path_pos == len(session.path) - 1
         is_section_end = "section_end" in slide.tags or "checkpoint" in slide.tags
+        has_quiz_bank = any(
+            course.slides[i].quiz_spec for i in session.path[: session.path_pos + 1]
+        )
+        if is_lesson_end and has_quiz_bank:
+            checkpoint_activity = "quiz"
+        elif is_lesson_end or is_section_end:
+            checkpoint_activity = "game"
+        else:
+            checkpoint_activity = "reflection"
         activity_checkpoint = {
             "due": bool(is_lesson_end or is_section_end),
             "scope": "lesson" if is_lesson_end else "section",
-            "kind": (
-                "summary_quiz"
-                if any(
-                    course.slides[i].quiz_spec
-                    for i in session.path[: session.path_pos + 1]
-                )
-                else "reflection"
-            ),
+            "activity": checkpoint_activity,
+            "kind": "summary_quiz" if checkpoint_activity == "quiz" else "reflection",
             "prompt": (
                 "Now that this section is complete, check what you remember."
                 if is_section_end and not is_lesson_end
                 else "Before finishing the lesson, check what you remember."
             )
             if speak_lang == "en"
-            else str(
-                slide.quiz_spec.get("prompt")
-                or slide.activity_prompt
-                or turn.title
-            ),
+            else str(activity_prompt or turn.title),
         }
         return {
             "turn": turn_dump,
@@ -675,8 +718,8 @@ class TeachEngine:
             "path_pos": session.path_pos,
             "language": session.language,
             "spoken_language": speak_lang,
-            "translation_source": course.profile_adaptations.get("translation_source"),
-            "translation_note": course.profile_adaptations.get("translation_note", ""),
+            "translation_source": translation_source,
+            "translation_note": translation_note,
             "disclaimer": course.profile_adaptations.get("disclaimer", ""),
             "jurisdiction": course.profile_adaptations.get("jurisdiction", ""),
             "objective": objective.model_dump(mode="json"),
@@ -684,8 +727,8 @@ class TeachEngine:
             "storyboard_svg": slide.storyboard_svg or "",
             "storyboard_concept": slide.storyboard_concept or "",
             "storyboard_scene_id": slide.storyboard_scene_id or "",
-            "activity_prompt": slide.activity_prompt,
-            "examples": list(slide.examples or []),
+            "activity_prompt": activity_prompt,
+            "examples": examples,
             "modalities": list(slide.modalities or []),
             "learning_kit": {
                 "modalities": list(slide.modalities or []),

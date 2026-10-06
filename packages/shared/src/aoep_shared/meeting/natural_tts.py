@@ -146,17 +146,17 @@ def synthesize_neural(
     narration = (text or "").strip()
     if not narration:
         return False
-    import edge_tts
+    from aoep_shared.edge_speech import render_edge_mp3
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     v = neural_voice_for(language, voice)
 
     async def _run() -> None:
-        comm = edge_tts.Communicate(
+        audio = await render_edge_mp3(
             narration, voice=v, rate=rate or "+0%", pitch=pitch or "+0Hz",
         )
-        await comm.save(str(out_path))
+        out_path.write_bytes(audio)
 
     try:
         asyncio.run(_run())

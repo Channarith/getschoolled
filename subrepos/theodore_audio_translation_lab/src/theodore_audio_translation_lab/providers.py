@@ -38,6 +38,33 @@ class ProviderUnavailable(RuntimeError):
 XAI_DEFAULT_MODEL = "grok-4.3"
 
 
+def _urlopen(request: urllib.request.Request, timeout: float):
+    """Open a request, skipping an env proxy that refuses the xAI tunnel."""
+    try:
+        return urllib.request.urlopen(request, timeout=timeout)
+    except urllib.error.URLError as exc:
+        text = str(exc).lower()
+        if "tunnel connection failed" not in text or "403" not in text:
+            raise
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        return opener.open(request, timeout=timeout)
+
+
+def _model_was_rejected(exc: ProviderUnavailable) -> bool:
+    text = str(exc).lower()
+    return any(
+        phrase in text
+        for phrase in (
+            "does not exist",
+            "not available",
+            "not found",
+            "unknown model",
+            "deprecated",
+            "no access",
+        )
+    )
+
+
 def xai_chat(
     *,
     base_url: str,
@@ -50,11 +77,52 @@ def xai_chat(
 ) -> str:
     """POST an xAI chat completion and return the reply text.
 
+    A configured model the account cannot use (for example grok-4.7 on a key
+    that only has grok-4.3) is retried once on the default model. Other
+    failures stay on the requested model.
+
     Raises ``ProviderUnavailable`` carrying xAI's own explanation. urllib's
     HTTPError stringifies as just "HTTP Error 400: Bad Request" and drops the
     response body, which is where xAI says things like "model X does not exist" —
     so a retired model default looked like an unexplained failure.
     """
+    try:
+        return _xai_chat_once(
+            base_url=base_url,
+            api_key=api_key,
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout_s=timeout_s,
+        )
+    except ProviderUnavailable as first:
+        if model == XAI_DEFAULT_MODEL or not _model_was_rejected(first):
+            raise
+        try:
+            return _xai_chat_once(
+                base_url=base_url,
+                api_key=api_key,
+                model=XAI_DEFAULT_MODEL,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout_s=timeout_s,
+            )
+        except ProviderUnavailable:
+            raise first from None
+
+
+def _xai_chat_once(
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    timeout_s: float,
+) -> str:
     body = {
         "model": model,
         "messages": messages,
@@ -71,7 +139,7 @@ def xai_chat(
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout_s) as response:
+        with _urlopen(request, timeout_s) as response:
             raw = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         detail = ""

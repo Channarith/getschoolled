@@ -210,14 +210,17 @@ STUDIO_CSS = """
     .presenter-overlay .lesson-window-controls { position:fixed; top:14px; right:16px; }
     .student-cam { position:fixed; z-index:10001; top:88px; left:16px; width:176px; max-width:34vw;
                    border-radius:12px; overflow:hidden; background:rgba(12,10,8,.72);
-                   border:1px solid rgba(255,255,255,.28); box-shadow:0 8px 22px rgba(0,0,0,.35); }
+                   border:1px solid rgba(255,255,255,.28); box-shadow:0 8px 22px rgba(0,0,0,.35);
+                   cursor:grab; touch-action:none; user-select:none; }
+    .student-cam.is-dragging { cursor:grabbing; box-shadow:0 14px 32px rgba(0,0,0,.45); }
     .student-cam.is-hidden { width:auto; }
     .student-cam video { display:block; width:100%; aspect-ratio:16/9; object-fit:cover;
                          transform:scaleX(-1); background:#000; }
     .student-cam.is-hidden video { position:absolute; width:8px; height:8px; opacity:0; }
     .student-cam-hide { position:absolute; right:6px; bottom:6px; z-index:2; margin:0; padding:4px 8px;
                         border-radius:999px; border:1px solid rgba(255,255,255,.35);
-                        background:rgba(0,0,0,.62); color:#fff; font:700 11px Arial,sans-serif; cursor:pointer; }
+                        background:rgba(0,0,0,.62); color:#fff; font:700 11px Arial,sans-serif;
+                        cursor:pointer; touch-action:auto; }
     .student-cam.is-hidden .student-cam-hide { position:relative; right:auto; bottom:auto; margin:6px; }
     .student-cam-note { display:none; margin:0; padding:0 8px 8px; color:#f6efe4; font-size:11px; line-height:1.35; }
     .student-cam.is-hidden .student-cam-note { display:block; }
@@ -353,6 +356,17 @@ STUDIO_CSS = """
     .talk-reply { margin:10px 0; min-height:1.2em; color:#1e3a5f; font-size:15px; }
     button.is-listening { background:#8c3a2f; color:#fffaf3; border-color:#8c3a2f; }
     .quiz-box button.mic-btn, .game-box button.mic-btn { display:inline-block; width:auto; margin-top:8px; }
+    .game-box .challenge-hero { display:flex; justify-content:center; margin:10px 0; font-size:40px; }
+    .game-box .challenge-hero img, .game-box .challenge-face img { max-width:140px; max-height:96px; display:block; }
+    .game-box .challenge-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .game-box .challenge-grid button, .game-box button.challenge-choice {
+      width:auto; min-width:92px; max-width:180px; display:inline-flex; flex-direction:column;
+      align-items:center; justify-content:center; text-align:center; margin:0; gap:4px;
+    }
+    .game-box button.challenge-choice.is-picked { outline:2px solid #1e3a5f; }
+    .game-box .challenge-glyph { font-size:32px; line-height:1.1; }
+    .game-box .challenge-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:8px 0; }
+    .game-box .challenge-row select { min-width:140px; }
     .heard { margin:8px 0 0; font-size:13px; color:#5c5146; }
     .score-row { display:grid; grid-template-columns:1fr auto; gap:2px 8px; margin:5px 0; }
     .score-row .meter { grid-column:1 / -1; height:6px; border-radius:99px; background:rgba(30,58,95,.12); overflow:hidden; }
@@ -880,6 +894,381 @@ STUDIO_JS = """
       };
     }
 
+    let meshReady = false;
+    let meshEyesClosedSince = 0;
+    let lessonFaceMesh = null;
+    let lessonFaceMeshPromise = null;
+    let lessonHandMesh = null;
+    let lessonHandPromise = null;
+    let lessonHandFailed = false;
+    const OWNER_FP_IDX = [33, 263, 1, 61, 291, 10, 152];
+    let lessonOwner = {
+      enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null, displayName: '',
+    };
+    try {
+      const savedOwner = JSON.parse(localStorage.getItem('studio.faceid.v1') || 'null');
+      if (savedOwner && Array.isArray(savedOwner.fingerprint) && savedOwner.fingerprint.length >= 4) {
+        lessonOwner = {
+          enrolled: true, enrollStartedMs: 0,
+          fingerprint: savedOwner.fingerprint.map(Number),
+          lastBox: savedOwner.lastBox || null,
+          displayName: String(savedOwner.name || 'Learner'),
+        };
+      }
+    } catch (_) {}
+
+    function blendMap(blendshapes, index) {
+      const entry = blendshapes && blendshapes[index];
+      const cats = entry && (entry.categories || entry);
+      const out = {};
+      if (!cats || !cats.forEach) return out;
+      cats.forEach((item) => {
+        const name = item.categoryName || item.displayName || '';
+        if (name) out[name] = Number(item.score) || 0;
+      });
+      return out;
+    }
+
+    async function ensureLessonFaceMesh() {
+      if (lessonFaceMesh) return lessonFaceMesh;
+      if (lessonFaceMeshPromise) return lessonFaceMeshPromise;
+      lessonFaceMeshPromise = (async () => {
+        const src = {
+          esm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm',
+          wasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
+          model: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+        };
+        try {
+          const vision = await import(src.esm);
+          const fileset = await vision.FilesetResolver.forVisionTasks(src.wasm);
+          for (const delegate of ['GPU', 'CPU']) {
+            try {
+              lessonFaceMesh = await vision.FaceLandmarker.createFromOptions(fileset, {
+                baseOptions: { modelAssetPath: src.model, delegate: delegate },
+                runningMode: 'VIDEO',
+                numFaces: 3,
+                outputFaceBlendshapes: true,
+              });
+              meshReady = true;
+              return lessonFaceMesh;
+            } catch (_) {}
+          }
+        } catch (_) {}
+        return null;
+      })();
+      return lessonFaceMeshPromise;
+    }
+
+    function lessonFaceBox(pts) {
+      if (!pts || !pts.length) return null;
+      let minX = 1, maxX = 0, minY = 1, maxY = 0;
+      pts.forEach((p) => {
+        if (!p) return;
+        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      });
+      return { x: minX, y: minY, w: Math.max(0, maxX - minX), h: Math.max(0, maxY - minY) };
+    }
+
+    function lessonBoxIoU(a, b) {
+      if (!a || !b) return 0;
+      const x0 = Math.max(a.x, b.x), y0 = Math.max(a.y, b.y);
+      const x1 = Math.min(a.x + a.w, b.x + b.w), y1 = Math.min(a.y + a.h, b.y + b.h);
+      const inter = Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+      if (inter <= 0) return 0;
+      const union = a.w * a.h + b.w * b.h - inter;
+      return union > 0 ? inter / union : 0;
+    }
+
+    function lessonFacePrint(pts) {
+      if (!pts) return null;
+      const left = pts[33], right = pts[263];
+      if (!left || !right) return null;
+      const iod = Math.hypot(right.x - left.x, right.y - left.y);
+      if (iod < 1e-6) return null;
+      const midX = (left.x + right.x) / 2, midY = (left.y + right.y) / 2;
+      const out = [];
+      for (let i = 0; i < OWNER_FP_IDX.length; i++) {
+        const p = pts[OWNER_FP_IDX[i]];
+        if (!p) return null;
+        out.push((p.x - midX) / iod, (p.y - midY) / iod);
+      }
+      return out;
+    }
+
+    function lessonPrintDistance(a, b) {
+      if (!a || !b || a.length !== b.length) return 1;
+      let acc = 0;
+      for (let i = 0; i < a.length; i++) acc += (a[i] - b[i]) * (a[i] - b[i]);
+      return Math.sqrt(acc / a.length);
+    }
+
+    function lessonOwnerScore(pts) {
+      const box = lessonFaceBox(pts);
+      const iou = lessonBoxIoU(box, lessonOwner.lastBox);
+      const fpPart = Math.max(0, 1 - lessonPrintDistance(lessonFacePrint(pts), lessonOwner.fingerprint) / 0.38);
+      return Math.max(0, Math.min(1, 0.45 * iou + 0.55 * fpPart));
+    }
+
+    function pickLessonOwner(faces, nowMs) {
+      const name = lessonOwner.displayName || (typeof learnerId === 'string' && learnerId) || 'Learner';
+      if (!faces.length) {
+        return {
+          index: -1, owner_enrolled: lessonOwner.enrolled, owner_match: null,
+          match_score: 0, secondary_count: 0, display_name: name,
+        };
+      }
+      if (!lessonOwner.enrolled) {
+        let idx = 0, bestArea = -1;
+        faces.forEach((pts, i) => {
+          const box = lessonFaceBox(pts);
+          const area = box ? box.w * box.h : 0;
+          if (area > bestArea) { bestArea = area; idx = i; }
+        });
+        if (lessonOwner.fingerprint || lessonOwner.lastBox) {
+          let bestI = -1, bestScore = -1;
+          faces.forEach((pts, i) => {
+            const score = lessonOwnerScore(pts);
+            if (score > bestScore) { bestScore = score; bestI = i; }
+          });
+          if (bestI >= 0 && bestScore >= 0.28) idx = bestI;
+          else lessonOwner.enrollStartedMs = nowMs;
+        } else {
+          lessonOwner.enrollStartedMs = nowMs;
+        }
+        const box = lessonFaceBox(faces[idx]);
+        const fp = lessonFacePrint(faces[idx]);
+        if (!lessonOwner.enrollStartedMs) lessonOwner.enrollStartedMs = nowMs;
+        lessonOwner.lastBox = box;
+        if (fp) lessonOwner.fingerprint = fp.slice();
+        if ((nowMs - lessonOwner.enrollStartedMs) >= 1500 && fp && box) {
+          lessonOwner.enrolled = true;
+          lessonOwner.displayName = name;
+          try {
+            localStorage.setItem('studio.faceid.v1', JSON.stringify({
+              name: name, fingerprint: fp.slice(), lastBox: box, savedAt: nowMs,
+            }));
+          } catch (_) {}
+          return {
+            index: idx, owner_enrolled: true, owner_match: true, match_score: 1,
+            secondary_count: Math.max(0, faces.length - 1), display_name: name,
+          };
+        }
+        return {
+          index: idx, owner_enrolled: false, owner_match: null, match_score: 0,
+          secondary_count: Math.max(0, faces.length - 1), display_name: name,
+        };
+      }
+      let bestI = 0, bestScore = -1;
+      faces.forEach((pts, i) => {
+        const score = lessonOwnerScore(pts);
+        if (score > bestScore) { bestScore = score; bestI = i; }
+      });
+      if (bestScore >= 0.55) {
+        const box = lessonFaceBox(faces[bestI]);
+        const fp = lessonFacePrint(faces[bestI]);
+        if (box && lessonOwner.lastBox) {
+          const lb = lessonOwner.lastBox;
+          lessonOwner.lastBox = {
+            x: 0.7 * lb.x + 0.3 * box.x, y: 0.7 * lb.y + 0.3 * box.y,
+            w: 0.7 * lb.w + 0.3 * box.w, h: 0.7 * lb.h + 0.3 * box.h,
+          };
+        } else if (box) lessonOwner.lastBox = box;
+        if (fp && lessonOwner.fingerprint && lessonPrintDistance(fp, lessonOwner.fingerprint) <= 0.38) {
+          lessonOwner.fingerprint = lessonOwner.fingerprint.map((v, i) => 0.85 * v + 0.15 * fp[i]);
+        }
+        return {
+          index: bestI, owner_enrolled: true, owner_match: true, match_score: bestScore,
+          secondary_count: Math.max(0, faces.length - 1), display_name: name,
+        };
+      }
+      return {
+        index: -1, owner_enrolled: true, owner_match: false, match_score: Math.max(0, bestScore),
+        secondary_count: faces.length, display_name: name,
+      };
+    }
+
+    function meshFacial(result) {
+      const faces = (result && result.faceLandmarks) || [];
+      const pick = pickLessonOwner(faces, Date.now());
+      const owner = {
+        owner_face_enrolled: !!pick.owner_enrolled,
+        owner_face_match: pick.owner_match,
+        owner_match_score: pick.match_score,
+        owner_face_name: pick.display_name || null,
+      };
+      if (!faces.length) {
+        meshEyesClosedSince = 0;
+        return Object.assign({
+          face_count: 0,
+          secondary_face_count: 0,
+          detector_source: 'face_mesh',
+          liveness_state: 'missing',
+          gaze_frontal: 0.1,
+          gaze_down_score: 0.05,
+          gaze_left_score: 0,
+          gaze_right_score: 0,
+          expression_label: 'unknown',
+          eyes_closed_score: 0,
+          yawn_score: 0,
+          face_size_ratio: null,
+          face_pts: null,
+        }, owner);
+      }
+      if (pick.owner_enrolled && pick.owner_match === false) {
+        meshEyesClosedSince = 0;
+        return Object.assign({
+          face_count: faces.length,
+          secondary_face_count: pick.secondary_count,
+          detector_source: 'face_mesh',
+          liveness_state: 'live',
+          gaze_frontal: 0,
+          gaze_down_score: 0,
+          gaze_left_score: 0,
+          gaze_right_score: 0,
+          expression_label: 'unknown',
+          eyes_closed_score: 0,
+          yawn_score: 0,
+          face_size_ratio: null,
+          face_pts: null,
+        }, owner);
+      }
+      const faceIndex = pick.index >= 0 ? pick.index : 0;
+      const pts = faces[faceIndex];
+      const bs = blendMap(result.faceBlendshapes, faceIndex);
+      const nose = pts[1];
+      const leftEye = pts[33];
+      const rightEye = pts[263];
+      let gazeFrontal = 0.85;
+      let gazeLeft = 0;
+      let gazeRight = 0;
+      if (nose && leftEye && rightEye) {
+        const midX = (leftEye.x + rightEye.x) / 2;
+        const shift = (nose.x - midX) * 8;
+        gazeFrontal = Math.max(0, Math.min(1, 1 - Math.abs(nose.x - midX) * 6));
+        if (shift < -0.15) gazeLeft = Math.max(0, Math.min(1, (-shift - 0.15) / 0.5));
+        if (shift > 0.15) gazeRight = Math.max(0, Math.min(1, (shift - 0.15) / 0.5));
+      }
+      const lookDown = ((bs.eyeLookDownLeft || 0) + (bs.eyeLookDownRight || 0)) / 2;
+      const lookUp = ((bs.eyeLookUpLeft || 0) + (bs.eyeLookUpRight || 0)) / 2;
+      const blink = ((bs.eyeBlinkLeft || 0) + (bs.eyeBlinkRight || 0)) / 2;
+      const gazeDown = Math.max(0, Math.min(1, (lookDown - lookUp - 0.25) / 0.5));
+      const now = Date.now();
+      const lidsDown = blink >= 0.45;
+      if (!lidsDown) meshEyesClosedSince = 0;
+      else if (!meshEyesClosedSince) meshEyesClosedSince = now;
+      const eyesClosed = lidsDown && now - meshEyesClosedSince >= 400;
+      if (eyesClosed) gazeFrontal = Math.min(gazeFrontal, 0.25);
+      const smile = ((bs.mouthSmileLeft || 0) + (bs.mouthSmileRight || 0)) / 2;
+      const jaw = bs.jawOpen || 0;
+      const browUp = bs.browInnerUp || 0;
+      const yawn = Math.max(0, Math.min(1, jaw * 1.15 * (1 - smile * 1.2) * (1 - Math.max(0, browUp - 0.22) * 1.4)));
+      const yawning = yawn >= 0.48 && yawn >= smile + 0.1 && jaw >= 0.4;
+      let faceH = 0.3;
+      if (pts.length) {
+        let minY = 1;
+        let maxY = 0;
+        pts.forEach((p) => { if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; });
+        faceH = Math.max(0.05, Math.min(0.9, maxY - minY));
+      }
+      return Object.assign({
+        face_count: faces.length,
+        secondary_face_count: pick.secondary_count,
+        detector_source: 'face_mesh',
+        liveness_state: 'live',
+        gaze_frontal: gazeFrontal,
+        gaze_down_score: gazeDown,
+        gaze_left_score: gazeLeft,
+        gaze_right_score: gazeRight,
+        expression_label: yawning ? 'yawning' : 'neutral',
+        eyes_closed_score: eyesClosed ? Math.max(0.6, blink) : Math.min(blink, 0.3),
+        yawn_score: yawning ? Math.max(yawn, 0.62) : yawn,
+        face_size_ratio: faceH,
+        face_pts: pts,
+      }, owner);
+    }
+
+    async function ensureLessonHands() {
+      if (lessonHandMesh) return lessonHandMesh;
+      if (lessonHandFailed) return null;
+      if (lessonHandPromise) return lessonHandPromise;
+      lessonHandPromise = (async () => {
+        try {
+          const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
+          const fileset = await vision.FilesetResolver.forVisionTasks(
+            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+          );
+          const model = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+          for (const delegate of ['GPU', 'CPU']) {
+            try {
+              lessonHandMesh = await vision.HandLandmarker.createFromOptions(fileset, {
+                baseOptions: { modelAssetPath: model, delegate: delegate },
+                runningMode: 'VIDEO',
+                numHands: 2,
+              });
+              return lessonHandMesh;
+            } catch (_) {}
+          }
+        } catch (_) {}
+        lessonHandFailed = true;
+        return null;
+      })();
+      return lessonHandPromise;
+    }
+
+    function handsCoveringFace(hands, facePts) {
+      if (!hands || !hands.length || !facePts || !facePts.length) return 0;
+      let minX = 1, maxX = 0, minY = 1, maxY = 0;
+      facePts.forEach((p) => {
+        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      });
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+      const rx = Math.max(1e-4, (maxX - minX) / 2) * 1.15;
+      const ry = Math.max(1e-4, (maxY - minY) / 2) * 1.15;
+      let best = 0;
+      hands.forEach((pts) => {
+        let inside = 0;
+        pts.forEach((p) => {
+          const dx = (p.x - cx) / rx, dy = (p.y - cy) / ry;
+          if (dx * dx + dy * dy <= 1) inside += 1;
+        });
+        best = Math.max(best, inside / Math.max(1, pts.length));
+      });
+      return Math.max(0, Math.min(1, (best - 0.15) / 0.40));
+    }
+
+    function handsBelowFace(hands, facePts) {
+      if (!hands || !hands.length || !facePts || !facePts.length) return 0;
+      let faceMaxY = 0, faceMinY = 1;
+      facePts.forEach((p) => {
+        if (p.y > faceMaxY) faceMaxY = p.y;
+        if (p.y < faceMinY) faceMinY = p.y;
+      });
+      const chinLine = faceMaxY - (faceMaxY - faceMinY) * 0.05;
+      let best = 0;
+      hands.forEach((pts) => {
+        let below = 0;
+        pts.forEach((p) => { if (p.y > chinLine) below += 1; });
+        best = Math.max(best, below / Math.max(1, pts.length));
+      });
+      return Math.max(0, Math.min(1, (best - 0.35) / 0.50));
+    }
+
+    async function lessonHandSample(video, facePts) {
+      const hl = await ensureLessonHands();
+      if (!hl || !video || !video.videoWidth) return null;
+      let result;
+      try { result = hl.detectForVideo(video, performance.now()); }
+      catch (_) { return null; }
+      const hands = (result && result.landmarks) || [];
+      if (!hands.length) return { hands_on_face_score: 0, hand_below: 0 };
+      return {
+        hands_on_face_score: handsCoveringFace(hands, facePts),
+        hand_below: handsBelowFace(hands, facePts),
+      };
+    }
+
     async function studentCameraSample() {
       if (studentCamBusy || !lastTeachPayload) return;
       if (!cameraWatchStarted) cameraWatchStarted = Date.now();
@@ -896,6 +1285,7 @@ STUDIO_JS = """
       try {
         let faces = [];
         let detectorFailed = false;
+        let facial = null;
         let sample = { grid: null, light: 0, motion: 0, foreground: 0 };
         const DetectorCtor = window.FaceDetector;
         const detectorRan = typeof DetectorCtor === 'function';
@@ -907,7 +1297,12 @@ STUDIO_JS = """
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             sample = luminanceGrid(ctx, canvas.width, canvas.height);
           }
-          if (detectorRan) {
+          const landmarker = await ensureLessonFaceMesh();
+          if (landmarker) {
+            try { facial = meshFacial(landmarker.detectForVideo(video, performance.now())); }
+            catch (_) { facial = null; }
+          }
+          if (!facial && detectorRan) {
             try {
               if (!faceDetector) faceDetector = new DetectorCtor({ fastMode: true, maxDetectedFaces: 3 });
               faces = await faceDetector.detect(video);
@@ -931,8 +1326,9 @@ STUDIO_JS = """
           if (cy >= 0.72) gazeDown = Math.max(0, Math.min(1, (cy - 0.62) / 0.28));
           faceRatio = Math.max(0, Math.min(1, Math.max(box.width / frameW, box.height / frameH)));
         }
-        const phone = sample.grid ? detectPhoneFromGrid(sample.grid, gazeDown) : { below: false, ear: false };
-        const hands = detectHandsOnFace(sample.grid, gazeDown, faces.length > 0 && !hiddenTab);
+        const phoneGaze = facial ? facial.gaze_down_score : gazeDown;
+        const phone = sample.grid ? detectPhoneFromGrid(sample.grid, phoneGaze) : { below: false, ear: false };
+        const hands = detectHandsOnFace(sample.grid, phoneGaze, (facial ? facial.face_count : faces.length) > 0 && !hiddenTab);
         let detectorSource = 'coarse';
         if (!detectorFailed && (hiddenTab || !live || detectorRan)) detectorSource = 'face_detector';
         const signal = {
@@ -951,6 +1347,33 @@ STUDIO_JS = """
         };
         if (gazeFrontal != null) signal.gaze_frontal = gazeFrontal;
         if (detectorSource) signal.detector_source = detectorSource;
+        if (facial) {
+          const facePts = facial.face_pts || null;
+          signal.face_count = facial.face_count;
+          signal.secondary_face_count = facial.secondary_face_count;
+          signal.liveness_state = hiddenTab ? 'missing' : facial.liveness_state;
+          signal.detector_source = 'face_mesh';
+          signal.gaze_frontal = facial.gaze_frontal;
+          signal.gaze_down_score = facial.gaze_down_score;
+          signal.gaze_left_score = facial.gaze_left_score;
+          signal.gaze_right_score = facial.gaze_right_score;
+          signal.face_size_ratio = facial.face_size_ratio;
+          signal.expression_label = facial.expression_label;
+          signal.eyes_closed_score = facial.eyes_closed_score;
+          signal.yawn_score = facial.yawn_score;
+          signal.owner_face_enrolled = !!facial.owner_face_enrolled;
+          if (facial.owner_face_match === true || facial.owner_face_match === false) {
+            signal.owner_face_match = facial.owner_face_match;
+          }
+          if (facial.owner_match_score != null) signal.owner_match_score = facial.owner_match_score;
+          if (facial.owner_face_name) signal.owner_face_name = facial.owner_face_name;
+          delete signal.luminance_grid;
+          const handTrack = live ? await lessonHandSample(video, facePts) : null;
+          if (handTrack && handTrack.hands_on_face_score > 0.05) {
+            signal.hands_on_face_score = Math.round(handTrack.hands_on_face_score * 1000) / 1000;
+          }
+          if (handTrack && handTrack.hand_below >= 0.55) signal.phone_visible = true;
+        }
         const data = await api('/api/studio/learn/camera', {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -991,12 +1414,12 @@ STUDIO_JS = """
         } else if (status && !status.textContent) {
           setLearningStatus('Watching for presence.');
         } else if (data && data.state === 'present') {
-          setLearningStatus('Present and learning.');
+          setLearningStatus(meshReady ? 'Present. Face mesh is watching.' : 'Present and learning.');
         }
         return;
       }
       const reason = data.reason || 'paused';
-      setLearningStatus(data.suspected_cheating ? 'Paused: focus or integrity.' : 'Paused until you are here.');
+      setLearningStatus((data.suspected_cheating ? 'Paused: ' : 'Paused until you are here. ') + reason);
       if (learningHold && holdGroup(learningHoldReason) === holdGroup(reason)) return;
       learningHold = true;
       learningHoldReason = reason;
@@ -1073,6 +1496,7 @@ STUDIO_JS = """
       if (studentCamStream) {
         const box = $('student-cam');
         if (box) box.hidden = false;
+        restoreStudentCamPosition();
         return;
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
@@ -1088,6 +1512,7 @@ STUDIO_JS = """
         }
         const box = $('student-cam');
         if (box) box.hidden = false;
+        restoreStudentCamPosition();
         if (!studentCamTimer) studentCamTimer = window.setInterval(() => { void studentCameraSample(); }, 1000);
       } catch (error) {
         setLearningStatus('Camera is required. Allow it to continue.');
@@ -1133,6 +1558,73 @@ STUDIO_JS = """
       if (!cam || !overlay) return;
       const home = presenterActive() ? overlay : document.body;
       if (cam.parentElement !== home) home.appendChild(cam);
+      restoreStudentCamPosition();
+    }
+
+    function clampStudentCam(left, top) {
+      const box = $('student-cam');
+      if (!box) return null;
+      const width = box.offsetWidth || 176;
+      const height = box.offsetHeight || 148;
+      const maxX = Math.max(8, window.innerWidth - width - 8);
+      const maxY = Math.max(8, window.innerHeight - height - 8);
+      const x = Math.max(8, Math.min(maxX, left));
+      const y = Math.max(8, Math.min(maxY, top));
+      box.style.left = x + 'px';
+      box.style.top = y + 'px';
+      box.style.right = 'auto';
+      return { left: x, top: y };
+    }
+
+    function restoreStudentCamPosition() {
+      const box = $('student-cam');
+      if (!box || box.hidden) return;
+      try {
+        const saved = JSON.parse(localStorage.getItem('studio.cam.pos') || 'null');
+        if (!saved || typeof saved.left !== 'number' || typeof saved.top !== 'number') return;
+        clampStudentCam(saved.left, saved.top);
+      } catch (_) {}
+    }
+
+    function enableStudentCamDrag() {
+      const box = $('student-cam');
+      if (!box || box.dataset.dragReady) return;
+      box.dataset.dragReady = '1';
+      let drag = null;
+      box.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        if (event.target.closest('button, a, input, textarea, select')) return;
+        const rect = box.getBoundingClientRect();
+        drag = {
+          id: event.pointerId,
+          dx: event.clientX - rect.left,
+          dy: event.clientY - rect.top,
+        };
+        box.classList.add('is-dragging');
+        try { box.setPointerCapture(event.pointerId); } catch (_) {}
+        event.preventDefault();
+      });
+      box.addEventListener('pointermove', (event) => {
+        if (!drag || event.pointerId !== drag.id) return;
+        const pos = clampStudentCam(event.clientX - drag.dx, event.clientY - drag.dy);
+        if (!pos) return;
+        try { localStorage.setItem('studio.cam.pos', JSON.stringify(pos)); } catch (_) {}
+      });
+      const endDrag = (event) => {
+        if (!drag || event.pointerId !== drag.id) return;
+        drag = null;
+        box.classList.remove('is-dragging');
+      };
+      box.addEventListener('pointerup', endDrag);
+      box.addEventListener('pointercancel', endDrag);
+      window.addEventListener('resize', () => {
+        const left = parseFloat(box.style.left);
+        const top = parseFloat(box.style.top);
+        if (!Number.isFinite(left) || !Number.isFinite(top)) return;
+        const pos = clampStudentCam(left, top);
+        if (!pos) return;
+        try { localStorage.setItem('studio.cam.pos', JSON.stringify(pos)); } catch (_) {}
+      });
     }
 
     function enterPresenterMode() {
@@ -1733,8 +2225,9 @@ STUDIO_JS = """
       const map = {
         en:'en-US', es:'es-ES', fr:'fr-FR', de:'de-DE', it:'it-IT', pt:'pt-BR',
         nl:'nl-NL', pl:'pl-PL', ru:'ru-RU', uk:'uk-UA', tr:'tr-TR', ar:'ar-SA',
-        he:'he-IL', hi:'hi-IN', zh:'zh-CN', ja:'ja-JP', ko:'ko-KR', vi:'vi-VN',
-        th:'th-TH', id:'id-ID', km:'km-KH'
+        he:'he-IL', hi:'hi-IN', bn:'bn-IN', ur:'ur-PK', fa:'fa-IR', zh:'zh-CN',
+        ja:'ja-JP', ko:'ko-KR', vi:'vi-VN', th:'th-TH', id:'id-ID', sw:'sw-KE',
+        el:'el-GR', cs:'cs-CZ', km:'km-KH'
       };
       return map[code] || code;
     }
@@ -2130,6 +2623,14 @@ STUDIO_JS = """
     }
 
     function presentActivityCheckpoint(checkpoint) {
+      if (checkpoint && checkpoint.activity === 'game') {
+        learningCheckOpen = true;
+        playGame().catch((error) => {
+          learningCheckOpen = false;
+          toast(String(error.message || error));
+        });
+        return;
+      }
       const box = $('quiz-box');
       const prompt = checkpoint.prompt || 'Check what you remember before continuing.';
       learningCheckOpen = true;
@@ -2502,17 +3003,244 @@ STUDIO_JS = """
       show();
     }
 
+    function challengeVisual(card, revealLabel) {
+      const item = card || {};
+      const url = item.image_url || '';
+      const glyph = item.glyph || '';
+      const label = item.label || item.alt || item.name || '';
+      let face = '';
+      if (url) face += `<img alt="${esc(item.alt || label)}" src="${esc(url)}">`;
+      if (glyph) face += `<span class="challenge-glyph">${esc(glyph)}</span>`;
+      if (revealLabel || (!url && !glyph)) face += `<span class="challenge-label">${esc(label)}</span>`;
+      return `<span class="challenge-face">${face}</span>`;
+    }
+
+    async function gradeVisual(response) {
+      const res = await api('/api/studio/teach/game-grade', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({
+          session_id: teachSession,
+          challenge: pendingGame,
+          response: response
+        })
+      });
+      learningCheckOpen = false;
+      stopStudentMic();
+      toast(res.feedback || (res.passed ? 'Game passed' : 'Try again'));
+      noteScore('game', res.score, res.passed);
+      theodoreAvatar?.setState(res.passed ? 'celebrate' : 'encouraging');
+      const box = $('game-box');
+      if (box) box.style.display = 'none';
+      continueAfterActivity();
+    }
+
+    function paintVisualChallenge(box, kind, payload) {
+      const lead = (lastTeachPayload && lastTeachPayload.activity_checkpoint && lastTeachPayload.activity_checkpoint.prompt) || '';
+      const head = `<strong>${esc(pendingGame.prompt || 'Your turn.')}</strong>` +
+        (lead ? `<p class="heard">${esc(lead)}</p>` : '');
+      if (kind === 'image_to_word' && payload.image && (payload.options || []).length) {
+        box.innerHTML = head +
+          `<div class="challenge-hero">${challengeVisual(payload.image, false)}</div>` +
+          `<div class="challenge-grid">` +
+          payload.options.map((choice, i) =>
+            `<button type="button" class="challenge-choice" data-i="${i}">${esc(choice)}</button>`).join('') +
+          `</div><button type="button" class="secondary mic-btn" id="game-mic">Speak your answer</button><p class="heard" id="game-heard"></p>`;
+        const choose = (index) => gradeVisual({ selected_index: index });
+        box.querySelectorAll('button[data-i]').forEach((b) => { b.onclick = () => choose(+b.dataset.i); });
+        const mic = box.querySelector('#game-mic');
+        if (mic) mic.onclick = () => listenOnce((text, isFinal) => {
+          const heard = box.querySelector('#game-heard');
+          if (heard) heard.textContent = 'Heard: ' + text;
+          if (!isFinal) return;
+          const index = matchSpokenChoice(text, payload.options);
+          if (index < 0) return toast('Say the word, or a number like 1 or 2.');
+          choose(index);
+        }, mic);
+        return true;
+      }
+      if (kind === 'word_to_image' && (payload.images || []).length) {
+        box.innerHTML = head + `<div class="challenge-grid">` +
+          payload.images.map((card) =>
+            `<button type="button" class="challenge-choice" data-id="${esc(card.id)}">${challengeVisual(card, false)}</button>`).join('') +
+          `</div>`;
+        box.querySelectorAll('button[data-id]').forEach((b) => {
+          b.onclick = () => gradeVisual({ selected_id: b.dataset.id });
+        });
+        return true;
+      }
+      if (kind === 'hotspot' && (payload.regions || []).length) {
+        const picture = payload.image ? `<div class="challenge-hero">${challengeVisual(payload.image, false)}</div>` : '';
+        box.innerHTML = head + picture + `<div class="challenge-grid">` +
+          payload.regions.map((region) =>
+            `<button type="button" class="challenge-choice" data-region="${esc(region.id)}">${esc(region.name || region.id)}</button>`).join('') +
+          `</div>`;
+        box.querySelectorAll('button[data-region]').forEach((b) => {
+          b.onclick = () => gradeVisual({ region: b.dataset.region });
+        });
+        return true;
+      }
+      if (kind === 'classify' && (payload.items || []).length && (payload.categories || []).length) {
+        box.innerHTML = head + payload.items.map((item) =>
+          `<div class="challenge-row"><span>${challengeVisual(item, true)}</span>
+            <select data-item="${esc(item.id)}">` +
+            `<option value="">Choose a group</option>` +
+            payload.categories.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join('') +
+          `</select></div>`).join('') +
+          `<button type="button" class="primary" id="visual-submit">Check groups</button>`;
+        box.querySelector('#visual-submit').onclick = () => {
+          const assignments = {};
+          let missing = false;
+          box.querySelectorAll('select[data-item]').forEach((sel) => {
+            if (!sel.value) missing = true;
+            assignments[sel.dataset.item] = sel.value;
+          });
+          if (missing) return toast('Put every item in a group first.');
+          gradeVisual({ assignments: assignments });
+        };
+        return true;
+      }
+      if ((kind === 'sort' || kind === 'picture_order')) {
+        const rows = kind === 'picture_order' ? (payload.cards_shown || []) : (payload.items || []);
+        const shown = kind === 'sort'
+          ? (payload.order_shown || []).map((id) => rows.find((row) => row.id === id)).filter(Boolean)
+          : rows;
+        if (shown.length < 2) return false;
+        box.innerHTML = head +
+          `<p class="heard">Click the items in order.</p><div class="challenge-grid" id="visual-order"></div>` +
+          `<button type="button" class="primary" id="visual-submit">Check order</button>` +
+          `<button type="button" id="visual-reset">Reset</button>`;
+        const picked = [];
+        const list = box.querySelector('#visual-order');
+        function paint() {
+          list.innerHTML = shown.map((row) => {
+            const used = picked.includes(row.id);
+            return `<button type="button" class="challenge-choice" data-id="${esc(row.id)}" ${used ? 'disabled' : ''}>${challengeVisual(row, true)}</button>`;
+          }).join('') + (picked.length
+            ? `<div class="heard">Order: ${picked.map((id) => esc((shown.find((row) => row.id === id) || {}).label || id)).join(' → ')}</div>`
+            : '');
+          list.querySelectorAll('button[data-id]').forEach((b) => {
+            b.onclick = () => { if (!picked.includes(b.dataset.id)) { picked.push(b.dataset.id); paint(); } };
+          });
+        }
+        paint();
+        box.querySelector('#visual-reset').onclick = () => { picked.length = 0; paint(); };
+        box.querySelector('#visual-submit').onclick = () => {
+          if (picked.length !== shown.length) return toast('Put every item in order first.');
+          gradeVisual({ ordered_ids: picked.slice() });
+        };
+        return true;
+      }
+      if (kind === 'label_placement' && (payload.targets || []).length && (payload.labels || []).length) {
+        const picture = payload.image ? `<div class="challenge-hero">${challengeVisual(payload.image, false)}</div>` : '';
+        box.innerHTML = head + picture + payload.targets.map((target) =>
+          `<div class="challenge-row"><span>${esc(target.name || target.id)}</span>
+            <select data-target="${esc(target.id)}">` +
+            `<option value="">Choose a label</option>` +
+            payload.labels.map((label) => `<option value="${esc(label)}">${esc(label)}</option>`).join('') +
+          `</select></div>`).join('') +
+          `<button type="button" class="primary" id="visual-submit">Check labels</button>`;
+        box.querySelector('#visual-submit').onclick = () => {
+          const placements = {};
+          let missing = false;
+          box.querySelectorAll('select[data-target]').forEach((sel) => {
+            if (!sel.value) missing = true;
+            placements[sel.dataset.target] = sel.value;
+          });
+          if (missing) return toast('Place a label on every spot first.');
+          gradeVisual({ placements: placements });
+        };
+        return true;
+      }
+      if (kind === 'spot_difference') {
+        const spots = (payload.differences || []).concat(payload.decoys || []).slice();
+        if (!spots.length) return false;
+        for (let i = spots.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const swap = spots[i];
+          spots[i] = spots[j];
+          spots[j] = swap;
+        }
+        const sides = [payload.left, payload.right].filter(Boolean);
+        box.innerHTML = head +
+          `<div class="challenge-grid">` +
+          sides.map((card) => `<div class="challenge-choice">${challengeVisual(card, false)}</div>`).join('') +
+          `</div><p class="heard">Select every difference.</p><div class="challenge-grid" id="spot-list">` +
+          spots.map((spot) =>
+            `<button type="button" class="challenge-choice" data-spot="${esc(spot.id)}">${esc(spot.region || spot.id)}</button>`).join('') +
+          `</div><button type="button" class="primary" id="visual-submit">Check differences</button>`;
+        const picked = [];
+        box.querySelectorAll('button[data-spot]').forEach((b) => {
+          b.onclick = () => {
+            const id = b.dataset.spot;
+            const at = picked.indexOf(id);
+            if (at >= 0) picked.splice(at, 1);
+            else picked.push(id);
+            b.classList.toggle('is-picked', picked.includes(id));
+          };
+        });
+        box.querySelector('#visual-submit').onclick = () => {
+          if (!picked.length) return toast('Select at least one difference.');
+          gradeVisual({ selected_ids: picked.slice() });
+        };
+        return true;
+      }
+      if (kind === 'memory_pairs' && (payload.cards_shown || []).length) {
+        const cards = payload.cards_shown;
+        box.innerHTML = head +
+          `<p class="heard">Pick two cards that belong together.</p><div class="challenge-grid" id="memory-grid"></div>` +
+          `<button type="button" id="visual-reset">Reset</button>` +
+          `<button type="button" class="primary" id="visual-submit">Check pairs</button>`;
+        const matches = [];
+        let first = '';
+        const grid = box.querySelector('#memory-grid');
+        function paint() {
+          grid.innerHTML = cards.map((card) => {
+            const used = matches.some((pair) => pair[0] === card.id || pair[1] === card.id);
+            const on = first === card.id;
+            return `<button type="button" class="challenge-choice${on ? ' is-picked' : ''}" data-id="${esc(card.id)}" ${used ? 'disabled' : ''}>${challengeVisual(card, false)}</button>`;
+          }).join('');
+          grid.querySelectorAll('button[data-id]').forEach((b) => {
+            b.onclick = () => {
+              const id = b.dataset.id;
+              if (!first) { first = id; paint(); return; }
+              if (first === id) { first = ''; paint(); return; }
+              matches.push([first, id]);
+              first = '';
+              paint();
+            };
+          });
+        }
+        paint();
+        box.querySelector('#visual-reset').onclick = () => { matches.length = 0; first = ''; paint(); };
+        box.querySelector('#visual-submit').onclick = () => {
+          if (!matches.length) return toast('Match at least one pair first.');
+          gradeVisual({ matches: matches.map((pair) => pair.slice()) });
+        };
+        return true;
+      }
+      return false;
+    }
+
     async function playGame() {
       stopSpeech();
       theodoreAvatar?.setState('ask');
-      pendingGame = await api('/api/studio/teach/game', {
-        method:'POST', headers:{'content-type':'application/json'},
-        body: JSON.stringify({ session_id: teachSession })
-      });
+      learningCheckOpen = true;
+      try {
+        pendingGame = await api('/api/studio/teach/game', {
+          method:'POST', headers:{'content-type':'application/json'},
+          body: JSON.stringify({ session_id: teachSession })
+        });
+      } catch (error) {
+        learningCheckOpen = false;
+        throw error;
+      }
       const box = $('game-box');
       box.style.display = 'block';
       const kind = pendingGame.kind || (pendingGame.payload && pendingGame.payload.kind) || '';
       const payload = pendingGame.payload || {};
+      const lead = (lastTeachPayload && lastTeachPayload.activity_checkpoint && lastTeachPayload.activity_checkpoint.prompt) || '';
+      speakText((lead ? lead + ' ' : '') + (pendingGame.prompt || 'Your turn.'), null, true, 'game');
+      if (paintVisualChallenge(box, kind, payload)) return;
       // Multimodal kits use order_steps (reorder) as well as match_term (pick one).
       if (kind === 'order_steps' || (payload.steps_shown && payload.steps_shown.length)) {
         const steps = (payload.steps_shown || []).slice();
@@ -2580,6 +3308,7 @@ STUDIO_JS = """
               response: { ordered_steps: ordered }
             })
           });
+          learningCheckOpen = false;
           toast(res.feedback || (res.passed ? 'Game passed' : 'Try again'));
           noteScore('game', res.score, res.passed);
           theodoreAvatar?.setState(res.passed ? 'celebrate' : 'encouraging');
@@ -2602,6 +3331,7 @@ STUDIO_JS = """
             response: { selected_index: index }
           })
         });
+        learningCheckOpen = false;
         stopStudentMic();
         toast(res.feedback || (res.passed ? 'Game passed' : 'Try again'));
         noteScore('game', res.score, res.passed);
@@ -2849,6 +3579,12 @@ STUDIO_JS = """
         const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
         const lang = String(u.lang || 'en').slice(0, 2).toLowerCase();
         const same = (voices || []).filter((voice) => String(voice.lang || '').toLowerCase().startsWith(lang));
+        if (!same.length && lang !== 'en') {
+          setLearningStatus('This device has no ' + languageLabel(lang) + ' voice. Allow the lesson voice to load.');
+          theodoreAvatar?.stopSpeaking();
+          if (!holdLesson) armDurationWatchdog(gen, token, narrationDwellMs(spoken));
+          return;
+        }
         const wanted = courseVoiceGender === 'male' ? /male|guy|daniel|alex/i : /female|samantha|aria|victoria|karen/i;
         const named = same.find((voice) => wanted.test(voice.name || ''));
         if (named || same[0]) u.voice = named || same[0];
@@ -3257,6 +3993,7 @@ STUDIO_JS = """
       const box = $('student-cam');
       setStudentCamHidden(!(box && box.classList.contains('is-hidden')));
     });
+    enableStudentCamDrag();
     on('btn-captions', 'click', () => setCaptionsEnabled(!captionsEnabled));
     on('teach-stage', 'dblclick', (event) => {
       if (event.target.closest('button, input, select, textarea, a, .lesson-window-controls')) return;
@@ -3446,7 +4183,7 @@ def render_studio_page() -> str:
   </div>
   <div class="presenter-overlay" id="presenter-overlay" aria-label="Full screen lesson">
     <div class="presenter-body" id="presenter-body"></div>
-    <div id="student-cam" class="student-cam" hidden>
+    <div id="student-cam" class="student-cam" hidden title="Drag to move the camera">
       <video id="student-cam-video" autoplay muted playsinline aria-label="Your camera"></video>
       <canvas id="student-cam-sample" hidden></canvas>
       <button type="button" id="student-cam-hide" class="student-cam-hide" aria-pressed="false"

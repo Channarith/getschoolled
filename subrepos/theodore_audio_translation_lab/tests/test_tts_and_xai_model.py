@@ -112,6 +112,37 @@ def test_xai_http_error_reports_the_response_body_and_model(monkeypatch):
     assert XAI_DEFAULT_MODEL in message, "the fix should be suggested inline"
 
 
+def test_rejected_model_retries_the_default(monkeypatch):
+    seen = []
+
+    def fake(req, timeout=None):
+        body = json.loads(req.data.decode("utf-8"))
+        seen.append(body["model"])
+        if body["model"] != XAI_DEFAULT_MODEL:
+            raise urllib.error.HTTPError(
+                req.full_url,
+                400,
+                "Bad Request",
+                {},
+                BytesIO(b'{"error":"The model grok-4.7 does not exist"}'),
+            )
+        payload = {"choices": [{"message": {"content": "Hola."}}]}
+        return BytesIO(json.dumps(payload).encode("utf-8"))
+
+    monkeypatch.setattr("urllib.request.urlopen", fake)
+    reply = xai_chat(
+        base_url="https://api.x.ai/v1",
+        api_key="test-key",
+        model="grok-4.7",
+        messages=[{"role": "user", "content": "hi"}],
+        temperature=0.1,
+        max_tokens=10,
+        timeout_s=5,
+    )
+    assert reply == "Hola."
+    assert seen == ["grok-4.7", XAI_DEFAULT_MODEL]
+
+
 def test_translation_warning_names_the_model_problem(monkeypatch):
     """End to end: the user-visible warning must carry the real cause."""
     _clear(monkeypatch)

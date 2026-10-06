@@ -26,6 +26,18 @@ def _read_only_cache(tmp_path: Path) -> Path:
     return jail / "tts"
 
 
+def test_every_supported_language_has_its_own_voice():
+    from theodore_course_studio.studio_languages import SUPPORTED_LANGUAGES
+
+    assert set(neural_tts.VOICES) == set(SUPPORTED_LANGUAGES)
+    for code, (female, male) in neural_tts.VOICES.items():
+        assert female.endswith("Neural")
+        assert male.endswith("Neural")
+        if code != "en":
+            assert not female.startswith("en-")
+            assert not male.startswith("en-")
+
+
 def test_status_reports_languages_and_cache(monkeypatch, tmp_path):
     monkeypatch.setenv("COURSE_STUDIO_TTS_CACHE", str(tmp_path))
     monkeypatch.setenv("COURSE_STUDIO_TTS", "off")

@@ -205,8 +205,6 @@ def _status_note(chain: list[str]) -> str:
 
 def tts_status() -> dict[str, object]:
     chain = engine_chain()
-    disabled = _benched_names()
-    now = time.monotonic()
     return {
         "available": bool(chain),
         "engine": chain[0] if chain else "",
@@ -357,21 +355,36 @@ def _edge_tts(text: str, language: str) -> tuple[bytes, str]:
         raise ProviderUnavailable("edge-tts CLI not on PATH")
     voice = _edge_voice(language)
     timeout = float(os.environ.get("TTS_TIMEOUT_S", "30"))
+    from aoep_shared.edge_speech import _PROXY_KEYS, proxy_from_env
+
+    environments = [os.environ.copy()]
+    if proxy_from_env():
+        direct = os.environ.copy()
+        for key in _PROXY_KEYS:
+            direct.pop(key, None)
+        environments.append(direct)
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "reply.mp3"
-        try:
-            subprocess.run(
-                ["edge-tts", "--voice", voice, "--text", text, "--write-media", str(out)],
-                check=True,
-                capture_output=True,
-                timeout=timeout,
-            )
-        except subprocess.CalledProcessError as exc:
-            raise ProviderUnavailable(
-                f"edge-tts failed: {_last_error_line(exc.stderr)}"
-            ) from exc
-        except subprocess.TimeoutExpired as exc:
-            raise ProviderUnavailable("edge-tts timed out") from exc
-        if not out.is_file() or out.stat().st_size < 256:
-            raise ProviderUnavailable("edge-tts wrote no audio")
-        return out.read_bytes(), "audio/mpeg"
+        for index, env in enumerate(environments):
+            try:
+                subprocess.run(
+                    ["edge-tts", "--voice", voice, "--text", text, "--write-media", str(out)],
+                    check=True,
+                    capture_output=True,
+                    timeout=timeout,
+                    env=env,
+                )
+            except subprocess.CalledProcessError as exc:
+                if index + 1 < len(environments):
+                    continue
+                raise ProviderUnavailable(
+                    f"edge-tts failed: {_last_error_line(exc.stderr)}"
+                ) from exc
+            except subprocess.TimeoutExpired as exc:
+                raise ProviderUnavailable("edge-tts timed out") from exc
+            if out.is_file() and out.stat().st_size >= 256:
+                return out.read_bytes(), "audio/mpeg"
+            out.unlink(missing_ok=True)
+            if index + 1 < len(environments):
+                continue
+        raise ProviderUnavailable("edge-tts wrote no audio")

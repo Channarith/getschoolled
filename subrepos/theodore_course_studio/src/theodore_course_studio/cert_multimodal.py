@@ -11,7 +11,7 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from .engagement import GameChallenge, GameKind
+from .engagement import VISUAL_GAME_KINDS, GameChallenge, GameKind, VisualChallengeError, visual_game_from_spec
 from .assessment import QuizQuestion, arrange_choices
 from .cert_i18n import SCAFFOLD_EN, scaffold_for
 from .knowledge import LearningObjective
@@ -2761,6 +2761,11 @@ def game_from_slide(slide: CourseSlide, objective_id: str = "") -> GameChallenge
         kind = GameKind(kind_raw)
     except ValueError:
         kind = GameKind.MATCH_TERM
+    if kind in VISUAL_GAME_KINDS:
+        try:
+            return visual_game_from_spec(spec, slide, objective_id)
+        except VisualChallengeError:
+            return None
     if kind is GameKind.ORDER_STEPS:
         steps = [str(s) for s in (spec.get("steps") or []) if str(s).strip()]
         if len(steps) < 2:

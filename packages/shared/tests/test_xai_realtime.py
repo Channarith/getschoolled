@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 
 import pytest
 
@@ -63,6 +64,46 @@ def test_mint_can_bind_the_browser_token_to_a_server_session(monkeypatch):
     )
     assert seen["session"] == session
     assert token.value == "bound"
+
+
+def test_mint_retries_direct_when_the_proxy_refuses_the_tunnel(monkeypatch):
+    monkeypatch.setenv("XAI_API_KEY", "test-key")
+    calls = []
+
+    class _Body:
+        def read(self):
+            return json.dumps({"value": "direct-token", "expires_at": 99}).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    def fake_open(_req, _timeout, *, proxies):
+        calls.append(proxies)
+        if proxies is None:
+            raise urllib.error.URLError("Tunnel connection failed: 403 Forbidden")
+        return _Body()
+
+    monkeypatch.setattr(xv, "_open_http", fake_open)
+    token = xv.mint_ephemeral_token(allow_mock=False)
+    assert token.value == "direct-token"
+    assert calls == [None, {}]
+
+
+def test_mint_does_not_skip_the_proxy_for_other_network_errors(monkeypatch):
+    monkeypatch.setenv("XAI_API_KEY", "test-key")
+    calls = []
+
+    def fake_open(_req, _timeout, *, proxies):
+        calls.append(proxies)
+        raise urllib.error.URLError("timed out")
+
+    monkeypatch.setattr(xv, "_open_http", fake_open)
+    with pytest.raises(xv.XaiVoiceError, match="timed out"):
+        xv.mint_ephemeral_token(allow_mock=False)
+    assert calls == [None]
 
 
 def test_build_voice_session_personas():

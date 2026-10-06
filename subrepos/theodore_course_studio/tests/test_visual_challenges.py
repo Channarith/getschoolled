@@ -494,3 +494,51 @@ def test_authored_spec_builds_the_requested_kind():
     assert visual_challenge_problems(game) == []
     assert visual_game_from_spec({"kind": "not-a-game"}) is None
     assert visual_game_from_spec({"kind": "match_term", "options": ["a", "b"]}) is None
+
+
+def test_authored_picture_spec_is_the_game_the_lesson_plays():
+    from theodore_course_studio.cert_multimodal import game_from_slide
+
+    slide = _slide(
+        title="Name it",
+        game_spec={
+            "kind": "image_to_word",
+            "image": {"label": "cat", "glyph": PICTURE_EMOJI["cat"]},
+            "options": ["cat", "dog"],
+            "answer": "cat",
+        },
+    )
+    game = pick_game_for_slide(slide, "obj")
+    assert game.kind is GameKind.IMAGE_TO_WORD
+    direct = game_from_slide(slide, "obj")
+    assert direct is not None and direct.kind is GameKind.IMAGE_TO_WORD
+    assert grade_game(game, {"selected_index": game.payload["correct_index"]}).passed is True
+
+
+def test_checkpoint_play_prefers_a_catalog_picture(tmp_path):
+    from theodore_course_studio.generate import CourseBuilder
+    from theodore_course_studio.teach import TeachEngine
+    from theodore_course_studio.types import CategoryId, StudioCourse
+
+    builder = CourseBuilder(data_dir=tmp_path / "data")
+    builder.save_course(
+        StudioCourse(
+            course_id="picture-game",
+            title="Pictures",
+            category=CategoryId.OTHER,
+            slides=[
+                CourseSlide(
+                    index=0,
+                    title="The cat",
+                    body="A cat is an animal.",
+                    narration="A cat is an animal.",
+                )
+            ],
+            status="ready",
+        )
+    )
+    engine = TeachEngine(builder)
+    engine.start(session_id="plain", course_id="picture-game", use_voice_agent=False)
+    engine.start(session_id="pic", course_id="picture-game", use_voice_agent=False)
+    assert engine.game_for_current("plain").kind is GameKind.MATCH_TERM
+    assert engine.game_for_current("pic", prefer_visual=True).kind is GameKind.IMAGE_TO_WORD

@@ -20,6 +20,8 @@ from typing import Any
 
 from .xai_realtime import (
     XaiVoiceError,
+    _open_http,
+    _proxy_tunnel_forbidden,
     build_voice_session,
     mint_ephemeral_token,
     xai_configured,
@@ -99,13 +101,25 @@ def _post_json(
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with _open_http(req, timeout, proxies=None) as response:
             raw = response.read()
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:300]
         raise LiveAudioError(f"provider HTTP {exc.code}: {detail}") from exc
     except urllib.error.URLError as exc:
-        raise LiveAudioError(f"provider unreachable: {exc.reason}") from exc
+        if not _proxy_tunnel_forbidden(exc):
+            raise LiveAudioError(f"provider unreachable: {exc.reason}") from exc
+        try:
+            with _open_http(req, timeout, proxies={}) as response:
+                raw = response.read()
+        except urllib.error.HTTPError as direct_exc:
+            detail = direct_exc.read().decode("utf-8", errors="replace")[:300]
+            raise LiveAudioError(f"provider HTTP {direct_exc.code}: {detail}") from direct_exc
+        except urllib.error.URLError as direct_exc:
+            raise LiveAudioError(
+                "provider unreachable: the configured proxy refused the tunnel "
+                f"and a direct connection also failed: {direct_exc.reason}"
+            ) from direct_exc
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:

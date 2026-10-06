@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -203,7 +204,7 @@ def translate_slides(
     langs = [canonical_language(language) for language in languages]
     if not langs:
         raise TranslationError("at least one language is required")
-    http = opener or urllib.request.urlopen
+    http = opener or _urlopen
     model = configured_model()
     resolved: list[SlideText] = []
     pending: list[dict[str, Any]] = []
@@ -694,20 +695,70 @@ def system_prompt(language: str, *, sound_specific: bool) -> str:
     return prompt
 
 
+def _urlopen(request: urllib.request.Request, timeout: float | None = None):
+    """Open a request, skipping an env proxy that refuses the xAI tunnel."""
+    try:
+        return urllib.request.urlopen(request, timeout=timeout)
+    except urllib.error.URLError as exc:
+        text = str(exc).lower()
+        if "tunnel connection failed" not in text or "403" not in text:
+            raise
+        direct = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        return direct.open(request, timeout=timeout)
+
+
+_MODEL_REJECTION = (
+    "does not exist",
+    "not available",
+    "not found",
+    "unknown model",
+    "deprecated",
+    "no access",
+)
+
+
+def _model_was_rejected(exc: BaseException) -> bool:
+    text = str(exc).lower()
+    return any(phrase in text for phrase in _MODEL_REJECTION)
+
+
 def complete_chat(
     messages: list[dict[str, str]],
     *,
     opener: Callable[..., Any] | None = None,
     timeout_s: float | None = None,
 ) -> str:
-    """One configured xAI chat completion. Returns the assistant content string."""
+    """One configured xAI chat completion. Returns the assistant content string.
+
+    If ``XAI_MODEL`` names a model this key cannot use, the same request is
+    sent once more with the default model.
+    """
+    model = configured_model()
+    try:
+        return _complete_chat_once(
+            messages, model=model, opener=opener, timeout_s=timeout_s
+        )
+    except TranslationError as first:
+        if model == XAI_DEFAULT_MODEL or not _model_was_rejected(first):
+            raise
+        return _complete_chat_once(
+            messages, model=XAI_DEFAULT_MODEL, opener=opener, timeout_s=timeout_s
+        )
+
+
+def _complete_chat_once(
+    messages: list[dict[str, str]],
+    *,
+    model: str,
+    opener: Callable[..., Any] | None,
+    timeout_s: float | None,
+) -> str:
     api_key = os.environ.get("XAI_API_KEY", "").strip()
     if not api_key:
         raise TranslationError(
             "XAI_API_KEY is not configured; set it to translate missing slide text"
         )
     base = os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1").rstrip("/")
-    model = configured_model()
     if timeout_s is None:
         timeout_s = float(os.environ.get("XAI_TIMEOUT_S", "90") or "90")
     body = {
@@ -725,12 +776,21 @@ def complete_chat(
         },
         method="POST",
     )
-    http = opener or urllib.request.urlopen
+    http = opener or _urlopen
     try:
         with http(request, timeout=timeout_s) as response:
             raw = json.loads(response.read().decode("utf-8"))
     except TranslationError:
         raise
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace").strip()[:400]
+        except Exception:  # noqa: BLE001
+            detail = ""
+        raise TranslationError(
+            f"xAI request failed: HTTP {exc.code} for model '{model}': {detail or exc.reason}"
+        ) from exc
     except Exception as exc:  # noqa: BLE001 — surface config and transport failures
         raise TranslationError(f"xAI request failed: {exc}") from exc
     try:

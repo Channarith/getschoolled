@@ -74,6 +74,21 @@ def _api_key(explicit: Optional[str] = None) -> str:
     return key
 
 
+def _proxy_tunnel_forbidden(exc: BaseException) -> bool:
+    """True when an env proxy refused the HTTPS tunnel, not when xAI answered."""
+    text = str(getattr(exc, "reason", exc)).lower()
+    return "tunnel connection failed" in text and "403" in text
+
+
+def _open_http(req: urllib.request.Request, timeout: float, *, proxies: Optional[Dict[str, str]]):
+    """Open one request. ``proxies`` None honors the environment; {} skips it."""
+    if proxies is None:
+        opener = urllib.request.build_opener()
+    else:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler(proxies))
+    return opener.open(req, timeout=timeout)
+
+
 def _http_post(
     url: str,
     *,
@@ -84,13 +99,25 @@ def _http_post(
     """POST ``data`` and return the raw response body. Isolated for testing."""
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with _open_http(req, timeout, proxies=None) as resp:
             return resp.read()
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         raise XaiVoiceError(f"xAI HTTP {exc.code}: {body}") from exc
     except urllib.error.URLError as exc:
-        raise XaiVoiceError(f"xAI network error: {exc}") from exc
+        if not _proxy_tunnel_forbidden(exc):
+            raise XaiVoiceError(f"xAI network error: {exc}") from exc
+        try:
+            with _open_http(req, timeout, proxies={}) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as direct_exc:
+            body = direct_exc.read().decode("utf-8", errors="replace")
+            raise XaiVoiceError(f"xAI HTTP {direct_exc.code}: {body}") from direct_exc
+        except urllib.error.URLError as direct_exc:
+            raise XaiVoiceError(
+                "xAI network error: the configured proxy refused api.x.ai "
+                f"and a direct connection also failed: {direct_exc}"
+            ) from direct_exc
 
 
 @dataclass

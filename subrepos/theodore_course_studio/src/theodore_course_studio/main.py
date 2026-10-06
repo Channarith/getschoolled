@@ -906,7 +906,9 @@ def teach_summary_grade(req: SummaryGradeRequest) -> dict[str, Any]:
 @app.post("/api/studio/teach/game")
 def teach_game(req: TeachSessionRequest) -> dict[str, Any]:
     try:
-        return _teach.game_for_current(req.session_id).model_dump(mode="json")
+        return _teach.game_for_current(
+            req.session_id, prefer_visual=True
+        ).model_dump(mode="json")
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
 
