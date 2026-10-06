@@ -476,6 +476,10 @@ STUDIO_JS = """
     let theodoreAvatar = null;
     // The lesson plays straight through. Pause is the only hold.
     let lecturePaused = false;
+    let liveCourseHold = false;
+    let topicSyncing = false;
+    let pendingTopic = '';
+    let topicTimer = null;
     let learningHold = false;
     let learningHoldReason = '';
     let learningCheckOpen = false;
@@ -2754,6 +2758,13 @@ STUDIO_JS = """
     function onNarrationEnded(gen) {
       if (gen !== speechGen) return;
       theodoreAvatar?.stopSpeaking();
+      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__) {
+        if (liveCourseHold) {
+          liveCourseHold = false;
+          window.TheodoreLiveAudio?.resumeRecognition();
+        }
+        return;
+      }
       showAbsorb(true);
       scheduleAutoAdvance(ABSORB_MS);
     }
@@ -2796,10 +2807,91 @@ STUDIO_JS = """
         stopSpeech();
         theodoreAvatar?.setState('paused');
         setPauseButton(true);
+        window.TheodoreLiveAudio?.pauseRecognition();
         return;
       }
       setPauseButton(false);
-      readCurrentAloud();
+      window.TheodoreLiveAudio?.resumeRecognition();
+      const live = window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__;
+      if (!live) readCurrentAloud();
+    }
+
+    function queueLiveTopic(text) {
+      pendingTopic = text;
+      clearTimeout(topicTimer);
+      topicTimer = setTimeout(() => {
+        topicTimer = null;
+        syncLiveTopic().catch((error) => toast(String(error.message || error)));
+      }, 800);
+    }
+
+    async function syncLiveTopic() {
+      if (!teachSession || lecturePaused) return;
+      if (topicSyncing) return;
+      topicSyncing = true;
+      try {
+        while (pendingTopic) {
+          const text = pendingTopic;
+          pendingTopic = '';
+          const data = await api('/api/studio/teach/topic', {
+            method:'POST', headers:{'content-type':'application/json'},
+            body: JSON.stringify({ session_id: teachSession, text: text })
+          });
+          if (!data.matched) {
+            paintCompletion(data);
+            continue;
+          }
+          if (lastTeachPayload && data.slide_index === lastTeachPayload.slide_index) {
+            paintCompletion(data);
+            showTopicExamples(data);
+            continue;
+          }
+          liveCourseHold = false;
+          renderTeach(data);
+          showTopicExamples(data);
+        }
+      } finally {
+        topicSyncing = false;
+      }
+    }
+
+    async function resumeUncoveredCourse() {
+      if (!teachSession || lecturePaused || liveCourseHold) return;
+      liveCourseHold = true;
+      window.TheodoreLiveAudio?.pauseRecognition();
+      const data = await api('/api/studio/teach/resume-uncovered', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ session_id: teachSession })
+      });
+      renderTeach(data);
+      showTopicExamples(data);
+      paintCompletion(data);
+      if (data.course_complete) {
+        liveCourseHold = false;
+        window.TheodoreLiveAudio?.resumeRecognition();
+        toast('Every section of this course has been covered');
+        return;
+      }
+      const turn = data.turn || {};
+      speakText(turn.narration || turn.display_body || '', data.tts, false, 'course-resume');
+    }
+
+    function paintCompletion(payload) {
+      const prog = (payload && payload.progress) || {};
+      if (typeof prog.completion_percent !== 'number') return;
+      const line = $('teach-adapt');
+      if (!line) return;
+      const mark = ' · ' + prog.completion_percent + '% of the course';
+      if (!line.textContent.includes('% of the course')) line.textContent += mark;
+    }
+
+    function showTopicExamples(payload) {
+      const examples = (payload && (payload.topic_examples || payload.examples)) || [];
+      const exBox = $('teach-examples');
+      if (!exBox || !examples.length || !(payload.show_examples || payload.topic_jump)) return;
+      exBox.style.display = 'block';
+      exBox.innerHTML = '<strong>Example</strong><ol>' +
+        examples.map((line) => `<li>${esc(line)}</li>`).join('') + '</ol>';
     }
 
     async function applyProfile() {
@@ -3516,7 +3608,7 @@ STUDIO_JS = """
       if (learningCheckOpen && kind !== 'learn-check' && kind !== 'guard' && kind !== 'checkpoint') return;
       if (kind !== 'adapt' && kind !== 'adapt-resume' && kind !== 'guard') attentionResume = '';
       if (lecturePaused && !holdLesson) return;
-      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__) return;
+      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) return;
       stopSpeech();
       const spoken = text || '';
       const gen = speechGen;
@@ -3770,7 +3862,23 @@ STUDIO_JS = """
       return attempt(0);
     }
     window.addEventListener('theodore-live-audio', (event) => {
-      if (event.detail?.active) stopSpeech();
+      if (event.detail?.active && !event.detail?.paused && !window.__THEODORE_LIVE_AUDIO_HOLD__) stopSpeech();
+    });
+    window.addEventListener('theodore-live-audio-speech', (event) => {
+      if (lecturePaused) return;
+      if (event.detail?.speaking) {
+        theodoreAvatar?.speak(event.detail.text || '');
+        return;
+      }
+      theodoreAvatar?.stopSpeaking();
+    });
+    window.addEventListener('theodore-live-audio-utterance', (event) => {
+      const text = event.detail && event.detail.text;
+      if (!text || lecturePaused) return;
+      queueLiveTopic(text);
+    });
+    window.addEventListener('theodore-live-audio-idle', () => {
+      resumeUncoveredCourse().catch((error) => toast(String(error.message || error)));
     });
 
     function clearVisualTimeline() {
@@ -3922,6 +4030,16 @@ STUDIO_JS = """
         motionEl.hidden = true;
         pictureEl.src = '';
         motionEl.src = '';
+      } else if (payload.example_svg) {
+        storyboardEl.hidden = false;
+        storyboardEl.innerHTML = payload.example_svg;
+        storyboardEl.setAttribute('aria-label', (turn.title || 'Example') + ' example');
+        storyConceptEl.hidden = true;
+        pictureEl.hidden = true;
+        motionEl.hidden = true;
+        pictureEl.src = '';
+        motionEl.src = '';
+        stage.classList.add('has-storyboard');
       } else {
         storyboardEl.hidden = true;
         storyboardEl.innerHTML = '';
@@ -3942,9 +4060,12 @@ STUDIO_JS = """
       }
       $('teach-activity').textContent = payload.activity_prompt || '';
       $('teach-activity').style.display = payload.activity_prompt ? 'block' : 'none';
-      const examples = payload.examples || [];
+      const examples = payload.topic_examples || payload.examples || [];
       const exBox = $('teach-examples');
-      if (exBox && examples.length && slideVariety === 'examples') {
+      const showExamples = examples.length && (
+        slideVariety === 'examples' || payload.show_examples || payload.topic_jump
+      );
+      if (exBox && showExamples) {
         exBox.style.display = 'block';
         exBox.innerHTML = '<strong>Examples</strong><ol>' +
           examples.map((e) => `<li>${esc(e)}</li>`).join('') + '</ol>';
@@ -3966,8 +4087,10 @@ STUDIO_JS = """
       const rtl = ['ar', 'fa', 'he', 'ur'].includes(spoken);
       lessonText.setAttribute('lang', spoken || 'en');
       lessonText.setAttribute('dir', rtl ? 'rtl' : 'ltr');
+      const covered = typeof prog.completion_percent === 'number'
+        ? ` · ${prog.completion_percent}% of the course` : '';
       $('teach-adapt').textContent =
-        `${adapt} · lang ${esc(lang)} · focus: ${esc(obj)} · known ${prog.known || 0} / gaps ${prog.gaps || 0}`;
+        `${adapt} · lang ${esc(lang)} · focus: ${esc(obj)} · known ${prog.known || 0} / gaps ${prog.gaps || 0}${covered}`;
       const warn = $('lang-warning');
       const notices = [];
       if (payload.disclaimer) notices.push('ℹ ' + payload.disclaimer);
@@ -3994,6 +4117,10 @@ STUDIO_JS = """
         lecturePaused = true;
         if ($('btn-pause')) setPauseButton(true);
         stopSpeech();
+        return;
+      }
+      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
+        theodoreAvatar?.speak(turn.narration || turn.display_body || turn.title || '');
         return;
       }
       speakText(turn.narration || turn.display_body || '', payload.tts);

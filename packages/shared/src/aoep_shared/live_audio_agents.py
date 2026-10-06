@@ -281,7 +281,9 @@ def inject_client(html: str) -> str:
     return html.replace("</body>", f"{tag}\n</body>") if "</body>" in html else html + tag
 
 
-def install_live_audio_routes(app: Any, *, lab_name: str) -> None:
+def install_live_audio_routes(
+    app: Any, *, lab_name: str, instructions: str = ""
+) -> None:
     """Install same-origin status/token/client routes on a FastAPI lab app."""
     from fastapi import Body, HTTPException, Request
     from fastapi.responses import Response
@@ -313,7 +315,7 @@ def install_live_audio_routes(app: Any, *, lab_name: str) -> None:
                 # or persona. The backend owns the constrained paid session.
                 mode="solo",
                 context=lab_name,
-                instructions=(
+                instructions=instructions.strip() or (
                     "You are Theodore, a warm, concise tutor. Listen naturally, "
                     "let the learner interrupt, and never mention TTS."
                 ),

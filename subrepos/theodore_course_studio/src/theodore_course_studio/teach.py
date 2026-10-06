@@ -14,6 +14,13 @@ from aoep_shared.course_studio_access import (
 )
 
 from .avatar_director import avatar_script_for_slide
+from .topic_cover import (
+    completion_percent,
+    example_card_svg,
+    example_lines,
+    match_slide,
+    slide_has_art,
+)
 from .assessment import (
     GeneratedQuiz,
     QuizQuestion,
@@ -252,6 +259,75 @@ class TeachEngine:
         self._persist_live(session, status="in_progress")
         self._telemetry.record_slide_taught()
         return self._turn_payload(course, session)
+
+    def cover_topic(self, session_id: str, text: str) -> dict[str, Any]:
+        """Open the slide that matches what the live conversation is about."""
+        course, session = self._require(session_id)
+        if self._sample_expired(session):
+            payload = self._turn_payload(course, session)
+            payload["matched"] = False
+            return payload
+        slide_index = match_slide(course, text)
+        if slide_index is None:
+            payload = self._turn_payload(course, session)
+            payload["matched"] = False
+            return payload
+        if slide_index not in session.path:
+            session.path.append(slide_index)
+        session.path_pos = session.path.index(slide_index)
+        if slide_index not in session.completed_slide_indexes:
+            session.completed_slide_indexes.append(slide_index)
+        self._persist_live(session, status="in_progress")
+        payload = self._topic_payload(course, session, slide_index)
+        payload["matched"] = True
+        payload["topic_jump"] = True
+        return payload
+
+    def resume_uncovered(self, session_id: str) -> dict[str, Any]:
+        """Move to the next course slide the learner has not covered yet."""
+        course, session = self._require(session_id)
+        if self._sample_expired(session):
+            payload = self._turn_payload(course, session)
+            payload["course_complete"] = False
+            return payload
+        covered = set(session.completed_slide_indexes)
+        order = session.path or [slide.index for slide in course.slides]
+        chosen: int | None = None
+        if order and order[session.path_pos] not in covered:
+            chosen = session.path_pos
+        else:
+            for step in range(1, len(order)):
+                pos = (session.path_pos + step) % len(order)
+                if order[pos] not in covered:
+                    chosen = pos
+                    break
+        if chosen is None:
+            payload = self._turn_payload(course, session)
+            payload["course_complete"] = True
+            payload["show_examples"] = False
+            return payload
+        session.path_pos = chosen
+        self._persist_live(session, status="in_progress")
+        slide_index = session.path[session.path_pos]
+        payload = self._topic_payload(course, session, slide_index)
+        payload["matched"] = True
+        payload["course_complete"] = False
+        payload["resumed_uncovered"] = True
+        return payload
+
+    def _topic_payload(
+        self, course: Any, session: TeachSession, slide_index: int
+    ) -> dict[str, Any]:
+        payload = self._turn_payload(course, session)
+        slide = course.slides[slide_index]
+        lines = example_lines(slide)
+        payload["show_examples"] = bool(lines)
+        payload["topic_examples"] = lines
+        if lines and not slide_has_art(slide):
+            payload["example_svg"] = example_card_svg(slide.title, lines)
+        else:
+            payload["example_svg"] = ""
+        return payload
 
     def continue_past_checkpoint(self, session_id: str) -> dict[str, Any]:
         course, session = self._require(session_id)
@@ -788,6 +864,9 @@ class TeachEngine:
                 "total_objectives": len(session.objectives),
                 "completed_slides": len(session.completed_slide_indexes),
                 "path_length": len(session.path),
+                "completion_percent": completion_percent(
+                    course, session.completed_slide_indexes
+                ),
             },
             "checkpoint": checkpoint_block,
             "activity_checkpoint": activity_checkpoint,

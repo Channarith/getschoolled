@@ -72,7 +72,15 @@ app = FastAPI(
     description="Labeled corpus training, review comments, course build, Theodore teach/present.",
     version="0.1.0",
 )
-install_live_audio_routes(app, lab_name="Theodore Course Studio")
+install_live_audio_routes(
+    app,
+    lab_name="Theodore Course Studio",
+    instructions=(
+        "You are Theodore, teaching this course. The learner may ask about any "
+        "section, in any order. Answer that part of the course, give one concrete "
+        "example, and keep the turn short. Let them interrupt. Never mention TTS."
+    ),
+)
 _AVATAR_STATIC_DIR = Path(__file__).with_name("avatar_static")
 app.mount(
     "/api/studio/avatar",
@@ -691,6 +699,29 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class TeachTopicRequest(BaseModel):
+    session_id: str = "studio-teach-1"
+    text: str = ""
+
+
+@app.post("/api/studio/teach/topic")
+def teach_topic(req: TeachTopicRequest) -> dict[str, Any]:
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="say which part of the course to open")
+    try:
+        return _teach.cover_topic(req.session_id, req.text)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
+@app.post("/api/studio/teach/resume-uncovered")
+def teach_resume_uncovered(req: TeachSessionRequest) -> dict[str, Any]:
+    try:
+        return _teach.resume_uncovered(req.session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
 
 
 @app.post("/api/studio/teach/advance")

@@ -137,4 +137,8 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "noiseSuppression:true" in source
     assert "AudioWorkletNode" in source
     assert "createMediaStreamDestination" in source
+    assert "pauseRecognition" in source
+    assert "60000" in source
+    assert "theodore-live-audio-speech" in source
+    assert "theodore-live-audio-idle" in source
     assert "__THEODORE_LIVE_AUDIO_ACTIVE__" in source
