@@ -19,13 +19,11 @@ class CertScaffold:
 
     examples_heading: str
     examples_lead: str
-    practice_nudge: str
 
 
 SCAFFOLD_EN = CertScaffold(
     examples_heading="Examples:",
     examples_lead="Here are a few friendly examples.",
-    practice_nudge="When you are ready, try the quiz or a short game to lock it in.",
 )
 
 # language -> scaffolding. Every language in CURATED must appear here.
@@ -34,7 +32,6 @@ SCAFFOLD: dict[str, CertScaffold] = {
     "km": CertScaffold(
         examples_heading="ឧទាហរណ៍៖",
         examples_lead="នេះជាឧទាហរណ៍ខ្លីៗមួយចំនួន។",
-        practice_nudge="ពេលអ្នករួចរាល់ សូមសាកល្បងសំណួរ ឬល្បែងខ្លី ដើម្បីចងចាំ។",
     ),
 }
 

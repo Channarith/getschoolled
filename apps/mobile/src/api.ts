@@ -448,6 +448,84 @@ export async function listStudents(): Promise<{ students: StudentProfile[] }> {
   return get(IDENTITY_URL, "/students", { headers: authHeaders() });
 }
 
+export type CourseProgress = {
+  lesson_id: string;
+  course_id: string;
+  slide_index: number;
+  slide_title: string;
+  status: string;
+  updated_at: number;
+};
+
+export async function saveCourseProgress(args: {
+  lessonId: string;
+  slideIndex: number;
+  slideTitle?: string;
+  courseId?: string;
+  status?: string;
+  studentId?: string | null;
+}): Promise<CourseProgress | null> {
+  const body = {
+    lesson_id: args.lessonId,
+    course_id: args.courseId || "",
+    slide_index: Math.max(0, Math.floor(args.slideIndex || 0)),
+    slide_title: args.slideTitle || "",
+    status: args.status || "in_progress",
+  };
+  const path = args.studentId
+    ? `/students/${encodeURIComponent(args.studentId)}/course-progress`
+    : "/account/course-progress";
+  try {
+    const saved = await get<{ progress: CourseProgress | null }>(IDENTITY_URL, path, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    });
+    return saved.progress ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadCourseProgress(
+  lessonId: string,
+  studentId?: string | null,
+): Promise<CourseProgress | null> {
+  if (!lessonId) return null;
+  const q = `?lesson_id=${encodeURIComponent(lessonId)}`;
+  const path = studentId
+    ? `/students/${encodeURIComponent(studentId)}/course-progress${q}`
+    : `/account/course-progress${q}`;
+  try {
+    const saved = await get<{ progress: CourseProgress | null }>(IDENTITY_URL, path, {
+      headers: authHeaders(),
+    });
+    return saved.progress ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function resumeSlideForLesson(
+  lessonId: string,
+  studentId?: string | null,
+): Promise<{ studentId: string; slideIndex: number }> {
+  let sid = (studentId || "").trim();
+  try {
+    if (!sid) {
+      const listed = await listStudents();
+      sid = listed.students[0]?.id || "";
+    }
+    const saved = await loadCourseProgress(lessonId, sid || null);
+    const slide = saved && saved.status !== "completed"
+      ? Math.max(0, Number(saved.slide_index) || 0)
+      : 0;
+    return { studentId: sid, slideIndex: slide };
+  } catch {
+    return { studentId: sid, slideIndex: 0 };
+  }
+}
+
 export async function createStudent(displayName: string): Promise<StudentProfile> {
   return get(IDENTITY_URL, "/students", {
     method: "POST",
@@ -680,6 +758,7 @@ export type LiveRoomBrowse = {
 
 export type LiveRoomState = {
   room_id: string;
+  lesson_id?: string;
   title: string;
   room_size: number;
   learner_count: number;
@@ -1116,11 +1195,20 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
 /** Open a private 1:1 (AI + you) Salareen live room for a lesson and return its
  * id. Reuses the group-class live-room UI (video tiles, chat, Q&A), sized for two
  * seats — so mobile Solo 1:1 has the same features as group lessons. */
-export async function startSoloLiveRoom(lessonId: string, creatorName = ""): Promise<{ room_id: string }> {
+export async function startSoloLiveRoom(
+  lessonId: string,
+  creatorName = "",
+  opts?: { startSlide?: number; studentId?: string },
+): Promise<{ room_id: string }> {
   return get(ORCHESTRATOR_URL, "/api/live-rooms/solo", {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ lesson_id: lessonId, creator_name: creatorName }),
+    body: JSON.stringify({
+      lesson_id: lessonId,
+      creator_name: creatorName,
+      student_id: opts?.studentId || null,
+      start_slide: Math.max(0, Math.floor(opts?.startSlide || 0)),
+    }),
   });
 }
 

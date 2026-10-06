@@ -101,6 +101,10 @@ def test_avatar_assets_are_offline_and_studio_wires_accessibility_controls():
     assert loader.status_code == 200
     assert geometry_utils.status_code == 200
     assert "class TheodoreAvatar" in runtime.text
+    assert "function speechShape" in runtime.text
+    assert "speechClock" in runtime.text
+    assert "speechPaused" in runtime.text
+    assert "applyArticulation" in runtime.text
     # The runtime must import the rig adapter, and the adapter must be served.
     assert "avatar_rig.js" in runtime.text
     assert "resolveSkeleton" in rig.text
@@ -111,6 +115,8 @@ def test_avatar_assets_are_offline_and_studio_wires_accessibility_controls():
     assert "prefers-reduced-motion" in page.text
     assert "theodore-avatar-fallback" in page.text
     assert "speechBoundary" in page.text
+    assert "resolveLearnerId" in page.text
+    assert 'id="btn-start-over"' in page.text
 
 
 def test_presenter_manifest_defaults_to_builtin():

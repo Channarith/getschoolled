@@ -14,8 +14,9 @@ import {
 } from "../lib/cameraLighting";
 
 type Props = {
-  /** Called once when the learner may start class. */
-  onReady: (opts?: { nightVision: boolean }) => void;
+  /** Called once when the learner may start class.
+   *  `stream` is handed off still running so class can keep watching. */
+  onReady: (opts?: { nightVision: boolean; stream?: MediaStream | null }) => void;
   /** Optional skip for staff/demo — not shown by default. */
   allowSkip?: boolean;
   onSkip?: () => void;
@@ -287,8 +288,12 @@ export default function CameraLightingScreener({
         <button
           type="button"
           onClick={() => {
-            stopStream();
-            onReady({ nightVision });
+            // Hand the live camera to the lesson. Stopping it here would
+            // drop the student the moment class starts.
+            const stream = streamRef.current;
+            streamRef.current = null;
+            if (videoRef.current) videoRef.current.srcObject = null;
+            onReady({ nightVision, stream });
           }}
           disabled={!ready || busy}
         >

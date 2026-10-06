@@ -41,6 +41,7 @@ from .knowledge import (
     next_slide_indexes,
     objectives_from_slides,
 )
+from .narration_runtime import clip_hints
 from .profile_adapt import adapt_slide
 from .quality_telemetry import StudioTelemetryStore, get_telemetry
 from .studio_languages import normalize_language
@@ -164,15 +165,14 @@ class TeachEngine:
         completed: list[int] = []
         resumed = False
         started_at = int(time.time() * 1000)
-        if resume and existing and existing.status == "paused" and existing.path:
+        # in_progress covers a closed tab. paused covers "Come back later".
+        # The language and profile on this request stay in effect; the checkpoint
+        # restores the slide.
+        if resume and existing and existing.status in {"paused", "in_progress"} and existing.path:
             path = existing.path
             path_pos = min(existing.path_pos, max(0, len(path) - 1))
             completed = list(existing.completed_slide_indexes)
             resumed = True
-            if existing.profile:
-                profile = existing.profile
-            if existing.language:
-                lang = normalize_language(existing.language)
             started_at = existing.started_at_ms or started_at
 
         self._voice.clear_session(session_id)
@@ -201,11 +201,16 @@ class TeachEngine:
             payload = self._turn_payload(course, session)
             if resumed:
                 payload["resumed"] = True
+                payload["learner_id"] = session.learner_id
+                if existing and existing.status == "paused":
+                    place = " Your place was saved when you chose Come back later."
+                else:
+                    place = " Picking up where this account or profile left off."
                 payload["resume_message"] = (
-                    f"Resumed at slide {session.path_pos + 1} of {len(session.path)}. "
-                    "Your place was saved when you chose Come back later."
+                    f"Resumed at slide {session.path_pos + 1} of {len(session.path)}."
+                    f"{place}"
                 )
-            elif existing and existing.status == "paused":
+            elif existing and existing.status in {"paused", "in_progress"}:
                 payload["bookmark_available"] = True
                 payload["bookmark"] = existing.model_dump(mode="json")
             return payload
@@ -441,16 +446,22 @@ class TeachEngine:
         )
         self._telemetry.record_voice_turn(tts=True)
         reply_lang = _voice_turn_language(turn, session.language)
+        # Q&A only. The full lesson payload would re-present the slide, grow
+        # history, and hand the page a second narration clip. Talk stays
+        # on-demand: hints describe the reply, they do not bake an audio URL.
+        spoken = turn.message
+        avatar = avatar_script_for_slide(slide, narration=spoken)
         return {
             "voice": turn.model_dump(mode="json"),
             "voice_gender": session.voice_gender,
             "tts": {
                 **tts_client_hints(
-                    reply_lang, session.voice_gender, text=turn.message
+                    reply_lang, session.voice_gender, text=spoken
                 ),
             },
             "spoken_language": reply_lang,
-            "turn": self._turn_payload(course, session),
+            "slide_index": session.path[session.path_pos],
+            "avatar": avatar.model_dump(mode="json"),
         }
 
     def voice_present_current(self, session_id: str) -> dict[str, Any]:
@@ -620,6 +631,43 @@ class TeachEngine:
                 "soft_limit_minutes": session.soft_limit_minutes,
             }
         avatar = avatar_script_for_slide(slide, narration=spoken)
+        next_key = ""
+        if session.path_pos + 1 < len(session.path):
+            next_slide = course.slides[session.path[session.path_pos + 1]]
+            next_key = next_slide.slide_key
+        recorded = {}
+        if spoken == (slide.narration or slide.body):
+            recorded = clip_hints(
+                slide.slide_key,
+                speak_lang,
+                session.voice_gender,
+                next_slide_key=next_key,
+            )
+        is_lesson_end = session.path_pos == len(session.path) - 1
+        is_section_end = "section_end" in slide.tags or "checkpoint" in slide.tags
+        activity_checkpoint = {
+            "due": bool(is_lesson_end or is_section_end),
+            "scope": "lesson" if is_lesson_end else "section",
+            "kind": (
+                "summary_quiz"
+                if any(
+                    course.slides[i].quiz_spec
+                    for i in session.path[: session.path_pos + 1]
+                )
+                else "reflection"
+            ),
+            "prompt": (
+                "Now that this section is complete, check what you remember."
+                if is_section_end and not is_lesson_end
+                else "Before finishing the lesson, check what you remember."
+            )
+            if speak_lang == "en"
+            else str(
+                slide.quiz_spec.get("prompt")
+                or slide.activity_prompt
+                or turn.title
+            ),
+        }
         return {
             "turn": turn_dump,
             "slide_index": slide_index,
@@ -665,6 +713,7 @@ class TeachEngine:
                 **tts_client_hints(
                     speak_lang, session.voice_gender, text=spoken
                 ),
+                **recorded,
             },
             "progress": {
                 "known": len(session.knowledge.known_objective_ids) if session.knowledge else 0,
@@ -674,6 +723,7 @@ class TeachEngine:
                 "path_length": len(session.path),
             },
             "checkpoint": checkpoint_block,
+            "activity_checkpoint": activity_checkpoint,
             "session": {
                 "session_id": session.session_id,
                 "learner_id": session.learner_id,

@@ -11,6 +11,7 @@ import {
   joinLiveRoom,
   leaveLiveRoom,
   listStudents,
+  saveCourseProgress,
   liveRoomBan,
   liveRoomUnban,
   liveRoomReport,
@@ -279,6 +280,98 @@ async function fetchLearnerJoinContext(): Promise<LearnerJoinContext | null> {
   }
 }
 
+function StudentCameraPip({
+  videoRef,
+  hidden,
+  cameraOn,
+  onToggleHidden,
+  onEnableCamera,
+}: {
+  videoRef: { current: HTMLVideoElement | null };
+  hidden: boolean;
+  cameraOn: boolean;
+  onToggleHidden: () => void;
+  onEnableCamera: () => void;
+}) {
+  const setVideo = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+  }, [videoRef]);
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      style={{
+        position: "absolute",
+        zIndex: 22,
+        top: 14,
+        left: 14,
+        width: !cameraOn || hidden ? "auto" : 176,
+        maxWidth: "34vw",
+        borderRadius: 12,
+        overflow: "hidden",
+        background: "rgba(12, 10, 16, 0.72)",
+        border: "1px solid rgba(255,255,255,0.28)",
+        boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
+      }}
+    >
+      {cameraOn ? (
+        <video
+          ref={setVideo}
+          autoPlay
+          muted
+          playsInline
+          aria-label="Your camera"
+          aria-hidden={hidden}
+          style={{
+            display: "block",
+            position: hidden ? "absolute" : "relative",
+            width: hidden ? 8 : "100%",
+            height: hidden ? 8 : "auto",
+            aspectRatio: hidden ? undefined : "16 / 9",
+            objectFit: "cover",
+            transform: "scaleX(-1)",
+            opacity: hidden ? 0 : 1,
+            pointerEvents: "none",
+          }}
+        />
+      ) : null}
+      <button
+        type="button"
+        onClick={cameraOn ? onToggleHidden : onEnableCamera}
+        aria-pressed={cameraOn ? hidden : undefined}
+        title={
+          cameraOn
+            ? hidden
+              ? "Show your camera preview. Monitoring stays on either way."
+              : "Hide the preview. The camera stays on so the teacher can still see you."
+            : "Turn your camera on"
+        }
+        style={{
+          position: cameraOn && !hidden ? "absolute" : "relative",
+          right: cameraOn && !hidden ? 6 : undefined,
+          bottom: cameraOn && !hidden ? 6 : undefined,
+          margin: cameraOn && !hidden ? 0 : 0,
+          padding: "4px 8px",
+          borderRadius: 999,
+          border: "1px solid rgba(255,255,255,0.35)",
+          background: "rgba(0,0,0,0.62)",
+          color: "#fff",
+          fontSize: 11,
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        {cameraOn ? (hidden ? "Show camera" : "Hide") : "Start camera"}
+      </button>
+      {cameraOn && hidden ? (
+        <div style={{ padding: "6px 8px 8px", color: "#e8ecf6", fontSize: 11, lineHeight: 1.35 }}>
+          Camera on. Still watching.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function initials(name: string): string {
   return name
     .split(/\s+/)
@@ -298,6 +391,7 @@ function ParticipantTile({
   slide,
   onContainerRef,
   fullscreenControls,
+  cornerOverlay,
   isMe,
   cameraOn,
   onToggleCamera,
@@ -320,6 +414,8 @@ function ParticipantTile({
   // Native fullscreen only renders descendants of the fullscreen element, so
   // Q&A controls must live inside the host tile to remain available.
   fullscreenControls?: ReactNode;
+  /** Small self-view. Stays inside this tile so fullscreen still shows it. */
+  cornerOverlay?: ReactNode;
   isMe?: boolean;
   cameraOn?: boolean;
   onToggleCamera?: () => void;
@@ -633,6 +729,7 @@ function ParticipantTile({
           {audioMuted ? "🔇" : "🔊"}
         </button>
       ) : null}
+      {cornerOverlay}
       {fullscreen && fullscreenControls ? fullscreenControls : null}
       <div
         style={{
@@ -707,6 +804,32 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [displayName, setDisplayName] = useState("");
   const [joinInfo, setJoinInfo] = useState<LiveRoomJoin | null>(null);
   const [room, setRoom] = useState<LiveRoomState | null>(null);
+  const savedSlideRef = useRef("");
+  useEffect(() => {
+    if (!roomId.startsWith("solo-") || !room?.lesson_id || !getToken()) return;
+    const index = room.slide?.index ?? 0;
+    const key = `${room.lesson_id}:${index}`;
+    if (savedSlideRef.current === key) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { students } = await listStudents();
+        if (cancelled) return;
+        await saveCourseProgress({
+          lessonId: room.lesson_id,
+          slideIndex: index,
+          slideTitle: room.slide?.title || "",
+          studentId: students[0]?.id || null,
+        });
+        if (!cancelled) savedSlideRef.current = key;
+      } catch {
+        if (!cancelled) savedSlideRef.current = "";
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId, room?.lesson_id, room?.slide?.index, room?.slide?.title]);
   const [error, setError] = useState("");
   // Benign, informational messages (e.g. "no hands are up", "you're #2 in the
   // queue"). Kept separate from `error` so normal states never render as a red
@@ -802,6 +925,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // native fullscreen state so the toggle label/icon stays in sync (Esc exits).
   const hostTileRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Hiding the corner preview must not stop the camera. Presence keeps reading
+  // frames from the same stream.
+  const [cameraPreviewHidden, setCameraPreviewHidden] = useState(false);
   // AI teacher audio: Theodore narrates each slide out loud (neural TTS with an
   // on-device fallback) while presenting. On by default; a toggle lets you mute.
   const [aiAudioOn, setAiAudioOn] = useState(true);
@@ -848,7 +974,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // Ref kept in sync with localStream state so the unmount cleanup can stop
   // camera tracks without capturing a stale closure value.
   const localStreamRef = useRef<MediaStream | null>(null);
-  const pipVideoRef = useRef<HTMLVideoElement>(null);
+  const pipVideoRef = useRef<HTMLVideoElement | null>(null);
   const presenceProbeBusyRef = useRef(false);
   const [presenceFaceCount, setPresenceFaceCount] = useState<number>(-1);
 
@@ -1124,7 +1250,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     void el.play().catch(() => undefined);
   }, [localStream]);
 
-  // Attach localStream to the PiP video element (shown when host is presenting slides).
+  // Attach localStream to the corner camera. It mounts with the lesson tile, including
+  // after fullscreen, so this must run again when that element appears.
   useEffect(() => {
     const el = pipVideoRef.current;
     if (!el) return;
@@ -1132,9 +1259,27 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       el.srcObject = null;
       return;
     }
-    el.srcObject = localStream;
+    if (el.srcObject !== localStream) el.srcObject = localStream;
+    el.muted = true;
+    el.playsInline = true;
     void el.play().catch(() => undefined);
-  }, [localStream]);
+  }, [localStream, isFullscreen, cameraPreviewHidden, cameraOn]);
+
+  // Keep a frame consumer alive while the preview is hidden. A video that nobody
+  // paints can stall, and then presence would stop seeing the student.
+  useEffect(() => {
+    if (!cameraOn || !localStream) return;
+    const canvas = document.createElement("canvas");
+    const tick = () => {
+      const video = pipVideoRef.current || presenceProbeVideoRef.current;
+      if (!video || video.readyState < 2 || !video.videoWidth) return;
+      canvas.width = 32;
+      canvas.height = 18;
+      canvas.getContext("2d")?.drawImage(video, 0, 0, 32, 18);
+    };
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [cameraOn, localStream, cameraPreviewHidden, isFullscreen]);
 
   useEffect(() => {
     const participantId = joinInfo?.participant?.id || "";
@@ -1156,7 +1301,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     let cancelled = false;
     const run = async () => {
       if (cancelled || presenceProbeBusyRef.current) return;
-      const source = presenceProbeVideoRef.current;
+      const pip = pipVideoRef.current;
+      const source = pip && pip.readyState >= 2 ? pip : presenceProbeVideoRef.current;
       if (!source || source.readyState < 2) return;
       presenceProbeBusyRef.current = true;
       try {
@@ -1383,7 +1529,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     const canvas = document.createElement("canvas");
     const tick = () => {
       if (cancelled || qualityDisconnectedRef.current) return;
-      const source = presenceProbeVideoRef.current;
+      const pip = pipVideoRef.current;
+      const source = pip && pip.readyState >= 2 ? pip : presenceProbeVideoRef.current;
       if (!source || source.readyState < 2 || !source.videoWidth) return;
       const w = 64;
       const h = 36;
@@ -2499,6 +2646,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             title="Camera and lighting check before class"
             onReady={(opts) => {
               setNightVision(Boolean(opts?.nightVision));
+              const stream = opts?.stream ?? null;
+              if (stream) {
+                setLocalStream((prev) => {
+                  if (prev && prev !== stream) prev.getTracks().forEach((t) => t.stop());
+                  return stream;
+                });
+                setCameraOn(true);
+              }
               setLightingReady(true);
             }}
           />
@@ -2681,7 +2836,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         @media (max-width: 760px) {
           .solo-live-video-grid {
             grid-template-columns: 1fr !important;
-            grid-template-rows: repeat(2, minmax(300px, 42vh)) !important;
+            grid-template-rows: minmax(300px, 70vh) !important;
           }
           .solo-live-video-grid > div {
             min-height: 300px !important;
@@ -2987,7 +3142,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             style={{
               display: "grid",
               gridTemplateColumns: isSolo
-                ? "repeat(2, minmax(0, 1fr))"
+                ? "1fr"
                 : focusInstructor
                   ? "1fr"
                   : "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
@@ -3054,6 +3209,17 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   audioMuted={locallyMutedIds.has(host.id) || !aiAudioOn}
                   onToggleAudio={toggleHostAudio}
                   onContainerRef={(el) => { hostTileRef.current = el; }}
+                  cornerOverlay={
+                    (isSolo || isFullscreen) && me ? (
+                      <StudentCameraPip
+                        videoRef={pipVideoRef}
+                        hidden={cameraPreviewHidden}
+                        cameraOn={Boolean(cameraOn && localStream)}
+                        onToggleHidden={() => setCameraPreviewHidden((value) => !value)}
+                        onEnableCamera={() => void enableCamera()}
+                      />
+                    ) : null
+                  }
                   fullscreenControls={
                     <>
                     <button
@@ -3271,7 +3437,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 )}
               </div>
             )}
-            {isSolo && learners.map((p) => (
+            {isSolo && learners.filter((p) => p.id !== me?.id).map((p) => (
               <div
                 key={p.id}
                 style={{ position: "relative", minHeight: isSolo ? 420 : 220 }}

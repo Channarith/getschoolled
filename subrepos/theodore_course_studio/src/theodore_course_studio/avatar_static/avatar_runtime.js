@@ -3,9 +3,10 @@ import { GLTFLoader } from "./loaders/GLTFLoader.js";
 import { resolveSkeleton, createFaceDriver, applyHologram } from "./avatar_rig.js";
 
 const JOINTS = [
-  "AvatarRoot", "Hips", "Spine", "Chest", "Neck", "Head", "Jaw",
+  "AvatarRoot", "Hips", "Spine", "Chest", "Neck", "Head", "Jaw", "Nose",
   "LeftShoulder", "RightShoulder", "LeftElbow", "RightElbow",
   "LeftWrist", "RightWrist", "LeftFingers", "RightFingers",
+  "LeftThumb", "RightThumb", "LeftMiddle", "RightMiddle",
   "LeftHip", "RightHip", "LeftKnee", "RightKnee",
   "LeftAnkle", "RightAnkle", "LeftEye", "RightEye",
   "LeftBrow", "RightBrow", "LeftEar", "RightEar", "Crown",
@@ -26,15 +27,20 @@ const STIFFNESS = {
   Chest: 7.5,
   Neck: 9,
   Head: 8,
-  Jaw: 26,
+  Jaw: 28,
+  Nose: 16,
   LeftShoulder: 10,
   RightShoulder: 10,
   LeftElbow: 12,
   RightElbow: 12,
   LeftWrist: 15,
   RightWrist: 15,
-  LeftFingers: 18,
-  RightFingers: 18,
+  LeftFingers: 22,
+  RightFingers: 22,
+  LeftThumb: 20,
+  RightThumb: 20,
+  LeftMiddle: 22,
+  RightMiddle: 22,
   LeftBrow: 16,
   RightBrow: 16,
   LeftEye: 20,
@@ -43,6 +49,48 @@ const STIFFNESS = {
 
 const clamp = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
 const smooth = (v) => v * v * (3 - 2 * v);
+
+/**
+ * One spoken character -> a full face and hand pose. Spaces and punctuation
+ * close the mouth so each word is visible, not a single averaged viseme.
+ */
+function speechShape(text, index) {
+  const raw = String(text || "");
+  const ch = (raw[index] || " ").toLowerCase();
+  const next = (raw[index + 1] || "").toLowerCase();
+  const pair = ch + next;
+  const rest = { shape: "rest", open: 0.02, wide: 0.08, round: 0, jaw: 0, nasal: 0, weight: 0.15 };
+  if (!ch.trim() || /[.,!?;:…\-"'()[\]，。！？、]/.test(ch)) return rest;
+  if (pair === "th") return { shape: "fv", open: 0.22, wide: 0.42, round: 0, jaw: 0.08, nasal: 0, weight: 0.85 };
+  if (pair === "sh" || pair === "ch") return { shape: "ee", open: 0.28, wide: 0.55, round: 0.35, jaw: 0.07, nasal: 0, weight: 0.8 };
+  if (pair === "oo" || pair === "ou" || pair === "ow") {
+    return { shape: "oh", open: 0.62, wide: 0.08, round: 0.9, jaw: 0.18, nasal: 0, weight: 0.95 };
+  }
+  if ("mbp".includes(ch)) {
+    return { shape: "mbp", open: 0.03, wide: 0.1, round: 0.15, jaw: 0.015, nasal: ch === "m" ? 0.85 : 0.1, weight: 0.95 };
+  }
+  if ("fv".includes(ch)) return { shape: "fv", open: 0.2, wide: 0.82, round: 0, jaw: 0.07, nasal: 0, weight: 0.9 };
+  if ("wq".includes(ch)) return { shape: "wq", open: 0.42, wide: 0.08, round: 0.9, jaw: 0.12, nasal: 0, weight: 0.9 };
+  if ("oóòöôuúùüûū".includes(ch)) {
+    return { shape: "oh", open: 0.58, wide: 0.1, round: 0.85, jaw: 0.16, nasal: 0, weight: 0.95 };
+  }
+  if ("aáàäâɑ".includes(ch)) return { shape: "aa", open: 0.95, wide: 0.38, round: 0.12, jaw: 0.22, nasal: 0, weight: 1 };
+  if ("eéèëêiíìïîyý".includes(ch) || /[ីេែៃិ]/u.test(ch)) {
+    return { shape: "ee", open: 0.38, wide: 0.92, round: 0, jaw: 0.09, nasal: 0, weight: 0.95 };
+  }
+  if (/[ាិឹឺុូួើឿៀោៅ]/u.test(ch)) {
+    return { shape: "aa", open: 0.7, wide: 0.4, round: 0.2, jaw: 0.16, nasal: 0, weight: 0.9 };
+  }
+  if ("ltdnsz".includes(ch)) {
+    return {
+      shape: "l", open: 0.3, wide: 0.28, round: 0, jaw: 0.08,
+      nasal: "nm".includes(ch) ? 0.75 : 0, weight: 0.8,
+    };
+  }
+  if (ch === "r") return { shape: "wq", open: 0.34, wide: 0.16, round: 0.5, jaw: 0.09, nasal: 0, weight: 0.75 };
+  if ("kgc".includes(ch)) return { shape: "aa", open: 0.36, wide: 0.22, round: 0.15, jaw: 0.1, nasal: 0, weight: 0.7 };
+  return { shape: "aa", open: 0.42, wide: 0.3, round: 0.1, jaw: 0.11, nasal: 0, weight: 0.6 };
+}
 
 /**
  * Critically damped spring. Semi-implicit integration with a clamped step, so a
@@ -333,9 +381,13 @@ export class TheodoreAvatar {
     this.script = { cues: [] };
     this.cueStart = performance.now();
     this.speaking = false;
+    this.speechPaused = false;
     this.speechText = "";
     this.speechStart = 0;
     this.speechDuration = 1;
+    this.speechHoldElapsed = 0;
+    this.speechAudio = null;
+    this._speechListeners = null;
     this.lastBlink = 0;
     this.nextBlink = 2.2;
     this.frame = 0;
@@ -615,38 +667,87 @@ export class TheodoreAvatar {
     if (this.fallback) this.fallback.dataset.state = this.state;
   }
 
+  detachSpeechAudio() {
+    const audio = this.speechAudio;
+    const listeners = this._speechListeners;
+    this.speechAudio = null;
+    this._speechListeners = null;
+    if (!audio || !listeners) return;
+    for (const [name, fn] of listeners) audio.removeEventListener(name, fn);
+  }
+
   speak(text, audio = null) {
+    this.detachSpeechAudio();
     this.speaking = true;
+    this.speechPaused = false;
+    this.speechHoldElapsed = 0;
     this.speechText = String(text || "");
     this.speechStart = performance.now();
-    this.speechDuration = Math.max(1, this.speechText.split(/\s+/).length / 2.4);
+    this.speechDuration = Math.max(0.4, this.speechText.split(/\s+/).filter(Boolean).length / 2.4);
     this.setState("speaking");
-    if (audio) {
-      const syncDuration = () => {
-        if (Number.isFinite(audio.duration) && audio.duration > 0) {
-          this.speechDuration = audio.duration;
-        }
-      };
-      audio.addEventListener("loadedmetadata", syncDuration, { once: true });
-      audio.addEventListener("ended", () => this.stopSpeaking(), { once: true });
-      audio.addEventListener("pause", () => {
-        if (!audio.ended) this.stopSpeaking();
-      }, { once: true });
-      syncDuration();
+    if (!audio) return;
+    this.speechAudio = audio;
+    const syncDuration = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        this.speechDuration = audio.duration;
+      }
+    };
+    const onEnded = () => this.stopSpeaking();
+    const onPause = () => {
+      if (audio.ended || this.speechAudio !== audio) return;
+      this.speechPaused = true;
+      this.speechHoldElapsed = Number.isFinite(audio.currentTime) ? audio.currentTime : this.speechHoldElapsed;
+    };
+    const onPlay = () => {
+      if (this.speechAudio !== audio) return;
+      this.speechPaused = false;
+      this.speaking = true;
+      this.setState("speaking");
+    };
+    this._speechListeners = [
+      ["loadedmetadata", syncDuration],
+      ["durationchange", syncDuration],
+      ["ended", onEnded],
+      ["pause", onPause],
+      ["play", onPlay],
+    ];
+    for (const [name, fn] of this._speechListeners) audio.addEventListener(name, fn);
+    syncDuration();
+  }
+
+  /** Seconds into the current utterance. Audio currentTime wins over the estimate. */
+  speechClock() {
+    if (this.speechPaused) return Math.max(0, this.speechHoldElapsed || 0);
+    const audio = this.speechAudio;
+    if (audio && Number.isFinite(audio.currentTime) && audio.currentTime >= 0 && !audio.paused) {
+      return audio.currentTime;
     }
+    return Math.max(0, (performance.now() - this.speechStart) / 1000);
+  }
+
+  /** Stretch authored viseme/cue times onto the real audio duration. */
+  visemeTimeScale() {
+    const authored = Number(this.script?.duration_s || 0);
+    if (authored > 0.2 && this.speechDuration > 0.2) return this.speechDuration / authored;
+    return 1;
   }
 
   speechBoundary(charIndex = 0) {
     if (!this.speaking || !this.speechText) return;
-    const fraction = clamp(charIndex / this.speechText.length);
-    this.speechStart = performance.now() - fraction * this.speechDuration * 1000;
+    const fraction = clamp(charIndex / Math.max(1, this.speechText.length));
+    const elapsed = fraction * this.speechDuration;
+    this.speechHoldElapsed = elapsed;
+    this.speechStart = performance.now() - elapsed * 1000;
   }
 
   stopSpeaking() {
     this.speaking = false;
+    this.speechPaused = false;
+    this.detachSpeechAudio();
     if (this.state === "speaking") this.setState("idle");
     if (this.face?.hasVisemes) this.face.setViseme("rest", 1);
     else this.face?.setMouth(0, 0.18);
+    this.face?.setNose?.(0);
   }
 
   spring(key, joint) {
@@ -663,7 +764,13 @@ export class TheodoreAvatar {
    * cue hand-off is a cross-fade rather than a jump between poses.
    */
   activeCues(nowMs) {
-    const elapsed = Math.max(0, (nowMs - this.cueStart) / 1000);
+    let elapsed;
+    const authored = Number(this.script?.duration_s || 0);
+    if (this.speaking && authored > 0.2 && this.speechDuration > 0.2) {
+      elapsed = this.speechClock() * (authored / this.speechDuration);
+    } else {
+      elapsed = Math.max(0, (nowMs - this.cueStart) / 1000);
+    }
     const out = [];
     for (const cue of this.script?.cues || []) {
       const start = Number(cue.start_s || 0);
@@ -691,9 +798,62 @@ export class TheodoreAvatar {
     return EXPRESSIONS[name] || EXPRESSIONS.warm;
   }
 
+  articulationAt(elapsed) {
+    const text = this.speechText || "";
+    if (text.length) {
+      const progress = clamp(elapsed / Math.max(0.05, this.speechDuration || 1));
+      const index = Math.min(text.length - 1, Math.max(0, Math.floor(progress * text.length)));
+      return speechShape(text, index);
+    }
+    const scale = this.visemeTimeScale();
+    const scheduled = [...(this.script?.visemes || [])]
+      .reverse()
+      .find((item) => Number(item.at_s || 0) * scale <= elapsed);
+    if (!scheduled) return speechShape(" ", 0);
+    const shape = String(scheduled.shape || "rest");
+    const weight = clamp(Number(scheduled.weight ?? 0.8));
+    const closed = shape === "rest" || shape === "mbp";
+    return {
+      shape,
+      open: closed ? 0.04 : 0.7 * weight,
+      wide: shape === "ee" || shape === "fv" ? 0.8 * weight : 0.16,
+      round: shape === "oh" || shape === "wq" ? 0.8 : 0,
+      jaw: closed ? 0.02 : 0.16 * weight,
+      nasal: shape === "mbp" ? 0.4 : 0,
+      weight,
+    };
+  }
+
+  applyArticulation(pose, shape, t) {
+    const open = clamp(Number(shape.open || 0));
+    const wide = clamp(Number(shape.wide || 0));
+    const round = clamp(Number(shape.round || 0));
+    const nasal = clamp(Number(shape.nasal || 0));
+    pose.add("Jaw", Number(shape.jaw || 0), 0, round * 0.04, 1);
+    pose.add("Nose", nasal * 0.12, 0, 0, 1);
+    pose.addScale("Nose", "x", nasal * 0.08);
+    const look = Math.sin(t * 3.1 + open * 6) * 0.045;
+    pose.add("LeftEye", open * 0.02, look, 0, 1);
+    pose.add("RightEye", open * 0.02, look, 0, 1);
+    pose.add("LeftEar", 0, 0, 0.05 * open, 1);
+    pose.add("RightEar", 0, 0, -0.05 * open, 1);
+    pose.addPosition("LeftBrow", "y", (open > 0.55 ? 0.045 : 0) + round * 0.02);
+    pose.addPosition("RightBrow", "y", (open > 0.55 ? 0.045 : 0) + round * 0.02);
+    pose.add("Head", open * 0.07, round * 0.03, wide * 0.02, 0.85);
+    pose.add("Neck", open * 0.035, 0, 0, 0.6);
+    const curl = -0.28 * open;
+    const spread = 0.12 * wide;
+    pose.add("LeftFingers", curl, 0, spread, 0.7);
+    pose.add("RightFingers", curl * 0.85, 0, -spread, 0.7);
+    pose.add("LeftThumb", curl * 0.55, 0.08 * open, 0, 0.65);
+    pose.add("RightThumb", curl * 0.5, -0.08 * open, 0, 0.65);
+    pose.add("LeftMiddle", curl * 1.05, 0, spread * 0.4, 0.7);
+    pose.add("RightMiddle", curl * 0.95, 0, -spread * 0.4, 0.7);
+    this.face?.setNose?.(nasal);
+  }
+
   planFace(t, amount, expression) {
     const pose = this.pose;
-    // Idle head and gaze life.
     pose.add("LeftEye", 0, Math.sin(t * 0.67) * 0.025, 0, 1);
     pose.add("RightEye", 0, Math.sin(t * 0.67) * 0.025, 0, 1);
     pose.add("LeftEar", 0, 0, Math.sin(t * 1.3) * 0.018, amount);
@@ -703,44 +863,20 @@ export class TheodoreAvatar {
     pose.addPosition("RightBrow", "y", expression.brow);
 
     const face = this.face;
-    if (!face || !face.hasMouth) {
-      face?.setExpression(expression.brow, expression.smile);
-      return;
-    }
-    face.beginFrame();
-    face.setExpression(expression.brow, expression.smile);
-
+    face?.beginFrame?.();
+    face?.setExpression(expression.brow, expression.smile);
     if (!this.speaking) {
-      if (face.hasVisemes) face.setViseme("rest", 1);
-      else face.setMouth(0.02, 0.18);
+      if (face?.hasVisemes) face.setViseme("rest", 1);
+      else face?.setMouth(0.02, 0.18);
+      face?.setNose?.(0);
       return;
     }
-    const elapsedSpeech = Math.max(0, (performance.now() - this.speechStart) / 1000);
-    const scheduled = [...(this.script?.visemes || [])]
-      .reverse()
-      .find((item) => Number(item.at_s || 0) <= elapsedSpeech);
-    if (scheduled) {
-      const closed = scheduled.shape === "rest" || scheduled.shape === "mbp";
-      const weight = clamp(Number(scheduled.weight ?? 0.8));
-      face.setViseme(scheduled.shape, weight);
-      pose.add("Jaw", closed ? 0 : 0.05 * weight, 0, 0, 1);
-      return;
+    const shape = this.articulationAt(this.speechClock());
+    if (face) {
+      if (face.hasVisemes) face.setViseme(shape.shape, shape.weight);
+      else if (face.hasMouth || face.setMouth) face.setMouth(shape.open, shape.wide);
     }
-    const progress = clamp((performance.now() - this.speechStart) / (this.speechDuration * 1000));
-    const index = Math.min(
-      this.speechText.length - 1,
-      Math.max(0, Math.floor(progress * this.speechText.length)),
-    );
-    const char = (this.speechText[index] || "a").toLowerCase();
-    const vowel = /[aeiouyáéíóúüែាិីឹឺុូួើឿៀេែៃោៅ]/u.test(char);
-    const wide = /[eiéíីេែៃ]/u.test(char);
-    const pulse = 0.45 + Math.abs(Math.sin(t * 11.2)) * 0.55;
-    if (face.hasVisemes) {
-      face.setViseme(wide ? "ee" : (vowel ? "aa" : "mbp"), (vowel ? 0.85 : 0.4) * pulse);
-    } else {
-      face.setMouth((vowel ? 0.72 : 0.28) * pulse, wide ? 0.8 : 0.18);
-    }
-    pose.add("Jaw", (vowel ? 0.055 : 0.018) * pulse, 0, 0, 1);
+    this.applyArticulation(pose, shape, t);
   }
 
   applyPose(dt, t) {

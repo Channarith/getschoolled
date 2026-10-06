@@ -15,6 +15,7 @@ import {
   liveRoomTick, liveRoomUnban,
   liveRoomPresenceReport,
   listStudents,
+  saveCourseProgress,
   startGroupClass,
   type LiveGiftCatalogItem, type LiveGroupGameType, type LiveKitMedia, type LiveRoomState,
 } from "../api";
@@ -329,6 +330,32 @@ export default function LiveRoomScreen({
   const [identity, setIdentity] = useState("");
   const [media, setMedia] = useState<LiveKitMedia | null>(null);
   const [room, setRoom] = useState<LiveRoomState | null>(null);
+  const savedSlideRef = useRef("");
+  useEffect(() => {
+    if (!roomId.startsWith("solo-") || !room?.lesson_id) return;
+    const index = room.slide?.index ?? 0;
+    const key = `${room.lesson_id}:${index}`;
+    if (savedSlideRef.current === key) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { students } = await listStudents();
+        if (cancelled) return;
+        await saveCourseProgress({
+          lessonId: room.lesson_id || "",
+          slideIndex: index,
+          slideTitle: room.slide?.title || "",
+          studentId: students[0]?.id || null,
+        });
+        if (!cancelled) savedSlideRef.current = key;
+      } catch {
+        if (!cancelled) savedSlideRef.current = "";
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId, room?.lesson_id, room?.slide?.index, room?.slide?.title]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [chat, setChat] = useState("");

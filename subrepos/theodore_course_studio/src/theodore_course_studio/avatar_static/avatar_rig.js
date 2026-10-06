@@ -25,14 +25,19 @@ export const BONE_ALIASES = {
   Neck: ["Neck", "neck_01", "mixamorigNeck"],
   Head: ["Head", "head", "mixamorigHead"],
   Jaw: ["Jaw", "jaw"],
+  Nose: ["Nose", "nose", "Nose_01", "nose_01"],
   LeftShoulder: ["LeftShoulder", "UpperArm_L", "upperarm_l", "LeftArm", "mixamorigLeftArm"],
   RightShoulder: ["RightShoulder", "UpperArm_R", "upperarm_r", "RightArm", "mixamorigRightArm"],
   LeftElbow: ["LeftElbow", "LowerArm_L", "lowerarm_l", "Forearm_L", "LeftForeArm", "mixamorigLeftForeArm"],
   RightElbow: ["RightElbow", "LowerArm_R", "lowerarm_r", "Forearm_R", "RightForeArm", "mixamorigRightForeArm"],
   LeftWrist: ["LeftWrist", "Hand_L", "hand_l", "LeftHand", "mixamorigLeftHand"],
   RightWrist: ["RightWrist", "Hand_R", "hand_r", "RightHand", "mixamorigRightHand"],
-  LeftFingers: ["LeftFingers", "Index_Proximal_L", "Middle_Proximal_L", "index_01_l", "LeftHandIndex1"],
-  RightFingers: ["RightFingers", "Index_Proximal_R", "Middle_Proximal_R", "index_01_r", "RightHandIndex1"],
+  LeftFingers: ["LeftFingers", "Index_Proximal_L", "index_01_l", "LeftHandIndex1"],
+  RightFingers: ["RightFingers", "Index_Proximal_R", "index_01_r", "RightHandIndex1"],
+  LeftThumb: ["LeftThumb", "Thumb_Proximal_L", "thumb_01_l", "LeftHandThumb1"],
+  RightThumb: ["RightThumb", "Thumb_Proximal_R", "thumb_01_r", "RightHandThumb1"],
+  LeftMiddle: ["LeftMiddle", "Middle_Proximal_L", "middle_01_l", "LeftHandMiddle1"],
+  RightMiddle: ["RightMiddle", "Middle_Proximal_R", "middle_01_r", "RightHandMiddle1"],
   LeftHip: ["LeftHip", "UpperLeg_L", "thigh_l", "LeftUpLeg", "mixamorigLeftUpLeg"],
   RightHip: ["RightHip", "UpperLeg_R", "thigh_r", "RightUpLeg", "mixamorigRightUpLeg"],
   LeftKnee: ["LeftKnee", "LowerLeg_L", "calf_l", "LeftLeg", "mixamorigLeftLeg"],
@@ -78,6 +83,7 @@ export const FACE_ALIASES = {
   browFurrow: ["browFurrow", "browsDown", "eyebrow_furrow", "browDown_L"],
   blinkL: ["eyeBlink_L", "eyeBlinkLeft", "blink_l"],
   blinkR: ["eyeBlink_R", "eyeBlinkRight", "blink_r"],
+  noseSneer: ["noseSneer", "noseSneer_L", "noseWrinkle", "noseSneerLeft"],
 };
 
 const lc = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -221,6 +227,10 @@ export function createFaceDriver(root) {
     setBlink(amount) {
       setChan(channels.blinkL, amount, 40, true);
       setChan(channels.blinkR, amount, 40, true);
+    },
+
+    setNose(amount) {
+      setChan(channels.noseSneer, amount, 18, true);
     },
 
     // Relax any transient channel not refreshed this frame, then ease all.

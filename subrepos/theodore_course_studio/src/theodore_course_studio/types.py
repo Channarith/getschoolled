@@ -132,6 +132,78 @@ class ReviewComment(BaseModel):
     created_at_ms: int = 0
 
 
+StyleFamily = Literal["narrative", "picture", "text", "challenge"]
+VisualMotion = Literal["none", "fade", "slide", "ken-burns", "type-on", "pulse", "draw"]
+VisualLayerKind = Literal[
+    "picture", "video", "storyboard", "title", "body", "caption", "callout"
+]
+ReducedMotionPolicy = Literal["static", "instant"]
+CheckpointKind = Literal["pause", "reflect", "quiz", "practice"]
+PresentationSource = Literal["curated", "inferred", "explicit", "legacy", "authored"]
+
+
+class VisualLayer(BaseModel):
+    """One composited element on a slide (picture, type, storyboard, callout)."""
+
+    layer_id: str = Field(min_length=1)
+    kind: VisualLayerKind = "body"
+    asset_url: str = ""
+    alt: str = ""
+    text: str = ""
+    svg: str = ""
+    z_index: int = 0
+    motion: VisualMotion = "fade"
+    # What this layer does when the viewer asks for reduced motion.
+    reduced_motion: ReducedMotionPolicy = "static"
+    opacity: float = Field(default=1, ge=0, le=1)
+
+
+class VisualCue(BaseModel):
+    """One visual beat authored on an inclusive sentence range.
+
+    ``start_s`` and ``duration_s`` stay 0 until the timeline compiler turns the
+    sentence range into seconds. That mirrors AvatarCue's timed fields while
+    letting authors write against narration instead of a clock.
+    """
+
+    start_sentence: int = Field(ge=0)
+    end_sentence: int = Field(ge=0)
+    start_s: float = Field(default=0, ge=0)
+    duration_s: float = Field(default=0, ge=0)
+    layer_ids: list[str] = Field(default_factory=list)
+    enter: VisualMotion = "fade"
+    hold: VisualMotion = "none"
+    exit: VisualMotion = "none"
+    note: str = ""
+
+
+class PresentationCheckpoint(BaseModel):
+    """A pause on the visual timeline (quiz, reflection, or practice)."""
+
+    checkpoint_id: str = ""
+    at_sentence: int = Field(ge=0)
+    at_s: float = Field(default=0, ge=0)
+    kind: CheckpointKind = "pause"
+    prompt: str = ""
+    blocks_advance: bool = True
+
+
+class PresentationScript(BaseModel):
+    """Compiled visual timeline for one course slide."""
+
+    version: int = 1
+    style_id: str = ""
+    family: StyleFamily = "narrative"
+    layout: str = "stack"
+    duration_s: float = Field(default=1, gt=0, le=600)
+    layers: list[VisualLayer] = Field(default_factory=list)
+    cues: list[VisualCue] = Field(default_factory=list)
+    checkpoints: list[PresentationCheckpoint] = Field(default_factory=list)
+    reduced_motion: bool = False
+    source: PresentationSource = "inferred"
+    sentence_count: int = Field(default=0, ge=0)
+
+
 class CourseSlide(BaseModel):
     index: int = Field(ge=0)
     # Stable id that survives title translation (e.g. ca-dmv-basics.following-distance).
@@ -161,6 +233,14 @@ class CourseSlide(BaseModel):
     keep: bool = True
     tags: list[str] = Field(default_factory=list)
     avatar_script: AvatarScript | None = None
+    # Optional visual timeline. Empty defaults keep older slide JSON valid.
+    # ``presentation_style`` pins a registry id; the script, layers, cues, and
+    # checkpoints are explicit authoring that the director compiles to seconds.
+    presentation_style: str = ""
+    visual_layers: list[VisualLayer] = Field(default_factory=list)
+    visual_cues: list[VisualCue] = Field(default_factory=list)
+    presentation_checkpoints: list[PresentationCheckpoint] = Field(default_factory=list)
+    presentation_script: PresentationScript | None = None
 
 
 class StudioCourse(BaseModel):

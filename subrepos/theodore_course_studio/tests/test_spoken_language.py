@@ -50,7 +50,6 @@ def test_khmer_scaffolding_is_khmer():
     for phrase in (
         scaffold.examples_heading,
         scaffold.examples_lead,
-        scaffold.practice_nudge,
     ):
         assert _has_khmer(phrase), phrase
 
@@ -70,7 +69,7 @@ def test_narration_omits_connectives_rather_than_speaking_english():
 def test_narration_and_body_use_the_slide_language_scaffolding():
     say = narration_with_examples("សូស្តី។", ("ឧ១", "ឧ២"), "km")
     assert not ENGLISH_SENTENCE_RE.search(say), say
-    assert scaffold_for("km").practice_nudge in say  # type: ignore[union-attr]
+    assert "quiz" not in say.lower()
 
     body = format_body_with_examples("សូស្តី។", ("ឧ១",), "km")
     assert "Examples:" not in body

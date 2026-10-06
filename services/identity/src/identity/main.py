@@ -735,6 +735,94 @@ def get_student(student_id: str, acct=Depends(current_account)) -> dict:
     return prof.model_dump()
 
 
+class CourseProgressWrite(BaseModel):
+    lesson_id: str = ""
+    course_id: str = ""
+    slide_index: int = 0
+    slide_title: str = ""
+    status: str = "in_progress"
+
+
+def _progress_response(row, source: str) -> dict:
+    return {
+        "progress": row.model_dump() if row is not None else None,
+        "source": source,
+    }
+
+
+@app.post("/account/course-progress")
+def save_account_course_progress(req: CourseProgressWrite, acct=Depends(current_account)) -> dict:
+    """Save where this account left a lesson when no student profile is in use."""
+    try:
+        row = app.state.accounts.save_course_progress(
+            acct.id,
+            lesson_id=req.lesson_id,
+            course_id=req.course_id,
+            slide_index=req.slide_index,
+            slide_title=req.slide_title,
+            status=req.status,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return _progress_response(row, "account")
+
+
+@app.get("/account/course-progress")
+def get_account_course_progress(
+    lesson_id: str = "",
+    course_id: str = "",
+    acct=Depends(current_account),
+) -> dict:
+    row, source = app.state.accounts.get_course_progress(
+        acct.id, lesson_id=lesson_id, course_id=course_id,
+    )
+    return _progress_response(row, source)
+
+
+@app.post("/students/{student_id}/course-progress")
+def save_student_course_progress(
+    student_id: str,
+    req: CourseProgressWrite,
+    acct=Depends(current_account),
+) -> dict:
+    """Save the slide this student profile should resume."""
+    try:
+        row = app.state.accounts.save_course_progress(
+            acct.id,
+            lesson_id=req.lesson_id,
+            course_id=req.course_id,
+            slide_index=req.slide_index,
+            slide_title=req.slide_title,
+            status=req.status,
+            student_id=student_id,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return _progress_response(row, "profile")
+
+
+@app.get("/students/{student_id}/course-progress")
+def get_student_course_progress(
+    student_id: str,
+    lesson_id: str = "",
+    course_id: str = "",
+    acct=Depends(current_account),
+) -> dict:
+    """Profile place first, then the account place if this profile has none."""
+    try:
+        row, source = app.state.accounts.get_course_progress(
+            acct.id,
+            lesson_id=lesson_id,
+            course_id=course_id,
+            student_id=student_id,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return _progress_response(row, source)
+
+
 class StudentAvatarPreference(BaseModel):
     avatar_id: str
 
