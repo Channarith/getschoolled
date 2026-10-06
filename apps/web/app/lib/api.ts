@@ -600,6 +600,16 @@ export async function enrollCourse(courseId: string, title: string, status = "en
   );
 }
 
+/** Record payment for one class. Local sandbox completes it for a signed-in account. */
+export async function purchaseCourse(courseId: string, title: string): Promise<Enrollment> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/enrollments/${encodeURIComponent(courseId)}/purchase`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ title }),
+    })
+  );
+}
+
 /** Bookmark a course to My List (status="saved"). Idempotent. */
 export async function saveForLater(courseId: string, title: string): Promise<Enrollment> {
   return enrollCourse(courseId, title, "saved");

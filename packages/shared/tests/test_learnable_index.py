@@ -93,3 +93,12 @@ def test_kids_home_contains_only_curated_learning_and_games():
         "Shapes & Colors Parade",
     } <= titles
     assert all(course["deep_link"].startswith("/kids/learn?course=") for course in learning)
+
+
+def test_course_studio_is_in_the_library():
+    items = build_learnable_index()
+    studio = [item for item in items if item.source == "course_studio"]
+    assert len(studio) == 1
+    assert studio[0].source_id == "course-studio"
+    assert studio[0].duration_min == 10
+    assert studio[0].deep_link == "/learn/course-studio"

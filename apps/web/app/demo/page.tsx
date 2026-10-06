@@ -73,6 +73,17 @@ export default function SalesDemoPage() {
         </div>
       </section>
 
+      <section style={{ marginTop: 34 }}>
+        <h2>Course Studio sample</h2>
+        <p className="muted">
+          Ten minutes of a live class for this sales presentation. A learner who registers and pays
+          for the class takes the full course from the library.
+        </p>
+        <Link href="/demo/course-studio">
+          <button type="button">Open the 10-minute sample</button>
+        </Link>
+      </section>
+
       {enabled(SALES_DEMO_FLAGS.featuredCourses) ? (() => {
         // Read the admin-controlled course list from the flag value.
         // Falls back to the 5 built-in courses if the flag value is missing/invalid.

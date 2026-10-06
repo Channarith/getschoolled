@@ -10,6 +10,12 @@ from aoep_shared.course_artwork import resolve_course_poster_from_mapping
 from aoep_shared.games import GAME_SUBJECTS
 from aoep_shared.language_learning import language_list
 
+from aoep_shared.course_studio_access import (
+    LIBRARY_COURSE_ID,
+    SAMPLE_MINUTES,
+    SAMPLE_PREVIEW,
+)
+
 from .lessons import lesson_category, lesson_duration_min, load_sample_lessons
 
 from .models import LearnableItem
@@ -363,7 +369,36 @@ def build_learnable_index(
     for subject in GAME_SUBJECTS:
         items.append(_from_game_subject(subject))
 
+    if LIBRARY_COURSE_ID not in catalog_ids:
+        items.append(_course_studio_library_item())
+
     return items
+
+
+def _course_studio_library_item() -> LearnableItem:
+    """Public library entry for Course Studio.
+
+    The card opens the website gate: a 10-minute sample until the learner is
+    registered and has paid for the class.
+    """
+    return LearnableItem(
+        id=f"course_studio:{LIBRARY_COURSE_ID}",
+        source="course_studio",
+        source_id=LIBRARY_COURSE_ID,
+        title="Course Studio",
+        subtitle="Live class with Theodore",
+        category="Course Studio",
+        subject="Course Studio",
+        format="interactive",
+        level="beginner",
+        duration_min=SAMPLE_MINUTES,
+        tags=["course-studio", "sample"],
+        hands_on=True,
+        access_tier="basic",
+        preview=SAMPLE_PREVIEW,
+        deep_link="/learn/course-studio",
+        popularity=80,
+    )
 
 
 def _matches_eq(value: str, want: Optional[str]) -> bool:

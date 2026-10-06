@@ -7,6 +7,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from aoep_shared.course_studio_access import (
+    SAMPLE_ENDED,
+    SAMPLE_MINUTES,
+    SAMPLE_PREVIEW,
+)
+
 from .avatar_director import avatar_script_for_slide
 from .assessment import (
     GeneratedQuiz,
@@ -94,6 +100,8 @@ class TeachSession:
     completed_slide_indexes: list[int] = field(default_factory=list)
     resumed_from_checkpoint: bool = False
     game_rotation: int = 0
+    # Sales-demo sessions stop at SAMPLE_MINUTES and cannot be extended.
+    sample_only: bool = False
 
 
 class TeachEngine:
@@ -128,6 +136,7 @@ class TeachEngine:
         resume: bool = False,
         soft_limit_minutes: int | None = None,
         voice_gender: str = "female",
+        access: str = "full",
     ) -> dict[str, Any]:
         course = self._builder.get_course(course_id)
         if course is None:
@@ -160,6 +169,12 @@ class TeachEngine:
         if course.audience not in {"general", "adult_cert_prep", "corporate"}:
             # Kids lessons stay short; do not force adult soft-stop UI.
             soft_minutes = max(soft_minutes, 60)
+            soft_slides = max(soft_slides, len(path) + 1)
+        sample_only = access == "sample"
+        if sample_only:
+            # The sales sample is a clock, not a slide count, and it wins over
+            # the longer kid and trial windows.
+            soft_minutes = SAMPLE_MINUTES
             soft_slides = max(soft_slides, len(path) + 1)
 
         existing = self._checkpoints.load(learner_id, course_id)
@@ -197,6 +212,7 @@ class TeachEngine:
                 completed_slide_indexes=completed,
                 resumed_from_checkpoint=resumed,
                 checkpoint_ack=False,
+                sample_only=sample_only,
             )
             self._sessions[session_id] = session
             self._persist_live(session, status="in_progress")
@@ -223,6 +239,8 @@ class TeachEngine:
 
     def advance(self, session_id: str) -> dict[str, Any]:
         course, session = self._require(session_id)
+        if self._sample_expired(session):
+            return self._turn_payload(course, session)
         # Mark current slide completed before moving on.
         if session.path:
             cur = session.path[session.path_pos]
@@ -237,6 +255,9 @@ class TeachEngine:
 
     def continue_past_checkpoint(self, session_id: str) -> dict[str, Any]:
         course, session = self._require(session_id)
+        if session.sample_only:
+            # A sample cannot be extended into the rest of the class.
+            return self._turn_payload(course, session)
         session.checkpoint_ack = True
         # Extend soft window so the learner can finish this block.
         session.soft_limit_minutes = max(
@@ -692,6 +713,7 @@ class TeachEngine:
         has_quiz_bank = any(
             course.slides[i].quiz_spec for i in session.path[: session.path_pos + 1]
         )
+        sample_complete = self._sample_expired(session, now)
         if is_lesson_end and has_quiz_bank:
             checkpoint_activity = "quiz"
         elif is_lesson_end or is_section_end:
@@ -711,6 +733,8 @@ class TeachEngine:
             if speak_lang == "en"
             else str(activity_prompt or turn.title),
         }
+        if sample_complete:
+            activity_checkpoint["due"] = False
         return {
             "turn": turn_dump,
             "slide_index": slide_index,
@@ -767,6 +791,19 @@ class TeachEngine:
             },
             "checkpoint": checkpoint_block,
             "activity_checkpoint": activity_checkpoint,
+            "access_mode": "sample" if session.sample_only else "full",
+            "sample": {
+                "minutes": SAMPLE_MINUTES if session.sample_only else 0,
+                "complete": sample_complete,
+                "continue_allowed": not sample_complete,
+                "message": (
+                    SAMPLE_ENDED
+                    if sample_complete
+                    else SAMPLE_PREVIEW
+                    if session.sample_only
+                    else ""
+                ),
+            },
             "session": {
                 "session_id": session.session_id,
                 "learner_id": session.learner_id,
@@ -776,6 +813,12 @@ class TeachEngine:
                 "resumed": session.resumed_from_checkpoint,
             },
         }
+
+    def _sample_expired(self, session: TeachSession, now_ms: int | None = None) -> bool:
+        if not session.sample_only:
+            return False
+        now = int(time.time() * 1000) if now_ms is None else now_ms
+        return (now - session.started_at_ms) >= session.soft_limit_minutes * 60_000
 
     def _require(self, session_id: str) -> tuple[StudioCourse, TeachSession]:
         with self._lock:

@@ -21,6 +21,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from aoep_shared.course_studio_access import resolve_teach_access
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
 from .certification_prep import (
@@ -137,6 +138,11 @@ class TeachStartRequest(BaseModel):
     resume: bool = False
     soft_limit_minutes: int | None = Field(default=None, ge=5, le=90)
     voice_gender: str = "female"
+    # Empty access is the authoring studio. "sample" is the sales demo.
+    # "full" is kept only when the learner is registered and the class is paid.
+    access: str = ""
+    registered: bool = False
+    enrollment_status: str = ""
 
 
 class TeachSessionRequest(BaseModel):
@@ -605,6 +611,9 @@ class TrialRunRequest(BaseModel):
     language: str = "en"
     learner_id: str = "learner-demo"
     profile: LearnerProfileScores = Field(default_factory=LearnerProfileScores)
+    access: str = ""
+    registered: bool = False
+    enrollment_status: str = ""
 
 
 @app.post("/api/studio/teach/trial-run")
@@ -624,6 +633,11 @@ def teach_trial_run(req: TrialRunRequest) -> dict[str, Any]:
             use_voice_agent=True,
             resume=False,
             soft_limit_minutes=18,
+            access=resolve_teach_access(
+                requested=req.access,
+                registered=req.registered,
+                enrollment_status=req.enrollment_status,
+            ),
         )
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -667,6 +681,11 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
             resume=req.resume,
             soft_limit_minutes=req.soft_limit_minutes,
             voice_gender=req.voice_gender,
+            access=resolve_teach_access(
+                requested=req.access,
+                registered=req.registered,
+                enrollment_status=req.enrollment_status,
+            ),
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc

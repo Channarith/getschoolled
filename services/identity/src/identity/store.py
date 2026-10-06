@@ -34,6 +34,7 @@ class EnrollmentStatus(str, enum.Enum):
     IN_PROGRESS = "in_progress"
     PASSED = "passed"
     FAILED = "failed"
+    PAID = "paid"              # registered learner purchased this class
 
 
 class Enrollment(BaseModel):

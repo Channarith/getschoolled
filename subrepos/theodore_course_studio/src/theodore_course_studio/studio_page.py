@@ -315,6 +315,8 @@ STUDIO_CSS = """
                 color:#5c3b1e; border:1px solid #e7c98a; font:700 15px "Avenir Next", "Segoe UI", sans-serif; text-align:center; }
     .lang-warning { margin-top:8px; padding:8px 10px; border-radius:12px; background:#fff6e0;
                     border:1px solid #e7c98a; color:#6a4b16; font-size:14px; }
+    .sample-banner { margin-top:8px; padding:10px 12px; border-radius:12px; background:#eef2ff;
+                     border:1px solid #6366f1; color:#1e1b4b; font-size:14px; font-weight:700; }
     @media (max-width:700px) {
       .picture-stage { grid-template-columns:1fr; }
       .teacher-stage-grid { grid-template-columns:1fr; }
@@ -420,6 +422,31 @@ STUDIO_JS = """
     let lastTeachPayload = null;
     let earlyOptions = [];
     let certOptions = [];
+    const studioQuery = new URLSearchParams(location.search);
+    const requestedAccess = (studioQuery.get('access') || '').trim().toLowerCase();
+    const registeredFlag = studioQuery.get('registered') === '1';
+    const enrollmentStatus = (studioQuery.get('enrollment') || '').trim();
+    function teachAccessFields() {
+      return {
+        access: requestedAccess,
+        registered: registeredFlag,
+        enrollment_status: enrollmentStatus,
+      };
+    }
+    function sampleIsComplete() {
+      return !!(lastTeachPayload && lastTeachPayload.sample && lastTeachPayload.sample.complete);
+    }
+    function paintSampleBanner(payload) {
+      const banner = $('sample-banner');
+      if (!banner) return;
+      const sample = (payload && payload.sample) || {};
+      const mode = (payload && payload.access_mode) || '';
+      const show = mode === 'sample' || (!payload && requestedAccess === 'sample');
+      banner.style.display = show ? 'block' : 'none';
+      banner.textContent = show
+        ? (sample.message || '10-minute sample. A registered learner who has paid for the class takes the full course.')
+        : '';
+    }
     function resolveLearnerId() {
       try {
         const params = new URLSearchParams(location.search);
@@ -2108,7 +2135,8 @@ STUDIO_JS = """
           focus_gaps: true, known_objective_ids: [],
           language: teachLanguage, use_voice_agent: true,
           voice_gender: courseVoiceGender,
-          resume: opts.resume !== false
+          resume: opts.resume !== false,
+          ...teachAccessFields()
         })
       });
       renderTeach(data);
@@ -2127,6 +2155,7 @@ STUDIO_JS = """
           language: teachLanguage,
           learner_id: learnerId,
           profile: profileFromForm(),
+          ...teachAccessFields(),
         })
       });
       selectedCourse = data.course_id;
@@ -2605,6 +2634,7 @@ STUDIO_JS = """
 
     function scheduleAutoAdvance(delayMs) {
       clearAutoAdvance();
+      if (sampleIsComplete()) return;
       if (learningHold || learningCheckOpen || lecturePaused || beatHandled || talkOpen) return;
       autoAdvanceTimer = setTimeout(() => {
         autoAdvanceTimer = null;
@@ -2614,6 +2644,7 @@ STUDIO_JS = """
 
     function finishSlideBeat() {
       if (learningHold) return;
+      if (sampleIsComplete()) return;
       if (lecturePaused || beatHandled) return;
       beatHandled = true;
       clearAutoAdvance();
@@ -3958,6 +3989,13 @@ STUDIO_JS = """
       renderReview();
       placeStudentCam();
       void ensureStudentCamera();
+      paintSampleBanner(payload);
+      if (payload.sample && payload.sample.complete) {
+        lecturePaused = true;
+        if ($('btn-pause')) setPauseButton(true);
+        stopSpeech();
+        return;
+      }
       speakText(turn.narration || turn.display_body || '', payload.tts);
     }
 
@@ -4038,6 +4076,7 @@ STUDIO_JS = """
     initAvatarDrag();
     setAvatarVisible(
       typeof avatarPrefs.on === 'boolean' ? avatarPrefs.on : SHOW_AVATAR, false);
+    paintSampleBanner(null);
     loadLanguages().catch(() => {});
     loadAvatarChoices().catch((error) => toast(String(error.message || error)));
     loadLibrary().catch((e) => toast(String(e.message || e)));
@@ -4149,6 +4188,7 @@ def render_studio_page() -> str:
             <div class="modality-row" id="teach-modalities"></div>
             <div class="examples-box" id="teach-examples"></div>
             <div class="lang-warning" id="lang-warning" style="display:none"></div>
+            <div class="sample-banner" id="sample-banner" style="display:none" role="status"></div>
             <div class="activity" id="teach-activity" style="display:none"></div>
             <div class="narr" id="teach-narr"></div>
             <div class="absorb-note" id="absorb-note" hidden>Take a moment with this page. The next one waits so you can study it.</div>
