@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import ast
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -74,7 +76,35 @@ def test_picture_catalog_matches_the_children_lab_without_importing_it():
     source = Path(engagement.__file__).read_text(encoding="utf-8")
     assert "import theodore_children_webcam_lab" not in source
     assert "from theodore_children_webcam_lab" not in source
-    assert "theodore_children_webcam_lab" not in sys.modules
+    # Verify importing the catalog doesn't pull in the children lab. Checking
+    # sys.modules in-process is fragile: the full pytest run shares one
+    # interpreter, so an unrelated test that legitimately imported the lab
+    # leaves it in sys.modules and this assertion would fail on ordering alone.
+    # Run the check in a fresh interpreter (with the same src paths this
+    # suite's conftest wires up) so it reflects engagement's own imports only.
+    src_root = Path(engagement.__file__).resolve().parents[1]
+    shared_src = src_root.parents[2] / "packages" / "shared" / "src"
+    env = dict(os.environ)
+    extra_paths = [str(src_root)] + (
+        [str(shared_src)] if shared_src.is_dir() else []
+    )
+    env["PYTHONPATH"] = os.pathsep.join(
+        extra_paths + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else [])
+    )
+    probe = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, theodore_course_studio.engagement; "
+            "sys.exit(1 if 'theodore_children_webcam_lab' in sys.modules else 0)",
+        ],
+        capture_output=True,
+        env=env,
+    )
+    assert probe.returncode == 0, (
+        "importing theodore_course_studio.engagement pulled in "
+        f"theodore_children_webcam_lab:\n{probe.stderr.decode(errors='replace')}"
+    )
     assert "urlopen" not in source
     lab = _assign(LAB_ENGINE.read_text(encoding="utf-8"), "PICTURE_WORDS")
     glyphs = _assign(LAB_ENGINE.read_text(encoding="utf-8"), "PICTURE_EMOJI")

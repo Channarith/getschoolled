@@ -4,14 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { clearToken, getMe, getToken, lockAdmin, setPreview } from "../lib/api";
+import { clearToken, getToken, lockAdmin, setPreview } from "../lib/api";
 import { invalidatePortfolioCache } from "./BookmarkButton";
 import { useT } from "../lib/i18n";
 import { useFlag } from "../lib/flags";
 import LanguagePicker from "./LanguagePicker";
 import VoicePrefsControls from "./VoicePrefsControls";
-import AvatarImage from "./AvatarImage";
-import { readLocalAvatarId, writeLocalAvatarId } from "../lib/avatars";
 
 // Netflix-style profile dropdown: a single avatar button on the right of the nav
 // that opens a menu with the user's personal surfaces (profile/account, rewards,
@@ -23,25 +21,18 @@ export default function ProfileMenu() {
   const pathname = usePathname() ?? "/";
   const bugReporterEnabled = useFlag<boolean>("engagement.in_app_bug_reporter", true);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [avatarId, setAvatarId] = useState<string>("");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // The nav profile button always shows the Salareen brand mark (mirroring the
+  // left-hand brand's kids/standard swap), never a chosen portrait avatar.
+  const logoSrc = pathname.startsWith("/kids")
+    ? "/logo-cartoon-mark.webp"
+    : "/logo-mark.webp";
+
   useEffect(() => {
-    const tok = Boolean(getToken());
-    setLoggedIn(tok);
+    setLoggedIn(Boolean(getToken()));
     setOpen(false);
-    setAvatarId(readLocalAvatarId());
-    if (tok) {
-      getMe()
-        .then((me) => {
-          if (me.avatar_id) {
-            setAvatarId(me.avatar_id);
-            writeLocalAvatarId(me.avatar_id);
-          }
-        })
-        .catch(() => { /* guest / offline */ });
-    }
   }, [pathname]);
 
   useEffect(() => {
@@ -88,7 +79,14 @@ export default function ProfileMenu() {
           color: "var(--text)",
         }}
       >
-        <AvatarImage avatarId={avatarId || "logo"} size={26} alt="" />
+        {/* eslint-disable-next-line @next/next/no-img-element -- small local brand mark */}
+        <img
+          src={logoSrc}
+          alt=""
+          width={26}
+          height={26}
+          style={{ width: 26, height: 26, borderRadius: "50%", display: "block" }}
+        />
         <span aria-hidden style={{ fontSize: 10, opacity: 0.8 }}>▾</span>
       </button>
 
