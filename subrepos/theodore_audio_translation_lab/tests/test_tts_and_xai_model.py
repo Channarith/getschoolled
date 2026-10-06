@@ -39,6 +39,9 @@ _TTS_ENV = (
     "TRANSLATION_BASE_URL",
     "XAI_API_KEY",
     "XAI_MODEL",
+    "SUPERGROK_TOKEN",
+    "XAI_OAUTH_TOKEN",
+    "GROK_AUTH_FILE",
 )
 
 
@@ -84,6 +87,9 @@ def test_blank_xai_model_env_does_not_defeat_the_default(monkeypatch):
 
 
 def test_xai_http_error_reports_the_response_body_and_model(monkeypatch):
+    monkeypatch.delenv("SUPERGROK_TOKEN", raising=False)
+    monkeypatch.delenv("XAI_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("GROK_AUTH_FILE", raising=False)
     """The 400 body is the only place xAI explains itself, so it must survive."""
 
     def fake(req, timeout=None):
@@ -113,6 +119,9 @@ def test_xai_http_error_reports_the_response_body_and_model(monkeypatch):
 
 
 def test_rejected_model_retries_the_default(monkeypatch):
+    monkeypatch.delenv("SUPERGROK_TOKEN", raising=False)
+    monkeypatch.delenv("XAI_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("GROK_AUTH_FILE", raising=False)
     seen = []
 
     def fake(req, timeout=None):
@@ -141,6 +150,40 @@ def test_rejected_model_retries_the_default(monkeypatch):
     )
     assert reply == "Hola."
     assert seen == ["grok-4.7", XAI_DEFAULT_MODEL]
+
+
+def test_supergrok_refusal_uses_the_api_key(monkeypatch):
+    seen = []
+
+    def fake(req, timeout=None):
+        body = json.loads(req.data.decode("utf-8"))
+        seen.append(req.full_url)
+        if "cli-chat-proxy" in req.full_url:
+            raise urllib.error.HTTPError(
+                req.full_url,
+                403,
+                "Forbidden",
+                {},
+                BytesIO(b'{"error":"tier"}'),
+            )
+        payload = {"choices": [{"message": {"content": "From the API."}}]}
+        assert body["model"] == XAI_DEFAULT_MODEL
+        return BytesIO(json.dumps(payload).encode("utf-8"))
+
+    monkeypatch.setenv("SUPERGROK_TOKEN", "secret-session")
+    monkeypatch.setattr("urllib.request.urlopen", fake)
+    reply = xai_chat(
+        base_url="https://api.x.ai/v1",
+        api_key="test-key",
+        model=XAI_DEFAULT_MODEL,
+        messages=[{"role": "user", "content": "hi"}],
+        temperature=0.1,
+        max_tokens=10,
+        timeout_s=5,
+    )
+    assert reply == "From the API."
+    assert seen[0].startswith("https://cli-chat-proxy.grok.com/")
+    assert seen[1].startswith("https://api.x.ai/")
 
 
 def test_translation_warning_names_the_model_problem(monkeypatch):

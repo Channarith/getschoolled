@@ -87,6 +87,18 @@ def xai_chat(
     so a retired model default looked like an unexplained failure.
     """
     try:
+        from aoep_shared.supergrok import SuperGrokUnavailable, subscription_reply
+
+        return subscription_reply(
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout_s=timeout_s,
+            model=model if model and model != XAI_DEFAULT_MODEL else "",
+        )
+    except SuperGrokUnavailable:
+        pass
+    try:
         return _xai_chat_once(
             base_url=base_url,
             api_key=api_key,

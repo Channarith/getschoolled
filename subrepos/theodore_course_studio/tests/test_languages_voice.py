@@ -47,6 +47,9 @@ def test_voice_agent_offline_fallback(monkeypatch):
 
 def test_voice_agent_live_xai_path(monkeypatch):
     """With a key AND reachable API, the xAI reply is used (HTTP mocked)."""
+    monkeypatch.delenv("SUPERGROK_TOKEN", raising=False)
+    monkeypatch.delenv("XAI_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("GROK_AUTH_FILE", raising=False)
     import json
     from io import BytesIO
 
@@ -102,7 +105,50 @@ def test_voice_agent_live_xai_path(monkeypatch):
     assert "Spanish" in system
 
 
+def test_voice_agent_uses_supergrok_when_signed_in(monkeypatch):
+    import json
+    from io import BytesIO
+
+    agent = CourseStudioVoiceAgent(api_key="", model="grok-4.3")
+    monkeypatch.setenv("SUPERGROK_TOKEN", "secret-session")
+
+    class _Resp:
+        def __init__(self, payload: bytes) -> None:
+            self._buf = BytesIO(payload)
+
+        def read(self):
+            return self._buf.read()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_a):
+            return False
+
+    def fake_urlopen(req, timeout=None):  # noqa: ANN001
+        assert "cli-chat-proxy.grok.com" in req.full_url
+        assert req.headers.get("X-xai-token-auth") or req.headers.get("X-XAI-Token-Auth")
+        payload = {"choices": [{"message": {"content": "Stop behind the line."}}]}
+        return _Resp(json.dumps(payload).encode("utf-8"))
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    turn = agent.respond(
+        session_id="sg1",
+        learner_message="Where do I stop?",
+        language_code="en",
+        lesson_context="Stop behind the line.",
+    )
+    assert turn.provider == "supergrok"
+    assert turn.model == "grok-4.7"
+    assert turn.fallback_used is False
+    assert "Stop behind the line." in turn.message
+    assert agent.status()["supergrok"] is True
+
+
 def test_voice_agent_falls_back_when_api_unreachable(monkeypatch):
+    monkeypatch.delenv("SUPERGROK_TOKEN", raising=False)
+    monkeypatch.delenv("XAI_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("GROK_AUTH_FILE", raising=False)
     agent = CourseStudioVoiceAgent(api_key="test-key")
 
     def boom(*_a, **_k):

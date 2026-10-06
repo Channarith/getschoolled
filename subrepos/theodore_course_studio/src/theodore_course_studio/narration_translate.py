@@ -735,6 +735,18 @@ def complete_chat(
     """
     model = configured_model()
     try:
+        from aoep_shared.supergrok import SuperGrokUnavailable, subscription_reply
+
+        return subscription_reply(
+            messages,
+            temperature=0,
+            max_tokens=8192,
+            timeout_s=float(timeout_s or os.environ.get("XAI_TIMEOUT_S", "90") or "90"),
+            model="" if model == XAI_DEFAULT_MODEL else model,
+        )
+    except SuperGrokUnavailable:
+        pass
+    try:
         return _complete_chat_once(
             messages, model=model, opener=opener, timeout_s=timeout_s
         )

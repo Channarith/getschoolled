@@ -93,6 +93,7 @@ def test_health_and_studio_page():
     assert "memory_pairs" in page.text
     assert "spot_difference" in page.text
     assert "checkpoint.activity === 'game'" in page.text
+    assert "SuperGrok" in page.text
     assert "selected_id" in page.text
 
 

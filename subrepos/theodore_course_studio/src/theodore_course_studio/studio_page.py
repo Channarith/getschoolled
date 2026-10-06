@@ -2061,9 +2061,12 @@ STUDIO_JS = """
       const t = data.tts || {};
       const status = $('voice-status');
       if (!status) return;
+      const brain = v.provider === 'supergrok'
+        ? `SuperGrok (${v.model || 'grok-4.7'})`
+        : `xAI: ${v.provider || 'local-fallback'}` +
+          (v.xai_available ? ' (live key)' : ' (offline fallback)');
       status.textContent =
-        `xAI: ${v.provider || 'local-fallback'}` +
-        (v.xai_available ? ' (live key)' : ' (offline fallback)') +
+        brain +
         ` · TTS: ${t.engine || 'device'}` +
         ` · langs: ${data.languages || 0}`;
     }
