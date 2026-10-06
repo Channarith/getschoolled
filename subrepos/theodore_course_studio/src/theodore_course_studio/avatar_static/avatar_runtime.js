@@ -13,6 +13,7 @@ const JOINTS = [
 ];
 
 const MODELS = {
+  student: "presenter_student.webp",
   amina: "presenter_realistic.glb",
   classic_female: "presenter_female.glb",
   classic_male: "presenter_male.glb",
@@ -376,7 +377,7 @@ export class TheodoreAvatar {
     this.motion = options.motion !== false;
     this.motionIntensity = Number(options.motionIntensity ?? 1);
     this.reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches || false;
-    this.persona = options.persona || "amina";
+    this.persona = options.persona || "student";
     this.state = "loading";
     this.script = { cues: [] };
     this.cueStart = performance.now();
@@ -400,6 +401,7 @@ export class TheodoreAvatar {
     this.manifest = null;
     this.disposed = false;
     this.fallback = null;
+    this.portrait = null;
     this.loader = new GLTFLoader();
   }
 
@@ -463,20 +465,164 @@ export class TheodoreAvatar {
   modelUrlFor(persona) {
     const entry = this.manifest?.models?.[persona];
     if (entry?.url) return entry.url;
-    return `${this.assetBase}/${MODELS[persona] || MODELS.amina}`;
+    return `${this.assetBase}/${MODELS[persona] || MODELS.student}`;
+  }
+
+  releaseModel() {
+    if (this.portrait?.texture) this.portrait.texture.dispose();
+    this.portrait = null;
+    if (!this.model) return;
+    this.scene?.remove(this.model);
+    this.model.traverse((node) => {
+      node.geometry?.dispose?.();
+      if (Array.isArray(node.material)) node.material.forEach((m) => m.dispose?.());
+      else node.material?.dispose?.();
+    });
+    this.model = null;
+  }
+
+  async loadPortrait(persona, entry) {
+    const url = entry.url || this.modelUrlFor(persona);
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`portrait failed: ${url}`));
+      img.src = url;
+    });
+    this.releaseModel();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth || image.width;
+    canvas.height = image.naturalHeight || image.height;
+    const ctx = canvas.getContext("2d");
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const height = 3.8;
+    const aspect = canvas.width / Math.max(1, canvas.height);
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(height * aspect, height),
+      new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }),
+    );
+    const group = new THREE.Group();
+    group.name = "PortraitPresenter";
+    group.add(mesh);
+    group.position.set(0, 1.82, 0);
+    this.model = group;
+    this.scene.add(group);
+    this.portrait = {
+      image, canvas, ctx, texture, mesh, group, open: 0,
+      mouth: { x: 0.494, y: 0.565, rx: 0.062, ry: 0.032 },
+      eyes: [
+        { x: 0.40, y: 0.345, rx: 0.048, ry: 0.03 },
+        { x: 0.60, y: 0.338, rx: 0.048, ry: 0.03 },
+      ],
+    };
+    this.persona = persona;
+    this.rig = "portrait";
+    this.nodes = {};
+    this.face = null;
+    this.springs.clear();
+    this.basePose = {};
+    this.container.dataset.avatarPersona = persona;
+    this.container.dataset.avatarRig = "portrait";
+    this.paintPortrait(0, 0);
+    this.framePortraitCamera();
+  }
+
+  framePortraitCamera() {
+    if (!this.camera || !this.container) return;
+    const width = Math.max(1, this.container.clientWidth);
+    const height = Math.max(1, this.container.clientHeight);
+    const wide = width > height * 1.15;
+    this.camera.fov = wide ? 26 : 30;
+    this.camera.position.set(0, 1.78, wide ? 8.4 : 7.15);
+    this.camera.lookAt(0, 1.7, 0);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+  }
+
+  paintPortrait(open, blink) {
+    const portrait = this.portrait;
+    if (!portrait) return;
+    const { ctx, canvas, image, mouth, eyes } = portrait;
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(image, 0, 0, w, h);
+    if (blink > 0.08) {
+      ctx.fillStyle = "rgba(214, 164, 122, 0.94)";
+      for (const eye of eyes) {
+        ctx.beginPath();
+        ctx.ellipse(
+          eye.x * w,
+          eye.y * h,
+          eye.rx * w,
+          eye.ry * h * (0.45 + blink * 0.7),
+          0, 0, Math.PI * 2,
+        );
+        ctx.fill();
+      }
+    }
+    const amount = clamp(open);
+    if (amount > 0.06) {
+      const mx = mouth.x * w;
+      const my = mouth.y * h + h * 0.008;
+      const rx = mouth.rx * w * (0.72 + amount * 0.28);
+      const ry = mouth.ry * h * (0.2 + amount * 1.6);
+      ctx.fillStyle = "#6a3034";
+      ctx.beginPath();
+      ctx.ellipse(mx, my, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#f0b2ab";
+      ctx.beginPath();
+      ctx.ellipse(mx, my - ry * 0.22, rx * 0.62, Math.max(1.5, ry * 0.28), 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (this.speaking && !this.reducedMotion) {
+      const flick = (Math.sin(performance.now() / 160) + 1) / 2;
+      ctx.fillStyle = `rgba(255, 246, 226, ${0.12 + flick * 0.28})`;
+      ctx.fillRect(w * 0.455, h * 0.74, w * 0.055, h * 0.11);
+    }
+    portrait.texture.needsUpdate = true;
+  }
+
+  animatePortrait(t, amount, cues) {
+    const group = this.portrait?.group;
+    if (!group) return;
+    const paused = this.state === "paused";
+    const motion = paused ? 0 : amount;
+    const breath = Math.sin(t * 1.55) * 0.02 * motion;
+    let nod = Math.sin(t * 0.46) * 0.035 * motion;
+    let turn = Math.sin(t * 0.31) * 0.045 * motion;
+    if ((cues || []).some((item) => item.cue?.gaze === "slide")) turn -= 0.14 * motion;
+    if (this.state === "listening") nod += 0.06 * motion;
+    let open = 0;
+    if (this.speaking && !paused) {
+      const shape = this.articulationAt(this.speechClock());
+      open = shape.open;
+      nod += Math.sin(t * 7.2) * 0.028 * Math.max(0.25, shape.open);
+    }
+    if (t - this.lastBlink > this.nextBlink) {
+      this.lastBlink = t;
+      this.nextBlink = 2.6 + Math.random() * 3.2;
+    }
+    const blinkAge = t - this.lastBlink;
+    const blink = !paused && blinkAge < 0.16 ? Math.sin(clamp(blinkAge / 0.16) * Math.PI) : 0;
+    group.position.y = 1.82 + breath;
+    group.rotation.x = nod;
+    group.rotation.y = turn;
+    group.rotation.z = Math.sin(t * 0.62) * 0.012 * motion;
+    this.paintPortrait(open, blink);
   }
 
   async loadPersona(persona) {
     const entry = this.manifest?.models?.[persona] || {};
-    const data = await this.loader.loadAsync(this.modelUrlFor(persona));
-    if (this.model) {
-      this.scene.remove(this.model);
-      this.model.traverse((node) => {
-        node.geometry?.dispose?.();
-        if (Array.isArray(node.material)) node.material.forEach((m) => m.dispose?.());
-        else node.material?.dispose?.();
-      });
+    const url = entry.url || this.modelUrlFor(persona);
+    if (entry.kind === "portrait" || /\.(png|webp)$/i.test(url)) {
+      await this.loadPortrait(persona, { ...entry, url });
+      return;
     }
+    const data = await this.loader.loadAsync(url);
+    this.releaseModel();
     this.persona = persona;
     this.springs.clear();
     this.model = data.scene;
@@ -597,7 +743,7 @@ export class TheodoreAvatar {
   async setPersona(persona) {
     const aliases = { female: "classic_female", male: "classic_male" };
     const requested = aliases[persona] || persona;
-    const wanted = this.manifest?.models?.[requested] ? requested : (this.manifest?.default_model || "amina");
+    const wanted = this.manifest?.models?.[requested] ? requested : (this.manifest?.default_model || "student");
     if (wanted === this.persona || !this.scene) return;
     try {
       await this.loadPersona(wanted);
@@ -624,6 +770,10 @@ export class TheodoreAvatar {
     const width = Math.max(1, this.container.clientWidth);
     const height = Math.max(1, this.container.clientHeight);
     this.renderer.setSize(width, height, false);
+    if (this.rig === "portrait") {
+      this.framePortraitCamera();
+      return;
+    }
     this.camera.aspect = width / height;
     // Pull back on narrow panels so the full body still fits the frame.
     const portrait = height > width;
@@ -944,6 +1094,11 @@ export class TheodoreAvatar {
     this.pose.add("Head", Math.sin(t * 0.47) * 0.018, Math.sin(t * 0.31) * 0.025, 0, amount);
 
     const cues = this.activeCues(nowMs);
+    if (this.rig === "portrait") {
+      this.animatePortrait(t, amount, cues);
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
     if (cues.length) {
       for (const { cue, phase, weight } of cues) {
         poseGesture(

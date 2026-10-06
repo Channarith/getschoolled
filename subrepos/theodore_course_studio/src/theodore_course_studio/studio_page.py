@@ -148,6 +148,12 @@ STUDIO_CSS = """
                             border:1px solid rgba(94,224,255,.38); box-shadow:inset 0 0 30px rgba(59,215,255,.14); }
     #theodore-avatar { position:absolute; inset:0; }
     #theodore-avatar canvas { width:100%; height:100%; display:block; filter:drop-shadow(0 0 14px rgba(86,224,255,.5)); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-rig="portrait"]) {
+      background:radial-gradient(ellipse at 50% 72%, #fff8ee, #f4e4cf 72%);
+      border-color:rgba(140,90,43,.28); box-shadow:inset 0 0 28px rgba(255,244,220,.55); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-rig="portrait"]) canvas { filter:drop-shadow(0 16px 14px rgba(62,36,18,.22)); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-rig="portrait"]) .avatar-label {
+      color:#4a3424; background:rgba(255,248,236,.9); }
     .avatar-label { position:absolute; left:9px; right:9px; bottom:8px; z-index:2; padding:5px 8px;
                     border-radius:999px; text-align:center; color:#c9f7ff; background:rgba(3,23,32,.72);
                     font:600 11px Arial,sans-serif; letter-spacing:.03em; pointer-events:none; }
@@ -519,6 +525,11 @@ STUDIO_JS = """
     let captionsEnabled = false;
     const reviewScores = { quizzes: [], games: [] };
 
+    function presenterLabel(presenter) {
+      const name = presenter?.label || 'Student';
+      return presenter?.kind === 'portrait' ? `${name} · cartoon teacher` : `${name} · 3D teacher`;
+    }
+
     async function initTheodoreAvatar() {
       const host = $('theodore-avatar');
       if (!host) return null;
@@ -536,7 +547,7 @@ STUDIO_JS = """
           const presenter = avatarCatalog[selectedAvatarId];
           $('avatar-state').textContent = host.dataset.avatarReady === 'fallback'
             ? 'Theodore · accessible silhouette'
-            : `${presenter?.label || 'Presenter'} · 3D teacher`;
+            : presenterLabel(presenter);
         } catch (error) {
           host.innerHTML = '<div class="theodore-avatar-fallback" role="img" aria-label="Theodore teacher silhouette"><div class="fallback-crown">♜</div><div class="fallback-head"><i></i><i></i><b></b></div><div class="fallback-body"><span></span><span></span></div><div class="fallback-glow"></div></div>';
           $('avatar-state').textContent = 'Theodore · accessible silhouette';
@@ -586,8 +597,8 @@ STUDIO_JS = """
     async function loadAvatarChoices() {
       const data = await api('/api/studio/presenter/manifest');
       avatarCatalog = data.models || {};
-      if (!avatarCatalog[selectedAvatarId]) {
-        selectedAvatarId = data.default_model || Object.keys(avatarCatalog)[0] || 'amina';
+      if (!avatarCatalog[selectedAvatarId] || !avatarPrefs.presenterChosen) {
+        selectedAvatarId = data.default_model || Object.keys(avatarCatalog)[0] || 'student';
       }
       const select = $('avatar-choice');
       if (!select) return;
@@ -602,13 +613,13 @@ STUDIO_JS = """
       if (!avatarCatalog[presenterId]) return;
       selectedAvatarId = presenterId;
       avatarPrefs.presenter = presenterId;
+      avatarPrefs.presenterChosen = true;
       saveAvatarPrefs();
       courseVoiceGender = avatarCatalog[presenterId]?.voice_gender || courseVoiceGender;
       if (!avatarVisible) setAvatarVisible(true);
       await initTheodoreAvatar();
       await theodoreAvatar?.setPersona(presenterId);
-      $('avatar-state').textContent =
-        `${avatarCatalog[presenterId]?.label || 'Presenter'} · 3D teacher`;
+      $('avatar-state').textContent = presenterLabel(avatarCatalog[presenterId]);
       requestAnimationFrame(() => theodoreAvatar?.resize());
     }
 
@@ -4199,7 +4210,9 @@ STUDIO_JS = """
     on('btn-avatar-hide', 'click', () => setAvatarVisible(false));
 
     avatarPrefs = loadAvatarPrefs();
-    selectedAvatarId = avatarPrefs.presenter || 'amina';
+    selectedAvatarId = avatarPrefs.presenterChosen && avatarPrefs.presenter
+      ? avatarPrefs.presenter
+      : 'student';
     initAvatarDrag();
     setAvatarVisible(
       typeof avatarPrefs.on === 'boolean' ? avatarPrefs.on : SHOW_AVATAR, false);
@@ -4332,7 +4345,7 @@ def render_studio_page() -> str:
                   aria-controls="theodore-avatar-wrap">Show Theodore</button>
           <label class="avatar-choice-label" for="avatar-choice">Presenter
             <select id="avatar-choice" aria-label="Choose a 3D lesson presenter">
-              <option value="amina">Amina</option>
+              <option value="student">Student</option>
             </select>
           </label>
         </div>

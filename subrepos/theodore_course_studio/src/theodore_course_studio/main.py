@@ -333,9 +333,26 @@ def presenter_manifest() -> dict[str, Any]:
                     "voice_gender": persona,
                 }
                 break
+    portrait = _AVATAR_STATIC_DIR / "presenter_student.webp"
+    if portrait.is_file():
+        models["student"] = {
+            "file": portrait.name,
+            "url": f"/api/studio/avatar/{portrait.name}",
+            "rig": "portrait",
+            "source": "illustrated",
+            "kind": "portrait",
+            "label": "Student",
+            "voice_gender": "male",
+        }
+    if "student" in models:
+        default_model = "student"
+    elif "amina" in models:
+        default_model = "amina"
+    else:
+        default_model = "classic_female"
     return {
         "models": models,
-        "default_model": "amina" if "amina" in models else "classic_female",
+        "default_model": default_model,
         "rig_config_url": "/api/studio/avatar/avatar_rig_config_v2.json",
     }
 
