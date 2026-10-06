@@ -31,7 +31,11 @@ spec:
   replicas: 3
   strategy:
     type: RollingUpdate
-    rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 }
+    # maxUnavailable: 1 lets the rollout retire an old pod BEFORE starting the
+    # replacement, so it never needs to schedule a 4th (surge) orchestrator pod.
+    # With maxUnavailable: 0 the 3rd new replica got stuck Pending (no node room
+    # for the extra pod) and the rollout timed out -> auto-rollback.
+    rollingUpdate: { maxSurge: 25%, maxUnavailable: 1 }
   selector: { matchLabels: { app: orchestrator } }
   template:
     metadata:
@@ -71,7 +75,10 @@ spec:
             - secretRef: { name: aoep-secrets }
           resources:
             requests: { cpu: 200m, memory: 384Mi }
-            limits:   { cpu: "1",  memory: 1Gi }
+            # Memory limit raised 1Gi -> 2Gi: the LLM-training-lab additions grew
+            # the orchestrator footprint; the higher ceiling prevents an OOMKill
+            # of the rolling pod. Request stays 384Mi so scheduling is unchanged.
+            limits:   { cpu: "1",  memory: 2Gi }
           readinessProbe:
             httpGet: { path: /health, port: 8000 }
             initialDelaySeconds: 5
