@@ -168,11 +168,59 @@ def _tts_language(payload: dict) -> str:
     return (query.get("language") or [""])[0]
 
 
-def test_teach_session_sends_each_slide_to_a_matching_voice():
+def test_curated_khmer_stays_khmer_when_the_voice_agent_is_on(tmp_path):
+    from theodore_course_studio.generate import CourseBuilder
+    from theodore_course_studio.teach import TeachEngine
+
+    course = build_cert_course(lesson_id="ca-dmv-basics", language="km")
+    builder = CourseBuilder(data_dir=tmp_path / "data")
+    builder.save_course(course)
+    payload = TeachEngine(builder).start(
+        session_id="km-curated",
+        course_id=course.course_id,
+        language="km",
+        use_voice_agent=True,
+    )
+    assert payload["spoken_language"] == "km"
+    assert _has_khmer(payload["turn"]["narration"])
+    assert _tts_language(payload) == "km"
+
+
+def test_an_english_slide_is_spoken_in_the_selected_language(tmp_path, monkeypatch):
+    from theodore_course_studio.generate import CourseBuilder
+    from theodore_course_studio.teach import TeachEngine
+    import theodore_course_studio.lesson_locale as lesson_locale
+
+    def fake(text, source, target):
+        assert target == "es"
+        return "Hola. " + text[:24], True, "test-translator"
+
+    monkeypatch.setattr(lesson_locale, "translate_text", fake)
+    course = build_cert_course(lesson_id="ca-dmv-basics", language="en")
+    builder = CourseBuilder(data_dir=tmp_path / "data")
+    builder.save_course(course)
+    payload = TeachEngine(builder).start(
+        session_id="es-live",
+        course_id=course.course_id,
+        language="es",
+        use_voice_agent=True,
+    )
+    assert payload["spoken_language"] == "es"
+    assert payload["turn"]["narration"].startswith("Hola.")
+    assert _tts_language(payload) == "es"
+    assert payload["translation_source"] == "test-translator"
+
+
+def test_teach_session_sends_each_slide_to_a_matching_voice(monkeypatch):
     """End-to-end: the TTS URL language tracks the words on screen."""
     from fastapi.testclient import TestClient
 
     from theodore_course_studio.main import app
+
+    monkeypatch.setattr(
+        "theodore_course_studio.lesson_locale.translate_text",
+        lambda text, source, target: (text, False, ""),
+    )
 
     client = TestClient(app)
     built = client.post(

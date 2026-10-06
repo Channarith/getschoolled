@@ -9,6 +9,8 @@
     ctx: null, speaker: null, playDestination: null, provider: "",
     inputRate: 16000, outputRate: 24000, nextPlayAt: 0, playing: new Set(),
     connected: false, stopping: false, dropOutput: false,
+    recognitionPaused: false, lastUserAt: 0, idleTimer: null, speechEndTimer: null,
+    agentSpeaking: false,
   };
 
   const host = document.createElement("div");
@@ -89,8 +91,32 @@
     state.playing.clear();
     state.nextPlayAt = state.ctx?.currentTime || 0;
   }
+  function noteAgentSpeaking() {
+    if (!state.agentSpeaking) {
+      state.agentSpeaking = true;
+      window.dispatchEvent(new CustomEvent("theodore-live-audio-speech", {
+        detail: {speaking: true, text: caption.textContent || ""},
+      }));
+    }
+    clearTimeout(state.speechEndTimer);
+    state.speechEndTimer = setTimeout(() => {
+      if (state.playing.size) return;
+      state.agentSpeaking = false;
+      window.dispatchEvent(new CustomEvent("theodore-live-audio-speech", {
+        detail: {speaking: false, text: ""},
+      }));
+    }, 700);
+  }
+  function noteUtterance(role, text) {
+    const said = String(text || "").trim();
+    if (!said) return;
+    if (role === "user") state.lastUserAt = Date.now();
+    window.dispatchEvent(new CustomEvent("theodore-live-audio-utterance", {
+      detail: {role, text: said},
+    }));
+  }
   function playPcm(base64, rate = state.outputRate) {
-    if (!state.ctx || !base64) return;
+    if (!state.ctx || !base64 || state.recognitionPaused || state.dropOutput) return;
     const raw = atob(base64);
     const bytes = new Uint8Array(raw.length);
     for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
@@ -110,8 +136,10 @@
     state.nextPlayAt = at + buffer.duration;
     state.playing.add(source);
     source.onended = () => state.playing.delete(source);
+    noteAgentSpeaking();
   }
   function sendMic(float32) {
+    if (state.recognitionPaused) return;
     if (state.ws?.readyState !== WebSocket.OPEN || !state.connected) return;
     const pcm = pcm16Base64(resample(float32, state.ctx.sampleRate, state.inputRate));
     if (state.provider === "xai") {
@@ -169,14 +197,22 @@
     const type = String(event.type || "");
     if (type === "session.updated") state.connected = true;
     if (type === "input_audio_buffer.speech_started") {
-      state.dropOutput = true; clearPlayback(); // true barge-in
+      state.lastUserAt = Date.now();
+      if (!state.recognitionPaused) {
+        state.dropOutput = true; clearPlayback(); // true barge-in
+      }
     }
-    if (type === "response.created") state.dropOutput = false;
+    if (type === "response.created" && !state.recognitionPaused) state.dropOutput = false;
     if (type === "response.output_audio.delta" || type === "response.audio.delta") {
       playPcm(String(event.delta || ""));
     }
     if (type.includes("transcript") && event.delta) caption.textContent += String(event.delta);
-    if (type.endsWith("transcript.done")) caption.textContent = String(event.transcript || event.text || caption.textContent);
+    if (type.endsWith("transcript.done") || type.endsWith("transcription.completed")) {
+      const said = String(event.transcript || event.text || caption.textContent);
+      caption.textContent = said;
+      const role = type.includes("input") ? "user" : "agent";
+      noteUtterance(role, said);
+    }
   }
   function handleGemini(event) {
     if (event.setupComplete !== undefined) state.connected = true;
@@ -188,8 +224,14 @@
     for (const part of server.modelTurn?.parts || []) {
       if (part.inlineData?.data) playPcm(part.inlineData.data, 24000);
     }
-    if (server.inputTranscription?.text) caption.textContent = `You: ${server.inputTranscription.text}`;
-    if (server.outputTranscription?.text) caption.textContent = `Theodore: ${server.outputTranscription.text}`;
+    if (server.inputTranscription?.text) {
+      caption.textContent = `You: ${server.inputTranscription.text}`;
+      noteUtterance("user", server.inputTranscription.text);
+    }
+    if (server.outputTranscription?.text) {
+      caption.textContent = `Theodore: ${server.outputTranscription.text}`;
+      noteUtterance("agent", server.outputTranscription.text);
+    }
     if (event.error?.message) setStatus(`Gemini Live error: ${event.error.message}`);
     if (event.goAway) setStatus("Gemini Live session is ending; stop and reconnect.");
   }
@@ -233,6 +275,9 @@
         : new WebSocket(config.websocket_url);
       state.ws.onopen = () => {
         setNativeAudioActive(true);
+        state.recognitionPaused = false;
+        window.__THEODORE_LIVE_AUDIO_HOLD__ = false;
+        armIdleWatch();
         state.ws.send(JSON.stringify(config.setup));
         toggle.disabled = false; toggle.textContent = "Stop live voice";
         toggle.classList.add("live"); dot.classList.add("on");
@@ -250,9 +295,47 @@
       await stop(`Could not start live audio: ${error?.message || error}`);
     }
   }
+  function setRecognitionPaused(paused) {
+    state.recognitionPaused = Boolean(paused);
+    window.__THEODORE_LIVE_AUDIO_HOLD__ = state.recognitionPaused;
+    if (state.recognitionPaused) {
+      state.dropOutput = true;
+      state.agentSpeaking = false;
+      clearPlayback();
+      window.dispatchEvent(new CustomEvent("theodore-live-audio-speech", {
+        detail: {speaking: false, text: ""},
+      }));
+    } else {
+      state.dropOutput = false;
+      state.lastUserAt = Date.now();
+    }
+    window.dispatchEvent(new CustomEvent("theodore-live-audio", {
+      detail: {
+        active: Boolean(state.connected),
+        paused: state.recognitionPaused,
+        provider: state.connected ? state.provider : "",
+      },
+    }));
+  }
+  function armIdleWatch() {
+    clearInterval(state.idleTimer);
+    state.lastUserAt = Date.now();
+    state.idleTimer = setInterval(() => {
+      if (!state.connected || state.recognitionPaused) return;
+      if (Date.now() - state.lastUserAt < 60000) return;
+      state.lastUserAt = Date.now();
+      window.dispatchEvent(new CustomEvent("theodore-live-audio-idle", {
+        detail: {silent_ms: 60000},
+      }));
+    }, 5000);
+  }
   async function stop(message = "Live audio off. Lab TTS/device speech may resume.") {
     state.stopping = true;
+    clearInterval(state.idleTimer);
+    state.idleTimer = null;
     setNativeAudioActive(false);
+    state.recognitionPaused = false;
+    window.__THEODORE_LIVE_AUDIO_HOLD__ = false;
     clearPlayback();
     try { state.processor?.disconnect(); } catch (_) {}
     try { state.source?.disconnect(); } catch (_) {}
@@ -273,6 +356,10 @@
     toggle.textContent = "Start live voice"; toggle.classList.remove("live");
     dot.classList.remove("on"); toggle.disabled = !select.value; setStatus(message);
   }
+  window.TheodoreLiveAudio = {
+    pauseRecognition() { setRecognitionPaused(true); },
+    resumeRecognition() { if (state.connected) setRecognitionPaused(false); },
+  };
   toggle.onclick = () => state.ws ? stop() : start();
   select.onchange = () => { if (state.ws) stop(); toggle.disabled = !select.value; };
 

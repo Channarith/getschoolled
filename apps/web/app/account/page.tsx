@@ -32,7 +32,7 @@ const PLANS = [
   { id: "basic", label: "Standard", price: "$19.99/mo", ads: true },
   { id: "premium", label: "VIP", price: "$29.99/mo", ads: false },
 ] as const;
-const STATUS_ORDER = ["in_progress", "enrolled", "saved", "passed", "failed"];
+const STATUS_ORDER = ["paid", "in_progress", "enrolled", "saved", "passed", "failed"];
 
 export default function AccountPage() {
   const { t } = useT();

@@ -1,7 +1,7 @@
 """Identity service (Netflix-style accounts + membership + portfolio).
 
 Sign-up / login (HMAC session tokens), the member's subscription tier, and their
-course portfolio: saved ("my list"), enrolled, in-progress, passed, failed.
+course portfolio: saved ("my list"), enrolled, in-progress, paid, passed, failed.
 Mastery is fetched from the memory service and payments from billing; this
 service is the account + enrollment system of record.
 """
@@ -625,8 +625,43 @@ class EnrollRequest(BaseModel):
 
 @app.post("/enrollments")
 def enroll(req: EnrollRequest, acct=Depends(current_account)) -> dict:
+    if req.status is EnrollmentStatus.PAID:
+        raise HTTPException(
+            status_code=402,
+            detail="Paying for a class uses purchase, after the account is registered.",
+        )
     enr = app.state.accounts.upsert_enrollment(
         acct.id, Enrollment(course_id=req.course_id, title=req.title, status=req.status))
+    return enr.model_dump()
+
+
+class PurchaseClassRequest(BaseModel):
+    title: str = "Course Studio"
+
+
+@app.post("/enrollments/{course_id}/purchase")
+def purchase_class(
+    course_id: str, req: PurchaseClassRequest, acct=Depends(current_account)
+) -> dict:
+    """Record that this registered account paid for one class.
+
+    Local and sandbox deploys complete the purchase immediately, the same way
+    membership subscribe does. A cloud deploy keeps the class as a sample until
+    a verified payment is confirmed.
+    """
+    if not _self_serve_paid_tiers_allowed():
+        raise HTTPException(
+            status_code=402,
+            detail="This class stays a 10-minute sample until payment is confirmed.",
+        )
+    enr = app.state.accounts.upsert_enrollment(
+        acct.id,
+        Enrollment(
+            course_id=course_id,
+            title=(req.title or "").strip() or "Course Studio",
+            status=EnrollmentStatus.PAID,
+        ),
+    )
     return enr.model_dump()
 
 
@@ -640,6 +675,11 @@ class StatusUpdate(BaseModel):
 
 @app.post("/enrollments/{course_id}/status")
 def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_account)) -> dict:
+    if req.status is EnrollmentStatus.PAID:
+        raise HTTPException(
+            status_code=402,
+            detail="Paying for a class uses purchase, after the account is registered.",
+        )
     # PASSED awards points. HARD RULE: accreditation/certification courses
     # always require an orchestrator-signed pass_decision_token (even in
     # local/dev) so guests / unverified clients cannot self-award credit.

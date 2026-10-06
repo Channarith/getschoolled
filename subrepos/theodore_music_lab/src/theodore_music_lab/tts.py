@@ -160,19 +160,13 @@ def _render(text: str, *, voice: str, rate: str) -> bytes:
     voice the OS may not have for that language, so a whole song went silent.
     The cache is an optimisation; playback must not depend on it.
     """
-    import edge_tts
+    from aoep_shared.edge_speech import render_edge_mp3
 
     async def run() -> bytes:
-        comm = edge_tts.Communicate(text, voice=voice, rate=rate)
-        audio = bytearray()
-
-        async def pump() -> None:
-            async for chunk in comm.stream():
-                if chunk.get("type") == "audio" and chunk.get("data"):
-                    audio.extend(chunk["data"])
-
-        await asyncio.wait_for(pump(), timeout=_TIMEOUT_SEC)
-        return bytes(audio)
+        return await asyncio.wait_for(
+            render_edge_mp3(text, voice=voice, rate=rate),
+            timeout=_TIMEOUT_SEC,
+        )
 
     return asyncio.run(run())
 

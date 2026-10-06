@@ -375,6 +375,7 @@ const SHARED: Record<string, string> = {
   "account.status.saved": "My list",
   "account.status.passed": "Passed",
   "account.status.failed": "Failed",
+  "account.status.paid": "Paid",
   "account.score": "score {pct}%",
   "account.studentProfiles": "Student profiles",
   "account.studentProfilesDesc": "One account, multiple learners. Each profile gets its own mastery and Foresight recommendations.",

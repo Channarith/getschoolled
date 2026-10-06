@@ -54,6 +54,15 @@ export const SALES_DEMO_COURSES = [
 
 export const SALES_DEMO_FEATURES = [
   {
+    id: "course-studio",
+    flagKey: "sales_demo.course_studio",
+    href: "/demo/course-studio",
+    emoji: "🎓",
+    title: "Course Studio sample",
+    subtitle: "10 minutes, live",
+    description: "A sales-pitch sample of a live class. Registered learners who pay take the full course from the library.",
+  },
+  {
     id: "solo",
     flagKey: "sales_demo.solo_ai",
     href: "/class",

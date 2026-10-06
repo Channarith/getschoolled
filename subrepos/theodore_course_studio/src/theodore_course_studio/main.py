@@ -21,6 +21,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from aoep_shared.course_studio_access import resolve_teach_access
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
 from .certification_prep import (
@@ -71,7 +72,15 @@ app = FastAPI(
     description="Labeled corpus training, review comments, course build, Theodore teach/present.",
     version="0.1.0",
 )
-install_live_audio_routes(app, lab_name="Theodore Course Studio")
+install_live_audio_routes(
+    app,
+    lab_name="Theodore Course Studio",
+    instructions=(
+        "You are Theodore, teaching this course. The learner may ask about any "
+        "section, in any order. Answer that part of the course, give one concrete "
+        "example, and keep the turn short. Let them interrupt. Never mention TTS."
+    ),
+)
 _AVATAR_STATIC_DIR = Path(__file__).with_name("avatar_static")
 app.mount(
     "/api/studio/avatar",
@@ -137,6 +146,11 @@ class TeachStartRequest(BaseModel):
     resume: bool = False
     soft_limit_minutes: int | None = Field(default=None, ge=5, le=90)
     voice_gender: str = "female"
+    # Empty access is the authoring studio. "sample" is the sales demo.
+    # "full" is kept only when the learner is registered and the class is paid.
+    access: str = ""
+    registered: bool = False
+    enrollment_status: str = ""
 
 
 class TeachSessionRequest(BaseModel):
@@ -605,6 +619,9 @@ class TrialRunRequest(BaseModel):
     language: str = "en"
     learner_id: str = "learner-demo"
     profile: LearnerProfileScores = Field(default_factory=LearnerProfileScores)
+    access: str = ""
+    registered: bool = False
+    enrollment_status: str = ""
 
 
 @app.post("/api/studio/teach/trial-run")
@@ -624,6 +641,11 @@ def teach_trial_run(req: TrialRunRequest) -> dict[str, Any]:
             use_voice_agent=True,
             resume=False,
             soft_limit_minutes=18,
+            access=resolve_teach_access(
+                requested=req.access,
+                registered=req.registered,
+                enrollment_status=req.enrollment_status,
+            ),
         )
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -667,11 +689,39 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
             resume=req.resume,
             soft_limit_minutes=req.soft_limit_minutes,
             voice_gender=req.voice_gender,
+            access=resolve_teach_access(
+                requested=req.access,
+                registered=req.registered,
+                enrollment_status=req.enrollment_status,
+            ),
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class TeachTopicRequest(BaseModel):
+    session_id: str = "studio-teach-1"
+    text: str = ""
+
+
+@app.post("/api/studio/teach/topic")
+def teach_topic(req: TeachTopicRequest) -> dict[str, Any]:
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="say which part of the course to open")
+    try:
+        return _teach.cover_topic(req.session_id, req.text)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
+@app.post("/api/studio/teach/resume-uncovered")
+def teach_resume_uncovered(req: TeachSessionRequest) -> dict[str, Any]:
+    try:
+        return _teach.resume_uncovered(req.session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
 
 
 @app.post("/api/studio/teach/advance")
@@ -906,7 +956,9 @@ def teach_summary_grade(req: SummaryGradeRequest) -> dict[str, Any]:
 @app.post("/api/studio/teach/game")
 def teach_game(req: TeachSessionRequest) -> dict[str, Any]:
     try:
-        return _teach.game_for_current(req.session_id).model_dump(mode="json")
+        return _teach.game_for_current(
+            req.session_id, prefer_visual=True
+        ).model_dump(mode="json")
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
 

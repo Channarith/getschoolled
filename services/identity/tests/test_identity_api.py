@@ -99,3 +99,37 @@ def test_admin_accounts_list_for_operator():
     body = r.json()
     assert body["count"] >= 1
     assert any(a["email"] == "operator@test.com" for a in body["accounts"])
+
+
+def test_purchase_marks_a_registered_class_paid():
+    tok = _signup("buyer@example.com")["token"]
+    h = _auth(tok)
+    denied = client.post("/enrollments", headers=h, json={
+        "course_id": "course-studio", "title": "Course Studio", "status": "paid",
+    })
+    assert denied.status_code == 402
+    bought = client.post("/enrollments/course-studio/purchase", headers=h, json={
+        "title": "Course Studio",
+    })
+    assert bought.status_code == 200, bought.text
+    assert bought.json()["status"] == "paid"
+    portfolio = client.get("/portfolio", headers=h).json()
+    assert portfolio["by_status"]["paid"][0]["course_id"] == "course-studio"
+    status_denied = client.post(
+        "/enrollments/course-studio/status", headers=h, json={"status": "paid"},
+    )
+    assert status_denied.status_code == 402
+
+
+def test_purchase_requires_verified_payment_outside_sandbox(monkeypatch):
+    monkeypatch.setattr(
+        "identity.main._self_serve_paid_tiers_allowed", lambda: False,
+    )
+    tok = _signup("cloud-buyer@example.com")["token"]
+    denied = client.post(
+        "/enrollments/course-studio/purchase",
+        headers=_auth(tok),
+        json={"title": "Course Studio"},
+    )
+    assert denied.status_code == 402
+    assert "10-minute sample" in denied.json()["detail"]

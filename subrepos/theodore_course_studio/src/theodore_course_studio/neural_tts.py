@@ -138,11 +138,14 @@ def clip_path(text: str, *, voice: str, rate: str) -> Path:
 
 
 def _render(text: str, path: Path, *, voice: str, rate: str) -> None:
-    import edge_tts
+    from aoep_shared.edge_speech import render_edge_mp3
 
     async def run() -> None:
-        comm = edge_tts.Communicate(text, voice=voice, rate=rate)
-        await asyncio.wait_for(comm.save(str(path)), timeout=_TIMEOUT_SEC)
+        audio = await asyncio.wait_for(
+            render_edge_mp3(text, voice=voice, rate=rate),
+            timeout=_TIMEOUT_SEC,
+        )
+        path.write_bytes(audio)
 
     asyncio.run(run())
 

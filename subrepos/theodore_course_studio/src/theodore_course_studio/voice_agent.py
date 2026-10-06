@@ -194,10 +194,23 @@ class CourseStudioVoiceAgent:
         return bool(self._api_key)
 
     def status(self) -> dict[str, Any]:
+        from aoep_shared.supergrok import SUPERGROK_MODEL, subscription_configured
+
+        supergrok = subscription_configured()
+        if supergrok:
+            provider = "supergrok"
+            model = SUPERGROK_MODEL
+        elif self.available:
+            provider = "xai"
+            model = self._model
+        else:
+            provider = "local-fallback"
+            model = ""
         return {
-            "xai_available": self.available,
-            "provider": "xai" if self.available else "local-fallback",
-            "model": self._model if self.available else "",
+            "xai_available": self.available or supergrok,
+            "supergrok": supergrok,
+            "provider": provider,
+            "model": model,
             "tts_engine_chain": ["elevenlabs", "edge-tts", "device"],
             "realtime_hint": "Use aoep_shared.xai_realtime for browser S2S when promoting to main app",
             "offline_ok": True,
@@ -273,6 +286,17 @@ class CourseStudioVoiceAgent:
                 "is clearly about a different subject, reply exactly: "
                 f"{OFF_COURSE_MESSAGE}\n\n{model_context}"
             )
+        supergrok = self._try_supergrok(
+            session_id=session_id,
+            learner_message=cleaned,
+            language_code=lang,
+            lesson_context=model_context,
+        )
+        if supergrok is not None:
+            supergrok.latency_ms = int((time.time() - started) * 1000)
+            supergrok.language_name = lname
+            return supergrok
+
         # Prefer shared TeacherVoiceAgent when package + key are available.
         shared = self._try_shared_agent(
             session_id=session_id,
@@ -332,6 +356,49 @@ class CourseStudioVoiceAgent:
             lesson_context=topic,
         )
 
+    def _try_supergrok(
+        self,
+        *,
+        session_id: str,
+        learner_message: str,
+        language_code: str,
+        lesson_context: str,
+    ) -> VoiceTurn | None:
+        try:
+            from aoep_shared.supergrok import (  # type: ignore
+                SUPERGROK_MODEL,
+                SuperGrokUnavailable,
+                subscription_configured,
+                subscription_reply,
+            )
+        except Exception:  # noqa: BLE001
+            return None
+        if not subscription_configured():
+            return None
+        try:
+            text = subscription_reply(
+                self._messages(
+                    session_id=session_id,
+                    learner_message=learner_message,
+                    language_code=language_code,
+                    lesson_context=lesson_context,
+                ),
+                temperature=0.65,
+                max_tokens=280,
+                timeout_s=self._timeout_s,
+            )
+        except SuperGrokUnavailable:
+            return None
+        self._remember(session_id, learner_message, text)
+        return VoiceTurn(
+            provider="supergrok",
+            message=text,
+            language_code=language_code,
+            language_name=language_name(language_code),
+            fallback_used=False,
+            model=SUPERGROK_MODEL,
+        )
+
     def _try_shared_agent(
         self,
         *,
@@ -377,14 +444,14 @@ class CourseStudioVoiceAgent:
         except Exception:  # noqa: BLE001
             return None
 
-    def _chat_xai(
+    def _messages(
         self,
         *,
         session_id: str,
         learner_message: str,
         language_code: str,
         lesson_context: str,
-    ) -> str:
+    ) -> list[dict[str, str]]:
         system = (
             "You are Theodore, an AI teacher on the Salareen / AOEP platform. "
             "Speak warmly and concisely for voice delivery (under 3 sentences). "
@@ -400,8 +467,29 @@ class CourseStudioVoiceAgent:
                 f"Lesson context:\n{lesson_context.strip()[:2000]}"
             )
         history = self._history.setdefault(session_id, [])
-        messages = [{"role": "system", "content": system}, *history]
-        messages.append({"role": "user", "content": learner_message})
+        return [{"role": "system", "content": system}, *history, {"role": "user", "content": learner_message}]
+
+    def _remember(self, session_id: str, learner_message: str, text: str) -> None:
+        history = self._history.setdefault(session_id, [])
+        history.append({"role": "user", "content": learner_message})
+        history.append({"role": "assistant", "content": text})
+        if len(history) > 24:
+            del history[:-24]
+
+    def _chat_xai(
+        self,
+        *,
+        session_id: str,
+        learner_message: str,
+        language_code: str,
+        lesson_context: str,
+    ) -> str:
+        messages = self._messages(
+            session_id=session_id,
+            learner_message=learner_message,
+            language_code=language_code,
+            lesson_context=lesson_context,
+        )
         payload = {
             "model": self._model,
             "messages": messages,
@@ -427,10 +515,7 @@ class CourseStudioVoiceAgent:
         )
         if not text:
             raise RuntimeError("empty xAI response")
-        history.append({"role": "user", "content": learner_message})
-        history.append({"role": "assistant", "content": text})
-        if len(history) > 24:
-            del history[:-24]
+        self._remember(session_id, learner_message, text)
         return text
 
     @staticmethod

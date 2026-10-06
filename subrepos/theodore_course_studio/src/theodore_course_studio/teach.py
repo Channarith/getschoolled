@@ -7,7 +7,20 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from aoep_shared.course_studio_access import (
+    SAMPLE_ENDED,
+    SAMPLE_MINUTES,
+    SAMPLE_PREVIEW,
+)
+
 from .avatar_director import avatar_script_for_slide
+from .topic_cover import (
+    completion_percent,
+    example_card_svg,
+    example_lines,
+    match_slide,
+    slide_has_art,
+)
 from .assessment import (
     GeneratedQuiz,
     QuizQuestion,
@@ -32,6 +45,7 @@ from .engagement import (
     grade_game,
     media_suggestions_for_slide,
     pick_game_for_slide,
+    pick_visual_game_for_slide,
 )
 from .generate import CourseBuilder
 from .knowledge import (
@@ -41,6 +55,7 @@ from .knowledge import (
     next_slide_indexes,
     objectives_from_slides,
 )
+from .lesson_locale import localize_lesson, localize_quiz
 from .narration_runtime import clip_hints
 from .profile_adapt import adapt_slide
 from .quality_telemetry import StudioTelemetryStore, get_telemetry
@@ -92,6 +107,8 @@ class TeachSession:
     completed_slide_indexes: list[int] = field(default_factory=list)
     resumed_from_checkpoint: bool = False
     game_rotation: int = 0
+    # Sales-demo sessions stop at SAMPLE_MINUTES and cannot be extended.
+    sample_only: bool = False
 
 
 class TeachEngine:
@@ -126,6 +143,7 @@ class TeachEngine:
         resume: bool = False,
         soft_limit_minutes: int | None = None,
         voice_gender: str = "female",
+        access: str = "full",
     ) -> dict[str, Any]:
         course = self._builder.get_course(course_id)
         if course is None:
@@ -158,6 +176,12 @@ class TeachEngine:
         if course.audience not in {"general", "adult_cert_prep", "corporate"}:
             # Kids lessons stay short; do not force adult soft-stop UI.
             soft_minutes = max(soft_minutes, 60)
+            soft_slides = max(soft_slides, len(path) + 1)
+        sample_only = access == "sample"
+        if sample_only:
+            # The sales sample is a clock, not a slide count, and it wins over
+            # the longer kid and trial windows.
+            soft_minutes = SAMPLE_MINUTES
             soft_slides = max(soft_slides, len(path) + 1)
 
         existing = self._checkpoints.load(learner_id, course_id)
@@ -195,6 +219,7 @@ class TeachEngine:
                 completed_slide_indexes=completed,
                 resumed_from_checkpoint=resumed,
                 checkpoint_ack=False,
+                sample_only=sample_only,
             )
             self._sessions[session_id] = session
             self._persist_live(session, status="in_progress")
@@ -221,6 +246,8 @@ class TeachEngine:
 
     def advance(self, session_id: str) -> dict[str, Any]:
         course, session = self._require(session_id)
+        if self._sample_expired(session):
+            return self._turn_payload(course, session)
         # Mark current slide completed before moving on.
         if session.path:
             cur = session.path[session.path_pos]
@@ -233,8 +260,80 @@ class TeachEngine:
         self._telemetry.record_slide_taught()
         return self._turn_payload(course, session)
 
+    def cover_topic(self, session_id: str, text: str) -> dict[str, Any]:
+        """Open the slide that matches what the live conversation is about."""
+        course, session = self._require(session_id)
+        if self._sample_expired(session):
+            payload = self._turn_payload(course, session)
+            payload["matched"] = False
+            return payload
+        slide_index = match_slide(course, text)
+        if slide_index is None:
+            payload = self._turn_payload(course, session)
+            payload["matched"] = False
+            return payload
+        if slide_index not in session.path:
+            session.path.append(slide_index)
+        session.path_pos = session.path.index(slide_index)
+        if slide_index not in session.completed_slide_indexes:
+            session.completed_slide_indexes.append(slide_index)
+        self._persist_live(session, status="in_progress")
+        payload = self._topic_payload(course, session, slide_index)
+        payload["matched"] = True
+        payload["topic_jump"] = True
+        return payload
+
+    def resume_uncovered(self, session_id: str) -> dict[str, Any]:
+        """Move to the next course slide the learner has not covered yet."""
+        course, session = self._require(session_id)
+        if self._sample_expired(session):
+            payload = self._turn_payload(course, session)
+            payload["course_complete"] = False
+            return payload
+        covered = set(session.completed_slide_indexes)
+        order = session.path or [slide.index for slide in course.slides]
+        chosen: int | None = None
+        if order and order[session.path_pos] not in covered:
+            chosen = session.path_pos
+        else:
+            for step in range(1, len(order)):
+                pos = (session.path_pos + step) % len(order)
+                if order[pos] not in covered:
+                    chosen = pos
+                    break
+        if chosen is None:
+            payload = self._turn_payload(course, session)
+            payload["course_complete"] = True
+            payload["show_examples"] = False
+            return payload
+        session.path_pos = chosen
+        self._persist_live(session, status="in_progress")
+        slide_index = session.path[session.path_pos]
+        payload = self._topic_payload(course, session, slide_index)
+        payload["matched"] = True
+        payload["course_complete"] = False
+        payload["resumed_uncovered"] = True
+        return payload
+
+    def _topic_payload(
+        self, course: Any, session: TeachSession, slide_index: int
+    ) -> dict[str, Any]:
+        payload = self._turn_payload(course, session)
+        slide = course.slides[slide_index]
+        lines = example_lines(slide)
+        payload["show_examples"] = bool(lines)
+        payload["topic_examples"] = lines
+        if lines and not slide_has_art(slide):
+            payload["example_svg"] = example_card_svg(slide.title, lines)
+        else:
+            payload["example_svg"] = ""
+        return payload
+
     def continue_past_checkpoint(self, session_id: str) -> dict[str, Any]:
         course, session = self._require(session_id)
+        if session.sample_only:
+            # A sample cannot be extended into the rest of the class.
+            return self._turn_payload(course, session)
         session.checkpoint_ack = True
         # Extend soft window so the learner can finish this block.
         session.soft_limit_minutes = max(
@@ -347,6 +446,7 @@ class TeachEngine:
         )
         course, _ = self._require(session_id)
         quiz = build_summary_quiz(course.slides, gap_objs, max_questions=max_questions)
+        localize_quiz(quiz, session.language)
         session.summary_quiz = quiz
         return quiz
 
@@ -375,10 +475,21 @@ class TeachEngine:
         self._persist_live(session, status="in_progress")
         return result
 
-    def game_for_current(self, session_id: str) -> GameChallenge:
+    def game_for_current(self, session_id: str, *, prefer_visual: bool = False) -> GameChallenge:
         course, session = self._require(session_id)
         slide = course.slides[session.path[session.path_pos]]
         objective = self._objective_for_slide(session, slide.index)
+        # Checkpoint play prefers a labeled picture challenge. Slides with an
+        # authored game spec keep that spec, and the plain rotation is unchanged
+        # when the caller does not ask for a picture challenge.
+        authored = isinstance(slide.game_spec, dict) and bool(slide.game_spec)
+        if prefer_visual and not authored:
+            visual = pick_visual_game_for_slide(
+                slide, objective.objective_id, rotate_index=session.game_rotation
+            )
+            if visual is not None:
+                session.game_rotation += 1
+                return visual
         game = pick_game_for_slide(
             slide, objective.objective_id, rotate_index=session.game_rotation
         )
@@ -576,11 +687,19 @@ class TeachEngine:
         voice_meta = None
         spoken = turn.narration
         speak_lang = self._spoken_language(course, session, slide)
+        translation_source = course.profile_adaptations.get("translation_source")
+        translation_note = course.profile_adaptations.get("translation_note", "")
         # Early-learning narration is carefully written to a tiny vocabulary and
         # must not be paraphrased into harder language. xAI remains available for
         # the learner's explicit "Ask Theodore" questions.
-        if session.use_voice_agent and course.audience == "general":
-            # Enrich spoken line via xAI / offline fallback (text only).
+        # Only rewrite English slides in English. A failed voice call used to
+        # replace Khmer (and every other language) with an English holding line.
+        if (
+            session.use_voice_agent
+            and course.audience == "general"
+            and session.language == "en"
+            and speak_lang == "en"
+        ):
             voice = self._voice.present_slide(
                 session_id=session.session_id,
                 title=turn.title,
@@ -591,6 +710,28 @@ class TeachEngine:
             spoken = voice.message
             speak_lang = _voice_turn_language(voice, speak_lang)
             voice_meta = voice.model_dump(mode="json")
+        localized = localize_lesson(
+            title=turn.title,
+            body=turn.display_body or spoken,
+            narration=spoken,
+            activity=slide.activity_prompt or "",
+            examples=list(slide.examples or []),
+            source_language=speak_lang,
+            target_language=session.language,
+        )
+        activity_prompt = slide.activity_prompt or ""
+        examples = list(slide.examples or [])
+        if localized.applied:
+            spoken = localized.narration
+            speak_lang = session.language
+            turn.title = localized.title or turn.title
+            turn.display_body = localized.body or spoken
+            turn.narration = spoken
+            turn.spoken_language = speak_lang
+            activity_prompt = localized.activity or activity_prompt
+            examples = localized.examples or examples
+            translation_source = localized.provider or "translated"
+            translation_note = f"Spoken in the selected language ({speak_lang})."
         if course.audience != "general":
             voice_meta = {
                 "provider": (
@@ -645,29 +786,31 @@ class TeachEngine:
             )
         is_lesson_end = session.path_pos == len(session.path) - 1
         is_section_end = "section_end" in slide.tags or "checkpoint" in slide.tags
+        has_quiz_bank = any(
+            course.slides[i].quiz_spec for i in session.path[: session.path_pos + 1]
+        )
+        sample_complete = self._sample_expired(session, now)
+        if is_lesson_end and has_quiz_bank:
+            checkpoint_activity = "quiz"
+        elif is_lesson_end or is_section_end:
+            checkpoint_activity = "game"
+        else:
+            checkpoint_activity = "reflection"
         activity_checkpoint = {
             "due": bool(is_lesson_end or is_section_end),
             "scope": "lesson" if is_lesson_end else "section",
-            "kind": (
-                "summary_quiz"
-                if any(
-                    course.slides[i].quiz_spec
-                    for i in session.path[: session.path_pos + 1]
-                )
-                else "reflection"
-            ),
+            "activity": checkpoint_activity,
+            "kind": "summary_quiz" if checkpoint_activity == "quiz" else "reflection",
             "prompt": (
                 "Now that this section is complete, check what you remember."
                 if is_section_end and not is_lesson_end
                 else "Before finishing the lesson, check what you remember."
             )
             if speak_lang == "en"
-            else str(
-                slide.quiz_spec.get("prompt")
-                or slide.activity_prompt
-                or turn.title
-            ),
+            else str(activity_prompt or turn.title),
         }
+        if sample_complete:
+            activity_checkpoint["due"] = False
         return {
             "turn": turn_dump,
             "slide_index": slide_index,
@@ -675,8 +818,8 @@ class TeachEngine:
             "path_pos": session.path_pos,
             "language": session.language,
             "spoken_language": speak_lang,
-            "translation_source": course.profile_adaptations.get("translation_source"),
-            "translation_note": course.profile_adaptations.get("translation_note", ""),
+            "translation_source": translation_source,
+            "translation_note": translation_note,
             "disclaimer": course.profile_adaptations.get("disclaimer", ""),
             "jurisdiction": course.profile_adaptations.get("jurisdiction", ""),
             "objective": objective.model_dump(mode="json"),
@@ -684,8 +827,8 @@ class TeachEngine:
             "storyboard_svg": slide.storyboard_svg or "",
             "storyboard_concept": slide.storyboard_concept or "",
             "storyboard_scene_id": slide.storyboard_scene_id or "",
-            "activity_prompt": slide.activity_prompt,
-            "examples": list(slide.examples or []),
+            "activity_prompt": activity_prompt,
+            "examples": examples,
             "modalities": list(slide.modalities or []),
             "learning_kit": {
                 "modalities": list(slide.modalities or []),
@@ -721,9 +864,25 @@ class TeachEngine:
                 "total_objectives": len(session.objectives),
                 "completed_slides": len(session.completed_slide_indexes),
                 "path_length": len(session.path),
+                "completion_percent": completion_percent(
+                    course, session.completed_slide_indexes
+                ),
             },
             "checkpoint": checkpoint_block,
             "activity_checkpoint": activity_checkpoint,
+            "access_mode": "sample" if session.sample_only else "full",
+            "sample": {
+                "minutes": SAMPLE_MINUTES if session.sample_only else 0,
+                "complete": sample_complete,
+                "continue_allowed": not sample_complete,
+                "message": (
+                    SAMPLE_ENDED
+                    if sample_complete
+                    else SAMPLE_PREVIEW
+                    if session.sample_only
+                    else ""
+                ),
+            },
             "session": {
                 "session_id": session.session_id,
                 "learner_id": session.learner_id,
@@ -733,6 +892,12 @@ class TeachEngine:
                 "resumed": session.resumed_from_checkpoint,
             },
         }
+
+    def _sample_expired(self, session: TeachSession, now_ms: int | None = None) -> bool:
+        if not session.sample_only:
+            return False
+        now = int(time.time() * 1000) if now_ms is None else now_ms
+        return (now - session.started_at_ms) >= session.soft_limit_minutes * 60_000
 
     def _require(self, session_id: str) -> tuple[StudioCourse, TeachSession]:
         with self._lock:

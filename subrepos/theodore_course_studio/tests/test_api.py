@@ -39,6 +39,9 @@ def test_health_and_studio_page():
     assert 'id="student-cam"' in page.text
     assert 'id="student-cam-hide"' in page.text
     assert "setStudentCamHidden" in page.text
+    assert "enableStudentCamDrag" in page.text
+    assert "Drag to move the camera" in page.text
+    assert "This device has no " in page.text
     assert "ensureStudentCamera" in page.text
     assert "Camera stays on." in page.text
     assert "/api/studio/learn/camera" in page.text
@@ -47,6 +50,12 @@ def test_health_and_studio_page():
     assert "learningHold" in page.text
     assert "cameraSessionId" in page.text
     assert "applyAttentionShift" in page.text
+    assert "ensureLessonFaceMesh" in page.text
+    assert "pickLessonOwner" in page.text
+    assert "owner_face_match" in page.text
+    assert "lessonHandSample" in page.text
+    assert "detector_source = 'face_mesh'" in page.text
+    assert "km:'km-KH'" in page.text
     assert 'id="attention-aside"' in page.text
     assert "is-awake" in page.text
     assert "if (checkpoint.due)" in page.text
@@ -79,6 +88,13 @@ def test_health_and_studio_page():
     # Multimodal order_steps games must be playable (not only match_term options).
     assert "order_steps" in page.text
     assert "ordered_steps" in page.text
+    assert "image_to_word" in page.text
+    assert "word_to_image" in page.text
+    assert "memory_pairs" in page.text
+    assert "spot_difference" in page.text
+    assert "checkpoint.activity === 'game'" in page.text
+    assert "SuperGrok" in page.text
+    assert "selected_id" in page.text
 
 
 def test_offline_trainer_api_with_empty_corpus(tmp_path, monkeypatch):

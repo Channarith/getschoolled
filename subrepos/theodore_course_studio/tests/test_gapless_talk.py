@@ -203,9 +203,11 @@ def test_automatic_activity_is_only_due_at_lesson_checkpoint(tmp_path):
         language="en",
     )
     assert first["activity_checkpoint"]["due"] is False
+    assert first["activity_checkpoint"]["activity"] == "reflection"
     second = engine.advance("checkpoint-engine")
     assert second["activity_checkpoint"]["due"] is True
     assert second["activity_checkpoint"]["scope"] == "lesson"
+    assert second["activity_checkpoint"]["activity"] == "game"
 
 
 def test_teach_payload_uses_manifest_clip_and_preloads_next(tmp_path, monkeypatch):
