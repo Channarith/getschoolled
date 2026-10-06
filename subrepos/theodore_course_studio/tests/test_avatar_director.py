@@ -124,7 +124,14 @@ def test_presenter_manifest_defaults_to_builtin():
     response = client.get("/api/studio/presenter/manifest")
     assert response.status_code == 200
     data = response.json()
-    assert data["default_model"] == "amina"
+    assert data["default_model"] == "student"
+    student = data["models"]["student"]
+    assert student["kind"] == "portrait"
+    assert student["rig"] == "portrait"
+    assert student["url"].endswith("presenter_student.webp")
+    portrait = client.get(student["url"])
+    assert portrait.status_code == 200
+    assert portrait.content[:4] == b"RIFF"
     realistic = {"amina", "mateo", "lin", "priya", "jordan", "elena"}
     assert realistic < set(data["models"])
     assert {"classic_female", "classic_male"} < set(data["models"])
