@@ -89,6 +89,14 @@ STUDIO_CSS = """
     .page-welcome[hidden] { display:none !important; }
     .page-welcome svg { width:min(100%, 280px); height:auto; }
     .page-welcome p { margin:0; max-width:28rem; font-size:18px; line-height:1.45; }
+    .proceed-cue { display:flex; align-items:center; justify-content:space-between; gap:14px;
+      margin:14px 0 4px; padding:12px 14px; border-radius:16px; background:#1e3a5f; color:#fff;
+      position:sticky; bottom:8px; z-index:4; box-shadow:0 10px 24px rgba(30,58,95,.22); }
+    .proceed-cue p { margin:0; font-size:16px; line-height:1.35; }
+    .proceed-cue button { border:0; border-radius:999px; background:#f4d48a; color:#1e3a5f;
+      padding:10px 18px; font:700 15px Arial,sans-serif; cursor:pointer; white-space:nowrap; }
+    .proceed-cue button[aria-pressed="true"] { background:#d9ffe8; }
+    .presenter-overlay .proceed-cue { margin:12px 20px 6px; }
     .teach-stage .body { font-size:18px; line-height:1.55; color:#2c241c; }
     .teach-stage .narr { margin-top:14px; padding:10px 12px; border-radius:12px; background:#f7f1e6;
                          color:#5c3b1e; font-style:italic; }
@@ -3882,7 +3890,46 @@ STUDIO_JS = """
       });
       return attempt(0);
     }
+    function paintProceedCue() {
+      const text = $('proceed-cue-text');
+      const btn = $('btn-start-voice');
+      if (!text || !btn) return;
+      const live = !!window.__THEODORE_LIVE_AUDIO_ACTIVE__;
+      text.textContent = live
+        ? 'Speak to Theodore, or click the screen to continue.'
+        : 'Click the screen to continue, or press Start and speak.';
+      btn.textContent = live ? 'Listening' : 'Start';
+      btn.setAttribute('aria-pressed', live ? 'true' : 'false');
+    }
+
+    async function proceedByClick() {
+      if (advancing) return;
+      if (lecturePaused) {
+        lecturePaused = false;
+        setPauseButton(false);
+        window.TheodoreLiveAudio?.resumeRecognition();
+      }
+      if (!teachSession) {
+        const first = library.find((row) => row.featured) || library[0];
+        if (!first) return toast('Choose a course on the left.');
+        await openLibraryCourse(first.id);
+        return;
+      }
+      await nextSlide();
+    }
+
+    async function proceedByVoice() {
+      const started = await window.TheodoreLiveAudio?.start?.();
+      if (started === false) toast('Voice is not ready yet. Press Start again in a moment.');
+      if (!teachSession) {
+        const first = library.find((row) => row.featured) || library[0];
+        if (first) await openLibraryCourse(first.id);
+      }
+      paintProceedCue();
+    }
+
     window.addEventListener('theodore-live-audio', (event) => {
+      paintProceedCue();
       if (event.detail?.active && !event.detail?.paused && !window.__THEODORE_LIVE_AUDIO_HOLD__) stopSpeech();
     });
     window.addEventListener('theodore-live-audio-speech', (event) => {
@@ -4190,9 +4237,24 @@ STUDIO_JS = """
     });
     enableStudentCamDrag();
     on('btn-captions', 'click', () => setCaptionsEnabled(!captionsEnabled));
+    let proceedClickTimer = null;
+    on('teach-stage', 'click', (event) => {
+      if (event.target.closest('button, input, select, textarea, a, label, .lesson-window-controls, .lesson-toolbar, .talk-panel, .quiz-box, .game-box, .activity, .theodore-avatar-wrap')) return;
+      clearTimeout(proceedClickTimer);
+      proceedClickTimer = setTimeout(() => {
+        proceedClickTimer = null;
+        proceedByClick().catch((error) => toast(String(error.message || error)));
+      }, 280);
+    });
     on('teach-stage', 'dblclick', (event) => {
       if (event.target.closest('button, input, select, textarea, a, .lesson-window-controls')) return;
+      clearTimeout(proceedClickTimer);
+      proceedClickTimer = null;
       togglePresenterMode();
+    });
+    on('btn-start-voice', 'click', (event) => {
+      event.stopPropagation();
+      proceedByVoice().catch((error) => toast(String(error.message || error)));
     });
     on('btn-continue', 'click', () => continueSession().catch((e) => toast(String(e.message || e))));
     on('btn-later', 'click', () => comeBackLater().catch((e) => toast(String(e.message || e))));
@@ -4337,7 +4399,11 @@ def render_studio_page() -> str:
                 <rect x="220" y="70" width="10" height="26" rx="2" fill="#8c3a2f"/>
                 <rect x="234" y="62" width="12" height="34" rx="2" fill="#2f5d46"/>
               </svg>
-              <p>Choose a course on the left. Theodore will read each page aloud.</p>
+              <p>Click the screen to start, or press Start and speak.</p>
+            </div>
+            <div class="proceed-cue" id="proceed-cue">
+              <p id="proceed-cue-text">Click the screen to continue, or press Start and speak.</p>
+              <button id="btn-start-voice" type="button">Start</button>
             </div>
             <div class="body" id="teach-body"></div>
             <p id="attention-aside" class="attention-aside" hidden></p>

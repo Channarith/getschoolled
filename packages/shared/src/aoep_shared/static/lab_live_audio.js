@@ -291,7 +291,10 @@
   }
   async function start() {
     const provider = select.value;
-    if (!provider) return;
+    if (!provider) {
+      setStatus("Voice is not ready yet. Press Start again in a moment.");
+      return false;
+    }
     toggle.disabled = true;
     setStatus(`Connecting ${select.selectedOptions[0].textContent}…`);
     try {
@@ -410,6 +413,10 @@
   window.TheodoreLiveAudio = {
     pauseRecognition() { setRecognitionPaused(true); },
     resumeRecognition() { if (state.connected) setRecognitionPaused(false); },
+    start() {
+      if (state.ws) return Promise.resolve(true);
+      return start();
+    },
   };
   toggle.onclick = () => state.ws ? stop() : start();
   select.onchange = () => { if (state.ws) stop(); toggle.disabled = !select.value; };
