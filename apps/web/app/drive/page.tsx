@@ -982,6 +982,25 @@ function DrivePageInner() {
       </div>
       </>
       )}
+
+      <section id="audio-lab" className="card" style={{ marginTop: 18 }}>
+        <h2 style={{ marginTop: 0 }}>Audio lab</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Hands-free speech translation. The microphone stays in this browser, and Theodore answers with the xAI voice agent.
+        </p>
+        <iframe
+          title="Audio translation lab"
+          src="/audio-lab"
+          allow="microphone; autoplay"
+          style={{
+            width: "100%",
+            height: "min(78vh, 860px)",
+            border: "1px solid rgba(14,165,233,.45)",
+            borderRadius: 16,
+            background: "#0b1020",
+          }}
+        />
+      </section>
     </main>
   );
 }

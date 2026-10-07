@@ -13,7 +13,6 @@ import {
   type LearnableItem,
 } from "../lib/api";
 import { CoursePosterImg } from "../components/CoursePosterImg";
-import { PUBLIC_COURSES } from "../lib/courseStudio";
 import BookmarkButton from "../components/BookmarkButton";
 import { useT } from "../lib/i18n";
 
@@ -122,20 +121,6 @@ function BrowseInner() {
     <main className="container">
       <h1>{t("browse.heading")}</h1>
       <p className="muted">{t("browse.subtitle")}</p>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginBottom: 16 }}>
-        {PUBLIC_COURSES.map((course) => (
-          <Link key={course.id} href={course.href} style={{ textDecoration: "none", color: "inherit" }}>
-            <div className="card">
-              <h2 style={{ marginBottom: 4 }}>{course.title}</h2>
-              <p className="muted" style={{ margin: 0 }}>{course.blurb}</p>
-              {course.demoHref ? (
-                <p style={{ marginBottom: 0 }}><span className="muted">Free 10-minute demo on the home page.</span></p>
-              ) : null}
-            </div>
-          </Link>
-        ))}
-      </div>
 
       <div className="card">
         <input

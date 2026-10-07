@@ -20,6 +20,7 @@ import {
   type VoucherValidateResult,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
+import { FullCourseLinks } from "../components/FullCourseLinks";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 
@@ -347,6 +348,7 @@ export default function GroupClassesPage() {
   return (
     <main className="container page-one group-page">
       <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 20 }}>Group Class</h1>
+      <FullCourseLinks />
 
       {!loggedIn && <SignInToUse />}
 

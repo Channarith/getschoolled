@@ -83,7 +83,7 @@ export const SALES_DEMO_FEATURES = [
   {
     id: "arcade",
     flagKey: "sales_demo.arcade_games",
-    href: "/demo/arcade",
+    href: "/arcade#vision",
     emoji: "🎮",
     title: "Vision arcade",
     subtitle: "Machine vision for kids",

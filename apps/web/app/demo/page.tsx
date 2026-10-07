@@ -90,7 +90,7 @@ export default function SalesDemoPage() {
           Children play the machine-vision games from the webcam lab. Anyone can open it.
           The camera stays in the browser.
         </p>
-        <Link href="/demo/arcade">
+        <Link href="/arcade#vision">
           <button type="button">Play the vision arcade</button>
         </Link>
       </section>

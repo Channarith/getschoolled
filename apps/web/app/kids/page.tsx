@@ -51,7 +51,7 @@ export default function KidsPage() {
               <Link href="/login">
                 <button className="theme-btn" style={{ background: "#f59e0b" }}>{t("profile.signIn")}</button>
               </Link>
-              <Link href="/demo/arcade">
+              <Link href="/arcade#vision">
                 <button className="theme-btn" style={{ background: "#0369a1", color: "#fff" }}>
                   Play the vision arcade
                 </button>
@@ -80,7 +80,7 @@ export default function KidsPage() {
             <Link href="/class">
               <button className="theme-btn" style={{ background: "#f59e0b" }}>{t("kids.startClass")}</button>
             </Link>
-            <Link href="/demo/arcade">
+            <Link href="/arcade#vision">
               <button className="theme-btn" style={{ background: "#0369a1", color: "#fff" }}>
                 Play the vision arcade
               </button>

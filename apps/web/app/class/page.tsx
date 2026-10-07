@@ -55,6 +55,7 @@ import {
   findDueSummativeCheckpoint,
 } from "../lib/assessmentFlow";
 import SignInToUse from "../components/SignInToUse";
+import { FullCourseLinks } from "../components/FullCourseLinks";
 import AiPresenter from "../components/AiPresenter";
 import AssessmentCheckpointPanel from "../components/AssessmentCheckpointPanel";
 import VideoAdBreak from "../components/VideoAdBreak";
@@ -927,6 +928,7 @@ export default function ClassPage() {
         />
       )}
       <h1>Live Class</h1>
+      {!view && <FullCourseLinks />}
       {disclosure && (
         <div className="card" style={{ borderColor: "#6ea8fe" }}>
           <strong>AI disclosure</strong>
@@ -991,7 +993,27 @@ export default function ClassPage() {
               title={!loggedIn ? "Sign in to take classes" : undefined}>
               Start class
             </button>
+            <button
+              type="button"
+              onClick={() => void toggleXaiVoice()}
+              disabled={busy || (!xaiVoiceReady && !xaiVoiceLive)}
+              title={xaiVoiceHint || (xaiVoiceReady
+                ? "Talk with Theodore via xAI Grok Voice"
+                : "Set XAI_API_KEY on the speech service to enable Grok Voice")}
+              style={{
+                fontSize: 13, padding: "8px 12px", borderRadius: 8, cursor: "pointer",
+                border: "1px solid #0d6e6e",
+                background: xaiVoiceLive ? "#0d6e6e" : "#fff",
+                color: xaiVoiceLive ? "#f7faf9" : "#0d6e6e",
+                opacity: (!xaiVoiceReady && !xaiVoiceLive) ? 0.5 : 1,
+              }}
+            >
+              {xaiVoiceLive ? "● Grok voice on" : "Grok voice"}
+            </button>
           </div>
+          {xaiVoiceHint ? (
+            <p className="muted" style={{ margin: "8px 0 0", fontSize: 12 }}>{xaiVoiceHint}</p>
+          ) : null}
           <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #e2e8f0", display: "flex", flexWrap: "wrap", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span className="muted" style={{ fontSize: 13 }}>Are you a teacher?</span>

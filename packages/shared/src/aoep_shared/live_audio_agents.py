@@ -269,15 +269,33 @@ def mint_provider_token(
     raise LiveAudioError(f"unsupported live audio provider: {provider or 'none'}")
 
 
-def client_script_tag() -> str:
-    return '<script src="/api/live-audio/client.js" defer></script>'
+def client_script_tag(page_path: str = "", api_prefix: str = "") -> str:
+    """Load the voice widget.
+
+    Direct lab servers keep the root ``/api/live-audio`` URL. When the same
+    page is embedded on the Salareen site under ``page_path``, the widget
+    talks to ``api_prefix`` so it does not collide with another lab.
+    """
+    if not page_path or not api_prefix:
+        return '<script src="/api/live-audio/client.js" defer></script>'
+    page = page_path.rstrip("/")
+    prefix = api_prefix.rstrip("/")
+    return (
+        "<script>(function(){"
+        f"var p=location.pathname.indexOf('{page}')===0?'{prefix}':'';"
+        "window.AOEP_LIVE_AUDIO_BASE=p;"
+        "var s=document.createElement('script');"
+        "s.src=p+'/api/live-audio/client.js';"
+        "s.defer=true;document.body.appendChild(s);"
+        "})();</script>"
+    )
 
 
-def inject_client(html: str) -> str:
+def inject_client(html: str, *, page_path: str = "", api_prefix: str = "") -> str:
     """Add the provider widget to a lab page exactly once."""
     if "/api/live-audio/client.js" in html:
         return html
-    tag = client_script_tag()
+    tag = client_script_tag(page_path, api_prefix)
     return html.replace("</body>", f"{tag}\n</body>") if "</body>" in html else html + tag
 
 

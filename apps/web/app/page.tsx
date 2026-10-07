@@ -343,7 +343,6 @@ export default function HomePage() {
       </section>
 
       <div className="feed">
-        <PublicCourses />
         <AdSlot slotId="home-banner" tier={tier} />
         {error && (
           <div className="card" style={{ borderColor: "#ff6b6b" }}>

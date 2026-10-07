@@ -4,6 +4,11 @@
   // One native speech-to-speech control shared by every Theodore lab. It never
   // calls /tts: microphone PCM goes directly to xAI/Gemini using a one-use
   // server-minted credential, and returned PCM is scheduled gaplessly.
+  function liveAudioUrl(path) {
+    const base = window.AOEP_LIVE_AUDIO_BASE || "";
+    return base + path;
+  }
+
   const state = {
     ws: null, stream: null, source: null, processor: null, silent: null,
     ctx: null, speaker: null, playDestination: null, provider: "",
@@ -362,7 +367,7 @@
       state.outputGain.connect(state.ctx.destination);
       await startMic();
       await followSpeakers();
-      const response = await fetch("/api/live-audio/token", {
+      const response = await fetch(liveAudioUrl("/api/live-audio/token"), {
         method:"POST",headers:{"content-type":"application/json"},
         body:JSON.stringify({
           provider,
@@ -471,7 +476,7 @@
   toggle.onclick = () => state.ws ? stop() : start();
   select.onchange = () => { if (state.ws) stop(); toggle.disabled = !select.value; };
 
-  fetch("/api/live-audio/status", {cache:"no-store"}).then(async (response) => {
+  fetch(liveAudioUrl("/api/live-audio/status"), {cache:"no-store"}).then(async (response) => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     select.innerHTML = '<option value="">Choose live agent</option>';

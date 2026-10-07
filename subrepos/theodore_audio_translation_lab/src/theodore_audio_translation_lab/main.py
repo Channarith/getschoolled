@@ -88,7 +88,11 @@ def health() -> dict[str, Any]:
 @app.get("/", response_class=HTMLResponse)
 @app.get("/lab", response_class=HTMLResponse)
 def lab() -> HTMLResponse:
-    return HTMLResponse(inject_client(render_lab_page()))
+    return HTMLResponse(inject_client(
+        render_lab_page(),
+        page_path="/audio-lab",
+        api_prefix="/audio-lab-api",
+    ))
 
 
 @app.get("/api/languages")
