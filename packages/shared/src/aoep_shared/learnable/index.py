@@ -10,11 +10,7 @@ from aoep_shared.course_artwork import resolve_course_poster_from_mapping
 from aoep_shared.games import GAME_SUBJECTS
 from aoep_shared.language_learning import language_list
 
-from aoep_shared.course_studio_access import (
-    LIBRARY_COURSE_ID,
-    SAMPLE_MINUTES,
-    SAMPLE_PREVIEW,
-)
+from aoep_shared.course_studio_access import PUBLIC_STUDIO_COURSES
 
 from .lessons import lesson_category, lesson_duration_min, load_sample_lessons
 
@@ -369,34 +365,33 @@ def build_learnable_index(
     for subject in GAME_SUBJECTS:
         items.append(_from_game_subject(subject))
 
-    if LIBRARY_COURSE_ID not in catalog_ids:
-        items.append(_course_studio_library_item())
+    for course in PUBLIC_STUDIO_COURSES:
+        if course["id"] in catalog_ids:
+            continue
+        items.append(_public_studio_course(course))
+        catalog_ids.add(course["id"])
 
     return items
 
 
-def _course_studio_library_item() -> LearnableItem:
-    """Public library entry for Course Studio.
-
-    The card opens the website gate: a 10-minute sample until the learner is
-    registered and has paid for the class.
-    """
+def _public_studio_course(course: dict) -> LearnableItem:
+    """Driver's ed and food health & safety on the public library."""
     return LearnableItem(
-        id=f"course_studio:{LIBRARY_COURSE_ID}",
+        id=f"course_studio:{course['id']}",
         source="course_studio",
-        source_id=LIBRARY_COURSE_ID,
-        title="Course Studio",
-        subtitle="Live class with Theodore",
-        category="Course Studio",
-        subject="Course Studio",
+        source_id=str(course["id"]),
+        title=str(course["title"]),
+        subtitle=str(course["subtitle"]),
+        category=str(course["category"]),
+        subject=str(course["category"]),
         format="interactive",
         level="beginner",
-        duration_min=SAMPLE_MINUTES,
-        tags=["course-studio", "sample"],
+        duration_min=int(course["duration_min"]),
+        tags=list(course["tags"]),
         hands_on=True,
         access_tier="basic",
-        preview=SAMPLE_PREVIEW,
-        deep_link="/learn/course-studio",
+        preview=str(course["preview"]),
+        deep_link=str(course["deep_link"]),
         popularity=80,
     )
 

@@ -98,7 +98,8 @@ def test_kids_home_contains_only_curated_learning_and_games():
 def test_course_studio_is_in_the_library():
     items = build_learnable_index()
     studio = [item for item in items if item.source == "course_studio"]
-    assert len(studio) == 1
-    assert studio[0].source_id == "course-studio"
-    assert studio[0].duration_min == 10
-    assert studio[0].deep_link == "/learn/course-studio"
+    by_id = {item.source_id: item for item in studio}
+    assert set(by_id) == {"drivers-ed", "food-safety"}
+    assert by_id["drivers-ed"].duration_min == 10
+    assert by_id["drivers-ed"].deep_link == "/learn/drivers-ed"
+    assert by_id["food-safety"].deep_link == "/learn/food-safety"

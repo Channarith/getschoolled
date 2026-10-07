@@ -56,11 +56,11 @@ export const SALES_DEMO_FEATURES = [
   {
     id: "course-studio",
     flagKey: "sales_demo.course_studio",
-    href: "/demo/course-studio",
+    href: "/demo/drivers-ed",
     emoji: "🎓",
-    title: "Course Studio sample",
-    subtitle: "10 minutes, live",
-    description: "A sales-pitch sample of a live class. Registered learners who pay take the full course from the library.",
+    title: "Driver's Education demo",
+    subtitle: "10 minutes, free",
+    description: "Anyone can take the 10-minute driver's ed demo. The full course, and Food Health & Safety, are paid unless you are an admin.",
   },
   {
     id: "solo",

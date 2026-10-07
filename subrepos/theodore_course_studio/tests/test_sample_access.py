@@ -45,7 +45,7 @@ def test_sample_stops_at_ten_minutes_and_does_not_extend(tmp_path):
     before = session.path_pos
     stopped = engine.advance("sample-1")
     assert stopped["sample"]["complete"] is True
-    assert "pay for the class" in stopped["sample"]["message"]
+    assert "pay for the course" in stopped["sample"]["message"].lower()
     assert session.path_pos == before
     assert engine.continue_past_checkpoint("sample-1")["sample"]["complete"] is True
     assert session.soft_limit_minutes == 10
@@ -103,6 +103,16 @@ def test_teach_start_downgrades_an_unpaid_full_request(tmp_path):
         assert paid.status_code == 200, paid.text
         assert paid.json()["access_mode"] == "full"
 
+        admin = client.post("/api/studio/teach/start", json={
+            "session_id": "api-admin-1",
+            "course_id": course.course_id,
+            "access": "full",
+            "is_admin": True,
+            "use_voice_agent": False,
+        })
+        assert admin.status_code == 200, admin.text
+        assert admin.json()["access_mode"] == "full"
+
         authoring = client.post("/api/studio/teach/start", json={
             "session_id": "api-author-1",
             "course_id": course.course_id,
@@ -121,4 +131,6 @@ def test_studio_page_offers_the_sample_banner():
     page = render_studio_page()
     assert 'id="sample-banner"' in page
     assert "enrollment_status" in STUDIO_JS
+    assert "get('course')" in STUDIO_JS
+    assert "is_admin" in STUDIO_JS
     assert "sampleIsComplete" in STUDIO_JS

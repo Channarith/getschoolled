@@ -151,6 +151,7 @@ class TeachStartRequest(BaseModel):
     access: str = ""
     registered: bool = False
     enrollment_status: str = ""
+    is_admin: bool = False
 
 
 class TeachSessionRequest(BaseModel):
@@ -639,6 +640,7 @@ class TrialRunRequest(BaseModel):
     access: str = ""
     registered: bool = False
     enrollment_status: str = ""
+    is_admin: bool = False
 
 
 @app.post("/api/studio/teach/trial-run")
@@ -662,6 +664,7 @@ def teach_trial_run(req: TrialRunRequest) -> dict[str, Any]:
                 requested=req.access,
                 registered=req.registered,
                 enrollment_status=req.enrollment_status,
+                is_admin=req.is_admin,
             ),
         )
     except (KeyError, ValueError) as exc:
@@ -710,6 +713,7 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
                 requested=req.access,
                 registered=req.registered,
                 enrollment_status=req.enrollment_status,
+                is_admin=req.is_admin,
             ),
         )
     except KeyError as exc:

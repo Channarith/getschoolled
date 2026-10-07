@@ -15,6 +15,13 @@ def test_full_class_requires_registration_and_payment():
     assert full_class_allowed(registered=True, enrollment_status="") is False
 
 
+def test_admin_takes_the_full_course_without_paying():
+    assert full_class_allowed(registered=True, enrollment_status="", is_admin=True) is True
+    assert full_class_allowed(registered=False, enrollment_status="", is_admin=True) is True
+    assert resolve_teach_access(requested="full", is_admin=True) == "full"
+    assert resolve_teach_access(requested="sample", is_admin=True) == "sample"
+
+
 def test_sales_demo_stays_a_sample_even_for_a_paid_account():
     assert resolve_teach_access(
         requested="sample", registered=True, enrollment_status="paid"
