@@ -334,6 +334,7 @@ class WebcamLearningGameEngine:
             WebcamGameType.MOTHERS_DAY,
             WebcamGameType.FATHERS_DAY,
             WebcamGameType.CUTE_ENOUGH,
+            WebcamGameType.JIGGY_DANCE,
         }
         if needs_duration and observed_ms < challenge.target_duration_ms:
             return (
