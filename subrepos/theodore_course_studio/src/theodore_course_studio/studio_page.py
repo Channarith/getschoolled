@@ -143,6 +143,8 @@ STUDIO_CSS = """
     .lesson-photo[data-effect="split"].is-in .lesson-photo-motion { animation:pptSplit .7s ease both; }
     .lesson-photo.is-in img { animation:kenBurns 18s ease-in-out .8s alternate infinite; }
     .ppt-title { animation:pptFlyUp .55s ease both; }
+    .teach-stage.voice-animation { animation:voiceStage .65s ease; }
+    @keyframes voiceStage { from { filter:saturate(1.35) brightness(1.12); } to { filter:none; } }
     @keyframes pptFade { from { opacity:0; } to { opacity:1; } }
     @keyframes pptFly { from { opacity:0; transform:translateX(22%); } to { opacity:1; transform:none; } }
     @keyframes pptWipe { from { clip-path:inset(0 100% 0 0); } to { clip-path:inset(0); } }
@@ -2907,6 +2909,61 @@ STUDIO_JS = """
       if (!live) readCurrentAloud();
     }
 
+    const VOICE_EFFECTS = ['fade', 'fly', 'wipe', 'zoom', 'cover', 'split'];
+    let voiceEffectAt = 0;
+    let spokenExampleAt = -1;
+
+    function cycleLessonAnimation() {
+      const stage = $('teach-stage');
+      if (stage) {
+        stage.classList.remove('voice-animation');
+        void stage.offsetWidth;
+        stage.classList.add('voice-animation');
+      }
+      const img = $('lesson-photo-img');
+      const url = img && img.getAttribute('src');
+      if (!url) return;
+      voiceEffectAt = (voiceEffectAt + 1) % VOICE_EFFECTS.length;
+      paintLessonPhoto(url, VOICE_EFFECTS[voiceEffectAt], img.alt || 'Lesson photograph');
+    }
+
+    function showSpokenExample() {
+      const payload = lastTeachPayload || {};
+      const examples = payload.topic_examples || payload.examples || [];
+      const exBox = $('teach-examples');
+      if (!exBox || !examples.length) {
+        cycleLessonAnimation();
+        return;
+      }
+      spokenExampleAt = (spokenExampleAt + 1) % examples.length;
+      const line = examples[spokenExampleAt];
+      exBox.style.display = 'block';
+      exBox.innerHTML = '<strong>Example</strong><ol><li>' + esc(line) + '</li></ol>';
+      cycleLessonAnimation();
+    }
+
+    function applyLiveAudioAction(detail) {
+      const action = detail && detail.action;
+      if (!action || lecturePaused) return false;
+      if ((action === 'next' || action === 'next_section') && teachSession) {
+        nextSlide().catch((error) => toast(String(error.message || error)));
+        return true;
+      }
+      if (action === 'example' && teachSession) {
+        showSpokenExample();
+        return true;
+      }
+      if (action === 'animation') {
+        cycleLessonAnimation();
+        return true;
+      }
+      if ((action === 'next_game' || action === 'game') && teachSession) {
+        playGame().catch((error) => toast(String(error.message || error)));
+        return true;
+      }
+      return false;
+    }
+
     function queueLiveTopic(text) {
       pendingTopic = text;
       clearTimeout(topicTimer);
@@ -4043,8 +4100,13 @@ STUDIO_JS = """
     });
     window.addEventListener('theodore-live-audio-utterance', (event) => {
       const text = event.detail && event.detail.text;
-      if (!text || lecturePaused) return;
+      if (!text || lecturePaused || (event.detail && event.detail.command)) return;
       queueLiveTopic(text);
+    });
+    window.addEventListener('theodore-live-audio-action', (event) => {
+      const detail = event.detail || {};
+      if (applyLiveAudioAction(detail)) return;
+      if (detail.text && !lecturePaused) queueLiveTopic(detail.text);
     });
     window.addEventListener('theodore-live-audio-idle', () => {
       resumeUncoveredCourse().catch((error) => toast(String(error.message || error)));

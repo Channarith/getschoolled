@@ -161,4 +161,70 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "60000" in source
     assert "theodore-live-audio-speech" in source
     assert "theodore-live-audio-idle" in source
+    assert "theodore-live-audio-action" in source
+    assert "aoepLiveAudioIntent" in source
     assert "__THEODORE_LIVE_AUDIO_ACTIVE__" in source
+    bundled = live.client_javascript()
+    assert bundled.find("function aoepLiveAudioIntent") < bundled.find("theodore-live-audio-action")
+    checked = subprocess.run(
+        ["node", "--check"],
+        input=bundled,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert checked.returncode == 0, checked.stderr
+
+
+def test_spoken_requests_name_a_screen_change():
+    cases = [
+        ["next section", "user", "next_section", ""],
+        ["please go to the next slide", "user", "next_section", ""],
+        ["lets look at the next section", "agent", "next_section", ""],
+        ["okay next section", "agent", "next_section", ""],
+        [
+            "the next section of the vehicle code covers right of way at intersections",
+            "agent",
+            None,
+            "",
+        ],
+        ["another example", "user", "example", ""],
+        ["show me a different animation", "user", "animation", ""],
+        ["next game", "user", "next_game", ""],
+        ["play the heart game", "user", "game", "heart"],
+        ["next letter", "user", "next_letter", ""],
+        ["letter b", "user", "letter", "b"],
+        ["the letter a is for apple", "agent", "letter", "a"],
+        ["next", "user", "next", ""],
+        ["next", "agent", None, ""],
+        ["what is the speed limit", "user", None, ""],
+        ["continue", "user", "next", ""],
+    ]
+    program = (
+        "const intent = require("
+        + json.dumps(str(live.INTENT_JS))
+        + ");\n"
+        + "const cases = "
+        + json.dumps(cases)
+        + ";\n"
+        + "const failures = [];\n"
+        + "for (const [text, role, action, target] of cases) {\n"
+        + "  const got = intent.aoepLiveAudioIntent(text, role);\n"
+        + "  const gotAction = got ? got.action : null;\n"
+        + "  const gotTarget = got ? got.target : '';\n"
+        + "  if (gotAction !== action || gotTarget !== target) {\n"
+        + "    failures.push([text, role, action, target, got]);\n"
+        + "  }\n"
+        + "}\n"
+        + "if (failures.length) {\n"
+        + "  console.error(JSON.stringify(failures, null, 2));\n"
+        + "  process.exit(1);\n"
+        + "}\n"
+    )
+    result = subprocess.run(
+        ["node", "-e", program],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
