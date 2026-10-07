@@ -5,6 +5,7 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - services.yaml
+  - labs.yaml
   - autoscaling.yaml
   - redis.yaml
   # Self-hosted LiveKit is NOT deployed by default — Salareen uses LiveKit Cloud

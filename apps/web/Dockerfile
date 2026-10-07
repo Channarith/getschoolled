@@ -12,6 +12,13 @@ FROM node:22-slim AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web ./
+# next.config.mjs rewrites are frozen into .next by `next build`. The public
+# demos proxy to the in-cluster lab Services. Local `next dev` leaves these
+# unset and keeps the 127.0.0.1 defaults.
+ARG COURSE_STUDIO_ORIGIN=http://course-studio:8040
+ARG CHILDREN_LAB_ORIGIN=http://children-lab:8018
+ENV COURSE_STUDIO_ORIGIN=$COURSE_STUDIO_ORIGIN
+ENV CHILDREN_LAB_ORIGIN=$CHILDREN_LAB_ORIGIN
 RUN npm run build
 
 FROM node:22-slim AS run

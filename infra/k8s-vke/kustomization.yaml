@@ -41,6 +41,12 @@ images:
   - name: ghcr.io/aoep/web
     newName: sjc.vultrcr.com/salareen/web
     newTag: latest
+  - name: ghcr.io/aoep/course-studio
+    newName: sjc.vultrcr.com/salareen/course-studio
+    newTag: latest
+  - name: ghcr.io/aoep/children-lab
+    newName: sjc.vultrcr.com/salareen/children-lab
+    newTag: latest
   - name: ghcr.io/aoep/cosyvoice
     newName: sjc.vultrcr.com/salareen/cosyvoice
     newTag: latest
