@@ -16,17 +16,17 @@ const GENDER_KEY = "aoep_drive_gender";
 
 export function getVoicePrefs(): VoicePrefs {
   if (typeof window === "undefined") {
-    return { voiceId: "", instructorId: "", voiceGender: "any" };
+    return { voiceId: "", instructorId: "", voiceGender: "female" };
   }
   try {
     const voiceId = localStorage.getItem(VOICE_KEY) || "";
     const instructorId = localStorage.getItem(INSTRUCTOR_KEY) || "";
     const g = localStorage.getItem(GENDER_KEY) || "";
     const voiceGender: VoiceGenderPref =
-      g === "male" || g === "female" ? g : "any";
+      g === "male" || g === "female" || g === "any" ? g : "female";
     return { voiceId, instructorId, voiceGender };
   } catch {
-    return { voiceId: "", instructorId: "", voiceGender: "any" };
+    return { voiceId: "", instructorId: "", voiceGender: "female" };
   }
 }
 

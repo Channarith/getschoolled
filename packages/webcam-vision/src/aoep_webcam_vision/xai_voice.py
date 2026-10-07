@@ -35,7 +35,7 @@ DEFAULT_BASE_URL = "https://api.x.ai/v1"
 DEFAULT_REALTIME_URL = "wss://api.x.ai/v1/realtime"
 DEFAULT_VOICE_MODEL = "grok-voice-latest"
 DEFAULT_TEXT_MODEL = "grok-3-latest"
-DEFAULT_VOICE = "eve"
+DEFAULT_VOICE = "ara"
 DEFAULT_EPHEMERAL_TTL_S = 300
 
 # Theodore's persona for the voice agent. Kept aligned with the live-room

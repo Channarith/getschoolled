@@ -27,7 +27,8 @@ from typing import Any, Dict, List, Optional, Sequence
 API_BASE = "https://api.x.ai/v1"
 REALTIME_WS = "wss://api.x.ai/v1/realtime"
 DEFAULT_MODEL = "grok-voice-latest"
-DEFAULT_VOICE = "eve"
+# Ara is the warm, soft-spoken female tutor. Eve is energetic; Rex and Leo are male.
+DEFAULT_VOICE = "ara"
 CLIENT_SECRETS_PATH = "/realtime/client_secrets"
 
 # Teaching personas for Salareen webcam lab sessions.
@@ -174,6 +175,10 @@ class VoiceSessionConfig:
             names = ", ".join(n.strip() for n in self.learner_names if n.strip())
             if names:
                 parts.append(f"Learners in this session: {names}.")
+        parts.append(
+            "Delivery: soft-spoken, calm, and professional. Use a gentle pace "
+            "and a quiet classroom voice. Do not shout, rush, or sound cartoonish."
+        )
         return "\n\n".join(parts)
 
     def session_update_event(self) -> Dict[str, Any]:

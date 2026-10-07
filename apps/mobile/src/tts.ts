@@ -122,8 +122,8 @@ function pickVoiceId(
       let s = (v.quality === Speech.VoiceQuality.Enhanced ? 2 : 0)
         + ((v.language || "").toLowerCase() === lang.toLowerCase() ? 1 : 0)
         + voiceNameStyleBonus(style, v.name || "");
-      if (g.startsWith("f")) { if (FEMALE_VOICES.test(name)) s += 4; else if (MALE_VOICES.test(name)) s -= 3; }
-      else if (g.startsWith("m")) { if (MALE_VOICES.test(name)) s += 4; else if (FEMALE_VOICES.test(name)) s -= 3; }
+      if (g.startsWith("m")) { if (MALE_VOICES.test(name)) s += 4; else if (FEMALE_VOICES.test(name)) s -= 3; }
+      else { if (FEMALE_VOICES.test(name)) s += 4; else if (MALE_VOICES.test(name)) s -= 6; }
       return s;
     };
     return score(b) - score(a);

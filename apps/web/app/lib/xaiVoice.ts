@@ -202,9 +202,17 @@ export function closeXaiVoiceSession(ws: WebSocket | null | undefined): void {
   }
 }
 
+const pcmPlayAt = new WeakMap<AudioContext, number>();
+
+/** Drop a previous utterance's schedule so the next reply starts immediately. */
+export function resetPcmPlayback(ctx: AudioContext | null | undefined): void {
+  if (ctx) pcmPlayAt.delete(ctx);
+}
+
 /**
- * Decode base64 PCM16 LE @ 24 kHz into an AudioBuffer and play via Web Audio.
- * Returns a promise that resolves when playback finishes (approx).
+ * Decode base64 PCM16 LE @ 24 kHz and schedule it on one timeline.
+ * The AudioContext stays at the device rate; locking it to 24 kHz, or calling
+ * start() on every chunk at once, is what made the tutor sound choppy.
  */
 export async function playPcm16Base64(
   base64: string,
@@ -214,7 +222,8 @@ export async function playPcm16Base64(
   const raw = atob(base64);
   const bytes = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-  const samples = new Int16Array(bytes.buffer);
+  const samples = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
+  if (!samples.length) return;
   const float = new Float32Array(samples.length);
   for (let i = 0; i < samples.length; i++) float[i] = samples[i] / 32768;
   const buffer = ctx.createBuffer(1, float.length, sampleRate);
@@ -222,7 +231,10 @@ export async function playPcm16Base64(
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.connect(ctx.destination);
-  src.start();
+  const queued = pcmPlayAt.get(ctx) || 0;
+  const at = Math.max(ctx.currentTime + 0.02, queued);
+  src.start(at);
+  pcmPlayAt.set(ctx, at + buffer.duration);
   await new Promise<void>((resolve) => {
     src.onended = () => resolve();
   });

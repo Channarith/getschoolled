@@ -223,7 +223,7 @@ export default function ClassPage() {
         learner_names: studentProfile?.display_name ? [studentProfile.display_name] : [],
       });
       if (!xaiAudioCtxRef.current) {
-        xaiAudioCtxRef.current = new AudioContext({ sampleRate: 24000 });
+        xaiAudioCtxRef.current = new AudioContext({ latencyHint: "playback" });
       }
       const ctx = xaiAudioCtxRef.current;
       const ws = connectXaiVoiceSession(token, {

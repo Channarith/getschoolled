@@ -3824,9 +3824,16 @@ STUDIO_JS = """
           if (!holdLesson) armDurationWatchdog(gen, token, narrationDwellMs(spoken));
           return;
         }
-        const wanted = courseVoiceGender === 'male' ? /male|guy|daniel|alex/i : /female|samantha|aria|victoria|karen/i;
-        const named = same.find((voice) => wanted.test(voice.name || ''));
-        if (named || same[0]) u.voice = named || same[0];
+        const maleName = /male|\b(guy|daniel|alex|fred|aaron|oliver|james|brian|arthur|eric)\b/i;
+        const femaleName = /female|\b(samantha|aria|victoria|karen|allison|ava|susan|zoe|moira|tessa|fiona|serena|jenny)\b/i;
+        const tutorFemale = courseVoiceGender !== 'male';
+        const pool = tutorFemale ? same.filter((voice) => !maleName.test(voice.name || '')) : same;
+        const candidates = pool.length ? pool : same;
+        const wanted = tutorFemale ? femaleName : maleName;
+        const named = candidates.find((voice) => wanted.test(voice.name || ''));
+        const chosen = named || candidates[0];
+        if (chosen) u.voice = chosen;
+        if (tutorFemale) u.rate = 0.96;
         u.onboundary = (event) => {
           const charIndex = event.charIndex || 0;
           theodoreAvatar?.speechBoundary(charIndex);

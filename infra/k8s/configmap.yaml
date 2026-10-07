@@ -34,8 +34,8 @@ data:
   XAI_VOICE_MODEL: "grok-voice-latest"
   XAI_TEXT_MODEL: "grok-4.3"
   XAI_MODEL: "grok-4.3"
-  XAI_VOICE: "eve"
-  XAI_VOICE_ID: "eve"
+  XAI_VOICE: "ara"
+  XAI_VOICE_ID: "ara"
   # Gemini Live is a second browser-direct native speech-to-speech option.
   # GEMINI_API_KEY stays in aoep-secrets; these are non-secret session defaults.
   GEMINI_LIVE_MODEL: "gemini-2.5-flash-native-audio-preview-12-2025"

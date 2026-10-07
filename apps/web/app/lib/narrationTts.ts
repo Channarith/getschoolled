@@ -35,7 +35,9 @@ export function accentFromPrefs(
 ): { voiceLocale: string; voiceGender: string } {
   const v = groups.flatMap((g) => g.voices).find((x) => x.id === prefs.voiceId);
   const voiceGender =
-    prefs.voiceGender !== "any" ? prefs.voiceGender : (v?.gender || "");
+    prefs.voiceGender === "male" || prefs.voiceGender === "female"
+      ? prefs.voiceGender
+      : (v?.gender || "female");
   return { voiceLocale: v?.locale || "", voiceGender };
 }
 

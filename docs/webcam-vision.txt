@@ -66,7 +66,7 @@ Configuration (aoep_shared.config.AppConfig / env)
     XAI_REALTIME_URL=wss://api.x.ai/v1/realtime
     XAI_VOICE_MODEL=grok-voice-latest
     XAI_TEXT_MODEL=grok-3-latest
-    XAI_VOICE=eve
+    XAI_VOICE=ara
     WEBCAM_SILHOUETTE_GRACE_S=5
     WEBCAM_ABSENCE_GRACE_S=10
 

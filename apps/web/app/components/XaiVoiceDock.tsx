@@ -66,7 +66,7 @@ export function XaiVoiceDock() {
         mode: mode || "solo",
         lesson_context: `Salareen ${pathname}`,
       });
-      if (!audioRef.current) audioRef.current = new AudioContext({ sampleRate: 24000 });
+      if (!audioRef.current) audioRef.current = new AudioContext({ latencyHint: "playback" });
       const ctx = audioRef.current;
       wsRef.current = connectXaiVoiceSession(token, {
         onOpen: () => {
