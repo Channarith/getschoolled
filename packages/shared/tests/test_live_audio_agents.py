@@ -136,7 +136,9 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "echoCancellation:true" in source
     assert "noiseSuppression:true" in source
     assert "AudioWorkletNode" in source
-    assert "createMediaStreamDestination" in source
+    assert "outputGain" in source
+    assert "speech_stopped" in source
+    assert "You can interrupt" in source
     assert "pauseRecognition" in source
     assert "60000" in source
     assert "theodore-live-audio-speech" in source

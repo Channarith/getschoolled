@@ -10,7 +10,8 @@
     inputRate: 16000, outputRate: 24000, nextPlayAt: 0, playing: new Set(),
     connected: false, stopping: false, dropOutput: false,
     recognitionPaused: false, lastUserAt: 0, idleTimer: null, speechEndTimer: null,
-    agentSpeaking: false,
+    agentSpeaking: false, micRms: 0, voiceLevel: 0, levelTimer: null, outputGain: null,
+    userTalking: false,
   };
 
   const host = document.createElement("div");
@@ -102,6 +103,10 @@
     state.speechEndTimer = setTimeout(() => {
       if (state.playing.size) return;
       state.agentSpeaking = false;
+      state.voiceLevel = 0;
+      window.dispatchEvent(new CustomEvent("theodore-live-audio-level", {
+        detail: {level: 0},
+      }));
       window.dispatchEvent(new CustomEvent("theodore-live-audio-speech", {
         detail: {speaking: false, text: ""},
       }));
@@ -115,6 +120,49 @@
       detail: {role, text: said},
     }));
   }
+  function noteMic(float32) {
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i < float32.length; i += 8) {
+      sum += float32[i] * float32[i];
+      n += 1;
+    }
+    const rms = Math.sqrt(sum / Math.max(1, n));
+    state.micRms = state.micRms * 0.65 + rms * 0.35;
+  }
+  function userIsLoud() { return state.micRms >= 0.035; }
+  function noteUserTalking(talking) {
+    const next = Boolean(talking);
+    if (state.userTalking === next) return;
+    state.userTalking = next;
+    window.dispatchEvent(new CustomEvent("theodore-live-audio-user", {
+      detail: {talking: next},
+    }));
+  }
+  function publishLevel(level) {
+    state.voiceLevel = Math.max(0, Math.min(1, level));
+    if (state.levelTimer) return;
+    state.levelTimer = setTimeout(() => {
+      state.levelTimer = null;
+      window.dispatchEvent(new CustomEvent("theodore-live-audio-level", {
+        detail: {level: state.voiceLevel},
+      }));
+    }, 50);
+  }
+  function beginInterrupt() {
+    if (state.recognitionPaused) return;
+    // The agent's own voice can trip server VAD. Only a louder mic is the learner.
+    if (state.playing.size && !userIsLoud()) return;
+    state.dropOutput = true;
+    clearPlayback();
+    noteUserTalking(true);
+  }
+  function acceptAgentAudio() {
+    if (state.recognitionPaused) return;
+    state.dropOutput = false;
+    noteUserTalking(false);
+    state.ctx?.resume?.();
+  }
   function playPcm(base64, rate = state.outputRate) {
     if (!state.ctx || !base64 || state.recognitionPaused || state.dropOutput) return;
     const raw = atob(base64);
@@ -124,11 +172,14 @@
     if (!pcm.length || state.dropOutput) return;
     const floats = new Float32Array(pcm.length);
     for (let i = 0; i < pcm.length; i++) floats[i] = pcm[i] / 32768;
+    let energy = 0;
+    for (let i = 0; i < floats.length; i += 16) energy += floats[i] * floats[i];
+    publishLevel(Math.min(1, Math.sqrt(energy / Math.max(1, Math.floor(floats.length / 16))) * 5));
     const buffer = state.ctx.createBuffer(1, floats.length, rate);
     buffer.copyToChannel(floats, 0);
     const source = state.ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(state.playDestination || state.ctx.destination);
+    source.connect(state.outputGain || state.ctx.destination);
     // Scheduling chunks on one continuous timeline prevents per-chunk clicks,
     // overlap, and the stammering heard when each TTS/audio chunk calls play().
     const at = Math.max(state.ctx.currentTime + 0.025, state.nextPlayAt);
@@ -139,6 +190,7 @@
     noteAgentSpeaking();
   }
   function sendMic(float32) {
+    noteMic(float32);
     if (state.recognitionPaused) return;
     if (state.ws?.readyState !== WebSocket.OPEN || !state.connected) return;
     const pcm = pcm16Base64(resample(float32, state.ctx.sampleRate, state.inputRate));
@@ -198,11 +250,12 @@
     if (type === "session.updated") state.connected = true;
     if (type === "input_audio_buffer.speech_started") {
       state.lastUserAt = Date.now();
-      if (!state.recognitionPaused) {
-        state.dropOutput = true; clearPlayback(); // true barge-in
-      }
+      beginInterrupt();
     }
-    if (type === "response.created" && !state.recognitionPaused) state.dropOutput = false;
+    if (type === "input_audio_buffer.speech_stopped" || type === "input_audio_buffer.committed") {
+      acceptAgentAudio();
+    }
+    if (type === "response.created") acceptAgentAudio();
     if (type === "response.output_audio.delta" || type === "response.audio.delta") {
       playPcm(String(event.delta || ""));
     }
@@ -218,7 +271,8 @@
     if (event.setupComplete !== undefined) state.connected = true;
     const server = event.serverContent || {};
     if (server.interrupted) {
-      state.dropOutput = true; clearPlayback(); return;
+      beginInterrupt();
+      if (!server.modelTurn) return;
     }
     if (server.modelTurn?.parts?.length) state.dropOutput = false;
     for (const part of server.modelTurn?.parts || []) {
@@ -254,11 +308,9 @@
         state.ctx = new AudioContext({latencyHint:"interactive"});
       }
       await state.ctx.resume();
-      state.playDestination = state.ctx.createMediaStreamDestination();
-      state.speaker = new Audio();
-      state.speaker.autoplay = true;
-      state.speaker.srcObject = state.playDestination.stream;
-      await state.speaker.play().catch(() => {});
+      state.outputGain = state.ctx.createGain();
+      state.outputGain.gain.value = 1;
+      state.outputGain.connect(state.ctx.destination);
       await startMic();
       const response = await fetch("/api/live-audio/token", {
         method:"POST",headers:{"content-type":"application/json"},
@@ -281,7 +333,7 @@
         state.ws.send(JSON.stringify(config.setup));
         toggle.disabled = false; toggle.textContent = "Stop live voice";
         toggle.classList.add("live"); dot.classList.add("on");
-        setStatus("Mic → native audio agent → speaker. TTS is off.");
+        setStatus("You can interrupt. Theodore stops, listens, then answers at full volume.");
       };
       state.ws.onmessage = (message) => {
         try {
@@ -345,13 +397,12 @@
       try { state.ws.send(JSON.stringify({realtimeInput:{audioStreamEnd:true}})); } catch (_) {}
     }
     try { state.ws?.close(); } catch (_) {}
-    try { state.speaker?.pause(); state.speaker.srcObject = null; } catch (_) {}
-    for (const track of state.playDestination?.stream?.getTracks?.() || []) track.stop();
+    try { state.outputGain?.disconnect(); } catch (_) {}
     try { await state.ctx?.close(); } catch (_) {}
     Object.assign(state, {
       ws:null,stream:null,source:null,processor:null,silent:null,ctx:null,
-      speaker:null,playDestination:null,connected:false,nextPlayAt:0,
-      stopping:false,dropOutput:false,
+      outputGain:null,connected:false,nextPlayAt:0,
+      stopping:false,dropOutput:false,micRms:0,voiceLevel:0,userTalking:false,
     });
     toggle.textContent = "Start live voice"; toggle.classList.remove("live");
     dot.classList.remove("on"); toggle.disabled = !select.value; setStatus(message);
