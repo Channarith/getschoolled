@@ -27,6 +27,7 @@ import { getVoicePrefs, setVoicePrefs } from "../lib/voicePrefs";
 import { applyVoicePrefsToTts, accentFromPrefs, loadVoiceCatalog } from "../lib/narrationTts";
 import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, speakNaturally } from "../lib/tts";
 import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, normalizeVoicePauseSubmitMs, stripWakeWords } from "../lib/voiceCommands";
+import { startDriveVoice, type DriveVoiceSession } from "../lib/driveVoiceAgent";
 import {
   setTrainingLocale, trainingLocaleFromUi, type TrainingLocale,
 } from "../lib/trainingLocale";
@@ -71,6 +72,7 @@ function DrivePageInner() {
   const [autoListen, setAutoListen] = useState(true);
   const [micDenied, setMicDenied] = useState(false);
   const [micGranted, setMicGranted] = useState(false);
+  const [voiceLive, setVoiceLive] = useState(false);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructor, setInstructorState] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
@@ -112,6 +114,10 @@ function DrivePageInner() {
   // Stop/skip appear to "keep playing"). Only the still-current generation
   // may auto-advance to the next segment.
   const playGenRef = useRef(0);
+  const driveVoiceRef = useRef<DriveVoiceSession | null>(null);
+  const voiceGenRef = useRef(0);
+  const playSegRef = useRef<(c: AudioCourse, i: number) => void>(() => {});
+  const voicePausedLessonRef = useRef(false);
   courseRef.current = course;
   segRef.current = seg;
   playingRef.current = playing;
@@ -144,6 +150,7 @@ function DrivePageInner() {
     return () => {
       genRef.current++;
       clearResumeTimer();
+      stopDriveVoice();
       stopAmbientListening();
       stopVoiceRecognition();
       try { cancelSpeech(); } catch { /* */ }
@@ -217,10 +224,69 @@ function DrivePageInner() {
     cancelSpeech();
     if (i >= c.segments.length) { setPlaying(false); playNextCourse(); return; }
     setSeg(i); setPlaying(true);
+    driveVoiceRef.current?.setLessonAudible(true);
     speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => {
       if (playGenRef.current === gen) playSeg(c, i + 1);
     });
   }, [speak]); // eslint-disable-line react-hooks/exhaustive-deps
+  playSegRef.current = playSeg;
+
+  function stopDriveVoice() {
+    voiceGenRef.current += 1;
+    voicePausedLessonRef.current = false;
+    driveVoiceRef.current?.stop();
+    driveVoiceRef.current = null;
+    setVoiceLive(false);
+  }
+
+  async function beginDriveVoice(c: AudioCourse): Promise<boolean> {
+    const gen = voiceGenRef.current + 1;
+    stopDriveVoice();
+    voiceGenRef.current = gen;
+    try { ambientRef.current?.stop?.(); } catch { /* browser recognizer yields the mic */ }
+    ambientRef.current = null;
+    const excerpt = c.segments?.[0]?.text || "";
+    try {
+      const session = await startDriveVoice(
+        {
+          category: c.category || cat,
+          title: c.title,
+          excerpt,
+          courseId: c.id,
+          language: trainingLangRef.current || locale,
+        },
+        {
+          onStatus: (text) => { if (text) setAssistantStatus(text); },
+          onUser: (text) => setAssistantTranscript(text),
+          onTutor: (text) => setAssistantAnswer(text),
+          onSpeaking: (speaking) => {
+            if (speaking) {
+              voicePausedLessonRef.current = true;
+              driveVoiceRef.current?.setLessonAudible(false);
+              playGenRef.current += 1;
+              cancelSpeech();
+              setPlaying(false);
+              return;
+            }
+            const current = courseRef.current;
+            if (!voicePausedLessonRef.current || !current || !autoListenRef.current) return;
+            voicePausedLessonRef.current = false;
+            playSegRef.current(current, segRef.current);
+          },
+        },
+      );
+      if (!session || gen !== voiceGenRef.current) {
+        session?.stop();
+        return false;
+      }
+      driveVoiceRef.current = session;
+      setVoiceLive(true);
+      setAssistantStatus(t("drive.voiceAgentOn"));
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   const replayCurrentSegment = useCallback(() => {
     if (!course) return;
@@ -229,6 +295,7 @@ function DrivePageInner() {
     const s = course.segments[seg];
     if (!s) return;
     setPlaying(true);
+    driveVoiceRef.current?.setLessonAudible(true);
     speak(`${s.heading}. ${s.text}`, () => {
       if (playGenRef.current === gen) playSeg(course, seg + 1);
     });
@@ -278,7 +345,8 @@ function DrivePageInner() {
       // Hands-free Q&A: only start after mic was primed on a user gesture
       // (startCourseWithAds / Enable mic). Auto-start without permission → not-allowed.
       if (autoListenRef.current && micReadyRef.current) {
-        void startAmbientListening();
+        const voiced = await beginDriveVoice(c);
+        if (!voiced) void startAmbientListening();
       }
     } catch (e) { setError(String(e)); }
   }
@@ -341,9 +409,15 @@ function DrivePageInner() {
 
   // Cancel (not just pause) so a language switch while paused can't resume a
   // stale utterance; Resume replays the current segment in the current voice.
-  function pause() { playGenRef.current++; cancelSpeech(); setPlaying(false); }
+  function pause() {
+    playGenRef.current++;
+    driveVoiceRef.current?.setLessonAudible(false);
+    cancelSpeech();
+    setPlaying(false);
+  }
   function resume() { replayCurrentSegment(); }
   function stop() {
+    stopDriveVoice();
     clearResumeTimer();
     stopVoiceRecognition();
     stopAmbientListening();
@@ -531,6 +605,7 @@ function DrivePageInner() {
   async function toggleAutoListen() {
     if (autoListen) {
       setAutoListen(false);
+      stopDriveVoice();
       stopAmbientListening();
       return;
     }
@@ -549,6 +624,12 @@ function DrivePageInner() {
     setMicDenied(false);
     setAutoListen(true);
     autoListenRef.current = true;
+    const current = courseRef.current;
+    if (current) {
+      const voiced = await beginDriveVoice(current);
+      if (!voiced) void startAmbientListening();
+      return;
+    }
     void startAmbientListening();
   }
 
@@ -817,6 +898,11 @@ function DrivePageInner() {
           </div>
           {micDenied ? (
             <div className="muted" style={{ marginTop: 6, color: "#f59e0b", fontSize: 13 }}>{t("drive.micBlocked")}</div>
+          ) : autoListen && voiceLive ? (
+            <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>
+              {t("drive.voiceAgentOn")}
+              {assistantAnswer ? <div style={{ marginTop: 4 }}>{assistantAnswer}</div> : null}
+            </div>
           ) : autoListen && micGranted && supportsSpeechRecognition() ? (
             <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.handsFreeHint")}</div>
           ) : supportsSpeechRecognition() ? (
@@ -896,6 +982,25 @@ function DrivePageInner() {
       </div>
       </>
       )}
+
+      <section id="audio-lab" className="card" style={{ marginTop: 18 }}>
+        <h2 style={{ marginTop: 0 }}>Audio lab</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Hands-free speech translation. The microphone stays in this browser, and Theodore answers with the xAI voice agent.
+        </p>
+        <iframe
+          title="Audio translation lab"
+          src="/audio-lab"
+          allow="microphone; autoplay"
+          style={{
+            width: "100%",
+            height: "min(78vh, 860px)",
+            border: "1px solid rgba(14,165,233,.45)",
+            borderRadius: 16,
+            background: "#0b1020",
+          }}
+        />
+      </section>
     </main>
   );
 }

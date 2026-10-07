@@ -10,6 +10,7 @@ import SiteFooter from "./components/SiteFooter";
 import MaintenanceBanner from "./components/MaintenanceBanner";
 import ClientLogInit from "./components/ClientLogInit";
 import FloatingBugReporter from "./components/FloatingBugReporter";
+import { XaiVoiceDock } from "./components/XaiVoiceDock";
 import FloatingSalesDemo from "./components/FloatingSalesDemo";
 import PresenceHeartbeat from "./components/PresenceHeartbeat";
 import { LocaleProvider } from "./lib/i18n";
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <SiteFooter />
             <FloatingSalesDemo />
             <FloatingBugReporter />
+            <XaiVoiceDock />
             <PresenceHeartbeat />
           </FlagsProvider>
         </LocaleProvider>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { clearToken, getToken, lockAdmin, setPreview } from "../lib/api";
+import { AUTH_EVENT, clearToken, getToken, lockAdmin, setPreview } from "../lib/api";
 import { invalidatePortfolioCache } from "./BookmarkButton";
 import { useT } from "../lib/i18n";
 import { useFlag } from "../lib/flags";
@@ -31,7 +31,17 @@ export default function ProfileMenu() {
     : "/logo-mark.webp";
 
   useEffect(() => {
-    setLoggedIn(Boolean(getToken()));
+    const sync = () => setLoggedIn(Boolean(getToken()));
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  useEffect(() => {
     setOpen(false);
   }, [pathname]);
 

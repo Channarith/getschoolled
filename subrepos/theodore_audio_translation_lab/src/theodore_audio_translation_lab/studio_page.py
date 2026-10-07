@@ -102,10 +102,16 @@ function esc(text) {
 function sessionId() {
   return ($('session-id').value.trim() || 'translation-demo').replace(/[^a-zA-Z0-9_-]/g,'-');
 }
-function wsBase() { return `${location.protocol==='https:'?'wss':'ws'}://${location.host}`; }
+function labRoot() {
+  return location.pathname.indexOf('/audio-lab') === 0 ? '/audio-lab-api' : '';
+}
+function wsBase() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${proto}://${location.host}${labRoot()}`;
+}
 
 async function api(path, options) {
-  const r = await fetch(path, options);
+  const r = await fetch(labRoot() + path, options);
   const body = await r.json().catch(()=>({}));
   if (!r.ok) throw new Error(body.detail || `${r.status} ${r.statusText}`);
   return body;
@@ -324,7 +330,7 @@ async function speakTheodore(reply) {
 
   if(serverTts.available) {
     try {
-      const url=`/api/tts?text=${encodeURIComponent(reply.text)}`+
+      const url=labRoot()+`/api/tts?text=${encodeURIComponent(reply.text)}`+
         `&language=${encodeURIComponent(reply.language)}&style=warm`;
       const res=await fetch(url);
       // 501 means "no engine here" — fall through to the device voice rather

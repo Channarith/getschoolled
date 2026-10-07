@@ -67,6 +67,10 @@ export async function mintXaiVoiceToken(opts: {
   learner_names?: string[];
   expires_seconds?: number;
   instructions?: string;
+  category?: string;
+  topic?: string;
+  course_id?: string;
+  language?: string;
 }): Promise<XaiVoiceTokenResponse> {
   const r = await fetch(`${SPEECH_URL}/voice/token`, {
     method: "POST",
@@ -76,7 +80,11 @@ export async function mintXaiVoiceToken(opts: {
       lesson_context: opts.lesson_context || "",
       learner_names: opts.learner_names || [],
       expires_seconds: opts.expires_seconds ?? 300,
-      instructions: opts.instructions || "",
+      instructions: opts.mode === "drive" ? "" : (opts.instructions || ""),
+      category: opts.category || "",
+      topic: opts.topic || "",
+      course_id: opts.course_id || "",
+      language: opts.language || "",
     }),
   });
   if (!r.ok) {

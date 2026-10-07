@@ -13,6 +13,7 @@ const JOINTS = [
 ];
 
 const MODELS = {
+  student: "presenter_student.webp",
   amina: "presenter_realistic.glb",
   classic_female: "presenter_female.glb",
   classic_male: "presenter_male.glb",
@@ -48,6 +49,77 @@ const STIFFNESS = {
 };
 
 const clamp = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
+
+function isHandSkin(r, g, b, a) {
+  return a > 180 && r > 150 && r < 235 && g > 100 && g < 200 && b > 70 && b < 170
+    && (r - b) > 35 && !(r > 230 && g > 200);
+}
+
+/** Split the illustrated student into a body plate plus two hand sprites. */
+function buildPortraitRig(image) {
+  const w = image.naturalWidth || image.width;
+  const h = image.naturalHeight || image.height;
+  const base = document.createElement("canvas");
+  base.width = w;
+  base.height = h;
+  const bctx = base.getContext("2d", { willReadFrequently: true });
+  bctx.drawImage(image, 0, 0, w, h);
+  const frame = bctx.getImageData(0, 0, w, h);
+  const src = new Uint8ClampedArray(frame.data);
+  const regions = [
+    { side: -1, x: 0.30, y: 0.86, w: 0.13, h: 0.13 },
+    { side: 1, x: 0.60, y: 0.86, w: 0.14, h: 0.13 },
+  ];
+  const hands = [];
+  for (const region of regions) {
+    const x0 = Math.floor(region.x * w);
+    const y0 = Math.floor(region.y * h);
+    const rw = Math.max(1, Math.floor(region.w * w));
+    const rh = Math.max(1, Math.floor(region.h * h));
+    const cut = document.createElement("canvas");
+    cut.width = rw;
+    cut.height = rh;
+    const cutData = cut.getContext("2d").createImageData(rw, rh);
+    for (let y = 0; y < rh; y += 1) {
+      for (let x = 0; x < rw; x += 1) {
+        const sx = x0 + x;
+        const sy = y0 + y;
+        const i = (sy * w + sx) * 4;
+        if (!isHandSkin(src[i], src[i + 1], src[i + 2], src[i + 3])) continue;
+        const di = (y * rw + x) * 4;
+        cutData.data[di] = src[i];
+        cutData.data[di + 1] = src[i + 1];
+        cutData.data[di + 2] = src[i + 2];
+        cutData.data[di + 3] = src[i + 3];
+        const towardBook = region.side < 0 ? x > rw * 0.42 : x < rw * 0.58;
+        if (!towardBook) {
+          frame.data[i + 3] = 0;
+          continue;
+        }
+        let filled = false;
+        const step = region.side < 0 ? 1 : -1;
+        for (let dist = 6; dist < 70; dist += 1) {
+          const dx = sx + step * dist;
+          if (dx < 0 || dx >= w) break;
+          const j = (sy * w + dx) * 4;
+          if (src[j + 3] > 180 && src[j] < 150 && src[j + 1] < 110 && src[j + 2] < 80) {
+            frame.data[i] = src[j];
+            frame.data[i + 1] = src[j + 1];
+            frame.data[i + 2] = src[j + 2];
+            frame.data[i + 3] = src[j + 3];
+            filled = true;
+            break;
+          }
+        }
+        if (!filled) frame.data[i + 3] = 0;
+      }
+    }
+    cut.getContext("2d").putImageData(cutData, 0, 0);
+    hands.push({ canvas: cut, x: x0, y: y0, side: region.side });
+  }
+  bctx.putImageData(frame, 0, 0);
+  return { base, hands };
+}
 const smooth = (v) => v * v * (3 - 2 * v);
 
 /**
@@ -376,7 +448,7 @@ export class TheodoreAvatar {
     this.motion = options.motion !== false;
     this.motionIntensity = Number(options.motionIntensity ?? 1);
     this.reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches || false;
-    this.persona = options.persona || "amina";
+    this.persona = options.persona || "student";
     this.state = "loading";
     this.script = { cues: [] };
     this.cueStart = performance.now();
@@ -400,6 +472,7 @@ export class TheodoreAvatar {
     this.manifest = null;
     this.disposed = false;
     this.fallback = null;
+    this.portrait = null;
     this.loader = new GLTFLoader();
   }
 
@@ -463,20 +536,182 @@ export class TheodoreAvatar {
   modelUrlFor(persona) {
     const entry = this.manifest?.models?.[persona];
     if (entry?.url) return entry.url;
-    return `${this.assetBase}/${MODELS[persona] || MODELS.amina}`;
+    return `${this.assetBase}/${MODELS[persona] || MODELS.student}`;
+  }
+
+  releaseModel() {
+    if (this.portrait?.texture) this.portrait.texture.dispose();
+    this.portrait = null;
+    if (!this.model) return;
+    this.scene?.remove(this.model);
+    this.model.traverse((node) => {
+      node.geometry?.dispose?.();
+      if (Array.isArray(node.material)) node.material.forEach((m) => m.dispose?.());
+      else node.material?.dispose?.();
+    });
+    this.model = null;
+  }
+
+  async loadPortrait(persona, entry) {
+    const url = entry.url || this.modelUrlFor(persona);
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`portrait failed: ${url}`));
+      img.src = url;
+    });
+    this.releaseModel();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth || image.width;
+    canvas.height = image.naturalHeight || image.height;
+    const ctx = canvas.getContext("2d");
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const height = 3.8;
+    const aspect = canvas.width / Math.max(1, canvas.height);
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(height * aspect, height),
+      new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }),
+    );
+    const group = new THREE.Group();
+    group.name = "PortraitPresenter";
+    group.add(mesh);
+    group.position.set(0, 1.82, 0);
+    this.model = group;
+    this.scene.add(group);
+    const rig = buildPortraitRig(image);
+    this.portrait = {
+      image, canvas, ctx, texture, mesh, group, open: 0,
+      base: rig.base,
+      hands: rig.hands,
+      eyes: [
+        { x: 0.40, y: 0.345, rx: 0.048, ry: 0.03 },
+        { x: 0.60, y: 0.338, rx: 0.048, ry: 0.03 },
+      ],
+    };
+    this.persona = persona;
+    this.rig = "portrait";
+    this.nodes = {};
+    this.face = null;
+    this.springs.clear();
+    this.basePose = {};
+    this.container.dataset.avatarPersona = persona;
+    this.container.dataset.avatarRig = "portrait";
+    this.paintPortrait(0, 0, 0);
+    this.framePortraitCamera();
+  }
+
+  framePortraitCamera() {
+    if (!this.camera || !this.container) return;
+    const width = Math.max(1, this.container.clientWidth);
+    const height = Math.max(1, this.container.clientHeight);
+    const wide = width > height * 1.15;
+    this.camera.fov = wide ? 26 : 30;
+    this.camera.position.set(0, 1.78, wide ? 8.4 : 7.15);
+    this.camera.lookAt(0, 1.7, 0);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+  }
+
+  paintPortrait(open, blink, t) {
+    const portrait = this.portrait;
+    if (!portrait) return;
+    const { ctx, canvas, eyes } = portrait;
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(portrait.base || portrait.image, 0, 0, w, h);
+    if (blink > 0.08) {
+      ctx.fillStyle = "rgba(214, 164, 122, 0.94)";
+      for (const eye of eyes) {
+        ctx.beginPath();
+        ctx.ellipse(
+          eye.x * w,
+          eye.y * h,
+          eye.rx * w,
+          eye.ry * h * (0.45 + blink * 0.7),
+          0, 0, Math.PI * 2,
+        );
+        ctx.fill();
+      }
+    }
+    const amount = clamp(open);
+    if (amount > 0.12) {
+      const mx = 0.50 * w;
+      const ry = Math.max(2, h * 0.02 * (0.35 + amount * 2.1));
+      const rx = w * 0.055 * (0.85 + amount * 0.25);
+      const my = 0.455 * h + ry * 0.33;
+      ctx.fillStyle = "#7a302e";
+      ctx.beginPath();
+      ctx.ellipse(mx, my, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#d67870";
+      ctx.beginPath();
+      ctx.ellipse(mx, my + ry * 0.15, rx * 0.55, Math.max(1, ry * 0.35), 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const now = Number.isFinite(t) ? t : 0;
+    const talking = amount > 0.12 && !this.reducedMotion;
+    for (const hand of portrait.hands || []) {
+      const lift = talking
+        ? amount * h * 0.05 + Math.sin(now * 7.4 + hand.side) * h * 0.012
+        : Math.sin(now * 1.3 + hand.side) * h * 0.004;
+      const slide = talking ? hand.side * Math.sin(now * 6.1) * w * 0.014 : 0;
+      ctx.save();
+      ctx.translate(hand.x + hand.canvas.width / 2 + slide, hand.y + hand.canvas.height / 2 - lift);
+      ctx.rotate(hand.side * (talking ? 0.22 * amount * Math.sin(now * 6.1) : 0));
+      ctx.drawImage(hand.canvas, -hand.canvas.width / 2, -hand.canvas.height / 2);
+      ctx.restore();
+    }
+    portrait.texture.needsUpdate = true;
+  }
+
+  animatePortrait(t, amount, cues) {
+    const group = this.portrait?.group;
+    if (!group) return;
+    const paused = this.state === "paused";
+    const motion = paused ? 0 : amount;
+    const breath = Math.sin(t * 1.55) * 0.02 * motion;
+    let nod = Math.sin(t * 0.46) * 0.035 * motion;
+    let turn = Math.sin(t * 0.31) * 0.045 * motion;
+    if ((cues || []).some((item) => item.cue?.gaze === "slide")) turn -= 0.14 * motion;
+    if (this.state === "listening") nod += 0.06 * motion;
+    let open = 0;
+    const levelFresh = performance.now() - (this.voiceLevelAt || 0) < 220;
+    const level = !paused && levelFresh ? this.voiceLevel : 0;
+    if (!paused && (this.speaking || level > 0.05)) {
+      const shape = this.speaking ? this.articulationAt(this.speechClock()) : { open: 0 };
+      open = Math.max(Number(shape.open) || 0, level * 1.6);
+      nod += Math.sin(t * 7.2) * 0.028 * Math.max(0.25, open);
+    }
+    if (t - this.lastBlink > this.nextBlink) {
+      this.lastBlink = t;
+      this.nextBlink = 2.6 + Math.random() * 3.2;
+    }
+    const blinkAge = t - this.lastBlink;
+    const blink = !paused && blinkAge < 0.16 ? Math.sin(clamp(blinkAge / 0.16) * Math.PI) : 0;
+    group.position.y = 1.82 + breath;
+    group.rotation.x = nod;
+    group.rotation.y = turn;
+    group.rotation.z = Math.sin(t * 0.62) * 0.012 * motion;
+    this.paintPortrait(open, blink, t);
+  }
+
+  /** Live-agent loudness, 0–1. The illustrated mouth and hands follow this. */
+  setVoiceLevel(level) {
+    this.voiceLevel = clamp(Number(level) || 0);
+    this.voiceLevelAt = performance.now();
   }
 
   async loadPersona(persona) {
     const entry = this.manifest?.models?.[persona] || {};
-    const data = await this.loader.loadAsync(this.modelUrlFor(persona));
-    if (this.model) {
-      this.scene.remove(this.model);
-      this.model.traverse((node) => {
-        node.geometry?.dispose?.();
-        if (Array.isArray(node.material)) node.material.forEach((m) => m.dispose?.());
-        else node.material?.dispose?.();
-      });
+    const url = entry.url || this.modelUrlFor(persona);
+    if (entry.kind === "portrait" || /\.(png|webp)$/i.test(url)) {
+      await this.loadPortrait(persona, { ...entry, url });
+      return;
     }
+    const data = await this.loader.loadAsync(url);
+    this.releaseModel();
     this.persona = persona;
     this.springs.clear();
     this.model = data.scene;
@@ -595,9 +830,11 @@ export class TheodoreAvatar {
   }
 
   async setPersona(persona) {
-    const aliases = { female: "classic_female", male: "classic_male" };
-    const requested = aliases[persona] || persona;
-    const wanted = this.manifest?.models?.[requested] ? requested : (this.manifest?.default_model || "amina");
+    // Voice gender is not a body. "male" / "female" used to swap in the block
+    // presenters whenever a lesson started.
+    const requested = String(persona || "");
+    if (requested === "male" || requested === "female") return;
+    const wanted = this.manifest?.models?.[requested] ? requested : (this.manifest?.default_model || "student");
     if (wanted === this.persona || !this.scene) return;
     try {
       await this.loadPersona(wanted);
@@ -624,6 +861,10 @@ export class TheodoreAvatar {
     const width = Math.max(1, this.container.clientWidth);
     const height = Math.max(1, this.container.clientHeight);
     this.renderer.setSize(width, height, false);
+    if (this.rig === "portrait") {
+      this.framePortraitCamera();
+      return;
+    }
     this.camera.aspect = width / height;
     // Pull back on narrow panels so the full body still fits the frame.
     const portrait = height > width;
@@ -944,6 +1185,11 @@ export class TheodoreAvatar {
     this.pose.add("Head", Math.sin(t * 0.47) * 0.018, Math.sin(t * 0.31) * 0.025, 0, amount);
 
     const cues = this.activeCues(nowMs);
+    if (this.rig === "portrait") {
+      this.animatePortrait(t, amount, cues);
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
     if (cues.length) {
       for (const { cue, phase, weight } of cues) {
         poseGesture(

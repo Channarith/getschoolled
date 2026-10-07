@@ -56,11 +56,11 @@ export const SALES_DEMO_FEATURES = [
   {
     id: "course-studio",
     flagKey: "sales_demo.course_studio",
-    href: "/demo/course-studio",
+    href: "/demo/drivers-ed",
     emoji: "🎓",
-    title: "Course Studio sample",
-    subtitle: "10 minutes, live",
-    description: "A sales-pitch sample of a live class. Registered learners who pay take the full course from the library.",
+    title: "Driver's Education demo",
+    subtitle: "10 minutes, free",
+    description: "Anyone can take the 10-minute driver's ed demo. The full course, and Food Health & Safety, are paid unless you are an admin.",
   },
   {
     id: "solo",
@@ -83,11 +83,11 @@ export const SALES_DEMO_FEATURES = [
   {
     id: "arcade",
     flagKey: "sales_demo.arcade_games",
-    href: "/arcade",
+    href: "/arcade#vision",
     emoji: "🎮",
-    title: "Arcade Games",
-    subtitle: "Test your knowledge",
-    description: "Fast learning games that turn recall and practice into interactive challenges.",
+    title: "Vision arcade",
+    subtitle: "Machine vision for kids",
+    description: "Children play webcam games from the children lab: faces, hands, and movement. The camera stays in the browser.",
   },
   {
     id: "languages",

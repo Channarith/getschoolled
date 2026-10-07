@@ -122,15 +122,6 @@ function BrowseInner() {
       <h1>{t("browse.heading")}</h1>
       <p className="muted">{t("browse.subtitle")}</p>
 
-      <Link href="/learn/course-studio" style={{ textDecoration: "none", color: "inherit" }}>
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h2 style={{ marginBottom: 4 }}>Course Studio</h2>
-          <p className="muted" style={{ margin: 0 }}>
-            10-minute sample until you register and pay for the class. Paid learners take the full course.
-          </p>
-        </div>
-      </Link>
-
       <div className="card">
         <input
           placeholder={t("browse.searchPlaceholder")}

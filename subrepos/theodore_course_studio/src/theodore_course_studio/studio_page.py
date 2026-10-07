@@ -31,6 +31,9 @@ STUDIO_CSS = """
   .mast-art { flex:0 0 168px; }
   .mast-art svg { width:168px; height:112px; display:block; }
   .layout { display:grid; grid-template-columns: 1.05fr 1.15fr; gap:16px; padding:16px 22px 28px; }
+  body.public-course header.mast { display:none; }
+  body.public-course .library-panel { display:none; }
+  body.public-course .layout { grid-template-columns:1fr; padding:8px; }
   @media (max-width: 980px) {
     .layout { grid-template-columns: 1fr; }
     .study-bg .shelf, .mast-art { display:none; }
@@ -89,6 +92,14 @@ STUDIO_CSS = """
     .page-welcome[hidden] { display:none !important; }
     .page-welcome svg { width:min(100%, 280px); height:auto; }
     .page-welcome p { margin:0; max-width:28rem; font-size:18px; line-height:1.45; }
+    .proceed-cue { display:flex; align-items:center; justify-content:space-between; gap:14px;
+      margin:14px 0 4px; padding:12px 14px; border-radius:16px; background:#1e3a5f; color:#fff;
+      position:sticky; bottom:8px; z-index:4; box-shadow:0 10px 24px rgba(30,58,95,.22); }
+    .proceed-cue p { margin:0; font-size:16px; line-height:1.35; }
+    .proceed-cue button { border:0; border-radius:999px; background:#f4d48a; color:#1e3a5f;
+      padding:10px 18px; font:700 15px Arial,sans-serif; cursor:pointer; white-space:nowrap; }
+    .proceed-cue button[aria-pressed="true"] { background:#d9ffe8; }
+    .presenter-overlay .proceed-cue { margin:12px 20px 6px; }
     .teach-stage .body { font-size:18px; line-height:1.55; color:#2c241c; }
     .teach-stage .narr { margin-top:14px; padding:10px 12px; border-radius:12px; background:#f7f1e6;
                          color:#5c3b1e; font-style:italic; }
@@ -116,6 +127,37 @@ STUDIO_CSS = """
                          box-shadow:0 6px 20px rgba(15,23,42,.28); line-height:0; }
     .storyboard-stage svg { width:100%; height:auto; display:block; }
     .storyboard-stage[hidden] { display:none !important; }
+    .lesson-photo { display:none; position:relative; width:100%; aspect-ratio:16/9; overflow:hidden;
+      border-radius:14px; margin:0 0 12px; background:#101820; }
+    .lesson-photo.is-shown { display:block; }
+    .lesson-photo-motion { width:100%; height:100%; }
+    .lesson-photo img { width:100%; height:100%; object-fit:cover; display:block; }
+    .teacher-stage-grid.has-photo .lesson-photo { grid-column:2; grid-row:1 / span 2; margin:0; min-height:300px; }
+    .teacher-stage-grid.has-photo .storyboard-stage,
+    .teacher-stage-grid.has-photo .visual-timeline-stage { display:none !important; }
+    .lesson-photo[data-effect="fade"].is-in .lesson-photo-motion { animation:pptFade .7s ease both; }
+    .lesson-photo[data-effect="fly"].is-in .lesson-photo-motion { animation:pptFly .75s cubic-bezier(.2,.7,.2,1) both; }
+    .lesson-photo[data-effect="wipe"].is-in .lesson-photo-motion { animation:pptWipe .8s ease both; }
+    .lesson-photo[data-effect="zoom"].is-in .lesson-photo-motion { animation:pptZoom .8s ease both; }
+    .lesson-photo[data-effect="cover"].is-in .lesson-photo-motion { animation:pptCover .7s cubic-bezier(.2,.7,.2,1) both; }
+    .lesson-photo[data-effect="split"].is-in .lesson-photo-motion { animation:pptSplit .7s ease both; }
+    .lesson-photo.is-in img { animation:kenBurns 18s ease-in-out .8s alternate infinite; }
+    .ppt-title { animation:pptFlyUp .55s ease both; }
+    @keyframes pptFade { from { opacity:0; } to { opacity:1; } }
+    @keyframes pptFly { from { opacity:0; transform:translateX(22%); } to { opacity:1; transform:none; } }
+    @keyframes pptWipe { from { clip-path:inset(0 100% 0 0); } to { clip-path:inset(0); } }
+    @keyframes pptZoom { from { opacity:0; transform:scale(1.22); } to { opacity:1; transform:none; } }
+    @keyframes pptCover { from { transform:translateY(100%); } to { transform:none; } }
+    @keyframes pptSplit { from { clip-path:inset(46% 0 46% 0); } to { clip-path:inset(0); } }
+    @keyframes pptFlyUp { from { opacity:0; transform:translateY(26px); } to { opacity:1; transform:none; } }
+    @keyframes kenBurns { from { transform:scale(1) translate3d(0,0,0); } to { transform:scale(1.08) translate3d(-1.5%,-1%,0); } }
+    .presenter-overlay.has-photo .lesson-photo.is-shown { position:absolute; inset:0; z-index:0; margin:0;
+      aspect-ratio:unset; border-radius:0; min-height:0; }
+    .presenter-overlay.has-photo .storyboard-stage,
+    .presenter-overlay.has-photo .visual-timeline-stage,
+    .presenter-overlay.has-photo .picture-stage { display:none !important; }
+    .presenter-overlay.has-photo .lesson-stage-content {
+      background:linear-gradient(to top, rgba(8,12,20,.88), rgba(8,12,20,.45) 70%, transparent); }
     .visual-timeline-stage { grid-column:2; grid-row:1 / span 2; position:relative; width:100%;
       min-height:300px; aspect-ratio:16/9; border-radius:14px; overflow:hidden;
       background:linear-gradient(145deg,#f8f4ea,#e9f2ee); box-shadow:0 6px 20px rgba(15,23,42,.18); }
@@ -148,6 +190,12 @@ STUDIO_CSS = """
                             border:1px solid rgba(94,224,255,.38); box-shadow:inset 0 0 30px rgba(59,215,255,.14); }
     #theodore-avatar { position:absolute; inset:0; }
     #theodore-avatar canvas { width:100%; height:100%; display:block; filter:drop-shadow(0 0 14px rgba(86,224,255,.5)); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-rig="portrait"]) {
+      background:radial-gradient(ellipse at 50% 72%, #fff8ee, #f4e4cf 72%);
+      border-color:rgba(140,90,43,.28); box-shadow:inset 0 0 28px rgba(255,244,220,.55); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-rig="portrait"]) canvas { filter:drop-shadow(0 16px 14px rgba(62,36,18,.22)); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-rig="portrait"]) .avatar-label {
+      color:#4a3424; background:rgba(255,248,236,.9); }
     .avatar-label { position:absolute; left:9px; right:9px; bottom:8px; z-index:2; padding:5px 8px;
                     border-radius:999px; text-align:center; color:#c9f7ff; background:rgba(3,23,32,.72);
                     font:600 11px Arial,sans-serif; letter-spacing:.03em; pointer-events:none; }
@@ -257,6 +305,22 @@ STUDIO_CSS = """
     body.avatar-placed .teacher-stage-grid,
     body.avatar-placed .teacher-stage-grid.has-storyboard { grid-template-columns:1fr; }
     body.avatar-placed .teacher-stage-grid .storyboard-stage { grid-column:1; grid-row:auto; }
+    .teacher-stage-grid.has-photo .lesson-photo { grid-column:1; grid-row:auto; min-height:240px; }
+    body.avatar-on .teacher-stage-grid.has-photo { grid-template-columns:minmax(180px, 34%) 1fr; }
+    body.avatar-on .teacher-stage-grid.has-photo .lesson-photo { grid-column:2; grid-row:1 / span 2; min-height:300px; }
+    .presenter-overlay.has-photo .teacher-stage-grid { position:absolute; inset:0; }
+    .presenter-overlay.has-photo #teach-stage h3 { position:relative; z-index:4; color:#fff;
+      text-shadow:0 2px 12px rgba(0,0,0,.55);
+      background:linear-gradient(rgba(8,12,20,.72), transparent); }
+    .presenter-overlay.has-photo .lesson-stage-content,
+    body.avatar-on .presenter-overlay.has-photo .lesson-stage-content {
+      left:0; right:0; top:auto; bottom:0; height:auto; max-height:38%;
+      background:linear-gradient(transparent, rgba(8,12,20,.55) 18%, rgba(8,12,20,.9));
+    }
+    .presenter-overlay.has-photo .theodore-avatar-wrap,
+    body.avatar-on .presenter-overlay.has-photo .theodore-avatar-wrap {
+      left:2.4%; bottom:calc(38% + 12px); width:min(24vw,280px); height:min(34vh,320px);
+    }
     .avatar-drag-handle { position:absolute; top:0; left:0; right:0; height:30px; z-index:4;
                           display:flex; align-items:center; justify-content:center; gap:5px;
                           cursor:grab; touch-action:none; color:#bdf0ff;
@@ -324,7 +388,8 @@ STUDIO_CSS = """
     }
     @media (prefers-reduced-motion: reduce) {
       .teach-stage, .teach-stage.anim, .theodore-avatar-fallback * { animation:none !important; }
-      .visual-layer, .visual-layer img { animation:none !important; transition:none !important; transform:none !important; }
+      .visual-layer, .visual-layer img, .lesson-photo img, .lesson-photo-motion, .ppt-title {
+        animation:none !important; transition:none !important; transform:none !important; }
     }
     .quiz-box, .game-box { margin-top:12px; padding:12px; border:1px solid #ead7b8; border-radius:16px; background:#fff6e8; color:#241c16; }
     .quiz-box button, .game-box button { display:block; width:100%; text-align:left; margin:6px 0;
@@ -426,11 +491,14 @@ STUDIO_JS = """
     const requestedAccess = (studioQuery.get('access') || '').trim().toLowerCase();
     const registeredFlag = studioQuery.get('registered') === '1';
     const enrollmentStatus = (studioQuery.get('enrollment') || '').trim();
+    const adminFlag = studioQuery.get('admin') === '1';
+    const pinnedCourse = (studioQuery.get('course') || '').trim();
     function teachAccessFields() {
       return {
         access: requestedAccess,
-        registered: registeredFlag,
+        registered: registeredFlag || adminFlag,
         enrollment_status: enrollmentStatus,
+        is_admin: adminFlag,
       };
     }
     function sampleIsComplete() {
@@ -519,6 +587,11 @@ STUDIO_JS = """
     let captionsEnabled = false;
     const reviewScores = { quizzes: [], games: [] };
 
+    function presenterLabel(presenter) {
+      const name = presenter?.label || 'Student';
+      return presenter?.kind === 'portrait' ? `${name} · cartoon teacher` : `${name} · 3D teacher`;
+    }
+
     async function initTheodoreAvatar() {
       const host = $('theodore-avatar');
       if (!host) return null;
@@ -536,7 +609,7 @@ STUDIO_JS = """
           const presenter = avatarCatalog[selectedAvatarId];
           $('avatar-state').textContent = host.dataset.avatarReady === 'fallback'
             ? 'Theodore · accessible silhouette'
-            : `${presenter?.label || 'Presenter'} · 3D teacher`;
+            : presenterLabel(presenter);
         } catch (error) {
           host.innerHTML = '<div class="theodore-avatar-fallback" role="img" aria-label="Theodore teacher silhouette"><div class="fallback-crown">♜</div><div class="fallback-head"><i></i><i></i><b></b></div><div class="fallback-body"><span></span><span></span></div><div class="fallback-glow"></div></div>';
           $('avatar-state').textContent = 'Theodore · accessible silhouette';
@@ -586,8 +659,8 @@ STUDIO_JS = """
     async function loadAvatarChoices() {
       const data = await api('/api/studio/presenter/manifest');
       avatarCatalog = data.models || {};
-      if (!avatarCatalog[selectedAvatarId]) {
-        selectedAvatarId = data.default_model || Object.keys(avatarCatalog)[0] || 'amina';
+      if (!avatarCatalog[selectedAvatarId] || !avatarPrefs.presenterChosen) {
+        selectedAvatarId = data.default_model || Object.keys(avatarCatalog)[0] || 'student';
       }
       const select = $('avatar-choice');
       if (!select) return;
@@ -602,13 +675,13 @@ STUDIO_JS = """
       if (!avatarCatalog[presenterId]) return;
       selectedAvatarId = presenterId;
       avatarPrefs.presenter = presenterId;
+      avatarPrefs.presenterChosen = true;
       saveAvatarPrefs();
       courseVoiceGender = avatarCatalog[presenterId]?.voice_gender || courseVoiceGender;
       if (!avatarVisible) setAvatarVisible(true);
       await initTheodoreAvatar();
       await theodoreAvatar?.setPersona(presenterId);
-      $('avatar-state').textContent =
-        `${avatarCatalog[presenterId]?.label || 'Presenter'} · 3D teacher`;
+      $('avatar-state').textContent = presenterLabel(avatarCatalog[presenterId]);
       requestAnimationFrame(() => theodoreAvatar?.resize());
     }
 
@@ -1914,7 +1987,15 @@ STUDIO_JS = """
           featured: false
         });
       });
+      if (pinnedCourse) {
+        document.body.classList.add('public-course');
+        library = library.filter((row) => row.id === pinnedCourse);
+      }
       renderLibrary();
+      if (pinnedCourse) {
+        if (!library.length) toast('That course is not on this page.');
+        else await openLibraryCourse(pinnedCourse);
+      }
     }
 
     function renderLibrary() {
@@ -2299,7 +2380,12 @@ STUDIO_JS = """
       }
       if (micReady) return true;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = window.TheodoreLiveAudio && window.TheodoreLiveAudio.openMic
+          ? await window.TheodoreLiveAudio.openMic()
+          : await navigator.mediaDevices.getUserMedia({
+            audio: {echoCancellation:true, noiseSuppression:true, autoGainControl:false, channelCount:1},
+            video: false,
+          });
         // Permission probe only. Hold it until the recognizer is running, then
         // stopStudentMic releases the hardware so the indicator does not stick.
         micStream = stream;
@@ -2316,6 +2402,11 @@ STUDIO_JS = """
       const Ctor = speechCtor();
       if (!Ctor) {
         toast('This browser cannot hear speech. Type your question or answer.');
+        return;
+      }
+      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
+        toast('Just speak. You can interrupt Theodore — he stops, listens, then answers.');
+        window.TheodoreLiveAudio?.resumeRecognition();
         return;
       }
       const ok = await ensureMic();
@@ -3530,6 +3621,23 @@ STUDIO_JS = """
       try { URL.revokeObjectURL(src); } catch (_) {}
     }
 
+    async function keepLessonAudioOnSpeakers() {
+      const audio = serverAudio;
+      if (!audio || audio.ended) return;
+      audio.volume = 1;
+      if (typeof audio.setSinkId === 'function') {
+        try { await audio.setSinkId(''); } catch (_) {}
+      }
+      if (audio.paused && audio.currentTime > 0) {
+        try { await audio.play(); } catch (_) {}
+      }
+    }
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', () => {
+        keepLessonAudioOnSpeakers();
+      });
+    }
+
     function detachServerAudio() {
       clearStallTimer();
       const audio = serverAudio;
@@ -3608,7 +3716,10 @@ STUDIO_JS = """
       if (learningCheckOpen && kind !== 'learn-check' && kind !== 'guard' && kind !== 'checkpoint') return;
       if (kind !== 'adapt' && kind !== 'adapt-resume' && kind !== 'guard') attentionResume = '';
       if (lecturePaused && !holdLesson) return;
-      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) return;
+      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
+        if (kind !== 'talk') return;
+        window.TheodoreLiveAudio?.pauseRecognition();
+      }
       stopSpeech();
       const spoken = text || '';
       const gen = speechGen;
@@ -3647,6 +3758,7 @@ STUDIO_JS = """
             attentionResume = '';
             speakText(next, null, false, 'adapt-resume');
           }
+          if (kind === 'talk') window.TheodoreLiveAudio?.resumeRecognition();
           return;
         }
         onNarrationEnded(genCheck);
@@ -3702,6 +3814,7 @@ STUDIO_JS = """
         }
         const u = new SpeechSynthesisUtterance(spoken);
         u.lang = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
+        u.volume = 1;
         const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
         const lang = String(u.lang || 'en').slice(0, 2).toLowerCase();
         const same = (voices || []).filter((voice) => String(voice.lang || '').toLowerCase().startsWith(lang));
@@ -3737,6 +3850,7 @@ STUDIO_JS = """
       function bindClip(audio, token, durationMs, onFail) {
         detachServerAudio();
         serverAudio = audio;
+        audio.volume = 1;
         let failed = false;
         let knownDurationMs = Number(durationMs) || 0;
         const alreadyMs = Number(audio.duration) * 1000;
@@ -3861,16 +3975,64 @@ STUDIO_JS = """
       });
       return attempt(0);
     }
+    function paintProceedCue() {
+      const text = $('proceed-cue-text');
+      const btn = $('btn-start-voice');
+      if (!text || !btn) return;
+      const live = !!window.__THEODORE_LIVE_AUDIO_ACTIVE__;
+      text.textContent = live
+        ? 'Speak to Theodore, or click the screen to continue.'
+        : 'Click the screen to continue, or press Start and speak.';
+      btn.textContent = live ? 'Listening' : 'Start';
+      btn.setAttribute('aria-pressed', live ? 'true' : 'false');
+    }
+
+    async function proceedByClick() {
+      if (advancing) return;
+      if (lecturePaused) {
+        lecturePaused = false;
+        setPauseButton(false);
+        window.TheodoreLiveAudio?.resumeRecognition();
+      }
+      if (!teachSession) {
+        const first = library.find((row) => row.featured) || library[0];
+        if (!first) return toast('Choose a course on the left.');
+        await openLibraryCourse(first.id);
+        return;
+      }
+      await nextSlide();
+    }
+
+    async function proceedByVoice() {
+      const started = await window.TheodoreLiveAudio?.start?.();
+      if (started === false) toast('Voice is not ready yet. Press Start again in a moment.');
+      if (!teachSession) {
+        const first = library.find((row) => row.featured) || library[0];
+        if (first) await openLibraryCourse(first.id);
+      }
+      paintProceedCue();
+    }
+
     window.addEventListener('theodore-live-audio', (event) => {
+      paintProceedCue();
       if (event.detail?.active && !event.detail?.paused && !window.__THEODORE_LIVE_AUDIO_HOLD__) stopSpeech();
     });
     window.addEventListener('theodore-live-audio-speech', (event) => {
       if (lecturePaused) return;
       if (event.detail?.speaking) {
-        theodoreAvatar?.speak(event.detail.text || '');
+        theodoreAvatar?.speak(event.detail.text || ' ');
         return;
       }
       theodoreAvatar?.stopSpeaking();
+    });
+    window.addEventListener('theodore-live-audio-level', (event) => {
+      if (lecturePaused) return;
+      theodoreAvatar?.setVoiceLevel(Number(event.detail && event.detail.level) || 0);
+    });
+    window.addEventListener('theodore-live-audio-user', (event) => {
+      if (lecturePaused) return;
+      if (event.detail && event.detail.talking) theodoreAvatar?.setState('listening');
+      else if (!theodoreAvatar?.speaking) theodoreAvatar?.setState('idle');
     });
     window.addEventListener('theodore-live-audio-utterance', (event) => {
       const text = event.detail && event.detail.text;
@@ -3880,6 +4042,37 @@ STUDIO_JS = """
     window.addEventListener('theodore-live-audio-idle', () => {
       resumeUncoveredCourse().catch((error) => toast(String(error.message || error)));
     });
+
+    function paintLessonPhoto(url, effect, alt) {
+      const frame = $('lesson-photo');
+      const img = $('lesson-photo-img');
+      const stage = $('teach-stage');
+      const overlay = $('presenter-overlay');
+      const grid = $('teacher-stage-grid');
+      if (!frame || !img) return;
+      const on = Boolean(url);
+      frame.hidden = !on;
+      frame.classList.toggle('is-shown', on);
+      if (stage) stage.classList.toggle('has-photo', on);
+      if (overlay) overlay.classList.toggle('has-photo', on);
+      if (grid) grid.classList.toggle('has-photo', on);
+      if (!on) {
+        img.removeAttribute('src');
+        return;
+      }
+      img.alt = alt || 'Lesson photograph';
+      if (img.getAttribute('src') !== url) img.src = url;
+      frame.dataset.effect = effect || 'fade';
+      frame.classList.remove('is-in');
+      void frame.offsetWidth;
+      frame.classList.add('is-in');
+      const title = $('teach-title');
+      if (title) {
+        title.classList.remove('ppt-title');
+        void title.offsetWidth;
+        title.classList.add('ppt-title');
+      }
+    }
 
     function clearVisualTimeline() {
       visualTimeline = null;
@@ -3973,10 +4166,7 @@ STUDIO_JS = """
       showAbsorb(false);
       slideVariety = pickLearnVariety(payload);
       const turn = payload.turn || payload;
-      if (payload.voice_gender) {
-        courseVoiceGender = payload.voice_gender;
-        theodoreAvatar?.setPersona(payload.voice_gender);
-      }
+      if (payload.voice_gender) courseVoiceGender = payload.voice_gender;
       theodoreAvatar?.setScript(payload.avatar || { state:'presenting', cues:[] });
       const stage = $('teach-stage');
       stage.classList.remove('anim');
@@ -3996,15 +4186,27 @@ STUDIO_JS = """
       const storyboardEl = $('teach-storyboard');
       const storyConceptEl = $('teach-storyboard-concept');
       const sbSvg = payload.storyboard_svg || '';
-      const hasVisualTimeline = renderVisualTimeline(payload);
-      const hasStoryboard = !hasVisualTimeline && Boolean(sbSvg.trim());
+      const photoUrl = String(payload.photo_url || '');
+      const usePhoto = Boolean(photoUrl);
+      if (usePhoto) clearVisualTimeline();
+      const hasVisualTimeline = !usePhoto && renderVisualTimeline(payload);
+      const hasStoryboard = !usePhoto && !hasVisualTimeline && Boolean(sbSvg.trim());
+      paintLessonPhoto(photoUrl, payload.photo_transition || 'fade', turn.title || '');
       stage.classList.toggle('has-storyboard', hasStoryboard);
       stage.classList.toggle('has-visual-timeline', hasVisualTimeline);
       $('presenter-overlay').classList.toggle('has-storyboard', hasStoryboard);
       $('presenter-overlay').classList.toggle('has-visual-timeline', hasVisualTimeline);
       $('teacher-stage-grid').classList.toggle('has-storyboard', hasStoryboard);
       $('teacher-stage-grid').classList.toggle('has-visual-timeline', hasVisualTimeline);
-      if (hasVisualTimeline) {
+      if (usePhoto) {
+        storyboardEl.hidden = true;
+        storyboardEl.innerHTML = '';
+        storyConceptEl.hidden = true;
+        pictureEl.hidden = true;
+        motionEl.hidden = true;
+        pictureEl.src = '';
+        motionEl.src = '';
+      } else if (hasVisualTimeline) {
         storyboardEl.hidden = true;
         storyboardEl.innerHTML = '';
         storyConceptEl.hidden = true;
@@ -4163,9 +4365,24 @@ STUDIO_JS = """
     });
     enableStudentCamDrag();
     on('btn-captions', 'click', () => setCaptionsEnabled(!captionsEnabled));
+    let proceedClickTimer = null;
+    on('teach-stage', 'click', (event) => {
+      if (event.target.closest('button, input, select, textarea, a, label, .lesson-window-controls, .lesson-toolbar, .talk-panel, .quiz-box, .game-box, .activity, .theodore-avatar-wrap')) return;
+      clearTimeout(proceedClickTimer);
+      proceedClickTimer = setTimeout(() => {
+        proceedClickTimer = null;
+        proceedByClick().catch((error) => toast(String(error.message || error)));
+      }, 280);
+    });
     on('teach-stage', 'dblclick', (event) => {
       if (event.target.closest('button, input, select, textarea, a, .lesson-window-controls')) return;
+      clearTimeout(proceedClickTimer);
+      proceedClickTimer = null;
       togglePresenterMode();
+    });
+    on('btn-start-voice', 'click', (event) => {
+      event.stopPropagation();
+      proceedByVoice().catch((error) => toast(String(error.message || error)));
     });
     on('btn-continue', 'click', () => continueSession().catch((e) => toast(String(e.message || e))));
     on('btn-later', 'click', () => comeBackLater().catch((e) => toast(String(e.message || e))));
@@ -4199,7 +4416,9 @@ STUDIO_JS = """
     on('btn-avatar-hide', 'click', () => setAvatarVisible(false));
 
     avatarPrefs = loadAvatarPrefs();
-    selectedAvatarId = avatarPrefs.presenter || 'amina';
+    selectedAvatarId = avatarPrefs.presenterChosen && avatarPrefs.presenter
+      ? avatarPrefs.presenter
+      : 'student';
     initAvatarDrag();
     setAvatarVisible(
       typeof avatarPrefs.on === 'boolean' ? avatarPrefs.on : SHOW_AVATAR, false);
@@ -4281,6 +4500,9 @@ def render_studio_page() -> str:
           <div id="teach-visual-timeline" class="visual-timeline-stage" hidden
                aria-live="polite" aria-label="Lesson visual sequence"></div>
           <div id="teach-storyboard" class="storyboard-stage" hidden aria-hidden="true"></div>
+          <div class="lesson-photo" id="lesson-photo" hidden>
+            <div class="lesson-photo-motion"><img id="lesson-photo-img" alt="" /></div>
+          </div>
           <div class="theodore-avatar-wrap" id="theodore-avatar-wrap">
             <div class="avatar-drag-handle" id="avatar-drag-handle" role="button" tabindex="0"
                  aria-label="Move Theodore. Arrow keys nudge, Home resets, double-click resets."
@@ -4308,7 +4530,11 @@ def render_studio_page() -> str:
                 <rect x="220" y="70" width="10" height="26" rx="2" fill="#8c3a2f"/>
                 <rect x="234" y="62" width="12" height="34" rx="2" fill="#2f5d46"/>
               </svg>
-              <p>Choose a course on the left. Theodore will read each page aloud.</p>
+              <p>Click the screen to start, or press Start and speak.</p>
+            </div>
+            <div class="proceed-cue" id="proceed-cue">
+              <p id="proceed-cue-text">Click the screen to continue, or press Start and speak.</p>
+              <button id="btn-start-voice" type="button">Start</button>
             </div>
             <div class="body" id="teach-body"></div>
             <p id="attention-aside" class="attention-aside" hidden></p>
@@ -4332,7 +4558,7 @@ def render_studio_page() -> str:
                   aria-controls="theodore-avatar-wrap">Show Theodore</button>
           <label class="avatar-choice-label" for="avatar-choice">Presenter
             <select id="avatar-choice" aria-label="Choose a 3D lesson presenter">
-              <option value="amina">Amina</option>
+              <option value="student">Student</option>
             </select>
           </label>
         </div>

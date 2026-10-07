@@ -14,6 +14,7 @@ from aoep_shared.course_studio_access import (
 )
 
 from .avatar_director import avatar_script_for_slide
+from .lesson_photos import photo_plate
 from .topic_cover import (
     completion_percent,
     example_card_svg,
@@ -811,6 +812,12 @@ class TeachEngine:
         }
         if sample_complete:
             activity_checkpoint["due"] = False
+        plate = photo_plate(
+            title=turn.title or slide.title,
+            body=turn.display_body or slide.body or "",
+            category=str(getattr(course.category, "value", course.category)),
+            index=slide.index,
+        )
         return {
             "turn": turn_dump,
             "slide_index": slide_index,
@@ -848,6 +855,8 @@ class TeachEngine:
                 "emphasis": "highlight-title",
                 "duration_ms": 650,
             },
+            "photo_url": plate["url"],
+            "photo_transition": plate["transition"],
             "avatar": avatar.model_dump(mode="json"),
             "voice_gender": session.voice_gender,
             "knowledge": knowledge,

@@ -4,13 +4,19 @@
   // One native speech-to-speech control shared by every Theodore lab. It never
   // calls /tts: microphone PCM goes directly to xAI/Gemini using a one-use
   // server-minted credential, and returned PCM is scheduled gaplessly.
+  function liveAudioUrl(path) {
+    const base = window.AOEP_LIVE_AUDIO_BASE || "";
+    return base + path;
+  }
+
   const state = {
     ws: null, stream: null, source: null, processor: null, silent: null,
     ctx: null, speaker: null, playDestination: null, provider: "",
     inputRate: 16000, outputRate: 24000, nextPlayAt: 0, playing: new Set(),
     connected: false, stopping: false, dropOutput: false,
     recognitionPaused: false, lastUserAt: 0, idleTimer: null, speechEndTimer: null,
-    agentSpeaking: false,
+    agentSpeaking: false, micRms: 0, voiceLevel: 0, levelTimer: null, outputGain: null,
+    userTalking: false, micSink: null,
   };
 
   const host = document.createElement("div");
@@ -102,6 +108,10 @@
     state.speechEndTimer = setTimeout(() => {
       if (state.playing.size) return;
       state.agentSpeaking = false;
+      state.voiceLevel = 0;
+      window.dispatchEvent(new CustomEvent("theodore-live-audio-level", {
+        detail: {level: 0},
+      }));
       window.dispatchEvent(new CustomEvent("theodore-live-audio-speech", {
         detail: {speaking: false, text: ""},
       }));
@@ -115,6 +125,49 @@
       detail: {role, text: said},
     }));
   }
+  function noteMic(float32) {
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i < float32.length; i += 8) {
+      sum += float32[i] * float32[i];
+      n += 1;
+    }
+    const rms = Math.sqrt(sum / Math.max(1, n));
+    state.micRms = state.micRms * 0.65 + rms * 0.35;
+  }
+  function userIsLoud() { return state.micRms >= 0.035; }
+  function noteUserTalking(talking) {
+    const next = Boolean(talking);
+    if (state.userTalking === next) return;
+    state.userTalking = next;
+    window.dispatchEvent(new CustomEvent("theodore-live-audio-user", {
+      detail: {talking: next},
+    }));
+  }
+  function publishLevel(level) {
+    state.voiceLevel = Math.max(0, Math.min(1, level));
+    if (state.levelTimer) return;
+    state.levelTimer = setTimeout(() => {
+      state.levelTimer = null;
+      window.dispatchEvent(new CustomEvent("theodore-live-audio-level", {
+        detail: {level: state.voiceLevel},
+      }));
+    }, 50);
+  }
+  function beginInterrupt() {
+    if (state.recognitionPaused) return;
+    // The agent's own voice can trip server VAD. Only a louder mic is the learner.
+    if (state.playing.size && !userIsLoud()) return;
+    state.dropOutput = true;
+    clearPlayback();
+    noteUserTalking(true);
+  }
+  function acceptAgentAudio() {
+    if (state.recognitionPaused) return;
+    state.dropOutput = false;
+    noteUserTalking(false);
+    void followSpeakers();
+  }
   function playPcm(base64, rate = state.outputRate) {
     if (!state.ctx || !base64 || state.recognitionPaused || state.dropOutput) return;
     const raw = atob(base64);
@@ -124,11 +177,14 @@
     if (!pcm.length || state.dropOutput) return;
     const floats = new Float32Array(pcm.length);
     for (let i = 0; i < pcm.length; i++) floats[i] = pcm[i] / 32768;
+    let energy = 0;
+    for (let i = 0; i < floats.length; i += 16) energy += floats[i] * floats[i];
+    publishLevel(Math.min(1, Math.sqrt(energy / Math.max(1, Math.floor(floats.length / 16))) * 5));
     const buffer = state.ctx.createBuffer(1, floats.length, rate);
     buffer.copyToChannel(floats, 0);
     const source = state.ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(state.playDestination || state.ctx.destination);
+    source.connect(state.outputGain || state.ctx.destination);
     // Scheduling chunks on one continuous timeline prevents per-chunk clicks,
     // overlap, and the stammering heard when each TTS/audio chunk calls play().
     const at = Math.max(state.ctx.currentTime + 0.025, state.nextPlayAt);
@@ -139,6 +195,7 @@
     noteAgentSpeaking();
   }
   function sendMic(float32) {
+    noteMic(float32);
     if (state.recognitionPaused) return;
     if (state.ws?.readyState !== WebSocket.OPEN || !state.connected) return;
     const pcm = pcm16Base64(resample(float32, state.ctx.sampleRate, state.inputRate));
@@ -150,14 +207,65 @@
       }}}));
     }
   }
-  async function startMic() {
-    state.stream = await navigator.mediaDevices.getUserMedia({
-      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
-      video:false,
+  const BLUETOOTH_INPUT = /bluetooth|airpod|headset|hands-free|handset|beats|bose/i;
+  function micConstraints(deviceId) {
+    // autoGainControl pumps the mic and ducks speaker volume. Leave it off.
+    // echoCancellation stays on so a laptop mic does not howl through speakers.
+    const audio = {
+      echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1,
+    };
+    if (deviceId) audio.deviceId = {exact: deviceId};
+    return {audio, video:false};
+  }
+  async function openSpeakerSafeMic() {
+    // Opening the mic on a Bluetooth speaker switches it from music playback
+    // (A2DP) to a phone-call profile. That profile is quiet, mono, and drops
+    // out. Prefer the computer's own microphone and leave the speakers alone.
+    let stream = await navigator.mediaDevices.getUserMedia(micConstraints());
+    let inputs = [];
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      inputs = devices.filter((device) => device.kind === "audioinput" && device.deviceId);
+    } catch (_) {}
+    const track = stream.getAudioTracks()[0];
+    const activeId = track?.getSettings?.().deviceId || "";
+    const label = (inputs.find((device) => device.deviceId === activeId)?.label) || track?.label || "";
+    if (!BLUETOOTH_INPUT.test(label)) return stream;
+    const builtin = inputs.find((device) => {
+      if (!device.deviceId || device.deviceId === "default" || device.deviceId === "communications") return false;
+      return !BLUETOOTH_INPUT.test(device.label || "");
     });
+    if (!builtin) return stream;
+    stream.getTracks().forEach((item) => item.stop());
+    try {
+      return await navigator.mediaDevices.getUserMedia(micConstraints(builtin.deviceId));
+    } catch (_) {
+      return navigator.mediaDevices.getUserMedia(micConstraints());
+    }
+  }
+  function speakerStatus() {
+    const label = state.stream?.getAudioTracks?.()[0]?.label || "";
+    const base = "You can interrupt. Theodore stops, listens, then answers at full volume.";
+    if (!label) return base;
+    if (BLUETOOTH_INPUT.test(label)) {
+      return base + " This microphone is the Bluetooth device, so those speakers may get quieter.";
+    }
+    return base + " The computer microphone is on, so Bluetooth speakers stay loud.";
+  }
+  async function followSpeakers() {
+    if (!state.ctx) return;
+    if (state.outputGain) state.outputGain.gain.value = 1;
+    if (typeof state.ctx.setSinkId === "function") {
+      try { await state.ctx.setSinkId(""); } catch (_) {}
+    }
+    try { await state.ctx.resume(); } catch (_) {}
+  }
+  async function startMic() {
+    state.stream = await openSpeakerSafeMic();
     state.source = state.ctx.createMediaStreamSource(state.stream);
-    state.silent = state.ctx.createGain();
-    state.silent.gain.value = 0;
+    // Pull the mic graph without mixing it into the speakers. A zero-gain
+    // connection to the speakers still makes Bluetooth duck the lesson.
+    state.micSink = state.ctx.createMediaStreamDestination();
     if (state.ctx.audioWorklet) {
       const worklet = `
         class TheodoreMic extends AudioWorkletProcessor {
@@ -189,20 +297,19 @@
       };
     }
     state.source.connect(state.processor);
-    // ScriptProcessor must be connected to run; zero gain prevents mic echo.
-    state.processor.connect(state.silent);
-    state.silent.connect(state.ctx.destination);
+    state.processor.connect(state.micSink);
   }
   function handleXai(event) {
     const type = String(event.type || "");
     if (type === "session.updated") state.connected = true;
     if (type === "input_audio_buffer.speech_started") {
       state.lastUserAt = Date.now();
-      if (!state.recognitionPaused) {
-        state.dropOutput = true; clearPlayback(); // true barge-in
-      }
+      beginInterrupt();
     }
-    if (type === "response.created" && !state.recognitionPaused) state.dropOutput = false;
+    if (type === "input_audio_buffer.speech_stopped" || type === "input_audio_buffer.committed") {
+      acceptAgentAudio();
+    }
+    if (type === "response.created") acceptAgentAudio();
     if (type === "response.output_audio.delta" || type === "response.audio.delta") {
       playPcm(String(event.delta || ""));
     }
@@ -218,7 +325,8 @@
     if (event.setupComplete !== undefined) state.connected = true;
     const server = event.serverContent || {};
     if (server.interrupted) {
-      state.dropOutput = true; clearPlayback(); return;
+      beginInterrupt();
+      if (!server.modelTurn) return;
     }
     if (server.modelTurn?.parts?.length) state.dropOutput = false;
     for (const part of server.modelTurn?.parts || []) {
@@ -237,7 +345,10 @@
   }
   async function start() {
     const provider = select.value;
-    if (!provider) return;
+    if (!provider) {
+      setStatus("Voice is not ready yet. Press Start again in a moment.");
+      return false;
+    }
     toggle.disabled = true;
     setStatus(`Connecting ${select.selectedOptions[0].textContent}…`);
     try {
@@ -246,21 +357,17 @@
       state.outputRate = 24000;
       // Ask for the microphone before minting a short-lived token. An adult
       // may leave the permission sheet open, otherwise wasting the credential.
-      try {
-        state.ctx = new AudioContext({
-          latencyHint:"interactive", sampleRate:state.inputRate,
-        });
-      } catch (_) {
-        state.ctx = new AudioContext({latencyHint:"interactive"});
-      }
+      // Do not lock this context to 16 kHz or 24 kHz. Bluetooth speakers play
+      // music at 48 kHz; a phone-call rate makes them quiet and choppy. The
+      // mic is resampled down to the agent rate below.
+      state.ctx = new AudioContext({latencyHint:"playback"});
       await state.ctx.resume();
-      state.playDestination = state.ctx.createMediaStreamDestination();
-      state.speaker = new Audio();
-      state.speaker.autoplay = true;
-      state.speaker.srcObject = state.playDestination.stream;
-      await state.speaker.play().catch(() => {});
+      state.outputGain = state.ctx.createGain();
+      state.outputGain.gain.value = 1;
+      state.outputGain.connect(state.ctx.destination);
       await startMic();
-      const response = await fetch("/api/live-audio/token", {
+      await followSpeakers();
+      const response = await fetch(liveAudioUrl("/api/live-audio/token"), {
         method:"POST",headers:{"content-type":"application/json"},
         body:JSON.stringify({
           provider,
@@ -281,7 +388,7 @@
         state.ws.send(JSON.stringify(config.setup));
         toggle.disabled = false; toggle.textContent = "Stop live voice";
         toggle.classList.add("live"); dot.classList.add("on");
-        setStatus("Mic → native audio agent → speaker. TTS is off.");
+        setStatus(speakerStatus());
       };
       state.ws.onmessage = (message) => {
         try {
@@ -339,19 +446,19 @@
     clearPlayback();
     try { state.processor?.disconnect(); } catch (_) {}
     try { state.source?.disconnect(); } catch (_) {}
+    try { state.micSink?.disconnect(); } catch (_) {}
     try { state.silent?.disconnect(); } catch (_) {}
     for (const track of state.stream?.getTracks?.() || []) track.stop();
     if (state.provider === "gemini" && state.ws?.readyState === WebSocket.OPEN) {
       try { state.ws.send(JSON.stringify({realtimeInput:{audioStreamEnd:true}})); } catch (_) {}
     }
     try { state.ws?.close(); } catch (_) {}
-    try { state.speaker?.pause(); state.speaker.srcObject = null; } catch (_) {}
-    for (const track of state.playDestination?.stream?.getTracks?.() || []) track.stop();
+    try { state.outputGain?.disconnect(); } catch (_) {}
     try { await state.ctx?.close(); } catch (_) {}
     Object.assign(state, {
-      ws:null,stream:null,source:null,processor:null,silent:null,ctx:null,
-      speaker:null,playDestination:null,connected:false,nextPlayAt:0,
-      stopping:false,dropOutput:false,
+      ws:null,stream:null,source:null,processor:null,silent:null,micSink:null,ctx:null,
+      outputGain:null,connected:false,nextPlayAt:0,
+      stopping:false,dropOutput:false,micRms:0,voiceLevel:0,userTalking:false,
     });
     toggle.textContent = "Start live voice"; toggle.classList.remove("live");
     dot.classList.remove("on"); toggle.disabled = !select.value; setStatus(message);
@@ -359,11 +466,17 @@
   window.TheodoreLiveAudio = {
     pauseRecognition() { setRecognitionPaused(true); },
     resumeRecognition() { if (state.connected) setRecognitionPaused(false); },
+    openMic() { return openSpeakerSafeMic(); },
+    start() {
+      if (state.ws) return Promise.resolve(true);
+      return start();
+    },
   };
+  navigator.mediaDevices?.addEventListener?.("devicechange", () => { void followSpeakers(); });
   toggle.onclick = () => state.ws ? stop() : start();
   select.onchange = () => { if (state.ws) stop(); toggle.disabled = !select.value; };
 
-  fetch("/api/live-audio/status", {cache:"no-store"}).then(async (response) => {
+  fetch(liveAudioUrl("/api/live-audio/status"), {cache:"no-store"}).then(async (response) => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     select.innerHTML = '<option value="">Choose live agent</option>';

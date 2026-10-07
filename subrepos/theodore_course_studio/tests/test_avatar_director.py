@@ -105,6 +105,10 @@ def test_avatar_assets_are_offline_and_studio_wires_accessibility_controls():
     assert "speechClock" in runtime.text
     assert "speechPaused" in runtime.text
     assert "applyArticulation" in runtime.text
+    assert "setVoiceLevel" in runtime.text
+    assert "buildPortraitRig" in runtime.text
+    assert "setPersona(payload.voice_gender)" not in page.text
+    assert "You can interrupt" in page.text
     # The runtime must import the rig adapter, and the adapter must be served.
     assert "avatar_rig.js" in runtime.text
     assert "resolveSkeleton" in rig.text
@@ -124,7 +128,14 @@ def test_presenter_manifest_defaults_to_builtin():
     response = client.get("/api/studio/presenter/manifest")
     assert response.status_code == 200
     data = response.json()
-    assert data["default_model"] == "amina"
+    assert data["default_model"] == "student"
+    student = data["models"]["student"]
+    assert student["kind"] == "portrait"
+    assert student["rig"] == "portrait"
+    assert student["url"].endswith("presenter_student.webp")
+    portrait = client.get(student["url"])
+    assert portrait.status_code == 200
+    assert portrait.content[:4] == b"RIFF"
     realistic = {"amina", "mateo", "lin", "priya", "jordan", "elena"}
     assert realistic < set(data["models"])
     assert {"classic_female", "classic_male"} < set(data["models"])

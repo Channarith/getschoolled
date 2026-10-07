@@ -3,6 +3,16 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-07 - v0.50.8 - The home page no longer lists full courses, and a signed-in visit hides the demo block. Signing in on the home page updates the account menu in the same session. Driver's Education and Food Health & Safety open from Live Class and Group Class. The vision arcade lab is embedded on Arcade, and the hands-free audio lab is embedded on On the Go. xAI Grok voice is on live class, group rooms, full courses, and On the Go.
+- 2026-10-07 - v0.50.7 - A batch pipeline pre-translates courses into the 26 non-English languages. The voice agent teaches from that library and uses web search only when the class does not cover the question, staying on that category and title.
+- 2026-10-07 - v0.50.7 - The public demo includes the vision arcade. Children play the webcam lab's machine-vision games there, and the camera stays in the browser.
+- 2026-10-07 - v0.50.7 - Drive Mode uses a hands-free xAI voice tutor for the category and subject you choose. It can look up lawful topics online. The speech service refuses criminal and other harmful requests, and the browser cannot replace that rule.
+- 2026-10-06 - v0.50.7 - Salareen offers a free 10-minute Driver's Education demo to anyone. The full Driver's Education course and Food Health & Safety are paid unless the account is an admin.
+- 2026-10-06 - v0.50.7 - Lesson and live voice stay loud on Bluetooth speakers. The computer microphone is used for listening, and playback stays at the speakers' music rate instead of a phone-call rate.
+- 2026-10-06 - v0.50.7 - Lesson pages use photographs and PowerPoint entrances (fade, fly, wipe, zoom, cover, split) instead of geometric storyboard shapes.
+- 2026-10-06 - v0.50.7 - The lesson shows a Start control: click the screen to continue, or press Start and speak to Theodore.
+- 2026-10-06 - v0.50.7 - The cartoon student stays on screen for the whole lesson. His mouth and hands move with the lesson and the live voice. You can interrupt: he stops, listens, and answers at full volume instead of going quiet.
+- 2026-10-06 - v0.50.5 - Theodore's lesson presenter is the cartoon student with the book. The figure blinks, nods, and moves its mouth with the lesson and the live voice agent. The older block-built presenters stay in the presenter menu.
 - 2026-10-07 - v0.50.7 - README and local-run notes match the shipped catalog (118 lessons, 948 Drive Mode topics, 81 categories). The Python gate no longer fails when edge-tts is not installed, and Course Studio's wrapped live-audio call still counts.
 - 2026-10-06 - v0.50.5 - The live voice agent pauses and resumes with the lesson, and the avatar speaks while that agent is talking. A minute without a question returns to the next uncovered section. The learner can ask about any section, in any order; that section's slide and example open, and course completion counts sections already covered.
 - 2026-10-06 - v0.50.5 - Course Studio is in the library and the sales demo. The demo plays a 10-minute sample and stops there, even if the presenter has an account. A registered learner who has paid for the class opens the full course from the library. Enrollment alone does not count as payment.

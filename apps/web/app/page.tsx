@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppBadges from "./components/AppBadges";
+import { PublicCourses } from "./components/PublicCourses";
 import AdSlot from "./components/AdSlot";
 import { Rail, Tile } from "./components/CourseRail";
 import MascotImage from "./components/MascotImage";
@@ -218,6 +219,7 @@ export default function HomePage() {
             {t("hero.title")}
           </h1>
           <p className="theme-subtitle glow" style={{ margin: "0 auto" }}>{t("hero.subLoggedOut")}</p>
+          <PublicCourses />
 
           {/* Social sign-in — right on the landing page, no redirect needed */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 28, width: "100%", maxWidth: 340, margin: "28px auto 0" }}>

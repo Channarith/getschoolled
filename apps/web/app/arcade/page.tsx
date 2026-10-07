@@ -15,6 +15,8 @@ import {
   type Leader,
 } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { VisionArcadeFrame } from "../components/VisionArcadeFrame";
+import { visionArcadeFrameSrc } from "../lib/visionArcade";
 
 const SUBJECT_ICON: Record<string, string> = {
   biology: "🧬", chemistry: "⚗️", physics: "🪐", math: "➗", science: "🔬",
@@ -254,6 +256,17 @@ export default function ArcadePage() {
       )}
 
       {/* Kids' Games — fun, colorful learning adventures. */}
+      {!round && (
+        <div id="vision" className="card" style={{ background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(124,58,237,0.14))" }}>
+          <h3 style={{ marginTop: 0 }}>👁️ Machine vision</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Children play the webcam lab here: faces, hands, letters, and movement. The camera stays in the browser.
+            Theodore can talk through the xAI voice agent inside the lab.
+          </p>
+          <VisionArcadeFrame title="Vision arcade lab" src={visionArcadeFrameSrc()} />
+        </div>
+      )}
+
       {!round && (
         <div className="card" style={{ background: "linear-gradient(135deg, rgba(249,168,37,0.18), rgba(236,72,153,0.12))" }}>
           <h3 style={{ marginTop: 0 }}>🎮 Kids&apos; Games</h3>

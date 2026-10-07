@@ -151,6 +151,7 @@ class TeachStartRequest(BaseModel):
     access: str = ""
     registered: bool = False
     enrollment_status: str = ""
+    is_admin: bool = False
 
 
 class TeachSessionRequest(BaseModel):
@@ -333,9 +334,26 @@ def presenter_manifest() -> dict[str, Any]:
                     "voice_gender": persona,
                 }
                 break
+    portrait = _AVATAR_STATIC_DIR / "presenter_student.webp"
+    if portrait.is_file():
+        models["student"] = {
+            "file": portrait.name,
+            "url": f"/api/studio/avatar/{portrait.name}",
+            "rig": "portrait",
+            "source": "illustrated",
+            "kind": "portrait",
+            "label": "Student",
+            "voice_gender": "male",
+        }
+    if "student" in models:
+        default_model = "student"
+    elif "amina" in models:
+        default_model = "amina"
+    else:
+        default_model = "classic_female"
     return {
         "models": models,
-        "default_model": "amina" if "amina" in models else "classic_female",
+        "default_model": default_model,
         "rig_config_url": "/api/studio/avatar/avatar_rig_config_v2.json",
     }
 
@@ -622,6 +640,7 @@ class TrialRunRequest(BaseModel):
     access: str = ""
     registered: bool = False
     enrollment_status: str = ""
+    is_admin: bool = False
 
 
 @app.post("/api/studio/teach/trial-run")
@@ -645,6 +664,7 @@ def teach_trial_run(req: TrialRunRequest) -> dict[str, Any]:
                 requested=req.access,
                 registered=req.registered,
                 enrollment_status=req.enrollment_status,
+                is_admin=req.is_admin,
             ),
         )
     except (KeyError, ValueError) as exc:
@@ -693,6 +713,7 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
                 requested=req.access,
                 registered=req.registered,
                 enrollment_status=req.enrollment_status,
+                is_admin=req.is_admin,
             ),
         )
     except KeyError as exc:

@@ -573,11 +573,15 @@ class VoiceTokenRequest(BaseModel):
     ``wss://api.x.ai/v1/realtime`` with the short-lived token.
     """
 
-    mode: str = "solo"  # solo | group | self_teach | theodore | …
+    mode: str = "solo"  # solo | group | self_teach | theodore | drive | …
     lesson_context: str = ""
     learner_names: list[str] = []
     expires_seconds: int = 300
     instructions: str = ""
+    category: str = ""
+    topic: str = ""
+    course_id: str = ""
+    language: str = ""
 
 
 @app.get("/voice/status")
@@ -638,15 +642,42 @@ def voice_token(req: VoiceTokenRequest) -> dict:
             status_code=503,
             detail="XAI_API_KEY is not configured on the speech service",
         )
-    voice_cfg = build_voice_session(
-        req.mode,
-        voice=voice_id,
-        model=model,
-        lesson_context=req.lesson_context or "",
-        learner_names=list(req.learner_names or []),
-        instructions=req.instructions or "",
-    )
-    voice_cfg.tools = [presence_tool_schema()]
+    drive_mode = (req.mode or "").strip().lower() == "drive"
+    if drive_mode:
+        from aoep_shared.course_translation_library import reference_for_class
+        from aoep_shared.drive_voice import drive_voice_instructions, drive_voice_tools
+
+        # The browser names the class. The library and the safety rules stay here.
+        library = reference_for_class(
+            course_id=req.course_id,
+            title=req.topic,
+            category=req.category,
+            language=req.language,
+            query=req.lesson_context,
+        )
+        voice_cfg = build_voice_session(
+            "drive",
+            voice=voice_id,
+            model=model,
+            instructions=drive_voice_instructions(
+                category=req.category,
+                topic=req.topic,
+                excerpt="" if library["hit"] else req.lesson_context,
+                library=library["text"],
+                library_hit=bool(library["hit"]),
+            ),
+        )
+        voice_cfg.tools = drive_voice_tools()
+    else:
+        voice_cfg = build_voice_session(
+            req.mode,
+            voice=voice_id,
+            model=model,
+            lesson_context=req.lesson_context or "",
+            learner_names=list(req.learner_names or []),
+            instructions=req.instructions or "",
+        )
+        voice_cfg.tools = [presence_tool_schema()]
     locked_session = dict(voice_cfg.session_update_event()["session"])
     locked_session["model"] = model
     try:
