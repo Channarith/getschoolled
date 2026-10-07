@@ -2366,7 +2366,12 @@ STUDIO_JS = """
       }
       if (micReady) return true;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = window.TheodoreLiveAudio && window.TheodoreLiveAudio.openMic
+          ? await window.TheodoreLiveAudio.openMic()
+          : await navigator.mediaDevices.getUserMedia({
+            audio: {echoCancellation:true, noiseSuppression:true, autoGainControl:false, channelCount:1},
+            video: false,
+          });
         // Permission probe only. Hold it until the recognizer is running, then
         // stopStudentMic releases the hardware so the indicator does not stick.
         micStream = stream;
@@ -3602,6 +3607,23 @@ STUDIO_JS = """
       try { URL.revokeObjectURL(src); } catch (_) {}
     }
 
+    async function keepLessonAudioOnSpeakers() {
+      const audio = serverAudio;
+      if (!audio || audio.ended) return;
+      audio.volume = 1;
+      if (typeof audio.setSinkId === 'function') {
+        try { await audio.setSinkId(''); } catch (_) {}
+      }
+      if (audio.paused && audio.currentTime > 0) {
+        try { await audio.play(); } catch (_) {}
+      }
+    }
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', () => {
+        keepLessonAudioOnSpeakers();
+      });
+    }
+
     function detachServerAudio() {
       clearStallTimer();
       const audio = serverAudio;
@@ -3778,6 +3800,7 @@ STUDIO_JS = """
         }
         const u = new SpeechSynthesisUtterance(spoken);
         u.lang = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
+        u.volume = 1;
         const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
         const lang = String(u.lang || 'en').slice(0, 2).toLowerCase();
         const same = (voices || []).filter((voice) => String(voice.lang || '').toLowerCase().startsWith(lang));
