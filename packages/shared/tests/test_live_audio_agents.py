@@ -135,6 +135,11 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "server.interrupted" in source
     assert "echoCancellation:true" in source
     assert "noiseSuppression:true" in source
+    assert "autoGainControl:false" in source
+    assert "sampleRate:state.inputRate" not in source
+    assert 'latencyHint:"playback"' in source
+    assert "openSpeakerSafeMic" in source
+    assert "Bluetooth speakers stay loud" in source
     assert "AudioWorkletNode" in source
     assert "outputGain" in source
     assert "speech_stopped" in source
