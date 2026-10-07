@@ -248,7 +248,13 @@ function DrivePageInner() {
     const excerpt = c.segments?.[0]?.text || "";
     try {
       const session = await startDriveVoice(
-        { category: c.category || cat, title: c.title, excerpt },
+        {
+          category: c.category || cat,
+          title: c.title,
+          excerpt,
+          courseId: c.id,
+          language: trainingLangRef.current || locale,
+        },
         {
           onStatus: (text) => { if (text) setAssistantStatus(text); },
           onUser: (text) => setAssistantTranscript(text),

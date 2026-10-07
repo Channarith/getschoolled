@@ -69,6 +69,8 @@ export async function mintXaiVoiceToken(opts: {
   instructions?: string;
   category?: string;
   topic?: string;
+  course_id?: string;
+  language?: string;
 }): Promise<XaiVoiceTokenResponse> {
   const r = await fetch(`${SPEECH_URL}/voice/token`, {
     method: "POST",
@@ -81,6 +83,8 @@ export async function mintXaiVoiceToken(opts: {
       instructions: opts.mode === "drive" ? "" : (opts.instructions || ""),
       category: opts.category || "",
       topic: opts.topic || "",
+      course_id: opts.course_id || "",
+      language: opts.language || "",
     }),
   });
   if (!r.ok) {

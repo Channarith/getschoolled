@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-07 - v0.50.7 - A batch pipeline pre-translates courses into the 26 non-English languages. The voice agent teaches from that library and uses web search only when the class does not cover the question, staying on that category and title.
 - 2026-10-07 - v0.50.7 - The public demo includes the vision arcade. Children play the webcam lab's machine-vision games there, and the camera stays in the browser.
 - 2026-10-07 - v0.50.7 - Drive Mode uses a hands-free xAI voice tutor for the category and subject you choose. It can look up lawful topics online. The speech service refuses criminal and other harmful requests, and the browser cannot replace that rule.
 - 2026-10-06 - v0.50.7 - Salareen offers a free 10-minute Driver's Education demo to anyone. The full Driver's Education course and Food Health & Safety are paid unless the account is an admin.
