@@ -12,8 +12,14 @@ export function PublicCourses() {
       <p style={{ margin: "0 0 12px" }}>
         Driver&apos;s Education is free for 10 minutes. Anyone can start it, with or without an account.
       </p>
-      <p style={{ margin: "0 0 18px" }}>
+      <p style={{ margin: "0 0 12px" }}>
         <Link href={drivers.demoHref}><button type="button">Start the free driver&apos;s ed demo</button></Link>
+      </p>
+      <p style={{ margin: "0 0 12px" }}>
+        The vision arcade is free too. Children play machine-vision games from the webcam lab. The camera stays in the browser.
+      </p>
+      <p style={{ margin: "0 0 18px" }}>
+        <Link href="/demo/arcade"><button type="button">Play the vision arcade</button></Link>
       </p>
       <h2 style={{ fontSize: 22, margin: "0 0 8px" }}>Full courses</h2>
       <p style={{ margin: "0 0 12px" }}>

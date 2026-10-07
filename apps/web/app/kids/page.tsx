@@ -51,6 +51,11 @@ export default function KidsPage() {
               <Link href="/login">
                 <button className="theme-btn" style={{ background: "#f59e0b" }}>{t("profile.signIn")}</button>
               </Link>
+              <Link href="/demo/arcade">
+                <button className="theme-btn" style={{ background: "#0369a1", color: "#fff" }}>
+                  Play the vision arcade
+                </button>
+              </Link>
               <Link href="/">
                 <button className="theme-btn" style={{ background: "#fff", color: "#9a3412", border: "2px solid #fdba74" }}>
                   {t("kids.backMain")}
@@ -74,6 +79,11 @@ export default function KidsPage() {
           <div className="hero-cta" style={{ justifyContent: "center" }}>
             <Link href="/class">
               <button className="theme-btn" style={{ background: "#f59e0b" }}>{t("kids.startClass")}</button>
+            </Link>
+            <Link href="/demo/arcade">
+              <button className="theme-btn" style={{ background: "#0369a1", color: "#fff" }}>
+                Play the vision arcade
+              </button>
             </Link>
             <Link href="/">
               <button className="theme-btn" style={{ background: "#fff", color: "#9a3412", border: "2px solid #fdba74" }}>

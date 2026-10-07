@@ -84,6 +84,17 @@ export default function SalesDemoPage() {
         </Link>
       </section>
 
+      <section style={{ marginTop: 34 }}>
+        <h2>Vision arcade</h2>
+        <p className="muted">
+          Children play the machine-vision games from the webcam lab. Anyone can open it.
+          The camera stays in the browser.
+        </p>
+        <Link href="/demo/arcade">
+          <button type="button">Play the vision arcade</button>
+        </Link>
+      </section>
+
       {enabled(SALES_DEMO_FLAGS.featuredCourses) ? (() => {
         // Read the admin-controlled course list from the flag value.
         // Falls back to the 5 built-in courses if the flag value is missing/invalid.
