@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import sys
+import types
 
 import pytest
 
@@ -10,6 +12,17 @@ from aoep_shared import edge_speech
 from aoep_shared.languages import SUPPORTED_LANGUAGES
 from aoep_shared.lab_tts import _EDGE_VOICES
 from aoep_shared.meeting.natural_tts import neural_voice_for
+
+
+def _patch_communicate(monkeypatch, comm_cls) -> None:
+    """Install a fake edge_tts so the retry tests do not need the package.
+
+    CI installs aoep-shared[test,harvest]. edge-tts is the presenter extra, so
+    monkeypatch.setattr("edge_tts.Communicate", ...) fails with ModuleNotFoundError.
+    """
+    module = types.ModuleType("edge_tts")
+    module.Communicate = comm_cls
+    monkeypatch.setitem(sys.modules, "edge_tts", module)
 
 
 def test_every_language_has_a_non_english_lab_voice():
@@ -35,7 +48,7 @@ def test_render_retries_direct_when_the_proxy_refuses(monkeypatch):
 
     monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")
     monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
-    monkeypatch.setattr("edge_tts.Communicate", FakeComm)
+    _patch_communicate(monkeypatch, FakeComm)
     audio = asyncio.run(
         edge_speech.render_edge_mp3("សួស្តី", voice="km-KH-SreymomNeural")
     )
@@ -57,7 +70,7 @@ def test_render_does_not_retry_when_no_proxy_is_configured(monkeypatch):
                 raise RuntimeError("dns failed")
             yield {"type": "audio", "data": b""}
 
-    monkeypatch.setattr("edge_tts.Communicate", FakeComm)
+    _patch_communicate(monkeypatch, FakeComm)
     with pytest.raises(RuntimeError, match="dns failed"):
         asyncio.run(edge_speech.render_edge_mp3("hello", voice="en-US-AriaNeural"))
     assert calls == [None]

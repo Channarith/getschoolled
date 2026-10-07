@@ -4,7 +4,7 @@
   <img src="apps/web/public/bayon-mark.webp" alt="Salareen Bayon Buddy — a secular Khmer-inspired study buddy holding the golden S medallion with a bodhi leaf" width="200" />
 </p>
 
-Salareen is a multi-service AI education platform with **600+ courses** spanning
+Salareen is a multi-service AI education platform with **1,100+ courses** spanning
 live AI-taught classes, Drive Mode audio lessons, 27-language learning, adaptive
 learning, an educational arcade, careers matching, and more. Courses cover
 mathematics (Arithmetic through Differential Equations), economics, professional
@@ -40,10 +40,10 @@ One AI learning platform, many ways to learn:
 | Human-in-the-loop courses | AI teaches; a human reviews/approves where it matters |
 | Live group courses | Scheduled, synchronous classes with real-time Q&A floor control and voice confirmation loop |
 | Solo (1:1) classes | Self-paced lessons with Theodore — same Salareen live room, scaled to one learner; Pause/Resume for breaks |
-| Drive Mode (audio agent) | Eyes-free audio courses for commutes — 500+ topics across 39 categories, all >30 min |
+| Drive Mode (audio agent) | Eyes-free audio courses for commutes — 948 topics across 81 categories, each over 30 minutes |
 | My List | Bookmark any course for later — synced across web and mobile |
 | Netflix-style search | Magnifying-glass search in the nav finds courses, games, and settings instantly |
-| Educational arcade | 20+ games: Jeopardy, Kart Race, Creature Catch, Card Match, Uno Quiz, geometry/stocks canvases, Challenge the AI duels, Connect Four, Number Duel, and more |
+| Educational arcade | 30+ games: Jeopardy, Kart Race, Creature Catch, Card Match, Uno Quiz, geometry/stocks canvases, Potion Lab, Challenge the AI duels, Zoo Safari, Reef Quest, and the other routes in `apps/web/app/arcade/` |
 | Kids Academy | Age-gated section with cartoon artwork, subject filtering (no adult/professional content), and kid-safe courses |
 | Careers & Jobs | Job board (LinkedIn, Indeed, USAJobs, WeWorkRemotely, Jobspresso + free RSS sources), JD parsing, skill-gap analysis |
 | Bug reports | In-app floating bug reporter with screenshot capture; reports create GitHub Issues automatically |
@@ -59,9 +59,11 @@ One AI learning platform, many ways to learn:
 
 ## Course catalog
 
-Salareen ships **600+ courses** across live-class lessons, Drive Mode audio, arcade games, and language learning:
+Salareen ships **1,100+ courses** across live-class lessons, Drive Mode audio, arcade games, and language learning: 118 live-class lessons in `sample-curriculum/`, 948 Drive Mode topics, and 81 language courses (27 languages × 3 lesson types).
 
-### Live-class lessons (87 courses, 25-30 slides each)
+### Live-class lessons (118 course folders)
+
+Slide length varies. Of the 118 top-level `lesson.txt` files, 49 have 20–30 `SLIDE` markers, the median is 12, and 6 are free-form prose without `SLIDE` markers (`aviation-emergency-basics`, `cyber-incident-response`, `first-responder-essentials`, `ifr-emergency-procedures`, `intro-physics`, `nursing-judgment`). The orchestrator loads each top-level `lesson.txt`. The table below is a subject sample, not the full folder list.
 
 | Track | Courses |
 | --- | --- |
@@ -76,15 +78,15 @@ Salareen ships **600+ courses** across live-class lessons, Drive Mode audio, arc
 | **Science** | Intro to Photosynthesis, Intro to Physics |
 | **Math** | Intro to Fractions |
 
-### Drive Mode audio courses (500+ topics, 39 categories, all >30 min)
+### Drive Mode audio courses (948 topics, 81 categories, each over 30 minutes)
 
-History · Science & Nature · Business & Career · Personal Finance · Health & Wellness · Technology · Focus & Philosophy · Arts & Culture · Productivity & Study · True Stories & Biographies · Geography & World · World Cultures · Cooking & Food · Civics & Law · Sports & Games · Arts & Film · Music & Instruments · Business & Finance · TED Talks · Programming & Software · Data Science & AI · Psychology · Law & Legal Studies · Healthcare & Medicine · Engineering Fundamentals · Writing & Communication · Environment & Sustainability · Social Sciences · Space & Astronomy · Mathematics Advanced · Parenting & Child Development · Finance & Investing · Entrepreneurship · Language & Linguistics · Architecture & Design · Nutrition & Food Science · Film & Media Studies · Music Theory & History · Personal Development
+Category names are the keys of `_TOPICS` in `packages/shared/src/aoep_shared/audio_courses.py`. That set started with History, Science & Nature, Business & Career, and Personal Development, and now also includes Workplace Compliance & Safety, Food Safety & Sanitation, Healthcare Compliance, Financial Literacy, Real Estate, Automotive & Transportation, Cybersecurity Advanced, Economics, and the rest of the dict (81 categories, 948 topics).
 
 ### Language learning (81 courses)
 27 languages × 3 lesson types (Essential Phrases, Everyday Conversation, Travel Survival)
 
 ### Educational arcade games (20+ games)
-Jeopardy! · Kart Race · Creature Catch · Card Match · Uno Quiz · Cosmic Catch · Solar Quiz 3D · Potion Lab · Geo Blocks · Geometry Blocks · Geometry Tetris · Shape Stack · Shape Drop · Stock Rush · Stock Trader · Market Catch · Market Moves · Market Mogul · Challenge the AI Hub (Quiz Duel · Tic-Tac-Toe · Connect Four · Number Duel · Grid Master · AI Duel)
+Jeopardy! · Kart Race · Creature Catch · Card Match · Uno Quiz · Cosmic Catch · Solar Quiz 3D · Potion Lab (chemistry) · Geo Blocks · Geometry Blocks · Geometry Tetris · Shape Stack · Shape Drop · Stock Rush · Stock Trader · Market Catch · Market Moves · Market Mogul (stocks) · Zoo Safari · Photo Reveal · Reef Quest · STEM Research · Spot the Difference · Pro Scenarios · Species Match · Hidden Items · Challenge the AI Hub (Quiz Duel · Tic-Tac-Toe · Connect Four · Number Duel · Grid Master · AI Duel)
 
 ## Brand
 
@@ -201,8 +203,8 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | --- | --- | --- | --- | --- |
 | <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/solo_live_room.webp" alt="Solo 1:1 Salareen live room — AI host slide tile plus one learner, chat and Q&A" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
-Multimodal course storyboards cover all 115 corporate + solo lessons (6,440
-parsed teaching slides) on web and mobile. Every slide has an animated scene,
+Multimodal course storyboards cover the sample-curriculum lessons (118 course
+folders) on web and mobile. Every slide has an animated scene,
 domain background, characters/objects, examples, an activity, captions, and
 neural/device narration; overlays route through the 27-language translation
 stack and adapt for visual, auditory, reading, hands-on, or mixed profiles.
@@ -241,7 +243,9 @@ How to run and test this yourself: **[`subrepos/theodore_webcam_lab/README.md`](
 names any broken piece. Full knob and endpoint reference lives beside it in
 `README.txt`.
 
-### Theodore experiment labs (all seven)
+### Theodore experiment labs
+
+Nine private labs live under `subrepos/`. The screenshot table covers seven of them. The children webcam lab (`:8018/`, ages 4–10, 22 machine-vision games) and the LLM training lab (`:8019/`) are documented in their own `README.txt` files.
 
 Documentation screenshots for every Theodore subrepo (regenerate with
 `python3 scripts/render_lab_docs_screenshots.py`):
@@ -280,9 +284,9 @@ prefers it over the procedural model. Validate any GLB offline with
 Each lab keeps a copy under `subrepos/<lab>/docs/screens/` and a numbered
 **STEP BY STEP** walkthrough in its `README.txt` (webcam also has the
 illustrated `README.md`). Every lab serves a browser qualification UI at `/`
-(or `/lab` / `/studio`): webcam `:8015`, course studio `:8040`, audio
-translation `:8041`, RAG `:8095`, Drive `:8096`, music `:8097`, homework
-`:8098`. Regenerate screens with
+(or `/lab` / `/studio`): webcam `:8015`, children webcam `:8018`, course studio
+`:8040`, audio translation `:8041`, LLM lab `:8019`, RAG `:8095`, Drive
+`:8096`, music `:8097`, homework `:8098`. Regenerate screens with
 `python3 scripts/render_lab_docs_screenshots.py`.
 
 Per-language Bayon Buddy mascots (distinct colour + physique/pose, same face,
@@ -301,14 +305,14 @@ Additional screenshots live in `docs/screens/`.
 | Live class (solo & group) | Session start, slide advance, RAG Q&A with floor-request voice loop (Theodore speaks learner's name → mic opens → confirmation loop → slides resume); Pause/Resume for solo; "Say it out loud" / "Repeat after me" auto-opens mic; chat auto-reply from Theodore | `apps/web/app/class`, `apps/web/app/live-room`, `services/orchestrator` |
 | Live rooms & group classes | Salareen LiveKit rooms (participant grid, single-speaker Q&A mutex, gifts/reactions, moderation), scheduled group classes, auto start/advance/end | `services/orchestrator`, `apps/web/app/live-room`, `aoep_shared/live_room.py` |
 | Assessment & retention | Server-authoritative checkpoints (formative, summative, retention); accessibility format selection (audio/video/game/text); verified pass tokens; spaced-retrieval schedule; drive-mode caption overrides | `packages/shared/src/aoep_shared/assessment_policy.py`, `services/orchestrator` |
-| Course catalog (600+) | 87 live-class lessons, 500+ Drive Mode audio topics (39 categories), 81 language courses, 20+ arcade games; all courses >30 min / >30 segments | `sample-curriculum/`, `aoep_shared/audio_courses.py`, `aoep_shared/audio_topic_data.py` |
+| Course catalog (1,100+) | 118 live-class lessons, 948 Drive Mode topics (81 categories), 81 language courses, 30+ arcade games. Drive Mode topics are each over 30 minutes. Live-class slide counts vary (median 12) | `sample-curriculum/`, `aoep_shared/audio_courses.py`, `aoep_shared/audio_topic_data.py` |
 | My List | Bookmark courses for later (web + mobile); synced to identity service; ＋/✓ button on every course card; `/my-list` page | `apps/web/app/my-list`, `apps/web/app/components/BookmarkButton.tsx` |
 | Search | Netflix-style magnifying-glass search in nav (courses, games, settings); mobile SearchScreen; debounced 300ms, grouped results | `apps/web/app/components/NavSearchBox.tsx`, `apps/mobile/src/screens/SearchScreen.tsx` |
 | Kids Academy | Age-gated `/kids` with subject-based content filter (blocks AI/professional courses); cartoon SVG gradient artwork; per-subject emoji badges | `packages/shared/src/aoep_shared/learnable/index.py`, `apps/web/app/kids` |
 | Course artwork | Subject-aware poster system: arcade/kids → inline SVG cartoon gradients (offline, accurate); 50+ subject-specific Unsplash photos for all other courses | `apps/web/app/lib/courseArtwork.ts` |
-| Arcade (20+ games) | Jeopardy!, Kart Race, Creature Catch, Card Match, Uno Quiz plus geometry/stocks canvases, Challenge the AI duels, Connect Four, Number Duel, Grid Master, AI Duel, Cosmic Catch, Solar Quiz 3D, Potion Lab, and more; age group selector fixed | `apps/web/app/arcade/` |
+| Arcade (30+ games) | Jeopardy!, Kart Race, Creature Catch, Card Match, Uno Quiz, geometry and stocks canvases, Potion Lab, Zoo Safari, Reef Quest, Challenge the AI duels, and the other routes under `apps/web/app/arcade/` | `apps/web/app/arcade/` |
 | Bug reports → GitHub Issues | Floating 🐛 reporter with screenshot capture; auto-creates private (full) + public (redacted) GitHub Issues; screenshots stored and linked inline | `packages/shared/src/aoep_shared/bug_reports.py`, `services/memory` |
-| Careers & Jobs | 8 job sources: LinkedIn (RapidAPI, rate-limited), Indeed Scraper API, Indeed RSS, USAJobs, WeWorkRemotely, Jobspresso, RemoteOK, Remotive, Arbeitnow; "Also search on" deep-links to LinkedIn/Indeed/ZipRecruiter/Glassdoor | `packages/shared/src/aoep_shared/jobs.py`, `apps/web/app/jobs` |
+| Careers & Jobs | With `JOBS_LIVE=1`, the live board is Indeed RSS, USAJobs, WeWorkRemotely, Jobspresso, RemoteOK, Remotive, and Arbeitnow. LinkedIn RapidAPI and the Indeed scraper stay in the code and are not called (the RapidAPI LinkedIn endpoint was shut down; the Indeed scraper returns 403). A RapidAPI key without `JOBS_LIVE` uses JSearch; Adzuna and a LinkedIn partner key are separate providers. "Also search on" deep-links to LinkedIn/Indeed/ZipRecruiter/Glassdoor | `packages/shared/src/aoep_shared/jobs.py`, `apps/web/app/jobs` |
 | Google Scholar | Academic publication search via RapidAPI; `/scholar/search` endpoint in curriculum service; 1-hour cache | `packages/shared/src/aoep_shared/scholar.py` |
 | Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List (server-synced), Search screen, progress, notifications, i18n, live rooms | `apps/mobile` |
 | Onboarding & billing | Netflix-style first-time wizard (plan, payment, profile); standard vs VIP membership; sign-in audit | `apps/web/app/onboarding`, `apps/web/app/billing`, `services/identity` |
@@ -643,7 +647,8 @@ transcript all run without it.
 | `apps/mobile` | Expo React Native mobile app |
 | `apps/agent-runtime` | LiveKit agent runtime and edge packaging |
 | `subrepos/theodore_webcam_lab` | Private webcam recognition + voice lab (owner face lock; UI `:8015/`) |
-| `subrepos/theodore_course_studio` | Early-learning / certification course studio (UI `:8040/studio`) |
+| `subrepos/theodore_children_webcam_lab` | Ages 4–10 machine-vision games (22 games; UI `:8018/`). Camera frames stay in the browser |
+| `subrepos/theodore_course_studio` | Study-first course library and narrated lesson player (UI `:8040/studio`) |
 | `subrepos/theodore_audio_translation_lab` | Realtime mic translation across 27 languages (UI `:8041/lab`) |
 | `subrepos/theodore_rag_lab` | Private RAG auto-tune / bakeoff plus live trusted current-awareness qualification (browser console `:8095/`) |
 | `subrepos/theodore_llm_lab` | All-in-one education LLM training lab — library + profiles + webcam/audio/game/RAG corpus, robot GGUF pack (`:8019/`) |
@@ -666,7 +671,7 @@ transcript all run without it.
 | `training` | Education-LLM fine-tuning scaffold (dataset export, QLoRA config, promote/runbooks) + Theodore LLM Lab UI on `:8019` |
 | `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
 | `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, pipeline validation, voice tools) |
-| `sample-curriculum` | 87 live-class lessons: full math track (Algebra through Differential Equations), economics, professional skills (Power BI, SAP, DevOps, Digital Marketing, UX, Cybersecurity, Excel/Word/PowerPoint), corporate/AI tracks, safety training, and more |
+| `sample-curriculum` | 118 live-class lessons: math (Algebra through Differential Equations), economics, professional skills (Power BI, SAP, DevOps, Digital Marketing, UX, Cybersecurity, Excel/Word/PowerPoint), corporate/AI tracks, safety training, and more. Slide counts vary; the loader reads each top-level `lesson.txt` |
 | `qa` | Regression gate, stress, and load-test harnesses (`make qa`, `make stress`) |
 | `infra/compose` | Local Docker compose stack and scaling overlay |
 | `infra/k8s` | Kubernetes base manifests (kustomize): Deployments/Services, HPA/PDB, Ingress (+ per-service API routes), Redis, configmap |
@@ -689,13 +694,13 @@ python3 -m pip install -r requirements-dev.txt
 make install
 ```
 
-Web:
+Web (CI and `make web-install` use npm, not pnpm):
 
 ```bash
 cd apps/web
-pnpm install
-pnpm run typecheck
-pnpm run build
+npm install
+npm run typecheck
+npm run build
 ```
 
 Mobile:
@@ -727,9 +732,9 @@ Core local teaching loop:
 
 ```bash
 # Terminal 1 - orchestrator, live class API
+# CURRICULUM_DIR is optional. Unset, the orchestrator loads <repo>/sample-curriculum.
 cd services/orchestrator
-DEPLOY_MODE=local CURRICULUM_DIR=/workspace/sample-curriculum \
-  PYTHONPATH=src uvicorn orchestrator.main:app --port 8000
+DEPLOY_MODE=local PYTHONPATH=src uvicorn orchestrator.main:app --port 8000
 
 # Terminal 2 - curriculum, catalog/audio/jobs/home APIs
 cd services/curriculum
@@ -737,7 +742,7 @@ DEPLOY_MODE=local PYTHONPATH=src uvicorn curriculum.main:app --port 8005
 
 # Terminal 3 - web app
 cd apps/web
-pnpm run dev
+npm run dev
 ```
 
 Then open `http://localhost:3000`, `http://localhost:3000/class`,
@@ -746,9 +751,12 @@ Then open `http://localhost:3000`, `http://localhost:3000/class`,
 
 Other services load `config/local.env` (admin seed, QA accounts) via the helper
 script — `./scripts/run_local_service.sh <name>` (or `make run-identity` :8008,
-`make run-memory` :8004, `make run-orchestrator` :8000). For live-room WebRTC,
-run a local LiveKit server with `make run-livekit` (:7880); without it the
-teaching loop still works and rooms fall back gracefully. If the browser reports
+`make run-memory` :8004, `make run-orchestrator` :8000). For live-room WebRTC on
+a laptop, run a local LiveKit server with `make run-livekit` (:7880). Production
+does not use that binary: `infra/k8s-vke/configmap-vke.yaml` sets `LIVEKIT_URL`
+to the LiveKit Cloud project, and the in-cluster LiveKit deployment is not
+applied. Without a local server the teaching loop still works and rooms fall
+back gracefully. If the browser reports
 `WebSocket is closed before the connection is established`, LiveKit rejected the
 token — hit `GET /api/live-rooms/livekit-status` (add `?probe=1` for a live
 server-side check) for a verified/rejected/unreachable verdict instead of a

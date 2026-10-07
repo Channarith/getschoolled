@@ -121,9 +121,9 @@ class GrokVoiceAgent:
     base_url:
         xAI API base URL (defaults to https://api.x.ai/v1).
     model:
-        Text model slug (default grok-2-1212).
+        Text model slug (default grok-4.3, XAI_DEFAULT_MODEL).
     vision_model:
-        Vision model slug (default grok-2-vision-1212).
+        Vision model slug (default grok-2-vision-1212, XAI_VISION_MODEL).
     session_context:
         Optional dict with session metadata (class_type, lesson_title,
         student_name) to inject into the system prompt.

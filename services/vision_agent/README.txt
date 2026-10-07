@@ -8,20 +8,22 @@ Private sub-module for building and testing webcam-based teaching features:
   - xAI Grok voice agent (Theodore persona) for solo and group classes
   - Server-Sent Events stream for real-time presence notifications
 
-Port: 8006 (local)
+Port: documented as 8006, which is also billing's local port. This service is
+NOT started by `make dev-all`. Do not bind it to 8006 while billing is running.
+
 Package: vision_agent
 Service entry: services/vision_agent/src/vision_agent/main.py
 
 Quick start
 -----------
-  # From repo root, with .venv active:
+  # From repo root, with .venv active. Pick a free port; 8006 is billing.
   cd services/vision_agent
   pip install -e '.[test]'
-  PYTHONPATH=src uvicorn vision_agent.main:app --port 8006
+  PYTHONPATH=src uvicorn vision_agent.main:app --port 8016
 
-  # Optionally wire the XAI Grok voice agent:
+  # Chat model. env_bootstrap rewrites retired slugs such as grok-2-1212 to grok-4.3.
   export XAI_API_KEY=xai-...
-  export XAI_MODEL=grok-2-1212
+  export XAI_MODEL=grok-4.3
   export XAI_VISION_MODEL=grok-2-vision-1212
 
   # Optionally wire the perception service for face recognition:
@@ -36,7 +38,7 @@ Key environment variables
 --------------------------
   XAI_API_KEY                     xAI API key (enables Theodore Grok voice agent)
   XAI_BASE_URL                    xAI API base URL (default https://api.x.ai/v1)
-  XAI_MODEL                       Grok text model (default grok-2-1212)
+  XAI_MODEL                       Grok text model (default grok-4.3; retired slugs are rewritten)
   XAI_VISION_MODEL                Grok vision model (default grok-2-vision-1212)
   VISION_AGENT_ABSENCE_THRESHOLD_S  seconds before ABSENT fires (default 5.0)
   VISION_AGENT_RETURN_THRESHOLD_S   seconds of presence to confirm return (default 1.0)

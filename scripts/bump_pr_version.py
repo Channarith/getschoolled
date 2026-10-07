@@ -14,15 +14,14 @@ Release strategy:
     patch -> 0.16.2), never behind it. Use --no-fetch to skip the network fetch
     (still reads the local base ref if present).
   * Routine PRs (bug fixes, cleanups, small changes) -> PATCH bump (0.x.y).
-  * AUTO-MINOR: once more than MINOR_BUMP_THRESHOLD (default 8) features have
+  * AUTO-MINOR: once more than MINOR_BUMP_THRESHOLD (default 120) features have
     been introduced or changed since the last release (counted from the pending
     changelog block), the next bump is promoted to a MINOR (0.x.0). This matches
-    the project's "autobump to the next version when we have >8 features" rule.
+    the threshold enforced by scripts/tests/test_bump_pr_version.py.
   * --force-level {patch,minor,major} always overrides the automatic choice.
 
-Tuning: set AOEP_MINOR_BUMP_THRESHOLD to tighten the >8 threshold (0 disables
-auto-minor). Values above 8 are clamped to 8 so CI/env drift cannot weaken the
-project's "auto-minor after >8 features" rule. build_release.py rolls the
+Tuning: set AOEP_MINOR_BUMP_THRESHOLD to tighten the threshold (0 disables
+auto-minor). Values above 120 are clamped to 120. build_release.py rolls the
 pending changelog block into a released section at release time, which resets
 the counter so the next cycle starts at PATCH again.
 
