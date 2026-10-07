@@ -96,9 +96,12 @@ def test_teach_engine_advances(tmp_path: Path):
     assert first["progress"]["total_objectives"] == 2
     assert first["media"]
     assert first["animation"]["enter"] == "fade-up"
+    assert first["photo_url"].endswith("lesson-classroom.jpg")
+    assert first["photo_transition"] == "fade"
     assert first["language"] == "en"
     second = engine.advance("s1")
     assert second["turn"]["title"] == "Two"
+    assert second["photo_transition"] == "fly"
     pop = engine.pop_quiz("s1")
     assert pop.choices
     graded = engine.answer_pop("s1", pop.correct_index)
