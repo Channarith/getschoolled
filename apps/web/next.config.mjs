@@ -31,10 +31,16 @@ function serviceOrigin(name) {
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
-    return SERVICES.map((name) => ({
-      source: `/${name}/:path*`,
-      destination: `${serviceOrigin(name)}/:path*`,
-    }));
+    const studio = process.env.COURSE_STUDIO_ORIGIN || "http://127.0.0.1:8040";
+    return [
+      { source: "/studio", destination: `${studio}/studio` },
+      { source: "/api/studio/:path*", destination: `${studio}/api/studio/:path*` },
+      { source: "/api/live-audio/:path*", destination: `${studio}/api/live-audio/:path*` },
+      ...SERVICES.map((name) => ({
+        source: `/${name}/:path*`,
+        destination: `${serviceOrigin(name)}/:path*`,
+      })),
+    ];
   },
 };
 

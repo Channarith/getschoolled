@@ -31,6 +31,9 @@ STUDIO_CSS = """
   .mast-art { flex:0 0 168px; }
   .mast-art svg { width:168px; height:112px; display:block; }
   .layout { display:grid; grid-template-columns: 1.05fr 1.15fr; gap:16px; padding:16px 22px 28px; }
+  body.public-course header.mast { display:none; }
+  body.public-course .library-panel { display:none; }
+  body.public-course .layout { grid-template-columns:1fr; padding:8px; }
   @media (max-width: 980px) {
     .layout { grid-template-columns: 1fr; }
     .study-bg .shelf, .mast-art { display:none; }
@@ -488,11 +491,14 @@ STUDIO_JS = """
     const requestedAccess = (studioQuery.get('access') || '').trim().toLowerCase();
     const registeredFlag = studioQuery.get('registered') === '1';
     const enrollmentStatus = (studioQuery.get('enrollment') || '').trim();
+    const adminFlag = studioQuery.get('admin') === '1';
+    const pinnedCourse = (studioQuery.get('course') || '').trim();
     function teachAccessFields() {
       return {
         access: requestedAccess,
-        registered: registeredFlag,
+        registered: registeredFlag || adminFlag,
         enrollment_status: enrollmentStatus,
+        is_admin: adminFlag,
       };
     }
     function sampleIsComplete() {
@@ -1981,7 +1987,15 @@ STUDIO_JS = """
           featured: false
         });
       });
+      if (pinnedCourse) {
+        document.body.classList.add('public-course');
+        library = library.filter((row) => row.id === pinnedCourse);
+      }
       renderLibrary();
+      if (pinnedCourse) {
+        if (!library.length) toast('That course is not on this page.');
+        else await openLibraryCourse(pinnedCourse);
+      }
     }
 
     function renderLibrary() {

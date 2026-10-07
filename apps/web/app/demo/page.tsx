@@ -74,13 +74,13 @@ export default function SalesDemoPage() {
       </section>
 
       <section style={{ marginTop: 34 }}>
-        <h2>Course Studio sample</h2>
+        <h2>Driver&apos;s Education demo</h2>
         <p className="muted">
-          Ten minutes of a live class for this sales presentation. A learner who registers and pays
-          for the class takes the full course from the library.
+          Ten minutes, free for anyone. The full driver&apos;s education course, and Food Health &amp; Safety,
+          are paid unless the account is an admin.
         </p>
-        <Link href="/demo/course-studio">
-          <button type="button">Open the 10-minute sample</button>
+        <Link href="/demo/drivers-ed">
+          <button type="button">Open the 10-minute driver&apos;s ed demo</button>
         </Link>
       </section>
 
@@ -113,7 +113,7 @@ export default function SalesDemoPage() {
             <p className="muted">Workplace-ready learning paths powered by adaptive AI.</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 16 }}>
               {displayCourses.map((course, index) => (
-                <Link key={course.id} href="/browse" style={{ textDecoration: "none", color: "inherit" }}>
+                <Link key={course.id} href={course.id === "demo-drivers-ed" ? "/demo/drivers-ed" : course.id === "demo-food-safety" ? "/learn/food-safety" : "/browse"} style={{ textDecoration: "none", color: "inherit" }}>
                   <article
                     className="card sales-demo-card"
                     style={{

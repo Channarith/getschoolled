@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-06 - v0.50.7 - Salareen offers a free 10-minute Driver's Education demo to anyone. The full Driver's Education course and Food Health & Safety are paid unless the account is an admin.
 - 2026-10-06 - v0.50.7 - Lesson and live voice stay loud on Bluetooth speakers. The computer microphone is used for listening, and playback stays at the speakers' music rate instead of a phone-call rate.
 - 2026-10-06 - v0.50.7 - Lesson pages use photographs and PowerPoint entrances (fade, fly, wipe, zoom, cover, split) instead of geometric storyboard shapes.
 - 2026-10-06 - v0.50.7 - The lesson shows a Start control: click the screen to continue, or press Start and speak to Theodore.
