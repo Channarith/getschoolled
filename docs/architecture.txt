@@ -46,6 +46,10 @@ scripts/build_architecture_pdf.py (re-run it after any architecture change).
             (vLLM/     (Whisper/  (YuNet/    (LiveKit)   (MinIO/S3)  (Stripe/ (Tesseract
              Ollama)    XTTS)      SFace)                             sandbox) /cloud)
 
+  LiveKit: production is LiveKit Cloud (LIVEKIT_URL in
+  infra/k8s-vke/configmap-vke.yaml). Local dev is `make run-livekit` on :7880.
+  The in-cluster LiveKit deployment is not applied.
+
   Cross-cutting shared modules: ads, rewards, hil, survey, flags, foresight,
   provenance, disclosure, compliance, legal, retention, adaptive, assessment,
   groundedness, validation, corrections, webhooks, connectors, testsupport.

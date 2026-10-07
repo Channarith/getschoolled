@@ -58,8 +58,10 @@ Task playbooks live in `.cursor/skills/<name>/SKILL.md` (auto-selected by their
    `apps/mobile/src/version.ts` (and the package/app manifests). **PATCH by
    default** (last number) — routine fixes/small changes are patch. Use
    `--force-level minor` only to intentionally cut a feature release; do NOT let a
-   handful of small changes become a minor. Auto-minor triggers only when >8
-   bullets sit under the CHANGELOG `[unreleased]` block (`AOEP_MINOR_BUMP_THRESHOLD`);
+   handful of small changes become a minor. Auto-minor triggers only when more
+   than 120 bullets sit under the CHANGELOG `[unreleased]` block
+   (`AOEP_MINOR_BUMP_THRESHOLD`, default 120; a higher env value is clamped
+   back to 120). The script docstring used to say 8; the code and tests use 120.
    GOTCHA: if that block is never rolled into a dated release, its stale bullets
    pin every bump to MINOR — roll it (rename the `[unreleased]` header to a dated
    `[X.Y.Z] - DATE`, or run the `build_release.py` refresh) so routine PRs stay
@@ -145,9 +147,8 @@ Environment / setup caveats (non-obvious):
 - Activate the venv before any backend work: `. .venv/bin/activate`. Editable
   installs of `packages/shared` mean source edits are picked up without
   reinstalling; adding new dependencies requires re-running the install.
-- Web uses pnpm. `pnpm install` warns it ignored the `unrs-resolver` build
-  script; this is safe — lint/typecheck/build all pass without approving it. Do
-  not run the interactive `pnpm approve-builds`.
+- Web uses npm, matching CI (`npm run typecheck` / `npm run build` in
+  `apps/web`) and `make web-install`. Mobile uses pnpm.
 
 Running things (see Makefile for the canonical targets):
 - Backend tests: per-package/per-service `python -m pytest` run from the service
@@ -160,11 +161,13 @@ Running things (see Makefile for the canonical targets):
 - Orchestrator API (the teaching brain the web app calls, on `/api/lessons`,
   `/api/sessions`, `/api/sessions/{id}/advance|ask`): from
   `services/orchestrator`, `PYTHONPATH=src uvicorn orchestrator.main:app --port 8000`.
-  Set `DEPLOY_MODE=local` and `CURRICULUM_DIR=/workspace/sample-curriculum`.
+  Set `DEPLOY_MODE=local`. Leave `CURRICULUM_DIR` unset to load the repo
+  `sample-curriculum` (the old `/workspace/sample-curriculum` path was only for
+  a cloud-agent checkout).
   The local LLM provider targets a real vLLM/Ollama endpoint; with none
   configured, the Tutor falls back to a deterministic answer grounded in the
   retrieved RAG passages, so the demo works offline.
-- Web dev server: `cd apps/web && pnpm run dev` (port 3000). It reads the
+- Web dev server: `cd apps/web && npm run dev` (port 3000). It reads the
   orchestrator URL from `NEXT_PUBLIC_ORCHESTRATOR_URL` (defaults to
   http://localhost:8000). Start the orchestrator first.
 - Config contracts live in `config/local.env` / `config/cloud.env`. Blank

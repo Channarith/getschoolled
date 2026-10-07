@@ -10,6 +10,7 @@ Sentry/OTel) turn on automatically when their API keys are present.
 1. PREREQUISITES (one time)
 -----------------------------------------------------------------------------
   - Python 3.12 (python3), Node 18+ and npm, and curl.
+  - The web app uses npm (`make web-install`). Mobile uses pnpm.
   - From the repo root:
       make install        # creates .venv and installs all Python packages
       make web-install    # installs apps/web deps (npm)
@@ -80,9 +81,16 @@ Sentry/OTel) turn on automatically when their API keys are present.
   make down
 
 -----------------------------------------------------------------------------
-6. KNOWN GAP
+6. LESSONS AND LIVEKIT
 -----------------------------------------------------------------------------
-  /api/lessons (the live-class lesson list) may be empty: sample-curriculum/ now
-  holds structured PROGRAM directories, while the orchestrator's lesson parser
-  expects flat LESSON: text files. Audio "Drive Mode" classes, the catalog,
-  arcade, languages, jobs/careers, rewards, etc. are unaffected.
+  /api/lessons reads sample-curriculum/<course>/lesson.txt (118 course folders).
+  Leave CURRICULUM_DIR unset unless you want a different directory. The old
+  note that this list is empty because lessons are "PROGRAM directories" is
+  out of date.
+
+  make dev-all also starts a local LiveKit server on :7880 for Salareen rooms.
+  Production uses LiveKit Cloud (LIVEKIT_URL in infra/k8s-vke/configmap-vke.yaml),
+  not that local binary and not an in-cluster LiveKit deployment.
+
+  services/vision_agent documents port 8006, which is billing's port. It is not
+  part of make dev-all. Do not start it on 8006 while billing is running.

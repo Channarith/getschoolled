@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -27,8 +28,9 @@ def _main(lab: str) -> str:
 def test_every_theodore_lab_installs_and_injects_live_audio():
     for lab in LABS:
         source = _main(lab)
-        assert "install_live_audio_routes(app," in source, lab
-        assert "inject_client(" in source, lab
+        # The call may wrap so `app` is on the next line. Course Studio does that.
+        assert re.search(r"install_live_audio_routes\s*\(\s*app\s*,", source), lab
+        assert re.search(r"inject_client\s*\(", source), lab
 
 
 def test_tts_pages_yield_to_native_speech_to_speech():

@@ -22,7 +22,7 @@ A. ONE-TIME SETUP (repo root)
 
   cd /path/to/getschoolled
   make install                 # Python venv + editable packages
-  cd apps/web && pnpm install  # Next.js deps
+  cd apps/web && npm install   # Next.js deps (CI and the Makefile use npm)
 
 ============================================================================
 B. LAPTOP — START SERVICES
@@ -38,7 +38,7 @@ Option 1 — orchestrator + web only (fastest for live-room work)
 
   Terminal 2 (web UI):
     cd /path/to/getschoolled/apps/web
-    pnpm run dev
+    npm run dev
     # listens on http://localhost:3000
 
   Sanity check:
