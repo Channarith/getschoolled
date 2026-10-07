@@ -84,7 +84,9 @@ jobs:
           - { name: identity,     dockerfile: services/identity/Dockerfile,     context: . }
           - { name: integrations, dockerfile: services/integrations/Dockerfile, context: . }
           - { name: harvester,    dockerfile: services/harvester/Dockerfile,    context: . }
-          - { name: web,          dockerfile: apps/web/Dockerfile,              context: . }
+          - { name: web,           dockerfile: apps/web/Dockerfile,                         context: . }
+          - { name: course-studio, dockerfile: subrepos/theodore_course_studio/Dockerfile, context: . }
+          - { name: children-lab,  dockerfile: subrepos/theodore_children_webcam_lab/Dockerfile, context: . }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -158,7 +160,7 @@ jobs:
       - name: Roll deployments to the built digest
         run: |
           set -euo pipefail
-          for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web; do
+          for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web course-studio children-lab; do
             echo "::group::$svc"
             digest_file="digests/${svc}.digest"
             if [ ! -f "$digest_file" ]; then
@@ -170,13 +172,14 @@ jobs:
               echo "deployment/$svc not found (skipping)"
             echo "::endgroup::"
           done
-          for svc in orchestrator speech perception memory curriculum billing identity integrations web; do
+          for svc in orchestrator speech perception memory curriculum billing identity integrations web course-studio children-lab; do
             kubectl -n "$NAMESPACE" rollout status "deployment/$svc" --timeout=240s
           done
       - name: Digest-match smoke (staging)
         env:
           DIGEST_DIR: digests
           NS: aoep-staging
+          SERVICES: orchestrator speech perception memory curriculum billing identity integrations web course-studio children-lab
         run: bash scripts/post_deploy_smoke.sh
 
       # Integration tests run immediately against staging (vv-master-plan.txt §2c).

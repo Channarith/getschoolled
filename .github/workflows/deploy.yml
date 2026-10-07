@@ -81,7 +81,9 @@ jobs:
           - { name: identity,     dockerfile: services/identity/Dockerfile,     context: . }
           - { name: integrations, dockerfile: services/integrations/Dockerfile, context: . }
           - { name: harvester,    dockerfile: services/harvester/Dockerfile,    context: . }
-          - { name: web,          dockerfile: apps/web/Dockerfile,              context: . }
+          - { name: web,           dockerfile: apps/web/Dockerfile,                         context: . }
+          - { name: course-studio, dockerfile: subrepos/theodore_course_studio/Dockerfile, context: . }
+          - { name: children-lab,  dockerfile: subrepos/theodore_children_webcam_lab/Dockerfile, context: . }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -158,9 +160,13 @@ jobs:
       - name: Roll deployments to the built digest
         run: |
           set -euo pipefail
+          # Create the demo labs before pinning images. The web rewrites target
+          # these Service names; a missing Deployment is the salareen.com 500.
+          kubectl kustomize infra/k8s-vke | python3 scripts/render_demo_labs.py > /tmp/demo-labs.yaml
+          kubectl apply -f /tmp/demo-labs.yaml
           # Deploy the IMMUTABLE sha256 digest built above, not a tag. This is the
           # "promote the exact artifact" invariant (docs/vv-master-plan.txt §4).
-          for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web; do
+          for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web course-studio children-lab; do
             echo "::group::$svc"
             digest_file="digests/${svc}.digest"
             if [ ! -f "$digest_file" ]; then
@@ -173,7 +179,7 @@ jobs:
               echo "deployment/$svc not found (skipping)"
             echo "::endgroup::"
           done
-          for svc in orchestrator speech perception memory curriculum billing identity integrations web; do
+          for svc in orchestrator speech perception memory curriculum billing identity integrations web course-studio children-lab; do
             kubectl -n aoep rollout status "deployment/$svc" --timeout=240s
           done
 
@@ -181,12 +187,13 @@ jobs:
         env:
           DIGEST_DIR: digests
           NS: aoep
+          SERVICES: orchestrator speech perception memory curriculum billing identity integrations web course-studio children-lab
         run: bash scripts/post_deploy_smoke.sh
 
       - name: Auto-rollback on smoke failure
         if: failure()
         run: |
           echo "Digest-match smoke failed — rolling back all services"
-          for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web; do
+          for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web course-studio children-lab; do
             kubectl -n aoep rollout undo "deployment/$svc" || echo "rollback $svc skipped"
           done

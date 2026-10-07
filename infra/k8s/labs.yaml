@@ -1,0 +1,87 @@
+# Public demos. The web image proxies these same-origin:
+#   /studio          -> course-studio:8040
+#   /children-lab    -> children-lab:8018
+# Those rewrites are baked at `next build` (apps/web/Dockerfile). Without these
+# Deployments the demo iframes on salareen.com return 500.
+#
+# One replica each: the cluster is already tight on the API services, and a
+# demo pod does not need the 3-replica HA budget.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: course-studio, namespace: aoep }
+spec:
+  replicas: 1
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } }
+  selector: { matchLabels: { app: course-studio } }
+  template:
+    metadata: { labels: { app: course-studio, tier: demo } }
+    spec:
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: course-studio
+          image: ghcr.io/aoep/course-studio:latest
+          imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          ports: [{ containerPort: 8040 }]
+          env:
+            - { name: HOME, value: /tmp }
+            - { name: THEODORE_COURSE_STUDIO_DATA, value: /tmp/course-studio }
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 768Mi }
+          readinessProbe: { httpGet: { path: /health, port: 8040 }, initialDelaySeconds: 10, periodSeconds: 10 }
+          livenessProbe:  { httpGet: { path: /health, port: 8040 }, initialDelaySeconds: 30, periodSeconds: 20, failureThreshold: 6 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: course-studio, namespace: aoep }
+spec:
+  selector: { app: course-studio }
+  ports: [{ port: 8040, targetPort: 8040 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: children-lab, namespace: aoep }
+spec:
+  replicas: 1
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } }
+  selector: { matchLabels: { app: children-lab } }
+  template:
+    metadata: { labels: { app: children-lab, tier: demo } }
+    spec:
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: children-lab
+          image: ghcr.io/aoep/children-lab:latest
+          imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          ports: [{ containerPort: 8018 }]
+          env:
+            - { name: HOME, value: /tmp }
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 768Mi }
+          readinessProbe: { httpGet: { path: /health, port: 8018 }, initialDelaySeconds: 10, periodSeconds: 10 }
+          livenessProbe:  { httpGet: { path: /health, port: 8018 }, initialDelaySeconds: 30, periodSeconds: 20, failureThreshold: 6 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: children-lab, namespace: aoep }
+spec:
+  selector: { app: children-lab }
+  ports: [{ port: 8018, targetPort: 8018 }]

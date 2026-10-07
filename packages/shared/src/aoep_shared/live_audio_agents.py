@@ -300,6 +300,27 @@ def inject_client(html: str, *, page_path: str = "", api_prefix: str = "") -> st
     return html.replace("</body>", f"{tag}\n</body>") if "</body>" in html else html + tag
 
 
+def _browser_origin_allowed(origin: str, host: str, forwarded_host: str = "") -> bool:
+    """True when the browser Origin is this site.
+
+    The public pages proxy Course Studio and the children lab through Next.js.
+    That proxy sets Host to the in-cluster Service and keeps the browser host
+    on X-Forwarded-Host. Either header matching the Origin is the same site.
+    """
+    if not (origin or "").strip():
+        return True
+    netloc = urllib.parse.urlparse(origin).netloc.strip().lower()
+    if not netloc:
+        return False
+    candidates = [host] if host else []
+    candidates.extend(part.strip() for part in (forwarded_host or "").split(",") if part.strip())
+    for candidate in candidates:
+        seen = candidate.strip().lower()
+        if seen == netloc or seen.split(":")[0] == netloc.split(":")[0]:
+            return True
+    return False
+
+
 def install_live_audio_routes(
     app: Any, *, lab_name: str, instructions: str = ""
 ) -> None:
@@ -322,9 +343,11 @@ def install_live_audio_routes(
     ) -> dict[str, Any]:
         # Same-origin browser calls only. JSON also forces a CORS preflight,
         # but checking Origin here protects apps that later enable broad CORS.
-        origin = request.headers.get("origin", "")
-        host = request.headers.get("host", "")
-        if origin and urllib.parse.urlparse(origin).netloc != host:
+        if not _browser_origin_allowed(
+            request.headers.get("origin", ""),
+            request.headers.get("host", ""),
+            request.headers.get("x-forwarded-host", ""),
+        ):
             raise HTTPException(status_code=403, detail="cross-origin token mint denied")
         provider = str(payload.get("provider") or "")
         try:

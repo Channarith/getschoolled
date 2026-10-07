@@ -49,7 +49,9 @@ jobs:
           fi
           if [ "${{ inputs.include_web }}" = "true" ]; then
             MATRIX="${MATRIX},{\"name\":\"web\",\"dockerfile\":\"apps/web/Dockerfile\",\"context\":\".\"}"
-            SVCS="${SVCS} web"
+            MATRIX="${MATRIX},{\"name\":\"course-studio\",\"dockerfile\":\"subrepos/theodore_course_studio/Dockerfile\",\"context\":\".\"}"
+            MATRIX="${MATRIX},{\"name\":\"children-lab\",\"dockerfile\":\"subrepos/theodore_children_webcam_lab/Dockerfile\",\"context\":\".\"}"
+            SVCS="${SVCS} web course-studio children-lab"
           fi
           MATRIX="${MATRIX}]"
           echo "matrix={\"include\":${MATRIX}}" >> "$GITHUB_OUTPUT"
@@ -133,6 +135,12 @@ jobs:
           # matches deploy.yml's "promote the exact artifact" invariant, so the two
           # workflows pin images the same way and the digest smoke below verifies
           # the exact bytes that were built (docs/vv-master-plan.txt §4).
+          # The web rewrites target these Services. Create them before the
+          # digest pin, or /studio and /children-lab stay 500.
+          if echo " $SVCS " | grep -q " course-studio "; then
+            kubectl kustomize infra/k8s-vke | python3 scripts/render_demo_labs.py > /tmp/demo-labs.yaml
+            kubectl apply -f /tmp/demo-labs.yaml
+          fi
           for svc in $SVCS; do
             digest_file="digests/${svc}.digest"
             if [ ! -f "$digest_file" ]; then

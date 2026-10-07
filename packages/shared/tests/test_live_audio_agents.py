@@ -118,6 +118,18 @@ def test_routes_expose_status_client_and_reject_unconfigured_token(monkeypatch):
         headers={"origin": "https://evil.example", "host": "testserver"},
     )
     assert denied.status_code == 403
+    # Next proxies the lab and rewrites Host. The browser host stays on
+    # X-Forwarded-Host, and that is still this site.
+    proxied = client.post(
+        "/api/live-audio/token",
+        json={"provider": "xai"},
+        headers={
+            "origin": "https://www.salareen.com",
+            "host": "course-studio:8040",
+            "x-forwarded-host": "www.salareen.com",
+        },
+    )
+    assert proxied.status_code == 503
 
 
 def test_browser_client_parses_and_has_gapless_barge_in():

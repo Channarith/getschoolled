@@ -57,6 +57,8 @@ replicas:
   - { name: integrations, count: 1 }
   - { name: harvester,    count: 1 }
   - { name: web,          count: 1 }
+  - { name: course-studio, count: 1 }
+  - { name: children-lab,  count: 1 }
 
 patches:
   # --- Strip the GPU model servers: staging shares prod's backends. ---
@@ -102,5 +104,7 @@ images:
   - { name: ghcr.io/aoep/billing,      newName: sjc.vultrcr.com/salareen/billing,      newTag: latest }
   - { name: ghcr.io/aoep/integrations, newName: sjc.vultrcr.com/salareen/integrations, newTag: latest }
   - { name: ghcr.io/aoep/identity,     newName: sjc.vultrcr.com/salareen/identity,     newTag: latest }
-  - { name: ghcr.io/aoep/web,          newName: sjc.vultrcr.com/salareen/web,          newTag: latest }
+  - { name: ghcr.io/aoep/web,           newName: sjc.vultrcr.com/salareen/web,           newTag: latest }
+  - { name: ghcr.io/aoep/course-studio, newName: sjc.vultrcr.com/salareen/course-studio, newTag: latest }
+  - { name: ghcr.io/aoep/children-lab,  newName: sjc.vultrcr.com/salareen/children-lab,  newTag: latest }
   - { name: aoep/harvester,            newName: sjc.vultrcr.com/salareen/harvester,    newTag: latest }

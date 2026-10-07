@@ -31,6 +31,9 @@ function serviceOrigin(name) {
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
+    // Production sets these at image build (see apps/web/Dockerfile). `next build`
+    // freezes the rewrites, so a runtime env change does not retarget them.
+    // Unset locally, the demos proxy to the labs on this machine.
     const studio = process.env.COURSE_STUDIO_ORIGIN || "http://127.0.0.1:8040";
     const childrenLab = process.env.CHILDREN_LAB_ORIGIN || "http://127.0.0.1:8018";
     const audioLab = process.env.AUDIO_LAB_ORIGIN || "http://127.0.0.1:8041";
