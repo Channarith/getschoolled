@@ -124,6 +124,37 @@ STUDIO_CSS = """
                          box-shadow:0 6px 20px rgba(15,23,42,.28); line-height:0; }
     .storyboard-stage svg { width:100%; height:auto; display:block; }
     .storyboard-stage[hidden] { display:none !important; }
+    .lesson-photo { display:none; position:relative; width:100%; aspect-ratio:16/9; overflow:hidden;
+      border-radius:14px; margin:0 0 12px; background:#101820; }
+    .lesson-photo.is-shown { display:block; }
+    .lesson-photo-motion { width:100%; height:100%; }
+    .lesson-photo img { width:100%; height:100%; object-fit:cover; display:block; }
+    .teacher-stage-grid.has-photo .lesson-photo { grid-column:2; grid-row:1 / span 2; margin:0; min-height:300px; }
+    .teacher-stage-grid.has-photo .storyboard-stage,
+    .teacher-stage-grid.has-photo .visual-timeline-stage { display:none !important; }
+    .lesson-photo[data-effect="fade"].is-in .lesson-photo-motion { animation:pptFade .7s ease both; }
+    .lesson-photo[data-effect="fly"].is-in .lesson-photo-motion { animation:pptFly .75s cubic-bezier(.2,.7,.2,1) both; }
+    .lesson-photo[data-effect="wipe"].is-in .lesson-photo-motion { animation:pptWipe .8s ease both; }
+    .lesson-photo[data-effect="zoom"].is-in .lesson-photo-motion { animation:pptZoom .8s ease both; }
+    .lesson-photo[data-effect="cover"].is-in .lesson-photo-motion { animation:pptCover .7s cubic-bezier(.2,.7,.2,1) both; }
+    .lesson-photo[data-effect="split"].is-in .lesson-photo-motion { animation:pptSplit .7s ease both; }
+    .lesson-photo.is-in img { animation:kenBurns 18s ease-in-out .8s alternate infinite; }
+    .ppt-title { animation:pptFlyUp .55s ease both; }
+    @keyframes pptFade { from { opacity:0; } to { opacity:1; } }
+    @keyframes pptFly { from { opacity:0; transform:translateX(22%); } to { opacity:1; transform:none; } }
+    @keyframes pptWipe { from { clip-path:inset(0 100% 0 0); } to { clip-path:inset(0); } }
+    @keyframes pptZoom { from { opacity:0; transform:scale(1.22); } to { opacity:1; transform:none; } }
+    @keyframes pptCover { from { transform:translateY(100%); } to { transform:none; } }
+    @keyframes pptSplit { from { clip-path:inset(46% 0 46% 0); } to { clip-path:inset(0); } }
+    @keyframes pptFlyUp { from { opacity:0; transform:translateY(26px); } to { opacity:1; transform:none; } }
+    @keyframes kenBurns { from { transform:scale(1) translate3d(0,0,0); } to { transform:scale(1.08) translate3d(-1.5%,-1%,0); } }
+    .presenter-overlay.has-photo .lesson-photo.is-shown { position:absolute; inset:0; z-index:0; margin:0;
+      aspect-ratio:unset; border-radius:0; min-height:0; }
+    .presenter-overlay.has-photo .storyboard-stage,
+    .presenter-overlay.has-photo .visual-timeline-stage,
+    .presenter-overlay.has-photo .picture-stage { display:none !important; }
+    .presenter-overlay.has-photo .lesson-stage-content {
+      background:linear-gradient(to top, rgba(8,12,20,.88), rgba(8,12,20,.45) 70%, transparent); }
     .visual-timeline-stage { grid-column:2; grid-row:1 / span 2; position:relative; width:100%;
       min-height:300px; aspect-ratio:16/9; border-radius:14px; overflow:hidden;
       background:linear-gradient(145deg,#f8f4ea,#e9f2ee); box-shadow:0 6px 20px rgba(15,23,42,.18); }
@@ -271,6 +302,22 @@ STUDIO_CSS = """
     body.avatar-placed .teacher-stage-grid,
     body.avatar-placed .teacher-stage-grid.has-storyboard { grid-template-columns:1fr; }
     body.avatar-placed .teacher-stage-grid .storyboard-stage { grid-column:1; grid-row:auto; }
+    .teacher-stage-grid.has-photo .lesson-photo { grid-column:1; grid-row:auto; min-height:240px; }
+    body.avatar-on .teacher-stage-grid.has-photo { grid-template-columns:minmax(180px, 34%) 1fr; }
+    body.avatar-on .teacher-stage-grid.has-photo .lesson-photo { grid-column:2; grid-row:1 / span 2; min-height:300px; }
+    .presenter-overlay.has-photo .teacher-stage-grid { position:absolute; inset:0; }
+    .presenter-overlay.has-photo #teach-stage h3 { position:relative; z-index:4; color:#fff;
+      text-shadow:0 2px 12px rgba(0,0,0,.55);
+      background:linear-gradient(rgba(8,12,20,.72), transparent); }
+    .presenter-overlay.has-photo .lesson-stage-content,
+    body.avatar-on .presenter-overlay.has-photo .lesson-stage-content {
+      left:0; right:0; top:auto; bottom:0; height:auto; max-height:38%;
+      background:linear-gradient(transparent, rgba(8,12,20,.55) 18%, rgba(8,12,20,.9));
+    }
+    .presenter-overlay.has-photo .theodore-avatar-wrap,
+    body.avatar-on .presenter-overlay.has-photo .theodore-avatar-wrap {
+      left:2.4%; bottom:calc(38% + 12px); width:min(24vw,280px); height:min(34vh,320px);
+    }
     .avatar-drag-handle { position:absolute; top:0; left:0; right:0; height:30px; z-index:4;
                           display:flex; align-items:center; justify-content:center; gap:5px;
                           cursor:grab; touch-action:none; color:#bdf0ff;
@@ -338,7 +385,8 @@ STUDIO_CSS = """
     }
     @media (prefers-reduced-motion: reduce) {
       .teach-stage, .teach-stage.anim, .theodore-avatar-fallback * { animation:none !important; }
-      .visual-layer, .visual-layer img { animation:none !important; transition:none !important; transform:none !important; }
+      .visual-layer, .visual-layer img, .lesson-photo img, .lesson-photo-motion, .ppt-title {
+        animation:none !important; transition:none !important; transform:none !important; }
     }
     .quiz-box, .game-box { margin-top:12px; padding:12px; border:1px solid #ead7b8; border-radius:16px; background:#fff6e8; color:#241c16; }
     .quiz-box button, .game-box button { display:block; width:100%; text-align:left; margin:6px 0;
@@ -3958,6 +4006,37 @@ STUDIO_JS = """
       resumeUncoveredCourse().catch((error) => toast(String(error.message || error)));
     });
 
+    function paintLessonPhoto(url, effect, alt) {
+      const frame = $('lesson-photo');
+      const img = $('lesson-photo-img');
+      const stage = $('teach-stage');
+      const overlay = $('presenter-overlay');
+      const grid = $('teacher-stage-grid');
+      if (!frame || !img) return;
+      const on = Boolean(url);
+      frame.hidden = !on;
+      frame.classList.toggle('is-shown', on);
+      if (stage) stage.classList.toggle('has-photo', on);
+      if (overlay) overlay.classList.toggle('has-photo', on);
+      if (grid) grid.classList.toggle('has-photo', on);
+      if (!on) {
+        img.removeAttribute('src');
+        return;
+      }
+      img.alt = alt || 'Lesson photograph';
+      if (img.getAttribute('src') !== url) img.src = url;
+      frame.dataset.effect = effect || 'fade';
+      frame.classList.remove('is-in');
+      void frame.offsetWidth;
+      frame.classList.add('is-in');
+      const title = $('teach-title');
+      if (title) {
+        title.classList.remove('ppt-title');
+        void title.offsetWidth;
+        title.classList.add('ppt-title');
+      }
+    }
+
     function clearVisualTimeline() {
       visualTimeline = null;
       visualCueIndex = -1;
@@ -4070,15 +4149,27 @@ STUDIO_JS = """
       const storyboardEl = $('teach-storyboard');
       const storyConceptEl = $('teach-storyboard-concept');
       const sbSvg = payload.storyboard_svg || '';
-      const hasVisualTimeline = renderVisualTimeline(payload);
-      const hasStoryboard = !hasVisualTimeline && Boolean(sbSvg.trim());
+      const photoUrl = String(payload.photo_url || '');
+      const usePhoto = Boolean(photoUrl);
+      if (usePhoto) clearVisualTimeline();
+      const hasVisualTimeline = !usePhoto && renderVisualTimeline(payload);
+      const hasStoryboard = !usePhoto && !hasVisualTimeline && Boolean(sbSvg.trim());
+      paintLessonPhoto(photoUrl, payload.photo_transition || 'fade', turn.title || '');
       stage.classList.toggle('has-storyboard', hasStoryboard);
       stage.classList.toggle('has-visual-timeline', hasVisualTimeline);
       $('presenter-overlay').classList.toggle('has-storyboard', hasStoryboard);
       $('presenter-overlay').classList.toggle('has-visual-timeline', hasVisualTimeline);
       $('teacher-stage-grid').classList.toggle('has-storyboard', hasStoryboard);
       $('teacher-stage-grid').classList.toggle('has-visual-timeline', hasVisualTimeline);
-      if (hasVisualTimeline) {
+      if (usePhoto) {
+        storyboardEl.hidden = true;
+        storyboardEl.innerHTML = '';
+        storyConceptEl.hidden = true;
+        pictureEl.hidden = true;
+        motionEl.hidden = true;
+        pictureEl.src = '';
+        motionEl.src = '';
+      } else if (hasVisualTimeline) {
         storyboardEl.hidden = true;
         storyboardEl.innerHTML = '';
         storyConceptEl.hidden = true;
@@ -4372,6 +4463,9 @@ def render_studio_page() -> str:
           <div id="teach-visual-timeline" class="visual-timeline-stage" hidden
                aria-live="polite" aria-label="Lesson visual sequence"></div>
           <div id="teach-storyboard" class="storyboard-stage" hidden aria-hidden="true"></div>
+          <div class="lesson-photo" id="lesson-photo" hidden>
+            <div class="lesson-photo-motion"><img id="lesson-photo-img" alt="" /></div>
+          </div>
           <div class="theodore-avatar-wrap" id="theodore-avatar-wrap">
             <div class="avatar-drag-handle" id="avatar-drag-handle" role="button" tabindex="0"
                  aria-label="Move Theodore. Arrow keys nudge, Home resets, double-click resets."

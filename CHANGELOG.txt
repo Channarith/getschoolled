@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-06 - v0.50.7 - Lesson pages use photographs and PowerPoint entrances (fade, fly, wipe, zoom, cover, split) instead of geometric storyboard shapes.
 - 2026-10-06 - v0.50.7 - The lesson shows a Start control: click the screen to continue, or press Start and speak to Theodore.
 - 2026-10-06 - v0.50.7 - The cartoon student stays on screen for the whole lesson. His mouth and hands move with the lesson and the live voice. You can interrupt: he stops, listens, and answers at full volume instead of going quiet.
 - 2026-10-06 - v0.50.5 - Theodore's lesson presenter is the cartoon student with the book. The figure blinks, nods, and moves its mouth with the lesson and the live voice agent. The older block-built presenters stay in the presenter menu.
