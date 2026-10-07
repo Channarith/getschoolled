@@ -238,6 +238,7 @@ const SHARED: Record<string, string> = {
   "drive.handsFreeOn": "🎙 Always listening — just ask a question",
   "drive.handsFreeOff": "🔇 Always-listen off",
   "drive.handsFreeHint": "Always-listen is on: ask a question and the course pauses to answer. Casual talk, noise, and the narration are ignored. (Say “Hey Sala” for commands like pause/next.)",
+  "drive.voiceAgentOn": "Hands-free tutor is on. Ask about this subject. It can look up lawful topics, and it will not discuss criminal or harmful activity.",
   "drive.micBlocked": "Microphone blocked. Allow mic in the address-bar site settings, tap Enable mic, or type your question with Ask.",
   "drive.micNeedsHttps": "Microphone needs a secure page (https://). Open Salareen over https, or type your question with Ask.",
   "drive.micEnableHint": "Tap Enable mic once so you can ask questions by voice during class. You can always type with Ask.",
