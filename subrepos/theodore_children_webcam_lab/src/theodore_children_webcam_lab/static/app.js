@@ -163,7 +163,10 @@ async function initVision() {
       // Asking for a path that is intentionally absent generated a scary 404
       // on every load. The health contract already says whether local assets
       // were mounted, so use that instead.
-      const runtime=await fetch("/health").then(response=>response.ok?response.json():null);
+      // On salareen.com, /health is the orchestrator. The lab health is proxied
+      // beside the page so vision_assets is the lab's answer, not the API's.
+      const healthUrl=location.pathname.indexOf("/children-lab")===0?"/children-live-audio/health":"/health";
+      const runtime=await fetch(healthUrl).then(response=>response.ok?response.json():null);
       if(runtime?.vision_assets==="self-hosted"){moduleUrl="/vendor/vision/tasks-vision.mjs";wasmUrl="/vendor/vision/wasm";faceModel="/vendor/vision/face_landmarker.task";handModel="/vendor/vision/hand_landmarker.task";}
     } catch (_) {}
     const vision = await import(moduleUrl);

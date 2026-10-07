@@ -157,6 +157,10 @@ jobs:
           # Image rolls do not reload env. XAI_VOICE lives in this ConfigMap;
           # without this apply the cluster keeps the previous tutor voice.
           kubectl apply -f infra/k8s-vke/configmap-vke.yaml
+          # /api/ on the public host is the orchestrator. Demo lab prefixes
+          # have to be explicit or /api/studio and /api/tts 404.
+          kubectl apply -f infra/k8s-vke/ingress-vke.yaml
+          kubectl apply -f infra/k8s-vke/ingress-ip.yaml
       - name: Roll deployments to the built digest
         run: |
           set -euo pipefail

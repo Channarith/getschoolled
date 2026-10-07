@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-07 - v0.50.13 - Driver's ed and the vision arcade can load their lessons, voices, and games. Those /api calls were reaching the orchestrator, which does not serve the labs.
 - 2026-10-07 - v0.50.12 - Driver's ed and the vision arcade on salareen.com load again. The site was proxying those demos to labs that were not running in the cluster.
 - 2026-10-07 - v0.50.11 - Production deploys apply the cluster voice config before rolling images, so the tutor voice on salareen.com matches the release.
 - 2026-10-07 - v0.50.10 - The tutor voice is Ara again: a soft-spoken professional woman in Course Studio, demos, web courses, and the mobile apps. The cartoon student no longer switches lessons to a choppy male voice.

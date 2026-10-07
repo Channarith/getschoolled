@@ -123,8 +123,12 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
     assert "traceProgress" in script
     assert "updateGuideLayer" in script
     # Missing optional self-hosted vision assets must not create a noisy 404.
+    # On salareen.com, /health is the orchestrator, so the embedded page asks
+    # the lab through the same-origin proxy.
     assert 'fetch("/vendor/vision/tasks-vision.mjs"' not in script
-    assert 'fetch("/health")' in script
+    assert 'fetch(healthUrl)' in script
+    assert '"/children-live-audio/health"' in script
+    assert ':"/health"' in script
     # One failed server render disables it for the session; later prompts use
     # browser speech instead of producing a console full of repeated 501s.
     assert "state.serverTts=false" in script

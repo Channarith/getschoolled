@@ -34,6 +34,19 @@ spec:
           - path: /api/admin/
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
+          # Same demo exception as ingress-vke.yaml. /api/ is the orchestrator.
+          - path: /api/studio
+            pathType: Prefix
+            backend: { service: { name: course-studio, port: { number: 8040 } } }
+          - path: /api/live-audio
+            pathType: Prefix
+            backend: { service: { name: course-studio, port: { number: 8040 } } }
+          - path: /api/child
+            pathType: Prefix
+            backend: { service: { name: children-lab, port: { number: 8018 } } }
+          - path: /api/tts
+            pathType: Prefix
+            backend: { service: { name: children-lab, port: { number: 8018 } } }
           - path: /api/
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }

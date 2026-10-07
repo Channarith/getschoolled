@@ -40,6 +40,20 @@ spec:
           - path: /api/admin/
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
+          # Course Studio and the children lab. /api/ below is the orchestrator,
+          # which 404s these. Longer prefixes win, so the demos reach the labs.
+          - path: /api/studio
+            pathType: Prefix
+            backend: { service: { name: course-studio, port: { number: 8040 } } }
+          - path: /api/live-audio
+            pathType: Prefix
+            backend: { service: { name: course-studio, port: { number: 8040 } } }
+          - path: /api/child
+            pathType: Prefix
+            backend: { service: { name: children-lab, port: { number: 8018 } } }
+          - path: /api/tts
+            pathType: Prefix
+            backend: { service: { name: children-lab, port: { number: 8018 } } }
           - path: /api/
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
@@ -72,6 +86,20 @@ spec:
           - path: /api/admin/
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
+          # Course Studio and the children lab. /api/ below is the orchestrator,
+          # which 404s these. Longer prefixes win, so the demos reach the labs.
+          - path: /api/studio
+            pathType: Prefix
+            backend: { service: { name: course-studio, port: { number: 8040 } } }
+          - path: /api/live-audio
+            pathType: Prefix
+            backend: { service: { name: course-studio, port: { number: 8040 } } }
+          - path: /api/child
+            pathType: Prefix
+            backend: { service: { name: children-lab, port: { number: 8018 } } }
+          - path: /api/tts
+            pathType: Prefix
+            backend: { service: { name: children-lab, port: { number: 8018 } } }
           - path: /api/
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
@@ -115,6 +143,20 @@ spec:
           - path: /notifications
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
+          # Course Studio and the children lab. /api/ below is the orchestrator,
+          # which 404s these. Longer prefixes win, so the demos reach the labs.
+          - path: /api/studio
+            pathType: Prefix
+            backend: { service: { name: course-studio, port: { number: 8040 } } }
+          - path: /api/live-audio
+            pathType: Prefix
+            backend: { service: { name: course-studio, port: { number: 8040 } } }
+          - path: /api/child
+            pathType: Prefix
+            backend: { service: { name: children-lab, port: { number: 8018 } } }
+          - path: /api/tts
+            pathType: Prefix
+            backend: { service: { name: children-lab, port: { number: 8018 } } }
           - path: /api/
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
