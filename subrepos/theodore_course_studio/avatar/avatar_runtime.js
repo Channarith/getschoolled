@@ -49,6 +49,77 @@ const STIFFNESS = {
 };
 
 const clamp = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
+
+function isHandSkin(r, g, b, a) {
+  return a > 180 && r > 150 && r < 235 && g > 100 && g < 200 && b > 70 && b < 170
+    && (r - b) > 35 && !(r > 230 && g > 200);
+}
+
+/** Split the illustrated student into a body plate plus two hand sprites. */
+function buildPortraitRig(image) {
+  const w = image.naturalWidth || image.width;
+  const h = image.naturalHeight || image.height;
+  const base = document.createElement("canvas");
+  base.width = w;
+  base.height = h;
+  const bctx = base.getContext("2d", { willReadFrequently: true });
+  bctx.drawImage(image, 0, 0, w, h);
+  const frame = bctx.getImageData(0, 0, w, h);
+  const src = new Uint8ClampedArray(frame.data);
+  const regions = [
+    { side: -1, x: 0.30, y: 0.86, w: 0.13, h: 0.13 },
+    { side: 1, x: 0.60, y: 0.86, w: 0.14, h: 0.13 },
+  ];
+  const hands = [];
+  for (const region of regions) {
+    const x0 = Math.floor(region.x * w);
+    const y0 = Math.floor(region.y * h);
+    const rw = Math.max(1, Math.floor(region.w * w));
+    const rh = Math.max(1, Math.floor(region.h * h));
+    const cut = document.createElement("canvas");
+    cut.width = rw;
+    cut.height = rh;
+    const cutData = cut.getContext("2d").createImageData(rw, rh);
+    for (let y = 0; y < rh; y += 1) {
+      for (let x = 0; x < rw; x += 1) {
+        const sx = x0 + x;
+        const sy = y0 + y;
+        const i = (sy * w + sx) * 4;
+        if (!isHandSkin(src[i], src[i + 1], src[i + 2], src[i + 3])) continue;
+        const di = (y * rw + x) * 4;
+        cutData.data[di] = src[i];
+        cutData.data[di + 1] = src[i + 1];
+        cutData.data[di + 2] = src[i + 2];
+        cutData.data[di + 3] = src[i + 3];
+        const towardBook = region.side < 0 ? x > rw * 0.42 : x < rw * 0.58;
+        if (!towardBook) {
+          frame.data[i + 3] = 0;
+          continue;
+        }
+        let filled = false;
+        const step = region.side < 0 ? 1 : -1;
+        for (let dist = 6; dist < 70; dist += 1) {
+          const dx = sx + step * dist;
+          if (dx < 0 || dx >= w) break;
+          const j = (sy * w + dx) * 4;
+          if (src[j + 3] > 180 && src[j] < 150 && src[j + 1] < 110 && src[j + 2] < 80) {
+            frame.data[i] = src[j];
+            frame.data[i + 1] = src[j + 1];
+            frame.data[i + 2] = src[j + 2];
+            frame.data[i + 3] = src[j + 3];
+            filled = true;
+            break;
+          }
+        }
+        if (!filled) frame.data[i + 3] = 0;
+      }
+    }
+    cut.getContext("2d").putImageData(cutData, 0, 0);
+    hands.push({ canvas: cut, x: x0, y: y0, side: region.side });
+  }
+  bctx.putImageData(frame, 0, 0);
+  return { base, hands };
+}
 const smooth = (v) => v * v * (3 - 2 * v);
 
 /**
@@ -508,9 +579,11 @@ export class TheodoreAvatar {
     group.position.set(0, 1.82, 0);
     this.model = group;
     this.scene.add(group);
+    const rig = buildPortraitRig(image);
     this.portrait = {
       image, canvas, ctx, texture, mesh, group, open: 0,
-      mouth: { x: 0.494, y: 0.565, rx: 0.062, ry: 0.032 },
+      base: rig.base,
+      hands: rig.hands,
       eyes: [
         { x: 0.40, y: 0.345, rx: 0.048, ry: 0.03 },
         { x: 0.60, y: 0.338, rx: 0.048, ry: 0.03 },
@@ -524,7 +597,7 @@ export class TheodoreAvatar {
     this.basePose = {};
     this.container.dataset.avatarPersona = persona;
     this.container.dataset.avatarRig = "portrait";
-    this.paintPortrait(0, 0);
+    this.paintPortrait(0, 0, 0);
     this.framePortraitCamera();
   }
 
@@ -540,14 +613,14 @@ export class TheodoreAvatar {
     this.camera.updateProjectionMatrix();
   }
 
-  paintPortrait(open, blink) {
+  paintPortrait(open, blink, t) {
     const portrait = this.portrait;
     if (!portrait) return;
-    const { ctx, canvas, image, mouth, eyes } = portrait;
+    const { ctx, canvas, eyes } = portrait;
     const w = canvas.width;
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
-    ctx.drawImage(image, 0, 0, w, h);
+    ctx.drawImage(portrait.base || portrait.image, 0, 0, w, h);
     if (blink > 0.08) {
       ctx.fillStyle = "rgba(214, 164, 122, 0.94)";
       for (const eye of eyes) {
@@ -563,24 +636,32 @@ export class TheodoreAvatar {
       }
     }
     const amount = clamp(open);
-    if (amount > 0.06) {
-      const mx = mouth.x * w;
-      const my = mouth.y * h + h * 0.008;
-      const rx = mouth.rx * w * (0.72 + amount * 0.28);
-      const ry = mouth.ry * h * (0.2 + amount * 1.6);
-      ctx.fillStyle = "#6a3034";
+    if (amount > 0.12) {
+      const mx = 0.50 * w;
+      const ry = Math.max(2, h * 0.02 * (0.35 + amount * 2.1));
+      const rx = w * 0.055 * (0.85 + amount * 0.25);
+      const my = 0.455 * h + ry * 0.33;
+      ctx.fillStyle = "#7a302e";
       ctx.beginPath();
       ctx.ellipse(mx, my, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#f0b2ab";
+      ctx.fillStyle = "#d67870";
       ctx.beginPath();
-      ctx.ellipse(mx, my - ry * 0.22, rx * 0.62, Math.max(1.5, ry * 0.28), 0, 0, Math.PI * 2);
+      ctx.ellipse(mx, my + ry * 0.15, rx * 0.55, Math.max(1, ry * 0.35), 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    if (this.speaking && !this.reducedMotion) {
-      const flick = (Math.sin(performance.now() / 160) + 1) / 2;
-      ctx.fillStyle = `rgba(255, 246, 226, ${0.12 + flick * 0.28})`;
-      ctx.fillRect(w * 0.455, h * 0.74, w * 0.055, h * 0.11);
+    const now = Number.isFinite(t) ? t : 0;
+    const talking = amount > 0.12 && !this.reducedMotion;
+    for (const hand of portrait.hands || []) {
+      const lift = talking
+        ? amount * h * 0.05 + Math.sin(now * 7.4 + hand.side) * h * 0.012
+        : Math.sin(now * 1.3 + hand.side) * h * 0.004;
+      const slide = talking ? hand.side * Math.sin(now * 6.1) * w * 0.014 : 0;
+      ctx.save();
+      ctx.translate(hand.x + hand.canvas.width / 2 + slide, hand.y + hand.canvas.height / 2 - lift);
+      ctx.rotate(hand.side * (talking ? 0.22 * amount * Math.sin(now * 6.1) : 0));
+      ctx.drawImage(hand.canvas, -hand.canvas.width / 2, -hand.canvas.height / 2);
+      ctx.restore();
     }
     portrait.texture.needsUpdate = true;
   }
@@ -596,10 +677,12 @@ export class TheodoreAvatar {
     if ((cues || []).some((item) => item.cue?.gaze === "slide")) turn -= 0.14 * motion;
     if (this.state === "listening") nod += 0.06 * motion;
     let open = 0;
-    if (this.speaking && !paused) {
-      const shape = this.articulationAt(this.speechClock());
-      open = shape.open;
-      nod += Math.sin(t * 7.2) * 0.028 * Math.max(0.25, shape.open);
+    const levelFresh = performance.now() - (this.voiceLevelAt || 0) < 220;
+    const level = !paused && levelFresh ? this.voiceLevel : 0;
+    if (!paused && (this.speaking || level > 0.05)) {
+      const shape = this.speaking ? this.articulationAt(this.speechClock()) : { open: 0 };
+      open = Math.max(Number(shape.open) || 0, level * 1.6);
+      nod += Math.sin(t * 7.2) * 0.028 * Math.max(0.25, open);
     }
     if (t - this.lastBlink > this.nextBlink) {
       this.lastBlink = t;
@@ -611,7 +694,13 @@ export class TheodoreAvatar {
     group.rotation.x = nod;
     group.rotation.y = turn;
     group.rotation.z = Math.sin(t * 0.62) * 0.012 * motion;
-    this.paintPortrait(open, blink);
+    this.paintPortrait(open, blink, t);
+  }
+
+  /** Live-agent loudness, 0–1. The illustrated mouth and hands follow this. */
+  setVoiceLevel(level) {
+    this.voiceLevel = clamp(Number(level) || 0);
+    this.voiceLevelAt = performance.now();
   }
 
   async loadPersona(persona) {
@@ -741,8 +830,10 @@ export class TheodoreAvatar {
   }
 
   async setPersona(persona) {
-    const aliases = { female: "classic_female", male: "classic_male" };
-    const requested = aliases[persona] || persona;
+    // Voice gender is not a body. "male" / "female" used to swap in the block
+    // presenters whenever a lesson started.
+    const requested = String(persona || "");
+    if (requested === "male" || requested === "female") return;
     const wanted = this.manifest?.models?.[requested] ? requested : (this.manifest?.default_model || "student");
     if (wanted === this.persona || !this.scene) return;
     try {

@@ -2329,6 +2329,11 @@ STUDIO_JS = """
         toast('This browser cannot hear speech. Type your question or answer.');
         return;
       }
+      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
+        toast('Just speak. You can interrupt Theodore — he stops, listens, then answers.');
+        window.TheodoreLiveAudio?.resumeRecognition();
+        return;
+      }
       const ok = await ensureMic();
       if (!ok) return;
       stopSpeech();
@@ -3619,7 +3624,10 @@ STUDIO_JS = """
       if (learningCheckOpen && kind !== 'learn-check' && kind !== 'guard' && kind !== 'checkpoint') return;
       if (kind !== 'adapt' && kind !== 'adapt-resume' && kind !== 'guard') attentionResume = '';
       if (lecturePaused && !holdLesson) return;
-      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) return;
+      if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
+        if (kind !== 'talk') return;
+        window.TheodoreLiveAudio?.pauseRecognition();
+      }
       stopSpeech();
       const spoken = text || '';
       const gen = speechGen;
@@ -3658,6 +3666,7 @@ STUDIO_JS = """
             attentionResume = '';
             speakText(next, null, false, 'adapt-resume');
           }
+          if (kind === 'talk') window.TheodoreLiveAudio?.resumeRecognition();
           return;
         }
         onNarrationEnded(genCheck);
@@ -3748,6 +3757,7 @@ STUDIO_JS = """
       function bindClip(audio, token, durationMs, onFail) {
         detachServerAudio();
         serverAudio = audio;
+        audio.volume = 1;
         let failed = false;
         let knownDurationMs = Number(durationMs) || 0;
         const alreadyMs = Number(audio.duration) * 1000;
@@ -3878,10 +3888,19 @@ STUDIO_JS = """
     window.addEventListener('theodore-live-audio-speech', (event) => {
       if (lecturePaused) return;
       if (event.detail?.speaking) {
-        theodoreAvatar?.speak(event.detail.text || '');
+        theodoreAvatar?.speak(event.detail.text || ' ');
         return;
       }
       theodoreAvatar?.stopSpeaking();
+    });
+    window.addEventListener('theodore-live-audio-level', (event) => {
+      if (lecturePaused) return;
+      theodoreAvatar?.setVoiceLevel(Number(event.detail && event.detail.level) || 0);
+    });
+    window.addEventListener('theodore-live-audio-user', (event) => {
+      if (lecturePaused) return;
+      if (event.detail && event.detail.talking) theodoreAvatar?.setState('listening');
+      else if (!theodoreAvatar?.speaking) theodoreAvatar?.setState('idle');
     });
     window.addEventListener('theodore-live-audio-utterance', (event) => {
       const text = event.detail && event.detail.text;
@@ -3984,10 +4003,7 @@ STUDIO_JS = """
       showAbsorb(false);
       slideVariety = pickLearnVariety(payload);
       const turn = payload.turn || payload;
-      if (payload.voice_gender) {
-        courseVoiceGender = payload.voice_gender;
-        theodoreAvatar?.setPersona(payload.voice_gender);
-      }
+      if (payload.voice_gender) courseVoiceGender = payload.voice_gender;
       theodoreAvatar?.setScript(payload.avatar || { state:'presenting', cues:[] });
       const stage = $('teach-stage');
       stage.classList.remove('anim');
