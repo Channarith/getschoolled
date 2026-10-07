@@ -15,6 +15,13 @@ from aoep_shared.course_studio_access import (
 
 from .avatar_director import avatar_script_for_slide
 from .lesson_photos import photo_plate
+from .question_slide import (
+    SourceLookup,
+    build_question_slide,
+    lookup_question_sources,
+    official_sources,
+    question_fits_course,
+)
 from .topic_cover import (
     completion_percent,
     example_card_svg,
@@ -120,8 +127,10 @@ class TeachEngine:
         voice: CourseStudioVoiceAgent | None = None,
         checkpoints: CheckpointStore | None = None,
         telemetry: StudioTelemetryStore | None = None,
+        source_lookup: SourceLookup | None = None,
     ) -> None:
         self._builder = builder or CourseBuilder()
+        self._source_lookup = source_lookup or lookup_question_sources
         # Follow the builder's data dir so mastery never leaks across data roots.
         self._knowledge = knowledge or KnowledgeStore(data_dir=self._builder.data_dir)
         self._voice = voice or get_voice_agent()
@@ -261,6 +270,51 @@ class TeachEngine:
         self._telemetry.record_slide_taught()
         return self._turn_payload(course, session)
 
+    def _question_sources(self, course: Any, text: str) -> list[dict[str, str]]:
+        found: list[dict[str, str]] = []
+        try:
+            found = list(self._source_lookup(course, text) or [])
+        except Exception:
+            found = []
+        rows: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for row in [*found, *official_sources(course)]:
+            url = str(row.get("url") or "")
+            if not url.startswith("https://") or url in seen:
+                continue
+            seen.add(url)
+            rows.append(
+                {
+                    "title": str(row.get("title") or url)[:120],
+                    "url": url,
+                    "snippet": str(row.get("snippet") or "")[:280],
+                }
+            )
+            if len(rows) == 3:
+                break
+        return rows
+
+    def _apply_question_card(self, payload: dict[str, Any], card: dict[str, Any]) -> None:
+        turn = payload.get("turn") or {}
+        turn["title"] = card["title"]
+        turn["display_body"] = card["body"]
+        turn["narration"] = card["body"]
+        payload["turn"] = turn
+        payload["examples"] = list(card["examples"])
+        payload["topic_examples"] = list(card["examples"])
+        payload["show_examples"] = True
+        payload["topic_jump"] = True
+        payload["matched"] = True
+        payload["dynamic"] = True
+        payload["sources"] = list(card["sources"])
+        payload["example_svg"] = card["example_svg"]
+        payload["storyboard_svg"] = ""
+        payload["storyboard_concept"] = ""
+        payload["photo_url"] = ""
+        payload["activity_prompt"] = (
+            "Open a source below, then say what the rule asks you to do."
+        )
+
     def cover_topic(self, session_id: str, text: str) -> dict[str, Any]:
         """Open the slide that matches what the live conversation is about."""
         course, session = self._require(session_id)
@@ -271,7 +325,14 @@ class TeachEngine:
         slide_index = match_slide(course, text)
         if slide_index is None:
             payload = self._turn_payload(course, session)
-            payload["matched"] = False
+            if not question_fits_course(course, text):
+                payload["matched"] = False
+                return payload
+            card = build_question_slide(course, text, self._question_sources(course, text))
+            if card is None:
+                payload["matched"] = False
+                return payload
+            self._apply_question_card(payload, card)
             return payload
         if slide_index not in session.path:
             session.path.append(slide_index)
