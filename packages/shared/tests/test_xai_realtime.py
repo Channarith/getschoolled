@@ -111,6 +111,8 @@ def test_build_voice_session_personas():
     assert solo.persona == xv.PERSONA_THEODORE
     event = solo.session_update_event()
     assert event["type"] == "session.update"
+    assert event["session"]["voice"] == "ara"
+    assert "soft-spoken" in event["session"]["instructions"]
     assert "Theodore" in event["session"]["instructions"]
     assert "Slide 1" in event["session"]["instructions"]
     assert event["session"]["turn_detection"]["type"] == "server_vad"

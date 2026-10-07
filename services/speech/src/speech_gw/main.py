@@ -587,7 +587,7 @@ class VoiceTokenRequest(BaseModel):
 @app.get("/voice/status")
 def voice_status() -> dict:
     """Whether xAI Grok Voice is configured for Theodore / self-teach S2S."""
-    from aoep_shared.xai_realtime import REALTIME_WS, xai_configured
+    from aoep_shared.xai_realtime import DEFAULT_VOICE, REALTIME_WS, xai_configured
 
     cfg = app.state.config
     # Pass the config value explicitly (including "") so we do NOT fall through
@@ -602,7 +602,7 @@ def voice_status() -> dict:
             getattr(cfg, "xai_voice_id", "")
             or getattr(cfg, "xai_voice", "")
             or getattr(cfg, "xai_voice_name", "")
-            or "eve"
+            or DEFAULT_VOICE
         ),
         "realtime_ws": REALTIME_WS,
         "hint": (
@@ -621,6 +621,7 @@ def voice_token(req: VoiceTokenRequest) -> dict:
     WebSocket with ``sec-websocket-protocol: xai-client-secret.<token>``.
     """
     from aoep_shared.xai_realtime import (
+        DEFAULT_VOICE,
         XaiVoiceError,
         build_voice_session,
         mint_ephemeral_token,
@@ -635,7 +636,7 @@ def voice_token(req: VoiceTokenRequest) -> dict:
         getattr(cfg, "xai_voice_id", "")
         or getattr(cfg, "xai_voice", "")
         or getattr(cfg, "xai_voice_name", "")
-        or "eve"
+        or DEFAULT_VOICE
     )
     if not xai_configured(api_key):
         raise HTTPException(

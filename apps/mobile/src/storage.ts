@@ -84,7 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   narrationVoicePref: "auto",
   voiceId: "",
   instructorId: "",
-  voiceGender: "any",
+  voiceGender: "female",
   trainingLocale: "en",
   introSplashEnabled: true,
   introSplashSeen: false,

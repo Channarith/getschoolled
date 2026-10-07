@@ -343,7 +343,9 @@ def presenter_manifest() -> dict[str, Any]:
             "source": "illustrated",
             "kind": "portrait",
             "label": "Student",
-            "voice_gender": "male",
+            # The cartoon body stays. The tutor voice stays the professional
+            # female narrator; a male tag here switched lessons to Guy/Alex.
+            "voice_gender": "female",
         }
     if "student" in models:
         default_model = "student"

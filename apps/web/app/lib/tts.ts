@@ -62,8 +62,10 @@ export function scoreVoice(
   if (v.localService === false) s += 2;                   // cloud voices are higher quality
   if (v.default) s += 1;
   const g = gender.toLowerCase();
-  if (g.startsWith("f")) { if (FEMALE_VOICES.test(name)) s += 4; else if (MALE_VOICES.test(name)) s -= 3; }
-  else if (g.startsWith("m")) { if (MALE_VOICES.test(name)) s += 4; else if (FEMALE_VOICES.test(name)) s -= 3; }
+  // The tutor default is a professional female voice. "any" and an empty
+  // preference used to keep the OS default, which is often a choppy male voice.
+  if (g.startsWith("m")) { if (MALE_VOICES.test(name)) s += 4; else if (FEMALE_VOICES.test(name)) s -= 3; }
+  else { if (FEMALE_VOICES.test(name)) s += 4; else if (MALE_VOICES.test(name)) s -= 6; }
   s += voiceNameStyleBonus(style, v.name || "");
   return s;
 }

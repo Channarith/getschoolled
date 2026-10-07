@@ -142,7 +142,7 @@ class AppConfig(BaseModel):
     # xAI Grok Voice Agent (Speech-to-Speech realtime WebSocket). Used by the
     # private webcam-recognition lab and Theodore natural dialogue. Server-side
     # key only — browsers must use ephemeral tokens.
-    xai_voice_name: str = "eve"
+    xai_voice_name: str = "ara"
     xai_voice_ws_url: str = "wss://api.x.ai/v1/realtime"
     # Bake-off champion pointer (JSON); serving layer uses it to pick the model.
     champion_path: str = ""
@@ -215,7 +215,7 @@ class AppConfig(BaseModel):
     # webcam-lab for Theodore + self-teach natural conversation. Blank key ->
     # ephemeral token mint returns an offline mock so demos still run.
     xai_voice_model: str = "grok-voice-latest"
-    xai_voice_id: str = "eve"
+    xai_voice_id: str = "ara"
     # CosyVoice 2 (self-hosted, FunAudioLLM): a streaming multilingual neural TTS
     # you run yourself. When COSYVOICE_URL points at your inference server the
     # speech gateway prefers it over ElevenLabs/edge-tts for narration.
@@ -228,7 +228,7 @@ class AppConfig(BaseModel):
     # platform speech chain (ElevenLabs -> edge-tts -> on-device).
     xai_realtime_url: str = "wss://api.x.ai/v1/realtime"
     xai_text_model: str = "grok-3-latest"
-    xai_voice: str = "eve"
+    xai_voice: str = "ara"
     # Embodiment: screen avatar (default) or a humanoid robot (Phases 14-15).
     embodiment: str = "screen"   # screen | robot
     robot_endpoint: str = ""
@@ -325,7 +325,7 @@ def load_config(
         nemotron_api_key=get("NEMOTRON_API_KEY", ""),
         nemotron_base_url=get("NEMOTRON_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         nemotron_model=get("NEMOTRON_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct"),
-        xai_voice_name=get("XAI_VOICE_NAME", "eve"),
+        xai_voice_name=get("XAI_VOICE_NAME", "ara"),
         xai_voice_ws_url=get("XAI_VOICE_WS_URL", "wss://api.x.ai/v1/realtime"),
         champion_path=get("CHAMPION_PATH", ""),
         harvest_user_agent=get("HARVEST_USER_AGENT", "AOEP-Harvester/1.0 (+contact@example.org)"),
@@ -339,12 +339,12 @@ def load_config(
         elevenlabs_api_key=get("ELEVENLABS_API_KEY", ""),
         elevenlabs_model=get("ELEVENLABS_MODEL", "eleven_multilingual_v2"),
         xai_voice_model=get("XAI_VOICE_MODEL", "grok-voice-latest"),
-        xai_voice_id=get("XAI_VOICE_ID", "eve"),
+        xai_voice_id=get("XAI_VOICE_ID", "ara"),
         cosyvoice_url=get("COSYVOICE_URL", ""),
         cosyvoice_api_key=get("COSYVOICE_API_KEY", ""),
         xai_realtime_url=get("XAI_REALTIME_URL", "wss://api.x.ai/v1/realtime"),
         xai_text_model=get("XAI_TEXT_MODEL", "grok-3-latest"),
-        xai_voice=get("XAI_VOICE", "eve"),
+        xai_voice=get("XAI_VOICE", "ara"),
         ocr_endpoint=get("OCR_ENDPOINT", ""),
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),

@@ -133,6 +133,7 @@ def test_presenter_manifest_defaults_to_builtin():
     assert student["kind"] == "portrait"
     assert student["rig"] == "portrait"
     assert student["url"].endswith("presenter_student.webp")
+    assert student["voice_gender"] == "female"
     portrait = client.get(student["url"])
     assert portrait.status_code == 200
     assert portrait.content[:4] == b"RIFF"

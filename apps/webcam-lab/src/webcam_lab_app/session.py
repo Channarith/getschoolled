@@ -111,7 +111,7 @@ class LabSessionStore:
         lesson_context: str = "",
         host_name: str = "Learner",
         learner_names: Optional[List[str]] = None,
-        voice_id: str = "eve",
+        voice_id: str = "ara",
         voice_model: str = "grok-voice-latest",
     ) -> LabSession:
         mode_key = (mode or MODE_SOLO).strip().lower().replace("-", "_")

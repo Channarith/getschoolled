@@ -17,7 +17,7 @@ DEFAULT_XAI_BASE_URL = "https://api.x.ai/v1"
 DEFAULT_XAI_REALTIME_URL = "wss://api.x.ai/v1/realtime"
 DEFAULT_XAI_TEXT_MODEL = "grok-4.5"
 DEFAULT_XAI_VOICE_MODEL = "grok-voice-latest"
-DEFAULT_XAI_VOICE = "eve"
+DEFAULT_XAI_VOICE = "ara"
 
 
 def _get(name: str, default: str) -> str:

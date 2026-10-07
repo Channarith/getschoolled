@@ -44,7 +44,7 @@ def test_session_update_matches_the_xai_realtime_schema():
 
     assert event["type"] == "session.update"
     session = event["session"]
-    assert session["voice"] == "eve"
+    assert session["voice"] == "ara"
     assert session["turn_detection"]["type"] == "server_vad"
     assert session["audio"]["input"]["format"]["type"] == "audio/pcm"
     assert session["audio"]["output"]["format"]["rate"] == 24000

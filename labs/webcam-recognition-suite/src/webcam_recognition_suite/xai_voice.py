@@ -17,7 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 DEFAULT_WS_URL = "wss://api.x.ai/v1/realtime"
 DEFAULT_MODEL = "grok-voice-latest"
-DEFAULT_VOICE = "eve"
+DEFAULT_VOICE = "ara"
 
 
 @dataclass

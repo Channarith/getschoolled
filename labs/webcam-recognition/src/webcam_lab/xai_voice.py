@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Protocol
 
 
 DEFAULT_MODEL = "grok-voice-latest"
-DEFAULT_VOICE = "eve"
+DEFAULT_VOICE = "ara"
 DEFAULT_WS_URL = "wss://api.x.ai/v1/realtime"
 
 

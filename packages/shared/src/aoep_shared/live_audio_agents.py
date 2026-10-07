@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from .xai_realtime import (
+    DEFAULT_VOICE,
     XaiVoiceError,
     _open_http,
     _proxy_tunnel_forbidden,
@@ -189,8 +190,8 @@ def mint_xai_token(
         raise LiveAudioError("XAI_API_KEY is not configured")
     model = os.environ.get("XAI_VOICE_MODEL", "grok-voice-latest")
     voice = os.environ.get("XAI_VOICE_ID", "") or os.environ.get(
-        "XAI_VOICE", "eve"
-    )
+        "XAI_VOICE", ""
+    ) or DEFAULT_VOICE
     session = build_voice_session(
         mode,
         voice=voice,

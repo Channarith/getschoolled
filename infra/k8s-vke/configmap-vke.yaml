@@ -25,8 +25,8 @@ data:
   XAI_REALTIME_URL: "wss://api.x.ai/v1/realtime"
   XAI_VOICE_MODEL: "grok-voice-latest"
   XAI_TEXT_MODEL: "grok-3-latest"
-  XAI_VOICE: "eve"
-  XAI_VOICE_ID: "eve"
+  XAI_VOICE: "ara"
+  XAI_VOICE_ID: "ara"
   GEMINI_LIVE_MODEL: "gemini-2.5-flash-native-audio-preview-12-2025"
   GEMINI_LIVE_VOICE: "Kore"
   # LiveKit Cloud project URL (managed — NOT the self-hosted infra/k8s/livekit.yaml
