@@ -32,10 +32,17 @@ const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     const studio = process.env.COURSE_STUDIO_ORIGIN || "http://127.0.0.1:8040";
+    const childrenLab = process.env.CHILDREN_LAB_ORIGIN || "http://127.0.0.1:8018";
     return [
       { source: "/studio", destination: `${studio}/studio` },
       { source: "/api/studio/:path*", destination: `${studio}/api/studio/:path*` },
       { source: "/api/live-audio/:path*", destination: `${studio}/api/live-audio/:path*` },
+      { source: "/children-lab", destination: `${childrenLab}/lab` },
+      { source: "/static/:path*", destination: `${childrenLab}/static/:path*` },
+      { source: "/api/child/:path*", destination: `${childrenLab}/api/child/:path*` },
+      { source: "/api/tts", destination: `${childrenLab}/api/tts` },
+      { source: "/api/tts/:path*", destination: `${childrenLab}/api/tts/:path*` },
+      { source: "/vendor/vision/:path*", destination: `${childrenLab}/vendor/vision/:path*` },
       ...SERVICES.map((name) => ({
         source: `/${name}/:path*`,
         destination: `${serviceOrigin(name)}/:path*`,

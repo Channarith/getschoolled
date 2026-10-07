@@ -83,11 +83,11 @@ export const SALES_DEMO_FEATURES = [
   {
     id: "arcade",
     flagKey: "sales_demo.arcade_games",
-    href: "/arcade",
+    href: "/demo/arcade",
     emoji: "🎮",
-    title: "Arcade Games",
-    subtitle: "Test your knowledge",
-    description: "Fast learning games that turn recall and practice into interactive challenges.",
+    title: "Vision arcade",
+    subtitle: "Machine vision for kids",
+    description: "Children play webcam games from the children lab: faces, hands, and movement. The camera stays in the browser.",
   },
   {
     id: "languages",
