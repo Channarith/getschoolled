@@ -17,6 +17,8 @@ def test_health_and_studio_page():
     assert "Course library" in page.text
     assert "theme-study" in page.text
     assert "page-welcome" in page.text
+    assert 'id="btn-start-voice"' in page.text
+    assert "Click the screen to continue, or press Start and speak." in page.text
     assert "Driver's ed" in page.text
     assert "Food safety" in page.text
     assert 'id="btn-pause"' in page.text

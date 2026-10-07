@@ -140,6 +140,7 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "speech_stopped" in source
     assert "You can interrupt" in source
     assert "pauseRecognition" in source
+    assert "start()" in source
     assert "60000" in source
     assert "theodore-live-audio-speech" in source
     assert "theodore-live-audio-idle" in source
