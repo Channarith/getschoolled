@@ -4,6 +4,7 @@ Format: newest first. No markdown per project convention.
 
 [unreleased]
 - 2026-10-07 - v0.50.10 - The tutor voice is Ara again: a soft-spoken professional woman in Course Studio, demos, web courses, and the mobile apps. The cartoon student no longer switches lessons to a choppy male voice.
+- 2026-10-07 - v0.50.9 - A Jiggy dance that ends before the beat window asks the learner to keep going, instead of scoring a partial dance.
 - 2026-10-07 - v0.50.8 - The home page no longer lists full courses, and a signed-in visit hides the demo block. Signing in on the home page updates the account menu in the same session. Driver's Education and Food Health & Safety open from Live Class and Group Class. The vision arcade lab is embedded on Arcade, and the hands-free audio lab is embedded on On the Go. xAI Grok voice is on live class, group rooms, full courses, and On the Go.
 - 2026-10-07 - v0.50.7 - A batch pipeline pre-translates courses into the 26 non-English languages. The voice agent teaches from that library and uses web search only when the class does not cover the question, staying on that category and title.
 - 2026-10-07 - v0.50.7 - The public demo includes the vision arcade. Children play the webcam lab's machine-vision games there, and the camera stays in the browser.
