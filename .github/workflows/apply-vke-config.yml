@@ -5,6 +5,12 @@ name: Apply VKE config
 
 on:
   workflow_dispatch:
+    inputs:
+      restart_speech:
+        description: "Restart speech after applying config (voice env changes)"
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: vke-deploy-aoep
@@ -28,6 +34,10 @@ jobs:
         run: |
           set -euo pipefail
           kubectl apply -f infra/k8s-vke/configmap-vke.yaml
-          kubectl -n aoep rollout restart deployment/speech
-          kubectl -n aoep rollout status deployment/speech --timeout=240s
+          kubectl apply -f infra/k8s-vke/ingress-vke.yaml
+          kubectl apply -f infra/k8s-vke/ingress-ip.yaml
+          if [ "${{ inputs.restart_speech }}" = "true" ]; then
+            kubectl -n aoep rollout restart deployment/speech
+            kubectl -n aoep rollout status deployment/speech --timeout=240s
+          fi
           kubectl -n aoep get configmap aoep-config -o jsonpath='XAI_VOICE={.data.XAI_VOICE} XAI_VOICE_ID={.data.XAI_VOICE_ID}{"\n"}'

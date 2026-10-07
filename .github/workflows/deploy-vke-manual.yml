@@ -137,6 +137,10 @@ jobs:
           # the exact bytes that were built (docs/vv-master-plan.txt §4).
           # The web rewrites target these Services. Create them before the
           # digest pin, or /studio and /children-lab stay 500.
+          # Demo APIs live under /api/, which the public ingress sends to the
+          # orchestrator unless these longer prefixes are applied.
+          kubectl apply -f infra/k8s-vke/ingress-vke.yaml
+          kubectl apply -f infra/k8s-vke/ingress-ip.yaml
           if echo " $SVCS " | grep -q " course-studio "; then
             kubectl kustomize infra/k8s-vke | python3 scripts/render_demo_labs.py > /tmp/demo-labs.yaml
             kubectl apply -f /tmp/demo-labs.yaml
