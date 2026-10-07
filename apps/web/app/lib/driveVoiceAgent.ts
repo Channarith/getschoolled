@@ -13,6 +13,8 @@ export type DriveVoiceTopic = {
   category: string;
   title: string;
   excerpt: string;
+  courseId?: string;
+  language?: string;
 };
 
 export type DriveVoiceCallbacks = {
@@ -98,6 +100,8 @@ export async function startDriveVoice(
     category: topic.category,
     topic: topic.title,
     lesson_context: topic.excerpt,
+    course_id: topic.courseId || "",
+    language: topic.language || "",
     expires_seconds: 600,
   });
   const ctx = new AudioContext({ latencyHint: "playback" });

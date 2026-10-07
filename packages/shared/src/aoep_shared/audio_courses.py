@@ -1145,6 +1145,32 @@ def list_courses(*, category: Optional[str] = None, q: Optional[str] = None,
 _TRANSLATED_COURSES: Dict[tuple, AudioCourse] = {}
 
 
+def _course_from_library(course: AudioCourse, tloc: str) -> Optional[AudioCourse]:
+    """Use the pre-translated library when this class was already batched."""
+    from .course_translation_library import load_translation
+
+    record = load_translation(course.id, tloc)
+    if not record:
+        return None
+    segments: List[AudioSegment] = []
+    for row in record.get("segments") or []:
+        heading = str(row.get("heading") or "").strip()
+        text = str(row.get("text") or "").strip()
+        if heading and text:
+            segments.append(
+                AudioSegment(heading=heading, text=text, kind=str(row.get("kind") or "narration"))
+            )
+    if not segments:
+        return None
+    localized = course.model_copy(deep=True)
+    localized.segments = segments
+    localized.body_locale = tloc
+    title = str(record.get("title") or "").strip()
+    if title:
+        localized.title = title
+    return localized
+
+
 def _maybe_translate(course: AudioCourse, tloc: str) -> AudioCourse:
     """Return ``course`` spoken in ``tloc`` when a translator can provide it.
 
@@ -1160,6 +1186,10 @@ def _maybe_translate(course: AudioCourse, tloc: str) -> AudioCourse:
     cached = _TRANSLATED_COURSES.get(key)
     if cached is not None:
         return cached
+    stored = _course_from_library(course, tloc)
+    if stored is not None:
+        _TRANSLATED_COURSES[key] = stored
+        return stored
     source = course.body_locale or "en"
     new_segments: List[AudioSegment] = []
     translated_any = False

@@ -580,6 +580,8 @@ class VoiceTokenRequest(BaseModel):
     instructions: str = ""
     category: str = ""
     topic: str = ""
+    course_id: str = ""
+    language: str = ""
 
 
 @app.get("/voice/status")
@@ -642,9 +644,17 @@ def voice_token(req: VoiceTokenRequest) -> dict:
         )
     drive_mode = (req.mode or "").strip().lower() == "drive"
     if drive_mode:
+        from aoep_shared.course_translation_library import reference_for_class
         from aoep_shared.drive_voice import drive_voice_instructions, drive_voice_tools
 
-        # The browser names the subject. It does not write the prompt or the tools.
+        # The browser names the class. The library and the safety rules stay here.
+        library = reference_for_class(
+            course_id=req.course_id,
+            title=req.topic,
+            category=req.category,
+            language=req.language,
+            query=req.lesson_context,
+        )
         voice_cfg = build_voice_session(
             "drive",
             voice=voice_id,
@@ -652,7 +662,9 @@ def voice_token(req: VoiceTokenRequest) -> dict:
             instructions=drive_voice_instructions(
                 category=req.category,
                 topic=req.topic,
-                excerpt=req.lesson_context,
+                excerpt="" if library["hit"] else req.lesson_context,
+                library=library["text"],
+                library_hit=bool(library["hit"]),
             ),
         )
         voice_cfg.tools = drive_voice_tools()
