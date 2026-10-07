@@ -838,6 +838,73 @@ window.addEventListener("theodore-live-audio",(event)=>{
   if(event.detail?.active)cancelSpeech();
 });
 
+function pulsePlayStage() {
+  const box = $("stage");
+  if (!box) return;
+  box.classList.remove("voice-shift");
+  void box.offsetWidth;
+  box.classList.add("voice-shift");
+}
+function cycleSelect(select) {
+  if (!select || select.options.length < 2) return false;
+  select.selectedIndex = (select.selectedIndex + 1) % select.options.length;
+  return true;
+}
+function gameMatchesSpoken(option, target) {
+  const want = String(target || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (want.length < 3) return false;
+  const label = option.textContent.toLowerCase();
+  const id = option.value.toLowerCase().replace(/-/g, " ");
+  return label.includes(want) || id.includes(want) || want.includes(id);
+}
+function selectSpokenGame(target) {
+  const select = $("game");
+  if (!select) return false;
+  const hit = [...select.options].find((option) => gameMatchesSpoken(option, target));
+  if (!hit) return false;
+  select.value = hit.value;
+  chooseGame();
+  return true;
+}
+function applyVoiceScreen(detail) {
+  const action = detail && detail.action;
+  if (!action) return;
+  const game = $("game");
+  const letter = $("letter");
+  if (action === "game") {
+    if (!selectSpokenGame(detail.target) && game) {
+      cycleSelect(game);
+      chooseGame();
+    }
+  } else if (action === "letter" && letter && detail.target) {
+    const opt = [...letter.options].find((option) => option.value.toLowerCase() === detail.target);
+    if (!opt) return;
+    letter.value = opt.value;
+    if (game && !["trace-letter", "say-letter", "trace-picture"].includes(game.value)) {
+      game.value = "trace-letter";
+    }
+    chooseGame();
+  } else if (action === "next_letter" && letter) {
+    cycleSelect(letter);
+    chooseGame();
+  } else if (action === "example" && game) {
+    if (game.value === "trace-picture" && letter) cycleSelect(letter);
+    game.value = "trace-picture";
+    chooseGame();
+  } else if (action === "animation") {
+    chooseGame();
+  } else if ((action === "next" || action === "next_game" || action === "next_section") && game) {
+    cycleSelect(game);
+    chooseGame();
+  } else {
+    return;
+  }
+  pulsePlayStage();
+}
+window.addEventListener("theodore-live-audio-action", (event) => {
+  applyVoiceScreen(event.detail || {});
+});
+
 function startListening() {
   if (state.game!=="say-letter") {
     setPrompt("Say the letter first","Switch to Say the letter, then use the microphone.");

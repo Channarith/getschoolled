@@ -20,4 +20,5 @@ button,select,input{font:inherit}button,select,input{border:2px solid rgba(255,2
 @keyframes eatAway{0%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{left:var(--react-x);top:var(--react-y);transform:translate(-50%,-50%) scale(0);opacity:0}}
 @keyframes missAway{to{opacity:0;filter:grayscale(1);transform:translate(-50%,-50%) scale(.7)}}
 @keyframes burstPop{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}60%{transform:translate(-50%,-50%) scale(1.3)}100%{transform:translate(-50%,-120%) scale(1.1);opacity:0}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}.firework{box-shadow:0 0 30px 14px var(--c)}}
+#stage.voice-shift{box-shadow:0 0 0 4px #5eead4;transition:box-shadow .2s ease}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}.firework{box-shadow:0 0 30px 14px var(--c)}#stage.voice-shift{box-shadow:none}}

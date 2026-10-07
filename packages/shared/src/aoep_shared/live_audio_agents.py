@@ -37,6 +37,7 @@ GEMINI_LIVE_WS = (
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 DEFAULT_GEMINI_VOICE = "Kore"
 CLIENT_JS = Path(__file__).with_name("static") / "lab_live_audio.js"
+INTENT_JS = Path(__file__).with_name("static") / "live_audio_intent.js"
 
 
 class LiveAudioError(RuntimeError):
@@ -270,6 +271,19 @@ def mint_provider_token(
     raise LiveAudioError(f"unsupported live audio provider: {provider or 'none'}")
 
 
+def client_javascript() -> str:
+    """Widget source, with the screen-command parser in front of it.
+
+    The browser loads one script. The parser stays a separate file so tests
+    can require it without starting the microphone widget.
+    """
+    return (
+        INTENT_JS.read_text(encoding="utf-8").rstrip()
+        + "\n"
+        + CLIENT_JS.read_text(encoding="utf-8")
+    )
+
+
 def client_script_tag(page_path: str = "", api_prefix: str = "") -> str:
     """Load the voice widget.
 
@@ -373,7 +387,7 @@ def install_live_audio_routes(
         # annotations are resolved from module globals, where this local import
         # does not exist, and Pydantic otherwise fails while registering routes.
         return Response(
-            CLIENT_JS.read_text(encoding="utf-8"),
+            client_javascript(),
             media_type="application/javascript",
             headers={"Cache-Control": "no-cache"},
         )

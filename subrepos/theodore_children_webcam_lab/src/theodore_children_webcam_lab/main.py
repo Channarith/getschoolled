@@ -36,7 +36,19 @@ app = FastAPI(
     version=__version__,
     description="Private, playful browser-local face and hand learning games for ages 4-10.",
 )
-install_live_audio_routes(app, lab_name="Theodore Children Webcam Lab")
+install_live_audio_routes(
+    app,
+    lab_name="Theodore Children Webcam Lab",
+    instructions=(
+        "You are Theodore, a warm teacher playing webcam games with a child. "
+        "Keep turns short, gentle, and easy to follow. Let the child interrupt. "
+        "Never mention TTS. The webcam follows your words. When you change games, "
+        "say next game, or name it, like play the heart game. When you change "
+        "letters, say next letter, or name it, like letter B. When you want the "
+        "picture for that letter, say another example. When the motion should "
+        "start again, say different animation."
+    ),
+)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if VISION_ASSET_DIR.is_dir():
     app.mount("/vendor/vision", StaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")

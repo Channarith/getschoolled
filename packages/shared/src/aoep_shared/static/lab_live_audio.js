@@ -117,12 +117,33 @@
       }));
     }, 700);
   }
+  let lastCommandKey = "";
+  let lastCommandAt = 0;
   function noteUtterance(role, text) {
     const said = String(text || "").trim();
     if (!said) return;
     if (role === "user") state.lastUserAt = Date.now();
+    const intent = typeof aoepLiveAudioIntent === "function"
+      ? aoepLiveAudioIntent(said, role)
+      : null;
     window.dispatchEvent(new CustomEvent("theodore-live-audio-utterance", {
-      detail: {role, text: said},
+      detail: {role, text: said, command: Boolean(intent)},
+    }));
+    if (!intent) return;
+    // The learner's request and the agent's reply often use the same words.
+    // One screen change covers both.
+    const key = intent.action + "\n" + (intent.target || "");
+    const now = Date.now();
+    if (key === lastCommandKey && now - lastCommandAt < 1600) return;
+    lastCommandKey = key;
+    lastCommandAt = now;
+    window.dispatchEvent(new CustomEvent("theodore-live-audio-action", {
+      detail: {
+        action: intent.action,
+        target: intent.target || "",
+        role: role,
+        text: said,
+      },
     }));
   }
   function noteMic(float32) {
