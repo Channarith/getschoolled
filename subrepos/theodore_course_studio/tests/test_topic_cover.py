@@ -68,6 +68,47 @@ def test_topic_jump_covers_out_of_order_and_counts_percent(tmp_path):
     missed = engine.cover_topic("topic-1", "What is the weather?")
     assert missed["matched"] is False
     assert missed["slide_index"] == 2
+    assert missed.get("dynamic") is not True
+
+
+def test_unwritten_driving_question_opens_a_source_slide(tmp_path):
+    builder = CourseBuilder(data_dir=tmp_path)
+    engine = TeachEngine(
+        builder,
+        source_lookup=lambda _course, _text: [
+            {
+                "title": "Disabled person parking placards",
+                "url": "https://www.dmv.ca.gov/portal/vehicle-registration/disabled-person-parking-placards/",
+                "snippet": "A disability placard is issued to the person, not the vehicle.",
+            }
+        ],
+    )
+    course = StudioCourse(
+        course_id="dmv-course",
+        title="CA DMV — Rules of the road (basics)",
+        category="driver_education",
+        profile_adaptations={"track": "ca_dmv_permit"},
+        slides=[
+            CourseSlide(index=0, title="Stop signs", body="Come to a full stop."),
+        ],
+    )
+    builder.save_course(course)
+    engine.start(session_id="placard", course_id=course.course_id, use_voice_agent=False)
+    shown = engine.cover_topic(
+        "placard",
+        "What are the disability placard restrictions and laws for driving?",
+    )
+    assert shown["matched"] is True
+    assert shown["dynamic"] is True
+    assert shown["slide_index"] == 0
+    assert "placard" in shown["turn"]["display_body"].lower()
+    assert "person, not the car" in shown["example_svg"]
+    urls = [row["url"] for row in shown["sources"]]
+    assert urls[0].startswith("https://www.dmv.ca.gov/portal/vehicle-registration/")
+    assert any("california-driver-handbook" in url for url in urls)
+    off = engine.cover_topic("placard", "What are the rules of chess?")
+    assert off["matched"] is False
+    assert off.get("dynamic") is not True
 
 
 def test_silence_resumes_the_uncovered_section(tmp_path):

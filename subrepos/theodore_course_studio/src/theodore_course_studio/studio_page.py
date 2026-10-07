@@ -2550,6 +2550,7 @@ STUDIO_JS = """
       // Talk is on demand: data.tts has no baked clip, so this POSTs /api/studio/tts.
       speakText(reply, data.tts, true, 'talk');
       if (box) box.value = '';
+      queueLiveTopic(msg);
     }
 
     function clearAutoAdvance() {
@@ -2985,6 +2986,13 @@ STUDIO_JS = """
             method:'POST', headers:{'content-type':'application/json'},
             body: JSON.stringify({ session_id: teachSession, text: text })
           });
+          if (data.dynamic) {
+            liveCourseHold = false;
+            renderTeach(data);
+            showTopicExamples(data);
+            showQuestionSources(data);
+            continue;
+          }
           if (!data.matched) {
             paintCompletion(data);
             continue;
@@ -3040,6 +3048,20 @@ STUDIO_JS = """
       exBox.style.display = 'block';
       exBox.innerHTML = '<strong>Example</strong><ol>' +
         examples.map((line) => `<li>${esc(line)}</li>`).join('') + '</ol>';
+    }
+
+    function showQuestionSources(payload) {
+      const exBox = $('teach-examples');
+      const sources = (payload && payload.sources) || [];
+      if (!exBox || !sources.length) return;
+      const links = sources.map((row) => {
+        const url = String(row.url || '');
+        const title = esc(row.title || url);
+        if (!url.startsWith('https://')) return `<li>${title}</li>`;
+        return `<li><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${title}</a></li>`;
+      }).join('');
+      exBox.style.display = 'block';
+      exBox.innerHTML += '<strong>From the web</strong><ul>' + links + '</ul>';
     }
 
     async function applyProfile() {
@@ -4226,10 +4248,12 @@ STUDIO_JS = """
 
     function renderTeach(payload) {
       teachEpoch += 1;
-      stopSpeech();
-      stopStudentMic();
-      const staleReply = $('talk-reply');
-      if (staleReply) staleReply.textContent = '';
+      if (!payload.dynamic) {
+        stopSpeech();
+        stopStudentMic();
+        const staleReply = $('talk-reply');
+        if (staleReply) staleReply.textContent = '';
+      }
       lastTeachPayload = payload;
       beatHandled = false;
       showAbsorb(false);
@@ -4388,6 +4412,12 @@ STUDIO_JS = """
         lecturePaused = true;
         if ($('btn-pause')) setPauseButton(true);
         stopSpeech();
+        return;
+      }
+      if (payload.dynamic) {
+        if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
+          theodoreAvatar?.speak(turn.narration || turn.display_body || turn.title || '');
+        }
         return;
       }
       if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {

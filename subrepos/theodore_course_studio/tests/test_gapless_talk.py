@@ -124,6 +124,8 @@ def test_live_voice_moves_the_lesson_screen():
     assert "cycleLessonAnimation" in STUDIO_JS
     assert "showSpokenExample" in STUDIO_JS
     assert "event.detail.command" in STUDIO_JS
+    assert "data.dynamic" in STUDIO_JS
+    assert "showQuestionSources" in STUDIO_JS
 
 
 def test_studio_script_parses():
