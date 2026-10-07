@@ -149,6 +149,12 @@ jobs:
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: bash scripts/github_configure_kubeconfig.sh
+      - name: Apply production config
+        run: |
+          set -euo pipefail
+          # Image rolls do not reload env. XAI_VOICE lives in this ConfigMap;
+          # without this apply the cluster keeps the previous tutor voice.
+          kubectl apply -f infra/k8s-vke/configmap-vke.yaml
       - name: Roll deployments to the built digest
         run: |
           set -euo pipefail

@@ -1,0 +1,33 @@
+# Apply the VKE ConfigMap and restart speech so env changes (XAI_VOICE and
+# the rest of aoep-config) reach running pods. Image deploys that already
+# started do not pick up a ConfigMap committed after they were queued.
+name: Apply VKE config
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vke-deploy-aoep
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+      - name: Configure kubeconfig
+        env:
+          VULTR_API_KEY: ${{ secrets.VULTR_API_KEY }}
+          VKE_CLUSTER_ID: ${{ vars.VKE_CLUSTER_ID || 'bb09a491-8a40-4262-9a65-03ee5113c5a8' }}
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: bash scripts/github_configure_kubeconfig.sh
+      - name: Apply aoep-config and restart speech
+        run: |
+          set -euo pipefail
+          kubectl apply -f infra/k8s-vke/configmap-vke.yaml
+          kubectl -n aoep rollout restart deployment/speech
+          kubectl -n aoep rollout status deployment/speech --timeout=240s
+          kubectl -n aoep get configmap aoep-config -o jsonpath='XAI_VOICE={.data.XAI_VOICE} XAI_VOICE_ID={.data.XAI_VOICE_ID}{"\n"}'
