@@ -1,6 +1,6 @@
 """Language coverage for the platform.
 
-ASR (Whisper) and translation (NLLB-200) cover all 26 supported languages. Open
+ASR (Whisper) and translation (NLLB-200) cover all 27 supported languages. Open
 TTS voices (XTTS) do not cover every language, so a subset is routed to a
 cloud-TTS fallback. This module is the single source of truth for both sets.
 """

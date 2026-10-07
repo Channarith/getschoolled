@@ -13,18 +13,18 @@ Backend URLs
   Override with NEXT_PUBLIC_<SERVICE>_URL (e.g. NEXT_PUBLIC_ORCHESTRATOR_URL).
 
 Run (dev)
-  cd apps/web && pnpm install && pnpm run dev        # http://localhost:3000
+  cd apps/web && npm install && npm run dev         # http://localhost:3000
   (start the orchestrator on :8000 first for the class/live-room pages)
 
 Checks
-  pnpm run typecheck      # tsc --noEmit          (make web-typecheck)
-  pnpm run lint           # next lint
-  pnpm run build          # production build       (make web-build)
-  pnpm run e2e            # Playwright end-to-end
+  npm run typecheck       # tsc --noEmit          (make web-typecheck)
+  npm run lint            # next lint
+  npm run build           # production build       (make web-build)
+  npm run e2e             # Playwright end-to-end
 
 Notes
-  - Uses pnpm. The unrs-resolver postinstall warning is safe to ignore; do NOT
-    run the interactive `pnpm approve-builds`.
+  - Uses npm, matching CI and `make web-install` / `make web-typecheck`.
+    Mobile is the app that uses pnpm.
   - i18n lives in app/lib/i18n.tsx (+ i18n-strings.ts). The signed-in learner's
     language is adopted from and saved to their account.
 

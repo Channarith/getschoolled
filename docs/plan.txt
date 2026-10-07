@@ -33,7 +33,9 @@ config-driven factory.
 - ASR/Translation/TTS: SpeechProvider -> local = Whisper + NLLB + XTTS; cloud = GPU pods.
 - Vision: VisionProvider -> local = InsightFace + MediaPipe; cloud = GPU pods.
   Biometrics stay inside whichever boundary is configured (key compliance lever).
-- Media: MediaProvider -> local = self-hosted LiveKit container; cloud = LiveKit cluster.
+- Media: MediaProvider -> local dev = `make run-livekit` on :7880; production =
+  LiveKit Cloud (`LIVEKIT_URL` in infra/k8s-vke/configmap-vke.yaml). The
+  in-cluster LiveKit deployment is not applied.
 - Relational+vector: local = Postgres + pgvector; cloud = managed Postgres + pgvector.
 - Object store: ObjectStore -> local = MinIO/filesystem; cloud = S3-compatible.
 - Bus/state: local = single Redis; cloud = managed Redis/queue.
@@ -61,7 +63,7 @@ GROUP VS SOLO & ADAPTIVE LEARNING
 
 MONETIZATION
 - Tiered B2C subscriptions (Free -> Basic -> Pro -> Premium): higher tiers unlock 1:1
-  solo, all 26 languages, cross-class memory, recordings/transcripts, analytics.
+  solo, all 27 languages, cross-class memory, recordings/transcripts, analytics.
 - Pay-per-class / credit packs; premium pricing for solo vs group.
 - Metered add-ons: extra languages, recordings, hours, GPU-heavy live minutes.
 - B2B / institutional seat & site licensing; paid admin/cohort analytics.
@@ -122,7 +124,7 @@ PHASED ROADMAP (todos)
 - phase1  Live AI teacher in our web app (single language): Next.js + LiveKit;
           Director + Lesson Delivery + Tutor; slides + TTS; text chat Q&A via RAG.
 - phase2  Multilingual + voice: streaming ASR, language ID, NLLB translation,
-          multilingual TTS across 26 languages (with TTS fallback).
+          multilingual TTS across 27 languages (with TTS fallback).
 - phase3  Perception (consent-gated): face recognition + attention/gaze; Director
           reacts to engagement; consent + retention enforcement.
 - phase4  Memory & adaptive learning: per-student profiles, mastery graph, cross-class

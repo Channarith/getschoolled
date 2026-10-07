@@ -31,7 +31,7 @@ phase0  Foundations: monorepo, provider abstraction (LLM/Speech/Vision/Media/Obj
 phase1  Live AI teacher in apps/web on LiveKit; agent-runtime running Director + Lesson
         Delivery + Tutor; slide presentation + TTS narration; text chat Q&A via RAG.
 phase2  Multilingual + voice: streaming ASR, language ID, NLLB translation, multilingual
-        TTS across 26 languages (TTS fallback where needed).
+        TTS across 27 languages (TTS fallback where needed). Khmer is included.
 phase3  Perception (consent-gated): face recognition + attention/gaze; Director reacts;
         consent + retention enforcement.
 phase4  Memory & adaptive learning: per-student profiles, mastery graph, cross-class

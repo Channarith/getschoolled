@@ -18,11 +18,10 @@ description: How to run the Salareen/AOEP stack locally (backend services + Next
   (Docker is NOT preinstalled here).
 
 ## Web (Next.js, apps/web)
-- `cd apps/web && pnpm install` then `pnpm run dev` (port 3000). It reads backend
+- `cd apps/web && npm install` then `npm run dev` (port 3000). It reads backend
   URLs from `NEXT_PUBLIC_*_URL` (e.g. `NEXT_PUBLIC_ORCHESTRATOR_URL`, default
   `http://localhost:8000`). Start the backend first.
-- Use pnpm. It warns it ignored the `unrs-resolver` build script — safe; do NOT
-  run interactive `pnpm approve-builds`.
+- Use npm, matching CI and `make web-install`. Mobile is the pnpm app.
 
 ## Mobile (Expo, apps/mobile)
 - `pnpm install` then `pnpm typecheck`. `apps/mobile/src/config.ts` points at the
@@ -36,9 +35,9 @@ typecheck` + `npm run build`), **compose** (kustomize/compose config), **k8s**.
   also run per-service from its dir. `make test` runs all.
 - Lint: `ruff check packages/shared/src services/*/src qa training` (gated by
   `qa.yml`, not `ci.yml`). Keep touched files ruff-clean.
-- Web: `cd apps/web && pnpm run typecheck && pnpm run build`. If typecheck/build
+- Web: `cd apps/web && npm run typecheck && npm run build`. If typecheck/build
   fails on missing modules (`@playwright/test`, `livekit-client`), your local
-  `node_modules` is stale — run `pnpm install` (CI installs fresh).
+  `node_modules` is stale — run `npm install` in `apps/web` (CI installs fresh).
 
 ## Non-obvious gotchas (verified)
 - **Stale processes on ports:** a previous session may still hold 8000/8002/8008/3000

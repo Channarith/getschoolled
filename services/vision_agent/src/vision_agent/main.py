@@ -6,7 +6,9 @@ teaching (solo and group class modes).
 
 Architecture
 ------------
-One FastAPI app (port 8006 local) with four capability groups:
+One FastAPI app. The module comment used to say port 8006, which is billing's
+local port. Run this service on a free port (8016 in the README) and do not
+start it beside billing. Four capability groups:
 
 1. Session management — create/read/end per-student or per-group webcam sessions.
 2. Frame processing — POST raw webcam frames; get back face + silhouette analysis
