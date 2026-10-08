@@ -145,3 +145,44 @@ export function syntheticHand(tip, { pose = "open", scale = 0.1 } = {}) {
   };
   return pts;
 }
+
+// A letter trace is a stroke, not a filled shape. A short line down the guide
+// is enough. A tap or a scribble that never crosses the letter is not.
+export function traceProgress(points, ageBand) {
+  const samples = Array.isArray(points) ? points : [];
+  const inside = samples.filter((point) => (
+    point.x >= 0.22 && point.x <= 0.78 && point.y >= 0.18 && point.y <= 0.82
+  ));
+  let length = 0;
+  for (let i = 1; i < inside.length; i += 1) {
+    length += Math.hypot(inside[i].x - inside[i - 1].x, inside[i].y - inside[i - 1].y);
+  }
+  let minX = 1;
+  let maxX = 0;
+  let minY = 1;
+  let maxY = 0;
+  for (const point of inside) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+  const span = inside.length ? Math.hypot(maxX - minX, maxY - minY) : 0;
+  const young = ageBand === "4-6";
+  const needLength = young ? 0.32 : 0.42;
+  const needSpan = young ? 0.18 : 0.24;
+  const needPoints = young ? 6 : 8;
+  const insideRatio = samples.length ? inside.length / samples.length : 0;
+  const percent = Math.round(100 * Math.min(
+    1,
+    length / needLength,
+    span / needSpan,
+    inside.length / needPoints,
+    insideRatio / 0.25,
+  ));
+  return {
+    percent: Number.isFinite(percent) ? percent : 0,
+    passed: length >= needLength && span >= needSpan && inside.length >= needPoints && insideRatio >= 0.25,
+    cells: inside.length,
+  };
+}

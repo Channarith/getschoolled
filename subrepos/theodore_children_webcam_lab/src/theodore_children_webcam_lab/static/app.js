@@ -2,6 +2,7 @@ import {
   FIST_MAX_PALMS, HEART_TIPS_PALMS, HEART_THUMBS_PALMS, HEART_WRISTS_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
   coverFrame, handShape, heartRatios, isHeartShape, mapMirroredLandmark, syntheticHand,
+  traceProgress,
 } from "./vision_math.js";
 
 const $ = (id) => document.getElementById(id);
@@ -347,30 +348,9 @@ function drawGuide(w,h) {
   ctx.setLineDash([]);ctx.fillStyle="#fde047";ctx.beginPath();ctx.arc(w*.31,h*.2,10,0,Math.PI*2);ctx.fill();ctx.restore();
 }
 
-function traceProgress(points, ageBand) {
-  const cells = new Set();
-  let inside = 0;
-  for (const p of points) {
-    if (p.x >= 0.22 && p.x <= 0.78 && p.y >= 0.18 && p.y <= 0.82) {
-      inside += 1;
-      cells.add(`${Math.round(p.x*8)}:${Math.round(p.y*8)}`);
-    }
-  }
-  // A real letter trace is a narrow path, not an area-filling scribble. The old
-  // 16/22-cell requirement made clean A/B/C outlines effectively impossible
-  // even after the child visibly followed the guide.
-  const need = ageBand === "4-6" ? 10 : 14;
-  const sampleScore=Math.min(1,points.length/40);
-  const insideScore=points.length?Math.min(1,inside/(points.length*.55)):0;
-  const coverageScore=Math.min(1,cells.size/need);
-  return {percent:Math.round(100*Math.min(sampleScore,insideScore,coverageScore)),passed:sampleScore>=1&&insideScore>=1&&coverageScore>=1,cells:cells.size};
-}
-function tracePass(points, ageBand) {
-  return traceProgress(points,ageBand).passed;
-}
-
 function updateTrace() {
   if (!["trace-letter","trace-picture"].includes(state.game)) return;
+  if (state.roundDone || performance.now() < (state.traceHoldUntil || 0)) return;
   const hand=state.handData.find(h=>h.indexUp)||state.handData[0];
   if (!hand?.tip) return;
   const {w,h}=stageBox();
@@ -707,7 +687,10 @@ function chooseGame() {
   state.game=select.value;state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
   updateGuideLayer();
   const letter=$("letter")?.value,word=LETTER_WORDS[letter];
-  if(state.game==="trace-letter")setPrompt(`Trace ${letter}`,"Point one finger up and follow the glowing letter.",`Trace the letter ${letter}.`);
+  if(state.game==="trace-letter"){
+    state.traceHoldUntil=performance.now()+500;
+    setPrompt(`Trace ${letter}`,"Point one finger up and follow the glowing letter.",`Trace the letter ${letter}.`);
+  }
   else if(state.game==="trace-picture")setPrompt(`Trace the ${word}`,"Use one finger to draw around the picture.",`Now trace the ${word}.`);
   else if(state.game==="say-letter")setPrompt(`Say ${letter}`,"Tap the microphone or type what you said.",`Listen, then say the letter ${letter}.`);
   else if(state.game==="oh-behave"){
@@ -770,14 +753,30 @@ function calculateFun(success,extra={}) {
   return {score,duration,components:{play:Math.round(play),spark:Math.round(spark),giggle:Math.round(giggle),keep_going:Math.round(keepGoing)},...extra};
 }
 
+function pickNextLetter() {
+  const select=$("letter");
+  if (!select || !select.options.length) return;
+  const choices=[];
+  for (const option of select.options) {
+    if (option.value && option.value!==select.value) choices.push(option.value);
+  }
+  const next=randomOf(choices.length?choices:[select.value]);
+  if (next) select.value=next;
+}
 function succeed(message) {
   if(state.roundDone)return;state.roundDone=true;state.combo+=1;
   const round=state.roundId;
+  const advanceLetter=state.game==="trace-letter";
   if(state.game==="oh-behave")state.timerMs=nextTimer(true);
   const result=calculateFun(true);state.fun=result.score;renderScore();fireworks();setPrompt("You did it!",message);
   recordEvent("success",result);tellActivity(`The child succeeded. Celebrate in one short sentence: ${message}`);speak(`You did it! ${message}`);
   clearTimeout(state.roundTimer);
-  state.roundTimer=setTimeout(()=>{if(state.roundId!==round)return;state.roundDone=false;chooseGame();},1900);
+  state.roundTimer=setTimeout(()=>{
+    if(state.roundId!==round)return;
+    state.roundDone=false;
+    if(advanceLetter) pickNextLetter();
+    chooseGame();
+  }, advanceLetter?600:1900);
 }
 function fail(message) {
   if(state.roundDone)return;state.roundDone=true;state.combo=0;state.attempts+=1;

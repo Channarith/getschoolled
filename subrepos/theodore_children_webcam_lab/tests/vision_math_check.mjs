@@ -6,8 +6,8 @@
 // exactly this: a distant child read as a permanent fist.
 import assert from "node:assert/strict";
 import {
-  FIST_MAX_PALMS, HAND_BONES, coverFrame, handShape, heartRatios, isHeartShape,
-  mapMirroredLandmark, palmSpan, syntheticHand,
+  FIST_MAX_PALMS, HAND_BONES,   coverFrame, handShape, heartRatios, isHeartShape,
+  mapMirroredLandmark, palmSpan, syntheticHand, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 
 // A canonical right hand, palm size 1.0, fingers pointing up (-y).
@@ -170,5 +170,20 @@ const demo = coverFrame(800, 600, 0, 0);
 assert.equal(demo.w, 800);
 assert.equal(demo.h, 600);
 assert.ok(HAND_BONES.some((pair) => pair[0] === 0 && pair[1] === 5));
+
+function stroke(from, to, steps) {
+  const points = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    points.push({ x: from[0] + (to[0] - from[0]) * t, y: from[1] + (to[1] - from[1]) * t });
+  }
+  return points;
+}
+const roughLetter = traceProgress(stroke([0.48, 0.28], [0.52, 0.72], 10), "7-10");
+assert.equal(roughLetter.passed, true, "a single downstroke counts as a finished letter");
+const tap = traceProgress([{ x: 0.5, y: 0.5 }, { x: 0.51, y: 0.51 }], "7-10");
+assert.equal(tap.passed, false, "a tap is not a letter");
+const offGuide = traceProgress(stroke([0.02, 0.02], [0.08, 0.9], 12), "4-6");
+assert.equal(offGuide.passed, false, "a stroke outside the letter does not finish it");
 
 console.log("vision geometry OK");
