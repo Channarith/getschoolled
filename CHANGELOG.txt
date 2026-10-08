@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-07 - v0.50.16 - The driver's ed demo shows the course shelf and the language menu. Driver's ed still opens first.
 - 2026-10-07 - v0.50.15 - A question during class opens a slide for that question. Driver's ed can show a disability-placard example and a source even when no lesson page used those words.
 - 2026-10-07 - v0.50.14 - The live voice moves the lesson and the webcam. Next section, next game, next letter, another example, and a different animation change the screen to match what was said.
 - 2026-10-07 - v0.50.13 - Driver's ed and the vision arcade can load their lessons, voices, and games. Those /api calls were reaching the orchestrator, which does not serve the labs.

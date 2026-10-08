@@ -134,3 +134,6 @@ def test_studio_page_offers_the_sample_banner():
     assert "get('course')" in STUDIO_JS
     assert "is_admin" in STUDIO_JS
     assert "sampleIsComplete" in STUDIO_JS
+    assert "library-panel" in page
+    assert "public-course .library-panel { display:none" not in page
+    assert "library.filter((row) => row.id === pinnedCourse)" not in STUDIO_JS
