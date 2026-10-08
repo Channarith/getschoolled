@@ -36,6 +36,7 @@ def test_default_resolution():
     assert s.resolve("engagement.in_app_bug_reporter") is True  # QA default on
     assert s.resolve("engagement.watch_window") is True
     assert s.resolve("sales_demo.enabled") is False  # default off (v0.45.17)
+    assert s.resolve("sales_demo.exclusive") is False  # demo-only mode is opt-in
     # sales_demo.featured_courses is now a JSON array of course IDs (not a bool)
     featured = s.resolve("sales_demo.featured_courses")
     assert isinstance(featured, list) and len(featured) == 5

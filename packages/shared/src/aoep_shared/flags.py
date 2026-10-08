@@ -110,6 +110,11 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Show AI language and pronunciation practice in the Sales Demo."),
     FlagSpec("sales_demo.full_app_cta", FlagType.BOOL, True, "sales_demo",
              "Show the Explore Full Demo call-to-action."),
+    FlagSpec("sales_demo.exclusive", FlagType.BOOL, False, "sales_demo",
+             "Demo-only mode (inverted demo flag): the signed-out landing shows just "
+             "the mascot with Demo and Log in buttons, /login shows only the sign-in "
+             "box, and /demo is public with only Solo AI, On-the-Go, and the vision "
+             "arcade."),
 
     # --- data / analytics / data mining -------------------------------------- #
     FlagSpec("data.multidim_datamart", FlagType.BOOL, False, "data",

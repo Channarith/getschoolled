@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { getToken } from "../lib/api";
+import { DemoOnlyShowcase } from "../components/DemoOnly";
 import { useFlags } from "../lib/flags";
 import {
   SALES_DEMO_COURSES,
@@ -17,19 +18,24 @@ export default function SalesDemoPage() {
   const { flags, ready } = useFlags();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
+  const demoOnly = ready && flags[SALES_DEMO_FLAGS.exclusive] === true;
+
   useEffect(() => {
+    if (!ready) return;
     const authenticated = Boolean(getToken());
     setSignedIn(authenticated);
-    if (!authenticated) router.replace("/login");
-  }, [router]);
+    if (!authenticated && !demoOnly) router.replace("/login");
+  }, [router, ready, demoOnly]);
 
   const enabled = (key: string) => !ready || flags[key] !== false;
   const demoEnabled = enabled(SALES_DEMO_FLAGS.enabled);
   const features = SALES_DEMO_FEATURES.filter((feature) => enabled(feature.flagKey));
 
   useEffect(() => {
-    if (signedIn && ready && !demoEnabled) router.replace("/");
-  }, [demoEnabled, ready, router, signedIn]);
+    if (signedIn && ready && !demoEnabled && !demoOnly) router.replace("/");
+  }, [demoEnabled, demoOnly, ready, router, signedIn]);
+
+  if (demoOnly) return <DemoOnlyShowcase />;
 
   if (signedIn !== true || (ready && !demoEnabled)) {
     return <main style={{ padding: 40, textAlign: "center" }}>Loading Sales Demo…</main>;
@@ -90,7 +96,7 @@ export default function SalesDemoPage() {
           Children play the machine-vision games from the webcam lab. Anyone can open it.
           The camera stays in the browser.
         </p>
-        <Link href="/arcade#vision">
+        <Link href="/demo/arcade">
           <button type="button">Play the vision arcade</button>
         </Link>
       </section>

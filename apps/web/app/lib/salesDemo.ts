@@ -2,7 +2,11 @@ export const SALES_DEMO_FLAGS = {
   enabled: "sales_demo.enabled",
   featuredCourses: "sales_demo.featured_courses",
   fullAppCta: "sales_demo.full_app_cta",
+  exclusive: "sales_demo.exclusive",
 } as const;
+
+/** Feature cards shown on /demo when sales_demo.exclusive (demo-only mode) is on. */
+export const DEMO_ONLY_FEATURE_IDS = ["solo", "drive", "arcade"] as const;
 
 export const SALES_DEMO_COURSES = [
   {
@@ -83,7 +87,7 @@ export const SALES_DEMO_FEATURES = [
   {
     id: "arcade",
     flagKey: "sales_demo.arcade_games",
-    href: "/arcade#vision",
+    href: "/demo/arcade",
     emoji: "🎮",
     title: "Vision arcade",
     subtitle: "Machine vision for kids",

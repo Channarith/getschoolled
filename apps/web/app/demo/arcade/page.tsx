@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { VisionArcadeLinks } from "../../components/DemoOnly";
 import { VisionArcadeFrame } from "../../components/VisionArcadeFrame";
 import { visionArcadeFrameSrc } from "../../lib/visionArcade";
 
@@ -14,9 +13,7 @@ export default function VisionArcadeDemoPage() {
         Nothing is recorded, and the lab does not identify who is playing.
       </p>
       <p style={{ margin: "12px 0 18px" }}>
-        <Link href="/">← Back to Salareen</Link>
-        {" · "}
-        <Link href="/arcade">More arcade games</Link>
+        <VisionArcadeLinks />
       </p>
       <VisionArcadeFrame title="Children machine vision games" src={visionArcadeFrameSrc()} />
     </main>
