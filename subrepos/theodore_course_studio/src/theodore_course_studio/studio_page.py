@@ -2497,6 +2497,34 @@ STUDIO_JS = """
       return bestScore > 0 ? best : -1;
     }
 
+    let spokenActivity = null;
+    let spokenActivityPrompt = '';
+    function clearSpokenActivity() {
+      spokenActivity = null;
+      spokenActivityPrompt = '';
+    }
+    function armSpokenActivity(handler, prompt) {
+      spokenActivity = typeof handler === 'function' ? handler : null;
+      const line = String(prompt || '').trim();
+      spokenActivityPrompt = line;
+      if (!line || !window.TheodoreLiveAudio || !window.TheodoreLiveAudio.noteActivity) return;
+      window.TheodoreLiveAudio.noteActivity({
+        id: line.slice(0, 160),
+        prompt: 'A game is on the screen. Ask for the answer in one short sentence and wait. Do not reveal the correct answer. ' + line
+      });
+    }
+    function applySpokenActivity(text, role) {
+      if (role !== 'user' || typeof spokenActivity !== 'function') return false;
+      const heard = $('game-heard') || $('quiz-heard') || $('summary-sync-heard');
+      if (heard) heard.textContent = 'Heard: ' + text;
+      return spokenActivity(text) === true;
+    }
+    function saidCheck(text) {
+      const said = spokenWords(text);
+      return said === 'check' || said === 'done' || said === 'submit' || said === 'finished' ||
+        said === 'check order' || said === 'check my answer';
+    }
+
     function speakQuestion() {
       if (!lessonTurnLoaded()) return toast('Start a course first');
       if (!talkOpen) openTalk();
@@ -2866,6 +2894,7 @@ STUDIO_JS = """
     }
 
     async function nextSlide(opts) {
+      clearSpokenActivity();
       const automatic = !!(opts && opts.auto);
       if (learningHold) {
         if (!automatic) toast('Come back to the camera before the lesson continues.');
@@ -3073,8 +3102,9 @@ STUDIO_JS = """
     let pendingPop = null;
     let pendingGame = null;
 
-    async function popQuiz() {
+      async function popQuiz() {
       stopSpeech();
+      clearSpokenActivity();
       theodoreAvatar?.setState('ask');
       pendingPop = await api('/api/studio/teach/pop-quiz', {
         method:'POST', headers:{'content-type':'application/json'},
@@ -3089,6 +3119,7 @@ STUDIO_JS = """
         `<p class="heard" id="quiz-heard"></p>`;
       let submitting = false;
       const submitQuiz = async (index) => {
+        clearSpokenActivity();
         if (submitting) return;
         submitting = true;
         box.querySelectorAll('button').forEach((button) => { button.disabled = true; });
@@ -3148,7 +3179,7 @@ STUDIO_JS = """
         b.onclick = () => submitQuiz(+b.dataset.i);
       });
       const quizMic = box.querySelector('#quiz-mic');
-      if (quizMic) quizMic.onclick = () => {
+        if (quizMic) quizMic.onclick = () => {
         listenOnce((text, isFinal) => {
           const heard = box.querySelector('#quiz-heard');
           if (heard) heard.textContent = 'Heard: ' + text;
@@ -3158,6 +3189,12 @@ STUDIO_JS = """
           submitQuiz(index);
         }, quizMic);
       };
+      armSpokenActivity((text) => {
+        const index = matchSpokenChoice(text, pendingPop.choices || []);
+        if (index < 0) return false;
+        submitQuiz(index);
+        return true;
+      }, (pendingPop.prompt || 'Quiz') + '. Choices: ' + (pendingPop.choices || []).join(', '));
     }
 
     async function summaryQuiz() {
@@ -3225,6 +3262,7 @@ STUDIO_JS = """
       let at = 0;
 
       const finish = async () => {
+        clearSpokenActivity();
         stopSpeech();
         const graded = await api('/api/studio/teach/summary-grade', {
           method:'POST', headers:{'content-type':'application/json'},
@@ -3292,6 +3330,12 @@ STUDIO_JS = """
             choose(index);
           }, box.querySelector('#summary-sync-mic'));
         };
+        armSpokenActivity((text) => {
+          const index = matchSpokenChoice(text, choices);
+          if (index < 0) return false;
+          choose(index);
+          return true;
+        }, q.prompt + '. Choices: ' + choices.join(', '));
       };
       show();
     }
@@ -3309,6 +3353,7 @@ STUDIO_JS = """
     }
 
     async function gradeVisual(response) {
+      clearSpokenActivity();
       const res = await api('/api/studio/teach/game-grade', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({
@@ -3349,6 +3394,12 @@ STUDIO_JS = """
           if (index < 0) return toast('Say the word, or a number like 1 or 2.');
           choose(index);
         }, mic);
+        armSpokenActivity((text) => {
+          const index = matchSpokenChoice(text, payload.options);
+          if (index < 0) return false;
+          choose(index);
+          return true;
+        }, (pendingGame.prompt || 'Say the matching word') + '. Choices: ' + payload.options.join(', '));
         return true;
       }
       if (kind === 'word_to_image' && (payload.images || []).length) {
@@ -3359,6 +3410,13 @@ STUDIO_JS = """
         box.querySelectorAll('button[data-id]').forEach((b) => {
           b.onclick = () => gradeVisual({ selected_id: b.dataset.id });
         });
+        const pictureLabels = payload.images.map((card) => card.label || card.alt || card.name || card.id || '');
+        armSpokenActivity((text) => {
+          const index = matchSpokenChoice(text, pictureLabels);
+          if (index < 0) return false;
+          gradeVisual({ selected_id: payload.images[index].id });
+          return true;
+        }, pendingGame.prompt || 'Say the picture that matches.');
         return true;
       }
       if (kind === 'hotspot' && (payload.regions || []).length) {
@@ -3370,6 +3428,13 @@ STUDIO_JS = """
         box.querySelectorAll('button[data-region]').forEach((b) => {
           b.onclick = () => gradeVisual({ region: b.dataset.region });
         });
+        const regionNames = payload.regions.map((region) => region.name || region.id);
+        armSpokenActivity((text) => {
+          const index = matchSpokenChoice(text, regionNames);
+          if (index < 0) return false;
+          gradeVisual({ region: payload.regions[index].id });
+          return true;
+        }, (pendingGame.prompt || 'Say the spot') + '. Spots: ' + regionNames.join(', '));
         return true;
       }
       if (kind === 'classify' && (payload.items || []).length && (payload.categories || []).length) {
@@ -3421,6 +3486,19 @@ STUDIO_JS = """
           if (picked.length !== shown.length) return toast('Put every item in order first.');
           gradeVisual({ ordered_ids: picked.slice() });
         };
+        const orderLabels = shown.map((row) => row.label || row.name || row.id || '');
+        armSpokenActivity((text) => {
+          if (saidCheck(text)) {
+            if (picked.length !== shown.length) return false;
+            gradeVisual({ ordered_ids: picked.slice() });
+            return true;
+          }
+          const index = matchSpokenChoice(text, orderLabels);
+          if (index < 0 || picked.includes(shown[index].id)) return false;
+          picked.push(shown[index].id);
+          paint();
+          return true;
+        }, (pendingGame.prompt || 'Say the items in order') + '. Items: ' + orderLabels.join(', '));
         return true;
       }
       if (kind === 'label_placement' && (payload.targets || []).length && (payload.labels || []).length) {
@@ -3475,6 +3553,20 @@ STUDIO_JS = """
           if (!picked.length) return toast('Select at least one difference.');
           gradeVisual({ selected_ids: picked.slice() });
         };
+        const spotNames = spots.map((spot) => spot.region || spot.id || '');
+        armSpokenActivity((text) => {
+          if (saidCheck(text)) {
+            if (!picked.length) return false;
+            gradeVisual({ selected_ids: picked.slice() });
+            return true;
+          }
+          const index = matchSpokenChoice(text, spotNames);
+          if (index < 0) return false;
+          const id = spots[index].id;
+          const button = box.querySelector(`button[data-spot="${id}"]`);
+          if (button) button.click();
+          return true;
+        }, (pendingGame.prompt || 'Say each difference, then say check') + '. Differences: ' + spotNames.join(', '));
         return true;
       }
       if (kind === 'memory_pairs' && (payload.cards_shown || []).length) {
@@ -3516,6 +3608,7 @@ STUDIO_JS = """
 
     async function playGame() {
       stopSpeech();
+      clearSpokenActivity();
       theodoreAvatar?.setState('ask');
       learningCheckOpen = true;
       try {
@@ -3533,7 +3626,10 @@ STUDIO_JS = """
       const payload = pendingGame.payload || {};
       const lead = (lastTeachPayload && lastTeachPayload.activity_checkpoint && lastTeachPayload.activity_checkpoint.prompt) || '';
       speakText((lead ? lead + ' ' : '') + (pendingGame.prompt || 'Your turn.'), null, true, 'game');
-      if (paintVisualChallenge(box, kind, payload)) return;
+      if (paintVisualChallenge(box, kind, payload)) {
+        if (!spokenActivity) armSpokenActivity(() => false, pendingGame.prompt || 'Use the game on the screen.');
+        return;
+      }
       // Multimodal kits use order_steps (reorder) as well as match_term (pick one).
       if (kind === 'order_steps' || (payload.steps_shown && payload.steps_shown.length)) {
         const steps = (payload.steps_shown || []).slice();
@@ -3592,6 +3688,7 @@ STUDIO_JS = """
             toast('Pick every step in order first');
             return;
           }
+          clearSpokenActivity();
           const ordered = picked.map((i) => steps[i]);
           const res = await api('/api/studio/teach/game-grade', {
             method:'POST', headers:{'content-type':'application/json'},
@@ -3606,8 +3703,33 @@ STUDIO_JS = """
           noteScore('game', res.score, res.passed);
           theodoreAvatar?.setState(res.passed ? 'celebrate' : 'encouraging');
           box.style.display = 'none';
+          clearSpokenActivity();
           continueAfterActivity();
         };
+        armSpokenActivity((text) => {
+          if (saidCheck(text)) {
+            const submit = box.querySelector('#order-submit');
+            if (submit) submit.click();
+            return true;
+          }
+          const before = picked.length;
+          const said = spokenWords(text);
+          const hits = [];
+          steps.forEach((step, index) => {
+            if (picked.includes(index)) return;
+            const words = spokenWords(step).split(' ').filter((word) => word.length > 3);
+            if (!words.length) return;
+            const overlap = words.filter((word) => said.includes(word)).length;
+            if (overlap >= Math.min(2, words.length) || (words.length === 1 && said.includes(words[0]))) {
+              const pos = said.indexOf(words[0]);
+              hits.push({ index, pos: pos < 0 ? 999 : pos });
+            }
+          });
+          hits.sort((a, b) => a.pos - b.pos);
+          hits.forEach((hit) => { if (!picked.includes(hit.index)) picked.push(hit.index); });
+          paint();
+          return picked.length > before;
+        }, (pendingGame.prompt || 'Say the steps in order') + '. Steps: ' + steps.join(', '));
         return;
       }
       const opts = payload.options || [];
@@ -3616,6 +3738,7 @@ STUDIO_JS = """
         `<button type="button" class="secondary mic-btn" id="game-mic">Speak your answer</button>` +
         `<p class="heard" id="game-heard"></p>`;
       const submitGame = async (index) => {
+        clearSpokenActivity();
         const res = await api('/api/studio/teach/game-grade', {
           method:'POST', headers:{'content-type':'application/json'},
           body: JSON.stringify({
@@ -3646,6 +3769,12 @@ STUDIO_JS = """
           submitGame(index);
         }, gameMic);
       };
+      armSpokenActivity((text) => {
+        const index = matchSpokenChoice(text, opts);
+        if (index < 0) return false;
+        submitGame(index);
+        return true;
+      }, (pendingGame.prompt || 'Say your answer') + '. Choices: ' + opts.join(', '));
     }
 
     function clearPlaybackWatchdog() {
@@ -4099,6 +4228,15 @@ STUDIO_JS = """
     window.addEventListener('theodore-live-audio', (event) => {
       paintProceedCue();
       if (event.detail?.active && !event.detail?.paused && !window.__THEODORE_LIVE_AUDIO_HOLD__) stopSpeech();
+      if (event.detail?.active && spokenActivityPrompt) {
+        setTimeout(() => {
+          if (!spokenActivityPrompt || !window.TheodoreLiveAudio || !window.TheodoreLiveAudio.noteActivity) return;
+          window.TheodoreLiveAudio.noteActivity({
+            id: spokenActivityPrompt.slice(0, 160),
+            prompt: 'A game is on the screen. Ask for the answer in one short sentence and wait. Do not reveal the correct answer. ' + spokenActivityPrompt
+          });
+        }, 700);
+      }
     });
     window.addEventListener('theodore-live-audio-speech', (event) => {
       if (lecturePaused) return;
@@ -4119,7 +4257,12 @@ STUDIO_JS = """
     });
     window.addEventListener('theodore-live-audio-utterance', (event) => {
       const text = event.detail && event.detail.text;
+      const role = event.detail && event.detail.role;
       if (!text || lecturePaused || (event.detail && event.detail.command)) return;
+      if (role === 'user' && spokenActivity) {
+        applySpokenActivity(text, role);
+        return;
+      }
       queueLiveTopic(text);
     });
     window.addEventListener('theodore-live-audio-action', (event) => {

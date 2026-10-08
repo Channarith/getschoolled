@@ -651,6 +651,7 @@ function updateGestureGame(now) {
       if (state.hitCount>=4 && now-state.startedAt>2500) {
         state.phase=1;state.beatAt=now;
         setPrompt("Freeze!","Hold still like a statue!");
+        tellActivity("Say freeze, then tell them to hold still like a statue.");
         speak("Freeze!");
       }
     } else if (state.phase===1) {
@@ -729,7 +730,15 @@ function chooseGame() {
   } else if(state.game==="dance-freeze"){setPrompt("Dance!","Move any way you like… freeze when Theodore says freeze.");spawnObject("","🎵");}
   else if(state.game==="rainbow-reach"){setPrompt("Rainbow reach","Stretch both hands toward opposite top corners.");}
   else if(!GAMES.includes(state.game)){setPrompt("Pick a game","That activity is not wired yet. Choose another from the list.");}
+  tellActivity(state.spokenPrompt);
   speak(state.spokenPrompt);
+}
+function tellActivity(prompt) {
+  if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__ || !prompt) return;
+  window.TheodoreLiveAudio?.noteActivity?.({
+    id: String(state.game || "play") + ":" + prompt,
+    prompt: "The webcam game on screen is the activity. Coach it in one short sentence and wait. Do not reveal the answer. " + prompt,
+  });
 }
 
 function randomRegion(){const keys=Object.keys(REGIONS).filter(k=>!state.seated||!k.startsWith("bottom"));return randomOf(keys)||"center";}
@@ -757,7 +766,7 @@ function succeed(message) {
   const round=state.roundId;
   if(state.game==="oh-behave")state.timerMs=nextTimer(true);
   const result=calculateFun(true);state.fun=result.score;renderScore();fireworks();setPrompt("You did it!",message);
-  recordEvent("success",result);speak(`You did it! ${message}`);
+  recordEvent("success",result);tellActivity(`The child succeeded. Celebrate in one short sentence: ${message}`);speak(`You did it! ${message}`);
   clearTimeout(state.roundTimer);
   state.roundTimer=setTimeout(()=>{if(state.roundId!==round)return;state.roundDone=false;chooseGame();},1900);
 }
@@ -766,7 +775,7 @@ function fail(message) {
   const round=state.roundId;
   fadeMissedObject();
   const result=calculateFun(false);state.fun=result.score;renderScore();missGag();setPrompt("Almost!",message);
-  recordEvent("retry",result);speak(`Almost! ${message}`);
+  recordEvent("retry",result);tellActivity(`The child missed. Encourage them in one short sentence: ${message}`);speak(`Almost! ${message}`);
   if(state.game==="oh-behave")state.timerMs=nextTimer(false);
   clearTimeout(state.roundTimer);
   state.roundTimer=setTimeout(()=>{if(state.roundId!==round)return;state.roundDone=false;chooseGame();},1500);
@@ -835,7 +844,10 @@ async function speak(text) {
   }
 }
 window.addEventListener("theodore-live-audio",(event)=>{
-  if(event.detail?.active)cancelSpeech();
+  if(event.detail?.active){
+    cancelSpeech();
+    setTimeout(()=>tellActivity(state.spokenPrompt),700);
+  }
 });
 
 function pulsePlayStage() {
@@ -864,6 +876,36 @@ function selectSpokenGame(target) {
   if (!hit) return false;
   select.value = hit.value;
   chooseGame();
+  return true;
+}
+function applySpokenActivity(text, role) {
+  const said = String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  const short = said.split(" ").filter(Boolean).length <= 6;
+  if (state.game === "dance-freeze" && short) {
+    if (/\bfreeze\b/.test(said)) {
+      if (state.phase !== 1) {
+        state.phase = 1;
+        state.beatAt = performance.now();
+        state.hitCount = Math.max(state.hitCount, 4);
+        setPrompt("Freeze!", "Hold still like a statue!");
+      }
+      pulsePlayStage();
+      return true;
+    }
+    if (state.phase === 1 && /\b(dance|move)\b/.test(said)) {
+      state.phase = 0;
+      state.hitCount = 0;
+      state.startedAt = performance.now();
+      setPrompt("Dance!", "Move any way you like… freeze when Theodore says freeze.");
+      pulsePlayStage();
+      return true;
+    }
+  }
+  if (role !== "user" || state.game !== "say-letter") return false;
+  const typed = $("typed");
+  if (typed) typed.value = text;
+  checkSpeech(text);
+  pulsePlayStage();
   return true;
 }
 function applyVoiceScreen(detail) {
@@ -903,6 +945,11 @@ function applyVoiceScreen(detail) {
 }
 window.addEventListener("theodore-live-audio-action", (event) => {
   applyVoiceScreen(event.detail || {});
+});
+window.addEventListener("theodore-live-audio-utterance", (event) => {
+  const detail = event.detail || {};
+  if (!detail.text || detail.command) return;
+  applySpokenActivity(detail.text, detail.role);
 });
 
 function startListening() {

@@ -16,7 +16,7 @@
     connected: false, stopping: false, dropOutput: false,
     recognitionPaused: false, lastUserAt: 0, idleTimer: null, speechEndTimer: null,
     agentSpeaking: false, micRms: 0, voiceLevel: 0, levelTimer: null, outputGain: null,
-    userTalking: false, micSink: null,
+    userTalking: false, micSink: null, activityKey: "", activityAt: 0,
   };
 
   const host = document.createElement("div");
@@ -484,14 +484,43 @@
     toggle.textContent = "Start live voice"; toggle.classList.remove("live");
     dot.classList.remove("on"); toggle.disabled = !select.value; setStatus(message);
   }
+  function noteActivity(detail) {
+    const prompt = String(detail && detail.prompt || "").trim();
+    if (!prompt || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+    const key = String((detail && detail.id) || prompt);
+    const now = Date.now();
+    if (key === state.activityKey && now - state.activityAt < 2500) return;
+    state.activityKey = key;
+    state.activityAt = now;
+    const line = prompt.slice(0, 500);
+    if (state.provider === "gemini") {
+      state.ws.send(JSON.stringify({
+        clientContent: {
+          turns: [{role: "user", parts: [{text: line}]}],
+          turnComplete: true,
+        },
+      }));
+      return;
+    }
+    state.ws.send(JSON.stringify({
+      type: "response.create",
+      response: {instructions: line},
+    }));
+  }
   window.TheodoreLiveAudio = {
     pauseRecognition() { setRecognitionPaused(true); },
     resumeRecognition() { if (state.connected) setRecognitionPaused(false); },
     openMic() { return openSpeakerSafeMic(); },
+    noteActivity(detail) { noteActivity(detail); },
+    setHidden(hidden) {
+      host.hidden = Boolean(hidden);
+      if (hidden && state.ws) stop("Live audio off.");
+    },
     start() {
       if (state.ws) return Promise.resolve(true);
       return start();
     },
+    stop() { return stop(); },
   };
   navigator.mediaDevices?.addEventListener?.("devicechange", () => { void followSpeakers(); });
   toggle.onclick = () => state.ws ? stop() : start();

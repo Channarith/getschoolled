@@ -106,6 +106,10 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
     assert "Hold still like a statue" in script
     assert "theodore-live-audio-action" in script
     assert "applyVoiceScreen" in script
+    assert "applySpokenActivity" in script
+    assert "tellActivity" in script
+    assert 'state.game !== "say-letter"' in script
+    assert "checkSpeech(text)" in script
     assert "selectSpokenGame" in script
     # Gesture thresholds must be hand-relative, never absolute frame distances.
     assert "tipToWrist<0.22" not in script

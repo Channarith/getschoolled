@@ -16,6 +16,7 @@ import {
 } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { VisionArcadeFrame } from "../components/VisionArcadeFrame";
+import { LiveActivityVoice } from "../components/LiveActivityVoice";
 import { visionArcadeFrameSrc } from "../lib/visionArcade";
 
 const SUBJECT_ICON: Record<string, string> = {
@@ -157,6 +158,16 @@ export default function ArcadePage() {
     setSelTerm("");
   }
 
+  const voicePrompt = !round ? "" : round.items
+    ? (() => {
+        const next = round.items.find((item) => answers[item.id] === undefined);
+        if (!next) return "Every question has an answer. Say submit to finish.";
+        return `${next.prompt}. Choices: ${next.options.join(", ")}`;
+      })()
+    : round.terms
+      ? "Say a term, then say the matching definition. Say submit when every pair is matched."
+      : "";
+
   return (
     <main className="container" style={{ maxWidth: 1000 }}>
       <h1>{t("arcade.title")}</h1>
@@ -165,6 +176,7 @@ export default function ArcadePage() {
         <Link href="/rewards">{t("arcade.rewardsLink")}</Link>.
         {!loggedIn && <> <Link href="/login">{t("profile.signIn")}</Link> {t("arcade.signInSave")}</>}
       </p>
+      <LiveActivityVoice active={Boolean(round && !result)} prompt={voicePrompt} />
 
       {/* ── Salareen Worlds hero banner ─────────────────────────────────────── */}
       {!round && (
@@ -534,7 +546,7 @@ export default function ArcadePage() {
               <div style={{ fontWeight: 600 }}>{qi + 1}. {it.prompt}</div>
               <div className="row" style={{ flexWrap: "wrap", gap: 8, marginTop: 6 }}>
                 {it.options.map((opt, idx) => (
-                  <button key={idx} onClick={() => pickOption(it.id, idx)}
+                  <button key={idx} data-voice-choice onClick={() => pickOption(it.id, idx)}
                     style={{
                       border: answers[it.id] === idx ? "2px solid #7c3aed" : "1px solid var(--border)",
                       background: answers[it.id] === idx ? "#ede9fe" : "transparent",
@@ -546,7 +558,7 @@ export default function ArcadePage() {
               </div>
             </div>
           );})}
-          <button onClick={finish} style={{ marginTop: 8, background: "#16a34a", color: "#fff" }}>{t("arcade.submit")}</button>
+          <button data-voice-submit onClick={finish} style={{ marginTop: 8, background: "#16a34a", color: "#fff" }}>{t("arcade.submit")}</button>
         </div>
       )}
 
@@ -557,13 +569,13 @@ export default function ArcadePage() {
           <p className="muted">{t("arcade.matchHint")}</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
-              {round.terms.map((t) => (
-                <button key={t.id} onClick={() => setSelTerm(t.id)}
+              {round.terms.map((term) => (
+                <button key={term.id} data-voice-choice onClick={() => setSelTerm(term.id)}
                   style={{ display: "block", width: "100%", marginBottom: 8, textAlign: "left",
-                    border: selTerm === t.id ? "2px solid #7c3aed" : "1px solid var(--border)",
-                    background: answers[t.id] ? "#dcfce7" : "transparent",
-                    color: answers[t.id] ? "#166534" : "var(--text)" }}>
-                  {t.term} {answers[t.id] ? "✓" : ""}
+                    border: selTerm === term.id ? "2px solid #7c3aed" : "1px solid var(--border)",
+                    background: answers[term.id] ? "#dcfce7" : "transparent",
+                    color: answers[term.id] ? "#166534" : "var(--text)" }}>
+                  {term.term} {answers[term.id] ? "✓" : ""}
                 </button>
               ))}
             </div>
@@ -571,7 +583,7 @@ export default function ArcadePage() {
               {round.options.map((o) => {
                 const taken = Object.values(answers).includes(o.id);
                 return (
-                  <button key={o.id} onClick={() => pickMatch(o.id)} disabled={!selTerm}
+                  <button key={o.id} data-voice-choice onClick={() => pickMatch(o.id)} disabled={!selTerm}
                     style={{ display: "block", width: "100%", marginBottom: 8, textAlign: "left",
                       opacity: taken ? 0.5 : 1, border: "1px solid var(--border)",
                       background: "transparent", color: "var(--text)" }}>
@@ -581,7 +593,7 @@ export default function ArcadePage() {
               })}
             </div>
           </div>
-          <button onClick={finish} style={{ marginTop: 12, background: "#16a34a", color: "#fff" }}>{t("arcade.submit")}</button>
+          <button data-voice-submit onClick={finish} style={{ marginTop: 12, background: "#16a34a", color: "#fff" }}>{t("arcade.submit")}</button>
         </div>
       )}
 

@@ -83,7 +83,11 @@ install_live_audio_routes(
         "that question. Describe what is on the screen. "
         "The lesson screen follows your words. When you move ahead, say next section. "
         "When you give a new example, say another example. When the picture should "
-        "change, say different animation. When it is time to practice, say next game."
+        "change, say different animation. When it is time to practice, say next game. "
+        "When a game or quiz is on the screen, that activity is the lesson. Ask "
+        "them to say the choice, its number, or the next step. Their words answer "
+        "the game. Do not move to another section until the game is finished, and "
+        "do not reveal the correct answer."
     ),
 )
 _AVATAR_STATIC_DIR = Path(__file__).with_name("avatar_static")

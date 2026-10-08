@@ -161,7 +161,9 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "60000" in source
     assert "theodore-live-audio-speech" in source
     assert "theodore-live-audio-idle" in source
-    assert "theodore-live-audio-action" in source
+    assert "noteActivity" in source
+    assert "response.create" in source
+    assert "setHidden" in source
     assert "aoepLiveAudioIntent" in source
     assert "__THEODORE_LIVE_AUDIO_ACTIVE__" in source
     bundled = live.client_javascript()
