@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { AUTH_EVENT, evaluateFlags, getFlag, getMe } from "./api";
+import { AUTH_EVENT, evaluateFlags, getFlag, getMe, getToken } from "./api";
+import { SALES_DEMO_FLAGS } from "./salesDemo";
 import {
   DEFAULT_VOICE_PAUSE_SUBMIT_MS,
   normalizeVoicePauseSubmitMs,
@@ -86,6 +87,27 @@ export function useFlag<T = boolean>(key: string, fallback: T): T {
 
 export function useFlags() {
   return useContext(FlagsContext);
+}
+
+/**
+ * True when demo-only mode (sales_demo.exclusive) is on AND the visitor is
+ * signed out. Signed-in users always see the regular site; demo-only mode is
+ * an anonymous-visitor-only experience.
+ */
+export function useDemoOnlyAnonymous(): boolean {
+  const demoOnly = useFlag<boolean>(SALES_DEMO_FLAGS.exclusive, false);
+  const [signedOut, setSignedOut] = useState(true);
+  useEffect(() => {
+    const sync = () => setSignedOut(!getToken());
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return demoOnly && signedOut;
 }
 
 /** Resolved ``ux.voice_pause_submit_ms`` (default 4.5s). */
