@@ -134,6 +134,10 @@ STUDIO_CSS = """
     .teacher-stage-grid.has-photo .lesson-photo { grid-column:2; grid-row:1 / span 2; margin:0; min-height:300px; }
     .teacher-stage-grid.has-photo .storyboard-stage,
     .teacher-stage-grid.has-photo .visual-timeline-stage { display:none !important; }
+    .teacher-stage-grid.has-visual-timeline .visual-timeline-stage:not([hidden]),
+    .presenter-overlay.has-visual-timeline .visual-timeline-stage:not([hidden]) { display:block !important; }
+    .teacher-stage-grid.has-visual-timeline .lesson-photo,
+    .presenter-overlay.has-visual-timeline .lesson-photo { display:none !important; }
     .lesson-photo[data-effect="fade"].is-in .lesson-photo-motion { animation:pptFade .7s ease both; }
     .lesson-photo[data-effect="fly"].is-in .lesson-photo-motion { animation:pptFly .75s cubic-bezier(.2,.7,.2,1) both; }
     .lesson-photo[data-effect="wipe"].is-in .lesson-photo-motion { animation:pptWipe .8s ease both; }
@@ -157,6 +161,8 @@ STUDIO_CSS = """
     .presenter-overlay.has-photo .storyboard-stage,
     .presenter-overlay.has-photo .visual-timeline-stage,
     .presenter-overlay.has-photo .picture-stage { display:none !important; }
+    .presenter-overlay.has-visual-timeline .visual-timeline-stage:not([hidden]),
+    .teacher-stage-grid.has-visual-timeline .visual-timeline-stage:not([hidden]) { display:block !important; }
     .presenter-overlay.has-photo .lesson-stage-content {
       background:linear-gradient(to top, rgba(8,12,20,.88), rgba(8,12,20,.45) 70%, transparent); }
     .visual-timeline-stage { grid-column:2; grid-row:1 / span 2; position:relative; width:100%;
@@ -176,6 +182,19 @@ STUDIO_CSS = """
     .visual-layer[data-transition="pan"].is-active img { transform:scale(1); }
     .visual-layer .visual-label { padding:.45em .7em; border-radius:12px; background:rgba(255,255,255,.9);
       box-shadow:0 3px 14px rgba(15,23,42,.16); }
+    .timeline-style-label { position:absolute; top:12px; left:12px; z-index:30; margin:0;
+      padding:4px 10px; border-radius:999px; background:rgba(15,23,42,.78); color:#fff;
+      font:700 12px/1.2 "Avenir Next","Segoe UI",sans-serif; letter-spacing:.02em; }
+    .visual-timeline-stage.layout-compare:not([hidden]) { display:grid !important;
+      grid-template-columns:1fr 1fr; align-content:center; gap:14px; padding:56px 6vw 22vh; }
+    .visual-timeline-stage.layout-compare .visual-layer.kind-picture,
+    .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard,
+    .visual-timeline-stage.layout-compare .visual-layer.kind-video { position:absolute; inset:0; opacity:.22; }
+    .visual-timeline-stage.layout-compare .visual-layer.kind-title,
+    .visual-timeline-stage.layout-compare .visual-layer.kind-body,
+    .visual-timeline-stage.layout-compare .visual-layer.kind-callout { position:relative; inset:auto; }
+    .visual-timeline-stage.layout-compare .visual-layer.kind-title,
+    .visual-timeline-stage.layout-compare .visual-layer.kind-body { grid-column:1 / -1; }
     .attention-aside { margin:8px 0 0; padding:8px 12px; border-radius:12px; background:#f4f8ff;
       border:1px solid #c9d7ee; color:#1e3a5f; font:600 14px "Avenir Next","Segoe UI",sans-serif; }
     .attention-aside[hidden] { display:none !important; }
@@ -323,6 +342,8 @@ STUDIO_CSS = """
        selectors last so the caption bar and Start stay on the bottom edge. */
     .presenter-overlay:not(.has-storyboard):not(.has-visual-timeline) .lesson-stage-content,
     body.avatar-on .presenter-overlay:not(.has-storyboard):not(.has-visual-timeline) .lesson-stage-content,
+    .presenter-overlay.has-visual-timeline .lesson-stage-content,
+    body.avatar-on .presenter-overlay.has-visual-timeline .lesson-stage-content,
     .presenter-overlay.has-photo .lesson-stage-content,
     body.avatar-on .presenter-overlay.has-photo .lesson-stage-content {
       left:0; right:0; top:auto; bottom:0; height:auto; max-height:42%;
@@ -2790,11 +2811,11 @@ STUDIO_JS = """
 
     function finishSlideBeat() {
       if (learningHold) return;
-      if (sampleIsComplete()) return;
       if (lecturePaused || beatHandled) return;
+      const checkpoint = (lastTeachPayload && lastTeachPayload.activity_checkpoint) || {};
+      if (sampleIsComplete() && !checkpoint.due) return;
       beatHandled = true;
       clearAutoAdvance();
-      const checkpoint = (lastTeachPayload && lastTeachPayload.activity_checkpoint) || {};
       if (checkpoint.due) {
         presentActivityCheckpoint(checkpoint);
         return;
@@ -2802,7 +2823,63 @@ STUDIO_JS = """
       continueAfterActivity();
     }
 
+    function presentCompareQuiz(checkpoint) {
+      const compare = (checkpoint && checkpoint.compare) || {};
+      const box = $('quiz-box');
+      const prompt = compare.prompt || checkpoint.prompt || 'Compare the two ideas and pick the one that fits.';
+      const correctText = compare.correct_side === 'right' ? (compare.right || '') : (compare.left || '');
+      learningCheckOpen = true;
+      clearAutoAdvance();
+      box.style.display = 'block';
+      box.innerHTML = `<div class="quiz-correction" role="status">
+        <strong>${esc(prompt)}</strong>
+        <div class="challenge-grid">
+          <button type="button" class="challenge-choice" data-voice-choice data-side="left">${esc(compare.left || '')}</button>
+          <button type="button" class="challenge-choice" data-voice-choice data-side="right">${esc(compare.right || '')}</button>
+        </div>
+      </div>`;
+      speakText(prompt, null, true, 'learn-check');
+      const grade = (side) => {
+        clearSpokenActivity();
+        const ok = side === compare.correct_side;
+        box.innerHTML = `<div class="quiz-correction${ok ? ' is-correct' : ''}">
+          <strong>${ok ? 'Correct' : 'Not quite'}</strong>
+          <p>${esc(ok ? correctText : ('The matching idea is: ' + correctText))}</p>
+          <button type="button" class="primary" id="compare-continue">Continue</button>
+        </div>`;
+        speakText(ok ? 'Correct. ' + correctText : 'The matching idea is ' + correctText, null, true, 'learn-check');
+        const next = box.querySelector('#compare-continue');
+        if (next) next.onclick = () => {
+          box.style.display = 'none';
+          learningCheckOpen = false;
+          continueAfterActivity();
+        };
+      };
+      box.querySelectorAll('[data-side]').forEach((button) => {
+        button.onclick = () => grade(button.dataset.side);
+      });
+      armSpokenActivity((text) => {
+        const index = matchSpokenChoice(text, [compare.left || '', compare.right || '']);
+        if (index < 0) return false;
+        grade(index === 0 ? 'left' : 'right');
+        return true;
+      }, prompt + ' Left: ' + (compare.left || '') + '. Right: ' + (compare.right || ''));
+    }
+
     function presentActivityCheckpoint(checkpoint) {
+      if (checkpoint && checkpoint.activity === 'compare' && checkpoint.compare) {
+        presentCompareQuiz(checkpoint);
+        return;
+      }
+      if (checkpoint && (checkpoint.activity === 'quiz' || checkpoint.kind === 'summary_quiz')) {
+        learningCheckOpen = true;
+        clearAutoAdvance();
+        summaryQuizInteractive().catch((error) => {
+          learningCheckOpen = false;
+          toast(String(error.message || error));
+        });
+        return;
+      }
       if (checkpoint && checkpoint.activity === 'game') {
         learningCheckOpen = true;
         playGame().catch((error) => {
@@ -4336,6 +4413,8 @@ STUDIO_JS = """
       host.hidden = true;
       host.innerHTML = '';
       host.removeAttribute('data-style');
+      host.removeAttribute('data-layout');
+      host.classList.remove('layout-compare');
     }
 
     function renderVisualTimeline(payload) {
@@ -4352,6 +4431,14 @@ STUDIO_JS = """
       host.innerHTML = '';
       host.hidden = false;
       host.dataset.style = timeline.presentation_style_id || payload.presentation_style_id || 'layered';
+      host.dataset.layout = timeline.layout || '';
+      host.classList.toggle('layout-compare', timeline.layout === 'compare');
+      if (timeline.style_label) {
+        const badge = document.createElement('p');
+        badge.className = 'timeline-style-label';
+        badge.textContent = String(timeline.style_label);
+        host.appendChild(badge);
+      }
       cues.forEach((cue, cueIndex) => {
         const layers = Array.isArray(cue.layers) && cue.layers.length
           ? cue.layers : [{ kind: cue.kind, text: cue.text, url: cue.url, alt: cue.alt }];
@@ -4362,6 +4449,7 @@ STUDIO_JS = """
           el.dataset.transition = layer.transition || cue.transition || 'fade';
           el.style.zIndex = String(Number(layer.z_index ?? layerIndex) || 0);
           const kind = String(layer.kind || 'text');
+          el.classList.add('kind-' + (kind.replace(/[^a-z0-9_-]/gi, '') || 'text'));
           const url = String(layer.url || layer.src || '');
           const text = String(layer.text || layer.label || cue.text || '');
           if ((kind === 'image' || kind === 'picture') && url) {
@@ -4370,7 +4458,7 @@ STUDIO_JS = """
             image.alt = String(layer.alt || text || '');
             image.loading = 'eager';
             el.appendChild(image);
-          } else if (kind === 'svg' && String(layer.svg || layer.content || '').trim().startsWith('<svg')) {
+          } else if ((kind === 'svg' || kind === 'storyboard') && String(layer.svg || layer.content || '').trim().startsWith('<svg')) {
             el.innerHTML = String(layer.svg || layer.content);
             el.setAttribute('role', 'img');
             el.setAttribute('aria-label', String(layer.alt || text || 'Lesson diagram'));
@@ -4402,8 +4490,10 @@ STUDIO_JS = """
       visualCueIndex = active;
       const host = $('teach-visual-timeline');
       if (!host) return;
+      const hold = visualTimeline.layout === 'compare';
       host.querySelectorAll('.visual-layer').forEach((layer) => {
-        layer.classList.toggle('is-active', Number(layer.dataset.cue) === active);
+        const index = Number(layer.dataset.cue);
+        layer.classList.toggle('is-active', hold ? index <= active : index === active);
       });
       const cue = visualTimeline.cues[active] || {};
       if (cue.alt) host.setAttribute('aria-label', String(cue.alt));
@@ -4443,11 +4533,10 @@ STUDIO_JS = """
       const storyConceptEl = $('teach-storyboard-concept');
       const sbSvg = payload.storyboard_svg || '';
       const photoUrl = String(payload.photo_url || '');
-      const usePhoto = Boolean(photoUrl);
-      if (usePhoto) clearVisualTimeline();
-      const hasVisualTimeline = !usePhoto && renderVisualTimeline(payload);
+      const hasVisualTimeline = renderVisualTimeline(payload);
+      const usePhoto = Boolean(photoUrl) && !hasVisualTimeline;
       const hasStoryboard = !usePhoto && !hasVisualTimeline && Boolean(sbSvg.trim());
-      paintLessonPhoto(photoUrl, payload.photo_transition || 'fade', turn.title || '');
+      paintLessonPhoto(usePhoto ? photoUrl : '', payload.photo_transition || 'fade', turn.title || '');
       stage.classList.toggle('has-storyboard', hasStoryboard);
       stage.classList.toggle('has-visual-timeline', hasVisualTimeline);
       $('presenter-overlay').classList.toggle('has-storyboard', hasStoryboard);

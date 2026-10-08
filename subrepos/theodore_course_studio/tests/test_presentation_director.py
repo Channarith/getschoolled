@@ -805,3 +805,21 @@ def test_older_slide_json_stays_valid_without_presentation_fields():
     assert script.style_id == "narrative-title-card"
     restored = CourseSlide.model_validate(built.model_dump())
     assert restored.model_dump() == built.model_dump()
+
+
+def test_client_timeline_resolves_layers_onto_cues():
+    from theodore_course_studio.presentation_director import timeline_for_client
+
+    built = slide(
+        title="Yield versus stop",
+        body="A yield sign versus a stop sign.",
+        narration="A yield sign versus a stop sign. Then you choose.",
+        examples=["Yield means slow and give way.", "Stop means a full stop."],
+    )
+    built.presentation_style = "text-comparison"
+    script = presentation_for_slide(built)
+    payload = timeline_for_client(script)
+    assert payload["layout"] == "compare"
+    assert payload["cues"]
+    assert any(layer.get("text") for cue in payload["cues"] for layer in cue["layers"])
+    assert all("layer_ids" not in cue for cue in payload["cues"])

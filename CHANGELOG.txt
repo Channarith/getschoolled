@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-08 - v0.50.21 - California driving lessons play generated animations, including side-by-side comparison, and each lesson ends on a different quiz: questions, ordering, matching, or comparison.
 - 2026-10-08 - v0.50.19 - Full-screen lesson captions and the Start button sit on the bottom edge, in front of the other controls, so they can be clicked.
 - 2026-10-08 - v0.50.20 - Demo-only mode (sales_demo.exclusive) now hides the top nav, footer, and floating sales-demo widget for signed-out visitors so the inverted demo stays focused. /class (Solo AI) and /drive (On-the-Go) no longer gate signed-out demo visitors with a sign-in card; /drive's catalog also loads anonymously. Signed-in users still see the full regular site.
 - 2026-10-08 - v0.50.18 - New sales_demo.exclusive flag (demo-only mode, off by default). When on, the signed-out landing shows only the mascot, "AI-instructed learning", and two large Demo / Log in buttons; /login shows only the sign-in box under the mascot; /demo is public and shows only Solo AI, On-the-Go, and the vision arcade. The demo's arcade links now go to the vision arcade (/demo/arcade), not the learning/kids arcade.
