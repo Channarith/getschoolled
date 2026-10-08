@@ -47,6 +47,13 @@ def _slice(source: str, start: str, end: str) -> str:
     return body.split(end, 1)[0]
 
 
+def test_lesson_stage_keeps_the_generated_timeline_and_varied_checks():
+    assert "const hasVisualTimeline = renderVisualTimeline(payload);" in STUDIO_JS
+    assert "presentCompareQuiz" in STUDIO_JS
+    assert "layout-compare" in render_studio_page()
+    assert "checkpoint.activity === 'quiz'" in STUDIO_JS
+
+
 def test_playback_and_talk_markup_contracts():
     page = render_studio_page()
     assert STUDIO_JS in page
