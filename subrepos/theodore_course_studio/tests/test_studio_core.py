@@ -6,7 +6,7 @@ from theodore_course_studio.corpus import scan_corpus, write_corpus_index
 from theodore_course_studio.generate import CourseBuilder
 from theodore_course_studio.profile_adapt import adapt_slide
 from theodore_course_studio.review_store import ReviewStore
-from theodore_course_studio.teach import TeachEngine
+from theodore_course_studio.teach import TeachEngine, lesson_quiz_style
 from theodore_course_studio.training_run import run_training_pass
 from theodore_course_studio.types import CourseSlide, LearnerProfileScores, QualityLabel
 
@@ -98,10 +98,15 @@ def test_teach_engine_advances(tmp_path: Path):
     assert first["animation"]["enter"] == "fade-up"
     assert first["photo_url"].endswith("lesson-classroom.jpg")
     assert first["photo_transition"] == "fade"
+    assert first["visual_timeline"]["presentation_style_id"] == "picture-storyboard-steps"
+    assert first["visual_timeline"]["cues"]
+    assert first["visual_timeline"]["cues"][0]["layers"]
     assert first["language"] == "en"
     second = engine.advance("s1")
     assert second["turn"]["title"] == "Two"
     assert second["photo_transition"] == "fly"
+    assert second["visual_timeline"]["presentation_style_id"] == "text-comparison"
+    assert second["visual_timeline"]["layout"] == "compare"
     pop = engine.pop_quiz("s1")
     assert pop.choices
     graded = engine.answer_pop("s1", pop.correct_index)
@@ -151,3 +156,71 @@ def test_teach_engine_keeps_mastery_in_builder_data_dir(tmp_path: Path):
 
     written = list((data_dir / "knowledge").glob("*.json"))
     assert written, "mastery should persist under the builder's data dir"
+
+
+def test_lesson_end_quiz_style_follows_the_course(tmp_path: Path):
+    from theodore_course_studio.types import CategoryId, StudioCourse
+
+    data_dir = tmp_path / "data"
+    builder = CourseBuilder(data_dir=data_dir)
+    course_id = "drivers-compare"
+    builder.save_course(
+        StudioCourse(
+            course_id=course_id,
+            title="Signals",
+            category=CategoryId.OTHER,
+            slides=[
+                CourseSlide(
+                    index=0,
+                    title="Signals",
+                    body="Use a signal before you change lanes.",
+                    narration="Use a signal before you change lanes.",
+                    quiz_spec={
+                        "prompt": "When do you signal?",
+                        "choices": ["Before the lane change", "After you have moved"],
+                        "correct_index": 0,
+                    },
+                ),
+                CourseSlide(
+                    index=1,
+                    title="Lane changes",
+                    body="Check the mirror, then the blind spot.",
+                    narration="Check the mirror, then the blind spot.",
+                    quiz_spec={
+                        "prompt": "What comes first?",
+                        "choices": ["Mirror", "Blind spot"],
+                        "correct_index": 0,
+                    },
+                ),
+            ],
+            status="ready",
+        )
+    )
+    engine = TeachEngine(builder)
+    opening = engine.start(
+        session_id="quiz-style",
+        course_id=course_id,
+        use_voice_agent=False,
+        language="en",
+    )
+    assert opening["activity_checkpoint"]["due"] is False
+    ending = engine.advance("quiz-style")
+    assert lesson_quiz_style("ca-dmv-basics") == "summary_quiz"
+    assert lesson_quiz_style("ca-dmv-signs") == "order_steps"
+    assert lesson_quiz_style("ca-dmv-sign-stop-yield") == "match_term"
+    assert lesson_quiz_style("ca-dmv-sign-turns") == "compare"
+    style = lesson_quiz_style(course_id)
+    checkpoint = ending["activity_checkpoint"]
+    assert checkpoint["due"] is True
+    assert checkpoint["quiz_style"] == style
+    if style == "summary_quiz":
+        assert checkpoint["activity"] == "quiz"
+    elif style == "compare":
+        assert checkpoint["activity"] == "compare"
+        assert checkpoint["compare"]["left"]
+        assert checkpoint["compare"]["right"]
+        assert checkpoint["compare"]["correct_side"] in {"left", "right"}
+    else:
+        assert checkpoint["activity"] == "game"
+        game = engine.game_for_current("quiz-style")
+        assert game.kind.value == style

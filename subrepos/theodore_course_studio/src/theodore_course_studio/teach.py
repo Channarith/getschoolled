@@ -50,11 +50,14 @@ from .checkpoints import (
 from .engagement import (
     GameAttemptResult,
     GameChallenge,
+    build_match_term_game,
+    build_order_steps_game,
     grade_game,
     media_suggestions_for_slide,
     pick_game_for_slide,
     pick_visual_game_for_slide,
 )
+from .presentation_director import presentation_for_slide, timeline_for_client
 from .generate import CourseBuilder
 from .knowledge import (
     KnowledgeStore,
@@ -115,8 +118,76 @@ class TeachSession:
     completed_slide_indexes: list[int] = field(default_factory=list)
     resumed_from_checkpoint: bool = False
     game_rotation: int = 0
+    # Lesson-end games ignore a curated spec so each lesson can use a different check.
+    forced_game_kind: str = ""
     # Sales-demo sessions stop at SAMPLE_MINUTES and cannot be extended.
     sample_only: bool = False
+
+
+# One style per slide, in order, so a lesson shows animation, comparison, steps,
+# and a challenge instead of the same photographic plate.
+_SHOWCASE_STYLES = (
+    "picture-storyboard-steps",
+    "text-comparison",
+    "narrative-cause-effect",
+    "picture-compare",
+    "text-steps",
+    "challenge-choice-grid",
+    "picture-example-callouts",
+    "narrative-timeline",
+)
+
+_LESSON_QUIZ_STYLES = ("summary_quiz", "order_steps", "match_term", "compare")
+
+
+def _stable_bucket(text: str, count: int) -> int:
+    total = 0
+    for char in text or "lesson":
+        total = (total * 33 + ord(char)) & 0xFFFFFFFF
+    return total % max(1, count)
+
+
+def lesson_quiz_style(lesson_id: str) -> str:
+    """Rotate the end-of-lesson check across the certification catalog.
+
+    Neighboring lessons land on a different style: questions, ordering,
+    matching, then a side-by-side comparison. Other courses use a stable hash.
+    """
+    from .certification_prep import list_cert_courses
+
+    ids = [option.lesson_id for option in list_cert_courses()]
+    if lesson_id in ids:
+        return _LESSON_QUIZ_STYLES[ids.index(lesson_id) % len(_LESSON_QUIZ_STYLES)]
+    return _LESSON_QUIZ_STYLES[_stable_bucket(lesson_id, len(_LESSON_QUIZ_STYLES))]
+
+
+def _showcase_slide(slide: CourseSlide, index: int) -> CourseSlide:
+    if (slide.presentation_style or "").strip():
+        return slide
+    style_id = _SHOWCASE_STYLES[index % len(_SHOWCASE_STYLES)]
+    return slide.model_copy(update={"presentation_style": style_id})
+
+
+def _compare_check(slide: CourseSlide, course_id: str) -> dict[str, Any]:
+    """Two ideas side by side. The matching idea is not always on the left."""
+    spec = slide.quiz_spec if isinstance(slide.quiz_spec, dict) else {}
+    choices = [str(item).strip() for item in (spec.get("choices") or []) if str(item).strip()]
+    prompt = str(spec.get("prompt") or f"Which idea matches {slide.title}?").strip()
+    if len(choices) >= 2:
+        correct = int(spec.get("correct_index") or 0)
+        if correct < 0 or correct >= len(choices):
+            correct = 0
+        wrong = next((i for i in range(len(choices)) if i != correct), 0)
+        left, right, side = choices[correct], choices[wrong], "left"
+    else:
+        lines = example_lines(slide)
+        left = lines[0] if lines else (slide.title or "The lesson idea")
+        right = lines[1] if len(lines) > 1 else "A rule from a different topic"
+        side = "left"
+    if _stable_bucket(f"{course_id}:{slide.slide_key or slide.title}", 2):
+        left, right = right, left
+        side = "right" if side == "left" else "left"
+    return {"prompt": prompt, "left": left, "right": right, "correct_side": side}
 
 
 class TeachEngine:
@@ -544,6 +615,14 @@ class TeachEngine:
         # Checkpoint play prefers a labeled picture challenge. Slides with an
         # authored game spec keep that spec, and the plain rotation is unchanged
         # when the caller does not ask for a picture challenge.
+        forced = session.forced_game_kind
+        session.forced_game_kind = ""
+        if forced == "order_steps":
+            session.game_rotation += 1
+            return build_order_steps_game(slide, objective.objective_id)
+        if forced == "match_term":
+            session.game_rotation += 1
+            return build_match_term_game(slide, objective.objective_id)
         authored = isinstance(slide.game_spec, dict) and bool(slide.game_spec)
         if prefer_visual and not authored:
             visual = pick_visual_game_for_slide(
@@ -852,26 +931,58 @@ class TeachEngine:
             course.slides[i].quiz_spec for i in session.path[: session.path_pos + 1]
         )
         sample_complete = self._sample_expired(session, now)
+        quiz_style = ""
+        compare_check: dict[str, Any] | None = None
+        session.forced_game_kind = ""
         if is_lesson_end and has_quiz_bank:
-            checkpoint_activity = "quiz"
+            lesson_key = str(
+                (course.profile_adaptations or {}).get("lesson_id") or course.course_id
+            )
+            quiz_style = lesson_quiz_style(lesson_key)
+            if quiz_style == "summary_quiz":
+                checkpoint_activity = "quiz"
+                checkpoint_kind = "summary_quiz"
+            elif quiz_style == "compare":
+                checkpoint_activity = "compare"
+                checkpoint_kind = "compare"
+                compare_check = _compare_check(slide, course.course_id)
+            else:
+                checkpoint_activity = "game"
+                checkpoint_kind = quiz_style
+                session.forced_game_kind = quiz_style
         elif is_lesson_end or is_section_end:
             checkpoint_activity = "game"
+            checkpoint_kind = "reflection"
         else:
             checkpoint_activity = "reflection"
+            checkpoint_kind = "reflection"
+        lesson_prompts = {
+            "summary_quiz": "End of the lesson. Answer the questions.",
+            "order_steps": "End of the lesson. Put the steps in order.",
+            "match_term": "End of the lesson. Match the idea to the right meaning.",
+            "compare": "End of the lesson. Compare the two ideas and pick the one that fits.",
+        }
+        if quiz_style and speak_lang == "en":
+            checkpoint_prompt_text = lesson_prompts[quiz_style]
+        elif is_section_end and not is_lesson_end and speak_lang == "en":
+            checkpoint_prompt_text = "Now that this section is complete, check what you remember."
+        elif speak_lang == "en":
+            checkpoint_prompt_text = "Before finishing the lesson, check what you remember."
+        else:
+            checkpoint_prompt_text = str(activity_prompt or turn.title)
         activity_checkpoint = {
             "due": bool(is_lesson_end or is_section_end),
             "scope": "lesson" if is_lesson_end else "section",
             "activity": checkpoint_activity,
-            "kind": "summary_quiz" if checkpoint_activity == "quiz" else "reflection",
-            "prompt": (
-                "Now that this section is complete, check what you remember."
-                if is_section_end and not is_lesson_end
-                else "Before finishing the lesson, check what you remember."
-            )
-            if speak_lang == "en"
-            else str(activity_prompt or turn.title),
+            "kind": checkpoint_kind,
+            "quiz_style": quiz_style,
+            "prompt": checkpoint_prompt_text,
         }
-        if sample_complete:
+        if compare_check is not None:
+            activity_checkpoint["compare"] = compare_check
+        # A finished lesson still gets its check. The sample clock only blocks
+        # checks that would appear before the lesson ends.
+        if sample_complete and not is_lesson_end:
             activity_checkpoint["due"] = False
         plate = photo_plate(
             title=turn.title or slide.title,
@@ -916,6 +1027,12 @@ class TeachEngine:
                 "emphasis": "highlight-title",
                 "duration_ms": 650,
             },
+            "visual_timeline": timeline_for_client(
+                presentation_for_slide(
+                    _showcase_slide(slide, session.path_pos),
+                    narration=spoken,
+                )
+            ),
             "photo_url": plate["url"],
             "photo_transition": plate["transition"],
             "avatar": avatar.model_dump(mode="json"),

@@ -7,6 +7,8 @@ still compile. Reduced motion keeps every layer and drops the animation.
 
 from __future__ import annotations
 
+from typing import Any
+
 from .avatar_director import narration_duration
 from .presentation_styles import (
     PRESENTATION_STYLES,
@@ -523,6 +525,58 @@ def presentation_for_slide(
     script.checkpoints = compile_checkpoint_times(script.checkpoints, sentences, script.duration_s)
     validate_presentation_script(script)
     return script
+
+
+def timeline_for_client(script: PresentationScript) -> dict[str, Any]:
+    """Flatten cue ``layer_ids`` into the layers the studio stage already paints."""
+    by_id = {layer.layer_id: layer for layer in script.layers}
+    style = PRESENTATION_STYLES.get(script.style_id)
+
+    def pack(layer: VisualLayer, transition: str) -> dict[str, Any]:
+        return {
+            "kind": layer.kind,
+            "text": layer.text,
+            "url": layer.asset_url,
+            "svg": layer.svg,
+            "alt": layer.alt,
+            "z_index": layer.z_index,
+            "transition": transition or layer.motion,
+        }
+
+    cues: list[dict[str, Any]] = []
+    for cue in script.cues:
+        layers = [
+            pack(by_id[layer_id], cue.enter)
+            for layer_id in cue.layer_ids
+            if layer_id in by_id
+        ]
+        if not layers:
+            continue
+        cues.append(
+            {
+                "start_s": cue.start_s,
+                "duration_s": cue.duration_s,
+                "transition": cue.enter,
+                "layers": layers,
+            }
+        )
+    if not cues and script.layers:
+        cues.append(
+            {
+                "start_s": 0.0,
+                "duration_s": script.duration_s,
+                "transition": "fade",
+                "layers": [pack(layer, layer.motion) for layer in script.layers],
+            }
+        )
+    return {
+        "presentation_style_id": script.style_id,
+        "style_label": style.label if style is not None else script.style_id,
+        "family": script.family,
+        "layout": script.layout,
+        "duration_s": script.duration_s,
+        "cues": cues,
+    }
 
 
 def presentations_for_slides(
