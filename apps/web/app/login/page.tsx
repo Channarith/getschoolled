@@ -17,7 +17,9 @@ import {
 import { useT } from "../lib/i18n";
 import { AppleIcon, FacebookIcon, GoogleIcon } from "../components/BrandIcons";
 import { EyeIcon } from "../components/EyeIcon";
-import { useFlag } from "../lib/flags";
+import { useFlag, useFlags } from "../lib/flags";
+import { DemoOnlyLogin } from "../components/DemoOnly";
+import { SALES_DEMO_FLAGS } from "../lib/salesDemo";
 
 function passwordProblems(pw: string, t: (k: string) => string): string[] {
   const problems: string[] = [];
@@ -31,6 +33,8 @@ export default function LoginPage() {
   const { t } = useT();
   const router = useRouter();
   const signupsOpen = useFlag<boolean>("ops.new_signups", true);
+  const demoOnly = useFlag<boolean>(SALES_DEMO_FLAGS.exclusive, false);
+  const { ready: flagsReady } = useFlags();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,6 +74,10 @@ export default function LoginPage() {
   useEffect(() => {
     if (!signupsOpen && mode === "signup") setMode("login");
   }, [signupsOpen, mode]);
+
+  // Wait for flags so demo-only mode doesn't flash the full sign-in page first.
+  if (!flagsReady) return <main className="landing-hero" />;
+  if (demoOnly) return <DemoOnlyLogin />;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

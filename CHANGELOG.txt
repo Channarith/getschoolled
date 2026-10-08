@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-08 - v0.50.18 - New sales_demo.exclusive flag (demo-only mode, off by default). When on, the signed-out landing shows only the mascot, "AI-instructed learning", and two large Demo / Log in buttons; /login shows only the sign-in box under the mascot; /demo is public and shows only Solo AI, On-the-Go, and the vision arcade. The demo's arcade links now go to the vision arcade (/demo/arcade), not the learning/kids arcade.
 - 2026-10-08 - v0.50.17 - Voice agents play the game activity. Machine-vision games, lesson games, and arcade quizzes take spoken answers, and Theodore coaches the activity on screen.
 - 2026-10-07 - v0.50.16 - The driver's ed demo shows the course shelf and the language menu. Driver's ed still opens first.
 - 2026-10-07 - v0.50.15 - A question during class opens a slide for that question. Driver's ed can show a disability-placard example and a source even when no lesson page used those words.
