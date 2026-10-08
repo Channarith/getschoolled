@@ -68,6 +68,9 @@ def test_health_and_studio_page():
     assert "Continue without check" not in page.text
     assert 'id="btn-captions"' in page.text
     assert 'class="teach-stage captions-off"' in page.text
+    assert ".teach-stage.captions-off .lesson-stage-content { display:none" not in page.text
+    assert ".teach-stage.captions-off .lesson-stage-content > :not(#proceed-cue)" in page.text
+    assert "order:20; position:sticky; bottom:0" in page.text
     assert 'aria-pressed="false"' in page.text
     assert 'aria-label="Show lesson captions"' in page.text
     assert "requestFullscreen" in page.text
