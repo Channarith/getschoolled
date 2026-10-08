@@ -32,8 +32,7 @@ STUDIO_CSS = """
   .mast-art svg { width:168px; height:112px; display:block; }
   .layout { display:grid; grid-template-columns: 1.05fr 1.15fr; gap:16px; padding:16px 22px 28px; }
   body.public-course header.mast { display:none; }
-  body.public-course .library-panel { display:none; }
-  body.public-course .layout { grid-template-columns:1fr; padding:8px; }
+  body.public-course .layout { grid-template-columns:minmax(260px, 0.9fr) 1.2fr; padding:8px; }
   @media (max-width: 980px) {
     .layout { grid-template-columns: 1fr; }
     .study-bg .shelf, .mast-art { display:none; }
@@ -1989,13 +1988,11 @@ STUDIO_JS = """
           featured: false
         });
       });
-      if (pinnedCourse) {
-        document.body.classList.add('public-course');
-        library = library.filter((row) => row.id === pinnedCourse);
-      }
       renderLibrary();
       if (pinnedCourse) {
-        if (!library.length) toast('That course is not on this page.');
+        document.body.classList.add('public-course');
+        const pinned = library.find((row) => row.id === pinnedCourse);
+        if (!pinned) toast('That course is not on this page.');
         else await openLibraryCourse(pinnedCourse);
       }
     }
