@@ -121,6 +121,8 @@ def test_playback_and_talk_markup_contracts():
 def test_live_voice_moves_the_lesson_screen():
     assert "theodore-live-audio-action" in STUDIO_JS
     assert "applyLiveAudioAction" in STUDIO_JS
+    assert "armSpokenActivity" in STUDIO_JS
+    assert "applySpokenActivity" in STUDIO_JS
     assert "cycleLessonAnimation" in STUDIO_JS
     assert "showSpokenExample" in STUDIO_JS
     assert "event.detail.command" in STUDIO_JS

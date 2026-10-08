@@ -46,7 +46,11 @@ install_live_audio_routes(
         "say next game, or name it, like play the heart game. When you change "
         "letters, say next letter, or name it, like letter B. When you want the "
         "picture for that letter, say another example. When the motion should "
-        "start again, say different animation."
+        "start again, say different animation. The game on screen is the activity. "
+        "Coach that activity. If it is say the letter, ask them to say the letter "
+        "out loud. If it is dance freeze, say freeze when they should hold still "
+        "and say dance when they should move again. Their spoken answer is checked "
+        "by the game. Do not give away the answer."
     ),
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
