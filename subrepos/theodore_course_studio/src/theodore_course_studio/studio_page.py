@@ -113,7 +113,7 @@ STUDIO_CSS = """
                                      box-shadow:0 3px 12px rgba(20,16,12,.22); font-weight:800; }
     .lesson-window-controls button:hover { background:#274c78; }
     .lesson-window-controls button.is-off { background:rgba(74,64,56,.76); color:#d8cec2; text-decoration:line-through; }
-    .teach-stage.captions-off .lesson-stage-content { display:none; }
+    .teach-stage.captions-off .lesson-stage-content > :not(#proceed-cue) { display:none; }
     .absorb-note { margin-top:10px; padding:10px 12px; border-radius:12px; background:#fff6e0;
                    border:1px solid #e7c98a; color:#6a4b16; font:600 14px "Avenir Next", "Segoe UI", sans-serif; }
     .absorb-note[hidden] { display:none !important; }
@@ -317,6 +317,29 @@ STUDIO_CSS = """
     body.avatar-on .presenter-overlay.has-photo .lesson-stage-content {
       left:0; right:0; top:auto; bottom:0; height:auto; max-height:38%;
       background:linear-gradient(transparent, rgba(8,12,20,.55) 18%, rgba(8,12,20,.9));
+    }
+    /* The avatar-on rules above set top:0 with higher specificity, which
+       paints the captions and Start under the lesson toolbar. Repeat those
+       selectors last so the caption bar and Start stay on the bottom edge. */
+    .presenter-overlay:not(.has-storyboard):not(.has-visual-timeline) .lesson-stage-content,
+    body.avatar-on .presenter-overlay:not(.has-storyboard):not(.has-visual-timeline) .lesson-stage-content,
+    .presenter-overlay.has-photo .lesson-stage-content,
+    body.avatar-on .presenter-overlay.has-photo .lesson-stage-content {
+      left:0; right:0; top:auto; bottom:0; height:auto; max-height:42%;
+      z-index:4; pointer-events:auto; overflow:auto;
+      display:flex; flex-direction:column;
+    }
+    .presenter-overlay .lesson-stage-content::before { content:""; margin-top:auto; }
+    .presenter-overlay .proceed-cue {
+      order:20; position:sticky; bottom:0; z-index:8; margin:10px 0 0;
+      pointer-events:auto;
+    }
+    .presenter-overlay .proceed-cue button { position:relative; z-index:9; }
+    .presenter-overlay .theodore-avatar-wrap,
+    .presenter-overlay:not(.has-storyboard):not(.has-visual-timeline) .theodore-avatar-wrap,
+    .presenter-overlay.has-photo .theodore-avatar-wrap,
+    body.avatar-on .presenter-overlay.has-photo .theodore-avatar-wrap {
+      bottom:calc(42% + 12px); height:min(34vh, 320px);
     }
     .presenter-overlay.has-photo .theodore-avatar-wrap,
     body.avatar-on .presenter-overlay.has-photo .theodore-avatar-wrap {
