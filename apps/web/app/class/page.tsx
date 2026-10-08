@@ -62,7 +62,7 @@ import VideoAdBreak from "../components/VideoAdBreak";
 import { useCourseAds, effectiveAdTier } from "../lib/useCourseAds";
 import { splitForSpeech, startSpeechKeepAlive, stopSpeechKeepAlive, synthChunk } from "../lib/tts";
 import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
-import { useVoicePauseSubmitMs } from "../lib/flags";
+import { useDemoOnlyAnonymous, useVoicePauseSubmitMs } from "../lib/flags";
 import { createVoicePauseSubmitter } from "../lib/voiceCommands";
 import {
   closeXaiVoiceSession,
@@ -149,6 +149,7 @@ export default function ClassPage() {
   const [pron, setPron] = useState<Pronounce | null>(null);
   const [listening, setListening] = useState(false);
   const pauseSubmitMs = useVoicePauseSubmitMs();
+  const demoOnlyAnon = useDemoOnlyAnonymous();
   const recognitionRef = useRef<SpeechRec | null>(null);
   const pauseSubmitterRef = useRef<ReturnType<typeof createVoicePauseSubmitter> | null>(null);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
@@ -973,7 +974,7 @@ export default function ClassPage() {
         </div>
       )}
 
-      {!view && !loggedIn && <SignInToUse />}
+      {!view && !loggedIn && !demoOnlyAnon && <SignInToUse />}
 
       {!view && (
         <div className="card">

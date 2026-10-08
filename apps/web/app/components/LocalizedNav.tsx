@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AUTH_EVENT, getToken, getFlag } from "../lib/api";
+import { useDemoOnlyAnonymous } from "../lib/flags";
 import { useT } from "../lib/i18n";
 import ProfileMenu from "./ProfileMenu";
 import NavSearchBox from "./NavSearchBox";
@@ -15,6 +16,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const { t } = useT();
   const pathname = usePathname() ?? "/";
 
+  const demoOnlyAnon = useDemoOnlyAnonymous();
   const [unlocked, setUnlocked] = useState(false);
   const [homeworkOn, setHomeworkOn] = useState(false);
   const [watchOn, setWatchOn] = useState(false);
@@ -42,6 +44,10 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
+
+  // Demo-only mode (sales_demo.exclusive) hides the full site chrome for signed-
+  // out visitors so the inverted demo stays focused on the three demo features.
+  if (demoOnlyAnon) return null;
 
   const logoSrc = pathname.startsWith("/kids")
     ? "/logo-cartoon-mark.webp"

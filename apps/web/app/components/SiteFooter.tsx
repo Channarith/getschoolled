@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { useDemoOnlyAnonymous } from "../lib/flags";
 import { useT } from "../lib/i18n";
 import LanguagePicker from "./LanguagePicker";
 
@@ -9,6 +10,8 @@ import LanguagePicker from "./LanguagePicker";
 // respond to the language picker instead of being hardcoded English.
 export default function SiteFooter() {
   const { t } = useT();
+  const demoOnlyAnon = useDemoOnlyAnonymous();
+  if (demoOnlyAnon) return null;
   return (
     <footer style={{ marginTop: 40, padding: "16px 24px", borderTop: "1px solid #333",
       fontSize: 12, opacity: 0.85, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>

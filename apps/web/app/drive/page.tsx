@@ -20,7 +20,7 @@ import {
 import SignInToUse from "../components/SignInToUse";
 import VideoAdBreak from "../components/VideoAdBreak";
 import { effectiveAdTier } from "../lib/useCourseAds";
-import { useFlag } from "../lib/flags";
+import { useDemoOnlyAnonymous, useFlag } from "../lib/flags";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { getVoicePrefs, setVoicePrefs } from "../lib/voicePrefs";
@@ -81,6 +81,7 @@ function DrivePageInner() {
   const afterAdRef = useRef<null | (() => void)>(null);
   const prerollShown = useRef(false);
   const adsEnabled = useFlag<boolean>("monetization.video_ads", false);
+  const demoOnlyAnon = useDemoOnlyAnonymous();
   const pauseSubmitMs = normalizeVoicePauseSubmitMs(
     useFlag<number>("ux.voice_pause_submit_ms", 4500),
   );
@@ -190,13 +191,15 @@ function DrivePageInner() {
     });
   }
   const refresh = useCallback(() => {
-    if (!getToken()) return;
+    // Demo-only mode (sales_demo.exclusive) lets anonymous visitors browse the
+    // on-the-go catalog without signing in.
+    if (!getToken() && !demoOnlyAnon) return;
     setCoursesLoading(true);
     listAudioCourses({ category: cat, q, limit: "60" }, locale, trainingLang)
       .then((r) => { setRows(r.courses); setTotal(r.total); queue.current = r.courses; })
       .catch((e) => setError(String(e)))
       .finally(() => setCoursesLoading(false));
-  }, [cat, q, locale, trainingLang]);
+  }, [cat, q, locale, trainingLang, demoOnlyAnon]);
   useEffect(() => { refresh(); }, [refresh]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
@@ -820,7 +823,7 @@ function DrivePageInner() {
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{friendlyError(error, t("error.offline"))}</div></div>}
 
-      {!loggedIn && <SignInToUse body={t("drive.signInBody")} />}
+      {!loggedIn && !demoOnlyAnon && <SignInToUse body={t("drive.signInBody")} />}
 
       {/* Now playing */}
       {loggedIn && course && (
