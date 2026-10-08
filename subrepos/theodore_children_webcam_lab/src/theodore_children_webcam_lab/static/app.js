@@ -1,7 +1,7 @@
 import {
   FIST_MAX_PALMS, HEART_TIPS_PALMS, HEART_THUMBS_PALMS, HEART_WRISTS_PALMS,
-  KISS_NEAR_FACES, KISS_AWAY_FACES,
-  handShape, heartRatios, isHeartShape, syntheticHand,
+  KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
+  coverFrame, handShape, heartRatios, isHeartShape, mapMirroredLandmark, syntheticHand,
 } from "./vision_math.js";
 
 const $ = (id) => document.getElementById(id);
@@ -107,10 +107,17 @@ function randomOf(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 function distance(a,b) { return Math.hypot(a.x-b.x,a.y-b.y); }
-function mirrored(point) {
-  if (!point) return {x:0,y:0,z:0};
+function videoFrame() {
   const {w,h} = stageBox();
-  return {x:(1-point.x)*w,y:point.y*h,z:point.z || 0};
+  return coverFrame(w, h, video?.videoWidth || 0, video?.videoHeight || 0);
+}
+function mirrored(point) {
+  return mapMirroredLandmark(point, videoFrame());
+}
+function bonePairs() {
+  const raw = state.handConnections;
+  if (Array.isArray(raw) && raw.length) return raw;
+  return HAND_BONES;
 }
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -187,7 +194,9 @@ async function initVision() {
           baseOptions:{modelAssetPath:handModel,delegate},
           runningMode:"VIDEO",numHands:2
         });
-        state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map(c=>[c.start,c.end]);
+        state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map((c) => (
+          Array.isArray(c) ? [c[0], c[1]] : [c.start, c.end]
+        )).filter((pair) => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
         break;
       } catch (_) {}
     }
@@ -275,11 +284,11 @@ function drawVision() {
   const {w,h}=stageBox();
   ctx.clearRect(0,0,w,h);
   drawGuide(w,h);
-  ctx.save();ctx.lineWidth=3;ctx.strokeStyle="#a78bfa";ctx.fillStyle="#fde68a";
+  ctx.save();ctx.lineWidth=4;ctx.lineCap="round";ctx.strokeStyle="#c4b5fd";ctx.fillStyle="#fde68a";
   if (switchedOn("show-hands")) {
     for (const hand of state.handData) {
       if (!hand.points?.length) continue;
-      for (const [a,b] of state.handConnections||[]) {
+      for (const [a,b] of bonePairs()) {
         if (!hand.points[a] || !hand.points[b]) continue;
         const p=mirrored(hand.points[a]),q=mirrored(hand.points[b]);
         ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();

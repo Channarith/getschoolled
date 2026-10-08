@@ -14,6 +14,42 @@ export const HEART_WRISTS_PALMS = 1.3; // wrists apart, else it is one clump
 export const KISS_NEAR_FACES = 0.85;   // hand-to-mouth, in face widths
 export const KISS_AWAY_FACES = 1.5;    // travel needed to count as sent
 
+// MediaPipe hand topology. Used when the runtime does not publish HAND_CONNECTIONS.
+export const HAND_BONES = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [0, 9], [9, 10], [10, 11], [11, 12],
+  [0, 13], [13, 14], [14, 15], [15, 16],
+  [0, 17], [17, 18], [18, 19], [19, 20],
+  [5, 9], [9, 13], [13, 17],
+];
+
+// object-fit: cover. Landmarks are fractions of the camera frame, and the
+// stage crops that frame, so mapping them onto the full stage draws the
+// skeleton off the hand. No video yet (pointer demo) uses the whole stage.
+export function coverFrame(stageW, stageH, videoW, videoH) {
+  const w = Number(stageW) || 0;
+  const h = Number(stageH) || 0;
+  const vw = Number(videoW) || 0;
+  const vh = Number(videoH) || 0;
+  if (!w || !h || !vw || !vh) return { x: 0, y: 0, w: w || 1, h: h || 1 };
+  const scale = Math.max(w / vw, h / vh);
+  const dw = vw * scale;
+  const dh = vh * scale;
+  return { x: (w - dw) / 2, y: (h - dh) / 2, w: dw, h: dh };
+}
+
+// The camera element is mirrored. Flip x inside the covered frame.
+export function mapMirroredLandmark(point, frame) {
+  const x = Number(point?.x) || 0;
+  const y = Number(point?.y) || 0;
+  return {
+    x: frame.x + (1 - x) * frame.w,
+    y: frame.y + y * frame.h,
+    z: Number(point?.z) || 0,
+  };
+}
+
 export function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }

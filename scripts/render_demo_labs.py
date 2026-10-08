@@ -46,8 +46,26 @@ def selected(text: str) -> str:
     return "---\n".join(picked)
 
 
+def by_kind(text: str, kind: str) -> str:
+    kept = [
+        doc.strip() + "\n"
+        for doc in documents(text)
+        if doc.lstrip().startswith(f"kind: {kind}\n")
+    ]
+    if not kept:
+        raise SystemExit(f"no demo-lab documents of kind {kind}")
+    return "---\n".join(kept)
+
+
 def main() -> None:
-    sys.stdout.write(selected(sys.stdin.read()))
+    args = sys.argv[1:]
+    kind = ""
+    if args:
+        if len(args) != 2 or args[0] != "--kind" or args[1] not in {"Service", "Deployment"}:
+            raise SystemExit("usage: render_demo_labs.py [--kind Service|Deployment]")
+        kind = args[1]
+    body = selected(sys.stdin.read())
+    sys.stdout.write(by_kind(body, kind) if kind else body)
 
 
 if __name__ == "__main__":

@@ -125,6 +125,9 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
         # which is exactly what a dev server serving new script over an old
         # HTML shell does; the helper defaults the overlay on instead.
         assert f'$("{toggle}").checked' not in script
+    assert "coverFrame" in script
+    assert "bonePairs" in script
+    assert "mapMirroredLandmark" in script
     assert "renderVisionReadout" in script
     assert "faceDistanceLabel" in script
     assert "traceProgress" in script

@@ -57,6 +57,19 @@ def test_render_demo_labs_keeps_only_the_labs() -> None:
     assert proc.stdout.count("name: children-lab") >= 2
 
 
+def test_render_demo_labs_can_emit_services_without_images() -> None:
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--kind", "Service"],
+        input=SAMPLE,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "kind: Deployment" not in proc.stdout
+    assert proc.stdout.count("kind: Service") == 2
+
+
 def test_render_demo_labs_refuses_a_partial_render() -> None:
     proc = subprocess.run(
         [sys.executable, str(SCRIPT)],
