@@ -1,4 +1,8 @@
 import {
+  centroid, colorLine, dotHit, dotRadius, dotsFor, outlineCoverage, outlinePassed,
+  sceneForWord, segmentAt,
+} from "./picture_play.js";
+import {
   FIST_MAX_PALMS, HEART_TIPS_PALMS, HEART_THUMBS_PALMS, HEART_WRISTS_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
   coverFrame, handShape, heartRatios, isHeartShape, mapMirroredLandmark, syntheticHand,
@@ -35,10 +39,11 @@ const MISS_GAGS = {
   hero:[["🐉🤧","Dragon sneeze!"],["🏎️💫","Tiny spin-out!"],["🤖💤","Robot needs a reboot!"],["🥷💨","Ninja vanished!"],["⚔️🛏️","The sword bonked a pillow!"],["🚀🙃","Rocket took a funny turn!"]]
 };
 const OBJECT_GAMES = new Set(["fruit-cut","balloon","fish","popcorn"]);
+const PICTURE_PLAY = new Set(["color-picture","connect-dots","trace-outline"]);
 // Keep in lockstep with game_engine.GAME_MENU / /api/child/content. A game in
 // the menu without a matching chooseGame + update* branch is a missing game.
 const GAMES = [
-  "trace-letter","trace-picture","say-letter","oh-behave","heart","idea",
+  "trace-letter","trace-picture","color-picture","connect-dots","trace-outline","say-letter","oh-behave","heart","idea",
   "fist-bump","wow","blow-kiss","wink","make-pose","balloon","fish","popcorn",
   "fruit-cut","air-drums","bird-flap","head-bop","face-chase","stand-sit",
   "dance-freeze","rainbow-reach",
@@ -284,6 +289,7 @@ function drawVision() {
   if (!ctx) return;
   const {w,h}=stageBox();
   ctx.clearRect(0,0,w,h);
+  drawPicture(w,h);
   drawGuide(w,h);
   ctx.save();ctx.lineWidth=4;ctx.lineCap="round";ctx.strokeStyle="#c4b5fd";ctx.fillStyle="#fde68a";
   if (switchedOn("show-hands")) {
@@ -332,6 +338,119 @@ function drawVision() {
   renderVisionReadout();
 }
 
+function drawPicture(w, h) {
+  const scene = state.picture;
+  if (!scene || !PICTURE_PLAY.has(state.game)) return;
+  const pathOf = (points) => {
+    ctx.beginPath();
+    points.forEach(([x, y], index) => {
+      const px = x * w;
+      const py = y * h;
+      if (index) ctx.lineTo(px, py);
+      else ctx.moveTo(px, py);
+    });
+    ctx.closePath();
+  };
+  if (state.game === "color-picture") {
+    scene.segments.forEach((region, index) => {
+      pathOf(region.points);
+      if (state.painted?.[index]) {
+        ctx.fillStyle = region.color;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(255,255,255,.85)";
+        ctx.stroke();
+        return;
+      }
+      ctx.fillStyle = "rgba(255,255,255,.16)";
+      ctx.fill();
+      ctx.save();
+      ctx.strokeStyle = region.color;
+      ctx.lineWidth = 4;
+      ctx.setLineDash([8, 6]);
+      ctx.stroke();
+      ctx.restore();
+      const [cx, cy] = centroid(region.points);
+      const label = region.colorName;
+      ctx.font = "800 16px ui-rounded, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const box = ctx.measureText(label).width;
+      ctx.fillStyle = "rgba(15,23,42,.78)";
+      ctx.fillRect(cx * w - box / 2 - 8, cy * h - 13, box + 16, 26);
+      ctx.fillStyle = region.color;
+      ctx.fillText(label, cx * w, cy * h);
+    });
+    const gap = Math.min(150, (w * 0.8) / scene.segments.length);
+    scene.segments.forEach((region, index) => {
+      const x = w * 0.5 + (index - (scene.segments.length - 1) / 2) * gap;
+      const y = h * 0.9;
+      ctx.beginPath();
+      ctx.arc(x, y, 16, 0, Math.PI * 2);
+      ctx.fillStyle = state.painted?.[index] ? region.color : "#ffffff";
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = region.color;
+      ctx.stroke();
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = "700 15px ui-rounded, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(region.colorName, x, y + 32);
+    });
+    return;
+  }
+  scene.segments.forEach((region) => {
+    pathOf(region.points);
+    ctx.fillStyle = `${region.color}55`;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255,255,255,.4)";
+    ctx.stroke();
+  });
+  if (state.game === "connect-dots") {
+    const dots = state.pictureDots || [];
+    const done = Math.min(state.dotCursor || 0, dots.length);
+    if (done > 1) {
+      ctx.beginPath();
+      dots.slice(0, done).forEach((dot, index) => {
+        const px = dot.x * w;
+        const py = dot.y * h;
+        if (index) ctx.lineTo(px, py);
+        else ctx.moveTo(px, py);
+      });
+      if (done === dots.length) ctx.lineTo(dots[0].x * w, dots[0].y * h);
+      ctx.strokeStyle = "#fde047";
+      ctx.lineWidth = 6;
+      ctx.stroke();
+    }
+    dots.forEach((dot, index) => {
+      const px = dot.x * w;
+      const py = dot.y * h;
+      const next = index === state.dotCursor;
+      const finished = index < state.dotCursor;
+      ctx.beginPath();
+      ctx.arc(px, py, next ? 22 : 16, 0, Math.PI * 2);
+      ctx.fillStyle = finished ? "#22c55e" : (next ? "#fde047" : "#ffffff");
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#1e1b4b";
+      ctx.stroke();
+      ctx.fillStyle = "#1e1b4b";
+      ctx.font = "900 16px ui-rounded, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(dot.n), px, py);
+    });
+    return;
+  }
+  pathOf(scene.outline);
+  ctx.strokeStyle = "#f8fafc";
+  ctx.lineWidth = 8;
+  ctx.setLineDash([14, 10]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
 function drawGuide(w,h) {
   if (!switchedOn("show-guide") || !["trace-letter","trace-picture"].includes(state.game)) return;
   const letter=$("letter").value;
@@ -362,6 +481,47 @@ function updateTrace() {
   const normalized = state.trail.map((pt) => ({x:pt.nx, y:pt.ny}));
   const progress=traceProgress(normalized,state.age);
   if (progress.passed) succeed("Beautiful tracing!");
+}
+
+function fingerPoint() {
+  const hand = state.handData.find((item) => item.indexUp) || state.handData[0];
+  if (!hand?.tip) return null;
+  const {w, h} = stageBox();
+  if (!w || !h) return null;
+  return {x: hand.tip.x / w, y: hand.tip.y / h, px: hand.tip.x, py: hand.tip.y};
+}
+
+function updatePicturePlay() {
+  if (!PICTURE_PLAY.has(state.game)) return;
+  if (state.roundDone || performance.now() < (state.traceHoldUntil || 0)) return;
+  const scene = state.picture;
+  const tip = fingerPoint();
+  if (!scene || !tip) return;
+  if (state.game === "color-picture") {
+    const index = segmentAt(scene, tip.x, tip.y);
+    if (index < 0 || state.painted[index]) return;
+    state.painted[index] = true;
+    if (state.painted.every(Boolean)) succeed("Beautiful coloring!");
+    return;
+  }
+  if (state.game === "connect-dots") {
+    const dots = state.pictureDots || [];
+    const next = dots[state.dotCursor];
+    if (!dotHit(next, tip.x, tip.y, dotRadius(state.age))) return;
+    state.dotCursor += 1;
+    if (state.dotCursor >= dots.length) succeed("You connected every number!");
+    return;
+  }
+  const last = state.trail.at(-1);
+  if (!last || distance({x: tip.px, y: tip.py}, last) > 4) {
+    state.trail.push({x: tip.px, y: tip.py, nx: tip.x, ny: tip.y, t: performance.now()});
+  }
+  const coverage = outlineCoverage(
+    state.trail.map((point) => ({x: point.nx, y: point.ny})),
+    scene.outline,
+    state.age === "4-6" ? 0.07 : 0.05,
+  );
+  if (state.trail.length >= 8 && outlinePassed(coverage, state.age)) succeed("You traced the picture!");
 }
 
 function faceDistanceLabel(face) {
@@ -432,6 +592,12 @@ function gestureReadout() {
       return `say ${$("letter")?.value||"?"}`;
     case "trace-letter": case "trace-picture":
       return `${progressLabel()} · index-up ${hands.some(h=>h.indexUp)?"yes":"no"}`;
+    case "color-picture":
+      return `colored ${(state.painted||[]).filter(Boolean).length}/${state.picture?.segments.length||0}`;
+    case "connect-dots":
+      return `dot ${Math.min((state.dotCursor||0)+1, state.pictureDots?.length||0)}/${state.pictureDots?.length||0}`;
+    case "trace-outline":
+      return `${progressLabel()} outline`;
     default:
       return state.game?`${state.game} · hands ${hands.length} · face ${face?"yes":"no"}`:"choose a game";
   }
@@ -674,7 +840,7 @@ function targetPoint(){
 
 function loop(now) {
   if(!state.running)return;
-  detectFrame();drawVision();updateTrace();updateObjectGame();updateGestureGame(now);
+  detectFrame();drawVision();updateTrace();updatePicturePlay();updateObjectGame();updateGestureGame(now);
   requestAnimationFrame(loop);
 }
 
@@ -692,6 +858,14 @@ function chooseGame() {
     setPrompt(`Trace ${letter}`,"Point one finger up and follow the glowing letter.",`Trace the letter ${letter}.`);
   }
   else if(state.game==="trace-picture")setPrompt(`Trace the ${word}`,"Use one finger to draw around the picture.",`Now trace the ${word}.`);
+  else if(state.game==="color-picture"||state.game==="connect-dots"||state.game==="trace-outline"){
+    armPictureRound(word);
+    const colors=colorLine(state.picture);
+    state.traceHoldUntil=performance.now()+500;
+    if(state.game==="color-picture")setPrompt(`Color the ${word}`,`Recommended colors: ${colors}.`,`Color the ${word}. ${colors}.`);
+    else if(state.game==="connect-dots")setPrompt(`Connect the ${word}`,"Touch the numbers in order, starting at 1.",`Connect the numbered dots on the ${word}.`);
+    else setPrompt(`Trace the ${word}`,"Follow the outline with one finger. It does not need to be perfect.",`Trace the outline of the ${word}.`);
+  }
   else if(state.game==="say-letter")setPrompt(`Say ${letter}`,"Tap the microphone or type what you said.",`Listen, then say the letter ${letter}.`);
   else if(state.game==="oh-behave"){
     state.targetRegion=randomRegion();state.targetExpression=randomOf(EXPRESSIONS);state.deadline=performance.now()+state.timerMs;
@@ -753,6 +927,13 @@ function calculateFun(success,extra={}) {
   return {score,duration,components:{play:Math.round(play),spark:Math.round(spark),giggle:Math.round(giggle),keep_going:Math.round(keepGoing)},...extra};
 }
 
+function armPictureRound(word) {
+  const scene = sceneForWord(word);
+  state.picture = scene;
+  state.painted = scene.segments.map(() => false);
+  state.pictureDots = dotsFor(scene.outline, state.age === "4-6" ? 6 : 10);
+  state.dotCursor = 0;
+}
 function pickNextLetter() {
   const select=$("letter");
   if (!select || !select.options.length) return;
@@ -766,7 +947,7 @@ function pickNextLetter() {
 function succeed(message) {
   if(state.roundDone)return;state.roundDone=true;state.combo+=1;
   const round=state.roundId;
-  const advanceLetter=state.game==="trace-letter";
+  const advanceLetter=state.game==="trace-letter"||PICTURE_PLAY.has(state.game);
   if(state.game==="oh-behave")state.timerMs=nextTimer(true);
   const result=calculateFun(true);state.fun=result.score;renderScore();fireworks();setPrompt("You did it!",message);
   recordEvent("success",result);tellActivity(`The child succeeded. Celebrate in one short sentence: ${message}`);speak(`You did it! ${message}`);
@@ -930,7 +1111,7 @@ function applyVoiceScreen(detail) {
     const opt = [...letter.options].find((option) => option.value.toLowerCase() === detail.target);
     if (!opt) return;
     letter.value = opt.value;
-    if (game && !["trace-letter", "say-letter", "trace-picture"].includes(game.value)) {
+    if (game && !["trace-letter", "say-letter", "trace-picture", "color-picture", "connect-dots", "trace-outline"].includes(game.value)) {
       game.value = "trace-letter";
     }
     chooseGame();

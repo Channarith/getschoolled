@@ -233,8 +233,23 @@ def test_gesture_geometry_is_distance_invariant():
     assert "vision geometry OK" in result.stdout
 
 
+def test_picture_games_color_dots_and_outlines():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    check = ROOT / "tests/picture_play_check.mjs"
+    result = subprocess.run(
+        [node, str(check)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "picture play OK" in result.stdout
+
+
 @pytest.mark.parametrize(
-    "script_name", ["app.js", "vision_math.js"]
+    "script_name", ["app.js", "vision_math.js", "picture_play.js"]
 )
 def test_static_javascript_parses_with_node(script_name):
     """Parse as an ES module — that is how the page loads these files.

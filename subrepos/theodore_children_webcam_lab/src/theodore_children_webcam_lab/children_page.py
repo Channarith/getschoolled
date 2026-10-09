@@ -50,7 +50,7 @@ _PAGE = """<!doctype html>
     <section id="setup" class="setup">
       <div class="theodore-card">
         <div class="theodore" aria-hidden="true"><span class="ear left"></span><span class="ear right"></span><span class="face">ʕ•ᴥ•ʔ</span></div>
-        <div><p class="eyebrow">THEODORE'S WEBCAM PLAY LAB</p><h1>Move, make faces, trace, and laugh!</h1>
+        <div><p class="eyebrow">THEODORE'S WEBCAM PLAY LAB</p><h1>Move, make faces, color, and laugh!</h1>
         <p>Camera games for ages 4–10. Video stays in this browser. No recordings or Face ID.</p></div>
       </div>
       <div class="setup-grid">
