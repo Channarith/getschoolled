@@ -69,11 +69,11 @@ export const SALES_DEMO_FEATURES = [
   {
     id: "solo",
     flagKey: "sales_demo.solo_ai",
-    href: "/class",
+    href: "/demo/drivers-ed",
     emoji: "🤖",
     title: "Solo AI Session",
-    subtitle: "Ask Theodore anything",
-    description: "A 1:1 tutor that adapts pacing and guides learners through any course.",
+    subtitle: "Driver's Ed · 10-min demo",
+    description: "A 1:1 tutor that walks you through the free 10-minute driver's ed demo lesson.",
   },
   {
     id: "drive",
