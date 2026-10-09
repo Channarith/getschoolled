@@ -168,8 +168,8 @@ jobs:
           # these Service names; a missing Deployment is the salareen.com 500.
           kubectl kustomize infra/k8s-vke | python3 scripts/render_demo_labs.py > /tmp/demo-labs.yaml
           # Services have no image. Re-applying the Deployment replaces a
-          # digest pin with :latest, and a later rollback restores that tag.
-          # :latest is not what we push, so the lab pods stay 503.
+          # digest pin with the floating tag, and a later rollback restores
+          # that tag. We do not push that tag, so the lab pods stay 503.
           python3 scripts/render_demo_labs.py --kind Service < /tmp/demo-labs.yaml | kubectl apply -f -
           python3 scripts/render_demo_labs.py --kind Deployment < /tmp/demo-labs.yaml > /tmp/demo-lab-deploys.yaml
           create_labs=0

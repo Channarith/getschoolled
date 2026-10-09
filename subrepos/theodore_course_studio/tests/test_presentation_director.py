@@ -823,3 +823,53 @@ def test_client_timeline_resolves_layers_onto_cues():
     assert payload["cues"]
     assert any(layer.get("text") for cue in payload["cues"] for layer in cue["layers"])
     assert all("layer_ids" not in cue for cue in payload["cues"])
+    assert all("caption" in cue for cue in payload["cues"])
+
+
+def test_caption_matches_the_section_on_screen():
+    from theodore_course_studio.presentation_director import (
+        active_cue_index,
+        timeline_for_client,
+    )
+    from theodore_course_studio.presentation_styles import sentences_for
+
+    built = slide(
+        title="Following distance",
+        body="Leave space. Count three seconds. Then check the mirror.",
+        narration="Leave space. Count three seconds. Then check the mirror.",
+        examples=["A tailgater is too close."],
+    )
+    built.presentation_style = "text-steps"
+    script = presentation_for_slide(built)
+    payload = timeline_for_client(script, sentences_for(built))
+    body_cues = [
+        cue for cue in payload["cues"]
+        if any(layer["kind"] == "body" for layer in cue["layers"])
+    ]
+    assert [cue["caption"] for cue in body_cues] == [
+        "Leave space.",
+        "Count three seconds.",
+        "Then check the mirror.",
+    ]
+    for cue in body_cues:
+        shown = next(layer["text"] for layer in cue["layers"] if layer["kind"] == "body")
+        assert shown == cue["caption"]
+    middle = body_cues[1]
+    at = middle["start_s"] + middle["duration_s"] / 2
+    chosen = payload["cues"][active_cue_index(payload["cues"], at)]
+    assert chosen["caption"] == "Count three seconds."
+
+
+def test_an_ended_section_does_not_keep_the_caption():
+    from theodore_course_studio.presentation_director import active_cue_index
+
+    cues = [
+        {"start_s": 0, "duration_s": 10, "caption": "whole slide"},
+        {"start_s": 0, "duration_s": 3, "caption": "Leave space."},
+        {"start_s": 3, "duration_s": 4, "caption": "Count three seconds."},
+        {"start_s": 7, "duration_s": 3, "caption": "Then check the mirror."},
+        {"start_s": 0, "duration_s": 3, "caption": "A tailgater is too close."},
+    ]
+    assert cues[active_cue_index(cues, 5)]["caption"] == "Count three seconds."
+    assert cues[active_cue_index(cues, 0.4)]["caption"] == "A tailgater is too close."
+    assert cues[active_cue_index(cues, 8)]["caption"] == "Then check the mirror."
