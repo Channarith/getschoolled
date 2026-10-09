@@ -58,6 +58,7 @@ from .engagement import (
     pick_visual_game_for_slide,
 )
 from .presentation_director import presentation_for_slide, timeline_for_client
+from .presentation_styles import sentences_for
 from .generate import CourseBuilder
 from .knowledge import (
     KnowledgeStore,
@@ -159,6 +160,15 @@ def lesson_quiz_style(lesson_id: str) -> str:
     if lesson_id in ids:
         return _LESSON_QUIZ_STYLES[ids.index(lesson_id) % len(_LESSON_QUIZ_STYLES)]
     return _LESSON_QUIZ_STYLES[_stable_bucket(lesson_id, len(_LESSON_QUIZ_STYLES))]
+
+
+def _visual_timeline(slide: CourseSlide, index: int, spoken: str) -> dict[str, Any]:
+    """Sections for this slide, captioned with the words actually being said."""
+    shown = _showcase_slide(slide, index)
+    return timeline_for_client(
+        presentation_for_slide(shown, narration=spoken),
+        sentences_for(shown, spoken),
+    )
 
 
 def _showcase_slide(slide: CourseSlide, index: int) -> CourseSlide:
@@ -1027,12 +1037,7 @@ class TeachEngine:
                 "emphasis": "highlight-title",
                 "duration_ms": 650,
             },
-            "visual_timeline": timeline_for_client(
-                presentation_for_slide(
-                    _showcase_slide(slide, session.path_pos),
-                    narration=spoken,
-                )
-            ),
+            "visual_timeline": _visual_timeline(slide, session.path_pos, spoken),
             "photo_url": plate["url"],
             "photo_transition": plate["transition"],
             "avatar": avatar.model_dump(mode="json"),

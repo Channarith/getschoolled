@@ -527,15 +527,75 @@ def presentation_for_slide(
     return script
 
 
-def timeline_for_client(script: PresentationScript) -> dict[str, Any]:
-    """Flatten cue ``layer_ids`` into the layers the studio stage already paints."""
+def _section_words(cue: VisualCue, sentences: list[str]) -> str:
+    """Narration sentences this cue is on screen for."""
+    if not sentences:
+        return ""
+    last = len(sentences) - 1
+    start = max(0, min(cue.start_sentence, last))
+    end = max(start, min(cue.end_sentence, last))
+    return " ".join(part.strip() for part in sentences[start : end + 1] if part.strip()).strip()
+
+
+def _layer_caption(layer: VisualLayer, section: str) -> str:
+    if layer.kind == "body" and section:
+        return section
+    if layer.kind in {"picture", "video", "storyboard"}:
+        return (layer.alt or "").strip() or section
+    return (layer.text or "").strip() or (layer.alt or "").strip() or section
+
+
+def active_cue_index(cues: list[dict[str, Any]], at_s: float) -> int:
+    """The section on screen at ``at_s``.
+
+    A cue that already ended does not stay current just because it started
+    earlier. When several cues overlap, the one that started latest is the
+    section being presented.
+    """
+    if not cues:
+        return 0
+    at = max(0.0, float(at_s or 0))
+    active = 0
+    best_start = -1.0
+    found = False
+    for index, cue in enumerate(cues):
+        start = float(cue.get("start_s") or 0)
+        duration = max(0.001, float(cue.get("duration_s") or 0.001))
+        if at < start or at >= start + duration:
+            continue
+        if not found or start >= best_start:
+            found = True
+            best_start = start
+            active = index
+    if found:
+        return active
+    best_start = -1.0
+    for index, cue in enumerate(cues):
+        start = float(cue.get("start_s") or 0)
+        if start <= at and start >= best_start:
+            best_start = start
+            active = index
+    return active
+
+
+def timeline_for_client(
+    script: PresentationScript,
+    sentences: list[str] | None = None,
+) -> dict[str, Any]:
+    """Flatten cue ``layer_ids`` into the layers the studio stage already paints.
+
+    Each cue carries ``caption``: the words for that section, not the whole
+    slide. A body layer that covers one sentence shows that sentence.
+    """
+    spoken = [part.strip() for part in (sentences or []) if part and part.strip()]
     by_id = {layer.layer_id: layer for layer in script.layers}
     style = PRESENTATION_STYLES.get(script.style_id)
 
-    def pack(layer: VisualLayer, transition: str) -> dict[str, Any]:
+    def pack(layer: VisualLayer, transition: str, section: str) -> dict[str, Any]:
+        text = section if layer.kind == "body" and section else layer.text
         return {
             "kind": layer.kind,
-            "text": layer.text,
+            "text": text,
             "url": layer.asset_url,
             "svg": layer.svg,
             "alt": layer.alt,
@@ -545,28 +605,46 @@ def timeline_for_client(script: PresentationScript) -> dict[str, Any]:
 
     cues: list[dict[str, Any]] = []
     for cue in script.cues:
+        section = _section_words(cue, spoken)
         layers = [
-            pack(by_id[layer_id], cue.enter)
+            pack(by_id[layer_id], cue.enter, section)
             for layer_id in cue.layer_ids
             if layer_id in by_id
         ]
         if not layers:
             continue
+        caption_parts: list[str] = []
+        for layer_id in cue.layer_ids:
+            layer = by_id.get(layer_id)
+            if layer is None:
+                continue
+            part = _layer_caption(layer, section)
+            if part and part not in caption_parts:
+                caption_parts.append(part)
         cues.append(
             {
                 "start_s": cue.start_s,
                 "duration_s": cue.duration_s,
                 "transition": cue.enter,
+                "caption": " ".join(caption_parts),
                 "layers": layers,
             }
         )
     if not cues and script.layers:
+        section = " ".join(spoken)
+        layers = [pack(layer, layer.motion, section) for layer in script.layers]
+        caption_parts: list[str] = []
+        for layer in script.layers:
+            part = _layer_caption(layer, section)
+            if part and part not in caption_parts:
+                caption_parts.append(part)
         cues.append(
             {
                 "start_s": 0.0,
                 "duration_s": script.duration_s,
                 "transition": "fade",
-                "layers": [pack(layer, layer.motion) for layer in script.layers],
+                "caption": " ".join(caption_parts),
+                "layers": layers,
             }
         )
     return {

@@ -1615,7 +1615,7 @@ STUDIO_JS = """
         });
       }
       const turn = (lastTeachPayload && (lastTeachPayload.turn || lastTeachPayload)) || {};
-      const idea = firstLessonSentence(turn.narration || turn.display_body || turn.title || '');
+      const idea = currentSectionWords() || firstLessonSentence(turn.narration || turn.display_body || turn.title || '');
       if (idea && body) {
         if (!attentionFullBody) attentionFullBody = body.textContent || idea;
         body.textContent = idea;
@@ -2339,6 +2339,25 @@ STUDIO_JS = """
       return 'Theodore (' + provider + '): ' + (turn.narration || '');
     }
 
+    function currentSectionWords() {
+      if (!visualTimeline || visualCueIndex < 0) return '';
+      const cue = (visualTimeline.cues || [])[visualCueIndex];
+      return cue ? String(cue.caption || '').trim() : '';
+    }
+
+    function applySectionCaption() {
+      if (talkOpen) return;
+      if ($('quiz-box')?.querySelector('.quiz-correction')) return;
+      const words = currentSectionWords();
+      if (!words) return;
+      const body = $('teach-body');
+      if (body) body.textContent = words;
+      const narr = $('teach-narr');
+      if (!narr || !lastTeachPayload) return;
+      const provider = (lastTeachPayload.voice && lastTeachPayload.voice.provider) || 'slide';
+      narr.textContent = 'Theodore (' + provider + '): ' + words;
+    }
+
     function restoreLessonAvatar() {
       const script = (lastTeachPayload && lastTeachPayload.avatar) || { state: 'presenting', cues: [] };
       if (!theodoreAvatar) return;
@@ -2363,6 +2382,7 @@ STUDIO_JS = """
       if (panel) panel.hidden = true;
       const narr = $('teach-narr');
       if (narr) narr.textContent = slideCaptionText();
+      applySectionCaption();
       // Do not read the slide again. A second speakText stacks another
       // narration on top of the one already in flight or just finished.
       const stopReply = speechHold && talkReplyActive;
@@ -4475,28 +4495,52 @@ STUDIO_JS = """
       return true;
     }
 
-    function syncVisualTimeline(atSeconds, force) {
-      if (!visualTimeline || !Array.isArray(visualTimeline.cues)) return;
+    function activeVisualCueIndex(atSeconds) {
+      const cues = visualTimeline.cues;
       const at = Math.max(0, Number(atSeconds) || 0);
       let active = 0;
-      for (let i = 0; i < visualTimeline.cues.length; i += 1) {
-        const cue = visualTimeline.cues[i] || {};
+      let bestStart = -1;
+      let found = false;
+      for (let i = 0; i < cues.length; i += 1) {
+        const cue = cues[i] || {};
         const start = Number(cue.start_s) || 0;
         const duration = Math.max(0.001, Number(cue.duration_s) || 0.001);
-        if (at >= start && at < start + duration) active = i;
-        else if (at >= start) active = i;
+        if (at < start || at >= start + duration) continue;
+        if (!found || start >= bestStart) {
+          found = true;
+          bestStart = start;
+          active = i;
+        }
       }
+      if (found) return active;
+      bestStart = -1;
+      for (let i = 0; i < cues.length; i += 1) {
+        const start = Number((cues[i] || {}).start_s) || 0;
+        if (start <= at && start >= bestStart) {
+          bestStart = start;
+          active = i;
+        }
+      }
+      return active;
+    }
+
+    function syncVisualTimeline(atSeconds, force) {
+      if (!visualTimeline || !Array.isArray(visualTimeline.cues) || !visualTimeline.cues.length) return;
+      const active = activeVisualCueIndex(atSeconds);
       if (!force && active === visualCueIndex) return;
       visualCueIndex = active;
       const host = $('teach-visual-timeline');
-      if (!host) return;
-      const hold = visualTimeline.layout === 'compare';
-      host.querySelectorAll('.visual-layer').forEach((layer) => {
-        const index = Number(layer.dataset.cue);
-        layer.classList.toggle('is-active', hold ? index <= active : index === active);
-      });
       const cue = visualTimeline.cues[active] || {};
-      if (cue.alt) host.setAttribute('aria-label', String(cue.alt));
+      if (host) {
+        const hold = visualTimeline.layout === 'compare';
+        host.querySelectorAll('.visual-layer').forEach((layer) => {
+          const index = Number(layer.dataset.cue);
+          layer.classList.toggle('is-active', hold ? index <= active : index === active);
+        });
+        const label = cue.caption || cue.alt;
+        if (label) host.setAttribute('aria-label', String(label));
+      }
+      applySectionCaption();
     }
 
     function renderTeach(payload) {
@@ -4625,6 +4669,7 @@ STUDIO_JS = """
       if ($('btn-pop')) $('btn-pop').disabled = !teachSession;
       if ($('btn-game')) $('btn-game').disabled = !teachSession;
       $('teach-narr').textContent = slideCaptionText(payload);
+      applySectionCaption();
       const adapt = (turn.adaptations_applied || []).join(', ') || 'no adaptations';
       const prog = payload.progress || {};
       const obj = payload.objective ? payload.objective.title : '';

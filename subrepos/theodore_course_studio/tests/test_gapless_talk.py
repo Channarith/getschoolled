@@ -74,6 +74,11 @@ def test_playback_and_talk_markup_contracts():
     assert "function armDurationWatchdog" in js
     assert "function renderVisualTimeline" in js
     assert "function syncVisualTimeline" in js
+    assert "function activeVisualCueIndex" in js
+    assert "function applySectionCaption" in js
+    sync = _slice(js, "function syncVisualTimeline", "function renderTeach")
+    assert "else if (at >= start) active" not in sync
+    assert "applySectionCaption()" in sync
     assert "audio.currentTime" in js
     assert "if (!holdLesson) syncVisualTimeline" in js
     assert "presentActivityCheckpoint" in js
