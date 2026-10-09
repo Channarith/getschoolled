@@ -78,11 +78,11 @@ export const SALES_DEMO_FEATURES = [
   {
     id: "drive",
     flagKey: "sales_demo.drive_mode",
-    href: "/drive",
+    href: "/demo/on-the-go",
     emoji: "🎧",
     title: "On-the-Go Mode",
-    subtitle: "Learn hands-free",
-    description: "Audio-first learning for commuting, exercising, and screen-free study.",
+    subtitle: "Audio only · 10-min demo",
+    description: "The same classes as driver's ed, heard with no camera. The free trial stops at 10 minutes.",
   },
   {
     id: "arcade",

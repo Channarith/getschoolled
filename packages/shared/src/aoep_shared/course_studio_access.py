@@ -42,12 +42,13 @@ PUBLIC_STUDIO_COURSES = (
 )
 
 SAMPLE_PREVIEW = (
-    "10-minute driver's education demo. Anyone can take it. "
-    "The full course requires payment unless you are an admin."
+    "This free trial is 10 minutes. "
+    "Anyone can start it. Pay for the course when you want the full class."
 )
 SAMPLE_ENDED = (
-    "This 10-minute demo has ended. "
-    "Pay for the course to continue, unless you are an admin."
+    "Your free 10-minute trial has ended. "
+    "Thanks for spending time with the lesson. "
+    "Pay for the course when you want to keep going."
 )
 
 

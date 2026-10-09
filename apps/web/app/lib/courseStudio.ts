@@ -37,11 +37,13 @@ export function courseStudioFrameSrc(opts: {
   course: PublicCourseId;
   accountId?: string;
   isAdmin?: boolean;
+  presentation?: "audio";
 }): string {
   const fromEnv = process.env.NEXT_PUBLIC_COURSE_STUDIO_URL?.trim().replace(/\/$/, "") || "";
   const url = new URL("/studio", fromEnv ? `${fromEnv}/` : "http://studio.local/");
   url.searchParams.set("access", opts.access);
   url.searchParams.set("course", opts.course);
+  if (opts.presentation === "audio") url.searchParams.set("presentation", "audio");
   if (opts.access === "full") {
     url.searchParams.set("registered", "1");
     if (opts.isAdmin) url.searchParams.set("admin", "1");

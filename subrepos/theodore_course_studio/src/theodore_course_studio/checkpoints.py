@@ -36,6 +36,7 @@ class TeachCheckpoint(BaseModel):
     soft_limit_minutes: int = DEFAULT_SOFT_LIMIT_MINUTES
     status: str = "in_progress"  # in_progress | paused | completed
     message: str = ""
+    sample_only: bool = False
 
 
 class CheckpointStore:

@@ -12,6 +12,12 @@ export function PublicCourses() {
         <Link href="/demo/drivers-ed"><button type="button">Start the free driver&apos;s ed demo</button></Link>
       </p>
       <p style={{ margin: "0 0 12px" }}>
+        On the Go plays those same classes with audio only. No camera. It also stops at 10 minutes.
+      </p>
+      <p style={{ margin: "0 0 12px" }}>
+        <Link href="/demo/on-the-go"><button type="button">Start the free audio demo</button></Link>
+      </p>
+      <p style={{ margin: "0 0 12px" }}>
         The vision arcade is free too. Children play machine-vision games from the webcam lab. The camera stays in the browser.
       </p>
       <p style={{ margin: "0 0 18px" }}>
