@@ -91,6 +91,16 @@ export default function SalesDemoPage() {
       </section>
 
       <section style={{ marginTop: 34 }}>
+        <h2>On the Go</h2>
+        <p className="muted">
+          The same classes, audio only, with no camera. Ten minutes, then the trial ends.
+        </p>
+        <Link href="/demo/on-the-go">
+          <button type="button">Open the 10-minute audio demo</button>
+        </Link>
+      </section>
+
+      <section style={{ marginTop: 34 }}>
         <h2>Vision arcade</h2>
         <p className="muted">
           Children play the machine-vision games from the webcam lab. Anyone can open it.

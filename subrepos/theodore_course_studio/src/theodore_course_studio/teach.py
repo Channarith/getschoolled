@@ -289,6 +289,10 @@ class TeachEngine:
             completed = list(existing.completed_slide_indexes)
             resumed = True
             started_at = existing.started_at_ms or started_at
+        if sample_only and existing and existing.sample_only and existing.started_at_ms:
+            # Start over and a new tab keep the same trial. The 10 minutes
+            # began the first time this learner opened the sample.
+            started_at = existing.started_at_ms
 
         self._voice.clear_session(session_id)
         with self._lock:
@@ -687,6 +691,21 @@ class TeachEngine:
         learner_message: str,
     ) -> dict[str, Any]:
         course, session = self._require(session_id)
+        if self._sample_expired(session):
+            return {
+                "voice": {"message": SAMPLE_ENDED},
+                "access_mode": "sample",
+                "sample": {
+                    "minutes": SAMPLE_MINUTES,
+                    "complete": True,
+                    "continue_allowed": False,
+                    "message": SAMPLE_ENDED,
+                },
+                "session": {
+                    "session_id": session.session_id,
+                    "started_at_ms": session.started_at_ms,
+                },
+            }
         slide = course.slides[session.path[session.path_pos]]
         context = course_context_for(
             course.title,
@@ -813,6 +832,7 @@ class TeachEngine:
             updated_at_ms=now,
             elapsed_ms=max(0, now - session.started_at_ms),
             soft_limit_minutes=session.soft_limit_minutes,
+            sample_only=session.sample_only,
             status=status,
             message="" if status != "paused" else "Come back later bookmark",
         )

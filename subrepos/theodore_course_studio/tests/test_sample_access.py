@@ -45,10 +45,62 @@ def test_sample_stops_at_ten_minutes_and_does_not_extend(tmp_path):
     before = session.path_pos
     stopped = engine.advance("sample-1")
     assert stopped["sample"]["complete"] is True
+    assert "trial" in stopped["sample"]["message"].lower()
     assert "pay for the course" in stopped["sample"]["message"].lower()
     assert session.path_pos == before
     assert engine.continue_past_checkpoint("sample-1")["sample"]["complete"] is True
     assert session.soft_limit_minutes == 10
+
+
+def test_starting_over_does_not_reset_a_finished_trial(tmp_path):
+    builder = CourseBuilder(data_dir=tmp_path)
+    engine = TeachEngine(builder)
+    course = _mini(builder, "sticky-mini")
+    engine.start(
+        session_id="sticky-1",
+        course_id=course.course_id,
+        learner_id="learner-a",
+        access="sample",
+        use_voice_agent=False,
+    )
+    session = engine._sessions["sticky-1"]
+    session.started_at_ms = int(time.time() * 1000) - 11 * 60_000
+    engine._persist_live(session, status="in_progress")
+    again = engine.start(
+        session_id="sticky-2",
+        course_id=course.course_id,
+        learner_id="learner-a",
+        access="sample",
+        resume=False,
+        use_voice_agent=False,
+    )
+    assert again["sample"]["complete"] is True
+    assert again["session"]["started_at_ms"] == session.started_at_ms
+
+
+def test_audio_trial_is_a_separate_ten_minutes(tmp_path):
+    builder = CourseBuilder(data_dir=tmp_path)
+    engine = TeachEngine(builder)
+    course = _mini(builder, "split-mini")
+    engine.start(
+        session_id="class-1",
+        course_id=course.course_id,
+        learner_id="learner-a",
+        access="sample",
+        use_voice_agent=False,
+    )
+    class_session = engine._sessions["class-1"]
+    class_session.started_at_ms = int(time.time() * 1000) - 11 * 60_000
+    engine._persist_live(class_session, status="in_progress")
+    audio = engine.start(
+        session_id="audio-1",
+        course_id=course.course_id,
+        learner_id="learner-a:audio",
+        access="sample",
+        use_voice_agent=False,
+    )
+    assert audio["sample"]["complete"] is False
+    assert audio["sample"]["minutes"] == 10
 
 
 def test_paid_session_still_advances_after_ten_minutes(tmp_path):
@@ -134,6 +186,10 @@ def test_studio_page_offers_the_sample_banner():
     assert "get('course')" in STUDIO_JS
     assert "is_admin" in STUDIO_JS
     assert "sampleIsComplete" in STUDIO_JS
+    assert "armSampleClock" in STUDIO_JS
+    assert "presentation" in STUDIO_JS
+    assert "if (audioOnly) return;" in STUDIO_JS
+    assert "audio-only" in page
     assert "library-panel" in page
     assert "public-course .library-panel { display:none" not in page
     assert "library.filter((row) => row.id === pinnedCourse)" not in STUDIO_JS

@@ -426,6 +426,15 @@ STUDIO_CSS = """
                     border:1px solid #e7c98a; color:#6a4b16; font-size:14px; }
     .sample-banner { margin-top:8px; padding:10px 12px; border-radius:12px; background:#eef2ff;
                      border:1px solid #6366f1; color:#1e1b4b; font-size:14px; font-weight:700; }
+    .sample-banner.is-ended { background:#fff6e8; border-color:#e7c98a; color:#5c3b1e; font-size:16px; }
+    body.audio-only #student-cam,
+    body.audio-only #btn-avatar,
+    body.audio-only .avatar-choice-label,
+    body.audio-only .theodore-avatar-wrap,
+    body.audio-only .picture-stage,
+    body.audio-only .lesson-photo,
+    body.audio-only #teach-storyboard,
+    body.audio-only #teach-visual-timeline { display:none !important; }
     @media (max-width:700px) {
       .picture-stage { grid-template-columns:1fr; }
       .teacher-stage-grid { grid-template-columns:1fr; }
@@ -538,6 +547,7 @@ STUDIO_JS = """
     const enrollmentStatus = (studioQuery.get('enrollment') || '').trim();
     const adminFlag = studioQuery.get('admin') === '1';
     const pinnedCourse = (studioQuery.get('course') || '').trim();
+    const audioOnly = (studioQuery.get('presentation') || '').trim().toLowerCase() === 'audio';
     function teachAccessFields() {
       return {
         access: requestedAccess,
@@ -546,8 +556,42 @@ STUDIO_JS = """
         is_admin: adminFlag,
       };
     }
+    const TRIAL_ENDED = 'Your free 10-minute trial has ended. Thanks for spending time with the lesson. Pay for the course when you want to keep going.';
+    let sampleTimer = 0;
     function sampleIsComplete() {
       return !!(lastTeachPayload && lastTeachPayload.sample && lastTeachPayload.sample.complete);
+    }
+    function trialEndedMessage(payload) {
+      const sample = (payload && payload.sample) || {};
+      if (sample.complete && sample.message) return sample.message;
+      return TRIAL_ENDED;
+    }
+    function endSampleTrial(payload) {
+      const base = payload || lastTeachPayload || {};
+      lastTeachPayload = base;
+      base.access_mode = 'sample';
+      base.sample = Object.assign({}, base.sample || {}, {
+        complete: true,
+        continue_allowed: false,
+        minutes: (base.sample && base.sample.minutes) || 10,
+        message: trialEndedMessage(base),
+      });
+      lecturePaused = true;
+      if ($('btn-pause')) setPauseButton(true);
+      stopSpeech();
+      window.TheodoreLiveAudio?.pauseRecognition();
+      paintSampleBanner(base);
+    }
+    function armSampleClock(payload) {
+      if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = 0; }
+      if (!payload || payload.access_mode !== 'sample') return;
+      if (payload.sample && payload.sample.complete) return;
+      const started = payload.session && payload.session.started_at_ms;
+      const minutes = (payload.sample && payload.sample.minutes) || 10;
+      if (!started) return;
+      const remain = started + minutes * 60000 - Date.now();
+      if (remain <= 0) { endSampleTrial(payload); return; }
+      sampleTimer = setTimeout(() => endSampleTrial(payload), remain);
     }
     function paintSampleBanner(payload) {
       const banner = $('sample-banner');
@@ -556,8 +600,9 @@ STUDIO_JS = """
       const mode = (payload && payload.access_mode) || '';
       const show = mode === 'sample' || (!payload && requestedAccess === 'sample');
       banner.style.display = show ? 'block' : 'none';
+      banner.classList.toggle('is-ended', !!(show && sample.complete));
       banner.textContent = show
-        ? (sample.message || '10-minute sample. A registered learner who has paid for the class takes the full course.')
+        ? (sample.complete ? trialEndedMessage(payload) : (sample.message || 'This free trial is 10 minutes. Pay for the course when you want the full class.'))
         : '';
     }
     function resolveLearnerId() {
@@ -586,6 +631,11 @@ STUDIO_JS = """
       }
     }
     let learnerId = resolveLearnerId();
+    if (audioOnly) {
+      if (!learnerId.endsWith(':audio')) learnerId += ':audio';
+      teachSession = 'studio-teach-audio';
+      document.body.classList.add('public-course', 'audio-only');
+    }
     let theodoreAvatar = null;
     // The lesson plays straight through. Pause is the only hold.
     let lecturePaused = false;
@@ -1642,6 +1692,7 @@ STUDIO_JS = """
     }
 
     async function ensureStudentCamera() {
+      if (audioOnly) return;
       if (studentCamStream) {
         const box = $('student-cam');
         if (box) box.hidden = false;
@@ -2032,6 +2083,9 @@ STUDIO_JS = """
           featured: false
         });
       });
+      if (audioOnly) {
+        library = library.filter((row) => row.id === 'drivers-ed' || row.id === 'food-safety');
+      }
       renderLibrary();
       if (pinnedCourse) {
         document.body.classList.add('public-course');
@@ -2607,6 +2661,7 @@ STUDIO_JS = """
     async function askTheodore() {
       const box = $('voice-ask');
       const msg = (box && box.value || '').trim();
+      if (sampleIsComplete()) return toast(trialEndedMessage(lastTeachPayload));
       if (!msg) return toast('Ask a question about this course');
       if (!lessonTurnLoaded()) return toast('Start a course first');
       const epoch = teachEpoch;
@@ -2624,6 +2679,11 @@ STUDIO_JS = """
         throw error;
       }
       if (epoch !== teachEpoch) return;
+      if (data.sample && data.sample.complete) {
+        endSampleTrial(Object.assign({}, lastTeachPayload || {}, data));
+        toast(trialEndedMessage(data));
+        return;
+      }
       const voice = data.voice || {};
       const reply = voice.message || '';
       if (!reply) {
@@ -3016,6 +3076,11 @@ STUDIO_JS = """
     async function nextSlide(opts) {
       clearSpokenActivity();
       const automatic = !!(opts && opts.auto);
+      if (sampleIsComplete()) {
+        endSampleTrial(lastTeachPayload);
+        if (!automatic) toast(trialEndedMessage(lastTeachPayload));
+        return;
+      }
       if (learningHold) {
         if (!automatic) toast('Come back to the camera before the lesson continues.');
         return;
@@ -3042,6 +3107,11 @@ STUDIO_JS = """
     }
 
     function toggleLecturePause() {
+      if (sampleIsComplete()) {
+        lecturePaused = true;
+        endSampleTrial(lastTeachPayload);
+        return;
+      }
       lecturePaused = !lecturePaused;
       if (lecturePaused) {
         stopSpeech();
@@ -4037,6 +4107,7 @@ STUDIO_JS = """
     }
 
     function speakText(text, ttsMeta, holdLesson, kind) {
+      if (sampleIsComplete()) return;
       if (learningHold && kind !== 'guard' && kind !== 'learn-check') return;
       if (learningCheckOpen && kind !== 'learn-check' && kind !== 'guard' && kind !== 'checkpoint') return;
       if (kind !== 'adapt' && kind !== 'adapt-resume' && kind !== 'guard') attentionResume = '';
@@ -4320,6 +4391,11 @@ STUDIO_JS = """
     }
 
     async function proceedByClick() {
+      if (sampleIsComplete()) {
+        endSampleTrial(lastTeachPayload);
+        toast(trialEndedMessage(lastTeachPayload));
+        return;
+      }
       if (advancing) return;
       if (lecturePaused) {
         lecturePaused = false;
@@ -4336,6 +4412,11 @@ STUDIO_JS = """
     }
 
     async function proceedByVoice() {
+      if (sampleIsComplete()) {
+        endSampleTrial(lastTeachPayload);
+        toast(trialEndedMessage(lastTeachPayload));
+        return;
+      }
       const started = await window.TheodoreLiveAudio?.start?.();
       if (started === false) toast('Voice is not ready yet. Press Start again in a moment.');
       if (!teachSession) {
@@ -4702,9 +4783,12 @@ STUDIO_JS = """
       if (box) box.classList.remove('show');
       attentionFullBody = '';
       renderReview();
-      placeStudentCam();
-      void ensureStudentCamera();
+      if (!audioOnly) {
+        placeStudentCam();
+        void ensureStudentCamera();
+      }
       paintSampleBanner(payload);
+      armSampleClock(payload);
       if (payload.sample && payload.sample.complete) {
         lecturePaused = true;
         if ($('btn-pause')) setPauseButton(true);
@@ -4819,6 +4903,7 @@ STUDIO_JS = """
     setAvatarVisible(
       typeof avatarPrefs.on === 'boolean' ? avatarPrefs.on : SHOW_AVATAR, false);
     paintSampleBanner(null);
+    if (audioOnly) setCaptionsEnabled(true);
     loadLanguages().catch(() => {});
     loadAvatarChoices().catch((error) => toast(String(error.message || error)));
     loadLibrary().catch((e) => toast(String(e.message || e)));
