@@ -63,6 +63,9 @@ GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
     ("Learn", [
         ("trace-letter", "Trace a letter"),
         ("trace-picture", "Trace a picture"),
+        ("color-picture", "Color the picture"),
+        ("connect-dots", "Connect the dots"),
+        ("trace-outline", "Trace the outline"),
         ("say-letter", "Say the letter"),
     ]),
     ("Face & hands", [

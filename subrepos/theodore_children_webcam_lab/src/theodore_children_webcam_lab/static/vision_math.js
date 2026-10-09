@@ -14,6 +14,42 @@ export const HEART_WRISTS_PALMS = 1.3; // wrists apart, else it is one clump
 export const KISS_NEAR_FACES = 0.85;   // hand-to-mouth, in face widths
 export const KISS_AWAY_FACES = 1.5;    // travel needed to count as sent
 
+// MediaPipe hand topology. Used when the runtime does not publish HAND_CONNECTIONS.
+export const HAND_BONES = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [0, 9], [9, 10], [10, 11], [11, 12],
+  [0, 13], [13, 14], [14, 15], [15, 16],
+  [0, 17], [17, 18], [18, 19], [19, 20],
+  [5, 9], [9, 13], [13, 17],
+];
+
+// object-fit: cover. Landmarks are fractions of the camera frame, and the
+// stage crops that frame, so mapping them onto the full stage draws the
+// skeleton off the hand. No video yet (pointer demo) uses the whole stage.
+export function coverFrame(stageW, stageH, videoW, videoH) {
+  const w = Number(stageW) || 0;
+  const h = Number(stageH) || 0;
+  const vw = Number(videoW) || 0;
+  const vh = Number(videoH) || 0;
+  if (!w || !h || !vw || !vh) return { x: 0, y: 0, w: w || 1, h: h || 1 };
+  const scale = Math.max(w / vw, h / vh);
+  const dw = vw * scale;
+  const dh = vh * scale;
+  return { x: (w - dw) / 2, y: (h - dh) / 2, w: dw, h: dh };
+}
+
+// The camera element is mirrored. Flip x inside the covered frame.
+export function mapMirroredLandmark(point, frame) {
+  const x = Number(point?.x) || 0;
+  const y = Number(point?.y) || 0;
+  return {
+    x: frame.x + (1 - x) * frame.w,
+    y: frame.y + y * frame.h,
+    z: Number(point?.z) || 0,
+  };
+}
+
 export function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
@@ -108,4 +144,45 @@ export function syntheticHand(tip, { pose = "open", scale = 0.1 } = {}) {
     z: 0,
   };
   return pts;
+}
+
+// A letter trace is a stroke, not a filled shape. A short line down the guide
+// is enough. A tap or a scribble that never crosses the letter is not.
+export function traceProgress(points, ageBand) {
+  const samples = Array.isArray(points) ? points : [];
+  const inside = samples.filter((point) => (
+    point.x >= 0.22 && point.x <= 0.78 && point.y >= 0.18 && point.y <= 0.82
+  ));
+  let length = 0;
+  for (let i = 1; i < inside.length; i += 1) {
+    length += Math.hypot(inside[i].x - inside[i - 1].x, inside[i].y - inside[i - 1].y);
+  }
+  let minX = 1;
+  let maxX = 0;
+  let minY = 1;
+  let maxY = 0;
+  for (const point of inside) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+  const span = inside.length ? Math.hypot(maxX - minX, maxY - minY) : 0;
+  const young = ageBand === "4-6";
+  const needLength = young ? 0.32 : 0.42;
+  const needSpan = young ? 0.18 : 0.24;
+  const needPoints = young ? 6 : 8;
+  const insideRatio = samples.length ? inside.length / samples.length : 0;
+  const percent = Math.round(100 * Math.min(
+    1,
+    length / needLength,
+    span / needSpan,
+    inside.length / needPoints,
+    insideRatio / 0.25,
+  ));
+  return {
+    percent: Number.isFinite(percent) ? percent : 0,
+    passed: length >= needLength && span >= needSpan && inside.length >= needPoints && insideRatio >= 0.25,
+    cells: inside.length,
+  };
 }

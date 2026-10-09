@@ -24,6 +24,9 @@ OBJECT_GAMES = {"fruit-cut", "balloon", "fish", "popcorn"}
 LOOP = {
     "trace-letter": "updateTrace",
     "trace-picture": "updateTrace",
+    "color-picture": "updatePicturePlay",
+    "connect-dots": "updatePicturePlay",
+    "trace-outline": "updatePicturePlay",
     "say-letter": "checkSpeech",
     "oh-behave": "updateGestureGame",
     "heart": "updateGestureGame",
@@ -61,7 +64,7 @@ def test_every_menu_game_is_in_the_api_and_the_game_loop():
     catalog = list(all_game_ids())
     assert catalog == [game_id for _group, games in GAME_MENU for game_id, _ in games]
     assert set(catalog) == set(LOOP)
-    assert len(catalog) == len(LOOP) == 22
+    assert len(catalog) == len(LOOP) == 25
 
     html = render_children_page("test")
     html_ids = re.findall(r'<option value="([^"]+)">', html)

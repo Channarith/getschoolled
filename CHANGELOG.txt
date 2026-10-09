@@ -3,6 +3,8 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-08 - v0.50.23 - The vision arcade adds coloring, connect-the-dots, and outline tracing. Coloring shows a recommended color on every part of the picture, and the dots are numbered.
+- 2026-10-08 - v0.50.23 - The vision arcade draws the hand skeleton on the camera picture. Tracing a letter finishes on a rough stroke and then jumps to a random next letter. A failed deploy no longer rolls the demo labs back to an image tag that will not start.
 - 2026-10-08 - v0.50.22 - Lesson captions follow the section on screen. A finished section no longer keeps the caption while the picture moves on.
 - 2026-10-08 - v0.50.21 - California driving lessons play generated animations, including side-by-side comparison, and each lesson ends on a different quiz: questions, ordering, matching, or comparison.
 - 2026-10-08 - v0.50.19 - Full-screen lesson captions and the Start button sit on the bottom edge, in front of the other controls, so they can be clicked.

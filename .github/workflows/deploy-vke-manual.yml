@@ -143,7 +143,19 @@ jobs:
           kubectl apply -f infra/k8s-vke/ingress-ip.yaml
           if echo " $SVCS " | grep -q " course-studio "; then
             kubectl kustomize infra/k8s-vke | python3 scripts/render_demo_labs.py > /tmp/demo-labs.yaml
-            kubectl apply -f /tmp/demo-labs.yaml
+            # Do not re-apply Deployments. That swaps a digest pin for the
+            # floating tag, and a rollback then leaves /studio and /children-lab on 503.
+            python3 scripts/render_demo_labs.py --kind Service < /tmp/demo-labs.yaml | kubectl apply -f -
+            python3 scripts/render_demo_labs.py --kind Deployment < /tmp/demo-labs.yaml > /tmp/demo-lab-deploys.yaml
+            create_labs=0
+            for name in course-studio children-lab; do
+              if ! kubectl -n aoep get deploy "$name" >/dev/null 2>&1; then
+                create_labs=1
+              fi
+            done
+            if [ "$create_labs" = 1 ]; then
+              kubectl apply -f /tmp/demo-lab-deploys.yaml
+            fi
           fi
           for svc in $SVCS; do
             digest_file="digests/${svc}.digest"

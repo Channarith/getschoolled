@@ -6,7 +6,8 @@
 // exactly this: a distant child read as a permanent fist.
 import assert from "node:assert/strict";
 import {
-  FIST_MAX_PALMS, handShape, heartRatios, isHeartShape, palmSpan, syntheticHand,
+  FIST_MAX_PALMS, HAND_BONES,   coverFrame, handShape, heartRatios, isHeartShape,
+  mapMirroredLandmark, palmSpan, syntheticHand, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 
 // A canonical right hand, palm size 1.0, fingers pointing up (-y).
@@ -154,5 +155,35 @@ assert.equal(demoFist.fist, true, "demo fist pose must classify as a fist");
 const demoIndex = handShape(syntheticHand({ x: 0.4, y: 0.4 }, { pose: "index" }));
 assert.equal(demoIndex.indexUp, true, "demo index pose must raise only the index");
 assert.equal(demoIndex.fist, false);
+
+// A wide stage crops a square camera. The skeleton has to land on the visible
+// picture, not on the full stage rectangle.
+const cropped = coverFrame(1000, 500, 1000, 1000);
+assert.equal(cropped.x, 0);
+assert.equal(cropped.y, -250);
+assert.equal(cropped.w, 1000);
+assert.equal(cropped.h, 1000);
+const mid = mapMirroredLandmark({ x: 0.5, y: 0.5 }, cropped);
+assert.equal(mid.x, 500);
+assert.equal(mid.y, 250);
+const demo = coverFrame(800, 600, 0, 0);
+assert.equal(demo.w, 800);
+assert.equal(demo.h, 600);
+assert.ok(HAND_BONES.some((pair) => pair[0] === 0 && pair[1] === 5));
+
+function stroke(from, to, steps) {
+  const points = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    points.push({ x: from[0] + (to[0] - from[0]) * t, y: from[1] + (to[1] - from[1]) * t });
+  }
+  return points;
+}
+const roughLetter = traceProgress(stroke([0.48, 0.28], [0.52, 0.72], 10), "7-10");
+assert.equal(roughLetter.passed, true, "a single downstroke counts as a finished letter");
+const tap = traceProgress([{ x: 0.5, y: 0.5 }, { x: 0.51, y: 0.51 }], "7-10");
+assert.equal(tap.passed, false, "a tap is not a letter");
+const offGuide = traceProgress(stroke([0.02, 0.02], [0.08, 0.9], 12), "4-6");
+assert.equal(offGuide.passed, false, "a stroke outside the letter does not finish it");
 
 console.log("vision geometry OK");

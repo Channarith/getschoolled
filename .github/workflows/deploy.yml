@@ -167,7 +167,20 @@ jobs:
           # Create the demo labs before pinning images. The web rewrites target
           # these Service names; a missing Deployment is the salareen.com 500.
           kubectl kustomize infra/k8s-vke | python3 scripts/render_demo_labs.py > /tmp/demo-labs.yaml
-          kubectl apply -f /tmp/demo-labs.yaml
+          # Services have no image. Re-applying the Deployment replaces a
+          # digest pin with the floating tag, and a later rollback restores
+          # that tag. We do not push that tag, so the lab pods stay 503.
+          python3 scripts/render_demo_labs.py --kind Service < /tmp/demo-labs.yaml | kubectl apply -f -
+          python3 scripts/render_demo_labs.py --kind Deployment < /tmp/demo-labs.yaml > /tmp/demo-lab-deploys.yaml
+          create_labs=0
+          for name in course-studio children-lab; do
+            if ! kubectl -n aoep get deploy "$name" >/dev/null 2>&1; then
+              create_labs=1
+            fi
+          done
+          if [ "$create_labs" = 1 ]; then
+            kubectl apply -f /tmp/demo-lab-deploys.yaml
+          fi
           # Deploy the IMMUTABLE sha256 digest built above, not a tag. This is the
           # "promote the exact artifact" invariant (docs/vv-master-plan.txt §4).
           for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web course-studio children-lab; do
