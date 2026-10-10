@@ -127,6 +127,7 @@ jobs:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: bash scripts/github_configure_kubeconfig.sh
       - name: Roll deployments to the built digest
+        id: roll
         env:
           SVCS: ${{ needs.setup-matrix.outputs.services }}
         run: |
@@ -178,7 +179,9 @@ jobs:
         run: bash scripts/post_deploy_smoke.sh
 
       - name: Auto-rollback on smoke failure
-        if: failure()
+        # Only undo after this run actually pinned images. An earlier step
+        # failure must leave the running revisions alone.
+        if: failure() && steps.roll.outcome == 'success'
         env:
           SVCS: ${{ needs.setup-matrix.outputs.services }}
         run: |
