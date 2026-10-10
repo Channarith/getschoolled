@@ -412,11 +412,11 @@ export default function AccountPage() {
 
           <div className="card">
             <h3>{t("account.security")}</h3>
-            <form onSubmit={onChangePassword}>
+            <form onSubmit={onChangePassword} className="row">
               <input type="password" placeholder={t("account.currentPassword")} value={cur}
-                onChange={(e) => setCur(e.target.value)} style={{ padding: 8, marginRight: 8 }} />
+                onChange={(e) => setCur(e.target.value)} style={{ padding: 8, flex: "1 1 160px", minWidth: 0 }} />
               <input type="password" placeholder={t("account.newPassword")} value={next}
-                onChange={(e) => setNext(e.target.value)} style={{ padding: 8, marginRight: 8 }} />
+                onChange={(e) => setNext(e.target.value)} style={{ padding: 8, flex: "1 1 160px", minWidth: 0 }} />
               <button type="submit">{t("account.changePassword")}</button>
             </form>
             {pwMsg && <p className="muted">{pwMsg}</p>}

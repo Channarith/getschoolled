@@ -51,7 +51,8 @@ jobs:
             MATRIX="${MATRIX},{\"name\":\"web\",\"dockerfile\":\"apps/web/Dockerfile\",\"context\":\".\"}"
             MATRIX="${MATRIX},{\"name\":\"course-studio\",\"dockerfile\":\"subrepos/theodore_course_studio/Dockerfile\",\"context\":\".\"}"
             MATRIX="${MATRIX},{\"name\":\"children-lab\",\"dockerfile\":\"subrepos/theodore_children_webcam_lab/Dockerfile\",\"context\":\".\"}"
-            SVCS="${SVCS} web course-studio children-lab"
+            MATRIX="${MATRIX},{\"name\":\"audio-lab\",\"dockerfile\":\"subrepos/theodore_audio_translation_lab/Dockerfile\",\"context\":\".\"}"
+            SVCS="${SVCS} web course-studio children-lab audio-lab"
           fi
           MATRIX="${MATRIX}]"
           echo "matrix={\"include\":${MATRIX}}" >> "$GITHUB_OUTPUT"
@@ -147,16 +148,13 @@ jobs:
             # Do not re-apply Deployments. That swaps a digest pin for the
             # floating tag, and a rollback then leaves /studio and /children-lab on 503.
             python3 scripts/render_demo_labs.py --kind Service < /tmp/demo-labs.yaml | kubectl apply -f -
-            python3 scripts/render_demo_labs.py --kind Deployment < /tmp/demo-labs.yaml > /tmp/demo-lab-deploys.yaml
-            create_labs=0
-            for name in course-studio children-lab; do
+            # Apply a Deployment only when that lab is missing. Re-applying the
+            # others replaces a digest pin with unpublished :latest.
+            for name in course-studio children-lab audio-lab; do
               if ! kubectl -n aoep get deploy "$name" >/dev/null 2>&1; then
-                create_labs=1
+                python3 scripts/render_demo_labs.py --kind Deployment --name "$name" < /tmp/demo-labs.yaml | kubectl apply -f -
               fi
             done
-            if [ "$create_labs" = 1 ]; then
-              kubectl apply -f /tmp/demo-lab-deploys.yaml
-            fi
           fi
           for svc in $SVCS; do
             digest_file="digests/${svc}.digest"

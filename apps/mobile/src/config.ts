@@ -8,6 +8,8 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 
+import { isLoopbackUrl, resolveWebAppUrl } from "./webAppUrl";
+
 const extra = (Constants.expoConfig?.extra || {}) as Record<string, string>;
 
 export type DeployMode = "local" | "cloud";
@@ -19,16 +21,14 @@ export const CLOUD_BASE_URL = (
   extra.cloudBaseUrl || "https://www.salareen.com"
 ).replace(/\/$/, "");
 
-/** Next.js web app origin — arcade canvas/WebGL games live here. */
+/** Next.js web app origin — arcade, studio, vision lab, and Worlds live here. */
 function webAppBase(): string {
-  if (extra.webAppUrl?.startsWith("http")) {
-    return extra.webAppUrl.replace(/\/$/, "");
-  }
-  if (DEPLOY_MODE === "local") {
-    const h = Platform.OS === "android" ? "10.0.2.2" : "localhost";
-    return `http://${h}:3000`;
-  }
-  return CLOUD_BASE_URL;
+  return resolveWebAppUrl({
+    deployMode: DEPLOY_MODE,
+    platform: Platform.OS,
+    configured: extra.webAppUrl,
+    cloudBase: CLOUD_BASE_URL,
+  });
 }
 
 export const WEB_APP_URL = webAppBase();
@@ -75,7 +75,7 @@ function localServiceUrl(key: string, port: number): string {
 
 function cloudServiceUrl(servicePath: string, key: string): string {
   const configured = extra[key];
-  if (configured && configured.startsWith("http") && !configured.includes("localhost")) {
+  if (configured && configured.startsWith("http") && !isLoopbackUrl(configured)) {
     return configured.replace(/\/$/, "");
   }
   return `${CLOUD_BASE_URL}${servicePath}`;

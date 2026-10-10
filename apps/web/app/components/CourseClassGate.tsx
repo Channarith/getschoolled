@@ -107,14 +107,13 @@ export function CourseClassGate({
 
   return (
     <main className="container">
-      <h1>{title}</h1>
+      <p style={{ margin: "0 0 12px", display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
+        <Link href="/">← Back to Salareen</Link>
+      </p>
       <p className="muted">
         {isAdmin
           ? "Your account is an admin, so this is the full course."
           : "This account has paid for the course. This is the full course."}
-      </p>
-      <p className="muted">
-        <Link href="/">Back to Salareen</Link>
       </p>
       <CourseStudioFrame
         title={`${title} full course`}

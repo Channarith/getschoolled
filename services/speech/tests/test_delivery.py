@@ -52,12 +52,21 @@ def test_delivery_plan_api():
     assert plans["s2"]["tts_engine"] == "cloud-tts-fallback"
 
 
-def test_translate_validates_pair_then_needs_model():
+def test_translate_validates_pair_then_degrades_offline():
     bad = client.post("/translate", json={"text": "hi", "source": "en", "target": "zz"})
     assert bad.status_code == 422
-    # Valid pair, but the NLLB model is not loaded in this environment -> 503.
-    ok = client.post("/translate", json={"text": "hi", "source": "en", "target": "es"})
-    assert ok.status_code == 503
+    # Regional tags the apps send are accepted, not 422.
+    regional = client.post("/translate", json={"text": "Hello", "source": "en-US", "target": "es-MX"})
+    assert regional.status_code == 200, regional.text
+    body = regional.json()
+    assert body["text"] == "Hola"
+    assert body["engine"] == "phrasebook"
+    # No NLLB model: unknown lesson text stays the original, never 500/503.
+    plain = client.post("/translate", json={"text": "The Nile flooded each year.", "source": "en", "target": "km"})
+    assert plain.status_code == 200, plain.text
+    assert plain.json()["degraded"] is True
+    assert plain.json()["text"] == "The Nile flooded each year."
+    assert plain.json()["engine"] == "passthrough"
 
 
 def test_invalid_lesson_language_422():

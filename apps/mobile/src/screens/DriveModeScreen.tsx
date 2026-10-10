@@ -853,7 +853,15 @@ const styles = StyleSheet.create({
     borderColor: "rgba(46,204,113,0.45)",
   },
   micDot: { width: 10, height: 10, borderRadius: 999, backgroundColor: "#2ecc71" },
-  micLiveText: { flex: 1, color: "#d6f5e3", fontSize: 12, fontWeight: "600" },
+  micLiveText: {
+    flex: 1,
+    minWidth: 0,
+    color: "#d6f5e3",
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 16,
+    includeFontPadding: false,
+  },
   langChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,

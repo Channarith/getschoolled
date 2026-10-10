@@ -53,6 +53,10 @@ VOICES: dict[str, tuple[str, str]] = {
     "km": ("km-KH-SreymomNeural", "km-KH-PisethNeural"),
 }
 
+# Hong Kong Cantonese is a spoken variant, not one of the 27 content languages,
+# so it is not a VOICES key. xAI speech-to-speech has no Cantonese code.
+_CANTONESE_VOICES = ("zh-HK-HiuMaanNeural", "zh-HK-WanLungNeural")
+
 VOICE_FALLBACKS: dict[str, tuple[str, ...]] = {
     "pl": ("pl-PL-ZofiaNeural",),
     "ar": ("ar-EG-SalmaNeural", "ar-EG-ShakirNeural"),
@@ -95,11 +99,38 @@ def engine_available() -> bool:
     return True
 
 
+def _voice_lang(language: str) -> str:
+    """Map a teach-language tag onto a neural voice key.
+
+    ``zh-HK`` must not collapse to Mandarin ``zh``. ``km-KH`` stays Khmer.
+    """
+    raw = (language or "en").strip().lower().replace("_", "-")
+    if (
+        raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"}
+        or raw.startswith("yue-")
+        or raw.startswith("zh-hk")
+        or raw.startswith("zh-mo")
+        or raw.startswith("zh-yue")
+    ):
+        return "yue"
+    if raw == "km" or raw.startswith("km-"):
+        return "km"
+    if raw in {"zh-cn", "zh-hans", "zh-sg", "cmn", "mandarin"} or raw.startswith("zh-cn"):
+        return "zh"
+    return raw.split("-")[0] or "en"
+
+
+def _voice_pair(language: str) -> tuple[str, str]:
+    lang = _voice_lang(language)
+    if lang == "yue":
+        return _CANTONESE_VOICES
+    return VOICES.get(lang) or VOICES["en"]
+
+
 def voice_for(language: str, *, gender: str = "female", voice: str = "") -> str:
     if voice:
         return voice
-    lang = (language or "en").split("-")[0].lower()
-    pair = VOICES.get(lang) or VOICES["en"]
+    pair = _voice_pair(language)
     return pair[1] if gender == "male" else pair[0]
 
 
@@ -108,8 +139,8 @@ def voice_candidates(
 ) -> list[str]:
     if voice:
         return [voice]
-    lang = (language or "en").split("-")[0].lower()
-    pair = VOICES.get(lang) or VOICES["en"]
+    lang = _voice_lang(language)
+    pair = _voice_pair(language)
     primary = pair[1] if gender == "male" else pair[0]
     secondary = pair[0] if gender == "male" else pair[1]
     extras = list(VOICE_FALLBACKS.get(lang, ()))

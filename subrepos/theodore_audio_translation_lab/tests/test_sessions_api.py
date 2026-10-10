@@ -112,6 +112,21 @@ def test_health_languages_and_lab_page():
         assert phrase in page.text
 
 
+def test_drive_embed_target_is_lab():
+    """The Drive iframe is /audio-lab, rewritten by Next to this /lab page."""
+    page = client.get("/lab")
+    assert page.status_code == 200
+    assert "text/html" in page.headers["content-type"]
+    assert "/audio-lab-api" in page.text
+    # The app does not serve the public path. Ingress must send /audio-lab to
+    # the web rewrite, not to a service that leaves the path unchanged.
+    missing = client.get("/audio-lab")
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "Not Found"
+    health = client.get("/health")
+    assert health.status_code == 200
+
+
 def test_session_text_translation_api():
     sid = unique("api")
     made = client.post(

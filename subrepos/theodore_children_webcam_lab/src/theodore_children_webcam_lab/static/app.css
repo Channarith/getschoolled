@@ -21,6 +21,7 @@ button,select,input{font:inherit}button,select,input{border:2px solid rgba(255,2
 @keyframes missAway{to{opacity:0;filter:grayscale(1);transform:translate(-50%,-50%) scale(.7)}}
 @keyframes burstPop{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}60%{transform:translate(-50%,-50%) scale(1.3)}100%{transform:translate(-50%,-120%) scale(1.1);opacity:0}}
 #stage.voice-shift{box-shadow:0 0 0 4px #5eead4;transition:box-shadow .2s ease}
+.presence-note{position:absolute;z-index:6;left:50%;bottom:4.2rem;transform:translateX(-50%);max-width:min(88%,520px);margin:0;padding:.55rem .9rem;border-radius:14px;background:#0f172aeb;border:1px solid #fde68a88;color:#fef3c7;text-align:center;font-weight:700;pointer-events:none}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}.firework{box-shadow:0 0 30px 14px var(--c)}#stage.voice-shift{box-shadow:none}}
 
 /* Phone and the in-app embed. The camera stage keeps most of the screen so
@@ -42,7 +43,11 @@ body.phone-play .controls button,body.phone-play .controls select,body.phone-pla
 body.phone-play .target{width:min(120px,34vmin);height:min(120px,34vmin);font-size:clamp(2rem,10vmin,3.4rem)}
 body.phone-play .sprite{font-size:clamp(2.75rem,16vmin,4.5rem)}
 body.phone-play .prompt{top:auto;bottom:.45rem;max-width:94%;padding:.4rem .7rem}
+.prompt.is-success{top:34%;bottom:auto;z-index:8;background:#14532dd4;border:3px solid #86efac}
+.prompt.is-success strong{color:#bbf7d0;font-size:clamp(1.35rem,4vw,2rem)}
+body.phone-play .prompt.is-success{top:32%;bottom:auto;max-width:92%}
 body.phone-play .prompt strong{font-size:1rem}
+body.phone-play .prompt.is-success strong{color:#bbf7d0;font-size:1.35rem}
 body.phone-play .vision-readout,body.phone-play .vision-status{display:none}
 body.phone-play #chrome-toggle{display:inline-flex}
 body.phone-play.chrome-hidden .stage{height:100dvh}
@@ -50,3 +55,9 @@ body.phone-play.stage-fill .vision-tools,body.phone-play.stage-fill .dashboard{d
 body:not(.phone-play) #touch-mode{display:none!important}
 body.phone-play #touch-mode{flex:0 0 auto;white-space:nowrap;font-size:.72rem;padding:.4rem .55rem}
 .stage.demo{touch-action:none}
+.countdown{pointer-events:none}
+.spoken-words{margin:0;padding:.55rem .9rem;background:#1e1b4b;color:#fef9c3;text-align:center;font-weight:900;font-size:clamp(1.15rem,2.8vw,1.7rem);line-height:1.35;max-height:4.8rem;overflow:auto}
+/* Phone embed hides vision-status and vision-readout. The clock stays on the stage. */
+body.phone-play #countdown:not(.hidden){display:grid!important;top:.45rem;right:.55rem;width:72px;height:72px;font-size:1.55rem;z-index:9}
+body.phone-play #spoken-words:not(.hidden){display:block}
+body.phone-play #words-toggle{min-height:44px;white-space:nowrap;flex:0 0 auto}

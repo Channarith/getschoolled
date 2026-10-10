@@ -22,7 +22,7 @@ jobs:
         run: |
           set -u
           kubectl -n aoep get pods -l 'tier=demo' -o wide
-          for name in course-studio children-lab; do
+          for name in course-studio children-lab audio-lab; do
             echo "---- $name ----"
             kubectl -n aoep get pods -l "app=$name" -o jsonpath='{range .items[*]}{.metadata.name}{" image="}{.spec.containers[0].image}{" waiting="}{.status.containerStatuses[0].state.waiting.reason}{" msg="}{.status.containerStatuses[0].state.waiting.message}{"\n"}{end}'
             echo

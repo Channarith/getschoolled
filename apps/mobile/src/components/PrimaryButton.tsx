@@ -59,7 +59,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...theme.shadow.card,
   },
-  label: { color: "#fff", fontWeight: "800", fontSize: 16, lineHeight: 20, textAlign: "center" },
+  label: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 16,
+    lineHeight: 20,
+    textAlign: "center",
+    includeFontPadding: false,
+  },
   ghost: {
     borderRadius: theme.radius.md,
     borderWidth: 1,
@@ -68,6 +75,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     alignItems: "center",
   },
-  ghostText: { color: theme.colors.text, fontWeight: "700", lineHeight: 18, textAlign: "center" },
+  ghostText: {
+    color: theme.colors.text,
+    fontWeight: "700",
+    lineHeight: 18,
+    textAlign: "center",
+    includeFontPadding: false,
+  },
   disabled: { opacity: 0.55 },
 });

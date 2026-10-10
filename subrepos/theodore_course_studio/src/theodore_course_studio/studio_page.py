@@ -443,14 +443,58 @@ STUDIO_CSS = """
                          font-variant-numeric:tabular-nums; letter-spacing:0.03em; }
     .sample-clock small { display:block; margin-top:4px; font:700 11px/1.2 "Avenir Next", "Segoe UI", sans-serif;
                           letter-spacing:.08em; text-transform:uppercase; opacity:.85; }
-    body.audio-only #student-cam,
     body.audio-only #btn-avatar,
     body.audio-only .avatar-choice-label,
     body.audio-only .theodore-avatar-wrap,
     body.audio-only .picture-stage,
     body.audio-only .lesson-photo,
     body.audio-only #teach-storyboard,
-    body.audio-only #teach-visual-timeline { display:none !important; }
+    body.audio-only #teach-visual-timeline,
+    body.audio-only #teach-body,
+    body.audio-only #teach-narr,
+    body.audio-only #teach-activity,
+    body.audio-only #teach-examples,
+    body.audio-only .page-welcome,
+    body.audio-only .storyboard-concept { display:none !important; }
+    .audio-stage { display:none; }
+    body.audio-only .audio-stage {
+      position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:18px; min-height:min(46vh, 420px); margin:4px 0 12px; padding:28px 16px 22px;
+      border-radius:22px; background:radial-gradient(ellipse at 50% 42%, #2a3a52, #121820 72%);
+    }
+    .audio-avatar { position:relative; width:112px; height:112px; border-radius:50%;
+      background:radial-gradient(circle at 38% 32%, #ffe7b0, #c4893a 62%, #8c5a2b);
+      box-shadow:0 0 0 10px rgba(143,234,255,.18); }
+    .audio-avatar i, .audio-avatar b { position:absolute; display:block; }
+    .audio-avatar i { top:42px; width:12px; height:12px; border-radius:50%; background:#1e3a5f; }
+    .audio-avatar i:first-child { left:30px; }
+    .audio-avatar i:nth-child(2) { right:30px; }
+    .audio-avatar b { left:38px; top:68px; width:36px; height:14px; border-bottom:3px solid #1e3a5f;
+      border-radius:0 0 20px 20px; }
+    body.is-speaking .audio-avatar { box-shadow:0 0 0 14px rgba(143,234,255,.38); }
+    .audio-bars { display:flex; align-items:flex-end; gap:7px; height:74px; }
+    .audio-bars i { width:9px; border-radius:99px; background:#8feaff;
+      height:calc(14px + var(--level, .15) * 52px); transform-origin:bottom center;
+      animation:audioBar 1.05s ease-in-out infinite; animation-play-state:paused; }
+    body.is-speaking .audio-bars i { animation-play-state:running; }
+    .audio-bars i:nth-child(2) { animation-delay:.1s; }
+    .audio-bars i:nth-child(3) { animation-delay:.2s; }
+    .audio-bars i:nth-child(4) { animation-delay:.05s; }
+    .audio-bars i:nth-child(5) { animation-delay:.18s; }
+    .audio-bars i:nth-child(6) { animation-delay:.28s; }
+    .audio-bars i:nth-child(7) { animation-delay:.12s; }
+    @keyframes audioBar { 50% { transform:scaleY(1.7); } }
+    body.audio-only .student-cam { position:absolute; top:12px; left:12px; width:88px; z-index:3; }
+    body.phone-embed.audio-only .audio-stage {
+      padding-left:108px; max-height:calc(100dvh - 300px); margin-bottom:12px;
+    }
+    body.phone-embed .lesson-caption { position:relative; z-index:6; }
+    #lesson-caption[hidden] { display:none !important; }
+    .lesson-caption { display:none; margin:8px 0 0; padding:8px 12px; border-radius:12px;
+      background:#1e3a5f; color:#fffaf3; font:600 16px/1.35 "Avenir Next", "Segoe UI", sans-serif;
+      max-height:4.4em; overflow:hidden; }
+    body.phone-embed .teach-stage:not(.captions-off) #lesson-caption:not([hidden]),
+    body.audio-only .teach-stage:not(.captions-off) #lesson-caption:not([hidden]) { display:block; }
     @media (max-width:700px) {
       .picture-stage { grid-template-columns:1fr; }
       .teacher-stage-grid { grid-template-columns:1fr; }
@@ -458,16 +502,77 @@ STUDIO_CSS = """
     }
     /* In-app and phone lesson. The course stays on screen with the Start,
        Pause, and Talk buttons reachable. The library sits underneath. */
-    body.phone-embed .layout { display:flex; flex-direction:column; padding:8px; }
+    body.phone-embed .layout { display:flex; flex-direction:column; padding:8px 8px 156px; }
     body.phone-embed .library-panel { order:2; max-height:28vh; overflow:auto; }
+    body.phone-embed.public-course .library-panel { display: none; }
     body.phone-embed .layout > .panel:not(.library-panel) { order:1; }
     body.phone-embed .theodore-avatar-wrap { min-height:160px; }
     body.phone-embed button, body.phone-embed select { min-height:44px; }
-    body.phone-embed .sample-clock { top:8px; right:8px; min-width:5.4rem; padding:6px 8px 4px; }
-    body.phone-embed .sample-clock span { font-size:22px; }
-    body.phone-embed .lesson-toolbar { position:sticky; bottom:0; z-index:6;
+    body.phone-embed .lesson-window-controls {
+      position:static; width:100%; flex-wrap:wrap; justify-content:flex-start; margin:0 0 8px;
+    }
+    body.phone-embed .teach-stage h3 { padding-right:0; font-size:clamp(22px, 6vw, 30px); line-height:1.15; }
+    body.phone-embed .lesson-window-controls #sample-clock {
+      position:static; margin-left:auto; min-width:4.6rem; padding:6px 8px 4px;
+    }
+    body.phone-embed .sample-clock span { font-size:20px; }
+    body.phone-embed .lesson-toolbar { position:sticky; bottom:148px; z-index:7; flex-wrap:wrap;
       background:#fffaf3; padding:8px 0; }
+    body.phone-embed .proceed-cue, body.audio-only .proceed-cue { position:relative; bottom:auto; }
     body.phone-embed .teach-stage { min-height:46vh; }
+    body.phone-embed:not(.audio-only) .visual-timeline-stage,
+    body.phone-embed:not(.audio-only) .lesson-photo.is-shown,
+    body.phone-embed:not(.audio-only) .storyboard-stage {
+      max-height:min(48vh, calc(100dvh - 320px)); min-height:160px;
+    }
+    body.phone-embed:not(.audio-only) .student-cam {
+      position:relative !important; inset:auto !important; width:104px; margin:8px 0 0; z-index:4;
+    }
+    body.phone-embed .teach-stage.captions-off .visual-layer.kind-body,
+    body.phone-embed .teach-stage.captions-off .visual-layer.kind-title,
+    body.phone-embed .teach-stage.captions-off .visual-layer.kind-callout,
+    body.phone-embed .teach-stage.captions-off .visual-layer.kind-text,
+    body.phone-embed .teach-stage.captions-off .timeline-style-label,
+    body.phone-embed .teach-stage:not(.captions-off) #teach-body,
+    body.phone-embed .teach-stage:not(.captions-off) #teach-narr,
+    body.phone-embed .teach-stage:not(.captions-off) #teach-activity,
+    body.phone-embed .teach-stage:not(.captions-off) #teach-examples,
+    body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-body,
+    body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-title,
+    body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-callout,
+    body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-text { display:none !important; }
+    body.phone-embed .teach-stage.captions-off #quiz-box,
+    body.phone-embed .teach-stage.captions-off #game-box,
+    body.audio-only .teach-stage.captions-off #quiz-box,
+    body.audio-only .teach-stage.captions-off #game-box { display:none !important; }
+    body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-picture,
+    body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-image,
+    body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-video,
+    body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard {
+      position:absolute; inset:0; opacity:0;
+    }
+    body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-picture.is-active,
+    body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-image.is-active,
+    body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-video.is-active,
+    body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard.is-active {
+      opacity:1;
+    }
+    body.phone-embed #quiz-box, body.phone-embed #game-box {
+      position:relative; z-index:5; max-height:30vh; overflow:auto;
+    }
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-picture,
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-image,
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-video,
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard {
+      position:absolute; inset:0; opacity:0;
+    }
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-picture.is-active,
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-image.is-active,
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-video.is-active,
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard.is-active {
+      opacity:1;
+    }
+    .teach-stage.captions-off .lesson-stage-content > #sample-clock { display:inline-flex; }
     @media (prefers-reduced-motion: reduce) {
       .teach-stage, .teach-stage.anim, .theodore-avatar-fallback * { animation:none !important; }
       .visual-layer, .visual-layer img, .lesson-photo img, .lesson-photo-motion, .ppt-title {
@@ -569,7 +674,20 @@ STUDIO_JS = """
     let lastTeachPayload = null;
     let earlyOptions = [];
     let certOptions = [];
+    function studioSpokenCode(code) {
+      const raw = String(code || '').trim().toLowerCase().replace(/_/g, '-');
+      if (!raw) return 'en';
+      if (
+        raw === 'yue' || raw.indexOf('yue-') === 0 ||
+        raw === 'zh-hk' || raw.indexOf('zh-hk') === 0 ||
+        raw === 'zh-mo' || raw.indexOf('zh-mo') === 0 ||
+        raw === 'cantonese'
+      ) return 'yue';
+      if (raw === 'km' || raw.indexOf('km-') === 0) return 'km';
+      return raw.split('-')[0] || 'en';
+    }
     const studioQuery = new URLSearchParams(location.search);
+    teachLanguage = studioSpokenCode(studioQuery.get('lang') || teachLanguage);
     const requestedAccess = (studioQuery.get('access') || '').trim().toLowerCase();
     const registeredFlag = studioQuery.get('registered') === '1';
     const enrollmentStatus = (studioQuery.get('enrollment') || '').trim();
@@ -1678,15 +1796,88 @@ STUDIO_JS = """
       return 'away';
     }
 
+    const PRESENCE_PAUSE = "I'll pause here. Come back when you're ready.";
+    const PRESENCE_RESUME = "Welcome back. We'll continue from the same place.";
+    const PRESENCE_PHONE = "Looks like you might be looking down at a phone. The lesson is still here when you look up.";
+    const PRESENCE_AWAY = "Look back at the screen when you can. I'll keep going from here.";
+    let glanceNoted = '';
+
+    function glanceKind(reason, data) {
+      if (data && data.absent) return '';
+      const text = String(reason || '');
+      if (/phone|gaze_down|looking_at_phone|pitch/.test(text)) return 'phone';
+      if (/eyes_away|looking_away|yaw/.test(text)) return 'away';
+      return '';
+    }
+
+    function rememberStudioPresence(kind) {
+      try {
+        const key = 'studio-presence-log';
+        const rows = JSON.parse(localStorage.getItem(key) || '[]');
+        const next = Array.isArray(rows) ? rows : [];
+        next.push({ kind: kind, at: Date.now(), session: teachSession || '' });
+        localStorage.setItem(key, JSON.stringify(next.slice(-30)));
+      } catch (err) { /* a local note is enough when no profile store is wired */ }
+    }
+
+    function continueSameLesson() {
+      if (window.TheodoreLiveAudio && window.__THEODORE_LIVE_AUDIO_ACTIVE__) {
+        window.TheodoreLiveAudio.resumeRecognition?.();
+        return;
+      }
+      const turn = (lastTeachPayload && (lastTeachPayload.turn || lastTeachPayload)) || {};
+      speakText(turn.narration || turn.display_body || '', lastTeachPayload && lastTeachPayload.tts);
+    }
+
+    function sayPresenceLine(line, after) {
+      window.TheodoreLiveAudio?.pauseRecognition?.();
+      stopSpeech();
+      setTimeout(() => {
+        if (!window.speechSynthesis) {
+          if (after) after();
+          return;
+        }
+        const utter = new SpeechSynthesisUtterance(line);
+        utter.onend = () => { if (after) after(); };
+        window.speechSynthesis.speak(utter);
+      }, 60);
+    }
+
+    function showGlance(kind) {
+      const aside = $('attention-aside');
+      const line = kind === 'phone' ? PRESENCE_PHONE : PRESENCE_AWAY;
+      if (aside) {
+        aside.hidden = false;
+        aside.dataset.glance = '1';
+        aside.textContent = line;
+      }
+      setLearningStatus(line);
+      if (glanceNoted !== kind) {
+        glanceNoted = kind;
+        rememberStudioPresence(kind);
+      }
+    }
+
+    function clearGlance() {
+      const aside = $('attention-aside');
+      if (aside && aside.dataset.glance) {
+        aside.hidden = true;
+        aside.textContent = '';
+        delete aside.dataset.glance;
+      }
+      glanceNoted = '';
+    }
+
     function applyLearningHold(data) {
       const status = $('student-cam-status');
       if (!data || !data.hold) {
+        clearGlance();
         if (learningHold) {
           learningHold = false;
           learningHoldReason = '';
-          setLearningStatus('Present. The lesson can continue.');
-          toast('You are back. Continuing the lesson.');
-          if (!lecturePaused && !learningCheckOpen) readCurrentAloud();
+          setLearningStatus('Present. Continuing the same lesson.');
+          rememberStudioPresence('returned');
+          if (!lecturePaused && !learningCheckOpen) sayPresenceLine(PRESENCE_RESUME, continueSameLesson);
         } else if (status && !status.textContent) {
           setLearningStatus('Watching for presence.');
         } else if (data && data.state === 'present') {
@@ -1695,15 +1886,20 @@ STUDIO_JS = """
         return;
       }
       const reason = data.reason || 'paused';
-      setLearningStatus((data.suspected_cheating ? 'Paused: ' : 'Paused until you are here. ') + reason);
+      const glance = glanceKind(reason, data);
+      if (glance) {
+        showGlance(glance);
+        return;
+      }
+      clearGlance();
+      setLearningStatus(PRESENCE_PAUSE);
       if (learningHold && holdGroup(learningHoldReason) === holdGroup(reason)) return;
       learningHold = true;
       learningHoldReason = reason;
       clearAutoAdvance();
-      stopSpeech();
       theodoreAvatar?.setState('listening');
-      if (data.speech) speakText(data.speech, null, true, 'guard');
-      toast(data.speech || 'The lesson is paused.');
+      rememberStudioPresence('left_frame');
+      sayPresenceLine(PRESENCE_PAUSE);
     }
 
     function firstLessonSentence(text) {
@@ -1769,7 +1965,6 @@ STUDIO_JS = """
     }
 
     async function ensureStudentCamera() {
-      if (audioOnly) return;
       if (studentCamStream) {
         const box = $('student-cam');
         if (box) box.hidden = false;
@@ -1829,12 +2024,39 @@ STUDIO_JS = """
       box.classList.remove('is-hidden');
     }
 
+    function pinStudioCamera() {
+      const box = $('student-cam');
+      if (!box) return;
+      if (!document.body.classList.contains('phone-embed') && !audioOnly) return;
+      box.style.left = '';
+      box.style.top = '';
+      box.style.right = '';
+      box.style.bottom = '';
+    }
+
     function placeStudentCam() {
       const cam = $('student-cam');
       const overlay = $('presenter-overlay');
       if (!cam || !overlay) return;
-      const home = presenterActive() ? overlay : document.body;
-      if (cam.parentElement !== home) home.appendChild(cam);
+      if (presenterActive()) {
+        if (cam.parentElement !== overlay) overlay.appendChild(cam);
+        pinStudioCamera();
+        restoreStudentCamPosition();
+        return;
+      }
+      if (audioOnly) {
+        const stage = $('audio-stage');
+        if (stage && cam.parentElement !== stage) stage.appendChild(cam);
+        pinStudioCamera();
+        return;
+      }
+      if (document.body.classList.contains('phone-embed')) {
+        const grid = $('teacher-stage-grid');
+        if (grid) grid.insertAdjacentElement('afterend', cam);
+        pinStudioCamera();
+        return;
+      }
+      if (cam.parentElement !== document.body) document.body.appendChild(cam);
       restoreStudentCamPosition();
     }
 
@@ -1856,6 +2078,7 @@ STUDIO_JS = """
     function restoreStudentCamPosition() {
       const box = $('student-cam');
       if (!box || box.hidden) return;
+      if (document.body.classList.contains('phone-embed') || audioOnly) return;
       try {
         const saved = JSON.parse(localStorage.getItem('studio.cam.pos') || 'null');
         if (!saved || typeof saved.left !== 'number' || typeof saved.top !== 'number') return;
@@ -1869,6 +2092,7 @@ STUDIO_JS = """
       box.dataset.dragReady = '1';
       let drag = null;
       box.addEventListener('pointerdown', (event) => {
+        if (document.body.classList.contains('phone-embed') || audioOnly) return;
         if (event.button !== 0) return;
         if (event.target.closest('button, a, input, textarea, select')) return;
         const rect = box.getBoundingClientRect();
@@ -1947,9 +2171,17 @@ STUDIO_JS = """
       else enterPresenterMode();
     }
 
+    function arrangePhoneLesson() {
+      if (!document.body.classList.contains('phone-embed')) return;
+      const controls = document.querySelector('.lesson-window-controls');
+      const clock = $('sample-clock');
+      if (controls && clock && !controls.contains(clock)) controls.appendChild(clock);
+    }
+
     function setCaptionsEnabled(enabled) {
       captionsEnabled = !!enabled;
       $('teach-stage').classList.toggle('captions-off', !captionsEnabled);
+      paintLessonCaption();
       updateLessonWindowControls();
     }
 
@@ -2338,8 +2570,15 @@ STUDIO_JS = """
 
     async function loadLanguages() {
       const data = await api('/api/studio/languages');
-      (data.languages || []).forEach((l) => { languageNames[l.code] = l.name; });
-      const html = (data.languages || []).map((l) =>
+      const rows = (data.languages || []).slice();
+      if (!rows.some((l) => l.code === 'yue')) {
+        const zhAt = rows.findIndex((l) => l.code === 'zh');
+        const cantonese = { code: 'yue', name: 'Cantonese' };
+        if (zhAt >= 0) rows.splice(zhAt + 1, 0, cantonese);
+        else rows.push(cantonese);
+      }
+      rows.forEach((l) => { languageNames[l.code] = l.name; });
+      const html = rows.map((l) =>
         `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
       ).join('');
       const selects = languageSelects();
@@ -2487,7 +2726,23 @@ STUDIO_JS = """
       return cue ? String(cue.caption || '').trim() : '';
     }
 
+    function paintLessonCaption(payload) {
+      const el = $('lesson-caption');
+      if (!el) return;
+      const p = payload || lastTeachPayload;
+      const turn = (p && (p.turn || p)) || {};
+      const words = currentSectionWords();
+      const activity = String((p && p.activity_prompt) || '').trim();
+      const line = words || activity || firstLessonSentence(turn.narration || turn.display_body || '');
+      el.textContent = line;
+      const quiz = $('quiz-box');
+      const game = $('game-box');
+      const quizOpen = (quiz && quiz.style.display === 'block') || (game && game.style.display === 'block');
+      el.hidden = !(captionsEnabled && line && !talkOpen && !quizOpen);
+    }
+
     function applySectionCaption() {
+      paintLessonCaption();
       if (talkOpen) return;
       if ($('quiz-box')?.querySelector('.quiz-correction')) return;
       const words = currentSectionWords();
@@ -2548,7 +2803,7 @@ STUDIO_JS = """
         en:'en-US', es:'es-ES', fr:'fr-FR', de:'de-DE', it:'it-IT', pt:'pt-BR',
         nl:'nl-NL', pl:'pl-PL', ru:'ru-RU', uk:'uk-UA', tr:'tr-TR', ar:'ar-SA',
         he:'he-IL', hi:'hi-IN', bn:'bn-IN', ur:'ur-PK', fa:'fa-IR', zh:'zh-CN',
-        ja:'ja-JP', ko:'ko-KR', vi:'vi-VN', th:'th-TH', id:'id-ID', sw:'sw-KE',
+        yue:'zh-HK', ja:'ja-JP', ko:'ko-KR', vi:'vi-VN', th:'th-TH', id:'id-ID', sw:'sw-KE',
         el:'el-GR', cs:'cs-CZ', km:'km-KH'
       };
       return map[code] || code;
@@ -4192,6 +4447,7 @@ STUDIO_JS = """
       releaseAudioUrl(neuralObjectUrl);
       neuralObjectUrl = null;
       theodoreAvatar?.stopSpeaking();
+      document.body.classList.remove('is-speaking');
     }
 
     function speakText(text, ttsMeta, holdLesson, kind) {
@@ -4297,13 +4553,21 @@ STUDIO_JS = """
           return;
         }
         const u = new SpeechSynthesisUtterance(spoken);
-        u.lang = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
+        u.lang = recognitionLang();
         u.volume = 1;
         const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
-        const lang = String(u.lang || 'en').slice(0, 2).toLowerCase();
-        const same = (voices || []).filter((voice) => String(voice.lang || '').toLowerCase().startsWith(lang));
-        if (!same.length && lang !== 'en') {
-          setLearningStatus('This device has no ' + languageLabel(lang) + ' voice. Allow the lesson voice to load.');
+        const wanted = String(u.lang || 'en').toLowerCase();
+        const primary = wanted.split('-')[0];
+        const exact = (voices || []).filter((voice) => {
+          const tag = String(voice.lang || '').toLowerCase().replace(/_/g, '-');
+          return tag === wanted || tag.startsWith(wanted);
+        });
+        // zh-HK must not fall through to the first zh-CN voice.
+        const same = exact.length || wanted.startsWith('zh-')
+          ? exact
+          : (voices || []).filter((voice) => String(voice.lang || '').toLowerCase().split('-')[0] === primary);
+        if (!same.length && primary !== 'en') {
+          setLearningStatus('This device has no ' + languageLabel(teachLanguage || primary) + ' voice. Allow the lesson voice to load.');
           theodoreAvatar?.stopSpeaking();
           if (!holdLesson) armDurationWatchdog(gen, token, narrationDwellMs(spoken));
           return;
@@ -4325,7 +4589,10 @@ STUDIO_JS = """
             syncVisualTimeline((Number(visualTimeline.duration_s) || 1) * charIndex / spoken.length);
           }
         };
-        u.onend = () => finishUtterance(gen, token);
+        u.onend = () => {
+          document.body.classList.remove('is-speaking');
+          finishUtterance(gen, token);
+        };
         u.onerror = () => {
           theodoreAvatar?.stopSpeaking();
           if (!holdLesson && gen === speechGen && token === playToken && !settled) {
@@ -4334,6 +4601,7 @@ STUDIO_JS = """
         };
         if (!holdLesson) armDurationWatchdog(gen, token, narrationDwellMs(spoken));
         theodoreAvatar?.speak(spoken);
+        document.body.classList.add('is-speaking');
         try { window.speechSynthesis.speak(u); }
         catch (_) { u.onerror(); }
       }
@@ -4374,6 +4642,7 @@ STUDIO_JS = """
         audio.onplaying = () => {
           clearStallTimer();
           armForClip();
+          document.body.classList.add('is-speaking');
         };
         audio.ontimeupdate = () => {
           clearStallTimer();
@@ -4390,6 +4659,7 @@ STUDIO_JS = """
           }, STALL_RECOVER_MS);
         };
         audio.onended = () => {
+          document.body.classList.remove('is-speaking');
           if (!holdLesson) {
             syncVisualTimeline(Number(visualTimeline?.duration_s) || Number(audio.duration) || 0);
           }
@@ -4528,16 +4798,22 @@ STUDIO_JS = """
       }
     });
     window.addEventListener('theodore-live-audio-speech', (event) => {
+      const speaking = !!(event.detail && event.detail.speaking);
+      document.body.classList.toggle('is-speaking', speaking && !lecturePaused);
       if (lecturePaused) return;
-      if (event.detail?.speaking) {
+      if (speaking) {
         theodoreAvatar?.speak(event.detail.text || ' ');
         return;
       }
       theodoreAvatar?.stopSpeaking();
     });
     window.addEventListener('theodore-live-audio-level', (event) => {
+      const level = Number(event.detail && event.detail.level) || 0;
+      const bars = $('audio-bars');
+      if (bars) bars.style.setProperty('--level', String(level));
+      if (!lecturePaused && level > 0.03) document.body.classList.add('is-speaking');
       if (lecturePaused) return;
-      theodoreAvatar?.setVoiceLevel(Number(event.detail && event.detail.level) || 0);
+      theodoreAvatar?.setVoiceLevel(level);
     });
     window.addEventListener('theodore-live-audio-user', (event) => {
       if (lecturePaused) return;
@@ -4838,6 +5114,7 @@ STUDIO_JS = """
       if ($('btn-pop')) $('btn-pop').disabled = !teachSession;
       if ($('btn-game')) $('btn-game').disabled = !teachSession;
       $('teach-narr').textContent = slideCaptionText(payload);
+      paintLessonCaption(payload);
       applySectionCaption();
       const adapt = (turn.adaptations_applied || []).join(', ') || 'no adaptations';
       const prog = payload.progress || {};
@@ -4871,10 +5148,8 @@ STUDIO_JS = """
       if (box) box.classList.remove('show');
       attentionFullBody = '';
       renderReview();
-      if (!audioOnly) {
-        placeStudentCam();
-        void ensureStudentCamera();
-      }
+      placeStudentCam();
+      void ensureStudentCamera();
       paintSampleBanner(payload);
       armSampleClock(payload);
       if (payload.sample && payload.sample.complete) {
@@ -4997,7 +5272,7 @@ STUDIO_JS = """
     setAvatarVisible(
       typeof avatarPrefs.on === 'boolean' ? avatarPrefs.on : SHOW_AVATAR, false);
     paintSampleBanner(null);
-    if (audioOnly) setCaptionsEnabled(true);
+    arrangePhoneLesson();
     loadLanguages().catch(() => {});
     loadAvatarChoices().catch((error) => toast(String(error.message || error)));
     loadLibrary().catch((e) => toast(String(e.message || e)));
@@ -5073,6 +5348,10 @@ def render_studio_page() -> str:
           <button id="btn-fullscreen" type="button" aria-label="Expand lesson to full screen" title="Full screen">⛶</button>
         </div>
         <h3 id="teach-title">Your lesson</h3>
+        <div class="audio-stage" id="audio-stage" aria-label="Audio playing">
+          <div class="audio-avatar" aria-hidden="true"><i></i><i></i><b></b></div>
+          <div class="audio-bars" id="audio-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
         <div class="teacher-stage-grid" id="teacher-stage-grid">
           <div id="teach-visual-timeline" class="visual-timeline-stage" hidden
                aria-live="polite" aria-label="Lesson visual sequence"></div>
@@ -5129,6 +5408,7 @@ def render_studio_page() -> str:
             <div class="status" id="teach-adapt"></div>
           </div>
         </div>
+        <p class="lesson-caption" id="lesson-caption" hidden></p>
         <div class="quiz-box" id="quiz-box" style="display:none"></div>
         <div class="game-box" id="game-box" style="display:none"></div>
         <div class="row lesson-toolbar" id="lesson-toolbar">

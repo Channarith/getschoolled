@@ -479,7 +479,9 @@ def voice_ask(session_id: str, req: VoiceRequest) -> VoiceResponse:
             model=resp.model,
             fallback=False,
         )
-    except NotImplementedError:
+    except Exception:
+        # Missing key, unreachable xAI, or an agent that cannot speak: the
+        # class still gets a real reply instead of a 500/502.
         fallback_text = _stub_response(req.agent_type, req.text, s.lesson_context)
         return VoiceResponse(
             session_id=session_id,
@@ -488,8 +490,6 @@ def voice_ask(session_id: str, req: VoiceRequest) -> VoiceResponse:
             has_audio=False,
             fallback=True,
         )
-    except ConnectionError as exc:
-        raise HTTPException(status_code=502, detail=f"xAI API error: {exc}") from exc
 
 
 @app.post("/sessions/{session_id}/voice/stream")

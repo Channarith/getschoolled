@@ -207,7 +207,7 @@ export default function HomeScreen({
             {onOpenWorlds ? (
               <HomeAction
                 icon="earth-outline"
-                label="Worlds"
+                label={t("home.navWorlds")}
                 onPress={onOpenWorlds}
               />
             ) : null}
@@ -242,14 +242,14 @@ export default function HomeScreen({
             {onOpenCorporate ? (
               <HomeAction
                 icon="briefcase-outline"
-                label="Corporate"
+                label={t("home.navCorporate")}
                 onPress={onOpenCorporate}
               />
             ) : null}
             {onOpenKids ? (
               <HomeAction
                 icon="happy-outline"
-                label="Kids"
+                label={t("home.navKids")}
                 onPress={onOpenKids}
               />
             ) : null}
@@ -269,10 +269,10 @@ export default function HomeScreen({
         <AnimatedPressable style={styles.modalScrim} onPress={() => setShowMascot(false)}>
           <GlassPanel style={styles.mascotCard} padded={false}>
             <View style={{ padding: 18, alignItems: "center" }}>
-              <Text style={styles.mascotTitle}>Bayon Buddy</Text>
-              <Text style={styles.mascotSub}>Locale-aware study buddy with the S + Bodhi leaf mark.</Text>
+              <Text style={styles.mascotTitle}>{t("home.mascotTitle")}</Text>
+              <Text style={styles.mascotSub}>{t("home.mascotBody")}</Text>
               <MascotSvg width={220} height={360} showCaption />
-              <PrimaryButton label="Close" onPress={() => setShowMascot(false)} variant="brand" />
+              <PrimaryButton label={t("home.close")} onPress={() => setShowMascot(false)} variant="brand" />
             </View>
           </GlassPanel>
         </AnimatedPressable>
@@ -489,6 +489,6 @@ const styles = StyleSheet.create({
     justifyContent: "center", padding: 20,
   },
   mascotCard: { maxWidth: 340, width: "100%" },
-  mascotTitle: { color: theme.colors.text, fontSize: 22, fontWeight: "900" },
-  mascotSub: { color: theme.colors.muted, marginBottom: 8, marginTop: 4, textAlign: "center" },
+  mascotTitle: { color: theme.colors.text, fontSize: 22, fontWeight: "900", lineHeight: 28, includeFontPadding: false },
+  mascotSub: { color: theme.colors.muted, marginBottom: 8, marginTop: 4, textAlign: "center", lineHeight: 18, includeFontPadding: false },
 });

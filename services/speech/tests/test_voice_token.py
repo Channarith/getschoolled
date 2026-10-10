@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi.testclient import TestClient
 
 from speech_gw.main import app
@@ -36,6 +38,66 @@ def test_voice_status_configured(monkeypatch):
     assert body["engine"] == "xai-grok-voice"
     assert body["model"] == "grok-voice-latest"
     assert body["voice"] == "eve"
+
+
+def test_khmer_voice_token_does_not_ask_xai_for_thai(monkeypatch):
+    _set_xai(monkeypatch, key="xai-test-key")
+    response = client.post("/voice/token", json={"mode": "solo", "language": "km"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["use_xai"] is False
+    assert body["engine"] == "edge-tts"
+    assert body["token"] is None
+    spoken = body["spoken_language"]
+    assert spoken["requested"] == "km"
+    assert spoken["xai_language"] == ""
+    assert spoken["edge_voice"] == "km-KH-SreymomNeural"
+    dumped = json.dumps(body)
+    assert "th-TH" not in dumped
+    assert "Speak Thai" not in dumped
+
+
+def test_cantonese_voice_token_is_not_mandarin(monkeypatch):
+    from aoep_shared import xai_realtime as xr
+
+    _set_xai(monkeypatch, key="xai-test-key")
+
+    class FakeTok:
+        value = "ephem-zh"
+        expires_at = 1_700_000_000
+        model = "grok-voice-latest"
+
+        def to_dict(self):
+            return {
+                "value": self.value,
+                "expires_at": self.expires_at,
+                "mock": False,
+                "model": self.model,
+                "websocket_url": "wss://api.x.ai/v1/realtime",
+                "websocket_protocol": f"xai-client-secret.{self.value}",
+            }
+
+    monkeypatch.setattr(xr, "mint_ephemeral_token", lambda **_kwargs: FakeTok())
+    mandarin = client.post("/voice/token", json={"mode": "solo", "language": "zh"})
+    cantonese = client.post("/voice/token", json={"mode": "solo", "language": "yue"})
+    assert mandarin.status_code == 200
+    assert cantonese.status_code == 200
+    assert mandarin.json()["use_xai"] is True
+    assert cantonese.json()["use_xai"] is False
+    assert cantonese.json()["token"] is None
+    assert cantonese.json()["engine"] == "edge-tts"
+    assert cantonese.json()["spoken_language"]["edge_voice"] == "zh-HK-HiuMaanNeural"
+    assert cantonese.json()["spoken_language"]["xai_language"] == ""
+    zh_hint = mandarin.json()["session_update"]["session"]["audio"]["input"]["transcription"]["language_hint"]
+    assert zh_hint == "zh"
+    assert cantonese.json()["session_update"] is None
+    spoken = cantonese.json()["spoken_language"]
+    assert spoken["requested"] == "yue"
+    assert spoken["xai_language"] != "zh"
+    assert "Mandarin" in mandarin.json()["session_update"]["session"]["instructions"]
+    assert "Cantonese" in spoken["instructions"]
+    assert "Thai" not in spoken["instructions"]
+    assert "th-TH" not in spoken["edge_voice"]
 
 
 def test_voice_token_requires_key(monkeypatch):

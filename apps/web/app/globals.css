@@ -201,6 +201,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 12px 16px;
   min-height: 52px;
@@ -214,19 +215,26 @@ a {
 .nav-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
   margin-left: auto;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .nav-ai-badge {
   display: none;
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid currentColor;
   opacity: 0.85;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 11rem;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  color: inherit;
 }
 
 .nav-toggle {
@@ -272,12 +280,12 @@ a {
      Upstream stacks the brand and the link menu on two rows; we flatten
      .nav-top (display:contents) so the brand, links, and actions all become
      direct flex items of .nav and sit on one line, like the original design.
-     The link count has grown (13-14 items), so we also widen the bar and
-     tighten the link spacing/size so they all fit on one line without wrapping. */
+     The link count has grown (13-14 items), so the bar is wider and links
+     wrap onto another line instead of colliding with the profile controls. */
   .nav {
     flex-direction: row;
     align-items: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 16px;
     padding: 12px 20px;
     max-width: 1320px; /* wider than the 960px body cap so the full link row fits */
@@ -296,7 +304,7 @@ a {
     margin: 0 auto 0 8px; /* auto-right margin pushes actions to the far edge */
     padding: 0;
     border-top: none;
-    flex-wrap: nowrap; /* keep every link on a single row */
+    flex-wrap: wrap;
     gap: 10px 13px; /* tighter horizontal spacing so more links fit */
     min-width: 0; /* allow the menu to shrink instead of forcing a wrap */
   }
@@ -606,7 +614,7 @@ a {
 
 @media (max-width: 900px) {
   .nav-search-input {
-    width: 140px;
+    width: min(140px, 34vw);
   }
   .nav-search-dropdown {
     right: -60px;
@@ -790,6 +798,13 @@ textarea {
   padding: 6px 14px;
   border-radius: 999px;
   font-size: 13px;
+}
+
+.theme-badge.learn-phrase {
+  max-width: min(36rem, 100%);
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
 }
 
 .theme-picker {
@@ -1322,10 +1337,17 @@ textarea {
   font-weight: 700;
 }
 
+@media (max-width: 760px) {
+  .arcade-worlds-planet,
+  .arcade-worlds-ring { display: none; }
+  .arcade-worlds-copy { max-width: none !important; padding: 24px 18px !important; }
+}
+
 .kids-listen {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  position: static;
+  display: inline-flex;
+  margin: 0 0 12px;
+  max-width: 100%;
   padding: 8px 12px;
   color: #7c2d12;
   font-weight: 800;

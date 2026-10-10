@@ -74,11 +74,6 @@ export default function ArcadeScreen({ onOpenSubject, onOpenVision, onBack }: Pr
   async function openWebGame(path: string, label: string) {
     const url = arcadeWebUrl(WEB_APP_URL, path);
     try {
-      const ok = await Linking.canOpenURL(url);
-      if (!ok) {
-        Alert.alert(t("arcade.webOpenFailed"), url);
-        return;
-      }
       await Linking.openURL(url);
     } catch {
       Alert.alert(t("arcade.webOpenFailed"), label);
@@ -109,19 +104,19 @@ export default function ArcadeScreen({ onOpenSubject, onOpenVision, onBack }: Pr
         }
       >
         <GlassPanel style={styles.featured}>
-          <Text style={styles.sectionTitle}>Machine vision</Text>
-          <Text style={styles.meta}>
-            The full webcam lab: letters, listening, faces, hands, and movement. The camera stays on this device.
-          </Text>
+          <Text style={styles.sectionTitle}>{t("arcade.visionTitle")}</Text>
+          <Text style={styles.meta}>{t("arcade.visionBody")}</Text>
           <AnimatedPressable
             testID="vision-arcade-full"
             accessibilityRole="button"
-            accessibilityLabel="Open the full vision arcade"
+            accessibilityLabel={t("arcade.visionOpen")}
             onPress={() => onOpenVision()}
             style={styles.featuredBtn}
           >
-            <Text style={styles.featuredBtnText}>Open the full vision arcade</Text>
-            <Text style={styles.featuredBtnHint}>All {VISION_ARCADE.reduce((n, section) => n + section.games.length, 0)} games, with the camera.</Text>
+            <Text style={styles.featuredBtnText}>{t("arcade.visionOpen")}</Text>
+            <Text style={styles.featuredBtnHint}>
+              {t("arcade.visionHint", { n: VISION_ARCADE.reduce((n, section) => n + section.games.length, 0) })}
+            </Text>
           </AnimatedPressable>
           {VISION_ARCADE.map((section) => (
             <View key={section.id} style={styles.visionGroup}>
@@ -226,8 +221,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
     padding: 14,
   },
-  featuredBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  featuredBtnHint: { color: theme.colors.muted, fontSize: 12, marginTop: 4, lineHeight: 16 },
+  featuredBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+    lineHeight: 21,
+    includeFontPadding: false,
+  },
+  featuredBtnHint: {
+    color: theme.colors.muted,
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 16,
+    includeFontPadding: false,
+  },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 },
   tile: {
     alignItems: "center",
@@ -259,10 +266,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    minWidth: "47%",
     flexGrow: 1,
-    flexBasis: "45%",
+    flexBasis: "46%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden",
   },
   linkEmoji: { fontSize: 18 },
-  linkLabel: { color: theme.colors.text, fontSize: 13, fontWeight: "700", marginTop: 4 },
+  linkLabel: {
+    color: theme.colors.text,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 4,
+    lineHeight: 17,
+    includeFontPadding: false,
+  },
 });

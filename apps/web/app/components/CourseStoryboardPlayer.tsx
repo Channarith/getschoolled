@@ -20,6 +20,8 @@ type Props = {
   activity?: string;
   profileMode?: string;
   sourceLanguage?: string;
+  /** Lesson body/concept text. Hidden until closed captions are on. */
+  captions?: boolean;
 };
 
 export default function CourseStoryboardPlayer({
@@ -32,6 +34,7 @@ export default function CourseStoryboardPlayer({
   activity,
   profileMode = "mixed",
   sourceLanguage = "en",
+  captions = false,
 }: Props) {
   const examples = useMemo(() => examplesProp || [], [examplesProp]);
   const { locale } = useT();
@@ -86,7 +89,7 @@ export default function CourseStoryboardPlayer({
         style={{ width: "100%", lineHeight: 0 }}
         dangerouslySetInnerHTML={{ __html: svg }}
       />
-      {shownConcept ? (
+      {captions && shownConcept ? (
         <figcaption
           style={{
             fontSize: fullscreen ? 15 : 13,

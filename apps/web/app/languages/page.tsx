@@ -26,7 +26,7 @@ import { createVoicePauseSubmitter } from "../lib/voiceCommands";
 const BCP47: Record<string, string> = {
   en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT", pt: "pt-PT",
   nl: "nl-NL", pl: "pl-PL", ru: "ru-RU", uk: "uk-UA", tr: "tr-TR", ar: "ar-SA",
-  he: "he-IL", hi: "hi-IN", bn: "bn-BD", ur: "ur-PK", fa: "fa-IR", zh: "zh-CN",
+  he: "he-IL", hi: "hi-IN", bn: "bn-BD", ur: "ur-PK", fa: "fa-IR", zh: "zh-CN", yue: "zh-HK",
   ja: "ja-JP", ko: "ko-KR", vi: "vi-VN", th: "th-TH", id: "id-ID", sw: "sw-KE",
   el: "el-GR", cs: "cs-CZ", km: "km-KH",
 };

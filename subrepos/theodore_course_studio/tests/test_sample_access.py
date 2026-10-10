@@ -190,7 +190,9 @@ def test_studio_page_offers_the_sample_banner():
     assert "formatSampleClock" in STUDIO_JS
     assert 'id="sample-clock"' in page
     assert "presentation" in STUDIO_JS
-    assert "if (audioOnly) return;" in STUDIO_JS
+    assert "if (audioOnly) return;" not in STUDIO_JS
+    assert 'id="audio-stage"' in page
+    assert 'id="lesson-caption"' in page
     assert "audio-only" in page
     assert "library-panel" in page
     assert "public-course .library-panel { display:none" not in page

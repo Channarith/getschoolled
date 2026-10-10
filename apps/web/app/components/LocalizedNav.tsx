@@ -7,13 +7,15 @@ import { useEffect, useState } from "react";
 import { AUTH_EVENT, getToken, getFlag } from "../lib/api";
 import { useDemoOnlyAnonymous } from "../lib/flags";
 import { useT } from "../lib/i18n";
+import { learningHint, useLearningPhrase } from "../lib/learningPhrases";
 import ProfileMenu from "./ProfileMenu";
 import NavSearchBox from "./NavSearchBox";
 
 // Top navigation. Content tabs are gated when signed out. On narrow viewports
 // links collapse into a menu so the bar stays full-width and readable.
 export default function LocalizedNav({ appVersion }: { appVersion: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const learnPhrase = useLearningPhrase();
   const pathname = usePathname() ?? "/";
 
   const demoOnlyAnon = useDemoOnlyAnonymous();
@@ -100,12 +102,13 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
           </Link>
 
           <div className="nav-actions">
-            <span
+            <Link
+              href="/transparency"
               className="nav-ai-badge"
-              title="This platform is AI-instructed; see the Transparency page."
+              title={learningHint(locale)}
             >
-              {t("nav.aiInstructed")}
-            </span>
+              {learnPhrase}
+            </Link>
             <NavSearchBox />
             <ProfileMenu />
             <span className="version" title="App version">

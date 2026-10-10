@@ -348,6 +348,29 @@ def vocabulary_for(language: str, category: Optional[str] = None) -> List[dict]:
     return out
 
 
+def _phrase_key(text: str) -> str:
+    return " ".join((text or "").casefold().split()).strip(" .!?¿¡")
+
+
+def translate_phrase(text: str, source: str, target: str) -> Optional[str]:
+    """Exact phrasebook hit, or None. Lesson paragraphs are not guessed."""
+    needle = _phrase_key(text)
+    if not needle or source == target:
+        return None
+    concept = ""
+    fields = ("target", "en") if source == "en" else ("target",)
+    for row in phrases_for(source):
+        if any(_phrase_key(str(row.get(field) or "")) == needle for field in fields):
+            concept = str(row.get("id") or "")
+            break
+    if not concept:
+        return None
+    for row in phrases_for(target):
+        if row.get("id") == concept and str(row.get("target") or "").strip():
+            return str(row["target"])
+    return None
+
+
 def phrases_for(language: str, category: Optional[str] = None) -> List[dict]:
     table = _T.get(language, {})
     out = []

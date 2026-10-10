@@ -1,6 +1,7 @@
 # Public demos. The web image proxies these same-origin:
 #   /studio          -> course-studio:8040
 #   /children-lab    -> children-lab:8018
+#   /audio-lab       -> audio-lab:8041  (page /lab; API via /audio-lab-api)
 # Those rewrites are baked at `next build` (apps/web/Dockerfile). Without these
 # Deployments the demo iframes on salareen.com return 500.
 #
@@ -85,3 +86,42 @@ metadata: { name: children-lab, namespace: aoep }
 spec:
   selector: { app: children-lab }
   ports: [{ port: 8018, targetPort: 8018 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: audio-lab, namespace: aoep }
+spec:
+  replicas: 1
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } }
+  selector: { matchLabels: { app: audio-lab } }
+  template:
+    metadata: { labels: { app: audio-lab, tier: demo } }
+    spec:
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: audio-lab
+          image: ghcr.io/aoep/audio-lab:latest
+          imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          ports: [{ containerPort: 8041 }]
+          env:
+            - { name: HOME, value: /tmp }
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 768Mi }
+          readinessProbe: { httpGet: { path: /health, port: 8041 }, initialDelaySeconds: 10, periodSeconds: 10 }
+          livenessProbe:  { httpGet: { path: /health, port: 8041 }, initialDelaySeconds: 30, periodSeconds: 20, failureThreshold: 6 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: audio-lab, namespace: aoep }
+spec:
+  selector: { app: audio-lab }
+  ports: [{ port: 8041, targetPort: 8041 }]

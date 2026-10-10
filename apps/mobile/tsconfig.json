@@ -4,7 +4,8 @@
     "strict": true,
     "jsx": "react-jsx",
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "module": "esnext"
   },
   "include": [
     "App.tsx",

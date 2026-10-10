@@ -84,7 +84,8 @@ _PAGE = """<!doctype html>
         <div id="sprite-layer" class="sprite-layer" aria-hidden="true"></div>
         <div id="target" class="target hidden"></div>
         <div id="prompt" class="prompt"><strong id="prompt-title">Choose a game</strong><span id="prompt-copy">Theodore is ready!</span></div>
-        <div id="countdown" class="countdown hidden"></div>
+        <p id="presence-note" class="presence-note" hidden></p>
+        <div id="countdown" class="countdown hidden" aria-live="polite" aria-label="Time left"></div>
         <div id="vision-status" class="vision-status">Camera off</div>
         <div id="vision-readout" class="vision-readout" aria-live="off">
           <span id="face-readout">Face: waiting</span>
@@ -107,21 +108,67 @@ _PAGE = """<!doctype html>
         </div>
         <p>Face processing means landmark and expression detection only. It does not identify who you are.</p>
       </details>
+      <p id="spoken-words" class="spoken-words hidden" aria-live="polite"></p>
       <div class="controls">
 __GAME_SELECT__
-        <label>Letter<select id="letter"></select></label>
+        <label id="letter-control">Letter<select id="letter"></select></label>
+        <label>Pace<select id="pace" aria-label="How long to wait after a success">
+          <option value="patient" selected>Patient</option>
+          <option value="steady">Steady</option>
+          <option value="quick">Quick</option>
+        </select></label>
         <button id="play-game" class="primary">Play</button>
         <button id="hear">Hear Theodore</button>
         <button id="mic">🎤 Say it</button>
         <input id="typed" placeholder="Type what was said">
         <button id="check">Check typed</button>
         <button id="undo">Undo</button>
+        <label id="words-toggle" class="check hidden"><input id="show-words" type="checkbox" aria-label="Show the words Theodore said"> Words</label>
       </div>
       <details class="dashboard"><summary>Parent Fun dashboard</summary>
         <div id="dashboard"></div><button id="clear-data">Clear progress & analytics</button>
       </details>
     </section>
   </main>
+  <script>
+  (function () {
+    var raw = "";
+    try {
+      raw = (new URLSearchParams(location.search).get("lang") || "").trim().toLowerCase().replace(/_/g, "-");
+    } catch (e) {}
+    var lang = raw;
+    if (lang === "yue" || lang.indexOf("yue-") === 0 || lang === "zh-hk" || lang.indexOf("zh-hk") === 0 || lang === "zh-mo" || lang.indexOf("zh-mo") === 0 || lang === "cantonese") lang = "yue";
+    else if (lang === "km" || lang.indexOf("km-") === 0) lang = "km";
+    else lang = lang.split("-")[0] || "";
+    if (!lang || lang === "en") return;
+    var bcp = lang === "yue" ? "zh-HK" : (lang === "km" ? "km-KH" : lang);
+    try { document.documentElement.lang = lang; } catch (e) {}
+    var orig = window.fetch;
+    if (typeof orig === "function") {
+      window.fetch = function (input, init) {
+        if (typeof input === "string" && input.indexOf("/api/tts?") >= 0) {
+          if (/[?&]language=/.test(input)) input = input.replace(/([?&]language=)[^&]*/, "$1" + encodeURIComponent(lang));
+          else input += (input.indexOf("?") >= 0 ? "&" : "?") + "language=" + encodeURIComponent(lang);
+        }
+        return orig.call(this, input, init);
+      };
+    }
+    ["SpeechRecognition", "webkitSpeechRecognition"].forEach(function (name) {
+      var Ctor = window[name];
+      if (typeof Ctor !== "function") return;
+      function Wrapped() {
+        var rec = new Ctor();
+        try { rec.lang = bcp; } catch (e) {}
+        try {
+          Object.defineProperty(rec, "lang", { configurable: true, get: function () { return bcp; }, set: function () {} });
+        } catch (e) {}
+        return rec;
+      }
+      Wrapped.prototype = Ctor.prototype;
+      window[name] = Wrapped;
+    });
+  })();
+  </script>
   <script type="module" src="/static/app.js__ASSET_TAG__"></script>
 </body>
 </html>"""

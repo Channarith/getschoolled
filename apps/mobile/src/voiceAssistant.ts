@@ -12,7 +12,7 @@ import { isExpoSpeechRecognitionAvailable, tryRequireModule } from "./nativeModu
 
 const LOCALE_TO_BCP47: Record<string, string> = {
   en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT",
-  pt: "pt-BR", ru: "ru-RU", ar: "ar-SA", hi: "hi-IN", zh: "zh-CN",
+  pt: "pt-BR", ru: "ru-RU", ar: "ar-SA", hi: "hi-IN", zh: "zh-CN", yue: "zh-HK",
   ja: "ja-JP", ko: "ko-KR", vi: "vi-VN", km: "km-KH",
 };
 

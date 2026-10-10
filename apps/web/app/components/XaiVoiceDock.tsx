@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
+import { useT } from "../lib/i18n";
+
 import {
   closeXaiVoiceSession,
   connectXaiVoiceSession,
@@ -24,6 +26,7 @@ function voiceMode(pathname: string): XaiVoiceMode | null {
 export function XaiVoiceDock() {
   const pathname = usePathname() || "";
   const mode = voiceMode(pathname);
+  const { locale } = useT();
   const [ready, setReady] = useState(false);
   const [live, setLive] = useState(false);
   const [hint, setHint] = useState("");
@@ -65,7 +68,12 @@ export function XaiVoiceDock() {
       const token = await mintXaiVoiceToken({
         mode: mode || "solo",
         lesson_context: `Salareen ${pathname}`,
+        language: locale,
       });
+      if (token.use_xai === false || !token.token || !token.session_update) {
+        setHint(token.spoken_language?.hint || "This language uses the lesson voice, not Grok.");
+        return;
+      }
       if (!audioRef.current) audioRef.current = new AudioContext({ latencyHint: "playback" });
       const ctx = audioRef.current;
       wsRef.current = connectXaiVoiceSession(token, {

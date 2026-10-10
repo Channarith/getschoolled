@@ -382,12 +382,12 @@ export default function GroupClassesPage() {
           <h3 style={{ marginTop: 0 }}>Schedule your class</h3>
 
           {/* Session type picker */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18 }}>
             <button
               type="button"
               onClick={() => { setSessionType("private"); setRoomSize(2); setCapacity(1); }}
               style={{
-                flex: 1, padding: "14px 16px", borderRadius: 12, cursor: "pointer",
+                flex: "1 1 220px", padding: "14px 16px", borderRadius: 12, cursor: "pointer",
                 border: `2px solid ${sessionType === "private" ? "#6366f1" : "rgba(0,0,0,0.12)"}`,
                 background: sessionType === "private" ? "#eef2ff" : "#fff",
                 textAlign: "left",
@@ -404,7 +404,7 @@ export default function GroupClassesPage() {
               type="button"
               onClick={() => { setSessionType("group"); setRoomSize(6); setCapacity(5); }}
               style={{
-                flex: 1, padding: "14px 16px", borderRadius: 12, cursor: "pointer",
+                flex: "1 1 220px", padding: "14px 16px", borderRadius: 12, cursor: "pointer",
                 border: `2px solid ${sessionType === "group" ? "#6366f1" : "rgba(0,0,0,0.12)"}`,
                 background: sessionType === "group" ? "#eef2ff" : "#fff",
                 textAlign: "left",
@@ -544,7 +544,7 @@ export default function GroupClassesPage() {
                 ))}
               </select>
             </label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
               <label>
                 <div className="muted">Date &amp; time</div>
                 <input type="datetime-local" style={{ width: "100%" }} value={startTime}
@@ -874,25 +874,13 @@ export default function GroupClassesPage() {
                   onClick={async () => {
                     // Record Zelle payment intent so the admin can verify it.
                     try {
-                      const _tok = getToken();
-                      const me = _tok ? await getMe().catch(() => null) : null;
-                      const res = await fetch(`${window.location.origin}/orchestrator/api/group-classes/${encodeURIComponent(checkoutTarget!.id)}/checkout`, {
-                        method: 'POST',
-                        headers: {
-                          'content-type': 'application/json',
-                          ...(_tok ? { 'authorization': `Bearer ${_tok}` } : {}),
-                        },
-                        body: JSON.stringify({
-                          name: me?.display_name || '',
-                          email: me?.email || '',
-                          payment_method: 'zelle',
-                          voucher_code: '',
-                        }),
-                      });
-                      if (!res.ok) {
-                        setError('Could not record your payment intent. Please email support@salareen.com manually with your Zelle confirmation.');
-                        return;
-                      }
+                      const me = await getMe().catch(() => null);
+                      await checkoutGroupClass(
+                        checkoutTarget!.id,
+                        me?.display_name || "",
+                        me?.email || "",
+                        { payment_method: "zelle", voucher_code: "" },
+                      );
                       alert('Thank you! Please email support@salareen.com with your Zelle confirmation. We will grant access within 1 hour.');
                       setCheckoutTarget(null);
                       setPaymentMethod('card');

@@ -140,7 +140,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.2)",
   },
   fieldPressed: { opacity: 0.75 },
-  value: { color: theme.colors.text, fontSize: 15, fontWeight: "600", flex: 1 },
+  value: {
+    color: theme.colors.text,
+    fontSize: 15,
+    fontWeight: "600",
+    flex: 1,
+    minWidth: 0,
+    lineHeight: 20,
+    includeFontPadding: false,
+  },
   editHint: { color: theme.colors.accent, fontSize: 13, fontWeight: "700" },
   scrim: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   sheet: {

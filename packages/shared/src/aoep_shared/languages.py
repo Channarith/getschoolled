@@ -47,16 +47,44 @@ def is_supported(language: str) -> bool:
     return language in SUPPORTED_LANGUAGES
 
 
+def _language_tag(language: str) -> str:
+    return (language or "").strip().lower().replace("_", "-")
+
+
 def normalize_language(language: str) -> str:
     """Coerce a client locale (e.g. 'es-419', 'ES') to a supported base code,
     or '' when unsupported/blank. Keeps language handling forgiving of the
-    varied locale strings web/mobile devices report."""
-    code = (language or "").strip().lower().split("-")[0]
+    varied locale strings web/mobile devices report.
+
+    ``yue`` is the spoken Cantonese code (Hong Kong / Guangdong). It is not
+    one of the 27 content languages. ``zh-HK`` stays ``zh`` here so lesson
+    translation is unchanged; the voice session maps that tag to Cantonese.
+    """
+    raw = _language_tag(language)
+    if not raw:
+        return ""
+    if raw == "yue" or raw.startswith("yue-") or raw == "cantonese":
+        return "yue"
+    code = raw.split("-")[0]
+    if code == "yue":
+        return "yue"
     return code if code in SUPPORTED_LANGUAGES else ""
 
 
 def language_name(language: str) -> str:
     """English display name for a code (e.g. 'es' -> 'Spanish'); '' if unknown."""
+    raw = _language_tag(language)
+    if (
+        raw == "yue"
+        or raw.startswith("yue-")
+        or raw in {"cantonese", "zh-hk", "zh-mo", "zh-yue"}
+        or raw.startswith("zh-hk")
+        or raw.startswith("zh-mo")
+        or raw.startswith("zh-yue")
+    ):
+        return "Cantonese"
+    if normalize_language(language) == "yue":
+        return "Cantonese"
     return LANGUAGE_NAMES.get(normalize_language(language), "")
 
 

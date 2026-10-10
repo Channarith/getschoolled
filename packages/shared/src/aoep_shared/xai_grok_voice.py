@@ -168,7 +168,12 @@ class GrokVoiceAgent:
             responds in the student's language when non-English.
         """
         system = self._system
-        if language and language.lower() not in ("en", "en-us", "en-gb"):
+        from .xai_spoken_language import tutoring_instruction
+
+        extra = tutoring_instruction(language)
+        if extra:
+            system += " " + extra
+        elif language and language.lower() not in ("en", "en-us", "en-gb"):
             system += f" Respond in language: {language}."
 
         messages = self._build_messages(

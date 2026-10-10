@@ -309,8 +309,7 @@ def _spelled(heard: str, word: str) -> bool:
     letters = list(fold_text(word).replace(" ", ""))
     if not letters:
         return False
-    if _mentions(heard, word):
-        return True
+    # Saying the whole word is not spelling it. Letter names still count.
     alias = {
         name: letter
         for letter, names in LETTER_ALIASES.items()
@@ -318,7 +317,8 @@ def _spelled(heard: str, word: str) -> bool:
     }
     mapped = [alias.get(token, token) for token in fold_text(heard).split()]
     compact = [token for token in mapped if token]
-    return compact == letters or "".join(compact) == "".join(letters)
+    spelled = "".join(compact) == "".join(letters) and all(len(token) == 1 for token in compact)
+    return compact == letters or spelled
 
 
 def score_audio(game_id: str, round_id: str, heard: str) -> dict[str, Any]:

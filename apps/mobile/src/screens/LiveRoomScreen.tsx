@@ -399,6 +399,7 @@ export default function LiveRoomScreen({
     mode: "group",
     context: room?.title || "Salareen live class",
     learnerName: account?.display_name,
+    language: locale,
   });
 
   // De-dupe room updates from the 3s tick + WebSocket: skip setState when the
@@ -2429,7 +2430,15 @@ const styles = StyleSheet.create({
   },
   sheetHandle: { alignSelf: "center", width: 42, height: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.25)", marginBottom: 6 },
   sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  sheetTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "800", flex: 1 },
+  sheetTitle: {
+    color: theme.colors.text,
+    fontSize: 17,
+    fontWeight: "800",
+    flex: 1,
+    minWidth: 0,
+    lineHeight: 22,
+    includeFontPadding: false,
+  },
   sheetClose: { color: theme.colors.muted, fontSize: 18, fontWeight: "700" },
   sheetScroll: { maxHeight: 360 },
   sheetSection: { marginTop: 12, gap: 4 },
@@ -2545,7 +2554,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.72)",
     flexDirection: "row", alignItems: "center", gap: 10,
   },
-  fsInfoName: { color: "#fff", fontSize: 18, fontWeight: "700", flex: 1 },
+  fsInfoName: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+    flex: 1,
+    minWidth: 0,
+    lineHeight: 24,
+    includeFontPadding: false,
+  },
   fsInfoBadges: { flexDirection: "row", gap: 8 },
   fsBadge: { color: "#e9d5ff", fontSize: 14, fontWeight: "600" },
   fsClose: {

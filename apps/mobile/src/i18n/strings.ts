@@ -8,6 +8,9 @@
 // cleanly, so partial translations are safe to ship incrementally.
 
 import type { LocaleCode } from "./languages";
+import gapJson from "./gapFill.json" with { type: "json" };
+
+const GAP = gapJson as Partial<Record<LocaleCode, Record<string, string>>>;
 
 export type StringKey =
   // Navigation / tabs
@@ -178,7 +181,22 @@ export type StringKey =
   | "lesson.guestFinish" | "lesson.quizTitle" | "lesson.correct" | "lesson.incorrect"
   | "lesson.quizNext"
   | "careers.searchRole" | "careers.searchLocation"
-  | "careers.coverage" | "careers.apply" | "careers.tapMatch" | "careers.empty";
+  | "careers.coverage" | "careers.apply" | "careers.tapMatch" | "careers.empty"
+  | "home.navWorlds" | "home.navCorporate" | "home.navKids"
+  | "home.mascotTitle" | "home.mascotBody" | "home.close"
+  | "camera.title" | "camera.body" | "camera.empty" | "camera.saved" | "camera.continue"
+  | "camera.retake" | "camera.open" | "camera.permission" | "camera.failed"
+  | "camera.trackTitle" | "camera.working" | "camera.capture" | "camera.skip"
+  | "camera.done" | "camera.restart" | "camera.allow"
+  | "kids.back" | "kids.backToList" | "kids.playAgain" | "kids.greatJob" | "kids.score"
+  | "kids.readAgain" | "kids.finish" | "kids.next" | "kids.right" | "kids.wrong"
+  | "kids.pickAnother" | "kids.title" | "kids.subtitle" | "kids.empty"
+  | "worlds.title" | "worlds.error" | "worlds.retry" | "worlds.back" | "worlds.loading"
+  | "arcade.visionTitle" | "arcade.visionBody" | "arcade.visionOpen" | "arcade.visionHint"
+  | "assessment.checkpoint" | "assessment.summative" | "assessment.meta"
+  | "assessment.summativeHint" | "assessment.checkHint" | "assessment.hear"
+  | "assessment.submit" | "assessment.submitting" | "assessment.skip"
+  | "assessment.audio" | "assessment.visual" | "assessment.challenge" | "assessment.text";
 
 type Dict = Partial<Record<StringKey, string>>;
 
@@ -543,7 +561,7 @@ const EN: Record<StringKey, string> = {
   "auth.resetSent": "Reset instructions sent — check your email (or use the dev token below).",
   "auth.resetDone": "Password updated — sign in with your new password.",
   "auth.browseGuest": "Browse without signing in",
-  "guest.kicker": "AI-instructed learning",
+  "guest.kicker": "Guided practice",
   "guest.tryDemo": "Try the demo",
   "guest.logIn": "Log in",
   "guest.back": "← Back",
@@ -624,6 +642,64 @@ const EN: Record<StringKey, string> = {
   "time.dAgo": "{n}d ago",
 
   "streak.label": "{days}-day streak",
+  "home.navWorlds": "Worlds",
+  "home.navCorporate": "Corporate",
+  "home.navKids": "Kids",
+  "home.mascotTitle": "Bayon Buddy",
+  "home.mascotBody": "Locale-aware study buddy with the S + Bodhi leaf mark.",
+  "home.close": "Close",
+  "camera.title": "Camera and lighting check",
+  "camera.body": "Take one face photo. As soon as it is saved, Continue turns on. Your face should be clearly visible, well lit, and sharp.",
+  "camera.empty": "No photo yet",
+  "camera.saved": "Photo saved. Continue is ready.",
+  "camera.continue": "Continue",
+  "camera.retake": "Retake photo",
+  "camera.open": "Open camera",
+  "camera.permission": "Camera permission is required for class.",
+  "camera.failed": "Camera check failed",
+  "camera.trackTitle": "Camera and tracking check",
+  "camera.working": "Working…",
+  "camera.capture": "Capture",
+  "camera.skip": "Skip this step",
+  "camera.done": "Done",
+  "camera.restart": "Restart",
+  "camera.allow": "Allow camera",
+  "kids.back": "Back",
+  "kids.backToList": "Back to Kids",
+  "kids.playAgain": "Play again",
+  "kids.greatJob": "Great job!",
+  "kids.score": "You finished {title} and got {correct} of {total} right.",
+  "kids.readAgain": "Read it again",
+  "kids.finish": "Finish",
+  "kids.next": "Next",
+  "kids.right": "Yes! That's right.",
+  "kids.wrong": "Not quite. The answer is {answer}.",
+  "kids.pickAnother": "Pick another adventure",
+  "kids.title": "Kids Academy",
+  "kids.subtitle": "Learning adventures for young explorers!",
+  "kids.empty": "No kids courses available yet. Check back soon!",
+  "worlds.title": "Salareen Worlds",
+  "worlds.error": "Could not load the game. Check your connection and try again.",
+  "worlds.retry": "Try again",
+  "worlds.back": "Back",
+  "worlds.loading": "Loading Salareen Worlds…",
+  "arcade.visionTitle": "Machine vision",
+  "arcade.visionBody": "The full webcam lab: letters, listening, faces, hands, and movement. The camera stays on this device.",
+  "arcade.visionOpen": "Open the full vision arcade",
+  "arcade.visionHint": "All {n} games, with the camera.",
+  "assessment.checkpoint": "Checkpoint",
+  "assessment.summative": "Course assessment",
+  "assessment.meta": "{format} · Attempt {n}",
+  "assessment.summativeHint": "Pass to verify course completion. Answer keys stay on the server.",
+  "assessment.checkHint": "Quick check on what you just learned.",
+  "assessment.hear": "Hear question",
+  "assessment.submit": "Submit assessment",
+  "assessment.submitting": "Submitting…",
+  "assessment.skip": "Continue without submitting",
+  "assessment.audio": "Audio",
+  "assessment.visual": "Visual aid",
+  "assessment.challenge": "Challenge",
+  "assessment.text": "Text",
 };
 
 // Translations: only keys that differ from English are listed. Anything
@@ -1248,11 +1324,25 @@ const KM: Dict = {
 };
 
 export const STRINGS: Record<LocaleCode, Dict> = {
-  en: EN, es: ES, fr: FR, de: DE, it: IT, pt: PT, ru: RU,
-  ar: AR, hi: HI, zh: ZH, ja: JA, ko: KO, vi: VI,
-  // Fallback locales — inherit English until fully translated.
+  en: EN,
+  es: { ...GAP.es, ...ES },
+  fr: { ...GAP.fr, ...FR },
+  de: { ...GAP.de, ...DE },
+  it: { ...GAP.it, ...IT },
+  pt: { ...GAP.pt, ...PT },
+  ru: { ...GAP.ru, ...RU },
+  ar: { ...GAP.ar, ...AR },
+  hi: { ...GAP.hi, ...HI },
+  zh: { ...GAP.zh, ...ZH },
+  ja: { ...GAP.ja, ...JA },
+  ko: { ...GAP.ko, ...KO },
+  vi: { ...GAP.vi, ...VI },
+  // Fallback locales inherit English until a full translation lands.
   nl: {}, pl: {}, uk: {}, tr: {}, he: {}, bn: {}, ur: {},
-  fa: {}, th: {}, id: {}, sw: {}, el: {}, cs: {}, km: KM,
+  fa: {}, th: {}, id: {}, sw: {}, el: {}, cs: {},
+  km: { ...GAP.km, ...KM },
+  // Hong Kong Cantonese. UI copy falls back to English; the voice does not.
+  yue: {},
 };
 
 export const FALLBACK: Record<StringKey, string> = EN;

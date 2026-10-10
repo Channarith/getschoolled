@@ -977,6 +977,9 @@ class QuizRequest(BaseModel):
     # (pulled from the memory service) instead of the static MEDIUM default.
     student_id: str | None = None
     class_type: ClassType = ClassType.GROUP
+    # Same id the teaching session uses, so quiz draws and slide questions
+    # share one unused-scene deck.
+    session_id: str = ""
 
 
 class QuizItemView(BaseModel):
@@ -1435,9 +1438,34 @@ def assessment_quiz(req: QuizRequest) -> QuizResponse:
     if req.student_id:
         signals = get_sessions().memory.learner_signals(req.student_id, req.topic)
         difficulty = AdaptivePolicy().plan(signals, class_type=req.class_type).difficulty
-    items = definition_items_from_passages(
-        req.passages, req.topic, max_items=req.max_items, difficulty=difficulty
+    from aoep_shared.class_scenes import (  # noqa: E402
+        canonical_topic,
+        draw_for_session,
+        multiple_choice,
+        pool_size,
     )
+
+    topic_pool = canonical_topic(req.topic)
+    if topic_pool and pool_size(topic_pool) >= 2:
+        deck_key = req.session_id or req.student_id or f"anon:{topic_pool}"
+        items = []
+        for _ in range(max(1, req.max_items)):
+            scene = draw_for_session(deck_key, topic_pool)
+            options, answer_index = multiple_choice(scene)
+            items.append(
+                QuizItem(
+                    item_id=f"{scene.scene_id}-{uuid.uuid4().hex[:10]}",
+                    topic=req.topic,
+                    prompt=scene.prompt,
+                    options=options,
+                    answer_index=answer_index,
+                    difficulty=difficulty,
+                )
+            )
+    else:
+        items = definition_items_from_passages(
+            req.passages, req.topic, max_items=req.max_items, difficulty=difficulty
+        )
     # Cache items server-side so the correct answer is never exposed to the client.
     # Apply a simple size cap to prevent unbounded memory growth.
     quiz_cache: dict = app.state.quiz_items

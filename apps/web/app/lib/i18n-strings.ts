@@ -16,6 +16,9 @@ export const LOCALES = [
   "en", "es", "fr", "de", "it", "pt", "ru", "ar", "hi", "zh", "ja", "ko", "vi", "km",
   // Supported, UI rolling out (13) - English fallback for untranslated keys:
   "nl", "pl", "uk", "tr", "he", "bn", "ur", "fa", "th", "id", "sw", "el", "cs",
+  // Spoken variant. Not one of the 27 content languages. UI strings fall back
+  // to English; the voice session requests Hong Kong Cantonese.
+  "yue",
 ] as const;
 export type Locale = (typeof LOCALES)[number];
 
@@ -37,7 +40,7 @@ export const LANGUAGE_LIST: LanguageEntry[] = [
   { code: "ru", native: "Русский", flag: "🇷🇺", tier: "full" },
   { code: "ar", native: "العربية", flag: "🇸🇦", tier: "full", rtl: true },
   { code: "hi", native: "हिन्दी", flag: "🇮🇳", tier: "full" },
-  { code: "zh", native: "中文", flag: "🇨🇳", tier: "full" },
+  { code: "zh", native: "中文（普通话）", flag: "🇨🇳", tier: "full" },
   { code: "ja", native: "日本語", flag: "🇯🇵", tier: "full" },
   { code: "ko", native: "한국어", flag: "🇰🇷", tier: "full" },
   { code: "vi", native: "Tiếng Việt", flag: "🇻🇳", tier: "full" },
@@ -51,6 +54,7 @@ export const LANGUAGE_LIST: LanguageEntry[] = [
   { code: "bn", native: "বাংলা", flag: "🇧🇩", tier: "fallback" },
   { code: "ur", native: "اردو", flag: "🇵🇰", tier: "fallback", rtl: true },
   { code: "fa", native: "فارسی", flag: "🇮🇷", tier: "fallback", rtl: true },
+  { code: "yue", native: "粵語", flag: "🇭🇰", tier: "fallback" },
   { code: "th", native: "ไทย", flag: "🇹🇭", tier: "fallback" },
   { code: "id", native: "Bahasa Indonesia", flag: "🇮🇩", tier: "fallback" },
   { code: "sw", native: "Kiswahili", flag: "🇰🇪", tier: "fallback" },
@@ -126,7 +130,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
     "download.feat3": "Track progress, streaks, and rewards across devices.",
     "download.legal": "By installing you agree to our",
     "download.legalLink": "Terms & notices",
-    "hero.kicker": "AI-instructed learning",
+    "hero.kicker": "Guided practice",
     "hero.title": "Thousands of classes. One AI campus.",
     "hero.subLoggedOut": "Browse popular courses by category and age - sign in to track progress, earn rewards, and get personalized picks.",
     "hero.subLoggedIn": "Pick up where you left off, or explore popular courses by category and age.",
@@ -531,7 +535,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
     "download.feat3": "Theo dõi tiến độ, chuỗi ngày và phần thưởng trên các thiết bị.",
     "download.legal": "Khi cài đặt, bạn đồng ý với",
     "download.legalLink": "Điều khoản & thông báo",
-    "hero.kicker": "Học cùng AI",
+    "hero.kicker": "Luyện tập có hướng dẫn",
     "hero.title": "Hàng nghìn lớp học. Một khuôn viên AI.",
     "hero.subLoggedOut": "Khám phá các khóa học theo chủ đề và độ tuổi — đăng nhập để theo dõi tiến độ và nhận thưởng.",
     "hero.subLoggedIn": "Tiếp tục từ chỗ bạn đã dừng, hoặc khám phá các khóa học mới.",

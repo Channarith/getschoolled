@@ -17,7 +17,14 @@ export type MascotResolve = {
 
 /** Normalize a BCP-47 tag to a supported mascot locale code. */
 export function normalizeMascotLocale(locale: string | null | undefined): Locale {
-  const base = (locale || "en").toLowerCase().split("-")[0].split("_")[0];
+  const raw = (locale || "en").toLowerCase().replace(/_/g, "-");
+  // Cantonese has no separate mascot; use the Chinese one.
+  if (
+    raw === "yue" || raw.startsWith("yue-") ||
+    raw === "zh-hk" || raw.startsWith("zh-hk") ||
+    raw === "zh-mo" || raw.startsWith("zh-mo")
+  ) return "zh";
+  const base = raw.split("-")[0];
   return (LOCALES as readonly string[]).includes(base) ? (base as Locale) : "en";
 }
 

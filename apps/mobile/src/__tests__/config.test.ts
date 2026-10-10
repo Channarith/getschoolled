@@ -39,8 +39,15 @@ describe("cloud mode (default)", () => {
 
   test("rejects a configured localhost URL and falls back to the cloud origin", () => {
     const c = loadConfig("ios", { curriculumUrl: "http://localhost:8005" });
-    // A localhost override must never win in cloud mode (would point a shipped
-    // build at a dev machine).
+    expect(c.CURRICULUM_URL).toBe("https://www.salareen.com/curriculum");
+  });
+
+  test("rejects loopback web and service URLs in cloud mode", () => {
+    const c = loadConfig("ios", {
+      webAppUrl: "http://127.0.0.1:3000",
+      curriculumUrl: "http://127.0.0.1:8005",
+    });
+    expect(c.WEB_APP_URL).toBe("https://www.salareen.com");
     expect(c.CURRICULUM_URL).toBe("https://www.salareen.com/curriculum");
   });
 

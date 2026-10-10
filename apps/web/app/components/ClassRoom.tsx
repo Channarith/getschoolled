@@ -26,6 +26,7 @@ import {
   recordBehavior,
   recordWellnessCheckIn,
   reportIssue,
+  postLearnerFocus,
   reengage,
   resumeSlideForLesson,
   saveCourseProgress,
@@ -63,9 +64,10 @@ import CourseStoryboardPlayer from "./CourseStoryboardPlayer";
 import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
 import CameraLightingScreener from "./CameraLightingScreener";
 import LessonCameraCorner from "./LessonCameraCorner";
+import type { PresenceCue } from "../lib/learnerFocus";
 import { useT } from "../lib/i18n";
 import { buildNarrationSpeakOptions } from "../lib/narrationTts";
-import { cancelSpeech, speakNaturally } from "../lib/tts";
+import { cancelSpeech, localeToBcp47, speakNaturally } from "../lib/tts";
 import { useVoicePauseSubmitMs } from "../lib/flags";
 import { createVoicePauseSubmitter } from "../lib/voiceCommands";
 
@@ -77,11 +79,6 @@ type SpeechRec = {
     results: { length: number; [i: number]: { [j: number]: { transcript: string } } };
   }) => void;
   onerror: ((e?: { error?: string }) => void) | (() => void); onend: () => void; start: () => void; stop: () => void;
-};
-
-const RECOG_LANG: Record<string, string> = {
-  en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT", pt: "pt-BR",
-  zh: "zh-CN", ja: "ja-JP", ko: "ko-KR", hi: "hi-IN", ar: "ar-SA", ru: "ru-RU",
 };
 
 export type ClassRoomProps = {
@@ -152,6 +149,9 @@ export default function ClassRoom({
   const [lightingReady, setLightingReady] = useState(false);
   const [lessonCamera, setLessonCamera] = useState<MediaStream | null>(null);
   const lessonCameraRef = useRef<MediaStream | null>(null);
+  const voiceAwayRef = useRef(false);
+  const heldSpeechRef = useRef<string | null>(null);
+  const [presenceNote, setPresenceNote] = useState("");
   useEffect(() => () => {
     lessonCameraRef.current?.getTracks().forEach((track) => track.stop());
     lessonCameraRef.current = null;
@@ -176,6 +176,7 @@ export default function ClassRoom({
   // Immersive presenter: the text currently being narrated (for live captions)
   // and a fullscreen "Zoom call" mode for the AI instructor + slide.
   const [spokenText, setSpokenText] = useState("");
+  const [captionsOn, setCaptionsOn] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   // Autoplay: the AI presenter narrates a slide, then advances to the next so it
@@ -303,6 +304,10 @@ export default function ClassRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
+  useEffect(() => {
+    if (studentProfile?.accessibility?.needs_captions) setCaptionsOn(true);
+  }, [studentProfile]);
+
   function stopSpeaking() {
     // cancelSpeech() stops BOTH the on-device voice AND the neural server audio
     // (and aborts any in-flight fetch). Calling only speechSynthesis.cancel()
@@ -315,7 +320,12 @@ export default function ClassRoom({
     setSpeaking(false);
   }
 
-  function speak(text: string, onDone?: () => void) {
+  function speak(text: string, onDone?: () => void, cue = false) {
+    if (voiceAwayRef.current && !cue) {
+      heldSpeechRef.current = text;
+      return;
+    }
+    if (!cue) heldSpeechRef.current = text;
     setSpokenText(text || "");   // live caption, even if audio is muted/unavailable
     if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) {
       // No audio: don't auto-advance — the learner reads and taps Next.
@@ -637,7 +647,7 @@ export default function ClassRoom({
     }
     try { recognitionRef.current?.stop(); } catch { /* */ }
     pauseSubmitterRef.current?.cancelPending();
-    rec.lang = RECOG_LANG[locale] ?? "en-US";
+    rec.lang = localeToBcp47(locale);
     rec.interimResults = true;
     rec.continuous = true;
     rec.maxAlternatives = 1;
@@ -1382,16 +1392,45 @@ export default function ClassRoom({
                 : { position: "relative", display: "flex", flexDirection: "column", gap: 12 }
             }
           >
+            {presenceNote ? (
+              <p className="muted" style={{ margin: 0 }}>{presenceNote}</p>
+            ) : null}
             <LessonCameraCorner
               stream={lessonCamera}
               lessonContext={view.lesson.title}
               participantId={studentId || "student"}
-              onAway={() => {
-                const sessionId = view.session.session_id;
-                void reengage(sessionId).then((note) => {
-                  setChat((items) => [...items, { role: "assistant", text: note.text }]);
-                  if (speakAnswers) speak(note.text);
-                }).catch(() => undefined);
+              onCue={(cue: PresenceCue) => {
+                void postLearnerFocus({
+                  kind: cue.kind,
+                  surface: "class",
+                  course_id: lessonId,
+                  context: "accredited",
+                  note: cue.line,
+                  evidence: {
+                    signal: cue.signal || "yunet",
+                    away_ms: cue.awayMs || 0,
+                  },
+                });
+                if (cue.type === "notice") {
+                  setPresenceNote(cue.line);
+                  return;
+                }
+                if (cue.type === "pause") {
+                  if (voiceAwayRef.current) return;
+                  voiceAwayRef.current = true;
+                  stopSpeaking();
+                  setPresenceNote(cue.notice || cue.line);
+                  if (speakAnswers) speak(cue.line, undefined, true);
+                  return;
+                }
+                voiceAwayRef.current = false;
+                setPresenceNote("");
+                const held = heldSpeechRef.current;
+                if (!speakAnswers) return;
+                speak(cue.line, () => {
+                  if (voiceAwayRef.current || !held || held === cue.line) return;
+                  speak(held);
+                }, true);
               }}
             />
             <div style={isFullscreen ? { width: "100%", maxWidth: 760, alignSelf: "center" } : undefined}>
@@ -1399,7 +1438,7 @@ export default function ClassRoom({
                 speaking={speaking}
                 name="Salareen AI Instructor"
                 persona={disclosure?.line?.match(/persona:?\s*([a-z]+)/i)?.[1]}
-                caption={spokenText || `${slide.title}. ${slide.narration || slide.body}`}
+                caption={captionsOn ? (spokenText || `${storyboardI18n?.title || slide.title}. ${storyboardI18n?.narration || storyboardI18n?.body || slide.narration || slide.body}`) : ""}
                 muted={!speakAnswers}
                 onToggleMute={() => {
                   const next = !speakAnswers;
@@ -1428,7 +1467,7 @@ export default function ClassRoom({
                 </span>
               )}
             </div>
-            <h2 style={isFullscreen ? { fontSize: "clamp(30px, 4.2vw, 52px)", lineHeight: 1.15, color: "#fff", margin: "6px 0" } : undefined}>{storyboardI18n?.title || slide.title}</h2>
+            <h2 style={isFullscreen ? { fontSize: "clamp(30px, 4.2vw, 52px)", lineHeight: 1.15, color: "#fff", margin: "6px 0", overflowWrap: "anywhere" } : { overflowWrap: "anywhere" }}>{storyboardI18n?.title || slide.title}</h2>
             {slide.storyboard_svg ? (
               <CourseStoryboardPlayer
                 svg={slide.storyboard_svg}
@@ -1440,10 +1479,15 @@ export default function ClassRoom({
                 sourceLanguage={slide.storyboard_source_language}
                 sceneId={slide.storyboard_scene_id}
                 fullscreen={isFullscreen}
+                captions={captionsOn}
               />
             ) : null}
-            <p style={isFullscreen ? { fontSize: "clamp(18px, 2.2vw, 26px)", lineHeight: 1.6, color: "#e8ecf6" } : undefined}>{storyboardI18n?.body || slide.body}</p>
-            <p className="muted" style={isFullscreen ? { fontSize: 16, color: "#9fb4d8" } : undefined}>🔊 {storyboardI18n?.narration || slide.narration}</p>
+            {captionsOn ? (
+              <>
+                <p style={isFullscreen ? { fontSize: "clamp(18px, 2.2vw, 26px)", lineHeight: 1.6, color: "#e8ecf6", overflowWrap: "anywhere" } : { overflowWrap: "anywhere" }}>{storyboardI18n?.body || slide.body}</p>
+                <p className="muted" style={isFullscreen ? { fontSize: 16, color: "#9fb4d8", overflowWrap: "anywhere" } : { overflowWrap: "anywhere" }}>🔊 {storyboardI18n?.narration || slide.narration}</p>
+              </>
+            ) : null}
 
             {slide.say_aloud && (
               <div className="card" style={{ borderColor: "#7c3aed", background: "rgba(124,58,237,0.08)", marginTop: 8 }}>
@@ -1483,6 +1527,15 @@ export default function ClassRoom({
             )}
 
             <div className="row">
+              <button
+                type="button"
+                onClick={() => setCaptionsOn((on) => !on)}
+                aria-pressed={captionsOn}
+                title={captionsOn ? "Hide lesson text" : "Show closed captions"}
+                style={{ background: captionsOn ? "#0f172a" : "transparent", color: captionsOn ? "#fff" : "inherit", border: "1px solid var(--border)" }}
+              >
+                {captionsOn ? "CC on" : "CC"}
+              </button>
               <button
                 type="button"
                 onClick={() => {

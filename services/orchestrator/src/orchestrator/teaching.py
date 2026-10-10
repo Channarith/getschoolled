@@ -123,6 +123,9 @@ class SessionState(BaseModel):
     history: List[ChatTurn] = Field(default_factory=list)
     # Privacy-safe audience readiness aggregates for Theodore (no names).
     audience_profile: Dict = Field(default_factory=dict)
+    # Practice-scene ids already shown in this session, keyed by slide index.
+    # The class draws the next unused scene and does not repeat it.
+    practice_scene_by_slide: Dict[str, str] = Field(default_factory=dict)
 
 
 class Answer(BaseModel):
@@ -391,7 +394,7 @@ class TeachingSessions:
             source_index = session.current_slide
             position = session.current_slide
         slide = lesson.slides[source_index].model_copy(update={"index": position})
-        return enrich_slide_storyboard(
+        slide = enrich_slide_storyboard(
             session.lesson_id,
             slide,
             source_index=source_index,
@@ -399,6 +402,34 @@ class TeachingSessions:
             profile_score=session.profile_score,
             audio_only=lesson.audio_only,
         )
+        return self._attach_practice_scene(session, slide, lesson.language or "en")
+
+    def _attach_practice_scene(self, session: SessionState, slide: Slide, language: str) -> Slide:
+        """Replace the repeated activity line with the next unused topic scene."""
+        from aoep_shared.class_scenes import (
+            canonical_topic,
+            draw_for_session,
+            get_scene,
+            localize_scene,
+            pool_size,
+        )
+
+        topic = canonical_topic(session.lesson_id)
+        if topic is None or pool_size(topic) < 2:
+            return slide
+        key = str(slide.index)
+        scene = None
+        scene_id = session.practice_scene_by_slide.get(key) or ""
+        if scene_id:
+            scene = get_scene(scene_id)
+        if scene is None:
+            deck_key = session.student_id or session.session_id
+            scene = draw_for_session(deck_key, topic, locale=language or "en")
+            session.practice_scene_by_slide[key] = scene.scene_id
+            self.store.save(session)
+        else:
+            scene = localize_scene(scene, language or "en")
+        return slide.model_copy(update={"storyboard_activity": scene.prompt})
 
     def advance(self, session_id: str) -> "SlideWithBreak":
         # WARNING: cross-replica race; use Redis INCR for multi-replica deployments

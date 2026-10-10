@@ -24,7 +24,14 @@ export const TRAINING_LOCALE_LABELS: Record<TrainingLocale, string> =
 const SUPPORTED = new Set<string>(TRAINING_LOCALES);
 
 export function normalizeTrainingLocale(locale: string | null | undefined): TrainingLocale {
-  const base = (locale || "en").toLowerCase().split("-")[0];
+  const raw = (locale || "en").toLowerCase().replace(/_/g, "-");
+  if (
+    raw === "yue" || raw.startsWith("yue-") ||
+    raw === "zh-hk" || raw.startsWith("zh-hk") ||
+    raw === "zh-mo" || raw.startsWith("zh-mo") ||
+    raw.startsWith("zh-yue")
+  ) return "yue";
+  const base = raw.split("-")[0];
   return (SUPPORTED.has(base) ? base : "en") as TrainingLocale;
 }
 

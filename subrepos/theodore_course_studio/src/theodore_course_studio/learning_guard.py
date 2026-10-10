@@ -133,7 +133,19 @@ def _analyzer() -> Any:
         return _ANALYZER
 
 
-def _speech_for(reason: str, cheating: bool) -> str:
+def _speech_for(reason: str, cheating: bool, reasons: list[str] | None = None) -> str:
+    bag = {reason or ""}
+    bag.update(reasons or [])
+    if "phone_visible" in bag or "looking_at_phone" in bag:
+        return (
+            "It looks like you might be looking down at a phone. "
+            "The lesson will wait. Look back up and we will continue from the same place."
+        )
+    if "eyes_away_long" in bag or reason == "eyes_away":
+        return (
+            "Look back at the lesson when you can. "
+            "I will continue from the same place."
+        )
     if cheating or reason in {"owner_face_mismatch", "attention_integrity"}:
         return (
             "Pause. I need to see that you are the one learning. "
@@ -260,7 +272,7 @@ def observe_camera(
     return {
         "hold": hold,
         "reason": reason,
-        "speech": _speech_for(reason, cheating or multiple) if hold else "",
+        "speech": _speech_for(reason, cheating or multiple, reasons) if hold else "",
         "adapt": adapt,
         "delivery": shift,
         "state": participant.state.value if participant else "unknown",

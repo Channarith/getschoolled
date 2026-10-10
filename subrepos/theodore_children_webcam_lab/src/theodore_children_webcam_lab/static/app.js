@@ -6,7 +6,9 @@ import {
   FIST_MAX_PALMS, HEART_TIPS_PALMS, HEART_THUMBS_PALMS, HEART_WRISTS_PALMS,
   HEART_CLEFT_PALMS, HEART_POINT_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
-  coverFrame, fingersPointed, handShape, heartRatios, isHeartShape, mapMirroredLandmark, syntheticHand,
+  PAUSE_LINE, RESUME_LINE,
+  coverFrame, createPresenceWatch, debiasedGazeDown, fingersPointed, handShape, headPoseFromMesh,
+  heartRatios, isHeartShape, mapMirroredLandmark, syntheticHand,
   traceProgress,
 } from "./vision_math.js";
 
@@ -61,6 +63,52 @@ const GAMES = [
   "fruit-cut","air-drums","bird-flap","head-bop","face-chase","stand-sit",
   "dance-freeze","rainbow-reach",
 ];
+// Missing ids get Play only. A new game cannot inherit the letter, mic, and undo row.
+const NO_CONTROLS = {letter:false, undo:false, mic:false, typed:false, check:false, hear:false, words:false, play:true};
+const GAME_CONTROLS = {
+  "trace-letter": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "trace-picture": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "color-picture": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "connect-dots": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "trace-outline": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "say-letter": {letter:true, undo:false, mic:true, typed:true, check:true, hear:true, words:false, play:true},
+  "repeat-after-me": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "pronounce-word": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "rhyme-time": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "listen-answer": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "missing-word": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "opposites": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "explain-it": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "sum-it-up": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "prove-it": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "story-order": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "how-many": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "same-or-different": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "finish-the-line": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "spell-aloud": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "oh-behave": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "heart": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "idea": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "fist-bump": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "wow": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "blow-kiss": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "wink": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "make-pose": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "balloon": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "fish": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "popcorn": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "fruit-cut": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "air-drums": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "bird-flap": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "head-bop": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "face-chase": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "stand-sit": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "dance-freeze": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "rainbow-reach": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+};
+function controlsFor(gameId) {
+  return GAME_CONTROLS[gameId] || NO_CONTROLS;
+}
 const PICTURE_EMOJI = {
   apple:"🍎",ball:"⚽",cat:"🐱",dragon:"🐉",elephant:"🐘",fish:"🐟",grape:"🍇",
   heart:"💖","ice cream":"🍦",jellyfish:"🪼",kite:"🪁",lion:"🦁",moon:"🌙",
@@ -76,9 +124,13 @@ const state = {
   beatAt:0, recognition:null, activityEvents:[], spokenPrompt:"Let's play!",
   localKey:"theodoreChildrenFunV1", roundId:0, roundDone:false, roundTimer:0,
   failTimer:0, audio:null, padHeld:false, hitCount:0, lastTip:null,
-  handMotion:0, serverTts:null, speechToken:0, audioIndex:0, audioRound:null,
+  handMotion:0, serverTts:null, speechToken:0, audioIndex:0, audioRound:null, showWords:false,
   touchMode:"air", crayon:null, ink:[], inkDown:false, screenDown:false, screenPointerId:null,
+  voiceAway:false, heldPrompt:"", missingFaceAt:0, chaseLeft:false, bopDir:0, flapDir:0,
+  presenceNoteUntil:0, pace:"patient", lastDetectAt:0,
+  glanceNote:false, poseOpen:false, standBase:null, sitLow:null,
 };
+const presenceWatch = createPresenceWatch();
 
 const canvas = $("overlay");
 const ctx = canvas ? canvas.getContext("2d") : null;
@@ -93,6 +145,9 @@ const target = $("target");
       const option = document.createElement("option");
       option.value = key; option.textContent = `${key} — ${LETTER_WORDS[key]}`;
       letter.append(option);
+    }
+    if (letter.options.length) {
+      letter.selectedIndex = Math.floor(Math.random() * letter.options.length);
     }
   }
 
@@ -114,8 +169,11 @@ function resizeCanvas() {
   return stageRect;
 }
 if (stage) new ResizeObserver(resizeCanvas).observe(stage);
+video?.addEventListener("loadedmetadata", () => resizeCanvas());
 
 function setPrompt(title, copy, speakText="") {
+  const celebrating = state.roundDone && $("prompt")?.classList.contains("is-success");
+  if (celebrating && title !== "You did it!") return;
   setText("prompt-title", title);
   setText("prompt-copy", copy);
   state.spokenPrompt = speakText || `${title}. ${copy}`;
@@ -131,8 +189,62 @@ function videoFrame() {
   const {w,h} = stageBox();
   return coverFrame(w, h, video?.videoWidth || 0, video?.videoHeight || 0);
 }
+function videoIsMirrored() {
+  if (!video) return true;
+  const transform = getComputedStyle(video).transform || "";
+  if (!transform || transform === "none") return false;
+  const match = /matrix\(\s*(-?\d*\.?\d+)/.exec(transform);
+  if (!match) return true;
+  return Number(match[1]) < 0;
+}
 function mirrored(point) {
-  return mapMirroredLandmark(point, videoFrame());
+  // Pointer demo landmarks are already stage fractions. Flipping them parks
+  // the trail on the opposite side of the cursor.
+  if (state.demo) {
+    const {w, h} = stageBox();
+    return {
+      x: (Number(point?.x) || 0) * (w || 1),
+      y: (Number(point?.y) || 0) * (h || 1),
+      z: Number(point?.z) || 0,
+    };
+  }
+  const frame = videoFrame();
+  if (!videoIsMirrored()) {
+    const x = Number(point?.x) || 0;
+    const y = Number(point?.y) || 0;
+    return { x: frame.x + x * frame.w, y: frame.y + y * frame.h, z: Number(point?.z) || 0 };
+  }
+  return mapMirroredLandmark(point, frame);
+}
+// Trail samples keep the fingertip in the space it was captured, then this
+// maps them again every frame. A stored pixel drifts when the camera crop
+// changes; the live fingertip and the ink stay on the same point.
+function trailMark(hand) {
+  if (!hand?.tip) return null;
+  const {w, h} = stageBox();
+  if (!w || !h) return null;
+  if (hand.screen || !hand.points?.[8]) {
+    return {screen: true, x: hand.tip.x / w, y: hand.tip.y / h};
+  }
+  return {screen: false, video: true, x: hand.points[8].x, y: hand.points[8].y};
+}
+function trailPixel(mark) {
+  if (!mark) return null;
+  if (mark.screen) {
+    const {w, h} = stageBox();
+    return {x: mark.x * w, y: mark.y * h};
+  }
+  if (mark.video) return mirrored({x: mark.x, y: mark.y});
+  return {x: mark.x, y: mark.y};
+}
+function pushTrail(hand) {
+  const mark = trailMark(hand);
+  const pixel = trailPixel(mark);
+  const {w, h} = stageBox();
+  if (!mark || !pixel || !w || !h) return;
+  const prev = state.trail.length ? trailPixel(state.trail.at(-1)) : null;
+  if (prev && distance(pixel, prev) <= 4) return;
+  state.trail.push({...mark, nx: pixel.x / w, ny: pixel.y / h, t: performance.now()});
 }
 function bonePairs() {
   const raw = state.handConnections;
@@ -153,6 +265,8 @@ async function start(camera=true) {
   state.demo = !camera;
   $("setup")?.classList.add("hidden");
   $("play")?.classList.remove("hidden");
+  if ($("game")?.value) state.game = $("game").value;
+  applyGameControls();
   stage?.classList.toggle("demo", state.demo);
   resizeCanvas(); loadLocalAnalytics();
   if (camera) {
@@ -250,7 +364,14 @@ function faceMetrics(points, bs) {
   else if (smile>.35) {expression="happy";confidence=smile;}
   const cx=1-(minX+maxX)/2, cy=(minY+maxY)/2;
   const region=Object.entries(REGIONS).sort((a,b)=>Math.hypot(cx-a[1][0],cy-a[1][1])-Math.hypot(cx-b[1][0],cy-b[1][1]))[0][0];
-  return {points,bs,cx,cy,width:maxX-minX,height:maxY-minY,expression,confidence,region,smile};
+  const pose = headPoseFromMesh(points, (video?.videoWidth && video?.videoHeight) ? video.videoWidth / video.videoHeight : 1);
+  return {
+    points,bs,cx,cy,width:maxX-minX,height:maxY-minY,expression,confidence,region,smile,
+    pitchDeg: pose?.pitch ?? null,
+    yawDeg: pose?.yaw ?? null,
+    gazeFrontal: pose?.frontal ?? null,
+    gazeDown: debiasedGazeDown(bs),
+  };
 }
 
 function handMetrics(points, label="") {
@@ -277,8 +398,13 @@ function handToFaceFaces(hand, face) {
 
 function detectFrame() {
   if ((!state.face && !state.hands) || !video || video.readyState<2) return;
-  if (video.currentTime===state.lastVideoTime) return;
+  // A phone WebView often freezes video.currentTime at 0 for a camera stream.
+  // Keep sampling on a clock so the finger, the trail, and a fist still move.
+  const nowMs = performance.now();
+  const sameStamp = video.currentTime===state.lastVideoTime;
+  if (sameStamp && nowMs - (state.lastDetectAt || 0) < 40) return;
   state.lastVideoTime=video.currentTime;
+  state.lastDetectAt=nowMs;
   const now=Math.max((state.lastMpTs||0)+1, performance.now());
   state.lastMpTs=now;
   try {
@@ -299,6 +425,30 @@ function detectFrame() {
   } catch (error) { console.warn("[children-lab] hand frame skipped",error); }
 }
 
+function drawFistMark(hand) {
+  if (!hand?.fist) return;
+  let palm = hand.wrist;
+  if (!hand.screen && hand.points?.[0] && hand.points?.[9]) {
+    const wrist = mirrored(hand.points[0]);
+    const knuckle = mirrored(hand.points[9]);
+    palm = {x: (wrist.x + knuckle.x) / 2, y: (wrist.y + knuckle.y) / 2};
+  }
+  if (!palm) return;
+  ctx.save();
+  ctx.fillStyle = "rgba(251,113,133,.92)";
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(palm.x, palm.y, 22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.font = "700 12px ui-rounded, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("fist", palm.x, palm.y);
+  ctx.restore();
+}
 function drawVision() {
   if (!ctx) return;
   const {w,h}=stageBox();
@@ -343,11 +493,25 @@ function drawVision() {
       ctx.strokeRect(left,top,state.faceData.width*w,state.faceData.height*h);ctx.setLineDash([]);
     }
   }
-  if (switchedOn("show-trail") && state.trail.length) {
-    ctx.lineWidth=12;ctx.lineCap="round";ctx.lineJoin="round";
-    const grad=ctx.createLinearGradient(0,0,w,h);grad.addColorStop(0,"#f472b6");grad.addColorStop(.5,"#fde047");grad.addColorStop(1,"#34d399");
-    ctx.strokeStyle=grad;ctx.beginPath();state.trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();
+  // show-trail stays checked when the phone hides the vision-tools panel.
+  // A one-point stroke draws nothing, so the live fingertip is always a dot.
+  if (switchedOn("show-trail")) {
+    const live = pointingHand()?.tip || null;
+    const pts = state.trail.map((mark) => trailPixel(mark)).filter(Boolean);
+    if (live) pts.push(live);
+    if (pts.length > 1) {
+      ctx.lineWidth=12;ctx.lineCap="round";ctx.lineJoin="round";
+      const grad=ctx.createLinearGradient(0,0,w,h);grad.addColorStop(0,"#f472b6");grad.addColorStop(.5,"#fde047");grad.addColorStop(1,"#34d399");
+      ctx.strokeStyle=grad;ctx.beginPath();
+      pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+      ctx.stroke();
+    }
+    if (live) {
+      ctx.fillStyle="#fde047";ctx.beginPath();ctx.arc(live.x,live.y,11,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();
+    }
   }
+  for (const hand of state.handData) drawFistMark(hand);
   ctx.restore();
   renderVisionReadout();
 }
@@ -504,27 +668,33 @@ function drawGuide(w,h) {
 }
 
 function updateTrace() {
-  if (!["trace-letter","trace-picture"].includes(state.game)) return;
+  if (state.game === "trace-picture") {
+    if (!state.picture || state.roundDone || performance.now() < (state.traceHoldUntil || 0)) return;
+    strokeOutline(state.picture, "You traced the picture!");
+    return;
+  }
+  if (state.game !== "trace-letter") return;
   if (state.roundDone || performance.now() < (state.traceHoldUntil || 0)) return;
-  const hand=state.handData.find(h=>h.indexUp)||state.handData[0];
+  const hand = pointingHand();
   if (!hand?.tip) return;
   const {w,h}=stageBox();
   if (!w || !h) return;
-  const p=hand.tip, last=state.trail.at(-1);
-  if (!last || distance(p,last)>4) {
-    state.trail.push({x:p.x,y:p.y,nx:p.x/w,ny:p.y/h,t:performance.now()});
-  }
+  pushTrail(hand);
   const normalized = state.trail.map((pt) => ({x:pt.nx, y:pt.ny}));
   const progress=traceProgress(normalized,state.age);
   if (progress.passed) succeed("Beautiful tracing!");
 }
 
+function pointingHand() {
+  // Screen touch is a finger on the glass. Air touch must actually point;
+  // a fist lifts the marker and does not trace, connect, or catch.
+  if (screenTouch()) {
+    return state.screenDown ? (state.handData.find((hand) => hand.screen) || null) : null;
+  }
+  return state.handData.find((hand) => !hand.screen && fingersPointed(hand)) || null;
+}
 function fingerPoint() {
-  const hand = state.handData.find((item) => item.indexUp) || state.handData[0];
-  if (!hand?.tip) return null;
-  const {w, h} = stageBox();
-  if (!w || !h) return null;
-  return {x: hand.tip.x / w, y: hand.tip.y / h, px: hand.tip.x, py: hand.tip.y};
+  return fingerPointFrom(pointingHand());
 }
 
 function inkFor(colorName) {
@@ -633,16 +803,20 @@ function updatePicturePlay() {
     if (state.dotCursor >= dots.length) succeed("You connected every number!");
     return;
   }
-  const last = state.trail.at(-1);
-  if (!last || distance({x: tip.px, y: tip.py}, last) > 4) {
-    state.trail.push({x: tip.px, y: tip.py, nx: tip.x, ny: tip.y, t: performance.now()});
-  }
+  strokeOutline(scene, "You traced the picture!");
+}
+
+function strokeOutline(scene, doneMessage) {
+  const hand = pointingHand();
+  const tip = fingerPointFrom(hand);
+  if (!tip || !scene) return;
+  pushTrail(hand);
   const coverage = outlineCoverage(
     state.trail.map((point) => ({x: point.nx, y: point.ny})),
     scene.outline,
     state.age === "4-6" ? 0.07 : 0.05,
   );
-  if (state.trail.length >= 8 && outlinePassed(coverage, state.age)) succeed("You traced the picture!");
+  if (state.trail.length >= 8 && outlinePassed(coverage, state.age)) succeed(doneMessage);
 }
 
 function faceDistanceLabel(face) {
@@ -834,6 +1008,7 @@ function catchRadius() {
 }
 
 function updateObjectGame() {
+  if (state.roundDone) return;
   if (!OBJECT_GAMES.has(state.game) || !state.object?.el?.isConnected) return;
   const center=objectCenter();if(!center)return;
   const radius=catchRadius();
@@ -845,7 +1020,7 @@ function updateObjectGame() {
       hit=distance(face,center)<Math.max(radius,state.faceData.width*box.w*.75);
     }
   } else {
-    const hand=state.handData.find(h=>h.indexUp)||state.handData[0];
+    const hand = pointingHand();
     if(hand?.tip) {
       const last=state.lastTip||hand.tip,velocity=distance(hand.tip,last);
       state.lastTip=hand.tip;
@@ -854,28 +1029,59 @@ function updateObjectGame() {
   }
   if(hit && !state.object.hit){
     state.object.hit=true;
+    hideCountdown();
     const say=reactToHit(state.game)||"Great catch!";
     const round=state.roundId;
     setTimeout(()=>{if(state.roundId===round)succeed(say);},280);
   }
 }
 
-function updateGestureGame(now) {
-  if (state.game==="heart" && isHeart(state.handData)) succeed("A heart made with two hands!");
-  else if (state.game==="idea" && state.handData.some(h=>h.indexUp)) succeed("What a bright idea!");
-  else if (state.game==="fist-bump") {
-    const fist=state.handData.find(h=>h.fist);
-    if (fist && distance(fist.tip, targetPoint())<catchRadius()) succeed("Fist bump!");
+function airHands() {
+  return state.handData.filter((hand) => !hand.screen);
+}
+function noteMissingFace(now) {
+  if (state.faceData) {
+    state.missingFaceAt = 0;
+    return false;
   }
-  else if (state.game==="wow" && state.faceData?.expression==="surprised") succeed("That is a wonderful wow face!");
-  else if (state.game==="wink" && state.faceData?.expression?.startsWith("wink-")) succeed("Wink-tastic!");
+  if (!state.missingFaceAt) state.missingFaceAt = now;
+  return true;
+}
+function poseCommit(active) {
+  if (!active) {
+    state.poseOpen = true;
+    return false;
+  }
+  return Boolean(state.poseOpen);
+}
+function regionOtherThan(current) {
+  const keys = Object.keys(REGIONS).filter((key) => key !== current && (!state.seated || !key.startsWith("bottom")));
+  return randomOf(keys) || "top";
+}
+function updateGestureGame(now) {
+  if (state.roundDone || state.voiceAway) return;
+  if (state.game==="heart" && poseCommit(isHeart(airHands()))) succeed("A heart made with two hands!");
+  else if (state.game==="idea" && poseCommit(airHands().some(h=>h.indexUp))) succeed("What a bright idea!");
+  else if (state.game==="fist-bump") {
+    const fist=airHands().find(h=>h.fist);
+    const near = Boolean(fist && distance(fist.tip, targetPoint())<catchRadius());
+    if (poseCommit(near)) succeed("Fist bump!");
+  }
+  else if (state.game==="wow") {
+    if (noteMissingFace(now)) return;
+    if (poseCommit(state.faceData?.expression==="surprised")) succeed("That is a wonderful wow face!");
+  }
+  else if (state.game==="wink") {
+    if (noteMissingFace(now)) return;
+    if (poseCommit(Boolean(state.faceData?.expression?.startsWith("wink-")))) succeed("Wink-tastic!");
+  }
   else if (state.game==="blow-kiss") {
     // The old version succeeded as soon as the hand was no longer "near" the
     // face — which also happened when the face left the frame, so the round
     // passed itself. Both steps now require a tracked face, and the hand has to
     // actually travel outward rather than merely stop being close.
     if (!state.faceData) {
-      setPrompt("I need to see you","Come back into the camera so I can see your kiss.");
+      noteMissingFace(now);
       return;
     }
     const nearest=Math.min(...state.handData.map(hand=>handToFaceFaces(hand,state.faceData)));
@@ -887,15 +1093,17 @@ function updateGestureGame(now) {
     } else if (state.phase===1 && state.handData.length && nearest>KISS_AWAY_FACES) {
       succeed("A lovely flying kiss!");
     }
-  } else if (state.game==="make-pose" && state.handData.length>=2) {
-    const high=state.handData.filter(h=>h.wrist.y<stageBox().h*.48).length;
-    if(high>=2)succeed("Hero pose complete!");
+  } else if (state.game==="make-pose") {
+    const hands = airHands();
+    const high = hands.length>=2 && hands.filter(h=>h.wrist && h.wrist.y<stageBox().h*.48).length>=2;
+    if (poseCommit(high)) succeed("Hero pose complete!");
   }
   else if (state.game==="oh-behave") {
+    if (state.glanceNote) state.deadline = Math.max(state.deadline || 0, now + 2000);
     if (!state.faceData) {
       if (!state.pausedAt) {
         state.pausedAt = now;
-        setPrompt("I need to see you","Come back into the camera. The timer is paused.");
+        setPrompt("I'll wait","Come back into the camera. The timer is paused.");
       }
       return;
     }
@@ -903,35 +1111,54 @@ function updateGestureGame(now) {
       state.deadline += now - state.pausedAt;
       state.pausedAt = 0;
     }
-    const remaining=Math.max(0,state.deadline-now);setText("countdown",(remaining/1000).toFixed(1));
+    const remaining=countdownRemaining(now);
     if(state.faceData.expression===state.targetExpression&&state.faceData.region===state.targetRegion&&state.faceData.confidence>=.55) succeed("Perfect face match!");
-    else if(remaining<=0) fail("Almost — match the face and the spot!");
-  } else if (state.game==="face-chase" && state.faceData?.region===state.targetRegion) succeed("You found the face spot!");
+    else if(remaining<=0 && !state.glanceNote) fail("Almost — match the face and the spot!");
+  } else if (state.game==="face-chase") {
+    if (noteMissingFace(now)) return;
+    if (state.faceData.region !== state.targetRegion) state.chaseLeft = true;
+    if (state.chaseLeft && state.faceData.region === state.targetRegion) succeed("You found the face spot!");
+  }
   else if (state.game==="air-drums") {
     if(now-state.beatAt>650){state.beatAt=now;state.phase=(state.phase+1)%2;setTarget(state.phase?"left":"right","🥁");state.padHeld=false;}
-    const hand=state.handData.find(h=>h.tip&&distance(h.tip,targetPoint())<catchRadius());
-    if(hand && !state.padHeld){state.padHeld=true;state.hitCount+=1;if(state.hitCount>=6)succeed("Amazing air drums!");}
-    if(!hand) state.padHeld=false;
-  } else if (state.game==="bird-flap" && state.handData.length>=2) {
-    const y=(state.handData[0].wrist.y+state.handData[1].wrist.y)/2;
-    if(state.lastHandY!=null&&Math.abs(y-state.lastHandY)>28){state.hitCount+=1;state.lastHandY=y;}
-    else if(state.lastHandY==null)state.lastHandY=y;
-    if(state.hitCount>=8)succeed("You flew like a bird!");
-  } else if (state.game==="head-bop" && state.faceData) {
-    const y=state.faceData.cy*stageBox().h;
-    if(state.lastFaceY!=null&&Math.abs(y-state.lastFaceY)>18){state.hitCount+=1;state.lastFaceY=y;}
-    else if(state.lastFaceY==null)state.lastFaceY=y;
-    if(state.hitCount>=7)succeed("Head-bop beat master!");
-  } else if (state.game==="stand-sit") {
-    if (!state.faceData) {
-      setPrompt("I need to see you","Step back so Theodore can see your face.");
-      return;
+    const hand = pointingHand();
+    const hitting = hand?.tip && distance(hand.tip, targetPoint())<catchRadius();
+    if(hitting && !state.padHeld){state.padHeld=true;state.hitCount+=1;if(state.hitCount>=6)succeed("Amazing air drums!");}
+    if(!hitting) state.padHeld=false;
+  } else if (state.game==="bird-flap" && airHands().length>=2) {
+    const hands = airHands();
+    const y=(hands[0].wrist.y+hands[1].wrist.y)/2;
+    if (state.lastHandY == null) state.lastHandY = y;
+    else if (Math.abs(y - state.lastHandY) > 28) {
+      const dir = y > state.lastHandY ? 1 : -1;
+      if (state.flapDir && dir !== state.flapDir) state.hitCount += 1;
+      state.flapDir = dir;
+      state.lastHandY = y;
     }
+    if(state.hitCount>=4)succeed("You flew like a bird!");
+  } else if (state.game==="head-bop") {
+    if (noteMissingFace(now)) return;
+    const y=state.faceData.cy*stageBox().h;
+    if (state.lastFaceY == null) state.lastFaceY = y;
+    else if (Math.abs(y - state.lastFaceY) > 22) {
+      const dir = y > state.lastFaceY ? 1 : -1;
+      if (state.bopDir && dir !== state.bopDir) state.hitCount += 1;
+      state.bopDir = dir;
+      state.lastFaceY = y;
+    }
+    if(state.hitCount>=4)succeed("Head-bop beat master!");
+  } else if (state.game==="stand-sit") {
+    if (noteMissingFace(now)) return;
     const y=state.faceData.cy;
-    if(state.phase===0&&y<.38){state.phase=1;setPrompt("Now sit down","Move gently back to your seat.");}
-    if(state.phase===1&&y>.57)succeed("Stand and sit complete!");
-  } else if (state.game==="rainbow-reach" && state.handData.length>=2) {
-    const tips=state.handData.map(h=>h.tip),box=stageBox();if(tips.every(p=>p.y<box.h*.35)&&Math.abs(tips[0].x-tips[1].x)>box.w*.45)succeed("Rainbow reach!");
+    if (state.standBase == null) state.standBase = y;
+    if(state.phase===0 && y < state.standBase - 0.07){
+      state.phase=1;
+      state.sitLow=y;
+      setPrompt("Now sit down","Move gently back to your seat.");
+    }
+    if(state.phase===1 && y > (state.sitLow ?? y) + 0.08) succeed("Stand and sit complete!");
+  } else if (state.game==="rainbow-reach" && airHands().length>=2) {
+    const tips=airHands().map(h=>h.tip),box=stageBox();if(tips.every(p=>p&&p.y<box.h*.35)&&Math.abs(tips[0].x-tips[1].x)>box.w*.45)succeed("Rainbow reach!");
     } else if (state.game==="dance-freeze") {
     const moving = isDancing();
     if (state.phase===0) {
@@ -950,7 +1177,7 @@ function updateGestureGame(now) {
 }
 
 function isDancing() {
-  const hand=state.handData[0]?.tip;
+  const hand=airHands()[0]?.tip;
   const face=state.faceData;
   let motion=0;
   if (hand) {
@@ -962,7 +1189,9 @@ function isDancing() {
     if (state.lastFaceY!=null) motion=Math.max(motion, Math.abs(y-state.lastFaceY));
     state.lastFaceY=y;
   }
-  return motion>7;
+  // Landmark jitter is a few pixels. A real dance or head move is larger,
+  // so a still face does not freeze-succeed on its own.
+  return motion>18;
 }
 function targetPoint(){
   if (!target || target.classList.contains("hidden")) return {x:-9999,y:-9999};
@@ -974,10 +1203,194 @@ function targetPoint(){
 function loop(now) {
   if(!state.running)return;
   detectFrame();drawVision();updateTrace();updatePicturePlay();updateObjectGame();updateGestureGame(now);
+  tickCountdown(now);
+  watchPresence(now);
   requestAnimationFrame(loop);
 }
 
+function setPresenceNote(text, holdMs) {
+  const note = $("presence-note");
+  if (!note) return;
+  if (!text) {
+    note.hidden = true;
+    note.textContent = "";
+    state.presenceNoteUntil = 0;
+    return;
+  }
+  note.hidden = false;
+  note.textContent = text;
+  state.presenceNoteUntil = holdMs ? performance.now() + holdMs : 0;
+}
+
+function rememberPresence(kind, evidence) {
+  try {
+    const key = "theodoreChildrenPresenceV1";
+    const rows = JSON.parse(localStorage.getItem(key) || "[]");
+    const next = Array.isArray(rows) ? rows : [];
+    next.push({kind, at: Date.now(), game: state.game || "", ...(evidence || {})});
+    localStorage.setItem(key, JSON.stringify(next.slice(-40)));
+  } catch (_) {}
+}
+function postFocus(kind, evidence) {
+  let token = "";
+  let studentId = "";
+  try {
+    token = localStorage.getItem("aoep_token") || "";
+    studentId = localStorage.getItem("aoep_student_id") || "";
+  } catch (_) {}
+  if (!token || !studentId) return;
+  const host = location.hostname;
+  const base = host === "localhost" || host === "127.0.0.1" ? "http://127.0.0.1:8008" : "/identity";
+  fetch(`${base}/students/${encodeURIComponent(studentId)}/focus-events`, {
+    method: "POST",
+    headers: {"content-type": "application/json", Authorization: `Bearer ${token}`},
+    body: JSON.stringify({
+      kind,
+      surface: "children_lab",
+      context: "children",
+      evidence: evidence || {},
+    }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function watchPresence(now) {
+  const face = state.faceData;
+  const events = presenceWatch.update({
+    atMs: now,
+    facePresent: Boolean(face),
+    pitchDeg: face?.pitchDeg ?? null,
+    yawDeg: face?.yawDeg ?? null,
+    gazeDown: face ? face.gazeDown : null,
+    gazeFrontal: face?.gazeFrontal ?? null,
+    // Face mesh is running whenever the landmarker exists. Pointer-demo faces
+    // have no mesh pitch, so pose-only phone guesses stay off.
+    allowPoseOnly: Boolean(state.face && face && face.pitchDeg != null),
+    source: state.demo ? "pointer" : "face_mesh",
+  });
+  if (!events.length && state.presenceNoteUntil && now > state.presenceNoteUntil && !state.voiceAway) {
+    setPresenceNote("");
+    state.glanceNote = false;
+  }
+  for (const event of events) {
+    if (event.type === "pause") {
+      if (!state.voiceAway) {
+        state.heldPrompt = state.spokenPrompt;
+        state.voiceAway = true;
+        state.glanceNote = false;
+        cancelSpeech();
+        window.TheodoreLiveAudio?.pauseRecognition?.();
+        setPresenceNote(event.notice || event.line);
+        speak(event.line, true);
+        rememberPresence("left_frame", {signal: event.signal || "no_face"});
+        postFocus("left_frame", {signal: event.signal || "no_face"});
+      }
+    } else if (event.type === "resume") {
+      state.voiceAway = false;
+      state.heldPrompt = "";
+      window.TheodoreLiveAudio?.resumeRecognition?.();
+      setPresenceNote("");
+      speak(event.line, true);
+      rememberPresence("returned", {away_ms: event.awayMs || 0, signal: event.signal || "face_mesh"});
+      postFocus("returned", {away_ms: event.awayMs || 0, signal: event.signal || "face_mesh"});
+    } else if (event.type === "notice") {
+      state.glanceNote = true;
+      setPresenceNote(event.line, 7000);
+      rememberPresence(event.kind, {signal: event.signal || ""});
+      postFocus(event.kind, {signal: event.signal || ""});
+    }
+  }
+}
+
+function successHoldMs() {
+  let fromQuery = "";
+  try { fromQuery = new URLSearchParams(location.search).get("pace") || ""; } catch (_) {}
+  const pace = (fromQuery || $("pace")?.value || state.pace || "patient").toLowerCase();
+  if (pace === "quick") return 1000;
+  if (pace === "steady") return 2000;
+  return 3000;
+}
+function setControl(id, on) {
+  const node = $(id);
+  if (!node) return;
+  node.classList.toggle("hidden", !on);
+  if ("disabled" in node) node.disabled = !on;
+}
+function applyGameControls() {
+  const flags = controlsFor(state.game);
+  const letterWrap = $("letter-control");
+  if (letterWrap) letterWrap.classList.toggle("hidden", !flags.letter);
+  const letter = $("letter");
+  if (letter) letter.disabled = !flags.letter;
+  setControl("play-game", flags.play);
+  setControl("hear", flags.hear);
+  setControl("mic", flags.mic);
+  setControl("typed", flags.typed);
+  setControl("check", flags.check);
+  setControl("undo", flags.undo);
+  const wordsToggle = $("words-toggle");
+  if (wordsToggle) wordsToggle.classList.toggle("hidden", !flags.words);
+  const words = $("show-words");
+  if (words) {
+    words.disabled = !flags.words;
+    words.checked = Boolean(flags.words && state.showWords);
+  }
+  renderSpokenWords();
+}
+function renderSpokenWords() {
+  const node = $("spoken-words");
+  if (!node) return;
+  const flags = controlsFor(state.game);
+  const round = state.audioRound;
+  const line = flags.words && state.showWords && round && round.game === state.game
+    ? String(round.speak || "").trim()
+    : "";
+  node.textContent = line;
+  node.classList.toggle("hidden", !line);
+}
+function countdownRemaining(now) {
+  if (!state.deadline) return 0;
+  const held = state.pausedAt ? now - state.pausedAt : 0;
+  return Math.max(0, state.deadline + held - now);
+}
+function armDeadline(ms) {
+  const duration = Math.max(0, Number(ms) || 0);
+  state.deadline = performance.now() + duration;
+  state.pausedAt = 0;
+  const node = $("countdown");
+  if (!node) return;
+  node.textContent = (duration / 1000).toFixed(1);
+  node.classList.remove("hidden");
+}
+function hideCountdown() {
+  state.deadline = 0;
+  state.pausedAt = 0;
+  const node = $("countdown");
+  if (!node) return;
+  node.textContent = "";
+  node.classList.add("hidden");
+}
+function tickCountdown(now) {
+  if (!state.deadline) return;
+  if (state.roundDone) {
+    hideCountdown();
+    return;
+  }
+  const remaining = countdownRemaining(now);
+  const node = $("countdown");
+  if (node && !node.classList.contains("hidden")) {
+    node.textContent = (remaining / 1000).toFixed(1);
+  }
+  if (remaining <= 0 && OBJECT_GAMES.has(state.game) && state.object && !state.object.hit) {
+    if (state.glanceNote || state.voiceAway) {
+      state.deadline = now + 2500;
+      return;
+    }
+    fail("So close! Try the next one.");
+  }
+}
 function chooseGame() {
+  $("prompt")?.classList.remove("is-success");
   clearTimeout(state.roundTimer);clearTimeout(state.failTimer);cancelSpeech();
   state.roundId += 1; const round = state.roundId; state.roundDone=false;
   clearRound();
@@ -987,13 +1400,19 @@ function chooseGame() {
   state.game=select.value;
   if (state.game!==previousGame) state.audioIndex=0;
   state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
+  state.missingFaceAt=0;state.bopDir=0;state.flapDir=0;
+  state.poseOpen=false;state.standBase=null;state.sitLow=null;
   updateGuideLayer();
   const letter=$("letter")?.value,word=LETTER_WORDS[letter];
   if(state.game==="trace-letter"){
     state.traceHoldUntil=performance.now()+500;
     setPrompt(`Trace ${letter}`,"Point one finger up and follow the glowing letter.",`Trace the letter ${letter}.`);
   }
-  else if(state.game==="trace-picture")setPrompt(`Trace the ${word}`,"Use one finger to draw around the picture.",`Now trace the ${word}.`);
+  else if(state.game==="trace-picture"){
+    armPictureRound(word);
+    state.traceHoldUntil=performance.now()+500;
+    setPrompt(`Trace the ${word}`,"Use one finger to draw around the picture.",`Now trace the ${word}.`);
+  }
   else if(state.game==="color-picture"||state.game==="connect-dots"||state.game==="trace-outline"){
     armPictureRound(word);
     state.traceHoldUntil=performance.now()+500;
@@ -1003,12 +1422,14 @@ function chooseGame() {
   }
   else if(state.game==="say-letter")setPrompt(`Say ${letter}`,"Tap the microphone or type what you said.",`Listen, then say the letter ${letter}.`);
   else if(AUDIO_GAMES.has(state.game)){
+    state.audioRound = null;
     setPrompt("Listen","Theodore is getting the next listening round.");
     void armAudioRound(round);
   }
   else if(state.game==="oh-behave"){
-    state.targetRegion=randomRegion();state.targetExpression=randomOf(EXPRESSIONS);state.deadline=performance.now()+state.timerMs;
-    $("countdown")?.classList.remove("hidden");setTarget(state.targetRegion,expressionEmoji(state.targetExpression));
+    state.targetRegion=randomRegion();state.targetExpression=randomOf(EXPRESSIONS);
+    armDeadline(state.timerMs);
+    setTarget(state.targetRegion,expressionEmoji(state.targetExpression));
     setPrompt("Oh behave!",`Make a ${state.targetExpression} face inside the glowing circle.`);
   } else if(state.game==="heart"){setTarget(randomRegion(),"💖");setPrompt("Make a heart","Use both hands. Fingertips dip together at the top and thumbs meet at the bottom. A circle does not count.");}
   else if(state.game==="idea"){setTarget("top","☝️");setPrompt("I have an idea!","Hold one index finger up in the air.");}
@@ -1021,11 +1442,13 @@ function chooseGame() {
     const config={ "fruit-cut":["fruit",randomOf(["🍎","🍉","🍓","🍊"])],"balloon":["balloon","🎈"],fish:["fish","🐠"],popcorn:["kernel","🍿"]}[state.game];
     spawnObject(...config);setPrompt({"fruit-cut":"Fruit cut!","balloon":"Pop the balloon!","fish":"Catch the flying fish!","popcorn":"Catch the popcorn!"}[state.game],
       state.game==="popcorn"?"Make a big O with your mouth and catch it.":"Use one finger to catch it!");
-    state.failTimer=setTimeout(()=>{
-      if(state.roundId!==round) return;
-      if(state.object&&!state.object.hit)fail("So close! Try the next one.");
-    },state.game==="popcorn"?4200:5800);
-  } else if(state.game==="face-chase"){state.targetRegion=randomRegion();setTarget(state.targetRegion,"😊");setPrompt("Face chase","Move your face into the glowing circle.");}
+    armDeadline(state.game==="popcorn"?4200:5800);
+  } else if(state.game==="face-chase"){
+    state.chaseLeft=false;
+    state.targetRegion=regionOtherThan(state.faceData?.region);
+    setTarget(state.targetRegion,"😊");
+    setPrompt("Face chase","Move your face into the glowing circle.");
+  }
   else if(state.game==="air-drums"){setTarget("left","🥁");setPrompt("Air drums","Hit the drum pads with your hands on the beat.");state.beatAt=performance.now();}
   else if(state.game==="bird-flap"){setPrompt("Flap like a bird","Lift both hands up and down. Fly!");spawnObject("","🐦");}
   else if(state.game==="head-bop"){setPrompt("Bop to the beat","Move your head gently up and down.");}
@@ -1039,6 +1462,7 @@ function chooseGame() {
     tellActivity(state.spokenPrompt);
     speak(state.spokenPrompt);
   }
+  applyGameControls();
 }
 function tellActivity(prompt) {
   if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__ || !prompt) return;
@@ -1054,7 +1478,7 @@ function expressionEmoji(kind){return({happy:"😄",surprised:"😮","wink-left"
 function clearRound() {
   hideTarget();
   for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption")]) node.remove();
-  $("countdown")?.classList.add("hidden");
+  hideCountdown();
   state.trail=[];state.object=null;state.lastTip=null;state.lastFaceY=null;state.lastHandY=null;
 }
 
@@ -1089,12 +1513,13 @@ function pickNextLetter() {
   if (next) select.value=next;
 }
 function succeed(message) {
-  if(state.roundDone)return;state.roundDone=true;state.combo+=1;
+  if(state.roundDone || state.voiceAway)return;state.roundDone=true;state.combo+=1;
   const round=state.roundId;
   const advanceLetter=state.game==="trace-letter"||PICTURE_PLAY.has(state.game);
   if(state.game==="oh-behave")state.timerMs=nextTimer(true);
   if (AUDIO_GAMES.has(state.game)) state.audioIndex=(state.audioIndex||0)+1;
   const result=calculateFun(true);state.fun=result.score;renderScore();fireworks();setPrompt("You did it!",message);
+  $("prompt")?.classList.add("is-success");
   recordEvent("success",result);tellActivity(`The child succeeded. Celebrate in one short sentence: ${message}`);speak(`You did it! ${message}`);
   clearTimeout(state.roundTimer);
   state.roundTimer=setTimeout(()=>{
@@ -1102,7 +1527,7 @@ function succeed(message) {
     state.roundDone=false;
     if(advanceLetter) pickNextLetter();
     chooseGame();
-  }, advanceLetter?600:1900);
+  }, successHoldMs());
 }
 function fail(message) {
   if(state.roundDone)return;state.roundDone=true;state.combo=0;state.attempts+=1;
@@ -1158,8 +1583,10 @@ async function probeSpeech() {
   }
 }
 
-async function speak(text) {
-  if(state.muted||!text||window.__THEODORE_LIVE_AUDIO_ACTIVE__)return;
+async function speak(text, cue=false) {
+  if(state.voiceAway && !cue) return;
+  if(state.muted||!text)return;
+  if(window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !cue)return;
   cancelSpeech();
   const token=state.speechToken;
   try {
@@ -1309,6 +1736,7 @@ async function armAudioRound(round) {
     if (state.roundId !== round || state.game !== game) return;
     state.audioRound = data;
     setPrompt(data.title, data.prompt, data.speak);
+    renderSpokenWords();
     tellActivity(data.speak);
     speak(data.speak);
   } catch (error) {
@@ -1488,6 +1916,13 @@ $("undo").addEventListener("click",()=>{
 $("touch-mode")?.addEventListener("click",()=>{
   setTouchMode(state.touchMode==="screen"?"air":"screen");
 });
+$("pace")?.addEventListener("change", () => {
+  state.pace = $("pace")?.value || "patient";
+});
+$("show-words")?.addEventListener("change", () => {
+  state.showWords = Boolean($("show-words")?.checked);
+  renderSpokenWords();
+});
 $("show-guide")?.addEventListener("change",updateGuideLayer);
 for (const id of ["show-face","show-hands","show-trail","show-measures","show-readout"]) {
   $(id)?.addEventListener("change",renderVisionReadout);
@@ -1544,11 +1979,19 @@ if (embedMobile) {
   setChromeHidden(false);
   syncTouchToggle();
 }
+function pickLaunchGame() {
+  const select = $("game");
+  if (!select) return;
+  const requested = new URLSearchParams(location.search).get("game");
+  const options = [...select.options].map((opt) => opt.value).filter((id) => GAMES.includes(id));
+  if (requested) {
+    if (options.includes(requested)) select.value = requested;
+    return;
+  }
+  if (!options.length) return;
+  select.value = options[Math.floor(Math.random() * options.length)];
+}
+pickLaunchGame();
 if (new URLSearchParams(location.search).get("demo")==="1") {
   requestAnimationFrame(()=>start(false));
-}
-const requestedGame=new URLSearchParams(location.search).get("game");
-const gameSelect=$("game");
-if (requestedGame && gameSelect && [...gameSelect.options].some((opt)=>opt.value===requestedGame)) {
-  gameSelect.value=requestedGame;
 }

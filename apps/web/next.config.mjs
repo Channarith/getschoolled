@@ -48,6 +48,9 @@ const nextConfig = {
       { source: "/api/tts", destination: `${childrenLab}/api/tts` },
       { source: "/api/tts/:path*", destination: `${childrenLab}/api/tts/:path*` },
       { source: "/vendor/vision/:path*", destination: `${childrenLab}/vendor/vision/:path*` },
+      // Drive embeds /audio-lab. The lab app serves that page at /lab.
+      // Ingress must send /audio-lab to web; the /audio prefix is curriculum
+      // and otherwise returns FastAPI {"detail":"Not Found"}.
       { source: "/audio-lab", destination: `${audioLab}/lab` },
       { source: "/audio-lab-api/:path*", destination: `${audioLab}/:path*` },
       ...SERVICES.map((name) => ({

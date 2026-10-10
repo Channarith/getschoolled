@@ -162,8 +162,32 @@ def list_languages() -> list[dict[str, Any]]:
 
 
 def language_instruction(language: str) -> str:
+    raw = (language or "").strip().lower().replace("_", "-")
+    if raw == "km" or raw.startswith("km-"):
+        return (
+            "Respond entirely in Khmer (Cambodian, km), the language of Cambodia. "
+            "Do not respond in Thai. "
+            "Keep the tone warm, concise, and suitable for spoken tutoring."
+        )
+    if (
+        raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"}
+        or raw.startswith("yue-")
+        or raw.startswith("zh-hk")
+        or raw.startswith("zh-yue")
+    ):
+        return (
+            "Respond entirely in Hong Kong Cantonese (粵語, yue), the language of "
+            "Hong Kong and Guangdong. Do not respond in Mandarin. "
+            "Keep the tone warm, concise, and suitable for spoken tutoring."
+        )
     name = language_name(language)
     code = normalize_language(language)
+    if code == "zh" or raw in {"zh", "zh-cn", "zh-hans", "cmn", "mandarin"}:
+        return (
+            "Respond entirely in Mandarin Chinese (普通话, zh). "
+            "Do not respond in Cantonese. "
+            "Keep the tone warm, concise, and suitable for spoken tutoring."
+        )
     if code == "en":
         return "Respond in clear, spoken English."
     return (

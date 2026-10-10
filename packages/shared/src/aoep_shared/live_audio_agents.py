@@ -185,8 +185,21 @@ def mint_xai_token(
     context: str,
     instructions: str,
     expires_seconds: int = 300,
+    language: str = "",
 ) -> dict[str, Any]:
     """Mint an xAI browser token and its speech-to-speech session setup."""
+    from .xai_spoken_language import plan_spoken_language
+
+    spoken = plan_spoken_language(language)
+    if not spoken.use_xai:
+        return {
+            "provider": "edge-tts",
+            "use_xai": False,
+            "engine": spoken.engine,
+            "edge_voice": spoken.edge_voice,
+            "hint": spoken.hint,
+            "spoken_language": spoken.to_dict(),
+        }
     if not xai_configured():
         raise LiveAudioError("XAI_API_KEY is not configured")
     model = os.environ.get("XAI_VOICE_MODEL", "grok-voice-latest")
@@ -199,6 +212,7 @@ def mint_xai_token(
         model=model,
         lesson_context=context,
         instructions=instructions,
+        language=language,
     )
     locked_session = dict(session.session_update_event()["session"])
     locked_session.update({"model": model, "tools": []})
@@ -213,6 +227,7 @@ def mint_xai_token(
         raise LiveAudioError(str(exc)) from exc
     return {
         "provider": "xai",
+        "use_xai": True,
         "token": token.value,
         "websocket_url": token.websocket_url,
         "websocket_protocol": token.websocket_protocol,
@@ -220,6 +235,7 @@ def mint_xai_token(
         "output_rate": 24000,
         "model": model,
         "setup": session.session_update_event(),
+        "spoken_language": spoken.to_dict(),
     }
 
 
@@ -230,6 +246,7 @@ def mint_provider_token(
     context: str = "",
     instructions: str = "",
     expires_seconds: int = 300,
+    language: str = "",
 ) -> dict[str, Any]:
     provider = (provider or "").strip().lower()
     if provider == "xai":
@@ -238,6 +255,7 @@ def mint_provider_token(
             context=context,
             instructions=instructions,
             expires_seconds=expires_seconds,
+            language=language,
         )
     if provider == "gemini":
         system = instructions.strip() or (
@@ -246,6 +264,11 @@ def mint_provider_token(
         )
         if context.strip():
             system += f"\n\nCurrent lab context:\n{context.strip()}"
+        from .xai_spoken_language import tutoring_instruction
+
+        spoken = tutoring_instruction(language)
+        if spoken:
+            system += f"\n\n{spoken}"
         model = os.environ.get("GEMINI_LIVE_MODEL", DEFAULT_GEMINI_MODEL)
         voice = os.environ.get("GEMINI_LIVE_VOICE", DEFAULT_GEMINI_VOICE)
         setup = {
@@ -364,6 +387,8 @@ def install_live_audio_routes(
         ):
             raise HTTPException(status_code=403, detail="cross-origin token mint denied")
         provider = str(payload.get("provider") or "")
+        # Language is a closed code (km, zh, yue, …), not a caller-written prompt.
+        language = str(payload.get("language") or "")
         try:
             return mint_provider_token(
                 provider,
@@ -376,6 +401,7 @@ def install_live_audio_routes(
                     "let the learner interrupt, and never mention TTS."
                 ),
                 expires_seconds=300 if provider == "xai" else 1800,
+                language=language,
             )
         except (LiveAudioError, ValueError, TypeError) as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc

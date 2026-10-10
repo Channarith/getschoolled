@@ -24,7 +24,7 @@ export default function LanguagePicker({
         style={{
           background: "var(--panel-2)", color: "var(--text)",
           border: "1px solid var(--border)", borderRadius: 6,
-          padding: "4px 8px", fontSize: 13,
+          padding: "4px 8px", fontSize: 13, maxWidth: "100%",
         }}
       >
         {/* Fully-localized UI first, then the rest (supported via AI + content;

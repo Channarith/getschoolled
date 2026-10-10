@@ -85,6 +85,8 @@ def test_second_person_and_owner_mismatch_and_phone_hold(monkeypatch) -> None:
     assert later is not None
     assert later["hold"] is True
     assert "phone_visible" in later["cheating_reasons"]
+    assert "phone" in later["speech"].lower()
+    assert "cheat" not in later["speech"].lower()
 
 
 def test_sustained_look_away_holds() -> None:
