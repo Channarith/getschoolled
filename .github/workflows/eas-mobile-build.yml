@@ -17,6 +17,7 @@ on:
           - workflow
           - android-only
           - ios-only
+          - test
 
 permissions:
   contents: read
@@ -63,3 +64,13 @@ jobs:
       - name: Build iOS (production)
         if: inputs.mode == 'workflow' || inputs.mode == 'ios-only'
         run: eas build -p ios --profile production --clear-cache --non-interactive
+
+      # Installable test builds: Android APK, and an iOS Simulator app.
+      # A failed Android build must not skip iOS.
+      - name: Build Android (test APK)
+        if: ${{ !cancelled() && inputs.mode == 'test' }}
+        run: eas build -p android --profile preview --clear-cache --non-interactive
+
+      - name: Build iOS (test simulator)
+        if: ${{ !cancelled() && (success() || failure()) && inputs.mode == 'test' }}
+        run: eas build -p ios --profile preview --clear-cache --non-interactive

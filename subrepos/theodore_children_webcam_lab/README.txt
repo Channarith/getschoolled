@@ -4,7 +4,7 @@ Ages 4–10. The lab combines live face/hand landmarks, finger tracing,
 music-lab speech, movement games, cute/hero animation themes, success
 fireworks, loving miss gags, and a local-first Fun Score.
 
-The 22 games (Learn / Face & hands / Move) are listed in one catalog
+The games (Learn / Listen / Face & hands / Move) are listed in one catalog
 (`game_engine.GAME_MENU`) so the page menu, `/api/child/content`, and the
 browser loop cannot drift. Trace a picture has a real glyph for every
 A–Z word. Pointer demo (`?demo=1`, or the setup button) drives a
@@ -31,7 +31,10 @@ Camera frames, raw audio, face landmarks, hand landmarks, and speech
 transcripts are never posted to this lab. MediaPipe inference runs in the
 browser. SpeechRecognition is the same browser API used by the music lab;
 its vendor handling depends on the browser/OS. Only typed transcript text is
-sent to /api/child/pronounce for scoring.
+sent to /api/child/pronounce or /api/child/audio-check for scoring. Listening
+games cover repeat-after-me, pronunciation, rhymes, answers, missing words,
+opposites, explaining, summarizing, proving you understand, story order,
+counting what you heard, same or different, finishing a line, and spelling.
 
 Fun analytics are stored in localStorage by default. An adult must enable
 "Share anonymous lab stats" before aggregate-only events are sent. Events

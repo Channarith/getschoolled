@@ -100,7 +100,8 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
     assert "canvas.toDataURL" not in script
     assert "roundId" in script
     assert "cancelSpeech" in script
-    assert 'state.game!=="say-letter"' in script
+    assert "function isAudioGame" in script
+    assert "AUDIO_GAMES" in script
     assert "OBJECT_GAMES.has(state.game)" in script
     assert "esc(id.replaceAll" in script
     assert "Hold still like a statue" in script
@@ -108,7 +109,7 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
     assert "applyVoiceScreen" in script
     assert "applySpokenActivity" in script
     assert "tellActivity" in script
-    assert 'state.game !== "say-letter"' in script
+    assert "isAudioGame()" in script
     assert "checkSpeech(text)" in script
     assert "selectSpokenGame" in script
     # Gesture thresholds must be hand-relative, never absolute frame distances.

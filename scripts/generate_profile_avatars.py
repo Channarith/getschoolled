@@ -374,7 +374,8 @@ def main() -> int:
         text = text.split("export const AVATAR_IMAGES")[0].rstrip() + "\n"
         WEB_TS.write_text(text, encoding="utf-8")
 
-    write_ts_catalog(MOBILE_TS, require_prefix="../../assets/avatars", asset_ext="png")
+    # avatarCatalog.ts lives in src/, so one "../" reaches apps/mobile/assets.
+    write_ts_catalog(MOBILE_TS, require_prefix="../assets/avatars", asset_ext="png")
     print(f"Generated {len(AVATAR_CATALOG)} avatars -> {WEB_OUT} + {MOBILE_OUT}")
     return 0
 

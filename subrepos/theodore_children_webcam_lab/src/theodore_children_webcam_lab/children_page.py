@@ -51,7 +51,7 @@ _PAGE = """<!doctype html>
       <div class="theodore-card">
         <div class="theodore" aria-hidden="true"><span class="ear left"></span><span class="ear right"></span><span class="face">ʕ•ᴥ•ʔ</span></div>
         <div><p class="eyebrow">THEODORE'S WEBCAM PLAY LAB</p><h1>Move, make faces, color, and laugh!</h1>
-        <p>Camera games for ages 4–10. Video stays in this browser. No recordings or Face ID.</p></div>
+        <p>Camera games and listening games for ages 4–10. Video stays in this browser. No recordings or Face ID.</p></div>
       </div>
       <div class="setup-grid">
         <label>Age group<select id="age"><option value="4-6">4–6</option><option value="7-10" selected>7–10</option></select></label>
@@ -70,6 +70,7 @@ _PAGE = """<!doctype html>
         <div class="brand">Theodore Play Lab</div>
         <div class="score"><span id="stars">☆☆☆</span><span id="fun-score">Fun 0</span><span id="combo">Combo 0</span></div>
         <button id="mute" aria-pressed="false">🔊</button>
+        <button id="chrome-toggle" type="button" hidden aria-pressed="false">Hide options</button>
         <button id="fullscreen">⛶</button>
       </div>
       <div id="stage" class="stage">

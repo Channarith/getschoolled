@@ -18,7 +18,7 @@ export function PublicCourses() {
         <Link href="/demo/on-the-go"><button type="button">Start the free audio demo</button></Link>
       </p>
       <p style={{ margin: "0 0 12px" }}>
-        The vision arcade is free too. Children play machine-vision games from the webcam lab. The camera stays in the browser.
+        The vision arcade is free too. Children play machine-vision games and listening games from the webcam lab. The camera stays in the browser.
       </p>
       <p style={{ margin: "0 0 18px" }}>
         <Link href="/arcade#vision"><button type="button">Play the vision arcade</button></Link>

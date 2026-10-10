@@ -272,7 +272,7 @@ export default function ArcadePage() {
         <div id="vision" className="card" style={{ background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(124,58,237,0.14))" }}>
           <h3 style={{ marginTop: 0 }}>👁️ Machine vision</h3>
           <p className="muted" style={{ marginTop: 0 }}>
-            Children play the webcam lab here: faces, hands, letters, and movement. The camera stays in the browser.
+            Children play the webcam lab here: faces, hands, letters, movement, and listening games. The camera stays in the browser.
             Theodore can talk through the xAI voice agent inside the lab.
           </p>
           <VisionArcadeFrame title="Vision arcade lab" src={visionArcadeFrameSrc()} />

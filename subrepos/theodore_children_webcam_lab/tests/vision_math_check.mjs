@@ -98,19 +98,44 @@ for (const angle of [0, Math.PI / 6, Math.PI / 3, Math.PI / 2, Math.PI]) {
   );
 }
 
-// --- 3. A heart needs tips together AND wrists apart, at any distance --------
+// --- 3. A heart is a cleft and a point, not a circle, at any distance --------
+function blankHand() {
+  return Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5 }));
+}
 function heartPose(scale) {
-  // Two hands leaning in: index tips meet at the top, thumbs meet below, and
-  // the wrists stay apart at the bottom.
-  const left = place(canonicalHand({ curl: 0.35 }), {
-    scale, angle: 0.5, at: { x: 0.42, y: 0.55 },
-  });
-  const right = place(canonicalHand({ curl: 0.35 }), {
-    scale, angle: -0.5, at: { x: 0.58, y: 0.55 },
-  });
-  // Mirror the right hand so the two point at each other.
-  const mirroredRight = right.map((p) => ({ x: 1.0 - p.x, y: p.y }));
-  return [left, mirroredRight];
+  // Index knuckles are the two high lobes. Fingertips meet lower, in the dip.
+  // Thumbs meet at the bottom point. Wrists stay apart.
+  const s = scale;
+  const left = blankHand();
+  left[0] = { x: 0.5 - 2.0 * s, y: 0.55 + 1.2 * s };
+  left[9] = { x: 0.5 - 1.4 * s, y: 0.55 };
+  left[5] = { x: 0.5 - 1.05 * s, y: 0.55 - 1.35 * s };
+  left[8] = { x: 0.5 - 0.12 * s, y: 0.55 - 0.55 * s };
+  left[4] = { x: 0.5 - 0.15 * s, y: 0.55 + 1.55 * s };
+  const right = blankHand();
+  right[0] = { x: 0.5 + 2.0 * s, y: 0.55 + 1.2 * s };
+  right[9] = { x: 0.5 + 1.4 * s, y: 0.55 };
+  right[5] = { x: 0.5 + 1.05 * s, y: 0.55 - 1.35 * s };
+  right[8] = { x: 0.5 + 0.12 * s, y: 0.55 - 0.55 * s };
+  right[4] = { x: 0.5 + 0.15 * s, y: 0.55 + 1.55 * s };
+  return [left, right];
+}
+function circlePose(scale) {
+  // Fingertips are the top of a ring, so there is no cleft between lobes.
+  const s = scale;
+  const left = blankHand();
+  left[0] = { x: 0.5 - 2.2 * s, y: 0.55 };
+  left[9] = { x: 0.5 - 1.5 * s, y: 0.55 };
+  left[5] = { x: 0.5 - 1.2 * s, y: 0.55 - 0.2 * s };
+  left[8] = { x: 0.5 - 0.15 * s, y: 0.55 - 1.3 * s };
+  left[4] = { x: 0.5 - 0.15 * s, y: 0.55 + 1.3 * s };
+  const right = blankHand();
+  right[0] = { x: 0.5 + 2.2 * s, y: 0.55 };
+  right[9] = { x: 0.5 + 1.5 * s, y: 0.55 };
+  right[5] = { x: 0.5 + 1.2 * s, y: 0.55 - 0.2 * s };
+  right[8] = { x: 0.5 + 0.15 * s, y: 0.55 - 1.3 * s };
+  right[4] = { x: 0.5 + 0.15 * s, y: 0.55 + 1.3 * s };
+  return [left, right];
 }
 
 for (const scale of [0.06, 0.1, 0.16]) {
@@ -122,12 +147,22 @@ for (const scale of [0.06, 0.1, 0.16]) {
     ...heartPose(0.1),
     (palmSpan(heartPose(0.1)[0]) + palmSpan(heartPose(0.1)[1])) / 2,
   );
-  for (const key of ["tips", "thumbs", "wrists"]) {
+  for (const key of ["tips", "thumbs", "wrists", "cleft", "point", "lobes"]) {
     assert.ok(
       Math.abs(ratios[key] - reference[key]) < 1e-6,
       `heart ${key} changed with camera distance: ${ratios[key]} vs ${reference[key]}`,
     );
   }
+  assert.equal(isHeartShape(ratios), true, `heart pose missed at scale ${scale}`);
+}
+
+{
+  const [a, b] = circlePose(0.1);
+  const ratios = heartRatios(a, b, (palmSpan(a) + palmSpan(b)) / 2);
+  assert.equal(
+    isHeartShape(ratios), false,
+    "a circle made with the hands is not a heart",
+  );
 }
 
 // Two hands clamped together (wrists touching) must NOT count as a heart, or

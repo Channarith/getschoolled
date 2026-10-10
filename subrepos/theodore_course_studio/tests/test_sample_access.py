@@ -187,6 +187,8 @@ def test_studio_page_offers_the_sample_banner():
     assert "is_admin" in STUDIO_JS
     assert "sampleIsComplete" in STUDIO_JS
     assert "armSampleClock" in STUDIO_JS
+    assert "formatSampleClock" in STUDIO_JS
+    assert 'id="sample-clock"' in page
     assert "presentation" in STUDIO_JS
     assert "if (audioOnly) return;" in STUDIO_JS
     assert "audio-only" in page

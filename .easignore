@@ -15,7 +15,9 @@ services/
 infra/
 config/
 sample-curriculum/
-scripts/
+# Leading slash: only the repo-root scripts dir. A bare `scripts/` also
+# drops apps/mobile/scripts, and the EAS pre-install hook then cannot run.
+/scripts/
 
 # Docs, screenshots, demo videos (not in the app binary)
 docs/
@@ -23,6 +25,8 @@ docs/
 # Generated / runtime output
 output/
 logs/
+.cache/
+**/.cache/
 recordings/
 minio-data/
 models/
@@ -73,6 +77,11 @@ apps/mobile/.pnpm-store/
 # Secrets (use EAS Secrets for build-time values)
 .env
 .env.*
+
+# The clone's object database still holds docs and videos after those
+# paths are removed from the work tree. Drop it so the upload stays small.
+.git
+.git/
 
 # OS / editor / CI artifacts
 .DS_Store

@@ -224,8 +224,8 @@ class WebcamLearningGameEngine:
                 game_type=game_type,
                 title="Valentine Heart Match",
                 instruction=(
-                    "Draw a heart in the air with your index finger, or make a "
-                    "heart shape with your hands."
+                    "Make a heart with both hands. Fingertips dip together at "
+                    "the top and thumbs meet at the bottom. A circle does not count."
                 ),
                 learning_prompt=learning_prompt,
                 target_duration_ms=4_000,
@@ -363,7 +363,7 @@ class WebcamLearningGameEngine:
         if challenge.game_type is WebcamGameType.VALENTINES_HEARTS:
             if self._heart_detected(signals):
                 return True, "Heart matched! Lovely Valentine energy.", None, None, [], []
-            return False, "Draw a heart loop in the air or make a heart with your hands.", None, None, [], []
+            return False, "Make a heart with both hands. A circle does not count.", None, None, [], []
 
         if challenge.game_type is WebcamGameType.MOTHERS_DAY:
             if evaluation.happy_participant_ids or any((s.smile_score or 0) >= 0.35 for s in signals):

@@ -21,6 +21,12 @@ ROOT = Path(__file__).resolve().parents[1]
 client = TestClient(app)
 
 OBJECT_GAMES = {"fruit-cut", "balloon", "fish", "popcorn"}
+AUDIO_GAMES = {
+    "repeat-after-me", "pronounce-word", "rhyme-time", "listen-answer",
+    "missing-word", "opposites", "explain-it", "sum-it-up", "prove-it",
+    "story-order", "how-many", "same-or-different", "finish-the-line",
+    "spell-aloud",
+}
 LOOP = {
     "trace-letter": "updateTrace",
     "trace-picture": "updateTrace",
@@ -28,6 +34,20 @@ LOOP = {
     "connect-dots": "updatePicturePlay",
     "trace-outline": "updatePicturePlay",
     "say-letter": "checkSpeech",
+    "repeat-after-me": "checkSpeech",
+    "pronounce-word": "checkSpeech",
+    "rhyme-time": "checkSpeech",
+    "listen-answer": "checkSpeech",
+    "missing-word": "checkSpeech",
+    "opposites": "checkSpeech",
+    "explain-it": "checkSpeech",
+    "sum-it-up": "checkSpeech",
+    "prove-it": "checkSpeech",
+    "story-order": "checkSpeech",
+    "how-many": "checkSpeech",
+    "same-or-different": "checkSpeech",
+    "finish-the-line": "checkSpeech",
+    "spell-aloud": "checkSpeech",
     "oh-behave": "updateGestureGame",
     "heart": "updateGestureGame",
     "idea": "updateGestureGame",
@@ -64,9 +84,11 @@ def test_every_menu_game_is_in_the_api_and_the_game_loop():
     catalog = list(all_game_ids())
     assert catalog == [game_id for _group, games in GAME_MENU for game_id, _ in games]
     assert set(catalog) == set(LOOP)
-    assert len(catalog) == len(LOOP) == 25
+    assert len(catalog) == len(LOOP) == 39
+    assert AUDIO_GAMES <= set(catalog)
 
     html = render_children_page("test")
+    assert 'id="chrome-toggle"' in html
     html_ids = re.findall(r'<option value="([^"]+)">', html)
     html_ids = [item for item in html_ids if item in LOOP]
     assert html_ids == catalog
@@ -81,6 +103,8 @@ def test_every_menu_game_is_in_the_api_and_the_game_loop():
     for game_id in catalog:
         if game_id in OBJECT_GAMES:
             assert "OBJECT_GAMES.has(state.game)" in choose, game_id
+        elif game_id in AUDIO_GAMES:
+            assert "AUDIO_GAMES.has(state.game)" in choose, game_id
         else:
             assert f'state.game==="{game_id}"' in choose, game_id
         assert f"function {LOOP[game_id]}" in script
@@ -91,7 +115,7 @@ def test_every_menu_game_is_in_the_api_and_the_game_loop():
                 "function faceDistanceLabel"
             )[0]
         if LOOP[game_id] == "checkSpeech":
-            assert 'state.game!=="say-letter"' in script
+            assert "function isAudioGame" in script
 
 
 def test_every_picture_word_has_a_glyph_on_both_sides():

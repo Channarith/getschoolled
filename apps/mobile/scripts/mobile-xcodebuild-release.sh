@@ -149,6 +149,9 @@ echo ""
 
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild "${XCODE_ARGS[@]}"
 
+echo "==> Adding hermes and WebRTC dSYMs so App Store Connect can upload symbols"
+ARCHIVE_PATH="$ARCHIVE_PATH" bash scripts/copy-ios-vendor-dsyms.sh
+
 echo ""
 echo "OK archive -> $ARCHIVE_PATH"
 echo "Next: Xcode Organizer → Distribute App → Ad Hoc (registered devices) or App Store / TestFlight"

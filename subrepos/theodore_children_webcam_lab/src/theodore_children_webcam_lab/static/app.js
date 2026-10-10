@@ -4,6 +4,7 @@ import {
 } from "./picture_play.js";
 import {
   FIST_MAX_PALMS, HEART_TIPS_PALMS, HEART_THUMBS_PALMS, HEART_WRISTS_PALMS,
+  HEART_CLEFT_PALMS, HEART_POINT_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
   coverFrame, handShape, heartRatios, isHeartShape, mapMirroredLandmark, syntheticHand,
   traceProgress,
@@ -40,10 +41,22 @@ const MISS_GAGS = {
 };
 const OBJECT_GAMES = new Set(["fruit-cut","balloon","fish","popcorn"]);
 const PICTURE_PLAY = new Set(["color-picture","connect-dots","trace-outline"]);
+const AUDIO_GAMES = new Set([
+  "repeat-after-me","pronounce-word","rhyme-time","listen-answer","missing-word",
+  "opposites","explain-it","sum-it-up","prove-it","story-order","how-many",
+  "same-or-different","finish-the-line","spell-aloud",
+]);
+function isAudioGame(game = state.game) {
+  return game === "say-letter" || AUDIO_GAMES.has(game);
+}
 // Keep in lockstep with game_engine.GAME_MENU / /api/child/content. A game in
 // the menu without a matching chooseGame + update* branch is a missing game.
 const GAMES = [
-  "trace-letter","trace-picture","color-picture","connect-dots","trace-outline","say-letter","oh-behave","heart","idea",
+  "trace-letter","trace-picture","color-picture","connect-dots","trace-outline","say-letter",
+  "repeat-after-me","pronounce-word","rhyme-time","listen-answer","missing-word",
+  "opposites","explain-it","sum-it-up","prove-it","story-order","how-many",
+  "same-or-different","finish-the-line","spell-aloud",
+  "oh-behave","heart","idea",
   "fist-bump","wow","blow-kiss","wink","make-pose","balloon","fish","popcorn",
   "fruit-cut","air-drums","bird-flap","head-bop","face-chase","stand-sit",
   "dance-freeze","rainbow-reach",
@@ -63,7 +76,7 @@ const state = {
   beatAt:0, recognition:null, activityEvents:[], spokenPrompt:"Let's play!",
   localKey:"theodoreChildrenFunV1", roundId:0, roundDone:false, roundTimer:0,
   failTimer:0, audio:null, padHeld:false, hitCount:0, lastTip:null,
-  handMotion:0, serverTts:null, speechToken:0
+  handMotion:0, serverTts:null, speechToken:0, audioIndex:0, audioRound:null
 };
 
 const canvas = $("overlay");
@@ -554,7 +567,7 @@ function gestureReadout() {
     case "heart": {
       const m=heartMetrics(hands);
       if (!m) return `need 2 hands (have ${hands.length})`;
-      return `tips ${near(m.tips)}/<${HEART_TIPS_PALMS} · thumbs ${near(m.thumbs)}/<${HEART_THUMBS_PALMS} · wrists ${near(m.wrists)}/>${HEART_WRISTS_PALMS}`;
+      return `tips ${near(m.tips)}/<${HEART_TIPS_PALMS} · thumbs ${near(m.thumbs)}/<${HEART_THUMBS_PALMS} · cleft ${near(m.cleft)}/>${HEART_CLEFT_PALMS} · point ${near(m.point)}/>${HEART_POINT_PALMS} · wrists ${near(m.wrists)}/>${HEART_WRISTS_PALMS}`;
     }
     case "fist-bump":
       if (!hands.length) return "no hand";
@@ -850,7 +863,10 @@ function chooseGame() {
   clearRound();
   const select=$("game");
   if (!select) return;
-  state.game=select.value;state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
+  const previousGame=state.game;
+  state.game=select.value;
+  if (state.game!==previousGame) state.audioIndex=0;
+  state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
   updateGuideLayer();
   const letter=$("letter")?.value,word=LETTER_WORDS[letter];
   if(state.game==="trace-letter"){
@@ -867,11 +883,15 @@ function chooseGame() {
     else setPrompt(`Trace the ${word}`,"Follow the outline with one finger. It does not need to be perfect.",`Trace the outline of the ${word}.`);
   }
   else if(state.game==="say-letter")setPrompt(`Say ${letter}`,"Tap the microphone or type what you said.",`Listen, then say the letter ${letter}.`);
+  else if(AUDIO_GAMES.has(state.game)){
+    setPrompt("Listen","Theodore is getting the next listening round.");
+    void armAudioRound(round);
+  }
   else if(state.game==="oh-behave"){
     state.targetRegion=randomRegion();state.targetExpression=randomOf(EXPRESSIONS);state.deadline=performance.now()+state.timerMs;
     $("countdown")?.classList.remove("hidden");setTarget(state.targetRegion,expressionEmoji(state.targetExpression));
     setPrompt("Oh behave!",`Make a ${state.targetExpression} face inside the glowing circle.`);
-  } else if(state.game==="heart"){setTarget(randomRegion(),"💖");setPrompt("Make a heart","Cup both hands together like a heart.");}
+  } else if(state.game==="heart"){setTarget(randomRegion(),"💖");setPrompt("Make a heart","Use both hands. Fingertips dip together at the top and thumbs meet at the bottom. A circle does not count.");}
   else if(state.game==="idea"){setTarget("top","☝️");setPrompt("I have an idea!","Hold one index finger up in the air.");}
   else if(state.game==="fist-bump"){setTarget("center","👊");setPrompt("Fist bump!","Make a fist and bump Theodore.");}
   else if(state.game==="wow"){setTarget(randomRegion(),"😮");setPrompt("Wow face!","Open your mouth and raise your eyebrows like a surprise.");}
@@ -896,8 +916,10 @@ function chooseGame() {
   } else if(state.game==="dance-freeze"){setPrompt("Dance!","Move any way you like… freeze when Theodore says freeze.");spawnObject("","🎵");}
   else if(state.game==="rainbow-reach"){setPrompt("Rainbow reach","Stretch both hands toward opposite top corners.");}
   else if(!GAMES.includes(state.game)){setPrompt("Pick a game","That activity is not wired yet. Choose another from the list.");}
-  tellActivity(state.spokenPrompt);
-  speak(state.spokenPrompt);
+  if (!AUDIO_GAMES.has(state.game)) {
+    tellActivity(state.spokenPrompt);
+    speak(state.spokenPrompt);
+  }
 }
 function tellActivity(prompt) {
   if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__ || !prompt) return;
@@ -949,6 +971,7 @@ function succeed(message) {
   const round=state.roundId;
   const advanceLetter=state.game==="trace-letter"||PICTURE_PLAY.has(state.game);
   if(state.game==="oh-behave")state.timerMs=nextTimer(true);
+  if (AUDIO_GAMES.has(state.game)) state.audioIndex=(state.audioIndex||0)+1;
   const result=calculateFun(true);state.fun=result.score;renderScore();fireworks();setPrompt("You did it!",message);
   recordEvent("success",result);tellActivity(`The child succeeded. Celebrate in one short sentence: ${message}`);speak(`You did it! ${message}`);
   clearTimeout(state.roundTimer);
@@ -1090,7 +1113,7 @@ function applySpokenActivity(text, role) {
       return true;
     }
   }
-  if (role !== "user" || state.game !== "say-letter") return false;
+  if (role !== "user" || !isAudioGame()) return false;
   const typed = $("typed");
   if (typed) typed.value = text;
   checkSpeech(text);
@@ -1142,8 +1165,8 @@ window.addEventListener("theodore-live-audio-utterance", (event) => {
 });
 
 function startListening() {
-  if (state.game!=="say-letter") {
-    setPrompt("Say the letter first","Switch to Say the letter, then use the microphone.");
+  if (!isAudioGame()) {
+    setPrompt("Pick a listening game","Choose Say the letter or a game under Listen, then use the microphone.");
     return;
   }
   const Ctor=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -1154,17 +1177,38 @@ function startListening() {
   rec.onerror=e=>setPrompt("Mic paused",`Try typing instead (${e.error}).`);
   rec.onend=()=>setText("mic","🎤 Say it");rec.start();
 }
+async function armAudioRound(round) {
+  const game = state.game;
+  const index = state.audioIndex || 0;
+  try {
+    const response = await fetch(`/api/child/audio-round?game=${encodeURIComponent(game)}&index=${index}`);
+    if (!response.ok) throw new Error(String(response.status));
+    const data = await response.json();
+    if (state.roundId !== round || state.game !== game) return;
+    state.audioRound = data;
+    setPrompt(data.title, data.prompt, data.speak);
+    tellActivity(data.speak);
+    speak(data.speak);
+  } catch (error) {
+    if (state.roundId !== round) return;
+    setPrompt("Listen again", "I could not load that listening round.");
+  }
+}
 async function checkSpeech(heard) {
-  if (state.game!=="say-letter") {
-    setPrompt("Say the letter first","Switch to Say the letter, then check what was said.");
+  if (!isAudioGame()) {
+    setPrompt("Pick a listening game","Choose Say the letter or a game under Listen, then check what was said.");
     return;
   }
-  const letter=$("letter")?.value;
-  try{
-    const response=await fetch("/api/child/pronounce",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({target:letter,heard,kind:"letter"})});
+  try {
+    const response = state.game === "say-letter"
+      ? await fetch("/api/child/pronounce", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({target:$("letter")?.value, heard, kind:"letter"})})
+      : await fetch("/api/child/audio-check", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({game:state.game, round_id:state.audioRound?.round_id || "", heard})});
     if (!response.ok) throw new Error(String(response.status));
-    const result=await response.json();result.passed?succeed(result.feedback):fail(result.feedback);
-  }catch(error){setPrompt("Try again","I could not check that answer.");}
+    const result = await response.json();
+    result.passed ? succeed(result.feedback) : fail(result.feedback);
+  } catch (error) {
+    setPrompt("Try again", "I could not check that answer.");
+  }
 }
 
 function recordEvent(outcome,result) {
@@ -1227,6 +1271,25 @@ for (const id of ["show-face","show-hands","show-trail","show-measures","show-re
 }
 $("mute")?.addEventListener("click",()=>{state.muted=!state.muted;setText("mute",state.muted?"🔇":"🔊");$("mute")?.setAttribute("aria-pressed",String(state.muted));if(state.muted)cancelSpeech();});
 $("fullscreen")?.addEventListener("click",()=>document.fullscreenElement?document.exitFullscreen():$("play")?.requestFullscreen?.());
+function setChromeHidden(hidden){
+  document.body.classList.toggle("chrome-hidden",!!hidden);
+  const btn=$("chrome-toggle");
+  if(!btn) return;
+  const innerFull=document.fullscreenElement===$("play");
+  btn.hidden=!innerFull && !hidden;
+  btn.textContent=hidden?"Show options":"Hide options";
+  btn.setAttribute("aria-pressed",String(!!hidden));
+}
+$("chrome-toggle")?.addEventListener("click",()=>setChromeHidden(!document.body.classList.contains("chrome-hidden")));
+document.addEventListener("fullscreenchange",()=>{
+  if(document.fullscreenElement!==$("play")) setChromeHidden(false);
+  else setChromeHidden(document.body.classList.contains("chrome-hidden"));
+});
+window.addEventListener("message",(event)=>{
+  const data=event.data;
+  if(!data||data.type!=="salareen-chrome") return;
+  setChromeHidden(!!data.hidden);
+});
 $("home")?.addEventListener("click",()=>{if(state.stream)state.stream.getTracks().forEach((t)=>t.stop());location.reload();});
 $("clear-data")?.addEventListener("click",()=>{localStorage.removeItem(state.localKey);state.activityEvents=[];state.fun=0;state.combo=0;renderScore();renderDashboard();});
 
