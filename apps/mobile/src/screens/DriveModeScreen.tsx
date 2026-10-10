@@ -23,7 +23,7 @@ import {
 } from "../trainingLocale";
 import {
   checkHandsFreeReadiness, getVoiceEngineDetails, hasWakeWord,
-  openHandsFreeSettings, openPlatformVoiceAssistant, openWakeAssistantSetupGuide,
+  openHandsFreeSettings, openWakeAssistantSetupGuide,
   startVoiceListening, stopVoiceListening, stripWakeWords,
   startAmbientListening, stopAmbientListening, isQuestion, isLikelyEcho,
   type HandsFreeReadiness, type VoiceEngineLabel,
@@ -32,6 +32,7 @@ import {
   resolveEffectiveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle,
 } from "../voiceProfiles";
 import { categoryGradient, theme } from "../theme";
+import { useXaiClassVoice } from "../useXaiClassVoice";
 
 export default function DriveModeScreen({
   courseId, isDriving = false, onBack,
@@ -45,7 +46,7 @@ export default function DriveModeScreen({
   const [playing, setPlaying] = useState(false);
   const [saved, setSaved] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
-  const [assistantStatus, setAssistantStatus] = useState("Say Hey Sala or Salareen to ask a question.");
+  const [assistantStatus, setAssistantStatus] = useState("Voice agent is starting.");
   const [assistantTranscript, setAssistantTranscript] = useState("");
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
@@ -84,9 +85,23 @@ export default function DriveModeScreen({
   // playing after Stop / leaving the screen).
   const playGenRef = useRef(0);
   const setupStartedRef = useRef(false);
+  const agentStartedRef = useRef(false);
+  const xai = useXaiClassVoice(Boolean(course), {
+    mode: "drive",
+    context: course?.segments?.[0]?.text || course?.title || "",
+    language: course?.body_locale || trainingLang,
+    category: course?.category || "",
+    topic: course?.title || "",
+    courseId: course?.id || courseId,
+  });
+  const speakAgentRef = useRef(xai.speakLatest);
+  const interruptAgentRef = useRef(xai.interrupt);
+  speakAgentRef.current = xai.speakLatest;
+  interruptAgentRef.current = xai.interrupt;
 
   function stopSpeech() {
     playGenRef.current++;
+    interruptAgentRef.current();
     stopAllTts();   // stops device voice AND server neural audio
   }
 
@@ -130,6 +145,7 @@ export default function DriveModeScreen({
       setTrainingLang(tloc);
       getAudioCourse(courseId, locale, tloc)
         .then((c) => {
+          agentStartedRef.current = false;
           setCourse(c);
           void prepareHandsFree(c, tloc);
         })
@@ -145,7 +161,7 @@ export default function DriveModeScreen({
     };
   }, [courseId, locale]);
 
-  async function prepareHandsFree(c: AudioCourse, tloc: TrainingLocale) {
+  async function prepareHandsFree(_c: AudioCourse, _tloc: TrainingLocale) {
     if (setupStartedRef.current) return;
     setupStartedRef.current = true;
     setVoiceSetupChecking(true);
@@ -153,30 +169,14 @@ export default function DriveModeScreen({
     setVoiceReadiness(readiness);
     setVoiceEngine(readiness.engine);
     setVoiceSetupChecking(false);
-    if (!readiness.available || !readiness.permissionGranted) {
-      setupStartedRef.current = false;
-      setVoiceSetupOpen(true);
-      setAssistantStatus(
-        readiness.available
-          ? t("drive.voicePermissionDenied", { engine: readiness.engine })
-          : t("drive.voiceUnavailable", { engine: readiness.engine }),
-      );
-      // Playback is pure TTS and needs no mic — start the course anyway (the
-      // web client degrades the same way) instead of trapping the learner on
-      // a blocking setup sheet.
-      playFrom(c, 0, tloc);
-      return;
-    }
     setVoiceSetupOpen(false);
-    const listeningStarted = await startAmbient();
-    if (!listeningStarted) {
-      setupStartedRef.current = false;
-      setVoiceSetupOpen(true);
-      setAssistantStatus(t("drive.voiceUnavailable", { engine: readiness.engine }));
-      playFrom(c, 0, tloc);
+    if (!readiness.permissionGranted) {
+      setAssistantStatus(t("drive.voicePermissionDenied", { engine: readiness.engine }));
       return;
     }
-    playFrom(c, 0, tloc);
+    autoListenRef.current = true;
+    setAutoListen(true);
+    void startAmbient();
   }
 
   function playFrom(c: AudioCourse, i: number, tloc: TrainingLocale = trainingLang) {
@@ -198,19 +198,37 @@ export default function DriveModeScreen({
     // Narrate in the language of the actual text (body_locale), which may
     // differ from the requested training locale when it falls back to English.
     const speakLocale = c.body_locale || tloc;
-    currentNarrationRef.current = `${s.heading}. ${s.text}`;   // for echo filtering
-    speakNatural(`${s.heading}. ${s.text}`, {
-      locale: speakLocale,
-      voiceStyle: voiceStyleRef.current,
-      rate: rateRef.current * prosodyForStyle(voiceStyleRef.current).rate,
-      voiceLocale: voiceLocaleRef.current || undefined,
-      voiceGender: voiceGenderRef.current || undefined,
-      persona: instructorRef.current || undefined,
-      onDone: () => {
-        if (playGenRef.current === gen && segRef.current === i) playFrom(c, i + 1, tloc);
+    const script = `${s.heading}. ${s.text}`;
+    currentNarrationRef.current = script;   // for echo filtering
+    const advance = () => {
+      if (playGenRef.current === gen && segRef.current === i) playFrom(c, i + 1, tloc);
+    };
+    speakAgentRef.current(
+      `drive-${c.id}-${i}-${gen}`,
+      `Read this lesson segment aloud, then stop. Do not ask a question.\n\n${script}`,
+      {
+        onDone: advance,
+        fallback: () => {
+          speakNatural(script, {
+            locale: speakLocale,
+            voiceStyle: voiceStyleRef.current,
+            rate: rateRef.current * prosodyForStyle(voiceStyleRef.current).rate,
+            voiceLocale: voiceLocaleRef.current || undefined,
+            voiceGender: voiceGenderRef.current || undefined,
+            persona: instructorRef.current || undefined,
+            onDone: advance,
+          });
+        },
       },
-    });
+    );
   }
+
+  useEffect(() => {
+    if (!course || agentStartedRef.current) return;
+    if (xai.phase !== "live" && xai.phase !== "unavailable") return;
+    agentStartedRef.current = true;
+    playFrom(course, segRef.current, trainingLang);
+  }, [course, xai.phase, trainingLang]);
 
   function clearResumeTimer() {
     if (resumeTimerRef.current) {
@@ -219,9 +237,8 @@ export default function DriveModeScreen({
     }
   }
 
-  function pauseForAssistant(status = "Listening. Say Hey Sala or Salareen, then ask your question.") {
+  function pauseForAssistant(status = "Voice agent is listening. Ask your question.") {
     clearResumeTimer();
-    segRef.current = -1;
     stopSpeech();
     setPlaying(false);
     setAssistantOpen(true);
@@ -347,7 +364,7 @@ export default function DriveModeScreen({
 
   async function startVoiceRecognition(expectWakeWord = false) {
     // Tapping the mic IS the wake signal, so a spoken wake word is never
-    // required here; only ambient listening needs "Hey Sala".
+    // Tapping Ask is the signal. The voice agent does not need a wake phrase.
     expectWakeRef.current = expectWakeWord;
     // Suspend ambient so only one recognizer is active during the manual capture.
     stopAmbientListening();
@@ -439,14 +456,24 @@ export default function DriveModeScreen({
       playFrom(course, Math.max(0, seg - 1));
       return;
     }
-    const answer = answerFromCourse(course, seg, command);
-    setAssistantAnswer(answer);
-    setAssistantStatus("Answering your question. I will resume automatically unless you pause.");
     stopSpeech();
-    speakNatural(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
-      locale: course.body_locale || trainingLang,
-      voiceStyle: voiceStyleRef.current,
-      onDone: () => resumeCourse(6500),
+    setAssistantStatus("Voice agent is answering.");
+    const askedAt = segRef.current;
+    speakAgentRef.current(`ask-${Date.now()}`, command, {
+      onDone: () => {
+        if (segRef.current < 0) segRef.current = Math.max(0, askedAt);
+        resumeCourse(1200);
+      },
+      fallback: () => {
+        const answer = answerFromCourse(course, seg, command);
+        setAssistantAnswer(answer);
+        setAssistantStatus("Answering your question. I will resume automatically unless you pause.");
+        speakNatural(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
+          locale: course.body_locale || trainingLang,
+          voiceStyle: voiceStyleRef.current,
+          onDone: () => resumeCourse(6500),
+        });
+      },
     });
   }
 
@@ -571,11 +598,9 @@ export default function DriveModeScreen({
 
       <GlassPanel style={styles.assistantBar}>
         <Text style={styles.assistantWake}>
-          {t("drive.assistantWake", { engine: voiceEngine })}
+          {xai.live ? t("drive.assistantWake") : (xai.hint || t("drive.assistantEngineHint"))}
         </Text>
         <Text style={styles.assistantEngine}>
-          {t("drive.assistantEngineHint")}
-          {"\n"}
           {t("drive.autoSubmitHint", { seconds: (pauseSubmitMs / 1000).toFixed(1) })}
         </Text>
         {micLive ? (
@@ -596,7 +621,7 @@ export default function DriveModeScreen({
                 ? partialTranscript
                 : capturing
                   ? t("drive.listeningQuestion")
-                  : t("drive.assistantWake", { engine: voiceEngine })}
+                  : t("drive.handsFreeListening")}
             </Text>
           </View>
         ) : null}
@@ -609,7 +634,7 @@ export default function DriveModeScreen({
             <Text style={autoListen ? styles.assistantBtnText : styles.assistantBtnGhostText}>
               {autoListen
                 ? listening
-                  ? t("drive.handsFreeListening", { engine: voiceEngine })
+                  ? t("drive.handsFreeListening")
                   : t("drive.handsFreeOn")
                 : t("drive.handsFreeOff")}
             </Text>
@@ -630,14 +655,6 @@ export default function DriveModeScreen({
           >
             <Text style={styles.assistantBtnGhostText}>{t("drive.pauseAsk")}</Text>
           </AnimatedPressable>
-          {voiceEngine === "Google" ? (
-            <AnimatedPressable
-              style={[styles.assistantBtn, styles.assistantBtnGhost]}
-              onPress={() => void openPlatformVoiceAssistant()}
-            >
-              <Text style={styles.assistantBtnGhostText}>{t("drive.openGoogle")}</Text>
-            </AnimatedPressable>
-          ) : null}
           <AnimatedPressable
             style={[styles.assistantBtn, styles.assistantBtnGhost]}
             onPress={() => setVoiceSetupOpen(true)}

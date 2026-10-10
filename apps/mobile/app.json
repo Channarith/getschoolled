@@ -3,7 +3,7 @@
     "name": "Salareen",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
-    "version": "0.51.1",
+    "version": "0.51.2",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -35,7 +35,7 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Salareen uses the microphone for hands-free On the Go voice questions (Hey Sala assistant).",
+          "microphonePermission": "Salareen uses the microphone so the On the Go voice agent can hear your questions.",
           "speechRecognitionPermission": "Salareen uses mobile speech recognition so you can ask questions hands-free in On the Go.",
           "androidSpeechServicePackages": [
             "com.google.android.googlequicksearchbox",
@@ -67,7 +67,7 @@
         "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "0.51.1"
+      "buildNumber": "0.51.2"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -85,7 +85,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 5101
+      "versionCode": 5102
     },
     "extra": {
       "deployMode": "cloud",
