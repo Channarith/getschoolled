@@ -407,7 +407,7 @@ function HomeAction({
       style={styles.actionItem}
     >
       <View style={styles.actionIcon}>
-        <Ionicons name={icon} size={23} color="#fff" />
+        <Ionicons name={icon} size={30} color="#fff" />
       </View>
       <Text style={styles.actionLabel} numberOfLines={2}>{label}</Text>
     </AnimatedPressable>
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   hero: { ...theme.typography.hero, color: theme.colors.text, marginTop: 6 },
   heroSub: { color: "#c5cce0", marginTop: 8, ...theme.typography.body },
   actionDock: {
-    alignItems: "flex-start",
+    alignItems: "stretch",
     alignSelf: "stretch",
     backgroundColor: "rgba(8,13,28,0.82)",
     borderColor: "rgba(255,255,255,0.14)",
@@ -453,33 +453,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     marginTop: 18,
-    paddingHorizontal: 4,
-    paddingVertical: 8,
+    padding: 6,
   },
   actionItem: {
     alignItems: "center",
-    overflow: "hidden",
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-    width: "25%",
+    justifyContent: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    width: "50%",
   },
   actionIcon: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.09)",
-    borderRadius: 22,
-    height: 43,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 28,
+    height: 56,
     justifyContent: "center",
-    width: 43,
+    width: 56,
   },
   actionLabel: {
+    alignSelf: "stretch",
     color: theme.colors.text,
-    fontSize: 11,
-    fontWeight: "700",
-    includeFontPadding: false,
-    lineHeight: 14,
-    marginTop: 6,
+    fontSize: 15,
+    fontWeight: "800",
+    lineHeight: 20,
+    marginTop: 8,
     textAlign: "center",
-    width: "100%",
   },
   previewBadge: { color: theme.colors.muted, fontSize: 12, marginTop: 8 },
   errPanel: { marginHorizontal: theme.spacing.screenX, marginBottom: 12 },

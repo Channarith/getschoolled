@@ -136,6 +136,8 @@ def test_coloring_scratches_and_phones_can_switch_touch():
     assert "state.painted[index] = true" not in script
     css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
     assert "body:not(.phone-play) #touch-mode" in css
+    assert "body.phone-play .topbar{flex-wrap:wrap" in css
+    assert "body.phone-play #touch-mode{flex:0 0 auto;white-space:nowrap;font-size:1rem" in css
 
 
 def test_pointer_demo_listens_on_the_stage_not_the_dead_canvas():

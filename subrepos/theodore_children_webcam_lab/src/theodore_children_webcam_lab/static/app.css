@@ -33,7 +33,7 @@ body.phone-play .theodore{width:72px;height:72px}
 body.phone-play h1{font-size:1.55rem}
 body.phone-play .play{min-height:100dvh;height:100dvh;display:flex;flex-direction:column}
 body.phone-play .stage{flex:1 1 auto;height:auto;min-height:0;touch-action:none}
-body.phone-play .topbar{flex-wrap:nowrap;padding:.4rem .6rem}
+body.phone-play .topbar{flex-wrap:wrap;padding:.4rem .6rem}
 body.phone-play .score{display:flex;width:auto;gap:.35rem;font-size:.75rem}
 body.phone-play .score #combo{display:none}
 body.phone-play .brand{font-size:.95rem}
@@ -53,7 +53,7 @@ body.phone-play #chrome-toggle{display:inline-flex}
 body.phone-play.chrome-hidden .stage{height:100dvh}
 body.phone-play.stage-fill .vision-tools,body.phone-play.stage-fill .dashboard{display:none}
 body:not(.phone-play) #touch-mode{display:none!important}
-body.phone-play #touch-mode{flex:0 0 auto;white-space:nowrap;font-size:.72rem;padding:.4rem .55rem}
+body.phone-play #touch-mode{flex:0 0 auto;white-space:nowrap;font-size:1rem;min-height:44px;padding:.45rem .8rem}
 .stage.demo{touch-action:none}
 .countdown{pointer-events:none}
 .spoken-words{margin:0;padding:.55rem .9rem;background:#1e1b4b;color:#fef9c3;text-align:center;font-weight:900;font-size:clamp(1.15rem,2.8vw,1.7rem);line-height:1.35;max-height:4.8rem;overflow:auto}
