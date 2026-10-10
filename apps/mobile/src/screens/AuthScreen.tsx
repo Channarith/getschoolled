@@ -25,7 +25,7 @@ const GOOGLE_WEB_CLIENT_ID = "647091395717-scfbmvsudec5t9vqukk2h8k732bgd3kp.apps
 const GOOGLE_ANDROID_CLIENT_ID = "647091395717-v959uk96ed1f6o11ni7fkv1rni7sblba.apps.googleusercontent.com";
 const FACEBOOK_APP_ID = "1071803295271778";
 
-export default function AuthScreen() {
+export default function AuthScreen({ onBack }: { onBack?: () => void }) {
   const { t, locale, setLocale } = useT();
   const { signIn, signInWithGoogle, signInWithFacebook, signInWithApple, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">("login");
@@ -155,6 +155,11 @@ export default function AuthScreen() {
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      {onBack ? (
+        <Pressable onPress={onBack} testID="auth-back" hitSlop={8} style={styles.backBtn}>
+          <Text style={styles.backText}>{t("guest.back")}</Text>
+        </Pressable>
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -376,6 +381,8 @@ export function AuthLoadingScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  backBtn: { paddingHorizontal: theme.spacing.screenX, paddingTop: 8 },
+  backText: { color: "rgba(255,255,255,0.7)", fontSize: 16 },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: theme.spacing.screenX,

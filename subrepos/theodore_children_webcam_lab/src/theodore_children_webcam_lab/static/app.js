@@ -633,7 +633,19 @@ function updateGuideLayer() {
 function setTarget(region,content,kind="") {
   const [x,y]=REGIONS[region]||REGIONS.center;
   target.className=`target ${kind}`.trim();target.textContent=content;
-  target.style.left=`calc(${x*100}% - 72px)`;target.style.top=`calc(${y*100}% - 72px)`;
+  const {w,h}=stageBox();
+  const size=target.offsetWidth||145;
+  const half=size/2;
+  // Keep the circle on the stage. A fixed 72px inset pushes it off a phone.
+  if (!w || !h) {
+    target.style.left=`calc(${x*100}% - ${half}px)`;
+    target.style.top=`calc(${y*100}% - ${half}px)`;
+    return;
+  }
+  const left=Math.min(Math.max(x*w, half), Math.max(half, w-half));
+  const top=Math.min(Math.max(y*h, half), Math.max(half, h-half));
+  target.style.left=`${left-half}px`;
+  target.style.top=`${top-half}px`;
 }
 function hideTarget(){if(!target)return;target.classList.add("hidden");target.textContent="";}
 
@@ -1216,6 +1228,11 @@ function recordEvent(outcome,result) {
     components:result.components,celebration_kind:outcome==="success"?"fireworks":"",miss_gag_id:outcome==="retry"?state.lastGag||"":"",theme_pack:state.theme,seated_only:state.seated};
   state.activityEvents.push(event);state.activityEvents=state.activityEvents.slice(-100);
   localStorage.setItem(state.localKey,JSON.stringify(state.activityEvents));renderDashboard();
+  try {
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({type:"salareen-telemetry", event}));
+    }
+  } catch (_) {}
   if(state.share)fetch("/api/child/analytics",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(event),keepalive:true}).catch(()=>{});
 }
 function loadLocalAnalytics(){try{state.activityEvents=JSON.parse(localStorage.getItem(state.localKey)||"[]");if(!Array.isArray(state.activityEvents))state.activityEvents=[];}catch(_){state.activityEvents=[];}renderDashboard();}
@@ -1256,6 +1273,12 @@ function applyDemoPointer(event) {
 }
 
 stage?.addEventListener("pointermove",applyDemoPointer);
+stage?.addEventListener("pointerdown",(event)=>{
+  if (!state.demo) return;
+  event.preventDefault();
+  stage.setPointerCapture?.(event.pointerId);
+  applyDemoPointer(event);
+});
 stage?.addEventListener("pointerleave",()=>{if(state.demo)state.handData=[];});
 $("start").addEventListener("click",()=>start(true));$("demo").addEventListener("click",()=>start(false));
 $("play-game").addEventListener("click",()=>chooseGame());
@@ -1270,20 +1293,35 @@ for (const id of ["show-face","show-hands","show-trail","show-measures","show-re
   $(id)?.addEventListener("change",renderVisionReadout);
 }
 $("mute")?.addEventListener("click",()=>{state.muted=!state.muted;setText("mute",state.muted?"🔇":"🔊");$("mute")?.setAttribute("aria-pressed",String(state.muted));if(state.muted)cancelSpeech();});
-$("fullscreen")?.addEventListener("click",()=>document.fullscreenElement?document.exitFullscreen():$("play")?.requestFullscreen?.());
+function phonePlay(){
+  return document.body.classList.contains("phone-play");
+}
+$("fullscreen")?.addEventListener("click",()=>{
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.();
+    document.body.classList.remove("stage-fill");
+    return;
+  }
+  const play=$("play");
+  const request=play?.requestFullscreen?.();
+  if (request && request.catch) request.catch(()=>document.body.classList.add("stage-fill"));
+  else document.body.classList.add("stage-fill");
+});
 function setChromeHidden(hidden){
   document.body.classList.toggle("chrome-hidden",!!hidden);
   const btn=$("chrome-toggle");
   if(!btn) return;
   const innerFull=document.fullscreenElement===$("play");
-  btn.hidden=!innerFull && !hidden;
+  btn.hidden=!phonePlay() && !innerFull && !hidden;
   btn.textContent=hidden?"Show options":"Hide options";
   btn.setAttribute("aria-pressed",String(!!hidden));
 }
 $("chrome-toggle")?.addEventListener("click",()=>setChromeHidden(!document.body.classList.contains("chrome-hidden")));
 document.addEventListener("fullscreenchange",()=>{
-  if(document.fullscreenElement!==$("play")) setChromeHidden(false);
-  else setChromeHidden(document.body.classList.contains("chrome-hidden"));
+  if(document.fullscreenElement!==$("play")) {
+    document.body.classList.remove("stage-fill");
+    setChromeHidden(false);
+  } else setChromeHidden(document.body.classList.contains("chrome-hidden"));
 });
 window.addEventListener("message",(event)=>{
   const data=event.data;
@@ -1296,6 +1334,15 @@ $("clear-data")?.addEventListener("click",()=>{localStorage.removeItem(state.loc
 // Deterministic visual smoke-test entry point: no camera permission prompt and
 // no recording. It is also useful when an adult wants to inspect every overlay
 // before allowing camera access.
+const embedMobile=new URLSearchParams(location.search).get("embed")==="mobile"
+  || window.matchMedia("(max-width: 760px)").matches;
+if (embedMobile) {
+  document.body.classList.add("phone-play");
+  const share=$("share");
+  if (share) share.checked=true;
+  $("vision-tools")?.removeAttribute("open");
+  setChromeHidden(false);
+}
 if (new URLSearchParams(location.search).get("demo")==="1") {
   requestAnimationFrame(()=>start(false));
 }

@@ -22,3 +22,29 @@ button,select,input{font:inherit}button,select,input{border:2px solid rgba(255,2
 @keyframes burstPop{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}60%{transform:translate(-50%,-50%) scale(1.3)}100%{transform:translate(-50%,-120%) scale(1.1);opacity:0}}
 #stage.voice-shift{box-shadow:0 0 0 4px #5eead4;transition:box-shadow .2s ease}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}.firework{box-shadow:0 0 30px 14px var(--c)}#stage.voice-shift{box-shadow:none}}
+
+/* Phone and the in-app embed. The camera stage keeps most of the screen so
+   two hands, a finger trace, and a rising balloon stay inside the frame.
+   Controls stay a 44px row instead of pushing the stage off screen. */
+body.phone-play .setup>button{min-height:44px;width:100%}
+body.phone-play .setup{padding:1rem}
+body.phone-play .theodore{width:72px;height:72px}
+body.phone-play h1{font-size:1.55rem}
+body.phone-play .play{min-height:100dvh;height:100dvh;display:flex;flex-direction:column}
+body.phone-play .stage{flex:1 1 auto;height:auto;min-height:0;touch-action:none}
+body.phone-play .topbar{flex-wrap:nowrap;padding:.4rem .6rem}
+body.phone-play .score{display:flex;width:auto;gap:.35rem;font-size:.75rem}
+body.phone-play .score #combo{display:none}
+body.phone-play .brand{font-size:.95rem}
+body.phone-play .vision-tools,body.phone-play .dashboard{display:none}
+body.phone-play .controls{position:sticky;bottom:0;z-index:8;flex-wrap:nowrap;overflow-x:auto;padding:.4rem .55rem calc(.4rem + env(safe-area-inset-bottom));background:#0f172a}
+body.phone-play .controls button,body.phone-play .controls select,body.phone-play .topbar button{min-height:44px;min-width:44px}
+body.phone-play .target{width:min(120px,34vmin);height:min(120px,34vmin);font-size:clamp(2rem,10vmin,3.4rem)}
+body.phone-play .sprite{font-size:clamp(2.75rem,16vmin,4.5rem)}
+body.phone-play .prompt{top:auto;bottom:.45rem;max-width:94%;padding:.4rem .7rem}
+body.phone-play .prompt strong{font-size:1rem}
+body.phone-play .vision-readout,body.phone-play .vision-status{display:none}
+body.phone-play #chrome-toggle{display:inline-flex}
+body.phone-play.chrome-hidden .stage{height:100dvh}
+body.phone-play.stage-fill .vision-tools,body.phone-play.stage-fill .dashboard{display:none}
+.stage.demo{touch-action:none}

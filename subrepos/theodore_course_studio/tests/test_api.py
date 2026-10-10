@@ -43,6 +43,8 @@ def test_health_and_studio_page():
     assert 'id="btn-fullscreen"' in page.text
     assert 'id="btn-chrome"' in page.text
     assert "setStudioChromeHidden" in page.text
+    assert "phone-embed" in page.text
+    assert "salareen-telemetry" in page.text
     assert "salareen-chrome" in page.text
     assert 'id="student-cam"' in page.text
     assert 'id="student-cam-hide"' in page.text

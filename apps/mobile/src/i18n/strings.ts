@@ -110,6 +110,8 @@ export type StringKey =
   | "auth.forgot" | "auth.sendReset" | "auth.resetPw" | "auth.resetToken"
   | "auth.resetSent" | "auth.resetDone" | "auth.resetTokenRequired" | "auth.browseGuest"
   | "auth.mfaTitle" | "auth.mfaSub" | "auth.mfaCode" | "auth.mfaVerify" | "auth.mfaCancel"
+  | "guest.kicker" | "guest.tryDemo" | "guest.logIn" | "guest.back"
+  | "guest.webFailed" | "guest.loading"
   // Preview / guest browse
   | "preview.lockedTitle" | "preview.lockedBody" | "preview.signIn"
   // Rewards
@@ -541,6 +543,12 @@ const EN: Record<StringKey, string> = {
   "auth.resetSent": "Reset instructions sent — check your email (or use the dev token below).",
   "auth.resetDone": "Password updated — sign in with your new password.",
   "auth.browseGuest": "Browse without signing in",
+  "guest.kicker": "AI-instructed learning",
+  "guest.tryDemo": "Try the demo",
+  "guest.logIn": "Log in",
+  "guest.back": "← Back",
+  "guest.webFailed": "Could not open this demo. Check your connection and try again.",
+  "guest.loading": "Opening the demo…",
   "auth.mfaTitle": "Two-factor authentication",
   "auth.mfaSub": "Enter the 6-digit code from your authenticator app.",
   "auth.mfaCode": "Authentication code",
