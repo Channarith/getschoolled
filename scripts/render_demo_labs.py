@@ -47,10 +47,12 @@ def selected(text: str) -> str:
 
 
 def by_kind(text: str, kind: str) -> str:
+    # kustomize writes apiVersion before kind. Match the kind line, not a prefix.
+    needle = f"kind: {kind}"
     kept = [
         doc.strip() + "\n"
         for doc in documents(text)
-        if doc.lstrip().startswith(f"kind: {kind}\n")
+        if needle in {line.strip() for line in doc.splitlines()}
     ]
     if not kept:
         raise SystemExit(f"no demo-lab documents of kind {kind}")
