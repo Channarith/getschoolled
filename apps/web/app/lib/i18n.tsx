@@ -45,11 +45,18 @@ export function detectInitialLocale(): Locale {
   } catch {
     /* localStorage may be blocked in private mode */
   }
-  // 2. Browser language.
-  const candidates = (navigator.languages || [navigator.language || ""])
-    .map((c) => (c || "").toLowerCase().split("-")[0]);
-  for (const c of candidates) {
-    if (isSupported(c)) return c;
+  // 2. Browser language. zh-HK / yue is Cantonese; other zh tags stay Mandarin.
+  const tags = (navigator.languages || [navigator.language || ""]).map((c) =>
+    (c || "").toLowerCase().replace(/_/g, "-"),
+  );
+  for (const tag of tags) {
+    if (
+      tag === "yue" || tag.startsWith("yue-") ||
+      tag === "zh-hk" || tag.startsWith("zh-hk") ||
+      tag === "zh-mo" || tag.startsWith("zh-mo")
+    ) return "yue";
+    const base = tag.split("-")[0];
+    if (isSupported(base)) return base;
   }
   return DEFAULT_LOCALE;
 }
@@ -113,7 +120,12 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     void getMe()
       .then((acct) => {
-        const pref = (acct.preferred_language || "").toLowerCase().split("-")[0];
+        const prefRaw = (acct.preferred_language || "").toLowerCase().replace(/_/g, "-");
+        const pref = (
+          prefRaw === "yue" || prefRaw.startsWith("yue-") ||
+          prefRaw === "zh-hk" || prefRaw.startsWith("zh-hk") ||
+          prefRaw === "zh-mo" || prefRaw.startsWith("zh-mo")
+        ) ? "yue" : prefRaw.split("-")[0];
         if (alive && pref && isSupported(pref)) {
           setLocaleState(pref);
           try { window.localStorage.setItem(STORAGE_KEY, pref); } catch { /* ignore */ }

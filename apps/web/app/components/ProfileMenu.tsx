@@ -105,6 +105,7 @@ export default function ProfileMenu() {
           role="menu"
           style={{
             position: "absolute", right: 0, top: "calc(100% + 8px)", minWidth: 240,
+            maxWidth: "min(320px, calc(100vw - 24px))", maxHeight: "min(70vh, 520px)", overflowY: "auto",
             background: "var(--panel)", border: "1px solid var(--border)",
             borderRadius: 12, boxShadow: "0 12px 36px rgba(0,0,0,.45)",
             padding: 8, zIndex: 1000,

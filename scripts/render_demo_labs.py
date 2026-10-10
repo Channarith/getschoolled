@@ -2,18 +2,19 @@
 """Keep only the public demo lab documents from a kustomize render.
 
 The full VKE overlay is too broad to apply on every deploy (it can fight
-digest pins and Redis volume claims). Demo deploys need just course-studio
-and children-lab, already rewritten to the production registry.
+digest pins and Redis volume claims). Demo deploys need course-studio,
+children-lab, and audio-lab, already rewritten to the production registry.
 
 Usage:
   kubectl kustomize infra/k8s-vke | python3 scripts/render_demo_labs.py
+  python3 scripts/render_demo_labs.py --kind Deployment --name audio-lab
 """
 
 from __future__ import annotations
 
 import sys
 
-NAMES = ("course-studio", "children-lab")
+NAMES = ("course-studio", "children-lab", "audio-lab")
 
 
 def documents(text: str) -> list[str]:
@@ -31,16 +32,17 @@ def documents(text: str) -> list[str]:
     return docs
 
 
-def selected(text: str) -> str:
+def selected(text: str, names: tuple[str, ...] = NAMES) -> str:
     picked: list[str] = []
     for doc in documents(text):
         body = f"\n{doc}"
-        if any(f"\n  name: {name}\n" in body for name in NAMES):
+        if any(f"\n  name: {name}\n" in body for name in names):
             picked.append(doc.strip() + "\n")
-    if len(picked) != 4:
-        names = ", ".join(NAMES)
+    expected = 2 * len(names)
+    if len(picked) != expected:
+        listed = ", ".join(names)
         raise SystemExit(
-            f"expected 4 demo-lab documents (Deployment+Service for {names}), "
+            f"expected {expected} demo-lab documents (Deployment+Service for {listed}), "
             f"found {len(picked)}"
         )
     return "---\n".join(picked)
@@ -59,14 +61,34 @@ def by_kind(text: str, kind: str) -> str:
     return "---\n".join(kept)
 
 
-def main() -> None:
-    args = sys.argv[1:]
+def _parse_args(argv: list[str]) -> tuple[str, str]:
     kind = ""
-    if args:
-        if len(args) != 2 or args[0] != "--kind" or args[1] not in {"Service", "Deployment"}:
-            raise SystemExit("usage: render_demo_labs.py [--kind Service|Deployment]")
-        kind = args[1]
-    body = selected(sys.stdin.read())
+    name = ""
+    i = 0
+    while i < len(argv):
+        flag = argv[i]
+        if flag not in {"--kind", "--name"} or i + 1 >= len(argv):
+            raise SystemExit(
+                "usage: render_demo_labs.py [--kind Service|Deployment] "
+                "[--name course-studio|children-lab|audio-lab]"
+            )
+        value = argv[i + 1]
+        if flag == "--kind":
+            if value not in {"Service", "Deployment"}:
+                raise SystemExit("usage: render_demo_labs.py [--kind Service|Deployment]")
+            kind = value
+        else:
+            if value not in NAMES:
+                raise SystemExit(f"unknown demo lab {value}")
+            name = value
+        i += 2
+    return kind, name
+
+
+def main() -> None:
+    kind, name = _parse_args(sys.argv[1:])
+    names = (name,) if name else NAMES
+    body = selected(sys.stdin.read(), names)
     sys.stdout.write(by_kind(body, kind) if kind else body)
 
 

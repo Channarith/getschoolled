@@ -587,7 +587,7 @@ function AppInner() {
     screen = (
       <SearchScreen
         onBack={() => setShowSearch(false)}
-        onOpenCourse={(id, deepLink) => { setShowSearch(false); openCourse(id, deepLink); }}
+        onOpenCourse={(id, deepLink) => { setShowSearch(false); openCatalogItem(id, deepLink); }}
         onOpenSettings={(section) => {
           setShowSearch(false);
           if (section === "account") {

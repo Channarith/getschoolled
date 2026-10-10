@@ -133,6 +133,9 @@ class StudentProfile(BaseModel):
     voice_enrolled_at: Optional[float] = None  # Unix timestamp of enrollment
     # Where this learner left each lesson. Keyed by lesson_id (or course_id).
     course_progress: Dict[str, "LessonProgress"] = Field(default_factory=dict)
+    # Focus, attention, away intervals, and report-card observations.
+    # Shape lives in aoep_shared.learner_focus. Snapshotted with the account.
+    focus_profile: Dict[str, object] = Field(default_factory=dict)
 
 
 class BillingAddress(BaseModel):
@@ -1240,6 +1243,23 @@ class AccountStore:
         prof = self._by_id[account_id].students.get(student_id)
         if prof is not None and self._backfill_profile_score(prof):
             self._persist()
+        return prof
+
+    def _student_or_raise(self, account_id: str, student_id: str) -> StudentProfile:
+        prof = self.get_student(account_id, student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        return prof
+
+    def update_focus_profile(
+        self,
+        account_id: str,
+        student_id: str,
+        profile: dict,
+    ) -> StudentProfile:
+        prof = self._student_or_raise(account_id, student_id)
+        prof.focus_profile = profile
+        self._persist()
         return prof
 
     def enroll_voice(

@@ -12,6 +12,8 @@ import { Image, StyleSheet, Text, View } from "react-native";
 
 import { ensureCameraPermission } from "./cameraPermission";
 import PrimaryButton from "./PrimaryButton";
+import { trackingContinueEnabled } from "../cameraCheck";
+import { useT } from "../i18n";
 import { theme } from "../theme";
 
 type StepId =
@@ -89,6 +91,7 @@ type Props = {
 };
 
 export default function CameraTrackingCheck({ onDone }: Props) {
+  const { t } = useT();
   const [stepIndex, setStepIndex] = useState(0);
   const [status, setStatus] = useState("Tap Allow camera to begin.");
   const [busy, setBusy] = useState(false);
@@ -178,7 +181,7 @@ export default function CameraTrackingCheck({ onDone }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>Camera & tracking check</Text>
+      <Text style={styles.title}>{t("camera.trackTitle")}</Text>
       <Text style={styles.meta}>
         Solo and group classes need a clear camera for presence, attention, movement,
         and integrity tracking.
@@ -199,38 +202,45 @@ export default function CameraTrackingCheck({ onDone }: Props) {
 
       {!permissionOk && !done ? (
         <PrimaryButton
-          label={busy ? "Working…" : "Allow camera"}
+          label={busy ? t("camera.working") : t("camera.allow")}
           onPress={() => void requestPermission()}
           disabled={busy}
         />
       ) : null}
 
-      {permissionOk && !done && !step.needsPhoto ? (
-        <PrimaryButton label="Continue" onPress={confirmStep} />
+      {permissionOk && !done ? (
+        <PrimaryButton
+          label={t("camera.continue")}
+          onPress={confirmStep}
+          disabled={!trackingContinueEnabled(step.needsPhoto, Boolean(photoUri), busy)}
+          testID="camera-tracking-continue"
+        />
       ) : null}
 
       {photoUri && !done ? (
-        <PrimaryButton label="Photo matches the step — continue" onPress={confirmStep} />
+        <View style={styles.saved} pointerEvents="none" accessibilityRole="text">
+          <Text style={styles.savedText}>{t("camera.saved")}</Text>
+        </View>
       ) : null}
 
       {permissionOk && !done && step.needsPhoto && !photoUri ? (
         <PrimaryButton
-          label={busy ? "Working…" : "Capture"}
+          label={busy ? t("camera.working") : t("camera.capture")}
           onPress={() => void capture()}
           disabled={busy}
         />
       ) : null}
 
       {permissionOk && !done && step.needsPhoto ? (
-        <PrimaryButton label="Skip this step" variant="ghost" onPress={skipStep} />
+        <PrimaryButton label={t("camera.skip")} variant="ghost" onPress={skipStep} />
       ) : null}
 
-      {done ? <PrimaryButton label="Done" onPress={() => onDone?.()} /> : null}
+      {done ? <PrimaryButton label={t("camera.done")} onPress={() => onDone?.()} /> : null}
       {photoUri && !done ? (
-        <PrimaryButton label="Retake" variant="ghost" onPress={() => void capture()} />
+        <PrimaryButton label={t("camera.retake")} variant="ghost" onPress={() => void capture()} />
       ) : null}
       <PrimaryButton
-        label="Restart"
+        label={t("camera.restart")}
         variant="ghost"
         onPress={() => {
           setStepIndex(0);
@@ -261,5 +271,17 @@ const styles = StyleSheet.create({
   },
   status: { color: theme.colors.muted, fontSize: 13 },
   list: { marginVertical: 6 },
-  listItem: { color: theme.colors.muted, fontSize: 13, marginBottom: 2 },
+  listItem: { color: theme.colors.muted, fontSize: 13, marginBottom: 2, lineHeight: 18, includeFontPadding: false },
+  saved: {
+    backgroundColor: "#14532d",
+    borderRadius: 8,
+    padding: 10,
+  },
+  savedText: {
+    color: "#bbf7d0",
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 18,
+    includeFontPadding: false,
+  },
 });

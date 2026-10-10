@@ -664,6 +664,65 @@ export async function listStudents(): Promise<{ students: StudentProfile[] }> {
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/students`, { headers: authHeaders(), cache: "no-store" }));
 }
 
+export type FocusEventBody = {
+  kind: string;
+  surface?: string;
+  course_id?: string;
+  context?: string;
+  note?: string;
+  evidence?: Record<string, unknown>;
+};
+
+let focusStudentId = "";
+
+export async function postLearnerFocus(event: FocusEventBody): Promise<void> {
+  if (!getToken()) return;
+  try {
+    if (!focusStudentId) {
+      const listed = await listStudents();
+      focusStudentId = listed.students?.[0]?.id || "";
+    }
+    if (!focusStudentId) return;
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(focusStudentId)}/focus-events`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(event),
+    });
+  } catch {
+    /* Profile recording is best-effort and must not stop the lesson. */
+  }
+}
+
+export type ReportCardCategory = {
+  id: string;
+  category: string;
+  indicator: string;
+  grade: string;
+  score: number | null;
+  summary: string;
+};
+
+export type ReportCard = {
+  student_id: string;
+  context: string;
+  title: string;
+  learner_name: string;
+  overall: { grade: string; score: number | null; summary: string };
+  categories: ReportCardCategory[];
+  identity_check: { status: string; document_type?: string; reference?: string; note?: string };
+  preferences: Record<string, unknown>;
+  focus_periods: { kind: string; note?: string; active?: boolean }[];
+  tendencies: Record<string, number>;
+  limits: string[];
+};
+
+export async function fetchReportCard(studentId: string, context: "children" | "accredited"): Promise<ReportCard> {
+  return jsonOrThrow(await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/report-card?context=${encodeURIComponent(context)}`,
+    { headers: authHeaders(), cache: "no-store" },
+  ));
+}
+
 export type CourseProgress = {
   lesson_id: string;
   course_id: string;

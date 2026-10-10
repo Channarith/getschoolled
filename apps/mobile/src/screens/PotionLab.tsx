@@ -443,7 +443,15 @@ export default function PotionLab({ age, onBack }: Props) {
 const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { color: theme.colors.text, fontSize: 20, fontWeight: "800", flex: 1 },
+  title: {
+    color: theme.colors.text,
+    fontSize: 20,
+    fontWeight: "800",
+    flex: 1,
+    minWidth: 0,
+    lineHeight: 26,
+    includeFontPadding: false,
+  },
   mode: { color: "#a78bfa", fontSize: 13, fontWeight: "700" },
   hud: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
   hudScore: { color: theme.colors.text, fontWeight: "800", fontSize: 15 },

@@ -439,10 +439,25 @@ class SelfTeachVoiceAgent:
     def ask(
         self, user_text: str, *, audio: bool = True
     ) -> VoiceAgentResponse:
-        return self._session.reply(user_text, audio=audio)
+        return self.speak(user_text, audio=audio)
+
+    def speak(
+        self,
+        text: str,
+        *,
+        audio: bool = True,
+        temperature: float = 0.65,
+    ) -> VoiceAgentResponse:
+        """Same contract as ``TeacherVoiceAgent.speak`` so webcam can call either."""
+        return self._session.reply(text, audio=audio, temperature=temperature)
 
     def stream_ask(self, user_text: str) -> Iterator[str]:
-        return self._session.stream_reply(user_text)
+        return self.stream_speak(user_text)
+
+    def stream_speak(
+        self, text: str, *, temperature: float = 0.65
+    ) -> Iterator[str]:
+        return self._session.stream_reply(text, temperature=temperature)
 
     def on_stuck(self, duration_s: float) -> VoiceAgentResponse:
         """Offer a hint when the student appears stuck (no interaction for a while)."""

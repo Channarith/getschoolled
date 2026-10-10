@@ -7,6 +7,7 @@ import AuthScreen from "./AuthScreen";
 import DemoWebScreen from "./DemoWebScreen";
 import { useAndroidBack } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
+import { useLearningPhrase } from "../learningPhrases";
 import { MASCOT_IMAGES } from "../mascots/imageAssets";
 import { PUBLIC_DEMOS, type PublicDemo } from "../publicDemos";
 import { theme } from "../theme";
@@ -15,6 +16,7 @@ type Step = "landing" | "demos" | "login";
 
 export default function GuestHomeScreen() {
   const { t, locale } = useT();
+  const learnPhrase = useLearningPhrase();
   const [step, setStep] = useState<Step>("landing");
   const [demo, setDemo] = useState<PublicDemo | null>(null);
   const mascot = MASCOT_IMAGES[locale] ?? MASCOT_IMAGES.en;
@@ -48,7 +50,7 @@ export default function GuestHomeScreen() {
           <Text style={styles.back}>{t("guest.back")}</Text>
         </Pressable>
         <Image source={mascot} style={styles.mascotSmall} resizeMode="contain" accessibilityIgnoresInvertColors />
-        <Text style={styles.kicker}>{t("guest.kicker")}</Text>
+        <Text style={styles.kicker}>{learnPhrase}</Text>
         {PUBLIC_DEMOS.map((item) => (
           <Pressable
             key={item.id}
@@ -75,7 +77,7 @@ export default function GuestHomeScreen() {
         resizeMode="contain"
         accessibilityLabel="Salareen mascot"
       />
-      <Text style={styles.kicker}>{t("guest.kicker")}</Text>
+      <Text style={styles.kicker}>{learnPhrase}</Text>
       <Pressable
         testID="guest-try-demo"
         style={styles.primary}
@@ -121,7 +123,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 15,
     fontWeight: "600",
+    lineHeight: 22,
     marginBottom: 28,
+    paddingHorizontal: 8,
     textAlign: "center",
   },
   primary: {

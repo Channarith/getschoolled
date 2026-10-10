@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { stopSpeech } from "./tts";
+import {
+  audioJustStarted,
+  createSpeakPlan,
+  noteAgentFailure,
+  noteAudio,
+  noteResponseEnd,
+  requestSpeak,
+  takeQueuedForSend,
+  takeUnheardForFallback,
+  type PlannedTurn,
+  type SpeakPlan,
+} from "./xaiSpeakPlan";
 import { createPcmQueue, type PcmQueue } from "./xaiPcmPlayer";
 import {
   cancelXaiResponse,
@@ -8,6 +21,7 @@ import {
   getXaiVoiceStatus,
   mintXaiVoiceToken,
   sendTextTurn,
+  xaiSpeaksLocale,
   type XaiVoiceMode,
 } from "./xaiVoice";
 
@@ -16,12 +30,11 @@ export type XaiSpeakOpts = {
   fallback?: () => void;
 };
 
-type Queued = XaiSpeakOpts & { id: string; text: string; gen: number };
-
 /**
  * Connects Theodore's xAI Grok voice once class is allowed to start.
- * Speech is queued until the socket is open. If the speech service has no
- * XAI_API_KEY, each request runs `fallback` (device narration) instead.
+ * Each line is spoken once. If the speech service has no voice agent, or the
+ * socket drops before any audio arrives, `fallback` (device narration) runs
+ * instead. Audio that already started is not spoken again on device.
  */
 export function useXaiClassVoice(
   active: boolean,
@@ -29,6 +42,7 @@ export function useXaiClassVoice(
     mode: XaiVoiceMode;
     context: string;
     learnerName?: string;
+    language?: string;
     onTranscript?: (text: string) => void;
   },
 ) {
@@ -38,51 +52,54 @@ export function useXaiClassVoice(
   sessionRef.current = session;
   const wsRef = useRef<WebSocket | null>(null);
   const pcmRef = useRef<PcmQueue | null>(null);
-  const queueRef = useRef<Queued[]>([]);
-  const inflightRef = useRef<Queued | null>(null);
-  const sentRef = useRef<Set<string>>(new Set());
-  const genRef = useRef(0);
-  const finishedGenRef = useRef<number | null>(null);
-  const heardAudioForRef = useRef<number | null>(null);
-  const phaseRef = useRef(phase);
-  phaseRef.current = phase;
+  const planRef = useRef<SpeakPlan>(createSpeakPlan());
+  const optsRef = useRef<Map<string, XaiSpeakOpts>>(new Map());
 
-  const finishInflight = useCallback((gen: number) => {
-    const current = inflightRef.current;
-    inflightRef.current = null;
-    if (current && current.gen === gen) current.onDone?.();
-    const ws = wsRef.current;
-    const next = queueRef.current.shift();
-    if (!next || !ws || ws.readyState !== WebSocket.OPEN) return;
-    inflightRef.current = next;
-    sentRef.current.add(next.id);
-    sendTextTurn(ws, next.text);
-  }, []);
-
-  const drainFallback = useCallback(() => {
-    const pending = queueRef.current.splice(0);
-    inflightRef.current = null;
-    for (const item of pending) {
-      sentRef.current.add(item.id);
-      item.fallback?.();
+  const runFallback = useCallback((turns: PlannedTurn[]) => {
+    if (!turns.length) return;
+    pcmRef.current?.stop();
+    cancelXaiResponse(wsRef.current);
+    stopSpeech();
+    for (const turn of turns) {
+      const opts = optsRef.current.get(turn.id);
+      optsRef.current.delete(turn.id);
+      opts?.fallback?.();
     }
   }, []);
 
   useEffect(() => {
     if (!active) {
+      planRef.current = createSpeakPlan();
       setPhase("idle");
       return;
     }
     let cancelled = false;
+    const plan = createSpeakPlan();
+    plan.phase = "checking";
+    planRef.current = plan;
     setPhase("checking");
     pcmRef.current = createPcmQueue();
     (async () => {
+      const currentLanguage = sessionRef.current.language || "";
+      if (!xaiSpeaksLocale(currentLanguage)) {
+        plan.phase = "unavailable";
+        setPhase("unavailable");
+        const raw = currentLanguage.trim().toLowerCase();
+        setHint(
+          raw === "km" || raw.startsWith("km-")
+            ? "Khmer uses a Cambodian voice, not Grok."
+            : "Cantonese uses a Hong Kong voice, not Grok.",
+        );
+        runFallback(takeUnheardForFallback(plan));
+        return;
+      }
       const status = await getXaiVoiceStatus();
-      if (cancelled) return;
+      if (cancelled || planRef.current !== plan) return;
       if (!status.available) {
+        plan.phase = "unavailable";
         setPhase("unavailable");
         setHint(status.hint || "Grok voice needs XAI_API_KEY on the speech service.");
-        drainFallback();
+        runFallback(takeUnheardForFallback(plan));
         return;
       }
       try {
@@ -91,22 +108,31 @@ export function useXaiClassVoice(
           mode: current.mode,
           lesson_context: current.context,
           learner_names: current.learnerName ? [current.learnerName] : [],
+          language: current.language || "",
         });
-        if (cancelled) return;
+        if (cancelled || planRef.current !== plan) return;
+        if (token.use_xai === false || !token.token || !token.session_update) {
+          plan.phase = "unavailable";
+          setPhase("unavailable");
+          setHint(token.spoken_language?.hint || "This language uses the lesson voice, not Grok.");
+          runFallback(takeUnheardForFallback(plan));
+          return;
+        }
         const ws = connectXaiVoiceSession(token, {
           onOpen: () => {
-            if (cancelled) return;
+            if (cancelled || planRef.current !== plan) return;
             setPhase("live");
             setHint("Theodore is using Grok voice.");
-            const next = queueRef.current.shift();
+            const next = takeQueuedForSend(plan);
             if (!next) return;
-            inflightRef.current = next;
-            sentRef.current.add(next.id);
+            stopSpeech();
             sendTextTurn(ws, next.text);
           },
           onAudioDelta: (chunk) => {
-            const gen = inflightRef.current?.gen;
-            if (gen != null) heardAudioForRef.current = gen;
+            const gen = plan.inflight?.gen ?? null;
+            const heardBefore = plan.heardGen;
+            if (noteAudio(plan, gen) === "drop") return;
+            if (audioJustStarted(plan, gen, heardBefore)) stopSpeech();
             pcmRef.current?.push(chunk);
           },
           onTranscriptDone: (text) => {
@@ -114,33 +140,61 @@ export function useXaiClassVoice(
           },
           onEvent: (event) => {
             const type = String(event.type || "");
+            const status = String(
+              (event.response as { status?: string } | undefined)?.status
+              || event.status
+              || "",
+            );
+            if (type === "error" || status === "failed" || status === "incomplete") {
+              const failed = noteAgentFailure(plan);
+              if (failed) {
+                runFallback([failed]);
+                return;
+              }
+            }
             if (type !== "response.done" && type !== "response.output_audio.done") return;
-            const gen = inflightRef.current?.gen;
-            if (gen == null || heardAudioForRef.current !== gen || finishedGenRef.current === gen) return;
-            finishedGenRef.current = gen;
+            if (noteResponseEnd(plan) !== "finish") return;
+            const gen = plan.inflight?.gen;
             pcmRef.current?.flush(() => {
-              if (inflightRef.current?.gen === gen) finishInflight(gen);
+              if (plan.inflight?.gen !== gen) return;
+              const done = plan.inflight;
+              plan.inflight = null;
+              const opts = done ? optsRef.current.get(done.id) : undefined;
+              if (done) optsRef.current.delete(done.id);
+              opts?.onDone?.();
+              if (plan.inflight || plan.phase !== "live") return;
+              const socket = wsRef.current;
+              if (!socket || socket.readyState !== WebSocket.OPEN) return;
+              const next = takeQueuedForSend(plan);
+              if (!next) return;
+              stopSpeech();
+              sendTextTurn(socket, next.text);
             });
           },
           onError: () => {
-            if (!cancelled) setHint("Grok voice connection error — check the speech service.");
+            if (cancelled || planRef.current !== plan) return;
+            setHint("Grok voice connection error — check the speech service.");
+            plan.phase = "unavailable";
+            setPhase("unavailable");
+            runFallback(takeUnheardForFallback(plan));
           },
           onClose: () => {
-            if (cancelled) return;
+            if (cancelled || planRef.current !== plan) return;
             wsRef.current = null;
-            if (phaseRef.current === "live") {
-              setPhase("unavailable");
-              setHint("Grok voice disconnected.");
-              drainFallback();
-            }
+            if (plan.phase === "idle") return;
+            plan.phase = "unavailable";
+            setPhase("unavailable");
+            setHint("Grok voice disconnected.");
+            runFallback(takeUnheardForFallback(plan));
           },
         });
         wsRef.current = ws;
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled || planRef.current !== plan) return;
+        plan.phase = "unavailable";
         setPhase("unavailable");
         setHint(err instanceof Error ? err.message : "Could not start Grok voice.");
-        drainFallback();
+        runFallback(takeUnheardForFallback(plan));
       }
     })();
     return () => {
@@ -149,46 +203,45 @@ export function useXaiClassVoice(
       pcmRef.current = null;
       closeXaiVoiceSession(wsRef.current);
       wsRef.current = null;
-      inflightRef.current = null;
-      queueRef.current = [];
-      sentRef.current = new Set();
     };
-  }, [active, session.mode, drainFallback, finishInflight]);
+  }, [active, session.mode, session.language, runFallback]);
 
   const interrupt = useCallback(() => {
-    genRef.current += 1;
-    inflightRef.current = null;
-    queueRef.current = [];
-    heardAudioForRef.current = null;
+    const plan = planRef.current;
+    plan.gen += 1;
+    if (plan.inflight) {
+      plan.sent.add(plan.inflight.id);
+      plan.finishedGen = plan.inflight.gen;
+      plan.inflight = null;
+    }
+    for (const queued of plan.queue) plan.sent.add(queued.id);
+    plan.queue = [];
+    plan.heardGen = null;
     cancelXaiResponse(wsRef.current);
     pcmRef.current?.stop();
     pcmRef.current = createPcmQueue();
+    stopSpeech();
   }, []);
 
   const speakLatest = useCallback((id: string, text: string, opts: XaiSpeakOpts = {}) => {
-    const spoken = text.trim();
-    if (!spoken || sentRef.current.has(id)) return;
-    const item: Queued = { id, text: spoken, gen: genRef.current + 1, ...opts };
-    genRef.current = item.gen;
-    if (!active || phaseRef.current === "unavailable") {
-      sentRef.current.add(id);
-      opts.fallback?.();
-      return;
-    }
+    const plan = planRef.current;
+    optsRef.current.set(id, opts);
     const ws = wsRef.current;
-    if (phaseRef.current === "live" && ws && ws.readyState === WebSocket.OPEN) {
-      cancelXaiResponse(ws);
-      heardAudioForRef.current = null;
-      pcmRef.current?.stop();
-      pcmRef.current = createPcmQueue();
-      inflightRef.current = item;
-      queueRef.current = [];
-      sentRef.current.add(id);
-      sendTextTurn(ws, spoken);
+    const canSend = Boolean(ws && ws.readyState === WebSocket.OPEN && plan.phase === "live");
+    const decision = requestSpeak(plan, id, text, active, canSend);
+    if (decision.kind === "ignore") return;
+    optsRef.current.set(id, opts);
+    if (decision.kind === "queue") return;
+    if (decision.kind === "fallback") {
+      runFallback([decision.turn]);
       return;
     }
-    queueRef.current = queueRef.current.filter((queued) => queued.id !== id).concat(item);
-  }, [active]);
+    stopSpeech();
+    cancelXaiResponse(ws);
+    pcmRef.current?.stop();
+    pcmRef.current = createPcmQueue();
+    if (ws) sendTextTurn(ws, decision.turn.text);
+  }, [active, runFallback]);
 
   return {
     phase,

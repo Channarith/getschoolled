@@ -28,6 +28,8 @@
         width:min(330px,calc(100vw - 28px));padding:10px;border:1px solid #5eead4;
         border-radius:16px;background:#07111ef2;color:#f8fafc;box-shadow:0 16px 45px #0009;
         font:700 13px/1.3 system-ui,sans-serif}
+      .box.docked{left:8px;right:8px;width:auto;bottom:max(8px, env(safe-area-inset-bottom))}
+      .box.docked .caption{max-height:2.6em;overflow:hidden}
       .row{display:flex;align-items:center;gap:8px}.title{flex:1;color:#5eead4;font-weight:900}
       select,button{border:1px solid #ffffff55;border-radius:10px;background:#172033;color:#fff;
         padding:7px 9px;font:inherit}button{cursor:pointer}.live{background:#047857}
@@ -49,6 +51,14 @@
   document.body.append(host);
 
   const $ = (selector) => root.querySelector(selector);
+  function syncDock() {
+    const dock = document.body.classList.contains("phone-embed")
+      || document.body.classList.contains("phone-play")
+      || document.body.classList.contains("audio-only");
+    $(".box")?.classList.toggle("docked", dock);
+  }
+  syncDock();
+  new MutationObserver(syncDock).observe(document.body, {attributes: true, attributeFilter: ["class"]});
   const select = $("select"), toggle = $(".toggle"), status = $(".status");
   const caption = $(".caption"), dot = $(".dot");
   $(".close").onclick = () => { stop(); host.remove(); };
@@ -388,14 +398,20 @@
       state.outputGain.connect(state.ctx.destination);
       await startMic();
       await followSpeakers();
+      const pageLang = (document.documentElement.lang || "").trim();
       const response = await fetch(liveAudioUrl("/api/live-audio/token"), {
         method:"POST",headers:{"content-type":"application/json"},
         body:JSON.stringify({
           provider,
+          language: pageLang,
         }),
       });
       if (!response.ok) throw new Error((await response.text()).slice(0, 240));
       const config = await response.json();
+      if (config.use_xai === false) {
+        await stop(config.hint || "This language uses the lesson voice, not Grok.");
+        return false;
+      }
       state.inputRate = Number(config.input_rate) || (provider === "xai" ? 24000 : 16000);
       state.outputRate = Number(config.output_rate) || 24000;
       state.ws = provider === "xai"

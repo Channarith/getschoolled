@@ -51,6 +51,7 @@ _EDGE_VOICES = {
     "vi": "vi-VN-HoaiMyNeural",
     "km": "km-KH-SreymomNeural",
     "zh": "zh-CN-XiaoxiaoNeural",
+    "yue": "zh-HK-HiuMaanNeural",
     "ja": "ja-JP-NanamiNeural",
     "ko": "ko-KR-SunHiNeural",
     "sw": "sw-KE-ZuriNeural",
@@ -154,8 +155,20 @@ def _elevenlabs_key() -> str:
 
 
 def _edge_voice(language: str) -> str:
-    override = os.environ.get(f"AOEP_TTS_VOICE_{language.upper()}", "").strip()
-    return override or _EDGE_VOICES.get(language, _EDGE_VOICES["en"])
+    raw = (language or "en").strip().lower().replace("_", "-")
+    if (
+        raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"}
+        or raw.startswith("yue-")
+        or raw.startswith("zh-hk")
+        or raw.startswith("zh-yue")
+    ):
+        code = "yue"
+    elif raw.startswith("km"):
+        code = "km"
+    else:
+        code = raw.split("-")[0] or "en"
+    override = os.environ.get(f"AOEP_TTS_VOICE_{code.upper()}", "").strip()
+    return override or _EDGE_VOICES.get(code, _EDGE_VOICES["en"])
 
 
 def _edge_tts_available() -> bool:

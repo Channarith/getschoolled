@@ -6,7 +6,8 @@
 // exactly this: a distant child read as a permanent fist.
 import assert from "node:assert/strict";
 import {
-  FIST_MAX_PALMS, HAND_BONES,   coverFrame, fingersPointed, handShape, heartRatios, isHeartShape,
+  FIST_MAX_PALMS, HAND_BONES, SIGNAL_HOLD_MS, AWAY_HOLD_MS, RETURN_HOLD_MS,
+  coverFrame, createPresenceWatch, fingersPointed, handShape, heartRatios, isHeartShape,
   mapMirroredLandmark, palmSpan, syntheticHand, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 
@@ -223,5 +224,39 @@ const tap = traceProgress([{ x: 0.5, y: 0.5 }, { x: 0.51, y: 0.51 }], "7-10");
 assert.equal(tap.passed, false, "a tap is not a letter");
 const offGuide = traceProgress(stroke([0.02, 0.02], [0.08, 0.9], 12), "4-6");
 assert.equal(offGuide.passed, false, "a stroke outside the letter does not finish it");
+
+const watch = createPresenceWatch();
+const phoneFace = {
+  facePresent: true,
+  pitchDeg: 22,
+  gazeDown: 0.6,
+  yawDeg: 0,
+  allowPoseOnly: true,
+  source: "face_mesh",
+};
+assert.equal(watch.update({ ...phoneFace, atMs: 0 }).length, 0);
+const noticed = watch.update({ ...phoneFace, atMs: SIGNAL_HOLD_MS });
+assert.equal(noticed[0].kind, "looking_at_phone");
+assert.equal(noticed[0].signal, "pitch_and_gaze");
+assert.equal(watch.update({ facePresent: false, atMs: SIGNAL_HOLD_MS + 400, source: "face_mesh" }).length, 0);
+const paused = watch.update({ facePresent: false, atMs: SIGNAL_HOLD_MS + 400 + AWAY_HOLD_MS, source: "face_mesh" });
+assert.equal(paused[0].type, "pause");
+const back = { ...phoneFace, pitchDeg: 2, gazeDown: 0 };
+assert.equal(watch.update({ ...back, atMs: 8000 }).length, 0);
+const resumed = watch.update({ ...back, atMs: 8000 + RETURN_HOLD_MS });
+assert.equal(resumed[0].type, "resume");
+assert.ok(resumed[0].awayMs >= AWAY_HOLD_MS);
+
+const yunet = createPresenceWatch();
+const turned = {
+  facePresent: true,
+  pitchDeg: 40,
+  gazeDown: null,
+  yawDeg: 0,
+  allowPoseOnly: false,
+  source: "yunet",
+};
+assert.equal(yunet.update({ ...turned, atMs: 0 }).length, 0);
+assert.equal(yunet.update({ ...turned, atMs: SIGNAL_HOLD_MS }).length, 0, "five-point yaw-free face is not a phone");
 
 console.log("vision geometry OK");

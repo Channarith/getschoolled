@@ -44,9 +44,16 @@ def _scenario_pack_records() -> List[dict]:
     try:
         from ..content_packs import load_records
 
-        return load_records("scenarios")
+        rows = list(load_records("scenarios"))
     except Exception:  # pragma: no cover - defensive
-        return []
+        rows = []
+    try:
+        from ..class_scenes import scenario_pack_records
+
+        rows.extend(scenario_pack_records())
+    except Exception:  # pragma: no cover - defensive
+        pass
+    return rows
 
 
 def catalog_meta() -> dict:

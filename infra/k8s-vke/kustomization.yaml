@@ -47,6 +47,9 @@ images:
   - name: ghcr.io/aoep/children-lab
     newName: sjc.vultrcr.com/salareen/children-lab
     newTag: latest
+  - name: ghcr.io/aoep/audio-lab
+    newName: sjc.vultrcr.com/salareen/audio-lab
+    newTag: latest
   - name: ghcr.io/aoep/cosyvoice
     newName: sjc.vultrcr.com/salareen/cosyvoice
     newTag: latest

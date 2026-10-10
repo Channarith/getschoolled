@@ -19,6 +19,8 @@ def test_normalize_language_coerces_locales():
     assert normalize_language("PT-BR") == "pt"
     assert normalize_language("EN") == "en"
     assert normalize_language("km") == "km"
+    assert normalize_language("yue") == "yue"
+    assert normalize_language("zh-HK") == "zh"  # content tag stays Mandarin
     assert normalize_language("zz") == ""       # unsupported
     assert normalize_language("") == ""
 
@@ -26,4 +28,7 @@ def test_normalize_language_coerces_locales():
 def test_language_name_lookup():
     assert language_name("es") == "Spanish"
     assert language_name("km") == "Khmer"
+    assert language_name("yue") == "Cantonese"
+    assert language_name("zh-HK") == "Cantonese"
+    assert language_name("zh") == "Chinese"
     assert language_name("zz") == ""

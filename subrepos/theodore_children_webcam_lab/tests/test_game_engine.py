@@ -49,6 +49,7 @@ def test_listening_games_cover_voice_and_understanding():
     assert score_audio("same-or-different", "moon", "same")["passed"] is False
     assert score_audio("finish-the-line", "fish", "water")["passed"] is True
     assert score_audio("spell-aloud", "cat", "see ay tee")["passed"] is True
+    assert score_audio("spell-aloud", "cat", "cat")["passed"] is False
     assert score_audio("spell-aloud", "cat", "dog")["passed"] is False
 
 

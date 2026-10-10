@@ -18,13 +18,33 @@ const LOCALE_TO_BCP47: Record<string, string> = {
   en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT",
   pt: "pt-BR", nl: "nl-NL", pl: "pl-PL", ru: "ru-RU", uk: "uk-UA",
   tr: "tr-TR", ar: "ar-SA", he: "he-IL", hi: "hi-IN", bn: "bn-BD",
-  ur: "ur-PK", fa: "fa-IR", zh: "zh-CN", ja: "ja-JP", ko: "ko-KR",
+  ur: "ur-PK", fa: "fa-IR", zh: "zh-CN", yue: "zh-HK", ja: "ja-JP", ko: "ko-KR",
   vi: "vi-VN", th: "th-TH", id: "id-ID", sw: "sw-KE", el: "el-GR",
   cs: "cs-CZ", km: "km-KH",
 };
 
 export function localeToBcp47(locale: string): string {
-  return LOCALE_TO_BCP47[locale] || locale || "en-US";
+  const raw = (locale || "").trim().toLowerCase().replace(/_/g, "-");
+  if (
+    raw === "yue" || raw.startsWith("yue-") ||
+    raw === "zh-hk" || raw.startsWith("zh-hk") ||
+    raw === "zh-mo" || raw.startsWith("zh-mo")
+  ) return "zh-HK";
+  if (raw === "km" || raw.startsWith("km-")) return "km-KH";
+  if (raw === "zh" || raw.startsWith("zh-cn")) return "zh-CN";
+  return LOCALE_TO_BCP47[raw] || LOCALE_TO_BCP47[raw.split("-")[0]] || locale || "en-US";
+}
+
+/** Code the speech gateway should render. Cantonese stays yue, not Mandarin zh. */
+export function spokenLanguageCode(locale: string | undefined): string {
+  const raw = (locale || "en").trim().toLowerCase().replace(/_/g, "-");
+  if (
+    raw === "yue" || raw.startsWith("yue-") ||
+    raw === "zh-hk" || raw.startsWith("zh-hk") ||
+    raw === "zh-mo" || raw.startsWith("zh-mo")
+  ) return "yue";
+  if (raw === "km" || raw.startsWith("km-")) return "km";
+  return raw.split("-")[0] || "en";
 }
 
 type VoiceLike = {
@@ -284,7 +304,7 @@ async function playServerAudio(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         text,
-        language: (opts.locale || "en").split("-")[0],
+        language: spokenLanguageCode(opts.locale),
         voice_style: opts.voiceStyle ?? "standard",
         voice: _serverVoiceId,
         instructor: _serverInstructor,
@@ -341,7 +361,7 @@ async function _fetchServerAudio(text: string, opts: SpeakOptions): Promise<HTML
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         text,
-        language: (opts.locale || "en").split("-")[0],
+        language: spokenLanguageCode(opts.locale),
         voice_style: opts.voiceStyle ?? "standard",
         voice: _serverVoiceId,
         instructor: _serverInstructor,

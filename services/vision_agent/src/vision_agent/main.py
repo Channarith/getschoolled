@@ -507,10 +507,17 @@ def voice_query(session_id: str, req: VoiceRequest) -> VoiceResponse:
         )
     try:
         resp = agent.respond_to_query(req.text, language=req.language)
-    except NotImplementedError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"xAI API error: {exc}")
+    except Exception:
+        return VoiceResponse(
+            session_id=session_id,
+            text=(
+                "Theodore voice agent is not available "
+                "(XAI_API_KEY missing or the voice service is unreachable)."
+            ),
+            model="none",
+            latency_ms=0.0,
+            xai_available=False,
+        )
     session._push_event("voice_response", {"text": resp.text, "session_id": session_id})
     return VoiceResponse(
         session_id=session_id,
@@ -562,10 +569,18 @@ async def frame_chat(
             face_count=face_count,
             attention=attention,
         )
-    except NotImplementedError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"xAI API error: {exc}")
+    except Exception:
+        return FrameChatResponse(
+            session_id=session_id,
+            text=(
+                "Theodore voice agent is not available "
+                "(XAI_API_KEY missing or the voice service is unreachable)."
+            ),
+            model="none",
+            latency_ms=0.0,
+            xai_available=False,
+            presence_state=presence_state,
+        )
 
     return FrameChatResponse(
         session_id=session_id,

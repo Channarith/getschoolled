@@ -6,6 +6,7 @@ import {
   endWebcamSession,
   submitWebcamFrame,
 } from "../lib/api";
+import { createPresenceWatch, yawFromFivePoint, type PresenceCue } from "../lib/learnerFocus";
 import { createVisionEngine, type VisionEngine } from "../lib/vision";
 
 type FaceDetectorLike = {
@@ -18,6 +19,8 @@ type Props = {
   participantId?: string;
   /** Called once when the student has been out of frame long enough to refocus. */
   onAway?: () => void;
+  /** Sustained away, return, look-away, or phone-pose cues. YuNet has yaw only. */
+  onCue?: (cue: PresenceCue) => void;
 };
 
 function faceDetector(): FaceDetectorLike | null {
@@ -41,13 +44,18 @@ export default function LessonCameraCorner({
   lessonContext = "",
   participantId = "student",
   onAway,
+  onCue,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const onAwayRef = useRef(onAway);
+  const onCueRef = useRef(onCue);
   onAwayRef.current = onAway;
+  onCueRef.current = onCue;
+  const watchRef = useRef(createPresenceWatch());
   const [hidden, setHidden] = useState(false);
   const [watching, setWatching] = useState(false);
+  const [note, setNote] = useState("");
 
   useEffect(() => {
     const video = videoRef.current;
@@ -105,7 +113,7 @@ export default function LessonCameraCorner({
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, w, h);
 
-      const publish = (facePresent: boolean) => {
+      const publish = (facePresent: boolean, pose?: { yawDeg: number; gazeFrontal: number } | null) => {
         if (facePresent) {
           awaySince = 0;
           nudged = false;
@@ -114,6 +122,20 @@ export default function LessonCameraCorner({
         } else if (!nudged && Date.now() - awaySince > 20000) {
           nudged = true;
           onAwayRef.current?.();
+        }
+        const cues = watchRef.current.update({
+          atMs: Date.now(),
+          facePresent,
+          yawDeg: pose?.yawDeg ?? null,
+          gazeFrontal: pose?.gazeFrontal ?? null,
+          // Five-point YuNet has no pitch or iris gaze. Do not call it a phone.
+          allowPoseOnly: false,
+          source: "yunet",
+        });
+        for (const cue of cues) {
+          if (cue.type === "notice" || cue.type === "pause") setNote(cue.notice || cue.line);
+          if (cue.type === "resume") setNote("");
+          onCueRef.current?.(cue);
         }
         const sessionId = sessionRef.id;
         if (!sessionId) return;
@@ -129,7 +151,8 @@ export default function LessonCameraCorner({
       const engine = engineRef.current;
       if (engine) {
         try {
-          publish(engine.detectAndEmbed(video).length > 0);
+          const detected = engine.detectAndEmbed(video);
+          publish(detected.length > 0, yawFromFivePoint(detected[0]?.landmarks));
         } catch {
           /* A bad frame is skipped. The camera stays on. */
         }
@@ -140,7 +163,7 @@ export default function LessonCameraCorner({
         (faces) => publish(faces.length > 0),
         () => undefined,
       );
-    }, 2000);
+    }, 1000);
 
     return () => {
       stopped = true;
@@ -169,6 +192,9 @@ export default function LessonCameraCorner({
         boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
       }}
     >
+      {note ? (
+        <p style={{ margin: 0, padding: "6px 8px", fontSize: 12, lineHeight: 1.35, color: "#fef3c7" }}>{note}</p>
+      ) : null}
       <video
         ref={videoRef}
         autoPlay

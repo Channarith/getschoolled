@@ -104,6 +104,7 @@ export async function startDriveVoice(
     language: topic.language || "",
     expires_seconds: 600,
   });
+  if (token.use_xai === false || !token.token || !token.session_update) return null;
   const ctx = new AudioContext({ latencyHint: "playback" });
   await ctx.resume();
   const output = ctx.createGain();

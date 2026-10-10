@@ -18,15 +18,31 @@ import { getMe, setAccountLanguage } from "../api";
 
 type Vars = Record<string, string | number>;
 
+function localeFromDeviceTag(tag: string, region?: string | null): LocaleCode | null {
+  const raw = (tag || "").toLowerCase().replace(/_/g, "-");
+  const regionCode = (region || "").toUpperCase();
+  if (
+    raw === "yue" || raw.startsWith("yue-") ||
+    raw === "zh-hk" || raw.startsWith("zh-hk") ||
+    raw === "zh-mo" || raw.startsWith("zh-mo") ||
+    ((raw === "zh" || raw.startsWith("zh-")) && (regionCode === "HK" || regionCode === "MO"))
+  ) return "yue";
+  const base = raw.split("-")[0];
+  return isSupportedLocale(base) ? base : null;
+}
+
 export function detectDeviceLocale(): LocaleCode {
   try {
     const locales = Localization.getLocales?.() || [];
     for (const l of locales) {
-      const code = (l.languageCode || "").toLowerCase();
-      if (isSupportedLocale(code)) return code;
+      const picked = localeFromDeviceTag(
+        l.languageTag || l.languageCode || "",
+        l.regionCode,
+      );
+      if (picked) return picked;
     }
-    const raw = (Localization.locale || "en").toLowerCase().split(/[-_]/)[0];
-    if (isSupportedLocale(raw)) return raw;
+    const raw = (Localization.locale || "en").toLowerCase();
+    return localeFromDeviceTag(raw) || DEFAULT_LOCALE;
   } catch {}
   return DEFAULT_LOCALE;
 }
@@ -88,8 +104,8 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
       // in their language on this device; fall back to the device locale.
       try {
         const acct = await getMe();
-        const pref = (acct.preferred_language || "").toLowerCase().split("-")[0];
-        if (isSupportedLocale(pref)) {
+        const pref = localeFromDeviceTag(acct.preferred_language || "");
+        if (pref) {
           setLocaleState(pref);
           void writeStoredLocale(pref);
           return;

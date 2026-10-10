@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import LandingAuthPanel from "./LandingAuthPanel";
 import MascotImage from "./MascotImage";
 import { useFlag, useFlags } from "../lib/flags";
-import { useT } from "../lib/i18n";
+import { useLearningPhrase } from "../lib/learningPhrases";
 import { DEMO_ONLY_FEATURE_IDS, SALES_DEMO_FEATURES, SALES_DEMO_FLAGS } from "../lib/salesDemo";
 
 // Screens for demo-only mode (sales_demo.exclusive): a minimal landing with just the
@@ -20,7 +20,7 @@ function DemoOnlyShell({
   kicker?: boolean;
   brand?: boolean;
 }) {
-  const { t } = useT();
+  const learnPhrase = useLearningPhrase();
   return (
     <main className="landing-hero">
       <div
@@ -49,7 +49,7 @@ function DemoOnlyShell({
           </div>
         )}
         <MascotImage width={140} className="landing-mascot" alt="Salareen mascot" />
-        {kicker && <span className="theme-badge">{t("hero.kicker")}</span>}
+        {kicker && <span className="theme-badge learn-phrase">{learnPhrase}</span>}
         {children}
       </div>
     </main>
@@ -89,21 +89,21 @@ const secondaryCta: React.CSSProperties = {
 };
 
 export function DemoOnlyLanding() {
-  const { t } = useT();
+  const learnPhrase = useLearningPhrase();
   return (
     <DemoOnlyShell kicker={false} brand>
       <h1
         style={{
           color: "#fff",
           fontSize: 15,
-          lineHeight: 1.2,
+          lineHeight: 1.35,
           fontWeight: 600,
           letterSpacing: 0.3,
           margin: "18px auto 34px",
           textShadow: "0 2px 12px rgba(0,0,0,.45)",
         }}
       >
-        {t("hero.kicker")}
+        {learnPhrase}
       </h1>
       <div
         style={{

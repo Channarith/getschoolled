@@ -1775,6 +1775,143 @@ def portfolio(acct=Depends(current_account)) -> dict:
     }
 
 
+# ── Learner focus profile + report card ─────────────────────────────────────
+# Observations live on the student record and ride the identity Redis snapshot.
+
+
+class FocusEventBody(BaseModel):
+    kind: str
+    surface: str = ""
+    course_id: str = ""
+    context: str = ""
+    note: str = ""
+    evidence: dict = Field(default_factory=dict)
+    at: float | None = None
+
+
+class IdentityCheckBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    status: str = "unverified"
+    document_type: str = ""
+    reference: str = ""
+
+
+class LearningPreferenceBody(BaseModel):
+    class_length: str | None = None
+    modality: str | None = None
+    materials: str | None = None
+    quiz_style: str | None = None
+    attention_span: str | None = None
+    historical_performance: float | None = None
+    notes: str | None = None
+
+
+class FocusPeriodBody(BaseModel):
+    kind: str
+    note: str = ""
+    active: bool = True
+
+
+def _focus_student(acct, student_id: str):
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="student not found")
+    return prof
+
+
+@app.post("/students/{student_id}/focus-events")
+def post_focus_event(
+    student_id: str,
+    req: FocusEventBody,
+    acct=Depends(current_account),
+) -> dict:
+    from aoep_shared.learner_focus import IdentityRejected, apply_event
+
+    prof = _focus_student(acct, student_id)
+    try:
+        updated = apply_event(prof.focus_profile, req.model_dump())
+    except (IdentityRejected, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    prof = app.state.accounts.update_focus_profile(acct.id, student_id, updated)
+    return {"ok": True, "focus_profile": prof.focus_profile}
+
+
+@app.get("/students/{student_id}/focus-profile")
+def get_focus_profile(student_id: str, acct=Depends(current_account)) -> dict:
+    from aoep_shared.learner_focus import empty_focus
+
+    prof = _focus_student(acct, student_id)
+    profile = prof.focus_profile or empty_focus()
+    return {"student_id": prof.id, "display_name": prof.display_name, "focus_profile": profile}
+
+
+@app.post("/students/{student_id}/identity-verification")
+def post_identity_verification(
+    student_id: str,
+    req: IdentityCheckBody,
+    acct=Depends(current_account),
+) -> dict:
+    from aoep_shared.learner_focus import IdentityRejected, apply_identity_check
+
+    prof = _focus_student(acct, student_id)
+    try:
+        updated = apply_identity_check(prof.focus_profile, req.model_dump())
+    except (IdentityRejected, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    prof = app.state.accounts.update_focus_profile(acct.id, student_id, updated)
+    return {"ok": True, "identity_check": prof.focus_profile.get("identity_check")}
+
+
+@app.post("/students/{student_id}/learning-preferences")
+def post_learning_preferences(
+    student_id: str,
+    req: LearningPreferenceBody,
+    acct=Depends(current_account),
+) -> dict:
+    from aoep_shared.learner_focus import apply_preferences
+
+    prof = _focus_student(acct, student_id)
+    updated = apply_preferences(prof.focus_profile, req.model_dump(exclude_none=True))
+    prof = app.state.accounts.update_focus_profile(acct.id, student_id, updated)
+    return {"ok": True, "preferences": prof.focus_profile.get("preferences")}
+
+
+@app.post("/students/{student_id}/focus-periods")
+def post_focus_period(
+    student_id: str,
+    req: FocusPeriodBody,
+    acct=Depends(current_account),
+) -> dict:
+    from aoep_shared.learner_focus import apply_focus_period
+
+    prof = _focus_student(acct, student_id)
+    try:
+        updated = apply_focus_period(prof.focus_profile, req.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    prof = app.state.accounts.update_focus_profile(acct.id, student_id, updated)
+    return {"ok": True, "focus_periods": prof.focus_profile.get("focus_periods")}
+
+
+@app.get("/students/{student_id}/report-card")
+def get_report_card(
+    student_id: str,
+    context: str = "children",
+    acct=Depends(current_account),
+) -> dict:
+    from aoep_shared.learner_focus import report_card
+
+    prof = _focus_student(acct, student_id)
+    card = report_card(
+        prof.focus_profile,
+        context=context,
+        learner_name=prof.display_name,
+    )
+    card["student_id"] = prof.id
+    return card
+
+
 # ── Platform presence / active-user tracking ────────────────────────────────
 # Each authenticated request should call POST /presence/ping to record the
 # user's current activity. The admin dashboard reads GET /admin/presence to

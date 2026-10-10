@@ -42,7 +42,7 @@ for (const key of Object.keys(FALLBACK)) {
 }
 
 // Labels that are still hardcoded in HomeScreen, measured as nav slots.
-const HARDCODED_NAV = ["Worlds", "Corporate", "Kids"];
+const HARDCODED_NAV = [];
 
 function isMark(cp) {
   return (

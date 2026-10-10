@@ -16,7 +16,7 @@ interface KidsScreenProps {
 }
 
 export default function KidsScreen({ onOpenCourse, onBack }: KidsScreenProps) {
-  const { locale } = useT();
+  const { t, locale } = useT();
   useAndroidBackTo(onBack);
   const [rails, setRails] = useState<HomeRail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,9 +56,9 @@ export default function KidsScreen({ onOpenCourse, onBack }: KidsScreenProps) {
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <PrimaryButton label="← Back" onPress={onBack} variant="ghost" />
-        <Text style={styles.title}>🎓 Kids Academy</Text>
-        <Text style={styles.subtitle}>Learning adventures for young explorers!</Text>
+        <PrimaryButton label={t("kids.back")} onPress={onBack} variant="ghost" />
+        <Text style={styles.title}>{t("kids.title")}</Text>
+        <Text style={styles.subtitle}>{t("kids.subtitle")}</Text>
       </LinearGradient>
 
       {loading && !refreshing ? (
@@ -77,7 +77,7 @@ export default function KidsScreen({ onOpenCourse, onBack }: KidsScreenProps) {
       >
         {allEmpty ? (
           <Text style={styles.empty}>
-            🌟 No kids courses available yet. Check back soon!
+            {t("kids.empty")}
           </Text>
         ) : null}
         {rails.map((rail) =>
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     paddingBottom: 22,
     gap: 8,
   },
-  title: { color: "#fff", fontSize: 24, fontWeight: "900", marginTop: 4 },
+  title: { color: "#fff", fontSize: 24, fontWeight: "900", marginTop: 4, lineHeight: 30, includeFontPadding: false },
   subtitle: { color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 18 },
   empty: {
     color: "#9ca3af", textAlign: "center",

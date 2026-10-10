@@ -20,7 +20,13 @@ const LOCALES = Object.keys(MASCOT_IMAGES);
 
 /** Normalize a BCP-47 tag to a supported mascot locale code. */
 export function normalizeMascotLocale(locale: string | null | undefined): string {
-  const base = (locale || "en").toLowerCase().split("-")[0].split("_")[0];
+  const raw = (locale || "en").toLowerCase().replace(/_/g, "-");
+  if (
+    raw === "yue" || raw.startsWith("yue-") ||
+    raw === "zh-hk" || raw.startsWith("zh-hk") ||
+    raw === "zh-mo" || raw.startsWith("zh-mo")
+  ) return LOCALES.includes("zh") ? "zh" : DEFAULT_MASCOT_LOCALE;
+  const base = raw.split("-")[0];
   return LOCALES.includes(base) ? base : DEFAULT_MASCOT_LOCALE;
 }
 

@@ -74,7 +74,17 @@ def test_avatar_cues_resolve_by_slide_key_when_title_is_khmer():
 def test_neural_tts_khmer_voices():
     assert neural_tts.voice_for("km") == "km-KH-SreymomNeural"
     assert neural_tts.voice_for("km", gender="male") == "km-KH-PisethNeural"
+    assert neural_tts.voice_for("km-KH") == "km-KH-SreymomNeural"
+    assert not neural_tts.voice_for("km").startswith("th-")
     assert "km" in neural_tts.VOICES
+
+
+def test_neural_tts_cantonese_is_not_mandarin():
+    assert neural_tts.voice_for("yue") == "zh-HK-HiuMaanNeural"
+    assert neural_tts.voice_for("zh-HK") == "zh-HK-HiuMaanNeural"
+    assert neural_tts.voice_for("zh") == "zh-CN-XiaoxiaoNeural"
+    assert neural_tts.voice_for("yue") != neural_tts.voice_for("zh")
+    assert "yue" not in neural_tts.VOICES
 
 
 def test_neural_tts_serves_cached_khmer_clip_when_engine_off(monkeypatch, tmp_path):

@@ -3,10 +3,12 @@ import {
   ActivityIndicator, Platform, Pressable, StyleSheet, Text, View,
 } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
-import { CURRICULUM_URL } from "../config";
+import { WEB_APP_URL } from "../config";
+import { worldsPageUrl } from "../webAppUrl";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
+import { useT } from "../i18n";
 
-const WORLDS_URL = `${CURRICULUM_URL.replace("/curriculum", "")}/worlds`;
+const WORLDS_URL = worldsPageUrl(WEB_APP_URL);
 
 const INJECTED_JS = `
   window.__SALAREEN_NATIVE__ = true;
@@ -30,6 +32,7 @@ interface WorldsScreenProps {
 }
 
 export default function WorldsScreen({ onBack }: WorldsScreenProps) {
+  const { t } = useT();
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,16 +64,14 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorEmoji}>🌍</Text>
-        <Text style={styles.errorTitle}>Salareen Worlds</Text>
-        <Text style={styles.errorMsg}>
-          Could not load the game. Make sure you're connected to the internet.
-        </Text>
+        <Text style={styles.errorTitle}>{t("worlds.title")}</Text>
+        <Text style={styles.errorMsg}>{t("worlds.error")}</Text>
         <Text style={styles.errorDetail}>{error}</Text>
         <Pressable style={styles.retryBtn} onPress={() => { setError(null); setLoading(true); }}>
-          <Text style={styles.retryText}>Try Again</Text>
+          <Text style={styles.retryText}>{t("worlds.retry")}</Text>
         </Pressable>
         <Pressable style={styles.backBtn} onPress={onBack}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={styles.backText}>{t("worlds.back")}</Text>
         </Pressable>
       </View>
     );
@@ -81,7 +82,7 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
       {/* iOS back button — visible on top-left since there is no hardware back */}
       {Platform.OS === 'ios' && (
         <Pressable style={styles.iosBackBtn} onPress={onBack}>
-          <Text style={styles.iosBackText}>← Back</Text>
+          <Text style={styles.iosBackText}>{t("worlds.back")}</Text>
         </Pressable>
       )}
       <WebView
@@ -108,7 +109,7 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
       {loading && (
         <View style={styles.loadingOverlay}>
           <Text style={styles.loadingEmoji}>🌍</Text>
-          <Text style={styles.loadingTitle}>Loading Salareen Worlds...</Text>
+          <Text style={styles.loadingTitle}>{t("worlds.loading")}</Text>
           <ActivityIndicator color="#6366f1" size="large" style={{ marginTop: 16 }} />
           <Text style={styles.loadingTip}>
             {LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)]}
@@ -160,7 +161,14 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   loadingEmoji: { fontSize: 64 },
-  loadingTitle: { color: "#fff", fontSize: 22, fontWeight: "900", textAlign: "center" },
+  loadingTitle: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
+    lineHeight: 28,
+    includeFontPadding: false,
+  },
   loadingTip: {
     color: "#6366f1",
     fontSize: 13,
@@ -189,7 +197,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   errorEmoji: { fontSize: 64 },
-  errorTitle: { color: "#fff", fontSize: 24, fontWeight: "900" },
+  errorTitle: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "900",
+    lineHeight: 30,
+    textAlign: "center",
+    includeFontPadding: false,
+  },
   errorMsg: { color: "#94a3b8", fontSize: 15, textAlign: "center", lineHeight: 22 },
   errorDetail: { color: "#475569", fontSize: 11, textAlign: "center" },
   retryBtn: {

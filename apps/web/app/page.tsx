@@ -20,9 +20,11 @@ import {
 } from "./lib/api";
 import { friendlyError } from "./lib/errors";
 import { useT } from "./lib/i18n";
+import { useLearningPhrase } from "./lib/learningPhrases";
 
 export default function HomePage() {
   const { t, locale } = useT();
+  const learnPhrase = useLearningPhrase();
   const carousels = useFlag<boolean>("ux.netflix_carousels", true);
   const demoOnly = useFlag<boolean>(SALES_DEMO_FLAGS.exclusive, false);
   const { ready: flagsReady } = useFlags();
@@ -90,7 +92,7 @@ export default function HomePage() {
         />
         <div className="landing-inner">
           <MascotImage width={140} className="landing-mascot" alt="Salareen mascot" />
-          <span className="theme-badge">{t("hero.kicker")}</span>
+          <span className="theme-badge learn-phrase">{learnPhrase}</span>
           <h1 className="theme-title glow" style={{ fontSize: 44, maxWidth: "22ch", margin: "12px auto 10px" }}>
             {t("hero.title")}
           </h1>
@@ -119,7 +121,7 @@ export default function HomePage() {
                       filter: "drop-shadow(0 16px 28px rgba(2,6,23,.55))" }}
           />
           <div style={{ flex: "1 1 320px", minWidth: 0 }}>
-          <span className="theme-badge">{t("hero.kicker")}</span>
+          <span className="theme-badge learn-phrase">{learnPhrase}</span>
           <h1 className="theme-title glow" style={{ marginTop: 14 }}>
             {t("hero.title")}
           </h1>

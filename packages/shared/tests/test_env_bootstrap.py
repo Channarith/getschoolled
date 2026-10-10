@@ -35,6 +35,21 @@ def test_load_repo_env_reads_local_env_and_upgrades_retired_model(tmp_path: Path
     assert report["xai_configured"] is True
 
 
+def test_missing_container_curriculum_dir_is_not_applied(tmp_path: Path):
+    cfg = tmp_path / "config"
+    cfg.mkdir()
+    (cfg / "local.env").write_text(
+        "CURRICULUM_DIR=/app/sample-curriculum\nXAI_API_KEY=from-file\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "VERSION").write_text("0.0.0\n", encoding="utf-8")
+    env: dict[str, str] = {}
+    report = load_repo_env(root=tmp_path, environ=env)
+    assert "CURRICULUM_DIR" not in env
+    assert "CURRICULUM_DIR" not in report["applied"]
+    assert env["XAI_API_KEY"] == "from-file"
+
+
 def test_load_repo_env_does_not_overwrite_process_secret(tmp_path: Path):
     cfg = tmp_path / "config"
     cfg.mkdir()

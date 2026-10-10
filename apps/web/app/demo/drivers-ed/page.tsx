@@ -5,17 +5,10 @@ import { courseStudioFrameSrc } from "../../lib/courseStudio";
 
 export default function DriversEdDemoPage() {
   return (
-    <main className="container" style={{ maxWidth: 1180, margin: "0 auto", padding: "28px 22px 70px" }}>
-      <p className="theme-badge">DEMO</p>
-      <h1>Driver&apos;s Education — 10 minutes, free</h1>
-      <p className="muted" style={{ maxWidth: 720 }}>
-        Anyone can take this demo. It stops at 10 minutes. The full course is paid unless you are an admin.
-      </p>
-      <p style={{ margin: "12px 0 18px" }}>
+    <main className="container" style={{ maxWidth: 1180, margin: "0 auto", padding: "16px 16px 40px" }}>
+      <p style={{ margin: "0 0 12px", display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
         <Link href="/">← Back to Salareen</Link>
-        {" · "}
         <Link href="/learn/drivers-ed">Full course</Link>
-        {" · "}
         <Link href="/demo/on-the-go">Audio only</Link>
       </p>
       <CourseStudioFrame

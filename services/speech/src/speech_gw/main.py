@@ -335,20 +335,50 @@ class TranslateRequest(BaseModel):
 
 @app.post("/translate")
 def translate(req: TranslateRequest) -> dict:
-    if not is_pair_supported(req.source, req.target):
+    """Translate lesson text. App locales and regional tags (es-MX, zh-CN) are
+    accepted. With no NLLB model or API key, a phrasebook hit is returned, and
+    anything else comes back as the original text so the class does not 500.
+    """
+    from aoep_shared.language_learning import translate_phrase
+    from aoep_shared.languages import normalize_language
+
+    source = normalize_language(req.source)
+    target = normalize_language(req.target)
+    if not source or not target:
         raise HTTPException(
             status_code=422,
             detail=f"unsupported language pair {req.source}->{req.target}",
         )
+    if source == target:
+        return {
+            "source": source, "target": target, "text": req.text,
+            "engine": "identity", "degraded": False,
+        }
+    if not is_pair_supported(source, target):
+        raise HTTPException(
+            status_code=422,
+            detail=f"unsupported language pair {source}->{target}",
+        )
     provider = app.state.factory.speech()
     try:
-        translated = provider.translate(req.text, source=req.source, target=req.target)
-    except NotImplementedError as exc:
-        # Pair is valid; the NLLB model just isn't loaded in this environment.
-        raise HTTPException(status_code=503, detail=str(exc))
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"translation failed: {exc}")
-    return {"source": req.source, "target": req.target, "text": translated}
+        translated = provider.translate(req.text, source=source, target=target)
+    except Exception:
+        translated = None
+    if translated:
+        return {
+            "source": source, "target": target, "text": translated,
+            "engine": "provider", "degraded": False,
+        }
+    phrase = translate_phrase(req.text, source, target)
+    if phrase:
+        return {
+            "source": source, "target": target, "text": phrase,
+            "engine": "phrasebook", "degraded": False,
+        }
+    return {
+        "source": source, "target": target, "text": req.text,
+        "engine": "passthrough", "degraded": True,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -629,8 +659,25 @@ def voice_token(req: VoiceTokenRequest) -> dict:
         xai_configured,
     )
 
+    from aoep_shared.xai_spoken_language import plan_spoken_language
+
     cfg = app.state.config
     api_key = getattr(cfg, "xai_api_key", "") or ""
+    spoken = plan_spoken_language(req.language)
+    if not spoken.use_xai:
+        # Khmer and Cantonese are not xAI speech-to-speech voices. Khmer was
+        # auto-detected as Thai. Cantonese (yue / zh-HK) is ignored and then
+        # auto-detected as Mandarin. Clients narrate with the gateway voice
+        # named on spoken_language.edge_voice.
+        return {
+            "token": None,
+            "session_update": None,
+            "mode": req.mode,
+            "xai_configured": xai_configured(api_key),
+            "engine": spoken.engine,
+            "use_xai": False,
+            "spoken_language": spoken.to_dict(),
+        }
     model = getattr(cfg, "xai_voice_model", "grok-voice-latest") or "grok-voice-latest"
     voice_id = (
         getattr(cfg, "xai_voice_id", "")
@@ -667,6 +714,7 @@ def voice_token(req: VoiceTokenRequest) -> dict:
                 library=library["text"],
                 library_hit=bool(library["hit"]),
             ),
+            language=req.language,
         )
         voice_cfg.tools = drive_voice_tools()
     else:
@@ -677,6 +725,7 @@ def voice_token(req: VoiceTokenRequest) -> dict:
             lesson_context=req.lesson_context or "",
             learner_names=list(req.learner_names or []),
             instructions=req.instructions or "",
+            language=req.language,
         )
         voice_cfg.tools = [presence_tool_schema()]
     locked_session = dict(voice_cfg.session_update_event()["session"])
@@ -697,4 +746,6 @@ def voice_token(req: VoiceTokenRequest) -> dict:
         "mode": req.mode,
         "xai_configured": True,
         "engine": "xai-grok-voice",
+        "use_xai": True,
+        "spoken_language": spoken.to_dict(),
     }

@@ -8,7 +8,7 @@ jest.mock("../i18n", () => ({
     locale: "en",
     t: (key: string) =>
       ({
-        "guest.kicker": "AI-instructed learning",
+        "guest.kicker": "Guided practice",
         "guest.tryDemo": "Try the demo",
         "guest.logIn": "Log in",
         "guest.back": "← Back",

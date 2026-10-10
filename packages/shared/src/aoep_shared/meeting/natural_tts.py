@@ -38,6 +38,7 @@ _NEURAL_VOICES = {
     "ur": "ur-PK-UzmaNeural",
     "fa": "fa-IR-DilaraNeural",
     "zh": "zh-CN-XiaoxiaoNeural",
+    "yue": "zh-HK-HiuMaanNeural",
     "ja": "ja-JP-NanamiNeural",
     "ko": "ko-KR-SunHiNeural",
     "vi": "vi-VN-HoaiMyNeural",
@@ -67,6 +68,7 @@ _NEURAL_VOICES_MALE = {
     "ur": "ur-PK-AsadNeural",
     "fa": "fa-IR-FaridNeural",
     "zh": "zh-CN-YunxiNeural",
+    "yue": "zh-HK-WanLungNeural",
     "ja": "ja-JP-KeitaNeural",
     "ko": "ko-KR-InJoonNeural",
     "vi": "vi-VN-NamMinhNeural",
@@ -99,7 +101,21 @@ def neural_voice_for(
         return voice
     if voice and not voice.startswith("en-"):
         return voice
-    lang = (language or "en").split("-")[0].lower()
+    raw = (language or "en").strip().lower().replace("_", "-")
+    if (
+        raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"}
+        or raw.startswith("yue-")
+        or raw.startswith("zh-hk")
+        or raw.startswith("zh-mo")
+        or raw.startswith("zh-yue")
+    ):
+        lang = "yue"
+    elif raw.startswith("km"):
+        lang = "km"
+    elif raw in {"zh-cn", "zh-hans", "zh-sg", "cmn", "mandarin"} or raw.startswith("zh-cn"):
+        lang = "zh"
+    else:
+        lang = raw.split("-")[0]
     table = _NEURAL_VOICES_MALE if str(gender or "").lower() == "male" else _NEURAL_VOICES
     return table.get(lang) or _NEURAL_VOICES.get(lang, DEFAULT_NEURAL_VOICE)
 

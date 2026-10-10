@@ -259,8 +259,8 @@ def test_capabilities_endpoint(client):
     assert "silhouette_detection" in data
     assert "face_recognition" in data
     assert "xai_voice_agent" in data
-    # No key in test environment.
-    assert data["xai_voice_agent"] is False
+    from aoep_shared.xai_grok_voice import xai_available
+    assert data["xai_voice_agent"] is xai_available(app.state.config.xai_api_key)
 
 
 # ---------------------------------------------------------------------------

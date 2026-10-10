@@ -433,6 +433,7 @@ function ParticipantTile({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [captionsOn, setCaptionsOn] = useState(false);
   const isHost = p.role === "host";
 
   useEffect(() => {
@@ -513,15 +514,16 @@ function ParticipantTile({
             position: "absolute",
             inset: 0,
             display: "flex",
+            flexWrap: "wrap",
             gap: fullscreen ? 0 : large ? 16 : 10,
             padding: fullscreen ? "clamp(20px, 5vw, 72px)" : large ? 16 : 10,
-            overflow: "hidden",
+            overflow: "auto",
           }}
         >
           {!fullscreen && large ? (
             <div
               style={{
-                flex: "0 0 32%",
+                flex: "1 1 160px",
                 minWidth: 0,
                 borderRadius: 18,
                 display: "flex",
@@ -562,7 +564,7 @@ function ParticipantTile({
           ) : null}
           <div
             style={{
-              flex: 1,
+              flex: "1 1 220px",
               minWidth: 0,
               borderRadius: fullscreen ? 24 : 18,
               background: "#fbf9f4",
@@ -593,10 +595,26 @@ function ParticipantTile({
                 fontWeight: 800,
                 lineHeight: fullscreen ? 1.08 : 1.18,
                 textWrap: "balance",
+                overflowWrap: "anywhere",
               }}
             >
               {slide.title}
             </div>
+            <button
+              type="button"
+              onClick={() => setCaptionsOn((on) => !on)}
+              aria-pressed={captionsOn}
+              style={{
+                alignSelf: "flex-start",
+                padding: "6px 10px",
+                fontSize: 13,
+                background: captionsOn ? "#1e3a5f" : "#fff",
+                color: captionsOn ? "#fff" : "#1e3a5f",
+                border: "1px solid #1e3a5f",
+              }}
+            >
+              {captionsOn ? "CC on" : "CC"}
+            </button>
             {slide.storyboard_svg ? (
               <CourseStoryboardPlayer
                 svg={slide.storyboard_svg}
@@ -607,6 +625,7 @@ function ParticipantTile({
                 sourceLanguage={slide.storyboard_source_language}
                 sceneId={slide.storyboard_scene_id}
                 fullscreen={fullscreen}
+                captions={captionsOn}
               />
             ) : null}
             <div
@@ -618,17 +637,19 @@ function ParticipantTile({
                 background: STUDIO_GOLD,
               }}
             />
-            <div
-              style={{
-                fontSize: fullscreen ? "clamp(19px, 3.4vw, 42px)" : large ? 15 : 13,
-                lineHeight: fullscreen ? 1.4 : 1.55,
-                color: "#443b52",
-                overflow: fullscreen ? "visible" : "hidden",
-                maxWidth: fullscreen ? "30em" : undefined,
-              }}
-            >
-              {slide.narration || slide.body}
-            </div>
+            {captionsOn ? (
+              <div
+                style={{
+                  fontSize: fullscreen ? "clamp(19px, 3.4vw, 42px)" : large ? 15 : 13,
+                  lineHeight: fullscreen ? 1.4 : 1.55,
+                  color: "#443b52",
+                  overflowWrap: "anywhere",
+                  maxWidth: fullscreen ? "30em" : undefined,
+                }}
+              >
+                {slide.narration || slide.body}
+              </div>
+            ) : null}
           </div>
         </div>
       ) : (

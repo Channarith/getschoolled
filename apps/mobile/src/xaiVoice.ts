@@ -26,16 +26,46 @@ export type XaiVoiceToken = {
   websocket_protocol: string;
 };
 
+export type XaiSpokenLanguage = {
+  requested: string;
+  engine: string;
+  use_xai: boolean;
+  xai_language: string;
+  instructions: string;
+  edge_voice: string;
+  hint: string;
+  reason: string;
+};
+
 export type XaiVoiceTokenResponse = {
-  token: XaiVoiceToken;
+  token: XaiVoiceToken | null;
   session_update: {
     type: string;
     session: Record<string, unknown>;
-  };
+  } | null;
   mode: string;
   xai_configured: boolean;
   engine: string;
+  /** False for Khmer and Cantonese: those voices are not on xAI. */
+  use_xai?: boolean;
+  spoken_language?: XaiSpokenLanguage;
 };
+
+/** Khmer and Cantonese are narrated by the speech gateway, not the Grok socket.
+ * xAI speech-to-speech has no Khmer voice (it sounded Thai) and no Cantonese
+ * code (an ignored hint auto-detects Mandarin). */
+export function xaiSpeaksLocale(language: string | undefined): boolean {
+  const raw = (language || "").trim().toLowerCase().replace(/_/g, "-");
+  if (!raw) return true;
+  if (raw === "km" || raw.startsWith("km-")) return false;
+  if (
+    raw === "yue" || raw.startsWith("yue-") ||
+    raw === "zh-hk" || raw.startsWith("zh-hk") ||
+    raw === "zh-mo" || raw.startsWith("zh-mo") ||
+    raw === "cantonese"
+  ) return false;
+  return true;
+}
 
 export type XaiVoiceMode = "solo" | "group" | "self_teach" | "theodore_solo" | "theodore_group";
 
@@ -71,6 +101,7 @@ export async function mintXaiVoiceToken(opts: {
   learner_names?: string[];
   expires_seconds?: number;
   instructions?: string;
+  language?: string;
 }): Promise<XaiVoiceTokenResponse> {
   const r = await fetch(`${SPEECH_URL}/voice/token`, {
     method: "POST",
@@ -81,6 +112,7 @@ export async function mintXaiVoiceToken(opts: {
       learner_names: opts.learner_names || [],
       expires_seconds: opts.expires_seconds ?? 300,
       instructions: opts.instructions || "",
+      language: opts.language || "",
     }),
   });
   if (!r.ok) {
@@ -105,6 +137,9 @@ export function connectXaiVoiceSession(
   handlers: XaiVoiceSessionHandlers = {},
 ): WebSocket {
   const { token, session_update } = tokenResponse;
+  if (!token || !session_update) {
+    throw new Error("xAI voice session was not minted for this language");
+  }
   const url =
     token.websocket_url ||
     `wss://api.x.ai/v1/realtime?model=${token.model || "grok-voice-latest"}`;

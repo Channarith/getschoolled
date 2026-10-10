@@ -118,14 +118,9 @@ export default function GroupClassesScreen({
     setError("");
     if (gc.needs_bridge && gc.meeting_url) {
       try {
-        const ok = await Linking.canOpenURL(gc.meeting_url);
-        if (!ok) {
-          setError(t("group.cannotOpenMeeting"));
-          return;
-        }
         await Linking.openURL(gc.meeting_url);
-      } catch (e) {
-        setError((e as Error).message);
+      } catch {
+        setError(t("group.cannotOpenMeeting"));
       }
       return;
     }

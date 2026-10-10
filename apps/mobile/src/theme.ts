@@ -49,11 +49,11 @@ export const theme = {
     section: 22,
   },
   typography: {
-    hero: { fontSize: 28, fontWeight: "800" as const, lineHeight: 36 },
-    title: { fontSize: 22, fontWeight: "800" as const, lineHeight: 28 },
-    railTitle: { fontSize: 18, fontWeight: "800" as const, lineHeight: 24 },
-    body: { fontSize: 14, lineHeight: 20 },
-    caption: { fontSize: 12, lineHeight: 16 },
+    hero: { fontSize: 28, fontWeight: "800" as const, lineHeight: 36, includeFontPadding: false },
+    title: { fontSize: 22, fontWeight: "800" as const, lineHeight: 28, includeFontPadding: false },
+    railTitle: { fontSize: 18, fontWeight: "800" as const, lineHeight: 24, includeFontPadding: false },
+    body: { fontSize: 14, lineHeight: 20, includeFontPadding: false },
+    caption: { fontSize: 12, lineHeight: 16, includeFontPadding: false },
     kicker: {
       fontSize: 11,
       fontWeight: "700" as const,

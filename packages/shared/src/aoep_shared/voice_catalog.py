@@ -98,6 +98,8 @@ VOICE_CATALOG: List[Voice] = [
     Voice("ru_ru_f", "Russian — Svetlana (F)", "ru", "ru-RU", "Russian", "female", "ru-RU-SvetlanaNeural"),
     Voice("vi_vn_f", "Vietnamese — HoaiMy (F)", "vi", "vi-VN", "Vietnamese", "female", "vi-VN-HoaiMyNeural"),
     Voice("th_th_f", "Thai — Premwadee (F)", "th", "th-TH", "Thai", "female", "th-TH-PremwadeeNeural"),
+    Voice("km_kh_f", "Khmer — Sreymom (F)", "km", "km-KH", "Khmer (Cambodia)", "female", "km-KH-SreymomNeural"),
+    Voice("km_kh_m", "Khmer — Piseth (M)", "km", "km-KH", "Khmer (Cambodia)", "male", "km-KH-PisethNeural"),
     Voice("tr_tr_f", "Turkish — Emel (F)", "tr", "tr-TR", "Turkish", "female", "tr-TR-EmelNeural"),
 ]
 
@@ -109,17 +111,65 @@ def get_voice(voice_id: str) -> Optional[Voice]:
 
 
 def default_voice_for_language(language: str) -> Optional[Voice]:
-    """First catalog voice whose base language matches (e.g. 'en' -> American)."""
-    lang = (language or "en").split("-")[0].lower()
+    """First catalog voice whose base language matches (e.g. 'en' -> American).
+
+    Cantonese (``yue``, ``zh-HK``) is not the first Chinese row. That row is
+    Beijing Mandarin. Cantonese uses the Hong Kong neural voice.
+    """
+    raw = (language or "en").strip().lower().replace("_", "-")
+    if (
+        raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"}
+        or raw.startswith("yue-")
+        or raw.startswith("zh-hk")
+        or raw.startswith("zh-mo")
+        or raw.startswith("zh-yue")
+    ):
+        return get_voice("zh_hk_f") or get_voice("zh_yue_gz_f")
+    lang = raw.split("-")[0]
     for v in VOICE_CATALOG:
         if v.language == lang:
             return v
     return None
 
 
+def _spoken_family(language: str) -> str:
+    """Voice family for a request. Cantonese is not Mandarin; Khmer is not Thai."""
+    raw = (language or "").strip().lower().replace("_", "-")
+    if (
+        raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"}
+        or raw.startswith("yue-")
+        or raw.startswith("zh-hk")
+        or raw.startswith("zh-mo")
+        or raw.startswith("zh-yue")
+    ):
+        return "yue"
+    if raw == "km" or raw.startswith("km-"):
+        return "km"
+    return raw.split("-")[0]
+
+
+def _voice_family(voice: Voice) -> str:
+    locale = (voice.locale or "").lower()
+    accent = (voice.accent or "").lower()
+    if locale.startswith("zh-hk") or locale.startswith("zh-mo") or "cantonese" in accent:
+        return "yue"
+    if voice.language == "km" or locale.startswith("km"):
+        return "km"
+    return voice.language
+
+
 def resolve_voice(voice_id: str = "", *, language: str = "en") -> Optional[Voice]:
-    """Resolve a chosen voice id, falling back to the language default."""
-    return get_voice(voice_id) or default_voice_for_language(language)
+    """Resolve a chosen voice id, falling back to the language default.
+
+    A saved Mandarin or Thai accent must not replace Cantonese or Khmer.
+    Those two were the languages xAI was speaking as something else.
+    """
+    chosen = get_voice(voice_id)
+    fallback = default_voice_for_language(language)
+    family = _spoken_family(language)
+    if family in {"km", "yue"} and (chosen is None or _voice_family(chosen) != family):
+        return fallback
+    return chosen or fallback
 
 
 def catalog_grouped() -> List[dict]:

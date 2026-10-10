@@ -161,7 +161,7 @@ const PROFILE: Partial<Record<Locale, Record<string, string>>> = {
 };
 
 const SHARED: Record<string, string> = {
-  "nav.aiInstructed": "AI-instructed",
+  "nav.aiInstructed": "Guided practice",
   "nav.openMenu": "Open navigation menu",
   "nav.closeMenu": "Close navigation menu",
   "preview.lockedTitle": "Sign in to use this feature",

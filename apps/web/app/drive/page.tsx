@@ -875,8 +875,8 @@ function DrivePageInner() {
       {loggedIn && course && (
         <div className="card" style={{ borderColor: "#0ea5e9", background: "#0b1020", color: "#e8ecf6" }}>
           <div className="muted">{course.category} · {course.duration_min} min · audio</div>
-          <h2 style={{ margin: "4px 0" }}>{course.title}</h2>
-          <div style={{ fontSize: 18, margin: "8px 0" }}>
+          <h2 style={{ margin: "4px 0", overflowWrap: "anywhere" }}>{course.title}</h2>
+          <div style={{ fontSize: 18, margin: "8px 0", overflowWrap: "anywhere" }}>
             ▶ {course.segments[seg]?.heading} <span className="muted">({seg + 1}/{course.segments.length})</span>
           </div>
           <div style={{ margin: "8px 0 14px" }} hidden={stageFull && optionsHidden}>
@@ -1033,13 +1033,12 @@ function DrivePageInner() {
       )}
 
       <section id="audio-lab" className="card" style={{ marginTop: 18 }} hidden={stageFull && optionsHidden}>
-        <h2 style={{ marginTop: 0 }}>Audio lab</h2>
         <p className="muted" style={{ marginTop: 0 }}>
           Hands-free speech translation. The microphone stays in this browser, and Theodore answers with the xAI voice agent.
         </p>
         <iframe
           title="Audio translation lab"
-          src="/audio-lab"
+          src={`/audio-lab?target=${encodeURIComponent(locale)}&source=auto`}
           allow="microphone; autoplay"
           style={{
             width: "100%",

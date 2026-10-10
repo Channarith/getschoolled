@@ -69,6 +69,7 @@ class VoiceTokenBody(BaseModel):
     learner_names: List[str] = Field(default_factory=list)
     expires_seconds: int = 300
     session_id: Optional[str] = None
+    language: str = ""
 
 
 @app.get("/health")
@@ -230,7 +231,20 @@ def analyze_report(body: PresenceReportBody):
 @app.post("/voice/token")
 def voice_token(body: VoiceTokenBody):
     """Mint an xAI ephemeral client secret + Theodore/self-teach session.update."""
+    from aoep_shared.xai_spoken_language import plan_spoken_language
+
     cfg = load_config()
+    spoken = plan_spoken_language(body.language)
+    if body.language and not spoken.use_xai:
+        return {
+            "token": None,
+            "session_update": None,
+            "mode": body.mode,
+            "xai_configured": xai_configured(cfg.xai_api_key),
+            "use_xai": False,
+            "engine": spoken.engine,
+            "spoken_language": spoken.to_dict(),
+        }
     lesson = body.lesson_context
     names = list(body.learner_names)
     if body.session_id:
@@ -241,13 +255,14 @@ def voice_token(body: VoiceTokenBody):
         if not names:
             names = [p.display_name for p in session.participants.values()]
         mode = session.mode
-        voice_cfg = session.voice_config or build_voice_session(
+        voice_cfg = build_voice_session(
             mode,
             voice=cfg.xai_voice_id,
             model=cfg.xai_voice_model,
             lesson_context=lesson,
             learner_names=names,
-        )
+            language=body.language,
+        ) if body.language or session.voice_config is None else session.voice_config
     else:
         mode = body.mode
         voice_cfg = build_voice_session(
@@ -256,6 +271,7 @@ def voice_token(body: VoiceTokenBody):
             model=cfg.xai_voice_model,
             lesson_context=lesson,
             learner_names=names,
+            language=body.language,
         )
     try:
         token = mint_ephemeral_token(

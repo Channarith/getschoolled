@@ -8,7 +8,7 @@ import { ensureCameraPermission } from "../components/cameraPermission";
 import { WEB_APP_URL } from "../config";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
-import { publicDemoUrl, type PublicDemo } from "../publicDemos";
+import { publicDemoUrl, childrenLabLocaleScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
 import { theme } from "../theme";
 
 async function ensureMicrophonePermission(): Promise<void> {
@@ -34,11 +34,13 @@ export default function DemoWebScreen({
   demo: PublicDemo;
   onBack: () => void;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [plays, setPlays] = useState(0);
-  const url = publicDemoUrl(WEB_APP_URL, demo.path);
+  const path = demoPathWithLocale(demo.path, locale);
+  const url = publicDemoUrl(WEB_APP_URL, path);
+  const localeScript = path.includes("/children-lab") ? childrenLabLocaleScript(locale) : undefined;
   useAndroidBackTo(onBack);
 
   useEffect(() => {
@@ -84,6 +86,7 @@ export default function DemoWebScreen({
             setLoading(false);
             setError(event.nativeEvent.description || "load failed");
           }}
+          injectedJavaScriptBeforeContentLoaded={localeScript}
           javaScriptEnabled
           domStorageEnabled
           allowsFullscreenVideo

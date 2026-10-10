@@ -132,9 +132,9 @@ const PRESENTER_CSS = `
 .ai-presenter__bars span { width: 5px; height: 6px; border-radius: 3px;
   background: linear-gradient(#67e8f9, #38bdf8); }
 .ai-presenter[data-speaking="1"] .ai-presenter__bars span { animation: aiBars .8s ease-in-out infinite; }
-.ai-presenter__id { position: absolute; bottom: 10px; left: 12px; z-index: 3;
-  display: flex; align-items: center; gap: 8px; }
-.ai-presenter__name { color: #fff; font-weight: 700; font-size: 14px; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.ai-presenter__id { position: absolute; bottom: 10px; left: 12px; right: 52px; z-index: 3;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ai-presenter__name { color: #fff; font-weight: 700; font-size: 14px; text-shadow: 0 1px 4px rgba(0,0,0,.6); overflow-wrap: anywhere; }
 .ai-presenter__persona { background: rgba(56,189,248,0.2); color: #bae6fd; border: 1px solid #38bdf8;
   font-size: 11px; padding: 1px 8px; border-radius: 999px; text-transform: capitalize; }
 .ai-presenter__state { color: #9fb4d8; font-size: 12px; }
@@ -146,7 +146,7 @@ const PRESENTER_CSS = `
 .ai-presenter__mute { position: absolute; top: 44px; right: 10px; z-index: 3; border: 0;
   background: rgba(0,0,0,0.45); color: #fff; border-radius: 999px; width: 34px; height: 34px; cursor: pointer; font-size: 16px; }
 .ai-presenter__caption { background: #0a1330; color: #e8ecf6; padding: 8px 14px; min-height: 20px;
-  font-size: 14px; line-height: 1.4; border-top: 1px solid #23304f; }
+  font-size: 14px; line-height: 1.4; border-top: 1px solid #23304f; overflow-wrap: anywhere; }
 @keyframes aiBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes aiTalk { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-4px) scale(1.02); } }
 @keyframes aiGlow { 0%,100% { transform: scale(1); opacity: .55; } 50% { transform: scale(1.12); opacity: .95; } }

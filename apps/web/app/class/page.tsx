@@ -29,6 +29,7 @@ import {
   resumeSlideForLesson,
   saveCourseProgress,
   setEnrollmentStatus,
+  translateText,
   startAssessmentCheckpoint,
   startSession,
   startSoloLiveRoom,
@@ -58,9 +59,11 @@ import SignInToUse from "../components/SignInToUse";
 import { FullCourseLinks } from "../components/FullCourseLinks";
 import AiPresenter from "../components/AiPresenter";
 import AssessmentCheckpointPanel from "../components/AssessmentCheckpointPanel";
+import CourseStoryboardPlayer from "../components/CourseStoryboardPlayer";
 import VideoAdBreak from "../components/VideoAdBreak";
 import { useCourseAds, effectiveAdTier } from "../lib/useCourseAds";
-import { splitForSpeech, startSpeechKeepAlive, stopSpeechKeepAlive, synthChunk } from "../lib/tts";
+import { buildNarrationSpeakOptions } from "../lib/narrationTts";
+import { cancelSpeech, localeToBcp47, speakNaturally, synthChunk } from "../lib/tts";
 import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
 import { useDemoOnlyAnonymous, useVoicePauseSubmitMs } from "../lib/flags";
 import { createVoicePauseSubmitter } from "../lib/voiceCommands";
@@ -125,6 +128,10 @@ export default function ClassPage() {
   const [showChat, setShowChat] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   const [spokenText, setSpokenText] = useState("");   // live caption for the presenter
+  const [captionsOn, setCaptionsOn] = useState(false);
+  const [localizedSlide, setLocalizedSlide] = useState<{
+    index: number; title: string; body: string; narration: string;
+  } | null>(null);
   const [xaiVoiceReady, setXaiVoiceReady] = useState(false);
   const [xaiVoiceLive, setXaiVoiceLive] = useState(false);
   const [xaiVoiceHint, setXaiVoiceHint] = useState("");
@@ -137,7 +144,6 @@ export default function ClassPage() {
   const advanceCount = useRef(0);
   const MIDROLL_EVERY_ADVANCES = 5;
   const { preroll, takeNextMidroll } = useCourseAds(lessonId, tier);
-  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const voiceRef = useRef<StreamingVoice | null>(null);   // real-time chunked voice
   // Adaptive quiz state (difficulty personalizes via the memory service).
   const [quiz, setQuiz] = useState<QuizItemView[] | null>(null);
@@ -190,11 +196,10 @@ export default function ClassPage() {
   }, []);
 
   function stopSpeaking() {
-    stopSpeechKeepAlive();
-    try { window.speechSynthesis.cancel(); window.speechSynthesis.resume(); } catch { /* no browser TTS */ }
+    cancelSpeech();
+    try { window.speechSynthesis.cancel(); } catch { /* no browser TTS */ }
     try { voiceRef.current?.stop(); } catch { /* */ }
     voiceRef.current = null;
-    speechRef.current = null;
     setSpeaking(false);
   }
 
@@ -222,7 +227,13 @@ export default function ClassPage() {
         mode: "solo",
         lesson_context: [lessonTitle, slideText].filter(Boolean).join("\n"),
         learner_names: studentProfile?.display_name ? [studentProfile.display_name] : [],
+        language: locale,
       });
+      if (token.use_xai === false || !token.token || !token.session_update) {
+        setXaiVoiceHint(token.spoken_language?.hint
+          || "This language uses the lesson voice, not Grok.");
+        return;
+      }
       if (!xaiAudioCtxRef.current) {
         xaiAudioCtxRef.current = new AudioContext({ latencyHint: "playback" });
       }
@@ -263,25 +274,16 @@ export default function ClassPage() {
 
   function speak(text: string) {
     setSpokenText(text);   // caption updates even when muted
-    if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (!speakAnswers || typeof window === "undefined") return;
     stopSpeaking();
-    // Chunk into sentences and queue them. Chrome cuts a single long utterance
-    // off after ~15s; short queued utterances play the whole narration without
-    // truncation (and pace more naturally).
-    const chunks = splitForSpeech(text);
-    if (!chunks.length) return;
     setSpeaking(true);
-    const onSpeakEnd = () => { stopSpeechKeepAlive(); setSpeaking(false); };
-    chunks.forEach((chunk, i) => {
-      const u = new SpeechSynthesisUtterance(chunk);
-      u.rate = 1;
-      if (i === 0) speechRef.current = u;
-      if (i === chunks.length - 1) u.onend = onSpeakEnd;
-      u.onerror = onSpeakEnd;
-      window.speechSynthesis.speak(u);
+    void buildNarrationSpeakOptions(locale).then((base) => {
+      speakNaturally(text, {
+        ...base,
+        locale,
+        onend: () => setSpeaking(false),
+      });
     });
-    // Defeat Chrome's ~15s speechSynthesis auto-stop so the whole answer is read.
-    startSpeechKeepAlive();
   }
 
   // Repeat-after-me checkpoint: listen to the learner and score how closely they
@@ -333,7 +335,7 @@ export default function ClassPage() {
     }
     try { recognitionRef.current?.stop(); } catch { /* */ }
     pauseSubmitterRef.current?.cancelPending();
-    rec.lang = "en-US";
+    rec.lang = localeToBcp47(locale);
     rec.interimResults = true;
     rec.continuous = true;
     rec.maxAlternatives = 1;
@@ -389,13 +391,44 @@ export default function ClassPage() {
     }
   }
 
-  // The AI presenter narrates each slide as it appears, so the video feed shows
-  // the agent actually presenting the lesson (and drives the speaking animation).
+  useEffect(() => {
+    if (studentProfile?.accessibility?.needs_captions) setCaptionsOn(true);
+  }, [studentProfile]);
+
+  useEffect(() => {
+    if (!slide || !view) {
+      setLocalizedSlide(null);
+      return;
+    }
+    const source = (slide.storyboard_source_language || view.lesson.language || "en").split("-")[0];
+    if (locale === source) {
+      setLocalizedSlide(null);
+      return;
+    }
+    let active = true;
+    void Promise.all([slide.title, slide.body, slide.narration].map(async (text) => {
+      if (!text) return "";
+      try { return (await translateText(text, source, locale)).text; }
+      catch { return text; }
+    })).then(([title, body, narration]) => {
+      if (!active) return;
+      setLocalizedSlide({ index: slide.index, title, body, narration });
+    });
+    return () => { active = false; };
+  }, [slide, view, locale]);
+
+  // The AI presenter narrates each slide in the selected language.
   useEffect(() => {
     if (!view || !slide) return;
-    speak(`${slide.title}. ${slide.narration || slide.body}`);
+    const source = (slide.storyboard_source_language || view.lesson.language || "en").split("-")[0];
+    const translated = localizedSlide?.index === slide.index ? localizedSlide : null;
+    if (locale !== source && !translated) return;
+    const title = translated?.title || slide.title;
+    const body = translated?.body || slide.body;
+    const narration = translated?.narration || slide.narration;
+    speak(`${title}. ${narration || body}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slide?.index, view?.session.session_id]);
+  }, [slide?.index, view?.session.session_id, locale, localizedSlide]);
 
   // Play an ad break, then run `then` when it completes/skips. Used for the
   // pre-roll before a class starts and mid-rolls between slides (ad-supported
@@ -841,7 +874,8 @@ export default function ClassPage() {
         stopSpeaking();
         setChat((c) => [...c, { role: "teacher", text: "" }]);   // grows as tokens stream
         const chunker = new SpeechChunker();
-        const voice = new StreamingVoice((t) => synthChunk(t, { locale: "en", voiceStyle: "standard" }));
+        const voiceBase = await buildNarrationSpeakOptions(locale);
+        const voice = new StreamingVoice((t) => synthChunk(t, { ...voiceBase, locale }));
         voiceRef.current = voice;
         if (speakAnswers) setSpeaking(true);
         let acc = "";
@@ -917,6 +951,8 @@ export default function ClassPage() {
       setBusy(false);
     }
   }
+
+  const slideCopy = slide && localizedSlide?.index === slide.index ? localizedSlide : null;
 
   return (
     <main className="container">
@@ -1041,14 +1077,14 @@ export default function ClassPage() {
             speaking={speaking}
             name="Salareen AI Instructor"
             persona={disclosure?.line?.match(/persona:?\s*([a-z]+)/i)?.[1]}
-            caption={spokenText || `${slide.title}. ${slide.narration || slide.body}`}
+            caption={captionsOn ? (spokenText || `${slideCopy?.title || slide.title}. ${slideCopy?.narration || slideCopy?.body || slide.narration || slide.body}`) : ""}
             live
             muted={!speakAnswers}
             onToggleMute={() => {
               const next = !speakAnswers;
               setSpeakAnswers(next);
               if (!next) stopSpeaking();
-              else speak(`${slide.title}. ${slide.narration || slide.body}`);
+              else speak(`${slideCopy?.title || slide.title}. ${slideCopy?.narration || slideCopy?.body || slide.narration || slide.body}`);
             }}
             messages={chat}
           />
@@ -1056,9 +1092,25 @@ export default function ClassPage() {
             <div className="muted">
               {view.lesson.title} · Slide {slide.index + 1} of {view.lesson.slides.length}
             </div>
-            <h2>{slide.title}</h2>
-            <p>{slide.body}</p>
-            <p className="muted">🔊 {slide.narration}</p>
+            <h2 style={{ overflowWrap: "anywhere" }}>{slideCopy?.title || slide.title}</h2>
+            {slide.storyboard_svg ? (
+              <CourseStoryboardPlayer
+                svg={slide.storyboard_svg}
+                concept={slide.storyboard_concept}
+                examples={slide.storyboard_examples}
+                activity={slide.storyboard_activity}
+                profileMode={slide.storyboard_profile_mode}
+                sourceLanguage={slide.storyboard_source_language}
+                sceneId={slide.storyboard_scene_id}
+                captions={captionsOn}
+              />
+            ) : null}
+            {captionsOn ? (
+              <>
+                <p style={{ overflowWrap: "anywhere" }}>{slideCopy?.body || slide.body}</p>
+                <p className="muted" style={{ overflowWrap: "anywhere" }}>🔊 {slideCopy?.narration || slide.narration}</p>
+              </>
+            ) : null}
 
             {slide.say_aloud && (
               <div className="card" style={{ borderColor: "#7c3aed", background: "rgba(124,58,237,0.08)", marginTop: 8 }}>
@@ -1071,7 +1123,7 @@ export default function ClassPage() {
                     style={{ background: listening ? "#94a3b8" : "#7c3aed", color: "#fff" }}>
                     {listening ? "Listening…" : pron ? "🎤 Try again" : "🎤 Speak now"}
                   </button>
-                  <button type="button" onClick={() => speak(slide.narration || `Repeat after me: ${slide.say_aloud}`)}
+                  <button type="button" onClick={() => speak(slideCopy?.narration || slide.narration || `Repeat after me: ${slide.say_aloud}`)}
                     style={{ background: "#e0f2fe", color: "#075985", border: "1px solid #0ea5e9" }}>
                     🔊 Hear it
                   </button>
@@ -1107,6 +1159,15 @@ export default function ClassPage() {
               alignItems: "center",
               zIndex: 40,
             }}>
+              <button
+                type="button"
+                onClick={() => setCaptionsOn((on) => !on)}
+                aria-pressed={captionsOn}
+                title={captionsOn ? "Hide lesson text" : "Show closed captions"}
+                style={{ background: captionsOn ? "#0f172a" : "transparent", color: captionsOn ? "#fff" : "inherit", border: "1px solid var(--border)" }}
+              >
+                {captionsOn ? "CC on" : "CC"}
+              </button>
               <button onClick={onAdvance} disabled={busy}>
                 Next slide →
               </button>
@@ -1124,7 +1185,7 @@ export default function ClassPage() {
                 style={{ background: "#111", color: "#fff" }}>
                 Finish class
               </button>
-              <span className="muted" style={{ marginLeft: "auto" }}>Session {view.session.session_id}</span>
+              <span className="muted" style={{ overflowWrap: "anywhere" }}>Session {view.session.session_id}</span>
             </div>
           </div>
 

@@ -180,7 +180,7 @@ export default function ArcadePage() {
 
       {/* ── Salareen Worlds hero banner ─────────────────────────────────────── */}
       {!round && (
-        <div style={{
+        <div className="arcade-worlds-banner" style={{
           position: "relative",
           borderRadius: 20,
           overflow: "hidden",
@@ -197,7 +197,7 @@ export default function ArcadePage() {
             opacity: 0.8,
           }} aria-hidden />
           {/* Glowing planet */}
-          <div style={{
+          <div className="arcade-worlds-planet" style={{
             position: "absolute", right: 40, top: "50%", transform: "translateY(-50%)",
             width: 180, height: 180, borderRadius: "50%",
             background: "radial-gradient(circle at 38% 38%, #4ade80 0%, #16a34a 40%, #14532d 80%, #052e16 100%)",
@@ -205,7 +205,7 @@ export default function ArcadePage() {
             opacity: 0.9,
           }} aria-hidden />
           {/* Ring */}
-          <div style={{
+          <div className="arcade-worlds-ring" style={{
             position: "absolute", right: -10, top: "50%", transform: "translateY(-50%) rotate(-20deg)",
             width: 260, height: 60, borderRadius: "50%",
             border: "12px solid rgba(167,243,208,0.3)",
@@ -213,7 +213,7 @@ export default function ArcadePage() {
             pointerEvents: "none",
           }} aria-hidden />
           {/* Text content */}
-          <div style={{ position: "relative", padding: "36px 40px", maxWidth: 560, zIndex: 1 }}>
+          <div className="arcade-worlds-copy" style={{ position: "relative", padding: "36px 40px", maxWidth: 560, zIndex: 1 }}>
             <div style={{ display: "inline-block", background: "rgba(124,58,237,0.7)", color: "#e9d5ff", borderRadius: 20, padding: "3px 12px", fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 12 }}>
               ✨ FEATURED · 3D OPEN WORLD
             </div>

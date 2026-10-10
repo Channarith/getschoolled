@@ -15,6 +15,7 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { speakNatural, stopSpeech } from "../tts";
+import { useT } from "../i18n";
 import { theme } from "../theme";
 
 export default function KidsLessonScreen({
@@ -24,6 +25,7 @@ export default function KidsLessonScreen({
   courseId: string;
   onBack: () => void;
 }) {
+  const { t, locale } = useT();
   const [lesson, setLesson] = useState<KidsLesson | null>(null);
   const [error, setError] = useState("");
   const [sceneIdx, setSceneIdx] = useState(0);
@@ -51,16 +53,16 @@ export default function KidsLessonScreen({
   // Read the scene aloud: these learners are pre-readers.
   useEffect(() => {
     if (!scene) return;
-    speakNatural(`${scene.title}. ${scene.instruction}`, { locale: "en" });
+    speakNatural(`${scene.title}. ${scene.instruction}`, { locale });
     return () => stopSpeech();
-  }, [scene]);
+  }, [scene, locale]);
 
   function choose(choice: string) {
     if (!scene || picked) return;
     setPicked(choice);
     const right = choice === scene.answer;
     if (right) setCorrectCount((n) => n + 1);
-    speakNatural(right ? "Yes! That's right." : `Not quite. The answer is ${scene.answer}.`, { locale: "en" });
+    speakNatural(right ? t("kids.right") : t("kids.wrong", { answer: scene.answer }), { locale });
   }
 
   function next() {
@@ -81,7 +83,7 @@ export default function KidsLessonScreen({
       <View style={styles.topRow}>
         <AnimatedPressable style={styles.backBtn} onPress={() => { stopSpeech(); onBack(); }}>
           <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>{t("kids.back")}</Text>
         </AnimatedPressable>
         {lesson ? (
           <Text style={styles.progress} testID="kids-lesson-progress">
@@ -93,7 +95,7 @@ export default function KidsLessonScreen({
       {error ? (
         <GlassPanel style={styles.panel}>
           <Text style={styles.error}>{error}</Text>
-          <PrimaryButton label="Back to Kids" onPress={onBack} />
+          <PrimaryButton label={t("kids.backToList")} onPress={onBack} />
         </GlassPanel>
       ) : !lesson ? (
         <View style={styles.loading}><ActivityIndicator color={theme.colors.accent} /></View>
@@ -101,13 +103,13 @@ export default function KidsLessonScreen({
         <GlassPanel style={styles.panel}>
           <View testID="kids-lesson-done" />
           <Text style={styles.celebrate}>🎉</Text>
-          <Text style={styles.title}>Great job!</Text>
+          <Text style={styles.title}>{t("kids.greatJob")}</Text>
           <Text style={styles.body}>
-            You finished {lesson.title} and got {correctCount} of {total} right.
+            {t("kids.score", { title: lesson.title, correct: correctCount, total })}
           </Text>
-          <PrimaryButton label="Play again" onPress={restart} />
+          <PrimaryButton label={t("kids.playAgain")} onPress={restart} />
           <AnimatedPressable style={styles.secondary} onPress={onBack}>
-            <Text style={styles.secondaryText}>Pick another adventure</Text>
+            <Text style={styles.secondaryText}>{t("kids.pickAnother")}</Text>
           </AnimatedPressable>
         </GlassPanel>
       ) : scene ? (
@@ -155,16 +157,16 @@ export default function KidsLessonScreen({
 
           <AnimatedPressable
             style={styles.replay}
-            onPress={() => speakNatural(`${scene.title}. ${scene.instruction}`, { locale: "en" })}
+            onPress={() => speakNatural(`${scene.title}. ${scene.instruction}`, { locale })}
           >
             <Ionicons name="volume-high" size={16} color={theme.colors.text} />
-            <Text style={styles.replayText}>Read it again</Text>
+            <Text style={styles.replayText}>{t("kids.readAgain")}</Text>
           </AnimatedPressable>
 
           {picked ? (
             <PrimaryButton
               testID="kids-lesson-next"
-              label={sceneIdx + 1 >= total ? "Finish" : "Next"}
+              label={sceneIdx + 1 >= total ? t("kids.finish") : t("kids.next")}
               onPress={next}
             />
           ) : null}

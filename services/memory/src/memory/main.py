@@ -556,7 +556,9 @@ def test_seed(req: SeedRequest, _: str = Depends(require_admin_header)) -> dict:
     return {"seeded": seeded}
 
 
-@app.post("/mastery", dependencies=[Depends(require_internal)])
+# The class page and the orchestrator memory client post these directly.
+# They are not homework-grading tools, so they are not behind the internal token.
+@app.post("/mastery")
 def update_mastery(req: MasteryUpdate) -> dict:
     with _mastery_lock:
         # BUG 10 FIX: cap _mastery_locks at 10 000 entries to prevent unbounded
@@ -579,7 +581,7 @@ class BehaviorEvent(BaseModel):
     saw_slide: bool = False
 
 
-@app.post("/behavior", dependencies=[Depends(require_internal)])
+@app.post("/behavior")
 def record_behavior(req: BehaviorEvent) -> dict:
     app.state.store.record_behavior(
         req.student_id,
@@ -593,7 +595,7 @@ def record_behavior(req: BehaviorEvent) -> dict:
     return {"student_id": req.student_id, "topic": req.topic, "recorded": True}
 
 
-@app.get("/learner/{student_id}/{topic}", dependencies=[Depends(require_internal)])
+@app.get("/learner/{student_id}/{topic}")
 def learner_signals(student_id: str, topic: str) -> dict:
     """Aggregated learning-behavior signals used by the adaptive policy."""
     s = app.state.store.learner_signals(student_id, topic)

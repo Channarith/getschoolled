@@ -1,4 +1,4 @@
-"""The demo-lab filter must keep both Deployments and both Services."""
+"""The demo-lab filter must keep each lab Deployment and Service."""
 
 from __future__ import annotations
 
@@ -22,6 +22,10 @@ kind: Service
 metadata:
   name: children-lab
 ---
+kind: Service
+metadata:
+  name: audio-lab
+---
 kind: Deployment
 metadata:
   name: course-studio
@@ -39,6 +43,15 @@ spec:
     spec:
       containers:
         - name: children-lab
+---
+kind: Deployment
+metadata:
+  name: audio-lab
+spec:
+  template:
+    spec:
+      containers:
+        - name: audio-lab
 """
 
 
@@ -55,6 +68,7 @@ def test_render_demo_labs_keeps_only_the_labs() -> None:
     # Metadata plus the container name, so the string appears more than once.
     assert proc.stdout.count("name: course-studio") >= 2
     assert proc.stdout.count("name: children-lab") >= 2
+    assert proc.stdout.count("name: audio-lab") >= 2
 
 
 def test_render_demo_labs_can_emit_services_without_images() -> None:
@@ -67,7 +81,23 @@ def test_render_demo_labs_can_emit_services_without_images() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert "kind: Deployment" not in proc.stdout
-    assert proc.stdout.count("kind: Service") == 2
+    assert proc.stdout.count("kind: Service") == 3
+
+
+def test_render_demo_labs_can_emit_one_named_deployment() -> None:
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--kind", "Deployment", "--name", "audio-lab"],
+        input=SAMPLE,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "kind: Service" not in proc.stdout
+    assert proc.stdout.count("kind: Deployment") == 1
+    assert "name: audio-lab" in proc.stdout
+    assert "name: course-studio" not in proc.stdout
+    assert "name: children-lab" not in proc.stdout
 
 
 def test_render_demo_labs_splits_kustomize_documents() -> None:
@@ -90,6 +120,12 @@ metadata:
   name: children-lab
   namespace: aoep
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audio-lab
+  namespace: aoep
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -111,6 +147,17 @@ spec:
     spec:
       containers:
         - name: children-lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audio-lab
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: audio-lab
 """
     proc = subprocess.run(
         [sys.executable, str(SCRIPT), "--kind", "Service"],
@@ -121,7 +168,7 @@ spec:
     )
     assert proc.returncode == 0, proc.stderr
     assert "kind: Deployment" not in proc.stdout
-    assert proc.stdout.count("kind: Service") == 2
+    assert proc.stdout.count("kind: Service") == 3
 
 
 def test_render_demo_labs_refuses_a_partial_render() -> None:
@@ -133,4 +180,4 @@ def test_render_demo_labs_refuses_a_partial_render() -> None:
         check=False,
     )
     assert proc.returncode != 0
-    assert "expected 4" in proc.stderr
+    assert "expected 6" in proc.stderr

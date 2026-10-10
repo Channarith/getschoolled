@@ -163,6 +163,13 @@ class VoiceSessionConfig:
     silence_duration_ms: int = 700
     idle_timeout_ms: Optional[int] = 20000
     tools: List[Dict[str, Any]] = field(default_factory=list)
+    # Product language (km, zh, yue, …). xai_language is the code sent as
+    # audio.input.transcription.language_hint. Khmer and Cantonese leave the
+    # hint blank and are narrated outside this session.
+    language: str = ""
+    xai_language: str = ""
+    spoken_instruction: str = ""
+    use_xai: bool = True
 
     def resolved_instructions(self) -> str:
         base = (self.instructions or "").strip() or _PERSONA_INSTRUCTIONS.get(
@@ -175,6 +182,9 @@ class VoiceSessionConfig:
             names = ", ".join(n.strip() for n in self.learner_names if n.strip())
             if names:
                 parts.append(f"Learners in this session: {names}.")
+        spoken = (self.spoken_instruction or "").strip()
+        if spoken:
+            parts.append(spoken)
         parts.append(
             "Delivery: soft-spoken, calm, and professional. Use a gentle pace "
             "and a quiet classroom voice. Do not shout, rush, or sound cartoonish."
@@ -188,12 +198,20 @@ class VoiceSessionConfig:
         }
         if self.idle_timeout_ms is not None:
             turn["idle_timeout_ms"] = int(self.idle_timeout_ms)
+        audio_input: Dict[str, Any] = {"format": {"type": "audio/pcm", "rate": 24000}}
+        # Only send a hint xAI speech-to-speech documents. An empty hint keeps
+        # auto-detect. Khmer must not send "th" or "km" (auto-detect sounds
+        # Thai). Cantonese must not send "yue" or "zh-HK" (both are ignored,
+        # then auto-detect speaks Mandarin).
+        hint = (self.xai_language or "").strip()
+        if hint:
+            audio_input["transcription"] = {"language_hint": hint}
         session: Dict[str, Any] = {
             "voice": self.voice,
             "instructions": self.resolved_instructions(),
             "turn_detection": turn,
             "audio": {
-                "input": {"format": {"type": "audio/pcm", "rate": 24000}},
+                "input": audio_input,
                 "output": {"format": {"type": "audio/pcm", "rate": 24000}},
             },
         }
@@ -272,6 +290,7 @@ def build_voice_session(
     lesson_context: str = "",
     learner_names: Optional[Sequence[str]] = None,
     instructions: str = "",
+    language: str = "",
 ) -> VoiceSessionConfig:
     """Map webcam-lab teaching mode -> VoiceSessionConfig."""
     mode_key = (mode or PERSONA_THEODORE).strip().lower()
@@ -287,6 +306,12 @@ def build_voice_session(
         "self-teach": PERSONA_SELF_TEACH,
     }
     persona = persona_map.get(mode_key, PERSONA_THEODORE)
+    from .xai_spoken_language import plan_spoken_language
+
+    plan = plan_spoken_language(language)
+    # A Khmer plan is not spoken by this socket. Callers must check use_xai
+    # and use edge-tts km-KH instead. If a session is still built, it must
+    # not carry a Thai hint.
     return VoiceSessionConfig(
         persona=persona,
         voice=voice or DEFAULT_VOICE,
@@ -294,6 +319,10 @@ def build_voice_session(
         instructions=instructions,
         lesson_context=lesson_context or "",
         learner_names=list(learner_names or []),
+        language=plan.requested,
+        xai_language=plan.xai_language if plan.use_xai else "",
+        spoken_instruction=plan.instructions,
+        use_xai=plan.use_xai,
     )
 
 

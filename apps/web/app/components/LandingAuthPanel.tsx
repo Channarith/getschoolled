@@ -210,11 +210,11 @@ export default function LandingAuthPanel({ onSignedIn }: { onSignedIn?: () => vo
           >
             {emailBusy ? "Signing in…" : emailMode === "login" ? "Sign in" : "Create account"}
           </button>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 2 }}>
             <button
               type="button"
               onClick={() => { setEmailMode(emailMode === "login" ? "signup" : "login"); setEmailError(""); }}
-              style={{ background: "none", border: "none", color: "rgba(255,255,255,0.55)", fontSize: 13, cursor: "pointer", padding: 0 }}
+              style={{ background: "none", border: "none", color: "rgba(255,255,255,0.55)", fontSize: 13, cursor: "pointer", padding: 0, whiteSpace: "normal", textAlign: "left" }}
             >
               {emailMode === "login" ? "New here? Create account" : "Already have an account? Sign in"}
             </button>

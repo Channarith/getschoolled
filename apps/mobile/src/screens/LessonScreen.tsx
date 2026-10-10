@@ -1,4 +1,3 @@
-import * as Speech from "expo-speech";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TextInput, View,
@@ -34,7 +33,7 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { getSettings } from "../storage";
 import { theme } from "../theme";
-import { speakNatural } from "../tts";
+import { speakNatural, stopSpeech } from "../tts";
 import { buildNarrationSpeakOptions } from "../narrationTts";
 import { useXaiClassVoice } from "../useXaiClassVoice";
 
@@ -56,7 +55,7 @@ export default function LessonScreen({
   lessonId, title, preview, classType = "group", onBack,
 }: Props) {
   const { t, locale } = useT();
-  useAndroidBackTo(() => { Speech.stop(); onBack(); });
+  useAndroidBackTo(() => { stopSpeech(); onBack(); });
   const { account } = useAuth();
   const [view, setView] = useState<LessonSessionView | null>(null);
   const [slide, setSlide] = useState<LessonSlide | null>(null);
@@ -102,6 +101,7 @@ export default function LessonScreen({
       .filter(Boolean)
       .join("\n"),
     learnerName: studentProfile?.display_name,
+    language: locale,
     onTranscript: (text) => {
       setAnswer({
         text,
@@ -164,12 +164,12 @@ export default function LessonScreen({
     })();
     return () => {
       alive = false;
-      Speech.stop();
+      stopSpeech();
     };
   }, [lessonId, classType, account, lightingReady]);
 
   function stopNarration() {
-    Speech.stop();
+    stopSpeech();
     xai.interrupt();
     setNarrating(false);
   }
@@ -178,7 +178,7 @@ export default function LessonScreen({
     const localized = localizedSlide?.index === target.index ? localizedSlide : target;
     const text = localized.narration || localized.body || localized.title;
     if (!text) return;
-    Speech.stop();
+    stopSpeech();
     setNarrating(true);
     void buildNarrationSpeakOptions(locale).then((base) => {
       speakNatural(text, {

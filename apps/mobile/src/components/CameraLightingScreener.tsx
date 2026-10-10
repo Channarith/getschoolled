@@ -13,8 +13,10 @@ import * as ImagePicker from "expo-image-picker";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 
+import { cameraContinueEnabled } from "../cameraCheck";
 import { ensureCameraPermission } from "./cameraPermission";
 import PrimaryButton from "./PrimaryButton";
+import { useT } from "../i18n";
 import { theme } from "../theme";
 
 type Props = {
@@ -24,8 +26,10 @@ type Props = {
 
 export default function CameraLightingScreener({
   onReady,
-  title = "Camera and lighting check",
+  title,
 }: Props) {
+  const { t } = useT();
+  const heading = title || t("camera.title");
   const [busy, setBusy] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -36,12 +40,12 @@ export default function CameraLightingScreener({
     try {
       const allowed = await ensureCameraPermission();
       if (!allowed) {
-        setError("Camera permission is required for class.");
+        setError(t("camera.permission"));
         return;
       }
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        setError("Camera permission is required for class.");
+        setError(t("camera.permission"));
         return;
       }
       const shot = await ImagePicker.launchCameraAsync({
@@ -53,44 +57,40 @@ export default function CameraLightingScreener({
       if (shot.canceled || !shot.assets?.[0]) return;
       setPreviewUri(shot.assets[0].uri);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Camera check failed");
+      setError(e instanceof Error ? e.message : t("camera.failed"));
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [t]);
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.body}>
-        Take one face photo. As soon as it is saved, Continue to class turns on.
-        Your face should be clearly visible, well lit, and sharp.
-      </Text>
+      <Text style={styles.title}>{heading}</Text>
+      <Text style={styles.body}>{t("camera.body")}</Text>
 
       {previewUri ? (
         <Image source={{ uri: previewUri }} style={styles.preview} />
       ) : (
         <View style={[styles.preview, styles.previewEmpty]}>
-          <Text style={styles.muted}>No photo yet</Text>
+          <Text style={styles.muted}>{t("camera.empty")}</Text>
         </View>
       )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {previewUri ? (
-        <View style={styles.confirm}>
-          <Text style={styles.confirmText}>
-            ✓ Photo saved. Continue to class is ready.
-          </Text>
+        <View style={styles.confirm} pointerEvents="none" accessibilityRole="text">
+          <Text style={styles.confirmText}>{t("camera.saved")}</Text>
         </View>
       ) : null}
 
       <View style={{ marginTop: 10 }}>
         <PrimaryButton
-          label="Continue to class"
+          label={t("camera.continue")}
           onPress={onReady}
-          disabled={!previewUri || busy}
+          disabled={!cameraContinueEnabled(Boolean(previewUri), busy)}
           variant="netflix"
+          testID="camera-continue"
         />
       </View>
 
@@ -98,7 +98,7 @@ export default function CameraLightingScreener({
         <ActivityIndicator color={theme.colors.accent} style={{ marginVertical: 12 }} />
       ) : (
         <PrimaryButton
-          label={previewUri ? "Retake photo" : "Open camera & check"}
+          label={previewUri ? t("camera.retake") : t("camera.open")}
           onPress={() => void capture()}
           variant={previewUri ? "ghost" : "netflix"}
         />
@@ -127,5 +127,11 @@ const styles = StyleSheet.create({
     padding: 10,
     marginTop: 4,
   },
-  confirmText: { color: "#bbf7d0", fontSize: 14, fontWeight: "600" },
+  confirmText: {
+    color: "#bbf7d0",
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 18,
+    includeFontPadding: false,
+  },
 });

@@ -36,6 +36,8 @@ def test_page_exposes_core_games_privacy_and_fun_ui():
         'id="show-face"',
         'id="show-hands"',
         'id="show-trail"',
+        'id="pace"',
+        "Patient",
         'id="show-measures"',
         "/static/app.js",
     ):
@@ -93,6 +95,9 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
     assert "outputFaceBlendshapes:true" in script
     assert "SpeechRecognition" in script
     assert "video.currentTime===state.lastVideoTime" in script
+    assert "successHoldMs" in script
+    assert "drawFistMark" in script
+    assert "is-success" in script
     assert "face.detectForVideo" in script
     assert "hands.detectForVideo" in script
     assert 'fetch("/api/child/analytics"' in script

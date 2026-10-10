@@ -4,15 +4,8 @@ import { visionArcadeFrameSrc } from "../../lib/visionArcade";
 
 export default function VisionArcadeDemoPage() {
   return (
-    <main className="container" style={{ maxWidth: 1180, margin: "0 auto", padding: "28px 22px 70px" }}>
-      <p className="theme-badge">DEMO</p>
-      <h1>Vision arcade</h1>
-      <p className="muted" style={{ maxWidth: 720 }}>
-        Children play the machine-vision games from the webcam lab: trace letters, make faces,
-        catch objects with their hands, move, and play listening games out loud. Anyone can play. The camera stays in this browser.
-        Nothing is recorded, and the lab does not identify who is playing.
-      </p>
-      <p style={{ margin: "12px 0 18px" }}>
+    <main className="container" style={{ maxWidth: 1180, margin: "0 auto", padding: "16px 16px 40px" }}>
+      <p style={{ margin: "0 0 12px", display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
         <VisionArcadeLinks />
       </p>
       <VisionArcadeFrame title="Children machine vision games" src={visionArcadeFrameSrc()} />
