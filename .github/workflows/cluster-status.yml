@@ -1,4 +1,5 @@
-# Read-only pod status for the demo labs. Does not change images or replicas.
+# Demo lab status. If a lab is stuck on the unpublished :latest tag, pin it
+# back to the newest digest ReplicaSet so the public demos can start.
 name: Cluster status
 
 on:
@@ -26,4 +27,18 @@ jobs:
             kubectl -n aoep get pods -l "app=$name" -o jsonpath='{range .items[*]}{.metadata.name}{" image="}{.spec.containers[0].image}{" waiting="}{.status.containerStatuses[0].state.waiting.reason}{" msg="}{.status.containerStatuses[0].state.waiting.message}{"\n"}{end}'
             echo
             kubectl -n aoep describe pods -l "app=$name" | awk '/^Events:/{p=1} p'
+            echo "---- replicasets $name ----"
+            kubectl -n aoep get rs -l "app=$name" -o custom-columns='NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image,READY:.status.readyReplicas,CREATED:.metadata.creationTimestamp'
+            current="$(kubectl -n aoep get deploy "$name" -o jsonpath='{.spec.template.spec.containers[0].image}')"
+            echo "current=$current"
+            case "$current" in
+              *:latest)
+                prev="$(kubectl -n aoep get rs -l "app=$name" -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{" "}{.spec.template.spec.containers[0].image}{"\n"}{end}' | sort | awk '/@sha256/ {img=$2} END {print img}')"
+                echo "restoring $name -> ${prev:-<none>}"
+                if [ -n "$prev" ]; then
+                  kubectl -n aoep set image "deployment/$name" "$name=$prev"
+                  kubectl -n aoep rollout status "deployment/$name" --timeout=240s
+                fi
+                ;;
+            esac
           done
