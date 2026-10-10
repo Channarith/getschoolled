@@ -9,7 +9,7 @@ export default function VisionArcadeDemoPage() {
       <h1>Vision arcade</h1>
       <p className="muted" style={{ maxWidth: 720 }}>
         Children play the machine-vision games from the webcam lab: trace letters, make faces,
-        catch objects with their hands, and move. Anyone can play. The camera stays in this browser.
+        catch objects with their hands, move, and play listening games out loud. Anyone can play. The camera stays in this browser.
         Nothing is recorded, and the lab does not identify who is playing.
       </p>
       <p style={{ margin: "12px 0 18px" }}>

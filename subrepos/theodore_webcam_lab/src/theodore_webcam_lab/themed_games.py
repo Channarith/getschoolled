@@ -130,11 +130,37 @@ def recognize_wand_spell(trail: list[tuple[float, float]]) -> str | None:
 
 
 def trail_heart_shape(trail: list[tuple[float, float]]) -> bool:
-    """Simple heart-ish closed loop for Valentine matching."""
-    spell = recognize_wand_spell(trail)
-    if spell != "loop":
+    """A drawn heart has two top lobes and a bottom point. A circle does not.
+
+    The live Valentine round does not use this. It accepts the two-hand heart
+    pose only. This helper stays so a round finger loop cannot be labeled a heart.
+    """
+    if len(trail) < 12:
         return False
     xs = [p[0] for p in trail]
     ys = [p[1] for p in trail]
-    # Heart loops tend to be taller than wide in portrait framing.
-    return (max(ys) - min(ys)) >= 0.14 and (max(xs) - min(xs)) >= 0.10
+    span_x = max(xs) - min(xs)
+    span_y = max(ys) - min(ys)
+    if span_x < 0.10 or span_y < 0.14:
+        return False
+    first, last = trail[0], trail[-1]
+    if ((first[0] - last[0]) ** 2 + (first[1] - last[1]) ** 2) ** 0.5 > 0.12:
+        return False
+    min_y = min(ys)
+    top = [p for p in trail if p[1] <= min_y + 0.28 * span_y]
+    if len(top) < 3:
+        return False
+    left = min(top, key=lambda p: p[0])
+    right = max(top, key=lambda p: p[0])
+    between = [
+        p for p in top
+        if left[0] + 0.15 * span_x < p[0] < right[0] - 0.15 * span_x
+    ]
+    if not between:
+        return False
+    cleft_drop = max(p[1] for p in between) - min(left[1], right[1])
+    if cleft_drop < 0.08 * span_y:
+        return False
+    bottom = max(trail, key=lambda p: p[1])
+    mid_x = (min(xs) + max(xs)) / 2
+    return abs(bottom[0] - mid_x) <= 0.22 * span_x

@@ -3906,7 +3906,7 @@ MONITOR_JS = (
         const tip = pts[INDEX_FINGER_TIP];
         if (tip) pushIndexFingerTrailSample(tip.x, tip.y);
       });
-      const spell = detectWandSpellFromTrail(indexFingerTrail);
+      const spell = handsFormHeart(hands) ? 'heart' : detectWandSpellFromTrail(indexFingerTrail);
       if (spell) lastWandSpell = spell;
       return {
         hand_count: hands.length,
@@ -4126,11 +4126,29 @@ MONITOR_JS = (
       if (spanY >= 0.18 && spanX <= 0.12) return 'flick';
       const first = trail[0], last = trail[trail.length - 1];
       const closed = Math.hypot(first.x - last.x, first.y - last.y);
-      if (trail.length >= 12 && closed <= 0.08) {
-        if (spanY >= 0.14 && spanX >= 0.10) return 'heart';
-        return 'loop';
-      }
+      if (trail.length >= 12 && closed <= 0.08) return 'loop';
       return null;
+    }
+
+    // Mirrors vision_math.isHeartShape. A circle peaks at the fingertips.
+    // A heart dips between two knuckle lobes and points at the thumbs.
+    function handsFormHeart(hands) {
+      if (!hands || hands.length < 2) return false;
+      const a = hands[0], b = hands[1];
+      if (!a[8] || !b[8] || !a[4] || !b[4] || !a[0] || !b[0] || !a[5] || !b[5] || !a[9] || !b[9]) {
+        return false;
+      }
+      const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+      const span = (pts) => Math.max(1e-4, dist(pts[0], pts[9]));
+      const scale = (span(a) + span(b)) / 2;
+      const tips = dist(a[8], b[8]) / scale;
+      const thumbs = dist(a[4], b[4]) / scale;
+      const wrists = dist(a[0], b[0]) / scale;
+      const cleft = (((a[8].y + b[8].y) / 2) - ((a[5].y + b[5].y) / 2)) / scale;
+      const point = (((a[4].y + b[4].y) / 2) - ((a[8].y + b[8].y) / 2)) / scale;
+      const lobes = dist(a[5], b[5]) / scale;
+      return tips < 1.4 && thumbs < 1.6 && wrists > 1.3
+        && cleft > 0.25 && point > 0.45 && lobes > 1.1 && lobes > tips + 0.4;
     }
 
     function computeLiveCuteScore(facial) {

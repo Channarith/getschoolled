@@ -58,6 +58,9 @@ function DrivePageInner() {
   const [total, setTotal] = useState(0);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [course, setCourse] = useState<AudioCourse | null>(null);
+  const stageRef = useRef<HTMLElement>(null);
+  const [stageFull, setStageFull] = useState(false);
+  const [optionsHidden, setOptionsHidden] = useState(false);
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
@@ -804,8 +807,51 @@ function DrivePageInner() {
 
   const BIG = { fontSize: 22, padding: "16px 22px", borderRadius: 14 };
 
+  useEffect(() => {
+    const onChange = () => {
+      const on = document.fullscreenElement === stageRef.current;
+      setStageFull(on);
+      if (!on) setOptionsHidden(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  function toggleStageFull() {
+    const stage = stageRef.current;
+    if (!stage) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    void stage.requestFullscreen?.().catch(() => undefined);
+  }
+
   return (
-    <main className="container" style={{ maxWidth: 900 }}>
+    <main
+      ref={stageRef}
+      className="container"
+      style={{
+        maxWidth: stageFull ? "none" : 900,
+        background: stageFull ? "#0b1020" : undefined,
+        minHeight: stageFull ? "100%" : undefined,
+        position: "relative",
+      }}
+    >
+      <div style={{
+        display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 8,
+        position: stageFull ? "absolute" : "relative",
+        top: stageFull ? 12 : undefined, right: stageFull ? 12 : undefined, zIndex: 7,
+      }}>
+        {stageFull ? (
+          <button type="button" onClick={() => setOptionsHidden((v) => !v)} aria-pressed={optionsHidden}>
+            {optionsHidden ? "Show options" : "Hide options"}
+          </button>
+        ) : null}
+        <button type="button" onClick={toggleStageFull} aria-pressed={stageFull}>
+          {stageFull ? "Exit full screen" : "Full screen"}
+        </button>
+      </div>
       {adBreak && (
         <VideoAdBreak
           adBreak={adBreak}
@@ -815,8 +861,8 @@ function DrivePageInner() {
           onDone={onAdDone}
         />
       )}
-      <h1>{t("drive.pageTitle")}</h1>
-      <p className="muted">
+      <h1 hidden={stageFull && optionsHidden}>{t("drive.pageTitle")}</h1>
+      <p className="muted" hidden={stageFull && optionsHidden}>
         {coursesLoading
           ? t("drive.loadingCourses")
           : t("drive.pageIntro", { total })}
@@ -833,7 +879,7 @@ function DrivePageInner() {
           <div style={{ fontSize: 18, margin: "8px 0" }}>
             ▶ {course.segments[seg]?.heading} <span className="muted">({seg + 1}/{course.segments.length})</span>
           </div>
-          <div style={{ margin: "8px 0 14px" }}>
+          <div style={{ margin: "8px 0 14px" }} hidden={stageFull && optionsHidden}>
             <input
               type="range"
               min={0}
@@ -851,7 +897,7 @@ function DrivePageInner() {
               <div style={{ height: "100%", width: `${((seg + 1) / course.segments.length) * 100}%`, background: "#0ea5e9" }} />
             </div>
           </div>
-          <div className="row" style={{ gap: 12 }}>
+          <div className="row" style={{ gap: 12 }} hidden={stageFull && optionsHidden}>
             <button type="button" aria-label={t("drive.prevSegment")} onClick={() => playSeg(course, Math.max(0, seg - 1))} style={BIG}>⏮</button>
             {playing
               ? <button type="button" aria-label={t("drive.pause")} onClick={pause} style={{ ...BIG, background: "#f59e0b" }}>{t("drive.pause")}</button>
@@ -947,7 +993,7 @@ function DrivePageInner() {
         </div>
       )}
 
-      {loggedIn && (
+      {loggedIn && !optionsHidden && (
       <>
       {/* Browse */}
       <div className="card">
@@ -986,7 +1032,7 @@ function DrivePageInner() {
       </>
       )}
 
-      <section id="audio-lab" className="card" style={{ marginTop: 18 }}>
+      <section id="audio-lab" className="card" style={{ marginTop: 18 }} hidden={stageFull && optionsHidden}>
         <h2 style={{ marginTop: 0 }}>Audio lab</h2>
         <p className="muted" style={{ marginTop: 0 }}>
           Hands-free speech translation. The microphone stays in this browser, and Theodore answers with the xAI voice agent.

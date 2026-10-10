@@ -23,7 +23,15 @@ from pydantic import BaseModel, Field
 from . import __version__, tts
 from .analytics import AggregateAnalytics
 from .children_page import FAVICON_SVG, render_children_page
-from .game_engine import PICTURE_WORDS, all_game_ids, fun_score, score_spoken
+from .game_engine import (
+    AUDIO_BANK,
+    PICTURE_WORDS,
+    all_game_ids,
+    audio_round_public,
+    fun_score,
+    score_audio,
+    score_spoken,
+)
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PACKAGE_DIR / "static"
@@ -48,9 +56,11 @@ install_live_audio_routes(
         "picture for that letter, say another example. When the motion should "
         "start again, say different animation. The game on screen is the activity. "
         "Coach that activity. If it is say the letter, ask them to say the letter "
-        "out loud. If it is dance freeze, say freeze when they should hold still "
+        "out loud. Listening games want a spoken answer: repeat, pronounce, "
+        "rhyme, explain, summarize, or prove they understood. Do not give away "
+        "the answer. If it is dance freeze, say freeze when they should hold still "
         "and say dance when they should move again. Their spoken answer is checked "
-        "by the game. Do not give away the answer."
+        "by the game."
     ),
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -64,6 +74,12 @@ class PronounceRequest(BaseModel):
     target: str = Field(min_length=1, max_length=80)
     heard: str = Field(default="", max_length=200)
     kind: Literal["letter", "word", "noun"] = "word"
+
+
+class AudioCheckRequest(BaseModel):
+    game: str = Field(min_length=1, max_length=40)
+    round_id: str = Field(min_length=1, max_length=40)
+    heard: str = Field(default="", max_length=400)
 
 
 class AnalyticsRequest(BaseModel):
@@ -125,6 +141,7 @@ def health() -> dict[str, Any]:
         "two_hand_games": True,
         "face_expression_games": True,
         "movement_games": True,
+        "audio_games": True,
         "fun_analytics": "local-first-opt-in-aggregate",
         "vision_assets": "self-hosted" if VISION_ASSET_DIR.is_dir() else "cdn-with-pointer-fallback",
         "speech": tts.tts_status(),
@@ -167,6 +184,22 @@ def speak(text: str = "", language: str = "en", style: str = "cheerful") -> Resp
 @app.post("/api/child/pronounce")
 def pronounce(req: PronounceRequest) -> dict[str, Any]:
     return score_spoken(req.target, req.heard, kind=req.kind)
+
+
+@app.get("/api/child/audio-round")
+def audio_round(game: str, index: int = 0) -> dict[str, Any]:
+    if game not in AUDIO_BANK:
+        raise HTTPException(status_code=404, detail="Unknown listening game")
+    if index < 0:
+        raise HTTPException(status_code=422, detail="index must be zero or more")
+    return audio_round_public(game, index)
+
+
+@app.post("/api/child/audio-check")
+def audio_check(req: AudioCheckRequest) -> dict[str, Any]:
+    if req.game not in AUDIO_BANK:
+        raise HTTPException(status_code=404, detail="Unknown listening game")
+    return score_audio(req.game, req.round_id, req.heard)
 
 
 @app.post("/api/child/fun-score")

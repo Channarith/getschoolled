@@ -294,6 +294,14 @@ STUDIO_CSS = """
     .student-cam.is-hidden .student-cam-note { display:block; }
     .student-cam-status { margin:0; padding:6px 8px 8px; color:#f6efe4; font:700 11px Arial,sans-serif; line-height:1.35; }
     .presenter-overlay .lesson-toolbar { position:absolute; top:62px; right:18px; z-index:5; }
+    body.chrome-hidden .mast,
+    body.chrome-hidden .library-panel,
+    body.chrome-hidden #lesson-toolbar,
+    body.chrome-hidden #talk-panel,
+    body.chrome-hidden .lesson-lang,
+    body.chrome-hidden #btn-captions { display:none !important; }
+    body.chrome-hidden .layout { display:block; }
+    body.chrome-hidden #btn-chrome { display:inline-block !important; }
     .presenter-overlay .storyboard-concept { display:none; }
     .presenter-overlay .picture-stage { display:none; }
     .presenter-overlay .teach-stage .body { font-size:clamp(16px,1.5vw,23px); max-width:72rem; }
@@ -427,6 +435,14 @@ STUDIO_CSS = """
     .sample-banner { margin-top:8px; padding:10px 12px; border-radius:12px; background:#eef2ff;
                      border:1px solid #6366f1; color:#1e1b4b; font-size:14px; font-weight:700; }
     .sample-banner.is-ended { background:#fff6e8; border-color:#e7c98a; color:#5c3b1e; font-size:16px; }
+    .sample-clock { position:fixed; top:12px; right:12px; z-index:40; min-width:7.2rem;
+                    padding:10px 14px 8px; border-radius:16px; background:#1e1b4b; color:#fff;
+                    text-align:center; box-shadow:0 10px 28px rgba(30,27,75,.28); }
+    .sample-clock[hidden] { display:none !important; }
+    .sample-clock span { display:block; font:800 32px/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+                         font-variant-numeric:tabular-nums; letter-spacing:0.03em; }
+    .sample-clock small { display:block; margin-top:4px; font:700 11px/1.2 "Avenir Next", "Segoe UI", sans-serif;
+                          letter-spacing:.08em; text-transform:uppercase; opacity:.85; }
     body.audio-only #student-cam,
     body.audio-only #btn-avatar,
     body.audio-only .avatar-choice-label,
@@ -558,6 +574,7 @@ STUDIO_JS = """
     }
     const TRIAL_ENDED = 'Your free 10-minute trial has ended. Thanks for spending time with the lesson. Pay for the course when you want to keep going.';
     let sampleTimer = 0;
+    let sampleTick = 0;
     function sampleIsComplete() {
       return !!(lastTeachPayload && lastTeachPayload.sample && lastTeachPayload.sample.complete);
     }
@@ -566,7 +583,24 @@ STUDIO_JS = """
       if (sample.complete && sample.message) return sample.message;
       return TRIAL_ENDED;
     }
+    function formatSampleClock(ms) {
+      const total = Math.max(0, Math.ceil(ms / 1000));
+      const minutes = Math.floor(total / 60);
+      const seconds = total % 60;
+      return minutes + ':' + String(seconds).padStart(2, '0');
+    }
+    function sampleRemainMs(payload) {
+      const started = payload && payload.session && payload.session.started_at_ms;
+      const minutes = (payload && payload.sample && payload.sample.minutes) || 10;
+      if (!started) return null;
+      return started + minutes * 60000 - Date.now();
+    }
+    function stopSampleClock() {
+      if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = 0; }
+      if (sampleTick) { clearInterval(sampleTick); sampleTick = 0; }
+    }
     function endSampleTrial(payload) {
+      stopSampleClock();
       const base = payload || lastTeachPayload || {};
       lastTeachPayload = base;
       base.access_mode = 'sample';
@@ -583,22 +617,41 @@ STUDIO_JS = """
       paintSampleBanner(base);
     }
     function armSampleClock(payload) {
-      if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = 0; }
+      stopSampleClock();
       if (!payload || payload.access_mode !== 'sample') return;
       if (payload.sample && payload.sample.complete) return;
-      const started = payload.session && payload.session.started_at_ms;
-      const minutes = (payload.sample && payload.sample.minutes) || 10;
-      if (!started) return;
-      const remain = started + minutes * 60000 - Date.now();
+      const remain = sampleRemainMs(payload);
+      if (remain == null) return;
       if (remain <= 0) { endSampleTrial(payload); return; }
+      const tick = () => {
+        const left = sampleRemainMs(payload);
+        if (left == null) return;
+        if (left <= 0) { endSampleTrial(payload); return; }
+        paintSampleBanner(payload);
+      };
+      tick();
+      sampleTick = setInterval(tick, 1000);
       sampleTimer = setTimeout(() => endSampleTrial(payload), remain);
     }
     function paintSampleBanner(payload) {
       const banner = $('sample-banner');
-      if (!banner) return;
+      const clock = $('sample-clock');
+      const timeEl = $('sample-clock-time');
       const sample = (payload && payload.sample) || {};
       const mode = (payload && payload.access_mode) || '';
       const show = mode === 'sample' || (!payload && requestedAccess === 'sample');
+      const remain = show && !sample.complete ? sampleRemainMs(payload) : null;
+      if (clock && timeEl) {
+        const ticking = show && !sample.complete;
+        clock.hidden = !ticking;
+        if (ticking) {
+          const ms = remain == null
+            ? ((sample.minutes || 10) * 60000)
+            : Math.max(0, remain);
+          timeEl.textContent = formatSampleClock(ms);
+        }
+      }
+      if (!banner) return;
       banner.style.display = show ? 'block' : 'none';
       banner.classList.toggle('is-ended', !!(show && sample.complete));
       banner.textContent = show
@@ -948,6 +1001,17 @@ STUDIO_JS = """
     function presenterActive() {
       const overlay = $('presenter-overlay');
       return !!(overlay && overlay.classList.contains('show'));
+    }
+
+    function setStudioChromeHidden(hidden) {
+      document.body.classList.toggle('chrome-hidden', !!hidden);
+      const btn = $('btn-chrome');
+      if (!btn) return;
+      const show = presenterActive() || !!hidden || !!document.fullscreenElement;
+      btn.hidden = !show;
+      btn.textContent = hidden ? 'Show options' : 'Hide options';
+      btn.setAttribute('aria-pressed', String(!!hidden));
+      btn.title = hidden ? 'Show options' : 'Hide options';
     }
 
     function updateLessonWindowControls() {
@@ -1842,6 +1906,7 @@ STUDIO_JS = """
       // fullscreen element himself or he simply would not be rendered.
       applyAvatarPlacement();
       updateLessonWindowControls();
+      setStudioChromeHidden(document.body.classList.contains('chrome-hidden'));
       // The renderer sizes off the container, which just changed by a lot.
       requestAnimationFrame(() => theodoreAvatar?.resize());
     }
@@ -1860,6 +1925,7 @@ STUDIO_JS = """
       }
       applyAvatarPlacement();
       updateLessonWindowControls();
+      setStudioChromeHidden(false);
       requestAnimationFrame(() => theodoreAvatar?.resize());
     }
 
@@ -4839,6 +4905,12 @@ STUDIO_JS = """
     on('btn-next', 'click', () => nextSlide().catch((e) => toast(String(e.message || e))));
     on('btn-pause', 'click', () => toggleLecturePause());
     on('btn-fullscreen', 'click', togglePresenterMode);
+    on('btn-chrome', 'click', () => setStudioChromeHidden(!document.body.classList.contains('chrome-hidden')));
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (!data || data.type !== 'salareen-chrome') return;
+      setStudioChromeHidden(!!data.hidden);
+    });
     on('student-cam-hide', 'click', () => {
       const box = $('student-cam');
       setStudentCamHidden(!(box && box.classList.contains('is-hidden')));
@@ -4974,6 +5046,7 @@ def render_studio_page() -> str:
             <select id="teach-lang-stage" aria-label="Lesson language"></select>
           </label>
           <button id="btn-captions" class="is-off" type="button" aria-pressed="false" aria-label="Show lesson captions" title="Show captions">CC</button>
+          <button id="btn-chrome" type="button" hidden aria-pressed="false" title="Hide options">Hide options</button>
           <button id="btn-fullscreen" type="button" aria-label="Expand lesson to full screen" title="Full screen">⛶</button>
         </div>
         <h3 id="teach-title">Your lesson</h3>
@@ -5022,6 +5095,10 @@ def render_studio_page() -> str:
             <div class="modality-row" id="teach-modalities"></div>
             <div class="examples-box" id="teach-examples"></div>
             <div class="lang-warning" id="lang-warning" style="display:none"></div>
+            <div class="sample-clock" id="sample-clock" hidden>
+              <span id="sample-clock-time">10:00</span>
+              <small>free trial</small>
+            </div>
             <div class="sample-banner" id="sample-banner" style="display:none" role="status"></div>
             <div class="activity" id="teach-activity" style="display:none"></div>
             <div class="narr" id="teach-narr"></div>

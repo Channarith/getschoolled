@@ -5,7 +5,7 @@ from __future__ import annotations
 import difflib
 import re
 import unicodedata
-from typing import Any
+from typing import Any, NamedTuple
 
 LETTER_ALIASES: dict[str, set[str]] = {
     "a": {"a", "ay", "eh"},
@@ -67,6 +67,22 @@ GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
         ("connect-dots", "Connect the dots"),
         ("trace-outline", "Trace the outline"),
         ("say-letter", "Say the letter"),
+    ]),
+    ("Listen", [
+        ("repeat-after-me", "Repeat after me"),
+        ("pronounce-word", "Pronounce the word"),
+        ("rhyme-time", "Say a rhyme"),
+        ("listen-answer", "Answer what you hear"),
+        ("missing-word", "Say the missing word"),
+        ("opposites", "Say the opposite"),
+        ("explain-it", "Explain it"),
+        ("sum-it-up", "Sum it up"),
+        ("prove-it", "Prove you understand"),
+        ("story-order", "What happened first"),
+        ("how-many", "How many did you hear"),
+        ("same-or-different", "Same or different"),
+        ("finish-the-line", "Finish the line"),
+        ("spell-aloud", "Spell what you hear"),
     ]),
     ("Face & hands", [
         ("oh-behave", "Oh behave"),
@@ -132,6 +148,219 @@ def score_spoken(target: str, heard: str, *, kind: str = "word") -> dict[str, An
             if score >= threshold
             else f"Almost! Listen once, then try {target} again."
         ),
+    }
+
+
+class AudioRound(NamedTuple):
+    round_id: str
+    title: str
+    prompt: str
+    speak: str
+    mode: str
+    accept: tuple[str, ...] = ()
+    require: tuple[str, ...] = ()
+
+
+def _rounds(*rows: AudioRound) -> tuple[AudioRound, ...]:
+    return rows
+
+
+# Prompts and accepted answers stay on the server. The page only receives
+# the line Theodore speaks and the on-screen instruction.
+AUDIO_BANK: dict[str, tuple[AudioRound, ...]] = {
+    "repeat-after-me": _rounds(
+        AudioRound("cat-mat", "Repeat after me", "Say the sentence back.",
+                   "Repeat after me. The cat sat on the mat.", "phrase",
+                   ("the cat sat on the mat",)),
+        AudioRound("red-balloons", "Repeat after me", "Say the sentence back.",
+                   "Repeat after me. Red balloons float up.", "phrase",
+                   ("red balloons float up",)),
+    ),
+    "pronounce-word": _rounds(
+        AudioRound("apple", "Pronounce the word", "Say this word clearly.",
+                   "Say apple.", "phrase", ("apple",)),
+        AudioRound("elephant", "Pronounce the word", "Say this word clearly.",
+                   "Say elephant.", "phrase", ("elephant",)),
+        AudioRound("umbrella", "Pronounce the word", "Say this word clearly.",
+                   "Say umbrella.", "phrase", ("umbrella",)),
+    ),
+    "rhyme-time": _rounds(
+        AudioRound("cat", "Say a rhyme", "Say a word that rhymes with cat.",
+                   "Say a word that rhymes with cat.", "any",
+                   ("bat", "hat", "mat", "sat", "rat")),
+        AudioRound("star", "Say a rhyme", "Say a word that rhymes with star.",
+                   "Say a word that rhymes with star.", "any",
+                   ("car", "far", "jar", "bar")),
+    ),
+    "listen-answer": _rounds(
+        AudioRound("banana", "Answer what you hear", "Answer the question.",
+                   "What color is a banana?", "any", ("yellow",)),
+        AudioRound("meow", "Answer what you hear", "Answer the question.",
+                   "Which animal says meow?", "any", ("cat", "kitten")),
+        AudioRound("book", "Answer what you hear", "Answer the question.",
+                   "What do you read a story in?", "any", ("book",)),
+    ),
+    "missing-word": _rounds(
+        AudioRound("star", "Say the missing word", "Say the word that was left out.",
+                   "Twinkle twinkle little blank. What word is missing?", "any", ("star",)),
+        AudioRound("bus", "Say the missing word", "Say the word that was left out.",
+                   "The wheels on the blank go round and round. What word is missing?", "any", ("bus",)),
+    ),
+    "opposites": _rounds(
+        AudioRound("hot", "Say the opposite", "Say the opposite of the word you hear.",
+                   "What is the opposite of hot?", "any", ("cold",)),
+        AudioRound("up", "Say the opposite", "Say the opposite of the word you hear.",
+                   "What is the opposite of up?", "any", ("down",)),
+        AudioRound("big", "Say the opposite", "Say the opposite of the word you hear.",
+                   "What is the opposite of big?", "any", ("small", "little")),
+    ),
+    "explain-it": _rounds(
+        AudioRound("seed", "Explain it", "Explain why, using what you heard.",
+                   "A seed needs water and sun to grow. Explain why a seed grows.", "all",
+                   require=("water", "sun")),
+        AudioRound("hands", "Explain it", "Explain why, using what you heard.",
+                   "We wash our hands to wash away germs. Explain why we wash our hands.", "all",
+                   require=("germs",)),
+    ),
+    "sum-it-up": _rounds(
+        AudioRound("mia", "Sum it up", "Say the short idea, not every detail.",
+                   "Mia packed a book and an apple. Then she walked to school. Sum up where Mia went.",
+                   "all", require=("school",)),
+        AudioRound("rain", "Sum it up", "Say the short idea, not every detail.",
+                   "Clouds got dark. Then rain fell on the garden. Sum up what the garden got.",
+                   "all", require=("rain",)),
+    ),
+    "prove-it": _rounds(
+        AudioRound("ice", "Prove you understand", "Say the reason you heard.",
+                   "Ice is cold water that froze. Prove you know what ice is.", "all",
+                   require=("cold", "water")),
+        AudioRound("triangle", "Prove you understand", "Say the reason you heard.",
+                   "A triangle has three sides. Prove you know a triangle.", "all",
+                   require=("three", "sides")),
+    ),
+    "story-order": _rounds(
+        AudioRound("first", "What happened first", "Say the first thing that happened.",
+                   "First the bird built a nest. Next it laid an egg. Last the egg hatched. What happened first?",
+                   "any", ("nest", "built")),
+        AudioRound("last", "What happened last", "Say the last thing that happened.",
+                   "First we mixed the batter. Next we baked the cake. Last we ate a slice. What happened last?",
+                   "any", ("ate", "slice", "eat")),
+    ),
+    "how-many": _rounds(
+        AudioRound("sounds", "How many did you hear", "Say the number.",
+                   "I hear a drum, a bell, and a flute. How many sounds?", "any",
+                   ("three", "3")),
+        AudioRound("socks", "How many did you hear", "Say the number.",
+                   "One red sock and one blue sock. How many socks?", "any",
+                   ("two", "2")),
+    ),
+    "same-or-different": _rounds(
+        AudioRound("cats", "Same or different", "Say same or different.",
+                   "Cat. Cat. Are those the same or different?", "any", ("same",)),
+        AudioRound("moon", "Same or different", "Say same or different.",
+                   "Moon. Spoon. Are those the same or different?", "any", ("different",)),
+    ),
+    "finish-the-line": _rounds(
+        AudioRound("sun", "Finish the line", "Finish the sentence.",
+                   "Finish this. The sun is very.", "any",
+                   ("hot", "bright", "warm", "yellow")),
+        AudioRound("fish", "Finish the line", "Finish the sentence.",
+                   "Finish this. Fish live in the.", "any",
+                   ("water", "sea", "ocean", "lake")),
+    ),
+    "spell-aloud": _rounds(
+        AudioRound("cat", "Spell what you hear", "Say each letter.",
+                   "Spell cat.", "spell", ("cat",)),
+        AudioRound("sun", "Spell what you hear", "Say each letter.",
+                   "Spell sun.", "spell", ("sun",)),
+    ),
+}
+
+
+def audio_game_ids() -> tuple[str, ...]:
+    return tuple(AUDIO_BANK)
+
+
+def audio_round_public(game_id: str, index: int = 0) -> dict[str, Any]:
+    rounds = AUDIO_BANK[game_id]
+    slot = index % len(rounds)
+    rnd = rounds[slot]
+    return {
+        "game": game_id,
+        "round_id": rnd.round_id,
+        "index": slot,
+        "title": rnd.title,
+        "prompt": rnd.prompt,
+        "speak": rnd.speak,
+    }
+
+
+def _mentions(heard: str, word: str) -> bool:
+    folded = fold_text(heard)
+    target = fold_text(word)
+    if not target or not folded:
+        return False
+    if re.search(rf"\b{re.escape(target)}\b", folded):
+        return True
+    return score_spoken(target, heard, kind="word")["score"] >= 84
+
+
+def _spelled(heard: str, word: str) -> bool:
+    letters = list(fold_text(word).replace(" ", ""))
+    if not letters:
+        return False
+    if _mentions(heard, word):
+        return True
+    alias = {
+        name: letter
+        for letter, names in LETTER_ALIASES.items()
+        for name in names
+    }
+    mapped = [alias.get(token, token) for token in fold_text(heard).split()]
+    compact = [token for token in mapped if token]
+    return compact == letters or "".join(compact) == "".join(letters)
+
+
+def score_audio(game_id: str, round_id: str, heard: str) -> dict[str, Any]:
+    rounds = AUDIO_BANK.get(game_id)
+    rnd = next((row for row in rounds or () if row.round_id == round_id), None)
+    if rnd is None:
+        return {
+            "target": round_id,
+            "heard": (heard or "").strip(),
+            "score": 0,
+            "passed": False,
+            "stars": 0,
+            "feedback": "Pick a listening game, then try again.",
+        }
+    if rnd.mode == "phrase":
+        best = max(
+            (score_spoken(item, heard, kind="word")["score"] for item in rnd.accept),
+            default=0,
+        )
+        passed = best >= 72
+    elif rnd.mode == "all":
+        passed = bool(rnd.require) and all(_mentions(heard, item) for item in rnd.require)
+        best = 100 if passed else 0
+    elif rnd.mode == "spell":
+        passed = any(_spelled(heard, item) for item in rnd.accept)
+        best = 100 if passed else 0
+    else:
+        passed = any(_mentions(heard, item) for item in rnd.accept)
+        best = 100 if passed else 0
+    retry = {
+        "phrase": "Listen once more, then say it back.",
+        "any": "Listen once more, then answer in your own words.",
+        "all": "Say the important part of what you heard.",
+        "spell": "Say each letter in the word.",
+    }.get(rnd.mode, "Listen once more, then try again.")
+    return {
+        "target": rnd.round_id,
+        "heard": (heard or "").strip(),
+        "score": best if passed else min(best, 40),
+        "passed": passed,
+        "stars": 3 if passed and best >= 90 else 2 if passed else 0,
+        "feedback": "You got it! That showed you were listening." if passed else f"Almost! {retry}",
     }
 
 

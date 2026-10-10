@@ -8,9 +8,12 @@
 // wrist-to-middle-knuckle span — so a fist stays a fist at any distance.
 
 export const FIST_MAX_PALMS = 1.6;     // closed ~1.1, extended ~2.4
-export const HEART_TIPS_PALMS = 1.4;   // index fingertips meeting
-export const HEART_THUMBS_PALMS = 1.6; // thumb tips meeting underneath
+export const HEART_TIPS_PALMS = 1.4;   // index fingertips meeting in the cleft
+export const HEART_THUMBS_PALMS = 1.6; // thumb tips meeting at the bottom point
 export const HEART_WRISTS_PALMS = 1.3; // wrists apart, else it is one clump
+export const HEART_CLEFT_PALMS = 0.25; // tips sit below the knuckle peaks
+export const HEART_POINT_PALMS = 0.45; // thumbs sit below that cleft
+export const HEART_LOBES_PALMS = 1.1;  // knuckles spread into two lobes
 export const KISS_NEAR_FACES = 0.85;   // hand-to-mouth, in face widths
 export const KISS_AWAY_FACES = 1.5;    // travel needed to count as sent
 
@@ -97,11 +100,19 @@ export function handShape(points) {
 }
 
 export function heartRatios(a, b, scale) {
-  if (!a?.[8] || !b?.[8] || !a[4] || !b[4] || !a[0] || !b[0]) return null;
+  if (!a?.[8] || !b?.[8] || !a[4] || !b[4] || !a[0] || !b[0] || !a[5] || !b[5]) return null;
+  const tipY = (a[8].y + b[8].y) / 2;
+  const knuckleY = (a[5].y + b[5].y) / 2;
+  const thumbY = (a[4].y + b[4].y) / 2;
   return {
     tips: distance(a[8], b[8]) / scale,
     thumbs: distance(a[4], b[4]) / scale,
     wrists: distance(a[0], b[0]) / scale,
+    // A heart dips between two lobes. A circle peaks at the fingertips, so this
+    // is negative and the pose is rejected.
+    cleft: (tipY - knuckleY) / scale,
+    point: (thumbY - tipY) / scale,
+    lobes: distance(a[5], b[5]) / scale,
   };
 }
 
@@ -110,7 +121,11 @@ export function isHeartShape(ratios) {
     Boolean(ratios) &&
     ratios.tips < HEART_TIPS_PALMS &&
     ratios.thumbs < HEART_THUMBS_PALMS &&
-    ratios.wrists > HEART_WRISTS_PALMS
+    ratios.wrists > HEART_WRISTS_PALMS &&
+    ratios.cleft > HEART_CLEFT_PALMS &&
+    ratios.point > HEART_POINT_PALMS &&
+    ratios.lobes > HEART_LOBES_PALMS &&
+    ratios.lobes > ratios.tips + 0.4
   );
 }
 

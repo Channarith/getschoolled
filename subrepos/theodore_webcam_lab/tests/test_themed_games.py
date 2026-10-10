@@ -31,15 +31,22 @@ def test_recognize_wand_loop_and_heart():
 
     loop = [(0.5 + 0.08 * math.cos(i / 3), 0.5 + 0.08 * math.sin(i / 3)) for i in range(18)]
     assert recognize_wand_spell(loop) == "loop"
-    heart_loop = [
+    circle = [
         (
-            0.5 + 0.07 * math.cos(i * 2 * math.pi / 20),
-            0.42 + 0.15 * math.sin(i * 2 * math.pi / 20),
+            0.5 + 0.12 * math.cos(i * 2 * math.pi / 24),
+            0.45 + 0.16 * math.sin(i * 2 * math.pi / 24),
         )
-        for i in range(20)
+        for i in range(25)
     ]
-    assert recognize_wand_spell(heart_loop) == "loop"
-    assert trail_heart_shape(heart_loop) is True
+    assert trail_heart_shape(circle) is False
+    # Two high lobes, a dip between them, and a point at the bottom.
+    heart = [
+        (0.50, 0.40), (0.43, 0.34), (0.36, 0.30), (0.30, 0.36),
+        (0.28, 0.46), (0.34, 0.56), (0.42, 0.62), (0.50, 0.70),
+        (0.58, 0.62), (0.66, 0.56), (0.72, 0.46), (0.70, 0.36),
+        (0.64, 0.30), (0.57, 0.34), (0.50, 0.40),
+    ]
+    assert trail_heart_shape(heart) is True
 
 
 def test_game_theme_ids_include_all_holidays():

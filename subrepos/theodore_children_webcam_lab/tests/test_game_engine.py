@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from theodore_children_webcam_lab.game_engine import (
+    AUDIO_BANK,
     PICTURE_WORDS,
+    audio_round_public,
     fun_score,
     is_closed_fist,
     next_oh_behave_timer,
     oh_behave_hit,
+    score_audio,
     score_spoken,
     trace_pass,
 )
@@ -18,6 +21,35 @@ def test_a_to_z_picture_catalog_is_complete():
     assert PICTURE_WORDS["a"] == "apple"
     assert set(PICTURE_EMOJI) == set(PICTURE_WORDS.values())
     assert all(PICTURE_EMOJI[word] for word in PICTURE_WORDS.values())
+
+
+def test_listening_games_cover_voice_and_understanding():
+    assert len(AUDIO_BANK) >= 12
+    public = audio_round_public("repeat-after-me", 0)
+    assert public["speak"]
+    assert "accept" not in public and "require" not in public
+    heard = "The cat sat on the mat."
+    assert score_audio("repeat-after-me", "cat-mat", heard)["passed"] is True
+    assert score_audio("repeat-after-me", "cat-mat", "banana")["passed"] is False
+    assert score_audio("pronounce-word", "elephant", "elephant")["passed"] is True
+    assert score_audio("rhyme-time", "cat", "hat")["passed"] is True
+    assert score_audio("rhyme-time", "cat", "dog")["passed"] is False
+    assert score_audio("listen-answer", "banana", "yellow")["passed"] is True
+    assert score_audio("missing-word", "star", "star")["passed"] is True
+    assert score_audio("opposites", "hot", "cold")["passed"] is True
+    assert score_audio("explain-it", "seed", "It needs water and sun")["passed"] is True
+    assert score_audio("explain-it", "seed", "It needs water")["passed"] is False
+    assert score_audio("sum-it-up", "mia", "She went to school")["passed"] is True
+    assert score_audio("prove-it", "ice", "Ice is cold water")["passed"] is True
+    assert score_audio("prove-it", "ice", "Ice is cold")["passed"] is False
+    assert score_audio("story-order", "first", "the bird built a nest")["passed"] is True
+    assert score_audio("how-many", "sounds", "three")["passed"] is True
+    assert score_audio("how-many", "sounds", "five")["passed"] is False
+    assert score_audio("same-or-different", "cats", "same")["passed"] is True
+    assert score_audio("same-or-different", "moon", "same")["passed"] is False
+    assert score_audio("finish-the-line", "fish", "water")["passed"] is True
+    assert score_audio("spell-aloud", "cat", "see ay tee")["passed"] is True
+    assert score_audio("spell-aloud", "cat", "dog")["passed"] is False
 
 
 def test_letter_aliases_and_noun_plurals_are_child_friendly():
