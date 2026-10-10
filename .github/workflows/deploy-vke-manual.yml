@@ -149,7 +149,7 @@ jobs:
             # floating tag, and a rollback then leaves /studio and /children-lab on 503.
             python3 scripts/render_demo_labs.py --kind Service < /tmp/demo-labs.yaml | kubectl apply -f -
             # Apply a Deployment only when that lab is missing. Re-applying the
-            # others replaces a digest pin with unpublished :latest.
+            # others replaces a digest pin with the unpublished floating tag.
             for name in course-studio children-lab audio-lab; do
               if ! kubectl -n aoep get deploy "$name" >/dev/null 2>&1; then
                 python3 scripts/render_demo_labs.py --kind Deployment --name "$name" < /tmp/demo-labs.yaml | kubectl apply -f -

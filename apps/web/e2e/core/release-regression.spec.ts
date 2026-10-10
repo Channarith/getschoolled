@@ -218,14 +218,25 @@ test.describe("teach flow (WV-RR-04)", () => {
   });
 
   test("Zelle payment POST includes Authorization header", () => {
-    const src = execSync(
+    const page = execSync(
       `cat "${REPO}/apps/web/app/group-classes/page.tsx"`,
       { encoding: "utf8" }
     );
-    const zelleIdx = src.indexOf("payment_method: 'zelle'");
-    const zelleBlock = src.slice(zelleIdx - 600, zelleIdx + 300);
-    expect(zelleBlock).toContain("authorization");
-    expect(zelleBlock).toContain("Bearer");
+    expect(page).toMatch(/payment_method:\s*["']zelle["']/);
+    expect(page).toContain("checkoutGroupClass");
+    const api = execSync(
+      `cat "${REPO}/apps/web/app/lib/api.ts"`,
+      { encoding: "utf8" }
+    );
+    const fn = api.indexOf("export async function checkoutGroupClass");
+    expect(fn).toBeGreaterThan(-1);
+    const checkout = api.slice(fn, fn + 700);
+    expect(checkout).toContain('method: "POST"');
+    expect(checkout).toContain("authHeaders()");
+    const authAt = api.indexOf("function authHeaders");
+    const auth = api.slice(authAt, authAt + 220).toLowerCase();
+    expect(auth).toContain("authorization");
+    expect(auth).toContain("bearer");
   });
 });
 
