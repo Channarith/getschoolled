@@ -67,7 +67,7 @@ export function xaiSpeaksLocale(language: string | undefined): boolean {
   return true;
 }
 
-export type XaiVoiceMode = "solo" | "group" | "self_teach" | "theodore_solo" | "theodore_group";
+export type XaiVoiceMode = "solo" | "group" | "self_teach" | "theodore_solo" | "theodore_group" | "drive";
 
 export async function getXaiVoiceStatus(): Promise<XaiVoiceStatus> {
   try {
@@ -102,6 +102,9 @@ export async function mintXaiVoiceToken(opts: {
   expires_seconds?: number;
   instructions?: string;
   language?: string;
+  category?: string;
+  topic?: string;
+  course_id?: string;
 }): Promise<XaiVoiceTokenResponse> {
   const r = await fetch(`${SPEECH_URL}/voice/token`, {
     method: "POST",
@@ -113,6 +116,9 @@ export async function mintXaiVoiceToken(opts: {
       expires_seconds: opts.expires_seconds ?? 300,
       instructions: opts.instructions || "",
       language: opts.language || "",
+      category: opts.category || "",
+      topic: opts.topic || "",
+      course_id: opts.course_id || "",
     }),
   });
   if (!r.ok) {

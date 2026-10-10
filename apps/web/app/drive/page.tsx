@@ -230,8 +230,12 @@ function DrivePageInner() {
     cancelSpeech();
     if (i >= c.segments.length) { setPlaying(false); playNextCourse(); return; }
     setSeg(i); setPlaying(true);
-    driveVoiceRef.current?.setLessonAudible(true);
-    speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => {
+    const line = `${c.segments[i].heading}. ${c.segments[i].text}`;
+    const voice = driveVoiceRef.current;
+    if (voice?.speakLesson(line, () => {
+      if (playGenRef.current === gen) playSeg(c, i + 1);
+    })) return;
+    speak(line, () => {
       if (playGenRef.current === gen) playSeg(c, i + 1);
     });
   }, [speak]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -266,17 +270,13 @@ function DrivePageInner() {
           onUser: (text) => setAssistantTranscript(text),
           onTutor: (text) => setAssistantAnswer(text),
           onSpeaking: (speaking) => {
-            if (speaking) {
-              voicePausedLessonRef.current = true;
-              driveVoiceRef.current?.setLessonAudible(false);
-              playGenRef.current += 1;
-              cancelSpeech();
-              setPlaying(false);
-              return;
-            }
+            if (!speaking) return;
+            cancelSpeech();
+            setPlaying(true);
+          },
+          onAnswerDone: () => {
             const current = courseRef.current;
-            if (!voicePausedLessonRef.current || !current || !autoListenRef.current) return;
-            voicePausedLessonRef.current = false;
+            if (!current) return;
             playSegRef.current(current, segRef.current);
           },
         },
@@ -301,8 +301,12 @@ function DrivePageInner() {
     const s = course.segments[seg];
     if (!s) return;
     setPlaying(true);
-    driveVoiceRef.current?.setLessonAudible(true);
-    speak(`${s.heading}. ${s.text}`, () => {
+    const line = `${s.heading}. ${s.text}`;
+    const voice = driveVoiceRef.current;
+    if (voice?.speakLesson(line, () => {
+      if (playGenRef.current === gen) playSeg(course, seg + 1);
+    })) return;
+    speak(line, () => {
       if (playGenRef.current === gen) playSeg(course, seg + 1);
     });
   }, [course, seg, speak, playSeg]);
@@ -347,13 +351,13 @@ function DrivePageInner() {
     try {
       const c = await getAudioCourse(id, locale, trainingLang);
       setCourse(c); setSeg(0);
-      playSeg(c, 0);
-      // Hands-free Q&A: only start after mic was primed on a user gesture
-      // (startCourseWithAds / Enable mic). Auto-start without permission → not-allowed.
+      // The voice agent speaks the class and hears questions. Connect it
+      // before the first segment so playback does not fall back to a wake phrase.
       if (autoListenRef.current && micReadyRef.current) {
         const voiced = await beginDriveVoice(c);
-        if (!voiced) void startAmbientListening();
+        if (!voiced) setAssistantStatus(t("drive.voiceAgentOff"));
       }
+      playSeg(c, 0);
     } catch (e) { setError(String(e)); }
   }
 
@@ -417,7 +421,7 @@ function DrivePageInner() {
   // stale utterance; Resume replays the current segment in the current voice.
   function pause() {
     playGenRef.current++;
-    driveVoiceRef.current?.setLessonAudible(false);
+    driveVoiceRef.current?.hold();
     cancelSpeech();
     setPlaying(false);
   }
@@ -611,8 +615,13 @@ function DrivePageInner() {
   async function toggleAutoListen() {
     if (autoListen) {
       setAutoListen(false);
+      autoListenRef.current = false;
+      const current = courseRef.current;
+      const wasPlaying = playingRef.current;
       stopDriveVoice();
       stopAmbientListening();
+      autoListenRef.current = false;
+      if (wasPlaying && current) playSeg(current, segRef.current);
       return;
     }
     const access = await ensureMicAccess();
@@ -631,15 +640,19 @@ function DrivePageInner() {
     setAutoListen(true);
     autoListenRef.current = true;
     const current = courseRef.current;
-    if (current) {
-      const voiced = await beginDriveVoice(current);
-      if (!voiced) void startAmbientListening();
-      return;
-    }
-    void startAmbientListening();
+    if (!current) return;
+    const voiced = await beginDriveVoice(current);
+    if (!voiced) setAssistantStatus(t("drive.voiceAgentOff"));
+    else playSeg(current, segRef.current);
   }
 
   async function startVoiceRecognition(expectWakeWord = false) {
+    if (driveVoiceRef.current) {
+      pauseForAssistant(t("drive.listenQuestion"));
+      driveVoiceRef.current.hold();
+      driveVoiceRef.current.setLessonAudible(false);
+      return;
+    }
     pauseForAssistant(t("drive.listenQuestion"));
     const access = await ensureMicAccess();
     if (access === "insecure") {
@@ -723,8 +736,8 @@ function DrivePageInner() {
       setListening(false);
       oneShotActiveRef.current = false;
       // Resume hands-free ambient listening after the manual one-shot.
-      if (autoListenRef.current && courseRef.current && micReadyRef.current) {
-        window.setTimeout(() => { if (autoListenRef.current) void startAmbientListening(); }, 500);
+      if (autoListenRef.current && courseRef.current && !driveVoiceRef.current && micReadyRef.current) {
+        setAssistantStatus(t("drive.voiceAgentOff"));
       }
     };
     recognitionRef.current = recognition;
@@ -767,6 +780,7 @@ function DrivePageInner() {
       setAssistantStatus(t("drive.pausedStatus"));
       setPlaying(false);
       playGenRef.current++;
+      driveVoiceRef.current?.hold();
       cancelSpeech();
       return;
     }
@@ -783,6 +797,14 @@ function DrivePageInner() {
     if (/\b(previous|back|repeat)\b/.test(lower)) {
       setAssistantAnswer(t("drive.repeatAnswer"));
       playSeg(course, Math.max(0, seg - 1));
+      return;
+    }
+    if (driveVoiceRef.current) {
+      playGenRef.current++;
+      cancelSpeech();
+      setPlaying(false);
+      driveVoiceRef.current.ask(command);
+      setAssistantStatus(t("drive.voiceAgentOn"));
       return;
     }
     const answer = answerFromCourse(course, seg, command, t);
@@ -952,8 +974,8 @@ function DrivePageInner() {
               {t("drive.voiceAgentOn")}
               {assistantAnswer ? <div style={{ marginTop: 4 }}>{assistantAnswer}</div> : null}
             </div>
-          ) : autoListen && micGranted && supportsSpeechRecognition() ? (
-            <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.handsFreeHint")}</div>
+          ) : autoListen && micGranted ? (
+            <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.voiceAgentOff")}</div>
           ) : supportsSpeechRecognition() ? (
             <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.micEnableHint")}</div>
           ) : null}

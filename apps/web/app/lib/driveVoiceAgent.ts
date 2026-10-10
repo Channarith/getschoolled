@@ -5,7 +5,7 @@
  * streams the microphone and plays the tutor. It does not send instructions.
  */
 
-import { getXaiVoiceStatus, mintXaiVoiceToken, connectXaiVoiceSession, appendInputAudio, closeXaiVoiceSession } from "./xaiVoice";
+import { getXaiVoiceStatus, mintXaiVoiceToken, connectXaiVoiceSession, appendInputAudio, closeXaiVoiceSession, sendTextTurn } from "./xaiVoice";
 
 const BLUETOOTH_INPUT = /bluetooth|airpod|headset|hands-free|handset|beats|bose/i;
 
@@ -22,12 +22,20 @@ export type DriveVoiceCallbacks = {
   onUser?: (text: string) => void;
   onTutor?: (text: string) => void;
   onSpeaking?: (speaking: boolean) => void;
+  /** The learner interrupted, and the agent's answer has finished. */
+  onAnswerDone?: () => void;
 };
 
 export type DriveVoiceSession = {
   stop: () => void;
   /** While the lesson is audible, quiet audio is not sent, so the tutor does not answer the narration. */
   setLessonAudible: (audible: boolean) => void;
+  /** Read one lesson segment. onDone runs only if the learner did not interrupt. */
+  speakLesson: (text: string, onDone?: () => void) => boolean;
+  /** Ask the voice agent. The lesson does not advance when the answer ends. */
+  ask: (text: string) => void;
+  /** Stop the current spoken turn without advancing the lesson. */
+  hold: () => void;
 };
 
 function pcm16Base64(samples: Float32Array): string {
@@ -141,6 +149,8 @@ export async function startDriveVoice(
   let speaking = false;
   let lessonAudible = false;
   let endTimer = 0;
+  let lessonDone: (() => void) | null = null;
+  let awaitingAnswer = false;
   const playing = new Set<AudioBufferSourceNode>();
 
   const noteSpeaking = (on: boolean) => {
@@ -150,12 +160,32 @@ export async function startDriveVoice(
   };
 
   const clearPlayback = () => {
+    window.clearTimeout(endTimer);
     for (const node of playing) {
       try { node.stop(); } catch { /* already stopped */ }
     }
     playing.clear();
     nextAt = ctx.currentTime;
     noteSpeaking(false);
+  };
+
+  const finishTurn = () => {
+    if (playing.size) return;
+    noteSpeaking(false);
+    if (awaitingAnswer) {
+      awaitingAnswer = false;
+      lessonDone = null;
+      callbacks.onAnswerDone?.();
+      return;
+    }
+    const done = lessonDone;
+    lessonDone = null;
+    done?.();
+  };
+
+  const cancelResponse = () => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    try { ws.send(JSON.stringify({ type: "response.cancel" })); } catch { /* already closed */ }
   };
 
   const playPcm = (base64: string) => {
@@ -178,10 +208,7 @@ export async function startDriveVoice(
     node.onended = () => playing.delete(node);
     noteSpeaking(true);
     window.clearTimeout(endTimer);
-    endTimer = window.setTimeout(() => {
-      if (playing.size) return;
-      noteSpeaking(false);
-    }, 700);
+    endTimer = window.setTimeout(finishTurn, 700);
   };
 
   const sendMic = (samples: Float32Array) => {
@@ -220,6 +247,8 @@ export async function startDriveVoice(
     onEvent: (event) => {
       const type = String(event.type || "");
       if (type === "input_audio_buffer.speech_started" && playing.size && micRms >= 0.035) {
+        awaitingAnswer = true;
+        lessonDone = null;
         clearPlayback();
       }
       if (type.endsWith("transcription.completed") || type.endsWith("input_audio_transcription.completed")) {
@@ -228,12 +257,43 @@ export async function startDriveVoice(
       }
     },
     onError: () => callbacks.onStatus?.("The voice tutor disconnected. The lesson audio continues."),
-    onClose: () => callbacks.onStatus?.(""),
+    onClose: () => {
+      callbacks.onStatus?.("");
+      const done = lessonDone;
+      lessonDone = null;
+      awaitingAnswer = false;
+      done?.();
+    },
   });
 
   return {
     setLessonAudible(audible: boolean) {
       lessonAudible = audible;
+    },
+    speakLesson(text: string, onDone?: () => void) {
+      const line = text.trim();
+      if (!line || !ws || ws.readyState !== WebSocket.OPEN) return false;
+      awaitingAnswer = false;
+      lessonDone = onDone || null;
+      clearPlayback();
+      cancelResponse();
+      sendTextTurn(ws, `Read this lesson segment aloud, then stop. Do not ask a question.\n\n${line}`);
+      return true;
+    },
+    ask(text: string) {
+      const line = text.trim();
+      if (!line || !ws || ws.readyState !== WebSocket.OPEN) return;
+      awaitingAnswer = true;
+      lessonDone = null;
+      clearPlayback();
+      cancelResponse();
+      sendTextTurn(ws, line);
+    },
+    hold() {
+      awaitingAnswer = false;
+      lessonDone = null;
+      clearPlayback();
+      cancelResponse();
     },
     stop() {
       window.clearTimeout(endTimer);
