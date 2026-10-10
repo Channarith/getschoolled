@@ -99,6 +99,11 @@ export function handShape(points) {
   };
 }
 
+// Coloring only while fingers are out. A closed fist lifts the marker.
+export function fingersPointed(shape) {
+  return Boolean(shape) && !shape.fist && Number(shape.count) > 0;
+}
+
 export function heartRatios(a, b, scale) {
   if (!a?.[8] || !b?.[8] || !a[4] || !b[4] || !a[0] || !b[0] || !a[5] || !b[5]) return null;
   const tipY = (a[8].y + b[8].y) / 2;

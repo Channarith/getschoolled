@@ -46,6 +46,11 @@ import CorporateScreen from "./src/screens/CorporateScreen";
 import KidsScreen from "./src/screens/KidsScreen";
 import KidsLessonScreen from "./src/screens/KidsLessonScreen";
 import { routeForCatalogItem } from "./src/catalogRouting";
+import DemoWebScreen from "./src/screens/DemoWebScreen";
+import { promptStudioCourse } from "./src/studioCoursePrompt";
+import { studioCourseFromLink, type StudioCourseId } from "./src/studioCourses";
+import type { PublicDemo } from "./src/publicDemos";
+import { visionLabPath, type VisionGame } from "./src/visionArcade";
 import WorldsScreen from "./src/screens/WorldsScreen";
 import GameScreen from "./src/screens/GameScreen";
 import LessonScreen from "./src/screens/LessonScreen";
@@ -91,7 +96,7 @@ export default function App() {
 }
 
 function AppInner() {
-  const { status: authStatus } = useAuth();
+  const { status: authStatus, account } = useAuth();
   const prevAuthStatusRef = useRef(authStatus);
   const { t, locale, isRTL } = useT();
   const [tab, setTab] = useState<TabId>("home");
@@ -99,6 +104,8 @@ function AppInner() {
   const [openCourseId, setOpenCourseId] = useState<string | null>(null);
   const [showGroupClasses, setShowGroupClasses] = useState(false);
   const [showLiveClass, setShowLiveClass] = useState(false);
+  const [studioDemo, setStudioDemo] = useState<PublicDemo | null>(null);
+  const [visionLab, setVisionLab] = useState<PublicDemo | null>(null);
   const [showLiveRooms, setShowLiveRooms] = useState(false);
   const [showArcade, setShowArcade] = useState(false);
   const [showCorporate, setShowCorporate] = useState(false);
@@ -393,8 +400,19 @@ function AppInner() {
 
   // The Drive tab opens straight into the player when a courseId is set;
   // otherwise it falls back to the audio-courses browser.
-  const openCourse = (id: string) => {
+  const openStudioCourse = (courseId: StudioCourseId, presentation?: "audio") => {
+    void promptStudioCourse(courseId, account, presentation).then((demo) => {
+      if (demo) setStudioDemo(demo);
+    });
+  };
+
+  const openCourse = (id: string, deepLink?: string) => {
     if (!authenticated) return;
+    const studio = studioCourseFromLink(id, deepLink);
+    if (studio) {
+      openStudioCourse(studio);
+      return;
+    }
     setOpenCourseId(id);
     setTab("drive");
   };
@@ -406,6 +424,11 @@ function AppInner() {
    */
   const openCatalogItem = (id: string, deepLink?: string) => {
     if (!authenticated) return;
+    const studio = studioCourseFromLink(id, deepLink);
+    if (studio) {
+      openStudioCourse(studio);
+      return;
+    }
     const route = routeForCatalogItem(id, deepLink);
     if (route.kind === "kidsLesson") {
       setShowKids(false);
@@ -512,7 +535,7 @@ function AppInner() {
     }
   }
 
-  const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
+  const mainTabsVisible = !studioDemo && !visionLab && !liveRoomId && !showGroupClasses && !showLiveClass
     && !showLiveRooms && !showArcade && !showCorporate && !showKids && !kidsLessonId && !gameSubject && !activeLesson
     && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages
     && !showSearch && !showBugReport && !showWorlds;
@@ -540,6 +563,10 @@ function AppInner() {
         onBack={() => { setShowBugReport(false); setBugCapture(null); }}
       />
     );
+  } else if (studioDemo) {
+    screen = <DemoWebScreen demo={studioDemo} onBack={() => setStudioDemo(null)} />;
+  } else if (visionLab) {
+    screen = <DemoWebScreen demo={visionLab} onBack={() => setVisionLab(null)} />;
   } else if (showBilling) {
     screen = <BillingScreen onBack={() => setShowBilling(false)} />;
   } else if (showSecurity) {
@@ -560,7 +587,7 @@ function AppInner() {
     screen = (
       <SearchScreen
         onBack={() => setShowSearch(false)}
-        onOpenCourse={(id) => { setShowSearch(false); openCourse(id); }}
+        onOpenCourse={(id, deepLink) => { setShowSearch(false); openCourse(id, deepLink); }}
         onOpenSettings={(section) => {
           setShowSearch(false);
           if (section === "account") {
@@ -590,6 +617,16 @@ function AppInner() {
     screen = (
       <ArcadeScreen
         onOpenSubject={(subject, gameType) => openGame(subject, true, gameType)}
+        onOpenVision={(game?: VisionGame) => {
+          setVisionLab({
+            id: game?.id || "vision-arcade",
+            path: visionLabPath(game?.id),
+            emoji: game?.emoji || "👁️",
+            title: game?.label || "Vision arcade",
+            subtitle: "Machine vision",
+            description: "Webcam games for faces, hands, letters, movement, and listening. The camera stays on this device.",
+          });
+        }}
         onBack={() => setShowArcade(false)}
       />
     );
@@ -597,6 +634,7 @@ function AppInner() {
     screen = (
       <CorporateScreen
         onOpenCourse={(id) => { setShowCorporate(false); openCourse(id); }}
+        onOpenStudio={openStudioCourse}
         onBack={() => setShowCorporate(false)}
       />
     );
@@ -692,6 +730,7 @@ function AppInner() {
           setShowLiveClass(false);
           setShowGroupClasses(true);
         }}
+        onOpenStudio={openStudioCourse}
         onBack={() => setShowLiveClass(false)}
       />
     );
@@ -709,6 +748,7 @@ function AppInner() {
           setLiveRoomsOrigin("group");
           setShowLiveRooms(true);
         }}
+        onOpenStudio={openStudioCourse}
         onBack={() => setShowGroupClasses(false)}
       />
     );
@@ -726,6 +766,7 @@ function AppInner() {
         onOpenSearch={() => setShowSearch(true)}
         onOpenCorporate={() => setShowCorporate(true)}
         onOpenKids={() => setShowKids(true)}
+        onOpenStudio={openStudioCourse}
       />
     );
   } else if (tab === "drive") {
@@ -740,6 +781,7 @@ function AppInner() {
       : (
         <AudioCoursesScreen
           onOpen={openCourse}
+          onOpenStudio={(courseId) => openStudioCourse(courseId, "audio")}
           initialCategory={browseCategory}
         />
       );

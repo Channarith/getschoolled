@@ -146,7 +146,7 @@ export default function KidsLessonScreen({
                 ]}
                 onPress={() => choose(choice)}
               >
-                <Text style={styles.choiceText}>{choice}</Text>
+                <Text style={styles.choiceText} numberOfLines={3}>{choice}</Text>
                 {state === "right" ? <Text style={styles.choiceMark}>✓</Text> : null}
                 {state === "wrong" ? <Text style={styles.choiceMark}>✕</Text> : null}
               </AnimatedPressable>
@@ -183,10 +183,10 @@ const styles = StyleSheet.create({
   progress: { color: theme.colors.muted, fontSize: 13, fontWeight: "700" },
   loading: { paddingVertical: 48, alignItems: "center" },
   panel: { padding: 16, gap: 10, borderWidth: 2 },
-  lessonTitle: { color: theme.colors.muted, fontSize: 13, fontWeight: "700" },
-  title: { color: theme.colors.text, fontSize: 22, fontWeight: "800" },
+  lessonTitle: { color: theme.colors.muted, fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  title: { color: theme.colors.text, fontSize: 22, fontWeight: "800", lineHeight: 28 },
   body: { color: theme.colors.muted, fontSize: 15, lineHeight: 21 },
-  pictures: { flexDirection: "row", justifyContent: "center", gap: 14, marginVertical: 8 },
+  pictures: { flexDirection: "row", justifyContent: "center", flexWrap: "wrap", gap: 14, marginVertical: 8 },
   picture: { fontSize: 64 },
   labels: { flexDirection: "row", justifyContent: "center", gap: 12, flexWrap: "wrap" },
   label: { color: theme.colors.text, fontSize: 18, fontWeight: "800", letterSpacing: 2 },
@@ -204,8 +204,8 @@ const styles = StyleSheet.create({
   },
   choiceRight: { borderColor: "#2ecc71", backgroundColor: "rgba(46,204,113,0.18)" },
   choiceWrong: { borderColor: "#e74c3c", backgroundColor: "rgba(231,76,60,0.18)" },
-  choiceText: { color: theme.colors.text, fontSize: 18, fontWeight: "700" },
-  choiceMark: { fontSize: 20, fontWeight: "900", color: theme.colors.text },
+  choiceText: { color: theme.colors.text, fontSize: 18, fontWeight: "700", flex: 1, lineHeight: 24, minWidth: 0 },
+  choiceMark: { fontSize: 20, fontWeight: "900", color: theme.colors.text, flexShrink: 0, marginLeft: 8 },
   replay: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingVertical: 6 },
   replayText: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
   celebrate: { fontSize: 64, textAlign: "center" },

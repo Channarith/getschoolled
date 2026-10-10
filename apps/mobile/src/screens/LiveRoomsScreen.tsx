@@ -89,7 +89,7 @@ export default function LiveRoomsScreen({
         style={styles.roomCard}
       >
         <View style={styles.roomRow}>
-          <Text style={styles.roomTitle} numberOfLines={1}>{r.title}</Text>
+          <Text style={styles.roomTitle} numberOfLines={2}>{r.title}</Text>
           {r.status === "live" ? (
             <Text style={styles.liveDot}>● LIVE</Text>
           ) : null}
@@ -194,7 +194,7 @@ export default function LiveRoomsScreen({
 const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { color: theme.colors.text, fontSize: 20, fontWeight: "800", flex: 1 },
+  title: { color: theme.colors.text, fontSize: 20, fontWeight: "800", flex: 1, lineHeight: 26, minWidth: 0 },
   lead: { color: theme.colors.muted, fontSize: 14, lineHeight: 20 },
   geo: { color: theme.colors.accent, fontSize: 13 },
   actions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
@@ -210,9 +210,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: 12,
     padding: 12, backgroundColor: "rgba(0,0,0,0.2)", gap: 4,
   },
-  roomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  roomTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700", flex: 1 },
-  liveDot: { color: "#f87171", fontSize: 11, fontWeight: "800" },
+  roomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
+  roomTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700", flex: 1, lineHeight: 20, minWidth: 0 },
+  liveDot: { color: "#f87171", fontSize: 11, fontWeight: "800", flexShrink: 0 },
   roomMeta: { color: theme.colors.muted, fontSize: 12 },
   roomPlace: { color: theme.colors.muted, fontSize: 12 },
   meta: { color: theme.colors.muted, fontSize: 14, textAlign: "center", marginTop: 24 },

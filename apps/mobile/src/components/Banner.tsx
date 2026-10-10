@@ -73,9 +73,9 @@ export default function Banner({ banner, onDismiss }: Props) {
       <GlassPanel style={[styles.panel, { borderLeftColor: accent }]} padded={false}>
         <View style={styles.inner}>
           <View style={[styles.dot, { backgroundColor: accent }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{banner.title}</Text>
-            {banner.body ? <Text style={styles.body}>{banner.body}</Text> : null}
+          <View style={styles.copy}>
+            <Text style={styles.title} numberOfLines={2}>{banner.title}</Text>
+            {banner.body ? <Text style={styles.body} numberOfLines={3}>{banner.body}</Text> : null}
           </View>
           {banner.cta ? (
             <AnimatedPressable
@@ -107,9 +107,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 12,
   },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  title: { color: theme.colors.text, fontWeight: "700", fontSize: 14 },
-  body: { color: theme.colors.muted, fontSize: 12, marginTop: 2 },
-  cta: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.radius.pill },
+  copy: { flex: 1, minWidth: 0 },
+  title: { color: theme.colors.text, fontWeight: "700", fontSize: 14, lineHeight: 18 },
+  body: { color: theme.colors.muted, fontSize: 12, lineHeight: 16, marginTop: 2 },
+  cta: { flexShrink: 0, paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.radius.pill },
   ctaText: { color: "#fff", fontWeight: "700", fontSize: 12 },
   x: { color: theme.colors.muted, fontSize: 22, paddingHorizontal: 4 },
 });

@@ -6,7 +6,7 @@
 // exactly this: a distant child read as a permanent fist.
 import assert from "node:assert/strict";
 import {
-  FIST_MAX_PALMS, HAND_BONES,   coverFrame, handShape, heartRatios, isHeartShape,
+  FIST_MAX_PALMS, HAND_BONES,   coverFrame, fingersPointed, handShape, heartRatios, isHeartShape,
   mapMirroredLandmark, palmSpan, syntheticHand, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 
@@ -190,6 +190,9 @@ assert.equal(demoFist.fist, true, "demo fist pose must classify as a fist");
 const demoIndex = handShape(syntheticHand({ x: 0.4, y: 0.4 }, { pose: "index" }));
 assert.equal(demoIndex.indexUp, true, "demo index pose must raise only the index");
 assert.equal(demoIndex.fist, false);
+assert.equal(fingersPointed(demoIndex), true, "a pointed finger can color");
+assert.equal(fingersPointed(demoFist), false, "a fist lifts the marker");
+assert.equal(fingersPointed(handShape(syntheticHand({ x: 0.4, y: 0.4 }, { pose: "open" }))), true);
 
 // A wide stage crops a square camera. The skeleton has to land on the visible
 // picture, not on the full stage rectangle.

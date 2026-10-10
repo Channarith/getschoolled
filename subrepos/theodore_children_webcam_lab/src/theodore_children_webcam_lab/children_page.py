@@ -71,6 +71,7 @@ _PAGE = """<!doctype html>
         <div class="score"><span id="stars">☆☆☆</span><span id="fun-score">Fun 0</span><span id="combo">Combo 0</span></div>
         <button id="mute" aria-pressed="false">🔊</button>
         <button id="chrome-toggle" type="button" hidden aria-pressed="false">Hide options</button>
+        <button id="touch-mode" type="button" hidden aria-pressed="false" aria-label="Using air touch. Switch to screen touch.">Air touch</button>
         <button id="fullscreen">⛶</button>
       </div>
       <div id="stage" class="stage">

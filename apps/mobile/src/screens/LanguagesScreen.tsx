@@ -259,7 +259,7 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
           {langs.map((l) => (
             <AnimatedPressable key={l.code} onPress={() => void openCourse(l.code)} style={styles.langChip}>
               <Text style={styles.flag}>{l.flag}</Text>
-              <Text style={styles.langName}>{l.native}</Text>
+              <Text style={styles.langName} numberOfLines={2}>{l.native}</Text>
             </AnimatedPressable>
           ))}
         </View>
@@ -638,12 +638,15 @@ const styles = StyleSheet.create({
   sub: { color: theme.colors.muted, fontSize: 14, lineHeight: 20 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   langChip: {
-    width: "30%", minWidth: 100, alignItems: "center", padding: 12,
+    width: "31%", alignItems: "center", padding: 12, overflow: "hidden",
     borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border,
     backgroundColor: "rgba(255,255,255,0.04)",
   },
   flag: { fontSize: 28 },
-  langName: { color: theme.colors.text, fontSize: 12, fontWeight: "700", marginTop: 4, textAlign: "center" },
+  langName: {
+    color: theme.colors.text, fontSize: 12, fontWeight: "700", lineHeight: 16,
+    marginTop: 4, textAlign: "center", width: "100%",
+  },
   courseTitle: { color: theme.colors.text, fontSize: 20, fontWeight: "800" },
   tip: { color: theme.colors.muted, fontSize: 13, lineHeight: 18 },
   card: { gap: 10 },

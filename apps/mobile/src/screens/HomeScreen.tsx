@@ -17,6 +17,8 @@ import {
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import StudioCourseSection from "../components/StudioCourseSection";
+import type { StudioCourseId } from "../studioCourses";
 import Rail, { CategoryTile, CourseCard } from "../components/Rail";
 import MascotSvg from "../components/MascotSvg";
 import AdBanner from "../components/AdBanner";
@@ -35,7 +37,7 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 
 export default function HomeScreen({
   onOpenCourse, onOpenCategory, onOpenArcade, onOpenWorlds, onOpenGroupClasses, onOpenLiveClass,
-  onOpenLanguages, onOpenRewards, onOpenSearch, onOpenCorporate, onOpenKids, guestMode = false,
+  onOpenLanguages, onOpenRewards, onOpenSearch, onOpenCorporate, onOpenKids, onOpenStudio, guestMode = false,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
@@ -48,6 +50,7 @@ export default function HomeScreen({
   onOpenSearch?: () => void;
   onOpenCorporate?: () => void;
   onOpenKids?: () => void;
+  onOpenStudio?: (courseId: StudioCourseId) => void;
   guestMode?: boolean;
 }) {
   const { t, locale } = useT();
@@ -145,7 +148,7 @@ export default function HomeScreen({
   }
   return (
     <ScrollView
-      contentContainerStyle={{ paddingBottom: 32 }}
+      contentContainerStyle={{ paddingBottom: 48 }}
       style={styles.bg}
       refreshControl={
         <RefreshControl
@@ -274,6 +277,8 @@ export default function HomeScreen({
           </GlassPanel>
         </AnimatedPressable>
       </Modal>
+
+      {onOpenStudio ? <StudioCourseSection onOpen={onOpenStudio} /> : null}
 
       {error ? (
         <GlassPanel style={styles.errPanel}>
@@ -404,7 +409,7 @@ function HomeAction({
       <View style={styles.actionIcon}>
         <Ionicons name={icon} size={23} color="#fff" />
       </View>
-      <Text style={styles.actionLabel} numberOfLines={1}>{label}</Text>
+      <Text style={styles.actionLabel} numberOfLines={2}>{label}</Text>
     </AnimatedPressable>
   );
 }
@@ -446,12 +451,18 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     flexDirection: "row",
-    justifyContent: "space-around",
+    flexWrap: "wrap",
     marginTop: 18,
-    paddingHorizontal: 6,
-    paddingVertical: 11,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
   },
-  actionItem: { alignItems: "center", flex: 1, minWidth: 0 },
+  actionItem: {
+    alignItems: "center",
+    overflow: "hidden",
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    width: "25%",
+  },
   actionIcon: {
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.09)",
@@ -462,11 +473,13 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     color: theme.colors.text,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700",
+    includeFontPadding: false,
+    lineHeight: 14,
     marginTop: 6,
-    maxWidth: 64,
     textAlign: "center",
+    width: "100%",
   },
   previewBadge: { color: theme.colors.muted, fontSize: 12, marginTop: 8 },
   errPanel: { marginHorizontal: theme.spacing.screenX, marginBottom: 12 },

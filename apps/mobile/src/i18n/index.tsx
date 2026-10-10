@@ -12,6 +12,7 @@ import {
   DEFAULT_LOCALE, isSupportedLocale, languageInfo,
   LANGUAGES, RTL_LOCALES, type LocaleCode,
 } from "./languages";
+import { softenLineBreaks } from "./lineBreaks";
 import { FALLBACK, STRINGS, type StringKey } from "./strings";
 import { getMe, setAccountLanguage } from "../api";
 
@@ -40,7 +41,7 @@ function interpolate(template: string, vars?: Vars): string {
 export function translateWith(locale: LocaleCode, key: StringKey, vars?: Vars): string {
   const dict = STRINGS[locale] || {};
   const tpl = dict[key] ?? FALLBACK[key] ?? key;
-  return interpolate(tpl, vars);
+  return softenLineBreaks(interpolate(tpl, vars));
 }
 
 type LocaleContextValue = {

@@ -64,7 +64,6 @@ export function CourseCard({
           style={StyleSheet.absoluteFillObject}
         />
         <Text style={styles.posterEmoji}>{emoji}</Text>
-        <Text numberOfLines={2} style={styles.posterTitle}>{title}</Text>
         {savedBadge ? (
           <View style={styles.savedBadge}>
             <Ionicons name="bookmark" size={14} color={theme.colors.gold} />
@@ -77,8 +76,8 @@ export function CourseCard({
         ) : null}
       </ImageBackground>
       <View style={styles.cardBody}>
-        <Text numberOfLines={2} style={styles.cardTitle}>{title}</Text>
-        {meta ? <Text style={styles.cardMeta}>{meta}</Text> : null}
+        <Text numberOfLines={3} style={styles.cardTitle}>{title}</Text>
+        {meta ? <Text numberOfLines={2} style={styles.cardMeta}>{meta}</Text> : null}
       </View>
     </AnimatedPressable>
   );
@@ -94,8 +93,8 @@ export function CategoryTile({ category, count, countLabel, onPress }: {
   return (
     <AnimatedPressable onPress={onPress} style={styles.tile}>
       <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tileGrad}>
-        <Text style={styles.tileTitle}>{category}</Text>
-        <Text style={styles.tileCount}>{countLabel || `${count} classes`}</Text>
+        <Text numberOfLines={2} style={styles.tileTitle}>{category}</Text>
+        <Text numberOfLines={2} style={styles.tileCount}>{countLabel || `${count} classes`}</Text>
         <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.7)" style={styles.tileChevron} />
       </LinearGradient>
     </AnimatedPressable>
@@ -132,15 +131,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: theme.radius.md,
   },
   posterEmoji: { fontSize: 28, position: "absolute", top: 10, right: 10, opacity: 0.85 },
-  posterTitle: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 13,
-    lineHeight: 16,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
   savedBadge: {
     position: "absolute",
     top: 8,
@@ -158,12 +148,24 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.35)",
   },
   progressBar: { height: 3, backgroundColor: theme.colors.netflix },
-  cardBody: { padding: 10 },
-  cardTitle: { color: theme.colors.text, fontSize: 13, fontWeight: "700", lineHeight: 17 },
-  cardMeta: { color: theme.colors.muted, fontSize: 11, marginTop: 4 },
+  cardBody: { padding: 10, minHeight: 72 },
+  cardTitle: {
+    color: theme.colors.text,
+    fontSize: 13,
+    fontWeight: "700",
+    includeFontPadding: false,
+    lineHeight: 18,
+  },
+  cardMeta: {
+    color: theme.colors.muted,
+    fontSize: 11,
+    includeFontPadding: false,
+    lineHeight: 15,
+    marginTop: 4,
+  },
   tile: {
     width: 148,
-    height: 96,
+    height: 112,
     borderRadius: theme.radius.md,
     overflow: "hidden",
     ...theme.shadow.card,
@@ -171,9 +173,10 @@ const styles = StyleSheet.create({
   tileGrad: {
     flex: 1,
     padding: 12,
+    paddingRight: 28,
     justifyContent: "space-between",
   },
-  tileTitle: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  tileCount: { color: "rgba(255,255,255,0.85)", fontSize: 11, fontWeight: "600" },
+  tileTitle: { color: "#fff", fontWeight: "800", fontSize: 15, lineHeight: 19 },
+  tileCount: { color: "rgba(255,255,255,0.85)", fontSize: 11, fontWeight: "600", lineHeight: 14 },
   tileChevron: { position: "absolute", right: 10, bottom: 10 },
 });

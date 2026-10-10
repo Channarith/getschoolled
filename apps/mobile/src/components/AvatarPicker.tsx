@@ -35,7 +35,7 @@ export default function AvatarPicker({
     <View style={styles.wrap} accessibilityRole="summary">
       <View style={styles.previewRow}>
         <AvatarImage avatarId={selected} size={72} />
-        <View style={{ flex: 1 }}>
+        <View style={styles.previewCopy}>
           <Text style={styles.heading}>{heading}</Text>
           <Text style={styles.sub}>
             {selectedEntry.label} · {selectedEntry.style === "realistic" ? "Realistic" : "Cute"}
@@ -75,7 +75,7 @@ export default function AvatarPicker({
               style={[styles.cell, isSelected && styles.cellSelected]}
             >
               <AvatarImage avatarId={entry.id} size={56} accessibilityLabel="" />
-              <Text style={styles.label}>{entry.label}</Text>
+              <Text style={styles.label} numberOfLines={2}>{entry.label}</Text>
             </Pressable>
           );
         })}
@@ -87,8 +87,9 @@ export default function AvatarPicker({
 const styles = StyleSheet.create({
   wrap: { gap: 12 },
   previewRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  heading: { color: theme.colors.text, fontSize: 17, fontWeight: "800" },
-  sub: { color: theme.colors.muted, fontSize: 13, marginTop: 2 },
+  previewCopy: { flex: 1, minWidth: 0 },
+  heading: { color: theme.colors.text, fontSize: 17, fontWeight: "800", lineHeight: 22 },
+  sub: { color: theme.colors.muted, fontSize: 13, lineHeight: 18, marginTop: 2 },
   tabs: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   tab: {
     borderWidth: 1,
@@ -109,11 +110,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   cell: {
-    width: "30%",
-    minWidth: 96,
-    flexGrow: 1,
+    width: "31%",
     alignItems: "center",
     gap: 6,
+    overflow: "hidden",
     padding: 10,
     borderRadius: 14,
     borderWidth: 1,
@@ -125,5 +125,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: "rgba(245,158,11,0.12)",
   },
-  label: { color: theme.colors.text, fontSize: 12, fontWeight: "700" },
+  label: {
+    color: theme.colors.text, fontSize: 12, fontWeight: "700",
+    lineHeight: 16, textAlign: "center", width: "100%",
+  },
 });

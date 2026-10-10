@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
   drivingBadgeText: { color: "#fff", fontSize: 12, fontWeight: "800" },
   heroTitle: {
     position: "absolute", bottom: 14, left: 14, right: 14,
-    color: "#fff", fontSize: 20, fontWeight: "800",
+    color: "#fff", fontSize: 20, fontWeight: "800", lineHeight: 26,
   },
   playerCard: { marginBottom: 14 },
   cat: { color: theme.colors.muted, ...theme.typography.caption },

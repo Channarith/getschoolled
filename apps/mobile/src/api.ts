@@ -1790,6 +1790,14 @@ export async function getLeaderboard(subject?: string, ageGroup?: string):
   return get(IDENTITY_URL, `/games/leaderboard${qs ? `?${qs}` : ""}`);
 }
 
+export async function purchaseCourse(courseId: string, title: string): Promise<Enrollment> {
+  return get(IDENTITY_URL, `/enrollments/${encodeURIComponent(courseId)}/purchase`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ title }),
+  });
+}
+
 export async function enrollCourse(courseId: string, title: string, status = "enrolled"):
   Promise<Enrollment> {
   return get(IDENTITY_URL, "/enrollments", {

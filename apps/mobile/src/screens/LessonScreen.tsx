@@ -36,13 +36,7 @@ import { getSettings } from "../storage";
 import { theme } from "../theme";
 import { speakNatural } from "../tts";
 import { buildNarrationSpeakOptions } from "../narrationTts";
-import {
-  closeXaiVoiceSession,
-  connectXaiVoiceSession,
-  getXaiVoiceStatus,
-  mintXaiVoiceToken,
-  sendTextTurn,
-} from "../xaiVoice";
+import { useXaiClassVoice } from "../useXaiClassVoice";
 
 type Props = {
   lessonId: string;
@@ -90,10 +84,7 @@ export default function LessonScreen({
   const [assessmentRun, setAssessmentRun] = useState<AssessmentRun | null>(null);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentSubmitResult | null>(null);
   const [passDecisionToken, setPassDecisionToken] = useState<string | null>(null);
-  const [xaiVoiceReady, setXaiVoiceReady] = useState(false);
-  const [xaiVoiceLive, setXaiVoiceLive] = useState(false);
-  const [xaiVoiceHint, setXaiVoiceHint] = useState("");
-  const xaiWsRef = useRef<WebSocket | null>(null);
+  const [voiceOn, setVoiceOn] = useState(true);
   const slideRef = useRef<LessonSlide | null>(null);
   const studentIdRef = useRef("guest");
   const completedCheckpointsRef = useRef<Set<string>>(new Set());
@@ -105,6 +96,22 @@ export default function LessonScreen({
   const interstitial = useInterstitial(account?.tier);
   const advanceCountRef = useRef(0);
   const MIDROLL_EVERY_ADVANCES = 4;
+  const xai = useXaiClassVoice(lightingReady && voiceOn && Boolean(view), {
+    mode: classType === "group" ? "group" : "solo",
+    context: [view?.lesson.title || title, slide?.title || "", slide?.narration || slide?.body || ""]
+      .filter(Boolean)
+      .join("\n"),
+    learnerName: studentProfile?.display_name,
+    onTranscript: (text) => {
+      setAnswer({
+        text,
+        citations: [],
+        language: locale,
+        grounded: true,
+        hallucination_risk: 0,
+      });
+    },
+  });
 
   // mountedRef must only flip on UNMOUNT. It was cleared in the lesson-loading
   // effect's cleanup, which also runs on every re-run (account/lightingReady
@@ -155,86 +162,23 @@ export default function LessonScreen({
         if (alive) setLoading(false);
       }
     })();
-    void getXaiVoiceStatus().then((s) => {
-      if (!alive) return;
-      setXaiVoiceReady(Boolean(s.available));
-      setXaiVoiceHint(s.hint || "");
-    }).catch(() => {
-      if (alive) setXaiVoiceReady(false);
-    });
     return () => {
       alive = false;
       Speech.stop();
-      closeXaiVoiceSession(xaiWsRef.current);
-      xaiWsRef.current = null;
     };
   }, [lessonId, classType, account, lightingReady]);
 
   function stopNarration() {
     Speech.stop();
+    xai.interrupt();
     setNarrating(false);
   }
 
-  function stopXaiVoice() {
-    closeXaiVoiceSession(xaiWsRef.current);
-    xaiWsRef.current = null;
-    setXaiVoiceLive(false);
-  }
-
-  async function toggleXaiVoice() {
-    if (xaiVoiceLive) {
-      stopXaiVoice();
-      setXaiVoiceHint("Grok voice ended.");
-      return;
-    }
-    setError("");
-    try {
-      stopNarration();
-      const token = await mintXaiVoiceToken({
-        mode: classType === "group" ? "group" : "solo",
-        lesson_context: [view?.lesson.title || title, slide?.title || "", slide?.body || ""]
-          .filter(Boolean)
-          .join("\n"),
-        learner_names: studentProfile?.display_name ? [studentProfile.display_name] : [],
-      });
-      const ws = connectXaiVoiceSession(token, {
-        onOpen: () => {
-          setXaiVoiceLive(true);
-          setXaiVoiceHint("Theodore (Grok voice) connected — type a question to speak with him.");
-        },
-        onClose: () => {
-          setXaiVoiceLive(false);
-          xaiWsRef.current = null;
-        },
-        onError: () => {
-          setXaiVoiceHint("Grok voice connection error — check speech / XAI_API_KEY.");
-        },
-        onTranscriptDone: (t) => {
-          if (t) {
-            setAnswer({
-              text: t,
-              citations: [],
-              language: locale,
-              grounded: true,
-              hallucination_risk: 0,
-            });
-          }
-        },
-      });
-      xaiWsRef.current = ws;
-    } catch (e) {
-      setError((e as Error).message);
-      setXaiVoiceHint("Could not start Grok voice.");
-    }
-  }
-
-  function narrate() {
-    const s = slideRef.current;
-    if (!s) return;
-    Speech.stop();
-    const localized = localizedSlide?.index === s.index ? localizedSlide : s;
+  function deviceNarrate(target: LessonSlide) {
+    const localized = localizedSlide?.index === target.index ? localizedSlide : target;
     const text = localized.narration || localized.body || localized.title;
     if (!text) return;
+    Speech.stop();
     setNarrating(true);
     void buildNarrationSpeakOptions(locale).then((base) => {
       speakNatural(text, {
@@ -245,6 +189,33 @@ export default function LessonScreen({
       });
     });
   }
+
+  function narrate() {
+    const s = slideRef.current;
+    if (!s) return;
+    const script = s.narration || s.body || s.title;
+    if (!script) return;
+    if (!voiceOn) {
+      deviceNarrate(s);
+      return;
+    }
+    xai.speakLatest(`manual-${s.index}-${Date.now()}`, `Read this class slide aloud, then wait.\n\n${script}`, {
+      fallback: () => deviceNarrate(s),
+    });
+  }
+
+  useEffect(() => {
+    if (!lightingReady || !voiceOn || !slide) return;
+    const spoken = localizedSlide?.index === slide.index ? localizedSlide : null;
+    if (!spoken) return;
+    const script = spoken.narration || spoken.body || spoken.title;
+    if (!script) return;
+    xai.speakLatest(
+      `slide-${lessonId}-${slide.index}-${locale}`,
+      `Read this class slide aloud to the learner, then wait for a question.\n\n${script}`,
+      { fallback: () => deviceNarrate(spoken) },
+    );
+  }, [lightingReady, voiceOn, lessonId, locale, slide, localizedSlide, xai.speakLatest]);
 
   useEffect(() => {
     let active = true;
@@ -623,8 +594,8 @@ export default function LessonScreen({
     setAnswer(null);
     setError("");
     try {
-      if (xaiVoiceLive && xaiWsRef.current?.readyState === WebSocket.OPEN) {
-        sendTextTurn(xaiWsRef.current, text);
+      if (voiceOn && xai.live) {
+        xai.speakLatest(`ask-${Date.now()}`, text);
         setQuestion("");
         return;
       }
@@ -646,7 +617,7 @@ export default function LessonScreen({
       <View style={styles.header}>
         <PrimaryButton label={t("lesson.back")} onPress={() => { stopNarration(); onBack(); }} variant="ghost" />
         <View style={styles.headerText}>
-          <Text style={styles.title} numberOfLines={1}>{view?.lesson.title || title}</Text>
+          <Text style={styles.title} numberOfLines={2}>{view?.lesson.title || title}</Text>
           <Text style={styles.classBadge}>
             {classType === "solo" ? t("liveClass.soloBadge") : t("liveClass.groupBadge")}
           </Text>
@@ -827,12 +798,18 @@ export default function LessonScreen({
           <GlassPanel style={styles.card}>
             <Text style={styles.cardTitle}>{t("lesson.askTitle")}</Text>
             <PrimaryButton
-              label={xaiVoiceLive ? "Grok voice on" : "Grok voice"}
-              onPress={() => void toggleXaiVoice()}
-              disabled={!xaiVoiceReady && !xaiVoiceLive}
-              variant={xaiVoiceLive ? "brand" : "ghost"}
+              label={voiceOn ? (xai.live ? "Grok voice on" : "Grok voice starting") : "Grok voice off"}
+              onPress={() => {
+                if (voiceOn) {
+                  stopNarration();
+                  setVoiceOn(false);
+                } else {
+                  setVoiceOn(true);
+                }
+              }}
+              variant={voiceOn ? "brand" : "ghost"}
             />
-            {xaiVoiceHint ? <Text style={styles.meta}>{xaiVoiceHint}</Text> : null}
+            {xai.hint ? <Text style={styles.meta}>{xai.hint}</Text> : null}
             <TextInput
               style={styles.input}
               placeholder={t("lesson.askPlaceholder")}
@@ -896,8 +873,8 @@ export default function LessonScreen({
 const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerText: { flex: 1, gap: 2 },
-  title: { color: theme.colors.text, fontSize: 18, fontWeight: "700" },
+  headerText: { flex: 1, gap: 2, minWidth: 0 },
+  title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", lineHeight: 23 },
   classBadge: {
     color: theme.colors.accent,
     fontSize: 11,

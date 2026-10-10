@@ -56,7 +56,7 @@ export default function DropdownListSelector({
                 onPress={() => onSelect(opt.key)}
                 style={[styles.option, selected && styles.optionSelected]}
               >
-                <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                <Text numberOfLines={2} style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
                   {opt.label}
                 </Text>
                 {selected ? <Text style={styles.tick}>✓</Text> : null}
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  headerBody: { flex: 1, marginRight: 8 },
+  headerBody: { flex: 1, marginRight: 8, minWidth: 0 },
   title: {
     color: theme.colors.muted,
     fontSize: 12,
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255,255,255,0.06)",
   },
   optionSelected: { backgroundColor: "rgba(229, 9, 20, 0.16)" },
-  optionLabel: { color: theme.colors.text, fontSize: 14, fontWeight: "600", flex: 1, marginRight: 8 },
+  optionLabel: { color: theme.colors.text, fontSize: 14, fontWeight: "600", flex: 1, lineHeight: 18, marginRight: 8, minWidth: 0 },
   optionLabelSelected: { color: "#fff", fontWeight: "800" },
   tick: { color: theme.colors.netflix, fontWeight: "900" },
 });

@@ -41,7 +41,7 @@ export default function SearchScreen({
   onOpenSettings,
 }: {
   onBack: () => void;
-  onOpenCourse: (id: string) => void;
+  onOpenCourse: (id: string, deepLink?: string) => void;
   onOpenSettings: (section?: string) => void;
 }) {
   const { t } = useT();
@@ -108,16 +108,16 @@ export default function SearchScreen({
         <TouchableOpacity
           style={styles.result}
           accessibilityRole="button"
-          onPress={() => onOpenCourse(c.id)}
+          onPress={() => onOpenCourse(c.id, c.deep_link)}
         >
           <View style={styles.resultIcon}>
             <Text style={styles.resultIconText}>&#x1F4DA;</Text>
           </View>
           <View style={styles.resultBody}>
-            <Text style={styles.resultTitle} numberOfLines={1}>
+            <Text style={styles.resultTitle} numberOfLines={2}>
               {c.title}
             </Text>
-            <Text style={styles.resultMeta} numberOfLines={1}>
+            <Text style={styles.resultMeta} numberOfLines={2}>
               {[c.category, c.level, c.duration_min ? `${c.duration_min} min` : null]
                 .filter(Boolean)
                 .join(" · ")}
@@ -139,7 +139,7 @@ export default function SearchScreen({
           <Text style={styles.resultIconText}>&#x2699;&#xFE0F;</Text>
         </View>
         <View style={styles.resultBody}>
-          <Text style={styles.resultTitle}>{item.title}</Text>
+          <Text style={styles.resultTitle} numberOfLines={2}>{item.title}</Text>
         </View>
         <Text style={styles.resultBadge}>Settings</Text>
       </TouchableOpacity>
@@ -288,19 +288,23 @@ const styles = StyleSheet.create({
   },
   resultBody: {
     flex: 1,
+    minWidth: 0,
   },
   resultTitle: {
     color: theme.colors.text,
     fontSize: 14,
     fontWeight: "600",
+    lineHeight: 18,
   },
   resultMeta: {
     color: theme.colors.muted,
     fontSize: 12,
+    lineHeight: 16,
     marginTop: 2,
   },
   resultBadge: {
     color: theme.colors.accent,
+    flexShrink: 0,
     fontSize: 11,
     fontWeight: "700",
     backgroundColor: "rgba(110,168,254,0.12)",
