@@ -118,6 +118,7 @@ def test_drive_embed_target_is_lab():
     assert page.status_code == 200
     assert "text/html" in page.headers["content-type"]
     assert "/audio-lab-api" in page.text
+    assert "location.pathname.indexOf('/audio-lab') === 0 ? '/audio-lab' : '/lab'" in page.text
     # The app does not serve the public path. Ingress must send /audio-lab to
     # the web rewrite, not to a service that leaves the path unchanged.
     missing = client.get("/audio-lab")

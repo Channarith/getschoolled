@@ -8,6 +8,7 @@ import { ensureCameraPermission } from "../components/cameraPermission";
 import { WEB_APP_URL } from "../config";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
+import { driverWaveScript } from "../driverWave";
 import { publicDemoUrl, childrenLabLocaleScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
 import { theme } from "../theme";
 
@@ -40,13 +41,15 @@ export default function DemoWebScreen({
   const [plays, setPlays] = useState(0);
   const path = demoPathWithLocale(demo.path, locale);
   const url = publicDemoUrl(WEB_APP_URL, path);
+  const audioOnly = path.includes("presentation=audio");
   const localeScript = path.includes("/children-lab") ? childrenLabLocaleScript(locale) : undefined;
+  const waveScript = audioOnly ? driverWaveScript() : undefined;
   useAndroidBackTo(onBack);
 
   useEffect(() => {
-    void ensureCameraPermission();
+    if (!audioOnly) void ensureCameraPermission();
     void ensureMicrophonePermission();
-  }, []);
+  }, [audioOnly]);
 
   function onMessage(event: WebViewMessageEvent) {
     try {
@@ -86,7 +89,8 @@ export default function DemoWebScreen({
             setLoading(false);
             setError(event.nativeEvent.description || "load failed");
           }}
-          injectedJavaScriptBeforeContentLoaded={localeScript}
+          injectedJavaScriptBeforeContentLoaded={waveScript || localeScript}
+          injectedJavaScript={waveScript}
           javaScriptEnabled
           domStorageEnabled
           allowsFullscreenVideo

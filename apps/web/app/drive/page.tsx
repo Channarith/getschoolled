@@ -1058,20 +1058,48 @@ function DrivePageInner() {
         <p className="muted" style={{ marginTop: 0 }}>
           Hands-free speech translation. The microphone stays in this browser, and Theodore answers with the xAI voice agent.
         </p>
-        <iframe
-          title="Audio translation lab"
-          src={`/audio-lab?target=${encodeURIComponent(locale)}&source=auto`}
-          allow="microphone; autoplay"
-          style={{
-            width: "100%",
-            height: "min(78vh, 860px)",
-            border: "1px solid rgba(14,165,233,.45)",
-            borderRadius: 16,
-            background: "#0b1020",
-          }}
-        />
+        <AudioLabFrame locale={locale} />
       </section>
     </main>
+  );
+}
+
+function AudioLabFrame({ locale }: { locale: string }) {
+  const [ready, setReady] = useState(false);
+  const [down, setDown] = useState(false);
+  useEffect(() => {
+    let cancel = false;
+    fetch("/audio-lab-api/health", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((body) => {
+        if (cancel) return;
+        if (body && body.status === "ok" && body.service === "theodore-audio-translation-lab") setReady(true);
+        else setDown(true);
+      })
+      .catch(() => { if (!cancel) setDown(true); });
+    return () => { cancel = true; };
+  }, []);
+  if (down) {
+    return (
+      <p className="muted" data-testid="audio-lab-down">
+        The audio lab is not connected. The translation page did not load.
+      </p>
+    );
+  }
+  if (!ready) return <p className="muted">Opening the audio lab…</p>;
+  return (
+    <iframe
+      title="Audio translation lab"
+      src={`/audio-lab?target=${encodeURIComponent(locale)}&source=auto`}
+      allow="microphone; autoplay"
+      style={{
+        width: "100%",
+        height: "min(78vh, 860px)",
+        border: "1px solid rgba(14,165,233,.45)",
+        borderRadius: 16,
+        background: "#0b1020",
+      }}
+    />
   );
 }
 
