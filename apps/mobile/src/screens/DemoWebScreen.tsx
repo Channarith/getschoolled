@@ -9,7 +9,9 @@ import { WEB_APP_URL } from "../config";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { driverWaveScript } from "../driverWave";
+import { liveAudioPhoneScript } from "../liveAudioPhone";
 import { publicDemoUrl, childrenLabLocaleScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
+import { ensureLoudSpeaker } from "../tts";
 import { theme } from "../theme";
 
 async function ensureMicrophonePermission(): Promise<void> {
@@ -44,9 +46,12 @@ export default function DemoWebScreen({
   const audioOnly = path.includes("presentation=audio");
   const localeScript = path.includes("/children-lab") ? childrenLabLocaleScript(locale) : undefined;
   const waveScript = audioOnly ? driverWaveScript() : undefined;
+  const phoneAudio = liveAudioPhoneScript();
+  const beforeLoad = [phoneAudio, waveScript, localeScript].filter(Boolean).join("\n");
   useAndroidBackTo(onBack);
 
   useEffect(() => {
+    void ensureLoudSpeaker();
     if (!audioOnly) void ensureCameraPermission();
     void ensureMicrophonePermission();
   }, [audioOnly]);
@@ -89,8 +94,8 @@ export default function DemoWebScreen({
             setLoading(false);
             setError(event.nativeEvent.description || "load failed");
           }}
-          injectedJavaScriptBeforeContentLoaded={waveScript || localeScript}
-          injectedJavaScript={waveScript}
+          injectedJavaScriptBeforeContentLoaded={beforeLoad}
+          injectedJavaScript={[phoneAudio, waveScript].filter(Boolean).join("\n")}
           javaScriptEnabled
           domStorageEnabled
           allowsFullscreenVideo

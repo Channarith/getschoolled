@@ -1,5 +1,8 @@
 (() => {
   "use strict";
+  // The phone WebView also lifts quiet playback. This flag tells that cover
+  // the widget already sets its own phone gain, so the two do not stack.
+  window.__SALAREEN_LIVE_GAIN__ = true;
 
   // One native speech-to-speech control shared by every Theodore lab. It never
   // calls /tts: microphone PCM goes directly to xAI/Gemini using a one-use
@@ -16,6 +19,7 @@
     connected: false, stopping: false, dropOutput: false,
     recognitionPaused: false, lastUserAt: 0, idleTimer: null, speechEndTimer: null,
     agentSpeaking: false, micRms: 0, voiceLevel: 0, levelTimer: null, outputGain: null,
+    outputComp: null,
     userTalking: false, micSink: null, activityKey: "", activityAt: 0,
   };
 
@@ -24,26 +28,39 @@
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `
     <style>
-      :host{all:initial} .box{position:fixed;z-index:2147483646;right:14px;bottom:14px;
-        width:min(330px,calc(100vw - 28px));padding:10px;border:1px solid #5eead4;
-        border-radius:16px;background:#07111ef2;color:#f8fafc;box-shadow:0 16px 45px #0009;
-        font:700 13px/1.3 system-ui,sans-serif}
-      .box.docked{left:8px;right:8px;width:auto;bottom:max(8px, env(safe-area-inset-bottom))}
-      .box.docked .caption{max-height:2.6em;overflow:hidden}
-      .row{display:flex;align-items:center;gap:8px}.title{flex:1;color:#5eead4;font-weight:900}
-      select,button{border:1px solid #ffffff55;border-radius:10px;background:#172033;color:#fff;
-        padding:7px 9px;font:inherit}button{cursor:pointer}.live{background:#047857}
-      .dot{width:9px;height:9px;border-radius:50%;background:#64748b}.dot.on{background:#34d399;
-        box-shadow:0 0 12px #34d399}.status{margin-top:7px;color:#cbd5e1;font-size:11px}
-      .caption{margin-top:5px;max-height:42px;overflow:auto;color:#fde68a;font-weight:600}
-      .hidden{display:none}.close{padding:3px 7px;background:transparent}
+      :host{all:initial}
+      .box{position:fixed;z-index:2147483646;right:12px;bottom:max(18px, env(safe-area-inset-bottom));
+        width:68px;height:68px;padding:0;border:1px solid #5eead4;border-radius:50%;
+        background:#07111ef2;color:#f8fafc;box-shadow:0 8px 18px #0008;
+        font:700 13px/1.3 system-ui,sans-serif;touch-action:none;cursor:grab;overflow:visible}
+      .box.placed{right:auto;bottom:auto}
+      .box.docked{left:auto;right:12px;width:68px;height:68px;bottom:max(18px, env(safe-area-inset-bottom))}
+      .box.dragging{cursor:grabbing}
+      .row{display:flex;align-items:center;justify-content:center;margin:0}
+      .lead{position:absolute;inset:0;pointer-events:none}
+      .title,.status,.caption,select{position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+        overflow:hidden;clip:rect(0 0 0 0);border:0}
+      .dot{position:absolute;left:10px;top:10px;z-index:2;width:8px;height:8px;border-radius:50%;
+        background:#64748b;pointer-events:none}
+      .dot.on{background:#34d399;box-shadow:0 0 8px #34d399}
+      button{cursor:pointer}
+      .toggle{width:68px;height:68px;border:0;border-radius:50%;padding:0;font-size:0;color:transparent;
+        background:#07111e center/30px 30px no-repeat;
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e7fbff' d='M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z'/></svg>")}
+      .toggle.live{background-color:#065f46;
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23fff' d='M3 9v6h4l5 4V5L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z'/></svg>")}
+      .toggle:disabled{opacity:.45}
+      .close{position:absolute;top:-6px;right:-6px;z-index:3;width:20px;height:20px;padding:0;
+        pointer-events:auto;border:0;border-radius:50%;background:#172033;color:#fff;
+        font:700 13px/20px system-ui,sans-serif}
+      .hidden{display:none}
     </style>
-    <div class="box">
-      <div class="row"><i class="dot"></i><span class="title">Live audio agent</span>
-        <button class="close" title="Hide live audio control">×</button></div>
-      <div class="row" style="margin-top:8px">
+    <div class="box" data-drag-chip="1" title="Drag the voice icon. Tap it to start or stop.">
+      <div class="row lead"><i class="dot"></i><span class="title">Live audio agent</span>
+        <button class="close" title="Hide live audio control" aria-label="Hide live audio control">×</button></div>
+      <div class="row">
         <select aria-label="Live audio provider"><option value="">Checking…</option></select>
-        <button class="toggle" disabled>Start live voice</button>
+        <button class="toggle" disabled aria-label="Start live voice">Start live voice</button>
       </div>
       <div class="status">Checking native audio providers…</div>
       <div class="caption" aria-live="polite"></div>
@@ -61,9 +78,72 @@
   new MutationObserver(syncDock).observe(document.body, {attributes: true, attributeFilter: ["class"]});
   const select = $("select"), toggle = $(".toggle"), status = $(".status");
   const caption = $(".caption"), dot = $(".dot");
-  $(".close").onclick = () => { stop(); host.remove(); };
+  const chip = $(".box");
+  $(".close").onclick = (event) => { event.stopPropagation(); stop(); host.remove(); };
 
-  function setStatus(text) { status.textContent = text; }
+  function placeChip(left, top) {
+    if (!chip) return;
+    const width = chip.offsetWidth || 68;
+    const height = chip.offsetHeight || 68;
+    const x = Math.max(8, Math.min(window.innerWidth - width - 8, left));
+    const y = Math.max(8, Math.min(window.innerHeight - height - 8, top));
+    chip.style.left = x + "px";
+    chip.style.top = y + "px";
+    chip.style.right = "auto";
+    chip.style.bottom = "auto";
+    chip.classList.add("placed");
+    try { localStorage.setItem("aoep.liveAudio.pos", JSON.stringify({left: x, top: y})); } catch (_) {}
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem("aoep.liveAudio.pos") || "null");
+    if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) placeChip(saved.left, saved.top);
+  } catch (_) {}
+  if (chip) {
+    let drag = null;
+    chip.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      if (event.target.closest(".close")) return;
+      const rect = chip.getBoundingClientRect();
+      drag = {
+        id: event.pointerId, x: event.clientX, y: event.clientY,
+        left: rect.left, top: rect.top, moved: false,
+      };
+      chip.classList.add("dragging");
+    });
+    chip.addEventListener("pointermove", (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) < 8) return;
+      if (!drag.moved) {
+        drag.moved = true;
+        try { chip.setPointerCapture(event.pointerId); } catch (_) {}
+      }
+      placeChip(drag.left + dx, drag.top + dy);
+      event.preventDefault();
+    });
+    const endDrag = (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const moved = drag.moved;
+      drag = null;
+      chip.classList.remove("dragging");
+      if (!moved) return;
+      const swallow = (click) => {
+        click.preventDefault();
+        click.stopPropagation();
+      };
+      chip.addEventListener("click", swallow, {capture: true, once: true});
+    };
+    chip.addEventListener("pointerup", endDrag);
+    chip.addEventListener("pointercancel", endDrag);
+  }
+
+  function setStatus(text) {
+    status.textContent = text;
+    if (!toggle) return;
+    toggle.title = text;
+    toggle.setAttribute("aria-label", text || toggle.textContent || "Live voice");
+  }
   function setNativeAudioActive(active) {
     window.__THEODORE_LIVE_AUDIO_ACTIVE__ = Boolean(active);
     if (active && "speechSynthesis" in window) speechSynthesis.cancel();
@@ -283,9 +363,28 @@
     }
     return base + " The computer microphone is on, so Bluetooth speakers stay loud.";
   }
+  function playbackGain() {
+    // A phone speaker with the mic open is much quieter than a laptop.
+    // Lift only that case. Desktop stays at unity so a room is not blasted.
+    const edge = Math.min(window.innerWidth || 1200, window.innerHeight || 1200);
+    const touch = (navigator.maxTouchPoints || 0) > 0;
+    return edge <= 900 && touch ? 2.6 : 1;
+  }
+  function wirePlayback() {
+    state.outputGain = state.ctx.createGain();
+    state.outputGain.gain.value = playbackGain();
+    state.outputComp = state.ctx.createDynamicsCompressor();
+    state.outputComp.threshold.value = -10;
+    state.outputComp.knee.value = 8;
+    state.outputComp.ratio.value = 3;
+    state.outputComp.attack.value = 0.003;
+    state.outputComp.release.value = 0.2;
+    state.outputGain.connect(state.outputComp);
+    state.outputComp.connect(state.ctx.destination);
+  }
   async function followSpeakers() {
     if (!state.ctx) return;
-    if (state.outputGain) state.outputGain.gain.value = 1;
+    if (state.outputGain) state.outputGain.gain.value = playbackGain();
     if (typeof state.ctx.setSinkId === "function") {
       try { await state.ctx.setSinkId(""); } catch (_) {}
     }
@@ -393,9 +492,7 @@
       // mic is resampled down to the agent rate below.
       state.ctx = new AudioContext({latencyHint:"playback"});
       await state.ctx.resume();
-      state.outputGain = state.ctx.createGain();
-      state.outputGain.gain.value = 1;
-      state.outputGain.connect(state.ctx.destination);
+      wirePlayback();
       await startMic();
       await followSpeakers();
       const pageLang = (document.documentElement.lang || "").trim();
@@ -491,10 +588,11 @@
     }
     try { state.ws?.close(); } catch (_) {}
     try { state.outputGain?.disconnect(); } catch (_) {}
+    try { state.outputComp?.disconnect(); } catch (_) {}
     try { await state.ctx?.close(); } catch (_) {}
     Object.assign(state, {
       ws:null,stream:null,source:null,processor:null,silent:null,micSink:null,ctx:null,
-      outputGain:null,connected:false,nextPlayAt:0,
+      outputGain:null,outputComp:null,connected:false,nextPlayAt:0,
       stopping:false,dropOutput:false,micRms:0,voiceLevel:0,userTalking:false,
     });
     toggle.textContent = "Start live voice"; toggle.classList.remove("live");
