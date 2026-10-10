@@ -15,7 +15,9 @@ services/
 infra/
 config/
 sample-curriculum/
-scripts/
+# Leading slash: only the repo-root scripts dir. A bare `scripts/` also
+# drops apps/mobile/scripts, and the EAS pre-install hook then cannot run.
+/scripts/
 
 # Docs, screenshots, demo videos (not in the app binary)
 docs/
