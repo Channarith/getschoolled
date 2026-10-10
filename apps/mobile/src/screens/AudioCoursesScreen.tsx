@@ -12,6 +12,8 @@ import {
 import AnimatedPressable from "../components/AnimatedPressable";
 import AdBanner from "../components/AdBanner";
 import GlassPanel from "../components/GlassPanel";
+import StudioCourseSection from "../components/StudioCourseSection";
+import type { StudioCourseId } from "../studioCourses";
 import { useAuth } from "../auth/AuthContext";
 import { getMyList, recordInterest, toggleMyList } from "../storage";
 import { useT } from "../i18n";
@@ -19,6 +21,7 @@ import { categoryGradient, theme } from "../theme";
 
 type Props = {
   onOpen: (id: string) => void;
+  onOpenStudio?: (courseId: StudioCourseId) => void;
   // Kept for call-site compatibility; Drive Mode is audio-only so these are unused.
   onOpenGame?: (subject: string) => void;
   onOpenLesson?: (lessonId: string, title: string, preview?: string) => void;
@@ -34,7 +37,7 @@ const FORMAT_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   video: "play-circle",
 };
 
-export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
+export default function AudioCoursesScreen({ onOpen, onOpenStudio, initialCategory }: Props) {
   const { t, locale } = useT();
   const { account } = useAuth();
   const [rows, setRows] = useState<LearnableItem[]>([]);
@@ -124,6 +127,7 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
         )}
       />
       <Text style={styles.count}>{total} results</Text>
+      {onOpenStudio ? <StudioCourseSection presentation="audio" onOpen={onOpenStudio} /> : null}
       {error ? (
         <GlassPanel style={{ marginHorizontal: theme.spacing.screenX, marginBottom: 8 }}>
           <Text style={styles.err}>{error}</Text>
@@ -150,9 +154,9 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
                   <LinearGradient colors={[c1, c2]} style={styles.thumb}>
                     <Ionicons name={icon} size={22} color="#fff" />
                   </LinearGradient>
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.cardBody}>
                     <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-                    <Text style={styles.meta}>
+                    <Text style={styles.meta} numberOfLines={2}>
                       {item.format} · {item.category || item.subject}
                       {item.duration_min ? ` · ${item.duration_min} ${t("meta.min")}` : ""}
                     </Text>
@@ -220,8 +224,9 @@ const styles = StyleSheet.create({
     width: 52, height: 52, borderRadius: theme.radius.sm,
     alignItems: "center", justifyContent: "center",
   },
-  title: { color: theme.colors.text, fontSize: 16, fontWeight: "700" },
-  meta: { color: theme.colors.muted, marginTop: 4, fontSize: 12 },
+  cardBody: { flex: 1, minWidth: 0 },
+  title: { color: theme.colors.text, fontSize: 16, fontWeight: "700", lineHeight: 21 },
+  meta: { color: theme.colors.muted, marginTop: 4, fontSize: 12, lineHeight: 16 },
   saveBtn: { padding: 4 },
   err: { color: "#ff8a8a", ...theme.typography.body },
 });

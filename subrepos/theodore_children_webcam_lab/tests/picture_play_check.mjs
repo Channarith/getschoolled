@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import {
-  colorLine, dotHit, dotRadius, dotsFor, outlineCoverage, outlinePassed,
-  pictureWords, pointInPolygon, sceneForWord, segmentAt,
+  colorLine, dotHit, dotRadius, dotsFor, markerRadius, outlineCoverage, outlinePassed,
+  pictureWords, pointInPolygon, polygonSamples, sceneForWord, scratchCoverage, scratchPassed,
+  segmentAt, swatchHit, swatchLayout,
 } from "../src/theodore_children_webcam_lab/static/picture_play.js";
 
 const WORDS = [
@@ -45,5 +46,26 @@ assert.equal(outlinePassed(outlineCoverage([{ x: 0.5, y: 0.44 }], apple.outline,
 
 const heart = sceneForWord("heart");
 assert.equal(pointInPolygon(0.5, 0.46, heart.segments[0].points), true);
+
+const body = apple.segments[0].points;
+const dab = [{ x: 0.5, y: 0.44 }];
+assert.equal(
+  scratchPassed(scratchCoverage(dab, body, markerRadius("7-10")), "7-10"),
+  false,
+  "one marker dab must not fill the apple",
+);
+const scribble = polygonSamples(body, 5, 5).map(([x, y]) => ({ x, y }));
+assert.ok(scribble.length > 8, "the apple body has room to scratch");
+assert.equal(
+  scratchPassed(scratchCoverage(scribble, body, markerRadius("7-10")), "7-10"),
+  true,
+  "scratching across the apple finishes that piece",
+);
+const leafInk = [{ x: 0.5, y: 0.44 }];
+assert.equal(scratchCoverage(leafInk, apple.segments[1].points, markerRadius("7-10")), 0);
+
+const first = swatchLayout(3, 0, 360, 640);
+assert.equal(swatchHit(3, 0, first.x, first.y, 360, 640), true);
+assert.equal(swatchHit(3, 1, first.x, first.y, 360, 640), false);
 
 console.log("picture play OK");

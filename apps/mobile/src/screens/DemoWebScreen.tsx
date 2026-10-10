@@ -65,7 +65,7 @@ export default function DemoWebScreen({
         <Pressable onPress={onBack} testID="demo-web-back" hitSlop={8}>
           <Text style={styles.back}>{t("guest.back")}</Text>
         </Pressable>
-        <Text style={styles.title} numberOfLines={1}>{demo.title}</Text>
+        <Text style={styles.title} numberOfLines={2}>{demo.title}</Text>
         {plays > 0 ? <Text style={styles.plays} testID="demo-telemetry">{plays}</Text> : null}
       </View>
       {error ? (
@@ -113,9 +113,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  back: { color: "#f4e9d8", fontSize: 16, fontWeight: "600" },
-  title: { flex: 1, color: theme.colors.text, fontSize: 16, fontWeight: "700" },
-  plays: { color: "#fde68a", fontSize: 13, fontWeight: "700" },
+  back: { color: "#f4e9d8", fontSize: 16, fontWeight: "600", flexShrink: 0 },
+  title: { flex: 1, minWidth: 0, color: theme.colors.text, fontSize: 16, fontWeight: "700", lineHeight: 20 },
+  plays: { color: "#fde68a", fontSize: 13, fontWeight: "700", flexShrink: 0 },
   web: { flex: 1, backgroundColor: theme.colors.bg },
   loading: {
     ...StyleSheet.absoluteFillObject,

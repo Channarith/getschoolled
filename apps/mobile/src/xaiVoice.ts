@@ -167,6 +167,15 @@ export function sendTextTurn(ws: WebSocket, text: string): void {
   ws.send(JSON.stringify({ type: "response.create" }));
 }
 
+export function cancelXaiResponse(ws: WebSocket | null | undefined): void {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  try {
+    ws.send(JSON.stringify({ type: "response.cancel" }));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function closeXaiVoiceSession(ws: WebSocket | null | undefined): void {
   if (!ws) return;
   try {

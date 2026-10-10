@@ -49,9 +49,9 @@ export const theme = {
     section: 22,
   },
   typography: {
-    hero: { fontSize: 28, fontWeight: "800" as const, letterSpacing: -0.5 },
-    title: { fontSize: 22, fontWeight: "800" as const },
-    railTitle: { fontSize: 18, fontWeight: "800" as const },
+    hero: { fontSize: 28, fontWeight: "800" as const, lineHeight: 36 },
+    title: { fontSize: 22, fontWeight: "800" as const, lineHeight: 28 },
+    railTitle: { fontSize: 18, fontWeight: "800" as const, lineHeight: 24 },
     body: { fontSize: 14, lineHeight: 20 },
     caption: { fontSize: 12, lineHeight: 16 },
     kicker: {

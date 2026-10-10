@@ -401,7 +401,7 @@ export default function SettingsScreen({
                : undefined}>
           {drivePhase === "driving" ? (
             <AnimatedPressable onPress={() => markNotDriving()} style={styles.btn}>
-              <Text style={styles.btnText}>{t("settings.driveNotDriving")}</Text>
+              <Text style={styles.btnText} numberOfLines={2}>{t("settings.driveNotDriving")}</Text>
             </AnimatedPressable>
           ) : null}
         </Row>
@@ -442,7 +442,7 @@ export default function SettingsScreen({
         <Row label={t("settings.drivePerms")}
              desc={t("settings.drivePermsDesc", { location: locPerm, motion: motionPerm })}>
           <AnimatedPressable onPress={() => void requestDrivePermissions()} style={styles.btn}>
-            <Text style={styles.btnText}>{t("settings.request")}</Text>
+            <Text style={styles.btnText} numberOfLines={2}>{t("settings.request")}</Text>
           </AnimatedPressable>
         </Row>
       </Section>
@@ -534,18 +534,18 @@ export default function SettingsScreen({
       <Section title={t("settings.sectionDiag")}>
         <Row label={t("settings.scheduled", { n: scheduled })} desc={t("settings.scheduledDesc")}>
           <AnimatedPressable onPress={() => void refreshScheduled()} style={styles.btn}>
-            <Text style={styles.btnText}>{t("settings.refresh")}</Text>
+            <Text style={styles.btnText} numberOfLines={2}>{t("settings.refresh")}</Text>
           </AnimatedPressable>
         </Row>
         <Row label={t("settings.testAlert")} desc={t("settings.testAlertDesc")}>
           <AnimatedPressable onPress={() => void sendTest()} style={styles.btn}>
-            <Text style={styles.btnText}>{t("settings.send")}</Text>
+            <Text style={styles.btnText} numberOfLines={2}>{t("settings.send")}</Text>
           </AnimatedPressable>
         </Row>
         <Row label={t("settings.permission", { status: permission })}
              desc={t("settings.permissionDesc")}>
           <AnimatedPressable onPress={() => void askPermission()} style={styles.btn}>
-            <Text style={styles.btnText}>{t("settings.request")}</Text>
+            <Text style={styles.btnText} numberOfLines={2}>{t("settings.request")}</Text>
           </AnimatedPressable>
         </Row>
         {onOpenBugReport ? (
@@ -568,7 +568,7 @@ export default function SettingsScreen({
         </Row>
         <Row label={t("settings.playFullIntro")} desc={t("settings.playFullIntroDesc")}>
           <AnimatedPressable onPress={playFullIntro} style={styles.btn}>
-            <Text style={styles.btnText}>{t("settings.playFullIntro")}</Text>
+            <Text style={styles.btnText} numberOfLines={2}>{t("settings.playFullIntro")}</Text>
           </AnimatedPressable>
         </Row>
       </Section>
@@ -610,7 +610,7 @@ function Row({ label, desc, children }: {
 }) {
   return (
     <View style={styles.row}>
-      <View style={{ flex: 1, marginRight: 12 }}>
+      <View style={styles.rowText}>
         <Text style={styles.label}>{label}</Text>
         {desc ? <Text style={styles.desc}>{desc}</Text> : null}
       </View>
@@ -632,17 +632,20 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
-  label: { color: theme.colors.text, fontWeight: "700" },
+  rowText: { flex: 1, marginRight: 12, minWidth: 0 },
+  label: { color: theme.colors.text, fontWeight: "700", lineHeight: 20 },
   desc: { color: theme.colors.muted, marginTop: 4, fontSize: 12, lineHeight: 16 },
   btn: {
     backgroundColor: "rgba(29, 39, 70, 0.85)",
+    flexShrink: 1,
+    maxWidth: 128,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  btnText: { color: theme.colors.text, fontWeight: "700" },
+  btnText: { color: theme.colors.text, fontWeight: "700", lineHeight: 16, textAlign: "center" },
   link: { color: theme.colors.accent, textAlign: "center", paddingVertical: 8 },
   input: {
     backgroundColor: "rgba(29, 39, 70, 0.75)",

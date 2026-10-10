@@ -4,15 +4,15 @@
  * implementation scored the JPEG's *compressed file bytes* as if they were
  * pixels — entropy-coded data reads as simultaneously under- and over-exposed,
  * so typical users were locked out (and accidental passes were fail-open).
- * The honest gate: verify camera permission, show the learner their own
- * preview, and let them confirm they look clear before class.
+ * The honest gate: verify camera permission and show the learner their own
+ * preview. Saving the photo turns Continue on. The green row is a status,
+ * not a second tap.
  */
 
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 
-import AnimatedPressable from "./AnimatedPressable";
 import { ensureCameraPermission } from "./cameraPermission";
 import PrimaryButton from "./PrimaryButton";
 import { theme } from "../theme";
@@ -28,7 +28,6 @@ export default function CameraLightingScreener({
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
 
   const capture = useCallback(async () => {
@@ -53,7 +52,6 @@ export default function CameraLightingScreener({
       });
       if (shot.canceled || !shot.assets?.[0]) return;
       setPreviewUri(shot.assets[0].uri);
-      setConfirmed(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Camera check failed");
     } finally {
@@ -65,9 +63,8 @@ export default function CameraLightingScreener({
     <View style={styles.wrap}>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.body}>
-        Take a face photo before class and check it: your face should be clearly
-        visible, well lit, and sharp. Dark or blurry cameras cannot track
-        attention reliably.
+        Take one face photo. As soon as it is saved, Continue to class turns on.
+        Your face should be clearly visible, well lit, and sharp.
       </Text>
 
       {previewUri ? (
@@ -80,16 +77,22 @@ export default function CameraLightingScreener({
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {previewUri && !confirmed ? (
-        <AnimatedPressable
-          onPress={() => setConfirmed(true)}
-          style={styles.confirm}
-        >
+      {previewUri ? (
+        <View style={styles.confirm}>
           <Text style={styles.confirmText}>
-            ☑ My face is clearly visible in this photo
+            ✓ Photo saved. Continue to class is ready.
           </Text>
-        </AnimatedPressable>
+        </View>
       ) : null}
+
+      <View style={{ marginTop: 10 }}>
+        <PrimaryButton
+          label="Continue to class"
+          onPress={onReady}
+          disabled={!previewUri || busy}
+          variant="netflix"
+        />
+      </View>
 
       {busy ? (
         <ActivityIndicator color={theme.colors.accent} style={{ marginVertical: 12 }} />
@@ -97,16 +100,9 @@ export default function CameraLightingScreener({
         <PrimaryButton
           label={previewUri ? "Retake photo" : "Open camera & check"}
           onPress={() => void capture()}
+          variant={previewUri ? "ghost" : "netflix"}
         />
       )}
-
-      <View style={{ marginTop: 10 }}>
-        <PrimaryButton
-          label="Continue to class"
-          onPress={onReady}
-          disabled={!confirmed || busy}
-        />
-      </View>
     </View>
   );
 }

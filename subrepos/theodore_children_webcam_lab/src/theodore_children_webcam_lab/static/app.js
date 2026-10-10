@@ -1,12 +1,12 @@
 import {
-  centroid, colorLine, dotHit, dotRadius, dotsFor, outlineCoverage, outlinePassed,
-  sceneForWord, segmentAt,
+  centroid, colorLine, dotHit, dotRadius, dotsFor, markerRadius, outlineCoverage, outlinePassed,
+  sceneForWord, scratchCoverage, scratchPassed, segmentAt, swatchHit, swatchLayout,
 } from "./picture_play.js";
 import {
   FIST_MAX_PALMS, HEART_TIPS_PALMS, HEART_THUMBS_PALMS, HEART_WRISTS_PALMS,
   HEART_CLEFT_PALMS, HEART_POINT_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
-  coverFrame, handShape, heartRatios, isHeartShape, mapMirroredLandmark, syntheticHand,
+  coverFrame, fingersPointed, handShape, heartRatios, isHeartShape, mapMirroredLandmark, syntheticHand,
   traceProgress,
 } from "./vision_math.js";
 
@@ -76,7 +76,8 @@ const state = {
   beatAt:0, recognition:null, activityEvents:[], spokenPrompt:"Let's play!",
   localKey:"theodoreChildrenFunV1", roundId:0, roundDone:false, roundTimer:0,
   failTimer:0, audio:null, padHeld:false, hitCount:0, lastTip:null,
-  handMotion:0, serverTts:null, speechToken:0, audioIndex:0, audioRound:null
+  handMotion:0, serverTts:null, speechToken:0, audioIndex:0, audioRound:null,
+  touchMode:"air", crayon:null, ink:[], inkDown:false, screenDown:false, screenPointerId:null,
 };
 
 const canvas = $("overlay");
@@ -288,7 +289,7 @@ function detectFrame() {
     }
   } catch (error) { console.warn("[children-lab] face frame skipped",error); }
   try {
-    if (state.hands) {
+    if (state.hands && !screenTouch()) {
       const result=state.hands.detectForVideo(video,now);
       const labels=(result.handedness||[]).map(row=>row?.[0]?.categoryName||"");
       const previous=state.handData.map(hand=>hand.tip);
@@ -365,24 +366,46 @@ function drawPicture(w, h) {
     ctx.closePath();
   };
   if (state.game === "color-picture") {
+    const reach = markerRadius(state.age) * Math.min(w, h);
     scene.segments.forEach((region, index) => {
       pathOf(region.points);
-      if (state.painted?.[index]) {
-        ctx.fillStyle = region.color;
-        ctx.fill();
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "rgba(255,255,255,.85)";
-        ctx.stroke();
-        return;
-      }
       ctx.fillStyle = "rgba(255,255,255,.16)";
       ctx.fill();
       ctx.save();
+      ctx.clip();
+      ctx.lineWidth = reach * 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = region.color;
+      ctx.fillStyle = region.color;
+      for (const stroke of state.ink || []) {
+        if (stroke.colorName !== region.colorName) continue;
+        const pts = stroke.points || [];
+        if (!pts.length) continue;
+        if (pts.length === 1) {
+          ctx.beginPath();
+          ctx.arc(pts[0].x * w, pts[0].y * h, reach, 0, Math.PI * 2);
+          ctx.fill();
+          continue;
+        }
+        ctx.beginPath();
+        pts.forEach((point, pointIndex) => {
+          const px = point.x * w;
+          const py = point.y * h;
+          if (pointIndex) ctx.lineTo(px, py);
+          else ctx.moveTo(px, py);
+        });
+        ctx.stroke();
+      }
+      ctx.restore();
+      pathOf(region.points);
+      ctx.save();
       ctx.strokeStyle = region.color;
       ctx.lineWidth = 4;
-      ctx.setLineDash([8, 6]);
+      ctx.setLineDash(state.painted?.[index] ? [] : [8, 6]);
       ctx.stroke();
       ctx.restore();
+      if (state.painted?.[index]) return;
       const [cx, cy] = centroid(region.points);
       const label = region.colorName;
       ctx.font = "800 16px ui-rounded, sans-serif";
@@ -394,21 +417,21 @@ function drawPicture(w, h) {
       ctx.fillStyle = region.color;
       ctx.fillText(label, cx * w, cy * h);
     });
-    const gap = Math.min(150, (w * 0.8) / scene.segments.length);
     scene.segments.forEach((region, index) => {
-      const x = w * 0.5 + (index - (scene.segments.length - 1) / 2) * gap;
-      const y = h * 0.9;
+      const spot = swatchLayout(scene.segments.length, index, w, h);
+      const picked = state.crayon === region.colorName;
       ctx.beginPath();
-      ctx.arc(x, y, 16, 0, Math.PI * 2);
-      ctx.fillStyle = state.painted?.[index] ? region.color : "#ffffff";
+      ctx.arc(spot.x, spot.y, picked ? 20 : 16, 0, Math.PI * 2);
+      ctx.fillStyle = picked ? region.color : "#ffffff";
       ctx.fill();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = region.color;
+      ctx.lineWidth = picked ? 6 : 4;
+      ctx.strokeStyle = picked ? "#fde047" : region.color;
       ctx.stroke();
       ctx.fillStyle = "#f8fafc";
       ctx.font = "700 15px ui-rounded, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(region.colorName, x, y + 32);
+      ctx.textBaseline = "bottom";
+      ctx.fillText(region.colorName, spot.x, spot.y - 24);
     });
     return;
   }
@@ -504,19 +527,104 @@ function fingerPoint() {
   return {x: hand.tip.x / w, y: hand.tip.y / h, px: hand.tip.x, py: hand.tip.y};
 }
 
+function inkFor(colorName) {
+  const points = [];
+  for (const stroke of state.ink || []) {
+    if (stroke.colorName === colorName) points.push(...stroke.points);
+  }
+  return points;
+}
+
+function colorLiftCopy() {
+  return screenTouch()
+    ? "Lift your finger to stop."
+    : "A fist stops the marker.";
+}
+
+function refreshColorPrompt(speakIt) {
+  const word = state.picture?.word || "picture";
+  const colors = colorLine(state.picture);
+  const copy = state.crayon
+    ? `Scratch ${state.crayon} like a marker. ${colorLiftCopy()}`
+    : `Pick a color first. ${colors}. Scratch inside the shape. ${colorLiftCopy()}`;
+  setPrompt(`Color the ${word}`, copy, `Color the ${word}. ${copy}`);
+  if (speakIt) {
+    tellActivity(state.spokenPrompt);
+    speak(state.spokenPrompt);
+  }
+}
+
+function coloringHand() {
+  if (screenTouch()) {
+    return state.screenDown ? (state.handData.find((hand) => hand.screen) || null) : null;
+  }
+  return state.handData.find((hand) => fingersPointed(hand)) || null;
+}
+
+function updateColoring() {
+  const scene = state.picture;
+  const hand = coloringHand();
+  const tip = hand?.tip ? fingerPointFrom(hand) : null;
+  if (!scene || !tip) {
+    state.inkDown = false;
+    return;
+  }
+  const {w, h} = stageBox();
+  for (let index = 0; index < scene.segments.length; index += 1) {
+    if (!swatchHit(scene.segments.length, index, tip.px, tip.py, w, h)) continue;
+    const next = scene.segments[index].colorName;
+    state.inkDown = false;
+    if (state.crayon !== next) {
+      state.crayon = next;
+      refreshColorPrompt(true);
+    }
+    return;
+  }
+  if (!state.crayon || !fingersPointed(hand)) {
+    state.inkDown = false;
+    return;
+  }
+  const index = segmentAt(scene, tip.x, tip.y);
+  const region = index >= 0 ? scene.segments[index] : null;
+  if (!region || region.colorName !== state.crayon) {
+    state.inkDown = false;
+    return;
+  }
+  if (!state.inkDown || state.ink.at(-1)?.colorName !== state.crayon) {
+    state.ink.push({colorName: state.crayon, points: []});
+    state.inkDown = true;
+  }
+  const stroke = state.ink.at(-1);
+  const last = stroke.points.at(-1);
+  if (!last || Math.hypot(last.x - tip.x, last.y - tip.y) > 0.008) {
+    stroke.points.push({x: tip.x, y: tip.y});
+  }
+  const radius = markerRadius(state.age);
+  state.painted = scene.segments.map((part) => scratchPassed(
+    scratchCoverage(inkFor(part.colorName), part.points, radius),
+    state.age,
+  ));
+  if (state.painted.every(Boolean)) succeed("Beautiful coloring!");
+}
+
+function fingerPointFrom(hand) {
+  if (!hand?.tip) return null;
+  const {w, h} = stageBox();
+  if (!w || !h) return null;
+  return {x: hand.tip.x / w, y: hand.tip.y / h, px: hand.tip.x, py: hand.tip.y};
+}
+
 function updatePicturePlay() {
   if (!PICTURE_PLAY.has(state.game)) return;
   if (state.roundDone || performance.now() < (state.traceHoldUntil || 0)) return;
   const scene = state.picture;
-  const tip = fingerPoint();
-  if (!scene || !tip) return;
+  if (!scene) return;
   if (state.game === "color-picture") {
-    const index = segmentAt(scene, tip.x, tip.y);
-    if (index < 0 || state.painted[index]) return;
-    state.painted[index] = true;
-    if (state.painted.every(Boolean)) succeed("Beautiful coloring!");
+    updateColoring();
     return;
   }
+  const tip = fingerPoint();
+  if (!tip) return;
   if (state.game === "connect-dots") {
     const dots = state.pictureDots || [];
     const next = dots[state.dotCursor];
@@ -606,7 +714,7 @@ function gestureReadout() {
     case "trace-letter": case "trace-picture":
       return `${progressLabel()} · index-up ${hands.some(h=>h.indexUp)?"yes":"no"}`;
     case "color-picture":
-      return `colored ${(state.painted||[]).filter(Boolean).length}/${state.picture?.segments.length||0}`;
+      return `crayon ${state.crayon||"pick one"} · scratched ${(state.painted||[]).filter(Boolean).length}/${state.picture?.segments.length||0}`;
     case "connect-dots":
       return `dot ${Math.min((state.dotCursor||0)+1, state.pictureDots?.length||0)}/${state.pictureDots?.length||0}`;
     case "trace-outline":
@@ -888,9 +996,8 @@ function chooseGame() {
   else if(state.game==="trace-picture")setPrompt(`Trace the ${word}`,"Use one finger to draw around the picture.",`Now trace the ${word}.`);
   else if(state.game==="color-picture"||state.game==="connect-dots"||state.game==="trace-outline"){
     armPictureRound(word);
-    const colors=colorLine(state.picture);
     state.traceHoldUntil=performance.now()+500;
-    if(state.game==="color-picture")setPrompt(`Color the ${word}`,`Recommended colors: ${colors}.`,`Color the ${word}. ${colors}.`);
+    if(state.game==="color-picture")refreshColorPrompt(false);
     else if(state.game==="connect-dots")setPrompt(`Connect the ${word}`,"Touch the numbers in order, starting at 1.",`Connect the numbered dots on the ${word}.`);
     else setPrompt(`Trace the ${word}`,"Follow the outline with one finger. It does not need to be perfect.",`Trace the outline of the ${word}.`);
   }
@@ -964,6 +1071,9 @@ function calculateFun(success,extra={}) {
 function armPictureRound(word) {
   const scene = sceneForWord(word);
   state.picture = scene;
+  state.crayon = null;
+  state.ink = [];
+  state.inkDown = false;
   state.painted = scene.segments.map(() => false);
   state.pictureDots = dotsFor(scene.outline, state.age === "4-6" ? 6 : 10);
   state.dotCursor = 0;
@@ -1272,14 +1382,94 @@ function applyDemoPointer(event) {
   };
 }
 
-stage?.addEventListener("pointermove",applyDemoPointer);
+function screenTouch() {
+  return phonePlay() && state.touchMode === "screen";
+}
+function placeScreenHand(event) {
+  const box = stage.getBoundingClientRect();
+  const w = Math.max(1, box.width);
+  const h = Math.max(1, box.height);
+  stageRect = {w, h, left: box.left, top: box.top};
+  const nx = clamp01((event.clientX - box.left) / w);
+  const ny = clamp01((event.clientY - box.top) / h);
+  state.handData = [{
+    indexUp: true,
+    fist: false,
+    count: 1,
+    tipPalms: 2.4,
+    scale: 0.1,
+    thumbOut: false,
+    points: [],
+    label: "Screen",
+    screen: true,
+    tip: {x: nx * w, y: ny * h},
+    wrist: {x: nx * w, y: Math.min(h - 1, ny * h + 48)},
+  }];
+}
+function liftScreenHand() {
+  state.screenDown = false;
+  state.screenPointerId = null;
+  state.inkDown = false;
+  state.handData = state.handData.filter((hand) => !hand.screen);
+}
+function setTouchMode(mode) {
+  state.touchMode = mode === "screen" ? "screen" : "air";
+  liftScreenHand();
+  const btn = $("touch-mode");
+  if (btn) {
+    const screen = state.touchMode === "screen";
+    btn.textContent = screen ? "Screen touch" : "Air touch";
+    btn.setAttribute("aria-pressed", screen ? "true" : "false");
+    btn.setAttribute(
+      "aria-label",
+      screen ? "Using screen touch. Switch to air touch." : "Using air touch. Switch to screen touch.",
+    );
+  }
+  if (state.game === "color-picture" && state.picture) refreshColorPrompt(false);
+}
+function syncTouchToggle() {
+  const btn = $("touch-mode");
+  if (!btn) return;
+  btn.hidden = !phonePlay();
+  setTouchMode(state.touchMode || "air");
+}
+stage?.addEventListener("pointermove",(event)=>{
+  if (screenTouch()) {
+    if (!state.screenDown || event.pointerId !== state.screenPointerId) return;
+    placeScreenHand(event);
+    return;
+  }
+  applyDemoPointer(event);
+});
 stage?.addEventListener("pointerdown",(event)=>{
+  if (screenTouch()) {
+    if (state.screenPointerId != null) return;
+    event.preventDefault();
+    state.screenDown = true;
+    state.screenPointerId = event.pointerId;
+    stage.setPointerCapture?.(event.pointerId);
+    placeScreenHand(event);
+    return;
+  }
   if (!state.demo) return;
   event.preventDefault();
   stage.setPointerCapture?.(event.pointerId);
   applyDemoPointer(event);
 });
-stage?.addEventListener("pointerleave",()=>{if(state.demo)state.handData=[];});
+stage?.addEventListener("pointerup",(event)=>{
+  if (!screenTouch()) return;
+  if (event.pointerId !== state.screenPointerId) return;
+  liftScreenHand();
+});
+stage?.addEventListener("pointercancel",(event)=>{
+  if (!screenTouch()) return;
+  if (event.pointerId !== state.screenPointerId) return;
+  liftScreenHand();
+});
+stage?.addEventListener("pointerleave",()=>{
+  if (screenTouch()) return;
+  if (state.demo) state.handData = [];
+});
 $("start").addEventListener("click",()=>start(true));$("demo").addEventListener("click",()=>start(false));
 $("play-game").addEventListener("click",()=>chooseGame());
 $("game").addEventListener("change",()=>chooseGame());
@@ -1287,7 +1477,17 @@ $("letter").addEventListener("change",()=>chooseGame());
 $("hear").addEventListener("click",()=>speak(state.spokenPrompt));
 $("mic").addEventListener("click",startListening);
 $("check").addEventListener("click",()=>checkSpeech($("typed").value));
-$("undo").addEventListener("click",()=>{state.trail=[];});
+$("undo").addEventListener("click",()=>{
+  state.trail=[];
+  if (state.game==="color-picture") {
+    state.ink=[];
+    state.inkDown=false;
+    state.painted=(state.picture?.segments||[]).map(()=>false);
+  }
+});
+$("touch-mode")?.addEventListener("click",()=>{
+  setTouchMode(state.touchMode==="screen"?"air":"screen");
+});
 $("show-guide")?.addEventListener("change",updateGuideLayer);
 for (const id of ["show-face","show-hands","show-trail","show-measures","show-readout"]) {
   $(id)?.addEventListener("change",renderVisionReadout);
@@ -1342,7 +1542,13 @@ if (embedMobile) {
   if (share) share.checked=true;
   $("vision-tools")?.removeAttribute("open");
   setChromeHidden(false);
+  syncTouchToggle();
 }
 if (new URLSearchParams(location.search).get("demo")==="1") {
   requestAnimationFrame(()=>start(false));
+}
+const requestedGame=new URLSearchParams(location.search).get("game");
+const gameSelect=$("game");
+if (requestedGame && gameSelect && [...gameSelect.options].some((opt)=>opt.value===requestedGame)) {
+  gameSelect.value=requestedGame;
 }

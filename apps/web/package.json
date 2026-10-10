@@ -1,6 +1,6 @@
 {
   "name": "@eduplatform/web",
-  "version": "0.50.32",
+  "version": "0.50.33",
   "private": true,
   "license": "LicenseRef-AOEP-Proprietary",
   "scripts": {

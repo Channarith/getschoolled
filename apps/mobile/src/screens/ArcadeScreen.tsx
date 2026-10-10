@@ -4,6 +4,7 @@ import {
 } from "react-native";
 
 import { ARCADE_SECTIONS, arcadeWebUrl } from "../arcadeCatalog";
+import { VISION_ARCADE, type VisionGame } from "../visionArcade";
 import { getGamesCatalog, type GamesCatalog } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
@@ -27,10 +28,11 @@ const FALLBACK_SUBJECTS = [
 
 type Props = {
   onOpenSubject: (subject: string, gameType?: string) => void;
+  onOpenVision: (game?: VisionGame) => void;
   onBack: () => void;
 };
 
-export default function ArcadeScreen({ onOpenSubject, onBack }: Props) {
+export default function ArcadeScreen({ onOpenSubject, onOpenVision, onBack }: Props) {
   const { t, locale } = useT();
   useAndroidBackTo(onBack);
   const [cat, setCat] = useState<GamesCatalog | null>(null);
@@ -107,6 +109,43 @@ export default function ArcadeScreen({ onOpenSubject, onBack }: Props) {
         }
       >
         <GlassPanel style={styles.featured}>
+          <Text style={styles.sectionTitle}>Machine vision</Text>
+          <Text style={styles.meta}>
+            The full webcam lab: letters, listening, faces, hands, and movement. The camera stays on this device.
+          </Text>
+          <AnimatedPressable
+            testID="vision-arcade-full"
+            accessibilityRole="button"
+            accessibilityLabel="Open the full vision arcade"
+            onPress={() => onOpenVision()}
+            style={styles.featuredBtn}
+          >
+            <Text style={styles.featuredBtnText}>Open the full vision arcade</Text>
+            <Text style={styles.featuredBtnHint}>All {VISION_ARCADE.reduce((n, section) => n + section.games.length, 0)} games, with the camera.</Text>
+          </AnimatedPressable>
+          {VISION_ARCADE.map((section) => (
+            <View key={section.id} style={styles.visionGroup}>
+              <Text style={styles.visionGroupTitle}>{section.title}</Text>
+              <View style={styles.grid}>
+                {section.games.map((game) => (
+                  <AnimatedPressable
+                    key={game.id}
+                    testID={`vision-game-${game.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={game.label}
+                    onPress={() => onOpenVision(game)}
+                    style={styles.tile}
+                  >
+                    <Text style={styles.tileEmoji}>{game.emoji}</Text>
+                    <Text style={styles.tileLabel} numberOfLines={3}>{game.label}</Text>
+                  </AnimatedPressable>
+                ))}
+              </View>
+            </View>
+          ))}
+        </GlassPanel>
+
+        <GlassPanel style={styles.featured}>
           <Text style={styles.sectionTitle}>{t("arcade.featured")}</Text>
           <Text style={styles.meta}>{t("arcade.featuredSub")}</Text>
           <AnimatedPressable
@@ -133,7 +172,7 @@ export default function ArcadeScreen({ onOpenSubject, onBack }: Props) {
                 style={styles.tile}
               >
                 <Text style={styles.tileEmoji}>{SUBJECT_EMOJI[id] ?? "🎮"}</Text>
-                <Text style={styles.tileLabel} numberOfLines={2}>{labelFor(id)}</Text>
+                <Text style={styles.tileLabel} numberOfLines={3}>{labelFor(id)}</Text>
               </AnimatedPressable>
             ))}
           </View>
@@ -168,13 +207,15 @@ export default function ArcadeScreen({ onOpenSubject, onBack }: Props) {
 const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { color: theme.colors.text, fontSize: 20, fontWeight: "800", flex: 1 },
+  title: { color: theme.colors.text, fontSize: 20, fontWeight: "800", flex: 1, lineHeight: 26, minWidth: 0 },
   lead: { color: theme.colors.muted, fontSize: 14, lineHeight: 20 },
   error: { color: "#f87171", fontSize: 13 },
   list: { gap: 14, paddingBottom: 32 },
   featured: { gap: 8 },
   section: { gap: 8 },
-  sectionTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "800" },
+  sectionTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "800", lineHeight: 21 },
+  visionGroup: { gap: 6, marginTop: 8 },
+  visionGroupTitle: { color: theme.colors.text, fontSize: 14, fontWeight: "700", lineHeight: 18 },
   meta: { color: theme.colors.muted, fontSize: 13, lineHeight: 18 },
   webHint: { color: theme.colors.accent, fontSize: 11, fontWeight: "600", marginTop: 2 },
   featuredBtn: {
@@ -194,19 +235,21 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     borderWidth: 1,
+    overflow: "hidden",
     paddingHorizontal: 8,
     paddingVertical: 14,
     width: "31%",
-    minWidth: 96,
-    flexGrow: 1,
   },
   tileEmoji: { fontSize: 28 },
   tileLabel: {
     color: theme.colors.text,
     fontSize: 12,
     fontWeight: "700",
+    includeFontPadding: false,
+    lineHeight: 16,
     marginTop: 8,
     textAlign: "center",
+    width: "100%",
   },
   linkGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
   linkTile: {

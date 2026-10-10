@@ -699,7 +699,7 @@ const ES: Dict = {
 
 const FR: Dict = {
   "tab.home": "Accueil", "tab.drive": "Conduite", "tab.mylist": "Ma liste",
-  "tab.careers": "Carrières",
+  "tab.careers": "Emploi",
   "tab.alerts": "Alertes", "tab.settings": "Réglages",
   "home.kicker": "AI CLASSROOM",
   "home.hero": "Des milliers de cours. Un campus d'IA.",
@@ -768,7 +768,7 @@ const FR: Dict = {
 const DE: Dict = {
   "tab.home": "Start", "tab.drive": "Fahrt", "tab.mylist": "Meine Liste",
   "tab.careers": "Karriere",
-  "tab.alerts": "Hinweise", "tab.settings": "Einstellungen",
+  "tab.alerts": "Hinweise", "tab.settings": "Einstel\u200blungen",
   "home.hero": "Tausende Kurse. Ein KI-Campus.",
   "home.subDefault": "Tippe einen Kurs an, um freihändig im Fahr-Modus zu starten.",
   "home.subStreak": "🔥 {days}-Tage-Serie — halte sie mit einem kurzen Kurs am Leben.",
@@ -835,7 +835,7 @@ const DE: Dict = {
 const IT: Dict = {
   "tab.home": "Home", "tab.drive": "Guida", "tab.mylist": "La mia lista",
   "tab.careers": "Lavoro",
-  "tab.alerts": "Avvisi", "tab.settings": "Impostazioni",
+  "tab.alerts": "Avvisi", "tab.settings": "Imposta\u200bzioni",
   "home.kicker": "AI CLASSROOM",
   "home.hero": "Migliaia di corsi. Un unico campus IA.",
   "home.subDefault": "Tocca un corso per iniziare a mani libere in modalità Guida.",
@@ -875,8 +875,8 @@ const IT: Dict = {
 
 const PT: Dict = {
   "tab.home": "Início", "tab.drive": "Estrada", "tab.mylist": "Minha lista",
-  "tab.careers": "Carreiras",
-  "tab.alerts": "Alertas", "tab.settings": "Definições",
+  "tab.careers": "Emprego",
+  "tab.alerts": "Alertas", "tab.settings": "Defini\u200bções",
   "home.kicker": "AI CLASSROOM",
   "home.hero": "Milhares de aulas. Um único campus de IA.",
   "home.subDefault": "Toca em qualquer aula para começar sem mãos no modo Estrada.",
@@ -906,7 +906,7 @@ const PT: Dict = {
 const RU: Dict = {
   "tab.home": "Главная", "tab.drive": "За рулём", "tab.mylist": "Мой список",
   "tab.careers": "Карьера",
-  "tab.alerts": "Уведомления", "tab.settings": "Настройки",
+  "tab.alerts": "Уведом\u200bления", "tab.settings": "Настрой\u200bки",
   "home.hero": "Тысячи занятий. Один кампус ИИ.",
   "home.subDefault": "Коснитесь любого занятия, чтобы запустить его без рук в режиме «За рулём».",
   "home.subStreak": "🔥 Серия {days} дней — поддержите её одним коротким занятием.",

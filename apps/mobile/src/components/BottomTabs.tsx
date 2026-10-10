@@ -66,7 +66,10 @@ export default function BottomTabs({
                   </View>
                 ) : null}
               </View>
-              <Text style={[styles.label, isActive && styles.labelActive]}>
+              <Text
+                numberOfLines={2}
+                style={[styles.label, isActive && styles.labelActive]}
+              >
                 {t(tab.labelKey)}
               </Text>
               {isActive ? <View style={styles.activeDot} /> : null}
@@ -92,6 +95,8 @@ const styles = StyleSheet.create({
   tabSlot: {
     flex: 1,
     alignItems: "center",
+    minWidth: 0,
+    overflow: "hidden",
   },
   tab: {
     width: "100%",
@@ -102,10 +107,14 @@ const styles = StyleSheet.create({
   },
   iconWrap: { height: 32, justifyContent: "center" },
   label: {
-    fontSize: 11,
-    marginTop: 5,
+    fontSize: 10,
+    lineHeight: 13,
+    marginTop: 4,
     color: theme.colors.muted,
     fontWeight: "600",
+    includeFontPadding: false,
+    textAlign: "center",
+    width: "100%",
   },
   labelActive: { color: "#fff", fontWeight: "800" },
   activeDot: {

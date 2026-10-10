@@ -24,6 +24,7 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { speakNatural, stopSpeech } from "../tts";
 import { buildNarrationSpeakOptions } from "../narrationTts";
+import { useXaiClassVoice } from "../useXaiClassVoice";
 import GlassPanel from "../components/GlassPanel";
 import CameraLightingScreener from "../components/CameraLightingScreener";
 import CameraQualityGateOverlay from "../components/CameraQualityGateOverlay";
@@ -131,7 +132,7 @@ function IconTab({
         ) : null}
       </View>
       {label ? (
-        <Text style={[styles.iconLabel, active && styles.iconLabelActive]} numberOfLines={1}>{label}</Text>
+        <Text style={[styles.iconLabel, active && styles.iconLabelActive]} numberOfLines={2}>{label}</Text>
       ) : null}
     </Pressable>
   );
@@ -394,6 +395,11 @@ export default function LiveRoomScreen({
   // Can this viewer start/drive the class? The room's first-seat admin (holds the
   // moderator key) or the platform admin (admin@salareen.com, authorized by token).
   const canModerate = Boolean(modKey) || Boolean(account?.is_admin);
+  const xai = useXaiClassVoice(lightingReady && Boolean(participantId) && !classEnded, {
+    mode: "group",
+    context: room?.title || "Salareen live class",
+    learnerName: account?.display_name,
+  });
 
   // De-dupe room updates from the 3s tick + WebSocket: skip setState when the
   // snapshot is unchanged so we don't re-render the whole screen every 3s on an
@@ -511,20 +517,24 @@ export default function LiveRoomScreen({
   roomRef.current = room;
 
   useEffect(() => {
-    if (!room) return;
+    if (!lightingReady || !room) return;
     if (room.status === "ended") return;
     const welcome = room.welcome_message?.trim();
     if (!participantId || muted || room.presenting || !welcome || room.presence?.hold_active) return;
     if (spokenWelcomeRef.current === room.room_id) return;
     spokenWelcomeRef.current = room.room_id;
-    void buildNarrationSpeakOptions(locale).then((base) => {
-      if (roomRef.current?.status === "ended") return;
-      speakNatural(welcome, base);
+    xai.speakLatest(`welcome-${room.room_id}`, welcome, {
+      fallback: () => {
+        void buildNarrationSpeakOptions(locale).then((base) => {
+          if (roomRef.current?.status === "ended") return;
+          speakNatural(welcome, base);
+        });
+      },
     });
-  }, [participantId, muted, room, locale]);
+  }, [lightingReady, participantId, muted, room, locale, xai.speakLatest]);
 
   useEffect(() => {
-    if (!participantId || muted || !room?.presenting || room.status === "ended" || room.presence?.hold_active) return;
+    if (!lightingReady || !participantId || muted || !room?.presenting || room.status === "ended" || room.presence?.hold_active) return;
     const s = room?.slide;
     if (!s || spokenSlideRef.current === s.index) return;
     spokenSlideRef.current = s.index;
@@ -532,32 +542,31 @@ export default function LiveRoomScreen({
     // script — the server paces auto-advance to this so it isn't cut off.
     const text = `${s.title}. ${s.body || s.narration || ""}`.trim();
     const spokenFor = s.index;
-    if (text) {
-      void buildNarrationSpeakOptions(locale).then((base) => {
-        if (roomRef.current?.status === "ended") return;
-        speakNatural(text, {
-          ...base,
-          // Advance the moment the AI finishes this slide (moderator/admin drives
-          // it; others follow the room state). Guarded so we never skip a learner
-          // who holds/awaits the floor. Server timed dwell remains the fallback.
-          onDone: () => {
-            const r = roomRef.current;
-            if (
-              canModerate &&
-              r?.presenting &&
-              r.status !== "ended" &&
-              !r.presence?.hold_active &&
-              spokenSlideRef.current === spokenFor &&
-              !r.floor_participant_id &&
-              !(r.speaking_queue?.some((e) => e.status === "waiting"))
-            ) {
-              void liveRoomAdvance(roomId, modKey).then((next) => setRoom(next)).catch(() => undefined);
-            }
-          },
+    if (!text) return;
+    const advance = () => {
+      const r = roomRef.current;
+      if (
+        canModerate &&
+        r?.presenting &&
+        r.status !== "ended" &&
+        !r.presence?.hold_active &&
+        spokenSlideRef.current === spokenFor &&
+        !r.floor_participant_id &&
+        !(r.speaking_queue?.some((e) => e.status === "waiting"))
+      ) {
+        void liveRoomAdvance(roomId, modKey).then((next) => setRoom(next)).catch(() => undefined);
+      }
+    };
+    xai.speakLatest(`slide-${roomId}-${s.index}`, `Read this class slide aloud, then stop.\n\n${text}`, {
+      onDone: advance,
+      fallback: () => {
+        void buildNarrationSpeakOptions(locale).then((base) => {
+          if (roomRef.current?.status === "ended") return;
+          speakNatural(text, { ...base, onDone: advance });
         });
-      });
-    }
-  }, [room?.slide?.index, room?.presenting, room?.status, participantId, muted, locale]);
+      },
+    });
+  }, [lightingReady, room?.slide?.index, room?.presenting, room?.status, participantId, muted, locale, canModerate, roomId, modKey, xai.speakLatest]);
 
   useEffect(() => {
     if (!participantId) return;
@@ -582,13 +591,17 @@ export default function LiveRoomScreen({
     if (spokenChatRef.current === latest.id) return;
     spokenChatRef.current = latest.id;
     const msg = latest;
-    if (!muted) {
-      void buildNarrationSpeakOptions(locale).then((base) => {
-        if (roomRef.current?.status === "ended") return;
-        speakNatural(msg.text, base);
+    if (!muted && lightingReady) {
+      xai.speakLatest(`chat-${msg.id}`, msg.text, {
+        fallback: () => {
+          void buildNarrationSpeakOptions(locale).then((base) => {
+            if (roomRef.current?.status === "ended") return;
+            speakNatural(msg.text, base);
+          });
+        },
       });
     }
-  }, [room?.chat, room?.status, participantId, muted, locale]);
+  }, [room?.chat, room?.status, participantId, muted, locale, lightingReady, xai.speakLatest]);
 
   useEffect(() => () => stopSpeech(), []);  // stop narration when leaving the screen
 
@@ -596,13 +609,17 @@ export default function LiveRoomScreen({
   useEffect(() => {
     if (!classEnded) return;
     stopSpeech();
+    xai.interrupt();
     setMuted(true);
-  }, [classEnded]);
+  }, [classEnded, xai.interrupt]);
 
   const toggleMute = () => {
     setMuted((m) => {
       const next = !m;
-      if (next) stopSpeech();
+      if (next) {
+        stopSpeech();
+        xai.interrupt();
+      }
       return next;
     });
   };
@@ -1158,7 +1175,7 @@ export default function LiveRoomScreen({
         <Pressable onPress={leaveAndBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.leaveText}>← Leave</Text>
         </Pressable>
-        <Text style={styles.title} numberOfLines={1}>{room?.title ?? "Live class"}</Text>
+        <Text style={styles.title} numberOfLines={2}>{room?.title ?? "Live class"}</Text>
         <Pressable onPress={toggleMute} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.muteBtn}>{muted ? "🔇" : "🔊"}</Text>
         </Pressable>
@@ -1167,7 +1184,9 @@ export default function LiveRoomScreen({
         👁 {socket.viewerCount || room?.viewer_count || room?.participants.length || 0}
         {" · ❤️ "}{socket.followerCount}
         {socket.connected ? " · live" : " · polling"}
+        {xai.live ? " · Grok voice" : ""}
       </Text>
+      {xai.hint && !xai.live ? <Text style={styles.meta}>{xai.hint}</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {room?.presence?.hold_active ? (
         <Text style={styles.warning}>
@@ -2213,7 +2232,7 @@ const styles = StyleSheet.create({
   endMsg: { color: theme.colors.text, fontSize: 16, textAlign: "center", lineHeight: 24 },
   header: { flexDirection: "row", alignItems: "center", gap: 10 },
   leaveText: { color: theme.colors.accent, fontSize: 15, fontWeight: "700" },
-  title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", flex: 1 },
+  title: { color: theme.colors.text, fontSize: 16, fontWeight: "700", flex: 1, lineHeight: 21, minWidth: 0 },
   meta: { color: theme.colors.muted, fontSize: 13 },
   joinCard: { gap: 10, marginTop: 12 },
   input: {
@@ -2261,13 +2280,16 @@ const styles = StyleSheet.create({
   // Android SurfaceView (zOrder=0, rendered below the RN layer) shows through.
   seatVideoWindowLive: { backgroundColor: "transparent" },
   seatFooter: {
-    height: 22, paddingHorizontal: 4,
+    height: 32, paddingHorizontal: 4,
     alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.45)",
   },
   seatOpenText: { color: theme.colors.muted, fontSize: 11, textAlign: "center", fontWeight: "600" },
   seatAvatar: { color: theme.colors.text, fontSize: 26, fontWeight: "800" },
-  seatName: { color: theme.colors.text, fontSize: 12, fontWeight: "700", maxWidth: 112, textAlign: "center" },
+  seatName: {
+    color: theme.colors.text, fontSize: 11, fontWeight: "700", lineHeight: 14,
+    includeFontPadding: false, maxWidth: 112, textAlign: "center",
+  },
   seatNameMuted: { color: theme.colors.muted, fontSize: 11, fontWeight: "600" },
   seatBadges: { flexDirection: "row", gap: 2, position: "absolute", top: 2, left: 4 },
   seatBadge: { fontSize: 11 },
@@ -2378,11 +2400,17 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.border,
   },
-  iconTab: { flex: 1, alignItems: "center", gap: 3, paddingVertical: 2 },
+  iconTab: {
+    flex: 1, alignItems: "center", gap: 3, paddingVertical: 2,
+    minWidth: 0, overflow: "hidden",
+  },
   iconTabPressed: { opacity: 0.5 },
   iconGlyph: { fontSize: 24, textAlign: "center" },
   iconGlyphActive: { transform: [{ scale: 1.1 }] },
-  iconLabel: { color: theme.colors.muted, fontSize: 11 },
+  iconLabel: {
+    color: theme.colors.muted, fontSize: 11, lineHeight: 14,
+    includeFontPadding: false, textAlign: "center", width: "100%",
+  },
   iconLabelActive: { color: theme.colors.accent, fontWeight: "700" },
   badge: {
     position: "absolute", top: -4, right: -10, minWidth: 16, height: 16, paddingHorizontal: 4,

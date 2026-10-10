@@ -19,6 +19,8 @@ import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import StudioCourseSection from "../components/StudioCourseSection";
+import type { StudioCourseId } from "../studioCourses";
 import StartTimeField, { defaultStartDate } from "../components/StartTimeField";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
@@ -47,10 +49,12 @@ const PLATFORM_LABEL: Record<string, string> = {
 export default function GroupClassesScreen({
   onOpenRoom,
   onOpenLiveRooms,
+  onOpenStudio,
   onBack,
 }: {
   onOpenRoom: (roomId: string, moderatorKey?: string) => void;
   onOpenLiveRooms: () => void;
+  onOpenStudio?: (courseId: StudioCourseId) => void;
   onBack: () => void;
 }) {
   const { t } = useT();
@@ -302,6 +306,7 @@ export default function GroupClassesScreen({
         <Text style={styles.title}>{t("group.title")}</Text>
       </View>
       <Text style={styles.lead}>{t("group.intro")}</Text>
+      {onOpenStudio ? <StudioCourseSection onOpen={onOpenStudio} /> : null}
       <View style={styles.topActions}>
         <PrimaryButton label="🎓 Host a Class" onPress={() => setShowSchedule(true)} variant="brand" />
         <PrimaryButton label={t("live.browseCta")} onPress={onOpenLiveRooms} variant="ghost" />
@@ -477,6 +482,15 @@ export default function GroupClassesScreen({
                 placeholderTextColor={theme.colors.muted}
                 value={schedDescription} onChangeText={setSchedDescription}
                 multiline numberOfLines={3} textAlignVertical="top" />
+              <Text style={styles.formLabel}>Full xAI courses</Text>
+              {onOpenStudio ? (
+                <StudioCourseSection
+                  onOpen={(courseId) => {
+                    setShowSchedule(false);
+                    onOpenStudio(courseId);
+                  }}
+                />
+              ) : null}
               <Text style={styles.formLabel}>Lesson</Text>
               {lessons.map((l) => (
                 <AnimatedPressable
@@ -532,7 +546,7 @@ export default function GroupClassesScreen({
 const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { color: theme.colors.text, fontSize: 20, fontWeight: "700", flex: 1 },
+  title: { color: theme.colors.text, fontSize: 20, fontWeight: "700", flex: 1, lineHeight: 26, minWidth: 0 },
   lead: { color: theme.colors.muted, fontSize: 13, lineHeight: 18, marginBottom: 4 },
   topActions: { gap: 8 },
   list: { gap: 12, paddingBottom: 32 },

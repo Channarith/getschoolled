@@ -7,6 +7,8 @@ import {
 import { listLessons, type LessonRow } from "../api";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import StudioCourseSection from "../components/StudioCourseSection";
+import type { StudioCourseId } from "../studioCourses";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { theme } from "../theme";
@@ -17,6 +19,7 @@ type Props = {
   onStart: (lessonId: string, title: string, classType: LiveClassMode) => void;
   onOpenLiveRooms: () => void;
   onOpenGroupClasses?: () => void;
+  onOpenStudio?: (courseId: StudioCourseId) => void;
   onBack: () => void;
 };
 
@@ -69,7 +72,7 @@ function StarRating({ score, count }: { score: number; count: number }) {
   );
 }
 
-export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupClasses, onBack }: Props) {
+export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupClasses, onOpenStudio, onBack }: Props) {
   const { t, locale } = useT();
   useAndroidBackTo(onBack);
   const classType: LiveClassMode = "solo";
@@ -193,6 +196,8 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
         </View>
       </View>
 
+      {onOpenStudio ? <StudioCourseSection onOpen={onOpenStudio} /> : null}
+
       {/* Search bar */}
       <View style={styles.searchWrap}>
         <TextInput
@@ -303,7 +308,7 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
       <Animated.View style={[styles.stickyFooter, { transform: [{ translateY: footerY }] }]}>
         <View style={styles.stickyInner}>
           <View style={styles.stickyInfo}>
-            <Text style={styles.stickyLabel} numberOfLines={1}>
+            <Text style={styles.stickyLabel} numberOfLines={2}>
               {selected ? selected.title : t("liveClass.startSolo")}
             </Text>
             {selected?.level ? <Text style={styles.stickyMeta}>{selected.level}</Text> : null}
@@ -327,7 +332,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: theme.spacing.screenX, paddingTop: 56, marginBottom: 12 },
   liveRoomsAction: { marginTop: 14 },
   kicker: { color: theme.colors.muted, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginTop: 8 },
-  title: { color: theme.colors.text, fontSize: 26, fontWeight: "800", marginTop: 4 },
+  title: { color: theme.colors.text, fontSize: 26, fontWeight: "800", lineHeight: 32, marginTop: 4 },
   sub: { color: theme.colors.muted, fontSize: 14, lineHeight: 20, marginTop: 8 },
   searchWrap: {
     marginHorizontal: theme.spacing.screenX,
@@ -365,7 +370,7 @@ const styles = StyleSheet.create({
   kidsBadge: { fontSize: 11, color: "#a78bfa", fontWeight: "700" },
   langBadge: { fontSize: 11, color: theme.colors.accent, fontWeight: "700", backgroundColor: "rgba(110,168,254,0.12)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   levelBadge: { fontSize: 11, color: theme.colors.muted, fontWeight: "600", backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  lessonTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700" },
+  lessonTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700", lineHeight: 20 },
   lessonTitleOn: { color: "#fff" },
   lessonRole: { color: theme.colors.accent, fontSize: 12, marginTop: 3, fontWeight: "600" },
   lessonSummary: { color: theme.colors.muted, fontSize: 12, marginTop: 4, lineHeight: 17 },
@@ -389,8 +394,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  stickyInfo: { flex: 1 },
-  stickyLabel: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  stickyInfo: { flex: 1, minWidth: 0 },
+  stickyLabel: { color: "#fff", fontSize: 14, fontWeight: "700", lineHeight: 18 },
   stickyMeta: { color: theme.colors.muted, fontSize: 11, marginTop: 2 },
   stickyBtn: {
     backgroundColor: theme.colors.netflix,

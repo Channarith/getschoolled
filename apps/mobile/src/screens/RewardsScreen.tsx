@@ -133,7 +133,7 @@ export default function RewardsScreen({ onBack }: { onBack: () => void }) {
           {selectedPrize ? (
             <AnimatedPressable onPress={() => void redeem(selectedPrize.id)} disabled={busyId === selectedPrize.id}>
               <GlassPanel style={styles.prize}>
-                <Text style={styles.prizeName}>{selectedPrize.name}</Text>
+                <Text style={styles.prizeName} numberOfLines={2}>{selectedPrize.name}</Text>
                 <Text style={styles.prizeCost}>{selectedPrize.cost_points} pts</Text>
               </GlassPanel>
             </AnimatedPressable>
@@ -165,9 +165,9 @@ const styles = StyleSheet.create({
   title: { color: theme.colors.text, fontSize: 26, fontWeight: "800" },
   balance: { color: theme.colors.accent, fontSize: 22, fontWeight: "800" },
   section: { color: theme.colors.muted, fontSize: 12, fontWeight: "800", letterSpacing: 0.8, marginTop: 8 },
-  prize: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
-  prizeName: { color: theme.colors.text, fontSize: 15, fontWeight: "700", flex: 1 },
-  prizeCost: { color: theme.colors.netflix, fontWeight: "800" },
+  prize: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 8 },
+  prizeName: { color: theme.colors.text, fontSize: 15, fontWeight: "700", flex: 1, lineHeight: 20, minWidth: 0 },
+  prizeCost: { color: theme.colors.netflix, fontWeight: "800", flexShrink: 0 },
   ledger: { color: theme.colors.muted, fontSize: 13 },
   err: { color: theme.colors.netflix, fontSize: 13 },
 });

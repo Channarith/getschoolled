@@ -1,4 +1,4 @@
-import { ActivityIndicator, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import AnimatedPressable from "./AnimatedPressable";
@@ -18,6 +18,8 @@ export default function PrimaryButton({
   label, onPress, disabled, loading, variant = "netflix", testID,
 }: Props) {
   const busy = disabled || loading;
+  const { width } = useWindowDimensions();
+  const textMax = { maxWidth: Math.max(140, width - 64) };
   if (variant === "ghost") {
     return (
       <AnimatedPressable
@@ -26,7 +28,7 @@ export default function PrimaryButton({
         onPress={onPress}
         style={[styles.ghost, busy && styles.disabled]}
       >
-        <Text style={styles.ghostText}>{loading ? "…" : label}</Text>
+        <Text style={[styles.ghostText, textMax]}>{loading ? "…" : label}</Text>
       </AnimatedPressable>
     );
   }
@@ -42,7 +44,7 @@ export default function PrimaryButton({
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.label}>{label}</Text>
+          <Text style={[styles.label, textMax]}>{label}</Text>
         )}
       </LinearGradient>
     </AnimatedPressable>
@@ -57,14 +59,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...theme.shadow.card,
   },
-  label: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 0.3 },
+  label: { color: "#fff", fontWeight: "800", fontSize: 16, lineHeight: 20, textAlign: "center" },
   ghost: {
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.35)",
     paddingVertical: 12,
+    paddingHorizontal: 12,
     alignItems: "center",
   },
-  ghostText: { color: theme.colors.text, fontWeight: "700" },
+  ghostText: { color: theme.colors.text, fontWeight: "700", lineHeight: 18, textAlign: "center" },
   disabled: { opacity: 0.55 },
 });

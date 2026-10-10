@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 8,
   },
-  title: { color: theme.colors.text, fontSize: 22, fontWeight: "800", textAlign: "center" },
+  title: { color: theme.colors.text, fontSize: 22, fontWeight: "800", lineHeight: 28, textAlign: "center" },
   sub: {
     color: theme.colors.muted,
     fontSize: 14,
@@ -427,6 +427,7 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     flex: 1,
+    minWidth: 0,
     color: theme.colors.text,
     padding: 14,
     fontSize: 16,
@@ -476,15 +477,18 @@ const styles = StyleSheet.create({
   socialDivider: { color: theme.colors.muted, fontSize: 12, textAlign: "center" },
   socialRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   socialBtn: {
-    flex: 1, minWidth: 120,
+    flexGrow: 1,
+    flexBasis: "47%",
+    overflow: "hidden",
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     borderWidth: 1, borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     paddingVertical: 11,
+    paddingHorizontal: 10,
     backgroundColor: "rgba(255,255,255,0.06)",
   },
   socialBtnDisabled: { opacity: 0.5 },
-  socialBtnText: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
+  socialBtnText: { color: theme.colors.text, fontSize: 14, fontWeight: "600", flexShrink: 1, textAlign: "center" },
   appleBtn: { height: 44, width: "100%" },
 });
 

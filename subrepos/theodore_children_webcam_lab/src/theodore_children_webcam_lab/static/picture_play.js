@@ -311,3 +311,74 @@ export function colorLine(scene) {
     .map((segment) => `${segment.name} is ${segment.colorName}`)
     .join(", ");
 }
+
+// A marker dab, as a fraction of the stage. Wide enough to see, small enough
+// that one tap cannot cover an apple.
+export function markerRadius(ageBand) {
+  return ageBand === "4-6" ? 0.05 : 0.036;
+}
+
+export function swatchLayout(count, index, w, h) {
+  const total = Math.max(1, Number(count) || 1);
+  const width = Number(w) || 1;
+  const height = Number(h) || 1;
+  const gap = Math.min(150, (width * 0.8) / total);
+  return {
+    x: width * 0.5 + (index - (total - 1) / 2) * gap,
+    y: height * 0.8,
+    r: 28,
+  };
+}
+
+export function swatchHit(count, index, px, py, w, h) {
+  const spot = swatchLayout(count, index, w, h);
+  return Math.hypot(spot.x - px, spot.y - py) <= spot.r;
+}
+
+export function polygonSamples(polygon, columns = 7, rows = 7) {
+  if (!polygon || polygon.length < 3) return [];
+  let minX = 1;
+  let maxX = 0;
+  let minY = 1;
+  let maxY = 0;
+  for (const [x, y] of polygon) {
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  }
+  const samples = [];
+  const cols = Math.max(2, columns);
+  const rowCount = Math.max(2, rows);
+  for (let row = 0; row < rowCount; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const x = minX + ((col + 0.5) / cols) * ((maxX - minX) || 0.01);
+      const y = minY + ((row + 0.5) / rowCount) * ((maxY - minY) || 0.01);
+      if (pointInPolygon(x, y, polygon)) samples.push([x, y]);
+    }
+  }
+  if (samples.length < 3) {
+    const [cx, cy] = centroid(polygon);
+    samples.push([cx, cy], ...polygon);
+  }
+  return samples;
+}
+
+// Coverage is the share of the shape a marker has actually crossed.
+// A single landing does not count as coloring the whole piece.
+export function scratchCoverage(points, polygon, radius) {
+  const samples = polygonSamples(polygon);
+  if (!samples.length) return 0;
+  const ink = (points || []).filter((point) => pointInPolygon(point.x, point.y, polygon));
+  if (!ink.length) return 0;
+  const reach = Math.max(0.012, Number(radius) || 0.036);
+  let hits = 0;
+  for (const [x, y] of samples) {
+    if (ink.some((point) => Math.hypot(point.x - x, point.y - y) <= reach)) hits += 1;
+  }
+  return hits / samples.length;
+}
+
+export function scratchPassed(coverage, ageBand) {
+  return coverage >= (ageBand === "4-6" ? 0.45 : 0.58);
+}

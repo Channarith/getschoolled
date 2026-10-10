@@ -126,9 +126,22 @@ def test_every_picture_word_has_a_glyph_on_both_sides():
         assert word in script
 
 
+def test_coloring_scratches_and_phones_can_switch_touch():
+    html = render_children_page("test")
+    assert 'id="touch-mode"' in html
+    script = _js()
+    assert "function screenTouch" in script
+    assert "scratchCoverage" in script
+    assert "fingersPointed" in script
+    assert "state.painted[index] = true" not in script
+    css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
+    assert "body:not(.phone-play) #touch-mode" in css
+
+
 def test_pointer_demo_listens_on_the_stage_not_the_dead_canvas():
     script = _js()
-    assert 'stage?.addEventListener("pointermove",applyDemoPointer)' in script
+    assert 'stage?.addEventListener("pointermove"' in script
+    assert "applyDemoPointer(event)" in script
     assert 'stage?.addEventListener("pointerdown"' in script
     assert "salareen-telemetry" in script
     assert "phone-play" in script

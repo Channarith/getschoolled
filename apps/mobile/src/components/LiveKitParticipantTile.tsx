@@ -107,7 +107,7 @@ export default function LiveKitParticipantTile({
     return (
       <View style={[styles.tile, large && styles.large]}>
         <VideoView style={StyleSheet.absoluteFillObject} videoTrack={track as never} />
-        <Text style={styles.name} numberOfLines={1}>{participantName}</Text>
+        <Text style={styles.name} numberOfLines={2}>{participantName}</Text>
       </View>
     );
   }
@@ -115,7 +115,7 @@ export default function LiveKitParticipantTile({
   return (
     <View style={[styles.tile, large && styles.large]}>
       <Text style={styles.emoji}>{fallbackEmoji}</Text>
-      <Text style={styles.name} numberOfLines={1}>{participantName}</Text>
+      <Text style={styles.fallbackName} numberOfLines={2}>{participantName}</Text>
     </View>
   );
 }
@@ -134,14 +134,30 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   large: { width: 160, height: 180 },
-  emoji: { fontSize: 96 },
+  emoji: { fontSize: 42 },
   name: {
     position: "absolute",
-    bottom: 6,
-    left: 6,
-    right: 6,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.55)",
     color: theme.colors.text,
     fontSize: 11,
     fontWeight: "600",
+    includeFontPadding: false,
+    lineHeight: 14,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    textAlign: "center",
+  },
+  fallbackName: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: "600",
+    includeFontPadding: false,
+    lineHeight: 16,
+    marginTop: 6,
+    paddingHorizontal: 6,
+    textAlign: "center",
   },
 });

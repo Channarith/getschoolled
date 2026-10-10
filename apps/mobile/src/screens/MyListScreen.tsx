@@ -114,9 +114,9 @@ export default function MyListScreen({ onOpenCourse }: {
               <LinearGradient colors={[c1, c2]} style={styles.thumb}>
                 <Ionicons name="headset" size={22} color="#fff" />
               </LinearGradient>
-              <View style={{ flex: 1 }}>
+              <View style={styles.rowBody}>
                 <Text style={styles.rowTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={styles.rowMeta}>
+                <Text style={styles.rowMeta} numberOfLines={2}>
                   {item.category} · {item.duration_min} {t("meta.min")} · {item.segments} {t("meta.segments")}
                 </Text>
               </View>
@@ -149,7 +149,8 @@ const styles = StyleSheet.create({
     width: 52, height: 52, borderRadius: theme.radius.sm,
     alignItems: "center", justifyContent: "center",
   },
-  rowTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700" },
-  rowMeta: { color: theme.colors.muted, fontSize: 12, marginTop: 4 },
+  rowBody: { flex: 1, minWidth: 0 },
+  rowTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700", lineHeight: 20 },
+  rowMeta: { color: theme.colors.muted, fontSize: 12, lineHeight: 16, marginTop: 4 },
   removeBtn: { padding: 4 },
 });

@@ -139,7 +139,7 @@ export default function NotificationsScreen({ onOpenCourse, onOpenDrive, onUnrea
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={styles.kicker}>{t("tab.alerts")}</Text>
-          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
+          <View style={styles.titleRow}>
             <Text style={styles.title}>{t("notif.title")}</Text>
             {unread > 0 ? (
               <View style={styles.unreadBadge}>
@@ -192,7 +192,7 @@ export default function NotificationsScreen({ onOpenCourse, onOpenDrive, onUnrea
                   color={isRead ? theme.colors.muted : theme.colors.netflix}
                 />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={styles.itemBodyWrap}>
                 <Text style={[styles.itemTitle, !isRead && styles.itemTitleUnread]}>
                   {item.title}
                 </Text>
@@ -212,6 +212,7 @@ const styles = StyleSheet.create({
   bg: { flex: 1, backgroundColor: "transparent" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { paddingHorizontal: theme.spacing.screenX, paddingBottom: 8 },
+  titleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
   kicker: { ...theme.typography.kicker, color: theme.colors.muted },
   title: { ...theme.typography.title, color: theme.colors.text, marginTop: 4 },
   unreadBadge: {
@@ -237,7 +238,8 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   iconCircleUnread: { backgroundColor: "rgba(229,9,20,0.15)" },
-  itemTitle: { color: theme.colors.muted, fontSize: 14, fontWeight: "600" },
+  itemBodyWrap: { flex: 1, minWidth: 0 },
+  itemTitle: { color: theme.colors.muted, fontSize: 14, fontWeight: "600", lineHeight: 18 },
   itemTitleUnread: { color: theme.colors.text, fontWeight: "800" },
   itemBody: { color: theme.colors.muted, fontSize: 12, marginTop: 4, lineHeight: 16 },
   itemTime: { color: "#5d6890", fontSize: 11, marginTop: 6 },

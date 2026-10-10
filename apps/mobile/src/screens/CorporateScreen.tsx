@@ -6,6 +6,8 @@ import {
 import { listAudioCourses, type AudioCourseRow } from "../api";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import StudioCourseSection from "../components/StudioCourseSection";
+import type { StudioCourseId } from "../studioCourses";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { theme } from "../theme";
@@ -18,10 +20,11 @@ const CATEGORY_EMOJI: Record<string, string> = {
 
 interface CorporateScreenProps {
   onOpenCourse: (id: string) => void;
+  onOpenStudio?: (courseId: StudioCourseId) => void;
   onBack: () => void;
 }
 
-export default function CorporateScreen({ onOpenCourse, onBack }: CorporateScreenProps) {
+export default function CorporateScreen({ onOpenCourse, onOpenStudio, onBack }: CorporateScreenProps) {
   const { locale } = useT();
   useAndroidBackTo(onBack);
   const [courses, setCourses] = useState<AudioCourseRow[]>([]);
@@ -70,6 +73,7 @@ export default function CorporateScreen({ onOpenCourse, onBack }: CorporateScree
       {loading && !refreshing ? (
         <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 32 }} />
       ) : null}
+      {onOpenStudio ? <StudioCourseSection onOpen={onOpenStudio} /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <ScrollView
@@ -88,7 +92,7 @@ export default function CorporateScreen({ onOpenCourse, onBack }: CorporateScree
         {courses.map((course) => (
           <GlassPanel key={course.id} style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.categoryBadge}>{course.category}</Text>
+              <Text style={styles.categoryBadge} numberOfLines={2}>{course.category}</Text>
               <Text style={styles.duration}>{course.duration_min} min</Text>
             </View>
             <Text style={styles.cardEmoji}>
@@ -122,13 +126,14 @@ const styles = StyleSheet.create({
   subtitle: { color: "#8899bb", fontSize: 13, lineHeight: 18 },
   list: { gap: 14, padding: 16, paddingBottom: 32 },
   card: { gap: 10 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   categoryBadge: {
-    fontSize: 11, fontWeight: "700", color: theme.colors.accent,
+    flexShrink: 1,
+    fontSize: 11, fontWeight: "700", color: theme.colors.accent, lineHeight: 15,
     backgroundColor: "rgba(110,168,254,0.15)",
-    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999,
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, overflow: "hidden",
   },
-  duration: { color: theme.colors.muted, fontSize: 12 },
+  duration: { color: theme.colors.muted, fontSize: 12, flexShrink: 0 },
   cardEmoji: { fontSize: 30 },
   cardTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "700", lineHeight: 22 },
   cardActions: { marginTop: 4 },
