@@ -493,8 +493,7 @@ STUDIO_CSS = """
     .lesson-caption { display:none; margin:8px 0 0; padding:8px 12px; border-radius:12px;
       background:#1e3a5f; color:#fffaf3; font:600 16px/1.35 "Avenir Next", "Segoe UI", sans-serif;
       max-height:4.4em; overflow:hidden; }
-    body.phone-embed .teach-stage:not(.captions-off) #lesson-caption:not([hidden]),
-    body.audio-only .teach-stage:not(.captions-off) #lesson-caption:not([hidden]) { display:block; }
+    body.phone-embed .teach-stage:not(.captions-off) #lesson-caption:not([hidden]) { display:block; }
     @media (max-width:700px) {
       .picture-stage { grid-template-columns:1fr; }
       .teacher-stage-grid { grid-template-columns:1fr; }
@@ -642,6 +641,59 @@ STUDIO_CSS = """
   #btn-pause.is-paused::before { -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M4 2.5v11l9-5.5-9-5.5z'/></svg>") center / contain no-repeat; mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M4 2.5v11l9-5.5-9-5.5z'/></svg>") center / contain no-repeat; }
   #btn-review::before { -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 1.2V6h2.6L9 3.2zM4 8h8v1.2H4V8zm0 2.4h6V12H4v-1.6z'/></svg>") center / contain no-repeat; mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 1.2V6h2.6L9 3.2zM4 8h8v1.2H4V8zm0 2.4h6V12H4v-1.6z'/></svg>") center / contain no-repeat; }
   .toast.show { display:block; }
+  /* On the Go. The driver hears the class. The screen is only a waveform. */
+  body.audio-only { background:#070b14 !important; overflow:hidden; }
+  body.audio-only .study-bg,
+  body.audio-only header.mast,
+  body.audio-only .library-panel,
+  body.audio-only #teach-title,
+  body.audio-only .lesson-window-controls,
+  body.audio-only .teacher-stage-grid,
+  body.audio-only .lesson-stage-content,
+  body.audio-only #lesson-caption,
+  body.audio-only #quiz-box,
+  body.audio-only #game-box,
+  body.audio-only .sample-banner,
+  body.audio-only .sample-clock,
+  body.audio-only .proceed-cue,
+  body.audio-only .page-welcome,
+  body.audio-only .lesson-toolbar,
+  body.audio-only .talk-panel,
+  body.audio-only #theodore-live-audio,
+  body.audio-only #student-cam,
+  body.audio-only .toast,
+  body.audio-only #review-root,
+  body.audio-only .picture-stage,
+  body.audio-only .lesson-photo,
+  body.audio-only .theodore-avatar-wrap,
+  body.audio-only .audio-avatar { display:none !important; }
+  body.audio-only .layout,
+  body.audio-only .panel,
+  body.audio-only #teach-stage-home,
+  body.audio-only .teach-stage {
+    background:transparent !important; border:0 !important; box-shadow:none !important;
+    padding:0 !important; margin:0 !important; min-height:100dvh;
+  }
+  body.audio-only .audio-stage {
+    position:fixed !important; inset:0 !important; z-index:30;
+    display:flex !important; align-items:center; justify-content:center;
+    min-height:100dvh !important; max-height:none !important;
+    margin:0 !important; padding:0 8vw !important; border-radius:0 !important;
+    background:#070b14 !important;
+  }
+  body.audio-only .audio-bars { height:32vh; gap:7px; align-items:center; }
+  body.audio-only .audio-bars i {
+    width:9px; border-radius:99px;
+    height:calc(16px + var(--level, .22) * 24vh);
+    background:linear-gradient(180deg,#e8fdff,#3ec6e0);
+    animation-duration:.8s;
+  }
+  body.audio-only .audio-bars i:nth-child(odd) { animation-delay:.14s; }
+  body.audio-only .audio-bars i:nth-child(3n) { animation-delay:.28s; }
+  body.audio-only .audio-bars i:nth-child(4n) { animation-delay:.07s; }
+  @media (prefers-reduced-motion: reduce) {
+    body.audio-only .audio-bars i { animation:none !important; }
+  }
 
 """
 
@@ -818,6 +870,8 @@ STUDIO_JS = """
       if (!learnerId.endsWith(':audio')) learnerId += ':audio';
       teachSession = 'studio-teach-audio';
       document.body.classList.add('public-course', 'audio-only');
+      const waveStage = $('teach-stage');
+      if (waveStage) waveStage.classList.add('captions-off');
     }
     let theodoreAvatar = null;
     // The lesson plays straight through. Pause is the only hold.
@@ -1965,6 +2019,10 @@ STUDIO_JS = """
     }
 
     async function ensureStudentCamera() {
+      if (document.body.classList.contains('audio-only')) {
+        stopStudentCamera();
+        return;
+      }
       if (studentCamStream) {
         const box = $('student-cam');
         if (box) box.hidden = false;
@@ -2179,6 +2237,7 @@ STUDIO_JS = """
     }
 
     function setCaptionsEnabled(enabled) {
+      if (document.body.classList.contains('audio-only')) enabled = false;
       captionsEnabled = !!enabled;
       $('teach-stage').classList.toggle('captions-off', !captionsEnabled);
       paintLessonCaption();
@@ -3447,6 +3506,22 @@ STUDIO_JS = """
       } finally {
         advancing = false;
       }
+    }
+
+    function onDriveWaveTap() {
+      if (sampleIsComplete()) {
+        endSampleTrial(lastTeachPayload);
+        return;
+      }
+      if (document.body.classList.contains('is-speaking') && !lecturePaused) {
+        toggleLecturePause();
+        return;
+      }
+      if (lecturePaused) {
+        toggleLecturePause();
+        return;
+      }
+      readCurrentAloud();
     }
 
     function toggleLecturePause() {
@@ -5216,6 +5291,11 @@ STUDIO_JS = """
     on('btn-captions', 'click', () => setCaptionsEnabled(!captionsEnabled));
     let proceedClickTimer = null;
     on('teach-stage', 'click', (event) => {
+      if (document.body.classList.contains('audio-only')) {
+        if (event.target.closest('button, input, select, textarea, a')) return;
+        onDriveWaveTap();
+        return;
+      }
       if (event.target.closest('button, input, select, textarea, a, label, .lesson-window-controls, .lesson-toolbar, .talk-panel, .quiz-box, .game-box, .activity, .theodore-avatar-wrap')) return;
       clearTimeout(proceedClickTimer);
       proceedClickTimer = setTimeout(() => {
@@ -5224,6 +5304,7 @@ STUDIO_JS = """
       }, 280);
     });
     on('teach-stage', 'dblclick', (event) => {
+      if (document.body.classList.contains('audio-only')) return;
       if (event.target.closest('button, input, select, textarea, a, .lesson-window-controls')) return;
       clearTimeout(proceedClickTimer);
       proceedClickTimer = null;
@@ -5349,8 +5430,7 @@ def render_studio_page() -> str:
         </div>
         <h3 id="teach-title">Your lesson</h3>
         <div class="audio-stage" id="audio-stage" aria-label="Audio playing">
-          <div class="audio-avatar" aria-hidden="true"><i></i><i></i><b></b></div>
-          <div class="audio-bars" id="audio-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="audio-bars" id="audio-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         </div>
         <div class="teacher-stage-grid" id="teacher-stage-grid">
           <div id="teach-visual-timeline" class="visual-timeline-stage" hidden
