@@ -123,6 +123,14 @@ def load_repo_env(
             apply_env_map(_parse_env_file(path), environ=env, overwrite=overwrite)
         )
 
+    # config/local.env uses the container path /app/sample-curriculum. On a
+    # checkout that directory does not exist, and leaving it set makes the
+    # teaching loop load zero lessons (every class 404s as an unknown lesson).
+    curriculum = (env.get("CURRICULUM_DIR") or "").strip()
+    if curriculum and not os.path.isdir(curriculum):
+        env.pop("CURRICULUM_DIR", None)
+        applied_all = [name for name in applied_all if name != "CURRICULUM_DIR"]
+
     report["files"] = loaded_files
     report["applied"] = applied_all
     report["xai_configured"] = bool((env.get("XAI_API_KEY") or "").strip())
