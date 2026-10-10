@@ -23,6 +23,8 @@ docs/
 # Generated / runtime output
 output/
 logs/
+.cache/
+**/.cache/
 recordings/
 minio-data/
 models/
