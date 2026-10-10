@@ -456,6 +456,18 @@ STUDIO_CSS = """
       .teacher-stage-grid { grid-template-columns:1fr; }
       .theodore-avatar-wrap { min-height:320px; }
     }
+    /* In-app and phone lesson. The course stays on screen with the Start,
+       Pause, and Talk buttons reachable. The library sits underneath. */
+    body.phone-embed .layout { display:flex; flex-direction:column; padding:8px; }
+    body.phone-embed .library-panel { order:2; max-height:28vh; overflow:auto; }
+    body.phone-embed .layout > .panel:not(.library-panel) { order:1; }
+    body.phone-embed .theodore-avatar-wrap { min-height:160px; }
+    body.phone-embed button, body.phone-embed select { min-height:44px; }
+    body.phone-embed .sample-clock { top:8px; right:8px; min-width:5.4rem; padding:6px 8px 4px; }
+    body.phone-embed .sample-clock span { font-size:22px; }
+    body.phone-embed .lesson-toolbar { position:sticky; bottom:0; z-index:6;
+      background:#fffaf3; padding:8px 0; }
+    body.phone-embed .teach-stage { min-height:46vh; }
     @media (prefers-reduced-motion: reduce) {
       .teach-stage, .teach-stage.anim, .theodore-avatar-fallback * { animation:none !important; }
       .visual-layer, .visual-layer img, .lesson-photo img, .lesson-photo-motion, .ppt-title {
@@ -1007,7 +1019,8 @@ STUDIO_JS = """
       document.body.classList.toggle('chrome-hidden', !!hidden);
       const btn = $('btn-chrome');
       if (!btn) return;
-      const show = presenterActive() || !!hidden || !!document.fullscreenElement;
+      const show = presenterActive() || !!hidden || !!document.fullscreenElement
+        || document.body.classList.contains('phone-embed');
       btn.hidden = !show;
       btn.textContent = hidden ? 'Show options' : 'Hide options';
       btn.setAttribute('aria-pressed', String(!!hidden));
@@ -1976,6 +1989,15 @@ STUDIO_JS = """
       const res = await fetch(path, opts);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || res.statusText || 'request failed');
+      const method = String((opts && opts.method) || 'GET').toUpperCase();
+      if (method !== 'GET' && window.ReactNativeWebView && String(path).indexOf('/api/studio/') === 0) {
+        try {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'salareen-telemetry',
+            event: { activity_id: 'course-studio', outcome: 'success' }
+          }));
+        } catch (err) {}
+      }
       return data;
     }
 
@@ -4993,6 +5015,7 @@ def render_studio_page() -> str:
   </script>
 </head>
 <body class="theme-study">
+  <script>if(/[?&]embed=mobile(?:&|$)/.test(location.search)||matchMedia("(max-width:760px)").matches)document.body.classList.add("phone-embed");</script>
   <div class="study-bg" aria-hidden="true">
     <svg class="shelf shelf-left" viewBox="0 0 92 720" preserveAspectRatio="xMidYMin slice">
       <g fill="#1e3a5f"><rect x="8" y="24" width="16" height="150" rx="2"/><rect x="28" y="40" width="13" height="134" rx="2"/><rect x="46" y="18" width="18" height="156" rx="2"/><rect x="68" y="36" width="14" height="138" rx="2"/></g>

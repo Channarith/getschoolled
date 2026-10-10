@@ -27,7 +27,7 @@ import {
 } from "./src/narrationTts";
 import {
   getMyList, getReadIds, getSettings, listContinue, setLastOpenAt } from "./src/storage";
-import AuthScreen, { AuthLoadingScreen, MfaAuthScreen } from "./src/screens/AuthScreen";
+import { AuthLoadingScreen, MfaAuthScreen } from "./src/screens/AuthScreen";
 import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import AudioCoursesScreen from "./src/screens/AudioCoursesScreen";
 import CareersScreen from "./src/screens/CareersScreen";
@@ -56,6 +56,7 @@ import BillingScreen from "./src/screens/BillingScreen";
 import LanguagesScreen from "./src/screens/LanguagesScreen";
 import SearchScreen from "./src/screens/SearchScreen";
 import DemoScreen from "./src/screens/DemoScreen";
+import GuestHomeScreen from "./src/screens/GuestHomeScreen";
 import DraggableBugButton from "./src/components/DraggableBugButton";
 import DraggableSalesDemoButton from "./src/components/DraggableSalesDemoButton";
 import { DEMO_FEATURES, SALES_DEMO_FLAGS } from "./src/demo";
@@ -845,7 +846,7 @@ function AppInner() {
       <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
         <StatusBar style="light" />
         <AmbientBackground />
-        <AuthScreen />
+        <GuestHomeScreen />
         {floatingBugButton}
       </SafeAreaView>
     );
