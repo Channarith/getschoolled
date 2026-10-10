@@ -3,7 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- 2026-10-09 - v0.50.25 - Mobile test builds keep the app hook scripts in the Expo upload, and a test mode builds an Android APK plus an iOS Simulator app.
+- 2026-10-09 - v0.50.25 - Mobile test builds keep the app hook scripts in the Expo upload, point avatar images at apps/mobile/assets, and a test mode builds an Android APK plus an iOS Simulator app.
 - 2026-10-09 - v0.50.25 - On the Go is a 10-minute audio demo of the same classes, with no camera. The trial clock stops the lesson and says the free trial has ended, and starting over does not reset those 10 minutes.
 - 2026-10-09 - v0.50.24 - Demo-only landing redesigned to match the rest of the site: SALAREEN brand mark at the top, mascot, smaller 'AI-instructed learning' tagline, and a pair of rectangular cream buttons (Try the demo / Log in) using the site's body color instead of the loud brand purple. Solo AI card on the /demo picker now points at the free 10-minute driver's ed demo.
 - 2026-10-08 - v0.50.23 - The vision arcade adds coloring, connect-the-dots, and outline tracing. Coloring shows a recommended color on every part of the picture, and the dots are numbered.

@@ -78,6 +78,11 @@ apps/mobile/.pnpm-store/
 .env
 .env.*
 
+# The clone's object database still holds docs and videos after those
+# paths are removed from the work tree. Drop it so the upload stays small.
+.git
+.git/
+
 # OS / editor / CI artifacts
 .DS_Store
 Thumbs.db
