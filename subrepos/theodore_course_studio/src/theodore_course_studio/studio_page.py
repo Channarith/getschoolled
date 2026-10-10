@@ -4577,8 +4577,8 @@ STUDIO_JS = """
         const tutorFemale = courseVoiceGender !== 'male';
         const pool = tutorFemale ? same.filter((voice) => !maleName.test(voice.name || '')) : same;
         const candidates = pool.length ? pool : same;
-        const wanted = tutorFemale ? femaleName : maleName;
-        const named = candidates.find((voice) => wanted.test(voice.name || ''));
+        const namePattern = tutorFemale ? femaleName : maleName;
+        const named = candidates.find((voice) => namePattern.test(voice.name || ''));
         const chosen = named || candidates[0];
         if (chosen) u.voice = chosen;
         if (tutorFemale) u.rate = 0.96;
