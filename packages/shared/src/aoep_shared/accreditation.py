@@ -13,6 +13,12 @@ layer in ``aoep_shared.entitlements``.
 
 Source of truth for which lessons are certifiable: ``CERTIFIABLE_LESSONS`` in
 ``aoep_shared.learnable.index``.
+
+Program completion is separate from that list. A full course is hundreds of
+slides (see ``aoep_shared.full_programs``). A short certifiable deck can still
+require an account, and it still cannot receive a completion record or an
+outside card until the published program meets the floor and a human of
+record has signed it.
 """
 
 from __future__ import annotations

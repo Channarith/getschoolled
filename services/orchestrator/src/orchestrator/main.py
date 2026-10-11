@@ -441,13 +441,17 @@ def api_lesson_accreditation(lesson_id: str) -> dict:
 
     body, ceu = certification_meta(lesson_id)
     certifiable = is_certifiable_lesson(lesson_id)
-    return {
+    from aoep_shared.full_programs import accreditation_view
+
+    payload = {
         "lesson_id": lesson_id,
         "certifiable": certifiable,
         "requires_registered_account": requires_registered_account(lesson_id),
         "certification_body": body,
         "ceu_credits": ceu,
     }
+    payload.update(accreditation_view(lesson_id))
+    return payload
 
 
 @app.post("/api/sessions", response_model=SessionView)
