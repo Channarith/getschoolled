@@ -130,6 +130,9 @@ class TestOrchestratorAccreditationGate:
         assert body["requires_registered_account"] is True
         assert body["certification_body"] == "OSHA"
         assert body["ceu_credits"] > 0
+        assert body["min_program_slides"] >= 200
+        assert body["external_card_issued"] is False
+        assert body["full_program"] is False
 
         r2 = client.get(f"/api/lessons/{SAMPLE_LESSON}/accreditation")
         assert r2.status_code == 200
