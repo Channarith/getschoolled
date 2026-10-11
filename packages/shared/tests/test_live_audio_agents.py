@@ -162,9 +162,14 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "Using xAI" in source
     assert "connectionChime" in source
     assert ">xAI voice<" in source
+    assert "Show xAI" in source
+    assert "voice-hidden" in source
+    assert "host.remove()" not in source
     assert "speech_stopped" in source
     assert "You can interrupt" in source
     assert "pauseRecognition" in source
+    assert "response.cancel" in source
+    assert "if (state.recognitionPaused) return;" in source
     assert "start()" in source
     assert "60000" in source
     assert "theodore-live-audio-speech" in source

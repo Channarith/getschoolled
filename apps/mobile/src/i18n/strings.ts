@@ -9,6 +9,7 @@
 
 import type { LocaleCode } from "./languages";
 import gapJson from "./gapFill.json" with { type: "json" };
+import packJson from "./uiPack.json" with { type: "json" };
 
 const GAP = gapJson as Partial<Record<LocaleCode, Record<string, string>>>;
 
@@ -60,6 +61,7 @@ export type StringKey =
   | "settings.sectionVoice" | "settings.voiceDesc" | "settings.voiceDefault"
   | "settings.sectionInstructor" | "settings.instructorDesc" | "settings.instructorAuto"
   | "settings.sectionTrainingLang" | "settings.trainingLangDesc"
+  | "settings.cameraTitle" | "settings.cameraBody" | "settings.cameraOpen"
   | "settings.sectionDrive"
   | "settings.sectionAbout"
   | "settings.allow" | "settings.allowDesc"
@@ -115,6 +117,9 @@ export type StringKey =
   | "auth.mfaTitle" | "auth.mfaSub" | "auth.mfaCode" | "auth.mfaVerify" | "auth.mfaCancel"
   | "guest.kicker" | "guest.tryDemo" | "guest.logIn" | "guest.back"
   | "guest.webFailed" | "guest.loading"
+  | "guest.demoSoloTitle" | "guest.demoSoloSub" | "guest.demoSoloBody"
+  | "guest.demoDriveTitle" | "guest.demoDriveSub" | "guest.demoDriveBody"
+  | "guest.demoArcadeTitle" | "guest.demoArcadeSub" | "guest.demoArcadeBody"
   // Preview / guest browse
   | "preview.lockedTitle" | "preview.lockedBody" | "preview.signIn"
   // Rewards
@@ -188,6 +193,21 @@ export type StringKey =
   | "camera.retake" | "camera.open" | "camera.permission" | "camera.failed"
   | "camera.trackTitle" | "camera.working" | "camera.capture" | "camera.skip"
   | "camera.done" | "camera.restart" | "camera.allow"
+  | "camera.meta" | "camera.stepOf"
+  | "camera.lightTitle" | "camera.lightBody" | "camera.distanceTitle" | "camera.distanceBody"
+  | "camera.lookUpTitle" | "camera.lookUpBody" | "camera.lookDownTitle" | "camera.lookDownBody"
+  | "camera.lookLeftTitle" | "camera.lookLeftBody" | "camera.lookRightTitle" | "camera.lookRightBody"
+  | "camera.handsTitle" | "camera.handsBody" | "camera.voiceTitle" | "camera.voiceBody"
+  | "camera.photoIdTitle" | "camera.photoIdBody"
+  | "camera.begin" | "camera.captureReady" | "camera.follow" | "camera.requesting"
+  | "camera.allowed" | "camera.required" | "camera.opening" | "camera.canceled"
+  | "camera.checkPhoto" | "camera.complete"
+  | "drive.results"
+  | "studio.kicker" | "studio.lead" | "studio.leadAudio" | "studio.leadPaid" | "studio.open"
+  | "studio.driversTitle" | "studio.driversBlurb" | "studio.foodTitle" | "studio.foodBlurb"
+  | "studio.notNow" | "studio.demo10" | "studio.pay" | "studio.signIn" | "studio.paidNote"
+  | "studio.paymentMissing" | "studio.checkFailed" | "studio.fullSub" | "studio.demoSub" | "studio.audioTitle"
+  | "search.hint" | "search.course" | "search.settings" | "search.subscription"
   | "kids.back" | "kids.backToList" | "kids.playAgain" | "kids.greatJob" | "kids.score"
   | "kids.readAgain" | "kids.finish" | "kids.next" | "kids.right" | "kids.wrong"
   | "kids.pickAnother" | "kids.title" | "kids.subtitle" | "kids.empty"
@@ -199,6 +219,7 @@ export type StringKey =
   | "assessment.audio" | "assessment.visual" | "assessment.challenge" | "assessment.text";
 
 type Dict = Partial<Record<StringKey, string>>;
+const PACK = packJson as { zh: Dict; yue: Dict; km: Dict };
 
 const EN: Record<StringKey, string> = {
   "tab.home": "Home",
@@ -475,6 +496,9 @@ const EN: Record<StringKey, string> = {
   "settings.instructorAuto": "Auto (profile)",
   "settings.sectionTrainingLang": "LESSON LANGUAGE",
   "settings.trainingLangDesc": "Spoken lesson text and audio for On the Go. Fully authored in English, Spanish, and Chinese; other languages narrate in the closest available voice.",
+  "settings.cameraTitle": "Camera check",
+  "settings.cameraBody": "Test lighting, focus, and tracking cues before class. A dark or blurry camera cannot take class.",
+  "settings.cameraOpen": "Open camera and tracking check",
 
   "settings.driveStatus": "Status: {status}",
   "settings.driveStatusDriving": "Driving",
@@ -567,6 +591,15 @@ const EN: Record<StringKey, string> = {
   "guest.back": "← Back",
   "guest.webFailed": "Could not open this demo. Check your connection and try again.",
   "guest.loading": "Opening the demo…",
+  "guest.demoSoloTitle": "Solo AI Session",
+  "guest.demoSoloSub": "Driver's Ed · 10-min demo",
+  "guest.demoSoloBody": "A 1:1 tutor that walks you through the free 10-minute driver's ed demo lesson.",
+  "guest.demoDriveTitle": "On-the-Go Mode",
+  "guest.demoDriveSub": "Audio only · 10-min demo",
+  "guest.demoDriveBody": "The same classes as driver's ed, heard while you are away from a desk. The free trial stops at 10 minutes.",
+  "guest.demoArcadeTitle": "Vision arcade",
+  "guest.demoArcadeSub": "Machine vision for kids",
+  "guest.demoArcadeBody": "Children play webcam games: faces, hands, movement, and listening. The camera stays on this device.",
   "auth.mfaTitle": "Two-factor authentication",
   "auth.mfaSub": "Enter the 6-digit code from your authenticator app.",
   "auth.mfaCode": "Authentication code",
@@ -664,6 +697,60 @@ const EN: Record<StringKey, string> = {
   "camera.done": "Done",
   "camera.restart": "Restart",
   "camera.allow": "Allow camera",
+  "camera.meta": "Solo and group classes need a clear camera for presence, attention, movement, and integrity tracking.",
+  "camera.stepOf": "Step {n} of {total}",
+  "camera.lightTitle": "Lighting & focus",
+  "camera.lightBody": "Face a lamp or window so your face is bright and sharp.",
+  "camera.distanceTitle": "Camera distance",
+  "camera.distanceBody": "Sit about an arm's length from the camera.",
+  "camera.lookUpTitle": "Look up",
+  "camera.lookUpBody": "Look toward the ceiling, then take a photo.",
+  "camera.lookDownTitle": "Look down",
+  "camera.lookDownBody": "Look toward your desk, then take a photo.",
+  "camera.lookLeftTitle": "Look left",
+  "camera.lookLeftBody": "Turn toward your left, then take a photo.",
+  "camera.lookRightTitle": "Look right",
+  "camera.lookRightBody": "Turn toward your right, then take a photo.",
+  "camera.handsTitle": "Raise both hands",
+  "camera.handsBody": "Raise both hands beside your head, then take a photo.",
+  "camera.voiceTitle": "Voice check",
+  "camera.voiceBody": "In class you may be asked to say your name. Tap continue when ready.",
+  "camera.photoIdTitle": "Photo ID (optional)",
+  "camera.photoIdBody": "Hold a photo ID to the camera, or skip if you verify later.",
+  "camera.begin": "Tap Allow camera to begin.",
+  "camera.captureReady": "Tap Capture when you are in position.",
+  "camera.follow": "Follow the step, then tap Continue.",
+  "camera.requesting": "Requesting camera permission…",
+  "camera.allowed": "Camera allowed.",
+  "camera.required": "Camera permission is required.",
+  "camera.opening": "Opening camera…",
+  "camera.canceled": "Capture canceled — try again or skip.",
+  "camera.checkPhoto": "Check the photo, then confirm below.",
+  "camera.complete": "All checks complete — your camera covers every tracking angle.",
+  "drive.results": "{n} results",
+  "studio.kicker": "Full courses · xAI",
+  "studio.lead": "Theodore teaches Driver's Education and Food Health & Safety with xAI.",
+  "studio.leadAudio": "This opens the audio class.",
+  "studio.leadPaid": "Admins take the full course. Everyone else pays.",
+  "studio.open": "Open",
+  "studio.driversTitle": "Driver's Education",
+  "studio.driversBlurb": "The full California permit course, taught by Theodore with xAI. The 10-minute demo is free. The rest is paid unless you are an admin.",
+  "studio.foodTitle": "Food Health & Safety",
+  "studio.foodBlurb": "The full California food handler course, taught by Theodore with xAI. Admins take it. Everyone else pays.",
+  "studio.notNow": "Not now",
+  "studio.demo10": "10-minute demo",
+  "studio.pay": "Pay for this course",
+  "studio.signIn": "Sign in to take this course. Admins open the full course. Everyone else pays.",
+  "studio.paidNote": "This course is paid. An admin account takes the full course without paying.",
+  "studio.paymentMissing": "Payment was not recorded for this course.",
+  "studio.checkFailed": "Could not check this course.",
+  "studio.fullSub": "Full course · xAI",
+  "studio.demoSub": "10-minute demo · xAI",
+  "studio.audioTitle": "{title} · audio",
+  "search.hint": "Type to search courses, games, and settings",
+  "search.course": "Course",
+  "search.settings": "Settings",
+  "search.subscription": "Subscription",
   "kids.back": "Back",
   "kids.backToList": "Back to Kids",
   "kids.playAgain": "Play again",
@@ -1333,16 +1420,15 @@ export const STRINGS: Record<LocaleCode, Dict> = {
   ru: { ...GAP.ru, ...RU },
   ar: { ...GAP.ar, ...AR },
   hi: { ...GAP.hi, ...HI },
-  zh: { ...GAP.zh, ...ZH },
+  zh: { ...PACK.zh, ...GAP.zh, ...ZH },
   ja: { ...GAP.ja, ...JA },
   ko: { ...GAP.ko, ...KO },
   vi: { ...GAP.vi, ...VI },
   // Fallback locales inherit English until a full translation lands.
   nl: {}, pl: {}, uk: {}, tr: {}, he: {}, bn: {}, ur: {},
   fa: {}, th: {}, id: {}, sw: {}, el: {}, cs: {},
-  km: { ...GAP.km, ...KM },
-  // Hong Kong Cantonese. UI copy falls back to English; the voice does not.
-  yue: {},
+  km: { ...PACK.km, ...GAP.km, ...KM },
+  yue: { ...PACK.yue },
 };
 
 export const FALLBACK: Record<StringKey, string> = EN;

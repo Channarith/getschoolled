@@ -291,3 +291,60 @@ def test_teach_payload_includes_storyboard_fields(tmp_path):
     assert payload.get("storyboard_svg"), "teach payload should expose inline storyboard SVG"
     assert payload.get("storyboard_concept")
     assert payload["learning_kit"]["has_storyboard"] is True
+
+
+def test_drivers_ed_program_stitches_every_class(tmp_path):
+    from theodore_course_studio.certification_prep import build_cert_program
+
+    lessons = list_cert_courses(CertTrackId.CA_DMV_PERMIT)
+    course = build_cert_program(track=CertTrackId.CA_DMV_PERMIT)
+    assert len(course.slides) == sum(row.slides for row in lessons)
+    assert len(course.profile_adaptations["classes"]) == len(lessons)
+    starts = [slide.index for slide in course.slides if "class_start" in slide.tags]
+    assert starts[0] == 0
+    assert len(starts) == len(lessons)
+    builder = CourseBuilder(data_dir=tmp_path / "data")
+    builder.save_course(course)
+    engine = TeachEngine(builder)
+    started = engine.start(
+        session_id="dmv-program",
+        course_id=course.course_id,
+        use_voice_agent=False,
+        focus_gaps=True,
+    )
+    assert started["path"][0] == 0
+    assert started["path"][-1] == course.slides[-1].index
+    assert started["progress"]["program_percent"] == started["progress"]["covered_percent"]
+    assert started["progress"]["class_count"] == len(lessons)
+    assert started["progress"]["class_percent"] == started["progress"]["classes"][0]["covered_percent"]
+    chapters = [row for row in started["outline"] if row["chapter_start"]]
+    assert [row["chapter_title"] for row in chapters] == [row.title for row in lessons]
+    second = starts[1]
+    opened = engine.goto("dmv-program", started["path"].index(second))
+    assert opened["slide_index"] == second
+    assert opened["progress"]["completion_percent"] == 0
+    assert opened["progress"]["classes"][0]["covered_percent"] == 0
+    assert opened["progress"]["class_title"] == lessons[1].title
+    assert any(row["gap"] for row in opened["outline"])
+    linear = engine.start(
+        session_id="dmv-linear",
+        course_id=course.course_id,
+        use_voice_agent=False,
+        focus_gaps=False,
+    )
+    steps = sum(1 for index in linear["path"] if index < second)
+    for _ in range(steps):
+        engine.advance("dmv-linear")
+    landed = engine.current("dmv-linear")
+    assert landed["slide_index"] == second
+    assert landed["progress"]["classes"][0]["covered_percent"] == 100
+    assert landed["progress"]["class_index"] == 1
+    assert landed["progress"]["program_percent"] == landed["progress"]["covered_percent"]
+    assert landed["progress"]["program_percent"] < 100
+    sample = engine.start(
+        session_id="dmv-sample",
+        course_id=course.course_id,
+        use_voice_agent=False,
+        access="sample",
+    )
+    assert max(sample["path"]) < second

@@ -21,11 +21,8 @@ export default function SalesDemoPage() {
   const demoOnly = ready && flags[SALES_DEMO_FLAGS.exclusive] === true;
 
   useEffect(() => {
-    if (!ready) return;
-    const authenticated = Boolean(getToken());
-    setSignedIn(authenticated);
-    if (!authenticated && !demoOnly) router.replace("/login");
-  }, [router, ready, demoOnly]);
+    setSignedIn(Boolean(getToken()));
+  }, []);
 
   const enabled = (key: string) => !ready || flags[key] !== false;
   const demoEnabled = enabled(SALES_DEMO_FLAGS.enabled);
@@ -35,7 +32,7 @@ export default function SalesDemoPage() {
     if (signedIn && ready && !demoEnabled && !demoOnly) router.replace("/");
   }, [demoEnabled, demoOnly, ready, router, signedIn]);
 
-  if (demoOnly) return <DemoOnlyShowcase />;
+  if (demoOnly || signedIn === false) return <DemoOnlyShowcase />;
 
   if (signedIn !== true || (ready && !demoEnabled)) {
     return <main style={{ padding: 40, textAlign: "center" }}>Loading Sales Demo…</main>;

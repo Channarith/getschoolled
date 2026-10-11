@@ -27,7 +27,7 @@ import {
 } from "../drivingDetection";
 import {
   DEFAULT_SETTINGS, getSettings, setSettings,
-  type Settings, type TrainingLocale,
+  type Settings,
 } from "../storage";
 import { TRAINING_LOCALE_LABELS, TRAINING_LOCALES } from "../trainingLocale";
 import { applyVoicePrefsToTts, voicePrefsFromSettings } from "../narrationTts";
@@ -340,17 +340,14 @@ export default function SettingsScreen({
         </View>
       </Section>
 
-      <Section title="Camera check">
-        <Text style={styles.desc}>
-          Test lighting, focus, and tracking cues (look up/down/left/right, raise
-          hands) before solo or group class. Dark or blurry cameras cannot take class.
-        </Text>
+      <Section title={t("settings.cameraTitle")}>
+        <Text style={styles.desc}>{t("settings.cameraBody")}</Text>
         <View style={{ marginTop: 10 }}>
           {showCameraCheck ? (
             <CameraTrackingCheck onDone={() => setShowCameraCheck(false)} />
           ) : (
             <PrimaryButton
-              label="Open camera & tracking check"
+              label={t("settings.cameraOpen")}
               onPress={() => setShowCameraCheck(true)}
               variant="brand"
             />
@@ -387,7 +384,7 @@ export default function SettingsScreen({
             open={trainingLocaleOpen}
             onToggle={() => setTrainingLocaleOpen((v) => !v)}
             onSelect={(key) => {
-              update({ trainingLocale: key as TrainingLocale });
+              setLocale(key as LocaleCode);
               setTrainingLocaleOpen(false);
             }}
           />

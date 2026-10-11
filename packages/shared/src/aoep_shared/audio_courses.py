@@ -22,6 +22,7 @@ the web/mobile "Drive Mode" players narrate it via on-device TTS.
 from __future__ import annotations
 
 import functools
+import re
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -1211,11 +1212,25 @@ def _maybe_translate(course: AudioCourse, tloc: str) -> AudioCourse:
     return localized
 
 
+def _segment_has_words(segment: AudioSegment) -> bool:
+    return re.search(r"[^\W\d_]", segment.text or "", flags=re.UNICODE) is not None
+
+
+def without_blank_segments(course: AudioCourse) -> AudioCourse:
+    """Drop sections that would play as silence."""
+    kept = [segment for segment in course.segments if _segment_has_words(segment)]
+    if len(kept) == len(course.segments):
+        return course
+    audible = course.model_copy(deep=True)
+    audible.segments = kept or list(course.segments[:1])
+    return audible
+
+
 def get_course(course_id: str, locale: str = DEFAULT_LOCALE,
                training_locale: Optional[str] = None) -> Optional[AudioCourse]:
     locale = normalize_locale(locale)
     tloc = normalize_training_locale(training_locale or locale)
     for c in build_catalog(locale, tloc):
         if c.id == course_id:
-            return _maybe_translate(c, tloc)
+            return without_blank_segments(_maybe_translate(c, tloc))
     return None

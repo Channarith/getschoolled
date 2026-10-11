@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from aoep_shared.course_studio_access import (
+    COURSE_PRICE_CENTS,
+    COURSE_PRICE_LABEL,
     SAMPLE_ENDED,
     SAMPLE_MINUTES,
     SAMPLE_PREVIEW,
@@ -24,6 +26,8 @@ from .question_slide import (
 )
 from .topic_cover import (
     completion_percent,
+    is_blank_slide,
+    path_covered_percent,
     example_card_svg,
     example_lines,
     match_slide,
@@ -200,29 +204,125 @@ def _compare_check(slide: CourseSlide, course_id: str) -> dict[str, Any]:
     return {"prompt": prompt, "left": left, "right": right, "correct_side": side}
 
 
+def _speakable_path(course: Any, path: list[int]) -> list[int]:
+    """Drop slides that have nothing to read aloud."""
+    kept: list[int] = []
+    slides = list(getattr(course, "slides", []) or [])
+    for index in path:
+        if index < 0 or index >= len(slides) or index in kept:
+            continue
+        if is_blank_slide(slides[index]):
+            continue
+        kept.append(index)
+    if kept:
+        return kept
+    for index, slide in enumerate(slides):
+        if not is_blank_slide(slide):
+            return [index]
+    return [0] if slides else []
+
+
+def _class_rows(course: Any) -> list[dict[str, Any]]:
+    raw = (getattr(course, "profile_adaptations", None) or {}).get("classes") or []
+    rows: list[dict[str, Any]] = []
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        rows.append(
+            {
+                "lesson_id": str(row.get("lesson_id") or ""),
+                "title": str(row.get("title") or ""),
+                "start": int(row.get("start") or 0),
+                "count": int(row.get("count") or 0),
+            }
+        )
+    return rows
+
+
+def _class_for_index(classes: list[dict[str, Any]], slide_index: int) -> dict[str, Any] | None:
+    for row in classes:
+        start = int(row["start"])
+        count = int(row["count"])
+        if start <= slide_index < start + count:
+            return row
+    return None
+
+
 def _course_outline(course: Any, session: TeachSession) -> list[dict[str, Any]]:
     """Chapters and slides the learner can open from the lesson window."""
     rows: list[dict[str, Any]] = []
     chapter = 1
+    classes = _class_rows(course)
+    covered = set(session.completed_slide_indexes)
+    current = session.path[session.path_pos] if session.path else None
     for pos, slide_index in enumerate(session.path):
         slide = course.slides[slide_index]
         title = (slide.title or f"Slide {pos + 1}").strip()
-        starts = pos == 0 or title.lower().startswith(("lesson ", "chapter ", "section ", "part "))
-        if pos:
-            prev = course.slides[session.path[pos - 1]]
-            prev_tags = {str(tag).lower() for tag in (prev.tags or [])}
-            if "section_end" in prev_tags or "checkpoint" in prev_tags:
-                starts = True
+        tags = {str(tag).lower() for tag in (slide.tags or [])}
+        if classes:
+            starts = pos == 0 or "class_start" in tags
+        else:
+            starts = pos == 0 or title.lower().startswith(("lesson ", "chapter ", "section ", "part "))
+            if pos:
+                prev = course.slides[session.path[pos - 1]]
+                prev_tags = {str(tag).lower() for tag in (prev.tags or [])}
+                if "section_end" in prev_tags or "checkpoint" in prev_tags:
+                    starts = True
         if starts and pos:
             chapter += 1
+        info = _class_for_index(classes, slide_index)
         rows.append({
             "path_pos": pos,
             "title": title,
             "chapter": chapter,
             "chapter_start": starts,
+            "chapter_title": info["title"] if info and starts else "",
             "current": pos == session.path_pos,
+            "gap": slide_index not in covered and slide_index != current,
         })
     return rows
+
+
+def _program_progress(course: Any, session: TeachSession) -> dict[str, Any]:
+    classes = _class_rows(course)
+    if not classes or not session.path:
+        return {}
+    current = session.path[session.path_pos]
+    done = session.completed_slide_indexes
+    program = path_covered_percent(session.path, done, current)
+    rows: list[dict[str, Any]] = []
+    current_row: dict[str, Any] | None = None
+    for index, info in enumerate(classes):
+        indexes = [
+            slide_index
+            for slide_index in session.path
+            if info["start"] <= slide_index < info["start"] + info["count"]
+        ]
+        here = current if current in indexes else None
+        covered = path_covered_percent(indexes, done, here)
+        row = {
+            "lesson_id": info["lesson_id"],
+            "title": info["title"],
+            "start": info["start"],
+            "count": info["count"],
+            "path_pos": session.path.index(indexes[0]) if indexes else 0,
+            "covered_percent": covered,
+            "current": here is not None,
+        }
+        rows.append(row)
+        if here is not None:
+            current_row = row
+            current_row["class_index"] = index
+    if current_row is None:
+        current_row = {**rows[0], "class_index": 0, "covered_percent": rows[0]["covered_percent"]}
+    return {
+        "program_percent": program,
+        "class_percent": int(current_row["covered_percent"]),
+        "class_title": str(current_row["title"]),
+        "class_index": int(current_row.get("class_index") or 0),
+        "class_count": len(rows),
+        "classes": rows,
+    }
 
 
 class TeachEngine:
@@ -278,6 +378,7 @@ class TeachEngine:
             path = next_slide_indexes(objectives, knowledge)
         else:
             path = [s.index for s in course.slides]
+        path = _speakable_path(course, path)
         soft_minutes = soft_limit_minutes
         if soft_minutes is None:
             soft_minutes = int(
@@ -309,7 +410,7 @@ class TeachEngine:
         # The language and profile on this request stay in effect; the checkpoint
         # restores the slide.
         if resume and existing and existing.status in {"paused", "in_progress"} and existing.path:
-            path = existing.path
+            path = _speakable_path(course, existing.path)
             path_pos = min(existing.path_pos, max(0, len(path) - 1))
             completed = list(existing.completed_slide_indexes)
             resumed = True
@@ -318,6 +419,22 @@ class TeachEngine:
             # Start over and a new tab keep the same trial. The 10 minutes
             # began the first time this learner opened the sample.
             started_at = existing.started_at_ms
+        program = bool((course.profile_adaptations or {}).get("program"))
+        if program:
+            # The full program stays one path, even when the learner still has gaps.
+            # A sample only hears the first class.
+            full = _speakable_path(course, [slide.index for slide in course.slides])
+            current_slide = path[path_pos] if path else (full[0] if full else 0)
+            path = full or path
+            if sample_only:
+                first = (_class_rows(course) or [{"start": 0, "count": len(path)}])[0]
+                start_at = int(first["start"])
+                stop_at = start_at + int(first["count"])
+                path = [index for index in path if start_at <= index < stop_at] or path[:1]
+            path_pos = path.index(current_slide) if current_slide in path else 0
+            soft_slides = max(soft_slides, len(path) + 1)
+            if not sample_only:
+                soft_minutes = max(soft_minutes, int(course.estimated_minutes or soft_minutes))
 
         self._voice.clear_session(session_id)
         with self._lock:
@@ -520,13 +637,20 @@ class TeachEngine:
             return self._turn_payload(course, session)
         session.checkpoint_ack = True
         # Extend soft window so the learner can finish this block.
+        # A stitched program keeps the whole path; a time check must not
+        # collapse the remaining classes back to a 12-slide window.
+        program = bool((course.profile_adaptations or {}).get("program"))
+        extra_minutes = int(course.estimated_minutes or 20) if program else 10
         session.soft_limit_minutes = max(
             session.soft_limit_minutes,
-            int((time.time() * 1000 - session.started_at_ms) / 60_000) + 10,
+            int((time.time() * 1000 - session.started_at_ms) / 60_000) + extra_minutes,
         )
-        session.soft_limit_slides = max(
-            session.soft_limit_slides, session.path_pos + 1 + DEFAULT_SOFT_LIMIT_SLIDES
+        extra_slides = (
+            len(session.path) + 1
+            if program
+            else session.path_pos + 1 + DEFAULT_SOFT_LIMIT_SLIDES
         )
+        session.soft_limit_slides = max(session.soft_limit_slides, extra_slides)
         self._persist_live(session, status="in_progress")
         payload = self._turn_payload(course, session)
         payload["checkpoint"] = {"due": False, "acknowledged": True}
@@ -876,6 +1000,13 @@ class TeachEngine:
         return self._checkpoints.save(checkpoint)
 
     def _turn_payload(self, course: StudioCourse, session: TeachSession) -> dict[str, Any]:
+        speakable = _speakable_path(course, session.path)
+        if speakable != session.path:
+            current = session.path[session.path_pos] if session.path else None
+            session.path = speakable
+            session.path_pos = (
+                speakable.index(current) if current in speakable else session.path_pos
+            )
         if not session.path:
             session.path = [0]
         session.path_pos = max(0, min(session.path_pos, len(session.path) - 1))
@@ -893,7 +1024,9 @@ class TeachEngine:
             session.knowledge.model_dump(mode="json") if session.knowledge else {}
         )
         voice_meta = None
-        spoken = turn.narration
+        spoken = (turn.narration or "").strip() or (slide.body or "").strip() or (slide.title or "").strip()
+        if spoken and spoken != (turn.narration or ""):
+            turn.narration = spoken
         speak_lang = self._spoken_language(course, session, slide)
         translation_source = course.profile_adaptations.get("translation_source")
         translation_note = course.profile_adaptations.get("translation_note", "")
@@ -1117,9 +1250,20 @@ class TeachEngine:
                 "completion_percent": completion_percent(
                     course, session.completed_slide_indexes
                 ),
+                "covered_percent": path_covered_percent(
+                    session.path,
+                    session.completed_slide_indexes,
+                    session.path[session.path_pos] if session.path else None,
+                ),
+                **_program_progress(course, session),
             },
             "checkpoint": checkpoint_block,
             "activity_checkpoint": activity_checkpoint,
+            "price": {
+                "amount_cents": COURSE_PRICE_CENTS,
+                "currency": "usd",
+                "label": COURSE_PRICE_LABEL,
+            },
             "access_mode": "sample" if session.sample_only else "full",
             "sample": {
                 "minutes": SAMPLE_MINUTES if session.sample_only else 0,

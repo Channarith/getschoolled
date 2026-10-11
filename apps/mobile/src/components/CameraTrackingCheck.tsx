@@ -7,13 +7,13 @@
  */
 
 import * as ImagePicker from "expo-image-picker";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 import { ensureCameraPermission } from "./cameraPermission";
 import PrimaryButton from "./PrimaryButton";
 import { trackingContinueEnabled } from "../cameraCheck";
-import { useT } from "../i18n";
+import { useT, type StringKey } from "../i18n";
 import { theme } from "../theme";
 
 type StepId =
@@ -27,63 +27,18 @@ type StepId =
   | "voice"
   | "photo_id";
 
-type Step = { id: StepId; title: string; instruction: string; needsPhoto: boolean };
+type Step = { id: StepId; title: StringKey; instruction: StringKey; needsPhoto: boolean };
 
 const STEPS: Step[] = [
-  {
-    id: "lighting",
-    title: "Lighting & focus",
-    instruction: "Face a lamp or window so your face is bright and sharp.",
-    needsPhoto: false,
-  },
-  {
-    id: "distance",
-    title: "Camera distance",
-    instruction: "Sit about an arm's length from the camera.",
-    needsPhoto: false,
-  },
-  {
-    id: "look_up",
-    title: "Look up",
-    instruction: "Look toward the ceiling, then take a photo.",
-    needsPhoto: true,
-  },
-  {
-    id: "look_down",
-    title: "Look down",
-    instruction: "Look toward your desk, then take a photo.",
-    needsPhoto: true,
-  },
-  {
-    id: "look_left",
-    title: "Look left",
-    instruction: "Turn toward your left, then take a photo.",
-    needsPhoto: true,
-  },
-  {
-    id: "look_right",
-    title: "Look right",
-    instruction: "Turn toward your right, then take a photo.",
-    needsPhoto: true,
-  },
-  {
-    id: "raise_hands",
-    title: "Raise both hands",
-    instruction: "Raise both hands beside your head, then take a photo.",
-    needsPhoto: true,
-  },
-  {
-    id: "voice",
-    title: "Voice check",
-    instruction: "In class you may be asked to say your name. Tap continue when ready.",
-    needsPhoto: false,
-  },
-  {
-    id: "photo_id",
-    title: "Photo ID (optional)",
-    instruction: "Hold a photo ID to the camera, or skip if you verify later.",
-    needsPhoto: true,
-  },
+  { id: "lighting", title: "camera.lightTitle", instruction: "camera.lightBody", needsPhoto: false },
+  { id: "distance", title: "camera.distanceTitle", instruction: "camera.distanceBody", needsPhoto: false },
+  { id: "look_up", title: "camera.lookUpTitle", instruction: "camera.lookUpBody", needsPhoto: true },
+  { id: "look_down", title: "camera.lookDownTitle", instruction: "camera.lookDownBody", needsPhoto: true },
+  { id: "look_left", title: "camera.lookLeftTitle", instruction: "camera.lookLeftBody", needsPhoto: true },
+  { id: "look_right", title: "camera.lookRightTitle", instruction: "camera.lookRightBody", needsPhoto: true },
+  { id: "raise_hands", title: "camera.handsTitle", instruction: "camera.handsBody", needsPhoto: true },
+  { id: "voice", title: "camera.voiceTitle", instruction: "camera.voiceBody", needsPhoto: false },
+  { id: "photo_id", title: "camera.photoIdTitle", instruction: "camera.photoIdBody", needsPhoto: true },
 ];
 
 type Props = {
@@ -93,7 +48,8 @@ type Props = {
 export default function CameraTrackingCheck({ onDone }: Props) {
   const { t } = useT();
   const [stepIndex, setStepIndex] = useState(0);
-  const [status, setStatus] = useState("Tap Allow camera to begin.");
+  const [statusKey, setStatusKey] = useState<StringKey>("camera.begin");
+  const [statusRaw, setStatusRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [permissionOk, setPermissionOk] = useState(false);
   const [passed, setPassed] = useState<Record<string, boolean>>({});
@@ -101,35 +57,32 @@ export default function CameraTrackingCheck({ onDone }: Props) {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const step = STEPS[stepIndex];
-  const progress = useMemo(
-    () => `Step ${Math.min(stepIndex + 1, STEPS.length)} of ${STEPS.length}`,
-    [stepIndex],
-  );
+  const progress = t("camera.stepOf", {
+    n: Math.min(stepIndex + 1, STEPS.length),
+    total: STEPS.length,
+  });
 
   useEffect(() => {
     setPhotoUri(null);
-    if (step.needsPhoto && permissionOk) {
-      setStatus("Tap Capture when you are in position.");
-    } else if (!step.needsPhoto && permissionOk) {
-      setStatus("Follow the step, then tap Continue.");
-    }
+    if (!permissionOk) return;
+    setStatusRaw("");
+    setStatusKey(step.needsPhoto ? "camera.captureReady" : "camera.follow");
   }, [stepIndex, permissionOk, step.needsPhoto]);
 
   const requestPermission = async (): Promise<boolean> => {
     setBusy(true);
-    setStatus("Requesting camera permission…");
+    setStatusRaw("");
+    setStatusKey("camera.requesting");
     try {
       const picker = await ImagePicker.requestCameraPermissionsAsync();
       if (picker.granted) {
         setPermissionOk(true);
-        setStatus(
-          step.needsPhoto ? "Tap Capture when you are in position." : "Follow the step, then tap Continue.",
-        );
+        setStatusKey(step.needsPhoto ? "camera.captureReady" : "camera.follow");
         return true;
       }
       const legacy = await ensureCameraPermission();
       setPermissionOk(legacy);
-      setStatus(legacy ? "Camera allowed." : "Camera permission is required.");
+      setStatusKey(legacy ? "camera.allowed" : "camera.required");
       return legacy;
     } finally {
       setBusy(false);
@@ -138,7 +91,8 @@ export default function CameraTrackingCheck({ onDone }: Props) {
 
   const capture = async () => {
     setBusy(true);
-    setStatus("Opening camera…");
+    setStatusRaw("");
+    setStatusKey("camera.opening");
     try {
       const ok = permissionOk || (await requestPermission());
       if (!ok) return;
@@ -150,13 +104,13 @@ export default function CameraTrackingCheck({ onDone }: Props) {
         cameraType: ImagePicker.CameraType.front,
       });
       if (shot.canceled || !shot.assets?.[0]?.uri) {
-        setStatus("Capture canceled — try again or skip.");
+        setStatusKey("camera.canceled");
         return;
       }
       setPhotoUri(shot.assets[0].uri);
-      setStatus("Check the photo, then confirm below.");
+      setStatusKey("camera.checkPhoto");
     } catch (e) {
-      setStatus((e as Error).message || "Camera check failed.");
+      setStatusRaw((e as Error).message || t("camera.failed"));
     } finally {
       setBusy(false);
     }
@@ -167,7 +121,8 @@ export default function CameraTrackingCheck({ onDone }: Props) {
     setPhotoUri(null);
     if (stepIndex + 1 >= STEPS.length) {
       setDone(true);
-      setStatus("All checks complete — your camera covers every tracking angle.");
+      setStatusRaw("");
+      setStatusKey("camera.complete");
       onDone?.();
       return;
     }
@@ -182,20 +137,17 @@ export default function CameraTrackingCheck({ onDone }: Props) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>{t("camera.trackTitle")}</Text>
-      <Text style={styles.meta}>
-        Solo and group classes need a clear camera for presence, attention, movement,
-        and integrity tracking.
-      </Text>
+      <Text style={styles.meta}>{t("camera.meta")}</Text>
       <Text style={styles.progress}>{progress}</Text>
-      <Text style={styles.stepTitle}>{step.title}</Text>
-      <Text style={styles.instruction}>{step.instruction}</Text>
+      <Text style={styles.stepTitle}>{t(step.title)}</Text>
+      <Text style={styles.instruction}>{t(step.instruction)}</Text>
       {photoUri ? <Image source={{ uri: photoUri }} style={styles.preview} /> : null}
-      <Text style={styles.status}>{status}</Text>
+      <Text style={styles.status}>{statusRaw || t(statusKey)}</Text>
       <View style={styles.list}>
         {STEPS.map((s, i) => (
           <Text key={s.id} style={styles.listItem}>
             {passed[s.id] ? "✓ " : i === stepIndex ? "→ " : "  "}
-            {s.title}
+            {t(s.title)}
           </Text>
         ))}
       </View>
@@ -248,7 +200,8 @@ export default function CameraTrackingCheck({ onDone }: Props) {
           setDone(false);
           setPhotoUri(null);
           setPermissionOk(false);
-          setStatus("Tap Allow camera to begin.");
+          setStatusRaw("");
+          setStatusKey("camera.begin");
         }}
       />
     </View>

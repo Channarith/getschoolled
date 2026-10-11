@@ -4,10 +4,13 @@ from aoep_shared.audio_courses import (
     MIN_DRIVE_MINUTES,
     MIN_DRIVE_SEGMENTS,
     MIN_DRIVE_WORDS,
+    AudioCourse,
+    AudioSegment,
     build_catalog,
     categories,
     get_course,
     list_courses,
+    without_blank_segments,
 )
 
 
@@ -132,3 +135,18 @@ def test_curated_topic_has_real_key_points():
 
 def test_get_unknown_returns_none():
     assert get_course("nope") is None
+
+
+def test_blank_audio_sections_are_dropped():
+    course = AudioCourse(
+        id="blank-audio",
+        title="Quiet class",
+        category="other",
+        segments=[
+            AudioSegment(heading="Start", text="Leave space behind the car ahead."),
+            AudioSegment(heading="Empty", text="   "),
+            AudioSegment(heading="Night", text="Use low beams around other cars."),
+        ],
+    )
+    audible = without_blank_segments(course)
+    assert [segment.heading for segment in audible.segments] == ["Start", "Night"]

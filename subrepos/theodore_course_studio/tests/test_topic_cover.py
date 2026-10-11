@@ -120,12 +120,41 @@ def test_goto_opens_any_slide_and_lists_the_outline(tmp_path):
     assert opened["path_pos"] == 2
     assert opened["slide_index"] == 2
     assert opened["progress"]["completion_percent"] == 0
+    assert opened["progress"]["covered_percent"] == 33
     assert [row["title"] for row in opened["outline"]] == [
         "Following distance",
         "Stop signs",
         "Night driving",
     ]
     assert opened["outline"][2]["current"] is True
+
+
+def test_blank_slides_are_left_out_and_the_last_slide_counts(tmp_path):
+    builder = CourseBuilder(data_dir=tmp_path)
+    engine = TeachEngine(builder)
+    course = StudioCourse(
+        course_id="blank-course",
+        title="Road rules",
+        category="other",
+        slides=[
+            CourseSlide(index=0, title="Following distance", body="Leave space behind the car ahead."),
+            CourseSlide(index=1, title="", body="   ", narration=""),
+            CourseSlide(index=2, title="Night driving", body="Use low beams around other cars."),
+        ],
+    )
+    builder.save_course(course)
+    started = engine.start(session_id="blank-1", course_id=course.course_id, use_voice_agent=False)
+    assert started["path"] == [0, 2]
+    assert [row["title"] for row in started["outline"]] == [
+        "Following distance",
+        "Night driving",
+    ]
+    assert started["progress"]["covered_percent"] == 50
+    engine.advance("blank-1")
+    done = engine.current("blank-1")
+    assert done["path_pos"] == 1
+    assert done["slide_index"] == 2
+    assert done["progress"]["covered_percent"] == 100
 
 
 def test_silence_resumes_the_uncovered_section(tmp_path):

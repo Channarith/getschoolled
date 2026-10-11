@@ -15,16 +15,16 @@ import { theme } from "../theme";
 
 // Static settings items searchable client-side — admin/flags excluded.
 const SETTINGS_ITEMS = [
-  { title: "Account settings", section: "account", keywords: "profile email name" },
-  { title: "Language", section: "language", keywords: "locale language translate" },
-  { title: "Voice & Audio", section: "voice", keywords: "voice tts audio narration speed" },
-  { title: "Notifications", section: "notifications", keywords: "email push notification" },
-  { title: "Subscription", section: "subscription", keywords: "plan billing tier upgrade" },
+  { titleKey: "settings.sectionAccount" as const, section: "account", keywords: "account settings profile email name" },
+  { titleKey: "settings.sectionLang" as const, section: "language", keywords: "language locale translate" },
+  { titleKey: "settings.sectionVoice" as const, section: "voice", keywords: "voice audio tts narration speed" },
+  { titleKey: "settings.sectionNotif" as const, section: "notifications", keywords: "notifications email push" },
+  { titleKey: "search.subscription" as const, section: "subscription", keywords: "subscription plan billing tier upgrade" },
 ];
 
 type ResultItem =
   | { kind: "course"; item: LearnableItem }
-  | { kind: "setting"; title: string; section: string };
+  | { kind: "setting"; titleKey: (typeof SETTINGS_ITEMS)[number]["titleKey"]; section: string };
 
 function useDebounce<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -78,9 +78,9 @@ export default function SearchScreen({
         // Client-side settings filter
         const settingMatches: ResultItem[] = SETTINGS_ITEMS.filter(
           (s) =>
-            s.title.toLowerCase().includes(lower) ||
+            t(s.titleKey).toLowerCase().includes(lower) ||
             s.keywords.toLowerCase().includes(lower),
-        ).map((s) => ({ kind: "setting" as const, title: s.title, section: s.section }));
+        ).map((s) => ({ kind: "setting" as const, titleKey: s.titleKey, section: s.section }));
 
         // API search for courses/learnables
         const res = await searchLearnable({ q, limit: "8" });
@@ -99,7 +99,7 @@ export default function SearchScreen({
     })();
 
     return () => { cancelled = true; };
-  }, [debouncedQuery]);
+  }, [debouncedQuery, t]);
 
   const renderItem = ({ item }: { item: ResultItem }) => {
     if (item.kind === "course") {
@@ -123,7 +123,7 @@ export default function SearchScreen({
                 .join(" · ")}
             </Text>
           </View>
-          <Text style={styles.resultBadge}>Course</Text>
+          <Text style={styles.resultBadge}>{t("search.course")}</Text>
         </TouchableOpacity>
       );
     }
@@ -139,9 +139,9 @@ export default function SearchScreen({
           <Text style={styles.resultIconText}>&#x2699;&#xFE0F;</Text>
         </View>
         <View style={styles.resultBody}>
-          <Text style={styles.resultTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.resultTitle} numberOfLines={2}>{t(item.titleKey)}</Text>
         </View>
-        <Text style={styles.resultBadge}>Settings</Text>
+        <Text style={styles.resultBadge}>{t("search.settings")}</Text>
       </TouchableOpacity>
     );
   };
@@ -189,7 +189,7 @@ export default function SearchScreen({
         </View>
       ) : query.trim().length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.hint}>Type to search courses, games, and settings</Text>
+          <Text style={styles.hint}>{t("search.hint")}</Text>
         </View>
       ) : results.length === 0 ? (
         <View style={styles.center}>

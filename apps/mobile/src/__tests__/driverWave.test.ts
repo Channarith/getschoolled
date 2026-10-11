@@ -13,6 +13,8 @@ describe("on the go waveform", () => {
     expect(script).toContain("salareen-drive-wave");
     expect(script).toContain("course-map");
     expect(script).toContain("% of the course");
+    expect(script).toContain("#sample-clock");
+    expect(script).toContain("salareen-drive-chrome-hidden");
     expect(script).toContain("#student-cam");
     expect(script).toContain("facingMode");
     expect(script).toContain("/api/studio/learn/camera");

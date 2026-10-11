@@ -49,9 +49,9 @@ def test_absence_holds_only_after_the_grace_window() -> None:
     session_id = _sid()
     first = _observe(session_id, 0, {"face_count": 0, "liveness_state": "missing"})
     assert first["hold"] is False
-    brief = _observe(session_id, 1000, {"face_count": 0, "liveness_state": "missing"})
+    brief = _observe(session_id, 400, {"face_count": 0, "liveness_state": "missing"})
     assert brief["hold"] is False
-    second = _observe(session_id, 4000, {"face_count": 0, "liveness_state": "missing"})
+    second = _observe(session_id, 1000, {"face_count": 0, "liveness_state": "missing"})
     assert second["hold"] is True
     assert second["reason"] == "no_learner_detected"
     assert second["absent"] is True
@@ -96,6 +96,36 @@ def test_sustained_look_away_holds() -> None:
     later = _observe(session_id, 46000, looking_away)
     assert later["hold"] is True
     assert "eyes_away_long" in later["cheating_reasons"]
+
+
+def test_face_box_and_pose_count_as_present() -> None:
+    dark = [[0.04 for _ in range(8)] for _ in range(8)]
+    posed = _observe(
+        _sid(),
+        0,
+        {
+            "face_count": 1,
+            "liveness_state": "live",
+            "detector_source": "pose",
+            "foreground_ratio": 0.4,
+            "luminance_grid": dark,
+        },
+    )
+    assert posed["state"] == "present"
+    assert posed["hold"] is False
+    boxed = _observe(
+        _sid(),
+        0,
+        {
+            "face_count": 1,
+            "liveness_state": "live",
+            "detector_source": "face_detector",
+            "face_size_ratio": 0.32,
+            "luminance_grid": dark,
+        },
+    )
+    assert boxed["state"] == "present"
+    assert boxed["hold"] is False
 
 
 def test_coarse_grid_can_show_someone_is_present() -> None:

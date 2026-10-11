@@ -11,7 +11,7 @@
  * SIGNAL_HOLD_MS so a glance does not count.
  */
 
-export const AWAY_HOLD_MS = 2500;
+export const AWAY_HOLD_MS = 800;
 export const RETURN_HOLD_MS = 1200;
 export const SIGNAL_HOLD_MS = 1500;
 export const BLIND_ARM_MS = 8000;
@@ -20,11 +20,11 @@ export const PHONE_PITCH_POSE_ONLY_DEG = 28;
 export const GAZE_DOWN_MIN = 0.38;
 export const YAW_AWAY_DEG = 25;
 
-export const PAUSE_LINE = "I'll pause here. Come back when you're ready.";
-export const RESUME_LINE = "Welcome back. We'll continue from the same place.";
+export const PAUSE_LINE = "We detected that you left the camera. The lesson is paused and will resume when you return.";
+export const RESUME_LINE = "You're back on the camera. We'll continue from the same place.";
 export const PHONE_LINE = "Looks like you might be looking down at a phone. The lesson is still here when you look up.";
 export const LOOK_AWAY_LINE = "Look back at the screen when you can. I'll keep going from here.";
-export const LEFT_LINE = "I can't see you in the camera. I'll wait here.";
+export const LEFT_LINE = "We detected that you left the camera. The lesson is paused and will resume when you return.";
 
 export type PresenceSample = {
   atMs: number;

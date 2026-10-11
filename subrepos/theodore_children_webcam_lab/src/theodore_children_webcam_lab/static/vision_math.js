@@ -237,7 +237,7 @@ export function traceProgress(points, ageBand) {
 // Pitch uses the face-mesh hairline-to-chin ratio (positive = down), the same
 // proxy as theodore_webcam_lab stare_geometry. Eye gaze is the debiased
 // eyeLook blendshape difference. YuNet's five points do not set allowPoseOnly.
-export const AWAY_HOLD_MS = 2500;
+export const AWAY_HOLD_MS = 800;
 export const RETURN_HOLD_MS = 1200;
 export const SIGNAL_HOLD_MS = 1500;
 export const BLIND_ARM_MS = 8000;
@@ -245,11 +245,19 @@ export const PHONE_PITCH_WITH_GAZE_DEG = 18;
 export const PHONE_PITCH_POSE_ONLY_DEG = 28;
 export const GAZE_DOWN_MIN = 0.38;
 export const YAW_AWAY_DEG = 25;
-export const PAUSE_LINE = "I'll pause here. Come back when you're ready.";
-export const RESUME_LINE = "Welcome back. We'll continue from the same place.";
+export const PAUSE_LINE = "We detected that you left the camera. The lesson is paused and will resume when you return.";
+export const RESUME_LINE = "You're back on the camera. We'll continue from the same place.";
 export const PHONE_LINE = "Looks like you might be looking down at a phone. The lesson is still here when you look up.";
 export const LOOK_AWAY_LINE = "Look back at the screen when you can. I'll keep going from here.";
-export const LEFT_LINE = "I can't see you in the camera. I'll wait here.";
+export const LEFT_LINE = "We detected that you left the camera. The lesson is paused and will resume when you return.";
+
+function labLine(fallback, key) {
+  try {
+    const pack = window.__LAB_CHROME;
+    if (pack && pack[key]) return pack[key];
+  } catch (e) { /* tests and non-browser imports keep the English line */ }
+  return fallback;
+}
 
 const NEUTRAL_FACE_UPPER_FRACTION = 0.42;
 const FACE_FRACTION_DEG_PER_UNIT = 250;
@@ -345,7 +353,7 @@ export function createPresenceWatch() {
             events.push({
               type: "resume",
               kind: "returned",
-              line: RESUME_LINE,
+              line: labLine(RESUME_LINE, "resumeLine"),
               awayMs,
               atMs: now,
               signal: sample.source || "",
@@ -370,7 +378,7 @@ export function createPresenceWatch() {
           events.push({
             type: "pause",
             kind: "left_frame",
-            line: PAUSE_LINE,
+            line: labLine(PAUSE_LINE, "pauseLine"),
             atMs: now,
             signal: sample.source || "explicit",
           });
@@ -387,8 +395,8 @@ export function createPresenceWatch() {
         events.push({
           type: "pause",
           kind: "left_frame",
-          line: PAUSE_LINE,
-          notice: LEFT_LINE,
+          line: labLine(PAUSE_LINE, "pauseLine"),
+          notice: labLine(LEFT_LINE, "pauseLine"),
           atMs: now,
           signal: sample.source || "no_face",
         });

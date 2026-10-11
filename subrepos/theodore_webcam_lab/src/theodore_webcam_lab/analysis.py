@@ -1036,6 +1036,9 @@ class WebcamSessionAnalyzer:
         face_count = signal.face_count
         if face_count <= 0:
             return face_count
+        detector = (signal.detector_source or "").strip().lower()
+        if detector in {"face_mesh", "face_detector", "pose"}:
+            return face_count
         if signal.gaze_frontal is not None or signal.gaze_down_score is not None:
             return face_count
         if not signal.luminance_grid:
@@ -1093,7 +1096,8 @@ class WebcamSessionAnalyzer:
             if face_localised and face_size_ratio is None:
                 face_size_ratio = estimate.face_size_ratio
             if (
-                not estimate.face_present
+                detector not in {"face_mesh", "face_detector", "pose"}
+                and not estimate.face_present
                 and self._normalize_expression(signal.expression_label) == "unknown"
                 and signal.gaze_frontal is None
                 and signal.gaze_down_score is None

@@ -52,6 +52,9 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The old "tools" package was removed from the SDK repository.
+          packages: platform-tools
 
       - name: Fresh web build (no cache)
         run: |

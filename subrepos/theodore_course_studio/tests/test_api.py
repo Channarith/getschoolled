@@ -47,7 +47,11 @@ def test_health_and_studio_page():
     assert "salareen-telemetry" in page.text
     assert "salareen-chrome" in page.text
     assert 'id="student-cam"' in page.text
+    assert 'id="student-cam-track"' in page.text
     assert 'id="student-cam-hide"' in page.text
+    assert "startStudentTracking" in page.text
+    assert "FACE_LANDMARKS_LIPS" in page.text
+    assert "PoseLandmarker" in page.text
     assert "setStudentCamHidden" in page.text
     assert "enableStudentCamDrag" in page.text
     assert "Drag to move the camera" in page.text
@@ -65,6 +69,13 @@ def test_health_and_studio_page():
     assert "owner_face_match" in page.text
     assert "lessonHandSample" in page.text
     assert "detector_source = 'face_mesh'" in page.text
+    assert "facial.face_count > 0" in page.text
+    assert "seenPose" in page.text
+    assert "detector_source = 'pose'" in page.text
+    assert 'id="presence-hold"' in page.text
+    assert "We detected that you left the camera." in page.text
+    assert "pauseLessonForAbsence" in page.text
+    assert "studentStillAway" in page.text
     assert "km:'km-KH'" in page.text
     assert 'id="attention-aside"' in page.text
     assert "is-awake" in page.text
@@ -87,7 +98,10 @@ def test_health_and_studio_page():
     assert "Speak your answer" in page.text
     assert "fetchLockedVoice" in page.text
     assert "courseVoiceGender" in page.text
-    assert 'id="avatar-choice"' in page.text
+    assert ">Ask</button>" in page.text
+    assert "Show Avatar" in page.text
+    assert 'id="avatar-choice"' not in page.text
+    assert "selectedAvatarId = 'student'" in page.text
     assert "loadAvatarChoices" in page.text
     assert "avatarPrefs.presenter = presenterId" in page.text
     assert "persona: selectedAvatarId" in page.text

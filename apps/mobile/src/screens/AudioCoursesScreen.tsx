@@ -99,7 +99,7 @@ export default function AudioCoursesScreen({ onOpen, onOpenStudio, initialCatego
     <View style={styles.container}>
       <Text style={styles.kicker}>{t("tab.drive")}</Text>
       <Text style={styles.h1}>{t("drive.title")}</Text>
-      <Text style={styles.sub}>Eyes-free audio courses — hundreds of listen-anywhere lessons</Text>
+      <Text style={styles.sub}>{t("drive.subtitle")}</Text>
       <GlassPanel style={styles.searchWrap} padded={false}>
         <Ionicons name="search" size={18} color={theme.colors.muted} style={styles.searchIcon} />
         <TextInput
@@ -126,7 +126,7 @@ export default function AudioCoursesScreen({ onOpen, onOpenStudio, initialCatego
           </AnimatedPressable>
         )}
       />
-      <Text style={styles.count}>{total} results</Text>
+      <Text style={styles.count}>{t("drive.results", { n: total })}</Text>
       {onOpenStudio ? <StudioCourseSection presentation="audio" onOpen={onOpenStudio} /> : null}
       {error ? (
         <GlassPanel style={{ marginHorizontal: theme.spacing.screenX, marginBottom: 8 }}>

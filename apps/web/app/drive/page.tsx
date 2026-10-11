@@ -17,6 +17,7 @@ import {
   type AudioCourseRow,
   type Instructor,
 } from "../lib/api";
+import DriveStageLook, { DRIVE_LOOKS, isDriveLook } from "../components/DriveStageLook";
 import DriveVoiceChip from "../components/DriveVoiceChip";
 import SignInToUse from "../components/SignInToUse";
 import VideoAdBreak from "../components/VideoAdBreak";
@@ -24,6 +25,7 @@ import { effectiveAdTier } from "../lib/useCourseAds";
 import { useDemoOnlyAnonymous, useFlag } from "../lib/flags";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
+import { LOCALES, type Locale } from "../lib/i18n-strings";
 import { getVoicePrefs, setVoicePrefs } from "../lib/voicePrefs";
 import { applyVoicePrefsToTts, accentFromPrefs, loadVoiceCatalog } from "../lib/narrationTts";
 import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, speakNaturally } from "../lib/tts";
@@ -53,8 +55,14 @@ export default function DrivePage() {
   );
 }
 
+function audibleCourse<T extends { segments: { text?: string }[] }>(course: T): T {
+  const segments = course.segments.filter((segment) => /[^\W\d_]/u.test(segment.text || ""));
+  if (!segments.length || segments.length === course.segments.length) return course;
+  return { ...course, segments };
+}
+
 function DrivePageInner() {
-  const { t, locale } = useT();
+  const { t, locale, setLocale } = useT();
   const searchParams = useSearchParams();
   const deepLinkCourse = searchParams.get("course");
   const [cats, setCats] = useState<{ category: string; count: number }[]>([]);
@@ -83,6 +91,7 @@ function DrivePageInner() {
   const [micGranted, setMicGranted] = useState(false);
   const [voiceLive, setVoiceLive] = useState(false);
   const [voiceHidden, setVoiceHidden] = useState(false);
+  const [stageLook, setStageLook] = useState("bars");
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructor, setInstructorState] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
@@ -152,6 +161,13 @@ function DrivePageInner() {
   useEffect(() => {
     setAssistantStatus(t("drive.assistantDefault"));
   }, [t]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("audio-lab-look") || "";
+      if (isDriveLook(saved)) setStageLook(saved);
+    } catch { /* a fresh visit can keep the bars */ }
+  }, []);
 
   // Hard-stop narration + mic when leaving Drive Mode. Bump playGen first —
   // speechSynthesis.cancel() fires utterance onend, which would otherwise
@@ -356,7 +372,7 @@ function DrivePageInner() {
     getAudioCourse(id, locale, trainingLang)
       .then((c) => {
         if (cancelled) return;
-        setCourse(c);
+        setCourse(audibleCourse(c));
         setSeg(at);
         if (wasPlaying) playSeg(c, at);
         else setPlaying(false);
@@ -383,7 +399,7 @@ function DrivePageInner() {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only (no audio)
     setError("");
     try {
-      const c = await getAudioCourse(id, locale, trainingLang);
+      const c = audibleCourse(await getAudioCourse(id, locale, trainingLang));
       setCourse(c); setSeg(0);
       // The voice agent speaks the class and hears questions. Connect it
       // before the first segment so playback does not fall back to a wake phrase.
@@ -453,6 +469,25 @@ function DrivePageInner() {
 
   // Cancel (not just pause) so a language switch while paused can't resume a
   // stale utterance; Resume replays the current segment in the current voice.
+  async function playWithXai() {
+    const current = courseRef.current;
+    if (!current) return;
+    if (playingRef.current && driveVoiceRef.current) {
+      pause();
+      return;
+    }
+    if (!driveVoiceRef.current) {
+      cancelSpeech();
+      const voiced = await beginDriveVoice(current);
+      if (voiced) {
+        playSegRef.current(current, segRef.current);
+        return;
+      }
+    }
+    if (playingRef.current) pause();
+    else resume();
+  }
+
   function pause() {
     playGenRef.current++;
     driveVoiceRef.current?.hold();
@@ -863,15 +898,27 @@ function DrivePageInner() {
 
   const BIG = { fontSize: 22, padding: "16px 22px", borderRadius: 14 };
 
+  const chromeTimer = useRef<number | null>(null);
+  const chromeWasHidden = useRef(false);
+  const showDriveChrome = useCallback(() => {
+    setOptionsHidden(false);
+    if (chromeTimer.current) window.clearTimeout(chromeTimer.current);
+    chromeTimer.current = window.setTimeout(() => setOptionsHidden(true), 4000);
+  }, []);
   useEffect(() => {
     const onChange = () => {
       const on = document.fullscreenElement === stageRef.current;
       setStageFull(on);
-      if (!on) setOptionsHidden(false);
+      if (!on) {
+        setOptionsHidden(false);
+        if (chromeTimer.current) window.clearTimeout(chromeTimer.current);
+      } else {
+        showDriveChrome();
+      }
     };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
+  }, [showDriveChrome]);
 
   function toggleStageFull() {
     const stage = stageRef.current;
@@ -887,6 +934,11 @@ function DrivePageInner() {
     <main
       ref={stageRef}
       className="container"
+      onPointerDown={() => {
+        if (!stageFull) return;
+        chromeWasHidden.current = optionsHidden;
+        showDriveChrome();
+      }}
       style={{
         maxWidth: stageFull ? "none" : 900,
         background: stageFull ? "#0b1020" : undefined,
@@ -895,17 +947,17 @@ function DrivePageInner() {
       }}
     >
       <div style={{
-        display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 8,
+        display: stageFull && optionsHidden ? "none" : "flex", justifyContent: "flex-end", gap: 8, marginBottom: 8,
         position: stageFull ? "absolute" : "relative",
         top: stageFull ? 12 : undefined, right: stageFull ? 12 : undefined, zIndex: 7,
       }}>
         {stageFull ? (
           <button type="button" onClick={() => setOptionsHidden((v) => !v)} aria-pressed={optionsHidden}>
-            {optionsHidden ? "Show options" : "Hide options"}
+            {optionsHidden ? t("drive.showOptions") : t("drive.hideOptions")}
           </button>
         ) : null}
         <button type="button" onClick={toggleStageFull} aria-pressed={stageFull}>
-          {stageFull ? "Exit full screen" : "Full screen"}
+          {stageFull ? t("drive.exitFullScreen") : t("drive.fullScreen")}
         </button>
       </div>
       {adBreak && (
@@ -930,9 +982,9 @@ function DrivePageInner() {
       {/* Now playing */}
       {loggedIn && course && (
         <div className="card" style={{ borderColor: "#0ea5e9", background: "#0b1020", color: "#e8ecf6" }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <div style={{ display: stageFull && optionsHidden ? "none" : "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
             <label style={{ flex: "1 1 180px", display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#d7e7ea" }}>
-              Course
+              {t("drive.courseLabel")}
               <select
                 aria-label="Course"
                 value={course.id}
@@ -955,7 +1007,8 @@ function DrivePageInner() {
                 onChange={(e) => {
                   const next = normalizeTrainingLocale(e.target.value);
                   setTrainingLang(next);
-                  setTrainingLocale(next);
+                  if ((LOCALES as readonly string[]).includes(next)) setLocale(next as Locale);
+                  else setTrainingLocale(next);
                 }}
                 style={{ minHeight: 40, borderRadius: 10, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 15 }}
               >
@@ -964,39 +1017,48 @@ function DrivePageInner() {
                 ))}
               </select>
             </label>
-            {voiceHidden ? (
-              <button type="button" onClick={() => setVoiceHidden(false)} style={{ alignSelf: "end", minHeight: 40 }}>
-                Show xAI
-              </button>
-            ) : null}
+            <label style={{ flex: "1 1 160px", display: stageFull && optionsHidden ? "none" : "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#d7e7ea" }}>
+              {t("drive.lookLabel")}
+              <select
+                aria-label={t("drive.animation")}
+                value={stageLook}
+                onChange={(e) => {
+                  const next = isDriveLook(e.target.value) ? e.target.value : "bars";
+                  setStageLook(next);
+                  try { localStorage.setItem("audio-lab-look", next); } catch { /* keep the choice for this visit */ }
+                }}
+                style={{ minHeight: 40, borderRadius: 10, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 15 }}
+              >
+                <optgroup label={t("look.motion")}>
+                  {DRIVE_LOOKS.filter((row) => row.group === "Motion").map((row) => (
+                    <option key={row.value} value={row.value}>{t(`look.${row.value}`)}</option>
+                  ))}
+                </optgroup>
+                <optgroup label={t("look.faces")}>
+                  {DRIVE_LOOKS.filter((row) => row.group === "Faces").map((row) => (
+                    <option key={row.value} value={row.value}>{t(`look.${row.value}`)}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </label>
           </div>
           <button
             type="button"
             aria-label="Audio playing"
-            onClick={() => { if (playing) pause(); else resume(); }}
+            onClick={() => {
+              if (stageFull && chromeWasHidden.current) return;
+              void playWithXai();
+            }}
             style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-              width: "100%", minHeight: 140, margin: "0 0 12px", padding: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: "100%", minHeight: stageLook.startsWith("face") || stageLook === "ripple" || stageLook === "lantern" ? 280 : 160,
+              margin: "0 0 12px", padding: 0,
               border: 0, borderRadius: 16, background: "#070b14", cursor: "pointer",
             }}
           >
-            {Array.from({ length: 17 }, (_, index) => (
-              <i
-                key={index}
-                style={{
-                  display: "block",
-                  width: 9,
-                  borderRadius: 99,
-                  height: 18 + (index % 4) * 12,
-                  background: "linear-gradient(180deg,#e8fdff,#3ec6e0)",
-                  transformOrigin: "center",
-                  animation: playing ? `salareenWave .8s ease-in-out ${index % 5 * 0.07}s infinite` : "none",
-                }}
-              />
-            ))}
+            <DriveStageLook look={stageLook} playing={playing} />
           </button>
-          <style>{"@keyframes salareenWave { 50% { transform: scaleY(1.8); } }"}</style>
-          <div style={{ margin: "8px 0 14px" }}>
+          <div hidden={stageFull && optionsHidden} style={{ margin: "8px 0 14px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
               <strong>{Math.round(((seg + 1) / course.segments.length) * 100)}% of the course</strong>
               <span className="muted">Part {seg + 1} of {course.segments.length}</span>
@@ -1012,13 +1074,13 @@ function DrivePageInner() {
                 playSeg(course, i);
               }}
               style={{ width: "100%", accentColor: "#0ea5e9", cursor: "pointer" }}
-              aria-label="Course progress"
+              aria-label={t("drive.progress")}
             />
             <div style={{ height: 4, background: "#1d2746", borderRadius: 6, overflow: "hidden", marginTop: 6 }}>
               <div style={{ height: "100%", width: `${((seg + 1) / course.segments.length) * 100}%`, background: "#0ea5e9" }} />
             </div>
             <details style={{ marginTop: 8 }}>
-              <summary>Course outline</summary>
+              <summary>{t("drive.outline")}</summary>
               <ol style={{ margin: "8px 0 0", paddingLeft: 18, maxHeight: 220, overflow: "auto" }}>
                 {course.segments.map((segment, index) => (
                   <li key={index} style={{ margin: "4px 0" }}>
@@ -1109,9 +1171,11 @@ function DrivePageInner() {
       {loggedIn && course ? (
         <DriveVoiceChip
           live={voiceLive}
-          hidden={voiceHidden}
+          hidden={stageFull && optionsHidden}
+          dismissed={voiceHidden}
           onToggle={() => { void toggleVoiceChip(); }}
           onHide={() => setVoiceHidden(true)}
+          onShow={() => setVoiceHidden(false)}
         />
       ) : null}
 
@@ -1186,7 +1250,7 @@ function DrivePageInner() {
 
       <section id="audio-lab" className="card" style={{ marginTop: 18 }} hidden={stageFull && optionsHidden}>
         <p className="muted" style={{ marginTop: 0 }}>
-          Hands-free speech translation. The microphone stays in this browser, and Theodore answers with the xAI voice agent.
+          {t("drive.labIntro")}
         </p>
         <AudioLabFrame locale={locale} />
       </section>
@@ -1195,6 +1259,7 @@ function DrivePageInner() {
 }
 
 function AudioLabFrame({ locale }: { locale: string }) {
+  const { t } = useT();
   const [ready, setReady] = useState(false);
   const [down, setDown] = useState(false);
   useEffect(() => {
@@ -1212,11 +1277,11 @@ function AudioLabFrame({ locale }: { locale: string }) {
   if (down) {
     return (
       <p className="muted" data-testid="audio-lab-down">
-        The audio lab is not connected. The translation page did not load.
+        {t("drive.labDown")}
       </p>
     );
   }
-  if (!ready) return <p className="muted">Opening the audio lab…</p>;
+  if (!ready) return <p className="muted">{t("drive.opening")}</p>;
   return (
     <iframe
       title="Audio translation lab"

@@ -16,6 +16,7 @@ import {
 } from "../lib/bugReport";
 import { friendlyError, isBugScreenshotTooLargeError, isOfflineError } from "../lib/errors";
 import { useFlag } from "../lib/flags";
+import { useT } from "../lib/i18n";
 
 const SIZE = 42;
 const STORAGE_KEY = "aoep-bug-button-position";
@@ -36,6 +37,7 @@ function clamp(p: Point): Point {
  */
 export default function FloatingBugReporter() {
   const enabled = useFlag<boolean>("engagement.in_app_bug_reporter", true);
+  const { t } = useT();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState("");
@@ -80,11 +82,11 @@ export default function FloatingBugReporter() {
     setDoneId("");
     setError("");
     setCapturing(true);
-    setCaptureNote("Choose this tab/window to attach what you see.");
+    setCaptureNote(t("bug.chooseTab"));
     // Must start inside the click gesture for browser screen-share permission.
     const captured = await captureDisplayScreenshot();
     setShot(captured);
-    setCaptureNote(captured ? "Current screen attached automatically." : "No automatic screenshot attached.");
+    setCaptureNote(captured ? t("bug.attachedAuto") : t("bug.noShot"));
     setCapturing(false);
     setOpen(true);
   }
@@ -93,15 +95,15 @@ export default function FloatingBugReporter() {
     if (!file) return;
     try {
       setShot(await fileToScreenshotUpload(file));
-      setCaptureNote("Screenshot attached.");
+      setCaptureNote(t("bug.attached"));
     } catch (cause) {
-      setError(friendlyError(cause, "Could not read that screenshot"));
+      setError(friendlyError(cause, t("bug.readFailed")));
     }
   }
 
   async function send() {
     if (!description.trim()) {
-      setError("Please briefly describe what failed.");
+      setError(t("bug.describe"));
       return;
     }
     setBusy(true);
@@ -142,13 +144,13 @@ export default function FloatingBugReporter() {
           setDoneId(result.id);
           setDescription("");
           setShot(null);
-          setCaptureNote("Sent without screenshot (attachment upload failed).");
+          setCaptureNote(t("bug.sentWithout"));
           return;
         }
         throw cause;
       }
     } catch (cause) {
-      setError(friendlyError(cause, "Could not send the report — check network and try again."));
+      setError(friendlyError(cause, t("bug.sendFailed")));
     } finally {
       setBusy(false);
     }
@@ -178,8 +180,8 @@ export default function FloatingBugReporter() {
     <>
       <button
         type="button"
-        aria-label="Report a bug"
-        title="Drag to move · click to report a bug"
+        aria-label={t("bug.report")}
+        title={t("bug.drag")}
         disabled={capturing}
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -222,7 +224,7 @@ export default function FloatingBugReporter() {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Report a bug"
+          aria-label={t("bug.report")}
           style={{
             position: "fixed",
             inset: 0,
@@ -242,30 +244,30 @@ export default function FloatingBugReporter() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
               <div>
-                <h2 style={{ margin: 0 }}>🐛 Quick bug report</h2>
+                <h2 style={{ margin: 0 }}>🐛 {t("bug.title")}</h2>
                 <p className="muted" style={{ margin: "5px 0 0", fontSize: 13 }}>
-                  We attach this page, recent errors/API traces, app/device context, and your screenshot.
+                  {t("bug.body")}
                 </p>
               </div>
-              <button type="button" aria-label="Close" disabled={busy} onClick={() => setOpen(false)}>✕</button>
+              <button type="button" aria-label={t("bug.close")} disabled={busy} onClick={() => setOpen(false)}>✕</button>
             </div>
 
             {doneId ? (
               <div style={{ marginTop: 18 }}>
-                <strong>Thanks — report {doneId} was sent.</strong>
+                <strong>{t("bug.thanks", { id: doneId })}</strong>
                 <div style={{ marginTop: 14 }}>
-                  <button type="button" onClick={() => setOpen(false)}>Close</button>
+                  <button type="button" onClick={() => setOpen(false)}>{t("bug.close")}</button>
                 </div>
               </div>
             ) : (
               <>
                 <label style={{ display: "block", marginTop: 16, fontWeight: 700 }}>
-                  What failed?
+                  {t("bug.whatFailed")}
                   <textarea
                     autoFocus
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
-                    placeholder="Example: I tapped Start class, but nothing played."
+                    placeholder={t("bug.placeholder")}
                     rows={4}
                     style={{
                       display: "block",
@@ -283,7 +285,7 @@ export default function FloatingBugReporter() {
                 <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <span className="muted" style={{ fontSize: 12 }}>{captureNote}</span>
                   <label style={{ cursor: "pointer", fontSize: 13, textDecoration: "underline" }}>
-                    Choose another screenshot
+                    {t("bug.chooseFile")}
                     <input
                       type="file"
                       accept="image/*"
@@ -300,9 +302,9 @@ export default function FloatingBugReporter() {
                     onClick={() => void send()}
                     style={{ background: "var(--accent)", color: "#fff" }}
                   >
-                    {busy ? "Sending…" : "Send report"}
+                    {busy ? t("bug.sending") : t("bug.send")}
                   </button>
-                  <button type="button" disabled={busy} onClick={() => setOpen(false)}>Cancel</button>
+                  <button type="button" disabled={busy} onClick={() => setOpen(false)}>{t("bug.cancel")}</button>
                 </div>
               </>
             )}

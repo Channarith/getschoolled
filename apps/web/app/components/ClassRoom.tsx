@@ -65,7 +65,7 @@ import CourseStoryboardPlayer from "./CourseStoryboardPlayer";
 import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
 import CameraLightingScreener from "./CameraLightingScreener";
 import LessonCameraCorner from "./LessonCameraCorner";
-import type { PresenceCue } from "../lib/learnerFocus";
+import { LEFT_LINE, PAUSE_LINE, RESUME_LINE, type PresenceCue } from "../lib/learnerFocus";
 import { useT } from "../lib/i18n";
 import { buildNarrationSpeakOptions } from "../lib/narrationTts";
 import { cancelSpeech, localeToBcp47, speakNaturally } from "../lib/tts";
@@ -1413,7 +1413,21 @@ export default function ClassRoom({
             }
           >
             {presenceNote ? (
-              <p className="muted" style={{ margin: 0 }}>{presenceNote}</p>
+              <p
+                role="status"
+                style={{
+                  margin: 0,
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  background: "#1c1408",
+                  color: "#fde68a",
+                  border: "1px solid #f59e0b",
+                  fontWeight: 700,
+                  textAlign: "center",
+                }}
+              >
+                {presenceNote}
+              </p>
             ) : null}
             <LessonCameraCorner
               stream={lessonCamera}
@@ -1431,23 +1445,28 @@ export default function ClassRoom({
                     away_ms: cue.awayMs || 0,
                   },
                 });
+                const said = (line: string) => (
+                  line === PAUSE_LINE || line === LEFT_LINE ? t("presence.pause")
+                  : line === RESUME_LINE ? t("presence.resume")
+                  : line
+                );
                 if (cue.type === "notice") {
-                  setPresenceNote(cue.line);
+                  setPresenceNote(said(cue.line));
                   return;
                 }
                 if (cue.type === "pause") {
                   if (voiceAwayRef.current) return;
                   voiceAwayRef.current = true;
                   stopSpeaking();
-                  setPresenceNote(cue.notice || cue.line);
-                  if (speakAnswers) speak(cue.line, undefined, true);
+                  setPresenceNote(said(cue.notice || cue.line));
+                  if (speakAnswers) speak(said(cue.line), undefined, true);
                   return;
                 }
                 voiceAwayRef.current = false;
                 setPresenceNote("");
                 const held = heldSpeechRef.current;
                 if (!speakAnswers) return;
-                speak(cue.line, () => {
+                speak(said(cue.line), () => {
                   if (voiceAwayRef.current || !held || held === cue.line) return;
                   speak(held);
                 }, true);

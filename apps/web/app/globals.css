@@ -1146,6 +1146,9 @@ textarea {
   padding: 56px 24px 72px;
   color: #fff;
 }
+.guest-landing.landing-hero {
+  min-height: 100vh;
+}
 
 .landing-hero-bg {
   z-index: 0;
