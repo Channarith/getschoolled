@@ -607,11 +607,18 @@ export class TheodoreAvatar {
         loadKey("aa", map.aa),
         loadKey("oh", map.oh),
         loadKey("ee", map.ee),
+        loadKey("mbp", map.mbp),
+        loadKey("half", map.half),
         loadKey("blink", map.blink),
+        loadKey("blink_half", map.blink_half),
         loadKey("rest", map.rest),
       ]);
       if (!keyframes.rest) keyframes.rest = image;
       base = keyframes.rest;
+      this._kfOpen = 0;
+      this._kfBlink = 0;
+      this._kfShape = "rest";
+      this._kfShapeHold = 0;
     } else {
       const rig = buildPortraitRig(image);
       base = rig.base;
@@ -713,8 +720,71 @@ export class TheodoreAvatar {
   }
 
   /**
-   * Serenity / photographic presenters: crossfade Gemini keyframes.
-   * No ellipse mouth or oval eyelid stickers — lips and lids come from real frames.
+   * Soft elliptical mask so Nano Banana mouth/eye frames only replace the face
+   * region — avoids the whole hologram ghost-fading on every phoneme.
+   */
+  _drawFaceRegion(source, kind, alpha) {
+    const portrait = this.portrait;
+    if (!portrait || !source || alpha <= 0.01) return;
+    const { ctx, canvas } = portrait;
+    const w = canvas.width;
+    const h = canvas.height;
+    const layer = portrait._maskCanvas || document.createElement("canvas");
+    if (layer.width !== w || layer.height !== h) {
+      layer.width = w;
+      layer.height = h;
+      portrait._maskCanvas = layer;
+    }
+    const lctx = layer.getContext("2d");
+    lctx.clearRect(0, 0, w, h);
+    lctx.globalCompositeOperation = "source-over";
+    lctx.globalAlpha = 1;
+    lctx.drawImage(source, 0, 0, w, h);
+    lctx.globalCompositeOperation = "destination-in";
+    const cx = w * 0.50;
+    let cy;
+    let rx;
+    let ry;
+    if (kind === "eyes") {
+      cy = h * 0.215;
+      rx = w * 0.20;
+      ry = h * 0.055;
+    } else {
+      // Mouth / lower face — sits just below the eyes on the full-body plate.
+      cy = h * 0.285;
+      rx = w * 0.15;
+      ry = h * 0.065;
+    }
+    const grad = lctx.createRadialGradient(cx, cy, Math.min(rx, ry) * 0.25, cx, cy, Math.max(rx, ry));
+    grad.addColorStop(0, "rgba(0,0,0,1)");
+    grad.addColorStop(0.55, "rgba(0,0,0,0.92)");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    lctx.fillStyle = grad;
+    lctx.beginPath();
+    lctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    lctx.fill();
+    ctx.save();
+    ctx.globalAlpha = clamp(alpha);
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
+  }
+
+  _mouthKeyframeFor(shape, keyframes) {
+    if (shape === "oh" && keyframes.oh) return keyframes.oh;
+    if (shape === "ee" && keyframes.ee) return keyframes.ee;
+    if ((shape === "mbp" || shape === "fv" || shape === "rest") && keyframes.mbp) {
+      return shape === "rest" ? null : keyframes.mbp;
+    }
+    if (shape === "mbp" || shape === "fv") return keyframes.mbp || null;
+    if (shape === "rest") return null;
+    if (shape === "half" && keyframes.half) return keyframes.half;
+    if (shape === "l" && keyframes.half) return keyframes.half;
+    if (shape === "wq" && keyframes.oh) return keyframes.oh;
+    return keyframes.aa || keyframes.half || keyframes.oh || keyframes.ee || null;
+  }
+
+  /**
+   * Serenity: Nano Banana lip/blink keyframes, ROI-blended (no oval stickers).
    */
   paintKeyframePortrait(open, blink, mouthShape = "aa") {
     const portrait = this.portrait;
@@ -726,25 +796,28 @@ export class TheodoreAvatar {
     ctx.clearRect(0, 0, w, h);
     ctx.globalAlpha = 1;
     ctx.drawImage(rest, 0, 0, w, h);
+
     const amount = clamp(open);
-    if (amount > 0.02) {
-      const key = (mouthShape === "oh" && keyframes.oh)
-        ? keyframes.oh
-        : (mouthShape === "ee" && keyframes.ee)
-          ? keyframes.ee
-          : (mouthShape === "mbp" || mouthShape === "fv" || mouthShape === "rest")
-            ? null
-            : (keyframes.aa || keyframes.oh || keyframes.ee);
-      if (key) {
-        // Ease so quiet levels do not flash a half-open mouth.
-        ctx.globalAlpha = clamp(amount * amount * (3 - 2 * amount));
-        ctx.drawImage(key, 0, 0, w, h);
-      }
+    const key = amount > 0.03 ? this._mouthKeyframeFor(mouthShape, keyframes) : null;
+    if (key) {
+      // Quiet levels stay near rest; loud levels fully seat the viseme in the mouth ROI.
+      const mouthAlpha = clamp(smooth(amount) * (0.55 + amount * 0.45));
+      this._drawFaceRegion(key, "mouth", mouthAlpha);
     }
+
     const lid = clamp(blink);
-    if (lid > 0.02 && keyframes.blink) {
-      ctx.globalAlpha = clamp(lid);
-      ctx.drawImage(keyframes.blink, 0, 0, w, h);
+    if (lid > 0.02) {
+      if (lid < 0.55 && keyframes.blink_half) {
+        this._drawFaceRegion(keyframes.blink_half, "eyes", clamp(lid / 0.55));
+      } else if (keyframes.blink) {
+        const closedAlpha = keyframes.blink_half
+          ? clamp((lid - 0.45) / 0.55)
+          : lid;
+        if (keyframes.blink_half && lid < 0.85) {
+          this._drawFaceRegion(keyframes.blink_half, "eyes", 1);
+        }
+        this._drawFaceRegion(keyframes.blink, "eyes", Math.max(closedAlpha, lid * 0.85));
+      }
     }
     ctx.globalAlpha = 1;
     portrait.texture.needsUpdate = true;
@@ -765,20 +838,50 @@ export class TheodoreAvatar {
     const levelFresh = performance.now() - (this.voiceLevelAt || 0) < 220;
     const level = !paused && levelFresh ? this.voiceLevel : 0;
     if (!paused && (this.speaking || level > 0.05)) {
-      const shape = this.speaking ? this.articulationAt(this.speechClock()) : { open: 0, shape: "aa" };
-      open = Math.max(Number(shape.open) || 0, level * 1.6);
-      mouthShape = shape.shape || "aa";
-      if (!this.speaking && level > 0.05) mouthShape = "aa";
+      if (this.speaking) {
+        const shape = this.articulationAt(this.speechClock());
+        open = Math.max(Number(shape.open) || 0, level * 1.35);
+        mouthShape = shape.shape || "aa";
+      } else {
+        // Live voice without phoneme text: pick visemes from loudness + time
+        // so the mouth is not stuck on a single "aa" frame.
+        open = clamp(level * 1.45);
+        const tick = Math.floor(t * 7.2);
+        if (level < 0.18) mouthShape = "mbp";
+        else if (level < 0.34) mouthShape = "half";
+        else if (level < 0.55) mouthShape = tick % 2 === 0 ? "aa" : "ee";
+        else if (level < 0.78) mouthShape = tick % 3 === 0 ? "oh" : "aa";
+        else mouthShape = tick % 2 === 0 ? "aa" : "oh";
+      }
       nod += Math.sin(t * 7.2) * 0.028 * Math.max(0.25, open);
     }
     if (t - this.lastBlink > this.nextBlink) {
       this.lastBlink = t;
-      this.nextBlink = 2.6 + Math.random() * 3.2;
+      this.nextBlink = 2.4 + Math.random() * 3.6;
     }
     const blinkAge = t - this.lastBlink;
-    const blink = !paused && blinkAge < 0.16 ? Math.sin(clamp(blinkAge / 0.16) * Math.PI) : 0;
-    // Serenity keyframes: keep body still — only face frames change (avoids swimmy hologram).
+    const blinkDur = 0.22;
+    let blink = !paused && blinkAge < blinkDur
+      ? Math.sin(clamp(blinkAge / blinkDur) * Math.PI)
+      : 0;
+
+    // Temporal smoothing — Nano Banana frames look natural when they ease.
     if (this.portrait?.driver === "keyframes") {
+      this._kfOpen = (this._kfOpen ?? 0) + (open - (this._kfOpen ?? 0)) * 0.32;
+      this._kfBlink = (this._kfBlink ?? 0) + (blink - (this._kfBlink ?? 0)) * 0.45;
+      if (mouthShape !== this._kfShape) {
+        this._kfShapeHold = (this._kfShapeHold ?? 0) + 1;
+        // Hold a viseme briefly so frames do not strobe every audio sample.
+        if (this._kfShapeHold > 2 || open < 0.08) {
+          this._kfShape = mouthShape;
+          this._kfShapeHold = 0;
+        }
+      } else {
+        this._kfShapeHold = 0;
+      }
+      open = this._kfOpen;
+      blink = this._kfBlink;
+      mouthShape = this._kfShape || mouthShape;
       group.position.y = 1.82;
       group.rotation.x = 0;
       group.rotation.y = 0;

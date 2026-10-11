@@ -365,6 +365,9 @@ def presenter_manifest() -> dict[str, Any]:
             "aa": "serenity_kf/mouth_aa.png",
             "oh": "serenity_kf/mouth_oh.png",
             "ee": "serenity_kf/mouth_ee.png",
+            "mbp": "serenity_kf/mouth_mbp.png",
+            "half": "serenity_kf/mouth_half.png",
+            "blink_half": "serenity_kf/eyes_half.png",
             "blink": "serenity_kf/eyes_closed.png",
         }
         # Only advertise keyframes that actually exist (avoids broken loads).

@@ -121,6 +121,8 @@ def test_avatar_assets_are_offline_and_studio_wires_accessibility_controls():
     assert 'driver === "keyframes"' in runtime.text
     # Oval mouth stickers must not be used on the Serenity keyframe path.
     assert "paintKeyframePortrait(open, blink, mouthShape)" in runtime.text
+    assert "_drawFaceRegion" in runtime.text
+    assert "blink_half" in runtime.text
     assert "prefers-reduced-motion" in page.text
     assert "theodore-avatar-fallback" in page.text
     assert "speechBoundary" in page.text
@@ -141,7 +143,9 @@ def test_presenter_manifest_defaults_to_builtin():
     assert serenity["face_driver"] == "keyframes"
     assert serenity["url"].endswith("presenter_serenity.png")
     assert serenity["voice_gender"] == "female"
-    assert set(serenity["keyframes"]) >= {"rest", "aa", "oh", "ee", "blink"}
+    assert set(serenity["keyframes"]) >= {
+        "rest", "aa", "oh", "ee", "mbp", "half", "blink", "blink_half",
+    }
     serenity_img = client.get(serenity["url"])
     assert serenity_img.status_code == 200
     assert serenity_img.content[:8] == b"\x89PNG\r\n\x1a\n"
