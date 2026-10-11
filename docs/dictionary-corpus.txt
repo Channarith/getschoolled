@@ -1,0 +1,82 @@
+Dictionary + voice corpus (EN + Khmer)
+======================================
+
+Self-hosted lexicon pipeline: open baselines → staging → review → content packs
+→ progressive read-aloud trainer → CosyVoice raw audio → noise-filter crisp/gold.
+
+No paid TTS/LLM APIs required. edge-tts / ElevenLabs must never be marked gold.
+
+Layout (AOEP_DICTIONARY_DIR, default ~/.cache/aoep/dictionary)
+-------------------------------------------------------------
+  baselines/     wordfreq, WordNet glosses, CMUdict, Wiktionary extract, Tatoeba, Khmer snapshot
+  staging/       en.jsonl km.jsonl
+  review/        queue.jsonl feedback.json
+  sentences/     curriculum JSONL
+  progress/      per-learner mastery
+  audio/{lang}/raw|crisp/
+  export/        vocabulary + slang packs (set AOEP_CONTENT_PACKS to this dir)
+
+Quick start
+-----------
+  . .venv/bin/activate
+  export AOEP_DICTIONARY_DIR=$PWD/.cache/dictionary   # optional local dir
+
+  python3 scripts/dictionary/fetch_baselines.py --from-fixtures
+  python3 scripts/dictionary/ingest_merge.py
+  python3 scripts/dictionary/route_review.py
+  python3 scripts/dictionary/review.py list
+  python3 scripts/dictionary/review.py confirm --id <entry_id>
+  python3 scripts/dictionary/build_sentences.py --language en
+  python3 scripts/dictionary/export_packs.py
+  # optional: ship curated EN core into packages/shared content_packs
+  python3 scripts/dictionary/export_packs.py --ship
+
+  # One-shot continuous loop (idempotent):
+  python3 scripts/dictionary/train_update.py
+  python3 scripts/dictionary/train_update.py --ship-packs --synth   # needs COSYVOICE_URL
+
+Read-aloud trainer (pronunciation + enunciation)
+------------------------------------------------
+  CLI:
+    python3 scripts/dictionary/read_aloud.py --once
+    python3 scripts/dictionary/read_aloud.py --heard "She walked to school."
+
+  API (speech service :8002):
+    POST /learn/read-aloud/next   {language, learner_id, seed?}
+    POST /learn/read-aloud/score  {sentence, heard, target_forms, language, learner_id}
+
+  Difficulty ramps 1→5 as scores stay high; weak lemmas are re-drilled.
+  Prefer Tatoeba natural sentences; templates only as fallback.
+
+Audio cleanup (always as we go)
+-------------------------------
+  Raw CosyVoice or mic takes → clean_audio.py:
+    high-pass, denoise (ffmpeg afftdn when available), silence trim, peak normalize,
+    mono 24 kHz. QC: min duration, SNR, no clipping.
+  Failures → quality=rejected (list with: review.py audio-rejected).
+  Only crisp/gold clips are fine-tune eligible.
+
+  python3 scripts/dictionary/synthesize_audio.py --language en --limit 20
+  python3 scripts/dictionary/clean_audio.py --language en
+  python3 scripts/dictionary/clean_audio.py --file /path/to/raw.wav --out /path/to/crisp.wav
+
+CosyVoice
+---------
+  export COSYVOICE_URL=http://127.0.0.1:9880
+  See services/cosyvoice/README.txt. Without COSYVOICE_URL, synth leaves audio missing
+  (never fills with edge-tts/ElevenLabs for the corpus).
+
+Loading exported packs in the app
+---------------------------------
+  export AOEP_CONTENT_PACKS=/path/to/AOEP_DICTIONARY_DIR/export
+  vocabulary_for() / default_lexicon() pick up vocabulary/ and slang/ JSON automatically.
+
+Baselines / licenses
+--------------------
+  See baselines/LICENSES.txt after fetch. Fixture stubs ship under
+  packages/shared/tests/fixtures/dictionary/ for offline CI.
+
+Tests
+-----
+  cd packages/shared && python3 -m pytest tests/test_dictionary_corpus.py -q
+  cd services/speech && python3 -m pytest tests/test_read_aloud_api.py -q

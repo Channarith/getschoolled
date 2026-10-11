@@ -16,6 +16,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# ---- Local dictionary corpus cache ----
+.cache/
+
 # ---- Python ----
 __pycache__/
 *.py[cod]

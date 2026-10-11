@@ -1,0 +1,8 @@
+# lemma|pos|kind|gloss
+school|noun|literal|an institution for educating children
+break|verb|literal|to separate into pieces
+break|noun|literal|a rest or pause
+kick the bucket|phrase|idiom|to die
+no cap|phrase|slang|no lie / for real
+piece of cake|phrase|idiom|something very easy
+ephemeral|adjective|literal|lasting a very short time
