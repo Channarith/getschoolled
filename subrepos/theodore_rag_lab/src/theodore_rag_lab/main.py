@@ -24,6 +24,14 @@ from aoep_shared.factory import build_factory
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
 from .bakeoff_loop import get_runner
+from .corpus_lab import (
+    apply_review,
+    corpus_stats,
+    export_llm_jsonl,
+    export_packs,
+    list_review,
+    run_train_update,
+)
 from .dictionary_lab import (
     dialect_probe,
     dictionary_browse,
@@ -36,6 +44,7 @@ from .dictionary_lab import (
 )
 from .qualify_page import render_qualify_page
 from .rag_tuning import PRESETS, RagTuning
+from .read_aloud_lab import read_aloud_next, read_aloud_progress, read_aloud_score
 
 app = FastAPI(title="Theodore RAG Lab", version="0.2.0")
 install_live_audio_routes(app, lab_name="Theodore RAG Lab")
@@ -110,11 +119,14 @@ def health() -> dict[str, Any]:
         "features": [
             "rag_tuning",
             "dictionary",
+            "dictionary_corpus",
+            "read_aloud",
             "dialects",
             "regurgitation",
             "feedback_learning",
             "live_current_awareness",
         ],
+        "corpus": corpus_stats(),
         "current_awareness_live": any(
             getattr(engine, "engine", "") != "mock"
             for engine in _FACTORY.current_news_engines()
@@ -277,6 +289,112 @@ def api_feedback_post(req: FeedbackReq) -> dict[str, Any]:
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+class CorpusTrainReq(BaseModel):
+    force: bool = False
+    language: str = "en"
+    synth: bool = False
+    ship_packs: bool = False
+
+
+class CorpusReviewReq(BaseModel):
+    entry_id: str
+    action: str = "confirm"
+    gloss_en: str = ""
+    note: str = ""
+    inflections: dict[str, str] = Field(default_factory=dict)
+
+
+class ReadAloudNextReq(BaseModel):
+    language: str = "en"
+    learner_id: str = "local"
+    seed: int | None = None
+
+
+class ReadAloudScoreReq(BaseModel):
+    sentence: str
+    heard: str = ""
+    target_forms: list[str] = Field(default_factory=list)
+    mouth_openness: float | None = None
+    language: str = "en"
+    learner_id: str = "local"
+
+
+@app.get("/api/corpus/stats")
+def api_corpus_stats() -> dict[str, Any]:
+    return corpus_stats()
+
+
+@app.post("/api/corpus/train-update")
+def api_corpus_train_update(req: CorpusTrainReq) -> dict[str, Any]:
+    return run_train_update(
+        force=req.force,
+        language=req.language or "en",
+        synth=req.synth,
+        ship_packs=req.ship_packs,
+    )
+
+
+@app.get("/api/corpus/review")
+def api_corpus_review_list(limit: int = Query(default=40, ge=1, le=200)) -> dict[str, Any]:
+    return list_review(limit=limit)
+
+
+@app.post("/api/corpus/review")
+def api_corpus_review_apply(req: CorpusReviewReq) -> dict[str, Any]:
+    try:
+        return apply_review(
+            entry_id=req.entry_id,
+            action=req.action,
+            gloss_en=req.gloss_en,
+            note=req.note,
+            inflections=req.inflections or None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/corpus/export-packs")
+def api_corpus_export_packs(ship: bool = False) -> dict[str, Any]:
+    return export_packs(ship=ship)
+
+
+@app.post("/api/corpus/export-llm")
+def api_corpus_export_llm() -> dict[str, Any]:
+    return export_llm_jsonl()
+
+
+@app.post("/api/read-aloud/next")
+def api_read_aloud_next(req: ReadAloudNextReq) -> dict[str, Any]:
+    result = read_aloud_next(
+        language=req.language or "en",
+        learner_id=req.learner_id or "local",
+        seed=req.seed,
+    )
+    if result.get("error") == "no_sentences":
+        raise HTTPException(
+            status_code=404,
+            detail="no curriculum sentences — POST /api/corpus/train-update first",
+        )
+    return result
+
+
+@app.post("/api/read-aloud/score")
+def api_read_aloud_score(req: ReadAloudScoreReq) -> dict[str, Any]:
+    return read_aloud_score(
+        sentence=req.sentence,
+        heard=req.heard,
+        target_forms=req.target_forms,
+        mouth_openness=req.mouth_openness,
+        language=req.language or "en",
+        learner_id=req.learner_id or "local",
+    )
+
+
+@app.get("/api/read-aloud/progress")
+def api_read_aloud_progress(learner_id: str = "local") -> dict[str, Any]:
+    return read_aloud_progress(learner_id=learner_id or "local")
 
 
 def main() -> None:

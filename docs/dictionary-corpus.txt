@@ -4,7 +4,38 @@ Dictionary + voice corpus (EN + Khmer)
 Self-hosted lexicon pipeline: open baselines → staging → review → content packs
 → progressive read-aloud trainer → CosyVoice raw audio → noise-filter crisp/gold.
 
+Owned by the Theodore RAG lab (subrepos/theodore_rag_lab, port 8095).
+Repo-root scripts/dictionary/* are thin shims into the lab.
+
 No paid TTS/LLM APIs required. edge-tts / ElevenLabs must never be marked gold.
+
+Lab console
+-----------
+  . .venv/bin/activate
+  python3 -m pip install -e 'packages/shared' -e 'subrepos/theodore_rag_lab[test]'
+  PYTHONPATH=subrepos/theodore_rag_lab/src:packages/shared/src \
+    python3 -m uvicorn theodore_rag_lab.main:app --port 8095 --host 127.0.0.1
+
+  Open http://127.0.0.1:8095/ → tab "Corpus + read-aloud"
+  Or CLI:
+    theodore-rag-corpus-update
+    theodore-rag-read-aloud --heard "She walked to school."
+  Shims (same behavior):
+    python3 scripts/dictionary/train_update.py
+    python3 scripts/dictionary/read_aloud.py --heard "She walked to school."
+
+Lab HTTP
+--------
+  POST /api/corpus/train-update
+  GET  /api/corpus/stats
+  GET  /api/corpus/review
+  POST /api/corpus/review
+  POST /api/corpus/export-llm
+  POST /api/read-aloud/next
+  POST /api/read-aloud/score
+
+Prime-time speech path (unchanged thin wrappers):
+  POST /learn/read-aloud/next|score  on the speech service (:8002)
 
 Layout (AOEP_DICTIONARY_DIR, default ~/.cache/aoep/dictionary)
 -------------------------------------------------------------
@@ -14,69 +45,31 @@ Layout (AOEP_DICTIONARY_DIR, default ~/.cache/aoep/dictionary)
   sentences/     curriculum JSONL
   progress/      per-learner mastery
   audio/{lang}/raw|crisp/
-  export/        vocabulary + slang packs (set AOEP_CONTENT_PACKS to this dir)
+  export/        vocabulary + slang packs + dictionary_llm_train.jsonl
 
-Quick start
------------
-  . .venv/bin/activate
-  export AOEP_DICTIONARY_DIR=$PWD/.cache/dictionary   # optional local dir
+LLM training bridge
+-------------------
+  Approved/auto staging rows feed aoep_shared.llm_training.assemble as source
+  "dictionary" (auto-scanned from AOEP_DICTIONARY_DIR). Export explicitly:
 
-  python3 scripts/dictionary/fetch_baselines.py --from-fixtures
-  python3 scripts/dictionary/ingest_merge.py
-  python3 scripts/dictionary/route_review.py
-  python3 scripts/dictionary/review.py list
-  python3 scripts/dictionary/review.py confirm --id <entry_id>
-  python3 scripts/dictionary/build_sentences.py --language en
-  python3 scripts/dictionary/export_packs.py
-  # optional: ship curated EN core into packages/shared content_packs
-  python3 scripts/dictionary/export_packs.py --ship
+    curl -s -X POST http://127.0.0.1:8095/api/corpus/export-llm | python3 -m json.tool
 
-  # One-shot continuous loop (idempotent):
+  Then assemble in the LLM lab (:8019) / training/run_finetune.py on a GPU host.
+
+Quick script path
+-----------------
+  export AOEP_DICTIONARY_DIR=$PWD/.cache/dictionary
   python3 scripts/dictionary/train_update.py
   python3 scripts/dictionary/train_update.py --ship-packs --synth   # needs COSYVOICE_URL
 
-Read-aloud trainer (pronunciation + enunciation)
-------------------------------------------------
-  CLI:
-    python3 scripts/dictionary/read_aloud.py --once
-    python3 scripts/dictionary/read_aloud.py --heard "She walked to school."
-
-  API (speech service :8002):
-    POST /learn/read-aloud/next   {language, learner_id, seed?}
-    POST /learn/read-aloud/score  {sentence, heard, target_forms, language, learner_id}
-
-  Difficulty ramps 1→5 as scores stay high; weak lemmas are re-drilled.
-  Prefer Tatoeba natural sentences; templates only as fallback.
-
-Audio cleanup (always as we go)
--------------------------------
-  Raw CosyVoice or mic takes → clean_audio.py:
-    high-pass, denoise (ffmpeg afftdn when available), silence trim, peak normalize,
-    mono 24 kHz. QC: min duration, SNR, no clipping.
-  Failures → quality=rejected (list with: review.py audio-rejected).
+Audio cleanup
+-------------
+  Raw CosyVoice or mic takes → clean (high-pass, denoise, gate/trim, normalize).
   Only crisp/gold clips are fine-tune eligible.
-
-  python3 scripts/dictionary/synthesize_audio.py --language en --limit 20
-  python3 scripts/dictionary/clean_audio.py --language en
-  python3 scripts/dictionary/clean_audio.py --file /path/to/raw.wav --out /path/to/crisp.wav
-
-CosyVoice
----------
-  export COSYVOICE_URL=http://127.0.0.1:9880
-  See services/cosyvoice/README.txt. Without COSYVOICE_URL, synth leaves audio missing
-  (never fills with edge-tts/ElevenLabs for the corpus).
-
-Loading exported packs in the app
----------------------------------
-  export AOEP_CONTENT_PACKS=/path/to/AOEP_DICTIONARY_DIR/export
-  vocabulary_for() / default_lexicon() pick up vocabulary/ and slang/ JSON automatically.
-
-Baselines / licenses
---------------------
-  See baselines/LICENSES.txt after fetch. Fixture stubs ship under
-  packages/shared/tests/fixtures/dictionary/ for offline CI.
 
 Tests
 -----
-  cd packages/shared && python3 -m pytest tests/test_dictionary_corpus.py -q
-  cd services/speech && python3 -m pytest tests/test_read_aloud_api.py -q
+  PYTHONPATH=subrepos/theodore_rag_lab/src:packages/shared/src \
+    python3 -m pytest subrepos/theodore_rag_lab/tests/test_corpus_lab.py \
+      packages/shared/tests/test_dictionary_corpus.py \
+      packages/shared/tests/test_llm_training.py -q
