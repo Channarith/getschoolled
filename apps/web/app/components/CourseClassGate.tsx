@@ -114,6 +114,8 @@ export function CourseClassGate({
         {isAdmin
           ? "Your account is an admin, so this is the full course."
           : "This account has paid for the course. This is the full course."}
+        {" "}
+        Serenity teaches with xAI Grok voice when configured.
       </p>
       <CourseStudioFrame
         title={`${title} full course`}

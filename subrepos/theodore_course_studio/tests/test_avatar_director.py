@@ -115,7 +115,12 @@ def test_avatar_assets_are_offline_and_studio_wires_accessibility_controls():
     assert "required_blendshapes" in rig_config.text
     assert "three" in page.text
     assert 'id="theodore-avatar"' in page.text
-    assert "const SHOW_AVATAR = false" in page.text
+    assert "const SHOW_AVATAR = true" in page.text
+    assert "serenity" in page.text
+    assert "paintKeyframePortrait" in runtime.text
+    assert 'driver === "keyframes"' in runtime.text
+    # Oval mouth stickers must not be used on the Serenity keyframe path.
+    assert "paintKeyframePortrait(open, blink, mouthShape)" in runtime.text
     assert "prefers-reduced-motion" in page.text
     assert "theodore-avatar-fallback" in page.text
     assert "speechBoundary" in page.text
@@ -128,7 +133,22 @@ def test_presenter_manifest_defaults_to_builtin():
     response = client.get("/api/studio/presenter/manifest")
     assert response.status_code == 200
     data = response.json()
-    assert data["default_model"] == "student"
+    assert data["default_model"] == "serenity"
+    serenity = data["models"]["serenity"]
+    assert serenity["kind"] == "portrait"
+    assert serenity["rig"] == "portrait"
+    assert serenity["label"] == "Serenity"
+    assert serenity["face_driver"] == "keyframes"
+    assert serenity["url"].endswith("presenter_serenity.png")
+    assert serenity["voice_gender"] == "female"
+    assert set(serenity["keyframes"]) >= {"rest", "aa", "oh", "ee", "blink"}
+    serenity_img = client.get(serenity["url"])
+    assert serenity_img.status_code == 200
+    assert serenity_img.content[:8] == b"\x89PNG\r\n\x1a\n"
+    for rel in serenity["keyframes"].values():
+        frame = client.get(f"/api/studio/avatar/{rel}")
+        assert frame.status_code == 200, rel
+        assert frame.content[:8] == b"\x89PNG\r\n\x1a\n"
     student = data["models"]["student"]
     assert student["kind"] == "portrait"
     assert student["rig"] == "portrait"

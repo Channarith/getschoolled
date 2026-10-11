@@ -216,6 +216,14 @@ STUDIO_CSS = """
     .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-rig="portrait"]) canvas { filter:drop-shadow(0 16px 14px rgba(62,36,18,.22)); }
     .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-rig="portrait"]) .avatar-label {
       color:#4a3424; background:rgba(255,248,236,.9); }
+    /* Project Serenity holographic teacher (demo + full courses). */
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-persona="serenity"]) {
+      background:radial-gradient(ellipse at 50% 55%, rgba(68,214,255,.28), rgba(5,24,34,.82) 68%);
+      border-color:rgba(94,224,255,.45); box-shadow:inset 0 0 34px rgba(59,215,255,.22); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-persona="serenity"]) canvas {
+      filter:drop-shadow(0 0 16px rgba(86,224,255,.55)) saturate(1.08); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-persona="serenity"]) .avatar-label {
+      color:#c9f7ff; background:rgba(3,23,32,.78); }
     .avatar-label { position:absolute; left:9px; right:9px; bottom:8px; z-index:2; padding:5px 8px;
                     border-radius:999px; text-align:center; color:#c9f7ff; background:rgba(3,23,32,.72);
                     font:600 11px Arial,sans-serif; letter-spacing:.03em; pointer-events:none; }
@@ -284,9 +292,6 @@ STUDIO_CSS = """
     .student-cam.is-hidden { width:auto; }
     .student-cam video { display:block; width:100%; aspect-ratio:16/9; object-fit:cover;
                          transform:scaleX(-1); background:#000; }
-    .student-cam-track { position:absolute; top:0; left:0; width:100%; aspect-ratio:16/9;
-                         transform:scaleX(-1); pointer-events:none; z-index:1; }
-    .student-cam.is-hidden .student-cam-track { display:none !important; }
     .student-cam.is-hidden video { position:absolute; width:8px; height:8px; opacity:0; }
     .student-cam-hide { position:absolute; right:6px; bottom:6px; z-index:2; margin:0; padding:4px 8px;
                         border-radius:999px; border:1px solid rgba(255,255,255,.35);
@@ -475,8 +480,7 @@ STUDIO_CSS = """
     .audio-avatar b { left:38px; top:68px; width:36px; height:14px; border-bottom:3px solid #1e3a5f;
       border-radius:0 0 20px 20px; }
     body.is-speaking .audio-avatar { box-shadow:0 0 0 14px rgba(143,234,255,.38); }
-    .audio-bars { display:none; align-items:flex-end; gap:7px; height:74px; }
-    #audio-stage[data-look="bars"] .audio-bars { display:flex; }
+    .audio-bars { display:flex; align-items:flex-end; gap:7px; height:74px; }
     .audio-bars i { width:9px; border-radius:99px; background:#8feaff;
       height:calc(14px + var(--level, .15) * 52px); transform-origin:bottom center;
       animation:audioBar 1.05s ease-in-out infinite; animation-play-state:paused; }
@@ -658,6 +662,7 @@ STUDIO_CSS = """
   body.audio-only #quiz-box,
   body.audio-only #game-box,
   body.audio-only .sample-banner,
+  body.audio-only .sample-clock,
   body.audio-only .proceed-cue,
   body.audio-only .page-welcome,
   body.audio-only .lesson-toolbar,
@@ -693,80 +698,8 @@ STUDIO_CSS = """
   body.audio-only .audio-bars i:nth-child(3n) { animation-delay:.28s; }
   body.audio-only .audio-bars i:nth-child(4n) { animation-delay:.07s; }
   @media (prefers-reduced-motion: reduce) {
-    body.audio-only .audio-bars i,
-    body.audio-only .voice-mouth .lip-opening,
-    body.audio-only .voice-ripple i,
-    body.audio-only .voice-lantern i,
-    body.audio-only .face-mouth-wrap,
-    body.audio-only .face-eye { animation:none !important; }
+    body.audio-only .audio-bars i { animation:none !important; }
   }
-  .voice-line, .voice-mouth, .voice-ripple, .voice-lantern, .voice-face { display:none; }
-  #audio-stage[data-look="line"] .voice-line { display:block; width:min(920px, 86vw); height:min(28vh, 220px); }
-  #audio-stage[data-look="mouth"] .voice-mouth { display:block; }
-  #audio-stage[data-look="ripple"] .voice-ripple { display:block; }
-  #audio-stage[data-look="lantern"] .voice-lantern { display:block; }
-  #audio-stage[data-look^="face-"] .voice-face { display:block; width:min(280px, 68vw); height:auto; }
-  .voice-mouth { position:relative; width:min(280px, 64vw); height:150px; }
-  .voice-mouth .lip-upper, .voice-mouth .lip-lower { position:absolute; left:6%; right:6%; height:46px; z-index:2; }
-  .voice-mouth .lip-upper { top:22px; border-radius:80px 80px 16px 16px; background:linear-gradient(#e7a8ad, #c96b74); }
-  .voice-mouth .lip-lower { bottom:22px; border-radius:16px 16px 80px 80px; background:linear-gradient(#c96b74, #a85460); }
-  .voice-mouth .lip-opening {
-    position:absolute; z-index:1; left:22%; right:22%; top:50%; transform:translateY(-50%);
-    border-radius:50%; background:#3a1824; height:calc(8px + var(--level, .12) * 52px);
-  }
-  body.is-speaking .voice-mouth .lip-opening { animation:lipGap .42s ease-in-out infinite; }
-  @keyframes lipGap { 50% { height:calc(18px + var(--level, .2) * 58px); } }
-  .voice-ripple { position:relative; width:220px; height:220px; }
-  .voice-ripple b, .voice-ripple i { position:absolute; border-radius:50%; }
-  .voice-ripple b {
-    inset:38%; background:#8feaff;
-    transform:scale(calc(.85 + var(--level, .1) * .5));
-    box-shadow:0 0 24px rgba(143,234,255,.35);
-  }
-  .voice-ripple i { inset:18%; border:2px solid rgba(143,234,255,.5); animation:voiceRipple 2.8s ease-out infinite; }
-  .voice-ripple i:nth-child(3) { animation-delay:.9s; }
-  .voice-ripple i:nth-child(4) { animation-delay:1.8s; }
-  body.is-speaking .voice-ripple i { animation-duration:1.7s; }
-  @keyframes voiceRipple {
-    0% { transform:scale(calc(.55 + var(--level, 0) * .3)); opacity:.65; }
-    100% { transform:scale(calc(1.35 + var(--level, .15) * .45)); opacity:0; }
-  }
-  .voice-lantern i {
-    display:block; width:148px; height:148px; border-radius:50%;
-    background:radial-gradient(circle at 40% 34%, #fff8e4, #f0b429 46%, #c2410c 80%);
-    box-shadow:0 0 calc(18px + var(--level, .1) * 70px) rgba(240,180,41,.4);
-    transform:scale(calc(.94 + var(--level, .08) * .22));
-  }
-  body.is-speaking .voice-lantern i { animation:lanternGlow 1.8s ease-in-out infinite; }
-  @keyframes lanternGlow { 50% { filter:brightness(1.08); transform:scale(calc(1.02 + var(--level, .15) * .16)); } }
-  #audio-stage[data-look="face-amina"] { --skin:#8d5524; --lip:#c4848a; --hair:#1b120c; }
-  #audio-stage[data-look="face-mei"] { --skin:#f0c9a0; --lip:#d7a0a6; --hair:#24180f; }
-  #audio-stage[data-look="face-luis"] { --skin:#c68642; --lip:#c98980; --hair:#3a2414; }
-  #audio-stage[data-look="face-amara"] { --skin:#5c3317; --lip:#a86a72; --hair:#140e0a; }
-  #audio-stage[data-look="face-noah"] { --skin:#f3d2b5; --lip:#e0a8ad; --hair:#c4a574; }
-  #audio-stage[data-look="face-priya"] { --skin:#a56b3c; --lip:#c47d78; --hair:#1a120c; }
-  .face-skin, .face-ear { fill:var(--skin, #e6b48a); }
-  .face-brow { fill:none; stroke:var(--hair, #1a120c); stroke-width:2.6; stroke-linecap:round; }
-  .face-nose { fill:none; stroke:rgba(40,24,16,.35); stroke-width:2.2; stroke-linecap:round; }
-  .face-hair-fill { fill:var(--hair, #1a120c); }
-  .face-lip { fill:var(--lip, #d08990); }
-  .voice-face .hair, .face-glasses { visibility:hidden; }
-  #audio-stage[data-look="face-amina"] .hair-coils,
-  #audio-stage[data-look="face-mei"] .hair-bangs,
-  #audio-stage[data-look="face-luis"] .hair-crop,
-  #audio-stage[data-look="face-amara"] .hair-natural,
-  #audio-stage[data-look="face-noah"] .hair-crop,
-  #audio-stage[data-look="face-priya"] .hair-long,
-  #audio-stage[data-look="face-noah"] .face-glasses { visibility:visible; }
-  .face-mouth-wrap { transform-box:fill-box; transform-origin:center;
-    transform:scaleY(calc(.42 + var(--level, .08) * 1.7)); }
-  body.is-speaking .face-mouth-wrap { animation:mouthOpen .46s ease-in-out infinite; }
-  @keyframes mouthOpen {
-    0%, 100% { transform:scaleY(calc(.4 + var(--level, .1) * .7)); }
-    50% { transform:scaleY(calc(.9 + var(--level, .2) * 1.35)); }
-  }
-  .face-eye { transform-box:fill-box; transform-origin:center; animation:faceBlink 7.5s infinite; }
-  @keyframes faceBlink { 0%, 92%, 100% { transform:scaleY(1); } 96% { transform:scaleY(.12); } }
   body:not(.audio-only) #drive-bar { display:none !important; }
   body.audio-only #theodore-live-audio { display:block !important; }
   body.audio-only #student-cam {
@@ -776,10 +709,10 @@ STUDIO_CSS = """
   }
   body.audio-only #drive-bar {
     position:fixed; z-index:40; top:max(10px, env(safe-area-inset-top));
-    left:12px; right:12px; display:flex; flex-wrap:wrap; gap:8px;
+    left:12px; right:12px; display:flex; gap:8px;
   }
   body.audio-only #drive-bar label {
-    flex:1 1 140px; min-width:0; display:flex; flex-direction:column; gap:4px;
+    flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;
     color:#d7e7ea; font:600 11px/1.2 "Avenir Next", "Segoe UI", sans-serif;
   }
   body.audio-only #drive-bar select {
@@ -802,59 +735,21 @@ STUDIO_CSS = """
   .course-map-list button { display:block; width:100%; text-align:left; margin:4px 0;
     background:#102029; color:#f8fafc; border-color:#24515c; }
   .course-map-list button.is-current { border-color:#5eead4; color:#99f6e4; }
-  .course-map-list button.is-gap { border-style:dashed; color:#fde68a; }
   .course-map-list .chapter { margin:8px 0 2px; font-size:11px; letter-spacing:.06em;
     text-transform:uppercase; color:#94a3b8; }
   body.audio-only .course-map { position:fixed; z-index:40;
     bottom:max(84px, calc(72px + env(safe-area-inset-bottom))); }
-  body.audio-only #sample-clock {
-    display:inline-flex !important; position:fixed !important; z-index:60;
-    top:max(8px, env(safe-area-inset-top)); right:12px; left:auto;
-    flex-direction:column; align-items:flex-end; padding:8px 10px; border-radius:14px;
-    background:#07111ef2; border:1px solid #5eead4; color:#f8fafc; pointer-events:none;
-  }
-  body.audio-only #sample-clock[hidden] { display:none !important; }
-  #course-price { position:fixed; z-index:60; left:12px;
-    top:max(64px, calc(52px + env(safe-area-inset-top)));
-    min-height:40px; padding:0 12px; border-radius:14px; border:1px solid #5eead4;
-    background:#07111ef2; color:#e7fbff; font:700 13px/40px "Avenir Next", "Segoe UI", sans-serif; }
-  #course-price[hidden] { display:none !important; }
-  #pay-screen { position:fixed; inset:0; z-index:80; display:none; align-items:center;
-    justify-content:center; background:#070b14cc; padding:18px; }
-  #pay-screen.is-open { display:flex; }
-  #pay-screen form { width:min(420px, 100%); padding:18px; border-radius:18px;
-    border:1px solid #5eead4; background:#07111e; color:#f8fafc; }
-  #pay-screen h2 { margin:0 0 8px; }
-  #pay-price { margin:0 0 8px; font:800 36px/1 "Avenir Next", "Segoe UI", sans-serif; color:#99f6e4; }
-  #pay-screen .row { display:flex; gap:8px; margin-top:14px; }
-  #pay-screen button { min-height:44px; }
-  #presence-hold {
-    position:fixed; z-index:10050; left:50%; top:max(72px, calc(56px + env(safe-area-inset-top)));
-    transform:translateX(-50%); width:min(560px, calc(100vw - 24px)); margin:0; padding:14px 16px;
-    border-radius:16px; background:#1c1408f2; border:1px solid #f59e0b; color:#fde68a;
-    font:700 16px/1.45 "Avenir Next", "Segoe UI", sans-serif; text-align:center; pointer-events:none;
-  }
-  #presence-hold[hidden] { display:none !important; }
-  body.audio-only.drive-chrome-hidden #presence-hold:not([hidden]),
-  body.presenting.drive-chrome-hidden #presence-hold:not([hidden]) { display:block !important; }
-  body.audio-only.drive-chrome-hidden #drive-bar,
-  body.audio-only.drive-chrome-hidden #student-cam,
-  body.audio-only.drive-chrome-hidden #theodore-live-audio,
-  body.audio-only.drive-chrome-hidden #course-map,
-  body.presenting.drive-chrome-hidden #student-cam,
-  body.presenting.drive-chrome-hidden #theodore-live-audio,
-  body.presenting.drive-chrome-hidden #course-map { display:none !important; }
 
 """
 
 STUDIO_JS = """
 
     const $ = (id) => document.getElementById(id);
-    // Set true to show the 3D teacher again. Narration stays on either way.
-    const SHOW_AVATAR = false;
-    // SHOW_AVATAR is only the first-visit default now; the toggle below persists
-    // the learner's own choice, along with where they dragged him.
-    const AVATAR_PREF_KEY = 'theodore.studio.avatar';
+    // Serenity (holographic AI teacher) is on by default for demo + full courses.
+    // Narration stays on either way; learners can still hide/move the presenter.
+    const SHOW_AVATAR = true;
+    // Bump when the default presenter changes so first paint picks Serenity.
+    const AVATAR_PREF_KEY = 'theodore.studio.avatar.v3-serenity';
     const AVATAR_MIN_W = 150;
     const AVATAR_MIN_H = 190;
     let avatarPrefs = {};
@@ -863,7 +758,7 @@ STUDIO_JS = """
     let avatarHomeParent = null;
     let avatarHomeNext = null;
     let avatarCatalog = {};
-    let selectedAvatarId = 'amina';
+    let selectedAvatarId = 'serenity';
     let selectedSource = null;
     let selectedCourse = null;
     let teachSession = 'studio-teach-1';
@@ -947,81 +842,6 @@ STUDIO_JS = """
       stopSpeech();
       window.TheodoreLiveAudio?.pauseRecognition();
       paintSampleBanner(base);
-      openPayScreen();
-    }
-    let payBusy = false;
-    function openPayScreen() {
-      const screen = $('pay-screen');
-      const price = $('course-price');
-      if (price && price.parentElement !== document.body) document.body.appendChild(price);
-      if (screen && screen.parentElement !== document.body) document.body.appendChild(screen);
-      if (!screen) return;
-      screen.hidden = false;
-      screen.classList.add('is-open');
-      const status = $('pay-status');
-      if (status) status.textContent = '';
-    }
-    function closePayScreen() {
-      const screen = $('pay-screen');
-      if (!screen) return;
-      screen.classList.remove('is-open');
-      screen.hidden = true;
-    }
-    async function beginCoursePayment(method) {
-      if (payBusy) return;
-      const status = $('pay-status');
-      const courseId = (lastTeachPayload && lastTeachPayload.session && lastTeachPayload.session.course_id)
-        || pinnedCourse;
-      if (!courseId) {
-        if (status) status.textContent = 'Open a course, then pay $19.99 for the full class.';
-        return;
-      }
-      payBusy = true;
-      if (status) status.textContent = 'Opening the secure payment page…';
-      try {
-        const data = await api('/api/studio/pay/checkout', {
-          method: 'POST',
-          headers: {'content-type': 'application/json'},
-          body: JSON.stringify({
-            course_id: courseId,
-            learner_id: (learnerId || '').replace(/:audio$/, ''),
-            method: method,
-            title: (selectedCourse && selectedCourse.title) || 'Full course',
-            return_url: location.href,
-          }),
-        });
-        if (!data.url) throw new Error('The payment page did not open.');
-        location.assign(data.url);
-      } catch (error) {
-        payBusy = false;
-        if (status) status.textContent = String(error.message || error);
-      }
-    }
-    async function confirmCoursePayment() {
-      const params = new URLSearchParams(location.search);
-      if (params.get('paid') !== '1') return;
-      const sessionId = params.get('session_id') || params.get('token') || '';
-      if (!sessionId) return;
-      const status = $('pay-status');
-      openPayScreen();
-      if (status) status.textContent = 'Confirming the $19.99 payment…';
-      try {
-        await api('/api/studio/pay/confirm', {
-          method: 'POST',
-          headers: {'content-type': 'application/json'},
-          body: JSON.stringify({ session_id: sessionId }),
-        });
-        params.delete('paid');
-        params.delete('session_id');
-        params.delete('token');
-        params.delete('PayerID');
-        params.set('access', 'full');
-        params.set('registered', '1');
-        params.set('enrollment', 'paid');
-        location.replace(location.pathname + '?' + params.toString());
-      } catch (error) {
-        if (status) status.textContent = String(error.message || error);
-      }
     }
     function armSampleClock(payload) {
       stopSampleClock();
@@ -1050,7 +870,6 @@ STUDIO_JS = """
       const remain = show && !sample.complete ? sampleRemainMs(payload) : null;
       if (clock && timeEl) {
         const ticking = show && !sample.complete;
-        parkSampleClock();
         clock.hidden = !ticking;
         if (ticking) {
           const ms = remain == null
@@ -1063,13 +882,8 @@ STUDIO_JS = """
       banner.style.display = show ? 'block' : 'none';
       banner.classList.toggle('is-ended', !!(show && sample.complete));
       banner.textContent = show
-        ? (sample.complete ? trialEndedMessage(payload) : (sample.message || 'This free trial is 10 minutes. The full course is $19.99. Pay for the course when you want the full class.'))
+        ? (sample.complete ? trialEndedMessage(payload) : (sample.message || 'This free trial is 10 minutes. Pay for the course when you want the full class.'))
         : '';
-      const priceBtn = $('course-price');
-      if (priceBtn) {
-        if (priceBtn.parentElement !== document.body) document.body.appendChild(priceBtn);
-        priceBtn.hidden = mode !== 'sample';
-      }
     }
     function resolveLearnerId() {
       try {
@@ -1101,7 +915,6 @@ STUDIO_JS = """
       if (!learnerId.endsWith(':audio')) learnerId += ':audio';
       teachSession = 'studio-teach-audio';
       document.body.classList.add('public-course', 'audio-only');
-      document.body.dataset.driveChrome = '1';
       const waveStage = $('teach-stage');
       if (waveStage) waveStage.classList.add('captions-off');
     }
@@ -1152,7 +965,10 @@ STUDIO_JS = """
     const reviewScores = { quizzes: [], games: [] };
 
     function presenterLabel(presenter) {
-      const name = presenter?.label || 'Student';
+      const name = presenter?.label || 'Serenity';
+      if (presenter?.source === 'gemini-serenity' || name === 'Serenity') {
+        return 'Serenity · holographic AI teacher';
+      }
       return presenter?.kind === 'portrait' ? `${name} · cartoon teacher` : `${name} · 3D teacher`;
     }
 
@@ -1223,8 +1039,16 @@ STUDIO_JS = """
     async function loadAvatarChoices() {
       const data = await api('/api/studio/presenter/manifest');
       avatarCatalog = data.models || {};
-      selectedAvatarId = 'student';
-      courseVoiceGender = avatarCatalog.student?.voice_gender || courseVoiceGender;
+      if (!avatarCatalog[selectedAvatarId] || !avatarPrefs.presenterChosen) {
+        selectedAvatarId = data.default_model || Object.keys(avatarCatalog)[0] || 'student';
+      }
+      const select = $('avatar-choice');
+      if (!select) return;
+      select.innerHTML = Object.entries(avatarCatalog).map(([id, model]) =>
+        `<option value="${esc(id)}">${esc(model.label || id)}</option>`
+      ).join('');
+      select.value = selectedAvatarId;
+      courseVoiceGender = avatarCatalog[selectedAvatarId]?.voice_gender || courseVoiceGender;
     }
 
     async function chooseAvatar(presenterId) {
@@ -1288,7 +1112,8 @@ STUDIO_JS = """
       const btn = $('btn-avatar');
       if (btn) {
         btn.setAttribute('aria-pressed', avatarVisible ? 'true' : 'false');
-        btn.textContent = avatarVisible ? lessonChrome().hideAvatar : lessonChrome().showAvatar;
+        const who = (avatarCatalog[selectedAvatarId]?.label) || 'Serenity';
+        btn.textContent = avatarVisible ? ('Hide ' + who) : ('Show ' + who);
       }
       if (persist !== false) {
         avatarPrefs.on = avatarVisible;
@@ -1411,23 +1236,6 @@ STUDIO_JS = """
       return !!(overlay && overlay.classList.contains('show'));
     }
 
-    let driveChromeTimer = 0;
-    let driveChromeWasHidden = false;
-    function parkSampleClock() {
-      if (!document.body.classList.contains('audio-only')) return;
-      const clock = $('sample-clock');
-      if (clock && clock.parentElement !== document.body) document.body.appendChild(clock);
-    }
-    function setDriveChromeHidden(hidden) {
-      document.body.classList.toggle('drive-chrome-hidden', !!hidden);
-    }
-    function revealDriveChrome() {
-      const audio = document.body.classList.contains('audio-only');
-      if (!audio && !presenterActive()) return;
-      setDriveChromeHidden(false);
-      clearTimeout(driveChromeTimer);
-      driveChromeTimer = setTimeout(() => setDriveChromeHidden(true), 4000);
-    }
     function setStudioChromeHidden(hidden) {
       document.body.classList.toggle('chrome-hidden', !!hidden);
       const btn = $('btn-chrome');
@@ -1435,9 +1243,9 @@ STUDIO_JS = """
       const show = presenterActive() || !!hidden || !!document.fullscreenElement
         || document.body.classList.contains('phone-embed');
       btn.hidden = !show;
-      btn.textContent = hidden ? lessonChrome().showOptions : lessonChrome().hideOptions;
+      btn.textContent = hidden ? 'Show options' : 'Hide options';
       btn.setAttribute('aria-pressed', String(!!hidden));
-      btn.title = hidden ? lessonChrome().showOptions : lessonChrome().hideOptions;
+      btn.title = hidden ? 'Show options' : 'Hide options';
     }
 
     function updateLessonWindowControls() {
@@ -1464,7 +1272,6 @@ STUDIO_JS = """
 
     let studentCamStream = null;
     let studentCamTimer = 0;
-    let studentAwayTimer = 0;
     let studentCamBusy = false;
     let cameraSawFrame = false;
     let cameraWatchStarted = 0;
@@ -1591,18 +1398,6 @@ STUDIO_JS = """
     let lessonHandMesh = null;
     let lessonHandPromise = null;
     let lessonHandFailed = false;
-    let lessonPoseMesh = null;
-    let lessonPosePromise = null;
-    let lessonPoseFailed = false;
-    let lessonDetectTs = 0;
-    let lessonTrackCache = null;
-    let studentTrackOn = false;
-    let studentTrackTimer = 0;
-    function nextLessonDetectTs() {
-      const now = performance.now();
-      lessonDetectTs = Math.max(lessonDetectTs + 1, now);
-      return lessonDetectTs;
-    }
     const OWNER_FP_IDX = [33, 263, 1, 61, 291, 10, 152];
     let lessonOwner = {
       enrolled: false, enrollStartedMs: 0, fingerprint: null, lastBox: null, displayName: '',
@@ -1651,10 +1446,6 @@ STUDIO_JS = """
                 numFaces: 3,
                 outputFaceBlendshapes: true,
               });
-              lessonFaceMesh._contours = vision.FaceLandmarker.FACE_LANDMARKS_CONTOURS
-                || vision.FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
-              lessonFaceMesh._oval = vision.FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
-              lessonFaceMesh._lips = vision.FaceLandmarker.FACE_LANDMARKS_LIPS;
               meshReady = true;
               return lessonFaceMesh;
             } catch (_) {}
@@ -1912,7 +1703,6 @@ STUDIO_JS = """
                 runningMode: 'VIDEO',
                 numHands: 2,
               });
-              lessonHandMesh._links = vision.HandLandmarker.HAND_CONNECTIONS;
               return lessonHandMesh;
             } catch (_) {}
           }
@@ -1921,35 +1711,6 @@ STUDIO_JS = """
         return null;
       })();
       return lessonHandPromise;
-    }
-
-    async function ensureLessonPose() {
-      if (lessonPoseMesh) return lessonPoseMesh;
-      if (lessonPoseFailed) return null;
-      if (lessonPosePromise) return lessonPosePromise;
-      lessonPosePromise = (async () => {
-        try {
-          const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
-          const fileset = await vision.FilesetResolver.forVisionTasks(
-            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
-          );
-          const model = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
-          for (const delegate of ['GPU', 'CPU']) {
-            try {
-              lessonPoseMesh = await vision.PoseLandmarker.createFromOptions(fileset, {
-                baseOptions: { modelAssetPath: model, delegate: delegate },
-                runningMode: 'VIDEO',
-                numPoses: 1,
-              });
-              lessonPoseMesh._links = vision.PoseLandmarker.POSE_CONNECTIONS;
-              return lessonPoseMesh;
-            } catch (_) {}
-          }
-        } catch (_) {}
-        lessonPoseFailed = true;
-        return null;
-      })();
-      return lessonPosePromise;
     }
 
     function handsCoveringFace(hands, facePts) {
@@ -1995,7 +1756,7 @@ STUDIO_JS = """
       const hl = await ensureLessonHands();
       if (!hl || !video || !video.videoWidth) return null;
       let result;
-      try { result = hl.detectForVideo(video, nextLessonDetectTs()); }
+      try { result = hl.detectForVideo(video, performance.now()); }
       catch (_) { return null; }
       const hands = (result && result.landmarks) || [];
       if (!hands.length) return { hands_on_face_score: 0, hand_below: 0 };
@@ -2005,194 +1766,10 @@ STUDIO_JS = """
       };
     }
 
-    function lessonLinkPairs(list) {
-      const out = [];
-      if (!list || !list.length) return out;
-      for (let i = 0; i < list.length; i++) {
-        const link = list[i];
-        const a = link && link.start != null ? link.start : link && link[0];
-        const b = link && link.end != null ? link.end : link && link[1];
-        if (a != null && b != null) out.push([a, b]);
-      }
-      return out;
-    }
-
-    function lessonTrackXY(nx, ny, video, w, h) {
-      const vw = video.videoWidth || 1;
-      const vh = video.videoHeight || 1;
-      const scale = Math.max(w / vw, h / vh);
-      const dw = vw * scale;
-      const dh = vh * scale;
-      return { x: (w - dw) / 2 + nx * dw, y: (h - dh) / 2 + ny * dh };
-    }
-
-    function strokeLessonLinks(ctx, pts, links, color, video, w, h, width) {
-      if (!pts || !links || !links.length) return;
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      links.forEach((pair) => {
-        const a = pts[pair[0]];
-        const b = pts[pair[1]];
-        if (!a || !b) return;
-        const pa = lessonTrackXY(a.x, a.y, video, w, h);
-        const pb = lessonTrackXY(b.x, b.y, video, w, h);
-        ctx.moveTo(pa.x, pa.y);
-        ctx.lineTo(pb.x, pb.y);
-      });
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    function drawLessonFingers(ctx, pts, video, w, h) {
-      ctx.save();
-      ctx.fillStyle = '#fff7ed';
-      [4, 8, 12, 16, 20].forEach((index) => {
-        const tip = pts[index];
-        if (!tip) return;
-        const p = lessonTrackXY(tip.x, tip.y, video, w, h);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(2.5, w * 0.012), 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.restore();
-    }
-
-    function paintLessonFallback(ctx, box, video, w, h) {
-      if (!box) return;
-      const x0 = lessonTrackXY(box.x / (video.videoWidth || 1), box.y / (video.videoHeight || 1), video, w, h);
-      const x1 = lessonTrackXY((box.x + box.width) / (video.videoWidth || 1), (box.y + box.height) / (video.videoHeight || 1), video, w, h);
-      const bw = x1.x - x0.x;
-      const bh = x1.y - x0.y;
-      ctx.save();
-      ctx.strokeStyle = '#67e8f9';
-      ctx.lineWidth = Math.max(1.5, w * 0.01);
-      ctx.beginPath();
-      ctx.ellipse(x0.x + bw / 2, x0.y + bh * 0.48, Math.abs(bw) * 0.42, Math.abs(bh) * 0.48, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.ellipse(x0.x + bw * 0.32, x0.y + bh * 0.38, Math.abs(bw) * 0.08, Math.abs(bh) * 0.045, 0, 0, Math.PI * 2);
-      ctx.ellipse(x0.x + bw * 0.68, x0.y + bh * 0.38, Math.abs(bw) * 0.08, Math.abs(bh) * 0.045, 0, 0, Math.PI * 2);
-      ctx.moveTo(x0.x + bw * 0.32, x0.y + bh * 0.68);
-      ctx.quadraticCurveTo(x0.x + bw * 0.5, x0.y + bh * 0.76, x0.x + bw * 0.68, x0.y + bh * 0.68);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    async function paintStudentTracking() {
-      if (!studentTrackOn) return;
-      try {
-      const video = $('student-cam-video');
-      const canvas = $('student-cam-track');
-      const box = $('student-cam');
-      const shown = box && !box.hidden && !box.classList.contains('is-hidden')
-        && getComputedStyle(box).display !== 'none' && document.visibilityState !== 'hidden';
-      const videoLive = video && video.readyState >= 2 && video.videoWidth
-        && document.visibilityState !== 'hidden';
-      if (videoLive) {
-        let w = 1;
-        let h = 1;
-        let ctx = null;
-        if (shown && canvas) {
-          w = Math.max(1, Math.round((canvas.clientWidth || 176) * Math.min(2, window.devicePixelRatio || 1)));
-          h = Math.max(1, Math.round((canvas.clientHeight || 99) * Math.min(2, window.devicePixelRatio || 1)));
-          if (canvas.width !== w || canvas.height !== h) {
-            canvas.width = w;
-            canvas.height = h;
-          }
-          ctx = canvas.getContext('2d');
-          if (ctx) ctx.clearRect(0, 0, w, h);
-        }
-        {
-          const width = Math.max(1.5, w * 0.008);
-          const faceMarker = await ensureLessonFaceMesh();
-          const handMarker = await ensureLessonHands();
-          const poseMarker = await ensureLessonPose();
-          let faceResult = null;
-          let handResult = null;
-          let poseResult = null;
-          try { if (faceMarker) faceResult = faceMarker.detectForVideo(video, nextLessonDetectTs()); }
-          catch (_) { faceResult = null; }
-          try { if (handMarker) handResult = handMarker.detectForVideo(video, nextLessonDetectTs()); }
-          catch (_) { handResult = null; }
-          try { if (poseMarker) poseResult = poseMarker.detectForVideo(video, nextLessonDetectTs()); }
-          catch (_) { poseResult = null; }
-          const faces = (faceResult && faceResult.faceLandmarks) || [];
-          const facial = faceResult ? meshFacial(faceResult) : null;
-          const hands = (handResult && handResult.landmarks) || [];
-          const facePts = facial && facial.face_pts;
-          let seenBox = false;
-          lessonTrackCache = {
-            at: Date.now(),
-            facial: facial && facial.face_count > 0 ? facial : null,
-            seenPose: !!(poseResult && poseResult.landmarks && poseResult.landmarks.length),
-            seenHands: hands.length > 0,
-            seenBox: false,
-            handTrack: hands.length ? {
-              hands_on_face_score: handsCoveringFace(hands, facePts),
-              hand_below: handsBelowFace(hands, facePts),
-            } : { hands_on_face_score: 0, hand_below: 0 },
-          };
-          if (ctx) {
-            (poseResult && poseResult.landmarks || []).forEach((pts) => {
-              strokeLessonLinks(ctx, pts, lessonLinkPairs(poseMarker && poseMarker._links), '#5eead4', video, w, h, width);
-            });
-            faces.forEach((pts) => {
-              strokeLessonLinks(ctx, pts, lessonLinkPairs(faceMarker && (faceMarker._contours || faceMarker._oval)), '#67e8f9', video, w, h, width);
-              strokeLessonLinks(ctx, pts, lessonLinkPairs(faceMarker && faceMarker._lips), '#fb7185', video, w, h, Math.max(width, 2));
-            });
-            hands.forEach((pts) => {
-              strokeLessonLinks(ctx, pts, lessonLinkPairs(handMarker && handMarker._links), '#fbbf24', video, w, h, width);
-              drawLessonFingers(ctx, pts, video, w, h);
-            });
-          }
-          if (!faces.length && !hands.length && !(poseResult && poseResult.landmarks && poseResult.landmarks.length)) {
-            const DetectorCtor = window.FaceDetector;
-            if (typeof DetectorCtor === 'function') {
-              try {
-                if (!faceDetector) faceDetector = new DetectorCtor({ fastMode: true, maxDetectedFaces: 1 });
-                const found = await faceDetector.detect(video);
-                if (found[0] && found[0].boundingBox) {
-                  seenBox = true;
-                  if (ctx) paintLessonFallback(ctx, found[0].boundingBox, video, w, h);
-                }
-              } catch (_) {}
-            }
-          }
-          if (lessonTrackCache) lessonTrackCache.seenBox = seenBox;
-          const personSeen = !!(
-            (lessonTrackCache && lessonTrackCache.facial && lessonTrackCache.facial.face_count > 0)
-            || (lessonTrackCache && (lessonTrackCache.seenPose || lessonTrackCache.seenHands || lessonTrackCache.seenBox))
-          );
-          noteStudentInFrame(personSeen);
-        }
-      }
-      } catch (_) { /* one missed frame must not stop the outline */ }
-      if (studentTrackOn) studentTrackTimer = window.setTimeout(() => { void paintStudentTracking(); }, 90);
-    }
-
-    function startStudentTracking() {
-      if (studentTrackOn) return;
-      studentTrackOn = true;
-      void paintStudentTracking();
-    }
-
-    function stopStudentTracking() {
-      studentTrackOn = false;
-      if (studentTrackTimer) {
-        window.clearTimeout(studentTrackTimer);
-        studentTrackTimer = 0;
-      }
-    }
-
     async function studentCameraSample() {
       if (studentCamBusy || !lastTeachPayload) return;
       if (!cameraWatchStarted) cameraWatchStarted = Date.now();
       const video = $('student-cam-video');
-      if (!studentCamStream && video && video.srcObject) studentCamStream = video.srcObject;
       const canvas = $('student-cam-sample');
       const hiddenTab = document.visibilityState === 'hidden';
       const live = !hiddenTab && video && canvas && video.readyState >= 2 && video.videoWidth;
@@ -2206,7 +1783,6 @@ STUDIO_JS = """
         let faces = [];
         let detectorFailed = false;
         let facial = null;
-        let freshTrack = false;
         let sample = { grid: null, light: 0, motion: 0, foreground: 0 };
         const DetectorCtor = window.FaceDetector;
         const detectorRan = typeof DetectorCtor === 'function';
@@ -2218,21 +1794,11 @@ STUDIO_JS = """
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             sample = luminanceGrid(ctx, canvas.width, canvas.height);
           }
-          freshTrack = !!(lessonTrackCache && (Date.now() - lessonTrackCache.at) < 800);
-          if (freshTrack && lessonTrackCache.facial && lessonTrackCache.facial.face_count > 0) {
-            facial = lessonTrackCache.facial;
+          const landmarker = await ensureLessonFaceMesh();
+          if (landmarker) {
+            try { facial = meshFacial(landmarker.detectForVideo(video, performance.now())); }
+            catch (_) { facial = null; }
           }
-          if (!facial) {
-            const landmarker = await Promise.race([
-              ensureLessonFaceMesh(),
-              new Promise((resolve) => setTimeout(() => resolve(null), 1200)),
-            ]);
-            if (landmarker) {
-              try { facial = meshFacial(landmarker.detectForVideo(video, nextLessonDetectTs())); }
-              catch (_) { facial = null; }
-            }
-          }
-          if (facial && !(facial.face_count > 0)) facial = null;
           if (!facial && detectorRan) {
             try {
               if (!faceDetector) faceDetector = new DetectorCtor({ fastMode: true, maxDetectedFaces: 3 });
@@ -2299,35 +1865,11 @@ STUDIO_JS = """
           if (facial.owner_match_score != null) signal.owner_match_score = facial.owner_match_score;
           if (facial.owner_face_name) signal.owner_face_name = facial.owner_face_name;
           delete signal.luminance_grid;
-          const handTrack = (freshTrack && lessonTrackCache && lessonTrackCache.handTrack)
-            ? lessonTrackCache.handTrack
-            : (live ? await lessonHandSample(video, facePts) : null);
+          const handTrack = live ? await lessonHandSample(video, facePts) : null;
           if (handTrack && handTrack.hands_on_face_score > 0.05) {
             signal.hands_on_face_score = Math.round(handTrack.hands_on_face_score * 1000) / 1000;
           }
           if (handTrack && handTrack.hand_below >= 0.55) signal.phone_visible = true;
-        }
-        const bodySeen = freshTrack && lessonTrackCache && (
-          lessonTrackCache.seenPose || lessonTrackCache.seenHands || lessonTrackCache.seenBox
-        );
-        if (!(signal.face_count > 0) && bodySeen && !hiddenTab) {
-          signal.face_count = 1;
-          signal.secondary_face_count = 0;
-          signal.liveness_state = 'live';
-          signal.detector_source = 'pose';
-          signal.foreground_ratio = Math.max(signal.foreground_ratio || 0, 0.35);
-          delete signal.luminance_grid;
-          delete signal.gaze_frontal;
-          delete signal.gaze_down_score;
-        } else if (faces.length && signal.detector_source !== 'face_mesh') {
-          delete signal.luminance_grid;
-        }
-        const seenNow = signal.face_count > 0 && signal.liveness_state !== 'missing' && !hiddenTab;
-        noteStudentInFrame(seenNow);
-        if (seenNow && !learningHold) {
-          setLearningStatus(signal.detector_source === 'face_mesh'
-            ? lessonChrome().mesh
-            : lessonChrome().present);
         }
         const data = await api('/api/studio/learn/camera', {
           method: 'POST', headers: { 'content-type': 'application/json' },
@@ -2341,7 +1883,7 @@ STUDIO_JS = """
         applyLearningHold(data);
         applyAttentionShift(data);
       } catch (_) {
-        if (studentStillAway()) pauseLessonForAbsence(PRESENCE_PAUSE);
+        /* A failed sample must not stop the lesson by itself. */
       } finally {
         studentCamBusy = false;
       }
@@ -2357,150 +1899,8 @@ STUDIO_JS = """
       return 'away';
     }
 
-    let PRESENCE_PAUSE = "We detected that you left the camera. The lesson is paused and will resume when you return.";
-    let PRESENCE_RESUME = "You're back on the camera. We'll continue from the same place.";
-    const LESSON_CHROME = {
-      en: {
-        course: "Course", language: "Language", look: "Look", motion: "Motion", faces: "Faces",
-        bars: "Bars", line: "Frequency line", mouth: "Talking mouth", ripple: "Soft ripples", lantern: "Lantern",
-        library: "Course library", choose: "Choose a course to begin.",
-        yourLesson: "Your lesson", clickStart: "Click the screen to start, or press Start and speak.",
-        clickContinue: "Click the screen to continue, or press Start and speak.",
-        start: "Start", pause: "Pause", resume: "Resume", ask: "Ask", hide: "Hide",
-        hideOptions: "Hide options", showOptions: "Show options", showCaptions: "Show captions",
-        startOver: "Start over", showAvatar: "Show Avatar", hideAvatar: "Hide Avatar",
-        askTitle: "Ask about this course",
-        askBody: "Ask a question or leave a comment. Theodore answers only about this training.",
-        askPlaceholder: "Ask about a rule, a sign, or this page. You can type or speak.",
-        speak: "Speak", send: "Send", close: "Close",
-        nextGap: "Next gap", outline: "Outline", freeTrial: "free trial",
-        absorb: "Take a moment with this page. The next one waits so you can study it.",
-        cameraNote: "Camera stays on. The lesson pauses if you leave the camera.",
-        watching: "Watching for presence.",
-        present: "Present and learning.",
-        mesh: "Present. Face mesh is watching.",
-        pauseLine: "We detected that you left the camera. The lesson is paused and will resume when you return.",
-        resumeLine: "You're back on the camera. We'll continue from the same place."
-      },
-      zh: {
-        course: "课程", language: "语言", look: "样子", motion: "动态", faces: "面孔",
-        bars: "音柱", line: "频率线", mouth: "说话的嘴", ripple: "柔和波纹", lantern: "灯笼",
-        library: "课程库", choose: "选一门课开始。",
-        yourLesson: "你的课", clickStart: "点击画面开始，或按“开始”然后说话。",
-        clickContinue: "点击画面继续，或按“开始”然后说话。",
-        start: "开始", pause: "暂停", resume: "继续", ask: "提问", hide: "隐藏",
-        hideOptions: "隐藏选项", showOptions: "显示选项", showCaptions: "显示字幕",
-        startOver: "重新开始", showAvatar: "显示头像", hideAvatar: "隐藏头像",
-        askTitle: "问问这门课",
-        askBody: "提问或留言。Theodore 只回答这门课的内容。",
-        askPlaceholder: "问问规则、标志或这一页。可以打字，也可以说。",
-        speak: "说话", send: "发送", close: "关闭",
-        nextGap: "下一处缺口", outline: "大纲", freeTrial: "免费试听",
-        absorb: "先看一会儿这一页。下一页会等你，方便你学习。",
-        cameraNote: "摄像头保持开启。离开画面时课程会暂停。",
-        watching: "正在观察是否有人。",
-        present: "人在，正在学习。",
-        mesh: "人在。面部网格正在观察。",
-        pauseLine: "我们检测到你离开了摄像头。课程已暂停，你回来后会继续。",
-        resumeLine: "你回到摄像头前了。我们从同一个地方继续。"
-      },
-      yue: {
-        course: "課程", language: "語言", look: "樣", motion: "動態", faces: "面孔",
-        bars: "音柱", line: "頻率線", mouth: "講緊嘢嘅嘴", ripple: "柔和波紋", lantern: "燈籠",
-        library: "課程庫", choose: "揀一堂課開始。",
-        yourLesson: "你嘅課", clickStart: "撳畫面開始，或者撳「開始」然後講嘢。",
-        clickContinue: "撳畫面繼續，或者撳「開始」然後講嘢。",
-        start: "開始", pause: "暫停", resume: "繼續", ask: "提問", hide: "隱藏",
-        hideOptions: "隱藏選項", showOptions: "顯示選項", showCaptions: "顯示字幕",
-        startOver: "重新開始", showAvatar: "顯示頭像", hideAvatar: "隱藏頭像",
-        askTitle: "問下呢堂課",
-        askBody: "提問或者留言。Theodore 只答呢堂課嘅內容。",
-        askPlaceholder: "問下規則、標誌或者呢一頁。可以打字，亦可以講。",
-        speak: "講嘢", send: "發送", close: "關閉",
-        nextGap: "下一個缺口", outline: "大綱", freeTrial: "免費試聽",
-        absorb: "先睇一陣呢一頁。下一頁會等你，方便你學。",
-        cameraNote: "鏡頭保持開住。離開畫面嗰陣課程會暫停。",
-        watching: "睇緊有冇人。",
-        present: "人喺度，學緊。",
-        mesh: "人喺度。面部網格睇緊。",
-        pauseLine: "我哋偵測到你離開咗鏡頭。課程已暫停，你返嚟之後會繼續。",
-        resumeLine: "你返到鏡頭前面。我哋由同一個地方繼續。"
-      },
-      km: {
-        course: "វគ្គសិក្សា", language: "ភាសា", look: "រូបរាង", motion: "ចលនា", faces: "មុខ",
-        bars: "របារ", line: "បន្ទាត់ប្រេកង់", mouth: "មាត់និយាយ", ripple: "រលកទន់", lantern: "គោម",
-        library: "បណ្ណាល័យវគ្គ", choose: "ជ្រើសវគ្គមួយដើម្បីចាប់ផ្តើម។",
-        yourLesson: "មេរៀនរបស់អ្នក", clickStart: "ចុចអេក្រង់ដើម្បីចាប់ផ្តើម ឬចុចចាប់ផ្តើម ហើយនិយាយ។",
-        clickContinue: "ចុចអេក្រង់ដើម្បីបន្ត ឬចុចចាប់ផ្តើម ហើយនិយាយ។",
-        start: "ចាប់ផ្តើម", pause: "ផ្អាក", resume: "បន្ត", ask: "សួរ", hide: "លាក់",
-        hideOptions: "លាក់ជម្រើស", showOptions: "បង្ហាញជម្រើស", showCaptions: "បង្ហាញអក្សររត់",
-        startOver: "ចាប់ផ្តើមឡើងវិញ", showAvatar: "បង្ហាញរូបតំណាង", hideAvatar: "លាក់រូបតំណាង",
-        askTitle: "សួរអំពីវគ្គនេះ",
-        askBody: "សួរសំណួរ ឬទុកមតិ។ Theodore ឆ្លើយតែអំពីការបណ្តុះបណ្តាលនេះ។",
-        askPlaceholder: "សួរអំពីច្បាប់ សញ្ញា ឬទំព័រនេះ។ អ្នកអាចវាយ ឬនិយាយ។",
-        speak: "និយាយ", send: "ផ្ញើ", close: "បិទ",
-        nextGap: "ចន្លោះបន្ទាប់", outline: "គ្រោង", freeTrial: "សាកល្បងឥតគិតថ្លៃ",
-        absorb: "ចំណាយពេលជាមួយទំព័រនេះ។ ទំព័របន្ទាប់រង់ចាំដើម្បីឱ្យអ្នកសិក្សា។",
-        cameraNote: "កាមេរ៉ានៅបើក។ មេរៀនផ្អាកប្រសិនបើអ្នកចេញពីកាមេរ៉ា។",
-        watching: "កំពុងមើលវត្តមាន។",
-        present: "មានវត្តមាន និងកំពុងរៀន។",
-        mesh: "មានវត្តមាន។ សំណាញ់មុខកំពុងមើល។",
-        pauseLine: "យើងបានរកឃើញថាអ្នកបានចេញពីកាមេរ៉ា។ មេរៀនបានផ្អាក ហើយនឹងបន្តពេលអ្នកត្រឡប់មកវិញ។",
-        resumeLine: "អ្នកបានត្រឡប់មកកាមេរ៉ាវិញ។ យើងនឹងបន្តពីកន្លែងដដែល។"
-      }
-    };
-    function lessonChrome(code) {
-      const key = studioSpokenCode(code || teachLanguage || "en");
-      return LESSON_CHROME[key] || LESSON_CHROME.en;
-    }
-    function paintLessonChrome(code) {
-      const pack = lessonChrome(code);
-      document.querySelectorAll("[data-i18n]").forEach((el) => {
-        const key = el.getAttribute("data-i18n");
-        if (!key || pack[key] == null) return;
-        if (el.id === "btn-pause") {
-          el.textContent = el.classList.contains("is-paused") ? pack.resume : pack.pause;
-          return;
-        }
-        if (el.id === "btn-avatar") {
-          el.textContent = document.body.classList.contains("avatar-on") ? pack.hideAvatar : pack.showAvatar;
-          return;
-        }
-        if (el.id === "btn-chrome") {
-          const hidden = document.body.classList.contains("chrome-hidden");
-          el.textContent = hidden ? pack.showOptions : pack.hideOptions;
-          el.title = el.textContent;
-          return;
-        }
-        el.textContent = pack[key];
-      });
-      document.querySelectorAll("[data-i18n-label]").forEach((el) => {
-        const key = el.getAttribute("data-i18n-label");
-        if (key && pack[key] != null) el.setAttribute("label", pack[key]);
-      });
-      document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
-        const key = el.getAttribute("data-i18n-placeholder");
-        if (key && pack[key] != null) el.setAttribute("placeholder", pack[key]);
-      });
-      PRESENCE_PAUSE = pack.pauseLine;
-      PRESENCE_RESUME = pack.resumeLine;
-      const status = $("student-cam-status");
-      if (!status) return;
-      const known = [];
-      Object.keys(LESSON_CHROME).forEach((name) => {
-        const row = LESSON_CHROME[name];
-        known.push(row.watching, row.present, row.mesh, row.pauseLine);
-      });
-      if (known.indexOf(status.textContent) >= 0) {
-        if (learningHold) status.textContent = pack.pauseLine;
-        else if (studentWasPresent) status.textContent = pack.present;
-        else status.textContent = pack.watching;
-      }
-    }
-    let studentWasPresent = false;
-    let lastStudentSeenAt = 0;
-    let studentBackSince = 0;
-    const ABSENCE_HOLD_MS = 600;
+    const PRESENCE_PAUSE = "I'll pause here. Come back when you're ready.";
+    const PRESENCE_RESUME = "Welcome back. We'll continue from the same place.";
     const PRESENCE_PHONE = "Looks like you might be looking down at a phone. The lesson is still here when you look up.";
     const PRESENCE_AWAY = "Look back at the screen when you can. I'll keep going from here.";
     let glanceNoted = '';
@@ -2523,98 +1923,7 @@ STUDIO_JS = """
       } catch (err) { /* a local note is enough when no profile store is wired */ }
     }
 
-    function cameraIsLive() {
-      if (studentCamStream) return true;
-      const video = $('student-cam-video');
-      const tracks = video && video.srcObject && video.srcObject.getVideoTracks
-        ? video.srcObject.getVideoTracks() : [];
-      return tracks.some((track) => track.readyState === 'live');
-    }
-
-    function noteStudentInFrame(seen) {
-      if (seen) {
-        studentWasPresent = true;
-        if (!learningHold) {
-          lastStudentSeenAt = Date.now();
-          studentBackSince = 0;
-        } else {
-          if (!studentBackSince) studentBackSince = Date.now();
-          if (Date.now() - studentBackSince >= 1200) lastStudentSeenAt = Date.now();
-        }
-        return;
-      }
-      studentBackSince = 0;
-      if (studentStillAway()) pauseLessonForAbsence(PRESENCE_PAUSE);
-    }
-
-    function watchStudentPresence() {
-      if (document.visibilityState === 'hidden') {
-        studentBackSince = 0;
-        if (studentStillAway()) pauseLessonForAbsence(PRESENCE_PAUSE);
-        return;
-      }
-      const cache = lessonTrackCache;
-      if (!cache || Date.now() - cache.at > 400) return;
-      const seen = !!(
-        (cache.facial && cache.facial.face_count > 0)
-        || cache.seenPose || cache.seenHands || cache.seenBox
-      );
-      noteStudentInFrame(seen);
-    }
-
-    function studentStillAway() {
-      if (!studentWasPresent || !lastStudentSeenAt) return false;
-      if (!cameraIsLive() && document.visibilityState !== 'hidden') return false;
-      return Date.now() - lastStudentSeenAt >= ABSENCE_HOLD_MS;
-    }
-
-    function showPresenceBanner(line) {
-      const banner = $('presence-hold');
-      if (!banner) return;
-      banner.hidden = false;
-      banner.textContent = line;
-    }
-
-    function hidePresenceBanner() {
-      const banner = $('presence-hold');
-      if (!banner) return;
-      banner.hidden = true;
-    }
-
-    function pauseLessonForAbsence(line) {
-      const message = line || PRESENCE_PAUSE;
-      showPresenceBanner(message);
-      setLearningStatus(message);
-      const already = learningHold && holdGroup(learningHoldReason) === 'away';
-      learningHold = true;
-      learningHoldReason = 'no_learner_detected';
-      window.TheodoreLiveAudio?.pauseRecognition?.();
-      clearAutoAdvance();
-      theodoreAvatar?.setState('listening');
-      document.body.classList.add('presence-held');
-      if (already) return;
-      stopSpeech();
-      rememberStudioPresence('left_frame');
-      sayPresenceLine(message);
-    }
-
-    function resumeLessonAfterPresence() {
-      if (!learningHold) {
-        hidePresenceBanner();
-        document.body.classList.remove('presence-held');
-        return;
-      }
-      learningHold = false;
-      learningHoldReason = '';
-      document.body.classList.remove('presence-held');
-      hidePresenceBanner();
-      setLearningStatus('Present. Continuing the same lesson.');
-      rememberStudioPresence('returned');
-      if (!lecturePaused && !learningCheckOpen) sayPresenceLine(PRESENCE_RESUME, continueSameLesson);
-    }
-
     function continueSameLesson() {
-      if (learningHold) return;
       if (window.TheodoreLiveAudio && window.__THEODORE_LIVE_AUDIO_ACTIVE__) {
         window.TheodoreLiveAudio.resumeRecognition?.();
         return;
@@ -2626,26 +1935,14 @@ STUDIO_JS = """
     function sayPresenceLine(line, after) {
       window.TheodoreLiveAudio?.pauseRecognition?.();
       stopSpeech();
-      let finished = false;
-      const done = () => {
-        if (finished) return;
-        finished = true;
-        if (after) after();
-      };
       setTimeout(() => {
         if (!window.speechSynthesis) {
-          done();
+          if (after) after();
           return;
         }
-        try {
-          const utter = new SpeechSynthesisUtterance(line);
-          utter.onend = done;
-          utter.onerror = done;
-          window.speechSynthesis.speak(utter);
-          window.setTimeout(done, Math.min(8000, 1400 + String(line || '').length * 40));
-        } catch (_) {
-          done();
-        }
+        const utter = new SpeechSynthesisUtterance(line);
+        utter.onend = () => { if (after) after(); };
+        window.speechSynthesis.speak(utter);
       }, 60);
     }
 
@@ -2674,39 +1971,20 @@ STUDIO_JS = """
       glanceNoted = '';
     }
 
-    function absenceHold(data) {
-      if (!data) return false;
-      if (data.absent) return true;
-      return /no_learner|absence_grace|temporarily_missing/.test(String(data.reason || ''));
-    }
-
     function applyLearningHold(data) {
       const status = $('student-cam-status');
-      if (studentStillAway()) {
-        pauseLessonForAbsence(PRESENCE_PAUSE);
-        return;
-      }
-      if (data && data.hold && absenceHold(data) && !studentWasPresent) {
-        setLearningStatus(lessonChrome().watching);
-        return;
-      }
-      const backFromAbsence = data && data.hold && absenceHold(data) && studentWasPresent;
-      if (!data || !data.hold || backFromAbsence) {
+      if (!data || !data.hold) {
         clearGlance();
-        if (learningHold && holdGroup(learningHoldReason) === 'away') {
-          resumeLessonAfterPresence();
-        } else if (learningHold) {
+        if (learningHold) {
           learningHold = false;
           learningHoldReason = '';
-          hidePresenceBanner();
-          document.body.classList.remove('presence-held');
           setLearningStatus('Present. Continuing the same lesson.');
           rememberStudioPresence('returned');
           if (!lecturePaused && !learningCheckOpen) sayPresenceLine(PRESENCE_RESUME, continueSameLesson);
         } else if (status && !status.textContent) {
-          setLearningStatus(lessonChrome().watching);
+          setLearningStatus('Watching for presence.');
         } else if (data && data.state === 'present') {
-          setLearningStatus(meshReady ? lessonChrome().mesh : lessonChrome().present);
+          setLearningStatus(meshReady ? 'Present. Face mesh is watching.' : 'Present and learning.');
         }
         return;
       }
@@ -2717,16 +1995,14 @@ STUDIO_JS = """
         return;
       }
       clearGlance();
-      hidePresenceBanner();
       setLearningStatus(PRESENCE_PAUSE);
       if (learningHold && holdGroup(learningHoldReason) === holdGroup(reason)) return;
       learningHold = true;
       learningHoldReason = reason;
       clearAutoAdvance();
       theodoreAvatar?.setState('listening');
-      document.body.classList.add('presence-held');
       rememberStudioPresence('left_frame');
-      sayPresenceLine(data.speech || PRESENCE_PAUSE);
+      sayPresenceLine(PRESENCE_PAUSE);
     }
 
     function firstLessonSentence(text) {
@@ -2796,9 +2072,6 @@ STUDIO_JS = """
         const box = $('student-cam');
         if (box) box.hidden = false;
         restoreStudentCamPosition();
-        if (!studentCamTimer) studentCamTimer = window.setInterval(() => { void studentCameraSample(); }, 1000);
-        if (!studentAwayTimer) studentAwayTimer = window.setInterval(watchStudentPresence, 200);
-        startStudentTracking();
         return;
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
@@ -2816,12 +2089,9 @@ STUDIO_JS = """
         if (box) box.hidden = false;
         restoreStudentCamPosition();
         if (!studentCamTimer) studentCamTimer = window.setInterval(() => { void studentCameraSample(); }, 1000);
-        if (!studentAwayTimer) studentAwayTimer = window.setInterval(watchStudentPresence, 200);
-        startStudentTracking();
       } catch (error) {
         setLearningStatus('Camera is required. Allow it to continue.');
         if (!studentCamTimer) studentCamTimer = window.setInterval(() => { void studentCameraSample(); }, 1000);
-        if (!studentAwayTimer) studentAwayTimer = window.setInterval(watchStudentPresence, 200);
       }
     }
 
@@ -2841,14 +2111,9 @@ STUDIO_JS = """
     }
 
     function stopStudentCamera() {
-      stopStudentTracking();
       if (studentCamTimer) {
         window.clearInterval(studentCamTimer);
         studentCamTimer = 0;
-      }
-      if (studentAwayTimer) {
-        window.clearInterval(studentAwayTimer);
-        studentAwayTimer = 0;
       }
       if (studentCamStream) {
         studentCamStream.getTracks().forEach((track) => track.stop());
@@ -2981,7 +2246,6 @@ STUDIO_JS = """
       applyAvatarPlacement();
       updateLessonWindowControls();
       setStudioChromeHidden(document.body.classList.contains('chrome-hidden'));
-      revealDriveChrome();
       // The renderer sizes off the container, which just changed by a lot.
       requestAnimationFrame(() => theodoreAvatar?.resize());
     }
@@ -3001,7 +2265,6 @@ STUDIO_JS = """
       applyAvatarPlacement();
       updateLessonWindowControls();
       setStudioChromeHidden(false);
-      if (!document.body.classList.contains('audio-only')) setDriveChromeHidden(false);
       requestAnimationFrame(() => theodoreAvatar?.resize());
     }
 
@@ -3034,7 +2297,7 @@ STUDIO_JS = """
     function setPauseButton(paused) {
       const btn = $('btn-pause');
       if (!btn) return;
-      btn.textContent = paused ? lessonChrome().resume : lessonChrome().pause;
+      btn.textContent = paused ? 'Resume' : 'Pause';
       btn.classList.toggle('is-paused', !!paused);
     }
 
@@ -3219,7 +2482,7 @@ STUDIO_JS = """
         {
           id: 'drivers-ed',
           title: "Driver's ed",
-          detail: 'California permit prep · ' + driver.length + ' lessons, including 140 traffic signs · Full course $19.99',
+          detail: 'California permit prep · ' + driver.length + ' lessons, including 140 traffic signs',
           kind: 'cert',
           lessons: driver,
           featured: true
@@ -3227,7 +2490,7 @@ STUDIO_JS = """
         {
           id: 'food-safety',
           title: 'Food safety',
-          detail: 'California food handler prep · ' + food.length + ' modules in order · Full course $19.99',
+          detail: 'California food handler prep · ' + food.length + ' modules in order',
           kind: 'cert',
           lessons: food,
           featured: true
@@ -3296,35 +2559,16 @@ STUDIO_JS = """
       await teachLibraryLesson();
     }
 
-    function fullDriversProgram() {
-      return !!(activeCourse && activeCourse.id === 'drivers-ed' && requestedAccess !== 'sample');
-    }
-
     async function teachLibraryLesson() {
       const lesson = activeCourse && activeCourse.lessons[lessonCursor];
-      const wholeProgram = fullDriversProgram();
-      if (!wholeProgram && !lesson) return;
+      if (!lesson) return;
       teachLanguage = ($('teach-lang') && $('teach-lang').value) || teachLanguage || 'en';
       const now = $('library-now');
       if (now) {
-        now.textContent = wholeProgram
-          ? activeCourse.title + ' · ' + activeCourse.lessons.length + ' classes'
-          : activeCourse.title + ' · part ' + (lessonCursor + 1) +
-            ' of ' + activeCourse.lessons.length + ' · ' + (lesson.title || '');
+        now.textContent = activeCourse.title + ' · part ' + (lessonCursor + 1) +
+          ' of ' + activeCourse.lessons.length + ' · ' + (lesson.title || '');
       }
       let data;
-      if (wholeProgram) {
-        data = await api('/api/studio/courses/certification-program', {
-          method:'POST', headers:{'content-type':'application/json'},
-          body: JSON.stringify({
-            track: 'ca_dmv_permit',
-            language: teachLanguage
-          })
-        });
-        selectedCourse = data.course_id;
-        await startTeach({ resume: true, focusGaps: false });
-        return;
-      }
       if (activeCourse.kind === 'cert') {
         data = await api('/api/studio/courses/certification', {
           method:'POST', headers:{'content-type':'application/json'},
@@ -3434,7 +2678,6 @@ STUDIO_JS = """
     function applyTeachLanguage(code) {
       teachLanguage = code || 'en';
       syncLanguageSelects();
-      paintLessonChrome(teachLanguage);
       if (activeCourse) teachLibraryLesson().catch((e) => toast(String(e.message || e)));
     }
 
@@ -3511,7 +2754,7 @@ STUDIO_JS = """
         body: JSON.stringify({
           session_id: teachSession, course_id: selectedCourse, profile: profileFromForm(),
           learner_id: learnerId,
-          focus_gaps: !!(opts && opts.focusGaps === false) ? false : true, known_objective_ids: [],
+          focus_gaps: true, known_objective_ids: [],
           language: teachLanguage, use_voice_agent: true,
           voice_gender: courseVoiceGender,
           resume: opts.resume !== false,
@@ -3587,7 +2830,8 @@ STUDIO_JS = """
       if (!p) return '';
       const turn = p.turn || p;
       const provider = (p.voice && p.voice.provider) || 'slide';
-      return 'Theodore (' + provider + '): ' + (turn.narration || '');
+      const who = (avatarCatalog[selectedAvatarId]?.label) || 'Serenity';
+      return who + ' (' + provider + '): ' + (turn.narration || '');
     }
 
     function currentSectionWords() {
@@ -3622,7 +2866,8 @@ STUDIO_JS = """
       const narr = $('teach-narr');
       if (!narr || !lastTeachPayload) return;
       const provider = (lastTeachPayload.voice && lastTeachPayload.voice.provider) || 'slide';
-      narr.textContent = 'Theodore (' + provider + '): ' + words;
+      const who = (avatarCatalog[selectedAvatarId]?.label) || 'Serenity';
+      narr.textContent = who + ' (' + provider + '): ' + words;
     }
 
     function restoreLessonAvatar() {
@@ -4258,9 +3503,7 @@ STUDIO_JS = """
         await nextSlide({ auto: true });
         return;
       }
-      const program = lastTeachPayload && lastTeachPayload.progress
-        && typeof lastTeachPayload.progress.program_percent === 'number';
-      if (!program && activeCourse && lessonCursor < activeCourse.lessons.length - 1) {
+      if (activeCourse && lessonCursor < activeCourse.lessons.length - 1) {
         lessonCursor += 1;
         await teachLibraryLesson();
         return;
@@ -4322,10 +3565,6 @@ STUDIO_JS = """
     }
 
     function onDriveWaveTap() {
-      if (learningHold) {
-        pauseLessonForAbsence(PRESENCE_PAUSE);
-        return;
-      }
       if (sampleIsComplete()) {
         endSampleTrial(lastTeachPayload);
         return;
@@ -4347,7 +3586,6 @@ STUDIO_JS = """
         endSampleTrial(lastTeachPayload);
         return;
       }
-      if (learningHold && lecturePaused) return;
       lecturePaused = !lecturePaused;
       if (lecturePaused) {
         stopSpeech();
@@ -4507,34 +3745,18 @@ STUDIO_JS = """
       const total = payload.path.length;
       const pos = Math.max(0, Math.min(total - 1, Number(payload.path_pos) || 0));
       const place = coursePlacePercent(payload);
-      const progress = payload.progress || {};
-      const covered = typeof progress.covered_percent === 'number'
-        ? progress.covered_percent
-        : progress.completion_percent;
+      const covered = payload.progress && payload.progress.completion_percent;
       map.hidden = false;
       const percent = $('course-map-percent');
       const count = $('course-map-count');
       const fill = $('course-map-fill');
       const scrub = $('course-map-scrub');
-      const programPct = typeof progress.program_percent === 'number' ? progress.program_percent : null;
-      const classPct = typeof progress.class_percent === 'number' ? progress.class_percent : null;
-      const shown = programPct != null ? programPct : (typeof covered === 'number' ? covered : place);
-      if (percent) percent.textContent = shown + '%';
+      if (percent) percent.textContent = place + '%';
       if (count) {
-        if (programPct != null) {
-          const className = progress.class_title || 'This class';
-          const classNo = (Number(progress.class_index) || 0) + 1;
-          const classTotal = progress.class_count || 1;
-          count.textContent = 'Class ' + classNo + ' of ' + classTotal + ' · ' + className +
-            ' · class ' + classPct + '% · program ' + programPct + '%';
-        } else {
-          const coveredMark = typeof covered === 'number' ? ' · covered ' + covered + '%' : '';
-          count.textContent = 'Slide ' + (pos + 1) + ' of ' + total + coveredMark;
-        }
+        const coveredMark = typeof covered === 'number' ? ' · covered ' + covered + '%' : '';
+        count.textContent = 'Slide ' + (pos + 1) + ' of ' + total + coveredMark;
       }
-      if (fill) fill.style.width = shown + '%';
-      const gapBtn = $('course-map-gap');
-      if (gapBtn) gapBtn.hidden = programPct == null || payload.access_mode === 'sample';
+      if (fill) fill.style.width = place + '%';
       if (scrub) {
         scrub.max = String(total - 1);
         scrub.value = String(pos);
@@ -4552,12 +3774,10 @@ STUDIO_JS = """
           }));
       list.innerHTML = rows.map((row) => {
         const heading = row.chapter_start
-          ? '<div class="chapter">' + esc(row.chapter_title || ('Chapter ' + row.chapter)) + '</div>' : '';
-        const cls = [row.current ? 'is-current' : '', row.gap ? 'is-gap' : ''].filter(Boolean).join(' ');
+          ? '<div class="chapter">Chapter ' + row.chapter + '</div>' : '';
         return heading + '<li><button type="button" data-path-pos="' + row.path_pos + '"' +
-          (cls ? ' class="' + cls + '"' : '') + '>' +
-          (row.path_pos + 1) + '. ' + esc(row.title || 'Slide') +
-          (row.gap ? ' · gap' : '') + '</button></li>';
+          (row.current ? ' class="is-current"' : '') + '>' +
+          (row.path_pos + 1) + '. ' + esc(row.title || 'Slide') + '</button></li>';
       }).join('');
     }
 
@@ -5437,10 +4657,6 @@ STUDIO_JS = """
       document.body.classList.remove('is-speaking');
     }
 
-    let liveVoiceStart = null;
-    function lessonNarration(kind) {
-      return !kind || kind === 'course-resume' || kind === 'backup';
-    }
     function speakText(text, ttsMeta, holdLesson, kind) {
       if (sampleIsComplete()) return;
       if (learningHold && kind !== 'guard' && kind !== 'learn-check') return;
@@ -5448,10 +4664,7 @@ STUDIO_JS = """
       if (kind !== 'adapt' && kind !== 'adapt-resume' && kind !== 'guard') attentionResume = '';
       if (lecturePaused && !holdLesson) return;
       if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
-        if (kind !== 'talk') {
-          if (lessonNarration(kind)) syncVoiceToSlide(lastTeachPayload);
-          return;
-        }
+        if (kind !== 'talk') return;
         window.TheodoreLiveAudio?.pauseRecognition();
       }
       stopSpeech();
@@ -5475,29 +4688,6 @@ STUDIO_JS = """
           attentionResume = '';
           speakText(next, null, false, 'adapt-resume');
         }
-        return;
-      }
-      if (!holdLesson && lessonNarration(kind) && kind !== 'backup' && window.TheodoreLiveAudio?.start) {
-        if (!liveVoiceStart) {
-          liveVoiceStart = (async () => {
-            const waitUntilLive = async () => {
-              const until = Date.now() + 4000;
-              while (!window.__THEODORE_LIVE_AUDIO_ACTIVE__ && Date.now() < until) {
-                await new Promise((resolve) => setTimeout(resolve, 200));
-              }
-            };
-            let started = await window.TheodoreLiveAudio.start();
-            if (started === false && !window.__THEODORE_LIVE_AUDIO_ACTIVE__) {
-              await new Promise((resolve) => setTimeout(resolve, 700));
-              if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__) started = await window.TheodoreLiveAudio.start();
-            }
-            if (started !== false) await waitUntilLive();
-            return !!window.__THEODORE_LIVE_AUDIO_ACTIVE__;
-          })().finally(() => { liveVoiceStart = null; });
-        }
-        liveVoiceStart.then((ok) => {
-          if (!ok) speakText(text, ttsMeta, holdLesson, 'backup');
-        });
         return;
       }
       let settled = false;
@@ -5787,10 +4977,6 @@ STUDIO_JS = """
     }
 
     async function proceedByVoice() {
-      if (learningHold) {
-        pauseLessonForAbsence(PRESENCE_PAUSE);
-        return;
-      }
       if (sampleIsComplete()) {
         endSampleTrial(lastTeachPayload);
         toast(trialEndedMessage(lastTeachPayload));
@@ -5807,7 +4993,6 @@ STUDIO_JS = """
 
     window.addEventListener('theodore-live-audio', (event) => {
       paintProceedCue();
-      if (learningHold) return;
       if (event.detail?.active && !event.detail?.paused && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
         stopSpeech();
         if (lastTeachPayload) syncVoiceToSlide(lastTeachPayload);
@@ -5832,63 +5017,14 @@ STUDIO_JS = """
       }
       theodoreAvatar?.stopSpeaking();
     });
-    let voiceLevel = 0.12;
-    let voiceLevelFresh = 0;
-    let voicePhase = 0;
-    let voiceLineOn = false;
-    const AUDIO_LOOKS = ['bars', 'line', 'mouth', 'ripple', 'lantern', 'face-amina', 'face-mei', 'face-luis', 'face-amara', 'face-noah', 'face-priya'];
-    function showVoiceLevel(level, fresh) {
-      const next = Math.max(0, Math.min(1, Number(level) || 0));
-      voiceLevel = next;
-      if (fresh) voiceLevelFresh = Date.now();
-      const stage = $('audio-stage');
-      if (stage) stage.style.setProperty('--level', next.toFixed(3));
-      const bars = $('audio-bars');
-      if (bars) bars.style.setProperty('--level', next.toFixed(3));
-    }
-    function paintVoiceLine() {
-      const path = $('voice-line-path');
-      if (!path) return;
-      const speaking = document.body.classList.contains('is-speaking');
-      const amp = speaking ? 10 + Math.max(voiceLevel, 0.18) * 62 : 6;
-      voicePhase += speaking ? 0.22 : 0.04;
-      let d = '';
-      for (let x = 0; x <= 600; x += 10) {
-        const y = 90 + Math.sin(x / 26 + voicePhase) * amp * (0.65 + 0.35 * Math.sin(x / 80 + voicePhase * 0.5));
-        d += (x ? 'L' : 'M') + x + ' ' + y.toFixed(1);
-      }
-      path.setAttribute('d', d);
-    }
-    function tickVoiceLine() {
-      if (!voiceLineOn) return;
-      paintVoiceLine();
-      requestAnimationFrame(tickVoiceLine);
-    }
-    function applyAudioLook(id) {
-      const look = AUDIO_LOOKS.indexOf(id) >= 0 ? id : 'bars';
-      const stage = $('audio-stage');
-      if (stage) stage.dataset.look = look;
-      const picker = $('drive-look');
-      if (picker && picker.value !== look) picker.value = look;
-      try { localStorage.setItem('audio-lab-look', look); } catch (err) { /* the choice can stay for this visit */ }
-      if (look === 'line' && !voiceLineOn) {
-        voiceLineOn = true;
-        tickVoiceLine();
-      } else if (look !== 'line') voiceLineOn = false;
-    }
     window.addEventListener('theodore-live-audio-level', (event) => {
       const level = Number(event.detail && event.detail.level) || 0;
-      showVoiceLevel(level, true);
+      const bars = $('audio-bars');
+      if (bars) bars.style.setProperty('--level', String(level));
       if (!lecturePaused && level > 0.03) document.body.classList.add('is-speaking');
       if (lecturePaused) return;
       theodoreAvatar?.setVoiceLevel(level);
     });
-    setInterval(() => {
-      if (!document.body.classList.contains('audio-only')) return;
-      if (Date.now() - voiceLevelFresh < 160) return;
-      if (voiceLevel < 0.09) return;
-      showVoiceLevel(voiceLevel * 0.8, false);
-    }, 90);
     window.addEventListener('theodore-live-audio-user', (event) => {
       if (lecturePaused) return;
       if (event.detail && event.detail.talking) theodoreAvatar?.setState('listening');
@@ -6199,11 +5335,8 @@ STUDIO_JS = """
       const rtl = ['ar', 'fa', 'he', 'ur'].includes(spoken);
       lessonText.setAttribute('lang', spoken || 'en');
       lessonText.setAttribute('dir', rtl ? 'rtl' : 'ltr');
-      const coveredPct = typeof prog.covered_percent === 'number'
-        ? prog.covered_percent
-        : prog.completion_percent;
-      const covered = typeof coveredPct === 'number'
-        ? ` · ${coveredPct}% of the course` : '';
+      const covered = typeof prog.completion_percent === 'number'
+        ? ` · ${prog.completion_percent}% of the course` : '';
       $('teach-adapt').textContent =
         `${adapt} · lang ${esc(lang)} · focus: ${esc(obj)} · known ${prog.known || 0} / gaps ${prog.gaps || 0}${covered}`;
       const warn = $('lang-warning');
@@ -6280,9 +5413,6 @@ STUDIO_JS = """
     on('btn-resume', 'click', () => resumeTeach().catch((e) => toast(String(e.message || e))));
     on('btn-start-over', 'click', () => startOverTeach().catch((e) => toast(String(e.message || e))));
     on('btn-next', 'click', () => nextSlide().catch((e) => toast(String(e.message || e))));
-    on('course-map-gap', 'click', () => {
-      resumeUncoveredCourse().catch((e) => toast(String(e.message || e)));
-    });
     on('course-map-toggle', 'click', () => {
       const list = $('course-map-list');
       if (!list) return;
@@ -6303,11 +5433,6 @@ STUDIO_JS = """
       if (!button) return;
       jumpToPath(Number(button.getAttribute('data-path-pos'))).catch((e) => toast(String(e.message || e)));
     });
-    on('course-price', 'click', () => openPayScreen());
-    on('pay-card', 'click', () => { beginCoursePayment('card'); });
-    on('pay-paypal', 'click', () => { beginCoursePayment('paypal'); });
-    on('pay-close', 'click', () => closePayScreen());
-    confirmCoursePayment();
     on('btn-pause', 'click', () => toggleLecturePause());
     on('btn-fullscreen', 'click', togglePresenterMode);
     on('btn-chrome', 'click', () => setStudioChromeHidden(!document.body.classList.contains('chrome-hidden')));
@@ -6323,24 +5448,9 @@ STUDIO_JS = """
     enableStudentCamDrag();
     on('btn-captions', 'click', () => setCaptionsEnabled(!captionsEnabled));
     let proceedClickTimer = null;
-    if (audioOnly) {
-      parkSampleClock();
-      revealDriveChrome();
-      let savedLook = 'bars';
-      try { savedLook = localStorage.getItem('audio-lab-look') || 'bars'; } catch (err) { savedLook = 'bars'; }
-      applyAudioLook(savedLook);
-    }
-    on('drive-look', 'change', (event) => applyAudioLook(event.target.value));
-    document.addEventListener('pointerdown', () => {
-      const audio = document.body.classList.contains('audio-only');
-      if (!audio && !presenterActive()) return;
-      driveChromeWasHidden = document.body.classList.contains('drive-chrome-hidden');
-      revealDriveChrome();
-    }, true);
     on('teach-stage', 'click', (event) => {
       if (document.body.classList.contains('audio-only')) {
-        if (event.target.closest('button, input, select, textarea, a, label, #drive-bar, #course-map, #student-cam, #theodore-live-audio')) return;
-        if (driveChromeWasHidden) return;
+        if (event.target.closest('button, input, select, textarea, a, label, #drive-bar, #course-map')) return;
         onDriveWaveTap();
         return;
       }
@@ -6381,10 +5491,12 @@ STUDIO_JS = """
       courseVoiceGender = ev.target.value || 'female';
       if (teachSession && lastTeachPayload) startTeach().catch(() => {});
     });
+    on('avatar-choice', 'change', (ev) => {
+      chooseAvatar(ev.target.value).catch((error) => toast(String(error.message || error)));
+    });
     on('teach-lang', 'change', (event) => applyTeachLanguage(event.target.value));
     on('teach-lang-stage', 'change', (event) => applyTeachLanguage(event.target.value));
     on('drive-lang', 'change', (event) => applyTeachLanguage(event.target.value));
-    paintLessonChrome(teachLanguage);
     // Escape leaves fullscreen without telling us, so follow the browser back.
     document.addEventListener('fullscreenchange', () => {
       if (!document.fullscreenElement) exitPresenterMode();
@@ -6393,7 +5505,9 @@ STUDIO_JS = """
     on('btn-avatar-hide', 'click', () => setAvatarVisible(false));
 
     avatarPrefs = loadAvatarPrefs();
-    selectedAvatarId = 'student';
+    selectedAvatarId = avatarPrefs.presenterChosen && avatarPrefs.presenter
+      ? avatarPrefs.presenter
+      : 'student';
     initAvatarDrag();
     setAvatarVisible(
       typeof avatarPrefs.on === 'boolean' ? avatarPrefs.on : SHOW_AVATAR, false);
@@ -6455,90 +5569,41 @@ def render_studio_page() -> str:
   </header>
   <div class="layout">
     <div class="panel library-panel">
-      <h2><span class="mark" aria-hidden="true"><svg viewBox="0 0 28 28" width="22" height="22"><path d="M4 6h8c1.4 1 2.8 1 4 0h8v16h-8c-1.2 1-2.6 1-4 0H4V6z" fill="none" stroke="#1e3a5f" stroke-width="1.8"/><path d="M14 7v14" stroke="#1e3a5f" stroke-width="1.4"/></svg></span> <span data-i18n="library">Course library</span></h2>
+      <h2><span class="mark" aria-hidden="true"><svg viewBox="0 0 28 28" width="22" height="22"><path d="M4 6h8c1.4 1 2.8 1 4 0h8v16h-8c-1.2 1-2.6 1-4 0H4V6z" fill="none" stroke="#1e3a5f" stroke-width="1.8"/><path d="M14 7v14" stroke="#1e3a5f" stroke-width="1.4"/></svg></span> Course library</h2>
       <div class="row">
-        <label><span data-i18n="language">Language</span> <select id="teach-lang" style="min-width:12rem"></select></label>
+        <label>Language <select id="teach-lang" style="min-width:12rem"></select></label>
       </div>
-      <div class="status" id="library-now" data-i18n="choose">Choose a course to begin.</div>
+      <div class="status" id="library-now">Choose a course to begin.</div>
       <div class="list library" id="library-list"></div>
     </div>
     <div class="panel">
       <div id="teach-stage-home">
       <div class="teach-stage captions-off" id="teach-stage">
         <div id="drive-bar" class="drive-bar">
-          <label><span data-i18n="course">Course</span>
+          <label>Course
             <select id="drive-course" aria-label="Course"></select>
           </label>
-          <label><span data-i18n="language">Language</span>
+          <label>Language
             <select id="drive-lang" aria-label="Lesson language"></select>
-          </label>
-          <label><span data-i18n="look">Look</span>
-            <select id="drive-look" aria-label="Animation">
-              <optgroup data-i18n-label="motion" label="Motion">
-                <option value="bars" data-i18n="bars">Bars</option>
-                <option value="line" data-i18n="line">Frequency line</option>
-                <option value="mouth" data-i18n="mouth">Talking mouth</option>
-                <option value="ripple" data-i18n="ripple">Soft ripples</option>
-                <option value="lantern" data-i18n="lantern">Lantern</option>
-              </optgroup>
-              <optgroup data-i18n-label="faces" label="Faces">
-                <option value="face-amina">Amina</option>
-                <option value="face-mei">Mei</option>
-                <option value="face-luis">Luis</option>
-                <option value="face-amara">Amara</option>
-                <option value="face-noah">Noah</option>
-                <option value="face-priya">Priya</option>
-              </optgroup>
-            </select>
           </label>
         </div>
         <div class="lesson-window-controls" aria-label="Lesson window controls">
-          <label class="lesson-lang"><span data-i18n="language">Language</span>
+          <label class="lesson-lang">Language
             <select id="teach-lang-stage" aria-label="Lesson language"></select>
           </label>
           <button id="btn-captions" class="is-off" type="button" aria-pressed="false" aria-label="Show lesson captions" title="Show captions">CC</button>
-          <button id="btn-chrome" type="button" hidden aria-pressed="false" title="Hide options" data-i18n="hideOptions">Hide options</button>
+          <button id="btn-chrome" type="button" hidden aria-pressed="false" title="Hide options">Hide options</button>
           <button id="btn-fullscreen" type="button" aria-label="Expand lesson to full screen" title="Full screen">⛶</button>
         </div>
-        <h3 id="teach-title" data-i18n="yourLesson">Your lesson</h3>
-        <div class="audio-stage" id="audio-stage" data-look="bars" aria-label="Audio playing">
+        <h3 id="teach-title">Your lesson</h3>
+        <div class="audio-stage" id="audio-stage" aria-label="Audio playing">
           <div class="audio-bars" id="audio-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <svg class="voice-line" viewBox="0 0 600 180" preserveAspectRatio="none" aria-hidden="true">
-            <path id="voice-line-path" fill="none" stroke="#8feaff" stroke-width="3.5" stroke-linecap="round"></path>
-          </svg>
-          <div class="voice-mouth" aria-hidden="true"><i class="lip-upper"></i><i class="lip-opening"></i><i class="lip-lower"></i></div>
-          <div class="voice-ripple" aria-hidden="true"><b></b><i></i><i></i><i></i></div>
-          <div class="voice-lantern" aria-hidden="true"><i></i></div>
-          <svg class="voice-face" viewBox="0 0 200 250" aria-hidden="true">
-            <g class="hair hair-coils face-hair-fill"><circle cx="48" cy="78" r="18"/><circle cx="72" cy="50" r="18"/><circle cx="100" cy="42" r="20"/><circle cx="128" cy="50" r="18"/><circle cx="152" cy="78" r="18"/><circle cx="38" cy="108" r="16"/><circle cx="162" cy="108" r="16"/></g>
-            <g class="hair hair-natural face-hair-fill"><ellipse cx="100" cy="96" rx="90" ry="74"/></g>
-            <g class="hair hair-long face-hair-fill"><path d="M52 108 Q48 42 100 34 Q152 42 148 108 Q170 48 176 214 Q148 198 138 128 Q100 78 62 128 Q52 198 24 214 Q30 48 52 108"/></g>
-            <path d="M28 248 Q28 198 72 186 Q100 178 128 186 Q172 198 172 248" fill="#163044"/>
-            <ellipse class="face-ear" cx="38" cy="132" rx="12" ry="16"/>
-            <ellipse class="face-ear" cx="162" cy="132" rx="12" ry="16"/>
-            <ellipse class="face-skin" cx="100" cy="132" rx="64" ry="76"/>
-            <path class="face-brow" d="M64 114 Q76 106 88 114"/>
-            <path class="face-brow" d="M112 114 Q124 106 136 114"/>
-            <path class="face-nose" d="M100 134 Q108 150 100 158"/>
-            <g class="hair hair-bangs face-hair-fill"><path d="M42 118 Q54 46 100 40 Q146 46 158 118 Q136 86 100 92 Q64 86 42 118"/></g>
-            <g class="hair hair-crop face-hair-fill"><path d="M46 124 Q54 52 100 46 Q146 52 154 124 Q136 102 100 106 Q64 102 46 124"/></g>
-            <ellipse class="face-eye" cx="76" cy="128" rx="7" ry="8" fill="#1c140f"/>
-            <ellipse class="face-eye" cx="124" cy="128" rx="7" ry="8" fill="#1c140f"/>
-            <circle cx="78" cy="126" r="2" fill="#fff" opacity=".85"/>
-            <circle cx="126" cy="126" r="2" fill="#fff" opacity=".85"/>
-            <g class="face-glasses" fill="none" stroke="#d7e7ea" stroke-width="2.4"><circle cx="76" cy="128" r="14"/><circle cx="124" cy="128" r="14"/><path d="M90 128 H110"/></g>
-            <g class="face-mouth-wrap">
-              <ellipse cx="100" cy="166" rx="14" ry="8" fill="#4a2030"/>
-              <path class="face-lip" d="M84 162 Q100 156 116 162 Q100 176 84 162"/>
-            </g>
-          </svg>
         </div>
         <aside id="course-map" class="course-map" hidden>
           <div class="course-map-head">
             <strong id="course-map-percent" class="course-map-percent">0%</strong>
             <span id="course-map-count" class="course-map-count">Slide 1 of 1</span>
-            <button id="course-map-gap" class="course-map-toggle" type="button" hidden data-i18n="nextGap">Next gap</button>
-            <button id="course-map-toggle" class="course-map-toggle" type="button" aria-expanded="false" data-i18n="outline">Outline</button>
+            <button id="course-map-toggle" class="course-map-toggle" type="button" aria-expanded="false">Outline</button>
           </div>
           <div class="course-map-bar" aria-hidden="true"><i id="course-map-fill"></i></div>
           <input id="course-map-scrub" class="course-map-scrub" type="range" min="0" max="0" value="0" aria-label="Skip to a part of the course" />
@@ -6555,7 +5620,7 @@ def render_studio_page() -> str:
             <div class="avatar-drag-handle" id="avatar-drag-handle" role="button" tabindex="0"
                  aria-label="Move Theodore. Arrow keys nudge, Home resets, double-click resets."
                  title="Drag to move · arrow keys nudge · double-click to reset"><span></span></div>
-            <button class="avatar-hide-btn" id="btn-avatar-hide" type="button" aria-label="Hide Theodore">✕</button>
+            <button class="avatar-hide-btn" id="btn-avatar-hide" type="button" aria-label="Hide Serenity">✕</button>
             <div id="theodore-avatar" aria-hidden="true"></div>
             <div class="avatar-resize-handle" id="avatar-resize-handle" role="button" tabindex="0"
                  aria-label="Resize Theodore" title="Drag to resize"></div>
@@ -6578,11 +5643,11 @@ def render_studio_page() -> str:
                 <rect x="220" y="70" width="10" height="26" rx="2" fill="#8c3a2f"/>
                 <rect x="234" y="62" width="12" height="34" rx="2" fill="#2f5d46"/>
               </svg>
-              <p data-i18n="clickStart">Click the screen to start, or press Start and speak.</p>
+              <p>Click the screen to start, or press Start and speak.</p>
             </div>
             <div class="proceed-cue" id="proceed-cue">
-              <p id="proceed-cue-text" data-i18n="clickContinue">Click the screen to continue, or press Start and speak.</p>
-              <button id="btn-start-voice" type="button" data-i18n="start">Start</button>
+              <p id="proceed-cue-text">Click the screen to continue, or press Start and speak.</p>
+              <button id="btn-start-voice" type="button">Start</button>
             </div>
             <div class="body" id="teach-body"></div>
             <p id="attention-aside" class="attention-aside" hidden></p>
@@ -6591,12 +5656,12 @@ def render_studio_page() -> str:
             <div class="lang-warning" id="lang-warning" style="display:none"></div>
             <div class="sample-clock" id="sample-clock" hidden>
               <span id="sample-clock-time">10:00</span>
-              <small data-i18n="freeTrial">free trial</small>
+              <small>free trial</small>
             </div>
             <div class="sample-banner" id="sample-banner" style="display:none" role="status"></div>
             <div class="activity" id="teach-activity" style="display:none"></div>
             <div class="narr" id="teach-narr"></div>
-            <div class="absorb-note" id="absorb-note" hidden data-i18n="absorb">Take a moment with this page. The next one waits so you can study it.</div>
+            <div class="absorb-note" id="absorb-note" hidden>Take a moment with this page. The next one waits so you can study it.</div>
             <div class="status" id="teach-adapt"></div>
           </div>
         </div>
@@ -6604,21 +5669,26 @@ def render_studio_page() -> str:
         <div class="quiz-box" id="quiz-box" style="display:none"></div>
         <div class="game-box" id="game-box" style="display:none"></div>
         <div class="row lesson-toolbar" id="lesson-toolbar">
-          <button id="btn-pause" class="secondary" type="button" data-i18n="pause">Pause</button>
-          <button id="btn-start-over" class="secondary" type="button" title="Begin this course again for this account or profile" data-i18n="startOver">Start over</button>
-          <button id="btn-talk" type="button" data-i18n="ask">Ask</button>
+          <button id="btn-pause" class="secondary" type="button">Pause</button>
+          <button id="btn-start-over" class="secondary" type="button" title="Begin this course again for this account or profile">Start over</button>
+          <button id="btn-talk" type="button">Talk</button>
           <button class="secondary" id="btn-avatar" type="button" aria-pressed="false"
-                  aria-controls="theodore-avatar-wrap" data-i18n="showAvatar">Show Avatar</button>
+                  aria-controls="theodore-avatar-wrap">Show Serenity</button>
+          <label class="avatar-choice-label" for="avatar-choice">Presenter
+            <select id="avatar-choice" aria-label="Choose a 3D lesson presenter">
+              <option value="student">Student</option>
+            </select>
+          </label>
         </div>
         <div class="talk-panel" id="talk-panel" hidden>
-          <h2 data-i18n="askTitle">Ask about this course</h2>
-          <p data-i18n="askBody">Ask a question or leave a comment. Theodore answers only about this training.</p>
-          <textarea id="voice-ask" rows="3" data-i18n-placeholder="askPlaceholder" placeholder="Ask about a rule, a sign, or this page. You can type or speak."></textarea>
+          <h2>Talk about this course</h2>
+          <p>Ask a question or leave a comment. Theodore answers only about this training.</p>
+          <textarea id="voice-ask" rows="3" placeholder="Ask about a rule, a sign, or this page. You can type or speak."></textarea>
           <div class="talk-reply" id="talk-reply"></div>
           <div class="row">
-            <button id="btn-talk-mic" type="button" data-i18n="speak">Speak</button>
-            <button id="btn-talk-send" type="button" data-i18n="send">Send</button>
-            <button class="secondary" id="btn-talk-close" type="button" data-i18n="close">Close</button>
+            <button id="btn-talk-mic" type="button">Speak</button>
+            <button id="btn-talk-send" type="button">Send</button>
+            <button class="secondary" id="btn-talk-close" type="button">Close</button>
           </div>
         </div>
       </div>
@@ -6629,28 +5699,12 @@ def render_studio_page() -> str:
     <div class="presenter-body" id="presenter-body"></div>
     <div id="student-cam" class="student-cam" hidden title="Drag to move the camera">
       <video id="student-cam-video" autoplay muted playsinline aria-label="Your camera"></video>
-      <canvas id="student-cam-track" class="student-cam-track" aria-hidden="true"></canvas>
       <canvas id="student-cam-sample" hidden></canvas>
       <button type="button" id="student-cam-hide" class="student-cam-hide" aria-pressed="false"
-              title="Hide the preview. The camera stays on." data-i18n="hide">Hide</button>
+              title="Hide the preview. The camera stays on.">Hide</button>
       <p id="student-cam-status" class="student-cam-status">Watching for presence.</p>
-      <p class="student-cam-note" data-i18n="cameraNote">Camera stays on. The lesson pauses if you leave the camera.</p>
+      <p class="student-cam-note">Camera stays on. The lesson pauses if you leave or look away.</p>
     </div>
-  </div>
-  <p id="presence-hold" role="status" aria-live="assertive" hidden></p>
-  <button id="course-price" type="button" hidden>Full course $19.99</button>
-  <div id="pay-screen" hidden>
-    <form>
-      <h2>Full course</h2>
-      <p id="pay-price">$19.99</p>
-      <p id="pay-copy">One payment of $19.99 unlocks the rest of this class.</p>
-      <div class="row">
-        <button id="pay-card" type="button">Credit card</button>
-        <button id="pay-paypal" type="button">PayPal</button>
-      </div>
-      <p id="pay-status" role="status"></p>
-      <button id="pay-close" class="secondary" type="button">Not now</button>
-    </form>
   </div>
   <div class="toast" id="toast"></div>
   <script>"""

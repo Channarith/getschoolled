@@ -6,14 +6,14 @@ export const STUDIO_COURSES = [
   {
     id: "drivers-ed",
     title: "Driver's Education",
-    blurb: "The full California permit course, taught by Theodore with xAI. The 10-minute demo is free. The rest is paid unless you are an admin.",
+    blurb: "The full California permit course, taught by Serenity with xAI. The 10-minute demo is free. The rest is paid unless you are an admin.",
     emoji: "🚗",
     hasDemo: true,
   },
   {
     id: "food-safety",
     title: "Food Health & Safety",
-    blurb: "The full California food handler course, taught by Theodore with xAI. Admins take it. Everyone else pays.",
+    blurb: "The full California food handler course, taught by Serenity with xAI. Admins take it. Everyone else pays.",
     emoji: "🍽️",
     hasDemo: false,
   },
@@ -85,7 +85,9 @@ export function studioCourseDemo(
     path: studioCoursePath(courseId, access, opts),
     emoji: course?.emoji || "📘",
     title: opts.title ? title : (heard ? `${title} · audio` : title),
-    subtitle: opts.subtitle || (access === "full" ? "Full course · xAI" : "10-minute demo · xAI"),
+    subtitle:
+      opts.subtitle ||
+      (access === "full" ? "Full course · Serenity · xAI" : "10-minute demo · Serenity · xAI"),
     description: opts.description || course?.blurb || "",
   };
 }

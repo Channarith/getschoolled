@@ -10,6 +10,9 @@ export default function OnTheGoDemoPage() {
         <Link href="/">← Back to Salareen</Link>
         <Link href="/demo/drivers-ed">Driver&apos;s ed on screen</Link>
       </p>
+      <p className="muted" style={{ margin: "0 0 12px" }}>
+        Audio demo with Serenity + xAI Grok voice when configured.
+      </p>
       <CourseStudioFrame
         title="On the Go 10-minute audio demo"
         src={courseStudioFrameSrc({ access: "sample", course: "drivers-ed", presentation: "audio" })}

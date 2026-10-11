@@ -356,6 +356,36 @@ def presenter_manifest() -> dict[str, Any]:
                     "voice_gender": persona,
                 }
                 break
+    serenity = _AVATAR_STATIC_DIR / "presenter_serenity.png"
+    if not serenity.is_file():
+        serenity = _AVATAR_STATIC_DIR / "presenter_serenity.jpg"
+    if serenity.is_file():
+        keyframes = {
+            "rest": serenity.name,
+            "aa": "serenity_kf/mouth_aa.png",
+            "oh": "serenity_kf/mouth_oh.png",
+            "ee": "serenity_kf/mouth_ee.png",
+            "blink": "serenity_kf/eyes_closed.png",
+        }
+        # Only advertise keyframes that actually exist (avoids broken loads).
+        keyframes = {
+            key: rel
+            for key, rel in keyframes.items()
+            if (_AVATAR_STATIC_DIR / rel).is_file()
+        }
+        models["serenity"] = {
+            "file": serenity.name,
+            "url": f"/api/studio/avatar/{serenity.name}",
+            "rig": "portrait",
+            "source": "gemini-serenity",
+            "kind": "portrait",
+            "face_driver": "keyframes",
+            "label": "Serenity",
+            # Female tutor voice for speech-gateway / device TTS; live xAI
+            # Grok voice (when keyed) drives lip-sync via live-audio levels.
+            "voice_gender": "female",
+            "keyframes": keyframes,
+        }
     portrait = _AVATAR_STATIC_DIR / "presenter_student.webp"
     if portrait.is_file():
         models["student"] = {
@@ -369,7 +399,9 @@ def presenter_manifest() -> dict[str, Any]:
             # female narrator; a male tag here switched lessons to Guy/Alex.
             "voice_gender": "female",
         }
-    if "student" in models:
+    if "serenity" in models:
+        default_model = "serenity"
+    elif "student" in models:
         default_model = "student"
     elif "amina" in models:
         default_model = "amina"

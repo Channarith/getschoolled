@@ -11,6 +11,10 @@ export default function DriversEdDemoPage() {
         <Link href="/learn/drivers-ed">Full course</Link>
         <Link href="/demo/on-the-go">Audio only</Link>
       </p>
+      <p className="muted" style={{ margin: "0 0 12px" }}>
+        Serenity (holographic AI teacher) presents this demo. Voice uses xAI Grok when
+        the speech service has <code>XAI_API_KEY</code>.
+      </p>
       <CourseStudioFrame
         title="Driver's Education 10-minute demo"
         src={courseStudioFrameSrc({ access: "sample", course: "drivers-ed" })}

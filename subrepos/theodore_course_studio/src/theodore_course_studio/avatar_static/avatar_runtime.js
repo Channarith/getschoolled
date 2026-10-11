@@ -552,14 +552,18 @@ export class TheodoreAvatar {
     this.model = null;
   }
 
-  async loadPortrait(persona, entry) {
-    const url = entry.url || this.modelUrlFor(persona);
-    const image = await new Promise((resolve, reject) => {
+  async loadImage(url) {
+    return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = () => reject(new Error(`portrait failed: ${url}`));
       img.src = url;
     });
+  }
+
+  async loadPortrait(persona, entry) {
+    const url = entry.url || this.modelUrlFor(persona);
+    const image = await this.loadImage(url);
     this.releaseModel();
     const canvas = document.createElement("canvas");
     canvas.width = image.naturalWidth || image.width;
@@ -579,11 +583,47 @@ export class TheodoreAvatar {
     group.position.set(0, 1.82, 0);
     this.model = group;
     this.scene.add(group);
-    const rig = buildPortraitRig(image);
+
+    const useKeyframes = entry.face_driver === "keyframes" || entry.source === "gemini-serenity";
+    let base = image;
+    let hands = [];
+    let keyframes = null;
+    if (useKeyframes) {
+      // Photoreal keyframes: never split hands or draw oval mouth/eyelid shapes.
+      keyframes = { rest: image };
+      const map = entry.keyframes || {};
+      const loadKey = async (name, rel) => {
+        if (!rel) return;
+        const keyUrl = (rel.startsWith("http") || rel.startsWith("/"))
+          ? rel
+          : `${this.assetBase}/${rel}`;
+        try {
+          keyframes[name] = await this.loadImage(keyUrl);
+        } catch (err) {
+          console.warn("Serenity keyframe missing", name, rel, err);
+        }
+      };
+      await Promise.all([
+        loadKey("aa", map.aa),
+        loadKey("oh", map.oh),
+        loadKey("ee", map.ee),
+        loadKey("blink", map.blink),
+        loadKey("rest", map.rest),
+      ]);
+      if (!keyframes.rest) keyframes.rest = image;
+      base = keyframes.rest;
+    } else {
+      const rig = buildPortraitRig(image);
+      base = rig.base;
+      hands = rig.hands;
+    }
+
     this.portrait = {
       image, canvas, ctx, texture, mesh, group, open: 0,
-      base: rig.base,
-      hands: rig.hands,
+      base,
+      hands,
+      keyframes,
+      driver: useKeyframes ? "keyframes" : "cartoon",
       eyes: [
         { x: 0.40, y: 0.345, rx: 0.048, ry: 0.03 },
         { x: 0.60, y: 0.338, rx: 0.048, ry: 0.03 },
@@ -597,7 +637,8 @@ export class TheodoreAvatar {
     this.basePose = {};
     this.container.dataset.avatarPersona = persona;
     this.container.dataset.avatarRig = "portrait";
-    this.paintPortrait(0, 0, 0);
+    this.container.dataset.faceDriver = useKeyframes ? "keyframes" : "cartoon";
+    this.paintPortrait(0, 0, 0, "rest");
     this.framePortraitCamera();
   }
 
@@ -613,14 +654,19 @@ export class TheodoreAvatar {
     this.camera.updateProjectionMatrix();
   }
 
-  paintPortrait(open, blink, t) {
+  paintPortrait(open, blink, t, mouthShape = "aa") {
     const portrait = this.portrait;
     if (!portrait) return;
+    if (portrait.driver === "keyframes") {
+      this.paintKeyframePortrait(open, blink, mouthShape);
+      return;
+    }
     const { ctx, canvas, eyes } = portrait;
     const w = canvas.width;
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
     ctx.drawImage(portrait.base || portrait.image, 0, 0, w, h);
+    // Cartoon student only: soft lid wash (not used for Serenity keyframes).
     if (blink > 0.08) {
       ctx.fillStyle = "rgba(214, 164, 122, 0.94)";
       for (const eye of eyes) {
@@ -666,6 +712,44 @@ export class TheodoreAvatar {
     portrait.texture.needsUpdate = true;
   }
 
+  /**
+   * Serenity / photographic presenters: crossfade Gemini keyframes.
+   * No ellipse mouth or oval eyelid stickers — lips and lids come from real frames.
+   */
+  paintKeyframePortrait(open, blink, mouthShape = "aa") {
+    const portrait = this.portrait;
+    if (!portrait?.keyframes) return;
+    const { ctx, canvas, keyframes } = portrait;
+    const w = canvas.width;
+    const h = canvas.height;
+    const rest = keyframes.rest || portrait.base || portrait.image;
+    ctx.clearRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(rest, 0, 0, w, h);
+    const amount = clamp(open);
+    if (amount > 0.02) {
+      const key = (mouthShape === "oh" && keyframes.oh)
+        ? keyframes.oh
+        : (mouthShape === "ee" && keyframes.ee)
+          ? keyframes.ee
+          : (mouthShape === "mbp" || mouthShape === "fv" || mouthShape === "rest")
+            ? null
+            : (keyframes.aa || keyframes.oh || keyframes.ee);
+      if (key) {
+        // Ease so quiet levels do not flash a half-open mouth.
+        ctx.globalAlpha = clamp(amount * amount * (3 - 2 * amount));
+        ctx.drawImage(key, 0, 0, w, h);
+      }
+    }
+    const lid = clamp(blink);
+    if (lid > 0.02 && keyframes.blink) {
+      ctx.globalAlpha = clamp(lid);
+      ctx.drawImage(keyframes.blink, 0, 0, w, h);
+    }
+    ctx.globalAlpha = 1;
+    portrait.texture.needsUpdate = true;
+  }
+
   animatePortrait(t, amount, cues) {
     const group = this.portrait?.group;
     if (!group) return;
@@ -677,11 +761,14 @@ export class TheodoreAvatar {
     if ((cues || []).some((item) => item.cue?.gaze === "slide")) turn -= 0.14 * motion;
     if (this.state === "listening") nod += 0.06 * motion;
     let open = 0;
+    let mouthShape = "rest";
     const levelFresh = performance.now() - (this.voiceLevelAt || 0) < 220;
     const level = !paused && levelFresh ? this.voiceLevel : 0;
     if (!paused && (this.speaking || level > 0.05)) {
-      const shape = this.speaking ? this.articulationAt(this.speechClock()) : { open: 0 };
+      const shape = this.speaking ? this.articulationAt(this.speechClock()) : { open: 0, shape: "aa" };
       open = Math.max(Number(shape.open) || 0, level * 1.6);
+      mouthShape = shape.shape || "aa";
+      if (!this.speaking && level > 0.05) mouthShape = "aa";
       nod += Math.sin(t * 7.2) * 0.028 * Math.max(0.25, open);
     }
     if (t - this.lastBlink > this.nextBlink) {
@@ -690,11 +777,19 @@ export class TheodoreAvatar {
     }
     const blinkAge = t - this.lastBlink;
     const blink = !paused && blinkAge < 0.16 ? Math.sin(clamp(blinkAge / 0.16) * Math.PI) : 0;
-    group.position.y = 1.82 + breath;
-    group.rotation.x = nod;
-    group.rotation.y = turn;
-    group.rotation.z = Math.sin(t * 0.62) * 0.012 * motion;
-    this.paintPortrait(open, blink, t);
+    // Serenity keyframes: keep body still — only face frames change (avoids swimmy hologram).
+    if (this.portrait?.driver === "keyframes") {
+      group.position.y = 1.82;
+      group.rotation.x = 0;
+      group.rotation.y = 0;
+      group.rotation.z = 0;
+    } else {
+      group.position.y = 1.82 + breath;
+      group.rotation.x = nod;
+      group.rotation.y = turn;
+      group.rotation.z = Math.sin(t * 0.62) * 0.012 * motion;
+    }
+    this.paintPortrait(open, blink, t, mouthShape);
   }
 
   /** Live-agent loudness, 0–1. The illustrated mouth and hands follow this. */
@@ -706,7 +801,7 @@ export class TheodoreAvatar {
   async loadPersona(persona) {
     const entry = this.manifest?.models?.[persona] || {};
     const url = entry.url || this.modelUrlFor(persona);
-    if (entry.kind === "portrait" || /\.(png|webp)$/i.test(url)) {
+    if (entry.kind === "portrait" || /\.(png|webp|jpe?g)$/i.test(url)) {
       await this.loadPortrait(persona, { ...entry, url });
       return;
     }
