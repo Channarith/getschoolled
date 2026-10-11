@@ -14,6 +14,7 @@ import {
   type SpeakPlan,
 } from "./xaiSpeakPlan";
 import { createPcmQueue, type PcmQueue } from "./xaiPcmPlayer";
+import { SERENITY_NAME, SERENITY_VOICE_INSTRUCTIONS } from "./serenity";
 import {
   cancelXaiResponse,
   closeXaiVoiceSession,
@@ -31,7 +32,7 @@ export type XaiSpeakOpts = {
 };
 
 /**
- * Connects Theodore's xAI Grok voice once class is allowed to start.
+ * Connects Serenity's xAI Grok voice once class is allowed to start.
  * Each line is spoken once. If the speech service has no voice agent, or the
  * socket drops before any audio arrives, `fallback` (device narration) runs
  * instead. Audio that already started is not spoken again on device.
@@ -115,6 +116,7 @@ export function useXaiClassVoice(
           category: current.category || "",
           topic: current.topic || "",
           course_id: current.courseId || "",
+          instructions: SERENITY_VOICE_INSTRUCTIONS,
         });
         if (cancelled || planRef.current !== plan) return;
         if (token.use_xai === false || !token.token || !token.session_update) {
@@ -128,7 +130,7 @@ export function useXaiClassVoice(
           onOpen: () => {
             if (cancelled || planRef.current !== plan) return;
             setPhase("live");
-            setHint("Theodore is using Grok voice.");
+            setHint(`${SERENITY_NAME} is using Grok voice.`);
             const next = takeQueuedForSend(plan);
             if (!next) return;
             stopSpeech();

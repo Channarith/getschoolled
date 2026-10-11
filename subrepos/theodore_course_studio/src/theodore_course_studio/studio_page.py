@@ -845,16 +845,26 @@ STUDIO_CSS = """
   body.presenting.drive-chrome-hidden #theodore-live-audio,
   body.presenting.drive-chrome-hidden #course-map { display:none !important; }
 
+    /* Project Serenity holographic teacher (demo + full courses). */
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-persona="serenity"]) {
+      background:radial-gradient(ellipse at 50% 55%, rgba(68,214,255,.28), rgba(5,24,34,.82) 68%);
+      border-color:rgba(94,224,255,.45); box-shadow:inset 0 0 34px rgba(59,215,255,.22); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-persona="serenity"]) canvas {
+      filter:drop-shadow(0 0 16px rgba(86,224,255,.55)) saturate(1.08); }
+    .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-persona="serenity"]) .avatar-label {
+      color:#c9f7ff; background:rgba(3,23,32,.78); }
+
+
 """
 
 STUDIO_JS = """
 
     const $ = (id) => document.getElementById(id);
     // Set true to show the 3D teacher again. Narration stays on either way.
-    const SHOW_AVATAR = false;
+    const SHOW_AVATAR = true;
     // SHOW_AVATAR is only the first-visit default now; the toggle below persists
     // the learner's own choice, along with where they dragged him.
-    const AVATAR_PREF_KEY = 'theodore.studio.avatar';
+    const AVATAR_PREF_KEY = 'theodore.studio.avatar.v3-serenity';
     const AVATAR_MIN_W = 150;
     const AVATAR_MIN_H = 190;
     let avatarPrefs = {};
@@ -863,7 +873,7 @@ STUDIO_JS = """
     let avatarHomeParent = null;
     let avatarHomeNext = null;
     let avatarCatalog = {};
-    let selectedAvatarId = 'amina';
+    let selectedAvatarId = 'serenity';
     let selectedSource = null;
     let selectedCourse = null;
     let teachSession = 'studio-teach-1';
@@ -1152,7 +1162,10 @@ STUDIO_JS = """
     const reviewScores = { quizzes: [], games: [] };
 
     function presenterLabel(presenter) {
-      const name = presenter?.label || 'Student';
+      const name = presenter?.label || 'Serenity';
+      if (presenter?.source === 'gemini-serenity' || name === 'Serenity') {
+        return 'Serenity · holographic AI teacher';
+      }
       return presenter?.kind === 'portrait' ? `${name} · cartoon teacher` : `${name} · 3D teacher`;
     }
 
@@ -1223,8 +1236,16 @@ STUDIO_JS = """
     async function loadAvatarChoices() {
       const data = await api('/api/studio/presenter/manifest');
       avatarCatalog = data.models || {};
-      selectedAvatarId = 'student';
-      courseVoiceGender = avatarCatalog.student?.voice_gender || courseVoiceGender;
+      if (avatarPrefs.presenterChosen && avatarCatalog[avatarPrefs.presenter]) {
+        selectedAvatarId = avatarPrefs.presenter;
+      } else if (avatarCatalog[data.default_model]) {
+        selectedAvatarId = data.default_model;
+      } else if (avatarCatalog.serenity) {
+        selectedAvatarId = 'serenity';
+      } else {
+        selectedAvatarId = Object.keys(avatarCatalog)[0] || 'student';
+      }
+      courseVoiceGender = avatarCatalog[selectedAvatarId]?.voice_gender || courseVoiceGender;
     }
 
     async function chooseAvatar(presenterId) {
@@ -6393,7 +6414,9 @@ STUDIO_JS = """
     on('btn-avatar-hide', 'click', () => setAvatarVisible(false));
 
     avatarPrefs = loadAvatarPrefs();
-    selectedAvatarId = 'student';
+    selectedAvatarId = avatarPrefs.presenterChosen && avatarPrefs.presenter
+      ? avatarPrefs.presenter
+      : 'serenity';
     initAvatarDrag();
     setAvatarVisible(
       typeof avatarPrefs.on === 'boolean' ? avatarPrefs.on : SHOW_AVATAR, false);

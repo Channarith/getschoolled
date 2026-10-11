@@ -101,7 +101,7 @@ def test_health_and_studio_page():
     assert ">Ask</button>" in page.text
     assert "Show Avatar" in page.text
     assert 'id="avatar-choice"' not in page.text
-    assert "selectedAvatarId = 'student'" in page.text
+    assert "selectedAvatarId = 'serenity'" in page.text
     assert "loadAvatarChoices" in page.text
     assert "avatarPrefs.presenter = presenterId" in page.text
     assert "persona: selectedAvatarId" in page.text

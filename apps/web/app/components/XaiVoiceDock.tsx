@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { useT } from "../lib/i18n";
 
+import { SERENITY_VOICE_INSTRUCTIONS } from "../lib/serenity";
 import {
   closeXaiVoiceSession,
   connectXaiVoiceSession,
@@ -16,9 +17,14 @@ import {
 
 function voiceMode(pathname: string): XaiVoiceMode | null {
   // Live Class and On the Go already run their own Grok session.
-  // This dock covers group rooms and the full course pages.
+  // This dock covers group rooms, full courses, and free course demos
+  // (Serenity teacher + xAI Grok voice).
   if (pathname === "/group-classes" || pathname.startsWith("/live-room")) return "group";
   if (pathname.startsWith("/learn/")) return "solo";
+  if (pathname.startsWith("/demo/drivers-ed") || pathname.startsWith("/demo/course-studio")) {
+    return "solo";
+  }
+  if (pathname === "/serenity") return "solo";
   return null;
 }
 
@@ -69,6 +75,7 @@ export function XaiVoiceDock() {
         mode: mode || "solo",
         lesson_context: `Salareen ${pathname}`,
         language: locale,
+        instructions: SERENITY_VOICE_INSTRUCTIONS,
       });
       if (token.use_xai === false || !token.token || !token.session_update) {
         setHint(token.spoken_language?.hint || "This language uses the lesson voice, not Grok.");
@@ -126,7 +133,7 @@ export function XaiVoiceDock() {
         type="button"
         onClick={() => { void toggle(); }}
         disabled={!ready && !live}
-        title={ready ? "Talk with Theodore via xAI Grok Voice" : "Set XAI_API_KEY on the speech service to enable Grok Voice"}
+        title={ready ? "Talk with Serenity via xAI Grok Voice" : "Set XAI_API_KEY on the speech service to enable Grok Voice"}
         style={{
           border: "1px solid #0d6e6e",
           borderRadius: 999,
@@ -138,7 +145,7 @@ export function XaiVoiceDock() {
           opacity: !ready && !live ? 0.55 : 1,
         }}
       >
-        {live ? "● Grok voice on" : "Grok voice"}
+        {live ? "● Serenity voice on" : "Serenity voice"}
       </button>
     </div>
   );

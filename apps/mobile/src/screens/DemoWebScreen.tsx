@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View,
+  ActivityIndicator, Image, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View,
 } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
@@ -11,6 +11,7 @@ import { useT } from "../i18n";
 import { driverWaveScript } from "../driverWave";
 import { liveAudioPhoneScript } from "../liveAudioPhone";
 import { publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
+import { SERENITY_HERO, SERENITY_NAME } from "../serenity";
 import { ensureLoudSpeaker } from "../tts";
 import { theme } from "../theme";
 
@@ -44,6 +45,7 @@ export default function DemoWebScreen({
   const path = demoPathWithLocale(demo.path, locale);
   const url = publicDemoUrl(WEB_APP_URL, path);
   const audioOnly = path.includes("presentation=audio");
+  const studioCourse = path.includes("/studio");
   const localeScript = path.includes("/children-lab") ? childrenLabLocaleScript(locale) : undefined;
   const touchScript = path.includes("/children-lab") ? childrenLabTouchScript() : undefined;
   const waveScript = audioOnly ? driverWaveScript() : undefined;
@@ -86,6 +88,13 @@ export default function DemoWebScreen({
         >
           <Text style={styles.back}>{t("guest.back")}</Text>
         </Pressable>
+        {studioCourse ? (
+          <Image
+            source={SERENITY_HERO}
+            accessibilityLabel={SERENITY_NAME}
+            style={styles.serenity}
+          />
+        ) : null}
         <Text style={styles.title} numberOfLines={2}>{demo.title}</Text>
         {plays > 0 ? <Text style={styles.plays} testID="demo-telemetry">{plays}</Text> : null}
       </View>
@@ -141,6 +150,15 @@ const styles = StyleSheet.create({
   },
   backHit: { minHeight: 44, minWidth: 72, justifyContent: "center", paddingHorizontal: 4 },
   back: { color: "#f4e9d8", fontSize: 16, fontWeight: "600", flexShrink: 0 },
+  serenity: {
+    width: 36,
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(94,234,212,0.55)",
+    backgroundColor: "#0a1624",
+    flexShrink: 0,
+  },
   title: { flex: 1, minWidth: 0, color: theme.colors.text, fontSize: 16, fontWeight: "700", lineHeight: 20 },
   plays: { color: "#fde68a", fontSize: 13, fontWeight: "700", flexShrink: 0 },
   web: { flex: 1, backgroundColor: theme.colors.bg },

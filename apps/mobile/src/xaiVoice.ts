@@ -1,5 +1,5 @@
 /**
- * xAI Grok Voice Agent helpers for mobile (Theodore / self-teach).
+ * xAI Grok Voice Agent helpers for mobile (Serenity / self-teach).
  *
  * Mints an ephemeral client secret from the speech gateway so the API key
  * never ships in the app binary. React Native WebSocket supports the
