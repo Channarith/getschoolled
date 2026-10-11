@@ -667,10 +667,13 @@ transcript all run without it.
 | `services/perception` | Face recognition and attention/engagement |
 | `services/harvester` | 24/7 crawl/generate/export CLI worker (no HTTP app); posts decks to curriculum |
 | `services/homework` | Offline homework generate / OCR scan / authorship / autograde CLI (HTTP mirror lives in curriculum `/homework/*`) |
-| `services/cosyvoice` | GPU CosyVoice 2 TTS sidecar (`POST /tts`, :9880) for cloud/self-hosted clone narration |
+| `services/cosyvoice` | GPU CosyVoice TTS sidecar (`POST /tts`, :9880); prefer native `./scripts/run_cosyvoice_local.sh` on Spark (see `services/cosyvoice/README.txt`) |
 | `training` | Education-LLM fine-tuning scaffold (dataset export, QLoRA config, promote/runbooks) + Theodore LLM Lab UI on `:8019` |
 | `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
-| `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, pipeline validation, voice tools) |
+| `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, CosyVoice ingest, CosyVoice→Audio2Face loop, voice tools) |
+| `scripts/cosyvoice_ingest.py` | YouTube/Vimeo → denoise → segment → ASR → CosyVoice Kaldi training lists (`aoep_shared.cosyvoice_ingest`) |
+| `scripts/a2f_cosyvoice_loop/` | CosyVoice PCM → Audio2Face-3D gRPC (aarch64 stub + amd64 NIM handoff); see `README.txt` there |
+| `scripts/pipecat_cosyvoice/` | Pipecat-oriented CosyVoice TTS config for NVIDIA voice-agent-examples |
 | `sample-curriculum` | 118 live-class lessons: math (Algebra through Differential Equations), economics, professional skills (Power BI, SAP, DevOps, Digital Marketing, UX, Cybersecurity, Excel/Word/PowerPoint), corporate/AI tracks, safety training, and more. Slide counts vary; the loader reads each top-level `lesson.txt` |
 | `qa` | Regression gate, stress, and load-test harnesses (`make qa`, `make stress`) |
 | `infra/compose` | Local Docker compose stack and scaling overlay |

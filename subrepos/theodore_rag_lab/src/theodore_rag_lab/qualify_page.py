@@ -65,14 +65,14 @@ _CSS = """
 _HTML = """
   <header>
     <h1>Theodore RAG Lab</h1>
-    <p>Tune curriculum RAG, qualify live citation-backed current awareness, browse an extensive slang/idiom dictionary, rehearse world dialects
-       (Southern, NYC, New England, California, Canadian, British, Australian, Singaporean,
-       Beijing, Shanghai, Guangzhou Cantonese, Fujianese, and more), run regurgitation drills,
-       and grow the lexicon with feedback learning.</p>
+    <p>Tune curriculum RAG, grow the EN+Khmer dictionary corpus, practice read-aloud pronunciation,
+       browse slang/idioms, rehearse world dialects, run regurgitation drills, and export dictionary
+       rows into the LLM training assemble path.</p>
     <div class="meta" id="meta-pills"><span class="pill">offline</span><span class="pill">port 8095</span></div>
   </header>
   <nav class="tabs" id="tabs">
     <button type="button" data-tab="rag" class="active">RAG tuning</button>
+    <button type="button" data-tab="corpus">Corpus + read-aloud</button>
     <button type="button" data-tab="current">Current awareness</button>
     <button type="button" data-tab="dict">Dictionary</button>
     <button type="button" data-tab="dialect">Dialects</button>
@@ -112,6 +112,36 @@ _HTML = """
     <main class="panel">
       <h2>Result</h2>
       <pre class="out" id="out-rag">Click an action to qualify RAG tuning.</pre>
+    </main>
+  </div>
+
+  <div class="layout tab-panel hidden" id="panel-corpus">
+    <aside class="panel">
+      <h2>Dictionary corpus</h2>
+      <div class="row">
+        <button class="primary" id="btn-corpus-stats" type="button">Stats</button>
+        <button id="btn-corpus-update" type="button">Train-update</button>
+      </div>
+      <div class="row">
+        <button id="btn-corpus-review" type="button">Review queue</button>
+        <button id="btn-corpus-export-llm" type="button">Export LLM JSONL</button>
+      </div>
+      <div class="meta">Ingest baselines, route hard rows, rebuild sentences, clean audio. Feeds llm_training.assemble (dictionary source).</div>
+      <h2>Read-aloud</h2>
+      <div class="row">
+        <label>Lang <input id="ra-lang" value="en" style="width:3.5rem" /></label>
+        <button class="primary" id="btn-ra-next" type="button">Next sentence</button>
+      </div>
+      <div class="card" id="ra-card">
+        <div id="ra-sentence" class="meta">Press Next sentence after train-update.</div>
+        <div class="row" style="margin-top:.6rem"><input id="ra-heard" placeholder="Type what you said…" style="flex:1;min-width:12rem" /></div>
+        <div class="row"><button class="primary" id="btn-ra-score" type="button">Score</button></div>
+        <div id="ra-result" class="meta"></div>
+      </div>
+    </aside>
+    <main class="panel">
+      <h2>Corpus / score output</h2>
+      <pre class="out" id="out-corpus">Run train-update to seed the dictionary corpus.</pre>
     </main>
   </div>
 
@@ -408,13 +438,52 @@ _JS = """
     kind: 'idiom',
   }));
 
+  let raPrompt = null;
+  const outCorpus = document.getElementById('out-corpus');
+  document.getElementById('btn-corpus-stats').onclick = () => run(outCorpus, () => api('GET', '/api/corpus/stats'));
+  document.getElementById('btn-corpus-update').onclick = () => run(outCorpus, () => api('POST', '/api/corpus/train-update', { force: false, language: 'en' }));
+  document.getElementById('btn-corpus-review').onclick = () => run(outCorpus, () => api('GET', '/api/corpus/review?limit=30'));
+  document.getElementById('btn-corpus-export-llm').onclick = () => run(outCorpus, () => api('POST', '/api/corpus/export-llm'));
+  document.getElementById('btn-ra-next').onclick = async () => {
+    try {
+      raPrompt = await api('POST', '/api/read-aloud/next', {
+        language: document.getElementById('ra-lang').value || 'en',
+        learner_id: 'lab',
+      });
+      document.getElementById('ra-sentence').textContent = '[' + (raPrompt.difficulty || '?') + '] ' + (raPrompt.sentence || '');
+      document.getElementById('ra-heard').value = '';
+      document.getElementById('ra-result').textContent = (raPrompt.targets || []).map((t) => t.form).join(', ');
+      show(outCorpus, raPrompt);
+    } catch (err) { show(outCorpus, 'Error: ' + (err && err.message ? err.message : err)); }
+  };
+  document.getElementById('btn-ra-score').onclick = async () => {
+    if (!raPrompt) { show(outCorpus, 'Get a sentence first.'); return; }
+    try {
+      const forms = (raPrompt.targets || []).map((t) => t.form);
+      const res = await api('POST', '/api/read-aloud/score', {
+        sentence: raPrompt.sentence,
+        heard: document.getElementById('ra-heard').value,
+        target_forms: forms,
+        language: document.getElementById('ra-lang').value || 'en',
+        learner_id: 'lab',
+      });
+      const el = document.getElementById('ra-result');
+      el.className = res.score >= 60 ? 'score-ok' : 'score-bad';
+      el.textContent = 'score=' + res.score + ' · ' + (res.feedback || '');
+      show(outCorpus, res);
+    } catch (err) { show(outCorpus, 'Error: ' + (err && err.message ? err.message : err)); }
+  };
+
   (async function boot() {
     try {
       const health = await api('GET', '/health');
       const pills = document.getElementById('meta-pills');
+      const corp = health.corpus || {};
+      const en = (corp.languages && corp.languages.en) || {};
       pills.innerHTML = '<span class="pill">offline tuning</span><span class="pill">port 8095</span>' +
         '<span class="pill">current awareness ' + (health.current_awareness_live ? 'live' : 'needs search key') + '</span>' +
         '<span class="pill">lexicon ' + (health.lexicon_total || 0) + '</span>' +
+        '<span class="pill">corpus en ' + (en.total || 0) + '</span>' +
         '<span class="pill">dialects ' + (health.dialects || 0) + '</span>';
       const cat = await api('GET', '/api/dialects');
       featured = cat.featured_dialects || [];

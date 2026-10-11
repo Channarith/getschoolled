@@ -1,0 +1,56 @@
+CosyVoice local TTS, training ingest, and Audio2Face
+====================================================
+
+Self-hosted CosyVoice (preferred over ElevenLabs when COSYVOICE_URL is set)
+---------------------------------------------------------------------------
+  # Spark / aarch64 — native GPU venv (Docker Desktop has no GPU CDI here):
+  ./scripts/run_cosyvoice_local.sh
+  export COSYVOICE_URL=http://127.0.0.1:9880
+  export COSYVOICE_DEFAULT_SPK=英文女
+  curl -s http://127.0.0.1:9880/health
+  See services/cosyvoice/README.txt.
+
+Video → CosyVoice training lists (operator-supplied URLs only)
+-------------------------------------------------------------
+  pip install -e 'packages/shared[cosyvoice-ingest]'   # yt-dlp + faster-whisper
+  # urls.txt: one YouTube/Vimeo URL per line
+  python3 scripts/cosyvoice_ingest.py \
+    --urls-file urls.txt --language en --output-dir output/cosyvoice_en
+  # or local files:
+  python3 scripts/cosyvoice_ingest.py \
+    --media-dir ./clips --skip-download --language km --output-dir output/cosyvoice_km
+
+  Pipeline: download → dictionary_audio denoise → segment → ASR → Kaldi
+  wav.scp / text / utt2spk / spk2utt under OUTPUT/04_cosyvoice/train/
+  plus TRAIN_HANDOFF.txt for ~/code/CosyVoice examples.
+
+CosyVoice → Audio2Face-3D (Omniverse ACE)
+----------------------------------------
+  NGC_API_KEY / NVIDIA_API_KEY in gitignored config/local.env (never commit).
+  Official NIM nvcr.io/nim/nvidia/audio2face-3d is linux/amd64-only.
+
+  On aarch64 Spark (protocol stub + orchestrated loop):
+    ./scripts/a2f_cosyvoice_loop/setup_venv.sh   # once
+    ./scripts/a2f_cosyvoice_loop/run_stack.sh    # CosyVoice + stub + one smoke
+    ./scripts/a2f_cosyvoice_loop/run_stack.sh --loop
+    # stop: ./scripts/a2f_cosyvoice_loop/stop_loop.sh
+
+  Pipecat / NVIDIA voice-agent-examples helper:
+    python3 scripts/pipecat_cosyvoice/pipeline_config.py --print-config
+    # Optional checkout: ~/code/voice-agent-examples
+    # A2F samples: ~/code/Audio2Face-3D-Samples
+
+  Real NIM: run docker compose on an x86_64 GPU host from
+  Audio2Face-3D-Samples/quick-start, then set A2F_GRPC_URL=<host>:<port>.
+
+Course library batch translation (text, not model training)
+-----------------------------------------------------------
+  python3 scripts/translate_courses_batch.py --concurrency 6 --verbose
+  Prefer concurrency 6–8; 26 often times out on xAI. Reruns skip existing
+  ~/.cache/aoep/course_translations files.
+
+Related docs
+------------
+  docs/dictionary-corpus.txt — EN+Khmer lexicon + read-aloud
+  services/cosyvoice/README.txt — sidecar contract
+  scripts/a2f_cosyvoice_loop/README.txt — stack ops

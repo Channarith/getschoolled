@@ -1,0 +1,22 @@
+# lemma rank
+the 1
+be 2
+to 3
+of 4
+and 5
+a 6
+in 7
+that 8
+have 9
+I 10
+school 420
+teacher 450
+student 460
+learn 500
+teach 510
+speak 800
+write 820
+read 830
+rare 4500
+ephemeral 8200
+obfuscate 9100

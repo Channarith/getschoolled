@@ -6,16 +6,17 @@ Purpose
   stack for hours a day before promoting knobs into production
   (aoep_shared.rag, knowledge_store, orchestrator Tutor grounding).
 
-  Also hosts an extensive slang/idiom dictionary, world-dialect rehearsal
-  (Southern US, NYC, New England, California, Canadian, British, Australian,
-  Singaporean, Beijing, Shanghai, Guangzhou Cantonese, Fujianese/Hokkien, …),
-  regurgitation drills, and feedback learning so the lexicon matures.
+  Also hosts an extensive slang/idiom dictionary, EN+Khmer dictionary corpus
+  (ingest / review / CosyVoice crisp audio / read-aloud pronunciation),
+  world-dialect rehearsal, regurgitation drills, and feedback learning.
+  Approved dictionary rows export into llm_training.assemble (source=dictionary).
 
 What it tunes
   - top_k, min_score, groundedness thresholds
   - lexical vs FTS preference, chunk shaping
   - hours-a-day bakeoff loop with OptimizationLedger promote/revert
   - dialect/slang dictionary growth via confirm/correct/reject feedback
+  - dictionary corpus train-update + read-aloud difficulty ramp
 
 Everything below runs offline. No API key and no GPU are required.
 
@@ -53,10 +54,16 @@ Step 2 — start the lab and open the web UI
 
   Tabs:
     RAG tuning — eval / sweep / bakeoff / champion
+    Corpus + read-aloud — train-update, review queue, LLM JSONL export, sentence drills
     Dictionary — search 300+ slang/idiom entries by language & region
     Dialects — humanize sample text in Southern / NYC / Beijing / Cantonese / …
     Regurgitation — recall plain meanings; hits reinforce feedback learning
     Feedback learning — confirm / correct / reject entries into the live lexicon
+
+  Corpus CLI (also via scripts/dictionary/* shims):
+    theodore-rag-corpus-update
+    theodore-rag-read-aloud --heard "She walked to school."
+  See docs/dictionary-corpus.txt.
 
   Leave the server running for curl too:
 

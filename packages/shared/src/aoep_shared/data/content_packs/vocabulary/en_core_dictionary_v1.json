@@ -1,0 +1,3407 @@
+{
+  "pack": "en_core_dictionary_v1",
+  "description": "Curated English core vocabulary from the dictionary corpus.",
+  "license": "MIT",
+  "records": [
+    {
+      "language": "en",
+      "id": "km-vocab-0002",
+      "category": "core",
+      "en": "teacher",
+      "target": "teacher",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "T IY1 CH ER0",
+      "inflections": {
+        "plural": "teachers",
+        "poss": "teacher's"
+      },
+      "rarity": 0.0449,
+      "freq_rank": 450,
+      "gloss_en": "teacher"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0003",
+      "category": "core",
+      "en": "student",
+      "target": "student",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "S T UW1 D AH0 N T",
+      "inflections": {
+        "plural": "students",
+        "poss": "student's"
+      },
+      "rarity": 0.0459,
+      "freq_rank": 460,
+      "gloss_en": "student"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0167",
+      "category": "core",
+      "en": "learn",
+      "target": "learn",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "L ER1 N",
+      "inflections": {
+        "plural": "learns",
+        "poss": "learn's"
+      },
+      "rarity": 0.0499,
+      "freq_rank": 500,
+      "gloss_en": "learn"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0273",
+      "category": "core",
+      "en": "teach",
+      "target": "teach",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "T IY1 CH",
+      "inflections": {
+        "plural": "teaches",
+        "poss": "teach's"
+      },
+      "rarity": 0.0509,
+      "freq_rank": 510,
+      "gloss_en": "teach"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0147",
+      "category": "core",
+      "en": "write",
+      "target": "write",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "R AY1 T",
+      "inflections": {
+        "plural": "writes",
+        "poss": "write's"
+      },
+      "rarity": 0.0819,
+      "freq_rank": 820,
+      "gloss_en": "write"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0098",
+      "category": "core",
+      "en": "read",
+      "target": "read",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "R IY1 D",
+      "inflections": {
+        "plural": "reads",
+        "poss": "read's"
+      },
+      "rarity": 0.0829,
+      "freq_rank": 830,
+      "gloss_en": "read"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0004",
+      "category": "core",
+      "en": "notebook",
+      "target": "notebook",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "notebooks",
+        "poss": "notebook's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1003,
+      "gloss_en": "notebook"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0005",
+      "category": "core",
+      "en": "pen",
+      "target": "pen",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "pens",
+        "poss": "pen's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1004,
+      "gloss_en": "pen"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0006",
+      "category": "core",
+      "en": "pencil",
+      "target": "pencil",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "pencils",
+        "poss": "pencil's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1005,
+      "gloss_en": "pencil"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0007",
+      "category": "core",
+      "en": "desk",
+      "target": "desk",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "desks",
+        "poss": "desk's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1006,
+      "gloss_en": "desk"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0008",
+      "category": "core",
+      "en": "chair",
+      "target": "chair",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "chairs",
+        "poss": "chair's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1007,
+      "gloss_en": "chair"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0009",
+      "category": "core",
+      "en": "rice",
+      "target": "rice",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "rices",
+        "poss": "rice's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1008,
+      "gloss_en": "rice"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0010",
+      "category": "core",
+      "en": "water",
+      "target": "water",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "waters",
+        "poss": "water's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1009,
+      "gloss_en": "water"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0011",
+      "category": "core",
+      "en": "meat",
+      "target": "meat",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "meats",
+        "poss": "meat's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1010,
+      "gloss_en": "meat"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0012",
+      "category": "core",
+      "en": "vegetable",
+      "target": "vegetable",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "vegetables",
+        "poss": "vegetable's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1011,
+      "gloss_en": "vegetable"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0013",
+      "category": "core",
+      "en": "fruit",
+      "target": "fruit",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "fruits",
+        "poss": "fruit's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1012,
+      "gloss_en": "fruit"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0014",
+      "category": "core",
+      "en": "chicken",
+      "target": "chicken",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "chickens",
+        "poss": "chicken's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1013,
+      "gloss_en": "chicken"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0015",
+      "category": "core",
+      "en": "cat",
+      "target": "cat",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "cats",
+        "poss": "cat's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1014,
+      "gloss_en": "cat"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0016",
+      "category": "core",
+      "en": "elephant",
+      "target": "elephant",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "elephants",
+        "poss": "elephant's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1015,
+      "gloss_en": "elephant"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0017",
+      "category": "core",
+      "en": "motorcycle",
+      "target": "motorcycle",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "motorcycles",
+        "poss": "motorcycle's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1016,
+      "gloss_en": "motorcycle"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0018",
+      "category": "core",
+      "en": "bicycle",
+      "target": "bicycle",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "bicycles",
+        "poss": "bicycle's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1017,
+      "gloss_en": "bicycle"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0019",
+      "category": "core",
+      "en": "road",
+      "target": "road",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "roads",
+        "poss": "road's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1018,
+      "gloss_en": "road"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0020",
+      "category": "core",
+      "en": "hospital",
+      "target": "hospital",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "hospitals",
+        "poss": "hospital's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1019,
+      "gloss_en": "hospital"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0021",
+      "category": "core",
+      "en": "doctor",
+      "target": "doctor",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "doctors",
+        "poss": "doctor's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1020,
+      "gloss_en": "doctor"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0022",
+      "category": "core",
+      "en": "medicine",
+      "target": "medicine",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "medicines",
+        "poss": "medicine's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1021,
+      "gloss_en": "medicine"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0023",
+      "category": "core",
+      "en": "head",
+      "target": "head",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "heads",
+        "poss": "head's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1022,
+      "gloss_en": "head"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0024",
+      "category": "core",
+      "en": "leg",
+      "target": "leg",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "legs",
+        "poss": "leg's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1023,
+      "gloss_en": "leg"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0025",
+      "category": "core",
+      "en": "nose",
+      "target": "nose",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "noses",
+        "poss": "nose's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1024,
+      "gloss_en": "nose"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0026",
+      "category": "core",
+      "en": "mouth",
+      "target": "mouth",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "mouths",
+        "poss": "mouth's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1025,
+      "gloss_en": "mouth"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0027",
+      "category": "core",
+      "en": "shirt",
+      "target": "shirt",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "shirts",
+        "poss": "shirt's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1026,
+      "gloss_en": "shirt"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0028",
+      "category": "core",
+      "en": "pants",
+      "target": "pants",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "pantses",
+        "poss": "pants's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1027,
+      "gloss_en": "pants"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0029",
+      "category": "core",
+      "en": "shoe",
+      "target": "shoe",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "shoes",
+        "poss": "shoe's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1028,
+      "gloss_en": "shoe"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0030",
+      "category": "core",
+      "en": "red",
+      "target": "red",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "reds",
+        "poss": "red's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1029,
+      "gloss_en": "red"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0031",
+      "category": "core",
+      "en": "blue",
+      "target": "blue",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "blues",
+        "poss": "blue's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1030,
+      "gloss_en": "blue"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0032",
+      "category": "core",
+      "en": "green",
+      "target": "green",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "greens",
+        "poss": "green's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1031,
+      "gloss_en": "green"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0033",
+      "category": "core",
+      "en": "yellow",
+      "target": "yellow",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "yellows",
+        "poss": "yellow's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1032,
+      "gloss_en": "yellow"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0034",
+      "category": "core",
+      "en": "white",
+      "target": "white",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "whites",
+        "poss": "white's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1033,
+      "gloss_en": "white"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0035",
+      "category": "core",
+      "en": "black",
+      "target": "black",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "blacks",
+        "poss": "black's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1034,
+      "gloss_en": "black"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0036",
+      "category": "core",
+      "en": "circle",
+      "target": "circle",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "circles",
+        "poss": "circle's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1035,
+      "gloss_en": "circle"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0037",
+      "category": "core",
+      "en": "square",
+      "target": "square",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "squares",
+        "poss": "square's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1036,
+      "gloss_en": "square"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0038",
+      "category": "core",
+      "en": "computer",
+      "target": "computer",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "computers",
+        "poss": "computer's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1037,
+      "gloss_en": "computer"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0039",
+      "category": "core",
+      "en": "telephone",
+      "target": "telephone",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "telephones",
+        "poss": "telephone's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1038,
+      "gloss_en": "telephone"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0040",
+      "category": "core",
+      "en": "internet",
+      "target": "internet",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "internets",
+        "poss": "internet's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1039,
+      "gloss_en": "internet"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0041",
+      "category": "core",
+      "en": "market",
+      "target": "market",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "markets",
+        "poss": "market's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1040,
+      "gloss_en": "market"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0042",
+      "category": "core",
+      "en": "police",
+      "target": "police",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "polices",
+        "poss": "police's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1041,
+      "gloss_en": "police"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0043",
+      "category": "core",
+      "en": "bank",
+      "target": "bank",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "banks",
+        "poss": "bank's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1042,
+      "gloss_en": "bank"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0044",
+      "category": "core",
+      "en": "family",
+      "target": "family",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "families",
+        "poss": "family's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1043,
+      "gloss_en": "family"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0045",
+      "category": "core",
+      "en": "grandmother",
+      "target": "grandmother",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "grandmothers",
+        "poss": "grandmother's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1044,
+      "gloss_en": "grandmother"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0046",
+      "category": "core",
+      "en": "grandfather",
+      "target": "grandfather",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "grandfathers",
+        "poss": "grandfather's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1045,
+      "gloss_en": "grandfather"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0047",
+      "category": "core",
+      "en": "morning",
+      "target": "morning",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "mornings",
+        "poss": "morning's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1046,
+      "gloss_en": "morning"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0048",
+      "category": "core",
+      "en": "afternoon",
+      "target": "afternoon",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "afternoons",
+        "poss": "afternoon's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1047,
+      "gloss_en": "afternoon"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0049",
+      "category": "core",
+      "en": "evening",
+      "target": "evening",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "evenings",
+        "poss": "evening's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1048,
+      "gloss_en": "evening"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0050",
+      "category": "core",
+      "en": "today",
+      "target": "today",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "todays",
+        "poss": "today's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1049,
+      "gloss_en": "today"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0051",
+      "category": "core",
+      "en": "rain",
+      "target": "rain",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "rains",
+        "poss": "rain's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1050,
+      "gloss_en": "rain"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0052",
+      "category": "core",
+      "en": "cloud",
+      "target": "cloud",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "clouds",
+        "poss": "cloud's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1051,
+      "gloss_en": "cloud"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0053",
+      "category": "core",
+      "en": "forest",
+      "target": "forest",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "forests",
+        "poss": "forest's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1052,
+      "gloss_en": "forest"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0054",
+      "category": "core",
+      "en": "river",
+      "target": "river",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "rivers",
+        "poss": "river's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1053,
+      "gloss_en": "river"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0055",
+      "category": "core",
+      "en": "workplace",
+      "target": "workplace",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "workplaces",
+        "poss": "workplace's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1054,
+      "gloss_en": "workplace"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0056",
+      "category": "core",
+      "en": "manager",
+      "target": "manager",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "managers",
+        "poss": "manager's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1055,
+      "gloss_en": "manager"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0057",
+      "category": "core",
+      "en": "salary",
+      "target": "salary",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "salaries",
+        "poss": "salary's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1056,
+      "gloss_en": "salary"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0058",
+      "category": "core",
+      "en": "meeting",
+      "target": "meeting",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "meetings",
+        "poss": "meeting's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1057,
+      "gloss_en": "meeting"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0067",
+      "category": "core",
+      "en": "one",
+      "target": "one",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "ones",
+        "poss": "one's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1066,
+      "gloss_en": "one"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0071",
+      "category": "core",
+      "en": "word",
+      "target": "word",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "words",
+        "poss": "word's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1070,
+      "gloss_en": "word"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0082",
+      "category": "core",
+      "en": "which",
+      "target": "which",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "whiches",
+        "poss": "which's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1081,
+      "gloss_en": "which"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0085",
+      "category": "core",
+      "en": "how",
+      "target": "how",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "hows",
+        "poss": "how's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1084,
+      "gloss_en": "how"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0086",
+      "category": "core",
+      "en": "each",
+      "target": "each",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "eaches",
+        "poss": "each's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1085,
+      "gloss_en": "each"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0087",
+      "category": "core",
+      "en": "tell",
+      "target": "tell",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "tells",
+        "poss": "tell's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1086,
+      "gloss_en": "tell"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0089",
+      "category": "core",
+      "en": "set",
+      "target": "set",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "sets",
+        "poss": "set's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1088,
+      "gloss_en": "set"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0090",
+      "category": "core",
+      "en": "want",
+      "target": "want",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "wants",
+        "poss": "want's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1089,
+      "gloss_en": "want"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0091",
+      "category": "core",
+      "en": "air",
+      "target": "air",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "airs",
+        "poss": "air's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1090,
+      "gloss_en": "air"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0092",
+      "category": "core",
+      "en": "well",
+      "target": "well",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "wells",
+        "poss": "well's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1091,
+      "gloss_en": "well"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0094",
+      "category": "core",
+      "en": "play",
+      "target": "play",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "plays",
+        "poss": "play's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1093,
+      "gloss_en": "play"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0095",
+      "category": "core",
+      "en": "small",
+      "target": "small",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "smalls",
+        "poss": "small's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1094,
+      "gloss_en": "small"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0096",
+      "category": "core",
+      "en": "put",
+      "target": "put",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "puts",
+        "poss": "put's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1095,
+      "gloss_en": "put"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0097",
+      "category": "core",
+      "en": "home",
+      "target": "home",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "homes",
+        "poss": "home's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1096,
+      "gloss_en": "home"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0099",
+      "category": "core",
+      "en": "hand",
+      "target": "hand",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "hands",
+        "poss": "hand's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1098,
+      "gloss_en": "hand"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0100",
+      "category": "core",
+      "en": "spell",
+      "target": "spell",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "spells",
+        "poss": "spell's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1099,
+      "gloss_en": "spell"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0101",
+      "category": "core",
+      "en": "add",
+      "target": "add",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "adds",
+        "poss": "add's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1100,
+      "gloss_en": "add"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0102",
+      "category": "core",
+      "en": "land",
+      "target": "land",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "lands",
+        "poss": "land's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1101,
+      "gloss_en": "land"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0104",
+      "category": "core",
+      "en": "big",
+      "target": "big",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "bigs",
+        "poss": "big's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1103,
+      "gloss_en": "big"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0105",
+      "category": "core",
+      "en": "high",
+      "target": "high",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "highs",
+        "poss": "high's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1104,
+      "gloss_en": "high"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0106",
+      "category": "core",
+      "en": "such",
+      "target": "such",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "suches",
+        "poss": "such's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1105,
+      "gloss_en": "such"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0107",
+      "category": "core",
+      "en": "follow",
+      "target": "follow",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "follows",
+        "poss": "follow's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1106,
+      "gloss_en": "follow"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0108",
+      "category": "core",
+      "en": "act",
+      "target": "act",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "acts",
+        "poss": "act's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1107,
+      "gloss_en": "act"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0109",
+      "category": "core",
+      "en": "ask",
+      "target": "ask",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "asks",
+        "poss": "ask's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1108,
+      "gloss_en": "ask"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0110",
+      "category": "core",
+      "en": "men",
+      "target": "men",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "mens",
+        "poss": "men's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1109,
+      "gloss_en": "men"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0111",
+      "category": "core",
+      "en": "light",
+      "target": "light",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "lights",
+        "poss": "light's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1110,
+      "gloss_en": "light"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0112",
+      "category": "core",
+      "en": "kind",
+      "target": "kind",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "kinds",
+        "poss": "kind's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1111,
+      "gloss_en": "kind"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0113",
+      "category": "core",
+      "en": "off",
+      "target": "off",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "ofves",
+        "poss": "off's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1112,
+      "gloss_en": "off"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0114",
+      "category": "core",
+      "en": "need",
+      "target": "need",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "needs",
+        "poss": "need's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1113,
+      "gloss_en": "need"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0115",
+      "category": "core",
+      "en": "picture",
+      "target": "picture",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "pictures",
+        "poss": "picture's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1114,
+      "gloss_en": "picture"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0116",
+      "category": "core",
+      "en": "try",
+      "target": "try",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "tries",
+        "poss": "try's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1115,
+      "gloss_en": "try"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0117",
+      "category": "core",
+      "en": "animal",
+      "target": "animal",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "animals",
+        "poss": "animal's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1116,
+      "gloss_en": "animal"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0118",
+      "category": "core",
+      "en": "point",
+      "target": "point",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "points",
+        "poss": "point's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1117,
+      "gloss_en": "point"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0119",
+      "category": "core",
+      "en": "world",
+      "target": "world",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "worlds",
+        "poss": "world's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1118,
+      "gloss_en": "world"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0120",
+      "category": "core",
+      "en": "build",
+      "target": "build",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "builds",
+        "poss": "build's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1119,
+      "gloss_en": "build"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0121",
+      "category": "core",
+      "en": "earth",
+      "target": "earth",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "earths",
+        "poss": "earth's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1120,
+      "gloss_en": "earth"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0122",
+      "category": "core",
+      "en": "father",
+      "target": "father",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "fathers",
+        "poss": "father's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1121,
+      "gloss_en": "father"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0123",
+      "category": "core",
+      "en": "new",
+      "target": "new",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "news",
+        "poss": "new's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1122,
+      "gloss_en": "new"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0124",
+      "category": "core",
+      "en": "take",
+      "target": "take",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "takes",
+        "poss": "take's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1123,
+      "gloss_en": "take"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0125",
+      "category": "core",
+      "en": "place",
+      "target": "place",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "places",
+        "poss": "place's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1124,
+      "gloss_en": "place"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0126",
+      "category": "core",
+      "en": "after",
+      "target": "after",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "afters",
+        "poss": "after's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1125,
+      "gloss_en": "after"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0127",
+      "category": "core",
+      "en": "round",
+      "target": "round",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "rounds",
+        "poss": "round's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1126,
+      "gloss_en": "round"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0128",
+      "category": "core",
+      "en": "name",
+      "target": "name",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "names",
+        "poss": "name's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1127,
+      "gloss_en": "name"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0130",
+      "category": "core",
+      "en": "think",
+      "target": "think",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "thinks",
+        "poss": "think's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1129,
+      "gloss_en": "think"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0131",
+      "category": "core",
+      "en": "say",
+      "target": "say",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "says",
+        "poss": "say's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1130,
+      "gloss_en": "say"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0132",
+      "category": "core",
+      "en": "help",
+      "target": "help",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "helps",
+        "poss": "help's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1131,
+      "gloss_en": "help"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0133",
+      "category": "core",
+      "en": "low",
+      "target": "low",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "lows",
+        "poss": "low's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1132,
+      "gloss_en": "low"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0134",
+      "category": "core",
+      "en": "line",
+      "target": "line",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "lines",
+        "poss": "line's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1133,
+      "gloss_en": "line"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0135",
+      "category": "core",
+      "en": "turn",
+      "target": "turn",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "turns",
+        "poss": "turn's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1134,
+      "gloss_en": "turn"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0136",
+      "category": "core",
+      "en": "cause",
+      "target": "cause",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "causes",
+        "poss": "cause's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1135,
+      "gloss_en": "cause"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0137",
+      "category": "core",
+      "en": "much",
+      "target": "much",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "muches",
+        "poss": "much's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1136,
+      "gloss_en": "much"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0138",
+      "category": "core",
+      "en": "right",
+      "target": "right",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "rights",
+        "poss": "right's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1137,
+      "gloss_en": "right"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0139",
+      "category": "core",
+      "en": "old",
+      "target": "old",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "olds",
+        "poss": "old's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1138,
+      "gloss_en": "old"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0140",
+      "category": "core",
+      "en": "all",
+      "target": "all",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "alls",
+        "poss": "all's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1139,
+      "gloss_en": "all"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0141",
+      "category": "core",
+      "en": "when",
+      "target": "when",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "whens",
+        "poss": "when's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1140,
+      "gloss_en": "when"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0143",
+      "category": "core",
+      "en": "use",
+      "target": "use",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "uses",
+        "poss": "use's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1142,
+      "gloss_en": "use"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0144",
+      "category": "core",
+      "en": "way",
+      "target": "way",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "ways",
+        "poss": "way's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1143,
+      "gloss_en": "way"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0145",
+      "category": "core",
+      "en": "about",
+      "target": "about",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "abouts",
+        "poss": "about's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1144,
+      "gloss_en": "about"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0146",
+      "category": "core",
+      "en": "many",
+      "target": "many",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "manies",
+        "poss": "many's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1145,
+      "gloss_en": "many"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0149",
+      "category": "core",
+      "en": "thing",
+      "target": "thing",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "things",
+        "poss": "thing's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1148,
+      "gloss_en": "thing"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0150",
+      "category": "core",
+      "en": "look",
+      "target": "look",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "looks",
+        "poss": "look's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1149,
+      "gloss_en": "look"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0151",
+      "category": "core",
+      "en": "day",
+      "target": "day",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "days",
+        "poss": "day's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1150,
+      "gloss_en": "day"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0152",
+      "category": "core",
+      "en": "come",
+      "target": "come",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "comes",
+        "poss": "come's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1151,
+      "gloss_en": "come"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0154",
+      "category": "core",
+      "en": "number",
+      "target": "number",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "numbers",
+        "poss": "number's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1153,
+      "gloss_en": "number"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0155",
+      "category": "core",
+      "en": "sound",
+      "target": "sound",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "sounds",
+        "poss": "sound's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1154,
+      "gloss_en": "sound"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0157",
+      "category": "core",
+      "en": "over",
+      "target": "over",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "overs",
+        "poss": "over's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1156,
+      "gloss_en": "over"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0158",
+      "category": "core",
+      "en": "know",
+      "target": "know",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "knows",
+        "poss": "know's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1157,
+      "gloss_en": "know"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0161",
+      "category": "core",
+      "en": "stand",
+      "target": "stand",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "stands",
+        "poss": "stand's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1160,
+      "gloss_en": "stand"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0162",
+      "category": "core",
+      "en": "page",
+      "target": "page",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "pages",
+        "poss": "page's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1161,
+      "gloss_en": "page"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0164",
+      "category": "core",
+      "en": "country",
+      "target": "country",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "countries",
+        "poss": "country's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1163,
+      "gloss_en": "country"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0165",
+      "category": "core",
+      "en": "answer",
+      "target": "answer",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "answers",
+        "poss": "answer's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1164,
+      "gloss_en": "answer"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0168",
+      "category": "core",
+      "en": "cover",
+      "target": "cover",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "covers",
+        "poss": "cover's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1167,
+      "gloss_en": "cover"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0169",
+      "category": "core",
+      "en": "food",
+      "target": "food",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "foods",
+        "poss": "food's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1168,
+      "gloss_en": "food"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0170",
+      "category": "core",
+      "en": "sun",
+      "target": "sun",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "suns",
+        "poss": "sun's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1169,
+      "gloss_en": "sun"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0171",
+      "category": "core",
+      "en": "between",
+      "target": "between",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "betweens",
+        "poss": "between's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1170,
+      "gloss_en": "between"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0172",
+      "category": "core",
+      "en": "state",
+      "target": "state",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "states",
+        "poss": "state's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1171,
+      "gloss_en": "state"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0173",
+      "category": "core",
+      "en": "keep",
+      "target": "keep",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "keeps",
+        "poss": "keep's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1172,
+      "gloss_en": "keep"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0174",
+      "category": "core",
+      "en": "eye",
+      "target": "eye",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "eyes",
+        "poss": "eye's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1173,
+      "gloss_en": "eye"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0175",
+      "category": "core",
+      "en": "last",
+      "target": "last",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "lasts",
+        "poss": "last's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1174,
+      "gloss_en": "last"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0176",
+      "category": "core",
+      "en": "city",
+      "target": "city",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "cities",
+        "poss": "city's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1175,
+      "gloss_en": "city"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0177",
+      "category": "core",
+      "en": "tree",
+      "target": "tree",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "trees",
+        "poss": "tree's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1176,
+      "gloss_en": "tree"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0178",
+      "category": "core",
+      "en": "saw",
+      "target": "saw",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "saws",
+        "poss": "saw's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1177,
+      "gloss_en": "saw"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0179",
+      "category": "core",
+      "en": "far",
+      "target": "far",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "fars",
+        "poss": "far's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1178,
+      "gloss_en": "far"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0180",
+      "category": "core",
+      "en": "draw",
+      "target": "draw",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "draws",
+        "poss": "draw's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1179,
+      "gloss_en": "draw"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0181",
+      "category": "core",
+      "en": "late",
+      "target": "late",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "lates",
+        "poss": "late's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1180,
+      "gloss_en": "late"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0182",
+      "category": "core",
+      "en": "night",
+      "target": "night",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "nights",
+        "poss": "night's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1181,
+      "gloss_en": "night"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0183",
+      "category": "core",
+      "en": "real",
+      "target": "real",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "reals",
+        "poss": "real's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1182,
+      "gloss_en": "real"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0184",
+      "category": "core",
+      "en": "life",
+      "target": "life",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "lives",
+        "poss": "life's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1183,
+      "gloss_en": "life"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0185",
+      "category": "core",
+      "en": "few",
+      "target": "few",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "fews",
+        "poss": "few's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1184,
+      "gloss_en": "few"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0186",
+      "category": "core",
+      "en": "book",
+      "target": "book",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "books",
+        "poss": "book's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1185,
+      "gloss_en": "book"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0187",
+      "category": "core",
+      "en": "carry",
+      "target": "carry",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "carries",
+        "poss": "carry's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1186,
+      "gloss_en": "carry"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0188",
+      "category": "core",
+      "en": "eat",
+      "target": "eat",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "eats",
+        "poss": "eat's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1187,
+      "gloss_en": "eat"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0189",
+      "category": "core",
+      "en": "room",
+      "target": "room",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "rooms",
+        "poss": "room's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1188,
+      "gloss_en": "room"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0190",
+      "category": "core",
+      "en": "idea",
+      "target": "idea",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "ideas",
+        "poss": "idea's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1189,
+      "gloss_en": "idea"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0191",
+      "category": "core",
+      "en": "fish",
+      "target": "fish",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "fishes",
+        "poss": "fish's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1190,
+      "gloss_en": "fish"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0192",
+      "category": "core",
+      "en": "mountain",
+      "target": "mountain",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "mountains",
+        "poss": "mountain's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1191,
+      "gloss_en": "mountain"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0193",
+      "category": "core",
+      "en": "stop",
+      "target": "stop",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "stops",
+        "poss": "stop's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1192,
+      "gloss_en": "stop"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0194",
+      "category": "core",
+      "en": "horse",
+      "target": "horse",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "horses",
+        "poss": "horse's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1193,
+      "gloss_en": "horse"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0195",
+      "category": "core",
+      "en": "cut",
+      "target": "cut",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "cuts",
+        "poss": "cut's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1194,
+      "gloss_en": "cut"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0196",
+      "category": "core",
+      "en": "color",
+      "target": "color",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "colors",
+        "poss": "color's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1195,
+      "gloss_en": "color"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0197",
+      "category": "core",
+      "en": "face",
+      "target": "face",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "faces",
+        "poss": "face's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1196,
+      "gloss_en": "face"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0198",
+      "category": "core",
+      "en": "wood",
+      "target": "wood",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "woods",
+        "poss": "wood's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1197,
+      "gloss_en": "wood"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0199",
+      "category": "core",
+      "en": "children",
+      "target": "children",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "childrens",
+        "poss": "children's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1198,
+      "gloss_en": "children"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0200",
+      "category": "core",
+      "en": "walk",
+      "target": "walk",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "walks",
+        "poss": "walk's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1199,
+      "gloss_en": "walk"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0201",
+      "category": "core",
+      "en": "paper",
+      "target": "paper",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "papers",
+        "poss": "paper's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1200,
+      "gloss_en": "paper"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0202",
+      "category": "core",
+      "en": "group",
+      "target": "group",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "groups",
+        "poss": "group's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1201,
+      "gloss_en": "group"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0203",
+      "category": "core",
+      "en": "always",
+      "target": "always",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "alwayses",
+        "poss": "always's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1202,
+      "gloss_en": "always"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0204",
+      "category": "core",
+      "en": "music",
+      "target": "music",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "musics",
+        "poss": "music's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1203,
+      "gloss_en": "music"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0205",
+      "category": "core",
+      "en": "mark",
+      "target": "mark",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "marks",
+        "poss": "mark's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1204,
+      "gloss_en": "mark"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0206",
+      "category": "core",
+      "en": "letter",
+      "target": "letter",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "letters",
+        "poss": "letter's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1205,
+      "gloss_en": "letter"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0207",
+      "category": "core",
+      "en": "car",
+      "target": "car",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "cars",
+        "poss": "car's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1206,
+      "gloss_en": "car"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0208",
+      "category": "core",
+      "en": "plain",
+      "target": "plain",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "plains",
+        "poss": "plain's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1207,
+      "gloss_en": "plain"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0209",
+      "category": "core",
+      "en": "young",
+      "target": "young",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "youngs",
+        "poss": "young's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1208,
+      "gloss_en": "young"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0210",
+      "category": "core",
+      "en": "above",
+      "target": "above",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "aboves",
+        "poss": "above's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1209,
+      "gloss_en": "above"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0211",
+      "category": "core",
+      "en": "list",
+      "target": "list",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "lists",
+        "poss": "list's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1210,
+      "gloss_en": "list"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0212",
+      "category": "core",
+      "en": "though",
+      "target": "though",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "thoughs",
+        "poss": "though's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1211,
+      "gloss_en": "though"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0213",
+      "category": "core",
+      "en": "talk",
+      "target": "talk",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "talks",
+        "poss": "talk's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1212,
+      "gloss_en": "talk"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0214",
+      "category": "core",
+      "en": "bird",
+      "target": "bird",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "birds",
+        "poss": "bird's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1213,
+      "gloss_en": "bird"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0215",
+      "category": "core",
+      "en": "soon",
+      "target": "soon",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "soons",
+        "poss": "soon's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1214,
+      "gloss_en": "soon"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0216",
+      "category": "core",
+      "en": "dog",
+      "target": "dog",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "dogs",
+        "poss": "dog's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1215,
+      "gloss_en": "dog"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0217",
+      "category": "core",
+      "en": "pose",
+      "target": "pose",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "poses",
+        "poss": "pose's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1216,
+      "gloss_en": "pose"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0218",
+      "category": "core",
+      "en": "song",
+      "target": "song",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "songs",
+        "poss": "song's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1217,
+      "gloss_en": "song"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0219",
+      "category": "core",
+      "en": "measure",
+      "target": "measure",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "measures",
+        "poss": "measure's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1218,
+      "gloss_en": "measure"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0220",
+      "category": "core",
+      "en": "door",
+      "target": "door",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "doors",
+        "poss": "door's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1219,
+      "gloss_en": "door"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0221",
+      "category": "core",
+      "en": "product",
+      "target": "product",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "products",
+        "poss": "product's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1220,
+      "gloss_en": "product"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0222",
+      "category": "core",
+      "en": "short",
+      "target": "short",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "shorts",
+        "poss": "short's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1221,
+      "gloss_en": "short"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0223",
+      "category": "core",
+      "en": "numeral",
+      "target": "numeral",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "numerals",
+        "poss": "numeral's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1222,
+      "gloss_en": "numeral"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0224",
+      "category": "core",
+      "en": "class",
+      "target": "class",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "classes",
+        "poss": "class's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1223,
+      "gloss_en": "class"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0225",
+      "category": "core",
+      "en": "question",
+      "target": "question",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "questions",
+        "poss": "question's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1224,
+      "gloss_en": "question"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0226",
+      "category": "core",
+      "en": "ship",
+      "target": "ship",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "ships",
+        "poss": "ship's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1225,
+      "gloss_en": "ship"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0227",
+      "category": "core",
+      "en": "area",
+      "target": "area",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "areas",
+        "poss": "area's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1226,
+      "gloss_en": "area"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0228",
+      "category": "core",
+      "en": "fire",
+      "target": "fire",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "fires",
+        "poss": "fire's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1227,
+      "gloss_en": "fire"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0229",
+      "category": "core",
+      "en": "problem",
+      "target": "problem",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "problems",
+        "poss": "problem's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1228,
+      "gloss_en": "problem"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0230",
+      "category": "core",
+      "en": "piece",
+      "target": "piece",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "pieces",
+        "poss": "piece's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1229,
+      "gloss_en": "piece"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0231",
+      "category": "core",
+      "en": "pass",
+      "target": "pass",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "passes",
+        "poss": "pass's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1230,
+      "gloss_en": "pass"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0232",
+      "category": "core",
+      "en": "top",
+      "target": "top",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "tops",
+        "poss": "top's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1231,
+      "gloss_en": "top"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0233",
+      "category": "core",
+      "en": "whole",
+      "target": "whole",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "wholes",
+        "poss": "whole's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1232,
+      "gloss_en": "whole"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0234",
+      "category": "core",
+      "en": "multiply",
+      "target": "multiply",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "multiplies",
+        "poss": "multiply's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1233,
+      "gloss_en": "multiply"
+    },
+    {
+      "language": "en",
+      "id": "km-vocab-0235",
+      "category": "core",
+      "en": "force",
+      "target": "force",
+      "roman": "",
+      "pos": "noun",
+      "ipa": "",
+      "inflections": {
+        "plural": "forces",
+        "poss": "force's"
+      },
+      "rarity": 0.3,
+      "freq_rank": 1234,
+      "gloss_en": "force"
+    }
+  ]
+}
