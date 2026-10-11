@@ -1,6 +1,7 @@
 import { Alert } from "react-native";
 
 import { getPortfolio, purchaseCourse } from "./api";
+import type { StringKey } from "./i18n";
 import type { PublicDemo } from "./publicDemos";
 import {
   fullClassAllowed,
@@ -10,8 +11,14 @@ import {
 } from "./studioCourses";
 
 type AccountLike = { id: string; is_admin?: boolean } | null;
+type Translate = (key: StringKey, vars?: Record<string, string | number>) => string;
 
-function ask(title: string, message: string, buttons: { text: string; value: string }[]): Promise<string> {
+function ask(
+  title: string,
+  message: string,
+  buttons: { text: string; value: string }[],
+  notNow: string,
+): Promise<string> {
   return new Promise((resolve) => {
     Alert.alert(
       title,
@@ -21,31 +28,50 @@ function ask(title: string, message: string, buttons: { text: string; value: str
           text: button.text,
           onPress: () => resolve(button.value),
         })),
-        { text: "Not now", style: "cancel" as const, onPress: () => resolve("") },
+        { text: notNow, style: "cancel" as const, onPress: () => resolve("") },
       ],
     );
   });
+}
+
+function courseCopy(t: Translate, courseId: StudioCourseId) {
+  if (courseId === "drivers-ed") {
+    return { title: t("studio.driversTitle"), blurb: t("studio.driversBlurb") };
+  }
+  return { title: t("studio.foodTitle"), blurb: t("studio.foodBlurb") };
 }
 
 /** Open the full xAI course, or the free demo, using the same pay rule as the website. */
 export async function promptStudioCourse(
   courseId: StudioCourseId,
   account: AccountLike,
-  presentation?: "audio",
+  presentation: "audio" | undefined,
+  t: Translate,
 ): Promise<PublicDemo | null> {
   const course = studioCourseById(courseId);
   if (!course) return null;
-  const opts = { accountId: account?.id, isAdmin: Boolean(account?.is_admin), presentation };
+  const copy = courseCopy(t, courseId);
+  const heard = presentation === "audio";
+  const open = (access: "sample" | "full") => studioCourseDemo(courseId, access, {
+    accountId: account?.id,
+    isAdmin: Boolean(account?.is_admin),
+    presentation,
+    title: heard ? t("studio.audioTitle", { title: copy.title }) : copy.title,
+    subtitle: access === "full" ? t("studio.fullSub") : t("studio.demoSub"),
+    description: copy.blurb,
+  });
+  const notNow = t("studio.notNow");
+  const demoButton = { text: t("studio.demo10"), value: "demo" };
 
-  if (account?.is_admin) return studioCourseDemo(courseId, "full", opts);
+  if (account?.is_admin) return open("full");
 
   if (!account) {
     if (!course.hasDemo) {
-      await ask(course.title, "Sign in to take this course. Admins open the full course. Everyone else pays.", []);
+      await ask(copy.title, t("studio.signIn"), [], notNow);
       return null;
     }
-    const choice = await ask(course.title, course.blurb, [{ text: "10-minute demo", value: "demo" }]);
-    return choice === "demo" ? studioCourseDemo(courseId, "sample", opts) : null;
+    const choice = await ask(copy.title, copy.blurb, [demoButton], notNow);
+    return choice === "demo" ? open("sample") : null;
   }
 
   let status = "";
@@ -53,36 +79,32 @@ export async function promptStudioCourse(
     const portfolio = await getPortfolio();
     status = portfolio.enrollments.find((row) => row.course_id === courseId)?.status || "";
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Could not check this course.";
+    const message = err instanceof Error ? err.message : t("studio.checkFailed");
     if (!course.hasDemo) {
-      await ask(course.title, message, []);
+      await ask(copy.title, message, [], notNow);
       return null;
     }
-    const choice = await ask(course.title, message, [{ text: "10-minute demo", value: "demo" }]);
-    return choice === "demo" ? studioCourseDemo(courseId, "sample", opts) : null;
+    const choice = await ask(copy.title, message, [demoButton], notNow);
+    return choice === "demo" ? open("sample") : null;
   }
 
-  if (fullClassAllowed(true, status, false)) return studioCourseDemo(courseId, "full", opts);
+  if (fullClassAllowed(true, status, false)) return open("full");
 
-  const buttons = [{ text: "Pay for this course", value: "pay" }];
-  if (course.hasDemo) buttons.push({ text: "10-minute demo", value: "demo" });
-  const choice = await ask(
-    course.title,
-    "This course is paid. An admin account takes the full course without paying.",
-    buttons,
-  );
-  if (choice === "demo") return studioCourseDemo(courseId, "sample", opts);
+  const buttons = [{ text: t("studio.pay"), value: "pay" }];
+  if (course.hasDemo) buttons.push(demoButton);
+  const choice = await ask(copy.title, t("studio.paidNote"), buttons, notNow);
+  if (choice === "demo") return open("sample");
   if (choice !== "pay") return null;
   try {
-    const enrollment = await purchaseCourse(courseId, course.title);
+    const enrollment = await purchaseCourse(courseId, copy.title);
     if (!fullClassAllowed(true, enrollment.status, false)) {
-      await ask(course.title, "Payment was not recorded for this course.", []);
-      return course.hasDemo ? studioCourseDemo(courseId, "sample", opts) : null;
+      await ask(copy.title, t("studio.paymentMissing"), [], notNow);
+      return course.hasDemo ? open("sample") : null;
     }
-    return studioCourseDemo(courseId, "full", opts);
+    return open("full");
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Payment was not recorded.";
-    await ask(course.title, message, []);
+    const message = err instanceof Error ? err.message : t("studio.paymentMissing");
+    await ask(copy.title, message, [], notNow);
     return null;
   }
 }

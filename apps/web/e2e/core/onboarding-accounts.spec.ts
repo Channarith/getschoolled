@@ -15,7 +15,7 @@ import { AUTH_STATE } from "../../playwright.config";
 
 test.describe("onboarding — signup toggle (WV-ONB-01)", () => {
   test("'New here? Create account' toggles form to signup mode", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/login");
     await page.waitForLoadState("domcontentloaded");
 
     const createBtn = page.getByRole("button", { name: /create account/i });
@@ -33,7 +33,7 @@ test.describe("onboarding — signup toggle (WV-ONB-01)", () => {
   });
 
   test("signup with existing email switches back to login mode", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/login");
     await page.waitForLoadState("domcontentloaded");
 
     // Toggle to signup.

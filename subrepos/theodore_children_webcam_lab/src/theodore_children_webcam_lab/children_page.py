@@ -50,18 +50,18 @@ _PAGE = """<!doctype html>
     <section id="setup" class="setup">
       <div class="theodore-card">
         <div class="theodore" aria-hidden="true"><span class="ear left"></span><span class="ear right"></span><span class="face">ʕ•ᴥ•ʔ</span></div>
-        <div><p class="eyebrow">THEODORE'S WEBCAM PLAY LAB</p><h1>Move, make faces, color, and laugh!</h1>
-        <p>Camera games and listening games for ages 4–10. Video stays in this browser. No recordings or Face ID.</p></div>
+        <div><p class="eyebrow" data-i18n="eyebrow">THEODORE'S WEBCAM PLAY LAB</p><h1 data-i18n="headline">Move, make faces, color, and laugh!</h1>
+        <p data-i18n="intro">Camera games and listening games for ages 4–10. Video stays in this browser. No recordings or Face ID.</p></div>
       </div>
       <div class="setup-grid">
-        <label>Age group<select id="age"><option value="4-6">4–6</option><option value="7-10" selected>7–10</option></select></label>
-        <label>Theme<select id="theme"><option value="mix">Mix everything</option><option value="cuddly">Cuddly</option><option value="hero">Hero & adventure</option></select></label>
-        <label class="check"><input id="seated" type="checkbox"> Seated-only movement</label>
-        <label class="check"><input id="share" type="checkbox"> Share anonymous lab stats</label>
+        <label><span data-i18n="age">Age group</span><select id="age"><option value="4-6">4–6</option><option value="7-10" selected>7–10</option></select></label>
+        <label><span data-i18n="theme">Theme</span><select id="theme"><option value="mix" data-i18n="mix">Mix everything</option><option value="cuddly" data-i18n="cuddly">Cuddly</option><option value="hero" data-i18n="hero">Hero & adventure</option></select></label>
+        <label class="check"><input id="seated" type="checkbox"> <span data-i18n="seated">Seated-only movement</span></label>
+        <label class="check"><input id="share" type="checkbox"> <span data-i18n="share">Share anonymous lab stats</span></label>
       </div>
-      <div class="privacy"><strong>Adult check:</strong> Make a clear play space. Camera landmarks and speech audio are processed by the browser; our server never receives camera frames or audio.</div>
-      <button id="start" class="primary">Allow camera and start playing</button>
-      <button id="demo" class="secondary">Try pointer demo without camera</button>
+      <div class="privacy" data-i18n="privacy"><strong>Adult check:</strong> Make a clear play space. Camera landmarks and speech audio are processed by the browser; our server never receives camera frames or audio.</div>
+      <button id="start" class="primary" data-i18n="start">Allow camera and start playing</button>
+      <button id="demo" class="secondary" data-i18n="demo">Try pointer demo without camera</button>
     </section>
 
     <section id="play" class="play hidden" aria-live="polite">
@@ -117,9 +117,9 @@ __GAME_SELECT__
           <option value="steady">Steady</option>
           <option value="quick">Quick</option>
         </select></label>
-        <button id="play-game" class="primary">Play</button>
-        <button id="hear">Hear Theodore</button>
-        <button id="mic">🎤 Say it</button>
+        <button id="play-game" class="primary" data-i18n="play">Play</button>
+        <button id="hear" data-i18n="hear">Hear Theodore</button>
+        <button id="mic" data-i18n="say">🎤 Say it</button>
         <input id="typed" placeholder="Type what was said">
         <button id="check">Check typed</button>
         <button id="undo">Undo</button>
@@ -141,6 +141,49 @@ __GAME_SELECT__
     else if (lang === "km" || lang.indexOf("km-") === 0) lang = "km";
     else lang = lang.split("-")[0] || "";
     if (!lang || lang === "en") return;
+    var chrome = {
+      zh: {
+        eyebrow: "西奥多的摄像头游戏室", headline: "动一动，做鬼脸，涂颜色，笑出来！",
+        intro: "适合 4–10 岁的摄像头游戏和聆听游戏。视频留在这个浏览器里。不录音，也不做人脸识别。",
+        age: "年龄组", theme: "主题", mix: "全部混合", cuddly: "软萌", hero: "英雄与冒险",
+        seated: "只做坐着的动作", share: "分享匿名实验数据",
+        privacy: "成人确认：留出安全的活动空间。摄像头关键点和语音由浏览器处理；我们的服务器收不到画面或声音。",
+        start: "允许摄像头并开始玩", demo: "不用摄像头，试试指针演示",
+        play: "开始", hear: "听西奥多说", say: "🎤 说出来",
+        pauseLine: "我们检测到你离开了摄像头。游戏已暂停，你回来后会继续。",
+        resumeLine: "你回到摄像头前了。我们从同一个地方继续。"
+      },
+      yue: {
+        eyebrow: "西奧多嘅鏡頭遊戲室", headline: "郁一郁，做鬼臉，填顏色，笑出嚟！",
+        intro: "適合 4–10 歲嘅鏡頭遊戲同聆聽遊戲。影片留喺呢個瀏覽器。唔錄音，亦唔做人臉識別。",
+        age: "年齡組", theme: "主題", mix: "全部混合", cuddly: "軟萌", hero: "英雄同冒險",
+        seated: "只做坐住嘅動作", share: "分享匿名實驗數據",
+        privacy: "成人確認：留出安全嘅活動空間。鏡頭關鍵點同語音由瀏覽器處理；我哋嘅伺服器收唔到畫面或者聲音。",
+        start: "允許鏡頭並開始玩", demo: "唔使鏡頭，試下指標示範",
+        play: "開始", hear: "聽西奧多講", say: "🎤 講出嚟",
+        pauseLine: "我哋偵測到你離開咗鏡頭。遊戲已暫停，你返嚟之後會繼續。",
+        resumeLine: "你返到鏡頭前面。我哋由同一個地方繼續。"
+      },
+      km: {
+        eyebrow: "បន្ទប់លេងកាមេរ៉ារបស់ Theodore", headline: "កម្រើក ធ្វើមុខ លាបពណ៌ ហើយសើច!",
+        intro: "ល្បែងកាមេរ៉ា និងល្បែងស្តាប់សម្រាប់អាយុ ៤–១០។ វីដេអូនៅក្នុងកម្មវិធីរុករកនេះ។ គ្មានការថត ឬស្គាល់មុខ។",
+        age: "ក្រុមអាយុ", theme: "រូបរាង", mix: "លាយទាំងអស់", cuddly: "គួរឱ្យស្រឡាញ់", hero: "វីរបុរស និងដំណើរផ្សងព្រេង",
+        seated: "ចលនាពេលអង្គុយប៉ុណ្ណោះ", share: "ចែករំលែកស្ថិតិមន្ទីរពិសោធន៍អនាមិក",
+        privacy: "ការពិនិត្យមនុស្សធំ៖ រៀបកន្លែងលេងឱ្យច្បាស់។ ចំណុចកាមេរ៉ា និងសំឡេងដំណើរការដោយកម្មវិធីរុករក។ ម៉ាស៊ីនមេរបស់យើងមិនទទួលរូប ឬសំឡេង។",
+        start: "អនុញ្ញាតកាមេរ៉ា ហើយចាប់ផ្តើមលេង", demo: "សាកល្បងទ្រនិចដោយគ្មានកាមេរ៉ា",
+        play: "លេង", hear: "ស្តាប់ Theodore", say: "🎤 និយាយ",
+        pauseLine: "យើងបានរកឃើញថាអ្នកបានចេញពីកាមេរ៉ា។ ល្បែងបានផ្អាក ហើយនឹងបន្តពេលអ្នកត្រឡប់មកវិញ។",
+        resumeLine: "អ្នកបានត្រឡប់មកកាមេរ៉ាវិញ។ យើងនឹងបន្តពីកន្លែងដដែល។"
+      }
+    };
+    var pack = chrome[lang] || (lang === "zh" ? chrome.zh : null);
+    if (pack) {
+      window.__LAB_CHROME = pack;
+      document.querySelectorAll("[data-i18n]").forEach(function (el) {
+        var key = el.getAttribute("data-i18n");
+        if (key && pack[key]) el.textContent = pack[key];
+      });
+    }
     var bcp = lang === "yue" ? "zh-HK" : (lang === "km" ? "km-KH" : lang);
     try { document.documentElement.lang = lang; } catch (e) {}
     var orig = window.fetch;

@@ -26,13 +26,17 @@ function connectionChime(ok: boolean) {
 export default function DriveVoiceChip({
   live,
   hidden,
+  dismissed,
   onToggle,
   onHide,
+  onShow,
 }: {
   live: boolean;
   hidden: boolean;
+  dismissed: boolean;
   onToggle: () => void;
   onHide: () => void;
+  onShow: () => void;
 }) {
   const chipRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
@@ -68,6 +72,30 @@ export default function DriveVoiceChip({
   }
 
   if (hidden) return null;
+  if (dismissed) {
+    return (
+      <button
+        type="button"
+        onClick={onShow}
+        style={{
+          position: "fixed",
+          zIndex: 40,
+          left: 12,
+          bottom: "max(18px, env(safe-area-inset-bottom))",
+          minHeight: 40,
+          padding: "0 14px",
+          borderRadius: 14,
+          border: "1px solid #5eead4",
+          background: "#07111ef2",
+          color: "#e7fbff",
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Show xAI
+      </button>
+    );
+  }
 
   return (
     <div

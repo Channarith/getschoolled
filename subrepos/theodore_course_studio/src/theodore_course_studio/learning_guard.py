@@ -116,14 +116,13 @@ def _analyzer() -> Any:
             from theodore_webcam_lab.attention_formula import AttentionFormulaTuning
             from theodore_webcam_lab.vision_tuning import VisionTuning
 
-            # The lab's seat calibration pauses past 0.70 m and treats one quiet
-            # second as "left the class". A lesson camera samples about once a
-            # second, and a learner at a desk is often farther than 0.70 m.
+            # Stop the lesson inside one second of an empty camera. A learner
+            # at a desk is often farther than the lab's 0.70 m seat line.
             tuning = replace(VisionTuning(), distance_too_far_m=1.6)
             formula = replace(AttentionFormulaTuning(), max_class_distance_m=1.6)
             policy = AnalyzerPolicy(
-                absence_grace_ms=2_500,
-                pause_training_no_presence_ms=3_000,
+                absence_grace_ms=700,
+                pause_training_no_presence_ms=700,
             )
             _ANALYZER = WebcamSessionAnalyzer(
                 policy=policy,
@@ -153,8 +152,8 @@ def _speech_for(reason: str, cheating: bool, reasons: list[str] | None = None) -
         )
     if reason in {"no_learner_detected", "absence_grace_exceeded"}:
         return (
-            "I can't see you at the camera, so the lesson is paused. "
-            "Come back into view and we will continue where you left off."
+            "We detected that you left the camera. "
+            "The lesson is paused and will resume when you return."
         )
     if reason in {"pitch_dark_needs_light", "camera_quality"}:
         return "I need a clearer picture of you. Turn on a light and face the camera."

@@ -127,7 +127,7 @@ const state = {
   handMotion:0, serverTts:null, speechToken:0, audioIndex:0, audioRound:null, showWords:false,
   touchMode:"air", crayon:null, ink:[], inkDown:false, screenDown:false, screenPointerId:null,
   voiceAway:false, heldPrompt:"", missingFaceAt:0, chaseLeft:false, bopDir:0, flapDir:0,
-  presenceNoteUntil:0, pace:"patient", lastDetectAt:0,
+  presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0,
   glanceNote:false, poseOpen:false, standBase:null, sitLow:null,
 };
 const presenceWatch = createPresenceWatch();
@@ -1202,9 +1202,14 @@ function targetPoint(){
 
 function loop(now) {
   if(!state.running)return;
-  detectFrame();noteSensors();drawVision();updateTrace();updatePicturePlay();updateObjectGame();updateGestureGame(now);
-  tickCountdown(now);
+  detectFrame();noteSensors();drawVision();
   watchPresence(now);
+  if (state.voiceAway) {
+    if (state.deadline && !state.pausedAt) state.pausedAt = now;
+  } else {
+    updateTrace();updatePicturePlay();updateObjectGame();updateGestureGame(now);
+    tickCountdown(now);
+  }
   requestAnimationFrame(loop);
 }
 
@@ -1286,11 +1291,19 @@ function watchPresence(now) {
         postFocus("left_frame", {signal: event.signal || "no_face"});
       }
     } else if (event.type === "resume") {
+      if (state.pausedAt && state.deadline) state.deadline += now - state.pausedAt;
+      state.pausedAt = 0;
       state.voiceAway = false;
+      const held = state.heldPrompt;
       state.heldPrompt = "";
+      state.presenceCueUntil = now + 4000;
       window.TheodoreLiveAudio?.resumeRecognition?.();
-      setPresenceNote("");
+      setPresenceNote(event.line, 4000);
       speak(event.line, true);
+      setTimeout(() => {
+        if (state.voiceAway) return;
+        tellActivity(held || state.spokenPrompt);
+      }, 1600);
       rememberPresence("returned", {away_ms: event.awayMs || 0, signal: event.signal || "face_mesh"});
       postFocus("returned", {away_ms: event.awayMs || 0, signal: event.signal || "face_mesh"});
     } else if (event.type === "notice") {
@@ -1479,6 +1492,7 @@ function chooseGame() {
   applyGameControls();
 }
 function tellActivity(prompt) {
+  if (state.voiceAway || window.__THEODORE_LIVE_AUDIO_HOLD__) return;
   if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__ || !prompt) return;
   window.TheodoreLiveAudio?.noteActivity?.({
     id: String(state.game || "play") + ":" + prompt,
@@ -1623,10 +1637,13 @@ async function speak(text, cue=false) {
   }
 }
 window.addEventListener("theodore-live-audio",(event)=>{
-  if(event.detail?.active){
-    cancelSpeech();
-    setTimeout(()=>tellActivity(state.spokenPrompt),700);
-  }
+  if (!event.detail?.active || event.detail.paused || window.__THEODORE_LIVE_AUDIO_HOLD__ || state.voiceAway) return;
+  if (performance.now() < (state.presenceCueUntil || 0)) return;
+  cancelSpeech();
+  setTimeout(()=> {
+    if (state.voiceAway || window.__THEODORE_LIVE_AUDIO_HOLD__) return;
+    tellActivity(state.spokenPrompt);
+  }, 700);
 });
 
 function pulsePlayStage() {

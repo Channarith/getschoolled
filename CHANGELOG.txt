@@ -3,6 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-11 - v0.53.0 - Chinese, Cantonese, and Khmer now translate the mobile and web screens, buttons, search, camera check, and course chrome when Language or Lesson language changes. Voice and accent stay a separate choice.
+- 2026-10-11 - v0.53.0 - Signed-out salareen.com is the logo, Try the demo, and Log in again.
+- 2026-10-11 - v0.53.0 - Stepping away from the webcam pauses the class within about a second and resumes at the same place.
+- 2026-10-11 - v0.53.0 - The full driver's education program continues from one class to the next, tracks class and program progress, and can jump to gaps.
+- 2026-10-11 - v0.53.0 - On the Go can show a waveform, a moving mouth, or an avatar face, and the lesson webcam draws the tracking overlay by default.
+- 2026-10-11 - v0.53.0 - Full studio courses can be paid for, and the translation batch can resume a partial course again.
 - 2026-10-11 - v0.52.1 - CosyVoice→Audio2Face orchestrated loop (scripts/a2f_cosyvoice_loop): streams CosyVoice /tts PCM into A2F gRPC; aarch64 protocol stub (official NIM is amd64-only); Pipecat CosyVoice helper; docs/cosyvoice-a2f.txt.
 - 2026-10-11 - v0.52.1 - CosyVoice local Spark path: AutoModel CosyVoice-300M-SFT, vLLM off by default, scripts/run_cosyvoice_local.sh + COSYVOICE_DEFAULT_SPK for dictionary/read-aloud without ElevenLabs or Docker Desktop GPU.
 - 2026-10-11 - v0.52.1 - Video→CosyVoice training ingest: URL list / local media → denoise → segment → faster-whisper → Kaldi recipe via aoep_shared.cosyvoice_ingest and scripts/cosyvoice_ingest.py (extra packages/shared[cosyvoice-ingest]).

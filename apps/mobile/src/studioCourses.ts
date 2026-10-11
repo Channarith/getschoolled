@@ -68,17 +68,24 @@ export function studioCoursePath(
 export function studioCourseDemo(
   courseId: StudioCourseId,
   access: "sample" | "full",
-  opts: { accountId?: string; isAdmin?: boolean; presentation?: "audio" } = {},
+  opts: {
+    accountId?: string;
+    isAdmin?: boolean;
+    presentation?: "audio";
+    title?: string;
+    subtitle?: string;
+    description?: string;
+  } = {},
 ): PublicDemo {
   const course = studioCourseById(courseId);
-  const title = course?.title || courseId;
+  const title = opts.title || course?.title || courseId;
   const heard = opts.presentation === "audio";
   return {
     id: courseId,
     path: studioCoursePath(courseId, access, opts),
     emoji: course?.emoji || "📘",
-    title: heard ? `${title} · audio` : title,
-    subtitle: access === "full" ? "Full course · xAI" : "10-minute demo · xAI",
-    description: course?.blurb || "",
+    title: opts.title ? title : (heard ? `${title} · audio` : title),
+    subtitle: opts.subtitle || (access === "full" ? "Full course · xAI" : "10-minute demo · xAI"),
+    description: opts.description || course?.blurb || "",
   };
 }

@@ -15,6 +15,7 @@ import {
 import { softenLineBreaks } from "./lineBreaks";
 import { FALLBACK, STRINGS, type StringKey } from "./strings";
 import { getMe, setAccountLanguage } from "../api";
+import { setSettings } from "../storage";
 
 type Vars = Record<string, string | number>;
 
@@ -99,7 +100,11 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       const stored = await readStoredLocale();
-      if (stored) { setLocaleState(stored); return; } // explicit device pick wins
+      if (stored) {
+        setLocaleState(stored);
+        void setSettings({ trainingLocale: stored });
+        return;
+      } // explicit device pick wins
       // Adopt the signed-in learner's saved language so the app + course appear
       // in their language on this device; fall back to the device locale.
       try {
@@ -108,10 +113,13 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
         if (pref) {
           setLocaleState(pref);
           void writeStoredLocale(pref);
+          void setSettings({ trainingLocale: pref });
           return;
         }
       } catch { /* signed out / offline: use the device locale */ }
-      setLocaleState(detectDeviceLocale());
+      const detected = detectDeviceLocale();
+      setLocaleState(detected);
+      void setSettings({ trainingLocale: detected });
     })();
   }, []);
 
@@ -119,6 +127,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     if (!isSupportedLocale(next)) return;
     setLocaleState(next);
     void writeStoredLocale(next);
+    void setSettings({ trainingLocale: next });
     // Persist to the profile so the choice follows the learner to their other
     // devices and the AI teacher answers in this language (best-effort).
     void setAccountLanguage(next).catch(() => { /* guest / offline */ });

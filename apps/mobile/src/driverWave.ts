@@ -20,7 +20,6 @@ export function driverWaveScript(): string {
       "html.salareen-drive-wave #quiz-box,",
       "html.salareen-drive-wave #game-box,",
       "html.salareen-drive-wave .sample-banner,",
-      "html.salareen-drive-wave .sample-clock,",
       "html.salareen-drive-wave .proceed-cue,",
       "html.salareen-drive-wave .page-welcome,",
       "html.salareen-drive-wave .lesson-toolbar,",
@@ -52,7 +51,18 @@ export function driverWaveScript(): string {
       "#salareen-drive-choices label { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;",
       "color:#d7e7ea; font:600 11px/1.2 system-ui,sans-serif; }",
       "#salareen-drive-choices select { width:100%; min-height:40px; border-radius:10px; border:1px solid #24515c;",
-      "background:#101820; color:#f4fbff; font-size:15px; }"
+      "background:#101820; color:#f4fbff; font-size:15px; }",
+      "html.salareen-drive-wave #sample-clock:not([hidden]) { display:inline-flex !important;",
+      "position:fixed !important; z-index:2147483647 !important;",
+      "top:max(8px, env(safe-area-inset-top)) !important; right:12px !important; left:auto !important;",
+      "flex-direction:column; align-items:flex-end; padding:8px 10px; border-radius:14px;",
+      "background:#07111ef2; border:1px solid #5eead4; color:#f8fafc; pointer-events:none; }",
+      "html.salareen-drive-wave.salareen-drive-chrome-hidden #drive-bar,",
+      "html.salareen-drive-wave.salareen-drive-chrome-hidden #salareen-drive-choices,",
+      "html.salareen-drive-wave.salareen-drive-chrome-hidden #student-cam,",
+      "html.salareen-drive-wave.salareen-drive-chrome-hidden #theodore-live-audio,",
+      "html.salareen-drive-wave.salareen-drive-chrome-hidden #course-map,",
+      "html.salareen-drive-wave.salareen-drive-chrome-hidden #salareen-course-map { display:none !important; }"
     ].join("");
     var style = document.createElement("style");
     style.textContent = css;
@@ -145,6 +155,7 @@ export function driverWaveScript(): string {
       wave.setAttribute("aria-label", "Audio playing");
       for (var n = 0; n < 17; n++) wave.appendChild(document.createElement("i"));
       wave.addEventListener("click", function() {
+        if (chromeWasHidden) return;
         var pause = document.getElementById("btn-pause");
         if (pause) pause.click();
       });
@@ -230,6 +241,8 @@ export function driverWaveScript(): string {
       }).then(function(course) {
         var slides = course && course.slides || [];
         slides.forEach(function(slide, index) {
+          var words = (slide.narration || "") + (slide.body || "") + (slide.title || "");
+          if (!/[A-Za-z\u00C0-\uFFFF]/.test(words)) return;
           var button = document.createElement("button");
           button.type = "button";
           button.textContent = (index + 1) + ". " + (slide.title || "Slide");
@@ -252,8 +265,34 @@ export function driverWaveScript(): string {
         });
       }).catch(function() {});
     }
+    var chromeTimer = 0;
+    var chromeWasHidden = false;
+    function studioOwnsChrome() {
+      return document.body && document.body.getAttribute("data-drive-chrome") === "1";
+    }
+    function liftClock() {
+      var clock = document.getElementById("sample-clock");
+      if (clock && clock.parentElement !== document.body) document.body.appendChild(clock);
+    }
+    function revealChrome() {
+      if (studioOwnsChrome()) {
+        document.documentElement.classList.remove("salareen-drive-chrome-hidden");
+        return;
+      }
+      clearTimeout(chromeTimer);
+      document.documentElement.classList.remove("salareen-drive-chrome-hidden");
+      chromeTimer = setTimeout(function() {
+        if (!studioOwnsChrome()) document.documentElement.classList.add("salareen-drive-chrome-hidden");
+      }, 4000);
+    }
+    document.addEventListener("pointerdown", function() {
+      if (studioOwnsChrome()) return;
+      chromeWasHidden = document.documentElement.classList.contains("salareen-drive-chrome-hidden");
+      revealChrome();
+    }, true);
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
     else mount();
+    revealChrome();
     var ticks = 0;
     var timer = setInterval(function() {
       ticks += 1;
@@ -261,7 +300,10 @@ export function driverWaveScript(): string {
       mountChoices();
       mountProgress();
       keepPresence();
+      liftClock();
+      if (studioOwnsChrome()) document.documentElement.classList.remove("salareen-drive-chrome-hidden");
       if ((studioWaveReady() && document.getElementById("drive-bar")) || ticks > 40) clearInterval(timer);
     }, 500);
+    setInterval(liftClock, 1000);
   })(); true;`;
 }

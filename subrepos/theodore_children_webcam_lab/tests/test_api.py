@@ -128,6 +128,11 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
     assert "applyVoiceScreen" in script
     assert "applySpokenActivity" in script
     assert "tellActivity" in script
+    assert "state.voiceAway" in script
+    assert "event.detail.paused" in script
+    assert "We detected that you left the camera." in (
+        ROOT / "src/theodore_children_webcam_lab/static/vision_math.js"
+    ).read_text()
     assert "isAudioGame()" in script
     assert "checkSpeech(text)" in script
     assert "selectSpokenGame" in script

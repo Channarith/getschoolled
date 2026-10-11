@@ -57,7 +57,13 @@
       .close{width:28px;height:28px;padding:0;border:0;border-radius:50%;background:#172033;color:#fff;
         font:700 16px/28px system-ui,sans-serif;flex:none}
       .hidden{display:none}
+      .show-again{display:none;position:fixed;z-index:2147483646;left:12px;
+        bottom:max(18px, env(safe-area-inset-bottom));min-height:40px;padding:0 14px;border-radius:14px;
+        border:1px solid #5eead4;background:#07111ef2;color:#e7fbff;font:700 13px/40px system-ui,sans-serif}
+      :host(.voice-hidden) .box{display:none !important}
+      :host(.voice-hidden) .show-again{display:inline-block}
     </style>
+    <button class="show-again" type="button">Show xAI</button>
     <div class="box" data-drag-chip="1" title="Drag the xAI voice. Tap the microphone to start or stop.">
       <div class="row">
         <i class="dot"></i>
@@ -85,7 +91,15 @@
   const select = $("select"), toggle = $(".toggle"), status = $(".status");
   const caption = $(".caption"), dot = $(".dot"), voiceName = $(".voice-name");
   const chip = $(".box");
-  $(".close").onclick = (event) => { event.stopPropagation(); stop(); host.remove(); };
+  $(".close").onclick = (event) => {
+    event.stopPropagation();
+    stop();
+    host.classList.add("voice-hidden");
+  };
+  $(".show-again").onclick = (event) => {
+    event.stopPropagation();
+    host.classList.remove("voice-hidden");
+  };
 
   function placeChip(left, top) {
     if (!chip) return;
@@ -576,8 +590,10 @@
           stop("Live audio disconnected.");
         }
       };
+      return true;
     } catch (error) {
       await stop(`Could not start live audio: ${error?.message || error}`);
+      return false;
     }
   }
   function setRecognitionPaused(paused) {
@@ -586,12 +602,17 @@
     if (state.recognitionPaused) {
       state.dropOutput = true;
       state.agentSpeaking = false;
+      if (state.outputGain) state.outputGain.gain.value = 0;
       clearPlayback();
+      if (state.ws && state.ws.readyState === WebSocket.OPEN && state.provider === "xai") {
+        try { state.ws.send(JSON.stringify({ type: "response.cancel" })); } catch (_) {}
+      }
       window.dispatchEvent(new CustomEvent("theodore-live-audio-speech", {
         detail: {speaking: false, text: ""},
       }));
     } else {
       state.dropOutput = false;
+      if (state.outputGain) state.outputGain.gain.value = playbackGain();
       state.lastUserAt = Date.now();
     }
     window.dispatchEvent(new CustomEvent("theodore-live-audio", {
@@ -644,6 +665,7 @@
   }
   function noteActivity(detail) {
     const prompt = String(detail && detail.prompt || "").trim();
+    if (state.recognitionPaused) return;
     if (!prompt || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
     const key = String((detail && detail.id) || prompt);
     const now = Date.now();
@@ -671,7 +693,7 @@
     openMic() { return openSpeakerSafeMic(); },
     noteActivity(detail) { noteActivity(detail); },
     setHidden(hidden) {
-      host.hidden = Boolean(hidden);
+      host.classList.toggle("voice-hidden", Boolean(hidden));
       if (hidden && state.ws) stop("Live audio off.");
     },
     start() {

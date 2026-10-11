@@ -3,14 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AppBadges from "./components/AppBadges";
-import { PublicCourses } from "./components/PublicCourses";
 import AdSlot from "./components/AdSlot";
 import { Rail, Tile } from "./components/CourseRail";
 import MascotImage from "./components/MascotImage";
-import LandingAuthPanel from "./components/LandingAuthPanel";
 import { DemoOnlyLanding } from "./components/DemoOnly";
-import { useFlag, useFlags } from "./lib/flags";
-import { SALES_DEMO_FLAGS } from "./lib/salesDemo";
+import { useFlag } from "./lib/flags";
 import {
   AUTH_EVENT,
   getHomeFeed,
@@ -26,8 +23,6 @@ export default function HomePage() {
   const { t, locale } = useT();
   const learnPhrase = useLearningPhrase();
   const carousels = useFlag<boolean>("ux.netflix_carousels", true);
-  const demoOnly = useFlag<boolean>(SALES_DEMO_FLAGS.exclusive, false);
-  const { ready: flagsReady } = useFlags();
   const [rails, setRails] = useState<HomeRail[] | null>(null);
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
@@ -67,7 +62,7 @@ export default function HomePage() {
     };
   }, [locale]);
 
-  if (!authResolved || (!loggedIn && !flagsReady)) {
+  if (!authResolved) {
     return (
       <main className="landing-hero">
         <p className="muted" style={{ textAlign: "center", paddingTop: 80 }}>{t("home.loading")}</p>
@@ -75,34 +70,7 @@ export default function HomePage() {
     );
   }
 
-  // Unauthenticated visitors must sign in — show social + email options inline.
-  if (!loggedIn) {
-    if (demoOnly) return <DemoOnlyLanding />;
-
-    return (
-      <main className="landing-hero">
-        <div
-          className="landing-hero-bg site-bg-layer site-bg-kenburns site-bg-motion-2"
-          style={{
-            backgroundImage:
-              "linear-gradient(0deg, rgba(11,16,32,.94) 0%, rgba(11,16,32,.35) 45%, rgba(11,16,32,.85) 100%), url(/wallpapers/wisdom_bodhi.webp)",
-            backgroundSize: "cover", backgroundPosition: "center",
-          }}
-          aria-hidden
-        />
-        <div className="landing-inner">
-          <MascotImage width={140} className="landing-mascot" alt="Salareen mascot" />
-          <span className="theme-badge learn-phrase">{learnPhrase}</span>
-          <h1 className="theme-title glow" style={{ fontSize: 44, maxWidth: "22ch", margin: "12px auto 10px" }}>
-            {t("hero.title")}
-          </h1>
-          <p className="theme-subtitle glow" style={{ margin: "0 auto" }}>{t("hero.subLoggedOut")}</p>
-          <PublicCourses />
-          <LandingAuthPanel />
-        </div>
-      </main>
-    );
-  }
+  if (!loggedIn) return <DemoOnlyLanding />;
 
   return (
     <main>

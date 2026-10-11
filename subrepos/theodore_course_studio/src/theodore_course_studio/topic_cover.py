@@ -69,6 +69,37 @@ def completion_percent(course: Any, completed: list[int] | set[int]) -> int:
     return round(100 * done / len(indexes))
 
 
+def is_blank_slide(slide: Any) -> bool:
+    """A slide with no words to speak. Audio would sit on silence."""
+    text = " ".join(
+        [
+            getattr(slide, "title", "") or "",
+            getattr(slide, "body", "") or "",
+            getattr(slide, "narration", "") or "",
+            getattr(slide, "activity_prompt", "") or "",
+        ]
+    )
+    return re.search(r"[^\W\d_]", text, flags=re.UNICODE) is None
+
+
+def path_covered_percent(
+    path: list[int], completed: list[int] | set[int], current: int | None
+) -> int:
+    """Share of this lesson that has been opened, including the slide playing now.
+
+    The denominator is the lesson path, not every page stored on the course,
+    so finishing the slides you can hear reaches 100.
+    """
+    order = list(dict.fromkeys(path))
+    if not order:
+        return 0
+    done = set(completed)
+    if current is not None and current in order:
+        done.add(current)
+    hit = sum(1 for index in order if index in done)
+    return round(100 * hit / len(order))
+
+
 def example_lines(slide: Any) -> list[str]:
     """Use authored examples, or one line drawn from the slide itself."""
     authored = [

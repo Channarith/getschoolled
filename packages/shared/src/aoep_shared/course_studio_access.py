@@ -10,6 +10,9 @@ from __future__ import annotations
 SAMPLE_MINUTES = 10
 LIBRARY_COURSE_ID = "course-studio"
 PAID_ENROLLMENT_STATUS = "paid"
+# One-time price for the rest of a class after the free trial.
+COURSE_PRICE_CENTS = 1999
+COURSE_PRICE_LABEL = "$19.99"
 
 # Public site courses. Driver's ed has a free 10-minute demo. Both full
 # courses are paid unless the account is an admin.
@@ -22,8 +25,10 @@ PUBLIC_STUDIO_COURSES = (
         "duration_min": SAMPLE_MINUTES,
         "preview": (
             "Anyone can take the 10-minute demo. "
-            "The full course requires payment unless you are an admin."
+            f"The full course is {COURSE_PRICE_LABEL} unless you are an admin."
         ),
+        "price_label": COURSE_PRICE_LABEL,
+        "price_cents": COURSE_PRICE_CENTS,
         "deep_link": "/learn/drivers-ed",
         "demo_link": "/demo/drivers-ed",
         "tags": ["drivers-ed", "demo"],
@@ -34,7 +39,9 @@ PUBLIC_STUDIO_COURSES = (
         "subtitle": "California food handler prep",
         "category": "Food safety",
         "duration_min": 45,
-        "preview": "Admins take this course. Everyone else pays.",
+        "preview": f"Admins take this course. Everyone else pays {COURSE_PRICE_LABEL}.",
+        "price_label": COURSE_PRICE_LABEL,
+        "price_cents": COURSE_PRICE_CENTS,
         "deep_link": "/learn/food-safety",
         "demo_link": "",
         "tags": ["food-safety"],
@@ -43,11 +50,13 @@ PUBLIC_STUDIO_COURSES = (
 
 SAMPLE_PREVIEW = (
     "This free trial is 10 minutes. "
-    "Anyone can start it. Pay for the course when you want the full class."
+    f"The full course is {COURSE_PRICE_LABEL}. "
+    "Pay for the course when you want the full class."
 )
 SAMPLE_ENDED = (
     "Your free 10-minute trial has ended. "
     "Thanks for spending time with the lesson. "
+    f"The full course is {COURSE_PRICE_LABEL}. "
     "Pay for the course when you want to keep going."
 )
 

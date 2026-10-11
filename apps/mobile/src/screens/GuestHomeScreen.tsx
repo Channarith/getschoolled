@@ -6,13 +6,31 @@ import {
 import AuthScreen from "./AuthScreen";
 import DemoWebScreen from "./DemoWebScreen";
 import { useAndroidBack } from "../hooks/useAndroidBack";
-import { useT } from "../i18n";
+import { useT, type StringKey } from "../i18n";
 import { useLearningPhrase } from "../learningPhrases";
 import { MASCOT_IMAGES } from "../mascots/imageAssets";
 import { PUBLIC_DEMOS, type PublicDemo } from "../publicDemos";
 import { theme } from "../theme";
 
 type Step = "landing" | "demos" | "login";
+
+const DEMO_COPY: Record<string, { title: StringKey; subtitle: StringKey; body: StringKey }> = {
+  "drivers-ed": {
+    title: "guest.demoSoloTitle",
+    subtitle: "guest.demoSoloSub",
+    body: "guest.demoSoloBody",
+  },
+  "on-the-go": {
+    title: "guest.demoDriveTitle",
+    subtitle: "guest.demoDriveSub",
+    body: "guest.demoDriveBody",
+  },
+  arcade: {
+    title: "guest.demoArcadeTitle",
+    subtitle: "guest.demoArcadeSub",
+    body: "guest.demoArcadeBody",
+  },
+};
 
 export default function GuestHomeScreen() {
   const { t, locale } = useT();
@@ -51,7 +69,9 @@ export default function GuestHomeScreen() {
         </Pressable>
         <Image source={mascot} style={styles.mascotSmall} resizeMode="contain" accessibilityIgnoresInvertColors />
         <Text style={styles.kicker}>{learnPhrase}</Text>
-        {PUBLIC_DEMOS.map((item) => (
+        {PUBLIC_DEMOS.map((item) => {
+          const copy = DEMO_COPY[item.id];
+          return (
           <Pressable
             key={item.id}
             testID={`guest-demo-${item.id}`}
@@ -59,11 +79,12 @@ export default function GuestHomeScreen() {
             onPress={() => setDemo(item)}
           >
             <Text style={styles.emoji}>{item.emoji}</Text>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
-            <Text style={styles.cardBody}>{item.description}</Text>
+            <Text style={styles.cardTitle}>{copy ? t(copy.title) : item.title}</Text>
+            <Text style={styles.cardSubtitle}>{copy ? t(copy.subtitle) : item.subtitle}</Text>
+            <Text style={styles.cardBody}>{copy ? t(copy.body) : item.description}</Text>
           </Pressable>
-        ))}
+          );
+        })}
       </ScrollView>
     );
   }

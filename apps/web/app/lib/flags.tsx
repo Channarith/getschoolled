@@ -89,6 +89,22 @@ export function useFlags() {
   return useContext(FlagsContext);
 }
 
+/** null until the saved sign-in token has been read. */
+export function useSignedIn(): boolean | null {
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  useEffect(() => {
+    const sync = () => setSignedIn(Boolean(getToken()));
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return signedIn;
+}
+
 /**
  * True when demo-only mode (sales_demo.exclusive) is on AND the visitor is
  * signed out. Signed-in users always see the regular site; demo-only mode is

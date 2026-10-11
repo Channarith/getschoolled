@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LandingAuthPanel from "./LandingAuthPanel";
+import LanguagePicker from "./LanguagePicker";
 import MascotImage from "./MascotImage";
 import { useFlag, useFlags } from "../lib/flags";
+import { useT } from "../lib/i18n";
 import { useLearningPhrase } from "../lib/learningPhrases";
 import { DEMO_ONLY_FEATURE_IDS, SALES_DEMO_FEATURES, SALES_DEMO_FLAGS } from "../lib/salesDemo";
 
@@ -22,7 +24,7 @@ function DemoOnlyShell({
 }) {
   const learnPhrase = useLearningPhrase();
   return (
-    <main className="landing-hero">
+    <main className="landing-hero guest-landing">
       <div
         className="landing-hero-bg site-bg-layer site-bg-kenburns site-bg-motion-2"
         style={{
@@ -90,6 +92,7 @@ const secondaryCta: React.CSSProperties = {
 
 export function DemoOnlyLanding() {
   const learnPhrase = useLearningPhrase();
+  const { t } = useT();
   return (
     <DemoOnlyShell kicker={false} brand>
       <h1
@@ -113,8 +116,11 @@ export function DemoOnlyLanding() {
           flexWrap: "wrap",
         }}
       >
-        <Link href="/demo" style={primaryCta}>Try the demo</Link>
-        <Link href="/login" style={secondaryCta}>Log in</Link>
+        <Link href="/demo" style={primaryCta}>{t("landing.tryDemo")}</Link>
+        <Link href="/login" style={secondaryCta}>{t("landing.logIn")}</Link>
+      </div>
+      <div style={{ marginTop: 28 }}>
+        <LanguagePicker compact />
       </div>
     </DemoOnlyShell>
   );
@@ -122,6 +128,12 @@ export function DemoOnlyLanding() {
 
 export function DemoOnlyShowcase() {
   const { flags } = useFlags();
+  const { t } = useT();
+  const demoCopy: Record<string, { title: string; subtitle: string; body: string }> = {
+    solo: { title: t("demo.solo.title"), subtitle: t("demo.solo.subtitle"), body: t("demo.solo.body") },
+    drive: { title: t("demo.drive.title"), subtitle: t("demo.drive.subtitle"), body: t("demo.drive.body") },
+    arcade: { title: t("demo.arcade.title"), subtitle: t("demo.arcade.subtitle"), body: t("demo.arcade.body") },
+  };
   const features = SALES_DEMO_FEATURES.filter(
     (f) => (DEMO_ONLY_FEATURE_IDS as readonly string[]).includes(f.id) && flags[f.flagKey] !== false,
   );
@@ -144,14 +156,14 @@ export function DemoOnlyShowcase() {
             style={{ padding: 22, textAlign: "left", color: "#fff", textDecoration: "none", background: "rgba(15,23,42,0.78)" }}
           >
             <div aria-hidden style={{ fontSize: 40 }}>{f.emoji}</div>
-            <h3 style={{ margin: "8px 0 2px" }}>{f.title}</h3>
-            <strong style={{ color: "#a5b4fc", fontSize: 13 }}>{f.subtitle}</strong>
-            <p className="muted" style={{ marginBottom: 0 }}>{f.description}</p>
+            <h3 style={{ margin: "8px 0 2px" }}>{demoCopy[f.id]?.title || f.title}</h3>
+            <strong style={{ color: "#a5b4fc", fontSize: 13 }}>{demoCopy[f.id]?.subtitle || f.subtitle}</strong>
+            <p className="muted" style={{ marginBottom: 0 }}>{demoCopy[f.id]?.body || f.description}</p>
           </Link>
         ))}
       </div>
       <Link href="/" style={{ display: "inline-block", marginTop: 26, color: "rgba(255,255,255,0.7)", fontSize: 14 }}>
-        ← Back
+        {t("demo.back")}
       </Link>
     </DemoOnlyShell>
   );
@@ -159,12 +171,13 @@ export function DemoOnlyShowcase() {
 
 export function VisionArcadeLinks() {
   const demoOnly = useFlag<boolean>(SALES_DEMO_FLAGS.exclusive, false);
-  if (demoOnly) return <Link href="/demo">← Back to demo</Link>;
+  const { t } = useT();
+  if (demoOnly) return <Link href="/demo">{t("vision.backDemo")}</Link>;
   return (
     <>
-      <Link href="/">← Back to Salareen</Link>
+      <Link href="/">{t("vision.backHome")}</Link>
       {" · "}
-      <Link href="/arcade">More arcade games</Link>
+      <Link href="/arcade">{t("vision.moreArcade")}</Link>
     </>
   );
 }

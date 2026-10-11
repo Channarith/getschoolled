@@ -1,5 +1,6 @@
 /** Page-level UI strings (profile, drive, our-story, browse, preview). Merged into STRINGS. */
 import type { Locale } from "./i18n-strings";
+import uiPagesPack from "./uiPagesPack.json";
 
 const PROFILE: Partial<Record<Locale, Record<string, string>>> = {
   en: {
@@ -1299,4 +1300,9 @@ const STORY_STRINGS: Partial<Record<Locale, Record<string, string>>> = {
 
 for (const [loc, kv] of Object.entries(STORY_STRINGS)) {
   PAGE_STRINGS[loc as Locale] = { ...(PAGE_STRINGS[loc as Locale] || {}), ...kv };
+}
+
+const UI_PAGES = uiPagesPack as Partial<Record<"zh" | "yue" | "km", Record<string, string>>>;
+for (const loc of ["zh", "yue", "km"] as const) {
+  PAGE_STRINGS[loc] = { ...(PAGE_STRINGS[loc] || {}), ...(UI_PAGES[loc] || {}) };
 }

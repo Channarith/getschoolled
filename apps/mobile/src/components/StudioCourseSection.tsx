@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import AnimatedPressable from "./AnimatedPressable";
+import { useT, type StringKey } from "../i18n";
 import { STUDIO_COURSES, type StudioCourseId } from "../studioCourses";
 import { theme } from "../theme";
 
@@ -11,15 +12,20 @@ type Props = {
 };
 
 /** Driver's ed and Food Health & Safety, the xAI studio courses. */
+const COURSE_COPY: Record<StudioCourseId, { title: StringKey; blurb: StringKey }> = {
+  "drivers-ed": { title: "studio.driversTitle", blurb: "studio.driversBlurb" },
+  "food-safety": { title: "studio.foodTitle", blurb: "studio.foodBlurb" },
+};
+
 export default function StudioCourseSection({ onOpen, presentation }: Props) {
+  const { t } = useT();
   const [busy, setBusy] = useState("");
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.kicker}>Full courses · xAI</Text>
+      <Text style={styles.kicker}>{t("studio.kicker")}</Text>
       <Text style={styles.lead}>
-        Theodore teaches Driver's Education and Food Health & Safety with xAI.
-        {presentation === "audio" ? " This opens the audio class." : " Admins take the full course. Everyone else pays."}
+        {t("studio.lead")} {presentation === "audio" ? t("studio.leadAudio") : t("studio.leadPaid")}
       </Text>
       {STUDIO_COURSES.map((course) => (
         <AnimatedPressable
@@ -34,13 +40,13 @@ export default function StudioCourseSection({ onOpen, presentation }: Props) {
         >
           <Text style={styles.emoji}>{course.emoji}</Text>
           <View style={styles.copy}>
-            <Text style={styles.title}>{course.title}</Text>
-            <Text style={styles.blurb}>{course.blurb}</Text>
+            <Text style={styles.title}>{t(COURSE_COPY[course.id].title)}</Text>
+            <Text style={styles.blurb}>{t(COURSE_COPY[course.id].blurb)}</Text>
           </View>
           {busy === course.id ? (
             <ActivityIndicator color={theme.colors.accent} />
           ) : (
-            <Text style={styles.open}>Open</Text>
+            <Text style={styles.open}>{t("studio.open")}</Text>
           )}
         </AnimatedPressable>
       ))}

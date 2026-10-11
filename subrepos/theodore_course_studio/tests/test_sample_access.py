@@ -189,6 +189,10 @@ def test_studio_page_offers_the_sample_banner():
     assert "armSampleClock" in STUDIO_JS
     assert "formatSampleClock" in STUDIO_JS
     assert 'id="sample-clock"' in page
+    assert "$19.99" in page
+    assert 'id="pay-card"' in page
+    assert 'id="pay-paypal"' in page
+    assert "/api/studio/pay/checkout" in STUDIO_JS
     assert "presentation" in STUDIO_JS
     assert "if (audioOnly) return;" not in STUDIO_JS
     assert 'id="audio-stage"' in page
@@ -197,10 +201,34 @@ def test_studio_page_offers_the_sample_banner():
     assert "body.audio-only #teach-title" in page
     assert "body.audio-only #quiz-box" in page
     assert "body.audio-only #theodore-live-audio" in page
+    assert "body.audio-only #sample-clock" in page
+    assert "drive-chrome-hidden" in page
+    assert "revealDriveChrome" in STUDIO_JS
     assert "body.audio-only .lesson-toolbar" in page
     assert "position:fixed !important; inset:0 !important;" in page
     assert 'class="audio-avatar"' not in page
     assert "onDriveWaveTap" in STUDIO_JS
+    # Sample demos and full courses share this page. Leaving the camera pauses both.
+    assert 'id="presence-hold"' in page
+    assert "We detected that you left the camera." in STUDIO_JS
+    assert "pauseLessonForAbsence" in STUDIO_JS
+    assert "studentStillAway" in STUDIO_JS
+    assert "function pauseLessonForAbsence" in STUDIO_JS
+    assert "ABSENCE_HOLD_MS = 600" in STUDIO_JS
+    assert "watchStudentPresence" in STUDIO_JS
+    assert "setInterval(watchStudentPresence, 200)" in STUDIO_JS
+    assert "fullDriversProgram()" not in STUDIO_JS.split("function pauseLessonForAbsence")[0][-400:]
+    assert "/api/studio/courses/certification-program" in STUDIO_JS
+    assert "program_percent" in STUDIO_JS
+    assert "Next gap" in page
+    assert 'id="drive-look"' in page
+    assert 'data-look="bars"' in page
+    assert "Frequency line" in page
+    assert "Talking mouth" in page
+    assert "face-amina" in page
+    assert "applyAudioLook" in STUDIO_JS
+    assert "TheodoreLiveAudio.start()" in STUDIO_JS
+    assert "kind !== 'backup'" in STUDIO_JS
     assert 'id="course-map"' in page
     assert "syncVoiceToSlide" in STUDIO_JS
     assert "/api/studio/teach/goto" in STUDIO_JS

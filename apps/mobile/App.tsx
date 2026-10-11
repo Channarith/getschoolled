@@ -401,7 +401,7 @@ function AppInner() {
   // The Drive tab opens straight into the player when a courseId is set;
   // otherwise it falls back to the audio-courses browser.
   const openStudioCourse = (courseId: StudioCourseId, presentation?: "audio") => {
-    void promptStudioCourse(courseId, account, presentation).then((demo) => {
+    void promptStudioCourse(courseId, account, presentation, t).then((demo) => {
       if (demo) setStudioDemo(demo);
     });
   };

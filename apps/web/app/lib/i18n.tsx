@@ -70,9 +70,14 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
 
 export function translateWith(locale: Locale, key: string,
                               vars?: Record<string, string | number>): string {
-  const here = STRINGS[locale] || {};
-  const fallback = STRINGS[DEFAULT_LOCALE] || {};
-  const tpl = here[key] ?? fallback[key] ?? key;
+  const order: Locale[] = locale === "yue"
+    ? ["yue", "zh", DEFAULT_LOCALE]
+    : [locale, DEFAULT_LOCALE];
+  let tpl = key;
+  for (const code of order) {
+    const line = STRINGS[code]?.[key];
+    if (line) { tpl = line; break; }
+  }
   return interpolate(tpl, vars);
 }
 

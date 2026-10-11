@@ -16,12 +16,23 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from aoep_shared.course_studio_access import resolve_teach_access
+
+from .course_pay import (
+    CoursePayStore,
+    card_is_paid,
+    course_price,
+    paypal_is_paid,
+    payer_id,
+    same_site_return,
+    start_card_checkout,
+    start_paypal_checkout,
+)
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
 from .certification_prep import (
@@ -29,6 +40,7 @@ from .certification_prep import (
     CertTrackId,
     TRACK_NAMES,
     build_cert_course,
+    build_cert_program,
     list_cert_courses,
 )
 from .corpus import default_corpus_root, default_data_dir, load_corpus_index, scan_corpus, write_corpus_index
@@ -100,6 +112,7 @@ app.mount(
 _reviews = ReviewStore()
 _builder = CourseBuilder()
 _teach = TeachEngine(_builder)
+_pay_store = CoursePayStore(_builder.data_dir / "payments" / "course_payments.json")
 
 
 class TrainingRunRequest(BaseModel):
@@ -622,6 +635,25 @@ def build_certification_course(req: CertCourseRequest) -> dict[str, Any]:
     return course.model_dump(mode="json")
 
 
+class CertProgramRequest(BaseModel):
+    track: CertTrackId = CertTrackId.CA_DMV_PERMIT
+    language: str = "en"
+
+
+@app.post("/api/studio/courses/certification-program")
+def build_certification_program(req: CertProgramRequest) -> dict[str, Any]:
+    try:
+        course = build_cert_program(
+            track=req.track,
+            language=normalize_language(req.language),
+            data_dir=_builder.data_dir,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _builder.save_course(course)
+    return course.model_dump(mode="json")
+
+
 @app.get("/api/studio/courses/trial-plan")
 def trial_plan(language: str = "en") -> dict[str, Any]:
     return trial_demo_plan(language=normalize_language(language))
@@ -705,8 +737,95 @@ def build_course(req: BuildCourseRequest) -> dict[str, Any]:
     return course.model_dump(mode="json")
 
 
+class CoursePayRequest(BaseModel):
+    course_id: str
+    learner_id: str
+    method: str = "card"
+    return_url: str = ""
+    title: str = ""
+
+
+class CoursePayConfirmRequest(BaseModel):
+    session_id: str
+
+
+def _paid_enrollment(learner_id: str, course_id: str, requested: str) -> str:
+    if _pay_store.is_paid(learner_id, course_id):
+        return "paid"
+    return requested
+
+
+@app.get("/api/studio/pay/price")
+def pay_price() -> dict[str, Any]:
+    return course_price()
+
+
+@app.post("/api/studio/pay/checkout")
+def pay_checkout(req: CoursePayRequest, request: Request) -> dict[str, Any]:
+    method = (req.method or "").strip().lower()
+    if method not in {"card", "paypal"}:
+        raise HTTPException(status_code=422, detail="choose card or paypal")
+    learner = payer_id(req.learner_id)
+    course_id = (req.course_id or "").strip()
+    if not learner or not course_id:
+        raise HTTPException(status_code=400, detail="course and learner are required")
+    try:
+        return_url = same_site_return(req.return_url, request.headers.get("host", ""))
+        if method == "card":
+            session = start_card_checkout(
+                learner_id=learner,
+                course_id=course_id,
+                title=req.title or "Full course",
+                return_url=return_url,
+            )
+        else:
+            session = start_paypal_checkout(
+                learner_id=learner,
+                course_id=course_id,
+                title=req.title or "Full course",
+                return_url=return_url,
+            )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    _pay_store.remember(
+        session_id=session["session_id"],
+        learner_id=learner,
+        course_id=course_id,
+        method=method,
+    )
+    return {**session, **course_price()}
+
+
+@app.post("/api/studio/pay/confirm")
+def pay_confirm(req: CoursePayConfirmRequest) -> dict[str, Any]:
+    session_id = (req.session_id or "").strip()
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required")
+    pending = _pay_store.pending(session_id)
+    if pending is None:
+        raise HTTPException(status_code=404, detail="checkout session not found")
+    try:
+        authorized = (
+            paypal_is_paid(session_id)
+            if pending.get("method") == "paypal"
+            else card_is_paid(session_id)
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if not authorized:
+        raise HTTPException(status_code=402, detail="payment is not authorized yet")
+    saved = _pay_store.mark_paid(session_id)
+    if saved is None:
+        raise HTTPException(status_code=404, detail="checkout session not found")
+    return {"status": "paid", "course_id": saved["course_id"], **course_price()}
+
+
 @app.post("/api/studio/teach/start")
 def teach_start(req: TeachStartRequest) -> dict[str, Any]:
+    enrollment = _paid_enrollment(req.learner_id, req.course_id, req.enrollment_status)
+    registered = req.registered or enrollment == "paid"
     try:
         return _teach.start(
             session_id=req.session_id,
@@ -722,8 +841,8 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
             voice_gender=req.voice_gender,
             access=resolve_teach_access(
                 requested=req.access,
-                registered=req.registered,
-                enrollment_status=req.enrollment_status,
+                registered=registered,
+                enrollment_status=enrollment,
                 is_admin=req.is_admin,
             ),
         )

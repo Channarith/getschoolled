@@ -4,18 +4,15 @@ import { sweepRouteOverflow } from "../lib/overflow";
 
 /**
  * Core P0 — home / landing (V&V master plan WV-01/WV-02).
- * Signed-out marketing landing (email capture) and the signed-in catalog rails.
+ * Signed-out landing (logo, demo, and login) and the signed-in catalog rails.
  */
 
 test.describe("landing (WV-01) — signed out", () => {
-  test("marketing hero with email capture and a sign-in path", async ({ page }) => {
+  test("logo landing offers the demo and login", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("h1").first()).toBeVisible();
-    // Email-capture form: the email/username input and the sign-in affordance are
-    // the locale-independent anchors of the logged-out hero. The input uses
-    // type="text" with an email/username placeholder (autocomplete=username).
-    await expect(page.locator('input[autocomplete="username"]')).toBeVisible();
-    await expect(page.getByRole("button", { name: /sign in/i }).first()).toBeVisible();
+    await expect(page.getByRole("img", { name: /salareen mascot/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /try the demo/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^log in$/i })).toBeVisible();
   });
 
   test("no horizontal overflow across phone/laptop/desktop", async ({ page }) => {

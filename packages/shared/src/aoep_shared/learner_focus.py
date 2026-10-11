@@ -16,7 +16,8 @@ only names a signal the current face model can actually support:
   gaze, so this module will not call that a phone.
 * Camera toggle or leaving the app: absence only, labeled as such.
 
-A single dropped frame or a glance does not pause the lesson or count as cheating.
+Speech stops within a second of the learner leaving the camera. A single
+dropped frame or a glance does not pause the lesson or count as cheating.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-AWAY_HOLD_MS = 2500
+AWAY_HOLD_MS = 800
 RETURN_HOLD_MS = 1200
 SIGNAL_HOLD_MS = 1500
 # No face at all for this long still pauses, so a camera that never locks on
@@ -40,14 +41,20 @@ NEUTRAL_FACE_UPPER_FRACTION = 0.42
 FACE_FRACTION_DEG_PER_UNIT = 250.0
 GEOMETRIC_PITCH_LIMIT_DEG = 60.0
 
-PAUSE_LINE = "I'll pause here. Come back when you're ready."
-RESUME_LINE = "Welcome back. We'll continue from the same place."
+PAUSE_LINE = (
+    "We detected that you left the camera. "
+    "The lesson is paused and will resume when you return."
+)
+RESUME_LINE = "You're back on the camera. We'll continue from the same place."
 PHONE_LINE = (
     "Looks like you might be looking down at a phone. "
     "The lesson is still here when you look up."
 )
 LOOK_AWAY_LINE = "Look back at the screen when you can. I'll keep going from here."
-LEFT_LINE = "I can't see you in the camera. I'll wait here."
+LEFT_LINE = (
+    "We detected that you left the camera. "
+    "The lesson is paused and will resume when you return."
+)
 
 IDENTITY_STATUSES = ("unverified", "pending", "verified")
 DOCUMENT_TYPES = ("", "license", "passport", "school_id", "other")

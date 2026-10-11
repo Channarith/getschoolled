@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -1480,6 +1481,71 @@ def build_cert_course(
             "spoken_language": spoken_language,
             "translation_source": translation_source,
             "translation_note": translation_note,
+        },
+        created_at_ms=int(time.time() * 1000),
+        status="ready",
+    )
+
+
+def build_cert_program(
+    *,
+    track: CertTrackId | None = None,
+    language: str = "en",
+    data_dir: Path | None = None,
+) -> StudioCourse:
+    """One course made of every class on a certification track, in order."""
+    del data_dir
+    track_id = track or CertTrackId.CA_DMV_PERMIT
+    lang = normalize_language(language)
+    lessons = [row for row in _TEMPLATES if row.track is track_id]
+    if not lessons:
+        raise ValueError(f"no lessons for track {track_id.value}")
+    slides: list[CourseSlide] = []
+    classes: list[dict[str, Any]] = []
+    minutes = 0
+    for template in lessons:
+        built = build_cert_course(
+            track=track_id,
+            lesson_id=template.lesson_id,
+            language=lang,
+        )
+        start = len(slides)
+        total = len(built.slides)
+        for offset, slide in enumerate(built.slides):
+            tags = list(slide.tags)
+            if offset == 0:
+                tags.append("class_start")
+            if offset == total - 1:
+                tags.append("class_end")
+            slides.append(slide.model_copy(update={"index": start + offset, "tags": tags}))
+        classes.append(
+            {
+                "lesson_id": template.lesson_id,
+                "title": template.title,
+                "start": start,
+                "count": total,
+            }
+        )
+        minutes += int(template.estimated_minutes or 0)
+    return StudioCourse(
+        course_id=f"cert-program-{track_id.value}-{lang}",
+        title=TRACK_NAMES[track_id],
+        category=CATEGORIES[track_id],
+        language=lang,
+        audience="adult_cert_prep",
+        subject=TRACK_NAMES[track_id],
+        estimated_minutes=max(minutes, CERT_SESSION_MIN_MINUTES),
+        source_ids=[f"curated:{row.lesson_id}" for row in lessons],
+        slides=slides,
+        profile_adaptations={
+            "mode": "certification_prep",
+            "program": True,
+            "track": track_id.value,
+            "jurisdiction": JURISDICTIONS[track_id],
+            "classes": classes,
+            "disclaimer": lessons[0].disclaimer,
+            "session_soft_minutes": max(minutes, CERT_SESSION_MAX_MINUTES),
+            "spoken_language": lang,
         },
         created_at_ms=int(time.time() * 1000),
         status="ready",

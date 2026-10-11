@@ -3,21 +3,22 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { searchLearnable, getGamesCatalog, type LearnableItem } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 // Static settings pages that are searchable. Admin, flags, and password-required
 // pages are intentionally excluded.
 // Link only to real routes — /account has no ?tab= routing (see account/page.tsx).
 const SETTINGS_ITEMS = [
-  { title: "Account settings", href: "/account", keywords: "profile email password name membership" },
-  { title: "Language practice", href: "/languages", keywords: "locale language translate learn" },
-  { title: "Voice & narration", href: "/drive", keywords: "voice tts audio narration instructor speed" },
-  { title: "Billing & plans", href: "/billing", keywords: "plan billing tier upgrade subscription" },
-  { title: "Rewards", href: "/rewards", keywords: "points redeem prizes" },
-  { title: "Download app", href: "/download", keywords: "mobile ios android app" },
-];
+  { titleKey: "search.account", href: "/account", keywords: "account settings profile email password name membership" },
+  { titleKey: "search.language", href: "/languages", keywords: "language practice locale translate learn" },
+  { titleKey: "search.voice", href: "/drive", keywords: "voice narration tts audio instructor speed" },
+  { titleKey: "search.billing", href: "/billing", keywords: "billing plans plan tier upgrade subscription" },
+  { titleKey: "search.rewards", href: "/rewards", keywords: "rewards points redeem prizes" },
+  { titleKey: "search.download", href: "/download", keywords: "download app mobile ios android" },
+] as const;
 
 type GameResult = { id: string; name: string; href: string };
-type SettingResult = { title: string; href: string };
+type SettingResult = { titleKey: (typeof SETTINGS_ITEMS)[number]["titleKey"]; href: string };
 
 type SearchResults = {
   courses: LearnableItem[];
@@ -28,6 +29,7 @@ type SearchResults = {
 const EMPTY: SearchResults = { courses: [], games: [], settings: [] };
 
 export default function NavSearchBox() {
+  const { t, locale } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -114,7 +116,7 @@ export default function NavSearchBox() {
         // Settings: client-side filter
         const settings = SETTINGS_ITEMS.filter(
           (s) =>
-            s.title.toLowerCase().includes(lower) ||
+            t(s.titleKey).toLowerCase().includes(lower) ||
             s.keywords.toLowerCase().includes(lower),
         );
 
@@ -126,7 +128,7 @@ export default function NavSearchBox() {
         );
 
         // Courses/lessons: API call
-        const courseRes = await searchLearnable({ q, limit: "6" }, "en", controller.signal);
+        const courseRes = await searchLearnable({ q, limit: "6" }, locale, controller.signal);
         const courses = courseRes.items.slice(0, 6);
 
         setResults({ courses, games: games.slice(0, 4), settings: settings.slice(0, 3) });
@@ -138,7 +140,7 @@ export default function NavSearchBox() {
         setLoading(false);
       }
     },
-    [gameSubjects],
+    [gameSubjects, locale, t],
   );
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,12 +167,12 @@ export default function NavSearchBox() {
   const showDropdown = open && query.trim().length > 0;
 
   return (
-    <div ref={containerRef} className="nav-search-wrap" role="search" aria-label="Site search">
+    <div ref={containerRef} className="nav-search-wrap" role="search" aria-label={t("nav.siteSearch")}>
       {!open ? (
         <button
           type="button"
           className="nav-search-btn"
-          aria-label="Open search"
+          aria-label={t("nav.openSearch")}
           onClick={openSearch}
         >
           &#x1F50D;
@@ -181,16 +183,16 @@ export default function NavSearchBox() {
             ref={inputRef}
             type="search"
             className="nav-search-input"
-            placeholder="Search courses, games, settings…"
+            placeholder={t("nav.searchPlaceholder")}
             value={query}
             onChange={handleInput}
-            aria-label="Search"
+            aria-label={t("nav.search")}
             autoComplete="off"
           />
           <button
             type="button"
             className="nav-search-close"
-            aria-label="Close search"
+            aria-label={t("nav.closeSearch")}
             onClick={() => { setOpen(false); setQuery(""); setResults(EMPTY); }}
           >
             ✕
@@ -199,16 +201,16 @@ export default function NavSearchBox() {
       )}
 
       {showDropdown && (
-        <div className="nav-search-dropdown" role="listbox" aria-label="Search results">
-          {loading && <div className="nav-search-loading">Searching…</div>}
+        <div className="nav-search-dropdown" role="listbox" aria-label={t("nav.results")}>
+          {loading && <div className="nav-search-loading">{t("nav.searching")}</div>}
 
           {!loading && !hasResults && (
-            <div className="nav-search-empty">No results for &ldquo;{query}&rdquo;</div>
+            <div className="nav-search-empty">{t("nav.noResults", { query })}</div>
           )}
 
           {results.courses.length > 0 && (
             <section className="nav-search-section">
-              <div className="nav-search-section-label">Courses</div>
+              <div className="nav-search-section-label">{t("nav.courses")}</div>
               {results.courses.map((item) => (
                 <button
                   key={item.id}
@@ -228,9 +230,9 @@ export default function NavSearchBox() {
                   <span className="nav-search-result-title">{item.title}</span>
                   {item.category && (
                     <span className="nav-search-result-meta">
-                      {item.format === "audio" ? "🎧 Audio" :
-                       item.format === "live_class" ? "🎓 Live Class" :
-                       item.format === "game" ? "🎮 Game" :
+                      {item.format === "audio" ? `🎧 ${t("nav.audio")}` :
+                       item.format === "live_class" ? `🎓 ${t("nav.liveClass")}` :
+                       item.format === "game" ? `🎮 ${t("nav.game")}` :
                        item.category}
                     </span>
                   )}
@@ -241,7 +243,7 @@ export default function NavSearchBox() {
 
           {results.games.length > 0 && (
             <section className="nav-search-section">
-              <div className="nav-search-section-label">Arcade Games</div>
+              <div className="nav-search-section-label">{t("nav.games")}</div>
               {results.games.map((game) => (
                 <button
                   key={game.id}
@@ -252,7 +254,7 @@ export default function NavSearchBox() {
                   onClick={() => navigate(game.href)}
                 >
                   <span className="nav-search-result-title">{game.name}</span>
-                  <span className="nav-search-result-meta">Arcade</span>
+                  <span className="nav-search-result-meta">{t("nav.arcade")}</span>
                 </button>
               ))}
             </section>
@@ -260,7 +262,7 @@ export default function NavSearchBox() {
 
           {results.settings.length > 0 && (
             <section className="nav-search-section">
-              <div className="nav-search-section-label">Settings</div>
+              <div className="nav-search-section-label">{t("nav.settings")}</div>
               {results.settings.map((s) => (
                 <button
                   key={s.href}
@@ -270,8 +272,8 @@ export default function NavSearchBox() {
                   aria-selected="false"
                   onClick={() => navigate(s.href)}
                 >
-                  <span className="nav-search-result-title">{s.title}</span>
-                  <span className="nav-search-result-meta">Settings</span>
+                  <span className="nav-search-result-title">{t(s.titleKey)}</span>
+                  <span className="nav-search-result-meta">{t("nav.settings")}</span>
                 </button>
               ))}
             </section>

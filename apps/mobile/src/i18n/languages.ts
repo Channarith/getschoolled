@@ -31,7 +31,7 @@ export const LANGUAGES: LanguageInfo[] = [
   { code: "ar", name: "Arabic",             native: "العربية",            flag: "🇸🇦", rtl: true, tier: "full" },
   { code: "hi", name: "Hindi",              native: "हिन्दी",              flag: "🇮🇳", tier: "full" },
   { code: "zh", name: "Chinese (Mandarin)", native: "中文（普通话）", flag: "🇨🇳", tier: "full" },
-  { code: "yue", name: "Cantonese",         native: "粵語",            flag: "🇭🇰", tier: "fallback" },
+  { code: "yue", name: "Cantonese",         native: "粵語",            flag: "🇭🇰", tier: "full" },
   { code: "ja", name: "Japanese",           native: "日本語",            flag: "🇯🇵", tier: "full" },
   { code: "ko", name: "Korean",             native: "한국어",             flag: "🇰🇷", tier: "full" },
   { code: "vi", name: "Vietnamese",         native: "Tiếng Việt",       flag: "🇻🇳", tier: "full" },
