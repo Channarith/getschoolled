@@ -7,7 +7,8 @@
 // a language to the picker is non-breaking even before it's fully translated).
 
 export type LocaleCode =
-  | "en" | "es" | "fr" | "de" | "it" | "pt" | "nl" | "pl" | "ru" | "uk"
+  | "en" | "en-GB" | "en-AU" | "en-SG"
+  | "es" | "fr" | "de" | "it" | "pt" | "nl" | "pl" | "ru" | "uk"
   | "tr" | "ar" | "he" | "hi" | "bn" | "ur" | "fa" | "zh" | "ja" | "ko"
   | "vi" | "th" | "id" | "sw" | "el" | "cs" | "km" | "yue";
 
@@ -21,7 +22,10 @@ export type LanguageInfo = {
 };
 
 export const LANGUAGES: LanguageInfo[] = [
-  { code: "en", name: "English",            native: "English",          flag: "🇬🇧", tier: "full" },
+  { code: "en", name: "American English",  native: "English (US)",     flag: "🇺🇸", tier: "full" },
+  { code: "en-GB", name: "British English", native: "English (UK)",     flag: "🇬🇧", tier: "full" },
+  { code: "en-AU", name: "Australian English", native: "English (AU)",  flag: "🇦🇺", tier: "full" },
+  { code: "en-SG", name: "Singlish",         native: "Singlish",         flag: "🇸🇬", tier: "full" },
   { code: "es", name: "Spanish",            native: "Español",          flag: "🇪🇸", tier: "full" },
   { code: "fr", name: "French",             native: "Français",         flag: "🇫🇷", tier: "full" },
   { code: "de", name: "German",             native: "Deutsch",          flag: "🇩🇪", tier: "full" },

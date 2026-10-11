@@ -12,8 +12,11 @@ import { PAGE_STRINGS } from "./i18n-pages";
 // untranslated key via t() until their translation lands - so the picker can
 // offer all 27 without shipping 27 complete dictionaries.
 export const LOCALES = [
-  // Fully-localized UI (14):
-  "en", "es", "fr", "de", "it", "pt", "ru", "ar", "hi", "zh", "ja", "ko", "vi", "km",
+  // Fully-localized UI (14), plus the four English varieties. American stays
+  // `en` so existing dictionaries and saved locales keep working. British,
+  // Australian, and Singlish are spoken/UI variants, not extra content languages.
+  "en", "en-GB", "en-AU", "en-SG",
+  "es", "fr", "de", "it", "pt", "ru", "ar", "hi", "zh", "ja", "ko", "vi", "km",
   // Supported, UI rolling out (13) - English fallback for untranslated keys:
   "nl", "pl", "uk", "tr", "he", "bn", "ur", "fa", "th", "id", "sw", "el", "cs",
   // Spoken variant. Not one of the 27 content languages. Cantonese UI copy is
@@ -31,7 +34,10 @@ export type LanguageEntry = {
 };
 
 export const LANGUAGE_LIST: LanguageEntry[] = [
-  { code: "en", native: "English", flag: "🇺🇸", tier: "full" },
+  { code: "en", native: "English (US)", flag: "🇺🇸", tier: "full" },
+  { code: "en-GB", native: "English (UK)", flag: "🇬🇧", tier: "full" },
+  { code: "en-AU", native: "English (AU)", flag: "🇦🇺", tier: "full" },
+  { code: "en-SG", native: "Singlish", flag: "🇸🇬", tier: "full" },
   { code: "es", native: "Español", flag: "🇪🇸", tier: "full" },
   { code: "fr", native: "Français", flag: "🇫🇷", tier: "full" },
   { code: "de", native: "Deutsch", flag: "🇩🇪", tier: "full" },

@@ -896,6 +896,9 @@ STUDIO_JS = """
         raw === 'cantonese'
       ) return 'yue';
       if (raw === 'km' || raw.indexOf('km-') === 0) return 'km';
+      if (raw === 'en-gb' || raw.indexOf('en-gb') === 0 || raw === 'en-uk' || raw.indexOf('en-uk') === 0) return 'en-GB';
+      if (raw === 'en-au' || raw.indexOf('en-au') === 0) return 'en-AU';
+      if (raw === 'en-sg' || raw.indexOf('en-sg') === 0 || raw === 'singlish') return 'en-SG';
       return raw.split('-')[0] || 'en';
     }
     const studioQuery = new URLSearchParams(location.search);
@@ -3469,6 +3472,22 @@ STUDIO_JS = """
         else rows.push(cantonese);
       }
       rows.forEach((l) => { languageNames[l.code] = l.name; });
+      const enAt = rows.findIndex((l) => l.code === 'en');
+      if (enAt >= 0) {
+        rows[enAt] = Object.assign({}, rows[enAt], { name: 'American English' });
+        languageNames.en = 'American English';
+      }
+      let insertAt = enAt >= 0 ? enAt + 1 : rows.length;
+      [
+        { code: 'en-GB', name: 'British English' },
+        { code: 'en-AU', name: 'Australian English' },
+        { code: 'en-SG', name: 'Singlish' },
+      ].forEach((row) => {
+        if (rows.some((l) => l.code === row.code)) return;
+        rows.splice(insertAt, 0, row);
+        languageNames[row.code] = row.name;
+        insertAt += 1;
+      });
       const html = rows.map((l) =>
         `<option value="${esc(l.code)}">${esc(l.name)} (${esc(l.code)})</option>`
       ).join('');

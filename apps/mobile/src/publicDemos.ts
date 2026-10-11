@@ -5,6 +5,8 @@
  * phone is not stuck inside the website's headings and a second iframe.
  */
 
+import { englishSpokenCode } from "./i18n/englishVariety";
+
 export type PublicDemo = {
   id: string;
   path: string;
@@ -47,7 +49,6 @@ export function publicDemoUrl(webAppUrl: string, path: string): string {
   return `${base}${route}`;
 }
 
-/** Product code for a lab query. Cantonese stays yue; zh-HK must not become zh. */
 export function spokenDemoCode(locale: string): string {
   const raw = (locale || "en").trim().toLowerCase().replace(/_/g, "-");
   if (
@@ -57,6 +58,8 @@ export function spokenDemoCode(locale: string): string {
     raw === "cantonese"
   ) return "yue";
   if (raw === "km" || raw.startsWith("km-")) return "km";
+  const english = englishSpokenCode(raw);
+  if (english) return english;
   return raw.split("-")[0] || "en";
 }
 

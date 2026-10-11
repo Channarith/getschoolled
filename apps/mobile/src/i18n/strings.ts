@@ -1412,6 +1412,9 @@ const KM: Dict = {
 
 export const STRINGS: Record<LocaleCode, Dict> = {
   en: EN,
+  "en-GB": {},
+  "en-AU": {},
+  "en-SG": {},
   es: { ...GAP.es, ...ES },
   fr: { ...GAP.fr, ...FR },
   de: { ...GAP.de, ...DE },

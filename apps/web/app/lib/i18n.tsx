@@ -27,7 +27,9 @@ import {
   type Locale,
 } from "./i18n-strings";
 import { getMe, getToken, setAccountLanguage } from "./api";
+import { englishVariety, englishVoiceForLocale, varyEnglish } from "./englishVariety";
 import { setTrainingLocale, trainingLocaleFromUi } from "./trainingLocale";
+import { getVoicePrefs, setVoicePrefs } from "./voicePrefs";
 
 const DEFAULT_LOCALE: Locale = "en";
 const STORAGE_KEY = "aiclassroom.locale.v1";
@@ -55,6 +57,8 @@ export function detectInitialLocale(): Locale {
       tag === "zh-hk" || tag.startsWith("zh-hk") ||
       tag === "zh-mo" || tag.startsWith("zh-mo")
     ) return "yue";
+    const variety = englishVariety(tag);
+    if (variety && isSupported(variety)) return variety;
     const base = tag.split("-")[0];
     if (isSupported(base)) return base;
   }
@@ -74,10 +78,12 @@ export function translateWith(locale: Locale, key: string,
     ? ["yue", "zh", DEFAULT_LOCALE]
     : [locale, DEFAULT_LOCALE];
   let tpl = key;
+  let used = "";
   for (const code of order) {
     const line = STRINGS[code]?.[key];
-    if (line) { tpl = line; break; }
+    if (line) { tpl = line; used = code; break; }
   }
+  if (used !== locale) tpl = varyEnglish(tpl, locale);
   return interpolate(tpl, vars);
 }
 
@@ -97,6 +103,12 @@ const LocaleContext = createContext<LocaleContextValue>({
   languages: LANGUAGE_LIST,
 });
 
+function followEnglishVoice(locale: string) {
+  if (typeof window === "undefined") return;
+  const voiceId = englishVoiceForLocale(locale, getVoicePrefs().voiceId);
+  if (voiceId) setVoicePrefs({ voiceId });
+}
+
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   // SSR renders with the default; the effect below swaps to the user's
   // pick once we have access to localStorage / navigator.
@@ -105,6 +117,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initial = detectInitialLocale();
     if (initial !== locale) setLocaleState(initial);
+    followEnglishVoice(initial);
     // intentionally only on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -126,13 +139,15 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     void getMe()
       .then((acct) => {
         const prefRaw = (acct.preferred_language || "").toLowerCase().replace(/_/g, "-");
+        const variety = englishVariety(prefRaw);
         const pref = (
           prefRaw === "yue" || prefRaw.startsWith("yue-") ||
           prefRaw === "zh-hk" || prefRaw.startsWith("zh-hk") ||
           prefRaw === "zh-mo" || prefRaw.startsWith("zh-mo")
-        ) ? "yue" : prefRaw.split("-")[0];
+        ) ? "yue" : (variety || prefRaw.split("-")[0]);
         if (alive && pref && isSupported(pref)) {
           setLocaleState(pref);
+          followEnglishVoice(pref);
           try { window.localStorage.setItem(STORAGE_KEY, pref); } catch { /* ignore */ }
         }
       })
@@ -153,6 +168,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     try { window.localStorage.setItem(STORAGE_KEY, next); } catch { /* ignore */ }
     // Drive Mode / audio lessons follow the same profile language — one picker.
     setTrainingLocale(trainingLocaleFromUi(next));
+    followEnglishVoice(next);
     // Persist to the profile (best-effort) so the choice follows the learner to
     // their other devices and the AI teacher answers in this language.
     if (typeof window !== "undefined" && getToken()) {

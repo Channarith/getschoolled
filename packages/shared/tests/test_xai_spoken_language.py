@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from aoep_shared.languages import language_name, normalize_language
 from aoep_shared.meeting.natural_tts import neural_voice_for
 from aoep_shared.voice_catalog import resolve_voice
 from aoep_shared.xai_realtime import build_voice_session
@@ -50,6 +51,48 @@ def test_khmer_is_not_sent_as_thai():
     assert "th-TH" not in dumped
     assert "language_hint" not in dumped
     assert "Speak Thai" not in event["session"]["instructions"]
+
+
+def test_english_varieties_share_the_english_hint():
+    us = plan_spoken_language("en")
+    british = plan_spoken_language("en-GB")
+    australian = plan_spoken_language("en-AU")
+    singlish = plan_spoken_language("singlish")
+
+    assert us.requested == "en"
+    assert us.xai_language == "en"
+    assert us.use_xai is True
+
+    assert british.requested == "en-GB"
+    assert british.use_xai is True
+    assert british.xai_language == "en"
+    assert british.xai_language != "en-GB"
+    assert british.edge_voice == "en-GB-SoniaNeural"
+    assert "British" in british.instructions
+
+    assert australian.xai_language == "en"
+    assert australian.edge_voice.startswith("en-AU")
+    assert "Australian" in australian.instructions
+
+    assert singlish.requested == "en-SG"
+    assert singlish.xai_language == "en"
+    assert singlish.edge_voice == "en-SG-LunaNeural"
+    assert "Singlish" in singlish.instructions
+
+    event = build_voice_session("solo", language="en-GB").session_update_event()
+    assert _hint(event) == "en"
+    assert "British" in event["session"]["instructions"]
+    assert "language_hint" in json.dumps(event)
+
+    assert normalize_language("en-GB") == "en"
+    assert normalize_language("en-SG") == "en"
+    assert language_name("en") == "English"
+    assert language_name("en-GB") == "British English"
+    assert language_name("en-AU") == "Australian English"
+    assert language_name("en-SG") == "Singapore English"
+    assert neural_voice_for("en-AU") == "en-AU-NatashaNeural"
+    assert neural_voice_for("en-SG", gender="male") == "en-SG-WayneNeural"
+    assert neural_voice_for("zh-SG").startswith("zh-CN")
 
 
 def test_cantonese_is_distinct_from_mandarin():

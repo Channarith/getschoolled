@@ -14,8 +14,9 @@ import {
 } from "./languages";
 import { softenLineBreaks } from "./lineBreaks";
 import { FALLBACK, STRINGS, type StringKey } from "./strings";
+import { englishVariety, englishVoiceForLocale, varyEnglish } from "./englishVariety";
 import { getMe, setAccountLanguage } from "../api";
-import { setSettings } from "../storage";
+import { getSettings, setSettings } from "../storage";
 
 type Vars = Record<string, string | number>;
 
@@ -28,6 +29,8 @@ function localeFromDeviceTag(tag: string, region?: string | null): LocaleCode | 
     raw === "zh-mo" || raw.startsWith("zh-mo") ||
     ((raw === "zh" || raw.startsWith("zh-")) && (regionCode === "HK" || regionCode === "MO"))
   ) return "yue";
+  const variety = englishVariety(raw, regionCode);
+  if (variety) return variety;
   const base = raw.split("-")[0];
   return isSupportedLocale(base) ? base : null;
 }
@@ -57,7 +60,9 @@ function interpolate(template: string, vars?: Vars): string {
 
 export function translateWith(locale: LocaleCode, key: StringKey, vars?: Vars): string {
   const dict = STRINGS[locale] || {};
-  const tpl = dict[key] ?? FALLBACK[key] ?? key;
+  const own = dict[key];
+  const base = own || FALLBACK[key] || key;
+  const tpl = own ? base : varyEnglish(base, locale);
   return softenLineBreaks(interpolate(tpl, vars));
 }
 
@@ -89,6 +94,11 @@ async function readStoredLocale(): Promise<LocaleCode | null> {
 async function writeStoredLocale(code: LocaleCode): Promise<void> {
   try { await AsyncStorage.setItem(STORAGE_KEY, code); } catch {}
 }
+async function rememberLocale(next: LocaleCode): Promise<void> {
+  const cur = await getSettings();
+  const voiceId = englishVoiceForLocale(next, cur.voiceId);
+  await setSettings(voiceId ? { trainingLocale: next, voiceId } : { trainingLocale: next });
+}
 
 // Top-level provider. We resolve the initial locale in this order:
 //   1. AsyncStorage (user's explicit pick, sticky across sessions)
@@ -102,7 +112,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
       const stored = await readStoredLocale();
       if (stored) {
         setLocaleState(stored);
-        void setSettings({ trainingLocale: stored });
+        void rememberLocale(stored);
         return;
       } // explicit device pick wins
       // Adopt the signed-in learner's saved language so the app + course appear
@@ -113,13 +123,13 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
         if (pref) {
           setLocaleState(pref);
           void writeStoredLocale(pref);
-          void setSettings({ trainingLocale: pref });
+          void rememberLocale(pref);
           return;
         }
       } catch { /* signed out / offline: use the device locale */ }
       const detected = detectDeviceLocale();
       setLocaleState(detected);
-      void setSettings({ trainingLocale: detected });
+      void rememberLocale(detected);
     })();
   }, []);
 
@@ -127,7 +137,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     if (!isSupportedLocale(next)) return;
     setLocaleState(next);
     void writeStoredLocale(next);
-    void setSettings({ trainingLocale: next });
+    void rememberLocale(next);
     // Persist to the profile so the choice follows the learner to their other
     // devices and the AI teacher answers in this language (best-effort).
     void setAccountLanguage(next).catch(() => { /* guest / offline */ });

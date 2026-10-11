@@ -9,6 +9,7 @@
  */
 
 import { LANGUAGE_LIST, LOCALES, type Locale } from "./i18n-strings";
+import { englishVariety } from "./englishVariety";
 
 export type TrainingLocale = Locale;
 
@@ -31,6 +32,8 @@ export function normalizeTrainingLocale(locale: string | null | undefined): Trai
     raw === "zh-mo" || raw.startsWith("zh-mo") ||
     raw.startsWith("zh-yue")
   ) return "yue";
+  const variety = englishVariety(raw);
+  if (variety && SUPPORTED.has(variety)) return variety;
   const base = raw.split("-")[0];
   return (SUPPORTED.has(base) ? base : "en") as TrainingLocale;
 }

@@ -58,6 +58,19 @@ def normalize_voice_gender(voice_gender: str | None) -> str:
     return "male" if str(voice_gender or "").strip().lower() == "male" else "female"
 
 
+def spoken_request_language(language: str) -> str:
+    """TTS language. English varieties keep their region; other tags use the base code."""
+    try:
+        from aoep_shared.languages import english_variety
+    except Exception:  # noqa: BLE001
+        english_variety = None  # type: ignore
+    if english_variety is not None:
+        variety = english_variety(language)
+        if variety in {"en-GB", "en-AU", "en-SG"}:
+            return variety
+    return normalize_language(language) or "en"
+
+
 def build_local_tts_get_url(
     text: str,
     *,
@@ -66,7 +79,7 @@ def build_local_tts_get_url(
     rate: float = 1.0,
 ) -> str:
     """Relative URI for the studio's own neural TTS endpoint."""
-    lang = normalize_language(language)
+    lang = spoken_request_language(language)
     params = {
         "text": text[:1800],
         "language": lang,
@@ -85,7 +98,7 @@ def build_tts_get_url(
     voice_gender: str = "female",
 ) -> str:
     """Build a GET /tts URI against the speech gateway (expo-av / <audio src>)."""
-    lang = normalize_language(language)
+    lang = spoken_request_language(language)
     params = {
         "text": text[:1800],
         "language": lang,
@@ -108,7 +121,7 @@ def tts_client_hints(
     Preference order reported in ``engine`` / ``get_url``:
       gateway (when up) → local neural (when engine or cache ready) → device.
     """
-    lang = normalize_language(language)
+    lang = spoken_request_language(language)
     gender = normalize_voice_gender(voice_gender)
     gateway = tts_status()
     local = neural_tts.status()

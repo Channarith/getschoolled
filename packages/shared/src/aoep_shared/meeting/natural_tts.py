@@ -12,6 +12,8 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
+from ..languages import english_variety
+
 _IS_WINDOWS = os.name == "nt" or sys.platform.startswith("win")
 
 # Microsoft Edge neural voices (edge-tts). Warm, non-robotic; needs network once
@@ -102,6 +104,14 @@ def neural_voice_for(
     if voice and not voice.startswith("en-"):
         return voice
     raw = (language or "en").strip().lower().replace("_", "-")
+    variety = english_variety(raw)
+    male = str(gender or "").lower() == "male"
+    if variety == "en-GB":
+        return "en-GB-RyanNeural" if male else "en-GB-SoniaNeural"
+    if variety == "en-AU":
+        return "en-AU-WilliamNeural" if male else "en-AU-NatashaNeural"
+    if variety == "en-SG":
+        return "en-SG-WayneNeural" if male else "en-SG-LunaNeural"
     if (
         raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"}
         or raw.startswith("yue-")

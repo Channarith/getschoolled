@@ -229,7 +229,6 @@ class CourseStudioVoiceAgent:
         course_title: str = "",
     ) -> VoiceTurn:
         """Rewrite / enrich a slide narration for spoken delivery."""
-        lang = normalize_language(language_code)
         prompt = (
             f"Present this lesson slide aloud as Theodore.\n"
             f"Course: {course_title or 'Studio course'}\n"
@@ -240,7 +239,7 @@ class CourseStudioVoiceAgent:
         return self.respond(
             session_id=session_id,
             learner_message=prompt,
-            language_code=lang,
+            language_code=language_code,
             lesson_context=f"{course_title}\n{title}\n{body}",
         )
 
@@ -253,8 +252,9 @@ class CourseStudioVoiceAgent:
         lesson_context: str = "",
         scope_to_course: bool = False,
     ) -> VoiceTurn:
-        lang = normalize_language(language_code)
-        lname = language_name(lang)
+        lang = normalize_language(language_code) or "en"
+        spoken = language_code
+        lname = language_name(spoken)
         started = time.time()
         cleaned = (learner_message or "").strip() or "Continue the lesson with one clear point."
         # Learner questions (Talk) stay on the course. Slide narration does not
@@ -289,11 +289,12 @@ class CourseStudioVoiceAgent:
         supergrok = self._try_supergrok(
             session_id=session_id,
             learner_message=cleaned,
-            language_code=lang,
+            language_code=spoken,
             lesson_context=model_context,
         )
         if supergrok is not None:
             supergrok.latency_ms = int((time.time() - started) * 1000)
+            supergrok.language_code = lang
             supergrok.language_name = lname
             return supergrok
 
@@ -301,11 +302,13 @@ class CourseStudioVoiceAgent:
         shared = self._try_shared_agent(
             session_id=session_id,
             text=cleaned,
-            language_code=lang,
+            language_code=spoken,
             lesson_context=shared_context,
         )
         if shared is not None:
             shared.latency_ms = int((time.time() - started) * 1000)
+            shared.language_code = lang
+            shared.language_name = lname
             return shared
 
         if self.available:
@@ -313,7 +316,7 @@ class CourseStudioVoiceAgent:
                 text = self._chat_xai(
                     session_id=session_id,
                     learner_message=cleaned,
-                    language_code=lang,
+                    language_code=spoken,
                     lesson_context=model_context,
                 )
                 return VoiceTurn(
@@ -344,7 +347,6 @@ class CourseStudioVoiceAgent:
         language_code: str = "en",
         difficulty: str = "medium",
     ) -> VoiceTurn:
-        lang = normalize_language(language_code)
         prompt = (
             f"Ask one short spoken check question about: {topic}. "
             f"Difficulty: {difficulty}. Do not answer it yourself."
@@ -352,7 +354,7 @@ class CourseStudioVoiceAgent:
         return self.respond(
             session_id=session_id,
             learner_message=prompt,
-            language_code=lang,
+            language_code=language_code,
             lesson_context=topic,
         )
 

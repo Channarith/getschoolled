@@ -51,6 +51,32 @@ def _language_tag(language: str) -> str:
     return (language or "").strip().lower().replace("_", "-")
 
 
+def english_variety(language: str, region: str = "") -> str:
+    """American ``en``, British ``en-GB``, Australian ``en-AU``, or Singlish ``en-SG``.
+
+    Empty when the tag is not English. ``en`` stays American. Other English
+    regions (``en-CA`` and the rest) also return ``en`` so existing defaults
+    hold. Content translation still uses :func:`normalize_language`, which
+    maps every English tag to base ``en``. ``zh-SG`` is Mandarin, not Singlish.
+    """
+    raw = _language_tag(language)
+    if raw == "singlish":
+        return "en-SG"
+    parts = [part for part in raw.split("-") if part]
+    base = parts[0] if parts else ""
+    if base != "en":
+        return ""
+    sub = parts[1] if len(parts) > 1 else ""
+    place = (sub or _language_tag(region)).lower()
+    if place in {"gb", "uk"}:
+        return "en-GB"
+    if place == "au":
+        return "en-AU"
+    if place == "sg":
+        return "en-SG"
+    return "en"
+
+
 def normalize_language(language: str) -> str:
     """Coerce a client locale (e.g. 'es-419', 'ES') to a supported base code,
     or '' when unsupported/blank. Keeps language handling forgiving of the
@@ -85,6 +111,13 @@ def language_name(language: str) -> str:
         return "Cantonese"
     if normalize_language(language) == "yue":
         return "Cantonese"
+    variety = english_variety(language)
+    if variety == "en-GB":
+        return "British English"
+    if variety == "en-AU":
+        return "Australian English"
+    if variety == "en-SG":
+        return "Singapore English"
     return LANGUAGE_NAMES.get(normalize_language(language), "")
 
 

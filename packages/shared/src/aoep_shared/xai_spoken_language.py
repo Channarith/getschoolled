@@ -27,7 +27,28 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .languages import LANGUAGE_NAMES
+from .languages import LANGUAGE_NAMES, english_variety
+
+# xAI speech-to-speech has one English hint: ``en``. The regional neural
+# voice and the instruction keep the accent when Grok is not the renderer.
+_REGIONAL_ENGLISH = {
+    "en-GB": (
+        "Speak British English. Use British vocabulary and pronunciation, not American English.",
+        "en-GB-SoniaNeural",
+        "British English uses a British voice (en-GB).",
+    ),
+    "en-AU": (
+        "Speak Australian English. Use Australian vocabulary and pronunciation, not American English.",
+        "en-AU-NatashaNeural",
+        "Australian English uses an Australian voice (en-AU).",
+    ),
+    "en-SG": (
+        "Speak Singapore English (Singlish) with a clear teaching tone. "
+        "Light particles such as lah and can are fine. Do not speak American English.",
+        "en-SG-LunaNeural",
+        "Singlish uses a Singapore voice (en-SG).",
+    ),
+}
 
 # Speech-to-speech language_hint values from the xAI voice docs.
 # Regional variants are required for Spanish, Portuguese, and Arabic.
@@ -127,6 +148,23 @@ class SpokenLanguagePlan:
 
 def plan_spoken_language(language: str) -> SpokenLanguagePlan:
     """Decide the xAI hint, or the Khmer narration engine that replaces it."""
+    regional = _REGIONAL_ENGLISH.get(english_variety(language))
+    if regional:
+        instructions, edge, hint = regional
+        return SpokenLanguagePlan(
+            requested=english_variety(language),
+            engine="xai-grok-voice",
+            use_xai=True,
+            xai_language="en",
+            instructions=instructions,
+            edge_voice=edge,
+            hint=hint,
+            reason=(
+                "xAI speech-to-speech has one English hint, en. "
+                "British, Australian, and Singapore English keep that hint "
+                "and use their own neural voice and instructions."
+            ),
+        )
     requested = normalize_spoken_code(language)
     if not requested:
         return SpokenLanguagePlan(
