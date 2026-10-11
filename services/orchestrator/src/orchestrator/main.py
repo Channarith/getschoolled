@@ -350,6 +350,36 @@ def api_lesson_storyboard_slide(lesson_id: str, slide_index: int, include_svg: b
     return segment
 
 
+class VisualGenerateRequest(BaseModel):
+    question: str
+    language: str = "en"
+    answer_text: str = ""
+    force: bool = False
+
+
+@app.post("/api/visuals/generate")
+def api_generate_visual(req: VisualGenerateRequest) -> dict:
+    """On-demand teaching visual (SVG / comparison / short animation) for a student ask.
+
+    Offline deterministic generator — no paid image API. Clients play ``frames``
+    in order while the audio agent speaks ``narration``.
+    """
+    from aoep_shared.lesson_visuals import generate_lesson_visual
+
+    q = (req.question or "").strip()
+    if len(q) < 3:
+        raise HTTPException(status_code=422, detail="question too short")
+    visual = generate_lesson_visual(
+        q,
+        language=req.language or "en",
+        answer_text=req.answer_text or "",
+        force=bool(req.force),
+    )
+    if visual is None:
+        return {"ok": False, "visual": None, "reason": "no_visual_warranted"}
+    return {"ok": True, "visual": visual.to_dict()}
+
+
 @app.post("/api/lessons/{lesson_id}/plan")
 def api_lesson_plan(lesson_id: str, req: LessonPlanRequest) -> dict:
     """Build a shorter or deeper path through the same canonical lesson."""

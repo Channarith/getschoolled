@@ -10,6 +10,7 @@ Format: newest first. No markdown per project convention.
 - 2026-10-10 - v0.52.0 - Tracing games show a countdown, the face and motion readout, and an air-touch or screen-touch switch.
 - 2026-10-10 - v0.52.0 - On the Go on the web has a waveform, course and language choices, and an xAI voice control.
 - 2026-10-10 - v0.52.0 - Long course translations can finish and resume instead of failing the whole course.
+- 2026-10-11 - v0.51.6 - Student asks can generate on-screen teaching visuals (SVG scenes, state license comparisons, short animation frames) synced with the audio agent via /api/visuals/generate and Answer.visual.
 - 2026-10-11 - v0.51.5 - Theodore RAG lab owns the dictionary corpus + read-aloud console; llm_training.assemble gains a dictionary source from AOEP_DICTIONARY_DIR.
 - 2026-10-11 - v0.51.4 - Self-hosted EN+Khmer dictionary corpus: multi-baseline ingest, inflection tables, review queue, CosyVoice raw audio with noise-filter crisp QC, and a progressive sentence read-aloud trainer (pronunciation/enunciation) via /learn/read-aloud.
 - 2026-10-10 - v0.51.3 - On the Go shows only an audio waveform, with the lesson pictures and text off the screen. The drive page waits until the audio lab answers before it embeds that page.

@@ -45,6 +45,7 @@ import {
   type CurrentSource,
   type Disclosure,
   type Lesson,
+  type LessonVisual,
   type Pronounce,
   type SessionView,
   type Slide,
@@ -142,8 +143,11 @@ export default function ClassRoom({
       grounded?: boolean;
       confidence?: number;
       unsupported?: string[];
+      visual?: LessonVisual | null;
     }[]
   >([]);
+  const [askVisual, setAskVisual] = useState<LessonVisual | null>(null);
+  const [askVisualFrame, setAskVisualFrame] = useState(0);
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [lightingReady, setLightingReady] = useState(false);
@@ -607,6 +611,17 @@ export default function ClassRoom({
     return () => { if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide?.index, storyboardI18n?.narration]);
+
+  // Cycle ask-visual animation frames while the teacher answer is on screen.
+  useEffect(() => {
+    if (!askVisual?.frames || askVisual.frames.length < 2) return;
+    const frame = askVisual.frames[askVisualFrame];
+    const ms = Math.max(2, Number(frame?.duration_s || 4)) * 1000;
+    const t = window.setTimeout(() => {
+      setAskVisualFrame((i) => (i + 1) % (askVisual.frames?.length || 1));
+    }, ms);
+    return () => window.clearTimeout(t);
+  }, [askVisual, askVisualFrame]);
 
   // Stop any pending auto-advance when leaving the class.
   useEffect(() => () => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); }, []);
@@ -1173,6 +1188,10 @@ export default function ClassRoom({
     try {
       const a: Answer = await ask(view.session.session_id, q, locale);
       speak(a.text);
+      if (a.visual?.svg) {
+        setAskVisual(a.visual);
+        setAskVisualFrame(0);
+      }
       setChat((c) => [
         ...c,
         {
@@ -1187,6 +1206,7 @@ export default function ClassRoom({
               ? Math.round((1 - a.hallucination_risk) * 100)
               : undefined,
           unsupported: a.unsupported,
+          visual: a.visual,
         },
       ]);
       // The AI teacher may grant points for a good question. Redeem the signed
@@ -1481,6 +1501,26 @@ export default function ClassRoom({
                 fullscreen={isFullscreen}
                 captions={captionsOn}
               />
+            ) : null}
+            {askVisual?.svg ? (
+              <div style={{ marginTop: 12 }}>
+                <div className="muted" style={{ marginBottom: 6 }}>
+                  {askVisual.title || "Example visual"}
+                  {askVisual.frames && askVisual.frames.length > 1
+                    ? ` · frame ${askVisualFrame + 1}/${askVisual.frames.length}`
+                    : ""}
+                </div>
+                <CourseStoryboardPlayer
+                  svg={
+                    askVisual.frames?.[askVisualFrame]?.svg || askVisual.svg
+                  }
+                  concept={askVisual.concept}
+                  examples={askVisual.examples}
+                  sceneId={`ask-visual-${askVisual.topic || "scene"}`}
+                  fullscreen={isFullscreen}
+                  captions={captionsOn}
+                />
+              </div>
             ) : null}
             {captionsOn ? (
               <>
