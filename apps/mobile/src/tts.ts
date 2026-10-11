@@ -94,6 +94,23 @@ export async function ensureSpeechAudioSession(): Promise<void> {
   }
 }
 
+/** Arcade and studio pages play inside a WebView. Keep that voice on the
+ * loudspeaker instead of the quiet earpiece the mic otherwise selects. */
+export async function ensureLoudSpeaker(): Promise<void> {
+  try {
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: true,
+      interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+      shouldDuckAndroid: false,
+      playThroughEarpieceAndroid: false,
+    });
+  } catch {
+    /* The page still plays. The WebView gain lift covers a quiet speaker. */
+  }
+}
+
 let voicesCache: Speech.Voice[] | null = null;
 
 // Load the device voice list once (used to prefer Enhanced/neural voices).

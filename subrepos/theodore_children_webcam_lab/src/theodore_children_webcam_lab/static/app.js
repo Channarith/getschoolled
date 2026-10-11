@@ -1202,7 +1202,7 @@ function targetPoint(){
 
 function loop(now) {
   if(!state.running)return;
-  detectFrame();drawVision();updateTrace();updatePicturePlay();updateObjectGame();updateGestureGame(now);
+  detectFrame();noteSensors();drawVision();updateTrace();updatePicturePlay();updateObjectGame();updateGestureGame(now);
   tickCountdown(now);
   watchPresence(now);
   requestAnimationFrame(loop);
@@ -1353,6 +1353,12 @@ function countdownRemaining(now) {
   const held = state.pausedAt ? now - state.pausedAt : 0;
   return Math.max(0, state.deadline + held - now);
 }
+function traceDeadlineMs() {
+  return state.age === "4-6" ? 60000 : 45000;
+}
+function armTraceClock() {
+  armDeadline(traceDeadlineMs());
+}
 function armDeadline(ms) {
   const duration = Math.max(0, Number(ms) || 0);
   state.deadline = performance.now() + duration;
@@ -1381,6 +1387,11 @@ function tickCountdown(now) {
   if (node && !node.classList.contains("hidden")) {
     node.textContent = (remaining / 1000).toFixed(1);
   }
+  const tracing = state.game === "trace-letter" || PICTURE_PLAY.has(state.game);
+  if (remaining <= 0 && tracing) {
+    fail("Time is up. Trace it once more.");
+    return;
+  }
   if (remaining <= 0 && OBJECT_GAMES.has(state.game) && state.object && !state.object.hit) {
     if (state.glanceNote || state.voiceAway) {
       state.deadline = now + 2500;
@@ -1406,16 +1417,19 @@ function chooseGame() {
   const letter=$("letter")?.value,word=LETTER_WORDS[letter];
   if(state.game==="trace-letter"){
     state.traceHoldUntil=performance.now()+500;
+    armTraceClock();
     setPrompt(`Trace ${letter}`,"Point one finger up and follow the glowing letter.",`Trace the letter ${letter}.`);
   }
   else if(state.game==="trace-picture"){
     armPictureRound(word);
     state.traceHoldUntil=performance.now()+500;
+    armTraceClock();
     setPrompt(`Trace the ${word}`,"Use one finger to draw around the picture.",`Now trace the ${word}.`);
   }
   else if(state.game==="color-picture"||state.game==="connect-dots"||state.game==="trace-outline"){
     armPictureRound(word);
     state.traceHoldUntil=performance.now()+500;
+    armTraceClock();
     if(state.game==="color-picture")refreshColorPrompt(false);
     else if(state.game==="connect-dots")setPrompt(`Connect the ${word}`,"Touch the numbers in order, starting at 1.",`Connect the numbered dots on the ${word}.`);
     else setPrompt(`Trace the ${word}`,"Follow the outline with one finger. It does not need to be perfect.",`Trace the outline of the ${word}.`);
@@ -1476,6 +1490,10 @@ function randomRegion(){const keys=Object.keys(REGIONS).filter(k=>!state.seated|
 function expressionEmoji(kind){return({happy:"😄",surprised:"😮","wink-left":"😉","wink-right":"😉","mouth-o":"😗",sleepy:"😴"})[kind]||"🙂";}
 
 function clearRound() {
+  state.sawFace = false;
+  state.sawHand = false;
+  state.sawFinger = false;
+  state.sawScreen = false;
   hideTarget();
   for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption")]) node.remove();
   hideCountdown();
@@ -1763,7 +1781,8 @@ async function checkSpeech(heard) {
 
 function recordEvent(outcome,result) {
   const event={activity_id:state.game,age_band:state.age,outcome,attempts:state.attempts,duration_ms:result.duration,fun_score:result.score,
-    components:result.components,celebration_kind:outcome==="success"?"fireworks":"",miss_gag_id:outcome==="retry"?state.lastGag||"":"",theme_pack:state.theme,seated_only:state.seated};
+    components:result.components,celebration_kind:outcome==="success"?"fireworks":"",miss_gag_id:outcome==="retry"?state.lastGag||"":"",theme_pack:state.theme,seated_only:state.seated,
+    vision:visionTelemetry()};
   state.activityEvents.push(event);state.activityEvents=state.activityEvents.slice(-100);
   localStorage.setItem(state.localKey,JSON.stringify(state.activityEvents));renderDashboard();
   try {
@@ -1812,6 +1831,35 @@ function applyDemoPointer(event) {
 
 function screenTouch() {
   return phonePlay() && state.touchMode === "screen";
+}
+function noteSensors() {
+  if (state.faceData) state.sawFace = true;
+  if (state.handData.some((hand) => !hand.screen)) state.sawHand = true;
+  if (state.handData.some((hand) => !hand.screen && fingersPointed(hand))) state.sawFinger = true;
+  if (state.screenDown) state.sawScreen = true;
+}
+function visionTelemetry() {
+  const face = state.faceData;
+  const hands = state.handData.filter((hand) => !hand.screen);
+  const normalized = state.trail.map((point) => ({x: point.nx, y: point.ny}));
+  const progress = traceProgress(normalized, state.age);
+  const fingers = hands.reduce((max, hand) => Math.max(max, Number(hand.count) || 0), 0);
+  return {
+    face: face ? String(face.expression || "unknown") : "none",
+    face_confidence: face ? Math.round((Number(face.confidence) || 0) * 100) : 0,
+    distance: faceDistanceLabel(face),
+    face_width: face ? Math.round(face.width * 100) : 0,
+    hands: hands.length,
+    fingers,
+    motion_px: Math.round(state.handMotion || 0),
+    trail_points: state.trail.length,
+    trace_percent: Number(progress.percent) || 0,
+    touch_mode: state.touchMode === "screen" ? "screen" : "air",
+    hand: Boolean(state.sawHand),
+    finger: Boolean(state.sawFinger),
+    face_seen: Boolean(state.sawFace),
+    screen_touch: Boolean(state.sawScreen),
+  };
 }
 function placeScreenHand(event) {
   const box = stage.getBoundingClientRect();
@@ -1897,6 +1945,33 @@ stage?.addEventListener("pointercancel",(event)=>{
 stage?.addEventListener("pointerleave",()=>{
   if (screenTouch()) return;
   if (state.demo) state.handData = [];
+});
+function screenPoint(touch) {
+  return {clientX: touch.clientX, clientY: touch.clientY};
+}
+stage?.addEventListener("touchstart",(event)=>{
+  if (!screenTouch() || !event.changedTouches?.length) return;
+  event.preventDefault();
+  const touch = event.changedTouches[0];
+  state.screenDown = true;
+  state.screenPointerId = touch.identifier;
+  placeScreenHand(screenPoint(touch));
+},{passive:false});
+stage?.addEventListener("touchmove",(event)=>{
+  if (!screenTouch() || !state.screenDown) return;
+  const touch = [...event.touches].find((row) => row.identifier === state.screenPointerId) || event.touches[0];
+  if (!touch) return;
+  event.preventDefault();
+  placeScreenHand(screenPoint(touch));
+},{passive:false});
+stage?.addEventListener("touchend",(event)=>{
+  if (!screenTouch()) return;
+  const ended = [...event.changedTouches].some((row) => row.identifier === state.screenPointerId);
+  if (!ended && event.touches.length) return;
+  liftScreenHand();
+},{passive:false});
+stage?.addEventListener("touchcancel",()=>{
+  if (screenTouch()) liftScreenHand();
 });
 $("start").addEventListener("click",()=>start(true));$("demo").addEventListener("click",()=>start(false));
 $("play-game").addEventListener("click",()=>chooseGame());

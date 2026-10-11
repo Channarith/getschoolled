@@ -3,6 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-10 - v0.52.0 - Back stays tappable on iPhone and Android when the lesson page or the bug button covers it.
+- 2026-10-10 - v0.52.0 - The lesson webcam stays on so presence can see the learner.
+- 2026-10-10 - v0.52.0 - The lesson window shows how far you are in the course, lists the outline, and keeps the xAI voice on the slide you skip to.
+- 2026-10-10 - v0.52.0 - The voice control says whether xAI is connected and plays a tone when the connection opens or fails.
+- 2026-10-10 - v0.52.0 - Tracing games show a countdown, the face and motion readout, and an air-touch or screen-touch switch.
+- 2026-10-10 - v0.52.0 - On the Go on the web has a waveform, course and language choices, and an xAI voice control.
+- 2026-10-10 - v0.52.0 - Long course translations can finish and resume instead of failing the whole course.
 - 2026-10-10 - v0.51.3 - On the Go shows only an audio waveform, with the lesson pictures and text off the screen. The drive page waits until the audio lab answers before it embeds that page.
 - 2026-10-10 - v0.51.2 - On the Go uses the xAI voice agent for the class and for questions. The Hey Sala prompt is gone.
 - 2026-10-10 - v0.51.1 - The studio lesson script parses, deploy notes no longer trip the floating-tag gate, and the Zelle checkout check follows the shared payment client.

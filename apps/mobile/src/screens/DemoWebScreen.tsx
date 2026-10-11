@@ -9,7 +9,9 @@ import { WEB_APP_URL } from "../config";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { driverWaveScript } from "../driverWave";
-import { publicDemoUrl, childrenLabLocaleScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
+import { liveAudioPhoneScript } from "../liveAudioPhone";
+import { publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
+import { ensureLoudSpeaker } from "../tts";
 import { theme } from "../theme";
 
 async function ensureMicrophonePermission(): Promise<void> {
@@ -43,19 +45,28 @@ export default function DemoWebScreen({
   const url = publicDemoUrl(WEB_APP_URL, path);
   const audioOnly = path.includes("presentation=audio");
   const localeScript = path.includes("/children-lab") ? childrenLabLocaleScript(locale) : undefined;
+  const touchScript = path.includes("/children-lab") ? childrenLabTouchScript() : undefined;
   const waveScript = audioOnly ? driverWaveScript() : undefined;
+  const phoneAudio = liveAudioPhoneScript();
+  const beforeLoad = [phoneAudio, waveScript, localeScript, touchScript].filter(Boolean).join("\n");
   useAndroidBackTo(onBack);
 
   useEffect(() => {
-    if (!audioOnly) void ensureCameraPermission();
+    void ensureLoudSpeaker();
+    void ensureCameraPermission();
     void ensureMicrophonePermission();
-  }, [audioOnly]);
+  }, []);
 
   function onMessage(event: WebViewMessageEvent) {
     try {
       const message = JSON.parse(event.nativeEvent.data) as {
         type?: string;
-        event?: { activity_id?: string; outcome?: string; fun_score?: number };
+        event?: {
+          activity_id?: string;
+          outcome?: string;
+          fun_score?: number;
+          sensors?: { touch_mode?: string; hand?: boolean; finger?: boolean; face?: boolean; screen_touch?: boolean };
+        };
       };
       if (message.type !== "salareen-telemetry") return;
       setPlays((count) => count + 1);
@@ -66,8 +77,13 @@ export default function DemoWebScreen({
 
   return (
     <View style={styles.root} testID="demo-web">
-      <View style={styles.bar}>
-        <Pressable onPress={onBack} testID="demo-web-back" hitSlop={8}>
+      <View style={styles.bar} collapsable={false}>
+        <Pressable
+          onPress={onBack}
+          testID="demo-web-back"
+          hitSlop={16}
+          style={styles.backHit}
+        >
           <Text style={styles.back}>{t("guest.back")}</Text>
         </Pressable>
         <Text style={styles.title} numberOfLines={2}>{demo.title}</Text>
@@ -89,8 +105,8 @@ export default function DemoWebScreen({
             setLoading(false);
             setError(event.nativeEvent.description || "load failed");
           }}
-          injectedJavaScriptBeforeContentLoaded={waveScript || localeScript}
-          injectedJavaScript={waveScript}
+          injectedJavaScriptBeforeContentLoaded={beforeLoad}
+          injectedJavaScript={[phoneAudio, waveScript, touchScript].filter(Boolean).join("\n")}
           javaScriptEnabled
           domStorageEnabled
           allowsFullscreenVideo
@@ -112,14 +128,18 @@ export default function DemoWebScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.colors.bg },
+  root: { flex: 1, backgroundColor: theme.colors.bg, overflow: "hidden" },
   bar: {
+    zIndex: 1100,
+    elevation: 24,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: theme.colors.bg,
   },
+  backHit: { minHeight: 44, minWidth: 72, justifyContent: "center", paddingHorizontal: 4 },
   back: { color: "#f4e9d8", fontSize: 16, fontWeight: "600", flexShrink: 0 },
   title: { flex: 1, minWidth: 0, color: theme.colors.text, fontSize: 16, fontWeight: "700", lineHeight: 20 },
   plays: { color: "#fde68a", fontSize: 13, fontWeight: "700", flexShrink: 0 },

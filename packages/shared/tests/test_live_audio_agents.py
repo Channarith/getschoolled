@@ -154,6 +154,14 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "Bluetooth speakers stay loud" in source
     assert "AudioWorkletNode" in source
     assert "outputGain" in source
+    assert "playbackGain" in source
+    assert "aoep.liveAudio.pos" in source
+    assert "data-drag-chip" in source
+    assert "__SALAREEN_LIVE_GAIN__" in source
+    assert "voice-name" in source
+    assert "Using xAI" in source
+    assert "connectionChime" in source
+    assert ">xAI voice<" in source
     assert "speech_stopped" in source
     assert "You can interrupt" in source
     assert "pauseRecognition" in source

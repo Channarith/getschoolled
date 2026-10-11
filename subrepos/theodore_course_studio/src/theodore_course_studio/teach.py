@@ -200,6 +200,31 @@ def _compare_check(slide: CourseSlide, course_id: str) -> dict[str, Any]:
     return {"prompt": prompt, "left": left, "right": right, "correct_side": side}
 
 
+def _course_outline(course: Any, session: TeachSession) -> list[dict[str, Any]]:
+    """Chapters and slides the learner can open from the lesson window."""
+    rows: list[dict[str, Any]] = []
+    chapter = 1
+    for pos, slide_index in enumerate(session.path):
+        slide = course.slides[slide_index]
+        title = (slide.title or f"Slide {pos + 1}").strip()
+        starts = pos == 0 or title.lower().startswith(("lesson ", "chapter ", "section ", "part "))
+        if pos:
+            prev = course.slides[session.path[pos - 1]]
+            prev_tags = {str(tag).lower() for tag in (prev.tags or [])}
+            if "section_end" in prev_tags or "checkpoint" in prev_tags:
+                starts = True
+        if starts and pos:
+            chapter += 1
+        rows.append({
+            "path_pos": pos,
+            "title": title,
+            "chapter": chapter,
+            "chapter_start": starts,
+            "current": pos == session.path_pos,
+        })
+    return rows
+
+
 class TeachEngine:
     def __init__(
         self,
@@ -337,6 +362,18 @@ class TeachEngine:
 
     def current(self, session_id: str) -> dict[str, Any]:
         course, session = self._require(session_id)
+        return self._turn_payload(course, session)
+
+    def goto(self, session_id: str, path_pos: int) -> dict[str, Any]:
+        """Open any slide in the course. Skipping does not mark the pages in between done."""
+        course, session = self._require(session_id)
+        if self._sample_expired(session):
+            return self._turn_payload(course, session)
+        if not session.path:
+            return self._turn_payload(course, session)
+        session.path_pos = max(0, min(int(path_pos), len(session.path) - 1))
+        session.checkpoint_ack = False
+        self._persist_live(session, status="in_progress")
         return self._turn_payload(course, session)
 
     def advance(self, session_id: str) -> dict[str, Any]:
@@ -1025,6 +1062,7 @@ class TeachEngine:
             "slide_index": slide_index,
             "path": session.path,
             "path_pos": session.path_pos,
+            "outline": _course_outline(course, session),
             "language": session.language,
             "spoken_language": speak_lang,
             "translation_source": translation_source,

@@ -113,3 +113,39 @@ export function childrenLabLocaleScript(locale: string): string {
     });
   })();`;
 }
+
+/** Keeps the air/screen switch on the game. The lab top bar clips it on a phone. */
+export function childrenLabTouchScript(): string {
+  return `(function(){
+    if (window.__SALAREEN_TOUCH_TOGGLE__) return;
+    window.__SALAREEN_TOUCH_TOGGLE__ = true;
+    var css = "#touch-mode{position:fixed !important;left:12px !important;"
+      + "bottom:calc(72px + env(safe-area-inset-bottom)) !important;z-index:30 !important;"
+      + "display:inline-flex !important;align-items:center;justify-content:center;"
+      + "min-height:44px !important;padding:.45rem .8rem !important;white-space:nowrap;"
+      + "background:#111827 !important;border:2px solid #5eead4 !important;color:#fff !important}"
+      + "body.phone-play .vision-readout,#vision-readout{display:grid !important;left:8px !important;"
+      + "right:8px !important;top:8px !important;bottom:auto !important;min-width:0 !important;z-index:8 !important;"
+      + "grid-template-columns:1fr 1fr !important;pointer-events:none !important;right:100px !important}"
+      + "#home{position:relative !important;z-index:40 !important;min-width:44px !important;min-height:44px !important}"
+      + "#countdown:not(.hidden){display:grid !important;position:absolute !important;top:8px !important;"
+      + "right:8px !important;width:84px !important;height:84px !important;z-index:20 !important;"
+      + "font-size:1.7rem !important}";
+    function show() {
+      var btn = document.getElementById("touch-mode");
+      if (!btn) return;
+      btn.hidden = false;
+      btn.removeAttribute("hidden");
+      if (document.getElementById("salareen-touch-style")) return;
+      var style = document.createElement("style");
+      style.id = "salareen-touch-style";
+      style.textContent = css;
+      (document.head || document.documentElement).appendChild(style);
+    }
+    if (document.documentElement) {
+      new MutationObserver(show).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:["hidden","class"]});
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", show);
+    else show();
+  })(); true;`;
+}

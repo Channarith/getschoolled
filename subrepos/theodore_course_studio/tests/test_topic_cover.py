@@ -111,6 +111,23 @@ def test_unwritten_driving_question_opens_a_source_slide(tmp_path):
     assert off.get("dynamic") is not True
 
 
+def test_goto_opens_any_slide_and_lists_the_outline(tmp_path):
+    builder = CourseBuilder(data_dir=tmp_path)
+    engine = TeachEngine(builder)
+    course = _course(builder)
+    engine.start(session_id="skip-1", course_id=course.course_id, use_voice_agent=False)
+    opened = engine.goto("skip-1", 2)
+    assert opened["path_pos"] == 2
+    assert opened["slide_index"] == 2
+    assert opened["progress"]["completion_percent"] == 0
+    assert [row["title"] for row in opened["outline"]] == [
+        "Following distance",
+        "Stop signs",
+        "Night driving",
+    ]
+    assert opened["outline"][2]["current"] is True
+
+
 def test_silence_resumes_the_uncovered_section(tmp_path):
     builder = CourseBuilder(data_dir=tmp_path)
     engine = TeachEngine(builder)

@@ -2,7 +2,11 @@
 
 import asyncio
 
-from aoep_shared.course_translation_batch import CourseJob, translate_catalog
+from aoep_shared.course_translation_batch import (
+    CourseJob,
+    split_translation_text,
+    translate_catalog,
+)
 from aoep_shared.course_translation_library import (
     TARGET_LANGUAGES,
     find_translation,
@@ -91,3 +95,52 @@ def test_batch_writes_and_skips(tmp_path):
     )
     assert second["skipped"] == 1
     assert second["written"] == 0
+
+
+def test_long_narration_is_split_into_callable_chunks():
+    short = "The Nile flooded every year."
+    assert split_translation_text(short, max_words=180) == [short]
+    words = " ".join(f"word{i}." for i in range(400))
+    chunks = split_translation_text(words, max_words=180)
+    assert len(chunks) >= 3
+    assert all(len(chunk.split()) <= 180 for chunk in chunks)
+    assert " ".join(chunks) == " ".join(words.split())
+
+
+def test_batch_keeps_finished_segments_and_resumes(tmp_path):
+    jobs = [
+        CourseJob(
+            "audio-rivers",
+            "Rivers",
+            "Geography",
+            [
+                {"heading": "Nile", "text": "The Nile flooded."},
+                {"heading": "Amazon", "text": "The Amazon is long."},
+            ],
+        )
+    ]
+    calls: list[str] = []
+
+    async def flaky(text: str, source: str, target: str) -> str:
+        calls.append(text)
+        if text == "The Amazon is long.":
+            return ""
+        return f"{target}:{text}"
+
+    first = asyncio.run(translate_catalog(jobs, ["km"], flaky, concurrency=1, root=tmp_path))
+    assert first == {"written": 0, "skipped": 0, "failed": 1}
+    assert find_translation(course_id="audio-rivers", language="km", root=tmp_path) is None
+    calls.clear()
+
+    async def fine(text: str, source: str, target: str) -> str:
+        calls.append(text)
+        return f"{target}:{text}"
+
+    second = asyncio.run(translate_catalog(jobs, ["km"], fine, concurrency=1, root=tmp_path))
+    assert second["written"] == 1
+    assert "The Nile flooded." not in calls
+    assert "The Amazon is long." in calls
+    stored = find_translation(course_id="audio-rivers", language="km", root=tmp_path)
+    assert stored["segments"][0]["heading"] == "km:Nile"
+    assert stored["segments"][1]["text"] == "km:The Amazon is long."
+    assert not (tmp_path / "audio-rivers" / "km.partial.json").exists()
