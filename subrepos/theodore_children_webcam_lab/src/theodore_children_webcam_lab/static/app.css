@@ -48,16 +48,26 @@ body.phone-play .prompt{top:auto;bottom:.45rem;max-width:94%;padding:.4rem .7rem
 body.phone-play .prompt.is-success{top:32%;bottom:auto;max-width:92%}
 body.phone-play .prompt strong{font-size:1rem}
 body.phone-play .prompt.is-success strong{color:#bbf7d0;font-size:1.35rem}
-body.phone-play .vision-readout,body.phone-play .vision-status{display:none}
+body.phone-play .vision-status{display:none}
+body.phone-play .vision-readout{
+  display:grid;left:8px;right:100px;top:8px;bottom:auto;min-width:0;z-index:8;
+  grid-template-columns:1fr 1fr;gap:.15rem .6rem;font-size:.68rem;pointer-events:none;
+}
 body.phone-play #chrome-toggle{display:inline-flex}
 body.phone-play.chrome-hidden .stage{height:100dvh}
 body.phone-play.stage-fill .vision-tools,body.phone-play.stage-fill .dashboard{display:none}
 body:not(.phone-play) #touch-mode{display:none!important}
-body.phone-play #touch-mode{flex:0 0 auto;white-space:nowrap;font-size:.72rem;padding:.4rem .55rem}
+body.phone-play #touch-mode{
+  position:fixed;left:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:30;
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;padding:.45rem .8rem;white-space:nowrap;font-size:.85rem;
+  background:#111827;border:2px solid #5eead4;box-shadow:0 8px 18px #0008;
+}
+body.phone-play.chrome-hidden #touch-mode{bottom:calc(12px + env(safe-area-inset-bottom))}
 .stage.demo{touch-action:none}
 .countdown{pointer-events:none}
 .spoken-words{margin:0;padding:.55rem .9rem;background:#1e1b4b;color:#fef9c3;text-align:center;font-weight:900;font-size:clamp(1.15rem,2.8vw,1.7rem);line-height:1.35;max-height:4.8rem;overflow:auto}
-/* Phone embed hides vision-status and vision-readout. The clock stays on the stage. */
-body.phone-play #countdown:not(.hidden){display:grid!important;top:.45rem;right:.55rem;width:72px;height:72px;font-size:1.55rem;z-index:9}
+/* The clock stays on the stage. Face, distance, and the finger trail stay visible. */
+body.phone-play #countdown:not(.hidden){display:grid!important;top:8px;right:8px;width:84px;height:84px;font-size:1.7rem;z-index:20}
 body.phone-play #spoken-words:not(.hidden){display:block}
 body.phone-play #words-toggle{min-height:44px;white-space:nowrap;flex:0 0 auto}

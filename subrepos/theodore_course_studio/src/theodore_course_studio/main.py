@@ -756,6 +756,19 @@ def teach_resume_uncovered(req: TeachSessionRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
 
 
+class TeachGotoRequest(BaseModel):
+    session_id: str = "studio-teach-1"
+    path_pos: int = 0
+
+
+@app.post("/api/studio/teach/goto")
+def teach_goto(req: TeachGotoRequest) -> dict[str, Any]:
+    try:
+        return _teach.goto(req.session_id, req.path_pos)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
 @app.post("/api/studio/teach/advance")
 def teach_advance(req: TeachSessionRequest) -> dict[str, Any]:
     try:

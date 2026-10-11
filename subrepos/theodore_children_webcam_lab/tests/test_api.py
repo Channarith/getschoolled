@@ -86,6 +86,20 @@ def test_analytics_is_aggregate_only_and_rejects_private_fields():
     assert forbidden.status_code == 422
     junk = sanitize_event(event | {"components": {"play": 9, "secret": {"x": 1}}})
     assert junk["components"] == {"play": 9}
+    vision = sanitize_event(event | {
+        "vision": {
+            "face": "happy",
+            "distance": "good",
+            "motion_px": 14,
+            "trail_points": 22,
+            "trace_percent": 40,
+            "landmarks": [[0, 1]],
+        },
+    })
+    assert vision["vision"]["face"] == "happy"
+    assert vision["vision"]["motion_px"] == 14
+    assert vision["vision"]["trail_points"] == 22
+    assert "landmarks" not in vision["vision"]
 
 
 def test_static_javascript_has_expected_privacy_and_game_guards():

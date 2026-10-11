@@ -4,6 +4,8 @@ import {
 } from "react-native";
 
 const EDGE_PADDING = 14;
+const BACK_CLEAR_WIDTH = 128;
+const BACK_CLEAR_HEIGHT = 72;
 
 type Props = {
   accessibilityLabel: string;
@@ -69,6 +71,13 @@ export default function DraggableFloatingButton({
     lastPos.current = next;
   }, [aboveTabs, bottomOffset, height, initialSide, pos, screenHeight, screenWidth, width]);
 
+  function clearOfBack(next: { x: number; y: number }) {
+    if (next.x < BACK_CLEAR_WIDTH && next.y < BACK_CLEAR_HEIGHT) {
+      return { ...next, y: BACK_CLEAR_HEIGHT };
+    }
+    return next;
+  }
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -93,8 +102,9 @@ export default function DraggableFloatingButton({
           x: Math.max(0, Math.min(lastPos.current.x + gesture.dx, maxX)),
           y: Math.max(0, Math.min(lastPos.current.y + gesture.dy, maxY)),
         };
-        lastPos.current = next;
-        pos.setValue(next);
+        const cleared = clearOfBack(next);
+        lastPos.current = cleared;
+        pos.setValue(cleared);
         if (dragDistance.current < 8 && !disabledRef.current) {
           onPressRef.current();
         }

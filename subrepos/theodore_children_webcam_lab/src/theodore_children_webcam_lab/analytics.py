@@ -18,8 +18,35 @@ ALLOWED_KEYS = {
     "activity_id", "age_band", "outcome", "attempts", "duration_ms", "fun_score",
     "components", "celebration_kind", "miss_gag_id", "theme_pack", "seated_only",
     "hit_count", "spawn_count", "round", "time_limit_ms", "time_remaining_ms",
-    "expression", "region",
+    "expression", "region", "vision",
 }
+VISION_KEYS = {
+    "face", "face_confidence", "distance", "face_width",
+    "hands", "fingers", "motion_px", "trail_points", "trace_percent",
+    "touch_mode", "hand", "finger", "face_seen", "screen_touch",
+}
+_VISION_TEXT = {"face", "distance", "touch_mode"}
+_VISION_FLAGS = {"hand", "finger", "face_seen", "screen_touch"}
+
+
+def _vision(raw: Any) -> dict[str, Any] | None:
+    """Keep face, distance, and trail measurements. Drop landmark coordinates."""
+    if not isinstance(raw, dict):
+        return None
+    kept: dict[str, Any] = {}
+    for key, value in raw.items():
+        if key not in VISION_KEYS:
+            continue
+        if key in _VISION_TEXT:
+            kept[key] = str(value)[:40]
+        elif key in _VISION_FLAGS:
+            kept[key] = bool(value)
+        else:
+            try:
+                kept[key] = max(0, min(100_000, int(value)))
+            except (TypeError, ValueError):
+                continue
+    return kept or None
 
 
 def sanitize_event(raw: dict[str, Any]) -> dict[str, Any]:
@@ -47,6 +74,11 @@ def sanitize_event(raw: dict[str, Any]) -> dict[str, Any]:
             for key, value in raw_components.items()
             if key in COMPONENT_KEYS
         }
+    vision = _vision(raw.get("vision"))
+    if vision:
+        event["vision"] = vision
+    else:
+        event.pop("vision", None)
     return event
 
 

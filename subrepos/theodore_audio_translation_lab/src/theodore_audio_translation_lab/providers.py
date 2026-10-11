@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -188,7 +189,12 @@ class TranslationEngine:
         self.xai_url = os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1").rstrip("/")
         self.xai_model = os.environ.get("XAI_MODEL", "").strip() or XAI_DEFAULT_MODEL
         self.timeout_s = float(os.environ.get("TRANSLATION_TIMEOUT_S", "15"))
+        try:
+            self.max_tokens = max(64, int(os.environ.get("TRANSLATION_MAX_TOKENS", "800")))
+        except ValueError:
+            self.max_tokens = 800
         self._cache: OrderedDict[tuple[str, str, str], TranslationResult] = OrderedDict()
+        self._cache_lock = threading.Lock()
         self._cache_max = 1000
 
     def translate(self, text: str, source: str, target: str) -> TranslationResult:
@@ -209,10 +215,13 @@ class TranslationEngine:
             )
 
         key = (source, target, clean)
-        cached = self._cache.get(key)
+        with self._cache_lock:
+            cached = self._cache.get(key)
+            if cached is not None:
+                self._cache.move_to_end(key)
+                cached = cached.model_copy(update={"provider": f"{cached.provider}:cache", "latency_ms": 0})
         if cached is not None:
-            self._cache.move_to_end(key)
-            return cached.model_copy(update={"provider": f"{cached.provider}:cache", "latency_ms": 0})
+            return cached
 
         started = time.time()
         errors: list[str] = []
@@ -257,14 +266,17 @@ class TranslationEngine:
             )
 
         result.latency_ms = int((time.time() - started) * 1000)
-        self._remember(key, result)
+        # A timeout or refusal must not stick. The batch retries the same paragraph.
+        if result.translated:
+            self._remember(key, result)
         return result
 
     def _remember(self, key: tuple[str, str, str], result: TranslationResult) -> None:
-        self._cache[key] = result
-        self._cache.move_to_end(key)
-        while len(self._cache) > self._cache_max:
-            self._cache.popitem(last=False)
+        with self._cache_lock:
+            self._cache[key] = result
+            self._cache.move_to_end(key)
+            while len(self._cache) > self._cache_max:
+                self._cache.popitem(last=False)
 
     def _gateway_translate(self, text: str, source: str, target: str) -> TranslationResult:
         payload = json.dumps({"text": text, "source": source, "target": target}).encode()
@@ -307,7 +319,7 @@ class TranslationEngine:
             model=self.xai_model,
             messages=messages,
             temperature=0.1,
-            max_tokens=800,
+            max_tokens=self.max_tokens,
             timeout_s=self.timeout_s,
         )
         if not translated:
