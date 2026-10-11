@@ -33,7 +33,7 @@ body.phone-play .theodore{width:72px;height:72px}
 body.phone-play h1{font-size:1.55rem}
 body.phone-play .play{min-height:100dvh;height:100dvh;display:flex;flex-direction:column}
 body.phone-play .stage{flex:1 1 auto;height:auto;min-height:0;touch-action:none}
-body.phone-play .topbar{flex-wrap:nowrap;padding:.4rem .6rem}
+body.phone-play .topbar{flex-wrap:wrap;padding:.4rem .6rem}
 body.phone-play .score{display:flex;width:auto;gap:.35rem;font-size:.75rem}
 body.phone-play .score #combo{display:none}
 body.phone-play .brand{font-size:.95rem}

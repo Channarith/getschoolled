@@ -143,6 +143,7 @@ def test_coloring_scratches_and_phones_can_switch_touch():
     assert "position:fixed" in css.split("body.phone-play #touch-mode{")[1].split("}")[0]
 
 
+
 def test_pointer_demo_listens_on_the_stage_not_the_dead_canvas():
     script = _js()
     assert 'stage?.addEventListener("pointermove"' in script
