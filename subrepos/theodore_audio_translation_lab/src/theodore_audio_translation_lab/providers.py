@@ -257,7 +257,11 @@ class TranslationEngine:
             )
 
         result.latency_ms = int((time.time() - started) * 1000)
-        self._remember(key, result)
+        # Never cache source-fallback / identity failures — a timeout or rate
+        # limit under load would otherwise poison every later retry of the same
+        # text for the life of this process.
+        if result.translated:
+            self._remember(key, result)
         return result
 
     def _remember(self, key: tuple[str, str, str], result: TranslationResult) -> None:

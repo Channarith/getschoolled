@@ -1408,6 +1408,19 @@ export type SessionView = {
   slide: Slide;
 };
 
+export type LessonVisual = {
+  kind: string;
+  title: string;
+  svg: string;
+  narration: string;
+  concept?: string;
+  examples?: string[];
+  frames?: { svg: string; narration: string; duration_s?: number; title?: string; kind?: string }[];
+  sync?: string;
+  topic?: string;
+  has_animation?: boolean;
+};
+
 export type Answer = {
   text: string;
   citations: string[];
@@ -1421,6 +1434,8 @@ export type Answer = {
   // Set when the AI teacher grants points for this question; the client redeems
   // grant_token at /rewards/grant (server-verified).
   reward?: { points: number; reason: string; grant_token: string } | null;
+  /** On-demand SVG / comparison / animation sequence matching the spoken answer. */
+  visual?: LessonVisual | null;
 };
 
 export type CurrentSource = {
@@ -3892,6 +3907,7 @@ export type AskDone = {
   type: "done"; text: string; citations: string[]; grounded: boolean;
   hallucination_risk: number; understood: string[]; unsupported: string[]; corrected: boolean;
   sources?: CurrentSource[]; as_of?: string | null;
+  visual?: LessonVisual | null;
 };
 
 // Stream the conversational agent's answer (SSE) for a real-time, low-latency

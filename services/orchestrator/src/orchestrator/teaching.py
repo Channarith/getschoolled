@@ -152,6 +152,9 @@ class Answer(BaseModel):
     # learner's client redeems at identity /rewards/grant. {points, reason,
     # grant_token}. None when no reward is granted.
     reward: Optional[dict] = None
+    # On-demand teaching visual (SVG scene / comparison / short animation
+    # sequence) generated to match the spoken answer — see aoep_shared.lesson_visuals.
+    visual: Optional[dict] = None
 
 
 class SessionView(BaseModel):
@@ -604,6 +607,13 @@ class TeachingSessions:
         # context; otherwise abstain/ground to avoid showing unsupported claims.
         safe_text, report = guard_answer(text, context, question=question)
         self._record_qa(session, question, safe_text)
+        visual = None
+        try:
+            from aoep_shared.lesson_visuals import visual_for_ask
+
+            visual = visual_for_ask(question, language=language, answer_text=safe_text)
+        except Exception:
+            visual = None
         return Answer(
             text=safe_text,
             citations=citations,
@@ -614,6 +624,7 @@ class TeachingSessions:
             grounded=report.grounded,
             hallucination_risk=report.hallucination_risk,
             unsupported=report.unsupported,
+            visual=visual,
         )
 
     def ask_stream(self, session_id: str, question: str, language: str = "en",
@@ -681,6 +692,13 @@ class TeachingSessions:
             raw = humanize_narration(_offline_answer(question, context), dialect, language=language)
             yield {"type": "delta", "text": raw}
         safe_text, report = guard_answer(raw, context, question=question)
+        visual = None
+        try:
+            from aoep_shared.lesson_visuals import visual_for_ask
+
+            visual = visual_for_ask(question, language=language, answer_text=safe_text)
+        except Exception:
+            visual = None
         try:
             yield {
                 "type": "done",
@@ -694,6 +712,7 @@ class TeachingSessions:
                 "hallucination_risk": report.hallucination_risk,
                 "unsupported": report.unsupported,
                 "corrected": safe_text.strip() != raw.strip(),
+                "visual": visual,
             }
         finally:
             self._record_qa(session, question, safe_text)

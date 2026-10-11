@@ -1,0 +1,86 @@
+Dictionary + voice corpus (EN + Khmer)
+======================================
+
+Self-hosted lexicon pipeline: open baselines → staging → review → content packs
+→ progressive read-aloud trainer → CosyVoice raw audio → noise-filter crisp/gold.
+
+Owned by the Theodore RAG lab (subrepos/theodore_rag_lab, port 8095).
+Repo-root scripts/dictionary/* are thin shims into the lab.
+
+No paid TTS/LLM APIs required. edge-tts / ElevenLabs must never be marked gold.
+
+Lab console
+-----------
+  . .venv/bin/activate
+  python3 -m pip install -e 'packages/shared' -e 'subrepos/theodore_rag_lab[test]'
+  PYTHONPATH=subrepos/theodore_rag_lab/src:packages/shared/src \
+    python3 -m uvicorn theodore_rag_lab.main:app --port 8095 --host 127.0.0.1
+
+  Open http://127.0.0.1:8095/ → tab "Corpus + read-aloud"
+  Or CLI:
+    theodore-rag-corpus-update
+    theodore-rag-read-aloud --heard "She walked to school."
+  Shims (same behavior):
+    python3 scripts/dictionary/train_update.py
+    python3 scripts/dictionary/read_aloud.py --heard "She walked to school."
+
+Lab HTTP
+--------
+  POST /api/corpus/train-update
+  GET  /api/corpus/stats
+  GET  /api/corpus/review
+  POST /api/corpus/review
+  POST /api/corpus/export-llm
+  POST /api/read-aloud/next
+  POST /api/read-aloud/score
+
+Prime-time speech path (unchanged thin wrappers):
+  POST /learn/read-aloud/next|score  on the speech service (:8002)
+
+Layout (AOEP_DICTIONARY_DIR, default ~/.cache/aoep/dictionary)
+-------------------------------------------------------------
+  baselines/     wordfreq, WordNet glosses, CMUdict, Wiktionary extract, Tatoeba, Khmer snapshot
+  staging/       en.jsonl km.jsonl
+  review/        queue.jsonl feedback.json
+  sentences/     curriculum JSONL
+  progress/      per-learner mastery
+  audio/{lang}/raw|crisp/
+  export/        vocabulary + slang packs + dictionary_llm_train.jsonl
+
+LLM training bridge
+-------------------
+  Approved/auto staging rows feed aoep_shared.llm_training.assemble as source
+  "dictionary" (auto-scanned from AOEP_DICTIONARY_DIR). Export explicitly:
+
+    curl -s -X POST http://127.0.0.1:8095/api/corpus/export-llm | python3 -m json.tool
+
+  Then assemble in the LLM lab (:8019) / training/run_finetune.py on a GPU host.
+
+Quick script path
+-----------------
+  export AOEP_DICTIONARY_DIR=$PWD/.cache/dictionary
+  python3 scripts/dictionary/train_update.py
+  # CosyVoice (self-hosted; no ElevenLabs):
+  #   ./scripts/run_cosyvoice_local.sh
+  #   export COSYVOICE_URL=http://127.0.0.1:9880 COSYVOICE_DEFAULT_SPK=英文女
+  python3 scripts/dictionary/train_update.py --ship-packs --synth   # needs COSYVOICE_URL
+
+Audio cleanup
+-------------
+  Raw CosyVoice or mic takes → clean (high-pass, denoise, gate/trim, normalize).
+  Only crisp/gold clips are fine-tune eligible.
+
+Scale CosyVoice fine-tune data from video
+-----------------------------------------
+  Operator-supplied YouTube/Vimeo URL lists (or local media) → same denoise path
+  → segments + ASR → CosyVoice Kaldi lists. See docs/cosyvoice-a2f.txt and:
+    python3 scripts/cosyvoice_ingest.py --urls-file urls.txt --language en \
+      --output-dir output/cosyvoice_en
+
+
+Tests
+-----
+  PYTHONPATH=subrepos/theodore_rag_lab/src:packages/shared/src \
+    python3 -m pytest subrepos/theodore_rag_lab/tests/test_corpus_lab.py \
+      packages/shared/tests/test_dictionary_corpus.py \
+      packages/shared/tests/test_llm_training.py -q

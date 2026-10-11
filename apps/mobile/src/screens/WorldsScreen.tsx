@@ -79,12 +79,6 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
 
   return (
     <View style={styles.root}>
-      {/* iOS back button — visible on top-left since there is no hardware back */}
-      {Platform.OS === 'ios' && (
-        <Pressable style={styles.iosBackBtn} onPress={onBack}>
-          <Text style={styles.iosBackText}>{t("worlds.back")}</Text>
-        </Pressable>
-      )}
       <WebView
         ref={webViewRef}
         source={{ uri: WORLDS_URL }}
@@ -117,6 +111,9 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
         </View>
       )}
 
+      <Pressable style={styles.iosBackBtn} onPress={onBack} hitSlop={16}>
+        <Text style={styles.iosBackText}>{t("worlds.back")}</Text>
+      </Pressable>
       {xpEarned > 0 && !loading && (
         <View style={styles.xpToast} pointerEvents="none">
           <Text style={styles.xpToastText}>⭐ +{xpEarned} XP</Text>
@@ -142,9 +139,12 @@ const styles = StyleSheet.create({
   webview: { flex: 1 },
   iosBackBtn: {
     position: "absolute",
-    top: 52,
-    left: 16,
-    zIndex: 20,
+    top: 12,
+    left: 12,
+    zIndex: 1100,
+    elevation: 24,
+    minHeight: 44,
+    justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.55)",
     borderRadius: 20,
     paddingHorizontal: 14,

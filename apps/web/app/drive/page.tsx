@@ -17,6 +17,7 @@ import {
   type AudioCourseRow,
   type Instructor,
 } from "../lib/api";
+import DriveVoiceChip from "../components/DriveVoiceChip";
 import SignInToUse from "../components/SignInToUse";
 import VideoAdBreak from "../components/VideoAdBreak";
 import { effectiveAdTier } from "../lib/useCourseAds";
@@ -29,7 +30,12 @@ import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServe
 import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, normalizeVoicePauseSubmitMs, stripWakeWords } from "../lib/voiceCommands";
 import { startDriveVoice, type DriveVoiceSession } from "../lib/driveVoiceAgent";
 import {
-  setTrainingLocale, trainingLocaleFromUi, type TrainingLocale,
+  normalizeTrainingLocale,
+  setTrainingLocale,
+  TRAINING_LOCALE_LABELS,
+  TRAINING_LOCALES,
+  trainingLocaleFromUi,
+  type TrainingLocale,
 } from "../lib/trainingLocale";
 import {
   prosodyForStyle, resolveEffectiveVoiceStyle,
@@ -76,6 +82,7 @@ function DrivePageInner() {
   const [micDenied, setMicDenied] = useState(false);
   const [micGranted, setMicGranted] = useState(false);
   const [voiceLive, setVoiceLive] = useState(false);
+  const [voiceHidden, setVoiceHidden] = useState(false);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructor, setInstructorState] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
@@ -230,12 +237,43 @@ function DrivePageInner() {
     cancelSpeech();
     if (i >= c.segments.length) { setPlaying(false); playNextCourse(); return; }
     setSeg(i); setPlaying(true);
-    driveVoiceRef.current?.setLessonAudible(true);
-    speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => {
+    const line = `${c.segments[i].heading}. ${c.segments[i].text}`;
+    const voice = driveVoiceRef.current;
+    if (voice?.speakLesson(line, () => {
+      if (playGenRef.current === gen) playSeg(c, i + 1);
+    })) return;
+    speak(line, () => {
       if (playGenRef.current === gen) playSeg(c, i + 1);
     });
   }, [speak]); // eslint-disable-line react-hooks/exhaustive-deps
   playSegRef.current = playSeg;
+
+  async function toggleVoiceChip() {
+    if (voiceLive) {
+      stopDriveVoice();
+      return;
+    }
+    const current = courseRef.current;
+    if (!current) return;
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      micReadyRef.current = true;
+      setMicGranted(true);
+      setMicDenied(false);
+    } catch {
+      setMicDenied(true);
+      return;
+    }
+    const voiced = await beginDriveVoice(current);
+    if (!voiced) {
+      setAssistantStatus(t("drive.voiceAgentOff"));
+      return;
+    }
+    playSegRef.current(current, segRef.current);
+  }
 
   function stopDriveVoice() {
     voiceGenRef.current += 1;
@@ -266,17 +304,13 @@ function DrivePageInner() {
           onUser: (text) => setAssistantTranscript(text),
           onTutor: (text) => setAssistantAnswer(text),
           onSpeaking: (speaking) => {
-            if (speaking) {
-              voicePausedLessonRef.current = true;
-              driveVoiceRef.current?.setLessonAudible(false);
-              playGenRef.current += 1;
-              cancelSpeech();
-              setPlaying(false);
-              return;
-            }
+            if (!speaking) return;
+            cancelSpeech();
+            setPlaying(true);
+          },
+          onAnswerDone: () => {
             const current = courseRef.current;
-            if (!voicePausedLessonRef.current || !current || !autoListenRef.current) return;
-            voicePausedLessonRef.current = false;
+            if (!current) return;
             playSegRef.current(current, segRef.current);
           },
         },
@@ -301,8 +335,12 @@ function DrivePageInner() {
     const s = course.segments[seg];
     if (!s) return;
     setPlaying(true);
-    driveVoiceRef.current?.setLessonAudible(true);
-    speak(`${s.heading}. ${s.text}`, () => {
+    const line = `${s.heading}. ${s.text}`;
+    const voice = driveVoiceRef.current;
+    if (voice?.speakLesson(line, () => {
+      if (playGenRef.current === gen) playSeg(course, seg + 1);
+    })) return;
+    speak(line, () => {
       if (playGenRef.current === gen) playSeg(course, seg + 1);
     });
   }, [course, seg, speak, playSeg]);
@@ -347,13 +385,13 @@ function DrivePageInner() {
     try {
       const c = await getAudioCourse(id, locale, trainingLang);
       setCourse(c); setSeg(0);
-      playSeg(c, 0);
-      // Hands-free Q&A: only start after mic was primed on a user gesture
-      // (startCourseWithAds / Enable mic). Auto-start without permission → not-allowed.
+      // The voice agent speaks the class and hears questions. Connect it
+      // before the first segment so playback does not fall back to a wake phrase.
       if (autoListenRef.current && micReadyRef.current) {
         const voiced = await beginDriveVoice(c);
-        if (!voiced) void startAmbientListening();
+        if (!voiced) setAssistantStatus(t("drive.voiceAgentOff"));
       }
+      playSeg(c, 0);
     } catch (e) { setError(String(e)); }
   }
 
@@ -417,7 +455,7 @@ function DrivePageInner() {
   // stale utterance; Resume replays the current segment in the current voice.
   function pause() {
     playGenRef.current++;
-    driveVoiceRef.current?.setLessonAudible(false);
+    driveVoiceRef.current?.hold();
     cancelSpeech();
     setPlaying(false);
   }
@@ -611,8 +649,13 @@ function DrivePageInner() {
   async function toggleAutoListen() {
     if (autoListen) {
       setAutoListen(false);
+      autoListenRef.current = false;
+      const current = courseRef.current;
+      const wasPlaying = playingRef.current;
       stopDriveVoice();
       stopAmbientListening();
+      autoListenRef.current = false;
+      if (wasPlaying && current) playSeg(current, segRef.current);
       return;
     }
     const access = await ensureMicAccess();
@@ -631,15 +674,19 @@ function DrivePageInner() {
     setAutoListen(true);
     autoListenRef.current = true;
     const current = courseRef.current;
-    if (current) {
-      const voiced = await beginDriveVoice(current);
-      if (!voiced) void startAmbientListening();
-      return;
-    }
-    void startAmbientListening();
+    if (!current) return;
+    const voiced = await beginDriveVoice(current);
+    if (!voiced) setAssistantStatus(t("drive.voiceAgentOff"));
+    else playSeg(current, segRef.current);
   }
 
   async function startVoiceRecognition(expectWakeWord = false) {
+    if (driveVoiceRef.current) {
+      pauseForAssistant(t("drive.listenQuestion"));
+      driveVoiceRef.current.hold();
+      driveVoiceRef.current.setLessonAudible(false);
+      return;
+    }
     pauseForAssistant(t("drive.listenQuestion"));
     const access = await ensureMicAccess();
     if (access === "insecure") {
@@ -723,8 +770,8 @@ function DrivePageInner() {
       setListening(false);
       oneShotActiveRef.current = false;
       // Resume hands-free ambient listening after the manual one-shot.
-      if (autoListenRef.current && courseRef.current && micReadyRef.current) {
-        window.setTimeout(() => { if (autoListenRef.current) void startAmbientListening(); }, 500);
+      if (autoListenRef.current && courseRef.current && !driveVoiceRef.current && micReadyRef.current) {
+        setAssistantStatus(t("drive.voiceAgentOff"));
       }
     };
     recognitionRef.current = recognition;
@@ -767,6 +814,7 @@ function DrivePageInner() {
       setAssistantStatus(t("drive.pausedStatus"));
       setPlaying(false);
       playGenRef.current++;
+      driveVoiceRef.current?.hold();
       cancelSpeech();
       return;
     }
@@ -783,6 +831,14 @@ function DrivePageInner() {
     if (/\b(previous|back|repeat)\b/.test(lower)) {
       setAssistantAnswer(t("drive.repeatAnswer"));
       playSeg(course, Math.max(0, seg - 1));
+      return;
+    }
+    if (driveVoiceRef.current) {
+      playGenRef.current++;
+      cancelSpeech();
+      setPlaying(false);
+      driveVoiceRef.current.ask(command);
+      setAssistantStatus(t("drive.voiceAgentOn"));
       return;
     }
     const answer = answerFromCourse(course, seg, command, t);
@@ -874,12 +930,77 @@ function DrivePageInner() {
       {/* Now playing */}
       {loggedIn && course && (
         <div className="card" style={{ borderColor: "#0ea5e9", background: "#0b1020", color: "#e8ecf6" }}>
-          <div className="muted">{course.category} · {course.duration_min} min · audio</div>
-          <h2 style={{ margin: "4px 0", overflowWrap: "anywhere" }}>{course.title}</h2>
-          <div style={{ fontSize: 18, margin: "8px 0", overflowWrap: "anywhere" }}>
-            ▶ {course.segments[seg]?.heading} <span className="muted">({seg + 1}/{course.segments.length})</span>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <label style={{ flex: "1 1 180px", display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#d7e7ea" }}>
+              Course
+              <select
+                aria-label="Course"
+                value={course.id}
+                onChange={(e) => { if (e.target.value) void startCourseWithAds(e.target.value); }}
+                style={{ minHeight: 40, borderRadius: 10, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 15 }}
+              >
+                {!rows.some((row) => row.id === course.id) ? (
+                  <option value={course.id}>{course.title}</option>
+                ) : null}
+                {rows.map((row) => (
+                  <option key={row.id} value={row.id}>{row.title}</option>
+                ))}
+              </select>
+            </label>
+            <label style={{ flex: "1 1 160px", display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#d7e7ea" }}>
+              {t("drive.trainingLang")}
+              <select
+                aria-label="Lesson language"
+                value={trainingLang}
+                onChange={(e) => {
+                  const next = normalizeTrainingLocale(e.target.value);
+                  setTrainingLang(next);
+                  setTrainingLocale(next);
+                }}
+                style={{ minHeight: 40, borderRadius: 10, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 15 }}
+              >
+                {TRAINING_LOCALES.map((code) => (
+                  <option key={code} value={code}>{TRAINING_LOCALE_LABELS[code]}</option>
+                ))}
+              </select>
+            </label>
+            {voiceHidden ? (
+              <button type="button" onClick={() => setVoiceHidden(false)} style={{ alignSelf: "end", minHeight: 40 }}>
+                Show xAI
+              </button>
+            ) : null}
           </div>
-          <div style={{ margin: "8px 0 14px" }} hidden={stageFull && optionsHidden}>
+          <button
+            type="button"
+            aria-label="Audio playing"
+            onClick={() => { if (playing) pause(); else resume(); }}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              width: "100%", minHeight: 140, margin: "0 0 12px", padding: 0,
+              border: 0, borderRadius: 16, background: "#070b14", cursor: "pointer",
+            }}
+          >
+            {Array.from({ length: 17 }, (_, index) => (
+              <i
+                key={index}
+                style={{
+                  display: "block",
+                  width: 9,
+                  borderRadius: 99,
+                  height: 18 + (index % 4) * 12,
+                  background: "linear-gradient(180deg,#e8fdff,#3ec6e0)",
+                  transformOrigin: "center",
+                  animation: playing ? `salareenWave .8s ease-in-out ${index % 5 * 0.07}s infinite` : "none",
+                }}
+              />
+            ))}
+          </button>
+          <style>{"@keyframes salareenWave { 50% { transform: scaleY(1.8); } }"}</style>
+          <div style={{ margin: "8px 0 14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+              <strong>{Math.round(((seg + 1) / course.segments.length) * 100)}% of the course</strong>
+              <span className="muted">Part {seg + 1} of {course.segments.length}</span>
+            </div>
             <input
               type="range"
               min={0}
@@ -896,6 +1017,29 @@ function DrivePageInner() {
             <div style={{ height: 4, background: "#1d2746", borderRadius: 6, overflow: "hidden", marginTop: 6 }}>
               <div style={{ height: "100%", width: `${((seg + 1) / course.segments.length) * 100}%`, background: "#0ea5e9" }} />
             </div>
+            <details style={{ marginTop: 8 }}>
+              <summary>Course outline</summary>
+              <ol style={{ margin: "8px 0 0", paddingLeft: 18, maxHeight: 220, overflow: "auto" }}>
+                {course.segments.map((segment, index) => (
+                  <li key={index} style={{ margin: "4px 0" }}>
+                    <button
+                      type="button"
+                      onClick={() => { cancelSpeech(); playSeg(course, index); }}
+                      style={{
+                        background: "transparent",
+                        color: index === seg ? "#7dd3fc" : "inherit",
+                        border: 0,
+                        padding: 0,
+                        cursor: "pointer",
+                        fontWeight: index === seg ? 700 : 500,
+                      }}
+                    >
+                      {segment.heading || `Part ${index + 1}`}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </details>
           </div>
           <div className="row" style={{ gap: 12 }} hidden={stageFull && optionsHidden}>
             <button type="button" aria-label={t("drive.prevSegment")} onClick={() => playSeg(course, Math.max(0, seg - 1))} style={BIG}>⏮</button>
@@ -952,8 +1096,8 @@ function DrivePageInner() {
               {t("drive.voiceAgentOn")}
               {assistantAnswer ? <div style={{ marginTop: 4 }}>{assistantAnswer}</div> : null}
             </div>
-          ) : autoListen && micGranted && supportsSpeechRecognition() ? (
-            <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.handsFreeHint")}</div>
+          ) : autoListen && micGranted ? (
+            <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.voiceAgentOff")}</div>
           ) : supportsSpeechRecognition() ? (
             <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.micEnableHint")}</div>
           ) : null}
@@ -962,6 +1106,14 @@ function DrivePageInner() {
           </p>
         </div>
       )}
+      {loggedIn && course ? (
+        <DriveVoiceChip
+          live={voiceLive}
+          hidden={voiceHidden}
+          onToggle={() => { void toggleVoiceChip(); }}
+          onHide={() => setVoiceHidden(true)}
+        />
+      ) : null}
 
       {loggedIn && assistantOpen && (
         <div role="dialog" aria-modal="true"
@@ -1036,20 +1188,48 @@ function DrivePageInner() {
         <p className="muted" style={{ marginTop: 0 }}>
           Hands-free speech translation. The microphone stays in this browser, and Theodore answers with the xAI voice agent.
         </p>
-        <iframe
-          title="Audio translation lab"
-          src={`/audio-lab?target=${encodeURIComponent(locale)}&source=auto`}
-          allow="microphone; autoplay"
-          style={{
-            width: "100%",
-            height: "min(78vh, 860px)",
-            border: "1px solid rgba(14,165,233,.45)",
-            borderRadius: 16,
-            background: "#0b1020",
-          }}
-        />
+        <AudioLabFrame locale={locale} />
       </section>
     </main>
+  );
+}
+
+function AudioLabFrame({ locale }: { locale: string }) {
+  const [ready, setReady] = useState(false);
+  const [down, setDown] = useState(false);
+  useEffect(() => {
+    let cancel = false;
+    fetch("/audio-lab-api/health", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((body) => {
+        if (cancel) return;
+        if (body && body.status === "ok" && body.service === "theodore-audio-translation-lab") setReady(true);
+        else setDown(true);
+      })
+      .catch(() => { if (!cancel) setDown(true); });
+    return () => { cancel = true; };
+  }, []);
+  if (down) {
+    return (
+      <p className="muted" data-testid="audio-lab-down">
+        The audio lab is not connected. The translation page did not load.
+      </p>
+    );
+  }
+  if (!ready) return <p className="muted">Opening the audio lab…</p>;
+  return (
+    <iframe
+      title="Audio translation lab"
+      src={`/audio-lab?target=${encodeURIComponent(locale)}&source=auto`}
+      allow="microphone; autoplay"
+      style={{
+        width: "100%",
+        height: "min(78vh, 860px)",
+        border: "1px solid rgba(14,165,233,.45)",
+        borderRadius: 16,
+        background: "#0b1020",
+      }}
+    />
   );
 }
 

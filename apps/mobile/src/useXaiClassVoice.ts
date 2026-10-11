@@ -39,11 +39,14 @@ export type XaiSpeakOpts = {
 export function useXaiClassVoice(
   active: boolean,
   session: {
-    mode: XaiVoiceMode;
+    mode: XaiVoiceMode | "drive";
     context: string;
     learnerName?: string;
     language?: string;
     onTranscript?: (text: string) => void;
+    category?: string;
+    topic?: string;
+    courseId?: string;
   },
 ) {
   const [phase, setPhase] = useState<"idle" | "checking" | "live" | "unavailable">("idle");
@@ -109,6 +112,9 @@ export function useXaiClassVoice(
           lesson_context: current.context,
           learner_names: current.learnerName ? [current.learnerName] : [],
           language: current.language || "",
+          category: current.category || "",
+          topic: current.topic || "",
+          course_id: current.courseId || "",
         });
         if (cancelled || planRef.current !== plan) return;
         if (token.use_xai === false || !token.token || !token.session_update) {
@@ -204,7 +210,7 @@ export function useXaiClassVoice(
       closeXaiVoiceSession(wsRef.current);
       wsRef.current = null;
     };
-  }, [active, session.mode, session.language, runFallback]);
+  }, [active, session.mode, session.language, session.courseId, session.category, session.topic, runFallback]);
 
   const interrupt = useCallback(() => {
     const plan = planRef.current;

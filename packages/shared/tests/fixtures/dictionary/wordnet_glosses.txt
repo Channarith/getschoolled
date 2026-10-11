@@ -1,0 +1,15 @@
+# lemma|pos|gloss|sense_count
+school|noun|a place for teaching and learning|2
+teacher|noun|a person who teaches|1
+student|noun|a person who is studying|1
+learn|verb|gain knowledge or skill|1
+teach|verb|impart knowledge to or instruct|1
+speak|verb|say something in order to convey information|1
+write|verb|mark letters or words on a surface|1
+read|verb|look at and comprehend meaning of written text|1
+rare|adjective|not occurring very often|1
+ephemeral|adjective|lasting for a very short time|1
+obfuscate|verb|make obscure or unclear|1
+break|noun|a pause in work or during an activity|4
+break|verb|separate into pieces|4
+kick the bucket|idiom|to die (informal)|1

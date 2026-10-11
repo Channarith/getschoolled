@@ -131,13 +131,17 @@ def test_coloring_scratches_and_phones_can_switch_touch():
     assert 'id="touch-mode"' in html
     script = _js()
     assert "function screenTouch" in script
+    assert 'stage?.addEventListener("touchstart"' in script
+    assert "visionTelemetry" in script
+    assert "screen_touch" in script
     assert "scratchCoverage" in script
     assert "fingersPointed" in script
     assert "state.painted[index] = true" not in script
     css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
     assert "body:not(.phone-play) #touch-mode" in css
-    assert "body.phone-play .topbar{flex-wrap:wrap" in css
-    assert "body.phone-play #touch-mode{flex:0 0 auto;white-space:nowrap;font-size:1rem" in css
+    assert "body.phone-play #touch-mode" in css
+    assert "position:fixed" in css.split("body.phone-play #touch-mode{")[1].split("}")[0]
+
 
 
 def test_pointer_demo_listens_on_the_stage_not_the_dead_canvas():
@@ -221,7 +225,8 @@ def test_each_game_has_its_own_controls_and_launch_is_not_trace_letter():
     assert choose.count("armDeadline(") == 2
     assert "applyGameControls()" in choose
     trace = choose.split('state.game==="trace-letter"')[1].split("trace-picture")[0]
-    assert "armDeadline(" not in trace
+    assert "armTraceClock()" in trace
+    assert "function traceDeadlineMs" in script
 
     launch = script.split("function pickLaunchGame()")[1].split("\nfunction ")[0]
     assert 'get("game")' in launch and "Math.random" in launch and "if (requested)" in launch
@@ -229,5 +234,6 @@ def test_each_game_has_its_own_controls_and_launch_is_not_trace_letter():
 
     css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
     assert "body.phone-play #countdown:not(.hidden)" in css
-    hidden = css.split("body.phone-play .vision-readout,body.phone-play .vision-status{")[1].split("}")[0]
-    assert "countdown" not in hidden
+    shown = css.split("body.phone-play .vision-readout{")[1].split("}")[0]
+    assert "display:grid" in shown
+    assert "face" in script and "distance" in script and "trail_points" in script

@@ -1,4 +1,4 @@
-import { PUBLIC_DEMOS, publicDemoUrl } from "../publicDemos";
+import { PUBLIC_DEMOS, childrenLabTouchScript, publicDemoUrl } from "../publicDemos";
 
 describe("public demos", () => {
   test("matches the website demo pages", () => {
@@ -13,5 +13,13 @@ describe("public demos", () => {
     expect(publicDemoUrl("https://www.salareen.com/", "/children-lab?embed=mobile")).toBe(
       "https://www.salareen.com/children-lab?embed=mobile",
     );
+  });
+
+  test("pins the vision-lab touch switch on the screen", () => {
+    const script = childrenLabTouchScript();
+    expect(script).toContain("touch-mode");
+    expect(script).toContain("position:fixed");
+    expect(script).toContain("vision-readout");
+    expect(script).toContain("#countdown:not(.hidden)");
   });
 });

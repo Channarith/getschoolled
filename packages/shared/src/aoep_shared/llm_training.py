@@ -7,6 +7,9 @@ signals into the same instruction/response JSONL, then emit a GGUF+ONNX
 humanoid pack that the edge runtime already knows how to flash.
 
 No GPU, torch, or network is required for assemble / validate / robot-pack.
+CosyVoice speech fine-tune data is a separate pipeline
+(``aoep_shared.cosyvoice_ingest`` / ``scripts/cosyvoice_ingest.py``), not JSONL.
+
 Real weight updates still go through ``training/run_finetune.py`` on a CUDA
 host. Protected attributes (race, ethnicity) and raw names never enter
 example context.
@@ -31,7 +34,7 @@ CONDITIONING_FEATURES = (
 )
 PROTECTED_ATTRIBUTES = ("race", "ethnicity")
 PII_KEYS = ("name", "full_name", "email", "phone", "face_id", "voiceprint")
-SOURCES = ("library", "profiles", "webcam", "audio", "games", "rag")
+SOURCES = ("library", "profiles", "webcam", "audio", "games", "rag", "dictionary")
 
 _SLIDE_RE = re.compile(
     r"^SLIDE\s+(\d+)\s*\|\s*(.+)$",
@@ -126,7 +129,13 @@ def _iter_json_rows(path: Path) -> Iterator[Dict[str, Any]]:
             if isinstance(row, dict):
                 yield row
     elif isinstance(data, dict):
-        yield data
+        records = data.get("records") or data.get("vocabulary") or data.get("dictionary")
+        if isinstance(records, list):
+            for row in records:
+                if isinstance(row, dict):
+                    yield row
+        else:
+            yield data
 
 
 def parse_lesson_text(text: str, *, default_language: str = "en") -> Tuple[str, str, List[Dict[str, str]]]:
@@ -351,8 +360,118 @@ def examples_from_rag(row: Mapping[str, Any]) -> List[TrainingExample]:
     ]
 
 
+def examples_from_dictionary(row: Mapping[str, Any]) -> List[TrainingExample]:
+    """Turn an approved dictionary staging / pack row into supervised examples."""
+    status = str(row.get("review_status") or "auto")
+    if status == "rejected":
+        return []
+    lemma = str(row.get("lemma") or row.get("en") or row.get("phrase") or "").strip()
+    if not lemma:
+        return []
+    gloss = str(row.get("gloss_en") or row.get("meaning") or "").strip()
+    language = str(row.get("language") or "en")
+    kind = str(row.get("kind") or row.get("category") or "literal")
+    ctx = _safe_audience({"language": language, **(row.get("audience") or {})})
+    out: List[TrainingExample] = []
+
+    if gloss:
+        if kind in ("slang", "idiom", "figurative"):
+            instr = f"What does the {kind} '{lemma}' mean in plain language?"
+        else:
+            instr = f"What does '{lemma}' mean?"
+        out.append(
+            TrainingExample(
+                instruction=instr,
+                response=gloss,
+                context=ctx,
+                source="dictionary",
+                tags=["dictionary", "gloss", kind, language],
+            )
+        )
+
+    translations = row.get("translations") if isinstance(row.get("translations"), dict) else {}
+    km = translations.get("km") if isinstance(translations, dict) else None
+    if isinstance(km, dict) and km.get("target"):
+        target = str(km["target"]).strip()
+        roman = str(km.get("roman") or "").strip()
+        resp = target if not roman else f"{target} ({roman})"
+        out.append(
+            TrainingExample(
+                instruction=f"How do you say '{lemma}' in Khmer?",
+                response=resp,
+                context={**ctx, "language": "km"},
+                source="dictionary",
+                tags=["dictionary", "translation", "km"],
+            )
+        )
+    # Pack-shaped rows (en/target)
+    target = str(row.get("target") or "").strip()
+    if target and target.lower() != lemma.lower() and row.get("language") == "km":
+        out.append(
+            TrainingExample(
+                instruction=f"Translate to English: {target}",
+                response=str(row.get("en") or lemma),
+                context=ctx,
+                source="dictionary",
+                tags=["dictionary", "translation", "km"],
+            )
+        )
+
+    infl = row.get("inflections") if isinstance(row.get("inflections"), dict) else {}
+    for form_name, surface in (infl or {}).items():
+        surface_s = str(surface or "").strip()
+        if not surface_s or surface_s.lower() == lemma.lower():
+            continue
+        out.append(
+            TrainingExample(
+                instruction=f"What is the {form_name.replace('_', ' ')} form of '{lemma}'?",
+                response=surface_s,
+                context=ctx,
+                source="dictionary",
+                tags=["dictionary", "inflection", form_name],
+            )
+        )
+
+    for ex in list(row.get("examples") or [])[:2]:
+        if not isinstance(ex, dict):
+            continue
+        text = str(ex.get("text") or "").strip()
+        if not text or not gloss:
+            continue
+        out.append(
+            TrainingExample(
+                instruction=f"Explain the meaning of '{lemma}' in this sentence: {text}",
+                response=gloss,
+                context=ctx,
+                source="dictionary",
+                tags=["dictionary", "example"],
+            )
+        )
+    return out
+
+
+def export_dictionary_training_jsonl(
+    dictionary_root: os.PathLike[str] | str,
+    out_path: os.PathLike[str] | str,
+) -> int:
+    """Export approved/auto staging rows to JSONL for assemble / finetune."""
+    root = Path(dictionary_root)
+    examples: List[TrainingExample] = []
+    for lang in ("en", "km"):
+        path = root / "staging" / f"{lang}.jsonl"
+        if not path.is_file():
+            continue
+        for row in _iter_json_rows(path):
+            status = str(row.get("review_status") or "queued")
+            if status not in ("auto", "approved"):
+                continue
+            examples.extend(examples_from_dictionary(row))
+    return write_jsonl(examples, out_path)
+
+
 def _guess_source(path: Path) -> Optional[str]:
     name = path.name.lower()
+    parts = {p.lower() for p in path.parts}
     if "profile" in name:
         return "profiles"
     if "webcam" in name or "vision" in name:
@@ -361,6 +480,13 @@ def _guess_source(path: Path) -> Optional[str]:
         return "audio"
     if "game" in name:
         return "games"
+    if (
+        "dictionary" in name
+        or name.startswith("dictionary_export")
+        or name.endswith("_llm_train.jsonl")
+        or ("staging" in parts and path.suffix == ".jsonl" and name in {"en.jsonl", "km.jsonl"})
+    ):
+        return "dictionary"
     if "rag" in name or "golden" in name:
         return "rag"
     if path.suffix in {".txt"} or name.endswith(".course.json") or "lesson" in name:
@@ -408,12 +534,46 @@ def ingest_file(path: Path) -> List[TrainingExample]:
             examples.extend(examples_from_game(row))
         elif source == "rag":
             examples.extend(examples_from_rag(row))
+        elif source == "dictionary":
+            # Skip rejected when present; pack JSON may lack review_status.
+            if str(row.get("review_status") or "auto") == "rejected":
+                continue
+            examples.extend(examples_from_dictionary(row))
     return examples
+
+
+def _dictionary_roots() -> List[Path]:
+    """Auto-include staging/export when AOEP_DICTIONARY_DIR is explicitly set."""
+    raw = os.environ.get("AOEP_DICTIONARY_DIR", "").strip()
+    if not raw:
+        return []
+    root = Path(raw)
+    if not root.is_dir():
+        return []
+    paths: List[Path] = []
+    for lang in ("en", "km"):
+        p = root / "staging" / f"{lang}.jsonl"
+        if p.is_file():
+            paths.append(p)
+    export = root / "export"
+    if export.is_dir():
+        paths.append(export)
+    return paths
 
 
 def assemble(roots: Sequence[os.PathLike[str] | str]) -> List[TrainingExample]:
     examples: List[TrainingExample] = []
-    for path in discover_files([Path(r) for r in roots]):
+    search_roots = [Path(r) for r in roots] + _dictionary_roots()
+    # Deduplicate paths while preserving order
+    seen: set[str] = set()
+    files: List[Path] = []
+    for path in discover_files(search_roots):
+        key = str(path.resolve()) if path.exists() else str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        files.append(path)
+    for path in files:
         examples.extend(ingest_file(path))
     return examples
 
@@ -545,6 +705,8 @@ def default_roots() -> List[Path]:
 
 def assemble_report(roots: Optional[Sequence[os.PathLike[str] | str]] = None) -> Dict[str, Any]:
     paths = [Path(p) for p in (roots if roots is not None else default_roots())]
+    dict_roots = _dictionary_roots()
+    search = paths + dict_roots
     examples = assemble(paths)
     rows = [ex.to_dict() for ex in examples]
     problems = validate_examples(rows)
@@ -552,7 +714,8 @@ def assemble_report(roots: Optional[Sequence[os.PathLike[str] | str]] = None) ->
     return {
         "ok": not problems,
         "roots": [str(p) for p in paths],
-        "files": [str(p) for p in discover_files(paths)],
+        "dictionary_roots": [str(p) for p in dict_roots],
+        "files": [str(p) for p in discover_files(search)],
         "example_count": len(examples),
         "by_source": by_source,
         "problems": problems,

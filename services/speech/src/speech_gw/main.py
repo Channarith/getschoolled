@@ -569,6 +569,58 @@ def learn_pronounce(req: PronounceRequest) -> dict:
     return assess_pronunciation(req.target, req.heard, mouth_openness=req.mouth_openness)
 
 
+class ReadAloudNextRequest(BaseModel):
+    language: str = "en"
+    learner_id: str = "local"
+    seed: int | None = None
+
+
+@app.post("/learn/read-aloud/next")
+def learn_read_aloud_next(req: ReadAloudNextRequest) -> dict:
+    """Next progressive dictionary sentence for pronunciation / enunciation practice."""
+    from aoep_shared.dictionary_curriculum import next_read_aloud
+
+    if req.language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    result = next_read_aloud(
+        language=req.language,
+        learner_id=req.learner_id or "local",
+        seed=req.seed,
+    )
+    if result.get("error") == "no_sentences":
+        raise HTTPException(
+            status_code=404,
+            detail="no curriculum sentences — run scripts/dictionary/train_update.py",
+        )
+    return result
+
+
+class ReadAloudScoreRequest(BaseModel):
+    sentence: str
+    heard: str = ""
+    target_forms: list[str] = []
+    mouth_openness: float | None = None
+    language: str = "en"
+    learner_id: str = "local"
+
+
+@app.post("/learn/read-aloud/score")
+def learn_read_aloud_score(req: ReadAloudScoreRequest) -> dict:
+    """Score a read-aloud attempt with per-target enunciation feedback."""
+    from aoep_shared.dictionary_curriculum import score_read_aloud
+
+    if req.language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    return score_read_aloud(
+        sentence=req.sentence,
+        heard=req.heard,
+        target_forms=req.target_forms,
+        mouth_openness=req.mouth_openness,
+        learner_id=req.learner_id or "local",
+        language=req.language,
+    )
+
+
 class MusicVideoScoreRequest(BaseModel):
     language: str
     video_id: str = ""

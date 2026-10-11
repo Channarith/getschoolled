@@ -608,7 +608,8 @@ function stop() {
 }
 function shareViewer() {
   const q=new URLSearchParams({session:sessionId(),role:$('share-role').value,target:$('target-lang').value,source:$('source-lang').value});
-  const url=`${location.origin}/lab?${q}`; navigator.clipboard?.writeText(url); $('share-url').value=url;
+  const page = location.pathname.indexOf('/audio-lab') === 0 ? '/audio-lab' : '/lab';
+  const url=`${location.origin}${page}?${q}`; navigator.clipboard?.writeText(url); $('share-url').value=url;
 }
 
 $('start').onclick=()=>start().catch(e=>status(e.message,'bad'));

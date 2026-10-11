@@ -40,6 +40,14 @@ presenter = [
     "edge-tts==6.1.12",
     "pymupdf==1.24.9",
 ]
+# Video→CosyVoice training ingest (scripts/cosyvoice_ingest.py).
+# yt-dlp downloads operator-supplied YouTube/Vimeo URLs; faster-whisper is
+# local ASR (same pin family as theodore_music_lab[asr]). ffmpeg required on PATH.
+cosyvoice-ingest = [
+    "yt-dlp==2025.9.26",
+    "faster-whisper==1.0.3",
+    "requests>=2.31,<3",
+]
 # Vultr Object Storage (S3-compatible). Lazy-imported by CloudObjectStore;
 # the local filesystem store does not need it.
 object-store = [

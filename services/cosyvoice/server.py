@@ -101,23 +101,36 @@ def _collect(result: Any) -> List[int]:
 
 
 def synthesize(model: Any, req: TtsRequest, prompt_speech: Any = None) -> bytes:
-    """Dispatch to the right CosyVoice 2 inference call and return WAV bytes."""
+    """Dispatch to the right CosyVoice inference call and return WAV bytes.
+
+    CosyVoice 2/3 expose ``inference_instruct2``; CosyVoice 1 (300M-SFT) uses
+    ``inference_instruct`` + enrolled speakers. When no reference audio is
+    provided we prefer SFT so dictionary / read-aloud synth works offline.
+    """
     text = (req.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
     sr = getattr(model, "sample_rate", None) or req.sample_rate or 24000
     mode = (req.mode or "").strip() or ("instruct2" if req.instruct else
                                         "zero_shot" if prompt_speech is not None else
-                                        "cross_lingual")
+                                        "sft")
+    has_instruct2 = hasattr(model, "inference_instruct2")
 
     if mode == "sft" or (prompt_speech is None and not req.instruct and mode not in ("cross_lingual",)):
         spk = req.speaker or _env("COSYVOICE_DEFAULT_SPK") or "中文女"
         result = model.inference_sft(text, spk, stream=False)
-    elif mode == "instruct2":
-        if prompt_speech is None:
-            raise HTTPException(status_code=422, detail="instruct2 needs a reference voice")
-        result = model.inference_instruct2(text, req.instruct or "Speak naturally.",
-                                           prompt_speech, stream=False)
+    elif mode in ("instruct2", "instruct"):
+        if has_instruct2:
+            if prompt_speech is None:
+                raise HTTPException(status_code=422, detail="instruct2 needs a reference voice")
+            result = model.inference_instruct2(text, req.instruct or "Speak naturally.",
+                                               prompt_speech, stream=False)
+        else:
+            # CosyVoice-300M-Instruct / SFT path: instruction + enrolled speaker.
+            spk = req.speaker or _env("COSYVOICE_DEFAULT_SPK") or "中文女"
+            result = model.inference_instruct(text, spk,
+                                              req.instruct or "Speak naturally.",
+                                              stream=False)
     elif mode == "cross_lingual":
         if prompt_speech is None:
             # No reference: fall back to a default enrolled speaker.
@@ -127,9 +140,16 @@ def synthesize(model: Any, req: TtsRequest, prompt_speech: Any = None) -> bytes:
             result = model.inference_cross_lingual(text, prompt_speech, stream=False)
     else:  # zero_shot
         if prompt_speech is None:
-            raise HTTPException(status_code=422, detail="zero_shot needs a reference voice")
-        result = model.inference_zero_shot(text, req.prompt_text or "",
-                                           prompt_speech, stream=False)
+            # Dictionary corpus often sends a speaker id without reference bytes.
+            # Prefer SFT when the model has enrolled speakers.
+            if hasattr(model, "list_available_spks") and model.list_available_spks():
+                spk = req.speaker or _env("COSYVOICE_DEFAULT_SPK") or "中文女"
+                result = model.inference_sft(text, spk, stream=False)
+            else:
+                raise HTTPException(status_code=422, detail="zero_shot needs a reference voice")
+        else:
+            result = model.inference_zero_shot(text, req.prompt_text or "",
+                                               prompt_speech, stream=False)
 
     samples = _collect(result)
     if not samples:
@@ -152,8 +172,13 @@ def _load_prompt_speech(req: TtsRequest) -> Any:
 
 
 def _load_model() -> Any:
-    """Load CosyVoice 2 with vLLM acceleration (lazy; GPU only)."""
-    from cosyvoice.cli.cosyvoice import CosyVoice2  # type: ignore
+    """Load CosyVoice via AutoModel (v1 / v2 / v3) — lazy; GPU recommended.
+
+    Defaults favor CosyVoice2 on Vultr; on a local Spark/GB10 box set
+    ``COSYVOICE_MODEL_DIR`` to a downloaded tree (e.g. CosyVoice-300M-SFT) and
+    ``COSYVOICE_USE_VLLM=0`` (vLLM is optional and often unavailable on aarch64).
+    """
+    from cosyvoice.cli.cosyvoice import AutoModel  # type: ignore
 
     model_dir = _env("COSYVOICE_MODEL_DIR", "/models/CosyVoice2-0.5B")
     if not os.path.isdir(model_dir):
@@ -161,8 +186,17 @@ def _load_model() -> Any:
         from modelscope import snapshot_download  # type: ignore
         snapshot_download(_env("COSYVOICE_MODEL_ID", "iic/CosyVoice2-0.5B"),
                           local_dir=model_dir)
-    use_vllm = _env("COSYVOICE_USE_VLLM", "1") not in ("0", "false", "no")
-    return CosyVoice2(model_dir, load_jit=False, load_trt=False, load_vllm=use_vllm, fp16=True)
+    use_vllm = _env("COSYVOICE_USE_VLLM", "0") not in ("0", "false", "no")
+    use_fp16 = _env("COSYVOICE_FP16", "1") not in ("0", "false", "no")
+    kwargs: dict = {"model_dir": model_dir, "fp16": use_fp16}
+    # CosyVoice2/3 accept load_vllm / load_jit / load_trt; CosyVoice1 (cosyvoice.yaml)
+    # does not — only pass those kwargs when the tree is v2/v3.
+    if os.path.exists(os.path.join(model_dir, "cosyvoice2.yaml")) \
+            or os.path.exists(os.path.join(model_dir, "cosyvoice3.yaml")):
+        kwargs["load_jit"] = False
+        kwargs["load_trt"] = False
+        kwargs["load_vllm"] = use_vllm
+    return AutoModel(**kwargs)
 
 
 def build_app(model: Any = None) -> FastAPI:
@@ -177,7 +211,8 @@ def build_app(model: Any = None) -> FastAPI:
     @app.get("/health")
     def health() -> dict:
         return {"ok": True, "ready": app.state.model is not None,
-                "vllm": _env("COSYVOICE_USE_VLLM", "1") not in ("0", "false", "no")}
+                "vllm": _env("COSYVOICE_USE_VLLM", "0") not in ("0", "false", "no"),
+                "model_dir": _env("COSYVOICE_MODEL_DIR", "/models/CosyVoice2-0.5B")}
 
     @app.post("/tts")
     def tts(req: TtsRequest) -> Response:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 from io import BytesIO
 
 import pytest
@@ -92,6 +93,24 @@ def test_xai_translation_and_cache(monkeypatch):
     assert calls["n"] == 1
     assert captured["auth"] == "Bearer test-key"
     assert "French" in captured["body"]["messages"][0]["content"]
+
+
+def test_failed_translation_is_not_cached(monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv("XAI_API_KEY", "test-key")
+    calls = {"n": 0}
+
+    def fake(req, timeout=None):
+        calls["n"] += 1
+        raise urllib.error.URLError("timed out")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake)
+    engine = TranslationEngine()
+    first = engine.translate("A long lesson sentence.", "en", "km")
+    second = engine.translate("A long lesson sentence.", "en", "km")
+    assert first.translated is False
+    assert second.translated is False
+    assert calls["n"] == 2
 
 
 def test_asr_requires_real_endpoint(monkeypatch):

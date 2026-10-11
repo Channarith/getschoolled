@@ -1,14 +1,18 @@
-Private lab: assemble library + profile + webcam/audio/game/RAG signals into a
-portable education LLM training corpus and robot GGUF pack metadata.
+Private lab: assemble library + profile + webcam/audio/game/RAG/dictionary
+signals into a portable education LLM training corpus and robot GGUF pack metadata.
 
 Port: 8019 (scripts/run_theodore_lab.sh llm)
 
 Features:
   - POST /api/llm/assemble   — scan fixtures (+ optional sample-curriculum)
+                              + AOEP_DICTIONARY_DIR staging/export (source=dictionary)
   - POST /api/llm/check      — fairness guardrail + finetune --check hints
   - POST /api/llm/robot-pack — GGUF/ONNX humanoid manifest metadata
   - POST /api/llm/robot-turn — offline mock robot teaching beat
   - Live audio agent widget (xAI / Gemini) like other Theodore labs
+
+Dictionary rows are grown in the Theodore RAG lab (:8095) corpus tab / export-llm;
+assemble() picks them up automatically when AOEP_DICTIONARY_DIR is set.
 
 GPU weight updates still run on a separate CUDA host:
   python3 training/run_finetune.py --offline --base-model /models/education-base ...

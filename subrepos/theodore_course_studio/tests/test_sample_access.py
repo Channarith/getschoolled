@@ -194,6 +194,16 @@ def test_studio_page_offers_the_sample_banner():
     assert 'id="audio-stage"' in page
     assert 'id="lesson-caption"' in page
     assert "audio-only" in page
+    assert "body.audio-only #teach-title" in page
+    assert "body.audio-only #quiz-box" in page
+    assert "body.audio-only #theodore-live-audio" in page
+    assert "body.audio-only .lesson-toolbar" in page
+    assert "position:fixed !important; inset:0 !important;" in page
+    assert 'class="audio-avatar"' not in page
+    assert "onDriveWaveTap" in STUDIO_JS
+    assert 'id="course-map"' in page
+    assert "syncVoiceToSlide" in STUDIO_JS
+    assert "/api/studio/teach/goto" in STUDIO_JS
     assert "library-panel" in page
     assert "public-course .library-panel { display:none" not in page
     assert "library.filter((row) => row.id === pinnedCourse)" not in STUDIO_JS

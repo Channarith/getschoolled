@@ -493,8 +493,7 @@ STUDIO_CSS = """
     .lesson-caption { display:none; margin:8px 0 0; padding:8px 12px; border-radius:12px;
       background:#1e3a5f; color:#fffaf3; font:600 16px/1.35 "Avenir Next", "Segoe UI", sans-serif;
       max-height:4.4em; overflow:hidden; }
-    body.phone-embed .teach-stage:not(.captions-off) #lesson-caption:not([hidden]),
-    body.audio-only .teach-stage:not(.captions-off) #lesson-caption:not([hidden]) { display:block; }
+    body.phone-embed .teach-stage:not(.captions-off) #lesson-caption:not([hidden]) { display:block; }
     @media (max-width:700px) {
       .picture-stage { grid-template-columns:1fr; }
       .teacher-stage-grid { grid-template-columns:1fr; }
@@ -642,6 +641,96 @@ STUDIO_CSS = """
   #btn-pause.is-paused::before { -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M4 2.5v11l9-5.5-9-5.5z'/></svg>") center / contain no-repeat; mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M4 2.5v11l9-5.5-9-5.5z'/></svg>") center / contain no-repeat; }
   #btn-review::before { -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 1.2V6h2.6L9 3.2zM4 8h8v1.2H4V8zm0 2.4h6V12H4v-1.6z'/></svg>") center / contain no-repeat; mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 1.2V6h2.6L9 3.2zM4 8h8v1.2H4V8zm0 2.4h6V12H4v-1.6z'/></svg>") center / contain no-repeat; }
   .toast.show { display:block; }
+  /* On the Go. The driver hears the class. The screen is only a waveform. */
+  body.audio-only { background:#070b14 !important; overflow:hidden; }
+  body.audio-only .study-bg,
+  body.audio-only header.mast,
+  body.audio-only .library-panel,
+  body.audio-only #teach-title,
+  body.audio-only .lesson-window-controls,
+  body.audio-only .teacher-stage-grid,
+  body.audio-only .lesson-stage-content,
+  body.audio-only #lesson-caption,
+  body.audio-only #quiz-box,
+  body.audio-only #game-box,
+  body.audio-only .sample-banner,
+  body.audio-only .sample-clock,
+  body.audio-only .proceed-cue,
+  body.audio-only .page-welcome,
+  body.audio-only .lesson-toolbar,
+  body.audio-only .talk-panel,
+  body.audio-only .toast,
+  body.audio-only #review-root,
+  body.audio-only .picture-stage,
+  body.audio-only .lesson-photo,
+  body.audio-only .theodore-avatar-wrap,
+  body.audio-only .audio-avatar { display:none !important; }
+  body.audio-only .layout,
+  body.audio-only .panel,
+  body.audio-only #teach-stage-home,
+  body.audio-only .teach-stage {
+    background:transparent !important; border:0 !important; box-shadow:none !important;
+    padding:0 !important; margin:0 !important; min-height:100dvh;
+  }
+  body.audio-only .audio-stage {
+    position:fixed !important; inset:0 !important; z-index:30;
+    display:flex !important; align-items:center; justify-content:center;
+    min-height:100dvh !important; max-height:none !important;
+    margin:0 !important; padding:0 8vw !important; border-radius:0 !important;
+    background:#070b14 !important;
+  }
+  body.audio-only .audio-bars { height:32vh; gap:7px; align-items:center; }
+  body.audio-only .audio-bars i {
+    width:9px; border-radius:99px;
+    height:calc(16px + var(--level, .22) * 24vh);
+    background:linear-gradient(180deg,#e8fdff,#3ec6e0);
+    animation-duration:.8s;
+  }
+  body.audio-only .audio-bars i:nth-child(odd) { animation-delay:.14s; }
+  body.audio-only .audio-bars i:nth-child(3n) { animation-delay:.28s; }
+  body.audio-only .audio-bars i:nth-child(4n) { animation-delay:.07s; }
+  @media (prefers-reduced-motion: reduce) {
+    body.audio-only .audio-bars i { animation:none !important; }
+  }
+  body:not(.audio-only) #drive-bar { display:none !important; }
+  body.audio-only #theodore-live-audio { display:block !important; }
+  body.audio-only #student-cam {
+    display:block !important; position:fixed !important; z-index:50;
+    top:max(64px, calc(8px + env(safe-area-inset-top))); right:12px; left:auto !important;
+    width:min(132px, 34vw);
+  }
+  body.audio-only #drive-bar {
+    position:fixed; z-index:40; top:max(10px, env(safe-area-inset-top));
+    left:12px; right:12px; display:flex; gap:8px;
+  }
+  body.audio-only #drive-bar label {
+    flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;
+    color:#d7e7ea; font:600 11px/1.2 "Avenir Next", "Segoe UI", sans-serif;
+  }
+  body.audio-only #drive-bar select {
+    width:100%; min-height:40px; border-radius:10px; border:1px solid #24515c;
+    background:#101820; color:#f4fbff; padding:0 8px; font-size:15px;
+  }
+  .course-map { position:absolute; z-index:8; left:12px; right:12px; bottom:12px;
+    display:flex; flex-direction:column; gap:6px; max-height:38vh; padding:10px 12px;
+    border-radius:16px; border:1px solid #5eead4; background:#07111ef2; color:#f8fafc;
+    box-shadow:0 10px 24px #0008; }
+  .course-map[hidden] { display:none !important; }
+  .course-map-head { display:flex; align-items:center; gap:8px; }
+  .course-map-percent { font:900 22px/1 "Avenir Next", "Segoe UI", sans-serif; color:#99f6e4; }
+  .course-map-count { flex:1; font-size:13px; color:#e2e8f0; }
+  .course-map-toggle { min-height:36px; }
+  .course-map-bar { height:6px; border-radius:99px; background:#1e293b; overflow:hidden; }
+  .course-map-bar i { display:block; height:100%; width:0; background:#2dd4bf; }
+  .course-map-scrub { width:100%; accent-color:#2dd4bf; }
+  .course-map-list { margin:0; padding:0; list-style:none; overflow:auto; }
+  .course-map-list button { display:block; width:100%; text-align:left; margin:4px 0;
+    background:#102029; color:#f8fafc; border-color:#24515c; }
+  .course-map-list button.is-current { border-color:#5eead4; color:#99f6e4; }
+  .course-map-list .chapter { margin:8px 0 2px; font-size:11px; letter-spacing:.06em;
+    text-transform:uppercase; color:#94a3b8; }
+  body.audio-only .course-map { position:fixed; z-index:40;
+    bottom:max(84px, calc(72px + env(safe-area-inset-bottom))); }
 
 """
 
@@ -818,6 +907,8 @@ STUDIO_JS = """
       if (!learnerId.endsWith(':audio')) learnerId += ':audio';
       teachSession = 'studio-teach-audio';
       document.body.classList.add('public-course', 'audio-only');
+      const waveStage = $('teach-stage');
+      if (waveStage) waveStage.classList.add('captions-off');
     }
     let theodoreAvatar = null;
     // The lesson plays straight through. Pause is the only hold.
@@ -2045,8 +2136,7 @@ STUDIO_JS = """
         return;
       }
       if (audioOnly) {
-        const stage = $('audio-stage');
-        if (stage && cam.parentElement !== stage) stage.appendChild(cam);
+        if (cam.parentElement !== document.body) document.body.appendChild(cam);
         pinStudioCamera();
         return;
       }
@@ -2179,6 +2269,7 @@ STUDIO_JS = """
     }
 
     function setCaptionsEnabled(enabled) {
+      if (document.body.classList.contains('audio-only')) enabled = false;
       captionsEnabled = !!enabled;
       $('teach-stage').classList.toggle('captions-off', !captionsEnabled);
       paintLessonCaption();
@@ -2403,9 +2494,6 @@ STUDIO_JS = """
           featured: false
         });
       });
-      if (audioOnly) {
-        library = library.filter((row) => row.id === 'drivers-ed' || row.id === 'food-safety');
-      }
       renderLibrary();
       if (pinnedCourse) {
         document.body.classList.add('public-course');
@@ -2429,6 +2517,19 @@ STUDIO_JS = """
       box.querySelectorAll('.item[data-lib]').forEach((el) => {
         el.onclick = () => openLibraryCourse(el.getAttribute('data-lib'));
       });
+      const picker = $('drive-course');
+      if (picker) {
+        const current = activeCourse && activeCourse.id;
+        picker.innerHTML = library.map((course) =>
+          `<option value="${esc(course.id)}">${esc(course.title)}</option>`
+        ).join('');
+        if (current && library.some((course) => course.id === current)) picker.value = current;
+        picker.onchange = () => {
+          const id = picker.value;
+          if (!id || (activeCourse && activeCourse.id === id)) return;
+          openLibraryCourse(id);
+        };
+      }
     }
 
     async function openLibraryCourse(id) {
@@ -2555,7 +2656,7 @@ STUDIO_JS = """
     }
 
     function languageSelects() {
-      return ['teach-lang', 'teach-lang-stage'].map($).filter(Boolean);
+      return ['teach-lang', 'teach-lang-stage', 'drive-lang'].map($).filter(Boolean);
     }
 
     function syncLanguageSelects() {
@@ -3449,6 +3550,22 @@ STUDIO_JS = """
       }
     }
 
+    function onDriveWaveTap() {
+      if (sampleIsComplete()) {
+        endSampleTrial(lastTeachPayload);
+        return;
+      }
+      if (document.body.classList.contains('is-speaking') && !lecturePaused) {
+        toggleLecturePause();
+        return;
+      }
+      if (lecturePaused) {
+        toggleLecturePause();
+        return;
+      }
+      readCurrentAloud();
+    }
+
     function toggleLecturePause() {
       if (sampleIsComplete()) {
         lecturePaused = true;
@@ -3598,6 +3715,82 @@ STUDIO_JS = """
       if (!line) return;
       const mark = ' · ' + prog.completion_percent + '% of the course';
       if (!line.textContent.includes('% of the course')) line.textContent += mark;
+    }
+
+    function coursePlacePercent(payload) {
+      const path = (payload && payload.path) || [];
+      const total = path.length || Number(payload && payload.progress && payload.progress.path_length) || 0;
+      if (!total) return 0;
+      const pos = Number(payload && payload.path_pos) || 0;
+      return Math.round(((pos + 1) / total) * 100);
+    }
+
+    function paintCourseMap(payload) {
+      const map = $('course-map');
+      if (!map || !payload || !Array.isArray(payload.path) || !payload.path.length) return;
+      const total = payload.path.length;
+      const pos = Math.max(0, Math.min(total - 1, Number(payload.path_pos) || 0));
+      const place = coursePlacePercent(payload);
+      const covered = payload.progress && payload.progress.completion_percent;
+      map.hidden = false;
+      const percent = $('course-map-percent');
+      const count = $('course-map-count');
+      const fill = $('course-map-fill');
+      const scrub = $('course-map-scrub');
+      if (percent) percent.textContent = place + '%';
+      if (count) {
+        const coveredMark = typeof covered === 'number' ? ' · covered ' + covered + '%' : '';
+        count.textContent = 'Slide ' + (pos + 1) + ' of ' + total + coveredMark;
+      }
+      if (fill) fill.style.width = place + '%';
+      if (scrub) {
+        scrub.max = String(total - 1);
+        scrub.value = String(pos);
+      }
+      const list = $('course-map-list');
+      if (!list) return;
+      const rows = Array.isArray(payload.outline) && payload.outline.length
+        ? payload.outline
+        : payload.path.map((_, index) => ({
+            path_pos: index,
+            title: 'Slide ' + (index + 1),
+            chapter: 1,
+            chapter_start: index === 0,
+            current: index === pos,
+          }));
+      list.innerHTML = rows.map((row) => {
+        const heading = row.chapter_start
+          ? '<div class="chapter">Chapter ' + row.chapter + '</div>' : '';
+        return heading + '<li><button type="button" data-path-pos="' + row.path_pos + '"' +
+          (row.current ? ' class="is-current"' : '') + '>' +
+          (row.path_pos + 1) + '. ' + esc(row.title || 'Slide') + '</button></li>';
+      }).join('');
+    }
+
+    async function jumpToPath(pathPos) {
+      if (!teachSession || sampleIsComplete()) return;
+      clearAutoAdvance();
+      stopSpeech();
+      const data = await api('/api/studio/teach/goto', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ session_id: teachSession, path_pos: pathPos })
+      });
+      renderTeach(data);
+    }
+
+    function syncVoiceToSlide(payload) {
+      if (lecturePaused || sampleIsComplete()) return;
+      if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__ || window.__THEODORE_LIVE_AUDIO_HOLD__) return;
+      if (!window.TheodoreLiveAudio || !window.TheodoreLiveAudio.noteActivity) return;
+      const turn = (payload && (payload.turn || payload)) || {};
+      const narration = String(turn.narration || turn.display_body || turn.title || '').trim();
+      if (!narration) return;
+      const title = String(turn.title || '');
+      window.TheodoreLiveAudio.noteActivity({
+        id: 'slide-' + String(payload.slide_index ?? payload.path_pos ?? title),
+        prompt: 'Stay on this lesson slide. Read it aloud, then wait. Do not change the subject. Title: ' +
+          title + '. ' + narration
+      });
     }
 
     function showTopicExamples(payload) {
@@ -4786,7 +4979,10 @@ STUDIO_JS = """
 
     window.addEventListener('theodore-live-audio', (event) => {
       paintProceedCue();
-      if (event.detail?.active && !event.detail?.paused && !window.__THEODORE_LIVE_AUDIO_HOLD__) stopSpeech();
+      if (event.detail?.active && !event.detail?.paused && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
+        stopSpeech();
+        if (lastTeachPayload) syncVoiceToSlide(lastTeachPayload);
+      }
       if (event.detail?.active && spokenActivityPrompt) {
         setTimeout(() => {
           if (!spokenActivityPrompt || !window.TheodoreLiveAudio || !window.TheodoreLiveAudio.noteActivity) return;
@@ -5151,6 +5347,7 @@ STUDIO_JS = """
       placeStudentCam();
       void ensureStudentCamera();
       paintSampleBanner(payload);
+      paintCourseMap(payload);
       armSampleClock(payload);
       if (payload.sample && payload.sample.complete) {
         lecturePaused = true;
@@ -5161,11 +5358,13 @@ STUDIO_JS = """
       if (payload.dynamic) {
         if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
           theodoreAvatar?.speak(turn.narration || turn.display_body || turn.title || '');
+          syncVoiceToSlide(payload);
         }
         return;
       }
       if (window.__THEODORE_LIVE_AUDIO_ACTIVE__ && !window.__THEODORE_LIVE_AUDIO_HOLD__) {
         theodoreAvatar?.speak(turn.narration || turn.display_body || turn.title || '');
+        syncVoiceToSlide(payload);
         return;
       }
       speakText(turn.narration || turn.display_body || '', payload.tts);
@@ -5200,6 +5399,26 @@ STUDIO_JS = """
     on('btn-resume', 'click', () => resumeTeach().catch((e) => toast(String(e.message || e))));
     on('btn-start-over', 'click', () => startOverTeach().catch((e) => toast(String(e.message || e))));
     on('btn-next', 'click', () => nextSlide().catch((e) => toast(String(e.message || e))));
+    on('course-map-toggle', 'click', () => {
+      const list = $('course-map-list');
+      if (!list) return;
+      list.hidden = !list.hidden;
+      const btn = $('course-map-toggle');
+      if (btn) {
+        btn.setAttribute('aria-expanded', list.hidden ? 'false' : 'true');
+        btn.textContent = list.hidden ? 'Outline' : 'Hide outline';
+      }
+    });
+    on('course-map-scrub', 'change', () => {
+      const scrub = $('course-map-scrub');
+      if (!scrub) return;
+      jumpToPath(Number(scrub.value)).catch((e) => toast(String(e.message || e)));
+    });
+    on('course-map-list', 'click', (event) => {
+      const button = event.target.closest('button[data-path-pos]');
+      if (!button) return;
+      jumpToPath(Number(button.getAttribute('data-path-pos'))).catch((e) => toast(String(e.message || e)));
+    });
     on('btn-pause', 'click', () => toggleLecturePause());
     on('btn-fullscreen', 'click', togglePresenterMode);
     on('btn-chrome', 'click', () => setStudioChromeHidden(!document.body.classList.contains('chrome-hidden')));
@@ -5216,6 +5435,11 @@ STUDIO_JS = """
     on('btn-captions', 'click', () => setCaptionsEnabled(!captionsEnabled));
     let proceedClickTimer = null;
     on('teach-stage', 'click', (event) => {
+      if (document.body.classList.contains('audio-only')) {
+        if (event.target.closest('button, input, select, textarea, a, label, #drive-bar, #course-map')) return;
+        onDriveWaveTap();
+        return;
+      }
       if (event.target.closest('button, input, select, textarea, a, label, .lesson-window-controls, .lesson-toolbar, .talk-panel, .quiz-box, .game-box, .activity, .theodore-avatar-wrap')) return;
       clearTimeout(proceedClickTimer);
       proceedClickTimer = setTimeout(() => {
@@ -5224,6 +5448,7 @@ STUDIO_JS = """
       }, 280);
     });
     on('teach-stage', 'dblclick', (event) => {
+      if (document.body.classList.contains('audio-only')) return;
       if (event.target.closest('button, input, select, textarea, a, .lesson-window-controls')) return;
       clearTimeout(proceedClickTimer);
       proceedClickTimer = null;
@@ -5257,6 +5482,7 @@ STUDIO_JS = """
     });
     on('teach-lang', 'change', (event) => applyTeachLanguage(event.target.value));
     on('teach-lang-stage', 'change', (event) => applyTeachLanguage(event.target.value));
+    on('drive-lang', 'change', (event) => applyTeachLanguage(event.target.value));
     // Escape leaves fullscreen without telling us, so follow the browser back.
     document.addEventListener('fullscreenchange', () => {
       if (!document.fullscreenElement) exitPresenterMode();
@@ -5339,6 +5565,14 @@ def render_studio_page() -> str:
     <div class="panel">
       <div id="teach-stage-home">
       <div class="teach-stage captions-off" id="teach-stage">
+        <div id="drive-bar" class="drive-bar">
+          <label>Course
+            <select id="drive-course" aria-label="Course"></select>
+          </label>
+          <label>Language
+            <select id="drive-lang" aria-label="Lesson language"></select>
+          </label>
+        </div>
         <div class="lesson-window-controls" aria-label="Lesson window controls">
           <label class="lesson-lang">Language
             <select id="teach-lang-stage" aria-label="Lesson language"></select>
@@ -5349,9 +5583,18 @@ def render_studio_page() -> str:
         </div>
         <h3 id="teach-title">Your lesson</h3>
         <div class="audio-stage" id="audio-stage" aria-label="Audio playing">
-          <div class="audio-avatar" aria-hidden="true"><i></i><i></i><b></b></div>
-          <div class="audio-bars" id="audio-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="audio-bars" id="audio-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         </div>
+        <aside id="course-map" class="course-map" hidden>
+          <div class="course-map-head">
+            <strong id="course-map-percent" class="course-map-percent">0%</strong>
+            <span id="course-map-count" class="course-map-count">Slide 1 of 1</span>
+            <button id="course-map-toggle" class="course-map-toggle" type="button" aria-expanded="false">Outline</button>
+          </div>
+          <div class="course-map-bar" aria-hidden="true"><i id="course-map-fill"></i></div>
+          <input id="course-map-scrub" class="course-map-scrub" type="range" min="0" max="0" value="0" aria-label="Skip to a part of the course" />
+          <ol id="course-map-list" class="course-map-list" hidden></ol>
+        </aside>
         <div class="teacher-stage-grid" id="teacher-stage-grid">
           <div id="teach-visual-timeline" class="visual-timeline-stage" hidden
                aria-live="polite" aria-label="Lesson visual sequence"></div>
