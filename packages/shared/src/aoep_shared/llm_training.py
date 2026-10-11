@@ -7,6 +7,9 @@ signals into the same instruction/response JSONL, then emit a GGUF+ONNX
 humanoid pack that the edge runtime already knows how to flash.
 
 No GPU, torch, or network is required for assemble / validate / robot-pack.
+CosyVoice speech fine-tune data is a separate pipeline
+(``aoep_shared.cosyvoice_ingest`` / ``scripts/cosyvoice_ingest.py``), not JSONL.
+
 Real weight updates still go through ``training/run_finetune.py`` on a CUDA
 host. Protected attributes (race, ethnicity) and raw names never enter
 example context.

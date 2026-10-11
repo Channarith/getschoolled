@@ -60,12 +60,23 @@ Quick script path
 -----------------
   export AOEP_DICTIONARY_DIR=$PWD/.cache/dictionary
   python3 scripts/dictionary/train_update.py
+  # CosyVoice (self-hosted; no ElevenLabs):
+  #   ./scripts/run_cosyvoice_local.sh
+  #   export COSYVOICE_URL=http://127.0.0.1:9880 COSYVOICE_DEFAULT_SPK=英文女
   python3 scripts/dictionary/train_update.py --ship-packs --synth   # needs COSYVOICE_URL
 
 Audio cleanup
 -------------
   Raw CosyVoice or mic takes → clean (high-pass, denoise, gate/trim, normalize).
   Only crisp/gold clips are fine-tune eligible.
+
+Scale CosyVoice fine-tune data from video
+-----------------------------------------
+  Operator-supplied YouTube/Vimeo URL lists (or local media) → same denoise path
+  → segments + ASR → CosyVoice Kaldi lists. See docs/cosyvoice-a2f.txt and:
+    python3 scripts/cosyvoice_ingest.py --urls-file urls.txt --language en \
+      --output-dir output/cosyvoice_en
+
 
 Tests
 -----

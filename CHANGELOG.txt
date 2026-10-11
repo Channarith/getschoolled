@@ -10,6 +10,11 @@ Format: newest first. No markdown per project convention.
 - 2026-10-10 - v0.52.0 - Tracing games show a countdown, the face and motion readout, and an air-touch or screen-touch switch.
 - 2026-10-10 - v0.52.0 - On the Go on the web has a waveform, course and language choices, and an xAI voice control.
 - 2026-10-10 - v0.52.0 - Long course translations can finish and resume instead of failing the whole course.
+
+- 2026-10-11 - v0.52.1 - CosyVoice→Audio2Face orchestrated loop (scripts/a2f_cosyvoice_loop): streams CosyVoice /tts PCM into A2F gRPC; aarch64 protocol stub (official NIM is amd64-only); Pipecat CosyVoice helper; docs/cosyvoice-a2f.txt.
+- 2026-10-11 - v0.52.1 - CosyVoice local Spark path: AutoModel CosyVoice-300M-SFT, vLLM off by default, scripts/run_cosyvoice_local.sh + COSYVOICE_DEFAULT_SPK for dictionary/read-aloud without ElevenLabs or Docker Desktop GPU.
+- 2026-10-11 - v0.52.1 - Video→CosyVoice training ingest: URL list / local media → denoise → segment → faster-whisper → Kaldi recipe via aoep_shared.cosyvoice_ingest and scripts/cosyvoice_ingest.py (extra packages/shared[cosyvoice-ingest]).
+- 2026-10-11 - v0.52.1 - Course batch translation: --verbose + heartbeats, 60s timeout, retries, no cache-poison on xAI timeouts; prefer concurrency 6–8.
 - 2026-10-11 - v0.51.6 - Student asks can generate on-screen teaching visuals (SVG scenes, state license comparisons, short animation frames) synced with the audio agent via /api/visuals/generate and Answer.visual.
 - 2026-10-11 - v0.51.5 - Theodore RAG lab owns the dictionary corpus + read-aloud console; llm_training.assemble gains a dictionary source from AOEP_DICTIONARY_DIR.
 - 2026-10-11 - v0.51.4 - Self-hosted EN+Khmer dictionary corpus: multi-baseline ingest, inflection tables, review queue, CosyVoice raw audio with noise-filter crisp QC, and a progressive sentence read-aloud trainer (pronunciation/enunciation) via /learn/read-aloud.

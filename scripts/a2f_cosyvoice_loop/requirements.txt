@@ -1,0 +1,8 @@
+# Pinned deps for CosyVoice → Audio2Face-3D orchestrated loop (aarch64 Spark).
+# Install nvidia_ace wheel from ~/code/Audio2Face-3D-Samples (see setup_venv.sh).
+grpcio==1.64.0
+protobuf==4.24.1
+numpy==1.26.4
+scipy==1.13.0
+httpx==0.27.2
+PyYAML==6.0.1

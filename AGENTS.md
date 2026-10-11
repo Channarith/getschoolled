@@ -136,8 +136,26 @@ write_pptx=True)` is mandatory; install `python-pptx` via
 
 Custom presenter voices: register reference audio under `voices/<id>/` via
 `python3 scripts/register_voice.py`; present with `--persona <id> --tts-engine clone`.
-Clone backends: Chatterbox (CHATTERBOX_TTS_URL), XTTS (XTTS_TTS_URL / SPEECH_BASE_URL),
-ElevenLabs (ELEVENLABS_API_KEY). Test all: `python3 scripts/test_voice_engines.py`.
+Clone backends: CosyVoice (`COSYVOICE_URL`, preferred — self-hosted; local Spark:
+`./scripts/run_cosyvoice_local.sh`, see `services/cosyvoice/README.txt`), Chatterbox
+(`CHATTERBOX_TTS_URL`), XTTS (`XTTS_TTS_URL` / `SPEECH_BASE_URL`), ElevenLabs
+(`ELEVENLABS_API_KEY`). Test all: `python3 scripts/test_voice_engines.py`.
+
+CosyVoice training ingest (operator-supplied YouTube/Vimeo URL lists or local
+media): `pip install -e 'packages/shared[cosyvoice-ingest]'` then
+`python3 scripts/cosyvoice_ingest.py --urls-file urls.txt --language en
+--output-dir output/cosyvoice_en`. Emits Kaldi lists under `04_cosyvoice/train/`
+plus `TRAIN_HANDOFF.txt` for `~/code/CosyVoice` recipes.
+
+CosyVoice → Audio2Face (Omniverse ACE): NGC key in gitignored `config/local.env`
+(`NGC_API_KEY`). On aarch64 Spark the official A2F-3D NIM is amd64-only — use the
+protocol stub + loop: `./scripts/a2f_cosyvoice_loop/run_stack.sh` (or `--loop`).
+Point `A2F_GRPC_URL` at a real NIM on an x86 GPU host when available. Pipecat
+wrapper: `scripts/pipecat_cosyvoice/pipeline_config.py`.
+
+Course library batch translation (not model training):
+`python3 scripts/translate_courses_batch.py --concurrency 6 --verbose`
+(retries + 60s timeout; high concurrency often times out on xAI).
 
 Environment / setup caveats (non-obvious):
 - The update script creates `.venv` (system Python 3.12; the repo's
