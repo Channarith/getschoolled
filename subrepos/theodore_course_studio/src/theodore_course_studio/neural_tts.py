@@ -103,8 +103,17 @@ def _voice_lang(language: str) -> str:
     """Map a teach-language tag onto a neural voice key.
 
     ``zh-HK`` must not collapse to Mandarin ``zh``. ``km-KH`` stays Khmer.
+    British, Australian, and Singapore English keep their region.
     """
     raw = (language or "en").strip().lower().replace("_", "-")
+    try:
+        from aoep_shared.languages import english_variety
+    except Exception:  # noqa: BLE001
+        english_variety = None  # type: ignore
+    if english_variety is not None:
+        variety = english_variety(raw)
+        if variety in {"en-GB", "en-AU", "en-SG"}:
+            return variety
     if (
         raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"}
         or raw.startswith("yue-")
@@ -124,6 +133,12 @@ def _voice_pair(language: str) -> tuple[str, str]:
     lang = _voice_lang(language)
     if lang == "yue":
         return _CANTONESE_VOICES
+    if lang == "en-GB":
+        return ("en-GB-SoniaNeural", "en-GB-RyanNeural")
+    if lang == "en-AU":
+        return ("en-AU-NatashaNeural", "en-AU-WilliamNeural")
+    if lang == "en-SG":
+        return ("en-SG-LunaNeural", "en-SG-WayneNeural")
     return VOICES.get(lang) or VOICES["en"]
 
 

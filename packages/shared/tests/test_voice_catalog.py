@@ -22,7 +22,7 @@ def test_catalog_has_requested_accents():
         "Castilian",
         "Southern US",
         "New York",
-        "Singaporean",
+        "Singlish",
         "Beijing Mandarin",
         "Cantonese (Guangzhou/HK)",
         "Fujianese / Hokkien",
@@ -56,6 +56,17 @@ def test_get_and_resolve():
     assert resolve_voice("nope", language="es").language == "es"
     assert resolve_voice("", language="en").language == "en"
     assert default_voice_for_language("zh").language == "zh"
+    assert default_voice_for_language("en").id == "en_us_f"
+    assert default_voice_for_language("en-US").id == "en_us_f"
+    assert default_voice_for_language("en-GB").id == "en_gb_f"
+    assert default_voice_for_language("en-GB").edge_voice == "en-GB-SoniaNeural"
+    assert default_voice_for_language("en-AU").edge_voice == "en-AU-NatashaNeural"
+    sg = default_voice_for_language("en-SG")
+    assert sg is not None and sg.id == "en_sg_f"
+    assert sg.edge_voice == "en-SG-LunaNeural"
+    assert sg.dialect == "en_sg"
+    assert resolve_voice("", language="en-GB").locale == "en-GB"
+    assert resolve_voice("en_us_f", language="en-GB").id == "en_us_f"
 
 
 def test_grouped_for_picker():

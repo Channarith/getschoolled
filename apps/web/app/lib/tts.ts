@@ -11,6 +11,7 @@
 import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
 } from "./voiceProfiles";
+import { englishBcp47, englishSpokenCode } from "./englishVariety";
 
 // BCP-47 tag for every platform-supported language, so TTS uses a
 // right-accent voice for the spoken (training) locale.
@@ -32,6 +33,8 @@ export function localeToBcp47(locale: string): string {
   ) return "zh-HK";
   if (raw === "km" || raw.startsWith("km-")) return "km-KH";
   if (raw === "zh" || raw.startsWith("zh-cn")) return "zh-CN";
+  const english = englishBcp47(raw);
+  if (english) return english;
   return LOCALE_TO_BCP47[raw] || LOCALE_TO_BCP47[raw.split("-")[0]] || locale || "en-US";
 }
 
@@ -44,6 +47,8 @@ export function spokenLanguageCode(locale: string | undefined): string {
     raw === "zh-mo" || raw.startsWith("zh-mo")
   ) return "yue";
   if (raw === "km" || raw.startsWith("km-")) return "km";
+  const english = englishSpokenCode(raw);
+  if (english) return english;
   return raw.split("-")[0] || "en";
 }
 
@@ -63,8 +68,8 @@ const PREMIUM_VOICES = /\b(natural|neural|wavenet|journey|studio|premium|enhance
 const GOOD_VOICES = /(google|online|siri|samantha|aria|jenny|guy|libby|sonia)/;
 // Heuristic gendered voice-name tokens so the male/female voice choice biases
 // the on-device voice too (browsers rarely expose a structured gender field).
-const FEMALE_VOICES = /\b(female|woman|aria|jenny|sonia|natasha|clara|leah|samantha|susan|zira|hazel|catherine|fiona|moira|tessa|karen|serena|allison|ava|joanna|emma|amy|libby|michelle|nova|elvira|dalia|elena|paloma|denise|sylvie|katja|elsa|francisca|raquel|nanami|sunhi|swara|xiaoxiao|hsiaochen|hiumaan|neerja|emily)\b/;
-const MALE_VOICES = /\b(male|man|guy|ryan|william|davis|george|mark|daniel|alex|fred|tom|oliver|james|brian|arthur|eric|conrad|alvaro|jorge|prabhat|yunxi)\b/;
+const FEMALE_VOICES = /\b(female|woman|aria|jenny|sonia|natasha|clara|leah|luna|samantha|susan|zira|hazel|catherine|fiona|moira|tessa|karen|serena|allison|ava|joanna|emma|amy|libby|michelle|nova|elvira|dalia|elena|paloma|denise|sylvie|katja|elsa|francisca|raquel|nanami|sunhi|swara|xiaoxiao|hsiaochen|hiumaan|neerja|emily)\b/;
+const MALE_VOICES = /\b(male|man|guy|ryan|william|davis|wayne|george|mark|daniel|alex|fred|tom|oliver|james|brian|arthur|eric|conrad|alvaro|jorge|prabhat|yunxi)\b/;
 
 // Higher = more natural. Pure function so it can be unit-tested.
 export function scoreVoice(

@@ -12,6 +12,7 @@ import { ensureLiveRoomNarrationRoute, liveKitAudioActive } from "./components/l
 import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
 } from "./voiceProfiles";
+import { englishBcp47, englishSpokenCode } from "./i18n/englishVariety";
 
 // BCP-47 tag for every platform-supported language, so TTS uses a
 // right-accent voice for the spoken (training) locale.
@@ -33,6 +34,8 @@ export function localeToBcp47(locale: string): string {
   ) return "zh-HK";
   if (raw === "km" || raw.startsWith("km-")) return "km-KH";
   if (raw === "zh" || raw.startsWith("zh-cn")) return "zh-CN";
+  const english = englishBcp47(raw);
+  if (english) return english;
   return LOCALE_TO_BCP47[raw] || LOCALE_TO_BCP47[raw.split("-")[0]] || locale || "en-US";
 }
 
@@ -45,6 +48,8 @@ export function spokenLanguageCode(locale: string | undefined): string {
     raw === "zh-mo" || raw.startsWith("zh-mo")
   ) return "yue";
   if (raw === "km" || raw.startsWith("km-")) return "km";
+  const english = englishSpokenCode(raw);
+  if (english) return english;
   return raw.split("-")[0] || "en";
 }
 
@@ -126,8 +131,8 @@ export async function warmVoices(): Promise<void> {
 
 // Heuristic gendered voice-name tokens so a male/female choice biases the
 // on-device voice too (the OS voice list rarely exposes a structured gender).
-const FEMALE_VOICES = /\b(female|woman|aria|jenny|sonia|natasha|clara|leah|samantha|susan|zira|hazel|catherine|fiona|moira|tessa|karen|serena|allison|ava|joanna|emma|amy|libby|michelle|nova|elvira|dalia|elena|paloma|denise|sylvie|katja|elsa|francisca|raquel|nanami|sunhi|swara|xiaoxiao|hsiaochen|hiumaan|neerja|emily)\b/;
-const MALE_VOICES = /\b(male|man|guy|ryan|william|davis|george|mark|daniel|alex|fred|tom|oliver|james|brian|arthur|eric|conrad|alvaro|jorge|prabhat|yunxi|aaron|arthur)\b/;
+const FEMALE_VOICES = /\b(female|woman|aria|jenny|sonia|natasha|clara|leah|luna|samantha|susan|zira|hazel|catherine|fiona|moira|tessa|karen|serena|allison|ava|joanna|emma|amy|libby|michelle|nova|elvira|dalia|elena|paloma|denise|sylvie|katja|elsa|francisca|raquel|nanami|sunhi|swara|xiaoxiao|hsiaochen|hiumaan|neerja|emily)\b/;
+const MALE_VOICES = /\b(male|man|guy|ryan|william|davis|wayne|george|mark|daniel|alex|fred|tom|oliver|james|brian|arthur|eric|conrad|alvaro|jorge|prabhat|yunxi|aaron)\b/;
 
 // Approximate an instructor personality with prosody multipliers so picking
 // child/strict/energetic/… audibly changes the on-device voice (mirrors web).

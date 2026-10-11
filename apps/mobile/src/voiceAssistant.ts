@@ -9,6 +9,7 @@
 import { Linking, Platform } from "react-native";
 
 import { isExpoSpeechRecognitionAvailable, tryRequireModule } from "./nativeModules";
+import { englishBcp47 } from "./i18n/englishVariety";
 
 const LOCALE_TO_BCP47: Record<string, string> = {
   en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT",
@@ -17,7 +18,10 @@ const LOCALE_TO_BCP47: Record<string, string> = {
 };
 
 function localeToBcp47(locale: string): string {
-  return LOCALE_TO_BCP47[locale] || locale || "en-US";
+  const raw = (locale || "").trim().toLowerCase().replace(/_/g, "-");
+  const english = englishBcp47(raw);
+  if (english) return english;
+  return LOCALE_TO_BCP47[locale] || LOCALE_TO_BCP47[raw] || locale || "en-US";
 }
 
 export type VoiceEngineLabel = "Siri" | "Google" | "Alexa" | "System" | "Browser";

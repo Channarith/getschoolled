@@ -61,7 +61,8 @@ VOICE_CATALOG: List[Voice] = [
     Voice("en_in_f", "Indian — Neerja (F)", "en", "en-IN", "Indian", "female", "en-IN-NeerjaNeural", dialect="en_in"),
     Voice("en_in_m", "Indian — Prabhat (M)", "en", "en-IN", "Indian", "male", "en-IN-PrabhatNeural", dialect="en_in"),
     Voice("en_ca_f", "Canadian — Clara (F)", "en", "en-CA", "Canadian", "female", "en-CA-ClaraNeural", dialect="en_ca"),
-    Voice("en_sg_f", "Singaporean — Sonia (F)", "en", "en-GB", "Singaporean", "female", "en-GB-SoniaNeural", dialect="en_sg"),
+    Voice("en_sg_f", "Singlish — Luna (F)", "en", "en-SG", "Singlish", "female", "en-SG-LunaNeural", dialect="en_sg"),
+    Voice("en_sg_m", "Singlish — Wayne (M)", "en", "en-SG", "Singlish", "male", "en-SG-WayneNeural", dialect="en_sg"),
     Voice("en_za_f", "South African — Leah (F)", "en", "en-ZA", "South African", "female", "en-ZA-LeahNeural", dialect="en_za"),
     # --- Spanish --------------------------------------------------------- #
     Voice("es_es_f", "Spanish (Spain) — Elvira (F)", "es", "es-ES", "Castilian", "female", "es-ES-ElviraNeural"),
@@ -116,7 +117,16 @@ def default_voice_for_language(language: str) -> Optional[Voice]:
     Cantonese (``yue``, ``zh-HK``) is not the first Chinese row. That row is
     Beijing Mandarin. Cantonese uses the Hong Kong neural voice.
     """
+    from .languages import english_variety
+
     raw = (language or "en").strip().lower().replace("_", "-")
+    variety = english_variety(raw)
+    if variety == "en-GB":
+        return get_voice("en_gb_f")
+    if variety == "en-AU":
+        return get_voice("en_au_f")
+    if variety == "en-SG":
+        return get_voice("en_sg_f")
     if (
         raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"}
         or raw.startswith("yue-")

@@ -258,7 +258,7 @@ DIALECTS: Dict[str, DialectProfile] = {
         tutor_tone_hint="Canadian English — polite, eh lightly, friendly and clear.",
     ),
     "en_sg": DialectProfile(
-        id="en_sg", language="en", label="Singaporean", region="sg",
+        id="en_sg", language="en", label="Singlish", region="sg",
         intro_template=(
             "Okay lah — today we cover {title}. "
             "We go through {preview}{tail}. Any question, just ask, can."

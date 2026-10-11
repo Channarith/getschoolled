@@ -188,6 +188,22 @@ def language_instruction(language: str) -> str:
             "Do not respond in Cantonese. "
             "Keep the tone warm, concise, and suitable for spoken tutoring."
         )
+    if code == "en" and name == "British English":
+        return (
+            "Respond in British English. Use British vocabulary and pronunciation, "
+            "not American English. Keep the tone warm, concise, and suitable for spoken tutoring."
+        )
+    if code == "en" and name == "Australian English":
+        return (
+            "Respond in Australian English. Use Australian vocabulary and pronunciation, "
+            "not American English. Keep the tone warm, concise, and suitable for spoken tutoring."
+        )
+    if code == "en" and name == "Singapore English":
+        return (
+            "Respond in Singapore English (Singlish) with a clear teaching tone. "
+            "Light particles such as lah and can are fine. Do not speak American English. "
+            "Keep the tone warm, concise, and suitable for spoken tutoring."
+        )
     if code == "en":
         return "Respond in clear, spoken English."
     return (
