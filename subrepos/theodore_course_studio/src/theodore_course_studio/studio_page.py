@@ -833,17 +833,61 @@ STUDIO_CSS = """
     transform:translateX(-50%); width:min(560px, calc(100vw - 24px)); margin:0; padding:14px 16px;
     border-radius:16px; background:#1c1408f2; border:1px solid #f59e0b; color:#fde68a;
     font:700 16px/1.45 "Avenir Next", "Segoe UI", sans-serif; text-align:center; pointer-events:none;
+    transition: transform .28s ease, opacity .28s ease, width .28s ease, padding .28s ease, top .28s ease;
   }
   #presence-hold[hidden] { display:none !important; }
-  body.audio-only.drive-chrome-hidden #presence-hold:not([hidden]),
-  body.presenting.drive-chrome-hidden #presence-hold:not([hidden]) { display:block !important; }
+  /* Full-screen focus: park chrome at the edge after the idle timer. Content stays clear. */
   body.audio-only.drive-chrome-hidden #drive-bar,
   body.audio-only.drive-chrome-hidden #student-cam,
   body.audio-only.drive-chrome-hidden #theodore-live-audio,
   body.audio-only.drive-chrome-hidden #course-map,
+  body.audio-only.drive-chrome-hidden #course-price,
+  body.audio-only.drive-chrome-hidden #attention-aside,
+  body.audio-only.drive-chrome-hidden #lesson-toolbar,
+  body.audio-only.drive-chrome-hidden #talk-panel,
+  body.audio-only.drive-chrome-hidden .lesson-window-controls,
+  body.audio-only.drive-chrome-hidden .student-cam-status,
+  body.audio-only.drive-chrome-hidden .student-cam-note,
   body.presenting.drive-chrome-hidden #student-cam,
   body.presenting.drive-chrome-hidden #theodore-live-audio,
-  body.presenting.drive-chrome-hidden #course-map { display:none !important; }
+  body.presenting.drive-chrome-hidden #course-map,
+  body.presenting.drive-chrome-hidden #course-price,
+  body.presenting.drive-chrome-hidden #attention-aside,
+  body.presenting.drive-chrome-hidden #lesson-toolbar,
+  body.presenting.drive-chrome-hidden #talk-panel,
+  body.presenting.drive-chrome-hidden .lesson-window-controls,
+  body.presenting.drive-chrome-hidden .student-cam-status,
+  body.presenting.drive-chrome-hidden .student-cam-note,
+  body.presenting.drive-chrome-hidden .avatar-label { display:none !important; }
+  /* Keep a slim top-edge presence chip so the hold is still visible without covering the lesson. */
+  body.presenting.drive-chrome-hidden #presence-hold:not([hidden]),
+  body.audio-only.drive-chrome-hidden #presence-hold:not([hidden]) {
+    display:block !important;
+    top:max(6px, env(safe-area-inset-top));
+    left:12px; right:auto; transform:none;
+    width:auto; max-width:min(42vw, 280px);
+    padding:6px 10px; border-radius:999px;
+    font-size:12px; line-height:1.25; text-align:left;
+    opacity:.92; pointer-events:none;
+  }
+  #fs-chrome-edge {
+    display:none; position:fixed; z-index:10060;
+    top:50%; right:0; transform:translateY(-50%);
+    width:22px; min-height:88px; padding:10px 4px;
+    border:1px solid rgba(94,224,255,.45); border-right:0;
+    border-radius:12px 0 0 12px;
+    background:rgba(7,17,30,.88); color:#c9f7ff;
+    font:700 11px/1.1 "Avenir Next", "Segoe UI", sans-serif;
+    letter-spacing:.04em; writing-mode:vertical-rl; text-orientation:mixed;
+    cursor:pointer; touch-action:manipulation;
+  }
+  #fs-chrome-edge:hover, #fs-chrome-edge:focus-visible {
+    width:28px; background:rgba(12,28,44,.96); outline:none;
+  }
+  body.presenting.drive-chrome-hidden #fs-chrome-edge,
+  body.audio-only.drive-chrome-hidden #fs-chrome-edge { display:block; }
+  body.presenting:not(.drive-chrome-hidden) #fs-chrome-edge,
+  body.audio-only:not(.drive-chrome-hidden) #fs-chrome-edge { display:none; }
 
     /* Project Serenity holographic teacher (demo + full courses). */
     .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-persona="serenity"]) {
@@ -1437,20 +1481,35 @@ STUDIO_JS = """
 
     let driveChromeTimer = 0;
     let driveChromeWasHidden = false;
+    // Full-screen / on-the-go: clear overlapping controls so the lesson is readable.
+    const FS_CHROME_HIDE_MS = 2000;
     function parkSampleClock() {
       if (!document.body.classList.contains('audio-only')) return;
       const clock = $('sample-clock');
       if (clock && clock.parentElement !== document.body) document.body.appendChild(clock);
     }
+    function focusModeActive() {
+      return document.body.classList.contains('audio-only') || presenterActive()
+        || !!document.fullscreenElement;
+    }
     function setDriveChromeHidden(hidden) {
       document.body.classList.toggle('drive-chrome-hidden', !!hidden);
+      const edge = $('fs-chrome-edge');
+      if (edge) {
+        edge.hidden = !hidden || !focusModeActive();
+        edge.setAttribute('aria-expanded', String(!hidden));
+      }
     }
     function revealDriveChrome() {
-      const audio = document.body.classList.contains('audio-only');
-      if (!audio && !presenterActive()) return;
+      if (!focusModeActive()) return;
       setDriveChromeHidden(false);
+      // Also tuck the language / CC / options strip after the same idle window.
+      if (presenterActive() || document.fullscreenElement) setStudioChromeHidden(false);
       clearTimeout(driveChromeTimer);
-      driveChromeTimer = setTimeout(() => setDriveChromeHidden(true), 4000);
+      driveChromeTimer = setTimeout(() => {
+        setDriveChromeHidden(true);
+        if (presenterActive() || document.fullscreenElement) setStudioChromeHidden(true);
+      }, FS_CHROME_HIDE_MS);
     }
     function setStudioChromeHidden(hidden) {
       document.body.classList.toggle('chrome-hidden', !!hidden);
@@ -2524,7 +2583,11 @@ STUDIO_JS = """
     let studentWasPresent = false;
     let lastStudentSeenAt = 0;
     let studentBackSince = 0;
+    let studentGoneSince = 0;
     const ABSENCE_HOLD_MS = 600;
+    // Face/contour mesh flickers; require a short solid return before auto-resume.
+    const PRESENCE_RESUME_MS = 900;
+    const PRESENCE_MISS_GRACE_MS = 350;
     const PRESENCE_PHONE = "Looks like you might be looking down at a phone. The lesson is still here when you look up.";
     const PRESENCE_AWAY = "Look back at the screen when you can. I'll keep going from here.";
     let glanceNoted = '';
@@ -2555,18 +2618,34 @@ STUDIO_JS = """
       return tracks.some((track) => track.readyState === 'live');
     }
 
+    function learnerLocallyBack() {
+      return !!(studentBackSince && (Date.now() - studentBackSince) >= PRESENCE_RESUME_MS);
+    }
+
     function noteStudentInFrame(seen) {
       if (seen) {
         studentWasPresent = true;
+        studentGoneSince = 0;
         if (!learningHold) {
           lastStudentSeenAt = Date.now();
           studentBackSince = 0;
-        } else {
-          if (!studentBackSince) studentBackSince = Date.now();
-          if (Date.now() - studentBackSince >= 1200) lastStudentSeenAt = Date.now();
+          return;
+        }
+        // On an away-hold, mesh/contours mean the learner returned — debounce,
+        // then resume here. Do not wait on the server hold flag; applyLearningHold
+        // used to early-return into pause while lastStudentSeenAt was still stale.
+        if (!studentBackSince) studentBackSince = Date.now();
+        if (learnerLocallyBack()) {
+          lastStudentSeenAt = Date.now();
+          if (holdGroup(learningHoldReason) === 'away') {
+            resumeLessonAfterPresence();
+          }
         }
         return;
       }
+      if (!studentGoneSince) studentGoneSince = Date.now();
+      // Ignore brief mesh dropouts so a one-frame miss does not reset the return timer.
+      if (Date.now() - studentGoneSince < PRESENCE_MISS_GRACE_MS) return;
       studentBackSince = 0;
       if (studentStillAway()) pauseLessonForAbsence(PRESENCE_PAUSE);
     }
@@ -2574,6 +2653,7 @@ STUDIO_JS = """
     function watchStudentPresence() {
       if (document.visibilityState === 'hidden') {
         studentBackSince = 0;
+        studentGoneSince = Date.now();
         if (studentStillAway()) pauseLessonForAbsence(PRESENCE_PAUSE);
         return;
       }
@@ -2588,6 +2668,7 @@ STUDIO_JS = """
 
     function studentStillAway() {
       if (!studentWasPresent || !lastStudentSeenAt) return false;
+      if (learnerLocallyBack()) return false;
       if (!cameraIsLive() && document.visibilityState !== 'hidden') return false;
       return Date.now() - lastStudentSeenAt >= ABSENCE_HOLD_MS;
     }
@@ -2630,11 +2711,15 @@ STUDIO_JS = """
       }
       learningHold = false;
       learningHoldReason = '';
+      studentBackSince = 0;
+      studentGoneSince = 0;
+      lastStudentSeenAt = Date.now();
       document.body.classList.remove('presence-held');
       hidePresenceBanner();
-      setLearningStatus('Present. Continuing the same lesson.');
+      setLearningStatus(PRESENCE_RESUME);
       rememberStudioPresence('returned');
       if (!lecturePaused && !learningCheckOpen) sayPresenceLine(PRESENCE_RESUME, continueSameLesson);
+      else if (!lecturePaused) continueSameLesson();
     }
 
     function continueSameLesson() {
@@ -2706,6 +2791,10 @@ STUDIO_JS = """
 
     function applyLearningHold(data) {
       const status = $('student-cam-status');
+      // Local face/contour return wins over a lagging server "still absent" hold.
+      if (learnerLocallyBack() && learningHold && holdGroup(learningHoldReason) === 'away') {
+        resumeLessonAfterPresence();
+      }
       if (studentStillAway()) {
         pauseLessonForAbsence(PRESENCE_PAUSE);
         return;
@@ -2714,7 +2803,12 @@ STUDIO_JS = """
         setLearningStatus(lessonChrome().watching);
         return;
       }
-      const backFromAbsence = data && data.hold && absenceHold(data) && studentWasPresent;
+      // Server may still report absent for a tick after the face is back; treat
+      // local return + absence hold as "back" so we do not re-pause.
+      const backFromAbsence = (
+        (data && data.hold && absenceHold(data) && studentWasPresent)
+        || learnerLocallyBack()
+      );
       if (!data || !data.hold || backFromAbsence) {
         clearGlance();
         if (learningHold && holdGroup(learningHoldReason) === 'away') {
@@ -6350,7 +6444,35 @@ STUDIO_JS = """
     confirmCoursePayment();
     on('btn-pause', 'click', () => toggleLecturePause());
     on('btn-fullscreen', 'click', togglePresenterMode);
-    on('btn-chrome', 'click', () => setStudioChromeHidden(!document.body.classList.contains('chrome-hidden')));
+    on('btn-chrome', 'click', () => {
+      const hide = !document.body.classList.contains('chrome-hidden');
+      setStudioChromeHidden(hide);
+      if (focusModeActive()) {
+        if (hide) setDriveChromeHidden(true);
+        else revealDriveChrome();
+      }
+    });
+    on('fs-chrome-edge', 'click', () => {
+      driveChromeWasHidden = true;
+      revealDriveChrome();
+    });
+    // Swipe inward from the right edge to pull chrome back in full screen.
+    let edgeSwipe = null;
+    document.addEventListener('pointerdown', (event) => {
+      if (!focusModeActive() || !document.body.classList.contains('drive-chrome-hidden')) return;
+      if (event.clientX < window.innerWidth - 28) return;
+      edgeSwipe = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    }, true);
+    document.addEventListener('pointerup', (event) => {
+      if (!edgeSwipe || event.pointerId !== edgeSwipe.id) return;
+      const dx = edgeSwipe.x - event.clientX;
+      const dy = Math.abs(edgeSwipe.y - event.clientY);
+      edgeSwipe = null;
+      if (dx > 36 && dy < 80) {
+        driveChromeWasHidden = true;
+        revealDriveChrome();
+      }
+    }, true);
     window.addEventListener('message', (event) => {
       const data = event.data;
       if (!data || data.type !== 'salareen-chrome') return;
@@ -6680,6 +6802,8 @@ def render_studio_page() -> str:
     </div>
   </div>
   <p id="presence-hold" role="status" aria-live="assertive" hidden></p>
+  <button id="fs-chrome-edge" type="button" hidden aria-expanded="true"
+          title="Show options" aria-label="Show options from the edge">Options</button>
   <button id="course-price" type="button" hidden>Full course $19.99</button>
   <div id="pay-screen" hidden>
     <form>

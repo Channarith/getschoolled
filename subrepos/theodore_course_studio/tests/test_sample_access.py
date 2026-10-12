@@ -204,6 +204,10 @@ def test_studio_page_offers_the_sample_banner():
     assert "body.audio-only #sample-clock" in page
     assert "drive-chrome-hidden" in page
     assert "revealDriveChrome" in STUDIO_JS
+    assert "FS_CHROME_HIDE_MS = 2000" in STUDIO_JS
+    assert 'id="fs-chrome-edge"' in page
+    assert "body.presenting.drive-chrome-hidden #course-price" in page
+    assert "body.presenting.drive-chrome-hidden .lesson-window-controls" in page
     assert "body.audio-only .lesson-toolbar" in page
     assert "position:fixed !important; inset:0 !important;" in page
     assert 'class="audio-avatar"' not in page
@@ -215,6 +219,12 @@ def test_studio_page_offers_the_sample_banner():
     assert "studentStillAway" in STUDIO_JS
     assert "function pauseLessonForAbsence" in STUDIO_JS
     assert "ABSENCE_HOLD_MS = 600" in STUDIO_JS
+    assert "PRESENCE_RESUME_MS" in STUDIO_JS
+    assert "learnerLocallyBack" in STUDIO_JS
+    assert "resumeLessonAfterPresence" in STUDIO_JS
+    # Returning face/contours must resume locally — not only when the server clears hold.
+    assert "holdGroup(learningHoldReason) === 'away'" in STUDIO_JS
+    assert "learnerLocallyBack() && learningHold" in STUDIO_JS
     assert "watchStudentPresence" in STUDIO_JS
     assert "setInterval(watchStudentPresence, 200)" in STUDIO_JS
     assert "fullDriversProgram()" not in STUDIO_JS.split("function pauseLessonForAbsence")[0][-400:]
