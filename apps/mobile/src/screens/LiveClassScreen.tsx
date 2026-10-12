@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated, ActivityIndicator, FlatList, RefreshControl, ScrollView,
+  Animated, ActivityIndicator, Platform, RefreshControl, ScrollView,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 
@@ -33,6 +33,11 @@ const AUDIENCE_LABELS: Record<string, string> = {
   enterprise: "Enterprise",
 };
 
+/** iOS home-indicator clearance when safe-area insets are unavailable. */
+const BOTTOM_SAFE = Platform.OS === "ios" ? 28 : 12;
+/** Fallback sticky-footer height until onLayout measures it. */
+const FOOTER_FALLBACK = 88;
+
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
     <TouchableOpacity
@@ -63,15 +68,6 @@ const chipStyles = StyleSheet.create({
   chipTextActive: { color: "#fff" },
 });
 
-function StarRating({ score, count }: { score: number; count: number }) {
-  const stars = "★".repeat(Math.round(score)) + "☆".repeat(5 - Math.round(score));
-  return (
-    <Text style={{ color: "#f5c518", fontSize: 11 }}>
-      {stars} <Text style={{ color: theme.colors.muted }}>({count})</Text>
-    </Text>
-  );
-}
-
 export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupClasses, onOpenStudio, onBack }: Props) {
   const { t, locale } = useT();
   useAndroidBackTo(onBack);
@@ -85,6 +81,7 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
   const [langFilter, setLangFilter] = useState<string>("all");
   const [audienceFilter, setAudienceFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"default" | "language" | "level">("default");
+  const [footerH, setFooterH] = useState(FOOTER_FALLBACK + BOTTOM_SAFE);
   const mountedRef = useRef(true);
   const loadAliveRef = useRef<{ current: boolean }>({ current: false });
 
@@ -98,8 +95,10 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
     try {
       const rows = await listLessons();
       if (!aliveObj.current) return;
-      setLessons(rows);
-      if (rows.length && !lessonId) setLessonId(rows[0].lesson_id);
+      // Drop empty shells so we never render blank / "..." placeholder rows.
+      const usable = rows.filter((row) => Boolean(row.lesson_id?.trim()) && Boolean(row.title?.trim()));
+      setLessons(usable);
+      if (usable.length && !lessonId) setLessonId(usable[0].lesson_id);
     } catch (e) {
       if (!aliveObj.current) return;
       setError((e as Error).message);
@@ -118,12 +117,16 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
 
   // Derive available filter options from the loaded lessons
   const availableLangs = useMemo(() => {
-    const langs = new Set(lessons.map(l => l.language || "en"));
+    const langs = new Set(
+      lessons.map((l) => (l.language || "en").trim()).filter(Boolean),
+    );
     return ["all", ...Array.from(langs).sort()];
   }, [lessons]);
 
   const availableAudiences = useMemo(() => {
-    const auds = new Set(lessons.map(l => l.audience || "general"));
+    const auds = new Set(
+      lessons.map((l) => (l.audience || "general").trim()).filter(Boolean),
+    );
     return ["all", ...Array.from(auds).sort()];
   }, [lessons]);
 
@@ -151,7 +154,9 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
   const grouped = useMemo(() => {
     const groups: Record<string, LessonRow[]> = {};
     for (const l of filtered) {
-      const key = l.track || AUDIENCE_LABELS[l.audience || "general"] || "General";
+      const key = (l.track || "").trim()
+        || AUDIENCE_LABELS[l.audience || "general"]
+        || "General";
       if (!groups[key]) groups[key] = [];
       groups[key].push(l);
     }
@@ -169,125 +174,150 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
       tension: 80,
       friction: 10,
     }).start();
-  }, [lessonId]);
+  }, [footerY, lessonId]);
 
   function start() {
     if (!lessonId || !selected) return;
     onStart(lessonId, selected.title, classType);
   }
 
+  const listPadBottom = lessonId ? footerH + 16 : 32;
+
   return (
-    <View style={styles.wrap}>
-      {/* Header */}
-      <View style={styles.header}>
-        <PrimaryButton label={t("liveClass.back")} onPress={onBack} variant="ghost" />
-        <Text style={styles.kicker}>{t("liveClass.kicker")}</Text>
-        <Text style={styles.title}>{t("liveClass.title")}</Text>
-        <Text style={styles.sub}>{t("liveClass.sub")}</Text>
-        <View style={styles.liveRoomsAction}>
-          <PrimaryButton label={t("live.browseCta")} onPress={onOpenLiveRooms} variant="ghost" />
-          {onOpenGroupClasses ? (
-            <PrimaryButton
-              label="🎓 Host a Class"
-              onPress={onOpenGroupClasses}
-              variant="brand"
-            />
-          ) : null}
+    <View style={styles.wrap} testID="live-class-screen">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.list, { paddingBottom: listPadBottom }]}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadAliveRef.current.current = false;
+              const alive = { current: true };
+              loadAliveRef.current = alive;
+              void load(alive);
+            }}
+            tintColor={theme.colors.netflix}
+          />
+        }
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <PrimaryButton label={t("liveClass.back")} onPress={onBack} variant="ghost" />
+          <Text style={styles.kicker}>{t("liveClass.kicker")}</Text>
+          <Text style={styles.title}>{t("liveClass.title")}</Text>
+          <Text style={styles.sub}>{t("liveClass.sub")}</Text>
+          <View style={styles.liveRoomsAction}>
+            <PrimaryButton label={t("live.browseCta")} onPress={onOpenLiveRooms} variant="ghost" />
+            {onOpenGroupClasses ? (
+              <PrimaryButton
+                label="🎓 Host a Class"
+                onPress={onOpenGroupClasses}
+                variant="brand"
+              />
+            ) : null}
+          </View>
         </View>
-      </View>
 
-      {onOpenStudio ? <StudioCourseSection onOpen={onOpenStudio} /> : null}
+        {onOpenStudio ? <StudioCourseSection onOpen={onOpenStudio} /> : null}
 
-      {/* Search bar */}
-      <View style={styles.searchWrap}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search lessons, topics, roles…"
-          placeholderTextColor={theme.colors.muted}
-          value={q}
-          onChangeText={setQ}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-        />
-      </View>
+        {/* Search bar */}
+        <View style={styles.searchWrap}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search lessons, topics, roles…"
+            placeholderTextColor={theme.colors.muted}
+            value={q}
+            onChangeText={setQ}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+        </View>
 
-      {/* Language chips */}
-      {availableLangs.length > 2 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}>
-          {availableLangs.map(lang => (
+        {/* Language chips */}
+        {availableLangs.length > 2 ? (
+          <ScrollView
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipRow}
+            contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}
+          >
+            {availableLangs.map(lang => (
+              <Chip
+                key={lang}
+                label={lang === "all" ? "All Languages" : lang === (locale || "en") ? `${lang} ★` : lang}
+                active={langFilter === lang}
+                onPress={() => setLangFilter(lang)}
+              />
+            ))}
+          </ScrollView>
+        ) : null}
+
+        {/* Audience chips (includes Kids) */}
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipRow}
+          contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}
+        >
+          {availableAudiences.map(aud => (
             <Chip
-              key={lang}
-              label={lang === "all" ? "All Languages" : lang === (locale || "en") ? `${lang} ★` : lang}
-              active={langFilter === lang}
-              onPress={() => setLangFilter(lang)}
+              key={aud}
+              label={aud === "all" ? "All" : (AUDIENCE_LABELS[aud] ?? aud)}
+              active={audienceFilter === aud}
+              onPress={() => setAudienceFilter(aud)}
             />
           ))}
         </ScrollView>
-      ) : null}
 
-      {/* Audience chips (includes Kids) */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}>
-        {availableAudiences.map(aud => (
-          <Chip
-            key={aud}
-            label={aud === "all" ? "All" : (AUDIENCE_LABELS[aud] ?? aud)}
-            active={audienceFilter === aud}
-            onPress={() => setAudienceFilter(aud)}
-          />
-        ))}
-      </ScrollView>
-
-      {/* Sort row */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}>
-        <Chip label="Default" active={sortBy === "default"} onPress={() => setSortBy("default")} />
-        <Chip label="By Language" active={sortBy === "language"} onPress={() => setSortBy("language")} />
-        <Chip label="By Level" active={sortBy === "level"} onPress={() => setSortBy("level")} />
-      </ScrollView>
-
-      {loading ? (
-        <ActivityIndicator color={theme.colors.netflix} style={{ marginTop: 24 }} />
-      ) : error ? (
-        <GlassPanel style={{ margin: theme.spacing.screenX }}>
-          <Text style={styles.err}>{error}</Text>
-        </GlassPanel>
-      ) : filtered.length === 0 ? (
-        <GlassPanel style={{ margin: theme.spacing.screenX }}>
-          <Text style={styles.sub}>No lessons match your filters.</Text>
-        </GlassPanel>
-      ) : (
+        {/* Sort row */}
         <ScrollView
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                loadAliveRef.current.current = false;
-                const alive = { current: true };
-                loadAliveRef.current = alive;
-                void load(alive);
-              }}
-              tintColor={theme.colors.netflix}
-            />
-          }
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipRow}
+          contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}
         >
-          {grouped.map(([groupName, items]) => (
+          <Chip label="Default" active={sortBy === "default"} onPress={() => setSortBy("default")} />
+          <Chip label="By Language" active={sortBy === "language"} onPress={() => setSortBy("language")} />
+          <Chip label="By Level" active={sortBy === "level"} onPress={() => setSortBy("level")} />
+        </ScrollView>
+
+        {loading ? (
+          <ActivityIndicator color={theme.colors.netflix} style={{ marginTop: 24 }} />
+        ) : error ? (
+          <GlassPanel style={{ margin: theme.spacing.screenX }}>
+            <Text style={styles.err}>{error}</Text>
+          </GlassPanel>
+        ) : filtered.length === 0 ? (
+          <GlassPanel style={{ margin: theme.spacing.screenX }}>
+            <Text style={styles.sub}>No lessons match your filters.</Text>
+          </GlassPanel>
+        ) : (
+          grouped.map(([groupName, items]) => (
             <View key={groupName}>
               <Text style={styles.groupHeader}>{groupName}</Text>
               {items.map(l => {
                 const on = l.lesson_id === lessonId;
                 const isKids = (l.audience || "").toLowerCase() === "kids";
+                const lang = (l.language || "").trim();
+                const level = (l.level || "").trim();
                 return (
                   <TouchableOpacity
                     key={l.lesson_id}
+                    testID={`live-class-lesson-${l.lesson_id}`}
                     onPress={() => setLessonId(l.lesson_id)}
                     activeOpacity={0.7}
                     style={[styles.lessonRow, on && styles.lessonRowOn]}
                   >
                     <View style={styles.lessonMeta}>
                       {isKids ? <Text style={styles.kidsBadge}>👶 Kids</Text> : null}
-                      {l.language && l.language !== "en" ? <Text style={styles.langBadge}>{l.language.toUpperCase()}</Text> : null}
-                      {l.level ? <Text style={styles.levelBadge}>{l.level}</Text> : null}
+                      {lang && lang !== "en" ? <Text style={styles.langBadge}>{lang.toUpperCase()}</Text> : null}
+                      {level ? <Text style={styles.levelBadge}>{level}</Text> : null}
                     </View>
                     <Text style={[styles.lessonTitle, on && styles.lessonTitleOn]} numberOfLines={2}>{l.title}</Text>
                     {l.role ? <Text style={styles.lessonRole}>{l.role}</Text> : null}
@@ -299,13 +329,19 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
                 );
               })}
             </View>
-          ))}
-
-        </ScrollView>
-      )}
+          ))
+        )}
+      </ScrollView>
 
       {/* Sticky footer — slides up as soon as a lesson is tapped */}
-      <Animated.View style={[styles.stickyFooter, { transform: [{ translateY: footerY }] }]}>
+      <Animated.View
+        testID="live-class-sticky-start"
+        onLayout={(e) => {
+          const h = Math.ceil(e.nativeEvent.layout.height);
+          if (h > 0 && h !== footerH) setFooterH(h);
+        }}
+        style={[styles.stickyFooter, { transform: [{ translateY: footerY }] }]}
+      >
         <View style={styles.stickyInner}>
           <View style={styles.stickyInfo}>
             <Text style={styles.stickyLabel} numberOfLines={2}>
@@ -318,6 +354,8 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
             disabled={!lessonId}
             style={[styles.stickyBtn, !lessonId && styles.stickyBtnDisabled]}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Start class"
           >
             <Text style={styles.stickyBtnText}>▶  Start</Text>
           </TouchableOpacity>
@@ -329,6 +367,7 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupC
 
 const styles = StyleSheet.create({
   wrap: { flex: 1 },
+  scroll: { flex: 1 },
   header: { paddingHorizontal: theme.spacing.screenX, paddingTop: 56, marginBottom: 12 },
   liveRoomsAction: { marginTop: 14 },
   kicker: { color: theme.colors.muted, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginTop: 8 },
@@ -355,7 +394,7 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.screenX,
     textTransform: "uppercase",
   },
-  list: { paddingBottom: 100 }, // space for sticky footer
+  list: { flexGrow: 1 },
   lessonRow: {
     marginHorizontal: theme.spacing.screenX,
     borderRadius: theme.radius.md,
@@ -387,7 +426,7 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(110,168,254,0.2)",
     paddingHorizontal: theme.spacing.screenX,
     paddingTop: 12,
-    paddingBottom: 28, // safe-area-ish space above tab bar
+    paddingBottom: BOTTOM_SAFE,
   },
   stickyInner: {
     flexDirection: "row",

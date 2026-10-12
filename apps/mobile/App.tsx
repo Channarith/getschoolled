@@ -67,7 +67,7 @@ import DraggableSalesDemoButton from "./src/components/DraggableSalesDemoButton"
 import { DEMO_FEATURES, SALES_DEMO_FLAGS } from "./src/demo";
 import PrimaryButton from "./src/components/PrimaryButton";
 import {
-  createStudent, getFlag, getMe, getNotificationsFeed, listStudents, resumeSlideForLesson, startSoloLiveRoom,
+  createStudent, getFlag, getMe, getNotificationsFeed, listStudents,
   type BugScreenshotUpload,
 } from "./src/api";
 import { installClientLog } from "./src/clientLog";
@@ -699,25 +699,10 @@ function AppInner() {
   } else if (showLiveClass) {
     screen = (
       <LiveClassScreen
-        onStart={async (id, title, classType) => {
-          // Solo 1:1 opens the SAME Salareen live room as group classes (video
-          // tiles, chat, Q&A, narration), just sized for the AI host + you.
-          if (classType === "solo") {
-            try {
-              const place = await resumeSlideForLesson(id);
-              const { room_id } = await startSoloLiveRoom(id, "", {
-                startSlide: place.slideIndex,
-                studentId: place.studentId,
-              });
-              setLiveModeratorKey("");
-              setShowLiveClass(false);
-              setLiveRoomOrigin("solo");
-              setLiveRoomId(room_id);
-              return;
-            } catch {
-              // Room couldn't open (offline) — fall back to the lesson presenter.
-            }
-          }
+        onStart={(id, title, classType) => {
+          // Catalog Start opens the full-screen lesson presenter (slides +
+          // Serenity xAI voice when configured) — same class UI path as web
+          // /class. Browse nearby / Host a Class still use live rooms.
           setShowLiveClass(false);
           setActiveLesson({ id, title, classType });
         }}

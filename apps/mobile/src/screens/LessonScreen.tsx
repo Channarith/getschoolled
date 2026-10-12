@@ -102,6 +102,12 @@ export default function LessonScreen({
       .join("\n"),
     learnerName: studentProfile?.display_name,
     language: locale,
+    // Same mint fields Drive Mode / studio courses pass so Serenity + xAI
+    // attach to AI Fluency and other catalog lessons when the speech service
+    // has XAI_API_KEY (Cantonese/Khmer still use the gateway voice).
+    courseId: lessonId,
+    topic: view?.lesson.title || title,
+    category: view?.lesson.language || "",
     onTranscript: (text) => {
       setAnswer({
         text,
