@@ -397,9 +397,15 @@ export default function LiveRoomScreen({
   const canModerate = Boolean(modKey) || Boolean(account?.is_admin);
   const xai = useXaiClassVoice(lightingReady && Boolean(participantId) && !classEnded, {
     mode: "group",
-    context: room?.title || "Salareen live class",
+    context: [
+      room?.title || "Salareen live class",
+      room?.slide?.title || "",
+      room?.slide?.narration || room?.slide?.body || "",
+    ].filter(Boolean).join("\n"),
     learnerName: account?.display_name,
     language: locale,
+    courseId: room?.lesson_id || "",
+    topic: room?.title || "",
   });
 
   // De-dupe room updates from the 3s tick + WebSocket: skip setState when the
