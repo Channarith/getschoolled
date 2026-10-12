@@ -31,11 +31,39 @@ MAX_DESCRIPTION_CHARS = 4000
 MAX_SNAPSHOT_BYTES = 64_000
 
 
+_TMPFS_FALLBACK = Path("/tmp") / "aoep" / "bug-reports"
+
+
+def _dir_is_writable(path: Path) -> bool:
+    """True if we can create `path` and write a file inside it.
+
+    Pods often ship with ``HOME=/`` (or unset), so ``~/.cache/...`` resolves to
+    ``/.cache/...`` which the non-root service user can't create. Probing the
+    actual mkdir+touch is the only reliable test — ``os.access`` lies when the
+    parent doesn't exist yet.
+    """
+
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        probe = path / ".write-probe"
+        probe.write_text("")
+        probe.unlink(missing_ok=True)
+        return True
+    except (PermissionError, OSError):
+        return False
+
+
 def default_bug_report_dir() -> Path:
     raw = os.environ.get("AOEP_BUG_REPORT_DIR", "").strip()
     if raw:
         return Path(raw).expanduser()
-    return Path.home() / ".cache" / "aoep" / "bug-reports"
+    preferred = Path.home() / ".cache" / "aoep" / "bug-reports"
+    if _dir_is_writable(preferred):
+        return preferred
+    # HOME is unset or not writable (common in containers). Fall back to a
+    # tmpfs path so the inbox at least records reports until a persistent
+    # volume is mounted and ``AOEP_BUG_REPORT_DIR`` is set.
+    return _TMPFS_FALLBACK
 
 
 class BugScreenshotUpload(BaseModel):
@@ -363,7 +391,15 @@ class BugReportStore:
     root: Path
 
     def __post_init__(self) -> None:
-        self.root.mkdir(parents=True, exist_ok=True)
+        try:
+            self.root.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError):
+            # Last-resort fallback. Covers races where the chosen root (e.g.
+            # from env override) was pointed at a read-only mount after the
+            # process started. We prefer losing persistence to 500-ing every
+            # /bugs POST.
+            self.root = _TMPFS_FALLBACK
+            self.root.mkdir(parents=True, exist_ok=True)
         self._index_path = self.root / "reports.jsonl"
 
     @classmethod

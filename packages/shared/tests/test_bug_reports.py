@@ -155,3 +155,47 @@ def test_submit_routes_screenshots_privately_and_redacts_public_issue(
     assert "student-123" not in public_body
     assert "student=private" not in public_body
     assert "screen.png" not in public_body
+
+
+def test_default_dir_falls_back_when_home_not_writable(tmp_path, monkeypatch):
+    """When HOME points at a read-only path, default_bug_report_dir() must
+    not crash (nor let __post_init__ crash with PermissionError on /.cache)."""
+
+    from aoep_shared import bug_reports as mod
+
+    monkeypatch.delenv("AOEP_BUG_REPORT_DIR", raising=False)
+    read_only = tmp_path / "ro-home"
+    read_only.mkdir()
+    read_only.chmod(0o500)  # r-x, cannot create .cache under it
+    monkeypatch.setenv("HOME", str(read_only))
+
+    tmpfs_fallback = tmp_path / "tmpfs" / "aoep" / "bug-reports"
+    monkeypatch.setattr(mod, "_TMPFS_FALLBACK", tmpfs_fallback)
+
+    chosen = mod.default_bug_report_dir()
+    assert chosen == tmpfs_fallback
+    # And the store itself must open without raising.
+    store = BugReportStore.open()
+    assert store.root == tmpfs_fallback
+    assert tmpfs_fallback.exists()
+
+
+def test_store_post_init_recovers_from_mkdir_permission_error(tmp_path, monkeypatch):
+    """If someone passes a non-writable root explicitly (misconfigured env
+    override), the store falls back to /tmp instead of 500-ing every POST."""
+
+    from aoep_shared import bug_reports as mod
+
+    unwritable = tmp_path / "readonly" / "nested"
+    unwritable.parent.mkdir()
+    unwritable.parent.chmod(0o500)
+    tmpfs_fallback = tmp_path / "tmpfs2" / "aoep" / "bug-reports"
+    monkeypatch.setattr(mod, "_TMPFS_FALLBACK", tmpfs_fallback)
+
+    store = BugReportStore(root=unwritable)
+    assert store.root == tmpfs_fallback
+    # And submitting a report still works.
+    report = store.submit(
+        BugReportSubmit(description="still works", platform="web")
+    )
+    assert report.id

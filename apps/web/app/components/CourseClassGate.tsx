@@ -52,7 +52,18 @@ export function CourseClassGate({
       if (fullClassAllowed(true, enrollment.status, isAdmin)) setGate("full");
       else setError("Payment was not recorded for this course.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      // jsonOrThrow raises Error("<status> <detail>"); surface a friendly
+      // message when payments aren't enabled in this environment instead of
+      // the raw "402 This class stays a 10-minute sample..." which looks like
+      // a client crash.
+      if (msg.startsWith("402")) {
+        setError(
+          "Paid checkout isn't enabled on this environment yet. The free 10-minute demo is open to everyone.",
+        );
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
     }
