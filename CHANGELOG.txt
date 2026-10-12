@@ -2,6 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-12 - v0.53.5 - Full-screen Course Studio parks options, price, listening UI, and camera chrome at the edge after 2s idle; edge tab / swipe brings them back. Presence hold shrinks to a slim chip so the lesson stays readable.
+- 2026-10-12 - v0.53.5 - Course Studio auto-resumes when the learner's face/contours return after a camera absence hold (local debounce; no longer stuck on server lag).
 - 2026-10-12 - v0.53.4 - Serenity face animation: Nano Banana denser lip/blink keyframes + ROI blend (mouth/eyes only) and smoother viseme timing — no full-frame ghost fades.
 - 2026-10-12 - v0.53.3 - British, American, Australian, and Singapore English (Singlish) are separate language choices, with matching wording and spoken accent.
 - 2026-10-12 - v0.53.2 - Full courses are programs of at least 200 slides, split into short lessons. An async pipeline expands AI, CPR, automotive, grade school, vocabulary, and other short families into review drafts. A completion record waits for that published length, a summative check, human review, a registered account, and a verified pass. Outside cards are not issued.
