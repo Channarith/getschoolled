@@ -208,6 +208,11 @@ def test_studio_page_offers_the_sample_banner():
     assert 'id="fs-chrome-edge"' in page
     assert "body.presenting.drive-chrome-hidden #course-price" in page
     assert "body.presenting.drive-chrome-hidden .lesson-window-controls" in page
+    # Chrome hide must not swallow the 10-minute free-trial clock.
+    assert "body.presenting.drive-chrome-hidden #sample-clock:not([hidden])" in page
+    assert "body.audio-only.drive-chrome-hidden #sample-clock:not([hidden])" in page
+    assert "parkSampleClock()" in STUDIO_JS
+    assert "controls.appendChild(clock)" not in STUDIO_JS
     assert "body.audio-only .lesson-toolbar" in page
     assert "position:fixed !important; inset:0 !important;" in page
     assert 'class="audio-avatar"' not in page

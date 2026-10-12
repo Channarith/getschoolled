@@ -234,6 +234,12 @@ def test_each_game_has_its_own_controls_and_launch_is_not_trace_letter():
 
     css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
     assert "body.phone-play #countdown:not(.hidden)" in css
+    assert "body.phone-play #play-clock:not([hidden])" in css
+    assert "body.chrome-hidden #play-clock:not([hidden])" in css
+    assert 'id="play-clock"' in html
+    assert 'id="play-clock-time"' in html
+    assert ">10:00<" in html
+    assert "armPlayClock" in script
     shown = css.split("body.phone-play .vision-readout{")[1].split("}")[0]
     assert "display:grid" in shown
     assert "face" in script and "distance" in script and "trail_points" in script

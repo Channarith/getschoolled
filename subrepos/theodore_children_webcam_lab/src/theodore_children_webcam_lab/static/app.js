@@ -129,7 +129,9 @@ const state = {
   voiceAway:false, heldPrompt:"", missingFaceAt:0, chaseLeft:false, bopDir:0, flapDir:0,
   presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0,
   glanceNote:false, poseOpen:false, standBase:null, sitLow:null,
+  playStartedAt:0, playEndsAt:0, playTick:0, playEnded:false,
 };
+const PLAY_SESSION_MS = 10 * 60 * 1000;
 const presenceWatch = createPresenceWatch();
 
 const canvas = $("overlay");
@@ -257,6 +259,65 @@ function esc(value) {
   }[ch]));
 }
 
+function formatPlayClock(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${String(secs).padStart(2, "0")}`;
+}
+function stopPlayClock() {
+  clearInterval(state.playTick);
+  state.playTick = 0;
+  state.playStartedAt = 0;
+  state.playEndsAt = 0;
+  const clock = $("play-clock");
+  if (clock) clock.hidden = true;
+}
+function endPlaySession() {
+  if (state.playEnded) return;
+  state.playEnded = true;
+  clearInterval(state.playTick);
+  state.playTick = 0;
+  const clock = $("play-clock");
+  const timeEl = $("play-clock-time");
+  if (timeEl) timeEl.textContent = "0:00";
+  if (clock) {
+    clock.hidden = false;
+    clock.classList.add("is-ended");
+  }
+  setPrompt("Play time is up", "Thanks for playing! Tap home to start a fresh 10-minute session.");
+  tellActivity(
+    "Play time ended. Thank the child in one short sentence. Do not start a new game prompt.",
+    {force: true},
+  );
+  speak("Play time is up. Thanks for playing!");
+  state.roundDone = true;
+  clearTimeout(state.roundTimer);
+  hideCountdown();
+}
+function tickPlayClock() {
+  if (!state.playEndsAt) return;
+  const left = state.playEndsAt - Date.now();
+  const timeEl = $("play-clock-time");
+  if (timeEl) timeEl.textContent = formatPlayClock(left);
+  if (left <= 0) endPlaySession();
+}
+function armPlayClock() {
+  clearInterval(state.playTick);
+  state.playEnded = false;
+  state.playStartedAt = Date.now();
+  state.playEndsAt = state.playStartedAt + PLAY_SESSION_MS;
+  const clock = $("play-clock");
+  const timeEl = $("play-clock-time");
+  if (timeEl) timeEl.textContent = formatPlayClock(PLAY_SESSION_MS);
+  if (clock) {
+    clock.hidden = false;
+    clock.classList.remove("is-ended");
+  }
+  tickPlayClock();
+  state.playTick = setInterval(tickPlayClock, 1000);
+}
+
 async function start(camera=true) {
   state.age = $("age")?.value || "7-10";
   state.theme = $("theme")?.value || "mix";
@@ -269,6 +330,7 @@ async function start(camera=true) {
   applyGameControls();
   stage?.classList.toggle("demo", state.demo);
   resizeCanvas(); loadLocalAnalytics();
+  armPlayClock();
   if (camera) {
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("insecure-context");
@@ -1414,6 +1476,10 @@ function tickCountdown(now) {
   }
 }
 function chooseGame() {
+  if (state.playEnded) {
+    setPrompt("Play time is up", "Thanks for playing! Tap home to start a fresh 10-minute session.");
+    return;
+  }
   $("prompt")?.classList.remove("is-success");
   clearTimeout(state.roundTimer);clearTimeout(state.failTimer);cancelSpeech();
   state.roundId += 1; const round = state.roundId; state.roundDone=false;
@@ -1491,12 +1557,19 @@ function chooseGame() {
   }
   applyGameControls();
 }
-function tellActivity(prompt) {
+function tellActivity(prompt, opts = {}) {
   if (state.voiceAway || window.__THEODORE_LIVE_AUDIO_HOLD__) return;
   if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__ || !prompt) return;
+  const roundKey = state.audioRound?.round_id || String(state.roundId || 0);
+  const target = state.audioRound?.round_id || state.spokenPrompt || prompt;
   window.TheodoreLiveAudio?.noteActivity?.({
-    id: String(state.game || "play") + ":" + prompt,
-    prompt: "The webcam game on screen is the activity. Coach it in one short sentence and wait. Do not reveal the answer. " + prompt,
+    id: String(state.game || "play") + ":" + roundKey + ":" + String(target).slice(0, 80),
+    force: Boolean(opts.force),
+    prompt: (
+      "The webcam game on screen is the only activity. Coach that current prompt "
+      + "in one short sentence and wait. Do not mention or ask for any earlier "
+      + "target word. Do not reveal the answer. Current prompt: " + prompt
+    ),
   });
 }
 
@@ -1545,14 +1618,22 @@ function pickNextLetter() {
   if (next) select.value=next;
 }
 function succeed(message) {
-  if(state.roundDone || state.voiceAway)return;state.roundDone=true;state.combo+=1;
+  if(state.playEnded || state.roundDone || state.voiceAway)return;state.roundDone=true;state.combo+=1;
   const round=state.roundId;
   const advanceLetter=state.game==="trace-letter"||PICTURE_PLAY.has(state.game);
   if(state.game==="oh-behave")state.timerMs=nextTimer(true);
   if (AUDIO_GAMES.has(state.game)) state.audioIndex=(state.audioIndex||0)+1;
   const result=calculateFun(true);state.fun=result.score;renderScore();fireworks();setPrompt("You did it!",message);
   $("prompt")?.classList.add("is-success");
-  recordEvent("success",result);tellActivity(`The child succeeded. Celebrate in one short sentence: ${message}`);speak(`You did it! ${message}`);
+  recordEvent("success",result);
+  // Celebrate only — never invite another answer for the word that just ended.
+  // The next chooseGame()/armAudioRound call pushes the new target with force.
+  tellActivity(
+    `The child succeeded. Celebrate in one short sentence: ${message}. `
+    + "Do not ask for another answer. Wait for the next on-screen prompt.",
+    {force: true},
+  );
+  speak(`You did it! ${message}`);
   clearTimeout(state.roundTimer);
   state.roundTimer=setTimeout(()=>{
     if(state.roundId!==round)return;
@@ -1562,11 +1643,17 @@ function succeed(message) {
   }, successHoldMs());
 }
 function fail(message) {
-  if(state.roundDone)return;state.roundDone=true;state.combo=0;state.attempts+=1;
+  if(state.playEnded || state.roundDone)return;state.roundDone=true;state.combo=0;state.attempts+=1;
   const round=state.roundId;
   fadeMissedObject();
   const result=calculateFun(false);state.fun=result.score;renderScore();missGag();setPrompt("Almost!",message);
-  recordEvent("retry",result);tellActivity(`The child missed. Encourage them in one short sentence: ${message}`);speak(`Almost! ${message}`);
+  recordEvent("retry",result);
+  tellActivity(
+    `The child missed. Encourage them in one short sentence: ${message}. `
+    + "Stay on the current on-screen prompt. Do not invent a new target word.",
+    {force: true},
+  );
+  speak(`Almost! ${message}`);
   if(state.game==="oh-behave")state.timerMs=nextTimer(false);
   clearTimeout(state.roundTimer);
   state.roundTimer=setTimeout(()=>{if(state.roundId!==round)return;state.roundDone=false;chooseGame();},1500);
@@ -1772,7 +1859,8 @@ async function armAudioRound(round) {
     state.audioRound = data;
     setPrompt(data.title, data.prompt, data.speak);
     renderSpokenWords();
-    tellActivity(data.speak);
+    // Force replaces any celebrate/retry turn still aimed at the previous word.
+    tellActivity(data.speak, {force: true});
     speak(data.speak);
   } catch (error) {
     if (state.roundId !== round) return;

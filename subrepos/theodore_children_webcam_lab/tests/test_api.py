@@ -128,6 +128,11 @@ def test_static_javascript_has_expected_privacy_and_game_guards():
     assert "applyVoiceScreen" in script
     assert "applySpokenActivity" in script
     assert "tellActivity" in script
+    assert "force: true" in script
+    assert "Do not ask for another answer" in script
+    assert "armPlayClock" in script
+    assert "PLAY_SESSION_MS" in script
+    assert "formatPlayClock" in script
     assert "state.voiceAway" in script
     assert "event.detail.paused" in script
     assert "We detected that you left the camera." in (
