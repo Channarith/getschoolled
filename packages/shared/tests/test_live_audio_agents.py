@@ -176,6 +176,9 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "theodore-live-audio-idle" in source
     assert "noteActivity" in source
     assert "response.create" in source
+    assert 'type: "session.update"' in source
+    assert "Current activity on screen" in source
+    assert "detail.force" in source
     assert "setHidden" in source
     assert "aoepLiveAudioIntent" in source
     assert "__THEODORE_LIVE_AUDIO_ACTIVE__" in source

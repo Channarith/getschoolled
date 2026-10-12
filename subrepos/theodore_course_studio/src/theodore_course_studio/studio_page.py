@@ -859,6 +859,13 @@ STUDIO_CSS = """
   body.presenting.drive-chrome-hidden .student-cam-status,
   body.presenting.drive-chrome-hidden .student-cam-note,
   body.presenting.drive-chrome-hidden .avatar-label { display:none !important; }
+  /* The 10-minute free-trial clock stays visible even when chrome is parked. */
+  body.audio-only.drive-chrome-hidden #sample-clock:not([hidden]),
+  body.presenting.drive-chrome-hidden #sample-clock:not([hidden]) {
+    display:inline-flex !important; position:fixed !important; z-index:10055;
+    top:max(8px, env(safe-area-inset-top)); right:12px; left:auto;
+    flex-direction:column; align-items:flex-end; pointer-events:none;
+  }
   /* Keep a slim top-edge presence chip so the hold is still visible without covering the lesson. */
   body.presenting.drive-chrome-hidden #presence-hold:not([hidden]),
   body.audio-only.drive-chrome-hidden #presence-hold:not([hidden]) {
@@ -1484,7 +1491,8 @@ STUDIO_JS = """
     // Full-screen / on-the-go: clear overlapping controls so the lesson is readable.
     const FS_CHROME_HIDE_MS = 2000;
     function parkSampleClock() {
-      if (!document.body.classList.contains('audio-only')) return;
+      // Keep the trial clock out of lesson-window-controls so drive-chrome-hidden
+      // cannot hide the 10-minute timer with the options strip.
       const clock = $('sample-clock');
       if (clock && clock.parentElement !== document.body) document.body.appendChild(clock);
     }
@@ -3130,9 +3138,8 @@ STUDIO_JS = """
 
     function arrangePhoneLesson() {
       if (!document.body.classList.contains('phone-embed')) return;
-      const controls = document.querySelector('.lesson-window-controls');
-      const clock = $('sample-clock');
-      if (controls && clock && !controls.contains(clock)) controls.appendChild(clock);
+      // Park the trial clock on the body so chrome-hide cannot tuck it away.
+      parkSampleClock();
     }
 
     function setCaptionsEnabled(enabled) {

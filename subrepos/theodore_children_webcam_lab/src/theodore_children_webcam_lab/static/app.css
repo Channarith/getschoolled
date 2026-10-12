@@ -66,8 +66,16 @@ body.phone-play #touch-mode{
 body.phone-play.chrome-hidden #touch-mode{bottom:calc(12px + env(safe-area-inset-bottom))}
 .stage.demo{touch-action:none}
 .countdown{pointer-events:none}
+.play-clock{position:absolute;z-index:8;top:12px;right:12px;min-width:7.2rem;padding:8px 10px 6px;border-radius:14px;background:#07111ef2;border:1px solid #5eead4;color:#f8fafc;text-align:right;pointer-events:none}
+.play-clock[hidden]{display:none!important}
+.play-clock span{display:block;font:800 28px/1 ui-monospace,"SFMono-Regular",Menlo,monospace;color:#99f6e4}
+.play-clock small{display:block;margin-top:4px;font:700 11px/1.2 ui-rounded,system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#cbd5e1}
+.play-clock.is-ended span{color:#fca5a5}
 .spoken-words{margin:0;padding:.55rem .9rem;background:#1e1b4b;color:#fef9c3;text-align:center;font-weight:900;font-size:clamp(1.15rem,2.8vw,1.7rem);line-height:1.35;max-height:4.8rem;overflow:auto}
-/* The clock stays on the stage. Face, distance, and the finger trail stay visible. */
+/* The clocks stay on the stage. Face, distance, and the finger trail stay visible. */
 body.phone-play #countdown:not(.hidden){display:grid!important;top:8px;right:8px;width:84px;height:84px;font-size:1.7rem;z-index:20}
+body.phone-play #play-clock:not([hidden]){display:block!important;top:8px;right:100px;z-index:20;padding:6px 8px 4px;min-width:5.4rem}
+body.phone-play #play-clock span{font-size:20px}
+body.chrome-hidden #play-clock:not([hidden]){display:block!important;position:fixed;top:12px;left:12px;right:auto;z-index:25}
 body.phone-play #spoken-words:not(.hidden){display:block}
 body.phone-play #words-toggle{min-height:44px;white-space:nowrap;flex:0 0 auto}

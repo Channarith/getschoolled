@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-12 - v0.53.6 - Vision Arcade keeps the xAI voice on the current game prompt (cancels stale turns when rhyme/listen rounds advance) and shows a visible 10-minute play-session clock. Course Studio's free-trial clock stays on screen when full-screen chrome is parked.
 - 2026-10-12 - v0.53.5 - Full-screen Course Studio parks options, price, listening UI, and camera chrome at the edge after 2s idle; edge tab / swipe brings them back. Presence hold shrinks to a slim chip so the lesson stays readable.
 - 2026-10-12 - v0.53.5 - Course Studio auto-resumes when the learner's face/contours return after a camera absence hold (local debounce; no longer stuck on server lag).
 - 2026-10-12 - v0.53.4 - Serenity face animation: Nano Banana denser lip/blink keyframes + ROI blend (mouth/eyes only) and smoother viseme timing — no full-frame ghost fades.

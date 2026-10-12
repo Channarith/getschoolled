@@ -86,6 +86,10 @@ _PAGE = """<!doctype html>
         <div id="prompt" class="prompt"><strong id="prompt-title">Choose a game</strong><span id="prompt-copy">Theodore is ready!</span></div>
         <p id="presence-note" class="presence-note" hidden></p>
         <div id="countdown" class="countdown hidden" aria-live="polite" aria-label="Time left"></div>
+        <div id="play-clock" class="play-clock" hidden aria-live="polite" aria-label="Play session time left">
+          <span id="play-clock-time">10:00</span>
+          <small>play time</small>
+        </div>
         <div id="vision-status" class="vision-status">Camera off</div>
         <div id="vision-readout" class="vision-readout" aria-live="off">
           <span id="face-readout">Face: waiting</span>

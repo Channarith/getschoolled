@@ -669,19 +669,47 @@
     if (!prompt || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
     const key = String((detail && detail.id) || prompt);
     const now = Date.now();
-    if (key === state.activityKey && now - state.activityAt < 2500) return;
+    const force = Boolean(detail && detail.force);
+    // Same activity id within 2.5s is a duplicate. A new id (new rhyme word,
+    // next slide) must always replace the previous target immediately.
+    if (!force && key === state.activityKey && now - state.activityAt < 2500) return;
     state.activityKey = key;
     state.activityAt = now;
     const line = prompt.slice(0, 1800);
     if (state.provider === "gemini") {
+      // Drop any in-flight model turn so a stale prompt cannot finish speaking.
+      try {
+        state.ws.send(JSON.stringify({clientContent: {turns: [], turnComplete: true}}));
+      } catch (_) {}
+      clearPlayback();
       state.ws.send(JSON.stringify({
         clientContent: {
-          turns: [{role: "user", parts: [{text: line}]}],
+          turns: [{role: "user", parts: [{text:
+            "The activity on screen just changed. Use only this current activity. "
+            + "Ignore earlier words or prompts. " + line}]}],
           turnComplete: true,
         },
       }));
       return;
     }
+    // Cancel the previous response, then lock session instructions to the
+    // on-screen activity so a celebrate turn cannot keep asking for the old word.
+    try { state.ws.send(JSON.stringify({ type: "response.cancel" })); } catch (_) {}
+    clearPlayback();
+    state.dropOutput = false;
+    try {
+      state.ws.send(JSON.stringify({
+        type: "session.update",
+        session: {
+          instructions: (
+            "You are Theodore, a warm teacher. The on-screen activity is authoritative. "
+            + "Coach only that activity. Never ask for a previous target word or prompt. "
+            + "Keep turns short. Do not reveal the answer.\n\n"
+            + "Current activity on screen:\n" + line
+          ),
+        },
+      }));
+    } catch (_) {}
     state.ws.send(JSON.stringify({
       type: "response.create",
       response: {instructions: line},
