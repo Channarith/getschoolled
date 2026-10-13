@@ -666,12 +666,47 @@ class VoiceTokenRequest(BaseModel):
     language: str = ""
 
 
+SALANE_DISPLAY = "Salane Voice"
+SALANE_SHORT = "Sala"
+
+
+def _voice_agent_name(cfg) -> str:
+    name = (getattr(cfg, "voice_agent", "") or "salane").strip().lower()
+    return name or "salane"
+
+
+def _salane_status(cfg) -> dict:
+    from aoep_shared import cosyvoice_tts
+
+    cosy = False
+    try:
+        cosy = bool(cosyvoice_tts.cosyvoice_configured(getattr(cfg, "cosyvoice_url", "")))
+    except ValueError:
+        cosy = False
+    return {
+        "available": True,
+        "engine": "salane",
+        "display_name": SALANE_DISPLAY,
+        "short_name": SALANE_SHORT,
+        "model": "cosyvoice" if cosy else "speech-gateway",
+        "voice": "sala",
+        "realtime_ws": "",
+        "hint": (
+            "Salane Voice (Sala) speaks with CosyVoice."
+            if cosy
+            else "Salane Voice (Sala) uses the speech gateway."
+        ),
+    }
+
+
 @app.get("/voice/status")
 def voice_status() -> dict:
-    """Whether xAI Grok Voice is configured for Theodore / self-teach S2S."""
+    """Which class voice is active. Default is Salane Voice (CosyVoice)."""
     from aoep_shared.xai_realtime import DEFAULT_VOICE, REALTIME_WS, xai_configured
 
     cfg = app.state.config
+    if _voice_agent_name(cfg) != "xai":
+        return _salane_status(cfg)
     # Pass the config value explicitly (including "") so we do NOT fall through
     # to a process-env XAI_API_KEY when the AppConfig field is blank.
     api_key = getattr(cfg, "xai_api_key", "") or ""
@@ -714,6 +749,19 @@ def voice_token(req: VoiceTokenRequest) -> dict:
     from aoep_shared.xai_spoken_language import plan_spoken_language
 
     cfg = app.state.config
+    if _voice_agent_name(cfg) != "xai":
+        spoken = plan_spoken_language(req.language)
+        return {
+            "token": None,
+            "session_update": None,
+            "mode": req.mode,
+            "xai_configured": False,
+            "engine": "salane",
+            "display_name": SALANE_DISPLAY,
+            "short_name": SALANE_SHORT,
+            "use_xai": False,
+            "spoken_language": spoken.to_dict(),
+        }
     api_key = getattr(cfg, "xai_api_key", "") or ""
     spoken = plan_spoken_language(req.language)
     if not spoken.use_xai:

@@ -9,6 +9,7 @@ Writes:
 Example:
   python3 scripts/cosyvoice_expand_channels.py --workers 8
   python3 scripts/cosyvoice_expand_channels.py --pool zh,yue,en_gb --workers 4
+  python3 scripts/cosyvoice_expand_channels.py --skip-nonempty --workers 8
 """
 
 from __future__ import annotations
@@ -63,6 +64,7 @@ def expand_source(source: str, dest: Path) -> Tuple[str, int, str]:
         cmd = [
             bin_,
             "--flat-playlist",
+            "--ignore-errors",
             *playlist_flag,
             "--print",
             "https://www.youtube.com/watch?v=%(id)s",
@@ -103,6 +105,7 @@ def expand_source(source: str, dest: Path) -> Tuple[str, int, str]:
         cmd = [
             bin_,
             "--flat-playlist",
+            "--ignore-errors",
             "--print",
             "https://www.youtube.com/watch?v=%(id)s",
             "--no-warnings",
@@ -155,6 +158,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--pool", default="", help="Comma pool_ids (default: all)")
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument(
+        "--skip-nonempty",
+        action="store_true",
+        help="Skip sources whose URL file already lists at least one video",
+    )
+    ap.add_argument(
         "--urls-root",
         type=Path,
         default=ROOT / "urls",
@@ -178,6 +186,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         for pl in pool.get("playlists") or []:
             dest = pool_dir / f"{_slug(pl)}.txt"
             jobs.append((pid, pool.get("whisper", pid), pl, dest))
+
+    if args.skip_nonempty:
+        kept = []
+        skipped = 0
+        for job in jobs:
+            dest = job[3]
+            if dest.is_file() and any(line.strip() for line in dest.read_text(encoding="utf-8").splitlines()):
+                skipped += 1
+                continue
+            kept.append(job)
+        jobs = kept
+        print(f"skip-nonempty: left {skipped} existing lists, expanding {len(jobs)}", flush=True)
 
     print(f"expanding {len(jobs)} sources with {args.workers} workers…", flush=True)
     results = []

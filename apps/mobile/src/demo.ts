@@ -89,7 +89,7 @@ export const DEMO_FEATURES = [
     emoji: "🤖",
     title: "Serenity · Solo AI",
     subtitle: "Holographic teacher · xAI",
-    description: "Serenity adapts to your pace, answers questions, and guides you through any course with xAI Grok voice.",
+    description: "Serenity adapts to your pace, answers questions, and guides you through any course with Salane Voice.",
     color: "#6366f1",
   },
   {

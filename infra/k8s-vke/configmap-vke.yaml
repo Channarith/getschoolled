@@ -19,8 +19,9 @@ data:
   VISION_BASE_URL: "http://perception:8000"
   # CosyVoice 2 GPU TTS (vLLM-accelerated) in-cluster; see infra/k8s/cosyvoice.yaml.
   COSYVOICE_URL: "http://cosyvoice:9880"
-  # xAI Grok realtime voice agent (Theodore natural voice). API key in aoep-secrets.
-  # Speech exposes GET /voice/status + POST /voice/token for web/mobile clients.
+  # Class voice is Salane Voice (Sala): CosyVoice on the speech gateway.
+  # Set VOICE_AGENT=xai to use the Grok realtime socket instead.
+  VOICE_AGENT: "salane"
   XAI_BASE_URL: "https://api.x.ai/v1"
   XAI_REALTIME_URL: "wss://api.x.ai/v1/realtime"
   XAI_VOICE_MODEL: "grok-voice-latest"

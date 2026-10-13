@@ -33,7 +33,7 @@ const LINES = [
   {
     id: "lesson",
     label: "Lesson cue",
-    text: "Watch my mouth. When I speak through xAI Grok voice, these blendshapes follow the audio energy until Wav2ARKit is wired in.",
+    text: "Watch my mouth. When I speak through Salane Voice, these blendshapes follow the audio energy until Wav2ARKit is wired in.",
   },
 ] as const;
 
@@ -234,7 +234,7 @@ export default function SerenityPage() {
         onOpen: () => {
           window.clearTimeout(openTimer);
           setSessionLive(true);
-          setHint("Serenity connected via xAI Grok voice.");
+          setHint("Serenity connected via Salane Voice.");
           resolveOpen();
         },
         onClose: () => {
@@ -400,7 +400,7 @@ export default function SerenityPage() {
                 border: "1px solid rgba(125,211,192,0.28)",
               }}
             >
-              <h2 style={{ margin: "0 0 12px", fontSize: 16 }}>Talk with xAI</h2>
+              <h2 style={{ margin: "0 0 12px", fontSize: 16 }}>Talk with Sala</h2>
               <label style={{ display: "block", fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
                 Line
               </label>

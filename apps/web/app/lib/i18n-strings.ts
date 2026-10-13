@@ -211,7 +211,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
     "drive.progress": "Course progress",
     "drive.opening": "Opening the audio lab…",
     "drive.labDown": "The audio lab is not connected. The translation page did not load.",
-    "drive.labIntro": "Hands-free speech translation. The microphone stays in this browser, and Theodore answers with the xAI voice agent.",
+    "drive.labIntro": "Hands-free speech translation. The microphone stays in this browser, and Theodore answers with Salane Voice.",
     "footer.contact": "Contact",
     "nav.openSearch": "Open search",
     "nav.siteSearch": "Site search",

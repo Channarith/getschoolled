@@ -23,7 +23,7 @@ export const PUBLIC_DEMOS: PublicDemo[] = [
     emoji: "🤖",
     title: "Serenity · Solo AI",
     subtitle: "Driver's Ed · 10-min demo",
-    description: "Serenity, your holographic AI teacher, walks you through the free 10-minute driver's ed demo with xAI voice.",
+    description: "Serenity, your holographic AI teacher, walks you through the free 10-minute driver's ed demo with Salane Voice.",
   },
   {
     id: "on-the-go",
@@ -31,7 +31,7 @@ export const PUBLIC_DEMOS: PublicDemo[] = [
     emoji: "🎧",
     title: "Serenity · On-the-Go",
     subtitle: "Audio only · 10-min demo",
-    description: "Serenity teaches the same driver's ed demo by ear (xAI when configured). The free trial stops at 10 minutes.",
+    description: "Serenity teaches the same driver's ed demo by ear with Salane Voice. The free trial stops at 10 minutes.",
   },
   {
     id: "arcade",

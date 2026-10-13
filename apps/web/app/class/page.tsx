@@ -214,7 +214,7 @@ export default function ClassPage() {
   async function toggleXaiVoice() {
     if (xaiVoiceLive) {
       stopXaiVoice();
-      setXaiVoiceHint("Grok voice ended.");
+      setXaiVoiceHint("Salane Voice ended.");
       return;
     }
     setBusy(true);
@@ -229,6 +229,13 @@ export default function ClassPage() {
         learner_names: studentProfile?.display_name ? [studentProfile.display_name] : [],
         language: locale,
       });
+      if (token.engine === "salane" || token.display_name === "Salane Voice") {
+        setXaiVoiceLive(true);
+        setXaiVoiceHint("Sala is using Salane Voice.");
+        const line = slideText || lessonTitle;
+        if (line) speak(line);
+        return;
+      }
       if (token.use_xai === false || !token.token || !token.session_update) {
         setXaiVoiceHint(token.spoken_language?.hint
           || "This language uses the lesson voice, not Grok.");
@@ -1035,8 +1042,8 @@ export default function ClassPage() {
               onClick={() => void toggleXaiVoice()}
               disabled={busy || (!xaiVoiceReady && !xaiVoiceLive)}
               title={xaiVoiceHint || (xaiVoiceReady
-                ? "Talk with Theodore via xAI Grok Voice"
-                : "Set XAI_API_KEY on the speech service to enable Grok Voice")}
+                ? "Talk with Theodore via Salane Voice"
+                : "Salane Voice uses CosyVoice on the speech service")}
               style={{
                 fontSize: 13, padding: "8px 12px", borderRadius: 8, cursor: "pointer",
                 border: "1px solid #0d6e6e",
@@ -1045,7 +1052,7 @@ export default function ClassPage() {
                 opacity: (!xaiVoiceReady && !xaiVoiceLive) ? 0.5 : 1,
               }}
             >
-              {xaiVoiceLive ? "● Grok voice on" : "Grok voice"}
+              {xaiVoiceLive ? "● Sala" : "Sala"}
             </button>
           </div>
           {xaiVoiceHint ? (
@@ -1221,8 +1228,8 @@ export default function ClassPage() {
                   onClick={() => void toggleXaiVoice()}
                   disabled={busy || (!xaiVoiceReady && !xaiVoiceLive)}
                   title={xaiVoiceHint || (xaiVoiceReady
-                    ? "Talk with Theodore via xAI Grok Voice"
-                    : "Set XAI_API_KEY on the speech service to enable Grok Voice")}
+                    ? "Talk with Theodore via Salane Voice"
+                    : "Salane Voice uses CosyVoice on the speech service")}
                   style={{
                     fontSize: 13, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
                     border: "1px solid #0d6e6e",
@@ -1231,7 +1238,7 @@ export default function ClassPage() {
                     opacity: (!xaiVoiceReady && !xaiVoiceLive) ? 0.5 : 1,
                   }}
                 >
-                  {xaiVoiceLive ? "● Grok voice on" : "Grok voice"}
+                  {xaiVoiceLive ? "● Sala" : "Sala"}
                 </button>
               </div>
             </div>

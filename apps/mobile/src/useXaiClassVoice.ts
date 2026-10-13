@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { stopSpeech } from "./tts";
+import { speakNatural, stopSpeech } from "./tts";
 import {
   audioJustStarted,
   createSpeakPlan,
@@ -20,6 +20,7 @@ import {
   closeXaiVoiceSession,
   connectXaiVoiceSession,
   getXaiVoiceStatus,
+  isSalaneEngine,
   mintXaiVoiceToken,
   sendTextTurn,
   xaiSpeaksLocale,
@@ -84,6 +85,22 @@ export function useXaiClassVoice(
     setPhase("checking");
     pcmRef.current = createPcmQueue();
     (async () => {
+      const status = await getXaiVoiceStatus();
+      if (cancelled || planRef.current !== plan) return;
+      if (isSalaneEngine(status.engine) && status.available) {
+        plan.phase = "live";
+        setPhase("live");
+        setHint("Sala is using Salane Voice.");
+        const next = takeQueuedForSend(plan);
+        if (next) {
+          stopSpeech();
+          speakNatural(next.text, {
+            locale: sessionRef.current.language || "en",
+            onDone: () => optsRef.current.get(next.id)?.onDone?.(),
+          });
+        }
+        return;
+      }
       const currentLanguage = sessionRef.current.language || "";
       if (!xaiSpeaksLocale(currentLanguage)) {
         plan.phase = "unavailable";
@@ -97,8 +114,6 @@ export function useXaiClassVoice(
         runFallback(takeUnheardForFallback(plan));
         return;
       }
-      const status = await getXaiVoiceStatus();
-      if (cancelled || planRef.current !== plan) return;
       if (!status.available) {
         plan.phase = "unavailable";
         setPhase("unavailable");
@@ -235,7 +250,8 @@ export function useXaiClassVoice(
     const plan = planRef.current;
     optsRef.current.set(id, opts);
     const ws = wsRef.current;
-    const canSend = Boolean(ws && ws.readyState === WebSocket.OPEN && plan.phase === "live");
+    const salane = plan.phase === "live" && !ws;
+    const canSend = salane || Boolean(ws && ws.readyState === WebSocket.OPEN && plan.phase === "live");
     const decision = requestSpeak(plan, id, text, active, canSend);
     if (decision.kind === "ignore") return;
     optsRef.current.set(id, opts);
@@ -248,6 +264,13 @@ export function useXaiClassVoice(
     cancelXaiResponse(ws);
     pcmRef.current?.stop();
     pcmRef.current = createPcmQueue();
+    if (salane) {
+      speakNatural(decision.turn.text, {
+        locale: sessionRef.current.language || "en",
+        onDone: () => opts.onDone?.(),
+      });
+      return;
+    }
     if (ws) sendTextTurn(ws, decision.turn.text);
   }, [active, runFallback]);
 

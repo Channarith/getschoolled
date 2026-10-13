@@ -15,7 +15,14 @@ export type XaiVoiceStatus = {
   voice: string;
   realtime_ws: string;
   hint: string;
+  display_name?: string;
+  short_name?: string;
 };
+
+/** Salane Voice (Sala) is the CosyVoice class voice. */
+export function isSalaneEngine(engine: string | undefined): boolean {
+  return (engine || "").trim().toLowerCase().startsWith("salane");
+}
 
 export type XaiVoiceToken = {
   value: string;

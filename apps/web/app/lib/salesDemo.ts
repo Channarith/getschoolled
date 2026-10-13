@@ -73,7 +73,7 @@ export const SALES_DEMO_FEATURES = [
     emoji: "🤖",
     title: "Serenity · Solo AI",
     subtitle: "Driver's Ed · 10-min demo",
-    description: "Serenity walks you through the free 10-minute driver's ed demo with xAI Grok voice.",
+    description: "Serenity walks you through the free 10-minute driver's ed demo with Salane Voice.",
   },
   {
     id: "drive",

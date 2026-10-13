@@ -60,7 +60,7 @@ export function liveAudioPhoneScript(): string {
         "overflow:visible !important;touch-action:none !important;cursor:grab}",
         ".box{flex-wrap:wrap !important;height:auto !important;min-height:56px !important;width:min(260px,calc(100vw - 24px)) !important;",
         "border-radius:18px !important}",
-        ".box::after{content:'xAI voice';color:#e7fbff;font:700 13px/1.2 system-ui,sans-serif}",
+        ".box::after{content:'Sala';color:#e7fbff;font:700 13px/1.2 system-ui,sans-serif}",
         ".box.docked{left:12px !important;right:auto !important}",
         ".box.placed{right:auto !important;bottom:auto !important}",
         "select{position:absolute !important;width:1px !important;height:1px !important;",
@@ -152,7 +152,7 @@ export function liveAudioPhoneScript(): string {
       var bring = document.createElement("button");
       bring.className = "show-again";
       bring.type = "button";
-      bring.textContent = "Show xAI";
+      bring.textContent = "Show Sala";
       bring.addEventListener("click", function(event) {
         event.stopPropagation();
         host.classList.remove("voice-hidden");

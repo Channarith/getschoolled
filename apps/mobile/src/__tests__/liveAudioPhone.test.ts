@@ -8,6 +8,6 @@ describe("phone live audio chip", () => {
     expect(script).toContain("pointerdown");
     expect(script).toContain("__SALAREEN_LIVE_GAIN__");
     expect(script).toContain("2.6");
-    expect(script).toContain("xAI");
+    expect(script).toContain("Sala");
   });
 });

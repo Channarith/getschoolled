@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-13 - v0.53.12 - Salane Voice (Sala) is the class voice: CosyVoice instead of the xAI Grok socket. Driver's ed and food-handler courses stay on that voice. Channel catalog replaces dead YouTube handles.
 - 2026-10-13 - v0.53.11 - Course Studio listen→local-LLM→NLLB→CosyVoice speak loop + run_voice_conversation helper.
 - 2026-10-13 - v0.53.10 - CosyVoice multi-lang YouTube ingest: merge-on-ingest, channel catalog, expand/batch queue scripts (URL dumps stay local).
 - 2026-10-13 - v0.53.9 - Free NLLB-200 course translation via speech provider (no xAI); batch script course filter + 429 backoff.

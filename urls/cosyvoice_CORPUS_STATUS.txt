@@ -3,38 +3,38 @@ CosyVoice multi-language corpus status
 catalog: /home/nvidia/code/getschoolled/urls/cosyvoice_channels.json
 target_videos: 500000
 
-  km          whisper=km    videos=  37304  label=Khmer
-  zh          whisper=zh    videos=  49383  label=Mandarin Chinese
-  zh_tw       whisper=zh    videos=   2755  label=Taiwanese Mandarin
-  yue         whisper=yue   videos=   6110  label=Cantonese
-  en          whisper=en    videos= 131222  label=English (general / US)
-  en_gb       whisper=en    videos= 183858  label=British English
-  en_au       whisper=en    videos= 125649  label=Australian English
-  tl          whisper=tl    videos=  59399  label=Tagalog / Filipino
-  vi          whisper=vi    videos=  58323  label=Vietnamese
-  th          whisper=th    videos= 131826  label=Thai
-  es          whisper=es    videos= 162636  label=Spanish
-  fr          whisper=fr    videos=  36634  label=French
-  de          whisper=de    videos=  93685  label=German
-  ru          whisper=ru    videos=  52506  label=Russian
-  it          whisper=it    videos= 108548  label=Italian
-  pt          whisper=pt    videos=  70718  label=Portuguese
-  nl          whisper=nl    videos=  19717  label=Dutch
-  pl          whisper=pl    videos=  10444  label=Polish
-  uk          whisper=uk    videos=  57591  label=Ukrainian
-  tr          whisper=tr    videos=  91641  label=Turkish
-  ar          whisper=ar    videos=  48699  label=Arabic
-  he          whisper=he    videos=   1390  label=Hebrew
-  hi          whisper=hi    videos= 173256  label=Hindi
-  bn          whisper=bn    videos=  10399  label=Bengali
-  ur          whisper=ur    videos=  54270  label=Urdu
-  fa          whisper=fa    videos= 101658  label=Persian
-  ja          whisper=ja    videos=   4824  label=Japanese
-  ko          whisper=ko    videos=   2029  label=Korean
-  id          whisper=id    videos=  29553  label=Indonesian
-  sw          whisper=sw    videos=  10948  label=Swahili
-  el          whisper=el    videos=   1282  label=Greek
-  cs          whisper=cs    videos=      4  label=Czech
+  km          whisper=km    videos=  37295  label=Khmer
+  zh          whisper=zh    videos= 181490  label=Mandarin Chinese
+  zh_tw       whisper=zh    videos= 227338  label=Taiwanese Mandarin
+  yue         whisper=yue   videos=  90522  label=Cantonese
+  en          whisper=en    videos= 134967  label=English (general / US)
+  en_gb       whisper=en    videos= 184279  label=British English
+  en_au       whisper=en    videos= 237502  label=Australian English
+  tl          whisper=tl    videos= 206312  label=Tagalog / Filipino
+  vi          whisper=vi    videos=  96264  label=Vietnamese
+  th          whisper=th    videos= 301930  label=Thai
+  es          whisper=es    videos= 342200  label=Spanish
+  fr          whisper=fr    videos=  63760  label=French
+  de          whisper=de    videos=  97548  label=German
+  ru          whisper=ru    videos=  55393  label=Russian
+  it          whisper=it    videos= 152909  label=Italian
+  pt          whisper=pt    videos=  81806  label=Portuguese
+  nl          whisper=nl    videos=  21737  label=Dutch
+  pl          whisper=pl    videos=  18416  label=Polish
+  uk          whisper=uk    videos=  57994  label=Ukrainian
+  tr          whisper=tr    videos=  92855  label=Turkish
+  ar          whisper=ar    videos= 281115  label=Arabic
+  he          whisper=he    videos=  18488  label=Hebrew
+  hi          whisper=hi    videos=  84679  label=Hindi
+  bn          whisper=bn    videos= 204571  label=Bengali
+  ur          whisper=ur    videos=  54341  label=Urdu
+  fa          whisper=fa    videos= 121982  label=Persian
+  ja          whisper=ja    videos=   7716  label=Japanese
+  ko          whisper=ko    videos=  34776  label=Korean
+  id          whisper=id    videos=  29555  label=Indonesian
+  sw          whisper=sw    videos=  18608  label=Swahili
+  el          whisper=el    videos=   1948  label=Greek
+  cs          whisper=cs    videos=   2176  label=Czech
 
-TOTAL unique (sum of pool all-files): 1928261
+TOTAL unique (sum of pool all-files): 3542472
 

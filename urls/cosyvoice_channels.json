@@ -25,13 +25,13 @@
       "whisper": "zh",
       "label": "Mandarin Chinese",
       "channels": [
-        "@ChinesePod", "@YoyoChinese", "@MandarinCorner", "@ChineseForUs",
+        "@ChinesePodTV", "@YoyoChinese", "@MandarinCorner", "@ChineseForUs",
         "@EverydayChinese", "@MSLMaster", "@ChineseZeroToHero",
-        "@XiaoyuzhouChinese", "@LiulishuoChinese", "@HskListening",
-        "@CCTVzhongguotongshi", "@CCTV", "@CGTNOfficial", "@ChinaPlusRadio",
-        "@VoiceofChina", "@XinhuaNewsAgency", "@PeopleDailyChina",
-        "@GuangmingDaily", "@CCTVKids", "@BilibiliDocumentary",
-        "@StoryInChinese", "@ChineseStories", "@PeppaPigChineseOfficial"
+        "@ShuoshuoChinese", "@ChineseClass101", "@LearnChineseThroughPodcast",
+        "@CCTVDocumentary", "@CCTV", "@cgtn", "@ChinaPlusOfficial",
+        "@VoiceofChina", "@ChinaViewTV", "@PeoplesDaily",
+        "@GuangmingDaily", "@CoComelonMandarin", "@BilibiliDocumentary",
+        "@StoryInChinese", "@LittleFoxChinese", "@PeppaPigChineseOfficial"
       ]
     },
     {
@@ -40,9 +40,9 @@
       "label": "Taiwanese Mandarin",
       "channels": [
         "@TaiwaneseMandarin", "@LearnTaiwaneseMandarin", "@TaiwanPlus",
-        "@PTSTaiwan", "@CTITV", "@TVBSNEWS", "@SETINews", "@FTVnews",
-        "@FormosaTVNews", "@PublicTelevisionService", "@TaiwanBar",
-        "@StoryStudioTW", "@BookstorTV", "@KidsCanLearnChinese"
+        "@PNNPTS", "@中天新聞CtiNews", "@TVBSNEWS", "@setn", "@FTVnews",
+        "@FTV_News", "@ptsinnews", "@TaiwanBar",
+        "@GushiTw", "@momokidsYT", "@Pinkfong繁體中文"
       ]
     },
     {
@@ -50,10 +50,10 @@
       "whisper": "yue",
       "label": "Cantonese",
       "channels": [
-        "@CantoneseClass101", "@LearnCantoneseWithJasmine", "@CantoneseCorner",
-        "@SpeakCantonese", "@HKTV", "@RTHK", "@TVBNews", "@NowNews",
-        "@CantoneseZone", "@DimSumCantonese", "@HongKongFreePress",
-        "@StoryCantonese", "@KidsCantonese"
+        "@CantoneseClass101", "@5minutecantonese", "@CantoneseCorner",
+        "@SpeakCantonese", "@HKTV", "@RTHK", "@tvbnewsofficial", "@nowbnc",
+        "@LearnCantoneseTogether", "@DimSumSaying", "@HKFP",
+        "@StoryMusubi", "@LittleFarland"
       ]
     },
     {
@@ -61,10 +61,11 @@
       "whisper": "en",
       "label": "English (general / US)",
       "channels": [
-        "@TED", "@TEDxTalks", "@CrashCourse", "@khanacademy", "@BBCLearningEnglish",
-        "@voanews", "@PBSNewsHour", "@NPR", "@StorylineOnline", "@ExtraEnglish",
-        "@EnglishClass101", "@mmmEnglish_Emma", "@SpeakEnglishWithVanessa",
-        "@RachelEnglish", "@engvid", "@OxfordOnlineEnglish"
+        "@TED", "@TEDx", "@CrashCourse", "@khanacademy", "@BBCLearningEnglish",
+        "@voanews", "@PBSNewsHour", "@NPR", "@StorylineOnline",
+        "@EnglishClass101", "https://www.youtube.com/channel/UCrRiVfHqBIIvSgKmgnSY66g",
+        "@SpeakEnglishWithVanessa", "@rachelsenglish", "@engvidEmma",
+        "@engvidJames", "@engvidRonnie", "@Oxfordonlineenglish1"
       ]
     },
     {
@@ -72,7 +73,7 @@
       "whisper": "en",
       "label": "British English",
       "channels": [
-        "@bbclearningenglish", "@BBCNews", "@BBC", "@TheBritishCouncil",
+        "@bbclearningenglish", "@BBCNews", "@BBC", "@britishcouncil",
         "@EnglishWithLucy", "@MrSteveEnglish", "@AccentHelp",
         "@PapaTeachMe", "@EnglishLikeANative", "@CanguroEnglish",
         "@Channel4", "@SkyNews", "@ITVNews", "@GuardianNews"
@@ -83,9 +84,9 @@
       "whisper": "en",
       "label": "Australian English",
       "channels": [
-        "@ABCNewsAustralia", "@ABCTV", "@SBSAustralia", "@TheProjectTV",
-        "@EnglishWithAussie", "@AussieEnglish", "@AustralianEnglishTeacher",
-        "@7NewsAustralia", "@9NewsAustralia", "@TheFeedSBS"
+        "@ABCNewsAustralia", "@abcaustralia", "@SBSAustralia", "@TheProjectTV",
+        "@AusEnglishWithLauren", "@AussieEnglishPodcast", "@AustralianEnglishTeacher",
+        "@7news", "@9NewsAUS", "@SBSTheFeed"
       ]
     },
     {
@@ -93,10 +94,11 @@
       "whisper": "tl",
       "label": "Tagalog / Filipino",
       "channels": [
-        "@LearnTagalog", "@TagalogLang", "@FilipinoPod101", "@GMAPublicAffairs",
-        "@ABS-CBNNews", "@ANC", "@DZMMTeleRadyo", "@Rappler",
-        "@LearningTagalogWithRachelle", "@TagalogLessons", "@UNTVNews",
-        "@KapusoMoJessicaSoho", "@StoryTimeTagalog"
+        "@LearnTagalog", "@TagalogLang", "@FilipinoPod101",
+        "https://www.youtube.com/channel/UCj5RwDivLksanrNvkW0FB4w",
+        "@abscbnnews", "@ANCAlerts", "@DZMMTeleRadyo_MSPC", "@Rappler",
+        "@tagalogtimepat", "@SpeakTagalogWithJC", "@UNTVNews",
+        "@KapusoMoJessicaSoho", "@MgaKwentongPampatulog"
       ]
     },
     {
@@ -105,9 +107,9 @@
       "label": "Vietnamese",
       "channels": [
         "@LearnVietnameseWithAnnie", "@VietnamesePod101", "@TiengVietOi",
-        "@VTV24", "@VTCNow", "@VOV", "@VietnamPlus", "@VnExpressNet",
-        "@EasyVietnamese", "@VietnameseWithKatie", "@StoryVietnam",
-        "@HTV", "@ANTV", "@ChildrenStoriesVietnamese"
+        "@VTV24", "@VTCNewstintuc", "@VOVLive", "@VietnamPlus", "@vnexpress.official",
+        "@EasyVietnamese", "@hienhuynh1248", "@VietnameseFairyTales",
+        "@HTV", "@ANTV", "@THVLThieuNhi"
       ]
     },
     {
@@ -115,9 +117,9 @@
       "whisper": "th",
       "label": "Thai",
       "channels": [
-        "@LearnThaiWithMod", "@ThaiPod101", "@ThaiWithGrace", "@PassporttoThai",
-        "@ThaiPBS", "@NationTV22", "@ThairathTV", "@WorkpointOfficial",
-        "@EasyThai", "@StoriesInThai", "@ThaiKidsStories", "@Channel3Thailand"
+        "@LearnThaiWithMod", "@ThaiPod101", "@ComprehensibleThai", "@letslearnthai",
+        "@ThaiPBS", "@nationonlineth", "@thairathnews", "@WorkpointOfficial",
+        "@EasyThai", "@ThaiFairyTales", "@FairyTalesThai", "@Ch3Thailand"
       ]
     },
     {
@@ -126,9 +128,9 @@
       "label": "Spanish",
       "channels": [
         "@SpanishPod101", "@ButterflySpanish", "@WhyNotSpanish", "@EasySpanish",
-        "@RTVE", "@BBCMundo", "@DeutscheWelleEspanol", "@France24_es",
-        "@UnivisionNoticias", "@TelemundoNews", "@ElPais", "@CNNEE",
-        "@StorytellingSpanish", "@CuentosInfantiles", "@ExtraEspanol"
+        "@rtvenoticias", "@BBCMundo", "@dwespanol", "@France24_es",
+        "@nmasunivision", "@TelemundoNews", "@ElPais", "@CNNEE",
+        "@StorytellingSpanish", "@EvaCuentaCuentos", "@ExtraEspanol"
       ]
     },
     {
@@ -138,8 +140,8 @@
       "channels": [
         "@FrenchPod101", "@LearnFrenchWithAlexa", "@FrancaisAuthentique",
         "@innerFrench", "@EasyFrench", "@France24", "@FranceInfo",
-        "@TV5MONDE", "@LeMonde", "@RFI", "@StorytellingFrench",
-        "@ExtraFrench", "@CestUneChanson"
+        "@TV5MONDE", "@lemondefr", "@RFI_Fr", "@FrenchFairyTales",
+        "@HistoiresetContes"
       ]
     },
     {
@@ -148,8 +150,8 @@
       "label": "German",
       "channels": [
         "@GermanPod101", "@EasyGerman", "@LearnGermanWithAnja", "@DeutschFuerEuch",
-        "@DWDeutschlernen", "@DWNews", "@tagesschau", "@ZDF", "@ARD",
-        "@ExtraGerman", "@SlowGerman", "@Kinderlieder"
+        "@dwlearngerman", "@DWNews", "@tagesschau", "@ZDF", "@ARD",
+        "@SlowGerman", "@Kinderlieder"
       ]
     },
     {
@@ -157,8 +159,8 @@
       "whisper": "ru",
       "label": "Russian",
       "channels": [
-        "@RussianPod101", "@EasyRussian", "@BeFluentinRussian", "@RTNews",
-        "@CurrentTimeTV", "@Meduza", "@BBCNewsRussian", "@DWRussian",
+        "@RussianPod101", "@EasyRussianVideos", "@BeFluentinRussian", "@YaroslavaRussian",
+        "@CurrentTimeTV", "@meduzapodcasts", "@BBCNewsRussian", "@DWRussian",
         "@RussianWithMax", "@ComprehensibleRussian", "@RussianStories"
       ]
     },
@@ -167,8 +169,8 @@
       "whisper": "it",
       "label": "Italian",
       "channels": [
-        "@ItalianPod101", "@EasyItalian", "@LearnItalianWithLucrezia",
-        "@ItaliaTiAscolto", "@RAI", "@SkyTG24", "@Fanpage", "@ExtraItalian"
+        "@ItalianPod101", "@EasyItalian", "@lucreziaoddone",
+        "@ItalianoDinamico", "@RAI", "@SkyTG24", "@FanpageIt", "@ItalianoconAmore"
       ]
     },
     {
@@ -177,7 +179,7 @@
       "label": "Portuguese",
       "channels": [
         "@PortuguesePod101", "@EasyPortuguese", "@SpeakingBrazilian",
-        "@TVGlobo", "@BBCBrasil", "@DWBrasil", "@RTP", "@SICNoticias"
+        "@TVGlobo", "@BBCNewsBrasil", "@DWBrasil", "@RTP", "@SICNotíciasTV"
       ]
     },
     {
@@ -185,7 +187,7 @@
       "whisper": "nl",
       "label": "Dutch",
       "channels": [
-        "@DutchPod101", "@EasyDutch", "@NOS", "@NTR", "@RTLNieuws", "@LearnDutchWithKim"
+        "@DutchPod101", "@EasyDutch", "@NOS", "@omroepntr", "@RTLNieuws", "@LearnDutchWithKim"
       ]
     },
     {
@@ -193,7 +195,7 @@
       "whisper": "pl",
       "label": "Polish",
       "channels": [
-        "@PolishPod101", "@EasyPolish", "@TVN24", "@PolsatNews", "@TVPInfo"
+        "@PolishPod101", "@EasyPolish", "@TVN24", "@polsatnewsplofc", "@TVPInfo"
       ]
     },
     {
@@ -201,7 +203,7 @@
       "whisper": "uk",
       "label": "Ukrainian",
       "channels": [
-        "@UkrainianPod101", "@EasyUkrainian", "@SuspilneNews", "@TVEspresso",
+        "@SpeakUkrainian", "@easy.ukrainian", "@SuspilneNews", "@TVEspresso",
         "@RadioSvoboda"
       ]
     },
@@ -210,7 +212,7 @@
       "whisper": "tr",
       "label": "Turkish",
       "channels": [
-        "@TurkishPod101", "@EasyTurkish", "@TRTHaber", "@NTV", "@BBCNewsTurkce"
+        "@TurkishClass101", "@EasyTurkish", "@TRTHaber", "@NTV", "@BBCNewsTurkce"
       ]
     },
     {
@@ -218,8 +220,8 @@
       "whisper": "ar",
       "label": "Arabic",
       "channels": [
-        "@ArabicPod101", "@EasyArabic", "@AlJazeeraArabic", "@BBCArabic",
-        "@DWArabic", "@France24Arabic", "@AlArabiya"
+        "@ArabicPod101", "@EasyArabic", "@aljazeera", "@bbcnewsarabic",
+        "@DWArabic", "@FRANCEArabic", "@AlArabiya"
       ]
     },
     {
@@ -227,7 +229,7 @@
       "whisper": "he",
       "label": "Hebrew",
       "channels": [
-        "@HebrewPod101", "@EasyHebrew", "@KanNews", "@i24NEWS"
+        "@HebrewPod101", "@PieceofHebrew", "@KanNews", "@i24NEWS_HE"
       ]
     },
     {
@@ -235,8 +237,8 @@
       "whisper": "hi",
       "label": "Hindi",
       "channels": [
-        "@HindiPod101", "@EasyHindi", "@DDNews", "@NDTV", "@AajTak",
-        "@BBCHindi", "@StoryYehHaiNaya"
+        "@HindiPod101", "@ComprehensibleHindi", "@DDNews", "@NDTV", "@AajTak",
+        "@BBCHindi", "@HindiFairyTales"
       ]
     },
     {
@@ -244,7 +246,7 @@
       "whisper": "bn",
       "label": "Bengali",
       "channels": [
-        "@BengaliPod101", "@EasyBengali", "@BBCBangla", "@DWBangla", "@ABPAnanda"
+        "@baneebee", "@Kolisstudypoint", "@BBCBangla", "@dwbengali", "@abpanandatv"
       ]
     },
     {
@@ -252,7 +254,7 @@
       "whisper": "ur",
       "label": "Urdu",
       "channels": [
-        "@UrduPod101", "@EasyUrdu", "@BBCUrdu", "@DWUrdu", "@GeoNews"
+        "@UrduPod101", "@Easyurduwithaqsa", "@BBCUrdu", "@DWUrdu", "@GeoNews"
       ]
     },
     {
@@ -260,7 +262,7 @@
       "whisper": "fa",
       "label": "Persian",
       "channels": [
-        "@PersianPod101", "@EasyPersian", "@BBCPersian", "@DWFarsi", "@VOAFarsi"
+        "@PersianPod101", "@PersianLearning", "@BBCNewsPersian", "@dwpersian", "@VOAFarsi"
       ]
     },
     {
@@ -268,8 +270,8 @@
       "whisper": "ja",
       "label": "Japanese",
       "channels": [
-        "@JapanesePod101", "@EasyJapanese", "@NHKWORLDNEWS", "@AnnJapanese",
-        "@ComprehensibleJapanese", "@JapaneseAmmoWithMisa", "@StoriesJapanese"
+        "@JapanesePod101", "@EasyJapanese", "@NHKWORLDJAPAN", "@nihongonomori2013",
+        "@nijapanese", "@JapaneseAmmoWithMisa", "@manga-nippon-mukashi-banashi"
       ]
     },
     {
@@ -277,8 +279,8 @@
       "whisper": "ko",
       "label": "Korean",
       "channels": [
-        "@KoreanPod101", "@EasyKorean", "@TalkToMeInKorean", "@ArirangNews",
-        "@YTNNEWS", "@JTBCNews", "@KoreanStories"
+        "@KoreanClass101", "@EasyKorean777", "@TalkToMeInKorean", "@ArirangCoKrArirangNEWS",
+        "@YTNNEWS", "@jtbc_news", "@KoreanStories"
       ]
     },
     {
@@ -295,7 +297,7 @@
       "whisper": "sw",
       "label": "Swahili",
       "channels": [
-        "@SwahiliPod101", "@EasySwahili", "@BBCSwahili", "@DWKiswahili",
+        "@SwahiliPod101", "@EasySwahili", "@BBCSwahili", "@Kiswahili",
         "@VOASwahili"
       ]
     },
@@ -304,7 +306,7 @@
       "whisper": "el",
       "label": "Greek",
       "channels": [
-        "@GreekPod101", "@EasyGreek", "@ERTNews", "@SkaiNews"
+        "@GreekPod101", "@EasyGreek", "@ert", "@SKAIgr"
       ]
     },
     {
@@ -312,7 +314,7 @@
       "whisper": "cs",
       "label": "Czech",
       "channels": [
-        "@CzechPod101", "@EasyCzech", "@CT24", "@iDNES"
+        "@Czechclass101", "@EasyCzechVideos", "@CT24", "@iDNESczyoutube"
       ]
     }
   ]

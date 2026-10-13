@@ -67,7 +67,7 @@ export function XaiVoiceDock() {
       closeXaiVoiceSession(wsRef.current);
       wsRef.current = null;
       setLive(false);
-      setHint("Grok voice ended.");
+      setHint("Salane Voice ended.");
       return;
     }
     try {
@@ -77,6 +77,11 @@ export function XaiVoiceDock() {
         language: locale,
         instructions: SERENITY_VOICE_INSTRUCTIONS,
       });
+      if (token.engine === "salane" || token.display_name === "Salane Voice") {
+        setLive(true);
+        setHint("Sala is using Salane Voice.");
+        return;
+      }
       if (token.use_xai === false || !token.token || !token.session_update) {
         setHint(token.spoken_language?.hint || "This language uses the lesson voice, not Grok.");
         return;
@@ -133,7 +138,7 @@ export function XaiVoiceDock() {
         type="button"
         onClick={() => { void toggle(); }}
         disabled={!ready && !live}
-        title={ready ? "Talk with Serenity via xAI Grok Voice" : "Set XAI_API_KEY on the speech service to enable Grok Voice"}
+        title={ready ? "Talk with Serenity via Salane Voice" : "Salane Voice uses CosyVoice on the speech service"}
         style={{
           border: "1px solid #0d6e6e",
           borderRadius: 999,
@@ -145,7 +150,7 @@ export function XaiVoiceDock() {
           opacity: !ready && !live ? 0.55 : 1,
         }}
       >
-        {live ? "● Serenity voice on" : "Serenity voice"}
+        {live ? "● Sala" : "Sala"}
       </button>
     </div>
   );

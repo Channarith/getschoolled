@@ -477,7 +477,7 @@ export default function GroupClassesScreen({
                 placeholderTextColor={theme.colors.muted}
                 value={schedDescription} onChangeText={setSchedDescription}
                 multiline numberOfLines={3} textAlignVertical="top" />
-              <Text style={styles.formLabel}>Full xAI courses</Text>
+              <Text style={styles.formLabel}>Full Salane courses</Text>
               {onOpenStudio ? (
                 <StudioCourseSection
                   onOpen={(courseId) => {
