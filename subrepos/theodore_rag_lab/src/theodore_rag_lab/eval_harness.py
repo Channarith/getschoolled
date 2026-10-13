@@ -132,8 +132,23 @@ def load_curriculum_index(curriculum_dir: Optional[str] = None):
         if root.exists():
             idx = RagIndex.from_directory(root)
             if len(idx) > 0:
-                return idx
-    return build_demo_index()
+                return _with_dropped_docs(idx)
+    return _with_dropped_docs(build_demo_index())
+
+
+def _with_dropped_docs(index):
+    """Add notes, news pages, and database rows staged by the drop intake."""
+    try:
+        from aoep_shared.rag import Document
+        from aoep_shared.training_intake import iter_rag_texts
+    except Exception:  # noqa: BLE001
+        return index
+    have = {doc.doc_id for doc in getattr(index, "_docs", [])}
+    for doc_id, title, text in iter_rag_texts():
+        if doc_id in have:
+            continue
+        index.add(Document.from_text(doc_id, title, text))
+    return index
 
 
 def _token_overlap(a: str, b: str) -> float:

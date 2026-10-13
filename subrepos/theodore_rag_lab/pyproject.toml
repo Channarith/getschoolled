@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "theodore-rag-lab"
 version = "0.1.0"
-description = "Private lab: RAG auto-tune, dictionary corpus, read-aloud, and LLM dictionary export."
+description = "Private lab: RAG auto-tune, dictionary corpus, read-aloud, and multi-language voice training."
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.111,<0.116",
@@ -21,6 +21,8 @@ theodore-rag-lab = "theodore_rag_lab.main:main"
 theodore-rag-train = "theodore_rag_lab.bakeoff_loop:cli_main"
 theodore-rag-corpus-update = "theodore_rag_lab.cli_corpus:corpus_update_main"
 theodore-rag-read-aloud = "theodore_rag_lab.cli_corpus:read_aloud_main"
+theodore-rag-voice-queue = "theodore_rag_lab.cli_voice:main"
+theodore-rag-drop = "theodore_rag_lab.cli_drop:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

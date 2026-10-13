@@ -1191,7 +1191,7 @@ export default function LiveRoomScreen({
         👁 {socket.viewerCount || room?.viewer_count || room?.participants.length || 0}
         {" · ❤️ "}{socket.followerCount}
         {socket.connected ? " · live" : " · polling"}
-        {xai.live ? " · Grok voice" : ""}
+        {xai.live ? " · Sala" : ""}
       </Text>
       {xai.hint && !xai.live ? <Text style={styles.meta}>{xai.hint}</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -29,20 +29,23 @@ def test_normalize_language_aliases():
 
 def test_voice_agent_offline_fallback(monkeypatch):
     monkeypatch.delenv("XAI_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    monkeypatch.setenv("VOICE_NLLB_LOCALIZE", "0")
     agent = CourseStudioVoiceAgent(api_key="")
     assert agent.available is False
     status = agent.status()
     assert status["provider"] == "local-fallback"
     assert status["offline_ok"] is True
+    assert status["loop"] == "listen→llm→nllb→tts"
     turn = agent.respond(
         session_id="s1",
         learner_message="Explain active listening",
         language_code="es",
     )
     assert turn.fallback_used is True
-    assert turn.provider == "local-fallback"
+    assert turn.provider.startswith("local-fallback")
     assert turn.language_code == "es"
-    assert "Spanish" in turn.message or turn.language_name == "Spanish"
+    assert turn.language_name == "Spanish"
 
 
 def test_voice_agent_live_xai_path(monkeypatch):

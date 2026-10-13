@@ -5,7 +5,8 @@
  * streams the microphone and plays the tutor. It does not send instructions.
  */
 
-import { getXaiVoiceStatus, mintXaiVoiceToken, connectXaiVoiceSession, appendInputAudio, closeXaiVoiceSession, sendTextTurn } from "./xaiVoice";
+import { cancelSpeech, speakNaturally } from "./tts";
+import { getXaiVoiceStatus, isSalaneEngine, mintXaiVoiceToken, connectXaiVoiceSession, appendInputAudio, closeXaiVoiceSession, sendTextTurn } from "./xaiVoice";
 
 const BLUETOOTH_INPUT = /bluetooth|airpod|headset|hands-free|handset|beats|bose/i;
 
@@ -103,6 +104,49 @@ export async function startDriveVoice(
 ): Promise<DriveVoiceSession | null> {
   const status = await getXaiVoiceStatus().catch(() => null);
   if (!status?.available) return null;
+  if (isSalaneEngine(status.engine)) {
+    const locale = topic.language || "en";
+    let stopped = false;
+    callbacks.onStatus?.("Sala is speaking with Salane Voice.");
+    return {
+      setLessonAudible() {},
+      speakLesson(text: string, onDone?: () => void) {
+        const line = text.trim();
+        if (stopped || !line) return false;
+        callbacks.onSpeaking?.(true);
+        speakNaturally(line, {
+          locale,
+          onend: () => {
+            callbacks.onSpeaking?.(false);
+            onDone?.();
+          },
+        });
+        return true;
+      },
+      ask(text: string) {
+        const line = (text || topic.excerpt || topic.title || "").trim();
+        if (stopped || !line) return;
+        callbacks.onTutor?.(topic.excerpt || topic.title);
+        callbacks.onSpeaking?.(true);
+        speakNaturally(topic.excerpt || topic.title || line, {
+          locale,
+          onend: () => {
+            callbacks.onSpeaking?.(false);
+            callbacks.onAnswerDone?.();
+          },
+        });
+      },
+      hold() {
+        cancelSpeech();
+        callbacks.onSpeaking?.(false);
+      },
+      stop() {
+        stopped = true;
+        cancelSpeech();
+        callbacks.onSpeaking?.(false);
+      },
+    };
+  }
   const token = await mintXaiVoiceToken({
     mode: "drive",
     category: topic.category,

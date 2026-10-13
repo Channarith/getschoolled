@@ -14,9 +14,29 @@ client = TestClient(app)
 def _set_xai(monkeypatch, *, key: str, model: str = "grok-voice-latest", voice: str = "eve"):
     monkeypatch.delenv("XAI_API_KEY", raising=False)
     cfg = app.state.config.model_copy(
-        update={"xai_api_key": key, "xai_voice_model": model, "xai_voice_id": voice}
+        update={
+            "xai_api_key": key,
+            "xai_voice_model": model,
+            "xai_voice_id": voice,
+            "voice_agent": "xai",
+        }
     )
     monkeypatch.setattr(app.state, "config", cfg)
+
+
+def test_voice_status_salane_is_the_default(monkeypatch):
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    cfg = app.state.config.model_copy(update={"voice_agent": "salane", "xai_api_key": "xai-test-key"})
+    monkeypatch.setattr(app.state, "config", cfg)
+    body = client.get("/voice/status").json()
+    assert body["available"] is True
+    assert body["engine"] == "salane"
+    assert body["display_name"] == "Salane Voice"
+    assert body["short_name"] == "Sala"
+    token = client.post("/voice/token", json={"mode": "solo", "language": "km"}).json()
+    assert token["use_xai"] is False
+    assert token["engine"] == "salane"
+    assert token["token"] is None
 
 
 def test_voice_status_unconfigured(monkeypatch):

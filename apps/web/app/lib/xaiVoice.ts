@@ -22,7 +22,14 @@ export type XaiVoiceStatus = {
   voice: string;
   realtime_ws: string;
   hint: string;
+  display_name?: string;
+  short_name?: string;
 };
+
+/** Salane Voice (Sala) is the CosyVoice class voice. */
+export function isSalaneEngine(engine: string | undefined): boolean {
+  return (engine || "").trim().toLowerCase().startsWith("salane");
+}
 
 export type XaiVoiceToken = {
   value: string;
@@ -53,7 +60,9 @@ export type XaiVoiceTokenResponse = {
   mode: string;
   xai_configured: boolean;
   engine: string;
-  /** False for Khmer and Cantonese: those voices are not on xAI. */
+  display_name?: string;
+  short_name?: string;
+  /** False for Khmer and Cantonese on xAI, and for Salane Voice (CosyVoice). */
   use_xai?: boolean;
   spoken_language?: XaiSpokenLanguage;
 };

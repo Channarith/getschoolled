@@ -804,7 +804,7 @@ export default function LessonScreen({
           <GlassPanel style={styles.card}>
             <Text style={styles.cardTitle}>{t("lesson.askTitle")}</Text>
             <PrimaryButton
-              label={voiceOn ? (xai.live ? "Grok voice on" : "Grok voice starting") : "Grok voice off"}
+              label={voiceOn ? (xai.live ? "Sala on" : "Sala starting") : "Sala off"}
               onPress={() => {
                 if (voiceOn) {
                   stopNarration();

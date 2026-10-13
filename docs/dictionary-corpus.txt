@@ -72,10 +72,39 @@ Audio cleanup
 
 Scale CosyVoice fine-tune data from video
 -----------------------------------------
-  Operator-supplied YouTube/Vimeo URL lists (or local media) → same denoise path
-  → segments + ASR → CosyVoice Kaldi lists. See docs/cosyvoice-a2f.txt and:
+  The language pools (Khmer, Mandarin, Cantonese, English, Spanish, and the
+  rest of urls/cosyvoice_channels.json) are the voice-training queue. The RAG
+  lab Voice training tab and the command line run the same code. Progress is
+  output/cosyvoice_voice_queue_status.json. A WAV already on disk is skipped.
+
+  Drop links, files, and databases (UI or CLI, same intake)
+  -------------------------------------------------------
+  RAG lab → Drop training. Drag a link, video, audio file, channel, Vimeo URL,
+  news link, note, CSV, JSON, or SQLite database onto the page. The shell takes
+  the same things as arguments (drag the files onto the command before Enter):
+
+    python3 scripts/training_drop.py ./lesson.mp4 ./school.db @ChinesePodTV
+    python3 scripts/training_drop.py --stdin
+    python3 scripts/training_drop.py --train --max-urls 2 <urls and files>
+
+  YouTube and Vimeo go to output/intake/voice/urls.txt (a channel is listed up
+  to the channel cap, default 20). Audio and video files go to
+  output/intake/voice/media/. Notes, news links, and database rows go to
+  output/intake/rag/ and are added to the lab index. Question/answer rows also
+  append to output/intake/llm/dropped_rag.jsonl. Train dropped voice ingests
+  only that bucket.
+
+  UI: http://127.0.0.1:8095/ → Voice training
+  CLI:
+    theodore-rag-voice-queue --pool es,th --workers 2 --max-urls 2
+    python3 scripts/cosyvoice_batch_ingest.py --pool es,th --workers 2 --max-urls 2
+    theodore-rag-voice-queue --stop
+
+  One channel file on its own:
     python3 scripts/cosyvoice_ingest.py --urls-file urls.txt --language en \
       --output-dir output/cosyvoice_en
+
+  Merged recipes land in output/cosyvoice_<pool>_merged. See docs/cosyvoice-a2f.txt.
 
 
 Tests

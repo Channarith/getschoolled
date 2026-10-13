@@ -116,3 +116,10 @@ docs/diagrams/fundraising-screens/
 subrepos/theodore_course_studio/avatar/preview/
 # ---- Test-generated host uploads (curriculum tests write here) ----
 sample-curriculum/host-uploads/
+
+# ---- CosyVoice URL expansion dumps (regenerate via cosyvoice_expand_channels.py) ----
+urls/cosyvoice_*/ 
+urls/cosyvoice_*_all.txt
+urls/cosyvoice_expand_report.json
+# keep urls/cosyvoice_channels.json, urls/cosyvoice_*_INDEX.txt, urls/cosyvoice_CORPUS_STATUS.txt
+urls_km_*.txt

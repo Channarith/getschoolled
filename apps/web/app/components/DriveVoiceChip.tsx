@@ -92,7 +92,7 @@ export default function DriveVoiceChip({
           cursor: "pointer",
         }}
       >
-        Show xAI
+        Show Sala
       </button>
     );
   }
@@ -100,7 +100,7 @@ export default function DriveVoiceChip({
   return (
     <div
       ref={chipRef}
-      title="Drag the xAI voice. Tap the microphone to start or stop."
+      title="Drag Salane Voice. Tap the microphone to start or stop."
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         if ((event.target as HTMLElement).closest("button.close")) return;
@@ -156,7 +156,7 @@ export default function DriveVoiceChip({
     >
       <button
         type="button"
-        aria-label={live ? "Stop xAI voice" : "Start xAI voice"}
+        aria-label={live ? "Stop Salane Voice" : "Start Salane Voice"}
         onClick={() => {
           if (swallowClick.current) {
             swallowClick.current = false;
@@ -178,9 +178,9 @@ export default function DriveVoiceChip({
         {live ? "🔊" : "🎤"}
       </button>
       <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <span style={{ fontWeight: 700, fontSize: 13 }}>xAI voice</span>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>Salane Voice</span>
         <span style={{ color: "#99f6e4", fontSize: 12, fontWeight: 600 }}>
-          {live ? "Using xAI. Connected." : "xAI not connected. Tap the microphone."}
+          {live ? "Sala is connected." : "Sala is not connected. Tap the microphone."}
         </span>
       </span>
       <button

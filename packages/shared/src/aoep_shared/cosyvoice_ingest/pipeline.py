@@ -16,6 +16,7 @@ from ..dictionary_audio import (
 )
 from .download import DownloadedMedia, copy_local_media, download_url
 from .export import CosyVoiceUtterance, RecipePaths, write_cosyvoice_recipe
+from .merge import default_merge_into, merge_language_pool
 from .segment import segment_pcm16, slice_pcm16
 from .transcribe import TranscriptResult, asr_available, transcribe_wav
 from .urls import load_url_list
@@ -41,6 +42,10 @@ class IngestConfig:
     allow_empty_transcripts: bool = False
     cosyvoice_repo: Optional[Path] = None
     max_urls: Optional[int] = None
+    # After each export, rebuild a language-wide merged recipe for training.
+    merge: bool = True
+    merge_into: Optional[Path] = None
+    merge_scan_root: Optional[Path] = None
 
 
 @dataclass
@@ -54,6 +59,9 @@ class IngestReport:
     asr_available: bool = False
     errors: List[str] = field(default_factory=list)
     train_handoff: str = ""
+    merge_dir: str = ""
+    merge_utterances: int = 0
+    merge_train_handoff: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -325,6 +333,42 @@ def run_ingest(
                 "export_empty: no QC-ok utterances with transcripts "
                 "(need ASR and/or allow_empty_transcripts for stubs)"
             )
+
+    # --- merge (always on by default; every channel run refreshes the pool) ---
+    if config.merge and _stage_enabled("export", start_stage, stop_stage):
+        merge_into = Path(
+            config.merge_into
+            or os.environ.get("COSYVOICE_MERGE_INTO", "")
+            or default_merge_into(config.language)
+        )
+        scan_root = Path(
+            config.merge_scan_root
+            or os.environ.get("COSYVOICE_MERGE_SCAN_ROOT", "")
+            or out.parent
+        )
+        repo = config.cosyvoice_repo or Path(
+            os.environ.get("COSYVOICE_REPO", "/home/nvidia/code/CosyVoice")
+        )
+        current = Path(report.recipe_dir) if report.recipe_dir else None
+        merge_report = merge_language_pool(
+            language=config.language,
+            merge_into=merge_into,
+            scan_roots=[scan_root],
+            current_recipe=current,
+            split_name=config.split_name,
+            cosyvoice_repo=repo if repo.exists() else repo,
+        )
+        report.merge_dir = merge_report.dest_dir
+        report.merge_utterances = merge_report.utterances
+        report.merge_train_handoff = merge_report.train_handoff
+        report.stages["merge"] = merge_report.to_dict()
+        # Prefer the merged handoff for operators when the pool has data.
+        if merge_report.ok and merge_report.train_handoff:
+            report.train_handoff = merge_report.train_handoff
+        if not merge_report.ok and merge_report.errors:
+            # Empty pool while channels are still downloading is expected; keep
+            # channel-level ok/errors authoritative for this run.
+            report.stages["merge"]["note"] = "merged recipe empty or incomplete"
 
     # Persist report
     (out / "report.json").write_text(

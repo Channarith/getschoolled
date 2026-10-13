@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 
 # Load config/local.env so XAI_API_KEY / ELEVENLABS_API_KEY / SPEECH_BASE_URL
 # work without a manual `set -a; . config/local.env` in every shell.
@@ -15,7 +16,7 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
 
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -45,6 +46,7 @@ from .dictionary_lab import (
 from .qualify_page import render_qualify_page
 from .rag_tuning import PRESETS, RagTuning
 from .read_aloud_lab import read_aloud_next, read_aloud_progress, read_aloud_score
+from .voice_queue import get_voice_queue
 
 app = FastAPI(title="Theodore RAG Lab", version="0.2.0")
 install_live_audio_routes(app, lab_name="Theodore RAG Lab")
@@ -125,6 +127,8 @@ def health() -> dict[str, Any]:
             "regurgitation",
             "feedback_learning",
             "live_current_awareness",
+            "voice_queue",
+            "training_drop",
         ],
         "corpus": corpus_stats(),
         "current_awareness_live": any(
@@ -395,6 +399,137 @@ def api_read_aloud_score(req: ReadAloudScoreReq) -> dict[str, Any]:
 @app.get("/api/read-aloud/progress")
 def api_read_aloud_progress(learner_id: str = "local") -> dict[str, Any]:
     return read_aloud_progress(learner_id=learner_id or "local")
+
+
+class VoiceQueueStart(BaseModel):
+    pools: list[str] = Field(default_factory=list)
+    workers: int = Field(default=1, ge=1, le=12)
+    max_urls: int | None = Field(default=None, ge=1)
+    max_channels: int | None = Field(default=None, ge=1)
+    include_news: bool = False
+    min_videos: int = Field(default=1, ge=1)
+
+
+@app.get("/api/voice/queue")
+def api_voice_queue() -> dict[str, Any]:
+    return get_voice_queue().snapshot()
+
+
+@app.post("/api/voice/queue/start")
+def api_voice_queue_start(req: VoiceQueueStart) -> dict[str, Any]:
+    from aoep_shared.cosyvoice_ingest.queue import VoiceQueueBusy
+
+    try:
+        return get_voice_queue().start(
+            pools=req.pools,
+            workers=req.workers,
+            max_urls=req.max_urls,
+            max_channels=req.max_channels,
+            include_news=req.include_news,
+            min_videos=req.min_videos,
+        )
+    except VoiceQueueBusy as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/voice/queue/stop")
+def api_voice_queue_stop() -> dict[str, Any]:
+    return get_voice_queue().stop()
+
+
+class TrainingDropReq(BaseModel):
+    links: list[str] = Field(default_factory=list)
+    language: str = "en"
+    expand_limit: int = Field(default=20, ge=0, le=500)
+    fetch_pages: bool = False
+
+
+def _stage_drop(**kwargs: Any) -> dict[str, Any]:
+    from aoep_shared.training_intake import drop_training
+
+    report = drop_training(**kwargs)
+    _add_dropped_docs()
+    return report
+
+
+def _add_dropped_docs() -> None:
+    from aoep_shared.rag import Document
+    from aoep_shared.training_intake import iter_rag_texts
+
+    runner = get_runner()
+    index = runner.index
+    if index is None:
+        return
+    have = {doc.doc_id for doc in getattr(index, "_docs", [])}
+    for doc_id, title, text in iter_rag_texts():
+        if doc_id in have:
+            continue
+        index.add(Document.from_text(doc_id, title, text))
+
+
+@app.get("/api/training/drop")
+def api_training_drop_status() -> dict[str, Any]:
+    from aoep_shared.training_intake import intake_summary
+
+    return intake_summary()
+
+
+@app.post("/api/training/drop")
+def api_training_drop(req: TrainingDropReq) -> dict[str, Any]:
+    return _stage_drop(
+        links=req.links,
+        language=req.language or "en",
+        expand_limit=req.expand_limit,
+        fetch_pages=req.fetch_pages,
+    )
+
+
+@app.post("/api/training/drop/upload")
+async def api_training_drop_upload(request: Request) -> dict[str, Any]:
+    form = await request.form()
+    payloads: list[tuple[str, bytes]] = []
+    for upload in form.getlist("files"):
+        if not hasattr(upload, "read"):
+            continue
+        payloads.append((getattr(upload, "filename", None) or "upload", await upload.read()))
+    expand_raw = str(form.get("expand_limit") or "20")
+    try:
+        expand_limit = int(expand_raw)
+    except ValueError:
+        expand_limit = 20
+    fetch_raw = str(form.get("fetch_pages") or "false")
+    return _stage_drop(
+        links=_split_form_links(str(form.get("links") or "")),
+        files=payloads,
+        language=str(form.get("language") or "en"),
+        expand_limit=max(0, min(500, expand_limit)),
+        fetch_pages=fetch_raw.strip().lower() in {"1", "true", "yes", "on"},
+    )
+
+
+def _split_form_links(links: str) -> list[str]:
+    return [line.strip() for line in (links or "").splitlines() if line.strip()]
+
+
+@app.post("/api/training/drop/train")
+def api_training_drop_train(max_urls: int | None = None) -> dict[str, Any]:
+    import threading
+
+    from aoep_shared.training_intake import intake_root, train_dropped
+
+    holder: dict[str, Any] = {}
+
+    def _run() -> None:
+        try:
+            holder["report"] = train_dropped(max_urls=max_urls)
+        except Exception as exc:  # noqa: BLE001
+            holder["report"] = {"ok": False, "detail": str(exc)}
+        path = intake_root() / "voice_train_status.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(holder["report"], default=str), encoding="utf-8")
+
+    threading.Thread(target=_run, name="training-drop", daemon=True).start()
+    return {"ok": True, "started": True, "root": str(intake_root())}
 
 
 def main() -> None:

@@ -11,6 +11,13 @@ reuses ``dictionary_audio.clean_audio_file`` for denoise/QC.
 from __future__ import annotations
 
 from .export import CosyVoiceUtterance, write_cosyvoice_recipe
+from .merge import (
+    MergeReport,
+    default_merge_into,
+    discover_recipe_dirs,
+    merge_cosyvoice_recipes,
+    merge_language_pool,
+)
 from .pipeline import IngestConfig, IngestReport, run_ingest
 from .segment import Segment, segment_pcm16
 from .urls import load_url_list
@@ -19,8 +26,13 @@ __all__ = [
     "CosyVoiceUtterance",
     "IngestConfig",
     "IngestReport",
+    "MergeReport",
     "Segment",
+    "default_merge_into",
+    "discover_recipe_dirs",
     "load_url_list",
+    "merge_cosyvoice_recipes",
+    "merge_language_pool",
     "run_ingest",
     "segment_pcm16",
     "write_cosyvoice_recipe",
