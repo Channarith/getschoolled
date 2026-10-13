@@ -1,11 +1,13 @@
-"""xAI Theodore voice agent for course studio, with offline local fallback.
+"""Theodore voice agent for course studio: listen → reply → speak.
 
-Pattern matches the webcam lab / aoep_shared stack:
-  1) Grok (xAI) generates teaching text when XAI_API_KEY is set
-  2) Speech gateway / device TTS speaks it (see ``tts_client``)
-  3) Without a key or on API failure → deterministic local-fallback text
+Conversation loop (language of choice):
+  1) Learner speech → transcript (browser ASR or typed)
+  2) LLM reply: SuperGrok / xAI when keyed, else local OpenAI-compatible
+     ``LLM_BASE_URL``, else course-grounded local-fallback
+  3) If reply language ≠ English, localize via in-process NLLB (free)
+  4) Client speaks via speech gateway TTS (CosyVoice → ElevenLabs → edge)
 
-Fully usable offline for demos and long training loops.
+Fully usable offline for demos when CosyVoice + NLLB are local; no xAI required.
 """
 
 from __future__ import annotations
@@ -188,13 +190,27 @@ class CourseStudioVoiceAgent:
         self._model = model or os.environ.get("XAI_MODEL", "").strip() or XAI_DEFAULT_MODEL
         self._timeout_s = float(os.environ.get("XAI_TIMEOUT_S", timeout_s))
         self._history: dict[str, list[dict[str, str]]] = {}
+        self._llm_base = (os.environ.get("LLM_BASE_URL") or "").rstrip("/")
+        self._llm_model = (os.environ.get("LLM_MODEL") or "education-base").strip()
+        self._llm_key = (os.environ.get("LLM_API_KEY") or "").strip()
 
     @property
     def available(self) -> bool:
         return bool(self._api_key)
 
+    @property
+    def local_llm_configured(self) -> bool:
+        return bool(self._llm_base)
+
     def status(self) -> dict[str, Any]:
         from aoep_shared.supergrok import SUPERGROK_MODEL, subscription_configured
+
+        try:
+            from aoep_shared.nllb import nllb_available
+
+            nllb = bool(nllb_available())
+        except Exception:  # noqa: BLE001
+            nllb = False
 
         supergrok = subscription_configured()
         if supergrok:
@@ -203,16 +219,26 @@ class CourseStudioVoiceAgent:
         elif self.available:
             provider = "xai"
             model = self._model
+        elif self.local_llm_configured:
+            provider = "local-llm"
+            model = self._llm_model
         else:
             provider = "local-fallback"
             model = ""
         return {
+            "loop": "listen→llm→nllb→tts",
+            "local_llm": self.local_llm_configured,
+            "local_llm_base": self._llm_base or "",
+            "nllb": nllb,
             "xai_available": self.available or supergrok,
             "supergrok": supergrok,
             "provider": provider,
             "model": model,
-            "tts_engine_chain": ["elevenlabs", "edge-tts", "device"],
-            "realtime_hint": "Use aoep_shared.xai_realtime for browser S2S when promoting to main app",
+            "tts_engine_chain": ["cosyvoice", "elevenlabs", "edge-tts", "device"],
+            "realtime_hint": (
+                "Browser mic → /api/studio/teach/voice/respond → /api/studio/tts. "
+                "Native S2S still uses aoep_shared live-audio (xAI/Gemini) when keyed."
+            ),
             "offline_ok": True,
         }
 
@@ -293,10 +319,15 @@ class CourseStudioVoiceAgent:
             lesson_context=model_context,
         )
         if supergrok is not None:
-            supergrok.latency_ms = int((time.time() - started) * 1000)
-            supergrok.language_code = lang
-            supergrok.language_name = lname
-            return supergrok
+            return self._finalize_turn(
+                provider=supergrok.provider,
+                message=supergrok.message,
+                language_code=lang,
+                language_name=lname,
+                fallback_used=False,
+                latency_ms=int((time.time() - started) * 1000),
+                model=supergrok.model,
+            )
 
         # Prefer shared TeacherVoiceAgent when package + key are available.
         shared = self._try_shared_agent(
@@ -306,10 +337,15 @@ class CourseStudioVoiceAgent:
             lesson_context=shared_context,
         )
         if shared is not None:
-            shared.latency_ms = int((time.time() - started) * 1000)
-            shared.language_code = lang
-            shared.language_name = lname
-            return shared
+            return self._finalize_turn(
+                provider=shared.provider,
+                message=shared.message,
+                language_code=lang,
+                language_name=lname,
+                fallback_used=False,
+                latency_ms=int((time.time() - started) * 1000),
+                model=shared.model,
+            )
 
         if self.available:
             try:
@@ -319,7 +355,7 @@ class CourseStudioVoiceAgent:
                     language_code=spoken,
                     lesson_context=model_context,
                 )
-                return VoiceTurn(
+                return self._finalize_turn(
                     provider="xai",
                     message=text,
                     language_code=lang,
@@ -331,12 +367,39 @@ class CourseStudioVoiceAgent:
             except Exception:  # noqa: BLE001 — always degrade offline-safe
                 pass
 
-        return self._fallback(
+        local = self._try_local_llm(
+            session_id=session_id,
+            learner_message=cleaned,
+            language_code=spoken,
+            lesson_context=model_context,
+        )
+        if local is not None:
+            local.latency_ms = int((time.time() - started) * 1000)
+            return self._finalize_turn(
+                provider=local.provider,
+                message=local.message,
+                language_code=lang,
+                language_name=lname,
+                fallback_used=local.fallback_used,
+                latency_ms=local.latency_ms,
+                model=local.model,
+            )
+
+        turn = self._fallback(
             learner_message=cleaned,
             language_code=lang,
             language_name=lname,
             latency_ms=int((time.time() - started) * 1000),
             lesson_context=lesson_context if scope_to_course else "",
+        )
+        return self._finalize_turn(
+            provider=turn.provider,
+            message=turn.message,
+            language_code=lang,
+            language_name=lname,
+            fallback_used=True,
+            latency_ms=turn.latency_ms,
+            model=turn.model,
         )
 
     def ask_check_question(
@@ -520,6 +583,84 @@ class CourseStudioVoiceAgent:
         self._remember(session_id, learner_message, text)
         return text
 
+    def _try_local_llm(
+        self,
+        *,
+        session_id: str,
+        learner_message: str,
+        language_code: str,
+        lesson_context: str,
+    ) -> VoiceTurn | None:
+        """OpenAI-compatible local vLLM / Ollama when ``LLM_BASE_URL`` is set."""
+        if not self._llm_base:
+            return None
+        messages = self._messages(
+            session_id=session_id,
+            learner_message=learner_message,
+            language_code=language_code,
+            lesson_context=lesson_context,
+        )
+        payload = {
+            "model": self._llm_model,
+            "messages": messages,
+            "temperature": 0.55,
+            "max_tokens": 280,
+        }
+        headers = {"Content-Type": "application/json"}
+        if self._llm_key:
+            headers["Authorization"] = f"Bearer {self._llm_key}"
+        req = urllib.request.Request(
+            f"{self._llm_base}/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self._timeout_s) as resp:
+                raw = json.loads(resp.read().decode("utf-8"))
+        except Exception:  # noqa: BLE001
+            return None
+        text = (
+            raw.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+            .strip()
+        )
+        if not text:
+            return None
+        self._remember(session_id, learner_message, text)
+        return VoiceTurn(
+            provider="local-llm",
+            message=text,
+            language_code=language_code,
+            language_name=language_name(language_code),
+            fallback_used=False,
+            model=self._llm_model,
+        )
+
+    def _finalize_turn(
+        self,
+        *,
+        provider: str,
+        message: str,
+        language_code: str,
+        language_name: str,
+        fallback_used: bool,
+        latency_ms: int,
+        model: str = "",
+    ) -> VoiceTurn:
+        """Ensure the spoken reply matches the learner language (NLLB when needed)."""
+        spoken = _localize_reply(message, language_code)
+        return VoiceTurn(
+            provider=provider if spoken == message else f"{provider}+nllb",
+            message=spoken,
+            language_code=language_code,
+            language_name=language_name,
+            fallback_used=fallback_used,
+            latency_ms=latency_ms,
+            model=model,
+        )
+
     @staticmethod
     def _fallback(
         *,
@@ -532,14 +673,14 @@ class CourseStudioVoiceAgent:
         cleaned = (learner_message or "").strip()
         if lesson_context.strip():
             message = (
-                f"[{language_name}] Let's stay with this course. "
+                f"Let's stay with this course. "
                 f"{_course_sentence(cleaned, lesson_context)}"
             )
         else:
             if len(cleaned) > 220:
                 cleaned = cleaned[:217].rstrip() + "…"
             message = (
-                f"[{language_name}] Let's take this one clear step at a time. "
+                "Let's take this one clear step at a time. "
                 f"Focus on: {cleaned} "
                 "I will check your understanding after this point."
             )
@@ -551,6 +692,60 @@ class CourseStudioVoiceAgent:
             fallback_used=True,
             latency_ms=latency_ms,
         )
+
+
+def _localize_reply(text: str, language_code: str) -> str:
+    """Translate an English teaching reply into ``language_code`` via speech NLLB."""
+    lang = normalize_language(language_code) or "en"
+    clean = (text or "").strip()
+    if not clean or lang == "en":
+        return clean
+    # Skip if already mostly non-Latin for script languages (already localized).
+    non_latin = sum(1 for ch in clean if ord(ch) > 127)
+    if lang in {
+        "zh", "ja", "ko", "km", "ar", "he", "hi", "bn", "ur", "fa", "th", "ru", "uk", "el"
+    }:
+        if non_latin / max(1, len(clean)) > 0.15:
+            return clean
+    if os.environ.get("VOICE_NLLB_LOCALIZE", "1").strip().lower() in (
+        "0",
+        "false",
+        "no",
+        "off",
+    ):
+        return clean
+    # Prefer the speech gateway (one shared NLLB). Fall back to in-process.
+    base = (
+        os.environ.get("TRANSLATION_BASE_URL")
+        or os.environ.get("SPEECH_BASE_URL")
+        or ""
+    ).rstrip("/")
+    if base:
+        try:
+            payload = json.dumps(
+                {"text": clean, "source": "en", "target": lang}
+            ).encode("utf-8")
+            req = urllib.request.Request(
+                f"{base}/translate",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                raw = json.loads(resp.read().decode("utf-8"))
+            engine = str(raw.get("engine") or "")
+            out = str(raw.get("text") or "").strip()
+            if out and not raw.get("degraded") and engine in {"provider", "phrasebook"}:
+                return out
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        from aoep_shared.nllb import translate_text
+
+        out = translate_text(clean, source="en", target=lang)
+        return out or clean
+    except Exception:  # noqa: BLE001 — keep English rather than fail the turn
+        return clean
 
 
 _agent: CourseStudioVoiceAgent | None = None
