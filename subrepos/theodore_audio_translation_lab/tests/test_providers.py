@@ -61,14 +61,48 @@ def test_gateway_nllb_translation(monkeypatch):
     def fake(req, timeout=None):
         captured["url"] = req.full_url
         captured["body"] = json.loads(req.data.decode())
-        return _Resp({"source": "es", "target": "en", "text": "Good morning"})
+        return _Resp(
+            {
+                "source": "es",
+                "target": "en",
+                "text": "Good morning",
+                "engine": "provider",
+                "degraded": False,
+            }
+        )
 
     monkeypatch.setattr("urllib.request.urlopen", fake)
     result = TranslationEngine().translate("Buenos días", "es", "en")
     assert result.text == "Good morning"
-    assert result.provider == "speech-gateway-nllb"
+    assert result.provider == "speech-gateway-provider"
     assert captured["url"] == "http://speech:8002/translate"
     assert captured["body"] == {"text": "Buenos días", "source": "es", "target": "en"}
+
+
+def test_gateway_passthrough_rejected(monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv("TRANSLATION_BASE_URL", "http://speech:8002")
+    # Use open-ended text so the offline phrasebook cannot mask the failure.
+    text = "California HOV lanes begin after the dashed white lines."
+
+    def fake(req, timeout=None):
+        return _Resp(
+            {
+                "source": "en",
+                "target": "es",
+                "text": text,
+                "engine": "passthrough",
+                "degraded": True,
+            }
+        )
+
+    monkeypatch.setattr("urllib.request.urlopen", fake)
+    result = TranslationEngine().translate(text, "en", "es")
+    assert result.translated is False
+    assert result.provider == "source-fallback"
+    assert "not real" in (result.warning or "").lower() or "passthrough" in (
+        result.warning or ""
+    ).lower()
 
 
 def test_xai_translation_and_cache(monkeypatch):

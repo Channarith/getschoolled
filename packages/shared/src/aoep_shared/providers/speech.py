@@ -41,9 +41,17 @@ class _BaseSpeechProvider(SpeechProvider):
         for lang in (source, target):
             if lang not in SUPPORTED_LANGUAGES:
                 raise ValueError(f"Unsupported language: {lang}")
-        raise NotImplementedError(
-            "Translation model (NLLB-200) not loaded in this environment."
-        )
+        # Prefer in-process NLLB when transformers weights are available
+        # (local Spark / GPU). Falls through to NotImplementedError so the
+        # speech gateway can try phrasebook then honest passthrough.
+        try:
+            from ..nllb import translate_text
+
+            return translate_text(text, source=source, target=target)
+        except Exception as exc:  # noqa: BLE001
+            raise NotImplementedError(
+                f"Translation model (NLLB-200) not loaded: {exc}"
+            ) from exc
 
     def synthesize(self, text: str, *, language: str, voice: str) -> Audio:
         if language not in SUPPORTED_LANGUAGES:
