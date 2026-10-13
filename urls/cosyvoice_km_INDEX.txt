@@ -1,0 +1,45 @@
+CosyVoice Khmer URL lists (operator-supplied channels)
+=====================================================
+
+Per-channel files under urls/cosyvoice_km/; combined deduped list:
+  urls/cosyvoice_km_all.txt  (37301 unique URLs)
+
+Expand / refresh a channel:
+  yt-dlp --flat-playlist --print 'https://www.youtube.com/watch?v=%(id)s' \
+    'https://www.youtube.com/@HANDLE/videos' > urls/cosyvoice_km/SLUG.txt
+
+Ingest one channel:
+  python3 scripts/cosyvoice_ingest.py --urls-file urls/cosyvoice_km/SLUG.txt \
+    --language km --output-dir output/cosyvoice_km_SLUG \
+    --cosyvoice-repo /home/nvidia/code/CosyVoice --speaker SLUG
+
+Merge pool (auto after each ingest; or):
+  python3 scripts/cosyvoice_ingest.py --merge-only --language km
+
+Counts:
+      16  cutie_ai_animation.txt
+      17  buddhist_stories_playlist.txt
+      23  easykhmer.txt
+      27  niteanroeungtv.txt
+      42  danychhe.txt
+      54  traditional_dance_palelainea.txt
+      59  samath_stories.txt
+      68  naturalkhmer.txt
+      71  cvjarot.txt
+      83  cambodianschool.txt
+     124  limcartoonii.txt
+     195  khmer_lesson_tutorial.txt
+     240  language_learning_project.txt
+     375  khmer_fairy_tale.txt
+     389  vttoday.txt
+     400  dara_the_khmer_lesson.txt
+     623  reankhmer.txt
+     671  khmerwithvicheka.txt
+     739  darayin.txt
+    1088  khmerptv.txt
+    1612  langadvance.txt
+    1954  khmer_knowledge.txt
+   12752  rfa_khmer.txt
+   15679  rfi_km.txt
+   37301  (sum of files; combined unique=37301)
+

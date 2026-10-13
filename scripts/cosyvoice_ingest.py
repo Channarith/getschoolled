@@ -12,10 +12,17 @@ Examples:
     --media-dir ./clips --language km --output-dir output/cosyvoice_km \\
     --skip-download
 
+  # Rebuild language merge pool only (no download/ASR):
+  python3 scripts/cosyvoice_ingest.py --merge-only --language km
+
   python3 scripts/cosyvoice_ingest.py --help
 
-Env: COSYVOICE_REPO, COSYVOICE_INGEST_ROOT, AOEP_ASR_MODEL / WHISPER_MODEL,
-YT_DLP_BIN, AOEP_ASR_DEVICE, AOEP_ASR_COMPUTE_TYPE.
+Env: COSYVOICE_REPO, COSYVOICE_INGEST_ROOT, COSYVOICE_MERGE_INTO,
+COSYVOICE_MERGE_SCAN_ROOT, AOEP_ASR_MODEL / WHISPER_MODEL, YT_DLP_BIN,
+AOEP_ASR_DEVICE, AOEP_ASR_COMPUTE_TYPE.
+
+Every successful export also rebuilds ``output/cosyvoice_<lang>_merged``
+(unless ``--no-merge``). Train against that merged handoff.
 
 Respect copyright/terms: only download URLs you are allowed to use; this tool
 does not scrape or ship third-party corpora.
@@ -95,11 +102,37 @@ def build_parser() -> argparse.ArgumentParser:
         default="export",
         choices=["download", "denoise", "segment", "transcribe", "export"],
     )
+    ap.add_argument(
+        "--merge-into",
+        type=Path,
+        default=None,
+        help="Combined recipe root (default: output/cosyvoice_<lang>_merged)",
+    )
+    ap.add_argument(
+        "--merge-scan-root",
+        type=Path,
+        default=None,
+        help="Parent dir scanned for channel recipes (default: parent of --output-dir)",
+    )
+    ap.add_argument(
+        "--no-merge",
+        action="store_true",
+        help="Skip rebuilding the language-wide merged train recipe",
+    )
+    ap.add_argument(
+        "--merge-only",
+        action="store_true",
+        help="Only rebuild the merged recipe from existing channel exports",
+    )
     return ap
 
 
 def main(argv: list[str] | None = None) -> int:
     try:
+        from aoep_shared.cosyvoice_ingest.merge import (
+            default_merge_into,
+            merge_language_pool,
+        )
         from aoep_shared.cosyvoice_ingest.pipeline import IngestConfig, run_ingest
     except ModuleNotFoundError as exc:
         print(
@@ -111,16 +144,39 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     args = build_parser().parse_args(argv)
+    import os
+
+    if args.merge_only:
+        merge_into = args.merge_into or Path(
+            os.environ.get("COSYVOICE_MERGE_INTO", "") or default_merge_into(args.language)
+        )
+        scan_root = args.merge_scan_root or Path(
+            os.environ.get("COSYVOICE_MERGE_SCAN_ROOT", "output")
+        )
+        repo = args.cosyvoice_repo or Path(
+            os.environ.get("COSYVOICE_REPO", "/home/nvidia/code/CosyVoice")
+        )
+        merge_report = merge_language_pool(
+            language=args.language,
+            merge_into=merge_into,
+            scan_roots=[scan_root],
+            split_name=args.split_name,
+            cosyvoice_repo=repo if repo.exists() else repo,
+        )
+        print(json.dumps(merge_report.to_dict(), indent=2, ensure_ascii=False))
+        if merge_report.train_handoff:
+            print(f"\nTrain handoff: {merge_report.train_handoff}", file=sys.stderr)
+        return 0 if merge_report.ok else 1
+
     if not args.urls_file and not args.media_dir and args.start_stage == "download":
         if not args.skip_download:
             print(
                 "error: provide --urls-file and/or --media-dir "
-                "(or --skip-download to resume an existing output tree)",
+                "(or --skip-download to resume an existing output tree, "
+                "or --merge-only)",
                 file=sys.stderr,
             )
             return 2
-
-    import os
 
     out = args.output_dir or Path(
         os.environ.get("COSYVOICE_INGEST_ROOT", "output/cosyvoice_ingest")
@@ -140,10 +196,15 @@ def main(argv: list[str] | None = None) -> int:
         allow_empty_transcripts=args.allow_empty_transcripts,
         cosyvoice_repo=args.cosyvoice_repo,
         max_urls=args.max_urls,
+        merge=not args.no_merge,
+        merge_into=args.merge_into,
+        merge_scan_root=args.merge_scan_root,
     )
     report = run_ingest(cfg, start_stage=args.start_stage, stop_stage=args.stop_stage)
     print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
-    if report.train_handoff:
+    if report.merge_train_handoff:
+        print(f"\nMerged train handoff: {report.merge_train_handoff}", file=sys.stderr)
+    elif report.train_handoff:
         print(f"\nTrain handoff: {report.train_handoff}", file=sys.stderr)
     return 0 if report.ok else 1
 

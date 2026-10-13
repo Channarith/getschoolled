@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "note": "Operator-supplied YouTube channels/playlists for CosyVoice voice corpora. Respect copyright/terms. whisper = faster-whisper language code; pool_id = output/merge key (dialects share ASR lang but keep separate speakers).",
+  "target_videos": 500000,
+  "pools": [
+    {
+      "pool_id": "km",
+      "whisper": "km",
+      "label": "Khmer",
+      "channels": [
+        "@reankhmer-learnkhmer", "@EASYKHMERofficial", "@khmerwithvicheka",
+        "@DaraYin", "@CambodianSchool", "@cvjarot", "@Khmer.Knowledge",
+        "@LanguageLearningProject", "@danychhe", "@LangAdvance", "@naturalkhmer",
+        "@KhmerFairyTale", "@traditionaldancepalelainea8218", "@SAMATH_Stories",
+        "@CutieAiAnimation", "@niteanroeungtv", "@limcartoonii",
+        "@Dara-TheKhmerLesson", "@KhmerLessonTutorial",
+        "@khmerptv584", "@vttoday", "@RFI_Km", "@rfakhmer"
+      ],
+      "playlists": [
+        "https://www.youtube.com/watch?v=812K5X7Uw-4&list=PL_keyel3BP9monFH05ExcwuqPTrqrlECt"
+      ]
+    },
+    {
+      "pool_id": "zh",
+      "whisper": "zh",
+      "label": "Mandarin Chinese",
+      "channels": [
+        "@ChinesePod", "@YoyoChinese", "@MandarinCorner", "@ChineseForUs",
+        "@EverydayChinese", "@MSLMaster", "@ChineseZeroToHero",
+        "@XiaoyuzhouChinese", "@LiulishuoChinese", "@HskListening",
+        "@CCTVzhongguotongshi", "@CCTV", "@CGTNOfficial", "@ChinaPlusRadio",
+        "@VoiceofChina", "@XinhuaNewsAgency", "@PeopleDailyChina",
+        "@GuangmingDaily", "@CCTVKids", "@BilibiliDocumentary",
+        "@StoryInChinese", "@ChineseStories", "@PeppaPigChineseOfficial"
+      ]
+    },
+    {
+      "pool_id": "zh_tw",
+      "whisper": "zh",
+      "label": "Taiwanese Mandarin",
+      "channels": [
+        "@TaiwaneseMandarin", "@LearnTaiwaneseMandarin", "@TaiwanPlus",
+        "@PTSTaiwan", "@CTITV", "@TVBSNEWS", "@SETINews", "@FTVnews",
+        "@FormosaTVNews", "@PublicTelevisionService", "@TaiwanBar",
+        "@StoryStudioTW", "@BookstorTV", "@KidsCanLearnChinese"
+      ]
+    },
+    {
+      "pool_id": "yue",
+      "whisper": "yue",
+      "label": "Cantonese",
+      "channels": [
+        "@CantoneseClass101", "@LearnCantoneseWithJasmine", "@CantoneseCorner",
+        "@SpeakCantonese", "@HKTV", "@RTHK", "@TVBNews", "@NowNews",
+        "@CantoneseZone", "@DimSumCantonese", "@HongKongFreePress",
+        "@StoryCantonese", "@KidsCantonese"
+      ]
+    },
+    {
+      "pool_id": "en",
+      "whisper": "en",
+      "label": "English (general / US)",
+      "channels": [
+        "@TED", "@TEDxTalks", "@CrashCourse", "@khanacademy", "@BBCLearningEnglish",
+        "@voanews", "@PBSNewsHour", "@NPR", "@StorylineOnline", "@ExtraEnglish",
+        "@EnglishClass101", "@mmmEnglish_Emma", "@SpeakEnglishWithVanessa",
+        "@RachelEnglish", "@engvid", "@OxfordOnlineEnglish"
+      ]
+    },
+    {
+      "pool_id": "en_gb",
+      "whisper": "en",
+      "label": "British English",
+      "channels": [
+        "@bbclearningenglish", "@BBCNews", "@BBC", "@TheBritishCouncil",
+        "@EnglishWithLucy", "@MrSteveEnglish", "@AccentHelp",
+        "@PapaTeachMe", "@EnglishLikeANative", "@CanguroEnglish",
+        "@Channel4", "@SkyNews", "@ITVNews", "@GuardianNews"
+      ]
+    },
+    {
+      "pool_id": "en_au",
+      "whisper": "en",
+      "label": "Australian English",
+      "channels": [
+        "@ABCNewsAustralia", "@ABCTV", "@SBSAustralia", "@TheProjectTV",
+        "@EnglishWithAussie", "@AussieEnglish", "@AustralianEnglishTeacher",
+        "@7NewsAustralia", "@9NewsAustralia", "@TheFeedSBS"
+      ]
+    },
+    {
+      "pool_id": "tl",
+      "whisper": "tl",
+      "label": "Tagalog / Filipino",
+      "channels": [
+        "@LearnTagalog", "@TagalogLang", "@FilipinoPod101", "@GMAPublicAffairs",
+        "@ABS-CBNNews", "@ANC", "@DZMMTeleRadyo", "@Rappler",
+        "@LearningTagalogWithRachelle", "@TagalogLessons", "@UNTVNews",
+        "@KapusoMoJessicaSoho", "@StoryTimeTagalog"
+      ]
+    },
+    {
+      "pool_id": "vi",
+      "whisper": "vi",
+      "label": "Vietnamese",
+      "channels": [
+        "@LearnVietnameseWithAnnie", "@VietnamesePod101", "@TiengVietOi",
+        "@VTV24", "@VTCNow", "@VOV", "@VietnamPlus", "@VnExpressNet",
+        "@EasyVietnamese", "@VietnameseWithKatie", "@StoryVietnam",
+        "@HTV", "@ANTV", "@ChildrenStoriesVietnamese"
+      ]
+    },
+    {
+      "pool_id": "th",
+      "whisper": "th",
+      "label": "Thai",
+      "channels": [
+        "@LearnThaiWithMod", "@ThaiPod101", "@ThaiWithGrace", "@PassporttoThai",
+        "@ThaiPBS", "@NationTV22", "@ThairathTV", "@WorkpointOfficial",
+        "@EasyThai", "@StoriesInThai", "@ThaiKidsStories", "@Channel3Thailand"
+      ]
+    },
+    {
+      "pool_id": "es",
+      "whisper": "es",
+      "label": "Spanish",
+      "channels": [
+        "@SpanishPod101", "@ButterflySpanish", "@WhyNotSpanish", "@EasySpanish",
+        "@RTVE", "@BBCMundo", "@DeutscheWelleEspanol", "@France24_es",
+        "@UnivisionNoticias", "@TelemundoNews", "@ElPais", "@CNNEE",
+        "@StorytellingSpanish", "@CuentosInfantiles", "@ExtraEspanol"
+      ]
+    },
+    {
+      "pool_id": "fr",
+      "whisper": "fr",
+      "label": "French",
+      "channels": [
+        "@FrenchPod101", "@LearnFrenchWithAlexa", "@FrancaisAuthentique",
+        "@innerFrench", "@EasyFrench", "@France24", "@FranceInfo",
+        "@TV5MONDE", "@LeMonde", "@RFI", "@StorytellingFrench",
+        "@ExtraFrench", "@CestUneChanson"
+      ]
+    },
+    {
+      "pool_id": "de",
+      "whisper": "de",
+      "label": "German",
+      "channels": [
+        "@GermanPod101", "@EasyGerman", "@LearnGermanWithAnja", "@DeutschFuerEuch",
+        "@DWDeutschlernen", "@DWNews", "@tagesschau", "@ZDF", "@ARD",
+        "@ExtraGerman", "@SlowGerman", "@Kinderlieder"
+      ]
+    },
+    {
+      "pool_id": "ru",
+      "whisper": "ru",
+      "label": "Russian",
+      "channels": [
+        "@RussianPod101", "@EasyRussian", "@BeFluentinRussian", "@RTNews",
+        "@CurrentTimeTV", "@Meduza", "@BBCNewsRussian", "@DWRussian",
+        "@RussianWithMax", "@ComprehensibleRussian", "@RussianStories"
+      ]
+    },
+    {
+      "pool_id": "it",
+      "whisper": "it",
+      "label": "Italian",
+      "channels": [
+        "@ItalianPod101", "@EasyItalian", "@LearnItalianWithLucrezia",
+        "@ItaliaTiAscolto", "@RAI", "@SkyTG24", "@Fanpage", "@ExtraItalian"
+      ]
+    },
+    {
+      "pool_id": "pt",
+      "whisper": "pt",
+      "label": "Portuguese",
+      "channels": [
+        "@PortuguesePod101", "@EasyPortuguese", "@SpeakingBrazilian",
+        "@TVGlobo", "@BBCBrasil", "@DWBrasil", "@RTP", "@SICNoticias"
+      ]
+    },
+    {
+      "pool_id": "nl",
+      "whisper": "nl",
+      "label": "Dutch",
+      "channels": [
+        "@DutchPod101", "@EasyDutch", "@NOS", "@NTR", "@RTLNieuws", "@LearnDutchWithKim"
+      ]
+    },
+    {
+      "pool_id": "pl",
+      "whisper": "pl",
+      "label": "Polish",
+      "channels": [
+        "@PolishPod101", "@EasyPolish", "@TVN24", "@PolsatNews", "@TVPInfo"
+      ]
+    },
+    {
+      "pool_id": "uk",
+      "whisper": "uk",
+      "label": "Ukrainian",
+      "channels": [
+        "@UkrainianPod101", "@EasyUkrainian", "@SuspilneNews", "@TVEspresso",
+        "@RadioSvoboda"
+      ]
+    },
+    {
+      "pool_id": "tr",
+      "whisper": "tr",
+      "label": "Turkish",
+      "channels": [
+        "@TurkishPod101", "@EasyTurkish", "@TRTHaber", "@NTV", "@BBCNewsTurkce"
+      ]
+    },
+    {
+      "pool_id": "ar",
+      "whisper": "ar",
+      "label": "Arabic",
+      "channels": [
+        "@ArabicPod101", "@EasyArabic", "@AlJazeeraArabic", "@BBCArabic",
+        "@DWArabic", "@France24Arabic", "@AlArabiya"
+      ]
+    },
+    {
+      "pool_id": "he",
+      "whisper": "he",
+      "label": "Hebrew",
+      "channels": [
+        "@HebrewPod101", "@EasyHebrew", "@KanNews", "@i24NEWS"
+      ]
+    },
+    {
+      "pool_id": "hi",
+      "whisper": "hi",
+      "label": "Hindi",
+      "channels": [
+        "@HindiPod101", "@EasyHindi", "@DDNews", "@NDTV", "@AajTak",
+        "@BBCHindi", "@StoryYehHaiNaya"
+      ]
+    },
+    {
+      "pool_id": "bn",
+      "whisper": "bn",
+      "label": "Bengali",
+      "channels": [
+        "@BengaliPod101", "@EasyBengali", "@BBCBangla", "@DWBangla", "@ABPAnanda"
+      ]
+    },
+    {
+      "pool_id": "ur",
+      "whisper": "ur",
+      "label": "Urdu",
+      "channels": [
+        "@UrduPod101", "@EasyUrdu", "@BBCUrdu", "@DWUrdu", "@GeoNews"
+      ]
+    },
+    {
+      "pool_id": "fa",
+      "whisper": "fa",
+      "label": "Persian",
+      "channels": [
+        "@PersianPod101", "@EasyPersian", "@BBCPersian", "@DWFarsi", "@VOAFarsi"
+      ]
+    },
+    {
+      "pool_id": "ja",
+      "whisper": "ja",
+      "label": "Japanese",
+      "channels": [
+        "@JapanesePod101", "@EasyJapanese", "@NHKWORLDNEWS", "@AnnJapanese",
+        "@ComprehensibleJapanese", "@JapaneseAmmoWithMisa", "@StoriesJapanese"
+      ]
+    },
+    {
+      "pool_id": "ko",
+      "whisper": "ko",
+      "label": "Korean",
+      "channels": [
+        "@KoreanPod101", "@EasyKorean", "@TalkToMeInKorean", "@ArirangNews",
+        "@YTNNEWS", "@JTBCNews", "@KoreanStories"
+      ]
+    },
+    {
+      "pool_id": "id",
+      "whisper": "id",
+      "label": "Indonesian",
+      "channels": [
+        "@IndonesianPod101", "@EasyIndonesian", "@KompasTV", "@MetroTV",
+        "@BBCNewsIndonesia", "@NarasiNewsroom"
+      ]
+    },
+    {
+      "pool_id": "sw",
+      "whisper": "sw",
+      "label": "Swahili",
+      "channels": [
+        "@SwahiliPod101", "@EasySwahili", "@BBCSwahili", "@DWKiswahili",
+        "@VOASwahili"
+      ]
+    },
+    {
+      "pool_id": "el",
+      "whisper": "el",
+      "label": "Greek",
+      "channels": [
+        "@GreekPod101", "@EasyGreek", "@ERTNews", "@SkaiNews"
+      ]
+    },
+    {
+      "pool_id": "cs",
+      "whisper": "cs",
+      "label": "Czech",
+      "channels": [
+        "@CzechPod101", "@EasyCzech", "@CT24", "@iDNES"
+      ]
+    }
+  ]
+}
