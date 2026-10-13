@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-13 - v0.53.10 - CosyVoice multi-lang YouTube ingest: merge-on-ingest, channel catalog, expand/batch queue scripts (URL dumps stay local).
 - 2026-10-13 - v0.53.9 - Free NLLB-200 course translation via speech provider (no xAI); batch script course filter + 429 backoff.
 - 2026-10-12 - v0.53.8 - Fix /memory/bugs 500 (Report-a-bug no longer crashes): bug-report store falls back to /tmp/aoep/bug-reports when ~/.cache is read-only in the pod, and recovers from a non-writable configured root instead of 500-ing every POST. Course gate shows a friendly "Paid checkout isn't enabled yet — the 10-minute demo is free" message instead of a raw "402 This class stays a 10-minute sample..." error.
 - 2026-10-12 - v0.53.7 - Mobile Live Class: course list scrolls above the sticky Start bar (safe-area padding); Start opens the full-screen lesson with Serenity xAI voice (course id/context); empty catalog shells no longer render as blank rows.

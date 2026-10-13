@@ -13,6 +13,11 @@ from aoep_shared.cosyvoice_ingest.export import (
     build_spk2utt,
     write_cosyvoice_recipe,
 )
+from aoep_shared.cosyvoice_ingest.merge import (
+    discover_recipe_dirs,
+    merge_cosyvoice_recipes,
+    merge_language_pool,
+)
 from aoep_shared.cosyvoice_ingest.segment import segment_pcm16, slice_pcm16
 from aoep_shared.cosyvoice_ingest.urls import is_allowed_media_url, load_url_list
 from aoep_shared.dictionary_audio import write_wav_mono
@@ -152,6 +157,7 @@ def test_pipeline_local_media_without_asr(tmp_path, monkeypatch):
             language="en",
             skip_download=True,
             allow_empty_transcripts=False,
+            merge=False,
         )
     )
     assert (out / "01_raw").is_dir()
@@ -178,6 +184,7 @@ def test_pipeline_with_fake_asr(tmp_path, monkeypatch):
     media.mkdir()
     write_wav_mono(media / "talk.wav", _tone_pcm(3.0) + _silence_pcm(0.5) + _tone_pcm(2.5), 24000)
     out = tmp_path / "out"
+    merge_into = tmp_path / "cosyvoice_en_merged"
     report = run_ingest(
         IngestConfig(
             media_dir=media,
@@ -186,6 +193,8 @@ def test_pipeline_with_fake_asr(tmp_path, monkeypatch):
             speaker="teacher1",
             skip_download=True,
             cosyvoice_repo=tmp_path / "CosyVoice",
+            merge_into=merge_into,
+            merge_scan_root=tmp_path,
         )
     )
     assert report.ok
@@ -194,6 +203,65 @@ def test_pipeline_with_fake_asr(tmp_path, monkeypatch):
     text = (recipe / "text").read_text(encoding="utf-8")
     assert "fake transcript words" in text
     assert "teacher1" in (recipe / "utt2spk").read_text(encoding="utf-8")
+    assert report.merge_utterances >= 1
+    assert Path(report.merge_dir).joinpath("wav.scp").is_file()
+
+
+def test_merge_recipes_combines_channels_and_renames_collisions(tmp_path):
+    wav_dir = tmp_path / "wav"
+    wav_dir.mkdir()
+    w1 = wav_dir / "a.wav"
+    w2 = wav_dir / "b.wav"
+    w3 = wav_dir / "c.wav"
+    write_wav_mono(w1, _tone_pcm(0.4), 24000)
+    write_wav_mono(w2, _tone_pcm(0.4), 24000)
+    write_wav_mono(w3, _tone_pcm(0.4), 24000)
+
+    ch1 = tmp_path / "cosyvoice_km_a" / "04_cosyvoice"
+    ch2 = tmp_path / "cosyvoice_km_b" / "04_cosyvoice"
+    write_cosyvoice_recipe(
+        [CosyVoiceUtterance("utt1", str(w1), "hello", "spk_a", language="km")],
+        ch1,
+        language="km",
+        split_name="train",
+    )
+    write_cosyvoice_recipe(
+        [
+            CosyVoiceUtterance("utt1", str(w2), "សួស្តី", "spk_b", language="km"),
+            CosyVoiceUtterance("utt2", str(w3), "ល្អ", "spk_b", language="km"),
+        ],
+        ch2,
+        language="km",
+        split_name="train",
+    )
+
+    found = discover_recipe_dirs([tmp_path], split_name="train")
+    assert len(found) == 2
+
+    merged = merge_language_pool(
+        language="km",
+        merge_into=tmp_path / "cosyvoice_km_merged",
+        scan_roots=[tmp_path],
+        split_name="train",
+        cosyvoice_repo=tmp_path / "CosyVoice",
+    )
+    assert merged.ok
+    assert merged.utterances == 3
+    assert merged.collisions_renamed >= 1
+    wav_scp = Path(merged.dest_dir) / "wav.scp"
+    lines = wav_scp.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 3
+    ids = {line.split()[0] for line in lines}
+    assert "utt2" in ids
+    assert any("__utt1" in i or i == "utt1" for i in ids)
+
+    # Second merge is idempotent on path duplicates
+    again = merge_cosyvoice_recipes(
+        [ch1 / "train", ch2 / "train"],
+        Path(merged.dest_dir),
+        language="km",
+    )
+    assert again.utterances == 3
 
 
 def test_download_optional_skip_without_network():
