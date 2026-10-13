@@ -63,15 +63,15 @@
       :host(.voice-hidden) .box{display:none !important}
       :host(.voice-hidden) .show-again{display:inline-block}
     </style>
-    <button class="show-again" type="button">Show xAI</button>
-    <div class="box" data-drag-chip="1" title="Drag the xAI voice. Tap the microphone to start or stop.">
+    <button class="show-again" type="button">Show Sala</button>
+    <div class="box" data-drag-chip="1" title="Drag Salane Voice. Tap the microphone to start or stop.">
       <div class="row">
         <i class="dot"></i>
         <select aria-label="Live audio provider"><option value="">Checking…</option></select>
         <button class="toggle" disabled aria-label="Start live voice">Start live voice</button>
         <div class="copy">
-          <span class="voice-name">xAI voice</span>
-          <div class="status">xAI not connected</div>
+          <span class="voice-name">Salane Voice</span>
+          <div class="status">Sala is not connected</div>
         </div>
         <button class="close" title="Hide live audio control" aria-label="Hide live audio control">×</button>
       </div>
@@ -158,16 +158,10 @@
     chip.addEventListener("pointercancel", endDrag);
   }
 
-  function usingXai() {
-    const id = String(select?.value || state.provider || "").toLowerCase();
-    const label = String(select?.selectedOptions?.[0]?.textContent || "");
-    if (!id) return null;
-    return id === "xai" || /xai|grok/i.test(label);
-  }
   function setStatus(text) {
-    const mode = usingXai();
-    const who = mode === null ? "xAI not connected" : mode ? "Using xAI" : "Not using xAI";
-    if (voiceName) voiceName.textContent = mode === false ? "Not xAI" : "xAI voice";
+    const id = String(select?.value || state.provider || "");
+    const who = id ? "Sala is connected" : "Sala is not connected";
+    if (voiceName) voiceName.textContent = "Salane Voice";
     const shown = text ? `${who}. ${text}` : who;
     status.textContent = shown;
     if (!toggle) return;

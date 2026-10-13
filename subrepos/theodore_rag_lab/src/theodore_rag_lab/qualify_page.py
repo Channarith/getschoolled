@@ -48,6 +48,8 @@ _CSS = """
   button.primary { background:#0369a1; border-color:var(--accent); font-weight:700; }
   button:disabled { opacity:.45; cursor:not-allowed; }
   label { color:var(--muted); font-size:.85rem; display:flex; gap:.4rem; align-items:center; }
+  label.stack { display:flex; flex-direction:column; align-items:stretch; gap:.3rem; width:100%; }
+  label.stack select { width:100%; }
   .knobs, .out, .list { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.8rem; line-height:1.45; }
   .knobs { color:#d7e6ff; white-space:pre-wrap; }
   .out { margin:0; min-height:20rem; max-height:68vh; overflow:auto; padding:.85rem; border-radius:12px;
@@ -60,19 +62,36 @@ _CSS = """
   .hidden { display:none !important; }
   .score-ok { color:var(--ok); font-weight:700; }
   .score-bad { color:var(--warn); font-weight:700; }
+  .drop-zone { border:1px dashed var(--accent); border-radius:12px; min-height:7rem; padding:1rem;
+    color:var(--muted); display:flex; align-items:center; justify-content:center; text-align:center; }
+  .drop-zone.hot { background:#0c4a6e; color:var(--ink); }
+  .layout.voice-layout { grid-template-columns:minmax(300px,460px) 1fr; }
+  .pool-list { max-height:24rem; overflow:auto; border:1px solid var(--line); border-radius:12px;
+    padding:.2rem .45rem; margin-bottom:.75rem; background:#0b1220; }
+  .pool-list label { color:var(--ink); width:100%; padding:.4rem .15rem; margin:0; border-bottom:1px solid var(--line); }
+  .pool-list label:last-child { border-bottom:0; }
+  .pool-list .count { margin-left:auto; color:var(--muted); white-space:nowrap; font-size:.78rem; }
+  #vq-amount { flex:1; min-width:14rem; }
+  #vq-status-line { color:var(--ink); font-size:1.02rem; line-height:1.45; margin:0 0 .8rem; }
+  details.more { margin:.15rem 0 .8rem; }
+  details.more summary { cursor:pointer; color:var(--muted); }
 """
 
 _HTML = """
   <header>
     <h1>Theodore RAG Lab</h1>
-    <p>Tune curriculum RAG, grow the EN+Khmer dictionary corpus, practice read-aloud pronunciation,
-       browse slang/idioms, rehearse world dialects, run regurgitation drills, and export dictionary
-       rows into the LLM training assemble path.</p>
+    <p>Tune curriculum RAG, grow the dictionary corpus, queue multi-language YouTube voice
+       training, practice read-aloud pronunciation, browse slang/idioms, rehearse world dialects,
+       run regurgitation drills, and export dictionary rows into the LLM training assemble path.
+       Drop links, media, and databases on the Drop training tab, or pass the same
+       paths to the command line. Voice training uses that intake too.</p>
     <div class="meta" id="meta-pills"><span class="pill">offline</span><span class="pill">port 8095</span></div>
   </header>
   <nav class="tabs" id="tabs">
     <button type="button" data-tab="rag" class="active">RAG tuning</button>
     <button type="button" data-tab="corpus">Corpus + read-aloud</button>
+    <button type="button" data-tab="voice">Voice training</button>
+    <button type="button" data-tab="drop">Drop training</button>
     <button type="button" data-tab="current">Current awareness</button>
     <button type="button" data-tab="dict">Dictionary</button>
     <button type="button" data-tab="dialect">Dialects</button>
@@ -129,7 +148,9 @@ _HTML = """
       <div class="meta">Ingest baselines, route hard rows, rebuild sentences, clean audio. Feeds llm_training.assemble (dictionary source).</div>
       <h2>Read-aloud</h2>
       <div class="row">
-        <label>Lang <input id="ra-lang" value="en" style="width:3.5rem" /></label>
+        <label class="stack">Language
+          <select id="ra-lang" class="lang-select"><option>Loading languages…</option></select>
+        </label>
         <button class="primary" id="btn-ra-next" type="button">Next sentence</button>
       </div>
       <div class="card" id="ra-card">
@@ -142,6 +163,74 @@ _HTML = """
     <main class="panel">
       <h2>Corpus / score output</h2>
       <pre class="out" id="out-corpus">Run train-update to seed the dictionary corpus.</pre>
+    </main>
+  </div>
+
+  <div class="layout voice-layout tab-panel hidden" id="panel-voice">
+    <aside class="panel">
+      <h2>Languages</h2>
+      <div class="row">
+        <button id="btn-vq-all" type="button">Check all</button>
+        <button id="btn-vq-none" type="button">Clear</button>
+      </div>
+      <div id="vq-pools" class="pool-list"></div>
+      <h2>How much</h2>
+      <div class="row">
+        <select id="vq-amount">
+          <option value="sample" selected>A sample — 2 videos from 1 channel</option>
+          <option value="channel">One full channel per language</option>
+          <option value="all">Every video in the checked languages</option>
+        </select>
+      </div>
+      <p class="meta" id="vq-amount-note">Downloads 2 videos from the first channel of each language you checked.</p>
+      <div class="row">
+        <label><input id="vq-news" type="checkbox" /> Include large news channels</label>
+      </div>
+      <details class="more">
+        <summary>Parallel downloads</summary>
+        <div class="row" style="margin-top:.45rem">
+          <label>At once <input id="vq-workers" type="number" min="1" max="12" value="1" style="width:4rem" /></label>
+        </div>
+      </details>
+      <div class="row">
+        <button class="primary" id="btn-vq-start" type="button">Start training</button>
+        <button id="btn-vq-stop" type="button">Stop</button>
+      </div>
+    </aside>
+    <main class="panel">
+      <h2>Progress</h2>
+      <p id="vq-status-line">Open this tab to choose languages.</p>
+      <pre class="out" id="out-voice">Progress from each channel appears here.</pre>
+    </main>
+  </div>
+
+  <div class="layout tab-panel hidden" id="panel-drop">
+    <aside class="panel">
+      <h2>Drop into training</h2>
+      <div id="drop-zone" class="drop-zone">Drop links, videos, audio, channel lists, Vimeo, news pages, notes, or databases here</div>
+      <div class="row" style="margin-top:.7rem">
+        <textarea id="drop-links" placeholder="Or paste links, one per line&#10;https://www.youtube.com/@channel&#10;https://vimeo.com/123&#10;https://example.com/news"></textarea>
+      </div>
+      <div class="row">
+        <label class="stack">Language
+          <select id="drop-lang" class="lang-select"><option>Loading languages…</option></select>
+        </label>
+        <label>Channel cap <input id="drop-expand" type="number" min="0" max="500" value="20" style="width:4.5rem" /></label>
+        <label><input id="drop-fetch" type="checkbox" /> Read page text</label>
+      </div>
+      <div class="row">
+        <input id="drop-file" type="file" multiple />
+      </div>
+      <div class="row">
+        <button class="primary" id="btn-drop-add" type="button">Add to training</button>
+        <button id="btn-drop-status" type="button">Status</button>
+        <button id="btn-drop-train" type="button">Train dropped voice</button>
+      </div>
+      <div class="meta">YouTube and Vimeo, including a channel or playlist, go to the voice list. News links, notes, CSV, JSON, and SQLite go to RAG. Drag the same files onto the shell: python3 scripts/training_drop.py &lt;paths and links&gt;</div>
+    </aside>
+    <main class="panel">
+      <h2>Intake</h2>
+      <pre class="out" id="out-drop">Drop something to stage it. Nothing is downloaded until Train dropped voice.</pre>
     </main>
   </div>
 
@@ -167,7 +256,9 @@ _HTML = """
       <h2>Search dictionary</h2>
       <div class="row"><input id="dict-q" placeholder="phrase or meaning" style="flex:1;min-width:10rem" /></div>
       <div class="row">
-        <label>Lang <input id="dict-lang" placeholder="en/zh" style="width:4rem" /></label>
+        <label class="stack">Language
+          <select id="dict-lang" class="lang-select" data-any="1"><option>Loading languages…</option></select>
+        </label>
         <label>Region <input id="dict-region" placeholder="us-south" style="width:7rem" /></label>
         <label>Kind <select id="dict-kind"><option value="">any</option><option>idiom</option><option>slang</option></select></label>
       </div>
@@ -186,7 +277,7 @@ _HTML = """
   <div class="layout tab-panel hidden" id="panel-dialect">
     <aside class="panel">
       <h2>Dialect probe</h2>
-      <div class="row"><label>Dialect <select id="dialect-id"></select></label></div>
+      <div class="row"><label class="stack">Language and dialect <select id="dialect-id"></select></label></div>
       <div class="row"><textarea id="dialect-text">Welcome! We will walk through the lesson. Take your time. Nice work.</textarea></div>
       <div class="row">
         <button class="primary" id="btn-dialect-probe" type="button">Humanize</button>
@@ -203,7 +294,7 @@ _HTML = """
   <div class="layout tab-panel hidden" id="panel-drill">
     <aside class="panel">
       <h2>Regurgitation deck</h2>
-      <div class="row"><label>Dialect <select id="drill-dialect"></select></label></div>
+      <div class="row"><label class="stack">Language and dialect <select id="drill-dialect"></select></label></div>
       <div class="row">
         <label>Cards <input id="drill-n" type="number" min="3" max="20" value="6" style="width:4rem" /></label>
         <button class="primary" id="btn-drill-deal" type="button">Deal deck</button>
@@ -232,7 +323,9 @@ _HTML = """
       <div class="row"><input id="fb-phrase" placeholder="phrase" style="flex:1;min-width:8rem" /></div>
       <div class="row"><input id="fb-meaning" placeholder="plain meaning" style="flex:1;min-width:8rem" /></div>
       <div class="row">
-        <label>Lang <input id="fb-lang" value="en" style="width:3.5rem" /></label>
+        <label class="stack">Language
+          <select id="fb-lang" class="lang-select"><option>Loading languages…</option></select>
+        </label>
         <label>Region <input id="fb-region" value="global" style="width:6rem" /></label>
         <label>Action <select id="fb-action"><option>correct</option><option>confirm</option><option>reject</option></select></label>
       </div>
@@ -275,6 +368,10 @@ _JS = """
   }
 
   function switchTab(name) {
+    if (name === 'voice') loadVoiceCatalog().catch((err) => {
+      const line = document.getElementById('vq-status-line');
+      if (line) line.textContent = err && err.message ? err.message : String(err);
+    });
     document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
     document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('hidden', p.id !== 'panel-' + name));
   }
@@ -341,7 +438,7 @@ _JS = """
     try {
       const q = new URLSearchParams({
         q: document.getElementById('dict-q').value || '',
-        language: document.getElementById('dict-lang').value || '',
+        language: chosenLanguage('dict-lang', 'language'),
         region: document.getElementById('dict-region').value || '',
         kind: document.getElementById('dict-kind').value || '',
         limit: '60',
@@ -354,13 +451,57 @@ _JS = """
     catch (err) { document.getElementById('out-dict').textContent = String(err); }
   };
 
+  let languageCatalog = [];
+  function varietyByDialect(dialectId) {
+    return languageCatalog.find((row) => row.dialect && row.dialect === dialectId);
+  }
+  function chosenLanguage(id, field) {
+    const sel = document.getElementById(id);
+    const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
+    if (!opt) return field === 'language' ? '' : 'en';
+    if (field === 'whisper') return opt.dataset.whisper || opt.dataset.language || 'en';
+    if (field === 'dialect') return opt.dataset.dialect || '';
+    return opt.dataset.language || '';
+  }
+  function fillLanguageSelects(list) {
+    languageCatalog = list || [];
+    document.querySelectorAll('select.lang-select').forEach((sel) => {
+      const previous = sel.value;
+      sel.innerHTML = '';
+      if (sel.dataset.any === '1') {
+        const any = document.createElement('option');
+        any.value = '';
+        any.dataset.language = '';
+        any.dataset.whisper = '';
+        any.dataset.dialect = '';
+        any.textContent = 'Any language';
+        sel.appendChild(any);
+      }
+      languageCatalog.forEach((row) => {
+        const opt = document.createElement('option');
+        opt.value = row.id;
+        opt.dataset.language = row.language || '';
+        opt.dataset.whisper = row.whisper || row.language || '';
+        opt.dataset.dialect = row.dialect || '';
+        opt.textContent = row.label;
+        sel.appendChild(opt);
+      });
+      const known = previous && [...sel.options].some((opt) => opt.value === previous);
+      if (known) sel.value = previous;
+      else if (sel.dataset.any === '1') sel.value = '';
+      else if ([...sel.options].some((opt) => opt.value === 'en_us')) sel.value = 'en_us';
+    });
+  }
   function fillDialectSelects(list) {
     ['dialect-id', 'drill-dialect'].forEach((id) => {
       const sel = document.getElementById(id);
       sel.innerHTML = '';
       (list || []).forEach((d) => {
+        const named = varietyByDialect(d.id);
         const opt = document.createElement('option');
-        opt.value = d.id; opt.textContent = d.label + ' (' + d.id + ')';
+        opt.value = d.id;
+        opt.dataset.language = (named && named.language) || d.language || 'en';
+        opt.textContent = (named && named.label) || d.label;
         sel.appendChild(opt);
       });
     });
@@ -377,7 +518,7 @@ _JS = """
   document.getElementById('btn-dialect-probe').onclick = () => run(document.getElementById('out-dialect'), () => api('POST', '/api/dialects/probe', {
     dialect: document.getElementById('dialect-id').value,
     text: document.getElementById('dialect-text').value,
-    language: 'en',
+    language: document.getElementById('dialect-id').selectedOptions[0]?.dataset.language || 'en',
     title: 'Practice',
   }));
 
@@ -432,11 +573,193 @@ _JS = """
   document.getElementById('btn-fb-submit').onclick = () => run(document.getElementById('out-feedback'), () => api('POST', '/api/feedback', {
     phrase: document.getElementById('fb-phrase').value,
     meaning: document.getElementById('fb-meaning').value,
-    language: document.getElementById('fb-lang').value || 'en',
+    language: chosenLanguage('fb-lang', 'language') || 'en',
+    dialect: chosenLanguage('fb-lang', 'dialect'),
     region: document.getElementById('fb-region').value || 'global',
     action: document.getElementById('fb-action').value,
     kind: 'idiom',
   }));
+
+  const outVoice = document.getElementById('out-voice');
+  const poolLabels = {};
+  let voicePoolKey = '';
+  let voiceTimer = null;
+  function selectedPools() {
+    return Array.from(document.querySelectorAll('#vq-pools input:checked')).map((el) => el.value);
+  }
+  function voiceStartBody() {
+    const amount = document.getElementById('vq-amount').value;
+    const body = {
+      pools: selectedPools(),
+      workers: Number(document.getElementById('vq-workers').value) || 1,
+      max_urls: null,
+      max_channels: null,
+      include_news: document.getElementById('vq-news').checked,
+    };
+    if (amount === 'sample') {
+      body.max_urls = 2;
+      body.max_channels = 1;
+    } else if (amount === 'channel') {
+      body.max_channels = 1;
+    }
+    return body;
+  }
+  function languageNames(ids) {
+    if (!ids || !ids.length) return 'the languages you checked';
+    return ids.map((id) => poolLabels[id] || id).join(', ');
+  }
+  function describeQueue(data) {
+    const q = (data && data.queue) || {};
+    const names = languageNames(q.pools || []);
+    if (q.running && q.phase === 'discover') return 'Finding channels for ' + names + '.';
+    if (q.running) {
+      const now = (q.current || []).join(', ');
+      let line = 'Training ' + names + '. ' + (q.done || 0) + ' of ' + (q.queued || 0) + ' channels done.';
+      if (now) line += ' Working on ' + now + '.';
+      return line;
+    }
+    if (q.stopped) return 'Stopped after ' + (q.ok || 0) + ' channels. ' + (q.failed || 0) + ' failed.';
+    if (q.done) {
+      return 'Finished ' + (q.ok || 0) + ' of ' + (q.queued || 0) + ' channels.' + (q.failed ? ' ' + q.failed + ' failed.' : '');
+    }
+    return 'Check the languages you want, then start training.';
+  }
+  function renderVoice(data) {
+    document.getElementById('vq-status-line').textContent = describeQueue(data);
+    const log = (((data || {}).queue || {}).log || []).slice(-12);
+    outVoice.textContent = log.length ? log.join('\\n') : 'Progress from each channel appears here.';
+  }
+  function renderPoolList(pools) {
+    const box = document.getElementById('vq-pools');
+    const keep = new Set(selectedPools());
+    box.innerHTML = '';
+    pools.forEach((pool) => {
+      poolLabels[pool.pool_id] = pool.label || pool.pool_id;
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = pool.pool_id;
+      input.checked = keep.has(pool.pool_id);
+      const name = document.createElement('span');
+      name.textContent = pool.label || pool.pool_id;
+      const count = document.createElement('span');
+      count.className = 'count';
+      const videos = pool.videos == null ? '—' : Number(pool.videos).toLocaleString();
+      count.textContent = videos + ' videos';
+      label.appendChild(input);
+      label.appendChild(name);
+      label.appendChild(count);
+      box.appendChild(label);
+    });
+    if (!pools.length) box.textContent = 'No language lists found.';
+  }
+  async function loadVoiceCatalog() {
+    const data = await api('GET', '/api/voice/queue');
+    const key = (data.pools || []).map((pool) => pool.pool_id + ':' + pool.videos + ':' + pool.channels).join('|');
+    if (key !== voicePoolKey) {
+      voicePoolKey = key;
+      renderPoolList(data.pools || []);
+    }
+    renderVoice(data);
+    if (data.queue && data.queue.running) watchVoice();
+    else if (voiceTimer) { clearInterval(voiceTimer); voiceTimer = null; }
+    return data;
+  }
+  function watchVoice() {
+    if (voiceTimer) return;
+    voiceTimer = setInterval(() => {
+      const panel = document.getElementById('panel-voice');
+      if (!panel || panel.classList.contains('hidden')) return;
+      loadVoiceCatalog().catch(() => {});
+    }, 3000);
+  }
+  const amountNotes = {
+    sample: 'Downloads 2 videos from the first channel of each language you checked.',
+    channel: 'Downloads every video from the first channel of each language you checked.',
+    all: 'Downloads every video from every channel in the languages you checked. This can be millions of videos.',
+  };
+  document.getElementById('vq-amount').onchange = () => {
+    document.getElementById('vq-amount-note').textContent = amountNotes[document.getElementById('vq-amount').value] || '';
+  };
+  document.getElementById('btn-vq-all').onclick = () => {
+    document.querySelectorAll('#vq-pools input').forEach((el) => { el.checked = true; });
+  };
+  document.getElementById('btn-vq-none').onclick = () => {
+    document.querySelectorAll('#vq-pools input').forEach((el) => { el.checked = false; });
+  };
+  document.getElementById('btn-vq-start').onclick = async () => {
+    const line = document.getElementById('vq-status-line');
+    if (!selectedPools().length) {
+      line.textContent = 'Check at least one language. Starting does not train every language.';
+      return;
+    }
+    const btn = document.getElementById('btn-vq-start');
+    btn.disabled = true;
+    try {
+      await api('POST', '/api/voice/queue/start', voiceStartBody());
+      await loadVoiceCatalog();
+    } catch (err) {
+      line.textContent = err && err.message ? err.message : String(err);
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  document.getElementById('btn-vq-stop').onclick = async () => {
+    const line = document.getElementById('vq-status-line');
+    try {
+      await api('POST', '/api/voice/queue/stop');
+      await loadVoiceCatalog();
+    } catch (err) {
+      line.textContent = err && err.message ? err.message : String(err);
+    }
+  };
+
+  const outDrop = document.getElementById('out-drop');
+  const dropZone = document.getElementById('drop-zone');
+  function dropOptions() {
+    return {
+      language: chosenLanguage('drop-lang', 'whisper') || 'en',
+      expand_limit: Number(document.getElementById('drop-expand').value || '20'),
+      fetch_pages: document.getElementById('drop-fetch').checked,
+    };
+  }
+  async function submitDrop(fileList, linkText) {
+    const opts = dropOptions();
+    const files = Array.from(fileList || []);
+    const text = (linkText || '').trim();
+    if (!files.length) {
+      const links = text.split(/\\s+/).filter(Boolean);
+      if (!links.length) throw new Error('Drop a file or paste a link first.');
+      return api('POST', '/api/training/drop', Object.assign({ links }, opts));
+    }
+    const body = new FormData();
+    body.append('links', text);
+    body.append('language', opts.language);
+    body.append('expand_limit', String(opts.expand_limit));
+    body.append('fetch_pages', opts.fetch_pages ? 'true' : 'false');
+    files.forEach((file) => body.append('files', file, file.name));
+    const res = await fetch('/api/training/drop/upload', { method: 'POST', body });
+    const raw = await res.text();
+    let data;
+    try { data = JSON.parse(raw); } catch { data = raw; }
+    if (!res.ok) throw new Error((data && data.detail) || raw || res.statusText);
+    return data;
+  }
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('hot'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hot'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('hot');
+    const text = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '';
+    const pasted = document.getElementById('drop-links').value;
+    run(outDrop, () => submitDrop(e.dataTransfer.files, [text, pasted].filter(Boolean).join('\\n')));
+  });
+  document.getElementById('btn-drop-add').onclick = () => run(outDrop, () => submitDrop(
+    document.getElementById('drop-file').files,
+    document.getElementById('drop-links').value
+  ));
+  document.getElementById('btn-drop-status').onclick = () => run(outDrop, () => api('GET', '/api/training/drop'));
+  document.getElementById('btn-drop-train').onclick = () => run(outDrop, () => api('POST', '/api/training/drop/train'));
 
   let raPrompt = null;
   const outCorpus = document.getElementById('out-corpus');
@@ -447,7 +770,7 @@ _JS = """
   document.getElementById('btn-ra-next').onclick = async () => {
     try {
       raPrompt = await api('POST', '/api/read-aloud/next', {
-        language: document.getElementById('ra-lang').value || 'en',
+        language: chosenLanguage('ra-lang', 'language') || 'en',
         learner_id: 'lab',
       });
       document.getElementById('ra-sentence').textContent = '[' + (raPrompt.difficulty || '?') + '] ' + (raPrompt.sentence || '');
@@ -464,7 +787,7 @@ _JS = """
         sentence: raPrompt.sentence,
         heard: document.getElementById('ra-heard').value,
         target_forms: forms,
-        language: document.getElementById('ra-lang').value || 'en',
+        language: chosenLanguage('ra-lang', 'language') || 'en',
         learner_id: 'lab',
       });
       const el = document.getElementById('ra-result');
@@ -487,6 +810,7 @@ _JS = """
         '<span class="pill">dialects ' + (health.dialects || 0) + '</span>';
       const cat = await api('GET', '/api/dialects');
       featured = cat.featured_dialects || [];
+      fillLanguageSelects(cat.languages || []);
       fillDialectSelects(cat.dialects || []);
       await refreshTuning();
       renderEntries(await api('GET', '/api/dictionary?limit=24'));

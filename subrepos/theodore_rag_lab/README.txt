@@ -8,7 +8,9 @@ Purpose
 
   Also hosts an extensive slang/idiom dictionary, EN+Khmer dictionary corpus
   (ingest / review / CosyVoice crisp audio / read-aloud pronunciation),
-  world-dialect rehearsal, regurgitation drills, and feedback learning.
+  the multi-language YouTube voice-training queue (same runner as
+  scripts/cosyvoice_batch_ingest.py), world-dialect rehearsal,
+  regurgitation drills, and feedback learning.
   Approved dictionary rows export into llm_training.assemble (source=dictionary).
 
 What it tunes
@@ -55,6 +57,8 @@ Step 2 — start the lab and open the web UI
   Tabs:
     RAG tuning — eval / sweep / bakeoff / champion
     Corpus + read-aloud — train-update, review queue, LLM JSONL export, sentence drills
+    Voice training — YouTube channel queue for every language pool (UI or CLI)
+    Drop training — drag links, videos, audio, channels, Vimeo, news, notes, or databases
     Dictionary — search 300+ slang/idiom entries by language & region
     Dialects — humanize sample text in Southern / NYC / Beijing / Cantonese / …
     Regurgitation — recall plain meanings; hits reinforce feedback learning
@@ -63,6 +67,15 @@ Step 2 — start the lab and open the web UI
   Corpus CLI (also via scripts/dictionary/* shims):
     theodore-rag-corpus-update
     theodore-rag-read-aloud --heard "She walked to school."
+  Voice queue CLI (same job as the Voice training tab):
+    theodore-rag-voice-queue --status
+    theodore-rag-voice-queue --pool es,fr --workers 2 --max-urls 2 --max-channels 1
+    python3 scripts/cosyvoice_batch_ingest.py --pool es --workers 2 --max-urls 2
+    theodore-rag-voice-queue --stop
+  Drop intake (same as the Drop training tab; drag paths onto the command):
+    python3 scripts/training_drop.py ./clip.wav ./notes.db https://vimeo.com/123
+    theodore-rag-drop --stdin
+    python3 scripts/training_drop.py --train --max-urls 2 https://www.youtube.com/watch?v=abcdefghijk
   See docs/dictionary-corpus.txt.
 
   Leave the server running for curl too:

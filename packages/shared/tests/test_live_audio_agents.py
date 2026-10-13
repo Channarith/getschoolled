@@ -159,10 +159,10 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "data-drag-chip" in source
     assert "__SALAREEN_LIVE_GAIN__" in source
     assert "voice-name" in source
-    assert "Using xAI" in source
+    assert "Sala is connected" in source
     assert "connectionChime" in source
-    assert ">xAI voice<" in source
-    assert "Show xAI" in source
+    assert ">Salane Voice<" in source
+    assert "Show Sala" in source
     assert "voice-hidden" in source
     assert "host.remove()" not in source
     assert "speech_stopped" in source

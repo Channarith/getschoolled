@@ -262,7 +262,10 @@ def feedback_snapshot() -> dict[str, Any]:
 
 
 def lab_catalog() -> dict[str, Any]:
+    from aoep_shared.spoken_varieties import list_spoken_varieties
+
     return {
+        "languages": list_spoken_varieties(),
         "dialects": list_dialects(),
         "voices": catalog_grouped(),
         "lexicon": lexicon_stats(),
