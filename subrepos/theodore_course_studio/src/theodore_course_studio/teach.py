@@ -893,17 +893,22 @@ class TeachEngine:
         # on-demand: hints describe the reply, they do not bake an audio URL.
         spoken = turn.message
         avatar = avatar_script_for_slide(slide, narration=spoken)
+        tts_hints = tts_client_hints(
+            reply_lang, session.voice_gender, text=spoken
+        )
         return {
             "voice": turn.model_dump(mode="json"),
             "voice_gender": session.voice_gender,
-            "tts": {
-                **tts_client_hints(
-                    reply_lang, session.voice_gender, text=spoken
-                ),
-            },
+            "tts": {**tts_hints},
             "spoken_language": reply_lang,
             "slide_index": session.path[session.path_pos],
             "avatar": avatar.model_dump(mode="json"),
+            "loop": {
+                "listen": "browser ASR or typed message",
+                "understand": turn.provider,
+                "language": reply_lang,
+                "speak": (tts_hints.get("speech") or {}).get("engine") or "device",
+            },
         }
 
     def voice_present_current(self, session_id: str) -> dict[str, Any]:
