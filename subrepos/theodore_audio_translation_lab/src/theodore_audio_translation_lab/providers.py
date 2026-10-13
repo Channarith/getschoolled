@@ -283,11 +283,23 @@ class TranslationEngine:
         translated = str(raw.get("text") or "").strip()
         if not translated:
             raise ProviderUnavailable("empty NLLB translation")
+        engine = str(raw.get("engine") or "").strip().lower()
+        degraded = bool(raw.get("degraded"))
+        # Speech gateway used to return English with engine=passthrough when
+        # NLLB was not loaded; treating that as success poisoned the course
+        # translation library. Only real provider/phrasebook hits count.
+        if degraded or engine in {"", "passthrough", "identity"}:
+            raise ProviderUnavailable(
+                f"gateway translation not real (engine={engine!r}, degraded={degraded})"
+            )
+        if engine not in {"provider", "phrasebook", "nllb", "speech-gateway-nllb"}:
+            # Unknown engine with non-degraded response — accept but label it.
+            pass
         return TranslationResult(
             text=translated,
             source_language=source,
             target_language=target,
-            provider="speech-gateway-nllb",
+            provider=f"speech-gateway-{engine or 'nllb'}",
             translated=True,
         )
 
