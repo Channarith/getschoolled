@@ -140,3 +140,81 @@ def test_dictionary_and_dialect_apis(tmp_path, monkeypatch):
         assert "Regurgitation" in page.text
         assert "Feedback learning" in page.text
         assert "Beijing" in page.text or "zh_bj" in page.text
+        assert "btn-dialect-listen" in page.text
+        assert "Hear Sala" in page.text
+
+
+def test_speaker_preview_plays_dialect_and_sala(monkeypatch):
+    """Listen and Hear Sala render audio without calling xAI."""
+    seen = {}
+
+    def fake_synthesize(text, *, language="en", style="warm", voice=""):
+        seen["text"] = text
+        seen["language"] = language
+        seen["voice"] = voice
+        return b"ID3" + b"x" * 300, "audio/mpeg", "edge-tts"
+
+    monkeypatch.setattr("theodore_rag_lab.main.lab_tts.synthesize", fake_synthesize)
+    monkeypatch.setattr(
+        "aoep_shared.cosyvoice_tts.cosyvoice_configured",
+        lambda *_a, **_k: False,
+    )
+
+    with TestClient(app) as client:
+        empty = client.post("/api/tts", json={"text": "  "})
+        assert empty.status_code == 422
+
+        british = client.post(
+            "/api/tts",
+            json={"text": "Welcome. Take your time.", "language": "en", "voice": "en_gb_f"},
+        )
+        assert british.status_code == 200
+        assert british.headers["x-tts-engine"] == "edge-tts"
+        assert british.headers["x-tts-voice"] == "en_gb_f"
+        assert seen["voice"] == "en_gb_f"
+        assert british.content.startswith(b"ID3")
+
+        sala = client.post(
+            "/api/tts",
+            json={"text": "Welcome. Take your time.", "voice": "sala"},
+        )
+        assert sala.status_code == 200
+        assert sala.headers["x-tts-voice"] == "sala"
+        assert seen["voice"] == "en_us_f"
+        assert "retired" in sala.headers["x-tts-note"]
+
+        status = client.get("/api/tts/status")
+        assert status.status_code == 200
+        assert status.json()["speaker_preview"] is True
+
+
+def test_speaker_preview_uses_macos_voice_when_neural_speech_is_down(monkeypatch):
+    from aoep_shared.lab_tts import ProviderUnavailable
+
+    def boom(*_args, **_kwargs):
+        raise ProviderUnavailable("neural speech is offline")
+
+    monkeypatch.setattr("theodore_rag_lab.main.lab_tts.synthesize", boom)
+    monkeypatch.setattr(
+        "theodore_rag_lab.main._macos_preview",
+        lambda text, voice_id, language: (b"RIFF" + b"x" * 300, "audio/wav", "Daniel"),
+    )
+    with TestClient(app) as client:
+        res = client.post(
+            "/api/tts",
+            json={"text": "Welcome.", "language": "en", "voice": "en_gb_m"},
+        )
+    assert res.status_code == 200
+    assert res.headers["x-tts-engine"] == "macos-say"
+    assert res.headers["x-tts-note"] == "macOS Daniel"
+    assert res.content.startswith(b"RIFF")
+
+
+def test_say_voice_names_follow_the_dialect():
+    from theodore_rag_lab.main import _say_voice_name
+
+    assert _say_voice_name("en_gb_f") == "Shelley"
+    assert _say_voice_name("en_gb_m") == "Daniel"
+    assert _say_voice_name("en_au_f") == "Karen"
+    assert _say_voice_name("zh_yue_gz_f") == "Sinji"
+    assert _say_voice_name("en_us_f") == "Samantha"

@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 
 # Load config/local.env so XAI_API_KEY / ELEVENLABS_API_KEY / SPEECH_BASE_URL
 # work without a manual `set -a; . config/local.env` in every shell.
@@ -17,9 +22,10 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
+from aoep_shared import lab_tts
 from aoep_shared.current_awareness import research_current_topic
 from aoep_shared.factory import build_factory
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
@@ -249,6 +255,183 @@ def api_dialects() -> dict[str, Any]:
 @app.post("/api/dialects/probe")
 def api_dialect_probe(req: DialectProbeReq) -> dict[str, Any]:
     return dialect_probe(req.text, req.dialect, language=req.language, title=req.title)
+
+
+class TtsReq(BaseModel):
+    text: str = ""
+    language: str = "en"
+    voice: str = ""
+    style: str = "warm"
+
+
+# macOS `say` voices that actually differ by region. Used when edge-tts cannot
+# reach its voice host, so Listen still plays on the speakers.
+_SAY_VOICES = {
+    "en-GB": ("Shelley", "Daniel"),
+    "en-AU": ("Karen", "Karen"),
+    "en-IE": ("Moira", "Moira"),
+    "en-IN": ("Tara", "Rishi"),
+    "en-ZA": ("Tessa", "Tessa"),
+    "en-US": ("Samantha", "Fred"),
+    "zh-HK": ("Sinji", "Sinji"),
+    "zh-CN": ("Tingting", "Tingting"),
+    "zh-TW": ("Meijia", "Meijia"),
+    "ja-JP": ("Kyoko", "Kyoko"),
+    "ko-KR": ("Yuna", "Yuna"),
+    "es-ES": ("Mónica", "Mónica"),
+    "es-MX": ("Paulina", "Paulina"),
+    "fr-FR": ("Thomas", "Thomas"),
+    "fr-CA": ("Amélie", "Amélie"),
+    "pt-BR": ("Luciana", "Luciana"),
+    "pt-PT": ("Joana", "Joana"),
+    "hi-IN": ("Lekha", "Lekha"),
+    "th-TH": ("Kanya", "Kanya"),
+    "vi-VN": ("Linh", "Linh"),
+    "de-DE": ("Anna", "Anna"),
+}
+
+
+def _say_voice_name(voice_id: str, language: str = "en") -> str:
+    """Pick an installed macOS voice for a catalog id."""
+    from aoep_shared.voice_catalog import get_voice
+
+    chosen = get_voice(voice_id)
+    locale = (chosen.locale if chosen else "") or {
+        "en": "en-US",
+        "zh": "zh-CN",
+        "yue": "zh-HK",
+    }.get((language or "en").split("-")[0], "en-US")
+    gender = chosen.gender if chosen else "female"
+    pair = _SAY_VOICES.get(locale) or ("Samantha", "Fred")
+    return pair[1] if gender == "male" else pair[0]
+
+
+def _macos_preview(text: str, voice_id: str, language: str) -> tuple[bytes, str, str] | None:
+    """Render with macOS `say` so the browser can play the file on the speakers."""
+    if not shutil.which("say"):
+        return None
+    say_voice = _say_voice_name(voice_id, language)
+    with tempfile.TemporaryDirectory() as tmp:
+        folder = Path(tmp)
+        aiff = folder / "line.aiff"
+        wav = folder / "line.wav"
+        try:
+            subprocess.run(
+                ["say", "-v", say_voice, "-o", str(aiff), text],
+                check=True,
+                capture_output=True,
+                timeout=20,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+            return None
+        if shutil.which("afconvert"):
+            try:
+                subprocess.run(
+                    ["afconvert", "-f", "WAVE", "-d", "LEI16@22050", str(aiff), str(wav)],
+                    check=True,
+                    capture_output=True,
+                    timeout=20,
+                )
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+                wav = aiff
+        else:
+            wav = aiff
+        if not wav.is_file():
+            return None
+        audio = wav.read_bytes()
+    if len(audio) <= 4096:
+        # macOS `say` writes a 4096-byte header when the synthesizer is blocked
+        # and puts no samples in it. Playing that file is silence.
+        return None
+    mime = "audio/wav" if wav.suffix == ".wav" else "audio/aiff"
+    return audio, mime, say_voice
+
+
+def _sala_preview(text: str, language: str) -> tuple[bytes, str, str, str]:
+    """Play Sala on the local speakers.
+
+    Live Sala is xAI voice Ara. That session is refused when the team is out
+    of credits, so this preview uses CosyVoice when it is configured and
+    otherwise a local speaker voice.
+    """
+    from aoep_shared import cosyvoice_tts
+
+    speaker = (os.environ.get("SALA_COSYVOICE_SPEAKER") or "sala").strip() or "sala"
+    note = "local Sala preview; the xAI Grok socket is retired"
+    if cosyvoice_tts.cosyvoice_configured():
+        try:
+            audio, mime = cosyvoice_tts.synthesize(
+                text, language=language or "en", speaker=speaker,
+            )
+            return audio, mime, "cosyvoice", "CosyVoice Sala"
+        except Exception:  # noqa: BLE001 — local speaker voice still plays
+            pass
+    try:
+        audio, mime, engine = lab_tts.synthesize(text, language="en", voice="en_us_f")
+    except lab_tts.ProviderUnavailable:
+        spoken = _macos_preview(text, "en_us_f", "en")
+        if spoken is None:
+            raise
+        audio, mime, say_voice = spoken
+        return audio, mime, "macos-say", f"{note} ({say_voice})"
+    return audio, mime, engine, note
+
+
+def _tts_response(text: str, language: str, voice: str, style: str) -> Response:
+    clean = (text or "").strip()
+    if not clean:
+        raise HTTPException(status_code=422, detail="tts text is empty")
+    note = ""
+    try:
+        if (voice or "").strip().lower() in {"sala", "salane"}:
+            audio, mime, engine, note = _sala_preview(clean, language)
+        else:
+            audio, mime, engine = lab_tts.synthesize(
+                clean, language=language, style=style, voice=voice,
+            )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except lab_tts.ProviderUnavailable as exc:
+        spoken = _macos_preview(clean, voice or "en_us_f", language)
+        if spoken is None:
+            raise HTTPException(status_code=501, detail=str(exc)) from exc
+        audio, mime, say_voice = spoken
+        engine = "macos-say"
+        note = f"macOS {say_voice}"
+    headers = {
+        "X-TTS-Engine": engine,
+        "X-TTS-Voice": (voice or "")[:80],
+        "Cache-Control": "no-store",
+    }
+    if note:
+        headers["X-TTS-Note"] = note
+    return Response(content=audio, media_type=mime, headers=headers)
+
+
+@app.get("/api/tts/status")
+def api_tts_status() -> dict[str, Any]:
+    status = lab_tts.tts_status()
+    status["speaker_preview"] = True
+    status["sala_preview"] = (
+        "Hear Sala plays on your speakers without xAI. "
+        "Live Sala is xAI voice Ara and stays off when that team is out of credits."
+    )
+    return status
+
+
+@app.get("/api/tts")
+def api_tts_get(
+    text: str = "",
+    language: str = "en",
+    voice: str = "",
+    style: str = "warm",
+) -> Response:
+    return _tts_response(text, language, voice, style)
+
+
+@app.post("/api/tts")
+def api_tts_post(req: TtsReq) -> Response:
+    return _tts_response(req.text, req.language, req.voice, req.style)
 
 
 @app.get("/api/regurgitate/deck")

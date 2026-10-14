@@ -278,12 +278,19 @@ _HTML = """
     <aside class="panel">
       <h2>Dialect probe</h2>
       <div class="row"><label class="stack">Language and dialect <select id="dialect-id"></select></label></div>
+      <div class="row"><label class="stack">Speaker voice <select id="dialect-voice"></select></label></div>
       <div class="row"><textarea id="dialect-text">Welcome! We will walk through the lesson. Take your time. Nice work.</textarea></div>
       <div class="row">
-        <button class="primary" id="btn-dialect-probe" type="button">Humanize</button>
+        <button class="primary" id="btn-dialect-listen" type="button">Listen</button>
+        <button id="btn-sala-listen" type="button">Hear Sala</button>
+        <button id="btn-dialect-stop" type="button">Stop</button>
+      </div>
+      <div class="row">
+        <button id="btn-dialect-probe" type="button">Humanize</button>
         <button id="btn-dialect-catalog" type="button">Catalog</button>
       </div>
-      <div class="meta">Test Southern, NYC, New England, California, Canadian, British, Australian, Singaporean, Beijing, Shanghai, Cantonese, Fujianese, and more.</div>
+      <div class="meta" id="dialect-audio-state">Listen plays this line on your speakers in the selected dialect voice. Hear Sala plays a local Sala preview. The microphone chip does not open an xAI session.</div>
+      <div class="meta">Test Southern, NYC, New England, California, Canadian, British, Australian, Singaporean, Beijing, Shanghai, Cantonese, Fujianese, and more. British, Australian, and Cantonese use different neural voices. US regions share American neural voices and change the wording.</div>
     </aside>
     <main class="panel">
       <h2>Output</h2>
@@ -348,6 +355,8 @@ _JS = """
   let drillCards = [];
   let drillIdx = 0;
   let featured = [];
+  let voiceGroups = [];
+  let previewAudio = null;
 
   function show(el, data) {
     el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
@@ -512,8 +521,107 @@ _JS = """
       if ([...d1.options].some((o) => o.value === prefer)) d1.value = prefer;
       if ([...d2.options].some((o) => o.value === prefer)) d2.value = prefer;
     }
+    fillVoiceSelect();
+  }
+  function fillVoiceSelect() {
+    const dialect = document.getElementById('dialect-id').value;
+    const language = document.getElementById('dialect-id').selectedOptions[0]?.dataset.language || 'en';
+    const all = voiceGroups.flatMap((group) => group.voices || []);
+    let rows = all.filter((voice) => voice.dialect === dialect);
+    if (!rows.length) rows = all.filter((voice) => voice.language === language).slice(0, 4);
+    const sel = document.getElementById('dialect-voice');
+    const previous = sel.value;
+    sel.innerHTML = '';
+    rows.forEach((voice) => {
+      const opt = document.createElement('option');
+      opt.value = voice.id;
+      opt.dataset.locale = voice.locale || '';
+      opt.textContent = voice.label;
+      sel.appendChild(opt);
+    });
+    if ([...sel.options].some((opt) => opt.value === previous)) sel.value = previous;
+  }
+  function stopPreview() {
+    window.speechSynthesis?.cancel();
+    if (previewAudio) {
+      previewAudio.pause();
+      try { URL.revokeObjectURL(previewAudio.src); } catch (_) {}
+      previewAudio = null;
+    }
+  }
+  function deviceSpeak(text, locale) {
+    const stateEl = document.getElementById('dialect-audio-state');
+    if (!window.speechSynthesis) {
+      stateEl.textContent = 'No speaker voice is available in this browser.';
+      return;
+    }
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = locale || 'en-US';
+    const voices = window.speechSynthesis.getVoices() || [];
+    const want = utter.lang.toLowerCase();
+    const match = voices.find((voice) => (voice.lang || '').toLowerCase() === want)
+      || voices.find((voice) => (voice.lang || '').toLowerCase().startsWith(want.slice(0, 2)));
+    if (match) utter.voice = match;
+    utter.onend = () => { stateEl.textContent = 'Finished on the device speaker.'; };
+    window.speechSynthesis.speak(utter);
+    stateEl.textContent = 'Playing on the device speaker (' + utter.lang + ').';
+  }
+  async function listenDialect(kind) {
+    const stateEl = document.getElementById('dialect-audio-state');
+    const text = document.getElementById('dialect-text').value.trim();
+    if (!text) { stateEl.textContent = 'Type a line to hear.'; return; }
+    stopPreview();
+    const dialect = document.getElementById('dialect-id').value;
+    const language = document.getElementById('dialect-id').selectedOptions[0]?.dataset.language || 'en';
+    const voiceSel = document.getElementById('dialect-voice');
+    const voice = kind === 'sala' ? 'sala' : (voiceSel.value || '');
+    const locale = kind === 'sala' ? 'en-US' : (voiceSel.selectedOptions[0]?.dataset.locale || 'en-US');
+    const label = kind === 'sala' ? 'Salane Voice' : (voiceSel.selectedOptions[0]?.textContent || 'dialect voice');
+    let spoken = text;
+    stateEl.textContent = 'Preparing ' + label + '…';
+    try {
+      if (kind !== 'sala') {
+        const probe = await api('POST', '/api/dialects/probe', {
+          dialect, text, language, title: 'Practice',
+        });
+        spoken = (probe.humanized || text).trim();
+        show(document.getElementById('out-dialect'), probe);
+      }
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          text: spoken,
+          language: kind === 'sala' ? 'en' : language,
+          voice,
+        }),
+      });
+      if (res.ok) {
+        const engine = res.headers.get('X-TTS-Engine') || 'server';
+        const note = res.headers.get('X-TTS-Note') || '';
+        const blob = await res.blob();
+        previewAudio = new Audio(URL.createObjectURL(blob));
+        previewAudio.onended = () => { stateEl.textContent = label + ' finished.'; };
+        stateEl.textContent = 'Playing ' + label + ' · ' + engine + (note ? ' · ' + note : '');
+        await previewAudio.play();
+        return;
+      }
+      let detail = '';
+      try { detail = (await res.json()).detail || ''; } catch (_) {}
+      stateEl.textContent = (detail || 'Server voice unavailable.') + ' Using the device speaker.';
+    } catch (err) {
+      stateEl.textContent = 'Server voice unavailable. Using the device speaker.';
+    }
+    deviceSpeak(spoken, locale);
   }
 
+  document.getElementById('dialect-id').addEventListener('change', fillVoiceSelect);
+  document.getElementById('btn-dialect-listen').onclick = () => listenDialect('dialect');
+  document.getElementById('btn-sala-listen').onclick = () => listenDialect('sala');
+  document.getElementById('btn-dialect-stop').onclick = () => {
+    stopPreview();
+    document.getElementById('dialect-audio-state').textContent = 'Stopped.';
+  };
   document.getElementById('btn-dialect-catalog').onclick = () => run(document.getElementById('out-dialect'), () => api('GET', '/api/dialects'));
   document.getElementById('btn-dialect-probe').onclick = () => run(document.getElementById('out-dialect'), () => api('POST', '/api/dialects/probe', {
     dialect: document.getElementById('dialect-id').value,
@@ -810,8 +918,10 @@ _JS = """
         '<span class="pill">dialects ' + (health.dialects || 0) + '</span>';
       const cat = await api('GET', '/api/dialects');
       featured = cat.featured_dialects || [];
+      voiceGroups = cat.voices || [];
       fillLanguageSelects(cat.languages || []);
       fillDialectSelects(cat.dialects || []);
+      window.speechSynthesis?.getVoices();
       await refreshTuning();
       renderEntries(await api('GET', '/api/dictionary?limit=24'));
     } catch (err) {

@@ -238,14 +238,59 @@ def tts_status() -> dict[str, object]:
     }
 
 
-def synthesize(text: str, *, language: str = "en", style: str = "warm") -> tuple[bytes, str, str]:
-    """Render ``text`` to audio. Returns ``(audio_bytes, mime_type, engine)``."""
+def _catalog_edge_voice(voice: str, language: str) -> tuple[str, str]:
+    """Map a catalog id, Sala alias, or neural voice name to an edge-tts voice.
+
+    Returns ``(edge_voice, language)``. A dialect request has to name the
+    neural voice; the generic chain speaks one voice per language and would
+    make Southern, British, and Cantonese sound the same.
+    """
+    raw = (voice or "").strip()
+    if not raw:
+        return _edge_voice(language), language
+    if raw.lower() in {"sala", "salane"}:
+        return _edge_voice("en"), "en"
+    from aoep_shared.voice_catalog import get_voice
+
+    chosen = get_voice(raw)
+    if chosen is not None:
+        return chosen.edge_voice, chosen.language or language
+    if raw.endswith("Neural"):
+        return raw, language
+    return _edge_voice(language), language
+
+
+def synthesize(
+    text: str,
+    *,
+    language: str = "en",
+    style: str = "warm",
+    voice: str = "",
+) -> tuple[bytes, str, str]:
+    """Render ``text`` to audio. Returns ``(audio_bytes, mime_type, engine)``.
+
+    ``voice`` is a catalog id (``en_gb_f``), an edge-tts name
+    (``en-GB-SoniaNeural``), or empty for the language default. A named voice
+    is rendered with that neural voice and does not fall through to a generic
+    engine, so the caller hears the accent they asked for.
+    """
     clean = (text or "").strip()
     if not clean:
         raise ValueError("tts text is empty")
     if len(clean) > MAX_TTS_CHARS:
         clean = clean[:MAX_TTS_CHARS]
     lang = normalize_language(language) or "en"
+    named = (voice or "").strip()
+    if named:
+        edge_name, voiced_lang = _catalog_edge_voice(named, lang)
+        lang = normalize_language(voiced_lang) or lang
+        try:
+            return (*_edge_tts(clean, lang, voice=edge_name), "edge-tts")
+        except Exception as exc:  # noqa: BLE001 — the page can use the device voice
+            raise ProviderUnavailable(
+                f"Could not render voice {edge_name}: {exc}. "
+                "The page can still use the device speaker."
+            ) from exc
 
     errors: list[str] = []
     for engine in list(engine_chain()):
@@ -363,10 +408,11 @@ def _last_error_line(stderr: bytes | None) -> str:
     return lines[-1][:160]
 
 
-def _edge_tts(text: str, language: str) -> tuple[bytes, str]:
+def _edge_tts(text: str, language: str, voice: str = "") -> tuple[bytes, str]:
+    chosen = (voice or "").strip() or _edge_voice(language)
     if not shutil.which("edge-tts"):
-        raise ProviderUnavailable("edge-tts CLI not on PATH")
-    voice = _edge_voice(language)
+        return _edge_tts_library(text, chosen)
+    voice = chosen
     timeout = float(os.environ.get("TTS_TIMEOUT_S", "30"))
     from aoep_shared.edge_speech import _PROXY_KEYS, proxy_from_env
 
@@ -401,3 +447,23 @@ def _edge_tts(text: str, language: str) -> tuple[bytes, str]:
             if index + 1 < len(environments):
                 continue
         raise ProviderUnavailable("edge-tts wrote no audio")
+
+
+def _edge_tts_library(text: str, voice: str) -> tuple[bytes, str]:
+    """Render with the edge-tts package when the CLI is not on PATH."""
+    import asyncio
+
+    try:
+        from aoep_shared.edge_speech import render_edge_mp3
+    except Exception as exc:  # noqa: BLE001
+        raise ProviderUnavailable("edge-tts CLI not on PATH") from exc
+    timeout = float(os.environ.get("TTS_TIMEOUT_S", "30"))
+    try:
+        audio = asyncio.run(asyncio.wait_for(render_edge_mp3(text, voice=voice), timeout=timeout))
+    except ProviderUnavailable:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise ProviderUnavailable(f"edge-tts failed: {exc}") from exc
+    if len(audio) < 256:
+        raise ProviderUnavailable("edge-tts wrote no audio")
+    return audio, "audio/mpeg"

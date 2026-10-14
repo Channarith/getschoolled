@@ -158,6 +158,16 @@
     chip.addEventListener("pointercancel", endDrag);
   }
 
+  function explainStartFailure(error) {
+    const raw = String(error?.message || error || "");
+    if (/credits|monthly spending|spending limit/i.test(raw)) {
+      return "xAI is out of credits for this team, so live Sala cannot start. Use Listen or Hear Sala to play a voice on your speakers.";
+    }
+    if (/xAI HTTP 403|does not have permission/i.test(raw)) {
+      return "xAI refused live Sala. Use Listen or Hear Sala to play a voice on your speakers.";
+    }
+    return `Could not start live audio: ${raw.slice(0, 220)}`;
+  }
   function setStatus(text) {
     const id = String(select?.value || state.provider || "");
     const who = id ? "Sala is connected" : "Sala is not connected";
@@ -586,7 +596,7 @@
       };
       return true;
     } catch (error) {
-      await stop(`Could not start live audio: ${error?.message || error}`);
+      await stop(explainStartFailure(error));
       return false;
     }
   }

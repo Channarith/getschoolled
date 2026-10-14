@@ -221,8 +221,8 @@ class AppConfig(BaseModel):
     # speech gateway prefers it over ElevenLabs/edge-tts for narration.
     cosyvoice_url: str = ""
     cosyvoice_api_key: str = ""
-    # Class voice. "salane" speaks with CosyVoice (Salane Voice / Sala).
-    # "xai" keeps the Grok realtime socket for a deliberate override.
+    # Class voice. Salane speaks with CosyVoice. The xAI Grok socket is retired;
+    # VOICE_AGENT=xai is ignored and does not open api.x.ai.
     voice_agent: str = "salane"
     # xAI Grok realtime voice agent (natural spoken communication for Theodore,
     # the AI teacher). Server-side duplex audio over wss://api.x.ai/v1/realtime;

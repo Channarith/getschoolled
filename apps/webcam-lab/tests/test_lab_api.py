@@ -108,10 +108,10 @@ def test_voice_token_mock(client):
     )
     assert r.status_code == 200
     body = r.json()
-    assert body["token"]["mock"] is True
-    assert "websocket_url" in body["token"]
-    assert body["session_update"]["type"] == "session.update"
-    assert "Theodore" in body["session_update"]["session"]["instructions"]
+    assert body["token"] is None
+    assert body["session_update"] is None
+    assert body["use_xai"] is False
+    assert body["engine"] == "salane"
 
 
 def test_analyze_report(client):

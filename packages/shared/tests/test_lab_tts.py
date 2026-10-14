@@ -85,6 +85,27 @@ def test_a_benched_engine_comes_back_after_its_cooldown(monkeypatch):
     assert tts._benched("edge-tts") is False, "should be retried after cooldown"
 
 
+def test_named_catalog_voice_uses_that_neural_voice(monkeypatch):
+    """A dialect listen request must reach edge-tts as the catalog voice, not Aria."""
+    tts.reset_disabled_engines()
+    seen = {}
+
+    def fake(text, language, voice=""):
+        seen["text"] = text
+        seen["language"] = language
+        seen["voice"] = voice
+        return b"ID3" + b"x" * 300, "audio/mpeg"
+
+    monkeypatch.setattr(tts, "_edge_tts", fake)
+    _audio, _mime, engine = tts.synthesize("Welcome y'all", language="en", voice="en_gb_f")
+    assert engine == "edge-tts"
+    assert seen["voice"] == "en-GB-SoniaNeural"
+    assert seen["text"] == "Welcome y'all"
+
+    _audio, _mime, engine = tts.synthesize("Hello", language="zh", voice="zh_yue_gz_f")
+    assert seen["voice"] == "zh-HK-HiuMaanNeural"
+
+
 def test_a_benched_engine_still_reports_why_it_failed(monkeypatch):
     """Every 501 must name the real fault, not advise an install already done.
 
