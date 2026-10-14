@@ -58,6 +58,7 @@ const GAMES = [
   "repeat-after-me","pronounce-word","rhyme-time","listen-answer","missing-word",
   "opposites","explain-it","sum-it-up","prove-it","story-order","how-many",
   "same-or-different","finish-the-line","spell-aloud",
+  "karaoke",
   "oh-behave","heart","idea",
   "fist-bump","wow","blow-kiss","wink","make-pose","balloon","fish","popcorn",
   "fruit-cut","air-drums","bird-flap","head-bop","face-chase","stand-sit",
@@ -86,6 +87,7 @@ const GAME_CONTROLS = {
   "same-or-different": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
   "finish-the-line": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
   "spell-aloud": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
+  "karaoke": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "oh-behave": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "heart": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "idea": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
@@ -1475,6 +1477,32 @@ function tickCountdown(now) {
     fail("So close! Try the next one.");
   }
 }
+function karaokeFrameSrc() {
+  if (location.port === "8018") return "http://127.0.0.1:8097/lab?embed=arcade";
+  return "/music/lab?embed=arcade";
+}
+function showKaraoke() {
+  const frame = $("karaoke-frame");
+  if (!frame) return;
+  const src = karaokeFrameSrc();
+  if (frame.getAttribute("src") !== src) frame.src = src;
+  frame.classList.remove("hidden");
+  $("stage")?.classList.add("karaoke-on");
+}
+function hideKaraoke() {
+  const frame = $("karaoke-frame");
+  $("stage")?.classList.remove("karaoke-on");
+  if (!frame || frame.classList.contains("hidden")) return;
+  frame.classList.add("hidden");
+  try {
+    frame.contentWindow?.document?.getElementById("player")?.pause();
+  } catch (_) {
+    frame.removeAttribute("src");
+  }
+}
+function updateKaraoke() {
+  if (state.game === "karaoke") showKaraoke();
+}
 function chooseGame() {
   if (state.playEnded) {
     setPrompt("Play time is up", "Thanks for playing! Tap home to start a fresh 10-minute session.");
@@ -1488,6 +1516,7 @@ function chooseGame() {
   if (!select) return;
   const previousGame=state.game;
   state.game=select.value;
+  if (state.game!=="karaoke") hideKaraoke();
   if (state.game!==previousGame) state.audioIndex=0;
   state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
   state.missingFaceAt=0;state.bopDir=0;state.flapDir=0;
@@ -1550,8 +1579,12 @@ function chooseGame() {
     else setPrompt("Stand up","Step back so Theodore sees you, then stand gently.");
   } else if(state.game==="dance-freeze"){setPrompt("Dance!","Move any way you like… freeze when Theodore says freeze.");spawnObject("","🎵");}
   else if(state.game==="rainbow-reach"){setPrompt("Rainbow reach","Stretch both hands toward opposite top corners.");}
+  else if(state.game==="karaoke"){
+    showKaraoke();
+    setPrompt("Karaoke sing-along","Pick a song. The words stay large, and your language sings louder than the English track.");
+  }
   else if(!GAMES.includes(state.game)){setPrompt("Pick a game","That activity is not wired yet. Choose another from the list.");}
-  if (!AUDIO_GAMES.has(state.game)) {
+  if (!AUDIO_GAMES.has(state.game) && state.game!=="karaoke") {
     tellActivity(state.spokenPrompt);
     speak(state.spokenPrompt);
   }
@@ -2172,6 +2205,7 @@ function pickLaunchGame() {
   select.value = options[Math.floor(Math.random() * options.length)];
 }
 pickLaunchGame();
-if (new URLSearchParams(location.search).get("demo")==="1") {
+if (new URLSearchParams(location.search).get("demo")==="1"
+    || new URLSearchParams(location.search).get("game")==="karaoke") {
   requestAnimationFrame(()=>start(false));
 }

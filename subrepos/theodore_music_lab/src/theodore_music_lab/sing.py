@@ -78,6 +78,16 @@ VOICE_TAGS: dict[str, str] = {
 MIN_RATE = 0.85
 MAX_RATE = 1.8
 
+# These voices start late, or the line is gone before the sentence can be heard.
+# The player pauses the English recording until that line has been spoken.
+HOLD_SPEECH_LANGUAGES = frozenset({
+    "km", "zh", "ja", "ko", "th", "ar", "hi", "bn", "he", "fa", "ur",
+})
+
+# English stays audible as a guide, quiet enough that the translation is the
+# voice you hear the pronunciation in.
+DEFAULT_BACKING_VOLUME = 0.10
+
 _ROMANIZATION = re.compile(r"\s*\([^()]*\)")
 
 
@@ -116,7 +126,7 @@ def sing_plan(
     *,
     duration_sec: float | None = None,
     allow_llm: bool = True,
-    backing_volume: float = 0.22,
+    backing_volume: float = DEFAULT_BACKING_VOLUME,
 ) -> dict[str, Any]:
     """Per-line text, window, voice tag and rate for singing in ``language``."""
     lang = validate_language(language)
@@ -153,6 +163,7 @@ def sing_plan(
         fits = natural <= seconds * MAX_RATE
         if not fits:
             crowded += 1
+        hold = (not fits) or lang in HOLD_SPEECH_LANGUAGES
         lines.append(
             {
                 "line_no": row["line_no"],
@@ -167,6 +178,7 @@ def sing_plan(
                 "tier": row.get("tier", ""),
                 "rate": rate,
                 "fits": fits,
+                "hold": hold,
             }
         )
     return {
@@ -179,7 +191,9 @@ def sing_plan(
         "duration_sec": timings["duration_sec"],
         "line_count": len(lines),
         "crowded_lines": crowded,
+        "hold_speech": lang in HOLD_SPEECH_LANGUAGES or crowded > 0,
         "backing_volume": round(max(0.0, min(1.0, backing_volume)), 2),
+        "voice_volume": 1.0,
         "word_by_word": all(row["tier"] == "lexicon" for row in lines) if lines else False,
         "lines": lines,
     }

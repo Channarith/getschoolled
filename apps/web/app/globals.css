@@ -161,6 +161,36 @@ a {
   padding: 32px clamp(16px, 3vw, 48px) 64px;
 }
 
+/* Demo and full course: the lesson fills the viewport under the site header. */
+.course-stage {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 8px 12px 12px;
+  box-sizing: border-box;
+  min-height: calc(100dvh - 4.5rem);
+  display: flex;
+  flex-direction: column;
+}
+.course-stage-links {
+  margin: 0 0 8px;
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+}
+.course-stage .course-stage-embed {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.course-stage .course-stage-embed iframe {
+  flex: 1 1 auto;
+  min-height: calc(100dvh - 9rem);
+}
+
 /* Single-column page shell — mobile-first, compact on all viewports. */
 .page-one {
   max-width: 640px;

@@ -3,11 +3,12 @@ import { visionGameIds, visionLabPath, VISION_ARCADE } from "../visionArcade";
 describe("vision arcade", () => {
   it("lists every webcam lab game", () => {
     const ids = visionGameIds();
-    expect(ids).toHaveLength(39);
+    expect(ids).toHaveLength(40);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(VISION_ARCADE.map((section) => section.id)).toEqual(["learn", "listen", "face", "move"]);
+    expect(VISION_ARCADE.map((section) => section.id)).toEqual(["learn", "listen", "sing", "face", "move"]);
     expect(ids).toContain("trace-letter");
     expect(ids).toContain("spell-aloud");
+    expect(ids).toContain("karaoke");
     expect(ids).toContain("rainbow-reach");
   });
 

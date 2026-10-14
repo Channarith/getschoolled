@@ -36,6 +36,7 @@ from theodore_music_lab.session import SessionMode, SessionStore
 from theodore_music_lab.sing import (
     MAX_RATE,
     MIN_RATE,
+    HOLD_SPEECH_LANGUAGES,
     VOICE_TAGS,
     chars_per_second,
     sing_plan,
@@ -108,7 +109,7 @@ def _player_source(client: TestClient) -> str:
     page = client.get("/")
     script = client.get("/assets/music-lab.js")
     assert page.status_code == script.status_code == 200
-    assert 'src="/assets/music-lab.js"' in page.text
+    assert 'src="assets/music-lab.js"' in page.text
     return page.text + "\n" + script.text
 
 
@@ -503,9 +504,10 @@ def test_the_player_speaks_through_the_server_and_can_fall_back():
     assert "cancelSpeech()" not in body
     # The old dead end: refusing a language because the OS had no voice.
     assert "voice installed on this device" not in page
-    # Pausing must not be followed by another sung line from the next tick.
+    # A real pause must not be followed by another sung line from the next tick.
+    # A hold pause is the song waiting for a slow voice, so that one may speak.
     sing = page.split("function speakLine", 1)[1].split("\n  function ", 1)[0]
-    assert 'if ($("player").paused) return;' in sing
+    assert "if (player.paused && !singHolding) return;" in sing
 
 
 def test_sing_along_renders_the_next_lines_before_they_are_reached():
@@ -1761,15 +1763,31 @@ def test_sing_plan_lets_every_language_carry_the_english_recording(offline):
         plan = sing_plan(song, language, duration_sec=74.0, allow_llm=False)
         assert plan["line_count"] == len(song.lines)
         assert plan["voice_tag"] == VOICE_TAGS[language]
-        assert 0.0 < plan["backing_volume"] < 1.0
+        assert plan["backing_volume"] == 0.10
+        assert plan["voice_volume"] == 1.0
+        assert plan["hold_speech"] is (
+            language in HOLD_SPEECH_LANGUAGES or plan["crowded_lines"] > 0
+        )
         for row in plan["lines"]:
             assert row["speak"], f"{language} line {row['line_no']} has nothing to say"
             assert MIN_RATE <= row["rate"] <= MAX_RATE
+            assert row["hold"] is ((not row["fits"]) or language in HOLD_SPEECH_LANGUAGES)
             # Speech has to start with the line, not after it.
             assert row["start"] < row["end"]
         # A window is only "crowded" when even MAX_RATE overruns it; a nursery
         # rhyme line should never be that dense.
         assert plan["crowded_lines"] == 0, language
+
+
+def test_sing_along_keeps_the_translation_audible():
+    with TestClient(app) as client:
+        page = _player_source(client)
+    assert "function beginSingHold" in page
+    assert "function musicUrl" in page
+    assert "ttsAudio.volume = volume" in page
+    assert 'classList.add("embed-arcade")' in page
+    assert "singPlan.hold_speech" in page
+    assert "singPlan.backing_volume" in page
 
 
 def test_sing_speech_drops_the_romanization_shown_on_screen():

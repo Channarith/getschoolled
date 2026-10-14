@@ -17,11 +17,12 @@ for lang in "${LANGS[@]}"; do
   LANG_FLAGS+=("--lang" "$lang")
 done
 
-# Run the prefetch; tolerate partial failures (Microsoft TTS throttles at high burst).
-# Exit 0 = all good; exit 1 = some clips failed (server still starts).
-python3 scripts/prefetch_voices.py "${LANG_FLAGS[@]}" || {
-  echo "!! prefetch finished with some failures — already-cached clips still work; server starting anyway."
-}
+# Run the prefetch in the background so the server can answer /health while
+# the first batch of voices is still rendering. Cached clips are skipped.
+(
+  python3 scripts/prefetch_voices.py "${LANG_FLAGS[@]}" || echo "!! prefetch finished with some failures — already-cached clips still work."
+) &
+disown || true
 
 echo "==> Starting Theodore Music Lab on :8000"
 exec uvicorn "theodore_music_lab.main:app" \
