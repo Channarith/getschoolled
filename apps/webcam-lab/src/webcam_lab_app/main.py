@@ -14,12 +14,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from aoep_shared.config import load_config
-from aoep_shared.xai_realtime import (
-    XaiVoiceError,
-    build_voice_session,
-    mint_ephemeral_token,
-    xai_configured,
-)
+from aoep_shared.xai_realtime import xai_configured
 
 from .analyzer import analyze_frame_bytes, analyze_reported
 from .session import MODE_GROUP, MODE_SELF_TEACH, MODE_SOLO, LabSessionStore
@@ -86,7 +81,7 @@ def health():
             "webcam_frame_analyze",
             "silhouette_detection",
             "user_absence",
-            "xai_voice_ephemeral_token",
+            "salane_voice",
             "theodore_solo",
             "theodore_group",
             "self_teach",
@@ -230,63 +225,21 @@ def analyze_report(body: PresenceReportBody):
 
 @app.post("/voice/token")
 def voice_token(body: VoiceTokenBody):
-    """Mint an xAI ephemeral client secret + Theodore/self-teach session.update."""
+    """Sala does not mint an xAI client secret."""
     from aoep_shared.xai_spoken_language import plan_spoken_language
 
-    cfg = load_config()
+    if body.session_id and STORE.get(body.session_id) is None:
+        raise HTTPException(status_code=404, detail="session not found")
     spoken = plan_spoken_language(body.language)
-    if body.language and not spoken.use_xai:
-        return {
-            "token": None,
-            "session_update": None,
-            "mode": body.mode,
-            "xai_configured": xai_configured(cfg.xai_api_key),
-            "use_xai": False,
-            "engine": spoken.engine,
-            "spoken_language": spoken.to_dict(),
-        }
-    lesson = body.lesson_context
-    names = list(body.learner_names)
-    if body.session_id:
-        session = STORE.get(body.session_id)
-        if session is None:
-            raise HTTPException(status_code=404, detail="session not found")
-        lesson = lesson or session.lesson_context
-        if not names:
-            names = [p.display_name for p in session.participants.values()]
-        mode = session.mode
-        voice_cfg = build_voice_session(
-            mode,
-            voice=cfg.xai_voice_id,
-            model=cfg.xai_voice_model,
-            lesson_context=lesson,
-            learner_names=names,
-            language=body.language,
-        ) if body.language or session.voice_config is None else session.voice_config
-    else:
-        mode = body.mode
-        voice_cfg = build_voice_session(
-            mode,
-            voice=cfg.xai_voice_id,
-            model=cfg.xai_voice_model,
-            lesson_context=lesson,
-            learner_names=names,
-            language=body.language,
-        )
-    try:
-        token = mint_ephemeral_token(
-            api_key=cfg.xai_api_key or None,
-            expires_seconds=body.expires_seconds,
-            model=cfg.xai_voice_model,
-            allow_mock=True,
-        )
-    except XaiVoiceError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {
-        "token": token.to_dict(),
-        "session_update": voice_cfg.session_update_event(),
-        "mode": mode,
-        "xai_configured": xai_configured(cfg.xai_api_key),
+        "token": None,
+        "session_update": None,
+        "mode": body.mode,
+        "xai_configured": False,
+        "use_xai": False,
+        "engine": "salane",
+        "spoken_language": spoken.to_dict(),
+        "hint": "xAI Grok voice is retired. Salane Voice speaks without an xAI session.",
     }
 
 

@@ -140,3 +140,234 @@ def test_dictionary_and_dialect_apis(tmp_path, monkeypatch):
         assert "Regurgitation" in page.text
         assert "Feedback learning" in page.text
         assert "Beijing" in page.text or "zh_bj" in page.text
+        assert "btn-dialect-listen" in page.text
+        assert "Hear Sala" in page.text
+        assert "Ask Sala" in page.text
+        assert "Replay" in page.text
+        assert "Sounds right" in page.text
+        assert "Save correction" in page.text
+        assert "fillDialectMenu" in page.text
+        names = [row["label"] for row in cat.json()["languages"]]
+        assert len(names) >= 45
+        for label in ("Cambodian — Khmer", "Tagalog — Philippines", "Thai — Thailand", "Vietnamese — Vietnam"):
+            assert label in names
+
+
+def _isolate_sala(monkeypatch, tmp_path):
+    monkeypatch.setenv("AOEP_SALA_VALIDATION", str(tmp_path / "sala"))
+    from theodore_rag_lab.sala_validation import reset_validation
+
+    reset_validation()
+
+
+def test_sala_replies_in_the_selected_dialect(tmp_path, monkeypatch):
+    _isolate_sala(monkeypatch, tmp_path)
+    from theodore_rag_lab.dictionary_lab import sala_reply
+
+    south = sala_reply("What is a right of way?", "us_south", language="en")
+    assert south["heard"] == "What is a right of way?"
+    folded = south["reply"].lower()
+    assert "y'all" in folded
+    assert "gonna" not in folded
+    assert "ain't" not in folded
+    assert "holler" not in folded
+    assert south["dialect"]["id"] == "us_south"
+    assert south["voice"]["edge_voice"] == "en-US-EmmaNeural"
+
+    khmer = sala_reply("សួស្តី", "km_kh", language="km", voice="km_kh_f")
+    assert "សួស្តី" in khmer["reply"]
+    assert "អត់បញ្ហា" in khmer["reply"]
+    assert khmer["language"] == "km"
+    assert khmer["voice"]["id"] == "km_kh_f"
+
+    from_english = sala_reply(
+        "Welcome! We will walk through the lesson. Take your time. Nice work.",
+        "km_kh",
+        language="km",
+    )
+    assert "Welcome" not in from_english["reply"]
+    assert "walk through" not in from_english["reply"].lower()
+    assert "អត់បញ្ហា" in from_english["reply"]
+    assert "យឺតៗ" in from_english["reply"]
+    assert "ល្អណាស់" in from_english["reply"]
+    assert "No problem" in from_english["gloss"]
+
+    tagalog = sala_reply("Kumusta", "tl_ph", language="tl")
+    assert "Kumusta" in tagalog["reply"] or "Narinig" in tagalog["reply"]
+    assert tagalog["voice"]["locale"] == "fil-PH"
+
+    thai = sala_reply("สวัสดี", "th_th", language="th")
+    assert "สวัสดี" in thai["reply"]
+    vietnamese = sala_reply("Xin chào", "vi_vn", language="vi")
+    assert "Xin chào" in vietnamese["reply"]
+
+    canto = sala_reply("你好", "zh_yue_gz", language="zh", voice="zh_yue_gz_f")
+    assert canto["language"] == "zh"
+    assert "我哋" in canto["reply"] or "唔该" in canto["reply"]
+    assert canto["voice"]["id"] == "zh_yue_gz_f"
+    assert canto["locale"].lower().startswith("zh-hk")
+
+
+def test_voice_agent_turn_endpoint(tmp_path, monkeypatch):
+    _isolate_sala(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        res = client.post(
+            "/api/voice-agent/turn",
+            json={"text": "Hello class", "dialect": "en_gb", "language": "en", "voice": "en_gb_f"},
+        )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["heard"] == "Hello class"
+    assert body["reply"]
+    assert body["dialect"]["id"] == "en_gb"
+    assert body["voice"]["id"] == "en_gb_f"
+    assert body["from_correction"] is False
+
+
+def test_saved_correction_is_what_sala_says_next(tmp_path, monkeypatch):
+    """A hear-and-correct check replaces the next reply and lands in the training file."""
+    _isolate_sala(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/voice-agent/turn",
+            json={"text": "Explain a right of way", "dialect": "us_south", "language": "en"},
+        )
+        assert first.status_code == 200
+        original = first.json()["reply"]
+        saved = client.post(
+            "/api/voice-agent/validation",
+            json={
+                "action": "correct",
+                "heard": "Explain a right of way",
+                "reply": original,
+                "corrected": "A right of way means you may go first.",
+                "dialect": "us_south",
+                "language": "en",
+                "voice": "en_us_f",
+            },
+        )
+        assert saved.status_code == 200
+        summary = saved.json()["validation"]
+        assert summary["checks"] == 1
+        assert summary["corrected"] == 1
+        assert summary["passed"] == 0
+
+        again = client.post(
+            "/api/voice-agent/turn",
+            json={"text": "Explain a right of way", "dialect": "us_south", "language": "en"},
+        )
+        assert again.json()["reply"] == "A right of way means you may go first."
+        assert again.json()["from_correction"] is True
+
+        passed = client.post(
+            "/api/voice-agent/validation",
+            json={
+                "action": "pass",
+                "heard": "Explain a right of way",
+                "reply": again.json()["reply"],
+                "dialect": "us_south",
+                "language": "en",
+            },
+        )
+        assert passed.status_code == 200
+        assert passed.json()["validation"]["passed"] == 1
+        assert passed.json()["validation"]["pass_rate"] == 0.5
+
+        empty = client.post(
+            "/api/voice-agent/validation",
+            json={"action": "correct", "heard": "x", "reply": "y", "corrected": ""},
+        )
+        assert empty.status_code == 422
+
+    training = Path(tmp_path / "sala" / "sala_voice_training.jsonl").read_text(encoding="utf-8")
+    assert "A right of way means you may go first." in training
+    assert '"verdict": "pass"' in training
+
+
+def test_speaker_preview_plays_dialect_and_sala(monkeypatch):
+    """Listen and Hear Sala render audio without calling xAI."""
+    seen = {}
+
+    def fake_synthesize(text, *, language="en", style="warm", voice=""):
+        seen["text"] = text
+        seen["language"] = language
+        seen["voice"] = voice
+        return b"ID3" + b"x" * 300, "audio/mpeg", "edge-tts"
+
+    monkeypatch.setattr("theodore_rag_lab.main.lab_tts.synthesize", fake_synthesize)
+    monkeypatch.setattr(
+        "aoep_shared.cosyvoice_tts.cosyvoice_configured",
+        lambda *_a, **_k: False,
+    )
+
+    with TestClient(app) as client:
+        empty = client.post("/api/tts", json={"text": "  "})
+        assert empty.status_code == 422
+
+        british = client.post(
+            "/api/tts",
+            json={"text": "Welcome. Take your time.", "language": "en", "voice": "en_gb_f"},
+        )
+        assert british.status_code == 200
+        assert british.headers["x-tts-engine"] == "edge-tts"
+        assert british.headers["x-tts-voice"] == "en_gb_f"
+        assert seen["voice"] == "en_gb_f"
+        assert british.content.startswith(b"ID3")
+
+        sala = client.post(
+            "/api/tts",
+            json={"text": "Welcome. Take your time.", "voice": "sala"},
+        )
+        assert sala.status_code == 200
+        assert sala.headers["x-tts-voice"] == "sala"
+        assert seen["voice"] == "en_us_f"
+        assert "retired" in sala.headers["x-tts-note"]
+
+        khmer_voice = client.post(
+            "/api/tts",
+            json={"text": "សួស្តី។ អត់បញ្ហាទេ។", "language": "km", "voice": "sala"},
+        )
+        assert khmer_voice.status_code == 200
+        assert seen["language"] == "km"
+        assert seen["voice"] == "km_kh_f"
+        assert "សួស្តី" in seen["text"]
+
+        status = client.get("/api/tts/status")
+        assert status.status_code == 200
+        assert status.json()["speaker_preview"] is True
+
+
+def test_speaker_preview_uses_macos_voice_when_neural_speech_is_down(monkeypatch):
+    from aoep_shared.lab_tts import ProviderUnavailable
+
+    def boom(*_args, **_kwargs):
+        raise ProviderUnavailable("neural speech is offline")
+
+    monkeypatch.setattr("theodore_rag_lab.main.lab_tts.synthesize", boom)
+    monkeypatch.setattr(
+        "theodore_rag_lab.main._macos_preview",
+        lambda text, voice_id, language: (b"RIFF" + b"x" * 300, "audio/wav", "Daniel"),
+    )
+    with TestClient(app) as client:
+        res = client.post(
+            "/api/tts",
+            json={"text": "Welcome.", "language": "en", "voice": "en_gb_m"},
+        )
+    assert res.status_code == 200
+    assert res.headers["x-tts-engine"] == "macos-say"
+    assert res.headers["x-tts-note"] == "macOS Daniel"
+    assert res.content.startswith(b"RIFF")
+
+
+def test_say_voice_names_follow_the_dialect():
+    from theodore_rag_lab.main import _say_voice_name
+
+    assert _say_voice_name("en_gb_f") == "Shelley"
+    assert _say_voice_name("en_gb_m") == "Daniel"
+    assert _say_voice_name("en_au_f") == "Karen"
+    assert _say_voice_name("zh_yue_gz_f") == "Sinji"
+    assert _say_voice_name("en_us_f") == "Samantha"
+    assert _say_voice_name("en_us_south_f") == "Flo (English (US))"
+    assert _say_voice_name("km_kh_f") == ""
+    assert _say_voice_name("th_th_f") == "Kanya"
+    assert _say_voice_name("vi_vn_f") == "Linh"

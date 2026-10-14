@@ -670,11 +670,6 @@ SALANE_DISPLAY = "Salane Voice"
 SALANE_SHORT = "Sala"
 
 
-def _voice_agent_name(cfg) -> str:
-    name = (getattr(cfg, "voice_agent", "") or "salane").strip().lower()
-    return name or "salane"
-
-
 def _salane_status(cfg) -> dict:
     from aoep_shared import cosyvoice_tts
 
@@ -701,151 +696,25 @@ def _salane_status(cfg) -> dict:
 
 @app.get("/voice/status")
 def voice_status() -> dict:
-    """Which class voice is active. Default is Salane Voice (CosyVoice)."""
-    from aoep_shared.xai_realtime import DEFAULT_VOICE, REALTIME_WS, xai_configured
-
-    cfg = app.state.config
-    if _voice_agent_name(cfg) != "xai":
-        return _salane_status(cfg)
-    # Pass the config value explicitly (including "") so we do NOT fall through
-    # to a process-env XAI_API_KEY when the AppConfig field is blank.
-    api_key = getattr(cfg, "xai_api_key", "") or ""
-    configured = xai_configured(api_key)
-    return {
-        "available": configured,
-        "engine": "xai-grok-voice" if configured else "none",
-        "model": getattr(cfg, "xai_voice_model", "grok-voice-latest") or "grok-voice-latest",
-        "voice": (
-            getattr(cfg, "xai_voice_id", "")
-            or getattr(cfg, "xai_voice", "")
-            or getattr(cfg, "xai_voice_name", "")
-            or DEFAULT_VOICE
-        ),
-        "realtime_ws": REALTIME_WS,
-        "hint": (
-            "xAI Grok Voice ready — clients mint an ephemeral token via POST /voice/token."
-            if configured
-            else "Set XAI_API_KEY in aoep-secrets / config/local.env to enable Grok Voice Agents."
-        ),
-    }
+    """Class voice is Salane. The xAI Grok socket is retired."""
+    return _salane_status(app.state.config)
 
 
 @app.post("/voice/token")
 def voice_token(req: VoiceTokenRequest) -> dict:
-    """Mint an ephemeral xAI client secret + Theodore/self-teach session.update.
-
-    Web/mobile call this once (or on reconnect), then open the realtime
-    WebSocket with ``sec-websocket-protocol: xai-client-secret.<token>``.
-    """
-    from aoep_shared.xai_realtime import (
-        DEFAULT_VOICE,
-        XaiVoiceError,
-        build_voice_session,
-        mint_ephemeral_token,
-        presence_tool_schema,
-        xai_configured,
-    )
-
+    """Sala does not mint an xAI client secret or open api.x.ai."""
     from aoep_shared.xai_spoken_language import plan_spoken_language
 
-    cfg = app.state.config
-    if _voice_agent_name(cfg) != "xai":
-        spoken = plan_spoken_language(req.language)
-        return {
-            "token": None,
-            "session_update": None,
-            "mode": req.mode,
-            "xai_configured": False,
-            "engine": "salane",
-            "display_name": SALANE_DISPLAY,
-            "short_name": SALANE_SHORT,
-            "use_xai": False,
-            "spoken_language": spoken.to_dict(),
-        }
-    api_key = getattr(cfg, "xai_api_key", "") or ""
     spoken = plan_spoken_language(req.language)
-    if not spoken.use_xai:
-        # Khmer and Cantonese are not xAI speech-to-speech voices. Khmer was
-        # auto-detected as Thai. Cantonese (yue / zh-HK) is ignored and then
-        # auto-detected as Mandarin. Clients narrate with the gateway voice
-        # named on spoken_language.edge_voice.
-        return {
-            "token": None,
-            "session_update": None,
-            "mode": req.mode,
-            "xai_configured": xai_configured(api_key),
-            "engine": spoken.engine,
-            "use_xai": False,
-            "spoken_language": spoken.to_dict(),
-        }
-    model = getattr(cfg, "xai_voice_model", "grok-voice-latest") or "grok-voice-latest"
-    voice_id = (
-        getattr(cfg, "xai_voice_id", "")
-        or getattr(cfg, "xai_voice", "")
-        or getattr(cfg, "xai_voice_name", "")
-        or DEFAULT_VOICE
-    )
-    if not xai_configured(api_key):
-        raise HTTPException(
-            status_code=503,
-            detail="XAI_API_KEY is not configured on the speech service",
-        )
-    drive_mode = (req.mode or "").strip().lower() == "drive"
-    if drive_mode:
-        from aoep_shared.course_translation_library import reference_for_class
-        from aoep_shared.drive_voice import drive_voice_instructions, drive_voice_tools
-
-        # The browser names the class. The library and the safety rules stay here.
-        library = reference_for_class(
-            course_id=req.course_id,
-            title=req.topic,
-            category=req.category,
-            language=req.language,
-            query=req.lesson_context,
-        )
-        voice_cfg = build_voice_session(
-            "drive",
-            voice=voice_id,
-            model=model,
-            instructions=drive_voice_instructions(
-                category=req.category,
-                topic=req.topic,
-                excerpt="" if library["hit"] else req.lesson_context,
-                library=library["text"],
-                library_hit=bool(library["hit"]),
-            ),
-            language=req.language,
-        )
-        voice_cfg.tools = drive_voice_tools()
-    else:
-        voice_cfg = build_voice_session(
-            req.mode,
-            voice=voice_id,
-            model=model,
-            lesson_context=req.lesson_context or "",
-            learner_names=list(req.learner_names or []),
-            instructions=req.instructions or "",
-            language=req.language,
-        )
-        voice_cfg.tools = [presence_tool_schema()]
-    locked_session = dict(voice_cfg.session_update_event()["session"])
-    locked_session["model"] = model
-    try:
-        token = mint_ephemeral_token(
-            api_key=api_key,
-            expires_seconds=req.expires_seconds,
-            model=model,
-            allow_mock=False,
-            session=locked_session,
-        )
-    except XaiVoiceError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {
-        "token": token.to_dict(),
-        "session_update": voice_cfg.session_update_event(),
+        "token": None,
+        "session_update": None,
         "mode": req.mode,
-        "xai_configured": True,
-        "engine": "xai-grok-voice",
-        "use_xai": True,
+        "xai_configured": False,
+        "engine": "salane",
+        "display_name": SALANE_DISPLAY,
+        "short_name": SALANE_SHORT,
+        "use_xai": False,
         "spoken_language": spoken.to_dict(),
+        "hint": "xAI Grok voice is retired. Salane Voice speaks without an xAI session.",
     }

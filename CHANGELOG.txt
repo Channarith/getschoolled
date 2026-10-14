@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-14 - v0.53.14 - RAG lab dialect check speaks the full language list, including Khmer, and a Sala reply can be heard and corrected.
 - 2026-10-14 - v0.53.13 - RAG lab language menus list 52 named varieties. Voice training and drop intake share one queue with the command line.
 - 2026-10-13 - v0.53.12 - Salane Voice (Sala) is the class voice: CosyVoice instead of the xAI Grok socket. Driver's ed and food-handler courses stay on that voice. Channel catalog replaces dead YouTube handles.
 - 2026-10-13 - v0.53.11 - Course Studio listen→local-LLM→NLLB→CosyVoice speak loop + run_voice_conversation helper.

@@ -47,7 +47,7 @@ def test_drop_links_and_upload(tmp_path, monkeypatch):
     assert catalog.status_code == 200
     names = [row["label"] for row in catalog.json()["languages"]]
     assert len(names) >= 45
-    assert "Khmer — Cambodia" in names
+    assert "Cambodian — Khmer" in names
     assert "Cantonese — Hong Kong" in names
     assert "English — California" in names
     health = client.get("/health")

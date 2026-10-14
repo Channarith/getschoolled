@@ -15,7 +15,7 @@ def test_variety_menu_names_languages_and_dialects():
         assert row["language"]
         assert row["whisper"]
     by_id = {row["id"]: row for row in rows}
-    assert by_id["km_kh"]["label"] == "Khmer — Cambodia"
+    assert by_id["km_kh"]["label"] == "Cambodian — Khmer"
     assert by_id["yue_hk"]["whisper"] == "yue"
     assert by_id["en_california"]["dialect"] == "us_ca"
     assert by_id["tl_ph"]["language"] == "tl"

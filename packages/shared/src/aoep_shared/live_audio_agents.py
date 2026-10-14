@@ -19,13 +19,8 @@ from pathlib import Path
 from typing import Any
 
 from .xai_realtime import (
-    DEFAULT_VOICE,
-    XaiVoiceError,
     _open_http,
     _proxy_tunnel_forbidden,
-    build_voice_session,
-    mint_ephemeral_token,
-    xai_configured,
 )
 
 GEMINI_TOKEN_URL = "https://generativelanguage.googleapis.com/v1alpha/auth_tokens"
@@ -52,20 +47,16 @@ def _gemini_key() -> str:
 
 
 def provider_status() -> dict[str, Any]:
-    """Configured native-audio providers; never reports ordinary TTS as live."""
-    xai = xai_configured()
+    """Configured native-audio providers.
+
+    xAI Grok voice is retired. A saved ``XAI_API_KEY`` must not advertise or
+    open that socket. Sala speaks from the lab speaker buttons.
+    """
     gemini = bool(_gemini_key())
     return {
-        "available": xai or gemini,
-        "default": "xai" if xai else "gemini" if gemini else "",
+        "available": gemini,
+        "default": "gemini" if gemini else "",
         "providers": {
-            "xai": {
-                "available": xai,
-                "label": "xAI Voice Agent",
-                "model": os.environ.get("XAI_VOICE_MODEL", "grok-voice-latest"),
-                "input_rate": 24000,
-                "output_rate": 24000,
-            },
             "gemini": {
                 "available": gemini,
                 "label": "Gemini Live",
@@ -76,10 +67,11 @@ def provider_status() -> dict[str, Any]:
                 "output_rate": 24000,
             },
         },
+        "retired": ["xai"],
         "note": (
-            "Native speech-to-speech is ready; no TTS clips are used."
-            if xai or gemini
-            else "Set XAI_API_KEY or GEMINI_API_KEY to enable a live audio agent."
+            "Gemini Live is ready."
+            if gemini
+            else "xAI Grok voice is retired. Sala speaks on your speakers without an xAI session."
         ),
     }
 
@@ -187,56 +179,15 @@ def mint_xai_token(
     expires_seconds: int = 300,
     language: str = "",
 ) -> dict[str, Any]:
-    """Mint an xAI browser token and its speech-to-speech session setup."""
-    from .xai_spoken_language import plan_spoken_language
+    """Refuse the retired Grok realtime socket.
 
-    spoken = plan_spoken_language(language)
-    if not spoken.use_xai:
-        return {
-            "provider": "edge-tts",
-            "use_xai": False,
-            "engine": spoken.engine,
-            "edge_voice": spoken.edge_voice,
-            "hint": spoken.hint,
-            "spoken_language": spoken.to_dict(),
-        }
-    if not xai_configured():
-        raise LiveAudioError("XAI_API_KEY is not configured")
-    model = os.environ.get("XAI_VOICE_MODEL", "grok-voice-latest")
-    voice = os.environ.get("XAI_VOICE_ID", "") or os.environ.get(
-        "XAI_VOICE", ""
-    ) or DEFAULT_VOICE
-    session = build_voice_session(
-        mode,
-        voice=voice,
-        model=model,
-        lesson_context=context,
-        instructions=instructions,
-        language=language,
+    The arguments stay so older callers still type-check. None of them are
+    sent to api.x.ai.
+    """
+    del mode, context, instructions, expires_seconds, language
+    raise LiveAudioError(
+        "xAI Grok voice is retired. Sala does not open an xAI session."
     )
-    locked_session = dict(session.session_update_event()["session"])
-    locked_session.update({"model": model, "tools": []})
-    try:
-        token = mint_ephemeral_token(
-            expires_seconds=expires_seconds,
-            model=model,
-            allow_mock=False,
-            session=locked_session,
-        )
-    except XaiVoiceError as exc:
-        raise LiveAudioError(str(exc)) from exc
-    return {
-        "provider": "xai",
-        "use_xai": True,
-        "token": token.value,
-        "websocket_url": token.websocket_url,
-        "websocket_protocol": token.websocket_protocol,
-        "input_rate": 24000,
-        "output_rate": 24000,
-        "model": model,
-        "setup": session.session_update_event(),
-        "spoken_language": spoken.to_dict(),
-    }
 
 
 def mint_provider_token(

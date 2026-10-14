@@ -7,28 +7,30 @@ from pathlib import Path
 import pytest
 
 from aoep_shared import live_audio_agents as live
-from aoep_shared.xai_realtime import EphemeralToken
 
 
-def test_status_only_advertises_native_audio_when_configured(monkeypatch):
+def test_status_does_not_open_xai_when_a_key_is_saved(monkeypatch):
     monkeypatch.delenv("XAI_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     status = live.provider_status()
     assert status["available"] is False
     assert status["default"] == ""
-    assert all(not row["available"] for row in status["providers"].values())
-    assert "TTS" not in status["providers"]
+    assert "xai" not in status["providers"]
+    assert status["retired"] == ["xai"]
+    assert "retired" in status["note"]
+
+    monkeypatch.setenv("XAI_API_KEY", "xai-secret")
+    status = live.provider_status()
+    assert status["available"] is False
+    assert status["default"] == ""
+    assert "xai" not in status["providers"]
 
     monkeypatch.setenv("GEMINI_API_KEY", "gemini-secret")
     status = live.provider_status()
     assert status["default"] == "gemini"
     assert status["providers"]["gemini"]["input_rate"] == 16000
-
-    monkeypatch.setenv("XAI_API_KEY", "xai-secret")
-    status = live.provider_status()
-    assert status["default"] == "xai"
-    assert status["providers"]["xai"]["input_rate"] == 24000
+    assert "xai" not in status["providers"]
 
 
 def test_gemini_token_is_one_use_v1alpha_and_never_returns_api_key(monkeypatch):
@@ -61,23 +63,18 @@ def test_gemini_token_is_one_use_v1alpha_and_never_returns_api_key(monkeypatch):
     assert token["output_rate"] == 24000
 
 
-def test_xai_token_uses_ephemeral_protocol_and_native_pcm(monkeypatch):
+def test_xai_token_is_not_minted(monkeypatch):
     monkeypatch.setenv("XAI_API_KEY", "xai-secret")
+    called = []
     monkeypatch.setattr(
-        live,
-        "mint_ephemeral_token",
-        lambda **_kwargs: EphemeralToken(
-            value="short-lived", expires_at=1234, model="grok-voice-latest"
-        ),
+        "aoep_shared.xai_realtime.mint_ephemeral_token",
+        lambda **kwargs: called.append(kwargs),
     )
-    token = live.mint_provider_token(
-        "xai", context="Geometry", instructions="Keep it spoken."
-    )
-    assert token["websocket_protocol"] == "xai-client-secret.short-lived"
-    assert token["setup"]["type"] == "session.update"
-    assert token["setup"]["session"]["audio"]["input"]["format"]["rate"] == 24000
-    assert token["input_rate"] == token["output_rate"] == 24000
-    assert "xai-secret" not in json.dumps(token)
+    with pytest.raises(live.LiveAudioError, match="retired"):
+        live.mint_provider_token(
+            "xai", context="Geometry", instructions="Keep it spoken."
+        )
+    assert called == []
 
 
 def test_inject_client_is_idempotent():
@@ -111,7 +108,7 @@ def test_routes_expose_status_client_and_reject_unconfigured_token(monkeypatch):
     assert 'fetch("/tts' not in script.text
     token = client.post("/api/live-audio/token", json={"provider": "xai"})
     assert token.status_code == 503
-    assert "not configured" in token.json()["detail"]
+    assert "retired" in token.json()["detail"]
     denied = client.post(
         "/api/live-audio/token",
         json={"provider": "xai"},
@@ -160,6 +157,10 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "__SALAREEN_LIVE_GAIN__" in source
     assert "voice-name" in source
     assert "Sala is connected" in source
+    assert "startLocalSala" in source
+    assert "theodore-sala-heard" in source
+    assert "xAI is out of credits for this team" in source
+    assert "explainStartFailure" in source
     assert "connectionChime" in source
     assert ">Salane Voice<" in source
     assert "Show Sala" in source
