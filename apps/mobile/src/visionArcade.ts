@@ -49,6 +49,13 @@ export const VISION_ARCADE: VisionSection[] = [
     ],
   },
   {
+    id: "sing",
+    title: "Sing",
+    games: [
+      { id: "karaoke", label: "Karaoke sing-along", emoji: "🎤" },
+    ],
+  },
+  {
     id: "face",
     title: "Face & hands",
     games: [

@@ -99,6 +99,7 @@ _PAGE = """<!doctype html>
           <span id="trace-readout">Trace: 0%</span>
           <span id="game-readout">Gesture: waiting</span>
         </div>
+        <iframe id="karaoke-frame" class="karaoke-frame hidden" title="Karaoke sing-along" allow="autoplay; fullscreen"></iframe>
       </div>
       <details class="vision-tools" open>
         <summary>Vision testing overlays</summary>

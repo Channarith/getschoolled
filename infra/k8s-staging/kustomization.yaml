@@ -60,6 +60,7 @@ replicas:
   - { name: course-studio, count: 1 }
   - { name: children-lab,  count: 1 }
   - { name: audio-lab,     count: 1 }
+  - { name: music,         count: 1 }
 
 patches:
   # --- Strip the GPU model servers: staging shares prod's backends. ---
@@ -109,4 +110,5 @@ images:
   - { name: ghcr.io/aoep/course-studio, newName: sjc.vultrcr.com/salareen/course-studio, newTag: latest }
   - { name: ghcr.io/aoep/children-lab,  newName: sjc.vultrcr.com/salareen/children-lab,  newTag: latest }
   - { name: ghcr.io/aoep/audio-lab,     newName: sjc.vultrcr.com/salareen/audio-lab,     newTag: latest }
+  - { name: ghcr.io/aoep/music,         newName: sjc.vultrcr.com/salareen/music,         newTag: latest }
   - { name: aoep/harvester,            newName: sjc.vultrcr.com/salareen/harvester,    newTag: latest }

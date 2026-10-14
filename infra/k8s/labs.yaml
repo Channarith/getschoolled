@@ -1,7 +1,7 @@
 # Public demos. The web image proxies these same-origin:
 #   /studio          -> course-studio:8040
 #   /children-lab    -> children-lab:8018
-#   /audio-lab       -> audio-lab:8041  (page /lab; API via /audio-lab-api)
+#   /music           -> music:8000      (page / and /lab; API /api/music)
 # Those rewrites are baked at `next build` (apps/web/Dockerfile). Without these
 # Deployments the demo iframes on salareen.com return 500.
 #
@@ -125,3 +125,48 @@ metadata: { name: audio-lab, namespace: aoep }
 spec:
   selector: { app: audio-lab }
   ports: [{ port: 8041, targetPort: 8041 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: music, namespace: aoep }
+spec:
+  replicas: 1
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } }
+  selector: { matchLabels: { app: music } }
+  template:
+    metadata: { labels: { app: music, tier: demo } }
+    spec:
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: music
+          image: ghcr.io/aoep/music:latest
+          imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          ports: [{ containerPort: 8000 }]
+          env:
+            - { name: HOME, value: /tmp }
+            - { name: MUSIC_LAB_TTS_CACHE, value: /tmp/tts-cache }
+            - { name: MUSIC_LAB_TTS, value: "1" }
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits:   { cpu: "1", memory: 1Gi }
+          startupProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe: { httpGet: { path: /health, port: 8000 }, periodSeconds: 10 }
+          livenessProbe:  { httpGet: { path: /health, port: 8000 }, periodSeconds: 20, failureThreshold: 6 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: music, namespace: aoep }
+spec:
+  selector: { app: music }
+  ports: [{ port: 8000, targetPort: 8000 }]

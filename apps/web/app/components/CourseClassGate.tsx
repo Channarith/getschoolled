@@ -117,18 +117,15 @@ export function CourseClassGate({
   }
 
   return (
-    <main className="container">
-      <p style={{ margin: "0 0 12px", display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
+    <main className="course-stage">
+      <p className="course-stage-links">
         <Link href="/">← Back to Salareen</Link>
-      </p>
-      <p className="muted">
-        {isAdmin
-          ? "Your account is an admin, so this is the full course."
-          : "This account has paid for the course. This is the full course."}
-        {" "}
-        Serenity teaches with Salane Voice (Sala).
+        <span className="muted">
+          {isAdmin ? "Full course (admin)." : "Full course."}
+        </span>
       </p>
       <CourseStudioFrame
+        fill
         title={`${title} full course`}
         src={courseStudioFrameSrc({ access: "full", course: courseId, accountId, isAdmin })}
       />

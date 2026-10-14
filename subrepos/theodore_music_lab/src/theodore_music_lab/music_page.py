@@ -33,7 +33,7 @@ def render_music_page() -> str:
         + _CSS
         + "\n  </style>\n</head>\n<body>\n"
         + _HTML
-        + '\n  <script src="/assets/music-lab.js" defer></script>\n'
+        + '\n  <script src="assets/music-lab.js" defer></script>\n'
         + "</body>\n</html>\n"
     )
 
@@ -199,14 +199,14 @@ _CSS = """
   .stage.theater .cap-ball, .stage.theater .cap-ball .dot { width:26px; height:26px; }
   .cap-narration { color:#cbd5e1; font-size:.86rem; margin-bottom:.3rem; }
   /* padding-top leaves the bouncing ball its own lane above the words */
-  .cap-line { font-size:1.4rem; font-weight:800; line-height:1.5; padding-top:1.4rem; }
+  .cap-line { font-size:2.15rem; font-weight:800; line-height:1.35; padding-top:1.4rem; }
   .cap-line .w { padding:.05rem .2rem; }
-  .cap-tr { color:var(--good); font-size:1rem; }
+  .cap-tr { color:var(--good); font-size:1.55rem; line-height:1.35; }
   .cap-next { color:#94a3b8; font-size:.9rem; margin-top:.2rem; }
   .stage.theater .captions { padding:4rem 3rem 2.2rem; }
   .stage.theater .cap-narration { font-size:1.25rem; }
-  .stage.theater .cap-line { font-size:2.6rem; padding-top:2.2rem; }
-  .stage.theater .cap-tr { font-size:1.6rem; }
+  .stage.theater .cap-line { font-size:3.4rem; padding-top:2.2rem; }
+  .stage.theater .cap-tr { font-size:2.2rem; }
   .stage.theater .cap-next { font-size:1.2rem; }
   .stage.theater .scene-tag { font-size:1rem; top:1.4rem; left:2rem; }
   .stage.theater .stage-tools { top:1.3rem; right:2rem; }
@@ -242,13 +242,13 @@ _CSS = """
   .line.upcoming { background:transparent; box-shadow:inset 0 0 0 1px #334155; }
   .line.upcoming .words { color:#94a3b8; }
   .line .section { font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); opacity:.8; }
-  .line .words { color:var(--muted); font-size:1.05rem; line-height:1.9; }
+  .line .words { color:var(--muted); font-size:1.5rem; line-height:1.45; }
   .line.active .words { color:var(--ink); }
   .w { padding:.05rem .18rem; border-radius:6px; transition:color .15s, background .15s; }
   .w.sung { color:var(--warm); }
   .w.now { background:var(--warm); color:#0f172a; font-weight:800; }
   .line.done .words { color:color-mix(in srgb, var(--warm) 70%, #64748b); }
-  .line .tr { font-size:.9rem; color:var(--good); margin-top:.1rem; }
+  .line .tr { font-size:1.25rem; color:var(--good); margin-top:.15rem; line-height:1.35; }
   .line .tr:empty { display:none; }
   #ball { position:absolute; left:0; top:0; width:18px; height:18px; pointer-events:none; opacity:0;
     transition:transform .16s ease-out, opacity .2s; }
@@ -421,9 +421,24 @@ _CSS = """
   .toast { position:fixed; right:1rem; bottom:1rem; display:none; background:#0f766e;
     border:1px solid #5eead4; padding:.7rem .9rem; border-radius:10px; }
   .toast.show { display:block; }
+  html.embed-arcade header { display:none; }
+  html.embed-arcade .layout { padding:.4rem; gap:.45rem; }
+  html.embed-arcade .layout > .stack:first-child .panel:last-child { display:none; }
+  html.embed-arcade .bottom { display:none; }
+  html.embed-arcade #song-list { max-height:7.5rem; overflow:auto; }
+  html.embed-arcade .cap-line { font-size:2.8rem; line-height:1.25; }
+  html.embed-arcade .cap-tr { font-size:2rem; line-height:1.3; }
+  html.embed-arcade .line .words { font-size:1.85rem; line-height:1.35; }
+  html.embed-arcade .line .tr { font-size:1.5rem; }
+  html.embed-arcade .lyrics { max-height:none; }
 """
 
 _HTML = """
+  <script>
+    if (/[?&]embed=arcade(?:&|$)/.test(location.search)) {
+      document.documentElement.classList.add("embed-arcade");
+    }
+  </script>
   <header>
     <h1>Theodore Music Lab</h1>
     <p>Follow the bouncing ball, watch each word light up as it is sung, and read the
@@ -742,6 +757,10 @@ _JS = r"""
   let singPlan = null;
   let singingLineNo = 0;
   let singBackedFrom = null;
+  let singHolding = false;
+  let singHoldPause = false;
+  let singHoldMode = "";
+  let singHoldTimer = 0;
   let embeds = [];
   let currentEmbed = null;
   let activeVerseNo = 0;
@@ -914,8 +933,15 @@ _JS = r"""
     el.classList.add("show");
     setTimeout(() => el.classList.remove("show"), 2400);
   }
+  function musicUrl(path) {
+    if (typeof path !== "string") return path;
+    if (!path.startsWith("/api/music") && !path.startsWith("/assets/")) return path;
+    const pathName = location.pathname || "";
+    const onGateway = pathName === "/music" || pathName.startsWith("/music/");
+    return onGateway ? "/music" + path : path;
+  }
   async function api(path, opts) {
-    const res = await fetch(path, opts);
+    const res = await fetch(musicUrl(path), opts);
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   }
@@ -2280,7 +2306,7 @@ _JS = r"""
     $("ecap-line").textContent = "";
     $("ecap-tr").textContent = "";
     if (currentEmbed.video_url) {
-      await ensureLocalPlayer(currentEmbed.video_url, currentEmbed.kind === "local-karaoke", gen);
+      await ensureLocalPlayer(musicUrl(currentEmbed.video_url), currentEmbed.kind === "local-karaoke", gen);
       if (gen !== embedGen) return;
       if (activeVerseNo) showPauseCard(activeVerseNo, false);
     } else if (currentEmbed.youtube_id && currentEmbed.has_pause_ask) {
@@ -2579,18 +2605,20 @@ _JS = r"""
     if (event.detail?.active) stopLabSpeech();
   });
 
-  function speakOnDevice(text, tag, rate, onDone) {
+  function speakOnDevice(text, tag, rate, onDone, volume, onStart) {
     const synth = window.speechSynthesis;
     if (!synth) return false;
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = tag || "en-US";
     utter.rate = rate || 1;
+    utter.volume = typeof volume === "number" ? volume : 1;
     // A tagged voice is better, but an engine that rejects the object should
     // still speak the line from the language tag alone.
     try {
       const voice = voiceFor(utter.lang);
       if (voice) utter.voice = voice;
     } catch (_) { /* keep utter.lang */ }
+    if (onStart) utter.onstart = () => onStart();
     if (onDone) { utter.onend = onDone; utter.onerror = onDone; }
     synth.speak(utter);
     return true;
@@ -2620,9 +2648,9 @@ _JS = r"""
   let ttsFailures = 0;
 
   function ttsUrl(text, o) {
-    return `/api/music/tts?lang=${encodeURIComponent(o.lang || "en")}` +
+    return musicUrl(`/api/music/tts?lang=${encodeURIComponent(o.lang || "en")}` +
       `&rate=${encodeURIComponent(Number(o.rate || 1).toFixed(2))}` +
-      `&text=${encodeURIComponent(text)}`;
+      `&text=${encodeURIComponent(text)}`);
   }
 
   function ttsKey(text, o) {
@@ -2704,6 +2732,8 @@ _JS = r"""
     const line = String(text || "").trim();
     const o = opts || {};
     const done = typeof o.onend === "function" ? o.onend : null;
+    const started = typeof o.onstart === "function" ? o.onstart : null;
+    const volume = typeof o.volume === "number" ? o.volume : 1;
     cancelSpeech();
     if (window.__THEODORE_LIVE_AUDIO_ACTIVE__) { if (done) done(); return; }
     if (!line) { if (done) done(); return; }
@@ -2711,6 +2741,8 @@ _JS = r"""
       if (!ttsAudio) ttsAudio = new Audio();
       const token = ttsToken;
       const stale = () => token !== ttsToken;
+      ttsAudio.volume = volume;
+      ttsAudio.onplaying = () => { if (!stale() && started) started(); };
       ttsAudio.onended = () => { if (!stale() && done) done(); };
       ttsAudio.onerror = () => {
         // 501 (no engine, empty cache) or offline: try the device voice, and say
@@ -2725,7 +2757,7 @@ _JS = r"""
             : `No ${langName(o.lang || "en")} voice: the speech service is ` +
               `unreachable and this device has none installed`);
         }
-        if (!speakOnDevice(line, o.tag, o.rate, done) && done) done();
+        if (!speakOnDevice(line, o.tag, o.rate, done, volume, started) && done) done();
       };
       // A prefetched blob starts instantly; a miss still streams so the line is
       // never skipped, it just begins as late as it used to.
@@ -2734,7 +2766,7 @@ _JS = r"""
       if (playing && playing.catch) playing.catch(() => { /* onerror handles it */ });
       return;
     }
-    if (!speakOnDevice(line, o.tag, o.rate, done) && done) done();
+    if (!speakOnDevice(line, o.tag, o.rate, done, volume, started) && done) done();
   }
 
   function speakNarration(scene) {
@@ -2785,29 +2817,74 @@ _JS = r"""
     if (index < 0) index = 0;
     rows.slice(index, index + TTS_LOOKAHEAD).forEach((row) => {
       if (row.speak) {
-        queueClip(row.speak, { lang: singPlan.language, rate: row.rate });
+        queueClip(row.speak, { lang: singPlan.language, rate: singSpeakRate(row) });
       }
     });
   }
 
+  function singSpeakRate(row) {
+    const rate = Number(row && row.rate) || 1;
+    if (row && (row.hold || (singPlan && singPlan.hold_speech))) return Math.min(rate, 1);
+    return rate;
+  }
+
+  function beginSingHold(mode) {
+    const player = $("player");
+    singHoldMode = mode;
+    singHolding = true;
+    clearTimeout(singHoldTimer);
+    singHoldTimer = setTimeout(() => endSingHold(singingLineNo), mode === "line" ? 20000 : 3500);
+    if (!player.paused) {
+      singHoldPause = true;
+      player.pause();
+    }
+  }
+
+  function endSingHold(lineNo) {
+    if (!singHolding || lineNo !== singingLineNo) return;
+    singHolding = false;
+    singHoldMode = "";
+    clearTimeout(singHoldTimer);
+    const player = $("player");
+    if (!$("sing-lang").checked || player.ended) return;
+    if (singPlan && singBackedFrom !== null) player.volume = singPlan.backing_volume;
+    const playing = player.play();
+    if (playing && playing.catch) playing.catch(() => {});
+    startLoop();
+  }
+
   function speakLine(lineNo) {
     if (!singPlan || !$("sing-lang").checked) return;
-    // Sing-along follows the recording: a paused player must stay silent, or the
-    // pause handler's cancel is undone by the next tick and the line sings on.
-    if ($("player").paused) return;
+    const player = $("player");
+    // A real pause stays silent. A hold pause is the song waiting so this
+    // line can be heard, and must not swallow the voice we just started.
+    if (player.paused && !singHolding) return;
     if (lineNo === singingLineNo) return;
     const row = singPlan.lines.find((r) => r.line_no === lineNo);
     if (!row || !row.speak) return;
     singingLineNo = lineNo;
+    const hold = !!(row.hold || singPlan.hold_speech);
+    const rate = singSpeakRate(row);
+    const voiceOpts = { lang: singPlan.language, rate: rate };
+    const cached = serverVoicesReady() && ttsClips.has(ttsKey(row.speak, voiceOpts));
+    if (hold || !cached) beginSingHold(hold ? "line" : "start");
+    const voiceVolume = Number(singPlan.voice_volume);
     speak(row.speak, {
       lang: singPlan.language,
       tag: singPlan.voice_tag,
-      rate: row.rate,
+      rate: rate,
+      volume: Number.isFinite(voiceVolume) ? voiceVolume : 1,
+      onstart: () => { if (singHoldMode !== "line") endSingHold(lineNo); },
+      onend: () => endSingHold(lineNo),
     });
     primeSingClips(lineNo + 1);
   }
 
   function stopSinging() {
+    singHolding = false;
+    singHoldPause = false;
+    singHoldMode = "";
+    clearTimeout(singHoldTimer);
     cancelSpeech();
     singingLineNo = 0;
     const player = $("player");
@@ -3141,7 +3218,7 @@ _JS = r"""
     $("stage").classList.remove("playing");
     $("stage-symbol").textContent = SYMBOLS[anim] || "\u266A";
     $("lyrics").innerHTML = '<div class="meta">Loading this song\u2019s lyrics\u2026</div>';
-    player.src = current.audio_url || "";
+    player.src = musicUrl(current.audio_url || "");
     ["btn-play", "btn-pause", "btn-restart"].forEach((id) => { $(id).disabled = !player.src; });
     await Promise.all([loadTimings(), loadTranslation()]);
     if (gen !== songGen) return;
@@ -3242,9 +3319,16 @@ _JS = r"""
     startLoop();
   });
   $("player").addEventListener("pause", () => {
+    cancelAnimationFrame(rafId);
+    if (singHoldPause) {
+      singHoldPause = false;
+      return;
+    }
     $("stage").classList.remove("playing");
     $("btn-stage-play").textContent = "Play";
-    cancelAnimationFrame(rafId);
+    singHolding = false;
+    singHoldMode = "";
+    clearTimeout(singHoldTimer);
     cancelSpeech();
     singingLineNo = 0;
   });
@@ -3391,6 +3475,14 @@ _JS = r"""
   async function togglePlay() {
     const player = $("player");
     if (!player.src) return;
+    if (singHolding) {
+      singHolding = false;
+      singHoldPause = false;
+      singHoldMode = "";
+      clearTimeout(singHoldTimer);
+      player.pause();
+      return;
+    }
     if (player.paused) {
       try { await player.play(); startLoop(); } catch (_) { toast("Press play again"); }
     } else {

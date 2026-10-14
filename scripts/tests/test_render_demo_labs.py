@@ -26,6 +26,10 @@ kind: Service
 metadata:
   name: audio-lab
 ---
+kind: Service
+metadata:
+  name: music
+---
 kind: Deployment
 metadata:
   name: course-studio
@@ -52,6 +56,15 @@ spec:
     spec:
       containers:
         - name: audio-lab
+---
+kind: Deployment
+metadata:
+  name: music
+spec:
+  template:
+    spec:
+      containers:
+        - name: music
 """
 
 
@@ -69,6 +82,7 @@ def test_render_demo_labs_keeps_only_the_labs() -> None:
     assert proc.stdout.count("name: course-studio") >= 2
     assert proc.stdout.count("name: children-lab") >= 2
     assert proc.stdout.count("name: audio-lab") >= 2
+    assert proc.stdout.count("name: music") >= 2
 
 
 def test_render_demo_labs_can_emit_services_without_images() -> None:
@@ -81,7 +95,7 @@ def test_render_demo_labs_can_emit_services_without_images() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert "kind: Deployment" not in proc.stdout
-    assert proc.stdout.count("kind: Service") == 3
+    assert proc.stdout.count("kind: Service") == 4
 
 
 def test_render_demo_labs_can_emit_one_named_deployment() -> None:
@@ -126,6 +140,12 @@ metadata:
   name: audio-lab
   namespace: aoep
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: music
+  namespace: aoep
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -158,6 +178,17 @@ spec:
     spec:
       containers:
         - name: audio-lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: music
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: music
 """
     proc = subprocess.run(
         [sys.executable, str(SCRIPT), "--kind", "Service"],
@@ -168,7 +199,7 @@ spec:
     )
     assert proc.returncode == 0, proc.stderr
     assert "kind: Deployment" not in proc.stdout
-    assert proc.stdout.count("kind: Service") == 3
+    assert proc.stdout.count("kind: Service") == 4
 
 
 def test_render_demo_labs_refuses_a_partial_render() -> None:
@@ -180,4 +211,4 @@ def test_render_demo_labs_refuses_a_partial_render() -> None:
         check=False,
     )
     assert proc.returncode != 0
-    assert "expected 6" in proc.stderr
+    assert "expected 8" in proc.stderr

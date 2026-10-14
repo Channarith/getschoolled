@@ -18,10 +18,6 @@ const SERVICES = [
   "integrations",
   "speech",
   "perception",
-  // Theodore Music Lab — pre-generated neural voices for all 28 course languages.
-  // Served from the `music` compose service; clips are disk-cached so /api/music/tts
-  // replies instantly without re-rendering on every request.
-  "music",
 ];
 
 function serviceOrigin(name) {
@@ -37,6 +33,9 @@ const nextConfig = {
     const studio = process.env.COURSE_STUDIO_ORIGIN || "http://127.0.0.1:8040";
     const childrenLab = process.env.CHILDREN_LAB_ORIGIN || "http://127.0.0.1:8018";
     const audioLab = process.env.AUDIO_LAB_ORIGIN || "http://127.0.0.1:8041";
+    // Local `next dev` talks to the music lab on :8097. The web image sets
+    // MUSIC_ORIGIN=http://music:8000 so the arcade iframe reaches the cluster.
+    const music = process.env.MUSIC_ORIGIN || "http://127.0.0.1:8097";
     return [
       { source: "/studio", destination: `${studio}/studio` },
       { source: "/api/studio/:path*", destination: `${studio}/api/studio/:path*` },
@@ -53,6 +52,11 @@ const nextConfig = {
       // and otherwise returns FastAPI {"detail":"Not Found"}.
       { source: "/audio-lab", destination: `${audioLab}/lab` },
       { source: "/audio-lab-api/:path*", destination: `${audioLab}/:path*` },
+      // Karaoke lives in the vision arcade as /music/lab. The player then calls
+      // /music/api/music/... so lyrics, audio, and translated voices stay on
+      // this origin instead of the orchestrator's /api/ prefix.
+      { source: "/music", destination: `${music}/` },
+      { source: "/music/:path*", destination: `${music}/:path*` },
       ...SERVICES.map((name) => ({
         source: `/${name}/:path*`,
         destination: `${serviceOrigin(name)}/:path*`,

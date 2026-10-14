@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { useT } from "../lib/i18n";
-import { ImmersiveFrame } from "./ImmersiveFrame";
 
 /** Keep a same-origin studio iframe on the profile language (spoken + written). */
 function withLang(src: string, locale: string): string {
@@ -39,7 +38,15 @@ function applyStudioLanguage(frame: HTMLIFrameElement | null, locale: string): b
   return true;
 }
 
-export function CourseStudioFrame({ src, title }: { src: string; title: string }) {
+export function CourseStudioFrame({
+  src,
+  title,
+  fill = false,
+}: {
+  src: string;
+  title: string;
+  fill?: boolean;
+}) {
   const { locale } = useT();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const localized = useMemo(() => withLang(src, locale), [src, locale]);
@@ -56,7 +63,7 @@ export function CourseStudioFrame({ src, title }: { src: string; title: string }
   }, [localized, locale]);
 
   return (
-    <ImmersiveFrame title={title}>
+    <div className={fill ? "course-stage-embed" : undefined}>
       <iframe
         ref={frameRef}
         title={title}
@@ -65,12 +72,13 @@ export function CourseStudioFrame({ src, title }: { src: string; title: string }
         style={{
           width: "100%",
           height: "100%",
-          minHeight: "min(78vh, 820px)",
+          minHeight: fill ? "calc(100dvh - 9rem)" : "min(78vh, 820px)",
           border: "1px solid rgba(165,180,252,.35)",
           borderRadius: 16,
           background: "#fff",
+          flex: fill ? "1 1 auto" : undefined,
         }}
       />
-    </ImmersiveFrame>
+    </div>
   );
 }

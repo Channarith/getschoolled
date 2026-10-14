@@ -3,7 +3,7 @@
 
 The full VKE overlay is too broad to apply on every deploy (it can fight
 digest pins and Redis volume claims). Demo deploys need course-studio,
-children-lab, and audio-lab, already rewritten to the production registry.
+children-lab, audio-lab, and music, already rewritten to the production registry.
 
 Usage:
   kubectl kustomize infra/k8s-vke | python3 scripts/render_demo_labs.py
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import sys
 
-NAMES = ("course-studio", "children-lab", "audio-lab")
+NAMES = ("course-studio", "children-lab", "audio-lab", "music")
 
 
 def documents(text: str) -> list[str]:
@@ -70,7 +70,7 @@ def _parse_args(argv: list[str]) -> tuple[str, str]:
         if flag not in {"--kind", "--name"} or i + 1 >= len(argv):
             raise SystemExit(
                 "usage: render_demo_labs.py [--kind Service|Deployment] "
-                "[--name course-studio|children-lab|audio-lab]"
+                "[--name course-studio|children-lab|audio-lab|music]"
             )
         value = argv[i + 1]
         if flag == "--kind":

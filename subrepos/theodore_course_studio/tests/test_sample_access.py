@@ -248,5 +248,9 @@ def test_studio_page_offers_the_sample_banner():
     assert "syncVoiceToSlide" in STUDIO_JS
     assert "/api/studio/teach/goto" in STUDIO_JS
     assert "library-panel" in page
+    assert 'id="library-picker"' in page
+    assert "setLibraryCollapsed" in STUDIO_JS
+    assert "public-course .layout" in page
+    assert "grid-template-columns:minmax(260px, 0.9fr)" not in page
     assert "public-course .library-panel { display:none" not in page
     assert "library.filter((row) => row.id === pinnedCourse)" not in STUDIO_JS

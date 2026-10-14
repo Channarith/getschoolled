@@ -172,11 +172,11 @@
     const live = Boolean(state.connected);
     const who = live ? "Sala is connected" : "Sala is not connected";
     if (voiceName) voiceName.textContent = "Salane Voice";
-    const shown = text ? `${who}. ${text}` : who;
+    const shown = text || (live ? "Listening" : "Tap to talk");
     status.textContent = shown;
     if (!toggle) return;
-    toggle.title = shown;
-    toggle.setAttribute("aria-label", shown || "Live voice");
+    toggle.title = text ? `${who}. ${text}` : who;
+    toggle.setAttribute("aria-label", toggle.title || "Live voice");
   }
   function connectionChime(ok) {
     try {
@@ -549,7 +549,7 @@
     dot.classList.add("on");
     toggle.disabled = false;
     caption.textContent = "";
-    setStatus("Listening. Speak, then pause.");
+    setStatus("Listening");
     localRec.onresult = (event) => {
       const said = String(event.results?.[0]?.[0]?.transcript || "").trim();
       if (!said) {

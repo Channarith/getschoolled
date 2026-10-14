@@ -5,15 +5,13 @@ import { courseStudioFrameSrc } from "../../lib/courseStudio";
 
 export default function OnTheGoDemoPage() {
   return (
-    <main className="container" style={{ maxWidth: 1180, margin: "0 auto", padding: "16px 16px 40px" }}>
-      <p style={{ margin: "0 0 12px", display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
+    <main className="course-stage">
+      <p className="course-stage-links">
         <Link href="/">← Back to Salareen</Link>
         <Link href="/demo/drivers-ed">Driver&apos;s ed on screen</Link>
       </p>
-      <p className="muted" style={{ margin: "0 0 12px" }}>
-        Audio demo with Serenity and Salane Voice.
-      </p>
       <CourseStudioFrame
+        fill
         title="On the Go 10-minute audio demo"
         src={courseStudioFrameSrc({ access: "sample", course: "drivers-ed", presentation: "audio" })}
       />

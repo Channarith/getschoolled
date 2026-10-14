@@ -50,6 +50,9 @@ images:
   - name: ghcr.io/aoep/audio-lab
     newName: sjc.vultrcr.com/salareen/audio-lab
     newTag: latest
+  - name: ghcr.io/aoep/music
+    newName: sjc.vultrcr.com/salareen/music
+    newTag: latest
   - name: ghcr.io/aoep/cosyvoice
     newName: sjc.vultrcr.com/salareen/cosyvoice
     newTag: latest
