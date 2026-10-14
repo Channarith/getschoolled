@@ -6,8 +6,8 @@ import AppBadges from "./components/AppBadges";
 import AdSlot from "./components/AdSlot";
 import { Rail, Tile } from "./components/CourseRail";
 import MascotImage from "./components/MascotImage";
-import { DemoOnlyLanding } from "./components/DemoOnly";
-import { useFlag } from "./lib/flags";
+import { DemoOnlyLanding, DemoOnlyShowcase } from "./components/DemoOnly";
+import { useFlag, useRestrictSignedIn } from "./lib/flags";
 import {
   AUTH_EVENT,
   getHomeFeed,
@@ -28,6 +28,9 @@ export default function HomePage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [tier, setTier] = useState("free");
+  // sales_demo.restrict_signed_in keeps non-admin signed-in users on the
+  // demo-only showcase. Admins bypass this guard automatically.
+  const restrictSignedIn = useRestrictSignedIn();
 
   useEffect(() => {
     let alive = true;
@@ -71,6 +74,7 @@ export default function HomePage() {
   }
 
   if (!loggedIn) return <DemoOnlyLanding />;
+  if (restrictSignedIn) return <DemoOnlyShowcase />;
 
   return (
     <main>

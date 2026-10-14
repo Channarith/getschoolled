@@ -3,7 +3,18 @@ export const SALES_DEMO_FLAGS = {
   featuredCourses: "sales_demo.featured_courses",
   fullAppCta: "sales_demo.full_app_cta",
   exclusive: "sales_demo.exclusive",
+  // When loginEnabled=false the Log in button + /login form are hidden.
+  // Admins can still sign in via /login?override=1 (lock-out guard).
+  loginEnabled: "sales_demo.login_enabled",
+  // When restrictSignedIn=true, signed-in NON-admin accounts stay in the
+  // demo-only showcase (no full nav / full home). Admins always see the
+  // full site.
+  restrictSignedIn: "sales_demo.restrict_signed_in",
 } as const;
+
+/** Query param that forces the sign-in form to render even when
+ *  sales_demo.login_enabled is off. The admin lock-out escape hatch. */
+export const LOGIN_OVERRIDE_PARAM = "override";
 
 /** Feature cards shown on /demo when sales_demo.exclusive (demo-only mode) is on. */
 export const DEMO_ONLY_FEATURE_IDS = ["solo", "drive", "arcade"] as const;

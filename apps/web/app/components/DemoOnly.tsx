@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import LandingAuthPanel from "./LandingAuthPanel";
 import LanguagePicker from "./LanguagePicker";
 import MascotImage from "./MascotImage";
-import { useFlag, useFlags } from "../lib/flags";
+import { useFlag, useFlags, useLoginGateHidden } from "../lib/flags";
 import { useT } from "../lib/i18n";
 import { useLearningPhrase } from "../lib/learningPhrases";
 import { DEMO_ONLY_FEATURE_IDS, SALES_DEMO_FEATURES, SALES_DEMO_FLAGS } from "../lib/salesDemo";
@@ -93,6 +93,10 @@ const secondaryCta: React.CSSProperties = {
 export function DemoOnlyLanding() {
   const learnPhrase = useLearningPhrase();
   const { t } = useT();
+  // When sales_demo.login_enabled is off the Log in button is hidden for
+  // regular visitors. Admins still see it (useLoginGateHidden bypasses for
+  // admins + ?override=1), so the operator can get back in.
+  const loginHidden = useLoginGateHidden();
   return (
     <DemoOnlyShell kicker={false} brand>
       <h1
@@ -117,11 +121,51 @@ export function DemoOnlyLanding() {
         }}
       >
         <Link href="/demo" style={primaryCta}>{t("landing.tryDemo")}</Link>
-        <Link href="/login" style={secondaryCta}>{t("landing.logIn")}</Link>
+        {!loginHidden && (
+          <Link href="/login" style={secondaryCta}>{t("landing.logIn")}</Link>
+        )}
       </div>
       <div style={{ marginTop: 28 }}>
         <LanguagePicker compact />
       </div>
+    </DemoOnlyShell>
+  );
+}
+
+/**
+ * Rendered on /login when sales_demo.login_enabled is off AND the visitor is
+ * not an admin AND there's no ?override=1 escape hatch on the URL.
+ */
+export function DemoOnlyLoginDisabled() {
+  return (
+    <DemoOnlyShell kicker={false} brand>
+      <h1 style={{ color: "#fff", fontSize: 20, margin: "18px auto 10px" }}>
+        Sign-in is temporarily disabled
+      </h1>
+      <p
+        className="muted"
+        style={{ color: "rgba(255,255,255,0.78)", maxWidth: 420, margin: "0 auto 28px" }}
+      >
+        The team has paused new sign-ins. You can still explore the free demo.
+      </p>
+      <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+        <Link href="/demo" style={primaryCta}>Try the demo</Link>
+      </div>
+      <p
+        className="muted"
+        style={{
+          color: "rgba(255,255,255,0.45)",
+          fontSize: 11,
+          marginTop: 28,
+          letterSpacing: 0.3,
+        }}
+      >
+        Admin? Use{" "}
+        <Link href="/login?override=1" style={{ color: "rgba(255,255,255,0.75)" }}>
+          /login?override=1
+        </Link>{" "}
+        to sign in.
+      </p>
     </DemoOnlyShell>
   );
 }

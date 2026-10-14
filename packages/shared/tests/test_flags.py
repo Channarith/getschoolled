@@ -25,6 +25,14 @@ def test_catalog_is_comprehensive_and_well_formed():
     assert "ai.audience_profile_adaptation" in CATALOG_BY_KEY
     assert "sales_demo.enabled" in CATALOG_BY_KEY
     assert "sales_demo.solo_ai" in CATALOG_BY_KEY
+    # Two new sales-demo lock-switches that are admin-safe by design: see
+    # useLoginGateHidden / useRestrictSignedIn in apps/web/app/lib/flags.tsx.
+    assert "sales_demo.login_enabled" in CATALOG_BY_KEY
+    assert "sales_demo.restrict_signed_in" in CATALOG_BY_KEY
+    assert CATALOG_BY_KEY["sales_demo.login_enabled"].category == "sales_demo"
+    assert CATALOG_BY_KEY["sales_demo.restrict_signed_in"].category == "sales_demo"
+    assert CATALOG_BY_KEY["sales_demo.login_enabled"].default is True
+    assert CATALOG_BY_KEY["sales_demo.restrict_signed_in"].default is False
     assert "ux.voice_pause_submit_ms" in CATALOG_BY_KEY
     assert CATALOG_BY_KEY["ux.voice_pause_submit_ms"].type is FlagType.INT
     assert CATALOG_BY_KEY["ux.voice_pause_submit_ms"].default == 4500
@@ -37,6 +45,10 @@ def test_default_resolution():
     assert s.resolve("engagement.watch_window") is True
     assert s.resolve("sales_demo.enabled") is False  # default off (v0.45.17)
     assert s.resolve("sales_demo.exclusive") is False  # demo-only mode is opt-in
+    # login_enabled defaults ON (so turning it off is an explicit lockdown).
+    # restrict_signed_in defaults OFF (regular signed-in users get full access).
+    assert s.resolve("sales_demo.login_enabled") is True
+    assert s.resolve("sales_demo.restrict_signed_in") is False
     # sales_demo.featured_courses is now a JSON array of course IDs (not a bool)
     featured = s.resolve("sales_demo.featured_courses")
     assert isinstance(featured, list) and len(featured) == 5

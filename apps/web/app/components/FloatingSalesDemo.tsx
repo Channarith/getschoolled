@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { AUTH_EVENT, getToken } from "../lib/api";
-import { useDemoOnlyAnonymous, useFlag } from "../lib/flags";
+import { useDemoOnlyAnonymous, useFlag, useRestrictSignedIn } from "../lib/flags";
 
 const WIDTH = 132;
 const HEIGHT = 42;
@@ -23,6 +23,7 @@ function clamp(point: Point): Point {
 export default function FloatingSalesDemo() {
   const enabled = useFlag<boolean>("sales_demo.enabled", false);
   const demoOnlyAnon = useDemoOnlyAnonymous();
+  const restrictSignedIn = useRestrictSignedIn();
   const pathname = usePathname();
   const router = useRouter();
   const [signedIn, setSignedIn] = useState(false);
@@ -67,7 +68,7 @@ export default function FloatingSalesDemo() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  if (demoOnlyAnon) return null;
+  if (demoOnlyAnon || restrictSignedIn) return null;
   if (!enabled || !signedIn || pathname === "/demo" || pathname === "/login") return null;
 
   function move(event: React.PointerEvent<HTMLButtonElement>) {
