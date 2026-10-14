@@ -1,7 +1,15 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { AUTH_EVENT, evaluateFlags, getFlag, getMe, getToken } from "./api";
+import {
+  applyAdmin,
+  AUTH_EVENT,
+  evaluateFlags,
+  getFlag,
+  getMe,
+  getToken,
+  isAdminUnlocked,
+} from "./api";
 import { SALES_DEMO_FLAGS } from "./salesDemo";
 import {
   DEFAULT_VOICE_PAUSE_SUBMIT_MS,
@@ -124,6 +132,82 @@ export function useDemoOnlyAnonymous(): boolean {
     };
   }, []);
   return demoOnly && signedOut;
+}
+
+/**
+ * Whether the current user is an admin (server-authoritative via /auth/me,
+ * cached via localStorage.aoep_admin). Re-resolves on sign-in/out.
+ *
+ * Used as the lock-out guard for the `sales_demo.restrict_signed_in` and
+ * `sales_demo.login_enabled` flags — admins must always keep full access
+ * so a mis-toggled flag can't orphan the operator.
+ */
+export function useIsAdmin(): boolean {
+  const [admin, setAdmin] = useState<boolean>(() => isAdminUnlocked());
+  useEffect(() => {
+    let cancelled = false;
+    const resolveFromServer = async () => {
+      if (!getToken()) {
+        if (!cancelled) setAdmin(false);
+        return;
+      }
+      try {
+        const me = await getMe();
+        if (cancelled) return;
+        if (me.is_admin) applyAdmin(true); // persist for sync reads elsewhere
+        setAdmin(Boolean(me.is_admin) || isAdminUnlocked());
+      } catch {
+        if (!cancelled) setAdmin(isAdminUnlocked());
+      }
+    };
+    const sync = () => {
+      setAdmin(isAdminUnlocked());
+      void resolveFromServer();
+    };
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return admin;
+}
+
+/**
+ * True when login should be hidden for the general public (flag
+ * `sales_demo.login_enabled=false`). ALWAYS false for admins and when the
+ * `?override=1` escape hatch is present on the URL — so flipping the flag
+ * off can never lock an admin out.
+ */
+export function useLoginGateHidden(): boolean {
+  const loginEnabled = useFlag<boolean>(SALES_DEMO_FLAGS.loginEnabled, true);
+  const isAdmin = useIsAdmin();
+  const [override, setOverride] = useState(false);
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      setOverride(p.get("override") === "1");
+    } catch {
+      setOverride(false);
+    }
+  }, []);
+  if (isAdmin || override) return false;
+  return !loginEnabled;
+}
+
+/**
+ * True when a signed-in NON-admin user should be kept inside the demo-only
+ * showcase (flag `sales_demo.restrict_signed_in=true`). Admins always see
+ * the full site, no matter what this flag says — that's the lock-out guard.
+ */
+export function useRestrictSignedIn(): boolean {
+  const restrict = useFlag<boolean>(SALES_DEMO_FLAGS.restrictSignedIn, false);
+  const isAdmin = useIsAdmin();
+  const signedIn = useSignedIn();
+  return Boolean(restrict && signedIn && !isAdmin);
 }
 
 /** Resolved ``ux.voice_pause_submit_ms`` (default 4.5s). */

@@ -17,8 +17,8 @@ import {
 import { useT } from "../lib/i18n";
 import { AppleIcon, FacebookIcon, GoogleIcon } from "../components/BrandIcons";
 import { EyeIcon } from "../components/EyeIcon";
-import { useFlag, useFlags } from "../lib/flags";
-import { DemoOnlyLogin } from "../components/DemoOnly";
+import { useFlag, useFlags, useLoginGateHidden } from "../lib/flags";
+import { DemoOnlyLogin, DemoOnlyLoginDisabled } from "../components/DemoOnly";
 import { SALES_DEMO_FLAGS } from "../lib/salesDemo";
 
 function passwordProblems(pw: string, t: (k: string) => string): string[] {
@@ -34,6 +34,7 @@ export default function LoginPage() {
   const router = useRouter();
   const signupsOpen = useFlag<boolean>("ops.new_signups", true);
   const demoOnly = useFlag<boolean>(SALES_DEMO_FLAGS.exclusive, false);
+  const loginGateHidden = useLoginGateHidden();
   const { ready: flagsReady } = useFlags();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -77,6 +78,9 @@ export default function LoginPage() {
 
   // Wait for flags so demo-only mode doesn't flash the full sign-in page first.
   if (!flagsReady) return <main className="landing-hero" />;
+  // Login kill-switch (sales_demo.login_enabled). useLoginGateHidden already
+  // bypasses for admins and for ?override=1 so operators can always sign in.
+  if (loginGateHidden) return <DemoOnlyLoginDisabled />;
   if (demoOnly) return <DemoOnlyLogin />;
 
   async function onSubmit(e: React.FormEvent) {

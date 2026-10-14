@@ -115,6 +115,19 @@ FLAG_CATALOG: List[FlagSpec] = [
              "the mascot with Demo and Log in buttons, /login shows only the sign-in "
              "box, and /demo is public with only Solo AI, On-the-Go, and the vision "
              "arcade."),
+    FlagSpec("sales_demo.login_enabled", FlagType.BOOL, True, "sales_demo",
+             "Allow learners to sign in or create an account. When off, the Log in "
+             "button is hidden on the demo-only landing and /login shows a "
+             "'sign-in is temporarily disabled' notice. "
+             "Lock-out guard: /login?override=1 ALWAYS renders the sign-in form "
+             "regardless of this flag, so an admin can still get back in and "
+             "flip it on."),
+    FlagSpec("sales_demo.restrict_signed_in", FlagType.BOOL, False, "sales_demo",
+             "Keep signed-in learners in the demo-only showcase after login — "
+             "the full home, main nav links (Browse, Kids, Group Class, …), and "
+             "non-demo pages are replaced with the three demo features. "
+             "Lock-out guard: admin accounts (is_admin) always see the full "
+             "site regardless of this flag, so you cannot lock yourself out."),
 
     # --- data / analytics / data mining -------------------------------------- #
     FlagSpec("data.multidim_datamart", FlagType.BOOL, False, "data",

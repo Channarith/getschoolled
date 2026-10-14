@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AUTH_EVENT, getToken, getFlag } from "../lib/api";
-import { useDemoOnlyAnonymous, useSignedIn } from "../lib/flags";
+import { useDemoOnlyAnonymous, useRestrictSignedIn, useSignedIn } from "../lib/flags";
 import { useT } from "../lib/i18n";
 import { learningHint, useLearningPhrase } from "../lib/learningPhrases";
 import ProfileMenu from "./ProfileMenu";
@@ -19,6 +19,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const pathname = usePathname() ?? "/";
 
   const demoOnlyAnon = useDemoOnlyAnonymous();
+  const restrictSignedIn = useRestrictSignedIn();
   const signedIn = useSignedIn();
   const [unlocked, setUnlocked] = useState(false);
   const [homeworkOn, setHomeworkOn] = useState(false);
@@ -50,7 +51,11 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
 
   // Demo-only mode (sales_demo.exclusive) hides the full site chrome for signed-
   // out visitors so the inverted demo stays focused on the three demo features.
-  if (demoOnlyAnon || (pathname === "/" && signedIn !== true)) return null;
+  // sales_demo.restrict_signed_in extends the same hide for signed-in non-admins
+  // (useRestrictSignedIn is already admin-aware so operators keep the full nav).
+  if (demoOnlyAnon || restrictSignedIn || (pathname === "/" && signedIn !== true)) {
+    return null;
+  }
 
   const logoSrc = pathname.startsWith("/kids")
     ? "/logo-cartoon-mark.webp"
