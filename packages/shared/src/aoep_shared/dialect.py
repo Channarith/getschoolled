@@ -177,24 +177,21 @@ DIALECTS: Dict[str, DialectProfile] = {
     "us_south": DialectProfile(
         id="us_south", language="en", label="US Southern", region="us-south",
         intro_template=(
-            "Hey y'all — glad you made it. Today we're talking {title}. "
-            "We'll go through {preview}{tail}. Holler if something ain't clear."
+            "Hey, glad y'all are here. Today we're talking about {title}. "
+            "We'll go through {preview}{tail}. Ask if something isn't clear."
         ),
         outro_template=(
-            "Alright, that's {title} for today. Y'all did good sticking with it. "
-            "Practice a little on your own and it'll stick."
+            "That's {title} for today. You did well staying with it. "
+            "Try it once on your own and it will stick."
         ),
-        discourse_markers=("Now look,", "Alright now,", "Listen,", "Here's the thing,"),
+        discourse_markers=(),
         replacements=(
-            ("Welcome!", "Hey y'all — glad you made it."),
-            ("We will walk through", "We're gonna go through"),
-            ("going to", "gonna"),
-            ("want to", "wanna"),
-            ("Take your time", "No rush now"),
-            ("That is a wrap on", "Alright, that's"),
-            ("Nice work", "Y'all did good"),
+            ("Welcome!", "Hey, glad y'all are here."),
+            ("We will walk through", "We'll go through"),
+            ("That is a wrap on", "That's"),
+            ("Nice work", "You did well"),
         ),
-        tutor_tone_hint="Southern US English — warm, y'all, ain't sparingly, unhurried.",
+        tutor_tone_hint="Southern US classroom English — warm and unhurried, one y'all, no costume drawl.",
     ),
     "us_ny": DialectProfile(
         id="us_ny", language="en", label="New York", region="us-ny",

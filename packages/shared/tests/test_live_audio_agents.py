@@ -157,6 +157,8 @@ def test_browser_client_parses_and_has_gapless_barge_in():
     assert "__SALAREEN_LIVE_GAIN__" in source
     assert "voice-name" in source
     assert "Sala is connected" in source
+    assert "startLocalSala" in source
+    assert "theodore-sala-heard" in source
     assert "xAI is out of credits for this team" in source
     assert "explainStartFailure" in source
     assert "connectionChime" in source

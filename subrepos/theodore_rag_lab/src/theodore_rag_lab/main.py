@@ -47,8 +47,10 @@ from .dictionary_lab import (
     grade_regurgitation,
     lab_catalog,
     regurgitation_deck,
+    sala_reply,
     submit_feedback,
 )
+from .sala_validation import default_validation
 from .qualify_page import render_qualify_page
 from .rag_tuning import PRESETS, RagTuning
 from .read_aloud_lab import read_aloud_next, read_aloud_progress, read_aloud_score
@@ -257,6 +259,50 @@ def api_dialect_probe(req: DialectProbeReq) -> dict[str, Any]:
     return dialect_probe(req.text, req.dialect, language=req.language, title=req.title)
 
 
+class VoiceTurnReq(BaseModel):
+    text: str = ""
+    dialect: str = "us_south"
+    language: str = "en"
+    voice: str = ""
+
+
+@app.post("/api/voice-agent/turn")
+def api_voice_agent_turn(req: VoiceTurnReq) -> dict[str, Any]:
+    """Sala's spoken reply for a dialect test. The browser plays it through /api/tts."""
+    return sala_reply(req.text, req.dialect, language=req.language, voice=req.voice)
+
+
+class VoiceCheckReq(BaseModel):
+    action: str = "pass"
+    heard: str = ""
+    reply: str = ""
+    corrected: str = ""
+    dialect: str = ""
+    language: str = "en"
+    voice: str = ""
+
+
+@app.get("/api/voice-agent/validation")
+def api_voice_validation() -> dict[str, Any]:
+    return default_validation().summary()
+
+
+@app.post("/api/voice-agent/validation")
+def api_voice_validation_record(req: VoiceCheckReq) -> dict[str, Any]:
+    try:
+        return default_validation().record(
+            action=req.action,
+            heard=req.heard,
+            reply=req.reply,
+            corrected=req.corrected,
+            dialect=req.dialect,
+            language=req.language,
+            voice=req.voice,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 class TtsReq(BaseModel):
     text: str = ""
     language: str = "en"
@@ -289,20 +335,47 @@ _SAY_VOICES = {
     "vi-VN": ("Linh", "Linh"),
     "de-DE": ("Anna", "Anna"),
 }
+# Southern wording uses the newer macOS US voices. Samantha reads the line
+# like a compact announcement and makes the accent sound fake.
+_SAY_BY_VOICE = {
+    "en_us_south_f": "Flo (English (US))",
+    "en_us_south_m": "Reed (English (US))",
+}
 
 
 def _say_voice_name(voice_id: str, language: str = "en") -> str:
     """Pick an installed macOS voice for a catalog id."""
     from aoep_shared.voice_catalog import get_voice
 
+    if voice_id in _SAY_BY_VOICE:
+        return _SAY_BY_VOICE[voice_id]
     chosen = get_voice(voice_id)
+    base = (language or "en").split("-")[0]
     locale = (chosen.locale if chosen else "") or {
         "en": "en-US",
         "zh": "zh-CN",
         "yue": "zh-HK",
-    }.get((language or "en").split("-")[0], "en-US")
+        "th": "th-TH",
+        "vi": "vi-VN",
+        "km": "km-KH",
+        "tl": "fil-PH",
+        "ja": "ja-JP",
+        "ko": "ko-KR",
+        "es": "es-ES",
+        "fr": "fr-FR",
+        "pt": "pt-BR",
+        "hi": "hi-IN",
+        "de": "de-DE",
+    }.get(base, "")
+    if not locale:
+        return ""
     gender = chosen.gender if chosen else "female"
-    pair = _SAY_VOICES.get(locale) or ("Samantha", "Fred")
+    pair = _SAY_VOICES.get(locale)
+    if pair is None:
+        if locale.lower().startswith("en"):
+            pair = ("Samantha", "Fred")
+        else:
+            return ""
     return pair[1] if gender == "male" else pair[0]
 
 
@@ -311,6 +384,8 @@ def _macos_preview(text: str, voice_id: str, language: str) -> tuple[bytes, str,
     if not shutil.which("say"):
         return None
     say_voice = _say_voice_name(voice_id, language)
+    if not say_voice:
+        return None
     with tempfile.TemporaryDirectory() as tmp:
         folder = Path(tmp)
         aiff = folder / "line.aiff"
@@ -356,6 +431,14 @@ def _sala_preview(text: str, language: str) -> tuple[bytes, str, str, str]:
     """
     from aoep_shared import cosyvoice_tts
 
+    lang = (language or "en").split("-")[0] or "en"
+    if lang != "en":
+        from aoep_shared.voice_catalog import default_voice_for_language
+
+        chosen = default_voice_for_language(lang)
+        voice_id = chosen.id if chosen else ""
+        audio, mime, engine = lab_tts.synthesize(text, language=lang, voice=voice_id)
+        return audio, mime, engine, f"Sala speaks {lang} with {voice_id or 'the language voice'}"
     speaker = (os.environ.get("SALA_COSYVOICE_SPEAKER") or "sala").strip() or "sala"
     note = "local Sala preview; the xAI Grok socket is retired"
     if cosyvoice_tts.cosyvoice_configured():

@@ -50,6 +50,7 @@ _EDGE_VOICES = {
     "th": "th-TH-PremwadeeNeural",
     "vi": "vi-VN-HoaiMyNeural",
     "km": "km-KH-SreymomNeural",
+    "tl": "fil-PH-BlessicaNeural",
     "zh": "zh-CN-XiaoxiaoNeural",
     "yue": "zh-HK-HiuMaanNeural",
     "ja": "ja-JP-NanamiNeural",

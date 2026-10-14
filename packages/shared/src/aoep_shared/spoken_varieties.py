@@ -74,7 +74,7 @@ _VARIETIES: tuple[SpokenVariety, ...] = (
     SpokenVariety("ko_kr", "ko", "ko", "", "Korean — Korea", "Korea"),
     SpokenVariety("vi_vn", "vi", "vi", "", "Vietnamese — Vietnam", "Vietnam"),
     SpokenVariety("th_th", "th", "th", "", "Thai — Thailand", "Thailand"),
-    SpokenVariety("km_kh", "km", "km", "", "Khmer — Cambodia", "Cambodia"),
+    SpokenVariety("km_kh", "km", "km", "", "Cambodian — Khmer", "Cambodia"),
     SpokenVariety("tl_ph", "tl", "tl", "", "Tagalog — Philippines", "Philippines"),
     SpokenVariety("id_id", "id", "id", "", "Indonesian — Indonesia", "Indonesia"),
     SpokenVariety("sw_ke", "sw", "sw", "", "Swahili — Kenya", "Kenya"),

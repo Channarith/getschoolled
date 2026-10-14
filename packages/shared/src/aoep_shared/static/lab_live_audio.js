@@ -169,8 +169,8 @@
     return `Could not start live audio: ${raw.slice(0, 220)}`;
   }
   function setStatus(text) {
-    const id = String(select?.value || state.provider || "");
-    const who = id ? "Sala is connected" : "Sala is not connected";
+    const live = Boolean(state.connected);
+    const who = live ? "Sala is connected" : "Sala is not connected";
     if (voiceName) voiceName.textContent = "Salane Voice";
     const shown = text ? `${who}. ${text}` : who;
     status.textContent = shown;
@@ -526,12 +526,66 @@
     if (event.error?.message) setStatus(`Gemini Live error: ${event.error.message}`);
     if (event.goAway) setStatus("Gemini Live session is ending; stop and reconnect.");
   }
-  async function start() {
-    const provider = select.value;
-    if (!provider) {
-      setStatus("Voice is not ready yet. Press Start again in a moment.");
+  let localRec = null;
+  function stopLocalRec() {
+    const rec = localRec;
+    localRec = null;
+    try { rec?.abort(); } catch (_) { try { rec?.stop(); } catch (_) {} }
+  }
+  function startLocalSala() {
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Rec) {
+      setStatus("This browser has no speech recognition. Use Ask Sala on the Dialects tab.");
       return false;
     }
+    stopLocalRec();
+    localRec = new Rec();
+    localRec.lang = window.AOEP_SALA_LOCALE || document.documentElement.lang || "en-US";
+    localRec.interimResults = false;
+    localRec.continuous = false;
+    state.connected = true;
+    state.provider = "sala";
+    toggle.classList.add("live");
+    dot.classList.add("on");
+    toggle.disabled = false;
+    caption.textContent = "";
+    setStatus("Listening. Speak, then pause.");
+    localRec.onresult = (event) => {
+      const said = String(event.results?.[0]?.[0]?.transcript || "").trim();
+      if (!said) {
+        state.connected = false;
+        toggle.classList.remove("live");
+        dot.classList.remove("on");
+        setStatus("Did not catch that. Try again.");
+        return;
+      }
+      caption.textContent = `You: ${said}`;
+      setStatus("Heard you. Sala is replying.");
+      window.dispatchEvent(new CustomEvent("theodore-sala-heard", { detail: { text: said } }));
+    };
+    localRec.onerror = (event) => {
+      state.connected = false;
+      toggle.classList.remove("live");
+      dot.classList.remove("on");
+      const denied = event?.error === "not-allowed";
+      setStatus(denied
+        ? "Microphone permission was blocked."
+        : "Could not hear you. Use Ask Sala on the Dialects tab.");
+    };
+    try {
+      localRec.start();
+      return true;
+    } catch (_) {
+      state.connected = false;
+      toggle.classList.remove("live");
+      dot.classList.remove("on");
+      setStatus("Could not start the microphone.");
+      return false;
+    }
+  }
+  async function start() {
+    const provider = select.value;
+    if (!provider || provider === "sala") return startLocalSala();
     toggle.disabled = true;
     setStatus(`Connecting ${select.selectedOptions[0].textContent}…`);
     try {
@@ -641,6 +695,7 @@
   }
   async function stop(message = "Live audio off. Lab TTS/device speech may resume.") {
     state.stopping = true;
+    stopLocalRec();
     clearInterval(state.idleTimer);
     state.idleTimer = null;
     setNativeAudioActive(false);
@@ -729,28 +784,50 @@
       if (hidden && state.ws) stop("Live audio off.");
     },
     start() {
-      if (state.ws) return Promise.resolve(true);
+      if (state.ws || localRec) return Promise.resolve(true);
       return start();
     },
     stop() { return stop(); },
+    showReply(text) {
+      caption.textContent = `Sala: ${text || ""}`;
+      state.connected = true;
+      setStatus("Playing the reply on your speakers.");
+    },
+    finishReply() {
+      state.connected = false;
+      toggle.classList.remove("live");
+      dot.classList.remove("on");
+      setStatus("Reply finished. Tap the microphone to talk again.");
+    },
   };
   navigator.mediaDevices?.addEventListener?.("devicechange", () => { void followSpeakers(); });
-  toggle.onclick = () => state.ws ? stop() : start();
-  select.onchange = () => { if (state.ws) stop(); toggle.disabled = !select.value; };
+  toggle.onclick = () => (state.ws || localRec) ? stop() : start();
+  select.onchange = () => { if (state.ws || localRec) stop(); toggle.disabled = !select.value; };
 
   fetch(liveAudioUrl("/api/live-audio/status"), {cache:"no-store"}).then(async (response) => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    select.innerHTML = '<option value="">Choose live agent</option>';
-    for (const [id, row] of Object.entries(data.providers || {})) {
+    select.innerHTML = "";
+    const providers = data.providers || {};
+    const ready = Object.entries(providers).filter(([, row]) => row.available);
+    if (!ready.length) {
+      const option = document.createElement("option");
+      option.value = "sala";
+      option.textContent = "Salane Voice";
+      select.append(option);
+      select.value = "sala";
+      toggle.disabled = false;
+      setStatus("Tap the microphone, speak, then pause. Sala replies in the dialect selected on this page.");
+      return;
+    }
+    for (const [id, row] of ready) {
       const option = document.createElement("option");
       option.value = id; option.textContent = row.label || id;
-      option.disabled = !row.available;
-      if (id === data.default && row.available) option.selected = true;
+      if (id === data.default) option.selected = true;
       select.append(option);
     }
     toggle.disabled = !select.value;
-    setStatus(data.note || "Choose a native speech-to-speech agent.");
+    setStatus(data.note || "Tap the microphone to talk to Sala.");
   }).catch((error) => {
     select.innerHTML = '<option value="">Live audio unavailable</option>';
     setStatus(`Live audio status failed: ${error.message}`);
