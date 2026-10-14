@@ -216,7 +216,7 @@ export const QUESTION_POSITIONS: [number, number][] = [
   [-23,23], [16,26], [-16,-26], [27,-10],
 ];
 
-// ─── Theodore tips ─────────────────────────────────────────────────────────────
+// ─── Sala tips ─────────────────────────────────────────────────────────────
 export const THEO_TIPS = [
   "Find the ✨ glowing blocks and press E to answer questions!",
   "Correct answers earn XP and gems! 💎",
@@ -226,7 +226,7 @@ export const THEO_TIPS = [
   "Try heading North for the snowy mountains! 🏔️",
   "The desert to the south has geography questions! 🌵",
   "Answering 10 in a row starts a streak! 🔥",
-  "I'm Theodore, your AI guide. I'll always be nearby! 🤖",
+  "I'm Sala, your AI guide. I'll always be nearby! 🤖",
   "Turtles are the fastest creatures in the cosmos 🐢⚡",
   "Press B to toggle building mode! 🏗️",
   "Craft a portal key to travel to Planet 2! 🚀",

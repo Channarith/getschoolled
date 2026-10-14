@@ -134,7 +134,7 @@ export function useLiveRoomSocket(
                   id: `${Date.now()}`,
                   giftId: gift.gift_id ?? "",
                   emoji: gift.emoji,
-                  label: `${gift.sender_name ?? "Someone"} sent ${gift.gift_name ?? "a gift"} to ${gift.recipient_name ?? "Theodore"}`,
+                  label: `${gift.sender_name ?? "Someone"} sent ${gift.gift_name ?? "a gift"} to ${gift.recipient_name ?? "Sala"}`,
                 });
                 window.setTimeout(() => setGiftOverlay(null), 4200);
               }

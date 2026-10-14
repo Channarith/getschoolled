@@ -91,7 +91,7 @@ export function XaiVoiceDock() {
       wsRef.current = connectXaiVoiceSession(token, {
         onOpen: () => {
           setLive(true);
-          setHint("Theodore is listening.");
+          setHint("Sala is listening.");
         },
         onClose: () => {
           setLive(false);

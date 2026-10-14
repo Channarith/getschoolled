@@ -77,7 +77,7 @@ const STUDIO_GOLD = "#c8981f";
 
 // Minimal Web Speech API shape (Chrome/Edge expose webkitSpeechRecognition).
 // Used to capture a learner's spoken question while they hold the floor so it
-// can be sent to Theodore on "Done speaking".
+// can be sent to Sala on "Done speaking".
 type SpeechRec = {
   lang: string;
   interimResults: boolean;
@@ -139,7 +139,7 @@ function ClassCompleteOverlay({ onDone, primaryLang, exitLabel = "Group Classes"
   const [msgIdx, setMsgIdx] = useState(0);
   const messages = useMemo(() => orderedFarewell(primaryLang), [primaryLang]);
 
-  // Hard-stop Theodore the moment the farewell overlay appears — leaving must
+  // Hard-stop Sala the moment the farewell overlay appears — leaving must
   // not leave slide/Q&A narration still playing under the "Class complete" UI.
   useEffect(() => {
     cancelSpeech();
@@ -428,7 +428,7 @@ function ParticipantTile({
   showAdminProfile?: boolean;
   /** Face count from on-device presence probe; -1 = not probed, 0 = absent, >0 = present. Only set for isMe tile. */
   presenceFaceCount?: number;
-  /** False when a person teaches this class, so the host tile must never show Theodore. */
+  /** False when a person teaches this class, so the host tile must never show Sala. */
   aiHost?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -507,7 +507,7 @@ function ParticipantTile({
         />
       ) : isHost && slide ? (
         // The AI instructor has no camera — its "video feed" IS the current slide.
-        // Design A: a Theodore presence (AI-teacher avatar, not a stock human) next
+        // Design A: a Sala presence (AI-teacher avatar, not a stock human) next
         // to a bright white slide card, framed by the plum studio backdrop.
         <div
           style={{
@@ -551,11 +551,11 @@ function ParticipantTile({
                 <AvatarImage
                   avatarId={aiHost ? "ai-host" : (p.avatar_id || "logo")}
                   size={72}
-                  alt={aiHost ? "Theodore" : p.name}
+                  alt={aiHost ? "Sala" : p.name}
                 />
               </div>
               <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>
-                {aiHost ? "Theodore" : p.name}
+                {aiHost ? "Sala" : p.name}
               </div>
               <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 12 }}>
                 {aiHost ? "AI teacher" : "Instructor · camera off"}
@@ -872,8 +872,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }, [notice]);
   const [chatDraft, setChatDraft] = useState("");
   const [askDraft, setAskDraft] = useState("");
-  // The "Ask Theodore" tab keeps its own persistent Q&A thread so a learner's
-  // questions and Theodore's answers stay in that tab instead of only living in
+  // The "Ask Sala" tab keeps its own persistent Q&A thread so a learner's
+  // questions and Sala's answers stay in that tab instead of only living in
   // the shared class chat. (The backend still mirrors Q&A into room.chat; we
   // filter this learner's own Q&A back out of the Chat tab via askMineRef.)
   const [askThread, setAskThread] = useState<
@@ -918,7 +918,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [gameAnswer, setGameAnswer] = useState("artificial intelligence");
   const [gameResponse, setGameResponse] = useState("");
   const [learnerCtx, setLearnerCtx] = useState<LearnerJoinContext | null>(null);
-  // Which side-panel tab is active: the class chat, or asking Theodore directly.
+  // Which side-panel tab is active: the class chat, or asking Sala directly.
   const [panelTab, setPanelTab] = useState<"chat" | "ask">("chat");
   // Selected learner in the participant strip (moderator quick-actions target).
   const [selectedParticipant, setSelectedParticipant] = useState("");
@@ -949,7 +949,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // Hiding the corner preview must not stop the camera. Presence keeps reading
   // frames from the same stream.
   const [cameraPreviewHidden, setCameraPreviewHidden] = useState(false);
-  // AI teacher audio: Theodore narrates each slide out loud (neural TTS with an
+  // AI teacher audio: Sala narrates each slide out loud (neural TTS with an
   // on-device fallback) while presenting. On by default; a toggle lets you mute.
   const [aiAudioOn, setAiAudioOn] = useState(true);
   // Browsers often block TTS until a gesture. After Start / Enable audio we mark
@@ -962,7 +962,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const roomRef = useRef<LiveRoomState | null>(null);
   roomRef.current = room;
   // Floor mic: while this learner holds the floor we listen to their voice and
-  // build a transcript, then send it to Theodore as a question when they tap
+  // build a transcript, then send it to Sala as a question when they tap
   // "Done speaking". `listening` drives the UI; `micNote` surfaces a clear
   // reason when the mic can't run (insecure origin, blocked, unsupported).
   const [listening, setListening] = useState(false);
@@ -971,7 +971,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const recognitionRef = useRef<SpeechRec | null>(null);
   const spokenFinalRef = useRef("");
   const leftVoluntarily = useRef(false);
-  // Confirmation loop: after Theodore answers, keep the mic open so the learner
+  // Confirmation loop: after Sala answers, keep the mic open so the learner
   // can confirm ("yes") or ask a follow-up before the floor is released.
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1706,13 +1706,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     const q = askDraft.trim();
     const entryId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setBusy(true);
-    // Show the question immediately in the Ask Theodore thread and remember it so
+    // Show the question immediately in the Ask Sala thread and remember it so
     // its mirror copy in room.chat is hidden from the Chat tab.
     setAskThread((prev) => [...prev, { id: entryId, question: q, answer: "", done: false }]);
     askMineRef.current.add(q);
     setAskDraft("");
     try {
-      // Stream Theodore's answer (SSE) so the reply appears/plays live; other
+      // Stream Sala's answer (SSE) so the reply appears/plays live; other
       // participants receive it over the room WebSocket (host_delta frames).
       const res = await liveRoomAskStream(roomId, me.id, q, {
         language: locale,
@@ -1733,9 +1733,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         setNotice(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. ${hostLabel} will call on you in turn.`);
       } else {
         const finalText = res.text || res.host_message?.text || "";
-        // Record the mirrored chat copies BEFORE applying the room so Theodore's
+        // Record the mirrored chat copies BEFORE applying the room so Sala's
         // reply ("@Name answer") is filtered out of the Chat tab on the very
-        // first render — it lives only in the Ask Theodore thread.
+        // first render — it lives only in the Ask Sala thread.
         if (res.host_message?.text) askMineRef.current.add(res.host_message.text);
         if (me?.name && finalText) askMineRef.current.add(`@${me.name} ${finalText}`);
         if (res.room) setRoom(res.room);
@@ -1952,7 +1952,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }, [narrationLocale, pauseSubmitMs, stopListening]);
 
-  // Learner is done speaking: send whatever we heard (or typed) to Theodore as a
+  // Learner is done speaking: send whatever we heard (or typed) to Sala as a
   // question — the server answers a floor-holder immediately and releases the
   // floor. With nothing captured, just hand the floor back.
   async function doneSpeaking() {
@@ -2093,7 +2093,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     return () => window.clearInterval(t);
   }, [joinInfo, roomId, moderatorKey, applyRoom]);
 
-  // Before the first slide, Theodore welcomes learners and explicitly identifies
+  // Before the first slide, Sala welcomes learners and explicitly identifies
   // himself as an AI host. Joining is a user gesture, so audio is already unlocked.
   useEffect(() => {
     if (!room) return;
@@ -2109,7 +2109,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     });
   }, [room, aiAudioOn, aiAudioUnlocked, narrationLocale, canModerate]);
 
-  // AI teacher voice: Theodore narrates each new slide out loud while presenting
+  // AI teacher voice: Sala narrates each new slide out loud while presenting
   // (neural TTS via the speech service, on-device fallback). Keyed on the slide
   // index so each slide is spoken once — on Start class and on every auto/manual
   // advance. Muting, the class ending, or leaving stops and resets it.
@@ -2119,7 +2119,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const slideNarration = room?.slide?.narration;
   const slideBody = room?.slide?.body;
   useEffect(() => {
-    // Self-hosted class: the teacher presents the slides themselves — Theodore
+    // Self-hosted class: the teacher presents the slides themselves — Sala
     // must NOT read them aloud. Cancel any in-progress speech and stay silent.
     if (!aiAudioOn || !aiAudioUnlocked || !classLive || slideIdx == null || paused || canModerate) {
       cancelSpeech();
@@ -2135,7 +2135,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (text) {
       cancelSpeech();  // stop the previous slide's narration before the new one
       const spokenFor = slideIdx;
-      // Detect interactive prompts embedded in the slide narration. When Theodore
+      // Detect interactive prompts embedded in the slide narration. When Sala
       // says "Say it out loud", "Repeat after me", or "Your turn", pause the
       // auto-advance and open the learner's mic instead.
       const triggerPhrases = /\b(say it out loud|repeat after me|your turn|speak it back|say this out loud)\b/i;
@@ -2201,7 +2201,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }, [aiAudioOn, aiAudioUnlocked, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale,
       canModerate, moderatorKey, roomId, paused, me?.id, startListening, stopListening]);
 
-  // Theodore's streamed answer (from the room WebSocket host_delta frames):
+  // Sala's streamed answer (from the room WebSocket host_delta frames):
   // speak it out loud once, when it finishes, for every participant (including
   // the asker). When awaiting_confirmation is set, the floor holder's mic is
   // kept open after speaking so they can say yes/no before the floor releases.
@@ -2266,7 +2266,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   useEffect(() => () => { cancelSpeech(); stopListening(); }, [stopListening]);
 
   // When this learner is granted the floor (and not already in the confirmation
-  // loop), Theodore speaks their name then opens the mic in the onend callback.
+  // loop), Sala speaks their name then opens the mic in the onend callback.
   // awaitingConfirmation is intentionally NOT in this dep array — the mic
   // is managed by a separate effect below so that a re-render triggered by
   // setAwaitingConfirmation(true) does not run this effect's cleanup
@@ -2398,10 +2398,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           {room?.human_taught && isSoloLiveRoom(roomId, room)
             ? `Your private 1:1 session with ${room?.human_host_name || "your instructor"}. It starts when your instructor begins the class.`
             : isSoloLiveRoom(roomId, room)
-            ? "Your private 1:1 session with Theodore. The class starts automatically once you enter."
+            ? "Your private 1:1 session with Sala. The class starts automatically once you enter."
             : room?.human_taught
               ? `Join ${room?.human_host_name || "your instructor"}'s live class — up to ${room?.room_size ?? 6} seats in the grid.`
-              : `Join Theodore's multi-user class — up to ${room?.room_size ?? 6} seats in the grid.`}
+              : `Join Sala's multi-user class — up to ${room?.room_size ?? 6} seats in the grid.`}
         </p>
         {room && (
           <div className="card" style={{ marginBottom: 12 }}>
@@ -2414,7 +2414,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               <div className="muted">
                 {room?.human_taught
                   ? `Just you and ${room?.human_host_name || "your instructor"} — camera and mic ready when you join.`
-                  : "Just you and Theodore — camera and mic ready when you join."}
+                  : "Just you and Sala — camera and mic ready when you join."}
               </div>
             )}
           </div>
@@ -2456,13 +2456,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const learners = (room?.participants ?? []).filter((p) => p.role !== "host");
   const host = room?.host;
   // Am I the actual on-camera presenter? Only the room host presents; a mere
-  // moderator/admin previewing a Theodore-led class is a participant, not the
+  // moderator/admin previewing a Sala-led class is a participant, not the
   // presenter. (`learners` already excludes whoever is the host.)
   const iAmHost = Boolean(me?.id && host?.id === me?.id);
-  // "Teach a class": a person presents, so Theodore is absent from the room
+  // "Teach a class": a person presents, so Sala is absent from the room
   // entirely and the instructor owns the main tile.
   const humanTaught = Boolean(room?.human_taught);
-  const hostLabel = humanTaught ? (room?.human_host_name || host?.name || "Instructor") : "Theodore";
+  const hostLabel = humanTaught ? (room?.human_host_name || host?.name || "Instructor") : "Sala";
   const isSolo = isSoloLiveRoom(roomId, room);
   // In a group class the human teacher (the moderator) belongs in the main host
   // tile, not in the student strip. Filter them out so only actual students appear
@@ -2601,7 +2601,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     );
   };
 
-  // Underline tab style for the side panel (Chat / Ask Theodore) — Design A.
+  // Underline tab style for the side panel (Chat / Ask Sala) — Design A.
   const panelTabStyle = (active: boolean): CSSProperties => ({
     flex: 1,
     fontSize: 14,
@@ -3909,10 +3909,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               overflowY: "auto",
             }}
           >
-          {/* Underline tabs: class chat vs. asking Theodore directly (Design A). */}
+          {/* Underline tabs: class chat vs. asking Sala directly (Design A). */}
           <div
             role="tablist"
-            aria-label={humanTaught ? `Chat or Ask ${hostLabel}` : "Chat or Ask Theodore"}
+            aria-label={humanTaught ? `Chat or Ask ${hostLabel}` : "Chat or Ask Sala"}
             style={{
               display: "flex",
               gap: 8,
@@ -3955,20 +3955,20 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           >
             {(room?.chat ?? [])
               .filter((m) => {
-                // Hide only THIS learner's own Ask-Theodore mirror copies: their
-                // question (from me) and Theodore's reply (from the host). Scoping
+                // Hide only THIS learner's own Ask-Sala mirror copies: their
+                // question (from me) and Sala's reply (from the host). Scoping
                 // by sender avoids hiding another learner's coincidentally
                 // identical chat text.
                 if (!askMineRef.current.has(m.text)) return true;
                 const fromMe = m.from_id === me?.id;
-                const fromTheodore = !humanTaught && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
-                return !(fromMe || fromTheodore);
+                const fromSala = !humanTaught && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
+                return !(fromMe || fromSala);
               })
               .map((m) => {
               const isSystem = m.from_id === "system";
-              // In a human-taught class nobody is Theodore — and the instructor's
+              // In a human-taught class nobody is Sala — and the instructor's
               // placeholder id ("human-host") would otherwise match this heuristic.
-              const isTheodore =
+              const isSala =
                 !humanTaught && !isSystem && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
               return (
                 <div key={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
@@ -3983,15 +3983,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       justifyContent: "center",
                       fontSize: 12,
                       fontWeight: 700,
-                      background: isTheodore
+                      background: isSala
                         ? "color-mix(in srgb, var(--accent-2) 20%, var(--panel))"
                         : "color-mix(in srgb, var(--accent) 12%, var(--panel))",
                       color: "var(--text)",
                       border: "1px solid var(--border)",
                     }}
                   >
-                    {isTheodore ? (
-                      <AvatarImage avatarId="ai-host" size={28} alt="Theodore" />
+                    {isSala ? (
+                      <AvatarImage avatarId="ai-host" size={28} alt="Sala" />
                     ) : (
                       <AvatarImage
                         avatarId={(room?.participants || []).find((x) => x.id === m.from_id)?.avatar_id || "initials"}
@@ -4003,7 +4003,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
                       {m.from_name}
-                      {isTheodore ? " · AI teacher" : ""}
+                      {isSala ? " · AI teacher" : ""}
                     </div>
                     <div
                       style={{
@@ -4216,7 +4216,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     </span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700 }}>
-                        {humanTaught ? hostLabel : "Theodore · AI teacher"}
+                        {humanTaught ? hostLabel : "Sala · AI teacher"}
                         {!e.done ? " · answering…" : ""}
                       </div>
                       <div
@@ -4246,7 +4246,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <input
               value={askDraft}
               onChange={(e) => setAskDraft(e.target.value)}
-              placeholder={humanTaught ? `Ask ${hostLabel} a question…` : "Ask Theodore a question…"}
+              placeholder={humanTaught ? `Ask ${hostLabel} a question…` : "Ask Sala a question…"}
               style={{ flex: 1, borderRadius: 999, border: "1px solid var(--border)", padding: "10px 14px", background: "var(--panel)", color: "var(--text)" }}
               onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
               disabled={busy}
@@ -4254,8 +4254,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <button
               onClick={() => void askQuestion()}
               disabled={busy}
-              aria-label={humanTaught ? `Ask ${hostLabel}` : "Ask Theodore"}
-              title={humanTaught ? `Ask ${hostLabel}` : "Ask Theodore"}
+              aria-label={humanTaught ? `Ask ${hostLabel}` : "Ask Sala"}
+              title={humanTaught ? `Ask ${hostLabel}` : "Ask Sala"}
               style={{
                 flex: "0 0 auto",
                 width: 42,
@@ -4487,8 +4487,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <input
               value={askDraft}
               onChange={(e) => setAskDraft(e.target.value)}
-              placeholder={humanTaught ? `Ask ${hostLabel}…` : "Ask Theodore…"}
-              aria-label={humanTaught ? `Question for ${hostLabel}` : "Question for Theodore"}
+              placeholder={humanTaught ? `Ask ${hostLabel}…` : "Ask Sala…"}
+              aria-label={humanTaught ? `Question for ${hostLabel}` : "Question for Sala"}
               onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
               disabled={busy}
               style={{ flex: "1 1 180px", minWidth: 150, padding: "7px 9px" }}
@@ -4516,7 +4516,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
           {hostAnswer && (hostAnswer.text || !hostAnswer.done) ? (
             <div style={{ fontSize: 12, padding: "6px 9px", borderRadius: 8, background: "rgba(99,102,241,.10)" }}>
-              <strong>🎓 Theodore{hostAnswer.asker ? ` → ${hostAnswer.asker}` : ""}:</strong>{" "}
+              <strong>🎓 Sala{hostAnswer.asker ? ` → ${hostAnswer.asker}` : ""}:</strong>{" "}
               {hostAnswer.text || "Answering…"}
             </div>
           ) : null}

@@ -248,7 +248,7 @@ export default function ClassPage() {
       const ws = connectXaiVoiceSession(token, {
         onOpen: () => {
           setXaiVoiceLive(true);
-          setXaiVoiceHint("Theodore (Grok voice) is listening — ask out loud or type below.");
+          setXaiVoiceHint("Sala (Grok voice) is listening — ask out loud or type below.");
         },
         onClose: () => {
           setXaiVoiceLive(false);
@@ -1042,7 +1042,7 @@ export default function ClassPage() {
               onClick={() => void toggleXaiVoice()}
               disabled={busy || (!xaiVoiceReady && !xaiVoiceLive)}
               title={xaiVoiceHint || (xaiVoiceReady
-                ? "Talk with Theodore via Salane Voice"
+                ? "Talk with Sala via Salane Voice"
                 : "Salane Voice uses CosyVoice on the speech service")}
               style={{
                 fontSize: 13, padding: "8px 12px", borderRadius: 8, cursor: "pointer",
@@ -1228,7 +1228,7 @@ export default function ClassPage() {
                   onClick={() => void toggleXaiVoice()}
                   disabled={busy || (!xaiVoiceReady && !xaiVoiceLive)}
                   title={xaiVoiceHint || (xaiVoiceReady
-                    ? "Talk with Theodore via Salane Voice"
+                    ? "Talk with Sala via Salane Voice"
                     : "Salane Voice uses CosyVoice on the speech service")}
                   style={{
                     fontSize: 13, padding: "4px 10px", borderRadius: 8, cursor: "pointer",

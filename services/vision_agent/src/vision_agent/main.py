@@ -500,7 +500,7 @@ def voice_query(session_id: str, req: VoiceRequest) -> VoiceResponse:
     if agent is None:
         return VoiceResponse(
             session_id=session_id,
-            text="Theodore voice agent is not configured (XAI_API_KEY missing).",
+            text="Sala voice agent is not configured (XAI_API_KEY missing).",
             model="none",
             latency_ms=0.0,
             xai_available=False,
@@ -556,7 +556,7 @@ async def frame_chat(
     if agent is None:
         return FrameChatResponse(
             session_id=session_id,
-            text="Theodore voice agent is not configured (XAI_API_KEY missing).",
+            text="Sala voice agent is not configured (XAI_API_KEY missing).",
             model="none",
             latency_ms=0.0,
             xai_available=False,
