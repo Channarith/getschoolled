@@ -9,20 +9,19 @@ set -euo pipefail
   ja ko vi th id sw el cs zh km
 )
 
-echo "==> Music Lab voice prefetch starting (cache: ${MUSIC_LAB_TTS_CACHE:-~/.cache/theodore-music-lab/tts})"
-
-# Build the --lang flags dynamically
-LANG_FLAGS=()
-for lang in "${LANGS[@]}"; do
-  LANG_FLAGS+=("--lang" "$lang")
-done
-
-# Run the prefetch in the background so the server can answer /health while
-# the first batch of voices is still rendering. Cached clips are skipped.
-(
-  python3 scripts/prefetch_voices.py "${LANG_FLAGS[@]}" || echo "!! prefetch finished with some failures — already-cached clips still work."
-) &
-disown || true
+# A full 28-language warmup can exhaust the 1Gi pod before /health answers.
+# Clips are still generated on demand. Set MUSIC_LAB_PREFETCH=1 to warm the cache.
+if [ "${MUSIC_LAB_PREFETCH:-0}" = "1" ]; then
+  echo "==> Music Lab voice prefetch starting (cache: ${MUSIC_LAB_TTS_CACHE:-~/.cache/theodore-music-lab/tts})"
+  LANG_FLAGS=()
+  for lang in "${LANGS[@]}"; do
+    LANG_FLAGS+=("--lang" "$lang")
+  done
+  (
+    python3 scripts/prefetch_voices.py "${LANG_FLAGS[@]}" || echo "!! prefetch finished with some failures — already-cached clips still work."
+  ) &
+  disown || true
+fi
 
 echo "==> Starting Theodore Music Lab on :8000"
 exec uvicorn "theodore_music_lab.main:app" \
