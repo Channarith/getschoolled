@@ -438,7 +438,7 @@ export default function AdminPage() {
 
       <section style={{ marginTop: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
-          <h2 style={{ fontSize: 18, margin: 0, flex: 1 }}>Audience readiness (XR / Theodore)</h2>
+          <h2 style={{ fontSize: 18, margin: 0, flex: 1 }}>Audience readiness (XR / Sala)</h2>
           <button
             type="button"
             onClick={() => void loadReadiness()}
@@ -448,7 +448,7 @@ export default function AdminPage() {
           </button>
         </div>
         <p style={{ fontSize: 13, color: "#666" }}>
-          Composite readiness + dimensions for learners Theodore adapts to. Peer scores stay
+          Composite readiness + dimensions for learners Sala adapts to. Peer scores stay
           private; this view is admin-only.
         </p>
         {readinessSummary ? (

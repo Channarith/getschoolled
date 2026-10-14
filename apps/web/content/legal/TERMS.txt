@@ -16,7 +16,7 @@ Service.
 
 2. AI DISCLOSURE (no deception)
    Instruction and grading may be performed by artificial intelligence (including
-   the Theodore teaching agent). The Service discloses AI involvement (in-app
+   the Sala teaching agent). The Service discloses AI involvement (in-app
    badges, /transparency). AI output may be inaccurate; it is an aid, not
    professional, legal, medical, or accredited advice. A human of record reviews
    content where required, and you may request human review (human-in-the-loop).

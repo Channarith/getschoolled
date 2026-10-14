@@ -220,7 +220,7 @@ export default function GroupClassesPage() {
     return myAccountId === gc.instructor_account_id || myAccountId === gc.created_by_account_id;
   }
 
-  /** A person teaches this class (an instructor scheduled it), so Theodore is not in the room. */
+  /** A person teaches this class (an instructor scheduled it), so Sala is not in the room. */
   function isHumanTaught(gc: GroupClass): boolean {
     return Boolean((gc.instructor_account_id || "").trim());
   }
@@ -461,9 +461,9 @@ export default function GroupClassesPage() {
                     setCapacity(size - 1);
                   }}
                 >
-                  <option value={4}>4 seats (3 learners + Theodore)</option>
-                  <option value={6}>6 seats (5 learners + Theodore)</option>
-                  <option value={9}>9 seats (8 learners + Theodore)</option>
+                  <option value={4}>4 seats (3 learners + Sala)</option>
+                  <option value={6}>6 seats (5 learners + Sala)</option>
+                  <option value={9}>9 seats (8 learners + Sala)</option>
                 </select>
               </label>
             )}
@@ -508,14 +508,14 @@ export default function GroupClassesPage() {
               onChange={(e) => setPresentationFile(e.target.files?.[0] ?? null)}
             />
             <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-              Optional — upload your PDF or PPTX to use your own slides. Without a file, the selected catalog lesson above is used and you (the host) advance slides manually. Theodore will not narrate when you are hosting.
+              Optional — upload your PDF or PPTX to use your own slides. Without a file, the selected catalog lesson above is used and you (the host) advance slides manually. Sala will not narrate when you are hosting.
             </div>
           </label>
           {platform === "salareen" && (
               <div className="muted" style={{ fontSize: 13 }}>
                 {sessionType === "private"
-                  ? "Private 1-on-1 room: you teach, Theodore assists on request. Upload slides or use a catalog lesson — you control Next Slide."
-                  : "Group room: you teach, students join. Use your own slides or a catalog lesson — you control Next Slide. Theodore stays silent unless called."}
+                  ? "Private 1-on-1 room: you teach, Sala assists on request. Upload slides or use a catalog lesson — you control Next Slide."
+                  : "Group room: you teach, students join. Use your own slides or a catalog lesson — you control Next Slide. Sala stays silent unless called."}
               </div>
             )}
             <div className="row">

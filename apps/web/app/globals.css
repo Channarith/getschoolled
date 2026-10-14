@@ -153,9 +153,12 @@ a {
 }
 
 .container {
-  max-width: 960px;
+  /* Full-bleed by default: content stretches to the page edges with just a
+     small gutter. Narrow forms (login, auth, onboarding) still set their own
+     `maxWidth` inline so they stay readable. */
+  max-width: 100%;
   margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: 32px clamp(16px, 3vw, 48px) 64px;
 }
 
 /* Single-column page shell — mobile-first, compact on all viewports. */
@@ -190,8 +193,8 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0;
-  max-width: 960px;
-  margin: 0 auto;
+  max-width: none;  /* full width — the header is a full-bleed bar */
+  margin: 0;
   padding: 0;
   position: relative;
   z-index: 100;
@@ -285,10 +288,10 @@ a {
   .nav {
     flex-direction: row;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 16px;
-    padding: 12px 20px;
-    max-width: 1320px; /* wider than the 960px body cap so the full link row fits */
+    flex-wrap: nowrap;      /* keep brand + links + actions on ONE row */
+    gap: 14px;
+    padding: 10px clamp(16px, 3vw, 32px);
+    max-width: none;        /* span the full header width, not a 1320px island */
   }
 
   .nav-top {
@@ -304,8 +307,9 @@ a {
     margin: 0 auto 0 8px; /* auto-right margin pushes actions to the far edge */
     padding: 0;
     border-top: none;
-    flex-wrap: wrap;
-    gap: 10px 13px; /* tighter horizontal spacing so more links fit */
+    flex-wrap: nowrap;       /* nav links sit on the SAME single row */
+    gap: 10px 12px;
+    overflow: hidden;        /* overflow stays silent; use the hamburger below for narrow widths */
     min-width: 0; /* allow the menu to shrink instead of forcing a wrap */
   }
 

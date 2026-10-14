@@ -51,9 +51,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
 
   // Demo-only mode (sales_demo.exclusive) hides the full site chrome for signed-
   // out visitors so the inverted demo stays focused on the three demo features.
-  // sales_demo.restrict_signed_in extends the same hide for signed-in non-admins
-  // (useRestrictSignedIn is already admin-aware so operators keep the full nav).
-  if (demoOnlyAnon || restrictSignedIn || (pathname === "/" && signedIn !== true)) {
+  if (demoOnlyAnon || (pathname === "/" && signedIn !== true)) {
     return null;
   }
 
@@ -61,7 +59,22 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
     ? "/logo-cartoon-mark.webp"
     : "/logo-mark.webp";
 
-  const contentLinks = unlocked ? (
+  // Simplified-nav mode for signed-in non-admins when sales_demo.restrict_signed_in
+  // is on (useRestrictSignedIn already bypasses for admins). "Our Story" is
+  // rendered outside contentLinks already, so the simplified list adds the
+  // other 4 tabs: Vision Play Lab, Audio Translation Lab, Careers, Live Class.
+  // Keeping the count small lets the full header fit on ONE row even on
+  // narrow laptops.
+  const simplifiedLinks = (
+    <>
+      <Link href="/arcade">Vision Play Lab</Link>
+      <Link href="/audio-lab">Audio Translation Lab</Link>
+      <Link href="/jobs">{t("nav.careers")}</Link>
+      <Link href="/class">{t("nav.liveClass")}</Link>
+    </>
+  );
+
+  const fullSignedInLinks = (
     <>
       <Link href="/">{t("nav.home")}</Link>
       <Link href="/browse">{t("nav.browse")}</Link>
@@ -77,9 +90,13 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       <Link href="/group-classes">{t("nav.groupClasses")}</Link>
       {homeworkOn && <Link href="/homework">{t("nav.homework")}</Link>}
     </>
-  ) : (
-    <Link href="/login">{t("nav.signin")}</Link>
   );
+
+  const contentLinks = unlocked
+    ? restrictSignedIn
+      ? simplifiedLinks
+      : fullSignedInLinks
+    : <Link href="/login">{t("nav.signin")}</Link>;
 
   return (
     <header className="site-header">

@@ -13,7 +13,7 @@ type Props = {
   fps?: number;
   /** Show the local camera preview tile. Default true. */
   showPreview?: boolean;
-  /** Callback when Theodore (or the self-teach coach) speaks. */
+  /** Callback when Sala (or the self-teach coach) speaks. */
   onVoiceResponse?: (resp: VoiceAgentResponse) => void;
   /** Callback when absence is detected. */
   onAbsent?: (awaySeconds: number) => void;
@@ -222,7 +222,7 @@ export default function WebcamSession({
             ref={inputRef}
             placeholder={
               agentType === "teacher"
-                ? "Ask Theodore…"
+                ? "Ask Sala…"
                 : "Ask the coach…"
             }
             onKeyDown={(e) => e.key === "Enter" && void handleAsk()}
@@ -255,7 +255,7 @@ export default function WebcamSession({
           }}
         >
           <strong>
-            {agentType === "teacher" ? "Theodore: " : "Coach: "}
+            {agentType === "teacher" ? "Sala: " : "Coach: "}
           </strong>
           {state.lastVoiceResponse.text}
           {state.lastVoiceResponse.fallback && (

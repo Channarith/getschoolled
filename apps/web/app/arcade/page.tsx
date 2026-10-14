@@ -273,7 +273,7 @@ export default function ArcadePage() {
           <h3 style={{ marginTop: 0 }}>👁️ Machine vision</h3>
           <p className="muted" style={{ marginTop: 0 }}>
             Children play the webcam lab here: faces, hands, letters, movement, and listening games. The camera stays in the browser.
-            Theodore can talk through Salane Voice inside the lab.
+            Sala can talk through Salane Voice inside the lab.
           </p>
           <VisionArcadeFrame title="Vision arcade lab" src={visionArcadeFrameSrc()} />
         </div>

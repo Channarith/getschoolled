@@ -1238,7 +1238,7 @@ export default function WorldGame() {
             maxWidth: 480,
             lineHeight: 1.6,
           }}>
-            An open-world educational RPG. Explore 2 planets with Theodore your AI guide,
+            An open-world educational RPG. Explore 2 planets with Sala your AI guide,
             fight enemies, mount animals, build structures, and answer 22 questions to earn XP!
           </p>
 
@@ -1247,7 +1247,7 @@ export default function WorldGame() {
             {[
               "🏔 Open World", "⚔️ Combat", "🐴 Mounts", "🚗 Vehicles",
               "🏗 Building", "🧪 Crafting", "🌌 2 Planets", "📚 22 Questions",
-              "🤖 AI Guide Theodore", "🏆 Quests",
+              "🤖 AI Guide Sala", "🏆 Quests",
             ].map(f => (
               <span key={f} style={{
                 background: "rgba(99,102,241,0.12)",
@@ -1377,7 +1377,7 @@ export default function WorldGame() {
       {/* ── AI OPPONENT HUD ───────────────────────────────────── */}
       {gameStarted && (
         <div style={{ position: 'absolute', top: 60, left: 12, zIndex: 10, background: 'rgba(124,58,237,0.85)', color: '#fff', borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 700 }}>
-          🤖 Theodore Bot: {aiXp} XP
+          🤖 Sala Bot: {aiXp} XP
           {aiMessage && <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{aiMessage}</div>}
         </div>
       )}

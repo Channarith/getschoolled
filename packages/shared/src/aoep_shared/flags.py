@@ -123,11 +123,12 @@ FLAG_CATALOG: List[FlagSpec] = [
              "regardless of this flag, so an admin can still get back in and "
              "flip it on."),
     FlagSpec("sales_demo.restrict_signed_in", FlagType.BOOL, False, "sales_demo",
-             "Keep signed-in learners in the demo-only showcase after login — "
-             "the full home, main nav links (Browse, Kids, Group Class, …), and "
-             "non-demo pages are replaced with the three demo features. "
+             "Simplified-nav mode after login. Signed-in non-admin accounts see "
+             "a trimmed one-row header with 5 tabs: Our Story, Vision Play Lab, "
+             "Audio Translation Lab, Careers, Live Class — plus profile. The "
+             "full home and pages still render; only the nav is simplified. "
              "Lock-out guard: admin accounts (is_admin) always see the full "
-             "site regardless of this flag, so you cannot lock yourself out."),
+             "nav regardless of this flag, so you cannot lock yourself out."),
 
     # --- data / analytics / data mining -------------------------------------- #
     FlagSpec("data.multidim_datamart", FlagType.BOOL, False, "data",
