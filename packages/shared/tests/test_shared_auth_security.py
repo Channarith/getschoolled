@@ -6,6 +6,7 @@ from aoep_shared.login_audit import login_context_from_headers
 from aoep_shared.oauth_login import (
     OAuthError,
     oauth_provider_status,
+    verify_apple_identity_token,
     verify_facebook_access_token,
     verify_google_id_token,
 )
@@ -44,6 +45,45 @@ def test_google_sandbox_token():
 def test_facebook_sandbox_token():
     ident = verify_facebook_access_token("sandbox_facebook_bob@example.com")
     assert ident["email"] == "bob@example.com"
+
+
+def test_apple_cloud_token_uses_rs256_runtime(monkeypatch):
+    """Exercise the production path so missing PyJWT/cryptography fails CI."""
+    import json
+
+    import jwt
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from jwt.algorithms import RSAAlgorithm
+
+    import aoep_shared.oauth_login as oauth_login
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_jwk = json.loads(RSAAlgorithm.to_jwk(private_key.public_key()))
+    public_jwk["kid"] = "apple-test-key"
+    token = jwt.encode(
+        {
+            "sub": "apple-user-123",
+            "email": "apple@example.com",
+            "aud": "com.aiclassroom.web",
+        },
+        private_key,
+        algorithm="RS256",
+        headers={"kid": "apple-test-key"},
+    )
+    monkeypatch.setenv("DEPLOY_MODE", "cloud")
+    monkeypatch.setattr(
+        oauth_login,
+        "_http_get_json",
+        lambda url: {"keys": [public_jwk]},
+    )
+
+    ident = verify_apple_identity_token(token)
+
+    assert ident == {
+        "email": "apple@example.com",
+        "sub": "apple:apple-user-123",
+        "name": "",
+    }
 
 
 def test_oauth_provider_status_local(monkeypatch):
