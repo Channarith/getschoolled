@@ -2308,10 +2308,36 @@ async function biometricRequest<T>(
     },
   );
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `identity setup failed: ${response.status}`);
+    const raw = await response.text();
+    let detail = raw;
+    try {
+      const parsed = JSON.parse(raw) as { detail?: unknown };
+      if (parsed.detail != null) {
+        detail = typeof parsed.detail === "string" ? parsed.detail : JSON.stringify(parsed.detail);
+      }
+    } catch {
+      /* plain-text body */
+    }
+    throw Object.assign(new Error(detail || `identity setup failed: ${response.status}`), {
+      status: response.status,
+    });
   }
   return response.json() as Promise<T>;
+}
+
+export type MobileFaceLandmarks = {
+  bbox: number[];
+  landmarks: number[][];
+  frame_size: number[];
+  score: number;
+};
+
+/** YuNet landmarks for one captured still; the server keeps nothing. */
+export function previewMobileFace(
+  studentId: string,
+  imageBase64: string,
+): Promise<{ faces: MobileFaceLandmarks[] }> {
+  return biometricRequest(studentId, "face-preview", "POST", { image_b64: imageBase64 });
 }
 
 export function getMobileSetupState(studentId: string): Promise<MobileSetupState> {
@@ -2349,10 +2375,11 @@ export function setMobileBiometricConsent(
 export function enrollMobileFaceImages(
   studentId: string,
   imagesBase64: string[],
+  poseSequence: string[] = ["left", "right", "up", "down"],
 ): Promise<{ verified: boolean }> {
   return biometricRequest(studentId, "biometric-face-images", "POST", {
     images_b64: imagesBase64,
-    pose_sequence: ["left", "right", "up", "down"],
+    pose_sequence: poseSequence,
   });
 }
 

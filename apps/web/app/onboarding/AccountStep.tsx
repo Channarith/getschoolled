@@ -56,7 +56,7 @@ export default function AccountStep({ onDone }: Props) {
       <span className={styles.eyebrow}>New account</span>
       <h1>Create your account.</h1>
       <p className={styles.lede}>
-        The setup assistant is for new accounts. Use your email as your username and choose a password.
+        New accounts start here. Your email is your username.
       </p>
       <form onSubmit={(event) => void submitEmail(event)}>
         <label className={styles.field}>

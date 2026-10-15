@@ -1,8 +1,11 @@
 """Self-hosted speaker embedding and matching.
 
-The model is operator supplied through ``VOICEPRINT_MODEL_PATH``. Audio is
-decoded in a temporary directory and deleted immediately; callers persist only
-the normalized embedding in their encrypted template store.
+The model is ``VOICEPRINT_MODEL_PATH`` when set; otherwise a pinned WeSpeaker
+ResNet34 (sherpa-onnx release, sha256-checked) is downloaded once into the
+vision model cache (``VISION_MODEL_DIR``). ``VOICEPRINT_MODEL_DOWNLOAD=0``
+disables the download for air-gapped hosts. Audio is decoded in a temporary
+directory and deleted immediately; callers persist only the normalized
+embedding in their encrypted template store.
 """
 
 from __future__ import annotations
@@ -73,13 +76,56 @@ def _validate_signal(samples: list[float], sample_rate: int) -> None:
         raise ValueError("voice sample is clipped; move farther from the microphone")
 
 
+DEFAULT_MODEL_NAME = "wespeaker_en_voxceleb_resnet34.onnx"
+DEFAULT_MODEL_URL = (
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/"
+    "speaker-recongition-models/" + DEFAULT_MODEL_NAME
+)
+DEFAULT_MODEL_SHA256 = "5ef208a9da1453335308a6b6f4e6dfbd7e183a38b604de0a57664f45d257fe94"
+
+
+def _sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def resolve_model_path(model_path: str | None = None) -> str:
+    explicit = model_path or os.getenv("VOICEPRINT_MODEL_PATH", "")
+    if explicit:
+        if not os.path.isfile(explicit):
+            raise VoiceIdentityUnavailable(f"voice model not found at {explicit}")
+        return explicit
+    from aoep_shared.vision.models import _download, default_model_dir
+
+    path = os.path.join(default_model_dir(), DEFAULT_MODEL_NAME)
+    if os.path.isfile(path) and _sha256(path) == DEFAULT_MODEL_SHA256:
+        return path
+    if os.getenv("VOICEPRINT_MODEL_DOWNLOAD", "1").strip().lower() in {"0", "false", "no", "off"}:
+        raise VoiceIdentityUnavailable("voice model is not installed and downloading is disabled")
+    try:
+        _download(DEFAULT_MODEL_URL, path)
+    except Exception as exc:  # noqa: BLE001 - surface a typed, retryable error
+        raise VoiceIdentityUnavailable(f"could not download the voice model: {exc}") from exc
+    if _sha256(path) != DEFAULT_MODEL_SHA256:
+        os.unlink(path)
+        raise VoiceIdentityUnavailable("downloaded voice model failed its checksum")
+    return path
+
+
 class SherpaSpeakerProvider:
     """Pinned-model speaker embeddings through sherpa-onnx."""
 
+    _extractors: dict[str, object] = {}
+
     def __init__(self, model_path: str | None = None) -> None:
-        self.model_path = model_path or os.getenv("VOICEPRINT_MODEL_PATH", "")
-        if not self.model_path:
-            raise VoiceIdentityUnavailable("VOICEPRINT_MODEL_PATH is not configured")
+        self.model_path = resolve_model_path(model_path)
+        cached = self._extractors.get(self.model_path)
+        if cached is not None:
+            self._extractor = cached
+            return
         try:
             import sherpa_onnx  # type: ignore
         except ImportError as exc:
@@ -91,6 +137,7 @@ class SherpaSpeakerProvider:
             provider="cpu",
         )
         self._extractor = sherpa_onnx.SpeakerEmbeddingExtractor(config)
+        self._extractors[self.model_path] = self._extractor
 
     def embedding(self, audio: bytes) -> list[float]:
         samples, sample_rate = _decode_to_pcm(audio)

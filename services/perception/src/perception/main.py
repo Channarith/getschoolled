@@ -106,6 +106,48 @@ async def verify_face(
     return FaceVerificationResponse(student_id=student_id, verified=verified)
 
 
+class FaceLandmarks(BaseModel):
+    bbox: list[int]
+    landmarks: list[list[float]]
+    frame_size: list[int]
+    score: float
+
+
+class LandmarksResponse(BaseModel):
+    faces: list[FaceLandmarks]
+
+
+@app.post(
+    "/detect-landmarks",
+    response_model=LandmarksResponse,
+    dependencies=[Depends(require_internal)],
+)
+async def detect_landmarks(file: UploadFile = File(...)) -> LandmarksResponse:
+    """YuNet box + 5 landmarks for a still, so the phone can draw the face
+    contour on the captured photo. Nothing is stored and no embedding leaves."""
+    data = await file.read()
+    try:
+        engine = _vision().engine()
+        faces = engine.detect_faces(data)
+    except AttributeError as exc:
+        raise HTTPException(status_code=503, detail="face landmarks are not available") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (NotImplementedError, ModelsUnavailable) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return LandmarksResponse(
+        faces=[
+            FaceLandmarks(
+                bbox=[int(v) for v in face.bbox],
+                landmarks=[[float(x), float(y)] for x, y in face.landmarks],
+                frame_size=[int(v) for v in face.frame_size],
+                score=float(face.det_score),
+            )
+            for face in faces
+        ]
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Identification (consent-gated)
 # --------------------------------------------------------------------------- #

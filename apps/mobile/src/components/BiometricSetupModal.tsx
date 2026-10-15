@@ -1,17 +1,21 @@
 import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
+  Linking,
   Modal,
   SafeAreaView,
   ScrollView,
+  useWindowDimensions,
   StyleSheet,
   Switch,
   Text,
   View,
 } from "react-native";
-import Svg, { Circle, Line } from "react-native-svg";
+import Svg, { Line, Path, Rect } from "react-native-svg";
 
 import {
   completeMobileSetup,
@@ -19,21 +23,41 @@ import {
   enrollMobileFaceImages,
   enrollMobileVoiceprint,
   getMobileSetupState,
+  previewMobileFace,
   setMobileBiometricConsent,
   submitMobileGovernmentId,
 } from "../api";
-import { theme } from "../theme";
+import {
+  SETUP_COLORS as C,
+  faceContour,
+  faceGeometry,
+  meteringToLevel,
+  poseFromBaseline,
+  shuffledPoses,
+  svgPath,
+  waveformBars,
+  type FaceContour,
+  type Geometry,
+  type LevelSample,
+  type Pose,
+} from "../learnerCheck";
 import AnimatedPressable from "./AnimatedPressable";
 import KenBurnsImage from "./KenBurnsImage";
 
 type Step = "welcome" | "scan" | "voice" | "identity" | "complete";
 const STEPS: Step[] = ["welcome", "scan", "voice", "identity", "complete"];
-const POSES = ["left", "right", "up", "down"] as const;
 const PROMPT =
   "Today I’m ready to learn with Salareen. Can you hear my voice clearly? Yes—I’m speaking naturally and confidently.";
-const TICKS = 72;
-// Ring quarter (tick centre index) lit by each captured pose; 0 = 3 o'clock.
-const POSE_TICK: Record<(typeof POSES)[number], number> = { right: 0, down: 18, left: 36, up: 54 };
+const VOICE_SECONDS = 10;
+const WAVE_BARS = 40;
+
+const POSE_COPY: Record<Pose, string> = {
+  left: "Look to your left",
+  right: "Look to your right",
+  up: "Look up",
+  down: "Look down",
+};
+const POSE_ARROW: Record<Pose, string> = { left: "←", right: "→", up: "↑", down: "↓" };
 
 const ART = {
   face: require("../../assets/setup-assistant/face-scan.webp"),
@@ -43,18 +67,18 @@ const ART = {
 const copy: Record<Step, { kicker: string; title: string; body: string }> = {
   welcome: {
     kicker: "Optional · about 1 minute",
-    title: "Set up Face & Voice ID.",
-    body: "A quick face scan from five angles, then one sentence read out loud. Only protected templates are kept — never your photos, audio, or ID images.",
+    title: "Set up your Salareen Learner Check.",
+    body: "It helps us know it’s really you in accredited courses. Take five quick selfies as the frame asks, then read one sentence out loud. We keep protected templates only, never your photos, audio, or ID images.",
   },
   scan: {
-    kicker: "Face scan",
+    kicker: "Face check",
     title: "Look straight at the camera.",
-    body: "We’ll open the front camera five times: straight on, then left, right, up, and down. Move only your head.",
+    body: "Face a window or a lamp so your face is well lit. Your phone’s camera app controls the front flash; if it has a screen flash, you can turn it on there.",
   },
   voice: {
     kicker: "Voice check",
     title: "Now read this out loud.",
-    body: "Speak naturally for 10 seconds. The recording is discarded after your voiceprint is created.",
+    body: "Speak naturally for 10 seconds. The recording is deleted from this phone as soon as your voiceprint is made.",
   },
   identity: {
     kicker: "Accredited course · Government ID",
@@ -62,46 +86,68 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
     body: "Courses that lead to a certificate or license need a government ID match. The image is checked once and discarded.",
   },
   complete: {
-    kicker: "Face & Voice ID is set up",
+    kicker: "Salareen Learner Check is set up",
     title: "You’re all set.",
     body: "Review or remove it any time in Profile → Settings → Camera check.",
   },
 };
 
-function TickRing({ lit, progress = 0, done = false }: { lit: boolean[]; progress?: number; done?: boolean }) {
-  const size = 300;
-  const c = size / 2;
+type Shot = {
+  base64: string;
+  uri: string;
+  contour: FaceContour | null;
+  frame: [number, number];
+};
+
+type Problem = { message: string; settings?: boolean };
+
+async function discardFile(uri: string | null | undefined) {
+  if (!uri) return;
+  await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+}
+
+function voiceProblem(reason: unknown): Problem {
+  const status = (reason as { status?: number })?.status;
+  const message = String((reason as Error)?.message ?? reason);
+  if (status === 503) return { message: "The voice check isn’t available right now. Try again in a minute, or set it up later." };
+  if (/silent|too quiet/i.test(message)) return { message: "We couldn’t hear you. Hold the phone closer and read the sentence out loud." };
+  if (/clipped/i.test(message)) return { message: "That was too loud. Hold the phone a little farther away and try again." };
+  if (/between 8 and 15|too short|decoded/i.test(message)) {
+    return { message: "The recording didn’t come through in full. Try again and keep reading until the bar fills." };
+  }
+  return { message: `Couldn’t save your voice check: ${message.replace(/^Error:\s*/, "")}` };
+}
+
+/** On a still we can’t know if the camera mirrored the photo, so left/right only
+ *  has to be a clear sideways turn (opposite to the other sideways shot). */
+export function stillMatchesTarget(target: Pose, seen: Pose | null, otherSideways: Pose | null): boolean {
+  if (!seen) return false;
+  const sideways = (pose: Pose) => pose === "left" || pose === "right";
+  if (!sideways(target)) return seen === target;
+  return sideways(seen) && seen !== otherSideways;
+}
+
+function Waveform({ bars, progress }: { bars: number[]; progress: number }) {
+  const width = bars.length * 10;
   return (
-    <Svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={StyleSheet.absoluteFillObject}>
-      {Array.from({ length: TICKS }, (_, index) => {
-        const angle = (index / TICKS) * Math.PI * 2;
-        const on = done || lit[index];
-        const inner = 132;
-        const outer = inner + (on ? 14 : 9);
+    <Svg width="100%" height={64} viewBox={`0 0 ${width} 64`} preserveAspectRatio="none">
+      {bars.map((level, index) => {
+        const height = Math.max(3, level * 60);
+        const filled = (index + 0.5) / bars.length <= progress;
         return (
-          <Line
+          <Rect
             key={index}
-            x1={c + Math.cos(angle) * inner}
-            y1={c + Math.sin(angle) * inner}
-            x2={c + Math.cos(angle) * outer}
-            y2={c + Math.sin(angle) * outer}
-            stroke={on ? "#30d158" : "rgba(255,255,255,0.25)"}
-            strokeWidth={3.5}
-            strokeLinecap="round"
+            x={index * 10 + 2}
+            y={32 - height / 2}
+            width={6}
+            height={height}
+            rx={3}
+            fill={filled ? C.accent : C.border}
           />
         );
       })}
       {progress > 0 ? (
-        <Circle
-          cx={c}
-          cy={c}
-          r={124}
-          fill="none"
-          stroke="#8be9ff"
-          strokeWidth={3}
-          strokeDasharray={`${progress * 2 * Math.PI * 124} ${2 * Math.PI * 124}`}
-          transform={`rotate(-90 ${c} ${c})`}
-        />
+        <Line x1={progress * width} x2={progress * width} y1={0} y2={64} stroke={C.warm} strokeWidth={2.5} />
       ) : null}
     </Svg>
   );
@@ -128,14 +174,20 @@ export default function BiometricSetupModal({
 }: Props) {
   const [step, setStep] = useState<Step>("welcome");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [problem, setProblem] = useState<Problem | null>(null);
   const [guardian, setGuardian] = useState(ageBand === "adult");
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [lit, setLit] = useState<boolean[]>(() => Array(TICKS).fill(false));
-  const [seconds, setSeconds] = useState(0);
+  const [order, setOrder] = useState<Pose[]>(() => shuffledPoses());
+  const [shots, setShots] = useState<Shot[]>([]);
+  const [contourNote, setContourNote] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [bars, setBars] = useState<number[]>(() => Array(WAVE_BARS).fill(0));
   const [hasEnrollment, setHasEnrollment] = useState(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const baseRef = useRef<Geometry | null>(null);
+  const seenRef = useRef<Partial<Record<Pose, Pose>>>({});
   const minor = ageBand !== "adult";
+  const canSkip = !requireGovernmentId;
 
   useEffect(() => {
     if (!visible) return;
@@ -149,110 +201,191 @@ export default function BiometricSetupModal({
   }, [studentId, visible]);
 
   const stopRecording = useCallback(async () => {
-    const recording = recordingRef.current;
+    const active = recordingRef.current;
     recordingRef.current = null;
-    if (!recording) return;
+    if (!active) return;
     try {
-      const status = await recording.getStatusAsync();
-      if (status.isRecording) await recording.stopAndUnloadAsync();
+      const status = await active.getStatusAsync();
+      if (status.isRecording) await active.stopAndUnloadAsync();
     } catch { /* best-effort cleanup */ }
+    await discardFile(active.getURI());
   }, []);
 
-  useEffect(() => () => { void stopRecording(); }, [stopRecording]);
+  const shotsRef = useRef<Shot[]>([]);
+  shotsRef.current = shots;
+  useEffect(() => () => {
+    void stopRecording();
+    shotsRef.current.forEach((shot) => void discardFile(shot.uri));
+  }, [stopRecording]);
 
   async function withBusy(action: () => Promise<void>) {
     setBusy(true);
-    setError("");
+    setProblem(null);
     try {
       await action();
     } catch (reason) {
-      setError(String(reason).replace(/^Error:\s*/, ""));
+      setProblem({ message: String((reason as Error)?.message ?? reason).replace(/^Error:\s*/, "") });
     } finally {
       setBusy(false);
     }
   }
 
+  function resetScan() {
+    shotsRef.current.forEach((shot) => void discardFile(shot.uri));
+    setShots([]);
+    setOrder(shuffledPoses());
+    setContourNote("");
+    baseRef.current = null;
+    seenRef.current = {};
+  }
+
   async function begin() {
     await withBusy(async () => {
       await setMobileBiometricConsent(studentId, true, minor ? guardian : false);
-      setPhotos([]);
-      setLit(Array(TICKS).fill(false));
+      resetScan();
       setStep("scan");
     });
   }
 
-  async function cameraPhoto(front = true): Promise<string | null> {
+  async function takePhoto(front: boolean): Promise<ImagePicker.ImagePickerAsset | null> {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) throw new Error("Camera permission is required");
+    if (!permission.granted) {
+      setProblem({
+        message: "Camera access is off for Salareen. Allow the camera in Settings, then try again.",
+        settings: !permission.canAskAgain,
+      });
+      return null;
+    }
     const result = await ImagePicker.launchCameraAsync({
       cameraType: front ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
       base64: true,
-      quality: 0.72,
+      quality: 0.6,
       allowsEditing: false,
       exif: false,
     });
-    return result.canceled ? null : (result.assets[0]?.base64 ?? null);
-  }
-
-  function lightPose(pose: (typeof POSES)[number]) {
-    setLit((current) => {
-      const next = [...current];
-      for (let offset = -9; offset < 9; offset += 1) next[(POSE_TICK[pose] + offset + TICKS) % TICKS] = true;
-      return next;
-    });
+    if (result.canceled) return null;
+    return result.assets[0] ?? null;
   }
 
   async function capture() {
     await withBusy(async () => {
-      const photo = await cameraPhoto();
-      if (!photo) return;
-      const next = [...photos, photo];
-      setPhotos(next);
-      if (next.length > 1) lightPose(POSES[next.length - 2]);
-      if (next.length === POSES.length + 1) {
-        await enrollMobileFaceImages(studentId, next);
+      const asset = await takePhoto(true);
+      if (!asset?.base64) return;
+      const target = shots.length === 0 ? null : order[shots.length - 1];
+      let contour: FaceContour | null = null;
+      let frame: [number, number] = [asset.width || 3, asset.height || 4];
+      const preview = await previewMobileFace(studentId, asset.base64).catch(() => null);
+      if (preview) {
+        if (preview.faces.length !== 1) {
+          await discardFile(asset.uri);
+          setProblem({
+            message: preview.faces.length
+              ? "Only one face, please. Try again."
+              : "We couldn’t see your face clearly. Face a window or lamp and try again.",
+          });
+          return;
+        }
+        const face = preview.faces[0];
+        frame = [face.frame_size[0] || frame[0], face.frame_size[1] || frame[1]];
+        contour = faceContour(face.landmarks);
+        const geometry = faceGeometry(face.landmarks, face.bbox, frame);
+        if (geometry && !target) baseRef.current = geometry;
+        if (geometry && target && baseRef.current) {
+          const seen = poseFromBaseline(baseRef.current, geometry);
+          const otherSideways = target === "left" ? seenRef.current.right ?? null
+            : target === "right" ? seenRef.current.left ?? null : null;
+          if (!stillMatchesTarget(target, seen, otherSideways)) {
+            await discardFile(asset.uri);
+            setProblem({ message: `${seen ? "Almost." : "Turn a little more."} ${POSE_COPY[target]}, then take the photo again.` });
+            return;
+          }
+          if (seen) seenRef.current[target] = seen;
+        }
+      } else {
+        setContourNote("Face outline unavailable right now; your photos are still checked when you finish.");
+      }
+      const next = [...shots, { base64: asset.base64, uri: asset.uri, contour, frame }];
+      setShots(next);
+      if (next.length === order.length + 1) {
+        try {
+          await enrollMobileFaceImages(studentId, next.map((shot) => shot.base64), order);
+        } catch (reason) {
+          next.forEach((shot) => void discardFile(shot.uri));
+          resetScan();
+          throw reason;
+        }
+        next.forEach((shot) => void discardFile(shot.uri));
+        setShots([]);
         setStep("voice");
       }
     });
   }
 
   async function recordVoice() {
-    await withBusy(async () => {
+    setBusy(true);
+    setProblem(null);
+    setElapsed(0);
+    setBars(Array(WAVE_BARS).fill(0));
+    let uri: string | null = null;
+    try {
       const permission = await Audio.requestPermissionsAsync();
-      if (!permission.granted) throw new Error("Microphone permission is required");
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      );
-      recordingRef.current = recording;
-      for (let value = 1; value <= 10; value += 1) {
-        await new Promise<void>((resolve) => setTimeout(() => resolve(), 1000));
-        setSeconds(value);
+      if (!permission.granted) {
+        setProblem({
+          message: "Microphone access is off for Salareen. Allow the microphone in Settings, then try again.",
+          settings: !permission.canAskAgain,
+        });
+        return;
       }
-      await recording.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const samples: LevelSample[] = [];
+      const { recording: active } = await Audio.Recording.createAsync(
+        { ...Audio.RecordingOptionsPresets.HIGH_QUALITY, isMeteringEnabled: true },
+        (status) => {
+          if (!status.isRecording) return;
+          const t = status.durationMillis / 1000;
+          // Some Android devices report no metering; keep a low "listening" bar.
+          samples.push({ t, level: status.metering == null ? 0.12 : meteringToLevel(status.metering) });
+          setBars(waveformBars(samples, VOICE_SECONDS, WAVE_BARS));
+          setElapsed(Math.min(VOICE_SECONDS, t));
+        },
+        100,
+      );
+      recordingRef.current = active;
+      setRecording(true);
+      await new Promise<void>((resolve) => setTimeout(() => resolve(), VOICE_SECONDS * 1000 + 200));
+      await active.stopAndUnloadAsync();
       recordingRef.current = null;
-      const uri = recording.getURI();
+      setRecording(false);
+      setElapsed(VOICE_SECONDS);
+      uri = active.getURI();
       if (!uri) throw new Error("No audio was recorded");
-      const blob = await (await fetch(uri)).blob();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(String(reader.result).split(",")[1] ?? "");
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      await discardFile(uri);
+      uri = null;
       await enrollMobileVoiceprint(studentId, base64);
-      setSeconds(0);
       setStep(requireGovernmentId ? "identity" : "complete");
-    });
+    } catch (reason) {
+      setProblem(voiceProblem(reason));
+    } finally {
+      await stopRecording();
+      await discardFile(uri);
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => undefined);
+      setRecording(false);
+      setBusy(false);
+    }
   }
 
   async function document() {
     await withBusy(async () => {
-      const photo = await cameraPhoto(false);
-      if (!photo) return;
-      const result = await submitMobileGovernmentId(studentId, photo);
-      if (result.status !== "verified") {
-        throw new Error("The portrait on this ID did not match. Use a clear, well-lit image and try again.");
+      const asset = await takePhoto(false);
+      if (!asset?.base64) return;
+      try {
+        const result = await submitMobileGovernmentId(studentId, asset.base64);
+        if (result.status !== "verified") {
+          throw new Error("The portrait on this ID did not match. Use a clear, well-lit image and try again.");
+        }
+      } finally {
+        await discardFile(asset.uri);
       }
       setStep("complete");
     });
@@ -260,6 +393,8 @@ export default function BiometricSetupModal({
 
   async function finish(skipped = false) {
     await withBusy(async () => {
+      await stopRecording();
+      resetScan();
       await completeMobileSetup(studentId, skipped);
       onComplete?.();
       onDismiss();
@@ -274,90 +409,159 @@ export default function BiometricSetupModal({
   }
 
   const text = copy[step];
-  const nextPose = photos.length === 0 ? null : POSES[photos.length - 1];
-  const title = step === "scan" && nextPose ? `Now turn ${nextPose}.` : text.title;
+  const target = step === "scan" && shots.length > 0 ? order[shots.length - 1] : null;
+  const title = step === "scan" && target
+    ? POSE_COPY[target]
+    : step === "voice" && recording ? "Keep reading…" : text.title;
   const done = step === "identity" || step === "complete";
   const progress = STEPS.indexOf(step);
+  const latest = shots[shots.length - 1];
+  const wide = useWindowDimensions().width >= 800;
 
   return (
     <Modal visible={visible} animationType="fade" presentationStyle="fullScreen" onRequestClose={onDismiss}>
       <SafeAreaView style={styles.root}>
-        <KenBurnsImage source={step === "voice" ? ART.voice : ART.face} opacity={0.28} />
-        <View style={styles.scrim} />
-        <ScrollView contentContainerStyle={styles.contentInner}>
+        <View style={styles.header}>
+          <Text style={styles.brand}>Salareen</Text>
           <View style={styles.bars}>
             {STEPS.slice(0, -1).map((item, index) => (
               <View key={item} style={[styles.bar, index <= progress && styles.barActive]} />
             ))}
           </View>
           {stepLabel ? <Text style={styles.stepLabel}>{stepLabel}</Text> : null}
-          <View style={styles.ringWrap}>
-            <View style={styles.lens}>
+        </View>
+        <View style={[styles.split, !wide && styles.splitStack]}>
+          <View style={[styles.artPane, !wide && styles.artBand]}>
+            <KenBurnsImage source={step === "voice" ? ART.voice : ART.face} style={StyleSheet.absoluteFill} />
+            <View style={styles.frame}>
+            {step === "scan" && latest ? (
+              <>
+                <Image source={{ uri: latest.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                {latest.contour ? (
+                  <Svg
+                    style={StyleSheet.absoluteFill}
+                    viewBox={`0 0 ${latest.frame[0]} ${latest.frame[1]}`}
+                    preserveAspectRatio="xMidYMid slice"
+                    testID="face-contour"
+                  >
+                    {[
+                      svgPath(latest.contour.outline, true),
+                      svgPath(latest.contour.rightEye, true),
+                      svgPath(latest.contour.leftEye, true),
+                      svgPath(latest.contour.nose),
+                      svgPath(latest.contour.mouth, true),
+                    ].map((d) => (
+                      <Path
+                        key={d}
+                        d={d}
+                        fill="none"
+                        stroke={C.teal}
+                        strokeWidth={Math.max(2, latest.frame[0] / 180)}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    ))}
+                  </Svg>
+                ) : null}
+              </>
+            ) : (
               <KenBurnsImage key={step === "voice" ? "voice" : "face"} source={step === "voice" ? ART.voice : ART.face} duration={16} />
-              {done ? <Text style={styles.check}>✓</Text> : null}
-            </View>
-            <TickRing lit={lit} progress={step === "voice" ? seconds / 10 : 0} done={done} />
+            )}
+            {(["TL", "TR", "BL", "BR"] as const).map((corner) => (
+              <View key={corner} style={[styles.corner, styles[`corner${corner}`], done && styles.cornerDone]} />
+            ))}
+            {target ? (
+              <Text style={[styles.cue, styles[`cue_${target}`]]} accessibilityElementsHidden>{POSE_ARROW[target]}</Text>
+            ) : null}
+            {done ? <Text style={styles.check}>✓</Text> : null}
           </View>
+          </View>
+          <View style={styles.pane}>
+          <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.contentInner, wide && styles.contentCenter]}>
           {step === "scan" ? (
-            <View style={styles.poses}>
-              {POSES.map((pose, index) => (
-                <Text key={pose} style={[styles.pose, photos.length > index + 1 && styles.poseDone]}>
-                  {photos.length > index + 1 ? "✓ " : ""}{pose}
-                </Text>
-              ))}
+            <View style={styles.targets}>
+              {order.map((pose, index) => {
+                const captured = shots.length > index + 1;
+                return (
+                  <Text key={pose} style={[styles.target, pose === target && styles.targetNow, captured && styles.targetDone]}>
+                    {captured ? "✓" : POSE_ARROW[pose]} {pose}
+                  </Text>
+                );
+              })}
             </View>
           ) : null}
-          <Text style={styles.kicker}>{text.kicker}</Text>
+          <Text style={styles.kicker}>{text.kicker}{step === "scan" ? ` · ${Math.max(0, shots.length - 1)} of ${order.length}` : ""}</Text>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.body}>{text.body}</Text>
-          {step === "voice" ? <Text style={styles.prompt}>{PROMPT}</Text> : null}
+          {step === "scan" && latest?.contour ? (
+            <Text style={styles.small}>The outline is drawn on the photo you just took.</Text>
+          ) : null}
+          {contourNote ? <Text style={styles.small}>{contourNote}</Text> : null}
+          {step === "voice" ? (
+            <>
+              <Text style={styles.prompt}>{PROMPT}</Text>
+              <View style={styles.wave} accessibilityRole="progressbar" accessibilityLabel="Voice recording" accessibilityValue={{ min: 0, max: VOICE_SECONDS, now: Math.round(elapsed) }}>
+                <Waveform bars={bars} progress={Math.min(1, elapsed / VOICE_SECONDS)} />
+                <Text style={styles.waveTime}>{Math.floor(elapsed)}s / {VOICE_SECONDS}s</Text>
+              </View>
+            </>
+          ) : null}
           {step === "welcome" && minor ? (
             <View style={styles.guardian}>
-              <Text style={styles.guardianText}>I’m the parent or guardian and I agree to this learner’s Face & Voice ID setup.</Text>
-              <Switch value={guardian} onValueChange={setGuardian} />
+              <Text style={styles.guardianText}>I’m the parent or guardian, and I agree to this learner’s Salareen Learner Check.</Text>
+              <Switch value={guardian} onValueChange={setGuardian} trackColor={{ true: C.accent, false: C.border }} />
             </View>
           ) : null}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          {busy && step !== "voice" ? <ActivityIndicator color={theme.colors.accent} style={styles.spinner} /> : null}
+          {problem ? <Text style={styles.error} accessibilityRole="alert">{problem.message}</Text> : null}
+          {busy && !recording ? <ActivityIndicator color={C.accent} style={styles.spinner} /> : null}
+          <Text style={styles.note}>
+            Games and general courses skip this. Accredited courses need it before the first full lesson.
+          </Text>
+          </ScrollView>
           <View style={styles.actions}>
+            {problem?.settings ? (
+              <Action title="Open Settings" onPress={() => void Linking.openSettings()} />
+            ) : null}
             {step === "welcome" ? (
               <>
                 <Action title="Get started" disabled={busy || (minor && !guardian)} onPress={() => void begin()} />
-                {!requireGovernmentId ? <Action title="Set up later" secondary onPress={() => void finish(true)} /> : null}
-                {hasEnrollment && !requireGovernmentId ? (
-                  <Action title="Remove saved identity" secondary disabled={busy} onPress={() => void removeIdentity()} />
+                {canSkip ? <Action title="Set up later" secondary onPress={() => void finish(true)} /> : null}
+                {hasEnrollment && canSkip ? (
+                  <Action title="Remove saved check" secondary disabled={busy} onPress={() => void removeIdentity()} />
                 ) : null}
               </>
             ) : null}
             {step === "scan" ? (
               <>
                 <Action
-                  title={photos.length === 0 ? "Open camera" : `Capture ${nextPose}`}
+                  title={shots.length === 0 ? "Take the first photo" : `Take photo: ${target}`}
                   disabled={busy}
                   onPress={() => void capture()}
                 />
-                {!requireGovernmentId ? <Action title="Set up later" secondary onPress={() => void finish(true)} /> : null}
+                {shots.length > 0 ? <Action title="Start over" secondary disabled={busy} onPress={resetScan} /> : null}
+                {canSkip ? <Action title="Set up later" secondary disabled={busy} onPress={() => void finish(true)} /> : null}
               </>
             ) : null}
             {step === "voice" ? (
-              <Action
-                title={busy ? `Recording… ${10 - seconds}s` : "Start recording"}
-                disabled={busy}
-                onPress={() => void recordVoice()}
-              />
+              <>
+                <Action
+                  title={recording ? `Recording… ${Math.max(0, Math.ceil(VOICE_SECONDS - elapsed))}s` : problem ? "Try again" : "Start recording"}
+                  disabled={busy}
+                  onPress={() => void recordVoice()}
+                />
+                {canSkip && !busy ? <Action title="Set up later" secondary onPress={() => void finish(true)} /> : null}
+              </>
             ) : null}
             {step === "identity" ? (
               <>
                 <Action title="Photograph ID securely" disabled={busy} onPress={() => void document()} />
-                {!requireGovernmentId ? <Action title="Not now" secondary onPress={() => setStep("complete")} /> : null}
+                {canSkip ? <Action title="Not now" secondary onPress={() => setStep("complete")} /> : null}
               </>
             ) : null}
             {step === "complete" ? <Action title="Continue" disabled={busy} onPress={() => void finish()} /> : null}
           </View>
-          <Text style={styles.note}>
-            Games and general courses never need Face & Voice ID. Accredited and certification courses require it before the first full lesson.
-          </Text>
-        </ScrollView>
+          </View>
+        </View>
       </SafeAreaView>
     </Modal>
   );
@@ -377,49 +581,88 @@ function Action({ title, onPress, secondary = false, disabled = false }: {
   );
 }
 
+const CUE = 48;
+
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#04060f" },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4,6,15,.6)" },
-  contentInner: { padding: 24, paddingBottom: 46 },
-  bars: { flexDirection: "row", gap: 6, marginBottom: 12 },
-  bar: { height: 4, flex: 1, borderRadius: 4, backgroundColor: "rgba(255,255,255,.18)" },
-  barActive: { backgroundColor: "#8be9ff" },
-  stepLabel: { color: "rgba(244,247,255,.7)", fontSize: 13, marginBottom: 8 },
-  ringWrap: { width: "86%", maxWidth: 340, aspectRatio: 1, alignSelf: "center", marginVertical: 12 },
-  lens: {
-    position: "absolute", top: "13%", left: "13%", right: "13%", bottom: "13%",
-    borderRadius: 999, overflow: "hidden", backgroundColor: "#0b1020",
-    borderWidth: 1, borderColor: "rgba(255,255,255,.14)",
+  root: { flex: 1, backgroundColor: C.panel },
+  header: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.bg,
   },
+  brand: { color: C.text, fontSize: 17, fontWeight: "800" },
+  split: { flex: 1, flexDirection: "row", minHeight: 0 },
+  splitStack: { flexDirection: "column" },
+  artPane: { flex: 1.15, minWidth: 0, alignItems: "center", justifyContent: "center", backgroundColor: C.panel2, overflow: "hidden" },
+  artBand: { flex: 0, width: "100%", height: "34%" },
+  pane: { flex: 1, minWidth: 0, minHeight: 0, backgroundColor: C.panel },
+  paneScroll: { flex: 1 },
+  contentInner: { flexGrow: 1, padding: 20, gap: 8 },
+  contentCenter: { justifyContent: "center" },
+  bars: { flex: 1, flexDirection: "row", gap: 6, maxWidth: 220 },
+  bar: { height: 4, flex: 1, borderRadius: 4, backgroundColor: C.border },
+  barActive: { backgroundColor: C.accent },
+  stepLabel: { color: C.muted, fontSize: 13, fontWeight: "600" },
+  frame: {
+    width: "72%", maxWidth: 420, aspectRatio: 3 / 4, maxHeight: "86%",
+    borderRadius: 16, overflow: "hidden", backgroundColor: "#111111", borderWidth: 1, borderColor: C.border,
+  },
+  corner: { position: "absolute", width: 40, height: 40, borderColor: C.teal },
+  cornerTL: { top: 14, left: 14, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 16 },
+  cornerTR: { top: 14, right: 14, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 16 },
+  cornerBL: { bottom: 14, left: 14, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 16 },
+  cornerBR: { bottom: 14, right: 14, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 16 },
+  cornerDone: { borderColor: C.accent },
+  cue: {
+    position: "absolute", width: CUE, height: CUE, borderRadius: CUE / 2, overflow: "hidden",
+    backgroundColor: C.accent, color: "#ffffff", textAlign: "center", lineHeight: CUE, fontSize: 24, fontWeight: "800",
+  },
+  cue_left: { left: 10, top: "50%", marginTop: -CUE / 2 },
+  cue_right: { right: 10, top: "50%", marginTop: -CUE / 2 },
+  cue_up: { top: 10, left: "50%", marginLeft: -CUE / 2 },
+  cue_down: { bottom: 10, left: "50%", marginLeft: -CUE / 2 },
   check: {
     ...StyleSheet.absoluteFillObject, textAlign: "center", textAlignVertical: "center",
-    lineHeight: 220, fontSize: 96, color: "#30d158", backgroundColor: "rgba(4,6,15,.55)",
+    lineHeight: 300, fontSize: 96, fontWeight: "800", color: "#ffffff", backgroundColor: "rgba(15,157,143,.55)",
   },
-  poses: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 8 },
-  pose: {
-    color: "rgba(244,247,255,.6)", backgroundColor: "rgba(255,255,255,.08)", borderRadius: 999,
-    paddingHorizontal: 12, paddingVertical: 6, overflow: "hidden", textTransform: "capitalize",
+  targets: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 8 },
+  target: {
+    minWidth: 72, minHeight: 40, textAlign: "center", textAlignVertical: "center", lineHeight: 38,
+    color: C.muted, backgroundColor: C.panel, borderWidth: 1, borderColor: C.border, borderRadius: 12,
+    paddingHorizontal: 10, overflow: "hidden", textTransform: "capitalize", fontWeight: "700",
   },
-  poseDone: { color: "#7ef29d", backgroundColor: "rgba(48,209,88,.2)" },
-  kicker: { color: "#8be9ff", fontSize: 12, fontWeight: "900", letterSpacing: 1.8, textTransform: "uppercase", marginTop: 8 },
-  title: { color: "#f8fbff", fontSize: 34, lineHeight: 38, fontWeight: "900", letterSpacing: -1.2, marginTop: 8 },
-  body: { color: "#c9d2e8", fontSize: 16, lineHeight: 23, marginTop: 10 },
+  targetNow: { color: C.accent, borderColor: C.accent },
+  targetDone: { color: "#ffffff", backgroundColor: C.teal, borderColor: C.teal },
+  kicker: { color: C.teal, fontSize: 12, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase", marginTop: 8 },
+  title: { color: C.text, fontSize: 30, lineHeight: 34, fontWeight: "900", letterSpacing: -0.8, marginTop: 8 },
+  body: { color: C.muted, fontSize: 16, lineHeight: 23, marginTop: 10 },
+  small: { color: C.muted, fontSize: 13, lineHeight: 18, marginTop: 8 },
   prompt: {
-    color: "#eef6ff", fontSize: 17, lineHeight: 25, marginTop: 16, padding: 18, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,.07)", borderWidth: 1, borderColor: "rgba(139,233,255,.25)",
+    color: C.text, fontSize: 18, lineHeight: 26, fontWeight: "600", marginTop: 16, padding: 16, borderRadius: 14,
+    backgroundColor: C.panel2, borderLeftWidth: 4, borderLeftColor: C.accent,
   },
+  wave: {
+    marginTop: 14, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 26, borderRadius: 14,
+    backgroundColor: C.panel, borderWidth: 1, borderColor: C.border,
+  },
+  waveTime: { position: "absolute", right: 12, bottom: 6, fontSize: 12, fontWeight: "700", color: C.muted },
   guardian: {
-    flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16, padding: 14, borderRadius: 16,
-    backgroundColor: "rgba(255,214,10,.1)", borderWidth: 1, borderColor: "rgba(255,214,10,.3)",
+    flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16, padding: 14, borderRadius: 14,
+    backgroundColor: C.panel, borderWidth: 1, borderColor: C.border,
   },
-  guardianText: { color: "#f1f4fb", flex: 1, lineHeight: 20 },
-  error: { color: "#ffb1b1", marginTop: 16 },
+  guardianText: { color: C.text, flex: 1, lineHeight: 20 },
+  error: {
+    color: C.danger, marginTop: 16, padding: 12, borderRadius: 12, overflow: "hidden",
+    backgroundColor: C.dangerSoft, borderWidth: 1, borderColor: "#fecaca",
+  },
   spinner: { marginTop: 18 },
-  actions: { gap: 10, marginTop: 22 },
-  button: { backgroundColor: "#f4f7ff", borderRadius: 999, minHeight: 52, alignItems: "center", justifyContent: "center", paddingHorizontal: 22 },
-  buttonSecondary: { backgroundColor: "rgba(255,255,255,.12)" },
-  buttonText: { color: "#04060f", fontSize: 16, fontWeight: "800" },
-  buttonTextSecondary: { color: "#f4f7ff" },
+  actions: {
+    gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16,
+    borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.panel,
+  },
+  button: { backgroundColor: C.accent, borderRadius: 12, minHeight: 52, alignItems: "center", justifyContent: "center", paddingHorizontal: 22 },
+  buttonSecondary: { backgroundColor: C.panel, borderWidth: 1, borderColor: C.border },
+  buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "800" },
+  buttonTextSecondary: { color: C.text },
   disabled: { opacity: .45 },
-  note: { color: "#8590ad", fontSize: 12, lineHeight: 18, marginTop: 22 },
+  note: { color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 22 },
 });

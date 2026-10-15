@@ -1668,6 +1668,10 @@ class VoiceprintRequest(BaseModel):
     audio_b64: str
 
 
+class FacePreviewRequest(BaseModel):
+    image_b64: str
+
+
 class DocumentSubmissionRequest(BaseModel):
     document_type: str
     front_image_b64: str
@@ -1781,6 +1785,27 @@ def enroll_biometric_face(
     state.pose = state.pose.model_validate(mark_record(state.pose, "verified"))
     _save_setup(acct, student_id, state)
     return {"student_id": student_id, "verified": True, "enrollments": enrollments}
+
+
+@app.post("/students/{student_id}/face-preview")
+def face_preview(
+    student_id: str, req: FacePreviewRequest, acct=Depends(current_account)
+) -> dict:
+    """Landmarks for one captured still so the app can draw the face contour.
+
+    Stateless: the image is forwarded once and not stored or enrolled."""
+    student = _owned_student(acct, student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    if not state.consent.granted:
+        raise HTTPException(status_code=409, detail="biometric consent is required")
+    try:
+        image = base64.b64decode(req.image_b64, validate=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="face image is invalid") from exc
+    if not 1_000 <= len(image) <= 8 * 1024 * 1024:
+        raise HTTPException(status_code=422, detail="face image size is invalid")
+    result = _perception_image("/detect-landmarks", image)
+    return {"student_id": student_id, "faces": result.get("faces", [])}
 
 
 @app.post("/students/{student_id}/biometric-face-images")

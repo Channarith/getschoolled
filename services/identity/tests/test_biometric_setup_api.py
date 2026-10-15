@@ -104,6 +104,43 @@ def test_face_and_document_store_only_verification_metadata(monkeypatch):
     assert image not in serialized
 
 
+def test_face_preview_needs_consent_and_stores_nothing(monkeypatch):
+    headers, student = _account()
+    student_id = student["id"]
+    image = base64.b64encode(b"\xff\xd8\xff" + b"\0" * 1500).decode()
+    assert client.post(
+        f"/students/{student_id}/face-preview", headers=headers, json={"image_b64": image},
+    ).status_code == 409
+    client.put(
+        f"/students/{student_id}/biometric-consent", headers=headers, json={"granted": True},
+    )
+    calls: list[str] = []
+    face = {
+        "bbox": [10, 20, 100, 120],
+        "landmarks": [[40, 60], [80, 60], [60, 85], [45, 110], [75, 110]],
+        "frame_size": [200, 260],
+        "score": 0.93,
+    }
+
+    def fake_image(path, payload):
+        calls.append(path)
+        return {"faces": [face]}
+
+    monkeypatch.setattr(identity_main, "_perception_image", fake_image)
+    before = client.get(f"/students/{student_id}/setup-assistant", headers=headers).json()
+    preview = client.post(
+        f"/students/{student_id}/face-preview", headers=headers, json={"image_b64": image},
+    )
+    assert preview.status_code == 200
+    assert preview.json()["faces"] == [face]
+    assert calls == ["/detect-landmarks"]
+    after = client.get(f"/students/{student_id}/setup-assistant", headers=headers).json()
+    assert after == before
+    assert client.post(
+        f"/students/{student_id}/face-preview", headers=headers, json={"image_b64": "@@"},
+    ).status_code == 422
+
+
 def test_biometric_delete_revokes_consent_and_templates(monkeypatch):
     headers, student = _account()
     student_id = student["id"]
