@@ -15,7 +15,11 @@ export default function SiteFooter() {
   const pathname = usePathname() ?? "/";
   const demoOnlyAnon = useDemoOnlyAnonymous();
   const signedIn = useSignedIn();
-  if (demoOnlyAnon || (pathname === "/" && signedIn !== true)) return null;
+  if (
+    demoOnlyAnon
+    || pathname.startsWith("/home-concepts")
+    || (pathname === "/" && signedIn !== true)
+  ) return null;
   return (
     <footer style={{ marginTop: 40, padding: "16px 24px", borderTop: "1px solid #333",
       fontSize: 12, opacity: 0.85, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>

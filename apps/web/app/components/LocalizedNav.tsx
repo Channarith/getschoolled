@@ -51,7 +51,11 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
 
   // Demo-only mode (sales_demo.exclusive) hides the full site chrome for signed-
   // out visitors so the inverted demo stays focused on the three demo features.
-  if (demoOnlyAnon || (pathname === "/" && signedIn !== true)) {
+  if (
+    demoOnlyAnon
+    || pathname.startsWith("/home-concepts")
+    || (pathname === "/" && signedIn !== true)
+  ) {
     return null;
   }
 
