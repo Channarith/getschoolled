@@ -358,6 +358,19 @@ export async function selectOnboardingPlan(tier: string): Promise<{ tier: string
   );
 }
 
+export async function submitOnboardingLearner(body: {
+  learner_name: string;
+  age: number;
+}): Promise<{ student: StudentProfile; age_band: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/learner`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
 export async function completeOnboarding(body: { learner_name?: string; age_band?: string }): Promise<{ completed: boolean }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/onboarding/complete`, {
@@ -656,6 +669,7 @@ export type StudentProfile = {
   accommodations_notes?: string; learner_category?: string;
   onboarding_completed_at?: number | null;
   onboarding_answers?: Record<string, unknown>;
+  modality_ratings?: Record<string, number>;
   profile_score?: string;
   profile_score_version?: string;
 };

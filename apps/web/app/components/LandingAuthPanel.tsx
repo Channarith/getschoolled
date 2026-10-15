@@ -1,21 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AppBadges from "./AppBadges";
 import { GoogleIcon, FacebookIcon, AppleIcon } from "./BrandIcons";
 import {
   AUTH_EVENT,
-  getOnboardingStatus,
   login,
   signup,
-  loginWithGoogle,
-  loginWithFacebook,
-  loginWithApple,
   setToken,
   submitOnboardingProfile,
 } from "../lib/api";
+import { signInWithSocial } from "../lib/socialAuth";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 
@@ -30,7 +27,6 @@ export default function LandingAuthPanel({ onSignedIn }: { onSignedIn?: () => vo
   const [emailError, setEmailError] = useState("");
   const [socialBusy, setSocialBusy] = useState(false);
   const [socialError, setSocialError] = useState("");
-  const gisRef = useRef(false);
 
   function signedIn() {
     window.dispatchEvent(new Event(AUTH_EVENT));
@@ -49,21 +45,12 @@ export default function LandingAuthPanel({ onSignedIn }: { onSignedIn?: () => vo
         : await signup(email, password, displayName);
       setToken(res.token);
       if (emailMode === "signup") {
-        // Auto-submit the profile step using the display name from the email,
-        // then jump to step 1 (Choose Plan) — users already gave us their name.
         try {
           await submitOnboardingProfile({ display_name: displayName });
-          localStorage.setItem("onboarding_step", "1");
         } catch { /* non-critical — onboarding page handles this */ }
         router.push("/onboarding");
       } else {
-        try {
-          const st = await getOnboardingStatus();
-          if (!st.completed) router.push("/onboarding");
-          else signedIn();
-        } catch {
-          signedIn();
-        }
+        signedIn();
       }
     } catch (e: any) {
       const msg = e?.message || String(e);
@@ -82,67 +69,8 @@ export default function LandingAuthPanel({ onSignedIn }: { onSignedIn?: () => vo
   const handleSocial = async (provider: "google" | "facebook" | "apple") => {
     setSocialBusy(true); setSocialError("");
     try {
-      let res: { token: string };
-      if (provider === "google") {
-        const GOOGLE_CLIENT_ID = "647091395717-scfbmvsudec5t9vqukk2h8k732bgd3kp.apps.googleusercontent.com";
-        if (!gisRef.current) {
-          await new Promise<void>((resolve, reject) => {
-            const s = document.createElement("script");
-            s.src = "https://accounts.google.com/gsi/client";
-            s.onload = () => resolve(); s.onerror = () => reject(new Error("Failed to load Google"));
-            document.head.appendChild(s);
-          });
-          gisRef.current = true;
-        }
-        res = await new Promise((resolve, reject) => {
-          (window as any).google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: async (r: { credential: string }) => {
-              try { resolve(await loginWithGoogle(r.credential)); } catch (e) { reject(e); }
-            },
-          });
-          (window as any).google.accounts.id.prompt((n: any) => {
-            if (n.isNotDisplayed() || n.isSkippedMoment()) reject(new Error("Google sign-in dismissed"));
-          });
-        });
-      } else if (provider === "facebook") {
-        const FACEBOOK_APP_ID = "1071803295271778";
-        if (!(window as any).FB) {
-          await new Promise<void>((resolve, reject) => {
-            (window as any).fbAsyncInit = () => {
-              (window as any).FB.init({ appId: FACEBOOK_APP_ID, version: "v19.0", cookie: true, xfbml: false });
-              resolve();
-            };
-            const s = document.createElement("script");
-            s.src = "https://connect.facebook.net/en_US/sdk.js";
-            s.onerror = () => reject(new Error("Failed to load Facebook")); document.head.appendChild(s);
-          });
-        }
-        const token = await new Promise<string>((resolve, reject) => {
-          (window as any).FB.login((r: any) => {
-            if (r.authResponse?.accessToken) resolve(r.authResponse.accessToken);
-            else reject(new Error("Facebook sign-in cancelled"));
-          }, { scope: "email,public_profile" });
-        });
-        res = await loginWithFacebook(token);
-      } else {
-        const APPLE_SERVICES_ID = "com.aiclassroom.web";
-        if (!(window as any).AppleID) {
-          await new Promise<void>((resolve, reject) => {
-            const s = document.createElement("script");
-            s.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js";
-            s.onload = () => resolve(); s.onerror = () => reject(new Error("Failed to load Apple")); document.head.appendChild(s);
-          });
-        }
-        (window as any).AppleID.auth.init({ clientId: APPLE_SERVICES_ID, scope: "name email", redirectURI: window.location.origin + "/login", usePopup: true });
-        const data = await (window as any).AppleID.auth.signIn();
-        res = await loginWithApple(data?.authorization?.id_token);
-      }
+      const res = await signInWithSocial(provider);
       setToken(res.token);
-      try {
-        const st = await getOnboardingStatus();
-        if (!st.completed) { router.push("/onboarding"); return; }
-      } catch { /* fall through to AUTH_EVENT */ }
       signedIn();
     } catch (e: any) {
       if (e?.error !== "popup_closed_by_user") setSocialError(String(e?.message || e));

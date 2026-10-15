@@ -107,6 +107,55 @@ ONBOARDING_LEARNING_SURVEY: List[SurveyQuestion] = [
     ),
 ]
 
+# "How do you learn best?" — each format rated 1–10 by the setup assistant.
+LEARNING_MODALITIES: Tuple[str, ...] = (
+    "video", "live_teacher", "presentation", "reading", "tutoring", "gaming",
+)
+_MODALITY_STYLE = {
+    "video": "visual",
+    "presentation": "visual",
+    "live_teacher": "auditory",
+    "tutoring": "auditory",
+    "reading": "reading_writing",
+    "gaming": "hands_on",
+}
+
+
+def normalize_modality_ratings(raw: Any) -> Dict[str, int]:
+    """Validate a complete 1–10 rating for every learning modality."""
+    if not isinstance(raw, dict):
+        raise ValueError("modality_ratings must be an object")
+    ratings: Dict[str, int] = {}
+    for key in LEARNING_MODALITIES:
+        value = raw.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"modality_ratings.{key} must be a number from 1 to 10")
+        if not 1 <= value <= 10 or int(value) != value:
+            raise ValueError(f"modality_ratings.{key} must be a number from 1 to 10")
+        ratings[key] = int(value)
+    return ratings
+
+
+def style_from_modality_ratings(ratings: Dict[str, int]) -> str:
+    """The style behind the top-rated format, or mixed when nothing stands out."""
+    by_style: Dict[str, int] = {}
+    for key, value in ratings.items():
+        style = _MODALITY_STYLE[key]
+        by_style[style] = max(by_style.get(style, 0), value)
+    ordered = sorted(by_style.values(), reverse=True)
+    if len(ordered) > 1 and ordered[0] - ordered[1] < 2:
+        return "mixed"
+    return max(by_style, key=lambda style: by_style[style])
+
+
+def group_preference_from_modality_ratings(ratings: Dict[str, int]) -> str:
+    if ratings["live_teacher"] - ratings["tutoring"] >= 2:
+        return "group"
+    if ratings["tutoring"] - ratings["live_teacher"] >= 2:
+        return "solo"
+    return "either"
+
+
 _STYLE_KEY = {
     "Visual — diagrams, video, demonstrations": "visual",
     "Auditory — listening, discussion, narration": "auditory",
@@ -282,6 +331,7 @@ class LearningProfile(BaseModel):
     motivation: str = "personal"
     accessibility: Dict[str, bool] = Field(default_factory=dict)
     accommodations_notes: str = ""
+    modality_ratings: Dict[str, int] = Field(default_factory=dict)
     learner_category: str = "mixed_balanced"
     profile_score: str = ""
     profile_score_version: str = PROFILE_SCORE_SCHEMA_VERSION
@@ -331,11 +381,17 @@ def _norm_choice(raw: Any, mapping: Dict[str, str], default: str) -> str:
 
 def derive_learning_profile(answers: Dict[str, Any]) -> LearningProfile:
     """Map survey answers to a structured profile + teaching category."""
-    primary = _norm_choice(answers.get("primary_style"), _STYLE_KEY, "mixed")
+    ratings = (
+        normalize_modality_ratings(answers["modality_ratings"])
+        if "modality_ratings" in answers else {}
+    )
+    primary_default = style_from_modality_ratings(ratings) if ratings else "mixed"
+    group_default = group_preference_from_modality_ratings(ratings) if ratings else "either"
+    primary = _norm_choice(answers.get("primary_style"), _STYLE_KEY, primary_default)
     pace = _norm_choice(answers.get("pace"), _PACE_KEY, "moderate")
     structure = _norm_choice(answers.get("structure"), _STRUCTURE_KEY, "step_by_step")
     session_length = _norm_choice(answers.get("session_length"), _SESSION_KEY, "medium")
-    group_preference = _norm_choice(answers.get("group_preference"), _GROUP_KEY, "either")
+    group_preference = _norm_choice(answers.get("group_preference"), _GROUP_KEY, group_default)
     reading_level = _norm_choice(answers.get("reading_level"), _READING_KEY, "intermediate")
     motivation = _norm_choice(answers.get("motivation"), _MOTIVATION_KEY, "personal")
 
@@ -365,6 +421,7 @@ def derive_learning_profile(answers: Dict[str, Any]) -> LearningProfile:
         motivation=motivation,
         accessibility=accessibility,
         accommodations_notes=notes,
+        modality_ratings=ratings,
         learner_category=category,
         raw_answers=dict(answers),
     )
@@ -400,7 +457,14 @@ def categorize_learner(
 
 
 def validate_onboarding_answers(answers: Dict[str, Any]) -> None:
-    """Raise ValueError when required questions are missing."""
+    """Raise ValueError when required questions are missing.
+
+    The setup assistant submits only ``modality_ratings``; a complete rating
+    set stands in for the long-form required questions.
+    """
+    if "modality_ratings" in answers:
+        normalize_modality_ratings(answers["modality_ratings"])
+        return
     missing = []
     for q in ONBOARDING_LEARNING_SURVEY:
         if not q.required:

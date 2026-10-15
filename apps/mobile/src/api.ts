@@ -2425,6 +2425,22 @@ export async function submitMobileOnboardingProfile(displayName: string): Promis
   if (!response.ok) throw new Error(`profile setup failed: ${response.status}`);
 }
 
+export async function submitMobileOnboardingLearner(
+  learnerName: string,
+  age: number,
+): Promise<{ studentId: string; ageBand: string }> {
+  const tok = getToken();
+  if (!tok) throw new Error("not signed in");
+  const response = await fetch(`${IDENTITY_URL}/onboarding/learner`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+    body: JSON.stringify({ learner_name: learnerName, age }),
+  });
+  if (!response.ok) throw new Error(`learner setup failed: ${response.status}`);
+  const body = (await response.json()) as { student: { id: string }; age_band: string };
+  return { studentId: body.student.id, ageBand: body.age_band };
+}
+
 export async function selectMobileFreePlan(): Promise<void> {
   const tok = getToken();
   if (!tok) throw new Error("not signed in");

@@ -30,3 +30,23 @@ def test_certification_accepts_verified_setup():
     decision = certification_assurance(state.model_dump(), assurance_required=True)
     assert decision.allowed is True
     assert decision.missing == []
+
+
+def test_modality_ratings_drive_style_and_require_every_format():
+    import pytest
+
+    from aoep_shared.learning_profile import (
+        derive_learning_profile,
+        validate_onboarding_answers,
+    )
+
+    even = {k: 7 for k in ("video", "live_teacher", "presentation", "reading", "tutoring", "gaming")}
+    assert derive_learning_profile({"modality_ratings": even}).primary_style == "mixed"
+    reader = {**even, "reading": 10}
+    profile = derive_learning_profile({"modality_ratings": reader})
+    assert profile.primary_style == "reading_writing"
+    assert profile.learner_category == "reading_structured"
+    with pytest.raises(ValueError):
+        validate_onboarding_answers({"modality_ratings": {"video": 5}})
+    with pytest.raises(ValueError):
+        validate_onboarding_answers({"modality_ratings": {**even, "video": 0}})

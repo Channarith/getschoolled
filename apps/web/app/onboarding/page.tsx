@@ -3,341 +3,449 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import BiometricSetupAssistant from "../components/BiometricSetupAssistant";
+import AccountStep from "./AccountStep";
 import {
   AUTH_EVENT,
+  completeOnboarding,
   getMe,
   getOnboardingStatus,
   getToken,
   selectOnboardingPlan,
+  submitLearningProfile,
   submitOnboardingBilling,
-  submitOnboardingProfile,
+  submitOnboardingLearner,
+  submitOnboardingSurveyAnalytics,
 } from "../lib/api";
-import LearningPreferencesStep from "./LearningPreferencesStep";
 import styles from "./Onboarding.module.css";
 
 const PLANS = [
-  { id: "free", label: "Free", price: "$0", class: "standard", blurb: "English classes with ads" },
-  { id: "basic", label: "Basic", price: "$9/mo", class: "standard", blurb: "5 languages, with ads" },
-  { id: "pro", label: "Pro", price: "$19/mo", class: "vip", blurb: "All languages, ad-free, solo classes" },
-  { id: "premium", label: "Premium", price: "$29/mo", class: "vip", blurb: "Everything + analytics" },
+  { id: "free", label: "Free", price: "$0", vip: false, blurb: "English classes with ads" },
+  { id: "basic", label: "Basic", price: "$9/mo", vip: false, blurb: "5 languages, with ads" },
+  { id: "pro", label: "Pro", price: "$19/mo", vip: true, blurb: "All languages, ad-free, solo classes" },
+  { id: "premium", label: "Premium", price: "$29/mo", vip: true, blurb: "Everything + analytics" },
 ] as const;
 
-const STEPS = ["Your info", "Choose plan", "Payment", "Who's learning", "Your learning"];
+const MODES = [
+  { id: "video", art: "mode-video", label: "Watching videos", blurb: "Short lessons you can pause and replay." },
+  { id: "live_teacher", art: "mode-person", label: "A live teacher", blurb: "Learning in person or in a live class." },
+  { id: "presentation", art: "mode-presentation", label: "Presentations", blurb: "Slides and visual walkthroughs." },
+  { id: "reading", art: "mode-reading", label: "Reading a book", blurb: "Taking your time with text and notes." },
+  { id: "tutoring", art: "mode-tutoring", label: "1:1 tutoring", blurb: "One coach, just for you." },
+  { id: "gaming", art: "mode-gaming", label: "Gaming", blurb: "Learning by playing and doing." },
+] as const;
+type ModeId = (typeof MODES)[number]["id"];
+
+type Step = "account" | "about" | "learn" | "identity" | "plan" | "payment";
+const BASE_STEPS: Step[] = ["about", "learn", "identity", "plan"];
+const STEP_LABEL: Record<Step, string> = {
+  account: "Your account",
+  about: "About you",
+  learn: "How you learn",
+  identity: "Face & Voice ID",
+  plan: "Your plan",
+  payment: "Your plan",
+};
+const STORAGE = {
+  step: "setup_assistant_step",
+  name: "onboarding_learner_name",
+  age: "onboarding_age",
+  ageBand: "onboarding_age_band",
+  ratings: "onboarding_modality_ratings",
+  student: "onboarding_student_id",
+  plan: "onboarding_plan",
+};
+
+function ageBandFor(age: number) {
+  if (age < 13) return "child";
+  if (age < 18) return "teen";
+  return "adult";
+}
+
+function readJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
-  // Restore step from localStorage so closing the tab mid-flow doesn't lose progress.
-  const [step, setStep] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    const saved = localStorage.getItem("onboarding_step");
-    return saved ? Number(saved) : 0;
-  });
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  // busyRef guards against double-clicks before React commits the disabled state.
-  const busyRef = useRef(false);
-  const [displayName, setDisplayName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [plan, setPlan] = useState<string>(() => {
-    if (typeof window === "undefined") return "free";
-    return localStorage.getItem("onboarding_plan") || "free";
-  });
-  const [learnerName, setLearnerName] = useState("");
-  const [ageBand, setAgeBand] = useState("adult");
+  const [step, setStep] = useState<Step>("about");
+  const [includeAccount, setIncludeAccount] = useState(false);
+  const [name, setName] = useState("");
+  const [age, setAge] = useState<number | "">("");
+  const [ratings, setRatings] = useState<Partial<Record<ModeId, number>>>({});
+  const [focus, setFocus] = useState<ModeId>("video");
+  const [studentId, setStudentId] = useState("");
+  const [plan, setPlan] = useState("free");
   const [billing, setBilling] = useState({
     line1: "", line2: "", city: "", state: "", postal_code: "", country: "US",
     card_number: "", exp_month: 12, exp_year: new Date().getFullYear() + 2, cvv: "",
   });
-
-  // Persist step to localStorage whenever it changes.
-  useEffect(() => {
-    localStorage.setItem("onboarding_step", String(step));
-  }, [step]);
-
-  // Persist plan so resuming mid-flow doesn't silently downgrade to free.
-  useEffect(() => {
-    localStorage.setItem("onboarding_plan", plan);
-  }, [plan]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  // Guards against double-clicks before React commits the disabled state.
+  const busyRef = useRef(false);
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace("/login?mode=signup");
+      setIncludeAccount(true);
+      setStep("account");
       return;
     }
     getOnboardingStatus().then((s) => {
       if (s.completed) router.replace("/");
     }).catch(() => {});
-    getMe().then((m) => {
-      setDisplayName(m.display_name || "");
-      setLearnerName(m.display_name || "");
-    }).catch(() => {});
+    const saved = localStorage.getItem(STORAGE.step) as Step | null;
+    const savedStudent = localStorage.getItem(STORAGE.student) || "";
+    const known = (["account", ...BASE_STEPS] as Step[]).includes(saved as Step);
+    if (saved && known && saved !== "account" && (saved === "about" || savedStudent)) setStep(saved);
+    setName(localStorage.getItem(STORAGE.name) || "");
+    const savedAge = Number(localStorage.getItem(STORAGE.age));
+    if (savedAge) setAge(savedAge);
+    setRatings(readJson(STORAGE.ratings, {}));
+    setStudentId(savedStudent);
+    setPlan(localStorage.getItem(STORAGE.plan) || "free");
   }, [router]);
 
-  // If the token gets cleared mid-session (e.g. by concurrent 401s), redirect to sign-in
-  // instead of leaving the user stuck on the onboarding page with no auth.
   useEffect(() => {
     const onAuthChange = () => {
-      if (!getToken()) {
-        localStorage.removeItem("onboarding_step");
-        localStorage.removeItem("onboarding_plan");
-        router.replace("/login?mode=signup");
+      if (!getToken() && step !== "account") {
+        Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
+        setIncludeAccount(true);
+        setStep("account");
       }
     };
     window.addEventListener(AUTH_EVENT, onAuthChange);
     return () => window.removeEventListener(AUTH_EVENT, onAuthChange);
-  }, [router]);
+  }, [step]);
 
-  const needsPayment = plan !== "free";
-  // Track the highest step reached so we know which pills are clickable
-  const [maxStep, setMaxStep] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    return Number(localStorage.getItem("onboarding_step") || 0);
-  });
   useEffect(() => {
-    if (step > maxStep) setMaxStep(step);
-  }, [step, maxStep]);
+    localStorage.setItem(STORAGE.step, step === "payment" ? "plan" : step);
+  }, [step]);
 
-  function goToStep(i: number) {
-    // Free plans skip payment entirely — never land on step 2 for them, even
-    // though maxStep reaches 3 after the 1 -> 3 jump.
-    if (i === 2 && !needsPayment) i = 1;
-    // Only allow navigating to steps already reached
-    if (i <= maxStep) { setError(""); setStep(i); }
-  }
+  useEffect(() => {
+    localStorage.setItem(STORAGE.ratings, JSON.stringify(ratings));
+  }, [ratings]);
 
-  async function nextFromInfo() {
+  useEffect(() => {
+    localStorage.setItem(STORAGE.plan, plan);
+  }, [plan]);
+
+  async function run(task: () => Promise<void>) {
     if (busyRef.current) return;
     busyRef.current = true;
-    setBusy(true); setError("");
+    setBusy(true);
+    setError("");
     try {
-      await submitOnboardingProfile({ display_name: displayName, phone });
-      setStep(1);
-    } catch (e) { setError(String(e)); }
-    finally { busyRef.current = false; setBusy(false); }
+      await task();
+    } catch (reason) {
+      setError(String(reason).replace(/^Error:\s*/, ""));
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   }
 
-  async function nextFromPlan() {
-    if (busyRef.current) return;
-    if (!needsPayment) {
-      busyRef.current = true;
-      setBusy(true); setError("");
-      try {
-        await selectOnboardingPlan(plan);
-        setStep(3);
-      } catch (e) { setError(String(e)); }
-      finally { busyRef.current = false; setBusy(false); }
+  const ageValue = typeof age === "number" ? age : 0;
+  const aboutReady = name.trim().length > 0 && ageValue >= 3 && ageValue <= 120;
+  const ageBand = ageValue ? ageBandFor(ageValue) : "adult";
+
+  function saveAbout() {
+    return run(async () => {
+      const result = await submitOnboardingLearner({ learner_name: name.trim(), age: ageValue });
+      localStorage.setItem(STORAGE.name, name.trim());
+      localStorage.setItem(STORAGE.age, String(ageValue));
+      localStorage.setItem(STORAGE.ageBand, result.age_band);
+      localStorage.setItem(STORAGE.student, result.student.id);
+      setStudentId(result.student.id);
+      setStep("learn");
+    });
+  }
+
+  const rated = MODES.filter((mode) => ratings[mode.id] != null).length;
+  const top = [...MODES].sort((a, b) => (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0))[0];
+
+  function rate(mode: ModeId, value: number) {
+    setRatings((current) => ({ ...current, [mode]: value }));
+    setFocus(mode);
+  }
+
+  function saveLearning() {
+    return run(async () => {
+      const answers = { modality_ratings: ratings };
+      await submitLearningProfile(studentId, answers);
+      const me = await getMe().catch(() => null);
+      if (me) {
+        void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: studentId, answers })
+          .catch(() => undefined);
+      }
+      window.dispatchEvent(new CustomEvent("aoep-learning-profile-saved"));
+      setStep("identity");
+    });
+  }
+
+  function savePlan() {
+    if (plan !== "free") {
+      setStep("payment");
       return;
     }
-    setStep(2);
-  }
-
-  async function nextFromBilling() {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setBusy(true); setError("");
-    try {
-      await submitOnboardingBilling({ ...billing, phone });
+    return run(async () => {
       await selectOnboardingPlan(plan);
-      setStep(3);
-    } catch (e) { setError(String(e)); }
-    finally { busyRef.current = false; setBusy(false); }
+      await finish();
+    });
   }
 
-  function nextFromLearner() {
-    localStorage.setItem("onboarding_learner_name", learnerName);
-    localStorage.setItem("onboarding_age_band", ageBand);
-    setError("");
-    setStep(4);
+  function savePayment() {
+    return run(async () => {
+      await submitOnboardingBilling({ ...billing });
+      await selectOnboardingPlan(plan);
+      await finish();
+    });
   }
 
   async function finish() {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setBusy(true); setError("");
-    try {
-      router.push("/account/camera-check?onboarding=1");
-    } catch (e) { setError(String(e)); }
-    finally { busyRef.current = false; setBusy(false); }
+    await completeOnboarding({ learner_name: name.trim(), age_band: ageBand });
+    Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
+    localStorage.removeItem("onboarding_step");
+    router.push("/");
   }
 
+  const stepOrder: Step[] = includeAccount ? ["account", ...BASE_STEPS] : BASE_STEPS;
+  const stepIndex = Math.max(0, stepOrder.indexOf(step === "payment" ? "plan" : step));
+  const stepLabel = `Step ${stepIndex + 1} of ${stepOrder.length} · ${STEP_LABEL[step]}`;
+
+  if (step === "identity" && studentId) {
+    return (
+      <BiometricSetupAssistant
+        studentId={studentId}
+        ageBand={ageBand}
+        stepLabel={stepLabel}
+        onBack={() => setStep("learn")}
+        onComplete={() => setStep("plan")}
+        onSkip={() => setStep("plan")}
+      />
+    );
+  }
+
+  const art = step === "account" ? "account" : step === "about" ? "about" : "learn";
+
   return (
-    <main className={styles.shell}>
-      <section className={styles.visual} aria-hidden="true">
-        <video autoPlay muted loop playsInline src="/setup-assistant/welcome.mp4" />
-        <Image src="/setup-assistant/welcome.webp" alt="" fill sizes="(max-width: 860px) 100vw, 50vw" />
-      </section>
-      <section className={styles.panel}>
-      <h1 style={{ marginBottom: 4 }}>Welcome to Salareen</h1>
-      <p className="muted">Set up your account in a few steps — just like Netflix.</p>
-      <div style={{ display: "flex", gap: 8, margin: "16px 0 24px", flexWrap: "wrap" }}>
-        {STEPS.map((label, i) => {
-          const isClickable = i <= maxStep && i !== step;
-          const isCurrent = i === step;
-          const isDone = i < step;
-          return (
-            <button
-              key={label}
-              type="button"
-              onClick={() => goToStep(i)}
-              disabled={!isClickable}
-              style={{
-                padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
-                background: isCurrent ? "#0ea5e9" : isDone ? "#164e63" : "#1e293b",
-                color: isCurrent ? "#001022" : isDone ? "#7dd3fc" : "#94a3b8",
-                border: "none",
-                cursor: isClickable ? "pointer" : "default",
-                textDecoration: isClickable ? "underline" : "none",
-              }}
-            >
-              {isDone ? "✓ " : ""}{i + 1}. {label}
-            </button>
-          );
-        })}
+    <main className={styles.shell} data-step={step}>
+      <div className={styles.backdrop} aria-hidden="true">
+        {step === "learn"
+          ? MODES.map((mode) => (
+            <Image
+              key={mode.id}
+              className={`${styles.art} ${focus === mode.id ? styles.artActive : ""}`}
+              src={`/setup-assistant/${mode.art}.webp`}
+              alt=""
+              fill
+              sizes="100vw"
+              priority={mode.id === "video"}
+            />
+          ))
+          : (
+            <Image key={art} className={`${styles.art} ${styles.artActive}`} src={`/setup-assistant/${art}.webp`} alt="" fill priority sizes="100vw" />
+          )}
+        <div className={styles.glow} />
       </div>
 
-      <div className="card">
-        {step === 0 && (
-          <>
-            <h2 style={{ marginTop: 0 }}>Tell us about you</h2>
-            <label style={{ display: "block", marginBottom: 10 }}>
-              Name
-              <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-                style={{ width: "100%", padding: 8, marginTop: 4 }} />
-            </label>
-            <label style={{ display: "block", marginBottom: 10 }}>
-              Phone (optional)
-              <input value={phone} onChange={(e) => setPhone(e.target.value)}
-                style={{ width: "100%", padding: 8, marginTop: 4 }} />
-            </label>
-            <button type="button" className="btn primary" disabled={busy} onClick={() => void nextFromInfo()}>
-              Continue
-            </button>
-          </>
-        )}
+      <header className={styles.topbar}>
+        <span className={styles.brand}>Salareen</span>
+        <div className={styles.progress} aria-label={stepLabel}>
+          {stepOrder.map((item, index) => (
+            <span key={item} className={index <= stepIndex ? styles.progressOn : ""} />
+          ))}
+        </div>
+        <span className={styles.stepLabel}>{stepLabel}</span>
+      </header>
 
-        {step === 1 && (
-          <>
-            <h2 style={{ marginTop: 0 }}>Choose your plan</h2>
-            <p className="muted" style={{ fontSize: 14 }}>
-              <strong>Standard</strong> plans include ads. <strong>VIP</strong> (Pro/Premium) is ad-free with more features.
-            </p>
-            <div style={{ display: "grid", gap: 10 }}>
-              {PLANS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPlan(p.id)}
-                  style={{
-                    textAlign: "left", padding: 14, borderRadius: 12, cursor: "pointer",
-                    border: plan === p.id ? "2px solid #0ea5e9" : "1px solid #334155",
-                    background: plan === p.id ? "#0c4a6e" : "#151c34",
-                    color: "#e2e8f0",
-                  }}
+      {step === "account" && (
+        <AccountStep onDone={() => { setIncludeAccount(true); setStep("about"); }} />
+      )}
+
+      {step === "about" && (
+        <section className={styles.panel}>
+          <span className={styles.eyebrow}>Welcome to Salareen</span>
+          <h1>Hi! What should we call you?</h1>
+          <p className={styles.lede}>Your personal assistant will set things up just for you. It takes about two minutes.</p>
+          <label className={styles.field}>
+            <span>Your first name</span>
+            <input
+              autoFocus
+              value={name}
+              placeholder="e.g. Maya"
+              maxLength={80}
+              onChange={(event) => setName(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter" && aboutReady) void saveAbout(); }}
+            />
+          </label>
+          <div className={styles.field}>
+            <span>How old are you?</span>
+            <div className={styles.ageRow}>
+              <button
+                type="button"
+                aria-label="Younger"
+                onClick={() => setAge(Math.max(3, (ageValue || 13) - 1))}
+              >−</button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={3}
+                max={120}
+                value={age}
+                placeholder="—"
+                aria-label="Age"
+                onChange={(event) => setAge(event.target.value ? Number(event.target.value) : "")}
+              />
+              <button
+                type="button"
+                aria-label="Older"
+                onClick={() => setAge(Math.min(120, (ageValue || 12) + 1))}
+              >+</button>
+              {ageValue > 0 && (
+                <span className={styles.band}>
+                  {ageBand === "child" ? "Kids experience" : ageBand === "teen" ? "Teen experience" : "Adult experience"}
+                </span>
+              )}
+            </div>
+            {ageValue > 0 && ageBand !== "adult" && (
+              <p className={styles.note}>A parent or guardian will be asked to approve camera and voice setup.</p>
+            )}
+          </div>
+          {error && <p className={styles.error} role="alert">{error}</p>}
+          <div className={styles.actions}>
+            <button className={styles.primary} disabled={busy || !aboutReady} onClick={() => void saveAbout()}>
+              {busy ? "Saving…" : "Continue"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {step === "learn" && (
+        <section className={`${styles.panel} ${styles.panelWide}`}>
+          <span className={styles.eyebrow}>{name ? `Nice to meet you, ${name}` : "How you learn"}</span>
+          <h1>How do you learn best?</h1>
+          <p className={styles.lede}>
+            Rate each one from 1 (not for me) to 10 (I love it).
+            {rated === MODES.length && top && <> Your favorite: <b>{top.label.toLowerCase()}</b>.</>}
+          </p>
+          <div className={styles.modes}>
+            {MODES.map((mode) => {
+              const value = ratings[mode.id];
+              return (
+                <article
+                  key={mode.id}
+                  className={`${styles.mode} ${focus === mode.id ? styles.modeFocus : ""}`}
+                  onMouseEnter={() => setFocus(mode.id)}
+                  onFocus={() => setFocus(mode.id)}
                 >
-                  <strong>{p.label}</strong> · {p.price}
-                  <span style={{
-                    marginLeft: 8, fontSize: 10, fontWeight: 800, textTransform: "uppercase",
-                    color: p.class === "vip" ? "#fbbf24" : "#94a3b8",
-                  }}>
-                    {p.class}
-                  </span>
-                  <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{p.blurb}</div>
-                </button>
-              ))}
-            </div>
-            <button type="button" onClick={() => goToStep(step - 1)} style={{ marginRight: 10, padding: "8px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600 }}>← Back</button>
-            <button type="button" className="btn primary" style={{ marginTop: 16 }} disabled={busy}
-              onClick={() => void nextFromPlan()}>
-              {needsPayment ? "Continue to payment" : "Continue"}
+                  <div className={styles.modeArt}>
+                    <Image src={`/setup-assistant/${mode.art}.webp`} alt="" fill sizes="(max-width: 860px) 50vw, 240px" />
+                    {value != null && <span className={styles.modeScore}>{value}</span>}
+                  </div>
+                  <div className={styles.modeBody}>
+                    <h3>{mode.label}</h3>
+                    <p>{mode.blurb}</p>
+                    <div className={styles.scale} role="radiogroup" aria-label={`Rate ${mode.label} from 1 to 10`}>
+                      {Array.from({ length: 10 }, (_, index) => index + 1).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          role="radio"
+                          aria-checked={value === n}
+                          aria-label={`${n}`}
+                          className={value != null && n <= value ? styles.scaleOn : ""}
+                          onClick={() => rate(mode.id, n)}
+                        >{n}</button>
+                      ))}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          {error && <p className={styles.error} role="alert">{error}</p>}
+          <div className={styles.actions}>
+            <button className={styles.primary} disabled={busy || rated < MODES.length} onClick={() => void saveLearning()}>
+              {busy ? "Saving…" : rated < MODES.length ? `Rate ${MODES.length - rated} more` : "Continue"}
             </button>
-          </>
-        )}
+            <button className={styles.ghost} onClick={() => setStep("about")}>Back</button>
+          </div>
+        </section>
+      )}
 
-        {step === 2 && (
-          <>
-            <h2 style={{ marginTop: 0 }}>Payment details</h2>
-            {/* SECURITY: This must be replaced with Stripe.js Elements before production.
-                Never send raw card data through your backend. Use Stripe.js tokenization
-                so card numbers are sent directly to Stripe and never touch this server. */}
-            <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#92400e" }}>
-              <strong>🔒 Demo mode:</strong> No real charge is made. For production, payment processing will use Stripe. Enter any test card (e.g. 4111 1111 1111 1111).
-            </div>
-            <p className="muted" style={{ fontSize: 13 }}>
-              Card is validated (Luhn + expiry). In production, payment runs through Stripe — we never store full card numbers.
-            </p>
-            <div style={{ display: "grid", gap: 8 }}>
-              <input placeholder="Card number" value={billing.card_number}
-                onChange={(e) => setBilling({ ...billing, card_number: e.target.value })}
-                style={{ padding: 8 }} />
-              <div style={{ display: "flex", gap: 8 }}>
-                <input type="number" placeholder="MM" value={billing.exp_month}
-                  onChange={(e) => setBilling({ ...billing, exp_month: Number(e.target.value) })}
-                  style={{ padding: 8, width: 80 }} />
-                <input type="number" placeholder="YYYY" value={billing.exp_year}
-                  onChange={(e) => setBilling({ ...billing, exp_year: Number(e.target.value) })}
-                  style={{ padding: 8, width: 100 }} />
-                <input placeholder="CVV" value={billing.cvv}
-                  onChange={(e) => setBilling({ ...billing, cvv: e.target.value })}
-                  style={{ padding: 8, width: 80 }} />
-              </div>
-              <input placeholder="Street address" value={billing.line1}
-                onChange={(e) => setBilling({ ...billing, line1: e.target.value })}
-                style={{ padding: 8 }} />
-              <div style={{ display: "flex", gap: 8 }}>
-                <input placeholder="City" value={billing.city}
-                  onChange={(e) => setBilling({ ...billing, city: e.target.value })}
-                  style={{ padding: 8, flex: 1 }} />
-                <input placeholder="State" value={billing.state}
-                  onChange={(e) => setBilling({ ...billing, state: e.target.value })}
-                  style={{ padding: 8, width: 80 }} />
-                <input placeholder="ZIP" value={billing.postal_code}
-                  onChange={(e) => setBilling({ ...billing, postal_code: e.target.value })}
-                  style={{ padding: 8, width: 100 }} />
-              </div>
-            </div>
-            <button type="button" onClick={() => goToStep(step - 1)} style={{ marginRight: 10, padding: "8px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600 }}>← Back</button>
-            <button type="button" className="btn primary" style={{ marginTop: 16 }} disabled={busy}
-              onClick={() => void nextFromBilling()}>
-              Validate &amp; continue
+      {step === "plan" && (
+        <section className={styles.panel}>
+          <span className={styles.eyebrow}>Last step</span>
+          <h1>Pick a plan to start.</h1>
+          <p className={styles.lede}>Standard plans include ads. VIP (Pro and Premium) is ad-free with more features. You can change this any time.</p>
+          <div className={styles.plans}>
+            {PLANS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`${styles.plan} ${plan === item.id ? styles.planOn : ""}`}
+                onClick={() => setPlan(item.id)}
+              >
+                <strong>{item.label}</strong>
+                <span className={styles.planPrice}>{item.price}</span>
+                {item.vip && <span className={styles.vip}>VIP</span>}
+                <small>{item.blurb}</small>
+              </button>
+            ))}
+          </div>
+          {error && <p className={styles.error} role="alert">{error}</p>}
+          <div className={styles.actions}>
+            <button className={styles.primary} disabled={busy} onClick={() => void savePlan()}>
+              {busy ? "Finishing…" : plan === "free" ? "Start learning" : "Continue to payment"}
             </button>
-          </>
-        )}
+            <button className={styles.ghost} onClick={() => setStep("identity")}>Back</button>
+          </div>
+        </section>
+      )}
 
-        {step === 3 && (
-          <>
-            <h2 style={{ marginTop: 0 }}>Who&apos;s learning?</h2>
-            <label style={{ display: "block", marginBottom: 10 }}>
-              Profile name
-              <input value={learnerName} onChange={(e) => setLearnerName(e.target.value)}
-                style={{ width: "100%", padding: 8, marginTop: 4 }} />
-            </label>
-            <label style={{ display: "block", marginBottom: 10 }}>
-              Age group
-              <select value={ageBand} onChange={(e) => setAgeBand(e.target.value)}
-                style={{ width: "100%", padding: 8, marginTop: 4 }}>
-                <option value="child">Child</option>
-                <option value="teen">Teen</option>
-                <option value="adult">Adult</option>
-              </select>
-            </label>
-            <button type="button" onClick={() => goToStep(step - 1)} style={{ marginRight: 10, padding: "8px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600 }}>← Back</button>
-            <button type="button" className="btn primary" disabled={busy} onClick={nextFromLearner}>
-              Continue
+      {step === "payment" && (
+        <section className={styles.panel}>
+          <span className={styles.eyebrow}>Payment</span>
+          <h1>Add a payment method.</h1>
+          {/* SECURITY: replace with Stripe.js Elements before production so raw card data never reaches our backend. */}
+          <p className={styles.note}>Demo mode: no real charge is made. Use a test card such as 4111 1111 1111 1111.</p>
+          <div className={styles.billing}>
+            <input placeholder="Card number" value={billing.card_number}
+              onChange={(e) => setBilling({ ...billing, card_number: e.target.value })} />
+            <div className={styles.billingRow}>
+              <input type="number" placeholder="MM" value={billing.exp_month}
+                onChange={(e) => setBilling({ ...billing, exp_month: Number(e.target.value) })} />
+              <input type="number" placeholder="YYYY" value={billing.exp_year}
+                onChange={(e) => setBilling({ ...billing, exp_year: Number(e.target.value) })} />
+              <input placeholder="CVV" value={billing.cvv}
+                onChange={(e) => setBilling({ ...billing, cvv: e.target.value })} />
+            </div>
+            <input placeholder="Street address" value={billing.line1}
+              onChange={(e) => setBilling({ ...billing, line1: e.target.value })} />
+            <div className={styles.billingRow}>
+              <input placeholder="City" value={billing.city}
+                onChange={(e) => setBilling({ ...billing, city: e.target.value })} />
+              <input placeholder="State" value={billing.state}
+                onChange={(e) => setBilling({ ...billing, state: e.target.value })} />
+              <input placeholder="ZIP" value={billing.postal_code}
+                onChange={(e) => setBilling({ ...billing, postal_code: e.target.value })} />
+            </div>
+          </div>
+          {error && <p className={styles.error} role="alert">{error}</p>}
+          <div className={styles.actions}>
+            <button className={styles.primary} disabled={busy} onClick={() => void savePayment()}>
+              {busy ? "Validating…" : "Validate and start learning"}
             </button>
-          </>
-        )}
-
-        {step === 4 && (
-          <LearningPreferencesStep
-            learnerName={learnerName}
-            onBack={() => goToStep(3)}
-            onDone={() => void finish()}
-          />
-        )}
-
-        {error && <p style={{ color: "#f87171", marginTop: 12 }}>{error}</p>}
-      </div>
-      </section>
+            <button className={styles.ghost} onClick={() => setStep("plan")}>Back</button>
+          </div>
+        </section>
+      )}
     </main>
   );
 }

@@ -155,8 +155,8 @@ audio) are linked underneath each preview - click to open/play them.
 Netflix-style UI tour (signed-out landing, Preview, profile dropdown, instant
 language switching): [docs/demos/netflix_ui_walkthrough.mp4](docs/demos/netflix_ui_walkthrough.mp4)
 
-First sign-in setup assistant (learner profile, learning preferences one per
-screen, consent, then optional portrait, pose, voice, and government-ID checks;
+First sign-in setup assistant (name and age, "How do you learn best?" with six
+formats rated 1 to 10, then an optional Face ID-style face scan and voice check;
 identity is required only for certification courses):
 [docs/demos/setup-assistant-walkthrough.mp4](docs/demos/setup-assistant-walkthrough.mp4)
 
