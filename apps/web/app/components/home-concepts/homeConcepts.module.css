@@ -163,6 +163,20 @@
 .learnerNotes { padding:12vh 6vw;background:#dcccb8;display:grid;grid-template-columns:.4fr 1fr 1fr;gap:5vw}.learnerNotes blockquote{font:400 29px/1.3 Georgia,serif;margin:0 0 25px}.learnerNotes span{font-size:10px;text-transform:uppercase;letter-spacing:.12em}
 .finalCta { min-height:75vh;padding:12vh 6vw;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#f4f0e8;color:#18161a}.finalCtaDark{background:#07080c;color:#f4f2f8}.finalCta img{width:105px}.finalCta>p{text-transform:uppercase;font-size:9px;letter-spacing:.18em}.finalCta h2{font:400 clamp(55px,8vw,125px)/.9 Georgia,serif;letter-spacing:-.06em;margin:4vh 0 6vh}.finalCta>div{display:flex;gap:10px;align-items:center}.finalCta>div>a{padding:14px 20px;border-radius:99px;background:#171519;color:white;text-decoration:none;font-size:12px}.finalCtaDark>div>a{background:#a392ff;color:#0a0910}.finalCta>a:last-child{margin-top:8vh;font-size:11px;opacity:.65}
 
+.clip { position:relative; margin:0; overflow:hidden; aspect-ratio:16/9; border-radius:16px; background:#0b0c12; box-shadow:0 18px 50px rgba(20,16,30,.18); isolation:isolate; }
+.clip video { display:block; width:100%; height:100%; object-fit:cover; }
+.clip figcaption { position:absolute; left:10px; right:10px; bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; pointer-events:none; }
+.clip figcaption span { color:#fff; background:rgba(10,10,16,.55); backdrop-filter:blur(8px); border-radius:99px; padding:6px 10px; font:600 10px/1.2 Arial,sans-serif; letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.clipLive i { display:inline-block; width:6px; height:6px; margin-right:6px; border-radius:50%; background:#ff5151; vertical-align:1px; animation:pulse 1.4s infinite; }
+.clipInset { margin-bottom:24px; border-radius:16px; }
+.clipCard { margin-bottom:auto; border-radius:16px; box-shadow:none; border:1px solid rgba(255,255,255,.14); }
+.clipWide { max-width:900px; margin:0 0 7vh; border-radius:22px; }
+.clipWidget { margin:-10px -10px 16px; border-radius:16px; box-shadow:none; flex:none; }
+.clipFill { position:absolute; inset:0; aspect-ratio:auto; border-radius:0; box-shadow:none; z-index:0; }
+.scanner::before,.scanner i { z-index:2; }
+.clipEditorial { border-radius:4px; box-shadow:0 22px 60px rgba(60,32,20,.18); }
+.learnerNotes .clipEditorial { margin-top:22px; }
+
 @keyframes auroraSpin{to{transform:rotate(360deg)}}@keyframes float{50%{transform:translateY(-14px)}}@keyframes rhythm{to{filter:hue-rotate(35deg);transform:scaleY(.72)}}@keyframes wave{to{transform:scaleY(.35);opacity:.55}}@keyframes mapSpin{to{transform:rotate(352deg)}}@keyframes pulse{50%{opacity:.25}}@keyframes signalRotate{to{transform:rotate(360deg)}}@keyframes scan{from{transform:translateX(-100%)}to{transform:translateX(390%)}}
 
 @media(max-width:900px){

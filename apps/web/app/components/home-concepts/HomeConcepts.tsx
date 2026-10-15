@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./homeConcepts.module.css";
 
 export const conceptSlugs = [
@@ -66,6 +66,44 @@ function Brand({ light = false }: { light?: boolean }) {
       <img src="/logo-mark.webp" alt="" width={38} height={38} />
       <span>Salareen</span>
     </Link>
+  );
+}
+
+function ConceptClip({ id, label, caption, className = "" }: {
+  id: string;
+  label: string;
+  caption: string;
+  className?: string;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !reduceMotion.matches) video.play().catch(() => undefined);
+      else video.pause();
+    }, { threshold: 0.25 });
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, [id]);
+  return (
+    <figure className={`${styles.clip} ${className}`}>
+      <video
+        ref={ref}
+        src={`/landing-concepts/clips/${id}.mp4`}
+        poster={`/landing-concepts/clips/${id}.webp`}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-label={`${label}: ${caption}`}
+      />
+      <figcaption>
+        <span className={styles.clipLive}><i aria-hidden />{label}</span>
+        <span>{caption}</span>
+      </figcaption>
+    </figure>
   );
 }
 
@@ -228,6 +266,7 @@ function AuroraStory({ concept }: { concept: Concept }) {
         <h2>Not one lesson<br />for everyone.</h2>
         <p>A tutor that notices the pause before an answer, remembers yesterday&apos;s breakthrough, and changes course without making a learner feel behind.</p>
         <div className={styles.lessonGlass}>
+          <ConceptClip id="aurora-student" label="1:1 lesson" caption="Maya, 15 · Astronomy" className={styles.clipInset} />
           <div><small>Today&apos;s learning rhythm</small><strong>Curious & focused</strong></div>
           <div className={styles.rhythm}><i /><i /><i /><i /><i /></div>
           <p>“Let&apos;s try the solar system as a story you can walk through.”</p>
@@ -240,7 +279,7 @@ function AuroraStory({ concept }: { concept: Concept }) {
           <p>Play, build, speak, explore. Salareen moves fluidly between explanation and experience.</p>
         </div>
         <div className={styles.cinemaCard}>
-          <div className={styles.planet} />
+          <ConceptClip id="aurora-avatar" label="Sala · AI teacher" caption="Explaining orbits" className={styles.clipCard} />
           <strong>Orbital Lab</strong>
           <span>Drag to change gravity</span>
         </div>
@@ -253,6 +292,7 @@ function AuroraStory({ concept }: { concept: Concept }) {
       <section className={styles.auroraHuman} id="voices">
         <p>03 · Together</p>
         <blockquote>“Technology should make a great teacher feel closer, not farther away.”</blockquote>
+        <ConceptClip id="aurora-group" label="Live class · 6 learners" caption="How cities breathe" className={styles.clipWide} />
         <div className={styles.liveClass}>
           <div className={styles.teacherPortrait}><span>Live</span></div>
           <div><small>Wednesday · 4:00 PM</small><h3>How cities breathe</h3><p>with Maya Chen + 8 learners</p></div>
@@ -301,9 +341,9 @@ function LearningWorlds({ concept }: { concept: Concept }) {
       <section className={styles.widgetBoard} id="experience">
         <div className={styles.widgetIntro}><span>Made for momentum</span><h2>Your day,<br />beautifully in motion.</h2></div>
         <article className={styles.streakWidget}><span>7 day spark</span><strong>Keep it glowing</strong><div>{[1,2,3,4,5,6,7].map((n) => <i key={n}>{n}</i>)}</div></article>
-        <article className={styles.tutorWidget}><small>Your tutor noticed</small><p>You learn fractions faster when you can move the pieces.</p><button type="button">Try a visual lesson</button></article>
-        <article className={styles.liveWidget}><span>Live now</span><div className={styles.faces}><i>A</i><i>M</i><i>K</i><i>+5</i></div><strong>Build a tiny weather station</strong><Link href="/group-classes">Join room →</Link></article>
-        <article className={styles.questWidget}><small>Next quest</small><strong>Can coral reefs talk?</strong><span>12 min · Biology · Story</span><button type="button">Start</button></article>
+        <article className={styles.tutorWidget}><ConceptClip id="worlds-avatar" label="Sala · tutor" caption="Fractions you can move" className={styles.clipWidget} /><small>Your tutor noticed</small><p>You learn fractions faster when you can move the pieces.</p><button type="button">Try a visual lesson</button></article>
+        <article className={styles.liveWidget}><ConceptClip id="worlds-group" label="Live now" caption="Weather station build" className={styles.clipWidget} /><span>Live now</span><div className={styles.faces}><i>A</i><i>M</i><i>K</i><i>+5</i></div><strong>Build a tiny weather station</strong><Link href="/group-classes">Join room →</Link></article>
+        <article className={styles.questWidget}><ConceptClip id="worlds-play" label="Vision Play" caption="Spot it, name it" className={styles.clipWidget} /><small>Next quest</small><strong>Can coral reefs talk?</strong><span>12 min · Biology · Story</span><button type="button">Start</button></article>
       </section>
       <section className={styles.worldsFlow} id="how">
         <div><span>1</span><h3>Tell us what lights you up.</h3><p>A subject, a goal, or simply a question.</p></div>
@@ -350,8 +390,14 @@ function SignalStudio({ concept }: { concept: Concept }) {
         </div>
         <div className={styles.channelDemo}>
           <div className={styles.scanner}>
+            <ConceptClip
+              key={channel}
+              id={`signal-${channel}`}
+              label={`${channel.toUpperCase()} / LIVE`}
+              caption={{ vision: "Reading handwritten math", voice: "Spanish conversation practice", play: "Adaptive geometry challenge" }[channel]}
+              className={styles.clipFill}
+            />
             <i /><i /><i /><i />
-            <span>{channel.toUpperCase()} SIGNAL</span>
           </div>
           <div aria-live="polite"><small>{channelCopy[0]}</small><h2>{channelCopy[1]}</h2><p>{channelCopy[2]}</p><Link href={channel === "vision" ? "/vision" : channel === "play" ? "/arcade" : "/languages"}>Launch module ↗</Link></div>
         </div>
@@ -386,7 +432,9 @@ function HumanJournal({ concept }: { concept: Concept }) {
           <p>Salareen is a learning platform designed around a simple belief: technology works best when it helps people feel seen.</p>
           <Link href="/demo">Experience a free class →</Link>
         </div>
-        <div className={styles.journalImage}><span>Learning in progress</span></div>
+        <div className={styles.journalImage}>
+          <ConceptClip id="journal-student" label="Evening study" caption="Marcus · on his own schedule" className={styles.clipFill} />
+        </div>
       </section>
       <section className={styles.editorialGrid} id="experience">
         <aside><span>In this story</span><a href="#beliefs">01 · What we believe</a><a href="#teacher">02 · Teacher, amplified</a><a href="#voices">03 · Learner notes</a></aside>
@@ -404,11 +452,14 @@ function HumanJournal({ concept }: { concept: Concept }) {
         ))}
       </section>
       <section className={styles.teacherStory} id="teacher">
-        <div className={styles.teacherImage}><span>Maya Chen<br />Live science educator</span></div>
+        <ConceptClip id="journal-group" label="Maya Chen · live science" caption="Sala flags who needs help" className={styles.clipEditorial} />
         <div><p className={styles.sectionLabel}>Teacher, amplified</p><h2>“I can finally see who needs me before they raise a hand.”</h2><p>During every live class, Salareen quietly tracks questions, misconceptions, and moments of momentum. Maya sees the room more clearly. Learners get more of Maya.</p><Link href="/group-classes">Step inside a live class →</Link></div>
       </section>
       <section className={styles.learnerNotes} id="voices">
-        <p className={styles.sectionLabel}>Notes from learners</p>
+        <div>
+          <p className={styles.sectionLabel}>Notes from learners</p>
+          <ConceptClip id="journal-avatar" label="Sala · AI teacher" caption="Patient, every time" className={styles.clipEditorial} />
+        </div>
         <div><blockquote>“It remembered the space project I abandoned last summer—and helped me finish it.”</blockquote><span>Leila · 16</span></div>
         <div><blockquote>“I learn on my commute. It feels like calling the smartest, most patient friend I know.”</blockquote><span>Marcus · 38</span></div>
       </section>
