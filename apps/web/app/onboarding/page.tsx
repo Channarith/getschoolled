@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import AvatarImage from "../components/AvatarImage";
 import BiometricSetupAssistant from "../components/BiometricSetupAssistant";
+import { AGE_MAX, AGE_MIN, AGE_OPTIONS, clampAge } from "../lib/learnerCheck";
 import AccountStep from "./AccountStep";
 import {
   AUTH_EVENT,
@@ -42,7 +44,7 @@ const STEP_LABEL: Record<Step, string> = {
   account: "Your account",
   about: "About you",
   learn: "How you learn",
-  identity: "Face & Voice ID",
+  identity: "Learner Check",
   plan: "Your plan",
   payment: "Your plan",
 };
@@ -77,6 +79,8 @@ export default function OnboardingPage() {
   const [includeAccount, setIncludeAccount] = useState(false);
   const [name, setName] = useState("");
   const [age, setAge] = useState<number | "">("");
+  const [avatarId, setAvatarId] = useState<string | undefined>();
+  const ageRef = useRef<HTMLSelectElement>(null);
   const [ratings, setRatings] = useState<Partial<Record<ModeId, number>>>({});
   const [focus, setFocus] = useState<ModeId>("video");
   const [studentId, setStudentId] = useState("");
@@ -103,7 +107,12 @@ export default function OnboardingPage() {
     const savedStudent = localStorage.getItem(STORAGE.student) || "";
     const known = (["account", ...BASE_STEPS] as Step[]).includes(saved as Step);
     if (saved && known && saved !== "account" && (saved === "about" || savedStudent)) setStep(saved);
-    setName(localStorage.getItem(STORAGE.name) || "");
+    const savedName = localStorage.getItem(STORAGE.name) || "";
+    setName(savedName);
+    getMe().then((me) => {
+      setAvatarId(me.avatar_id);
+      if (!savedName && me.display_name) setName((current) => current || me.display_name);
+    }).catch(() => undefined);
     const savedAge = Number(localStorage.getItem(STORAGE.age));
     if (savedAge) setAge(savedAge);
     setRatings(readJson(STORAGE.ratings, {}));
@@ -150,8 +159,22 @@ export default function OnboardingPage() {
     }
   }
 
+  // Desktop mouse wheel / trackpad scroll over the age picker steps the age,
+  // like a wheel. Needs a non-passive listener to stop the page scrolling.
+  useEffect(() => {
+    const select = ageRef.current;
+    if (!select) return;
+    const onWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) < 1) return;
+      event.preventDefault();
+      setAge((current) => clampAge((typeof current === "number" ? current : 12) + (event.deltaY > 0 ? 1 : -1)));
+    };
+    select.addEventListener("wheel", onWheel, { passive: false });
+    return () => select.removeEventListener("wheel", onWheel);
+  }, [step]);
+
   const ageValue = typeof age === "number" ? age : 0;
-  const aboutReady = name.trim().length > 0 && ageValue >= 3 && ageValue <= 120;
+  const aboutReady = name.trim().length > 0 && ageValue >= AGE_MIN && ageValue <= AGE_MAX;
   const ageBand = ageValue ? ageBandFor(ageValue) : "adult";
 
   function saveAbout() {
@@ -231,29 +254,10 @@ export default function OnboardingPage() {
     );
   }
 
-  const art = step === "account" ? "account" : step === "about" ? "about" : "learn";
+  const art = step === "account" ? "account" : step === "about" ? "about" : step === "learn" ? "learn" : "plan";
 
   return (
     <main className={styles.shell} data-step={step}>
-      <div className={styles.backdrop} aria-hidden="true">
-        {step === "learn"
-          ? MODES.map((mode) => (
-            <Image
-              key={mode.id}
-              className={`${styles.art} ${focus === mode.id ? styles.artActive : ""}`}
-              src={`/setup-assistant/${mode.art}.webp`}
-              alt=""
-              fill
-              sizes="100vw"
-              priority={mode.id === "video"}
-            />
-          ))
-          : (
-            <Image key={art} className={`${styles.art} ${styles.artActive}`} src={`/setup-assistant/${art}.webp`} alt="" fill priority sizes="100vw" />
-          )}
-        <div className={styles.glow} />
-      </div>
-
       <header className={styles.topbar}>
         <span className={styles.brand}>Salareen</span>
         <div className={styles.progress} aria-label={stepLabel}>
@@ -263,6 +267,13 @@ export default function OnboardingPage() {
         </div>
         <span className={styles.stepLabel}>{stepLabel}</span>
       </header>
+      <div className={styles.split}>
+        {step !== "learn" && (
+          <div className={styles.artPane} aria-hidden="true">
+            <Image key={art} className={styles.art} src={`/setup-assistant/${art}.webp`} alt="" fill priority sizes="50vw" />
+          </div>
+        )}
+        <div className={styles.pane}>
 
       {step === "account" && (
         <AccountStep onDone={() => { setIncludeAccount(true); setStep("about"); }} />
@@ -270,43 +281,47 @@ export default function OnboardingPage() {
 
       {step === "about" && (
         <section className={styles.panel}>
-          <span className={styles.eyebrow}>Welcome to Salareen</span>
-          <h1>Hi! What should we call you?</h1>
-          <p className={styles.lede}>Your personal assistant will set things up just for you. It takes about two minutes.</p>
+          <span className={styles.eyebrow}>About you</span>
+          <h1>What should we call you?</h1>
+          <p className={styles.lede}>This name appears on your profile and in class. About two minutes to finish setup.</p>
           <label className={styles.field}>
-            <span>Your first name</span>
-            <input
-              autoFocus
-              value={name}
-              placeholder="e.g. Maya"
-              maxLength={80}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => { if (event.key === "Enter" && aboutReady) void saveAbout(); }}
-            />
+            <span>Profile name</span>
+            <div className={styles.nameRow}>
+              <AvatarImage avatarId={avatarId} size={52} alt="" className={styles.avatar} />
+              <input
+                autoFocus
+                name="name"
+                autoComplete="nickname"
+                value={name}
+                placeholder="e.g. Maya"
+                maxLength={80}
+                aria-describedby="profile-name-help"
+                onChange={(event) => setName(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter" && aboutReady) void saveAbout(); }}
+              />
+            </div>
+            <small id="profile-name-help" className={styles.help}>
+              The name on your profile and avatar. A nickname is fine. It doesn’t need to be your legal name.
+            </small>
           </label>
           <div className={styles.field}>
-            <span>How old are you?</span>
+            <span id="age-label">How old are you?</span>
             <div className={styles.ageRow}>
-              <button
-                type="button"
-                aria-label="Younger"
-                onClick={() => setAge(Math.max(3, (ageValue || 13) - 1))}
-              >−</button>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={3}
-                max={120}
-                value={age}
-                placeholder="—"
-                aria-label="Age"
-                onChange={(event) => setAge(event.target.value ? Number(event.target.value) : "")}
-              />
-              <button
-                type="button"
-                aria-label="Older"
-                onClick={() => setAge(Math.min(120, (ageValue || 12) + 1))}
-              >+</button>
+              <div className={styles.ageWheel}>
+                <select
+                  ref={ageRef}
+                  name="age"
+                  aria-labelledby="age-label"
+                  value={age === "" ? "" : String(age)}
+                  onChange={(event) => setAge(event.target.value ? Number(event.target.value) : "")}
+                >
+                  <option value="" disabled>Choose</option>
+                  {AGE_OPTIONS.map((value) => (
+                    <option key={value} value={value}>{value}</option>
+                  ))}
+                </select>
+                <span aria-hidden="true">years</span>
+              </div>
               {ageValue > 0 && (
                 <span className={styles.band}>
                   {ageBand === "child" ? "Kids experience" : ageBand === "teen" ? "Teen experience" : "Adult experience"}
@@ -331,8 +346,8 @@ export default function OnboardingPage() {
           <span className={styles.eyebrow}>{name ? `Nice to meet you, ${name}` : "How you learn"}</span>
           <h1>How do you learn best?</h1>
           <p className={styles.lede}>
-            Rate each one from 1 (not for me) to 10 (I love it).
-            {rated === MODES.length && top && <> Your favorite: <b>{top.label.toLowerCase()}</b>.</>}
+            Rate each from 1 (not for me) to 10 (I love it).
+            {rated === MODES.length && top && <> Favorite so far: <b>{top.label.toLowerCase()}</b>.</>}
           </p>
           <div className={styles.modes}>
             {MODES.map((mode) => {
@@ -383,7 +398,7 @@ export default function OnboardingPage() {
         <section className={styles.panel}>
           <span className={styles.eyebrow}>Last step</span>
           <h1>Pick a plan to start.</h1>
-          <p className={styles.lede}>Standard plans include ads. VIP (Pro and Premium) is ad-free with more features. You can change this any time.</p>
+          <p className={styles.lede}>Standard plans include ads. Pro and Premium are ad-free. You can change this any time.</p>
           <div className={styles.plans}>
             {PLANS.map((item) => (
               <button
@@ -446,6 +461,8 @@ export default function OnboardingPage() {
           </div>
         </section>
       )}
+        </div>
+      </div>
     </main>
   );
 }

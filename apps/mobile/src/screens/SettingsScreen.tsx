@@ -490,9 +490,9 @@ export default function SettingsScreen({
         </Row>
       </Section>
 
-      {/* Face & Voice ID — only shown for signed-in accounts */}
+      {/* Salareen Learner Check — only shown for signed-in accounts */}
       {!guestMode && student && (
-        <Section title="Face & Voice ID">
+        <Section title="Salareen Learner Check">
           <Text style={styles.desc}>
             Enrol your voice so the platform can verify your identity during lessons
             and track attendance. Say your name aloud — the recording is stored

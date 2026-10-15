@@ -6,7 +6,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView,
-  StyleSheet, Text, TextInput, View,
+  StyleSheet, Text, TextInput, useWindowDimensions, View,
 } from "react-native";
 
 import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, forgotPassword, resetPassword } from "../api";
@@ -157,39 +157,44 @@ export default function AuthScreen({
   }
 
   const current = languageInfo(locale);
+  const wideSetup = setup && useWindowDimensions().width >= 800;
 
   return (
     <KeyboardAvoidingView
       testID="auth-screen"
-      style={styles.root}
+      style={[styles.root, setup && styles.setupRoot]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {onBack ? (
         <Pressable onPress={onBack} testID="auth-back" hitSlop={8} style={styles.backBtn}>
-          <Text style={styles.backText}>{t("guest.back")}</Text>
+          <Text style={[styles.backText, setup && styles.setupBack]}>{t("guest.back")}</Text>
         </Pressable>
       ) : null}
+      <View style={setup ? [styles.setupSplit, wideSetup && styles.setupRow] : styles.fill}>
       {setup ? (
-        <KenBurnsImage source={require("../../assets/setup-assistant/account.webp")} opacity={0.55} />
+        <View style={[styles.setupArt, !wideSetup && styles.setupArtBand]}>
+          <KenBurnsImage source={require("../../assets/setup-assistant/account.webp")} style={StyleSheet.absoluteFill} />
+        </View>
       ) : null}
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        style={setup ? styles.fill : undefined}
+        contentContainerStyle={setup ? [styles.setupScroll, wideSetup && styles.setupScrollCenter] : styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.brand}>Salareen</Text>
-          {setup ? <Text style={styles.setupKicker}>New account · email</Text> : null}
-          <Text style={styles.title}>
+          <Text style={[styles.brand, setup && styles.setupBrand]}>Salareen</Text>
+          {setup ? <Text style={styles.setupKicker}>New account</Text> : null}
+          <Text style={[styles.title, setup && styles.setupTitle]}>
             {setup ? "Create your account." : t("auth.welcomeTitle")}
           </Text>
-          <Text style={styles.sub}>
+          <Text style={[styles.sub, setup && styles.setupSub]}>
             {setup
-              ? "The setup assistant is for new accounts. Use your email as your username and choose a password."
+              ? "New accounts start here. Your email is your username."
               : t("auth.welcomeSubtitle")}
           </Text>
         </View>
 
-        <GlassPanel style={styles.card}>
+        <GlassPanel style={[styles.card, setup && styles.setupCard]}>
           {mode === "signup" ? (
             <TextInput
               testID="auth-display-name"
@@ -267,7 +272,7 @@ export default function AuthScreen({
             onPress={() => void onSubmit()}
             loading={busy}
             disabled={busy}
-            variant="netflix"
+            variant={setup ? "brand" : "netflix"}
           />
           <AnimatedPressable onPress={() => {
             setError("");
@@ -386,8 +391,9 @@ export default function AuthScreen({
               })}`
               : t("auth.checkingBackend")}
         </Text>
-        <Text style={styles.version}>v{APP_VERSION}</Text>
+        <Text style={[styles.version, setup && styles.setupSub]}>v{APP_VERSION}</Text>
       </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -404,6 +410,25 @@ export function AuthLoadingScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  fill: { flex: 1, minHeight: 0, minWidth: 0 },
+  setupRoot: { backgroundColor: "#f4e9d8" },
+  setupSplit: { flex: 1, minHeight: 0 },
+  setupRow: { flexDirection: "row" },
+  setupArt: { flex: 1.15, minWidth: 0, backgroundColor: "#f3e9db", overflow: "hidden" },
+  setupArtBand: { flex: 0, width: "100%", height: "28%" },
+  setupScroll: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, justifyContent: "flex-start" },
+  setupScrollCenter: { justifyContent: "center" },
+  setupBrand: { color: "#241b34", textAlign: "left" },
+  setupTitle: { color: "#241b34", textAlign: "left" },
+  setupSub: { color: "#736a82", textAlign: "left", paddingHorizontal: 0 },
+  setupBack: { color: "#2f6bd8" },
+  setupCard: {
+    backgroundColor: "#ffffff",
+    borderColor: "#e3d7c3",
+    borderRadius: 16,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   backBtn: { paddingHorizontal: theme.spacing.screenX, paddingTop: 8 },
   backText: { color: "rgba(255,255,255,0.7)", fontSize: 16 },
   scroll: {
@@ -415,8 +440,8 @@ const styles = StyleSheet.create({
   },
   header: { marginBottom: 24, alignItems: "center" },
   setupKicker: {
-    color: "#8be9ff", fontSize: 12, fontWeight: "900", letterSpacing: 1.2,
-    textTransform: "uppercase", marginBottom: 8, textAlign: "center",
+    color: "#0f9d8f", fontSize: 12, fontWeight: "800", letterSpacing: 0.8,
+    textTransform: "uppercase", marginBottom: 8,
   },
   brand: {
     color: theme.colors.netflix,
