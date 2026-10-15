@@ -113,14 +113,39 @@ class TestOrchestratorAccreditationGate:
         assert ACCREDITATION_ACCOUNT_REQUIRED_DETAIL in r.json()["detail"]
         assert r.headers.get("X-AOEP-Gate") == ACCREDITATION_ACCOUNT_REQUIRED
 
-    def test_registered_account_can_start_certifiable_lesson(self):
+    def test_registered_account_can_start_certifiable_lesson(self, monkeypatch):
+        class Assurance:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"allowed": True, "missing": []}
+
+        monkeypatch.setattr("httpx.get", lambda *args, **kwargs: Assurance())
         r = client.post(
             "/api/sessions",
             headers=_auth_headers(),
-            json={"lesson_id": CERT_LESSON, "class_type": "solo"},
+            json={"lesson_id": CERT_LESSON, "class_type": "solo", "student_id": "student-1"},
         )
         assert r.status_code == 200, r.text
         assert r.json()["session"]["lesson_id"] == CERT_LESSON
+
+    def test_registered_account_without_identity_assurance_is_blocked(self, monkeypatch):
+        class Assurance:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"allowed": False, "missing": ["face", "voice", "government_id"]}
+
+        monkeypatch.setattr("httpx.get", lambda *args, **kwargs: Assurance())
+        r = client.post(
+            "/api/sessions",
+            headers=_auth_headers(),
+            json={"lesson_id": CERT_LESSON, "class_type": "solo", "student_id": "student-1"},
+        )
+        assert r.status_code == 428
+        assert r.headers["X-AOEP-Gate"] == "identity_assurance_required"
 
     def test_accreditation_metadata_endpoint(self):
         r = client.get(f"/api/lessons/{CERT_LESSON}/accreditation")

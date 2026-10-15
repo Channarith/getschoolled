@@ -3331,7 +3331,12 @@ STUDIO_JS = """
       const pageRaw = $('comment-page').value.trim();
       const page_index = pageRaw === '' ? null : Math.max(0, parseInt(pageRaw, 10) - 1);
       await api('/api/studio/comments', {
-        method:'POST', headers:{'content-type':'application/json'},
+        method:'POST', headers:{
+          'content-type':'application/json',
+          ...(localStorage.getItem('aoep_token')
+            ? {'authorization':'Bearer ' + localStorage.getItem('aoep_token')}
+            : {})
+        },
         body: JSON.stringify({ source_id: selectedSource, body, page_index, author: 'reviewer' })
       });
       $('comment-body').value = '';
@@ -3732,7 +3737,12 @@ STUDIO_JS = """
       if ($('btn-pause')) setPauseButton(false);
       teachLanguage = $('teach-lang').value || 'en';
       const data = await api('/api/studio/teach/start', {
-        method:'POST', headers:{'content-type':'application/json'},
+        method:'POST', headers:{
+          'content-type':'application/json',
+          ...(localStorage.getItem('aoep_token')
+            ? {'authorization':'Bearer ' + localStorage.getItem('aoep_token')}
+            : {})
+        },
         body: JSON.stringify({
           session_id: teachSession, course_id: selectedCourse, profile: profileFromForm(),
           learner_id: learnerId,

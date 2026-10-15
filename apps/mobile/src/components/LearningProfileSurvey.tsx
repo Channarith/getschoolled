@@ -16,8 +16,6 @@ import { getToken, setSettings } from "../storage";
 import { theme } from "../theme";
 
 type Props = {
-  /** Bumps when the user signs in or out — gates one auto-prompt per login. */
-  authEpoch?: number;
   /** Increment to open the survey from Settings (manual edit). */
   manualOpenToken?: number;
   onSaved?: () => void;
@@ -79,13 +77,11 @@ function answersFromProfile(student: StudentProfile): Record<string, string | nu
   };
 }
 
-/** One-time learning survey (auto after login) + manual relaunch from Settings. */
+/** Edit dialog for a saved learning profile, opened from Settings. First sign-in asks these questions inside FirstSignInAssistant. */
 export default function LearningProfileSurvey({
-  authEpoch = 0,
   manualOpenToken = 0,
   onSaved,
 }: Props) {
-  const autoPromptedEpochRef = useRef(-1);
   const visibleRef = useRef(false);
   const [visible, setVisible] = useState(false);
   const [manual, setManual] = useState(false);
@@ -126,16 +122,6 @@ export default function LearningProfileSurvey({
     setManual(force);
     setVisible(true);
   }
-
-  useEffect(() => {
-    if (!getToken()) {
-      autoPromptedEpochRef.current = -1;
-      return;
-    }
-    if (autoPromptedEpochRef.current === authEpoch) return;
-    autoPromptedEpochRef.current = authEpoch;
-    void prepare(false).catch(() => undefined);
-  }, [authEpoch]);
 
   useEffect(() => {
     if (manualOpenToken > 0) {
