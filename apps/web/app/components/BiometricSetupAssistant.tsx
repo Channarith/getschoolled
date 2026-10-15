@@ -114,6 +114,7 @@ export default function BiometricSetupAssistant({
   const [hasEnrollment, setHasEnrollment] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const pendingCameraRef = useRef<Promise<MediaStream> | null>(null);
   const engineRef = useRef<VisionEngine | null>(null);
   const scanRef = useRef<{
     neutral: number[] | null;
@@ -192,10 +193,14 @@ export default function BiometricSetupAssistant({
       resetScan();
       setHint("Starting camera…");
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 1280 } },
-          audio: false,
-        });
+        const pending = pendingCameraRef.current;
+        pendingCameraRef.current = null;
+        const stream = pending
+          ? await pending
+          : await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 1280 } },
+            audio: false,
+          });
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
           return;
@@ -320,6 +325,10 @@ export default function BiometricSetupAssistant({
   }, [attempt, enrollFace, resetScan, stage, stopMedia]);
 
   async function recordVoice() {
+    const micPromise = navigator.mediaDevices?.getUserMedia?.({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    micPromise?.catch(() => undefined);
     setProblem(null);
     setBusy(true);
     setElapsed(0);
@@ -328,15 +337,13 @@ export default function BiometricSetupAssistant({
     let frame = 0;
     let chunks: Blob[] = [];
     let stream: MediaStream;
-    if (typeof window.MediaRecorder === "undefined") {
+    if (typeof window.MediaRecorder === "undefined" || !micPromise) {
       setProblem(describeMediaError({ name: "NotSupportedError" }, "microphone"));
       setBusy(false);
       return;
     }
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
+      stream = await micPromise;
     } catch (reason) {
       setProblem(describeMediaError(reason, "microphone"));
       setBusy(false);
@@ -411,6 +418,14 @@ export default function BiometricSetupAssistant({
   async function begin() {
     setBusy(true);
     setProblem(null);
+    // Start the camera prompt in this tap. Waiting on the network first makes
+    // phones show Allow and then ignore the tap.
+    const cameraPromise = navigator.mediaDevices?.getUserMedia?.({
+      video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 1280 } },
+      audio: false,
+    });
+    pendingCameraRef.current = cameraPromise ?? null;
+    cameraPromise?.catch(() => undefined);
     try {
       await setBiometricConsent(studentId, {
         granted: true,
@@ -420,6 +435,8 @@ export default function BiometricSetupAssistant({
       await updateSetupAssistant(studentId, { current_step: "biometrics" });
       setStage("scan");
     } catch (reason) {
+      pendingCameraRef.current = null;
+      cameraPromise?.then((stream) => stream.getTracks().forEach((track) => track.stop())).catch(() => undefined);
       setProblem({ kind: "save", message: String((reason as Error)?.message ?? reason) });
     } finally {
       setBusy(false);
@@ -471,8 +488,18 @@ export default function BiometricSetupAssistant({
     }
   }
 
+  function openCamera() {
+    const cameraPromise = navigator.mediaDevices?.getUserMedia?.({
+      video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 1280 } },
+      audio: false,
+    });
+    pendingCameraRef.current = cameraPromise ?? null;
+    cameraPromise?.catch(() => undefined);
+  }
+
   function retryScan() {
     setProblem(null);
+    openCamera();
     setAttempt((value) => value + 1);
   }
 

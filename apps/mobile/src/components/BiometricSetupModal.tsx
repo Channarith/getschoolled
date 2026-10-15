@@ -183,6 +183,10 @@ export default function BiometricSetupModal({
   const [elapsed, setElapsed] = useState(0);
   const [bars, setBars] = useState<number[]>(() => Array(WAVE_BARS).fill(0));
   const [hasEnrollment, setHasEnrollment] = useState(false);
+  // The setup screen is its own window. Android and iOS draw the system
+  // "Allow" prompt behind that window, so the button is visible but dead.
+  // Hide this window before asking, and bring it back after the prompt closes.
+  const [systemPrompt, setSystemPrompt] = useState(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const baseRef = useRef<Geometry | null>(null);
   const seenRef = useRef<Partial<Record<Pose, Pose>>>({});
@@ -247,24 +251,38 @@ export default function BiometricSetupModal({
     });
   }
 
-  async function takePhoto(front: boolean): Promise<ImagePicker.ImagePickerAsset | null> {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      setProblem({
-        message: "Camera access is off for Salareen. Allow the camera in Settings, then try again.",
-        settings: !permission.canAskAgain,
-      });
-      return null;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      cameraType: front ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
-      base64: true,
-      quality: 0.6,
-      allowsEditing: false,
-      exif: false,
+  async function outsideTheSetupWindow<T>(action: () => Promise<T>): Promise<T> {
+    setSystemPrompt(true);
+    await new Promise<void>((resolve) => {
+      setTimeout(() => resolve(), 450);
     });
-    if (result.canceled) return null;
-    return result.assets[0] ?? null;
+    try {
+      return await action();
+    } finally {
+      setSystemPrompt(false);
+    }
+  }
+
+  async function takePhoto(front: boolean): Promise<ImagePicker.ImagePickerAsset | null> {
+    return outsideTheSetupWindow(async () => {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setProblem({
+          message: "Camera access is off for Salareen. Allow the camera in Settings, then try again.",
+          settings: !permission.canAskAgain,
+        });
+        return null;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        cameraType: front ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
+        base64: true,
+        quality: 0.6,
+        allowsEditing: false,
+        exif: false,
+      });
+      if (result.canceled) return null;
+      return result.assets[0] ?? null;
+    });
   }
 
   async function capture() {
@@ -328,7 +346,7 @@ export default function BiometricSetupModal({
     setBars(Array(WAVE_BARS).fill(0));
     let uri: string | null = null;
     try {
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await outsideTheSetupWindow(() => Audio.requestPermissionsAsync());
       if (!permission.granted) {
         setProblem({
           message: "Microphone access is off for Salareen. Allow the microphone in Settings, then try again.",
@@ -419,7 +437,7 @@ export default function BiometricSetupModal({
   const wide = useWindowDimensions().width >= 800;
 
   return (
-    <Modal visible={visible} animationType="fade" presentationStyle="fullScreen" onRequestClose={onDismiss}>
+    <Modal visible={visible && !systemPrompt} animationType="fade" presentationStyle="fullScreen" onRequestClose={onDismiss}>
       <SafeAreaView style={styles.root}>
         <View style={styles.header}>
           <Text style={styles.brand}>Salareen</Text>

@@ -85,6 +85,7 @@
 .paneArt {
   object-fit: cover;
   object-position: center 20%;
+  pointer-events: none;
 }
 
 .shell[data-light="screen"] .paneArt {
