@@ -155,6 +155,14 @@ audio) are linked underneath each preview - click to open/play them.
 Netflix-style UI tour (signed-out landing, Preview, profile dropdown, instant
 language switching): [docs/demos/netflix_ui_walkthrough.mp4](docs/demos/netflix_ui_walkthrough.mp4)
 
+First sign-in setup assistant (learner profile, learning preferences one per
+screen, consent, then optional portrait, pose, voice, and government-ID checks;
+identity is required only for certification courses):
+[docs/demos/setup-assistant-walkthrough.mp4](docs/demos/setup-assistant-walkthrough.mp4)
+
+![Setup assistant on web](docs/screens/setup-assistant-web.png)
+![Setup assistant on mobile](docs/screens/setup-assistant-mobile.png)
+
 Full platform tour:
 
 ![Platform walkthrough](docs/demos/platform_walkthrough.gif)

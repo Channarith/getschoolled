@@ -873,7 +873,8 @@ def teach_start(
     course = _builder.get_course(req.course_id)
     from aoep_shared.accreditation import requires_identity_assurance_for_category
 
-    if course is not None and access == "full" and requires_identity_assurance_for_category(course.category):
+    learner_full_access = req.access == "full" and access == "full" and not req.is_admin
+    if course is not None and learner_full_access and requires_identity_assurance_for_category(course.category):
         import json as _json
         import os as _os
         import urllib.error as _urlerror
