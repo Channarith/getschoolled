@@ -425,7 +425,9 @@ _CSS = """
   html.embed-arcade .layout { padding:.4rem; gap:.45rem; }
   html.embed-arcade .layout > .stack:first-child .panel:last-child { display:none; }
   html.embed-arcade .bottom { display:none; }
-  html.embed-arcade #song-list { max-height:7.5rem; overflow:auto; }
+  html.embed-arcade #song-list { max-height:42vh; overflow:auto; }
+  #song-search { width:100%; margin:0 0 .45rem; padding:.45rem .6rem; border-radius:8px;
+    border:1px solid var(--line); background:#020617; color:inherit; }
   html.embed-arcade .cap-line { font-size:2.8rem; line-height:1.25; }
   html.embed-arcade .cap-tr { font-size:2rem; line-height:1.3; }
   html.embed-arcade .line .words { font-size:1.85rem; line-height:1.35; }
@@ -450,6 +452,7 @@ _HTML = """
     <div class="stack">
       <aside class="panel">
         <h2>Featured songs</h2>
+        <input id="song-search" type="search" placeholder="Search every song" aria-label="Search songs">
         <div id="song-list">Loading…</div>
         <div class="meta" id="catalog-meta"></div>
       </aside>
@@ -745,8 +748,10 @@ _JS = r"""
 
   let featured = [];
   let featuredTotal = 0;
-  let featuredNextOffset = 0;
-  let featuredLoading = false;
+  let featuredNextOffset = null;
+  let songQuery = "";
+  let lyricOnly = false;
+  let silentUrl = "";
   let languageCount = 26;
   let fullTranslationCount = 0;
   let current = null;
@@ -969,28 +974,27 @@ _JS = r"""
     const voiceNote = serverVoicesReady()
       ? ` \u00b7 neural voices for ${serverVoices.languages} languages`
       : " \u00b7 singing uses this device's installed voices";
-    const loaded = featuredTotal > featured.length
-      ? ` \u00b7 ${featured.length}/${featuredTotal} song cards loaded`
-      : "";
+    const recorded = featured.filter((song) => song.audio_url).length;
     $("catalog-meta").textContent =
-      `${featuredTotal || featured.length} featured with audio${loaded} \u00b7 ` +
+      `${featured.length} songs \u00b7 ${recorded} with a recording \u00b7 ` +
       `${languageCount} translation languages \u00b7 ` +
       `${fullTranslationCount} with full-line sentences${voiceNote}`;
   }
 
   function renderSongList() {
     const box = $("song-list");
-    const cards = featured.map((s) => `
+    const query = songQuery.trim().toLowerCase();
+    const visible = featured.filter((song) => !query
+      || String(song.title_en || "").toLowerCase().includes(query)
+      || String(song.topic || "").toLowerCase().includes(query));
+    const cards = visible.map((s) => `
       <button type="button" class="song-card ${current && current.song_id === s.song_id ? "active" : ""}"
         data-id="${esc(s.song_id)}">
         <strong>${esc(s.title_en)}</strong>
-        <span>${esc(s.topic)} \u00b7 ${s.line_count} lines \u00b7 MP3</span>
+        <span>${esc(s.topic)} \u00b7 ${s.line_count} lines \u00b7 ${s.audio_url ? "recording" : "sung voice"}</span>
       </button>`).join("");
-    const pending = featuredNextOffset !== null
-      ? `<div class="meta" id="song-list-sentinel">${featuredLoading ? "Loading next song\u2026" : "More songs load when the browser is idle\u2026"}</div>`
-      : "";
-    box.innerHTML = cards + pending ||
-      "<div class='meta'>No featured songs found.</div>";
+    box.innerHTML = cards ||
+      "<div class='meta'>No songs match that search.</div>";
     box.querySelectorAll(".song-card").forEach((btn) => {
       btn.onclick = () => selectSong(btn.getAttribute("data-id"));
     });
@@ -3070,40 +3074,39 @@ _JS = r"""
     }
   }
 
-  async function loadMoreFeatured() {
-    if (featuredLoading || featuredNextOffset === null) return;
-    featuredLoading = true;
+  async function loadCatalog() {
+    const data = await api("/api/music/songs?limit=5000");
+    featured = data.songs || [];
+    featuredTotal = featured.length;
+    featuredNextOffset = null;
     renderSongList();
-    try {
-      const offset = featuredNextOffset || 0;
-      const data = await api(
-        `/api/music/featured?offset=${offset}&limit=1`
-      );
-      featuredTotal = Number(data.total || data.count || 0);
-      featuredNextOffset = data.next_offset;
-      (data.songs || []).forEach((song) => {
-        if (!featured.some((row) => row.song_id === song.song_id)) {
-          featured.push(song);
-        }
-      });
-    } finally {
-      featuredLoading = false;
-      renderSongList();
-      updateCatalogMeta();
-    }
+    updateCatalogMeta();
   }
 
-  function lazyLoadRemainingSongs() {
-    if (featuredNextOffset === null) return;
-    scheduleIdle(async () => {
-      try {
-        await loadMoreFeatured();
-      } catch (e) {
-        toast(`Could not load the next song: ${String(e.message || e)}`);
-        return;
-      }
-      lazyLoadRemainingSongs();
-    });
+  function silentTrack(seconds) {
+    const rate = 8000;
+    const samples = Math.max(rate, Math.floor(Math.max(1, seconds) * rate));
+    const dataBytes = samples * 2;
+    const buffer = new ArrayBuffer(44 + dataBytes);
+    const view = new DataView(buffer);
+    const text = (offset, value) => {
+      for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i));
+    };
+    text(0, "RIFF");
+    view.setUint32(4, 36 + dataBytes, true);
+    text(8, "WAVEfmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    text(36, "data");
+    view.setUint32(40, dataBytes, true);
+    if (silentUrl) URL.revokeObjectURL(silentUrl);
+    silentUrl = URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+    return silentUrl;
   }
 
   async function loadTranslation() {
@@ -3218,10 +3221,17 @@ _JS = r"""
     $("stage").classList.remove("playing");
     $("stage-symbol").textContent = SYMBOLS[anim] || "\u266A";
     $("lyrics").innerHTML = '<div class="meta">Loading this song\u2019s lyrics\u2026</div>';
-    player.src = musicUrl(current.audio_url || "");
-    ["btn-play", "btn-pause", "btn-restart"].forEach((id) => { $(id).disabled = !player.src; });
+    lyricOnly = !current.audio_url;
     await Promise.all([loadTimings(), loadTranslation()]);
     if (gen !== songGen) return;
+    if (lyricOnly) {
+      const duration = Number(timings && timings.duration_sec)
+        || Math.max(20, (current.lines || []).length * 3);
+      player.src = silentTrack(duration);
+    } else {
+      player.src = musicUrl(current.audio_url);
+    }
+    ["btn-play", "btn-pause", "btn-restart"].forEach((id) => { $(id).disabled = !player.src; });
     renderLyrics();
     // Paused at 0:00 the song has not started, so queue line 1 rather than
     // lighting it up as if it were being sung.
@@ -3294,6 +3304,11 @@ _JS = r"""
   $("btn-play").onclick = async () => {
     const player = $("player");
     if (!player.src) return;
+    if (lyricOnly && !$("sing-lang").checked) {
+      $("sing-lang").checked = true;
+      await toggleSinging();
+      if (!$("sing-lang").checked) return;
+    }
     activeClip = null;
     try {
       await player.play();
@@ -3665,9 +3680,12 @@ _JS = r"""
     refreshSingLabel();
     // Load one card and its song first. The remaining cards, voice probe and
     // embedded lessons are secondary and fill in during browser idle time.
-    await loadMoreFeatured();
+    $("song-search").addEventListener("input", () => {
+      songQuery = $("song-search").value || "";
+      renderSongList();
+    });
+    await loadCatalog();
     if (featured[0]) await selectSong(featured[0].song_id);
-    lazyLoadRemainingSongs();
     scheduleIdle(async () => {
       await probeServerVoices();
       updateCatalogMeta();

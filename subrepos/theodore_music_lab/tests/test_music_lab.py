@@ -666,27 +666,27 @@ def test_api_health_and_session_flow():
         assert cont.status_code == 200
 
 
-def test_featured_songs_lazy_load_one_card_at_a_time():
+def test_karaoke_lists_the_whole_music_lab_catalog():
+    catalog = Catalog()
     with TestClient(app) as client:
-        first = client.get("/api/music/featured", params={"offset": 0, "limit": 1})
-        assert first.status_code == 200
-        first_page = first.json()
-        assert first_page["count"] == 1
-        assert first_page["total"] >= 3
-        assert first_page["next_offset"] == 1
-
-        second = client.get(
-            "/api/music/featured",
-            params={"offset": first_page["next_offset"], "limit": 1},
-        ).json()
-        assert second["count"] == 1
-        assert second["songs"][0]["song_id"] != first_page["songs"][0]["song_id"]
+        page = client.get("/api/music/songs", params={"limit": 5000})
+        assert page.status_code == 200
+        body = page.json()
+        ids = [row["song_id"] for row in body["songs"]]
+        assert body["count"] == len(catalog.songs)
+        assert body["count"] == body["total_catalog"]
+        assert len(ids) == len(set(ids))
+        recorded = [row for row in body["songs"] if row["audio_url"]]
+        sung = [row for row in body["songs"] if not row["audio_url"]]
+        assert len(recorded) >= 10
+        assert sung
+        assert ids[0] in {song.song_id for song in catalog.featured()}
 
         script = client.get("/assets/music-lab.js").text
-        assert "/api/music/featured?offset=${offset}&limit=1" in script
-        assert "requestIdleCallback" in script
+        assert "/api/music/songs?limit=5000" in script
+        assert "function silentTrack" in script
+        assert "song-search" in script
         assert "await Promise.all([loadTimings(), loadTranslation()]);" in script
-        assert "lazyLoadRemainingSongs();" in script
 
 
 def test_new_child_favorite_song_pack_is_complete():

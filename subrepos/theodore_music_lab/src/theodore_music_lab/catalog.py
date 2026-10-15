@@ -287,6 +287,7 @@ class Catalog:
         if topic:
             t = topic.strip().lower()
             rows = [s for s in rows if s.topic.lower() == t]
+        chosen = rows if limit <= 0 else rows[:limit]
         return [
             {
                 "song_id": s.song_id,
@@ -302,7 +303,7 @@ class Catalog:
                 "animation": s.animation,
                 "duration_hint_sec": s.duration_hint_sec,
             }
-            for s in rows[: max(0, limit)]
+            for s in chosen
         ]
 
     def featured(self) -> list[Song]:
