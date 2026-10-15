@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import base64
+import hashlib
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
@@ -125,8 +127,21 @@ class FaceGallery:
             dir=directory or None,
         )
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(self.to_dict(), fh)
+            payload = json.dumps(self.to_dict()).encode("utf-8")
+            secret = os.getenv("BIOMETRIC_ENCRYPTION_SECRET", "")
+            if secret:
+                try:
+                    from cryptography.fernet import Fernet
+                except ImportError as exc:
+                    raise RuntimeError(
+                        "cryptography is required when BIOMETRIC_ENCRYPTION_SECRET is set"
+                    ) from exc
+                key = base64.urlsafe_b64encode(
+                    hashlib.sha256(secret.encode("utf-8")).digest()
+                )
+                payload = b"AOEP-FERNET-1\n" + Fernet(key).encrypt(payload)
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(payload)
             os.replace(tmp, path)
         except BaseException:
             try:
@@ -139,8 +154,23 @@ class FaceGallery:
     def load_json(cls, path: str) -> "FaceGallery":
         if not os.path.isfile(path):
             return cls()
-        with open(path, "r", encoding="utf-8") as fh:
-            return cls.from_dict(json.load(fh))
+        with open(path, "rb") as fh:
+            payload = fh.read()
+        if payload.startswith(b"AOEP-FERNET-1\n"):
+            secret = os.getenv("BIOMETRIC_ENCRYPTION_SECRET", "")
+            if not secret:
+                raise RuntimeError(
+                    "BIOMETRIC_ENCRYPTION_SECRET is required to open the face gallery"
+                )
+            try:
+                from cryptography.fernet import Fernet
+            except ImportError as exc:
+                raise RuntimeError("cryptography is required for the encrypted face gallery") from exc
+            key = base64.urlsafe_b64encode(
+                hashlib.sha256(secret.encode("utf-8")).digest()
+            )
+            payload = Fernet(key).decrypt(payload.split(b"\n", 1)[1])
+        return cls.from_dict(json.loads(payload))
 
     def identify(
         self,

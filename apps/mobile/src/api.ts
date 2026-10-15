@@ -2277,6 +2277,165 @@ export async function getVoiceEnrollmentStatus(
   return resp.json() as Promise<VoiceEnrollmentStatus>;
 }
 
+export type MobileSetupState = {
+  current_step: string;
+  completed_at: number | null;
+  skipped_biometrics: boolean;
+  consent: { granted: boolean; guardian_granted: boolean };
+  portrait: { status: string };
+  pose: { status: string };
+  voice: { status: string };
+  government_id: { status: string };
+};
+
+async function biometricRequest<T>(
+  studentId: string,
+  suffix: string,
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  body?: object,
+): Promise<T> {
+  const tok = getToken();
+  if (!tok) throw new Error("not signed in");
+  const response = await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/${suffix}`,
+    {
+      method,
+      headers: {
+        authorization: `Bearer ${tok}`,
+        ...(body ? { "content-type": "application/json" } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    },
+  );
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `identity setup failed: ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export function getMobileSetupState(studentId: string): Promise<MobileSetupState> {
+  return biometricRequest(studentId, "setup-assistant", "GET");
+}
+
+export function getMobileIdentityAssurance(
+  studentId: string,
+): Promise<{ allowed: boolean; missing: string[] }> {
+  return biometricRequest(studentId, "identity-assurance?required=true", "GET");
+}
+
+export async function getLessonAccreditation(
+  lessonId: string,
+): Promise<{ certifiable: boolean; requires_identity_assurance: boolean }> {
+  const response = await fetch(
+    `${ORCHESTRATOR_URL}/api/lessons/${encodeURIComponent(lessonId)}/accreditation`,
+  );
+  if (!response.ok) throw new Error(`accreditation metadata failed: ${response.status}`);
+  return response.json() as Promise<{ certifiable: boolean; requires_identity_assurance: boolean }>;
+}
+
+export function setMobileBiometricConsent(
+  studentId: string,
+  granted: boolean,
+  guardianGranted: boolean,
+): Promise<MobileSetupState> {
+  return biometricRequest(studentId, "biometric-consent", "PUT", {
+    granted,
+    guardian_granted: guardianGranted,
+    retention_days: 365,
+  });
+}
+
+export function enrollMobileFaceImages(
+  studentId: string,
+  imagesBase64: string[],
+): Promise<{ verified: boolean }> {
+  return biometricRequest(studentId, "biometric-face-images", "POST", {
+    images_b64: imagesBase64,
+    pose_sequence: ["left", "right", "up", "down"],
+  });
+}
+
+export function enrollMobileVoiceprint(
+  studentId: string,
+  audioBase64: string,
+): Promise<{ verified: boolean }> {
+  return biometricRequest(studentId, "voiceprint", "POST", { audio_b64: audioBase64 });
+}
+
+export function submitMobileGovernmentId(
+  studentId: string,
+  imageBase64: string,
+): Promise<{ status: "verified" | "failed"; reference: string }> {
+  return biometricRequest(studentId, "government-id", "POST", {
+    document_type: "government_id",
+    front_image_b64: imageBase64,
+  });
+}
+
+export function completeMobileSetup(
+  studentId: string,
+  skippedBiometrics = false,
+): Promise<MobileSetupState> {
+  return biometricRequest(studentId, "setup-assistant", "PATCH", {
+    current_step: "complete",
+    skipped_biometrics: skippedBiometrics,
+    complete: true,
+  });
+}
+
+export function deleteMobileBiometrics(
+  studentId: string,
+): Promise<{ deleted: boolean }> {
+  return biometricRequest(studentId, "biometrics", "DELETE");
+}
+
+export async function getAccountOnboardingStatus(): Promise<{ completed: boolean }> {
+  const tok = getToken();
+  if (!tok) throw new Error("not signed in");
+  const response = await fetch(`${IDENTITY_URL}/auth/onboarding-status`, {
+    headers: { authorization: `Bearer ${tok}` },
+  });
+  if (!response.ok) throw new Error(`onboarding status failed: ${response.status}`);
+  return response.json() as Promise<{ completed: boolean }>;
+}
+
+export async function completeMobileAccountOnboarding(
+  learnerName: string,
+  ageBand: string,
+): Promise<void> {
+  const tok = getToken();
+  if (!tok) throw new Error("not signed in");
+  const response = await fetch(`${IDENTITY_URL}/onboarding/complete`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+    body: JSON.stringify({ learner_name: learnerName, age_band: ageBand }),
+  });
+  if (!response.ok) throw new Error(`onboarding completion failed: ${response.status}`);
+}
+
+export async function submitMobileOnboardingProfile(displayName: string): Promise<void> {
+  const tok = getToken();
+  if (!tok) throw new Error("not signed in");
+  const response = await fetch(`${IDENTITY_URL}/onboarding/profile`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+    body: JSON.stringify({ display_name: displayName }),
+  });
+  if (!response.ok) throw new Error(`profile setup failed: ${response.status}`);
+}
+
+export async function selectMobileFreePlan(): Promise<void> {
+  const tok = getToken();
+  if (!tok) throw new Error("not signed in");
+  const response = await fetch(`${IDENTITY_URL}/onboarding/plan`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+    body: JSON.stringify({ tier: "free" }),
+  });
+  if (!response.ok) throw new Error(`plan setup failed: ${response.status}`);
+}
+
 // ── Platform presence ────────────────────────────────────────────────────────
 export async function presencePing(opts: {
   platform?: "web" | "mobile" | "sdk";

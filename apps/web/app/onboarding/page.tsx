@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   AUTH_EVENT,
-  completeOnboarding,
   getMe,
   getOnboardingStatus,
   getToken,
@@ -12,6 +12,8 @@ import {
   submitOnboardingBilling,
   submitOnboardingProfile,
 } from "../lib/api";
+import LearningPreferencesStep from "./LearningPreferencesStep";
+import styles from "./Onboarding.module.css";
 
 const PLANS = [
   { id: "free", label: "Free", price: "$0", class: "standard", blurb: "English classes with ads" },
@@ -20,7 +22,7 @@ const PLANS = [
   { id: "premium", label: "Premium", price: "$29/mo", class: "vip", blurb: "Everything + analytics" },
 ] as const;
 
-const STEPS = ["Your info", "Choose plan", "Payment", "Who's learning"];
+const STEPS = ["Your info", "Choose plan", "Payment", "Who's learning", "Your learning"];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -141,21 +143,30 @@ export default function OnboardingPage() {
     finally { busyRef.current = false; setBusy(false); }
   }
 
+  function nextFromLearner() {
+    localStorage.setItem("onboarding_learner_name", learnerName);
+    localStorage.setItem("onboarding_age_band", ageBand);
+    setError("");
+    setStep(4);
+  }
+
   async function finish() {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true); setError("");
     try {
-      await completeOnboarding({ learner_name: learnerName, age_band: ageBand });
-      localStorage.removeItem("onboarding_step");
-      localStorage.removeItem("onboarding_plan");
-      router.push("/");
+      router.push("/account/camera-check?onboarding=1");
     } catch (e) { setError(String(e)); }
     finally { busyRef.current = false; setBusy(false); }
   }
 
   return (
-    <main className="container" style={{ maxWidth: 640 }}>
+    <main className={styles.shell}>
+      <section className={styles.visual} aria-hidden="true">
+        <video autoPlay muted loop playsInline src="/setup-assistant/welcome.mp4" />
+        <Image src="/setup-assistant/welcome.webp" alt="" fill sizes="(max-width: 860px) 100vw, 50vw" />
+      </section>
+      <section className={styles.panel}>
       <h1 style={{ marginBottom: 4 }}>Welcome to Salareen</h1>
       <p className="muted">Set up your account in a few steps — just like Netflix.</p>
       <div style={{ display: "flex", gap: 8, margin: "16px 0 24px", flexWrap: "wrap" }}>
@@ -310,14 +321,23 @@ export default function OnboardingPage() {
               </select>
             </label>
             <button type="button" onClick={() => goToStep(step - 1)} style={{ marginRight: 10, padding: "8px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600 }}>← Back</button>
-            <button type="button" className="btn primary" disabled={busy} onClick={() => void finish()}>
-              Start watching
+            <button type="button" className="btn primary" disabled={busy} onClick={nextFromLearner}>
+              Continue
             </button>
           </>
         )}
 
+        {step === 4 && (
+          <LearningPreferencesStep
+            learnerName={learnerName}
+            onBack={() => goToStep(3)}
+            onDone={() => void finish()}
+          />
+        )}
+
         {error && <p style={{ color: "#f87171", marginTop: 12 }}>{error}</p>}
       </div>
+      </section>
     </main>
   );
 }

@@ -1,11 +1,4 @@
-"""Tests for voice-name enrollment endpoints.
-
-POST /students/{student_id}/voice-enrollment   — store audio blob
-GET  /students/{student_id}/voice-enrollment   — status (no blob)
-GET  /students/{student_id}/voice-enrollment/blob — raw blob
-
-Tests do NOT need real audio: we use a minimal base64 WAV stub.
-"""
+"""Legacy voice wire compatibility without raw-audio retention."""
 
 from __future__ import annotations
 
@@ -15,6 +8,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+import identity.main as identity_main
 from identity.main import app
 
 client = TestClient(app)
@@ -36,7 +30,23 @@ def _default_student_id(headers: dict) -> str:
     """Return the ID of the auto-created default student profile."""
     students = client.get("/students", headers=headers).json()["students"]
     assert len(students) >= 1
-    return students[0]["id"]
+    student_id = students[0]["id"]
+    consent = client.put(
+        f"/students/{student_id}/biometric-consent",
+        headers=headers,
+        json={"granted": True},
+    )
+    assert consent.status_code == 200
+    return student_id
+
+
+@pytest.fixture(autouse=True)
+def _speaker_provider(monkeypatch):
+    monkeypatch.setattr(
+        identity_main,
+        "_perception_json",
+        lambda path, payload: {"template_ref": "voice:test", "verified": True},
+    )
 
 
 # ================================================================== #
@@ -61,7 +71,7 @@ class TestEnrollVoice:
         assert data["voice_enrolled"] is True
         assert data["student_id"] == sid
         assert data["voice_name_text"] == "Alice"
-        assert data["voice_name_sample_mime"] == _FAKE_MIME
+        assert data["voice_name_sample_mime"] == ""
         assert data["voice_enrolled_at"] is not None
 
     def test_enroll_voice_updates_profile(self):
@@ -76,7 +86,7 @@ class TestEnrollVoice:
         status = client.get(f"/students/{sid}/voice-enrollment", headers=h).json()
         assert status["voice_enrolled"] is True
         assert status["voice_name_text"] == "Bob"
-        assert status["has_sample"] is True
+        assert status["has_sample"] is False
 
     def test_enroll_voice_can_overwrite(self):
         """Re-enrolling should overwrite the previous sample."""
@@ -132,7 +142,7 @@ class TestEnrollVoice:
             json={"voice_name_sample_b64": _FAKE_AUDIO_B64, "voice_name_text": "Carol"},
         )
         assert resp.status_code == 200
-        assert resp.json()["voice_name_sample_mime"] == "audio/webm"
+        assert resp.json()["voice_name_sample_mime"] == ""
 
 
 # ================================================================== #
@@ -162,7 +172,7 @@ class TestGetVoiceEnrollmentStatus:
         assert resp.status_code == 200
         data = resp.json()
         assert data["voice_enrolled"] is True
-        assert data["has_sample"] is True
+        assert data["has_sample"] is False
         assert data["voice_name_text"] == "Dave"
         # Blob must NOT be included in this response.
         assert "voice_name_sample_b64" not in data
@@ -196,7 +206,7 @@ class TestGetVoiceBlob:
         h = _auth()
         sid = _default_student_id(h)
         resp = client.get(f"/students/{sid}/voice-enrollment/blob", headers=h)
-        assert resp.status_code == 404
+        assert resp.status_code == 410
 
     def test_blob_returned_after_enrollment(self):
         h = _auth()
@@ -211,12 +221,7 @@ class TestGetVoiceBlob:
             },
         )
         resp = client.get(f"/students/{sid}/voice-enrollment/blob", headers=h)
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["voice_name_sample_b64"] == _FAKE_AUDIO_B64
-        assert data["voice_name_sample_mime"] == "audio/wav"
-        assert data["voice_name_text"] == "Frank"
-        assert data["student_id"] == sid
+        assert resp.status_code == 410
 
     def test_blob_requires_auth(self):
         resp = client.get("/students/any/voice-enrollment/blob")
@@ -247,10 +252,10 @@ class TestStoreEnrollVoice:
 
         updated = store.get_student(acct.id, prof.id)
         assert updated is not None
-        assert updated.voice_name_sample_b64 == _FAKE_AUDIO_B64
+        assert updated.voice_name_sample_b64 == ""
         assert updated.voice_name_text == "Greta"
         assert updated.voice_enrolled_at is not None
-        assert updated.voice_name_sample_mime == "audio/webm"
+        assert updated.voice_name_sample_mime == ""
 
     def test_enroll_voice_unknown_student_raises(self):
         from identity.store import AccountStore

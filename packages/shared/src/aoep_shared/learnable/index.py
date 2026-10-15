@@ -36,6 +36,8 @@ _ADVANCED_LESSONS: frozenset = frozenset({
 })
 
 CERTIFIABLE_LESSONS = {
+    "drivers-ed": ("Salareen Driver Education (prep)", 0.0),
+    "food-safety": ("Salareen Food Safety (prep)", 1.0),
     "sexual-harassment-prevention": ("Salareen", 1.0),
     "osha-general-safety": ("OSHA", 2.0),
     "fire-safety-training": ("Salareen", 0.5),

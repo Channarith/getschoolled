@@ -10,6 +10,8 @@ import {
   generateClassQuiz,
   getAssessmentPolicy,
   getDisclosure,
+  getIdentityAssurance,
+  getLessonAccreditation,
   getStudentAdaptation,
   grantReward,
   gradeQuizItem,
@@ -764,7 +766,10 @@ export default function ClassRoom({
     // Guests may take sample courses only (server also enforces this on /api/sessions).
     if (!getToken()) {
       setLoggedIn(false);
-      if (requiresRegisteredAccountForAccreditation(lessonId)) {
+      const accreditation = await getLessonAccreditation(lessonId).catch(() => ({
+        requires_registered_account: requiresRegisteredAccountForAccreditation(lessonId),
+      }));
+      if (accreditation.requires_registered_account) {
         setError(
           "Accreditation and certification courses require a registered account. " +
             "Sign up or sign in to take this course for credit."
@@ -776,6 +781,19 @@ export default function ClassRoom({
     setFinish(null);
     setBusy(true);
     try {
+      if (requiresRegisteredAccountForAccreditation(lessonId)) {
+        if (!studentId) {
+          throw new Error("Choose a learner profile before starting this accredited course.");
+        }
+        const assurance = await getIdentityAssurance(studentId, true);
+        if (!assurance.allowed) {
+          const returnTo = `${window.location.pathname}${window.location.search}`;
+          window.location.assign(
+            `/account/camera-check?required=1&returnTo=${encodeURIComponent(returnTo)}`,
+          );
+          return;
+        }
+      }
       if (studentId && wellness !== "ok") {
         recordWellnessCheckIn(studentId, wellness).catch(() => {});
       }

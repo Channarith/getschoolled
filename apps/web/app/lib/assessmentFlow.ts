@@ -57,6 +57,8 @@ export function canAwardCourseCompletion(opts: {
  * offline / pre-fetch fallback used by ClassRoom before network responds.
  */
 export const CERTIFIABLE_LESSON_IDS: ReadonlySet<string> = new Set([
+  "drivers-ed",
+  "food-safety",
   "sexual-harassment-prevention",
   "osha-general-safety",
   "fire-safety-training",

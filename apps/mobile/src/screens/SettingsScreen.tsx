@@ -12,7 +12,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import DropdownListSelector from "../components/DropdownListSelector";
-import FaceVoiceEnrollModal from "../components/FaceVoiceEnrollModal";
+import BiometricSetupModal from "../components/BiometricSetupModal";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import CameraTrackingCheck from "../components/CameraTrackingCheck";
@@ -576,13 +576,13 @@ export default function SettingsScreen({
 
       {/* Face & voice enrolment modal */}
       {student && (
-        <FaceVoiceEnrollModal
+        <BiometricSetupModal
           visible={showVoiceEnroll}
           studentId={student.id}
-          studentName={student.display_name}
+          ageBand={student.age_band}
           onDismiss={() => setShowVoiceEnroll(false)}
-          onEnrolled={(status) => {
-            setVoiceEnrollStatus(status);
+          onComplete={() => {
+            void refreshStudent();
             setShowVoiceEnroll(false);
           }}
         />

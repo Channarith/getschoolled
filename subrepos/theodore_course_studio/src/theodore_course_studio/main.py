@@ -16,7 +16,7 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -858,9 +858,62 @@ def pay_confirm(req: CoursePayConfirmRequest) -> dict[str, Any]:
 
 
 @app.post("/api/studio/teach/start")
-def teach_start(req: TeachStartRequest) -> dict[str, Any]:
+def teach_start(
+    req: TeachStartRequest,
+    authorization: str = Header(default=""),
+) -> dict[str, Any]:
     enrollment = _paid_enrollment(req.learner_id, req.course_id, req.enrollment_status)
     registered = req.registered or enrollment == "paid"
+    access = resolve_teach_access(
+        requested=req.access,
+        registered=registered,
+        enrollment_status=enrollment,
+        is_admin=req.is_admin,
+    )
+    course = _builder.get_course(req.course_id)
+    from aoep_shared.accreditation import requires_identity_assurance_for_category
+
+    learner_full_access = req.access == "full" and access == "full" and not req.is_admin
+    if course is not None and learner_full_access and requires_identity_assurance_for_category(course.category):
+        import json as _json
+        import os as _os
+        import urllib.error as _urlerror
+        import urllib.request as _urlrequest
+
+        student_id = req.learner_id.removeprefix("stu:").removesuffix(":audio")
+        if not student_id or student_id.startswith("acct:") or student_id.startswith("browser-"):
+            raise HTTPException(
+                status_code=428,
+                detail="A student profile is required for identity assurance.",
+                headers={"X-AOEP-Gate": "identity_assurance_required"},
+            )
+        request = _urlrequest.Request(
+            f"{_os.environ.get('IDENTITY_URL', 'http://identity:8000').rstrip('/')}"
+            f"/students/{student_id}/identity-assurance?required=true",
+            headers={"Authorization": authorization},
+        )
+        try:
+            with _urlrequest.urlopen(request, timeout=4.0) as response:
+                assurance = _json.loads(response.read())
+        except _urlerror.HTTPError as exc:
+            raise HTTPException(
+                status_code=exc.code,
+                detail="identity assurance could not be confirmed",
+            ) from exc
+        except _urlerror.URLError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="identity assurance service unavailable",
+            ) from exc
+        if not assurance.get("allowed"):
+            raise HTTPException(
+                status_code=428,
+                detail={
+                    "message": "Identity setup is required for this certification course.",
+                    "missing": assurance.get("missing", []),
+                },
+                headers={"X-AOEP-Gate": "identity_assurance_required"},
+            )
     try:
         return _teach.start(
             session_id=req.session_id,
@@ -874,12 +927,7 @@ def teach_start(req: TeachStartRequest) -> dict[str, Any]:
             resume=req.resume,
             soft_limit_minutes=req.soft_limit_minutes,
             voice_gender=req.voice_gender,
-            access=resolve_teach_access(
-                requested=req.access,
-                registered=registered,
-                enrollment_status=enrollment,
-                is_admin=req.is_admin,
-            ),
+            access=access,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc

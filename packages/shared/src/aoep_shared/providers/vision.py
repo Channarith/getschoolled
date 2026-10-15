@@ -87,6 +87,10 @@ class _BaseVisionProvider(VisionProvider):
         self._persist_gallery()
         return count
 
+    def delete_student(self, student_id: str) -> None:
+        self._gallery.remove(student_id)
+        self._persist_gallery()
+
     def gallery(self) -> FaceGallery:
         return self._gallery
 

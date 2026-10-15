@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { getMe, getPortfolio, getToken, purchaseCourse } from "../lib/api";
+import {
+  getIdentityAssurance,
+  getLessonAccreditation,
+  getMe,
+  getPortfolio,
+  getToken,
+  listStudents,
+  purchaseCourse,
+} from "../lib/api";
 import {
   courseStudioFrameSrc,
   fullClassAllowed,
@@ -11,7 +19,7 @@ import {
 } from "../lib/courseStudio";
 import { CourseStudioFrame } from "./CourseStudioFrame";
 
-type Gate = "loading" | "signedout" | "pay" | "full";
+type Gate = "loading" | "signedout" | "pay" | "identity" | "full";
 
 export function CourseClassGate({
   courseId,
@@ -25,6 +33,7 @@ export function CourseClassGate({
   const [gate, setGate] = useState<Gate>("loading");
   const [accountId, setAccountId] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [studentId, setStudentId] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -33,13 +42,24 @@ export function CourseClassGate({
       setGate("signedout");
       return;
     }
-    Promise.all([getMe(), getPortfolio()])
-      .then(([me, portfolio]) => {
+    Promise.all([getMe(), getPortfolio(), listStudents(), getLessonAccreditation(courseId)])
+      .then(async ([me, portfolio, students, accreditation]) => {
         setAccountId(me.id);
+        const learnerId = students.students[0]?.id || "";
+        setStudentId(learnerId);
         const admin = Boolean(me.is_admin);
         setIsAdmin(admin);
         const row = portfolio.enrollments.find((enrollment) => enrollment.course_id === courseId);
-        setGate(fullClassAllowed(true, row?.status || "", admin) ? "full" : "pay");
+        if (!fullClassAllowed(true, row?.status || "", admin)) {
+          setGate("pay");
+          return;
+        }
+        if (accreditation.requires_identity_assurance && learnerId) {
+          const assurance = await getIdentityAssurance(learnerId, true);
+          setGate(assurance.allowed ? "full" : "identity");
+          return;
+        }
+        setGate("full");
       })
       .catch(() => setGate("signedout"));
   }, [courseId]);
@@ -116,6 +136,20 @@ export function CourseClassGate({
     );
   }
 
+  if (gate === "identity") {
+    return (
+      <main className="container">
+        <h1>{title}</h1>
+        <div className="card">
+          <p>Complete Face, Audio, and government-ID setup before starting this credited course.</p>
+          <Link href={`/account/camera-check?required=1&returnTo=${encodeURIComponent("/")}`}>
+            Open identity setup
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="course-stage">
       <p className="course-stage-links">
@@ -127,7 +161,13 @@ export function CourseClassGate({
       <CourseStudioFrame
         fill
         title={`${title} full course`}
-        src={courseStudioFrameSrc({ access: "full", course: courseId, accountId, isAdmin })}
+        src={courseStudioFrameSrc({
+          access: "full",
+          course: courseId,
+          accountId,
+          learnerId: studentId,
+          isAdmin,
+        })}
       />
     </main>
   );
