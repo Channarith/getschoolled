@@ -107,6 +107,8 @@ class StudentProfile(BaseModel):
     motivation: str = "personal"
     accessibility: Dict[str, bool] = Field(default_factory=dict)
     accommodations_notes: str = ""
+    # Setup assistant "how do you learn best" ratings (modality -> 1..10).
+    modality_ratings: Dict[str, int] = Field(default_factory=dict)
     learner_category: str = ""
     # Versioned routing fingerprint derived from the survey. Structured fields
     # remain authoritative; the score is for fast catalog/session decisions.
@@ -911,6 +913,18 @@ class AccountStore:
         self._persist()
         return prof
 
+    def upsert_primary_learner(self, account_id: str, display_name: str,
+                               age_band: str) -> StudentProfile:
+        """Name the account's first learner, creating it on first sign-in."""
+        acct = self._by_id[account_id]
+        prof = next(iter(acct.students.values()), None)
+        if prof is None:
+            return self.add_student(account_id, display_name, age_band=age_band)
+        prof.display_name = display_name
+        prof.age_band = age_band
+        self._persist()
+        return prof
+
     def apply_learning_profile(self, account_id: str, student_id: str, profile) -> StudentProfile:
         """Persist onboarding survey results on a student profile."""
         prof = self._by_id[account_id].students.get(student_id)
@@ -925,6 +939,7 @@ class AccountStore:
         prof.motivation = profile.motivation
         prof.accessibility = dict(profile.accessibility)
         prof.accommodations_notes = profile.accommodations_notes
+        prof.modality_ratings = dict(profile.modality_ratings)
         prof.learner_category = profile.learner_category
         prof.profile_score = profile.profile_score
         prof.profile_score_version = profile.profile_score_version

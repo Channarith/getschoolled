@@ -539,6 +539,31 @@ class OnboardingCompleteRequest(BaseModel):
     age_band: str = "adult"
 
 
+class OnboardingLearnerRequest(BaseModel):
+    learner_name: str = Field(min_length=1, max_length=80)
+    age: int = Field(ge=3, le=120)
+
+
+def age_band_for(age: int) -> str:
+    if age < 13:
+        return "child"
+    if age < 18:
+        return "teen"
+    return "adult"
+
+
+@app.post("/onboarding/learner")
+def onboarding_learner(req: OnboardingLearnerRequest, acct=Depends(current_account)) -> dict:
+    """Setup assistant screen 1: the learner's name and age (stored as a band)."""
+    name = req.learner_name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="learner name is required")
+    if not acct.display_name:
+        app.state.accounts.patch_account(acct.id, display_name=name)
+    prof = app.state.accounts.upsert_primary_learner(acct.id, name, age_band_for(req.age))
+    return {"student": prof.model_dump(), "age_band": prof.age_band}
+
+
 @app.post("/onboarding/profile")
 def onboarding_profile(req: OnboardingProfileRequest, acct=Depends(current_account)) -> dict:
     from aoep_shared.avatars import resolve_avatar, resolve_avatar_id

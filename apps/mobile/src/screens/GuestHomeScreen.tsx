@@ -12,7 +12,7 @@ import { MASCOT_IMAGES } from "../mascots/imageAssets";
 import { PUBLIC_DEMOS, type PublicDemo } from "../publicDemos";
 import { theme } from "../theme";
 
-type Step = "landing" | "demos" | "login";
+type Step = "landing" | "demos" | "login" | "create";
 
 const DEMO_COPY: Record<string, { title: StringKey; subtitle: StringKey; body: StringKey }> = {
   "drivers-ed": {
@@ -54,8 +54,14 @@ export default function GuestHomeScreen() {
   if (demo) {
     return <DemoWebScreen demo={demo} onBack={() => setDemo(null)} />;
   }
-  if (step === "login") {
-    return <AuthScreen onBack={() => setStep("landing")} />;
+  if (step === "login" || step === "create") {
+    return (
+      <AuthScreen
+        setup={step === "create"}
+        onBack={() => setStep("landing")}
+        onExistingAccount={() => setStep("login")}
+      />
+    );
   }
   if (step === "demos") {
     return (
@@ -105,6 +111,13 @@ export default function GuestHomeScreen() {
         onPress={() => setStep("demos")}
       >
         <Text style={styles.primaryText}>{t("guest.tryDemo")}</Text>
+      </Pressable>
+      <Pressable
+        testID="guest-create-account"
+        style={styles.secondary}
+        onPress={() => setStep("create")}
+      >
+        <Text style={styles.secondaryText}>Create your account</Text>
       </Pressable>
       <Pressable
         testID="guest-log-in"
@@ -161,6 +174,7 @@ const styles = StyleSheet.create({
   secondary: {
     alignSelf: "stretch",
     borderRadius: 12,
+    marginBottom: 14,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderWidth: 1.5,

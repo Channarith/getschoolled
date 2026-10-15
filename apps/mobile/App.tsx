@@ -75,7 +75,7 @@ import {
 import { installClientLog } from "./src/clientLog";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
-import { setSettings } from "./src/storage";
+import { isSetupAssistantPending, setSettings, setSetupAssistantPending } from "./src/storage";
 
 const SALES_DEMO_FLAG_KEYS = [
   ...Object.values(SALES_DEMO_FLAGS),
@@ -311,7 +311,8 @@ function AppInner() {
       }
       if (id) await setSettings({ studentId: id });
       const status = await getAccountOnboardingStatus();
-      if (!status.completed) {
+      const settingUp = await isSetupAssistantPending();
+      if (!status.completed && settingUp) {
         const refreshed = (await listStudents()).students[0] ?? null;
         setOnboardingStudent(refreshed);
       } else {
@@ -928,6 +929,7 @@ function AppInner() {
           visible
           student={onboardingStudent}
           onComplete={() => {
+            void setSetupAssistantPending(false);
             setOnboardingStudent(null);
             setAuthEpoch((value) => value + 1);
           }}

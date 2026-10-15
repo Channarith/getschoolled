@@ -12,6 +12,7 @@ import {
 import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, forgotPassword, resetPassword } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
+import KenBurnsImage from "../components/KenBurnsImage";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { DEPLOY_MODE, QA_TEST_ACCOUNTS } from "../config";
@@ -25,10 +26,18 @@ const GOOGLE_WEB_CLIENT_ID = "647091395717-scfbmvsudec5t9vqukk2h8k732bgd3kp.apps
 const GOOGLE_ANDROID_CLIENT_ID = "647091395717-v959uk96ed1f6o11ni7fkv1rni7sblba.apps.googleusercontent.com";
 const FACEBOOK_APP_ID = "1071803295271778";
 
-export default function AuthScreen({ onBack }: { onBack?: () => void }) {
+export default function AuthScreen({
+  onBack,
+  setup = false,
+  onExistingAccount,
+}: {
+  onBack?: () => void;
+  setup?: boolean;
+  onExistingAccount?: () => void;
+}) {
   const { t, locale, setLocale } = useT();
   const { signIn, signInWithGoogle, signInWithFacebook, signInWithApple, signUp } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">(setup ? "signup" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -160,14 +169,24 @@ export default function AuthScreen({ onBack }: { onBack?: () => void }) {
           <Text style={styles.backText}>{t("guest.back")}</Text>
         </Pressable>
       ) : null}
+      {setup ? (
+        <KenBurnsImage source={require("../../assets/setup-assistant/account.webp")} opacity={0.55} />
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
           <Text style={styles.brand}>Salareen</Text>
-          <Text style={styles.title}>{t("auth.welcomeTitle")}</Text>
-          <Text style={styles.sub}>{t("auth.welcomeSubtitle")}</Text>
+          {setup ? <Text style={styles.setupKicker}>New account · email</Text> : null}
+          <Text style={styles.title}>
+            {setup ? "Create your account." : t("auth.welcomeTitle")}
+          </Text>
+          <Text style={styles.sub}>
+            {setup
+              ? "The setup assistant is for new accounts. Use your email as your username and choose a password."
+              : t("auth.welcomeSubtitle")}
+          </Text>
         </View>
 
         <GlassPanel style={styles.card}>
@@ -250,7 +269,11 @@ export default function AuthScreen({ onBack }: { onBack?: () => void }) {
             disabled={busy}
             variant="netflix"
           />
-          <AnimatedPressable onPress={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}>
+          <AnimatedPressable onPress={() => {
+            setError("");
+            if (setup && onExistingAccount) onExistingAccount();
+            else setMode(mode === "login" ? "signup" : "login");
+          }}>
             <Text style={styles.link}>
               {mode === "login" ? t("auth.createAccount") : t("auth.haveAccount")}
             </Text>
@@ -260,7 +283,7 @@ export default function AuthScreen({ onBack }: { onBack?: () => void }) {
               <Text style={styles.link}>{t("auth.forgot")}</Text>
             </AnimatedPressable>
           ) : null}
-          {(mode === "login" || mode === "signup") ? (
+          {mode === "login" && !setup ? (
             <View style={styles.socialBlock}>
               <Text style={styles.socialDivider}>{mode === "login" ? "or sign in with" : "or sign up with"}</Text>
               <View style={styles.socialRow}>
@@ -391,6 +414,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   header: { marginBottom: 24, alignItems: "center" },
+  setupKicker: {
+    color: "#8be9ff", fontSize: 12, fontWeight: "900", letterSpacing: 1.2,
+    textTransform: "uppercase", marginBottom: 8, textAlign: "center",
+  },
   brand: {
     color: theme.colors.netflix,
     fontSize: 28,

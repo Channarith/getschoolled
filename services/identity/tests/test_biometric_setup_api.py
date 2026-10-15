@@ -124,3 +124,40 @@ def test_biometric_delete_revokes_consent_and_templates(monkeypatch):
     assert setup["portrait"]["status"] == "revoked"
     assert setup["voice"]["template_ref"] == ""
     assert setup["government_id"]["provider_reference"] == ""
+
+
+def test_setup_assistant_learner_age_sets_band_and_ratings_build_profile():
+    headers, student = _account()
+    learner = client.post(
+        "/onboarding/learner",
+        headers=headers,
+        json={"learner_name": "Maya", "age": 11},
+    )
+    assert learner.status_code == 200
+    assert learner.json()["student"]["id"] == student["id"]
+    assert learner.json()["age_band"] == "child"
+    assert client.post(
+        "/onboarding/learner", headers=headers, json={"learner_name": "Maya", "age": 2},
+    ).status_code == 422
+
+    ratings = {
+        "video": 6, "live_teacher": 4, "presentation": 5,
+        "reading": 3, "tutoring": 7, "gaming": 10,
+    }
+    saved = client.post(
+        f"/students/{student['id']}/learning-profile",
+        headers=headers,
+        json={"answers": {"modality_ratings": ratings}},
+    )
+    assert saved.status_code == 200
+    body = saved.json()["student"]
+    assert body["modality_ratings"] == ratings
+    assert body["primary_style"] == "hands_on"
+    assert body["group_preference"] == "solo"
+
+    bad = client.post(
+        f"/students/{student['id']}/learning-profile",
+        headers=headers,
+        json={"answers": {"modality_ratings": {**ratings, "gaming": 11}}},
+    )
+    assert bad.status_code == 422

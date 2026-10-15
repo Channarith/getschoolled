@@ -4,7 +4,9 @@ import {
   getMe, login, loginWithApple, loginWithFacebook, loginWithGoogle,
   signup, verify2faLogin, type Account, type LoginResult,
 } from "../api";
-import { clearAuthToken, getToken, loadAuthToken, setAuthToken, setPreviewMode } from "../storage";
+import {
+  clearAuthToken, getToken, loadAuthToken, setAuthToken, setPreviewMode, setSetupAssistantPending,
+} from "../storage";
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "mfa_pending";
 
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus("mfa_pending");
       return;
     }
+    await setSetupAssistantPending(false);
     await setAuthToken(res.token);
     await setPreviewMode(false);
     setAccount(res.account);
@@ -78,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!mfaToken) throw new Error("No MFA session");
     const res = await verify2faLogin(mfaToken, code);
     setMfaToken("");
+    await setSetupAssistantPending(false);
     await setAuthToken(res.token);
     await setPreviewMode(false);
     setAccount(res.account);
@@ -91,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = useCallback(async (email: string, password: string, displayName: string) => {
     const res = await signup(email, password, displayName);
+    await setSetupAssistantPending(true);
     await setAuthToken(res.token);
     await setPreviewMode(false);
     setAccount(res.account);
@@ -106,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const _oauthSignIn = useCallback(async (fn: () => Promise<{ token: string; account: Account }>) => {
     const res = await fn();
+    await setSetupAssistantPending(false);
     await setAuthToken(res.token);
     await setPreviewMode(false);
     setAccount(res.account);
