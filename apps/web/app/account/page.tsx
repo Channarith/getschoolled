@@ -353,6 +353,9 @@ export default function AccountPage() {
               ))}
             </div>
             <p className="muted" style={{ marginTop: 6 }}>
+              Free is English lessons with ads for 14 days, for the first 100 people. It does not include group classes or AI agents, and then it goes away.
+            </p>
+            <p className="muted" style={{ marginTop: 6 }}>
               {t("account.currentPlan", { tier: portfolio.tier })}{" "}
               <Link href="/billing">Billing</Link>
             </p>

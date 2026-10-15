@@ -472,6 +472,12 @@ def api_start_session(
     )
 
     account_id = _assessment_account_id(authorization)
+    from aoep_shared.free_plan import free_plan_lesson_block  # noqa: E402
+    from aoep_shared.live_room_rewards import profile_from_authorization  # noqa: E402
+
+    lesson_block = free_plan_lesson_block(profile_from_authorization(authorization))
+    if lesson_block:
+        raise HTTPException(status_code=403, detail=lesson_block)
     allowed, reason = may_start_for_accreditation(
         req.lesson_id, account_id=account_id or None,
     )
@@ -2021,10 +2027,17 @@ def register_group_class(
     req: RegisterRequest,
     authorization: str = Header(default=""),
 ) -> dict:
-    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+    from aoep_shared.free_plan import free_plan_blocks_group  # noqa: E402
+    from aoep_shared.live_room_rewards import profile_from_authorization  # noqa: E402
 
     store = _group_store()
-    account_id = account_from_authorization(authorization) or ""
+    profile = profile_from_authorization(authorization)
+    if free_plan_blocks_group(profile):
+        raise HTTPException(
+            status_code=403,
+            detail="The free plan does not include group classes.",
+        )
+    account_id = str((profile or {}).get("id") or "").strip()
     if store.get(class_id) is None:
         _seed_group_classes()   # materialize standard classes on a miss (see _find_group_class)
     try:

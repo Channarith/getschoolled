@@ -10,6 +10,7 @@ import AccountStep from "./AccountStep";
 import {
   AUTH_EVENT,
   completeOnboarding,
+  getFreePlanOffer,
   getMe,
   getOnboardingStatus,
   getToken,
@@ -22,7 +23,7 @@ import {
 import styles from "./Onboarding.module.css";
 
 const PLANS = [
-  { id: "free", label: "Free", price: "$0", vip: false, blurb: "English classes with ads" },
+  { id: "free", label: "Free", price: "$0", vip: false, blurb: "14 days of English lessons with ads. No group classes or AI agents. First 100 people, then it goes away." },
   { id: "basic", label: "Basic", price: "$9/mo", vip: false, blurb: "5 languages, with ads" },
   { id: "pro", label: "Pro", price: "$19/mo", vip: true, blurb: "All languages, ad-free, solo classes" },
   { id: "premium", label: "Premium", price: "$29/mo", vip: true, blurb: "Everything + analytics" },
@@ -85,6 +86,7 @@ export default function OnboardingPage() {
   const [focus, setFocus] = useState<ModeId>("video");
   const [studentId, setStudentId] = useState("");
   const [plan, setPlan] = useState("free");
+  const [freeOffer, setFreeOffer] = useState(true);
   const [billing, setBilling] = useState({
     line1: "", line2: "", city: "", state: "", postal_code: "", country: "US",
     card_number: "", exp_month: 12, exp_year: new Date().getFullYear() + 2, cvv: "",
@@ -118,6 +120,12 @@ export default function OnboardingPage() {
     setRatings(readJson(STORAGE.ratings, {}));
     setStudentId(savedStudent);
     setPlan(localStorage.getItem(STORAGE.plan) || "free");
+    getFreePlanOffer().then((offer) => {
+      setFreeOffer(offer.available);
+      if (!offer.available) {
+        setPlan((current) => (current === "free" ? "basic" : current));
+      }
+    }).catch(() => undefined);
   }, [router]);
 
   useEffect(() => {
@@ -398,9 +406,13 @@ export default function OnboardingPage() {
         <section className={styles.panel}>
           <span className={styles.eyebrow}>Last step</span>
           <h1>Pick a plan to start.</h1>
-          <p className={styles.lede}>Standard plans include ads. Pro and Premium are ad-free. You can change this any time.</p>
+          <p className={styles.lede}>
+            {freeOffer
+              ? "Free is a 14-day English trial for the first 100 people. It does not include group classes or AI agents, and then it goes away. Paid plans add those."
+              : "The free plan has ended. Choose a paid plan to continue."}
+          </p>
           <div className={styles.plans}>
-            {PLANS.map((item) => (
+            {PLANS.filter((item) => freeOffer || item.id !== "free").map((item) => (
               <button
                 key={item.id}
                 type="button"

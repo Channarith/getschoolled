@@ -191,6 +191,10 @@ class Account(BaseModel):
     oauth_subject: str = ""          # provider:sub when passwordless OAuth linked
     passkeys: List[PasskeyCredential] = Field(default_factory=list)
     onboarding_completed_at: Optional[float] = None
+    # Introductory free-plan claim. Empty until the person selects Free.
+    # Expired claims still count toward the 100-person cap.
+    free_plan_claimed_at: Optional[float] = None
+    free_plan_expires_at: Optional[float] = None
     billing_address: Optional[BillingAddress] = None
     card_last4: str = ""
     billing_validated_at: Optional[float] = None
@@ -228,6 +232,17 @@ class Account(BaseModel):
                 next_billing_at=self.next_billing_at,
                 billing_amount_usd=self.billing_amount_usd,
             ),
+            "free_plan": {
+                "claimed_at": self.free_plan_claimed_at,
+                "expires_at": self.free_plan_expires_at,
+                "active": bool(
+                    self.free_plan_claimed_at
+                    and self.free_plan_expires_at
+                    and self.free_plan_expires_at > time.time()
+                ),
+                "group_classes": False,
+                "ai_agents": False,
+            },
         }
 
 
@@ -673,6 +688,40 @@ class AccountStore:
         prof.avatar_id = resolve_avatar_id(avatar_id)
         self._persist()
         return prof
+
+    def free_claim_count(self) -> int:
+        """People who have claimed the introductory free plan, including expired trials."""
+        return sum(1 for acct in self._by_id.values() if acct.free_plan_claimed_at)
+
+    def claim_free_plan(self, account_id: str, *, now: Optional[float] = None) -> Account:
+        """Select the free plan if the offer is still open and this person has not used it up."""
+        from aoep_shared.free_plan import (
+            evaluate_free_offer,
+            free_trial_active,
+            load_offer,
+            trial_expires_at,
+        )
+
+        acct = self._by_id[account_id]
+        moment = time.time() if now is None else now
+        if free_trial_active(acct.free_plan_claimed_at, acct.free_plan_expires_at, moment):
+            return self.set_tier(account_id, PlanTier.FREE)
+        if acct.free_plan_claimed_at:
+            raise ValueError("Your free plan has ended.")
+        offer = load_offer()
+        status = evaluate_free_offer(self.free_claim_count(), moment, offer)
+        if not status.available:
+            raise ValueError(status.reason)
+        acct.free_plan_claimed_at = moment
+        acct.free_plan_expires_at = trial_expires_at(moment, offer)
+        acct.tier = PlanTier.FREE
+        acct.membership_class = membership_class_for_tier(PlanTier.FREE.value)
+        acct.subscription_started_at = None
+        acct.billing_anchor_day = None
+        acct.next_billing_at = None
+        acct.billing_amount_usd = None
+        self._persist()
+        return acct
 
     def set_tier(self, account_id: str, tier: PlanTier) -> Account:
         acct = self._by_id[account_id]

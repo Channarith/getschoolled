@@ -348,6 +348,16 @@ export async function submitOnboardingBilling(body: Record<string, unknown>): Pr
   );
 }
 
+export async function getFreePlanOffer(): Promise<{
+  available: boolean;
+  reason: string;
+  seats_remaining: number;
+  seats_limit: number;
+  trial_days: number;
+}> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/onboarding/free-plan`));
+}
+
 export async function selectOnboardingPlan(tier: string): Promise<{ tier: string; membership_class: string }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/onboarding/plan`, {

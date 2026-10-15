@@ -337,6 +337,11 @@ def install_live_audio_routes(
             request.headers.get("x-forwarded-host", ""),
         ):
             raise HTTPException(status_code=403, detail="cross-origin token mint denied")
+        from .free_plan import free_plan_blocks_agents
+        from .live_room_rewards import profile_from_authorization
+
+        if free_plan_blocks_agents(profile_from_authorization(request.headers.get("authorization", ""))):
+            raise HTTPException(status_code=403, detail="The free plan does not include AI agents.")
         provider = str(payload.get("provider") or "")
         # Language is a closed code (km, zh, yue, …), not a caller-written prompt.
         language = str(payload.get("language") or "")

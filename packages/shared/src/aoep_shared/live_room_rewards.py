@@ -19,8 +19,8 @@ class LiveRoomRewardsError(Exception):
     """Identity rewards call failed (insufficient balance, auth, etc.)."""
 
 
-def account_from_authorization(authorization: str, *, timeout_s: float = 5.0) -> Optional[str]:
-    """Resolve account id from a Bearer session token via identity ``/auth/me``."""
+def profile_from_authorization(authorization: str, *, timeout_s: float = 5.0) -> Optional[dict]:
+    """Resolve identity ``/auth/me`` for a Bearer token, or None if it cannot be read."""
     auth = (authorization or "").strip()
     if not auth.lower().startswith("bearer "):
         return None
@@ -30,6 +30,14 @@ def account_from_authorization(authorization: str, *, timeout_s: float = 5.0) ->
         with urllib.request.urlopen(req, timeout=timeout_s) as resp:
             data = json.loads(resp.read().decode())
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def account_from_authorization(authorization: str, *, timeout_s: float = 5.0) -> Optional[str]:
+    """Resolve account id from a Bearer session token via identity ``/auth/me``."""
+    data = profile_from_authorization(authorization, timeout_s=timeout_s)
+    if not data:
         return None
     return str(data.get("id") or "").strip() or None
 

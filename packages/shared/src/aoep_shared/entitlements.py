@@ -22,6 +22,8 @@ class PlanDefinition:
     cross_class_memory: bool
     recordings: bool
     analytics: bool
+    group_classes: bool = True
+    ai_agents: bool = True
 
 
 _ALL_LANGS = frozenset(SUPPORTED_LANGUAGES)
@@ -35,6 +37,8 @@ PLANS: dict[PlanTier, PlanDefinition] = {
         cross_class_memory=False,
         recordings=False,
         analytics=False,
+        group_classes=False,
+        ai_agents=False,
     ),
     PlanTier.BASIC: PlanDefinition(
         tier=PlanTier.BASIC,
@@ -67,6 +71,7 @@ FEATURE_ATTR = {
     "cross_class_memory": "cross_class_memory",
     "recordings": "recordings",
     "analytics": "analytics",
+    "ai_agents": "ai_agents",
 }
 
 
@@ -89,6 +94,9 @@ def can_start(
 
     if class_type is ClassType.SOLO and not plan.solo_classes:
         reasons.append(f"{tier.value} plan does not include 1:1 solo classes")
+
+    if class_type is ClassType.GROUP and not plan.group_classes:
+        reasons.append(f"{tier.value} plan does not include group classes")
 
     if language not in plan.languages:
         reasons.append(f"{tier.value} plan does not include language {language!r}")
