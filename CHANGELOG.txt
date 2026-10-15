@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-15 - v0.58.4 - Setup assistant: the phone Allow button for camera and microphone can be tapped. The setup window steps aside for the system prompt, and the web check starts the camera or microphone inside the tap.
 - 2026-10-15 - v0.58.3 - Setup assistant: full-screen professional layout, profile name + age wheel, all ten ratings visible on phones, Salareen Learner Check (same-origin opencv.js, random look targets, face contour, lighting, voice waveform), voice decode/model fixes, refreshed artwork.
 - 2026-10-14 - v0.58.2 - Perception image can build again: sherpa-onnx 1.12.14 was never published, so the production deploy stopped before it could roll. The pin is now 1.12.40.
 - 2026-10-14 - v0.58.1 - The setup assistant is only for a new account created with email and a password. An existing Salareen account signs in with email, Google, Apple, or Facebook and goes straight into the app. Google, Apple, and Facebook sign-in skips the assistant.
