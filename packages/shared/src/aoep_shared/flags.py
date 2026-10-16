@@ -124,7 +124,7 @@ FLAG_CATALOG: List[FlagSpec] = [
              "flip it on."),
     FlagSpec("sales_demo.restrict_signed_in", FlagType.BOOL, False, "sales_demo",
              "Simplified-nav mode after login. Signed-in non-admin accounts see "
-             "a trimmed one-row header with 5 tabs: Our Story, Vision Play Lab, "
+             "a trimmed one-row header with 5 tabs: Our Story, Vision Play, "
              "On the Go, Careers, Live Class — plus profile. The "
              "full home and pages still render; only the nav is simplified. "
              "Lock-out guard: admin accounts (is_admin) always see the full "
@@ -135,8 +135,8 @@ FLAG_CATALOG: List[FlagSpec] = [
 
     # --- arcade / vision play lab -------------------------------------------- #
     FlagSpec("arcade.vision_only", FlagType.BOOL, True, "arcade",
-             "Simplified Vision Play Lab mode. When ON (default), /arcade "
-             "shows ONLY the Vision Play Lab (webcam-driven hands-free "
+             "Simplified Vision Play mode. When ON (default), /arcade "
+             "shows ONLY Machine Vision (webcam-driven hands-free "
              "learning: faces, hands, letters, movement, listening) and "
              "hides the full games catalog (Salareen Worlds banner, "
              "Professional scenarios, Kids' Games, Discovery Games, Zoo & "

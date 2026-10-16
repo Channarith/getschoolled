@@ -11,9 +11,19 @@ def test_free_blocks_solo_and_non_english():
     assert any("es" in r for r in d.reasons)
 
 
-def test_free_allows_english_group():
-    d = can_start(PlanTier.FREE, class_type=ClassType.GROUP, language="en")
-    assert d.allowed
+def test_free_blocks_group_and_ai_agents():
+    group = can_start(PlanTier.FREE, class_type=ClassType.GROUP, language="en")
+    assert not group.allowed
+    assert any("group" in reason for reason in group.reasons)
+    agents = can_start(PlanTier.FREE, class_type=ClassType.GROUP, language="en", features=["ai_agents"])
+    assert not agents.allowed
+    assert any("ai_agents" in reason for reason in agents.reasons)
+
+
+def test_paid_plans_include_group_and_ai_agents():
+    for tier in (PlanTier.BASIC, PlanTier.PRO, PlanTier.PREMIUM):
+        decision = can_start(tier, class_type=ClassType.GROUP, language="en", features=["ai_agents"])
+        assert decision.allowed, tier
 
 
 def test_pro_allows_solo_all_languages_and_memory():

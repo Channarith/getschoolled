@@ -177,7 +177,7 @@ export default function ArcadePage() {
 
   return (
     <main className="container" style={{ maxWidth: 1000 }}>
-      <h1>{arcadeVisionOnly ? "Vision Play Lab" : t("arcade.title")}</h1>
+      <h1>{t("arcade.title")}</h1>
       <p className="muted">
         {arcadeVisionOnly ? (
           "Hands-free learning for every age — faces, hands, letters, movement, and listening. The camera stays in your browser."
@@ -285,12 +285,12 @@ export default function ArcadePage() {
           primary (and, when arcade.vision_only is ON, only) section. */}
       {!round && (
         <div id="vision" className="card" style={{ background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(124,58,237,0.14))" }}>
-          <h3 style={{ marginTop: 0 }}>Vision Play Lab</h3>
+          <h3 style={{ marginTop: 0 }}>Machine vision</h3>
           <p className="muted" style={{ marginTop: 0 }}>
             Hands-free learning for every age — faces, hands, letters, movement, and listening. The camera stays in your browser.
             Sala can talk through Salane Voice inside the lab.
           </p>
-          <VisionArcadeFrame title="Vision Play Lab" src={visionArcadeFrameSrc()} />
+          <VisionArcadeFrame title="Machine vision" src={visionArcadeFrameSrc()} />
         </div>
       )}
 

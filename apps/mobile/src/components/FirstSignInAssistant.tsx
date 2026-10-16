@@ -1,11 +1,12 @@
 import { useState } from "react";
 import {
-  Image, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View,
+  Alert, Image, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View,
 } from "react-native";
 
 import {
   completeMobileAccountOnboarding,
   getMe,
+  getMobileFreePlanOffer,
   selectMobileFreePlan,
   submitLearningProfile,
   submitMobileOnboardingLearner,
@@ -100,12 +101,24 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
     });
   }
 
-  function finish() {
-    return withBusy(async () => {
-      await selectMobileFreePlan().catch(() => undefined);
+  async function finish() {
+    setBusy(true);
+    setError("");
+    try {
+      const offer = await getMobileFreePlanOffer();
+      if (!offer.available) {
+        throw new Error(offer.reason || "The free plan is no longer available.");
+      }
+      await selectMobileFreePlan();
       await completeMobileAccountOnboarding(name.trim(), ageBand);
       onComplete();
-    });
+    } catch (reason) {
+      const message = String(reason).replace(/^Error:\s*/, "");
+      setError(message);
+      Alert.alert("Free plan", message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

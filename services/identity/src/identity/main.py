@@ -451,6 +451,8 @@ def subscribe(req: SubscribeRequest, acct=Depends(current_account)) -> dict:
         )
     if tier_requires_payment(tier_val):
         updated = app.state.accounts.activate_subscription(acct.id, req.tier)
+    elif tier_val == "free":
+        updated = _claim_free_plan(acct.id)
     else:
         updated = app.state.accounts.set_tier(acct.id, req.tier)
     return {
@@ -630,9 +632,31 @@ def onboarding_plan(req: OnboardingPlanRequest, acct=Depends(current_account)) -
         )
     if tier_requires_payment(tier.value):
         updated = app.state.accounts.activate_subscription(acct.id, tier)
+    elif tier.value == "free":
+        updated = _claim_free_plan(acct.id)
     else:
         updated = app.state.accounts.set_tier(acct.id, tier)
     return {"tier": updated.tier.value, "membership_class": updated.membership_class}
+
+
+def _claim_free_plan(account_id: str):
+    from .persistence import FreeClaimUnavailable
+
+    try:
+        return app.state.accounts.claim_free_plan(account_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except FreeClaimUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/onboarding/free-plan")
+def free_plan_offer() -> dict:
+    """Whether the introductory free plan can still be selected."""
+    from aoep_shared.free_plan import evaluate_free_offer
+
+    status = evaluate_free_offer(app.state.accounts.free_claim_count(), time.time())
+    return status.as_dict()
 
 
 @app.post("/onboarding/complete")

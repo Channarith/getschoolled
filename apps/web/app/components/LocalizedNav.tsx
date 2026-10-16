@@ -65,12 +65,13 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
 
   // Simplified-nav default (nav.full_tabs_enabled=false). "Our Story" is
   // rendered outside contentLinks already, so the simplified list adds the
-  // other 4 tabs: Vision Play Lab, On the Go (Drive Lab, audio-first
-  // hands-free learning), Careers, Live Class. Keeping the count small lets
-  // the full header fit on ONE row even on narrow laptops.
+  // other 4 tabs: Vision Play, On the Go, Careers, Live Class.
+  // Keeping the count small lets the full header fit on ONE row even on
+  // narrow laptops. The audio translation lab stays at /audio-lab; it is
+  // not a tab.
   const simplifiedLinks = (
     <>
-      <Link href="/arcade">Vision Play Lab</Link>
+      <Link href="/arcade">{t("nav.arcade")}</Link>
       <Link href="/drive">{t("nav.drive")}</Link>
       <Link href="/jobs">{t("nav.careers")}</Link>
       <Link href="/class">{t("nav.liveClass")}</Link>
@@ -97,7 +98,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
 
   // Simplified-nav mode is the DEFAULT for every signed-in account (admin
   // included). Only 5 header items ship by default: Our Story (rendered
-  // outside contentLinks) + Vision Play Lab, Audio Translation Lab, Careers,
+  // outside contentLinks) + Vision Play, On the Go, Careers,
   // Live Class. An admin can restore the full nav globally by checking
   // `nav.full_tabs_enabled` in the admin console; the admin UI auto-renders
   // every FlagSpec by category, so the checkbox appears automatically under

@@ -98,13 +98,12 @@ export default function SalesDemoPage() {
       </section>
 
       <section style={{ marginTop: 34 }}>
-        <h2>Vision arcade</h2>
+        <h2>Vision Play</h2>
         <p className="muted">
-          Children play the machine-vision games from the webcam lab. Anyone can open it.
-          The camera stays in the browser.
+          Machine vision. The camera stays in the browser.
         </p>
         <Link href="/demo/arcade">
-          <button type="button">Play the vision arcade</button>
+          <button type="button">Open Vision Play</button>
         </Link>
       </section>
 

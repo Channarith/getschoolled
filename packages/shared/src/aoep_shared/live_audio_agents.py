@@ -337,6 +337,17 @@ def install_live_audio_routes(
             request.headers.get("x-forwarded-host", ""),
         ):
             raise HTTPException(status_code=403, detail="cross-origin token mint denied")
+        from .free_plan import free_plan_blocks_agents
+        from .live_room_rewards import VerifiedIdentityError, require_verified_profile
+
+        # Verified identity only. Missing or rejected credentials are 401.
+        # An unreadable identity service is 503. Neither path mints a token.
+        try:
+            profile = require_verified_profile(request.headers.get("authorization", ""))
+        except VerifiedIdentityError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        if free_plan_blocks_agents(profile):
+            raise HTTPException(status_code=403, detail="The free plan does not include AI agents.")
         provider = str(payload.get("provider") or "")
         # Language is a closed code (km, zh, yue, …), not a caller-written prompt.
         language = str(payload.get("language") or "")

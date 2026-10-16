@@ -94,6 +94,16 @@ def test_routes_expose_status_client_and_reject_unconfigured_token(monkeypatch):
     monkeypatch.delenv("XAI_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+
+    def profiles(authorization="", **kwargs):
+        if str(authorization or "") == "Bearer paid":
+            return {"id": "paid-user", "tier": "premium", "free_plan": {"active": False}}
+        return None
+
+    monkeypatch.setattr(
+        "aoep_shared.live_room_rewards.profile_from_authorization",
+        profiles,
+    )
     app = FastAPI()
     live.install_live_audio_routes(app, lab_name="Test Lab")
     client = TestClient(app)
@@ -106,7 +116,13 @@ def test_routes_expose_status_client_and_reject_unconfigured_token(monkeypatch):
     assert "input_audio_buffer.append" in script.text
     assert "realtimeInput" in script.text
     assert 'fetch("/tts' not in script.text
-    token = client.post("/api/live-audio/token", json={"provider": "xai"})
+    anonymous = client.post("/api/live-audio/token", json={"provider": "xai"})
+    assert anonymous.status_code == 401
+    token = client.post(
+        "/api/live-audio/token",
+        json={"provider": "xai"},
+        headers={"Authorization": "Bearer paid"},
+    )
     assert token.status_code == 503
     assert "retired" in token.json()["detail"]
     denied = client.post(
@@ -124,9 +140,71 @@ def test_routes_expose_status_client_and_reject_unconfigured_token(monkeypatch):
             "origin": "https://www.salareen.com",
             "host": "course-studio:8040",
             "x-forwarded-host": "www.salareen.com",
+            "Authorization": "Bearer paid",
         },
     )
     assert proxied.status_code == 503
+
+
+def test_live_audio_token_requires_a_verified_account_and_fails_closed(monkeypatch):
+    """Anonymous, invalid, and unreadable auth must not mint. Free accounts must not either."""
+    pytest.importorskip("fastapi")
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    minted = []
+
+    def boom(authorization="", **kwargs):
+        auth = str(authorization or "")
+        if "raise" in auth:
+            raise RuntimeError("identity down")
+        if auth == "Bearer paid":
+            return {"id": "paid-1", "tier": "premium", "free_plan": {"active": True}}
+        if auth == "Bearer free-active":
+            return {"id": "free-1", "tier": "free", "free_plan": {"active": True}}
+        if auth == "Bearer free-expired":
+            return {"id": "free-2", "tier": "free", "free_plan": {"active": False}}
+        if auth == "Bearer nameless":
+            return {"tier": "premium"}
+        return None
+
+    def mint(*args, **kwargs):
+        minted.append((args, kwargs))
+        return {"provider": "gemini", "token": "short-lived"}
+
+    monkeypatch.setattr(
+        "aoep_shared.live_room_rewards.profile_from_authorization",
+        boom,
+    )
+    monkeypatch.setattr(live, "mint_provider_token", mint)
+    app = FastAPI()
+    live.install_live_audio_routes(app, lab_name="Test Lab")
+    client = TestClient(app)
+
+    cases = [
+        ({}, 401),
+        ({"Authorization": "Bearer invalid"}, 401),
+        ({"Authorization": "Bearer nameless"}, 401),
+        ({"Authorization": "Bearer raise"}, 503),
+        ({"Authorization": "Bearer free-active"}, 403),
+        ({"Authorization": "Bearer free-expired"}, 403),
+    ]
+    for headers, status in cases:
+        minted.clear()
+        response = client.post("/api/live-audio/token", json={"provider": "gemini"}, headers=headers)
+        assert response.status_code == status, response.text
+        assert minted == []
+        if status == 403:
+            assert "AI agents" in response.json()["detail"]
+
+    paid = client.post(
+        "/api/live-audio/token",
+        json={"provider": "gemini"},
+        headers={"Authorization": "Bearer paid"},
+    )
+    assert paid.status_code == 200, paid.text
+    assert paid.json()["token"] == "short-lived"
+    assert len(minted) == 1
 
 
 def test_browser_client_parses_and_has_gapless_barge_in():

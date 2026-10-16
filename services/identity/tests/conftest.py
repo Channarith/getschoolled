@@ -25,3 +25,6 @@ os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")
 # deterministic); the seed is unit-tested directly via store.seed_admin().
 os.environ.setdefault("SEED_DEFAULT_ADMIN", "0")
 os.environ.setdefault("SEED_QA_ACCOUNTS", "0")
+# Keep the introductory free plan selectable in tests. Production uses the
+# 14-day default from aoep_shared.free_plan when this env is unset.
+os.environ.setdefault("FREE_PLAN_OFFER_DAYS", "36500")

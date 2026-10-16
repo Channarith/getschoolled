@@ -2468,6 +2468,12 @@ export async function submitMobileOnboardingLearner(
   return { studentId: body.student.id, ageBand: body.age_band };
 }
 
+export async function getMobileFreePlanOffer(): Promise<{ available: boolean; reason: string }> {
+  const response = await fetch(`${IDENTITY_URL}/onboarding/free-plan`);
+  if (!response.ok) throw new Error("Could not check the free plan.");
+  return response.json() as Promise<{ available: boolean; reason: string }>;
+}
+
 export async function selectMobileFreePlan(): Promise<void> {
   const tok = getToken();
   if (!tok) throw new Error("not signed in");
@@ -2476,7 +2482,16 @@ export async function selectMobileFreePlan(): Promise<void> {
     headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
     body: JSON.stringify({ tier: "free" }),
   });
-  if (!response.ok) throw new Error(`plan setup failed: ${response.status}`);
+  if (!response.ok) {
+    let detail = `plan setup failed: ${response.status}`;
+    try {
+      const body = (await response.json()) as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* keep the status message */
+    }
+    throw new Error(detail);
+  }
 }
 
 // ── Platform presence ────────────────────────────────────────────────────────

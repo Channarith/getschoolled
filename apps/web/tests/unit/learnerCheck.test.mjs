@@ -53,6 +53,77 @@ test("pose is read from the mirrored head turn relative to neutral", () => {
   assert.equal(poseFromBaseline(base, geo(14, 0)), "left");
   assert.equal(poseFromBaseline(base, geo(0, -8)), "up");
   assert.equal(poseFromBaseline(base, geo(0, 8)), "down");
+  // Raw-frame yaw is flipped for the mirrored selfie the learner sees.
+  assert.equal(poseFromBaseline(base, geo(14, 0), false), "right");
+  assert.equal(poseFromBaseline(base, geo(-14, 0), false), "left");
+});
+
+// Rigid head, mm, projected to pixels. +yaw turns the nose toward the person's
+// left eye (right side of an unmirrored frame). +pitch looks down.
+// Mouth sits well forward of the eyes, which is what cancelled the old
+// nose-vs-mouth-axis yaw.
+function projectHead(yawDeg, pitchDeg, rollDeg = 0) {
+  const iod = 63;
+  const pts = [
+    [-iod / 2, 0, 0],
+    [iod / 2, 0, 0],
+    [0, 32, 30],
+    [-25, 68, 18],
+    [25, 68, 18],
+  ];
+  const yaw = (yawDeg * Math.PI) / 180;
+  const pitch = (pitchDeg * Math.PI) / 180;
+  const roll = (rollDeg * Math.PI) / 180;
+  const cy = Math.cos(yaw);
+  const sy = Math.sin(yaw);
+  const cp = Math.cos(pitch);
+  const sp = Math.sin(pitch);
+  const cr = Math.cos(roll);
+  const sr = Math.sin(roll);
+  return pts.map(([x, y, z]) => {
+    const x1 = x * cy + z * sy;
+    const z1 = -x * sy + z * cy;
+    const y2 = y * cp + z1 * sp;
+    const x3 = x1 * cr - y2 * sr;
+    const y3 = x1 * sr + y2 * cr;
+    return [320 + x3 * 3.2, 180 + y3 * 3.2];
+  });
+}
+
+const HEAD_BOX = [220, 80, 200, 260];
+const HEAD_FRAME = [640, 480];
+
+function oldAxisYaw(landmarks) {
+  const [rightEye, leftEye, nose, rightMouth, leftMouth] = landmarks;
+  const eyeMidX = (rightEye[0] + leftEye[0]) / 2;
+  const mouthMidX = (rightMouth[0] + leftMouth[0]) / 2;
+  const eyeDist = Math.hypot(leftEye[0] - rightEye[0], leftEye[1] - rightEye[1]);
+  return (nose[0] - (eyeMidX + mouthMidX) / 2) / eyeDist;
+}
+
+test("a clear look registers even when the mouth shift used to hide it", () => {
+  const neutralLm = projectHead(0, 0);
+  const neutral = faceGeometry(neutralLm, HEAD_BOX, HEAD_FRAME);
+  assert.ok(neutral);
+  const turned = projectHead(20, 0);
+  const geometry = faceGeometry(turned, HEAD_BOX, HEAD_FRAME);
+  // The previous gate (nose vs the eye/mouth axis, threshold 0.16) missed this.
+  const hidden = Math.abs(oldAxisYaw(turned) - oldAxisYaw(neutralLm));
+  assert.ok(hidden < 0.16, `expected the old yaw to miss, got ${hidden}`);
+  assert.equal(poseFromBaseline(neutral, geometry), "left");
+  assert.equal(poseFromBaseline(neutral, faceGeometry(projectHead(-20, 0), HEAD_BOX, HEAD_FRAME)), "right");
+  assert.equal(poseFromBaseline(neutral, faceGeometry(projectHead(0, -12), HEAD_BOX, HEAD_FRAME)), "up");
+  assert.equal(poseFromBaseline(neutral, faceGeometry(projectHead(0, 12), HEAD_BOX, HEAD_FRAME)), "down");
+  // A tilted head still counts as the prompted left, not up or down.
+  assert.equal(poseFromBaseline(neutral, faceGeometry(projectHead(20, 0, 25), HEAD_BOX, HEAD_FRAME)), "left");
+  assert.equal(poseFromBaseline(neutral, faceGeometry(projectHead(5, 4), HEAD_BOX, HEAD_FRAME)), null);
+  assert.equal(poseFromBaseline(neutral, geometry, false), "right");
+});
+
+test("geometry is absent when landmarks cannot describe a face", () => {
+  assert.equal(faceGeometry(null, [0, 0, 10, 10], [100, 100]), null);
+  assert.equal(faceGeometry([[1, 1], [2, 2]], [0, 0, 10, 10], [100, 100]), null);
+  assert.equal(faceGeometry([[0, 0], [0, 0], [0, 0], [0, 0], [1, 1]], [0, 0, 10, 10], [100, 100]), null);
 });
 
 test("contour wraps the landmarks and is hidden without them", () => {

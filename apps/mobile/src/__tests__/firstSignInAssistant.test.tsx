@@ -16,6 +16,7 @@ jest.mock("../components/KenBurnsImage", () => {
 jest.mock("../api", () => ({
   completeMobileAccountOnboarding: jest.fn(),
   getMe: jest.fn(() => Promise.resolve(null)),
+  getMobileFreePlanOffer: jest.fn(() => Promise.resolve({ available: true, reason: "" })),
   selectMobileFreePlan: jest.fn(),
   submitLearningProfile: jest.fn(() => Promise.resolve({})),
   submitMobileOnboardingLearner: jest.fn(() => Promise.resolve({ studentId: "stu-1" })),
