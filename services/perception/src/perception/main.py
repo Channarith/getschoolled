@@ -77,6 +77,31 @@ async def enroll(student_id: str, file: UploadFile = File(...)) -> EnrollRespons
     return EnrollResponse(student_id=student_id, enrollments=count)
 
 
+class EmbedResponse(BaseModel):
+    embedding: list[float]
+
+
+@app.post("/embed", response_model=EmbedResponse, dependencies=[Depends(require_internal)])
+async def embed_face(file: UploadFile = File(...)) -> EmbedResponse:
+    """Embedding of the largest face. Nothing is written to the gallery.
+
+    Enrollment waits until the pose sequence has been checked against this
+    vector, so a failed liveness round does not leave a partial template.
+    """
+    data = await file.read()
+    try:
+        faces = _vision().engine().detect_faces(data)
+    except AttributeError as exc:
+        raise HTTPException(status_code=503, detail="face embedding is not available") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (NotImplementedError, ModelsUnavailable) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if not faces:
+        raise HTTPException(status_code=422, detail="no face detected")
+    return EmbedResponse(embedding=faces[0].embedding)
+
+
 class FaceVerificationResponse(BaseModel):
     student_id: str
     verified: bool
@@ -91,12 +116,19 @@ class FaceVerificationResponse(BaseModel):
 async def verify_face(
     student_id: str,
     file: UploadFile = File(...),
+    high_assurance: bool = False,
 ) -> FaceVerificationResponse:
+    """Match a still to an enrolled learner.
+
+    ``high_assurance`` requires the liveness set (neutral plus four poses)
+    already stored. Pose checks during enrollment leave this off.
+    """
     data = await file.read()
     try:
         observations = _vision().analyze_image(
             data,
             consented_student_ids=[student_id],
+            high_assurance=high_assurance,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -291,6 +323,8 @@ class EmbeddedFaceIn(BaseModel):
 class IdentifyEmbeddingRequest(BaseModel):
     faces: list[EmbeddedFaceIn]
     consented_student_ids: list[str] = []
+    # Finished liveness set only. Enrollment pose checks leave this false.
+    high_assurance: bool = False
 
 
 @app.post("/identify-embedding", response_model=IdentifyResponse)
@@ -305,7 +339,9 @@ def identify_embedding(req: IdentifyEmbeddingRequest) -> IdentifyResponse:
         for f in req.faces
     ]
     observations = _vision().analyze_embedding(
-        embedded, consented_student_ids=req.consented_student_ids
+        embedded,
+        consented_student_ids=req.consented_student_ids,
+        high_assurance=req.high_assurance,
     )
     faces = [
         FaceResult(

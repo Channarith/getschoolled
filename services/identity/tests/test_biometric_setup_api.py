@@ -78,11 +78,18 @@ def test_face_and_document_store_only_verification_metadata(monkeypatch):
         "_perception_image",
         lambda path, payload: {"student_id": student_id, "verified": True, "enrollments": 1},
     )
+    neutral = [1.0, 0.0, 0.0]
     face = client.post(
         f"/students/{student_id}/biometric-face",
         headers=headers,
         json={
-            "embeddings": [[0.1, 0.2, 0.3]],
+            "embeddings": [
+                neutral,
+                [0.98, 0.15, 0.0],
+                [0.98, -0.15, 0.0],
+                [0.98, 0.0, 0.15],
+                [0.98, 0.0, -0.15],
+            ],
             "pose_sequence": ["left", "right", "up", "down"],
         },
     )
@@ -102,6 +109,63 @@ def test_face_and_document_store_only_verification_metadata(monkeypatch):
     assert setup["government_id"]["status"] == "verified"
     serialized = str(setup)
     assert image not in serialized
+
+
+def test_face_enrollment_stores_nothing_until_poses_match(monkeypatch):
+    headers, student = _account()
+    student_id = student["id"]
+    client.put(
+        f"/students/{student_id}/biometric-consent",
+        headers=headers,
+        json={"granted": True},
+    )
+    calls: list[str] = []
+
+    def fake_json(path, payload):
+        calls.append(path)
+        return {"student_id": student_id, "enrollments": len(calls)}
+
+    monkeypatch.setattr(identity_main, "_perception_json", fake_json)
+    short = client.post(
+        f"/students/{student_id}/biometric-face",
+        headers=headers,
+        json={"embeddings": [[1.0, 0.0, 0.0]], "pose_sequence": ["left", "right", "up", "down"]},
+    )
+    assert short.status_code == 422
+    assert calls == []
+    other_person = client.post(
+        f"/students/{student_id}/biometric-face",
+        headers=headers,
+        json={
+            "embeddings": [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.98, -0.15, 0.0],
+                [0.98, 0.0, 0.15],
+                [0.98, 0.0, -0.15],
+            ],
+            "pose_sequence": ["left", "right", "up", "down"],
+        },
+    )
+    assert other_person.status_code == 422
+    assert calls == []
+    ready = client.post(
+        f"/students/{student_id}/biometric-face",
+        headers=headers,
+        json={
+            "embeddings": [
+                [1.0, 0.0, 0.0],
+                [0.98, 0.15, 0.0],
+                [0.98, -0.15, 0.0],
+                [0.98, 0.0, 0.15],
+                [0.98, 0.0, -0.15],
+            ],
+            "pose_sequence": ["down", "up", "right", "left"],
+        },
+    )
+    assert ready.status_code == 200
+    assert calls == [f"/enroll-embedding/{student_id}"] * 5
+    assert ready.json()["enrollments"] == 5
 
 
 def test_face_preview_needs_consent_and_stores_nothing(monkeypatch):

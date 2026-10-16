@@ -1,9 +1,13 @@
 """In-memory face gallery: enroll embeddings and match (1:N).
 
-Each student is represented by a prototype = the mean of their enrolled
-embeddings (more enrollments -> more robust). Matching is cosine similarity
-against the prototype, restricted to an allowlist (the consented set) so an
-unconsented student is never matched to an identity.
+Each consented capture is kept as its own template. The accept score is the
+best cosine against those templates, at the calibrated threshold. Averaging
+them into one prototype cancels pose and expression variation, so the mean is
+only exposed as :meth:`FaceGallery.prototype` for diagnostics. A drawn face
+mesh is not an input here.
+
+Matching is restricted to an allowlist (the consented set) so an unconsented
+student is never matched to an identity.
 
 In production the embeddings come from the encrypted ``face_embeddings`` table
 and never leave the configured boundary; this class is the pure matching logic
@@ -20,7 +24,7 @@ import hashlib
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
-from .engine import DEFAULT_MATCH_THRESHOLD, cosine_similarity
+from .engine import DEFAULT_MATCH_THRESHOLD, LIVENESS_TEMPLATE_COUNT, cosine_similarity
 
 
 @dataclass
@@ -172,17 +176,40 @@ class FaceGallery:
             payload = Fernet(key).decrypt(payload.split(b"\n", 1)[1])
         return cls.from_dict(json.loads(payload))
 
+    def _best_template_score(self, embedding: List[float], templates: List[List[float]]) -> float:
+        """Highest cosine against one learner's templates.
+
+        One comparison per template, all at the same threshold. The mean of the
+        templates is not used: opposite poses cancel in an average and a later
+        smile then misses a capture that was actually enrolled.
+        """
+        best = -1.0
+        for template in templates:
+            if len(embedding) != len(template):
+                raise ValueError(
+                    f"query embedding dimension {len(embedding)} does not match "
+                    f"gallery dimension {len(template)}"
+                )
+            score = cosine_similarity(embedding, template)
+            if score > best:
+                best = score
+        return best
+
     def identify(
         self,
         embedding: List[float],
         *,
         allowed_ids: Optional[Iterable[str]] = None,
         threshold: Optional[float] = None,
+        high_assurance: bool = False,
     ) -> Match:
         """Return the best matching student for ``embedding``.
 
-        ``allowed_ids`` restricts candidates to the consented set. If the best
-        score is below the threshold, returns a non-match (anonymous).
+        ``allowed_ids`` restricts candidates to the consented set. The score is
+        the best template cosine. If it is below the threshold, the result is
+        a non-match. ``high_assurance`` also requires a finished liveness set
+        (neutral plus four poses). A shorter enrollment never matches in that
+        mode, even at cosine 1. The threshold itself is not lowered.
         """
         thr = self.match_threshold if threshold is None else threshold
         candidates = (
@@ -193,15 +220,12 @@ class FaceGallery:
         best_id: Optional[str] = None
         best_score = -1.0
         for sid in candidates:
-            proto = self.prototype(sid)
-            if proto is None:
+            templates = self._embeddings.get(sid) or []
+            if not templates:
                 continue
-            if len(embedding) != len(proto):
-                raise ValueError(
-                    f"query embedding dimension {len(embedding)} does not match "
-                    f"gallery dimension {len(proto)}"
-                )
-            score = cosine_similarity(embedding, proto)
+            if high_assurance and len(templates) < LIVENESS_TEMPLATE_COUNT:
+                continue
+            score = self._best_template_score(embedding, templates)
             if score > best_score:
                 best_score = score
                 best_id = sid

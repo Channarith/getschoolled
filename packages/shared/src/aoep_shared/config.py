@@ -157,7 +157,9 @@ class AppConfig(BaseModel):
     # behavior signals into adaptive pacing + quiz difficulty.
     memory_base_url: str = ""
     # Face-model cache dir (empty -> ~/.cache/aoep/models) and cosine match
-    # threshold for SFace embeddings (0.363 is OpenCV's calibrated default).
+    # threshold for SFace embeddings. 0.363 is OpenCV's calibrated same-identity
+    # cut (aoep_shared.vision.engine.DEFAULT_MATCH_THRESHOLD). Expression
+    # variation is kept as separate templates, not by lowering this cut.
     vision_model_dir: str = ""
     vision_match_threshold: float = 0.363
     # Persisted face gallery (cross-session student memory). Empty => in-memory.

@@ -118,6 +118,7 @@ class _BaseVisionProvider(VisionProvider):
         bbox: Optional[Tuple[int, int, int, int]],
         frame_size: Optional[Tuple[int, int]],
         allowed_ids: frozenset[str],
+        high_assurance: bool = False,
     ) -> FaceObservation:
         """Build a single FaceObservation from an embedding (+ optional geometry).
 
@@ -127,7 +128,9 @@ class _BaseVisionProvider(VisionProvider):
         """
         from ..compliance import emotion_recognition_allowed
 
-        match = self._gallery.identify(embedding, allowed_ids=allowed_ids)
+        match = self._gallery.identify(
+            embedding, allowed_ids=allowed_ids, high_assurance=high_assurance
+        )
         attention = 0.0
         gaze_frontal = 0.0
         expression: Optional[str] = None
@@ -149,14 +152,18 @@ class _BaseVisionProvider(VisionProvider):
         )
 
     def analyze_image(
-        self, image: bytes | str, *, consented_student_ids: Iterable[str]
+        self,
+        image: bytes | str,
+        *,
+        consented_student_ids: Iterable[str],
+        high_assurance: bool = False,
     ) -> List[FaceObservation]:
         """Detect faces and match only against the consented set."""
         allowed = self._identity_gate(consented_student_ids)
         return [
             self._observe(
                 idx, face.embedding, face.landmarks, face.bbox, face.frame_size,
-                allowed,
+                allowed, high_assurance,
             )
             for idx, face in enumerate(self.engine().detect_faces(image))
         ]
@@ -166,6 +173,7 @@ class _BaseVisionProvider(VisionProvider):
         faces: Sequence[EmbeddedFace],
         *,
         consented_student_ids: Iterable[str],
+        high_assurance: bool = False,
     ) -> List[FaceObservation]:
         """Match precomputed (on-device) embeddings against the consented set.
 
@@ -176,7 +184,9 @@ class _BaseVisionProvider(VisionProvider):
         """
         allowed = self._identity_gate(consented_student_ids)
         return [
-            self._observe(idx, f.embedding, f.landmarks, f.bbox, f.frame_size, allowed)
+            self._observe(
+                idx, f.embedding, f.landmarks, f.bbox, f.frame_size, allowed, high_assurance
+            )
             for idx, f in enumerate(faces)
         ]
 
