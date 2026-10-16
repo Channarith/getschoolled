@@ -9,11 +9,49 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from fastapi.testclient import TestClient
 
 from orchestrator.main import app
 
 client = TestClient(app)
+_PAID = {"Authorization": "Bearer paid-regression"}
+
+
+@pytest.fixture(autouse=True)
+def _signed_in_paid_account(monkeypatch):
+    """Group rooms now require a verified paid account.
+
+    Scheduling stays anonymous so the room remains AI-taught. Start and the
+    live-room calls present the paid account.
+    """
+
+    def _profiles(authorization="", **_kwargs):
+        auth = str(authorization or "")
+        if not auth.lower().startswith("bearer "):
+            return None
+        return {
+            "id": "paid-regression",
+            "tier": "premium",
+            "free_plan": {"active": False},
+        }
+
+    monkeypatch.setattr(
+        "aoep_shared.live_room_rewards.profile_from_authorization",
+        _profiles,
+    )
+
+
+def _post(path: str, **kwargs):
+    if path.startswith("/api/live-rooms/") or path.endswith("/start"):
+        kwargs["headers"] = {**_PAID, **kwargs.get("headers", {})}
+    return client.post(path, **kwargs)
+
+
+def _get(path: str, **kwargs):
+    if path.startswith("/api/live-rooms/"):
+        kwargs["headers"] = {**_PAID, **kwargs.get("headers", {})}
+    return client.get(path, **kwargs)
 
 
 def _iso(delta_minutes: int) -> str:
@@ -21,13 +59,13 @@ def _iso(delta_minutes: int) -> str:
 
 
 def _lesson_id() -> str:
-    return client.get("/api/lessons").json()[0]["lesson_id"]
+    return _get("/api/lessons").json()[0]["lesson_id"]
 
 
 def _open_salareen_room(*, room_size: int = 6) -> dict:
     """Schedule, start, and return handles for a live Salareen room."""
     lid = _lesson_id()
-    cid = client.post(
+    cid = _post(
         "/api/group-classes",
         json={
             "title": "QA regression live room",
@@ -38,7 +76,7 @@ def _open_salareen_room(*, room_size: int = 6) -> dict:
             "start_time": _iso(10),
         },
     ).json()["id"]
-    started = client.post(f"/api/group-classes/{cid}/start").json()
+    started = _post(f"/api/group-classes/{cid}/start").json()
     bridge = started["bridge"]
     return {
         "class_id": cid,
@@ -49,7 +87,7 @@ def _open_salareen_room(*, room_size: int = 6) -> dict:
 
 
 def _join(room_id: str, name: str, identity: str) -> dict:
-    res = client.post(
+    res = _post(
         f"/api/live-rooms/{room_id}/join",
         json={"name": name, "identity": identity},
     )
@@ -67,25 +105,25 @@ def test_live_room_qa_queue_turn_taking_regression():
     b = _join(room_id, "Grace", "regression-grace")
     aid, bid = a["participant"]["id"], b["participant"]["id"]
 
-    q1 = client.post(
+    q1 = _post(
         f"/api/live-rooms/{room_id}/queue/join",
         json={"participant_id": aid, "question": "What is photosynthesis?"},
     )
     assert q1.status_code == 200, q1.text
     assert q1.json()["entry"]["position"] == 1
 
-    q2 = client.post(
+    q2 = _post(
         f"/api/live-rooms/{room_id}/queue/join",
         json={"participant_id": bid, "question": "Why do plants need sun?"},
     )
     assert q2.status_code == 200, q2.text
     assert q2.json()["entry"]["position"] == 2
 
-    state = client.get(f"/api/live-rooms/{room_id}").json()
+    state = _get(f"/api/live-rooms/{room_id}").json()
     assert len(state["speaking_queue"]) == 2
     assert state["floor_participant_id"] == ""
 
-    called = client.post(
+    called = _post(
         f"/api/live-rooms/{room_id}/queue/call-next",
         json={"moderator_key": mod},
     )
@@ -93,13 +131,13 @@ def test_live_room_qa_queue_turn_taking_regression():
     assert called.json()["speaker"]["id"] == aid
 
     # Second person cannot chat while Ada has the floor.
-    blocked_chat = client.post(
+    blocked_chat = _post(
         f"/api/live-rooms/{room_id}/chat",
         json={"participant_id": bid, "text": "interrupting!"},
     )
     assert blocked_chat.status_code == 400
 
-    asked = client.post(
+    asked = _post(
         f"/api/live-rooms/{room_id}/ask",
         json={"participant_id": aid, "question": "What is photosynthesis?"},
     )
@@ -110,7 +148,7 @@ def test_live_room_qa_queue_turn_taking_regression():
     assert asked.json()["room"]["floor_participant_id"] == ""
 
     # Ask while still waiting in queue (Grace) -> enqueued, not answered immediately.
-    queued = client.post(
+    queued = _post(
         f"/api/live-rooms/{room_id}/ask",
         json={"participant_id": bid, "question": "Can I go next?"},
     )
@@ -118,7 +156,7 @@ def test_live_room_qa_queue_turn_taking_regression():
     assert queued.json()["queued"] is True
     assert queued.json()["queue_position"] >= 1
 
-    called2 = client.post(
+    called2 = _post(
         f"/api/live-rooms/{room_id}/queue/call-next",
         json={"moderator_key": mod},
     )
@@ -131,19 +169,19 @@ def test_live_room_raise_hand_toggles_queue():
     room_id = info["room_id"]
     pid = _join(room_id, "Learner", "regression-toggle")["participant"]["id"]
 
-    on = client.post(
+    on = _post(
         f"/api/live-rooms/{room_id}/raise-hand",
         json={"participant_id": pid, "question": "Quick question"},
     )
     assert on.status_code == 200, on.text
     assert on.json()["queue_position"] == 1
 
-    off = client.post(
+    off = _post(
         f"/api/live-rooms/{room_id}/raise-hand",
         json={"participant_id": pid},
     )
     assert off.status_code == 200, off.text
-    room = client.get(f"/api/live-rooms/{room_id}").json()
+    room = _get(f"/api/live-rooms/{room_id}").json()
     assert room["speaking_queue"] == []
 
 
@@ -154,20 +192,20 @@ def test_live_room_ban_removes_queued_learner():
     joined = _join(room_id, "Trouble", "regression-ban")
     pid = joined["participant"]["id"]
 
-    client.post(
+    _post(
         f"/api/live-rooms/{room_id}/queue/join",
         json={"participant_id": pid, "question": "spam"},
     )
-    banned = client.post(
+    banned = _post(
         f"/api/live-rooms/{room_id}/ban",
         json={"participant_id": pid, "moderator_key": mod, "reason": "disruptive"},
     )
     assert banned.status_code == 200, banned.text
 
-    room = client.get(f"/api/live-rooms/{room_id}").json()
+    room = _get(f"/api/live-rooms/{room_id}").json()
     assert all(e["participant_id"] != pid for e in room["speaking_queue"])
 
-    blocked = client.post(
+    blocked = _post(
         f"/api/live-rooms/{room_id}/join",
         json={"name": "Trouble", "identity": "regression-ban"},
     )

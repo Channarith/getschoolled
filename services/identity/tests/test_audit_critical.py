@@ -32,12 +32,14 @@ def test_subscribe_paid_denied_in_cloud(monkeypatch):
     assert me["tier"] == "free"
 
 
-def test_subscribe_free_still_ok_in_cloud(monkeypatch):
+def test_subscribe_free_without_redis_is_refused_in_cloud(monkeypatch):
+    """A cloud deploy cannot grant a free seat from process memory."""
     monkeypatch.setenv("DEPLOY_MODE", "cloud")
+    monkeypatch.delenv("REDIS_URL", raising=False)
     tok = _signup("cloud-free@example.com")["token"]
     r = client.post("/membership/subscribe", headers=_auth(tok), json={"tier": "free"})
-    assert r.status_code == 200, r.text
-    assert r.json()["tier"] == "free"
+    assert r.status_code == 503, r.text
+    assert "cannot be claimed" in r.json()["detail"]
 
 
 def test_onboarding_plan_paid_denied_in_cloud(monkeypatch):
