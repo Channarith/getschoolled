@@ -92,11 +92,21 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
     </>
   );
 
+  // Simplified-nav mode is now the DEFAULT for every signed-in account (admin
+  // included) per product decision 2026-10-15. Only 5 header items ship:
+  // Our Story (rendered outside contentLinks) + Vision Play Lab, Audio
+  // Translation Lab, Careers, Live Class. fullSignedInLinks and the
+  // restrictSignedIn flag read are intentionally retained below so the previous
+  // full nav can be restored by swapping `simplifiedLinks` back for the
+  // nested ternary -- do NOT delete fullSignedInLinks.
   const contentLinks = unlocked
-    ? restrictSignedIn
-      ? simplifiedLinks
-      : fullSignedInLinks
+    ? simplifiedLinks
     : <Link href="/login">{t("nav.signin")}</Link>;
+
+  // Hold these in reserve for an easy rollback; `void` silences unused-symbol
+  // lints without removing the implementation.
+  void restrictSignedIn;
+  void fullSignedInLinks;
 
   return (
     <header className="site-header">
