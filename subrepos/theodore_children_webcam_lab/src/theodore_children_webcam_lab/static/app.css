@@ -58,12 +58,21 @@ body.phone-play.chrome-hidden .stage{height:100dvh}
 body.phone-play.stage-fill .vision-tools,body.phone-play.stage-fill .dashboard{display:none}
 body:not(.phone-play) #touch-mode{display:none!important}
 body.phone-play #touch-mode{
-  position:fixed;left:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:30;
-  display:inline-flex;align-items:center;justify-content:center;
-  min-height:44px;padding:.45rem .8rem;white-space:nowrap;font-size:.85rem;
-  background:#111827;border:2px solid #5eead4;box-shadow:0 8px 18px #0008;
+  position:fixed;left:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:40;
+  display:inline-flex;align-items:center;gap:4px;padding:3px;min-height:44px;
+  background:#111827;border:2px solid #5eead4;border-radius:999px;box-shadow:0 8px 18px #0008;
 }
+body.phone-play #touch-mode button{
+  min-height:38px;min-width:44px;padding:.35rem .75rem;border:0;border-radius:999px;
+  background:transparent;color:#e2e8f0;font-size:.8rem;font-weight:800;white-space:nowrap;
+}
+body.phone-play #touch-mode button[aria-checked="true"]{background:#5eead4;color:#0f172a}
 body.phone-play.chrome-hidden #touch-mode{bottom:calc(12px + env(safe-area-inset-bottom))}
+.screen-catcher{position:absolute;inset:0;z-index:7;touch-action:none;background:transparent}
+.screen-catcher[hidden]{display:none!important}
+.stage.karaoke-on .screen-catcher{display:none!important}
+.target,.sprite{pointer-events:none}
+body.screen-touch .stage{touch-action:none}
 .stage.demo{touch-action:none}
 .countdown{pointer-events:none}
 .play-clock{position:absolute;z-index:8;top:12px;right:12px;min-width:7.2rem;padding:8px 10px 6px;border-radius:14px;background:#07111ef2;border:1px solid #5eead4;color:#f8fafc;text-align:right;pointer-events:none}

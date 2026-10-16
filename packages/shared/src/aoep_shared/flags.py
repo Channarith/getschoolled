@@ -134,7 +134,7 @@ FLAG_CATALOG: List[FlagSpec] = [
              "account); this flag is kept for legacy admin bypasses."),
 
     # --- arcade / vision play lab -------------------------------------------- #
-    FlagSpec("arcade.vision_only", FlagType.BOOL, True, "arcade",
+    FlagSpec("arcade.vision_only", FlagType.BOOL, False, "arcade",
              "Simplified Vision Play mode. When ON (default), /arcade "
              "shows ONLY Machine Vision (webcam-driven hands-free "
              "learning: faces, hands, letters, movement, listening) and "
@@ -145,7 +145,7 @@ FLAG_CATALOG: List[FlagSpec] = [
              "the full arcade hub for every account."),
 
     # --- nav / header -------------------------------------------------------- #
-    FlagSpec("nav.full_tabs_enabled", FlagType.BOOL, False, "nav",
+    FlagSpec("nav.full_tabs_enabled", FlagType.BOOL, True, "nav",
              "Show the full navigation menu (Home, Browse, For You, Kids, "
              "Corporate, Languages, Drive, Group Classes, Watch, Homework) "
              "instead of the simplified 5-tab launch header. When OFF (default), "
@@ -175,13 +175,13 @@ FLAG_CATALOG: List[FlagSpec] = [
              options=("guest", "standard", "power", "educator", "admin")),
     FlagSpec("access.educator_console", FlagType.BOOL, True, "access",
              "Expose the educator/HIL teaching console."),
-    FlagSpec("access.homework_grader", FlagType.BOOL, False, "access",
+    FlagSpec("access.homework_grader", FlagType.BOOL, True, "access",
              "Expose the AI homework grader in navigation (operator-only tool)."),
     FlagSpec("access.parental_controls", FlagType.BOOL, True, "access",
              "Parental controls + content maturity gating for minors."),
     FlagSpec("access.beta_program", FlagType.PERCENT, 0, "access",
              "Gradual rollout of beta features to a percentage of users."),
-    FlagSpec("access.xr_immersive_class", FlagType.PERCENT, 0, "access",
+    FlagSpec("access.xr_immersive_class", FlagType.PERCENT, 100, "access",
              "Percent rollout for WebXR / Quest immersive lab entry in group classes."),
     FlagSpec("access.max_students_per_account", FlagType.INT, 5, "access",
              "Maximum learner sub-profiles per account."),

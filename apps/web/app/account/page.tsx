@@ -6,6 +6,7 @@ import {
   adminListAccounts,
   changePassword,
   clearToken,
+  deleteAccount,
   createStudent,
   getMe,
   getPortfolio,
@@ -30,8 +31,9 @@ import { writeLocalAvatarId } from "../lib/avatars";
 
 const PLANS = [
   { id: "free", label: "Free", price: "$0", ads: true },
-  { id: "basic", label: "Standard", price: "$19.99/mo", ads: true },
-  { id: "premium", label: "VIP", price: "$29.99/mo", ads: false },
+  { id: "basic", label: "Standard", price: "$19/mo", ads: true },
+  { id: "pro", label: "Pro", price: "$29/mo", ads: false },
+  { id: "premium", label: "VIP", price: "$39/mo", ads: false },
 ] as const;
 const STATUS_ORDER = ["paid", "in_progress", "enrolled", "saved", "passed", "failed"];
 
@@ -463,8 +465,33 @@ export default function AccountPage() {
               )}
             </div>
           )}
+          <DeleteAccountCard onDeleted={() => { clearToken(); window.location.href = "/"; }} />
         </>
       )}
     </main>
+  );
+}
+
+function DeleteAccountCard({ onDeleted }: { onDeleted: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="card">
+      <h3>Delete account</h3>
+      <p className="muted">Type DELETE and your password. This removes the account from Salareen.</p>
+      <input aria-label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" style={{ display: "block", marginBottom: 8, padding: 8 }} />
+      <input aria-label="Type DELETE to confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="DELETE" style={{ display: "block", marginBottom: 8, padding: 8 }} />
+      {error ? <p role="alert">{error}</p> : null}
+      <button type="button" disabled={busy || confirm.trim().toUpperCase() !== "DELETE"} onClick={() => {
+        setBusy(true);
+        setError("");
+        void deleteAccount(password, confirm).then(() => onDeleted()).catch((e) => {
+          setError(String(e));
+          setBusy(false);
+        });
+      }}>Delete my account</button>
+    </div>
   );
 }

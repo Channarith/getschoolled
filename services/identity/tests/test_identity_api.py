@@ -41,6 +41,7 @@ def test_login_wrong_password_401():
 
 
 def test_me_requires_valid_token():
+    client.cookies.clear()
     assert client.get("/auth/me").status_code in (401, 422)
     assert client.get("/auth/me", headers=_auth("bad.token")).status_code == 401
 

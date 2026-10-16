@@ -347,5 +347,12 @@ test("camera permission and model failures are told apart", () => {
   const model = describeMediaError({ name: "ModelLoadError", message: "failed to load opencv.js" }, "camera");
   assert.equal(model.kind, "model");
   assert.doesNotMatch(model.message, /Camera unavailable/);
+  const missing = describeMediaError(
+    { name: "ModelLoadError", message: "could not fetch model face_detection_yunet_2023mar.onnx: 503" },
+    "camera",
+  );
+  assert.equal(missing.kind, "model");
+  assert.match(missing.message, /load the face model/);
+  assert.match(missing.message, /503/);
   assert.match(describeMediaError({ name: "NotAllowedError" }, "microphone").message, /Microphone access is blocked/);
 });

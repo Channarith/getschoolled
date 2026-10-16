@@ -71,7 +71,10 @@ _PAGE = """<!doctype html>
         <div class="score"><span id="stars">☆☆☆</span><span id="fun-score">Fun 0</span><span id="combo">Combo 0</span></div>
         <button id="mute" aria-pressed="false">🔊</button>
         <button id="chrome-toggle" type="button" hidden aria-pressed="false">Hide options</button>
-        <button id="touch-mode" type="button" hidden aria-pressed="false" aria-label="Using air touch. Switch to screen touch.">Air touch</button>
+        <div id="touch-mode" class="touch-mode" role="radiogroup" hidden aria-label="Air touch selected. Screen touch is also available.">
+          <button id="touch-air" type="button" data-touch="air" role="radio" aria-checked="true">Air touch</button>
+          <button id="touch-screen" type="button" data-touch="screen" role="radio" aria-checked="false">Screen touch</button>
+        </div>
         <button id="fullscreen">⛶</button>
       </div>
       <div id="stage" class="stage">
@@ -99,6 +102,7 @@ _PAGE = """<!doctype html>
           <span id="trace-readout">Trace: 0%</span>
           <span id="game-readout">Gesture: waiting</span>
         </div>
+        <div id="screen-catcher" class="screen-catcher" hidden></div>
         <iframe id="karaoke-frame" class="karaoke-frame hidden" title="Karaoke sing-along" allow="autoplay; fullscreen"></iframe>
       </div>
       <details class="vision-tools" open>

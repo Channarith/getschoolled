@@ -233,7 +233,7 @@ from aoep_shared.passkeys import (  # noqa: E402
 )
 from aoep_shared.password_reset import issue_reset_token, verify_reset_token  # noqa: E402
 from aoep_shared.totp import generate_totp_secret, otpauth_uri, verify_totp  # noqa: E402
-from fastapi import Depends, HTTPException, Request  # noqa: E402
+from fastapi import Depends, HTTPException, Request, Response  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 
@@ -296,6 +296,19 @@ class PasskeyLoginVerify(BaseModel):
 
 
 def register_auth_security_routes(app, *, token_key_fn, current_account, session_fn):
+    from aoep_shared.session_cookie import attach_session_cookie, clear_session_cookie
+
+    def _session_response(acct, response: Response) -> dict:
+        body = session_fn(acct)
+        token = body.get("token") if isinstance(body, dict) else ""
+        if token:
+            attach_session_cookie(response, token)
+        return body
+
+    @app.post("/auth/logout")
+    def logout(response: Response) -> dict:
+        clear_session_cookie(response)
+        return {"ok": True}
     """Mount secure-auth endpoints on the identity FastAPI app."""
 
     def _ctx(request: Request) -> dict:
@@ -309,7 +322,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         return {"ip": c.ip, "user_agent": c.user_agent, "country_hint": c.country_hint}
 
     @app.post("/auth/login")
-    def login(req: LoginRequest, request: Request) -> dict:
+    def login(req: LoginRequest, request: Request, response: Response) -> dict:
         ctx = _ctx(request)
         acct = app.state.accounts.authenticate(
             req.email, req.password, **ctx,
@@ -329,10 +342,10 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
                 ttl_s=300,
             )
             return {"requires_2fa": True, "mfa_token": mfa}
-        return session_fn(acct)
+        return _session_response(acct, response)
 
     @app.post("/auth/2fa/verify")
-    def verify_2fa_login(req: MfaVerifyRequest, request: Request) -> dict:
+    def verify_2fa_login(req: MfaVerifyRequest, request: Request, response: Response) -> dict:
         # Bug 7: Reject tokens that have been burned (Redis-backed, falls back to in-process).
         if _mfa_is_burned(req.mfa_token):
             raise HTTPException(status_code=401, detail="invalid or expired MFA session")
@@ -362,7 +375,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         _totp_mark_used(acct.id, req.code)
         ctx = _ctx(request)
         app.state.accounts.oauth_login_success(acct.id, method="mfa", **ctx)
-        return session_fn(acct)
+        return _session_response(acct, response)
 
     @app.post("/auth/forgot-password")
     def forgot_password(req: ForgotPasswordRequest) -> dict:
@@ -444,7 +457,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         return acct
 
     @app.post("/auth/oauth/google")
-    def oauth_google(req: OAuthGoogleRequest, request: Request) -> dict:
+    def oauth_google(req: OAuthGoogleRequest, request: Request, response: Response) -> dict:
         ctx = _ctx(request)
         try:
             ident = verify_google_id_token(req.id_token)
@@ -455,10 +468,10 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         app.state.accounts.oauth_login_success(acct.id, method="google", **ctx)
-        return session_fn(acct)
+        return _session_response(acct, response)
 
     @app.post("/auth/oauth/facebook")
-    def oauth_facebook(req: OAuthFacebookRequest, request: Request) -> dict:
+    def oauth_facebook(req: OAuthFacebookRequest, request: Request, response: Response) -> dict:
         ctx = _ctx(request)
         try:
             ident = verify_facebook_access_token(req.access_token)
@@ -469,10 +482,10 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         app.state.accounts.oauth_login_success(acct.id, method="facebook", **ctx)
-        return session_fn(acct)
+        return _session_response(acct, response)
 
     @app.post("/auth/oauth/apple")
-    def oauth_apple(req: OAuthAppleRequest, request: Request) -> dict:
+    def oauth_apple(req: OAuthAppleRequest, request: Request, response: Response) -> dict:
         ctx = _ctx(request)
         try:
             ident = verify_apple_identity_token(req.identity_token)
@@ -483,7 +496,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         app.state.accounts.oauth_login_success(acct.id, method="apple", **ctx)
-        return session_fn(acct)
+        return _session_response(acct, response)
 
     @app.get("/auth/oauth/providers")
     def oauth_providers() -> dict:
@@ -527,7 +540,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         return {**opts, "account_id": acct.id}
 
     @app.post("/auth/passkey/login/verify")
-    def passkey_login_verify(req: PasskeyLoginVerify, request: Request) -> dict:
+    def passkey_login_verify(req: PasskeyLoginVerify, request: Request, response: Response) -> dict:
         acct = app.state.accounts.by_id(req.account_id)
         if acct is None:
             raise HTTPException(status_code=401, detail="unknown account")
@@ -546,7 +559,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             raise HTTPException(status_code=401, detail="passkey verification failed")
         ctx = _ctx(request)
         app.state.accounts.oauth_login_success(acct.id, method="passkey", **ctx)
-        return session_fn(acct)
+        return _session_response(acct, response)
 
     @app.get("/auth/login-history")
     def login_history(acct=Depends(current_account)) -> dict:

@@ -21,15 +21,18 @@ def test_plans_listed():
     plans = client.get("/plans").json()
     assert set(plans) == {"free", "basic", "pro", "premium"}
     assert plans["basic"]["display_name"] == "Standard"
-    assert plans["basic"]["price_usd"] == 19.99
+    assert plans["basic"]["price_usd"] == 19
+    assert plans["pro"]["display_name"] == "Pro"
+    assert plans["pro"]["price_usd"] == 29
     assert plans["premium"]["display_name"] == "VIP"
-    assert plans["premium"]["price_usd"] == 29.99
+    assert plans["premium"]["price_usd"] == 39
 
 
 def test_consumer_plans_endpoint():
     plans = client.get("/plans/consumer").json()
-    assert plans["basic"]["price_usd"] == 19.99
-    assert plans["premium"]["price_usd"] == 29.99
+    assert plans["basic"]["price_usd"] == 19
+    assert plans["pro"]["price_usd"] == 29
+    assert plans["premium"]["price_usd"] == 39
     assert plans["premium"]["ads"] is False
 
 

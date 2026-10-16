@@ -7,16 +7,17 @@ import AvatarImage from "../components/AvatarImage";
 import BiometricSetupAssistant from "../components/BiometricSetupAssistant";
 import { AGE_MAX, AGE_MIN, AGE_OPTIONS, clampAge } from "../lib/learnerCheck";
 import AccountStep from "./AccountStep";
+import { useT } from "../lib/i18n";
 import {
   AUTH_EVENT,
   completeOnboarding,
   getFreePlanOffer,
   getMe,
+  startBillingCheckout,
   getOnboardingStatus,
   getToken,
   selectOnboardingPlan,
   submitLearningProfile,
-  submitOnboardingBilling,
   submitOnboardingLearner,
   submitOnboardingSurveyAnalytics,
 } from "../lib/api";
@@ -24,9 +25,9 @@ import styles from "./Onboarding.module.css";
 
 const PLANS = [
   { id: "free", label: "Free", price: "$0", vip: false, blurb: "14 days of English lessons with ads. No group classes or AI agents. First 100 people, then it goes away." },
-  { id: "basic", label: "Basic", price: "$9/mo", vip: false, blurb: "5 languages, with ads" },
-  { id: "pro", label: "Pro", price: "$19/mo", vip: true, blurb: "All languages, ad-free, solo classes" },
-  { id: "premium", label: "Premium", price: "$29/mo", vip: true, blurb: "Everything + analytics" },
+  { id: "basic", label: "Basic", price: "$19/mo", vip: false, blurb: "5 languages, with ads" },
+  { id: "pro", label: "Pro", price: "$29/mo", vip: true, blurb: "All languages, ad-free, solo classes" },
+  { id: "premium", label: "Premium", price: "$39/mo", vip: true, blurb: "Everything + analytics" },
 ] as const;
 
 const MODES = [
@@ -75,6 +76,7 @@ function readJson<T>(key: string, fallback: T): T {
 }
 
 export default function OnboardingPage() {
+  const { t } = useT();
   const router = useRouter();
   const [step, setStep] = useState<Step>("about");
   const [includeAccount, setIncludeAccount] = useState(false);
@@ -84,6 +86,9 @@ export default function OnboardingPage() {
   const ageRef = useRef<HTMLSelectElement>(null);
   const [ratings, setRatings] = useState<Partial<Record<ModeId, number>>>({});
   const [focus, setFocus] = useState<ModeId>("video");
+  const [modePage, setModePage] = useState(0);
+  const [perPage, setPerPage] = useState(2);
+  const advanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [studentId, setStudentId] = useState("");
   const [plan, setPlan] = useState("free");
   const [freeOffer, setFreeOffer] = useState(true);
@@ -152,6 +157,17 @@ export default function OnboardingPage() {
     localStorage.setItem(STORAGE.plan, plan);
   }, [plan]);
 
+  useEffect(() => {
+    const narrow = window.matchMedia("(max-width: 800px)");
+    const sync = () => setPerPage(narrow.matches ? 1 : 2);
+    sync();
+    narrow.addEventListener("change", sync);
+    return () => {
+      narrow.removeEventListener("change", sync);
+      if (advanceRef.current) clearTimeout(advanceRef.current);
+    };
+  }, []);
+
   async function run(task: () => Promise<void>) {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -199,10 +215,19 @@ export default function OnboardingPage() {
 
   const rated = MODES.filter((mode) => ratings[mode.id] != null).length;
   const top = [...MODES].sort((a, b) => (ratings[b.id] ?? 0) - (ratings[a.id] ?? 0))[0];
+  const pageCount = Math.ceil(MODES.length / perPage);
+  const currentPage = Math.min(modePage, pageCount - 1);
+  const pageModes = MODES.slice(currentPage * perPage, currentPage * perPage + perPage);
 
   function rate(mode: ModeId, value: number) {
-    setRatings((current) => ({ ...current, [mode]: value }));
+    const next = { ...ratings, [mode]: value };
+    setRatings(next);
     setFocus(mode);
+    if (advanceRef.current) clearTimeout(advanceRef.current);
+    const pageDone = pageModes.every((item) => next[item.id] != null);
+    if (pageDone && currentPage < pageCount - 1) {
+      advanceRef.current = setTimeout(() => setModePage(currentPage + 1), 450);
+    }
   }
 
   function saveLearning() {
@@ -232,8 +257,14 @@ export default function OnboardingPage() {
 
   function savePayment() {
     return run(async () => {
-      await submitOnboardingBilling({ ...billing });
-      await selectOnboardingPlan(plan);
+      const me = await getMe();
+      const tier = plan === "vip" ? "premium" : plan;
+      const session = await startBillingCheckout(me.id, tier);
+      if (session.url && /^https?:\/\//i.test(session.url)) {
+        window.location.href = session.url;
+        return;
+      }
+      await selectOnboardingPlan(tier);
       await finish();
     });
   }
@@ -357,8 +388,8 @@ export default function OnboardingPage() {
             Rate each from 1 (not for me) to 10 (I love it).
             {rated === MODES.length && top && <> Favorite so far: <b>{top.label.toLowerCase()}</b>.</>}
           </p>
-          <div className={styles.modes}>
-            {MODES.map((mode) => {
+          <div className={styles.modes} style={{ gridTemplateColumns: `repeat(${perPage}, minmax(0, 1fr))` }}>
+            {pageModes.map((mode) => {
               const value = ratings[mode.id];
               return (
                 <article
@@ -368,13 +399,24 @@ export default function OnboardingPage() {
                   onFocus={() => setFocus(mode.id)}
                 >
                   <div className={styles.modeArt}>
-                    <Image src={`/setup-assistant/${mode.art}.webp`} alt="" fill sizes="(max-width: 860px) 50vw, 240px" />
-                    {value != null && <span className={styles.modeScore}>{value}</span>}
+                    <Image src={`/setup-assistant/${mode.art}.webp`} alt="" fill priority sizes="(max-width: 800px) 100vw, 50vw" />
                   </div>
+                  {value != null && <span className={styles.modeScore}>{value}</span>}
                   <div className={styles.modeBody}>
                     <h3>{mode.label}</h3>
                     <p>{mode.blurb}</p>
-                    <div className={styles.scale} role="radiogroup" aria-label={`Rate ${mode.label} from 1 to 10`}>
+                    <div
+                      className={styles.scale}
+                      role="radiogroup"
+                      aria-label={`Rate ${mode.label} from 1 to 10`}
+                      onKeyDown={(event) => {
+                        const delta = event.key === "ArrowRight" || event.key === "ArrowUp" ? 1
+                          : event.key === "ArrowLeft" || event.key === "ArrowDown" ? -1 : 0;
+                        if (!delta) return;
+                        event.preventDefault();
+                        rate(mode.id, Math.min(10, Math.max(1, (value ?? 5) + delta)));
+                      }}
+                    >
                       {Array.from({ length: 10 }, (_, index) => index + 1).map((n) => (
                         <button
                           key={n}
@@ -382,7 +424,8 @@ export default function OnboardingPage() {
                           role="radio"
                           aria-checked={value === n}
                           aria-label={`${n}`}
-                          className={value != null && n <= value ? styles.scaleOn : ""}
+                          tabIndex={(value ?? 1) === n ? 0 : -1}
+                          className={`${value != null && n <= value ? styles.scaleOn : ""} ${value === n ? styles.scalePick : ""}`}
                           onClick={() => rate(mode.id, n)}
                         >{n}</button>
                       ))}
@@ -391,6 +434,35 @@ export default function OnboardingPage() {
                 </article>
               );
             })}
+          </div>
+          <div className={styles.pager}>
+            <button
+              type="button"
+              className={styles.pagerArrow}
+              aria-label="Previous"
+              disabled={currentPage === 0}
+              onClick={() => setModePage(currentPage - 1)}
+            >‹</button>
+            {Array.from({ length: pageCount }, (_, index) => {
+              const done = MODES.slice(index * perPage, index * perPage + perPage).every((item) => ratings[item.id] != null);
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  aria-label={`Page ${index + 1} of ${pageCount}`}
+                  aria-current={index === currentPage ? "step" : undefined}
+                  className={`${styles.pagerDot} ${index === currentPage ? styles.pagerDotOn : ""} ${done ? styles.pagerDotDone : ""}`}
+                  onClick={() => setModePage(index)}
+                />
+              );
+            })}
+            <button
+              type="button"
+              className={styles.pagerArrow}
+              aria-label="Next"
+              disabled={currentPage >= pageCount - 1}
+              onClick={() => setModePage(currentPage + 1)}
+            >›</button>
           </div>
           {error && <p className={styles.error} role="alert">{error}</p>}
           <div className={styles.actions}>
@@ -439,20 +511,9 @@ export default function OnboardingPage() {
       {step === "payment" && (
         <section className={styles.panel}>
           <span className={styles.eyebrow}>Payment</span>
-          <h1>Add a payment method.</h1>
-          {/* SECURITY: replace with Stripe.js Elements before production so raw card data never reaches our backend. */}
-          <p className={styles.note}>Demo mode: no real charge is made. Use a test card such as 4111 1111 1111 1111.</p>
+          <h1>{t("onboarding.paymentTitle")}</h1>
+          <p className={styles.note}>{t("onboarding.paymentNote")}</p>
           <div className={styles.billing}>
-            <input placeholder="Card number" value={billing.card_number}
-              onChange={(e) => setBilling({ ...billing, card_number: e.target.value })} />
-            <div className={styles.billingRow}>
-              <input type="number" placeholder="MM" value={billing.exp_month}
-                onChange={(e) => setBilling({ ...billing, exp_month: Number(e.target.value) })} />
-              <input type="number" placeholder="YYYY" value={billing.exp_year}
-                onChange={(e) => setBilling({ ...billing, exp_year: Number(e.target.value) })} />
-              <input placeholder="CVV" value={billing.cvv}
-                onChange={(e) => setBilling({ ...billing, cvv: e.target.value })} />
-            </div>
             <input placeholder="Street address" value={billing.line1}
               onChange={(e) => setBilling({ ...billing, line1: e.target.value })} />
             <div className={styles.billingRow}>

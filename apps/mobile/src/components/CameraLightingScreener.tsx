@@ -92,6 +92,11 @@ export default function CameraLightingScreener({
           variant="netflix"
           testID="camera-continue"
         />
+        <PrimaryButton
+          label={t("camera.skip")}
+          onPress={onReady}
+          variant="ghost"
+        />
       </View>
 
       {busy ? (

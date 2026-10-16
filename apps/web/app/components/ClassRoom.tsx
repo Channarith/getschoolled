@@ -1339,6 +1339,8 @@ export default function ClassRoom({
             setLessonCamera(stream);
             setLightingReady(true);
           }}
+          allowSkip
+          onSkip={() => setLightingReady(true)}
           title="Camera and lighting check"
         />
       )}
@@ -1964,6 +1966,7 @@ export default function ClassRoom({
             </div>
             <div className="row" style={{ marginTop: 12 }}>
               <input
+                aria-label={t("class.askPlaceholder")}
                 style={{ flex: 1, minWidth: 240 }}
                 placeholder={t("class.askPlaceholder")}
                 value={question}

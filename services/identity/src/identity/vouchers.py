@@ -9,10 +9,22 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import threading
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
+
+_CONSUME_LUA = """
+redis.call('SETNX', KEYS[1], ARGV[1])
+local n = redis.call('INCR', KEYS[1])
+local maxu = tonumber(ARGV[2])
+if maxu > 0 and n > maxu then
+  redis.call('DECR', KEYS[1])
+  return 0
+end
+return n
+"""
 
 VOUCHER_DIR_ENV = "AOEP_VOUCHER_DIR"
 
@@ -51,7 +63,20 @@ class VoucherStore:
     def __init__(self, root: Path) -> None:
         self._path = root / "vouchers.json"
         self._vouchers: dict[str, Voucher] = {}
+        self._lock = threading.Lock()
         self._load()
+
+    def _redis(self):
+        url = os.environ.get("REDIS_URL", "").strip()
+        if not url:
+            return None
+        try:
+            import redis
+            client = redis.Redis.from_url(url, decode_responses=True)
+            client.ping()
+            return client
+        except Exception:
+            return None
 
     @classmethod
     def open(cls) -> "VoucherStore":
@@ -125,16 +150,31 @@ class VoucherStore:
         return v, final, desc
 
     def consume(self, code: str) -> None:
-        v = self._vouchers.get(code.upper().strip())
-        if v is None:
-            raise ValueError(f"Code {code!r} is not valid")
-        # Re-check at consume time: validate() and consume() are separate calls,
-        # so N concurrent checkouts could all pass validation and over-consume
-        # past max_uses/expires_at (TOCTOU).
-        if not v.is_valid():
-            raise ValueError(f"Code {code!r} has expired or reached its usage limit")
-        v.uses += 1
-        self._save()
+        key = code.upper().strip()
+        with self._lock:
+            v = self._vouchers.get(key)
+            if v is None:
+                raise ValueError(f"Code {code!r} is not valid")
+            if v.expires_at and time.time() > v.expires_at:
+                raise ValueError(f"Code {code!r} has expired or reached its usage limit")
+            client = self._redis()
+            if client is not None:
+                try:
+                    granted = client.eval(
+                        _CONSUME_LUA, 1, f"aoep:voucher:uses:{key}",
+                        str(v.uses), str(v.max_uses),
+                    )
+                except Exception as exc:
+                    raise ValueError(f"Code {code!r} could not be redeemed") from exc
+                if not granted:
+                    raise ValueError(f"Code {code!r} has expired or reached its usage limit")
+                v.uses = int(granted)
+                self._save()
+                return
+            if not v.is_valid():
+                raise ValueError(f"Code {code!r} has expired or reached its usage limit")
+            v.uses += 1
+            self._save()
 
     def list_all(self) -> list[Voucher]:
         return list(self._vouchers.values())
