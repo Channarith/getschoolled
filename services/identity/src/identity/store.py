@@ -777,6 +777,7 @@ class AccountStore:
 
         from .persistence import (
             FreeClaimUnavailable,
+            PersistenceConflict,
             apply_free_claim,
             parse_claim_record,
             reserve_free_claim,
@@ -824,7 +825,14 @@ class AccountStore:
         if status == "existing":
             acct.free_plan_claimed_at = claimed_at
             acct.free_plan_expires_at = expires_at
-            self._persist()
+            try:
+                self._persist()
+            except PersistenceConflict:
+                # Another replica already saved this account. Its blob is loaded
+                # before the conflict is raised, so keep that copy.
+                acct = self.get_by_id(account_id) or acct
+                claimed_at = acct.free_plan_claimed_at or claimed_at
+                expires_at = acct.free_plan_expires_at or expires_at
             if not free_trial_active(claimed_at, expires_at, moment):
                 raise ValueError("Your free plan has ended.")
             if tier_requires_payment(acct.tier.value):

@@ -18,6 +18,7 @@ from aoep_shared.group_class_backend import (
     RedisGroupClassBackend,
     build_group_class_backend,
 )
+from aoep_shared.store_errors import DurableStoreError
 from aoep_shared.group_classes import GroupClass
 
 
@@ -62,7 +63,7 @@ class TestInMemoryBackend:
 
 
 class TestRedisBackendFallback:
-    """Test RedisGroupClassBackend graceful degradation when Redis is down."""
+    """Redis group classes fail closed when Redis is down."""
 
     def _make_failing_redis(self):
         """Returns a mock redis client whose every call raises ConnectionError."""
@@ -78,24 +79,18 @@ class TestRedisBackendFallback:
     def test_save_falls_back_to_memory_when_redis_down(self):
         b = RedisGroupClassBackend(self._make_failing_redis())
         gc = _make_gc("redis-down-1")
-        b.save(gc)  # must not raise
-        # After save, in-memory fallback holds the class.
-        got = b._fallback.get(gc.id)
-        assert got is not None
+        with pytest.raises(DurableStoreError):
+            b.save(gc)
 
     def test_get_falls_back_to_memory_when_redis_down(self):
         b = RedisGroupClassBackend(self._make_failing_redis())
-        gc = _make_gc("redis-down-2")
-        b._fallback.save(gc)  # pre-seed the fallback
-        got = b.get(gc.id)
-        assert got is not None
+        with pytest.raises(DurableStoreError):
+            b.get("redis-down-2")
 
     def test_list_ids_falls_back_to_memory_when_redis_down(self):
         b = RedisGroupClassBackend(self._make_failing_redis())
-        gc = _make_gc("redis-down-3")
-        b._fallback.save(gc)
-        ids = b.list_ids()
-        assert gc.id in ids
+        with pytest.raises(DurableStoreError):
+            b.list_ids()
 
     def test_partial_save_failure_orphans_class(self):
         """Regression v0.45.8: if set() succeeds but sadd() fails, the class
@@ -109,12 +104,10 @@ class TestRedisBackendFallback:
         b = RedisGroupClassBackend(r)
         gc = _make_gc("partial-fail")
 
-        # save() should not raise even if sadd() fails.
-        b.save(gc)
-
-        # After save: the data is in the fallback (sadd failure triggers except).
-        # This is the documented behaviour — a future fix would use a pipeline.
-        assert b._fallback.get(gc.id) is not None or r.set.called
+        # A failed index write must not report success. The class is not readable
+        # through a second in-memory copy.
+        with pytest.raises(DurableStoreError):
+            b.save(gc)
 
 
 class TestBuildGroupClassBackend:
