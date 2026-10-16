@@ -125,7 +125,7 @@ FLAG_CATALOG: List[FlagSpec] = [
     FlagSpec("sales_demo.restrict_signed_in", FlagType.BOOL, False, "sales_demo",
              "Simplified-nav mode after login. Signed-in non-admin accounts see "
              "a trimmed one-row header with 5 tabs: Our Story, Vision Play Lab, "
-             "Audio Translation Lab, Careers, Live Class — plus profile. The "
+             "On the Go, Careers, Live Class — plus profile. The "
              "full home and pages still render; only the nav is simplified. "
              "Lock-out guard: admin accounts (is_admin) always see the full "
              "nav regardless of this flag, so you cannot lock yourself out. "
@@ -139,7 +139,7 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Corporate, Languages, Drive, Group Classes, Watch, Homework) "
              "instead of the simplified 5-tab launch header. When OFF (default), "
              "every signed-in account sees only Our Story · Vision Play Lab · "
-             "Audio Translation Lab · Careers · Live Class. Turn ON to restore "
+             "On the Go · Careers · Live Class. Turn ON to restore "
              "the full navigation globally — admins can flip this from the "
              "admin console. No lock-out risk: the trimmed tabs always include "
              "a path back to profile/settings and admin."),
