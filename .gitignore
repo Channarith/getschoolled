@@ -123,3 +123,4 @@ urls/cosyvoice_*_all.txt
 urls/cosyvoice_expand_report.json
 # keep urls/cosyvoice_channels.json, urls/cosyvoice_*_INDEX.txt, urls/cosyvoice_CORPUS_STATUS.txt
 urls_km_*.txt
+list_models.py
