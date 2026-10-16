@@ -222,6 +222,26 @@ STUDIO_CSS = """
     .visual-timeline-stage.layout-compare .visual-layer.kind-body.is-active,
     .visual-timeline-stage.layout-compare .visual-layer.kind-callout.is-active { opacity:1; transform:none; }
     .visual-timeline-stage.layout-compare .visual-layer .visual-label { max-width:44rem; }
+    .visual-timeline-stage[data-layout="road-scene"] { background:#dbe7f3; }
+    .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-storyboard { padding:0; transform:none; }
+    .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-storyboard svg { width:100%; height:100%; display:block; }
+    .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-keypoints { place-items:end start; padding:3% 3.5%;
+      text-align:left; pointer-events:none; }
+    .road-points { max-width:min(62%, 36rem); padding:.6em .9em .7em; border-radius:14px;
+      background:rgba(15,23,42,.88); color:#f8fafc; box-shadow:0 8px 24px rgba(15,23,42,.3);
+      font:600 clamp(13px,1.5vw,21px)/1.3 "Avenir Next","Segoe UI",sans-serif; }
+    .road-points h4 { margin:0 0 .3em; font-size:1.12em; color:#fde68a; }
+    .road-points ol { margin:0; padding-left:1.2em; }
+    .road-points li { margin:.12em 0; opacity:.6; }
+    .road-points li.is-done { opacity:.82; }
+    .road-points li.is-now { opacity:1; color:#ffffff; }
+    .teach-stage.has-road-scene #teach-body,
+    .teach-stage.has-road-scene #teach-narr,
+    .teach-stage.has-road-scene #teach-examples { display:none !important; }
+    #resume-retry { position:absolute; left:50%; bottom:16%; transform:translateX(-50%); z-index:60;
+      min-height:48px; padding:.6em 1.2em; border-radius:999px; border:0; background:#0f766e; color:#fff;
+      font:700 16px/1.2 system-ui,sans-serif; box-shadow:0 8px 22px rgba(15,23,42,.35); cursor:pointer; }
+    #resume-retry[hidden] { display:none !important; }
     .has-readable-card #teach-body,
     .has-readable-card #teach-narr,
     .has-readable-card #teach-activity { display:none !important; }
@@ -1364,6 +1384,102 @@ STUDIO_JS = """
     let reviewOpen = false;
     let captionsEnabled = false;
     const reviewScores = { quizzes: [], games: [] };
+    const RESUME_FETCH_MS = 8000;
+    const RESUME_VERIFY_MS = 6000;
+    const ADVANCE_TIMEOUT_MS = 15000;
+    const WAKE_GAP_MS = 20000;
+    const CAMERA_MUTE_AWAY_MS = 1500;
+    let lastPlaybackAt = 0;
+    let lastSpeakRequestAt = 0;
+    let resumeStartedAt = 0;
+    let advancePromise = null;
+    let lifecycleTickAt = Date.now();
+
+    // Must stay self-contained: tests/test_lesson_resume.py runs this factory in node.
+    function createLessonLifecycle(io) {
+      const st = { away: false, wasPlaying: false, token: 0, run: null, failed: false };
+      function away(source) {
+        if (st.away) return false;
+        st.away = true;
+        st.wasPlaying = !!(st.failed || io.isPlaying());
+        st.token += 1;
+        st.run = null;
+        io.onAway(String(source || 'away'), st.wasPlaying);
+        return true;
+      }
+      function back(source, opts) {
+        const force = !!(opts && opts.force);
+        const label = String(source || 'return');
+        if (!force && io.isHidden()) return Promise.resolve('hidden');
+        if (st.run && !force) return st.run;
+        if (!st.away && !st.failed && !force) {
+          io.refresh(label);
+          return Promise.resolve('steady');
+        }
+        const want = force || st.failed || st.wasPlaying;
+        st.away = false;
+        st.token += 1;
+        const token = st.token;
+        const stale = () => token !== st.token;
+        const run = (async () => {
+          try {
+            await Promise.resolve();
+            await io.restoreMedia(label, token);
+            if (stale()) return 'stale';
+            if (!want || io.isPaused()) {
+              st.failed = false;
+              io.clearFailure();
+              return 'paused';
+            }
+            const payload = await io.reconcile(label, token);
+            if (stale()) return 'stale';
+            const played = payload ? await io.continueLesson(payload, label, token) : false;
+            if (stale()) return 'stale';
+            const ok = played === 'quiet' || (played === 'played' && await io.verify(token));
+            if (stale()) return 'stale';
+            if (!ok) {
+              st.failed = true;
+              io.showFailure(label);
+              return 'failed';
+            }
+            st.failed = false;
+            io.clearFailure();
+            return 'resumed';
+          } catch (error) {
+            if (stale()) return 'stale';
+            st.failed = true;
+            io.showFailure(label, error);
+            return 'failed';
+          } finally {
+            if (st.run === run) st.run = null;
+          }
+        })();
+        st.run = run;
+        return run;
+      }
+      return {
+        away: away,
+        back: back,
+        isAway: () => st.away,
+        busy: () => !!st.run,
+        failed: () => st.failed,
+        token: () => st.token,
+      };
+    }
+
+    const lessonLife = createLessonLifecycle({
+      isHidden: () => document.visibilityState === 'hidden',
+      isPlaying: () => lessonIsPlaying(),
+      isPaused: () => lecturePaused || sampleIsComplete() || !lessonTurnLoaded(),
+      onAway: (source) => noteLessonAway(source),
+      refresh: () => refreshLessonMedia(),
+      restoreMedia: () => restoreLessonMedia(),
+      reconcile: () => reconcileLessonForResume(),
+      continueLesson: (payload) => continueLessonAfterReturn(payload),
+      verify: (token) => verifyLessonPlayback(token, resumeStartedAt),
+      showFailure: () => showResumeRetry(),
+      clearFailure: () => hideResumeRetry(),
+    });
 
     function presenterLabel(presenter) {
       const name = presenter?.label || 'Serenity';
@@ -2767,6 +2883,9 @@ STUDIO_JS = """
     let lastStudentSeenAt = 0;
     let studentBackSince = 0;
     let studentGoneSince = 0;
+    let returnGraceUntil = 0;
+    // A camera coming back from the background needs a moment to deliver frames.
+    const RETURN_GRACE_MS = 3500;
     const ABSENCE_HOLD_MS = 600;
     // Face/contour mesh flickers; require a short solid return before auto-resume.
     const PRESENCE_RESUME_MS = 900;
@@ -2852,6 +2971,7 @@ STUDIO_JS = """
     function studentStillAway() {
       if (!studentWasPresent || !lastStudentSeenAt) return false;
       if (learnerLocallyBack()) return false;
+      if (document.visibilityState !== 'hidden' && Date.now() < returnGraceUntil) return false;
       if (!cameraIsLive() && document.visibilityState !== 'hidden') return false;
       return Date.now() - lastStudentSeenAt >= ABSENCE_HOLD_MS;
     }
@@ -2906,9 +3026,11 @@ STUDIO_JS = """
     }
 
     function continueSameLesson() {
-      if (learningHold) return;
+      if (learningHold || lessonLife.isAway()) return;
       if (window.TheodoreLiveAudio && window.__THEODORE_LIVE_AUDIO_ACTIVE__) {
         window.TheodoreLiveAudio.resumeRecognition?.();
+        // The agent's last turn was cancelled on pause; re-anchor it to this slide.
+        if (lastTeachPayload) syncVoiceToSlide(lastTeachPayload, { force: true });
         return;
       }
       const turn = (lastTeachPayload && (lastTeachPayload.turn || lastTeachPayload)) || {};
@@ -2918,11 +3040,12 @@ STUDIO_JS = """
     function sayPresenceLine(line, after) {
       window.TheodoreLiveAudio?.pauseRecognition?.();
       stopSpeech();
+      const gen = speechGen;
       let finished = false;
       const done = () => {
         if (finished) return;
         finished = true;
-        if (after) after();
+        if (after && gen === speechGen) after();
       };
       setTimeout(() => {
         if (!window.speechSynthesis) {
@@ -3108,6 +3231,7 @@ STUDIO_JS = """
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } },
           audio: false,
         });
+        watchCameraStream(studentCamStream);
         const video = $('student-cam-video');
         if (video) {
           video.srcObject = studentCamStream;
@@ -3146,6 +3270,208 @@ STUDIO_JS = """
       const left = parseFloat(box.style.left);
       const top = parseFloat(box.style.top);
       if (Number.isFinite(left) && Number.isFinite(top)) clampStudentCam(left, top);
+    }
+
+    function lessonIsPlaying() {
+      return lessonTurnLoaded() && !lecturePaused && !sampleIsComplete();
+    }
+
+    function withTimeout(promise, ms, fallback) {
+      let timer = 0;
+      return Promise.race([
+        Promise.resolve(promise),
+        new Promise((resolve) => { timer = setTimeout(() => resolve(fallback), ms); }),
+      ]).finally(() => clearTimeout(timer));
+    }
+
+    function apiTimed(path, opts, ms) {
+      if (typeof AbortController !== 'function') return api(path, opts);
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), ms);
+      return api(path, Object.assign({}, opts || {}, { signal: ctl.signal }))
+        .finally(() => clearTimeout(timer));
+    }
+
+    function lessonSlideKey(payload) {
+      if (!payload) return '';
+      const turn = payload.turn || payload;
+      return String(payload.path_pos ?? '') + '|' + String(payload.slide_index ?? turn.slide_index ?? '');
+    }
+
+    function liveAgentReady() {
+      const live = window.TheodoreLiveAudio;
+      const status = live && typeof live.status === 'function' ? live.status() : null;
+      if (status) return !!(status.connected && status.socketOpen);
+      return !!window.__THEODORE_LIVE_AUDIO_ACTIVE__;
+    }
+
+    function noteLessonAway() {
+      clearAutoAdvance();
+      stopSpeech();
+      window.TheodoreLiveAudio?.pauseRecognition?.();
+      hideResumeRetry();
+    }
+
+    function clearAwayHoldForReturn() {
+      if (!learningHold || holdGroup(learningHoldReason) !== 'away') return false;
+      learningHold = false;
+      learningHoldReason = '';
+      document.body.classList.remove('presence-held');
+      hidePresenceBanner();
+      setLearningStatus(PRESENCE_RESUME);
+      rememberStudioPresence('returned');
+      return true;
+    }
+
+    function refreshLessonMedia() {
+      const video = $('student-cam-video');
+      if (video && video.srcObject && video.paused) video.play().catch(() => {});
+      try {
+        const pending = window.TheodoreLiveAudio?.resumeAudio?.();
+        if (pending && pending.catch) pending.catch(() => {});
+      } catch (_) {}
+    }
+
+    async function restoreLessonMedia() {
+      resumeStartedAt = Date.now();
+      returnGraceUntil = resumeStartedAt + RETURN_GRACE_MS;
+      studentBackSince = 0;
+      studentGoneSince = 0;
+      if (studentWasPresent) lastStudentSeenAt = resumeStartedAt;
+      clearAwayHoldForReturn();
+      if (lastTeachPayload) {
+        const tracks = studentCamStream && studentCamStream.getVideoTracks ? studentCamStream.getVideoTracks() : [];
+        if (studentCamStream && !tracks.some((track) => track.readyState === 'live')) {
+          try { studentCamStream.getTracks().forEach((track) => track.stop()); } catch (_) {}
+          studentCamStream = null;
+          const stale = $('student-cam-video');
+          if (stale) stale.srcObject = null;
+        }
+        await withTimeout(ensureStudentCamera().catch(() => null), 3000, null);
+        const video = $('student-cam-video');
+        if (video && video.srcObject && video.paused) {
+          await withTimeout(video.play().catch(() => null), 1500, null);
+        }
+      }
+      const live = window.TheodoreLiveAudio;
+      if (live && typeof live.resumeAudio === 'function') {
+        await withTimeout(live.resumeAudio().catch(() => null), 1500, null);
+      }
+    }
+
+    async function reconcileLessonForResume() {
+      if (advancePromise) await withTimeout(advancePromise.catch(() => null), RESUME_FETCH_MS, null);
+      if (!teachSession) return null;
+      try {
+        return await apiTimed('/api/studio/teach/current', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ session_id: teachSession }),
+        }, RESUME_FETCH_MS);
+      } catch (error) {
+        if (!/missing/i.test(String((error && error.message) || ''))) throw error;
+        await startTeach({ resume: true });
+        return { rendered_by_start: true };
+      }
+    }
+
+    function continueLessonAfterReturn(payload) {
+      if (payload.rendered_by_start) return 'played';
+      if (learningHold) return 'quiet';
+      if (talkOpen || learningCheckOpen) {
+        window.TheodoreLiveAudio?.resumeRecognition?.();
+        if (learningCheckOpen && spokenActivityPrompt) armSpokenActivity(spokenActivity, spokenActivityPrompt);
+        return 'quiet';
+      }
+      if (payload.sample && payload.sample.complete) {
+        renderTeach(payload);
+        return 'quiet';
+      }
+      if (lessonSlideKey(payload) !== lessonSlideKey(lastTeachPayload)) {
+        renderTeach(payload);
+        return 'played';
+      }
+      if (lastSpeakRequestAt >= resumeStartedAt) return 'played';
+      if (beatHandled) {
+        continueAfterActivity().catch((error) => toast(String(error.message || error)));
+        return 'quiet';
+      }
+      const absorb = $('absorb-note');
+      if (absorb && !absorb.hidden) {
+        window.TheodoreLiveAudio?.resumeRecognition?.();
+        scheduleAutoAdvance(ABSORB_MS);
+        return 'quiet';
+      }
+      if (liveAgentReady()) {
+        window.TheodoreLiveAudio?.resumeRecognition?.();
+        syncVoiceToSlide(lastTeachPayload, { force: true });
+        return 'played';
+      }
+      const turn = lastTeachPayload.turn || lastTeachPayload;
+      speakText(turn.narration || turn.display_body || '', lastTeachPayload.tts);
+      return 'played';
+    }
+
+    function verifyLessonPlayback(token, startedAt) {
+      return new Promise((resolve) => {
+        const until = Date.now() + RESUME_VERIFY_MS;
+        const tick = () => {
+          if (token !== lessonLife.token()) return resolve(true);
+          if (lecturePaused || learningHold || sampleIsComplete() || talkOpen || learningCheckOpen) return resolve(true);
+          if (lastPlaybackAt >= startedAt) return resolve(true);
+          if (liveAgentReady() && !window.__THEODORE_LIVE_AUDIO_HOLD__) return resolve(true);
+          if (Date.now() >= until) return resolve(false);
+          setTimeout(tick, 250);
+        };
+        tick();
+      });
+    }
+
+    function showResumeRetry() {
+      stopSpeech();
+      clearAutoAdvance();
+      const btn = $('resume-retry');
+      if (btn) btn.hidden = false;
+      setLearningStatus('The lesson could not continue on its own. Tap to continue.');
+    }
+
+    function hideResumeRetry() {
+      const btn = $('resume-retry');
+      if (btn) btn.hidden = true;
+    }
+
+    function lifecycleReturn(source, opts) {
+      lifecycleTickAt = Date.now();
+      return lessonLife.back(source, opts);
+    }
+
+    function watchCameraStream(stream) {
+      if (!stream || stream.__lessonWatched || !stream.getVideoTracks) return;
+      stream.__lessonWatched = true;
+      stream.getVideoTracks().forEach((track) => {
+        let muteTimer = 0;
+        track.addEventListener('mute', () => {
+          clearTimeout(muteTimer);
+          muteTimer = setTimeout(() => {
+            if (track.muted && track.readyState === 'live') lessonLife.away('camera-muted');
+          }, CAMERA_MUTE_AWAY_MS);
+        });
+        track.addEventListener('unmute', () => {
+          clearTimeout(muteTimer);
+          void lifecycleReturn('camera-unmuted');
+        });
+        track.addEventListener('ended', () => {
+          clearTimeout(muteTimer);
+          if (studentCamStream !== stream) return;
+          studentCamStream = null;
+          const video = $('student-cam-video');
+          if (video && video.srcObject === stream) video.srcObject = null;
+          if (document.visibilityState === 'hidden') {
+            lessonLife.away('camera-ended');
+            return;
+          }
+          if (lastTeachPayload) ensureStudentCamera().catch(() => {});
+        });
+      });
     }
 
     function stopStudentCamera() {
@@ -4460,6 +4786,7 @@ STUDIO_JS = """
       clearAutoAdvance();
       if (sampleIsComplete()) return;
       if (learningHold || learningCheckOpen || lecturePaused || beatHandled || talkOpen) return;
+      if (lessonLife.isAway()) return;
       autoAdvanceTimer = setTimeout(() => {
         autoAdvanceTimer = null;
         finishSlideBeat();
@@ -4670,22 +4997,32 @@ STUDIO_JS = """
       }
       if (automatic && (lecturePaused || advancing || isLastSlide())) return;
       if (!teachSession) return;
+      if (advancing || lessonLife.isAway()) return;
       clearAutoAdvance();
       advancing = true;
       stopSpeech();
       theodoreAvatar?.setState('idle');
+      const token = lessonLife.token();
+      const pending = apiTimed('/api/studio/teach/advance', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ session_id: teachSession })
+      }, ADVANCE_TIMEOUT_MS);
+      advancePromise = pending;
       try {
-        const data = await api('/api/studio/teach/advance', {
-          method:'POST', headers:{'content-type':'application/json'},
-          body: JSON.stringify({ session_id: teachSession })
-        });
-        renderTeach(data);
+        const data = await pending;
+        // A return-to-lesson resume reconciles with the server itself.
+        if (token === lessonLife.token() && !lessonLife.isAway()) renderTeach(data);
       } finally {
+        if (advancePromise === pending) advancePromise = null;
         advancing = false;
       }
     }
 
     function onDriveWaveTap() {
+      if (lessonLife.failed() || (learningHold && holdGroup(learningHoldReason) === 'away')) {
+        void lifecycleReturn('tap', { force: true });
+        return;
+      }
       if (learningHold) {
         pauseLessonForAbsence(PRESENCE_PAUSE);
         return;
@@ -4953,17 +5290,21 @@ STUDIO_JS = """
       renderTeach(data);
     }
 
-    function syncVoiceToSlide(payload) {
-      if (lecturePaused || sampleIsComplete()) return;
+    function syncVoiceToSlide(payload, opts) {
+      if (lecturePaused || sampleIsComplete() || lessonLife.isAway()) return;
       if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__ || window.__THEODORE_LIVE_AUDIO_HOLD__) return;
       if (!window.TheodoreLiveAudio || !window.TheodoreLiveAudio.noteActivity) return;
       const turn = (payload && (payload.turn || payload)) || {};
       const narration = String(turn.narration || turn.display_body || turn.title || '').trim();
       if (!narration) return;
       const title = String(turn.title || '');
+      const force = !!(opts && opts.force);
+      lastSpeakRequestAt = Date.now();
       window.TheodoreLiveAudio.noteActivity({
         id: 'slide-' + String(payload.slide_index ?? payload.path_pos ?? title),
-        prompt: 'Stay on this lesson slide. Read it aloud, then wait. Do not change the subject. Title: ' +
+        force: force,
+        prompt: (force ? 'The learner just came back. Pick up on this same slide from the start. ' : '') +
+          'Stay on this lesson slide. Read it aloud, then wait. Do not change the subject. Title: ' +
           title + '. ' + narration
       });
     }
@@ -5824,6 +6165,7 @@ STUDIO_JS = """
     }
     function speakText(text, ttsMeta, holdLesson, kind) {
       if (sampleIsComplete()) return;
+      if (lessonLife.isAway()) return;
       if (learningHold && kind !== 'guard' && kind !== 'learn-check') return;
       if (learningCheckOpen && kind !== 'learn-check' && kind !== 'guard' && kind !== 'checkpoint') return;
       if (kind !== 'adapt' && kind !== 'adapt-resume' && kind !== 'guard') attentionResume = '';
@@ -5836,6 +6178,7 @@ STUDIO_JS = """
         window.TheodoreLiveAudio?.pauseRecognition();
       }
       stopSpeech();
+      lastSpeakRequestAt = Date.now();
       const spoken = text || '';
       const gen = speechGen;
       const talkReply = kind === 'talk';
@@ -5859,6 +6202,7 @@ STUDIO_JS = """
         return;
       }
       if (!holdLesson && lessonNarration(kind) && kind !== 'backup' && window.TheodoreLiveAudio?.start) {
+        lastSpeakRequestAt = Date.now();
         if (!liveVoiceStart) {
           liveVoiceStart = (async () => {
             const waitUntilLive = async () => {
@@ -5876,8 +6220,9 @@ STUDIO_JS = """
             return !!window.__THEODORE_LIVE_AUDIO_ACTIVE__;
           })().finally(() => { liveVoiceStart = null; });
         }
+        const startGen = speechGen;
         liveVoiceStart.then((ok) => {
-          if (!ok) speakText(text, ttsMeta, holdLesson, 'backup');
+          if (!ok && startGen === speechGen) speakText(text, ttsMeta, holdLesson, 'backup');
         });
         return;
       }
@@ -5987,6 +6332,7 @@ STUDIO_JS = """
             syncVisualTimeline((Number(visualTimeline.duration_s) || 1) * charIndex / spoken.length);
           }
         };
+        u.onstart = () => { lastPlaybackAt = Date.now(); };
         u.onend = () => {
           document.body.classList.remove('is-speaking');
           finishUtterance(gen, token);
@@ -6038,6 +6384,7 @@ STUDIO_JS = """
           if (!audio.paused) armForClip();
         };
         audio.onplaying = () => {
+          lastPlaybackAt = Date.now();
           clearStallTimer();
           armForClip();
           document.body.classList.add('is-speaking');
@@ -6151,6 +6498,10 @@ STUDIO_JS = """
     }
 
     async function proceedFromCourse() {
+      if (lessonLife.failed() || (learningHold && holdGroup(learningHoldReason) === 'away')) {
+        await lifecycleReturn('tap', { force: true });
+        return;
+      }
       if (sampleIsComplete()) {
         await proceedByClick();
         return;
@@ -6225,6 +6576,7 @@ STUDIO_JS = """
       document.body.classList.toggle('is-speaking', speaking && !lecturePaused);
       if (lecturePaused) return;
       if (speaking) {
+        lastPlaybackAt = Date.now();
         theodoreAvatar?.speak(event.detail.text || ' ');
         return;
       }
@@ -6347,8 +6699,8 @@ STUDIO_JS = """
       visualCueIndex = -1;
       const stage = $('teach-stage');
       const overlay = $('presenter-overlay');
-      if (stage) stage.classList.remove('has-readable-card');
-      if (overlay) overlay.classList.remove('has-readable-card');
+      if (stage) stage.classList.remove('has-readable-card', 'has-road-scene');
+      if (overlay) overlay.classList.remove('has-readable-card', 'has-road-scene');
       const host = $('teach-visual-timeline');
       if (!host) return;
       host.hidden = true;
@@ -6374,6 +6726,9 @@ STUDIO_JS = """
       host.dataset.style = timeline.presentation_style_id || payload.presentation_style_id || 'layered';
       host.dataset.layout = timeline.layout || '';
       host.classList.toggle('layout-compare', timeline.layout === 'compare');
+      const roadScene = timeline.layout === 'road-scene';
+      $('teach-stage')?.classList.toggle('has-road-scene', roadScene);
+      $('presenter-overlay')?.classList.toggle('has-road-scene', roadScene);
       if (timeline.style_label) {
         const badge = document.createElement('p');
         badge.className = 'timeline-style-label';
@@ -6387,6 +6742,7 @@ STUDIO_JS = """
           const el = document.createElement('div');
           el.className = 'visual-layer';
           el.dataset.cue = String(cueIndex);
+          if (layer.persistent) el.dataset.persist = '1';
           el.dataset.transition = layer.transition || cue.transition || 'fade';
           el.style.zIndex = String(Number(layer.z_index ?? layerIndex) || 0);
           const kind = String(layer.kind || 'text');
@@ -6403,6 +6759,28 @@ STUDIO_JS = """
             el.innerHTML = String(layer.svg || layer.content);
             el.setAttribute('role', 'img');
             el.setAttribute('aria-label', String(layer.alt || text || 'Lesson diagram'));
+          } else if (kind === 'keypoints' && Array.isArray(layer.items) && layer.items.length) {
+            const card = document.createElement('div');
+            card.className = 'road-points';
+            if (layer.title) {
+              const heading = document.createElement('h4');
+              heading.textContent = String(layer.title);
+              card.appendChild(heading);
+            }
+            const list = document.createElement('ol');
+            const now = Number(layer.active) || 0;
+            layer.items.forEach((item, itemIndex) => {
+              const li = document.createElement('li');
+              li.textContent = String(item);
+              if (itemIndex < now) li.classList.add('is-done');
+              if (itemIndex === now) {
+                li.classList.add('is-now');
+                li.setAttribute('aria-current', 'step');
+              }
+              list.appendChild(li);
+            });
+            card.appendChild(list);
+            el.appendChild(card);
           } else {
             const label = document.createElement('div');
             label.className = 'visual-label';
@@ -6461,7 +6839,8 @@ STUDIO_JS = """
             || layer.classList.contains('kind-callout')
             || layer.classList.contains('kind-text')
             || layer.classList.contains('kind-storyboard');
-          layer.classList.toggle('is-active', (words || !hold) ? index === active : index <= active);
+          const on = layer.dataset.persist === '1' || ((words || !hold) ? index === active : index <= active);
+          layer.classList.toggle('is-active', on);
         });
         const readable = !!host.querySelector(
           '.visual-layer.is-active.kind-body, .visual-layer.is-active.kind-callout, .visual-layer.is-active.kind-text'
@@ -6854,6 +7233,44 @@ STUDIO_JS = """
     on('teach-lang', 'change', (event) => applyTeachLanguage(event.target.value));
     on('teach-lang-stage', 'change', (event) => applyTeachLanguage(event.target.value));
     on('drive-lang', 'change', (event) => applyTeachLanguage(event.target.value));
+    // Every way back to the lesson funnels into one single-flight resume.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') lessonLife.away('hidden');
+      else void lifecycleReturn('visible');
+    });
+    window.addEventListener('pagehide', () => lessonLife.away('pagehide'));
+    window.addEventListener('pageshow', (event) => {
+      void lifecycleReturn(event.persisted ? 'pageshow-bfcache' : 'pageshow');
+    });
+    document.addEventListener('freeze', () => lessonLife.away('freeze'));
+    document.addEventListener('resume', () => { void lifecycleReturn('resume'); });
+    window.addEventListener('focus', () => { void lifecycleReturn('focus'); });
+    function onAppState(state) {
+      const value = String(state || '');
+      if (value === 'background' || value === 'inactive') lessonLife.away('app-' + value);
+      else if (value === 'active') void lifecycleReturn('app-active');
+    }
+    window.addEventListener('salareen-app-state', (event) => onAppState(event.detail && event.detail.state));
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (event.source !== window.parent && event.source !== window) return;
+      if (data && data.type === 'salareen-app-state') onAppState(data.state);
+    });
+    on('student-cam-video', 'playing', () => { void lifecycleReturn('camera-playing'); });
+    on('student-cam-video', 'loadeddata', () => { void lifecycleReturn('camera-loadeddata'); });
+    // Timers stop while the device sleeps; a long gap between ticks means the screen just woke.
+    setInterval(() => {
+      const now = Date.now();
+      const gap = now - lifecycleTickAt;
+      lifecycleTickAt = now;
+      if (gap < WAKE_GAP_MS || document.visibilityState === 'hidden') return;
+      lessonLife.away('sleep');
+      void lifecycleReturn('wake');
+    }, 1000);
+    on('resume-retry', 'click', (event) => {
+      event.stopPropagation();
+      void lifecycleReturn('tap', { force: true });
+    });
     paintLessonChrome(teachLanguage);
     paintProceedCue();
     // Escape leaves fullscreen without telling us, so follow the browser back.
@@ -7092,6 +7509,7 @@ def render_studio_page() -> str:
           </div>
         </div>
         <p class="lesson-caption" id="lesson-caption" hidden></p>
+        <button id="resume-retry" type="button" hidden aria-live="polite">Tap to continue the lesson</button>
         <div class="quiz-box" id="quiz-box" style="display:none"></div>
         <div class="game-box" id="game-box" style="display:none"></div>
         <div class="row lesson-toolbar" id="lesson-toolbar">

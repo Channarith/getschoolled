@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Image, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View,
+  ActivityIndicator, AppState, Image, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View,
 } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
@@ -10,7 +10,7 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { driverWaveScript } from "../driverWave";
 import { liveAudioPhoneScript } from "../liveAudioPhone";
-import { publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
+import { appStateScript, publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
 import { SERENITY_HERO, SERENITY_NAME } from "../serenity";
 import { ensureLoudSpeaker } from "../tts";
 import { theme } from "../theme";
@@ -42,6 +42,7 @@ export default function DemoWebScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [plays, setPlays] = useState(0);
+  const webRef = useRef<WebView>(null);
   const path = demoPathWithLocale(demo.path, locale);
   const url = publicDemoUrl(WEB_APP_URL, path);
   const audioOnly = path.includes("presentation=audio");
@@ -57,6 +58,13 @@ export default function DemoWebScreen({
     void ensureLoudSpeaker();
     void ensureCameraPermission();
     void ensureMicrophonePermission();
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      webRef.current?.injectJavaScript(appStateScript(state));
+    });
+    return () => sub.remove();
   }, []);
 
   function onMessage(event: WebViewMessageEvent) {
@@ -105,6 +113,7 @@ export default function DemoWebScreen({
         </View>
       ) : (
         <WebView
+          ref={webRef}
           testID="demo-webview"
           source={{ uri: url }}
           style={styles.web}

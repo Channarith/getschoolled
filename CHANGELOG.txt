@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-16 - v0.62.0 - The Driver Ed player resumes once on its own after any return to the camera: the tab or app comes back, the page leaves the back-forward cache, the device wakes, or the camera recovers. Before it continues, it checks the slide with the server and restores the audio. An intentional pause stays paused. A Tap to continue button appears only if resuming fails. Driver Ed slides show a drawn road scene with the road sign and up to three short points.
 - 2026-10-16 - v0.62.0 - Membership prices are Free $0, Standard (basic) $19, Pro $29, and VIP (premium) $39 per month.
 - 2026-10-16 - v0.62.0 - Face Check loads YuNet and SFace from same-origin /vision-models files baked into the web image, and falls back to perception one file at a time. A missing SFace no longer makes the YuNet download return 503. Both weights are baked into the perception image so cloud pods do not fetch them from GitHub on the first request.
 - 2026-10-16 - v0.62.0 - The web "How do you learn best?" setup step shows two learning styles at a time (one on phones) as full-height photos, with a slim 1-10 strip on the image instead of large number buttons. Rating both cards moves to the next pair, and page dots let you go back.

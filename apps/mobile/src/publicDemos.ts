@@ -157,3 +157,12 @@ export function childrenLabTouchScript(): string {
     else show();
   })(); true;`;
 }
+
+/** Tells the page the app went to the background or came back, so a lesson can pause and resume. */
+export function appStateScript(state: string): string {
+  const value = state === "active" || state === "background" || state === "inactive" ? state : "active";
+  return `(function(){try{window.dispatchEvent(new CustomEvent("salareen-app-state",{detail:{state:"${value}"}}));}catch(e){}
+    var frames=document.querySelectorAll("iframe");
+    for(var i=0;i<frames.length;i++){try{frames[i].contentWindow.postMessage({type:"salareen-app-state",state:"${value}"},"*");}catch(e){}}
+  })(); true;`;
+}
