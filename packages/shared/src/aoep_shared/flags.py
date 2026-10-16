@@ -128,7 +128,21 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Audio Translation Lab, Careers, Live Class — plus profile. The "
              "full home and pages still render; only the nav is simplified. "
              "Lock-out guard: admin accounts (is_admin) always see the full "
-             "nav regardless of this flag, so you cannot lock yourself out."),
+             "nav regardless of this flag, so you cannot lock yourself out. "
+             "NOTE 2026-10-15: superseded by nav.full_tabs_enabled for the "
+             "launch default (simplified nav is now the DEFAULT for every "
+             "account); this flag is kept for legacy admin bypasses."),
+
+    # --- nav / header -------------------------------------------------------- #
+    FlagSpec("nav.full_tabs_enabled", FlagType.BOOL, False, "nav",
+             "Show the full navigation menu (Home, Browse, For You, Kids, "
+             "Corporate, Languages, Drive, Group Classes, Watch, Homework) "
+             "instead of the simplified 5-tab launch header. When OFF (default), "
+             "every signed-in account sees only Our Story · Vision Play Lab · "
+             "Audio Translation Lab · Careers · Live Class. Turn ON to restore "
+             "the full navigation globally — admins can flip this from the "
+             "admin console. No lock-out risk: the trimmed tabs always include "
+             "a path back to profile/settings and admin."),
 
     # --- data / analytics / data mining -------------------------------------- #
     FlagSpec("data.multidim_datamart", FlagType.BOOL, False, "data",
