@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AUTH_EVENT, getToken, getFlag } from "../lib/api";
-import { useDemoOnlyAnonymous, useRestrictSignedIn, useSignedIn } from "../lib/flags";
+import { useDemoOnlyAnonymous, useFullNavTabs, useSignedIn } from "../lib/flags";
 import { useT } from "../lib/i18n";
 import { learningHint, useLearningPhrase } from "../lib/learningPhrases";
 import ProfileMenu from "./ProfileMenu";
@@ -19,7 +19,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const pathname = usePathname() ?? "/";
 
   const demoOnlyAnon = useDemoOnlyAnonymous();
-  const restrictSignedIn = useRestrictSignedIn();
+  const fullNavTabs = useFullNavTabs();
   const signedIn = useSignedIn();
   const [unlocked, setUnlocked] = useState(false);
   const [homeworkOn, setHomeworkOn] = useState(false);
@@ -92,21 +92,18 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
     </>
   );
 
-  // Simplified-nav mode is now the DEFAULT for every signed-in account (admin
-  // included) per product decision 2026-10-15. Only 5 header items ship:
-  // Our Story (rendered outside contentLinks) + Vision Play Lab, Audio
-  // Translation Lab, Careers, Live Class. fullSignedInLinks and the
-  // restrictSignedIn flag read are intentionally retained below so the previous
-  // full nav can be restored by swapping `simplifiedLinks` back for the
-  // nested ternary -- do NOT delete fullSignedInLinks.
+  // Simplified-nav mode is the DEFAULT for every signed-in account (admin
+  // included). Only 5 header items ship by default: Our Story (rendered
+  // outside contentLinks) + Vision Play Lab, Audio Translation Lab, Careers,
+  // Live Class. An admin can restore the full nav globally by checking
+  // `nav.full_tabs_enabled` in the admin console; the admin UI auto-renders
+  // every FlagSpec by category, so the checkbox appears automatically under
+  // the "nav" section.
   const contentLinks = unlocked
-    ? simplifiedLinks
+    ? fullNavTabs
+      ? fullSignedInLinks
+      : simplifiedLinks
     : <Link href="/login">{t("nav.signin")}</Link>;
-
-  // Hold these in reserve for an easy rollback; `void` silences unused-symbol
-  // lints without removing the implementation.
-  void restrictSignedIn;
-  void fullSignedInLinks;
 
   return (
     <header className="site-header">

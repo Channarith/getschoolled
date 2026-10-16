@@ -210,6 +210,16 @@ export function useRestrictSignedIn(): boolean {
   return Boolean(restrict && signedIn && !isAdmin);
 }
 
+/**
+ * True when the admin has opted into the FULL navigation (Home, Browse, For
+ * You, Kids, Corporate, Languages, Drive, Group Classes, Watch, Homework)
+ * via flag `nav.full_tabs_enabled`. When OFF (default), every signed-in
+ * account sees the simplified 5-tab launch header. Lives in LocalizedNav.tsx.
+ */
+export function useFullNavTabs(): boolean {
+  return useFlag<boolean>("nav.full_tabs_enabled", false);
+}
+
 /** Resolved ``ux.voice_pause_submit_ms`` (default 4.5s). */
 export function useVoicePauseSubmitMs(): number {
   const raw = useFlag<number>("ux.voice_pause_submit_ms", DEFAULT_VOICE_PAUSE_SUBMIT_MS);
