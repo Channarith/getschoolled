@@ -15,6 +15,7 @@ import {
   type Leader,
 } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { useArcadeVisionOnly } from "../lib/flags";
 import { VisionArcadeFrame } from "../components/VisionArcadeFrame";
 import { LiveActivityVoice } from "../components/LiveActivityVoice";
 import { visionArcadeFrameSrc } from "../lib/visionArcade";
@@ -47,6 +48,12 @@ function subjectLabel(cat: GamesCatalog | null, id: string): string {
 export default function ArcadePage() {
   const { t, locale } = useT();
   const router = useRouter();
+  // When arcade.vision_only (admin flag, default TRUE) is on, this page shows
+  // only the Vision Play Lab (webcam-driven hands-free learning) and hides
+  // the full games hub (banner, scenarios, kids games, discovery, zoo & reef,
+  // challenge AI, featured arcade, picker, rounds, results, leaderboard).
+  // Admin can turn OFF the flag in /admin to restore the full hub.
+  const arcadeVisionOnly = useArcadeVisionOnly();
   const [cat, setCat] = useState<GamesCatalog | null>(null);
   const [subject, setSubject] = useState("biology");
   const [gameType, setGameType] = useState("quiz");
@@ -170,16 +177,22 @@ export default function ArcadePage() {
 
   return (
     <main className="container" style={{ maxWidth: 1000 }}>
-      <h1>{t("arcade.title")}</h1>
+      <h1>{arcadeVisionOnly ? "Vision Play Lab" : t("arcade.title")}</h1>
       <p className="muted">
-        {t("arcade.intro")}{" "}
-        <Link href="/rewards">{t("arcade.rewardsLink")}</Link>.
-        {!loggedIn && <> <Link href="/login">{t("profile.signIn")}</Link> {t("arcade.signInSave")}</>}
+        {arcadeVisionOnly ? (
+          "Hands-free learning for every age — faces, hands, letters, movement, and listening. The camera stays in your browser."
+        ) : (
+          <>
+            {t("arcade.intro")}{" "}
+            <Link href="/rewards">{t("arcade.rewardsLink")}</Link>.
+            {!loggedIn && <> <Link href="/login">{t("profile.signIn")}</Link> {t("arcade.signInSave")}</>}
+          </>
+        )}
       </p>
       <LiveActivityVoice active={Boolean(round && !result)} prompt={voicePrompt} />
 
       {/* ── Salareen Worlds hero banner ─────────────────────────────────────── */}
-      {!round && (
+      {!arcadeVisionOnly && !round && (
         <div className="arcade-worlds-banner" style={{
           position: "relative",
           borderRadius: 20,
@@ -244,7 +257,7 @@ export default function ArcadePage() {
 
 
       {/* Professional scenario drills */}
-      {!round && (
+      {!arcadeVisionOnly && !round && (
         <div className="card" style={{ background: "linear-gradient(135deg, rgba(67,56,202,0.18), rgba(99,102,241,0.1))" }}>
           <h3 style={{ marginTop: 0 }}>💼 Professional scenarios</h3>
           <p className="muted" style={{ marginTop: 0 }}>
@@ -267,19 +280,21 @@ export default function ArcadePage() {
         </div>
       )}
 
-      {/* Kids' Games — fun, colorful learning adventures. */}
+      {/* Vision Play Lab — webcam-driven hands-free learning (faces, hands,
+          letters, movement, listening). Always shown; this is the page's
+          primary (and, when arcade.vision_only is ON, only) section. */}
       {!round && (
         <div id="vision" className="card" style={{ background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(124,58,237,0.14))" }}>
-          <h3 style={{ marginTop: 0 }}>👁️ Machine vision</h3>
+          <h3 style={{ marginTop: 0 }}>Vision Play Lab</h3>
           <p className="muted" style={{ marginTop: 0 }}>
-            Children play the webcam lab here: faces, hands, letters, movement, and listening games. The camera stays in the browser.
+            Hands-free learning for every age — faces, hands, letters, movement, and listening. The camera stays in your browser.
             Sala can talk through Salane Voice inside the lab.
           </p>
-          <VisionArcadeFrame title="Vision arcade lab" src={visionArcadeFrameSrc()} />
+          <VisionArcadeFrame title="Vision Play Lab" src={visionArcadeFrameSrc()} />
         </div>
       )}
 
-      {!round && (
+      {!arcadeVisionOnly && !round && (
         <div className="card" style={{ background: "linear-gradient(135deg, rgba(249,168,37,0.18), rgba(236,72,153,0.12))" }}>
           <h3 style={{ marginTop: 0 }}>🎮 Kids&apos; Games</h3>
           <p className="muted" style={{ marginTop: 0 }}>Jeopardy, kart racing, creature catching, card matching, and Uno — education wrapped in fun.</p>
@@ -309,7 +324,7 @@ export default function ArcadePage() {
       )}
 
       {/* Discovery Games */}
-      {!round && (
+      {!arcadeVisionOnly && !round && (
         <div className="card" style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(139,92,246,0.12))" }}>
           <h3 style={{ marginTop: 0 }}>🔍 Discovery Games</h3>
           <p className="muted" style={{ marginTop: 0 }}>Spot differences, find hidden items, and reveal stunning artwork by answering questions.</p>
@@ -328,7 +343,7 @@ export default function ArcadePage() {
       )}
 
       {/* Zoo & Reef — memorize animal and fish species. */}
-      {!round && (
+      {!arcadeVisionOnly && !round && (
         <div className="card" style={{ background: "linear-gradient(135deg, rgba(180,83,9,0.18), rgba(8,145,178,0.14))" }}>
           <h3 style={{ marginTop: 0 }}>🦁 Zoo & Reef</h3>
           <p className="muted" style={{ marginTop: 0 }}>Memorize animal and fish species — build your field guide and reef journal.</p>
@@ -350,7 +365,7 @@ export default function ArcadePage() {
       )}
 
       {/* Featured graphics-engine games (2D canvas + 3D WebGL). */}
-      {!round && (
+      {!arcadeVisionOnly && !round && (
         <>
           <div className="card" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.22), rgba(239,68,68,0.1))" }}>
             <h3 style={{ marginTop: 0 }}>🤖 Challenge the AI</h3>
@@ -450,7 +465,7 @@ export default function ArcadePage() {
       )}
 
       {/* Picker */}
-      {!round && (
+      {!arcadeVisionOnly && !round && (
         <div className="card">
           <h3 style={{ marginTop: 0 }}>{t("arcade.chooseGame")}</h3>
           <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
@@ -502,7 +517,7 @@ export default function ArcadePage() {
       )}
 
       {/* Quiz / Speed */}
-      {round && round.items && (
+      {!arcadeVisionOnly && round && round.items && (
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between" }}>
             <h3 style={{ margin: 0 }}>
@@ -563,7 +578,7 @@ export default function ArcadePage() {
       )}
 
       {/* Match */}
-      {round && round.terms && round.options && (
+      {!arcadeVisionOnly && round && round.terms && round.options && (
         <div className="card">
           <h3 style={{ marginTop: 0 }}>{SUBJECT_ICON[round.subject]} {round.subject} · match</h3>
           <p className="muted">{t("arcade.matchHint")}</p>
@@ -598,7 +613,7 @@ export default function ArcadePage() {
       )}
 
       {/* Result */}
-      {result && (
+      {!arcadeVisionOnly && result && (
         <div className="card" style={{ borderColor: "#7c3aed" }}>
           <h3 style={{ marginTop: 0 }}>Score: {result.result.correct}/{result.result.total} · +{result.points_earned} pts 🎉</h3>
           <div className="muted">
@@ -620,6 +635,7 @@ export default function ArcadePage() {
       )}
 
       {/* Leaderboard */}
+      {!arcadeVisionOnly && (
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h3 style={{ margin: 0 }}>{t("arcade.leaderboard")}</h3>
@@ -653,6 +669,7 @@ export default function ArcadePage() {
           </table>
         )}
       </div>
+      )}
     </main>
   );
 }

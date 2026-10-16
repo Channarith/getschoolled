@@ -220,6 +220,16 @@ export function useFullNavTabs(): boolean {
   return useFlag<boolean>("nav.full_tabs_enabled", false);
 }
 
+/**
+ * True (default) when the simplified Vision Play Lab mode is on: /arcade
+ * shows ONLY the Vision Arcade iframe and hides the rest of the games hub
+ * (banner, categories, picker, leaderboard, etc.). Admin can toggle via
+ * `arcade.vision_only` in /admin to restore the full arcade hub.
+ */
+export function useArcadeVisionOnly(): boolean {
+  return useFlag<boolean>("arcade.vision_only", true);
+}
+
 /** Resolved ``ux.voice_pause_submit_ms`` (default 4.5s). */
 export function useVoicePauseSubmitMs(): number {
   const raw = useFlag<number>("ux.voice_pause_submit_ms", DEFAULT_VOICE_PAUSE_SUBMIT_MS);

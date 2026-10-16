@@ -133,6 +133,17 @@ FLAG_CATALOG: List[FlagSpec] = [
              "launch default (simplified nav is now the DEFAULT for every "
              "account); this flag is kept for legacy admin bypasses."),
 
+    # --- arcade / vision play lab -------------------------------------------- #
+    FlagSpec("arcade.vision_only", FlagType.BOOL, True, "arcade",
+             "Simplified Vision Play Lab mode. When ON (default), /arcade "
+             "shows ONLY the Vision Play Lab (webcam-driven hands-free "
+             "learning: faces, hands, letters, movement, listening) and "
+             "hides the full games catalog (Salareen Worlds banner, "
+             "Professional scenarios, Kids' Games, Discovery Games, Zoo & "
+             "Reef, Challenge the AI, Featured arcade games, game picker, "
+             "rounds, results, leaderboard). Turn OFF in /admin to restore "
+             "the full arcade hub for every account."),
+
     # --- nav / header -------------------------------------------------------- #
     FlagSpec("nav.full_tabs_enabled", FlagType.BOOL, False, "nav",
              "Show the full navigation menu (Home, Browse, For You, Kids, "
