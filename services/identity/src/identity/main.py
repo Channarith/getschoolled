@@ -1768,6 +1768,44 @@ def update_biometric_consent(
     return _save_setup(acct, student_id, state)
 
 
+def _require_completed_pose_embeddings(
+    embeddings: list[list[float]], pose_sequence: list[str]
+) -> None:
+    """Neutral plus four distinct looks, all the same person, before any write.
+
+    The check is cosine against the neutral embedding at the calibrated SFace
+    threshold. The face mesh and any visible mark are not part of it.
+    """
+    from aoep_shared.vision.engine import (
+        DEFAULT_MATCH_THRESHOLD,
+        LIVENESS_TEMPLATE_COUNT,
+        cosine_similarity,
+    )
+
+    if len(embeddings) != LIVENESS_TEMPLATE_COUNT:
+        raise HTTPException(
+            status_code=422,
+            detail="a neutral portrait and four pose embeddings are required",
+        )
+    required = {"left", "right", "up", "down"}
+    if set(pose_sequence) != required or len(pose_sequence) != 4:
+        raise HTTPException(
+            status_code=422,
+            detail="left, right, up, and down pose checks are required",
+        )
+    neutral = embeddings[0]
+    if not neutral:
+        raise HTTPException(status_code=422, detail="face embedding is empty")
+    for embedding in embeddings[1:]:
+        if len(embedding) != len(neutral):
+            raise HTTPException(status_code=422, detail="face embedding dimensions do not match")
+        movement = sum((a - b) ** 2 for a, b in zip(neutral, embedding))
+        if movement < 0.000001:
+            raise HTTPException(status_code=422, detail="pose challenge frames must not be static")
+        if cosine_similarity(neutral, embedding) < DEFAULT_MATCH_THRESHOLD:
+            raise HTTPException(status_code=422, detail="pose challenge face does not match portrait")
+
+
 @app.post("/students/{student_id}/biometric-face")
 def enroll_biometric_face(
     student_id: str, req: FaceEnrollmentRequest, acct=Depends(current_account)
@@ -1776,31 +1814,10 @@ def enroll_biometric_face(
     state = normalize_setup_state(student.biometric_setup)
     if not state.consent.granted:
         raise HTTPException(status_code=409, detail="biometric consent is required")
-    if not (1 <= len(req.embeddings) <= 5):
-        raise HTTPException(status_code=422, detail="one to five face embeddings are required")
-    required_poses = {"left", "right", "up", "down"}
-    if not required_poses.issubset(req.pose_sequence):
-        raise HTTPException(status_code=422, detail="left, right, up, and down pose checks are required")
+    _require_completed_pose_embeddings(req.embeddings, req.pose_sequence)
     enrollments = 0
-    neutral = req.embeddings[0]
-    result = _perception_json(f"/enroll-embedding/{student_id}", {"embedding": neutral})
-    enrollments = int(result.get("enrollments", 0))
-    for embedding in req.embeddings[1:]:
-        if len(embedding) != len(neutral):
-            raise HTTPException(status_code=422, detail="face embedding dimensions do not match")
-        movement = sum((a - b) ** 2 for a, b in zip(neutral, embedding))
-        if movement < 0.000001:
-            raise HTTPException(status_code=422, detail="pose challenge frames must not be static")
-        match = _perception_json(
-            "/identify-embedding",
-            {
-                "faces": [{"embedding": embedding}],
-                "consented_student_ids": [student_id],
-            },
-        )
-        faces = match.get("faces", [])
-        if not faces or faces[0].get("matched_student_id") != student_id:
-            raise HTTPException(status_code=422, detail="pose challenge face does not match portrait")
+    # Nothing is written until the neutral portrait and all four poses agree.
+    for embedding in req.embeddings:
         result = _perception_json(f"/enroll-embedding/{student_id}", {"embedding": embedding})
         enrollments = int(result.get("enrollments", enrollments))
     state.portrait = state.portrait.model_validate(
@@ -1840,10 +1857,10 @@ def enroll_biometric_face_images(
     state = normalize_setup_state(student.biometric_setup)
     if not state.consent.granted:
         raise HTTPException(status_code=409, detail="biometric consent is required")
-    if not (1 <= len(req.images_b64) <= 5):
-        raise HTTPException(status_code=422, detail="one to five face images are required")
+    if len(req.images_b64) != 5:
+        raise HTTPException(status_code=422, detail="a neutral portrait and four pose images are required")
     required_poses = {"left", "right", "up", "down"}
-    if not required_poses.issubset(req.pose_sequence):
+    if not required_poses.issubset(req.pose_sequence) or len(req.pose_sequence) != 4:
         raise HTTPException(status_code=422, detail="left, right, up, and down pose checks are required")
     enrollments = 0
     decoded: list[bytes] = []
@@ -1857,12 +1874,9 @@ def enroll_biometric_face_images(
         decoded.append(image)
     if len({hashlib.sha256(image).digest() for image in decoded}) != len(decoded):
         raise HTTPException(status_code=422, detail="pose challenge images must not be repeated")
-    result = _perception_image(f"/enroll/{student_id}", decoded[0])
-    enrollments = int(result.get("enrollments", 0))
-    for image in decoded[1:]:
-        match = _perception_image(f"/verify-face/{student_id}", image)
-        if not match.get("verified"):
-            raise HTTPException(status_code=422, detail="pose challenge face does not match portrait")
+    embedded = [_perception_image("/embed", image)["embedding"] for image in decoded]
+    _require_completed_pose_embeddings(embedded, req.pose_sequence)
+    for image in decoded:
         result = _perception_image(f"/enroll/{student_id}", image)
         enrollments = int(result.get("enrollments", enrollments))
     state.portrait = state.portrait.model_validate(
@@ -1918,7 +1932,9 @@ def submit_government_id(
     back = _ephemeral_image(req.back_image_b64) if req.back_image_b64 else b""
     # Images are scoped to this request and discarded after the self-hosted
     # face template confirms that the portrait on the ID matches the learner.
-    verification = _perception_image(f"/verify-face/{student_id}", front)
+    verification = _perception_image(
+        f"/verify-face/{student_id}?high_assurance=true", front
+    )
     reference = hashlib.sha256(front + back + os.urandom(16)).hexdigest()
     verified = bool(verification.get("verified"))
     state.government_id = state.government_id.model_validate(

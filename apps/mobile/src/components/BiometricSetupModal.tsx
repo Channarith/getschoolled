@@ -75,7 +75,7 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
   scan: {
     kicker: "Face check",
     title: "Look straight at the camera.",
-    body: "Face a window or a lamp so your face is well lit. Your phone’s camera app controls the front flash; if it has a screen flash, you can turn it on there.",
+    body: "Checking distinctive features. Face a window or a lamp so your face is well lit. Face map ready means these looks were captured. The lines guide the photo. They are not proof that nobody else could look similar.",
   },
   voice: {
     kicker: "Voice check",
@@ -99,7 +99,10 @@ type Shot = {
   uri: string;
   contour: FaceContour | null;
   frame: [number, number];
-  /** Region notes for this still. The photo itself is deleted after enrollment. */
+  /**
+   * Overlay rings for this preview only. Coordinates are not enrolled and
+   * are dropped when the photo is deleted.
+   */
   marks: FaceMark[];
 };
 
@@ -553,7 +556,7 @@ export default function BiometricSetupModal({
           <Text style={styles.body}>{text.body}</Text>
           {step === "scan" && latest?.contour ? (
             <Text style={styles.small}>
-              The mesh is drawn on this photo from five face points. A dot, if one shows, is a darker spot such as a mole — a rough note, not a medical read. The photo is not saved.
+              Face map ready. The lines are a capture guide. A dot, if one shows, is an optional note about a darker spot. It is not saved, and it is not the identity check.
             </Text>
           ) : null}
           {contourNote ? <Text style={styles.small}>{contourNote}</Text> : null}

@@ -13,16 +13,19 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 ImageLike = Union[bytes, bytearray, str, "object"]  # bytes | path | ndarray
 
-# OpenCV's calibrated SFace cosine for "same identity". This was the previous
-# operating point. Same-person pairs on the held-out set sit near 0.69 and
-# different-person pairs near 0.08.
+# OpenCV's calibrated SFace cosine for "same identity". Same-person pairs on
+# the held-out set sit near 0.69 and different-person pairs near 0.08.
+# This is the accept bar. Do not spend the gap below it: a lower cut raises
+# false accepts, including lookalikes. Smile, blink, sneeze, and modest weight
+# change are handled by keeping each capture as its own template (see
+# FaceGallery.identify), not by moving this number.
 SFACE_CALIBRATED_THRESHOLD = 0.363
-# Slack below that calibrated point. A smile, eyes open or closed, a sneeze,
-# or a modest weight gain moves a same-person score down; landmark distances
-# are not compared. 0.063 of slack (operating point 0.300) still sits far
-# above the different-person band, so a clearly different embedding does not match.
+# Headroom we deliberately do not subtract from the decision threshold.
 EXPRESSION_TOLERANCE_MARGIN = 0.063
-DEFAULT_MATCH_THRESHOLD = 0.3  # SFACE_CALIBRATED_THRESHOLD - EXPRESSION_TOLERANCE_MARGIN
+DEFAULT_MATCH_THRESHOLD = SFACE_CALIBRATED_THRESHOLD
+# Neutral portrait plus left, right, up, and down. A high-assurance match
+# waits until all five templates are enrolled.
+LIVENESS_TEMPLATE_COUNT = 5
 DEFAULT_DET_SCORE_THRESHOLD = 0.7
 
 

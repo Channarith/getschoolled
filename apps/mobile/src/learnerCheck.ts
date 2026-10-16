@@ -107,25 +107,29 @@ export type FaceContour = {
   mouth: Point[];
   /**
    * Inner grid (forehead, brows, eyes, nose, cheeks, mouth, chin) estimated
-   * from YuNet's 5 landmarks and, when present, the face box. This is not a
-   * 468-point landmarker — the lines are a stable guide in the face's own
-   * axes. Recognition does not compare these distances; matching is the SFace
-   * cosine margin in `aoep_shared.vision.engine`.
+   * from YuNet's 5 landmarks and, when present, the face box. This is capture
+   * feedback in the face's own axes, not a 468-point landmarker and not an
+   * identity key. More lines do not make one face unique among billions of
+   * people. Identity is the SFace embedding from the neutral portrait and the
+   * pose captures.
    */
   grid: Point[][];
 };
 
-/** YuNet supplies this many landmarks. The mesh is built from them, not from a denser model. */
+/**
+ * YuNet supplies this many landmarks. The mesh is drawn from them.
+ * Line count is not a uniqueness proof.
+ */
 export const MESH_SOURCE_LANDMARKS = 5;
 
 export const FACE_MARK_REGIONS = ["forehead", "left cheek", "right cheek", "nose", "chin", "jaw"] as const;
 export type FaceRegion = (typeof FACE_MARK_REGIONS)[number];
 
 /**
- * A coarse on-device note of one visible spot (mole, birthmark, scar).
- * `point` is only so the overlay can draw a marker. Callers keep this in
- * memory for the current frame. The camera image is not part of this value
- * and must not be stored.
+ * Optional capture note for a darker spot (mole, birthmark, scar).
+ * `point` exists only so the current overlay can draw a ring. Do not send it,
+ * store it, or treat it as an identity. The camera image is not part of this
+ * value. An empty list is a normal result.
  */
 export type FaceMark = {
   region: FaceRegion;

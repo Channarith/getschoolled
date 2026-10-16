@@ -162,7 +162,7 @@ export default function BiometricSetupAssistant({
     const scan = scanRef.current;
     if (scan.enrolling || !scan.neutral) return;
     scan.enrolling = true;
-    setHint("Saving your Learner Check…");
+    setHint("Face map ready");
     try {
       const vectors = [scan.neutral, ...scan.order.map((pose) => scan.poses[pose] as number[])];
       await enrollBiometricFace(studentId, vectors, scan.order);
@@ -339,7 +339,7 @@ export default function BiometricSetupAssistant({
           scan.base = geometry;
           scan.neutral = face.embedding;
           setAnchored(true);
-          setHint(POSE_COPY[scan.order[0]]);
+          setHint(`Checking distinctive features. ${POSE_COPY[scan.order[0]]}`);
           return;
         }
         const target = scan.order.find((pose) => !scan.poses[pose]);
@@ -354,7 +354,7 @@ export default function BiometricSetupAssistant({
         setCaptured(done);
         const next = scan.order.find((item) => !scan.poses[item]);
         if (next) {
-          setHint(`Nice. ${POSE_COPY[next]}`);
+          setHint(`Checking distinctive features. ${POSE_COPY[next]}`);
         } else {
           void enrollFace();
         }
@@ -599,7 +599,7 @@ export default function BiometricSetupAssistant({
               <span className={styles.eyebrow}>Face check · {captured.length} of {targets.length}</span>
               <h1 aria-live="polite">{problem ? "Let’s fix that." : hint}</h1>
               <p className={styles.meshNote}>
-                The mesh is a guide from five face points. A dot, if one shows, is a darker spot such as a mole — a rough note, not a medical read. The picture is not saved.
+                Checking distinctive features. Face map ready means the looks were captured and the lines followed your face. The map is a capture guide. It is not proof that nobody else could look similar. A dot, if one shows, is an optional note about a darker spot and is not saved.
               </p>
               <ol className={styles.targets} aria-label="Look prompts">
                 {targets.map((pose) => (
