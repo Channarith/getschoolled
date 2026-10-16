@@ -32,6 +32,7 @@ export default function BillingPage() {
   const [plans, setPlans] = useState<Record<string, ConsumerPlan> | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const [ready, setReady] = useState(false);
 
   async function refresh() {
     const [account, sub, pl] = await Promise.all([
@@ -45,8 +46,13 @@ export default function BillingPage() {
   }
 
   useEffect(() => {
-    if (!getToken()) return;
-    refresh().catch((e) => setError(String(e)));
+    if (!getToken()) {
+      setReady(true);
+      return;
+    }
+    refresh()
+      .catch((e) => setError(String(e)))
+      .finally(() => setReady(true));
   }, []);
 
   async function pickPlan(tier: string) {
@@ -64,7 +70,8 @@ export default function BillingPage() {
 
   if (!getToken()) {
     return (
-      <main className="container">
+      <main className="container" style={{ maxWidth: 720 }}>
+        <h1>Membership &amp; billing</h1>
         <p>Please <Link href="/login">sign in</Link> to manage billing.</p>
       </main>
     );
@@ -82,6 +89,10 @@ export default function BillingPage() {
         calendar day you signed up.
       </p>
       {error && <p style={{ color: "#f87171" }}>{error}</p>}
+      {!ready && <p className="muted">Loading your plan…</p>}
+      {ready && !error && !subscription && paidPlans.length === 0 && (
+        <p className="muted">Plans are not available right now. Try again in a moment.</p>
+      )}
 
       {me && subscription && (
         <section className="card">

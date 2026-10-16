@@ -48,6 +48,7 @@ LOOP = {
     "same-or-different": "checkSpeech",
     "finish-the-line": "checkSpeech",
     "spell-aloud": "checkSpeech",
+    "karaoke": "updateKaraoke",
     "oh-behave": "updateGestureGame",
     "heart": "updateGestureGame",
     "idea": "updateGestureGame",
@@ -84,7 +85,7 @@ def test_every_menu_game_is_in_the_api_and_the_game_loop():
     catalog = list(all_game_ids())
     assert catalog == [game_id for _group, games in GAME_MENU for game_id, _ in games]
     assert set(catalog) == set(LOOP)
-    assert len(catalog) == len(LOOP) == 39
+    assert len(catalog) == len(LOOP) == 40
     assert AUDIO_GAMES <= set(catalog)
 
     html = render_children_page("test")

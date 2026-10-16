@@ -85,6 +85,12 @@ spec:
           - path: /notifications
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
+          # Membership page is the Next.js app. /billing/<route> stays on
+          # aoep-apis and is rewritten to the billing service. Exact wins over
+          # that regex, and this Ingress does not rewrite the page to /.
+          - path: /billing
+            pathType: Exact
+            backend: { service: { name: web, port: { number: 80 } } }
           - path: /
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
@@ -140,6 +146,10 @@ spec:
           - path: /notifications
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
+          # Same as www: the browser page is /billing, the API is /billing/<route>.
+          - path: /billing
+            pathType: Exact
+            backend: { service: { name: web, port: { number: 80 } } }
           - path: /
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
@@ -300,11 +310,11 @@ spec:
     # Bare LoadBalancer IP / any host: same-origin /identity, /memory, etc.
     - http:
         paths:
-          # Next.js UI pages — must come BEFORE service-prefix routes so the
-          # browser landing on /billing (etc.) gets the web app, not the API service.
-          - path: /billing
-            pathType: Exact
-            backend: { service: { name: web, port: { number: 80 } } }
+          # Next.js UI pages that share a name with nothing in the API list.
+          # /billing itself is an Exact path on the web Ingress (aoep / aoep-ip).
+          # Do not put it here: this Ingress rewrites /$2, so an exact /billing
+          # would be forwarded to the web app as / and the membership page
+          # would never render. /billing/<route> below still hits the API.
           - path: /account
             pathType: Exact
             backend: { service: { name: web, port: { number: 80 } } }

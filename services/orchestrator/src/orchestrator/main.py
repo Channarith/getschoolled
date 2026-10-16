@@ -436,6 +436,7 @@ def api_lesson_accreditation(lesson_id: str) -> dict:
     from aoep_shared.accreditation import (
         certification_meta,
         is_certifiable_lesson,
+        requires_identity_assurance,
         requires_registered_account,
     )
 
@@ -447,6 +448,7 @@ def api_lesson_accreditation(lesson_id: str) -> dict:
         "lesson_id": lesson_id,
         "certifiable": certifiable,
         "requires_registered_account": requires_registered_account(lesson_id),
+        "requires_identity_assurance": requires_identity_assurance(lesson_id),
         "certification_body": body,
         "ceu_credits": ceu,
     }
@@ -463,7 +465,10 @@ def api_start_session(
     # account. Guests may start sample (non-certifiable) lessons only.
     from aoep_shared.accreditation import (
         ACCREDITATION_ACCOUNT_REQUIRED_DETAIL,
+        IDENTITY_ASSURANCE_REQUIRED,
+        IDENTITY_ASSURANCE_REQUIRED_DETAIL,
         may_start_for_accreditation,
+        requires_identity_assurance,
     )
 
     account_id = _assessment_account_id(authorization)
@@ -476,6 +481,43 @@ def api_start_session(
             detail=ACCREDITATION_ACCOUNT_REQUIRED_DETAIL,
             headers={"X-AOEP-Gate": reason},
         )
+    if requires_identity_assurance(req.lesson_id):
+        if not req.student_id:
+            raise HTTPException(
+                status_code=428,
+                detail=IDENTITY_ASSURANCE_REQUIRED_DETAIL,
+                headers={"X-AOEP-Gate": IDENTITY_ASSURANCE_REQUIRED},
+            )
+        import httpx as _identity_httpx
+
+        try:
+            response = _identity_httpx.get(
+                f"{os.environ.get('IDENTITY_URL', 'http://identity:8000')}"
+                f"/students/{req.student_id}/identity-assurance",
+                params={"required": "true"},
+                headers={"Authorization": authorization},
+                timeout=4.0,
+            )
+        except _identity_httpx.HTTPError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="identity assurance service unavailable",
+            ) from exc
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail="identity assurance could not be confirmed",
+            )
+        assurance = response.json()
+        if not assurance.get("allowed"):
+            raise HTTPException(
+                status_code=428,
+                detail={
+                    "message": IDENTITY_ASSURANCE_REQUIRED_DETAIL,
+                    "missing": assurance.get("missing", []),
+                },
+                headers={"X-AOEP-Gate": IDENTITY_ASSURANCE_REQUIRED},
+            )
 
     sessions = get_sessions()
     try:

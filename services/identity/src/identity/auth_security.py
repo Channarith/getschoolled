@@ -431,6 +431,18 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         app.state.accounts.disable_totp(acct.id)
         return {"enabled": False}
 
+    def _oauth_account(email: str, subject: str, name: str):
+        """Google, Apple, and Facebook sign in an existing Salareen account.
+
+        A first visit creates the account and skips the email setup assistant.
+        """
+        acct = app.state.accounts.get_or_create_oauth_account(
+            email=email, subject=subject, display_name=name,
+        )
+        if acct.onboarding_completed_at is None:
+            acct = app.state.accounts.complete_onboarding(acct.id)
+        return acct
+
     @app.post("/auth/oauth/google")
     def oauth_google(req: OAuthGoogleRequest, request: Request) -> dict:
         ctx = _ctx(request)
@@ -439,9 +451,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         except OAuthError as exc:
             raise HTTPException(status_code=401, detail=str(exc))
         try:
-            acct = app.state.accounts.get_or_create_oauth_account(
-                email=ident["email"], subject=ident["sub"], display_name=ident.get("name", ""),
-            )
+            acct = _oauth_account(ident["email"], ident["sub"], ident.get("name", ""))
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         app.state.accounts.oauth_login_success(acct.id, method="google", **ctx)
@@ -455,9 +465,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         except OAuthError as exc:
             raise HTTPException(status_code=401, detail=str(exc))
         try:
-            acct = app.state.accounts.get_or_create_oauth_account(
-                email=ident["email"], subject=ident["sub"], display_name=ident.get("name", ""),
-            )
+            acct = _oauth_account(ident["email"], ident["sub"], ident.get("name", ""))
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         app.state.accounts.oauth_login_success(acct.id, method="facebook", **ctx)
@@ -471,9 +479,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         except OAuthError as exc:
             raise HTTPException(status_code=401, detail=str(exc))
         try:
-            acct = app.state.accounts.get_or_create_oauth_account(
-                email=ident["email"], subject=ident["sub"], display_name=ident.get("name", ""),
-            )
+            acct = _oauth_account(ident["email"], ident["sub"], ident.get("name", ""))
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         app.state.accounts.oauth_login_success(acct.id, method="apple", **ctx)

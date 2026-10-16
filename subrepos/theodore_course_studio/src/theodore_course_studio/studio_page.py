@@ -32,7 +32,32 @@ STUDIO_CSS = """
   .mast-art svg { width:168px; height:112px; display:block; }
   .layout { display:grid; grid-template-columns: 1.05fr 1.15fr; gap:16px; padding:16px 22px 28px; }
   body.public-course header.mast { display:none; }
-  body.public-course .layout { grid-template-columns:minmax(260px, 0.9fr) 1.2fr; padding:8px; }
+  html:has(body.public-course), body.public-course { height:100%; }
+  body.public-course { overflow:hidden; }
+  body.public-course .layout {
+    display:flex; flex-direction:column; height:100%; min-height:0;
+    box-sizing:border-box; padding:8px; gap:8px;
+  }
+  body.public-course .library-panel { flex:0 0 auto; padding:8px 12px; }
+  body.public-course .library-panel h2,
+  body.public-course .library-panel > .row,
+  body.public-course .library-panel > .status,
+  body.public-course #library-list { display:none; }
+  .library-bar { display:none; }
+  body.public-course .library-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  body.public-course .library-bar select { min-width:min(100%, 16rem); max-width:24rem; }
+  body.public-course.library-collapsed .library-panel { display:none; }
+  body.public-course .layout > .panel:not(.library-panel) {
+    flex:1 1 auto; min-height:0; display:flex; flex-direction:column;
+  }
+  body.public-course #teach-stage-home {
+    flex:1 1 auto; min-height:0; display:flex; flex-direction:column;
+  }
+  body.public-course .teach-stage { flex:1 1 auto; min-height:0; overflow:auto; }
+  #library-show { display:none; position:fixed; top:12px; left:12px; z-index:40; }
+  body.public-course.library-collapsed #library-show { display:inline-flex; }
+  body.chrome-hidden #library-show,
+  body.audio-only #library-show { display:none !important; }
   @media (max-width: 980px) {
     .layout { grid-template-columns: 1fr; }
     .study-bg .shelf, .mast-art { display:none; }
@@ -182,19 +207,43 @@ STUDIO_CSS = """
     .visual-layer[data-transition="pan"].is-active img { transform:scale(1); }
     .visual-layer .visual-label { padding:.45em .7em; border-radius:12px; background:rgba(255,255,255,.9);
       box-shadow:0 3px 14px rgba(15,23,42,.16); }
-    .timeline-style-label { position:absolute; top:12px; left:12px; z-index:30; margin:0;
-      padding:4px 10px; border-radius:999px; background:rgba(15,23,42,.78); color:#fff;
-      font:700 12px/1.2 "Avenir Next","Segoe UI",sans-serif; letter-spacing:.02em; }
+    .timeline-style-label { display:none; }
     .visual-timeline-stage.layout-compare:not([hidden]) { display:grid !important;
-      grid-template-columns:1fr 1fr; align-content:center; gap:14px; padding:56px 6vw 22vh; }
+      grid-template-columns:1fr; align-content:start; gap:12px; padding:22px 5vw 18px;
+      aspect-ratio:auto; min-height:0; overflow:auto; }
     .visual-timeline-stage.layout-compare .visual-layer.kind-picture,
     .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard,
-    .visual-timeline-stage.layout-compare .visual-layer.kind-video { position:absolute; inset:0; opacity:.22; }
-    .visual-timeline-stage.layout-compare .visual-layer.kind-title,
+    .visual-timeline-stage.layout-compare .visual-layer.kind-video { position:absolute; inset:0; opacity:0; pointer-events:none; }
+    .visual-timeline-stage.layout-compare .visual-layer.kind-title { display:none; }
     .visual-timeline-stage.layout-compare .visual-layer.kind-body,
-    .visual-timeline-stage.layout-compare .visual-layer.kind-callout { position:relative; inset:auto; }
-    .visual-timeline-stage.layout-compare .visual-layer.kind-title,
-    .visual-timeline-stage.layout-compare .visual-layer.kind-body { grid-column:1 / -1; }
+    .visual-timeline-stage.layout-compare .visual-layer.kind-callout {
+      position:relative; inset:auto; grid-column:1 / -1; opacity:0;
+      font-size:clamp(17px, 1.7vw, 22px); font-weight:600; line-height:1.45; text-align:left; }
+    .visual-timeline-stage.layout-compare .visual-layer.kind-body.is-active,
+    .visual-timeline-stage.layout-compare .visual-layer.kind-callout.is-active { opacity:1; transform:none; }
+    .visual-timeline-stage.layout-compare .visual-layer .visual-label { max-width:44rem; }
+    .has-readable-card #teach-body,
+    .has-readable-card #teach-narr,
+    .has-readable-card #teach-activity { display:none !important; }
+    .teach-stage:has(#quiz-box:not([style*="none"])) .visual-timeline-stage,
+    .teach-stage:has(#game-box:not([style*="none"])) .visual-timeline-stage,
+    .teach-stage:has(#quiz-box:not([style*="none"])) > h3,
+    .teach-stage:has(#game-box:not([style*="none"])) > h3,
+    .teach-stage:has(#quiz-box:not([style*="none"])) #teach-body,
+    .teach-stage:has(#game-box:not([style*="none"])) #teach-body,
+    .teach-stage:has(#quiz-box:not([style*="none"])) #teach-narr,
+    .teach-stage:has(#game-box:not([style*="none"])) #teach-narr,
+    .teach-stage:has(#quiz-box:not([style*="none"])) #teach-activity,
+    .teach-stage:has(#game-box:not([style*="none"])) #teach-activity,
+    .teach-stage:has(#quiz-box:not([style*="none"])) #teach-examples,
+    .teach-stage:has(#game-box:not([style*="none"])) #teach-examples,
+    .teach-stage:has(#quiz-box:not([style*="none"])) #proceed-cue,
+    .teach-stage:has(#game-box:not([style*="none"])) #proceed-cue,
+    .teach-stage:has(#quiz-box:not([style*="none"])) .sample-banner,
+    .teach-stage:has(#game-box:not([style*="none"])) .sample-banner,
+    .teach-stage:has(#quiz-box:not([style*="none"])) .absorb-note,
+    .teach-stage:has(#game-box:not([style*="none"])) .absorb-note { display:none !important; }
+    .student-cam:not(.is-hidden) .student-cam-status { display:none; }
     .attention-aside { margin:8px 0 0; padding:8px 12px; border-radius:12px; background:#f4f8ff;
       border:1px solid #c9d7ee; color:#1e3a5f; font:600 14px "Avenir Next","Segoe UI",sans-serif; }
     .attention-aside[hidden] { display:none !important; }
@@ -507,7 +556,10 @@ STUDIO_CSS = """
        Pause, and Talk buttons reachable. The library sits underneath. */
     body.phone-embed .layout { display:flex; flex-direction:column; padding:8px 8px 156px; }
     body.phone-embed .library-panel { order:2; max-height:28vh; overflow:auto; }
-    body.phone-embed.public-course .library-panel { display: none; }
+    body.phone-embed.public-course .layout { padding:8px; height:100%; }
+    body.phone-embed.public-course .library-panel { order:0; max-height:none; overflow:visible; }
+    body.phone-embed.public-course .lesson-toolbar { bottom:8px; }
+    body.phone-embed.public-course .teach-stage { min-height:0; flex:1 1 auto; }
     body.phone-embed .layout > .panel:not(.library-panel) { order:1; }
     body.phone-embed .theodore-avatar-wrap { min-height:160px; }
     body.phone-embed button, body.phone-embed select { min-height:44px; }
@@ -531,18 +583,14 @@ STUDIO_CSS = """
     body.phone-embed:not(.audio-only) .student-cam {
       position:relative !important; inset:auto !important; width:104px; margin:8px 0 0; z-index:4;
     }
-    body.phone-embed .teach-stage.captions-off .visual-layer.kind-body,
     body.phone-embed .teach-stage.captions-off .visual-layer.kind-title,
-    body.phone-embed .teach-stage.captions-off .visual-layer.kind-callout,
     body.phone-embed .teach-stage.captions-off .visual-layer.kind-text,
     body.phone-embed .teach-stage.captions-off .timeline-style-label,
     body.phone-embed .teach-stage:not(.captions-off) #teach-body,
     body.phone-embed .teach-stage:not(.captions-off) #teach-narr,
     body.phone-embed .teach-stage:not(.captions-off) #teach-activity,
     body.phone-embed .teach-stage:not(.captions-off) #teach-examples,
-    body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-body,
     body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-title,
-    body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-callout,
     body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-text { display:none !important; }
     body.phone-embed .teach-stage.captions-off #quiz-box,
     body.phone-embed .teach-stage.captions-off #game-box,
@@ -571,9 +619,17 @@ STUDIO_CSS = """
     }
     body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-picture.is-active,
     body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-image.is-active,
-    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-video.is-active,
-    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard.is-active {
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-video.is-active {
       opacity:1;
+    }
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard,
+    body.phone-embed .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard.is-active,
+    body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-storyboard.is-active {
+      opacity:0;
+    }
+    body.phone-embed .teach-stage:has(#quiz-box:not([style*="none"])) #quiz-box,
+    body.phone-embed .teach-stage:has(#game-box:not([style*="none"])) #game-box {
+      max-height:none;
     }
     .teach-stage.captions-off .lesson-stage-content > #sample-clock { display:inline-flex; }
     @media (prefers-reduced-motion: reduce) {
@@ -959,6 +1015,7 @@ STUDIO_JS = """
     const enrollmentStatus = (studioQuery.get('enrollment') || '').trim();
     const adminFlag = studioQuery.get('admin') === '1';
     const pinnedCourse = (studioQuery.get('course') || '').trim();
+    if (pinnedCourse) document.body.classList.add('public-course');
     const audioOnly = (studioQuery.get('presentation') || '').trim().toLowerCase() === 'audio';
     function teachAccessFields() {
       return {
@@ -1124,10 +1181,11 @@ STUDIO_JS = """
         }
       }
       if (!banner) return;
-      banner.style.display = show ? 'block' : 'none';
-      banner.classList.toggle('is-ended', !!(show && sample.complete));
-      banner.textContent = show
-        ? (sample.complete ? trialEndedMessage(payload) : (sample.message || 'This free trial is 10 minutes. The full course is $19.99. Pay for the course when you want the full class.'))
+      const ended = !!(show && sample.complete);
+      banner.style.display = ended ? 'block' : 'none';
+      banner.classList.toggle('is-ended', ended);
+      banner.textContent = ended
+        ? trialEndedMessage(payload)
         : '';
       const priceBtn = $('course-price');
       if (priceBtn) {
@@ -2455,6 +2513,7 @@ STUDIO_JS = """
         course: "Course", language: "Language", look: "Look", motion: "Motion", faces: "Faces",
         bars: "Bars", line: "Frequency line", mouth: "Talking mouth", ripple: "Soft ripples", lantern: "Lantern",
         library: "Course library", choose: "Choose a course to begin.",
+        hideCourses: "Hide courses", showCourses: "Courses",
         yourLesson: "Your lesson", clickStart: "Click the screen to start, or press Start and speak.",
         clickContinue: "Click the screen to continue, or press Start and speak.",
         start: "Start", pause: "Pause", resume: "Resume", ask: "Ask", hide: "Hide",
@@ -2467,9 +2526,9 @@ STUDIO_JS = """
         nextGap: "Next gap", outline: "Outline", freeTrial: "free trial",
         absorb: "Take a moment with this page. The next one waits so you can study it.",
         cameraNote: "Camera stays on. The lesson pauses if you leave the camera.",
-        watching: "Watching for presence.",
-        present: "Present and learning.",
-        mesh: "Present. Face mesh is watching.",
+        watching: "Looking for you.",
+        present: "You're here.",
+        mesh: "Watching.",
         pauseLine: "We detected that you left the camera. The lesson is paused and will resume when you return.",
         resumeLine: "You're back on the camera. We'll continue from the same place."
       },
@@ -2477,6 +2536,7 @@ STUDIO_JS = """
         course: "课程", language: "语言", look: "样子", motion: "动态", faces: "面孔",
         bars: "音柱", line: "频率线", mouth: "说话的嘴", ripple: "柔和波纹", lantern: "灯笼",
         library: "课程库", choose: "选一门课开始。",
+        hideCourses: "隐藏课程", showCourses: "课程",
         yourLesson: "你的课", clickStart: "点击画面开始，或按“开始”然后说话。",
         clickContinue: "点击画面继续，或按“开始”然后说话。",
         start: "开始", pause: "暂停", resume: "继续", ask: "提问", hide: "隐藏",
@@ -2499,6 +2559,7 @@ STUDIO_JS = """
         course: "課程", language: "語言", look: "樣", motion: "動態", faces: "面孔",
         bars: "音柱", line: "頻率線", mouth: "講緊嘢嘅嘴", ripple: "柔和波紋", lantern: "燈籠",
         library: "課程庫", choose: "揀一堂課開始。",
+        hideCourses: "隱藏課程", showCourses: "課程",
         yourLesson: "你嘅課", clickStart: "撳畫面開始，或者撳「開始」然後講嘢。",
         clickContinue: "撳畫面繼續，或者撳「開始」然後講嘢。",
         start: "開始", pause: "暫停", resume: "繼續", ask: "提問", hide: "隱藏",
@@ -2521,6 +2582,7 @@ STUDIO_JS = """
         course: "វគ្គសិក្សា", language: "ភាសា", look: "រូបរាង", motion: "ចលនា", faces: "មុខ",
         bars: "របារ", line: "បន្ទាត់ប្រេកង់", mouth: "មាត់និយាយ", ripple: "រលកទន់", lantern: "គោម",
         library: "បណ្ណាល័យវគ្គ", choose: "ជ្រើសវគ្គមួយដើម្បីចាប់ផ្តើម។",
+        hideCourses: "លាក់វគ្គ", showCourses: "វគ្គ",
         yourLesson: "មេរៀនរបស់អ្នក", clickStart: "ចុចអេក្រង់ដើម្បីចាប់ផ្តើម ឬចុចចាប់ផ្តើម ហើយនិយាយ។",
         clickContinue: "ចុចអេក្រង់ដើម្បីបន្ត ឬចុចចាប់ផ្តើម ហើយនិយាយ។",
         start: "ចាប់ផ្តើម", pause: "ផ្អាក", resume: "បន្ត", ask: "សួរ", hide: "លាក់",
@@ -3269,7 +3331,12 @@ STUDIO_JS = """
       const pageRaw = $('comment-page').value.trim();
       const page_index = pageRaw === '' ? null : Math.max(0, parseInt(pageRaw, 10) - 1);
       await api('/api/studio/comments', {
-        method:'POST', headers:{'content-type':'application/json'},
+        method:'POST', headers:{
+          'content-type':'application/json',
+          ...(localStorage.getItem('aoep_token')
+            ? {'authorization':'Bearer ' + localStorage.getItem('aoep_token')}
+            : {})
+        },
         body: JSON.stringify({ source_id: selectedSource, body, page_index, author: 'reviewer' })
       });
       $('comment-body').value = '';
@@ -3404,6 +3471,28 @@ STUDIO_JS = """
           openLibraryCourse(id);
         };
       }
+      const shelf = $('library-picker');
+      if (shelf) {
+        const currentId = activeCourse && activeCourse.id;
+        shelf.innerHTML = library.map((course) =>
+          `<option value="${esc(course.id)}">${esc(course.title)}</option>`
+        ).join('');
+        if (currentId && library.some((course) => course.id === currentId)) shelf.value = currentId;
+        shelf.onchange = () => {
+          const id = shelf.value;
+          if (!id || (activeCourse && activeCourse.id === id)) return;
+          openLibraryCourse(id);
+        };
+      }
+    }
+
+    function setLibraryCollapsed(collapsed) {
+      document.body.classList.toggle('library-collapsed', !!collapsed);
+      const show = $('library-show');
+      if (show) show.hidden = !collapsed;
+      const hide = $('library-hide');
+      if (hide) hide.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+      try { localStorage.setItem('aoep-library-collapsed', collapsed ? '1' : '0'); } catch (err) {}
     }
 
     async function openLibraryCourse(id) {
@@ -3648,7 +3737,12 @@ STUDIO_JS = """
       if ($('btn-pause')) setPauseButton(false);
       teachLanguage = $('teach-lang').value || 'en';
       const data = await api('/api/studio/teach/start', {
-        method:'POST', headers:{'content-type':'application/json'},
+        method:'POST', headers:{
+          'content-type':'application/json',
+          ...(localStorage.getItem('aoep_token')
+            ? {'authorization':'Bearer ' + localStorage.getItem('aoep_token')}
+            : {})
+        },
         body: JSON.stringify({
           session_id: teachSession, course_id: selectedCourse, profile: profileFromForm(),
           learner_id: learnerId,
@@ -6088,6 +6182,10 @@ STUDIO_JS = """
     function clearVisualTimeline() {
       visualTimeline = null;
       visualCueIndex = -1;
+      const stage = $('teach-stage');
+      const overlay = $('presenter-overlay');
+      if (stage) stage.classList.remove('has-readable-card');
+      if (overlay) overlay.classList.remove('has-readable-card');
       const host = $('teach-visual-timeline');
       if (!host) return;
       host.hidden = true;
@@ -6195,8 +6293,18 @@ STUDIO_JS = """
         const hold = visualTimeline.layout === 'compare';
         host.querySelectorAll('.visual-layer').forEach((layer) => {
           const index = Number(layer.dataset.cue);
-          layer.classList.toggle('is-active', hold ? index <= active : index === active);
+          const words = layer.classList.contains('kind-title')
+            || layer.classList.contains('kind-body')
+            || layer.classList.contains('kind-callout')
+            || layer.classList.contains('kind-text')
+            || layer.classList.contains('kind-storyboard');
+          layer.classList.toggle('is-active', (words || !hold) ? index === active : index <= active);
         });
+        const readable = !!host.querySelector(
+          '.visual-layer.is-active.kind-body, .visual-layer.is-active.kind-callout, .visual-layer.is-active.kind-text'
+        );
+        $('teach-stage').classList.toggle('has-readable-card', readable);
+        $('presenter-overlay').classList.toggle('has-readable-card', readable);
         const label = cue.caption || cue.alt;
         if (label) host.setAttribute('aria-label', String(label));
       }
@@ -6210,6 +6318,10 @@ STUDIO_JS = """
         stopStudentMic();
         const staleReply = $('talk-reply');
         if (staleReply) staleReply.textContent = '';
+        const staleQuiz = $('quiz-box');
+        const staleGame = $('game-box');
+        if (staleQuiz) { staleQuiz.style.display = 'none'; staleQuiz.innerHTML = ''; }
+        if (staleGame) { staleGame.style.display = 'none'; staleGame.innerHTML = ''; }
       }
       lastTeachPayload = payload;
       beatHandled = false;
@@ -6451,6 +6563,11 @@ STUDIO_JS = """
     confirmCoursePayment();
     on('btn-pause', 'click', () => toggleLecturePause());
     on('btn-fullscreen', 'click', togglePresenterMode);
+    on('library-hide', 'click', () => setLibraryCollapsed(true));
+    on('library-show', 'click', () => setLibraryCollapsed(false));
+    try {
+      if (localStorage.getItem('aoep-library-collapsed') === '1') setLibraryCollapsed(true);
+    } catch (err) {}
     on('btn-chrome', 'click', () => {
       const hide = !document.body.classList.contains('chrome-hidden');
       setStudioChromeHidden(hide);
@@ -6626,6 +6743,12 @@ def render_studio_page() -> str:
   </header>
   <div class="layout">
     <div class="panel library-panel">
+      <div class="library-bar">
+        <label><span data-i18n="library">Course library</span>
+          <select id="library-picker" aria-label="Course library"></select>
+        </label>
+        <button id="library-hide" class="secondary" type="button" aria-pressed="false" data-i18n="hideCourses">Hide courses</button>
+      </div>
       <h2><span class="mark" aria-hidden="true"><svg viewBox="0 0 28 28" width="22" height="22"><path d="M4 6h8c1.4 1 2.8 1 4 0h8v16h-8c-1.2 1-2.6 1-4 0H4V6z" fill="none" stroke="#1e3a5f" stroke-width="1.8"/><path d="M14 7v14" stroke="#1e3a5f" stroke-width="1.4"/></svg></span> <span data-i18n="library">Course library</span></h2>
       <div class="row">
         <label><span data-i18n="language">Language</span> <select id="teach-lang" style="min-width:12rem"></select></label>
@@ -6633,6 +6756,7 @@ def render_studio_page() -> str:
       <div class="status" id="library-now" data-i18n="choose">Choose a course to begin.</div>
       <div class="list library" id="library-list"></div>
     </div>
+    <button id="library-show" class="secondary" type="button" hidden data-i18n="showCourses">Courses</button>
     <div class="panel">
       <div id="teach-stage-home">
       <div class="teach-stage captions-off" id="teach-stage">

@@ -48,6 +48,8 @@ def test_google_oauth_sandbox():
     }).json()
     assert out["token"]
     assert out["account"]["email"] == "oauth@example.com"
+    status = client.get("/auth/onboarding-status", headers=_auth(out["token"])).json()
+    assert status["completed"] is True
 
 
 def test_oauth_provider_status_endpoint():

@@ -18,6 +18,7 @@ const KEYS = {
   authToken: "@aic/auth-token.v1",  // identity JWT
   potionBest: "@aic/potionlab-best.v1", // number (Potion Lab arcade high score)
   previewMode: "@aic/preview.v1",   // guest browse without login
+  setupAssistant: "@aic/setup-assistant.v1", // set only while a new email account is being created
   // Notification routine: which courses we have already alerted about, when the
   // app was last opened, and which day the content digest last went out. These
   // keep alerts to one predictable slot instead of one per item per app launch.
@@ -282,4 +283,20 @@ export async function getPreviewMode(): Promise<boolean> {
 
 export async function setPreviewMode(on: boolean): Promise<void> {
   await writeJSON(KEYS.previewMode, on);
+}
+
+/** True only after email signup, until the setup assistant finishes or the user logs in. */
+export async function isSetupAssistantPending(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(KEYS.setupAssistant)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export async function setSetupAssistantPending(pending: boolean): Promise<void> {
+  try {
+    if (pending) await AsyncStorage.setItem(KEYS.setupAssistant, "1");
+    else await AsyncStorage.removeItem(KEYS.setupAssistant);
+  } catch { /* ignore */ }
 }

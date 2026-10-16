@@ -84,6 +84,9 @@ GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
         ("finish-the-line", "Finish the line"),
         ("spell-aloud", "Spell what you hear"),
     ]),
+    ("Sing", [
+        ("karaoke", "Karaoke sing-along"),
+    ]),
     ("Face & hands", [
         ("oh-behave", "Oh behave"),
         ("heart", "Make hearts"),

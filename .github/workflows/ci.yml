@@ -31,6 +31,10 @@ jobs:
           python3 -m pip install -e "packages/shared[test,harvest]"
           python3 -m pip install -e "packages/sdk[test]"
           python3 -m pip install -e "packages/webcam-vision[test]"
+          # Identity is not a pyproject package. Install its runtime requirements
+          # so production-only OAuth paths (notably Apple RS256 verification)
+          # are exercised instead of silently passing through sandbox shortcuts.
+          python3 -m pip install -r services/identity/requirements.txt
           for pkg in services/orchestrator services/speech \
             services/perception services/memory services/curriculum \
             services/billing apps/agent-runtime; do
@@ -83,6 +87,7 @@ jobs:
           node-version: "22"
       - run: npm install
       - run: npm run typecheck
+      - run: npm run test:unit
       - run: npm run build
 
   compose:

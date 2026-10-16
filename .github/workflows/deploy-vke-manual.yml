@@ -52,7 +52,8 @@ jobs:
             MATRIX="${MATRIX},{\"name\":\"course-studio\",\"dockerfile\":\"subrepos/theodore_course_studio/Dockerfile\",\"context\":\".\"}"
             MATRIX="${MATRIX},{\"name\":\"children-lab\",\"dockerfile\":\"subrepos/theodore_children_webcam_lab/Dockerfile\",\"context\":\".\"}"
             MATRIX="${MATRIX},{\"name\":\"audio-lab\",\"dockerfile\":\"subrepos/theodore_audio_translation_lab/Dockerfile\",\"context\":\".\"}"
-            SVCS="${SVCS} web course-studio children-lab audio-lab"
+            MATRIX="${MATRIX},{\"name\":\"music\",\"dockerfile\":\"subrepos/theodore_music_lab/Dockerfile\",\"context\":\".\"}"
+            SVCS="${SVCS} web course-studio children-lab audio-lab music"
           fi
           MATRIX="${MATRIX}]"
           echo "matrix={\"include\":${MATRIX}}" >> "$GITHUB_OUTPUT"
@@ -150,7 +151,7 @@ jobs:
             python3 scripts/render_demo_labs.py --kind Service < /tmp/demo-labs.yaml | kubectl apply -f -
             # Apply a Deployment only when that lab is missing. Re-applying the
             # others replaces a digest pin with the unpublished floating tag.
-            for name in course-studio children-lab audio-lab; do
+            for name in course-studio children-lab audio-lab music; do
               if ! kubectl -n aoep get deploy "$name" >/dev/null 2>&1; then
                 python3 scripts/render_demo_labs.py --kind Deployment --name "$name" < /tmp/demo-labs.yaml | kubectl apply -f -
               fi

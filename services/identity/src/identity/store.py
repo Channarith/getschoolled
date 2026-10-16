@@ -107,6 +107,8 @@ class StudentProfile(BaseModel):
     motivation: str = "personal"
     accessibility: Dict[str, bool] = Field(default_factory=dict)
     accommodations_notes: str = ""
+    # Setup assistant "how do you learn best" ratings (modality -> 1..10).
+    modality_ratings: Dict[str, int] = Field(default_factory=dict)
     learner_category: str = ""
     # Versioned routing fingerprint derived from the survey. Structured fields
     # remain authoritative; the score is for fast catalog/session decisions.
@@ -123,14 +125,14 @@ class StudentProfile(BaseModel):
     goal_timeline: str = ""
     adaptation: Dict[str, object] = Field(default_factory=dict)
     created_at: float = Field(default_factory=lambda: time.time())
-    # Voice identity enrollment: the student says their name aloud during the
-    # face + voice check in settings. The raw audio is stored as a base64 WAV/WebM
-    # blob so later analytics can match voice + face for identity verification
-    # and engagement tracking (e.g. verify the enrolled student is still present).
-    voice_name_sample_b64: str = ""       # base64-encoded audio blob (WebM/WAV)
-    voice_name_sample_mime: str = ""      # MIME type: "audio/webm" | "audio/wav" | "audio/mpeg"
+    # Legacy migration-only fields. They are excluded from new snapshots so raw
+    # voice media is never retained; biometric_setup is authoritative.
+    voice_name_sample_b64: str = Field(default="", exclude=True)
+    voice_name_sample_mime: str = Field(default="", exclude=True)
     voice_name_text: str = ""            # the name the student said (typed or transcribed)
     voice_enrolled_at: Optional[float] = None  # Unix timestamp of enrollment
+    # Decisions and opaque template references only; never raw biometric media.
+    biometric_setup: Dict[str, object] = Field(default_factory=dict)
     # Where this learner left each lesson. Keyed by lesson_id (or course_id).
     course_progress: Dict[str, "LessonProgress"] = Field(default_factory=dict)
     # Focus, attention, away intervals, and report-card observations.
@@ -230,6 +232,9 @@ class Account(BaseModel):
 
 
 class AccountStore:
+    def get_by_id(self, account_id: str) -> Optional[Account]:
+        return self._by_id.get(account_id)
+
     def __init__(self) -> None:
         self._by_id: Dict[str, Account] = {}
         self._id_by_email: Dict[str, str] = {}
@@ -908,6 +913,18 @@ class AccountStore:
         self._persist()
         return prof
 
+    def upsert_primary_learner(self, account_id: str, display_name: str,
+                               age_band: str) -> StudentProfile:
+        """Name the account's first learner, creating it on first sign-in."""
+        acct = self._by_id[account_id]
+        prof = next(iter(acct.students.values()), None)
+        if prof is None:
+            return self.add_student(account_id, display_name, age_band=age_band)
+        prof.display_name = display_name
+        prof.age_band = age_band
+        self._persist()
+        return prof
+
     def apply_learning_profile(self, account_id: str, student_id: str, profile) -> StudentProfile:
         """Persist onboarding survey results on a student profile."""
         prof = self._by_id[account_id].students.get(student_id)
@@ -922,6 +939,7 @@ class AccountStore:
         prof.motivation = profile.motivation
         prof.accessibility = dict(profile.accessibility)
         prof.accommodations_notes = profile.accommodations_notes
+        prof.modality_ratings = dict(profile.modality_ratings)
         prof.learner_category = profile.learner_category
         prof.profile_score = profile.profile_score
         prof.profile_score_version = profile.profile_score_version
@@ -1262,6 +1280,20 @@ class AccountStore:
         self._persist()
         return prof
 
+    def update_biometric_setup(
+        self,
+        account_id: str,
+        student_id: str,
+        setup: dict,
+    ) -> StudentProfile:
+        """Persist sanitized setup metadata for a student-owned profile."""
+        from aoep_shared.biometric_setup import normalize_setup_state
+
+        prof = self._student_or_raise(account_id, student_id)
+        prof.biometric_setup = normalize_setup_state(setup).model_dump()
+        self._persist()
+        return prof
+
     def enroll_voice(
         self,
         account_id: str,
@@ -1271,22 +1303,15 @@ class AccountStore:
         voice_name_sample_mime: str,
         voice_name_text: str,
     ) -> StudentProfile:
-        """Store a voice-name sample for a student profile.
-
-        Called from the settings face+voice ID check: the student says their
-        name on camera/mic and the audio blob (base64-encoded) is stored here.
-        The blob is intentionally stored on the profile (not in object storage)
-        so it travels with the student record and is available for analytics
-        and verification without a separate storage lookup.
-        """
+        """Legacy metadata update; raw voice media is deliberately discarded."""
         acct = self._by_id.get(account_id)
         if acct is None:
             raise KeyError("account not found")
         prof = acct.students.get(student_id)
         if prof is None:
             raise KeyError("student not found")
-        prof.voice_name_sample_b64 = voice_name_sample_b64
-        prof.voice_name_sample_mime = voice_name_sample_mime or "audio/webm"
+        prof.voice_name_sample_b64 = ""
+        prof.voice_name_sample_mime = ""
         prof.voice_name_text = voice_name_text
         prof.voice_enrolled_at = time.time()
         self._persist()

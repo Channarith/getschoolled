@@ -6,12 +6,13 @@ import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView,
-  StyleSheet, Text, TextInput, View,
+  StyleSheet, Text, TextInput, useWindowDimensions, View,
 } from "react-native";
 
 import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, forgotPassword, resetPassword } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
+import KenBurnsImage from "../components/KenBurnsImage";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { DEPLOY_MODE, QA_TEST_ACCOUNTS } from "../config";
@@ -25,10 +26,18 @@ const GOOGLE_WEB_CLIENT_ID = "647091395717-scfbmvsudec5t9vqukk2h8k732bgd3kp.apps
 const GOOGLE_ANDROID_CLIENT_ID = "647091395717-v959uk96ed1f6o11ni7fkv1rni7sblba.apps.googleusercontent.com";
 const FACEBOOK_APP_ID = "1071803295271778";
 
-export default function AuthScreen({ onBack }: { onBack?: () => void }) {
+export default function AuthScreen({
+  onBack,
+  setup = false,
+  onExistingAccount,
+}: {
+  onBack?: () => void;
+  setup?: boolean;
+  onExistingAccount?: () => void;
+}) {
   const { t, locale, setLocale } = useT();
   const { signIn, signInWithGoogle, signInWithFacebook, signInWithApple, signUp } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">(setup ? "signup" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -148,29 +157,44 @@ export default function AuthScreen({ onBack }: { onBack?: () => void }) {
   }
 
   const current = languageInfo(locale);
+  const wideSetup = setup && useWindowDimensions().width >= 800;
 
   return (
     <KeyboardAvoidingView
       testID="auth-screen"
-      style={styles.root}
+      style={[styles.root, setup && styles.setupRoot]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {onBack ? (
         <Pressable onPress={onBack} testID="auth-back" hitSlop={8} style={styles.backBtn}>
-          <Text style={styles.backText}>{t("guest.back")}</Text>
+          <Text style={[styles.backText, setup && styles.setupBack]}>{t("guest.back")}</Text>
         </Pressable>
       ) : null}
+      <View style={setup ? [styles.setupSplit, wideSetup && styles.setupRow] : styles.fill}>
+      {setup ? (
+        <View style={[styles.setupArt, !wideSetup && styles.setupArtBand]}>
+          <KenBurnsImage source={require("../../assets/setup-assistant/account.webp")} style={StyleSheet.absoluteFill} />
+        </View>
+      ) : null}
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        style={setup ? styles.fill : undefined}
+        contentContainerStyle={setup ? [styles.setupScroll, wideSetup && styles.setupScrollCenter] : styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.brand}>Salareen</Text>
-          <Text style={styles.title}>{t("auth.welcomeTitle")}</Text>
-          <Text style={styles.sub}>{t("auth.welcomeSubtitle")}</Text>
+          <Text style={[styles.brand, setup && styles.setupBrand]}>Salareen</Text>
+          {setup ? <Text style={styles.setupKicker}>New account</Text> : null}
+          <Text style={[styles.title, setup && styles.setupTitle]}>
+            {setup ? "Create your account." : t("auth.welcomeTitle")}
+          </Text>
+          <Text style={[styles.sub, setup && styles.setupSub]}>
+            {setup
+              ? "New accounts start here. Your email is your username."
+              : t("auth.welcomeSubtitle")}
+          </Text>
         </View>
 
-        <GlassPanel style={styles.card}>
+        <GlassPanel style={[styles.card, setup && styles.setupCard]}>
           {mode === "signup" ? (
             <TextInput
               testID="auth-display-name"
@@ -248,9 +272,13 @@ export default function AuthScreen({ onBack }: { onBack?: () => void }) {
             onPress={() => void onSubmit()}
             loading={busy}
             disabled={busy}
-            variant="netflix"
+            variant={setup ? "brand" : "netflix"}
           />
-          <AnimatedPressable onPress={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}>
+          <AnimatedPressable onPress={() => {
+            setError("");
+            if (setup && onExistingAccount) onExistingAccount();
+            else setMode(mode === "login" ? "signup" : "login");
+          }}>
             <Text style={styles.link}>
               {mode === "login" ? t("auth.createAccount") : t("auth.haveAccount")}
             </Text>
@@ -260,7 +288,7 @@ export default function AuthScreen({ onBack }: { onBack?: () => void }) {
               <Text style={styles.link}>{t("auth.forgot")}</Text>
             </AnimatedPressable>
           ) : null}
-          {(mode === "login" || mode === "signup") ? (
+          {mode === "login" && !setup ? (
             <View style={styles.socialBlock}>
               <Text style={styles.socialDivider}>{mode === "login" ? "or sign in with" : "or sign up with"}</Text>
               <View style={styles.socialRow}>
@@ -363,8 +391,9 @@ export default function AuthScreen({ onBack }: { onBack?: () => void }) {
               })}`
               : t("auth.checkingBackend")}
         </Text>
-        <Text style={styles.version}>v{APP_VERSION}</Text>
+        <Text style={[styles.version, setup && styles.setupSub]}>v{APP_VERSION}</Text>
       </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -381,6 +410,25 @@ export function AuthLoadingScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  fill: { flex: 1, minHeight: 0, minWidth: 0 },
+  setupRoot: { backgroundColor: "#f4e9d8" },
+  setupSplit: { flex: 1, minHeight: 0 },
+  setupRow: { flexDirection: "row" },
+  setupArt: { flex: 1.15, minWidth: 0, backgroundColor: "#f3e9db", overflow: "hidden" },
+  setupArtBand: { flex: 0, width: "100%", height: "28%" },
+  setupScroll: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, justifyContent: "flex-start" },
+  setupScrollCenter: { justifyContent: "center" },
+  setupBrand: { color: "#241b34", textAlign: "left" },
+  setupTitle: { color: "#241b34", textAlign: "left" },
+  setupSub: { color: "#736a82", textAlign: "left", paddingHorizontal: 0 },
+  setupBack: { color: "#2f6bd8" },
+  setupCard: {
+    backgroundColor: "#ffffff",
+    borderColor: "#e3d7c3",
+    borderRadius: 16,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   backBtn: { paddingHorizontal: theme.spacing.screenX, paddingTop: 8 },
   backText: { color: "rgba(255,255,255,0.7)", fontSize: 16 },
   scroll: {
@@ -391,6 +439,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   header: { marginBottom: 24, alignItems: "center" },
+  setupKicker: {
+    color: "#0f9d8f", fontSize: 12, fontWeight: "800", letterSpacing: 0.8,
+    textTransform: "uppercase", marginBottom: 8,
+  },
   brand: {
     color: theme.colors.netflix,
     fontSize: 28,

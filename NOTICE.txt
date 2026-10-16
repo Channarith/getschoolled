@@ -11,6 +11,11 @@ OPEN-SOURCE COMPONENTS (non-exhaustive; see lockfiles for full lists/versions)
   pypdf, BeautifulSoup, Requests, pytest (and their dependencies) - under MIT /
   BSD / Apache-2.0 / similar permissive licenses.
 - Web: Next.js, React, TypeScript and dependencies - under MIT / similar.
+- Web: OpenCV.js 4.10.0 (Apache-2.0, https://github.com/opencv/opencv), served
+  same-origin from apps/web/public/opencv/4.10.0/opencv.js. Taken unmodified from
+  the official opencv-4.10.0-docs.zip release asset (zip sha256
+  0ff1b7246fec72a0f5243cbac5ae663b04c6773fbb11f6b69e86ac20239d0ade; opencv.js
+  sha256 e9aa95159522347410aba2321a72b19a71764de737b29030a341439ab60ea724).
 
 OPEN-WEIGHT MODELS (Track B / serving; when configured by the operator)
 - e.g. Qwen, DeepSeek-distill, Llama, gpt-oss, Whisper, NLLB, XTTS, YuNet, SFace.

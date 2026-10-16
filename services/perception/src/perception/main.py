@@ -15,10 +15,19 @@ Endpoints:
 
 from __future__ import annotations
 
+import base64
+import os
+
+from aoep_shared.identity_sync import internal_token
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.providers.base import EmbeddedFace
 from aoep_shared.service import create_service
 from aoep_shared.vision.models import ModelsUnavailable
+from aoep_shared.voice_identity import (
+    EncryptedVoiceGallery,
+    SherpaSpeakerProvider,
+    VoiceIdentityUnavailable,
+)
 from fastapi import Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -28,6 +37,15 @@ app = create_service("perception")
 
 def _vision():
     return app.state.factory.vision()
+
+
+def _voice_gallery() -> EncryptedVoiceGallery:
+    path = os.getenv(
+        "VOICEPRINT_GALLERY_PATH",
+        os.path.expanduser("~/.cache/aoep/voiceprints.enc"),
+    )
+    secret = os.getenv("BIOMETRIC_ENCRYPTION_SECRET") or internal_token()
+    return EncryptedVoiceGallery(path, secret)
 
 
 def _parse_ids(raw: str | None) -> list[str]:
@@ -57,6 +75,77 @@ async def enroll(student_id: str, file: UploadFile = File(...)) -> EnrollRespons
     except ModelsUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     return EnrollResponse(student_id=student_id, enrollments=count)
+
+
+class FaceVerificationResponse(BaseModel):
+    student_id: str
+    verified: bool
+    score: float = 0.0
+
+
+@app.post(
+    "/verify-face/{student_id}",
+    response_model=FaceVerificationResponse,
+    dependencies=[Depends(require_internal)],
+)
+async def verify_face(
+    student_id: str,
+    file: UploadFile = File(...),
+) -> FaceVerificationResponse:
+    data = await file.read()
+    try:
+        observations = _vision().analyze_image(
+            data,
+            consented_student_ids=[student_id],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (NotImplementedError, ModelsUnavailable) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    verified = any(item.matched_student_id == student_id for item in observations)
+    return FaceVerificationResponse(student_id=student_id, verified=verified)
+
+
+class FaceLandmarks(BaseModel):
+    bbox: list[int]
+    landmarks: list[list[float]]
+    frame_size: list[int]
+    score: float
+
+
+class LandmarksResponse(BaseModel):
+    faces: list[FaceLandmarks]
+
+
+@app.post(
+    "/detect-landmarks",
+    response_model=LandmarksResponse,
+    dependencies=[Depends(require_internal)],
+)
+async def detect_landmarks(file: UploadFile = File(...)) -> LandmarksResponse:
+    """YuNet box + 5 landmarks for a still, so the phone can draw the face
+    contour on the captured photo. Nothing is stored and no embedding leaves."""
+    data = await file.read()
+    try:
+        engine = _vision().engine()
+        faces = engine.detect_faces(data)
+    except AttributeError as exc:
+        raise HTTPException(status_code=503, detail="face landmarks are not available") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (NotImplementedError, ModelsUnavailable) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return LandmarksResponse(
+        faces=[
+            FaceLandmarks(
+                bbox=[int(v) for v in face.bbox],
+                landmarks=[[float(x), float(y)] for x, y in face.landmarks],
+                frame_size=[int(v) for v in face.frame_size],
+                score=float(face.det_score),
+            )
+            for face in faces
+        ]
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -124,6 +213,70 @@ def enroll_embedding(student_id: str, req: EnrollEmbeddingRequest) -> EnrollResp
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return EnrollResponse(student_id=student_id, enrollments=count)
+
+
+class VoiceSampleRequest(BaseModel):
+    audio_b64: str
+
+
+class VoiceEnrollmentResponse(BaseModel):
+    student_id: str
+    template_ref: str
+    verified: bool = True
+    score: float | None = None
+
+
+def _voice_embedding(audio_b64: str) -> list[float]:
+    try:
+        audio = base64.b64decode(audio_b64, validate=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="audio_b64 is invalid") from exc
+    if len(audio) > 12 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="voice sample is too large")
+    try:
+        return SherpaSpeakerProvider().embedding(audio)
+    except VoiceIdentityUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post(
+    "/voiceprint/enroll/{student_id}",
+    response_model=VoiceEnrollmentResponse,
+    dependencies=[Depends(require_internal)],
+)
+def enroll_voiceprint(student_id: str, req: VoiceSampleRequest) -> VoiceEnrollmentResponse:
+    template_ref = _voice_gallery().enroll(student_id, _voice_embedding(req.audio_b64))
+    return VoiceEnrollmentResponse(student_id=student_id, template_ref=template_ref)
+
+
+@app.post(
+    "/voiceprint/verify/{student_id}",
+    response_model=VoiceEnrollmentResponse,
+    dependencies=[Depends(require_internal)],
+)
+def verify_voiceprint(student_id: str, req: VoiceSampleRequest) -> VoiceEnrollmentResponse:
+    match = _voice_gallery().verify(student_id, _voice_embedding(req.audio_b64))
+    return VoiceEnrollmentResponse(
+        student_id=student_id,
+        template_ref="",
+        verified=match.matched,
+        score=match.score,
+    )
+
+
+@app.delete(
+    "/biometrics/{student_id}",
+    dependencies=[Depends(require_internal)],
+)
+def delete_biometrics(student_id: str) -> dict:
+    provider = _vision()
+    delete = getattr(provider, "delete_student", None)
+    if callable(delete):
+        delete(student_id)
+    _voice_gallery().remove(student_id)
+    return {"student_id": student_id, "deleted": True}
 
 
 class EmbeddedFaceIn(BaseModel):

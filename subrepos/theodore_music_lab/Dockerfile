@@ -6,12 +6,16 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 # edge-tts needs a writable home for its config; uvicorn needs curl for healthchecks.
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
+# The page imports aoep_shared for live Sala. Same pattern as the other labs.
+COPY packages/shared /app/packages/shared
+RUN pip install --no-cache-dir /app/packages/shared
+
 # Install the music lab and its TTS dependency.
 COPY subrepos/theodore_music_lab/pyproject.toml ./pyproject.toml
 COPY subrepos/theodore_music_lab/src ./src
 COPY subrepos/theodore_music_lab/data ./data
 COPY subrepos/theodore_music_lab/scripts ./scripts
-RUN pip install --no-cache-dir -e ".[server]" edge-tts==6.1.12
+RUN pip install --no-cache-dir -e ".[voices]"
 
 # Voice cache lives here; mount a named volume over this path in production
 # so the pre-generated clips survive container rebuilds.

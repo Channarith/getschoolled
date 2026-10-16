@@ -227,7 +227,7 @@ export default function FaceVoiceEnrollModal({
       <View style={styles.backdrop}>
         <GlassPanel style={styles.sheet} padded>
           {/* Header */}
-          <Text style={styles.title}>Face & Voice ID</Text>
+          <Text style={styles.title}>Salareen Learner Check</Text>
           <Text style={styles.sub}>
             Say your name aloud so the platform can recognise your voice during
             lessons and attendance checks.
