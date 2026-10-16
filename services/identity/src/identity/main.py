@@ -10,8 +10,20 @@ from __future__ import annotations
 
 import os
 import time
+import base64
+import hashlib
+import json
+import urllib.error
+import urllib.request
 
 from aoep_shared.auth import sign_token, verify_token
+from aoep_shared.biometric_setup import (
+    SetupAssistantState,
+    certification_assurance,
+    mark_record,
+    normalize_setup_state,
+)
+from aoep_shared.identity_sync import internal_token
 from aoep_shared.flags import require_admin
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import PlanTier, Region
@@ -439,6 +451,8 @@ def subscribe(req: SubscribeRequest, acct=Depends(current_account)) -> dict:
         )
     if tier_requires_payment(tier_val):
         updated = app.state.accounts.activate_subscription(acct.id, req.tier)
+    elif tier_val == "free":
+        updated = _claim_free_plan(acct.id)
     else:
         updated = app.state.accounts.set_tier(acct.id, req.tier)
     return {
@@ -527,6 +541,31 @@ class OnboardingCompleteRequest(BaseModel):
     age_band: str = "adult"
 
 
+class OnboardingLearnerRequest(BaseModel):
+    learner_name: str = Field(min_length=1, max_length=80)
+    age: int = Field(ge=3, le=120)
+
+
+def age_band_for(age: int) -> str:
+    if age < 13:
+        return "child"
+    if age < 18:
+        return "teen"
+    return "adult"
+
+
+@app.post("/onboarding/learner")
+def onboarding_learner(req: OnboardingLearnerRequest, acct=Depends(current_account)) -> dict:
+    """Setup assistant screen 1: the learner's name and age (stored as a band)."""
+    name = req.learner_name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="learner name is required")
+    if not acct.display_name:
+        app.state.accounts.patch_account(acct.id, display_name=name)
+    prof = app.state.accounts.upsert_primary_learner(acct.id, name, age_band_for(req.age))
+    return {"student": prof.model_dump(), "age_band": prof.age_band}
+
+
 @app.post("/onboarding/profile")
 def onboarding_profile(req: OnboardingProfileRequest, acct=Depends(current_account)) -> dict:
     from aoep_shared.avatars import resolve_avatar, resolve_avatar_id
@@ -593,9 +632,31 @@ def onboarding_plan(req: OnboardingPlanRequest, acct=Depends(current_account)) -
         )
     if tier_requires_payment(tier.value):
         updated = app.state.accounts.activate_subscription(acct.id, tier)
+    elif tier.value == "free":
+        updated = _claim_free_plan(acct.id)
     else:
         updated = app.state.accounts.set_tier(acct.id, tier)
     return {"tier": updated.tier.value, "membership_class": updated.membership_class}
+
+
+def _claim_free_plan(account_id: str):
+    from .persistence import FreeClaimUnavailable
+
+    try:
+        return app.state.accounts.claim_free_plan(account_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except FreeClaimUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/onboarding/free-plan")
+def free_plan_offer() -> dict:
+    """Whether the introductory free plan can still be selected."""
+    from aoep_shared.free_plan import evaluate_free_offer
+
+    status = evaluate_free_offer(app.state.accounts.free_claim_count(), time.time())
+    return status.as_dict()
 
 
 @app.post("/onboarding/complete")
@@ -1063,16 +1124,7 @@ class AdaptationEvent(BaseModel):
 
 
 class VoiceEnrollRequest(BaseModel):
-    """Payload for voice-name enrollment during the face + voice ID check.
-
-    ``voice_name_sample_b64`` is a base64-encoded audio blob (WebM/WAV/MP3) of
-    the student saying their name. ``voice_name_text`` is the typed or detected
-    name that was spoken (same value already stored as student display_name in
-    most flows; stored separately so analytics can compare what was said vs what
-    was typed). ``voice_name_sample_mime`` records the container format so the
-    player/analyser knows how to decode it.
-    """
-
+    """Legacy wire shape; audio is processed ephemerally and never retained."""
     voice_name_sample_b64: str
     voice_name_sample_mime: str = "audio/webm"
     voice_name_text: str = ""
@@ -1084,30 +1136,34 @@ def enroll_voice(
     req: VoiceEnrollRequest,
     acct=Depends(current_account),
 ) -> dict:
-    """Store a voice-name sample on the student profile.
-
-    Called from the settings page after the user completes the face + voice
-    check: the audio blob is stored on the profile so later analytics can
-    use it for voice-based identity verification and engagement tracking.
-    """
     if not req.voice_name_sample_b64.strip():
         raise HTTPException(status_code=422, detail="voice_name_sample_b64 must not be empty")
-    try:
-        prof = app.state.accounts.enroll_voice(
-            acct.id,
-            student_id,
-            voice_name_sample_b64=req.voice_name_sample_b64,
-            voice_name_sample_mime=req.voice_name_sample_mime,
-            voice_name_text=req.voice_name_text or prof_display_name(acct, student_id),
+    student = _owned_student(acct, student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    if not state.consent.granted:
+        raise HTTPException(status_code=409, detail="biometric consent is required")
+    result = _perception_json(
+        f"/voiceprint/enroll/{student_id}",
+        {"audio_b64": req.voice_name_sample_b64},
+    )
+    state.voice = state.voice.model_validate(
+        mark_record(
+            state.voice,
+            "verified",
+            template_ref=str(result.get("template_ref", "")),
         )
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+    )
+    app.state.accounts.update_biometric_setup(acct.id, student_id, state.model_dump())
+    student.voice_name_text = req.voice_name_text or student.display_name
+    student.voice_name_sample_b64 = ""
+    student.voice_name_sample_mime = ""
+    student.voice_enrolled_at = time.time()
     return {
-        "student_id": prof.id,
+        "student_id": student.id,
         "voice_enrolled": True,
-        "voice_enrolled_at": prof.voice_enrolled_at,
-        "voice_name_text": prof.voice_name_text,
-        "voice_name_sample_mime": prof.voice_name_sample_mime,
+        "voice_enrolled_at": student.voice_enrolled_at,
+        "voice_name_text": student.voice_name_text,
+        "voice_name_sample_mime": "",
     }
 
 
@@ -1115,42 +1171,26 @@ def enroll_voice(
 def get_voice_enrollment(student_id: str, acct=Depends(current_account)) -> dict:
     """Return voice enrollment status and metadata for a student profile.
 
-    The audio blob itself is intentionally excluded from this GET to keep the
-    response small; call the ``/voice-enrollment/blob`` endpoint to retrieve it.
+    No raw audio is retained or retrievable.
     """
     prof = app.state.accounts.get_student(acct.id, student_id)
     if prof is None:
         raise HTTPException(status_code=404, detail="unknown student profile")
+    setup = normalize_setup_state(prof.biometric_setup)
     return {
         "student_id": student_id,
-        "voice_enrolled": bool(prof.voice_enrolled_at),
-        "voice_enrolled_at": prof.voice_enrolled_at,
+        "voice_enrolled": setup.voice.status == "verified",
+        "voice_enrolled_at": setup.voice.updated_at,
         "voice_name_text": prof.voice_name_text,
-        "voice_name_sample_mime": prof.voice_name_sample_mime,
-        "has_sample": bool(prof.voice_name_sample_b64),
+        "voice_name_sample_mime": "",
+        "has_sample": False,
     }
 
 
 @app.get("/students/{student_id}/voice-enrollment/blob")
 def get_voice_blob(student_id: str, acct=Depends(current_account)) -> dict:
-    """Return the raw base64 audio blob for a student's voice-name sample.
-
-    Consumers (analytics pipeline, verification flow) fetch this to replay
-    or process the voice sample. The blob may be empty if the student has not
-    completed voice enrollment.
-    """
-    prof = app.state.accounts.get_student(acct.id, student_id)
-    if prof is None:
-        raise HTTPException(status_code=404, detail="unknown student profile")
-    if not prof.voice_name_sample_b64:
-        raise HTTPException(status_code=404, detail="no voice sample enrolled")
-    return {
-        "student_id": student_id,
-        "voice_name_sample_b64": prof.voice_name_sample_b64,
-        "voice_name_sample_mime": prof.voice_name_sample_mime,
-        "voice_name_text": prof.voice_name_text,
-        "voice_enrolled_at": prof.voice_enrolled_at,
-    }
+    _owned_student(acct, student_id)
+    raise HTTPException(status_code=410, detail="raw voice samples are not retained")
 
 
 def prof_display_name(acct, student_id: str) -> str:
@@ -1539,6 +1579,426 @@ def record_consent(req: ConsentRequest, acct=Depends(current_account)) -> dict:
         except Exception:
             pass
     return {"student_id": student_id, "scope": req.scope, "granted": req.granted}
+
+
+# --------------------------------------------------------------------------- #
+# Setup assistant and biometric identity
+# --------------------------------------------------------------------------- #
+def _owned_student(acct, student_id: str):
+    student = app.state.accounts.get_student(acct.id, student_id)
+    if student is None:
+        raise HTTPException(status_code=404, detail="student not found")
+    return student
+
+
+def _save_setup(acct, student_id: str, state: SetupAssistantState) -> dict:
+    profile = app.state.accounts.update_biometric_setup(
+        acct.id, student_id, state.model_dump()
+    )
+    return normalize_setup_state(profile.biometric_setup).model_dump()
+
+
+def _perception_json(path: str, payload: dict) -> dict:
+    request = urllib.request.Request(
+        getattr(app.state.config, "vision_base_url", "http://perception:8200").rstrip("/")
+        + path,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "X-Internal-Token": internal_token(),
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30.0) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise HTTPException(status_code=exc.code, detail=detail) from exc
+    except urllib.error.URLError as exc:
+        raise HTTPException(status_code=503, detail="biometric provider unavailable") from exc
+
+
+def _perception_image(path: str, image: bytes) -> dict:
+    boundary = "----salareen-biometric-boundary"
+    body = (
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="file"; filename="portrait.jpg"\r\n'
+        "Content-Type: image/jpeg\r\n\r\n"
+    ).encode("ascii") + image + f"\r\n--{boundary}--\r\n".encode("ascii")
+    request = urllib.request.Request(
+        getattr(app.state.config, "vision_base_url", "http://perception:8200").rstrip("/")
+        + path,
+        data=body,
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "X-Internal-Token": internal_token(),
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30.0) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise HTTPException(status_code=exc.code, detail=detail) from exc
+    except urllib.error.URLError as exc:
+        raise HTTPException(status_code=503, detail="biometric provider unavailable") from exc
+
+
+def _perception_delete(student_id: str) -> None:
+    request = urllib.request.Request(
+        getattr(app.state.config, "vision_base_url", "http://perception:8200").rstrip("/")
+        + f"/biometrics/{student_id}",
+        headers={"X-Internal-Token": internal_token()},
+        method="DELETE",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10.0):
+            return
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise HTTPException(status_code=exc.code, detail=detail) from exc
+    except urllib.error.URLError as exc:
+        raise HTTPException(status_code=503, detail="biometric provider unavailable") from exc
+
+
+class SetupProgressRequest(BaseModel):
+    current_step: str
+    skipped_biometrics: bool | None = None
+    complete: bool = False
+
+
+class BiometricConsentRequest(BaseModel):
+    granted: bool
+    guardian_granted: bool = False
+    retention_days: int = Field(default=365, ge=1, le=3650)
+    face_granted: bool | None = None
+    voice_granted: bool | None = None
+    government_id_granted: bool | None = None
+
+
+class FaceEnrollmentRequest(BaseModel):
+    embeddings: list[list[float]]
+    pose_sequence: list[str] = Field(default_factory=list)
+
+
+class FaceImageEnrollmentRequest(BaseModel):
+    images_b64: list[str]
+    pose_sequence: list[str] = Field(default_factory=list)
+
+
+class VoiceprintRequest(BaseModel):
+    audio_b64: str
+
+
+class FacePreviewRequest(BaseModel):
+    image_b64: str
+
+
+class DocumentSubmissionRequest(BaseModel):
+    document_type: str
+    front_image_b64: str
+    back_image_b64: str = ""
+
+
+class DocumentDecisionRequest(BaseModel):
+    account_id: str
+    student_id: str
+    status: str
+    provider_reference: str
+    reason: str = ""
+
+
+@app.get("/students/{student_id}/setup-assistant")
+def setup_assistant_status(student_id: str, acct=Depends(current_account)) -> dict:
+    student = _owned_student(acct, student_id)
+    return normalize_setup_state(student.biometric_setup).model_dump()
+
+
+@app.patch("/students/{student_id}/setup-assistant")
+def update_setup_assistant(
+    student_id: str, req: SetupProgressRequest, acct=Depends(current_account)
+) -> dict:
+    student = _owned_student(acct, student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    valid_steps = SetupAssistantState.model_fields["current_step"].annotation.__args__
+    if req.current_step not in valid_steps:
+        raise HTTPException(status_code=422, detail="invalid setup step")
+    state.current_step = req.current_step
+    if req.skipped_biometrics is not None:
+        state.skipped_biometrics = req.skipped_biometrics
+    if req.complete:
+        state.current_step = "complete"
+        state.completed_at = time.time()
+    return _save_setup(acct, student_id, state)
+
+
+@app.put("/students/{student_id}/biometric-consent")
+def update_biometric_consent(
+    student_id: str, req: BiometricConsentRequest, acct=Depends(current_account)
+) -> dict:
+    student = _owned_student(acct, student_id)
+    if student.age_band in {"child", "teen"} and req.granted and not req.guardian_granted:
+        raise HTTPException(status_code=422, detail="guardian consent is required for minors")
+    state = normalize_setup_state(student.biometric_setup)
+    state.consent.granted = req.granted
+    state.consent.face_granted = req.granted if req.face_granted is None else req.face_granted
+    state.consent.voice_granted = req.granted if req.voice_granted is None else req.voice_granted
+    state.consent.government_id_granted = (
+        req.granted if req.government_id_granted is None else req.government_id_granted
+    )
+    state.consent.guardian_granted = req.guardian_granted
+    state.consent.retention_days = req.retention_days
+    state.consent.updated_at = time.time()
+    state.consent_events.append({
+        "event": "granted" if req.granted else "revoked",
+        "policy_version": state.consent.policy_version,
+        "face": state.consent.face_granted,
+        "voice": state.consent.voice_granted,
+        "government_id": state.consent.government_id_granted,
+        "guardian": req.guardian_granted,
+        "at": state.consent.updated_at,
+    })
+    state.consent_events = state.consent_events[-20:]
+    if not req.granted:
+        state.portrait.status = "revoked"
+        state.pose.status = "revoked"
+        state.voice.status = "revoked"
+    return _save_setup(acct, student_id, state)
+
+
+@app.post("/students/{student_id}/biometric-face")
+def enroll_biometric_face(
+    student_id: str, req: FaceEnrollmentRequest, acct=Depends(current_account)
+) -> dict:
+    student = _owned_student(acct, student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    if not state.consent.granted:
+        raise HTTPException(status_code=409, detail="biometric consent is required")
+    if not (1 <= len(req.embeddings) <= 5):
+        raise HTTPException(status_code=422, detail="one to five face embeddings are required")
+    required_poses = {"left", "right", "up", "down"}
+    if not required_poses.issubset(req.pose_sequence):
+        raise HTTPException(status_code=422, detail="left, right, up, and down pose checks are required")
+    enrollments = 0
+    neutral = req.embeddings[0]
+    result = _perception_json(f"/enroll-embedding/{student_id}", {"embedding": neutral})
+    enrollments = int(result.get("enrollments", 0))
+    for embedding in req.embeddings[1:]:
+        if len(embedding) != len(neutral):
+            raise HTTPException(status_code=422, detail="face embedding dimensions do not match")
+        movement = sum((a - b) ** 2 for a, b in zip(neutral, embedding))
+        if movement < 0.000001:
+            raise HTTPException(status_code=422, detail="pose challenge frames must not be static")
+        match = _perception_json(
+            "/identify-embedding",
+            {
+                "faces": [{"embedding": embedding}],
+                "consented_student_ids": [student_id],
+            },
+        )
+        faces = match.get("faces", [])
+        if not faces or faces[0].get("matched_student_id") != student_id:
+            raise HTTPException(status_code=422, detail="pose challenge face does not match portrait")
+        result = _perception_json(f"/enroll-embedding/{student_id}", {"embedding": embedding})
+        enrollments = int(result.get("enrollments", enrollments))
+    state.portrait = state.portrait.model_validate(
+        mark_record(state.portrait, "verified", template_ref=f"face:{student_id}")
+    )
+    state.pose = state.pose.model_validate(mark_record(state.pose, "verified"))
+    _save_setup(acct, student_id, state)
+    return {"student_id": student_id, "verified": True, "enrollments": enrollments}
+
+
+@app.post("/students/{student_id}/face-preview")
+def face_preview(
+    student_id: str, req: FacePreviewRequest, acct=Depends(current_account)
+) -> dict:
+    """Landmarks for one captured still so the app can draw the face contour.
+
+    Stateless: the image is forwarded once and not stored or enrolled."""
+    student = _owned_student(acct, student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    if not state.consent.granted:
+        raise HTTPException(status_code=409, detail="biometric consent is required")
+    try:
+        image = base64.b64decode(req.image_b64, validate=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="face image is invalid") from exc
+    if not 1_000 <= len(image) <= 8 * 1024 * 1024:
+        raise HTTPException(status_code=422, detail="face image size is invalid")
+    result = _perception_image("/detect-landmarks", image)
+    return {"student_id": student_id, "faces": result.get("faces", [])}
+
+
+@app.post("/students/{student_id}/biometric-face-images")
+def enroll_biometric_face_images(
+    student_id: str, req: FaceImageEnrollmentRequest, acct=Depends(current_account)
+) -> dict:
+    student = _owned_student(acct, student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    if not state.consent.granted:
+        raise HTTPException(status_code=409, detail="biometric consent is required")
+    if not (1 <= len(req.images_b64) <= 5):
+        raise HTTPException(status_code=422, detail="one to five face images are required")
+    required_poses = {"left", "right", "up", "down"}
+    if not required_poses.issubset(req.pose_sequence):
+        raise HTTPException(status_code=422, detail="left, right, up, and down pose checks are required")
+    enrollments = 0
+    decoded: list[bytes] = []
+    for encoded in req.images_b64:
+        try:
+            image = base64.b64decode(encoded, validate=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="face image is invalid") from exc
+        if not 1_000 <= len(image) <= 8 * 1024 * 1024:
+            raise HTTPException(status_code=422, detail="face image size is invalid")
+        decoded.append(image)
+    if len({hashlib.sha256(image).digest() for image in decoded}) != len(decoded):
+        raise HTTPException(status_code=422, detail="pose challenge images must not be repeated")
+    result = _perception_image(f"/enroll/{student_id}", decoded[0])
+    enrollments = int(result.get("enrollments", 0))
+    for image in decoded[1:]:
+        match = _perception_image(f"/verify-face/{student_id}", image)
+        if not match.get("verified"):
+            raise HTTPException(status_code=422, detail="pose challenge face does not match portrait")
+        result = _perception_image(f"/enroll/{student_id}", image)
+        enrollments = int(result.get("enrollments", enrollments))
+    state.portrait = state.portrait.model_validate(
+        mark_record(state.portrait, "verified", template_ref=f"face:{student_id}")
+    )
+    state.pose = state.pose.model_validate(mark_record(state.pose, "verified"))
+    _save_setup(acct, student_id, state)
+    return {"student_id": student_id, "verified": True, "enrollments": enrollments}
+
+
+@app.post("/students/{student_id}/voiceprint")
+def enroll_voiceprint(
+    student_id: str, req: VoiceprintRequest, acct=Depends(current_account)
+) -> dict:
+    student = _owned_student(acct, student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    if not state.consent.granted:
+        raise HTTPException(status_code=409, detail="biometric consent is required")
+    result = _perception_json(f"/voiceprint/enroll/{student_id}", req.model_dump())
+    state.voice = state.voice.model_validate(
+        mark_record(
+            state.voice,
+            "verified",
+            template_ref=str(result.get("template_ref", "")),
+        )
+    )
+    state.assurance_level = "biometric"
+    _save_setup(acct, student_id, state)
+    return {"student_id": student_id, "verified": True}
+
+
+def _ephemeral_image(encoded: str) -> bytes:
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="document image is invalid") from exc
+    if not 1_000 <= len(data) <= 12 * 1024 * 1024:
+        raise HTTPException(status_code=422, detail="document image size is invalid")
+    if not (data.startswith(b"\xff\xd8\xff") or data.startswith(b"\x89PNG\r\n\x1a\n")):
+        raise HTTPException(status_code=422, detail="document image must be JPEG or PNG")
+    return data
+
+
+@app.post("/students/{student_id}/government-id")
+def submit_government_id(
+    student_id: str, req: DocumentSubmissionRequest, acct=Depends(current_account)
+) -> dict:
+    student = _owned_student(acct, student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    if not state.consent.granted:
+        raise HTTPException(status_code=409, detail="biometric consent is required")
+    front = _ephemeral_image(req.front_image_b64)
+    back = _ephemeral_image(req.back_image_b64) if req.back_image_b64 else b""
+    # Images are scoped to this request and discarded after the self-hosted
+    # face template confirms that the portrait on the ID matches the learner.
+    verification = _perception_image(f"/verify-face/{student_id}", front)
+    reference = hashlib.sha256(front + back + os.urandom(16)).hexdigest()
+    verified = bool(verification.get("verified"))
+    state.government_id = state.government_id.model_validate(
+        mark_record(
+            state.government_id,
+            "verified" if verified else "failed",
+            document_type=req.document_type[:40],
+            provider_reference=f"self-hosted-face-match:{reference}",
+            expires_at=time.time() + (365 * 24 * 60 * 60) if verified else None,
+            reason="" if verified else "document_portrait_did_not_match",
+        )
+    )
+    if verified:
+        state.assurance_level = "verified_identity"
+    _save_setup(acct, student_id, state)
+    return {
+        "student_id": student_id,
+        "status": "verified" if verified else "failed",
+        "reference": reference,
+    }
+
+
+@app.delete("/students/{student_id}/biometrics")
+def delete_biometrics(student_id: str, acct=Depends(current_account)) -> dict:
+    student = _owned_student(acct, student_id)
+    _perception_delete(student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    state.assurance_level = "none"
+    state.consent.granted = False
+    state.consent.face_granted = False
+    state.consent.voice_granted = False
+    state.consent.government_id_granted = False
+    state.consent.updated_at = time.time()
+    state.portrait = type(state.portrait)(status="revoked", updated_at=time.time())
+    state.pose = type(state.pose)(status="revoked", updated_at=time.time())
+    state.voice = type(state.voice)(status="revoked", updated_at=time.time())
+    state.government_id = type(state.government_id)(status="revoked", updated_at=time.time())
+    state.consent_events.append({
+        "event": "deleted",
+        "policy_version": state.consent.policy_version,
+        "at": state.consent.updated_at,
+    })
+    _save_setup(acct, student_id, state)
+    student.voice_name_text = ""
+    student.voice_enrolled_at = None
+    return {"student_id": student_id, "deleted": True}
+
+
+@app.post(
+    "/internal/government-id/decision",
+    dependencies=[Depends(require_internal)],
+)
+def government_id_decision(req: DocumentDecisionRequest) -> dict:
+    account = app.state.accounts.get_by_id(req.account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="account not found")
+    student = _owned_student(account, req.student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    if req.provider_reference != state.government_id.provider_reference:
+        raise HTTPException(status_code=409, detail="verification reference mismatch")
+    if req.status not in {"verified", "failed"}:
+        raise HTTPException(status_code=422, detail="decision must be verified or failed")
+    state.government_id = state.government_id.model_validate(
+        mark_record(
+            state.government_id,
+            req.status,
+            reason=req.reason[:200],
+        )
+    )
+    return _save_setup(account, req.student_id, state)
+
+
+@app.get("/students/{student_id}/identity-assurance")
+def identity_assurance(
+    student_id: str, required: bool = False, acct=Depends(current_account)
+) -> dict:
+    student = _owned_student(acct, student_id)
+    return certification_assurance(
+        student.biometric_setup, assurance_required=required
+    ).model_dump()
 
 
 # --------------------------------------------------------------------------- #

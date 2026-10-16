@@ -36,6 +36,7 @@ export function courseStudioFrameSrc(opts: {
   access: "sample" | "full";
   course: PublicCourseId;
   accountId?: string;
+  learnerId?: string;
   isAdmin?: boolean;
   presentation?: "audio";
 }): string {
@@ -50,6 +51,7 @@ export function courseStudioFrameSrc(opts: {
     else url.searchParams.set("enrollment", PAID_ENROLLMENT_STATUS);
   }
   if (opts.accountId) url.searchParams.set("account", opts.accountId);
+  if (opts.learnerId) url.searchParams.set("student", opts.learnerId);
   if (!fromEnv) return `${url.pathname}?${url.searchParams.toString()}`;
   return url.toString();
 }

@@ -165,6 +165,8 @@ def plans() -> dict:
         entry = {
             "languages": sorted(plan.languages),
             "solo_classes": plan.solo_classes,
+            "group_classes": plan.group_classes,
+            "ai_agents": plan.ai_agents,
             "cross_class_memory": plan.cross_class_memory,
             "recordings": plan.recordings,
             "analytics": plan.analytics,

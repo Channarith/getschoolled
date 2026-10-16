@@ -10,6 +10,7 @@ billing - the portfolio references them.
 from __future__ import annotations
 
 import enum
+import threading
 import time
 import uuid
 from typing import Dict, List, Optional
@@ -107,6 +108,8 @@ class StudentProfile(BaseModel):
     motivation: str = "personal"
     accessibility: Dict[str, bool] = Field(default_factory=dict)
     accommodations_notes: str = ""
+    # Setup assistant "how do you learn best" ratings (modality -> 1..10).
+    modality_ratings: Dict[str, int] = Field(default_factory=dict)
     learner_category: str = ""
     # Versioned routing fingerprint derived from the survey. Structured fields
     # remain authoritative; the score is for fast catalog/session decisions.
@@ -123,14 +126,14 @@ class StudentProfile(BaseModel):
     goal_timeline: str = ""
     adaptation: Dict[str, object] = Field(default_factory=dict)
     created_at: float = Field(default_factory=lambda: time.time())
-    # Voice identity enrollment: the student says their name aloud during the
-    # face + voice check in settings. The raw audio is stored as a base64 WAV/WebM
-    # blob so later analytics can match voice + face for identity verification
-    # and engagement tracking (e.g. verify the enrolled student is still present).
-    voice_name_sample_b64: str = ""       # base64-encoded audio blob (WebM/WAV)
-    voice_name_sample_mime: str = ""      # MIME type: "audio/webm" | "audio/wav" | "audio/mpeg"
+    # Legacy migration-only fields. They are excluded from new snapshots so raw
+    # voice media is never retained; biometric_setup is authoritative.
+    voice_name_sample_b64: str = Field(default="", exclude=True)
+    voice_name_sample_mime: str = Field(default="", exclude=True)
     voice_name_text: str = ""            # the name the student said (typed or transcribed)
     voice_enrolled_at: Optional[float] = None  # Unix timestamp of enrollment
+    # Decisions and opaque template references only; never raw biometric media.
+    biometric_setup: Dict[str, object] = Field(default_factory=dict)
     # Where this learner left each lesson. Keyed by lesson_id (or course_id).
     course_progress: Dict[str, "LessonProgress"] = Field(default_factory=dict)
     # Focus, attention, away intervals, and report-card observations.
@@ -189,6 +192,10 @@ class Account(BaseModel):
     oauth_subject: str = ""          # provider:sub when passwordless OAuth linked
     passkeys: List[PasskeyCredential] = Field(default_factory=list)
     onboarding_completed_at: Optional[float] = None
+    # Introductory free-plan claim. Empty until the person selects Free.
+    # Expired claims still count toward the 100-person cap.
+    free_plan_claimed_at: Optional[float] = None
+    free_plan_expires_at: Optional[float] = None
     billing_address: Optional[BillingAddress] = None
     card_last4: str = ""
     billing_validated_at: Optional[float] = None
@@ -226,10 +233,24 @@ class Account(BaseModel):
                 next_billing_at=self.next_billing_at,
                 billing_amount_usd=self.billing_amount_usd,
             ),
+            "free_plan": {
+                "claimed_at": self.free_plan_claimed_at,
+                "expires_at": self.free_plan_expires_at,
+                "active": bool(
+                    self.free_plan_claimed_at
+                    and self.free_plan_expires_at
+                    and self.free_plan_expires_at > time.time()
+                ),
+                "group_classes": False,
+                "ai_agents": False,
+            },
         }
 
 
 class AccountStore:
+    def get_by_id(self, account_id: str) -> Optional[Account]:
+        return self._by_id.get(account_id)
+
     def __init__(self) -> None:
         self._by_id: Dict[str, Account] = {}
         self._id_by_email: Dict[str, str] = {}
@@ -240,6 +261,8 @@ class AccountStore:
         # One-time nonces of redeemed AI-agent reward vouchers (replay guard).
         self._used_grant_nonces: set = set()
         self._passkey_challenges: Dict[str, str] = {}
+        # Serializes check-and-set when Redis is not configured (local and tests).
+        self._free_claim_lock = threading.Lock()
 
     def _persist(self) -> None:
         from .persistence import persist_hook
@@ -669,6 +692,117 @@ class AccountStore:
         self._persist()
         return prof
 
+    def _known_free_claims(self) -> list[tuple[str, str]]:
+        from .persistence import format_claim_record
+
+        rows: list[tuple[str, str]] = []
+        for acct in self._by_id.values():
+            if acct.free_plan_claimed_at and acct.free_plan_expires_at:
+                rows.append((
+                    acct.id,
+                    format_claim_record(acct.free_plan_claimed_at, acct.free_plan_expires_at),
+                ))
+        return rows
+
+    def free_claim_count(self) -> int:
+        """People who have claimed the introductory free plan, including expired trials."""
+        from .persistence import durable_free_claim_count
+
+        local = sum(1 for acct in self._by_id.values() if acct.free_plan_claimed_at)
+        remote = durable_free_claim_count(self._known_free_claims())
+        if remote is None:
+            return local
+        return remote
+
+    def _grant_free_plan(self, acct: Account, claimed_at: float, expires_at: float) -> Account:
+        acct.free_plan_claimed_at = claimed_at
+        acct.free_plan_expires_at = expires_at
+        acct.tier = PlanTier.FREE
+        acct.membership_class = membership_class_for_tier(PlanTier.FREE.value)
+        acct.subscription_started_at = None
+        acct.billing_anchor_day = None
+        acct.next_billing_at = None
+        acct.billing_amount_usd = None
+        self._persist()
+        return acct
+
+    def claim_free_plan(self, account_id: str, *, now: Optional[float] = None) -> Account:
+        """Select the free plan if the offer is still open and this person has not used it up.
+
+        The in-memory lock makes the local check-and-set atomic for one process,
+        and only local/dev/test may use it when Redis is unset. Cloud, production,
+        and staging refuse the claim instead of counting seats per process.
+        When Redis is configured, the seat itself is reserved by a Lua script so
+        the first-100 cap holds across replicas even if a snapshot is lost.
+        """
+        with self._free_claim_lock:
+            return self._claim_free_plan_locked(account_id, now=now)
+
+    def _claim_free_plan_locked(self, account_id: str, *, now: Optional[float] = None) -> Account:
+        from aoep_shared.free_plan import (
+            evaluate_free_offer,
+            free_trial_active,
+            load_offer,
+            trial_expires_at,
+        )
+
+        from .persistence import (
+            FreeClaimUnavailable,
+            apply_free_claim,
+            parse_claim_record,
+            reserve_free_claim,
+        )
+
+        acct = self._by_id[account_id]
+        moment = time.time() if now is None else now
+        if free_trial_active(acct.free_plan_claimed_at, acct.free_plan_expires_at, moment):
+            return self.set_tier(account_id, PlanTier.FREE)
+        if acct.free_plan_claimed_at:
+            raise ValueError("Your free plan has ended.")
+        offer = load_offer()
+        window = evaluate_free_offer(0, moment, offer)
+        if moment >= offer.offer_ends_at:
+            raise ValueError(window.reason or "The free plan has ended.")
+        expires = trial_expires_at(moment, offer)
+        status, record = reserve_free_claim(
+            account_id,
+            moment,
+            expires,
+            offer.seat_limit,
+            self._known_free_claims(),
+        )
+        if status == "local":
+            # Same cap rules as the Redis script, serialized by _free_claim_lock.
+            decision, _record = apply_free_claim(
+                {},
+                account_id,
+                offer.seat_limit,
+                "0",
+                "0",
+                self._known_free_claims(),
+            )
+            if decision != "new":
+                full = evaluate_free_offer(offer.seat_limit, moment, offer)
+                raise ValueError(full.reason)
+            return self._grant_free_plan(acct, moment, expires)
+        if status == "full":
+            full = evaluate_free_offer(offer.seat_limit, moment, offer)
+            raise ValueError(full.reason)
+        try:
+            claimed_at, expires_at = parse_claim_record(record)
+        except (TypeError, ValueError) as exc:
+            raise FreeClaimUnavailable("The free plan cannot be claimed right now.") from exc
+        if status == "existing":
+            acct.free_plan_claimed_at = claimed_at
+            acct.free_plan_expires_at = expires_at
+            self._persist()
+            if not free_trial_active(claimed_at, expires_at, moment):
+                raise ValueError("Your free plan has ended.")
+            if tier_requires_payment(acct.tier.value):
+                return acct
+            return self.set_tier(account_id, PlanTier.FREE)
+        return self._grant_free_plan(acct, claimed_at, expires_at)
+
     def set_tier(self, account_id: str, tier: PlanTier) -> Account:
         acct = self._by_id[account_id]
         acct.tier = tier
@@ -908,6 +1042,18 @@ class AccountStore:
         self._persist()
         return prof
 
+    def upsert_primary_learner(self, account_id: str, display_name: str,
+                               age_band: str) -> StudentProfile:
+        """Name the account's first learner, creating it on first sign-in."""
+        acct = self._by_id[account_id]
+        prof = next(iter(acct.students.values()), None)
+        if prof is None:
+            return self.add_student(account_id, display_name, age_band=age_band)
+        prof.display_name = display_name
+        prof.age_band = age_band
+        self._persist()
+        return prof
+
     def apply_learning_profile(self, account_id: str, student_id: str, profile) -> StudentProfile:
         """Persist onboarding survey results on a student profile."""
         prof = self._by_id[account_id].students.get(student_id)
@@ -922,6 +1068,7 @@ class AccountStore:
         prof.motivation = profile.motivation
         prof.accessibility = dict(profile.accessibility)
         prof.accommodations_notes = profile.accommodations_notes
+        prof.modality_ratings = dict(profile.modality_ratings)
         prof.learner_category = profile.learner_category
         prof.profile_score = profile.profile_score
         prof.profile_score_version = profile.profile_score_version
@@ -1262,6 +1409,20 @@ class AccountStore:
         self._persist()
         return prof
 
+    def update_biometric_setup(
+        self,
+        account_id: str,
+        student_id: str,
+        setup: dict,
+    ) -> StudentProfile:
+        """Persist sanitized setup metadata for a student-owned profile."""
+        from aoep_shared.biometric_setup import normalize_setup_state
+
+        prof = self._student_or_raise(account_id, student_id)
+        prof.biometric_setup = normalize_setup_state(setup).model_dump()
+        self._persist()
+        return prof
+
     def enroll_voice(
         self,
         account_id: str,
@@ -1271,22 +1432,15 @@ class AccountStore:
         voice_name_sample_mime: str,
         voice_name_text: str,
     ) -> StudentProfile:
-        """Store a voice-name sample for a student profile.
-
-        Called from the settings face+voice ID check: the student says their
-        name on camera/mic and the audio blob (base64-encoded) is stored here.
-        The blob is intentionally stored on the profile (not in object storage)
-        so it travels with the student record and is available for analytics
-        and verification without a separate storage lookup.
-        """
+        """Legacy metadata update; raw voice media is deliberately discarded."""
         acct = self._by_id.get(account_id)
         if acct is None:
             raise KeyError("account not found")
         prof = acct.students.get(student_id)
         if prof is None:
             raise KeyError("student not found")
-        prof.voice_name_sample_b64 = voice_name_sample_b64
-        prof.voice_name_sample_mime = voice_name_sample_mime or "audio/webm"
+        prof.voice_name_sample_b64 = ""
+        prof.voice_name_sample_mime = ""
         prof.voice_name_text = voice_name_text
         prof.voice_enrolled_at = time.time()
         self._persist()

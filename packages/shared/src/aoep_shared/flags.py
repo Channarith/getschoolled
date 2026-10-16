@@ -124,11 +124,36 @@ FLAG_CATALOG: List[FlagSpec] = [
              "flip it on."),
     FlagSpec("sales_demo.restrict_signed_in", FlagType.BOOL, False, "sales_demo",
              "Simplified-nav mode after login. Signed-in non-admin accounts see "
-             "a trimmed one-row header with 5 tabs: Our Story, Vision Play Lab, "
-             "Audio Translation Lab, Careers, Live Class — plus profile. The "
+             "a trimmed one-row header with 5 tabs: Our Story, Vision Play, "
+             "On the Go, Careers, Live Class — plus profile. The "
              "full home and pages still render; only the nav is simplified. "
              "Lock-out guard: admin accounts (is_admin) always see the full "
-             "nav regardless of this flag, so you cannot lock yourself out."),
+             "nav regardless of this flag, so you cannot lock yourself out. "
+             "NOTE 2026-10-15: superseded by nav.full_tabs_enabled for the "
+             "launch default (simplified nav is now the DEFAULT for every "
+             "account); this flag is kept for legacy admin bypasses."),
+
+    # --- arcade / vision play lab -------------------------------------------- #
+    FlagSpec("arcade.vision_only", FlagType.BOOL, True, "arcade",
+             "Simplified Vision Play mode. When ON (default), /arcade "
+             "shows ONLY Machine Vision (webcam-driven hands-free "
+             "learning: faces, hands, letters, movement, listening) and "
+             "hides the full games catalog (Salareen Worlds banner, "
+             "Professional scenarios, Kids' Games, Discovery Games, Zoo & "
+             "Reef, Challenge the AI, Featured arcade games, game picker, "
+             "rounds, results, leaderboard). Turn OFF in /admin to restore "
+             "the full arcade hub for every account."),
+
+    # --- nav / header -------------------------------------------------------- #
+    FlagSpec("nav.full_tabs_enabled", FlagType.BOOL, False, "nav",
+             "Show the full navigation menu (Home, Browse, For You, Kids, "
+             "Corporate, Languages, Drive, Group Classes, Watch, Homework) "
+             "instead of the simplified 5-tab launch header. When OFF (default), "
+             "every signed-in account sees only Our Story · Vision Play Lab · "
+             "On the Go · Careers · Live Class. Turn ON to restore "
+             "the full navigation globally — admins can flip this from the "
+             "admin console. No lock-out risk: the trimmed tabs always include "
+             "a path back to profile/settings and admin."),
 
     # --- data / analytics / data mining -------------------------------------- #
     FlagSpec("data.multidim_datamart", FlagType.BOOL, False, "data",

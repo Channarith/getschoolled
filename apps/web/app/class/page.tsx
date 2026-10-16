@@ -11,6 +11,8 @@ import {
   enrollCourse,
   getAssessmentPolicy,
   getDisclosure,
+  getIdentityAssurance,
+  getLessonAccreditation,
   getQuiz,
   grantReward,
   getPostClassSurvey,
@@ -54,6 +56,7 @@ import {
   canAwardCourseCompletion,
   findDueFormativeCheckpoint,
   findDueSummativeCheckpoint,
+  requiresRegisteredAccountForAccreditation,
 } from "../lib/assessmentFlow";
 import SignInToUse from "../components/SignInToUse";
 import { FullCourseLinks } from "../components/FullCourseLinks";
@@ -457,6 +460,19 @@ export default function ClassPage() {
     setFinish(null);
     setBusy(true);
     try {
+      const accreditation = await getLessonAccreditation(lessonId).catch(() => ({
+        requires_identity_assurance: requiresRegisteredAccountForAccreditation(lessonId),
+      }));
+      if (accreditation.requires_identity_assurance) {
+        const identityStudentId = studentProfile?.id || getStudentId();
+        const assurance = await getIdentityAssurance(identityStudentId, true);
+        if (!assurance.allowed) {
+          router.push(
+            `/account/camera-check?required=1&returnTo=${encodeURIComponent(`/class?lesson=${lessonId}`)}`,
+          );
+          return;
+        }
+      }
       const place = await resumeSlideForLesson(lessonId, studentProfile?.id);
       const v = await startSession(
         lessonId,

@@ -5,7 +5,8 @@ import {
 
 import {
   advanceLessonSession, askLessonSession, directorLxTick, enrollCourse,
-  getAssessmentPolicy, getPostClassSurvey, getPulseSurvey, getQuiz, getRewards, gradeQuiz,
+  getAssessmentPolicy, getLessonAccreditation, getMobileIdentityAssurance,
+  getPostClassSurvey, getPulseSurvey, getQuiz, getRewards, gradeQuiz,
   listStudents, reengageLessonSession, recordAssessmentAttempt, recordAssessmentPass,
   setEnrollmentStatus, startAssessmentCheckpoint, startLessonSession,
   submitPostClassSurvey, submitPulseSurvey,
@@ -22,6 +23,7 @@ import {
 } from "../assessmentFlow";
 import AnimatedPressable from "../components/AnimatedPressable";
 import AssessmentCheckpointCard from "../components/AssessmentCheckpointCard";
+import BiometricSetupModal from "../components/BiometricSetupModal";
 import CameraLightingScreener from "../components/CameraLightingScreener";
 import CourseStoryboardView from "../components/CourseStoryboardView";
 import GlassPanel from "../components/GlassPanel";
@@ -84,6 +86,7 @@ export default function LessonScreen({
   const [assessmentResult, setAssessmentResult] = useState<AssessmentSubmitResult | null>(null);
   const [passDecisionToken, setPassDecisionToken] = useState<string | null>(null);
   const [voiceOn, setVoiceOn] = useState(true);
+  const [showIdentitySetup, setShowIdentitySetup] = useState(false);
   const slideRef = useRef<LessonSlide | null>(null);
   const studentIdRef = useRef("guest");
   const completedCheckpointsRef = useRef<Set<string>>(new Set());
@@ -145,6 +148,17 @@ export default function LessonScreen({
               if (alive) setStudentProfile(first);
             }
           } catch { /* optional */ }
+        }
+        const accreditation = await getLessonAccreditation(lessonId).catch(() => ({
+          certifiable: false,
+          requires_identity_assurance: false,
+        }));
+        if (accreditation.requires_identity_assurance) {
+          const assurance = await getMobileIdentityAssurance(studentIdRef.current);
+          if (!assurance.allowed) {
+            if (alive) setShowIdentitySetup(true);
+            return;
+          }
         }
         const v = await startLessonSession(lessonId, studentIdRef.current, classType);
         if (!alive) return;
@@ -872,6 +886,20 @@ export default function LessonScreen({
         onSubmit={(a) => void onSurveySubmit(a)}
         onClose={() => { setSurveyTpl(null); if (finish) onBack(); }}
       />
+      {studentProfile ? (
+        <BiometricSetupModal
+          visible={showIdentitySetup}
+          studentId={studentProfile.id}
+          ageBand={studentProfile.age_band}
+          requireGovernmentId
+          onDismiss={() => setShowIdentitySetup(false)}
+          onComplete={() => {
+            setShowIdentitySetup(false);
+            setLightingReady(false);
+            setTimeout(() => setLightingReady(true), 0);
+          }}
+        />
+      ) : null}
     </View>
   );
 }

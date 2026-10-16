@@ -361,7 +361,39 @@ integrations service handlers.
   ...register a subscriber with empty event_types to receive ALL events.
 
 ============================================================================
-11. EVOLVING THIS DOC
+11. SETUP ASSISTANT AND IDENTITY ASSURANCE
+============================================================================
+All student routes require the owning account bearer token. Raw face, voice,
+and government-ID media is processed ephemerally and is never returned.
+
+  GET/PATCH /students/{student_id}/setup-assistant
+  PUT       /students/{student_id}/biometric-consent
+  POST      /students/{student_id}/biometric-face
+  POST      /students/{student_id}/biometric-face-images
+  POST      /students/{student_id}/voiceprint
+  POST      /students/{student_id}/government-id
+  GET       /students/{student_id}/identity-assurance?required=true
+  DELETE    /students/{student_id}/biometrics
+  POST      /internal/government-id/decision
+
+Perception's internal-only template operations are:
+  POST   /verify-face/{student_id}
+  POST   /voiceprint/enroll/{student_id}
+  POST   /voiceprint/verify/{student_id}
+  DELETE /biometrics/{student_id}
+
+Identity stores consent history, status, timestamps, assurance level, and
+opaque template/provider references. Perception owns encrypted face and
+speaker templates. Government-ID images are compared to the enrolled face and
+discarded; only the decision, document type, expiry, and opaque reference stay.
+
+Accreditation metadata includes requires_identity_assurance. Orchestrator and
+Course Studio return HTTP 428 with X-AOEP-Gate: identity_assurance_required
+when a credited/full lesson lacks face, voice, or verified government ID.
+Samples, general courses, and games do not use this gate.
+
+============================================================================
+12. EVOLVING THIS DOC
 ============================================================================
 When you add or change a route, update this file AND verify it stays in sync:
   python3 scripts/check_api_docs.py

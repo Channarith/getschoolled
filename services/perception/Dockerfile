@@ -3,8 +3,9 @@ FROM python:3.11-slim
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 # OpenCV runtime needs libGL/libglib even for the headless wheel's deps.
+# ffmpeg decodes browser/phone voice samples (webm/opus, mp4/aac, m4a).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+    libglib2.0-0 ffmpeg && rm -rf /var/lib/apt/lists/*
 COPY packages/shared /app/packages/shared
 COPY VERSION /app/VERSION
 COPY services/perception/requirements.txt /app/services/perception/requirements.txt

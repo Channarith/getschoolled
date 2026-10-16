@@ -19,8 +19,27 @@ class LiveRoomRewardsError(Exception):
     """Identity rewards call failed (insufficient balance, auth, etc.)."""
 
 
-def account_from_authorization(authorization: str, *, timeout_s: float = 5.0) -> Optional[str]:
-    """Resolve account id from a Bearer session token via identity ``/auth/me``."""
+class IdentityUnreadable(Exception):
+    """Identity could not be read (network, timeout, or server error)."""
+
+
+class VerifiedIdentityError(Exception):
+    """A verified account is required and was not established."""
+
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(detail)
+
+
+def profile_from_authorization(authorization: str, *, timeout_s: float = 5.0) -> Optional[dict]:
+    """Resolve identity ``/auth/me`` for a Bearer token.
+
+    Returns None when the caller is anonymous or identity rejects the token.
+    Raises IdentityUnreadable when identity cannot be contacted or returns
+    a server error — callers that must fail closed should use
+    ``require_verified_profile`` rather than treating that as a guest.
+    """
     auth = (authorization or "").strip()
     if not auth.lower().startswith("bearer "):
         return None
@@ -29,7 +48,58 @@ def account_from_authorization(authorization: str, *, timeout_s: float = 5.0) ->
     try:
         with urllib.request.urlopen(req, timeout=timeout_s) as resp:
             data = json.loads(resp.read().decode())
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            return None
+        raise IdentityUnreadable(f"identity status {exc.code}") from exc
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+        raise IdentityUnreadable("identity service unavailable") from exc
+    return data if isinstance(data, dict) else None
+
+
+def resolve_presented_profile(authorization: str, *, timeout_s: float = 5.0) -> Optional[dict]:
+    """Profile for an optional-guest call.
+
+    No credentials means an anonymous guest (``None``). A presented Bearer
+    token is never downgraded to that guest: rejection is
+    ``VerifiedIdentityError`` 401 and an unreadable identity service is 503.
+    """
+    auth = (authorization or "").strip()
+    if not auth.lower().startswith("bearer "):
+        return None
+    return require_verified_profile(auth, timeout_s=timeout_s)
+
+
+def require_verified_profile(authorization: str, *, timeout_s: float = 5.0) -> dict:
+    """Return the signed-in account profile, or raise VerifiedIdentityError.
+
+    Missing and rejected credentials are 401. An unreadable identity service
+    is 503. The returned profile always has an account id.
+    """
+    auth = (authorization or "").strip()
+    if not auth.lower().startswith("bearer "):
+        raise VerifiedIdentityError(401, "sign in required")
+    try:
+        profile = profile_from_authorization(auth, timeout_s=timeout_s)
+    except VerifiedIdentityError:
+        raise
+    except Exception as exc:
+        raise VerifiedIdentityError(503, "identity service unavailable") from exc
+    account_id = ""
+    if isinstance(profile, dict):
+        account_id = str(profile.get("id") or "").strip()
+    if not account_id:
+        raise VerifiedIdentityError(401, "sign in required")
+    return profile
+
+
+def account_from_authorization(authorization: str, *, timeout_s: float = 5.0) -> Optional[str]:
+    """Resolve account id from a Bearer session token via identity ``/auth/me``."""
+    try:
+        data = profile_from_authorization(authorization, timeout_s=timeout_s)
+    except IdentityUnreadable:
+        return None
+    if not data:
         return None
     return str(data.get("id") or "").strip() or None
 

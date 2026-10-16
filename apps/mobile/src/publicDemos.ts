@@ -27,7 +27,7 @@ export const PUBLIC_DEMOS: PublicDemo[] = [
   },
   {
     id: "on-the-go",
-    path: "/studio?access=sample&course=drivers-ed&presentation=audio&embed=mobile",
+    path: "/demo/on-the-go",
     emoji: "🎧",
     title: "Serenity · On-the-Go",
     subtitle: "Audio only · 10-min demo",
@@ -37,9 +37,9 @@ export const PUBLIC_DEMOS: PublicDemo[] = [
     id: "arcade",
     path: "/children-lab?embed=mobile",
     emoji: "🎮",
-    title: "Vision arcade",
+    title: "Vision Play",
     subtitle: "Machine vision for kids",
-    description: "Children play webcam games: faces, hands, movement, and listening. The camera stays on this device.",
+    description: "Machine vision: faces, hands, movement, and listening. The camera stays on this device.",
   },
 ];
 

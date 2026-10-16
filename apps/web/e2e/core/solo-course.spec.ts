@@ -93,19 +93,19 @@ test.describe("Drive Mode — full flow (WV-DRIVE)", () => {
     expect(crash).toHaveLength(0);
   });
 
-  test("Drive Mode source has mic and ask-type buttons (WV-DRIVE voice input)", () => {
-    // Mic and ask buttons only render during an active Drive session (gated on
-    // course selection + play state). Verify at source level they exist.
+  test("On the Go source has Start and Pause only (WV-DRIVE voice input)", () => {
+    // Hands-free transport is one Start/Pause control. Sala still starts
+    // through the drive voice agent.
     const { execSync } = require("child_process");
     const path = require("path");
     const REPO = path.resolve(__dirname, "../../../..");
-    const src = execSync(`cat "${REPO}/apps/web/app/drive/page.tsx"`, { encoding: "utf8" });
-    // Mic enable button.
-    expect(src).toContain("drive.enableMic");
-    // Ask by typing button.
-    expect(src).toContain("drive.askType");
-    // Voice listening entry point.
-    expect(src).toContain("startVoiceRecognition");
+    const src = execSync(`cat "${REPO}/apps/web/app/components/OnTheGo.tsx"`, { encoding: "utf8" });
+    const page = execSync(`cat "${REPO}/apps/web/app/drive/page.tsx"`, { encoding: "utf8" });
+    expect(src).toContain("drive.start");
+    expect(src).toContain("drive.pause");
+    expect(src).toContain("startDriveVoice");
+    expect(page).toContain('mode="full"');
+    expect(src).toContain("on-the-go-timer");
   });
 
   test("Drive Mode stop halts narration (regression WV-DS-01)", async ({

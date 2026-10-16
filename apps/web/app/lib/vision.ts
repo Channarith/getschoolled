@@ -14,11 +14,7 @@
 // engine).
 
 import { visionModelUrl, type WireFace } from "./api";
-
-// OpenCV.js with FaceDetectorYN ships in the official 4.10.0+ build. Override
-// with NEXT_PUBLIC_OPENCV_JS_URL to self-host the asset from your own origin.
-const OPENCV_JS_URL =
-  process.env.NEXT_PUBLIC_OPENCV_JS_URL ?? "https://docs.opencv.org/4.10.0/opencv.js";
+import { ModelLoadError, OPENCV_JS_URL, waitForCvRuntime } from "./opencvRuntime";
 
 const DETECTOR_NAME = "face_detection_yunet_2023mar.onnx";
 const RECOGNIZER_NAME = "face_recognition_sface_2021dec.onnx";
@@ -43,72 +39,71 @@ function loadOpenCv(): Promise<any> {
   if (_cvReady) return _cvReady;
   _cvReady = new Promise<any>((resolve, reject) => {
     const w = window as any;
-    if (w.cv && w.cv.Mat) {
-      resolve(w.cv);
+    if (w.cv) {
+      waitForCvRuntime(w.cv).then(resolve, reject);
       return;
     }
     const script = document.createElement("script");
     script.src = OPENCV_JS_URL;
     script.async = true;
-    script.onload = () => {
-      const cv = w.cv;
-      if (!cv) {
-        reject(new Error("opencv.js loaded but window.cv is undefined"));
-        return;
-      }
-      // OpenCV.js may already be initialised, expose a Promise, or call
-      // onRuntimeInitialized once the WASM runtime is ready.
-      if (typeof cv.then === "function") {
-        cv.then((ready: any) => resolve(ready)).catch(reject);
-      } else if (cv.Mat) {
-        resolve(cv);
-      } else {
-        cv.onRuntimeInitialized = () => resolve(cv);
-      }
+    script.onload = () => waitForCvRuntime(w.cv).then(resolve, reject);
+    script.onerror = () => {
+      script.remove();
+      reject(new ModelLoadError(`failed to load opencv.js from ${OPENCV_JS_URL}`));
     };
-    script.onerror = () =>
-      reject(new Error(`failed to load opencv.js from ${OPENCV_JS_URL}`));
     document.body.appendChild(script);
+  });
+  // A failed download must not poison retries for the rest of the session.
+  _cvReady.catch(() => {
+    _cvReady = null;
   });
   return _cvReady;
 }
 
-async function stageModel(cv: any, name: string): Promise<void> {
-  // Already staged into the Emscripten FS?
+// The runtime's heap is fixed at 128 MB; SFace alone is ~37 MB, so each file is
+// removed from the Emscripten FS once OpenCV has parsed it.
+async function withStagedModel<T>(cv: any, name: string, open: () => T): Promise<T> {
+  let res: Response;
   try {
-    cv.FS_stat?.("/" + name);
-    return;
-  } catch {
-    /* not present yet */
+    res = await fetch(visionModelUrl(name), { cache: "force-cache" });
+  } catch (reason) {
+    throw new ModelLoadError(`could not fetch model ${name}: ${String(reason)}`);
   }
-  const res = await fetch(visionModelUrl(name), { cache: "force-cache" });
   if (!res.ok) {
-    throw new Error(`could not fetch model ${name}: ${res.status}`);
+    throw new ModelLoadError(`could not fetch model ${name}: ${res.status}`);
   }
   const buf = new Uint8Array(await res.arrayBuffer());
+  try {
+    cv.FS_unlink("/" + name);
+  } catch {
+    /* not staged yet */
+  }
   cv.FS_createDataFile("/", name, buf, true, false, false);
+  try {
+    return open();
+  } finally {
+    try {
+      cv.FS_unlink("/" + name);
+    } catch {
+      /* best-effort */
+    }
+  }
 }
 
 /** Load OpenCV.js + the YuNet/SFace models and return a ready engine. */
 export async function createVisionEngine(): Promise<VisionEngine> {
   const cv = await loadOpenCv();
-  if (!cv.FaceDetectorYN) {
-    throw new Error(
-      "This OpenCV.js build lacks FaceDetectorYN; use the official 4.10.0+ build."
-    );
-  }
-  await stageModel(cv, DETECTOR_NAME);
-  await stageModel(cv, RECOGNIZER_NAME);
-
-  const detector = new cv.FaceDetectorYN(
+  const detector = await withStagedModel(cv, DETECTOR_NAME, () => new cv.FaceDetectorYN(
     DETECTOR_NAME,
     "",
     new cv.Size(320, 320),
     DET_SCORE_THRESHOLD,
     0.3,
     5000
-  );
-  const recognizer = cv.readNet(RECOGNIZER_NAME);
+  ));
+  const recognizer = await withStagedModel(cv, RECOGNIZER_NAME, () => cv.readNet(RECOGNIZER_NAME));
+
+  const canvas = document.createElement("canvas");
 
   function detectAndEmbed(source: ImageSource): WireFace[] {
     // Draw the source onto a canvas so OpenCV can read RGBA pixels.
@@ -122,10 +117,9 @@ export async function createVisionEngine(): Promise<VisionEngine> {
       (source as HTMLCanvasElement).height;
     if (!width || !height) return [];
 
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return [];
     ctx.drawImage(source, 0, 0, width, height);
 
@@ -189,10 +183,12 @@ export async function createVisionEngine(): Promise<VisionEngine> {
   }
 
   function dispose(): void {
-    try {
-      detector.delete?.();
-    } catch {
-      /* best-effort */
+    for (const handle of [detector, recognizer]) {
+      try {
+        handle.delete?.();
+      } catch {
+        /* best-effort */
+      }
     }
   }
 

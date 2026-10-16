@@ -20,6 +20,258 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 REDIS_KEY = "aoep:identity:v1:state"
+FREE_CLAIM_KEY = "aoep:identity:v1:free_plan_claims"
+
+# Atomic seat reservation. HSETNX backfill and the cap check run in one script
+# so two replicas cannot both admit the 100th person. Keep this in lockstep
+# with apply_free_claim() below.
+_RESERVE_FREE_CLAIM_LUA = """
+-- aoep-free-claim-reserve
+local key = KEYS[1]
+local account_id = ARGV[1]
+local limit = tonumber(ARGV[2])
+local record = ARGV[3] .. '|' .. ARGV[4]
+local n = tonumber(ARGV[5]) or 0
+local idx = 6
+for i = 1, n do
+  local aid = ARGV[idx]
+  local rec = ARGV[idx + 1]
+  if aid and aid ~= '' and rec and rec ~= '' and redis.call('HEXISTS', key, aid) == 0 then
+    redis.call('HSETNX', key, aid, rec)
+  end
+  idx = idx + 2
+end
+local existing = redis.call('HGET', key, account_id)
+if existing then
+  return {'existing', existing}
+end
+local count = redis.call('HLEN', key)
+if count >= limit then
+  return {'full', ''}
+end
+redis.call('HSET', key, account_id, record)
+return {'new', record}
+"""
+
+_COUNT_FREE_CLAIMS_LUA = """
+-- aoep-free-claim-count
+local key = KEYS[1]
+local n = tonumber(ARGV[1]) or 0
+local idx = 2
+for i = 1, n do
+  local aid = ARGV[idx]
+  local rec = ARGV[idx + 1]
+  if aid and aid ~= '' and rec and rec ~= '' and redis.call('HEXISTS', key, aid) == 0 then
+    redis.call('HSETNX', key, aid, rec)
+  end
+  idx = idx + 2
+end
+return redis.call('HLEN', key)
+"""
+
+
+class FreeClaimUnavailable(RuntimeError):
+    """The seat cap could not be reserved safely, so the claim is refused."""
+
+
+def _optional_timestamp(value):
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _millis(ts: float) -> str:
+    return str(int(round(float(ts) * 1000.0)))
+
+
+def format_claim_record(claimed_at: float, expires_at: float) -> str:
+    return f"{_millis(claimed_at)}|{_millis(expires_at)}"
+
+
+def parse_claim_record(record: str) -> tuple[float, float]:
+    claimed_ms, expires_ms = str(record).split("|", 1)
+    return int(claimed_ms) / 1000.0, int(expires_ms) / 1000.0
+
+
+def _text(value) -> str:
+    if isinstance(value, bytes):
+        return value.decode()
+    return "" if value is None else str(value)
+
+
+def apply_free_claim(
+    claims: dict[str, str],
+    account_id: str,
+    limit: int,
+    claimed_ms: str,
+    expires_ms: str,
+    backfill: list[tuple[str, str]],
+) -> tuple[str, str]:
+    """Same rules as _RESERVE_FREE_CLAIM_LUA, for the in-memory fallback and tests."""
+    for aid, rec in backfill:
+        if aid and rec and aid not in claims:
+            claims[aid] = rec
+    existing = claims.get(account_id)
+    if existing:
+        return "existing", existing
+    if len(claims) >= int(limit):
+        return "full", ""
+    record = f"{claimed_ms}|{expires_ms}"
+    claims[account_id] = record
+    return "new", record
+
+
+def _known_claim_args(known: list[tuple[str, str]]) -> list[str]:
+    args: list[str] = [str(len(known))]
+    for aid, rec in known:
+        args.append(aid)
+        args.append(rec)
+    return args
+
+
+# A per-process lock is a correct seat cap only while one process owns every
+# claim. Cloud, production, and staging run more than one identity replica.
+_LOCAL_CLAIM_MODES = frozenset({
+    "local",
+    "dev",
+    "development",
+    "test",
+    "debug",
+})
+
+
+def free_claim_memory_fallback_allowed() -> bool:
+    """Whether an unset REDIS_URL may fall back to the in-process seat lock.
+
+    Unset DEPLOY_MODE matches the rest of identity and means local. Any other
+    mode, including cloud, production, prod, and staging, must fail closed.
+    """
+    mode = os.environ.get("DEPLOY_MODE", "local").strip().lower()
+    return mode in _LOCAL_CLAIM_MODES
+
+
+def reserve_free_claim(
+    account_id: str,
+    claimed_at: float,
+    expires_at: float,
+    limit: int,
+    known: list[tuple[str, str]],
+) -> tuple[str, str]:
+    """Reserve one durable seat.
+
+    Returns ("local", "") only in local/dev/test when Redis is not configured —
+    the caller then uses its in-memory lock. Returns ("new"|"existing"|"full",
+    record). Raises FreeClaimUnavailable when a non-local deploy has no
+    REDIS_URL, or when Redis is configured but the reservation cannot be
+    completed, so a replica never admits a seat it could not record.
+    """
+    if not redis_configured():
+        if free_claim_memory_fallback_allowed():
+            return "local", ""
+        mode = os.environ.get("DEPLOY_MODE", "").strip().lower() or "unset"
+        logger.error(
+            "free-plan claim refused: REDIS_URL is unset and DEPLOY_MODE=%s "
+            "cannot use the in-process seat lock",
+            mode,
+        )
+        raise FreeClaimUnavailable("The free plan cannot be claimed right now.")
+    client = _redis_client()
+    if client is None:
+        raise FreeClaimUnavailable("The free plan cannot be claimed right now.")
+    claimed_ms = _millis(claimed_at)
+    expires_ms = _millis(expires_at)
+    backfill = [(aid, rec) for aid, rec in known if aid and aid != account_id]
+    try:
+        raw = client.eval(
+            _RESERVE_FREE_CLAIM_LUA,
+            1,
+            FREE_CLAIM_KEY,
+            account_id,
+            str(int(limit)),
+            claimed_ms,
+            expires_ms,
+            *_known_claim_args(backfill),
+        )
+    except FreeClaimUnavailable:
+        raise
+    except Exception as exc:
+        logger.warning("free-plan seat reservation failed (%s)", exc)
+        raise FreeClaimUnavailable("The free plan cannot be claimed right now.") from exc
+    if not isinstance(raw, (list, tuple)) or len(raw) < 2:
+        raise FreeClaimUnavailable("The free plan cannot be claimed right now.")
+    status = _text(raw[0])
+    record = _text(raw[1])
+    if status not in {"new", "existing", "full"}:
+        raise FreeClaimUnavailable("The free plan cannot be claimed right now.")
+    return status, record
+
+
+def durable_free_claim_count(known: list[tuple[str, str]]) -> Optional[int]:
+    """Union of the Redis seat hash and this replica's known claims.
+
+    None means Redis is not configured or could not be read; callers then use
+    the in-memory count. A failed read does not grant seats.
+    """
+    if not redis_configured():
+        return None
+    client = _redis_client()
+    if client is None:
+        return None
+    try:
+        raw = client.eval(
+            _COUNT_FREE_CLAIMS_LUA,
+            1,
+            FREE_CLAIM_KEY,
+            *_known_claim_args(known),
+        )
+    except Exception as exc:
+        logger.warning("free-plan seat count failed (%s)", exc)
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def hydrate_free_claims(store: "AccountStore") -> None:
+    """Restore claim timestamps lost from a snapshot, then index local claims.
+
+    The Redis hash is the cross-replica source of truth for the 100-seat cap.
+    Loading a snapshot must not forget seats that the hash already recorded,
+    and seats that exist only on the snapshot must be indexed before new claims.
+    """
+    if not redis_configured():
+        return
+    client = _redis_client()
+    if client is None:
+        return
+    try:
+        remote = client.hgetall(FREE_CLAIM_KEY) or {}
+    except Exception as exc:
+        logger.warning("free-plan claim hydrate failed (%s)", exc)
+        return
+    for aid, record in remote.items():
+        acct = store._by_id.get(_text(aid))
+        if acct is None or acct.free_plan_claimed_at:
+            continue
+        try:
+            claimed, expires = parse_claim_record(_text(record))
+        except (TypeError, ValueError):
+            continue
+        acct.free_plan_claimed_at = claimed
+        acct.free_plan_expires_at = expires
+    known: list[tuple[str, str]] = []
+    for acct in store._by_id.values():
+        if acct.free_plan_claimed_at and acct.free_plan_expires_at:
+            known.append((
+                acct.id,
+                format_claim_record(acct.free_plan_claimed_at, acct.free_plan_expires_at),
+            ))
+    if known:
+        durable_free_claim_count(known)
 
 
 def redis_configured() -> bool:
@@ -93,6 +345,8 @@ def _deserialize_account(raw: dict) -> "Account":
         totp_enabled=bool(raw.get("totp_enabled", False)),
         oauth_subject=raw.get("oauth_subject", ""),
         onboarding_completed_at=raw.get("onboarding_completed_at"),
+        free_plan_claimed_at=_optional_timestamp(raw.get("free_plan_claimed_at")),
+        free_plan_expires_at=_optional_timestamp(raw.get("free_plan_expires_at")),
         card_last4=raw.get("card_last4", ""),
         billing_validated_at=raw.get("billing_validated_at"),
         redemptions=list(redemptions),
@@ -153,6 +407,7 @@ def load_from_redis(store: "AccountStore") -> bool:
         if not raw:
             return False
         load_state(store, json.loads(raw))
+        hydrate_free_claims(store)
         logger.info("identity store loaded from Redis (%d accounts)", len(store._by_id))
         return True
     except Exception as exc:

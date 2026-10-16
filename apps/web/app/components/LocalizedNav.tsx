@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AUTH_EVENT, getToken, getFlag } from "../lib/api";
-import { useDemoOnlyAnonymous, useRestrictSignedIn, useSignedIn } from "../lib/flags";
+import { useDemoOnlyAnonymous, useFullNavTabs, useSignedIn } from "../lib/flags";
 import { useT } from "../lib/i18n";
 import { learningHint, useLearningPhrase } from "../lib/learningPhrases";
 import ProfileMenu from "./ProfileMenu";
@@ -19,7 +19,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const pathname = usePathname() ?? "/";
 
   const demoOnlyAnon = useDemoOnlyAnonymous();
-  const restrictSignedIn = useRestrictSignedIn();
+  const fullNavTabs = useFullNavTabs();
   const signedIn = useSignedIn();
   const [unlocked, setUnlocked] = useState(false);
   const [homeworkOn, setHomeworkOn] = useState(false);
@@ -63,16 +63,16 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
     ? "/logo-cartoon-mark.webp"
     : "/logo-mark.webp";
 
-  // Simplified-nav mode for signed-in non-admins when sales_demo.restrict_signed_in
-  // is on (useRestrictSignedIn already bypasses for admins). "Our Story" is
+  // Simplified-nav default (nav.full_tabs_enabled=false). "Our Story" is
   // rendered outside contentLinks already, so the simplified list adds the
-  // other 4 tabs: Vision Play Lab, Audio Translation Lab, Careers, Live Class.
+  // other 4 tabs: Vision Play, On the Go, Careers, Live Class.
   // Keeping the count small lets the full header fit on ONE row even on
-  // narrow laptops.
+  // narrow laptops. The audio translation lab stays at /audio-lab; it is
+  // not a tab.
   const simplifiedLinks = (
     <>
-      <Link href="/arcade">Vision Play Lab</Link>
-      <Link href="/audio-lab">Audio Translation Lab</Link>
+      <Link href="/arcade">{t("nav.arcade")}</Link>
+      <Link href="/drive">{t("nav.drive")}</Link>
       <Link href="/jobs">{t("nav.careers")}</Link>
       <Link href="/class">{t("nav.liveClass")}</Link>
     </>
@@ -96,10 +96,17 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
     </>
   );
 
+  // Simplified-nav mode is the DEFAULT for every signed-in account (admin
+  // included). Only 5 header items ship by default: Our Story (rendered
+  // outside contentLinks) + Vision Play, On the Go, Careers,
+  // Live Class. An admin can restore the full nav globally by checking
+  // `nav.full_tabs_enabled` in the admin console; the admin UI auto-renders
+  // every FlagSpec by category, so the checkbox appears automatically under
+  // the "nav" section.
   const contentLinks = unlocked
-    ? restrictSignedIn
-      ? simplifiedLinks
-      : fullSignedInLinks
+    ? fullNavTabs
+      ? fullSignedInLinks
+      : simplifiedLinks
     : <Link href="/login">{t("nav.signin")}</Link>;
 
   return (

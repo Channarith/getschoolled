@@ -100,9 +100,9 @@ export const SALES_DEMO_FEATURES = [
     flagKey: "sales_demo.arcade_games",
     href: "/demo/arcade",
     emoji: "🎮",
-    title: "Vision arcade",
+    title: "Vision Play",
     subtitle: "Machine vision for kids",
-    description: "Children play webcam games from the children lab: faces, hands, movement, and listening. The camera stays in the browser.",
+    description: "Machine vision: faces, hands, movement, and listening. The camera stays in the browser.",
   },
   {
     id: "languages",

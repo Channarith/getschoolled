@@ -36,6 +36,7 @@ import HomeScreen from "./src/screens/HomeScreen";
 import MyListScreen from "./src/screens/MyListScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import FirstSignInAssistant from "./src/components/FirstSignInAssistant";
 import BugReportScreen from "./src/screens/BugReportScreen";
 import GroupClassesScreen from "./src/screens/GroupClassesScreen";
 import LiveClassScreen from "./src/screens/LiveClassScreen";
@@ -67,13 +68,14 @@ import DraggableSalesDemoButton from "./src/components/DraggableSalesDemoButton"
 import { DEMO_FEATURES, SALES_DEMO_FLAGS } from "./src/demo";
 import PrimaryButton from "./src/components/PrimaryButton";
 import {
-  createStudent, getFlag, getMe, getNotificationsFeed, listStudents,
+  createStudent, getAccountOnboardingStatus, getFlag, getMe, getNotificationsFeed, listStudents,
   type BugScreenshotUpload,
+  type StudentProfile,
 } from "./src/api";
 import { installClientLog } from "./src/clientLog";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
-import { setSettings } from "./src/storage";
+import { isSetupAssistantPending, setSettings, setSetupAssistantPending } from "./src/storage";
 
 const SALES_DEMO_FLAG_KEYS = [
   ...Object.values(SALES_DEMO_FLAGS),
@@ -138,6 +140,7 @@ function AppInner() {
   const [banner, setBanner] = useState<BannerPayload | null>(null);
   const [surveyManualToken, setSurveyManualToken] = useState(0);
   const [authEpoch, setAuthEpoch] = useState(0);
+  const [onboardingStudent, setOnboardingStudent] = useState<StudentProfile | null>(null);
   const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
   const authenticated = authStatus === "authenticated";
   const inApp = authenticated;
@@ -208,6 +211,7 @@ function AppInner() {
       setShowSearch(false);
       setShowDemo(false);
       setShowBugReport(false);
+      setOnboardingStudent(null);
       setActiveLesson(null);
       setKidsLessonId(null);
     }
@@ -306,6 +310,14 @@ function AppInner() {
         id = created.id;
       }
       if (id) await setSettings({ studentId: id });
+      const status = await getAccountOnboardingStatus();
+      const settingUp = await isSetupAssistantPending();
+      if (!status.completed && settingUp) {
+        const refreshed = (await listStudents()).students[0] ?? null;
+        setOnboardingStudent(refreshed);
+      } else {
+        setOnboardingStudent(null);
+      }
     } catch {}
   }
 
@@ -900,7 +912,6 @@ function AppInner() {
           </SwipeTabContainer>
         </Animated.View>
         <LearningProfileSurvey
-          authEpoch={authEpoch}
           manualOpenToken={surveyManualToken}
         />
       </View>
@@ -913,6 +924,17 @@ function AppInner() {
       ) : null}
       {floatingSalesDemoButton}
       {floatingBugButton}
+      {onboardingStudent ? (
+        <FirstSignInAssistant
+          visible
+          student={onboardingStudent}
+          onComplete={() => {
+            void setSetupAssistantPending(false);
+            setOnboardingStudent(null);
+            setAuthEpoch((value) => value + 1);
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -38,6 +38,11 @@ ACCREDITATION_VERIFIED_PASS_DETAIL = (
     "verified summative pass decision from a registered account. Guests "
     "cannot receive accreditation credit."
 )
+IDENTITY_ASSURANCE_REQUIRED = "identity_assurance_required"
+IDENTITY_ASSURANCE_REQUIRED_DETAIL = (
+    "This accredited or certification course requires verified face, voice, "
+    "and government ID setup before the first full lesson."
+)
 
 
 def is_certifiable_lesson(lesson_id: str) -> bool:
@@ -61,6 +66,20 @@ def certification_meta(lesson_id: str) -> Tuple[str, float]:
 def requires_registered_account(lesson_id: str) -> bool:
     """HARD RULE: certifiable courses require a registered account."""
     return is_certifiable_lesson(lesson_id)
+
+
+def requires_identity_assurance(lesson_id: str) -> bool:
+    """Identity checks apply only to credited/certifiable learning."""
+    return is_certifiable_lesson(lesson_id)
+
+
+def requires_identity_assurance_for_category(category: object) -> bool:
+    """Course Studio category-level equivalent for generated course IDs."""
+    value = getattr(category, "value", category)
+    return str(value or "").strip().lower().replace("-", "_") in {
+        "driver_education",
+        "food_safety",
+    }
 
 
 def may_start_for_accreditation(

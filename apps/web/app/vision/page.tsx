@@ -272,7 +272,7 @@ export default function VisionPage() {
 
   return (
     <main className="container" style={{ maxWidth: 860 }}>
-      <h1>Face & Voice ID (Settings)</h1>
+      <h1>Salareen Learner Check (Settings)</h1>
       <p className="muted">
         Enrol your face and voice so the platform can recognise you during lessons.
         Detection and face embedding run entirely in your browser — only the 128-d

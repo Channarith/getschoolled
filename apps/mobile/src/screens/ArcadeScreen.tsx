@@ -1,30 +1,12 @@
-import { useEffect, useState } from "react";
-import {
-  ActivityIndicator, Alert, Linking, RefreshControl, ScrollView, StyleSheet, Text, View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { ARCADE_SECTIONS, arcadeWebUrl } from "../arcadeCatalog";
 import { VISION_ARCADE, type VisionGame } from "../visionArcade";
-import { getGamesCatalog, type GamesCatalog } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
-import { WEB_APP_URL } from "../config";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { theme } from "../theme";
-
-const SUBJECT_EMOJI: Record<string, string> = {
-  biology: "🧬", chemistry: "⚗️", physics: "🪐", math: "➗", science: "🔬",
-  history: "🏛️", art: "🎨", technology: "💻", programming: "👾",
-  life_growth: "🌱", etiquette: "🤝", wordplay: "🔤", geometry: "📐",
-  creation: "🛠️", farming: "🌾", finance: "📈",
-};
-
-const FALLBACK_SUBJECTS = [
-  "biology", "chemistry", "physics", "math", "science",
-  "history", "art", "technology", "programming", "finance",
-];
 
 type Props = {
   onOpenSubject: (subject: string, gameType?: string) => void;
@@ -32,53 +14,11 @@ type Props = {
   onBack: () => void;
 };
 
-export default function ArcadeScreen({ onOpenSubject, onOpenVision, onBack }: Props) {
-  const { t, locale } = useT();
+// Vision Play lists Machine Vision only. Other games and Worlds stay reachable
+// from their own routes; they are not cards on this screen.
+export default function ArcadeScreen({ onOpenVision, onBack }: Props) {
+  const { t } = useT();
   useAndroidBackTo(onBack);
-  const [cat, setCat] = useState<GamesCatalog | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
-
-  const load = async (alive?: { current: boolean }) => {
-    setError("");
-    try {
-      const result = await getGamesCatalog(locale);
-      if (!alive || alive.current) setCat(result);
-    } catch (e) {
-      if (!alive || alive.current) setError(t("arcade.error", { error: String(e) }));
-    } finally {
-      if (!alive || alive.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  };
-
-  useEffect(() => {
-    const alive = { current: true };
-    setLoading(true);
-    void load(alive);
-    return () => { alive.current = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale]);
-
-  const subjects = cat?.subjects?.length ? cat.subjects : FALLBACK_SUBJECTS;
-
-  function labelFor(id: string): string {
-    const loc = cat?.subjects_localized?.find((s) => s.id === id);
-    if (loc?.name) return loc.name;
-    return id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-
-  async function openWebGame(path: string, label: string) {
-    const url = arcadeWebUrl(WEB_APP_URL, path);
-    try {
-      await Linking.openURL(url);
-    } catch {
-      Alert.alert(t("arcade.webOpenFailed"), label);
-    }
-  }
 
   return (
     <View style={styles.wrap}>
@@ -88,21 +28,7 @@ export default function ArcadeScreen({ onOpenSubject, onOpenVision, onBack }: Pr
       </View>
       <Text style={styles.lead}>{t("arcade.intro")}</Text>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {loading && !refreshing ? (
-        <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 24 }} />
-      ) : null}
-
-      <ScrollView
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); void load(); }}
-            tintColor={theme.colors.netflix}
-          />
-        }
-      >
+      <ScrollView contentContainerStyle={styles.list}>
         <GlassPanel style={styles.featured}>
           <Text style={styles.sectionTitle}>{t("arcade.visionTitle")}</Text>
           <Text style={styles.meta}>{t("arcade.visionBody")}</Text>
@@ -139,61 +65,6 @@ export default function ArcadeScreen({ onOpenSubject, onOpenVision, onBack }: Pr
             </View>
           ))}
         </GlassPanel>
-
-        <GlassPanel style={styles.featured}>
-          <Text style={styles.sectionTitle}>{t("arcade.featured")}</Text>
-          <Text style={styles.meta}>{t("arcade.featuredSub")}</Text>
-          <AnimatedPressable
-            accessibilityRole="button"
-            accessibilityLabel={t("game.potionLab")}
-            onPress={() => onOpenSubject("chemistry", "potion")}
-            style={styles.featuredBtn}
-          >
-            <Text style={styles.featuredBtnText}>{t("game.potionLab")}</Text>
-            <Text style={styles.featuredBtnHint}>{t("game.potionTip")}</Text>
-          </AnimatedPressable>
-        </GlassPanel>
-
-        <GlassPanel style={styles.section}>
-          <Text style={styles.sectionTitle}>{t("arcade.inApp")}</Text>
-          <Text style={styles.meta}>{t("arcade.inAppSub")}</Text>
-          <View style={styles.grid}>
-            {subjects.map((id) => (
-              <AnimatedPressable
-                key={id}
-                accessibilityRole="button"
-                accessibilityLabel={labelFor(id)}
-                onPress={() => onOpenSubject(id)}
-                style={styles.tile}
-              >
-                <Text style={styles.tileEmoji}>{SUBJECT_EMOJI[id] ?? "🎮"}</Text>
-                <Text style={styles.tileLabel} numberOfLines={3}>{labelFor(id)}</Text>
-              </AnimatedPressable>
-            ))}
-          </View>
-        </GlassPanel>
-
-        {ARCADE_SECTIONS.filter((s) => s.id !== "native").map((section) => (
-          <GlassPanel key={section.id} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <Text style={styles.meta}>{section.subtitle}</Text>
-            <Text style={styles.webHint}>{t("arcade.webHint")}</Text>
-            <View style={styles.linkGrid}>
-              {section.games.map((game) => (
-                <AnimatedPressable
-                  key={game.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={game.label}
-                  onPress={() => void openWebGame(game.path, game.label)}
-                  style={styles.linkTile}
-                >
-                  <Text style={styles.linkEmoji}>{game.emoji}</Text>
-                  <Text style={styles.linkLabel} numberOfLines={2}>{game.label}</Text>
-                </AnimatedPressable>
-              ))}
-            </View>
-          </GlassPanel>
-        ))}
       </ScrollView>
     </View>
   );

@@ -38,7 +38,7 @@ CONSUMER_PLANS: dict[str, ConsumerPlan] = {
         price_usd=0.0,
         billing_interval="monthly",
         ads=True,
-        blurb="English classes with ads",
+        blurb="English lessons with ads for 14 days. No group classes or AI agents. First 100 people only.",
     ),
     PlanTier.BASIC.value: ConsumerPlan(
         tier=PlanTier.BASIC.value,

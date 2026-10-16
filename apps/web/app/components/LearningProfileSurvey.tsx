@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import SurveyForm from "./SurveyForm";
 import {
-  AUTH_EVENT,
   createStudent,
-  DISCLAIMER_ACCEPTED_EVENT,
   getMe,
   getOnboardingSurvey,
   getToken,
@@ -20,22 +18,9 @@ import {
 
 export const OPEN_LEARNING_PROFILE_EVENT = "aoep-open-learning-profile";
 
-const DISCLAIMER_KEY = "aoep_disclaimer_accepted_v1";
-/** When identity lacks learning-profile API, stop auto-prompt loop until deploy. */
+/** When identity lacks learning-profile API, remember the failed save until deploy. */
 const SURVEY_LOCAL_DISMISS_KEY = "aoep_learning_profile_local_dismiss_v1";
-/** One auto-prompt attempt per browser tab session (cleared on sign-out). */
-const SESSION_PROMPT_KEY = "aoep_learning_profile_session_prompted";
-/** Brief cross-tab lock so multiple tabs do not all open the survey at once. */
 const TAB_PROMPT_LOCK_KEY = "aoep_learning_profile_tab_prompt";
-const TAB_PROMPT_LOCK_MS = 60_000;
-
-function isSurveyLocallyDismissed(): boolean {
-  try {
-    return Boolean(localStorage.getItem(SURVEY_LOCAL_DISMISS_KEY));
-  } catch {
-    return false;
-  }
-}
 
 function dismissSurveyLocally(reason: string): void {
   try {
@@ -53,44 +38,6 @@ function clearSurveyLocalDismiss(): void {
   }
 }
 
-function clearSessionAutoPrompted(): void {
-  try {
-    sessionStorage.removeItem(SESSION_PROMPT_KEY);
-  } catch {
-    /* */
-  }
-}
-
-function markSessionAutoPrompted(accountId: string): void {
-  try {
-    sessionStorage.setItem(SESSION_PROMPT_KEY, accountId);
-  } catch {
-    /* */
-  }
-}
-
-function wasSessionAutoPrompted(accountId: string): boolean {
-  try {
-    return sessionStorage.getItem(SESSION_PROMPT_KEY) === accountId;
-  } catch {
-    return false;
-  }
-}
-
-function claimTabPromptLock(accountId: string): boolean {
-  try {
-    const raw = localStorage.getItem(TAB_PROMPT_LOCK_KEY);
-    if (raw) {
-      const { id, at } = JSON.parse(raw) as { id: string; at: number };
-      if (id === accountId && Date.now() - at < TAB_PROMPT_LOCK_MS) return false;
-    }
-    localStorage.setItem(TAB_PROMPT_LOCK_KEY, JSON.stringify({ id: accountId, at: Date.now() }));
-    return true;
-  } catch {
-    return true;
-  }
-}
-
 function releaseTabPromptLock(accountId: string): void {
   try {
     const raw = localStorage.getItem(TAB_PROMPT_LOCK_KEY);
@@ -105,14 +52,6 @@ function releaseTabPromptLock(accountId: string): void {
 function isIdentityApiMissingError(err: unknown): boolean {
   const msg = String(err);
   return msg.includes("404") && (msg.includes("Not Found") || msg.toLowerCase().includes("not found"));
-}
-
-function disclaimerAccepted(): boolean {
-  try {
-    return Boolean(localStorage.getItem(DISCLAIMER_KEY));
-  } catch {
-    return false;
-  }
 }
 
 function requiredMissing(template: SurveyTemplate, answers: Record<string, unknown>): string[] {
@@ -182,7 +121,7 @@ function answersFromProfile(student: StudentProfile): Record<string, string | nu
   };
 }
 
-/** One-time learning survey (auto after signup) + manual relaunch from Account settings. */
+/** Edit dialog for a saved learning profile, opened from Account. First sign-in asks these questions inside the onboarding assistant. */
 export default function LearningProfileSurvey() {
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
@@ -199,30 +138,11 @@ export default function LearningProfileSurvey() {
     openRef.current = open;
   }, [open]);
 
-  const openForStudent = useCallback(async (force = false) => {
+  const openForStudent = useCallback(async () => {
     if (!getToken()) return;
-    if (!force && openRef.current) return;
-
-    if (!force && isSurveyLocallyDismissed()) {
-      if (!(await identitySupportsLearningProfile())) return;
-      try {
-        const students = (await listStudents()).students;
-        const pending = students.find((s) => !s.onboarding_completed_at);
-        if (!pending) {
-          clearSurveyLocalDismiss();
-          return;
-        }
-        clearSurveyLocalDismiss();
-      } catch {
-        return;
-      }
-    }
 
     const apiReady = await identitySupportsLearningProfile();
-    if (!apiReady && !force) {
-      return;
-    }
-    if (!apiReady && force) {
+    if (!apiReady) {
       setError(
         "Learning profile API is not available on this server (identity deploy update required). "
         + "Ask an admin to run Deploy VKE (identity + web), then try again from Account → Learning profile.",
@@ -243,9 +163,6 @@ export default function LearningProfileSurvey() {
       students = [created];
     }
     const primary = students.find((s) => !s.onboarding_completed_at) ?? students[0];
-    if (!force && primary.onboarding_completed_at) return;
-
-    if (!force && !claimTabPromptLock(me.id)) return;
 
     setAccountId(me.id);
     setStudentId(primary.id);
@@ -253,46 +170,14 @@ export default function LearningProfileSurvey() {
     setAnswers(primary.onboarding_completed_at ? answersFromProfile(primary) : {});
     setDoneCategory("");
     setError("");
-    setManual(force);
+    setManual(true);
     setOpen(true);
   }, []);
 
-  const maybeAutoPrompt = useCallback(async () => {
-    try {
-      if (!getToken()) return;
-      if (!disclaimerAccepted()) return;
-
-      const me = await getMe();
-      if (wasSessionAutoPrompted(me.id)) return;
-      markSessionAutoPrompted(me.id);
-
-      await openForStudent(false);
-    } catch {
-      /* offline / service down — don't block the app */
-    }
-  }, [openForStudent]);
-
-  useEffect(() => {
-    function onAuthChange() {
-      if (!getToken()) {
-        clearSessionAutoPrompted();
-        return;
-      }
-      void maybeAutoPrompt();
-    }
-
-    void maybeAutoPrompt();
-    window.addEventListener(AUTH_EVENT, onAuthChange);
-    window.addEventListener(DISCLAIMER_ACCEPTED_EVENT, maybeAutoPrompt);
-    return () => {
-      window.removeEventListener(AUTH_EVENT, onAuthChange);
-      window.removeEventListener(DISCLAIMER_ACCEPTED_EVENT, maybeAutoPrompt);
-    };
-  }, [maybeAutoPrompt]);
-
   useEffect(() => {
     function onOpen() {
-      openForStudent(true).catch(() => undefined);
+      if (openRef.current) return;
+      openForStudent().catch(() => undefined);
     }
     window.addEventListener(OPEN_LEARNING_PROFILE_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_LEARNING_PROFILE_EVENT, onOpen);

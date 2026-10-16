@@ -348,12 +348,35 @@ export async function submitOnboardingBilling(body: Record<string, unknown>): Pr
   );
 }
 
+export async function getFreePlanOffer(): Promise<{
+  available: boolean;
+  reason: string;
+  seats_remaining: number;
+  seats_limit: number;
+  trial_days: number;
+}> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/onboarding/free-plan`));
+}
+
 export async function selectOnboardingPlan(tier: string): Promise<{ tier: string; membership_class: string }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/onboarding/plan`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ tier }),
+    }),
+  );
+}
+
+export async function submitOnboardingLearner(body: {
+  learner_name: string;
+  age: number;
+}): Promise<{ student: StudentProfile; age_band: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/learner`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
     }),
   );
 }
@@ -656,6 +679,7 @@ export type StudentProfile = {
   accommodations_notes?: string; learner_category?: string;
   onboarding_completed_at?: number | null;
   onboarding_answers?: Record<string, unknown>;
+  modality_ratings?: Record<string, number>;
   profile_score?: string;
   profile_score_version?: string;
 };
@@ -1572,6 +1596,7 @@ export type LessonAccreditation = {
   lesson_id: string;
   certifiable: boolean;
   requires_registered_account: boolean;
+  requires_identity_assurance: boolean;
   certification_body: string;
   ceu_credits: number;
 };
@@ -3891,6 +3916,137 @@ export async function getVoiceEnrollmentStatus(
       { headers: authHeaders(), cache: "no-store" }
     )
   );
+}
+
+export type VerificationState =
+  | "not_started" | "in_progress" | "pending" | "verified" | "failed" | "declined" | "revoked";
+
+export type SetupAssistantState = {
+  schema_version: number;
+  current_step: "welcome" | "learner" | "plan" | "preferences" | "privacy" | "biometrics" | "complete";
+  completed_at: number | null;
+  skipped_biometrics: boolean;
+  consent: {
+    granted: boolean;
+    guardian_granted: boolean;
+    policy_version: string;
+    retention_days: number;
+    updated_at: number | null;
+  };
+  portrait: { status: VerificationState; template_ref: string; updated_at: number | null; attempts: number; reason: string };
+  pose: { status: VerificationState; template_ref: string; updated_at: number | null; attempts: number; reason: string };
+  voice: { status: VerificationState; template_ref: string; updated_at: number | null; attempts: number; reason: string };
+  government_id: {
+    status: VerificationState; template_ref: string; updated_at: number | null; attempts: number; reason: string;
+    document_type: string; provider_reference: string;
+  };
+};
+
+export async function getSetupAssistant(studentId: string): Promise<SetupAssistantState> {
+  return jsonOrThrow(await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/setup-assistant`,
+    { headers: authHeaders(), cache: "no-store" },
+  ));
+}
+
+export async function getIdentityAssurance(
+  studentId: string,
+  required = true,
+): Promise<{ allowed: boolean; required: boolean; missing: string[]; reason: string }> {
+  return jsonOrThrow(await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/identity-assurance?required=${required ? "true" : "false"}`,
+    { headers: authHeaders(), cache: "no-store" },
+  ));
+}
+
+export async function deleteBiometrics(studentId: string): Promise<{ deleted: boolean }> {
+  return jsonOrThrow(await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/biometrics`,
+    { method: "DELETE", headers: authHeaders() },
+  ));
+}
+
+export async function updateSetupAssistant(
+  studentId: string,
+  body: { current_step: SetupAssistantState["current_step"]; skipped_biometrics?: boolean; complete?: boolean },
+): Promise<SetupAssistantState> {
+  return jsonOrThrow(await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/setup-assistant`,
+    {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    },
+  ));
+}
+
+export async function setBiometricConsent(
+  studentId: string,
+  body: { granted: boolean; guardian_granted?: boolean; retention_days?: number },
+): Promise<SetupAssistantState> {
+  return jsonOrThrow(await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/biometric-consent`,
+    {
+      method: "PUT",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    },
+  ));
+}
+
+export async function enrollBiometricFace(
+  studentId: string,
+  embeddings: number[][],
+  poseSequence: string[],
+): Promise<{ student_id: string; verified: boolean; enrollments: number }> {
+  return jsonOrThrow(await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/biometric-face`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ embeddings, pose_sequence: poseSequence }),
+    },
+  ));
+}
+
+async function blobBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+}
+
+export async function enrollVoiceprint(studentId: string, audio: Blob): Promise<{ verified: boolean }> {
+  return jsonOrThrow(await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/voiceprint`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ audio_b64: await blobBase64(audio) }),
+    },
+  ));
+}
+
+export async function submitGovernmentId(
+  studentId: string,
+  documentType: string,
+  front: Blob,
+  back?: Blob,
+): Promise<{ status: "verified" | "failed"; reference: string }> {
+  return jsonOrThrow(await fetch(
+    `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/government-id`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        document_type: documentType,
+        front_image_b64: await blobBase64(front),
+        back_image_b64: back ? await blobBase64(back) : "",
+      }),
+    },
+  ));
 }
 
 export async function ask(sessionId: string, text: string, language = "en"): Promise<Answer> {
