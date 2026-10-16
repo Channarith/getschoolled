@@ -378,11 +378,32 @@
 
 .contour path {
   fill: none;
-  stroke: var(--sa-teal);
-  stroke-width: 2;
+  stroke: #d7f4ff;
+  stroke-width: 1.15;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
+  opacity: 0.92;
+}
+
+.contour .outline {
+  stroke: #f4fcff;
+  stroke-width: 1.7;
+  opacity: 1;
+}
+
+.contour .mark {
+  fill: none;
+  stroke: #ffe3a3;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.meshNote {
+  margin: 0 0 12px;
+  color: var(--sa-muted, #736a82);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .frameArt {

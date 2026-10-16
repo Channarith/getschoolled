@@ -17,15 +17,18 @@ import {
   describeMediaError,
   faceContour,
   faceGeometry,
+  faceMarks,
   lightingAction,
   levelFromTimeDomain,
   meanLuma,
   pickRecorderMime,
   poseFromBaseline,
   shuffledPoses,
+  stableFaceMarks,
   svgPath,
   waveformBars,
   type FaceContour,
+  type FaceMark,
   type Geometry,
   type LevelSample,
   type LightingAction,
@@ -104,7 +107,7 @@ export default function BiometricSetupAssistant({
   const [targets, setTargets] = useState<Pose[]>(() => [...POSES]);
   const [captured, setCaptured] = useState<Pose[]>([]);
   const [anchored, setAnchored] = useState(false);
-  const [contour, setContour] = useState<{ shape: FaceContour; frame: [number, number] } | null>(null);
+  const [contour, setContour] = useState<{ shape: FaceContour; frame: [number, number]; marks: FaceMark[] } | null>(null);
   const [lighting, setLighting] = useState<LightingAction>("none");
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -186,6 +189,40 @@ export default function BiometricSetupAssistant({
     const probe = document.createElement("canvas");
     probe.width = 48;
     probe.height = 64;
+    const markProbe = document.createElement("canvas");
+    const markHistory: FaceMark[][] = [];
+
+    function sampleMarks(
+      video: HTMLVideoElement,
+      landmarks: number[][],
+      box: number[] | undefined,
+      frame: [number, number],
+    ): FaceMark[] {
+      const srcW = frame[0] || video.videoWidth;
+      const srcH = frame[1] || video.videoHeight;
+      if (!srcW || !srcH) return [];
+      const tw = 180;
+      const scale = tw / srcW;
+      const th = Math.max(1, Math.round(srcH * scale));
+      if (markProbe.width !== tw) markProbe.width = tw;
+      if (markProbe.height !== th) markProbe.height = th;
+      const ctx = markProbe.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return [];
+      ctx.drawImage(video, 0, 0, tw, th);
+      const scaledBox = box && box.length >= 4
+        ? [box[0] * scale, box[1] * scale, box[2] * scale, box[3] * scale]
+        : null;
+      return faceMarks(
+        ctx.getImageData(0, 0, tw, th).data,
+        tw,
+        th,
+        landmarks.map(([x, y]) => [x * scale, y * scale]),
+        scaledBox,
+      ).map((mark) => ({
+        ...mark,
+        point: [mark.point[0] / scale, mark.point[1] / scale],
+      }));
+    }
 
     async function start() {
       setProblem(null);
@@ -273,14 +310,25 @@ export default function BiometricSetupAssistant({
         }
         const faces = engine.detectAndEmbed(video);
         if (faces.length !== 1) {
+          markHistory.length = 0;
           setContour(null);
           setHint(faces.length ? "Only one face, please." : "Center your face in the frame.");
           return;
         }
         const face = faces[0];
         const frame = (face.frame_size ?? [video.videoWidth, video.videoHeight]) as [number, number];
-        const shape = faceContour(face.landmarks);
-        setContour(shape ? { shape, frame } : null);
+        const shape = faceContour(face.landmarks, face.bbox);
+        if (!shape || !face.landmarks) {
+          markHistory.length = 0;
+          setContour(null);
+        } else {
+          // Pixels stay in this canvas. The mesh and any mark are drawn from
+          // them here; the frame is not uploaded.
+          const found = sampleMarks(video, face.landmarks, face.bbox, frame);
+          markHistory.push(found);
+          if (markHistory.length > 5) markHistory.shift();
+          setContour({ shape, frame, marks: stableFaceMarks(markHistory, 3) });
+        }
         const geometry = faceGeometry(face.landmarks ?? [], face.bbox ?? [0, 0, frame[0], frame[1]], frame);
         if (!geometry) return;
         if (!scan.base) {
@@ -550,6 +598,9 @@ export default function BiometricSetupAssistant({
             <>
               <span className={styles.eyebrow}>Face check · {captured.length} of {targets.length}</span>
               <h1 aria-live="polite">{problem ? "Let’s fix that." : hint}</h1>
+              <p className={styles.meshNote}>
+                The mesh is a guide from five face points. A dot, if one shows, is a darker spot such as a mole — a rough note, not a medical read. The picture is not saved.
+              </p>
               <ol className={styles.targets} aria-label="Look prompts">
                 {targets.map((pose) => (
                   <li
@@ -706,11 +757,26 @@ export default function BiometricSetupAssistant({
                     preserveAspectRatio="xMidYMid slice"
                     aria-hidden="true"
                   >
-                    <path d={svgPath(contour.shape.outline, true)} />
+                    <path className={styles.outline} d={svgPath(contour.shape.outline, true)} />
+                    {contour.shape.grid.map((line, index) => (
+                      <path key={`grid-${index}`} d={svgPath(line)} />
+                    ))}
                     <path d={svgPath(contour.shape.rightEye, true)} />
                     <path d={svgPath(contour.shape.leftEye, true)} />
                     <path d={svgPath(contour.shape.nose)} />
                     <path d={svgPath(contour.shape.mouth, true)} />
+                    {contour.marks.map((mark, index) => (
+                      <circle
+                        key={`${mark.region}-${index}`}
+                        className={styles.mark}
+                        data-region={mark.region}
+                        cx={mark.point[0]}
+                        cy={mark.point[1]}
+                        r={Math.max(5, contour.frame[0] / 110)}
+                      >
+                        <title>{mark.region}</title>
+                      </circle>
+                    ))}
                   </svg>
                 )}
               </div>

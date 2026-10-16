@@ -1,7 +1,14 @@
 """Pure unit tests for the matching/consent logic (no models/network needed)."""
 
+import math
+
 from aoep_shared.vision import FaceGallery
-from aoep_shared.vision.engine import cosine_similarity
+from aoep_shared.vision.engine import (
+    DEFAULT_MATCH_THRESHOLD,
+    EXPRESSION_TOLERANCE_MARGIN,
+    SFACE_CALIBRATED_THRESHOLD,
+    cosine_similarity,
+)
 
 
 def _vec(*xs):
@@ -46,6 +53,34 @@ def test_consent_allowlist_restricts_candidates():
     m = g.identify(_vec(0.95, 0.05), allowed_ids=["bob"])
     assert m.student_id != "alice"
     assert m.matched is False
+
+
+def _at_cosine(score: float) -> list[float]:
+    return [score, math.sqrt(max(0.0, 1.0 - score * score)), 0.0]
+
+
+def test_expression_margin_matches_near_duplicates_not_a_different_face():
+    """Smile, blink, sneeze, and modest weight change may drop a same-person
+    score under the old 0.363 cut. They still match. A different direction does not.
+    """
+    assert SFACE_CALIBRATED_THRESHOLD == 0.363
+    assert EXPRESSION_TOLERANCE_MARGIN == 0.063
+    assert abs((SFACE_CALIBRATED_THRESHOLD - EXPRESSION_TOLERANCE_MARGIN) - DEFAULT_MATCH_THRESHOLD) < 1e-9
+    # Stay above the held-out different-person band (~0.08).
+    assert DEFAULT_MATCH_THRESHOLD >= 0.25
+
+    gallery = FaceGallery()
+    gallery.enroll("learner", [1.0, 0.0, 0.0])
+    near = gallery.identify(_at_cosine(0.97))
+    assert near.matched is True and near.student_id == "learner"
+    drifted = _at_cosine(0.34)
+    assert cosine_similarity([1.0, 0.0, 0.0], drifted) < SFACE_CALIBRATED_THRESHOLD
+    match = gallery.identify(drifted)
+    assert match.matched is True and match.student_id == "learner"
+    stranger = gallery.identify(_at_cosine(0.12))
+    assert stranger.matched is False and stranger.student_id is None
+    assert gallery.identify(_at_cosine(0.2)).matched is False
+    assert gallery.identify([0.0, 1.0, 0.0]).matched is False
 
 
 def test_remove_identity():

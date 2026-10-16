@@ -157,9 +157,11 @@ class AppConfig(BaseModel):
     # behavior signals into adaptive pacing + quiz difficulty.
     memory_base_url: str = ""
     # Face-model cache dir (empty -> ~/.cache/aoep/models) and cosine match
-    # threshold for SFace embeddings (0.363 is OpenCV's calibrated default).
+    # threshold for SFace embeddings. 0.3 is the calibrated 0.363 minus
+    # EXPRESSION_TOLERANCE_MARGIN in aoep_shared.vision.engine (smile, blink,
+    # sneeze, modest weight change). Keep the two defaults equal.
     vision_model_dir: str = ""
-    vision_match_threshold: float = 0.363
+    vision_match_threshold: float = 0.3
     # Persisted face gallery (cross-session student memory). Empty => in-memory.
     vision_gallery_path: str = ""
     livekit_url: str = "ws://livekit:7880"
@@ -353,7 +355,7 @@ def load_config(
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),
         region=get("REGION", "us"),
-        vision_match_threshold=env_float(source.get("VISION_MATCH_THRESHOLD"), 0.363),
+        vision_match_threshold=env_float(source.get("VISION_MATCH_THRESHOLD"), 0.3),
         vision_gallery_path=get("VISION_GALLERY_PATH", ""),
         livekit_url=get_stripped("LIVEKIT_URL", "ws://livekit:7880"),
         livekit_api_key=get_stripped("LIVEKIT_API_KEY", "devkey"),

@@ -13,10 +13,16 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 ImageLike = Union[bytes, bytearray, str, "object"]  # bytes | path | ndarray
 
-# SFace's recommended cosine decision threshold: scores above this are the same
-# identity. Calibrated by OpenCV; validated on our test set (same-person ~0.69,
-# different-person ~0.08), so 0.363 separates them with wide margin.
-DEFAULT_MATCH_THRESHOLD = 0.363
+# OpenCV's calibrated SFace cosine for "same identity". This was the previous
+# operating point. Same-person pairs on the held-out set sit near 0.69 and
+# different-person pairs near 0.08.
+SFACE_CALIBRATED_THRESHOLD = 0.363
+# Slack below that calibrated point. A smile, eyes open or closed, a sneeze,
+# or a modest weight gain moves a same-person score down; landmark distances
+# are not compared. 0.063 of slack (operating point 0.300) still sits far
+# above the different-person band, so a clearly different embedding does not match.
+EXPRESSION_TOLERANCE_MARGIN = 0.063
+DEFAULT_MATCH_THRESHOLD = 0.3  # SFACE_CALIBRATED_THRESHOLD - EXPRESSION_TOLERANCE_MARGIN
 DEFAULT_DET_SCORE_THRESHOLD = 0.7
 
 

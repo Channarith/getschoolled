@@ -15,7 +15,7 @@ import {
   Text,
   View,
 } from "react-native";
-import Svg, { Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import {
   completeMobileSetup,
@@ -31,12 +31,14 @@ import {
   SETUP_COLORS as C,
   faceContour,
   faceGeometry,
+  faceMarksFromJpeg,
   meteringToLevel,
   poseFromBaseline,
   shuffledPoses,
   svgPath,
   waveformBars,
   type FaceContour,
+  type FaceMark,
   type Geometry,
   type LevelSample,
   type Pose,
@@ -97,6 +99,8 @@ type Shot = {
   uri: string;
   contour: FaceContour | null;
   frame: [number, number];
+  /** Region notes for this still. The photo itself is deleted after enrollment. */
+  marks: FaceMark[];
 };
 
 type Problem = { message: string; settings?: boolean };
@@ -291,6 +295,7 @@ export default function BiometricSetupModal({
       if (!asset?.base64) return;
       const target = shots.length === 0 ? null : order[shots.length - 1];
       let contour: FaceContour | null = null;
+      let marks: FaceMark[] = [];
       let frame: [number, number] = [asset.width || 3, asset.height || 4];
       const preview = await previewMobileFace(studentId, asset.base64).catch(() => null);
       if (preview) {
@@ -305,7 +310,10 @@ export default function BiometricSetupModal({
         }
         const face = preview.faces[0];
         frame = [face.frame_size[0] || frame[0], face.frame_size[1] || frame[1]];
-        contour = faceContour(face.landmarks);
+        contour = faceContour(face.landmarks, face.bbox);
+        // The still is decoded on this phone for the markers. Only the region
+        // and point are kept; the JPEG is deleted with the preview file.
+        marks = faceMarksFromJpeg(asset.base64, face.landmarks, frame, face.bbox);
         const geometry = faceGeometry(face.landmarks, face.bbox, frame);
         if (geometry && !target) baseRef.current = geometry;
         if (geometry && target && baseRef.current) {
@@ -320,9 +328,9 @@ export default function BiometricSetupModal({
           if (seen) seenRef.current[target] = seen;
         }
       } else {
-        setContourNote("Face outline unavailable right now; your photos are still checked when you finish.");
+        setContourNote("Face mesh unavailable right now; your photos are still checked when you finish.");
       }
-      const next = [...shots, { base64: asset.base64, uri: asset.uri, contour, frame }];
+      const next = [...shots, { base64: asset.base64, uri: asset.uri, contour, frame, marks }];
       setShots(next);
       if (next.length === order.length + 1) {
         try {
@@ -462,21 +470,53 @@ export default function BiometricSetupModal({
                     preserveAspectRatio="xMidYMid slice"
                     testID="face-contour"
                   >
-                    {[
-                      svgPath(latest.contour.outline, true),
-                      svgPath(latest.contour.rightEye, true),
-                      svgPath(latest.contour.leftEye, true),
-                      svgPath(latest.contour.nose),
-                      svgPath(latest.contour.mouth, true),
-                    ].map((d) => (
+                    <Path
+                      d={svgPath(latest.contour.outline, true)}
+                      fill="none"
+                      stroke="#f4fcff"
+                      strokeWidth={Math.max(1.75, latest.frame[0] / 220)}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    {latest.contour.grid.map((line, index) => (
                       <Path
-                        key={d}
-                        d={d}
+                        key={`grid-${index}`}
+                        d={svgPath(line)}
                         fill="none"
-                        stroke={C.teal}
-                        strokeWidth={Math.max(2, latest.frame[0] / 180)}
+                        stroke="#d7f4ff"
+                        strokeWidth={Math.max(1.15, latest.frame[0] / 340)}
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                      />
+                    ))}
+                    {[latest.contour.rightEye, latest.contour.leftEye, latest.contour.mouth].map((line, index) => (
+                      <Path
+                        key={`feat-${index}`}
+                        d={svgPath(line, true)}
+                        fill="none"
+                        stroke="#d7f4ff"
+                        strokeWidth={Math.max(1.15, latest.frame[0] / 340)}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    ))}
+                    <Path
+                      d={svgPath(latest.contour.nose)}
+                      fill="none"
+                      stroke="#d7f4ff"
+                      strokeWidth={Math.max(1.15, latest.frame[0] / 340)}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    {latest.marks.map((mark, index) => (
+                      <Circle
+                        key={`${mark.region}-${index}`}
+                        cx={mark.point[0]}
+                        cy={mark.point[1]}
+                        r={Math.max(5, latest.frame[0] / 110)}
+                        fill="none"
+                        stroke="#ffe3a3"
+                        strokeWidth={Math.max(1.5, latest.frame[0] / 280)}
                       />
                     ))}
                   </Svg>
@@ -512,7 +552,9 @@ export default function BiometricSetupModal({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.body}>{text.body}</Text>
           {step === "scan" && latest?.contour ? (
-            <Text style={styles.small}>The outline is drawn on the photo you just took.</Text>
+            <Text style={styles.small}>
+              The mesh is drawn on this photo from five face points. A dot, if one shows, is a darker spot such as a mole — a rough note, not a medical read. The photo is not saved.
+            </Text>
           ) : null}
           {contourNote ? <Text style={styles.small}>{contourNote}</Text> : null}
           {step === "voice" ? (

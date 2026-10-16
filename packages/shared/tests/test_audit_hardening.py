@@ -31,7 +31,8 @@ def test_blank_numeric_env_falls_back_to_the_documented_default(monkeypatch):
                 "VISION_AGENT_MAX_SESSIONS", "HARVEST_MAX_RPS"):
         monkeypatch.setenv(key, "")
     cfg = load_config()
-    assert cfg.vision_match_threshold == 0.363
+    from aoep_shared.vision.engine import DEFAULT_MATCH_THRESHOLD
+    assert cfg.vision_match_threshold == DEFAULT_MATCH_THRESHOLD == 0.3
     assert cfg.xai_max_tokens == 512
     assert cfg.vision_agent_max_sessions == 200
     assert cfg.harvest_max_rps == 1.0
@@ -42,7 +43,8 @@ def test_non_numeric_env_falls_back_instead_of_raising(monkeypatch):
     monkeypatch.setenv("XAI_MAX_TOKENS", "1024.0")
     monkeypatch.setenv("VISION_AGENT_MAX_SESSIONS", "unlimited")
     cfg = load_config()
-    assert cfg.vision_match_threshold == 0.363
+    from aoep_shared.vision.engine import DEFAULT_MATCH_THRESHOLD
+    assert cfg.vision_match_threshold == DEFAULT_MATCH_THRESHOLD == 0.3
     assert cfg.xai_max_tokens == 512
     assert cfg.vision_agent_max_sessions == 200
 
