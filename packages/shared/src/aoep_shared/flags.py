@@ -124,8 +124,8 @@ FLAG_CATALOG: List[FlagSpec] = [
              "flip it on."),
     FlagSpec("sales_demo.restrict_signed_in", FlagType.BOOL, False, "sales_demo",
              "Simplified-nav mode after login. Signed-in non-admin accounts see "
-             "a trimmed one-row header with 5 tabs: Our Story, Vision Play Lab, "
-             "Audio Translation Lab, Careers, Live Class — plus profile. The "
+             "a trimmed one-row header with 5 tabs: Our Story, Vision Play, "
+             "On the Go, Careers, Live Class — plus profile. The "
              "full home and pages still render; only the nav is simplified. "
              "Lock-out guard: admin accounts (is_admin) always see the full "
              "nav regardless of this flag, so you cannot lock yourself out."),

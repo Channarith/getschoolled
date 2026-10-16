@@ -32,7 +32,20 @@ function finitePoints(landmarks: number[][] | undefined | null): Point[] | null 
   return points.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y)) ? points : null;
 }
 
-/** Head yaw/pitch from YuNet's 5 landmarks (right eye, left eye, nose, right and left mouth corner). */
+/**
+ * Head yaw/pitch from YuNet's 5 landmarks (right eye, left eye, nose, right
+ * and left mouth corner), measured in the face's own axes so a tilted head
+ * does not turn a sideways look into up/down.
+ *
+ * Yaw is the nose offset from the eye midpoint along the eye line. Folding
+ * the mouth into that axis cancelled the signal: the mouth shifts with the
+ * nose, so a clear ~20° look stayed under 0.16 and never matched the prompt.
+ * Pitch is how far the nose sits from the eyes toward the mouth. Looking up
+ * moves the nose toward the eyes (smaller pitch).
+ *
+ * Positive yaw means the nose moved toward the person's left eye — the right
+ * side of an unmirrored camera frame.
+ */
 export function faceGeometry(landmarks: number[][], bbox: number[], frame: number[]): Geometry | null {
   const points = finitePoints(landmarks);
   if (!points) return null;
@@ -40,31 +53,49 @@ export function faceGeometry(landmarks: number[][], bbox: number[], frame: numbe
   const eyeMid = [(rightEye[0] + leftEye[0]) / 2, (rightEye[1] + leftEye[1]) / 2];
   const mouthMid = [(rightMouth[0] + leftMouth[0]) / 2, (rightMouth[1] + leftMouth[1]) / 2];
   const eyeDist = Math.hypot(leftEye[0] - rightEye[0], leftEye[1] - rightEye[1]);
-  const faceHeight = mouthMid[1] - eyeMid[1];
-  if (eyeDist <= 1 || faceHeight <= 1) return null;
-  const axisX = (eyeMid[0] + mouthMid[0]) / 2;
+  if (eyeDist <= 1) return null;
+  const u: Point = [(leftEye[0] - rightEye[0]) / eyeDist, (leftEye[1] - rightEye[1]) / eyeDist];
+  let v: Point = [-u[1], u[0]];
+  const down = (mouthMid[0] - eyeMid[0]) * v[0] + (mouthMid[1] - eyeMid[1]) * v[1];
+  if (down < 0) v = [-v[0], -v[1]];
+  const faceHeight = Math.abs(down);
+  if (faceHeight <= 1) return null;
+  const noseAlong = (nose[0] - eyeMid[0]) * u[0] + (nose[1] - eyeMid[1]) * u[1];
+  const noseDown = (nose[0] - eyeMid[0]) * v[0] + (nose[1] - eyeMid[1]) * v[1];
   const cx = bbox[0] + bbox[2] / 2;
   const cy = bbox[1] + bbox[3] / 2;
+  const frameW = frame[0] || 1;
+  const frameH = frame[1] || 1;
   return {
-    yaw: (nose[0] - axisX) / eyeDist,
-    pitch: (nose[1] - eyeMid[1]) / faceHeight,
-    centered: Math.abs(cx / frame[0] - 0.5) < 0.2 && Math.abs(cy / frame[1] - 0.5) < 0.22,
+    yaw: noseAlong / eyeDist,
+    pitch: noseDown / faceHeight,
+    centered: Math.abs(cx / frameW - 0.5) < 0.2 && Math.abs(cy / frameH - 0.5) < 0.22,
   };
 }
 
-// Normalized nose offset that counts as a deliberate head turn.
-export const YAW_THRESHOLD = 0.16;
-export const PITCH_THRESHOLD = 0.1;
+// A deliberate look is about 12° of head rotation (~0.10 of the eye distance
+// in yaw, ~0.07 in pitch). The old 0.16 / 0.10 gates needed ~25° / ~15° and a
+// normal look stayed neutral. About 5° of sway stays under these.
+export const YAW_THRESHOLD = 0.08;
+export const PITCH_THRESHOLD = 0.05;
 
 /**
- * Which way the learner is looking relative to their neutral pose, in the
- * mirrored preview the learner sees. Null while the head is still near neutral.
+ * Which way the learner is looking relative to their neutral pose.
+ * Landmarks come from the raw camera frame. The setup preview is a mirror, so
+ * mirrored yaw is flipped: turning to the learner's left (nose toward their
+ * left eye) registers as "left", matching the prompted arrow.
+ * Null while the head is still near neutral.
  */
 export function poseFromBaseline(base: Geometry, now: Geometry, mirrored = true): Pose | null {
   const dx = (mirrored ? -1 : 1) * (now.yaw - base.yaw) / YAW_THRESHOLD;
   const dy = (now.pitch - base.pitch) / PITCH_THRESHOLD;
-  if (Math.hypot(dx, dy) < 1) return null;
-  if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? "left" : "right";
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+  // The winning axis has to clear its own threshold. Combining two
+  // sub-threshold axes labeled a sideways look as up or down whenever the
+  // pitch component was slightly larger, so the prompted direction never matched.
+  if (Math.max(ax, ay) < 1) return null;
+  if (ax >= ay) return dx < 0 ? "left" : "right";
   return dy < 0 ? "up" : "down";
 }
 

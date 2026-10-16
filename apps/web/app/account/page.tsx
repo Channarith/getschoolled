@@ -25,6 +25,7 @@ import { playIntro, INTRO_AUTOPLAY_KEY } from "../components/IntroSequence";
 import { INTRO_VARIANTS } from "../lib/introAnimations";
 import { useT } from "../lib/i18n";
 import AvatarPicker from "../components/AvatarPicker";
+import LanguagePicker from "../components/LanguagePicker";
 import { writeLocalAvatarId } from "../lib/avatars";
 
 const PLANS = [
@@ -271,9 +272,13 @@ export default function AccountPage() {
             </div>
           </div>
 
-          <div className="card">
+          <div className="card" id="course-language">
             <h3>{t("account.settingsTools")}</h3>
             <p className="muted">{t("account.settingsDesc")}</p>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Course language for On the Go. Sala listens in any language and teaches in this one.
+            </p>
+            <LanguagePicker />
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
               <Link href="/dashboard"><button>{t("account.dashboard")}</button></Link>
               {consoleOn && <Link href="/console"><button>{t("account.console")}</button></Link>}
