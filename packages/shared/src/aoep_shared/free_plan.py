@@ -141,10 +141,12 @@ def free_plan_blocks_agents(profile: dict | None) -> bool:
 
 
 def free_plan_lesson_block(profile: dict | None) -> str:
-    """Logged-in free accounts can open English lessons only during an active trial.
+    """Logged-in free accounts can open lessons only during an active trial.
 
-    Guests and paid plans are unchanged. A missing profile (identity unreachable)
-    does not block the class.
+    Guests (no profile) and paid plans are unchanged. Callers that were given a
+    Bearer token must not pass a missing profile here: an unreadable identity
+    service has to fail closed before this check, or an expired trial looks
+    like a guest during an outage.
     """
     if not profile or str(profile.get("tier") or "") != "free":
         return ""
@@ -155,3 +157,26 @@ def free_plan_lesson_block(profile: dict | None) -> str:
         "The free plan is not available. It is a 14-day trial for the first 100 people, "
         "and then it goes away."
     )
+
+
+def free_plan_english_block(profile: dict | None, lesson_language: str | None) -> str:
+    """Active free trials may start only lessons whose catalog language is English.
+
+    ``lesson_language`` is the lesson record's language, not a preference the
+    caller sent on the start request. The allowed set is the shared free-plan
+    entitlement (``PlanTier.FREE``), so a client cannot widen it by claiming
+    the lesson is English.
+    """
+    if not profile or str(profile.get("tier") or "") != "free":
+        return ""
+    free = profile.get("free_plan") if isinstance(profile.get("free_plan"), dict) else {}
+    if not free.get("active"):
+        return ""
+    from .entitlements import PLANS
+    from .languages import normalize_language
+    from .schemas import PlanTier
+
+    code = normalize_language(lesson_language or "")
+    if code not in PLANS[PlanTier.FREE].languages:
+        return "The free plan includes English lessons only."
+    return ""

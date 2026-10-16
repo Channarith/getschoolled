@@ -7,6 +7,7 @@ local LiveKit container or a cloud cluster.
 
 from __future__ import annotations
 
+import contextvars
 import uuid
 from dataclasses import asdict
 
@@ -37,6 +38,46 @@ from .director import ClassContext, Director, LessonState
 from .teaching import Answer, Reengagement, SessionView, SlideWithBreak, TeachingSessions
 
 app = create_service("orchestrator")
+
+# Sync routes run in a worker thread. anyio copies this context into that thread,
+# so live-room materialization can see the caller's free-plan status.
+_request_authorization: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "aoep_request_authorization", default=""
+)
+
+
+@app.middleware("http")
+async def _remember_request_authorization(request: Request, call_next):
+    token = _request_authorization.set(request.headers.get("authorization", ""))
+    try:
+        return await call_next(request)
+    finally:
+        _request_authorization.reset(token)
+
+
+# Catalog and the solo-create route keep their own checks. Every other
+# /api/live-rooms/{room} path is group or AI access and fails closed here,
+# before the handler can mutate the room or call a model.
+_LIVE_ROOM_PATHS_WITH_OWN_GATE = {
+    "/api/live-rooms/livekit-status",
+    "/api/live-rooms/gifts/catalog",
+    "/api/live-rooms/games/catalog",
+    "/api/live-rooms/solo",
+}
+
+
+@app.middleware("http")
+async def _fail_closed_live_room_identity(request: Request, call_next):
+    path = request.url.path.rstrip("/") or "/"
+    if path.startswith("/api/live-rooms/") and path not in _LIVE_ROOM_PATHS_WITH_OWN_GATE:
+        room_id = path[len("/api/live-rooms/"):].split("/", 1)[0]
+        try:
+            _require_live_room_gate(room_id, request.headers.get("authorization", ""))
+        except HTTPException as exc:
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    return await call_next(request)
 
 from aoep_shared.optimization import OptimizationLedger  # noqa: E402
 
@@ -133,7 +174,12 @@ class DirectorTickResponse(BaseModel):
 
 
 @app.post("/classes", response_model=CreateClassResponse)
-def create_class(req: CreateClassRequest) -> CreateClassResponse:
+def create_class(
+    req: CreateClassRequest,
+    authorization: str = Header(default=""),
+) -> CreateClassResponse:
+    # Meeting token mint is AI/group access. A missing token is not a guest.
+    _require_paid_group_caller(authorization)
     class_id = uuid.uuid4().hex
     room = f"class-{class_id[:8]}"
     return CreateClassResponse(
@@ -147,7 +193,12 @@ def create_class(req: CreateClassRequest) -> CreateClassResponse:
 
 
 @app.get("/classes/{room}/join", response_model=JoinResponse)
-def join_class(room: str, identity: str) -> JoinResponse:
+def join_class(
+    room: str,
+    identity: str,
+    authorization: str = Header(default=""),
+) -> JoinResponse:
+    _require_paid_group_caller(authorization)
     media = app.state.factory.media()
     token = media.issue_token(room=room, identity=identity)
     return JoinResponse(
@@ -472,12 +523,23 @@ def api_start_session(
     )
 
     account_id = _assessment_account_id(authorization)
-    from aoep_shared.free_plan import free_plan_lesson_block  # noqa: E402
-    from aoep_shared.live_room_rewards import profile_from_authorization  # noqa: E402
+    from aoep_shared.free_plan import (  # noqa: E402
+        free_plan_english_block,
+        free_plan_lesson_block,
+    )
 
-    lesson_block = free_plan_lesson_block(profile_from_authorization(authorization))
+    # No credentials: anonymous sample lesson. A Bearer token is resolved or
+    # rejected — never treated as that guest. Unreadable identity is 503 so an
+    # expired trial cannot start a lesson during an outage.
+    caller_profile = _profile_for_lesson_start(authorization)
+    lesson_block = free_plan_lesson_block(caller_profile)
     if lesson_block:
         raise HTTPException(status_code=403, detail=lesson_block)
+    catalog_lesson = get_sessions().curriculum.get(req.lesson_id)
+    if catalog_lesson is not None:
+        english_block = free_plan_english_block(caller_profile, catalog_lesson.language)
+        if english_block:
+            raise HTTPException(status_code=403, detail=english_block)
     allowed, reason = may_start_for_accreditation(
         req.lesson_id, account_id=account_id or None,
     )
@@ -583,11 +645,17 @@ def api_advance(session_id: str) -> SlideWithBreak:
 
 
 @app.post("/api/sessions/{session_id}/ask/stream")
-async def api_ask_stream(session_id: str, req: AskRequest, request: Request):
+async def api_ask_stream(
+    session_id: str,
+    req: AskRequest,
+    request: Request,
+    authorization: str = Header(default=""),
+):
     """Server-Sent Events stream of the conversational agent's answer for the
     real-time voice assistant (start speaking on the first tokens). Each event is
     `data: {json}\\n\\n`; a final {"type":"done", ...} carries the guarded answer +
     grounding metadata. Powered by the Nemotron agent when configured."""
+    _require_paid_ai_caller(authorization)
     import json as _json
 
     from fastapi.responses import StreamingResponse
@@ -609,7 +677,12 @@ async def api_ask_stream(session_id: str, req: AskRequest, request: Request):
 
 
 @app.post("/api/sessions/{session_id}/ask", response_model=Answer)
-def api_ask(session_id: str, req: AskRequest) -> Answer:
+def api_ask(
+    session_id: str,
+    req: AskRequest,
+    authorization: str = Header(default=""),
+) -> Answer:
+    _require_paid_ai_caller(authorization)
     sessions = get_sessions()
     try:
         answer = sessions.ask(session_id, req.text, language=req.language)
@@ -1961,6 +2034,9 @@ async def upload_host_presentation(
 
     from .host_presentation import import_presentation_bytes
 
+    # Host decks become catalog lessons. Free accounts must not label one
+    # English and then start it. Outages fail closed before the file is kept.
+    _require_paid_group_caller(authorization)
     account_id = account_from_authorization(authorization) or ""
     if not account_id:
         raise HTTPException(status_code=401, detail="sign in required to upload a presentation")
@@ -2027,17 +2103,9 @@ def register_group_class(
     req: RegisterRequest,
     authorization: str = Header(default=""),
 ) -> dict:
-    from aoep_shared.free_plan import free_plan_blocks_group  # noqa: E402
-    from aoep_shared.live_room_rewards import profile_from_authorization  # noqa: E402
-
+    profile = _require_paid_group_caller(authorization)
     store = _group_store()
-    profile = profile_from_authorization(authorization)
-    if free_plan_blocks_group(profile):
-        raise HTTPException(
-            status_code=403,
-            detail="The free plan does not include group classes.",
-        )
-    account_id = str((profile or {}).get("id") or "").strip()
+    account_id = str(profile.get("id") or "").strip()
     if store.get(class_id) is None:
         _seed_group_classes()   # materialize standard classes on a miss (see _find_group_class)
     try:
@@ -2094,6 +2162,7 @@ def submit_teach_request(
 ) -> dict:
     from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
 
+    _require_paid_group_caller(authorization)
     account_id = account_from_authorization(authorization) or ""
     if not account_id:
         raise HTTPException(status_code=401, detail="sign in required to request teaching")
@@ -2165,9 +2234,8 @@ def checkout_group_class(
     req: GroupClassCheckoutRequest,
     authorization: str = Header(default=""),
 ) -> dict:
-    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
-
-    account_id = account_from_authorization(authorization) or ""
+    profile = _require_paid_group_caller(authorization)
+    account_id = str(profile.get("id") or "").strip()
     gc = _find_group_class(class_id)
     if gc is None:
         raise HTTPException(status_code=404, detail="unknown group class")
@@ -2286,9 +2354,8 @@ def confirm_group_class_payment(
     req: GroupClassConfirmPaymentRequest,
     authorization: str = Header(default=""),
 ) -> dict:
-    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
-
-    account_id = account_from_authorization(authorization) or ""
+    profile = _require_paid_group_caller(authorization)
+    account_id = str(profile.get("id") or "").strip()
     if not account_id:
         raise HTTPException(status_code=401, detail="authentication required to confirm payment")
     # Verify payment status with the payment provider before granting access.
@@ -2393,6 +2460,7 @@ def start_group_class(
     """
     from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
 
+    _require_paid_group_caller(authorization)
     store = _group_store()
     gc = _find_group_class(class_id)
     if gc is None:
@@ -2794,6 +2862,7 @@ def create_live_room(
     from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
     from aoep_shared.live_room_discovery import room_listing_dict  # noqa: E402
 
+    _reject_free_group_access(authorization)
     account_id = account_from_authorization(authorization) or ""
     loc = req.location
     store = _live_rooms()
@@ -2828,6 +2897,7 @@ def start_solo_live_room(
     first tick, just like a full group room."""
     from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
 
+    _reject_free_solo_access(authorization)
     account_id = account_from_authorization(authorization) or ""
     lesson_id = req.lesson_id.strip()
     if not lesson_id:
@@ -2892,6 +2962,100 @@ def start_solo_live_room(
     return {"room_id": room.room_id, "room": room.to_dict()}
 
 
+_FREE_GROUP_DETAIL = "The free plan does not include group classes."
+_FREE_AGENT_DETAIL = "The free plan does not include AI agents."
+
+
+def _authorization_or_request(authorization: str | None) -> str:
+    if authorization is None:
+        return _request_authorization.get()
+    return authorization
+
+
+def _require_verified_caller(authorization: str | None = None) -> dict:
+    """Signed-in account, or 401/503 before any room or payment side effect."""
+    from aoep_shared.live_room_rewards import (  # noqa: E402
+        VerifiedIdentityError,
+        require_verified_profile,
+    )
+
+    try:
+        return require_verified_profile(_authorization_or_request(authorization))
+    except VerifiedIdentityError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+def _require_paid_group_caller(authorization: str | None = None) -> dict:
+    from aoep_shared.free_plan import free_plan_blocks_group  # noqa: E402
+
+    profile = _require_verified_caller(authorization)
+    if free_plan_blocks_group(profile):
+        raise HTTPException(status_code=403, detail=_FREE_GROUP_DETAIL)
+    return profile
+
+
+def _profile_for_lesson_start(authorization: str) -> dict | None:
+    """Anonymous sample-lesson caller, or the verified account behind a Bearer token."""
+    from aoep_shared.live_room_rewards import (  # noqa: E402
+        VerifiedIdentityError,
+        resolve_presented_profile,
+    )
+
+    try:
+        return resolve_presented_profile(authorization)
+    except VerifiedIdentityError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+def _require_paid_solo_caller(authorization: str | None = None) -> dict:
+    """Block anonymous callers, an expired free trial, and free-plan AI access."""
+    from aoep_shared.free_plan import (  # noqa: E402
+        free_plan_blocks_agents,
+        free_plan_lesson_block,
+    )
+
+    profile = _require_verified_caller(authorization)
+    lesson_block = free_plan_lesson_block(profile)
+    if lesson_block:
+        raise HTTPException(status_code=403, detail=lesson_block)
+    if free_plan_blocks_agents(profile):
+        raise HTTPException(status_code=403, detail=_FREE_AGENT_DETAIL)
+    return profile
+
+
+def _require_paid_ai_caller(authorization: str | None = None) -> dict:
+    """Tutor, training, cognitive, meeting, and other AI execution.
+
+    Omitted and rejected credentials are 401. An unreadable identity service
+    is 503. Free plans are 403. A missing token is never treated as a guest.
+    """
+    return _require_paid_solo_caller(authorization)
+
+
+def _paid_ai_execution(authorization: str = Header(default="")) -> dict:
+    return _require_paid_ai_caller(authorization)
+
+
+def _reject_free_group_access(authorization: str | None = None) -> None:
+    _require_paid_group_caller(authorization)
+
+
+def _reject_free_solo_access(authorization: str | None = None) -> None:
+    _require_paid_solo_caller(authorization)
+
+
+def _require_live_room_gate(room_id: str, authorization: str | None = None) -> dict:
+    """Every group room and AI solo room requires a verified paid account."""
+    if room_id.startswith("solo-"):
+        return _require_paid_solo_caller(authorization)
+    return _require_paid_group_caller(authorization)
+
+
+def _reject_free_room_join(room_id: str, authorization: str) -> None:
+    """Direct join must not bypass the group-class or solo AI gates."""
+    _require_live_room_gate(room_id, authorization)
+
+
 def _ensure_group_class_room(room_id: str):
     """Lazily open a Salareen live room for a group class.
 
@@ -2921,6 +3085,9 @@ def _ensure_group_class_room(room_id: str):
         if existing is not None:
             return existing
 
+    # Creating the room on a miss is group-class access. Missing, invalid,
+    # or unreadable identity fails closed before a session or room is opened.
+    _require_paid_group_caller(None)
     sessions = get_sessions()
     session_id = gc.session_id
     slide = None
@@ -3025,6 +3192,7 @@ def get_live_room(
     moderator_key: str = "",
     authorization: str = Header(default=""),
 ) -> dict:
+    _require_live_room_gate(room_id, authorization)
     room = _ensure_group_class_room(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="unknown live room")
@@ -3050,6 +3218,7 @@ def join_live_room(
 ) -> dict:
     from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
 
+    _reject_free_room_join(room_id, authorization)
     store = _live_rooms()
     account_id = account_from_authorization(authorization) or ""
     # Open the room on demand for group-class Salareen rooms so joining a
@@ -3371,6 +3540,7 @@ def live_room_media_token(room_id: str, req: LiveRoomHandRequest) -> dict:
     False, and when the host/AI grants them the floor the client re-fetches a
     token here (now can_publish True) and reconnects to publish. On losing the
     floor it re-fetches again (can_publish False) so LiveKit refuses to publish."""
+    _require_live_room_gate(room_id, None)
     try:
         room = _ensure_room_or_404(room_id)  # reopen if this replica lacks it
         p = room.get_participant(req.participant_id)
@@ -3492,6 +3662,7 @@ def live_room_chat(
     req: LiveRoomChatRequest,
     background: BackgroundTasks,
 ) -> dict:
+    _require_live_room_gate(room_id, None)
     store = _live_rooms()
     try:
         _ensure_room_or_404(room_id)
@@ -3905,6 +4076,7 @@ def live_room_advance(
 ) -> dict:
     """Advance the slide — class admin, moderator, or platform admin only (the AI
     auto-advances otherwise)."""
+    _require_live_room_gate(room_id, authorization)
     try:
         _authorize_room_admin(_ensure_room_or_404(room_id), req, authorization)
     except (LiveRoomError, BannedError) as exc:
@@ -3921,6 +4093,7 @@ def live_room_start_presentation(
 ) -> dict:
     """Start the class presentation — class admin (first joiner), moderator key,
     or the platform admin (admin@salareen.com) on ANY room."""
+    _require_live_room_gate(room_id, authorization)
     store = _live_rooms()
     try:
         room = _ensure_room_or_404(room_id)  # reopen if this replica lacks it
@@ -3989,8 +4162,9 @@ def live_room_tick(
     id: it refreshes their presence heartbeat and prunes learners who went stale
     (closed the browser/app without leaving). Also auto-starts the class (full or
     5 min past the scheduled time), auto-advances slides, and auto-ends/expires
-    when the allotted time is up. Any client may call this periodically; all
+    when the allotted time is up. The caller must be a verified paid account;
     actions are idempotent/rate-guarded server-side."""
+    _require_live_room_gate(room_id, authorization)
     store = _live_rooms()
     room = _ensure_room_or_404(room_id)  # reopen on this replica if the LB routed us elsewhere
     # Presence: mark the caller alive, then drop anyone whose heartbeat went stale.
@@ -4064,6 +4238,7 @@ def live_room_tick(
 @app.post("/api/live-rooms/{room_id}/ask")
 def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
     """Learner asks a question; Theodore answers in the room chat."""
+    _require_live_room_gate(room_id, None)
     store = _live_rooms()
     try:
         room = _ensure_room_or_404(room_id)
@@ -4236,6 +4411,7 @@ def live_room_ask_stream(room_id: str, req: LiveRoomAskRequest):
     ``data: {json}\\n\\n``; events are ``queued`` | ``delta`` | ``done``. Powered
     by the Nemotron agent when configured. The blocking ``/ask`` remains for
     clients that cannot read a stream."""
+    _require_live_room_gate(room_id, None)
     import json as _json
 
     from fastapi.responses import StreamingResponse
@@ -4553,6 +4729,17 @@ def live_room_follow_status(room_id: str, identity: str = "") -> dict:
 
 @app.websocket("/api/live-rooms/{room_id}/ws")
 async def live_room_websocket(room_id: str, websocket: WebSocket) -> None:
+    try:
+        _require_live_room_gate(room_id, websocket.headers.get("authorization", ""))
+    except HTTPException as exc:
+        if exc.status_code == 503:
+            code = 4503
+        elif exc.status_code == 403:
+            code = 4403
+        else:
+            code = 4401
+        await websocket.close(code=code)
+        return
     store = _live_rooms()
     if store.get(room_id) is None:
         await websocket.close(code=4404)
@@ -4794,7 +4981,11 @@ def training_scenario_detail(scenario_id: str) -> GeneratedScenario:
     return full
 
 
-@app.post("/api/training/sessions", response_model=TrainingSessionView)
+@app.post(
+    "/api/training/sessions",
+    response_model=TrainingSessionView,
+    dependencies=[Depends(_paid_ai_execution)],
+)
 def training_session_create(req: CreateTrainingSessionRequest) -> TrainingSessionView:
     try:
         session = create_training_session(req.scenario_id)
@@ -4803,7 +4994,11 @@ def training_session_create(req: CreateTrainingSessionRequest) -> TrainingSessio
     return TrainingSessionView(**session.to_view())
 
 
-@app.get("/api/training/sessions/{session_id}", response_model=TrainingSessionView)
+@app.get(
+    "/api/training/sessions/{session_id}",
+    response_model=TrainingSessionView,
+    dependencies=[Depends(_paid_ai_execution)],
+)
 def training_session_get(session_id: str) -> TrainingSessionView:
     session = get_training_session(session_id)
     if session is None:
@@ -4811,7 +5006,11 @@ def training_session_get(session_id: str) -> TrainingSessionView:
     return TrainingSessionView(**session.to_view())
 
 
-@app.post("/api/training/sessions/{session_id}/tick", response_model=TickResponse)
+@app.post(
+    "/api/training/sessions/{session_id}/tick",
+    response_model=TickResponse,
+    dependencies=[Depends(_paid_ai_execution)],
+)
 def training_session_tick(session_id: str) -> TickResponse:
     session, turns = tick_training_session(session_id)
     if session is None:
@@ -4821,7 +5020,11 @@ def training_session_tick(session_id: str) -> TickResponse:
     return TickResponse(session=_session_view(session), turns=_turn_views(turns or []))
 
 
-@app.post("/api/training/sessions/{session_id}/respond", response_model=RespondResponse)
+@app.post(
+    "/api/training/sessions/{session_id}/respond",
+    response_model=RespondResponse,
+    dependencies=[Depends(_paid_ai_execution)],
+)
 def training_session_respond(session_id: str, req: RespondRequest) -> RespondResponse:
     session, turns = respond_training_session(session_id, req.text)
     if session is None:
@@ -4923,7 +5126,7 @@ class TEMRequest(BaseModel):
     learner_threats: list[str]
 
 
-@app.post("/api/cognitive/check-in")
+@app.post("/api/cognitive/check-in", dependencies=[Depends(_paid_ai_execution)])
 def cognitive_check_in(req: CognitiveCheckInRequest) -> dict:
     """Wellness and readiness check-in; returns grounding exercise if needed."""
     profile = _get_profile(req.learner_id)
@@ -4938,21 +5141,21 @@ def cognitive_check_in(req: CognitiveCheckInRequest) -> dict:
     }
 
 
-@app.get("/api/cognitive/recommend/{learner_id}")
+@app.get("/api/cognitive/recommend/{learner_id}", dependencies=[Depends(_paid_ai_execution)])
 def cognitive_recommend(learner_id: str) -> dict:
     """Return next recommended cognitive training activity for a learner."""
     profile = _get_profile(learner_id)
     return _cognitive_trainer.recommend_next_session(profile)
 
 
-@app.get("/api/cognitive/summary/{learner_id}")
+@app.get("/api/cognitive/summary/{learner_id}", dependencies=[Depends(_paid_ai_execution)])
 def cognitive_summary(learner_id: str) -> dict:
     """Return full cognitive training profile summary."""
     profile = _get_profile(learner_id)
     return _cognitive_trainer.adaptation_summary(profile)
 
 
-@app.post("/api/cognitive/critical-thinking/question")
+@app.post("/api/cognitive/critical-thinking/question", dependencies=[Depends(_paid_ai_execution)])
 def critical_thinking_question(req: CriticalThinkingRequest) -> dict:
     """Generate the next Socratic question for a learner on a term/passage."""
     profile = _get_profile(req.learner_id)
@@ -4969,7 +5172,7 @@ def critical_thinking_question(req: CriticalThinkingRequest) -> dict:
     }
 
 
-@app.post("/api/cognitive/critical-thinking/evaluate")
+@app.post("/api/cognitive/critical-thinking/evaluate", dependencies=[Depends(_paid_ai_execution)])
 def critical_thinking_evaluate(req: CriticalThinkingEvalRequest) -> dict:
     """Evaluate a learner's answer to a Socratic question."""
     from aoep_shared.critical_thinking import BloomLevel, SocraticQuestion
@@ -5008,7 +5211,7 @@ def list_sa_scenarios(domain: str | None = None) -> dict:
     ]}
 
 
-@app.post("/api/cognitive/situational/ooda-prompt")
+@app.post("/api/cognitive/situational/ooda-prompt", dependencies=[Depends(_paid_ai_execution)])
 def sa_ooda_prompt(req: SAScenarioRequest) -> dict:
     """Return the OBSERVE phase prompt for an OODA scenario."""
     from aoep_shared.situational_awareness import OODAPhase
@@ -5028,7 +5231,7 @@ def list_rd_drills(domain: str | None = None) -> dict:
     ]}
 
 
-@app.post("/api/cognitive/rapid-decision/evaluate")
+@app.post("/api/cognitive/rapid-decision/evaluate", dependencies=[Depends(_paid_ai_execution)])
 def rd_evaluate(req: RapidDrillRequest) -> dict:
     """Evaluate a learner's rapid-decision drill attempt."""
     from aoep_shared.rapid_decision import PressureLevel as PL
@@ -5073,7 +5276,7 @@ def list_emergency_scenarios(domain: str | None = None) -> dict:
     ]}
 
 
-@app.post("/api/cognitive/emergency/start")
+@app.post("/api/cognitive/emergency/start", dependencies=[Depends(_paid_ai_execution)])
 def emergency_start(req: EmergencyScenarioRequest) -> dict:
     """Start an emergency scenario simulation run."""
     profile = _get_profile(req.learner_id)
@@ -5097,7 +5300,7 @@ def emergency_start(req: EmergencyScenarioRequest) -> dict:
     }
 
 
-@app.post("/api/cognitive/emergency/action")
+@app.post("/api/cognitive/emergency/action", dependencies=[Depends(_paid_ai_execution)])
 def emergency_action(req: EmergencyActionRequest) -> dict:
     """Apply a learner's action in an emergency scenario."""
     profile = _get_profile(req.learner_id)
@@ -5147,7 +5350,7 @@ def emergency_action(req: EmergencyActionRequest) -> dict:
     return response
 
 
-@app.post("/api/cognitive/mental-readiness/pre-mortem")
+@app.post("/api/cognitive/mental-readiness/pre-mortem", dependencies=[Depends(_paid_ai_execution)])
 def mental_readiness_pre_mortem(req: PreMortemRequest) -> dict:
     """Run a pre-mortem exercise on a plan."""
     profile = _get_profile(req.learner_id)
@@ -5163,7 +5366,7 @@ def mental_readiness_pre_mortem(req: PreMortemRequest) -> dict:
     }
 
 
-@app.post("/api/cognitive/mental-readiness/rehearsal")
+@app.post("/api/cognitive/mental-readiness/rehearsal", dependencies=[Depends(_paid_ai_execution)])
 def mental_readiness_rehearsal(req: RehearsalRequest) -> dict:
     """Return a formatted mental rehearsal script."""
     profile = _get_profile(req.learner_id)
@@ -5172,7 +5375,7 @@ def mental_readiness_rehearsal(req: RehearsalRequest) -> dict:
     return {"rehearsal_key": req.rehearsal_key, "text": text, "available_keys": available}
 
 
-@app.post("/api/cognitive/mental-readiness/tem")
+@app.post("/api/cognitive/mental-readiness/tem", dependencies=[Depends(_paid_ai_execution)])
 def mental_readiness_tem(req: TEMRequest) -> dict:
     """Threat and Error Management analysis."""
     profile = _get_profile(req.learner_id)

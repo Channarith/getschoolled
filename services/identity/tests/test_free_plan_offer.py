@@ -59,6 +59,46 @@ def test_free_plan_window_closed_refuses_a_new_claim(monkeypatch):
     assert "ended" in refused.json()["detail"].lower()
 
 
+def test_cloud_claim_without_redis_returns_503(monkeypatch):
+    monkeypatch.setenv("DEPLOY_MODE", "cloud")
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    token = _signup(f"cloud-noredis-{time.time_ns()}@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    refused = client.post("/onboarding/plan", headers=headers, json={"tier": "free"})
+    assert refused.status_code == 503
+    assert "cannot be claimed" in refused.json()["detail"].lower()
+    me = client.get("/auth/me", headers=headers).json()
+    assert me["free_plan"]["active"] is False
+
+
+def test_cloud_claim_with_unreachable_redis_returns_503(monkeypatch):
+    import sys
+    import types
+
+    monkeypatch.setenv("DEPLOY_MODE", "cloud")
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/0")
+
+    class _Unreachable:
+        def ping(self):
+            raise ConnectionError("redis unreachable")
+
+    redis_mod = sys.modules.get("redis")
+    if redis_mod is None:
+        try:
+            import redis as redis_mod
+        except ImportError:
+            redis_mod = types.ModuleType("redis")
+            monkeypatch.setitem(sys.modules, "redis", redis_mod)
+    monkeypatch.setattr(redis_mod, "from_url", lambda *_a, **_k: _Unreachable(), raising=False)
+
+    token = _signup(f"cloud-down-{time.time_ns()}@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    refused = client.post("/onboarding/plan", headers=headers, json={"tier": "free"})
+    assert refused.status_code == 503
+    me = client.get("/auth/me", headers=headers).json()
+    assert me["free_plan"]["active"] is False
+
+
 def test_expired_trial_cannot_be_claimed_again(monkeypatch):
     past = time.time() - 20 * 86400
     monkeypatch.setenv("FREE_PLAN_OFFER_START", str(past - 86400))

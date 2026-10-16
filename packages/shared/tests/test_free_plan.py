@@ -5,6 +5,7 @@ from aoep_shared.free_plan import (
     evaluate_free_offer,
     free_plan_blocks_agents,
     free_plan_blocks_group,
+    free_plan_english_block,
     free_plan_lesson_block,
     trial_expires_at,
 )
@@ -58,3 +59,18 @@ def test_free_plan_blocks_group_and_agents_and_inactive_lessons():
     paid = {"tier": "premium", "free_plan": {"active": False}}
     assert not free_plan_blocks_group(paid)
     assert free_plan_lesson_block(paid) == ""
+
+
+def test_active_free_trial_is_english_catalog_only():
+    active = {"tier": "free", "free_plan": {"active": True}}
+    assert free_plan_english_block(active, "en") == ""
+    assert free_plan_english_block(active, "en-US") == ""
+    assert free_plan_english_block(active, "EN") == ""
+    spanish = free_plan_english_block(active, "es")
+    assert "English" in spanish
+    assert free_plan_english_block(active, "") != ""
+    assert free_plan_english_block(active, "not-a-language") != ""
+    assert free_plan_english_block(None, "es") == ""
+    assert free_plan_english_block({"tier": "premium"}, "es") == ""
+    expired = {"tier": "free", "free_plan": {"active": False}}
+    assert free_plan_english_block(expired, "es") == ""

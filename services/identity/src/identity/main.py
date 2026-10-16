@@ -640,10 +640,14 @@ def onboarding_plan(req: OnboardingPlanRequest, acct=Depends(current_account)) -
 
 
 def _claim_free_plan(account_id: str):
+    from .persistence import FreeClaimUnavailable
+
     try:
         return app.state.accounts.claim_free_plan(account_id)
     except ValueError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except FreeClaimUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/onboarding/free-plan")

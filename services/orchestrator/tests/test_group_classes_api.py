@@ -155,10 +155,11 @@ def test_paid_enrollment_checkout_confirm_and_register(monkeypatch):
     assert created.status_code == 200, created.text
     cid = created.json()["id"]
 
-    checkout = client.post(f"/api/group-classes/{cid}/checkout", json={
-        "name": "Ada",
-        "email": "ada@example.com",
-    })
+    checkout = client.post(
+        f"/api/group-classes/{cid}/checkout",
+        json={"name": "Ada", "email": "ada@example.com"},
+        headers={"authorization": "Bearer ada-token"},
+    )
     assert checkout.status_code == 200, checkout.text
     session_id = checkout.json()["checkout"]["session_id"]
     assert session_id
@@ -172,13 +173,17 @@ def test_paid_enrollment_checkout_confirm_and_register(monkeypatch):
     code = confirm.json()["attendee_code"]
     assert code
 
-    reg = client.post(f"/api/group-classes/{cid}/register", json={
-        "name": "Ada",
-        "email": "ada@example.com",
-        "attendee_code": code,
-        "checkout_session_id": session_id,
-        "payment_status": "paid",
-    })
+    reg = client.post(
+        f"/api/group-classes/{cid}/register",
+        json={
+            "name": "Ada",
+            "email": "ada@example.com",
+            "attendee_code": code,
+            "checkout_session_id": session_id,
+            "payment_status": "paid",
+        },
+        headers={"authorization": "Bearer ada-token"},
+    )
     assert reg.status_code == 200, reg.text
     assert reg.json()["registered"] == 1
     assert reg.json()["payment_required"] is True
