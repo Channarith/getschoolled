@@ -189,3 +189,15 @@ jobs:
             exit 1
           fi
           echo "OK: no :latest in deploy workflows"
+
+  # Advisory. Runners have no labs, so a quiet port is not a failure.
+  # A lab that answers with the wrong version still fails the job.
+  lab-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Probe lab health and version
+        run: python3 scripts/lab_smoke.py --allow-down --why

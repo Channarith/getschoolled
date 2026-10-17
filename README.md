@@ -683,6 +683,7 @@ transcript all run without it.
 | `scripts/cosyvoice_language_census.py` | Per-language unique utterances and minutes against the 100-utterance / 20-minute floor |
 | `scripts/spark_cosyvoice_manifest.py` | Read-only merge of passing CosyVoice channel reports into `output/spark/cosyvoice/` plus `TRAIN_HANDOFF.txt` |
 | `scripts/spark_cosyvoice_km_finetune.sh` | One-epoch CosyVoice-300M Khmer LLM candidate under `flock ~/.gs-gpu.lock`; does not promote into the live server |
+| `scripts/lab_smoke.py` | Read-only lab probe (`make lab-smoke`): `/health` and `/version` against `VERSION`. `--host` and `--port-offset 10000` point it at another machine's 18xxx ports |
 | `scripts/a2f_cosyvoice_loop/` | CosyVoice PCM → Audio2Face-3D gRPC (aarch64 stub + amd64 NIM handoff); see `README.txt` there |
 | `scripts/pipecat_cosyvoice/` | Pipecat-oriented CosyVoice TTS config for NVIDIA voice-agent-examples |
 | `sample-curriculum` | 118 live-class lessons: math (Algebra through Differential Equations), economics, professional skills (Power BI, SAP, DevOps, Digital Marketing, UX, Cybersecurity, Excel/Word/PowerPoint), corporate/AI tracks, safety training, and more. Slide counts vary; the loader reads each top-level `lesson.txt` |
