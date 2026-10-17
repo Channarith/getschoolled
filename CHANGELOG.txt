@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-18 - v0.62.2 - Spark CosyVoice manifest merges passing ingest channels per language into output/spark/cosyvoice with TRAIN_HANDOFF. A one-epoch Khmer LLM candidate trains under the GPU lock and is not promoted into the live server. Salane is counted and skipped when that corpus is empty.
 - 2026-10-18 - v0.62.1 - Spark STEM QLoRA cycle: seed export, 4-bit training when the GPU allows, bake-off, and promote only if the adapter wins. A user systemd timer and install script are in the repo and are not enabled.
 - 2026-10-17 - v0.62.0 - Web setup, Learner Check, classes, and live rooms adapt from phones through tablets and desktops without squished forms or horizontal overflow. The native app uses compact, medium, and expanded window classes with safe-area-aware navigation, lessons, live rooms, demos, settings, and camera previews. Mobile onboarding offers paid plans when Free is unavailable; web voice can explicitly switch between Sala and xAI.
 - 2026-10-16 - v0.62.0 - The Driver Ed player resumes once on its own after any return to the camera: the tab or app comes back, the page leaves the back-forward cache, the device wakes, or the camera recovers. Before it continues, it checks the slide with the server and restores the audio. An intentional pause stays paused. A Tap to continue button appears only if resuming fails. Driver Ed slides show a drawn road scene with the road sign and up to three short points.
