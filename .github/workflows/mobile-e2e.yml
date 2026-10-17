@@ -42,6 +42,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+      - name: Create local.env from the example
+        run: test -f config/local.env || cp config/local.env.example config/local.env
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

@@ -27,7 +27,7 @@ from aoep_shared.pulse_survey import (
 from aoep_shared.mascots import mascot_catalog_list, resolve_mascot
 from aoep_shared.testsupport import test_endpoints_enabled
 from aoep_shared.bug_reports import BugReportStore, BugReportSubmit
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 
@@ -130,6 +130,12 @@ def record_consent(req: ConsentUpsert) -> dict:
     )
     app.state.store.record_consent(record)
     return {"student_id": req.student_id, "scope": req.scope, "granted": req.granted}
+
+
+@app.get("/internal/consent/granted", dependencies=[Depends(require_internal)])
+def granted_consent(scope: ConsentScope = "face_recognition") -> dict:
+    """Student ids the server has recorded as consented. Callers cannot widen this."""
+    return {"scope": scope, "student_ids": app.state.store.consented_ids(scope)}
 
 
 @app.get("/consent/{student_id}/{scope}", dependencies=[Depends(require_internal)])
@@ -556,10 +562,13 @@ def test_seed(req: SeedRequest, _: str = Depends(require_admin_header)) -> dict:
     return {"seeded": seeded}
 
 
-# The class page and the orchestrator memory client post these directly.
-# They are not homework-grading tools, so they are not behind the internal token.
+# Learner signals are personal data. The orchestrator calls with the internal
+# token; a signed-in member may only touch students on their own account.
 @app.post("/mastery")
-def update_mastery(req: MasteryUpdate) -> dict:
+def update_mastery(req: MasteryUpdate, request: Request) -> dict:
+    from aoep_shared.learner_scope import require_student_access
+
+    require_student_access(request, req.student_id)
     with _mastery_lock:
         # BUG 10 FIX: cap _mastery_locks at 10 000 entries to prevent unbounded
         # growth when many distinct student IDs are seen over the process lifetime.
@@ -582,7 +591,10 @@ class BehaviorEvent(BaseModel):
 
 
 @app.post("/behavior")
-def record_behavior(req: BehaviorEvent) -> dict:
+def record_behavior(req: BehaviorEvent, request: Request) -> dict:
+    from aoep_shared.learner_scope import require_student_access
+
+    require_student_access(request, req.student_id)
     app.state.store.record_behavior(
         req.student_id,
         req.topic,
@@ -596,8 +608,11 @@ def record_behavior(req: BehaviorEvent) -> dict:
 
 
 @app.get("/learner/{student_id}/{topic}")
-def learner_signals(student_id: str, topic: str) -> dict:
+def learner_signals(student_id: str, topic: str, request: Request) -> dict:
     """Aggregated learning-behavior signals used by the adaptive policy."""
+    from aoep_shared.learner_scope import require_student_access
+
+    require_student_access(request, student_id)
     s = app.state.store.learner_signals(student_id, topic)
     return {
         "student_id": student_id,

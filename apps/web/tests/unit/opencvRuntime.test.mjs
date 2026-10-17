@@ -46,13 +46,12 @@ test("a missing or incomplete runtime is a model error, not a camera error", asy
   await assert.rejects(waitForCvRuntime({}, 30), ModelLoadError);
 });
 
-test("rating scale is a 5-column grid with touch-size buttons", () => {
+test("learning mode rating scale clamps to the card width on phones", () => {
   const css = readFileSync(join(web, "app", "onboarding", "Onboarding.module.css"), "utf8");
   const scale = css.match(/\.scale \{[^}]*\}/)?.[0] ?? "";
-  assert.match(scale, /repeat\(5, minmax\(0, 1fr\)\)/);
-  const button = css.match(/\.scale button \{[^}]*\}/)?.[0] ?? "";
-  assert.match(button, /padding: 0;/);
-  assert.match(button, /min-height: 44px;/);
+  assert.match(scale, /max-width: 100%/);
+  assert.match(css, /@media \(max-width: 839px\)[\s\S]*\.scale[\s\S]*flex-wrap: wrap/);
+  assert.match(css, /@media \(max-width: 839px\)[\s\S]*\.scale button[\s\S]*width: 26px/);
 });
 
 test("setup copy never says Face ID", () => {

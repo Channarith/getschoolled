@@ -52,6 +52,7 @@ def engine(models):
 # Disable rate limiting + share-clock cache for tests; the platform-wide
 # limiter is unit-tested in packages/shared and would otherwise flake
 # busy service test suites that issue hundreds of requests per session.
+os.environ.setdefault("VISION_PRELOAD_MODELS", "0")
 os.environ.setdefault("RATE_LIMIT_DISABLED", "1")
 
 # Bypass the internal-auth gate by default in tests. Specific tests

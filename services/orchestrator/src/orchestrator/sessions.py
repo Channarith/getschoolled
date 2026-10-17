@@ -120,8 +120,10 @@ class RedisSessionStore:
         try:
             raw = self._r.get(self._key(session_id))
         except Exception as e:  # noqa: BLE001
-            logger.warning("redis session get failed (%s); using in-memory", e)
-            return self._fallback.get(session_id)
+            logger.error("redis session get failed (%s)", e)
+            from aoep_shared.store_errors import DurableStoreError
+
+            raise DurableStoreError("session store is unavailable") from e
         if raw is None:
             return None
         try:
@@ -140,15 +142,19 @@ class RedisSessionStore:
                 ex=self._ttl,
             )
         except Exception as e:  # noqa: BLE001
-            logger.warning("redis session save failed (%s); using in-memory", e)
-            self._fallback.save(session)
+            logger.error("redis session save failed (%s)", e)
+            from aoep_shared.store_errors import DurableStoreError
+
+            raise DurableStoreError("session store is unavailable") from e
 
     def delete(self, session_id: str) -> None:
         try:
             self._r.delete(self._key(session_id))
         except Exception as e:  # noqa: BLE001
-            logger.warning("redis session delete failed (%s)", e)
-            self._fallback.delete(session_id)
+            logger.error("redis session delete failed (%s)", e)
+            from aoep_shared.store_errors import DurableStoreError
+
+            raise DurableStoreError("session store is unavailable") from e
 
 
 # --------------------------------------------------------------------------- #

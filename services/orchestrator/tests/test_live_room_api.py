@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from orchestrator.main import app
 from orchestrator.teaching import Answer
 
-client = TestClient(app)
+client = TestClient(app, headers={"Authorization": "Bearer live-room-suite"})
 
 
 def _iso(delta_minutes: int) -> str:
@@ -936,7 +936,7 @@ def test_report_and_moderator_review():
     assert dismissed.json()["room"].get("reports") == []
 
 
-def test_gift_catalog_and_send():
+def test_gift_catalog_and_send(monkeypatch):
     info = _start_salareen_class(6)
     room_id = info["room_id"]
     joined = client.post(
@@ -945,7 +945,14 @@ def test_gift_catalog_and_send():
     )
     assert joined.status_code == 200, joined.text
     pid = joined.json()["participant"]["id"]
-    assert joined.json()["gift_balance"] >= 10
+    start_balance = joined.json()["gift_balance"]
+    assert start_balance >= 10
+
+    def _spend(_authorization, amount, **_kwargs):
+        return start_balance - amount
+
+    monkeypatch.setattr("aoep_shared.live_room_rewards.spend_rewards_via_auth", _spend)
+    monkeypatch.setattr("aoep_shared.live_room_rewards.earn_rewards_internal", lambda *_a, **_k: True)
 
     catalog = client.get("/api/live-rooms/gifts/catalog")
     assert catalog.status_code == 200

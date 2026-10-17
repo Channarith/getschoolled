@@ -6,7 +6,8 @@
  */
 
 import { cancelSpeech, speakNaturally } from "./tts";
-import { getXaiVoiceStatus, isSalaneEngine, mintXaiVoiceToken, connectXaiVoiceSession, appendInputAudio, closeXaiVoiceSession, sendTextTurn } from "./xaiVoice";
+import { getLiveVoiceEngine } from "./liveVoiceEngine";
+import { getXaiVoiceStatus, mintXaiVoiceToken, connectXaiVoiceSession, appendInputAudio, closeXaiVoiceSession, sendTextTurn } from "./xaiVoice";
 
 const BLUETOOTH_INPUT = /bluetooth|airpod|headset|hands-free|handset|beats|bose/i;
 
@@ -104,7 +105,7 @@ export async function startDriveVoice(
 ): Promise<DriveVoiceSession | null> {
   const status = await getXaiVoiceStatus().catch(() => null);
   if (!status?.available) return null;
-  if (isSalaneEngine(status.engine)) {
+  if (getLiveVoiceEngine() !== "xai") {
     const locale = topic.language || "en";
     let stopped = false;
     callbacks.onStatus?.("Sala is speaking with Salane Voice.");
@@ -149,6 +150,7 @@ export async function startDriveVoice(
   }
   const token = await mintXaiVoiceToken({
     mode: "drive",
+    engine: "xai",
     category: topic.category,
     topic: topic.title,
     lesson_context: topic.excerpt,

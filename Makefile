@@ -13,8 +13,9 @@ COMPOSE := infra/compose/docker-compose.yml
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
+	ensure-local-env \
 	run-identity run-memory run-orchestrator run-livekit validate-pipeline webcam-lab \
-	children-lab rag-lab drive-lab homework-lab music-lab dev-all dev-down dev-status
+	children-lab rag-lab drive-lab homework-lab music-lab lab-smoke dev-all dev-down dev-status
 
 help:
 	@echo "Targets:"
@@ -27,6 +28,7 @@ help:
 	@echo "  children-lab   Playful webcam learning/movement lab for ages 4-10"
 	@echo "  homework-lab   Private homework lab (50+ methodologies generate/grade)"
 	@echo "  music-lab      Private learn-through-music lab (100+ original songs)"
+	@echo "  lab-smoke      GET /health and /version for every lab (LAB_SMOKE_HOST, LAB_SMOKE_PORT_OFFSET)"
 	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
 	@echo "  lint           Ruff lint the Python sources (needs ruff)"
 	@echo "  stress         Stress/perf the running APIs (start services first)"
@@ -134,6 +136,14 @@ homework-lab:
 
 music-lab:
 	PYTHONPATH=subrepos/theodore_music_lab/src:packages/shared/src $(VENV_PY) -c "from theodore_music_lab.catalog import Catalog, MEANING_LANGUAGES; c=Catalog(); print(len(c.songs), len(MEANING_LANGUAGES))"
+
+# Read-only HTTP probe. Does not start or stop anything.
+# Kal-el 18xxx ports: make lab-smoke LAB_SMOKE_PORT_OFFSET=10000
+LAB_SMOKE_HOST ?= 127.0.0.1
+LAB_SMOKE_PORT_OFFSET ?= 0
+lab-smoke:
+	LAB_SMOKE_HOST=$(LAB_SMOKE_HOST) LAB_SMOKE_PORT_OFFSET=$(LAB_SMOKE_PORT_OFFSET) \
+		$(PY) scripts/lab_smoke.py --why
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
@@ -249,10 +259,15 @@ down:
 COMPOSE_E2E := infra/compose/docker-compose.e2e.yml
 E2E_SERVICES := postgres redis orchestrator memory speech curriculum billing identity integrations web
 
-up-e2e:
+# Compose refuses to start or stop when config/local.env is missing. Runners
+# have no developer copy. Seed the example and never overwrite a real file.
+ensure-local-env:
+	@test -f config/local.env || cp config/local.env.example config/local.env
+
+up-e2e: ensure-local-env
 	docker compose -f $(COMPOSE) -f $(COMPOSE_E2E) up -d --build $(E2E_SERVICES)
 
-down-e2e:
+down-e2e: ensure-local-env
 	docker compose -f $(COMPOSE) -f $(COMPOSE_E2E) down
 
 # Corporate-demo readiness gate: targeted tests + stack probes + Playwright

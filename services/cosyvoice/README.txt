@@ -86,3 +86,13 @@ COSYVOICE_URL is set — no ElevenLabs key required.
 
 Local (no GPU): the server imports without the model; POST /tts only works once
 the model loads (GPU). For CPU smoke tests, inject a fake model via build_app().
+
+Spark fine-tune candidate (does not replace this server)
+-------------------------------------------------------
+  python3 scripts/spark_cosyvoice_manifest.py \
+    --scan-root output --dest output/spark/cosyvoice
+  # writes per-language Kaldi lists + TRAIN_HANDOFF.txt for report ok:true
+  ./scripts/spark_cosyvoice_km_finetune.sh
+  # one LLM epoch on CosyVoice-300M into output/spark/cosyvoice/km/exp
+  # takes flock ~/.gs-gpu.lock around torchrun only
+  # never copies checkpoints into pretrained_models or this process

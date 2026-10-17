@@ -15,6 +15,7 @@ import {
   getMe,
   getServiceErrors,
   getServiceVersions,
+  authorizationValue,
   getToken,
   listLessons,
   SERVICE_URLS,
@@ -343,7 +344,8 @@ export default function AdminPage() {
     try {
       const headers: Record<string, string> = { Accept: "application/json" };
       if (secret) headers["X-Admin-Secret"] = secret;
-      if (getToken()) headers.Authorization = `Bearer ${getToken()}`;
+      const bearer = authorizationValue();
+      if (bearer) headers.Authorization = bearer;
       const res = await fetch(`${SERVICE_URLS.identity}/admin/readiness/summary`, {
         headers,
         cache: "no-store",
@@ -806,7 +808,7 @@ export default function AdminPage() {
                             // server-side (session admins never type a secret).
                             void fetch(
                               `/api/admin/bugs/${encodeURIComponent(r.id)}/attachments/${encodeURIComponent(name)}`,
-                              { headers: { "X-Admin-Secret": secret, ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) } },
+                              { headers: { "X-Admin-Secret": secret, ...(authorizationValue() ? { Authorization: authorizationValue() as string } : {}) } },
                             )
                               .then((resp) => {
                                 if (!resp.ok) throw new Error(`attachment ${resp.status}`);

@@ -8,6 +8,7 @@ import { AUTH_EVENT, getToken, getFlag } from "../lib/api";
 import { useDemoOnlyAnonymous, useFullNavTabs, useSignedIn } from "../lib/flags";
 import { useT } from "../lib/i18n";
 import { learningHint, useLearningPhrase } from "../lib/learningPhrases";
+import { isImmersiveSetupPath } from "../lib/layoutWidth";
 import ProfileMenu from "./ProfileMenu";
 import NavSearchBox from "./NavSearchBox";
 
@@ -53,6 +54,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   // out visitors so the inverted demo stays focused on the three demo features.
   if (
     demoOnlyAnon
+    || isImmersiveSetupPath(pathname)
     || pathname.startsWith("/home-concepts")
     || (pathname === "/" && signedIn !== true)
   ) {

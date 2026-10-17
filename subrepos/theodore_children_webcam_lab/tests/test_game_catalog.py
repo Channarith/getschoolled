@@ -130,8 +130,15 @@ def test_every_picture_word_has_a_glyph_on_both_sides():
 def test_coloring_scratches_and_phones_can_switch_touch():
     html = render_children_page("test")
     assert 'id="touch-mode"' in html
+    assert 'id="touch-air"' in html and 'id="touch-screen"' in html
+    assert ">Air touch</button>" in html and ">Screen touch</button>" in html
+    assert 'id="screen-catcher"' in html
     script = _js()
     assert "function screenTouch" in script
+    assert "function pokeScreenTargets" in script
+    assert "activeFingertips" in script
+    assert "claimTouch" in script
+    assert "seedPlayAge" in script
     assert 'stage?.addEventListener("touchstart"' in script
     assert "visionTelemetry" in script
     assert "screen_touch" in script
@@ -142,6 +149,9 @@ def test_coloring_scratches_and_phones_can_switch_touch():
     assert "body:not(.phone-play) #touch-mode" in css
     assert "body.phone-play #touch-mode" in css
     assert "position:fixed" in css.split("body.phone-play #touch-mode{")[1].split("}")[0]
+    assert 'button[aria-checked="true"]' in css
+    assert ".screen-catcher{" in css and "z-index:7" in css
+    assert ".target,.sprite{pointer-events:none}" in css
 
 
 

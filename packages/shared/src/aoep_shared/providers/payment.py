@@ -54,6 +54,184 @@ def _coerce_method(method) -> PaymentMethod:
     return PaymentMethod(str(method))
 
 
+def _checkout_amount(plan: str) -> tuple[int, str]:
+    """Cents and decimal dollars for a named plan."""
+    from ..plan_pricing import price_usd_for_tier
+
+    key = (plan or "").strip().lower()
+    if key == "vip":
+        key = "premium"
+    dollars = price_usd_for_tier(key)
+    if dollars <= 0 and key != "free":
+        dollars = price_usd_for_tier("basic")
+    return int(round(dollars * 100)), f"{dollars:.2f}"
+
+
+def _public_web() -> str:
+    import os
+
+    return (os.environ.get("PUBLIC_WEB_URL") or "https://www.salareen.com").rstrip("/")
+
+
+def _http_json(url: str, payload, headers: dict) -> dict:
+    import json
+    import urllib.request
+
+    data = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        return json.loads(resp.read().decode() or "{}")
+
+
+def _hosted_checkout(provider, *, customer_id: str, plan: str, method: PaymentMethod) -> CheckoutSession:
+    """Open a hosted checkout at the processor that owns this method."""
+    import base64
+    import os
+    import uuid
+
+    impl = provider.impl
+    key = provider._api_key
+    cents, dollars = _checkout_amount(plan)
+    web = _public_web()
+    success = f"{web}/billing?checkout=success"
+    cancel = f"{web}/billing?checkout=cancel"
+    if impl == "stripe":
+        price_env = os.environ.get(f"STRIPE_PRICE_{plan.upper()}", "").strip()
+        fields = {
+            "mode": "subscription" if price_env else "payment",
+            "success_url": success,
+            "cancel_url": cancel,
+            "client_reference_id": customer_id,
+        }
+        if price_env:
+            fields["line_items[0][price]"] = price_env
+            fields["line_items[0][quantity]"] = "1"
+        else:
+            fields.update({
+                "line_items[0][quantity]": "1",
+                "line_items[0][price_data][currency]": "usd",
+                "line_items[0][price_data][unit_amount]": str(cents),
+                "line_items[0][price_data][product_data][name]": plan or "Salareen",
+            })
+        import urllib.parse
+        body = _http_json(
+            "https://api.stripe.com/v1/checkout/sessions",
+            urllib.parse.urlencode(fields).encode(),
+            {
+                "Authorization": "Basic " + base64.b64encode(f"{key}:".encode()).decode(),
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        )
+        return CheckoutSession(
+            session_id=str(body.get("id") or ""),
+            url=str(body.get("url") or ""),
+            provider="stripe",
+            method=method.value,
+        )
+    if impl == "paypal":
+        body = _http_json(
+            "https://api-m.paypal.com/v2/checkout/orders",
+            {
+                "intent": "CAPTURE",
+                "purchase_units": [{
+                    "custom_id": customer_id,
+                    "description": plan or "Salareen",
+                    "amount": {"currency_code": "USD", "value": dollars},
+                }],
+                "application_context": {"return_url": success, "cancel_url": cancel},
+            },
+            {
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+        )
+        approve = next(
+            (link.get("href") for link in body.get("links") or [] if link.get("rel") == "approve"),
+            "",
+        )
+        return CheckoutSession(
+            session_id=str(body.get("id") or ""),
+            url=str(approve),
+            provider="paypal",
+            method=method.value,
+        )
+    if impl == "square":
+        body = _http_json(
+            "https://connect.squareup.com/v2/online-checkout/payment-links",
+            {
+                "idempotency_key": uuid.uuid4().hex,
+                "quick_pay": {
+                    "name": plan or "Salareen",
+                    "price_money": {"amount": cents, "currency": "USD"},
+                    "location_id": os.environ.get("SQUARE_LOCATION_ID", "main"),
+                },
+                "checkout_options": {"redirect_url": success},
+            },
+            {
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+        )
+        link = body.get("payment_link") or {}
+        return CheckoutSession(
+            session_id=str(link.get("id") or body.get("id") or ""),
+            url=str(link.get("url") or link.get("long_url") or ""),
+            provider="square",
+            method=method.value,
+        )
+    if impl == "razorpay":
+        key_id, _, secret = key.partition(":")
+        token = base64.b64encode(f"{key_id}:{secret or key_id}".encode()).decode()
+        body = _http_json(
+            "https://api.razorpay.com/v1/payment_links",
+            {
+                "amount": cents,
+                "currency": "USD",
+                "description": plan or "Salareen",
+                "reference_id": customer_id[:40],
+                "callback_url": success,
+                "callback_method": "get",
+            },
+            {
+                "Authorization": f"Basic {token}",
+                "Content-Type": "application/json",
+            },
+        )
+        return CheckoutSession(
+            session_id=str(body.get("id") or ""),
+            url=str(body.get("short_url") or ""),
+            provider="razorpay",
+            method=method.value,
+        )
+    if impl == "mercado_pago":
+        body = _http_json(
+            "https://api.mercadopago.com/checkout/preferences",
+            {
+                "items": [{
+                    "title": plan or "Salareen",
+                    "quantity": 1,
+                    "currency_id": "USD",
+                    "unit_price": float(dollars),
+                }],
+                "external_reference": customer_id,
+                "back_urls": {"success": success, "failure": cancel, "pending": success},
+            },
+            {
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+        )
+        return CheckoutSession(
+            session_id=str(body.get("id") or ""),
+            url=str(body.get("init_point") or ""),
+            provider="mercado_pago",
+            method=method.value,
+        )
+    raise NotImplementedError(
+        f"{impl} checkout is not available in this environment"
+    )
+
+
 class SandboxPaymentProvider(PaymentProvider):
     """Offline payment stub for local mode; simulates every method so the
     full UX (including regional methods like UPI, PIX, KHQR, etc.) is
@@ -144,11 +322,13 @@ class _CloudProviderBase(PaymentProvider):
                 f"{m.value} is not handled by {self.impl}; route to the "
                 f"{processor_for(m).value} provider instead."
             )
-        raise NotImplementedError(
-            f"{self.impl} not configured in this environment; set "
-            f"{self.api_key_attr.upper()} and PAYMENT_MODE=cloud "
-            f"to enable live checkout."
-        )
+        if not self.ready():
+            raise NotImplementedError(
+                f"{self.impl} not configured in this environment; set "
+                f"{self.api_key_attr.upper()} and PAYMENT_MODE=cloud "
+                f"to enable live checkout."
+            )
+        return _hosted_checkout(self, customer_id=customer_id, plan=plan, method=m)
 
 
 class StripePaymentProvider(_CloudProviderBase):

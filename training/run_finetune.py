@@ -95,21 +95,58 @@ def _detect_device(requested: str) -> str:
         return "cpu"
 
 
+def _load_causal_lm(base_model: str, *, offline: bool, device: str, want_4bit: bool):
+    """Load the base model. Prefer 4-bit QLoRA; fall back to bf16 LoRA on this GPU."""
+    import torch
+    from transformers import AutoModelForCausalLM
+
+    if want_4bit:
+        try:
+            from transformers import BitsAndBytesConfig
+
+            model = AutoModelForCausalLM.from_pretrained(
+                base_model,
+                local_files_only=offline,
+                device_map="auto",
+                quantization_config=BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                ),
+            )
+            print("loaded base in 4-bit QLoRA")
+            return model, True
+        except Exception as exc:  # noqa: BLE001 — hardware/kernel gaps must not abort the run
+            print(
+                f"WARNING: 4-bit QLoRA unavailable ({type(exc).__name__}); using bf16 LoRA",
+                file=sys.stderr,
+            )
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    dtype = torch.bfloat16 if device == "cuda" else torch.float32
+    kwargs: dict = {"local_files_only": offline, "torch_dtype": dtype}
+    if device == "cuda":
+        kwargs["device_map"] = "auto"
+    model = AutoModelForCausalLM.from_pretrained(base_model, **kwargs)
+    print(f"loaded base dtype={dtype}")
+    return model, False
+
+
 def train(args, cfg: dict, rows: List[Dict]) -> int:
     if args.offline:
         os.environ.setdefault("HF_HUB_OFFLINE", "1")
         os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
     # Heavy imports kept local so --check works without them.
-    import torch
     from datasets import Dataset
     from peft import LoraConfig
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import AutoTokenizer
     from trl import SFTConfig, SFTTrainer
 
     base_model = args.base_model or cfg.get("base_model")
     device = _detect_device(args.device)
-    use_4bit = device == "cuda" and cfg.get("method", "qlora") == "qlora"
+    want_4bit = device == "cuda" and cfg.get("method", "qlora") == "qlora"
 
     tok = AutoTokenizer.from_pretrained(
         base_model, local_files_only=args.offline, use_fast=True
@@ -117,22 +154,9 @@ def train(args, cfg: dict, rows: List[Dict]) -> int:
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
 
-    model_kwargs: dict = {"local_files_only": args.offline}
-    if use_4bit:
-        from transformers import BitsAndBytesConfig
-
-        model_kwargs["quantization_config"] = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-        )
-        model_kwargs["device_map"] = "auto"
-    else:
-        model_kwargs["torch_dtype"] = (
-            torch.bfloat16 if device == "cuda" else torch.float32
-        )
-
-    model = AutoModelForCausalLM.from_pretrained(base_model, **model_kwargs)
+    model, used_4bit = _load_causal_lm(
+        base_model, offline=args.offline, device=device, want_4bit=want_4bit,
+    )
 
     lcfg = cfg.get("lora", {})
     peft_config = LoraConfig(
@@ -145,22 +169,32 @@ def train(args, cfg: dict, rows: List[Dict]) -> int:
 
     ds = Dataset.from_list([{"text": format_example(r)} for r in rows])
     optim = cfg.get("optim", {})
-    sft = SFTConfig(
+    sft_kwargs = dict(
         output_dir=args.output,
         num_train_epochs=float(optim.get("epochs_per_cycle", 1)),
         per_device_train_batch_size=int(optim.get("batch_size", 4)),
         gradient_accumulation_steps=int(optim.get("grad_accum", 4)),
         learning_rate=float(optim.get("lr", 2e-4)),
-        max_steps=args.max_steps,
-        logging_steps=5,
+        logging_steps=10,
         save_strategy="epoch",
         dataset_text_field="text",
-        report_to=[],
+        max_length=int(optim.get("max_length", 512)),
+        packing=False,
+        report_to="none",
+        bf16=device == "cuda",
+        gradient_checkpointing=device == "cuda",
+        optim="adamw_torch",
+        dataset_num_proc=1,
     )
+    if args.max_steps and args.max_steps > 0:
+        sft_kwargs["max_steps"] = args.max_steps
+    sft = SFTConfig(**sft_kwargs)
+    # trl >= 0.12 names the tokenizer argument processing_class.
     trainer = SFTTrainer(
         model=model, args=sft, train_dataset=ds, peft_config=peft_config,
-        tokenizer=tok,
+        processing_class=tok,
     )
+    print(f"qlora_4bit={used_4bit}")
     trainer.train()
     trainer.save_model(args.output)
     tok.save_pretrained(args.output)

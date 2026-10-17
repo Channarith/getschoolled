@@ -91,7 +91,6 @@ def _get_model():
             os.environ.get("NLLB_MODEL") or "facebook/nllb-200-distilled-600M"
         ).strip()
         try:
-            import torch
             from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
             device = _torch_device()

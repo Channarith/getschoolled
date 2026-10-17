@@ -131,9 +131,13 @@ test("teach: Zelle payment POST includes Authorization header", () => {
   expect(checkout).toContain('method: "POST"');
   expect(checkout).toContain("authHeaders()");
   const authAt = api.indexOf("function authHeaders");
-  const auth = api.slice(authAt, authAt + 220).toLowerCase();
-  expect(auth).toContain("authorization");
-  expect(auth).toContain("bearer");
+  expect(authAt).toBeGreaterThan(-1);
+  const auth = api.slice(authAt, authAt + 220);
+  expect(auth).toContain("authorizationValue()");
+  expect(auth).toContain("Authorization");
+  const valueAt = api.indexOf("function authorizationValue");
+  expect(valueAt).toBeGreaterThan(-1);
+  expect(api.slice(valueAt, valueAt + 220)).toContain("Bearer");
 });
 
 // ---------------------------------------------------------------------------

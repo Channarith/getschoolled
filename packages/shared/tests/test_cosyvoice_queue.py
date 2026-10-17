@@ -70,6 +70,40 @@ def test_discover_skips_news_channels(tmp_path: Path):
     assert jobs[0].whisper == "es"
 
 
+def test_queue_row_records_report_stderr_and_category(tmp_path: Path):
+    from aoep_shared.cosyvoice_ingest.queue import apply_channel_report
+
+    out = tmp_path / "cosyvoice_en_demo"
+    out.mkdir()
+    (out / "report.json").write_text(
+        json.dumps(
+            {
+                "ok": False,
+                "utterances": 12,
+                "partial": True,
+                "error_counts": {"bot_check": 4, "http_403": 1},
+                "error_records": [
+                    {
+                        "category": "bot_check",
+                        "stage": "download",
+                        "target": "https://www.youtube.com/watch?v=aaaaaaaaaaa",
+                        "message": "yt-dlp failed",
+                        "stderr": "ERROR: Sign in to confirm you're not a bot",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    row = {"error": "", "stderr_tail": "Merged train handoff only"}
+    apply_channel_report(row, out)
+    assert row["error"] == "bot_check:4,http_403:1"
+    assert "not a bot" in row["stderr_tail"]
+    assert "handoff" not in row["stderr_tail"]
+    assert row["partial"] is True
+    assert row["utterances"] == 12
+
+
 def test_execute_queue_uses_injected_runner_and_stop_file(tmp_path: Path):
     paths = _tree(tmp_path)
     calls: list[str] = []

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { translateText } from "../api";
 import { useT } from "../i18n";
+import { storyboardHeight, useLayoutMetrics } from "../layout";
 
 type Props = {
   svg?: string;
@@ -30,6 +31,7 @@ export default function CourseStoryboardView({
   sourceLanguage = "en",
 }: Props) {
   const { locale } = useT();
+  const { widthClass, isExpanded, largeText } = useLayoutMetrics();
   const [localized, setLocalized] = useState<{
     concept: string; examples: string[]; activity: string;
   } | null>(null);
@@ -59,18 +61,27 @@ export default function CourseStoryboardView({
   const shownConcept = translatedConcept || localized?.concept || concept;
   const shownExamples = localized?.examples || examples;
   const shownActivity = localized?.activity || activity;
+  const paneHeight = storyboardHeight(widthClass, fullscreen);
+  const splitRow = isExpanded && !fullscreen;
   return (
-    <View style={[styles.wrap, fullscreen && styles.fullscreen]} accessibilityLabel={shownConcept}>
+    <View
+      style={[
+        styles.wrap,
+        { height: paneHeight },
+        splitRow && styles.wrapRow,
+      ]}
+      accessibilityLabel={shownConcept}
+    >
       <WebView
         originWhitelist={["*"]}
         source={{ html: documentFor(svg) }}
-        style={styles.webview}
+        style={[styles.webview, splitRow && styles.webviewSplit]}
         scrollEnabled={false}
         javaScriptEnabled
         pointerEvents="none"
       />
-      <View style={styles.caption}>
-        <Text style={styles.concept}>{shownConcept}</Text>
+      <View style={[styles.caption, splitRow && styles.captionSplit]}>
+        <Text style={[styles.concept, largeText && styles.conceptLarge]}>{shownConcept}</Text>
         {shownConcept && shownConcept !== concept ? (
           <Text style={styles.source}>{concept}</Text>
         ) : null}
@@ -87,16 +98,21 @@ export default function CourseStoryboardView({
 const styles = StyleSheet.create({
   wrap: {
     width: "100%",
-    height: 330,
     borderRadius: 14,
     overflow: "hidden",
     backgroundColor: "#0b1220",
     marginVertical: 10,
   },
-  fullscreen: { height: 520 },
-  webview: { flex: 1, backgroundColor: "#0b1220" },
+  wrapRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  webview: { flex: 1, backgroundColor: "#0b1220", minHeight: 180 },
+  webviewSplit: { flex: 1.15 },
   caption: { padding: 10, backgroundColor: "#f8fafc" },
+  captionSplit: { flex: 1, justifyContent: "center" },
   concept: { color: "#334155", fontWeight: "700", fontSize: 13 },
+  conceptLarge: { fontSize: 15, lineHeight: 21 },
   source: { color: "#64748b", fontSize: 11, marginTop: 3 },
   examples: { color: "#475569", fontSize: 11, marginTop: 5 },
   activity: { color: "#92400e", fontSize: 11, marginTop: 5 },

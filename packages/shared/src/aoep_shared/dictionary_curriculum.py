@@ -13,7 +13,7 @@ import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 from .dictionary_corpus import (
     DictionaryEntry,

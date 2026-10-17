@@ -14,13 +14,18 @@ import {
   type SpeakPlan,
 } from "./xaiSpeakPlan";
 import { createPcmQueue, type PcmQueue } from "./xaiPcmPlayer";
-import { SERENITY_NAME, SERENITY_VOICE_INSTRUCTIONS } from "./serenity";
+import { useT } from "./i18n";
+import { SERENITY_VOICE_INSTRUCTIONS } from "./serenity";
+import {
+  loadVoiceAgentChoice,
+  publicVoiceError,
+  subscribeVoiceAgent,
+  type VoiceAgentChoice,
+} from "./voiceAgentPref";
 import {
   cancelXaiResponse,
   closeXaiVoiceSession,
   connectXaiVoiceSession,
-  getXaiVoiceStatus,
-  isSalaneEngine,
   mintXaiVoiceToken,
   sendTextTurn,
   xaiSpeaksLocale,
@@ -33,10 +38,11 @@ export type XaiSpeakOpts = {
 };
 
 /**
- * Connects Serenity's xAI Grok voice once class is allowed to start.
- * Each line is spoken once. If the speech service has no voice agent, or the
- * socket drops before any audio arrives, `fallback` (device narration) runs
- * instead. Audio that already started is not spoken again on device.
+ * Class voice for Sala or the xAI Voice Agent.
+ * Sala narrates through the speech gateway. xAI uses a server-minted
+ * ephemeral session. If xAI cannot start, the hook reports the error and
+ * does not narrate with Sala instead. Audio that already started is not
+ * spoken again.
  */
 export function useXaiClassVoice(
   active: boolean,
@@ -50,15 +56,21 @@ export function useXaiClassVoice(
     topic?: string;
     courseId?: string;
   },
+  agentOverride?: VoiceAgentChoice,
 ) {
+  const { t } = useT();
   const [phase, setPhase] = useState<"idle" | "checking" | "live" | "unavailable">("idle");
   const [hint, setHint] = useState("");
+  const [storedChoice, setStoredChoice] = useState<VoiceAgentChoice | null>(null);
+  const choice = agentOverride ?? storedChoice;
   const sessionRef = useRef(session);
   sessionRef.current = session;
   const wsRef = useRef<WebSocket | null>(null);
   const pcmRef = useRef<PcmQueue | null>(null);
   const planRef = useRef<SpeakPlan>(createSpeakPlan());
   const optsRef = useRef<Map<string, XaiSpeakOpts>>(new Map());
+  const agentRef = useRef<VoiceAgentChoice>(choice ?? "sala");
+  agentRef.current = choice ?? "sala";
 
   const runFallback = useCallback((turns: PlannedTurn[]) => {
     if (!turns.length) return;
@@ -68,14 +80,34 @@ export function useXaiClassVoice(
     for (const turn of turns) {
       const opts = optsRef.current.get(turn.id);
       optsRef.current.delete(turn.id);
+      if (agentRef.current === "xai") continue;
       opts?.fallback?.();
     }
   }, []);
 
   useEffect(() => {
+    if (agentOverride) return;
+    let cancelled = false;
+    void loadVoiceAgentChoice().then((next) => {
+      if (!cancelled) setStoredChoice(next);
+    });
+    const unsubscribe = subscribeVoiceAgent((next) => {
+      if (!cancelled) setStoredChoice(next);
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [agentOverride]);
+
+  useEffect(() => {
     if (!active) {
       planRef.current = createSpeakPlan();
       setPhase("idle");
+      return;
+    }
+    if (choice == null) {
+      setPhase("checking");
       return;
     }
     let cancelled = false;
@@ -84,13 +116,14 @@ export function useXaiClassVoice(
     planRef.current = plan;
     setPhase("checking");
     pcmRef.current = createPcmQueue();
+    const selected = choice;
+    agentRef.current = selected;
     (async () => {
-      const status = await getXaiVoiceStatus();
       if (cancelled || planRef.current !== plan) return;
-      if (isSalaneEngine(status.engine) && status.available) {
+      if (selected === "sala") {
         plan.phase = "live";
         setPhase("live");
-        setHint("Sala is using Salane Voice.");
+        setHint(t("voice.salaLive"));
         const next = takeQueuedForSend(plan);
         if (next) {
           stopSpeech();
@@ -101,23 +134,12 @@ export function useXaiClassVoice(
         }
         return;
       }
+      setHint(t("voice.xaiChecking"));
       const currentLanguage = sessionRef.current.language || "";
       if (!xaiSpeaksLocale(currentLanguage)) {
         plan.phase = "unavailable";
         setPhase("unavailable");
-        const raw = currentLanguage.trim().toLowerCase();
-        setHint(
-          raw === "km" || raw.startsWith("km-")
-            ? "Khmer uses a Cambodian voice, not Grok."
-            : "Cantonese uses a Hong Kong voice, not Grok.",
-        );
-        runFallback(takeUnheardForFallback(plan));
-        return;
-      }
-      if (!status.available) {
-        plan.phase = "unavailable";
-        setPhase("unavailable");
-        setHint(status.hint || "Grok voice needs XAI_API_KEY on the speech service.");
+        setHint(t("voice.xaiLanguage"));
         runFallback(takeUnheardForFallback(plan));
         return;
       }
@@ -132,12 +154,16 @@ export function useXaiClassVoice(
           topic: current.topic || "",
           course_id: current.courseId || "",
           instructions: SERENITY_VOICE_INSTRUCTIONS,
+          engine: "xai",
         });
         if (cancelled || planRef.current !== plan) return;
         if (token.use_xai === false || !token.token || !token.session_update) {
           plan.phase = "unavailable";
           setPhase("unavailable");
-          setHint(token.spoken_language?.hint || "This language uses the lesson voice, not Grok.");
+          setHint(publicVoiceError(
+            token.spoken_language?.hint || token.hint || "",
+            t("voice.xaiLanguage"),
+          ));
           runFallback(takeUnheardForFallback(plan));
           return;
         }
@@ -145,7 +171,7 @@ export function useXaiClassVoice(
           onOpen: () => {
             if (cancelled || planRef.current !== plan) return;
             setPhase("live");
-            setHint(`${SERENITY_NAME} is using Grok voice.`);
+            setHint(t("voice.xaiLive"));
             const next = takeQueuedForSend(plan);
             if (!next) return;
             stopSpeech();
@@ -171,6 +197,7 @@ export function useXaiClassVoice(
             if (type === "error" || status === "failed" || status === "incomplete") {
               const failed = noteAgentFailure(plan);
               if (failed) {
+                if (agentRef.current === "xai") setHint(t("voice.xaiUnavailable"));
                 runFallback([failed]);
                 return;
               }
@@ -196,7 +223,7 @@ export function useXaiClassVoice(
           },
           onError: () => {
             if (cancelled || planRef.current !== plan) return;
-            setHint("Grok voice connection error — check the speech service.");
+            setHint(t("voice.xaiUnavailable"));
             plan.phase = "unavailable";
             setPhase("unavailable");
             runFallback(takeUnheardForFallback(plan));
@@ -207,7 +234,7 @@ export function useXaiClassVoice(
             if (plan.phase === "idle") return;
             plan.phase = "unavailable";
             setPhase("unavailable");
-            setHint("Grok voice disconnected.");
+            setHint(t("voice.xaiDisconnected"));
             runFallback(takeUnheardForFallback(plan));
           },
         });
@@ -216,7 +243,10 @@ export function useXaiClassVoice(
         if (cancelled || planRef.current !== plan) return;
         plan.phase = "unavailable";
         setPhase("unavailable");
-        setHint(err instanceof Error ? err.message : "Could not start Grok voice.");
+        setHint(publicVoiceError(
+          err instanceof Error ? err.message : "",
+          t("voice.xaiUnavailable"),
+        ));
         runFallback(takeUnheardForFallback(plan));
       }
     })();
@@ -227,7 +257,7 @@ export function useXaiClassVoice(
       closeXaiVoiceSession(wsRef.current);
       wsRef.current = null;
     };
-  }, [active, session.mode, session.language, session.courseId, session.category, session.topic, runFallback]);
+  }, [active, choice, session.mode, session.language, session.courseId, session.category, session.topic, runFallback, t]);
 
   const interrupt = useCallback(() => {
     const plan = planRef.current;
@@ -250,7 +280,7 @@ export function useXaiClassVoice(
     const plan = planRef.current;
     optsRef.current.set(id, opts);
     const ws = wsRef.current;
-    const salane = plan.phase === "live" && !ws;
+    const salane = agentRef.current !== "xai" && plan.phase === "live" && !ws;
     const canSend = salane || Boolean(ws && ws.readyState === WebSocket.OPEN && plan.phase === "live");
     const decision = requestSpeak(plan, id, text, active, canSend);
     if (decision.kind === "ignore") return;
@@ -272,7 +302,7 @@ export function useXaiClassVoice(
       return;
     }
     if (ws) sendTextTurn(ws, decision.turn.text);
-  }, [active, runFallback]);
+  }, [active, choice, runFallback]);
 
   return {
     phase,
@@ -280,5 +310,6 @@ export function useXaiClassVoice(
     hint,
     speakLatest,
     interrupt,
+    agent: choice ?? "sala",
   };
 }
