@@ -276,8 +276,6 @@ def clean_entry_audio(
     root: Optional[Path] = None,
 ) -> DictionaryEntry:
     """Clean raw → crisp for one language slot; update audio metadata."""
-    from copy import deepcopy
-
     row = DictionaryEntry.from_dict(entry.to_dict())
     slot = row.audio.get(language) or AudioSlot()
     raw = Path(slot.raw) if slot.raw else audio_raw_path(row.id, language, root)

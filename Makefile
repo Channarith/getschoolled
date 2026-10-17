@@ -13,6 +13,7 @@ COMPOSE := infra/compose/docker-compose.yml
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
+	ensure-local-env \
 	run-identity run-memory run-orchestrator run-livekit validate-pipeline webcam-lab \
 	children-lab rag-lab drive-lab homework-lab music-lab dev-all dev-down dev-status
 
@@ -249,10 +250,15 @@ down:
 COMPOSE_E2E := infra/compose/docker-compose.e2e.yml
 E2E_SERVICES := postgres redis orchestrator memory speech curriculum billing identity integrations web
 
-up-e2e:
+# Compose refuses to start or stop when config/local.env is missing. Runners
+# have no developer copy. Seed the example and never overwrite a real file.
+ensure-local-env:
+	@test -f config/local.env || cp config/local.env.example config/local.env
+
+up-e2e: ensure-local-env
 	docker compose -f $(COMPOSE) -f $(COMPOSE_E2E) up -d --build $(E2E_SERVICES)
 
-down-e2e:
+down-e2e: ensure-local-env
 	docker compose -f $(COMPOSE) -f $(COMPOSE_E2E) down
 
 # Corporate-demo readiness gate: targeted tests + stack probes + Playwright

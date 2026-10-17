@@ -10,10 +10,9 @@ import hashlib
 import json
 import os
 import re
-import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 AUDIO_QUALITIES = ("missing", "raw", "crisp", "gold", "rejected")
 REVIEW_STATUSES = ("auto", "queued", "approved", "rejected")
@@ -788,7 +787,6 @@ def merge_khmer_pack_records(records: Sequence[dict]) -> List[DictionaryEntry]:
         en = str(rec.get("en") or "").strip()
         target = str(rec.get("target") or "").strip()
         roman = str(rec.get("roman") or "").strip()
-        lang = str(rec.get("language") or "km")
         if not en or not target:
             continue
         eid = str(rec.get("id") or entry_id("en", en, "noun"))

@@ -19,6 +19,9 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -e "packages/shared[test,harvest]"
+          # Identity is not a pyproject package. Install its runtime requirements
+          # so the Apple RS256 test imports PyJWT and cryptography, matching ci.yml.
+          python3 -m pip install -r services/identity/requirements.txt
           python3 -m pip install -e "packages/sdk[test]"
           python3 -m pip install -e "packages/webcam-vision[test]"
           for pkg in services/orchestrator services/speech \
