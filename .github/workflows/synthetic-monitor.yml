@@ -23,14 +23,18 @@ jobs:
       - name: Run synthetic monitor
         id: monitor
         env:
-          BASE_URL: ${{ inputs.base_url || 'https://salareen.com' }}
+          # `inputs` is only valid for workflow_dispatch. This file also runs on
+          # schedule, and GitHub rejects the whole file on every push (0 jobs,
+          # 0 seconds) when that context is referenced. github.event.inputs is
+          # empty on schedule, so the default URL still applies.
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://salareen.com' }}
         run: bash scripts/synthetic_monitor.sh
         continue-on-error: true
       - name: Open degradation issue
         if: steps.monitor.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_URL: ${{ inputs.base_url || 'https://salareen.com' }}
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://salareen.com' }}
         run: |
           TITLE="Synthetic monitor DEGRADED — $(date -u +%Y-%m-%d)"
           # Only open one issue per day to avoid spam

@@ -149,10 +149,10 @@ def _ffmpeg_clean(src: Path, dest: Path) -> bool:
             f"loudnorm=I=-16:TP={TARGET_PEAK_DBFS}:LRA=11,aformat=channel_layouts=mono"
         ),
         (
-            f"highpass=f=80,"
-            f"silenceremove=start_periods=1:start_silence=0.15:start_threshold=-40dB:"
-            f"stop_periods=1:stop_silence=0.2:stop_threshold=-40dB,"
-            f"dynaudnorm=f=75:g=15,aformat=channel_layouts=mono"
+            "highpass=f=80,"
+            "silenceremove=start_periods=1:start_silence=0.15:start_threshold=-40dB:"
+            "stop_periods=1:stop_silence=0.2:stop_threshold=-40dB,"
+            "dynaudnorm=f=75:g=15,aformat=channel_layouts=mono"
         ),
     ]
     for filt in filters_try:
@@ -240,8 +240,6 @@ def clean_entry_audio(
     root: Optional[Path] = None,
 ) -> DictionaryEntry:
     """Clean raw → crisp for one language slot; update audio metadata."""
-    from copy import deepcopy
-
     row = DictionaryEntry.from_dict(entry.to_dict())
     slot = row.audio.get(language) or AudioSlot()
     raw = Path(slot.raw) if slot.raw else audio_raw_path(row.id, language, root)
