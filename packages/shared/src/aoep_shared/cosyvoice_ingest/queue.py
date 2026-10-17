@@ -401,7 +401,7 @@ def ingest_channel(
     if max_urls:
         cmd.extend(["--max-urls", str(max_urls)])
     proc = subprocess.run(cmd, capture_output=True, text=True)
-    return {
+    row = {
         "pool_id": job.pool_id,
         "slug": job.slug,
         "videos": job.video_count,
@@ -409,7 +409,59 @@ def ingest_channel(
         "elapsed_s": round(time.time() - started, 1),
         "stdout_tail": (proc.stdout or "")[-500:],
         "stderr_tail": (proc.stderr or "")[-500:],
+        "error": "",
+        "error_counts": {},
     }
+    apply_channel_report(row, Path(job.output_dir))
+    if proc.returncode and not row.get("error"):
+        from .errors import classify_download_error, sanitize_process_text
+
+        blob = sanitize_process_text((proc.stderr or "") + "\n" + (proc.stdout or ""))
+        row["stderr_tail"] = blob[-500:]
+        row["error"] = classify_download_error(blob) if blob else "other"
+    return row
+
+
+def apply_channel_report(row: dict, output_dir: Path) -> None:
+    """Copy categorized errors and real tool stderr from report.json onto a queue row.
+
+    The ingest process stderr is usually only the train-handoff path. yt-dlp and
+    ffmpeg text lives on ``error_records`` inside the channel report.
+    """
+    from .errors import sanitize_process_text, summarize_counts
+
+    report_path = Path(output_dir) / "report.json"
+    if not report_path.is_file():
+        return
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if not isinstance(report, dict):
+        return
+    counts = report.get("error_counts") or {}
+    if not isinstance(counts, dict):
+        counts = {}
+    records = report.get("error_records") or []
+    stderr = ""
+    if isinstance(records, list):
+        for rec in records:
+            if not isinstance(rec, dict):
+                continue
+            text = sanitize_process_text(str(rec.get("stderr") or ""))
+            if text:
+                stderr = text
+                break
+    row["error_counts"] = {str(key): int(value) for key, value in counts.items()}
+    summary = summarize_counts(row["error_counts"])
+    if summary:
+        row["error"] = summary
+    elif report.get("ok") is False:
+        row["error"] = "export_empty" if not report.get("utterances") else "other"
+    if stderr:
+        row["stderr_tail"] = stderr[-500:]
+    row["partial"] = bool(report.get("partial"))
+    row["utterances"] = int(report.get("utterances") or 0)
 
 
 def _result_line(row: dict) -> str:

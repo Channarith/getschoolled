@@ -14,7 +14,8 @@ from ..dictionary_audio import (
     read_wav_mono,
     write_wav_mono,
 )
-from .download import DownloadedMedia, copy_local_media, download_url
+from .download import DownloadError, DownloadedMedia, copy_local_media, download_url
+from .errors import classify_download_error, classify_qc_reason, sanitize_process_text
 from .export import CosyVoiceUtterance, RecipePaths, write_cosyvoice_recipe
 from .merge import default_merge_into, merge_language_pool
 from .segment import segment_pcm16, slice_pcm16
@@ -58,6 +59,9 @@ class IngestReport:
     speakers: int = 0
     asr_available: bool = False
     errors: List[str] = field(default_factory=list)
+    error_records: List[dict] = field(default_factory=list)
+    error_counts: dict = field(default_factory=dict)
+    partial: bool = False
     train_handoff: str = ""
     merge_dir: str = ""
     merge_utterances: int = 0
@@ -69,6 +73,33 @@ class IngestReport:
 
 def _stage_enabled(name: str, start: str, stop: str) -> bool:
     return STAGES.index(start) <= STAGES.index(name) <= STAGES.index(stop)
+
+
+def _record_error(
+    report: IngestReport,
+    *,
+    category: str,
+    stage: str,
+    message: str,
+    stderr: str = "",
+    target: str = "",
+) -> None:
+    """Store a short string plus a structured record. Stderr is sanitized."""
+    clean = sanitize_process_text(stderr, limit=400)
+    # One real stderr sample per category. Repeating the same yt-dlp bot page
+    # on every URL makes the report unreadably large.
+    already = int(report.error_counts.get(category) or 0) > 0
+    report.error_records.append(
+        {
+            "category": category,
+            "stage": stage,
+            "target": target,
+            "message": (message or "")[:180],
+            "stderr": "" if already else clean,
+        }
+    )
+    report.error_counts[category] = int(report.error_counts.get(category) or 0) + 1
+    report.errors.append(f"{stage}:{category}:{target}")
 
 
 def run_ingest(
@@ -128,8 +159,26 @@ def run_ingest(
                         media.append(
                             download_url(url, raw_dir, sample_rate=config.sample_rate)
                         )
+                    except DownloadError as exc:
+                        _record_error(
+                            report,
+                            category=exc.category,
+                            stage="download",
+                            message=str(exc),
+                            stderr=exc.stderr,
+                            target=url,
+                        )
+                        report.ok = False
                     except Exception as exc:
-                        report.errors.append(f"download:{url}:{exc}")
+                        text = str(exc)
+                        _record_error(
+                            report,
+                            category=classify_download_error(text),
+                            stage="download",
+                            message=text,
+                            stderr=text,
+                            target=url,
+                        )
                         report.ok = False
                 report.stages["download"] = {
                     "mode": "yt-dlp",
@@ -155,9 +204,17 @@ def run_ingest(
                     "dir": str(raw_dir),
                 }
         except Exception as exc:
-            report.errors.append(f"download_stage:{exc}")
+            text = str(exc)
+            _record_error(
+                report,
+                category=classify_download_error(text),
+                stage="download",
+                message=text,
+                stderr=text,
+                target="stage",
+            )
             report.ok = False
-            report.stages["download"] = {"error": str(exc)}
+            report.stages["download"] = {"error": text[:300]}
     else:
         for wav in sorted(raw_dir.glob("*.wav")):
             media.append(
@@ -170,21 +227,28 @@ def run_ingest(
     cleaned: List[tuple[DownloadedMedia, Path, Optional[float]]] = []
     if _stage_enabled("denoise", start_stage, stop_stage):
         ok_n = 0
+        rejected = 0
         for m in media:
             dest = clean_dir / f"{m.media_id}.wav"
             result = clean_audio_file(m.audio_path, dest)
-            if result.crisp_path and result.crisp_path.is_file():
+            if result.ok and result.crisp_path and result.crisp_path.is_file():
                 cleaned.append((m, result.crisp_path, result.snr_db))
-                if result.ok:
-                    ok_n += 1
-                else:
-                    report.errors.append(f"qc:{m.media_id}:{result.reason}")
-            else:
-                report.errors.append(f"denoise:{m.media_id}:{result.reason}")
+                ok_n += 1
+                continue
+            rejected += 1
+            _record_error(
+                report,
+                category=classify_qc_reason(result.reason),
+                stage="denoise",
+                message=result.reason or "denoise_reject",
+                stderr=result.stderr,
+                target=m.media_id,
+            )
         report.stages["denoise"] = {
             "inputs": len(media),
             "outputs": len(cleaned),
             "qc_ok": ok_n,
+            "rejected": rejected,
             "engine": "dictionary_audio.clean_audio_file",
             "dir": str(clean_dir),
         }
@@ -210,6 +274,14 @@ def run_ingest(
                 max_utt_sec=config.max_utt_sec,
                 silence_db=config.silence_db,
             )
+            if not segs:
+                _record_error(
+                    report,
+                    category="no_segments",
+                    stage="segment",
+                    message="no speech segments after denoise",
+                    target=m.media_id,
+                )
             for i, seg in enumerate(segs):
                 utt_id = f"{m.media_id}_{i:04d}"
                 piece = slice_pcm16(pcm, seg.start_sample, seg.end_sample)
@@ -333,6 +405,15 @@ def run_ingest(
                 "export_empty: no QC-ok utterances with transcripts "
                 "(need ASR and/or allow_empty_transcripts for stubs)"
             )
+        else:
+            # A playlist that lost some URLs to bot checks still exported audio.
+            # Those utterances stay trainable. Download failures stay in
+            # error_records instead of flipping the whole channel to ok false.
+            download_failures = sum(
+                1 for rec in report.error_records if rec.get("stage") == "download"
+            )
+            report.partial = download_failures > 0
+            report.ok = True
 
     # --- merge (always on by default; every channel run refreshes the pool) ---
     if config.merge and _stage_enabled("export", start_stage, stop_stage):

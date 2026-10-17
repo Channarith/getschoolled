@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import math
 import struct
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -262,6 +264,193 @@ def test_merge_recipes_combines_channels_and_renames_collisions(tmp_path):
         language="km",
     )
     assert again.utterances == 3
+
+
+def test_download_error_categories_and_cookies(tmp_path, monkeypatch):
+    from aoep_shared.cosyvoice_ingest.download import (
+        DownloadError,
+        build_yt_dlp_command,
+        cookies_file,
+        download_url,
+    )
+    from aoep_shared.cosyvoice_ingest.errors import (
+        classify_download_error,
+        sanitize_process_text,
+    )
+
+    assert classify_download_error("Sign in to confirm you're not a bot") == "bot_check"
+    assert classify_download_error("ERROR: unable to download video data: HTTP Error 403: Forbidden") == "http_403"
+    assert classify_download_error("Private video") == "private"
+    assert classify_download_error("Video unavailable") == "unavailable"
+    secret = "Cookie: SAPISID=should-not-leak\nERROR: Sign in to confirm you're not a bot"
+    clean = sanitize_process_text(secret)
+    assert "SAPISID" not in clean
+    assert "not a bot" in clean
+
+    monkeypatch.delenv("YT_DLP_COOKIES", raising=False)
+    monkeypatch.delenv("COSYVOICE_COOKIES_FILE", raising=False)
+    cmd = build_yt_dlp_command(
+        "https://www.youtube.com/watch?v=aaaaaaaaaaa",
+        tmp_path,
+        "src_x",
+        sample_rate=24000,
+        cookies=None,
+    )
+    assert "--cookies" not in cmd
+    cookie = tmp_path / "cookies.txt"
+    cookie.write_text("# Netscape\n", encoding="utf-8")
+    cmd = build_yt_dlp_command(
+        "https://www.youtube.com/watch?v=aaaaaaaaaaa",
+        tmp_path,
+        "src_x",
+        sample_rate=24000,
+        cookies=cookie,
+    )
+    assert cmd[cmd.index("--cookies") + 1] == str(cookie)
+    assert "Netscape" not in " ".join(cmd)
+
+    monkeypatch.setenv("YT_DLP_COOKIES", str(tmp_path / "missing-cookies.txt"))
+    assert cookies_file() is None
+    monkeypatch.setenv("YT_DLP_MIN_INTERVAL", "0")
+    monkeypatch.setenv("YT_DLP_BACKOFF", "0")
+    monkeypatch.setenv("YT_DLP_RETRIES", "2")
+    monkeypatch.delenv("YT_DLP_COOKIES", raising=False)
+    calls = {"n": 0}
+
+    def fake_run(cmd, check, capture_output, timeout, text):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise subprocess.CalledProcessError(
+                1, cmd, output="", stderr="ERROR: Sign in to confirm you're not a bot"
+            )
+        dest = Path(cmd[cmd.index("-o") + 1])
+        # template is dir/src.%%(ext)s — write the wav beside it
+        wav = dest.parent / "src_retry.wav"
+        # media id is derived from the URL, so write whatever the command's -o stem is
+        stem = dest.name.split(".%(ext)s")[0]
+        wav = dest.parent / f"{stem}.wav"
+        write_wav_mono(wav, _tone_pcm(0.3), 24000)
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("aoep_shared.cosyvoice_ingest.download.subprocess.run", fake_run)
+    monkeypatch.setattr("aoep_shared.cosyvoice_ingest.download.yt_dlp_available", lambda: True)
+    got = download_url(
+        "https://www.youtube.com/watch?v=bbbbbbbbbbb",
+        tmp_path / "raw",
+        sleep=lambda _seconds: None,
+    )
+    assert got.audio_path.is_file()
+    assert calls["n"] == 2
+
+    def always_private(cmd, check, capture_output, timeout, text):
+        raise subprocess.CalledProcessError(1, cmd, output="", stderr="ERROR: Private video")
+
+    monkeypatch.setattr("aoep_shared.cosyvoice_ingest.download.subprocess.run", always_private)
+    with pytest.raises(DownloadError) as raised:
+        download_url(
+            "https://www.youtube.com/watch?v=ccccccccccc",
+            tmp_path / "raw2",
+            sleep=lambda _seconds: None,
+        )
+    assert raised.value.category == "private"
+
+
+def test_quiet_speech_survives_denoise_and_silence_does_not(tmp_path):
+    from aoep_shared.dictionary_audio import clean_audio_file
+
+    quiet = tmp_path / "quiet.wav"
+    write_wav_mono(quiet, _tone_pcm(2.0, amp=0.02), 24000)
+    cleaned = clean_audio_file(quiet, tmp_path / "quiet.crisp.wav")
+    assert cleaned.ok, cleaned.reason
+    assert cleaned.duration_sec > 1.0
+
+    silent = tmp_path / "silent.wav"
+    write_wav_mono(silent, b"\x00\x00" * 24000, 24000)
+    rejected = clean_audio_file(silent, tmp_path / "silent.crisp.wav")
+    assert rejected.ok is False
+    assert rejected.reason in {"silent_source", "near_silent", "too_short"}
+
+
+def test_partial_download_does_not_discard_export(tmp_path, monkeypatch):
+    from aoep_shared.cosyvoice_ingest.download import DownloadError, DownloadedMedia
+    from aoep_shared.cosyvoice_ingest import pipeline as pl
+    from aoep_shared.cosyvoice_ingest.pipeline import IngestConfig, run_ingest
+    from aoep_shared.cosyvoice_ingest.transcribe import TranscriptResult
+
+    monkeypatch.setattr(pl, "asr_available", lambda: True)
+    monkeypatch.setattr(
+        pl,
+        "transcribe_wav",
+        lambda *a, **k: TranscriptResult("hello from the clip", "en", "fake", True, "ok"),
+    )
+    state = {"n": 0}
+
+    def fake_download(url, dest_dir, sample_rate=24000):
+        state["n"] += 1
+        if state["n"] == 1:
+            raise DownloadError(
+                "yt-dlp failed",
+                category="bot_check",
+                stderr="Sign in to confirm you're not a bot\nCookie: SAPISID=nope\n",
+            )
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        wav = dest_dir / "kept.wav"
+        write_wav_mono(wav, _tone_pcm(2.5) + _silence_pcm(0.4) + _tone_pcm(2.0), 24000)
+        return DownloadedMedia(url=url, media_id="kept", audio_path=wav)
+
+    monkeypatch.setattr(pl, "download_url", fake_download)
+    urls = tmp_path / "urls.txt"
+    urls.write_text(
+        "https://www.youtube.com/watch?v=aaaaaaaaaaa\n"
+        "https://www.youtube.com/watch?v=bbbbbbbbbbb\n",
+        encoding="utf-8",
+    )
+    report = run_ingest(
+        IngestConfig(
+            urls_file=urls,
+            output_dir=tmp_path / "out",
+            language="en",
+            speaker="teacher",
+            merge=False,
+        )
+    )
+    assert report.ok is True
+    assert report.partial is True
+    assert report.utterances >= 1
+    assert report.error_counts.get("bot_check") == 1
+    sample = report.error_records[0]
+    assert sample["category"] == "bot_check"
+    assert "not a bot" in sample["stderr"]
+    assert "SAPISID" not in sample["stderr"]
+    blob = json.dumps(report.to_dict())
+    assert "SAPISID" not in blob
+
+
+def test_language_census_dedupes_and_marks_the_floor(tmp_path):
+    from aoep_shared.cosyvoice_ingest.census import language_census
+    from aoep_shared.cosyvoice_ingest.export import CosyVoiceUtterance, write_cosyvoice_recipe
+
+    pcm = _tone_pcm(1.2)
+    a = tmp_path / "a.wav"
+    b = tmp_path / "b.wav"
+    write_wav_mono(a, pcm, 24000)
+    write_wav_mono(b, pcm, 24000)
+    write_cosyvoice_recipe(
+        [CosyVoiceUtterance("u1", str(a), "one", "spk", language="km")],
+        tmp_path / "cosyvoice_km_one" / "04_cosyvoice",
+        language="km",
+    )
+    write_cosyvoice_recipe(
+        [CosyVoiceUtterance("u2", str(b), "two", "spk", language="km")],
+        tmp_path / "cosyvoice_km_two" / "04_cosyvoice",
+        language="km",
+    )
+    rows = language_census(tmp_path)
+    assert len(rows) == 1
+    assert rows[0]["language"] == "km"
+    assert rows[0]["utterances"] == 1
+    assert rows[0]["meets_floor"] is False
+    assert rows[0]["minutes"] > 0
 
 
 def test_download_optional_skip_without_network():

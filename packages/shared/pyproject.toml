@@ -43,8 +43,11 @@ presenter = [
 # Video→CosyVoice training ingest (scripts/cosyvoice_ingest.py).
 # yt-dlp downloads operator-supplied YouTube/Vimeo URLs; faster-whisper is
 # local ASR (same pin family as theodore_music_lab[asr]). ffmpeg required on PATH.
+# 2026.8.19 is the current stable release (YouTube bot-check fixes since 2025.9.26).
+# Upgrade an existing venv with: pip install -e 'packages/shared[cosyvoice-ingest]'
+# Nightly builds are optional and not pinned: pip install --pre 'yt-dlp>=2026.8.19'
 cosyvoice-ingest = [
-    "yt-dlp==2025.9.26",
+    "yt-dlp==2026.8.19",
     "faster-whisper==1.0.3",
     "requests>=2.31,<3",
 ]

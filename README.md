@@ -679,7 +679,8 @@ transcript all run without it.
 | `training` | Education-LLM export, QLoRA, bake-off, and promote. `training/spark_nightly.sh` is the Spark cycle; `training/systemd/install-user-timer.sh` installs a user timer and does not enable it. Theodore LLM Lab UI on `:8019` |
 | `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
 | `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, CosyVoice ingest, CosyVoice→Audio2Face loop, voice tools) |
-| `scripts/cosyvoice_ingest.py` | YouTube/Vimeo → denoise → segment → ASR → CosyVoice Kaldi training lists (`aoep_shared.cosyvoice_ingest`) |
+| `scripts/cosyvoice_ingest.py` | YouTube/Vimeo → denoise → segment → ASR → CosyVoice Kaldi training lists (`aoep_shared.cosyvoice_ingest`). Optional `YT_DLP_COOKIES` file, retries, and yt-dlp 2026.8.19 |
+| `scripts/cosyvoice_language_census.py` | Per-language unique utterances and minutes against the 100-utterance / 20-minute floor |
 | `scripts/spark_cosyvoice_manifest.py` | Read-only merge of passing CosyVoice channel reports into `output/spark/cosyvoice/` plus `TRAIN_HANDOFF.txt` |
 | `scripts/spark_cosyvoice_km_finetune.sh` | One-epoch CosyVoice-300M Khmer LLM candidate under `flock ~/.gs-gpu.lock`; does not promote into the live server |
 | `scripts/a2f_cosyvoice_loop/` | CosyVoice PCM → Audio2Face-3D gRPC (aarch64 stub + amd64 NIM handoff); see `README.txt` there |
