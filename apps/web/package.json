@@ -1,10 +1,12 @@
 {
   "name": "@eduplatform/web",
-  "version": "0.61.4",
+  "version": "0.62.3",
   "private": true,
   "license": "LicenseRef-AOEP-Proprietary",
   "scripts": {
     "dev": "next dev -p 3000",
+    "fetch-vision-models": "bash scripts/fetch-vision-models.sh",
+    "predev": "bash scripts/fetch-vision-models.sh --check || bash scripts/fetch-vision-models.sh",
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",

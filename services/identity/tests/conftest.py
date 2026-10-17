@@ -28,3 +28,15 @@ os.environ.setdefault("SEED_QA_ACCOUNTS", "0")
 # Keep the introductory free plan selectable in tests. Production uses the
 # 14-day default from aoep_shared.free_plan when this env is unset.
 os.environ.setdefault("FREE_PLAN_OFFER_DAYS", "36500")
+
+
+def pytest_runtest_setup(item):
+    """Drop cookies left on a module-level TestClient by an earlier signup.
+
+    The session cookie is copied into Authorization, so a leftover cookie
+    would make the next test look signed in.
+    """
+    client = getattr(item.module, "client", None)
+    cookies = getattr(client, "cookies", None)
+    if cookies is not None:
+        cookies.clear()

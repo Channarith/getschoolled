@@ -12,6 +12,76 @@
   --text: #241b34;
   --muted: #736a82;
   --border: #e3d7c3;
+
+  /* Adaptive layout width classes (compact / medium / expanded). */
+  --aoep-bp-compact-max: 599px;
+  --aoep-bp-medium-min: 600px;
+  --aoep-bp-medium-max: 839px;
+  --aoep-bp-expanded-min: 840px;
+  --aoep-viewport-min-h: 100dvh;
+  --aoep-viewport-min-h-fallback: 100svh;
+  --aoep-safe-top: env(safe-area-inset-top, 0px);
+  --aoep-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --aoep-safe-left: env(safe-area-inset-left, 0px);
+  --aoep-safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* Full-viewport shell that respects mobile browser chrome and notches. */
+.aoep-viewport-shell {
+  min-height: var(--aoep-viewport-min-h-fallback);
+  min-height: var(--aoep-viewport-min-h);
+  max-height: var(--aoep-viewport-min-h);
+  padding-top: var(--aoep-safe-top);
+  padding-bottom: var(--aoep-safe-bottom);
+  padding-left: var(--aoep-safe-left);
+  padding-right: var(--aoep-safe-right);
+  box-sizing: border-box;
+}
+
+.aoep-min-h-viewport {
+  min-height: var(--aoep-viewport-min-h-fallback);
+  min-height: var(--aoep-viewport-min-h);
+}
+
+.aoep-stack-below-expanded {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 840px) {
+  .aoep-stack-below-expanded {
+    display: grid;
+  }
+}
+
+.aoep-form-stack-narrow {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 839px) {
+  .aoep-form-stack-narrow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Immersive onboarding / Learner Check: no global chrome stacking on 100dvh. */
+body:has(.aoep-immersive-setup) .site-header,
+body:has(.aoep-immersive-setup) .site-footer {
+  display: none !important;
+}
+
+body:has(.aoep-immersive-setup) .site-main {
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+body:has(.aoep-immersive-setup) .aoep-immersive-setup {
+  width: 100%;
+  max-width: 100vw;
 }
 
 * {
@@ -304,7 +374,7 @@ a {
   white-space: nowrap;
 }
 
-@media (min-width: 901px) {
+@media (min-width: 1120px) {
   .nav-ai-badge {
     display: inline-block;
   }
@@ -353,7 +423,7 @@ a {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1119px) {
   .nav-toggle {
     display: inline-flex;
     align-items: center;
@@ -415,7 +485,7 @@ a {
   border-color: rgba(255, 255, 255, 0.25);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1119px) {
   /* Mobile dropdown chips: subtle light-on-dark instead of the body's cream. */
   .nav-menu a {
     background: color-mix(in srgb, #ffffff 8%, transparent);

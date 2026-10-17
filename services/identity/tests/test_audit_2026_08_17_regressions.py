@@ -167,6 +167,8 @@ def test_consent_forwards_to_memory_with_real_student(monkeypatch):
     captured = {}
 
     class _Resp:
+        status = 200
+
         def read(self):
             return b"{}"
 

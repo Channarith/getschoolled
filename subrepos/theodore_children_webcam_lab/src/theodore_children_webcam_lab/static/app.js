@@ -7,9 +7,10 @@ import {
   HEART_CLEFT_PALMS, HEART_POINT_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
   PAUSE_LINE, RESUME_LINE,
-  coverFrame, createPresenceWatch, debiasedGazeDown, fingersPointed, handShape, headPoseFromMesh,
-  heartRatios, isHeartShape, mapMirroredLandmark, syntheticHand,
-  traceProgress,
+  activeFingertips, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch,
+  debiasedGazeDown, fingersPointed, handShape, headPoseFromMesh,
+  heartRatios, isHeartShape, mapMirroredLandmark, profileTouchAge, syntheticHand,
+  tipHitsTarget, traceProgress,
 } from "./vision_math.js";
 
 const $ = (id) => document.getElementById(id);
@@ -127,7 +128,8 @@ const state = {
   localKey:"theodoreChildrenFunV1", roundId:0, roundDone:false, roundTimer:0,
   failTimer:0, audio:null, padHeld:false, hitCount:0, lastTip:null,
   handMotion:0, serverTts:null, speechToken:0, audioIndex:0, audioRound:null, showWords:false,
-  touchMode:"air", crayon:null, ink:[], inkDown:false, screenDown:false, screenPointerId:null,
+  touchMode:"air", touchLatch:{key:"",until:0}, lastTouchTips:[],
+  crayon:null, ink:[], inkDown:false, screenDown:false, screenPointerId:null,
   voiceAway:false, heldPrompt:"", missingFaceAt:0, chaseLeft:false, bopDir:0, flapDir:0,
   presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0,
   glanceNote:false, poseOpen:false, standBase:null, sitLow:null,
@@ -321,7 +323,7 @@ function armPlayClock() {
 }
 
 async function start(camera=true) {
-  state.age = $("age")?.value || "7-10";
+  seedPlayAge();
   state.theme = $("theme")?.value || "mix";
   state.seated = Boolean($("seated")?.checked);
   state.share = Boolean($("share")?.checked);
@@ -749,13 +751,33 @@ function updateTrace() {
   if (progress.passed) succeed("Beautiful tracing!");
 }
 
+function bestAirHand() {
+  let chosen = null;
+  let reach = -1;
+  for (const hand of state.handData) {
+    if (!hand || hand.screen || !hand.points) continue;
+    const ids = activeFingertips(hand.points, state.age);
+    if (!ids.length) continue;
+    const wrist = hand.wrist;
+    for (const id of ids) {
+      const point = mirrored(hand.points[id]);
+      if (!point) continue;
+      const span = wrist ? distance(point, wrist) : 1;
+      if (span > reach) {
+        reach = span;
+        chosen = {...hand, tip: point};
+      }
+    }
+  }
+  return chosen;
+}
 function pointingHand() {
-  // Screen touch is a finger on the glass. Air touch must actually point;
-  // a fist lifts the marker and does not trace, connect, or catch.
+  // Screen touch is a finger on the glass. Air touch follows any fingertip
+  // that is out, including a point held while the other fingers make a fist.
   if (screenTouch()) {
     return state.screenDown ? (state.handData.find((hand) => hand.screen) || null) : null;
   }
-  return state.handData.find((hand) => !hand.screen && fingersPointed(hand)) || null;
+  return bestAirHand();
 }
 function fingerPoint() {
   return fingerPointFrom(pointingHand());
@@ -792,7 +814,7 @@ function coloringHand() {
   if (screenTouch()) {
     return state.screenDown ? (state.handData.find((hand) => hand.screen) || null) : null;
   }
-  return state.handData.find((hand) => fingersPointed(hand)) || null;
+  return bestAirHand();
 }
 
 function updateColoring() {
@@ -814,7 +836,7 @@ function updateColoring() {
     }
     return;
   }
-  if (!state.crayon || !fingersPointed(hand)) {
+  if (!state.crayon || !hand?.tip) {
     state.inkDown = false;
     return;
   }
@@ -863,6 +885,9 @@ function updatePicturePlay() {
     const dots = state.pictureDots || [];
     const next = dots[state.dotCursor];
     if (!dotHit(next, tip.x, tip.y, dotRadius(state.age))) return;
+    const claim = claimTouch(state.touchLatch, `dot:${next.n}`, performance.now(), 280);
+    state.touchLatch = claim.latch;
+    if (!claim.claimed) return;
     state.dotCursor += 1;
     if (state.dotCursor >= dots.length) succeed("You connected every number!");
     return;
@@ -1068,7 +1093,23 @@ function objectCenter() {
 
 function catchRadius() {
   const {w,h}=stageBox();
-  return Math.max(64, Math.min(w,h)*0.09);
+  return catchRadiusPx(Math.min(w || 0, h || 0), state.age);
+}
+function touchPoints() {
+  if (screenTouch()) {
+    if (!state.screenDown) return [];
+    const hand = state.handData.find((row) => row.screen);
+    return hand?.tip ? [hand.tip] : [];
+  }
+  const tips = [];
+  for (const hand of state.handData) {
+    if (!hand || hand.screen || !hand.points) continue;
+    for (const id of activeFingertips(hand.points, state.age)) {
+      const point = mirrored(hand.points[id]);
+      if (point) tips.push(point);
+    }
+  }
+  return tips;
 }
 
 function updateObjectGame() {
@@ -1077,21 +1118,30 @@ function updateObjectGame() {
   const center=objectCenter();if(!center)return;
   const radius=catchRadius();
   let hit=false;
-  if (state.game==="popcorn") {
+  if (state.game==="popcorn" && !screenTouch()) {
     if (state.faceData?.expression==="mouth-o") {
       const box=stageBox(),face={x:state.faceData.cx*box.w,y:state.faceData.cy*box.h};
       // Catch radius follows the face, so a child sitting back is not penalised.
       hit=distance(face,center)<Math.max(radius,state.faceData.width*box.w*.75);
     }
   } else {
-    const hand = pointingHand();
-    if(hand?.tip) {
-      const last=state.lastTip||hand.tip,velocity=distance(hand.tip,last);
-      state.lastTip=hand.tip;
-      hit=distance(hand.tip,center)<radius && (state.game!=="fruit-cut"||velocity>10);
-    }
+    const tips = touchPoints();
+    const previous = state.lastTouchTips || [];
+    state.lastTouchTips = tips.map((tip) => ({x: tip.x, y: tip.y}));
+    hit = tips.some((tip) => {
+      if (!tipHitsTarget([tip], center, radius)) return false;
+      // A tap on the glass is the catch. Air fruit still has to slice.
+      if (state.game !== "fruit-cut" || screenTouch()) return true;
+      if (!previous.length) return false;
+      let nearest = Infinity;
+      for (const prev of previous) nearest = Math.min(nearest, distance(tip, prev));
+      return nearest > 10;
+    });
   }
   if(hit && !state.object.hit){
+    const claim = claimTouch(state.touchLatch, `object:${state.game}`, performance.now(), 420);
+    state.touchLatch = claim.latch;
+    if (!claim.claimed) return;
     state.object.hit=true;
     hideCountdown();
     const say=reactToHit(state.game)||"Great catch!";
@@ -1100,6 +1150,19 @@ function updateObjectGame() {
   }
 }
 
+function hitAirDrums(now) {
+  const hitting = tipHitsTarget(touchPoints(), targetPoint(), catchRadius());
+  if (hitting && !state.padHeld) {
+    const claim = claimTouch(state.touchLatch, "air-drums", now, 280);
+    state.touchLatch = claim.latch;
+    if (claim.claimed) {
+      state.padHeld = true;
+      state.hitCount += 1;
+      if (state.hitCount >= 6) succeed("Amazing air drums!");
+    }
+  }
+  if (!hitting) state.padHeld = false;
+}
 function airHands() {
   return state.handData.filter((hand) => !hand.screen);
 }
@@ -1185,10 +1248,7 @@ function updateGestureGame(now) {
   }
   else if (state.game==="air-drums") {
     if(now-state.beatAt>650){state.beatAt=now;state.phase=(state.phase+1)%2;setTarget(state.phase?"left":"right","🥁");state.padHeld=false;}
-    const hand = pointingHand();
-    const hitting = hand?.tip && distance(hand.tip, targetPoint())<catchRadius();
-    if(hitting && !state.padHeld){state.padHeld=true;state.hitCount+=1;if(state.hitCount>=6)succeed("Amazing air drums!");}
-    if(!hitting) state.padHeld=false;
+    hitAirDrums(now);
   } else if (state.game==="bird-flap" && airHands().length>=2) {
     const hands = airHands();
     const y=(hands[0].wrist.y+hands[1].wrist.y)/2;
@@ -1973,7 +2033,7 @@ function screenTouch() {
 function noteSensors() {
   if (state.faceData) state.sawFace = true;
   if (state.handData.some((hand) => !hand.screen)) state.sawHand = true;
-  if (state.handData.some((hand) => !hand.screen && fingersPointed(hand))) state.sawFinger = true;
+  if (state.handData.some((hand) => !hand.screen && (fingersPointed(hand) || activeFingertips(hand.points, state.age).length))) state.sawFinger = true;
   if (state.screenDown) state.sawScreen = true;
 }
 function visionTelemetry() {
@@ -2029,42 +2089,74 @@ function liftScreenHand() {
 function setTouchMode(mode) {
   state.touchMode = mode === "screen" ? "screen" : "air";
   liftScreenHand();
-  const btn = $("touch-mode");
-  if (btn) {
-    const screen = state.touchMode === "screen";
-    btn.textContent = screen ? "Screen touch" : "Air touch";
-    btn.setAttribute("aria-pressed", screen ? "true" : "false");
-    btn.setAttribute(
-      "aria-label",
-      screen ? "Using screen touch. Switch to air touch." : "Using air touch. Switch to screen touch.",
-    );
+  const screen = state.touchMode === "screen";
+  const group = $("touch-mode");
+  const air = $("touch-air");
+  const glass = $("touch-screen");
+  if (air && glass) {
+    air.setAttribute("aria-checked", screen ? "false" : "true");
+    glass.setAttribute("aria-checked", screen ? "true" : "false");
+  } else if (group && group.tagName === "BUTTON") {
+    group.textContent = screen ? "Screen touch" : "Air touch";
+    group.setAttribute("aria-pressed", screen ? "true" : "false");
   }
+  group?.setAttribute(
+    "aria-label",
+    screen
+      ? "Screen touch selected. Air touch is also available."
+      : "Air touch selected. Screen touch is also available.",
+  );
+  const showCatcher = screen && phonePlay();
+  document.body.classList.toggle("screen-touch", showCatcher);
+  const catcher = $("screen-catcher");
+  if (catcher) catcher.hidden = !showCatcher;
   if (state.game === "color-picture" && state.picture) refreshColorPrompt(false);
 }
 function syncTouchToggle() {
-  const btn = $("touch-mode");
-  if (!btn) return;
-  btn.hidden = !phonePlay();
+  const group = $("touch-mode");
+  if (!group) return;
+  group.hidden = !phonePlay();
   setTouchMode(state.touchMode || "air");
+}
+function pokeScreenTargets() {
+  if (!screenTouch() || state.roundDone) return;
+  updateObjectGame();
+  updateTrace();
+  updatePicturePlay();
+  if (state.game === "air-drums") hitAirDrums(performance.now());
+}
+function screenEventPoint(event) {
+  if (Number.isFinite(event?.clientX) && Number.isFinite(event?.clientY)) return event;
+  const touch = event?.changedTouches?.[0] || event?.touches?.[0];
+  return touch ? screenPoint(touch) : null;
+}
+function beginScreenTouch(event) {
+  if (!screenTouch()) return false;
+  if (state.screenPointerId != null) return true;
+  const point = screenEventPoint(event);
+  if (!point) return false;
+  event.preventDefault();
+  state.screenDown = true;
+  state.screenPointerId = event.pointerId ?? event.changedTouches?.[0]?.identifier ?? 1;
+  if (event.pointerId != null) stage.setPointerCapture?.(event.pointerId);
+  placeScreenHand(point);
+  pokeScreenTargets();
+  return true;
 }
 stage?.addEventListener("pointermove",(event)=>{
   if (screenTouch()) {
-    if (!state.screenDown || event.pointerId !== state.screenPointerId) return;
+    if (!state.screenDown || (event.pointerId != null && event.pointerId !== state.screenPointerId)) return;
     placeScreenHand(event);
+    updateObjectGame();
+    updateTrace();
+    updatePicturePlay();
+    if (state.game === "air-drums") hitAirDrums(performance.now());
     return;
   }
   applyDemoPointer(event);
 });
 stage?.addEventListener("pointerdown",(event)=>{
-  if (screenTouch()) {
-    if (state.screenPointerId != null) return;
-    event.preventDefault();
-    state.screenDown = true;
-    state.screenPointerId = event.pointerId;
-    stage.setPointerCapture?.(event.pointerId);
-    placeScreenHand(event);
-    return;
-  }
+  if (beginScreenTouch(event)) return;
   if (!state.demo) return;
   event.preventDefault();
   stage.setPointerCapture?.(event.pointerId);
@@ -2072,7 +2164,10 @@ stage?.addEventListener("pointerdown",(event)=>{
 });
 stage?.addEventListener("pointerup",(event)=>{
   if (!screenTouch()) return;
-  if (event.pointerId !== state.screenPointerId) return;
+  if (state.screenPointerId == null) {
+    beginScreenTouch(event);
+  }
+  if (event.pointerId !== state.screenPointerId && state.screenPointerId != null) return;
   liftScreenHand();
 });
 stage?.addEventListener("pointercancel",(event)=>{
@@ -2088,12 +2183,8 @@ function screenPoint(touch) {
   return {clientX: touch.clientX, clientY: touch.clientY};
 }
 stage?.addEventListener("touchstart",(event)=>{
-  if (!screenTouch() || !event.changedTouches?.length) return;
-  event.preventDefault();
-  const touch = event.changedTouches[0];
-  state.screenDown = true;
-  state.screenPointerId = touch.identifier;
-  placeScreenHand(screenPoint(touch));
+  if (!screenTouch() || state.screenDown || !event.changedTouches?.length) return;
+  beginScreenTouch(event);
 },{passive:false});
 stage?.addEventListener("touchmove",(event)=>{
   if (!screenTouch() || !state.screenDown) return;
@@ -2101,11 +2192,16 @@ stage?.addEventListener("touchmove",(event)=>{
   if (!touch) return;
   event.preventDefault();
   placeScreenHand(screenPoint(touch));
+  updateObjectGame();
+  updateTrace();
+  updatePicturePlay();
 },{passive:false});
 stage?.addEventListener("touchend",(event)=>{
   if (!screenTouch()) return;
-  const ended = [...event.changedTouches].some((row) => row.identifier === state.screenPointerId);
-  if (!ended && event.touches.length) return;
+  const touch = [...(event.changedTouches || [])][0];
+  if (touch && state.screenPointerId == null) beginScreenTouch(event);
+  const ended = [...(event.changedTouches || [])].some((row) => row.identifier === state.screenPointerId);
+  if (!ended && event.touches?.length) return;
   liftScreenHand();
 },{passive:false});
 stage?.addEventListener("touchcancel",()=>{
@@ -2126,8 +2222,14 @@ $("undo").addEventListener("click",()=>{
     state.painted=(state.picture?.segments||[]).map(()=>false);
   }
 });
-$("touch-mode")?.addEventListener("click",()=>{
-  setTouchMode(state.touchMode==="screen"?"air":"screen");
+$("touch-mode")?.addEventListener("click",(event)=>{
+  const choice = event.target?.closest?.("[data-touch]")?.getAttribute("data-touch");
+  setTouchMode(choice || (state.touchMode==="screen"?"air":"screen"));
+});
+$("age")?.addEventListener("change",()=>{
+  const select = $("age");
+  if (select) select.dataset.touched = "1";
+  state.age = select?.value || state.age;
 });
 $("pace")?.addEventListener("change", () => {
   state.pace = $("pace")?.value || "patient";
@@ -2182,8 +2284,34 @@ $("clear-data")?.addEventListener("click",()=>{localStorage.removeItem(state.loc
 // Deterministic visual smoke-test entry point: no camera permission prompt and
 // no recording. It is also useful when an adult wants to inspect every overlay
 // before allowing camera access.
+function readStoredTouchAge() {
+  try {
+    return profileTouchAge({
+      ageYears: localStorage.getItem("onboarding_age") || "",
+      ageBand: localStorage.getItem("onboarding_age_band") || "",
+    });
+  } catch (_) {
+    return "";
+  }
+}
+function seedPlayAge() {
+  let query = "";
+  try {
+    const params = new URLSearchParams(location.search);
+    query = params.get("age") || params.get("age_band") || "";
+  } catch (_) {}
+  const next = profileTouchAge({query}) || readStoredTouchAge();
+  const select = $("age");
+  if (select && next && select.dataset.touched !== "1" && [...select.options].some((opt) => opt.value === next)) {
+    select.value = next;
+  }
+  state.age = select?.value || next || state.age || "7-10";
+}
+seedPlayAge();
+const coarseTablet = window.matchMedia("(pointer: coarse) and (max-width: 1400px)").matches;
 const embedMobile=new URLSearchParams(location.search).get("embed")==="mobile"
-  || window.matchMedia("(max-width: 760px)").matches;
+  || window.matchMedia("(max-width: 1180px)").matches
+  || coarseTablet;
 if (embedMobile) {
   document.body.classList.add("phone-play");
   const share=$("share");

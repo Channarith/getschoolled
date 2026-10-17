@@ -1,8 +1,9 @@
 """Consumer subscription pricing (Netflix-style) and calendar billing.
 
-Standard (``basic``) is $19.99/month with ads. VIP (``premium``) is $29.99/month
-ad-free. Paid plans renew monthly on the calendar day the member signed up
-(anchor day); shorter months bill on the last day (e.g. Jan 31 -> Feb 28/29).
+Free is $0. Standard (``basic``) is $19/month with ads. Pro is $29/month
+ad-free. VIP (``premium``) is $39/month ad-free. Paid plans renew monthly on
+the calendar day the member signed up (anchor day); shorter months bill on
+the last day (e.g. Jan 31 -> Feb 28/29).
 """
 
 from __future__ import annotations
@@ -14,11 +15,17 @@ from typing import Optional
 
 from .schemas import PlanTier
 
-STANDARD_PRICE_USD = 19.99
-VIP_PRICE_USD = 29.99
+STANDARD_PRICE_USD = 19.0
+PRO_PRICE_USD = 29.0
+VIP_PRICE_USD = 39.0
 
 # Tiers offered on the consumer signup / billing picker.
-CONSUMER_TIERS = frozenset({PlanTier.FREE.value, PlanTier.BASIC.value, PlanTier.PREMIUM.value})
+CONSUMER_TIERS = frozenset({
+    PlanTier.FREE.value,
+    PlanTier.BASIC.value,
+    PlanTier.PRO.value,
+    PlanTier.PREMIUM.value,
+})
 
 
 @dataclass(frozen=True)
@@ -47,6 +54,14 @@ CONSUMER_PLANS: dict[str, ConsumerPlan] = {
         billing_interval="monthly",
         ads=True,
         blurb="5 languages, billed monthly on your signup day",
+    ),
+    PlanTier.PRO.value: ConsumerPlan(
+        tier=PlanTier.PRO.value,
+        display_name="Pro",
+        price_usd=PRO_PRICE_USD,
+        billing_interval="monthly",
+        ads=False,
+        blurb="All languages, ad-free, solo classes",
     ),
     PlanTier.PREMIUM.value: ConsumerPlan(
         tier=PlanTier.PREMIUM.value,

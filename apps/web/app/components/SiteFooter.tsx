@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { usePathname } from "next/navigation";
 
+import { isImmersiveSetupPath } from "../lib/layoutWidth";
 import { useDemoOnlyAnonymous, useSignedIn } from "../lib/flags";
 import { useT } from "../lib/i18n";
 import LanguagePicker from "./LanguagePicker";
@@ -17,11 +18,12 @@ export default function SiteFooter() {
   const signedIn = useSignedIn();
   if (
     demoOnlyAnon
+    || isImmersiveSetupPath(pathname)
     || pathname.startsWith("/home-concepts")
     || (pathname === "/" && signedIn !== true)
   ) return null;
   return (
-    <footer style={{ marginTop: 40, padding: "16px 24px", borderTop: "1px solid #333",
+    <footer className="site-footer" style={{ marginTop: 40, padding: "16px 24px", borderTop: "1px solid #333",
       fontSize: 12, opacity: 0.85, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
       <span>© 2026 Salareen ·</span>
       <Link href="/privacy">{t("footer.privacy")}</Link>

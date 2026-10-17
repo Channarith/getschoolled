@@ -12,6 +12,18 @@ FROM node:22-slim AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web ./
+# YuNet (~230 KB) and SFace (~37 MB) are gitignored. Face Check loads them from
+# /vision-models on this origin, the same way opencv.js is served from /opencv.
+# URLs match aoep_shared.vision.models. A short file is a failed download.
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p public/vision-models \
+    && curl -fsSL --retry 3 -o public/vision-models/face_detection_yunet_2023mar.onnx \
+        https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
+    && curl -fsSL --retry 3 -o public/vision-models/face_recognition_sface_2021dec.onnx \
+        https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx \
+    && test "$(wc -c < public/vision-models/face_detection_yunet_2023mar.onnx)" -gt 150000 \
+    && test "$(wc -c < public/vision-models/face_recognition_sface_2021dec.onnx)" -gt 30000000
 # next.config.mjs rewrites are frozen into .next by `next build`. The public
 # demos proxy to the in-cluster lab Services. Local `next dev` leaves these
 # unset and keeps the 127.0.0.1 defaults.

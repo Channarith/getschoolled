@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Animated, Dimensions, PanResponder, type ViewProps } from "react-native";
+import { Animated, PanResponder, useWindowDimensions, type ViewProps } from "react-native";
 
 import type { TabId } from "../types";
 
@@ -35,7 +35,7 @@ export default function SwipeTabContainer({
   const activeRef = useRef(active);
   activeRef.current = active;
 
-  const width = Dimensions.get("window").width;
+  const { width } = useWindowDimensions();
   const translateX = useRef(new Animated.Value(0)).current;
   // Guards against starting a new gesture mid-transition (avoids pane flicker).
   const animatingRef = useRef(false);

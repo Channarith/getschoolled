@@ -28,16 +28,23 @@ import CameraLightingScreener from "../components/CameraLightingScreener";
 import CourseStoryboardView from "../components/CourseStoryboardView";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import VoiceAgentToggle, { lessonVoiceButtonKey } from "../components/VoiceAgentToggle";
 import SurveySheet from "../components/SurveySheet";
 import { useInterstitial } from "../ads/interstitial";
 import { useAuth } from "../auth/AuthContext";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
+import AdaptiveContent from "../layout/AdaptiveContent";
+import { useLayoutMetrics } from "../layout";
 import { getSettings } from "../storage";
 import { theme } from "../theme";
 import { speakNatural, stopSpeech } from "../tts";
 import { buildNarrationSpeakOptions } from "../narrationTts";
 import { useXaiClassVoice } from "../useXaiClassVoice";
+import {
+  loadVoiceAgentChoice, saveVoiceAgentChoice, subscribeVoiceAgent,
+  type VoiceAgentChoice,
+} from "../voiceAgentPref";
 
 type Props = {
   lessonId: string;
@@ -86,6 +93,8 @@ export default function LessonScreen({
   const [assessmentResult, setAssessmentResult] = useState<AssessmentSubmitResult | null>(null);
   const [passDecisionToken, setPassDecisionToken] = useState<string | null>(null);
   const [voiceOn, setVoiceOn] = useState(true);
+  const [voiceAgent, setVoiceAgent] = useState<VoiceAgentChoice>("sala");
+  const [voiceAgentReady, setVoiceAgentReady] = useState(false);
   const [showIdentitySetup, setShowIdentitySetup] = useState(false);
   const slideRef = useRef<LessonSlide | null>(null);
   const studentIdRef = useRef("guest");
@@ -98,16 +107,15 @@ export default function LessonScreen({
   const interstitial = useInterstitial(account?.tier);
   const advanceCountRef = useRef(0);
   const MIDROLL_EVERY_ADVANCES = 4;
-  const xai = useXaiClassVoice(lightingReady && voiceOn && Boolean(view), {
+  const xai = useXaiClassVoice(lightingReady && voiceOn && Boolean(view) && voiceAgentReady, {
     mode: classType === "group" ? "group" : "solo",
     context: [view?.lesson.title || title, slide?.title || "", slide?.narration || slide?.body || ""]
       .filter(Boolean)
       .join("\n"),
     learnerName: studentProfile?.display_name,
     language: locale,
-    // Same mint fields Drive Mode / studio courses pass so Serenity + xAI
-    // attach to AI Fluency and other catalog lessons when the speech service
-    // has XAI_API_KEY (Cantonese/Khmer still use the gateway voice).
+    // The persisted Sala / xAI choice picks the path. xAI mints a short-lived
+    // session on the speech service; the API key never enters the app.
     courseId: lessonId,
     topic: view?.lesson.title || title,
     category: view?.lesson.language || "",
@@ -120,7 +128,21 @@ export default function LessonScreen({
         hallucination_risk: 0,
       });
     },
-  });
+  }, voiceAgent);
+
+  useEffect(() => {
+    let alive = true;
+    void loadVoiceAgentChoice().then((next) => {
+      if (!alive) return;
+      setVoiceAgent(next);
+      setVoiceAgentReady(true);
+    });
+    return subscribeVoiceAgent((next) => {
+      if (!alive) return;
+      setVoiceAgent(next);
+      setVoiceAgentReady(true);
+    });
+  }, []);
 
   // mountedRef must only flip on UNMOUNT. It was cleared in the lesson-loading
   // effect's cleanup, which also runs on every re-run (account/lightingReady
@@ -631,9 +653,10 @@ export default function LessonScreen({
 
   const total = view?.lesson.slides.length ?? 0;
   const idx = slide?.index ?? 0;
+  const { overlayTopPad, overlayBottomPad, horizontalPadding } = useLayoutMetrics();
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { paddingTop: overlayTopPad, paddingHorizontal: horizontalPadding }]}>
       <View style={styles.header}>
         <PrimaryButton label={t("lesson.back")} onPress={() => { stopNarration(); onBack(); }} variant="ghost" />
         <View style={styles.headerText}>
@@ -645,21 +668,29 @@ export default function LessonScreen({
       </View>
 
       {!lightingReady ? (
-        <ScrollView contentContainerStyle={styles.body}>
-          <CameraLightingScreener onReady={() => setLightingReady(true)} />
+        <ScrollView contentContainerStyle={[styles.body, { paddingBottom: overlayBottomPad }]}>
+          <AdaptiveContent style={{ paddingHorizontal: 0 }}>
+            <CameraLightingScreener onReady={() => setLightingReady(true)} />
+          </AdaptiveContent>
         </ScrollView>
       ) : loading ? (
         <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 24 }} />
       ) : error && !slide ? (
-        <ScrollView contentContainerStyle={styles.body}>
-          <GlassPanel style={styles.card}>
-            <Text style={styles.slideTitle}>{title}</Text>
-            {preview ? <Text style={styles.slideBody}>{preview}</Text> : null}
-            <Text style={styles.meta}>{t("lesson.noSession")}</Text>
-          </GlassPanel>
+        <ScrollView contentContainerStyle={[styles.body, { paddingBottom: overlayBottomPad }]}>
+          <AdaptiveContent style={{ paddingHorizontal: 0 }}>
+            <GlassPanel style={styles.card}>
+              <Text style={styles.slideTitle}>{title}</Text>
+              {preview ? <Text style={styles.slideBody}>{preview}</Text> : null}
+              <Text style={styles.meta}>{t("lesson.noSession")}</Text>
+            </GlassPanel>
+          </AdaptiveContent>
         </ScrollView>
       ) : (
-        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.body, { paddingBottom: overlayBottomPad }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <AdaptiveContent style={{ paddingHorizontal: 0 }}>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {lxHint ? <Text style={styles.lx}>{lxHint}</Text> : null}
           {finish ? (
@@ -682,7 +713,7 @@ export default function LessonScreen({
 
           {segmentBreak ? (
             <GlassPanel style={[styles.card, { borderColor: "#7c3aed" }]}>
-              <Text style={[styles.slideTitle, { color: "#c4b5fd" }]}>☕ Good stopping point</Text>
+              <Text style={[styles.slideTitle, { color: "#c4b5fd" }]}>{t("lesson.stopPoint")}</Text>
               <Text style={styles.slideBody}>{segmentBreak.message}</Text>
               <Text style={[styles.meta, { marginBottom: 14, color: "#a78bfa" }]}>
                 Segment {segmentBreak.segment} complete · {segmentBreak.slides_done} slides done
@@ -692,7 +723,7 @@ export default function LessonScreen({
               </Text>
               <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
                 <PrimaryButton
-                  label="Keep going →"
+                  label={t("lesson.keepGoing")}
                   onPress={() => setSegmentBreak(null)}
                   variant="brand"
                 />
@@ -817,8 +848,15 @@ export default function LessonScreen({
 
           <GlassPanel style={styles.card}>
             <Text style={styles.cardTitle}>{t("lesson.askTitle")}</Text>
+            <VoiceAgentToggle
+              value={voiceAgent}
+              onChange={(next) => {
+                setVoiceAgent(next);
+                void saveVoiceAgentChoice(next);
+              }}
+            />
             <PrimaryButton
-              label={voiceOn ? (xai.live ? "Sala on" : "Sala starting") : "Sala off"}
+              label={t(lessonVoiceButtonKey(voiceAgent, voiceOn, xai.phase))}
               onPress={() => {
                 if (voiceOn) {
                   stopNarration();
@@ -829,7 +867,7 @@ export default function LessonScreen({
               }}
               variant={voiceOn ? "brand" : "ghost"}
             />
-            {xai.hint ? <Text style={styles.meta}>{xai.hint}</Text> : null}
+            {xai.hint ? <Text testID="voice-agent-status" style={styles.meta}>{xai.hint}</Text> : null}
             <TextInput
               style={styles.input}
               placeholder={t("lesson.askPlaceholder")}
@@ -876,6 +914,7 @@ export default function LessonScreen({
               </View>
             ) : null}
           </GlassPanel>
+          </AdaptiveContent>
         </ScrollView>
       )}
 
@@ -905,7 +944,7 @@ export default function LessonScreen({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
+  wrap: { flex: 1, gap: 8 },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerText: { flex: 1, gap: 2, minWidth: 0 },
   title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", lineHeight: 23 },

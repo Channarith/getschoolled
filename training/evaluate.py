@@ -91,6 +91,21 @@ def _prompt(row: Dict) -> str:
     return f"### Audience:\n{ctx}\n\n### Question:\n{instruction}\n\n### Answer:\n"
 
 
+def _group(row: Dict) -> str | None:
+    """Audience group for the fairness gap. Pedagogical fields only."""
+    ctx = row.get("context") or {}
+    level = ctx.get("reading_level")
+    if level:
+        return str(level)
+    language = ctx.get("language")
+    return str(language) if language else None
+
+
+def _category(row: Dict) -> str | None:
+    tags = row.get("tags") or []
+    return str(tags[0]) if tags else None
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--base-model", required=True)
@@ -99,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--max-new-tokens", type=int, default=128)
     ap.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    ap.add_argument("--metrics-out", default="", help="write accuracy + fairness_gap JSON here")
     args = ap.parse_args(argv)
 
     rows = read_jsonl(args.eval)
@@ -119,6 +135,8 @@ def main(argv: list[str] | None = None) -> int:
         else ("cuda" if torch.cuda.is_available() else "cpu")
     )
     tok = AutoTokenizer.from_pretrained(args.base_model, local_files_only=args.offline)
+    if tok.pad_token is None:
+        tok.pad_token = tok.eos_token
     model = AutoModelForCausalLM.from_pretrained(
         args.base_model, local_files_only=args.offline,
         torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
@@ -129,22 +147,47 @@ def main(argv: list[str] | None = None) -> int:
         model = PeftModel.from_pretrained(model, args.adapter)
     model.to(device).eval()
 
-    scores: List[float] = []
+    items: List[Dict] = []
     for row in rows:
         inputs = tok(_prompt(row), return_tensors="pt").to(device)
         with torch.no_grad():
-            out = model.generate(**inputs, max_new_tokens=args.max_new_tokens)
+            out = model.generate(
+                **inputs,
+                max_new_tokens=args.max_new_tokens,
+                do_sample=False,
+                pad_token_id=tok.pad_token_id,
+            )
         text = tok.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
         if not row.get("response"):
             print("WARNING: skipping row without 'response' field", file=sys.stderr)
             continue
-        scores.append(token_f1(text, row.get("response", "")))
+        items.append(
+            {
+                "score": token_f1(text, row.get("response", "")),
+                "category": _category(row),
+                "group": _group(row),
+            }
+        )
 
-    if not scores:
+    if not items:
         print("ERROR: eval file is empty", file=sys.stderr)
         return 1
-    mean = sum(scores) / len(scores)
-    print(json.dumps({"n": len(scores), "token_f1": round(mean, 4)}))
+    agg = aggregate_scores(items)
+    # accuracy is the bake-off primary (token-overlap F1 from this file).
+    summary = {
+        "n": agg["n"],
+        "token_f1": agg["overall"],
+        "accuracy": agg["overall"],
+        "fairness_gap": agg["fairness_gap"],
+        "by_category": agg["by_category"],
+    }
+    if args.metrics_out:
+        from pathlib import Path
+
+        dest = Path(args.metrics_out)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(summary))
     return 0
 
 

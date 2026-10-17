@@ -30,6 +30,19 @@ jest.mock("expo-linear-gradient", () => {
   return { LinearGradient: View };
 });
 
+jest.mock("react-native-safe-area-context", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  const insets = { top: 0, right: 0, bottom: 0, left: 0 };
+  return {
+    SafeAreaProvider: ({ children }) => children,
+    SafeAreaView: View,
+    useSafeAreaInsets: () => insets,
+    useSafeAreaFrame: () => ({ x: 0, y: 0, width: 390, height: 844 }),
+    initialWindowMetrics: { insets, frame: { x: 0, y: 0, width: 390, height: 844 } },
+  };
+});
+
 // Silence the noisy native-module "not linked" warnings the app logs when
 // optional modules (speech, sensors) are absent in the JS-only test env.
 jest.spyOn(console, "warn").mockImplementation(() => {});

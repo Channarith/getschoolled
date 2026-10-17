@@ -15,6 +15,7 @@
 
 import { visionModelUrl, type WireFace } from "./api";
 import { ModelLoadError, OPENCV_JS_URL, waitForCvRuntime } from "./opencvRuntime";
+import { fetchVisionModel } from "./visionModels";
 
 const DETECTOR_NAME = "face_detection_yunet_2023mar.onnx";
 const RECOGNIZER_NAME = "face_recognition_sface_2021dec.onnx";
@@ -63,16 +64,7 @@ function loadOpenCv(): Promise<any> {
 // The runtime's heap is fixed at 128 MB; SFace alone is ~37 MB, so each file is
 // removed from the Emscripten FS once OpenCV has parsed it.
 async function withStagedModel<T>(cv: any, name: string, open: () => T): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(visionModelUrl(name), { cache: "force-cache" });
-  } catch (reason) {
-    throw new ModelLoadError(`could not fetch model ${name}: ${String(reason)}`);
-  }
-  if (!res.ok) {
-    throw new ModelLoadError(`could not fetch model ${name}: ${res.status}`);
-  }
-  const buf = new Uint8Array(await res.arrayBuffer());
+  const buf = await fetchVisionModel(name, visionModelUrl(name));
   try {
     cv.FS_unlink("/" + name);
   } catch {

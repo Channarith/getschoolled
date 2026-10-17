@@ -27,6 +27,7 @@ import { buildNarrationSpeakOptions } from "../narrationTts";
 import { useXaiClassVoice } from "../useXaiClassVoice";
 import GlassPanel from "../components/GlassPanel";
 import CameraLightingScreener from "../components/CameraLightingScreener";
+import { liveRoomSeatSize, useLayoutMetrics } from "../layout";
 import CameraQualityGateOverlay from "../components/CameraQualityGateOverlay";
 import CourseStoryboardView from "../components/CourseStoryboardView";
 import {
@@ -153,7 +154,7 @@ function initials(name: string): string {
 // slide) — parity with the web participant grid.
 function SeatTile({
   name, host, me, floor, hand, muted, open, track, cameraOn, onToggleCamera,
-  onPress, adminProfileLabel, presenceFaceCount, avatarId,
+  onPress, adminProfileLabel, presenceFaceCount, avatarId, seatSize,
 }: {
   name?: string;
   host?: boolean;
@@ -171,10 +172,11 @@ function SeatTile({
   adminProfileLabel?: string;
   presenceFaceCount?: number;
   avatarId?: string;
+  seatSize: { width: number; height: number };
 }) {
   if (open) {
     return (
-      <View style={[styles.seat, styles.seatOpen]}>
+      <View style={[styles.seat, seatSize, styles.seatOpen]}>
         <View style={styles.seatVideoWindow}>
           <Text style={styles.seatOpenText}>Open{"\n"}seat</Text>
         </View>
@@ -188,6 +190,7 @@ function SeatTile({
   const label = host ? "Host" : me ? "You" : name;
   const seatStyle = [
     styles.seat,
+    seatSize,
     host && styles.seatHost,
     floor && styles.seatFloor,
     me && !floor && styles.seatMe,
@@ -318,6 +321,21 @@ export default function LiveRoomScreen({
   moderatorKey?: string;
 }) {
   const { width, height } = useWindowDimensions();
+  const {
+    contentMaxWidth,
+    horizontalPadding,
+    overlayBottomPad,
+    widthClass,
+    isExpanded,
+  } = useLayoutMetrics();
+  const seatSize = liveRoomSeatSize(widthClass);
+  const seatsMaxHeight = widthClass === "expanded" ? 220 : widthClass === "medium" ? 170 : 150;
+  const shellStyle = {
+    paddingHorizontal: horizontalPadding,
+    maxWidth: contentMaxWidth,
+    alignSelf: "center" as const,
+    width: "100%" as const,
+  };
   // The presenter is effectively the phone's fullscreen lecture view. Scale up
   // aggressively on small phones while retaining comfortable line lengths on
   // tablets and landscape screens.
@@ -1049,7 +1067,7 @@ export default function LiveRoomScreen({
 
   if (classEnded && participantId) {
     return (
-      <View style={[styles.wrap, styles.endWrap]}>
+      <View style={[styles.wrap, shellStyle, styles.endWrap]}>
         <Text style={styles.endEmoji}>🎓</Text>
         <Text style={styles.endTitle}>Class complete</Text>
         <Text style={styles.endMsg}>{farewellFor(locale)}</Text>
@@ -1061,8 +1079,8 @@ export default function LiveRoomScreen({
 
   if (!lightingReady) {
     return (
-      <View style={styles.wrap}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+      <View style={[styles.wrap, shellStyle]}>
+        <ScrollView contentContainerStyle={{ paddingBottom: overlayBottomPad }}>
           <Text style={styles.title}>Camera check</Text>
           <Text style={styles.meta}>
             Solo and group classes need a clear, well-lit camera for presence and
@@ -1076,7 +1094,7 @@ export default function LiveRoomScreen({
 
   if (wasBlocked) {
     return (
-      <View style={styles.wrap}>
+      <View style={[styles.wrap, shellStyle]}>
         <Text style={styles.title}>Removed from class</Text>
         <Text style={styles.meta}>You were blocked from this live room.</Text>
         <PrimaryButton label="Back" onPress={leaveAndBack} />
@@ -1086,7 +1104,7 @@ export default function LiveRoomScreen({
 
   if (!participantId) {
     return (
-      <View style={styles.wrap}>
+      <View style={[styles.wrap, shellStyle]}>
         <PrimaryButton label="← Back" onPress={leaveAndBack} variant="ghost" />
         <Text style={styles.title}>Salareen Live Room</Text>
         <Text style={styles.meta}>Theodore hosts · grid up to {room?.room_size ?? 6} seats</Text>
@@ -1107,7 +1125,7 @@ export default function LiveRoomScreen({
   }
 
   return (
-    <View style={styles.wrap} ref={qualityShotRef} collapsable={false}>
+    <View style={[styles.wrap, shellStyle]} ref={qualityShotRef} collapsable={false}>
       <CameraQualityGateOverlay
         visible={Boolean(qualityVerdict && qualitySecondsLeft != null)}
         verdict={qualityVerdict || "blocked_dark"}
@@ -1204,48 +1222,90 @@ export default function LiveRoomScreen({
 
       {/* Learner/open seats. Theodore already owns the dominant presenter panel,
           so do not repeat him as a tiny card that steals room from learners. */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.seatsRow}
-        contentContainerStyle={styles.seatsContent}
-      >
-        {(room?.participants ?? [])
-          .filter((p) => p.role !== "host")
-          .map((p) => {
-            const mine = p.id === participantId;
-            return (
-              <SeatTile
-                key={p.id}
-                name={p.name}
-                me={mine}
-                floor={p.id === room?.floor_participant_id}
-                hand={p.hand_raised && p.id !== room?.floor_participant_id}
-                muted={p.muted || p.muted_by_host}
-                track={mine && !cameraOn ? null : trackFor(p.id, p.identity)}
-                cameraOn={mine ? cameraOn : undefined}
-                onToggleCamera={mine ? () => void toggleCamera() : undefined}
-                presenceFaceCount={mine ? presenceFaceCount : undefined}
-                adminProfileLabel={canModerate
-                  ? (p.student_id
-                    ? `${Math.round(Number(p.readiness_score ?? 0))}/100 · ${p.primary_style || "mixed"}`
-                    : "not completed")
-                  : undefined}
-                avatarId={p.avatar_id}
-                onPress={() => setFocusedTile({
-                  kind: "participant",
-                  id: p.id,
-                  identity: p.identity,
-                  name: p.name,
-                  me: mine,
-                })}
-              />
-            );
-          })}
-        {Array.from({ length: Math.max(0, room?.seats_left ?? 0) }).map((_, i) => (
-          <SeatTile key={`open-${i}`} open />
-        ))}
-      </ScrollView>
+      {isExpanded ? (
+        <View style={[styles.seatsGrid, { maxHeight: seatsMaxHeight }]}>
+          {(room?.participants ?? [])
+            .filter((p) => p.role !== "host")
+            .map((p) => {
+              const mine = p.id === participantId;
+              return (
+                <SeatTile
+                  key={p.id}
+                  seatSize={seatSize}
+                  name={p.name}
+                  me={mine}
+                  floor={p.id === room?.floor_participant_id}
+                  hand={p.hand_raised && p.id !== room?.floor_participant_id}
+                  muted={p.muted || p.muted_by_host}
+                  track={mine && !cameraOn ? null : trackFor(p.id, p.identity)}
+                  cameraOn={mine ? cameraOn : undefined}
+                  onToggleCamera={mine ? () => void toggleCamera() : undefined}
+                  presenceFaceCount={mine ? presenceFaceCount : undefined}
+                  adminProfileLabel={canModerate
+                    ? (p.student_id
+                      ? `${Math.round(Number(p.readiness_score ?? 0))}/100 · ${p.primary_style || "mixed"}`
+                      : "not completed")
+                    : undefined}
+                  avatarId={p.avatar_id}
+                  onPress={() => setFocusedTile({
+                    kind: "participant",
+                    id: p.id,
+                    identity: p.identity,
+                    name: p.name,
+                    me: mine,
+                  })}
+                />
+              );
+            })}
+          {Array.from({ length: Math.max(0, room?.seats_left ?? 0) }).map((_, i) => (
+            <SeatTile key={`open-${i}`} open seatSize={seatSize} />
+          ))}
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={[styles.seatsRow, { maxHeight: seatsMaxHeight }]}
+          contentContainerStyle={styles.seatsContent}
+        >
+          {(room?.participants ?? [])
+            .filter((p) => p.role !== "host")
+            .map((p) => {
+              const mine = p.id === participantId;
+              return (
+                <SeatTile
+                  key={p.id}
+                  seatSize={seatSize}
+                  name={p.name}
+                  me={mine}
+                  floor={p.id === room?.floor_participant_id}
+                  hand={p.hand_raised && p.id !== room?.floor_participant_id}
+                  muted={p.muted || p.muted_by_host}
+                  track={mine && !cameraOn ? null : trackFor(p.id, p.identity)}
+                  cameraOn={mine ? cameraOn : undefined}
+                  onToggleCamera={mine ? () => void toggleCamera() : undefined}
+                  presenceFaceCount={mine ? presenceFaceCount : undefined}
+                  adminProfileLabel={canModerate
+                    ? (p.student_id
+                      ? `${Math.round(Number(p.readiness_score ?? 0))}/100 · ${p.primary_style || "mixed"}`
+                      : "not completed")
+                    : undefined}
+                  avatarId={p.avatar_id}
+                  onPress={() => setFocusedTile({
+                    kind: "participant",
+                    id: p.id,
+                    identity: p.identity,
+                    name: p.name,
+                    me: mine,
+                  })}
+                />
+              );
+            })}
+          {Array.from({ length: Math.max(0, room?.seats_left ?? 0) }).map((_, i) => (
+            <SeatTile key={`open-${i}`} open seatSize={seatSize} />
+          ))}
+        </ScrollView>
+      )}
 
       {/* Presenter hero fills the screen; everything else opens from the bar. */}
       <GlassPanel style={styles.hero}>
@@ -1300,7 +1360,7 @@ export default function LiveRoomScreen({
 
       {/* Bottom bar — two distinct layouts: teacher control panel vs. student bar. */}
       {canModerate ? (
-        <View style={styles.actionBar}>
+        <View style={[styles.actionBar, { paddingBottom: overlayBottomPad }]}>
           <IconTab
             icon="👥"
             label="Class"
@@ -1333,7 +1393,7 @@ export default function LiveRoomScreen({
           />
         </View>
       ) : (
-        <View style={styles.actionBar}>
+        <View style={[styles.actionBar, { paddingBottom: overlayBottomPad }]}>
           <IconTab icon="💬" badge={unread || undefined} onPress={openChat} />
           <IconTab icon="❓" label="Ask" onPress={() => setSheet("ask")} />
           <IconTab
@@ -2232,7 +2292,7 @@ export default function LiveRoomScreen({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: 16, gap: 8 },
+  wrap: { flex: 1, gap: 8 },
   endWrap: { alignItems: "center", justifyContent: "center", gap: 14 },
   endEmoji: { fontSize: 52 },
   endTitle: { color: theme.colors.text, fontSize: 24, fontWeight: "800" },
@@ -2257,12 +2317,20 @@ const styles = StyleSheet.create({
 
   // Presenter hero — takes all the vertical space between the meta row and the
   // action bar so the teacher/slide is the clear focus on a phone.
-  seatsRow: { flexGrow: 0, marginTop: 8, marginBottom: 6, maxHeight: 150 },
+  seatsRow: { flexGrow: 0, marginTop: 8, marginBottom: 6 },
+  seatsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 6,
+    alignContent: "flex-start",
+  },
   seatsContent: { gap: 8, paddingVertical: 2, paddingRight: 8, alignItems: "flex-start" },
   // Profile card: webcam fills the TOP window; name strip sits below — never a
   // floating PiP over the training slide.
   seat: {
-    width: 120, height: 142, borderRadius: 14, overflow: "hidden",
+    borderRadius: 14, overflow: "hidden",
     position: "relative",
     backgroundColor: "rgba(30,27,75,0.9)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",

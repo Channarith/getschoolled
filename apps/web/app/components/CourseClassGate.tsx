@@ -13,6 +13,7 @@ import {
   purchaseCourse,
 } from "../lib/api";
 import {
+  COURSE_UNLOCK_PRICE_LABEL,
   courseStudioFrameSrc,
   fullClassAllowed,
   type PublicCourseId,
@@ -121,14 +122,17 @@ export function CourseClassGate({
       <main className="container">
         <h1>{title}</h1>
         <div className="card">
-          <p>This course is paid. An admin account takes it without paying.</p>
+          <p>
+            Full course unlock is a one-time {COURSE_UNLOCK_PRICE_LABEL} charge (separate from the
+            $19/month membership). An admin account takes it without paying.
+          </p>
           {demoHref ? (
             <p>
               Anyone can try the free 10-minute demo. <Link href={demoHref}>Start the demo</Link>
             </p>
           ) : null}
           <button type="button" onClick={() => { void payForClass(); }} disabled={busy}>
-            {busy ? "Recording payment…" : "Pay for this course"}
+            {busy ? "Recording payment…" : `Unlock full course (${COURSE_UNLOCK_PRICE_LABEL})`}
           </button>
           {error ? <p className="muted">{error}</p> : null}
         </div>

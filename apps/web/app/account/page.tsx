@@ -6,6 +6,7 @@ import {
   adminListAccounts,
   changePassword,
   clearToken,
+  deleteAccount,
   createStudent,
   getMe,
   getPortfolio,
@@ -15,10 +16,14 @@ import {
   listStudents,
   subscribeToPlan,
   setStudentMastery,
+  getConsumerPlans,
   type Account,
+  type ConsumerPlan,
   type Portfolio,
   type StudentProfile,
 } from "../lib/api";
+import { COURSE_UNLOCK_PRICE_LABEL } from "../lib/courseStudio";
+import { formatMonthlyPrice, orderedConsumerPlans } from "../lib/consumerPlansDisplay";
 import { useFlag } from "../lib/flags";
 import { OPEN_LEARNING_PROFILE_EVENT } from "../components/LearningProfileSurvey";
 import { playIntro, INTRO_AUTOPLAY_KEY } from "../components/IntroSequence";
@@ -28,11 +33,6 @@ import AvatarPicker from "../components/AvatarPicker";
 import LanguagePicker from "../components/LanguagePicker";
 import { writeLocalAvatarId } from "../lib/avatars";
 
-const PLANS = [
-  { id: "free", label: "Free", price: "$0", ads: true },
-  { id: "basic", label: "Standard", price: "$19.99/mo", ads: true },
-  { id: "premium", label: "VIP", price: "$29.99/mo", ads: false },
-] as const;
 const STATUS_ORDER = ["paid", "in_progress", "enrolled", "saved", "passed", "failed"];
 
 export default function AccountPage() {
@@ -54,6 +54,7 @@ export default function AccountPage() {
   const [avatarId, setAvatarId] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarMsg, setAvatarMsg] = useState("");
+  const [membershipPlans, setMembershipPlans] = useState<ConsumerPlan[]>([]);
 
   useEffect(() => {
     try { setIntroAutoplay(localStorage.getItem(INTRO_AUTOPLAY_KEY) !== "off"); } catch { /* */ }
@@ -66,7 +67,11 @@ export default function AccountPage() {
 
   async function refresh() {
     try {
-      const me = await getMe();
+      const [me, planCatalog] = await Promise.all([
+        getMe(),
+        getConsumerPlans().catch(() => ({} as Record<string, ConsumerPlan>)),
+      ]);
+      setMembershipPlans(orderedConsumerPlans(planCatalog));
       setIsAdmin(Boolean(me.is_admin));
       if (me.avatar_id) {
         setAvatarId(me.avatar_id);
@@ -346,19 +351,20 @@ export default function AccountPage() {
           <div className="card">
             <h3>{t("account.membership")}</h3>
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-              {PLANS.map((plan) => (
-                <button key={plan.id} onClick={() => onTier(plan.id)}
-                  style={{ fontWeight: portfolio.tier === plan.id ? 700 : 400,
-                           outline: portfolio.tier === plan.id ? "2px solid #6ea8fe" : "none",
+              {membershipPlans.map((plan) => (
+                <button key={plan.tier} onClick={() => onTier(plan.tier)}
+                  style={{ fontWeight: portfolio.tier === plan.tier ? 700 : 400,
+                           outline: portfolio.tier === plan.tier ? "2px solid #6ea8fe" : "none",
                            minWidth: 120 }}>
-                  <div>{plan.label}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>{plan.price}</div>
+                  <div>{plan.display_name}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>{formatMonthlyPrice(plan)}</div>
                   <div className="muted" style={{ fontSize: 11 }}>{plan.ads ? "With ads" : "No ads"}</div>
                 </button>
               ))}
             </div>
             <p className="muted" style={{ marginTop: 6 }}>
-              Free is English lessons with ads for 14 days, for the first 100 people. It does not include group classes or AI agents, and then it goes away.
+              Membership is billed monthly (Standard $19/month). Unlocking a full course is a separate
+              one-time {COURSE_UNLOCK_PRICE_LABEL} charge.
             </p>
             <p className="muted" style={{ marginTop: 6 }}>
               {t("account.currentPlan", { tier: portfolio.tier })}{" "}
@@ -463,8 +469,33 @@ export default function AccountPage() {
               )}
             </div>
           )}
+          <DeleteAccountCard onDeleted={() => { clearToken(); window.location.href = "/"; }} />
         </>
       )}
     </main>
+  );
+}
+
+function DeleteAccountCard({ onDeleted }: { onDeleted: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="card">
+      <h3>Delete account</h3>
+      <p className="muted">Type DELETE and your password. This removes the account from Salareen.</p>
+      <input aria-label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" style={{ display: "block", marginBottom: 8, padding: 8 }} />
+      <input aria-label="Type DELETE to confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="DELETE" style={{ display: "block", marginBottom: 8, padding: 8 }} />
+      {error ? <p role="alert">{error}</p> : null}
+      <button type="button" disabled={busy || confirm.trim().toUpperCase() !== "DELETE"} onClick={() => {
+        setBusy(true);
+        setError("");
+        void deleteAccount(password, confirm).then(() => onDeleted()).catch((e) => {
+          setError(String(e));
+          setBusy(false);
+        });
+      }}>Delete my account</button>
+    </div>
   );
 }

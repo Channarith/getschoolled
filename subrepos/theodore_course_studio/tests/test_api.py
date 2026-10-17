@@ -21,7 +21,7 @@ def test_health_and_studio_page():
     assert 'id="lesson-photo"' in page.text
     assert "pptFly" in page.text
     assert "paintLessonPhoto" in page.text
-    assert "Click the screen to continue, or press Start and speak." in page.text
+    assert "Tap the lesson to continue." in page.text
     assert "Driver's ed" in page.text
     assert "Food safety" in page.text
     assert 'id="btn-pause"' in page.text
