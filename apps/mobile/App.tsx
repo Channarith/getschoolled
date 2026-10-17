@@ -2,8 +2,9 @@ import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
-  Animated, AppState, I18nManager, Platform, SafeAreaView, StyleSheet, Text, View,
+  Animated, AppState, I18nManager, Platform, StyleSheet, Text, View,
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useAndroidBack, useAndroidBackTo } from "./src/hooks/useAndroidBack";
 
 import AmbientBackground from "./src/components/AmbientBackground";
@@ -88,13 +89,15 @@ const DEFAULT_SALES_DEMO_FLAGS = Object.fromEntries(
 
 export default function App() {
   return (
-    <LocaleProvider>
-      <IntroSplashProvider>
-        <AuthProvider>
-          <AppInner />
-        </AuthProvider>
-      </IntroSplashProvider>
-    </LocaleProvider>
+    <SafeAreaProvider>
+      <LocaleProvider>
+        <IntroSplashProvider>
+          <AuthProvider>
+            <AppInner />
+          </AuthProvider>
+        </IntroSplashProvider>
+      </LocaleProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -837,7 +840,7 @@ function AppInner() {
 
   if (authStatus === "loading" && !showBugReport) {
     return (
-      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
         <StatusBar style="light" />
         <AmbientBackground />
         <AuthLoadingScreen />
@@ -848,7 +851,7 @@ function AppInner() {
 
   if (authStatus === "mfa_pending" && !showBugReport) {
     return (
-      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
         <StatusBar style="light" />
         <AmbientBackground />
         <MfaAuthScreen />
@@ -859,7 +862,7 @@ function AppInner() {
 
   if (authenticated && salesDemoEnabled && showDemo && !showBugReport) {
     return (
-      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
         <StatusBar style="light" />
         <AmbientBackground />
         <DemoScreen
@@ -888,7 +891,7 @@ function AppInner() {
 
   if (!inApp && !showBugReport) {
     return (
-      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
         <StatusBar style="light" />
         <AmbientBackground />
         <GuestHomeScreen />
@@ -898,7 +901,7 @@ function AppInner() {
   }
 
   return (
-    <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+    <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
       <StatusBar style="light" />
       <AmbientBackground />
       <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>

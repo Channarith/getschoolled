@@ -242,6 +242,15 @@ STUDIO_CSS = """
       min-height:48px; padding:.6em 1.2em; border-radius:999px; border:0; background:#0f766e; color:#fff;
       font:700 16px/1.2 system-ui,sans-serif; box-shadow:0 8px 22px rgba(15,23,42,.35); cursor:pointer; }
     #resume-retry[hidden] { display:none !important; }
+    body.phone-embed #resume-retry {
+      position:fixed; left:50%; transform:translateX(-50%);
+      bottom:calc(148px + env(safe-area-inset-bottom, 0px) + 8px); z-index:80;
+    }
+    body.phone-embed.public-course #resume-retry {
+      bottom:calc(72px + env(safe-area-inset-bottom, 0px) + 8px);
+    }
+    body.chrome-hidden #resume-retry,
+    body.drive-chrome-hidden #resume-retry { z-index:90; }
     .has-readable-card #teach-body,
     .has-readable-card #teach-narr,
     .has-readable-card #teach-activity { display:none !important; }

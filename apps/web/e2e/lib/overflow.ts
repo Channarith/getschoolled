@@ -13,12 +13,15 @@ import { expect, type Page } from "@playwright/test";
 export type Viewport = { name: string; width: number; height: number };
 
 /**
- * Viewport *samples* (not breakpoint boundaries) from master plan §3.4:
- *   V1 small Android phone, V4 laptop, V5 desktop.
- * Exercises narrow/medium/wide widths against the one breakpoint-free layout.
+ * Viewport samples from the responsive product audit (§3.4 / §6):
+ * compact phones, medium tablet, expanded desktop, plus portrait/landscape tablet.
  */
 export const SWEEP_VIEWPORTS: Viewport[] = [
+  { name: "V0 narrow-phone", width: 320, height: 568 },
   { name: "V1 small-phone", width: 360, height: 780 },
+  { name: "V2 tall-phone", width: 412, height: 915 },
+  { name: "V3 tablet-portrait", width: 768, height: 1024 },
+  { name: "V3b tablet-landscape", width: 1024, height: 768 },
   { name: "V4 laptop", width: 1280, height: 800 },
   { name: "V5 desktop", width: 1920, height: 1080 },
 ];

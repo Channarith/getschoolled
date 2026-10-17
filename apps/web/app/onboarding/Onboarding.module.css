@@ -11,6 +11,7 @@
   --s: 8px;
   height: 100svh;
   height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -63,7 +64,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 640px);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(140px, 30svh) minmax(0, 1fr);
 }
 
 .shell[data-step="learn"] .split {
@@ -93,11 +95,12 @@
   display: flex;
   flex-direction: column;
   background: var(--sa-panel);
-  border-left: 1px solid var(--sa-border);
+  border-left: 0;
+  border-top: 1px solid var(--sa-border);
 }
 
 .shell[data-step="learn"] .pane {
-  border-left: 0;
+  border-top: 0;
 }
 
 .panel {
@@ -251,8 +254,13 @@
   flex: 1;
   min-height: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: calc(var(--s) * 2);
+}
+
+.modes[data-per-page="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .mode {
@@ -577,18 +585,28 @@
   background: var(--sa-border);
 }
 
-@media (max-width: 1100px) {
+@media (min-width: 840px) {
   .split {
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 520px);
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, min(640px, 46vw));
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .shell[data-step="learn"] .split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .pane {
+    border-left: 1px solid var(--sa-border);
+    border-top: 0;
+  }
+
+  .shell[data-step="learn"] .pane {
+    border-left: 0;
   }
 }
 
-@media (max-width: 800px) {
-  .split {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(140px, 28svh) minmax(0, 1fr);
-  }
-
+@media (max-width: 839px) {
   .shell[data-step="learn"] .split {
     grid-template-rows: minmax(0, 1fr);
   }
@@ -605,18 +623,73 @@
   }
 
   .panelWide {
-    overflow: hidden;
+    overflow: auto;
   }
 
-  .modes {
-    min-height: 320px;
+  .mode {
+    display: flex;
+    flex-direction: column;
+    min-height: min(420px, 58dvh);
+  }
+
+  .modeArt {
+    position: relative;
+    flex: 0 0 auto;
+    aspect-ratio: 16 / 10;
+    width: 100%;
+    min-height: 120px;
+  }
+
+  .modeBody {
+    position: static;
+    flex: 1 1 auto;
+    padding: calc(var(--s) * 2);
+    background: var(--sa-panel);
+    color: var(--sa-text);
+  }
+
+  .modeBody p {
+    color: var(--sa-muted);
+  }
+
+  .modeScore {
+    top: calc(var(--s) * 1.5);
+    right: calc(var(--s) * 1.5);
+  }
+
+  .scale {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    background: color-mix(in srgb, var(--sa-accent) 8%, var(--sa-panel-2));
+    backdrop-filter: none;
   }
 
   .scale button {
     width: 26px;
     height: 26px;
-    flex-basis: 26px;
-    font-size: 12px;
+    flex: 0 0 26px;
+    font-size: 11px;
+    color: var(--sa-text);
+  }
+
+  .scale .scaleOn {
+    background: color-mix(in srgb, var(--sa-accent) 35%, transparent);
+    color: var(--sa-text);
+  }
+
+  .scale .scalePick {
+    background: var(--sa-accent);
+    color: #ffffff;
+  }
+
+  .modes {
+    min-height: 280px;
+  }
+
+  .billingRow {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .actions {

@@ -2653,7 +2653,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   return (
     <main
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         // Design A "calm studio": a warm cream page with a faint gold wash rather
         // than a cool blue tint, so the room matches the mockup palette.
         background:
@@ -3204,7 +3204,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   ? "1fr"
                   : "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
               gridTemplateRows: isSolo
-                ? "minmax(420px, calc(100vh - 285px))"
+                ? "minmax(min(420px, 55dvh), calc(100dvh - 285px))"
                 : undefined,
               gap: 8,
               marginBottom: 12,

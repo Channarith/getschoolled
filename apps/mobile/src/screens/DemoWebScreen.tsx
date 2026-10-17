@@ -13,6 +13,8 @@ import { liveAudioPhoneScript } from "../liveAudioPhone";
 import { appStateScript, publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
 import { SERENITY_HERO, SERENITY_NAME } from "../serenity";
 import { ensureLoudSpeaker } from "../tts";
+import AdaptiveContent from "../layout/AdaptiveContent";
+import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
 
 async function ensureMicrophonePermission(): Promise<void> {
@@ -52,6 +54,7 @@ export default function DemoWebScreen({
   const waveScript = audioOnly ? driverWaveScript() : undefined;
   const phoneAudio = liveAudioPhoneScript();
   const beforeLoad = [phoneAudio, waveScript, localeScript, touchScript].filter(Boolean).join("\n");
+  const { overlayBottomPad } = useLayoutMetrics();
   useAndroidBackTo(onBack);
 
   useEffect(() => {
@@ -86,7 +89,7 @@ export default function DemoWebScreen({
   }
 
   return (
-    <View style={styles.root} testID="demo-web">
+    <AdaptiveContent style={[styles.root, { paddingBottom: overlayBottomPad }]} testID="demo-web">
       <View style={styles.bar} collapsable={false}>
         <Pressable
           onPress={onBack}
@@ -141,12 +144,12 @@ export default function DemoWebScreen({
           <Text style={styles.loadingText}>{t("guest.loading")}</Text>
         </View>
       ) : null}
-    </View>
+    </AdaptiveContent>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.colors.bg, overflow: "hidden" },
+  root: { flex: 1, backgroundColor: theme.colors.bg, overflow: "hidden", width: "100%" },
   bar: {
     zIndex: 1100,
     elevation: 24,

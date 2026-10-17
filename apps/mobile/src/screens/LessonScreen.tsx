@@ -34,6 +34,8 @@ import { useInterstitial } from "../ads/interstitial";
 import { useAuth } from "../auth/AuthContext";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
+import AdaptiveContent from "../layout/AdaptiveContent";
+import { useLayoutMetrics } from "../layout";
 import { getSettings } from "../storage";
 import { theme } from "../theme";
 import { speakNatural, stopSpeech } from "../tts";
@@ -651,9 +653,10 @@ export default function LessonScreen({
 
   const total = view?.lesson.slides.length ?? 0;
   const idx = slide?.index ?? 0;
+  const { overlayTopPad, overlayBottomPad, horizontalPadding } = useLayoutMetrics();
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { paddingTop: overlayTopPad, paddingHorizontal: horizontalPadding }]}>
       <View style={styles.header}>
         <PrimaryButton label={t("lesson.back")} onPress={() => { stopNarration(); onBack(); }} variant="ghost" />
         <View style={styles.headerText}>
@@ -665,21 +668,29 @@ export default function LessonScreen({
       </View>
 
       {!lightingReady ? (
-        <ScrollView contentContainerStyle={styles.body}>
-          <CameraLightingScreener onReady={() => setLightingReady(true)} />
+        <ScrollView contentContainerStyle={[styles.body, { paddingBottom: overlayBottomPad }]}>
+          <AdaptiveContent style={{ paddingHorizontal: 0 }}>
+            <CameraLightingScreener onReady={() => setLightingReady(true)} />
+          </AdaptiveContent>
         </ScrollView>
       ) : loading ? (
         <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 24 }} />
       ) : error && !slide ? (
-        <ScrollView contentContainerStyle={styles.body}>
-          <GlassPanel style={styles.card}>
-            <Text style={styles.slideTitle}>{title}</Text>
-            {preview ? <Text style={styles.slideBody}>{preview}</Text> : null}
-            <Text style={styles.meta}>{t("lesson.noSession")}</Text>
-          </GlassPanel>
+        <ScrollView contentContainerStyle={[styles.body, { paddingBottom: overlayBottomPad }]}>
+          <AdaptiveContent style={{ paddingHorizontal: 0 }}>
+            <GlassPanel style={styles.card}>
+              <Text style={styles.slideTitle}>{title}</Text>
+              {preview ? <Text style={styles.slideBody}>{preview}</Text> : null}
+              <Text style={styles.meta}>{t("lesson.noSession")}</Text>
+            </GlassPanel>
+          </AdaptiveContent>
         </ScrollView>
       ) : (
-        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.body, { paddingBottom: overlayBottomPad }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <AdaptiveContent style={{ paddingHorizontal: 0 }}>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {lxHint ? <Text style={styles.lx}>{lxHint}</Text> : null}
           {finish ? (
@@ -903,6 +914,7 @@ export default function LessonScreen({
               </View>
             ) : null}
           </GlassPanel>
+          </AdaptiveContent>
         </ScrollView>
       )}
 
@@ -932,7 +944,7 @@ export default function LessonScreen({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
+  wrap: { flex: 1, gap: 8 },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerText: { flex: 1, gap: 2, minWidth: 0 },
   title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", lineHeight: 23 },

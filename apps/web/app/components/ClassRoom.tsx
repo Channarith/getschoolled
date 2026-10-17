@@ -1428,7 +1428,7 @@ export default function ClassRoom({
             ref={stageRef}
             style={
               isFullscreen
-                ? { position: "relative", background: "#060a17", padding: "24px 16px", minHeight: "100vh", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, justifyContent: "flex-start" }
+                ? { position: "relative", background: "#060a17", padding: "24px 16px", minHeight: "100dvh", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, justifyContent: "flex-start" }
                 : { position: "relative", display: "flex", flexDirection: "column", gap: 12 }
             }
           >

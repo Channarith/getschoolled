@@ -33,6 +33,8 @@ import {
 import { TRAINING_LOCALE_LABELS, TRAINING_LOCALES } from "../trainingLocale";
 import { applyVoicePrefsToTts, voicePrefsFromSettings } from "../narrationTts";
 import { LANGUAGES, languageInfo, useT, type LocaleCode } from "../i18n";
+import AdaptiveContent from "../layout/AdaptiveContent";
+import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
 import { APP_VERSION } from "../version";
 import {
@@ -266,9 +268,14 @@ export default function SettingsScreen({
     ?? trainingLocaleOptions[0];
   const reminderHours = [7, 8, 9, 12, 15, 18, 20, 21];
   const selectedReminderHour = `${pad(s.dailyReminderHour)}:00`;
+  const { overlayTopPad, tabBarClearance } = useLayoutMetrics();
 
   return (
-    <ScrollView style={styles.bg} contentContainerStyle={{ paddingTop: 56, paddingBottom: 32 }}>
+    <ScrollView
+      style={styles.bg}
+      contentContainerStyle={{ paddingTop: overlayTopPad, paddingBottom: tabBarClearance }}
+    >
+      <AdaptiveContent style={{ paddingHorizontal: 0 }}>
       <View style={styles.header}>
         <Text style={styles.title}>{t("settings.title")}</Text>
         <Text style={styles.sub}>{t("settings.sub")}</Text>
@@ -615,6 +622,7 @@ export default function SettingsScreen({
           }}
         />
       )}
+      </AdaptiveContent>
     </ScrollView>
   );
 }

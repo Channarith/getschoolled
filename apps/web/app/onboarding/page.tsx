@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AvatarImage from "../components/AvatarImage";
@@ -11,6 +11,7 @@ import { useT } from "../lib/i18n";
 import {
   AUTH_EVENT,
   completeOnboarding,
+  getConsumerPlans,
   getFreePlanOffer,
   getMe,
   startBillingCheckout,
@@ -20,15 +21,23 @@ import {
   submitLearningProfile,
   submitOnboardingLearner,
   submitOnboardingSurveyAnalytics,
+  type ConsumerPlan,
 } from "../lib/api";
+import { formatMonthlyPrice, orderedConsumerPlans } from "../lib/consumerPlansDisplay";
+import { EXPANDED_LAYOUT_MEDIA, learningModesPerPage } from "../lib/layoutWidth";
 import styles from "./Onboarding.module.css";
 
-const PLANS = [
-  { id: "free", label: "Free", price: "$0", vip: false, blurb: "14 days of English lessons with ads. No group classes or AI agents. First 100 people, then it goes away." },
-  { id: "basic", label: "Basic", price: "$19/mo", vip: false, blurb: "5 languages, with ads" },
-  { id: "pro", label: "Pro", price: "$29/mo", vip: true, blurb: "All languages, ad-free, solo classes" },
-  { id: "premium", label: "Premium", price: "$39/mo", vip: true, blurb: "Everything + analytics" },
-] as const;
+function useLearningModesPerPage(): 1 | 2 {
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      const mq = window.matchMedia(EXPANDED_LAYOUT_MEDIA);
+      mq.addEventListener("change", onStoreChange);
+      return () => mq.removeEventListener("change", onStoreChange);
+    },
+    () => learningModesPerPage(window.innerWidth),
+    () => 1,
+  );
+}
 
 const MODES = [
   { id: "video", art: "mode-video", label: "Watching videos", blurb: "Short lessons you can pause and replay." },
@@ -87,11 +96,12 @@ export default function OnboardingPage() {
   const [ratings, setRatings] = useState<Partial<Record<ModeId, number>>>({});
   const [focus, setFocus] = useState<ModeId>("video");
   const [modePage, setModePage] = useState(0);
-  const [perPage, setPerPage] = useState(2);
+  const perPage = useLearningModesPerPage();
   const advanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [studentId, setStudentId] = useState("");
   const [plan, setPlan] = useState("free");
   const [freeOffer, setFreeOffer] = useState(true);
+  const [consumerPlans, setConsumerPlans] = useState<ConsumerPlan[]>([]);
   const [billing, setBilling] = useState({
     line1: "", line2: "", city: "", state: "", postal_code: "", country: "US",
     card_number: "", exp_month: 12, exp_year: new Date().getFullYear() + 2, cvv: "",
@@ -131,6 +141,9 @@ export default function OnboardingPage() {
         setPlan((current) => (current === "free" ? "basic" : current));
       }
     }).catch(() => undefined);
+    getConsumerPlans()
+      .then((catalog) => setConsumerPlans(orderedConsumerPlans(catalog)))
+      .catch(() => undefined);
   }, [router]);
 
   useEffect(() => {
@@ -158,14 +171,11 @@ export default function OnboardingPage() {
   }, [plan]);
 
   useEffect(() => {
-    const narrow = window.matchMedia("(max-width: 800px)");
-    const sync = () => setPerPage(narrow.matches ? 1 : 2);
-    sync();
-    narrow.addEventListener("change", sync);
-    return () => {
-      narrow.removeEventListener("change", sync);
-      if (advanceRef.current) clearTimeout(advanceRef.current);
-    };
+    setModePage((page) => Math.min(page, Math.ceil(MODES.length / perPage) - 1));
+  }, [perPage]);
+
+  useEffect(() => () => {
+    if (advanceRef.current) clearTimeout(advanceRef.current);
   }, []);
 
   async function run(task: () => Promise<void>) {
@@ -296,7 +306,7 @@ export default function OnboardingPage() {
   const art = step === "account" ? "account" : step === "about" ? "about" : step === "learn" ? "learn" : "plan";
 
   return (
-    <main className={styles.shell} data-step={step}>
+    <main className={`${styles.shell} aoep-immersive-setup aoep-viewport-shell`} data-step={step}>
       <header className={styles.topbar}>
         <span className={styles.brand}>Salareen</span>
         <div className={styles.progress} aria-label={stepLabel}>
@@ -388,7 +398,7 @@ export default function OnboardingPage() {
             Rate each from 1 (not for me) to 10 (I love it).
             {rated === MODES.length && top && <> Favorite so far: <b>{top.label.toLowerCase()}</b>.</>}
           </p>
-          <div className={styles.modes} style={{ gridTemplateColumns: `repeat(${perPage}, minmax(0, 1fr))` }}>
+          <div className={styles.modes} data-per-page={perPage}>
             {pageModes.map((mode) => {
               const value = ratings[mode.id];
               return (
@@ -399,7 +409,7 @@ export default function OnboardingPage() {
                   onFocus={() => setFocus(mode.id)}
                 >
                   <div className={styles.modeArt}>
-                    <Image src={`/setup-assistant/${mode.art}.webp`} alt="" fill priority sizes="(max-width: 800px) 100vw, 50vw" />
+                    <Image src={`/setup-assistant/${mode.art}.webp`} alt="" fill priority sizes="(max-width: 839px) 100vw, 50vw" />
                   </div>
                   {value != null && <span className={styles.modeScore}>{value}</span>}
                   <div className={styles.modeBody}>
@@ -484,20 +494,24 @@ export default function OnboardingPage() {
               : "The free plan has ended. Choose a paid plan to continue."}
           </p>
           <div className={styles.plans}>
-            {PLANS.filter((item) => freeOffer || item.id !== "free").map((item) => (
+            {consumerPlans.filter((item) => freeOffer || item.tier !== "free").map((item) => (
               <button
-                key={item.id}
+                key={item.tier}
                 type="button"
-                className={`${styles.plan} ${plan === item.id ? styles.planOn : ""}`}
-                onClick={() => setPlan(item.id)}
+                className={`${styles.plan} ${plan === item.tier ? styles.planOn : ""}`}
+                onClick={() => setPlan(item.tier)}
               >
-                <strong>{item.label}</strong>
-                <span className={styles.planPrice}>{item.price}</span>
-                {item.vip && <span className={styles.vip}>VIP</span>}
+                <strong>{item.display_name}</strong>
+                <span className={styles.planPrice}>{formatMonthlyPrice(item)}</span>
+                {item.tier === "premium" && <span className={styles.vip}>VIP</span>}
                 <small>{item.blurb}</small>
               </button>
             ))}
           </div>
+          <p className={styles.note}>
+            Membership is billed monthly (Standard $19/month). Unlocking a full course is a separate
+            one-time $19.99 charge — see <a href="/billing">billing</a>.
+          </p>
           {error && <p className={styles.error} role="alert">{error}</p>}
           <div className={styles.actions}>
             <button className={styles.primary} disabled={busy} onClick={() => void savePlan()}>

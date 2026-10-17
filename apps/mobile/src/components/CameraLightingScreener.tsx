@@ -17,6 +17,7 @@ import { cameraContinueEnabled } from "../cameraCheck";
 import { ensureCameraPermission } from "./cameraPermission";
 import PrimaryButton from "./PrimaryButton";
 import { useT } from "../i18n";
+import { cameraPreviewHeight, useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
 
 type Props = {
@@ -30,6 +31,8 @@ export default function CameraLightingScreener({
 }: Props) {
   const { t } = useT();
   const heading = title || t("camera.title");
+  const { widthClass } = useLayoutMetrics();
+  const previewHeight = cameraPreviewHeight(widthClass);
   const [busy, setBusy] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -69,9 +72,9 @@ export default function CameraLightingScreener({
       <Text style={styles.body}>{t("camera.body")}</Text>
 
       {previewUri ? (
-        <Image source={{ uri: previewUri }} style={styles.preview} />
+        <Image source={{ uri: previewUri }} style={[styles.preview, { height: previewHeight }]} />
       ) : (
-        <View style={[styles.preview, styles.previewEmpty]}>
+        <View style={[styles.preview, styles.previewEmpty, { height: previewHeight }]}>
           <Text style={styles.muted}>{t("camera.empty")}</Text>
         </View>
       )}

@@ -27,7 +27,7 @@ def render_children_page(asset_tag: str = "") -> str:
         )
         groups.append(f'<optgroup label="{label}">{options}</optgroup>')
     game_select = (
-        '<label>Game<select id="game">'
+        '<label>Game<select id="game" aria-label="Choose a Play Lab game">'
         + "".join(groups)
         + "</select></label>"
     )
@@ -77,8 +77,10 @@ _PAGE = """<!doctype html>
         </div>
         <button id="fullscreen">⛶</button>
       </div>
-      <div id="stage" class="stage">
-        <video id="camera" autoplay playsinline muted></video>
+      <div id="stage" class="stage" role="region" aria-labelledby="stage-label" aria-describedby="stage-desc">
+        <p id="stage-label" class="sr-only">Play Lab camera stage</p>
+        <p id="stage-desc" class="sr-only">Camera games run here. Video stays in your browser; use the game selector below to choose an activity.</p>
+        <video id="camera" autoplay playsinline muted aria-label="Play Lab camera preview"></video>
         <div id="guide-layer" class="guide-layer" aria-hidden="true">
           <span id="guide-glyph" class="guide-glyph">A</span>
           <i id="guide-start" class="guide-start"></i>
