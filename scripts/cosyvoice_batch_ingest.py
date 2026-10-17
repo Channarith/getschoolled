@@ -22,6 +22,15 @@ Examples:
 
   # ask a running queue (shell or lab) to finish the current channel and stop
   python3 scripts/cosyvoice_batch_ingest.py --stop
+
+Restart after this pipeline change is merged (do not kill a batch that is
+already running; let it finish or stop it yourself with --stop):
+
+  pip install -e 'packages/shared[cosyvoice-ingest]'
+  # optional, not committed: export YT_DLP_COOKIES=$HOME/.config/yt-dlp/cookies.txt
+  python3 scripts/cosyvoice_batch_ingest.py --workers 3
+
+Census (read-only): python3 scripts/cosyvoice_language_census.py --scan-root output
 """
 
 from __future__ import annotations

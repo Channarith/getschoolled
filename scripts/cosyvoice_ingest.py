@@ -21,6 +21,12 @@ Env: COSYVOICE_REPO, COSYVOICE_INGEST_ROOT, COSYVOICE_MERGE_INTO,
 COSYVOICE_MERGE_SCAN_ROOT, AOEP_ASR_MODEL / WHISPER_MODEL, YT_DLP_BIN,
 AOEP_ASR_DEVICE, AOEP_ASR_COMPUTE_TYPE.
 
+YouTube bot checks / HTTP 403: set YT_DLP_COOKIES or COSYVOICE_COOKIES_FILE
+to a Netscape cookies file you already have. This tool does not create or
+read that file into logs. Pace downloads with YT_DLP_MIN_INTERVAL (seconds,
+default 1) and YT_DLP_BACKOFF (default 2). The cosyvoice-ingest extra pins
+yt-dlp==2026.8.19.
+
 Every successful export also rebuilds ``output/cosyvoice_<lang>_merged``
 (unless ``--no-merge``). Train against that merged handoff.
 
@@ -201,6 +207,11 @@ def main(argv: list[str] | None = None) -> int:
         merge_scan_root=args.merge_scan_root,
     )
     report = run_ingest(cfg, start_stage=args.start_stage, stop_stage=args.stop_stage)
+    if report.error_counts:
+        summary = ",".join(
+            f"{name}:{report.error_counts[name]}" for name in sorted(report.error_counts)
+        )
+        print(f"ingest errors: {summary}", file=sys.stderr)
     print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
     if report.merge_train_handoff:
         print(f"\nMerged train handoff: {report.merge_train_handoff}", file=sys.stderr)

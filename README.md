@@ -679,7 +679,8 @@ transcript all run without it.
 | `training` | Education-LLM fine-tuning scaffold (dataset export, QLoRA config, promote/runbooks) + Theodore LLM Lab UI on `:8019` |
 | `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
 | `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, CosyVoice ingest, CosyVoice→Audio2Face loop, voice tools) |
-| `scripts/cosyvoice_ingest.py` | YouTube/Vimeo → denoise → segment → ASR → CosyVoice Kaldi training lists (`aoep_shared.cosyvoice_ingest`) |
+| `scripts/cosyvoice_ingest.py` | YouTube/Vimeo → denoise → segment → ASR → CosyVoice Kaldi training lists (`aoep_shared.cosyvoice_ingest`). Optional `YT_DLP_COOKIES` file, retries, and yt-dlp 2026.8.19 |
+| `scripts/cosyvoice_language_census.py` | Per-language unique utterances and minutes against the 100-utterance / 20-minute floor |
 | `scripts/a2f_cosyvoice_loop/` | CosyVoice PCM → Audio2Face-3D gRPC (aarch64 stub + amd64 NIM handoff); see `README.txt` there |
 | `scripts/pipecat_cosyvoice/` | Pipecat-oriented CosyVoice TTS config for NVIDIA voice-agent-examples |
 | `sample-curriculum` | 118 live-class lessons: math (Algebra through Differential Equations), economics, professional skills (Power BI, SAP, DevOps, Digital Marketing, UX, Cybersecurity, Excel/Word/PowerPoint), corporate/AI tracks, safety training, and more. Slide counts vary; the loader reads each top-level `lesson.txt` |
