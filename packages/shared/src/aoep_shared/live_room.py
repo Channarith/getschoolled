@@ -463,6 +463,7 @@ class LiveRoom:
     floor_participant_id: str = ""
     reports: List[UserReport] = field(default_factory=list)
     gift_feed: List[GiftEvent] = field(default_factory=list)
+    whiteboard_strokes: List[dict] = field(default_factory=list)
     reactions: List[ReactionEvent] = field(default_factory=list)
     viewer_count: int = 0
     # Geo discovery (Bigo-style browse by country/state/city).
@@ -641,6 +642,7 @@ class LiveRoom:
                 self.floor_holder().to_dict() if self.floor_holder() else None
             ),
             "gift_feed": [g.to_dict() for g in self.gift_feed[-GIFT_FEED_SIZE:]],
+            "whiteboard_strokes": list(self.whiteboard_strokes[-200:]),
             "reactions": [r.to_dict() for r in self.reactions[-REACTION_BUFFER_SIZE:]],
             "viewer_count": self.viewer_count or self.learner_count,
             "country": self.country,
@@ -1969,6 +1971,22 @@ class LiveRoomStore:
         room._reindex_waiting()
         self._commit(room)
 
+    def add_whiteboard_stroke(self, room_id: str, participant_id: str, stroke: dict) -> LiveRoom:
+        room = self.require(room_id)
+        room.get_participant(participant_id)
+        room.whiteboard_strokes.append({
+            "id": str(stroke.get("id") or uuid.uuid4().hex[:10]),
+            "participant_id": participant_id,
+            "color": str(stroke.get("color") or "#0f172a"),
+            "width": float(stroke.get("width") or 3),
+            "erase": bool(stroke.get("erase")),
+            "points": list(stroke.get("points") or [])[:400],
+        })
+        if len(room.whiteboard_strokes) > 200:
+            room.whiteboard_strokes = room.whiteboard_strokes[-200:]
+        self._commit(room)
+        return room
+
     def toggle_hand(self, room_id: str, participant_id: str, *, question: str = "") -> Participant:
         """Toggle Q&A queue membership (raise hand / leave queue)."""
         room = self.require(room_id)
@@ -2327,12 +2345,20 @@ class LiveRoomStore:
                     ref=room_id,
                 )
                 if recipient.account_id:
-                    earn_rewards_internal(
+                    credited = earn_rewards_internal(
                         recipient.account_id,
                         credit_amount,
                         reason=f"live_gift_received:{item.id}",
                         ref=room_id,
                     )
+                    if not credited:
+                        earn_rewards_internal(
+                            sender.account_id,
+                            item.cost_points,
+                            reason=f"live_gift_refund:{item.id}",
+                            ref=room_id,
+                        )
+                        raise LiveRoomRewardsError("gift could not be delivered")
                 else:
                     self._gift_ledger.credit(
                         recipient.identity,

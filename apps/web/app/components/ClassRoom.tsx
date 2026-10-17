@@ -1339,6 +1339,8 @@ export default function ClassRoom({
             setLessonCamera(stream);
             setLightingReady(true);
           }}
+          allowSkip
+          onSkip={() => setLightingReady(true)}
           title="Camera and lighting check"
         />
       )}
@@ -1426,7 +1428,7 @@ export default function ClassRoom({
             ref={stageRef}
             style={
               isFullscreen
-                ? { position: "relative", background: "#060a17", padding: "24px 16px", minHeight: "100vh", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, justifyContent: "flex-start" }
+                ? { position: "relative", background: "#060a17", padding: "24px 16px", minHeight: "100dvh", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, justifyContent: "flex-start" }
                 : { position: "relative", display: "flex", flexDirection: "column", gap: 12 }
             }
           >
@@ -1964,6 +1966,7 @@ export default function ClassRoom({
             </div>
             <div className="row" style={{ marginTop: 12 }}>
               <input
+                aria-label={t("class.askPlaceholder")}
                 style={{ flex: 1, minWidth: 240 }}
                 placeholder={t("class.askPlaceholder")}
                 value={question}

@@ -8,6 +8,7 @@ from typing import List, Optional, Protocol
 
 from .group_class_serde import group_class_from_json, group_class_to_json
 from .group_classes import GroupClass
+from .store_errors import DurableStoreError
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +74,8 @@ class RedisGroupClassBackend:
         try:
             raw = self._r.get(self._key(class_id))
         except Exception as exc:  # noqa: BLE001
-            logger.warning("redis group-class get failed (%s); using in-memory", exc)
-            return self._fallback.get(class_id)
+            logger.error("redis group-class get failed (%s)", exc)
+            raise DurableStoreError("group class store is unavailable") from exc
         if raw is None:
             return None
         try:
@@ -88,24 +89,24 @@ class RedisGroupClassBackend:
             self._r.set(self._key(gc.id), group_class_to_json(gc), ex=self._ttl)
             self._r.sadd(self._index, gc.id)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("redis group-class save failed (%s); using in-memory", exc)
-            self._fallback.save(gc)
+            logger.error("redis group-class save failed (%s)", exc)
+            raise DurableStoreError("group class store is unavailable") from exc
 
     def delete(self, class_id: str) -> None:
         try:
             self._r.delete(self._key(class_id))
             self._r.srem(self._index, class_id)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("redis group-class delete failed (%s)", exc)
-            self._fallback.delete(class_id)
+            logger.error("redis group-class delete failed (%s)", exc)
+            raise DurableStoreError("group class store is unavailable") from exc
 
     def list_ids(self) -> List[str]:
         try:
             ids = self._r.smembers(self._index)
             return sorted(ids) if ids else []
         except Exception as exc:  # noqa: BLE001
-            logger.warning("redis group-class index failed (%s); using in-memory", exc)
-            return self._fallback.list_ids()
+            logger.error("redis group-class index failed (%s)", exc)
+            raise DurableStoreError("group class store is unavailable") from exc
 
 
 def build_group_class_backend() -> GroupClassBackend:

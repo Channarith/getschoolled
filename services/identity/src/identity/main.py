@@ -28,7 +28,7 @@ from aoep_shared.flags import require_admin
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import PlanTier, Region
 from aoep_shared.service import create_service
-from fastapi import Depends, Header, HTTPException, Request
+from fastapi import Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from .store import AccountStore, BillingAddress, ClassContext, Enrollment, EnrollmentStatus
@@ -36,6 +36,19 @@ from .persistence import load_from_redis
 
 app = create_service("identity")
 app.state.accounts = AccountStore()
+
+
+from .persistence import PersistenceConflict as _PersistenceConflict  # noqa: E402
+
+
+@app.exception_handler(_PersistenceConflict)
+def _identity_persistence_conflict(request, exc):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=409,
+        content={"detail": "account was updated on another server; retry"},
+    )
 try:
     load_from_redis(app.state.accounts)
 except Exception:
@@ -54,16 +67,38 @@ def _bootstrap_on_startup() -> None:
         _reseed_lock = _threading.Lock()
 
     from .bootstrap import bootstrap_accounts
-    from .persistence import load_from_redis_with_retry, save_to_redis_with_retry
+    from .persistence import load_identity_status, save_to_redis_with_retry
 
-    loaded = load_from_redis_with_retry(app.state.accounts)
-    if not loaded:
-        logging.getLogger(__name__).info(
-            "identity startup: no Redis snapshot loaded (will bootstrap in-memory)")
-        stats = bootstrap_accounts(app.state.accounts)
-        if not save_to_redis_with_retry(app.state.accounts):
-            logging.getLogger(__name__).error(
-                "identity bootstrap: failed to persist seeded accounts to Redis (%s)", stats)
+    status = "unconfigured"
+    if os.environ.get("REDIS_URL", "").strip():
+        status = "error"
+        for attempt in range(1, 6):
+            status = load_identity_status(app.state.accounts)
+            if status in ("loaded", "empty"):
+                break
+            if attempt < 5:
+                time.sleep(0.4)
+    log = logging.getLogger(__name__)
+    if status == "loaded":
+        return
+    if status == "error":
+        app.state.accounts._redis_writes = False
+        deploy = os.environ.get("DEPLOY_MODE", "local").lower()
+        if deploy not in ("local", "dev", "development", "test"):
+            raise RuntimeError(
+                "identity Redis snapshot could not be read; refusing to replace it "
+                "with bootstrap accounts"
+            )
+        log.error(
+            "identity Redis unreadable; bootstrapping memory only and not writing back"
+        )
+        bootstrap_accounts(app.state.accounts)
+        return
+    log.info("identity startup: Redis has no accounts yet; bootstrapping")
+    stats = bootstrap_accounts(app.state.accounts)
+    if not save_to_redis_with_retry(app.state.accounts):
+        log.error(
+            "identity bootstrap: failed to persist seeded accounts to Redis (%s)", stats)
 
 
 @app.on_event("startup")
@@ -117,17 +152,6 @@ def current_account(authorization: str = Header(default="")):
     if claims.get("purpose") or claims.get("kind"):
         raise HTTPException(status_code=401, detail="incomplete authentication")
     acct = app.state.accounts.by_id(claims.get("sub", ""))
-    if acct is None:
-        # Account not in this pod's in-memory store — could have been created by
-        # another replica. Reload from Redis (the authoritative source) and retry.
-        # This handles the common case of: signup on pod A → auth/me lands on pod B.
-        import logging as _log
-        _log.getLogger(__name__).info(
-            "account %s not in local store, reloading from Redis", claims.get("sub")
-        )
-        from .persistence import load_from_redis
-        load_from_redis(app.state.accounts)
-        acct = app.state.accounts.by_id(claims.get("sub", ""))
     if acct is None:
         raise HTTPException(status_code=401, detail="account not found")
     return acct
@@ -253,7 +277,7 @@ register_auth_security_routes(app, token_key_fn=_token_key, current_account=curr
 
 
 @app.post("/auth/signup")
-def signup(req: SignupRequest, request: Request) -> dict:
+def signup(req: SignupRequest, request: Request, response: Response) -> dict:
     from aoep_shared.passwords import validate_password
 
     try:
@@ -265,8 +289,37 @@ def signup(req: SignupRequest, request: Request) -> dict:
         raise HTTPException(status_code=400, detail=str(exc))
     info = _client_info(request)
     app.state.accounts.record_login_event(acct.id, success=True, **info)
-    return _session(acct)
+    from aoep_shared.session_cookie import attach_session_cookie
 
+    body = _session(acct)
+    attach_session_cookie(response, body["token"])
+    return body
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str = ""
+    confirm: str = ""
+
+
+@app.post("/account/delete")
+def delete_my_account(
+    req: DeleteAccountRequest,
+    response: Response,
+    acct=Depends(current_account),
+) -> dict:
+    if req.confirm.strip().upper() != "DELETE":
+        raise HTTPException(status_code=400, detail="type DELETE to confirm")
+    from aoep_shared.passwords import verify_password
+    from aoep_shared.session_cookie import clear_session_cookie
+
+    if acct.password_hash and not verify_password(req.password, acct.password_hash):
+        raise HTTPException(status_code=401, detail="password does not match")
+    try:
+        app.state.accounts.delete_account(acct.id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="account not found")
+    clear_session_cookie(response)
+    return {"deleted": True}
 
 
 @app.get("/auth/onboarding-status")
@@ -434,7 +487,7 @@ def _unverified_pass_allowed() -> bool:
 
 @app.post("/membership/subscribe")
 def subscribe(req: SubscribeRequest, acct=Depends(current_account)) -> dict:
-    """Activate Standard ($19.99) or VIP ($29.99) with calendar-day billing.
+    """Activate Standard ($19), Pro ($29), or VIP ($39) with calendar-day billing.
 
     In local/sandbox mode this completes immediately after checkout; production
     should route through the billing webhook with ``require_internal`` tier sync.
@@ -483,6 +536,15 @@ def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
 class InternalTierChange(BaseModel):
     account_id: str
     tier: PlanTier
+
+
+@app.get("/internal/students/{student_id}/owner", dependencies=[Depends(require_internal)])
+def internal_student_owner(student_id: str) -> dict:
+    """Which account owns this student. Used by memory and perception."""
+    for acct in app.state.accounts.list_all_accounts():
+        if student_id in acct.students or student_id == acct.id:
+            return {"account_id": acct.id, "student_id": student_id}
+    raise HTTPException(status_code=404, detail="student not found")
 
 
 @app.post("/internal/membership/tier", dependencies=[Depends(require_internal)])
@@ -593,6 +655,12 @@ def onboarding_profile(req: OnboardingProfileRequest, acct=Depends(current_accou
 
 @app.post("/onboarding/billing")
 def onboarding_billing(req: OnboardingBillingRequest, acct=Depends(current_account)) -> dict:
+    deploy = os.environ.get("DEPLOY_MODE", "local").lower()
+    if (req.card_number or req.cvv) and deploy not in ("local", "dev", "development", "test"):
+        raise HTTPException(
+            status_code=422,
+            detail="card numbers are not accepted; use hosted checkout",
+        )
     from aoep_shared.billing_validation import (
         mask_card_last4, validate_billing_address, validate_card,
     )
@@ -1574,10 +1642,13 @@ def record_consent(req: ConsentRequest, acct=Depends(current_account)) -> dict:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(http_req, timeout=2.0):
-                pass
-        except Exception:
-            pass
+            with urllib.request.urlopen(http_req, timeout=2.0) as resp:
+                if resp.status >= 300:
+                    raise HTTPException(status_code=502, detail="consent was not recorded")
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="consent was not recorded") from exc
     return {"student_id": student_id, "scope": req.scope, "granted": req.granted}
 
 
@@ -2118,10 +2189,12 @@ def language_practice(req: LanguagePracticeRequest, acct=Depends(current_account
     from aoep_shared.language_learning import practice_xp
 
     xp = practice_xp(req.skill, req.correct, req.total)
+    balance = app.state.accounts.points_balance(acct.id)
     if xp > 0:
-        acct.points.earn(xp, reason=f"language:{req.language}", ref=req.skill)
-    return {"language": req.language, "skill": req.skill, "xp": xp,
-            "balance": app.state.accounts.points_balance(acct.id)}
+        balance = app.state.accounts.earn_points(
+            acct.id, xp, reason=f"language:{req.language}", ref=req.skill,
+        )
+    return {"language": req.language, "skill": req.skill, "xp": xp, "balance": balance}
 
 
 @app.get("/rewards")

@@ -1,0 +1,15 @@
+[Unit]
+Description=AOEP Spark STEM QLoRA training cycle
+Documentation=file://@REPO@/training/RUNBOOK.txt
+After=network-online.target
+# Does not stop CosyVoice, llama-server, or lab services. The cycle takes
+# ~/.gs-gpu.lock itself and uses a batch size of 1.
+
+[Service]
+Type=oneshot
+WorkingDirectory=@REPO@
+ExecStart=@REPO@/training/spark_nightly.sh
+Nice=10
+# One cycle can include a 7B load, one epoch, and two eval passes.
+TimeoutStartSec=8h
+# User unit: no privilege escalation, no install side effects.

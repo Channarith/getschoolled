@@ -32,6 +32,7 @@ class CleanResult:
     snr_db: Optional[float]
     duration_sec: float
     reason: str = ""
+    stderr: str = ""
 
 
 def audio_raw_path(entry_id: str, language: str, root: Optional[Path] = None) -> Path:
@@ -135,26 +136,46 @@ def estimate_qc(pcm16: bytes, sample_rate: int) -> Tuple[bool, str, float, float
     return True, "ok", snr, duration
 
 
-def _ffmpeg_clean(src: Path, dest: Path) -> bool:
-    """High-pass, denoise, silence trim, resample, peak normalize via ffmpeg."""
+def _wav_duration_seconds(path: Path) -> float:
+    try:
+        with wave.open(str(path), "rb") as handle:
+            rate = handle.getframerate() or 1
+            return handle.getnframes() / float(rate)
+    except (wave.Error, OSError, EOFError):
+        return 0.0
+
+
+def _ffmpeg_clean(src: Path, dest: Path) -> tuple[bool, str]:
+    """High-pass, gain, then trim only the ends.
+
+    Silence removal used to run before loudnorm with ``stop_periods=1``.
+    Quiet speech (around -45 dBFS, common on downloaded talks) was treated as
+    silence and the wav collapsed to a header. Gain runs first. A filter that
+    still deletes most of a source longer than half a second is discarded.
+    """
     if not shutil.which("ffmpeg"):
-        return False
+        return False, ""
     dest.parent.mkdir(parents=True, exist_ok=True)
+    src_dur = _wav_duration_seconds(src)
+    end_trim = (
+        "silenceremove=start_periods=1:start_duration=0.15:start_threshold=-40dB:detection=rms,"
+        "areverse,"
+        "silenceremove=start_periods=1:start_duration=0.15:start_threshold=-40dB:detection=rms,"
+        "areverse,"
+    )
     # afftdn may be unavailable on some builds — fall back without it.
     filters_try = [
         (
-            f"highpass=f=80,afftdn=nf=-25,"
-            f"silenceremove=start_periods=1:start_silence=0.15:start_threshold=-40dB:"
-            f"stop_periods=1:stop_silence=0.2:stop_threshold=-40dB,"
-            f"loudnorm=I=-16:TP={TARGET_PEAK_DBFS}:LRA=11,aformat=channel_layouts=mono"
+            f"highpass=f=80,afftdn=nf=-25,loudnorm=I=-16:TP={TARGET_PEAK_DBFS}:LRA=11,"
+            f"{end_trim}aformat=channel_layouts=mono"
         ),
         (
-            "highpass=f=80,"
-            "silenceremove=start_periods=1:start_silence=0.15:start_threshold=-40dB:"
-            "stop_periods=1:stop_silence=0.2:stop_threshold=-40dB,"
-            "dynaudnorm=f=75:g=15,aformat=channel_layouts=mono"
+            f"highpass=f=80,loudnorm=I=-16:TP={TARGET_PEAK_DBFS}:LRA=11,"
+            "aformat=channel_layouts=mono"
         ),
+        "highpass=f=80,dynaudnorm=f=75:g=15,aformat=channel_layouts=mono",
     ]
+    last_err = ""
     for filt in filters_try:
         cmd = [
             "ffmpeg", "-y", "-i", str(src),
@@ -163,14 +184,26 @@ def _ffmpeg_clean(src: Path, dest: Path) -> bool:
             str(dest),
         ]
         try:
-            subprocess.run(
-                cmd, check=True, capture_output=True, timeout=60,
+            proc = subprocess.run(
+                cmd, check=True, capture_output=True, timeout=120, text=True,
             )
-            if dest.is_file() and dest.stat().st_size > 64:
-                return True
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+        except subprocess.CalledProcessError as exc:
+            last_err = (exc.stderr or exc.stdout or "")[-800:]
             continue
-    return False
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            last_err = str(exc)[:400]
+            continue
+        if not dest.is_file() or dest.stat().st_size <= 64:
+            last_err = (proc.stderr or "")[-800:] or "ffmpeg wrote no audio"
+            continue
+        out_dur = _wav_duration_seconds(dest)
+        if src_dur >= 0.5 and out_dur < max(MIN_SPEECH_SEC, src_dur * 0.5):
+            last_err = (
+                f"cleaned duration {out_dur:.3f}s collapsed from {src_dur:.3f}s"
+            )
+            continue
+        return True, ""
+    return False, last_err
 
 
 def _python_clean(src: Path, dest: Path) -> bool:
@@ -216,21 +249,24 @@ def clean_audio_file(src: Path, dest: Optional[Path] = None) -> CleanResult:
     out = dest or src.with_name(src.stem + ".crisp.wav")
     with tempfile.TemporaryDirectory(prefix="aoep-audio-clean-") as tmp:
         tmp_path = Path(tmp) / "cleaned.wav"
-        cleaned = _ffmpeg_clean(src, tmp_path) or _python_clean(src, tmp_path)
+        ffmpeg_ok, ffmpeg_err = _ffmpeg_clean(src, tmp_path)
+        cleaned = ffmpeg_ok or _python_clean(src, tmp_path)
         if not cleaned:
-            return CleanResult(False, None, None, 0.0, "clean_failed")
+            return CleanResult(False, None, None, 0.0, "clean_failed", stderr=ffmpeg_err)
         try:
             pcm, rate = read_wav_mono(tmp_path)
         except Exception as exc:
-            return CleanResult(False, None, None, 0.0, f"read_failed:{exc}")
+            return CleanResult(False, None, None, 0.0, f"read_failed:{exc}", stderr=ffmpeg_err)
         ok, reason, snr, dur = estimate_qc(pcm, rate)
         out.parent.mkdir(parents=True, exist_ok=True)
         if out.exists():
             out.unlink()
         shutil.copy2(tmp_path, out)
         if not ok:
-            return CleanResult(False, out, snr, dur, reason)
-        return CleanResult(True, out, snr, dur, "ok")
+            if reason == "near_silent":
+                reason = "silent_source"
+            return CleanResult(False, out, snr, dur, reason, stderr=ffmpeg_err)
+        return CleanResult(True, out, snr, dur, "ok", stderr="")
 
 
 def clean_entry_audio(

@@ -24,7 +24,7 @@ def test_subscribe_standard_sets_billing_anchor():
     assert out["tier"] == "basic"
     assert out["membership_class"] == "standard"
     sub = out["subscription"]
-    assert sub["price_usd"] == 19.99
+    assert sub["price_usd"] == 19
     assert sub["display_name"] == "Standard"
     assert sub["billing_anchor_day"] is not None
     assert sub["next_billing_at"] is not None
@@ -36,7 +36,7 @@ def test_subscribe_vip_is_ad_free_class():
     out = client.post("/membership/subscribe", headers=_auth(tok), json={"tier": "premium"}).json()
     assert out["tier"] == "premium"
     assert out["membership_class"] == "vip"
-    assert out["subscription"]["price_usd"] == 29.99
+    assert out["subscription"]["price_usd"] == 39
     assert out["subscription"]["ads"] is False
 
 
@@ -55,7 +55,7 @@ def test_me_includes_subscription():
     client.post("/membership/subscribe", headers=h, json={"tier": "premium"})
     me = client.get("/auth/me", headers=h).json()
     assert me["membership_class"] == "vip"
-    assert me["subscription"]["price_usd"] == 29.99
+    assert me["subscription"]["price_usd"] == 39
 
 
 def test_get_subscription_endpoint():
@@ -64,4 +64,4 @@ def test_get_subscription_endpoint():
     client.post("/membership/subscribe", headers=h, json={"tier": "basic"})
     sub = client.get("/membership/subscription", headers=h).json()
     assert sub["billing_interval"] == "monthly"
-    assert sub["price_usd"] == 19.99
+    assert sub["price_usd"] == 19

@@ -70,6 +70,7 @@ import { cancelSpeech, localeToBcp47, speakNaturally, synthChunk } from "../lib/
 import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
 import { useDemoOnlyAnonymous, useVoicePauseSubmitMs } from "../lib/flags";
 import { createVoicePauseSubmitter } from "../lib/voiceCommands";
+import { getLiveVoiceEngine } from "../lib/liveVoiceEngine";
 import {
   closeXaiVoiceSession,
   connectXaiVoiceSession,
@@ -226,11 +227,13 @@ export default function ClassPage() {
       stopSpeaking();
       const lessonTitle = lessons.find((l) => l.lesson_id === lessonId)?.title || "";
       const slideText = view?.slide?.narration || view?.slide?.body || view?.slide?.title || "";
+      const liveEngine = getLiveVoiceEngine();
       const token = await mintXaiVoiceToken({
         mode: "solo",
         lesson_context: [lessonTitle, slideText].filter(Boolean).join("\n"),
         learner_names: studentProfile?.display_name ? [studentProfile.display_name] : [],
         language: locale,
+        engine: liveEngine === "xai" ? "xai" : "",
       });
       if (token.engine === "salane" || token.display_name === "Salane Voice") {
         setXaiVoiceLive(true);
@@ -240,8 +243,11 @@ export default function ClassPage() {
         return;
       }
       if (token.use_xai === false || !token.token || !token.session_update) {
-        setXaiVoiceHint(token.spoken_language?.hint
-          || "This language uses the lesson voice, not Grok.");
+        setXaiVoiceHint(
+          token.hint
+            || token.spoken_language?.hint
+            || "Switch back to Sala in Profile → Voice, or pick another language.",
+        );
         return;
       }
       if (!xaiAudioCtxRef.current) {

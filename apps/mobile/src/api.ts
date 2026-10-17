@@ -2474,13 +2474,13 @@ export async function getMobileFreePlanOffer(): Promise<{ available: boolean; re
   return response.json() as Promise<{ available: boolean; reason: string }>;
 }
 
-export async function selectMobileFreePlan(): Promise<void> {
+export async function selectMobileOnboardingPlan(tier: string): Promise<void> {
   const tok = getToken();
   if (!tok) throw new Error("not signed in");
   const response = await fetch(`${IDENTITY_URL}/onboarding/plan`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
-    body: JSON.stringify({ tier: "free" }),
+    body: JSON.stringify({ tier }),
   });
   if (!response.ok) {
     let detail = `plan setup failed: ${response.status}`;
@@ -2492,6 +2492,22 @@ export async function selectMobileFreePlan(): Promise<void> {
     }
     throw new Error(detail);
   }
+}
+
+/** @deprecated use selectMobileOnboardingPlan("free") */
+export async function selectMobileFreePlan(): Promise<void> {
+  return selectMobileOnboardingPlan("free");
+}
+
+export async function startMobileBillingCheckout(
+  customerId: string,
+  plan: string,
+): Promise<{ session_id: string; url: string; provider: string }> {
+  return get(BILLING_URL, "/checkout", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ customer_id: customerId, plan }),
+  });
 }
 
 // ── Platform presence ────────────────────────────────────────────────────────

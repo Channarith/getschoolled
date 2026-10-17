@@ -7,14 +7,13 @@ import {
   Image,
   Linking,
   Modal,
-  SafeAreaView,
   ScrollView,
-  useWindowDimensions,
   StyleSheet,
   Switch,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import {
@@ -45,6 +44,7 @@ import {
 } from "../learnerCheck";
 import AnimatedPressable from "./AnimatedPressable";
 import KenBurnsImage from "./KenBurnsImage";
+import { useLayoutMetrics } from "../layout";
 
 type Step = "welcome" | "scan" | "voice" | "identity" | "complete";
 const STEPS: Step[] = ["welcome", "scan", "voice", "identity", "complete"];
@@ -111,6 +111,22 @@ type Problem = { message: string; settings?: boolean };
 async function discardFile(uri: string | null | undefined) {
   if (!uri) return;
   await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+}
+
+export function faceEnrollmentProblem(reason: unknown): Problem {
+  const status = (reason as { status?: number })?.status;
+  const message = String((reason as Error)?.message ?? reason).replace(/^Error:\s*/, "");
+  if (status === 422) {
+    return { message: message || "Those photos did not pass the face check. Follow each look prompt and try again." };
+  }
+  if (status === 503) {
+    return { message: "The face check service is unavailable. Try again in a minute." };
+  }
+  return { message: message || "Could not save your face check. Try again." };
+}
+
+export function stillFingerprint(base64: string): string {
+  return base64.slice(0, 96);
 }
 
 function voiceProblem(reason: unknown): Problem {
@@ -296,6 +312,12 @@ export default function BiometricSetupModal({
     await withBusy(async () => {
       const asset = await takePhoto(true);
       if (!asset?.base64) return;
+      const fingerprint = stillFingerprint(asset.base64);
+      if (shots.some((shot) => stillFingerprint(shot.base64) === fingerprint)) {
+        await discardFile(asset.uri);
+        setProblem({ message: "That looks like the same photo as before. Turn as prompted and take a new still." });
+        return;
+      }
       const target = shots.length === 0 ? null : order[shots.length - 1];
       let contour: FaceContour | null = null;
       let marks: FaceMark[] = [];
@@ -341,7 +363,8 @@ export default function BiometricSetupModal({
         } catch (reason) {
           next.forEach((shot) => void discardFile(shot.uri));
           resetScan();
-          throw reason;
+          setProblem(faceEnrollmentProblem(reason));
+          return;
         }
         next.forEach((shot) => void discardFile(shot.uri));
         setShots([]);
@@ -445,11 +468,12 @@ export default function BiometricSetupModal({
   const done = step === "identity" || step === "complete";
   const progress = STEPS.indexOf(step);
   const latest = shots[shots.length - 1];
-  const wide = useWindowDimensions().width >= 800;
+  const { isMedium, isExpanded } = useLayoutMetrics();
+  const wide = isMedium || isExpanded;
 
   return (
     <Modal visible={visible && !systemPrompt} animationType="fade" presentationStyle="fullScreen" onRequestClose={onDismiss}>
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView style={styles.root} edges={["top", "left", "right", "bottom"]}>
         <View style={styles.header}>
           <Text style={styles.brand}>Salareen</Text>
           <View style={styles.bars}>

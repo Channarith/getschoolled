@@ -11,6 +11,7 @@
   --s: 8px;
   height: 100svh;
   height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -69,7 +70,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(380px, 560px);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(168px, 34svh) minmax(0, 1fr);
 }
 
 .frameWrap {
@@ -102,7 +104,8 @@
   overflow: auto;
   padding: calc(var(--s) * 4) calc(var(--s) * 5);
   background: var(--sa-panel);
-  border-left: 1px solid var(--sa-border);
+  border-left: 0;
+  border-top: 1px solid var(--sa-border);
 }
 
 .copy h1 {
@@ -441,12 +444,19 @@
   background: color-mix(in srgb, var(--sa-teal) 62%, transparent);
 }
 
-@media (max-width: 800px) {
+@media (min-width: 840px) {
   .stageArea {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(168px, 34svh) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, min(560px, 46vw));
+    grid-template-rows: minmax(0, 1fr);
   }
 
+  .copy {
+    border-left: 1px solid var(--sa-border);
+    border-top: 0;
+  }
+}
+
+@media (max-width: 839px) {
   .frame {
     width: auto;
     height: min(88%, 280px);
