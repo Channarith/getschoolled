@@ -67,6 +67,7 @@ GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
         ("connect-dots", "Connect the dots"),
         ("trace-outline", "Trace the outline"),
         ("say-letter", "Say the letter"),
+        ("math-toss", "Math Toss"),
     ]),
     ("Listen", [
         ("repeat-after-me", "Repeat after me"),
@@ -115,6 +116,76 @@ GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
 
 def all_game_ids() -> tuple[str, ...]:
     return tuple(game_id for _group, games in GAME_MENU for game_id, _title in games)
+
+
+def math_toss_round(age_band: str, index: int = 0) -> dict[str, Any]:
+    """Return a deterministic, child-safe arithmetic target round."""
+    slot = max(0, int(index))
+    young = str(age_band or "").strip().lower() in {"4-6", "child", "kids"}
+    if young:
+        mode = slot % 3
+        if mode == 0:
+            answer = 1 + (slot * 3) % 9
+            question = f"Count to {answer}"
+            speak = f"Which target shows {answer}?"
+        elif mode == 1:
+            left = 1 + (slot * 2) % 5
+            right = 1 + (slot * 3) % 4
+            answer = left + right
+            question = f"{left} + {right} = ?"
+            speak = f"What is {left} plus {right}?"
+        else:
+            left = 4 + (slot * 3) % 6
+            right = 1 + (slot * 2) % left
+            answer = left - right
+            question = f"{left} − {right} = ?"
+            speak = f"What is {left} minus {right}?"
+        distractor = answer + 1 if answer < 9 else answer - 1
+        choices = [answer, distractor] if slot % 2 == 0 else [distractor, answer]
+        age = "4-6"
+    else:
+        mode = slot % 3
+        if mode == 0:
+            left = 6 + (slot * 5) % 15
+            right = 3 + (slot * 7) % 12
+            answer = left + right
+            symbol = "+"
+            spoken = "plus"
+        elif mode == 1:
+            right = 2 + (slot * 3) % 10
+            answer = 3 + (slot * 5) % 16
+            left = answer + right
+            symbol = "−"
+            spoken = "minus"
+        else:
+            left = 2 + (slot * 2) % 8
+            right = 2 + (slot * 3) % 7
+            answer = left * right
+            symbol = "×"
+            spoken = "times"
+        question = f"{left} {symbol} {right} = ?"
+        speak = f"What is {left} {spoken} {right}?"
+        candidates = [max(0, answer - 2), answer + 2, max(0, answer - 1), answer + 1]
+        distractors: list[int] = []
+        for candidate in candidates:
+            if candidate != answer and candidate not in distractors:
+                distractors.append(candidate)
+            if len(distractors) == 2:
+                break
+        choices = [answer, *distractors]
+        shift = slot % len(choices)
+        choices = choices[shift:] + choices[:shift]
+        age = "7-10"
+    return {
+        "round_id": f"math-toss-{age}-{slot}",
+        "index": slot,
+        "age_band": age,
+        "question": question,
+        "speak": speak,
+        "answer": answer,
+        "choices": choices,
+    }
+
 
 OH_BEHAVE_TIMER_MS = (8000, 6000, 4000, 2000, 1500)
 
