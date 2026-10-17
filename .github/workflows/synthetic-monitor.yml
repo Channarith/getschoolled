@@ -35,6 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_URL: ${{ github.event.inputs.base_url || 'https://salareen.com' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           TITLE="Synthetic monitor DEGRADED — $(date -u +%Y-%m-%d)"
           # Only open one issue per day to avoid spam
@@ -43,15 +44,19 @@ jobs:
             echo "Issue already open for today, skipping."
             exit 0
           fi
+          # The body stays indented inside this block. A flush-left paragraph
+          # ends the YAML literal and the workflow file fails to parse.
+          BODY=$(printf '%s\n' \
+            "## Synthetic Monitor Alert" \
+            "" \
+            "Production health check failed at $(date -u --iso-8601=seconds)." \
+            "" \
+            "Base URL: $BASE_URL" \
+            "" \
+            "Check the [workflow run]($RUN_URL) for details." \
+            "" \
+            "**Action required:** Investigate service health at $BASE_URL")
           gh issue create \
             --title "$TITLE" \
             --label "synthetic-monitor,P1" \
-            --body "## Synthetic Monitor Alert
-
-Production health check failed at $(date -u --iso-8601=seconds).
-
-Base URL: $BASE_URL
-
-Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
-
-**Action required:** Investigate service health at $BASE_URL"
+            --body "$BODY"
