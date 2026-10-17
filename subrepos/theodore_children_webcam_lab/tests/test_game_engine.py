@@ -6,6 +6,7 @@ from theodore_children_webcam_lab.game_engine import (
     audio_round_public,
     fun_score,
     is_closed_fist,
+    math_toss_round,
     next_oh_behave_timer,
     oh_behave_hit,
     score_audio,
@@ -57,6 +58,20 @@ def test_letter_aliases_and_noun_plurals_are_child_friendly():
     assert score_spoken("A", "ay", kind="letter")["passed"] is True
     assert score_spoken("apple", "apples", kind="noun")["passed"] is True
     assert score_spoken("apple", "truck", kind="noun")["passed"] is False
+
+
+def test_math_toss_rounds_are_age_adaptive_and_deterministic():
+    young = math_toss_round("4-6", 4)
+    assert young == math_toss_round("child", 4)
+    assert len(young["choices"]) == 2
+    assert young["answer"] in young["choices"]
+    assert min(young["choices"]) >= 0
+
+    older = math_toss_round("7-10", 5)
+    assert older == math_toss_round("teen", 5)
+    assert len(older["choices"]) == len(set(older["choices"])) == 3
+    assert older["answer"] in older["choices"]
+    assert "×" in older["question"]
 
 
 def test_fun_score_rewards_success_combo_and_persistence():

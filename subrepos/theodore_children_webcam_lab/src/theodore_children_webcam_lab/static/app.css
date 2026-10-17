@@ -97,3 +97,10 @@ body.phone-play #words-toggle{min-height:44px;white-space:nowrap;flex:0 0 auto}
 .stage.karaoke-on .prompt,.stage.karaoke-on .vision-status,.stage.karaoke-on .vision-readout,.stage.karaoke-on .countdown,.stage.karaoke-on #play-clock{display:none!important}
 body.phone-play .stage.karaoke-on{height:auto;min-height:78dvh}
 body.chrome-hidden .stage.karaoke-on{height:100vh}
+.math-target{position:absolute;z-index:3;transform:translate(-50%,-50%);display:grid;place-items:center;width:clamp(104px,17vmin,165px);height:clamp(104px,17vmin,165px);border:6px solid #fde047;border-radius:50%;background:#172554dd;color:#fff;font:900 clamp(2.2rem,7vmin,5rem)/1 ui-rounded,system-ui,sans-serif;box-shadow:0 0 0 8px #ffffff2b,0 16px 35px #0008;pointer-events:none}
+.math-target::after{content:"";position:absolute;inset:13%;border:3px dashed #93c5fd;border-radius:50%}
+.math-target.hit{animation:mathTargetHit .5s ease-out forwards}
+.math-ball{position:absolute;z-index:6;transform:translate(-50%,-50%);font-size:clamp(3rem,9vmin,6rem);line-height:1;filter:drop-shadow(0 10px 12px #0009);pointer-events:none;will-change:left,top,transform}
+@keyframes mathTargetHit{50%{transform:translate(-50%,-50%) scale(1.2);background:#166534}to{transform:translate(-50%,-50%) scale(.9);opacity:.35}}
+body.phone-play .math-target{width:clamp(92px,28vmin,132px);height:clamp(92px,28vmin,132px);font-size:clamp(2rem,10vmin,3.6rem);border-width:4px}
+@media(prefers-reduced-motion:reduce){.math-ball{transition-duration:.08s!important}.math-target.hit{animation:none;background:#166534}}

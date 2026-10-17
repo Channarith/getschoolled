@@ -26,6 +26,7 @@ export const VISION_ARCADE: VisionSection[] = [
       { id: "connect-dots", label: "Connect the dots", emoji: "🔢" },
       { id: "trace-outline", label: "Trace the outline", emoji: "✒️" },
       { id: "say-letter", label: "Say the letter", emoji: "🔤" },
+      { id: "math-toss", label: "Math Toss", emoji: "🥎" },
     ],
   },
   {
@@ -92,8 +93,9 @@ export function visionGameIds(): string[] {
   return VISION_ARCADE.flatMap((section) => section.games.map((game) => game.id));
 }
 
-export function visionLabPath(gameId?: string): string {
+export function visionLabPath(gameId?: string, ageBand?: string): string {
   const params = new URLSearchParams({ embed: "mobile" });
   if (gameId) params.set("game", gameId);
+  if (ageBand) params.set("age", ageBand);
   return `/children-lab?${params.toString()}`;
 }

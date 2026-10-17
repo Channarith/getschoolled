@@ -55,6 +55,21 @@ def test_health_and_content_describe_private_browser_runtime():
     assert {"fruit-cut", "oh-behave", "trace-letter"} <= set(content["games"])
 
 
+def test_math_toss_round_api_uses_age_band_without_private_camera_data():
+    young = client.get("/api/child/math-round", params={"age": "4-6", "index": 2})
+    assert young.status_code == 200
+    payload = young.json()
+    assert payload["age_band"] == "4-6"
+    assert len(payload["choices"]) == 2
+    assert payload["answer"] in payload["choices"]
+    assert "landmarks" not in payload and "frame" not in payload
+
+    older = client.get("/api/child/math-round", params={"age": "7-10", "index": 2})
+    assert older.status_code == 200
+    assert len(older.json()["choices"]) == 3
+    assert client.get("/api/child/math-round", params={"index": -1}).status_code == 422
+
+
 def test_pronounce_reuses_text_only_music_lab_approach():
     response = client.post(
         "/api/child/pronounce",

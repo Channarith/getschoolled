@@ -196,6 +196,142 @@ export function claimTouch(latch, key, now, waitMs = 420) {
   return { claimed: true, latch: { key: String(key), until: at + wait } };
 }
 
+export function newThrowTracker() {
+  return {
+    phase: "ready",
+    grabStartedAt: 0,
+    grabPoint: null,
+    cockPoint: null,
+    history: [],
+    lastSeenAt: 0,
+  };
+}
+
+function throwSample(sample) {
+  if (!sample?.point || !Number.isFinite(sample.point.x) || !Number.isFinite(sample.point.y)) return null;
+  const at = Number(sample.at);
+  const palm = Number(sample.palm);
+  if (!Number.isFinite(at) || !Number.isFinite(palm) || palm <= 0) return null;
+  return {
+    at,
+    palm,
+    fist: Boolean(sample.fist),
+    point: {x: Number(sample.point.x), y: Number(sample.point.y)},
+  };
+}
+
+export function advanceThrowGesture(current, rawSample, ageBand = "7-10") {
+  const prior = current?.phase ? current : newThrowTracker();
+  const sample = throwSample(rawSample);
+  if (!sample) {
+    const missingAt = Number(rawSample?.at) || prior.lastSeenAt;
+    if (missingAt - prior.lastSeenAt > 320) {
+      return {tracker: newThrowTracker(), event: "lost"};
+    }
+    return {tracker: prior, event: null};
+  }
+
+  const young = isYoungTouchAge(ageBand);
+  const holdMs = young ? 100 : 150;
+  const pullPalms = young ? 0.5 : 0.7;
+  const speedPalmsPerSecond = young ? 2.1 : 2.8;
+  const history = [...(prior.history || []), sample]
+    .filter((row) => sample.at - row.at <= 220)
+    .slice(-8);
+  const tracker = {...prior, history, lastSeenAt: sample.at};
+
+  if (tracker.phase === "ready") {
+    if (!sample.fist) return {tracker: {...tracker, grabStartedAt: 0, grabPoint: null}, event: null};
+    const started = tracker.grabStartedAt || sample.at;
+    const grabPoint = tracker.grabPoint || sample.point;
+    if (sample.at - started >= holdMs) {
+      return {
+        tracker: {...tracker, phase: "grabbed", grabStartedAt: started, grabPoint},
+        event: "grabbed",
+      };
+    }
+    return {tracker: {...tracker, grabStartedAt: started, grabPoint}, event: null};
+  }
+
+  if (tracker.phase === "grabbed") {
+    if (!sample.fist) return {tracker: newThrowTracker(), event: "released-early"};
+    const pull = Math.hypot(
+      sample.point.x - tracker.grabPoint.x,
+      sample.point.y - tracker.grabPoint.y,
+    ) / sample.palm;
+    if (pull >= pullPalms) {
+      return {
+        tracker: {...tracker, phase: "cocked", cockPoint: sample.point},
+        event: "cocked",
+      };
+    }
+    return {tracker, event: null};
+  }
+
+  if (tracker.phase === "cocked") {
+    if (sample.fist) {
+      const fromGrab = Math.hypot(
+        sample.point.x - tracker.grabPoint.x,
+        sample.point.y - tracker.grabPoint.y,
+      );
+      const previous = tracker.cockPoint
+        ? Math.hypot(
+          tracker.cockPoint.x - tracker.grabPoint.x,
+          tracker.cockPoint.y - tracker.grabPoint.y,
+        )
+        : 0;
+      return {
+        tracker: fromGrab > previous ? {...tracker, cockPoint: sample.point} : tracker,
+        event: null,
+      };
+    }
+    const baseline = history.find((row) => row.at >= sample.at - 180 && row.at < sample.at) || history[0];
+    const elapsed = Math.max(16, sample.at - (baseline?.at ?? sample.at - 16));
+    const velocity = {
+      x: (sample.point.x - (baseline?.point.x ?? sample.point.x)) * 1000 / elapsed,
+      y: (sample.point.y - (baseline?.point.y ?? sample.point.y)) * 1000 / elapsed,
+    };
+    const speed = Math.hypot(velocity.x, velocity.y) / sample.palm;
+    const pull = {
+      x: tracker.cockPoint.x - tracker.grabPoint.x,
+      y: tracker.cockPoint.y - tracker.grabPoint.y,
+    };
+    const pullLength = Math.max(1e-6, Math.hypot(pull.x, pull.y));
+    const velocityLength = Math.max(1e-6, Math.hypot(velocity.x, velocity.y));
+    const reversal = (pull.x * velocity.x + pull.y * velocity.y) / (pullLength * velocityLength);
+    if (speed >= speedPalmsPerSecond && reversal < -0.05) {
+      return {
+        tracker: {...tracker, phase: "released"},
+        event: "released",
+        release: {origin: sample.point, velocity, speed, reversal},
+      };
+    }
+    return {tracker: newThrowTracker(), event: "weak-release"};
+  }
+
+  return {tracker: newThrowTracker(), event: null};
+}
+
+export function projectThrowTarget(origin, velocity, targets, fallbackRadius = 64) {
+  if (!origin || !velocity) return null;
+  const magnitude = Math.hypot(Number(velocity.x) || 0, Number(velocity.y) || 0);
+  if (magnitude <= 0) return null;
+  const unit = {x: velocity.x / magnitude, y: velocity.y / magnitude};
+  const hits = [];
+  for (const target of Array.isArray(targets) ? targets : []) {
+    if (!Number.isFinite(target?.x) || !Number.isFinite(target?.y)) continue;
+    const dx = target.x - origin.x;
+    const dy = target.y - origin.y;
+    const travel = dx * unit.x + dy * unit.y;
+    if (travel <= 0) continue;
+    const perpendicular = Math.abs(dx * unit.y - dy * unit.x);
+    const radius = Math.max(1, Number(target.radius) || Number(fallbackRadius) || 1);
+    if (perpendicular <= radius) hits.push({...target, travel, perpendicular});
+  }
+  hits.sort((a, b) => a.perpendicular - b.perpendicular || a.travel - b.travel);
+  return hits[0] || null;
+}
+
 export function heartRatios(a, b, scale) {
   if (!a?.[8] || !b?.[8] || !a[4] || !b[4] || !a[0] || !b[0] || !a[5] || !b[5]) return null;
   const tipY = (a[8].y + b[8].y) / 2;
