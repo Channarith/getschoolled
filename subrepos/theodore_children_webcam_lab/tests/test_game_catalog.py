@@ -34,6 +34,7 @@ LOOP = {
     "connect-dots": "updatePicturePlay",
     "trace-outline": "updatePicturePlay",
     "say-letter": "checkSpeech",
+    "math-toss": "updateMathToss",
     "repeat-after-me": "checkSpeech",
     "pronounce-word": "checkSpeech",
     "rhyme-time": "checkSpeech",
@@ -85,7 +86,7 @@ def test_every_menu_game_is_in_the_api_and_the_game_loop():
     catalog = list(all_game_ids())
     assert catalog == [game_id for _group, games in GAME_MENU for game_id, _ in games]
     assert set(catalog) == set(LOOP)
-    assert len(catalog) == len(LOOP) == 40
+    assert len(catalog) == len(LOOP) == 41
     assert AUDIO_GAMES <= set(catalog)
 
     html = render_children_page("test")
@@ -166,6 +167,20 @@ def test_pointer_demo_listens_on_the_stage_not_the_dead_canvas():
     css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
     assert ".stage.demo" in css
     assert ".stage video" in css and "pointer-events:none" in css
+
+
+def test_math_toss_has_private_camera_and_touch_fallback_paths():
+    script = _js()
+    assert "function updateMathToss" in script
+    assert "advanceThrowGesture" in script
+    assert "projectThrowTarget" in script
+    assert "function releaseScreenThrow" in script
+    assert "Do not throw a real object." in script
+    assert "/api/child/math-round" in script
+    css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
+    assert ".math-target" in css
+    assert ".math-ball" in css
+    assert "prefers-reduced-motion:reduce" in css
 
 
 CONTROL_FLAGS = ("letter", "undo", "mic", "typed", "check", "hear", "words", "play")

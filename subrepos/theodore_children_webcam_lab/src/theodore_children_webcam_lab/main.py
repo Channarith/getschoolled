@@ -29,6 +29,7 @@ from .game_engine import (
     all_game_ids,
     audio_round_public,
     fun_score,
+    math_toss_round,
     score_audio,
     score_spoken,
 )
@@ -200,6 +201,13 @@ def audio_round(game: str, index: int = 0) -> dict[str, Any]:
     if index < 0:
         raise HTTPException(status_code=422, detail="index must be zero or more")
     return audio_round_public(game, index)
+
+
+@app.get("/api/child/math-round")
+def math_round(age: str = "7-10", index: int = 0) -> dict[str, Any]:
+    if index < 0:
+        raise HTTPException(status_code=422, detail="index must be zero or more")
+    return math_toss_round(age, index)
 
 
 @app.post("/api/child/audio-check")

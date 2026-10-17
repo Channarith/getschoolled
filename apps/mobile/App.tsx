@@ -146,6 +146,7 @@ function AppInner() {
   const [surveyManualToken, setSurveyManualToken] = useState(0);
   const [authEpoch, setAuthEpoch] = useState(0);
   const [onboardingStudent, setOnboardingStudent] = useState<StudentProfile | null>(null);
+  const [arcadeAgeBand, setArcadeAgeBand] = useState("");
   const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
   const authenticated = authStatus === "authenticated";
   const inApp = authenticated;
@@ -308,11 +309,13 @@ function AppInner() {
   async function syncStudentProfile() {
     try {
       const { students } = await listStudents();
+      setArcadeAgeBand(students[0]?.age_band || "");
       let id = students[0]?.id;
       if (!id) {
         const me = await getMe();
         const created = await createStudent(me.display_name || me.email.split("@")[0]);
         id = created.id;
+        setArcadeAgeBand(created.age_band || "");
       }
       if (id) await setSettings({ studentId: id });
       const status = await getAccountOnboardingStatus();
@@ -639,7 +642,7 @@ function AppInner() {
         onOpenVision={(game?: VisionGame) => {
           setVisionLab({
             id: game?.id || "vision-arcade",
-            path: visionLabPath(game?.id),
+            path: visionLabPath(game?.id, arcadeAgeBand),
             emoji: game?.emoji || "👁️",
             title: game?.label || "Vision arcade",
             subtitle: "Machine vision",

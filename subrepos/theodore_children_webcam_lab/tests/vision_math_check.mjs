@@ -7,9 +7,9 @@
 import assert from "node:assert/strict";
 import {
   FIST_MAX_PALMS, FINGERTIP_LANDMARKS, HAND_BONES, SIGNAL_HOLD_MS, AWAY_HOLD_MS, RETURN_HOLD_MS,
-  activeFingertips, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch, fingersPointed,
+  activeFingertips, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch, fingersPointed,
   handShape, heartRatios, isHeartShape, mapMirroredLandmark, palmSpan, profileTouchAge,
-  syntheticHand, tipHitsTarget, traceProgress,
+  newThrowTracker, projectThrowTarget, syntheticHand, tipHitsTarget, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 
 // A canonical right hand, palm size 1.0, fingers pointing up (-y).
@@ -251,6 +251,40 @@ assert.equal(profileTouchAge({ ageBand: "teen" }), "7-10");
   assert.equal(later.claimed, true);
   const other = claimTouch(first.latch, "fish", 1100, 420);
   assert.equal(other.claimed, true);
+}
+
+// Math Toss requires a held fist, a palm-relative pull-back, and a fast
+// opposite-direction opening. A short accidental close/open cannot launch.
+{
+  let tracker = newThrowTracker();
+  let step = advanceThrowGesture(tracker, {at: 100, palm: 50, fist: true, point: {x: 120, y: 220}}, "7-10");
+  tracker = step.tracker;
+  assert.equal(step.event, null);
+  step = advanceThrowGesture(tracker, {at: 260, palm: 50, fist: true, point: {x: 120, y: 220}}, "7-10");
+  tracker = step.tracker;
+  assert.equal(step.event, "grabbed");
+  step = advanceThrowGesture(tracker, {at: 340, palm: 50, fist: true, point: {x: 70, y: 220}}, "7-10");
+  tracker = step.tracker;
+  assert.equal(step.event, "cocked");
+  step = advanceThrowGesture(tracker, {at: 390, palm: 50, fist: true, point: {x: 76, y: 220}}, "7-10");
+  tracker = step.tracker;
+  step = advanceThrowGesture(tracker, {at: 450, palm: 50, fist: false, point: {x: 150, y: 220}}, "7-10");
+  assert.equal(step.event, "released");
+  assert.ok(step.release.speed > 2.8);
+  assert.ok(step.release.reversal < 0);
+
+  const hit = projectThrowTarget(step.release.origin, step.release.velocity, [
+    {id: "wrong", x: 300, y: 90, radius: 45},
+    {id: "correct", x: 320, y: 220, radius: 60},
+  ]);
+  assert.equal(hit.id, "correct");
+}
+{
+  let step = advanceThrowGesture(newThrowTracker(), {at: 0, palm: 50, fist: true, point: {x: 100, y: 100}}, "4-6");
+  step = advanceThrowGesture(step.tracker, {at: 40, palm: 50, fist: false, point: {x: 106, y: 100}}, "4-6");
+  assert.equal(step.event, null);
+  assert.equal(step.tracker.phase, "ready");
+  assert.equal(projectThrowTarget({x: 0, y: 0}, {x: 1, y: 0}, [{id: "behind", x: -10, y: 0}], 5), null);
 }
 
 // A wide stage crops a square camera. The skeleton has to land on the visible
