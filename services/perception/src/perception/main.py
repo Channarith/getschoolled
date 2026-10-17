@@ -22,17 +22,40 @@ from aoep_shared.identity_sync import internal_token
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.providers.base import EmbeddedFace
 from aoep_shared.service import create_service
-from aoep_shared.vision.models import ModelsUnavailable
+from aoep_shared.vision.models import ModelsUnavailable, preload_models
 from aoep_shared.voice_identity import (
     EncryptedVoiceGallery,
     SherpaSpeakerProvider,
     VoiceIdentityUnavailable,
 )
-from fastapi import Depends, File, Form, HTTPException, UploadFile
+from fastapi import Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 app = create_service("perception")
+
+
+def _preload_face_models() -> None:
+    """Fetch YuNet and SFace independently onto the writable model dir.
+
+    Runs off the request path so a slow or blocked download cannot turn the
+    other model's GET into a 503. Disabled in tests via VISION_PRELOAD_MODELS=0.
+    """
+    if os.environ.get("VISION_PRELOAD_MODELS", "1").lower() in ("0", "false", "no"):
+        return
+    import threading
+
+    model_dir = app.state.factory.config.vision_model_dir or None
+
+    def _run() -> None:
+        preload_models(model_dir)
+
+    threading.Thread(target=_run, name="vision-model-preload", daemon=True).start()
+
+
+@app.on_event("startup")
+def _start_face_model_preload() -> None:
+    _preload_face_models()
 
 
 def _vision():
@@ -196,13 +219,65 @@ class IdentifyResponse(BaseModel):
     faces: list[FaceResult]
 
 
+def _memory_consent_ids() -> list[str] | None:
+    """Server consent list. None means memory is unreachable in test mode."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    base = (os.environ.get("MEMORY_URL") or "http://localhost:8004").rstrip("/")
+    url = f"{base}/internal/consent/granted?scope=face_recognition"
+    req = urllib.request.Request(
+        url, headers={"X-Internal-Token": internal_token()}, method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=1.5) as resp:
+            body = json.loads(resp.read().decode())
+        return [str(s) for s in (body.get("student_ids") or [])]
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError, ValueError):
+        if os.environ.get("INTERNAL_AUTH_DISABLED", "").strip().lower() in ("1", "true", "yes"):
+            return None
+        return []
+
+
+def _allowed_face_ids(request: Request, client_ids: list[str]) -> list[str]:
+    from aoep_shared.learner_scope import (
+        account_owns_student,
+        is_internal_request,
+        session_account_id,
+    )
+
+    server = _memory_consent_ids()
+    if server is None:
+        allowed = list(client_ids)
+    else:
+        allowed = list(server)
+        if client_ids:
+            wanted = set(client_ids)
+            allowed = [sid for sid in allowed if sid in wanted]
+    if is_internal_request(request):
+        return allowed
+    account_id = session_account_id(request)
+    if not account_id:
+        raise HTTPException(status_code=401, detail="sign in required")
+    owned: list[str] = []
+    for sid in allowed:
+        try:
+            if account_owns_student(account_id, sid):
+                owned.append(sid)
+        except Exception:
+            continue
+    return owned
+
+
 @app.post("/identify", response_model=IdentifyResponse)
 async def identify(
+    request: Request,
     file: UploadFile = File(...),
     consented_student_ids: str = Form(""),
 ) -> IdentifyResponse:
     data = await file.read()
-    consented = _parse_ids(consented_student_ids)
+    consented = _allowed_face_ids(request, _parse_ids(consented_student_ids))
     try:
         observations = _vision().analyze_image(
             data, consented_student_ids=consented
@@ -328,7 +403,7 @@ class IdentifyEmbeddingRequest(BaseModel):
 
 
 @app.post("/identify-embedding", response_model=IdentifyResponse)
-def identify_embedding(req: IdentifyEmbeddingRequest) -> IdentifyResponse:
+def identify_embedding(req: IdentifyEmbeddingRequest, request: Request) -> IdentifyResponse:
     embedded = [
         EmbeddedFace(
             embedding=f.embedding,
@@ -340,7 +415,7 @@ def identify_embedding(req: IdentifyEmbeddingRequest) -> IdentifyResponse:
     ]
     observations = _vision().analyze_embedding(
         embedded,
-        consented_student_ids=req.consented_student_ids,
+        consented_student_ids=_allowed_face_ids(request, list(req.consented_student_ids)),
         high_assurance=req.high_assurance,
     )
     faces = [
@@ -368,17 +443,17 @@ def vision_model(name: str) -> FileResponse:
         DETECTOR_NAME,
         RECOGNIZER_NAME,
         ModelsUnavailable,
-        ensure_models,
+        ensure_model,
     )
 
     if name not in (DETECTOR_NAME, RECOGNIZER_NAME):
         raise HTTPException(status_code=404, detail="unknown model")
+
     model_dir = app.state.factory.config.vision_model_dir or None
     try:
-        detector, recognizer = ensure_models(model_dir)
+        path = ensure_model(name, model_dir)
     except ModelsUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    path = detector if name == DETECTOR_NAME else recognizer
     return FileResponse(
         path,
         media_type="application/octet-stream",
@@ -423,7 +498,7 @@ class GalleryResponse(BaseModel):
     students: dict[str, int]
 
 
-@app.get("/gallery", response_model=GalleryResponse)
+@app.get("/gallery", response_model=GalleryResponse, dependencies=[Depends(require_internal)])
 def gallery() -> GalleryResponse:
     g = _vision().gallery()
     return GalleryResponse(students={s: g.count(s) for s in g.students()})

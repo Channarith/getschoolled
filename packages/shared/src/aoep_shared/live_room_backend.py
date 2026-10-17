@@ -18,6 +18,7 @@ from typing import List, Optional, Protocol
 
 from .live_room import LiveRoom
 from .live_room_serde import live_room_from_json, live_room_to_json
+from .store_errors import DurableStoreError
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +91,8 @@ class RedisLiveRoomBackend:
         try:
             raw = self._r.get(self._key(room_id))
         except Exception as exc:  # noqa: BLE001
-            logger.warning("redis live-room get failed (%s); using in-memory", exc)
-            return self._fallback.get(room_id)
+            logger.error("redis live-room get failed (%s)", exc)
+            raise DurableStoreError("live room store is unavailable") from exc
         if raw is None:
             return None
         try:
@@ -108,24 +109,24 @@ class RedisLiveRoomBackend:
             else:
                 self._r.srem(self._index, room.room_id)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("redis live-room save failed (%s); using in-memory", exc)
-            self._fallback.save(room)
+            logger.error("redis live-room save failed (%s)", exc)
+            raise DurableStoreError("live room store is unavailable") from exc
 
     def delete(self, room_id: str) -> None:
         try:
             self._r.delete(self._key(room_id))
             self._r.srem(self._index, room_id)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("redis live-room delete failed (%s)", exc)
-            self._fallback.delete(room_id)
+            logger.error("redis live-room delete failed (%s)", exc)
+            raise DurableStoreError("live room store is unavailable") from exc
 
     def list_live_ids(self) -> List[str]:
         try:
             ids = self._r.smembers(self._index)
             return sorted(ids) if ids else []
         except Exception as exc:  # noqa: BLE001
-            logger.warning("redis live-room index failed (%s); using in-memory", exc)
-            return self._fallback.list_live_ids()
+            logger.error("redis live-room index failed (%s)", exc)
+            raise DurableStoreError("live room store is unavailable") from exc
 
 
 def build_live_room_backend() -> LiveRoomBackend:

@@ -971,6 +971,15 @@ def teach_goto(req: TeachGotoRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
 
 
+@app.post("/api/studio/teach/current")
+def teach_current(req: TeachSessionRequest) -> dict[str, Any]:
+    """The slide the server holds now, without advancing. The player reconciles on return."""
+    try:
+        return _teach.current(req.session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
+
+
 @app.post("/api/studio/teach/advance")
 def teach_advance(req: TeachSessionRequest) -> dict[str, Any]:
     try:

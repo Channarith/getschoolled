@@ -263,6 +263,20 @@ class AccountStore:
         self._passkey_challenges: Dict[str, str] = {}
         # Serializes check-and-set when Redis is not configured (local and tests).
         self._free_claim_lock = threading.Lock()
+        # Per-account Redis CAS. False after a failed load so we never write
+        # bootstrap accounts over a snapshot we could not read.
+        self._redis_writes = True
+        self._persisted_blobs: Dict[str, str] = {}
+        self._account_revs: Dict[str, int] = {}
+
+    def delete_account(self, account_id: str) -> None:
+        acct = self._by_id.pop(account_id, None)
+        if acct is None:
+            raise KeyError(account_id)
+        self._id_by_email.pop(acct.email.lower(), None)
+        self._game_stats.pop(account_id, None)
+        self._submitted_game_ids.pop(account_id, None)
+        self._persist()
 
     def _persist(self) -> None:
         from .persistence import persist_hook
@@ -384,11 +398,26 @@ class AccountStore:
         )
 
     def by_email(self, email: str) -> Optional[Account]:
-        aid = self._id_by_email.get(email.strip().lower())
-        return self._by_id.get(aid) if aid else None
+        key = email.strip().lower()
+        aid = self._id_by_email.get(key)
+        if aid and aid in self._by_id:
+            return self._by_id[aid]
+        from .persistence import hydrate_account_by_email
+
+        if hydrate_account_by_email(self, key):
+            aid = self._id_by_email.get(key)
+            return self._by_id.get(aid) if aid else None
+        return None
 
     def by_id(self, account_id: str) -> Optional[Account]:
-        return self._by_id.get(account_id)
+        acct = self._by_id.get(account_id)
+        if acct is not None:
+            return acct
+        from .persistence import hydrate_account
+
+        if hydrate_account(self, account_id):
+            return self._by_id.get(account_id)
+        return None
 
     def authenticate(
         self,
@@ -748,6 +777,7 @@ class AccountStore:
 
         from .persistence import (
             FreeClaimUnavailable,
+            PersistenceConflict,
             apply_free_claim,
             parse_claim_record,
             reserve_free_claim,
@@ -795,7 +825,14 @@ class AccountStore:
         if status == "existing":
             acct.free_plan_claimed_at = claimed_at
             acct.free_plan_expires_at = expires_at
-            self._persist()
+            try:
+                self._persist()
+            except PersistenceConflict:
+                # Another replica already saved this account. Its blob is loaded
+                # before the conflict is raised, so keep that copy.
+                acct = self.get_by_id(account_id) or acct
+                claimed_at = acct.free_plan_claimed_at or claimed_at
+                expires_at = acct.free_plan_expires_at or expires_at
             if not free_trial_active(claimed_at, expires_at, moment):
                 raise ValueError("Your free plan has ended.")
             if tier_requires_payment(acct.tier.value):
@@ -928,6 +965,11 @@ class AccountStore:
         nonce = nonce or ""
         nonce_key = f"{account_id}\x00{ref}\x00{nonce}"
         if nonce_key in self._used_grant_nonces:
+            return acct.points.balance, 0
+        from .persistence import claim_grant_nonce
+
+        if not claim_grant_nonce(nonce_key):
+            self._used_grant_nonces.add(nonce_key)
             return acct.points.balance, 0
         self._used_grant_nonces.add(nonce_key)
         acct.points.earn(points, reason=reason, ref=ref)

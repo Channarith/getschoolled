@@ -67,12 +67,13 @@ export function palmSpan(points) {
 
 // Comparing y alone only worked for an upright hand; a tilted or sideways hand
 // read as "curled". Farther from the wrist than the middle joint is rotation-proof.
-export function fingerExtended(points, tip, pip) {
+export function fingerExtended(points, tip, pip, margin = 0.22) {
   const wrist = points?.[0];
   if (!wrist || !points?.[tip] || !points?.[pip]) return false;
+  const slack = Number.isFinite(margin) ? margin : 0.22;
   return (
     distance(points[tip], wrist) >
-    distance(points[pip], wrist) + 0.22 * palmSpan(points)
+    distance(points[pip], wrist) + slack * palmSpan(points)
   );
 }
 
@@ -109,9 +110,90 @@ export function handShape(points) {
   };
 }
 
-// Coloring only while fingers are out. A closed fist lifts the marker.
+// Coloring and tracing lift when the whole hand is a fist. Target hits do not
+// use this: one raised finger still counts via activeFingertips.
 export function fingersPointed(shape) {
   return Boolean(shape) && !shape.fist && Number(shape.count) > 0;
+}
+
+// Thumb, index, middle, ring, pinky. Wrist 0 and the palm knuckles are not
+// touch points, so a closed palm does not activate a target by itself.
+export const FINGERTIP_LANDMARKS = [4, 8, 12, 16, 20];
+const FINGERTIP_JOINTS = [[4, 2], [8, 6], [12, 10], [16, 14], [20, 18]];
+// A curled tip sits about one palm from the wrist. Closer than this is the palm.
+export const PALM_BURY_PALMS = 1.08;
+export const TOUCH_MIN_PALMS = 1.55;
+export const TOUCH_MIN_PALMS_YOUNG = 1.22;
+const YOUNG_TOUCH_MARGIN = 0.06;
+const OLDER_TOUCH_MARGIN = 0.22;
+
+export function normalizeTouchAge(value) {
+  const raw = String(value ?? "").trim().toLowerCase().replace("–", "-");
+  if (!raw) return "";
+  if (raw === "4-6" || raw === "child" || raw === "kids" || raw === "young") return "4-6";
+  if (raw === "7-10" || raw === "teen" || raw === "adult" || raw === "older") return "7-10";
+  const age = Number(raw);
+  if (Number.isFinite(age) && age >= 1 && age <= 120) return age < 7 ? "4-6" : "7-10";
+  return "";
+}
+
+// A launch query, then a numeric age, then the coarse account band. The number
+// wins over child/teen/adult because it can tell 5 from 9.
+export function profileTouchAge({ query = "", ageYears = "", ageBand = "" } = {}) {
+  return normalizeTouchAge(query) || normalizeTouchAge(ageYears) || normalizeTouchAge(ageBand) || "";
+}
+
+export function isYoungTouchAge(ageBand) {
+  return normalizeTouchAge(ageBand) === "4-6";
+}
+
+// Any fingertip that is actually out, including a point on an otherwise closed
+// hand. Tips buried in the palm never count. Younger bands accept a shorter reach.
+export function activeFingertips(points, ageBand) {
+  if (!points?.length || !points[0]) return [];
+  const young = isYoungTouchAge(ageBand);
+  const margin = young ? YOUNG_TOUCH_MARGIN : OLDER_TOUCH_MARGIN;
+  const minPalms = young ? TOUCH_MIN_PALMS_YOUNG : TOUCH_MIN_PALMS;
+  const scale = palmSpan(points);
+  const wrist = points[0];
+  const tips = [];
+  for (const [tip, pip] of FINGERTIP_JOINTS) {
+    const point = points[tip];
+    if (!point) continue;
+    const palms = distance(point, wrist) / scale;
+    if (palms < PALM_BURY_PALMS) continue;
+    const extended = fingerExtended(points, tip, pip, margin);
+    if (extended || palms >= minPalms) tips.push(tip);
+  }
+  return tips;
+}
+
+export function tipHitsTarget(tips, target, radius) {
+  if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y)) return false;
+  const reach = Number(radius);
+  if (!Number.isFinite(reach) || reach <= 0) return false;
+  return (Array.isArray(tips) ? tips : []).some((tip) => (
+    tip && Number.isFinite(tip.x) && Number.isFinite(tip.y)
+    && Math.hypot(tip.x - target.x, tip.y - target.y) <= reach
+  ));
+}
+
+export function catchRadiusPx(minSide, ageBand) {
+  const side = Math.max(0, Number(minSide) || 0);
+  const young = isYoungTouchAge(ageBand);
+  return Math.max(young ? 88 : 64, side * (young ? 0.14 : 0.09));
+}
+
+// One activation per target until the wait expires, so several fingertips
+// or a held pose do not fire the same pop again.
+export function claimTouch(latch, key, now, waitMs = 420) {
+  const current = latch && typeof latch === "object" ? latch : { key: "", until: 0 };
+  const at = Number(now) || 0;
+  if (current.key === key && at < Number(current.until || 0)) {
+    return { claimed: false, latch: current };
+  }
+  const wait = Number.isFinite(waitMs) ? waitMs : 420;
+  return { claimed: true, latch: { key: String(key), until: at + wait } };
 }
 
 export function heartRatios(a, b, scale) {

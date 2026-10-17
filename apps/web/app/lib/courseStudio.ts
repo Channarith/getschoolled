@@ -2,6 +2,8 @@
 
 export const COURSE_STUDIO_SAMPLE_MINUTES = 10;
 export const PAID_ENROLLMENT_STATUS = "paid";
+/** One-time unlock for the full class after the free sample (matches course studio backend). */
+export const COURSE_UNLOCK_PRICE_LABEL = "$19.99";
 
 export const PUBLIC_COURSES = [
   {

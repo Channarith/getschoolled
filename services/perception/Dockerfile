@@ -11,6 +11,10 @@ COPY VERSION /app/VERSION
 COPY services/perception/requirements.txt /app/services/perception/requirements.txt
 RUN pip install --no-cache-dir -e /app/packages/shared \
     && pip install --no-cache-dir -r /app/services/perception/requirements.txt
+# YuNet + SFace are gitignored. Bake them here so a request never waits on GitHub.
+# URLs live in aoep_shared.vision.models.
+ENV VISION_MODEL_DIR=/opt/aoep/vision-models
+RUN python3 -c "from aoep_shared.vision.models import ensure_models; ensure_models()"
 COPY services/perception /app/services/perception
 ENV PYTHONPATH=/app/services/perception/src
 WORKDIR /app/services/perception

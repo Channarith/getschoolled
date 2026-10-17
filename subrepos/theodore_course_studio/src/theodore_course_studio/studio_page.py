@@ -222,6 +222,35 @@ STUDIO_CSS = """
     .visual-timeline-stage.layout-compare .visual-layer.kind-body.is-active,
     .visual-timeline-stage.layout-compare .visual-layer.kind-callout.is-active { opacity:1; transform:none; }
     .visual-timeline-stage.layout-compare .visual-layer .visual-label { max-width:44rem; }
+    .visual-timeline-stage[data-layout="road-scene"] { background:#dbe7f3; }
+    .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-storyboard { padding:0; transform:none; }
+    .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-storyboard svg { width:100%; height:100%; display:block; }
+    .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-keypoints { place-items:end start; padding:3% 3.5%;
+      text-align:left; pointer-events:none; }
+    .road-points { max-width:min(62%, 36rem); padding:.6em .9em .7em; border-radius:14px;
+      background:rgba(15,23,42,.88); color:#f8fafc; box-shadow:0 8px 24px rgba(15,23,42,.3);
+      font:600 clamp(13px,1.5vw,21px)/1.3 "Avenir Next","Segoe UI",sans-serif; }
+    .road-points h4 { margin:0 0 .3em; font-size:1.12em; color:#fde68a; }
+    .road-points ol { margin:0; padding-left:1.2em; }
+    .road-points li { margin:.12em 0; opacity:.6; }
+    .road-points li.is-done { opacity:.82; }
+    .road-points li.is-now { opacity:1; color:#ffffff; }
+    .teach-stage.has-road-scene #teach-body,
+    .teach-stage.has-road-scene #teach-narr,
+    .teach-stage.has-road-scene #teach-examples { display:none !important; }
+    #resume-retry { position:absolute; left:50%; bottom:16%; transform:translateX(-50%); z-index:60;
+      min-height:48px; padding:.6em 1.2em; border-radius:999px; border:0; background:#0f766e; color:#fff;
+      font:700 16px/1.2 system-ui,sans-serif; box-shadow:0 8px 22px rgba(15,23,42,.35); cursor:pointer; }
+    #resume-retry[hidden] { display:none !important; }
+    body.phone-embed #resume-retry {
+      position:fixed; left:50%; transform:translateX(-50%);
+      bottom:calc(148px + env(safe-area-inset-bottom, 0px) + 8px); z-index:80;
+    }
+    body.phone-embed.public-course #resume-retry {
+      bottom:calc(72px + env(safe-area-inset-bottom, 0px) + 8px);
+    }
+    body.chrome-hidden #resume-retry,
+    body.drive-chrome-hidden #resume-retry { z-index:90; }
     .has-readable-card #teach-body,
     .has-readable-card #teach-narr,
     .has-readable-card #teach-activity { display:none !important; }
@@ -325,7 +354,9 @@ STUDIO_CSS = """
                                                backdrop-filter:blur(8px); border:0; color:#f6efe4; }
     .presenter-overlay .teach-stage .body, .presenter-overlay .teach-stage .narr { color:#f6efe4; background:transparent; }
     .presenter-overlay .lesson-window-controls { position:fixed; top:14px; right:16px; }
-    .student-cam { position:fixed; z-index:10001; top:88px; left:16px; width:176px; max-width:34vw;
+    .student-cam { position:fixed; z-index:10020; width:min(148px, 36vw); max-width:calc(100vw - 24px);
+                   top:max(12px, env(safe-area-inset-top));
+                   left:max(12px, env(safe-area-inset-left)); right:auto;
                    border-radius:12px; overflow:hidden; background:rgba(12,10,8,.72);
                    border:1px solid rgba(255,255,255,.28); box-shadow:0 8px 22px rgba(0,0,0,.35);
                    cursor:grab; touch-action:none; user-select:none; }
@@ -336,7 +367,7 @@ STUDIO_CSS = """
     .student-cam-track { position:absolute; top:0; left:0; width:100%; aspect-ratio:16/9;
                          transform:scaleX(-1); pointer-events:none; z-index:1; }
     .student-cam.is-hidden .student-cam-track { display:none !important; }
-    .student-cam.is-hidden video { position:absolute; width:8px; height:8px; opacity:0; }
+    .student-cam.is-hidden video { position:absolute; width:160px; height:90px; opacity:0; pointer-events:none; }
     .student-cam-hide { position:absolute; right:6px; bottom:6px; z-index:2; margin:0; padding:4px 8px;
                         border-radius:999px; border:1px solid rgba(255,255,255,.35);
                         background:rgba(0,0,0,.62); color:#fff; font:700 11px Arial,sans-serif;
@@ -575,13 +606,10 @@ STUDIO_CSS = """
       background:#fffaf3; padding:8px 0; }
     body.phone-embed .proceed-cue, body.audio-only .proceed-cue { position:relative; bottom:auto; }
     body.phone-embed .teach-stage { min-height:46vh; }
-    body.phone-embed:not(.audio-only) .visual-timeline-stage,
-    body.phone-embed:not(.audio-only) .lesson-photo.is-shown,
-    body.phone-embed:not(.audio-only) .storyboard-stage {
+    body.phone-embed:not(.audio-only):not(.presenting) .visual-timeline-stage,
+    body.phone-embed:not(.audio-only):not(.presenting) .lesson-photo.is-shown,
+    body.phone-embed:not(.audio-only):not(.presenting) .storyboard-stage {
       max-height:min(48vh, calc(100dvh - 320px)); min-height:160px;
-    }
-    body.phone-embed:not(.audio-only) .student-cam {
-      position:relative !important; inset:auto !important; width:104px; margin:8px 0 0; z-index:4;
     }
     body.phone-embed .teach-stage.captions-off .visual-layer.kind-title,
     body.phone-embed .teach-stage.captions-off .visual-layer.kind-text,
@@ -842,17 +870,38 @@ STUDIO_CSS = """
     width:100%; min-height:40px; border-radius:10px; border:1px solid #24515c;
     background:#101820; color:#f4fbff; padding:0 8px; font-size:15px;
   }
-  .course-map { position:absolute; z-index:8; left:12px; right:12px; bottom:12px;
-    display:flex; flex-direction:column; gap:6px; max-height:38vh; padding:10px 12px;
-    border-radius:16px; border:1px solid #5eead4; background:#07111ef2; color:#f8fafc;
-    box-shadow:0 10px 24px #0008; }
+  .course-map { position:fixed; z-index:10030; left:auto;
+    right:max(12px, env(safe-area-inset-right));
+    bottom:max(12px, env(safe-area-inset-bottom));
+    display:flex; flex-direction:column; align-items:flex-end; gap:8px;
+    width:auto; max-width:min(340px, calc(100vw - 24px)); max-height:none;
+    padding:0; border:0; border-radius:0; background:transparent; color:#f8fafc;
+    box-shadow:none; pointer-events:none; }
+  .course-map > * { pointer-events:auto; }
   .course-map[hidden] { display:none !important; }
-  .course-map-head { display:flex; align-items:center; gap:8px; }
-  .course-map-percent { font:900 22px/1 "Avenir Next", "Segoe UI", sans-serif; color:#99f6e4; }
-  .course-map-count { flex:1; font-size:13px; color:#e2e8f0; }
+  .course-map-dock { display:flex; align-items:flex-end; gap:8px; }
+  .course-progress-cluster { position:relative; }
+  .course-progress-ring { position:relative; width:58px; height:58px; padding:0;
+    border-radius:50%; border:1px solid #5eead4; background:#07111ef2; color:#99f6e4;
+    box-shadow:0 8px 20px #0006; display:grid; place-items:center; }
+  .course-progress-ring svg { position:absolute; inset:0; width:100%; height:100%; }
+  .course-progress-ring strong { position:relative; z-index:1; pointer-events:none;
+    font:800 11px/1 "Avenir Next", "Segoe UI", sans-serif; }
+  .ring-track { fill:none; stroke:rgba(255,255,255,.28); stroke-width:3; }
+  .ring-value { fill:none; stroke:#2dd4bf; stroke-width:3; stroke-linecap:round;
+    stroke-dasharray:97.39; stroke-dashoffset:97.39; }
+  .course-progress-hide, .course-progress-show { width:28px; height:28px; padding:0;
+    border-radius:50%; font:800 13px/1 "Avenir Next", "Segoe UI", sans-serif; }
+  .course-progress-hide { position:absolute; top:-6px; right:-6px; z-index:2; }
+  .course-map.progress-hidden .course-progress-cluster { display:none !important; }
+  #course-progress-show[hidden] { display:none !important; }
+  .course-map.progress-hidden #course-progress-show { display:inline-grid !important; place-items:center; }
+  .course-map-panel { width:min(320px, calc(100vw - 24px)); max-height:42vh; overflow:auto;
+    padding:10px 12px; border-radius:16px; border:1px solid #5eead4; background:#07111ef2;
+    box-shadow:0 10px 24px #0008; }
+  .course-map-panel[hidden] { display:none !important; }
+  .course-map-count { display:block; margin:0 0 6px; font-size:13px; color:#e2e8f0; }
   .course-map-toggle { min-height:36px; }
-  .course-map-bar { height:6px; border-radius:99px; background:#1e293b; overflow:hidden; }
-  .course-map-bar i { display:block; height:100%; width:0; background:#2dd4bf; }
   .course-map-scrub { width:100%; accent-color:#2dd4bf; }
   .course-map-list { margin:0; padding:0; list-style:none; overflow:auto; }
   .course-map-list button { display:block; width:100%; text-align:left; margin:4px 0;
@@ -861,7 +910,7 @@ STUDIO_CSS = """
   .course-map-list button.is-gap { border-style:dashed; color:#fde68a; }
   .course-map-list .chapter { margin:8px 0 2px; font-size:11px; letter-spacing:.06em;
     text-transform:uppercase; color:#94a3b8; }
-  body.audio-only .course-map { position:fixed; z-index:40;
+  body.audio-only .course-map { z-index:40;
     bottom:max(84px, calc(72px + env(safe-area-inset-bottom))); }
   body.audio-only #sample-clock {
     display:inline-flex !important; position:fixed !important; z-index:60;
@@ -894,7 +943,6 @@ STUDIO_CSS = """
   #presence-hold[hidden] { display:none !important; }
   /* Full-screen focus: park chrome at the edge after the idle timer. Content stays clear. */
   body.audio-only.drive-chrome-hidden #drive-bar,
-  body.audio-only.drive-chrome-hidden #student-cam,
   body.audio-only.drive-chrome-hidden #theodore-live-audio,
   body.audio-only.drive-chrome-hidden #course-map,
   body.audio-only.drive-chrome-hidden #course-price,
@@ -904,7 +952,6 @@ STUDIO_CSS = """
   body.audio-only.drive-chrome-hidden .lesson-window-controls,
   body.audio-only.drive-chrome-hidden .student-cam-status,
   body.audio-only.drive-chrome-hidden .student-cam-note,
-  body.presenting.drive-chrome-hidden #student-cam,
   body.presenting.drive-chrome-hidden #theodore-live-audio,
   body.presenting.drive-chrome-hidden #course-map,
   body.presenting.drive-chrome-hidden #course-price,
@@ -961,6 +1008,80 @@ STUDIO_CSS = """
     .theodore-avatar-wrap:has(#theodore-avatar[data-avatar-persona="serenity"]) .avatar-label {
       color:#c9f7ff; background:rgba(3,23,32,.78); }
 
+  /* Learner player: the course fills the screen. Avatar, camera, and progress float. */
+  #btn-start-voice { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); clip-path:inset(50%); white-space:nowrap; border:0; }
+  #btn-start-voice:focus-visible { position:fixed; clip:auto; clip-path:none; width:auto; height:auto;
+    margin:0; padding:8px 14px; overflow:visible; z-index:10040;
+    left:max(12px, env(safe-area-inset-left)); bottom:max(12px, env(safe-area-inset-bottom)); }
+  body.presenting .presenter-overlay.show,
+  .presenter-overlay.show { inset:0; width:100%; height:100%; min-height:100dvh; }
+  .presenter-overlay.show .teacher-stage-grid,
+  body.presenting .presenter-overlay .teacher-stage-grid { position:absolute; inset:0; height:auto; min-height:0; }
+  body.presenting .presenter-overlay .storyboard-stage,
+  body.presenting .presenter-overlay .visual-timeline-stage,
+  body.presenting .presenter-overlay .lesson-photo.is-shown,
+  body.phone-embed.presenting .presenter-overlay .storyboard-stage,
+  body.phone-embed.presenting .presenter-overlay .visual-timeline-stage,
+  body.phone-embed.presenting .presenter-overlay .lesson-photo.is-shown {
+    position:absolute; inset:0; width:auto; height:auto; max-height:none; min-height:0;
+    aspect-ratio:auto; margin:0; border-radius:0; }
+  body.presenting .presenter-overlay .storyboard-stage svg { width:100%; height:100%; max-height:none; display:block; }
+  .presenter-overlay.show #teach-stage h3 { position:absolute; z-index:5; left:0; right:0; top:0;
+    margin:0; pointer-events:none;
+    padding:max(10px, env(safe-area-inset-top)) min(42vw, 220px) 8px max(14px, env(safe-area-inset-left)); }
+  .presenter-overlay.show .lesson-window-controls { top:max(8px, env(safe-area-inset-top));
+    right:max(8px, env(safe-area-inset-right)); }
+  body.avatar-on .presenter-overlay .theodore-avatar-wrap,
+  body.avatar-on .presenter-overlay.has-storyboard .theodore-avatar-wrap,
+  body.avatar-on .presenter-overlay.has-visual-timeline .theodore-avatar-wrap,
+  body.avatar-on .presenter-overlay.has-photo .theodore-avatar-wrap,
+  body.avatar-on .presenter-overlay:not(.has-storyboard):not(.has-visual-timeline) .theodore-avatar-wrap,
+  body.public-course .theodore-avatar-wrap,
+  body.phone-embed .theodore-avatar-wrap {
+    width:118px; height:156px; min-height:0; max-height:none; z-index:12; pointer-events:auto;
+    left:max(10px, env(safe-area-inset-left)); right:auto; top:auto;
+    bottom:max(18px, env(safe-area-inset-bottom)); }
+  body.public-course.avatar-on .teacher-stage-grid,
+  body.public-course.avatar-on .teacher-stage-grid.has-storyboard,
+  body.phone-embed.avatar-on .teacher-stage-grid,
+  body.phone-embed.avatar-on .teacher-stage-grid.has-storyboard { grid-template-columns:1fr; }
+  body.public-course.avatar-on .teacher-stage-grid .storyboard-stage,
+  body.phone-embed.avatar-on .teacher-stage-grid .storyboard-stage { grid-column:1; grid-row:auto; }
+  body.public-course:not(.presenting) .theodore-avatar-wrap,
+  body.phone-embed:not(.presenting) .theodore-avatar-wrap { position:absolute; z-index:6; }
+  .presenter-overlay .avatar-label { left:4px; right:4px; transform:none; white-space:normal;
+    font-size:9px; line-height:1.25; bottom:4px; max-width:none; }
+  body.presenting .presenter-overlay .lesson-stage-content,
+  body.avatar-on.presenting .presenter-overlay .lesson-stage-content,
+  body.avatar-on.presenting .presenter-overlay:not(.has-storyboard):not(.has-visual-timeline) .lesson-stage-content,
+  body.avatar-on.presenting .presenter-overlay.has-visual-timeline .lesson-stage-content,
+  body.avatar-on.presenting .presenter-overlay.has-photo .lesson-stage-content {
+    left:0; right:0; top:auto; bottom:0; height:auto; max-height:none; z-index:4;
+    pointer-events:none; background:linear-gradient(transparent, rgba(8,12,20,.78) 72%);
+    padding:8px 16px max(10px, env(safe-area-inset-bottom)); }
+  body.presenting .presenter-overlay .lesson-stage-content > * { pointer-events:auto; }
+  body.presenting.drive-chrome-hidden .lesson-stage-content {
+    background:transparent !important; backdrop-filter:none !important; pointer-events:none; }
+  body.presenting.drive-chrome-hidden #proceed-cue,
+  body.presenting.drive-chrome-hidden #lesson-caption,
+  body.presenting.drive-chrome-hidden #teach-body,
+  body.presenting.drive-chrome-hidden #teach-narr,
+  body.presenting.drive-chrome-hidden #teach-examples,
+  body.presenting.drive-chrome-hidden .storyboard-concept,
+  body.presenting.drive-chrome-hidden .sample-banner,
+  body.presenting.drive-chrome-hidden #absorb-note,
+  body.presenting.drive-chrome-hidden .page-welcome,
+  body.presenting.drive-chrome-hidden .theodore-avatar-wrap,
+  body.presenting.drive-chrome-hidden #teach-title,
+  body.audio-only.drive-chrome-hidden #proceed-cue,
+  body.audio-only.drive-chrome-hidden #lesson-caption { display:none !important; }
+  body.presenting.drive-chrome-hidden #student-cam,
+  body.audio-only.drive-chrome-hidden #student-cam {
+    opacity:0 !important; pointer-events:none !important; }
+  body.presenting:not(.drive-chrome-hidden) #student-cam,
+  body.audio-only:not(.drive-chrome-hidden) #student-cam { opacity:1; pointer-events:auto; }
+
 
 """
 
@@ -971,9 +1092,9 @@ STUDIO_JS = """
     const SHOW_AVATAR = true;
     // SHOW_AVATAR is only the first-visit default now; the toggle below persists
     // the learner's own choice, along with where they dragged him.
-    const AVATAR_PREF_KEY = 'theodore.studio.avatar.v3-serenity';
-    const AVATAR_MIN_W = 150;
-    const AVATAR_MIN_H = 190;
+    const AVATAR_PREF_KEY = 'theodore.studio.avatar.v4-compact';
+    const AVATAR_MIN_W = 88;
+    const AVATAR_MIN_H = 112;
     let avatarPrefs = {};
     let avatarVisible = false;
     let avatarInitPromise = null;
@@ -1272,6 +1393,102 @@ STUDIO_JS = """
     let reviewOpen = false;
     let captionsEnabled = false;
     const reviewScores = { quizzes: [], games: [] };
+    const RESUME_FETCH_MS = 8000;
+    const RESUME_VERIFY_MS = 6000;
+    const ADVANCE_TIMEOUT_MS = 15000;
+    const WAKE_GAP_MS = 20000;
+    const CAMERA_MUTE_AWAY_MS = 1500;
+    let lastPlaybackAt = 0;
+    let lastSpeakRequestAt = 0;
+    let resumeStartedAt = 0;
+    let advancePromise = null;
+    let lifecycleTickAt = Date.now();
+
+    // Must stay self-contained: tests/test_lesson_resume.py runs this factory in node.
+    function createLessonLifecycle(io) {
+      const st = { away: false, wasPlaying: false, token: 0, run: null, failed: false };
+      function away(source) {
+        if (st.away) return false;
+        st.away = true;
+        st.wasPlaying = !!(st.failed || io.isPlaying());
+        st.token += 1;
+        st.run = null;
+        io.onAway(String(source || 'away'), st.wasPlaying);
+        return true;
+      }
+      function back(source, opts) {
+        const force = !!(opts && opts.force);
+        const label = String(source || 'return');
+        if (!force && io.isHidden()) return Promise.resolve('hidden');
+        if (st.run && !force) return st.run;
+        if (!st.away && !st.failed && !force) {
+          io.refresh(label);
+          return Promise.resolve('steady');
+        }
+        const want = force || st.failed || st.wasPlaying;
+        st.away = false;
+        st.token += 1;
+        const token = st.token;
+        const stale = () => token !== st.token;
+        const run = (async () => {
+          try {
+            await Promise.resolve();
+            await io.restoreMedia(label, token);
+            if (stale()) return 'stale';
+            if (!want || io.isPaused()) {
+              st.failed = false;
+              io.clearFailure();
+              return 'paused';
+            }
+            const payload = await io.reconcile(label, token);
+            if (stale()) return 'stale';
+            const played = payload ? await io.continueLesson(payload, label, token) : false;
+            if (stale()) return 'stale';
+            const ok = played === 'quiet' || (played === 'played' && await io.verify(token));
+            if (stale()) return 'stale';
+            if (!ok) {
+              st.failed = true;
+              io.showFailure(label);
+              return 'failed';
+            }
+            st.failed = false;
+            io.clearFailure();
+            return 'resumed';
+          } catch (error) {
+            if (stale()) return 'stale';
+            st.failed = true;
+            io.showFailure(label, error);
+            return 'failed';
+          } finally {
+            if (st.run === run) st.run = null;
+          }
+        })();
+        st.run = run;
+        return run;
+      }
+      return {
+        away: away,
+        back: back,
+        isAway: () => st.away,
+        busy: () => !!st.run,
+        failed: () => st.failed,
+        token: () => st.token,
+      };
+    }
+
+    const lessonLife = createLessonLifecycle({
+      isHidden: () => document.visibilityState === 'hidden',
+      isPlaying: () => lessonIsPlaying(),
+      isPaused: () => lecturePaused || sampleIsComplete() || !lessonTurnLoaded(),
+      onAway: (source) => noteLessonAway(source),
+      refresh: () => refreshLessonMedia(),
+      restoreMedia: () => restoreLessonMedia(),
+      reconcile: () => reconcileLessonForResume(),
+      continueLesson: (payload) => continueLessonAfterReturn(payload),
+      verify: (token) => verifyLessonPlayback(token, resumeStartedAt),
+      showFailure: () => showResumeRetry(),
+      clearFailure: () => hideResumeRetry(),
+    });
 
     function presenterLabel(presenter) {
       const name = presenter?.label || 'Serenity';
@@ -1375,15 +1592,34 @@ STUDIO_JS = """
     }
 
     // Keep the box reachable even if the window shrank since it was placed.
+    function readSafeInsets() {
+      let probe = document.getElementById('safe-inset-probe');
+      if (!probe) {
+        probe = document.createElement('div');
+        probe.id = 'safe-inset-probe';
+        probe.setAttribute('aria-hidden', 'true');
+        probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+        (document.body || document.documentElement).appendChild(probe);
+      }
+      const cs = getComputedStyle(probe);
+      return {
+        top: parseFloat(cs.paddingTop) || 0,
+        right: parseFloat(cs.paddingRight) || 0,
+        bottom: parseFloat(cs.paddingBottom) || 0,
+        left: parseFloat(cs.paddingLeft) || 0,
+      };
+    }
+
     function clampAvatarBox() {
       const wrap = $('theodore-avatar-wrap');
       if (!wrap || !avatarPrefs.placed) return;
-      const w = Math.min(Math.max(avatarPrefs.w || wrap.offsetWidth, AVATAR_MIN_W), window.innerWidth);
-      const h = Math.min(Math.max(avatarPrefs.h || wrap.offsetHeight, AVATAR_MIN_H), window.innerHeight);
+      const safe = readSafeInsets();
+      const w = Math.min(Math.max(avatarPrefs.w || wrap.offsetWidth, AVATAR_MIN_W), window.innerWidth - safe.left - safe.right);
+      const h = Math.min(Math.max(avatarPrefs.h || wrap.offsetHeight, AVATAR_MIN_H), window.innerHeight - safe.top - safe.bottom);
       avatarPrefs.w = w;
       avatarPrefs.h = h;
-      avatarPrefs.x = Math.min(Math.max(avatarPrefs.x || 0, 0), Math.max(window.innerWidth - w, 0));
-      avatarPrefs.y = Math.min(Math.max(avatarPrefs.y || 0, 0), Math.max(window.innerHeight - h, 0));
+      avatarPrefs.x = Math.min(Math.max(avatarPrefs.x || 0, safe.left), Math.max(window.innerWidth - w - safe.right, safe.left));
+      avatarPrefs.y = Math.min(Math.max(avatarPrefs.y || 0, safe.top), Math.max(window.innerHeight - h - safe.bottom, safe.top));
       wrap.style.left = avatarPrefs.x + 'px';
       wrap.style.top = avatarPrefs.y + 'px';
       wrap.style.width = w + 'px';
@@ -1559,12 +1795,14 @@ STUDIO_JS = """
         || !!document.fullscreenElement;
     }
     function setDriveChromeHidden(hidden) {
+      const wasHidden = document.body.classList.contains('drive-chrome-hidden');
       document.body.classList.toggle('drive-chrome-hidden', !!hidden);
       const edge = $('fs-chrome-edge');
       if (edge) {
         edge.hidden = !hidden || !focusModeActive();
         edge.setAttribute('aria-expanded', String(!hidden));
       }
+      if (wasHidden && !hidden) requestAnimationFrame(() => theodoreAvatar?.resize());
     }
     function revealDriveChrome() {
       if (!focusModeActive()) return;
@@ -2514,8 +2752,8 @@ STUDIO_JS = """
         bars: "Bars", line: "Frequency line", mouth: "Talking mouth", ripple: "Soft ripples", lantern: "Lantern",
         library: "Course library", choose: "Choose a course to begin.",
         hideCourses: "Hide courses", showCourses: "Courses",
-        yourLesson: "Your lesson", clickStart: "Click the screen to start, or press Start and speak.",
-        clickContinue: "Click the screen to continue, or press Start and speak.",
+        yourLesson: "Your lesson", clickStart: "Tap the lesson to start.",
+        clickContinue: "Tap the lesson to continue.",
         start: "Start", pause: "Pause", resume: "Resume", ask: "Ask", hide: "Hide",
         hideOptions: "Hide options", showOptions: "Show options", showCaptions: "Show captions",
         startOver: "Start over", showAvatar: "Show Avatar", hideAvatar: "Hide Avatar",
@@ -2537,8 +2775,8 @@ STUDIO_JS = """
         bars: "音柱", line: "频率线", mouth: "说话的嘴", ripple: "柔和波纹", lantern: "灯笼",
         library: "课程库", choose: "选一门课开始。",
         hideCourses: "隐藏课程", showCourses: "课程",
-        yourLesson: "你的课", clickStart: "点击画面开始，或按“开始”然后说话。",
-        clickContinue: "点击画面继续，或按“开始”然后说话。",
+        yourLesson: "你的课", clickStart: "点击课程开始。",
+        clickContinue: "点击课程继续。",
         start: "开始", pause: "暂停", resume: "继续", ask: "提问", hide: "隐藏",
         hideOptions: "隐藏选项", showOptions: "显示选项", showCaptions: "显示字幕",
         startOver: "重新开始", showAvatar: "显示头像", hideAvatar: "隐藏头像",
@@ -2560,8 +2798,8 @@ STUDIO_JS = """
         bars: "音柱", line: "頻率線", mouth: "講緊嘢嘅嘴", ripple: "柔和波紋", lantern: "燈籠",
         library: "課程庫", choose: "揀一堂課開始。",
         hideCourses: "隱藏課程", showCourses: "課程",
-        yourLesson: "你嘅課", clickStart: "撳畫面開始，或者撳「開始」然後講嘢。",
-        clickContinue: "撳畫面繼續，或者撳「開始」然後講嘢。",
+        yourLesson: "你嘅課", clickStart: "撳課程開始。",
+        clickContinue: "撳課程繼續。",
         start: "開始", pause: "暫停", resume: "繼續", ask: "提問", hide: "隱藏",
         hideOptions: "隱藏選項", showOptions: "顯示選項", showCaptions: "顯示字幕",
         startOver: "重新開始", showAvatar: "顯示頭像", hideAvatar: "隱藏頭像",
@@ -2583,8 +2821,8 @@ STUDIO_JS = """
         bars: "របារ", line: "បន្ទាត់ប្រេកង់", mouth: "មាត់និយាយ", ripple: "រលកទន់", lantern: "គោម",
         library: "បណ្ណាល័យវគ្គ", choose: "ជ្រើសវគ្គមួយដើម្បីចាប់ផ្តើម។",
         hideCourses: "លាក់វគ្គ", showCourses: "វគ្គ",
-        yourLesson: "មេរៀនរបស់អ្នក", clickStart: "ចុចអេក្រង់ដើម្បីចាប់ផ្តើម ឬចុចចាប់ផ្តើម ហើយនិយាយ។",
-        clickContinue: "ចុចអេក្រង់ដើម្បីបន្ត ឬចុចចាប់ផ្តើម ហើយនិយាយ។",
+        yourLesson: "មេរៀនរបស់អ្នក", clickStart: "ចុចមេរៀនដើម្បីចាប់ផ្តើម។",
+        clickContinue: "ចុចមេរៀនដើម្បីបន្ត។",
         start: "ចាប់ផ្តើម", pause: "ផ្អាក", resume: "បន្ត", ask: "សួរ", hide: "លាក់",
         hideOptions: "លាក់ជម្រើស", showOptions: "បង្ហាញជម្រើស", showCaptions: "បង្ហាញអក្សររត់",
         startOver: "ចាប់ផ្តើមឡើងវិញ", showAvatar: "បង្ហាញរូបតំណាង", hideAvatar: "លាក់រូបតំណាង",
@@ -2654,6 +2892,9 @@ STUDIO_JS = """
     let lastStudentSeenAt = 0;
     let studentBackSince = 0;
     let studentGoneSince = 0;
+    let returnGraceUntil = 0;
+    // A camera coming back from the background needs a moment to deliver frames.
+    const RETURN_GRACE_MS = 3500;
     const ABSENCE_HOLD_MS = 600;
     // Face/contour mesh flickers; require a short solid return before auto-resume.
     const PRESENCE_RESUME_MS = 900;
@@ -2739,6 +2980,7 @@ STUDIO_JS = """
     function studentStillAway() {
       if (!studentWasPresent || !lastStudentSeenAt) return false;
       if (learnerLocallyBack()) return false;
+      if (document.visibilityState !== 'hidden' && Date.now() < returnGraceUntil) return false;
       if (!cameraIsLive() && document.visibilityState !== 'hidden') return false;
       return Date.now() - lastStudentSeenAt >= ABSENCE_HOLD_MS;
     }
@@ -2793,9 +3035,11 @@ STUDIO_JS = """
     }
 
     function continueSameLesson() {
-      if (learningHold) return;
+      if (learningHold || lessonLife.isAway()) return;
       if (window.TheodoreLiveAudio && window.__THEODORE_LIVE_AUDIO_ACTIVE__) {
         window.TheodoreLiveAudio.resumeRecognition?.();
+        // The agent's last turn was cancelled on pause; re-anchor it to this slide.
+        if (lastTeachPayload) syncVoiceToSlide(lastTeachPayload, { force: true });
         return;
       }
       const turn = (lastTeachPayload && (lastTeachPayload.turn || lastTeachPayload)) || {};
@@ -2805,11 +3049,12 @@ STUDIO_JS = """
     function sayPresenceLine(line, after) {
       window.TheodoreLiveAudio?.pauseRecognition?.();
       stopSpeech();
+      const gen = speechGen;
       let finished = false;
       const done = () => {
         if (finished) return;
         finished = true;
-        if (after) after();
+        if (after && gen === speechGen) after();
       };
       setTimeout(() => {
         if (!window.speechSynthesis) {
@@ -2983,7 +3228,7 @@ STUDIO_JS = """
       if (studentCamStream) {
         const box = $('student-cam');
         if (box) box.hidden = false;
-        restoreStudentCamPosition();
+        if (!restoreStudentCamPosition()) defaultStudentCamPosition();
         if (!studentCamTimer) studentCamTimer = window.setInterval(() => { void studentCameraSample(); }, 1000);
         if (!studentAwayTimer) studentAwayTimer = window.setInterval(watchStudentPresence, 200);
         startStudentTracking();
@@ -2995,6 +3240,7 @@ STUDIO_JS = """
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } },
           audio: false,
         });
+        watchCameraStream(studentCamStream);
         const video = $('student-cam-video');
         if (video) {
           video.srcObject = studentCamStream;
@@ -3002,7 +3248,7 @@ STUDIO_JS = """
         }
         const box = $('student-cam');
         if (box) box.hidden = false;
-        restoreStudentCamPosition();
+        if (!restoreStudentCamPosition()) defaultStudentCamPosition();
         if (!studentCamTimer) studentCamTimer = window.setInterval(() => { void studentCameraSample(); }, 1000);
         if (!studentAwayTimer) studentAwayTimer = window.setInterval(watchStudentPresence, 200);
         startStudentTracking();
@@ -3018,7 +3264,11 @@ STUDIO_JS = """
       if (!box) return;
       box.classList.toggle('is-hidden', hidden);
       const video = $('student-cam-video');
-      if (video) video.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+      // Hide the preview only. Never stop the camera tracks.
+      if (video) {
+        video.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+        if (video.srcObject && video.paused) video.play().catch(() => {});
+      }
       const button = $('student-cam-hide');
       if (!button) return;
       button.textContent = hidden ? 'Show camera' : 'Hide';
@@ -3026,6 +3276,211 @@ STUDIO_JS = """
       button.title = hidden
         ? 'Show your camera preview. The camera stays on either way.'
         : 'Hide the preview. The camera stays on.';
+      const left = parseFloat(box.style.left);
+      const top = parseFloat(box.style.top);
+      if (Number.isFinite(left) && Number.isFinite(top)) clampStudentCam(left, top);
+    }
+
+    function lessonIsPlaying() {
+      return lessonTurnLoaded() && !lecturePaused && !sampleIsComplete();
+    }
+
+    function withTimeout(promise, ms, fallback) {
+      let timer = 0;
+      return Promise.race([
+        Promise.resolve(promise),
+        new Promise((resolve) => { timer = setTimeout(() => resolve(fallback), ms); }),
+      ]).finally(() => clearTimeout(timer));
+    }
+
+    function apiTimed(path, opts, ms) {
+      if (typeof AbortController !== 'function') return api(path, opts);
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), ms);
+      return api(path, Object.assign({}, opts || {}, { signal: ctl.signal }))
+        .finally(() => clearTimeout(timer));
+    }
+
+    function lessonSlideKey(payload) {
+      if (!payload) return '';
+      const turn = payload.turn || payload;
+      return String(payload.path_pos ?? '') + '|' + String(payload.slide_index ?? turn.slide_index ?? '');
+    }
+
+    function liveAgentReady() {
+      const live = window.TheodoreLiveAudio;
+      const status = live && typeof live.status === 'function' ? live.status() : null;
+      if (status) return !!(status.connected && status.socketOpen);
+      return !!window.__THEODORE_LIVE_AUDIO_ACTIVE__;
+    }
+
+    function noteLessonAway() {
+      clearAutoAdvance();
+      stopSpeech();
+      window.TheodoreLiveAudio?.pauseRecognition?.();
+      hideResumeRetry();
+    }
+
+    function clearAwayHoldForReturn() {
+      if (!learningHold || holdGroup(learningHoldReason) !== 'away') return false;
+      learningHold = false;
+      learningHoldReason = '';
+      document.body.classList.remove('presence-held');
+      hidePresenceBanner();
+      setLearningStatus(PRESENCE_RESUME);
+      rememberStudioPresence('returned');
+      return true;
+    }
+
+    function refreshLessonMedia() {
+      const video = $('student-cam-video');
+      if (video && video.srcObject && video.paused) video.play().catch(() => {});
+      try {
+        const pending = window.TheodoreLiveAudio?.resumeAudio?.();
+        if (pending && pending.catch) pending.catch(() => {});
+      } catch (_) {}
+    }
+
+    async function restoreLessonMedia() {
+      resumeStartedAt = Date.now();
+      returnGraceUntil = resumeStartedAt + RETURN_GRACE_MS;
+      studentBackSince = 0;
+      studentGoneSince = 0;
+      if (studentWasPresent) lastStudentSeenAt = resumeStartedAt;
+      clearAwayHoldForReturn();
+      if (lastTeachPayload) {
+        const tracks = studentCamStream && studentCamStream.getVideoTracks ? studentCamStream.getVideoTracks() : [];
+        if (studentCamStream && !tracks.some((track) => track.readyState === 'live')) {
+          try { studentCamStream.getTracks().forEach((track) => track.stop()); } catch (_) {}
+          studentCamStream = null;
+          const stale = $('student-cam-video');
+          if (stale) stale.srcObject = null;
+        }
+        await withTimeout(ensureStudentCamera().catch(() => null), 3000, null);
+        const video = $('student-cam-video');
+        if (video && video.srcObject && video.paused) {
+          await withTimeout(video.play().catch(() => null), 1500, null);
+        }
+      }
+      const live = window.TheodoreLiveAudio;
+      if (live && typeof live.resumeAudio === 'function') {
+        await withTimeout(live.resumeAudio().catch(() => null), 1500, null);
+      }
+    }
+
+    async function reconcileLessonForResume() {
+      if (advancePromise) await withTimeout(advancePromise.catch(() => null), RESUME_FETCH_MS, null);
+      if (!teachSession) return null;
+      try {
+        return await apiTimed('/api/studio/teach/current', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ session_id: teachSession }),
+        }, RESUME_FETCH_MS);
+      } catch (error) {
+        if (!/missing/i.test(String((error && error.message) || ''))) throw error;
+        await startTeach({ resume: true });
+        return { rendered_by_start: true };
+      }
+    }
+
+    function continueLessonAfterReturn(payload) {
+      if (payload.rendered_by_start) return 'played';
+      if (learningHold) return 'quiet';
+      if (talkOpen || learningCheckOpen) {
+        window.TheodoreLiveAudio?.resumeRecognition?.();
+        if (learningCheckOpen && spokenActivityPrompt) armSpokenActivity(spokenActivity, spokenActivityPrompt);
+        return 'quiet';
+      }
+      if (payload.sample && payload.sample.complete) {
+        renderTeach(payload);
+        return 'quiet';
+      }
+      if (lessonSlideKey(payload) !== lessonSlideKey(lastTeachPayload)) {
+        renderTeach(payload);
+        return 'played';
+      }
+      if (lastSpeakRequestAt >= resumeStartedAt) return 'played';
+      if (beatHandled) {
+        continueAfterActivity().catch((error) => toast(String(error.message || error)));
+        return 'quiet';
+      }
+      const absorb = $('absorb-note');
+      if (absorb && !absorb.hidden) {
+        window.TheodoreLiveAudio?.resumeRecognition?.();
+        scheduleAutoAdvance(ABSORB_MS);
+        return 'quiet';
+      }
+      if (liveAgentReady()) {
+        window.TheodoreLiveAudio?.resumeRecognition?.();
+        syncVoiceToSlide(lastTeachPayload, { force: true });
+        return 'played';
+      }
+      const turn = lastTeachPayload.turn || lastTeachPayload;
+      speakText(turn.narration || turn.display_body || '', lastTeachPayload.tts);
+      return 'played';
+    }
+
+    function verifyLessonPlayback(token, startedAt) {
+      return new Promise((resolve) => {
+        const until = Date.now() + RESUME_VERIFY_MS;
+        const tick = () => {
+          if (token !== lessonLife.token()) return resolve(true);
+          if (lecturePaused || learningHold || sampleIsComplete() || talkOpen || learningCheckOpen) return resolve(true);
+          if (lastPlaybackAt >= startedAt) return resolve(true);
+          if (liveAgentReady() && !window.__THEODORE_LIVE_AUDIO_HOLD__) return resolve(true);
+          if (Date.now() >= until) return resolve(false);
+          setTimeout(tick, 250);
+        };
+        tick();
+      });
+    }
+
+    function showResumeRetry() {
+      stopSpeech();
+      clearAutoAdvance();
+      const btn = $('resume-retry');
+      if (btn) btn.hidden = false;
+      setLearningStatus('The lesson could not continue on its own. Tap to continue.');
+    }
+
+    function hideResumeRetry() {
+      const btn = $('resume-retry');
+      if (btn) btn.hidden = true;
+    }
+
+    function lifecycleReturn(source, opts) {
+      lifecycleTickAt = Date.now();
+      return lessonLife.back(source, opts);
+    }
+
+    function watchCameraStream(stream) {
+      if (!stream || stream.__lessonWatched || !stream.getVideoTracks) return;
+      stream.__lessonWatched = true;
+      stream.getVideoTracks().forEach((track) => {
+        let muteTimer = 0;
+        track.addEventListener('mute', () => {
+          clearTimeout(muteTimer);
+          muteTimer = setTimeout(() => {
+            if (track.muted && track.readyState === 'live') lessonLife.away('camera-muted');
+          }, CAMERA_MUTE_AWAY_MS);
+        });
+        track.addEventListener('unmute', () => {
+          clearTimeout(muteTimer);
+          void lifecycleReturn('camera-unmuted');
+        });
+        track.addEventListener('ended', () => {
+          clearTimeout(muteTimer);
+          if (studentCamStream !== stream) return;
+          studentCamStream = null;
+          const video = $('student-cam-video');
+          if (video && video.srcObject === stream) video.srcObject = null;
+          if (document.visibilityState === 'hidden') {
+            lessonLife.away('camera-ended');
+            return;
+          }
+          if (lastTeachPayload) ensureStudentCamera().catch(() => {});
+        });
+      });
     }
 
     function stopStudentCamera() {
@@ -3052,8 +3507,7 @@ STUDIO_JS = """
 
     function pinStudioCamera() {
       const box = $('student-cam');
-      if (!box) return;
-      if (!document.body.classList.contains('phone-embed') && !audioOnly) return;
+      if (!box || !audioOnly) return;
       box.style.left = '';
       box.style.top = '';
       box.style.right = '';
@@ -3066,8 +3520,7 @@ STUDIO_JS = """
       if (!cam || !overlay) return;
       if (presenterActive()) {
         if (cam.parentElement !== overlay) overlay.appendChild(cam);
-        pinStudioCamera();
-        restoreStudentCamPosition();
+        if (!restoreStudentCamPosition()) defaultStudentCamPosition();
         return;
       }
       if (audioOnly) {
@@ -3075,40 +3528,51 @@ STUDIO_JS = """
         pinStudioCamera();
         return;
       }
-      if (document.body.classList.contains('phone-embed')) {
-        const grid = $('teacher-stage-grid');
-        if (grid) grid.insertAdjacentElement('afterend', cam);
-        pinStudioCamera();
-        return;
-      }
       if (cam.parentElement !== document.body) document.body.appendChild(cam);
-      restoreStudentCamPosition();
+      if (!restoreStudentCamPosition()) defaultStudentCamPosition();
     }
 
     function clampStudentCam(left, top) {
       const box = $('student-cam');
       if (!box) return null;
-      const width = box.offsetWidth || 176;
-      const height = box.offsetHeight || 148;
-      const maxX = Math.max(8, window.innerWidth - width - 8);
-      const maxY = Math.max(8, window.innerHeight - height - 8);
-      const x = Math.max(8, Math.min(maxX, left));
-      const y = Math.max(8, Math.min(maxY, top));
+      const safe = readSafeInsets();
+      const pad = 8;
+      const width = box.offsetWidth || 148;
+      const height = Math.max(box.offsetHeight || 112, 64);
+      const minX = pad + safe.left;
+      const minY = pad + safe.top;
+      const maxX = Math.max(minX, window.innerWidth - width - pad - safe.right);
+      const maxY = Math.max(minY, window.innerHeight - height - pad - safe.bottom);
+      const x = Math.max(minX, Math.min(maxX, left));
+      const y = Math.max(minY, Math.min(maxY, top));
       box.style.left = x + 'px';
       box.style.top = y + 'px';
       box.style.right = 'auto';
+      box.style.bottom = 'auto';
       return { left: x, top: y };
+    }
+
+    function defaultStudentCamPosition() {
+      const box = $('student-cam');
+      if (!box) return null;
+      const safe = readSafeInsets();
+      const width = box.offsetWidth || 148;
+      const left = Math.max(safe.left + 8, 12);
+      const top = safe.top + 12;
+      return clampStudentCam(Math.min(left, window.innerWidth - width - 8), top);
     }
 
     function restoreStudentCamPosition() {
       const box = $('student-cam');
-      if (!box || box.hidden) return;
-      if (document.body.classList.contains('phone-embed') || audioOnly) return;
+      if (!box || box.hidden || audioOnly) return false;
       try {
         const saved = JSON.parse(localStorage.getItem('studio.cam.pos') || 'null');
-        if (!saved || typeof saved.left !== 'number' || typeof saved.top !== 'number') return;
+        if (!saved || typeof saved.left !== 'number' || typeof saved.top !== 'number') return false;
         clampStudentCam(saved.left, saved.top);
-      } catch (_) {}
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
 
     function enableStudentCamDrag() {
@@ -3117,7 +3581,7 @@ STUDIO_JS = """
       box.dataset.dragReady = '1';
       let drag = null;
       box.addEventListener('pointerdown', (event) => {
-        if (document.body.classList.contains('phone-embed') || audioOnly) return;
+        if (document.body.classList.contains('audio-only')) return;
         if (event.button !== 0) return;
         if (event.target.closest('button, a, input, textarea, select')) return;
         const rect = box.getBoundingClientRect();
@@ -4331,6 +4795,7 @@ STUDIO_JS = """
       clearAutoAdvance();
       if (sampleIsComplete()) return;
       if (learningHold || learningCheckOpen || lecturePaused || beatHandled || talkOpen) return;
+      if (lessonLife.isAway()) return;
       autoAdvanceTimer = setTimeout(() => {
         autoAdvanceTimer = null;
         finishSlideBeat();
@@ -4541,22 +5006,32 @@ STUDIO_JS = """
       }
       if (automatic && (lecturePaused || advancing || isLastSlide())) return;
       if (!teachSession) return;
+      if (advancing || lessonLife.isAway()) return;
       clearAutoAdvance();
       advancing = true;
       stopSpeech();
       theodoreAvatar?.setState('idle');
+      const token = lessonLife.token();
+      const pending = apiTimed('/api/studio/teach/advance', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ session_id: teachSession })
+      }, ADVANCE_TIMEOUT_MS);
+      advancePromise = pending;
       try {
-        const data = await api('/api/studio/teach/advance', {
-          method:'POST', headers:{'content-type':'application/json'},
-          body: JSON.stringify({ session_id: teachSession })
-        });
-        renderTeach(data);
+        const data = await pending;
+        // A return-to-lesson resume reconciles with the server itself.
+        if (token === lessonLife.token() && !lessonLife.isAway()) renderTeach(data);
       } finally {
+        if (advancePromise === pending) advancePromise = null;
         advancing = false;
       }
     }
 
     function onDriveWaveTap() {
+      if (lessonLife.failed() || (learningHold && holdGroup(learningHoldReason) === 'away')) {
+        void lifecycleReturn('tap', { force: true });
+        return;
+      }
       if (learningHold) {
         pauseLessonForAbsence(PRESENCE_PAUSE);
         return;
@@ -4755,6 +5230,7 @@ STUDIO_JS = """
       const classPct = typeof progress.class_percent === 'number' ? progress.class_percent : null;
       const shown = programPct != null ? programPct : (typeof covered === 'number' ? covered : place);
       if (percent) percent.textContent = shown + '%';
+      const slideLabel = (count && count.textContent) ? count.textContent : ('Slide ' + (pos + 1) + ' of ' + total);
       if (count) {
         if (programPct != null) {
           const className = progress.class_title || 'This class';
@@ -4767,7 +5243,23 @@ STUDIO_JS = """
           count.textContent = 'Slide ' + (pos + 1) + ' of ' + total + coveredMark;
         }
       }
-      if (fill) fill.style.width = shown + '%';
+      const ringLabel = (count && count.textContent ? count.textContent : slideLabel) + ', ' + shown + '%';
+      const ring = $('course-progress-ring');
+      if (ring) {
+        ring.setAttribute('aria-label', ringLabel);
+        ring.title = ringLabel;
+      }
+      if (count) count.title = ringLabel;
+      if (fill) {
+        const ringLen = 97.39;
+        const pct = Math.max(0, Math.min(100, Number(shown) || 0));
+        if (fill.tagName && fill.tagName.toLowerCase() === 'circle') {
+          fill.style.strokeDasharray = String(ringLen);
+          fill.style.strokeDashoffset = String(ringLen * (1 - pct / 100));
+        } else {
+          fill.style.width = shown + '%';
+        }
+      }
       const gapBtn = $('course-map-gap');
       if (gapBtn) gapBtn.hidden = programPct == null || payload.access_mode === 'sample';
       if (scrub) {
@@ -4807,17 +5299,21 @@ STUDIO_JS = """
       renderTeach(data);
     }
 
-    function syncVoiceToSlide(payload) {
-      if (lecturePaused || sampleIsComplete()) return;
+    function syncVoiceToSlide(payload, opts) {
+      if (lecturePaused || sampleIsComplete() || lessonLife.isAway()) return;
       if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__ || window.__THEODORE_LIVE_AUDIO_HOLD__) return;
       if (!window.TheodoreLiveAudio || !window.TheodoreLiveAudio.noteActivity) return;
       const turn = (payload && (payload.turn || payload)) || {};
       const narration = String(turn.narration || turn.display_body || turn.title || '').trim();
       if (!narration) return;
       const title = String(turn.title || '');
+      const force = !!(opts && opts.force);
+      lastSpeakRequestAt = Date.now();
       window.TheodoreLiveAudio.noteActivity({
         id: 'slide-' + String(payload.slide_index ?? payload.path_pos ?? title),
-        prompt: 'Stay on this lesson slide. Read it aloud, then wait. Do not change the subject. Title: ' +
+        force: force,
+        prompt: (force ? 'The learner just came back. Pick up on this same slide from the start. ' : '') +
+          'Stay on this lesson slide. Read it aloud, then wait. Do not change the subject. Title: ' +
           title + '. ' + narration
       });
     }
@@ -5678,6 +6174,7 @@ STUDIO_JS = """
     }
     function speakText(text, ttsMeta, holdLesson, kind) {
       if (sampleIsComplete()) return;
+      if (lessonLife.isAway()) return;
       if (learningHold && kind !== 'guard' && kind !== 'learn-check') return;
       if (learningCheckOpen && kind !== 'learn-check' && kind !== 'guard' && kind !== 'checkpoint') return;
       if (kind !== 'adapt' && kind !== 'adapt-resume' && kind !== 'guard') attentionResume = '';
@@ -5690,6 +6187,7 @@ STUDIO_JS = """
         window.TheodoreLiveAudio?.pauseRecognition();
       }
       stopSpeech();
+      lastSpeakRequestAt = Date.now();
       const spoken = text || '';
       const gen = speechGen;
       const talkReply = kind === 'talk';
@@ -5713,6 +6211,7 @@ STUDIO_JS = """
         return;
       }
       if (!holdLesson && lessonNarration(kind) && kind !== 'backup' && window.TheodoreLiveAudio?.start) {
+        lastSpeakRequestAt = Date.now();
         if (!liveVoiceStart) {
           liveVoiceStart = (async () => {
             const waitUntilLive = async () => {
@@ -5730,8 +6229,9 @@ STUDIO_JS = """
             return !!window.__THEODORE_LIVE_AUDIO_ACTIVE__;
           })().finally(() => { liveVoiceStart = null; });
         }
+        const startGen = speechGen;
         liveVoiceStart.then((ok) => {
-          if (!ok) speakText(text, ttsMeta, holdLesson, 'backup');
+          if (!ok && startGen === speechGen) speakText(text, ttsMeta, holdLesson, 'backup');
         });
         return;
       }
@@ -5841,6 +6341,7 @@ STUDIO_JS = """
             syncVisualTimeline((Number(visualTimeline.duration_s) || 1) * charIndex / spoken.length);
           }
         };
+        u.onstart = () => { lastPlaybackAt = Date.now(); };
         u.onend = () => {
           document.body.classList.remove('is-speaking');
           finishUtterance(gen, token);
@@ -5892,6 +6393,7 @@ STUDIO_JS = """
           if (!audio.paused) armForClip();
         };
         audio.onplaying = () => {
+          lastPlaybackAt = Date.now();
           clearStallTimer();
           armForClip();
           document.body.classList.add('is-speaking');
@@ -5991,13 +6493,34 @@ STUDIO_JS = """
     function paintProceedCue() {
       const text = $('proceed-cue-text');
       const btn = $('btn-start-voice');
-      if (!text || !btn) return;
+      const chrome = lessonChrome();
       const live = !!window.__THEODORE_LIVE_AUDIO_ACTIVE__;
-      text.textContent = live
-        ? 'Speak to Theodore, or click the screen to continue.'
-        : 'Click the screen to continue, or press Start and speak.';
-      btn.textContent = live ? 'Listening' : 'Start';
-      btn.setAttribute('aria-pressed', live ? 'true' : 'false');
+      const label = live ? 'Continue the lesson' : 'Start or continue the lesson';
+      if (text) text.textContent = live ? chrome.clickContinue : chrome.clickStart;
+      if (btn) {
+        btn.textContent = live ? 'Continue' : 'Start';
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('aria-pressed', live ? 'true' : 'false');
+      }
+      const stage = $('teach-stage');
+      if (stage) stage.setAttribute('aria-label', label + '. Press Enter or Space.');
+    }
+
+    async function proceedFromCourse() {
+      if (lessonLife.failed() || (learningHold && holdGroup(learningHoldReason) === 'away')) {
+        await lifecycleReturn('tap', { force: true });
+        return;
+      }
+      if (sampleIsComplete()) {
+        await proceedByClick();
+        return;
+      }
+      const hadSession = !!teachSession;
+      if (!window.__THEODORE_LIVE_AUDIO_ACTIVE__) {
+        try { await proceedByVoice(); }
+        catch (error) { toast(String(error.message || error)); }
+      }
+      if (hadSession) await proceedByClick();
     }
 
     async function proceedByClick() {
@@ -6062,6 +6585,7 @@ STUDIO_JS = """
       document.body.classList.toggle('is-speaking', speaking && !lecturePaused);
       if (lecturePaused) return;
       if (speaking) {
+        lastPlaybackAt = Date.now();
         theodoreAvatar?.speak(event.detail.text || ' ');
         return;
       }
@@ -6184,8 +6708,8 @@ STUDIO_JS = """
       visualCueIndex = -1;
       const stage = $('teach-stage');
       const overlay = $('presenter-overlay');
-      if (stage) stage.classList.remove('has-readable-card');
-      if (overlay) overlay.classList.remove('has-readable-card');
+      if (stage) stage.classList.remove('has-readable-card', 'has-road-scene');
+      if (overlay) overlay.classList.remove('has-readable-card', 'has-road-scene');
       const host = $('teach-visual-timeline');
       if (!host) return;
       host.hidden = true;
@@ -6211,6 +6735,9 @@ STUDIO_JS = """
       host.dataset.style = timeline.presentation_style_id || payload.presentation_style_id || 'layered';
       host.dataset.layout = timeline.layout || '';
       host.classList.toggle('layout-compare', timeline.layout === 'compare');
+      const roadScene = timeline.layout === 'road-scene';
+      $('teach-stage')?.classList.toggle('has-road-scene', roadScene);
+      $('presenter-overlay')?.classList.toggle('has-road-scene', roadScene);
       if (timeline.style_label) {
         const badge = document.createElement('p');
         badge.className = 'timeline-style-label';
@@ -6224,6 +6751,7 @@ STUDIO_JS = """
           const el = document.createElement('div');
           el.className = 'visual-layer';
           el.dataset.cue = String(cueIndex);
+          if (layer.persistent) el.dataset.persist = '1';
           el.dataset.transition = layer.transition || cue.transition || 'fade';
           el.style.zIndex = String(Number(layer.z_index ?? layerIndex) || 0);
           const kind = String(layer.kind || 'text');
@@ -6240,6 +6768,28 @@ STUDIO_JS = """
             el.innerHTML = String(layer.svg || layer.content);
             el.setAttribute('role', 'img');
             el.setAttribute('aria-label', String(layer.alt || text || 'Lesson diagram'));
+          } else if (kind === 'keypoints' && Array.isArray(layer.items) && layer.items.length) {
+            const card = document.createElement('div');
+            card.className = 'road-points';
+            if (layer.title) {
+              const heading = document.createElement('h4');
+              heading.textContent = String(layer.title);
+              card.appendChild(heading);
+            }
+            const list = document.createElement('ol');
+            const now = Number(layer.active) || 0;
+            layer.items.forEach((item, itemIndex) => {
+              const li = document.createElement('li');
+              li.textContent = String(item);
+              if (itemIndex < now) li.classList.add('is-done');
+              if (itemIndex === now) {
+                li.classList.add('is-now');
+                li.setAttribute('aria-current', 'step');
+              }
+              list.appendChild(li);
+            });
+            card.appendChild(list);
+            el.appendChild(card);
           } else {
             const label = document.createElement('div');
             label.className = 'visual-label';
@@ -6298,7 +6848,8 @@ STUDIO_JS = """
             || layer.classList.contains('kind-callout')
             || layer.classList.contains('kind-text')
             || layer.classList.contains('kind-storyboard');
-          layer.classList.toggle('is-active', (words || !hold) ? index === active : index <= active);
+          const on = layer.dataset.persist === '1' || ((words || !hold) ? index === active : index <= active);
+          layer.classList.toggle('is-active', on);
         });
         const readable = !!host.querySelector(
           '.visual-layer.is-active.kind-body, .visual-layer.is-active.kind-callout, .visual-layer.is-active.kind-text'
@@ -6537,14 +7088,22 @@ STUDIO_JS = """
       resumeUncoveredCourse().catch((e) => toast(String(e.message || e)));
     });
     on('course-map-toggle', 'click', () => {
-      const list = $('course-map-list');
-      if (!list) return;
-      list.hidden = !list.hidden;
+      const panel = $('course-map-panel');
+      if (!panel) return;
+      panel.hidden = !panel.hidden;
       const btn = $('course-map-toggle');
       if (btn) {
-        btn.setAttribute('aria-expanded', list.hidden ? 'false' : 'true');
-        btn.textContent = list.hidden ? 'Outline' : 'Hide outline';
+        btn.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+        btn.textContent = panel.hidden ? 'Outline' : 'Hide outline';
       }
+    });
+    on('course-progress-hide', 'click', () => {
+      const map = $('course-map');
+      if (map) map.classList.add('progress-hidden');
+    });
+    on('course-progress-show', 'click', () => {
+      const map = $('course-map');
+      if (map) map.classList.remove('progress-hidden');
     });
     on('course-map-scrub', 'change', () => {
       const scrub = $('course-map-scrub');
@@ -6619,8 +7178,12 @@ STUDIO_JS = """
     on('drive-look', 'change', (event) => applyAudioLook(event.target.value));
     document.addEventListener('pointerdown', () => {
       const audio = document.body.classList.contains('audio-only');
-      if (!audio && !presenterActive()) return;
+      if (!audio && !presenterActive() && !document.fullscreenElement) return;
       driveChromeWasHidden = document.body.classList.contains('drive-chrome-hidden');
+      revealDriveChrome();
+    }, true);
+    document.addEventListener('pointermove', () => {
+      if (!focusModeActive()) return;
       revealDriveChrome();
     }, true);
     on('teach-stage', 'click', (event) => {
@@ -6630,12 +7193,21 @@ STUDIO_JS = """
         onDriveWaveTap();
         return;
       }
-      if (event.target.closest('button, input, select, textarea, a, label, .lesson-window-controls, .lesson-toolbar, .talk-panel, .quiz-box, .game-box, .activity, .theodore-avatar-wrap')) return;
+      if (event.target.closest('button, input, select, textarea, a, label, .lesson-window-controls, .lesson-toolbar, .talk-panel, .quiz-box, .game-box, .activity, .theodore-avatar-wrap, #student-cam, #course-map')) return;
+      if ((presenterActive() || document.fullscreenElement) && driveChromeWasHidden) return;
       clearTimeout(proceedClickTimer);
       proceedClickTimer = setTimeout(() => {
         proceedClickTimer = null;
-        proceedByClick().catch((error) => toast(String(error.message || error)));
+        proceedFromCourse().catch((error) => toast(String(error.message || error)));
       }, 280);
+    });
+    on('teach-stage', 'keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ' && event.code !== 'Space') return;
+      if (event.repeat) return;
+      if (document.body.classList.contains('audio-only')) return;
+      if (event.target.closest('button, input, select, textarea, a, label')) return;
+      event.preventDefault();
+      proceedFromCourse().catch((error) => toast(String(error.message || error)));
     });
     on('teach-stage', 'dblclick', (event) => {
       if (document.body.classList.contains('audio-only')) return;
@@ -6646,7 +7218,7 @@ STUDIO_JS = """
     });
     on('btn-start-voice', 'click', (event) => {
       event.stopPropagation();
-      proceedByVoice().catch((error) => toast(String(error.message || error)));
+      proceedFromCourse().catch((error) => toast(String(error.message || error)));
     });
     on('btn-continue', 'click', () => continueSession().catch((e) => toast(String(e.message || e))));
     on('btn-later', 'click', () => comeBackLater().catch((e) => toast(String(e.message || e))));
@@ -6670,7 +7242,46 @@ STUDIO_JS = """
     on('teach-lang', 'change', (event) => applyTeachLanguage(event.target.value));
     on('teach-lang-stage', 'change', (event) => applyTeachLanguage(event.target.value));
     on('drive-lang', 'change', (event) => applyTeachLanguage(event.target.value));
+    // Every way back to the lesson funnels into one single-flight resume.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') lessonLife.away('hidden');
+      else void lifecycleReturn('visible');
+    });
+    window.addEventListener('pagehide', () => lessonLife.away('pagehide'));
+    window.addEventListener('pageshow', (event) => {
+      void lifecycleReturn(event.persisted ? 'pageshow-bfcache' : 'pageshow');
+    });
+    document.addEventListener('freeze', () => lessonLife.away('freeze'));
+    document.addEventListener('resume', () => { void lifecycleReturn('resume'); });
+    window.addEventListener('focus', () => { void lifecycleReturn('focus'); });
+    function onAppState(state) {
+      const value = String(state || '');
+      if (value === 'background' || value === 'inactive') lessonLife.away('app-' + value);
+      else if (value === 'active') void lifecycleReturn('app-active');
+    }
+    window.addEventListener('salareen-app-state', (event) => onAppState(event.detail && event.detail.state));
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (event.source !== window.parent && event.source !== window) return;
+      if (data && data.type === 'salareen-app-state') onAppState(data.state);
+    });
+    on('student-cam-video', 'playing', () => { void lifecycleReturn('camera-playing'); });
+    on('student-cam-video', 'loadeddata', () => { void lifecycleReturn('camera-loadeddata'); });
+    // Timers stop while the device sleeps; a long gap between ticks means the screen just woke.
+    setInterval(() => {
+      const now = Date.now();
+      const gap = now - lifecycleTickAt;
+      lifecycleTickAt = now;
+      if (gap < WAKE_GAP_MS || document.visibilityState === 'hidden') return;
+      lessonLife.away('sleep');
+      void lifecycleReturn('wake');
+    }, 1000);
+    on('resume-retry', 'click', (event) => {
+      event.stopPropagation();
+      void lifecycleReturn('tap', { force: true });
+    });
     paintLessonChrome(teachLanguage);
+    paintProceedCue();
     // Escape leaves fullscreen without telling us, so follow the browser back.
     document.addEventListener('fullscreenchange', () => {
       if (!document.fullscreenElement) exitPresenterMode();
@@ -6696,7 +7307,7 @@ STUDIO_JS = """
 
 def render_studio_page() -> str:
     return (
-        """<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1" />\n  <title>Theodore Course Studio</title>\n  <style>\n"""
+        """<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />\n  <title>Theodore Course Studio</title>\n  <style>\n"""
         + STUDIO_CSS
         + """</style>
   <script type="importmap">
@@ -6759,7 +7370,7 @@ def render_studio_page() -> str:
     <button id="library-show" class="secondary" type="button" hidden data-i18n="showCourses">Courses</button>
     <div class="panel">
       <div id="teach-stage-home">
-      <div class="teach-stage captions-off" id="teach-stage">
+      <div class="teach-stage captions-off" id="teach-stage" tabindex="0" aria-keyshortcuts="Enter Space" aria-label="Start or continue the lesson. Press Enter or Space.">
         <div id="drive-bar" class="drive-bar">
           <label><span data-i18n="course">Course</span>
             <select id="drive-course" aria-label="Course"></select>
@@ -6829,15 +7440,26 @@ def render_studio_page() -> str:
           </svg>
         </div>
         <aside id="course-map" class="course-map" hidden>
-          <div class="course-map-head">
-            <strong id="course-map-percent" class="course-map-percent">0%</strong>
-            <span id="course-map-count" class="course-map-count">Slide 1 of 1</span>
+          <div id="course-map-panel" class="course-map-panel" hidden>
+            <p id="course-map-count" class="course-map-count">Slide 1 of 1</p>
+            <input id="course-map-scrub" class="course-map-scrub" type="range" min="0" max="0" value="0" aria-label="Skip to a part of the course" />
+            <ol id="course-map-list" class="course-map-list"></ol>
+          </div>
+          <div class="course-map-dock">
+            <div class="course-progress-cluster">
+              <button type="button" id="course-progress-ring" class="course-progress-ring" aria-label="Course progress" title="Course progress">
+                <svg viewBox="0 0 36 36" aria-hidden="true">
+                  <circle class="ring-track" cx="18" cy="18" r="15.5"></circle>
+                  <circle id="course-map-fill" class="ring-value" cx="18" cy="18" r="15.5" transform="rotate(-90 18 18)"></circle>
+                </svg>
+                <strong id="course-map-percent">0%</strong>
+              </button>
+              <button id="course-progress-hide" class="course-progress-hide" type="button" aria-label="Hide progress" title="Hide progress">×</button>
+            </div>
+            <button id="course-progress-show" class="course-progress-show" type="button" hidden aria-label="Show progress" title="Show progress">%</button>
             <button id="course-map-gap" class="course-map-toggle" type="button" hidden data-i18n="nextGap">Next gap</button>
             <button id="course-map-toggle" class="course-map-toggle" type="button" aria-expanded="false" data-i18n="outline">Outline</button>
           </div>
-          <div class="course-map-bar" aria-hidden="true"><i id="course-map-fill"></i></div>
-          <input id="course-map-scrub" class="course-map-scrub" type="range" min="0" max="0" value="0" aria-label="Skip to a part of the course" />
-          <ol id="course-map-list" class="course-map-list" hidden></ol>
         </aside>
         <div class="teacher-stage-grid" id="teacher-stage-grid">
           <div id="teach-visual-timeline" class="visual-timeline-stage" hidden
@@ -6873,11 +7495,11 @@ def render_studio_page() -> str:
                 <rect x="220" y="70" width="10" height="26" rx="2" fill="#8c3a2f"/>
                 <rect x="234" y="62" width="12" height="34" rx="2" fill="#2f5d46"/>
               </svg>
-              <p data-i18n="clickStart">Click the screen to start, or press Start and speak.</p>
+              <p data-i18n="clickStart">Tap the lesson to start.</p>
             </div>
             <div class="proceed-cue" id="proceed-cue">
-              <p id="proceed-cue-text" data-i18n="clickContinue">Click the screen to continue, or press Start and speak.</p>
-              <button id="btn-start-voice" type="button" data-i18n="start">Start</button>
+              <p id="proceed-cue-text" data-i18n="clickContinue">Tap the lesson to continue.</p>
+              <button id="btn-start-voice" type="button" data-i18n="start" aria-label="Start or continue the lesson">Start</button>
             </div>
             <div class="body" id="teach-body"></div>
             <p id="attention-aside" class="attention-aside" hidden></p>
@@ -6896,6 +7518,7 @@ def render_studio_page() -> str:
           </div>
         </div>
         <p class="lesson-caption" id="lesson-caption" hidden></p>
+        <button id="resume-retry" type="button" hidden aria-live="polite">Tap to continue the lesson</button>
         <div class="quiz-box" id="quiz-box" style="display:none"></div>
         <div class="game-box" id="game-box" style="display:none"></div>
         <div class="row lesson-toolbar" id="lesson-toolbar">

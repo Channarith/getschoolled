@@ -557,7 +557,7 @@ export default function BiometricSetupAssistant({
   const progress = Math.min(1, elapsed / VOICE_SECONDS);
 
   return (
-    <main className={styles.shell} data-stage={stage} data-light={lighting}>
+    <main className={`${styles.shell} aoep-immersive-setup aoep-viewport-shell`} data-stage={stage} data-light={lighting}>
       <header className={styles.topbar}>
         <span className={styles.brand}>Salareen</span>
         {stepLabel && <span className={styles.stepLabel}>{stepLabel}</span>}
@@ -597,8 +597,8 @@ export default function BiometricSetupAssistant({
           {stage === "scan" && (
             <>
               <span className={styles.eyebrow}>Face check · {captured.length} of {targets.length}</span>
-              <h1 aria-live="polite">{problem ? "Let’s fix that." : hint}</h1>
-              <p className={styles.meshNote}>
+              <h1 id="learner-check-scan-heading" aria-live="polite">{problem ? "Let’s fix that." : hint}</h1>
+              <p id="learner-check-scan-desc" className={styles.meshNote}>
                 Checking distinctive features. Face map ready means the looks were captured and the lines followed your face. The map is a capture guide. It is not proof that nobody else could look similar. A dot, if one shows, is an optional note about a darker spot and is not saved.
               </p>
               <ol className={styles.targets} aria-label="Look prompts">
@@ -679,7 +679,7 @@ export default function BiometricSetupAssistant({
           )}
 
           {problem && (
-            <p className={styles.error} role="alert" data-kind={problem.kind}>{problem.message}</p>
+            <p className={styles.error} role="alert" aria-live="assertive" data-kind={problem.kind}>{problem.message}</p>
           )}
 
           <p className={styles.footnote}>
@@ -740,7 +740,12 @@ export default function BiometricSetupAssistant({
           </div>
         </div>
 
-        <div className={styles.frameWrap}>
+        <div
+          className={styles.frameWrap}
+          role="region"
+          aria-labelledby={stage === "scan" ? "learner-check-scan-heading" : undefined}
+          aria-describedby={stage === "scan" ? "learner-check-scan-desc" : undefined}
+        >
           <Image key={art} className={styles.paneArt} src={`/setup-assistant/${art}.webp`} alt="" fill sizes="50vw" />
           <div className={styles.frame} data-done={stage === "complete" || stage === "identity" ? "true" : undefined}>
             <span className={`${styles.corner} ${styles.cornerTL}`} aria-hidden="true" />
@@ -749,7 +754,14 @@ export default function BiometricSetupAssistant({
             <span className={`${styles.corner} ${styles.cornerBR}`} aria-hidden="true" />
             {stage === "scan" ? (
               <div className={styles.mirror}>
-                <video ref={videoRef} className={styles.camera} muted playsInline />
+                <video
+                  ref={videoRef}
+                  className={styles.camera}
+                  muted
+                  playsInline
+                  aria-label="Live camera feed for Learner Check face scan"
+                  aria-describedby="learner-check-scan-desc"
+                />
                 {contour && scanning && (
                   <svg
                     className={styles.contour}

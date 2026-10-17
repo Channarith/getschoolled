@@ -439,7 +439,7 @@ def build_pdf(screens: dict[str, Path]) -> Path:
             "Drive Mode audio · Corporate professional tracks with verified assessments",
             "Arcade + Challenge the AI · Salareen Worlds (Three.js) · Languages (27)",
             "Kids Academy · Careers match · Homework grader · HIL educator console",
-            "Rewards · Free / Standard ($19.99) / VIP ($29.99) · Global payment routing",
+            "Rewards · Free ($0) / Standard ($19) / Pro ($29) / VIP ($39) · Global payment routing",
             "Harvester → catalog · Opt-in vision (YuNet/SFace) · Adaptive / BKT engines",
         ], S["bullet"]),
     ]

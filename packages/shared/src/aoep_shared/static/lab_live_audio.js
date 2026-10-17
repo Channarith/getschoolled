@@ -788,6 +788,18 @@
       return start();
     },
     stop() { return stop(); },
+    async resumeAudio() {
+      if (state.ctx && state.ctx.state !== "running") await followSpeakers();
+      return this.status();
+    },
+    status() {
+      return {
+        connected: Boolean(state.connected),
+        socketOpen: Boolean(state.ws && state.ws.readyState === WebSocket.OPEN),
+        audio: state.ctx ? state.ctx.state : "none",
+        paused: Boolean(state.recognitionPaused),
+      };
+    },
     showReply(text) {
       caption.textContent = `Sala: ${text || ""}`;
       state.connected = true;
@@ -801,6 +813,16 @@
     },
   };
   navigator.mediaDevices?.addEventListener?.("devicechange", () => { void followSpeakers(); });
+  // A backgrounded tab or app suspends the AudioContext; nothing resumes it
+  // unless we do, and the agent then talks into silence.
+  const wakeAudio = () => {
+    if (document.visibilityState === "hidden" || !state.ctx) return;
+    void followSpeakers();
+  };
+  document.addEventListener("visibilitychange", wakeAudio);
+  document.addEventListener("resume", wakeAudio);
+  window.addEventListener("pageshow", wakeAudio);
+  window.addEventListener("focus", wakeAudio);
   toggle.onclick = () => (state.ws || localRec) ? stop() : start();
   select.onchange = () => { if (state.ws || localRec) stop(); toggle.disabled = !select.value; };
 

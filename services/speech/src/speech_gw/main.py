@@ -664,6 +664,10 @@ class VoiceTokenRequest(BaseModel):
     topic: str = ""
     course_id: str = ""
     language: str = ""
+    # Blank keeps Salane. "xai" is the temporary in-app opt-in: mint an
+    # ephemeral client secret with the server XAI_API_KEY. The key itself is
+    # never returned.
+    engine: str = ""
 
 
 SALANE_DISPLAY = "Salane Voice"
@@ -700,9 +704,91 @@ def voice_status() -> dict:
     return _salane_status(app.state.config)
 
 
+def _requests_xai(engine: str) -> bool:
+    return (engine or "").strip().lower() in {"xai", "xai-voice", "xai-voice-agent", "grok"}
+
+
+def _explicit_xai_voice_token(req: VoiceTokenRequest) -> dict:
+    """Mint an ephemeral xAI session only when the client opted in.
+
+    Uses the speech service's existing key, model, and voice. Failures name
+    the problem and do not silently switch the caller back to Sala.
+    """
+    from aoep_shared.xai_realtime import build_voice_session, mint_ephemeral_token
+    from aoep_shared.xai_spoken_language import plan_spoken_language
+
+    cfg = app.state.config
+    spoken = plan_spoken_language(req.language)
+    key = (getattr(cfg, "xai_api_key", "") or "").strip()
+    if not spoken.use_xai:
+        return {
+            "token": None,
+            "session_update": None,
+            "mode": req.mode,
+            "xai_configured": bool(key),
+            "engine": "xai",
+            "use_xai": False,
+            "spoken_language": spoken.to_dict(),
+            "hint": spoken.hint or "xAI Voice Agent cannot speak this language. Switch back to Sala.",
+        }
+    if not key:
+        raise HTTPException(
+            status_code=503,
+            detail="xAI Voice Agent is unavailable. Switch back to Sala.",
+        )
+    model = (getattr(cfg, "xai_voice_model", "") or "grok-voice-latest").strip() or "grok-voice-latest"
+    voice = (getattr(cfg, "xai_voice_id", "") or getattr(cfg, "xai_voice", "") or "ara").strip() or "ara"
+    session = build_voice_session(
+        req.mode,
+        voice=voice,
+        model=model,
+        lesson_context=req.lesson_context,
+        learner_names=req.learner_names,
+        instructions=req.instructions,
+        language=req.language,
+    )
+    try:
+        token = mint_ephemeral_token(
+            api_key=key,
+            expires_seconds=req.expires_seconds,
+            model=model,
+            allow_mock=False,
+            session=session.session_update_event().get("session"),
+        )
+    except Exception:
+        # The provider error can echo a secret or a minted token. The client
+        # only needs a stable message and a way back to Sala.
+        raise HTTPException(
+            status_code=503,
+            detail="xAI Voice Agent could not connect. Switch back to Sala.",
+        ) from None
+    if token.mock:
+        raise HTTPException(
+            status_code=503,
+            detail="xAI Voice Agent is unavailable. Switch back to Sala.",
+        )
+    return {
+        "token": token.to_dict(),
+        "session_update": session.session_update_event(),
+        "mode": req.mode,
+        "xai_configured": True,
+        "engine": "xai",
+        "display_name": "xAI Voice Agent",
+        "short_name": "xAI",
+        "use_xai": True,
+        "spoken_language": spoken.to_dict(),
+        "hint": "",
+    }
+
+
 @app.post("/voice/token")
 def voice_token(req: VoiceTokenRequest) -> dict:
-    """Sala does not mint an xAI client secret or open api.x.ai."""
+    """Sala does not mint an xAI client secret or open api.x.ai.
+
+    An explicit ``engine=xai`` request is the temporary in-app exception.
+    """
+    if _requests_xai(req.engine):
+        return _explicit_xai_voice_token(req)
     from aoep_shared.xai_spoken_language import plan_spoken_language
 
     spoken = plan_spoken_language(req.language)

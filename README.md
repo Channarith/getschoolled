@@ -155,8 +155,8 @@ audio) are linked underneath each preview - click to open/play them.
 Netflix-style UI tour (signed-out landing, Preview, profile dropdown, instant
 language switching): [docs/demos/netflix_ui_walkthrough.mp4](docs/demos/netflix_ui_walkthrough.mp4)
 
-First sign-in setup assistant (name and age, "How do you learn best?" with six
-formats rated 1 to 10, then an optional Face ID-style face scan and voice check;
+First sign-in setup assistant (name and age, responsive "How do you learn best?"
+cards rated 1 to 10, then an optional Learner Check face and voice setup;
 identity is required only for certification courses):
 [docs/demos/setup-assistant-walkthrough.mp4](docs/demos/setup-assistant-walkthrough.mp4)
 
@@ -676,7 +676,7 @@ transcript all run without it.
 | `services/harvester` | 24/7 crawl/generate/export CLI worker (no HTTP app); posts decks to curriculum |
 | `services/homework` | Offline homework generate / OCR scan / authorship / autograde CLI (HTTP mirror lives in curriculum `/homework/*`) |
 | `services/cosyvoice` | GPU CosyVoice TTS sidecar (`POST /tts`, :9880); prefer native `./scripts/run_cosyvoice_local.sh` on Spark (see `services/cosyvoice/README.txt`) |
-| `training` | Education-LLM fine-tuning scaffold (dataset export, QLoRA config, promote/runbooks) + Theodore LLM Lab UI on `:8019` |
+| `training` | Education-LLM export, QLoRA, bake-off, and promote. `training/spark_nightly.sh` is the Spark cycle; `training/systemd/install-user-timer.sh` installs a user timer and does not enable it. Theodore LLM Lab UI on `:8019` |
 | `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
 | `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, CosyVoice ingest, CosyVoice→Audio2Face loop, voice tools) |
 | `scripts/cosyvoice_ingest.py` | YouTube/Vimeo → denoise → segment → ASR → CosyVoice Kaldi training lists (`aoep_shared.cosyvoice_ingest`) |

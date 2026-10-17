@@ -398,21 +398,196 @@ def load_state(store: "AccountStore", payload: dict) -> None:
     }
 
 
+ACCOUNT_INDEX = "aoep:identity:v2:ids"
+EMAIL_INDEX = "aoep:identity:v2:email"
+_CAS_LUA = """
+local rev = redis.call('HGET', KEYS[1], ARGV[1])
+if not rev then rev = '0' end
+if rev ~= ARGV[2] then return 0 end
+local newrev = tostring(tonumber(ARGV[2]) + 1)
+redis.call('HSET', KEYS[1], ARGV[1], newrev)
+redis.call('SET', KEYS[2], ARGV[3])
+redis.call('SADD', KEYS[3], ARGV[1])
+if ARGV[4] ~= '' then redis.call('HSET', KEYS[4], ARGV[4], ARGV[1]) end
+return tonumber(newrev)
+"""
+
+
+class PersistenceConflict(RuntimeError):
+    """Another replica saved this account first."""
+
+
+def _acct_key(account_id: str) -> str:
+    return f"aoep:identity:v2:acct:{account_id}"
+
+
+def _rev_key() -> str:
+    return "aoep:identity:v2:rev"
+
+
+def _payload(store: "AccountStore", account_id: str) -> dict:
+    acct = store._by_id[account_id]
+    return {
+        "account": _serialize_account(acct),
+        "submitted_game_ids": sorted(store._submitted_game_ids.get(account_id, [])),
+        "game_stats": store._game_stats.get(account_id) or {},
+    }
+
+
+def _blob(store: "AccountStore", account_id: str) -> str:
+    return json.dumps(_payload(store, account_id), sort_keys=True, separators=(",", ":"))
+
+
+def _remember(store: "AccountStore", account_id: str, rev: int) -> None:
+    store._account_revs[account_id] = rev
+    store._persisted_blobs[account_id] = _blob(store, account_id)
+
+
+def _apply_wrapper(store: "AccountStore", account_id: str, raw: str, rev: int) -> None:
+    wrapper = json.loads(raw)
+    body = wrapper.get("account") if isinstance(wrapper, dict) and "account" in wrapper else wrapper
+    acct = _deserialize_account(dict(body))
+    store._by_id[acct.id] = acct
+    store._id_by_email[acct.email.lower()] = acct.id
+    submitted = wrapper.get("submitted_game_ids") if isinstance(wrapper, dict) else None
+    if submitted is not None:
+        store._submitted_game_ids[acct.id] = set(submitted)
+    stats = wrapper.get("game_stats") if isinstance(wrapper, dict) else None
+    if stats:
+        store._game_stats[acct.id] = stats
+    _remember(store, acct.id, rev)
+
+
+def load_identity_status(store: "AccountStore") -> str:
+    """Return loaded, empty, unconfigured, or error. Error must not be overwritten."""
+    if not redis_configured():
+        return "unconfigured"
+    client = _redis_client()
+    if client is None:
+        return "error"
+    try:
+        ids = list(client.smembers(ACCOUNT_INDEX) or [])
+        if ids:
+            revs = client.hgetall(_rev_key()) or {}
+            for aid in ids:
+                raw = client.get(_acct_key(aid))
+                if not raw:
+                    continue
+                rev = int(revs.get(aid) or 0)
+                _apply_wrapper(store, aid, raw, rev)
+            hydrate_free_claims(store)
+            logger.info("identity store loaded per-account from Redis (%d accounts)", len(store._by_id))
+            return "loaded" if store._by_id else "empty"
+        raw = client.get(REDIS_KEY)
+        if not raw:
+            return "empty"
+        load_state(store, json.loads(raw))
+        hydrate_free_claims(store)
+        for aid in list(store._by_id):
+            store._account_revs[aid] = 0
+            store._persisted_blobs.pop(aid, None)
+        try:
+            _save_dirty_accounts(store, client)
+        except PersistenceConflict:
+            logger.info("identity v1 migration raced another replica; kept the remote accounts")
+        logger.info("identity store migrated from the v1 snapshot (%d accounts)", len(store._by_id))
+        return "loaded"
+    except Exception as exc:
+        logger.warning("failed to load identity store from Redis (%s)", exc)
+        return "error"
+
+
 def load_from_redis(store: "AccountStore") -> bool:
+    return load_identity_status(store) == "loaded"
+
+
+def hydrate_account(store: "AccountStore", account_id: str) -> bool:
+    if not account_id or not redis_configured():
+        return False
     client = _redis_client()
     if client is None:
         return False
     try:
-        raw = client.get(REDIS_KEY)
+        raw = client.get(_acct_key(account_id))
         if not raw:
             return False
-        load_state(store, json.loads(raw))
-        hydrate_free_claims(store)
-        logger.info("identity store loaded from Redis (%d accounts)", len(store._by_id))
+        rev = int(client.hget(_rev_key(), account_id) or 0)
+        _apply_wrapper(store, account_id, raw, rev)
         return True
     except Exception as exc:
-        logger.warning("failed to load identity store from Redis (%s)", exc)
+        logger.warning("failed to hydrate account %s (%s)", account_id, exc)
         return False
+
+
+def hydrate_account_by_email(store: "AccountStore", email: str) -> bool:
+    if not email or not redis_configured():
+        return False
+    client = _redis_client()
+    if client is None:
+        return False
+    try:
+        account_id = client.hget(EMAIL_INDEX, email)
+    except Exception as exc:
+        logger.warning("failed to look up email %s (%s)", email, exc)
+        return False
+    if not account_id:
+        return False
+    return hydrate_account(store, account_id)
+
+
+def claim_grant_nonce(nonce_key: str) -> bool:
+    """Atomically claim a reward nonce. True when this caller won the claim.
+
+    Without Redis the in-memory set is the only guard (single process).
+    """
+    client = _redis_client()
+    if client is None:
+        return True
+    try:
+        return bool(client.set(f"aoep:identity:v2:nonce:{nonce_key}", "1", nx=True))
+    except Exception as exc:
+        logger.warning("grant nonce claim failed (%s)", exc)
+        return False
+
+
+def _save_dirty_accounts(store: "AccountStore", client) -> None:
+    if not getattr(store, "_redis_writes", True):
+        return
+    dirty = [
+        aid for aid in list(store._by_id)
+        if store._persisted_blobs.get(aid) != _blob(store, aid)
+    ]
+    removed = [aid for aid in list(store._persisted_blobs) if aid not in store._by_id]
+    for aid in removed:
+        client.delete(_acct_key(aid))
+        client.hdel(_rev_key(), aid)
+        client.srem(ACCOUNT_INDEX, aid)
+        store._persisted_blobs.pop(aid, None)
+        store._account_revs.pop(aid, None)
+    for aid in dirty:
+        expected = str(store._account_revs.get(aid, 0))
+        email = store._by_id[aid].email.lower()
+        blob = json.dumps(_payload(store, aid), separators=(",", ":"))
+        new_rev = client.eval(
+            _CAS_LUA,
+            4,
+            _rev_key(),
+            _acct_key(aid),
+            ACCOUNT_INDEX,
+            EMAIL_INDEX,
+            aid,
+            expected,
+            blob,
+            email,
+        )
+        if not new_rev:
+            remote = client.get(_acct_key(aid))
+            rev = int(client.hget(_rev_key(), aid) or 0)
+            if remote:
+                _apply_wrapper(store, aid, remote, rev)
+            raise PersistenceConflict(aid)
+        store._account_revs[aid] = int(new_rev)
+        store._persisted_blobs[aid] = _blob(store, aid)
 
 
 def load_from_redis_with_retry(store: "AccountStore", *, attempts: int = 5, delay_s: float = 0.4) -> bool:
@@ -479,5 +654,13 @@ def load_game_round(game_id: str) -> Optional[str]:
 
 
 def persist_hook(store: "AccountStore") -> None:
-    """Call after any AccountStore mutation when Redis is configured."""
-    save_to_redis(store)
+    """Save the accounts this process actually changed, one key at a time."""
+    if not getattr(store, "_redis_writes", True):
+        return
+    if not redis_configured():
+        return
+    client = _redis_client()
+    if client is None:
+        logger.warning("identity mutation not persisted; Redis is unavailable")
+        return
+    _save_dirty_accounts(store, client)

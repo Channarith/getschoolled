@@ -214,7 +214,7 @@ def build_pdf(diagrams: dict[str, Path], screens: dict[str, Path]) -> Path:
             "<b>Backend:</b> FastAPI microservices behind <font face='Courier'>aoep_shared</font> providers",
             "<b>Realtime media:</b> LiveKit (Salareen group/solo rooms)",
             "<b>Deploy:</b> Vultr Kubernetes Engine (VKE) + Cloudflare DNS/TLS",
-            "<b>Monetization:</b> Free / Standard ($19.99) / VIP Premium ($29.99) + ads + global payments",
+            "<b>Monetization:</b> Free ($0) / Standard ($19) / Pro ($29) / VIP ($39) + ads + global payments",
         ], S["bullet"]),
         Paragraph("2. Logical architecture", S["h1"]),
         Paragraph(

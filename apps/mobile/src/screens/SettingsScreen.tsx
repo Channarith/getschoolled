@@ -16,6 +16,7 @@ import BiometricSetupModal from "../components/BiometricSetupModal";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import CameraTrackingCheck from "../components/CameraTrackingCheck";
+import VoiceAgentToggle from "../components/VoiceAgentToggle";
 import { DEPLOY_MODE } from "../config";
 import { useIntroSplash } from "../introSplash";
 import {
@@ -32,8 +33,14 @@ import {
 import { TRAINING_LOCALE_LABELS, TRAINING_LOCALES } from "../trainingLocale";
 import { applyVoicePrefsToTts, voicePrefsFromSettings } from "../narrationTts";
 import { LANGUAGES, languageInfo, useT, type LocaleCode } from "../i18n";
+import AdaptiveContent from "../layout/AdaptiveContent";
+import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
 import { APP_VERSION } from "../version";
+import {
+  loadVoiceAgentChoice, saveVoiceAgentChoice, subscribeVoiceAgent,
+  type VoiceAgentChoice,
+} from "../voiceAgentPref";
 
 type Props = {
   onAuthChange?: () => void;
@@ -45,6 +52,8 @@ type Props = {
   onOpenRewards?: () => void;
   onOpenLanguages?: () => void;
   onOpenBilling?: () => void;
+  onOpenHomework?: () => void;
+  onOpenTraining?: () => void;
   onOpenBugReport?: () => void;
   onSignIn?: () => void;
 };
@@ -52,7 +61,7 @@ type Props = {
 export default function SettingsScreen({
   onAuthChange, onOpenLearningProfile, drivingStatus, onDrivingSettingsChange,
   guestMode = false, onOpenAccount, onOpenRewards, onOpenLanguages, onOpenBilling,
-  onOpenBugReport, onSignIn,
+  onOpenHomework, onOpenTraining, onOpenBugReport, onSignIn,
 }: Props) {
   const { t, locale, setLocale } = useT();
   const { playFullIntro } = useIntroSplash();
@@ -72,6 +81,7 @@ export default function SettingsScreen({
   const [hourOpen, setHourOpen] = useState(false);
   const [showVoiceEnroll, setShowVoiceEnroll] = useState(false);
   const [voiceEnrollStatus, setVoiceEnrollStatus] = useState<VoiceEnrollmentStatus | null>(null);
+  const [voiceAgent, setVoiceAgent] = useState<VoiceAgentChoice>("sala");
 
   const probeIdentity = useCallback(async () => {
     const up = await checkServiceReachable(IDENTITY_URL);
@@ -119,6 +129,16 @@ export default function SettingsScreen({
     void getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
     void getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
   }, [refreshStudent, refreshAccount, probeIdentity]);
+
+  useEffect(() => {
+    let alive = true;
+    void loadVoiceAgentChoice().then((next) => {
+      if (alive) setVoiceAgent(next);
+    });
+    return subscribeVoiceAgent((next) => {
+      if (alive) setVoiceAgent(next);
+    });
+  }, []);
 
   const update = (patch: Partial<Settings>): void => {
     setS((cur) => {
@@ -248,9 +268,14 @@ export default function SettingsScreen({
     ?? trainingLocaleOptions[0];
   const reminderHours = [7, 8, 9, 12, 15, 18, 20, 21];
   const selectedReminderHour = `${pad(s.dailyReminderHour)}:00`;
+  const { overlayTopPad, tabBarClearance } = useLayoutMetrics();
 
   return (
-    <ScrollView style={styles.bg} contentContainerStyle={{ paddingTop: 56, paddingBottom: 32 }}>
+    <ScrollView
+      style={styles.bg}
+      contentContainerStyle={{ paddingTop: overlayTopPad, paddingBottom: tabBarClearance }}
+    >
+      <AdaptiveContent style={{ paddingHorizontal: 0 }}>
       <View style={styles.header}>
         <Text style={styles.title}>{t("settings.title")}</Text>
         <Text style={styles.sub}>{t("settings.sub")}</Text>
@@ -279,6 +304,8 @@ export default function SettingsScreen({
               <PrimaryButton label={t("settings.openRewards")} onPress={onOpenRewards} variant="brand" />
               <PrimaryButton label={t("settings.openLanguages")} onPress={onOpenLanguages} variant="brand" />
               <PrimaryButton label={t("settings.openBilling")} onPress={onOpenBilling} variant="ghost" />
+              <PrimaryButton label="Homework" onPress={onOpenHomework} variant="ghost" />
+              <PrimaryButton label="Training" onPress={onOpenTraining} variant="ghost" />
               <PrimaryButton label={t("settings.openSurvey")} onPress={onOpenLearningProfile} variant="brand" />
               <PrimaryButton label={t("settings.signOut")} onPress={() => void onSignOut()} variant="ghost" />
             </View>
@@ -324,6 +351,14 @@ export default function SettingsScreen({
 
       <Section title={t("settings.sectionVoice")}>
         <Text style={styles.desc}>{t("settings.voiceDesc")}</Text>
+        <Text style={styles.desc}>{t("settings.voiceAgentDesc")}</Text>
+        <VoiceAgentToggle
+          value={voiceAgent}
+          onChange={(next) => {
+            setVoiceAgent(next);
+            void saveVoiceAgentChoice(next);
+          }}
+        />
         <View style={{ marginTop: 10 }}>
           <DropdownListSelector
             title={t("settings.sectionVoice")}
@@ -587,6 +622,7 @@ export default function SettingsScreen({
           }}
         />
       )}
+      </AdaptiveContent>
     </ScrollView>
   );
 }

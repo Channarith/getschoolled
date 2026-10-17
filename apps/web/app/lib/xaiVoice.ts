@@ -65,6 +65,7 @@ export type XaiVoiceTokenResponse = {
   /** False for Khmer and Cantonese on xAI, and for Salane Voice (CosyVoice). */
   use_xai?: boolean;
   spoken_language?: XaiSpokenLanguage;
+  hint?: string;
 };
 
 /** Khmer and Cantonese are narrated by the speech gateway, not the Grok socket.
@@ -110,21 +111,27 @@ export async function mintXaiVoiceToken(opts: {
   topic?: string;
   course_id?: string;
   language?: string;
+  /** Send engine:"xai" only when the user opted in; omit for default Salane Voice. */
+  engine?: "xai" | "salane" | "";
 }): Promise<XaiVoiceTokenResponse> {
+  const body: Record<string, unknown> = {
+    mode: opts.mode || "solo",
+    lesson_context: opts.lesson_context || "",
+    learner_names: opts.learner_names || [],
+    expires_seconds: opts.expires_seconds ?? 300,
+    instructions: opts.mode === "drive" ? "" : (opts.instructions || ""),
+    category: opts.category || "",
+    topic: opts.topic || "",
+    course_id: opts.course_id || "",
+    language: opts.language || "",
+  };
+  if ((opts.engine || "").trim().toLowerCase() === "xai") {
+    body.engine = "xai";
+  }
   const r = await fetch(`${SPEECH_URL}/voice/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      mode: opts.mode || "solo",
-      lesson_context: opts.lesson_context || "",
-      learner_names: opts.learner_names || [],
-      expires_seconds: opts.expires_seconds ?? 300,
-      instructions: opts.mode === "drive" ? "" : (opts.instructions || ""),
-      category: opts.category || "",
-      topic: opts.topic || "",
-      course_id: opts.course_id || "",
-      language: opts.language || "",
-    }),
+    body: JSON.stringify(body),
   });
   if (!r.ok) {
     const detail = await r.text().catch(() => "");

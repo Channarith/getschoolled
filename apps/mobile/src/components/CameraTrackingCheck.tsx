@@ -14,6 +14,7 @@ import { ensureCameraPermission } from "./cameraPermission";
 import PrimaryButton from "./PrimaryButton";
 import { trackingContinueEnabled } from "../cameraCheck";
 import { useT, type StringKey } from "../i18n";
+import { cameraPreviewHeight, useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
 
 type StepId =
@@ -47,6 +48,8 @@ type Props = {
 
 export default function CameraTrackingCheck({ onDone }: Props) {
   const { t } = useT();
+  const { widthClass } = useLayoutMetrics();
+  const previewHeight = cameraPreviewHeight(widthClass);
   const [stepIndex, setStepIndex] = useState(0);
   const [statusKey, setStatusKey] = useState<StringKey>("camera.begin");
   const [statusRaw, setStatusRaw] = useState("");
@@ -141,7 +144,9 @@ export default function CameraTrackingCheck({ onDone }: Props) {
       <Text style={styles.progress}>{progress}</Text>
       <Text style={styles.stepTitle}>{t(step.title)}</Text>
       <Text style={styles.instruction}>{t(step.instruction)}</Text>
-      {photoUri ? <Image source={{ uri: photoUri }} style={styles.preview} /> : null}
+      {photoUri ? (
+        <Image source={{ uri: photoUri }} style={[styles.preview, { height: previewHeight }]} />
+      ) : null}
       <Text style={styles.status}>{statusRaw || t(statusKey)}</Text>
       <View style={styles.list}>
         {STEPS.map((s, i) => (

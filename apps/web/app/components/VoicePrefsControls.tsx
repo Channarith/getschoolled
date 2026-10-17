@@ -5,6 +5,11 @@ import { useEffect, useState } from "react";
 import { getTtsVoices, type VoiceGroup } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { applyVoicePrefsToTts } from "../lib/narrationTts";
+import {
+  getLiveVoiceEngine,
+  setLiveVoiceEngine,
+  type LiveVoiceEngine,
+} from "../lib/liveVoiceEngine";
 import { getVoicePrefs, setVoicePrefs, type VoiceGenderPref } from "../lib/voicePrefs";
 import { setServerVoice } from "../lib/tts";
 
@@ -14,11 +19,13 @@ export default function VoicePrefsControls() {
   const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
   const [voiceId, setVoiceId] = useState("");
   const [gender, setGender] = useState<VoiceGenderPref>("any");
+  const [liveEngine, setLiveEngine] = useState<LiveVoiceEngine>("salane");
 
   useEffect(() => {
     const prefs = getVoicePrefs();
     setVoiceId(prefs.voiceId);
     setGender(prefs.voiceGender);
+    setLiveEngine(getLiveVoiceEngine());
     applyVoicePrefsToTts(prefs);
     getTtsVoices()
       .then((r) => setVoiceGroups(r.groups))
@@ -51,8 +58,44 @@ export default function VoicePrefsControls() {
     applyVoicePrefsToTts(next);
   }
 
+  function chooseLiveEngine(engine: LiveVoiceEngine) {
+    setLiveEngine(engine);
+    setLiveVoiceEngine(engine);
+  }
+
   return (
     <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ display: "grid", gap: 4 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>Live voice (Sala)</span>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {(["salane", "xai"] as const).map((engine) => {
+            const on = liveEngine === engine;
+            return (
+              <button
+                key={engine}
+                type="button"
+                onClick={() => chooseLiveEngine(engine)}
+                aria-pressed={on}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  border: on ? "1px solid var(--accent)" : "1px solid var(--border)",
+                  background: on ? "var(--accent)" : "transparent",
+                  color: on ? "#fff" : "var(--text)",
+                  cursor: "pointer",
+                }}
+              >
+                {engine === "salane" ? "Salane Voice (default)" : "xAI Voice Agent (opt-in)"}
+              </button>
+            );
+          })}
+        </div>
+        <p className="muted" style={{ margin: 0, fontSize: 11, lineHeight: 1.35 }}>
+          xAI is optional and only used when selected. Switch back to Salane Voice if Grok is unavailable.
+        </p>
+      </div>
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
         {(["any", "female", "male"] as const).map((g) => {
           const on = gender === g;

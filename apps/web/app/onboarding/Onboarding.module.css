@@ -11,6 +11,7 @@
   --s: 8px;
   height: 100svh;
   height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -63,7 +64,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 640px);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(140px, 30svh) minmax(0, 1fr);
 }
 
 .shell[data-step="learn"] .split {
@@ -93,11 +95,12 @@
   display: flex;
   flex-direction: column;
   background: var(--sa-panel);
-  border-left: 1px solid var(--sa-border);
+  border-left: 0;
+  border-top: 1px solid var(--sa-border);
 }
 
 .shell[data-step="learn"] .pane {
-  border-left: 0;
+  border-top: 0;
 }
 
 .panel {
@@ -251,20 +254,29 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: calc(var(--s) * 2);
 }
 
+.modes[data-per-page="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .mode {
+  position: relative;
   min-width: 0;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
-  background: var(--sa-panel);
-  border: 1px solid var(--sa-border);
+  background: var(--sa-panel-2);
+  border: 2px solid transparent;
+  animation: modeIn 260ms ease-out;
+}
+
+@keyframes modeIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
 }
 
 .modeFocus {
@@ -272,11 +284,8 @@
 }
 
 .modeArt {
-  position: relative;
-  flex: 1;
-  min-height: 72px;
-  overflow: hidden;
-  background: var(--sa-panel-2);
+  position: absolute;
+  inset: 0;
 }
 
 .modeArt img {
@@ -285,62 +294,130 @@
 
 .modeScore {
   position: absolute;
-  right: var(--s);
-  bottom: var(--s);
-  min-width: 36px;
-  height: 36px;
+  top: calc(var(--s) * 1.5);
+  right: calc(var(--s) * 1.5);
+  min-width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   border-radius: 999px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
   background: var(--sa-accent);
   color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .modeBody {
-  flex: none;
-  padding: calc(var(--s) * 1.5) calc(var(--s) * 1.5) calc(var(--s) * 2);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: calc(var(--s) * 6) calc(var(--s) * 2) calc(var(--s) * 2);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.35) 65%, transparent);
+  color: #ffffff;
 }
 
 .modeBody h3 {
   margin: 0 0 2px;
-  font-size: 16px;
+  font-size: 20px;
 }
 
 .modeBody p {
-  margin: 0 0 var(--s);
+  margin: 0 0 calc(var(--s) * 1.25);
   font-size: 13px;
-  color: var(--sa-muted);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .scale {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  max-width: 100%;
 }
 
 .scale button {
+  width: 30px;
+  height: 30px;
+  flex: 0 1 30px;
   min-width: 0;
-  min-height: 44px;
   padding: 0;
-  border: 1px solid var(--sa-border);
-  border-radius: 10px;
-  background: var(--sa-panel-2);
-  color: var(--sa-text);
-  font-size: 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
 }
 
 .scale button:hover {
-  border-color: var(--sa-accent);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .scale .scaleOn {
+  background: color-mix(in srgb, var(--sa-accent) 55%, transparent);
+}
+
+.scale .scalePick {
   background: var(--sa-accent);
-  border-color: var(--sa-accent);
-  color: #ffffff;
+  transform: scale(1.12);
+}
+
+.pager {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s);
+}
+
+.pagerArrow {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--sa-border);
+  border-radius: 999px;
+  background: var(--sa-panel);
+  color: var(--sa-text);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pagerArrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pagerDot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sa-border);
+  cursor: pointer;
+  transition: width 160ms ease;
+}
+
+.pagerDotDone {
+  background: color-mix(in srgb, var(--sa-accent) 50%, var(--sa-border));
+}
+
+.pagerDotOn {
+  width: 22px;
+  background: var(--sa-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode {
+    animation: none;
+  }
 }
 
 .plans {
@@ -508,23 +585,28 @@
   background: var(--sa-border);
 }
 
-@media (max-width: 1100px) {
+@media (min-width: 840px) {
   .split {
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 520px);
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, min(640px, 46vw));
+    grid-template-rows: minmax(0, 1fr);
   }
 
-  .modes {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(0, 1fr));
+  .shell[data-step="learn"] .split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .pane {
+    border-left: 1px solid var(--sa-border);
+    border-top: 0;
+  }
+
+  .shell[data-step="learn"] .pane {
+    border-left: 0;
   }
 }
 
-@media (max-width: 800px) {
-  .split {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(140px, 28svh) minmax(0, 1fr);
-  }
-
+@media (max-width: 839px) {
   .shell[data-step="learn"] .split {
     grid-template-rows: minmax(0, 1fr);
   }
@@ -544,17 +626,70 @@
     overflow: auto;
   }
 
-  .modes {
-    flex: none;
+  .mode {
     display: flex;
     flex-direction: column;
-    grid-template-rows: none;
+    min-height: min(420px, 58dvh);
   }
 
   .modeArt {
-    flex: none;
-    aspect-ratio: 16 / 9;
-    min-height: 0;
+    position: relative;
+    flex: 0 0 auto;
+    aspect-ratio: 16 / 10;
+    width: 100%;
+    min-height: 120px;
+  }
+
+  .modeBody {
+    position: static;
+    flex: 1 1 auto;
+    padding: calc(var(--s) * 2);
+    background: var(--sa-panel);
+    color: var(--sa-text);
+  }
+
+  .modeBody p {
+    color: var(--sa-muted);
+  }
+
+  .modeScore {
+    top: calc(var(--s) * 1.5);
+    right: calc(var(--s) * 1.5);
+  }
+
+  .scale {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    background: color-mix(in srgb, var(--sa-accent) 8%, var(--sa-panel-2));
+    backdrop-filter: none;
+  }
+
+  .scale button {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 26px;
+    font-size: 11px;
+    color: var(--sa-text);
+  }
+
+  .scale .scaleOn {
+    background: color-mix(in srgb, var(--sa-accent) 35%, transparent);
+    color: var(--sa-text);
+  }
+
+  .scale .scalePick {
+    background: var(--sa-accent);
+    color: #ffffff;
+  }
+
+  .modes {
+    min-height: 280px;
+  }
+
+  .billingRow {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .actions {
