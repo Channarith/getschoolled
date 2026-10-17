@@ -63,6 +63,13 @@ hub = TranslationHub()
 asr = ASREngine()
 
 
+@app.get("/version")
+def version() -> dict[str, Any]:
+    from aoep_shared.version import version_payload
+
+    return version_payload("theodore-audio-translation-lab")
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     status = provider_status()

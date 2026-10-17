@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-18 - v0.61.4 - RAG retrieval ranks lessons with BM25 after dropping function words. The 16-item golden set moves from rag_quality 0.356 to 0.831, and six held-out lesson questions score 1.0. Lab HTTP apps gain GET /version from the repo VERSION file, and scripts/run_theodore_lab.sh uses the README ports.
 - 2026-10-16 - v0.61.3 - Learner Check shows a denser capture mesh on the live web camera and the mobile photo, drawn from five face points as a guide. Enrollment waits for a neutral portrait plus four pose looks, then keeps those SFace samples. A later match uses the best template at cosine 0.363. A darker spot can appear as an optional indicator on that frame and is not saved. The mesh is not a uniqueness, forensic, or medical claim.
 - 2026-10-16 - v0.61.2 - Karaoke sing-along on the website and the phone app now lists every music-lab song. Recorded tracks still play from their MP3. Songs without a recording sing each line with a voice while the bouncing ball follows the lyric. A zero catalog limit still returns no rows. Cloud free-plan claims without Redis stay refused, and live-room regression tests sign in as a paid account.
 - 2026-10-16 - v0.61.1 - On the Go, Vision Play, and the free-plan limits stay on top of the current site. Vision Play still shows only Machine Vision by default, and an admin can restore the other games.

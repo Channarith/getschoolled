@@ -67,6 +67,13 @@ def qualify() -> HTMLResponse:
     return HTMLResponse(inject_client(render_qualify_page()))
 
 
+@app.get("/version")
+def version() -> dict[str, Any]:
+    from aoep_shared.version import version_payload
+
+    return version_payload("theodore-llm-lab")
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     report = assemble_report([fixture_root()])

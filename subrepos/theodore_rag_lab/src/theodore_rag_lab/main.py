@@ -106,6 +106,13 @@ class CurrentAwarenessReq(BaseModel):
     question: str = Field(min_length=3, max_length=500)
 
 
+@app.get("/version")
+def version() -> dict[str, Any]:
+    from aoep_shared.version import version_payload
+
+    return version_payload("theodore-rag-lab")
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     runner = get_runner()

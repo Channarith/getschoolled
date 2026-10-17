@@ -60,6 +60,11 @@ def get_version() -> str:
 API_VERSION = "1"
 
 
+def version_payload(service: str) -> dict:
+    """JSON body for a lab ``GET /version``. ``version`` is the repo VERSION."""
+    return {"service": service, **build_info()}
+
+
 def build_info() -> dict:
     """Full version/build metadata for the /version endpoint + admin UI.
 

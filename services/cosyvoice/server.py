@@ -208,6 +208,29 @@ def build_app(model: Any = None) -> FastAPI:
             app.state.model = _load_model()
         return app.state.model
 
+    @app.get("/version")
+    def version() -> dict:
+        try:
+            from aoep_shared.version import version_payload
+
+            return version_payload("cosyvoice")
+        except Exception:  # noqa: BLE001 — sidecar venv may not have aoep_shared
+            found = _env("AOEP_VERSION")
+            if not found:
+                here = os.path.dirname(os.path.abspath(__file__))
+                current = here
+                for _ in range(8):
+                    candidate = os.path.join(current, "VERSION")
+                    if os.path.isfile(candidate):
+                        with open(candidate, encoding="utf-8") as handle:
+                            found = handle.read().strip()
+                        break
+                    parent = os.path.dirname(current)
+                    if parent == current:
+                        break
+                    current = parent
+            return {"service": "cosyvoice", "version": found or "0.0.0+unknown"}
+
     @app.get("/health")
     def health() -> dict:
         return {"ok": True, "ready": app.state.model is not None,

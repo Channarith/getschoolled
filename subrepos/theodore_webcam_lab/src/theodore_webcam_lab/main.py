@@ -517,6 +517,13 @@ def analyze_imaging(req: ImagingAnalyzeRequest) -> dict[str, object]:
     }
 
 
+@app.get("/version")
+def version() -> dict:
+    from aoep_shared.version import version_payload
+
+    return version_payload("theodore-webcam-lab")
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"service": "theodore-webcam-lab", "status": "ok"}
