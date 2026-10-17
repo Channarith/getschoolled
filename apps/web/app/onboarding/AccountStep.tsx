@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { setToken, signup } from "../lib/api";
 import { friendlyError } from "../lib/errors";
+import { useT } from "../lib/i18n";
 import styles from "./Onboarding.module.css";
 
 type Props = {
@@ -19,6 +20,7 @@ function passwordHint(password: string): string {
 
 /** New Salareen accounts are created here with email. Existing accounts log in elsewhere. */
 export default function AccountStep({ onDone }: Props) {
+  const { t } = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,7 +56,7 @@ export default function AccountStep({ onDone }: Props) {
   return (
     <section className={styles.panel}>
       <span className={styles.eyebrow}>New account</span>
-      <h1>Create your account.</h1>
+      <h1>{t("onboarding.accountTitle")}</h1>
       <p className={styles.lede}>
         New accounts start here. Your email is your username.
       </p>

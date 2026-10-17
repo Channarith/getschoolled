@@ -66,6 +66,11 @@ export type Settings = {
   introSplashEnabled: boolean;
   /** Set after the first-launch intro has been shown (or skipped). */
   introSplashSeen: boolean;
+  /**
+   * Class voice. "sala" is Salane. "xai" asks the speech service for an
+   * ephemeral xAI session. Absent on disk means "not chosen yet".
+   */
+  voiceAgent: "sala" | "xai";
 };
 
 export type { TrainingLocale };
@@ -89,6 +94,7 @@ export const DEFAULT_SETTINGS: Settings = {
   trainingLocale: "en",
   introSplashEnabled: true,
   introSplashSeen: false,
+  voiceAgent: "sala",
 };
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -145,16 +151,29 @@ export async function removeFromMyList(id: string): Promise<void> {
   }
 }
 
+export async function readSettingsPatch(): Promise<Partial<Settings>> {
+  return readJSON<Partial<Settings>>(KEYS.settings, {});
+}
+
 export async function getSettings(): Promise<Settings> {
-  const s = await readJSON<Partial<Settings>>(KEYS.settings, {});
+  const s = await readSettingsPatch();
   const merged = { ...DEFAULT_SETTINGS, ...s };
   merged.trainingLocale = normalizeTrainingLocale(merged.trainingLocale);
   return merged;
 }
 export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
+  const raw = await readSettingsPatch();
   const cur = await getSettings();
   const next = { ...cur, ...patch };
-  await writeJSON(KEYS.settings, next);
+  const persisted: Partial<Settings> = { ...next };
+  // A missing voiceAgent stays missing so the next launch can still follow a
+  // speech service that is actually configured for xAI. Writing the Sala
+  // default here would freeze that choice on the first unrelated settings save.
+  if (!Object.prototype.hasOwnProperty.call(raw, "voiceAgent")
+      && !Object.prototype.hasOwnProperty.call(patch, "voiceAgent")) {
+    delete persisted.voiceAgent;
+  }
+  await writeJSON(KEYS.settings, persisted);
   return next;
 }
 

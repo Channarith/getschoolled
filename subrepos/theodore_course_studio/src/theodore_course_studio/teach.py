@@ -16,6 +16,7 @@ from aoep_shared.course_studio_access import (
 )
 
 from .avatar_director import avatar_script_for_slide
+from .driver_ed_visuals import is_driver_ed, road_scene_timeline
 from .lesson_photos import photo_plate
 from .question_slide import (
     SourceLookup,
@@ -166,13 +167,16 @@ def lesson_quiz_style(lesson_id: str) -> str:
     return _LESSON_QUIZ_STYLES[_stable_bucket(lesson_id, len(_LESSON_QUIZ_STYLES))]
 
 
-def _visual_timeline(slide: CourseSlide, index: int, spoken: str) -> dict[str, Any]:
+def _visual_timeline(
+    slide: CourseSlide, index: int, spoken: str, category: Any = None
+) -> dict[str, Any]:
     """Sections for this slide, captioned with the words actually being said."""
     shown = _showcase_slide(slide, index)
-    return timeline_for_client(
-        presentation_for_slide(shown, narration=spoken),
-        sentences_for(shown, spoken),
-    )
+    sentences = sentences_for(shown, spoken)
+    timeline = timeline_for_client(presentation_for_slide(shown, narration=spoken), sentences)
+    if is_driver_ed(category) and not (slide.presentation_style or "").strip():
+        return road_scene_timeline(slide, timeline, sentences)
+    return timeline
 
 
 def _showcase_slide(slide: CourseSlide, index: int) -> CourseSlide:
@@ -1233,7 +1237,7 @@ class TeachEngine:
                 "emphasis": "highlight-title",
                 "duration_ms": 650,
             },
-            "visual_timeline": _visual_timeline(slide, session.path_pos, spoken),
+            "visual_timeline": _visual_timeline(slide, session.path_pos, spoken, course.category),
             "photo_url": plate["url"],
             "photo_transition": plate["transition"],
             "avatar": avatar.model_dump(mode="json"),

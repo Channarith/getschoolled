@@ -6,9 +6,10 @@
 // exactly this: a distant child read as a permanent fist.
 import assert from "node:assert/strict";
 import {
-  FIST_MAX_PALMS, HAND_BONES, SIGNAL_HOLD_MS, AWAY_HOLD_MS, RETURN_HOLD_MS,
-  coverFrame, createPresenceWatch, fingersPointed, handShape, heartRatios, isHeartShape,
-  mapMirroredLandmark, palmSpan, syntheticHand, traceProgress,
+  FIST_MAX_PALMS, FINGERTIP_LANDMARKS, HAND_BONES, SIGNAL_HOLD_MS, AWAY_HOLD_MS, RETURN_HOLD_MS,
+  activeFingertips, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch, fingersPointed,
+  handShape, heartRatios, isHeartShape, mapMirroredLandmark, palmSpan, profileTouchAge,
+  syntheticHand, tipHitsTarget, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 
 // A canonical right hand, palm size 1.0, fingers pointing up (-y).
@@ -194,6 +195,63 @@ assert.equal(demoIndex.fist, false);
 assert.equal(fingersPointed(demoIndex), true, "a pointed finger can color");
 assert.equal(fingersPointed(demoFist), false, "a fist lifts the marker");
 assert.equal(fingersPointed(handShape(syntheticHand({ x: 0.4, y: 0.4 }, { pose: "open" }))), true);
+assert.ok(activeFingertips(syntheticHand({ x: 0.4, y: 0.4 }, { pose: "index" }), "7-10").includes(8));
+assert.deepEqual(activeFingertips(syntheticHand({ x: 0.4, y: 0.4 }, { pose: "fist" }), "4-6"), []);
+
+// Palm span is 1. A closed fist keeps every tip near the wrist. A single
+// raised finger must still be a touch even when that makes the hand a fist.
+function placedHand(tips) {
+  const wrist = { x: 0.5, y: 0.8 };
+  const pts = Array.from({ length: 21 }, () => ({ x: wrist.x, y: wrist.y }));
+  pts[0] = wrist;
+  pts[9] = { x: 0.5, y: 0.7 };
+  for (const [tip, pip, tipPalms, pipPalms] of tips) {
+    pts[pip] = { x: 0.5, y: wrist.y - 0.1 * pipPalms };
+    pts[tip] = { x: 0.5, y: wrist.y - 0.1 * tipPalms };
+  }
+  return pts;
+}
+{
+  const buried = placedHand([[8, 6, 0.9, 0.7], [12, 10, 0.9, 0.7], [16, 14, 0.9, 0.7], [20, 18, 0.85, 0.7], [4, 2, 0.8, 0.6]]);
+  const shape = handShape(buried);
+  assert.equal(shape.fist, true);
+  assert.equal(fingersPointed(shape), false);
+  assert.deepEqual(activeFingertips(buried, "4-6"), [], "a palm is not a touch for young hands");
+  assert.deepEqual(activeFingertips(buried, "7-10"), [], "a palm is not a touch for older hands");
+}
+{
+  const point = placedHand([[8, 6, 1.3, 1.22], [12, 10, 0.95, 0.7], [16, 14, 0.9, 0.7], [20, 18, 0.9, 0.7], [4, 2, 0.9, 0.7]]);
+  const shape = handShape(point);
+  assert.equal(shape.fist, true, "a short point on closed fingers is still a fist");
+  assert.equal(fingersPointed(shape), false, "the open-hand gate would miss this point");
+  assert.deepEqual(activeFingertips(point, "4-6"), [8], "young hands accept the short point");
+  assert.deepEqual(activeFingertips(point, "7-10"), [], "older hands need a clearer point");
+  assert.ok(catchRadiusPx(500, "4-6") > catchRadiusPx(500, "7-10"));
+  assert.ok(catchRadiusPx(500, "child") > catchRadiusPx(500, "teen"));
+}
+{
+  const thumb = placedHand([[8, 6, 0.95, 0.7], [12, 10, 0.95, 0.7], [16, 14, 0.9, 0.7], [20, 18, 0.9, 0.7], [4, 2, 2.2, 1.0]]);
+  assert.equal(handShape(thumb).fist, true);
+  assert.equal(fingersPointed(handShape(thumb)), false);
+  assert.deepEqual(activeFingertips(thumb, "7-10"), [4], "a thumb on a fist still touches");
+  assert.deepEqual(FINGERTIP_LANDMARKS, [4, 8, 12, 16, 20]);
+}
+assert.equal(tipHitsTarget([{ x: 10, y: 10 }, { x: 90, y: 40 }], { x: 12, y: 11 }, 5), true);
+assert.equal(tipHitsTarget([{ x: 10, y: 10 }], { x: 40, y: 40 }, 5), false);
+assert.equal(profileTouchAge({ query: "5" }), "4-6");
+assert.equal(profileTouchAge({ ageYears: "9", ageBand: "child" }), "7-10");
+assert.equal(profileTouchAge({ ageBand: "child" }), "4-6");
+assert.equal(profileTouchAge({ ageBand: "teen" }), "7-10");
+{
+  const first = claimTouch(null, "balloon", 1000, 420);
+  assert.equal(first.claimed, true);
+  const repeat = claimTouch(first.latch, "balloon", 1200, 420);
+  assert.equal(repeat.claimed, false);
+  const later = claimTouch(repeat.latch, "balloon", 1500, 420);
+  assert.equal(later.claimed, true);
+  const other = claimTouch(first.latch, "fish", 1100, 420);
+  assert.equal(other.claimed, true);
+}
 
 // A wide stage crops a square camera. The skeleton has to land on the visible
 // picture, not on the full stage rectangle.

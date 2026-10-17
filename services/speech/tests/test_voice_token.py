@@ -198,3 +198,67 @@ def test_drive_voice_does_not_send_the_library_to_xai(monkeypatch, tmp_path):
     assert body["session_update"] is None
     assert body["use_xai"] is False
     assert "Ignore the library" not in json.dumps(body)
+
+
+def test_explicit_xai_engine_mints_with_the_server_key(monkeypatch):
+    from aoep_shared import xai_realtime as xr
+
+    _set_xai(monkeypatch, key="xai-test-key", model="grok-voice-latest", voice="eve")
+    seen = {}
+
+    def fake_mint(**kwargs):
+        seen.update(kwargs)
+        return xr.EphemeralToken(
+            value="ephemeral-secret",
+            expires_at=1,
+            mock=False,
+            model=kwargs["model"],
+        )
+
+    monkeypatch.setattr(xr, "mint_ephemeral_token", fake_mint)
+    response = client.post(
+        "/voice/token",
+        json={"mode": "solo", "language": "en", "engine": "xai", "lesson_context": "Fractions"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert seen["api_key"] == "xai-test-key"
+    assert seen["model"] == "grok-voice-latest"
+    assert seen["allow_mock"] is False
+    assert body["use_xai"] is True
+    assert body["engine"] == "xai"
+    assert body["token"]["value"] == "ephemeral-secret"
+    assert body["session_update"]["session"]["voice"] == "eve"
+    dumped = json.dumps(body)
+    assert "xai-test-key" not in dumped
+
+
+def test_explicit_xai_without_a_key_does_not_fall_back_to_sala(monkeypatch):
+    from aoep_shared import xai_realtime as xr
+
+    _set_xai(monkeypatch, key="")
+    called = []
+    monkeypatch.setattr(xr, "mint_ephemeral_token", lambda **kwargs: called.append(kwargs))
+    response = client.post("/voice/token", json={"mode": "solo", "language": "en", "engine": "xai"})
+    assert response.status_code == 503
+    assert called == []
+    detail = response.json()["detail"]
+    assert "Sala" in detail
+    assert "xai-test-key" not in detail
+    assert "Bearer" not in detail
+
+
+def test_explicit_xai_refuses_khmer_without_minting(monkeypatch):
+    from aoep_shared import xai_realtime as xr
+
+    _set_xai(monkeypatch, key="xai-test-key")
+    called = []
+    monkeypatch.setattr(xr, "mint_ephemeral_token", lambda **kwargs: called.append(kwargs))
+    response = client.post("/voice/token", json={"mode": "solo", "language": "km", "engine": "xai"})
+    assert response.status_code == 200
+    body = response.json()
+    assert called == []
+    assert body["use_xai"] is False
+    assert body["token"] is None
+    assert body["engine"] == "xai"
+    assert "xai-test-key" not in json.dumps(body)

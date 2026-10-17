@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import {
-  Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, View,
+  Animated, Pressable, ScrollView, StyleSheet, Text, View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -8,10 +8,9 @@ import Svg, { Circle, Path } from "react-native-svg";
 import {
   DEMO_COURSES, DEMO_FEATURES, SALES_DEMO_FLAGS, type DemoCourse,
 } from "../demo";
+import AdaptiveContent from "../layout/AdaptiveContent";
+import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
-
-const { width: W } = Dimensions.get("window");
-const CARD_W = W * 0.72;
 
 function useFadeSlideIn(delay: number) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -52,12 +51,18 @@ function PulseRing() {
 }
 
 function CourseCard({ course, index, onPress }: { course: DemoCourse; index: number; onPress: () => void }) {
+  const { width, widthClass } = useLayoutMetrics();
+  const cardW = widthClass === "expanded"
+    ? Math.min(320, width * 0.38)
+    : widthClass === "medium"
+      ? width * 0.52
+      : width * 0.72;
   const { opacity, translateY } = useFadeSlideIn(150 + index * 80);
   const pressScale = useRef(new Animated.Value(1)).current;
   const handlePressIn = () => Animated.spring(pressScale, { toValue: 0.96, useNativeDriver: true, tension: 200 }).start();
   const handlePressOut = () => Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, tension: 200 }).start();
   return (
-    <Animated.View style={[{ width: CARD_W, marginRight: 14 }, { opacity, transform: [{ translateY }, { scale: pressScale }] }]}>
+    <Animated.View style={[{ width: cardW, marginRight: 14 }, { opacity, transform: [{ translateY }, { scale: pressScale }] }]}>
       <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
         <LinearGradient
           colors={[course.gradientStart, course.gradientEnd]}
@@ -117,6 +122,8 @@ export default function DemoScreen({
   const enabledFeatures = DEMO_FEATURES.filter((feature) => enabledFlags[feature.flagKey] !== false);
   const showCourses = enabledFlags[SALES_DEMO_FLAGS.featuredCourses] !== false;
   const showFullAppCta = enabledFlags[SALES_DEMO_FLAGS.fullAppCta] !== false;
+  const { isMedium, isExpanded, overlayBottomPad } = useLayoutMetrics();
+  const featureBasis = isExpanded ? "31%" : isMedium ? "47%" : "100%";
 
   // Pulse animation on CTA button
   useEffect(() => {
@@ -129,7 +136,12 @@ export default function DemoScreen({
   }, []);
 
   return (
-    <ScrollView style={styles.bg} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.bg}
+      contentContainerStyle={[styles.content, { paddingBottom: overlayBottomPad + 24 }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <AdaptiveContent style={{ paddingHorizontal: 0 }}>
       {/* Hero header */}
       <Animated.View style={[styles.hero, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}>
         <View style={styles.logoWrap}>
@@ -170,14 +182,15 @@ export default function DemoScreen({
       {enabledFeatures.length ? (
         <>
           <Text style={styles.sectionTitle}>What Makes Salareen Different</Text>
-          <View style={styles.featuresGrid}>
+          <View style={[styles.featuresGrid, { flexDirection: isMedium || isExpanded ? "row" : "column", flexWrap: "wrap" }]}>
             {enabledFeatures.map((feature, i) => (
-              <FeatureCard
-                key={feature.id}
-                feature={feature}
-                index={i}
-                onPress={() => onOpenFeature(feature.id)}
-              />
+              <View key={feature.id} style={{ flexBasis: featureBasis, flexGrow: 1, minWidth: 0 }}>
+                <FeatureCard
+                  feature={feature}
+                  index={i}
+                  onPress={() => onOpenFeature(feature.id)}
+                />
+              </View>
             ))}
           </View>
         </>
@@ -198,6 +211,7 @@ export default function DemoScreen({
       ) : null}
 
       <Text style={styles.footer}>Salareen · AI Education Platform · sales@salareen.com</Text>
+      </AdaptiveContent>
     </ScrollView>
   );
 }
@@ -225,7 +239,7 @@ const styles = StyleSheet.create({
   courseMeta: { flexDirection: "row", gap: 12 },
   courseMetaText: { color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: "600" },
   featuresGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, gap: 12, marginTop: 8 },
-  featureCardWrap: { width: (W - 48) / 2 },
+  featureCardWrap: { width: "100%" },
   featureCard: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 18, padding: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", minHeight: 170 },
   featureEmoji: { fontSize: 32, marginBottom: 10 },
   featureTitle: { color: "#fff", fontSize: 14, fontWeight: "800", marginBottom: 2 },

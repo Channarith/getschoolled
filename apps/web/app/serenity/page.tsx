@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { SERENITY_HERO_PATH, SERENITY_VOICE_INSTRUCTIONS } from "../lib/serenity";
+import { getLiveVoiceEngine } from "../lib/liveVoiceEngine";
 import {
   closeXaiVoiceSession,
   connectXaiVoiceSession,
@@ -198,6 +199,7 @@ export default function SerenityPage() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return wsRef.current;
     setConnecting(true);
     try {
+      const liveEngine = getLiveVoiceEngine();
       const token = await mintXaiVoiceToken({
         mode: "solo",
         lesson_context: "Project Serenity holographic AI teacher avatar",
@@ -205,11 +207,17 @@ export default function SerenityPage() {
           SERENITY_VOICE_INSTRUCTIONS +
           " When asked to read a line, speak it warmly and clearly, then stop. Do not ask follow-up questions unless asked.",
         language: "en",
+        engine: liveEngine === "xai" ? "xai" : "",
       });
+      if (liveEngine !== "xai" || token.engine === "salane") {
+        setHint("Serenity uses Salane Voice. Opt in to xAI under Profile → Voice for Grok.");
+        return null;
+      }
       if (token.use_xai === false || !token.token || !token.session_update) {
         setHint(
-          token.spoken_language?.hint ||
-            "xAI voice not available for this language.",
+          token.hint
+            || token.spoken_language?.hint
+            || "xAI voice not available — switch back to Sala in Profile → Voice.",
         );
         return null;
       }

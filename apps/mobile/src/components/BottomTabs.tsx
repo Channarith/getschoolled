@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import AnimatedPressable from "./AnimatedPressable";
+import { useLayoutMetrics } from "../layout";
 import { useT } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { theme } from "../theme";
@@ -30,8 +31,12 @@ export default function BottomTabs({
   active: TabId; onChange: (id: TabId) => void; unreadCount?: number;
 }) {
   const { t } = useT();
+  const { tabBarBottomPad, largeText, isExpanded } = useLayoutMetrics();
+  const iconSize = isExpanded ? 30 : 28;
+  const labelSize = largeText ? 9 : 10;
+  const labelLine = largeText ? 12 : 13;
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { paddingBottom: tabBarBottomPad }]}>
       <LinearGradient
         colors={["rgba(11,16,32,0)", "rgba(11,16,32,0.92)", "rgba(11,16,32,0.98)"]}
         style={StyleSheet.absoluteFill}
@@ -55,7 +60,7 @@ export default function BottomTabs({
               <View style={styles.iconWrap}>
                 <Ionicons
                   name={isActive ? tab.iconActive : tab.icon}
-                  size={28}
+                  size={iconSize}
                   color={color}
                 />
                 {tab.id === "notifications" && unreadCount > 0 ? (
@@ -67,8 +72,12 @@ export default function BottomTabs({
                 ) : null}
               </View>
               <Text
-                numberOfLines={2}
-                style={[styles.label, isActive && styles.labelActive]}
+                numberOfLines={largeText ? 3 : 2}
+                style={[
+                  styles.label,
+                  { fontSize: labelSize, lineHeight: labelLine },
+                  isActive && styles.labelActive,
+                ]}
               >
                 {t(tab.labelKey)}
               </Text>
@@ -86,7 +95,6 @@ const styles = StyleSheet.create({
   wrap: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.border,
-    paddingBottom: 24,
     paddingTop: 10,
   },
   bar: { flexDirection: "row", paddingHorizontal: 4 },

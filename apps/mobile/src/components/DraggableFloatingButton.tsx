@@ -3,6 +3,8 @@ import {
   Animated, PanResponder, type StyleProp, type ViewStyle, useWindowDimensions,
 } from "react-native";
 
+import { useLayoutMetrics } from "../layout";
+
 const EDGE_PADDING = 14;
 const BACK_CLEAR_WIDTH = 128;
 const BACK_CLEAR_HEIGHT = 72;
@@ -34,7 +36,8 @@ export default function DraggableFloatingButton({
   width,
 }: Props) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const bottomOffset = aboveTabs ? 82 : 16;
+  const { floatingBottomOffset, insets } = useLayoutMetrics();
+  const bottomOffset = aboveTabs ? floatingBottomOffset : Math.max(insets.bottom, 16);
   const initialLeft = initialSide === "left"
     ? EDGE_PADDING
     : screenWidth - EDGE_PADDING - width;

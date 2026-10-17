@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import AnimatedPressable from "./AnimatedPressable";
 import { coursePosterUrl } from "../courseArtwork";
+import { railCardWidth, railTileWidth, useLayoutMetrics } from "../layout";
 import { categoryGradient, theme } from "../theme";
 
 type Props<T> = {
@@ -55,9 +56,11 @@ export function CourseCard({
   category?: string;
   format?: string;
 }) {
+  const { widthClass } = useLayoutMetrics();
+  const cardW = railCardWidth(widthClass);
   const poster = coursePosterUrl({ title, category, format });
   return (
-    <AnimatedPressable onPress={onPress} style={styles.card}>
+    <AnimatedPressable onPress={onPress} style={[styles.card, { width: cardW }]}>
       <ImageBackground source={{ uri: poster }} style={styles.poster} imageStyle={styles.posterImage}>
         <LinearGradient
           colors={["transparent", "rgba(11,16,32,0.85)"]}
@@ -89,9 +92,11 @@ export function CategoryTile({ category, count, countLabel, onPress }: {
   countLabel?: string;
   onPress?: () => void;
 }) {
+  const { widthClass } = useLayoutMetrics();
+  const tileW = railTileWidth(widthClass);
   const [c1, c2] = categoryGradient(category);
   return (
-    <AnimatedPressable onPress={onPress} style={styles.tile}>
+    <AnimatedPressable onPress={onPress} style={[styles.tile, { width: tileW }]}>
       <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tileGrad}>
         <Text numberOfLines={2} style={styles.tileTitle}>{category}</Text>
         <Text numberOfLines={2} style={styles.tileCount}>{countLabel || `${count} classes`}</Text>
@@ -113,7 +118,6 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   card: {
-    width: 168,
     borderRadius: theme.radius.md,
     overflow: "hidden",
     backgroundColor: theme.colors.panelSolid,
@@ -164,7 +168,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   tile: {
-    width: 148,
     height: 112,
     borderRadius: theme.radius.md,
     overflow: "hidden",

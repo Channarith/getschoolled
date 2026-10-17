@@ -6,7 +6,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView,
-  StyleSheet, Text, TextInput, useWindowDimensions, View,
+  StyleSheet, Text, TextInput, View,
 } from "react-native";
 
 import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, forgotPassword, resetPassword } from "../api";
@@ -17,6 +17,8 @@ import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { DEPLOY_MODE, QA_TEST_ACCOUNTS } from "../config";
 import { LANGUAGES, languageInfo, useT } from "../i18n";
+import AdaptiveContent from "../layout/AdaptiveContent";
+import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
 import { APP_VERSION } from "../version";
 
@@ -157,7 +159,8 @@ export default function AuthScreen({
   }
 
   const current = languageInfo(locale);
-  const wideSetup = setup && useWindowDimensions().width >= 800;
+  const { isMedium, isExpanded, overlayBottomPad } = useLayoutMetrics();
+  const wideSetup = setup && (isMedium || isExpanded);
 
   return (
     <KeyboardAvoidingView
@@ -178,9 +181,13 @@ export default function AuthScreen({
       ) : null}
       <ScrollView
         style={setup ? styles.fill : undefined}
-        contentContainerStyle={setup ? [styles.setupScroll, wideSetup && styles.setupScrollCenter] : styles.scroll}
+        contentContainerStyle={[
+          setup ? [styles.setupScroll, wideSetup && styles.setupScrollCenter] : styles.scroll,
+          { paddingBottom: overlayBottomPad },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
+        <AdaptiveContent style={setup ? undefined : { paddingHorizontal: 0 }}>
         <View style={styles.header}>
           <Text style={[styles.brand, setup && styles.setupBrand]}>Salareen</Text>
           {setup ? <Text style={styles.setupKicker}>New account</Text> : null}
@@ -392,6 +399,7 @@ export default function AuthScreen({
               : t("auth.checkingBackend")}
         </Text>
         <Text style={[styles.version, setup && styles.setupSub]}>v{APP_VERSION}</Text>
+        </AdaptiveContent>
       </ScrollView>
       </View>
     </KeyboardAvoidingView>

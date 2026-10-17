@@ -56,6 +56,7 @@ export type XaiVoiceTokenResponse = {
   /** False for Khmer and Cantonese: those voices are not on xAI. */
   use_xai?: boolean;
   spoken_language?: XaiSpokenLanguage;
+  hint?: string;
 };
 
 /** Khmer and Cantonese are narrated by the speech gateway, not the Grok socket.
@@ -112,6 +113,8 @@ export async function mintXaiVoiceToken(opts: {
   category?: string;
   topic?: string;
   course_id?: string;
+  /** "xai" opts into a server-minted session. Omit it to keep Sala. */
+  engine?: string;
 }): Promise<XaiVoiceTokenResponse> {
   const r = await fetch(`${SPEECH_URL}/voice/token`, {
     method: "POST",
@@ -126,6 +129,7 @@ export async function mintXaiVoiceToken(opts: {
       category: opts.category || "",
       topic: opts.topic || "",
       course_id: opts.course_id || "",
+      ...(opts.engine ? { engine: opts.engine } : {}),
     }),
   });
   if (!r.ok) {

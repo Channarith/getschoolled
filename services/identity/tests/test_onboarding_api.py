@@ -62,7 +62,7 @@ def test_onboarding_standard_plan_pricing():
     assert r.status_code == 200
     assert r.json()["membership_class"] == "standard"
     me = client.get("/auth/me", headers=h).json()
-    assert me["subscription"]["price_usd"] == 19.99
+    assert me["subscription"]["price_usd"] == 19
 
 
 def test_login_history_recorded():

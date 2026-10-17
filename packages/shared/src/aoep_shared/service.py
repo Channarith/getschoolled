@@ -133,10 +133,35 @@ def create_service(
         response.headers["Server-Timing"] = f"app;dur={ms:.1f}"
         return response
 
-    # The browser web app calls services cross-origin during local dev. Allow
-    # configured origins (comma-separated CORS_ORIGINS); default to "*" for the
-    # local stack. Bug 5: In non-local/dev modes without explicit CORS_ORIGINS,
-    # fall back to the known production origins rather than wildcard "*".
+    class _SessionCookieAuth:
+        """Copy the HttpOnly session cookie into Authorization for existing deps."""
+
+        def __init__(self, app):
+            self.app = app
+
+        async def __call__(self, scope, receive, send):
+            if scope.get("type") == "http":
+                headers = list(scope.get("headers") or [])
+                has_auth = any(key == b"authorization" for key, _ in headers)
+                token = ""
+                if not has_auth:
+                    for key, value in headers:
+                        if key != b"cookie":
+                            continue
+                        for part in value.decode("latin1").split(";"):
+                            name, _, raw = part.strip().partition("=")
+                            if name == "aoep_session" and raw:
+                                token = raw
+                    if token:
+                        headers.append((b"authorization", f"Bearer {token}".encode()))
+                        scope = dict(scope)
+                        scope["headers"] = headers
+            await self.app(scope, receive, send)
+
+    app.add_middleware(_SessionCookieAuth)
+
+    # The browser web app calls services cross-origin during local dev.
+    # Cookie auth needs an explicit origin list; "*" cannot send credentials.
     #
     # Added LAST so CORS is the OUTERMOST middleware (add_middleware prepends):
     # short-circuit responses from inner middleware — rate-limit 429s in
@@ -149,13 +174,18 @@ def create_service(
     if _cors_env:
         origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
     elif _deploy_mode in ("local", "dev", "debug", "test"):
-        origins = ["*"]
+        origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:8081",
+            "http://127.0.0.1:8081",
+        ]
     else:
         origins = ["https://salareen.com", "https://www.salareen.com"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
-        allow_credentials=False,
+        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -175,25 +205,56 @@ def create_service(
         """Version + build metadata. Standard on every service for automation."""
         return {"service": name, "deploy_mode": cfg.deploy_mode.value, **build_info()}
 
+    from fastapi import Request
+    globals()["Request"] = Request
+
+    def _require_ops(request: Request):
+        """Lock metrics and error logs outside local deploys."""
+        import hmac
+
+        from fastapi import HTTPException
+
+        deploy = os.environ.get("DEPLOY_MODE", "local").lower()
+        if deploy in ("local", "dev", "development", "debug", "test"):
+            return
+        from .internal_auth import is_internal_caller
+
+        presented = request.headers.get("x-internal-token") or ""
+        admin = request.headers.get("x-admin-secret") or ""
+        metrics_token = request.headers.get("x-metrics-token") or ""
+        expected_admin = os.environ.get("ADMIN_SECRET") or ""
+        expected_metrics = os.environ.get("METRICS_TOKEN") or ""
+        if is_internal_caller(presented):
+            return
+        if expected_admin and hmac.compare_digest(admin, expected_admin):
+            return
+        if expected_metrics and hmac.compare_digest(metrics_token, expected_metrics):
+            return
+        raise HTTPException(status_code=401, detail="operator credential required")
+
     @app.get("/metrics", response_class=PlainTextResponse)
-    def metrics():
+    def metrics(request: Request):
         """Prometheus exposition (scrape target for local + cloud monitoring)."""
+        _require_ops(request)
         return PlainTextResponse(app.state.telemetry.prometheus_text(),
                                  media_type="text/plain; version=0.0.4")
 
     @app.get("/telemetry/summary")
-    def telemetry_summary() -> dict:
+    def telemetry_summary(request: Request) -> dict:
         """Performance + memory/runtime + error/log counts (JSON for the admin UI)."""
+        _require_ops(request)
         return app.state.telemetry.summary()
 
     @app.get("/telemetry/errors")
-    def telemetry_errors(limit: int = 50) -> dict:
+    def telemetry_errors(request: Request, limit: int = 50) -> dict:
         """Recent exceptions w/ traceback + request context for root-cause analysis."""
+        _require_ops(request)
         return {"service": name, "errors": app.state.telemetry.recent_errors(limit)}
 
     @app.get("/telemetry/logs")
-    def telemetry_logs(limit: int = 100, level: str | None = None) -> dict:
+    def telemetry_logs(request: Request, limit: int = 100, level: str | None = None) -> dict:
         """Recent structured events/log ring buffer."""
+        _require_ops(request)
         return {"service": name, "events": app.state.telemetry.recent_events(limit, level)}
 
     @app.get("/__meta")

@@ -14,7 +14,10 @@ import {
 } from "../lib/api";
 
 function formatUsd(amount: number): string {
-  return amount === 0 ? "$0" : `$${amount.toFixed(2)}`;
+  if (amount === 0) return "$0";
+  return Math.round(amount * 100) % 100 === 0
+    ? `$${Math.round(amount)}`
+    : `$${amount.toFixed(2)}`;
 }
 
 function formatBillingDate(ts: number | null): string {
@@ -78,15 +81,15 @@ export default function BillingPage() {
   }
 
   const paidPlans = plans
-    ? ["basic", "premium"].map((id) => plans[id]).filter(Boolean)
+    ? ["basic", "pro", "premium"].map((id) => plans[id]).filter(Boolean)
     : [];
 
   return (
     <main className="container" style={{ maxWidth: 720 }}>
       <h1>Membership &amp; billing</h1>
       <p className="muted">
-        Netflix-style plans — Standard with ads, VIP ad-free. Billed monthly on the
-        calendar day you signed up.
+        Netflix-style plans — Standard with ads, Pro and VIP ad-free. Billed monthly
+        on the calendar day you signed up.
       </p>
       {error && <p style={{ color: "#f87171" }}>{error}</p>}
       {!ready && <p className="muted">Loading your plan…</p>}

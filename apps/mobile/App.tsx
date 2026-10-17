@@ -2,8 +2,9 @@ import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
-  Animated, AppState, I18nManager, Platform, SafeAreaView, StyleSheet, Text, View,
+  Animated, AppState, I18nManager, Platform, StyleSheet, Text, View,
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useAndroidBack, useAndroidBackTo } from "./src/hooks/useAndroidBack";
 
 import AmbientBackground from "./src/components/AmbientBackground";
@@ -36,6 +37,7 @@ import HomeScreen from "./src/screens/HomeScreen";
 import MyListScreen from "./src/screens/MyListScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import StudyToolsScreen from "./src/screens/StudyToolsScreen";
 import FirstSignInAssistant from "./src/components/FirstSignInAssistant";
 import BugReportScreen from "./src/screens/BugReportScreen";
 import GroupClassesScreen from "./src/screens/GroupClassesScreen";
@@ -87,13 +89,15 @@ const DEFAULT_SALES_DEMO_FLAGS = Object.fromEntries(
 
 export default function App() {
   return (
-    <LocaleProvider>
-      <IntroSplashProvider>
-        <AuthProvider>
-          <AppInner />
-        </AuthProvider>
-      </IntroSplashProvider>
-    </LocaleProvider>
+    <SafeAreaProvider>
+      <LocaleProvider>
+        <IntroSplashProvider>
+          <AuthProvider>
+            <AppInner />
+          </AuthProvider>
+        </IntroSplashProvider>
+      </LocaleProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -125,6 +129,7 @@ function AppInner() {
   const [showAccount, setShowAccount] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
   const [showBilling, setShowBilling] = useState(false);
+  const [studyMode, setStudyMode] = useState<null | "homework" | "training">(null);
   const [showLanguages, setShowLanguages] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
@@ -550,7 +555,7 @@ function AppInner() {
   const mainTabsVisible = !studioDemo && !visionLab && !liveRoomId && !showGroupClasses && !showLiveClass
     && !showLiveRooms && !showArcade && !showCorporate && !showKids && !kidsLessonId && !gameSubject && !activeLesson
     && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages
-    && !showSearch && !showBugReport && !showWorlds;
+    && !showSearch && !showBugReport && !showWorlds && !studyMode;
 
   // Android hardware / gesture back: when no overlay screen owns the handler,
   // pop to Home from secondary tabs (standard Android tab UX). On Home, allow
@@ -579,6 +584,8 @@ function AppInner() {
     screen = <DemoWebScreen demo={studioDemo} onBack={() => setStudioDemo(null)} />;
   } else if (visionLab) {
     screen = <DemoWebScreen demo={visionLab} onBack={() => setVisionLab(null)} />;
+  } else if (studyMode) {
+    screen = <StudyToolsScreen mode={studyMode} onBack={() => setStudyMode(null)} />;
   } else if (showBilling) {
     screen = <BillingScreen onBack={() => setShowBilling(false)} />;
   } else if (showSecurity) {
@@ -803,6 +810,8 @@ function AppInner() {
         onOpenRewards={() => setShowRewards(true)}
         onOpenLanguages={() => setShowLanguages(true)}
         onOpenBilling={() => setShowBilling(true)}
+        onOpenHomework={() => setStudyMode("homework")}
+        onOpenTraining={() => setStudyMode("training")}
         onOpenBugReport={bugReporterEnabled ? () => void openBugReporter() : undefined}
       />
     );
@@ -831,7 +840,7 @@ function AppInner() {
 
   if (authStatus === "loading" && !showBugReport) {
     return (
-      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
         <StatusBar style="light" />
         <AmbientBackground />
         <AuthLoadingScreen />
@@ -842,7 +851,7 @@ function AppInner() {
 
   if (authStatus === "mfa_pending" && !showBugReport) {
     return (
-      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
         <StatusBar style="light" />
         <AmbientBackground />
         <MfaAuthScreen />
@@ -853,7 +862,7 @@ function AppInner() {
 
   if (authenticated && salesDemoEnabled && showDemo && !showBugReport) {
     return (
-      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
         <StatusBar style="light" />
         <AmbientBackground />
         <DemoScreen
@@ -882,7 +891,7 @@ function AppInner() {
 
   if (!inApp && !showBugReport) {
     return (
-      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
         <StatusBar style="light" />
         <AmbientBackground />
         <GuestHomeScreen />
@@ -892,7 +901,7 @@ function AppInner() {
   }
 
   return (
-    <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+    <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
       <StatusBar style="light" />
       <AmbientBackground />
       <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>
