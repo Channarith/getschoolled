@@ -365,10 +365,20 @@ def translate(req: TranslateRequest) -> dict:
     except Exception:
         translated = None
     if translated:
-        return {
+        from aoep_shared.translation_merge import last_merge
+
+        body = {
             "source": source, "target": target, "text": translated,
-            "engine": "provider", "degraded": False,
+            "engine": "merged", "degraded": False,
         }
+        merged = last_merge()
+        if merged is not None and merged.text == translated:
+            body.update({
+                "chosen": merged.chosen,
+                "nllb_score": merged.nllb_score,
+                "madlad_score": merged.madlad_score,
+            })
+        return body
     phrase = translate_phrase(req.text, source, target)
     if phrase:
         return {
@@ -379,6 +389,51 @@ def translate(req: TranslateRequest) -> dict:
         "source": source, "target": target, "text": req.text,
         "engine": "passthrough", "degraded": True,
     }
+
+
+class ListenRequest(BaseModel):
+    course_id: str
+    language: str
+    segment: int = 0
+
+
+@app.get("/translate/checkpoints")
+def translate_checkpoints() -> dict:
+    """Courses already translated. Drive Mode speaks these in the training language."""
+    from aoep_shared.course_translation_library import latest_checkpoint
+
+    manifest = latest_checkpoint()
+    ready = manifest.get("ready") or []
+    return {
+        "day": manifest.get("day"),
+        "files": manifest.get("files") or len(ready),
+        "languages": manifest.get("languages") or {},
+        "models": manifest.get("models") or {},
+        "listen": manifest.get("listen") or "",
+        "ready": ready[:200],
+        "ready_total": len(ready),
+    }
+
+
+@app.post("/translate/listen")
+def translate_listen(req: ListenRequest) -> Response:
+    """Speak one saved course segment in its language. Slang rewrite stays off."""
+    from aoep_shared.course_translation_library import load_translation
+
+    record = load_translation(req.course_id, req.language)
+    if not record:
+        raise HTTPException(status_code=404, detail="no checkpoint for that course and language")
+    segments = record.get("segments") or []
+    if req.segment < 0 or req.segment >= len(segments):
+        raise HTTPException(status_code=404, detail="segment is outside this course")
+    row = segments[req.segment]
+    spoken = f"{row.get('heading') or ''}. {row.get('text') or ''}".strip()
+    return _render_tts(
+        spoken,
+        language=req.language,
+        voice_style="standard",
+        slang=False,
+    )
 
 
 # --------------------------------------------------------------------------- #

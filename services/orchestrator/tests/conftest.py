@@ -23,6 +23,9 @@ os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")
 # Keep live-class sessions in-process for tests so a stray REDIS_URL in the
 # environment can't make the suite talk to a real Redis. Tests that exercise the
 # store factory override this via monkeypatch.
+# Signed-in face checks call identity. Leave them off in this suite; the
+# face-gate tests turn FACE_GATE_ENABLED on and stub the identity call.
+os.environ.setdefault("FACE_GATE_ENABLED", "0")
 os.environ.setdefault("SESSION_BACKEND", "memory")
 os.environ.setdefault("LIVE_ROOM_BACKEND", "memory")
 os.environ.setdefault("GROUP_CLASS_BACKEND", "memory")

@@ -116,6 +116,10 @@ class SessionState(BaseModel):
     lesson_id: str
     student_id: Optional[str] = None
     profile_score: str = ""
+    # Set when a signed-in lesson required a face match. Empty for guests.
+    account_id: str = ""
+    face_generation: int = 0
+    face_resume_required: bool = False
     current_slide: int = 0
     session_budget_min: Optional[int] = None
     planned_duration_min: Optional[float] = None

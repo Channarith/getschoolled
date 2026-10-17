@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "../lib/i18n";
+import { FaceGateNeedsEnroll, FaceGateTimeout, useFaceGate } from "../lib/useFaceGate";
 import {
   advance,
   ask,
@@ -18,6 +19,7 @@ import {
   getStudentId,
   getToken,
   gradeQuiz,
+  reportFaceMismatch,
   listLessons,
   listStudents,
   getMe,
@@ -96,6 +98,8 @@ function difficultyStyle(d: string): { background: string; color: string; border
 export default function ClassPage() {
   const router = useRouter();
   const { locale } = useT();
+  const resumeFaceTokenRef = useRef("");
+  const { requireFace, gate: faceGate } = useFaceGate();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string>("");
   // The Live Class page is always a Solo (1:1) live room with the AI. Group
@@ -458,11 +462,19 @@ export default function ClassPage() {
     setBusy(true);
     try {
       const place = await resumeSlideForLesson(lessonId, studentProfile?.id);
+      const sid = place.studentId || studentProfile?.id || getStudentId();
+      if (!sid) {
+        setError("Choose a learner profile before starting.");
+        return;
+      }
+      const faceToken = await faceTokenFor("start", sid);
+      if (faceToken === null) return;
       const v = await startSession(
         lessonId,
         classType,
-        place.studentId || getStudentId(),
+        sid,
         place.slideIndex,
+        faceToken,
       );
       setView(v);
       setSlide(v.slide);
@@ -498,9 +510,13 @@ export default function ClassPage() {
     stopSpeaking();
     setBusy(true);
     try {
+      const sid = studentProfile?.id || getStudentId();
+      const faceToken = await faceTokenFor("checkpoint", sid);
+      if (faceToken === null) return;
       const acc = studentProfile?.accessibility || {};
       const run = await startAssessmentCheckpoint({
-        studentId: studentProfile?.id || getStudentId(),
+        studentId: sid,
+        faceToken,
         sessionId: view.session.session_id,
         checkpointId: cp.checkpoint_id,
         stage: cp.stage,
@@ -622,9 +638,21 @@ export default function ClassPage() {
       setBusy(true);
       try {
         const place = await resumeSlideForLesson(lessonId, studentProfile?.id);
+        const sid = place.studentId || studentProfile?.id || "";
+        if (!sid) {
+          setError("Choose a learner profile before starting.");
+          setBusy(false);
+          return;
+        }
+        const faceToken = await faceTokenFor("start", sid);
+        if (faceToken === null) {
+          setBusy(false);
+          return;
+        }
         const { room_id } = await startSoloLiveRoom(lessonId, "", {
           startSlide: place.slideIndex,
-          studentId: place.studentId,
+          studentId: sid,
+          faceToken,
         });
         router.push(`/live-room/${encodeURIComponent(room_id)}`);
         return;
@@ -643,7 +671,22 @@ export default function ClassPage() {
     setError("");
     setBusy(true);
     try {
-      const s = await advance(view.session.session_id);
+      let s;
+      try {
+        s = await advance(view.session.session_id, resumeFaceTokenRef.current);
+        resumeFaceTokenRef.current = "";
+      } catch (err) {
+        const message = String(err);
+        const sid = studentProfile?.id || "";
+        if (message.includes("enrollment changed")) {
+          leaveUnconfirmed("resume");
+          return;
+        }
+        if (!message.includes("face verification") || !sid) throw err;
+        const faceToken = await faceTokenFor("resume", sid);
+        if (faceToken === null) return;
+        s = await advance(view.session.session_id, faceToken);
+      }
       setSlide(s);
       void saveCourseProgress({
         lessonId,
@@ -961,8 +1004,35 @@ export default function ClassPage() {
 
   const slideCopy = slide && localizedSlide?.index === slide.index ? localizedSlide : null;
 
+  function leaveUnconfirmed(purpose: string) {
+    if (studentProfile?.id) {
+      reportFaceMismatch(studentProfile.id, purpose, lessonId).catch(() => {});
+    }
+    setView(null);
+    setAssessmentRun(null);
+    setError("We could not confirm it is you. This lesson is closed until your face matches.");
+  }
+
+  async function faceTokenFor(purpose: "start" | "checkpoint" | "resume", sid: string): Promise<string | null> {
+    try {
+      return await requireFace(purpose, sid);
+    } catch (err) {
+      if (err instanceof FaceGateNeedsEnroll) {
+        setError("Enroll your face and voice in Settings before continuing.");
+        return null;
+      }
+      if (err instanceof FaceGateTimeout) {
+        leaveUnconfirmed(purpose);
+        return null;
+      }
+      setError(String(err));
+      return null;
+    }
+  }
+
   return (
     <main className="container">
+      {faceGate}
       {adBreak && (
         <VideoAdBreak
           adBreak={adBreak}
@@ -1339,6 +1409,12 @@ export default function ClassPage() {
               onBusy={setBusy}
               onError={(msg) => setError(msg)}
               onSubmitted={(result) => { void onAssessmentSubmitted(result); }}
+              beforeSubmit={async () => {
+                const sid = studentProfile?.id || getStudentId();
+                const token = await faceTokenFor("checkpoint", sid);
+                if (token === null) throw new FaceGateTimeout();
+                return token;
+              }}
               onDismiss={
                 hasSummativePolicy && assessmentRun?.checkpoint.stage === "summative" && !passDecisionToken
                   ? undefined

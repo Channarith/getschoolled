@@ -131,11 +131,28 @@ class StudentProfile(BaseModel):
     voice_name_sample_mime: str = ""      # MIME type: "audio/webm" | "audio/wav" | "audio/mpeg"
     voice_name_text: str = ""            # the name the student said (typed or transcribed)
     voice_enrolled_at: Optional[float] = None  # Unix timestamp of enrollment
+    # 128-d SFace template. Never returned by the public profile API.
+    face_embedding: List[float] = Field(default_factory=list)
+    face_enrolled_at: Optional[float] = None
+    # Bumped on every replace so outstanding verify tokens stop matching.
+    face_generation: int = 0
+    face_consumed_jtis: List[str] = Field(default_factory=list)
+    last_face_match_at: Optional[float] = None
     # Where this learner left each lesson. Keyed by lesson_id (or course_id).
     course_progress: Dict[str, "LessonProgress"] = Field(default_factory=dict)
     # Focus, attention, away intervals, and report-card observations.
     # Shape lives in aoep_shared.learner_focus. Snapshotted with the account.
     focus_profile: Dict[str, object] = Field(default_factory=dict)
+
+    def model_dump(self, *args, **kwargs):
+        """Public profile. The face template and used-token ids stay on the store."""
+        include_private = kwargs.pop("include_private", False)
+        data = super().model_dump(*args, **kwargs)
+        if not include_private:
+            data.pop("face_embedding", None)
+            data.pop("face_consumed_jtis", None)
+            data["face_enrolled"] = bool(self.face_enrolled_at)
+        return data
 
 
 class BillingAddress(BaseModel):
@@ -1289,6 +1306,48 @@ class AccountStore:
         prof.voice_name_sample_mime = voice_name_sample_mime or "audio/webm"
         prof.voice_name_text = voice_name_text
         prof.voice_enrolled_at = time.time()
+        self._persist()
+        return prof
+
+    def enroll_face(
+        self,
+        account_id: str,
+        student_id: str,
+        embedding: list,
+    ) -> StudentProfile:
+        """Replace the student's face template and invalidate older verify tokens."""
+        from aoep_shared.face_gate import FaceGateError, normalize_embedding
+
+        prof = self._student_or_raise(account_id, student_id)
+        try:
+            vec = normalize_embedding(embedding)
+        except FaceGateError:
+            raise
+        prof.face_embedding = vec
+        prof.face_enrolled_at = time.time()
+        prof.face_generation = int(prof.face_generation or 0) + 1
+        prof.face_consumed_jtis = []
+        self._persist()
+        return prof
+
+    def consume_face_token(
+        self,
+        account_id: str,
+        student_id: str,
+        *,
+        jti: str,
+        generation: int,
+    ) -> StudentProfile:
+        """Mark a verify token used. Fails if the face was replaced or replayed."""
+        from aoep_shared.face_gate import FaceGateError
+
+        prof = self._student_or_raise(account_id, student_id)
+        if int(prof.face_generation or 0) != int(generation):
+            raise FaceGateError("face enrollment changed")
+        if jti in prof.face_consumed_jtis:
+            raise FaceGateError("face verification was already used")
+        prof.face_consumed_jtis = [*prof.face_consumed_jtis, jti][-64:]
+        prof.last_face_match_at = time.time()
         self._persist()
         return prof
 

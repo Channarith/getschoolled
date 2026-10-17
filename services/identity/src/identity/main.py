@@ -1153,6 +1153,186 @@ def get_voice_blob(student_id: str, acct=Depends(current_account)) -> dict:
     }
 
 
+class FaceEnrollRequest(BaseModel):
+    embedding: list[float]
+
+
+class FaceVerifyRequest(BaseModel):
+    embedding: list[float]
+    purpose: str
+
+
+class FaceMismatchRequest(BaseModel):
+    purpose: str = ""
+    course_id: str = ""
+
+
+class FaceConsumeRequest(BaseModel):
+    token: str
+    account_id: str
+    student_id: str = ""
+    purpose: str
+
+
+def _face_status(prof) -> dict:
+    return {
+        "student_id": prof.id,
+        "face_enrolled": bool(prof.face_enrolled_at),
+        "face_enrolled_at": prof.face_enrolled_at,
+        "face_generation": int(prof.face_generation or 0),
+        "last_face_match_at": prof.last_face_match_at,
+        "voice_enrolled": bool(prof.voice_enrolled_at),
+    }
+
+
+def _record_face_focus(acct, student_id: str, kind: str, *, note: str = "", course_id: str = "") -> None:
+    from aoep_shared.learner_focus import apply_event
+
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        return
+    updated = apply_event(prof.focus_profile, {
+        "kind": kind,
+        "surface": "face_gate",
+        "course_id": course_id,
+        "note": note,
+    })
+    app.state.accounts.update_focus_profile(acct.id, student_id, updated)
+
+
+@app.post("/students/{student_id}/face-enrollment")
+def enroll_face(
+    student_id: str,
+    req: FaceEnrollRequest,
+    acct=Depends(current_account),
+) -> dict:
+    """Replace the face template. Outstanding verify tokens stop working."""
+    from aoep_shared.face_gate import FaceGateError
+
+    try:
+        prof = app.state.accounts.enroll_face(acct.id, student_id, req.embedding)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    except FaceGateError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return _face_status(prof)
+
+
+@app.get("/students/{student_id}/face-enrollment")
+def get_face_enrollment(student_id: str, acct=Depends(current_account)) -> dict:
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return _face_status(prof)
+
+
+@app.post("/students/{student_id}/face-verify")
+def verify_face(
+    student_id: str,
+    req: FaceVerifyRequest,
+    acct=Depends(current_account),
+) -> dict:
+    """Match a live embedding to this student and mint a single-use token."""
+    from aoep_shared.face_gate import (
+        FaceGateError,
+        embeddings_match,
+        issue_face_token,
+        normalize_embedding,
+    )
+
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    if not prof.face_enrolled_at or not prof.face_embedding:
+        raise HTTPException(status_code=409, detail="enroll a face before verification")
+    try:
+        live = normalize_embedding(req.embedding)
+    except FaceGateError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    if not embeddings_match(live, prof.face_embedding):
+        raise HTTPException(status_code=403, detail="face does not match")
+    try:
+        token = issue_face_token(
+            account_id=acct.id,
+            student_id=student_id,
+            purpose=req.purpose,
+            generation=int(prof.face_generation or 0),
+        )
+    except FaceGateError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    prof.last_face_match_at = time.time()
+    app.state.accounts._persist()
+    _record_face_focus(acct, student_id, "integrity_clear", note=req.purpose)
+    return {
+        "token": token,
+        "purpose": req.purpose,
+        "student_id": student_id,
+        "expires_in_s": 120,
+    }
+
+
+@app.post("/students/{student_id}/face-gate/mismatch")
+def face_gate_mismatch(
+    student_id: str,
+    req: FaceMismatchRequest,
+    acct=Depends(current_account),
+) -> dict:
+    """Record that a scan window ended without the enrolled face."""
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    _record_face_focus(
+        acct,
+        student_id,
+        "identity_mismatch",
+        note=req.purpose or "timeout",
+        course_id=req.course_id,
+    )
+    return {"student_id": student_id, "recorded": True}
+
+
+@app.post("/internal/face-gate/consume", dependencies=[Depends(require_internal)])
+def consume_face_gate(req: FaceConsumeRequest) -> dict:
+    """Single-use check used by the orchestrator. Fails closed on replay or replace."""
+    from aoep_shared.face_gate import FaceGateError, read_face_token
+
+    try:
+        claims = read_face_token(
+            req.token,
+            account_id=req.account_id,
+            student_id=req.student_id,
+            purpose=req.purpose,
+        )
+        app.state.accounts.consume_face_token(
+            req.account_id,
+            str(claims["student_id"]),
+            jti=str(claims["jti"]),
+            generation=int(claims.get("gen") or 0),
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    except FaceGateError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    return {
+        "ok": True,
+        "student_id": str(claims["student_id"]),
+        "generation": int(claims.get("gen") or 0),
+        "purpose": req.purpose,
+    }
+
+
+@app.get("/internal/face-gate/status", dependencies=[Depends(require_internal)])
+def face_gate_status(account_id: str, student_id: str) -> dict:
+    prof = app.state.accounts.get_student(account_id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {
+        "student_id": student_id,
+        "generation": int(prof.face_generation or 0),
+        "face_enrolled": bool(prof.face_enrolled_at),
+    }
+
+
 def prof_display_name(acct, student_id: str) -> str:
     """Safely look up a student's display name (fallback to empty string)."""
     try:

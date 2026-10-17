@@ -292,7 +292,7 @@ class TranslationEngine:
             raise ProviderUnavailable(
                 f"gateway translation not real (engine={engine!r}, degraded={degraded})"
             )
-        if engine not in {"provider", "phrasebook", "nllb", "speech-gateway-nllb"}:
+        if engine not in {"provider", "phrasebook", "nllb", "madlad", "merged", "speech-gateway-nllb"}:
             # Unknown engine with non-degraded response — accept but label it.
             pass
         return TranslationResult(

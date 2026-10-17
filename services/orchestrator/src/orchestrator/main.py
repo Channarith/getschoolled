@@ -170,6 +170,8 @@ class StartSessionRequest(BaseModel):
     observed_pace: str = ""
     # Slide index saved on the learner's account or student profile.
     start_slide: int = 0
+    # Single-use face token from identity, required for a signed-in start.
+    face_token: str = ""
 
     model_config = {"extra": "forbid"}
 
@@ -454,6 +456,53 @@ def api_lesson_accreditation(lesson_id: str) -> dict:
     return payload
 
 
+def _require_face_token(
+    authorization: str,
+    *,
+    purpose: str,
+    student_id: str,
+    face_token: str,
+) -> dict | None:
+    """Consume a face token for a signed-in learner. Guests are not gated."""
+    from aoep_shared.face_gate import FaceGateError
+
+    from .face_gate_client import consume_face_token, face_gate_required
+
+    account_id = _assessment_account_id(authorization)
+    if not account_id or not face_gate_required():
+        return None
+    if not (face_token or "").strip():
+        raise HTTPException(status_code=403, detail="face verification required")
+    try:
+        return consume_face_token(
+            face_token.strip(),
+            account_id=account_id,
+            student_id=student_id or "",
+            purpose=purpose,
+        )
+    except FaceGateError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+def _assert_session_face_current(session) -> None:
+    """A replaced face template cannot keep using the lesson it started."""
+    from aoep_shared.face_gate import FaceGateError
+
+    from .face_gate_client import face_gate_required, fetch_face_generation
+
+    if not session.account_id or not face_gate_required():
+        return
+    try:
+        generation = fetch_face_generation(session.account_id, session.student_id or "")
+    except FaceGateError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if int(generation) != int(session.face_generation or 0):
+        raise HTTPException(
+            status_code=403,
+            detail="face enrollment changed; start the lesson again",
+        )
+
+
 @app.post("/api/sessions", response_model=SessionView)
 def api_start_session(
     req: StartSessionRequest,
@@ -477,6 +526,12 @@ def api_start_session(
             headers={"X-AOEP-Gate": reason},
         )
 
+    face = _require_face_token(
+        authorization,
+        purpose="start",
+        student_id=req.student_id or "",
+        face_token=req.face_token,
+    )
     sessions = get_sessions()
     try:
         budget = req.session_budget_min
@@ -493,14 +548,20 @@ def api_start_session(
                 dimensions.get("session_length", req.session_length or "medium"),
                 observed_pace=req.observed_pace,
             )
+        student_id = (face or {}).get("student_id") or req.student_id
         state = sessions.start_session(
             req.lesson_id,
             req.class_type.value,
-            student_id=req.student_id,
+            student_id=student_id,
             session_budget_min=budget,
             profile_score=req.profile_score,
             start_slide=req.start_slide,
         )
+        if face:
+            state.account_id = _assessment_account_id(authorization)
+            state.student_id = str(face.get("student_id") or student_id or "")
+            state.face_generation = int(face.get("generation") or 0)
+            sessions.store.save(state)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {req.lesson_id}")
     except ValueError as exc:
@@ -526,12 +587,60 @@ def api_get_session(session_id: str, _=Depends(require_internal)) -> SessionView
     )
 
 
-@app.post("/api/sessions/{session_id}/advance", response_model=SlideWithBreak)
-def api_advance(session_id: str) -> SlideWithBreak:
+@app.post("/api/sessions/{session_id}/face-pause")
+def api_face_pause(
+    session_id: str,
+    authorization: str = Header(default=""),
+) -> dict:
+    """The camera left. The next slide requires a fresh face match."""
+    sessions = get_sessions()
     try:
-        return get_sessions().advance(session_id)
+        session = sessions.get_session(session_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session")
+    account_id = _assessment_account_id(authorization)
+    if not session.account_id or account_id != session.account_id:
+        raise HTTPException(status_code=403, detail="face pause is for the signed-in learner")
+    session.face_resume_required = True
+    sessions.store.save(session)
+    return {"face_resume_required": True}
+
+
+@app.post("/api/sessions/{session_id}/advance", response_model=SlideWithBreak)
+def api_advance(
+    session_id: str,
+    authorization: str = Header(default=""),
+    x_face_token: str = Header(default=""),
+) -> SlideWithBreak:
+    sessions = get_sessions()
+    try:
+        session = sessions.get_session(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session")
+    _assert_session_face_current(session)
+    if session.face_resume_required and session.account_id:
+        from .face_gate_client import face_gate_required
+
+        if face_gate_required():
+            if _assessment_account_id(authorization) != session.account_id:
+                raise HTTPException(status_code=403, detail="face verification required")
+            _require_face_token(
+                authorization,
+                purpose="resume",
+                student_id=session.student_id or "",
+                face_token=x_face_token,
+            )
+            session.face_resume_required = False
+            sessions.store.save(session)
+    try:
+        slide = sessions.advance(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session")
+    if slide.segment_break and session.account_id:
+        current = sessions.get_session(session_id)
+        current.face_resume_required = True
+        sessions.store.save(current)
+    return slide
 
 
 @app.post("/api/sessions/{session_id}/ask/stream")
@@ -1061,12 +1170,14 @@ class PolicyAssessmentStartRequest(BaseModel):
     needs_captions: bool = False
     uses_assistive_tech: bool = False
     max_items: int = 5
+    face_token: str = ""
 
     model_config = {"extra": "forbid"}
 
 
 class PolicyAssessmentSubmitRequest(BaseModel):
     chosen_indices: list[int]
+    face_token: str = ""
 
     model_config = {"extra": "forbid"}
 
@@ -1325,6 +1436,16 @@ def assessment_checkpoint_start(
         set(domain_by_item.values()),
         key=lambda domain: domain.value,
     )
+    if session is not None:
+        _assert_session_face_current(session)
+    face = _require_face_token(
+        authorization,
+        purpose="checkpoint",
+        student_id=req.student_id,
+        face_token=req.face_token,
+    )
+    if face and str(face.get("student_id") or "") != req.student_id:
+        raise HTTPException(status_code=403, detail="face verification is for another student")
     app.state.assessment_runs[run_id] = {
         "student_id": req.student_id,
         "account_id": account_id,
@@ -1363,13 +1484,22 @@ def assessment_checkpoint_submit(
     account_id = _assessment_account_id(authorization)
     if not account_id:
         raise HTTPException(status_code=401, detail="authentication required for assessments")
-    run = app.state.assessment_runs.pop(run_id, None)
+    run = app.state.assessment_runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="unknown or already submitted assessment run")
     if run.get("account_id") and run["account_id"] != account_id:
-        # Put the run back so it isn't consumed by an impersonator.
-        app.state.assessment_runs[run_id] = run
         raise HTTPException(status_code=403, detail="assessment run belongs to another account")
+    face = _require_face_token(
+        authorization,
+        purpose="checkpoint",
+        student_id=str(run.get("student_id") or ""),
+        face_token=req.face_token,
+    )
+    if face and str(face.get("student_id") or "") != str(run.get("student_id") or ""):
+        raise HTTPException(status_code=403, detail="face verification is for another student")
+    run = app.state.assessment_runs.pop(run_id, None)
+    if run is None:
+        raise HTTPException(status_code=404, detail="unknown or already submitted assessment run")
     try:
         result = evaluate_checkpoint(
             student_id=run["student_id"],
@@ -2616,6 +2746,7 @@ class StartSoloRoomRequest(BaseModel):
     session_budget_min: int | None = None
     observed_pace: str = ""
     start_slide: int = 0
+    face_token: str = ""
 
     model_config = {"extra": "forbid"}
 
@@ -2777,6 +2908,12 @@ def start_solo_live_room(
     lesson_id = req.lesson_id.strip()
     if not lesson_id:
         raise HTTPException(status_code=400, detail="lesson_id is required")
+    face = _require_face_token(
+        authorization,
+        purpose="start",
+        student_id=req.student_id or "",
+        face_token=req.face_token,
+    )
     sessions = get_sessions()
     try:
         budget = req.session_budget_min
@@ -2796,11 +2933,16 @@ def start_solo_live_room(
         state = sessions.start_session(
             lesson_id,
             "solo",
-            student_id=req.student_id,
+            student_id=(face or {}).get("student_id") or req.student_id,
             session_budget_min=budget,
             profile_score=req.profile_score,
             start_slide=req.start_slide,
         )
+        if face:
+            state.account_id = _assessment_account_id(authorization)
+            state.student_id = str(face.get("student_id") or req.student_id or "")
+            state.face_generation = int(face.get("generation") or 0)
+            sessions.store.save(state)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
     except ValueError as exc:
@@ -3714,6 +3856,13 @@ def _advance_room_slide(room_id: str, background: BackgroundTasks) -> dict:
     room = store.require(room_id)
     sessions = get_sessions()
     sid = room.session_id
+    try:
+        current = sessions.get_session(sid)
+    except KeyError:
+        current = None
+    else:
+        # A replaced face cannot keep a class that was opened as that student.
+        _assert_session_face_current(current)
     try:
         slide = sessions.advance(sid)
         lesson = sessions.lesson_for(sid)

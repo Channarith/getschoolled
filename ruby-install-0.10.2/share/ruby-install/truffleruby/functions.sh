@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+case "$os_platform" in
+	Linux)   truffleruby_platform="linux" ;;
+	Darwin)  truffleruby_platform="macos" ;;
+	*)       fail "Unsupported platform $os_platform" ;;
+esac
+
+case "$os_arch" in
+	x86_64)  truffleruby_arch="amd64" ;;
+	aarch64) truffleruby_arch="aarch64" ;;
+	arm64)   truffleruby_arch="aarch64" ;;
+	*)       fail "Unsupported platform $os_arch" ;;
+esac
+
+ruby_dir_name="truffleruby-$ruby_version-$truffleruby_platform-$truffleruby_arch"
+ruby_archive="${ruby_archive:-$ruby_dir_name.tar.gz}"
+truffleruby_major="${ruby_version%%.*}"
+
+if [[ "$ruby_version" == "23.0.0" ]]; then
+	log "TruffleRuby 23.0 and later installed by ruby-install use the faster Oracle GraalVM distribution"
+	log "Oracle GraalVM uses the GFTC license, which is free for development and production use, see https://medium.com/graalvm/161527df3d76"
+fi
+
+if (( truffleruby_major >= 23 )); then
+	ruby_mirror="${ruby_mirror:-https://github.com/truffleruby/truffleruby/releases/download}"
+	ruby_url="${ruby_url:-$ruby_mirror/graal-$ruby_version/$ruby_archive}"
+else
+	ruby_mirror="${ruby_mirror:-https://github.com/truffleruby/truffleruby/releases/download}"
+	ruby_url="${ruby_url:-$ruby_mirror/vm-$ruby_version/$ruby_archive}"
+fi
+
+#
+# Install TruffleRuby into $install_dir.
+#
+function install_ruby()
+{
+	if [[ "$install_dir" == '/usr/local' ]]; then
+		error "Unsupported see https://github.com/truffleruby/truffleruby/issues/1389"
+		return 1
+	fi
+
+	log "Installing truffleruby $ruby_version ..."
+	copy_into "$ruby_build_dir" "$install_dir" || return $?
+}
+
+#
+# Post-install tasks.
+#
+function post_install()
+{
+	log "Running truffleruby post-install hook ..."
+	run "$install_dir/lib/truffle/post_install_hook.sh" || return $?
+}

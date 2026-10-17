@@ -1,8 +1,8 @@
 """Local NLLB-200 translation (free, self-hosted).
 
-Lazy-loads ``facebook/nllb-200-distilled-600M`` (override with ``NLLB_MODEL``).
-Used by the speech gateway ``SpeechProvider.translate`` so batch course
-translation does not need xAI.
+The default checkpoint is the full 3.3B model, the largest NLLB-200. Set
+``NLLB_MODEL=facebook/nllb-200-distilled-600M`` to use the small one. Weights
+load from the local Hugging Face cache unless ``TRANSLATION_ALLOW_DOWNLOAD=1``.
 """
 
 from __future__ import annotations
@@ -40,7 +40,12 @@ _FLORES: dict[str, str] = {
     "el": "ell_Grek",
     "cs": "ces_Latn",
     "km": "khm_Khmr",
+    "yue": "yue_Hant",
+    "tl": "tgl_Latn",
 }
+
+# Largest NLLB-200 checkpoint. The 600M and 1.3B names are distilled cuts.
+NLLB_MAX_MODEL = "facebook/nllb-200-3.3B"
 
 _lock = threading.Lock()
 _model = None
@@ -53,6 +58,16 @@ def flores_code(language: str) -> str:
     if code not in _FLORES:
         raise ValueError(f"no NLLB FLORES mapping for language {language!r}")
     return _FLORES[code]
+
+
+def model_id() -> str:
+    return (os.environ.get("NLLB_MODEL") or NLLB_MAX_MODEL).strip()
+
+
+def allow_weight_download() -> bool:
+    return (os.environ.get("TRANSLATION_ALLOW_DOWNLOAD") or "").strip().lower() in {
+        "1", "true", "yes",
+    }
 
 
 def nllb_available() -> bool:
@@ -87,22 +102,20 @@ def _get_model():
                 "NLLB deps missing; pip install transformers sentencepiece torch"
             )
             raise RuntimeError(_load_error)
-        model_id = (
-            os.environ.get("NLLB_MODEL") or "facebook/nllb-200-distilled-600M"
-        ).strip()
+        chosen = model_id()
         try:
-            import torch
             from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
             device = _torch_device()
-            tok = AutoTokenizer.from_pretrained(model_id)
-            model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
+            local_only = not allow_weight_download()
+            tok = AutoTokenizer.from_pretrained(chosen, local_files_only=local_only)
+            model = AutoModelForSeq2SeqLM.from_pretrained(chosen, local_files_only=local_only)
             model.to(device)
             model.eval()
             _tokenizer = tok
             _model = model
         except Exception as exc:  # noqa: BLE001
-            _load_error = f"NLLB load failed ({model_id}): {exc}"
+            _load_error = f"NLLB load failed ({chosen}): {exc}"
             raise RuntimeError(_load_error) from exc
         return _tokenizer, _model
 

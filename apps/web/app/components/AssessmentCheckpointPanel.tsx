@@ -16,6 +16,7 @@ type Props = {
   onBusy?: (busy: boolean) => void;
   onError?: (message: string) => void;
   onSubmitted: (result: AssessmentSubmitResult) => void;
+  beforeSubmit?: () => Promise<string>;
   onDismiss?: () => void;
   dismissLabel?: string;
   headingOverride?: string;
@@ -27,6 +28,7 @@ export default function AssessmentCheckpointPanel({
   onBusy,
   onError,
   onSubmitted,
+  beforeSubmit,
   onDismiss,
   dismissLabel = "Continue without submitting",
   headingOverride,
@@ -57,7 +59,8 @@ export default function AssessmentCheckpointPanel({
     onBusy?.(true);
     try {
       const chosen = run.items.map((item) => answers[item.item_id]);
-      const result = await submitAssessmentCheckpoint(run.run_id, chosen);
+      const faceToken = beforeSubmit ? await beforeSubmit() : "";
+      const result = await submitAssessmentCheckpoint(run.run_id, chosen, faceToken);
       onSubmitted(result);
     } catch (e) {
       onError?.(String(e));
