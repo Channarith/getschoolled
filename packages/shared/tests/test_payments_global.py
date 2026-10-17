@@ -272,7 +272,7 @@ def test_routed_provider_unconfigured_method_raises_not_implemented():
                                 method=PaymentMethod.CARD)
 
 
-def test_routed_provider_routes_to_correct_processor():
+def test_routed_provider_routes_to_correct_processor(monkeypatch):
     """Each method must reach its owning processor's class instance,
     not just any cloud provider that happens to be configured. Test by
     asking for a Razorpay method when only Razorpay has a key set."""
@@ -281,15 +281,24 @@ def test_routed_provider_routes_to_correct_processor():
         "RAZORPAY_API_KEY": "rzp_test",
     })
     routed = RoutedPaymentProvider(cfg)
-    # Razorpay is configured -> UPI request reaches Razorpay's
-    # NotImplementedError saying "razorpay not configured" would be
-    # WRONG; instead we want Razorpay's create_checkout to be called.
-    # The stub raises NotImplementedError mentioning 'razorpay'.
-    with pytest.raises(NotImplementedError) as exc:
-        routed.create_checkout(customer_id="cu_x", plan="pro",
-                                method=PaymentMethod.UPI)
-    # Stub message includes the impl name, confirming routing.
-    assert "razorpay" in str(exc.value).lower()
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"id":"plink_1","short_url":"https://rzp.io/i/abc"}'
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: _Resp())
+    session = routed.create_checkout(
+        customer_id="cu_x", plan="pro", method=PaymentMethod.UPI,
+    )
+    assert session.provider == "razorpay"
+    assert session.session_id == "plink_1"
+    assert session.url == "https://rzp.io/i/abc"
 
 
 def test_factory_uses_routed_in_cloud_and_sandbox_in_local():

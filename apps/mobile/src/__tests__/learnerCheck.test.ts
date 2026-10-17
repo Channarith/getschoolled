@@ -1,5 +1,5 @@
 import { ageAtOffset, AGE_ROW_HEIGHT } from "../components/AgeWheel";
-import { stillMatchesTarget } from "../components/BiometricSetupModal";
+import { faceEnrollmentProblem, stillFingerprint, stillMatchesTarget } from "../components/BiometricSetupModal";
 import {
   AGE_OPTIONS,
   POSES,
@@ -193,5 +193,15 @@ describe("Learner Check helpers (native)", () => {
     expect(stillMatchesTarget("left", "right", null)).toBe(true);
     expect(stillMatchesTarget("right", "right", "right")).toBe(false);
     expect(stillMatchesTarget("left", null, null)).toBe(false);
+  });
+
+  it("maps server 422 face enrollment detail for the learner", () => {
+    const problem = faceEnrollmentProblem(Object.assign(new Error("pose left missing"), { status: 422 }));
+    expect(problem.message).toContain("pose left missing");
+  });
+
+  it("fingerprints stills to block obvious duplicate uploads", () => {
+    expect(stillFingerprint("abc123")).toBe(stillFingerprint("abc123"));
+    expect(stillFingerprint("abc123")).not.toBe(stillFingerprint("xyz999"));
   });
 });

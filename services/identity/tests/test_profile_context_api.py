@@ -31,6 +31,7 @@ def test_profile_context_remembers_class_context_between_classes():
     ).json()
     sid = student["id"]
 
+    client.cookies.clear()
     assert client.get(f"/students/{sid}/profile-context").status_code in (401, 422)
 
     client.post(

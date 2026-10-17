@@ -188,7 +188,7 @@ def plans() -> dict:
 
 @app.get("/plans/consumer")
 def consumer_plans() -> dict:
-    """Netflix-style Standard ($19.99) and VIP ($29.99) picker data."""
+    """Free ($0), Standard ($19), Pro ($29), and VIP ($39) picker data."""
     return {
         tier: {
             "tier": p.tier,

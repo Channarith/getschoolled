@@ -91,6 +91,14 @@ class MemoryStore:
         mem = self._students.get(student_id)
         return bool(mem and mem.consents.get(scope, False))
 
+    def consented_ids(self, scope: ConsentScope) -> list[str]:
+        """Student ids with an active grant for this scope."""
+        with self._lock:
+            return sorted(
+                sid for sid, mem in self._students.items()
+                if mem.consents.get(scope, False)
+            )
+
     def update_mastery(
         self, student_id: str, topic: str, correct: bool, *, alpha: float = 0.4
     ) -> float:

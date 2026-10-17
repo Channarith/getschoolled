@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from aoep_shared.audio_courses import build_catalog
 from aoep_shared.games import GameType, make_round, score_round
 from aoep_shared.lesson_depth import TARGET_MIN_MINUTES, duration_minutes
-from aoep_shared.plan_pricing import STANDARD_PRICE_USD, VIP_PRICE_USD, price_usd_for_tier
+from aoep_shared.plan_pricing import PRO_PRICE_USD, STANDARD_PRICE_USD, VIP_PRICE_USD, price_usd_for_tier
 from billing.main import app as billing_app
 from identity.main import app as identity_app
 from orchestrator.curriculum import CurriculumStore
@@ -36,8 +36,10 @@ def test_pricing_and_onboarding_membership_flow():
 
     bc = TestClient(billing_app)
     consumer = bc.get("/plans/consumer").json()
-    assert consumer["basic"]["price_usd"] == STANDARD_PRICE_USD
-    assert consumer["premium"]["price_usd"] == VIP_PRICE_USD
+    assert consumer["free"]["price_usd"] == 0
+    assert consumer["basic"]["price_usd"] == STANDARD_PRICE_USD == 19
+    assert consumer["pro"]["price_usd"] == PRO_PRICE_USD == 29
+    assert consumer["premium"]["price_usd"] == VIP_PRICE_USD == 39
     assert price_usd_for_tier("premium") == VIP_PRICE_USD
 
 

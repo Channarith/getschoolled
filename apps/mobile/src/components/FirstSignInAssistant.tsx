@@ -1,24 +1,24 @@
 import { useState } from "react";
 import {
-  Alert, Image, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View,
+  Image, Modal, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-  completeMobileAccountOnboarding,
   getMe,
-  getMobileFreePlanOffer,
-  selectMobileFreePlan,
   submitLearningProfile,
   submitMobileOnboardingLearner,
   submitOnboardingSurveyAnalytics,
   type StudentProfile,
 } from "../api";
+import MobileOnboardingPlanStep from "./MobileOnboardingPlanStep";
 import { AGE_MAX, AGE_MIN, SETUP_COLORS as C } from "../learnerCheck";
 import AgeWheel from "./AgeWheel";
 import AnimatedPressable from "./AnimatedPressable";
 import AvatarImage from "./AvatarImage";
 import BiometricSetupModal from "./BiometricSetupModal";
 import KenBurnsImage from "./KenBurnsImage";
+import { useLayoutMetrics } from "../layout";
 
 type Props = {
   visible: boolean;
@@ -42,7 +42,7 @@ const ART = {
 
 const SCALE_ROWS = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]];
 
-type Stage = "about" | "learn" | "identity";
+type Stage = "about" | "learn" | "identity" | "plan";
 
 function ageBandFor(age: number) {
   if (age < 13) return "child";
@@ -60,9 +60,9 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const { width } = useWindowDimensions();
-  const wide = width >= 800;
-  const columns = width >= 1100 ? 3 : width >= 700 ? 2 : 1;
+  const { isMedium, isExpanded, gridColumns } = useLayoutMetrics();
+  const wide = isMedium || isExpanded;
+  const columns = gridColumns;
   const ageBand = age ? ageBandFor(age) : "adult";
   const aboutReady = name.trim().length > 0 && age >= AGE_MIN && age <= AGE_MAX;
   const rated = LEARNING_MODES.filter((mode) => ratings[mode.id] != null).length;
@@ -101,35 +101,15 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
     });
   }
 
-  async function finish() {
-    setBusy(true);
-    setError("");
-    try {
-      const offer = await getMobileFreePlanOffer();
-      if (!offer.available) {
-        throw new Error(offer.reason || "The free plan is no longer available.");
-      }
-      await selectMobileFreePlan();
-      await completeMobileAccountOnboarding(name.trim(), ageBand);
-      onComplete();
-    } catch (reason) {
-      const message = String(reason).replace(/^Error:\s*/, "");
-      setError(message);
-      Alert.alert("Free plan", message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <>
-      <Modal visible={visible && stage !== "identity"} animationType="fade" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.root}>
+      <Modal visible={visible && stage !== "identity" && stage !== "plan"} animationType="fade" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.root} edges={["top", "left", "right", "bottom"]}>
           <View style={styles.header}>
             <Text style={styles.brand}>Salareen</Text>
             <View style={styles.bars}>
-              {["about", "learn", "identity"].map((item, index) => (
-                <View key={item} style={[styles.bar, index <= ["about", "learn", "identity"].indexOf(stage) && styles.active]} />
+              {["about", "learn", "identity", "plan"].map((item, index) => (
+                <View key={item} style={[styles.bar, index <= ["about", "learn", "identity", "plan"].indexOf(stage) && styles.active]} />
               ))}
             </View>
             <Text style={styles.kicker}>{stage === "about" ? "About you" : "How you learn"}</Text>
@@ -260,7 +240,13 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
         ageBand={ageBand}
         stepLabel="Step 4 of 4 · Learner Check"
         onDismiss={() => undefined}
-        onComplete={() => void finish()}
+        onComplete={() => setStage("plan")}
+      />
+      <MobileOnboardingPlanStep
+        visible={visible && stage === "plan"}
+        displayName={name.trim()}
+        ageBand={ageBand}
+        onComplete={onComplete}
       />
     </>
   );

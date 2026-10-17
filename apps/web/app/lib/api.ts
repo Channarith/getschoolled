@@ -88,7 +88,25 @@ export async function translateText(
 
 // --- account / session (token in localStorage) --------------------------- //
 const TOKEN_KEY = "aoep_token";
+const SIGNED_IN_KEY = "aoep_signed_in";
 const PREVIEW_KEY = "aoep_preview";
+let memoryToken: string | null = null;
+let sessionLoaded = false;
+
+function ensureSession(): void {
+  if (sessionLoaded || typeof window === "undefined") return;
+  sessionLoaded = true;
+  try {
+    const legacy = localStorage.getItem(TOKEN_KEY);
+    if (legacy) {
+      memoryToken = legacy;
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.setItem(SIGNED_IN_KEY, "1");
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 // Fired whenever auth/preview state changes so the nav (and other components)
 // can re-gate immediately without a full reload.
@@ -105,16 +123,30 @@ export function notifyAuthChange(): void {
 }
 
 export function getToken(): string | null {
+  ensureSession();
+  if (memoryToken) return memoryToken;
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    if (localStorage.getItem(SIGNED_IN_KEY) === "1") return "cookie-session";
   } catch {
-    return null;
+    /* ignore */
   }
+  return null;
+}
+
+/** Bearer value for headers. The signed-in flag is never sent as a token. */
+export function authorizationValue(): string | null {
+  ensureSession();
+  if (!memoryToken) return null;
+  return `Bearer ${memoryToken}`;
 }
 
 export function setToken(token: string): void {
+  memoryToken = token || null;
+  sessionLoaded = true;
   try {
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.removeItem(TOKEN_KEY);
+    if (token) localStorage.setItem(SIGNED_IN_KEY, "1");
+    else localStorage.removeItem(SIGNED_IN_KEY);
   } catch {
     /* ignore */
   }
@@ -122,12 +154,23 @@ export function setToken(token: string): void {
 }
 
 export function clearToken(): void {
+  memoryToken = null;
+  sessionLoaded = true;
   try {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(SIGNED_IN_KEY);
   } catch {
     /* ignore */
   }
   notifyAuthChange();
+  try {
+    void fetch(`${IDENTITY_URL}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 // Stable per-browser learner id for the adaptive teaching loop. The memory
@@ -212,9 +255,27 @@ export function applyAdmin(isAdmin: boolean): void {
 }
 
 function authHeaders(): Record<string, string> {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}` } : {};
+  const value = authorizationValue();
+  return value ? { Authorization: value } : {};
 }
+
+function installCredentialFetch(): void {
+  if (typeof window === "undefined") return;
+  const host = window as Window & { __aoepCred?: boolean };
+  if (host.__aoepCred) return;
+  host.__aoepCred = true;
+  const orig = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    const api = url.startsWith("/")
+      || url.includes("localhost")
+      || url.includes("127.0.0.1")
+      || url.includes("salareen.com");
+    if (!api) return orig(input, init);
+    return orig(input, { ...(init || {}), credentials: "include" });
+  };
+}
+installCredentialFetch();
 
 export type Subscription = {
   tier: string;
@@ -526,6 +587,24 @@ export async function setStudentAvatar(studentId: string, avatarId: string): Pro
       body: JSON.stringify({ avatar_id: avatarId }),
     }),
   );
+}
+
+export async function deleteAccount(password: string, confirm: string): Promise<{ deleted: boolean }> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/account/delete`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ password, confirm }),
+  }));
+}
+
+export async function startBillingCheckout(customerId: string, plan: string): Promise<{
+  session_id: string; url: string; provider: string;
+}> {
+  return jsonOrThrow(await fetch(`${BILLING_URL}/checkout`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ customer_id: customerId, plan }),
+  }));
 }
 
 export async function getMe(): Promise<Account> {
@@ -2232,6 +2311,14 @@ export type LiveRoomState = {
     storyboard_translation_ready?: boolean;
   };
   raised_hands: LiveParticipant[];
+  whiteboard_strokes?: {
+    id: string;
+    participant_id?: string;
+    color: string;
+    width: number;
+    erase?: boolean;
+    points: { x: number; y: number }[];
+  }[];
   banned?: { identity: string; name: string; reason: string; banned_at: string; banned_by: string }[];
   speaking_queue?: {
     id: string;
@@ -2406,7 +2493,7 @@ export async function leaveLiveRoom(roomId: string, participantId: string): Prom
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/leave`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ participant_id: participantId }),
     })
   );
@@ -2416,8 +2503,23 @@ export async function liveRoomChat(roomId: string, participantId: string, text: 
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/chat`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ participant_id: participantId, text }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomWhiteboard(
+  roomId: string,
+  participantId: string,
+  stroke: { id: string; color: string; width: number; erase?: boolean; points: { x: number; y: number }[] },
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/whiteboard`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ participant_id: participantId, ...stroke }),
     })
   );
   return r.room;
@@ -2431,7 +2533,7 @@ export async function liveRoomRaiseHand(
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/raise-hand`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ participant_id: participantId, question }),
     })
   );
@@ -2446,7 +2548,7 @@ export async function liveRoomJoinQueue(
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/join`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ participant_id: participantId, question }),
     })
   );
@@ -2457,7 +2559,7 @@ export async function liveRoomLeaveQueue(roomId: string, participantId: string):
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/leave`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ participant_id: participantId }),
     })
   );
@@ -2489,7 +2591,7 @@ export async function liveRoomMediaToken(
   return jsonOrThrow<LiveKitMediaToken>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/media-token`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ participant_id: participantId }),
     })
   );

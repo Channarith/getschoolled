@@ -18,6 +18,7 @@ import urllib.request
 from typing import Optional
 
 from aoep_shared.adaptive import LearnerSignals
+from aoep_shared.identity_sync import internal_token
 
 # Short timeouts: a hung/slow memory service must never stall a live class.
 # Writes are best-effort (fire-on-the-hot-path), so cap them tighter; the read
@@ -42,7 +43,11 @@ class MemoryClient:
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(
             self.base_url + path, data=data,
-            headers={"Content-Type": "application/json"}, method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "X-Internal-Token": internal_token(),
+            },
+            method="POST",
         )
         try:
             with urllib.request.urlopen(req, timeout=_WRITE_TIMEOUT_S) as resp:
@@ -57,7 +62,11 @@ class MemoryClient:
     def _get(self, path: str) -> Optional[dict]:
         if not self.enabled:
             return None
-        req = urllib.request.Request(self.base_url + path, method="GET")
+        req = urllib.request.Request(
+            self.base_url + path,
+            headers={"X-Internal-Token": internal_token()},
+            method="GET",
+        )
         try:
             with urllib.request.urlopen(req, timeout=_READ_TIMEOUT_S) as resp:
                 return json.loads(resp.read())

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useT } from "../lib/i18n";
 
 import { SERENITY_VOICE_INSTRUCTIONS } from "../lib/serenity";
+import { getLiveVoiceEngine } from "../lib/liveVoiceEngine";
 import {
   closeXaiVoiceSession,
   connectXaiVoiceSession,
@@ -71,11 +72,13 @@ export function XaiVoiceDock() {
       return;
     }
     try {
+      const liveEngine = getLiveVoiceEngine();
       const token = await mintXaiVoiceToken({
         mode: mode || "solo",
         lesson_context: `Salareen ${pathname}`,
         language: locale,
         instructions: SERENITY_VOICE_INSTRUCTIONS,
+        engine: liveEngine === "xai" ? "xai" : "",
       });
       if (token.engine === "salane" || token.display_name === "Salane Voice") {
         setLive(true);
@@ -83,7 +86,11 @@ export function XaiVoiceDock() {
         return;
       }
       if (token.use_xai === false || !token.token || !token.session_update) {
-        setHint(token.spoken_language?.hint || "This language uses the lesson voice, not Grok.");
+        setHint(
+          token.hint
+            || token.spoken_language?.hint
+            || "Switch back to Sala in Profile → Voice, or pick another language.",
+        );
         return;
       }
       if (!audioRef.current) audioRef.current = new AudioContext({ latencyHint: "playback" });

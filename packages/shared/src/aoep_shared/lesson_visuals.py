@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .cert_storyboard.generic import build_generic_storyboard, experience_dict
 from .cert_storyboard.render import render_scene_svg
-from .cert_storyboard.types import Cast, ObjectCallout, Scene
+from .cert_storyboard.types import ObjectCallout, Scene
 
 # Triggers that request an on-screen visual alongside the spoken answer.
 _VISUAL_CUES = (

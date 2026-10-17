@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .dictionary_corpus import (
-    DictionaryEntry,
     apply_human_status,
     dictionary_dir,
     ensure_layout,

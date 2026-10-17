@@ -27,7 +27,7 @@ def render_children_page(asset_tag: str = "") -> str:
         )
         groups.append(f'<optgroup label="{label}">{options}</optgroup>')
     game_select = (
-        '<label>Game<select id="game">'
+        '<label>Game<select id="game" aria-label="Choose a Play Lab game">'
         + "".join(groups)
         + "</select></label>"
     )
@@ -71,11 +71,16 @@ _PAGE = """<!doctype html>
         <div class="score"><span id="stars">☆☆☆</span><span id="fun-score">Fun 0</span><span id="combo">Combo 0</span></div>
         <button id="mute" aria-pressed="false">🔊</button>
         <button id="chrome-toggle" type="button" hidden aria-pressed="false">Hide options</button>
-        <button id="touch-mode" type="button" hidden aria-pressed="false" aria-label="Using air touch. Switch to screen touch.">Air touch</button>
+        <div id="touch-mode" class="touch-mode" role="radiogroup" hidden aria-label="Air touch selected. Screen touch is also available.">
+          <button id="touch-air" type="button" data-touch="air" role="radio" aria-checked="true">Air touch</button>
+          <button id="touch-screen" type="button" data-touch="screen" role="radio" aria-checked="false">Screen touch</button>
+        </div>
         <button id="fullscreen">⛶</button>
       </div>
-      <div id="stage" class="stage">
-        <video id="camera" autoplay playsinline muted></video>
+      <div id="stage" class="stage" role="region" aria-labelledby="stage-label" aria-describedby="stage-desc">
+        <p id="stage-label" class="sr-only">Play Lab camera stage</p>
+        <p id="stage-desc" class="sr-only">Camera games run here. Video stays in your browser; use the game selector below to choose an activity.</p>
+        <video id="camera" autoplay playsinline muted aria-label="Play Lab camera preview"></video>
         <div id="guide-layer" class="guide-layer" aria-hidden="true">
           <span id="guide-glyph" class="guide-glyph">A</span>
           <i id="guide-start" class="guide-start"></i>
@@ -99,6 +104,7 @@ _PAGE = """<!doctype html>
           <span id="trace-readout">Trace: 0%</span>
           <span id="game-readout">Gesture: waiting</span>
         </div>
+        <div id="screen-catcher" class="screen-catcher" hidden></div>
         <iframe id="karaoke-frame" class="karaoke-frame hidden" title="Karaoke sing-along" allow="autoplay; fullscreen"></iframe>
       </div>
       <details class="vision-tools" open>

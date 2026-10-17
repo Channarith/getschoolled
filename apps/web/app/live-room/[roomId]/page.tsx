@@ -24,6 +24,7 @@ import {
   liveRoomAskStream,
   liveRoomChat,
   liveRoomRaiseHand,
+  liveRoomWhiteboard,
   liveRoomCallNext,
   liveRoomCallOn,
   liveRoomMediaToken,
@@ -852,6 +853,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     };
   }, [roomId, room?.lesson_id, room?.slide?.index, room?.slide?.title]);
   const [error, setError] = useState("");
+  const [moderation, setModeration] = useState<{
+    kind: "ban" | "report";
+    participantId: string;
+    name: string;
+    reason: string;
+    category: string;
+  } | null>(null);
   // Benign, informational messages (e.g. "no hands are up", "you're #2 in the
   // queue"). Kept separate from `error` so normal states never render as a red
   // "something broke" banner — a common source of the page looking broken.
@@ -860,11 +868,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   // Auto-dismiss transient banners so they behave like toasts instead of
   // sticking around and cluttering the stage.
-  useEffect(() => {
-    if (!error) return;
-    const t = setTimeout(() => setError(""), 6000);
-    return () => clearTimeout(t);
-  }, [error]);
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(""), 4000);
@@ -922,10 +925,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [panelTab, setPanelTab] = useState<"chat" | "ask">("chat");
   // Selected learner in the participant strip (moderator quick-actions target).
   const [selectedParticipant, setSelectedParticipant] = useState("");
-  // Whiteboard: when a student is called on (holds the floor) they can draw to
-  // demonstrate; everyone else watches. Toggled on by the instructor. NOTE:
-  // whiteboardOn / whiteboardStrokes are currently client-local — the real-time
-  // broadcast is a small backend addition (see docs/whiteboard-backend-spec.txt).
   const [whiteboardOn, setWhiteboardOn] = useState(false);
   const [whiteboardStrokes, setWhiteboardStrokes] = useState<WhiteboardStroke[]>([]);
   // Lets the instructor preview the read-only "watch" view a student sees.
@@ -1062,6 +1061,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     return room.participants.find((p) => p.id === id) ?? joinInfo.participant;
   }, [joinInfo, room]);
   const hasFloor = me?.id === room?.floor_participant_id;
+  useEffect(() => {
+    if (!room?.whiteboard_strokes) return;
+    setWhiteboardStrokes(room.whiteboard_strokes);
+  }, [room]);
   // Language for narration + voice capture: the learner's profile/device
   // language, falling back to the app locale.
   const narrationLocale = me?.language || locale;
@@ -2300,16 +2303,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   async function banLearner(participantId: string, name: string) {
     if (!canModerate) return;
-    const reason = window.prompt(`Block ${name}? Optional reason:`);
-    if (reason === null) return;
-    setBusy(true);
-    try {
-      setRoom(await liveRoomBan(roomId, participantId, reason, moderatorKey));
-    } catch (e) {
-      setError(friendlyError(e, "Ban failed"));
-    } finally {
-      setBusy(false);
-    }
+    setModeration({ kind: "ban", participantId, name, reason: "", category: "other" });
   }
 
   async function unbanLearner(identity: string) {
@@ -2326,20 +2320,27 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   async function reportLearner(participantId: string, name: string) {
     if (!me?.id) return;
-    const reason =
-      window.prompt(`Report ${name} — what happened? (required)`)?.trim() ?? "";
-    if (!reason) return;
-    const category =
-      window.prompt(
-        "Category: spam, harassment, inappropriate, disruptive, or other",
-        "other"
-      )?.trim().toLowerCase() || "other";
+    setModeration({ kind: "report", participantId, name, reason: "", category: "other" });
+  }
+
+  async function submitModeration() {
+    if (!moderation) return;
+    const reason = moderation.reason.trim();
+    if (moderation.kind === "report" && !reason) {
+      setError("Describe what happened before sending the report.");
+      return;
+    }
     setBusy(true);
     try {
-      await liveRoomReport(roomId, me.id, participantId, reason, category);
-      window.alert("Report submitted. A moderator will review it.");
+      if (moderation.kind === "ban") {
+        setRoom(await liveRoomBan(roomId, moderation.participantId, reason, moderatorKey));
+      } else if (me?.id) {
+        await liveRoomReport(roomId, me.id, moderation.participantId, reason, moderation.category);
+        setNotice("Report submitted. A moderator will review it.");
+      }
+      setModeration(null);
     } catch (e) {
-      setError(friendlyError(e, "Report failed"));
+      setError(friendlyError(e, moderation.kind === "ban" ? "Ban failed" : "Report failed"));
     } finally {
       setBusy(false);
     }
@@ -2652,7 +2653,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   return (
     <main
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         // Design A "calm studio": a warm cream page with a faint gold wash rather
         // than a cool blue tint, so the room matches the mockup palette.
         background:
@@ -2677,6 +2678,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               }
               setLightingReady(true);
             }}
+            allowSkip
+            onSkip={() => setLightingReady(true)}
           />
           <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
             Solo and group classes need a clear, well-lit camera for presence,
@@ -2902,6 +2905,39 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         }
       `}</style>
 
+      {moderation && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <strong>{moderation.kind === "ban" ? `Block ${moderation.name}` : `Report ${moderation.name}`}</strong>
+          <label style={{ display: "block", marginTop: 8 }}>
+            Reason
+            <input
+              value={moderation.reason}
+              onChange={(e) => setModeration({ ...moderation, reason: e.target.value })}
+              style={{ display: "block", width: "100%", marginTop: 4, padding: 8 }}
+            />
+          </label>
+          {moderation.kind === "report" && (
+            <label style={{ display: "block", marginTop: 8 }}>
+              Category
+              <select
+                value={moderation.category}
+                onChange={(e) => setModeration({ ...moderation, category: e.target.value })}
+                style={{ display: "block", marginTop: 4, padding: 8 }}
+              >
+                <option value="spam">spam</option>
+                <option value="harassment">harassment</option>
+                <option value="inappropriate">inappropriate</option>
+                <option value="disruptive">disruptive</option>
+                <option value="other">other</option>
+              </select>
+            </label>
+          )}
+          <div className="row" style={{ marginTop: 8, gap: 8 }}>
+            <button type="button" onClick={() => void submitModeration()} disabled={busy}>Confirm</button>
+            <button type="button" onClick={() => setModeration(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
       {error && (
         <div
           role="alert"
@@ -3168,7 +3204,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   ? "1fr"
                   : "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
               gridTemplateRows: isSolo
-                ? "minmax(420px, calc(100vh - 285px))"
+                ? "minmax(min(420px, 55dvh), calc(100dvh - 285px))"
                 : undefined,
               gap: 8,
               marginBottom: 12,
@@ -3204,7 +3240,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                         canDraw={(canModerate || hasFloor) && !previewAsStudent}
                         strokes={whiteboardStrokes}
                         drawerName={learners.find((p) => p.id === room?.floor_participant_id)?.name || host?.name}
-                        onStroke={(s) => setWhiteboardStrokes((prev) => [...prev, s])}
+                        onStroke={(s) => {
+                          setWhiteboardStrokes((prev) => [...prev, s]);
+                          if (me?.id) {
+                            void liveRoomWhiteboard(roomId, me.id, s).then(setRoom).catch(() => undefined);
+                          }
+                        }}
                         onClear={() => setWhiteboardStrokes([])}
                         onUndo={() => setWhiteboardStrokes((prev) => prev.slice(0, -1))}
                         onExit={canModerate ? () => setWhiteboardOn(false) : undefined}

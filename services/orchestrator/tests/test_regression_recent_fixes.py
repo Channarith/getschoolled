@@ -251,8 +251,8 @@ def test_scheduled_host_joins_as_admin():
     assert "bridge" in started, f"start failed: {started}"
     room_id = started["bridge"]["livekit_room"]
 
-    # Host joins — account_id matches creator_account_id → is_admin=True.
-    with patch("aoep_shared.live_room_rewards.account_from_authorization", return_value="host-acct-xyz"):
+    # Host joins — the paid-account gate resolves the scheduled instructor.
+    with patch.object(main_mod, "_require_live_room_gate", return_value={"id": "host-acct-xyz"}):
         join = client.post(
             f"/api/live-rooms/{room_id}/join",
             json={"name": "Host Teacher", "identity": "web-acct-host-acct-xyz"},

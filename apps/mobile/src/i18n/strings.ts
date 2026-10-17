@@ -59,6 +59,7 @@ export type StringKey =
   | "settings.title" | "settings.sub"
   | "settings.sectionNotif" | "settings.sectionLang" | "settings.sectionDiag"
   | "settings.sectionVoice" | "settings.voiceDesc" | "settings.voiceDefault"
+  | "settings.voiceAgent" | "settings.voiceAgentDesc" | "settings.voiceAgentSala" | "settings.voiceAgentXai"
   | "settings.sectionInstructor" | "settings.instructorDesc" | "settings.instructorAuto"
   | "settings.sectionTrainingLang" | "settings.trainingLangDesc"
   | "settings.cameraTitle" | "settings.cameraBody" | "settings.cameraOpen"
@@ -216,7 +217,11 @@ export type StringKey =
   | "assessment.checkpoint" | "assessment.summative" | "assessment.meta"
   | "assessment.summativeHint" | "assessment.checkHint" | "assessment.hear"
   | "assessment.submit" | "assessment.submitting" | "assessment.skip"
-  | "assessment.audio" | "assessment.visual" | "assessment.challenge" | "assessment.text";
+  | "assessment.audio" | "assessment.visual" | "assessment.challenge" | "assessment.text"
+  | "lesson.stopPoint" | "lesson.keepGoing" | "lesson.salaOn" | "lesson.salaOff" | "lesson.salaStarting"
+  | "lesson.xaiOn" | "lesson.xaiOff" | "lesson.xaiStarting" | "lesson.xaiUnavailable"
+  | "voice.salaLive" | "voice.xaiLive" | "voice.xaiChecking" | "voice.xaiUnavailable"
+  | "voice.xaiDisconnected" | "voice.xaiLanguage";
 
 type Dict = Partial<Record<StringKey, string>>;
 const PACK = packJson as { zh: Dict; yue: Dict; km: Dict };
@@ -491,6 +496,10 @@ const EN: Record<StringKey, string> = {
   "settings.sectionVoice": "VOICE & ACCENT",
   "settings.voiceDesc": "Accent and neural voice for all spoken courses — On the Go, live classes, and lessons. Matches the On the Go audio picker.",
   "settings.voiceDefault": "Default",
+  "settings.voiceAgent": "Voice agent",
+  "settings.voiceAgentDesc": "Temporary choice for class voice. Sala is the usual teacher. xAI Voice Agent uses the speech service already configured on the server. The API key stays there.",
+  "settings.voiceAgentSala": "Sala",
+  "settings.voiceAgentXai": "xAI Voice Agent",
   "settings.sectionInstructor": "INSTRUCTOR PERSONALITY",
   "settings.instructorDesc": "How the teacher sounds and delivers — kind, strict, kid-friendly, and more. Used everywhere audio plays.",
   "settings.instructorAuto": "Auto (profile)",
@@ -693,7 +702,7 @@ const EN: Record<StringKey, string> = {
   "camera.trackTitle": "Camera and tracking check",
   "camera.working": "Working…",
   "camera.capture": "Capture",
-  "camera.skip": "Skip this step",
+  "camera.skip": "Continue without camera",
   "camera.done": "Done",
   "camera.restart": "Restart",
   "camera.allow": "Allow camera",
@@ -770,6 +779,21 @@ const EN: Record<StringKey, string> = {
   "worlds.retry": "Try again",
   "worlds.back": "Back",
   "worlds.loading": "Loading Salareen Worlds…",
+  "lesson.stopPoint": "Good stopping point",
+  "lesson.keepGoing": "Keep going",
+  "lesson.salaOn": "Sala on",
+  "lesson.salaOff": "Sala off",
+  "lesson.salaStarting": "Sala starting",
+  "lesson.xaiOn": "xAI Voice Agent on",
+  "lesson.xaiOff": "xAI Voice Agent off",
+  "lesson.xaiStarting": "xAI Voice Agent starting",
+  "lesson.xaiUnavailable": "xAI Voice Agent unavailable",
+  "voice.salaLive": "Sala is using Salane Voice.",
+  "voice.xaiLive": "xAI Voice Agent is connected.",
+  "voice.xaiChecking": "Connecting to xAI Voice Agent…",
+  "voice.xaiUnavailable": "xAI Voice Agent is unavailable. Switch back to Sala.",
+  "voice.xaiDisconnected": "xAI Voice Agent disconnected. Turn voice off and on to retry, or switch back to Sala.",
+  "voice.xaiLanguage": "xAI Voice Agent cannot speak this language. Switch back to Sala.",
   "arcade.visionTitle": "Machine vision",
   "arcade.visionBody": "Letters, listening, faces, hands, and movement. The camera stays on this device.",
   "arcade.visionOpen": "Open Machine Vision",

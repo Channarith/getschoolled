@@ -124,6 +124,7 @@ function BrowseInner() {
 
       <div className="card">
         <input
+          aria-label={t("browse.searchPlaceholder")}
           placeholder={t("browse.searchPlaceholder")}
           value={filters.q}
           onChange={(e) => set("q", e.target.value)}

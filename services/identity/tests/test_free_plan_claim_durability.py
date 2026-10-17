@@ -28,6 +28,7 @@ class FakeRedis:
     def __init__(self) -> None:
         self.values: dict[str, str] = {}
         self.hashes: dict[str, dict[str, str]] = {}
+        self.sets: dict[str, set[str]] = {}
         self.scripts: list[str] = []
         self._lock = threading.Lock()
 
@@ -47,11 +48,58 @@ class FakeRedis:
         with self._lock:
             return dict(self.hashes.get(key, {}))
 
+    def delete(self, key):
+        with self._lock:
+            self.values.pop(key, None)
+        return 1
+
+    def hget(self, key, field):
+        with self._lock:
+            return self.hashes.get(key, {}).get(field)
+
+    def hset(self, key, field, value):
+        with self._lock:
+            self.hashes.setdefault(key, {})[field] = value
+        return 1
+
+    def hdel(self, key, field):
+        with self._lock:
+            self.hashes.get(key, {}).pop(field, None)
+        return 1
+
+    def sadd(self, key, member):
+        with self._lock:
+            self.sets.setdefault(key, set()).add(member)
+        return 1
+
+    def srem(self, key, member):
+        with self._lock:
+            self.sets.get(key, set()).discard(member)
+        return 1
+
+    def _cas(self, keys, argv):
+        rev_key, acct_key, index_key, email_key = keys
+        aid, expected, blob, email = argv
+        revs = self.hashes.setdefault(rev_key, {})
+        rev = revs.get(aid, "0")
+        if rev != expected:
+            return 0
+        newrev = str(int(expected) + 1)
+        revs[aid] = newrev
+        self.values[acct_key] = blob
+        self.sets.setdefault(index_key, set()).add(aid)
+        if email:
+            self.hashes.setdefault(email_key, {})[email] = aid
+        return int(newrev)
+
     def eval(self, script, numkeys, *keys_and_args):
         self.scripts.append(script)
-        key = keys_and_args[0]
+        keys = keys_and_args[:numkeys]
         argv = [str(part) for part in keys_and_args[numkeys:]]
         with self._lock:
+            if "newrev" in script:
+                return self._cas(keys, argv)
+            key = keys[0]
             claims = self.hashes.setdefault(key, {})
             if script.lstrip().startswith("-- aoep-free-claim-count"):
                 self._backfill(claims, argv[1:], int(argv[0]))

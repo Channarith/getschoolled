@@ -80,8 +80,10 @@ def test_redis_store_get_falls_back_when_redis_errors():
             raise RuntimeError("connection refused")
 
     store = RedisSessionStore(BrokenRedis(), SessionState)
-    # No exception bubbles up; missing key -> None via the in-memory fallback.
-    assert store.get("missing") is None
+    # A Redis error fails closed. The in-memory copy is not a second source of truth.
+    from aoep_shared.store_errors import DurableStoreError
+    with pytest.raises(DurableStoreError):
+        store.get("missing")
 
 
 # --------------------------------------------------------------------------- #
