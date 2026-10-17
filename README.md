@@ -680,6 +680,7 @@ transcript all run without it.
 | `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
 | `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, CosyVoice ingest, CosyVoice→Audio2Face loop, voice tools) |
 | `scripts/cosyvoice_ingest.py` | YouTube/Vimeo → denoise → segment → ASR → CosyVoice Kaldi training lists (`aoep_shared.cosyvoice_ingest`) |
+| `scripts/lab_smoke.py` | Read-only lab probe (`make lab-smoke`): `/health` and `/version` against `VERSION`. `--host` and `--port-offset 10000` point it at another machine's 18xxx ports |
 | `scripts/a2f_cosyvoice_loop/` | CosyVoice PCM → Audio2Face-3D gRPC (aarch64 stub + amd64 NIM handoff); see `README.txt` there |
 | `scripts/pipecat_cosyvoice/` | Pipecat-oriented CosyVoice TTS config for NVIDIA voice-agent-examples |
 | `sample-curriculum` | 118 live-class lessons: math (Algebra through Differential Equations), economics, professional skills (Power BI, SAP, DevOps, Digital Marketing, UX, Cybersecurity, Excel/Word/PowerPoint), corporate/AI tracks, safety training, and more. Slide counts vary; the loader reads each top-level `lesson.txt` |
