@@ -11,6 +11,7 @@ from typing import Any, Iterable, List, Optional, Sequence
 from .rag_tuning import RagTuning
 
 _DATA = Path(__file__).resolve().parents[2] / "data" / "golden_qa.jsonl"
+_HELD_OUT = Path(__file__).resolve().parents[2] / "data" / "golden_heldout.jsonl"
 
 
 @dataclass
@@ -56,6 +57,11 @@ def load_golden(path: Optional[Path] = None) -> List[GoldenExample]:
             continue
         rows.append(GoldenExample.from_dict(json.loads(line)))
     return rows or _builtin_golden()
+
+
+def load_heldout_golden(path: Optional[Path] = None) -> List[GoldenExample]:
+    """Extra items drawn from lesson text, kept separate from the original 16."""
+    return load_golden(path or _HELD_OUT)
 
 
 def _builtin_golden() -> List[GoldenExample]:

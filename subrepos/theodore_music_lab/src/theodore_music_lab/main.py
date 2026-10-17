@@ -193,6 +193,13 @@ def favicon() -> Response:
     )
 
 
+@app.get("/version")
+def version() -> dict[str, Any]:
+    from aoep_shared.version import version_payload
+
+    return version_payload("theodore-music-lab")
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     featured = _CATALOG.featured()

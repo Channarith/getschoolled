@@ -30,3 +30,30 @@ def test_loads_sample_curriculum_from_disk():
     assert len(index) >= 1
     results = index.retrieve("variables and data types in python", top_k=2)
     assert results
+    assert "python" in results[0].document.doc_id
+
+
+def test_stopwords_do_not_outrank_a_long_lesson():
+    index = RagIndex(
+        [
+            Document.from_text("short", "Note", "What is a host math deck."),
+            Document.from_text(
+                "intro-to-fractions/lesson.txt",
+                "Fractions",
+                (
+                    "A fraction represents a part of a whole. "
+                    "The numerator is the top number and the denominator is the bottom. "
+                )
+                * 30,
+            ),
+        ]
+    )
+    results = index.retrieve("what is a fraction numerator", top_k=1)
+    assert results[0].document.doc_id == "intro-to-fractions/lesson.txt"
+
+
+def test_rewrite_drops_function_words():
+    from aoep_shared.rag import rewrite_query
+
+    assert rewrite_query("what is gravity") == ["gravity"]
+    assert rewrite_query("   ") == []

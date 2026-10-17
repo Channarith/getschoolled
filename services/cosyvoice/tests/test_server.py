@@ -65,6 +65,15 @@ def test_health():
     assert r.status_code == 200 and r.json()["ready"] is True
 
 
+def test_version_reads_repo_version():
+    client, _ = _client()
+    r = client.get("/version")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["service"] == "cosyvoice"
+    assert body["version"]
+
+
 def test_sft_when_no_reference():
     client, model = _client()
     r = client.post("/tts", json={"text": "Hola clase", "language": "es", "mode": "sft"})

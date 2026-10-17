@@ -28,6 +28,14 @@ def test_env_override_wins(monkeypatch):
         version_mod.get_version.cache_clear()
 
 
+def test_version_payload_reads_repo_version(monkeypatch):
+    monkeypatch.delenv("AOEP_VERSION", raising=False)
+    version_mod.get_version.cache_clear()
+    body = version_mod.version_payload("theodore-rag-lab")
+    assert body["service"] == "theodore-rag-lab"
+    assert body["version"] == (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+
+
 def test_version_is_cached(monkeypatch):
     monkeypatch.delenv("AOEP_VERSION", raising=False)
     version_mod.get_version.cache_clear()

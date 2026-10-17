@@ -55,7 +55,7 @@ esac
 
 declare -A LAB_PKG=(
   [audio_translation]=theodore_audio_translation_lab
-  [course_studio]=theodore_course_studio_lab
+  [course_studio]=theodore_course_studio
   [webcam]=theodore_webcam_lab
   [children]=theodore_children_webcam_lab
   [homework]=theodore_homework_lab
@@ -64,15 +64,17 @@ declare -A LAB_PKG=(
   [rag]=theodore_rag_lab
   [llm]=theodore_llm_lab
 )
+# Same ports as each lab README and the uvicorn default in that lab's main.py.
+# apps/webcam-lab is a different service and stays on 8011.
 declare -A LAB_PORT=(
-  [audio_translation]=8011
-  [course_studio]=8012
-  [webcam]=8013
+  [audio_translation]=8041
+  [course_studio]=8040
+  [webcam]=8015
   [children]=8018
-  [homework]=8014
-  [music]=8015
-  [drive]=8016
-  [rag]=8017
+  [homework]=8098
+  [music]=8097
+  [drive]=8096
+  [rag]=8095
   [llm]=8019
 )
 

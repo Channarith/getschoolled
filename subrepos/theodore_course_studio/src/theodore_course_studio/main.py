@@ -222,6 +222,13 @@ class GameGradeRequest(BaseModel):
     response: dict[str, Any] = Field(default_factory=dict)
 
 
+@app.get("/version")
+def version() -> dict[str, Any]:
+    from aoep_shared.version import version_payload
+
+    return version_payload("theodore-course-studio")
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     voice = get_voice_agent().status()

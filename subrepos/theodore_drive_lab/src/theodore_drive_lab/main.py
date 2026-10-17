@@ -57,6 +57,13 @@ class BakeoffRequest(BaseModel):
     rounds: int = Field(default=12, ge=1, le=100)
 
 
+@app.get("/version")
+def version() -> dict[str, Any]:
+    from aoep_shared.version import version_payload
+
+    return version_payload("theodore-drive-lab")
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     runner = get_runner()
