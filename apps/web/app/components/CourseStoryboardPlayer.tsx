@@ -10,6 +10,13 @@ import { useT } from "../lib/i18n";
  * (they do not run reliably when the same markup is loaded via <img>).
  */
 
+function sanitizeStoryboardSvg(svg: string): string {
+  return svg
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, "")
+    .replace(/javascript:/gi, "");
+}
+
 type Props = {
   svg: string;
   concept?: string;
@@ -87,7 +94,7 @@ export default function CourseStoryboardPlayer({
       <div
         aria-label={shownConcept || "Course storyboard animation"}
         style={{ width: "100%", lineHeight: 0 }}
-        dangerouslySetInnerHTML={{ __html: svg }}
+        dangerouslySetInnerHTML={{ __html: sanitizeStoryboardSvg(svg) }}
       />
       {captions && shownConcept ? (
         <figcaption

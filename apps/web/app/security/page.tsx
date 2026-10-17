@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useT } from "../lib/i18n";
 import {
   confirm2fa,
   disable2fa,
@@ -13,10 +14,12 @@ import {
 } from "../lib/api";
 
 export default function SecurityPage() {
+  const { t } = useT();
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getSecuritySummary>> | null>(null);
   const [events, setEvents] = useState<LoginEvent[]>([]);
   const [setup, setSetup] = useState<{ secret: string; otpauth_uri: string } | null>(null);
   const [code, setCode] = useState("");
+  const [disableConfirm, setDisableConfirm] = useState("");
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -74,14 +77,22 @@ export default function SecurityPage() {
             <div style={{ marginTop: 8 }}>
               <input placeholder="Code to disable" value={code} onChange={(e) => setCode(e.target.value)}
                 style={{ padding: 8, marginRight: 8 }} />
-              <button type="button" onClick={async () => {
+              <input
+                aria-label={t("security.disableConfirm")}
+                placeholder={t("security.disableConfirm")}
+                value={disableConfirm}
+                onChange={(e) => setDisableConfirm(e.target.value)}
+                style={{ padding: 8, marginRight: 8 }}
+              />
+              <button type="button" disabled={disableConfirm.trim().toUpperCase() !== "DISABLE"} onClick={async () => {
                 try {
                   await disable2fa(code);
                   setMsg("2FA disabled.");
                   setCode("");
+                  setDisableConfirm("");
                   await refresh();
                 } catch (e) { setError(String(e)); }
-              }}>Disable 2FA</button>
+              }}>{t("security.disable")}</button>
             </div>
           )}
           <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>

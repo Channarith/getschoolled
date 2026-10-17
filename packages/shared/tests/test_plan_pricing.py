@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 
 from aoep_shared.plan_pricing import (
     CONSUMER_PLANS,
+    PRO_PRICE_USD,
     STANDARD_PRICE_USD,
     VIP_PRICE_USD,
     advance_next_billing_at,
@@ -17,21 +18,36 @@ from aoep_shared.plan_pricing import (
 from aoep_shared.membership import membership_class_for_tier
 
 
+def test_checkout_charges_plan_prices():
+    from aoep_shared.providers.payment import _checkout_amount
+
+    assert _checkout_amount("free") == (0, "0.00")
+    assert _checkout_amount("basic") == (1900, "19.00")
+    assert _checkout_amount("pro") == (2900, "29.00")
+    assert _checkout_amount("premium") == (3900, "39.00")
+    assert _checkout_amount("vip") == (3900, "39.00")
+
+
 def test_standard_and_vip_prices():
-    assert price_usd_for_tier("basic") == STANDARD_PRICE_USD
-    assert price_usd_for_tier("premium") == VIP_PRICE_USD
     assert price_usd_for_tier("free") == 0.0
+    assert price_usd_for_tier("basic") == STANDARD_PRICE_USD == 19
+    assert price_usd_for_tier("pro") == PRO_PRICE_USD == 29
+    assert price_usd_for_tier("premium") == VIP_PRICE_USD == 39
+    assert [plan.price_usd for plan in CONSUMER_PLANS.values()] == [0.0, 19.0, 29.0, 39.0]
 
 
 def test_consumer_plan_labels():
     assert CONSUMER_PLANS["basic"].display_name == "Standard"
+    assert CONSUMER_PLANS["pro"].display_name == "Pro"
     assert CONSUMER_PLANS["premium"].display_name == "VIP"
     assert CONSUMER_PLANS["basic"].ads is True
+    assert CONSUMER_PLANS["pro"].ads is False
     assert CONSUMER_PLANS["premium"].ads is False
 
 
 def test_tier_requires_payment():
     assert tier_requires_payment("basic")
+    assert tier_requires_payment("pro")
     assert tier_requires_payment("premium")
     assert not tier_requires_payment("free")
 

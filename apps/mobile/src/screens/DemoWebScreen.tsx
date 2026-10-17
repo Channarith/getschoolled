@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Image, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View,
+  ActivityIndicator, AppState, Image, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View,
 } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
@@ -10,9 +10,11 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { driverWaveScript } from "../driverWave";
 import { liveAudioPhoneScript } from "../liveAudioPhone";
-import { publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
+import { appStateScript, publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
 import { SERENITY_HERO, SERENITY_NAME } from "../serenity";
 import { ensureLoudSpeaker } from "../tts";
+import AdaptiveContent from "../layout/AdaptiveContent";
+import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
 
 async function ensureMicrophonePermission(): Promise<void> {
@@ -42,6 +44,7 @@ export default function DemoWebScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [plays, setPlays] = useState(0);
+  const webRef = useRef<WebView>(null);
   const path = demoPathWithLocale(demo.path, locale);
   const url = publicDemoUrl(WEB_APP_URL, path);
   const audioOnly = path.includes("presentation=audio");
@@ -51,12 +54,20 @@ export default function DemoWebScreen({
   const waveScript = audioOnly ? driverWaveScript() : undefined;
   const phoneAudio = liveAudioPhoneScript();
   const beforeLoad = [phoneAudio, waveScript, localeScript, touchScript].filter(Boolean).join("\n");
+  const { overlayBottomPad } = useLayoutMetrics();
   useAndroidBackTo(onBack);
 
   useEffect(() => {
     void ensureLoudSpeaker();
     void ensureCameraPermission();
     void ensureMicrophonePermission();
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      webRef.current?.injectJavaScript(appStateScript(state));
+    });
+    return () => sub.remove();
   }, []);
 
   function onMessage(event: WebViewMessageEvent) {
@@ -78,7 +89,7 @@ export default function DemoWebScreen({
   }
 
   return (
-    <View style={styles.root} testID="demo-web">
+    <AdaptiveContent style={[styles.root, { paddingBottom: overlayBottomPad }]} testID="demo-web">
       <View style={styles.bar} collapsable={false}>
         <Pressable
           onPress={onBack}
@@ -105,6 +116,7 @@ export default function DemoWebScreen({
         </View>
       ) : (
         <WebView
+          ref={webRef}
           testID="demo-webview"
           source={{ uri: url }}
           style={styles.web}
@@ -132,12 +144,12 @@ export default function DemoWebScreen({
           <Text style={styles.loadingText}>{t("guest.loading")}</Text>
         </View>
       ) : null}
-    </View>
+    </AdaptiveContent>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.colors.bg, overflow: "hidden" },
+  root: { flex: 1, backgroundColor: theme.colors.bg, overflow: "hidden", width: "100%" },
   bar: {
     zIndex: 1100,
     elevation: 24,

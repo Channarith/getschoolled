@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextvars
 import uuid
+from collections import OrderedDict
 from dataclasses import asdict
 
 from aoep_shared.adaptive import AdaptivePolicy, Difficulty, LearnerSignals, Pacing
@@ -38,6 +39,18 @@ from .director import ClassContext, Director, LessonState
 from .teaching import Answer, Reengagement, SessionView, SlideWithBreak, TeachingSessions
 
 app = create_service("orchestrator")
+
+from aoep_shared.store_errors import DurableStoreError as _DurableStoreError  # noqa: E402
+
+
+@app.exception_handler(_DurableStoreError)
+def _durable_store_unavailable(request, exc):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "class state is temporarily unavailable"},
+    )
 
 # Sync routes run in a worker thread. anyio copies this context into that thread,
 # so live-room materialization can see the caller's free-plan status.
@@ -87,7 +100,7 @@ app.state.assessment_results = []
 # Server-side quiz item cache keyed by item_id.  Correct answer indices are
 # stored here so they are never sent to or trusted from the client.
 # Capped at 50 000 entries; cleared when full to prevent unbounded growth.
-app.state.quiz_items: dict = {}
+app.state.quiz_items: OrderedDict = OrderedDict()
 
 import os  # noqa: E402
 import threading as _threading  # noqa: E402
@@ -1623,11 +1636,12 @@ def assessment_quiz(req: QuizRequest) -> QuizResponse:
         )
     # Cache items server-side so the correct answer is never exposed to the client.
     # Apply a simple size cap to prevent unbounded memory growth.
-    quiz_cache: dict = app.state.quiz_items
-    if len(quiz_cache) > 50_000:
-        quiz_cache.clear()
+    quiz_cache: OrderedDict = app.state.quiz_items
+    while len(quiz_cache) >= 50_000:
+        quiz_cache.popitem(last=False)
     for i in items:
         quiz_cache[i.item_id] = i
+        quiz_cache.move_to_end(i.item_id)
     return QuizResponse(
         items=[
             QuizItemView(
@@ -1649,6 +1663,7 @@ def assessment_grade(req: GradeRequest) -> GradeResponse:
     stored_item: QuizItem | None = app.state.quiz_items.get(req.item_id)
     if stored_item is None:
         raise HTTPException(status_code=404, detail="unknown quiz item; start a new quiz")
+    app.state.quiz_items.move_to_end(req.item_id)
     item = stored_item
     result: GradeResult = grade(item, req.chosen_index)
     # Close the adaptive loop: persist the outcome so the learner's mastery (BKT)
@@ -1778,6 +1793,23 @@ async def _orchestrator_startup() -> None:
             "ASSESSMENT_SIGNING_KEY not set — orchestrator will sign assessment tokens "
             "with AUTH_SIGNING_KEY. Ensure the identity service uses the same key."
         )
+
+
+def _consume_voucher(code: str) -> bool:
+    """Redeem a voucher before access is granted. False fails the checkout."""
+    import httpx
+    from aoep_shared.identity_sync import identity_base_url, internal_token
+
+    try:
+        resp = httpx.post(
+            f"{identity_base_url()}/vouchers/consume",
+            json={"code": code},
+            headers={"X-Internal-Token": internal_token()},
+            timeout=5,
+        )
+    except Exception:
+        return False
+    return resp.status_code < 300
 
 
 def _group_store() -> GroupClassStore:
@@ -2268,6 +2300,8 @@ def checkout_group_class(
 
     # ── Free pass: voucher covers full cost, skip payment provider ──────────
     if final_price == 0:
+        if req.voucher_code.strip() and not _consume_voucher(req.voucher_code.strip()):
+            raise HTTPException(status_code=502, detail="voucher could not be redeemed")
         try:
             free_session_id = f"voucher-{uuid.uuid4().hex[:8]}"
             reg = _group_store().open_checkout(
@@ -2282,18 +2316,6 @@ def checkout_group_class(
                 checkout_session_id=free_session_id,
                 account_id=account_id,
             )
-            # Consume the voucher so max_uses is enforced
-            if req.voucher_code.strip():
-                try:
-                    import httpx as _httpx_vc
-                    _httpx_vc.post(
-                        f"{os.environ.get('IDENTITY_URL', 'http://identity:8000')}/vouchers/consume",
-                        json={"code": req.voucher_code.strip()},
-                        headers={"X-Internal-Token": os.environ.get("INTERNAL_SECRET", "")},
-                        timeout=3,
-                    )
-                except Exception:
-                    pass  # best-effort; do not block the user
         except KeyError:
             raise HTTPException(status_code=404, detail="unknown group class")
         except ClassFullError as exc:
@@ -2366,6 +2388,9 @@ def confirm_group_class_payment(
             raise HTTPException(status_code=402, detail=f"Payment not complete (status: {status})")
     except NotImplementedError:
         pass  # SandboxPaymentProvider in dev/test — allow
+    pending_code = _pending_vouchers.get(req.checkout_session_id, "")
+    if pending_code and not _consume_voucher(pending_code):
+        raise HTTPException(status_code=502, detail="voucher could not be redeemed")
     try:
         reg = _group_store().confirm_checkout(
             class_id,
@@ -2377,19 +2402,7 @@ def confirm_group_class_payment(
         raise HTTPException(status_code=404, detail="unknown group class")
     except GroupClassError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    # Consume any pending voucher associated with this checkout session
-    pending_code = _pending_vouchers.pop(req.checkout_session_id, "")
-    if pending_code:
-        try:
-            import httpx as _httpx_vc
-            _httpx_vc.post(
-                f"{os.environ.get('IDENTITY_URL', 'http://identity:8000')}/vouchers/consume",
-                json={"code": pending_code},
-                headers={"X-Internal-Token": os.environ.get("INTERNAL_SECRET", "")},
-                timeout=3,
-            )
-        except Exception:
-            pass  # best-effort; do not block the user
+    _pending_vouchers.pop(req.checkout_session_id, None)
     return {
         "class": _group_class_payload(gc),
         "registration": reg.__dict__,
@@ -2639,6 +2652,15 @@ class LiveRoomMuteRequest(BaseModel):
 class LiveRoomHandRequest(BaseModel):
     participant_id: str
     question: str = ""
+
+
+class LiveRoomStrokeRequest(BaseModel):
+    participant_id: str
+    id: str = ""
+    color: str = "#0f172a"
+    width: float = 3
+    erase: bool = False
+    points: list = []
 
 
 class LiveRoomQueueRequest(BaseModel):
@@ -3051,9 +3073,26 @@ def _require_live_room_gate(room_id: str, authorization: str | None = None) -> d
     return _require_paid_group_caller(authorization)
 
 
-def _reject_free_room_join(room_id: str, authorization: str) -> None:
+def _reject_free_room_join(room_id: str, authorization: str) -> dict:
     """Direct join must not bypass the group-class or solo AI gates."""
-    _require_live_room_gate(room_id, authorization)
+    return _require_live_room_gate(room_id, authorization)
+
+
+def _bind_participant(room, participant_id: str, authorization: str | None) -> None:
+    """The caller may only act as a participant joined on their own account."""
+    profile = _require_live_room_gate(room.room_id, authorization)
+    caller = str(profile.get("id") or "")
+    if _request_is_admin(authorization or ""):
+        return
+    try:
+        participant = room.get_participant(participant_id)
+    except KeyError as exc:
+        raise _live_room_http_error(exc) from exc
+    if not participant.account_id or participant.account_id != caller:
+        raise HTTPException(
+            status_code=403,
+            detail="that participant belongs to another account",
+        )
 
 
 def _ensure_group_class_room(room_id: str):
@@ -3216,11 +3255,9 @@ def join_live_room(
     background: BackgroundTasks,
     authorization: str = Header(default=""),
 ) -> dict:
-    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
-
-    _reject_free_room_join(room_id, authorization)
+    profile = _require_live_room_gate(room_id, authorization)
     store = _live_rooms()
-    account_id = account_from_authorization(authorization) or ""
+    account_id = str(profile.get("id") or "")
     # Open the room on demand for group-class Salareen rooms so joining a
     # scheduled (not-yet-started) class works instead of 404ing.
     ensured_room = _ensure_group_class_room(room_id)
@@ -3523,8 +3560,13 @@ def live_room_xr_complete(
 
 
 @app.get("/api/live-rooms/{room_id}/audience-profile")
-def live_room_audience_profile(room_id: str, refresh: bool = False) -> dict:
+def live_room_audience_profile(
+    room_id: str,
+    refresh: bool = False,
+    authorization: str = Header(default=""),
+) -> dict:
     """Privacy-safe audience readiness aggregates for Theodore / admins."""
+    _require_live_room_gate(room_id, authorization)
     room = _ensure_room_or_404(room_id)
     if refresh or not room.audience_profile:
         profile = _refresh_audience_profile(room_id)
@@ -3534,15 +3576,19 @@ def live_room_audience_profile(room_id: str, refresh: bool = False) -> dict:
 
 
 @app.post("/api/live-rooms/{room_id}/media-token")
-def live_room_media_token(room_id: str, req: LiveRoomHandRequest) -> dict:
+def live_room_media_token(
+    room_id: str,
+    req: LiveRoomHandRequest,
+    authorization: str = Header(default=""),
+) -> dict:
     """Issue a FRESH LiveKit token for a participant reflecting their CURRENT
     publish right. The hard mutex hinges on this: learners join with can_publish
     False, and when the host/AI grants them the floor the client re-fetches a
     token here (now can_publish True) and reconnects to publish. On losing the
     floor it re-fetches again (can_publish False) so LiveKit refuses to publish."""
-    _require_live_room_gate(room_id, None)
     try:
         room = _ensure_room_or_404(room_id)  # reopen if this replica lacks it
+        _bind_participant(room, req.participant_id, authorization)
         p = room.get_participant(req.participant_id)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -3661,11 +3707,12 @@ def live_room_chat(
     room_id: str,
     req: LiveRoomChatRequest,
     background: BackgroundTasks,
+    authorization: str = Header(default=""),
 ) -> dict:
-    _require_live_room_gate(room_id, None)
     store = _live_rooms()
     try:
-        _ensure_room_or_404(room_id)
+        room = _ensure_room_or_404(room_id)
+        _bind_participant(room, req.participant_id, authorization)
         msg = store.post_chat(room_id, req.participant_id, req.text)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -3684,10 +3731,34 @@ def live_room_chat(
     return {"message": asdict(msg), "room": store.require(room_id).to_dict()}
 
 
-@app.post("/api/live-rooms/{room_id}/raise-hand")
-def live_room_raise_hand(room_id: str, req: LiveRoomHandRequest) -> dict:
+@app.post("/api/live-rooms/{room_id}/whiteboard")
+def live_room_whiteboard(
+    room_id: str,
+    req: LiveRoomStrokeRequest,
+    authorization: str = Header(default=""),
+) -> dict:
     try:
-        _ensure_room_or_404(room_id)
+        room = _ensure_room_or_404(room_id)
+        _bind_participant(room, req.participant_id, authorization)
+        saved = _live_rooms().add_whiteboard_stroke(
+            room_id,
+            req.participant_id,
+            req.model_dump(),
+        )
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": saved.to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/raise-hand")
+def live_room_raise_hand(
+    room_id: str,
+    req: LiveRoomHandRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    try:
+        room = _ensure_room_or_404(room_id)
+        _bind_participant(room, req.participant_id, authorization)
         p = _live_rooms().toggle_hand(room_id, req.participant_id, question=req.question)
     except (KeyError, LiveRoomError, BannedError) as exc:
         raise _live_room_http_error(exc)
@@ -3700,9 +3771,14 @@ def live_room_raise_hand(room_id: str, req: LiveRoomHandRequest) -> dict:
 
 
 @app.post("/api/live-rooms/{room_id}/queue/join")
-def live_room_queue_join(room_id: str, req: LiveRoomQueueRequest) -> dict:
+def live_room_queue_join(
+    room_id: str,
+    req: LiveRoomQueueRequest,
+    authorization: str = Header(default=""),
+) -> dict:
     try:
-        _ensure_room_or_404(room_id)
+        room = _ensure_room_or_404(room_id)
+        _bind_participant(room, req.participant_id, authorization)
         entry = _live_rooms().join_queue(room_id, req.participant_id, question=req.question)
     except (KeyError, LiveRoomError, BannedError) as exc:
         raise _live_room_http_error(exc)
@@ -3711,9 +3787,14 @@ def live_room_queue_join(room_id: str, req: LiveRoomQueueRequest) -> dict:
 
 
 @app.post("/api/live-rooms/{room_id}/queue/leave")
-def live_room_queue_leave(room_id: str, req: LiveRoomHandRequest) -> dict:
+def live_room_queue_leave(
+    room_id: str,
+    req: LiveRoomHandRequest,
+    authorization: str = Header(default=""),
+) -> dict:
     try:
-        _ensure_room_or_404(room_id)
+        room = _ensure_room_or_404(room_id)
+        _bind_participant(room, req.participant_id, authorization)
         _live_rooms().leave_queue(room_id, req.participant_id)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)

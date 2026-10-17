@@ -25,10 +25,10 @@ import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 
 const PLATFORMS = [
-  { value: "salareen", label: "Salareen room (built-in)" },
-  { value: "zoom", label: "Zoom" },
-  { value: "teams", label: "Microsoft Teams" },
-  { value: "meet", label: "Google Meet" },
+  { value: "salareen", label: "Salareen room (the class is hosted here)" },
+  { value: "zoom", label: "Zoom join link only" },
+  { value: "teams", label: "Teams join link only" },
+  { value: "meet", label: "Meet join link only" },
 ];
 
 const PLATFORM_BADGE: Record<string, { label: string; bg: string; fg: string }> = {
@@ -65,6 +65,7 @@ export default function GroupClassesPage() {
   const [classes, setClasses] = useState<GroupClass[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [showForm, setShowForm] = useState(true); // open by default — this page IS the host-a-class page
   const [started, setStarted] = useState<GroupClassStart | null>(null);
@@ -352,6 +353,9 @@ export default function GroupClassesPage() {
 
       {!loggedIn && <SignInToUse />}
 
+      {notice && (
+        <div className="card" role="status">{notice}</div>
+      )}
       {error && (
         <div className="card" style={{ borderColor: "#ff6b6b" }}>
           <strong>{t("group.errorTitle")}</strong>
@@ -851,7 +855,8 @@ export default function GroupClassesPage() {
                       );
                       setCheckoutTarget(null);
                       if (data.free) {
-                        alert("Free access granted! Check your classes.");
+                        setError("");
+                        setNotice("Free access granted. Your classes list is updated.");
                         await refresh();
                       } else if (data.checkout?.url) {
                         window.location.href = data.checkout.url;
@@ -881,7 +886,7 @@ export default function GroupClassesPage() {
                         me?.email || "",
                         { payment_method: "zelle", voucher_code: "" },
                       );
-                      alert('Thank you! Please email support@salareen.com with your Zelle confirmation. We will grant access within 1 hour.');
+                      setNotice("Thank you. Email support@salareen.com with your Zelle confirmation. Access is granted after that transfer is confirmed.");
                       setCheckoutTarget(null);
                       setPaymentMethod('card');
                       setVoucherCode('');
