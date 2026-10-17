@@ -5,10 +5,12 @@ Goal: continuously improve our own open-weight education LLM from the classes we
 run and the feedback users give, so answers adapt to the audience (language,
 slang/register, professionalism, age, learning behavior, prior mastery).
 
-STATUS: scaffold. The data pipeline (pipeline/) is real and tested; actual
-fine-tuning requires GPUs + model weights and is meant to run on a SEPARATE,
-long-running cloud agent (not this repo's CI). Nothing here downloads weights or
-trains by itself.
+STATUS: the data pipeline (pipeline/) is real and tested. CI does not download
+weights or train. On a GPU host, training/spark_nightly.sh runs one STEM QLoRA
+cycle (export, train, evaluate, bake-off) and promotes only if the adapter wins.
+It holds ~/.gs-gpu.lock and writes under output/spark/. The user timer is
+training/systemd/install-user-timer.sh; pass --enable to arm it. Cloning the
+repo does not install or enable that timer.
 
 WHAT IS HERE
 - pipeline/dataset.py   Build instruction/response training examples from class
@@ -16,6 +18,12 @@ WHAT IS HERE
 - pipeline/feedback.py  Feedback schema + reward mapping + aggregation.
 - config/finetune.yaml  Base model + LoRA/QLoRA + continuous-training config
                         (no weights; paths/params only).
+- config/finetune.spark.yaml
+                        Same contract with batch size 1 for a shared GPU.
+- spark_nightly.sh      Export, STEM QLoRA, evaluate, bake-off, conditional promote.
+- spark_seed_sessions.py
+                        STEM lessons in sample-curriculum -> sessions JSON.
+- systemd/              User timer template + install script (not enabled here).
 - tests/                Unit tests for the pipeline and the bias guardrail.
 
 DATA FLOW (continuous loop, to run 24/7 on the training agent)
