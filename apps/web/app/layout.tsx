@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Fraunces } from "next/font/google";
 import { APP_VERSION } from "./lib/version";
 import DisclaimerGate from "./components/DisclaimerGate";
 import OnboardingSurveyGate from "./components/OnboardingSurveyGate";
@@ -34,9 +35,45 @@ export const viewport = {
   maximumScale: 5,
 };
 
+/**
+ * DN "Dark Navy" theme display serif. Loaded via next/font so the browser
+ * downloads only the Latin subset and we get an auto-generated CSS variable
+ * (`--font-display`) that globals.css applies to h1/h2/.display headlines.
+ * Italic is enabled so copy like "Human *Warmth.*" renders in true italic
+ * serif, matching the DN mockup. Regular body text keeps the system sans.
+ */
+const displaySerif = Fraunces({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-display",
+});
+
+/**
+ * Inline script that runs BEFORE React hydrates. It reads the user's saved
+ * theme preference from localStorage (and falls back to the OS-level
+ * `prefers-color-scheme`) and sets `data-theme="dark"` or `"light"` on
+ * <html> so the correct DN palette paints on the very first frame — no
+ * light-flash on dark-mode reloads. Kept tiny and self-contained; it is
+ * dangerouslySetInnerHTML because Next inlines it as a server string.
+ */
+const themeInitScript = `
+(function(){try{
+  var saved = localStorage.getItem('aoep.theme');
+  var mode = (saved === 'dark' || saved === 'light') ? saved
+    : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', mode);
+  document.documentElement.style.colorScheme = mode;
+}catch(e){document.documentElement.setAttribute('data-theme','light');}
+})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={displaySerif.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
         <LocaleProvider>
           <FlagsProvider>

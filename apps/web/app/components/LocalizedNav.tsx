@@ -11,6 +11,7 @@ import { learningHint, useLearningPhrase } from "../lib/learningPhrases";
 import { isImmersiveSetupPath } from "../lib/layoutWidth";
 import ProfileMenu from "./ProfileMenu";
 import NavSearchBox from "./NavSearchBox";
+import ThemeToggle from "./ThemeToggle";
 
 // Top navigation. Content tabs are gated when signed out. On narrow viewports
 // links collapse into a menu so the bar stays full-width and readable.
@@ -52,11 +53,16 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
 
   // Demo-only mode (sales_demo.exclusive) hides the full site chrome for signed-
   // out visitors so the inverted demo stays focused on the three demo features.
+  // The DN landing hero (now the default `/`) expects the dark navy header to
+  // sit above it, so we DO show the nav on `/` for signed-out visitors; the
+  // old "hide nav on /" branch is removed. `/home-concepts` still gets no
+  // nav because its own chrome paints over the top. Immersive setup paths
+  // (e.g. onboarding flows) also hide the nav so the setup chrome owns the
+  // whole viewport.
   if (
     demoOnlyAnon
     || isImmersiveSetupPath(pathname)
     || pathname.startsWith("/home-concepts")
-    || (pathname === "/" && signedIn !== true)
   ) {
     return null;
   }
@@ -146,6 +152,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
               {learnPhrase}
             </Link>
             <NavSearchBox />
+            <ThemeToggle />
             <ProfileMenu />
             <span className="version" title="App version">
               v{appVersion}
