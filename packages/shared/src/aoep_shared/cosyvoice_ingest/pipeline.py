@@ -20,6 +20,7 @@ from .errors import classify_download_error, classify_qc_reason, sanitize_proces
 from .export import CosyVoiceUtterance, RecipePaths, write_cosyvoice_recipe
 from .merge import default_merge_into, merge_language_pool
 from .segment import segment_pcm16, slice_pcm16
+from .quality import transcript_reject_reason
 from .transcribe import TranscriptResult, asr_available, transcribe_wav
 from .urls import load_url_list
 
@@ -390,6 +391,7 @@ def run_ingest(
     # --- transcribe ---
     if _stage_enabled("transcribe", start_stage, stop_stage, selected):
         empty = 0
+        rejected_text: dict[str, int] = {}
         for m, wav_path, dur, snr in seg_paths:
             tr: TranscriptResult = transcribe_wav(wav_path, language=config.language)
             text = tr.text.strip()
@@ -399,6 +401,17 @@ def run_ingest(
                     # Still record stub utt for debugging when ASR missing?
                     # Skip export of empty — CosyVoice needs text.
                     continue
+            why = transcript_reject_reason(text, tr.language or config.language)
+            if why and not config.allow_empty_transcripts:
+                rejected_text[why] = rejected_text.get(why, 0) + 1
+                _record_error(
+                    report,
+                    category="other",
+                    stage="transcribe",
+                    message=why,
+                    target=wav_path.stem,
+                )
+                continue
             if not config.speaker or config.speaker == "auto":
                 spk = m.media_id
             else:
@@ -422,6 +435,7 @@ def run_ingest(
             "segments": len(seg_paths),
             "with_text": sum(1 for u in utterances if u.text and not u.text.startswith("<missing")),
             "empty": empty,
+            "rejected_transcript": rejected_text,
             "asr_available": report.asr_available,
         }
         if not report.asr_available:
