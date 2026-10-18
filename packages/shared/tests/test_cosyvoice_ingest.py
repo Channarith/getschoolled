@@ -456,3 +456,117 @@ def test_language_census_dedupes_and_marks_the_floor(tmp_path):
 def test_download_optional_skip_without_network():
     """Network yt-dlp tests are optional; skip by default."""
     pytest.skip("network download tests are optional; use operator URLs manually")
+
+
+def _pcm(samples: list[int]) -> bytes:
+    return struct.pack("<" + "h" * len(samples), *samples)
+
+
+def test_denoise_qc_passes_clean_audio_and_rejects_bad_audio(tmp_path):
+    """Frame SNR, not edge loudness. Modest tones pass; noise, silence, clips do not."""
+    import wave as wave_mod
+
+    from aoep_shared.dictionary_audio import estimate_qc, read_wav_mono
+
+    sr = 24000
+    modest = estimate_qc(_tone_pcm(2.0, sr, amp=0.05), sr)
+    assert modest[0] is True and modest[1] == "ok", modest
+    assert modest[2] >= 6.0
+    louder = estimate_qc(_tone_pcm(2.0, sr, amp=0.3), sr)
+    assert louder[0] is True, louder
+
+    silent = estimate_qc(b"\x00\x00" * sr, sr)
+    assert silent[0] is False
+    assert silent[1] in {"near_silent", "too_short", "low_snr"}
+
+    clipped = estimate_qc(_pcm([32767, -32767] * (sr // 2)), sr)
+    assert clipped[0] is False and clipped[1] == "clipping", clipped
+
+    short = estimate_qc(_tone_pcm(0.05, sr, amp=0.4), sr)
+    assert short[0] is False and short[1] == "too_short"
+
+    rng = __import__("random").Random(0)
+    noise = [
+        int(max(-32767, min(32767, 0.25 * 32767 * (rng.random() * 2 - 1))))
+        for _ in range(sr * 2)
+    ]
+    noisy = estimate_qc(_pcm(noise), sr)
+    assert noisy[0] is False and noisy[1] == "low_snr", noisy
+
+    # 16 kHz duration uses the buffer rate, not the 24 kHz training rate.
+    rated = estimate_qc(_tone_pcm(1.0, 16000, amp=0.2), 16000)
+    assert rated[0] is True, rated
+    assert abs(rated[3] - 1.0) < 0.02
+
+    # Stereo 44.1 kHz downmix keeps one second, not two.
+    mono_samples = struct.unpack("<" + "h" * 44100, _tone_pcm(1.0, 44100, amp=0.2))
+    interleaved: list[int] = []
+    for sample in mono_samples:
+        interleaved.extend((sample, sample // 2))
+    stereo = tmp_path / "stereo.wav"
+    with wave_mod.open(str(stereo), "wb") as handle:
+        handle.setnchannels(2)
+        handle.setsampwidth(2)
+        handle.setframerate(44100)
+        handle.writeframes(struct.pack("<" + "h" * len(interleaved), *interleaved))
+    pcm, rate = read_wav_mono(stereo)
+    assert rate == 44100
+    assert abs((len(pcm) / 2) / rate - 1.0) < 0.02
+    stereo_qc = estimate_qc(pcm, rate)
+    assert stereo_qc[0] is True, stereo_qc
+
+
+def test_kalel_denoise_stage_hands_off_to_spark_inbox(tmp_path):
+    """download,denoise on its own, then segment reads the inbox copy."""
+    from aoep_shared.cosyvoice_ingest.pipeline import (
+        IngestConfig,
+        discover_inbox_channels,
+        import_inbox_wavs,
+        parse_stages,
+        run_ingest,
+    )
+
+    assert parse_stages("denoise,download") == ("download", "denoise")
+    media = tmp_path / "clips"
+    media.mkdir()
+    write_wav_mono(
+        media / "talk.wav",
+        _tone_pcm(2.2) + _silence_pcm(0.5) + _tone_pcm(1.5),
+        24000,
+    )
+    kalel = tmp_path / "output" / "kalel" / "km_example"
+    early = run_ingest(
+        IngestConfig(media_dir=media, output_dir=kalel, language="km", merge=False),
+        stages=("download", "denoise"),
+    )
+    assert early.stages["denoise"]["qc_ok"] == 1
+    assert early.stages["denoise"]["rejected"] == 0
+    assert list((kalel / "03_segments").glob("*.wav")) == []
+    assert list((kalel / "02_clean").glob("*.wav"))
+
+    inbox = tmp_path / "output" / "inbox" / "kalel"
+    spark = tmp_path / "output" / "spark" / "from-kalel"
+    # Operator rsync --ignore-existing is the same rule as import_inbox_wavs.
+    assert discover_inbox_channels(kalel) == [kalel]
+    # Place the Kal-el tree where Spark expects the handoff, then import.
+    handoff = inbox / "km_example"
+    import_inbox_wavs(kalel, handoff)
+    assert discover_inbox_channels(inbox) == [handoff]
+    # A second import must not replace the first delivery.
+    first = import_inbox_wavs(kalel, spark / "km_example")
+    assert first["linked"] >= 1
+    again = import_inbox_wavs(kalel, spark / "km_example")
+    assert again["linked"] == 0
+    assert again["skipped"] >= 1
+
+    later = run_ingest(
+        IngestConfig(
+            output_dir=spark / "km_example",
+            language="km",
+            merge=False,
+            inbox_dir=handoff,
+        ),
+        stages=("segment",),
+    )
+    assert later.stages["segment"]["utterances"] >= 1
+    assert list((spark / "km_example" / "03_segments").glob("*.wav"))

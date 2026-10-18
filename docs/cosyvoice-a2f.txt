@@ -24,6 +24,39 @@ Video → CosyVoice training lists (operator-supplied URLs only)
   wav.scp / text / utt2spk / spk2utt under OUTPUT/04_cosyvoice/train/
   plus TRAIN_HANDOFF.txt for ~/code/CosyVoice examples.
 
+  Denoise QC measures SNR from 20 ms frames (loud-frame RMS over quiet-frame
+  RMS, in dB) and rejects under 5 dB. A clean sine used to score about 0.9 dB
+  at every amplitude, because the old check treated the file edges as the
+  noise floor, and a 6 dB gate then rejected it unless a loudness shortcut
+  also matched. A pure tone has no quieter frames, so periodicity keeps it
+  and reports 6 dB. Silence, clipping, clips under 0.12 s, and noise beds
+  are still rejected.
+
+Kal-el download + denoise, Spark continues
+------------------------------------------
+  Download and denoise do not start a service (yt-dlp + local ffmpeg only).
+  Spark keeps CosyVoice on its usual port. If Kal-el runs a lab or health
+  check, bind that copy in the 18xxx range; do not reuse Spark's ports.
+
+  On Kal-el (Intel, no Spark GPU):
+    python3 scripts/cosyvoice_ingest.py \
+      --urls-file urls.txt --language km --stages download,denoise \
+      --output-dir output/kalel/km_example
+    # omitted --output-dir defaults to output/kalel/ingest
+
+  One-way handoff onto Spark (does not replace files already there):
+    rsync -a --ignore-existing output/kalel/ \
+      SPARK:/home/nvidia/code/getschoolled/output/inbox/kalel/
+
+  Spark picks up each channel's 01_raw/ and 02_clean/:
+    python3 scripts/cosyvoice_ingest.py \
+      --inbox output/inbox/kalel --stages segment,transcribe,export \
+      --output-dir output/spark/from-kalel --language km
+    # or, in place, one channel:
+    python3 scripts/cosyvoice_ingest.py \
+      --stages segment,transcribe,export \
+      --output-dir output/inbox/kalel/km_example --language km
+
 CosyVoice → Audio2Face-3D (Omniverse ACE)
 ----------------------------------------
   NGC_API_KEY / NVIDIA_API_KEY in gitignored config/local.env (never commit).

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from ..dictionary_audio import (
     TARGET_SR,
@@ -47,6 +48,9 @@ class IngestConfig:
     merge: bool = True
     merge_into: Optional[Path] = None
     merge_scan_root: Optional[Path] = None
+    # One Kal-el channel dir (has 01_raw/ and/or 02_clean/). Copied in with
+    # ignore-existing semantics before the selected stages run.
+    inbox_dir: Optional[Path] = None
 
 
 @dataclass
@@ -71,7 +75,74 @@ class IngestReport:
         return asdict(self)
 
 
-def _stage_enabled(name: str, start: str, stop: str) -> bool:
+def parse_stages(value: str | Sequence[str]) -> tuple[str, ...]:
+    """Parse ``download,denoise`` into pipeline order. Reject unknown names."""
+    if isinstance(value, str):
+        parts = [part.strip().lower() for part in value.split(",") if part.strip()]
+    else:
+        parts = [str(part).strip().lower() for part in value if str(part).strip()]
+    unknown = [part for part in parts if part not in STAGES]
+    if not parts or unknown:
+        raise ValueError(f"stages must be a comma list drawn from {STAGES}")
+    chosen = set(parts)
+    return tuple(stage for stage in STAGES if stage in chosen)
+
+
+def discover_inbox_channels(inbox: Path) -> List[Path]:
+    """Channel dirs under a Kal-el handoff, or ``[inbox]`` if it is one channel."""
+    root = Path(inbox)
+    if not root.is_dir():
+        return []
+    if (root / "01_raw").is_dir() or (root / "02_clean").is_dir():
+        return [root]
+    found: List[Path] = []
+    for child in sorted(path for path in root.iterdir() if path.is_dir()):
+        if (child / "01_raw").is_dir() or (child / "02_clean").is_dir():
+            found.append(child)
+    return found
+
+
+def import_inbox_wavs(source: Path, dest: Path) -> dict:
+    """Hardlink raw and clean wavs into ``dest``. Existing files are left alone.
+
+    Same rule as ``rsync --ignore-existing``: a later Spark stage must not
+    overwrite audio Kal-el already delivered, and a second import must not
+    replace wavs Spark has already started segmenting.
+    """
+    linked = 0
+    skipped = 0
+    for folder in ("01_raw", "02_clean"):
+        src_dir = Path(source) / folder
+        if not src_dir.is_dir():
+            continue
+        dst_dir = Path(dest) / folder
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for wav in sorted(src_dir.glob("*.wav")):
+            target = dst_dir / wav.name
+            if target.exists():
+                skipped += 1
+                continue
+            try:
+                os.link(wav, target)
+            except OSError:
+                shutil.copy2(wav, target)
+            linked += 1
+    return {
+        "linked": linked,
+        "skipped": skipped,
+        "source": str(Path(source)),
+        "dest": str(Path(dest)),
+    }
+
+
+def _stage_enabled(
+    name: str,
+    start: str,
+    stop: str,
+    selected: Optional[frozenset] = None,
+) -> bool:
+    if selected is not None:
+        return name in selected
     return STAGES.index(start) <= STAGES.index(name) <= STAGES.index(stop)
 
 
@@ -107,6 +178,7 @@ def run_ingest(
     *,
     start_stage: str = "download",
     stop_stage: str = "export",
+    stages: Optional[Sequence[str]] = None,
 ) -> IngestReport:
     """Run the CosyVoice ingest pipeline.
 
@@ -116,9 +188,12 @@ def run_ingest(
       AOEP_ASR_MODEL / WHISPER_MODEL / FASTER_WHISPER_MODEL
       YT_DLP_BIN
     """
-    if start_stage not in STAGES or stop_stage not in STAGES:
+    selected: Optional[frozenset] = None
+    if stages is not None:
+        selected = frozenset(parse_stages(stages))
+    elif start_stage not in STAGES or stop_stage not in STAGES:
         raise ValueError(f"stages must be one of {STAGES}")
-    if STAGES.index(start_stage) > STAGES.index(stop_stage):
+    elif STAGES.index(start_stage) > STAGES.index(stop_stage):
         raise ValueError("start_stage after stop_stage")
 
     out = Path(
@@ -141,7 +216,10 @@ def run_ingest(
     utterances: List[CosyVoiceUtterance] = []
 
     # --- download / local stage ---
-    if _stage_enabled("download", start_stage, stop_stage):
+    if config.inbox_dir:
+        report.stages["inbox"] = import_inbox_wavs(Path(config.inbox_dir), out)
+
+    if _stage_enabled("download", start_stage, stop_stage, selected):
         try:
             if config.media_dir and (config.skip_download or not config.urls_file):
                 media = copy_local_media(Path(config.media_dir), raw_dir)
@@ -225,7 +303,7 @@ def run_ingest(
 
     # --- denoise (dictionary_audio) ---
     cleaned: List[tuple[DownloadedMedia, Path, Optional[float]]] = []
-    if _stage_enabled("denoise", start_stage, stop_stage):
+    if _stage_enabled("denoise", start_stage, stop_stage, selected):
         ok_n = 0
         rejected = 0
         for m in media:
@@ -252,6 +330,10 @@ def run_ingest(
             "engine": "dictionary_audio.clean_audio_file",
             "dir": str(clean_dir),
         }
+        if media and ok_n == 0:
+            report.ok = False
+        elif rejected:
+            report.partial = True
     else:
         for m in media:
             cand = clean_dir / f"{m.media_id}.wav"
@@ -260,7 +342,7 @@ def run_ingest(
 
     # --- segment ---
     seg_paths: List[tuple[DownloadedMedia, Path, float, Optional[float]]] = []
-    if _stage_enabled("segment", start_stage, stop_stage):
+    if _stage_enabled("segment", start_stage, stop_stage, selected):
         for m, clean_path, snr in cleaned:
             try:
                 pcm, rate = read_wav_mono(clean_path)
@@ -306,7 +388,7 @@ def run_ingest(
             seg_paths.append((m, wav, dur, None))
 
     # --- transcribe ---
-    if _stage_enabled("transcribe", start_stage, stop_stage):
+    if _stage_enabled("transcribe", start_stage, stop_stage, selected):
         empty = 0
         for m, wav_path, dur, snr in seg_paths:
             tr: TranscriptResult = transcribe_wav(wav_path, language=config.language)
@@ -372,7 +454,7 @@ def run_ingest(
 
     # --- export ---
     recipe: Optional[RecipePaths] = None
-    if _stage_enabled("export", start_stage, stop_stage):
+    if _stage_enabled("export", start_stage, stop_stage, selected):
         repo = config.cosyvoice_repo or Path(
             os.environ.get("COSYVOICE_REPO", "/home/nvidia/code/CosyVoice")
         )
@@ -412,11 +494,11 @@ def run_ingest(
             download_failures = sum(
                 1 for rec in report.error_records if rec.get("stage") == "download"
             )
-            report.partial = download_failures > 0
+            report.partial = bool(report.partial or download_failures > 0)
             report.ok = True
 
     # --- merge (always on by default; every channel run refreshes the pool) ---
-    if config.merge and _stage_enabled("export", start_stage, stop_stage):
+    if config.merge and _stage_enabled("export", start_stage, stop_stage, selected):
         merge_into = Path(
             config.merge_into
             or os.environ.get("COSYVOICE_MERGE_INTO", "")

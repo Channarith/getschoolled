@@ -22,7 +22,12 @@ from .dictionary_corpus import AudioSlot, DictionaryEntry, ensure_layout
 TARGET_SR = 24000
 TARGET_PEAK_DBFS = -3.0
 MIN_SPEECH_SEC = 0.12
-MIN_SNR_DB = 6.0
+# Frame SNR below this is a noise bed. Broadcast speech after loudnorm can
+# sit just above 5 dB on a short window; white noise measures under 1 dB.
+MIN_SNR_DB = 5.0
+# A pure tone has no quieter frames, so the ratio is ~0 dB. Periodicity
+# accepts it and the report stays at the historical 6 dB floor.
+_PERIODIC_SNR_DB = 6.0
 
 
 @dataclass
@@ -96,42 +101,115 @@ def synthesize_tone_wav(
     return path
 
 
-def _pcm_stats(pcm16: bytes) -> Tuple[float, float, float]:
-    """Return (peak_abs, rms, estimated_snr_db) for int16 mono PCM."""
+# A pure tone's normalized autocorrelation in the pitch range sits near 1.
+# White noise and a tone buried in noise stay well below this.
+_PERIODIC_AUTOCORR = 0.6
+_FRAME_SEC = 0.02
+
+
+def _periodic_peak(samples: Tuple[int, ...], sample_rate: int) -> float:
+    """Peak normalized autocorrelation between 70 Hz and 400 Hz.
+
+    Used only when frame SNR has no separable noise floor. A clean sine then
+    still passes. A noise bed does not.
+    """
+    rate = sample_rate if sample_rate and sample_rate > 0 else TARGET_SR
+    frame = max(1, int(rate * _FRAME_SEC))
+    if len(samples) < frame:
+        return 0.0
+    best_rms = -1.0
+    best_at = 0
+    for start in range(0, len(samples) - frame + 1, frame):
+        acc = 0.0
+        for sample in samples[start : start + frame]:
+            val = sample / 32768.0
+            acc += val * val
+        if acc > best_rms:
+            best_rms = acc
+            best_at = start
+    win_n = min(len(samples) - best_at, int(rate * 0.25))
+    window = samples[best_at : best_at + win_n]
+    if len(window) < max(32, int(rate * 0.05)):
+        return 0.0
+    mean = sum(window) / float(len(window))
+    centered = [sample - mean for sample in window]
+    energy = sum(val * val for val in centered)
+    if energy <= 1e-3:
+        return 0.0
+    lag_lo = max(1, int(rate / 400))
+    lag_hi = min(len(centered) - 2, int(rate / 70))
+    if lag_hi <= lag_lo:
+        return 0.0
+    peak = 0.0
+    span = len(centered)
+    for lag in range(lag_lo, lag_hi + 1):
+        corr = 0.0
+        for index in range(span - lag):
+            corr += centered[index] * centered[index + lag]
+        ratio = corr / energy
+        if ratio > peak:
+            peak = ratio
+    return peak
+
+
+def _pcm_stats(pcm16: bytes, sample_rate: int = TARGET_SR) -> Tuple[float, float, float]:
+    """Return (peak_abs, rms, snr_db) for mono int16 PCM at ``sample_rate``.
+
+    SNR is ``20*log10(loud_frame_rms / quiet_frame_rms)`` on 20 ms frames.
+    Comparing full-file RMS to the mean absolute value of the first and last
+    10% is not an SNR: after end-trim those edges are the signal, and a clean
+    sine measures about 0.9 dB at every amplitude. That number sat under the
+    old 6 dB gate, so every continuous file was ``low_snr`` unless a loudness
+    escape (peak >= 0.12 and rms >= 0.04) rewrote the report to 6 dB.
+    """
     if len(pcm16) < 4:
         return 0.0, 0.0, 0.0
     n = len(pcm16) // 2
     samples = struct.unpack("<" + "h" * n, pcm16)
-    peak = max(abs(s) for s in samples) / 32768.0
-    rms = math.sqrt(sum((s / 32768.0) ** 2 for s in samples) / n)
-    # Noise floor ≈ quieter edge windows (leading/trailing 10%), not mid-signal
-    # percentiles — a clean sine would otherwise look like "noise".
-    edge = max(1, n // 10)
-    edge_vals = [abs(s) / 32768.0 for s in (samples[:edge] + samples[-edge:])]
-    noise = (sum(edge_vals) / len(edge_vals)) if edge_vals else 1e-6
-    noise = max(noise, 1e-6)
-    snr = 20 * math.log10(max(rms, 1e-6) / noise)
-    # Clean loud clips with negligible edge energy: treat as high SNR.
-    if peak >= 0.15 and rms >= 0.05 and noise < 0.02:
-        snr = max(snr, MIN_SNR_DB + 1.0)
+    peak = max(abs(sample) for sample in samples) / 32768.0
+    rms = math.sqrt(sum((sample / 32768.0) ** 2 for sample in samples) / n)
+    rate = sample_rate if sample_rate and sample_rate > 0 else TARGET_SR
+    frame = max(1, int(rate * _FRAME_SEC))
+    frame_rms: list[float] = []
+    for start in range(0, n - frame + 1, frame):
+        acc = 0.0
+        for sample in samples[start : start + frame]:
+            val = sample / 32768.0
+            acc += val * val
+        frame_rms.append(math.sqrt(acc / frame))
+    if not frame_rms:
+        frame_rms.append(rms)
+    ordered = sorted(frame_rms)
+    take = max(1, len(ordered) // 5)
+    noise = sum(ordered[:take]) / take
+    active = sum(ordered[-take:]) / take
+    snr = 20.0 * math.log10(max(active, 1e-6) / max(noise, 1e-6))
+    # Stationary tone: the quiet frames are the signal, so the ratio is ~0 dB.
+    # Periodicity distinguishes that from a noise bed.
+    if snr < _PERIODIC_SNR_DB and _periodic_peak(samples, rate) >= _PERIODIC_AUTOCORR:
+        snr = _PERIODIC_SNR_DB
     return peak, rms, snr
 
 
 def estimate_qc(pcm16: bytes, sample_rate: int) -> Tuple[bool, str, float, float]:
-    """Return (ok, reason, snr_db, duration_sec)."""
-    duration = (len(pcm16) / 2) / float(sample_rate or TARGET_SR)
+    """Return (ok, reason, snr_db, duration_sec).
+
+    ``pcm16`` is mono 16-bit little-endian. ``sample_rate`` is that buffer's
+    rate in Hz (after any stereo downmix). Duration is ``n_samples / rate``,
+    not ``n_samples / 24000`` and not ``n_bytes / rate``.
+    """
+    rate = int(sample_rate or TARGET_SR)
+    if rate <= 0:
+        rate = TARGET_SR
+    duration = (len(pcm16) / 2) / float(rate)
     if duration < MIN_SPEECH_SEC:
         return False, "too_short", 0.0, duration
-    peak, rms, snr = _pcm_stats(pcm16)
+    peak, rms, snr = _pcm_stats(pcm16, rate)
     if peak >= 0.99:
         return False, "clipping", snr, duration
     if rms < 0.005:
         return False, "near_silent", snr, duration
     if snr < MIN_SNR_DB:
-        # Continuous tones / fully filled frames lack quiet edges; accept when
-        # level looks like clear speech and there is no clipping/silence.
-        if peak >= 0.12 and rms >= 0.04:
-            return True, "ok", max(snr, float(MIN_SNR_DB)), duration
         return False, "low_snr", snr, duration
     return True, "ok", snr, duration
 
