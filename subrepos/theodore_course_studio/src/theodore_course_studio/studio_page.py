@@ -385,6 +385,32 @@ STUDIO_CSS = """
     body.chrome-hidden #btn-captions { display:none !important; }
     body.chrome-hidden .layout { display:block; }
     body.chrome-hidden #btn-chrome { display:inline-block !important; }
+    /* Voice-first "Sala only" mode. Collapses every secondary control so the
+       learner sees only the lesson stage; the overlay (course_voice.js) adds
+       a 'Sala listening' pill, consent card, and optional 'Type to Sala' FAB.
+       The classic chrome returns on a long-press (750 ms) or after three
+       missed voice commands in 15 s, or when the learner says "show controls". */
+    body.aoep-voice-first .mast,
+    body.aoep-voice-first .library-panel,
+    body.aoep-voice-first #library-show,
+    body.aoep-voice-first #lesson-toolbar,
+    body.aoep-voice-first #talk-panel,
+    body.aoep-voice-first .lesson-lang,
+    body.aoep-voice-first .lesson-window-controls,
+    body.aoep-voice-first #course-progress-hide,
+    body.aoep-voice-first #course-progress-show,
+    body.aoep-voice-first #course-map-toggle,
+    body.aoep-voice-first #course-map-gap,
+    body.aoep-voice-first #drive-bar,
+    body.aoep-voice-first #btn-chrome { display:none !important; }
+    body.aoep-voice-first .layout { display:block; }
+    body.aoep-voice-first .panel { background:transparent; border:0; box-shadow:none; padding:0; }
+    body.aoep-voice-first .teach-stage { cursor:zoom-in; user-select:none; }
+    body.aoep-voice-revealed .sala-pill,
+    body.aoep-voice-revealed .sala-consent { display:none !important; }
+    .sala-pill:focus-visible,
+    .sala-type-pill:focus-visible,
+    .sala-consent-accept:focus-visible { outline:2px solid #f8d44c; outline-offset:2px; }
     .presenter-overlay .storyboard-concept { display:none; }
     .presenter-overlay .picture-stage { display:none; }
     .presenter-overlay .teach-stage .body { font-size:clamp(16px,1.5vw,23px); max-width:72rem; }
@@ -7575,5 +7601,9 @@ def render_studio_page() -> str:
   <div class="toast" id="toast"></div>
   <script>"""
         + STUDIO_JS
-        + """\n</script>\n</body>\n</html>\n"""
+        + """\n</script>
+  <!-- Voice-first "Sala only" overlay. Reads ?voicefirst=0 to disable
+       and ?typemode=1 to show the accessibility type-to-ask pill. -->
+  <script type="module" src="/api/studio/voice-overlay/course_voice.js" defer></script>
+</body>\n</html>\n"""
     )
