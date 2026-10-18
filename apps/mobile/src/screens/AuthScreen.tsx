@@ -14,6 +14,7 @@ import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import KenBurnsImage from "../components/KenBurnsImage";
 import GlassPanel from "../components/GlassPanel";
+import MascotActor, { type MascotPointDirection } from "../components/MascotActor";
 import PrimaryButton from "../components/PrimaryButton";
 import { DEPLOY_MODE, QA_TEST_ACCOUNTS } from "../config";
 import { LANGUAGES, languageInfo, useT } from "../i18n";
@@ -27,6 +28,22 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_WEB_CLIENT_ID = "647091395717-scfbmvsudec5t9vqukk2h8k732bgd3kp.apps.googleusercontent.com";
 const GOOGLE_ANDROID_CLIENT_ID = "647091395717-v959uk96ed1f6o11ni7fkv1rni7sblba.apps.googleusercontent.com";
 const FACEBOOK_APP_ID = "1071803295271778";
+
+// Setup assistant is drawn on a cream/white card, so the dark-theme near-white
+// input color produces unreadable white-on-white text. These shared constants
+// (matched to SETUP_COLORS in src/learnerCheck.ts) give setup inputs opaque
+// backgrounds with near-black text and a visibly darker placeholder. Exported
+// for the contrast guard test (src/__tests__/authScreenContrast.test.ts).
+export const SETUP_INPUT_TOKENS = {
+  text: "#1a1420",
+  placeholder: "#6b6378",
+  background: "#ffffff",
+  border: "#c9bda7",
+} as const;
+const SETUP_INPUT_TEXT = SETUP_INPUT_TOKENS.text;
+const SETUP_INPUT_PLACEHOLDER = SETUP_INPUT_TOKENS.placeholder;
+const SETUP_INPUT_BG = SETUP_INPUT_TOKENS.background;
+const SETUP_INPUT_BORDER = SETUP_INPUT_TOKENS.border;
 
 export default function AuthScreen({
   onBack,
@@ -162,6 +179,15 @@ export default function AuthScreen({
   const { isMedium, isExpanded, overlayBottomPad } = useLayoutMetrics();
   const wideSetup = setup && (isMedium || isExpanded);
 
+  // Pick a random fly-in direction per sign-in so the "setup assistant feels
+  // alive" promise reads differently each visit. The mascot always lands
+  // next to the primary CTA pointing at it (down on mobile, from the side on
+  // tablet width).
+  const [pointDirection] = useState<MascotPointDirection>(() => {
+    const choices: MascotPointDirection[] = ["left", "right", "down"];
+    return choices[Math.floor(Math.random() * choices.length)];
+  });
+
   return (
     <KeyboardAvoidingView
       testID="auth-screen"
@@ -201,22 +227,43 @@ export default function AuthScreen({
           </Text>
         </View>
 
+        {/*
+          Mascot fly-in on the sign-in / create-account page. Only shown in
+          setup mode (first-time users on the onboarding assistant) — regular
+          sign-in keeps the clean legacy look. The mascot points at the primary
+          CTA (down on phone layouts; sideways on tablet) and starts the
+          onboarding "feels alive" effect that continues through the setup
+          assistant.
+        */}
+        {setup ? (
+          <View style={styles.setupMascotRow} pointerEvents="none">
+            <MascotActor
+              scene={{ kind: "flyin-point", pointAt: pointDirection, delay: 200 }}
+              size={140}
+            />
+          </View>
+        ) : null}
         <GlassPanel style={[styles.card, setup && styles.setupCard]}>
+          {/*
+            Setup mode draws inputs on a white card, so override the dark-theme
+            white-on-white colors with a readable near-black + opaque field
+            background. See styles.setupInput / styles.setupPasswordRow below.
+          */}
           {mode === "signup" ? (
             <TextInput
               testID="auth-display-name"
-              style={styles.input}
+              style={[styles.input, setup && styles.setupInput]}
               placeholder={t("auth.displayName")}
-              placeholderTextColor={theme.colors.muted}
+              placeholderTextColor={setup ? SETUP_INPUT_PLACEHOLDER : theme.colors.muted}
               value={displayName}
               onChangeText={setDisplayName}
             />
           ) : null}
           <TextInput
             testID="auth-email"
-            style={styles.input}
+            style={[styles.input, setup && styles.setupInput]}
             placeholder={t("auth.email")}
-            placeholderTextColor={theme.colors.muted}
+            placeholderTextColor={setup ? SETUP_INPUT_PLACEHOLDER : theme.colors.muted}
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
@@ -225,21 +272,21 @@ export default function AuthScreen({
           />
           {mode === "reset" ? (
             <TextInput
-              style={styles.input}
+              style={[styles.input, setup && styles.setupInput]}
               placeholder={t("auth.resetToken")}
-              placeholderTextColor={theme.colors.muted}
+              placeholderTextColor={setup ? SETUP_INPUT_PLACEHOLDER : theme.colors.muted}
               value={resetToken}
               onChangeText={setResetToken}
               autoCapitalize="none"
             />
           ) : null}
           {mode !== "forgot" ? (
-          <View style={styles.passwordRow}>
+          <View style={[styles.passwordRow, setup && styles.setupPasswordRow]}>
             <TextInput
               testID="auth-password"
-              style={styles.passwordInput}
+              style={[styles.passwordInput, setup && styles.setupPasswordInput]}
               placeholder={t("auth.password")}
-              placeholderTextColor={theme.colors.muted}
+              placeholderTextColor={setup ? SETUP_INPUT_PLACEHOLDER : theme.colors.muted}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoComplete={mode === "login" ? "password" : "new-password"}
@@ -257,7 +304,7 @@ export default function AuthScreen({
               <Ionicons
                 name={showPassword ? "eye-off-outline" : "eye-outline"}
                 size={22}
-                color={theme.colors.muted}
+                color={setup ? SETUP_INPUT_PLACEHOLDER : theme.colors.muted}
               />
             </Pressable>
           </View>
@@ -436,6 +483,25 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     shadowOpacity: 0,
     elevation: 0,
+  },
+  // Setup-mode input variants: dark text + opaque field so name/email/password
+  // are legible on the cream setup card (dark-theme defaults are white-on-white
+  // here). Keep in sync with SETUP_COLORS in learnerCheck.ts.
+  setupInput: {
+    backgroundColor: SETUP_INPUT_BG,
+    borderColor: SETUP_INPUT_BORDER,
+    color: SETUP_INPUT_TEXT,
+  },
+  setupPasswordRow: {
+    backgroundColor: SETUP_INPUT_BG,
+    borderColor: SETUP_INPUT_BORDER,
+  },
+  setupPasswordInput: {
+    color: SETUP_INPUT_TEXT,
+  },
+  setupMascotRow: {
+    alignItems: "center",
+    marginBottom: 12,
   },
   backBtn: { paddingHorizontal: theme.spacing.screenX, paddingTop: 8 },
   backText: { color: "rgba(255,255,255,0.7)", fontSize: 16 },
