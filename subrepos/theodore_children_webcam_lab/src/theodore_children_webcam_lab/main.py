@@ -207,6 +207,10 @@ def audio_round(game: str, index: int = 0) -> dict[str, Any]:
 def math_round(age: str = "7-10", index: int = 0) -> dict[str, Any]:
     if index < 0:
         raise HTTPException(status_code=422, detail="index must be zero or more")
+    # A deterministic round depends only on (age, index); allowing arbitrary
+    # 10-digit indices invites noisy requests without serving any gameplay need.
+    if index > 10_000:
+        raise HTTPException(status_code=422, detail="index must be 10000 or less")
     return math_toss_round(age, index)
 
 

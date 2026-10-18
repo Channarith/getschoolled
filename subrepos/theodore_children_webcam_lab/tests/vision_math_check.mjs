@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import {
   FIST_MAX_PALMS, FINGERTIP_LANDMARKS, HAND_BONES, SIGNAL_HOLD_MS, AWAY_HOLD_MS, RETURN_HOLD_MS,
   activeFingertips, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch, fingersPointed,
-  handShape, heartRatios, isHeartShape, mapMirroredLandmark, palmSpan, profileTouchAge,
+  handShape, heartRatios, isHeartShape, localMathRound, mapMirroredLandmark, palmSpan, profileTouchAge,
   newThrowTracker, projectThrowTarget, syntheticHand, tipHitsTarget, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 
@@ -350,5 +350,82 @@ const turned = {
 };
 assert.equal(yunet.update({ ...turned, atMs: 0 }).length, 0);
 assert.equal(yunet.update({ ...turned, atMs: SIGNAL_HOLD_MS }).length, 0, "five-point yaw-free face is not a phone");
+
+// --- 4. The offline math round mirrors the server (shape invariants) --------
+// game_engine.math_toss_round() is the source of truth. localMathRound() is
+// the browser fallback used when /api/child/math-round is unreachable. The
+// two must agree on operation, answer, and choices for every (age, index), or
+// a lab restart could speak one prompt and score another.
+for (const age of ["4-6", "7-10"]) {
+  for (let i = 0; i < 12; i += 1) {
+    const round = localMathRound(age, i);
+    assert.equal(round.age_band, age, `offline round age mismatch at ${age}/${i}`);
+    assert.equal(round.round_id, `math-toss-${age}-${i}`);
+    assert.equal(round.index, i);
+    assert.ok(round.choices.length === (age === "4-6" ? 2 : 3), `${age}/${i} choices length`);
+    assert.equal(new Set(round.choices).size, round.choices.length, `${age}/${i} duplicate choice`);
+    assert.ok(round.choices.includes(round.answer), `${age}/${i} answer not in choices`);
+    for (const choice of round.choices) {
+      assert.ok(Number.isInteger(choice) && choice >= 0, `${age}/${i} choice ${choice} invalid`);
+    }
+    assert.ok(round.answer >= 0, `${age}/${i} negative answer`);
+    assert.equal(typeof round.question, "string");
+    assert.equal(typeof round.speak, "string");
+  }
+}
+// A string age ("child") should resolve the same way the server/UI do.
+assert.equal(localMathRound("child", 0).age_band, "4-6");
+assert.equal(localMathRound("teen", 0).age_band, "7-10");
+assert.equal(localMathRound("", 0).age_band, "7-10", "default band is the server default");
+// Negative or garbage index clamps to zero, not NaN.
+assert.deepEqual(localMathRound("7-10", -5), localMathRound("7-10", 0));
+assert.deepEqual(localMathRound("4-6", "nope"), localMathRound("4-6", 0));
+
+// --- 5. Canceling a throw mid-gesture resets the state machine ---------------
+// pointercancel / touchcancel / mode-switch must not leave the tracker in
+// grabbed/cocked, or the next pose will replay a stale throw. The UI
+// cancellation path is `tracker = newThrowTracker()`, so we assert the
+// freshly-made tracker starts in `ready` with no residual grab/cock points
+// or history. A regression here would let a canceled gesture replay as a
+// phantom throw on the first new sample.
+{
+  // First build a tracker that advanced into cocked, to prove our preamble
+  // puts the state machine somewhere a stale resume would be noticeable.
+  let step = advanceThrowGesture(newThrowTracker(), {at: 100, palm: 50, fist: true, point: {x: 120, y: 220}}, "7-10");
+  step = advanceThrowGesture(step.tracker, {at: 260, palm: 50, fist: true, point: {x: 120, y: 220}}, "7-10");
+  step = advanceThrowGesture(step.tracker, {at: 340, palm: 50, fist: true, point: {x: 70, y: 220}}, "7-10");
+  assert.equal(step.tracker.phase, "cocked", "preamble should reach cocked");
+
+  // The cancel path.
+  const fresh = newThrowTracker();
+  assert.equal(fresh.phase, "ready");
+  assert.equal(fresh.grabPoint, null);
+  assert.equal(fresh.cockPoint, null);
+  assert.deepEqual(fresh.history, []);
+  // And one more sample on the fresh tracker must not emit a throw event, i.e.
+  // no stored velocity could leak across the cancel boundary.
+  const resumed = advanceThrowGesture(fresh, {at: 500, palm: 50, fist: false, point: {x: 80, y: 220}}, "7-10");
+  assert.equal(resumed.event, null, "stale throw must not replay after cancel");
+}
+
+// --- 6. A Python-driven parity emitter --------------------------------------
+// When invoked with --emit-math-rounds=<age>:<i0>,<i1>,..., print one JSON
+// round per line so test_math_toss_fallback_matches_server() in Python can
+// diff the Node output against math_toss_round() for byte-identical parity
+// without re-implementing the round logic in Python.
+const emitArg = process.argv.find((arg) => arg.startsWith("--emit-math-rounds="));
+if (emitArg) {
+  const spec = emitArg.slice("--emit-math-rounds=".length);
+  for (const chunk of spec.split(";")) {
+    const [age, indices] = chunk.split(":");
+    if (!age || !indices) continue;
+    for (const raw of indices.split(",")) {
+      const i = Number(raw);
+      if (!Number.isFinite(i)) continue;
+      process.stdout.write(`${JSON.stringify(localMathRound(age, i))}\n`);
+    }
+  }
+  process.exit(0);
+}
 
 console.log("vision geometry OK");

@@ -9,7 +9,7 @@ import {
   PAUSE_LINE, RESUME_LINE,
   activeFingertips, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch,
   debiasedGazeDown, fingersPointed, handShape, headPoseFromMesh,
-  heartRatios, isHeartShape, mapMirroredLandmark, newThrowTracker, profileTouchAge,
+  heartRatios, isHeartShape, localMathRound, mapMirroredLandmark, newThrowTracker, profileTouchAge,
   projectThrowTarget, syntheticHand,
   tipHitsTarget, traceProgress,
 } from "./vision_math.js";
@@ -1154,37 +1154,30 @@ function updateObjectGame() {
   }
 }
 
-function localMathRound(age, index) {
-  const young=age==="4-6";
-  const slot=Math.max(0,Number(index)||0);
-  let left,right,answer,symbol,spoken;
-  if(young){
-    left=1+(slot*2)%5;right=1+(slot*3)%4;answer=left+right;symbol="+";spoken="plus";
-  }else if(slot%3===2){
-    left=2+(slot*2)%8;right=2+(slot*3)%7;answer=left*right;symbol="×";spoken="times";
-  }else if(slot%3===1){
-    right=2+(slot*3)%10;answer=3+(slot*5)%16;left=answer+right;symbol="−";spoken="minus";
-  }else{
-    left=6+(slot*5)%15;right=3+(slot*7)%12;answer=left+right;symbol="+";spoken="plus";
-  }
-  const choices=young?[answer,answer+(answer<9?1:-1)]:[answer,Math.max(0,answer-2),answer+2];
-  const shift=slot%choices.length;
-  return {
-    round_id:`math-toss-${young?"4-6":"7-10"}-${slot}`,
-    index:slot,age_band:young?"4-6":"7-10",
-    question:`${left} ${symbol} ${right} = ?`,
-    speak:`What is ${left} ${spoken} ${right}?`,
-    answer,choices:[...choices.slice(shift),...choices.slice(0,shift)],
-  };
-}
 function mathRegions(count) {
   return count<=2?["left","right"]:["top-left","top-right","bottom"];
 }
+// A canceled gesture (pointercancel/touchcancel or a touch-mode switch) must
+// not leave the throw state machine in grabbed/cocked or the virtual ball
+// on screen, or the next frame will replay a stale throw.
+function cancelMathThrow() {
+  state.throwTracker=newThrowTracker();
+  if(state.throwBall?.remove)state.throwBall.remove();
+  state.throwBall=null;
+}
 function renderMathTargets(round) {
   for(const node of [...spriteLayer.querySelectorAll(".math-target")])node.remove();
-  const regions=mathRegions(round.choices.length);
-  state.mathTargets=round.choices.map((answer,index)=>{
-    const region=regions[index],anchor=REGIONS[region]||REGIONS.center;
+  const choices=Array.isArray(round?.choices)?round.choices:[];
+  // Defense in depth: round layout only supports 2 or 3 targets. A malformed
+  // or MITM-tampered payload must not blow up the DOM or create ambiguous play.
+  if(choices.length!==2&&choices.length!==3){
+    state.mathTargets=[];
+    return;
+  }
+  const regions=mathRegions(choices.length);
+  state.mathTargets=choices.map((answer,index)=>{
+    const region=regions[index]||"center";
+    const anchor=REGIONS[region]||REGIONS.center;
     const el=document.createElement("div");
     el.className="math-target";
     el.dataset.answer=String(answer);
@@ -2239,6 +2232,7 @@ function liftScreenHand() {
 }
 function setTouchMode(mode) {
   state.touchMode = mode === "screen" ? "screen" : "air";
+  if (state.game === "math-toss") cancelMathThrow();
   liftScreenHand();
   const screen = state.touchMode === "screen";
   const group = $("touch-mode");
@@ -2335,6 +2329,7 @@ stage?.addEventListener("pointerup",(event)=>{
 stage?.addEventListener("pointercancel",(event)=>{
   if (!screenTouch()) return;
   if (event.pointerId !== state.screenPointerId) return;
+  if (state.game === "math-toss") cancelMathThrow();
   liftScreenHand();
 });
 stage?.addEventListener("pointerleave",()=>{
@@ -2369,7 +2364,9 @@ stage?.addEventListener("touchend",(event)=>{
   liftScreenHand();
 },{passive:false});
 stage?.addEventListener("touchcancel",()=>{
-  if (screenTouch()) liftScreenHand();
+  if (!screenTouch()) return;
+  if (state.game === "math-toss") cancelMathThrow();
+  liftScreenHand();
 });
 $("start").addEventListener("click",()=>start(true));$("demo").addEventListener("click",()=>start(false));
 $("play-game").addEventListener("click",()=>chooseGame());
