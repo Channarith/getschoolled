@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AvatarImage from "../components/AvatarImage";
 import BiometricSetupAssistant from "../components/BiometricSetupAssistant";
+import MascotActor from "../components/MascotActor";
+import { type MascotScene, sceneForMode } from "../lib/mascotPose";
 import { AGE_MAX, AGE_MIN, AGE_OPTIONS, clampAge } from "../lib/learnerCheck";
 import AccountStep from "./AccountStep";
 import { useT } from "../lib/i18n";
@@ -290,6 +292,17 @@ export default function OnboardingPage() {
   const stepIndex = Math.max(0, stepOrder.indexOf(step === "payment" ? "plan" : step));
   const stepLabel = `Step ${stepIndex + 1} of ${stepOrder.length} · ${STEP_LABEL[step]}`;
 
+  // Scene the MascotActor plays in the art pane. Recomputed per step so the
+  // mascot flies in on sign-in, morphs by age on "About you", acts out the
+  // focused learning mode, and idles on plan/payment.
+  const mascotScene: MascotScene = useMemo(() => {
+    if (step === "account") return { kind: "flyin-point", pointAt: "down" };
+    if (step === "about") return { kind: "age-morph", age: typeof age === "number" ? age : 30 };
+    if (step === "learn") return sceneForMode(focus);
+    if (step === "plan") return { kind: "dance" };
+    return { kind: "idle" };
+  }, [step, age, focus]);
+
   if (step === "identity" && studentId) {
     return (
       <BiometricSetupAssistant
@@ -303,8 +316,6 @@ export default function OnboardingPage() {
     );
   }
 
-  const art = step === "account" ? "account" : step === "about" ? "about" : step === "learn" ? "learn" : "plan";
-
   return (
     <main className={`${styles.shell} aoep-immersive-setup aoep-viewport-shell`} data-step={step}>
       <header className={styles.topbar}>
@@ -317,11 +328,9 @@ export default function OnboardingPage() {
         <span className={styles.stepLabel}>{stepLabel}</span>
       </header>
       <div className={styles.split}>
-        {step !== "learn" && (
-          <div className={styles.artPane} aria-hidden="true">
-            <Image key={art} className={styles.art} src={`/setup-assistant/${art}.webp`} alt="" fill priority sizes="50vw" />
-          </div>
-        )}
+        <div className={styles.artPane}>
+          <MascotActor scene={mascotScene} size={260} />
+        </div>
         <div className={styles.pane}>
 
       {step === "account" && (

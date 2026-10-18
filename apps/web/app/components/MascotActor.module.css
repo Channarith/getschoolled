@@ -1,0 +1,291 @@
+/*
+ * MascotActor styles.
+ *
+ * One container per scene. Shared idle bob keyframe plays on every scene so
+ * the figure always reads as alive; scene-specific keyframes layer tilts,
+ * entrance translations, and prop pulses on top. All animations respect
+ * `prefers-reduced-motion` by freezing to the "settled" frame.
+ */
+
+.root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(70% 55% at 50% 40%, rgba(255, 236, 196, 0.55), transparent 65%),
+    linear-gradient(180deg, #fff4e0 0%, #f4e9d8 60%, #efd7b0 100%);
+}
+
+/* Stage sits above the ground, centred horizontally. The scale CSS variable
+   is driven by React (age-morph scene) and defaults to 1. */
+.stage {
+  position: relative;
+  width: var(--mascot-size, 240px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: calc(var(--mascot-size, 240px) * 0.08);
+  --mascot-scale: 1;
+  --fly-in-x: 0px;
+  --fly-in-y: 0px;
+  transform: translate3d(var(--fly-in-x), var(--fly-in-y), 0);
+}
+
+/* The mascot image bob — subtle enough not to fight scene animations. */
+.figure {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: mascot-bob 2.4s ease-in-out infinite;
+  transform-origin: 50% 85%;
+}
+
+.figure img {
+  width: calc(100% * var(--mascot-scale, 1));
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 24px 36px rgba(10, 22, 40, 0.28));
+  transition: width 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Scene: dance adds a side-to-side wobble on top of the bob. */
+.stage[data-scene="dance"] .figure {
+  animation:
+    mascot-bob 1.6s ease-in-out infinite,
+    mascot-wobble 1.6s ease-in-out infinite;
+}
+
+/* Scene: flyin-point slides in from the pointed-at side once, then settles.
+   Direction is driven by --fly-in-x / --fly-in-y CSS vars set from React. */
+.stage[data-scene="flyin-point"] {
+  animation: mascot-fly-in 820ms cubic-bezier(0.2, 1.2, 0.3, 1) both;
+}
+
+/* Pointer finger is positioned per direction; see Pointer* classes below. */
+.pointer {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--mascot-size, 240px) * 0.26);
+  line-height: 1;
+  animation: pointer-pulse 1.3s ease-in-out infinite;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.pointerLeft { left: 2%; top: 42%; }
+.pointerRight { right: 2%; top: 42%; }
+.pointerUp { top: 4%; left: 50%; transform: translateX(-50%); }
+.pointerDown { bottom: 6%; left: 50%; transform: translateX(-50%); animation-name: pointer-pulse-vertical; }
+
+/* Age-morph accessory — floats to the right of the mascot's head. */
+.accessory {
+  position: absolute;
+  top: 6%;
+  right: 10%;
+  font-size: calc(var(--mascot-size, 240px) * 0.3);
+  line-height: 1;
+  animation: accessory-pop 450ms cubic-bezier(0.2, 1.2, 0.3, 1) both;
+  z-index: 4;
+}
+
+/* Behind-mascot props (chalkboard, slide, TV, sidekick). */
+.backdrop {
+  position: absolute;
+  bottom: calc(var(--mascot-size, 240px) * 0.08);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(var(--mascot-size, 240px) * 0.9);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.chalkboard,
+.slide,
+.tv {
+  width: 100%;
+  height: calc(var(--mascot-size, 240px) * 0.42);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  letter-spacing: 4px;
+  box-shadow: 0 14px 28px rgba(10, 22, 40, 0.22);
+}
+
+.chalkboard {
+  background: #1e3a2b;
+  color: #f8fafc;
+  border: 4px solid #8b5a2b;
+  font-size: calc(var(--mascot-size, 240px) * 0.12);
+  animation: slide-sway 2.8s ease-in-out infinite;
+}
+
+.slide {
+  background: #fff8e7;
+  color: #241b34;
+  border: 2px solid #c9bda7;
+  font-size: calc(var(--mascot-size, 240px) * 0.16);
+  animation: slide-sway 2.8s ease-in-out infinite;
+}
+
+.tv {
+  background: #111827;
+  color: #f8fafc;
+  border: 4px solid #374151;
+  font-size: calc(var(--mascot-size, 240px) * 0.16);
+  animation: tv-pulse 1.6s ease-in-out infinite;
+}
+
+/* Hand prop (book, joystick, baton, chair) in front of the mascot. */
+.handProp {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: calc(var(--mascot-size, 240px) * 0.34);
+  line-height: 1;
+  z-index: 6;
+  animation: hand-wiggle 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.handPropLow { bottom: 14%; }
+.handPropMid { bottom: 24%; }
+
+/* Sidekick child mascot (tutoring scene). */
+.sidekick {
+  position: absolute;
+  bottom: calc(var(--mascot-size, 240px) * 0.08);
+  left: 2%;
+  font-size: calc(var(--mascot-size, 240px) * 0.46);
+  line-height: 1;
+  z-index: 6;
+  animation: mascot-bob 2.2s ease-in-out infinite 300ms;
+  pointer-events: none;
+}
+
+/* Sparks (gaming scene). */
+.sparks {
+  position: absolute;
+  top: 18%;
+  right: 10%;
+  font-size: calc(var(--mascot-size, 240px) * 0.22);
+  line-height: 1;
+  z-index: 6;
+  animation: sparks-flash 900ms ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Floor shadow — subtle oval that fades as the mascot bobs. */
+.shadow {
+  position: absolute;
+  bottom: calc(var(--mascot-size, 240px) * 0.04);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(var(--mascot-size, 240px) * 0.6);
+  height: calc(var(--mascot-size, 240px) * 0.08);
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(10, 22, 40, 0.32), transparent 70%);
+  animation: shadow-pulse 2.4s ease-in-out infinite;
+  z-index: 0;
+}
+
+/* ────────── keyframes ────────── */
+
+@keyframes mascot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes mascot-wobble {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-6px) rotate(5deg); }
+}
+
+@keyframes mascot-fly-in {
+  from {
+    transform: translate3d(var(--fly-in-x), var(--fly-in-y), 0) scale(0.9);
+    opacity: 0;
+  }
+  60% {
+    transform: translate3d(0, 0, 0) scale(1.04);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pointer-pulse {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(8px); }
+}
+
+@keyframes pointer-pulse-vertical {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 8px); }
+}
+
+@keyframes accessory-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slide-sway {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-3px) rotate(1deg); }
+}
+
+@keyframes tv-pulse {
+  0%, 100% { box-shadow: 0 14px 28px rgba(10, 22, 40, 0.22), inset 0 0 0 2px rgba(255, 255, 255, 0.0); }
+  50% { box-shadow: 0 14px 28px rgba(10, 22, 40, 0.22), inset 0 0 0 2px rgba(255, 255, 255, 0.35); }
+}
+
+@keyframes hand-wiggle {
+  0%, 100% { transform: translateX(-50%) rotate(-5deg); }
+  50% { transform: translateX(-50%) rotate(5deg); }
+}
+
+@keyframes sparks-flash {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes shadow-pulse {
+  0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.6; transform: translateX(-50%) scale(0.9); }
+}
+
+/* ────────── reduced motion: freeze to settled pose, keep layout ────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .figure,
+  .stage[data-scene="dance"] .figure,
+  .pointer,
+  .accessory,
+  .chalkboard,
+  .slide,
+  .tv,
+  .handProp,
+  .sidekick,
+  .sparks,
+  .shadow {
+    animation: none !important;
+  }
+  .stage[data-scene="flyin-point"] {
+    animation: none !important;
+  }
+}
