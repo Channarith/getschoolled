@@ -68,6 +68,37 @@ def test_math_toss_round_api_uses_age_band_without_private_camera_data():
     assert older.status_code == 200
     assert len(older.json()["choices"]) == 3
     assert client.get("/api/child/math-round", params={"index": -1}).status_code == 422
+    # Defense in depth: a 10-digit index is caller nonsense, not gameplay;
+    # cap it so bulk-fetch loops cannot pin the lab CPU.
+    assert client.get("/api/child/math-round", params={"index": 10_001}).status_code == 422
+    assert client.get("/api/child/math-round", params={"index": 10_000}).status_code == 200
+
+
+def test_math_toss_offline_fallback_matches_server_round_for_every_index():
+    """The browser fallback (vision_math.localMathRound) must byte-match the
+    Python round for every (age, index), or a lab restart could speak one
+    prompt and score another."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    from theodore_children_webcam_lab.game_engine import math_toss_round
+    import json
+
+    indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 42]
+    spec = ";".join(f"{age}:{','.join(str(i) for i in indices)}" for age in ("4-6", "7-10"))
+    check = ROOT / "tests/vision_math_check.mjs"
+    result = subprocess.run(
+        [node, str(check), f"--emit-math-rounds={spec}"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    emitted = [json.loads(line) for line in result.stdout.strip().splitlines() if line.strip()]
+    expected = [math_toss_round(age, i) for age in ("4-6", "7-10") for i in indices]
+    assert len(emitted) == len(expected)
+    for got, want in zip(emitted, expected):
+        assert got == want, (got, want)
 
 
 def test_pronounce_reuses_text_only_music_lab_approach():

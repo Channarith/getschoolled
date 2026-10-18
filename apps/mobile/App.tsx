@@ -146,7 +146,10 @@ function AppInner() {
   const [surveyManualToken, setSurveyManualToken] = useState(0);
   const [authEpoch, setAuthEpoch] = useState(0);
   const [onboardingStudent, setOnboardingStudent] = useState<StudentProfile | null>(null);
-  const [arcadeAgeBand, setArcadeAgeBand] = useState("");
+  // Default to the younger band until the student profile is loaded so a 4-6
+  // learner never sees multiplication during the brief async profile fetch.
+  // syncStudentProfile() overrides this with the real age_band immediately.
+  const [arcadeAgeBand, setArcadeAgeBand] = useState("4-6");
   const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
   const authenticated = authStatus === "authenticated";
   const inApp = authenticated;
@@ -309,13 +312,15 @@ function AppInner() {
   async function syncStudentProfile() {
     try {
       const { students } = await listStudents();
-      setArcadeAgeBand(students[0]?.age_band || "");
+      // Keep the safe younger-first default (see useState above) when the
+      // profile has no age_band yet, instead of blanking it to "".
+      if (students[0]?.age_band) setArcadeAgeBand(students[0].age_band);
       let id = students[0]?.id;
       if (!id) {
         const me = await getMe();
         const created = await createStudent(me.display_name || me.email.split("@")[0]);
         id = created.id;
-        setArcadeAgeBand(created.age_band || "");
+        if (created.age_band) setArcadeAgeBand(created.age_band);
       }
       if (id) await setSettings({ studentId: id });
       const status = await getAccountOnboardingStatus();
