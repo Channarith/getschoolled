@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Image, Modal, ScrollView, StyleSheet, Text, TextInput, View,
+  Modal, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -18,6 +18,7 @@ import AnimatedPressable from "./AnimatedPressable";
 import AvatarImage from "./AvatarImage";
 import BiometricSetupModal from "./BiometricSetupModal";
 import KenBurnsImage from "./KenBurnsImage";
+import MascotActor, { type MascotScene } from "./MascotActor";
 import { useLayoutMetrics } from "../layout";
 
 type Props = {
@@ -26,14 +27,25 @@ type Props = {
   onComplete: () => void;
 };
 
+/**
+ * The six learning modalities the setup assistant asks about. Each one now
+ * owns a themed mascot scene (`sceneKind`) so the survey page can act out the
+ * modality: Sala puts on a baton for "a live teacher", picks up a book for
+ * "reading", holds a joystick for "gaming", etc. Keep this list ordered —
+ * the one-page-per-choice walker iterates it in order.
+ */
 export const LEARNING_MODES = [
-  { id: "video", label: "Watching videos", art: require("../../assets/setup-assistant/mode-video.webp") },
-  { id: "live_teacher", label: "A live teacher", art: require("../../assets/setup-assistant/mode-person.webp") },
-  { id: "presentation", label: "Presentations", art: require("../../assets/setup-assistant/mode-presentation.webp") },
-  { id: "reading", label: "Reading a book", art: require("../../assets/setup-assistant/mode-reading.webp") },
-  { id: "tutoring", label: "1:1 tutoring", art: require("../../assets/setup-assistant/mode-tutoring.webp") },
-  { id: "gaming", label: "Gaming", art: require("../../assets/setup-assistant/mode-gaming.webp") },
-] as const;
+  { id: "video",        label: "Watching videos", sceneKind: "video" },
+  { id: "live_teacher", label: "A live teacher",  sceneKind: "teacher" },
+  { id: "presentation", label: "Presentations",   sceneKind: "presentation" },
+  { id: "reading",      label: "Reading a book",  sceneKind: "reading" },
+  { id: "tutoring",     label: "1:1 tutoring",    sceneKind: "tutoring" },
+  { id: "gaming",       label: "Gaming",          sceneKind: "gaming" },
+] as const satisfies ReadonlyArray<{
+  readonly id: string;
+  readonly label: string;
+  readonly sceneKind: Extract<MascotScene, { kind: string }>["kind"];
+}>;
 
 const ART = {
   about: require("../../assets/setup-assistant/about.webp"),
@@ -56,17 +68,22 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
   const [age, setAge] = useState(0);
   const [studentId, setStudentId] = useState(student.id);
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  // Learn step is now a walker — one modality per page. ``learnIndex`` is the
+  // page cursor into LEARNING_MODES. ``focus`` still tracks the most recently
+  // interacted mode for visual card accent (back-compat with the test suite).
+  const [learnIndex, setLearnIndex] = useState(0);
   const [focus, setFocus] = useState<string>("video");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const { isMedium, isExpanded, gridColumns } = useLayoutMetrics();
+  const { isMedium, isExpanded } = useLayoutMetrics();
   const wide = isMedium || isExpanded;
-  const columns = gridColumns;
   const ageBand = age ? ageBandFor(age) : "adult";
   const aboutReady = name.trim().length > 0 && age >= AGE_MIN && age <= AGE_MAX;
   const rated = LEARNING_MODES.filter((mode) => ratings[mode.id] != null).length;
-  const cardWidth = columns === 1 ? "100%" : columns === 2 ? "48.5%" : "32%";
+  const currentMode = LEARNING_MODES[learnIndex];
+  const currentRating = currentMode ? ratings[currentMode.id] : undefined;
+  const isLastMode = learnIndex >= LEARNING_MODES.length - 1;
 
   async function withBusy(action: () => Promise<void>) {
     setBusy(true);
@@ -115,11 +132,35 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
             <Text style={styles.kicker}>{stage === "about" ? "About you" : "How you learn"}</Text>
           </View>
           <View style={[styles.split, !wide && styles.splitStack, stage === "learn" && styles.splitLearn]}>
-            {stage !== "learn" ? (
-              <View style={[styles.artPane, !wide && styles.artBand]}>
-                <KenBurnsImage source={ART.about} style={StyleSheet.absoluteFill} />
-              </View>
-            ) : null}
+            {/*
+              Art pane. On About: a cream backdrop + the age-morph mascot that
+              grows/shrinks with the AgeWheel (child → teen → adult → senior
+              accessory). On Learn: the mascot acts out the current survey
+              modality (watching a tiny TV, teaching with a baton, sitting on
+              a chair, reading, tutoring, gaming).
+            */}
+            <View style={[styles.artPane, !wide && styles.artBand]}>
+              {stage === "about" ? (
+                <View style={styles.mascotStage} pointerEvents="none">
+                  <KenBurnsImage source={ART.about} style={StyleSheet.absoluteFill} />
+                  <MascotActor
+                    scene={age > 0 ? { kind: "age-morph", age } : { kind: "idle" }}
+                    size={wide ? 220 : 160}
+                  />
+                </View>
+              ) : (
+                <View style={styles.mascotStage} pointerEvents="none">
+                  <KenBurnsImage source={ART.learn} style={StyleSheet.absoluteFill} />
+                  {currentMode ? (
+                    <MascotActor
+                      key={currentMode.id}
+                      scene={{ kind: currentMode.sceneKind } as MascotScene}
+                      size={wide ? 220 : 170}
+                    />
+                  ) : null}
+                </View>
+              )}
+            </View>
             <View style={styles.pane}>
           {stage === "about" ? (
             <ScrollView contentContainerStyle={[styles.paneBody, wide && styles.paneCenter]} keyboardShouldPersistTaps="handled">
@@ -159,48 +200,61 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
               </View>
             </ScrollView>
           ) : (
+            /*
+              One-page-per-choice survey. Previously six cards sat on the same
+              screen; now each modality owns its own page so Sala can act out
+              that modality on the art pane and the learner only sees one
+              clean rating row at a time. The current page is driven by
+              ``learnIndex``; Next / Back traverse the LEARNING_MODES list.
+            */
             <ScrollView style={styles.learn} contentContainerStyle={styles.learnInner}>
               <Text style={styles.title}>How do you learn best?</Text>
-              <Text style={styles.body}>Rate each from 1 (not for me) to 10 (I love it).</Text>
-              <View style={styles.grid}>
-              {LEARNING_MODES.map((mode) => {
-                const value = ratings[mode.id];
-                return (
-                  <View key={mode.id} style={[styles.card, { width: cardWidth }, focus === mode.id && styles.cardFocus]}>
-                    <View style={styles.cardArt}>
-                      <Image source={mode.art} style={styles.cardImage} resizeMode="cover" />
-                      {value != null ? <Text style={styles.score}>{value}</Text> : null}
-                    </View>
-                    <Text style={styles.cardLabel}>{mode.label}</Text>
-                    <View style={styles.scale} accessibilityRole="radiogroup" accessibilityLabel={`Rate ${mode.label}`}>
-                      {SCALE_ROWS.map((row) => (
-                        <View key={row[0]} style={styles.scaleRow}>
-                          {row.map((n) => {
-                            const on = value != null && n <= value;
-                            return (
-                              <AnimatedPressable
-                                key={n}
-                                testID={`rate-${mode.id}-${n}`}
-                                accessibilityRole="radio"
-                                accessibilityLabel={`${n}`}
-                                accessibilityState={{ checked: value === n }}
-                                style={[styles.dot, on && styles.dotOn]}
-                                onPress={() => {
-                                  setRatings((current) => ({ ...current, [mode.id]: n }));
-                                  setFocus(mode.id);
-                                }}
-                              >
-                                <Text style={[styles.dotText, on && styles.dotTextOn]}>{n}</Text>
-                              </AnimatedPressable>
-                            );
-                          })}
-                        </View>
-                      ))}
-                    </View>
+              <Text style={styles.body}>
+                Rate from 1 (not for me) to 10 (I love it). Step {learnIndex + 1} of {LEARNING_MODES.length}.
+              </Text>
+              {currentMode ? (
+                <View
+                  key={currentMode.id}
+                  testID={`learn-page-${currentMode.id}`}
+                  style={[styles.card, styles.cardFull, focus === currentMode.id && styles.cardFocus]}
+                >
+                  <Text style={styles.cardLabel}>{currentMode.label}</Text>
+                  <View
+                    style={styles.scale}
+                    accessibilityRole="radiogroup"
+                    accessibilityLabel={`Rate ${currentMode.label}`}
+                  >
+                    {SCALE_ROWS.map((row) => (
+                      <View key={row[0]} style={styles.scaleRow}>
+                        {row.map((n) => {
+                          const on = currentRating != null && n <= currentRating;
+                          return (
+                            <AnimatedPressable
+                              key={n}
+                              testID={`rate-${currentMode.id}-${n}`}
+                              accessibilityRole="radio"
+                              accessibilityLabel={`${n}`}
+                              accessibilityState={{ checked: currentRating === n }}
+                              style={[styles.dot, on && styles.dotOn]}
+                              onPress={() => {
+                                setRatings((current) => ({ ...current, [currentMode.id]: n }));
+                                setFocus(currentMode.id);
+                              }}
+                            >
+                              <Text style={[styles.dotText, on && styles.dotTextOn]}>{n}</Text>
+                            </AnimatedPressable>
+                          );
+                        })}
+                      </View>
+                    ))}
                   </View>
-                );
-              })}
-              </View>
+                  {currentRating != null ? (
+                    <Text style={styles.ratedHint}>Picked {currentRating}/10. Tap Next to continue.</Text>
+                  ) : (
+                    <Text style={styles.ratedHint}>Tap a number to rate this one, then Next.</Text>
+                  )}
+                </View>
+              ) : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
             </ScrollView>
           )}
@@ -215,16 +269,38 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
                   </AnimatedPressable>
                 ) : (
                   <>
+                    {/*
+                      Walker controls. Next advances to the following modality
+                      and only unlocks once the current one is rated. On the
+                      last page, Next becomes Finish and submits.
+                    */}
                     <AnimatedPressable
-                      disabled={busy || rated < LEARNING_MODES.length}
-                      style={[styles.button, (busy || rated < LEARNING_MODES.length) && styles.disabled]}
-                      onPress={() => void saveLearning()}
+                      disabled={busy || currentRating == null}
+                      style={[styles.button, (busy || currentRating == null) && styles.disabled]}
+                      onPress={() => {
+                        if (isLastMode) {
+                          void saveLearning();
+                        } else {
+                          setLearnIndex((i) => Math.min(LEARNING_MODES.length - 1, i + 1));
+                        }
+                      }}
                     >
                       <Text style={styles.buttonText}>
-                        {busy ? "Saving…" : rated < LEARNING_MODES.length ? `Rate ${LEARNING_MODES.length - rated} more` : "Continue"}
+                        {busy
+                          ? "Saving…"
+                          : isLastMode
+                            ? (rated < LEARNING_MODES.length ? "Rate this one" : "Finish")
+                            : (currentRating == null ? "Rate to continue" : "Next")}
                       </Text>
                     </AnimatedPressable>
-                    <AnimatedPressable disabled={busy} onPress={() => setStage("about")} style={styles.linkButton}>
+                    <AnimatedPressable
+                      disabled={busy}
+                      onPress={() => {
+                        if (learnIndex === 0) setStage("about");
+                        else setLearnIndex((i) => Math.max(0, i - 1));
+                      }}
+                      style={styles.linkButton}
+                    >
                       <Text style={styles.linkText}>Back</Text>
                     </AnimatedPressable>
                   </>
@@ -293,10 +369,13 @@ const styles = StyleSheet.create({
   ageHint: { flex: 1, color: C.teal, fontSize: 15, fontWeight: "700" },
   note: { color: C.warmText, marginTop: 12, fontSize: 14 },
   card: { borderRadius: 16, overflow: "hidden", backgroundColor: C.panel, borderWidth: 1, borderColor: C.border },
+  cardFull: { alignSelf: "stretch" },
   cardFocus: { borderColor: C.accent },
   cardArt: { height: 150, backgroundColor: C.panel2 },
   cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-  cardLabel: { color: C.text, fontSize: 18, fontWeight: "800", paddingHorizontal: 14, paddingTop: 12 },
+  cardLabel: { color: C.text, fontSize: 22, fontWeight: "800", paddingHorizontal: 16, paddingTop: 16 },
+  ratedHint: { color: C.muted, fontSize: 13, paddingHorizontal: 16, paddingBottom: 14, paddingTop: 2 },
+  mascotStage: { flex: 1, alignItems: "center", justifyContent: "flex-end", paddingBottom: 16 },
   score: {
     position: "absolute", right: 10, bottom: 10, minWidth: 44, height: 44, borderRadius: 22, overflow: "hidden",
     textAlign: "center", lineHeight: 44, fontSize: 19, fontWeight: "900", color: "#ffffff",

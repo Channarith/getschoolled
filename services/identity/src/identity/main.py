@@ -39,16 +39,27 @@ app.state.accounts = AccountStore()
 
 
 from .persistence import PersistenceConflict as _PersistenceConflict  # noqa: E402
+from .concurrency import (  # noqa: E402
+    install_persistence_retry_middleware,
+    tag_persistence_conflict,
+)
+
+# Transparently retry PersistenceConflict (Redis CAS race) at the HTTP layer so
+# mobile learners don't see 409 storms during onboarding. See concurrency.py.
+install_persistence_retry_middleware(app)
 
 
 @app.exception_handler(_PersistenceConflict)
 def _identity_persistence_conflict(request, exc):
     from fastapi.responses import JSONResponse
 
-    return JSONResponse(
+    response = JSONResponse(
         status_code=409,
         content={"detail": "account was updated on another server; retry"},
     )
+    # The middleware uses this header to tell CAS-race 409s apart from
+    # client-authored 409s and re-dispatches the request a few times.
+    return tag_persistence_conflict(response)
 try:
     load_from_redis(app.state.accounts)
 except Exception:
