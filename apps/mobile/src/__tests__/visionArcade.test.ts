@@ -1,5 +1,12 @@
 import { visionGameIds, visionLabPath, VISION_ARCADE } from "../visionArcade";
 
+// __dirname and the Node builtins used in the one source-reflection test
+// below are injected by Jest's CommonJS runtime. The mobile typecheck config
+// intentionally omits @types/node; declare only the exact surface we use.
+declare const __dirname: string;
+declare function require(name: "fs"): { readFileSync(path: string, encoding: string): string };
+declare function require(name: "path"): { resolve(...parts: string[]): string };
+
 describe("vision arcade", () => {
   it("lists every webcam lab game", () => {
     const ids = visionGameIds();
@@ -18,5 +25,16 @@ describe("vision arcade", () => {
     expect(visionLabPath("wink")).toBe("/children-lab?embed=mobile&game=wink");
     expect(visionLabPath("math-toss")).toBe("/children-lab?embed=mobile&game=math-toss");
     expect(visionLabPath("math-toss", "child")).toBe("/children-lab?embed=mobile&game=math-toss&age=child");
+  });
+
+  it("defaults the arcade age band to the younger-safer value until the profile loads", () => {
+    // App.tsx stores arcadeAgeBand so Math Toss cannot show multiplication to a
+    // 4-6 learner during the brief async profile fetch. If this default
+    // changes, review child-safety before shipping.
+    const fs = require("fs");
+    const path = require("path");
+    const appSource = fs.readFileSync(path.resolve(__dirname, "../../App.tsx"), "utf8");
+    expect(appSource).toContain('useState("4-6")');
+    expect(appSource).not.toContain('setArcadeAgeBand("")');
   });
 });

@@ -668,3 +668,83 @@ function attentionEvents(watch, sample, now) {
   }
   return events;
 }
+
+// Mirrors math_toss_round() in game_engine.py so the offline fallback never
+// shows the wrong operation, answer, or distractor set for a given
+// (age, index) when the children lab API is unreachable.
+// Lives in vision_math.js (not app.js) so the Node test harness can import it
+// and compare its output to the Python server round for byte-identical parity.
+export function localMathRound(age, index) {
+  const young = normalizeTouchAge(age) === "4-6";
+  const slot = Math.max(0, Number(index) || 0);
+  const mode = slot % 3;
+  let left;
+  let right;
+  let answer;
+  let question;
+  let speak;
+  let choices;
+  if (young) {
+    if (mode === 0) {
+      answer = 1 + (slot * 3) % 9;
+      question = `Count to ${answer}`;
+      speak = `Which target shows ${answer}?`;
+    } else if (mode === 1) {
+      left = 1 + (slot * 2) % 5;
+      right = 1 + (slot * 3) % 4;
+      answer = left + right;
+      question = `${left} + ${right} = ?`;
+      speak = `What is ${left} plus ${right}?`;
+    } else {
+      left = 4 + (slot * 3) % 6;
+      right = 1 + (slot * 2) % left;
+      answer = left - right;
+      question = `${left} \u2212 ${right} = ?`;
+      speak = `What is ${left} minus ${right}?`;
+    }
+    const distractor = answer < 9 ? answer + 1 : answer - 1;
+    choices = slot % 2 === 0 ? [answer, distractor] : [distractor, answer];
+  } else {
+    let symbol;
+    let spoken;
+    if (mode === 0) {
+      left = 6 + (slot * 5) % 15;
+      right = 3 + (slot * 7) % 12;
+      answer = left + right;
+      symbol = "+";
+      spoken = "plus";
+    } else if (mode === 1) {
+      right = 2 + (slot * 3) % 10;
+      answer = 3 + (slot * 5) % 16;
+      left = answer + right;
+      symbol = "\u2212";
+      spoken = "minus";
+    } else {
+      left = 2 + (slot * 2) % 8;
+      right = 2 + (slot * 3) % 7;
+      answer = left * right;
+      symbol = "\u00d7";
+      spoken = "times";
+    }
+    question = `${left} ${symbol} ${right} = ?`;
+    speak = `What is ${left} ${spoken} ${right}?`;
+    const candidates = [Math.max(0, answer - 2), answer + 2, Math.max(0, answer - 1), answer + 1];
+    const distractors = [];
+    for (const candidate of candidates) {
+      if (candidate !== answer && !distractors.includes(candidate)) distractors.push(candidate);
+      if (distractors.length === 2) break;
+    }
+    const base = [answer, ...distractors];
+    const shift = slot % base.length;
+    choices = [...base.slice(shift), ...base.slice(0, shift)];
+  }
+  return {
+    round_id: `math-toss-${young ? "4-6" : "7-10"}-${slot}`,
+    index: slot,
+    age_band: young ? "4-6" : "7-10",
+    question,
+    speak,
+    answer,
+    choices,
+  };
+}

@@ -177,6 +177,21 @@ def test_math_toss_has_private_camera_and_touch_fallback_paths():
     assert "function releaseScreenThrow" in script
     assert "Do not throw a real object." in script
     assert "/api/child/math-round" in script
+    # The offline fallback is now a shared pure function so Node parity tests
+    # can import it; app.js must import it instead of redefining it.
+    assert "localMathRound" in script
+    assert "function localMathRound" not in script
+    # A canceled gesture (pointercancel/touchcancel) and a touch-mode switch
+    # must reset the tracker + ball, or the next frame replays a stale throw.
+    assert "function cancelMathThrow" in script
+    assert "cancelMathThrow()" in script.split('addEventListener("pointercancel"')[1].split("});")[0]
+    assert "cancelMathThrow()" in script.split('addEventListener("touchcancel"')[1].split("});")[0]
+    assert "cancelMathThrow()" in script.split("function setTouchMode")[1].split("\nfunction ")[0]
+    # Defense in depth: renderMathTargets must reject malformed choices payloads
+    # (MITM / wrong length) instead of blowing up the DOM or creating ambiguous play.
+    render = script.split("function renderMathTargets")[1].split("\nfunction ")[0]
+    assert "choices.length!==2&&choices.length!==3" in render
+    assert "Array.isArray(round?.choices)" in render
     css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
     assert ".math-target" in css
     assert ".math-ball" in css
