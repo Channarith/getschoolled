@@ -262,8 +262,13 @@ def _ffmpeg_clean(src: Path, dest: Path) -> tuple[bool, str]:
             str(dest),
         ]
         try:
+            # Short clips stay on the 120s cap. A multi-minute talk needs a
+            # budget that scales with duration or afftdn is abandoned mid-file.
+            timeout_s = 120
+            if src_dur > 1:
+                timeout_s = max(120, int(src_dur * 1.5) + 30)
             proc = subprocess.run(
-                cmd, check=True, capture_output=True, timeout=120, text=True,
+                cmd, check=True, capture_output=True, timeout=timeout_s, text=True,
             )
         except subprocess.CalledProcessError as exc:
             last_err = (exc.stderr or exc.stdout or "")[-800:]

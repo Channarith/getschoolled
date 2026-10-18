@@ -680,6 +680,7 @@ transcript all run without it.
 | `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
 | `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, CosyVoice ingest, CosyVoice→Audio2Face loop, voice tools) |
 | `scripts/cosyvoice_ingest.py` | YouTube/Vimeo → denoise → segment → ASR → CosyVoice Kaldi training lists (`aoep_shared.cosyvoice_ingest`). `--stages download,denoise` runs on Kal-el under `output/kalel/`; `rsync --ignore-existing` into Spark `output/inbox/kalel/` for the later stages. Optional `YT_DLP_COOKIES` file, retries, and yt-dlp 2026.8.19 |
+| `scripts/cosyvoice_voice_data.py` | Khmer / Salane growth into `output/spark/voice-data/`. Skips YouTube when no cookies file is set. Adds FLEURS Khmer (CC-BY-4.0) from `urls/cosyvoice_licensed.txt` and reuses raw wavs already on disk. |
 | `scripts/cosyvoice_language_census.py` | Per-language unique utterances and minutes against the 100-utterance / 20-minute floor |
 | `scripts/spark_cosyvoice_manifest.py` | Read-only merge of passing CosyVoice channel reports into `output/spark/cosyvoice/` plus `TRAIN_HANDOFF.txt` |
 | `scripts/spark_cosyvoice_km_finetune.sh` | One-epoch CosyVoice-300M Khmer LLM candidate under `flock ~/.gs-gpu.lock`; does not promote into the live server |

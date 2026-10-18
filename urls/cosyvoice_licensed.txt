@@ -1,0 +1,13 @@
+# Licensed speech sources for CosyVoice voice data.
+# This file is not a yt-dlp list. urls.load_url_list rejects non-YouTube/Vimeo
+# lines, and these datasets are fetched by scripts/cosyvoice_voice_data.py.
+#
+# YouTube channel lists (urls/cosyvoice_km_all.txt and urls/cosyvoice_channels.json)
+# stay in the queue. They are skipped when YT_DLP_COOKIES and
+# COSYVOICE_COOKIES_FILE are unset. Do not put a cookies file in git.
+#
+# Columns: language, source_id, license, locator
+
+km	fleurs	CC-BY-4.0	huggingface://google/fleurs/data/km_kh
+km	local-raw	operator-downloaded	output/cosyvoice_km_*/01_raw
+salane	studio	none-found	voices/sala voices/salane speaker-id sala|salane

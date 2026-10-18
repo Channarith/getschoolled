@@ -1,0 +1,100 @@
+{
+  "youtube_cookies_set": false,
+  "youtube": "skipped",
+  "before": {
+    "km": {
+      "utterances": 140,
+      "seconds": 1330.654,
+      "minutes": 22.18,
+      "listed": 247,
+      "missing": 0
+    },
+    "salane": {
+      "training_utterances": 0,
+      "duration_seconds": 0.0,
+      "speakers": [],
+      "voice_reference_files": 0,
+      "note": "Sala/Salane is the live class voice id, not a CosyVoice language pool. Zero utterances means there is no enrolled reference corpus to fine-tune."
+    }
+  },
+  "reject_reasons": {
+    "local": {
+      "other": 65,
+      "transcript:few_khmer_chars": 51,
+      "transcript:not_mostly_khmer": 14,
+      "denoise_reject": 1
+    },
+    "fleurs": {
+      "missing_audio": 0,
+      "too_short": 566,
+      "held_for_segment": 3,
+      "not_mostly_khmer": 4,
+      "few_khmer_chars": 2
+    }
+  },
+  "local_selected": [
+    {
+      "channel": "cosyvoice_km_easykhmer",
+      "stem": "src_c3dd9bc9db18",
+      "duration_sec": 460.65,
+      "take_sec": null,
+      "kind": "lesson"
+    },
+    {
+      "channel": "cosyvoice_km_easykhmer",
+      "stem": "src_6eca56998457",
+      "duration_sec": 350.12,
+      "take_sec": null,
+      "kind": "lesson"
+    },
+    {
+      "channel": "cosyvoice_km_easykhmer",
+      "stem": "src_b3e1947a33c2",
+      "duration_sec": 322.41,
+      "take_sec": null,
+      "kind": "lesson"
+    },
+    {
+      "channel": "cosyvoice_km_easykhmer",
+      "stem": "src_0103818df7b8",
+      "duration_sec": 303.81,
+      "take_sec": null,
+      "kind": "lesson"
+    },
+    {
+      "channel": "cosyvoice_km_buddhist_stories_playlist",
+      "stem": "src_4afefd2c99df",
+      "duration_sec": 3227.02,
+      "take_sec": 480.0,
+      "kind": "narration"
+    },
+    {
+      "channel": "cosyvoice_km_buddhist_stories_playlist",
+      "stem": "src_7100a88fce88",
+      "duration_sec": 3957.77,
+      "take_sec": 480.0,
+      "kind": "narration"
+    }
+  ],
+  "after_km": {
+    "utterances": 2541,
+    "speakers": 3,
+    "seconds": 27684.026,
+    "dropped_duplicate_audio": 0,
+    "dropped_missing": 0,
+    "train_handoff": "/home/nvidia/code/gs-wt/spark-voice-data/output/spark/voice-data/km/04_cosyvoice/train/TRAIN_HANDOFF.txt",
+    "clean_minutes": 461.4
+  },
+  "after_salane": {
+    "utterances": 0,
+    "speakers": 0,
+    "seconds": 0.0,
+    "dropped_duplicate_audio": 0,
+    "dropped_missing": 0,
+    "train_handoff": "/home/nvidia/code/gs-wt/spark-voice-data/output/spark/voice-data/salane/04_cosyvoice/train/TRAIN_HANDOFF.txt",
+    "clean_minutes": 0.0
+  },
+  "target_minutes": 30,
+  "km_reaches_30_min": true,
+  "salane_reaches_30_min": false
+}
