@@ -73,13 +73,6 @@ const TABS: OrbitTab[] = [
     description:
       "Real job openings matched to the exact Salareen classes that get you hired.",
   },
-  {
-    href: "/languages",
-    label: "Languages",
-    icon: "🌐",
-    description:
-      "27-language live translation studio + fully localized courses.",
-  },
 ];
 
 const PERIOD_MS = 32000; // one full clockwise revolution (slow enough to read)

@@ -8,6 +8,7 @@ import { Rail, Tile } from "./components/CourseRail";
 import MascotImage from "./components/MascotImage";
 import { DemoOnlyLanding } from "./components/DemoOnly";
 import DNLandingHero from "./components/DNLandingHero";
+import DNAnonLanding from "./components/DNAnonLanding";
 import { useFlag } from "./lib/flags";
 import {
   AUTH_EVENT,
@@ -71,80 +72,14 @@ export default function HomePage() {
     );
   }
 
-  // DN "Dark Navy" landing — the editorial hero with the orbital mascot
-  // and the five nav tabs as clockwise-rotating tiles. Shown to every
-  // visitor on `/` (signed-in and signed-out) so the brand front door is
-  // the same for everyone. The old DemoOnlyLanding / signed-in rail hub
-  // remain available at their own routes (/demo, /browse, etc.).
-  if (!loggedIn) return <DNLandingHero />;
-
-  return (
-    <main>
-      <section className="theme-hero" style={{
-        backgroundImage:
-          "linear-gradient(120deg, rgba(11,16,32,.82) 0%, rgba(67,56,202,.55) 60%, rgba(124,58,237,.5) 100%), url(/wallpapers/wisdom_bodhi.webp)",
-        backgroundSize: "cover", backgroundPosition: "center",
-        color: "#fff", padding: "40px 24px 44px",
-      }}>
-        <div className="theme-hero-inner"
-             style={{ display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap" }}>
-          <MascotImage
-            width={200}
-            alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark"
-            style={{ flex: "0 0 auto", width: 200, height: "auto",
-                      filter: "drop-shadow(0 16px 28px rgba(2,6,23,.55))" }}
-          />
-          <div style={{ flex: "1 1 320px", minWidth: 0 }}>
-          <span className="theme-badge learn-phrase">{learnPhrase}</span>
-          <h1 className="theme-title glow" style={{ marginTop: 14 }}>
-            {t("hero.title")}
-          </h1>
-          <p className="theme-subtitle glow">{t("hero.subLoggedIn")}</p>
-          <div className="hero-cta">
-            <Link href="/class"><button className="theme-btn">{t("hero.trySample")}</button></Link>
-            <Link href="/browse"><button className="theme-btn" style={{ background: "#e50914", color: "#fff" }}>{t("hero.browseAll")}</button></Link>
-            <Link href="/arcade"><button className="theme-btn" style={{ background: "#7c3aed", color: "#fff" }}>{t("hero.arcade")}</button></Link>
-            <Link href="/languages"><button className="theme-btn" style={{ background: "#0ea5e9", color: "#fff" }}>{t("hero.languages")}</button></Link>
-            <Link href="/jobs"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.careers")}</button></Link>
-            <Link href="/kids"><button className="theme-btn" style={{ background: "#f59e0b" }}>{t("hero.kids")}</button></Link>
-            <Link href="/corporate"><button className="theme-btn" style={{ background: "#0ea5e9", color: "#fff" }}>{t("hero.corporate")}</button></Link>
-            <Link href="/recommended"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.forYou")}</button></Link>
-          </div>
-          <p className="muted" style={{ marginTop: 16, marginBottom: 0 }}>{t("hero.getAppTitle")}</p>
-          <AppBadges />
-          </div>
-        </div>
-      </section>
-
-      <div className="feed">
-        <AdSlot slotId="home-banner" tier={tier} />
-        {error && (
-          <div className="card" style={{ borderColor: "#ff6b6b" }}>
-            <strong>{t("home.error")}</strong>
-            <div className="muted" style={{ marginTop: 4 }}>{friendlyError(error, t("error.offline"))}</div>
-          </div>
-        )}
-        {rails === null && !error && <p className="muted">{t("home.loading")}</p>}
-        {rails && rails.length === 0 && (
-          <p className="muted">{t("home.empty")} <Link href="/browse">{t("home.browse")}</Link> {t("home.toGetStarted")}</p>
-        )}
-        {rails && (carousels
-          ? rails.map((r) => <Rail key={r.key} rail={r} />)
-          : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                gap: 16,
-                marginTop: 12,
-              }}
-            >
-              {rails.flatMap((r) => r.courses ?? []).map((c) => (
-                <Tile key={c.course_id} course={c} />
-              ))}
-            </div>
-          ))}
-      </div>
-    </main>
-  );
+  // Front door split:
+  //   - Signed-OUT visitors see <DNAnonLanding/>: the pre-DN simple landing
+  //     (centered mascot above two buttons: "Try the demo" / "Log in"),
+  //     restyled in the DN cream/navy palette.
+  //   - Signed-IN users see the full <DNLandingHero/>: brand headline, the
+  //     orbital mascot stage with the five nav tabs (Our Story, Vision Play
+  //     Lab, On the Go, Live Class, Careers) as a visual launcher, and the
+  //     "one tutor / learn by playing / live classes" feature cards.
+  if (!loggedIn) return <DNAnonLanding />;
+  return <DNLandingHero />;
 }
