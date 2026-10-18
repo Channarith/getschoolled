@@ -684,6 +684,7 @@ transcript all run without it.
 | `scripts/spark_cosyvoice_manifest.py` | Read-only merge of passing CosyVoice channel reports into `output/spark/cosyvoice/` plus `TRAIN_HANDOFF.txt` |
 | `scripts/spark_cosyvoice_km_finetune.sh` | One-epoch CosyVoice-300M Khmer LLM candidate under `flock ~/.gs-gpu.lock`; does not promote into the live server |
 | `scripts/lab_smoke.py` | Read-only lab probe (`make lab-smoke`): `/health` and `/version` against `VERSION`. `--host` and `--port-offset 10000` point it at another machine's 18xxx ports |
+| `scripts/rag_small_evals.py` | Golden-set answer quality for small local models (`make rag-small-evals`). In-process harness, no lab POST. `RAG_EVAL_HOST` / `RAG_EVAL_PORT` / `RAG_EVAL_BACKEND=http` point it at 18xxx llama-server ports. Reports go to `output/spark/rag-small-evals/` |
 | `scripts/a2f_cosyvoice_loop/` | CosyVoice PCM → Audio2Face-3D gRPC (aarch64 stub + amd64 NIM handoff); see `README.txt` there |
 | `scripts/pipecat_cosyvoice/` | Pipecat-oriented CosyVoice TTS config for NVIDIA voice-agent-examples |
 | `sample-curriculum` | 118 live-class lessons: math (Algebra through Differential Equations), economics, professional skills (Power BI, SAP, DevOps, Digital Marketing, UX, Cybersecurity, Excel/Word/PowerPoint), corporate/AI tracks, safety training, and more. Slide counts vary; the loader reads each top-level `lesson.txt` |

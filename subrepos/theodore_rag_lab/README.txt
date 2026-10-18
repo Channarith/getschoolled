@@ -104,6 +104,14 @@ Step 4 — peek at tuning, then try a short bakeoff
   make rag-lab
   # runs bakeoff_loop --hours 0.01
 
+  Answer quality for small models uses the same harness in-process. It does
+  not POST /api/rag/eval, so the running lab's telemetry is unchanged:
+
+  make rag-small-evals
+  # RAG_EVAL_MODELS, RAG_EVAL_HOST, RAG_EVAL_PORT, RAG_EVAL_BACKEND, RAG_EVAL_MARGIN
+  # One model on its own port: RAG_EVAL_MODELS=qwen2.5-0.5b@127.0.0.1:18001
+  # writes output/spark/rag-small-evals/
+
 Step 5 — dictionary + dialect + regurgitation
 
   curl -s 'http://127.0.0.1:8095/api/dictionary?region=us-south&limit=10' | python3 -m json.tool

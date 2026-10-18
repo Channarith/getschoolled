@@ -15,7 +15,7 @@ COMPOSE := infra/compose/docker-compose.yml
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
 	ensure-local-env \
 	run-identity run-memory run-orchestrator run-livekit validate-pipeline webcam-lab \
-	children-lab rag-lab drive-lab homework-lab music-lab lab-smoke dev-all dev-down dev-status
+	children-lab rag-lab rag-small-evals drive-lab homework-lab music-lab lab-smoke dev-all dev-down dev-status
 
 help:
 	@echo "Targets:"
@@ -29,6 +29,7 @@ help:
 	@echo "  homework-lab   Private homework lab (50+ methodologies generate/grade)"
 	@echo "  music-lab      Private learn-through-music lab (100+ original songs)"
 	@echo "  lab-smoke      GET /health and /version for every lab (LAB_SMOKE_HOST, LAB_SMOKE_PORT_OFFSET)"
+	@echo "  rag-small-evals  Golden-set answer quality for small models (RAG_EVAL_HOST, RAG_EVAL_PORT)"
 	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
 	@echo "  lint           Ruff lint the Python sources (needs ruff)"
 	@echo "  stress         Stress/perf the running APIs (start services first)"
@@ -124,6 +125,26 @@ children-lab:
 
 rag-lab:
 	PYTHONPATH=subrepos/theodore_rag_lab/src:packages/shared/src $(VENV_PY) -m theodore_rag_lab.bakeoff_loop --hours 0.01
+
+# Golden-set answers for small models. Does not POST to the lab.
+# GPU sections take ~/.gs-gpu.lock (the script honors GS_GPU_LOCK_HELD).
+# Kal-el, all names served on one test port:
+#   make rag-small-evals RAG_EVAL_BACKEND=http RAG_EVAL_HOST=127.0.0.1 RAG_EVAL_PORT=18042
+# One model on its own port: RAG_EVAL_MODELS=qwen2.5-0.5b@127.0.0.1:18001
+RAG_EVAL_MODELS ?= qwen2.5-0.5b,qwen2.5-1.5b,qwen2.5-3b,stem-qlora,qwen3.6-35b-a3b
+RAG_EVAL_HOST ?= 127.0.0.1
+RAG_EVAL_PORT ?= 8342
+RAG_EVAL_BACKEND ?= auto
+RAG_EVAL_MARGIN ?= 0.05
+RAG_EVAL_OUT ?= output/spark/rag-small-evals
+RAG_EVAL_PY := PYTHONPATH=subrepos/theodore_rag_lab/src:packages/shared/src $(VENV_PY)
+rag-small-evals:
+	$(RAG_EVAL_PY) scripts/rag_small_evals.py --fetch-only \
+		--models "$(RAG_EVAL_MODELS)" --host "$(RAG_EVAL_HOST)" --port "$(RAG_EVAL_PORT)" \
+		--backend "$(RAG_EVAL_BACKEND)" --margin "$(RAG_EVAL_MARGIN)" --out "$(RAG_EVAL_OUT)"
+	flock $(HOME)/.gs-gpu.lock -c 'GS_GPU_LOCK_HELD=1 $(RAG_EVAL_PY) scripts/rag_small_evals.py --skip-fetch \
+		--models "$(RAG_EVAL_MODELS)" --host "$(RAG_EVAL_HOST)" --port "$(RAG_EVAL_PORT)" \
+		--backend "$(RAG_EVAL_BACKEND)" --margin "$(RAG_EVAL_MARGIN)" --out "$(RAG_EVAL_OUT)"'
 
 llm-lab:
 	PYTHONPATH=subrepos/theodore_llm_lab/src:packages/shared/src $(VENV_PY) -c "from aoep_shared.llm_training import assemble_report; from theodore_llm_lab.paths import fixture_root; print(assemble_report([fixture_root()]))"
