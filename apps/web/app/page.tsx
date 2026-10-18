@@ -7,6 +7,7 @@ import AdSlot from "./components/AdSlot";
 import { Rail, Tile } from "./components/CourseRail";
 import MascotImage from "./components/MascotImage";
 import { DemoOnlyLanding } from "./components/DemoOnly";
+import DNLandingHero from "./components/DNLandingHero";
 import { useFlag } from "./lib/flags";
 import {
   AUTH_EVENT,
@@ -70,7 +71,12 @@ export default function HomePage() {
     );
   }
 
-  if (!loggedIn) return <DemoOnlyLanding />;
+  // DN "Dark Navy" landing — the editorial hero with the orbital mascot
+  // and the five nav tabs as clockwise-rotating tiles. Shown to every
+  // visitor on `/` (signed-in and signed-out) so the brand front door is
+  // the same for everyone. The old DemoOnlyLanding / signed-in rail hub
+  // remain available at their own routes (/demo, /browse, etc.).
+  if (!loggedIn) return <DNLandingHero />;
 
   return (
     <main>
