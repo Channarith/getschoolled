@@ -600,11 +600,21 @@ def split_kaldi_holdout(
     }
 
 
-def patch_sft_yaml(text: str, *, language: str = "km", max_epoch: int = 1) -> str:
+def patch_sft_yaml(
+    text: str,
+    *,
+    language: str = "km",
+    max_epoch: int = 1,
+    token_max_length: int | None = None,
+) -> str:
     """One-epoch CosyVoice-300M SFT overrides. Does not load the live server.
 
     train.py starts at epoch -1 when the pretrained llm.pt has no epoch key, so
     ``max_epoch: 1`` runs exactly one epoch (range(0, 1)).
+
+    ``token_max_length`` raises the text-token filter. Khmer BPE on this pool
+    sits around 250 tokens at the median, so the stock cap of 200 drops most
+    utterances. Leave it unset to keep the stock line.
     """
     lang = (language or "km").strip().lower() or "km"
     out = text.replace("language: 'en'", f"language: '{lang}'")
@@ -614,6 +624,12 @@ def patch_sft_yaml(text: str, *, language: str = "km", max_epoch: int = 1) -> st
     out = out.replace("max_epoch: 200", f"max_epoch: {int(max_epoch)}", 1)
     out = out.replace("accum_grad: 2", "accum_grad: 1", 1)
     out = out.replace("log_interval: 100", "log_interval: 1", 1)
+    if token_max_length is not None:
+        out = out.replace(
+            "token_max_length: 200",
+            f"token_max_length: {int(token_max_length)}",
+            1,
+        )
     return out
 
 
