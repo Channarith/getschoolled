@@ -12,6 +12,17 @@ Examples:
     --media-dir ./clips --language km --output-dir output/cosyvoice_km \\
     --skip-download
 
+  # Kal-el (no GPU service): download + denoise only. Default dir is
+  # output/kalel/ingest when --output-dir is omitted.
+  python3 scripts/cosyvoice_ingest.py \\
+    --urls-file urls.txt --language km --stages download,denoise \\
+    --output-dir output/kalel/km_example
+
+  # Spark, after: rsync -a --ignore-existing output/kalel/ HOST:output/inbox/kalel/
+  python3 scripts/cosyvoice_ingest.py \\
+    --inbox output/inbox/kalel --stages segment,transcribe,export \\
+    --output-dir output/spark/from-kalel --language km
+
   # Rebuild language merge pool only (no download/ASR):
   python3 scripts/cosyvoice_ingest.py --merge-only --language km
 
@@ -109,6 +120,25 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["download", "denoise", "segment", "transcribe", "export"],
     )
     ap.add_argument(
+        "--stages",
+        default=None,
+        help=(
+            "Comma-separated stages to run, e.g. download,denoise. "
+            "Overrides --start-stage and --stop-stage. "
+            "download,denoise with no --output-dir writes output/kalel/ingest."
+        ),
+    )
+    ap.add_argument(
+        "--inbox",
+        type=Path,
+        default=None,
+        help=(
+            "Kal-el handoff root (output/inbox/kalel or one channel dir). "
+            "Raw and clean wavs are hardlinked in with ignore-existing, "
+            "then the selected stages run."
+        ),
+    )
+    ap.add_argument(
         "--merge-into",
         type=Path,
         default=None,
@@ -139,7 +169,12 @@ def main(argv: list[str] | None = None) -> int:
             default_merge_into,
             merge_language_pool,
         )
-        from aoep_shared.cosyvoice_ingest.pipeline import IngestConfig, run_ingest
+        from aoep_shared.cosyvoice_ingest.pipeline import (
+            IngestConfig,
+            discover_inbox_channels,
+            parse_stages,
+            run_ingest,
+        )
     except ModuleNotFoundError as exc:
         print(
             f"error: missing dependency ({exc}). "
@@ -174,50 +209,96 @@ def main(argv: list[str] | None = None) -> int:
             print(f"\nTrain handoff: {merge_report.train_handoff}", file=sys.stderr)
         return 0 if merge_report.ok else 1
 
-    if not args.urls_file and not args.media_dir and args.start_stage == "download":
-        if not args.skip_download:
-            print(
-                "error: provide --urls-file and/or --media-dir "
-                "(or --skip-download to resume an existing output tree, "
-                "or --merge-only)",
-                file=sys.stderr,
-            )
-            return 2
+    try:
+        stage_list = parse_stages(args.stages) if args.stages else None
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
-    out = args.output_dir or Path(
-        os.environ.get("COSYVOICE_INGEST_ROOT", "output/cosyvoice_ingest")
+    runs_download = (
+        "download" in stage_list if stage_list is not None else args.start_stage == "download"
     )
-    cfg = IngestConfig(
-        urls_file=args.urls_file,
-        media_dir=args.media_dir,
-        output_dir=out,
-        language=args.language,
-        speaker=args.speaker,
-        min_utt_sec=args.min_utt_sec,
-        max_utt_sec=args.max_utt_sec,
-        silence_db=args.silence_db,
-        instruct=args.instruct,
-        split_name=args.split_name,
-        skip_download=args.skip_download,
-        allow_empty_transcripts=args.allow_empty_transcripts,
-        cosyvoice_repo=args.cosyvoice_repo,
-        max_urls=args.max_urls,
-        merge=not args.no_merge,
-        merge_into=args.merge_into,
-        merge_scan_root=args.merge_scan_root,
-    )
-    report = run_ingest(cfg, start_stage=args.start_stage, stop_stage=args.stop_stage)
+    if (
+        runs_download
+        and not args.urls_file
+        and not args.media_dir
+        and not args.skip_download
+        and not args.inbox
+    ):
+        print(
+            "error: provide --urls-file and/or --media-dir "
+            "(or --skip-download to resume an existing output tree, "
+            "or --inbox, or --merge-only)",
+            file=sys.stderr,
+        )
+        return 2
+
+    early_only = stage_list is not None and set(stage_list) <= {"download", "denoise"}
+    if args.output_dir is not None:
+        out_root = args.output_dir
+    elif early_only:
+        out_root = Path(os.environ.get("COSYVOICE_KALEL_ROOT", "output/kalel/ingest"))
+    else:
+        out_root = Path(os.environ.get("COSYVOICE_INGEST_ROOT", "output/cosyvoice_ingest"))
+
+    jobs: list[tuple[Path, Path | None]] = [(out_root, None)]
+    if args.inbox:
+        channels = discover_inbox_channels(args.inbox)
+        if not channels:
+            print(f"error: no 01_raw/ or 02_clean/ under {args.inbox}", file=sys.stderr)
+            return 2
+        if len(channels) == 1 and args.output_dir is not None:
+            jobs = [(out_root, channels[0])]
+        elif len(channels) == 1 and args.output_dir is None:
+            jobs = [(channels[0], channels[0])]
+        else:
+            parent = args.output_dir or Path("output/spark/from-kalel")
+            jobs = [(parent / channel.name, channel) for channel in channels]
+
+    exit_code = 0
+    reports = []
+    for dest, inbox in jobs:
+        cfg = IngestConfig(
+            urls_file=args.urls_file,
+            media_dir=args.media_dir,
+            output_dir=dest,
+            language=args.language,
+            speaker=args.speaker,
+            min_utt_sec=args.min_utt_sec,
+            max_utt_sec=args.max_utt_sec,
+            silence_db=args.silence_db,
+            instruct=args.instruct,
+            split_name=args.split_name,
+            skip_download=args.skip_download,
+            allow_empty_transcripts=args.allow_empty_transcripts,
+            cosyvoice_repo=args.cosyvoice_repo,
+            max_urls=args.max_urls,
+            merge=not args.no_merge,
+            merge_into=args.merge_into,
+            merge_scan_root=args.merge_scan_root,
+            inbox_dir=inbox,
+        )
+        report = run_ingest(
+            cfg,
+            start_stage=args.start_stage,
+            stop_stage=args.stop_stage,
+            stages=stage_list,
+        )
+        reports.append(report.to_dict())
+        if not report.ok:
+            exit_code = 1
+    payload = reports[0] if len(reports) == 1 else {"channels": reports}
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
     if report.error_counts:
         summary = ",".join(
-            f"{name}:{report.error_counts[name]}" for name in sorted(report.error_counts)
+            f"{name}:{count}" for name, count in sorted(report.error_counts.items())
         )
         print(f"ingest errors: {summary}", file=sys.stderr)
-    print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
     if report.merge_train_handoff:
         print(f"\nMerged train handoff: {report.merge_train_handoff}", file=sys.stderr)
     elif report.train_handoff:
         print(f"\nTrain handoff: {report.train_handoff}", file=sys.stderr)
-    return 0 if report.ok else 1
+    return exit_code
 
 
 if __name__ == "__main__":
