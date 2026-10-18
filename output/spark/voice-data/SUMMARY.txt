@@ -1,0 +1,9 @@
+Voice data growth
+youtube: skipped
+km before utterances=140 minutes=22.18
+km after utterances=2541 minutes=461.4
+salane before utterances=0 minutes=0.0
+salane after utterances=0 minutes=0.0
+km TRAIN_HANDOFF: /home/nvidia/code/gs-wt/spark-voice-data/output/spark/voice-data/km/04_cosyvoice/train/TRAIN_HANDOFF.txt
+salane TRAIN_HANDOFF: /home/nvidia/code/gs-wt/spark-voice-data/output/spark/voice-data/salane/04_cosyvoice/train/TRAIN_HANDOFF.txt
+reject_reasons: {"local": {"other": 65, "transcript:few_khmer_chars": 51, "transcript:not_mostly_khmer": 14, "denoise_reject": 1}, "fleurs": {"missing_audio": 0, "too_short": 566, "held_for_segment": 3, "not_mostly_khmer": 4, "few_khmer_chars": 2}}
