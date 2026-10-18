@@ -85,7 +85,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 6300
+      "versionCode": 6401
     },
     "extra": {
       "deployMode": "cloud",
