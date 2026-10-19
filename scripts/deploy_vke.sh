@@ -145,6 +145,17 @@ LOCAL_VER="$(cat "$ROOT/VERSION" 2>/dev/null || echo '?')"
 say "this checkout VERSION: ${LOCAL_VER} — the line above should report the same version."
 
 say "Deploy complete: ${REGISTRY}/*:${TAG} rolled to namespace ${NS}."
+
+# 8) Create any missing GitHub Releases locally (replaces the deleted
+# `.github/workflows/release.yml`; see .cursor/rules/no-github-actions.mdc).
+# Opt out with SKIP_PUBLISH_RELEASE=1 if you're deploying from a dirty branch.
+if [ "${SKIP_PUBLISH_RELEASE:-0}" != "1" ] && command -v gh >/dev/null 2>&1; then
+  say "publish any missing GitHub Releases from CHANGELOG"
+  python3 "$ROOT/scripts/publish_release.py" || warn "publish_release.py exited non-zero (not fatal)"
+else
+  warn "skipping publish_release.py (SKIP_PUBLISH_RELEASE=1 or gh not installed)"
+fi
+
 # shellcheck disable=SC1091
 source "$ROOT/scripts/print_terminal_link.sh"
 print_terminal_link "${PUBLIC_APP_URL:-https://salareen.com}"
