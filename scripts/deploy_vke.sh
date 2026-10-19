@@ -31,8 +31,23 @@ PLATFORM="${PLATFORM:-linux/amd64}"
 
 # Services with a services/<name>/Dockerfile (web is handled separately).
 SERVICES=(orchestrator speech perception memory curriculum billing integrations identity harvester)
+# Lab subrepos: each has subrepos/<dir>/Dockerfile and is referenced by the
+# k8s manifests as sjc.vultrcr.com/salareen/<lab-image>:latest. Nothing used to
+# build/push these, so a fresh cluster would end up with ImagePullBackOff on
+# every one of them - which is exactly what caused the Vision Play demo to
+# surface GET /children-lab 500 (nginx -> children-lab Service -> pod not ready).
+# Format: "<image-name>=<subrepo-path>"
+LABS=(
+  "children-lab=subrepos/theodore_children_webcam_lab"
+  "audio-lab=subrepos/theodore_audio_translation_lab"
+  "music=subrepos/theodore_music_lab"
+  "course-studio=subrepos/theodore_course_studio"
+)
 # Deployments to roll (self-hosted livekit intentionally excluded — Cloud is used).
+# The lab deployments (children-lab, audio-lab, music, course-studio) are rolled
+# further down after we actually have their images in the registry.
 DEPLOYMENTS=(orchestrator web billing curriculum memory perception speech identity integrations harvester)
+LAB_DEPLOYMENTS=(children-lab audio-lab music course-studio)
 
 say() { printf "\033[1;36m==> %s\033[0m\n" "$*"; }
 warn() { printf "\033[1;33m  ! %s\033[0m\n" "$*"; }
@@ -67,6 +82,23 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
   done
   say "build+push web (fresh)"
   docker buildx build "${BUILD_FLAGS[@]}" -t "${REGISTRY}/web:${TAG}" -f "apps/web/Dockerfile" --push .
+  # Lab subrepos (demo iframes - Vision Play, Audio Translation, Music Lab,
+  # Course Studio). Each subrepo owns its own Dockerfile and build context,
+  # which is why we build FROM that subrepo directory, not from repo root.
+  if [ "${SKIP_LABS:-0}" != "1" ]; then
+    for entry in "${LABS[@]}"; do
+      lab="${entry%%=*}"
+      path="${entry#*=}"
+      if [ -f "$ROOT/$path/Dockerfile" ]; then
+        say "build+push $lab from $path (fresh)"
+        docker buildx build "${BUILD_FLAGS[@]}" -t "${REGISTRY}/${lab}:${TAG}" -f "$ROOT/$path/Dockerfile" --push "$ROOT/$path"
+      else
+        warn "lab $lab: $path/Dockerfile missing - skipping"
+      fi
+    done
+  else
+    warn "SKIP_LABS=1 - not building lab images (children-lab, audio-lab, music, course-studio)."
+  fi
 else
   warn "SKIP_BUILD=1 — not building/pushing images."
 fi
@@ -115,20 +147,29 @@ else
 fi
 
 # 6) Roll the deployments to the freshly pushed images.
+# The lab deployments share the same :latest + imagePullPolicy:Always setup as
+# the main services, so a rollout restart is enough to pull the newly pushed
+# lab images from the Vultr registry.
+ALL_DEPLOYMENTS=("${DEPLOYMENTS[@]}" "${LAB_DEPLOYMENTS[@]}")
 if [ "$TAG" = "latest" ]; then
   # kustomize pins :latest + imagePullPolicy: Always, so a restart re-pulls it.
-  for d in "${DEPLOYMENTS[@]}"; do
+  for d in "${ALL_DEPLOYMENTS[@]}"; do
     kubectl -n "$NS" rollout restart "deploy/$d" 2>/dev/null || warn "no deploy/$d (skipping)"
   done
 else
   # A specific tag: point each deployment at it (this triggers the rollout).
-  for d in "${DEPLOYMENTS[@]}"; do
+  for d in "${ALL_DEPLOYMENTS[@]}"; do
     kubectl -n "$NS" set image "deploy/$d" "$d=${REGISTRY}/$d:${TAG}" 2>/dev/null || warn "no deploy/$d (skipping)"
   done
 fi
 
 # 7) Wait for the critical ones, then show LiveKit wiring for a quick sanity check.
-for d in orchestrator web identity; do
+# children-lab is a critical dependency of the Vision Play public demo: when it is
+# missing/unhealthy, nginx -> children-lab Service returns 500 and /demo/arcade
+# shows a broken iframe (observed as "GET /children-lab 500" in the browser
+# console). Catching it here means the operator sees the failure during deploy
+# instead of only after a visitor hits the demo.
+for d in orchestrator web identity children-lab; do
   kubectl -n "$NS" rollout status "deploy/$d" --timeout=240s || warn "deploy/$d did not become ready in time"
 done
 
