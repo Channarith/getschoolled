@@ -341,6 +341,29 @@ export default function MascotOverlay3D({
 
   return (
     <>
+      {/* Contrast backdrop: the Meshy character is a cream/gold Buddha
+          that disappears into the site's cream (#f4e9d8) page background.
+          A soft dark radial gradient pinned to the bottom of the viewport
+          (where the character walks on the ground plane) gives the
+          character a visible "stage" without creating a hard-edged frame.
+          Lower z-index than the Canvas so the mascot renders ON TOP of
+          this plate, and `pointer-events: none` so page clicks still
+          pass through. Opacity 0.28 is just enough to lift the mascot
+          off the background without turning the page dim. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: "55vh",
+          pointerEvents: "none",
+          zIndex: 999,
+          background:
+            "radial-gradient(ellipse 60% 70% at 25% 95%, rgba(26, 20, 10, 0.32) 0%, rgba(26, 20, 10, 0.14) 35%, transparent 65%)",
+        }}
+      />
       <div
         aria-hidden="true"
         style={{
@@ -357,12 +380,34 @@ export default function MascotOverlay3D({
           style={{ background: "transparent" }}
           gl={{ antialias: true, alpha: true, premultipliedAlpha: false }}
         >
-          <ambientLight intensity={0.55} />
+          {/* Lighting tuned to make a cream/gold character pop against a
+              cream page background. Three-point setup:
+              - ambientLight 0.75 (was 0.55): a touch brighter base.
+              - keyLight (directional, warm) 2.0 (was 1.15) from front-
+                right: strong key so the Buddha's bronze reads as gold,
+                not beige.
+              - rimLight (directional, cool) 1.4 from behind-left:
+                outlines the character's silhouette with a cool highlight
+                so the edge separates from any background colour.
+              - hemisphere light with cream-sky / dark-ground: fills in
+                shadow sides so the character never goes muddy. */}
+          <ambientLight intensity={0.75} />
           <directionalLight
             position={[4, 6, 3]}
-            intensity={1.15}
+            intensity={2.0}
+            color={0xfff2d4}
             castShadow
             shadow-mapSize={[1024, 1024]}
+          />
+          <directionalLight
+            position={[-5, 4, -3]}
+            intensity={1.4}
+            color={0x8ab6ff}
+          />
+          <hemisphereLight
+            color={0xffe8c2}
+            groundColor={0x2a1a08}
+            intensity={0.5}
           />
           <Suspense fallback={null}>
             <Character
@@ -380,7 +425,7 @@ export default function MascotOverlay3D({
             />
             <ContactShadows
               position={[0, 0.01, 0]}
-              opacity={0.4}
+              opacity={0.75}
               scale={10}
               blur={2.4}
               far={2}
