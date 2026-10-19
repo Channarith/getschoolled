@@ -34,7 +34,9 @@ def test_open_room_has_theodore_host_and_welcome():
     assert room.room_size == 6
     assert room.seats_left == 5
     assert room.host().id == AI_HOST_ID
-    assert "Theodore" in room.host().name
+    # AI_HOST_NAME was renamed from "Theodore (AI Host)" to "Sala (AI Host)".
+    # Use the bracketed form so this doesn't accidentally match "Salareen".
+    assert "Sala (" in room.host().name
     assert room.chat
 
 
@@ -153,7 +155,9 @@ def test_reserved_and_overlong_display_names_rejected():
         room_id="class-names", class_id="n", session_id="s1",
         lesson_id="lesson", title="Names", room_size=6,
     )
-    for bad in ("Theodore", "AI Host", "Salareen AI", "System", "Room"):
+    # Both "Theodore" (legacy) and "Sala" (new canonical name) are reserved
+    # so a learner can't impersonate the AI host after the mascot rename.
+    for bad in ("Theodore", "Sala", "AI Host", "Salareen AI", "System", "Room"):
         with pytest.raises(LiveRoomError):
             store.join("class-names", bad)
     with pytest.raises(LiveRoomError):

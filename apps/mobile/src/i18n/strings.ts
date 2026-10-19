@@ -268,7 +268,7 @@ const EN: Record<StringKey, string> = {
   "careers.empty": "No openings match your search.",
 
   "group.title": "Group Classes",
-  "group.intro": "Live multi-learner sessions where Theodore presents coursework — in the Salareen room or on Zoom, Teams, or Meet.",
+  "group.intro": "Live multi-learner sessions where Sala presents coursework — in the Salareen room or on Zoom, Teams, or Meet.",
   "group.back": "← Back",
   "group.empty": "No upcoming classes yet.",
   "group.seatsLeft": "Seats left",

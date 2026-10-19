@@ -96,14 +96,16 @@ const styles = `
 .os-eco-grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);
   gap:14px;margin-top:22px}
 
-.os-eco-card{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:12px;
+.os-eco-card{display:flex;align-items:flex-start;gap:12px;padding:13px 15px;border-radius:12px;
   background:rgba(255,255,255,.045);border:1px solid rgba(201,163,94,.26);
-  transition:transform .2s ease,border-color .2s ease,background .2s ease}
-.os-eco-card:hover{transform:translateY(-2px);border-color:var(--gold-bright);background:rgba(201,163,94,.10)}
+  transition:border-color .2s ease,background .2s ease;cursor:default}
+.os-eco-card:hover{border-color:var(--gold-bright);background:rgba(201,163,94,.10)}
 .os-eco-ic{flex:0 0 auto;width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;
-  color:var(--gold-bright);background:rgba(201,163,94,.12);border:1px solid rgba(201,163,94,.28)}
+  color:var(--gold-bright);background:rgba(201,163,94,.12);border:1px solid rgba(201,163,94,.28);margin-top:1px}
 .os-eco-ic svg{width:21px;height:21px;display:block}
-.os-eco-lb{font-size:13.5px;font-weight:500;line-height:1.3;color:#f0e9db}
+.os-eco-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.os-eco-lb{font-size:13.5px;font-weight:600;line-height:1.3;color:#f0e9db}
+.os-eco-desc{font-size:12px;line-height:1.4;color:rgba(240,233,219,.72)}
 
 .os-eco-hint{position:relative;text-align:center;margin-top:22px;font-style:italic;
   font-family:var(--serif);font-size:16px;color:rgba(244,239,228,.72)}
@@ -311,13 +313,19 @@ function renderInline(line: string, keyPrefix: string): React.ReactNode[] {
     });
 }
 
-// One ecosystem feature card: gold line-icon + translated label.
+// One ecosystem feature card: gold line-icon + translated label + visible
+// one-line description. Non-interactive on purpose — these cards describe
+// the platform; they are not navigation. The `title` attribute mirrors the
+// subtitle so the full phrase is available on hover (desktop) + long-press
+// (mobile) even when the subtitle is clipped.
 function ecoCard(
   c: EcoCard,
   t: (key: string, vars?: Record<string, string | number>) => string,
 ): React.ReactNode {
+  const label = t(c.key);
+  const desc = t(`${c.key}Desc`);
   return (
-    <div className="os-eco-card" key={c.id}>
+    <div className="os-eco-card" key={c.id} title={`${label} — ${desc}`}>
       <span className="os-eco-ic" aria-hidden="true">
         <svg
           viewBox="0 0 24 24"
@@ -330,7 +338,10 @@ function ecoCard(
           {ECO_ICONS[c.id]}
         </svg>
       </span>
-      <span className="os-eco-lb">{t(c.key)}</span>
+      <div className="os-eco-text">
+        <span className="os-eco-lb">{label}</span>
+        <span className="os-eco-desc">{desc}</span>
+      </div>
     </div>
   );
 }

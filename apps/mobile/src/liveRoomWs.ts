@@ -104,7 +104,7 @@ export function useLiveRoomSocket(
                 id: String(Date.now()),
                 giftId: gift.gift_id ?? "",
                 emoji: gift.emoji,
-                label: `${gift.sender_name ?? "Someone"} sent ${gift.gift_name ?? "a gift"} to ${gift.recipient_name ?? "Theodore"}`,
+                label: `${gift.sender_name ?? "Someone"} sent ${gift.gift_name ?? "a gift"} to ${gift.recipient_name ?? "Sala"}`,
               });
               if (giftClearTimer.current) clearTimeout(giftClearTimer.current);
               giftClearTimer.current = setTimeout(() => {

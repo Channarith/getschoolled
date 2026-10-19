@@ -12,12 +12,18 @@ const DEFAULT_ANDROID_APK_URL =
   "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.26.1/app-release.apk";
 const ANDROID_APK_URL = process.env.NEXT_PUBLIC_ANDROID_APK_URL || DEFAULT_ANDROID_APK_URL;
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL ?? "";
-const DEFAULT_IOS_APP_URL = "https://testflight.apple.com/join/uTxcWnCZ";
+// TestFlight (iOS beta) invite. User asked us to update this to the current
+// public beta link in this PR — see .cursor-task + CHANGELOG for context.
+const DEFAULT_IOS_APP_URL = "https://testflight.apple.com/join/zqSA6XdW";
 const IOS_APP_URL = process.env.NEXT_PUBLIC_IOS_APP_URL || DEFAULT_IOS_APP_URL; // TestFlight / install
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? "";
 
-/** Same-origin route that forces Content-Disposition: attachment for the APK. */
-const ANDROID_DOWNLOAD_HREF = ANDROID_APK_URL ? "/api/download/android" : "";
+// Same-origin API route. It prefers the APK staged into
+// apps/web/public/downloads/salareen-latest.apk by scripts/stage_apk_for_web.sh
+// (committed path, served from the Docker image) and falls back to the
+// configured object-storage URL. The button is always wired because the API
+// route itself handles the 404 case when neither source exists.
+const ANDROID_DOWNLOAD_HREF = "/api/download/android";
 
 function StoreButton({
   href,

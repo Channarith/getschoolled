@@ -16,6 +16,7 @@ import {
   getConsumerPlans,
   getFreePlanOffer,
   getMe,
+  recordConsent,
   startBillingCheckout,
   getOnboardingStatus,
   getToken,
@@ -45,12 +46,21 @@ const MODES = [
 ] as const;
 type ModeId = (typeof MODES)[number]["id"];
 
-type Step = "account" | "about" | "learn" | "identity" | "plan" | "payment";
-const BASE_STEPS: Step[] = ["about", "learn", "identity", "plan"];
+type Step = "account" | "about" | "learn" | "consent" | "identity" | "plan" | "payment";
+// Consent is now a required onboarding step that sits BETWEEN "learn" and
+// "identity". Users asked us to remove the standalone /consent link from the
+// footer so people don't have to hunt it down later — ticking the checklist
+// once at sign-up is the canonical path. All items default UNCHECKED so the
+// user has to make a deliberate choice; "Continue" is enabled with zero items
+// ticked because every scope is OPTIONAL (biometrics/vision use an opt-in,
+// name-only fallback). The acknowledgement checkbox at the bottom is the only
+// required field — it records that the user saw the notice.
+const BASE_STEPS: Step[] = ["about", "learn", "consent", "identity", "plan"];
 const STEP_LABEL: Record<Step, string> = {
   account: "Your account",
   about: "About you",
   learn: "How you learn",
+  consent: "Privacy & consent",
   identity: "Learner Check",
   plan: "Your plan",
   payment: "Your plan",
@@ -63,7 +73,37 @@ const STORAGE = {
   ratings: "onboarding_modality_ratings",
   student: "onboarding_student_id",
   plan: "onboarding_plan",
+  consent: "onboarding_consent",
 };
+
+// Each entry is one toggle on the consent step. The `scope` string matches
+// the identity service's /consent endpoint vocabulary (face_recognition,
+// attention_tracking, recording, cross_class_memory) so persistence is a
+// straight pass-through to recordConsent({scope, granted}).
+const CONSENT_SCOPES: Array<{ scope: string; label: string; description: string }> = [
+  {
+    scope: "face_recognition",
+    label: "Face recognition",
+    description:
+      "Let Salareen recognize me across classes using self-hosted vision models (never leaves the configured boundary).",
+  },
+  {
+    scope: "attention_tracking",
+    label: "Attention / engagement tracking",
+    description:
+      "Use anonymous engagement signals to pace lessons and nudge me when I lose focus.",
+  },
+  {
+    scope: "recording",
+    label: "Session recording",
+    description: "Record live classes I attend so I can review them later.",
+  },
+  {
+    scope: "cross_class_memory",
+    label: "Cross-class memory",
+    description: "Remember progress across classes so my next lesson picks up where I left off.",
+  },
+];
 
 function ageBandFor(age: number) {
   if (age < 13) return "child";
@@ -95,6 +135,8 @@ export default function OnboardingPage() {
   const perPage = LEARN_MODES_PER_PAGE;
   const advanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [studentId, setStudentId] = useState("");
+  const [consentGrants, setConsentGrants] = useState<Record<string, boolean>>({});
+  const [consentAck, setConsentAck] = useState(false);
   const [plan, setPlan] = useState("free");
   const [freeOffer, setFreeOffer] = useState(true);
   const [consumerPlans, setConsumerPlans] = useState<ConsumerPlan[]>([]);
@@ -131,6 +173,11 @@ export default function OnboardingPage() {
     setRatings(readJson(STORAGE.ratings, {}));
     setStudentId(savedStudent);
     setPlan(localStorage.getItem(STORAGE.plan) || "free");
+    // Rehydrate consent choices so a page refresh mid-onboarding doesn't lose
+    // what the user already ticked. We only read; we don't resurrect the ack
+    // automatically — the user still has to confirm the current notice.
+    const savedConsent = readJson<{ grants?: Record<string, boolean> } | null>(STORAGE.consent, null);
+    if (savedConsent?.grants) setConsentGrants(savedConsent.grants);
     getFreePlanOffer().then((offer) => {
       setFreeOffer(offer.available);
       if (!offer.available) {
@@ -313,7 +360,7 @@ export default function OnboardingPage() {
           .catch(() => undefined);
       }
       window.dispatchEvent(new CustomEvent("aoep-learning-profile-saved"));
-      setStep("identity");
+      setStep("consent");
     });
   }
 
@@ -327,6 +374,38 @@ export default function OnboardingPage() {
         await skipLearningProfile(studentId);
       } catch {
         /* best-effort - the user chose to skip */
+      }
+      setStep("consent");
+    });
+  }
+
+  function saveConsent() {
+    // Persist each scope independently through the identity service's /consent
+    // endpoint (same endpoint the old standalone /consent page used — reused,
+    // not forked, so audit history is unchanged). We write all four scopes
+    // every time: a false value is a positive "I decided to leave this off"
+    // record, which is what regulators want to see. If any scope write fails
+    // we still advance to identity — the acknowledgement itself is persisted
+    // locally so the user is not forced to re-tick on refresh. The identity
+    // step depends on these grants but has its own age-gated biometric-consent
+    // flow for guardians, so a transient write failure can't strand onboarding.
+    return run(async () => {
+      if (!consentAck) {
+        throw new Error("Please acknowledge the privacy notice to continue.");
+      }
+      const writes = CONSENT_SCOPES.map((s) =>
+        recordConsent({ scope: s.scope, granted: Boolean(consentGrants[s.scope]) }).catch(
+          () => null,
+        ),
+      );
+      await Promise.all(writes);
+      try {
+        localStorage.setItem(
+          STORAGE.consent,
+          JSON.stringify({ ack: true, grants: consentGrants, at: Date.now() }),
+        );
+      } catch {
+        /* best-effort */
       }
       setStep("identity");
     });
@@ -375,6 +454,7 @@ export default function OnboardingPage() {
     if (step === "account") return { kind: "flyin-point", pointAt: "down" };
     if (step === "about") return { kind: "age-morph", age: typeof age === "number" ? age : 30 };
     if (step === "learn") return sceneForMode(focus);
+    if (step === "consent") return { kind: "idle" };
     if (step === "plan") return { kind: "dance" };
     return { kind: "idle" };
   }, [step, age, focus]);
@@ -385,7 +465,7 @@ export default function OnboardingPage() {
         studentId={studentId}
         ageBand={ageBand}
         stepLabel={stepLabel}
-        onBack={() => setStep("learn")}
+        onBack={() => setStep("consent")}
         onComplete={() => setStep("plan")}
         onSkip={() => setStep("plan")}
       />
@@ -589,6 +669,86 @@ export default function OnboardingPage() {
               Skip for now
             </button>
             <button className={styles.ghost} onClick={() => setStep("about")}>Back</button>
+          </div>
+        </section>
+      )}
+
+      {step === "consent" && (
+        <section className={styles.panel}>
+          <span className={styles.eyebrow}>Privacy & consent</span>
+          <h1>Choose what Sala can use.</h1>
+          <p className={styles.lede}>
+            Every item below is <strong>optional</strong>. Salareen works without any of them —
+            each unlocks a feature. Vision/biometric data is processed by self-hosted models and
+            never leaves the configured boundary. You can change any choice later under{" "}
+            <a href="/account">Account → Privacy</a>.
+          </p>
+          <div style={{ display: "grid", gap: 10, margin: "8px 0 14px" }}>
+            {CONSENT_SCOPES.map((s) => {
+              const on = Boolean(consentGrants[s.scope]);
+              return (
+                <label
+                  key={s.scope}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "22px 1fr",
+                    gap: 10,
+                    padding: 12,
+                    borderRadius: 10,
+                    border: on ? "1px solid rgba(110,168,254,0.55)" : "1px solid var(--border)",
+                    background: on ? "rgba(110,168,254,0.08)" : "transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={(e) =>
+                      setConsentGrants((prev) => ({ ...prev, [s.scope]: e.target.checked }))
+                    }
+                    style={{ marginTop: 3 }}
+                  />
+                  <div>
+                    <strong style={{ display: "block", fontSize: 15 }}>{s.label}</strong>
+                    <span className="muted" style={{ fontSize: 13 }}>{s.description}</span>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              padding: "10px 2px 14px",
+              fontSize: 13,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={consentAck}
+              onChange={(e) => setConsentAck(e.target.checked)}
+              style={{ marginTop: 3 }}
+            />
+            <span>
+              I understand the choices above, and that I can change them later. See the{" "}
+              <a href="/legal" target="_blank" rel="noreferrer">Legal hub</a> for the full
+              Privacy Policy and Terms.
+            </span>
+          </label>
+          {error && <p className={styles.error} role="alert">{error}</p>}
+          <div className={styles.actions}>
+            <button
+              className={styles.primary}
+              disabled={busy || !consentAck}
+              onClick={() => void saveConsent()}
+            >
+              {busy ? "Saving…" : consentAck ? "Continue" : "Acknowledge to continue"}
+            </button>
+            <button className={styles.ghost} onClick={() => setStep("learn")}>
+              Back
+            </button>
           </div>
         </section>
       )}

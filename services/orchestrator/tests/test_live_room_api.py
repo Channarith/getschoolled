@@ -45,7 +45,8 @@ def test_start_salareen_opens_live_room():
     assert room.status_code == 200, room.text
     body = room.json()
     assert body["room_size"] == 6
-    assert body["host"]["name"].startswith("Theodore")
+    # AI host display name was renamed from "Theodore (AI Host)" to "Sala (AI Host)".
+    assert body["host"]["name"].startswith("Sala")
     assert body["slide"]["title"]
 
 
@@ -354,7 +355,7 @@ def test_advance_and_ask_in_room():
     assert asked.status_code == 200, asked.text
     assert asked.json()["queued"] is False
     assert asked.json()["answer"]["text"]
-    assert asked.json()["host_message"]["from_name"].startswith("Theodore")
+    assert asked.json()["host_message"]["from_name"].startswith("Sala")
 
 
 def test_join_stores_learner_language_and_ask_defaults_to_it():
@@ -389,7 +390,7 @@ def test_start_solo_room_is_two_seat_and_uses_room_ui():
     assert room_id.startswith("solo-")
     assert body["room"]["room_size"] == 2
     assert body["room"]["learner_capacity"] == 1
-    assert body["room"]["host"]["name"].startswith("Theodore")
+    assert body["room"]["host"]["name"].startswith("Sala")
     assert body["room"]["slide"]["title"]  # backed by a real teaching session
 
     # The same live-room GET/join endpoints serve it.
@@ -1133,7 +1134,7 @@ def test_tick_ai_answers_queued_question():
     room = client.get(f"/api/live-rooms/{room_id}").json()
     # The question is no longer waiting, and Theodore replied in chat.
     assert not any(e["status"] == "waiting" for e in room["speaking_queue"])
-    host_msgs = [m for m in room["chat"] if "Theodore" in m["from_name"]]
+    host_msgs = [m for m in room["chat"] if "Sala" in m["from_name"]]
     assert any("Curious" in m["text"] for m in host_msgs)
 
 

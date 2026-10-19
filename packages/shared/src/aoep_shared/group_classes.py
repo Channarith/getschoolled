@@ -779,7 +779,7 @@ def bridge_plan(gc: GroupClass, *, livekit_room: str = "") -> Mapping[str, objec
             "join_url": gc.meeting_url or "",
             "note": (
                 "Built-in Salareen live room — join the multi-user grid "
-                f"({gc.room_size} seats, AI host Theodore)."
+                f"({gc.room_size} seats, AI host Sala)."
             ),
             **camera_hint,
         }
@@ -945,7 +945,7 @@ def ensure_standard_daily_classes(
         for hour in salareen_hours:
             _seed(
                 "salareen", hour, salareen_titles[hour], day_offset, salareen_hours,
-                meeting_url="", host="Theodore (AI)", capacity=5, room_size=6,
-                description="In-app Salareen live room with Theodore. Tap Start to go live, then Join.",
+                meeting_url="", host="Sala (AI)", capacity=5, room_size=6,
+                description="In-app Salareen live room with Sala. Tap Start to go live, then Join.",
             )
     return created

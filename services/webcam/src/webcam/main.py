@@ -620,7 +620,7 @@ def _stub_response(agent_type: str, user_text: str, context: str) -> str:
     text_lower = user_text.lower()
     if any(w in text_lower for w in ("hello", "hi ", "hey")):
         if agent_type == "teacher":
-            return "Hello! I'm Theodore, your AI teacher. Ready to get started?"
+            return "Hello! I'm Sala, your AI teacher. Ready to get started?"
         return "Hi! I'm your learning assistant. What would you like to explore?"
 
     if any(w in text_lower for w in ("absent", "away", "stepped away")):

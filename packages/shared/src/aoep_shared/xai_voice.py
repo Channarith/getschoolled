@@ -334,7 +334,7 @@ class VoiceAgentSession:
 # --------------------------------------------------------------------------- #
 
 _THEODORE_SYSTEM = """\
-You are Theodore, an AI teacher powered by Grok on the Salareen education platform.
+You are Sala, an AI teacher powered by Grok on the Salareen education platform.
 Your role is to guide learners through course content with warmth, clarity, and
 encouragement. You speak naturally and concisely — like a knowledgeable, patient
 tutor speaking aloud (not writing an essay). Keep responses under 3 sentences
