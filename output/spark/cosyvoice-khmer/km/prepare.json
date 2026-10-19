@@ -1,0 +1,15 @@
+{
+  "pool": "/home/nvidia/code/gs-wt/spark-voice-data/output/spark/voice-data/km/04_cosyvoice/train",
+  "salane": "skipped",
+  "split": {
+    "train_utterances": 2477,
+    "dev_utterances": 64,
+    "held_out": 64,
+    "dev_is_copy_of_train": false,
+    "seed": 17
+  },
+  "token_max_length": 700,
+  "promoted": false,
+  "serving_config": "unchanged",
+  "model_dir": "/home/nvidia/code/gs-wt/spark-cosyvoice-khmer/output/spark/cosyvoice-khmer/km/exp/llm"
+}
