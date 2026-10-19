@@ -13,6 +13,17 @@ jest.mock("expo-constants", () => ({
   default: { expoConfig: { extra: {} } },
 }));
 
+// expo-file-system: crashLog.ts dynamically requires this to drop a durable
+// last-crash record to disk. Under jest-expo there's no real FS, so stub out
+// the surface we touch; crashLog's try/catches degrade cleanly to no-ops too.
+jest.mock("expo-file-system", () => ({
+  documentDirectory: null,
+  readAsStringAsync: jest.fn(async () => ""),
+  writeAsStringAsync: jest.fn(async () => {}),
+  deleteAsync: jest.fn(async () => {}),
+  getInfoAsync: jest.fn(async () => ({ exists: false })),
+}));
+
 // @expo/vector-icons pulls expo-asset/expo-font, which need the native runtime
 // and throw under the JS-only test env. Stub every icon set to a plain host
 // element (a Proxy returns the same stub for Ionicons, AntDesign, etc.) so

@@ -87,17 +87,25 @@ const DEFAULT_SALES_DEMO_FLAGS = Object.fromEntries(
   SALES_DEMO_FLAG_KEYS.map((key) => [key, true]),
 ) as Record<string, boolean>;
 
+// The ErrorBoundary MUST wrap every Provider. The previous layout nested it
+// deep inside AppInner, which left ~820 lines of state init AND four Provider
+// mount paths unprotected — any throw there bypassed the boundary and hit
+// RCTExceptionsManager.reportFatal → abort() (see TestFlight v0.82.0 crash
+// 4A24DAAD-3D28-46A3-846E-2575734D7902). Keeping the boundary at the ROOT
+// means a bad Provider renders a readable screen instead of a hard crash.
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <LocaleProvider>
-        <IntroSplashProvider>
-          <AuthProvider>
-            <AppInner />
-          </AuthProvider>
-        </IntroSplashProvider>
-      </LocaleProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary resetKey="root">
+      <SafeAreaProvider>
+        <LocaleProvider>
+          <IntroSplashProvider>
+            <AuthProvider>
+              <AppInner />
+            </AuthProvider>
+          </IntroSplashProvider>
+        </LocaleProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 

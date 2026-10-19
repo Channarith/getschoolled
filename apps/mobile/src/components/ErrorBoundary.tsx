@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import PrimaryButton from "./PrimaryButton";
 import { theme } from "../theme";
+import { writeCrashRecord } from "../crashLog";
 
 type Props = {
   children: React.ReactNode;
@@ -32,6 +33,9 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     const stack = info?.componentStack || "";
     // eslint-disable-next-line no-console
     console.error("[ErrorBoundary] screen crashed:", error?.stack || String(error), stack);
+    // Persist for the Bug Reporter so the next session can surface the trace
+    // even if the user force-quits the app from the error screen.
+    writeCrashRecord({ error, isFatal: false, source: "errorBoundary" });
     this.setState({ stack });
   }
 

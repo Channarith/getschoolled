@@ -103,6 +103,8 @@ export type StringKey =
   | "bugReport.back" | "bugReport.permTitle" | "bugReport.permBody" | "bugReport.attachFail"
   | "bugReport.needDesc" | "bugReport.failTitle"
   | "bugReport.autoCaptured"
+  | "bugReport.lastCrashTitle" | "bugReport.lastCrashDismiss"
+  | "bugReport.diagnosticsOn" | "bugReport.diagnosticsOff"
   // Intro splash
   | "intro.tagline" | "intro.fullTagline" | "intro.skip"
   | "driving.bannerTitle" | "driving.bannerBody"
@@ -559,6 +561,10 @@ const EN: Record<StringKey, string> = {
   "bugReport.needDesc": "Please describe what happened.",
   "bugReport.failTitle": "Could not send report",
   "bugReport.autoCaptured": "✓ Current screen captured automatically",
+  "bugReport.lastCrashTitle": "Last crash detected",
+  "bugReport.lastCrashDismiss": "Dismiss",
+  "bugReport.diagnosticsOn": "Diagnostics attached ✓",
+  "bugReport.diagnosticsOff": "Attach diagnostics",
 
   "intro.tagline": "Thousands of classes. One AI campus.",
   "intro.fullTagline": "សាលារៀន — your learning home.",

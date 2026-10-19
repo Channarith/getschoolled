@@ -6,7 +6,8 @@ import * as ImagePicker from "expo-image-picker";
 
 import { getMe, submitBugReport, type BugScreenshotUpload } from "../api";
 import { bugReportBase, imageAssetToUpload } from "../bugReport";
-import { installClientLog } from "../clientLog";
+import { installClientLog, peekClientLogs } from "../clientLog";
+import { clearCrashRecord, readPreviousCrash, type CrashRecord } from "../crashLog";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import GlassPanel from "../components/GlassPanel";
@@ -45,9 +46,14 @@ export default function BugReportScreen({
   );
   const [busy, setBusy] = useState(false);
   const [doneId, setDoneId] = useState("");
+  const [lastCrash, setLastCrash] = useState<CrashRecord | null>(null);
+  const [includeDiagnostics, setIncludeDiagnostics] = useState(true);
 
   useEffect(() => {
     installClientLog();
+    let alive = true;
+    void readPreviousCrash().then((rec) => { if (alive) setLastCrash(rec); });
+    return () => { alive = false; };
   }, []);
 
   async function pickScreenshot() {
@@ -92,9 +98,22 @@ export default function BugReportScreen({
         /* optional */
       }
       const base = bugReportBase(screen, { tab: screen });
+      const diagnosticsBlob = includeDiagnostics
+        ? [
+            lastCrash
+              ? `[last crash] ${lastCrash.timestamp} (${lastCrash.source}, fatal=${lastCrash.isFatal})\n` +
+                `message: ${lastCrash.message}\n` +
+                (lastCrash.stack ? `stack:\n${lastCrash.stack}\n` : "")
+              : "",
+            "[recent client log]",
+            ...peekClientLogs().slice(-80),
+          ].filter(Boolean).join("\n")
+        : "";
       const payload = {
         ...base,
-        description: description.trim(),
+        description: diagnosticsBlob
+          ? `${description.trim()}\n\n--- diagnostics ---\n${diagnosticsBlob}`
+          : description.trim(),
         category,
         email,
         user_id: userId,
@@ -102,6 +121,8 @@ export default function BugReportScreen({
       };
       try {
         const res = await submitBugReport(payload);
+        // Successful submit — clear the persisted crash so we don't resend it.
+        if (lastCrash) void clearCrashRecord();
         setDoneId(res.id);
       } catch (e) {
         const msg = (e as Error).message || String(e);
@@ -140,6 +161,40 @@ export default function BugReportScreen({
       <Text style={styles.sub}>{t("bugReport.sub")}</Text>
       {initialScreenshot ? (
         <Text style={styles.autoCapture}>{t("bugReport.autoCaptured")}</Text>
+      ) : null}
+
+      {lastCrash ? (
+        <GlassPanel style={{ marginTop: 12 }}>
+          <Text style={styles.label}>{t("bugReport.lastCrashTitle")}</Text>
+          <Text style={styles.crashMeta}>
+            {lastCrash.timestamp} · {lastCrash.platform} · {lastCrash.source}
+            {lastCrash.isFatal ? " · fatal" : ""}
+          </Text>
+          <Text style={styles.crashMsg} numberOfLines={3} ellipsizeMode="tail">
+            {lastCrash.message}
+          </Text>
+          {lastCrash.stack ? (
+            <ScrollView style={styles.crashStackBox} horizontal={false}>
+              <Text style={styles.crashStack} numberOfLines={12} ellipsizeMode="tail">
+                {lastCrash.stack}
+              </Text>
+            </ScrollView>
+          ) : null}
+          <View style={styles.chips}>
+            <PrimaryButton
+              label={includeDiagnostics
+                ? t("bugReport.diagnosticsOn")
+                : t("bugReport.diagnosticsOff")}
+              onPress={() => setIncludeDiagnostics((v) => !v)}
+              variant={includeDiagnostics ? "brand" : "ghost"}
+            />
+            <PrimaryButton
+              label={t("bugReport.lastCrashDismiss")}
+              onPress={() => { void clearCrashRecord(); setLastCrash(null); }}
+              variant="ghost"
+            />
+          </View>
+        </GlassPanel>
       ) : null}
 
       <GlassPanel style={{ marginTop: 12 }}>
@@ -213,4 +268,14 @@ const styles = StyleSheet.create({
   hint: { color: theme.colors.muted, fontSize: 12 },
   autoCapture: { color: theme.colors.success, fontSize: 12, marginTop: 7, fontWeight: "600" },
   thumb: { width: 88, height: 88, borderRadius: 8, marginRight: 8 },
+  crashMeta: { color: theme.colors.muted, fontSize: 12, marginTop: 6 },
+  crashMsg: { color: theme.colors.text, fontSize: 13, marginTop: 6, fontWeight: "600" },
+  crashStackBox: {
+    marginTop: 8,
+    maxHeight: 160,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    borderRadius: 8,
+    padding: 10,
+  },
+  crashStack: { color: "rgba(255,255,255,0.75)", fontSize: 11, fontFamily: "monospace" },
 });
