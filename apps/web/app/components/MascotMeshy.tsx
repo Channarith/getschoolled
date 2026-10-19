@@ -42,6 +42,13 @@ import {
   useGLTF,
 } from "@react-three/drei";
 import * as THREE from "three";
+// SkeletonUtils.clone performs a DEEP clone that correctly rebinds every
+// SkinnedMesh's `.skeleton` to the cloned bones. Plain `scene.clone(true)`
+// clones the meshes and the bones but leaves `.skeleton` pointing at the
+// ORIGINAL bones - so the AnimationMixer updates the cloned bones but the
+// mesh renders using the un-updated originals and NOTHING MOVES. This is
+// the standard three.js footgun for skinned-mesh cloning.
+import { clone as cloneWithSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 
 import {
   type Expression,
@@ -139,24 +146,41 @@ type Props = {
  * to glTF skeletal animation and still read correctly on top of it).
  * ------------------------------------------------------------------- */
 
+/** Any material that exposes an `.emissive` color field - covers
+ *  MeshStandardMaterial, MeshPhysicalMaterial, and MeshLambertMaterial,
+ *  which are all possible outputs from Meshy / glTF loaders. */
+type EmissiveMaterial = THREE.Material & {
+  emissive: THREE.Color;
+  emissiveIntensity: number;
+  needsUpdate: boolean;
+};
+
+function isEmissive(m: THREE.Material | undefined | null): m is EmissiveMaterial {
+  return !!m && (m as EmissiveMaterial).emissive instanceof THREE.Color;
+}
+
 type OriginalEmissive = {
-  mat: THREE.MeshStandardMaterial;
+  mat: EmissiveMaterial;
   color: THREE.Color;
   intensity: number;
 };
 function snapshotEmissives(root: THREE.Object3D): OriginalEmissive[] {
   const snaps: OriginalEmissive[] = [];
+  const seen = new Set<string>();
   root.traverse((obj) => {
-    if (!(obj instanceof THREE.Mesh)) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    // Covers both Mesh and SkinnedMesh.
+    const anyObj = obj as THREE.Mesh;
+    if (!("material" in anyObj) || !anyObj.material) return;
+    const mats = Array.isArray(anyObj.material) ? anyObj.material : [anyObj.material];
     for (const m of mats) {
-      if (m instanceof THREE.MeshStandardMaterial) {
-        snaps.push({
-          mat: m,
-          color: m.emissive.clone(),
-          intensity: m.emissiveIntensity,
-        });
-      }
+      if (!isEmissive(m)) continue;
+      if (seen.has(m.uuid)) continue; // Meshy often reuses one material across submeshes.
+      seen.add(m.uuid);
+      snaps.push({
+        mat: m,
+        color: m.emissive.clone(),
+        intensity: m.emissiveIntensity ?? 1,
+      });
     }
   });
   return snaps;
@@ -167,7 +191,9 @@ function applyMoodTint(snaps: OriginalEmissive[], mood: MoodProfile): void {
     s.mat.emissive.copy(s.color).add(
       new THREE.Color(mood.emissive[0], mood.emissive[1], mood.emissive[2]),
     );
-    s.mat.emissiveIntensity = s.intensity + mood.emissiveIntensity;
+    // Multiplicative boost on top of the material's baseline so moods
+    // read even through a heavily-textured PBR base color.
+    s.mat.emissiveIntensity = (s.intensity || 1) + mood.emissiveIntensity;
     s.mat.needsUpdate = true;
   }
 }
@@ -237,12 +263,14 @@ function particleTextureFor(kind: "tears" | "sparkles" | "shimmer"): THREE.Canva
 
 function ParticleOverlay({
   expression,
-  bboxTop,
-  bboxWidth,
+  headY,
+  headSpread,
 }: {
   expression: Expression;
-  bboxTop: number;
-  bboxWidth: number;
+  /** World-space Y coordinate near the character's head. */
+  headY: number;
+  /** World-space X spread (character width) for scattering particles. */
+  headSpread: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const spritesRef = useRef<THREE.Sprite[]>([]);
@@ -259,18 +287,21 @@ function ParticleOverlay({
     if (kind === "none") return;
 
     const tex = particleTextureFor(kind);
-    const COUNT = kind === "sparkles" ? 5 : 3;
+    const COUNT = kind === "sparkles" ? 6 : 4;
     for (let i = 0; i < COUNT; i++) {
       const mat = new THREE.SpriteMaterial({
         map: tex,
         transparent: true,
         depthWrite: false,
-        depthTest: true,
+        depthTest: false, // Draw on top of the mesh so it reads clearly.
       });
       const sprite = new THREE.Sprite(mat);
-      const scale = kind === "sparkles" ? 0.14 : 0.22;
+      // World-unit sprite sizes - these are visible against a 1.5m
+      // tall character.
+      const scale = kind === "sparkles" ? 0.22 : 0.3;
       sprite.scale.set(scale, scale, scale);
       sprite.userData.seed = Math.random();
+      sprite.renderOrder = 10;
       group.add(sprite);
       spritesRef.current.push(sprite);
     }
@@ -283,28 +314,29 @@ function ParticleOverlay({
       const sprite = spritesRef.current[i];
       const seed = sprite.userData.seed as number;
       const phase = (t * 0.6 + seed) % 1;
-      const spread = bboxWidth * 0.55;
-      const xBase = (i - (spritesRef.current.length - 1) / 2) * (spread / Math.max(1, spritesRef.current.length - 1));
+      const count = spritesRef.current.length;
+      const xBase = (i - (count - 1) / 2) * (headSpread / Math.max(1, count - 1));
       if (kind === "tears") {
         sprite.position.set(
-          xBase * 0.45,
-          bboxTop * 0.92 - phase * bboxTop * 0.4,
-          0.12,
+          xBase * 0.4,
+          headY * 0.9 - phase * headY * 0.5,
+          0.25,
         );
         sprite.material.opacity = Math.max(0, 1 - phase * 1.4);
       } else if (kind === "sparkles") {
         const angle = phase * Math.PI * 2;
         sprite.position.set(
-          xBase * 0.6 + Math.cos(angle) * bboxWidth * 0.08,
-          bboxTop + Math.sin(angle) * bboxTop * 0.08,
-          0.08,
+          xBase * 0.9 + Math.cos(angle) * headSpread * 0.3,
+          headY + Math.sin(angle) * headY * 0.15,
+          0.2,
         );
-        sprite.material.opacity = 0.65 + 0.35 * Math.sin(t * 3 + seed * Math.PI * 2);
+        sprite.material.opacity = 0.7 + 0.3 * Math.sin(t * 3 + seed * Math.PI * 2);
       } else {
+        // shimmer - drifts upward above the crown
         sprite.position.set(
-          xBase * 0.3,
-          bboxTop * 1.05 + phase * bboxTop * 0.25,
-          0.05,
+          xBase * 0.5,
+          headY + 0.1 + phase * 0.5,
+          0.15,
         );
         sprite.material.opacity = Math.max(0, 1 - phase);
       }
@@ -325,46 +357,63 @@ function Character({
   expression: Expression;
   activeClip: ClipName;
 }) {
-  const groupRef = useRef<THREE.Group>(null);
+  // Outer group: owns the mood posture (tilt + lean). Scale stays at 1.
+  const outerRef = useRef<THREE.Group>(null);
+  // Inner group: owns the character's uniform scale + ground offset +
+  // mood pulse. Kept separate so the ParticleOverlay (sibling, not
+  // child) can stay in world units and render at sensible sprite sizes.
+  const innerRef = useRef<THREE.Group>(null);
+
   const { scene, animations } = useGLTF(MODEL_URL);
 
-  // Clone the scene so React double-mount is safe. We clone the whole
-  // graph (including skinned mesh + skeleton) so the two instances
-  // never share bone matrices.
-  const cloned = useMemo(() => {
-    // SkeletonUtils.clone would be ideal here but is tree-shaken out of
-    // bundler builds that don't import it. For a single mount at a
-    // time (strict mode is the only reason to clone), a deep clone is
-    // sufficient.
-    return scene.clone(true);
-  }, [scene]);
+  // SkeletonUtils.clone deep-clones the scene AND rebinds every
+  // SkinnedMesh's `.skeleton` to the cloned bone chain. Without this,
+  // animations would update the cloned bones but the SkinnedMesh would
+  // still render using the original (static) ones - which is exactly
+  // the "no movement" bug this fixes.
+  const cloned = useMemo(() => cloneWithSkeleton(scene) as THREE.Object3D, [scene]);
 
-  // drei's useAnimations wires an AnimationMixer to the ref'd group and
-  // exposes a dictionary of AnimationActions keyed by clip name.
-  const { actions, names } = useAnimations(animations, groupRef);
+  // drei's useAnimations wires an AnimationMixer to the inner group
+  // (which contains the cloned skeleton) and exposes AnimationActions
+  // keyed by clip name. The mixer resolves bones by name via
+  // PropertyBinding so attaching to the group containing the cloned
+  // skeleton is correct.
+  const { actions, names } = useAnimations(animations, innerRef);
 
-  // Fit the character to a sensible on-screen size: find bbox after
-  // loading, scale uniformly so the character is ~1.5 m tall, and
-  // offset so the feet sit on y = 0.
-  const { bboxTop, bboxWidth, uniformScale, groundOffset } = useMemo(() => {
+  // Fit the character to a sensible on-screen size: compute bbox once
+  // post-load, pick a scale that makes it ~1.5 m tall, and offset so
+  // the feet sit on y = 0 in world coords.
+  const { worldHeight, worldWidth, uniformScale, groundOffset } = useMemo(() => {
     const TARGET_HEIGHT = 1.5;
     const box = new THREE.Box3().setFromObject(cloned);
     const size = new THREE.Vector3();
     box.getSize(size);
-    const height = Math.max(0.001, size.y);
-    const scale = TARGET_HEIGHT / height;
+    const h = Math.max(0.001, size.y);
+    const scale = TARGET_HEIGHT / h;
     return {
-      bboxTop: TARGET_HEIGHT * 0.92,
-      bboxWidth: size.x * scale,
+      worldHeight: TARGET_HEIGHT,
+      worldWidth: size.x * scale,
       uniformScale: scale,
       groundOffset: -box.min.y * scale,
     };
   }, [cloned]);
 
-  // Snapshot every material's original emissive once so mood tints
-  // reset cleanly between expressions instead of stacking.
+  // Snapshot original emissive values once so mood tints reset cleanly
+  // between expressions instead of stacking.
   const emissiveSnaps = useMemo(() => snapshotEmissives(cloned), [cloned]);
 
+  // Debug: log the clip inventory + material count once per mount so
+  // the browser console confirms the GLB loaded with the expected
+  // skeleton + animations.
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.info(
+      `[MascotMeshy] loaded ${names.length} clips, tinting ${emissiveSnaps.length} materials, scale=${uniformScale.toFixed(4)}`,
+      { names },
+    );
+  }, [names, emissiveSnaps.length, uniformScale]);
+
+  // Apply mood tint whenever expression changes.
   useEffect(() => {
     applyMoodTint(emissiveSnaps, MOOD_PROFILES[expression]);
   }, [emissiveSnaps, expression]);
@@ -372,11 +421,8 @@ function Character({
   // Play the active clip. Fade between clip changes.
   useEffect(() => {
     if (!actions) return;
-    // Find the clip (case-insensitive to survive casing drift).
     const match = names.find((n) => n.toLowerCase() === activeClip.toLowerCase());
     if (!match) {
-      // Clip missing from the glTF - log once so the next prep run
-      // adds it, don't throw.
       // eslint-disable-next-line no-console
       console.warn(`[MascotMeshy] clip "${activeClip}" not in Mascot.glb; have:`, names);
       return;
@@ -389,25 +435,37 @@ function Character({
     };
   }, [actions, names, activeClip]);
 
-  // Mood pulse (scale breath) layers on top of the clip's own motion.
+  // Posture + pulse layer on top of the clip's own skeletal motion.
   useFrame((state) => {
-    const g = groupRef.current;
-    if (!g) return;
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
     const mood = MOOD_PROFILES[expression];
     const t = state.clock.getElapsedTime();
     const pulse = mood.pulseHz > 0
       ? 1 + Math.sin(t * mood.pulseHz * Math.PI * 2) * mood.pulseAmp
       : 1;
-    g.scale.setScalar(uniformScale * pulse);
-    g.rotation.z = mood.bodyTiltZ;
-    g.rotation.x = mood.bodyLeanX;
-    g.position.y = groundOffset;
+    // Posture on the outer group (world units).
+    outer.rotation.z = mood.bodyTiltZ;
+    outer.rotation.x = mood.bodyLeanX;
+    // Scale + ground offset on the inner group so particles (sibling)
+    // can live in world units with sensible sprite sizes.
+    inner.scale.setScalar(uniformScale * pulse);
+    inner.position.y = groundOffset;
   });
 
   return (
-    <group ref={groupRef}>
-      <primitive object={cloned} />
-      <ParticleOverlay expression={expression} bboxTop={bboxTop} bboxWidth={bboxWidth} />
+    <group ref={outerRef}>
+      <group ref={innerRef}>
+        <primitive object={cloned} />
+      </group>
+      {/* Particles are OUTSIDE innerRef so sprite positions and scales
+          live in world units (not multiplied by uniformScale ~ 0.008). */}
+      <ParticleOverlay
+        expression={expression}
+        headY={worldHeight * 0.9}
+        headSpread={worldWidth * 0.5}
+      />
     </group>
   );
 }

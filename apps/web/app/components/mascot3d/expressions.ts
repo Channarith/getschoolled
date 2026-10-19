@@ -85,6 +85,11 @@ export interface MoodProfile {
   particles: "none" | "tears" | "sparkles" | "shimmer";
 }
 
+// NOTE: emissive values are intentionally pushed hard here. Meshy's
+// Bayon-stone character has a saturated gold PBR base texture; subtle
+// (<0.3 intensity) tints get completely swallowed by the diffuse pass
+// and the user sees no expression at all. These values are tuned so
+// each mood is unmistakable against the gold.
 export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
   cute: {
     emissive: [0.0, 0.0, 0.0],
@@ -96,73 +101,73 @@ export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
     particles: "none",
   },
   serious: {
-    // Faint cool neutral - a touch of distance.
-    emissive: [0.05, 0.07, 0.1],
-    emissiveIntensity: 0.25,
+    // Cool neutral - a touch of distance.
+    emissive: [0.15, 0.2, 0.35],
+    emissiveIntensity: 1.1,
     bodyTiltZ: 0,
-    bodyLeanX: -0.05,
+    bodyLeanX: -0.08,
     pulseHz: 0,
     pulseAmp: 0,
     particles: "none",
   },
   angry: {
-    // Warm red glow + puffed-up pulse + heat shimmer.
-    emissive: [0.55, 0.1, 0.05],
-    emissiveIntensity: 0.4,
+    // Strong warm red + puffed pulse + heat shimmer.
+    emissive: [0.9, 0.15, 0.08],
+    emissiveIntensity: 1.6,
     bodyTiltZ: 0,
-    bodyLeanX: 0.05,
+    bodyLeanX: 0.08,
     pulseHz: 2.5,
-    pulseAmp: 0.03,
+    pulseAmp: 0.08,
     particles: "shimmer",
   },
   sad: {
-    // Cool blue tint + forward hunch, no particles.
-    emissive: [0.05, 0.1, 0.3],
-    emissiveIntensity: 0.3,
+    // Deep cool blue + forward hunch.
+    emissive: [0.1, 0.2, 0.8],
+    emissiveIntensity: 1.4,
     bodyTiltZ: 0,
-    bodyLeanX: 0.18,
+    bodyLeanX: 0.22,
     pulseHz: 0,
     pulseAmp: 0,
     particles: "none",
   },
   crying: {
-    // Even cooler + falling tears.
-    emissive: [0.05, 0.15, 0.35],
-    emissiveIntensity: 0.4,
+    // Even cooler + falling tears + gentle sob pulse.
+    emissive: [0.1, 0.25, 0.9],
+    emissiveIntensity: 1.6,
     bodyTiltZ: 0,
-    bodyLeanX: 0.2,
+    bodyLeanX: 0.25,
     pulseHz: 1.5,
-    pulseAmp: 0.012,
+    pulseAmp: 0.03,
     particles: "tears",
   },
   excited: {
-    // Warm gold + visible bounce + sparkles.
-    emissive: [0.5, 0.35, 0.1],
-    emissiveIntensity: 0.5,
+    // Bright warm gold + visible bounce + sparkles.
+    emissive: [0.95, 0.6, 0.15],
+    emissiveIntensity: 1.8,
     bodyTiltZ: 0,
-    bodyLeanX: -0.08,
+    bodyLeanX: -0.1,
     pulseHz: 4,
-    pulseAmp: 0.05,
+    pulseAmp: 0.09,
     particles: "sparkles",
   },
   curious: {
     // Mild warm + body tilts right.
-    emissive: [0.15, 0.12, 0.08],
-    emissiveIntensity: 0.25,
-    bodyTiltZ: 0.18,
+    emissive: [0.35, 0.3, 0.15],
+    emissiveIntensity: 1.0,
+    bodyTiltZ: 0.22,
     bodyLeanX: 0,
     pulseHz: 0,
     pulseAmp: 0,
     particles: "none",
   },
   mischievous: {
-    // Warm + body tilts left + small sparkle.
-    emissive: [0.3, 0.2, 0.05],
-    emissiveIntensity: 0.35,
-    bodyTiltZ: -0.18,
+    // Warm + body tilts left + small sparkle + mischief pulse.
+    emissive: [0.65, 0.4, 0.1],
+    emissiveIntensity: 1.3,
+    bodyTiltZ: -0.22,
     bodyLeanX: 0,
     pulseHz: 1.2,
-    pulseAmp: 0.015,
+    pulseAmp: 0.04,
     particles: "sparkles",
   },
 };
