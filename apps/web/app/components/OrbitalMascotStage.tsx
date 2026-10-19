@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { AUTH_EVENT, getToken } from "../lib/api";
 
 /**
  * DN "Dark Navy" orbital mascot stage.
@@ -29,15 +30,30 @@ import { useEffect, useRef, useState } from "react";
  */
 
 type OrbitTab = {
+  /** Where the tile goes for a GUEST. Logged-in users always get the
+   *  destination from `authedHref` (or `href` when `authedHref` is
+   *  omitted). This keeps the landing honest - guests cannot slip past
+   *  gated routes by clicking an orbital tile. */
   href: string;
+  /** Optional override destination when the viewer is logged in. */
+  authedHref?: string;
   label: string;
   icon: string;   // emoji — crisp at small sizes, no sprite sheet needed
   description: string;
+  /** True = destination is open to guests. False = guests get bounced
+   *  to /login (and the tile shows a small lock in the tooltip). The
+   *  user's request: only "Our Story" works without an account. */
+  publicForGuests: boolean;
 };
 
 /**
  * Six tiles matching the DN mockup's icon vocabulary (book, chat, play,
  * cap, chess, globe). Each mapped to a real Salareen route.
+ *
+ * Guest-access policy: Our Story is the only brand/marketing page that
+ * does not need an account. Everything else (Vision Play Lab, On the Go,
+ * Live Class, Careers, Languages) is product surface and routes guests
+ * to /login first. Logged-in users jump straight to the feature.
  */
 const TABS: OrbitTab[] = [
   {
@@ -45,40 +61,51 @@ const TABS: OrbitTab[] = [
     label: "Our Story",
     icon: "📖",
     description: "Why we built Salareen — a patient teacher for every learner.",
+    publicForGuests: true,
   },
   {
-    href: "/arcade",
+    href: "/login",
+    authedHref: "/arcade",
     label: "Vision Play Lab",
     icon: "♟️",
     description:
       "Hands-free webcam learning: faces, hands, letters, movement, listening.",
+    publicForGuests: false,
   },
   {
-    href: "/drive",
+    href: "/login",
+    authedHref: "/drive",
     label: "On the Go",
     icon: "▶️",
     description:
       "Audio-first courses that talk back. Pause, play, learn hands-free.",
+    publicForGuests: false,
   },
   {
-    href: "/class",
+    href: "/login",
+    authedHref: "/class",
     label: "Live Class",
     icon: "🎓",
     description: "Join real live classes with human teachers and your AI tutor.",
+    publicForGuests: false,
   },
   {
-    href: "/jobs",
+    href: "/login",
+    authedHref: "/jobs",
     label: "Careers",
     icon: "💬",
     description:
       "Real job openings matched to the exact Salareen classes that get you hired.",
+    publicForGuests: false,
   },
   {
-    href: "/languages",
+    href: "/login",
+    authedHref: "/languages",
     label: "Languages",
     icon: "🌐",
     description:
       "27-language live translation studio + fully localized courses.",
+    publicForGuests: false,
   },
 ];
 
@@ -102,6 +129,21 @@ export default function OrbitalMascotStage() {
   // reads them.
   const radiusRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [prefersReduced, setPrefersReduced] = useState(false);
+  // Guest vs authed. Guests see all non-"Our Story" tiles route to
+  // /login (per TAB.publicForGuests). The AUTH_EVENT listener keeps the
+  // tile destinations correct if the user signs in while this component
+  // is mounted (e.g. opens /login in another tab).
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  useEffect(() => {
+    const sync = () => setLoggedIn(Boolean(getToken()));
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -204,25 +246,41 @@ export default function OrbitalMascotStage() {
       </div>
 
       {/* Six orbit tiles — real <Link>s so right-click, cmd-click, and
-          keyboard navigation work out of the box. */}
-      {TABS.map((tab) => (
-        <Link
-          key={tab.href}
-          href={tab.href}
-          className="dn-orbit-tile"
-          aria-label={`${tab.label} — ${tab.description}`}
-        >
-          <span className="dn-orbit-tile-icon" aria-hidden>
-            {tab.icon}
-          </span>
-          <span className="dn-orbit-tile-label">{tab.label}</span>
-          <span className="dn-orbit-tile-tooltip" role="tooltip">
-            <strong>{tab.label}</strong>
-            <br />
-            {tab.description}
-          </span>
-        </Link>
-      ))}
+          keyboard navigation work out of the box. Guest-gated tiles
+          route to /login (not the gated feature) so the URL bar never
+          lies about what's accessible. Only Our Story is open to
+          everyone. */}
+      {TABS.map((tab) => {
+        const gated = !tab.publicForGuests && !loggedIn;
+        const href = loggedIn && tab.authedHref ? tab.authedHref : tab.href;
+        const aria = gated
+          ? `${tab.label} — sign in to open. ${tab.description}`
+          : `${tab.label} — ${tab.description}`;
+        return (
+          <Link
+            key={tab.label}
+            href={href}
+            className={`dn-orbit-tile${gated ? " dn-orbit-tile-locked" : ""}`}
+            aria-label={aria}
+            data-locked={gated ? "true" : undefined}
+          >
+            <span className="dn-orbit-tile-icon" aria-hidden>
+              {tab.icon}
+            </span>
+            <span className="dn-orbit-tile-label">{tab.label}</span>
+            <span className="dn-orbit-tile-tooltip" role="tooltip">
+              <strong>{tab.label}</strong>
+              {gated && (
+                <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.85 }}>
+                  🔒 sign in
+                </span>
+              )}
+              <br />
+              {tab.description}
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 }
