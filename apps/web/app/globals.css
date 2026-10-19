@@ -2389,6 +2389,31 @@ textarea {
     0 16px 32px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
+
+/* ---- Guest-gated orbital tiles ------------------------------------------
+   Tiles whose destination requires a signed-in account render dimmer with
+   a small padlock in the corner so the visitor can see at a glance which
+   buttons will just bounce them to /login. The click itself still works
+   (routes to /login per OrbitalMascotStage's tab table) - this is a
+   visual cue, not a disabled state. */
+.dn-orbit-tile-locked {
+  opacity: 0.72;
+  filter: saturate(0.78);
+}
+.dn-orbit-tile-locked::after {
+  content: "🔒";
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 11px;
+  opacity: 0.9;
+  pointer-events: none;
+}
+.dn-orbit-tile-locked:hover,
+.dn-orbit-tile-locked:focus-visible {
+  opacity: 1;
+  filter: none;
+}
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) .dn-orbit-tile {
     background: linear-gradient(155deg, #e9d4a8 0%, #d4b88a 42%, #b89a69 100%);

@@ -59,11 +59,18 @@ export default function DNLandingHero() {
             Salareen pairs every learner with a tutor that adapts to how
             they think.
           </p>
+          {/* CTA row: primary -> Login (/create account), ghost ->
+              /demo (the three-demo picker: Solo AI, On-the-Go, Vision
+              Play). The old "Start free class" label pushed a signed-in
+              class flow that doesn't exist for guests; "Login" matches
+              what the button actually does. "See how it works" used to
+              point at /our-story, but Our Story is a brand page, not a
+              product tour - the tour is /demo. */}
           <div className="dn-landing-cta-row">
-            <Link href="/class" className="btn-primary">
-              Start free class
+            <Link href="/login" className="btn-primary">
+              Login
             </Link>
-            <Link href="/our-story" className="link-ghost">
+            <Link href="/demo" className="link-ghost">
               See how it works
             </Link>
           </div>
