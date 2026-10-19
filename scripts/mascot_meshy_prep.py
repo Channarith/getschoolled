@@ -101,10 +101,23 @@ def _collect_meshes(bpy) -> list:
 
 def _join_meshes(bpy) -> "object":
     """Join all mesh objects into one so the decimate ratio produces a
-    predictable triangle count. Returns the surviving mesh object."""
+    predictable triangle count. Returns the surviving mesh object.
+
+    When the imported scene is rigged (has armatures), joining is unsafe:
+    it would reparent meshes away from their armatures and break the
+    skinning. In that case we return the single largest mesh and leave
+    siblings alone - the decimate ratio will still be close enough."""
     meshes = _collect_meshes(bpy)
     if not meshes:
         raise SystemExit("ERROR: no meshes imported from GLB")
+    has_armature = any(obj.type == "ARMATURE" for obj in bpy.context.scene.objects)
+    if has_armature:
+        # Pick the mesh with the most polygons as the primary.
+        primary = max(meshes, key=lambda m: len(m.data.polygons))
+        bpy.ops.object.select_all(action="DESELECT")
+        primary.select_set(True)
+        bpy.context.view_layer.objects.active = primary
+        return primary
     bpy.ops.object.select_all(action="DESELECT")
     for obj in meshes:
         obj.select_set(True)
@@ -127,7 +140,16 @@ def _triangle_count(mesh_obj) -> int:
 
 def _decimate(bpy, mesh_obj, target_tris: int) -> int:
     """Apply a Decimate modifier to hit ~target_tris. Returns the actual
-    triangle count after apply."""
+    triangle count after apply.
+
+    Decimate COLLAPSE preserves vertex groups through the collapse, so
+    this is safe to apply on a skinned mesh - the armature deform will
+    continue to work after the modifier is baked, just on fewer verts.
+    We insert the Decimate modifier at the TOP of the stack so it runs
+    before any Armature modifier (otherwise applying Decimate below the
+    Armature would require applying the Armature first, which bakes the
+    pose and destroys the rig). bpy.ops.object.modifier_move_to_index
+    with index=0 places it first."""
     current = _triangle_count(mesh_obj)
     if current <= target_tris:
         print(f"  decimate: skipped (current {current} <= target {target_tris})")
@@ -139,6 +161,12 @@ def _decimate(bpy, mesh_obj, target_tris: int) -> int:
     mod.decimate_type = "COLLAPSE"
     mod.ratio = ratio
     mod.use_collapse_triangulate = True
+    # Move the Decimate to the top of the stack so it runs before any
+    # Armature deform (safe for skinned meshes).
+    try:
+        bpy.ops.object.modifier_move_to_index(modifier=mod.name, index=0)
+    except (RuntimeError, AttributeError):
+        pass  # Older Blender builds auto-insert at bottom; still works for static.
     bpy.ops.object.modifier_apply(modifier=mod.name)
     after = _triangle_count(mesh_obj)
     print(f"  decimate: done, now {after:,} tris")
@@ -171,16 +199,29 @@ def _resize_textures(bpy, max_dim: int) -> None:
             pass
 
 
+def _has_rig(bpy) -> bool:
+    """True if the imported scene has at least one armature + at least one
+    animation action - i.e. the input is a rigged + animated character
+    rather than a static image-to-3D mesh. Drives whether we export skins
+    and animations below."""
+    has_armature = any(obj.type == "ARMATURE" for obj in bpy.context.scene.objects)
+    has_actions = bool(bpy.data.actions)
+    return has_armature and has_actions
+
+
 def _export_glb(bpy, out_path: str) -> None:
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    rigged = _has_rig(bpy)
+    print(f"  export: rig+animations {'preserved' if rigged else 'absent (static mesh)'}")
     kwargs = dict(
         filepath=out_path,
         export_format="GLB",
-        export_animations=False,       # no rig / anims from Meshy image-to-3D
-        export_skins=False,
+        export_animations=rigged,       # keep all actions when rigged
+        export_nla_strips=rigged,       # include every NLA track as a named clip
+        export_skins=rigged,
         export_morph=False,
-        export_apply=True,
-        export_image_format="AUTO",    # JPEG when no alpha, PNG when alpha
+        export_apply=False if rigged else True,  # apply modifiers only when not skinned
+        export_image_format="AUTO",     # JPEG when no alpha, PNG when alpha
     )
     # Draco is optional in some builds - try with, fall back without.
     try:

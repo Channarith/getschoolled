@@ -2,22 +2,16 @@
 
 /**
  * /mascot-lab — click-through demo for the real Meshy.ai Bayon Buddy
- * mascot with mood overlays and whole-body motion.
+ * mascot. The character ships rigged with 15 baked animation clips
+ * (produced from the user's Meshy "All Animations" export, slimmed via
+ * scripts/mascot_meshy_prep.py from 124 MB -> 3.1 MB).
  *
- * The character comes from apps/web/public/mascot3d/Mascot.glb (produced
- * by the user's Meshy image-to-3D run and slimmed via
- * scripts/mascot_meshy_prep.py from 93.7 MB -> 4.4 MB).
- *
- * Expression and motion are driven by MascotMeshy.tsx:
- *   - Motion (idle / walk / run) uses whole-body transforms (hop + lean
- *     + sway). The mesh has no skeleton so there is no leg articulation
- *     until the Mixamo pass lands rigged clips - but a hop reads
- *     clearly as walk/run at the eye level we show the character.
- *   - Expression (cute / serious / angry / sad / crying / excited /
- *     curious / mischievous) uses mood overlays - a per-material
- *     emissive tint, a resting body tilt + lean, an optional scale
- *     pulse, and an optional particle sprite overlay (tears /
- *     sparkles / heat shimmer) rendered near the head.
+ * The lab exposes three driving inputs:
+ *   - Expression: 8 moods (color tint + particles + posture)
+ *   - Motion: idle / walk / run (plays the default clip for each)
+ *   - Specific clip: all 15 animations, one at a time
+ *   - Idle rotation: cycles through calm/charming idles every 5s
+ *     (what the setup assistant uses during wait moments)
  *
  * Visit http://localhost:3000/mascot-lab.
  */
@@ -30,7 +24,8 @@ import {
   EXPRESSION_NAMES,
   type Expression,
 } from "../components/mascot3d/expressions";
-import type { MotionState } from "../components/MascotMeshy";
+import type { ClipName, MotionState } from "../components/MascotMeshy";
+import { CLIP_NAMES } from "../components/MascotMeshy";
 
 const MascotMeshy = dynamic(() => import("../components/MascotMeshy"), {
   ssr: false,
@@ -58,7 +53,7 @@ const subhead: React.CSSProperties = {
   marginTop: 6,
   color: "#c8c0a4",
   fontSize: 14,
-  maxWidth: 720,
+  maxWidth: 760,
   lineHeight: 1.5,
 };
 const stageWrap: React.CSSProperties = {
@@ -76,7 +71,7 @@ const stage: React.CSSProperties = {
   boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
   flexShrink: 0,
 };
-const controls: React.CSSProperties = { flex: "1 1 320px", minWidth: 320 };
+const controls: React.CSSProperties = { flex: "1 1 360px", minWidth: 320 };
 const sectionTitle: React.CSSProperties = {
   fontSize: 12,
   textTransform: "uppercase",
@@ -87,15 +82,15 @@ const sectionTitle: React.CSSProperties = {
 const btnRow: React.CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
-  gap: 10,
+  gap: 8,
 };
 const btnBase: React.CSSProperties = {
-  padding: "10px 14px",
+  padding: "8px 12px",
   borderRadius: 10,
   border: "1px solid rgba(255,255,255,0.15)",
   background: "rgba(255,255,255,0.04)",
   color: "#f5efe0",
-  fontSize: 14,
+  fontSize: 13,
   cursor: "pointer",
   transition: "all 150ms ease",
 };
@@ -131,20 +126,21 @@ const hint: React.CSSProperties = {
 export default function MascotLab() {
   const [expression, setExpression] = useState<Expression>("cute");
   const [motion, setMotion] = useState<MotionState>("idle");
+  const [clip, setClip] = useState<ClipName | null>(null);
+  const [idleRotation, setIdleRotation] = useState<boolean>(false);
   const [interactive, setInteractive] = useState<boolean>(true);
 
   return (
     <main style={page}>
       <h1 style={headline}>Bayon Buddy — mascot lab</h1>
       <p style={subhead}>
-        Real Meshy.ai-generated mesh ({" "}
-        <code>apps/web/public/mascot3d/Mascot.glb</code>, 4.4 MB, 15k
-        triangles, PBR textures). Expression and motion are driven by
-        mood overlays and whole-body transforms — the mesh has no
-        skeleton yet, so pick a motion to see the hop + lean, and pick
-        an expression to see the color tint + particles + posture.
-        Walking legs will land when the Mixamo rigging pass is merged
-        in via <code>scripts/mascot_blender_postprocess.py</code>.
+        Real Meshy.ai-generated character with 15 baked animation clips
+        (<code>apps/web/public/mascot3d/Mascot.glb</code>, 3.1 MB,
+        12k triangles, PBR textures). The legs actually bend. Motion
+        buttons map to default clips; the clip picker lets you preview
+        every animation; the idle rotation toggles the setup
+        assistant&apos;s wait-moment behavior (cycles through calm
+        idles every 5 s).
       </p>
 
       <div style={stageWrap}>
@@ -152,6 +148,8 @@ export default function MascotLab() {
           <MascotMeshy
             expression={expression}
             motion={motion}
+            clip={clip ?? undefined}
+            idleRotation={idleRotation}
             size={480}
             interactive={interactive}
           />
@@ -179,15 +177,51 @@ export default function MascotLab() {
           <h2 style={sectionTitle}>Motion</h2>
           <div style={btnRow}>
             {MOTIONS.map((m) => {
-              const active = motion === m;
+              const active = motion === m && !clip;
               return (
                 <button
                   key={m}
                   type="button"
-                  onClick={() => setMotion(m)}
+                  onClick={() => {
+                    setMotion(m);
+                    setClip(null);
+                  }}
                   style={{ ...btnBase, ...(active ? btnActive : null) }}
                 >
                   {m}
+                </button>
+              );
+            })}
+          </div>
+          <div style={row}>
+            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={idleRotation}
+                onChange={(e) => {
+                  setIdleRotation(e.target.checked);
+                  if (e.target.checked) {
+                    setMotion("idle");
+                    setClip(null);
+                  }
+                }}
+              />
+              Idle rotation (cycle calm idles every 5 s — setup assistant mode)
+            </label>
+          </div>
+
+          <h2 style={sectionTitle}>Specific clip (overrides motion)</h2>
+          <div style={btnRow}>
+            {CLIP_NAMES.map((c) => {
+              const active = clip === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setClip(active ? null : c)}
+                  style={{ ...btnBase, ...(active ? btnActive : null) }}
+                >
+                  {c.replace(/_/g, " ").trim()}
                 </button>
               );
             })}
@@ -206,23 +240,20 @@ export default function MascotLab() {
           </div>
 
           <p style={hint}>
-            <strong>Why not a cartoon face swap?</strong> The Meshy mesh
-            has a sculpted stone face baked into the geometry. Slapping a
-            Canvas2D face plane on it looks like a sticker on a statue.
-            Instead each expression tints the stone (angry → warm red,
-            sad → cool blue, excited → warm gold), nudges the body
-            posture (curious tilts right, sad hunches forward), and
-            adds a small particle overlay near the head (tears for
-            crying, sparkles for excited, heat shimmer for angry). It
-            preserves the carved-stone aesthetic while still giving each
-            expression a clear read.
+            <strong>Expressions</strong> layer on top of whichever clip
+            is playing: emissive tint (angry = warm red, sad = cool
+            blue, excited = warm gold), optional particle overlay near
+            the head (tears for crying, sparkles for excited, heat
+            shimmer for angry), and body posture (curious tilts right,
+            sad hunches forward, mischievous leans left).
           </p>
           <p style={hint}>
-            <strong>Why only a hop, not walking legs?</strong> The mesh
-            has no skeleton. Meshy image-to-3D produces static geometry.
-            Legs that bend will arrive after the Mixamo pass:{" "}
-            <code>docs/mascot-meshy-input/mascot_for_mixamo.fbx</code>{" "}
-            is already staged for upload.
+            <strong>Setup assistant mode:</strong> turn on &quot;Idle
+            rotation&quot; and the character cycles through{" "}
+            Big Wave Hello → Confident Strut → Indoor Swing → Boom Dance →
+            Wave for Help → Jump Rope → 360 Spin Jump → Wave for Help 2
+            every 5 seconds. That&apos;s the wait-moment behavior for
+            the Learner Check / camera + mic setup screens.
           </p>
         </div>
       </div>

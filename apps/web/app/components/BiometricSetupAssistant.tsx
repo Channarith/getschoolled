@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
+import type { Expression } from "./mascot3d/expressions";
 import {
   deleteBiometrics,
   enrollBiometricFace,
@@ -37,6 +39,11 @@ import {
 } from "../lib/learnerCheck";
 import styles from "./BiometricSetupAssistant.module.css";
 
+// MascotMeshy is a WebGL/Three.js component - load it client-only so
+// the SSR pass of this screen stays fast and doesn't try to touch
+// `window`/`document` on the server.
+const MascotMeshy = dynamic(() => import("./MascotMeshy"), { ssr: false });
+
 const VOICE_PROMPT =
   "Today I’m ready to learn with Salareen. Can you hear my voice clearly? Yes—I’m speaking naturally and confidently.";
 
@@ -57,6 +64,31 @@ const POSE_COPY: Record<Pose, string> = {
 const POSE_ARROW: Record<Pose, string> = { left: "←", right: "→", up: "↑", down: "↓" };
 
 type Stage = "intro" | "scan" | "voice" | "identity" | "complete";
+
+/**
+ * Pick a mood for the mascot that matches what the user is doing right
+ * now in the Learner Check. Keep these choices consistent with the
+ * copy on each stage so the overall vibe reads correctly:
+ *   - intro:    curious  (reading the explainer, deciding to start)
+ *   - voice:    cute     (speaking the sentence, no judgment)
+ *   - identity: serious  (uploading a government ID is a serious step)
+ *   - complete: excited  (celebrate finishing)
+ *   - scan:     unused   (we render the live camera instead)
+ */
+function mascotExpressionFor(stage: Stage): Expression {
+  switch (stage) {
+    case "intro":
+      return "curious";
+    case "voice":
+      return "cute";
+    case "identity":
+      return "serious";
+    case "complete":
+      return "excited";
+    default:
+      return "cute";
+  }
+}
 type Problem = { kind: MediaProblem | "service" | "save"; message: string };
 
 type Props = {
@@ -767,7 +799,13 @@ export default function BiometricSetupAssistant({
           aria-labelledby={stage === "scan" ? "learner-check-scan-heading" : undefined}
           aria-describedby={stage === "scan" ? "learner-check-scan-desc" : undefined}
         >
-          <Image key={art} className={styles.paneArt} src={`/setup-assistant/${art}.webp`} alt="" fill sizes="50vw" />
+          {/* The pane backdrop illustration only reads correctly during the
+              live camera scan stage - on the other stages we're rendering
+              the animated mascot in the frame and the static art behind it
+              would compete visually. Scan stage keeps the backdrop. */}
+          {stage === "scan" && (
+            <Image key={art} className={styles.paneArt} src={`/setup-assistant/${art}.webp`} alt="" fill sizes="50vw" />
+          )}
           <div className={styles.frame} data-done={stage === "complete" || stage === "identity" ? "true" : undefined}>
             <span className={`${styles.corner} ${styles.cornerTL}`} aria-hidden="true" />
             <span className={`${styles.corner} ${styles.cornerTR}`} aria-hidden="true" />
@@ -814,7 +852,20 @@ export default function BiometricSetupAssistant({
                 )}
               </div>
             ) : (
-              <Image className={styles.frameArt} src={`/setup-assistant/${art}.webp`} alt="" fill sizes="420px" />
+              // Non-scan stages (intro / voice / identity / complete) are the
+              // "waiting" moments the mascot should fill. Idle rotation cycles
+              // through the family-friendly subset of the 15 Meshy clips every
+              // 5 s (Big_Wave_Hello -> Confident_Strut -> Indoor_Swing -> ...)
+              // so the character stays alive while the user reads, speaks, or
+              // uploads. The expression tracks the current stage.
+              <div className={styles.mascotStage}>
+                <MascotMeshy
+                  expression={mascotExpressionFor(stage)}
+                  motion="idle"
+                  idleRotation
+                  fill
+                />
+              </div>
             )}
             {scanning && target && anchored && (
               <span className={styles.cue} data-pose={target} aria-hidden="true">{POSE_ARROW[target]}</span>

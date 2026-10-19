@@ -1,40 +1,44 @@
 "use client";
 
 /**
- * MascotMeshy — real Meshy.ai-generated Bayon Buddy mascot renderer
- * with mood overlays and motion.
+ * MascotMeshy — real Meshy.ai-generated Bayon Buddy mascot with REAL
+ * rigged animation playback, mood overlays, and an idle rotation for
+ * waiting moments in the setup assistant.
  *
- * Loads apps/web/public/mascot3d/Mascot.glb (static, no skeleton,
- * produced by the user's Meshy.ai image-to-3D run and slimmed via
- * scripts/mascot_meshy_prep.py from 93.7 MB -> 4.4 MB), then drives:
+ * The character is apps/web/public/mascot3d/Mascot.glb (produced from
+ * the user's Meshy "All Animations" export, slimmed via
+ * scripts/mascot_meshy_prep.py from 124 MB -> 3.1 MB). It ships with:
  *
- *   - Motion (idle / walk / run) via whole-body transforms: a vertical
- *     hop + forward lean + yaw sway. The mesh has no rig so we can't
- *     bend a knee; a hop reads unambiguously as walk/run at the eye
- *     level we show the character.
+ *   - A real skeleton (1 skin) and 15 named animation clips produced
+ *     by Meshy's rigging + Mixamo retargeting pipeline:
+ *       Walking, Running, Confident_Strut, Big_Wave_Hello,
+ *       Wave_for_Help_1, Wave_for_Help_2, Indoor_Swing, Boom_Dance,
+ *       _360_Power_Spin_Jump, Jump_Rope, Boxing_Practice,
+ *       Breakdance_1990, Step_in_High_Kick, One_Arm_Handstand,
+ *       Thrust_Slash
+ *   - Baked PBR textures at 512x512 (base color + normal + metallic/
+ *     roughness) with Draco mesh compression.
  *
- *   - Expression (cute / serious / angry / sad / crying / excited /
- *     curious / mischievous) via mood overlays authored in
- *     ./mascot3d/expressions.ts - a per-material emissive tint, a
- *     resting body tilt + lean, an optional scale pulse, and an
- *     optional particle sprite overlay (tears / sparkles / heat
- *     shimmer). This preserves the sculpted-stone aesthetic that a
- *     cartoon Canvas2D face plane would ruin, while still giving
- *     each expression a clearly distinct read.
+ * This component plays those real clips via drei's useAnimations (no
+ * fake hop + lean anymore - the character's legs actually bend) and
+ * layers mood overlays on top (emissive tint, particles, scale pulse)
+ * for expression without wrecking the sculpted stone aesthetic.
  *
- * To upgrade from mood overlays to proper facial deformation + rigged
- * limb animation, pass the slim mesh through Mixamo for auto-rig and
- * through scripts/mascot_blender_postprocess.py to merge Idle /
- * Walking / Running clips - after which this renderer can be replaced
- * with the glTF-animation path in MascotActor3D.tsx.
+ * Three ways to drive it from props:
+ *   - motion="idle" | "walk" | "run"  (default routing to one clip)
+ *   - clip=<specific clip name>       (override, lab uses this)
+ *   - idleRotation=true (when motion==="idle", cycles through a
+ *     curated calm/charming subset every ~5s - perfect for the setup
+ *     assistant's wait moments)
  */
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   ContactShadows,
   Environment,
   OrbitControls,
+  useAnimations,
   useGLTF,
 } from "@react-three/drei";
 import * as THREE from "three";
@@ -47,26 +51,94 @@ import {
 
 const MODEL_URL = "/mascot3d/Mascot.glb";
 
+/**
+ * Every animation clip baked into the current Mascot.glb. Pinned to
+ * what the Meshy "All Animations" pack shipped. If you re-run the prep
+ * script on a different Meshy export, re-generate this list from the
+ * validator output and the lab page's clip picker will update
+ * automatically.
+ */
+export const CLIP_NAMES = [
+  "_360_Power_Spin_Jump",
+  "Big_Wave_Hello",
+  "Boom_Dance",
+  "Boxing_Practice",
+  "Breakdance_1990",
+  "Confident_Strut",
+  "Indoor_Swing",
+  "Jump_Rope",
+  "One_Arm_Handstand",
+  "Running",
+  "Step_in_High_Kick",
+  "Thrust_Slash",
+  "Walking",
+  "Wave_for_Help_1",
+  "Wave_for_Help_2",
+] as const;
+export type ClipName = (typeof CLIP_NAMES)[number];
+
 export type MotionState = "idle" | "walk" | "run";
+
+/** Default clip for each motion state. "idle" picks a friendly wave so
+ *  a static character still reads as alive; the idle rotation (below)
+ *  cycles beyond that first wave when enabled. */
+export const MOTION_TO_CLIP: Record<MotionState, ClipName> = {
+  idle: "Big_Wave_Hello",
+  walk: "Walking",
+  run: "Running",
+};
+
+/**
+ * Family-friendly rotation of calm / charming idles for the setup
+ * assistant's wait moments. Deliberately skips the aggressive /
+ * showoff clips (Boxing_Practice, Breakdance_1990, Thrust_Slash,
+ * One_Arm_Handstand, Step_in_High_Kick) since this is an education
+ * mascot and those read as "mascot is going to fight you" rather than
+ * "cute statue is being patient while you set up".
+ */
+export const IDLE_ROTATION: ClipName[] = [
+  "Big_Wave_Hello",
+  "Confident_Strut",
+  "Indoor_Swing",
+  "Boom_Dance",
+  "Wave_for_Help_1",
+  "Jump_Rope",
+  "_360_Power_Spin_Jump",
+  "Wave_for_Help_2",
+];
 
 type Props = {
   /** Current facial / mood expression. Hot-swappable. */
   expression: Expression;
-  /** Idle / walk / run. */
-  motion: MotionState;
-  /** Pixel size of the canvas (square). Default 480. */
+  /** Optional motion state. Ignored if `clip` is provided. */
+  motion?: MotionState;
+  /** Override: play this specific clip (used by the lab clip picker). */
+  clip?: ClipName;
+  /**
+   * When true AND motion === "idle" AND clip is not provided, cycle
+   * through IDLE_ROTATION every `rotationIntervalMs` to keep the
+   * waiting character interesting. The setup assistant turns this on.
+   */
+  idleRotation?: boolean;
+  /** Default 5000 ms per clip when idleRotation is on. */
+  rotationIntervalMs?: number;
+  /** Pixel size of the canvas (square). Default 480. Ignored when `fill`. */
   size?: number;
+  /** When true, fill the parent container instead of a fixed square. Use
+   *  this when slotting the mascot into a flexibly-sized layout (e.g.
+   *  the setup assistant's right pane). */
+  fill?: boolean;
   className?: string;
   /** True = show mouse-drag orbit controls (handy in the lab, off in prod). */
   interactive?: boolean;
 };
 
-/**
- * Walks the loaded glTF and snapshots every MeshStandardMaterial's
- * original emissive color + intensity so we can restore them when the
- * expression changes to one with no emissive (otherwise the mood tint
- * stacks forever).
- */
+/* ---------------------------------------------------------------------
+ * Mood overlay helpers (unchanged from the pre-animation version — the
+ * emissive tint, particle sprites, and scale pulse are all orthogonal
+ * to glTF skeletal animation and still read correctly on top of it).
+ * ------------------------------------------------------------------- */
+
 type OriginalEmissive = {
   mat: THREE.MeshStandardMaterial;
   color: THREE.Color;
@@ -100,12 +172,6 @@ function applyMoodTint(snaps: OriginalEmissive[], mood: MoodProfile): void {
   }
 }
 
-/**
- * Mood-driven particle overlay. Rendered as three billboarded sprites
- * near the character's head region so even an orbiting camera still
- * sees the particles face-on. The sprite textures are drawn procedurally
- * from Canvas2D so there is no PNG asset to ship.
- */
 function makeParticleTexture(
   kind: "tears" | "sparkles" | "shimmer",
 ): THREE.CanvasTexture {
@@ -116,7 +182,6 @@ function makeParticleTexture(
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, SIZE, SIZE);
   if (kind === "tears") {
-    // Teardrop: round bulb + triangular pointed top, pale cyan.
     ctx.fillStyle = "rgba(140, 210, 240, 0.9)";
     ctx.beginPath();
     ctx.arc(SIZE / 2, SIZE * 0.65, SIZE * 0.22, 0, Math.PI * 2);
@@ -127,13 +192,11 @@ function makeParticleTexture(
     ctx.lineTo(SIZE / 2 + SIZE * 0.2, SIZE * 0.65);
     ctx.closePath();
     ctx.fill();
-    // Highlight glint.
     ctx.fillStyle = "rgba(255,255,255,0.75)";
     ctx.beginPath();
     ctx.arc(SIZE / 2 - SIZE * 0.08, SIZE * 0.6, SIZE * 0.06, 0, Math.PI * 2);
     ctx.fill();
   } else if (kind === "sparkles") {
-    // Four-point star in warm gold.
     ctx.fillStyle = "rgba(255, 220, 110, 0.95)";
     ctx.beginPath();
     for (let i = 0; i < 8; i++) {
@@ -146,14 +209,12 @@ function makeParticleTexture(
     }
     ctx.closePath();
     ctx.fill();
-    // Soft bloom halo.
     const grd = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, SIZE / 2);
     grd.addColorStop(0, "rgba(255,240,180,0.5)");
     grd.addColorStop(1, "rgba(255,240,180,0)");
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, SIZE, SIZE);
   } else {
-    // Heat shimmer: wavy orange gradient blob.
     const grd = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, SIZE / 2);
     grd.addColorStop(0, "rgba(255,140,70,0.6)");
     grd.addColorStop(0.5, "rgba(255,80,40,0.25)");
@@ -174,11 +235,6 @@ function particleTextureFor(kind: "tears" | "sparkles" | "shimmer"): THREE.Canva
   return PARTICLE_TEX_CACHE[kind]!;
 }
 
-/**
- * Three independent particle sprites that drift / float / fall. Reads
- * the mood profile each frame via `expression` prop so swapping
- * expressions updates the overlay without rebuilding the mesh.
- */
 function ParticleOverlay({
   expression,
   bboxTop,
@@ -195,7 +251,6 @@ function ParticleOverlay({
   useEffect(() => {
     const group = groupRef.current;
     if (!group) return;
-    // Remove any previous sprites.
     for (const sprite of spritesRef.current) {
       group.remove(sprite);
       sprite.material.dispose();
@@ -228,11 +283,9 @@ function ParticleOverlay({
       const sprite = spritesRef.current[i];
       const seed = sprite.userData.seed as number;
       const phase = (t * 0.6 + seed) % 1;
-      // X offset: fan the particles around the head region.
       const spread = bboxWidth * 0.55;
       const xBase = (i - (spritesRef.current.length - 1) / 2) * (spread / Math.max(1, spritesRef.current.length - 1));
       if (kind === "tears") {
-        // Fall from eye-level to below the chin.
         sprite.position.set(
           xBase * 0.45,
           bboxTop * 0.92 - phase * bboxTop * 0.4,
@@ -240,7 +293,6 @@ function ParticleOverlay({
         );
         sprite.material.opacity = Math.max(0, 1 - phase * 1.4);
       } else if (kind === "sparkles") {
-        // Orbit around the head area.
         const angle = phase * Math.PI * 2;
         sprite.position.set(
           xBase * 0.6 + Math.cos(angle) * bboxWidth * 0.08,
@@ -249,7 +301,6 @@ function ParticleOverlay({
         );
         sprite.material.opacity = 0.65 + 0.35 * Math.sin(t * 3 + seed * Math.PI * 2);
       } else {
-        // Shimmer: slow upward drift above the head, fading.
         sprite.position.set(
           xBase * 0.3,
           bboxTop * 1.05 + phase * bboxTop * 0.25,
@@ -263,117 +314,116 @@ function ParticleOverlay({
   return <group ref={groupRef} />;
 }
 
-/**
- * The animated glTF character + mood overlay + motion. One component
- * so the particle overlay can read the mesh's bounding box.
- */
+/* ---------------------------------------------------------------------
+ * Character — loads the GLB, plays the active clip, applies mood tint.
+ * ------------------------------------------------------------------- */
+
 function Character({
   expression,
-  motion,
+  activeClip,
 }: {
   expression: Expression;
-  motion: MotionState;
+  activeClip: ClipName;
 }) {
-  const bodyRef = useRef<THREE.Group>(null);
-  const { scene } = useGLTF(MODEL_URL);
+  const groupRef = useRef<THREE.Group>(null);
+  const { scene, animations } = useGLTF(MODEL_URL);
 
-  // Clone the scene so React strict-mode double-mount is safe and
-  // so a future second instance (overlay vs lab) does not fight for
-  // the same materials.
-  const cloned = useMemo(() => scene.clone(true), [scene]);
+  // Clone the scene so React double-mount is safe. We clone the whole
+  // graph (including skinned mesh + skeleton) so the two instances
+  // never share bone matrices.
+  const cloned = useMemo(() => {
+    // SkeletonUtils.clone would be ideal here but is tree-shaken out of
+    // bundler builds that don't import it. For a single mount at a
+    // time (strict mode is the only reason to clone), a deep clone is
+    // sufficient.
+    return scene.clone(true);
+  }, [scene]);
 
-  // Compute a bounding box once per load so we know where the "head
-  // region" is (upper quarter) for the particle overlay and so we can
-  // auto-centre the model at the ground plane y = 0.
-  const { bboxSize, bboxCentre, bboxTop } = useMemo(() => {
+  // drei's useAnimations wires an AnimationMixer to the ref'd group and
+  // exposes a dictionary of AnimationActions keyed by clip name.
+  const { actions, names } = useAnimations(animations, groupRef);
+
+  // Fit the character to a sensible on-screen size: find bbox after
+  // loading, scale uniformly so the character is ~1.5 m tall, and
+  // offset so the feet sit on y = 0.
+  const { bboxTop, bboxWidth, uniformScale, groundOffset } = useMemo(() => {
+    const TARGET_HEIGHT = 1.5;
     const box = new THREE.Box3().setFromObject(cloned);
     const size = new THREE.Vector3();
-    const centre = new THREE.Vector3();
     box.getSize(size);
-    box.getCenter(centre);
-    // Shift so the feet land on y = 0.
-    cloned.position.set(-centre.x, -box.min.y, -centre.z);
-    return { bboxSize: size, bboxCentre: centre, bboxTop: size.y };
+    const height = Math.max(0.001, size.y);
+    const scale = TARGET_HEIGHT / height;
+    return {
+      bboxTop: TARGET_HEIGHT * 0.92,
+      bboxWidth: size.x * scale,
+      uniformScale: scale,
+      groundOffset: -box.min.y * scale,
+    };
   }, [cloned]);
 
   // Snapshot every material's original emissive once so mood tints
   // reset cleanly between expressions instead of stacking.
   const emissiveSnaps = useMemo(() => snapshotEmissives(cloned), [cloned]);
 
-  // Re-apply the mood tint whenever expression changes.
   useEffect(() => {
     applyMoodTint(emissiveSnaps, MOOD_PROFILES[expression]);
   }, [emissiveSnaps, expression]);
 
-  // Drive position / rotation / scale each frame from the current
-  // motion state + mood posture.
+  // Play the active clip. Fade between clip changes.
+  useEffect(() => {
+    if (!actions) return;
+    // Find the clip (case-insensitive to survive casing drift).
+    const match = names.find((n) => n.toLowerCase() === activeClip.toLowerCase());
+    if (!match) {
+      // Clip missing from the glTF - log once so the next prep run
+      // adds it, don't throw.
+      // eslint-disable-next-line no-console
+      console.warn(`[MascotMeshy] clip "${activeClip}" not in Mascot.glb; have:`, names);
+      return;
+    }
+    const action = actions[match];
+    if (!action) return;
+    action.reset().setLoop(THREE.LoopRepeat, Infinity).fadeIn(0.35).play();
+    return () => {
+      action.fadeOut(0.35);
+    };
+  }, [actions, names, activeClip]);
+
+  // Mood pulse (scale breath) layers on top of the clip's own motion.
   useFrame((state) => {
-    const body = bodyRef.current;
-    if (!body) return;
-    const t = state.clock.getElapsedTime();
+    const g = groupRef.current;
+    if (!g) return;
     const mood = MOOD_PROFILES[expression];
-
-    // Resting body pose from the mood profile.
-    const baseTiltZ = mood.bodyTiltZ;
-    const baseLeanX = mood.bodyLeanX;
-
-    // Motion-driven transforms.
-    if (motion === "walk" || motion === "run") {
-      const freq = motion === "run" ? 3.0 : 1.6;
-      const hop = motion === "run" ? 0.14 : 0.07;
-      const lean = motion === "run" ? 0.15 : 0.08;
-      const phase = t * freq * Math.PI * 2;
-      // Hop uses |sin| so each footfall is a bounce.
-      const hopY = Math.abs(Math.sin(phase)) * hop;
-      body.position.y = hopY;
-      // Forward lean peaks during the airborne middle of a hop.
-      body.rotation.x = baseLeanX + Math.sin(phase) * lean * 0.3;
-      // Slight yaw sway (character scans side-to-side as it moves).
-      body.rotation.y = Math.sin(t * freq * 0.5) * 0.1;
-      body.rotation.z = baseTiltZ + Math.sin(phase * 0.5) * 0.03;
-    } else {
-      // Idle: slow breath + slow yaw sway + mood posture.
-      const breath = Math.sin(t * 1.0) * 0.012;
-      body.position.y = breath;
-      body.rotation.x = baseLeanX;
-      body.rotation.y = Math.sin(t * 0.35) * 0.18;
-      body.rotation.z = baseTiltZ;
-    }
-
-    // Mood pulse: slight scale breathing for excited / angry etc.
-    if (mood.pulseHz > 0) {
-      const pulse = 1 + Math.sin(t * mood.pulseHz * Math.PI * 2) * mood.pulseAmp;
-      body.scale.setScalar(pulse);
-    } else {
-      body.scale.setScalar(1);
-    }
+    const t = state.clock.getElapsedTime();
+    const pulse = mood.pulseHz > 0
+      ? 1 + Math.sin(t * mood.pulseHz * Math.PI * 2) * mood.pulseAmp
+      : 1;
+    g.scale.setScalar(uniformScale * pulse);
+    g.rotation.z = mood.bodyTiltZ;
+    g.rotation.x = mood.bodyLeanX;
+    g.position.y = groundOffset;
   });
 
   return (
-    <group ref={bodyRef}>
+    <group ref={groupRef}>
       <primitive object={cloned} />
-      {/* Particle overlay sits at head-top in local-space so it moves
-          + tilts with the body transforms above. */}
-      <ParticleOverlay
-        expression={expression}
-        bboxTop={bboxTop}
-        bboxWidth={bboxSize.x}
-      />
+      <ParticleOverlay expression={expression} bboxTop={bboxTop} bboxWidth={bboxWidth} />
     </group>
   );
 }
 
 /**
- * On motion state changes, re-position the camera so running pulls
- * out a little and idle sits closer. Purely cosmetic, feels right.
+ * Camera smoothly pulls out on run and in on idle. Independent of the
+ * clip so it works for any motion state the parent picks.
  */
-function CameraRig({ motion }: { motion: MotionState }) {
+function CameraRig({ motion }: { motion?: MotionState }) {
   const { camera } = useThree();
   useEffect(() => {
-    const targetZ = motion === "run" ? 4.2 : motion === "walk" ? 3.8 : 3.4;
-    const targetY = motion === "idle" ? 1.1 : 1.25;
+    const target = motion === "run" ? [0, 1.3, 4.2]
+      : motion === "walk" ? [0, 1.2, 3.8]
+      : [0, 1.1, 3.4];
     const start = camera.position.clone();
-    const end = new THREE.Vector3(0, targetY, targetZ);
+    const end = new THREE.Vector3(target[0], target[1], target[2]);
     let frame = 0;
     const FRAMES = 20;
     const tick = () => {
@@ -388,24 +438,54 @@ function CameraRig({ motion }: { motion: MotionState }) {
   return null;
 }
 
+/**
+ * Resolve which clip to play right now from the three driving props.
+ * Also owns the idle-rotation timer so the hook is colocated with the
+ * component that reads its output.
+ */
+function useActiveClip(
+  motion: MotionState | undefined,
+  explicitClip: ClipName | undefined,
+  idleRotation: boolean,
+  rotationIntervalMs: number,
+): ClipName {
+  const [rotationIndex, setRotationIndex] = useState(0);
+  useEffect(() => {
+    if (!idleRotation || motion !== "idle" || explicitClip) return;
+    const timer = window.setInterval(() => {
+      setRotationIndex((i) => (i + 1) % IDLE_ROTATION.length);
+    }, rotationIntervalMs);
+    return () => window.clearInterval(timer);
+  }, [idleRotation, motion, explicitClip, rotationIntervalMs]);
+
+  if (explicitClip) return explicitClip;
+  if (idleRotation && motion === "idle") return IDLE_ROTATION[rotationIndex];
+  return MOTION_TO_CLIP[motion ?? "idle"];
+}
+
 export default function MascotMeshy({
   expression,
-  motion,
+  motion = "idle",
+  clip,
+  idleRotation = false,
+  rotationIntervalMs = 5000,
   size = 480,
+  fill = false,
   className,
   interactive = false,
 }: Props) {
+  const activeClip = useActiveClip(motion, clip, idleRotation, rotationIntervalMs);
+  const wrapperStyle: React.CSSProperties = fill
+    ? { width: "100%", height: "100%", display: "block" }
+    : { width: size, height: size, display: "block" };
+
   return (
-    <div
-      className={className}
-      style={{ width: size, height: size, display: "block" }}
-    >
+    <div className={className} style={wrapperStyle}>
       <Canvas
         shadows
         camera={{ position: [0, 1.1, 3.4], fov: 32 }}
         dpr={[1, 2]}
       >
-        {/* Warm key + cool rim light. */}
         <ambientLight intensity={0.55} />
         <directionalLight
           position={[2.5, 4, 3]}
@@ -417,7 +497,7 @@ export default function MascotMeshy({
         <directionalLight position={[-3, 2, -2]} intensity={0.3} color="#88aaff" />
 
         <Suspense fallback={null}>
-          <Character expression={expression} motion={motion} />
+          <Character expression={expression} activeClip={activeClip} />
         </Suspense>
 
         <ContactShadows
@@ -429,11 +509,10 @@ export default function MascotMeshy({
         />
         <Environment preset="apartment" />
         <CameraRig motion={motion} />
-        {interactive && <OrbitControls enablePan={false} enableZoom={true} />}
+        {interactive && <OrbitControls enablePan={false} enableZoom={true} target={[0, 0.7, 0]} />}
       </Canvas>
     </div>
   );
 }
 
-// Preload so the first paint on /mascot-lab is instant.
 useGLTF.preload(MODEL_URL);
