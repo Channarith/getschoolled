@@ -48,6 +48,7 @@ import {
 import * as THREE from "three";
 
 import type { MascotScene } from "../lib/mascotPose";
+import { applyBuddhaFoxStyle } from "./mascot3d/buddhaFoxStyle";
 
 const MODEL_URL = "/mascot3d/Fox.glb";
 
@@ -141,6 +142,13 @@ function Character({
   const group = useRef<THREE.Group>(null);
   const { scene: gltfScene, animations } = useGLTF(MODEL_URL);
   const { actions, names } = useAnimations(animations, group);
+
+  // Reskin the Fox base into the Salareen Buddha-fox: stone-tan body +
+  // gold lotus crown + forehead gem + navy/gold S medallion. Idempotent
+  // via a userData flag so React strict-mode double-mount doesn't dupe.
+  useEffect(() => {
+    if (gltfScene) applyBuddhaFoxStyle(gltfScene);
+  }, [gltfScene]);
 
   // Resolve clip names fuzzy — Fox has "Survey" / "Walk" / "Run".
   const walkClip = useMemo(

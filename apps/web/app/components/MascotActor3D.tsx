@@ -32,6 +32,7 @@ import { Physics, RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 
 import { type MascotScene, poseForAge } from "../lib/mascotPose";
+import { applyBuddhaFoxStyle } from "./mascot3d/buddhaFoxStyle";
 
 const MODEL_URL = "/mascot3d/Fox.glb";
 
@@ -63,6 +64,14 @@ function Character({ scene }: { scene: MascotScene }) {
   const group = useRef<THREE.Group>(null);
   const { scene: gltfScene, animations } = useGLTF(MODEL_URL);
   const { actions, names } = useAnimations(animations, group);
+
+  // Reskin the Fox mesh into the Salareen "Bayon Buddy" aesthetic — stone-
+  // tan body + gold lotus crown + gold forehead gem + navy/gold S medallion.
+  // Idempotent (gated by a userData flag) so React double-mount in strict
+  // mode doesn't duplicate the accessories.
+  useEffect(() => {
+    if (gltfScene) applyBuddhaFoxStyle(gltfScene);
+  }, [gltfScene]);
 
   // Fox clips in the glTF are literally named Survey / Walk / Run.
   const requestedClip = CLIP_MAP[scene.kind] ?? "Survey";
