@@ -92,6 +92,146 @@ const DEFAULT_SPEED = 2.6;
 const ARRIVAL_RADIUS = 0.35; // world units
 
 /**
+ * Responsive breakpoint tags. Resolved from window.innerWidth +
+ * innerHeight so we can also distinguish phone-landscape (which falls
+ * back to the tablet treatment per the product spec).
+ */
+type Breakpoint = "desktop" | "tablet" | "phonePortrait";
+
+/**
+ * Per-breakpoint stage configuration. These values were tuned by hand so
+ * the Meshy character (native ~1.8 m tall) fills the viewport without
+ * clipping the head into the onboarding chrome at the top:
+ *
+ *   - desktop (>=1024px landscape): character ~75% of viewport height.
+ *     Camera a bit closer than the old (0, 2.4, 5.5) at FOV 50, scale 2.0.
+ *   - tablet (768-1023px) and phone landscape: ~85% viewport height,
+ *     slight horizontal breathing room from a wider FOV at the same scale.
+ *   - phone portrait (<768px): ~92% viewport height with a tighter FOV so
+ *     the whole body fits. Camera pulled back further (z=6.0) and the
+ *     lookAt lifted (y=1.6, above the character's hip) which tilts the
+ *     camera UP visually — that pushes the character DOWN in the frame so
+ *     the head does not poke into the onboarding text at the top.
+ *     (The user-facing spec called this "bias the camera DOWN"; what the
+ *     renderer actually needs is a higher lookAt to achieve the same
+ *     visual result.)
+ */
+type BreakpointConfig = {
+  backdropHeight: string;
+  cameraPos: [number, number, number];
+  cameraLookAt: [number, number, number];
+  fov: number;
+  scale: number;
+};
+
+const BREAKPOINT_CONFIG: Record<Breakpoint, BreakpointConfig> = {
+  desktop: {
+    backdropHeight: "min(85vh, 900px)",
+    cameraPos: [0, 2.1, 4.6],
+    cameraLookAt: [0, 1.05, 0],
+    fov: 50,
+    scale: 2.0,
+  },
+  tablet: {
+    backdropHeight: "min(90vh, 820px)",
+    cameraPos: [0, 2.0, 4.9],
+    cameraLookAt: [0, 1.1, 0],
+    fov: 48,
+    scale: 2.1,
+  },
+  phonePortrait: {
+    backdropHeight: "95vh",
+    cameraPos: [0, 2.4, 6.0],
+    cameraLookAt: [0, 1.6, 0],
+    fov: 38,
+    scale: 2.4,
+  },
+};
+
+function detectBreakpoint(): Breakpoint {
+  if (typeof window === "undefined") return "desktop";
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const landscape = w >= h;
+  if (w >= 1024 && landscape) return "desktop";
+  // Phone portrait is strictly <768px AND taller than wide.
+  if (w < 768 && !landscape) return "phonePortrait";
+  // Everything else — tablets, and small-landscape phones — gets the
+  // tablet treatment per spec.
+  return "tablet";
+}
+
+/**
+ * React hook that tracks the active breakpoint. Uses matchMedia for the
+ * three defining boundaries (laptop landscape, phone portrait, generic
+ * orientation flip) and a plain resize listener as a safety net. All
+ * listeners are torn down on unmount so SPA route changes do not leak
+ * handlers.
+ */
+function useBreakpoint(): Breakpoint {
+  const [bp, setBp] = useState<Breakpoint>(() => detectBreakpoint());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => setBp(detectBreakpoint());
+    // Sync once in case SSR picked "desktop" but the real viewport is
+    // different.
+    update();
+
+    window.addEventListener("resize", update);
+
+    const mqlDesktop = window.matchMedia(
+      "(min-width: 1024px) and (orientation: landscape)",
+    );
+    const mqlPhonePortrait = window.matchMedia(
+      "(max-width: 767px) and (orientation: portrait)",
+    );
+    const mqlOrientation = window.matchMedia("(orientation: landscape)");
+    mqlDesktop.addEventListener("change", update);
+    mqlPhonePortrait.addEventListener("change", update);
+    mqlOrientation.addEventListener("change", update);
+
+    return () => {
+      window.removeEventListener("resize", update);
+      mqlDesktop.removeEventListener("change", update);
+      mqlPhonePortrait.removeEventListener("change", update);
+      mqlOrientation.removeEventListener("change", update);
+    };
+  }, []);
+
+  return bp;
+}
+
+/**
+ * Keeps the Three.js camera in sync with the active breakpoint config.
+ * Lives inside <Canvas> so it can call useThree(). Updates position, FOV
+ * and lookAt whenever `config` changes (orientation flip, window resize
+ * across a breakpoint boundary, etc).
+ */
+function CameraRig({ config }: { config: BreakpointConfig }) {
+  const { camera } = useThree();
+  useEffect(() => {
+    camera.position.set(
+      config.cameraPos[0],
+      config.cameraPos[1],
+      config.cameraPos[2],
+    );
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = config.fov;
+    }
+    camera.lookAt(
+      config.cameraLookAt[0],
+      config.cameraLookAt[1],
+      config.cameraLookAt[2],
+    );
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, config]);
+  return null;
+}
+
+/**
  * Resolve the current waypoint's center position in screen pixels.
  * Returns null when the DOM element is missing or offscreen.
  */
@@ -133,6 +273,7 @@ function screenToGround(
  *   - targetWorld: where we want to go on the ground plane
  *   - speed: metres/sec
  *   - idleClip: which clip to play when we're at the target
+ *   - scale: per-breakpoint scale so the character fills the frame
  *
  * The character's bones animate via useAnimations; we just move the whole
  * group through 3D space and keep it facing its walk direction.
@@ -142,11 +283,13 @@ function Character({
   arrivedRef,
   speed,
   idleClip,
+  scale,
 }: {
   targetWorldRef: React.MutableRefObject<THREE.Vector3 | null>;
   arrivedRef: React.MutableRefObject<boolean>;
   speed: number;
   idleClip: string;
+  scale: number;
 }) {
   const group = useRef<THREE.Group>(null);
   const { scene: gltfScene, animations } = useGLTF(MODEL_URL);
@@ -223,12 +366,14 @@ function Character({
   });
 
   // Mascot.glb native dimensions are in meters (~1.8 m tall from the
-  // Meshy export + scripts/mascot_meshy_prep.py). With camera at
-  // (0, 2.4, 5.5) and fov 42, scale=1.0 reads tiny; scale=1.2 puts the
-  // character around 2.1 m which lands comfortably in the lower-left
-  // third of the viewport while still clearing the content card.
+  // Meshy export + scripts/mascot_meshy_prep.py). Prior builds used a
+  // fixed scale of 1.2 which rendered the character around 2.1 m — too
+  // small for the fixed overlay (user feedback 2026-10-19). Scale now
+  // comes from the active breakpoint config: 2.0 on desktop, 2.1 on
+  // tablet, 2.4 on phone portrait. Feet stay at y=0 so ContactShadows
+  // continues to render under them.
   return (
-    <group ref={group} scale={1.2} position={[0, 0, 0]}>
+    <group ref={group} scale={scale} position={[0, 0, 0]}>
       <primitive object={gltfScene} />
     </group>
   );
@@ -305,6 +450,9 @@ export default function MascotOverlay3D({
   const targetWorldRef = useRef<THREE.Vector3 | null>(null);
   const arrivedRef = useRef(true);
 
+  const breakpoint = useBreakpoint();
+  const config = BREAKPOINT_CONFIG[breakpoint];
+
   // Idle clip the character plays while standing AT a waypoint (after
   // walking there and before moving on). Mascot.glb clip names, matched
   // fuzzily by resolvedIdle so a wrong name falls back to Walking:
@@ -352,7 +500,11 @@ export default function MascotOverlay3D({
           radius so the setup-assistant text/panels above remain legible.
           Lower z-index (999) than the Canvas (1000) so the mascot renders
           ON TOP of this plate, and `pointer-events: none` so page clicks
-          still pass through to the onboarding form underneath. */}
+          still pass through to the onboarding form underneath.
+
+          The backdrop height now scales with the active breakpoint so a
+          taller mascot (phone portrait) gets a taller stage — matches the
+          Canvas viewport the character is rendered into. */}
       <div
         aria-hidden="true"
         style={{
@@ -360,7 +512,7 @@ export default function MascotOverlay3D({
           left: 0,
           right: 0,
           bottom: 0,
-          height: "55vh",
+          height: config.backdropHeight,
           pointerEvents: "none",
           zIndex: 999,
           background:
@@ -377,7 +529,7 @@ export default function MascotOverlay3D({
         }}
       >
         <Canvas
-          camera={{ position: [0, 2.4, 5.5], fov: 42 }}
+          camera={{ position: config.cameraPos, fov: config.fov }}
           shadows
           dpr={[1, 2]}
           style={{ background: "transparent" }}
@@ -390,7 +542,8 @@ export default function MascotOverlay3D({
               - ambientLight 0.75 (was 0.55): a touch brighter base.
               - keyLight (directional, warm) 2.0 (was 1.15) from front-
                 right: strong key so the Buddha's bronze reads as gold,
-                not beige.
+                not beige. Position pulled further out so a bigger
+                character (scale 2.0-2.4 per breakpoint) does not blow out.
               - rimLight (directional, cool) 1.8 (was 1.4) from behind-
                 left: bumped slightly for the new dark-blue backdrop so
                 the cool highlight along the silhouette separates the
@@ -399,14 +552,14 @@ export default function MascotOverlay3D({
                 shadow sides so the character never goes muddy. */}
           <ambientLight intensity={0.75} />
           <directionalLight
-            position={[4, 6, 3]}
+            position={[6, 8, 4]}
             intensity={2.0}
             color={0xfff2d4}
             castShadow
             shadow-mapSize={[1024, 1024]}
           />
           <directionalLight
-            position={[-5, 4, -3]}
+            position={[-6, 5, -4]}
             intensity={1.8}
             color={0x8ab6ff}
           />
@@ -415,12 +568,14 @@ export default function MascotOverlay3D({
             groundColor={0x2a1a08}
             intensity={0.5}
           />
+          <CameraRig config={config} />
           <Suspense fallback={null}>
             <Character
               targetWorldRef={targetWorldRef}
               arrivedRef={arrivedRef}
               speed={speed}
               idleClip={idleClip}
+              scale={config.scale}
             />
             <TourDriver
               tour={tour}
