@@ -178,17 +178,13 @@ export default function ArcadePage() {
   return (
     <main className="container" style={{ maxWidth: 1000 }}>
       <h1>{t("arcade.title")}</h1>
-      <p className="muted">
-        {arcadeVisionOnly ? (
-          "Hands-free learning for every age — faces, hands, letters, movement, and listening. The camera stays in your browser."
-        ) : (
-          <>
-            {t("arcade.intro")}{" "}
-            <Link href="/rewards">{t("arcade.rewardsLink")}</Link>.
-            {!loggedIn && <> <Link href="/login">{t("profile.signIn")}</Link> {t("arcade.signInSave")}</>}
-          </>
-        )}
-      </p>
+      {!arcadeVisionOnly && (
+        <p className="muted">
+          {t("arcade.intro")}{" "}
+          <Link href="/rewards">{t("arcade.rewardsLink")}</Link>.
+          {!loggedIn && <> <Link href="/login">{t("profile.signIn")}</Link> {t("arcade.signInSave")}</>}
+        </p>
+      )}
       <LiveActivityVoice active={Boolean(round && !result)} prompt={voicePrompt} />
 
       {/* ── Salareen Worlds hero banner ─────────────────────────────────────── */}
@@ -282,16 +278,25 @@ export default function ArcadePage() {
 
       {/* Vision Play Lab — webcam-driven hands-free learning (faces, hands,
           letters, movement, listening). Always shown; this is the page's
-          primary (and, when arcade.vision_only is ON, only) section. */}
+          primary (and, when arcade.vision_only is ON, only) section.
+          In vision-only mode we strip the "Machine vision" h3 + description
+          and the card chrome so the user sees ONLY the H1 "Vision Play" and
+          the webcam lab frame — matches the pre-DN simplified arcade view. */}
       {!round && (
-        <div id="vision" className="card" style={{ background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(124,58,237,0.14))" }}>
-          <h3 style={{ marginTop: 0 }}>Machine vision</h3>
-          <p className="muted" style={{ marginTop: 0 }}>
-            Hands-free learning for every age — faces, hands, letters, movement, and listening. The camera stays in your browser.
-            Sala can talk through Salane Voice inside the lab.
-          </p>
-          <VisionArcadeFrame title="Machine vision" src={visionArcadeFrameSrc()} />
-        </div>
+        arcadeVisionOnly ? (
+          <div id="vision" style={{ marginTop: 8 }}>
+            <VisionArcadeFrame title="Vision Play" src={visionArcadeFrameSrc()} />
+          </div>
+        ) : (
+          <div id="vision" className="card" style={{ background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(124,58,237,0.14))" }}>
+            <h3 style={{ marginTop: 0 }}>Machine vision</h3>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Hands-free learning for every age — faces, hands, letters, movement, and listening. The camera stays in your browser.
+              Sala can talk through Salane Voice inside the lab.
+            </p>
+            <VisionArcadeFrame title="Machine vision" src={visionArcadeFrameSrc()} />
+          </div>
+        )
       )}
 
       {!arcadeVisionOnly && !round && (
