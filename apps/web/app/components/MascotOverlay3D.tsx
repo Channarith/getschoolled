@@ -48,9 +48,14 @@ import {
 import * as THREE from "three";
 
 import type { MascotScene } from "../lib/mascotPose";
-import { applyBuddhaFoxStyle } from "./mascot3d/buddhaFoxStyle";
+// buddhaFoxStyle was the Fox.glb reskin helper - retired with the
+// placeholder. Mascot.glb ships with its own baked PBR materials.
 
-const MODEL_URL = "/mascot3d/Fox.glb";
+// The real Meshy character (3.12 MB, 1 skin, 15 Mixamo clips including
+// Walking / Running / Big_Wave_Hello / Indoor_Swing / Boom_Dance /
+// _360_Power_Spin_Jump / Wave_for_Help_1 / Confident_Strut / ...). Lands
+// at the public asset path produced by scripts/mascot_meshy_prep.py.
+const MODEL_URL = "/mascot3d/Mascot.glb";
 
 /**
  * Ordered waypoints per onboarding step. Each name must appear somewhere
@@ -147,22 +152,26 @@ function Character({
   const { scene: gltfScene, animations } = useGLTF(MODEL_URL);
   const { actions, names } = useAnimations(animations, group);
 
-  // Reskin the Fox base into the Salareen Buddha-fox: stone-tan body +
-  // gold lotus crown + forehead gem + navy/gold S medallion. Idempotent
-  // via a userData flag so React strict-mode double-mount doesn't dupe.
-  useEffect(() => {
-    if (gltfScene) applyBuddhaFoxStyle(gltfScene);
-  }, [gltfScene]);
+  // Mascot.glb ships with its own baked PBR materials from Meshy - no
+  // reskin needed (the old applyBuddhaFoxStyle call was retexturing the
+  // Fox placeholder, which is retired). The GLB is self-contained.
 
-  // Resolve clip names fuzzy — Fox has "Survey" / "Walk" / "Run".
+  // Resolve clip names fuzzy. Mascot.glb exposes 15 clips - we fuzzy
+  // match "walk" (Walking), "run" (Running), and fall back to the first
+  // clip (Walking) if idleClip isn't present. Prefer substring/exact
+  // match over equality so idleClip="Walking" works even if the stored
+  // name is "walking|Walking" after animation re-indexing.
   const walkClip = useMemo(
-    () => names.find((n) => /walk/i.test(n)) ?? names[0],
+    () => names.find((n) => /^walking$/i.test(n)) ?? names.find((n) => /walk/i.test(n)) ?? names[0],
     [names],
   );
-  const resolvedIdle = useMemo(
-    () => names.find((n) => n.toLowerCase() === idleClip.toLowerCase()) ?? names[0],
-    [names, idleClip],
-  );
+  const resolvedIdle = useMemo(() => {
+    if (!idleClip) return walkClip;
+    const exact = names.find((n) => n.toLowerCase() === idleClip.toLowerCase());
+    if (exact) return exact;
+    const substr = names.find((n) => n.toLowerCase().includes(idleClip.toLowerCase()));
+    return substr ?? walkClip;
+  }, [names, idleClip, walkClip]);
 
   // Which action is currently playing. We cross-fade on change.
   const activeRef = useRef<string | null>(null);
@@ -213,8 +222,13 @@ function Character({
     g.rotation.y = current + diff * Math.min(1, delta * 6);
   });
 
+  // Mascot.glb native dimensions are in meters (~1.8 m tall from the
+  // Meshy export + scripts/mascot_meshy_prep.py). With camera at
+  // (0, 2.4, 5.5) and fov 42, scale=1.0 reads tiny; scale=1.2 puts the
+  // character around 2.1 m which lands comfortably in the lower-left
+  // third of the viewport while still clearing the content card.
   return (
-    <group ref={group} scale={0.012} position={[0, 0, 0]}>
+    <group ref={group} scale={1.2} position={[0, 0, 0]}>
       <primitive object={gltfScene} />
     </group>
   );
@@ -291,23 +305,35 @@ export default function MascotOverlay3D({
   const targetWorldRef = useRef<THREE.Vector3 | null>(null);
   const arrivedRef = useRef(true);
 
-  // When "dance" or "gaming" scene is set, the character does the Run clip
-  // instead of Survey while idling at a waypoint. Everything else falls
-  // through to Survey.
+  // Idle clip the character plays while standing AT a waypoint (after
+  // walking there and before moving on). Mascot.glb clip names, matched
+  // fuzzily by resolvedIdle so a wrong name falls back to Walking:
+  //   dance/gaming  -> Boom_Dance (energetic celebrate)
+  //   tutoring      -> Wave_for_Help_1 (approachable 1:1 greeting)
+  //   flyin-point   -> Big_Wave_Hello (hello / point at me)
+  //   teacher       -> Confident_Strut (presenting)
+  //   presentation  -> Big_Wave_Hello
+  //   video/reading -> Indoor_Swing (calm / watching)
+  //   default/idle  -> Indoor_Swing (also the base calm clip)
   const idleClip = useMemo(() => {
-    if (!scene) return "Survey";
+    if (!scene) return "Indoor_Swing";
     switch (scene.kind) {
       case "dance":
+        return "Boom_Dance";
       case "gaming":
-        return "Run";
-      case "flyin-point":
-      case "video":
-      case "teacher":
-      case "presentation":
+        return "_360_Power_Spin_Jump";
       case "tutoring":
-        return "Walk";
+        return "Wave_for_Help_1";
+      case "flyin-point":
+        return "Big_Wave_Hello";
+      case "teacher":
+        return "Confident_Strut";
+      case "presentation":
+        return "Big_Wave_Hello";
+      case "video":
+      case "reading":
       default:
-        return "Survey";
+        return "Indoor_Swing";
     }
   }, [scene]);
 
