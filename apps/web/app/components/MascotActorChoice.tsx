@@ -1,30 +1,41 @@
 "use client";
 
 /**
- * MascotActorChoice — picks between three mascot renderers:
- *   - "css"     → the lightweight CSS MascotActor (SSR-safe default)
- *   - "pane"    → MascotActor3D rendered in the left art pane (3D canvas,
- *                 skeletal animation + physics, still contained in a pane)
- *   - "overlay" → MascotOverlay3D rendered as a fixed full-viewport canvas
- *                 that walks across the page and points at
+ * MascotActorChoice — picks between four mascot renderers:
+ *   - "meshy"   → MascotMeshy, the real Meshy character (apps/web/public/
+ *                 mascot3d/Mascot.glb) playing one of 15 Mixamo-rigged
+ *                 skeletal clips (Big_Wave_Hello, Confident_Strut,
+ *                 Boom_Dance, Indoor_Swing, …). Scene-aware via the
+ *                 sceneToMeshy adapter below. **Default** so onboarding
+ *                 and the biometric setup assistant share the same live
+ *                 animated character instead of a static image.
+ *   - "css"     → the lightweight CSS MascotActor (SSR-safe fallback,
+ *                 and the opt-out when WebGL is unavailable)
+ *   - "pane"    → the older MascotActor3D canvas (Fox placeholder; kept
+ *                 for the age-morph physics prototype only)
+ *   - "overlay" → MascotOverlay3D rendered as a fixed full-viewport
+ *                 canvas that walks across the page and points at
  *                 `data-mascot-target` elements like a video-game NPC
  *
  * Which one wins is decided client-side so you can flip modes without a
  * server restart. In priority order:
- *   1. URL query `?mascot3d=overlay` / `?mascot3d=pane` / `?mascot3d=0`
- *      (sticky in localStorage for the next visit)
- *   2. localStorage `aoep.mascot3d` = "overlay" | "pane" | "0"
- *   3. Build-time env `NEXT_PUBLIC_MASCOT_3D` = "overlay" | "1" | "true"
+ *   1. URL query `?mascot3d=meshy|overlay|pane|0` (sticky in localStorage)
+ *   2. localStorage `aoep.mascot3d` = same values
+ *   3. Build-time env `NEXT_PUBLIC_MASCOT_3D` = same values
+ *   4. Hard-coded default: "meshy"
  *
  * The WebGL versions can't SSR (no document in Node), so they are loaded
  * via next/dynamic with ssr:false. Server render always falls back to the
- * CSS version for instant first paint.
+ * CSS version for instant first paint, then the client swaps up to the
+ * live Meshy character once hydrated.
  */
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import MascotActor from "./MascotActor";
 import type { MascotScene } from "../lib/mascotPose";
+import type { Expression } from "./mascot3d/expressions";
+import type { ClipName } from "./MascotMeshy";
 
 const MascotActor3D = dynamic(() => import("./MascotActor3D"), {
   ssr: false,
@@ -34,16 +45,60 @@ const MascotOverlay3D = dynamic(() => import("./MascotOverlay3D"), {
   ssr: false,
   loading: () => null,
 });
+const MascotMeshy = dynamic(() => import("./MascotMeshy"), {
+  ssr: false,
+  loading: () => null,
+});
 
-type Mode = "css" | "pane" | "overlay";
+type Mode = "css" | "pane" | "overlay" | "meshy";
 
 const ENV_MODE: Mode | null = (() => {
   const v = (process.env.NEXT_PUBLIC_MASCOT_3D ?? "").toLowerCase();
+  if (v === "meshy") return "meshy";
   if (v === "overlay") return "overlay";
-  if (v === "1" || v === "true" || v === "pane") return "pane";
+  if (v === "pane") return "pane";
+  if (v === "1" || v === "true") return "meshy";  // old "on" alias now
+                                                   // means the live mesh
   if (v === "0" || v === "false") return "css";
   return null;
 })();
+
+/**
+ * Translate a scene from the onboarding/learn flow into (expression, clip)
+ * props MascotMeshy understands. Keeps the two component APIs independent
+ * so the Meshy animation set can grow without touching MascotScene.
+ *
+ * Mapping intent (all 15 Mixamo clips are listed in MascotMeshy.CLIP_NAMES
+ * — pick one that matches the vibe of the step):
+ *   idle         → calm cute, cycling idle rotation (same as setup assistant waits)
+ *   flyin-point  → excited Big_Wave_Hello
+ *   dance        → excited Boom_Dance (celebrate / fun moment)
+ *   age-morph    → curious cycling idle
+ *   video        → cute Indoor_Swing (relaxed, "watching")
+ *   teacher      → serious Confident_Strut
+ *   presentation → serious Big_Wave_Hello (presenting / greeting)
+ *   reading      → curious cycling idle (no reading-specific clip yet)
+ *   tutoring     → curious Wave_for_Help_1 (approachable 1:1)
+ *   gaming       → excited _360_Power_Spin_Jump (energetic)
+ */
+function sceneToMeshy(scene: MascotScene): {
+  expression: Expression;
+  clip?: ClipName;
+  idleRotation: boolean;
+} {
+  switch (scene.kind) {
+    case "idle":         return { expression: "cute",     idleRotation: true  };
+    case "flyin-point":  return { expression: "excited",  clip: "Big_Wave_Hello",      idleRotation: false };
+    case "dance":        return { expression: "excited",  clip: "Boom_Dance",          idleRotation: false };
+    case "age-morph":    return { expression: "curious",  idleRotation: true  };
+    case "video":        return { expression: "cute",     clip: "Indoor_Swing",        idleRotation: false };
+    case "teacher":      return { expression: "serious",  clip: "Confident_Strut",     idleRotation: false };
+    case "presentation": return { expression: "serious",  clip: "Big_Wave_Hello",      idleRotation: false };
+    case "reading":      return { expression: "curious",  idleRotation: true  };
+    case "tutoring":     return { expression: "curious",  clip: "Wave_for_Help_1",     idleRotation: false };
+    case "gaming":       return { expression: "excited",  clip: "_360_Power_Spin_Jump", idleRotation: false };
+  }
+}
 
 type Props = {
   scene: MascotScene;
@@ -56,8 +111,13 @@ type Props = {
 function normalizeMode(raw: string | null): Mode | null {
   if (!raw) return null;
   const v = raw.toLowerCase();
+  if (v === "meshy") return "meshy";
   if (v === "overlay") return "overlay";
-  if (v === "pane" || v === "1" || v === "true") return "pane";
+  if (v === "pane") return "pane";
+  // Historical: "1" / "true" used to mean "turn on the 3D pane"; it now
+  // means "turn on the live Meshy animation" (which IS the 3D the user
+  // actually wants). CSS stays available via "0" / "false" / "css".
+  if (v === "1" || v === "true") return "meshy";
   if (v === "0" || v === "false" || v === "css") return "css";
   return null;
 }
@@ -75,8 +135,9 @@ function normalizeMode(raw: string | null): Mode | null {
 const MASCOT_HIDDEN_STEPS = new Set<string>(["identity"]);
 
 export default function MascotActorChoice(props: Props) {
-  // SSR renders the CSS version. The 3D decision is computed in the
-  // browser so URL / localStorage overrides work without a server restart.
+  // SSR renders the CSS version so first paint is instant; the client
+  // flips up to Meshy once hydrated. URL / localStorage overrides are
+  // applied here so you can switch modes without a server restart.
   const [mode, setMode] = useState<Mode>("css");
 
   useEffect(() => {
@@ -89,13 +150,32 @@ export default function MascotActorChoice(props: Props) {
       return;
     }
     const sticky = normalizeMode(window.localStorage.getItem("aoep.mascot3d"));
-    setMode(sticky ?? ENV_MODE ?? "css");
+    // Default to the live Meshy character so users immediately see real
+    // skeletal animation, not a static image. CSS stays available for
+    // SSR + opt-out (?mascot3d=0).
+    setMode(sticky ?? ENV_MODE ?? "meshy");
   }, []);
 
   if (props.step && MASCOT_HIDDEN_STEPS.has(props.step)) {
     return null;
   }
 
+  if (mode === "meshy") {
+    // Wrap in a sized box so the fill:true canvas has something to fill.
+    // Matches the old MascotActor's px dimensions so the surrounding
+    // layout doesn't shift when the mode flips post-hydration.
+    const size = props.size ?? 260;
+    const meshyProps = sceneToMeshy(props.scene);
+    return (
+      <div
+        className={props.className}
+        style={{ width: size, height: size, position: "relative" }}
+        data-mascot-mode="meshy"
+      >
+        <MascotMeshy {...meshyProps} fill />
+      </div>
+    );
+  }
   if (mode === "overlay") {
     return <MascotOverlay3D scene={props.scene} step={props.step} />;
   }

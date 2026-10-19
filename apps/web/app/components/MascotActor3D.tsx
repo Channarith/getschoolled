@@ -34,7 +34,13 @@ import * as THREE from "three";
 import { type MascotScene, poseForAge } from "../lib/mascotPose";
 import { applyBuddhaFoxStyle } from "./mascot3d/buddhaFoxStyle";
 
-const MODEL_URL = "/mascot3d/Fox.glb";
+// Points at the real Meshy character now (v0.70.0 landed Mascot.glb at
+// 3.12 MB with 15 Mixamo clips). The old Fox.glb placeholder is retired.
+// Note: this component (MascotActor3D) is the legacy 3D-pane renderer and
+// is no longer the default - MascotActorChoice defaults to MascotMeshy
+// directly, which has the full clip + expression driving logic. This
+// path still exists for ?mascot3d=pane users / debug.
+const MODEL_URL = "/mascot3d/Mascot.glb";
 
 /**
  * Map each MascotScene kind to a clip name on the loaded glTF. Fox.glb
