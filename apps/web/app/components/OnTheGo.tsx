@@ -36,7 +36,14 @@ import {
   prosodyForStyle, resolveEffectiveVoiceStyle,
   type NarrationVoiceStyle,
 } from "../lib/voiceProfiles";
-import { onTheGoExperience, sampleCourses, timerLabel, type OnTheGoMode } from "../lib/onTheGoMode";
+import {
+  DEMO_COURSE_ID,
+  DEMO_COURSE_TITLE_FALLBACK,
+  onTheGoExperience,
+  sampleCourses,
+  timerLabel,
+  type OnTheGoMode,
+} from "../lib/onTheGoMode";
 
 // Hands-free "Drive Mode": big controls, no required visuals, on-device TTS
 // narration with an autoplay queue so learners keep their eyes on the road.
@@ -206,6 +213,49 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     // still requires a token unless the sales demo is open to guests.
     if (!experience.showTimer && !getToken() && !demoOnlyAnon) return;
     setCoursesLoading(true);
+    // Public demo: skip the search catalog and pin one curated AI course so
+    // the visitor just taps Start. We still back-fill `rows` from
+    // listAudioCourses so that if the pinned DEMO_COURSE_ID 404s (e.g. a
+    // slug change or a locale with no translation) sampleCourses() can
+    // pick a sensible AI fallback instead of leaving the demo blank.
+    if (experience.mode === "demo") {
+      let cancelled = false;
+      (async () => {
+        try {
+          const pinned = await getAudioCourse(DEMO_COURSE_ID, locale, trainingLang);
+          if (cancelled) return;
+          const row: AudioCourseRow = {
+            id: pinned.id, title: pinned.title, category: pinned.category,
+            subject: pinned.subject, level: pinned.level,
+            duration_min: pinned.duration_min, tags: pinned.tags,
+            format: pinned.format, visual_required: pinned.visual_required,
+            drive_safe: pinned.drive_safe, segments: pinned.segments.length,
+          };
+          setRows([row]);
+          queue.current = [row];
+          setPickedId(pinned.id);
+          setCourse(audibleCourse(pinned));
+          setSeg(0);
+        } catch {
+          // Pinned course failed to load - fall back to the first AI course
+          // the catalog returns (or whatever sampleCourses picks last).
+          try {
+            const r = await listAudioCourses({ limit: "20" }, locale, trainingLang);
+            if (cancelled) return;
+            const picked = sampleCourses(r.courses);
+            setRows(picked);
+            queue.current = picked;
+            if (picked[0]) setPickedId(picked[0].id);
+          } catch (e2) {
+            if (!cancelled) setError(String(e2));
+          }
+        } finally {
+          if (!cancelled) setCoursesLoading(false);
+        }
+      })();
+      return () => { cancelled = true; };
+    }
+    // Signed-in tab: load the full catalog for the picker.
     listAudioCourses({ category: cat, q, limit: experience.fullCatalog ? "60" : "20" }, locale, trainingLang)
       .then((r) => {
         const courses = experience.fullCatalog ? r.courses : sampleCourses(r.courses);
@@ -214,7 +264,8 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       })
       .catch((e) => setError(String(e)))
       .finally(() => setCoursesLoading(false));
-  }, [cat, q, locale, trainingLang, demoOnlyAnon, experience.showTimer, experience.fullCatalog]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cat, q, locale, trainingLang, demoOnlyAnon, experience.showTimer, experience.fullCatalog, experience.mode]);
   useEffect(() => { refresh(); }, [refresh]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
@@ -871,11 +922,37 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{friendlyError(error, t("error.offline"))}</div></div>}
 
       {experience.showTimer && (
-        <p className="muted" data-testid="on-the-go-timer">
-          {demoEnded
-            ? t("drive.demoEnded")
-            : t("drive.demoTimer", { time: timerLabel(secondsLeft) })}
-        </p>
+        <div
+          data-testid="on-the-go-timer"
+          role="timer"
+          aria-live="polite"
+          aria-atomic="true"
+          style={{
+            display: "flex", alignItems: "baseline", gap: 14,
+            margin: "14px 0 18px",
+            padding: "14px 18px",
+            borderRadius: 14,
+            border: `2px solid ${demoEnded ? "#dc2626" : playing ? "#16a34a" : "#0ea5e9"}`,
+            background: demoEnded ? "#fef2f2" : playing ? "#f0fdf4" : "#f0f9ff",
+          }}
+        >
+          <span style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, color: "#4b5563" }}>
+            {t("drive.freeDemo")}
+          </span>
+          <span
+            style={{
+              fontSize: 44, fontWeight: 800, lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+              fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+              color: demoEnded ? "#dc2626" : playing ? "#15803d" : "#0369a1",
+            }}
+          >
+            {timerLabel(secondsLeft)}
+          </span>
+          <span style={{ fontSize: 14, color: "#4b5563" }}>
+            {demoEnded ? t("drive.demoEnded") : t("drive.demoCountsWhilePlaying")}
+          </span>
+        </div>
       )}
 
       {!accountReady && !experience.showTimer && <p className="muted">{t("drive.loading")}</p>}
@@ -904,32 +981,51 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
 
       {canDrive && (
         <div className="card" style={{ borderColor: "#0ea5e9", background: "#0b1020", color: "#e8ecf6" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, color: "#d7e7ea" }}>
-            {t("drive.courseLabel")}
-            <input
-              placeholder={t("drive.searchPlaceholder")}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              aria-label={t("drive.searchPlaceholder")}
-              style={{ minHeight: 48, borderRadius: 12, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 16, padding: "0 12px" }}
-            />
-            <select
-              aria-label="Course"
-              value={pickedId || course?.id || ""}
-              onChange={(e) => setPickedId(e.target.value)}
-              style={{ minHeight: 52, borderRadius: 12, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 18 }}
+          {experience.showCoursePicker ? (
+            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, color: "#d7e7ea" }}>
+              {t("drive.courseLabel")}
+              <input
+                placeholder={t("drive.searchPlaceholder")}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label={t("drive.searchPlaceholder")}
+                style={{ minHeight: 48, borderRadius: 12, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 16, padding: "0 12px" }}
+              />
+              <select
+                aria-label="Course"
+                value={pickedId || course?.id || ""}
+                onChange={(e) => setPickedId(e.target.value)}
+                style={{ minHeight: 52, borderRadius: 12, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 18 }}
+              >
+                <option value="">{t("drive.chooseCourse")}</option>
+                {course && !rows.some((row) => row.id === course.id) ? (
+                  <option value={course.id}>{course.title}</option>
+                ) : null}
+                {rows.map((row) => (
+                  <option key={row.id} value={row.id}>{row.title}</option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div
+              aria-label={t("drive.courseLabel")}
+              style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 2px" }}
             >
-              <option value="">{t("drive.chooseCourse")}</option>
-              {course && !rows.some((row) => row.id === course.id) ? (
-                <option value={course.id}>{course.title}</option>
-              ) : null}
-              {rows.map((row) => (
-                <option key={row.id} value={row.id}>{row.title}</option>
-              ))}
-            </select>
-          </label>
+              <span style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, color: "#9fbac2" }}>
+                {t("drive.courseLabel")}
+              </span>
+              <span style={{ fontSize: 20, fontWeight: 700, color: "#f4fbff" }}>
+                {course?.title || rows[0]?.title || DEMO_COURSE_TITLE_FALLBACK}
+              </span>
+              <span style={{ fontSize: 13, color: "#9fbac2" }}>
+                {t("drive.demoCourseHint")}
+              </span>
+            </div>
+          )}
           {coursesLoading && <p className="muted">{t("drive.loadingCourses")}</p>}
-          {!coursesLoading && rows.length === 0 && <p className="muted">{t("drive.noMatch")}</p>}
+          {!coursesLoading && experience.showCoursePicker && rows.length === 0 && (
+            <p className="muted">{t("drive.noMatch")}</p>
+          )}
 
           <div
             aria-hidden
