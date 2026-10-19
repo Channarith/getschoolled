@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AvatarImage from "../components/AvatarImage";
 import BiometricSetupAssistant from "../components/BiometricSetupAssistant";
-import MascotActor from "../components/MascotActor";
+import MascotActor from "../components/MascotActorChoice";
 import { type MascotScene, sceneForMode } from "../lib/mascotPose";
 import { AGE_MAX, AGE_MIN, AGE_OPTIONS, clampAge } from "../lib/learnerCheck";
 import AccountStep from "./AccountStep";

@@ -1,6 +1,6 @@
 {
   "name": "@eduplatform/web",
-  "version": "0.67.0",
+  "version": "0.68.0",
   "private": true,
   "license": "LicenseRef-AOEP-Proprietary",
   "scripts": {
@@ -14,6 +14,9 @@
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@react-three/drei": "^9.114.0",
+    "@react-three/fiber": "^8.17.10",
+    "@react-three/rapier": "^1.5.0",
     "livekit-client": "2.7.4",
     "next": "14.2.5",
     "react": "18.3.1",
