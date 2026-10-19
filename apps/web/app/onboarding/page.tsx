@@ -495,7 +495,17 @@ export default function OnboardingPage() {
           </div>
           {error && <p className={styles.error} role="alert">{error}</p>}
           <div className={styles.actions}>
-            <button className={styles.primary} disabled={busy || rated < MODES.length} onClick={() => void saveLearning()}>
+            <button
+              className={styles.primary}
+              disabled={busy || rated < MODES.length}
+              onClick={() => void saveLearning()}
+              /* Second waypoint for the overlay mascot's `learn` tour.
+                 The mascot walks from the active rating card to this
+                 Continue button once all modes are rated, so the user
+                 sees exactly where to click next. STEP_TOURS.learn is
+                 ["learn-card", "learn-continue"]. */
+              data-mascot-target="learn-continue"
+            >
               {busy ? "Saving…" : rated < MODES.length ? `Rate ${MODES.length - rated} more` : "Continue"}
             </button>
             <button className={styles.ghost} onClick={() => setStep("about")}>Back</button>

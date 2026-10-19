@@ -150,10 +150,14 @@ export default function MascotActorChoice(props: Props) {
       return;
     }
     const sticky = normalizeMode(window.localStorage.getItem("aoep.mascot3d"));
-    // Default to the live Meshy character so users immediately see real
-    // skeletal animation, not a static image. CSS stays available for
-    // SSR + opt-out (?mascot3d=0).
-    setMode(sticky ?? ENV_MODE ?? "meshy");
+    // Default to the "overlay" mode: the full-viewport Meshy character
+    // that walks between data-mascot-target elements and dwells with a
+    // pointing idle at each one. That is what the user actually wants
+    // during onboarding - the mascot visibly moves to the active rating
+    // card and asks them to score it, like a game-NPC guide. The
+    // in-pane "meshy" mode is still available via ?mascot3d=meshy; CSS
+    // stays available via ?mascot3d=0 for SSR + WebGL opt-out.
+    setMode(sticky ?? ENV_MODE ?? "overlay");
   }, []);
 
   if (props.step && MASCOT_HIDDEN_STEPS.has(props.step)) {
