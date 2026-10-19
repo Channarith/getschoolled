@@ -1,19 +1,25 @@
 "use client";
 
 /**
- * /mascot-lab — click-through demo for the procedural Buddy mascot.
+ * /mascot-lab — click-through demo for the real Meshy.ai Bayon Buddy
+ * mascot with mood overlays and whole-body motion.
  *
- * Shows one big preview of the character with buttons to:
- *   - swap through all 8 facial expressions (cute, serious, angry, sad,
- *     crying, excited, curious, mischievous)
- *   - switch between idle / walk / run motion states
- *   - toggle orbit controls so you can drag to rotate the camera
+ * The character comes from apps/web/public/mascot3d/Mascot.glb (produced
+ * by the user's Meshy image-to-3D run and slimmed via
+ * scripts/mascot_meshy_prep.py from 93.7 MB -> 4.4 MB).
  *
- * No backend, no auth, no feature flag - this is a pure authoring tool
- * so you can see exactly what the character looks like without touching
- * onboarding. Visit:
+ * Expression and motion are driven by MascotMeshy.tsx:
+ *   - Motion (idle / walk / run) uses whole-body transforms (hop + lean
+ *     + sway). The mesh has no skeleton so there is no leg articulation
+ *     until the Mixamo pass lands rigged clips - but a hop reads
+ *     clearly as walk/run at the eye level we show the character.
+ *   - Expression (cute / serious / angry / sad / crying / excited /
+ *     curious / mischievous) uses mood overlays - a per-material
+ *     emissive tint, a resting body tilt + lean, an optional scale
+ *     pulse, and an optional particle sprite overlay (tears /
+ *     sparkles / heat shimmer) rendered near the head.
  *
- *   http://localhost:3000/mascot-lab
+ * Visit http://localhost:3000/mascot-lab.
  */
 
 import dynamic from "next/dynamic";
@@ -23,20 +29,15 @@ import {
   EXPRESSION_LABELS,
   EXPRESSION_NAMES,
   type Expression,
-} from "../components/mascot3d/faceTexture";
-import type { MotionState } from "../components/mascot3d/proceduralBuddy";
+} from "../components/mascot3d/expressions";
+import type { MotionState } from "../components/MascotMeshy";
 
-const MascotProcedural = dynamic(
-  () => import("../components/MascotProcedural"),
-  { ssr: false, loading: () => <div style={placeholderStyle}>Loading…</div> },
-);
-const MascotMeshy = dynamic(
-  () => import("../components/MascotMeshy"),
-  { ssr: false, loading: () => <div style={placeholderStyle}>Loading real mesh…</div> },
-);
+const MascotMeshy = dynamic(() => import("../components/MascotMeshy"), {
+  ssr: false,
+  loading: () => <div style={placeholderStyle}>Loading mesh…</div>,
+});
 
 const MOTIONS: readonly MotionState[] = ["idle", "walk", "run"] as const;
-type Renderer = "procedural" | "meshy";
 
 const page: React.CSSProperties = {
   minHeight: "100vh",
@@ -57,7 +58,7 @@ const subhead: React.CSSProperties = {
   marginTop: 6,
   color: "#c8c0a4",
   fontSize: 14,
-  maxWidth: 640,
+  maxWidth: 720,
   lineHeight: 1.5,
 };
 const stageWrap: React.CSSProperties = {
@@ -81,7 +82,7 @@ const sectionTitle: React.CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.12em",
   color: "#e6ae36",
-  margin: "16px 0 10px",
+  margin: "18px 0 10px",
 };
 const btnRow: React.CSSProperties = {
   display: "flex",
@@ -128,7 +129,6 @@ const hint: React.CSSProperties = {
 };
 
 export default function MascotLab() {
-  const [renderer, setRenderer] = useState<Renderer>("meshy");
   const [expression, setExpression] = useState<Expression>("cute");
   const [motion, setMotion] = useState<MotionState>("idle");
   const [interactive, setInteractive] = useState<boolean>(true);
@@ -137,57 +137,28 @@ export default function MascotLab() {
     <main style={page}>
       <h1 style={headline}>Bayon Buddy — mascot lab</h1>
       <p style={subhead}>
-        Two renderers side-by-side so you can A/B compare them.{" "}
-        <strong>meshy</strong> loads the real Meshy.ai-generated character
-        from <code>apps/web/public/mascot3d/Mascot.glb</code> (4.4 MB, 15k
-        triangles, PBR textures, 1,073,512 → 15,000 tris via Blender
-        decimate + Draco, static mesh since Meshy image-to-3D does not rig).{" "}
-        <strong>procedural</strong> is the fully code-authored stand-in from{" "}
-        <code>proceduralBuddy.ts</code> + <code>faceTexture.ts</code> that
-        ships with 8 expressions and walk / idle / run cycles but no sculpted
-        geometry.
+        Real Meshy.ai-generated mesh ({" "}
+        <code>apps/web/public/mascot3d/Mascot.glb</code>, 4.4 MB, 15k
+        triangles, PBR textures). Expression and motion are driven by
+        mood overlays and whole-body transforms — the mesh has no
+        skeleton yet, so pick a motion to see the hop + lean, and pick
+        an expression to see the color tint + particles + posture.
+        Walking legs will land when the Mixamo rigging pass is merged
+        in via <code>scripts/mascot_blender_postprocess.py</code>.
       </p>
 
       <div style={stageWrap}>
         <div style={stage}>
-          {renderer === "meshy" ? (
-            <MascotMeshy size={480} interactive={interactive} />
-          ) : (
-            <MascotProcedural
-              expression={expression}
-              motion={motion}
-              size={480}
-              interactive={interactive}
-            />
-          )}
+          <MascotMeshy
+            expression={expression}
+            motion={motion}
+            size={480}
+            interactive={interactive}
+          />
         </div>
 
         <div style={controls}>
-          <h2 style={sectionTitle}>Renderer</h2>
-          <div style={btnRow}>
-            {(["meshy", "procedural"] as const).map((r) => {
-              const active = renderer === r;
-              return (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRenderer(r)}
-                  style={{ ...btnBase, ...(active ? btnActive : null) }}
-                >
-                  {r === "meshy" ? "Meshy mesh (real)" : "Procedural (code)"}
-                </button>
-              );
-            })}
-          </div>
-
-          <h2 style={sectionTitle}>
-            Facial expression{" "}
-            {renderer === "meshy" && (
-              <span style={{ opacity: 0.5, fontSize: 11 }}>
-                (procedural only — Meshy mesh has a baked face)
-              </span>
-            )}
-          </h2>
+          <h2 style={sectionTitle}>Expression</h2>
           <div style={btnRow}>
             {EXPRESSION_NAMES.map((name) => {
               const active = expression === name;
@@ -205,14 +176,7 @@ export default function MascotLab() {
             })}
           </div>
 
-          <h2 style={sectionTitle}>
-            Motion{" "}
-            {renderer === "meshy" && (
-              <span style={{ opacity: 0.5, fontSize: 11 }}>
-                (procedural only — Meshy mesh is static until Mixamo-rigged)
-              </span>
-            )}
-          </h2>
+          <h2 style={sectionTitle}>Motion</h2>
           <div style={btnRow}>
             {MOTIONS.map((m) => {
               const active = motion === m;
@@ -237,19 +201,28 @@ export default function MascotLab() {
                 checked={interactive}
                 onChange={(e) => setInteractive(e.target.checked)}
               />
-              Drag to rotate (orbit controls)
+              Drag to rotate / scroll to zoom
             </label>
           </div>
 
           <p style={hint}>
-            This character is drawn directly in WebGL from code — no external
-            model file, no CDN. Walking is a sin-wave swing of the hip + knee +
-            arm pivots; expressions are a Canvas2D texture painted onto a plane
-            in front of the head sphere. To ship it as the real mascot, point{" "}
-            <code>MascotActorChoice</code> at <code>MascotProcedural</code> for
-            a new mode (<code>?mascot3d=procedural</code>) — or export the mesh
-            using the workflow in <code>docs/mascot-pipeline.txt</code> and use
-            the loaded version instead.
+            <strong>Why not a cartoon face swap?</strong> The Meshy mesh
+            has a sculpted stone face baked into the geometry. Slapping a
+            Canvas2D face plane on it looks like a sticker on a statue.
+            Instead each expression tints the stone (angry → warm red,
+            sad → cool blue, excited → warm gold), nudges the body
+            posture (curious tilts right, sad hunches forward), and
+            adds a small particle overlay near the head (tears for
+            crying, sparkles for excited, heat shimmer for angry). It
+            preserves the carved-stone aesthetic while still giving each
+            expression a clear read.
+          </p>
+          <p style={hint}>
+            <strong>Why only a hop, not walking legs?</strong> The mesh
+            has no skeleton. Meshy image-to-3D produces static geometry.
+            Legs that bend will arrive after the Mixamo pass:{" "}
+            <code>docs/mascot-meshy-input/mascot_for_mixamo.fbx</code>{" "}
+            is already staged for upload.
           </p>
         </div>
       </div>
