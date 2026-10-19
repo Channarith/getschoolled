@@ -249,10 +249,37 @@ export default function OnboardingPage() {
   function saveLearning() {
     return run(async () => {
       const answers = { modality_ratings: ratings };
-      await submitLearningProfile(studentId, answers);
+      // The identity service returns 404 "unknown student profile" if the
+      // cached studentId no longer resolves (common after a backend wipe
+      // or when localStorage.onboarding_student points at a student the
+      // identity DB has forgotten about). Self-heal by re-posting the
+      // About step from the cached name/age, then retry the learning
+      // profile with the fresh student id.
+      let effectiveStudentId = studentId;
+      try {
+        await submitLearningProfile(effectiveStudentId, answers);
+      } catch (reason) {
+        const msg = String(reason);
+        const is404 = /\b404\b/.test(msg) || /unknown student profile/i.test(msg);
+        if (!is404) throw reason;
+        if (!name.trim() || !ageValue) {
+          // Nothing cached to re-create with - bounce them back to About
+          // so they can type their name/age again.
+          setStep("about");
+          throw new Error("We lost your profile - please re-enter your name and age.");
+        }
+        const refreshed = await submitOnboardingLearner({
+          learner_name: name.trim(),
+          age: ageValue,
+        });
+        localStorage.setItem(STORAGE.student, refreshed.student.id);
+        setStudentId(refreshed.student.id);
+        effectiveStudentId = refreshed.student.id;
+        await submitLearningProfile(effectiveStudentId, answers);
+      }
       const me = await getMe().catch(() => null);
       if (me) {
-        void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: studentId, answers })
+        void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: effectiveStudentId, answers })
           .catch(() => undefined);
       }
       window.dispatchEvent(new CustomEvent("aoep-learning-profile-saved"));
