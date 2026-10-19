@@ -76,7 +76,7 @@ def metric_summary(rows: Sequence[Mapping]) -> dict:
 
 
 def candidate_beats_baseline(baseline: Mapping, candidate: Mapping) -> dict:
-    """True when CER drops by ``CER_MARGIN`` and similarity holds.
+    """True when CER drops by ``CER_MARGIN``, stays under 1, and similarity holds.
 
     Serving stays unchanged here. The live sidecar is CosyVoice-300M-SFT with
     enrolled speakers. This candidate is a CosyVoice-300M zero-shot LLM and
@@ -100,11 +100,16 @@ def candidate_beats_baseline(baseline: Mapping, candidate: Mapping) -> dict:
     if not reasons:
         cer_ok = float(cand_cer) <= float(base_cer) - CER_MARGIN
         sim_ok = float(cand_sim) >= float(base_sim) - SIM_FLOOR
-        wins = cer_ok and sim_ok
+        # CER at or above 1 means the hypothesis is still a mismatch or a
+        # repetition loop. That is not a clear win for the serving config.
+        intelligible = float(cand_cer) < 1.0
+        wins = cer_ok and sim_ok and intelligible
         if not cer_ok:
             reasons.append("cer_margin")
         if not sim_ok:
             reasons.append("similarity_drop")
+        if not intelligible:
+            reasons.append("cer_still_high")
     return {
         "wins": wins,
         "reasons": reasons,

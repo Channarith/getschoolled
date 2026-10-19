@@ -31,6 +31,25 @@ from aoep_shared.cosyvoice_ingest.khmer_eval import (
 )
 
 
+def _patch_torchaudio_load() -> None:
+    """torchaudio.load on this box requires TorchCodec. Read wavs with soundfile."""
+    from io import BytesIO
+
+    import numpy as np
+    import soundfile as sf
+    import torchaudio
+
+    def load(source, *args, **kwargs):
+        del args, kwargs
+        if isinstance(source, (bytes, bytearray, memoryview)):
+            source = BytesIO(bytes(source))
+        data, sample_rate = sf.read(source, dtype="float32", always_2d=True)
+        audio = torch.from_numpy(np.ascontiguousarray(data.T))
+        return audio, int(sample_rate)
+
+    torchaudio.load = load
+
+
 def _force_cpu_onnx() -> None:
     """This host's onnxruntime has no CUDA provider. CosyVoice still asks for one."""
     import onnxruntime as ort
@@ -315,6 +334,7 @@ def main() -> int:
         print(f"candidate checkpoint missing: {args.candidate_ckpt}", file=sys.stderr)
         return 2
     _force_cpu_onnx()
+    _patch_torchaudio_load()
 
     train_wav = _load_map(args.train_dir / "wav.scp")
     dev_wav = _load_map(args.dev_dir / "wav.scp")

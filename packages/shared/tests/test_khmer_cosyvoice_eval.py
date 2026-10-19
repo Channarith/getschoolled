@@ -43,6 +43,16 @@ def test_clear_cer_drop_is_a_metric_win_and_serving_stays():
     assert decision["reasons"] == []
 
 
+def test_unintelligible_cer_is_not_a_clear_win():
+    decision = candidate_beats_baseline(
+        {"cer": 1.0986, "speaker_similarity": 0.1997, "scored": 64},
+        {"cer": 1.0296, "speaker_similarity": 0.1842, "scored": 64},
+    )
+    assert decision["wins"] is False
+    assert "cer_still_high" in decision["reasons"]
+    assert decision["serving_config"] == "unchanged"
+
+
 def test_tiny_cer_drop_does_not_win():
     decision = candidate_beats_baseline(
         {"cer": 0.40, "speaker_similarity": 0.70, "scored": 20},
