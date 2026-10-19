@@ -12,8 +12,8 @@ import {
   getPortfolio,
   getRewards,
   getToken,
-  setAccountAvatar,
   listStudents,
+  startBillingCheckout,
   subscribeToPlan,
   setStudentMastery,
   getConsumerPlans,
@@ -22,6 +22,7 @@ import {
   type Portfolio,
   type StudentProfile,
 } from "../lib/api";
+import { isAdminUnlocked } from "../lib/api";
 import { COURSE_UNLOCK_PRICE_LABEL } from "../lib/courseStudio";
 import { formatMonthlyPrice, orderedConsumerPlans } from "../lib/consumerPlansDisplay";
 import { useFlag } from "../lib/flags";
@@ -29,9 +30,13 @@ import { OPEN_LEARNING_PROFILE_EVENT } from "../components/LearningProfileSurvey
 import { playIntro, INTRO_AUTOPLAY_KEY } from "../components/IntroSequence";
 import { INTRO_VARIANTS } from "../lib/introAnimations";
 import { useT } from "../lib/i18n";
-import AvatarPicker from "../components/AvatarPicker";
 import LanguagePicker from "../components/LanguagePicker";
-import { writeLocalAvatarId } from "../lib/avatars";
+// AvatarPicker (the grid of ~20 face thumbnails + the "realistic" style
+// toggle) is intentionally NOT imported here. The user asked us to hide the
+// avatar grid in profile settings because the current palette looked
+// racially coded; the field stays in the schema so previously-chosen avatars
+// still render elsewhere in the app, we just stop offering the chooser here.
+// Replaced below with a neutral monogram built from the display name.
 
 const STATUS_ORDER = ["paid", "in_progress", "enrolled", "saved", "passed", "failed"];
 
@@ -48,12 +53,11 @@ export default function AccountPage() {
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [newStudent, setNewStudent] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [showAdminTools, setShowAdminTools] = useState(false);
   const [allAccounts, setAllAccounts] = useState<Account[]>([]);
   const [primaryStudent, setPrimaryStudent] = useState<StudentProfile | null>(null);
   const [introAutoplay, setIntroAutoplay] = useState(true);
-  const [avatarId, setAvatarId] = useState("");
-  const [avatarBusy, setAvatarBusy] = useState(false);
-  const [avatarMsg, setAvatarMsg] = useState("");
   const [membershipPlans, setMembershipPlans] = useState<ConsumerPlan[]>([]);
 
   useEffect(() => {
@@ -73,10 +77,7 @@ export default function AccountPage() {
       ]);
       setMembershipPlans(orderedConsumerPlans(planCatalog));
       setIsAdmin(Boolean(me.is_admin));
-      if (me.avatar_id) {
-        setAvatarId(me.avatar_id);
-        writeLocalAvatarId(me.avatar_id);
-      }
+      setAdminUnlocked(Boolean(me.is_admin) || isAdminUnlocked());
       if (me.is_admin) {
         try {
           setAllAccounts((await adminListAccounts()).accounts);
@@ -157,8 +158,40 @@ export default function AccountPage() {
   }
 
   async function onTier(tier: string) {
+    // Fix for the user-reported "membership upgrade is broken" bug:
+    //
+    // The old flow always called subscribeToPlan(tier). In cloud mode the
+    // identity service's POST /membership/subscribe rejects paid tiers with
+    // HTTP 402 "paid tiers require verified payment; complete checkout or
+    // wait for billing sync" (see _self_serve_paid_tiers_allowed() — only
+    // local/dev/sandbox mode lets the user upgrade without paying). The 402
+    // surfaced to the user as a cryptic red error on the account page and
+    // the tier never flipped, which is exactly what the user described.
+    //
+    // The onboarding step already did the right thing (startBillingCheckout
+    // for paid tiers, selectOnboardingPlan for free). Mirror that here:
+    //   - "free"             → direct subscribeToPlan("free")
+    //   - everything else    → startBillingCheckout → redirect to session URL
+    //                          (sandbox provider returns a Stripe-like URL
+    //                          that confirms immediately; cloud sends through
+    //                          the real payment provider's hosted checkout).
+    setError("");
     try {
-      await subscribeToPlan(tier);
+      if (!tier || tier === "free") {
+        await subscribeToPlan("free");
+        await refresh();
+        return;
+      }
+      const me = await getMe();
+      const session = await startBillingCheckout(me.id, tier);
+      if (session.url && /^https?:\/\//i.test(session.url)) {
+        window.location.href = session.url;
+        return;
+      }
+      // No hosted-checkout URL means we are in sandbox mode where the backend
+      // has already activated the subscription; just refresh to show the new
+      // tier.
+      await subscribeToPlan(tier).catch(() => undefined);
       await refresh();
     } catch (e) {
       setError(String(e));
@@ -214,29 +247,48 @@ export default function AccountPage() {
           </div>
 
 
-          <div className="card" data-testid="avatar-picker">
-            <AvatarPicker
-              value={avatarId}
-              disabled={avatarBusy}
-              heading="Your avatar"
-              onChange={async (id) => {
-                setAvatarBusy(true);
-                setAvatarMsg("");
-                setAvatarId(id);
-                writeLocalAvatarId(id);
-                try {
-                  const res = await setAccountAvatar(id);
-                  setAvatarId(res.avatar_id);
-                  writeLocalAvatarId(res.avatar_id);
-                  setAvatarMsg("Avatar saved");
-                } catch (e) {
-                  setAvatarMsg(String(e));
-                } finally {
-                  setAvatarBusy(false);
-                }
-              }}
-            />
-            {avatarMsg ? <div className="muted" style={{ marginTop: 8 }}>{avatarMsg}</div> : null}
+          {/* Avatar grid is intentionally hidden. The previous palette of
+              illustrated faces could be read as stereotyping across skin tone /
+              gender, and the user asked us to remove it while we rework the
+              set. We still render a neutral monogram chip (first letter of
+              the display name on a solid accent background) so the account
+              card has an identity cue — the avatar_id field is preserved in
+              the API so an older choice still shows up in group-class tiles
+              or chat bubbles that read the account record. */}
+          <div className="card" data-testid="avatar-monogram">
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div
+                aria-hidden="true"
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #6366f1, #22d3ee)",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: "'Fraunces', Georgia, serif",
+                  fontWeight: 600,
+                  fontSize: 32,
+                  letterSpacing: 1,
+                  boxShadow: "0 6px 16px rgba(99,102,241,0.25)",
+                }}
+              >
+                {(portfolio.account.display_name || portfolio.account.email || "?")
+                  .trim()
+                  .charAt(0)
+                  .toUpperCase()}
+              </div>
+              <div>
+                <h3 style={{ margin: 0 }}>Your profile picture</h3>
+                <p className="muted" style={{ margin: "4px 0 0" }}>
+                  We're redesigning the avatar set. For now your profile shows a
+                  simple monogram taken from your display name. Rename yourself
+                  below under <strong>Security</strong> to change it.
+                </p>
+              </div>
+            </div>
           </div>
 
           <div
@@ -278,22 +330,51 @@ export default function AccountPage() {
           </div>
 
           <div className="card" id="course-language">
+            {/* Pared-down Settings & Tools section. The user asked "what's the
+                point?" of the old grid that mixed everyday prefs with ops
+                buttons (Dashboard, Service Console, Admin). The top-nav already
+                exposes Dashboard and Admin for the people who need them, so we
+                dropped those two buttons here and kept only the account-scoped
+                prefs. Service Console + Admin tools (the ops-y ones) live in a
+                collapsed disclosure below that only renders when the viewer is
+                admin or has unlocked admin via ADMIN_SECRET. */}
             <h3>{t("account.settingsTools")}</h3>
-            <p className="muted">{t("account.settingsDesc")}</p>
             <p className="muted" style={{ marginTop: 0 }}>
               Course language for On the Go. Sala listens in any language and teaches in this one.
             </p>
             <LanguagePicker />
-            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-              <Link href="/dashboard"><button>{t("account.dashboard")}</button></Link>
-              {consoleOn && <Link href="/console"><button>{t("account.console")}</button></Link>}
-              <Link href="/admin"><button>{t("account.admin")}</button></Link>
+            <div className="row" style={{ gap: 8, flexWrap: "wrap", marginTop: 10 }}>
               <Link href="/backgrounds"><button>{t("account.themes")}</button></Link>
-              <Link href="/consent"><button>{t("account.consent")}</button></Link>
               <Link href="/transparency"><button>{t("account.transparency")}</button></Link>
               <Link href="/legal"><button>{t("account.legal")}</button></Link>
               <Link href="/security"><button>Sign-in security</button></Link>
             </div>
+            {adminUnlocked && (
+              <div style={{ marginTop: 14, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAdminTools((v) => !v)}
+                  style={{
+                    background: "transparent",
+                    border: 0,
+                    color: "var(--muted)",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    padding: 0,
+                  }}
+                  aria-expanded={showAdminTools}
+                >
+                  {showAdminTools ? "▾" : "▸"} Admin tools
+                </button>
+                {showAdminTools && (
+                  <div className="row" style={{ gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                    <Link href="/dashboard"><button>{t("account.dashboard")}</button></Link>
+                    {consoleOn && <Link href="/console"><button>{t("account.console")}</button></Link>}
+                    <Link href="/admin"><button>{t("account.admin")}</button></Link>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="card">

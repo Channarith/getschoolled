@@ -1107,7 +1107,7 @@ export default function LiveRoomScreen({
       <View style={[styles.wrap, shellStyle]}>
         <PrimaryButton label="← Back" onPress={leaveAndBack} variant="ghost" />
         <Text style={styles.title}>Salareen Live Room</Text>
-        <Text style={styles.meta}>Theodore hosts · grid up to {room?.room_size ?? 6} seats</Text>
+        <Text style={styles.meta}>Sala hosts · grid up to {room?.room_size ?? 6} seats</Text>
         {loading ? <ActivityIndicator color={theme.colors.accent} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <GlassPanel style={styles.joinCard}>
@@ -1180,7 +1180,7 @@ export default function LiveRoomScreen({
       {socket.hostAnswer && (socket.hostAnswer.text || !socket.hostAnswer.done) ? (
         <View style={styles.hostAnswer}>
           <Text style={styles.hostAnswerTitle}>
-            🎓 Theodore{socket.hostAnswer.asker ? ` → ${socket.hostAnswer.asker}` : ""}
+            🎓 Sala{socket.hostAnswer.asker ? ` → ${socket.hostAnswer.asker}` : ""}
             {!socket.hostAnswer.done ? " is answering…" : ""}
           </Text>
           <Text style={styles.hostAnswerText} numberOfLines={4}>
@@ -1312,7 +1312,7 @@ export default function LiveRoomScreen({
         <Text style={styles.presenterHost} numberOfLines={1}>
           🎓 {canModerate
             ? (account?.display_name ?? "You (Host)")
-            : (room?.host?.name ?? "Theodore (AI Host)")}
+            : (room?.host?.name ?? "Sala (AI Host)")}
           {room?.presenting ? ` · Slide ${(room?.slide?.index ?? 0) + 1}` : " · Welcome"}
         </Text>
         <ScrollView style={styles.heroScroll} contentContainerStyle={styles.heroContent}>
@@ -1448,8 +1448,8 @@ export default function LiveRoomScreen({
         </View>
       </BottomSheet>
 
-      {/* ---- Ask Theodore ---- */}
-      <BottomSheet visible={sheet === "ask"} title="Ask Theodore" onClose={() => setSheet(null)}>
+      {/* ---- Ask Sala ---- */}
+      <BottomSheet visible={sheet === "ask"} title="Ask Sala" onClose={() => setSheet(null)}>
         <Text style={styles.meta}>
           Your question goes to the AI teacher. If someone&apos;s speaking, you&apos;ll join the Q&amp;A queue.
         </Text>
@@ -1457,7 +1457,7 @@ export default function LiveRoomScreen({
           <TextInput
             value={question}
             onChangeText={setQuestion}
-            placeholder="Ask Theodore…"
+            placeholder="Ask Sala…"
             placeholderTextColor={theme.colors.muted}
             style={[styles.input, { flex: 1 }]}
           />
@@ -1528,7 +1528,7 @@ export default function LiveRoomScreen({
                 />
               ))}
             </View>
-          ) : <Text style={styles.meta}>Waiting for Theodore or the class admin to start a game.</Text>
+          ) : <Text style={styles.meta}>Waiting for Sala or the class admin to start a game.</Text>
         ) : (
           <View style={styles.sheetSection}>
             <Text style={styles.gameKind}>
@@ -2035,7 +2035,7 @@ export default function LiveRoomScreen({
 
           {canModerate && Number(room?.audience_profile?.learner_count ?? 0) > 0 ? (
             <View style={styles.adminProfilePanel}>
-              <Text style={styles.cardTitle}>🧠 Theodore adaptation monitor</Text>
+              <Text style={styles.cardTitle}>🧠 Sala adaptation monitor</Text>
               <Text style={styles.adminProfileText}>
                 Class mean {Math.round(Number(room?.audience_profile?.mean_readiness ?? 0))}/100
                 {" · "}
@@ -2045,7 +2045,7 @@ export default function LiveRoomScreen({
                 <Text key={hint} style={styles.adminProfileHint}>• {hint}</Text>
               ))}
               <Text style={styles.adminProfileNote}>
-                Theodore uses anonymous aggregates for explanations and Q&amp;A;
+                Sala uses anonymous aggregates for explanations and Q&amp;A;
                 authored slide text remains unchanged.
               </Text>
             </View>
@@ -2197,7 +2197,7 @@ export default function LiveRoomScreen({
         const fsTrack = fsParticipant
           ? (fsParticipant.me && !cameraOn ? null : trackFor(fsParticipant.id, fsParticipant.identity))
           : null;
-        const fsName = isHost ? (focusedTile.name || "Theodore") : (fsParticipant?.name ?? "");
+        const fsName = isHost ? (focusedTile.name || "Sala") : (fsParticipant?.name ?? "");
         const fsMe = Boolean(fsParticipant?.me);
         const fsFloor = !isHost && room?.floor_participant_id === fsParticipant?.id;
         const fsMuted = !isHost && Boolean(
@@ -2248,7 +2248,7 @@ export default function LiveRoomScreen({
             {socket.hostAnswer && (socket.hostAnswer.text || !socket.hostAnswer.done) ? (
               <View style={styles.fsHostAnswer} pointerEvents="none">
                 <Text style={styles.hostAnswerTitle}>
-                  🎓 Theodore{socket.hostAnswer.asker ? ` → ${socket.hostAnswer.asker}` : ""}
+                  🎓 Sala{socket.hostAnswer.asker ? ` → ${socket.hostAnswer.asker}` : ""}
                   {!socket.hostAnswer.done ? " is answering…" : ""}
                 </Text>
                 <Text style={styles.hostAnswerText} numberOfLines={4}>

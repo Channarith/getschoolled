@@ -81,7 +81,11 @@ export default function RewardsPage() {
       <h1>{t("rewards.title")}</h1>
       <p className="muted">
         {t("rewards.intro")}{" "}
-        <Link href="/legal">{t("rewards.rulesLink")}</Link> {t("rewards.noPurchase")}
+        {/* Users specifically asked for the Rewards & Sweepstakes rules to be
+            linked from the Rewards tab. The dedicated /legal/sweepstakes-rules
+            page carries the full "no purchase necessary" + eligibility text so
+            the Rewards UI stays about progress/points, not legal fine print. */}
+        <Link href="/legal/sweepstakes-rules">{t("rewards.rulesLink")}</Link> {t("rewards.noPurchase")}
       </p>
 
       {!loggedIn && (

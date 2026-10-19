@@ -113,7 +113,8 @@ def test_build_voice_session_personas():
     assert event["type"] == "session.update"
     assert event["session"]["voice"] == "ara"
     assert "soft-spoken" in event["session"]["instructions"]
-    assert "Theodore" in event["session"]["instructions"]
+    # Mascot was renamed from "Theodore" to "Sala" in the user-facing persona.
+    assert "Sala" in event["session"]["instructions"]
     assert "Slide 1" in event["session"]["instructions"]
     assert event["session"]["turn_detection"]["type"] == "server_vad"
 

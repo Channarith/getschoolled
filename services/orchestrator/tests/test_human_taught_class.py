@@ -42,7 +42,8 @@ def test_ai_taught_room_is_unchanged():
     assert AI_HOST_ID in room.participants
     assert room.host().id == AI_HOST_ID
     assert room.human_taught is False
-    assert "Theodore" in room.chat[0].from_name
+    # Standard Salareen class: AI host "Sala (AI Host)" appears in the chat.
+    assert "Sala (" in room.chat[0].from_name
 
 
 def test_human_taught_room_has_no_theodore():
@@ -54,7 +55,9 @@ def test_human_taught_room_has_no_theodore():
     # A host slot still exists so the room renders before the teacher arrives.
     assert room.host().id == HUMAN_HOST_ID
     assert room.host().name == "Ms. Rivera"
-    assert all("Theodore" not in m.from_name for m in room.chat)
+    # Human-taught class: no Sala/Theodore in the chat (person teaches live).
+    # Use the bracketed form so it doesn't collide with "Salareen".
+    assert all("Sala (" not in m.from_name and "Theodore (" not in m.from_name for m in room.chat)
     assert "Ms. Rivera is teaching this class live" in room.welcome_message
 
 
@@ -136,7 +139,7 @@ def test_automated_notices_come_from_the_instructor_not_theodore():
 
     msg = store.post_host_message("class-1", "Slide 2: Your turn to apply it")
     assert msg.from_name == "Ms. Rivera"
-    assert "Theodore" not in msg.from_name
+    assert "Sala (" not in msg.from_name and "Theodore (" not in msg.from_name
 
 
 def test_serialized_room_tells_the_client_it_is_human_taught():
@@ -149,7 +152,7 @@ def test_serialized_room_tells_the_client_it_is_human_taught():
     assert payload["human_host_name"] == "Ms. Rivera"
     assert payload["host"]["id"] == teacher.id
     assert payload["host"]["name"] == "Ms. Rivera"
-    assert not any("Theodore" in m["from_name"] for m in payload["chat"])
+    assert not any("Sala (" in m["from_name"] or "Theodore (" in m["from_name"] for m in payload["chat"])
 
 
 # --------------------------------------------------------------- API contract
@@ -189,8 +192,14 @@ def test_started_instructor_class_opens_a_room_with_no_theodore(monkeypatch):
 
     room = client.get(f"/api/live-rooms/class-{gc['id']}").json()
     assert room["human_taught"] is True
-    assert "Theodore" not in room["host"]["name"]
-    assert not any("Theodore" in m["from_name"] for m in room["chat"])
+    # Mascot name = standalone "Sala" (or legacy "Theodore"). We check for the
+    # bracketed form "Sala (" so it doesn't collide with "Salareen" in the
+    # instructor-led room name/description.
+    assert "Sala (" not in room["host"]["name"] and "Theodore (" not in room["host"]["name"]
+    assert not any(
+        "Sala (" in m["from_name"] or "Theodore (" in m["from_name"]
+        for m in room["chat"]
+    )
 
 
 def test_student_study_group_still_gets_theodore(monkeypatch):
@@ -233,4 +242,4 @@ def test_student_study_group_still_gets_theodore(monkeypatch):
 
     room = client.get(f"/api/live-rooms/class-{gc['id']}").json()
     assert room.get("human_taught") is False
-    assert room["host"]["name"] == "Theodore (AI Host)"
+    assert room["host"]["name"] == "Sala (AI Host)"

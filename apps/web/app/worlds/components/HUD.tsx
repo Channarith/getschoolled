@@ -489,7 +489,7 @@ export default function GameHUD({
         </div>
       )}
 
-      {/* ── Theodore ─────────────────────────────────────────── */}
+      {/* ── Sala (mascot HUD; internal var `theo*` kept for API shape) ── */}
       <div style={{
         position: "absolute",
         bottom: 100,
@@ -507,7 +507,7 @@ export default function GameHUD({
         <span style={{ fontSize: 28, flexShrink: 0, filter: "drop-shadow(0 0 6px #fbbf24)" }}>🟡</span>
         <div>
           <div style={{ color: "#fbbf24", fontSize: 10, fontWeight: 900, letterSpacing: 1.5, marginBottom: 2 }}>
-            THEODORE · AI GUIDE
+            SALA · AI GUIDE
           </div>
           <div style={{ color: "#e2e8f0", fontSize: 14, lineHeight: 1.45 }}>{theoMessage}</div>
         </div>

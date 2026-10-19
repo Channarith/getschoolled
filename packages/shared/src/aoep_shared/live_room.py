@@ -36,11 +36,15 @@ AI_HOST_ID = "theodore-ai"
 # Placeholder host slot for a human-taught class, held until the instructor joins
 # and takes it over. It keeps LiveRoom.host() valid before they arrive.
 HUMAN_HOST_ID = "human-host"
-AI_HOST_NAME = "Theodore (AI Host)"
+# User-facing display name of the AI host. The platform mascot is now called
+# "Sala" (was "Theodore"); the subrepo directories and internal protocol
+# strings keep their legacy names because renaming them breaks k8s manifests
+# and TypeScript shared protocol fields across apps.
+AI_HOST_NAME = "Sala (AI Host)"
 AI_HOST_ROLE = "host"
 LEARNER_ROLE = "learner"
 PRE_CLASS_WELCOME = (
-    "Welcome, everyone. I'm Theodore, your AI host. Before we begin, I want to "
+    "Welcome, everyone. I'm Sala, your AI host. Before we begin, I want to "
     "be transparent: I am an artificial-intelligence teacher, not a human. "
     "I'll guide today's lesson, explain my role clearly, and encourage you to "
     "question both the course material and my answers. Your ideas, corrections, "
@@ -151,7 +155,11 @@ QUEUE_RATE_WINDOW_S = 30.0  # ... per 30 seconds
 # produced a bogus "display name is reserved" 400 when those users joined a class.
 DISPLAY_NAME_MAX_CHARS = 40
 _RESERVED_NAME_TOKENS = frozenset({
-    "theodore", "theodoreaihost", "aihost", "salareen", "salareenai",
+    # "theodore" / "theodoreaihost" are kept as reserved so legacy clients
+    # that still ship the old host display name can't be impersonated during
+    # the rename. "sala" / "salaaihost" are the new canonical tokens.
+    "sala", "salaaihost", "salareen", "salareenai", "aihost",
+    "theodore", "theodoreaihost",
     "system", "room",
 })
 

@@ -35,6 +35,16 @@ export default function VisionPage() {
   const [results, setResults] = useState<IdentifiedFace[]>([]);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  // Which pipeline step failed, so the UI can tell the user something more
+  // useful than a bare toString() of the exception. The user reported Vision
+  // Play camera + gestures were flaky — most of the time it's one of:
+  //   - "camera": getUserMedia was blocked / dismissed / no device
+  //   - "model":  YuNet / SFace ONNX fetch failed (offline or 404 from CDN)
+  //   - "runtime": OpenCV.js never finished bootstrapping (slow network)
+  //   - "inference": the frame produced no detection (bad lighting / angle)
+  // We classify and surface each with its own banner + retry affordance.
+  type ErrorStage = "camera" | "model" | "runtime" | "inference" | "unknown";
+  const [errorStage, setErrorStage] = useState<ErrorStage>("unknown");
 
   // Voice enrollment state
   const [voiceStep, setVoiceStep] = useState<"idle" | "prompting" | "recording" | "uploading" | "done" | "error">("idle");
@@ -71,29 +81,63 @@ export default function VisionPage() {
     if (engineRef.current) return engineRef.current;
     setEngineState("loading");
     setError("");
+    setErrorStage("unknown");
     try {
       const eng = await createVisionEngine();
       engineRef.current = eng;
       setEngineState("ready");
       return eng;
     } catch (e) {
+      const msg = String(e);
+      // Loose classifier — the exception names from opencvRuntime.ModelLoadError
+      // and from the model fetchers include "model" / "opencv.js" / "onnx" so
+      // we can tell the user which step died.
+      const stage: ErrorStage =
+        /opencv\.js|cv runtime|wait.*cv/i.test(msg)
+          ? "runtime"
+          : /\.onnx|yunet|sface|model/i.test(msg)
+            ? "model"
+            : "unknown";
       setEngineState("error");
-      setError(String(e));
+      setErrorStage(stage);
+      setError(msg);
       return null;
     }
   }, []);
 
   const startCamera = useCallback(async () => {
     setError("");
+    setErrorStage("unknown");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      // Prefer environment camera on mobile (back-facing) so kids can point it
+      // at a worksheet; fall back to any camera if "environment" is missing.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "user" } },
+        audio: false,
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setCameraOn(true);
       }
     } catch (e) {
-      setError(`camera unavailable: ${e}`);
+      // Classify the common camera failure modes so the banner can tell the
+      // user WHY the camera didn't come up — a bare "NotAllowedError" is
+      // meaningless to kids/parents.
+      const name = (e as DOMException)?.name || "";
+      const msg = String(e);
+      let hint = "";
+      if (name === "NotAllowedError" || /denied|permission/i.test(msg)) {
+        hint = "You denied camera access. Click the camera icon in the address bar to allow it, then press Start again.";
+      } else if (name === "NotFoundError" || /no.*device|not.*found/i.test(msg)) {
+        hint = "No camera was found. Plug in a webcam (or enable the laptop camera) and try again.";
+      } else if (name === "NotReadableError" || /in use|busy/i.test(msg)) {
+        hint = "Another app (Zoom, Teams, OBS) is using the camera. Close it and try again.";
+      } else {
+        hint = "Camera could not start. Try again, and if that fails, reload the page.";
+      }
+      setErrorStage("camera");
+      setError(`${hint}  (details: ${msg})`);
     }
     void ensureEngine();
   }, [ensureEngine]);
@@ -148,11 +192,15 @@ export default function VisionPage() {
 
   async function identify() {
     setError("");
+    setErrorStage("unknown");
     const eng = await ensureEngine();
     if (!eng || !videoRef.current) return;
     const faces = eng.detectAndEmbed(videoRef.current);
     if (faces.length === 0) {
-      setStatus("no face detected");
+      setErrorStage("inference");
+      setError(
+        "No face was detected in this frame. Move so your whole face is visible, improve the lighting, or step closer to the camera (and remove hats / glasses glare), then press Identify again.",
+      );
       setResults([]);
       return;
     }
@@ -296,14 +344,97 @@ export default function VisionPage() {
         </div>
       )}
 
+      {/* Structured diagnostic banner. One of the top sources of user
+          frustration on Vision Play was a cryptic single-line red error with
+          no action — this surfaces which step failed, what the user can do
+          about it, and a retry button right next to the message. */}
       {error && (
-        <div className="card" style={{ borderColor: "#ff6b6b" }}>
-          <div className="muted">{error}</div>
+        <div
+          className="card"
+          role="alert"
+          style={{
+            borderColor: "#ff6b6b",
+            background: "rgba(255,107,107,0.08)",
+          }}
+        >
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 24 }} aria-hidden="true">
+              {errorStage === "camera" ? "📷" :
+               errorStage === "model" ? "📦" :
+               errorStage === "runtime" ? "⚙️" :
+               errorStage === "inference" ? "👀" : "⚠️"}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <strong style={{ display: "block", marginBottom: 4 }}>
+                {errorStage === "camera" ? "Camera couldn't start"
+                  : errorStage === "model" ? "Vision model failed to download"
+                  : errorStage === "runtime" ? "OpenCV runtime didn't finish loading"
+                  : errorStage === "inference" ? "No face detected in this frame"
+                  : "Vision Play ran into a problem"}
+              </strong>
+              <div className="muted" style={{ fontSize: 14, lineHeight: 1.5 }}>{error}</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                {errorStage === "camera" && (
+                  <button
+                    type="button"
+                    onClick={() => void startCamera()}
+                    style={{ padding: "8px 14px", background: "#3b82f6", color: "#fff", border: 0, borderRadius: 8, cursor: "pointer" }}
+                  >
+                    Enable camera
+                  </button>
+                )}
+                {(errorStage === "model" || errorStage === "runtime") && (
+                  <button
+                    type="button"
+                    onClick={() => { engineRef.current = null; void ensureEngine(); }}
+                    style={{ padding: "8px 14px", background: "#3b82f6", color: "#fff", border: 0, borderRadius: 8, cursor: "pointer" }}
+                  >
+                    Retry model load
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setError(""); setErrorStage("unknown"); }}
+                  style={{ padding: "8px 14px", background: "transparent", color: "inherit", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer" }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* ---- Camera + face enroll ---- */}
       <div className="card">
+        {!cameraOn && !error && (
+          <div
+            style={{
+              padding: 14,
+              marginBottom: 12,
+              borderRadius: 10,
+              background: "rgba(59,130,246,0.08)",
+              border: "1px dashed rgba(59,130,246,0.45)",
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontSize: 24 }}>📷</span>
+            <span style={{ flex: 1, minWidth: 220 }}>
+              Vision Play needs your camera. We'll ask the browser for permission;
+              nothing leaves your device until you choose to enrol or identify.
+            </span>
+            <button
+              type="button"
+              onClick={() => void startCamera()}
+              style={{ padding: "10px 18px", background: "#3b82f6", color: "#fff", border: 0, borderRadius: 10, cursor: "pointer", fontWeight: 600 }}
+            >
+              Enable camera
+            </button>
+          </div>
+        )}
         <div className="row" style={{ gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           {!cameraOn
             ? <button onClick={startCamera} style={{ padding: "10px 16px" }}>Start camera</button>

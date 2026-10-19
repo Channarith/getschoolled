@@ -409,7 +409,7 @@
   }
   function speakerStatus() {
     const label = state.stream?.getAudioTracks?.()[0]?.label || "";
-    const base = "You can interrupt. Theodore stops, listens, then answers at full volume.";
+    const base = "You can interrupt. Sala stops, listens, then answers at full volume.";
     if (!label) return base;
     if (BLUETOOTH_INPUT.test(label)) {
       return base + " This microphone is the Bluetooth device, so those speakers may get quieter.";
@@ -520,7 +520,7 @@
       noteUtterance("user", server.inputTranscription.text);
     }
     if (server.outputTranscription?.text) {
-      caption.textContent = `Theodore: ${server.outputTranscription.text}`;
+      caption.textContent = `Sala: ${server.outputTranscription.text}`;
       noteUtterance("agent", server.outputTranscription.text);
     }
     if (event.error?.message) setStatus(`Gemini Live error: ${event.error.message}`);
@@ -761,7 +761,7 @@
         type: "session.update",
         session: {
           instructions: (
-            "You are Theodore, a warm teacher. The on-screen activity is authoritative. "
+            "You are Sala, a warm teacher. The on-screen activity is authoritative. "
             + "Coach only that activity. Never ask for a previous target word or prompt. "
             + "Keep turns short. Do not reveal the answer.\n\n"
             + "Current activity on screen:\n" + line

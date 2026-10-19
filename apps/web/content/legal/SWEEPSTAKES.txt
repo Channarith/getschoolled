@@ -1,0 +1,39 @@
+AOEP - REWARDS & SWEEPSTAKES OFFICIAL RULES (TEMPLATE - requires legal review)
+=============================================================================
+Version: 1.0   Effective: 2026-06-18
+
+The AOEP Rewards program lets learners earn points for course completion and
+redeem them for class discounts, items, or entries into prize sweepstakes.
+
+POINTS
+- Points are earned for completing courses (more for higher levels, higher
+  scores, and hands-on labs). Points have no cash value, are non-transferable,
+  and may expire per program terms.
+
+DISCOUNTS & ITEMS
+- Points may be redeemed for discount vouchers (a % off a class) or fulfillable
+  items while supplies last.
+
+SWEEPSTAKES (high-value prizes, e.g. PlayStation 5, gold bar)
+- High-value prizes are awarded by RANDOM DRAWING (sweepstakes), not guaranteed
+  to every learner. Spending points buys entries; more entries = better odds.
+- NO PURCHASE NECESSARY. A free method of entry is available (request via the
+  contact below); a purchase or payment will not improve your chances of winning.
+- Void where prohibited. Open only to eligible participants who meet the age and
+  jurisdiction requirements; minors may require parent/guardian consent.
+- Odds depend on the number of entries. Winners are selected at random, notified,
+  and may be required to sign an affidavit/eligibility & liability release.
+- PRIZES & TAXES: prizes are awarded "as is"; winners are responsible for all
+  applicable taxes. Cash alternatives are at the sponsor's discretion.
+- Compliance: the program is operated in accordance with applicable sweepstakes/
+  lottery, consumer-protection, and (for minors) child-protection laws of the
+  participant's jurisdiction; it is void where such promotions are restricted.
+
+DATA
+- Entry/redemption data is handled per the Privacy Notice (legal/PRIVACY.txt).
+
+SPONSOR / CONTACT: rewards@example.org  (placeholder)
+
+NOTE: This is an engineering template. Sweepstakes/lottery law varies widely by
+jurisdiction (registration/bonding may be required, e.g. in some US states).
+Have qualified counsel finalize official rules before running any prize promotion.

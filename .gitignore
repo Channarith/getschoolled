@@ -134,3 +134,15 @@ apps/web/*.png
 apps/web/*.jpeg
 apps/web/*.jpg
 apps/web/*.webp
+
+# ---- Web public downloads (large installer artifacts, staged at build time) ----
+# apps/web/public/downloads/README.txt is tracked; everything else is staged by
+# ./scripts/stage_apk_for_web.sh before `docker build apps/web`.
+apps/web/public/downloads/*.apk
+apps/web/public/downloads/*.aab
+apps/web/public/downloads/*.ipa
+apps/web/public/downloads/*.dmg
+apps/web/public/downloads/*.exe
+apps/web/public/downloads/*.msi
+apps/web/public/downloads/*.AppImage
+apps/web/public/downloads/latest.json

@@ -210,7 +210,7 @@ def mint_provider_token(
         )
     if provider == "gemini":
         system = instructions.strip() or (
-            "You are Theodore, a warm, concise tutor. Listen naturally, allow "
+            "You are Sala, a warm, concise tutor. Listen naturally, allow "
             "the learner to interrupt, and answer in short spoken turns."
         )
         if context.strip():
@@ -359,7 +359,7 @@ def install_live_audio_routes(
                 mode="solo",
                 context=lab_name,
                 instructions=instructions.strip() or (
-                    "You are Theodore, a warm, concise tutor. Listen naturally, "
+                    "You are Sala, a warm, concise tutor. Listen naturally, "
                     "let the learner interrupt, and never mention TTS."
                 ),
                 expires_seconds=300 if provider == "xai" else 1800,
