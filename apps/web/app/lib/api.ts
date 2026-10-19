@@ -86,6 +86,30 @@ export async function translateText(
   );
 }
 
+// --- Legacy LiveKit join-token helper ----------------------------------- //
+// Used by the standalone /class/[room] route (phase0 live-class skeleton).
+// The modern Salareen multi-user flow uses joinLiveRoom() further down, but
+// /class/[room]/page.tsx still imports fetchJoinToken, so keep this exported.
+export interface JoinInfo {
+  room: string;
+  identity: string;
+  token: string;
+  url: string;
+}
+
+export async function fetchJoinToken(
+  room: string,
+  identity: string,
+): Promise<JoinInfo> {
+  const url = new URL(`${ORCHESTRATOR_URL}/classes/${encodeURIComponent(room)}/join`);
+  url.searchParams.set("identity", identity);
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch join token: ${res.status}`);
+  }
+  return (await res.json()) as JoinInfo;
+}
+
 // --- account / session (token in localStorage) --------------------------- //
 const TOKEN_KEY = "aoep_token";
 const SIGNED_IN_KEY = "aoep_signed_in";

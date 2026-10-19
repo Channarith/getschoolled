@@ -283,7 +283,7 @@ export default function AccountPage() {
               <div>
                 <h3 style={{ margin: 0 }}>Your profile picture</h3>
                 <p className="muted" style={{ margin: "4px 0 0" }}>
-                  We're redesigning the avatar set. For now your profile shows a
+                  We&apos;re redesigning the avatar set. For now your profile shows a
                   simple monogram taken from your display name. Rename yourself
                   below under <strong>Security</strong> to change it.
                 </p>
