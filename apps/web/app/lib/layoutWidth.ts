@@ -29,7 +29,12 @@ export function layoutWidthClass(width: number): LayoutWidthClass {
  * matchMedia hook and the companion unit test can call, even though every
  * viewport returns the same value today.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// The project's ESLint config extends only `next/core-web-vitals`, which
+// does not register `@typescript-eslint/no-unused-vars` - a disable
+// comment that names an unknown rule becomes a hard build error. The
+// `_width` underscore prefix is already the standard "intentionally
+// unused" signal that base `no-unused-vars` honors, so no suppression
+// comment is needed.
 export function learningModesPerPage(_width: number): 1 {
   return 1;
 }
