@@ -423,7 +423,7 @@ export default function VisionPage() {
           >
             <span style={{ fontSize: 24 }}>📷</span>
             <span style={{ flex: 1, minWidth: 220 }}>
-              Vision Play needs your camera. We'll ask the browser for permission;
+              Vision Play needs your camera. We&apos;ll ask the browser for permission;
               nothing leaves your device until you choose to enrol or identify.
             </span>
             <button
