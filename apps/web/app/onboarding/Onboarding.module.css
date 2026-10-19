@@ -95,10 +95,6 @@
   border-top: 1px solid var(--sa-border);
 }
 
-.shell[data-step="learn"] .pane {
-  border-top: 0;
-}
-
 .panel {
   flex: 1;
   min-height: 0;
@@ -250,13 +246,12 @@
   flex: 1;
   min-height: 0;
   display: grid;
+  /* One mode card per page across every viewport (see
+     apps/web/app/lib/layoutWidth.ts::learningModesPerPage). The card
+     fills the whole mode grid so the MascotActor keeps the left pane. */
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: calc(var(--s) * 2);
-}
-
-.modes[data-per-page="2"] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .mode {
@@ -582,15 +577,14 @@
 }
 
 @media (min-width: 840px) {
+  /* Every step — including learn — uses the same side-by-side split so the
+     MascotActor keeps a full-size stage on the left (~55% of the viewport
+     at 1024px) and the content pane holds the single focused card on the
+     right. The slim 320px learn-step gutter the v0.67.0 branch introduced
+     is intentionally gone: with one card per page the mascot deserves the
+     room, and the card renders large enough on the remaining ~46vw. */
   .split {
     grid-template-columns: minmax(0, 1.12fr) minmax(0, min(640px, 46vw));
-    grid-template-rows: minmax(0, 1fr);
-  }
-
-  /* On the learn step the mode cards need room, so slim the mascot column
-     to a fixed 320px gutter and let the cards take the rest of the width. */
-  .shell[data-step="learn"] .split {
-    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
   }
 
@@ -601,11 +595,9 @@
 }
 
 @media (max-width: 839px) {
-  .shell[data-step="learn"] .split {
-    /* Narrow viewports stack: slim top art band, then the mode cards. */
-    grid-template-rows: minmax(120px, 22svh) minmax(0, 1fr);
-  }
-
+  /* Narrow viewports stack art pane on top of the content pane. The learn
+     step now uses the same stacked split as every other step so the mascot
+     always gets a visibly tall band (not a slim 22svh strip). */
   .pane {
     border-left: 0;
     border-top: 1px solid var(--sa-border);

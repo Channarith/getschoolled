@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AvatarImage from "../components/AvatarImage";
@@ -26,20 +26,13 @@ import {
   type ConsumerPlan,
 } from "../lib/api";
 import { formatMonthlyPrice, orderedConsumerPlans } from "../lib/consumerPlansDisplay";
-import { EXPANDED_LAYOUT_MEDIA, learningModesPerPage } from "../lib/layoutWidth";
 import styles from "./Onboarding.module.css";
 
-function useLearningModesPerPage(): 1 | 2 {
-  return useSyncExternalStore(
-    (onStoreChange) => {
-      const mq = window.matchMedia(EXPANDED_LAYOUT_MEDIA);
-      mq.addEventListener("change", onStoreChange);
-      return () => mq.removeEventListener("change", onStoreChange);
-    },
-    () => learningModesPerPage(window.innerWidth),
-    () => 1,
-  );
-}
+// The learn step now shows exactly one mode card per page across every
+// viewport (see apps/web/app/lib/layoutWidth.ts). That keeps the MascotActor
+// in the left art pane at its full stage size so it visibly acts out the
+// focused mode on both phones and desktops.
+const LEARN_MODES_PER_PAGE = 1 as const;
 
 const MODES = [
   { id: "video", art: "mode-video", label: "Watching videos", blurb: "Short lessons you can pause and replay." },
@@ -98,7 +91,7 @@ export default function OnboardingPage() {
   const [ratings, setRatings] = useState<Partial<Record<ModeId, number>>>({});
   const [focus, setFocus] = useState<ModeId>("video");
   const [modePage, setModePage] = useState(0);
-  const perPage = useLearningModesPerPage();
+  const perPage = LEARN_MODES_PER_PAGE;
   const advanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [studentId, setStudentId] = useState("");
   const [plan, setPlan] = useState("free");
@@ -175,6 +168,17 @@ export default function OnboardingPage() {
   useEffect(() => {
     setModePage((page) => Math.min(page, Math.ceil(MODES.length / perPage) - 1));
   }, [perPage]);
+
+  // Keep the MascotActor scene in sync with whichever mode card is visible.
+  // With one card per page the current page uniquely identifies the mode,
+  // so navigating with the pager arrows or dots makes the mascot act out
+  // that mode even before the user hovers or focuses the card.
+  useEffect(() => {
+    if (step !== "learn") return;
+    const index = Math.min(Math.max(modePage, 0), MODES.length - 1);
+    const mode = MODES[index];
+    if (mode) setFocus(mode.id);
+  }, [modePage, step]);
 
   useEffect(() => () => {
     if (advanceRef.current) clearTimeout(advanceRef.current);
