@@ -16,9 +16,22 @@ export function layoutWidthClass(width: number): LayoutWidthClass {
   return "expanded";
 }
 
-/** Learning-style onboarding cards: one per page until expanded desktop. */
-export function learningModesPerPage(width: number): 1 | 2 {
-  return layoutWidthClass(width) === "expanded" ? 2 : 1;
+/**
+ * Learning-style onboarding cards: one per page on every viewport.
+ *
+ * The onboarding "How do you learn best?" step shows exactly one mode card
+ * per page across phones, tablets, and desktops. That matches the mobile
+ * experience (see v0.66.0 changelog) and gives the MascotActor in the left
+ * art pane room to act out the focused mode without competing for width
+ * with a second card on wider screens.
+ *
+ * The `width` argument is kept so this stays a stable, pure helper the
+ * matchMedia hook and the companion unit test can call, even though every
+ * viewport returns the same value today.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function learningModesPerPage(_width: number): 1 {
+  return 1;
 }
 
 export function isImmersiveSetupPath(pathname: string): boolean {

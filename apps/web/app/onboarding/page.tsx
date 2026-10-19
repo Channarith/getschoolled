@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AvatarImage from "../components/AvatarImage";
 import BiometricSetupAssistant from "../components/BiometricSetupAssistant";
+import MascotActor from "../components/MascotActor";
+import { type MascotScene, sceneForMode } from "../lib/mascotPose";
 import { AGE_MAX, AGE_MIN, AGE_OPTIONS, clampAge } from "../lib/learnerCheck";
 import AccountStep from "./AccountStep";
 import { useT } from "../lib/i18n";
@@ -24,20 +26,13 @@ import {
   type ConsumerPlan,
 } from "../lib/api";
 import { formatMonthlyPrice, orderedConsumerPlans } from "../lib/consumerPlansDisplay";
-import { EXPANDED_LAYOUT_MEDIA, learningModesPerPage } from "../lib/layoutWidth";
 import styles from "./Onboarding.module.css";
 
-function useLearningModesPerPage(): 1 | 2 {
-  return useSyncExternalStore(
-    (onStoreChange) => {
-      const mq = window.matchMedia(EXPANDED_LAYOUT_MEDIA);
-      mq.addEventListener("change", onStoreChange);
-      return () => mq.removeEventListener("change", onStoreChange);
-    },
-    () => learningModesPerPage(window.innerWidth),
-    () => 1,
-  );
-}
+// The learn step now shows exactly one mode card per page across every
+// viewport (see apps/web/app/lib/layoutWidth.ts). That keeps the MascotActor
+// in the left art pane at its full stage size so it visibly acts out the
+// focused mode on both phones and desktops.
+const LEARN_MODES_PER_PAGE = 1 as const;
 
 const MODES = [
   { id: "video", art: "mode-video", label: "Watching videos", blurb: "Short lessons you can pause and replay." },
@@ -96,7 +91,7 @@ export default function OnboardingPage() {
   const [ratings, setRatings] = useState<Partial<Record<ModeId, number>>>({});
   const [focus, setFocus] = useState<ModeId>("video");
   const [modePage, setModePage] = useState(0);
-  const perPage = useLearningModesPerPage();
+  const perPage = LEARN_MODES_PER_PAGE;
   const advanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [studentId, setStudentId] = useState("");
   const [plan, setPlan] = useState("free");
@@ -173,6 +168,17 @@ export default function OnboardingPage() {
   useEffect(() => {
     setModePage((page) => Math.min(page, Math.ceil(MODES.length / perPage) - 1));
   }, [perPage]);
+
+  // Keep the MascotActor scene in sync with whichever mode card is visible.
+  // With one card per page the current page uniquely identifies the mode,
+  // so navigating with the pager arrows or dots makes the mascot act out
+  // that mode even before the user hovers or focuses the card.
+  useEffect(() => {
+    if (step !== "learn") return;
+    const index = Math.min(Math.max(modePage, 0), MODES.length - 1);
+    const mode = MODES[index];
+    if (mode) setFocus(mode.id);
+  }, [modePage, step]);
 
   useEffect(() => () => {
     if (advanceRef.current) clearTimeout(advanceRef.current);
@@ -290,6 +296,17 @@ export default function OnboardingPage() {
   const stepIndex = Math.max(0, stepOrder.indexOf(step === "payment" ? "plan" : step));
   const stepLabel = `Step ${stepIndex + 1} of ${stepOrder.length} · ${STEP_LABEL[step]}`;
 
+  // Scene the MascotActor plays in the art pane. Recomputed per step so the
+  // mascot flies in on sign-in, morphs by age on "About you", acts out the
+  // focused learning mode, and idles on plan/payment.
+  const mascotScene: MascotScene = useMemo(() => {
+    if (step === "account") return { kind: "flyin-point", pointAt: "down" };
+    if (step === "about") return { kind: "age-morph", age: typeof age === "number" ? age : 30 };
+    if (step === "learn") return sceneForMode(focus);
+    if (step === "plan") return { kind: "dance" };
+    return { kind: "idle" };
+  }, [step, age, focus]);
+
   if (step === "identity" && studentId) {
     return (
       <BiometricSetupAssistant
@@ -303,8 +320,6 @@ export default function OnboardingPage() {
     );
   }
 
-  const art = step === "account" ? "account" : step === "about" ? "about" : step === "learn" ? "learn" : "plan";
-
   return (
     <main className={`${styles.shell} aoep-immersive-setup aoep-viewport-shell`} data-step={step}>
       <header className={styles.topbar}>
@@ -317,11 +332,9 @@ export default function OnboardingPage() {
         <span className={styles.stepLabel}>{stepLabel}</span>
       </header>
       <div className={styles.split}>
-        {step !== "learn" && (
-          <div className={styles.artPane} aria-hidden="true">
-            <Image key={art} className={styles.art} src={`/setup-assistant/${art}.webp`} alt="" fill priority sizes="50vw" />
-          </div>
-        )}
+        <div className={styles.artPane}>
+          <MascotActor scene={mascotScene} size={260} />
+        </div>
         <div className={styles.pane}>
 
       {step === "account" && (

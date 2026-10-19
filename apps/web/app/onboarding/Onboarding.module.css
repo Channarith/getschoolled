@@ -68,10 +68,6 @@
   grid-template-rows: minmax(140px, 30svh) minmax(0, 1fr);
 }
 
-.shell[data-step="learn"] .split {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .artPane {
   position: relative;
   min-height: 0;
@@ -79,10 +75,10 @@
   background: var(--sa-panel-2);
 }
 
-.shell[data-step="learn"] .artPane {
-  display: none;
-}
-
+/* The MascotActor fills the art pane; the "learn" step keeps the same split
+   so the mascot can act out whichever learning-mode card has focus. The
+   actor itself handles layout internally, so the stale <Image> styles that
+   used to sit here are gone. */
 .art {
   object-fit: cover;
   object-position: center 30%;
@@ -97,10 +93,6 @@
   background: var(--sa-panel);
   border-left: 0;
   border-top: 1px solid var(--sa-border);
-}
-
-.shell[data-step="learn"] .pane {
-  border-top: 0;
 }
 
 .panel {
@@ -254,13 +246,12 @@
   flex: 1;
   min-height: 0;
   display: grid;
+  /* One mode card per page across every viewport (see
+     apps/web/app/lib/layoutWidth.ts::learningModesPerPage). The card
+     fills the whole mode grid so the MascotActor keeps the left pane. */
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: calc(var(--s) * 2);
-}
-
-.modes[data-per-page="2"] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .mode {
@@ -586,13 +577,14 @@
 }
 
 @media (min-width: 840px) {
+  /* Every step — including learn — uses the same side-by-side split so the
+     MascotActor keeps a full-size stage on the left (~55% of the viewport
+     at 1024px) and the content pane holds the single focused card on the
+     right. The slim 320px learn-step gutter the v0.67.0 branch introduced
+     is intentionally gone: with one card per page the mascot deserves the
+     room, and the card renders large enough on the remaining ~46vw. */
   .split {
     grid-template-columns: minmax(0, 1.12fr) minmax(0, min(640px, 46vw));
-    grid-template-rows: minmax(0, 1fr);
-  }
-
-  .shell[data-step="learn"] .split {
-    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
   }
 
@@ -600,17 +592,12 @@
     border-left: 1px solid var(--sa-border);
     border-top: 0;
   }
-
-  .shell[data-step="learn"] .pane {
-    border-left: 0;
-  }
 }
 
 @media (max-width: 839px) {
-  .shell[data-step="learn"] .split {
-    grid-template-rows: minmax(0, 1fr);
-  }
-
+  /* Narrow viewports stack art pane on top of the content pane. The learn
+     step now uses the same stacked split as every other step so the mascot
+     always gets a visibly tall band (not a slim 22svh strip). */
   .pane {
     border-left: 0;
     border-top: 1px solid var(--sa-border);
