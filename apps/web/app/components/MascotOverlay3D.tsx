@@ -343,13 +343,16 @@ export default function MascotOverlay3D({
     <>
       {/* Contrast backdrop: the Meshy character is a cream/gold Buddha
           that disappears into the site's cream (#f4e9d8) page background.
-          A soft dark radial gradient pinned to the bottom of the viewport
-          (where the character walks on the ground plane) gives the
-          character a visible "stage" without creating a hard-edged frame.
-          Lower z-index than the Canvas so the mascot renders ON TOP of
-          this plate, and `pointer-events: none` so page clicks still
-          pass through. Opacity 0.28 is just enough to lift the mascot
-          off the background without turning the page dim. */}
+          On 2026-10-19 the user reported the v0.78.0 rgba(26,20,10,0.32)
+          wash was still "golden on cream" — the mascot blended in. We
+          switched to a bold ocean-blue radial "stage spotlight" centered
+          where the character walks (50% x 95%). Gold-on-deep-blue is a
+          classic high-contrast pairing and reads clearly without hiding
+          the onboarding chrome: the gradient fades to transparent by 70%
+          radius so the setup-assistant text/panels above remain legible.
+          Lower z-index (999) than the Canvas (1000) so the mascot renders
+          ON TOP of this plate, and `pointer-events: none` so page clicks
+          still pass through to the onboarding form underneath. */}
       <div
         aria-hidden="true"
         style={{
@@ -361,7 +364,7 @@ export default function MascotOverlay3D({
           pointerEvents: "none",
           zIndex: 999,
           background:
-            "radial-gradient(ellipse 60% 70% at 25% 95%, rgba(26, 20, 10, 0.32) 0%, rgba(26, 20, 10, 0.14) 35%, transparent 65%)",
+            "radial-gradient(ellipse 55% 65% at 50% 95%, rgba(11, 34, 56, 1) 0%, rgba(11, 34, 56, 0.78) 20%, rgba(11, 34, 56, 0.42) 45%, rgba(11, 34, 56, 0.12) 62%, rgba(11, 34, 56, 0) 72%)",
         }}
       />
       <div
@@ -381,14 +384,17 @@ export default function MascotOverlay3D({
           gl={{ antialias: true, alpha: true, premultipliedAlpha: false }}
         >
           {/* Lighting tuned to make a cream/gold character pop against a
-              cream page background. Three-point setup:
+              deep-ocean-blue stage backdrop (see the radial gradient above,
+              updated 2026-10-19 at the user's request for bolder contrast).
+              Three-point setup:
               - ambientLight 0.75 (was 0.55): a touch brighter base.
               - keyLight (directional, warm) 2.0 (was 1.15) from front-
                 right: strong key so the Buddha's bronze reads as gold,
                 not beige.
-              - rimLight (directional, cool) 1.4 from behind-left:
-                outlines the character's silhouette with a cool highlight
-                so the edge separates from any background colour.
+              - rimLight (directional, cool) 1.8 (was 1.4) from behind-
+                left: bumped slightly for the new dark-blue backdrop so
+                the cool highlight along the silhouette separates the
+                character crisply from the deep ocean blue.
               - hemisphere light with cream-sky / dark-ground: fills in
                 shadow sides so the character never goes muddy. */}
           <ambientLight intensity={0.75} />
@@ -401,7 +407,7 @@ export default function MascotOverlay3D({
           />
           <directionalLight
             position={[-5, 4, -3]}
-            intensity={1.4}
+            intensity={1.8}
             color={0x8ab6ff}
           />
           <hemisphereLight
