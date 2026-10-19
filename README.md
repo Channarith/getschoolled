@@ -146,6 +146,10 @@ Walkthrough: [docs/demos/profile_avatar_picker_demo.mp4](docs/demos/profile_avat
 
 ## Screens and videos
 
+Salareen Worlds, Angkor Wat on the north horizon (stone courses, tiled roofs, five towers):
+
+![Angkor Wat in Salareen Worlds](docs/screens/angkor_wat_world.webp)
+
 ### Video walkthroughs
 
 Recorded screen walkthroughs play inline below (animated previews). GitHub does

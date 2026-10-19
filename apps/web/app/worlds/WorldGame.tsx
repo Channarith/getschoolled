@@ -17,6 +17,7 @@ import { CraftingSystem } from "./game/crafting";
 import { BuildingSystem } from "./game/building";
 import { PlanetSystem } from "./game/planets";
 import { CombatSystem } from "./game/combat";
+import { buildAngkorWat, disposeAngkorWat } from "./game/angkor";
 import type { Planet, Quest, ItemType, WeaponType, CraftingRecipe } from "./game/types";
 import {
   WORLD_SIZE,
@@ -336,7 +337,7 @@ export default function WorldGame() {
     // ── Scene ─────────────────────────────────────────────────
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
-    scene.fog = new THREE.FogExp2(0xa8d8ea, 0.013);
+    scene.fog = new THREE.FogExp2(0xa8d8ea, 0.008);
 
     // ── Lights ────────────────────────────────────────────────
     const ambient = new THREE.AmbientLight(0xd4e8ff, 0.55);
@@ -440,6 +441,19 @@ export default function WorldGame() {
     const water = new THREE.Mesh(waterGeo, waterMat);
     water.position.y = 1.35;
     scene.add(water);
+
+    // Angkor Wat sits on the north horizon, causeway facing the spawn.
+    const angkor = buildAngkorWat();
+    const angkorX = 0;
+    const angkorZ = -16;
+    const angkorHeight = () => getTerrainHeight(
+      hmap,
+      Math.round(angkorX + HALF),
+      Math.round(angkorZ + HALF),
+      WORLD_SIZE,
+    );
+    angkor.position.set(angkorX, angkorHeight(), angkorZ);
+    scene.add(angkor);
 
     // ── Trees ─────────────────────────────────────────────────
     const trunkMat = new THREE.MeshPhongMaterial({ color: 0x5a3a1a });
@@ -769,13 +783,16 @@ export default function WorldGame() {
         ambient.intensity = 0.35;
         sun.intensity = 0.6;
         water.visible = false;
+        angkor.visible = false;
       } else {
-        scene.fog = new THREE.FogExp2(0xa8d8ea, 0.013);
+        scene.fog = new THREE.FogExp2(0xa8d8ea, 0.008);
         scene.background = new THREE.Color(0x87ceeb);
         ambient.color.setHex(0xd4e8ff);
         ambient.intensity = 0.55;
         sun.intensity = 1.4;
         water.visible = true;
+        angkor.visible = true;
+        angkor.position.y = angkorHeight();
       }
 
       if (newPlanet === "space") {
@@ -1152,6 +1169,8 @@ export default function WorldGame() {
       vehicleManager.dispose();
       buildingSystem.dispose();
       combatSystem.dispose();
+      scene.remove(angkor);
+      disposeAngkorWat(angkor);
 
       renderer.dispose();
       rendererRef.current = null;
