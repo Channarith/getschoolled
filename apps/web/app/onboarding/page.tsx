@@ -20,6 +20,7 @@ import {
   getOnboardingStatus,
   getToken,
   selectOnboardingPlan,
+  skipLearningProfile,
   submitLearningProfile,
   submitOnboardingLearner,
   submitOnboardingSurveyAnalytics,
@@ -252,37 +253,81 @@ export default function OnboardingPage() {
       // The identity service returns 404 "unknown student profile" if the
       // cached studentId no longer resolves (common after a backend wipe
       // or when localStorage.onboarding_student points at a student the
-      // identity DB has forgotten about). Self-heal by re-posting the
-      // About step from the cached name/age, then retry the learning
-      // profile with the fresh student id.
+      // identity DB has forgotten about). Self-heal in two stages:
+      //   1. Re-post the About step from the cached name/age to mint a
+      //      fresh student id, then retry submitLearningProfile.
+      //   2. If the retry still fails (upstream flake, derive error,
+      //      write race), fall back to skipLearningProfile so the user
+      //      is NEVER stranded on this step - the learning profile is
+      //      optional and the identity step is the gate that matters.
       let effectiveStudentId = studentId;
+      let saveOk = true;
       try {
         await submitLearningProfile(effectiveStudentId, answers);
       } catch (reason) {
         const msg = String(reason);
         const is404 = /\b404\b/.test(msg) || /unknown student profile/i.test(msg);
-        if (!is404) throw reason;
-        if (!name.trim() || !ageValue) {
-          // Nothing cached to re-create with - bounce them back to About
-          // so they can type their name/age again.
-          setStep("about");
-          throw new Error("We lost your profile - please re-enter your name and age.");
+        if (!is404) {
+          // Non-404 failure (500, timeout, offline): best-effort skip so
+          // the user can still move forward. We only hard-throw if even
+          // the skip fails - because at that point there is nothing we
+          // can do but stop and surface the error.
+          try {
+            await skipLearningProfile(effectiveStudentId);
+            saveOk = false;
+          } catch {
+            throw reason;
+          }
+        } else {
+          if (!name.trim() || !ageValue) {
+            // Nothing cached to re-create with - bounce them back to About
+            // so they can type their name/age again.
+            setStep("about");
+            throw new Error("We lost your profile - please re-enter your name and age.");
+          }
+          const refreshed = await submitOnboardingLearner({
+            learner_name: name.trim(),
+            age: ageValue,
+          });
+          localStorage.setItem(STORAGE.student, refreshed.student.id);
+          setStudentId(refreshed.student.id);
+          effectiveStudentId = refreshed.student.id;
+          try {
+            await submitLearningProfile(effectiveStudentId, answers);
+          } catch (retryReason) {
+            // Fresh student id was accepted (above createLearner succeeded)
+            // but the profile write still failed. Skip gracefully so the
+            // user is not stuck on an optional checkpoint.
+            try {
+              await skipLearningProfile(effectiveStudentId);
+              saveOk = false;
+            } catch {
+              throw retryReason;
+            }
+          }
         }
-        const refreshed = await submitOnboardingLearner({
-          learner_name: name.trim(),
-          age: ageValue,
-        });
-        localStorage.setItem(STORAGE.student, refreshed.student.id);
-        setStudentId(refreshed.student.id);
-        effectiveStudentId = refreshed.student.id;
-        await submitLearningProfile(effectiveStudentId, answers);
       }
       const me = await getMe().catch(() => null);
-      if (me) {
+      if (me && saveOk) {
         void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: effectiveStudentId, answers })
           .catch(() => undefined);
       }
       window.dispatchEvent(new CustomEvent("aoep-learning-profile-saved"));
+      setStep("identity");
+    });
+  }
+
+  function skipLearning() {
+    return run(async () => {
+      // Explicit "Skip for now" escape hatch. If skip fails for any reason
+      // we still advance - the learning profile is optional, and the user
+      // asked to move on. The identity step requires a valid student id,
+      // which is already in state (studentId) or self-heals there.
+      try {
+        await skipLearningProfile(studentId);
+      } catch {
+        /* best-effort - the user chose to skip */
+      }
       setStep("identity");
     });
   }
@@ -534,6 +579,14 @@ export default function OnboardingPage() {
               data-mascot-target="learn-continue"
             >
               {busy ? "Saving…" : rated < MODES.length ? `Rate ${MODES.length - rated} more` : "Continue"}
+            </button>
+            <button
+              className={styles.ghost}
+              disabled={busy}
+              onClick={() => void skipLearning()}
+              title="Skip the learning survey - this step is optional"
+            >
+              Skip for now
             </button>
             <button className={styles.ghost} onClick={() => setStep("about")}>Back</button>
           </div>
