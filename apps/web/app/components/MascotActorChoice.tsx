@@ -1,18 +1,24 @@
 "use client";
 
 /**
- * MascotActorChoice — picks between the lightweight CSS MascotActor
- * (default) and the real-time 3D MascotActor3D.
+ * MascotActorChoice — picks between three mascot renderers:
+ *   - "css"     → the lightweight CSS MascotActor (SSR-safe default)
+ *   - "pane"    → MascotActor3D rendered in the left art pane (3D canvas,
+ *                 skeletal animation + physics, still contained in a pane)
+ *   - "overlay" → MascotOverlay3D rendered as a fixed full-viewport canvas
+ *                 that walks across the page and points at
+ *                 `data-mascot-target` elements like a video-game NPC
  *
- * The 3D version is enabled when ANY of these is true:
- *   - process.env.NEXT_PUBLIC_MASCOT_3D is "1" / "true" (build-time, prod)
- *   - URL has ?mascot3d=1 (runtime, dev/QA — no server restart needed)
- *   - localStorage.getItem("aoep.mascot3d") === "1" (sticky QA toggle)
+ * Which one wins is decided client-side so you can flip modes without a
+ * server restart. In priority order:
+ *   1. URL query `?mascot3d=overlay` / `?mascot3d=pane` / `?mascot3d=0`
+ *      (sticky in localStorage for the next visit)
+ *   2. localStorage `aoep.mascot3d` = "overlay" | "pane" | "0"
+ *   3. Build-time env `NEXT_PUBLIC_MASCOT_3D` = "overlay" | "1" | "true"
  *
- * The 3D version uses WebGL (via @react-three/fiber) which cannot run during
- * Next.js SSR, so it is loaded via `next/dynamic` with `ssr: false`. On the
- * server we always render the CSS MascotActor so the first paint is instant
- * and SEO-safe; the 3D canvas hydrates in the browser if the flag is set.
+ * The WebGL versions can't SSR (no document in Node), so they are loaded
+ * via next/dynamic with ssr:false. Server render always falls back to the
+ * CSS version for instant first paint.
  */
 
 import dynamic from "next/dynamic";
@@ -24,43 +30,61 @@ const MascotActor3D = dynamic(() => import("./MascotActor3D"), {
   ssr: false,
   loading: () => null,
 });
+const MascotOverlay3D = dynamic(() => import("./MascotOverlay3D"), {
+  ssr: false,
+  loading: () => null,
+});
 
-const ENV_FLAG =
-  process.env.NEXT_PUBLIC_MASCOT_3D === "1" ||
-  process.env.NEXT_PUBLIC_MASCOT_3D === "true";
+type Mode = "css" | "pane" | "overlay";
+
+const ENV_MODE: Mode | null = (() => {
+  const v = (process.env.NEXT_PUBLIC_MASCOT_3D ?? "").toLowerCase();
+  if (v === "overlay") return "overlay";
+  if (v === "1" || v === "true" || v === "pane") return "pane";
+  if (v === "0" || v === "false") return "css";
+  return null;
+})();
 
 type Props = {
   scene: MascotScene;
   size?: number;
   className?: string;
+  /** For overlay mode — which step is active, drives the tour. */
+  step?: string;
 };
 
+function normalizeMode(raw: string | null): Mode | null {
+  if (!raw) return null;
+  const v = raw.toLowerCase();
+  if (v === "overlay") return "overlay";
+  if (v === "pane" || v === "1" || v === "true") return "pane";
+  if (v === "0" || v === "false" || v === "css") return "css";
+  return null;
+}
+
 export default function MascotActorChoice(props: Props) {
-  // SSR renders the 2D CSS version (unconditionally). The 3D decision is
-  // computed in the browser so URL / localStorage overrides take effect
-  // without a server restart.
-  const [use3D, setUse3D] = useState(false);
+  // SSR renders the CSS version. The 3D decision is computed in the
+  // browser so URL / localStorage overrides work without a server restart.
+  const [mode, setMode] = useState<Mode>("css");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    const qp = url.searchParams.get("mascot3d");
-    const sticky = window.localStorage.getItem("aoep.mascot3d");
-    if (qp === "1" || qp === "true") {
-      window.localStorage.setItem("aoep.mascot3d", "1");
-      setUse3D(true);
+    const qp = normalizeMode(url.searchParams.get("mascot3d"));
+    if (qp) {
+      window.localStorage.setItem("aoep.mascot3d", qp);
+      setMode(qp);
       return;
     }
-    if (qp === "0" || qp === "false") {
-      window.localStorage.removeItem("aoep.mascot3d");
-      setUse3D(false);
-      return;
-    }
-    setUse3D(ENV_FLAG || sticky === "1");
+    const sticky = normalizeMode(window.localStorage.getItem("aoep.mascot3d"));
+    setMode(sticky ?? ENV_MODE ?? "css");
   }, []);
 
-  if (use3D) {
-    return <MascotActor3D {...props} />;
+  if (mode === "overlay") {
+    return <MascotOverlay3D scene={props.scene} step={props.step} />;
   }
-  return <MascotActor {...props} />;
+  if (mode === "pane") {
+    return <MascotActor3D scene={props.scene} size={props.size} className={props.className} />;
+  }
+  return <MascotActor scene={props.scene} size={props.size} className={props.className} />;
 }

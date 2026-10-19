@@ -333,7 +333,7 @@ export default function OnboardingPage() {
       </header>
       <div className={styles.split}>
         <div className={styles.artPane}>
-          <MascotActor scene={mascotScene} size={260} />
+          <MascotActor scene={mascotScene} size={260} step={step} />
         </div>
         <div className={styles.pane}>
 
@@ -348,7 +348,7 @@ export default function OnboardingPage() {
           <p className={styles.lede}>This name appears on your profile and in class. About two minutes to finish setup.</p>
           <label className={styles.field}>
             <span>Profile name</span>
-            <div className={styles.nameRow}>
+            <div className={styles.nameRow} data-mascot-target="about-name">
               <AvatarImage avatarId={avatarId} size={52} alt="" className={styles.avatar} />
               <input
                 autoFocus
@@ -368,7 +368,7 @@ export default function OnboardingPage() {
           </label>
           <div className={styles.field}>
             <span id="age-label">How old are you?</span>
-            <div className={styles.ageRow}>
+            <div className={styles.ageRow} data-mascot-target="about-age">
               <div className={styles.ageWheel}>
                 <select
                   ref={ageRef}
@@ -396,7 +396,12 @@ export default function OnboardingPage() {
           </div>
           {error && <p className={styles.error} role="alert">{error}</p>}
           <div className={styles.actions}>
-            <button className={styles.primary} disabled={busy || !aboutReady} onClick={() => void saveAbout()}>
+            <button
+              className={styles.primary}
+              disabled={busy || !aboutReady}
+              onClick={() => void saveAbout()}
+              data-mascot-target="about-continue"
+            >
               {busy ? "Saving…" : "Continue"}
             </button>
           </div>
@@ -420,6 +425,7 @@ export default function OnboardingPage() {
                   className={`${styles.mode} ${focus === mode.id ? styles.modeFocus : ""}`}
                   onMouseEnter={() => setFocus(mode.id)}
                   onFocus={() => setFocus(mode.id)}
+                  data-mascot-target={focus === mode.id ? "learn-card" : undefined}
                 >
                   <div className={styles.modeArt}>
                     <Image src={`/setup-assistant/${mode.art}.webp`} alt="" fill priority sizes="(max-width: 839px) 100vw, 50vw" />
