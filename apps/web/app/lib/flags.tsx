@@ -217,7 +217,18 @@ export function useRestrictSignedIn(): boolean {
  * account sees the simplified 5-tab launch header. Lives in LocalizedNav.tsx.
  */
 export function useFullNavTabs(): boolean {
-  return useFlag<boolean>("nav.full_tabs_enabled", false);
+  // Two flags can force the simplified nav. The authoritative one is
+  // nav.full_tabs_enabled (default false => simplified). The legacy
+  // sales_demo.restrict_signed_in was never deleted and its description
+  // in the admin UI still reads "Simplified-nav mode after login", so
+  // users keep toggling it ON expecting it to shorten the nav - which
+  // it SHOULD, but LocalizedNav had stopped reading it. Honor it as a
+  // forced-OFF override: if restrict_signed_in is on, nav is simplified
+  // regardless of nav.full_tabs_enabled. That way whichever flag the
+  // user flips, they get the behavior the flag description promised.
+  const fullEnabled = useFlag<boolean>("nav.full_tabs_enabled", false);
+  const forceSimplified = useFlag<boolean>("sales_demo.restrict_signed_in", false);
+  return fullEnabled && !forceSimplified;
 }
 
 /**
