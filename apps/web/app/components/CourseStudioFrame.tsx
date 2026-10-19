@@ -2,13 +2,16 @@
 
 import { useEffect, useMemo, useRef } from "react";
 
+import { useFlag } from "../lib/flags";
 import { useT } from "../lib/i18n";
 
 /** Keep a same-origin studio iframe on the profile language (spoken + written). */
-function withLang(src: string, locale: string): string {
+function withLang(src: string, locale: string, typeToAsk: boolean): string {
   try {
     const url = new URL(src, "http://studio.local");
     url.searchParams.set("lang", locale);
+    if (typeToAsk) url.searchParams.set("typemode", "1");
+    else url.searchParams.delete("typemode");
     if (/^https?:\/\//i.test(src)) return url.toString();
     const query = url.searchParams.toString();
     return query ? `${url.pathname}?${query}` : url.pathname;
@@ -48,8 +51,12 @@ export function CourseStudioFrame({
   fill?: boolean;
 }) {
   const { locale } = useT();
+  const typeToAsk = useFlag<boolean>("accessibility.typetoask_mode", false);
   const frameRef = useRef<HTMLIFrameElement>(null);
-  const localized = useMemo(() => withLang(src, locale), [src, locale]);
+  const localized = useMemo(
+    () => withLang(src, locale, typeToAsk),
+    [src, locale, typeToAsk],
+  );
 
   useEffect(() => {
     let tries = 0;

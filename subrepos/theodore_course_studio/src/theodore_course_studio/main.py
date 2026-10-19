@@ -109,6 +109,19 @@ app.mount(
     name="theodore-avatar",
 )
 
+# The voice-first "Sala only" overlay (parser + listening pill + type-to-ask).
+# Shipped as a static JS module so the big studio_page.py template stays small
+# and the module can be unit-tested in isolation.
+_VOICE_STATIC_DIR = Path(__file__).with_name("voice_static")
+# NOTE: must not shadow /api/studio/voice/status (CourseStudioVoiceAgent).
+# Keep the overlay bundle on a sibling path so GET /api/studio/voice/status
+# continues to answer.
+app.mount(
+    "/api/studio/voice-overlay",
+    StaticFiles(directory=_VOICE_STATIC_DIR, check_dir=True),
+    name="theodore-voice-overlay",
+)
+
 _reviews = ReviewStore()
 _builder = CourseBuilder()
 _teach = TeachEngine(_builder)
