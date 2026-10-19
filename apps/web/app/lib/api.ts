@@ -3460,11 +3460,18 @@ export async function submitOnboardingSurveyAnalytics(payload: {
 export async function submitLearningProfile(
   studentId: string, answers: Record<string, unknown>
 ): Promise<{ student: StudentProfile; learner_category: string; recorded: boolean }> {
+  // 15 s client timeout. The handler is a cheap derive + Redis CAS save; if
+  // it takes longer we're almost certainly waiting on a dead identity pod or
+  // a stuck proxy. Without this the onboarding "Learner Check" step hangs
+  // indefinitely (devtools shows a 504 after the upstream proxy gives up)
+  // and the user can't move on. On AbortError, jsonOrThrow is not reached;
+  // the caller's try/catch surfaces a user-visible retry message.
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/learning-profile`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ answers }),
+      signal: AbortSignal.timeout(15_000),
     })
   );
 }
@@ -4045,9 +4052,13 @@ export type SetupAssistantState = {
 };
 
 export async function getSetupAssistant(studentId: string): Promise<SetupAssistantState> {
+  // Guard against a hung identity service: without a client timeout, this GET
+  // can sit pending until an upstream proxy (nginx on port 80 in the local
+  // salareen.com → 127.0.0.1 setup) returns a 504 after 30-60 s. 12 s is
+  // generous for a local Redis-backed read but cuts the tail dramatically.
   return jsonOrThrow(await fetch(
     `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/setup-assistant`,
-    { headers: authHeaders(), cache: "no-store" },
+    { headers: authHeaders(), cache: "no-store", signal: AbortSignal.timeout(12_000) },
   ));
 }
 
@@ -4211,15 +4222,31 @@ export async function presencePing(opts: {
   page?: string;
   activity?: string;
 }): Promise<void> {
-  const tok = getToken();
-  if (!tok) return;
+  // Only ping if the visitor is signed in (cookie or real token). getToken()
+  // may return the "cookie-session" sentinel after a page reload when the
+  // in-memory JWT was lost but the HttpOnly cookie is still valid; in that
+  // case we must NOT send a bogus "Bearer cookie-session" header — the global
+  // `installCredentialFetch` wrapper already adds `credentials: "include"` on
+  // calls to localhost / salareen.com, so the server's cookie->Authorization
+  // middleware will authenticate the request from the cookie. Sending a fake
+  // Bearer short-circuits that path and causes a spurious 401 in devtools.
+  if (!getToken()) return;
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const auth = authorizationValue();
+  if (auth) headers.authorization = auth;
   try {
-    await fetch(`${IDENTITY_URL}/presence/ping`, {
+    const res = await fetch(`${IDENTITY_URL}/presence/ping`, {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+      headers,
       body: JSON.stringify({ platform: "web", ...opts }),
+      // Fail fast: presence is non-critical. If identity is slow, don't let
+      // this hang for 30+ s and surface as a browser 504 in devtools.
+      signal: AbortSignal.timeout(8_000),
     });
-  } catch { /* non-critical — ignore network errors */ }
+    // Non-ok (401/504/etc.) is non-critical for presence — swallow silently
+    // so the devtools console stays clean on reloads mid-onboarding.
+    void res;
+  } catch { /* non-critical — ignore network errors and timeouts */ }
 }
 
 export async function getAdminPresence(): Promise<{

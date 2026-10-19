@@ -1,0 +1,21 @@
+{
+  "format": "cosyvoice_kaldi_lists",
+  "compatible_with": [
+    "CosyVoice/examples/libritts/cosyvoice/local/prepare_data.py",
+    "CosyVoice/examples/libritts/cosyvoice2/run.sh stages 0–3,5",
+    "CosyVoice/tools/make_parquet_list.py"
+  ],
+  "split": "train",
+  "language": "salane",
+  "utterance_count": 0,
+  "speaker_count": 0,
+  "sample_rate_hz": 24000,
+  "utterances": [],
+  "note": "No Salane studio recordings. voices/sala and voices/salane are absent, and no recipe speaker id matches sala or salane. YouTube cannot fill this speaker. Record a consented studio set before retraining Salane.",
+  "pipeline": {
+    "note": "No Salane studio recordings. voices/sala and voices/salane are absent, and no recipe speaker id matches sala or salane. YouTube cannot fill this speaker. Record a consented studio set before retraining Salane.",
+    "language": "salane"
+  },
+  "duration_seconds": 0.0,
+  "clean_minutes": 0.0
+}

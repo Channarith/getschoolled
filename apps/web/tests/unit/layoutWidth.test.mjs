@@ -17,10 +17,19 @@ test("layout width class boundaries", () => {
   assert.equal(layoutWidthClass(1920), "expanded");
 });
 
-test("learning modes per page matches expanded breakpoint", () => {
+test("learning modes per page is always one across every viewport", () => {
+  // One card per page everywhere — phones, tablets, and desktops — so the
+  // MascotActor in the left art pane keeps a full-size, visibly acting
+  // stage on wide screens instead of a slim 320px gutter.
+  assert.equal(learningModesPerPage(320), 1);
   assert.equal(learningModesPerPage(360), 1);
+  assert.equal(learningModesPerPage(LAYOUT_WIDTH.compactMax), 1);
+  assert.equal(learningModesPerPage(LAYOUT_WIDTH.mediumMin), 1);
   assert.equal(learningModesPerPage(LAYOUT_WIDTH.mediumMax), 1);
-  assert.equal(learningModesPerPage(LAYOUT_WIDTH.expandedMin), 2);
+  assert.equal(learningModesPerPage(LAYOUT_WIDTH.expandedMin), 1);
+  assert.equal(learningModesPerPage(1024), 1);
+  assert.equal(learningModesPerPage(1440), 1);
+  assert.equal(learningModesPerPage(1920), 1);
 });
 
 test("expanded layout media query documents breakpoint", () => {

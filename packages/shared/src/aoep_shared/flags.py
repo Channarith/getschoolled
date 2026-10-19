@@ -123,15 +123,15 @@ FLAG_CATALOG: List[FlagSpec] = [
              "regardless of this flag, so an admin can still get back in and "
              "flip it on."),
     FlagSpec("sales_demo.restrict_signed_in", FlagType.BOOL, False, "sales_demo",
-             "Simplified-nav mode after login. Signed-in non-admin accounts see "
-             "a trimmed one-row header with 5 tabs: Our Story, Vision Play, "
-             "On the Go, Careers, Live Class — plus profile. The "
-             "full home and pages still render; only the nav is simplified. "
-             "Lock-out guard: admin accounts (is_admin) always see the full "
-             "nav regardless of this flag, so you cannot lock yourself out. "
-             "NOTE 2026-10-15: superseded by nav.full_tabs_enabled for the "
-             "launch default (simplified nav is now the DEFAULT for every "
-             "account); this flag is kept for legacy admin bypasses."),
+             "FORCE simplified-nav mode (overrides nav.full_tabs_enabled). "
+             "When ON, every signed-in non-admin account sees the trimmed "
+             "5-tab header (Our Story, Vision Play, On the Go, Careers, "
+             "Live Class + profile) EVEN IF nav.full_tabs_enabled is also ON. "
+             "Use this as the emergency 'cut back the chrome' switch; use "
+             "nav.full_tabs_enabled for the normal default. The full home "
+             "and pages still render; only the nav is simplified. Admin "
+             "accounts (is_admin) always see the full nav regardless, so "
+             "you cannot lock yourself out."),
 
     # --- arcade / vision play lab -------------------------------------------- #
     FlagSpec("arcade.vision_only", FlagType.BOOL, False, "arcade",
@@ -145,7 +145,15 @@ FLAG_CATALOG: List[FlagSpec] = [
              "the full arcade hub for every account."),
 
     # --- nav / header -------------------------------------------------------- #
-    FlagSpec("nav.full_tabs_enabled", FlagType.BOOL, True, "nav",
+    # Default is False (simplified 5-tab nav). The third positional arg to
+    # FlagSpec was accidentally True for several versions, which overrode the
+    # client-side default (useFlag("nav.full_tabs_enabled", false)) and made
+    # the full 14-tab nav the live behavior even though every comment in this
+    # file + LocalizedNav.tsx documented OFF as the default. User reported
+    # 2026-10-19 that toggling the admin UI shortened nav wasn't holding -
+    # that was this. Keep this False so freshly-registered flag rows get the
+    # trimmed nav, and admins can opt INTO the full nav when they need it.
+    FlagSpec("nav.full_tabs_enabled", FlagType.BOOL, False, "nav",
              "Show the full navigation menu (Home, Browse, For You, Kids, "
              "Corporate, Languages, Drive, Group Classes, Watch, Homework) "
              "instead of the simplified 5-tab launch header. When OFF (default), "
@@ -236,6 +244,16 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Milliseconds of microphone silence after the learner pauses before "
              "auto-submitting the transcript (On the Go Ask, language Speak, web "
              "Drive mic). Default 4500 (4.5s); tune in admin flags without a redeploy."),
+
+    # --- accessibility ------------------------------------------------------- #
+    FlagSpec("accessibility.typetoask_mode", FlagType.BOOL, False, "accessibility",
+             "Course player: show a semi-transparent 'Type to Sala' pill that "
+             "opens a one-line text input routed through the same voice-command "
+             "parser as the mic. Intended for learners who cannot speak (speech "
+             "disabilities, selective mutism, or environments where the mic "
+             "cannot be used). OFF by default — the voice-first course player "
+             "assumes the learner speaks; admin or learner-settings turns this "
+             "on per account. Does NOT disable the mic; it adds a typed path."),
 
     # --- operational kill-switches ------------------------------------------- #
     FlagSpec("ops.maintenance_mode", FlagType.BOOL, False, "ops",

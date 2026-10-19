@@ -1859,8 +1859,8 @@ def _require_completed_pose_embeddings(
     threshold. The face mesh and any visible mark are not part of it.
     """
     from aoep_shared.vision.engine import (
-        DEFAULT_MATCH_THRESHOLD,
         LIVENESS_TEMPLATE_COUNT,
+        POSE_CHALLENGE_THRESHOLD,
         cosine_similarity,
     )
 
@@ -1878,13 +1878,18 @@ def _require_completed_pose_embeddings(
     neutral = embeddings[0]
     if not neutral:
         raise HTTPException(status_code=422, detail="face embedding is empty")
+    # Pose-liveness uses the LOOSER POSE_CHALLENGE_THRESHOLD (default 0.22,
+    # tunable via AOEP_POSE_CHALLENGE_THRESHOLD) because an extreme head
+    # yaw/pitch SFace embedding often sits in 0.20-0.35 for the same
+    # person. The strict 0.363 bar is still used for the actual identity
+    # match path (see FaceGallery.identify). Zero disables the gate.
     for embedding in embeddings[1:]:
         if len(embedding) != len(neutral):
             raise HTTPException(status_code=422, detail="face embedding dimensions do not match")
         movement = sum((a - b) ** 2 for a, b in zip(neutral, embedding))
         if movement < 0.000001:
             raise HTTPException(status_code=422, detail="pose challenge frames must not be static")
-        if cosine_similarity(neutral, embedding) < DEFAULT_MATCH_THRESHOLD:
+        if POSE_CHALLENGE_THRESHOLD > 0 and cosine_similarity(neutral, embedding) < POSE_CHALLENGE_THRESHOLD:
             raise HTTPException(status_code=422, detail="pose challenge face does not match portrait")
 
 

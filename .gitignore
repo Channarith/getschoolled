@@ -124,3 +124,13 @@ urls/cosyvoice_expand_report.json
 # keep urls/cosyvoice_channels.json, urls/cosyvoice_*_INDEX.txt, urls/cosyvoice_CORPUS_STATUS.txt
 urls_km_*.txt
 list_models.py
+
+# Local npm/pnpm cache dumped by nvm/apt workflows into a staging dir.
+# Never commit cache blobs - CI reinstalls from the lockfile anyway.
+.tmp-stack/
+# Scratch images saved into apps/web root during mascot iteration.
+# Real referenced images live under apps/web/public/, not the app root.
+apps/web/*.png
+apps/web/*.jpeg
+apps/web/*.jpg
+apps/web/*.webp

@@ -100,7 +100,13 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       {watchOn && <Link href="/watch">{t("nav.watch")}</Link>}
       <Link href="/class">{t("nav.liveClass")}</Link>
       <Link href="/group-classes">{t("nav.groupClasses")}</Link>
-      {homeworkOn && <Link href="/homework">{t("nav.homework")}</Link>}
+      {/* prefetch={false}: /homework is admin-gated and is proxied through
+          the edge gateway in some local-dev setups (salareen.com → nginx →
+          Next on :3000). A speculative RSC prefetch of /homework?_rsc=…
+          surfaces as a confusing 404 in devtools even when a real click
+          works, so we disable the prefetch and only hit the route on
+          intentional navigation. */}
+      {homeworkOn && <Link href="/homework" prefetch={false}>{t("nav.homework")}</Link>}
     </>
   );
 

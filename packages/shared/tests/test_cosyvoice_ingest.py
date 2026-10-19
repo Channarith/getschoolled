@@ -570,3 +570,31 @@ def test_kalel_denoise_stage_hands_off_to_spark_inbox(tmp_path):
     )
     assert later.stages["segment"]["utterances"] >= 1
     assert list((spark / "km_example" / "03_segments").glob("*.wav"))
+
+
+def test_khmer_asr_drops_latin_hallucinations(tmp_path, monkeypatch):
+    from aoep_shared.cosyvoice_ingest import pipeline as pl
+    from aoep_shared.cosyvoice_ingest.pipeline import IngestConfig, run_ingest
+    from aoep_shared.cosyvoice_ingest.transcribe import TranscriptResult
+
+    monkeypatch.setattr(pl, "asr_available", lambda: True)
+
+    def fake_asr(path, *, language="en", **kwargs):
+        return TranscriptResult("hello there friend", language, "fake", True, "ok")
+
+    monkeypatch.setattr(pl, "transcribe_wav", fake_asr)
+    media = tmp_path / "media"
+    media.mkdir()
+    write_wav_mono(media / "talk.wav", _tone_pcm(3.0) + _silence_pcm(0.5) + _tone_pcm(2.5), 24000)
+    report = run_ingest(
+        IngestConfig(
+            media_dir=media,
+            output_dir=tmp_path / "out",
+            language="km",
+            skip_download=True,
+            merge=False,
+        )
+    )
+    assert report.utterances == 0
+    rejected = report.stages["transcribe"]["rejected_transcript"]
+    assert rejected.get("few_khmer_chars", 0) >= 1
