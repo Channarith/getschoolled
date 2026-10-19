@@ -30,8 +30,13 @@ const MascotProcedural = dynamic(
   () => import("../components/MascotProcedural"),
   { ssr: false, loading: () => <div style={placeholderStyle}>Loading…</div> },
 );
+const MascotMeshy = dynamic(
+  () => import("../components/MascotMeshy"),
+  { ssr: false, loading: () => <div style={placeholderStyle}>Loading real mesh…</div> },
+);
 
 const MOTIONS: readonly MotionState[] = ["idle", "walk", "run"] as const;
+type Renderer = "procedural" | "meshy";
 
 const page: React.CSSProperties = {
   minHeight: "100vh",
@@ -123,6 +128,7 @@ const hint: React.CSSProperties = {
 };
 
 export default function MascotLab() {
+  const [renderer, setRenderer] = useState<Renderer>("meshy");
   const [expression, setExpression] = useState<Expression>("cute");
   const [motion, setMotion] = useState<MotionState>("idle");
   const [interactive, setInteractive] = useState<boolean>(true);
@@ -131,25 +137,57 @@ export default function MascotLab() {
     <main style={page}>
       <h1 style={headline}>Bayon Buddy — mascot lab</h1>
       <p style={subhead}>
-        Procedural 3D character built entirely from Three.js primitives (no{" "}
-        <code>.glb</code>, no Blender). Pick any expression and any motion
-        state to see them live. All animations and faces come from{" "}
-        <code>apps/web/app/components/mascot3d/proceduralBuddy.ts</code> and{" "}
-        <code>faceTexture.ts</code>.
+        Two renderers side-by-side so you can A/B compare them.{" "}
+        <strong>meshy</strong> loads the real Meshy.ai-generated character
+        from <code>apps/web/public/mascot3d/Mascot.glb</code> (4.4 MB, 15k
+        triangles, PBR textures, 1,073,512 → 15,000 tris via Blender
+        decimate + Draco, static mesh since Meshy image-to-3D does not rig).{" "}
+        <strong>procedural</strong> is the fully code-authored stand-in from{" "}
+        <code>proceduralBuddy.ts</code> + <code>faceTexture.ts</code> that
+        ships with 8 expressions and walk / idle / run cycles but no sculpted
+        geometry.
       </p>
 
       <div style={stageWrap}>
         <div style={stage}>
-          <MascotProcedural
-            expression={expression}
-            motion={motion}
-            size={480}
-            interactive={interactive}
-          />
+          {renderer === "meshy" ? (
+            <MascotMeshy size={480} interactive={interactive} />
+          ) : (
+            <MascotProcedural
+              expression={expression}
+              motion={motion}
+              size={480}
+              interactive={interactive}
+            />
+          )}
         </div>
 
         <div style={controls}>
-          <h2 style={sectionTitle}>Facial expression</h2>
+          <h2 style={sectionTitle}>Renderer</h2>
+          <div style={btnRow}>
+            {(["meshy", "procedural"] as const).map((r) => {
+              const active = renderer === r;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRenderer(r)}
+                  style={{ ...btnBase, ...(active ? btnActive : null) }}
+                >
+                  {r === "meshy" ? "Meshy mesh (real)" : "Procedural (code)"}
+                </button>
+              );
+            })}
+          </div>
+
+          <h2 style={sectionTitle}>
+            Facial expression{" "}
+            {renderer === "meshy" && (
+              <span style={{ opacity: 0.5, fontSize: 11 }}>
+                (procedural only — Meshy mesh has a baked face)
+              </span>
+            )}
+          </h2>
           <div style={btnRow}>
             {EXPRESSION_NAMES.map((name) => {
               const active = expression === name;
@@ -167,7 +205,14 @@ export default function MascotLab() {
             })}
           </div>
 
-          <h2 style={sectionTitle}>Motion</h2>
+          <h2 style={sectionTitle}>
+            Motion{" "}
+            {renderer === "meshy" && (
+              <span style={{ opacity: 0.5, fontSize: 11 }}>
+                (procedural only — Meshy mesh is static until Mixamo-rigged)
+              </span>
+            )}
+          </h2>
           <div style={btnRow}>
             {MOTIONS.map((m) => {
               const active = motion === m;
