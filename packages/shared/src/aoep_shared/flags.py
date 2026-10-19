@@ -237,6 +237,16 @@ FLAG_CATALOG: List[FlagSpec] = [
              "auto-submitting the transcript (On the Go Ask, language Speak, web "
              "Drive mic). Default 4500 (4.5s); tune in admin flags without a redeploy."),
 
+    # --- accessibility ------------------------------------------------------- #
+    FlagSpec("accessibility.typetoask_mode", FlagType.BOOL, False, "accessibility",
+             "Course player: show a semi-transparent 'Type to Sala' pill that "
+             "opens a one-line text input routed through the same voice-command "
+             "parser as the mic. Intended for learners who cannot speak (speech "
+             "disabilities, selective mutism, or environments where the mic "
+             "cannot be used). OFF by default — the voice-first course player "
+             "assumes the learner speaks; admin or learner-settings turns this "
+             "on per account. Does NOT disable the mic; it adds a typed path."),
+
     # --- operational kill-switches ------------------------------------------- #
     FlagSpec("ops.maintenance_mode", FlagType.BOOL, False, "ops",
              "Put the platform into maintenance (banner + restricted actions).",

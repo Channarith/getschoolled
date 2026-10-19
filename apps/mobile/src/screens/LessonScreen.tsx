@@ -29,6 +29,9 @@ import CourseStoryboardView from "../components/CourseStoryboardView";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import VoiceAgentToggle, { lessonVoiceButtonKey } from "../components/VoiceAgentToggle";
+import VoiceFirstOverlay from "../components/VoiceFirstOverlay";
+import { useFeatureFlag } from "../featureFlags";
+import type { CourseVoiceIntent } from "../courseVoiceIntent";
 import SurveySheet from "../components/SurveySheet";
 import { useInterstitial } from "../ads/interstitial";
 import { useAuth } from "../auth/AuthContext";
@@ -96,6 +99,12 @@ export default function LessonScreen({
   const [voiceAgent, setVoiceAgent] = useState<VoiceAgentChoice>("sala");
   const [voiceAgentReady, setVoiceAgentReady] = useState(false);
   const [showIdentitySetup, setShowIdentitySetup] = useState(false);
+  // Sala-only voice-first player: hides the lesson chrome until the learner
+  // long-presses, misses three voice commands in a row, or says "show controls".
+  // Keep it on by default; the overlay is skipped entirely before lighting is
+  // ready and when a quiz / assessment / finish state is visible.
+  const [voiceFirst, setVoiceFirst] = useState(true);
+  const typeToAskFlag = useFeatureFlag("accessibility.typetoask_mode", false);
   const slideRef = useRef<LessonSlide | null>(null);
   const studentIdRef = useRef("guest");
   const completedCheckpointsRef = useRef<Set<string>>(new Set());
@@ -655,6 +664,62 @@ export default function LessonScreen({
   const idx = slide?.index ?? 0;
   const { overlayTopPad, overlayBottomPad, horizontalPadding } = useLayoutMetrics();
 
+  // Voice-first dispatcher. The overlay owns consent / mic lifecycle / parsing
+  // and hands us only the matched intent. Keep this list in sync with the web
+  // Course Studio dispatcher (course_voice.js) so Sala behaves the same on both.
+  const onVoiceIntent = (intent: CourseVoiceIntent) => {
+    switch (intent.kind) {
+      case "pause":
+        stopNarration();
+        return;
+      case "resume":
+      case "start":
+      case "repeat":
+        narrate();
+        return;
+      case "next":
+        if (!advancing && !atEnd && !segmentBreak) void next();
+        return;
+      case "previous":
+        // Lesson sessions step forward only; narrate the current slide again
+        // so the learner hears content rather than silently failing.
+        narrate();
+        return;
+      case "restart":
+        // Hand control back to the user; a true restart would require a new
+        // session which this screen cannot mint standalone.
+        setVoiceFirst(false);
+        return;
+      case "captions_on":
+      case "captions_off":
+      case "captions_toggle":
+      case "set_language":
+      case "set_speed":
+      case "fullscreen_on":
+      case "fullscreen_off":
+        // No in-screen equivalents today; falling back to classic chrome lets
+        // the learner pick language / captions / speed from the existing UI.
+        setVoiceFirst(false);
+        return;
+      case "hide_controls":
+        setVoiceFirst(true);
+        return;
+      case "ask":
+        setQuestion(intent.question);
+        void ask();
+        return;
+      case "help":
+        // Sala's voice line is enough; the overlay also announces this.
+        return;
+      case "mute_mic":
+      case "show_controls":
+        // Handled inside the overlay; never routed here.
+        return;
+      default:
+        return;
+    }
+  };
+
   return (
     <View style={[styles.wrap, { paddingTop: overlayTopPad, paddingHorizontal: horizontalPadding }]}>
       <View style={styles.header}>
@@ -752,26 +817,28 @@ export default function LessonScreen({
                 sourceLanguage={slide.storyboard_source_language}
               />
               <Text style={styles.slideBody}>{localizedSlide?.body || slide.body}</Text>
-              <View style={styles.slideActions}>
-                <PrimaryButton
-                  label={narrating ? t("lesson.stopNarration") : t("lesson.narrate")}
-                  onPress={() => (narrating ? stopNarration() : narrate())}
-                  variant="ghost"
-                />
-                <PrimaryButton label={t("lesson.reengage")} onPress={() => void onReengage()} variant="ghost" />
-                <PrimaryButton label={t("lesson.quiz")} onPress={() => void onQuiz()} variant="ghost" />
-                {!atEnd ? (
+              {voiceFirst ? null : (
+                <View style={styles.slideActions}>
                   <PrimaryButton
-                    label={t("lesson.next")}
-                    onPress={() => void next()}
-                    loading={advancing}
-                    disabled={advancing || Boolean(segmentBreak)}
-                    variant="netflix"
+                    label={narrating ? t("lesson.stopNarration") : t("lesson.narrate")}
+                    onPress={() => (narrating ? stopNarration() : narrate())}
+                    variant="ghost"
                   />
-                ) : (
-                  <PrimaryButton label={t("lesson.finish")} onPress={() => void onFinish()} variant="netflix" />
-                )}
-              </View>
+                  <PrimaryButton label={t("lesson.reengage")} onPress={() => void onReengage()} variant="ghost" />
+                  <PrimaryButton label={t("lesson.quiz")} onPress={() => void onQuiz()} variant="ghost" />
+                  {!atEnd ? (
+                    <PrimaryButton
+                      label={t("lesson.next")}
+                      onPress={() => void next()}
+                      loading={advancing}
+                      disabled={advancing || Boolean(segmentBreak)}
+                      variant="netflix"
+                    />
+                  ) : (
+                    <PrimaryButton label={t("lesson.finish")} onPress={() => void onFinish()} variant="netflix" />
+                  )}
+                </View>
+              )}
             </GlassPanel>
           ) : null}
 
@@ -939,6 +1006,26 @@ export default function LessonScreen({
           }}
         />
       ) : null}
+      {/* Sala-only voice-first overlay. Suppressed while quizzes, assessments,
+          surveys, or the finish state are up — those screens need the full
+          chrome anyway, and the mic shouldn't be competing with narration there. */}
+      <VoiceFirstOverlay
+        active={
+          voiceFirst
+          && lightingReady
+          && !loading
+          && !quiz
+          && !assessmentRun
+          && !assessmentResult
+          && !surveyTpl
+          && !finish
+          && !segmentBreak
+        }
+        locale={locale}
+        typeToAsk={typeToAskFlag}
+        onIntent={onVoiceIntent}
+        onRevealChrome={() => setVoiceFirst(false)}
+      />
     </View>
   );
 }
