@@ -83,15 +83,21 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
   say "build+push web (fresh)"
   docker buildx build "${BUILD_FLAGS[@]}" -t "${REGISTRY}/web:${TAG}" -f "apps/web/Dockerfile" --push .
   # Lab subrepos (demo iframes - Vision Play, Audio Translation, Music Lab,
-  # Course Studio). Each subrepo owns its own Dockerfile and build context,
-  # which is why we build FROM that subrepo directory, not from repo root.
+  # Course Studio). Each lab's Dockerfile is picked via -f, but the build
+  # CONTEXT must be the repo root: every lab Dockerfile does
+  #   COPY packages/shared ...
+  #   COPY subrepos/<lab>/pyproject.toml ...
+  #   COPY subrepos/<lab>/src ...
+  # (two of them even open with "# Build context = repo root"). Passing the
+  # subrepo dir as context breaks with "COPY packages/shared: not found" and
+  # "/subrepos/<lab>/src: not found" during buildx.
   if [ "${SKIP_LABS:-0}" != "1" ]; then
     for entry in "${LABS[@]}"; do
       lab="${entry%%=*}"
       path="${entry#*=}"
       if [ -f "$ROOT/$path/Dockerfile" ]; then
-        say "build+push $lab from $path (fresh)"
-        docker buildx build "${BUILD_FLAGS[@]}" -t "${REGISTRY}/${lab}:${TAG}" -f "$ROOT/$path/Dockerfile" --push "$ROOT/$path"
+        say "build+push $lab from $path (fresh, context=repo root)"
+        docker buildx build "${BUILD_FLAGS[@]}" -t "${REGISTRY}/${lab}:${TAG}" -f "$ROOT/$path/Dockerfile" --push "$ROOT"
       else
         warn "lab $lab: $path/Dockerfile missing - skipping"
       fi
