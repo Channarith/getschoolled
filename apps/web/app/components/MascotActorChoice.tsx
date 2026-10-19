@@ -62,6 +62,18 @@ function normalizeMode(raw: string | null): Mode | null {
   return null;
 }
 
+/**
+ * Steps where no mascot should render at all - not CSS, not 3D pane,
+ * not the full-viewport walker. The Learner Check step owns the whole
+ * frame (camera preview + face mesh + pose prompts) and the stylized
+ * Buddha-fox character was reading as a Buddhist / culturally-coded
+ * caricature to users while they stared at their own face on screen.
+ * Keeping it off this one step avoids that read without stripping the
+ * companion from the rest of onboarding (account / about / learn / plan
+ * / payment / complete), where it is genuinely helpful signposting.
+ */
+const MASCOT_HIDDEN_STEPS = new Set<string>(["identity"]);
+
 export default function MascotActorChoice(props: Props) {
   // SSR renders the CSS version. The 3D decision is computed in the
   // browser so URL / localStorage overrides work without a server restart.
@@ -79,6 +91,10 @@ export default function MascotActorChoice(props: Props) {
     const sticky = normalizeMode(window.localStorage.getItem("aoep.mascot3d"));
     setMode(sticky ?? ENV_MODE ?? "css");
   }, []);
+
+  if (props.step && MASCOT_HIDDEN_STEPS.has(props.step)) {
+    return null;
+  }
 
   if (mode === "overlay") {
     return <MascotOverlay3D scene={props.scene} step={props.step} />;

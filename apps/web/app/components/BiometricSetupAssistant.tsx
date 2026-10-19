@@ -589,7 +589,7 @@ export default function BiometricSetupAssistant({
         )}
       </header>
 
-      <section className={styles.stageArea} data-mascot-target="identity-camera">
+      <section className={styles.stageArea}>
         <div className={styles.copy}>
           {stage === "intro" && (
             <>
@@ -713,7 +713,6 @@ export default function BiometricSetupAssistant({
                   className={styles.primary}
                   disabled={busy || (minor && !guardianConsent)}
                   onClick={() => void begin()}
-                  data-mascot-target="identity-begin"
                 >Get started</button>
                 {canSkip && (
                   <button className={styles.secondary} onClick={() => void skip()}>Set up later</button>

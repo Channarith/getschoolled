@@ -62,7 +62,11 @@ const STEP_TOURS: Record<string, string[]> = {
   account: ["account-email", "account-password", "account-submit"],
   about: ["about-name", "about-age", "about-continue"],
   learn: ["learn-card", "learn-continue"],
-  identity: ["identity-camera", "identity-begin"],
+  // "identity" (Learner Check) intentionally has no tour and is hidden
+  // upstream in MascotActorChoice (MASCOT_HIDDEN_STEPS). The stylized
+  // Buddha-fox character read as a cultural caricature while learners
+  // were looking at their own face on camera, so the whole mascot layer
+  // is suppressed on that one step.
   plan: ["plan-free", "plan-pro", "plan-continue"],
   payment: ["pay-card", "pay-submit"],
 };
