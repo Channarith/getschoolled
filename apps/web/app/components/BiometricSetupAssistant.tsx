@@ -42,7 +42,10 @@ const VOICE_PROMPT =
 
 const VOICE_SECONDS = 10;
 const WAVE_BARS = 60;
-const SCAN_INTERVAL_MS = 160;
+// 110 ms ≈ 9 fps. We split the slow SFace embed off the hot path (see tick()
+// below), so this interval drives only landmark detection + mesh rendering,
+// which is cheap enough to run this fast on CPU.
+const SCAN_INTERVAL_MS = 110;
 const LIGHT_CHECK_MS = 1200;
 
 const POSE_COPY: Record<Pose, string> = {
@@ -308,16 +311,26 @@ export default function BiometricSetupAssistant({
           lastLightCheck = now;
           void checkLight(video);
         }
-        const faces = engine.detectAndEmbed(video);
+        // Fast path for every tick: YuNet landmarks only. SFace (the slow
+        // 38 MB ONNX net) is skipped unless we are about to capture — either
+        // the neutral baseline or a matched pose. This keeps the pose
+        // feedback responsive at ~10 fps even on CPU.
+        const needsEmbedding = !scan.base;
+        let faces = needsEmbedding
+          ? engine.detectAndEmbed(video)
+          : engine.detect(video);
         if (faces.length !== 1) {
           markHistory.length = 0;
           setContour(null);
           setHint(faces.length ? "Only one face, please." : "Center your face in the frame.");
           return;
         }
-        const face = faces[0];
+        let face = faces[0];
         const frame = (face.frame_size ?? [video.videoWidth, video.videoHeight]) as [number, number];
-        const shape = faceContour(face.landmarks, face.bbox);
+        // Fewer mesh samples than the 32-point default: 18 lines look just
+        // as readable and cut SVG path cost by ~45%, which matters because
+        // this re-renders every scan tick.
+        const shape = faceContour(face.landmarks, 18, face.bbox);
         if (!shape || !face.landmarks) {
           markHistory.length = 0;
           setContour(null);
@@ -349,6 +362,14 @@ export default function BiometricSetupAssistant({
           setHint(POSE_COPY[target]);
           return;
         }
+        // The pose matches — now (and only now) run the full embed step so
+        // we have a vector to store for this pose.
+        const embedded = engine.detectAndEmbed(video);
+        if (embedded.length !== 1) {
+          // Face moved out of frame between detect and embed — retry next tick.
+          return;
+        }
+        face = embedded[0];
         scan.poses[target] = face.embedding;
         const done = scan.order.filter((item) => scan.poses[item]);
         setCaptured(done);
