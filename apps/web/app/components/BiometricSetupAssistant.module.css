@@ -413,6 +413,25 @@
   object-fit: cover;
 }
 
+/* Container for the animated Meshy mascot that replaces the static
+   frame art on non-scan stages. Fills the camera frame exactly so the
+   rounded corners + decorative corner brackets still read correctly.
+   The <canvas> inside sizes to this element via MascotMeshy's `fill`
+   prop (100% width + 100% height). */
+.mascotStage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 50% 60%,
+    rgba(230, 174, 54, 0.12) 0%,
+    rgba(11, 16, 32, 0.95) 70%
+  );
+}
+
 .cue {
   position: absolute;
   z-index: 4;

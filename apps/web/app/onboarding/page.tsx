@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AvatarImage from "../components/AvatarImage";
 import BiometricSetupAssistant from "../components/BiometricSetupAssistant";
-import MascotActor from "../components/MascotActor";
+import MascotActor from "../components/MascotActorChoice";
 import { type MascotScene, sceneForMode } from "../lib/mascotPose";
 import { AGE_MAX, AGE_MIN, AGE_OPTIONS, clampAge } from "../lib/learnerCheck";
 import AccountStep from "./AccountStep";
@@ -249,10 +249,37 @@ export default function OnboardingPage() {
   function saveLearning() {
     return run(async () => {
       const answers = { modality_ratings: ratings };
-      await submitLearningProfile(studentId, answers);
+      // The identity service returns 404 "unknown student profile" if the
+      // cached studentId no longer resolves (common after a backend wipe
+      // or when localStorage.onboarding_student points at a student the
+      // identity DB has forgotten about). Self-heal by re-posting the
+      // About step from the cached name/age, then retry the learning
+      // profile with the fresh student id.
+      let effectiveStudentId = studentId;
+      try {
+        await submitLearningProfile(effectiveStudentId, answers);
+      } catch (reason) {
+        const msg = String(reason);
+        const is404 = /\b404\b/.test(msg) || /unknown student profile/i.test(msg);
+        if (!is404) throw reason;
+        if (!name.trim() || !ageValue) {
+          // Nothing cached to re-create with - bounce them back to About
+          // so they can type their name/age again.
+          setStep("about");
+          throw new Error("We lost your profile - please re-enter your name and age.");
+        }
+        const refreshed = await submitOnboardingLearner({
+          learner_name: name.trim(),
+          age: ageValue,
+        });
+        localStorage.setItem(STORAGE.student, refreshed.student.id);
+        setStudentId(refreshed.student.id);
+        effectiveStudentId = refreshed.student.id;
+        await submitLearningProfile(effectiveStudentId, answers);
+      }
       const me = await getMe().catch(() => null);
       if (me) {
-        void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: studentId, answers })
+        void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: effectiveStudentId, answers })
           .catch(() => undefined);
       }
       window.dispatchEvent(new CustomEvent("aoep-learning-profile-saved"));
@@ -333,7 +360,7 @@ export default function OnboardingPage() {
       </header>
       <div className={styles.split}>
         <div className={styles.artPane}>
-          <MascotActor scene={mascotScene} size={260} />
+          <MascotActor scene={mascotScene} size={260} step={step} />
         </div>
         <div className={styles.pane}>
 
@@ -348,7 +375,7 @@ export default function OnboardingPage() {
           <p className={styles.lede}>This name appears on your profile and in class. About two minutes to finish setup.</p>
           <label className={styles.field}>
             <span>Profile name</span>
-            <div className={styles.nameRow}>
+            <div className={styles.nameRow} data-mascot-target="about-name">
               <AvatarImage avatarId={avatarId} size={52} alt="" className={styles.avatar} />
               <input
                 autoFocus
@@ -368,7 +395,7 @@ export default function OnboardingPage() {
           </label>
           <div className={styles.field}>
             <span id="age-label">How old are you?</span>
-            <div className={styles.ageRow}>
+            <div className={styles.ageRow} data-mascot-target="about-age">
               <div className={styles.ageWheel}>
                 <select
                   ref={ageRef}
@@ -396,7 +423,12 @@ export default function OnboardingPage() {
           </div>
           {error && <p className={styles.error} role="alert">{error}</p>}
           <div className={styles.actions}>
-            <button className={styles.primary} disabled={busy || !aboutReady} onClick={() => void saveAbout()}>
+            <button
+              className={styles.primary}
+              disabled={busy || !aboutReady}
+              onClick={() => void saveAbout()}
+              data-mascot-target="about-continue"
+            >
               {busy ? "Saving…" : "Continue"}
             </button>
           </div>
@@ -420,6 +452,7 @@ export default function OnboardingPage() {
                   className={`${styles.mode} ${focus === mode.id ? styles.modeFocus : ""}`}
                   onMouseEnter={() => setFocus(mode.id)}
                   onFocus={() => setFocus(mode.id)}
+                  data-mascot-target={focus === mode.id ? "learn-card" : undefined}
                 >
                   <div className={styles.modeArt}>
                     <Image src={`/setup-assistant/${mode.art}.webp`} alt="" fill priority sizes="(max-width: 839px) 100vw, 50vw" />
@@ -489,7 +522,17 @@ export default function OnboardingPage() {
           </div>
           {error && <p className={styles.error} role="alert">{error}</p>}
           <div className={styles.actions}>
-            <button className={styles.primary} disabled={busy || rated < MODES.length} onClick={() => void saveLearning()}>
+            <button
+              className={styles.primary}
+              disabled={busy || rated < MODES.length}
+              onClick={() => void saveLearning()}
+              /* Second waypoint for the overlay mascot's `learn` tour.
+                 The mascot walks from the active rating card to this
+                 Continue button once all modes are rated, so the user
+                 sees exactly where to click next. STEP_TOURS.learn is
+                 ["learn-card", "learn-continue"]. */
+              data-mascot-target="learn-continue"
+            >
               {busy ? "Saving…" : rated < MODES.length ? `Rate ${MODES.length - rated} more` : "Continue"}
             </button>
             <button className={styles.ghost} onClick={() => setStep("about")}>Back</button>
