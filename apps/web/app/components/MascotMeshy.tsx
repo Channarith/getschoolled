@@ -51,6 +51,7 @@ import * as THREE from "three";
 import { clone as cloneWithSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 
 import {
+  EXPRESSION_NAMES,
   type Expression,
   MOOD_PROFILES,
   type MoodProfile,
@@ -402,16 +403,47 @@ function Character({
   // between expressions instead of stacking.
   const emissiveSnaps = useMemo(() => snapshotEmissives(cloned), [cloned]);
 
-  // Debug: log the clip inventory + material count once per mount so
-  // the browser console confirms the GLB loaded with the expected
-  // skeleton + animations.
+  // Collect every SkinnedMesh that ships with morph targets (the face
+  // shape keys baked by scripts/mascot_add_face_shapekeys.py land here
+  // as mesh.morphTargetDictionary mapping expression name -> index and
+  // mesh.morphTargetInfluences being an array we animate per frame).
+  const morphTargets = useMemo(() => {
+    const out: {
+      mesh: THREE.SkinnedMesh | THREE.Mesh;
+      dict: Record<string, number>;
+      influences: number[];
+    }[] = [];
+    cloned.traverse((obj) => {
+      const m = obj as THREE.SkinnedMesh | THREE.Mesh;
+      if (!("morphTargetDictionary" in m) || !m.morphTargetDictionary) return;
+      if (!m.morphTargetInfluences) return;
+      out.push({ mesh: m, dict: m.morphTargetDictionary, influences: m.morphTargetInfluences });
+    });
+    return out;
+  }, [cloned]);
+
+  // Target influence per expression, lerp'd towards each frame so
+  // expression swaps are smooth instead of jerking the mesh.
+  const targetInfluencesRef = useRef<Record<string, number>>({});
   useEffect(() => {
+    const next: Record<string, number> = {};
+    for (const name of EXPRESSION_NAMES) {
+      next[name] = name === expression ? 1 : 0;
+    }
+    targetInfluencesRef.current = next;
+  }, [expression]);
+
+  // Debug: log the clip + morph inventory once per mount so DevTools
+  // confirms the GLB loaded with the expected skeleton + animations +
+  // shape keys.
+  useEffect(() => {
+    const firstMorph = morphTargets[0];
     // eslint-disable-next-line no-console
     console.info(
-      `[MascotMeshy] loaded ${names.length} clips, tinting ${emissiveSnaps.length} materials, scale=${uniformScale.toFixed(4)}`,
-      { names },
+      `[MascotMeshy] loaded ${names.length} clips, ${emissiveSnaps.length} materials, ${morphTargets.length} morph meshes`,
+      { clips: names, morphs: firstMorph ? Object.keys(firstMorph.dict) : [] },
     );
-  }, [names, emissiveSnaps.length, uniformScale]);
+  }, [names, emissiveSnaps.length, morphTargets, uniformScale]);
 
   // Apply mood tint whenever expression changes.
   useEffect(() => {
@@ -435,8 +467,10 @@ function Character({
     };
   }, [actions, names, activeClip]);
 
-  // Posture + pulse layer on top of the clip's own skeletal motion.
-  useFrame((state) => {
+  // Posture + pulse layer on top of the clip's own skeletal motion,
+  // AND smooth morph-target lerp so the face actually deforms per
+  // expression (brow furrows, cheeks puff, mouth shape changes).
+  useFrame((state, delta) => {
     const outer = outerRef.current;
     const inner = innerRef.current;
     if (!outer || !inner) return;
@@ -452,6 +486,18 @@ function Character({
     // can live in world units with sensible sprite sizes.
     inner.scale.setScalar(uniformScale * pulse);
     inner.position.y = groundOffset;
+
+    // Smooth morph-target lerp. Rate of 6/sec feels responsive without
+    // snapping - a full 0->1 transition in ~170 ms.
+    const target = targetInfluencesRef.current;
+    const alpha = Math.min(1, delta * 6);
+    for (const bundle of morphTargets) {
+      for (const [name, idx] of Object.entries(bundle.dict)) {
+        const want = target[name] ?? 0;
+        const current = bundle.influences[idx] ?? 0;
+        bundle.influences[idx] = current + (want - current) * alpha;
+      }
+    }
   });
 
   return (
