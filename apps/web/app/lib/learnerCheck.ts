@@ -75,8 +75,11 @@ export function faceGeometry(landmarks: number[][], bbox: number[], frame: numbe
 // A deliberate look is about 12° of head rotation (~0.10 of the eye distance
 // in yaw, ~0.07 in pitch). The old 0.16 / 0.10 gates needed ~25° / ~15° and a
 // normal look stayed neutral. About 5° of sway stays under these.
+// Pitch is a little looser than yaw because tilting the head up/down displaces
+// the nose less in the 2D image plane than turning left/right does — a small
+// upward tilt was consistently landing in the 0.04-0.05 band and not firing.
 export const YAW_THRESHOLD = 0.08;
-export const PITCH_THRESHOLD = 0.05;
+export const PITCH_THRESHOLD = 0.04;
 
 /**
  * Which way the learner is looking relative to their neutral pose.
