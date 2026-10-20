@@ -7,6 +7,7 @@ removes the speckle that otherwise looks like a torn depth picture.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -329,6 +330,136 @@ def _capture_oak_pipeline(*, width: int, height: int, with_depth: bool) -> Frame
         session.stop()
 
 
+WEBCAM_MODES = {
+    "clear": ((3840, 2160, 30), (1920, 1080, 30), (1280, 720, 30)),
+    "smooth": ((1920, 1080, 30), (1280, 720, 30)),
+    "fast": ((1280, 720, 30),),
+}
+
+
+def v4l_nodes(root: Optional[Path] = None) -> list[tuple[str, str, int]]:
+    """``(device path, card name, node index)`` for every video4linux node."""
+    base = Path(root) if root is not None else Path("/sys/class/video4linux")
+    found: list[tuple[str, str, int]] = []
+    if not base.is_dir():
+        return found
+    for node in sorted(base.iterdir()):
+        if not node.name.startswith("video"):
+            continue
+        try:
+            name = (node / "name").read_text(encoding="utf-8").strip()
+            index = int((node / "index").read_text(encoding="utf-8").strip() or "0")
+        except (OSError, ValueError):
+            continue
+        found.append((f"/dev/{node.name}", name, index))
+    return found
+
+
+def choose_uhd_webcam(
+    nodes: Optional[list[tuple[str, str, int]]] = None,
+) -> Optional[tuple[str, str]]:
+    """The capture node of the 4K webcam, skipping RealSense video nodes."""
+    rows = v4l_nodes() if nodes is None else nodes
+    candidates = [
+        (path, name, index)
+        for path, name, index in rows
+        if index == 0 and "realsense" not in name.casefold()
+    ]
+    if not candidates:
+        return None
+
+    def rank(row: tuple[str, str, int]) -> tuple[int, str]:
+        label = row[1].casefold()
+        if "ac310" in label:
+            return (0, row[0])
+        if "4k" in label or "ultra" in label:
+            return (1, row[0])
+        return (2, row[0])
+
+    path, name, _index = sorted(candidates, key=rank)[0]
+    return path, name
+
+
+class WebcamSession:
+    """The USB 4K webcam. It has color only, so detection uses the picture."""
+
+    def __init__(self) -> None:
+        self.mode = ""
+        self.usb = ""
+        self.name = ""
+        self.path = ""
+        self._cap = None
+
+    def start(self, modes: tuple[tuple[int, int, int], ...]) -> str:
+        import cv2
+
+        chosen = choose_uhd_webcam()
+        if chosen is None:
+            raise RuntimeError("No 4K webcam is connected")
+        path, name = chosen
+        last = "no mode worked"
+        for width, height, fps in modes:
+            self.stop()
+            cap = cv2.VideoCapture(path, cv2.CAP_V4L2)
+            if not cap.isOpened():
+                last = f"could not open {path}"
+                cap.release()
+                continue
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(width))
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(height))
+            cap.set(cv2.CAP_PROP_FPS, int(fps))
+            ok = False
+            for _ in range(4):
+                ok, _frame = cap.read()
+                if ok and _frame is not None:
+                    break
+            if not ok:
+                last = f"{name} returned no frame at {width}x{height}"
+                cap.release()
+                continue
+            got_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or width)
+            got_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or height)
+            got_fps = int(round(float(cap.get(cv2.CAP_PROP_FPS) or fps)))
+            self._cap = cap
+            self.path = path
+            self.name = name.split(":")[0].strip() or name
+            self.mode = f"{got_w}x{got_h}@{got_fps or fps}"
+            return self.mode
+        raise RuntimeError(f"4K webcam did not start ({last})")
+
+    def read(self, timeout: float = 1.0) -> Optional[Frame]:
+        import cv2
+
+        cap = self._cap
+        if cap is None:
+            return None
+        ok, bgr = cap.read()
+        if not ok or bgr is None:
+            return None
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        return Frame(rgb=rgb, depth=None, camera="webcam")
+
+    def stop(self) -> None:
+        cap = self._cap
+        self._cap = None
+        if cap is not None:
+            cap.release()
+
+
+def capture_webcam(*, quality: str = "clear") -> Frame:
+    """One color frame from the 4K webcam. Clear asks for 3840x2160."""
+    session = WebcamSession()
+    session.start(WEBCAM_MODES.get(quality, WEBCAM_MODES["clear"]))
+    try:
+        frame = session.read()
+        if frame is None:
+            raise RuntimeError("4K webcam returned no frame")
+        return frame
+    finally:
+        session.stop()
+
+
 def capture_oak(*, width: int = 640, height: int = 400, with_depth: bool = True) -> Frame:
     """Color from the OAK-D Lite, plus stereo depth when the link can carry it."""
     if with_depth:
@@ -347,4 +478,6 @@ def capture(camera: str) -> Frame:
         return capture_realsense()
     if name in ("oak", "oak-d", "luxonis"):
         return capture_oak()
-    raise ValueError(f"unknown camera {camera!r} (use realsense or oak)")
+    if name in ("webcam", "4k", "uhd", "ac310", "ultra"):
+        return capture_webcam()
+    raise ValueError(f"unknown camera {camera!r} (use realsense, oak, or webcam)")

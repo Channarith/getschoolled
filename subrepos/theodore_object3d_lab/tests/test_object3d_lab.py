@@ -23,7 +23,8 @@ def test_devices_do_not_crash_when_a_sdk_is_missing():
     assert "depthai" in status
     cameras = connected_cameras()
     assert cameras
-    assert {row["camera"] for row in cameras} <= {"realsense", "oak"}
+    assert {row["camera"] for row in cameras} <= {"realsense", "oak", "webcam"}
+    assert any(row["camera"] == "webcam" for row in cameras)
 
 
 def test_tools_name_the_camera_and_the_scripts():
@@ -31,6 +32,21 @@ def test_tools_name_the_camera_and_the_scripts():
     assert "Intel RealSense Viewer" in names
     assert "Luxonis DepthAI demo" in names
     assert "object3d_ask.py" in names
+
+
+def test_voice_defaults_to_salane_and_lists_languages(monkeypatch):
+    monkeypatch.setenv("XAI_API_KEY", "xai-secret")
+    monkeypatch.delenv("COSYVOICE_URL", raising=False)
+    client = TestClient(app)
+    status = client.get("/api/live-audio/status")
+    assert status.status_code == 200
+    assert status.json()["default"] == "salane"
+    page = client.get("/lab")
+    assert "Khmer" in page.text
+    assert "Salane" in page.text
+    said = client.post("/api/object3d/voice/say", json={"text": "hello", "language": "en"})
+    assert said.status_code == 200
+    assert said.json()["engine"] == "browser"
 
 
 def test_lab_pages_and_bench_endpoint():
@@ -41,6 +57,9 @@ def test_lab_pages_and_bench_endpoint():
     page = client.get("/lab")
     assert page.status_code == 200
     assert "Synthetic bench" in page.text
+    assert "<h1>Sala Object3D Lab</h1>" in page.text
+    assert "4K webcam" in page.text
+    assert "<title>Sala Object3D Lab</title>" in page.text
     assert "/api/live-audio/client.js" in page.text
     bench = client.post("/api/object3d/bench")
     assert bench.status_code == 200
@@ -88,6 +107,12 @@ def test_freeze_click_label_then_stop_when_the_object_leaves(tmp_path):
     page = client.get("/lab")
     assert "Label and capture angles" in page.text
     assert "Freeze frame" in page.text
+    assert "Tap the object you want to ask Sala about." in page.text
+    assert "pointerup" in page.text
+    ask = page.text.split('getElementById("btn-ask").onclick', 1)[1][:400]
+    assert "playSpoken" in ask
+    assert "holdForChoice" not in page.text
+    assert 'answer.textContent === "Starting the camera."' in page.text
 
     status = client.get("/api/object3d/live/status").json()
     assert status["observations"]
@@ -102,6 +127,12 @@ def test_freeze_click_label_then_stop_when_the_object_leaves(tmp_path):
         "y": (box[1] + box[3] / 2) / height,
     })
     assert picked.json()["ok"] is True
+    asked = client.post("/api/object3d/ask", json={
+        "question": "how far is it?",
+        "index": picked.json()["index"],
+    })
+    assert asked.json()["ok"] is True
+    assert asked.json()["index"] == picked.json()["index"]
     labeled = client.post("/api/object3d/live/label", json={"label": "red block", "index": picked.json()["index"]})
     assert labeled.status_code == 200
     body = labeled.json()
@@ -118,6 +149,23 @@ def test_freeze_click_label_then_stop_when_the_object_leaves(tmp_path):
     assert done["active"] is False
     assert done["reason"] == "object left the frame"
     assert done["saved"] == 1
+
+
+def test_4k_preview_scales_boxes_and_the_webcam_name_is_accepted():
+    import numpy as np
+
+    from aoep_shared.object3d.types import Observation
+    from theodore_object3d_lab.live import _camera_name, _fit_preview
+
+    assert _camera_name("4k") == "webcam"
+    image = np.zeros((2160, 3840, 3), dtype=np.uint8)
+    obs = Observation(
+        label="object", score=1, bbox=(1000, 500, 400, 200), distance_m=None, kind="thing",
+    )
+    preview, scaled = _fit_preview(image, [obs])
+    assert max(preview.shape[:2]) <= 1600
+    assert scaled[0].bbox[0] == int(round(1000 * preview.shape[1] / 3840))
+    assert obs.bbox == (1000, 500, 400, 200)
 
 
 def test_unknown_camera_is_a_reported_error():

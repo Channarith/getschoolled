@@ -39,8 +39,9 @@ def observe_for_camera(
 
     ``auto`` keeps depth boxes when they are real objects. A missing depth map,
     an empty depth map, or one blob that covers the whole room falls through to
-    color, so both cameras draw boxes. ``depth``, ``color``, and ``coco`` force
-    one path and do not load COCO unless that path is selected.
+    color. A bright window or a mixed wall hides those color blobs, so named
+    COCO boxes are used when color finds nothing and torchvision is installed.
+    ``depth``, ``color``, and ``coco`` force one path.
     """
     mode = (detector or "auto").casefold()
     if mode != "auto":
@@ -51,7 +52,13 @@ def observe_for_camera(
         limit = 0.72 * float(height * width)
         if any(_box_area(obs) < limit for obs in found):
             return found
-    return observe(frame, gallery, detector="color", identify_threshold=identify_threshold)
+    colored = observe(frame, gallery, detector="color", identify_threshold=identify_threshold)
+    if colored:
+        return colored
+    try:
+        return observe(frame, gallery, detector="coco", identify_threshold=identify_threshold)
+    except RuntimeError:
+        return []
 
 
 def observe(

@@ -153,6 +153,18 @@ def test_questions_use_camera_facts_and_sign_lexicon():
     )
     assert intent_of("how far is it from me?") == "distance"
     assert "2.4 meters" in answer_about("how far is it?", [dog]).text
+    near = Observation(
+        label="cup", score=1, bbox=(0, 0, 8, 8), distance_m=0.3, kind="thing",
+    )
+    assert "centimeters" in answer_about("how far is it?", [near, dog]).text
+    pointed = answer_about("how far is it?", [near, dog], focus=1)
+    assert "2.4 meters" in pointed.text
+    unmarked = Observation(
+        label="object", score=1, bbox=(20, 0, 10, 10), distance_m=2.4, kind="thing",
+    )
+    touched = answer_about("how far is it?", [near, unmarked], focus=1)
+    assert touched.text.startswith("That object")
+    assert "2.4 meters" in touched.text
     assert answer_about("is it an animal?", [dog]).text.startswith("Yes")
     assert answer_about("is it an animal?", [lamp]).text.startswith("No")
     assert answer_about("is it food?", [banana]).text.startswith("Yes")
@@ -303,6 +315,30 @@ def test_auto_uses_color_when_the_frame_has_no_depth(monkeypatch):
     assert all(det.source == "color" for det in found)
 
 
+def test_auto_names_objects_when_color_finds_nothing(monkeypatch):
+    from aoep_shared.object3d.types import Detection
+
+    class _Chair:
+        def available(self):
+            return True
+
+        def detect(self, _rgb):
+            return [Detection(
+                label="chair",
+                score=0.8,
+                bbox=(10, 10, 20, 30),
+                kind="thing",
+                source="coco",
+            )]
+
+    monkeypatch.setattr("aoep_shared.object3d.detect.coco_detector", lambda: _Chair())
+    frame = Frame(rgb=np.full((80, 100, 3), 180, dtype=np.uint8), depth=None, camera="webcam")
+    found = observe_for_camera(frame, ObjectGallery(), detector="auto")
+    assert len(found) == 1
+    assert found[0].label == "chair"
+    assert found[0].source == "coco"
+
+
 def test_both_cameras_get_boxes():
     oak = Frame(rgb=_blocks(), depth=None, camera="oak")
     colored = observe_for_camera(oak, ObjectGallery(), detector="auto")
@@ -357,3 +393,16 @@ def test_empty_training_queue_is_a_noop():
     report = asyncio.run(train_samples(gallery, []))
     assert report.views == 0
     assert report.objects == 0
+
+
+def test_uhd_webcam_is_the_ac310_capture_node():
+    from aoep_shared.object3d.capture import choose_uhd_webcam
+
+    nodes = [
+        ("/dev/video0", "Intel(R) RealSense(TM) Depth Ca", 0),
+        ("/dev/video4", "Intel(R) RealSense(TM) Depth Ca", 0),
+        ("/dev/video6", "webcam AC310: webcam AC310", 0),
+        ("/dev/video7", "webcam AC310: webcam AC310", 1),
+    ]
+    assert choose_uhd_webcam(nodes) == ("/dev/video6", "webcam AC310: webcam AC310")
+    assert choose_uhd_webcam([("/dev/video0", "Intel(R) RealSense(TM) Depth Ca", 0)]) is None

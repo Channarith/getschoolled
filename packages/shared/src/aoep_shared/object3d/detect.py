@@ -50,10 +50,15 @@ class CocoDetector:
             ssdlite320_mobilenet_v3_large,
         )
 
+        import os
+
         weights = SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
         model = ssdlite320_mobilenet_v3_large(weights=weights)
         model.eval()
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        # This net already resizes to 320px. Keep it on CPU so a live camera
+        # does not wait behind a training job that holds the GPU.
+        requested = os.environ.get("AOEP_COCO_DEVICE", "cpu").strip().lower()
+        device = "cuda" if requested == "cuda" and torch.cuda.is_available() else "cpu"
         self._model = model.to(device)
         self._categories = list(weights.meta["categories"])
         self._device = device

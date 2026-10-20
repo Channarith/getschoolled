@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from aoep_shared.languages import LANGUAGE_NAMES, SUPPORTED_LANGUAGES
+
 from .live import CONTROL_SPEC, LiveControls
 
 
@@ -9,13 +11,14 @@ def render_page() -> str:
     controls = LiveControls()
     image = "\n".join(_field(spec, controls) for spec in CONTROL_SPEC if spec["group"] == "image")
     depth = "\n".join(_field(spec, controls) for spec in CONTROL_SPEC if spec["group"] == "depth")
+    languages = _language_options()
     return (
         "<!doctype html>\n<html lang=\"en\">\n<head>\n"
         "  <meta charset=\"utf-8\" />\n"
         "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n"
-        "  <title>Theodore Object3D Lab</title>\n"
+        "  <title>Sala Object3D Lab</title>\n"
         "  <style>\n" + _CSS + "\n  </style>\n</head>\n<body>\n"
-        + _html(image, depth)
+        + _html(image, depth, languages)
         + "\n  <script>\n" + _JS + "\n  </script>\n</body>\n</html>\n"
     )
 
@@ -50,18 +53,28 @@ def _field(spec: dict, controls: LiveControls) -> str:
     )
 
 
-def _html(image: str, depth: str) -> str:
+def _language_options() -> str:
+    rows = []
+    for code in SUPPORTED_LANGUAGES:
+        name = LANGUAGE_NAMES.get(code, code)
+        selected = " selected" if code == "en" else ""
+        rows.append(f'<option value="{code}"{selected}>{name}</option>')
+    return "".join(rows)
+
+
+def _html(image: str, depth: str, languages: str) -> str:
     return f"""
   <header>
     <div>
-      <h1>Theodore Object3D Lab</h1>
-      <p>The camera stays on. Both cameras draw object boxes: depth when the picture has it, color when it does not. Freeze the color image, click a box, and name it. New angles are saved until that object leaves the frame.</p>
+      <h1>Sala Object3D Lab</h1>
+      <p>The camera stays on. RealSense, OAK-D, and the 4K webcam all draw object boxes: depth when the picture has it, color when it does not. Freeze the picture, then tap the object you want to ask Sala about. You can also name that object and save new angles until it leaves the frame.</p>
     </div>
     <div class="toolbar">
       <label>Camera
         <select data-control="camera" id="camera">
           <option value="realsense" selected>RealSense</option>
           <option value="oak">OAK-D</option>
+          <option value="webcam">4K webcam</option>
         </select>
       </label>
       <label>Quality
@@ -93,7 +106,7 @@ def _html(image: str, depth: str) -> str:
   <div class="stage" id="stage">
     <figure>
       <img id="color" alt="Live color" />
-      <figcaption><span>Color</span><span id="color-cap">Freeze, then click an object box.</span></figcaption>
+      <figcaption><span>Color</span><span id="color-cap">Tap the object you want to ask about.</span></figcaption>
     </figure>
     <figure>
       <img id="depth" alt="Live depth" />
@@ -122,10 +135,19 @@ def _html(image: str, depth: str) -> str:
       </div>
       <div class="row">
         <input id="sign" type="text" placeholder="sign text" />
-        <input id="target" type="text" value="en" />
+        <label>Language
+          <select id="target">{languages}</select>
+        </label>
+        <label>Voice
+          <select id="voice-agent">
+            <option value="salane" selected>Salane</option>
+            <option value="xai">xAI</option>
+          </select>
+        </label>
       </div>
+      <p class="hint" id="watch">English · waiting for the camera.</p>
       <h2>Label for training</h2>
-      <p class="hint" id="capture-note">Freeze the color image, click a box, and name it. Angles are saved until that object leaves the frame.</p>
+      <p class="hint" id="capture-note">Tap a box to ask Sala about it. Name that same object to save angles until it leaves the frame.</p>
       <div class="row">
         <button id="btn-freeze" type="button">Freeze frame</button>
         <button class="primary" id="btn-capture" type="button">Label and capture angles</button>
@@ -174,7 +196,7 @@ _CSS = """
   .stage { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; padding:.75rem 1.25rem 0; }
   @media (max-width:900px){ .stage, .controls { grid-template-columns:1fr; } }
   .stage figure { margin:0; background:#061014; border:1px solid var(--line); border-radius:16px; overflow:hidden; }
-  .stage img { width:100%; aspect-ratio:4/3; object-fit:contain; background:#061014; display:block; cursor:crosshair; }
+  .stage img { width:100%; aspect-ratio:4/3; object-fit:contain; background:#061014; display:block; cursor:crosshair; touch-action:manipulation; }
   .stage.frozen figure:first-child { outline:2px solid var(--accent); outline-offset:2px; }
   .stage figcaption { display:flex; justify-content:space-between; gap:.75rem; padding:.45rem .75rem .7rem;
     color:var(--muted); font-size:.78rem; }
@@ -212,6 +234,21 @@ let lastSeq = -1;
 let silence = false;
 let frozen = false;
 let selectedIndex = null;
+window.AOEP_LIVE_FRAME_URL = "/api/object3d/live/frame.jpg?view=color";
+window.AOEP_SALANE_SAY = "/api/object3d/voice/say";
+window.AOEP_LIVE_SCENE = async () => {
+  const data = await (await fetch("/api/object3d/live/status")).json();
+  const rows = data.observations || [];
+  if (!rows.length) return "The camera is live. Nothing is boxed yet.";
+  return rows.slice(0, 4).map((obs) => {
+    const dist = obs.distance_m == null ? "no depth" : Number(obs.distance_m).toFixed(2) + " m";
+    return (obs.name || obs.label || "object") + " " + dist;
+  }).join(", ");
+};
+window.AOEP_SALANE_ASK = async (utterance, language) => {
+  const data = await askAbout(utterance, language);
+  return (data && data.answer) || "";
+};
 
 function payload() {
   const body = {};
@@ -300,7 +337,7 @@ function paintCapture(data) {
   const note = document.getElementById("capture-note");
   const cap = (data && data.capture) || {};
   if (!cap.label) {
-    note.textContent = "Freeze the color image, click a box, and name it. Angles are saved until that object leaves the frame.";
+    note.textContent = "Tap a box to ask Sala about it. Name that same object to save angles until it leaves the frame.";
     return;
   }
   if (cap.active) {
@@ -340,7 +377,9 @@ async function startLive() {
     answer.textContent = data.error || "The camera did not start.";
     return;
   }
-  answer.textContent = "Live. Ask about the nearest object.";
+  if (answer.textContent === "Starting the camera.") {
+    answer.textContent = "Live. Tap an object to ask Sala about it.";
+  }
   paintStatus(data);
 }
 async function stopLive() {
@@ -368,6 +407,23 @@ function paintStatus(data) {
     renderObjects(data.observations || []);
   }
   paintCapture(data);
+  paintWatch(data);
+}
+let lastScene = "waiting for the camera";
+function paintWatch(data) {
+  const line = document.getElementById("watch");
+  if (!line) return;
+  const lang = document.getElementById("target");
+  const name = lang && lang.selectedOptions[0] ? lang.selectedOptions[0].textContent : "English";
+  const voice = document.getElementById("voice-agent");
+  const who = voice && voice.selectedOptions[0] ? voice.selectedOptions[0].textContent : "Salane";
+  const rows = data && data.observations;
+  if (Array.isArray(rows)) {
+    lastScene = rows.length
+      ? rows.slice(0, 3).map((obs) => (obs.name || obs.label || "object")).join(", ")
+      : "waiting for the camera";
+  }
+  line.textContent = who + " · " + name + " · " + lastScene;
 }
 function renderObjects(rows) {
   const host = document.getElementById("objects");
@@ -389,19 +445,69 @@ function renderObjects(rows) {
     host.appendChild(card);
   });
 }
+async function askAbout(question, language) {
+  const body = {
+    question: question,
+    sign: document.getElementById("sign").value,
+    target: language || document.getElementById("target").value
+  };
+  if (selectedIndex != null) body.index = selectedIndex;
+  const data = await post("/api/object3d/ask", body);
+  answer.textContent = data.answer || data.error || "No answer.";
+  if (data.observations) renderObjects(data.observations);
+  if (data.index != null) selectedIndex = data.index;
+  return data;
+}
+async function playSpoken(text, language) {
+  const said = String(text || "").trim();
+  const voice = document.getElementById("voice-agent");
+  if (!said || (voice && voice.value !== "salane")) return;
+  const url = window.AOEP_SALANE_SAY;
+  if (url) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({text: said, language: language || document.getElementById("target").value})
+      });
+      const type = response.headers.get("content-type") || "";
+      if (response.ok && type.startsWith("audio/")) {
+        const ctx = new AudioContext();
+        if (ctx.resume) await ctx.resume();
+        const decoded = await ctx.decodeAudioData(await response.arrayBuffer());
+        const source = ctx.createBufferSource();
+        source.buffer = decoded;
+        source.connect(ctx.destination);
+        source.start();
+        return;
+      }
+    } catch (err) {
+      /* fall through to the browser voice */
+    }
+  }
+  if (!("speechSynthesis" in window)) return;
+  const utter = new SpeechSynthesisUtterance(said);
+  utter.lang = document.documentElement.lang || "en";
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utter);
+}
+async function finishSelection(data) {
+  selectedIndex = data.index;
+  applyHold(true);
+  if (data.label && data.label !== "object") document.getElementById("label").value = data.label;
+  showFrames();
+  renderObjects(data.observations || []);
+  const spoken = await askAbout("what is this?");
+  await playSpoken(spoken && spoken.answer);
+}
 async function selectObject(index, obs) {
   const data = await post("/api/object3d/live/select", {index: index});
   if (!data.ok) {
     answer.textContent = data.error || "That object is not in this frame.";
     return;
   }
-  selectedIndex = data.index;
-  applyHold(true);
-  if (obs && obs.label && obs.label !== "object") {
-    document.getElementById("label").value = obs.label;
-  }
-  renderObjects(data.observations || []);
-  answer.textContent = "Selected " + (data.name || data.label || "object") + ". Name it, then capture angles.";
+  if (obs && obs.label && obs.label !== "object") data.label = obs.label;
+  await finishSelection(data);
 }
 async function pollStatus() {
   try {
@@ -444,13 +550,9 @@ document.getElementById("btn-bench").onclick = async () => {
   answer.textContent = data.ok ? "Synthetic bench passed." : "Synthetic bench failed.";
 };
 document.getElementById("btn-ask").onclick = async () => {
-  const data = await post("/api/object3d/ask", {
-    question: document.getElementById("question").value,
-    sign: document.getElementById("sign").value,
-    target: document.getElementById("target").value
-  });
-  answer.textContent = data.answer || data.error || "No answer.";
-  if (data.observations) renderObjects(data.observations);
+  const question = document.getElementById("question").value;
+  const data = await askAbout(question);
+  await playSpoken(data && data.answer);
 };
 document.getElementById("btn-reset").onclick = async () => {
   const data = await post("/api/object3d/live/reset", {});
@@ -483,30 +585,29 @@ function enroll(camera) {
     if (data.observations) renderObjects(data.observations);
   });
 }
-document.getElementById("color").onclick = async (event) => {
+let lastTouchAt = 0;
+async function touchObject(event) {
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  const now = Date.now();
+  if (now - lastTouchAt < 350) return;
+  lastTouchAt = now;
   const point = framePoint(event.currentTarget, event);
   if (!point) return;
-  if (!frozen) {
-    const held = await post("/api/object3d/live/freeze", {frozen: true});
-    applyHold(!!held.frozen);
-    answer.textContent = "Frame held. Click the object box.";
-    return;
-  }
   const data = await post("/api/object3d/live/pick", point);
+  if (data.frozen != null) applyHold(!!data.frozen);
   if (!data.ok) {
-    answer.textContent = data.error || "Click an object box.";
+    answer.textContent = "Frame held. Tap the object you want to ask Sala about.";
     return;
   }
-  selectedIndex = data.index;
-  if (data.label && data.label !== "object") document.getElementById("label").value = data.label;
-  showFrames();
-  renderObjects(data.observations || []);
-  answer.textContent = "Selected " + (data.name || data.label || "object") + ". Name it, then capture angles.";
-};
+  await finishSelection(data);
+}
+["color", "depth"].forEach((id) => {
+  document.getElementById(id).addEventListener("pointerup", touchObject);
+});
 document.getElementById("btn-freeze").onclick = async () => {
   const data = await post("/api/object3d/live/freeze", {frozen: !frozen});
   applyHold(!!data.frozen);
-  answer.textContent = data.frozen ? "Frame held. Click an object on the color image." : "Live.";
+  answer.textContent = data.frozen ? "Frame held. Tap the object you want to ask Sala about." : "Live.";
 };
 document.getElementById("btn-capture").onclick = async () => {
   const label = document.getElementById("label").value.trim();
@@ -539,6 +640,17 @@ document.getElementById("btn-capture-stop").onclick = async () => {
   answer.textContent = data.capture && data.capture.saved
     ? data.capture.saved + " views saved."
     : "Capture stopped.";
+};
+document.getElementById("target").onchange = () => {
+  document.documentElement.lang = document.getElementById("target").value;
+  paintWatch({});
+};
+document.getElementById("voice-agent").onchange = () => {
+  const id = document.getElementById("voice-agent").value;
+  if (window.TheodoreLiveAudio && TheodoreLiveAudio.setProvider) {
+    TheodoreLiveAudio.setProvider(id);
+  }
+  paintWatch({});
 };
 document.getElementById("btn-enroll").onclick = () => enroll(document.getElementById("camera").value);
 document.getElementById("btn-enroll-synth").onclick = () => enroll("");

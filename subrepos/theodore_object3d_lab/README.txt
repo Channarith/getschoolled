@@ -1,7 +1,7 @@
-Theodore Object3D Lab
+Sala Object3D Lab
 ======================
 
-Test the Intel RealSense and the Luxonis OAK-D, then the recognition
+Test the Intel RealSense, the Luxonis OAK-D, and the 4K webcam, then the recognition
 questions (distance, animal, food, maker, year, signs, heat, smell, touch).
 The synthetic bench does not need a camera. Live capture does.
 
@@ -9,13 +9,18 @@ Tools you can use
 -----------------
 This lab (browser, port 8020)
   The camera stays on. Color and depth are large and aligned. Object boxes
-  are drawn for both cameras: depth when the frame has it, color when it does
-  not, so an OAK-D Lite without stereo still detects objects. Freeze the color
-  image, click a box, and name it. The lab then saves crops from new angles
+  are drawn for all three cameras: depth when the frame has it, color when it
+  does not. The 4K webcam is the AC310 and has no depth, so its boxes come from
+  the color picture. Clear asks that camera for 3840x2160. Freeze the color
+  image, tap a box, and ask Sala about that object. The same tap also
+  chooses the object to name. The lab then saves crops from new angles
   under output/object3d/samples/<label>/ until that object leaves the frame.
   Train them later with scripts/object3d_train.py. Image controls (exposure,
   white balance, CLAHE, sharpen) and depth controls (preset, laser, hole fill,
   near/far) sit under the pictures. Ask and enroll use the live frame.
+  The voice chip starts on Salane and can be switched to xAI. The language
+  list is the platform set, including Khmer. While the voice is on it reads
+  the live color frame and the current object boxes.
   Command:
     PYTHONPATH=subrepos/theodore_object3d_lab/src:packages/shared/src \
       python3 -m uvicorn theodore_object3d_lab.main:app --port 8020 --host 127.0.0.1

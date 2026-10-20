@@ -21,6 +21,7 @@
     agentSpeaking: false, micRms: 0, voiceLevel: 0, levelTimer: null, outputGain: null,
     outputComp: null,
     userTalking: false, micSink: null, activityKey: "", activityAt: 0,
+    recognition: null, videoTimer: null, scene: "", videoFrames: true, lastFrameAt: 0,
   };
 
   const host = document.createElement("div");
@@ -475,6 +476,10 @@
   function handleXai(event) {
     const type = String(event.type || "");
     if (type === "session.updated") state.connected = true;
+    if (type === "error") {
+      const detail = JSON.stringify(event.error || event);
+      if (/image|video|content|unknown/i.test(detail)) state.videoFrames = false;
+    }
     if (type === "input_audio_buffer.speech_started") {
       state.lastUserAt = Date.now();
       beginInterrupt();
@@ -516,8 +521,180 @@
     if (event.error?.message) setStatus(`Gemini Live error: ${event.error.message}`);
     if (event.goAway) setStatus("Gemini Live session is ending; stop and reconnect.");
   }
+  function pageLanguage() {
+    const picker = document.getElementById("target") || document.getElementById("voice-lang");
+    const picked = picker && "value" in picker ? String(picker.value || "") : "";
+    return (picked || document.documentElement.lang || "en").trim() || "en";
+  }
+  function speechTag(code) {
+    const tags = {
+      en: "en-US", es: "es-ES", pt: "pt-BR", zh: "zh-CN", km: "km-KH",
+      ja: "ja-JP", ko: "ko-KR", fr: "fr-FR", de: "de-DE", ar: "ar-SA",
+      hi: "hi-IN", vi: "vi-VN", th: "th-TH", id: "id-ID", ru: "ru-RU",
+      it: "it-IT", nl: "nl-NL", pl: "pl-PL", uk: "uk-UA", tr: "tr-TR",
+      he: "he-IL", bn: "bn-BD", ur: "ur-PK", fa: "fa-IR", sw: "sw-KE",
+      el: "el-GR", cs: "cs-CZ",
+    };
+    return tags[code] || code || "en-US";
+  }
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = String(reader.result || "");
+        resolve(text.includes(",") ? text.split(",")[1] : text);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  }
+  async function pushLiveVideo() {
+    const frameUrl = window.AOEP_LIVE_FRAME_URL;
+    if (!frameUrl || !state.connected) return;
+    let scene = state.scene || "";
+    if (typeof window.AOEP_LIVE_SCENE === "function") {
+      try { scene = String(await window.AOEP_LIVE_SCENE() || ""); } catch (_) {}
+    }
+    state.scene = scene;
+    if (state.provider === "salane") {
+      if (scene) caption.textContent = scene;
+      return;
+    }
+    if (!state.ws || state.ws.readyState !== WebSocket.OPEN || state.videoFrames === false) return;
+    const line = scene || "The live camera is on.";
+    if (state.provider === "xai") {
+      try {
+        state.ws.send(JSON.stringify({
+          type: "session.update",
+          session: {
+            instructions: (
+              "You are Sala, looking at a live camera. Use the camera facts when the learner asks what you see. "
+              + "Do not speak just because a new frame arrived.\n\nLive camera:\n" + line
+            ),
+          },
+        }));
+      } catch (_) {}
+    }
+    const now = Date.now();
+    if (now - state.lastFrameAt < 4000) return;
+    state.lastFrameAt = now;
+    let raw = "";
+    try {
+      const response = await fetch(frameUrl, {cache: "no-store"});
+      if (!response.ok) return;
+      raw = await blobToBase64(await response.blob());
+    } catch (_) {
+      return;
+    }
+    if (!raw || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+    try {
+      if (state.provider === "gemini") {
+        state.ws.send(JSON.stringify({
+          realtimeInput: {video: {mimeType: "image/jpeg", data: raw}},
+        }));
+        return;
+      }
+      state.ws.send(JSON.stringify({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [
+            {type: "input_text", text: "Live camera frame. Do not answer until the learner speaks. " + line},
+            {type: "input_image", image_url: "data:image/jpeg;base64," + raw},
+          ],
+        },
+      }));
+    } catch (_) {}
+  }
+  function armVideoFeed() {
+    clearInterval(state.videoTimer);
+    if (!window.AOEP_LIVE_FRAME_URL) return;
+    state.videoFrames = true;
+    state.videoTimer = setInterval(() => { void pushLiveVideo(); }, 2000);
+    void pushLiveVideo();
+  }
+  async function speakSalane(text, language) {
+    const said = String(text || "").trim();
+    if (!said) return;
+    const url = window.AOEP_SALANE_SAY;
+    if (url) {
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify({text: said, language: language || pageLanguage()}),
+        });
+        const type = response.headers.get("content-type") || "";
+        if (response.ok && type.startsWith("audio/")) {
+          const copy = (await response.arrayBuffer()).slice(0);
+          const ctx = state.ctx || new AudioContext();
+          state.ctx = ctx;
+          const decoded = await ctx.decodeAudioData(copy);
+          const source = ctx.createBufferSource();
+          source.buffer = decoded;
+          source.connect(ctx.destination);
+          source.start();
+          return;
+        }
+      } catch (_) {}
+    }
+    if (!("speechSynthesis" in window)) return;
+    const utter = new SpeechSynthesisUtterance(said);
+    utter.lang = speechTag(language || pageLanguage());
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utter);
+  }
+  async function startSalane() {
+    state.provider = "salane";
+    state.connected = true;
+    state.stopping = false;
+    setNativeAudioActive(true);
+    toggle.disabled = false;
+    toggle.textContent = "Stop live voice";
+    toggle.classList.add("live");
+    dot.classList.add("on");
+    setStatus("Watching the camera.");
+    connectionChime(true);
+    armVideoFeed();
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Rec) {
+      setStatus("Watching the camera. This browser has no speech recognition, so type a question and press Ask.");
+      return true;
+    }
+    const recognition = new Rec();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = speechTag(pageLanguage());
+    recognition.onresult = async (event) => {
+      const last = event.results[event.results.length - 1];
+      if (!last || !last.isFinal) return;
+      const heard = String(last[0].transcript || "").trim();
+      if (!heard) return;
+      caption.textContent = heard;
+      const language = pageLanguage();
+      let spoken = "";
+      if (typeof window.AOEP_SALANE_ASK === "function") {
+        try { spoken = String(await window.AOEP_SALANE_ASK(heard, language, state.scene || "") || ""); }
+        catch (error) { spoken = ""; }
+      }
+      if (spoken) {
+        caption.textContent = spoken;
+        await speakSalane(spoken, language);
+      }
+    };
+    recognition.onend = () => {
+      if (state.provider === "salane" && state.connected && !state.stopping) {
+        try { recognition.start(); } catch (_) {}
+      }
+    };
+    state.recognition = recognition;
+    try { recognition.start(); } catch (_) {}
+    return true;
+  }
   async function start() {
     const provider = select.value;
+    if (provider === "salane") return startSalane();
     if (!provider) {
       setStatus("Voice is not ready yet. Press Start again in a moment.");
       return false;
@@ -538,7 +715,7 @@
       wirePlayback();
       await startMic();
       await followSpeakers();
-      const pageLang = (document.documentElement.lang || "").trim();
+      const pageLang = pageLanguage();
       const response = await fetch(liveAudioUrl("/api/live-audio/token"), {
         method:"POST",headers:{"content-type":"application/json"},
         body:JSON.stringify({
@@ -567,6 +744,7 @@
         toggle.classList.add("live"); dot.classList.add("on");
         setStatus(speakerStatus());
         connectionChime(true);
+        armVideoFeed();
       };
       state.ws.onmessage = (message) => {
         try {
@@ -632,6 +810,11 @@
   async function stop(message = "Live audio off. Lab TTS/device speech may resume.") {
     state.stopping = true;
     clearInterval(state.idleTimer);
+    clearInterval(state.videoTimer);
+    state.videoTimer = null;
+    try { state.recognition?.stop(); } catch (_) {}
+    state.recognition = null;
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
     state.idleTimer = null;
     setNativeAudioActive(false);
     state.recognitionPaused = false;
@@ -719,14 +902,25 @@
       if (hidden && state.ws) stop("Live audio off.");
     },
     start() {
-      if (state.ws) return Promise.resolve(true);
+      if (state.ws || (state.provider === "salane" && state.connected)) return Promise.resolve(true);
       return start();
     },
     stop() { return stop(); },
+    setProvider(id) {
+      const next = String(id || "");
+      state.pendingProvider = next;
+      const option = [...select.options].find((row) => row.value === next);
+      if (!option) return next === "salane" || next === "xai" || next === "gemini";
+      if (state.ws || state.connected) stop();
+      select.value = next;
+      toggle.disabled = !select.value;
+      setStatus(next === "salane" ? "Salane Voice is selected." : "Voice agent selected.");
+      return true;
+    },
   };
   navigator.mediaDevices?.addEventListener?.("devicechange", () => { void followSpeakers(); });
-  toggle.onclick = () => state.ws ? stop() : start();
-  select.onchange = () => { if (state.ws) stop(); toggle.disabled = !select.value; };
+  toggle.onclick = () => (state.ws || state.connected) ? stop() : start();
+  select.onchange = () => { if (state.ws || state.connected) stop(); toggle.disabled = !select.value; };
 
   fetch(liveAudioUrl("/api/live-audio/status"), {cache:"no-store"}).then(async (response) => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -736,9 +930,11 @@
       const option = document.createElement("option");
       option.value = id; option.textContent = row.label || id;
       option.disabled = !row.available;
-      if (id === data.default && row.available) option.selected = true;
+      const preferred = state.pendingProvider || data.default;
+      if (id === preferred && (row.available || state.pendingProvider)) option.selected = true;
       select.append(option);
     }
+    state.pendingProvider = "";
     toggle.disabled = !select.value;
     setStatus(data.note || "Choose a native speech-to-speech agent.");
   }).catch((error) => {

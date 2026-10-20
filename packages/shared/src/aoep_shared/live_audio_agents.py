@@ -51,36 +51,53 @@ def _gemini_key() -> str:
     ).strip()
 
 
-def provider_status() -> dict[str, Any]:
-    """Configured native-audio providers; never reports ordinary TTS as live."""
+def provider_status(*, prefer: str = "") -> dict[str, Any]:
+    """Configured native-audio providers, plus Salane Voice.
+
+    Salane is our camera voice. It is always available. ``prefer`` lets one lab
+    start on Salane while another lab still starts on xAI when that key is set.
+    """
     xai = xai_configured()
     gemini = bool(_gemini_key())
-    return {
-        "available": xai or gemini,
-        "default": "xai" if xai else "gemini" if gemini else "",
-        "providers": {
-            "xai": {
-                "available": xai,
-                "label": "xAI Voice Agent",
-                "model": os.environ.get("XAI_VOICE_MODEL", "grok-voice-latest"),
-                "input_rate": 24000,
-                "output_rate": 24000,
-            },
-            "gemini": {
-                "available": gemini,
-                "label": "Gemini Live",
-                "model": os.environ.get(
-                    "GEMINI_LIVE_MODEL", DEFAULT_GEMINI_MODEL
-                ),
-                "input_rate": 16000,
-                "output_rate": 24000,
-            },
+    providers = {
+        "salane": {
+            "available": True,
+            "label": "Salane Voice",
+            "model": "cosyvoice",
+            "input_rate": 16000,
+            "output_rate": 24000,
         },
-        "note": (
-            "Native speech-to-speech is ready; no TTS clips are used."
-            if xai or gemini
-            else "Set XAI_API_KEY or GEMINI_API_KEY to enable a live audio agent."
-        ),
+        "xai": {
+            "available": xai,
+            "label": "xAI Voice Agent",
+            "model": os.environ.get("XAI_VOICE_MODEL", "grok-voice-latest"),
+            "input_rate": 24000,
+            "output_rate": 24000,
+        },
+        "gemini": {
+            "available": gemini,
+            "label": "Gemini Live",
+            "model": os.environ.get(
+                "GEMINI_LIVE_MODEL", DEFAULT_GEMINI_MODEL
+            ),
+            "input_rate": 16000,
+            "output_rate": 24000,
+        },
+    }
+    fallback = "xai" if xai else "gemini" if gemini else ""
+    chosen = (prefer or "").strip().lower()
+    default = chosen if providers.get(chosen, {}).get("available") else fallback
+    if default == "salane":
+        note = "Salane Voice is ready. It watches the live camera and speaks with our voice."
+    elif xai or gemini:
+        note = "Native speech-to-speech is ready; no TTS clips are used."
+    else:
+        note = "Set XAI_API_KEY or GEMINI_API_KEY to enable a live audio agent."
+    return {
+        "available": bool(default) or xai or gemini,
+        "default": default,
+        "providers": providers,
+        "note": note,
     }
 
 
@@ -249,6 +266,19 @@ def mint_provider_token(
     language: str = "",
 ) -> dict[str, Any]:
     provider = (provider or "").strip().lower()
+    if provider == "salane":
+        from .xai_spoken_language import plan_spoken_language
+
+        spoken = plan_spoken_language(language)
+        return {
+            "engine": "salane",
+            "use_xai": False,
+            "provider": "salane",
+            "input_rate": 16000,
+            "output_rate": 24000,
+            "hint": "Salane Voice uses the live camera and our voice.",
+            "spoken_language": spoken.to_dict(),
+        }
     if provider == "xai":
         return mint_xai_token(
             mode=mode,
@@ -359,7 +389,7 @@ def _browser_origin_allowed(origin: str, host: str, forwarded_host: str = "") ->
 
 
 def install_live_audio_routes(
-    app: Any, *, lab_name: str, instructions: str = ""
+    app: Any, *, lab_name: str, instructions: str = "", default_provider: str = ""
 ) -> None:
     """Install same-origin status/token/client routes on a FastAPI lab app."""
     from fastapi import Body, HTTPException, Request
@@ -371,7 +401,7 @@ def install_live_audio_routes(
 
     @app.get("/api/live-audio/status", include_in_schema=False)
     def live_audio_status() -> dict[str, Any]:
-        return provider_status()
+        return provider_status(prefer=default_provider)
 
     @app.post("/api/live-audio/token", include_in_schema=False)
     def live_audio_token(
