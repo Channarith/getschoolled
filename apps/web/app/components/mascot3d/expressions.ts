@@ -85,11 +85,10 @@ export interface MoodProfile {
   particles: "none" | "tears" | "sparkles" | "shimmer";
 }
 
-// NOTE: emissive values are intentionally pushed hard here. Meshy's
-// Bayon-stone character has a saturated gold PBR base texture; subtle
-// (<0.3 intensity) tints get completely swallowed by the diffuse pass
-// and the user sees no expression at all. These values are tuned so
-// each mood is unmistakable against the gold.
+// Mood tints stay small. A strong emissive wash turns the darkened
+// stone back into a flat highlight and the eyes disappear, especially
+// on the brighter clips. The grade in MascotMeshy already separates
+// the sockets, so these only shift the hue.
 export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
   cute: {
     emissive: [0.0, 0.0, 0.0],
@@ -102,8 +101,8 @@ export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
   },
   serious: {
     // Cool neutral - a touch of distance.
-    emissive: [0.15, 0.2, 0.35],
-    emissiveIntensity: 1.1,
+    emissive: [0.08, 0.1, 0.16],
+    emissiveIntensity: 0.35,
     bodyTiltZ: 0,
     bodyLeanX: -0.08,
     pulseHz: 0,
@@ -112,8 +111,8 @@ export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
   },
   angry: {
     // Strong warm red + puffed pulse + heat shimmer.
-    emissive: [0.9, 0.15, 0.08],
-    emissiveIntensity: 1.6,
+    emissive: [0.45, 0.08, 0.04],
+    emissiveIntensity: 0.45,
     bodyTiltZ: 0,
     bodyLeanX: 0.08,
     pulseHz: 2.5,
@@ -122,8 +121,8 @@ export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
   },
   sad: {
     // Deep cool blue + forward hunch.
-    emissive: [0.1, 0.2, 0.8],
-    emissiveIntensity: 1.4,
+    emissive: [0.05, 0.1, 0.4],
+    emissiveIntensity: 0.4,
     bodyTiltZ: 0,
     bodyLeanX: 0.22,
     pulseHz: 0,
@@ -132,8 +131,8 @@ export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
   },
   crying: {
     // Even cooler + falling tears + gentle sob pulse.
-    emissive: [0.1, 0.25, 0.9],
-    emissiveIntensity: 1.6,
+    emissive: [0.05, 0.12, 0.42],
+    emissiveIntensity: 0.4,
     bodyTiltZ: 0,
     bodyLeanX: 0.25,
     pulseHz: 1.5,
@@ -142,8 +141,8 @@ export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
   },
   excited: {
     // Bright warm gold + visible bounce + sparkles.
-    emissive: [0.95, 0.6, 0.15],
-    emissiveIntensity: 1.8,
+    emissive: [0.42, 0.26, 0.06],
+    emissiveIntensity: 0.4,
     bodyTiltZ: 0,
     bodyLeanX: -0.1,
     pulseHz: 4,
@@ -152,8 +151,8 @@ export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
   },
   curious: {
     // Mild warm + body tilts right.
-    emissive: [0.35, 0.3, 0.15],
-    emissiveIntensity: 1.0,
+    emissive: [0.16, 0.13, 0.06],
+    emissiveIntensity: 0.28,
     bodyTiltZ: 0.22,
     bodyLeanX: 0,
     pulseHz: 0,
@@ -162,8 +161,8 @@ export const MOOD_PROFILES: Record<Expression, MoodProfile> = {
   },
   mischievous: {
     // Warm + body tilts left + small sparkle + mischief pulse.
-    emissive: [0.65, 0.4, 0.1],
-    emissiveIntensity: 1.3,
+    emissive: [0.28, 0.16, 0.04],
+    emissiveIntensity: 0.35,
     bodyTiltZ: -0.22,
     bodyLeanX: 0,
     pulseHz: 1.2,

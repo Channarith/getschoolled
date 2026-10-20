@@ -18,7 +18,7 @@ import sys
 import time
 from pathlib import Path
 from typing import List, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse, urlunparse
 
 for candidate in (
     Path(__file__).resolve().parents[1] / "services" / "identity" / "src",
@@ -42,6 +42,23 @@ def _env_password(key: str, default: str) -> str:
     return val or default
 
 
+def _with_redis_password(url: str) -> str:
+    """Attach the Vultr Redis password when the URL does not already have one."""
+    password = (
+        os.environ.get("REDIS_PASSWORD", "").strip()
+        or os.environ.get("redis-password", "").strip()
+    )
+    if not url or not password:
+        return url
+    parts = urlparse(url)
+    if parts.password:
+        return url
+    host = parts.hostname or ""
+    port = f":{parts.port}" if parts.port else ""
+    auth = f"{quote(parts.username or '', safe='')}:{quote(password, safe='')}"
+    return urlunparse((parts.scheme, f"{auth}@{host}{port}", parts.path, "", parts.query, parts.fragment))
+
+
 def _redis_url_candidates() -> List[str]:
     seen: set[str] = set()
     urls: List[str] = []
@@ -51,7 +68,7 @@ def _redis_url_candidates() -> List[str]:
         "redis://redis:6379/0",
         "redis://127.0.0.1:6379/0",
     ):
-        url = str(raw or "").strip()
+        url = _with_redis_password(str(raw or "").strip())
         if url and url not in seen:
             seen.add(url)
             urls.append(url)
@@ -151,7 +168,7 @@ class _RawRedis:
 
 
 def _redis_client(url: Optional[str] = None):
-    urls = [url] if url else _redis_url_candidates()
+    urls = [_with_redis_password(url)] if url else _redis_url_candidates()
     last_error: Optional[str] = None
     for candidate in urls:
         if not candidate:

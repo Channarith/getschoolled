@@ -217,7 +217,9 @@ def build_rate_limiter(default: RateLimit) -> RateLimiter:
     backend = (os.environ.get("RATE_LIMIT_BACKEND") or "").lower()
     if backend == "memory":
         return InMemoryTokenBucket(default)
-    redis_url = os.environ.get("REDIS_URL")
+    from aoep_shared.redis_url import runtime_redis_url
+
+    redis_url = runtime_redis_url()
     if redis_url and backend != "memory":
         try:
             import redis  # type: ignore[import-not-found]

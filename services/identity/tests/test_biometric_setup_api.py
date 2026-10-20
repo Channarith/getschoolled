@@ -168,6 +168,47 @@ def test_face_enrollment_stores_nothing_until_poses_match(monkeypatch):
     assert ready.json()["enrollments"] == 5
 
 
+def test_pose_challenge_accepts_a_turned_head(monkeypatch):
+    """A same-person look near cosine 0.19 used to 422 at the 0.22 gate."""
+    import math
+
+    headers, student = _account()
+    student_id = student["id"]
+    client.put(
+        f"/students/{student_id}/biometric-consent",
+        headers=headers,
+        json={"granted": True},
+    )
+    monkeypatch.setattr(
+        identity_main,
+        "_perception_json",
+        lambda path, payload: {"student_id": student_id, "enrollments": 1},
+    )
+    turned = math.sqrt(1 - 0.19 ** 2)
+    neutral = [1.0, 0.0, 0.0]
+    same_person = [0.19, turned, 0.0]
+    stranger = [0.05, math.sqrt(1 - 0.05 ** 2), 0.0]
+    ok = client.post(
+        f"/students/{student_id}/biometric-face",
+        headers=headers,
+        json={
+            "embeddings": [neutral, same_person, same_person, same_person, [0.2, math.sqrt(1 - 0.04), 0.0]],
+            "pose_sequence": ["left", "right", "up", "down"],
+        },
+    )
+    assert ok.status_code == 200
+    stranger_post = client.post(
+        f"/students/{student_id}/biometric-face",
+        headers=headers,
+        json={
+            "embeddings": [neutral, stranger, same_person, same_person, same_person],
+            "pose_sequence": ["left", "right", "up", "down"],
+        },
+    )
+    assert stranger_post.status_code == 422
+    assert stranger_post.json()["detail"].startswith("pose challenge face does not match portrait")
+
+
 def test_face_preview_needs_consent_and_stores_nothing(monkeypatch):
     headers, student = _account()
     student_id = student["id"]

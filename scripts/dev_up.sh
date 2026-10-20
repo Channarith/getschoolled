@@ -64,6 +64,25 @@ export ENABLE_TEST_ENDPOINTS="${ENABLE_TEST_ENDPOINTS:-1}"
 case "${LIVEKIT_URL:-}" in
   *//livekit:*|"") export LIVEKIT_URL="ws://localhost:7880" ;;
 esac
+# Native perception is published on :8003. The unset default (perception:8200)
+# is the compose DNS name and is refused outside that network.
+case "${VISION_BASE_URL:-}" in
+  *//perception:*|"") export VISION_BASE_URL="http://127.0.0.1:8003" ;;
+esac
+# config/local.env uses the compose hostname `redis`. It does not resolve for a
+# native run, and a set-but-dead REDIS_URL makes the free plan return 503.
+# In-cluster Redis (redis.aoep.svc.cluster.local) is left alone.
+case "${REDIS_URL:-}" in
+  redis://redis:*|redis://redis/*)
+    # Bypass the compose hostname unless this machine can actually ping it.
+    # A resolved name with no redis package, or Docker's stub DNS, still 503s
+    # the free plan if the variable is left set.
+    if ! "$VENV_PY" -c 'import redis,socket; socket.getaddrinfo("redis",6379); redis.Redis(host="redis", port=6379, socket_connect_timeout=0.4).ping()' >/dev/null 2>&1; then
+      unset REDIS_URL
+      warn "REDIS_URL host redis is not usable here; free-plan seats stay in this process"
+    fi
+    ;;
+esac
 export LIVEKIT_API_KEY="${LIVEKIT_API_KEY:-devkey}"
 export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-devsecret}"
 # Local/demo headroom: every browser tab and E2E worker shares the 127.0.0.1

@@ -1,0 +1,13 @@
+# Single-package workspace so pnpm stops walking up to ~/pnpm-workspace.yaml.
+# That home file made ~/node_modules the install root, so Metro resolved
+# metro-runtime outside this app and both release builds failed.
+packages:
+  - "."
+nodeLinker: hoisted
+publicHoistPattern:
+  - "*"
+packageImportMethod: copy
+optimisticRepeatInstall: false
+verifyDepsBeforeRun: false
+allowBuilds:
+  esbuild: true

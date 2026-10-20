@@ -48,3 +48,27 @@ def test_internal_token_mints_hmac_when_key_set(monkeypatch):
     claims = verify_token(tok, b"unit-test-internal-key")
     assert claims is not None
     assert claims.get("scope") == "internal"
+
+
+def test_local_fallback_token_is_accepted_when_unconfigured(monkeypatch):
+    from aoep_shared.internal_auth import is_internal_caller
+
+    monkeypatch.delenv("INTERNAL_TOKEN", raising=False)
+    monkeypatch.delenv("INTERNAL_SERVICE_TOKEN", raising=False)
+    monkeypatch.delenv("INTERNAL_TOKEN_KEY", raising=False)
+    monkeypatch.delenv("INTERNAL_AUTH_DISABLED", raising=False)
+    monkeypatch.setenv("DEPLOY_MODE", "local")
+    assert is_internal_caller(None) is False
+    assert is_internal_caller("other") is False
+    assert is_internal_caller("dev-internal-token") is True
+
+
+def test_cloud_rejects_local_fallback_token(monkeypatch):
+    from aoep_shared.internal_auth import is_internal_caller
+
+    monkeypatch.delenv("INTERNAL_TOKEN", raising=False)
+    monkeypatch.delenv("INTERNAL_SERVICE_TOKEN", raising=False)
+    monkeypatch.delenv("INTERNAL_TOKEN_KEY", raising=False)
+    monkeypatch.delenv("INTERNAL_AUTH_DISABLED", raising=False)
+    monkeypatch.setenv("DEPLOY_MODE", "cloud")
+    assert is_internal_caller("dev-internal-token") is False

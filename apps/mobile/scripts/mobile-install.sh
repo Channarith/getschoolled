@@ -35,14 +35,20 @@ fi
 
 # pnpm v11 optimisticRepeatInstall can print "Already up to date" without creating
 # node_modules after a deleted tree — force a real link pass.
-# --ignore-workspace: a home-dir ~/pnpm-workspace.yaml can make install a no-op
-# that leaves new deps (e.g. expo-image-picker) unlinked → Expo plugin resolve fails.
+# Do not pass --ignore-workspace. apps/mobile/pnpm-workspace.yaml is the single-
+# package workspace that stops pnpm from walking up to ~/pnpm-workspace.yaml.
+# Ignoring it drops allowBuilds (esbuild) and the hoist settings in that file.
 PNPM_FLAGS=(
-  --ignore-workspace
   --force
   --config.optimistic-repeat-install=false
   --config.node-linker=hoisted
   --config.package-import-method=copy
+  # public-hoist-pattern='*' MUST be explicit — pnpm's default only hoists
+  # eslint/prettier plugins, leaving all other transitives (metro-runtime,
+  # @expo/cli, @react-native/gradle-plugin, ...) buried in node_modules/.pnpm/
+  # where Metro + Gradle can't find them. Repeated silent un-hoists have
+  # caused multiple iOS Metro + Android export:embed build crashes.
+  --config.public-hoist-pattern='*'
 )
 
 if [ -d node_modules ] && ! mobile_deps_has_tsc; then

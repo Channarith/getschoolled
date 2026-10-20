@@ -25,6 +25,84 @@ export function shuffledPoses(random: () => number = Math.random): Pose[] {
 
 export type Geometry = { yaw: number; pitch: number; centered: boolean };
 
+/** SFace's 112×112 canonical eyes, nose, and mouth corners (OpenCV FaceRecognizerSF). */
+const SFACE_TEMPLATE: Point[] = [
+  [38.2946, 51.6963],
+  [73.5318, 51.5014],
+  [56.0252, 71.7366],
+  [41.5493, 92.3655],
+  [70.7299, 92.2041],
+];
+
+/**
+ * 2×3 similarity that warps YuNet's five landmarks onto the SFace template.
+ * This is the browser stand-in for FaceRecognizerSF.alignCrop, which the
+ * OpenCV.js build does not ship. A raw face-box crop leaves a turned head in
+ * a different frame from the portrait, so their embeddings miss the pose check.
+ * Returns [a, b, tx, c, d, ty] for x' = a x + b y + tx, y' = c x + d y + ty.
+ */
+export function sfaceWarpMatrix(landmarks: number[][] | undefined | null): number[] | null {
+  const src = finitePoints(landmarks);
+  if (!src) return null;
+  let srcX = 0;
+  let srcY = 0;
+  let dstX = 0;
+  let dstY = 0;
+  for (let i = 0; i < 5; i += 1) {
+    srcX += src[i][0];
+    srcY += src[i][1];
+    dstX += SFACE_TEMPLATE[i][0];
+    dstY += SFACE_TEMPLATE[i][1];
+  }
+  srcX /= 5;
+  srcY /= 5;
+  dstX /= 5;
+  dstY /= 5;
+  let srcVar = 0;
+  let align = 0;
+  let turn = 0;
+  for (let i = 0; i < 5; i += 1) {
+    const sx = src[i][0] - srcX;
+    const sy = src[i][1] - srcY;
+    const dx = SFACE_TEMPLATE[i][0] - dstX;
+    const dy = SFACE_TEMPLATE[i][1] - dstY;
+    srcVar += sx * sx + sy * sy;
+    align += dx * sx + dy * sy;
+    turn += dy * sx - dx * sy;
+  }
+  srcVar /= 5;
+  align /= 5;
+  turn /= 5;
+  if (srcVar < 1e-6) return null;
+  const norm = Math.hypot(align, turn);
+  if (norm < 1e-8) return null;
+  const scale = norm / srcVar;
+  const cos = align / norm;
+  const sin = turn / norm;
+  return [
+    scale * cos,
+    scale * -sin,
+    dstX - scale * (cos * srcX - sin * srcY),
+    scale * sin,
+    scale * cos,
+    dstY - scale * (sin * srcX + cos * srcY),
+  ];
+}
+
+export function cosineSimilarity(a: number[] | undefined | null, b: number[] | undefined | null): number {
+  if (!a?.length || !b || a.length !== b.length) return 0;
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom ? dot / denom : 0;
+}
+
 function finitePoints(landmarks: number[][] | undefined | null): Point[] | null {
   if (!landmarks || landmarks.length < 5) return null;
   const points = landmarks.slice(0, 5).map((p) => [Number(p[0]), Number(p[1])] as Point);
@@ -288,16 +366,18 @@ function dedupeRows(values: number[], gap: number): number[] {
 }
 
 /**
- * Pale wireframe for the learner-check camera: an outer contour plus an inner
- * grid over the forehead, eyes, nose, cheeks, and mouth. The grid follows the
- * eye line, so a tilted head tilts the mesh with it. Pass the face box (x, y,
- * w, h) when YuNet has one; it only nudges the outline. Returns null when the
- * five landmarks cannot describe a face.
+ * Pale wireframe for the learner-check camera. "full" draws an outer contour
+ * plus an inner grid. "features" draws the face oval plus the eyes and the
+ * nose — that is what the live scan shows, so it does not build the grid on
+ * every camera tick. The lines follow the eye line, so a tilted head tilts
+ * them too. Pass the face box (x, y, w, h) when YuNet has one; it only nudges
+ * the outline. Returns null when the five landmarks cannot describe a face.
  */
 export function faceContour(
   landmarks: number[][] | undefined | null,
   samplesOrBox?: number | number[] | null,
   bbox?: number[] | null,
+  detail: "full" | "features" = "full",
 ): FaceContour | null {
   const args = meshArgs(samplesOrBox, bbox);
   const basis = faceBasis(landmarks, args.bbox);
@@ -329,6 +409,11 @@ export function faceContour(
     leftMouth,
     at(mouthMid, 0, height * 0.14),
   ];
+  const rightEyeLoop = eye(rightEye);
+  const leftEyeLoop = eye(leftEye);
+  if (detail === "features") {
+    return { outline, rightEye: rightEyeLoop, leftEye: leftEyeLoop, nose: noseStroke, mouth: [], grid: [] };
+  }
   const eyeB = fromCenter(basis, eyeMid)[1];
   const noseB = fromCenter(basis, nose)[1];
   const mouthB = fromCenter(basis, mouthMid)[1];
@@ -386,7 +471,7 @@ export function faceContour(
     return line;
   };
   grid.push(brow(rightEye), brow(leftEye));
-  return { outline, rightEye: eye(rightEye), leftEye: eye(leftEye), nose: noseStroke, mouth, grid };
+  return { outline, rightEye: rightEyeLoop, leftEye: leftEyeLoop, nose: noseStroke, mouth, grid };
 }
 
 function ellipseHit(a: number, b: number, cx: number, cy: number, rx: number, ry: number): boolean {

@@ -3,7 +3,7 @@
     "name": "Salareen",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
-    "version": "0.91.0",
+    "version": "0.92.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -46,7 +46,16 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Attach screenshots when you report a bug so we can see what went wrong."
+          "photosPermission": "Attach screenshots when you report a bug so we can see what went wrong.",
+          "cameraPermission": "Salareen uses your camera for live class video and the Learner Check face scan."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Salareen uses your camera for live class video and the Learner Check face scan.",
+          "microphonePermission": "Salareen uses the microphone for live class audio and hands-free On the Go voice questions.",
+          "recordAudioAndroid": false
         }
       ]
     ],
@@ -59,7 +68,7 @@
           "remote-notification"
         ],
         "NSMicrophoneUsageDescription": "Salareen uses the microphone for live class audio and hands-free On the Go voice questions.",
-        "NSCameraUsageDescription": "Salareen uses your camera for live class video when you turn your webcam on.",
+        "NSCameraUsageDescription": "Salareen uses your camera for live class video and the Learner Check face scan.",
         "NSSpeechRecognitionUsageDescription": "Salareen uses mobile speech recognition so you can ask questions hands-free in On the Go.",
         "NSLocationWhenInUseUsageDescription": "Detect when you are driving so Salareen can offer hands-free On the Go lessons.",
         "NSMotionUsageDescription": "Use device motion to improve driving detection while On the Go is enabled.",
@@ -67,7 +76,7 @@
         "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "0.91.0"
+      "buildNumber": "0.92.0"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -85,7 +94,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 9100
+      "versionCode": 9200
     },
     "extra": {
       "deployMode": "cloud",

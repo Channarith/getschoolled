@@ -1,5 +1,6 @@
 import { ageAtOffset, AGE_ROW_HEIGHT } from "../components/AgeWheel";
-import { faceEnrollmentProblem, stillFingerprint, stillMatchesTarget } from "../components/BiometricSetupModal";
+import { faceEnrollmentProblem, liveFrameAction, stillFingerprint, stillMatchesTarget } from "../components/BiometricSetupModal";
+import { pickLivePictureSize } from "../components/LiveFaceCamera";
 import {
   AGE_OPTIONS,
   POSES,
@@ -198,6 +199,22 @@ describe("Learner Check helpers (native)", () => {
   it("maps server 422 face enrollment detail for the learner", () => {
     const problem = faceEnrollmentProblem(Object.assign(new Error("pose left missing"), { status: 422 }));
     expect(problem.message).toContain("pose left missing");
+  });
+
+  it("reads a live frame as a look, not a still the learner has to retake", () => {
+    expect(liveFrameAction(0, true, false, null, null, null)).toBe("none");
+    expect(liveFrameAction(2, true, false, null, null, null)).toBe("one");
+    expect(liveFrameAction(1, false, false, null, null, null)).toBe("center");
+    expect(liveFrameAction(1, true, false, null, null, null)).toBe("anchor");
+    expect(liveFrameAction(1, true, true, "left", "right", null)).toBe("keep");
+    expect(liveFrameAction(1, true, true, "up", "down", null)).toBe("turn");
+    expect(liveFrameAction(1, true, true, "right", "right", "right")).toBe("turn");
+  });
+
+  it("picks a modest live-frame size so the face check stays fast", () => {
+    expect(pickLivePictureSize(["3264x2448", "1920x1080", "640x480"])).toBe("640x480");
+    expect(pickLivePictureSize(["320x240", "1280x720"])).toBe("1280x720");
+    expect(pickLivePictureSize(["not-a-size"])).toBeNull();
   });
 
   it("fingerprints stills to block obvious duplicate uploads", () => {

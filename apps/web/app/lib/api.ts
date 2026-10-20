@@ -622,7 +622,7 @@ export async function deleteAccount(password: string, confirm: string): Promise<
 }
 
 export async function startBillingCheckout(customerId: string, plan: string): Promise<{
-  session_id: string; url: string; provider: string;
+  session_id: string; url: string; provider: string; instructions?: string;
 }> {
   return jsonOrThrow(await fetch(`${BILLING_URL}/checkout`, {
     method: "POST",

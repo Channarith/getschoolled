@@ -38,6 +38,10 @@ data:
   LIVEKIT_URL: "wss://salareen-q3lne5d9.livekit.cloud"
   OBJECT_STORE_ENDPOINT: "https://sjc1.vultrobjects.com"
   OBJECT_STORE_BUCKET: "salareen-prod"
+  # Password is NOT in this URL. Redis is started with --requirepass from
+  # aoep-secrets key redis-password. Identity (and the other backends) add
+  # REDIS_PASSWORD at dial time. Putting the secret in this ConfigMap would
+  # publish it, and omitting it makes the free plan return 503.
   REDIS_URL: "redis://redis.aoep.svc.cluster.local:6379/0"
   # Live rooms + group classes share Redis across orchestrator replicas (VKE HPA).
   # LIVE_ROOM_BACKEND=memory forces per-pod rooms (tests only).

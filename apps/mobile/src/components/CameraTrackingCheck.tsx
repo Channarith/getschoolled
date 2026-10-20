@@ -1,16 +1,15 @@
-/** Settings camera check: permission → preview/capture → progress → complete.
+/** Settings camera check: permission → live preview → progress → complete.
  *
- * Mobile cannot read live pose from pixels without a native module, so pose
- * steps use a still capture the learner confirms. Lighting and distance use a
- * guided self-check with an explicit continue so the flow never stalls waiting
- * on analysis that cannot run locally.
+ * The front camera stays on for the whole check. Pose steps are held in that
+ * live view; only the optional ID step grabs one frame, and it does that
+ * without opening the system camera.
  */
 
-import * as ImagePicker from "expo-image-picker";
-import { useEffect, useState } from "react";
+import { Camera } from "expo-camera";
+import { useEffect, useRef, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
-import { ensureCameraPermission } from "./cameraPermission";
+import LiveFaceCamera, { type LiveFaceCameraHandle } from "./LiveFaceCamera";
 import PrimaryButton from "./PrimaryButton";
 import { trackingContinueEnabled } from "../cameraCheck";
 import { useT, type StringKey } from "../i18n";
@@ -58,12 +57,20 @@ export default function CameraTrackingCheck({ onDone }: Props) {
   const [passed, setPassed] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const cameraRef = useRef<LiveFaceCameraHandle>(null);
 
   const step = STEPS[stepIndex];
   const progress = t("camera.stepOf", {
     n: Math.min(stepIndex + 1, STEPS.length),
     total: STEPS.length,
   });
+
+  const facing = step.id === "photo_id" ? "back" : "front";
+
+  useEffect(() => {
+    setCameraReady(false);
+  }, [facing]);
 
   useEffect(() => {
     setPhotoUri(null);
@@ -77,40 +84,28 @@ export default function CameraTrackingCheck({ onDone }: Props) {
     setStatusRaw("");
     setStatusKey("camera.requesting");
     try {
-      const picker = await ImagePicker.requestCameraPermissionsAsync();
-      if (picker.granted) {
-        setPermissionOk(true);
-        setStatusKey(step.needsPhoto ? "camera.captureReady" : "camera.follow");
-        return true;
-      }
-      const legacy = await ensureCameraPermission();
-      setPermissionOk(legacy);
-      setStatusKey(legacy ? "camera.allowed" : "camera.required");
-      return legacy;
+      const perm = await Camera.requestCameraPermissionsAsync();
+      setPermissionOk(perm.granted);
+      setStatusKey(perm.granted ? "camera.allowed" : "camera.required");
+      return perm.granted;
+    } catch (e) {
+      setStatusRaw((e as Error).message || t("camera.failed"));
+      return false;
     } finally {
       setBusy(false);
     }
   };
 
-  const capture = async () => {
+  const captureId = async () => {
     setBusy(true);
     setStatusRaw("");
-    setStatusKey("camera.opening");
     try {
-      const ok = permissionOk || (await requestPermission());
-      if (!ok) return;
-      const shot = await ImagePicker.launchCameraAsync({
-        allowsEditing: false,
-        quality: 0.4,
-        base64: false,
-        exif: false,
-        cameraType: ImagePicker.CameraType.front,
-      });
-      if (shot.canceled || !shot.assets?.[0]?.uri) {
+      const frame = await cameraRef.current?.grabFrame();
+      if (!frame?.base64) {
         setStatusKey("camera.canceled");
         return;
       }
-      setPhotoUri(shot.assets[0].uri);
+      setPhotoUri(`data:image/jpeg;base64,${frame.base64}`);
       setStatusKey("camera.checkPhoto");
     } catch (e) {
       setStatusRaw((e as Error).message || t("camera.failed"));
@@ -144,7 +139,17 @@ export default function CameraTrackingCheck({ onDone }: Props) {
       <Text style={styles.progress}>{progress}</Text>
       <Text style={styles.stepTitle}>{t(step.title)}</Text>
       <Text style={styles.instruction}>{t(step.instruction)}</Text>
-      {photoUri ? (
+      {permissionOk && !done ? (
+        <View style={[styles.preview, { height: previewHeight }]}>
+          <LiveFaceCamera
+            key={facing}
+            ref={cameraRef}
+            facing={facing}
+            onReady={() => setCameraReady(true)}
+          />
+        </View>
+      ) : null}
+      {photoUri && step.id === "photo_id" ? (
         <Image source={{ uri: photoUri }} style={[styles.preview, { height: previewHeight }]} />
       ) : null}
       <Text style={styles.status}>{statusRaw || t(statusKey)}</Text>
@@ -169,7 +174,11 @@ export default function CameraTrackingCheck({ onDone }: Props) {
         <PrimaryButton
           label={t("camera.continue")}
           onPress={confirmStep}
-          disabled={!trackingContinueEnabled(step.needsPhoto, Boolean(photoUri), busy)}
+          disabled={!trackingContinueEnabled(
+            step.needsPhoto,
+            step.id === "photo_id" ? Boolean(photoUri) : cameraReady,
+            busy,
+          )}
           testID="camera-tracking-continue"
         />
       ) : null}
@@ -180,11 +189,11 @@ export default function CameraTrackingCheck({ onDone }: Props) {
         </View>
       ) : null}
 
-      {permissionOk && !done && step.needsPhoto && !photoUri ? (
+      {permissionOk && !done && step.id === "photo_id" && !photoUri ? (
         <PrimaryButton
           label={busy ? t("camera.working") : t("camera.capture")}
-          onPress={() => void capture()}
-          disabled={busy}
+          onPress={() => void captureId()}
+          disabled={busy || !cameraReady}
         />
       ) : null}
 
@@ -194,7 +203,7 @@ export default function CameraTrackingCheck({ onDone }: Props) {
 
       {done ? <PrimaryButton label={t("camera.done")} onPress={() => onDone?.()} /> : null}
       {photoUri && !done ? (
-        <PrimaryButton label={t("camera.retake")} variant="ghost" onPress={() => void capture()} />
+        <PrimaryButton label={t("camera.retake")} variant="ghost" onPress={() => { setPhotoUri(null); setStatusKey("camera.captureReady"); }} />
       ) : null}
       <PrimaryButton
         label={t("camera.restart")}
@@ -224,6 +233,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 200,
     borderRadius: 10,
+    overflow: "hidden",
     backgroundColor: "#0b1220",
     marginVertical: 6,
   },

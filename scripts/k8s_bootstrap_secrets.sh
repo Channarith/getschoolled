@@ -22,8 +22,44 @@ if ! command -v kubectl >/dev/null 2>&1; then
   exit 1
 fi
 
+ensure_redis_password() {
+  # Redis --requirepass reads aoep-secrets key redis-password. Identity and the
+  # other backends read REDIS_PASSWORD. Fill whichever is missing, copying the
+  # one that already exists. Never replace a value that is already set.
+  python3 - "$NS" <<'PY'
+import base64, json, secrets, subprocess, sys
+ns = sys.argv[1]
+raw = subprocess.check_output(
+    ["kubectl", "-n", ns, "get", "secret", "aoep-secrets", "-o", "json"],
+    text=True,
+)
+data = json.loads(raw).get("data") or {}
+def dec(key):
+    blob = data.get(key) or ""
+    if not blob:
+        return ""
+    return base64.b64decode(blob).decode("utf-8", "replace")
+existing = dec("redis-password") or dec("REDIS_PASSWORD")
+password = existing or secrets.token_hex(24)
+missing = {}
+if not dec("redis-password"):
+    missing["redis-password"] = password
+if not dec("REDIS_PASSWORD"):
+    missing["REDIS_PASSWORD"] = password
+if not missing:
+    print("redis password already set on aoep-secrets")
+    raise SystemExit(0)
+patch = json.dumps({"stringData": missing})
+subprocess.check_call(
+    ["kubectl", "-n", ns, "patch", "secret", "aoep-secrets", "--type", "merge", "-p", patch]
+)
+print("filled missing redis password keys:", ", ".join(sorted(missing)))
+PY
+}
+
 if kubectl -n "$NS" get secret aoep-secrets >/dev/null 2>&1; then
-  echo "aoep-secrets already exists in namespace '$NS' — leaving it untouched."
+  echo "aoep-secrets already exists in namespace '$NS' — leaving existing values untouched."
+  ensure_redis_password
   echo "To change one value: kubectl -n $NS patch secret aoep-secrets --type merge -p '{\"stringData\":{\"KEY\":\"VALUE\"}}'"
   exit 0
 fi
@@ -44,6 +80,7 @@ GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 BUG_REPORT_GITHUB_TOKEN="${BUG_REPORT_GITHUB_TOKEN:-}"
 DEFAULT_ADMIN_PASSWORD="${DEFAULT_ADMIN_PASSWORD:-88888888}"
 QA_ACCOUNTS_PASSWORD="${QA_ACCOUNTS_PASSWORD:-QaTest123}"
+REDIS_PASSWORD="${REDIS_PASSWORD:-$(python3 -c 'import secrets; print(secrets.token_hex(24))')}"
 
 echo "Creating aoep-secrets in namespace '$NS'…"
 kubectl -n "$NS" create secret generic aoep-secrets \
@@ -60,6 +97,8 @@ kubectl -n "$NS" create secret generic aoep-secrets \
   --from-literal=GEMINI_API_KEY="$GEMINI_API_KEY" \
   --from-literal=BUG_REPORT_GITHUB_TOKEN="$BUG_REPORT_GITHUB_TOKEN" \
   --from-literal=DEFAULT_ADMIN_PASSWORD="$DEFAULT_ADMIN_PASSWORD" \
-  --from-literal=QA_ACCOUNTS_PASSWORD="$QA_ACCOUNTS_PASSWORD"
+  --from-literal=QA_ACCOUNTS_PASSWORD="$QA_ACCOUNTS_PASSWORD" \
+  --from-literal=redis-password="$REDIS_PASSWORD" \
+  --from-literal=REDIS_PASSWORD="$REDIS_PASSWORD"
 
 echo "OK: aoep-secrets created. Future 'kubectl apply -k' runs will NOT modify it."

@@ -275,7 +275,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
     "security.disableConfirm": "Type DISABLE to turn off two-factor sign-in.",
     "onboarding.accountTitle": "Create your account.",
     "onboarding.paymentTitle": "Continue to secure checkout.",
-    "onboarding.paymentNote": "The payment processor collects the card. Salareen never asks for the number or CVV on this page.",
+    "onboarding.paymentNote": "Enter the billing address and card. The local sandbox accepts test card 4242 4242 4242 4242, any future expiry, and a 3-digit code. When a live processor is configured, checkout opens on its page instead.",
     "account.deleteTitle": "Delete account",
     "account.deleteHelp": "Type DELETE and your password. This removes the account from Salareen.",
   },

@@ -3,9 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import AvatarImage from "../components/AvatarImage";
 import BiometricSetupAssistant from "../components/BiometricSetupAssistant";
-import MascotActor from "../components/MascotActorChoice";
+import MascotDraggable from "../components/MascotDraggable";
 import { type MascotScene, sceneForMode } from "../lib/mascotPose";
 import { AGE_MAX, AGE_MIN, AGE_OPTIONS, clampAge } from "../lib/learnerCheck";
 import AccountStep from "./AccountStep";
@@ -23,6 +22,7 @@ import {
   selectOnboardingPlan,
   skipLearningProfile,
   submitLearningProfile,
+  submitOnboardingBilling,
   submitOnboardingLearner,
   submitOnboardingSurveyAnalytics,
   type ConsumerPlan,
@@ -127,7 +127,6 @@ export default function OnboardingPage() {
   const [includeAccount, setIncludeAccount] = useState(false);
   const [name, setName] = useState("");
   const [age, setAge] = useState<number | "">("");
-  const [avatarId, setAvatarId] = useState<string | undefined>();
   const ageRef = useRef<HTMLSelectElement>(null);
   const [ratings, setRatings] = useState<Partial<Record<ModeId, number>>>({});
   const [focus, setFocus] = useState<ModeId>("video");
@@ -165,7 +164,6 @@ export default function OnboardingPage() {
     const savedName = localStorage.getItem(STORAGE.name) || "";
     setName(savedName);
     getMe().then((me) => {
-      setAvatarId(me.avatar_id);
       if (!savedName && me.display_name) setName((current) => current || me.display_name);
     }).catch(() => undefined);
     const savedAge = Number(localStorage.getItem(STORAGE.age));
@@ -431,6 +429,22 @@ export default function OnboardingPage() {
         window.location.href = session.url;
         return;
       }
+      const sandbox = session.provider === "sandbox" || (session.url || "").startsWith("sandbox://");
+      if (!sandbox) {
+        throw new Error(session.instructions || "Checkout is not available for this plan yet.");
+      }
+      await submitOnboardingBilling({
+        line1: billing.line1,
+        line2: billing.line2,
+        city: billing.city,
+        state: billing.state,
+        postal_code: billing.postal_code,
+        country: billing.country || "US",
+        card_number: billing.card_number,
+        exp_month: Number(billing.exp_month),
+        exp_year: Number(billing.exp_year),
+        cvv: billing.cvv,
+      });
       await selectOnboardingPlan(tier);
       await finish();
     });
@@ -484,8 +498,8 @@ export default function OnboardingPage() {
         <span className={styles.stepLabel}>{stepLabel}</span>
       </header>
       <div className={styles.split}>
-        <div className={styles.artPane}>
-          <MascotActor scene={mascotScene} size={260} step={step} />
+        <div className={styles.artPane} data-mascot-stage>
+          <MascotDraggable scene={mascotScene} />
         </div>
         <div className={styles.pane}>
 
@@ -501,7 +515,6 @@ export default function OnboardingPage() {
           <label className={styles.field}>
             <span>Profile name</span>
             <div className={styles.nameRow} data-mascot-target="about-name">
-              <AvatarImage avatarId={avatarId} size={52} alt="" className={styles.avatar} />
               <input
                 autoFocus
                 name="name"
@@ -515,7 +528,7 @@ export default function OnboardingPage() {
               />
             </div>
             <small id="profile-name-help" className={styles.help}>
-              The name on your profile and avatar. A nickname is fine. It doesn’t need to be your legal name.
+              The name on your profile. A nickname is fine. It doesn’t need to be your legal name.
             </small>
           </label>
           <div className={styles.field}>
@@ -806,6 +819,36 @@ export default function OnboardingPage() {
                 onChange={(e) => setBilling({ ...billing, state: e.target.value })} />
               <input placeholder="ZIP" value={billing.postal_code}
                 onChange={(e) => setBilling({ ...billing, postal_code: e.target.value })} />
+            </div>
+            <input
+              inputMode="numeric"
+              autoComplete="cc-number"
+              placeholder="Card number"
+              value={billing.card_number}
+              onChange={(e) => setBilling({ ...billing, card_number: e.target.value })}
+            />
+            <div className={styles.billingRow}>
+              <input
+                inputMode="numeric"
+                autoComplete="cc-exp-month"
+                placeholder="Exp month"
+                value={billing.exp_month || ""}
+                onChange={(e) => setBilling({ ...billing, exp_month: Number(e.target.value.replace(/\D/g, "").slice(0, 2)) })}
+              />
+              <input
+                inputMode="numeric"
+                autoComplete="cc-exp-year"
+                placeholder="Exp year"
+                value={billing.exp_year || ""}
+                onChange={(e) => setBilling({ ...billing, exp_year: Number(e.target.value.replace(/\D/g, "").slice(0, 4)) })}
+              />
+              <input
+                inputMode="numeric"
+                autoComplete="cc-csc"
+                placeholder="CVV"
+                value={billing.cvv}
+                onChange={(e) => setBilling({ ...billing, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+              />
             </div>
           </div>
           {error && <p className={styles.error} role="alert">{error}</p>}

@@ -102,9 +102,35 @@ case "${SPEECH_BASE_URL:-}" in
   *//speech:*) export SPEECH_BASE_URL="http://127.0.0.1:8002" ;;
 esac
 
+# Identity enrolls a face by calling perception. The Python default is the
+# compose name http://perception:8200, which does not resolve on the host.
+# Native perception listens on :8003. An empty value must be rewritten too,
+# because local.env leaves VISION_BASE_URL unset.
+case "${VISION_BASE_URL:-}" in
+  *//perception:*|"") export VISION_BASE_URL="http://127.0.0.1:8003" ;;
+esac
+
+# Same compose hostname problem as dev_up.sh. A native identity process must
+# not keep REDIS_URL=redis://redis:6379/0 or the free plan returns 503.
+case "${REDIS_URL:-}" in
+  redis://redis:*|redis://redis/*)
+    if ! "$VENV_PY" -c 'import redis,socket; socket.getaddrinfo("redis",6379); redis.Redis(host="redis", port=6379, socket_connect_timeout=0.4).ping()' >/dev/null 2>&1; then
+      unset REDIS_URL
+      echo "[run_local_service] REDIS_URL host redis is not usable; free-plan seats stay in this process"
+    fi
+    ;;
+esac
+
+# /enroll-embedding is internal-only and fails closed when no token is set.
+# local.env does not define one; use the same local default as dev_up.sh so
+# identity and perception accept each other.
+if [[ -z "${INTERNAL_TOKEN:-}${INTERNAL_SERVICE_TOKEN:-}${INTERNAL_TOKEN_KEY:-}" ]]; then
+  export INTERNAL_TOKEN=dev-internal-token
+fi
+
 cd "${ROOT}/services/${svc}"
 export PYTHONPATH=src
-echo "[run_local_service] svc=$svc port=$port XAI_API_KEY=$([ -n "${XAI_API_KEY:-}" ] && echo set || echo missing) ELEVENLABS_API_KEY=$([ -n "${ELEVENLABS_API_KEY:-}" ] && echo set || echo missing) XAI_MODEL=${XAI_MODEL:-} SPEECH_BASE_URL=${SPEECH_BASE_URL:-}"
+echo "[run_local_service] svc=$svc port=$port XAI_API_KEY=$([ -n "${XAI_API_KEY:-}" ] && echo set || echo missing) ELEVENLABS_API_KEY=$([ -n "${ELEVENLABS_API_KEY:-}" ] && echo set || echo missing) XAI_MODEL=${XAI_MODEL:-} SPEECH_BASE_URL=${SPEECH_BASE_URL:-} VISION_BASE_URL=${VISION_BASE_URL:-} INTERNAL_TOKEN=$([ -n "${INTERNAL_TOKEN:-}${INTERNAL_TOKEN_KEY:-}" ] && echo set || echo missing)"
 # shellcheck disable=SC1091
 source "$ROOT/scripts/print_terminal_link.sh"
 print_terminal_link "http://127.0.0.1:${port}/docs"

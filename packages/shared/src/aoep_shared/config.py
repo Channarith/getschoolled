@@ -12,8 +12,10 @@ local for compliance) via a per-component ``*_MODE`` variable.
 from __future__ import annotations
 
 import os
+import socket
 from enum import Enum
 from typing import Mapping, MutableMapping, Optional, Union
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field
 
@@ -278,6 +280,25 @@ class AppConfig(BaseModel):
         return self.deploy_mode is DeployMode.EDGE
 
 
+def _native_service_url(url: str, deploy_mode: DeployMode) -> str:
+    """Point the perception hostname at the native port when DNS has no such host.
+
+    Compose and Kubernetes resolve ``perception``. A process on the host does
+    not, and the connect is refused before enrollment can be saved. Native
+    perception listens on 127.0.0.1:8003 (scripts/dev_up.sh).
+    """
+    if deploy_mode is DeployMode.CLOUD or not url:
+        return url
+    host = (urlparse(url).hostname or "").lower()
+    if host != "perception":
+        return url
+    try:
+        socket.getaddrinfo(host, None)
+    except OSError:
+        return "http://127.0.0.1:8003"
+    return url
+
+
 def load_config(
     env: Optional[Mapping[str, str]] = None,
 ) -> AppConfig:
@@ -337,7 +358,9 @@ def load_config(
         harvest_max_rps=env_float(source.get("HARVEST_MAX_RPS"), 1.0),
         harvest_seeds=get("HARVEST_SEEDS", ""),
         speech_base_url=get("SPEECH_BASE_URL", "http://speech:8100"),
-        vision_base_url=get("VISION_BASE_URL", "http://perception:8200"),
+        vision_base_url=_native_service_url(
+            get("VISION_BASE_URL", "http://perception:8200"), deploy_mode
+        ),
         memory_base_url=get("MEMORY_URL", ""),
         vision_model_dir=get("VISION_MODEL_DIR", ""),
         ocr_api_key=get("OCR_API_KEY", ""),

@@ -42,6 +42,8 @@ data:
   LIVEKIT_URL: "wss://livekit.aoep.example"
   OBJECT_STORE_ENDPOINT: "https://s3.amazonaws.com"
   OBJECT_STORE_BUCKET: "aoep-prod"
+  # In-namespace Service name. The password is aoep-secrets redis-password,
+  # applied at dial time (see aoep_shared.redis_url). Do not embed it here.
   REDIS_URL: "redis://redis:6379/0"
   CURRICULUM_DIR: "/app/sample-curriculum"
   # Live current-awareness RAG. The public GDELT index works without a key;

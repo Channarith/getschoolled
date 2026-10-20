@@ -113,7 +113,9 @@ def build_group_class_backend() -> GroupClassBackend:
     backend = (os.environ.get("GROUP_CLASS_BACKEND") or "").lower()
     if backend == "memory":
         return InMemoryGroupClassBackend()
-    redis_url = os.environ.get("REDIS_URL")
+    from aoep_shared.redis_url import runtime_redis_url
+
+    redis_url = runtime_redis_url()
     if redis_url:
         try:
             import redis  # type: ignore[import-not-found]

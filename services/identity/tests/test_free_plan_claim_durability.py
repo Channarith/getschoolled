@@ -274,6 +274,41 @@ def test_configured_redis_outage_does_not_grant_a_local_seat(monkeypatch):
     assert store.get_by_id(acct.id).free_plan_claimed_at is None
 
 
+def test_local_compose_redis_hostname_uses_in_process_seat(monkeypatch):
+    """config/local.env uses host ``redis``, which does not resolve on a laptop."""
+    monkeypatch.setenv("DEPLOY_MODE", "local")
+    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/0")
+    monkeypatch.setenv("FREE_PLAN_OFFER_DAYS", "36500")
+
+    def _unresolved(*_args, **_kwargs):
+        raise OSError("nodename nor servname provided, or not known")
+
+    monkeypatch.setattr("aoep_shared.redis_url.socket.getaddrinfo", _unresolved)
+    store = AccountStore()
+    acct = store.create(f"local-redis-{time.time_ns()}@example.com", "Secret123")
+    updated = store.claim_free_plan(acct.id)
+    assert updated.free_plan_claimed_at is not None
+    assert updated.tier.value == "free"
+
+
+def test_cloud_cluster_redis_keeps_password_and_does_not_bypass(monkeypatch):
+    """Vultr must dial the in-cluster Redis with its password, never the local seat lock."""
+    from identity.persistence import effective_redis_url
+
+    monkeypatch.setenv("DEPLOY_MODE", "cloud")
+    monkeypatch.setenv("REDIS_URL", "redis://redis.aoep.svc.cluster.local:6379/0")
+    monkeypatch.setenv("REDIS_PASSWORD", "cluster-secret")
+
+    def _must_not_be_called(*_args, **_kwargs):
+        raise AssertionError("cloud mode must not probe the compose hostname")
+
+    monkeypatch.setattr("aoep_shared.redis_url.socket.getaddrinfo", _must_not_be_called)
+    assert (
+        effective_redis_url()
+        == "redis://:cluster-secret@redis.aoep.svc.cluster.local:6379/0"
+    )
+
+
 def test_same_account_replay_across_replicas_does_not_refresh_expiry(monkeypatch):
     monkeypatch.setenv("FREE_PLAN_SEAT_LIMIT", "2")
     monkeypatch.setenv("FREE_PLAN_OFFER_START", "1")

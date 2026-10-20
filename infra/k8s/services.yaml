@@ -360,6 +360,17 @@ spec:
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
+          env:
+            # Vultr Redis requires this password (--requirepass). The secret
+            # key is redis-password; map it to REDIS_PASSWORD so the free-plan
+            # seat lock authenticates. Optional so a cluster that has not
+            # bootstrapped the key yet still rolls; claims then fail closed.
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aoep-secrets
+                  key: redis-password
+                  optional: true
           resources:
             requests: { cpu: 150m, memory: 256Mi }
             limits:   { cpu: 750m, memory: 768Mi }

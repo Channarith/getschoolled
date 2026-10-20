@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Linking, Modal, ScrollView, StyleSheet, Text, View,
+  KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -11,6 +11,7 @@ import {
   getMobileFreePlanOffer,
   selectMobileOnboardingPlan,
   startMobileBillingCheckout,
+  submitMobileOnboardingBilling,
   type ConsumerPlan,
 } from "../api";
 import { SETUP_COLORS as C } from "../learnerCheck";
@@ -44,6 +45,11 @@ export default function MobileOnboardingPlanStep({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [awaitingCheckout, setAwaitingCheckout] = useState(false);
+  const [payment, setPayment] = useState(false);
+  const [billing, setBilling] = useState({
+    line1: "", city: "", state: "", postal_code: "",
+    card_number: "", exp_month: "12", exp_year: String(new Date().getFullYear() + 2), cvv: "",
+  });
 
   useEffect(() => {
     if (!visible) return;
@@ -92,12 +98,53 @@ export default function MobileOnboardingPlanStep({
         await Linking.openURL(session.url);
         return;
       }
+      if (session.provider === "sandbox" || (session.url || "").startsWith("sandbox://")) {
+        setPayment(true);
+        return;
+      }
+      throw new Error("Checkout is not available for this plan yet.");
+    } catch (reason) {
+      setError(String(reason).replace(/^Error:\s*/, ""));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmSandboxPayment() {
+    setBusy(true);
+    setError("");
+    try {
+      await submitMobileOnboardingBilling({
+        line1: billing.line1.trim(),
+        city: billing.city.trim(),
+        state: billing.state.trim(),
+        postal_code: billing.postal_code.trim(),
+        country: "US",
+        card_number: billing.card_number.replace(/\s+/g, ""),
+        exp_month: Number(billing.exp_month) || 0,
+        exp_year: Number(billing.exp_year) || 0,
+        cvv: billing.cvv.trim(),
+      });
       await finishPaid(tier);
     } catch (reason) {
       setError(String(reason).replace(/^Error:\s*/, ""));
     } finally {
       setBusy(false);
     }
+  }
+
+  function field(key: keyof typeof billing, placeholder: string, extra: object = {}) {
+    return (
+      <TextInput
+        style={styles.input}
+        placeholder={placeholder}
+        placeholderTextColor={C.muted}
+        value={billing[key]}
+        onChangeText={(value) => setBilling((prev) => ({ ...prev, [key]: value }))}
+        accessibilityLabel={placeholder}
+        {...extra}
+      />
+    );
   }
 
   async function confirmCheckoutDone() {
@@ -128,7 +175,49 @@ export default function MobileOnboardingPlanStep({
           <View style={styles.artPane}>
             <KenBurnsImage source={ART} style={StyleSheet.absoluteFill} />
           </View>
-          <ScrollView style={styles.pane} contentContainerStyle={styles.paneBody}>
+          <KeyboardAvoidingView
+            style={styles.pane}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
+          <ScrollView style={styles.paneScroll} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
+            {payment ? (
+              <>
+                <Text style={styles.title}>Billing details.</Text>
+                <Text style={styles.body}>
+                  Test mode: use card 4242 4242 4242 4242, any future expiry, and a 3-digit code.
+                </Text>
+                {field("line1", "Street address", { autoComplete: "street-address", textContentType: "streetAddressLine1" })}
+                <View style={styles.row}>
+                  <View style={styles.wide}>{field("city", "City", { textContentType: "addressCity" })}</View>
+                  <View style={styles.narrow}>{field("state", "State", { autoCapitalize: "characters", maxLength: 2, textContentType: "addressState" })}</View>
+                  <View style={styles.narrow}>{field("postal_code", "ZIP", { keyboardType: "number-pad", maxLength: 10, textContentType: "postalCode" })}</View>
+                </View>
+                {field("card_number", "Card number", { keyboardType: "number-pad", autoComplete: "cc-number", textContentType: "creditCardNumber", maxLength: 23 })}
+                <View style={styles.row}>
+                  <View style={styles.narrow}>{field("exp_month", "MM", { keyboardType: "number-pad", maxLength: 2, autoComplete: "cc-exp-month" })}</View>
+                  <View style={styles.narrow}>{field("exp_year", "YYYY", { keyboardType: "number-pad", maxLength: 4, autoComplete: "cc-exp-year" })}</View>
+                  <View style={styles.narrow}>{field("cvv", "CVV", { keyboardType: "number-pad", maxLength: 4, secureTextEntry: true, autoComplete: "cc-csc" })}</View>
+                </View>
+                {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
+                <View style={styles.foot}>
+                  <AnimatedPressable
+                    disabled={busy}
+                    style={[styles.button, busy && styles.disabled]}
+                    onPress={() => void confirmSandboxPayment()}
+                  >
+                    <Text style={styles.buttonText}>{busy ? "Validating…" : "Validate and start learning"}</Text>
+                  </AnimatedPressable>
+                  <AnimatedPressable
+                    disabled={busy}
+                    style={styles.back}
+                    onPress={() => { setPayment(false); setError(""); }}
+                  >
+                    <Text style={styles.backText}>Back</Text>
+                  </AnimatedPressable>
+                </View>
+              </>
+            ) : (
+            <>
             <Text style={styles.title}>Pick a plan to start.</Text>
             <Text style={styles.body}>
               {freeOffer
@@ -183,7 +272,10 @@ export default function MobileOnboardingPlanStep({
                 </AnimatedPressable>
               )}
             </View>
+            </>
+            )}
           </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </SafeAreaView>
     </Modal>
@@ -201,6 +293,7 @@ const styles = StyleSheet.create({
   split: { flex: 1, flexDirection: "row", minHeight: 0 },
   artPane: { flex: 1, minWidth: 0, backgroundColor: C.panel2, overflow: "hidden" },
   pane: { flex: 1, minWidth: 0, backgroundColor: C.panel, borderLeftWidth: 1, borderLeftColor: C.border },
+  paneScroll: { flex: 1 },
   paneBody: { padding: 20, gap: 10, flexGrow: 1 },
   title: { color: C.text, fontSize: 28, fontWeight: "900" },
   body: { color: C.muted, fontSize: 15, lineHeight: 22 },
@@ -219,4 +312,13 @@ const styles = StyleSheet.create({
   buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "800" },
   disabled: { opacity: 0.45 },
   error: { color: C.danger, marginTop: 8 },
+  input: {
+    minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.panel2,
+    color: C.text, fontSize: 16, paddingHorizontal: 12,
+  },
+  row: { flexDirection: "row", gap: 8 },
+  wide: { flex: 2 },
+  narrow: { flex: 1 },
+  back: { minHeight: 44, justifyContent: "center", alignItems: "center", marginTop: 8 },
+  backText: { color: C.muted, fontSize: 15, fontWeight: "700" },
 });
