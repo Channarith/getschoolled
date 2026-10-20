@@ -1,0 +1,5 @@
+PRIVATE INTERNAL LAB — NOT FOR PUBLIC DISTRIBUTION
+==================================================
+theodore_object3d_lab: test the RealSense and OAK-D cameras against object
+recognition, distance, sign translation, and later touch / smell / heat readings.
+Promote a stable flow into the teaching app only after the bench stays green.

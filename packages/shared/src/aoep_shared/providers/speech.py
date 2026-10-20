@@ -45,12 +45,12 @@ class _BaseSpeechProvider(SpeechProvider):
         # (local Spark / GPU). Falls through to NotImplementedError so the
         # speech gateway can try phrasebook then honest passthrough.
         try:
-            from ..nllb import translate_text
+            from ..translation_merge import merged_translate
 
-            return translate_text(text, source=source, target=target)
+            return merged_translate(text, source=source, target=target).text
         except Exception as exc:  # noqa: BLE001
             raise NotImplementedError(
-                f"Translation model (NLLB-200) not loaded: {exc}"
+                f"Translation models (NLLB-200 3.3B + MADLAD-400 10B) not loaded: {exc}"
             ) from exc
 
     def synthesize(self, text: str, *, language: str, voice: str) -> Audio:

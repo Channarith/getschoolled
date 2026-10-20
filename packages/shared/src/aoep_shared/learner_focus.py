@@ -97,6 +97,7 @@ EVENT_KINDS = (
     "tab_hidden",
     "quiz",
     "integrity_clear",
+    "identity_mismatch",
     "presentation",
     "mic_clear",
     "mic_unclear",
@@ -140,7 +141,7 @@ _CATEGORIES = (
         "Tests, Quizzes & Assignments",
         "Proctored Digital Assessments",
         {"quiz", "integrity_clear"},
-        {"looking_at_phone", "looking_away"},
+        {"looking_at_phone", "looking_away", "identity_mismatch"},
     ),
     (
         "presentation",

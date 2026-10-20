@@ -13,8 +13,9 @@ This is batch *translation* of course text (not model training). Without
 then a final summary. Prefer --verbose when debugging failures.
 
 xAI at high concurrency often times out (default TRANSLATION_TIMEOUT_S=15).
-This script raises the timeout to 60s when unset, retries empty/timeout
-responses, and recommends concurrency around 6–8 — not 26.
+This script raises the client timeout so a queued GPU translation can finish
+(at least 300s, and 90s per concurrent job). One batch may run at a time.
+NLLB 3.3B and MADLAD 10B share one GPU, so extra jobs wait in line.
 
 NLLB via the speech gateway is preferred when SPEECH_BASE_URL /
 TRANSLATION_BASE_URL is set. The gateway's default rate limit is
@@ -46,8 +47,12 @@ for extra in (
         sys.path.insert(0, str(extra))
 
 from aoep_shared.audio_courses import build_catalog  # noqa: E402
-from aoep_shared.course_translation_batch import CourseJob, translate_catalog  # noqa: E402
-from aoep_shared.course_translation_library import TARGET_LANGUAGES, library_dir  # noqa: E402
+from aoep_shared.course_translation_batch import (  # noqa: E402
+    CourseJob,
+    ordered_target_languages,
+    translate_catalog,
+)
+from aoep_shared.course_translation_library import hold_batch_lock, library_dir  # noqa: E402
 
 
 def audio_jobs(limit: int) -> list[CourseJob]:
@@ -100,11 +105,19 @@ def studio_jobs() -> list[CourseJob]:
     return jobs
 
 
-def engine_translator(*, retries: int = 4, verbose: bool = False):
+def translation_timeout_s(concurrency: int) -> int:
+    """Wait long enough for this job to reach the single GPU translation."""
+    floor = max(300, max(1, concurrency) * 90)
+    current = int(float(os.environ.get("TRANSLATION_TIMEOUT_S") or 0))
+    return max(floor, current)
+
+
+def engine_translator(*, retries: int = 4, verbose: bool = False, concurrency: int = 2):
     from theodore_audio_translation_lab.providers import TranslationEngine
 
-    # Batch segments are longer than chat utterances; 15s dies under load.
-    os.environ.setdefault("TRANSLATION_TIMEOUT_S", "60")
+    # 60s expires while a crowded GPU is still generating, and the batch then
+    # gives up and leaves the source sentence in place.
+    os.environ["TRANSLATION_TIMEOUT_S"] = str(translation_timeout_s(concurrency))
 
     engine = TranslationEngine()
     if not engine.gateway_url and not engine.xai_key:
@@ -160,8 +173,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--concurrency",
         type=int,
-        default=6,
-        help="Parallel course×language jobs (default 6; 26 usually times out on xAI).",
+        default=2,
+        help="Parallel course×language jobs. The GPU runs one merged translation at a time; extra jobs wait. Default 2.",
     )
     parser.add_argument("--force", action="store_true", help="Translate again even when a file exists.")
     parser.add_argument("--audio-only", action="store_true", help="Skip the Course Studio catalog.")
@@ -201,7 +214,15 @@ def _filter_courses(jobs: list[CourseJob], selectors: list[str] | None) -> list[
 
 def main() -> None:
     args = build_parser().parse_args()
-    languages = args.language or list(TARGET_LANGUAGES)
+    if not args.dry_run:
+        hold_batch_lock()
+    languages = args.language or ordered_target_languages()
+    print(
+        "language order: "
+        + " ".join(languages[:8])
+        + f" … then {max(0, len(languages) - 8)} more",
+        flush=True,
+    )
     jobs = audio_jobs(args.limit)
     if not args.audio_only:
         jobs.extend(studio_jobs())
@@ -242,7 +263,11 @@ def main() -> None:
         translate_catalog(
             jobs,
             languages,
-            engine_translator(retries=max(1, args.retries), verbose=args.verbose),
+            engine_translator(
+                retries=max(1, args.retries),
+                verbose=args.verbose,
+                concurrency=args.concurrency,
+            ),
             concurrency=args.concurrency,
             force=args.force,
             progress=on_progress,

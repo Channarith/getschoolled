@@ -172,6 +172,9 @@ FLAG_CATALOG: List[FlagSpec] = [
              admin_only=True),
     FlagSpec("ai.proctoring", FlagType.BOOL, False, "ai",
              "AI proctoring for graded assessments."),
+    FlagSpec("integrity.face_gate", FlagType.BOOL, True, "integrity",
+             "Require the enrolled student's face before a lesson, a test, "
+             "and resume after a pause."),
     FlagSpec("ai.physical_assessment", FlagType.BOOL, False, "ai",
              "Score XR/lab physical demonstrations (provisional pass/needs_work)."),
     FlagSpec("ai.audience_profile_adaptation", FlagType.BOOL, False, "ai",

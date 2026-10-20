@@ -658,6 +658,8 @@ export type StudentProfile = {
   onboarding_answers?: Record<string, unknown>;
   profile_score?: string;
   profile_score_version?: string;
+  face_enrolled?: boolean;
+  face_enrolled_at?: number | null;
 };
 
 export async function listStudents(): Promise<{ students: StudentProfile[] }> {
@@ -1593,6 +1595,7 @@ export async function startSession(
   classType: string,
   studentId?: string,
   startSlide = 0,
+  faceToken = "",
 ): Promise<SessionView> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
@@ -1603,6 +1606,7 @@ export async function startSession(
         class_type: classType,
         student_id: studentId ?? null,
         start_slide: Math.max(0, Math.floor(startSlide || 0)),
+        face_token: faceToken,
       }),
     })
   );
@@ -1771,6 +1775,7 @@ export async function startAssessmentCheckpoint(args: {
   usesAssistiveTech?: boolean;
   maxItems?: number;
   retentionCheckId?: string;
+  faceToken?: string;
 }): Promise<AssessmentRun> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/assessment/checkpoints/start`, {
@@ -1789,6 +1794,7 @@ export async function startAssessmentCheckpoint(args: {
         uses_assistive_tech: Boolean(args.usesAssistiveTech),
         max_items: args.maxItems ?? 5,
         retention_check_id: args.retentionCheckId ?? "",
+        face_token: args.faceToken ?? "",
       }),
     }),
   );
@@ -1797,6 +1803,7 @@ export async function startAssessmentCheckpoint(args: {
 export async function submitAssessmentCheckpoint(
   runId: string,
   chosenIndices: number[],
+  faceToken = "",
 ): Promise<AssessmentSubmitResult> {
   return jsonOrThrow(
     await fetch(
@@ -1804,7 +1811,7 @@ export async function submitAssessmentCheckpoint(
       {
         method: "POST",
         headers: { "content-type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ chosen_indices: chosenIndices }),
+        body: JSON.stringify({ chosen_indices: chosenIndices, face_token: faceToken }),
       },
     ),
   );
@@ -2328,7 +2335,7 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
 export async function startSoloLiveRoom(
   lessonId: string,
   creatorName = "",
-  opts?: { startSlide?: number; studentId?: string },
+  opts?: { startSlide?: number; studentId?: string; faceToken?: string },
 ): Promise<{ room_id: string }> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/solo`, {
@@ -2339,6 +2346,7 @@ export async function startSoloLiveRoom(
         creator_name: creatorName,
         student_id: opts?.studentId || null,
         start_slide: Math.max(0, Math.floor(opts?.startSlide || 0)),
+        face_token: opts?.faceToken || "",
       }),
     })
   );
@@ -2953,10 +2961,20 @@ export function liveRoomWsUrl(roomId: string): string {
   return `${proto}://${host}${prefix}${path}`;
 }
 
-export async function advance(sessionId: string): Promise<Slide> {
+export async function advance(sessionId: string, faceToken = ""): Promise<Slide> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/advance`, {
       method: "POST",
+      headers: faceToken ? { "X-Face-Token": faceToken, ...authHeaders() } : authHeaders(),
+    })
+  );
+}
+
+export async function markSessionFacePause(sessionId: string): Promise<void> {
+  await jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/face-pause`, {
+      method: "POST",
+      headers: authHeaders(),
     })
   );
 }
@@ -3878,6 +3896,74 @@ export async function enrollVoiceSample(
         }),
       }
     )
+  );
+}
+
+export type FaceEnrollmentStatus = {
+  student_id: string;
+  face_enrolled: boolean;
+  face_enrolled_at: number | null;
+  face_generation: number;
+  last_face_match_at: number | null;
+  voice_enrolled: boolean;
+};
+
+export async function enrollFaceTemplate(
+  studentId: string,
+  embedding: number[],
+): Promise<FaceEnrollmentStatus> {
+  return jsonOrThrow(
+    await fetch(
+      `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/face-enrollment`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ embedding }),
+      },
+    ),
+  );
+}
+
+export async function getFaceEnrollment(studentId: string): Promise<FaceEnrollmentStatus> {
+  return jsonOrThrow(
+    await fetch(
+      `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/face-enrollment`,
+      { headers: authHeaders(), cache: "no-store" },
+    ),
+  );
+}
+
+export async function verifyFace(
+  studentId: string,
+  embedding: number[],
+  purpose: "start" | "checkpoint" | "resume",
+): Promise<{ token: string; purpose: string; student_id: string; expires_in_s: number }> {
+  return jsonOrThrow(
+    await fetch(
+      `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/face-verify`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ embedding, purpose }),
+      },
+    ),
+  );
+}
+
+export async function reportFaceMismatch(
+  studentId: string,
+  purpose: string,
+  courseId = "",
+): Promise<void> {
+  await jsonOrThrow(
+    await fetch(
+      `${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/face-gate/mismatch`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ purpose, course_id: courseId }),
+      },
+    ),
   );
 }
 

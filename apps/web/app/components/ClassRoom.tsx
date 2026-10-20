@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   advance,
   ask,
+  markSessionFacePause,
+  reportFaceMismatch,
   directorLxTick,
   enrollCourse,
   generateClassQuiz,
@@ -63,6 +65,7 @@ import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
 import CourseStoryboardPlayer from "./CourseStoryboardPlayer";
 import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
+import { FaceGateNeedsEnroll, FaceGateTimeout, useFaceGate } from "../lib/useFaceGate";
 import CameraLightingScreener from "./CameraLightingScreener";
 import LessonCameraCorner from "./LessonCameraCorner";
 import { LEFT_LINE, PAUSE_LINE, RESUME_LINE, type PresenceCue } from "../lib/learnerFocus";
@@ -219,6 +222,36 @@ export default function ClassRoom({
   const autoStartedRef = useRef(false);
   const completedCheckpointsRef = useRef<Set<string>>(new Set());
   const assessmentStartingRef = useRef(false);
+  const resumeFaceTokenRef = useRef("");
+  const { requireFace, gate: faceGate } = useFaceGate();
+
+  function leaveUnconfirmed(purpose: string) {
+    stopSpeaking();
+    if (studentId) {
+      reportFaceMismatch(studentId, purpose, lessonId).catch(() => {});
+    }
+    setView(null);
+    setAssessmentRun(null);
+    setSegmentBreak(null);
+    setError("We could not confirm it is you. This lesson is closed until your face matches.");
+  }
+
+  async function faceTokenFor(purpose: "start" | "checkpoint" | "resume", sid: string): Promise<string | null> {
+    try {
+      return await requireFace(purpose, sid);
+    } catch (err) {
+      if (err instanceof FaceGateNeedsEnroll) {
+        setError("Enroll your face and voice in Settings before continuing.");
+        return null;
+      }
+      if (err instanceof FaceGateTimeout) {
+        leaveUnconfirmed(purpose);
+        return null;
+      }
+      setError(String(err));
+      return null;
+    }
+  }
 
   // mustVerifyPass: only enforce the assessment gate when the course actually has
   // a summative checkpoint in its policy. This keeps corporate (requireVerifiedPass)
@@ -369,9 +402,12 @@ export default function ClassRoom({
     setAutoplay(false);
     setBusy(true);
     try {
+      const faceToken = await faceTokenFor("checkpoint", sid === "guest" ? studentId : sid);
+      if (faceToken === null) return;
       const acc = studentProfile?.accessibility || {};
       const run = await startAssessmentCheckpoint({
         studentId: sid,
+        faceToken,
         sessionId: view.session.session_id,
         checkpointId: cp.checkpoint_id,
         stage: cp.stage,
@@ -780,12 +816,20 @@ export default function ClassRoom({
         recordWellnessCheckIn(studentId, wellness).catch(() => {});
       }
       const place = await resumeSlideForLesson(lessonId, studentId);
+      const sid = place.studentId || studentId;
       if (place.studentId && place.studentId !== studentId) setStudentId(place.studentId);
+      if (!sid) {
+        setError("Choose a learner profile before starting.");
+        return;
+      }
+      const faceToken = await faceTokenFor("start", sid);
+      if (faceToken === null) return;
       const v = await startSession(
         lessonId,
         classType,
-        place.studentId || undefined,
+        sid,
         place.slideIndex,
+        faceToken,
       );
       sessionStartRef.current = Date.now();
       frustrationCountRef.current = 0;
@@ -822,7 +866,21 @@ export default function ClassRoom({
     if (!view || popQuiz || showPulse || assessmentRun || segmentBreak) return;
     setBusy(true);
     try {
-      const s = await advance(view.session.session_id);
+      let s;
+      try {
+        s = await advance(view.session.session_id, resumeFaceTokenRef.current);
+        resumeFaceTokenRef.current = "";
+      } catch (err) {
+        const message = String(err);
+        if (message.includes("enrollment changed")) {
+          leaveUnconfirmed("resume");
+          return;
+        }
+        if (!message.includes("face verification") || !studentId) throw err;
+        const faceToken = await faceTokenFor("resume", studentId);
+        if (faceToken === null) return;
+        s = await advance(view.session.session_id, faceToken);
+      }
       // Surface a segment-break prompt before rendering the new slide.
       if (s.segment_break?.due) {
         setSegmentBreak(s.segment_break);
@@ -1235,6 +1293,7 @@ export default function ClassRoom({
 
   return (
     <main className="container">
+      {faceGate}
       {backHref && (
         <div className="row" style={{ marginBottom: 4 }}>
           <Link href={backHref} className="muted" style={{ fontSize: 14 }}>{back}</Link>
@@ -1459,17 +1518,27 @@ export default function ClassRoom({
                   voiceAwayRef.current = true;
                   stopSpeaking();
                   setPresenceNote(said(cue.notice || cue.line));
+                  if (view?.session.session_id) {
+                    markSessionFacePause(view.session.session_id).catch(() => {});
+                  }
                   if (speakAnswers) speak(said(cue.line), undefined, true);
                   return;
                 }
                 voiceAwayRef.current = false;
-                setPresenceNote("");
-                const held = heldSpeechRef.current;
-                if (!speakAnswers) return;
-                speak(said(cue.line), () => {
-                  if (voiceAwayRef.current || !held || held === cue.line) return;
-                  speak(held);
-                }, true);
+                void (async () => {
+                  if (studentId) {
+                    const faceToken = await faceTokenFor("resume", studentId);
+                    if (faceToken === null) return;
+                    resumeFaceTokenRef.current = faceToken;
+                  }
+                  setPresenceNote("");
+                  const held = heldSpeechRef.current;
+                  if (!speakAnswers) return;
+                  speak(said(cue.line), () => {
+                    if (voiceAwayRef.current || !held || held === cue.line) return;
+                    speak(held);
+                  }, true);
+                })();
               }}
             />
             <div style={isFullscreen ? { width: "100%", maxWidth: 760, alignSelf: "center" } : undefined}>
@@ -1645,6 +1714,11 @@ export default function ClassRoom({
               onBusy={setBusy}
               onError={(msg) => setError(msg)}
               onSubmitted={(result) => { void onAssessmentSubmitted(result); }}
+              beforeSubmit={async () => {
+                const token = await faceTokenFor("checkpoint", studentId);
+                if (token === null) throw new FaceGateTimeout();
+                return token;
+              }}
               onDismiss={
                 mustVerifyPass && assessmentRun.checkpoint.stage === "summative"
                   ? undefined
@@ -1728,8 +1802,15 @@ export default function ClassRoom({
                   type="button"
                   style={{ background: "#7c3aed", color: "#fff", fontWeight: 700, padding: "10px 22px" }}
                   onClick={() => {
-                    setSegmentBreak(null);
-                    resumeAutoplay();
+                    void (async () => {
+                      if (studentId) {
+                        const faceToken = await faceTokenFor("resume", studentId);
+                        if (faceToken === null) return;
+                        resumeFaceTokenRef.current = faceToken;
+                      }
+                      setSegmentBreak(null);
+                      resumeAutoplay();
+                    })();
                   }}
                 >
                   Keep going →

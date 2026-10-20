@@ -15,6 +15,7 @@ LABS = (
     "theodore_music_lab",
     "theodore_rag_lab",
     "theodore_llm_lab",
+    "theodore_object3d_lab",
     "theodore_webcam_lab",
 )
 

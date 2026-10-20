@@ -146,6 +146,10 @@ Walkthrough: [docs/demos/profile_avatar_picker_demo.mp4](docs/demos/profile_avat
 
 ## Screens and videos
 
+Salareen Worlds, Angkor Wat on the north horizon (stone courses, tiled roofs, five towers):
+
+![Angkor Wat in Salareen Worlds](docs/screens/angkor_wat_world.webp)
+
 ### Video walkthroughs
 
 Recorded screen walkthroughs play inline below (animated previews). GitHub does
@@ -653,6 +657,7 @@ transcript all run without it.
 | `subrepos/theodore_rag_lab` | Private RAG auto-tune / bakeoff plus live trusted current-awareness qualification (browser console `:8095/`) |
 | `subrepos/theodore_llm_lab` | All-in-one education LLM training lab — library + profiles + webcam/audio/game/RAG corpus, robot GGUF pack (`:8019/`) |
 | `subrepos/theodore_drive_lab` | Private Drive Mode fine-tune (browser console `:8096/`) |
+| `subrepos/theodore_object3d_lab` | RealSense and OAK-D recognition lab (browser console `:8020/`) |
 | `subrepos/theodore_homework_lab` | Private homework lab, 75 methodologies (browser UI `:8098/`) |
 | `subrepos/theodore_music_lab` | Learn-through-music lab (featured player `:8097/`; curated lyric translations in all 26+ langs) |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |

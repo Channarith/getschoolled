@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import FaceVoiceSetup from "../components/FaceVoiceSetup";
 import {
   AUTH_EVENT,
   completeOnboarding,
@@ -20,7 +21,7 @@ const PLANS = [
   { id: "premium", label: "Premium", price: "$29/mo", class: "vip", blurb: "Everything + analytics" },
 ] as const;
 
-const STEPS = ["Your info", "Choose plan", "Payment", "Who's learning"];
+const STEPS = ["Your info", "Choose plan", "Payment", "Who's learning", "Face & voice"];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -310,10 +311,14 @@ export default function OnboardingPage() {
               </select>
             </label>
             <button type="button" onClick={() => goToStep(step - 1)} style={{ marginRight: 10, padding: "8px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600 }}>← Back</button>
-            <button type="button" className="btn primary" disabled={busy} onClick={() => void finish()}>
-              Start watching
+            <button type="button" className="btn primary" disabled={busy || !learnerName.trim()} onClick={() => setStep(4)}>
+              Continue
             </button>
           </>
+        )}
+
+        {step === 4 && (
+          <FaceVoiceSetup learnerName={learnerName} busy={busy} onComplete={() => void finish()} />
         )}
 
         {error && <p style={{ color: "#f87171", marginTop: 12 }}>{error}</p>}

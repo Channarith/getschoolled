@@ -250,6 +250,24 @@ export default function AccountPage() {
                   {t("account.cameraCheckDesc")}
                 </p>
               </div>
+              <Link href="/vision">
+                <button
+                  type="button"
+                  style={{
+                    padding: "14px 22px",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    background: "#0f172a",
+                    color: "#e0f2fe",
+                    border: "2px solid #38bdf8",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    marginRight: 8,
+                  }}
+                >
+                  Redo Face &amp; Voice ID
+                </button>
+              </Link>
               <Link href="/account/camera-check">
                 <button
                   type="button"

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   enrollEmbedding,
+  enrollFaceTemplate,
   enrollVoiceSample,
   getVoiceEnrollmentStatus,
   identifyEmbedding,
@@ -125,18 +126,22 @@ export default function VisionPage() {
       return;
     }
     try {
-      const r = await enrollEmbedding(name.trim(), faces[0].embedding);
-      setEnrolled((prev) => (prev.includes(name.trim()) ? prev : [...prev, name.trim()]));
-      setStatus(`Face enrolled for ${r.student_id} (${r.enrollments} sample${r.enrollments === 1 ? "" : "s"})`);
-
-      // Trigger voice enrollment step immediately after face enroll.
-      // Find the matching student profile for the identity service call.
       const matchedStudent = students.find(
         (s) => s.display_name.toLowerCase() === name.trim().toLowerCase()
       ) ?? students[0];
-      if (matchedStudent) {
-        setPendingStudentId(matchedStudent.id);
+      if (!matchedStudent) {
+        setError("No learner profile to attach this face to.");
+        return;
       }
+      await enrollFaceTemplate(matchedStudent.id, faces[0].embedding);
+      setPendingStudentId(matchedStudent.id);
+      try {
+        const r = await enrollEmbedding(matchedStudent.id, faces[0].embedding);
+        setStatus(`Face replaced for ${r.student_id}. Older lesson tokens no longer work.`);
+      } catch {
+        setStatus("Face replaced on your profile. Older lesson tokens no longer work.");
+      }
+      setEnrolled((prev) => (prev.includes(name.trim()) ? prev : [...prev, name.trim()]));
       setPendingEnrollName(name.trim());
       setVoiceStep("prompting");
       setVoiceError("");

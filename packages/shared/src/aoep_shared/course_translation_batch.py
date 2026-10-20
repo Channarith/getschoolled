@@ -33,6 +33,58 @@ class CourseJob:
         self.segments = segments
 
 
+# Spoken in the classrooms we serve first. Cantonese and Tagalog are extra
+# translation targets; they are not part of the 27 content-language set.
+EXTRA_TARGET_LANGUAGES: tuple[str, ...] = ("yue", "tl")
+PRIORITY_TARGET_LANGUAGES: tuple[str, ...] = (
+    "km", "zh", "yue", "es", "tl", "vi", "th", "fr",
+)
+
+
+def target_code(language: str) -> str:
+    """Platform code, plus Cantonese (``yue``) and Tagalog (``tl``)."""
+    raw = (language or "").strip().lower().replace("_", "-")
+    if raw in {"yue", "cantonese"} or raw.startswith("yue-"):
+        return "yue"
+    if raw in {"tl", "fil", "tagalog"} or raw.startswith("tl-") or raw.startswith("fil-"):
+        return "tl"
+    return normalize_language(language)
+
+
+def ordered_target_languages(languages: Iterable[str] | None = None) -> list[str]:
+    """Priority languages first, then the rest in their existing order."""
+    allowed = set(TARGET_LANGUAGES) | set(EXTRA_TARGET_LANGUAGES)
+    if languages is None:
+        pool = list(TARGET_LANGUAGES) + [code for code in EXTRA_TARGET_LANGUAGES if code not in TARGET_LANGUAGES]
+    else:
+        pool = []
+        for language in languages:
+            code = target_code(language)
+            if code not in allowed:
+                raise ValueError(f"unsupported target language: {language}")
+            if code not in pool:
+                pool.append(code)
+    head = [code for code in PRIORITY_TARGET_LANGUAGES if code in pool]
+    return head + [code for code in pool if code not in head]
+
+
+def _same_text(left: str, right: str) -> bool:
+    return " ".join((left or "").casefold().split()) == " ".join((right or "").casefold().split())
+
+
+def copies_source(record: dict, course: CourseJob) -> bool:
+    """True when a saved file is still the English source, not a translation."""
+    saved = [str(row.get("text") or "").strip() for row in record.get("segments") or []]
+    source = [str(row.get("text") or "").strip() for row in course.segments]
+    saved = [row for row in saved if row]
+    source = [row for row in source if row]
+    compared = min(len(saved), len(source))
+    if compared == 0:
+        return False
+    same = sum(1 for left, right in zip(saved, source) if _same_text(left, right))
+    return same / compared >= 0.8
+
+
 def split_translation_text(text: str, max_words: int = _DEFAULT_CHUNK_WORDS) -> list[str]:
     """Split narration into chunks a single translation call can finish."""
     clean = " ".join((text or "").split())
@@ -144,10 +196,11 @@ async def translate_catalog(
     ``progress``, when set, is called after each course×language finishes with
     ``{event, course_id, language, done, total, written, skipped, failed, reason}``.
     """
+    allowed = set(TARGET_LANGUAGES) | set(EXTRA_TARGET_LANGUAGES)
     codes = []
     for language in languages:
-        code = normalize_language(language)
-        if code not in TARGET_LANGUAGES:
+        code = target_code(language)
+        if code not in allowed:
             raise ValueError(f"unsupported target language: {language}")
         if code not in codes:
             codes.append(code)
@@ -182,7 +235,8 @@ async def translate_catalog(
         async with semaphore:
             event = "written"
             try:
-                if not force and load_translation(course.course_id, language, root):
+                existing = None if force else load_translation(course.course_id, language, root)
+                if existing and not copies_source(existing, course):
                     async with lock:
                         counts["skipped"] += 1
                         done += 1
@@ -270,5 +324,7 @@ async def translate_catalog(
                     event = "failed"
                 _emit(event, course.course_id, language, reason=f"{type(exc).__name__}: {exc}")
 
-    await asyncio.gather(*(one(course, language) for course in jobs for language in codes))
+    # Finish one language across the catalog before the next, so the priority
+    # list is not stuck behind Ukrainian or Turkish on a single course.
+    await asyncio.gather(*(one(course, language) for language in codes for course in jobs))
     return counts

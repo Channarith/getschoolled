@@ -33,6 +33,41 @@ def library_dir() -> Path:
     return Path.home() / ".cache" / "aoep" / "course_translations"
 
 
+_batch_lock_fh = None
+
+
+def hold_batch_lock() -> object:
+    """Exclusive lock so a second course-translation batch exits immediately.
+
+    The lock file lives in the library directory. The kernel drops it when
+    this process exits, including after a crash. The returned handle must
+    stay referenced for the life of the process.
+    """
+    global _batch_lock_fh
+    import fcntl
+
+    root = library_dir()
+    root.mkdir(parents=True, exist_ok=True)
+    fh = (root / ".batch.lock").open("a+")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        fh.seek(0)
+        holder = fh.read().strip() or "unknown pid"
+        fh.close()
+        raise SystemExit(
+            f"A translation batch is already running (pid {holder}). "
+            "A second batch times out on the same GPU and can overwrite partial files. "
+            "Leave the running batch in place."
+        )
+    fh.seek(0)
+    fh.truncate()
+    fh.write(f"{os.getpid()}\n")
+    fh.flush()
+    _batch_lock_fh = fh
+    return fh
+
+
 def safe_course_id(course_id: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", (course_id or "").strip()).strip("-._")
     return cleaned or "course"
@@ -80,6 +115,7 @@ def save_translation(record: dict[str, Any], root: Path | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write(path, payload)
     _remember(payload, root or library_dir())
+    snapshot_checkpoint(root or library_dir())
     return path
 
 
@@ -244,6 +280,55 @@ def _read_index(root: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         return {"courses": []}
     return data
+
+
+def snapshot_checkpoint(root: Path | None = None, day: str = "") -> dict[str, Any]:
+    """Write today's list of course languages the apps can already speak.
+
+    The translation files stay where they are. This manifest is the checkpoint:
+    one file per calendar day, plus ``latest.json`` for the player.
+    """
+    from datetime import date
+
+    from .madlad import model_id as madlad_model
+    from .nllb import model_id as nllb_model
+
+    base = root or library_dir()
+    stamp = (day or date.today().isoformat()).strip()
+    by_language: dict[str, int] = {}
+    ready: list[dict[str, str]] = []
+    for path in sorted(base.glob("*/*.json")):
+        if path.parent.name == "checkpoints":
+            continue
+        language = path.stem
+        course_id = path.parent.name
+        by_language[language] = by_language.get(language, 0) + 1
+        ready.append({"course_id": course_id, "language": language})
+    manifest = {
+        "day": stamp,
+        "files": len(ready),
+        "languages": by_language,
+        "models": {"nllb": nllb_model(), "madlad": madlad_model()},
+        "merge": "round-trip; MADLAD wins when scores are within 0.03",
+        "listen": "Drive Mode training language, or POST /translate/listen",
+        "ready": ready,
+    }
+    folder = base / "checkpoints"
+    _atomic_write(folder / f"{stamp}.json", manifest)
+    _atomic_write(folder / "latest.json", manifest)
+    return manifest
+
+
+def latest_checkpoint(root: Path | None = None) -> dict[str, Any]:
+    base = root or library_dir()
+    path = base / "checkpoints" / "latest.json"
+    if not path.is_file():
+        return snapshot_checkpoint(base)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return snapshot_checkpoint(base)
+    return data if isinstance(data, dict) else snapshot_checkpoint(base)
 
 
 def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
