@@ -104,6 +104,7 @@ def _grounded(
     target: str,
     source: str,
     translator: Optional[Translator],
+    pointed: bool = False,
 ) -> str:
     if intent == "translate":
         text = ocr_text.strip()
@@ -131,7 +132,12 @@ def _grounded(
     name = obs.name
     where = _meters(obs.distance_m)
     if intent == "distance":
-        subject = f"The {name}" if name != "object" else "The nearest object"
+        if name != "object":
+            subject = f"The {name}"
+        elif pointed:
+            subject = "That object"
+        else:
+            subject = "The nearest object"
         if obs.distance_m is None:
             return f"{subject} is in view, but this camera didn't return depth."
         return f"{subject} is {where}."
@@ -222,13 +228,20 @@ def answer_about(
     source_language: str = "auto",
     translator: Optional[Translator] = None,
     llm: Optional[LLM] = None,
+    focus: Optional[int] = None,
 ) -> Answer:
-    """Speak a short answer. Distance, kind, and catalog facts are not guessed."""
+    """Speak a short answer. Distance, kind, and catalog facts are not guessed.
+
+    ``focus`` is the object the learner tapped. That box wins over the nearest one.
+    """
     intent = intent_of(question)
-    obs = select_observation(question, observations)
+    pointed = focus is not None and 0 <= int(focus) < len(observations)
+    obs = observations[int(focus)] if pointed else select_observation(question, observations)
     if intent == "translate" and ocr_text.strip():
         obs = None
-    text = _grounded(intent, question, obs, ocr_text, target_language, source_language, translator)
+    text = _grounded(
+        intent, question, obs, ocr_text, target_language, source_language, translator, pointed
+    )
     facts = _facts(obs, ocr_text)
     facts["intent"] = intent
     facts["target_language"] = target_language

@@ -9,11 +9,14 @@ try:
 except Exception:  # noqa: BLE001 — the lab still boots offline
     pass
 
+import os
+import tempfile
 import threading
+from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
@@ -30,8 +33,16 @@ from .devices import TOOLS, connected_cameras, sdk_status
 from .live import LiveHub
 from .page import render_page
 
-app = FastAPI(title="Theodore Object3D Lab", version="0.1.0")
-install_live_audio_routes(app, lab_name="Theodore Object3D Lab")
+app = FastAPI(title="Sala Object3D Lab", version="0.1.0")
+install_live_audio_routes(
+    app,
+    lab_name="Sala Object3D Lab",
+    default_provider="salane",
+    instructions=(
+        "You are Sala, looking through the live object-recognition camera. "
+        "Answer from the objects, distances, and signs in view. Keep each turn short."
+    ),
+)
 _HUB_LOCK = threading.Lock()
 _HUB: Optional[LiveHub] = None
 
@@ -93,6 +104,12 @@ class AskRequest(BaseModel):
     question: str = "how far is it?"
     sign: str = ""
     target: str = "en"
+    index: Optional[int] = None
+
+
+class VoiceSay(BaseModel):
+    text: str = ""
+    language: str = "en"
 
 
 class FreezeRequest(BaseModel):
@@ -254,29 +271,54 @@ def capture_once(req: CaptureRequest) -> dict[str, Any]:
     }
 
 
+@app.post("/api/object3d/voice/say")
+def voice_say(req: VoiceSay):
+    text = req.text.strip()
+    language = (req.language or "en").strip() or "en"
+    browser = {"ok": False, "engine": "browser", "text": text, "language": language}
+    if not text or not os.environ.get("COSYVOICE_URL", "").strip():
+        return JSONResponse(browser)
+    from aoep_shared.meeting.clone_tts import synthesize_cosyvoice
+
+    folder = Path(tempfile.mkdtemp(prefix="object3d-voice-"))
+    wav = folder / "say.wav"
+    ok = synthesize_cosyvoice(text, wav, language=language)
+    audio = wav if wav.is_file() else wav.with_suffix(".mp3")
+    if not ok or not audio.is_file():
+        return JSONResponse(browser)
+    media = "audio/wav" if audio.suffix.lower() == ".wav" else "audio/mpeg"
+    return Response(content=audio.read_bytes(), media_type=media)
+
+
 @app.post("/api/object3d/ask")
 def ask(req: AskRequest) -> dict[str, Any]:
     hub = _live()
-    found = hub.observations() if hub.running else []
+    found = hub.observations() if hub.running or hub.frozen else []
     if hub.running and not found:
         frame = hub.frame_copy()
         if frame is not None:
             found = observe_for_camera(frame, _gallery(), detector=hub.controls.detector)
+    from_camera = bool(found)
     if not found:
         found = list(getattr(app.state, "last", []) or [])
     if not found:
         found = observe(synthetic_frame(), _gallery(), detector="depth")
     app.state.last = found
+    focus = req.index if req.index is not None else hub.selected
+    if not from_camera or focus is None or focus < 0 or focus >= len(found):
+        focus = None
     answer = answer_about(
         req.question,
         found,
         ocr_text=req.sign,
         target_language=req.target or "en",
+        focus=focus,
     )
     return {
         "ok": True,
         "answer": answer.text,
         "intent": answer.intent,
+        "index": focus,
         "observations": [obs.to_dict() for obs in found],
     }
 

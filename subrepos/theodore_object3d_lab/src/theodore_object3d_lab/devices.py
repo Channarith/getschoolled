@@ -7,7 +7,7 @@ from typing import Any
 
 TOOLS: tuple[dict[str, str], ...] = (
     {
-        "name": "Theodore object3d lab",
+        "name": "Sala object3d lab",
         "use": "Browser console with the camera left on: aligned color, a depth map, questions, and enroll.",
         "command": "python3 -m uvicorn theodore_object3d_lab.main:app --port 8020 --host 127.0.0.1",
     },
@@ -104,4 +104,17 @@ def connected_cameras() -> list[dict[str, Any]]:
             })
     except Exception as exc:
         found.append({"camera": "oak", "connected": False, "error": str(exc)})
+    from aoep_shared.object3d.capture import choose_uhd_webcam
+
+    chosen = choose_uhd_webcam()
+    if chosen is None:
+        found.append({"camera": "webcam", "connected": False, "name": "4K webcam"})
+    else:
+        path, name = chosen
+        found.append({
+            "camera": "webcam",
+            "connected": True,
+            "name": name.split(":")[0].strip() or "4K webcam",
+            "path": path,
+        })
     return found

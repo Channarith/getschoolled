@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-21 - v0.91.1 - Sala names objects in the live room when color blobs miss, and Ask speaks that answer in Salane Voice.
 - 2026-10-20 - v0.73.1 - Salareen Worlds places a textured Angkor Wat on the north horizon: sandstone courses, laterite, roof tiles, colonnades, and the five lotus-bud towers.
 - 2026-10-14 - v0.53.13 - RAG lab language menus list 52 named varieties. Voice training and drop intake share one queue with the command line.
 - 2026-10-13 - v0.53.12 - Salane Voice (Sala) is the class voice: CosyVoice instead of the xAI Grok socket. Driver's ed and food-handler courses stay on that voice. Channel catalog replaces dead YouTube handles.

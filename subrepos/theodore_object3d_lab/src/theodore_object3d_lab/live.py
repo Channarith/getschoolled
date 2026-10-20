@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import threading
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Optional
 
 import numpy as np
 
-from aoep_shared.object3d.capture import REALSENSE_MODES, OakSession, RealSenseSession
+from aoep_shared.object3d.capture import (
+    REALSENSE_MODES,
+    WEBCAM_MODES,
+    OakSession,
+    RealSenseSession,
+    WebcamSession,
+)
 from aoep_shared.object3d.cli import DEFAULT_SAMPLES
 from aoep_shared.object3d.collect import AngleCapture
 from aoep_shared.object3d.depth import align_depth
@@ -124,7 +130,9 @@ def _camera_name(camera: str) -> str:
         return "realsense"
     if name in ("oak", "oak-d", "luxonis"):
         return "oak"
-    raise ValueError(f"unknown camera {camera!r} (use realsense or oak)")
+    if name in ("webcam", "4k", "uhd", "ac310", "ultra"):
+        return "webcam"
+    raise ValueError(f"unknown camera {camera!r} (use realsense, oak, or webcam)")
 
 
 class LiveHub:
@@ -395,10 +403,12 @@ class LiveHub:
             return
         with self._lock:
             selected = self.selected
+            frame = self._frame
+        view_observations = _match_boxes(observations, frame, color)
         burned_color, burned_depth = self._burn(
             color,
             color if depth_image is None else depth_image,
-            observations,
+            view_observations,
             selected,
         )
         with self._lock:
@@ -443,7 +453,7 @@ class LiveHub:
                     continue
                 misses = 0
                 tick += 1
-                stride = 3 if self.controls.detector == "coco" else 1
+                stride = self._detect_stride()
                 try:
                     self._publish(frame, detect=tick % stride == 0)
                 except Exception:
@@ -463,8 +473,29 @@ class LiveHub:
                 if gen == self._gen:
                     self.running = False
 
+    def _detect_stride(self) -> int:
+        """Named detection is heavier than a color mask, so it does not run every frame."""
+        name = self.controls.detector
+        if name == "coco":
+            return 3
+        if name != "auto":
+            return 1
+        sources = {getattr(obs, "source", "") for obs in self._observations}
+        if not self._observations or "coco" in sources:
+            return 5
+        return 1
+
     def _open(self):
         controls = self.controls
+        if controls.camera == "webcam":
+            session = WebcamSession()
+            modes = WEBCAM_MODES.get(controls.quality, WEBCAM_MODES["clear"])
+            session.start(modes)
+            self.note = (
+                f"{session.name} has no stereo depth. Object boxes come from the color image. "
+                f"Capturing {session.mode}."
+            )
+            return session
         if controls.camera == "oak":
             width, height = (1280, 720) if controls.quality == "clear" else (640, 400)
             session = OakSession()
@@ -551,9 +582,10 @@ class LiveHub:
                 observations = list(self.observe(frame))
             except Exception:
                 observations = self._observations
-        color = enhance_color(rgb, clahe=controls.clahe, sharpen=controls.sharpen)
+        view_rgb, view_observations = _fit_preview(rgb, observations)
+        color = enhance_color(view_rgb, clahe=controls.clahe, sharpen=controls.sharpen)
         if depth is None:
-            depth_image = no_depth_view(rgb, "No stereo depth on this link")
+            depth_image = no_depth_view(view_rgb, "No stereo depth on this link")
             stats = {
                 "coverage": 0.0,
                 "scene_near_m": None,
@@ -590,7 +622,7 @@ class LiveHub:
             job = self.capture
             if job is not None and job.active:
                 selected = job.step(frame, observations, now=now, fps=fps)
-        burned_color, burned_depth = self._burn(color, depth_image, observations, selected)
+        burned_color, burned_depth = self._burn(color, depth_image, view_observations, selected)
         with self._lock:
             if self.frozen:
                 self.fps = fps
@@ -606,6 +638,56 @@ class LiveHub:
             self._depth = jpeg_bytes(burned_depth)
             self.stats = stats
             self.fps = fps
+
+
+def _fit_preview(
+    rgb: np.ndarray,
+    observations: list[Any],
+    limit: int = 1600,
+) -> tuple[np.ndarray, list[Any]]:
+    """Shrink a 4K frame for the browser. Boxes stay in the full-frame list."""
+    height, width = int(rgb.shape[0]), int(rgb.shape[1])
+    long_side = max(height, width)
+    if long_side <= limit or long_side <= 0:
+        return rgb, observations
+    scale = limit / long_side
+    import cv2
+
+    preview = cv2.resize(
+        rgb,
+        (max(1, int(round(width * scale))), max(1, int(round(height * scale)))),
+        interpolation=cv2.INTER_AREA,
+    )
+    ph, pw = int(preview.shape[0]), int(preview.shape[1])
+    return preview, _scale_boxes(observations, pw / width, ph / height)
+
+
+def _match_boxes(observations: list[Any], frame: Optional[Frame], view: Optional[np.ndarray]) -> list[Any]:
+    if frame is None or view is None or not observations:
+        return observations
+    frame_h, frame_w = frame.rgb.shape[:2]
+    view_h, view_w = view.shape[:2]
+    if frame_h == view_h and frame_w == view_w:
+        return observations
+    if frame_w <= 0 or frame_h <= 0:
+        return observations
+    return _scale_boxes(observations, view_w / frame_w, view_h / frame_h)
+
+
+def _scale_boxes(observations: list[Any], sx: float, sy: float) -> list[Any]:
+    scaled = []
+    for obs in observations:
+        x, y, w, h = obs.bbox
+        scaled.append(replace(
+            obs,
+            bbox=(
+                int(round(float(x) * sx)),
+                int(round(float(y) * sy)),
+                max(1, int(round(float(w) * sx))),
+                max(1, int(round(float(h) * sy))),
+            ),
+        ))
+    return scaled
 
 
 def _hit_index(observations: list[Any], x: float, y: float) -> Optional[int]:

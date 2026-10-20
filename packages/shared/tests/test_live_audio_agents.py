@@ -17,7 +17,9 @@ def test_status_only_advertises_native_audio_when_configured(monkeypatch):
     status = live.provider_status()
     assert status["available"] is False
     assert status["default"] == ""
-    assert all(not row["available"] for row in status["providers"].values())
+    assert status["providers"]["salane"]["available"] is True
+    assert status["providers"]["xai"]["available"] is False
+    assert status["providers"]["gemini"]["available"] is False
     assert "TTS" not in status["providers"]
 
     monkeypatch.setenv("GEMINI_API_KEY", "gemini-secret")
@@ -29,6 +31,17 @@ def test_status_only_advertises_native_audio_when_configured(monkeypatch):
     status = live.provider_status()
     assert status["default"] == "xai"
     assert status["providers"]["xai"]["input_rate"] == 24000
+
+
+def test_a_lab_can_prefer_salane_over_xai(monkeypatch):
+    monkeypatch.setenv("XAI_API_KEY", "xai-secret")
+    status = live.provider_status(prefer="salane")
+    assert status["available"] is True
+    assert status["default"] == "salane"
+    assert status["providers"]["salane"]["label"] == "Salane Voice"
+    token = live.mint_provider_token("salane", language="km")
+    assert token["engine"] == "salane"
+    assert token["use_xai"] is False
 
 
 def test_gemini_token_is_one_use_v1alpha_and_never_returns_api_key(monkeypatch):
