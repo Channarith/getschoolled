@@ -19,7 +19,7 @@ let rnMod: LiveKitRN | null = null;
 let clientMod: LiveKitClient | null = null;
 let unavailable = false;
 
-/** True when a native binary with LiveKit/WebRTC is present (dev client / EAS). */
+/** True when a native binary with LiveKit/WebRTC is present (dev client / native release build). */
 export function isLiveKitNativeAvailable(): boolean {
   // Expo Go (store client) never includes WebRTC / LiveKit native modules.
   if (Constants.appOwnership === "expo") return false;

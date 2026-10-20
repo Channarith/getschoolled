@@ -4,9 +4,11 @@
  *
  * To activate off-device crash reporting without any code change:
  *   1. `cd apps/mobile && pnpm add @sentry/react-native`
- *   2. Add the DSN to the EAS build env as SENTRY_DSN (or set extra.sentryDsn
+ *   2. Export SENTRY_DSN in your shell before building (or set extra.sentryDsn
  *      in app.config.js). Expo exposes it to the running app via Constants.
- *   3. Cut a fresh NATIVE build (OTA won't link the SDK's native module).
+ *   3. Cut a fresh native release build (Gradle / Xcode — see
+ *      .cursor/rules/no-eas-build-mobile.mdc). Native modules only link in a
+ *      native build; a JS-only re-export won't pick up the SDK.
  *
  * All imports are dynamic so a missing package / failing init never breaks
  * client logging or the error handler — crashes still land in the durable
@@ -29,7 +31,7 @@ function dsnFromEnv(): string | null {
   const extra = (Constants.expoConfig?.extra || {}) as Record<string, string | undefined>;
   const fromExtra = extra.sentryDsn;
   // process.env is injected by babel-plugin-transform-inline-environment-variables
-  // in the EAS build; mobile tsconfig has no @types/node so read it structurally.
+  // at bundle time; mobile tsconfig has no @types/node so read it structurally.
   const proc = (globalThis as unknown as {
     process?: { env?: Record<string, string | undefined> };
   }).process;

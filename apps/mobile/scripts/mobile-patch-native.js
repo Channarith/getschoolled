@@ -1,7 +1,9 @@
 /**
- * Apply native iOS/Android patches after install (local postinstall + EAS hook).
- * EAS iOS runs eas-build-post-install after pod install — patches node_modules
- * immediately before Xcode compiles (postinstall alone is not always enough).
+ * Apply native iOS/Android patches after install (local postinstall hook).
+ * Runs via `pnpm install` postinstall so node_modules are patched before any
+ * local Gradle/Xcode build (postinstall alone is not always enough on iOS, so
+ * `scripts/mobile-ios-pod-refresh.sh` re-invokes this after `pod install`).
+ * Salareen mobile builds natively — see .cursor/rules/no-eas-build-mobile.mdc.
  */
 const { spawnSync } = require("child_process");
 const path = require("path");
@@ -50,7 +52,7 @@ function main() {
     }
   }
 
-  // Metro-only; harmless on EAS but not required for native compile.
+  // Metro-only; not required for native compile but harmless to always run.
   runPatch("ensure-metro-local-deps.js");
 
   if (failedRequired) {
