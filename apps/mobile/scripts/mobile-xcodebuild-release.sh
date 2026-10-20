@@ -19,6 +19,10 @@
 # → Signing & Capabilities → enable "Automatically manage signing" and pick Team.
 set -euo pipefail
 
+# Strip QA quick-fill credentials from the shipped bundle (B-SEC-1).
+# apps/mobile/app.config.js keys off this to zero out `extra.qaAccounts`.
+export AOEP_RELEASE_BUILD=1
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 MOBILE_ROOT="$ROOT"

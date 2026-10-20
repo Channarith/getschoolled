@@ -25,7 +25,7 @@ if [ -z "$SCAN_DIR" ]; then
   CLEANUP_ROOT="$(mktemp -d)"
   SCAN_DIR="$CLEANUP_ROOT/dist"
   echo "==> exporting production-profile bundle for scan (this can take a minute)..."
-  EAS_BUILD_PROFILE=production npx expo export --platform ios --output-dir "$SCAN_DIR" >/dev/null
+  AOEP_RELEASE_BUILD=1 EAS_BUILD_PROFILE=production npx expo export --platform ios --output-dir "$SCAN_DIR" >/dev/null
 fi
 
 if [ ! -d "$SCAN_DIR" ]; then

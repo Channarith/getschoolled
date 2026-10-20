@@ -26,11 +26,16 @@ module.exports = ({ config }) => {
   const deployMode = process.env.MOBILE_DEPLOY_MODE || extra.deployMode || "cloud";
 
   // QA quick-fill accounts are a dev/preview convenience. They are injected into
-  // `extra` (and thus config.ts / the login screen) for every profile EXCEPT
-  // production, so admin/QA credentials never ship in a release bundle
-  // (B-SEC-1 / risk R5). EAS sets EAS_BUILD_PROFILE during cloud builds; a bare
-  // `expo start` / dev build has no profile and gets the accounts.
-  const isProductionBuild = process.env.EAS_BUILD_PROFILE === "production";
+  // `extra` (and thus config.ts / the login screen) for every build EXCEPT a
+  // native release build, so admin/QA credentials never ship in a shipped bundle
+  // (B-SEC-1 / risk R5). The two native release scripts
+  // (scripts/mobile-xcodebuild-release.sh and scripts/mobile-build-release-android.sh)
+  // export AOEP_RELEASE_BUILD=1 before invoking expo/metro, which strips the
+  // accounts here. Legacy EAS_BUILD_PROFILE=production is kept as a secondary
+  // signal only for safety during the transition.
+  const isProductionBuild =
+    process.env.AOEP_RELEASE_BUILD === "1" ||
+    process.env.EAS_BUILD_PROFILE === "production";
   const qaTestAccounts = isProductionBuild
     ? []
     : [
