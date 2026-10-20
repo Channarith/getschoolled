@@ -99,7 +99,10 @@ shared infra" (auth, rate limiting, telemetry, caching, service scaffolding) and
   - Pure logic: i18n strings, tts locale->BCP-47 mapping, languages list parity
     with backend SUPPORTED_LANGUAGES, notifications config.
   - Screens: render smoke for each screen; Drive Mode speak/recognize wiring.
-  - Build: EAS preview (APK) + production bundles must build.
+  - Build: native release artifacts must build locally —
+      cd apps/mobile && pnpm run native:build:android:release    (APK + AAB)
+      cd apps/mobile && pnpm run xcode:release                   (iOS .xcarchive)
+    See .cursor/rules/no-eas-build-mobile.mdc. No cloud build pipeline.
 
 4d. Security / admin / sub-tools (always, every release)
   - Internal auth: homework grader, corrections bulk, payouts, retention purge,

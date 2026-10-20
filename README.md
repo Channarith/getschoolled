@@ -947,7 +947,8 @@ The Expo app supports Android and iOS with:
 - Local notifications and alerts inbox.
 - Locale picker with 14 fully translated UI locales plus supported-language
   fallback; the chosen language is saved to the account and follows the learner.
-- EAS build profiles for development, preview APK, and production app bundle/IPA.
+- Native release builds via Gradle (Android `.apk` / `.aab`) and Xcode
+  (iOS `.xcarchive`) — see "Build, typecheck, and release" below.
 
 ### Mobile app on macOS — setup, run, and debug
 
@@ -1158,15 +1159,20 @@ cd services/curriculum && DEPLOY_MODE=local PYTHONPATH=src \
 ```bash
 cd apps/mobile
 pnpm run typecheck:verbose
-pnpm run export:verbose              # JS bundles → apps/mobile/dist/
-pnpm run eas:build:preview:android   # cloud APK (needs eas-cli + Expo account)
+pnpm run export:verbose                   # JS bundles → apps/mobile/dist/
+pnpm run native:build:android:release     # standalone release .apk/.aab via Gradle
+pnpm run xcode:release && \
+  open ios/build/Salareen.xcarchive       # iOS release archive → Xcode Organizer
 ```
 
 Makefile shortcuts from repo root: `make mobile-setup`, `make mobile-doctor-verbose`,
 `make mobile-launch-ios-debug`, `make mobile-build`.
 
-Offline native projects: `pnpm run prebuild` then `pnpm run native:build:android`.
-EAS profiles: `apps/mobile/eas.json`. Deeper troubleshooting: **`apps/mobile/RUN.txt`**.
+Salareen mobile builds **natively** on the operator's machine — there is no
+cloud build pipeline. Upload the resulting `.aab` to the Play Console and
+distribute the `.xcarchive` via Xcode's Organizer (TestFlight / Ad Hoc). See
+`.cursor/rules/no-eas-build-mobile.mdc`. Deeper troubleshooting:
+**`apps/mobile/RUN.txt`**.
 
 ## Hosting and scale
 

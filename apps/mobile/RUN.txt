@@ -357,41 +357,48 @@ BUILD (production JS bundles - iOS + Android)
   #   dist/_expo/static/js/ios/index-<sha>.js     (~970 kB minified)
   #   dist/_expo/static/js/android/index-<sha>.js (~978 kB minified)
   #   dist/metadata.json
-  # These are the JS bundles that EAS Build / OTA updates ship.
+  # These are the JS bundles that a release build will embed (Gradle
+  # assembleRelease on Android; xcodebuild archive on iOS).
   # `pnpm run export:ios` / `pnpm run export:android` build just one platform.
 
-NATIVE BINARIES (.apk / .aab / .ipa)
-  Use EAS Build - it provisions Android SDK + Xcode in the cloud, no local
-  Android Studio / Mac needed.
-    npm i -g eas-cli            # one-time
-    eas login                   # one-time, requires an Expo account
-    cd apps/mobile
-    pnpm run eas:build:android          # production AAB
-    pnpm run eas:build:ios              # production IPA (needs Apple Developer team)
-    pnpm run eas:build:preview:android  # internal-distribution APK
-  Build profiles live in apps/mobile/eas.json. App identifiers:
+NATIVE BINARIES (.apk / .aab / .xcarchive)   [AUTHORITATIVE — the only path]
+
+  Salareen mobile builds NATIVELY on the operator's machine. There is NO
+  cloud build pipeline. See .cursor/rules/no-eas-build-mobile.mdc — do not
+  reach for `eas build`, `eas submit`, or `expo publish`. The two commands
+  the operator runs after every mobile code change:
+
+    # Android release (APK + AAB; bundle embedded; verified)
+    cd apps/mobile && pnpm run native:build:android:release
+    #   -> dist/android/salareen-<version>-<versionCode>-release.apk
+    #      plus the .aab for Play Console upload.
+
+    # iOS release (Xcode archive; distribute via Organizer)
+    cd apps/mobile && pnpm run xcode:release
+    open ios/build/Salareen.xcarchive
+    # Then in Xcode: Window → Organizer → Distribute App →
+    #   App Store Connect → TestFlight     (or Ad Hoc / Development)
+
+  App identifiers:
     ios.bundleIdentifier: com.aiclassroom.app
     android.package:      com.aiclassroom.app
 
-  LOCAL iOS RELEASE (no EAS — Mac + Xcode + Apple Developer account):
-    cd apps/mobile
+  iOS one-time signing setup (needed before the first xcode:release run):
     bash scripts/mobile-install.sh
-    # One-time signing setup:
     #   Xcode → Settings → Accounts → sign in with Apple ID
     #   open ios/Salareen.xcworkspace → Salareen target → Signing & Capabilities
     #   → Automatically manage signing ON → select Team
-    pnpm run xcode:release              # Release .xcarchive for physical devices
     # Or pass team id explicitly:
     #   DEVELOPMENT_TEAM=ABCDE12345 pnpm run xcode:release
-    # Script passes -allowProvisioningUpdates so Xcode can create profiles.
-    # Then: Xcode → Window → Organizer → Distribute App
+    # The script passes -allowProvisioningUpdates so Xcode can create profiles.
 
-  EAS iOS failure "expo-asset cannot be found": run  pnpm install  after
-  pulling; expo-asset must be a direct dependency (not only transitive via expo).
+  Troubleshoot "expo-asset cannot be found" during archive:
+    run `pnpm install` after pulling; expo-asset must be a direct dependency
+    (not only transitive via expo).
 
-NATIVE PROJECT FILES (offline / custom CI)
+NATIVE PROJECT FILES (regenerating ios/ + android/)
   pnpm run prebuild       # writes apps/mobile/{android,ios}/ (gitignored)
-  # Run this if you need Gradle / Xcode projects to build locally without EAS.
+  # Run this if you need to regenerate the Gradle / Xcode projects.
   pnpm run native:prebuild:android  # Android-only clean prebuild + Gradle patch
   pnpm run native:build:android     # local Android debug APK build
   The Android prebuild command patches the generated Gradle wrapper to download
@@ -465,7 +472,6 @@ WHAT'S HERE
   src/screens/NotificationsScreen.tsx  alerts inbox (server feed, mark-read, deep-link)
   src/screens/SettingsScreen.tsx       notification prefs (toggles, hour picker,
                                         permission request, send-test, scheduled count)
-  eas.json                       EAS Build profiles (development/preview/production)
   .npmrc                         forces hoisted node_modules for Metro
 
 LANGUAGES (i18n)

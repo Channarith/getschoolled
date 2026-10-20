@@ -247,7 +247,10 @@ mobile-typecheck:
 	cd apps/mobile && pnpm typecheck
 
 # Produce production JS bundles for iOS + Android (apps/mobile/dist).
-# Native binaries (.apk/.aab/.ipa) build via EAS - see apps/mobile/RUN.txt.
+# Native binaries (.apk/.aab/.ipa) build locally via Gradle/Xcode:
+#   cd apps/mobile && pnpm run native:build:android:release
+#   cd apps/mobile && pnpm run xcode:release && open ios/build/Salareen.xcarchive
+# See apps/mobile/RUN.txt and .cursor/rules/no-eas-build-mobile.mdc.
 mobile-build: mobile-typecheck
 	cd apps/mobile && bash scripts/mobile-export.sh ios android
 

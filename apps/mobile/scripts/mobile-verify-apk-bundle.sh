@@ -62,8 +62,9 @@ case "$STATUS" in
     echo "This APK will crash on a device with 'Unable to load script' because it" >&2
     echo "expects a running Metro dev server. Causes + fixes:" >&2
     echo "  - You built a DEBUG apk (assembleDebug / 'expo run:android'). For a" >&2
-    echo "    standalone device build use: npm run native:build:android:release" >&2
-    echo "    (assembleRelease embeds the bundle), or an EAS preview/production build." >&2
+    echo "    standalone device build use: pnpm run native:build:android:release" >&2
+    echo "    (assembleRelease embeds the bundle). Salareen mobile builds natively —" >&2
+    echo "    see .cursor/rules/no-eas-build-mobile.mdc; do NOT fall back to EAS." >&2
     echo "  - If you intend to run the debug build WITH Metro on a USB device, run:" >&2
     echo "    adb reverse tcp:8081 tcp:8081   (then start Metro: npm run dev:android)" >&2
     exit 1

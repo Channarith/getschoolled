@@ -23,18 +23,28 @@ Checks
   pnpm test               # Jest (make mobile-test path via make test)
   pnpm run export         # static JS bundle export (make mobile-build)
 
-Native / EAS builds
+Native builds (local only — no cloud pipeline)
+  Salareen mobile is built on the operator's Mac. See
+  .cursor/rules/no-eas-build-mobile.mdc; do NOT suggest `eas build` or
+  `expo publish`.
+
   Android DEBUG (dev): pnpm run native:build:android  -> assembleDebug. Needs a
     reachable Metro (dev server); a standalone install shows the red "Unable to
     load script / index.android.bundle" screen. Use for live-reload development.
   Android PRODUCTION/RELEASE (standalone, local): pnpm run native:build:android:release
     -> fresh `gradle clean assembleRelease` with the JS bundle EMBEDDED (no Metro,
     backend pinned to cloud), verified by mobile-verify-apk-bundle.sh, published to
-    dist/android/salareen-<version>-<versionCode>-release.apk. This is the
-    "just works on any device" build (the Android equivalent of the iOS TestFlight
-    build). Install: adb install -r dist/android/salareen-*-release.apk
-  EAS profiles: development (dev client, needs Metro), preview (release APK,
-    standalone), production (app bundle / IPA).
+    dist/android/salareen-<version>-<versionCode>-release.apk (plus .aab for the
+    Play Console). This is the "just works on any device" build.
+    Install: adb install -r dist/android/salareen-*-release.apk
+    Play Console: upload the .aab manually to the Internal testing track.
+  iOS RELEASE (standalone, local): pnpm run xcode:release  -> Release .xcarchive
+    at ios/build/Salareen.xcarchive. Then:
+      open ios/build/Salareen.xcarchive
+    and in Xcode: Window -> Organizer -> Distribute App ->
+      App Store Connect -> TestFlight     (or Ad Hoc / Development).
 
 See also: apps/mobile/RUN.txt (full setup/run/debug), README.md
-("Mobile app on macOS"), .cursor/rules/mobile-eas-build.mdc.
+("Mobile app on macOS"), .cursor/rules/no-eas-build-mobile.mdc (authoritative
+native build policy), .cursor/rules/mobile-eas-build.mdc (legacy
+plugin/metro notes retained for Metro + plugin troubleshooting).

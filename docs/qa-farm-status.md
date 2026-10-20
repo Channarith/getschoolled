@@ -17,7 +17,7 @@ and running" view.
 | Mobile contract test (K-API-1) | ✅ live in the python CI job | **Every PR + push** (inside `ci.yml`) | ✅ **Yes** — part of `ci.yml`, blocks automerge | — already gating | **59** parametrized cases (58 endpoints + manifest) |
 | Mobile bundle-secret-scan (B-SEC-1) | ✅ passing in real CI | Nightly + dispatch (`mobile-e2e`) | ❌ No — non-blocking | Keep nightly (needs a prod export); PR-side regression already guarded by `config.test.ts` | **1** scan gate (4 credential patterns) |
 | Mobile Maestro — seeded backend + plumbing | ✅ proven on the runner | Nightly + dispatch | ❌ No | n/a — infra for the Maestro legs | — (infra) |
-| **Mobile Maestro — Android APK build** | 🟡 wired via EAS + merged (#283) → blocked on Expo quota, then verify | Nightly + dispatch | ❌ No | Fix Expo quota → verify green → then promote | **2** Maestro flows (`auth-login`, `drive-mode-happy`) |
+| **Mobile Maestro — Android APK build** | 🔴 retired — Salareen mobile builds natively (`pnpm run native:build:android:release`); the cloud build wiring (#283) is deprecated per `.cursor/rules/no-eas-build-mobile.mdc` | n/a | ❌ No | Rewire Maestro off a locally-built APK if we want it back | **2** Maestro flows (`auth-login`, `drive-mode-happy`) |
 | Mobile Maestro — iOS | ⏸️ **skipped** (wiring in place; needs a seeded backend) | Nightly + dispatch (when enabled) | ❌ No | Provide a seeded non-prod backend + set `MOBILE_E2E_IOS=true` | **2** Maestro flows (shared with Android) |
 | web-e2e compose build | ✅ fixed (#233) | Nightly + dispatch (part of `web-e2e`) | ❌ No | n/a — infra; promotes with `web-e2e` | — (infra) |
 
@@ -50,13 +50,14 @@ Ordered by readiness (green + stable first):
 
 ## Open items (both are infra/account, not code)
 
-1. **Android Maestro — Expo build quota.** The EAS Android build wiring is merged (#283)
-   but the build itself failed on first dispatch (~1 min) with a billing/quota warning on
-   the `cvanthin978` Expo account. Everything up to the cloud build works (auth, config
-   resolution, keystore, upload, submission). Resolve at
-   https://expo.dev/accounts/cvanthin978/settings/billing, then re-run `mobile-e2e`. The
-   first real run will likely need a verify/tidy pass (APK download parsing, `adb install`,
-   and **Maestro selector drift** vs the newer 0.19 UI).
+1. **Android Maestro — needs a locally-built release APK.** The old cloud-build
+   wiring (#283) is retired; Salareen mobile now builds natively via
+   `cd apps/mobile && pnpm run native:build:android:release`, which drops an APK
+   under `apps/mobile/dist/android/`. To re-enable the Maestro leg: have the
+   runner (or the operator ahead of a run) build that APK locally, then point
+   the Maestro job at the artifact instead of expecting a cloud build. The
+   Maestro flows themselves still live under `apps/mobile/.maestro/`. See
+   `.cursor/rules/no-eas-build-mobile.mdc` for the native-only build policy.
 2. **iOS Maestro — needs a reachable backend.** The iOS Simulator only runs on a macOS
    runner, and macOS runners **can't run Linux Docker**, so there's no local seeded backend
    there. The wiring is done (job gated behind `vars.MOBILE_E2E_IOS` + `MOBILE_E2E_CLOUD_URL`).

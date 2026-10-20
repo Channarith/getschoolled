@@ -6,7 +6,8 @@
 //                                  alerts for items that should pop later.
 //
 // All scheduling is LOCAL - no remote push server is required for the demo.
-// EAS Build with the right entitlements is enough for production push later.
+// A native release build (Gradle / Xcode) with the right entitlements is enough
+// for production push later. See .cursor/rules/no-eas-build-mobile.mdc.
 
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";

@@ -10,7 +10,7 @@ type BannerModule = typeof import("react-native-google-mobile-ads");
 let adsModule: BannerModule | null = null;
 if (Platform.OS !== "web") {
   try {
-    // Native module — requires dev client / EAS build (not Expo Go).
+    // Native module — requires a dev client or native release build (not Expo Go).
     // Metro also stubs this package on web via metro.config.js.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     adsModule = require("react-native-google-mobile-ads") as BannerModule;

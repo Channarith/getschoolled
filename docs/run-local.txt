@@ -71,8 +71,10 @@ Sentry/OTel) turn on automatically when their API keys are present.
 4. MOBILE APP (Android + iOS)
 -----------------------------------------------------------------------------
   cd apps/mobile && make -C ../.. mobile-setup     # or: bash scripts/mobile-setup.sh
-  See apps/mobile/RUN.txt for emulator/EAS build steps. Point the app at your
-  Mac's LAN IP (app.json -> expo.extra.curriculumUrl) so a phone can reach it.
+  See apps/mobile/RUN.txt for emulator steps and native release builds
+  (Gradle + Xcode; no cloud pipeline — see .cursor/rules/no-eas-build-mobile.mdc).
+  Point the app at your Mac's LAN IP (app.json -> expo.extra.curriculumUrl) so
+  a phone can reach it.
 
 -----------------------------------------------------------------------------
 5. DOCKER (optional, full containerized stack)
