@@ -8,9 +8,14 @@ The synthetic bench does not need a camera. Live capture does.
 Tools you can use
 -----------------
 This lab (browser, port 8020)
-  The camera stays on. Color and depth are large and aligned. Image controls
-  (exposure, white balance, CLAHE, sharpen) and depth controls (preset, laser,
-  hole fill, near/far) sit under the pictures. Ask and enroll use the live frame.
+  The camera stays on. Color and depth are large and aligned. Object boxes
+  are drawn for both cameras: depth when the frame has it, color when it does
+  not, so an OAK-D Lite without stereo still detects objects. Freeze the color
+  image, click a box, and name it. The lab then saves crops from new angles
+  under output/object3d/samples/<label>/ until that object leaves the frame.
+  Train them later with scripts/object3d_train.py. Image controls (exposure,
+  white balance, CLAHE, sharpen) and depth controls (preset, laser, hole fill,
+  near/far) sit under the pictures. Ask and enroll use the live frame.
   Command:
     PYTHONPATH=subrepos/theodore_object3d_lab/src:packages/shared/src \
       python3 -m uvicorn theodore_object3d_lab.main:app --port 8020 --host 127.0.0.1
@@ -79,6 +84,11 @@ API
   POST /api/object3d/live/stop
   POST /api/object3d/live/controls {brightness, laser, clahe, preset, ...}
   POST /api/object3d/live/reset
+  POST /api/object3d/live/freeze {frozen}
+  POST /api/object3d/live/pick   {x, y}   normalized 0..1 on the color frame
+  POST /api/object3d/live/select {index}
+  POST /api/object3d/live/label  {label, index, maker, year, celsius, smell, texture}
+  POST /api/object3d/live/capture/stop
   POST /api/object3d/capture     {camera, detector, question}
   POST /api/object3d/ask         {question, sign, target}
   POST /api/object3d/enroll      {label, maker, year, celsius, smell, texture, camera, detector}
@@ -87,3 +97,8 @@ Enroll with an empty camera uses the synthetic frame. Enroll with
 camera=realsense uses the live nearest object. The gallery lasts for the
 lab process. Heat, smell, and touch stay empty until a reading is enrolled
 or a sensor bundle is attached.
+
+Label and capture angles writes PNG crops for later training. Auto detection
+uses depth on the RealSense. On the OAK-D it uses depth when stereo returns
+objects, and color when the link has no depth. Capture samples the live video
+from the camera fps and stops after about a second with the object gone.

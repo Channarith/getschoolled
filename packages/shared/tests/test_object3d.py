@@ -9,7 +9,10 @@ from pathlib import Path
 import numpy as np
 
 from aoep_shared.object3d.ask import answer_about, intent_of
+from aoep_shared.object3d.collect import AngleCapture
 from aoep_shared.object3d.depth import depth_detections, distance_m
+from aoep_shared.object3d.detect import color_detections, detect
+from aoep_shared.object3d.pipeline import crop_rgb, observe_for_camera
 from aoep_shared.object3d.embed import EMBED_DIM, embed_rgb
 from aoep_shared.object3d.gallery import ObjectGallery
 from aoep_shared.object3d.pipeline import observe
@@ -268,6 +271,85 @@ def test_old_gallery_without_sensor_fields_still_loads(tmp_path: Path):
     assert hit.label == "mug"
     assert hit.heat_c is None
     assert hit.smell == ""
+
+
+def _blocks() -> np.ndarray:
+    image = np.full((80, 100, 3), 180, dtype=np.uint8)
+    image[12:42, 8:38] = (220, 30, 30)
+    image[12:48, 62:94] = (30, 40, 220)
+    return image
+
+
+def test_color_detector_finds_objects_without_depth():
+    found = color_detections(_blocks())
+    assert len(found) == 2
+    assert {det.source for det in found} == {"color"}
+    flat = np.full((80, 100, 3), 180, dtype=np.uint8)
+    assert color_detections(flat) == []
+
+
+def test_auto_uses_color_when_the_frame_has_no_depth(monkeypatch):
+    class _Silent:
+        def available(self):
+            return False
+
+        def detect(self, _rgb):
+            return []
+
+    monkeypatch.setattr("aoep_shared.object3d.detect.coco_detector", lambda: _Silent())
+    frame = Frame(rgb=_blocks(), depth=None, camera="oak")
+    found = detect(frame, "auto")
+    assert len(found) == 2
+    assert all(det.source == "color" for det in found)
+
+
+def test_both_cameras_get_boxes():
+    oak = Frame(rgb=_blocks(), depth=None, camera="oak")
+    colored = observe_for_camera(oak, ObjectGallery(), detector="auto")
+    assert colored
+    assert all(obs.source == "color" for obs in colored)
+
+    image = _blocks()
+    depth = np.zeros(image.shape[:2], dtype=np.uint16)
+    depth[12:42, 8:38] = 1500
+    depth[12:48, 62:94] = 800
+    real = Frame(rgb=image, depth=depth, depth_scale=0.001, camera="realsense")
+    measured = observe_for_camera(real, ObjectGallery(), detector="auto")
+    assert measured
+    assert all(obs.source == "depth" for obs in measured)
+
+
+def test_angle_capture_saves_a_new_view_then_stops_when_the_object_leaves(tmp_path: Path):
+    image = _blocks()
+    frame = Frame(rgb=image, depth=None, camera="oak")
+    found = observe_for_camera(frame, ObjectGallery(), detector="color")
+    red = min(found, key=lambda obs: obs.bbox[0])
+    job = AngleCapture.begin(
+        tmp_path, "red block", crop_rgb(image, red.bbox), red.bbox, now=0.0, camera="oak",
+    )
+    assert job.saved == 1
+    assert (tmp_path / "red block" / "0001.png").is_file()
+    assert (tmp_path / "red block" / "0001.png").read_bytes().startswith(b"\x89PNG")
+
+    assert job.step(frame, found, now=0.2, fps=8) is not None
+    held = job.step(frame, found, now=2.0, fps=8)
+    assert held is not None
+    assert job.saved == 1
+
+    turned = image.copy()
+    turned[12:42, 8:38] = (20, 180, 40)
+    turned[12:18, 8:38] = (250, 230, 40)
+    frame2 = Frame(rgb=turned, depth=None, camera="oak")
+    found2 = observe_for_camera(frame2, ObjectGallery(), detector="color")
+    assert job.step(frame2, found2, now=3.0, fps=8) is not None
+    assert job.saved == 2
+
+    blank = Frame(rgb=np.full_like(image, 180), depth=None, camera="oak")
+    for tick in range(8):
+        job.step(blank, [], now=4.0 + tick, fps=8)
+    assert job.active is False
+    assert job.reason == "object left the frame"
+    assert job.saved == 2
 
 
 def test_empty_training_queue_is_a_noop():

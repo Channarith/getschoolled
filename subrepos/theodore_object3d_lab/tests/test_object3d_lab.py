@@ -67,6 +67,59 @@ def test_enroll_synthetic_then_ask_who_made_it():
     assert "away" in far.json()["answer"]
 
 
+def test_freeze_click_label_then_stop_when_the_object_leaves(tmp_path):
+    import numpy as np
+
+    from aoep_shared.object3d.types import Frame
+    from theodore_object3d_lab.main import _live
+
+    image = np.full((80, 100, 3), 180, dtype=np.uint8)
+    image[12:42, 8:38] = (220, 30, 30)
+    image[12:48, 62:94] = (30, 40, 220)
+    hub = _live()
+    hub.samples_root = tmp_path
+    hub.capture = None
+    hub.frozen = False
+    hub.selected = None
+    hub.controls.detector = "auto"
+    hub._publish(Frame(rgb=image, depth=None, camera="oak"), detect=True)
+
+    client = TestClient(app)
+    page = client.get("/lab")
+    assert "Label and capture angles" in page.text
+    assert "Freeze frame" in page.text
+
+    status = client.get("/api/object3d/live/status").json()
+    assert status["observations"]
+    assert all(row["source"] == "color" for row in status["observations"])
+    held = client.post("/api/object3d/live/freeze", json={"frozen": True})
+    assert held.json()["frozen"] is True
+
+    box = status["observations"][0]["bbox"]
+    height, width = image.shape[:2]
+    picked = client.post("/api/object3d/live/pick", json={
+        "x": (box[0] + box[2] / 2) / width,
+        "y": (box[1] + box[3] / 2) / height,
+    })
+    assert picked.json()["ok"] is True
+    labeled = client.post("/api/object3d/live/label", json={"label": "red block", "index": picked.json()["index"]})
+    assert labeled.status_code == 200
+    body = labeled.json()
+    assert body["ok"] is True
+    assert body["capture"]["saved"] == 1
+    assert body["capture"]["active"] is True
+    assert body["frozen"] is False
+    assert (tmp_path / "red block" / "0001.png").is_file()
+
+    blank = np.full_like(image, 180)
+    for _ in range(16):
+        hub._publish(Frame(rgb=blank, depth=None, camera="oak"), detect=True)
+    done = client.get("/api/object3d/live/status").json()["capture"]
+    assert done["active"] is False
+    assert done["reason"] == "object left the frame"
+    assert done["saved"] == 1
+
+
 def test_unknown_camera_is_a_reported_error():
     client = TestClient(app)
     captured = client.post("/api/object3d/capture", json={"camera": "no-such-camera"})

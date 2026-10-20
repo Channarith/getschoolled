@@ -1,10 +1,15 @@
-"""Object detectors: metric depth blobs, and COCO when torchvision is present."""
+"""Object detectors: color blobs, metric depth, and COCO when torchvision is present.
+
+Color blobs do not need a depth map, so an OAK-D Lite on a link with no stereo
+still gets boxes. Depth remains the RealSense path. COCO adds class names when
+its weights are already available.
+"""
 
 from __future__ import annotations
 
 import numpy as np
 
-from .depth import align_depth, depth_detections
+from .depth import _components, align_depth, depth_detections
 from .taxonomy import kind_for
 from .types import Detection, Frame
 
@@ -97,13 +102,85 @@ def coco_detector() -> CocoDetector:
     return _COCO
 
 
+def color_detections(
+    rgb: np.ndarray,
+    *,
+    max_side: int = 160,
+    limit: int = 8,
+) -> list[Detection]:
+    """Boxes around regions that differ from the border color.
+
+    No weights and no depth. Two surfaces of different colors stay separate
+    even when they touch, because the mask is binned by color.
+    """
+    image = np.asarray(rgb)
+    if image.ndim != 3 or image.shape[2] < 3 or image.size == 0:
+        return []
+    height, width = int(image.shape[0]), int(image.shape[1])
+    if height < 8 or width < 8:
+        return []
+    step = max(1, int(max(height, width) / max_side))
+    small = image[::step, ::step, :3].astype(np.float32)
+    sh, sw = small.shape[:2]
+    ring = max(1, int(round(min(sh, sw) * 0.08)))
+    border = np.concatenate([
+        small[:ring].reshape(-1, 3),
+        small[-ring:].reshape(-1, 3),
+        small[:, :ring].reshape(-1, 3),
+        small[:, -ring:].reshape(-1, 3),
+    ])
+    background = np.median(border, axis=0)
+    distance = np.linalg.norm(small - background, axis=2)
+    median = float(np.median(distance))
+    mad = float(np.median(np.abs(distance - median)))
+    thresh = max(28.0, median + 3.0 * max(mad, 1e-3))
+    mask = distance > thresh
+    if int(mask.sum()) < 12:
+        return []
+    quantized = (small // 64).astype(np.int32)
+    code = quantized[:, :, 0] * 16 + quantized[:, :, 1] * 4 + quantized[:, :, 2] + 1
+    band = np.where(mask, code, 0).astype(np.int32)
+    min_cells = max(12, int(0.003 * sh * sw))
+    frame_area = float(height * width)
+    found: list[tuple[float, Detection]] = []
+    for x, y, w, h in _components(band, min_cells):
+        bbox = (
+            int(x * step),
+            int(y * step),
+            max(1, int(w * step)),
+            max(1, int(h * step)),
+        )
+        if bbox[2] < 4 or bbox[3] < 4:
+            continue
+        if bbox[2] * bbox[3] > 0.7 * frame_area:
+            continue
+        x0 = max(0, min(sw - 1, x))
+        y0 = max(0, min(sh - 1, y))
+        x1 = max(x0 + 1, min(sw, x + w))
+        y1 = max(y0 + 1, min(sh, y + h))
+        score = float(np.mean(distance[y0:y1, x0:x1]))
+        found.append((score, Detection(
+            label="object",
+            score=round(min(1.0, score / 80.0), 3),
+            bbox=bbox,
+            kind=kind_for("object"),
+            source="color",
+        )))
+    found.sort(key=lambda item: item[0], reverse=True)
+    return [det for _, det in found[:limit]]
+
+
 def detect(frame: Frame, mode: str = "auto") -> list[Detection]:
     """Find objects in ``frame``.
 
-    ``auto`` uses COCO when the weights load, and always adds depth blobs that
-    are not already inside a COCO box. ``depth`` and ``coco`` force one path.
+    ``color`` uses the picture alone. ``depth`` uses the depth map. ``coco``
+    uses SSDLite when torchvision is installed. ``auto`` uses COCO names when
+    that model loads, then depth blobs outside those boxes, then color when
+    neither path found anything.
     """
     mode = (mode or "auto").casefold()
+    if mode == "color":
+        return color_detections(frame.rgb)
     coco: list[Detection] = []
     if mode in ("auto", "coco"):
         detector = coco_detector()
@@ -128,4 +205,7 @@ def detect(frame: Frame, mode: str = "auto") -> list[Detection]:
         return blobs
     if mode == "coco":
         return coco
-    return coco + blobs
+    found = coco + blobs
+    if found:
+        return found
+    return color_detections(frame.rgb)

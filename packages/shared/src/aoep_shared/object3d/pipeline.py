@@ -24,6 +24,36 @@ def crop_rgb(rgb: np.ndarray, bbox: tuple[int, int, int, int]) -> np.ndarray:
     return rgb[y0:y1, x0:x1]
 
 
+def _box_area(obs: Observation) -> int:
+    return max(0, int(obs.bbox[2])) * max(0, int(obs.bbox[3]))
+
+
+def observe_for_camera(
+    frame: Frame,
+    gallery: ObjectGallery,
+    *,
+    detector: str = "auto",
+    identify_threshold: float = 0.75,
+) -> list[Observation]:
+    """Detections for a live camera, including an OAK-D with no stereo depth.
+
+    ``auto`` keeps depth boxes when they are real objects. A missing depth map,
+    an empty depth map, or one blob that covers the whole room falls through to
+    color, so both cameras draw boxes. ``depth``, ``color``, and ``coco`` force
+    one path and do not load COCO unless that path is selected.
+    """
+    mode = (detector or "auto").casefold()
+    if mode != "auto":
+        return observe(frame, gallery, detector=mode, identify_threshold=identify_threshold)
+    if frame.depth is not None:
+        found = observe(frame, gallery, detector="depth", identify_threshold=identify_threshold)
+        height, width = frame.rgb.shape[:2]
+        limit = 0.72 * float(height * width)
+        if any(_box_area(obs) < limit for obs in found):
+            return found
+    return observe(frame, gallery, detector="color", identify_threshold=identify_threshold)
+
+
 def observe(
     frame: Frame,
     gallery: ObjectGallery,

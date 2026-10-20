@@ -37,9 +37,9 @@ def add_camera_arg(parser: argparse.ArgumentParser) -> None:
 def add_detector_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--detector",
-        choices=("auto", "coco", "depth"),
+        choices=("auto", "coco", "depth", "color"),
         default="auto",
-        help="auto uses COCO names plus depth blobs",
+        help="auto uses COCO when it loads, then depth, then color",
     )
 
 

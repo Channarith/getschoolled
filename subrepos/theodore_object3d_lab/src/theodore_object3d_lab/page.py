@@ -55,7 +55,7 @@ def _html(image: str, depth: str) -> str:
   <header>
     <div>
       <h1>Theodore Object3D Lab</h1>
-      <p>The camera stays on. Color is aligned with depth. Blue on the depth map is near, red is far, and a dim photo shows where the camera measured nothing.</p>
+      <p>The camera stays on. Both cameras draw object boxes: depth when the picture has it, color when it does not. Freeze the color image, click a box, and name it. New angles are saved until that object leaves the frame.</p>
     </div>
     <div class="toolbar">
       <label>Camera
@@ -73,8 +73,9 @@ def _html(image: str, depth: str) -> str:
       </label>
       <label>Detector
         <select data-control="detector" id="detector">
-          <option value="depth" selected>Depth</option>
-          <option value="auto">Depth + COCO</option>
+          <option value="auto" selected>Auto</option>
+          <option value="depth">Depth</option>
+          <option value="color">Color</option>
           <option value="coco">COCO</option>
         </select>
       </label>
@@ -89,10 +90,10 @@ def _html(image: str, depth: str) -> str:
       <span class="pill" id="chip-usb"></span>
     </div>
   </header>
-  <div class="stage">
+  <div class="stage" id="stage">
     <figure>
       <img id="color" alt="Live color" />
-      <figcaption><span>Color</span><span id="color-cap">Contrast-adjusted preview. Recognition uses the camera frame.</span></figcaption>
+      <figcaption><span>Color</span><span id="color-cap">Freeze, then click an object box.</span></figcaption>
     </figure>
     <figure>
       <img id="depth" alt="Live depth" />
@@ -122,6 +123,13 @@ def _html(image: str, depth: str) -> str:
       <div class="row">
         <input id="sign" type="text" placeholder="sign text" />
         <input id="target" type="text" value="en" />
+      </div>
+      <h2>Label for training</h2>
+      <p class="hint" id="capture-note">Freeze the color image, click a box, and name it. Angles are saved until that object leaves the frame.</p>
+      <div class="row">
+        <button id="btn-freeze" type="button">Freeze frame</button>
+        <button class="primary" id="btn-capture" type="button">Label and capture angles</button>
+        <button id="btn-capture-stop" type="button">Stop capture</button>
       </div>
       <h2>Enroll</h2>
       <div class="row">
@@ -166,14 +174,16 @@ _CSS = """
   .stage { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; padding:.75rem 1.25rem 0; }
   @media (max-width:900px){ .stage, .controls { grid-template-columns:1fr; } }
   .stage figure { margin:0; background:#061014; border:1px solid var(--line); border-radius:16px; overflow:hidden; }
-  .stage img { width:100%; aspect-ratio:4/3; object-fit:contain; background:#061014; display:block; }
+  .stage img { width:100%; aspect-ratio:4/3; object-fit:contain; background:#061014; display:block; cursor:crosshair; }
+  .stage.frozen figure:first-child { outline:2px solid var(--accent); outline-offset:2px; }
   .stage figcaption { display:flex; justify-content:space-between; gap:.75rem; padding:.45rem .75rem .7rem;
     color:var(--muted); font-size:.78rem; }
   .stage figcaption span:last-child { text-align:right; }
   .answer { margin:.75rem 1.25rem 0; padding:.85rem 1rem; border-radius:14px; background:#10242c;
     border:1px solid var(--line); font-size:1.15rem; min-height:3.2rem; }
   .objects { display:flex; flex-wrap:wrap; gap:.4rem; padding:.55rem 1.25rem 0; }
-  .obj { border:1px solid #2d6a74; border-radius:999px; padding:.2rem .65rem; color:#d5f4f2; font-size:.82rem; }
+  .obj { border:1px solid #2d6a74; border-radius:999px; padding:.2rem .65rem; color:#d5f4f2; font-size:.82rem; cursor:pointer; }
+  .obj.picked { border-color:var(--accent); color:#fff; }
   .controls { display:grid; grid-template-columns:1.1fr 1.1fr .9fr; gap:.75rem; padding:.75rem 1.25rem 1rem; }
   .panel { background:color-mix(in srgb, var(--panel) 92%, black); border:1px solid var(--line); border-radius:16px; padding:.85rem 1rem 1rem; }
   .panel h2 { margin:0 0 .35rem; font-size:1rem; color:var(--accent); }
@@ -200,6 +210,8 @@ let controlTimer = 0;
 let restartLive = false;
 let lastSeq = -1;
 let silence = false;
+let frozen = false;
+let selectedIndex = null;
 
 function payload() {
   const body = {};
@@ -241,16 +253,62 @@ function setLiveButton() {
   const button = document.getElementById("btn-live");
   button.textContent = liveOn ? "Stop live" : "Start live";
 }
+function showFrames() {
+  const n = Date.now();
+  document.getElementById("color").src = "/api/object3d/live/frame.jpg?view=color&n=" + n;
+  document.getElementById("depth").src = "/api/object3d/live/frame.jpg?view=depth&n=" + n;
+}
 function armImages() {
-  if (imageTimer) return;
-  const paint = () => {
-    if (!liveOn) return;
-    const n = Date.now();
-    document.getElementById("color").src = "/api/object3d/live/frame.jpg?view=color&n=" + n;
-    document.getElementById("depth").src = "/api/object3d/live/frame.jpg?view=depth&n=" + n;
-  };
-  paint();
-  imageTimer = setInterval(paint, 170);
+  if (imageTimer || frozen) return;
+  showFrames();
+  imageTimer = setInterval(() => {
+    if (!liveOn || frozen) return;
+    showFrames();
+  }, 170);
+}
+function applyHold(isFrozen) {
+  const button = document.getElementById("btn-freeze");
+  button.textContent = isFrozen ? "Resume live" : "Freeze frame";
+  document.getElementById("stage").classList.toggle("frozen", isFrozen);
+  if (frozen === isFrozen) return;
+  frozen = isFrozen;
+  if (isFrozen) {
+    clearInterval(imageTimer);
+    imageTimer = 0;
+    showFrames();
+  } else {
+    selectedIndex = null;
+    armImages();
+  }
+}
+function framePoint(img, event) {
+  const rect = img.getBoundingClientRect();
+  const nw = img.naturalWidth || img.width;
+  const nh = img.naturalHeight || img.height;
+  if (!nw || !nh) return null;
+  const scale = Math.min(rect.width / nw, rect.height / nh);
+  const dw = nw * scale;
+  const dh = nh * scale;
+  const ox = (rect.width - dw) / 2;
+  const oy = (rect.height - dh) / 2;
+  const x = (event.clientX - rect.left - ox) / dw;
+  const y = (event.clientY - rect.top - oy) / dh;
+  if (x < 0 || y < 0 || x > 1 || y > 1) return null;
+  return {x: x, y: y};
+}
+function paintCapture(data) {
+  const note = document.getElementById("capture-note");
+  const cap = (data && data.capture) || {};
+  if (!cap.label) {
+    note.textContent = "Freeze the color image, click a box, and name it. Angles are saved until that object leaves the frame.";
+    return;
+  }
+  if (cap.active) {
+    note.textContent = "Capturing " + cap.label + " · " + cap.saved + " views. Turn it for another angle. Saving stops when it leaves the frame.";
+    return;
+  }
+  const why = cap.reason ? " " + cap.reason + "." : "";
+  note.textContent = cap.saved + " views of " + cap.label + " saved." + why;
 }
 async function post(url, body) {
   const res = await fetch(url, {
@@ -303,10 +361,13 @@ function paintStatus(data) {
   if (stats.scene_near_m != null) bits.push(stats.scene_near_m + "–" + stats.scene_far_m + " m");
   if (stats.hint) bits.push(stats.hint);
   document.getElementById("depth-cap").textContent = bits.join(" · ") || "Waiting for a frame.";
+  if (data.frozen != null) applyHold(!!data.frozen);
+  if (Object.prototype.hasOwnProperty.call(data, "selected")) selectedIndex = data.selected;
   if (data.seq != null && data.seq !== lastSeq) {
     lastSeq = data.seq;
     renderObjects(data.observations || []);
   }
+  paintCapture(data);
 }
 function renderObjects(rows) {
   const host = document.getElementById("objects");
@@ -318,13 +379,29 @@ function renderObjects(rows) {
     host.appendChild(empty);
     return;
   }
-  rows.slice(0, 6).forEach((obs) => {
+  rows.slice(0, 6).forEach((obs, index) => {
     const card = document.createElement("div");
-    card.className = "obj";
+    card.className = "obj" + (index === selectedIndex ? " picked" : "");
     const dist = obs.distance_m == null ? "no depth" : Number(obs.distance_m).toFixed(2) + " m";
-    card.textContent = (obs.name || obs.label || "object") + " · " + dist + " · " + (obs.kind || "");
+    const how = obs.source || obs.kind || "";
+    card.textContent = (obs.name || obs.label || "object") + " · " + dist + " · " + how;
+    card.onclick = () => selectObject(index, obs);
     host.appendChild(card);
   });
+}
+async function selectObject(index, obs) {
+  const data = await post("/api/object3d/live/select", {index: index});
+  if (!data.ok) {
+    answer.textContent = data.error || "That object is not in this frame.";
+    return;
+  }
+  selectedIndex = data.index;
+  applyHold(true);
+  if (obs && obs.label && obs.label !== "object") {
+    document.getElementById("label").value = obs.label;
+  }
+  renderObjects(data.observations || []);
+  answer.textContent = "Selected " + (data.name || data.label || "object") + ". Name it, then capture angles.";
 }
 async function pollStatus() {
   try {
@@ -406,6 +483,63 @@ function enroll(camera) {
     if (data.observations) renderObjects(data.observations);
   });
 }
+document.getElementById("color").onclick = async (event) => {
+  const point = framePoint(event.currentTarget, event);
+  if (!point) return;
+  if (!frozen) {
+    const held = await post("/api/object3d/live/freeze", {frozen: true});
+    applyHold(!!held.frozen);
+    answer.textContent = "Frame held. Click the object box.";
+    return;
+  }
+  const data = await post("/api/object3d/live/pick", point);
+  if (!data.ok) {
+    answer.textContent = data.error || "Click an object box.";
+    return;
+  }
+  selectedIndex = data.index;
+  if (data.label && data.label !== "object") document.getElementById("label").value = data.label;
+  showFrames();
+  renderObjects(data.observations || []);
+  answer.textContent = "Selected " + (data.name || data.label || "object") + ". Name it, then capture angles.";
+};
+document.getElementById("btn-freeze").onclick = async () => {
+  const data = await post("/api/object3d/live/freeze", {frozen: !frozen});
+  applyHold(!!data.frozen);
+  answer.textContent = data.frozen ? "Frame held. Click an object on the color image." : "Live.";
+};
+document.getElementById("btn-capture").onclick = async () => {
+  const label = document.getElementById("label").value.trim();
+  if (!label) {
+    answer.textContent = "Type a label first.";
+    return;
+  }
+  const year = document.getElementById("year").value;
+  const celsius = document.getElementById("celsius").value;
+  const data = await post("/api/object3d/live/label", {
+    label: label,
+    index: selectedIndex,
+    maker: document.getElementById("maker").value,
+    year: year ? Number(year) : 0,
+    celsius: celsius === "" ? null : Number(celsius),
+    smell: document.getElementById("smell").value,
+    texture: document.getElementById("texture").value
+  });
+  if (!data.ok) {
+    answer.textContent = data.error || "Could not save that label.";
+    return;
+  }
+  applyHold(false);
+  paintCapture(data);
+  answer.textContent = "Saving angles of " + data.capture.label + ". Turn it, then take it out of the frame to stop.";
+};
+document.getElementById("btn-capture-stop").onclick = async () => {
+  const data = await post("/api/object3d/live/capture/stop", {});
+  paintCapture(data);
+  answer.textContent = data.capture && data.capture.saved
+    ? data.capture.saved + " views saved."
+    : "Capture stopped.";
+};
 document.getElementById("btn-enroll").onclick = () => enroll(document.getElementById("camera").value);
 document.getElementById("btn-enroll-synth").onclick = () => enroll("");
 syncDisabled();

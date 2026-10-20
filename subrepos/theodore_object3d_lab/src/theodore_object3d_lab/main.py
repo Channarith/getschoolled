@@ -20,7 +20,7 @@ from aoep_shared.live_audio_agents import inject_client, install_live_audio_rout
 from aoep_shared.object3d.ask import answer_about
 from aoep_shared.object3d.capture import capture
 from aoep_shared.object3d.gallery import ObjectGallery
-from aoep_shared.object3d.pipeline import crop_rgb, observe
+from aoep_shared.object3d.pipeline import crop_rgb, observe, observe_for_camera
 from aoep_shared.object3d.sensors import HeatReading, SensorBundle, SmellReading, TouchReading
 from aoep_shared.object3d.train import train_samples_blocking
 from aoep_shared.object3d.types import Frame, TrainSample
@@ -54,7 +54,7 @@ def _live() -> LiveHub:
     app.state.live = hub
 
     def _observe(frame: Frame):
-        return observe(frame, _gallery(), detector=hub.controls.detector)
+        return observe_for_camera(frame, _gallery(), detector=hub.controls.detector)
 
     hub.observe = _observe
     return hub
@@ -93,6 +93,29 @@ class AskRequest(BaseModel):
     question: str = "how far is it?"
     sign: str = ""
     target: str = "en"
+
+
+class FreezeRequest(BaseModel):
+    frozen: bool = True
+
+
+class PickRequest(BaseModel):
+    x: float
+    y: float
+
+
+class SelectRequest(BaseModel):
+    index: int
+
+
+class LabelCapture(BaseModel):
+    label: str = Field(min_length=1)
+    index: Optional[int] = None
+    maker: str = ""
+    year: int = 0
+    celsius: Optional[float] = None
+    smell: str = ""
+    texture: str = ""
 
 
 class EnrollRequest(BaseModel):
@@ -177,6 +200,41 @@ def live_reset() -> dict[str, Any]:
     return {"ok": True, "controls": hub.controls_dict()}
 
 
+@app.post("/api/object3d/live/freeze")
+def live_freeze(req: FreezeRequest) -> dict[str, Any]:
+    body = _live().set_frozen(req.frozen)
+    body["ok"] = True
+    return body
+
+
+@app.post("/api/object3d/live/pick")
+def live_pick(req: PickRequest) -> dict[str, Any]:
+    return _live().pick(req.x, req.y)
+
+
+@app.post("/api/object3d/live/select")
+def live_select(req: SelectRequest) -> dict[str, Any]:
+    return _live().select_index(req.index)
+
+
+@app.post("/api/object3d/live/label")
+def live_label(req: LabelCapture) -> dict[str, Any]:
+    return _live().label_and_capture(
+        req.label,
+        index=req.index,
+        maker=req.maker,
+        year=req.year,
+        celsius=req.celsius,
+        smell=req.smell,
+        texture=req.texture,
+    )
+
+
+@app.post("/api/object3d/live/capture/stop")
+def live_capture_stop() -> dict[str, Any]:
+    return _live().stop_capture()
+
+
 @app.post("/api/object3d/capture")
 def capture_once(req: CaptureRequest) -> dict[str, Any]:
     try:
@@ -184,7 +242,7 @@ def capture_once(req: CaptureRequest) -> dict[str, Any]:
     except Exception as exc:
         return {"ok": False, "camera": req.camera, "error": str(exc)}
     frame.sensors = SensorBundle()
-    found = observe(frame, _gallery(), detector=req.detector)
+    found = observe_for_camera(frame, _gallery(), detector=req.detector)
     app.state.last = found
     answer = answer_about(req.question, found).text if req.question.strip() else ""
     return {
@@ -203,7 +261,7 @@ def ask(req: AskRequest) -> dict[str, Any]:
     if hub.running and not found:
         frame = hub.frame_copy()
         if frame is not None:
-            found = observe(frame, _gallery(), detector=hub.controls.detector)
+            found = observe_for_camera(frame, _gallery(), detector=hub.controls.detector)
     if not found:
         found = list(getattr(app.state, "last", []) or [])
     if not found:
@@ -230,7 +288,7 @@ def enroll(req: EnrollRequest) -> dict[str, Any]:
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
     frame.sensors = _bundle(req.celsius, req.smell, req.texture)
-    seen = observe(frame, ObjectGallery(), detector=req.detector)
+    seen = observe_for_camera(frame, ObjectGallery(), detector=req.detector)
     if not seen:
         return {"ok": False, "error": "no object to enroll"}
     crop = crop_rgb(frame.rgb, seen[0].bbox)
@@ -245,7 +303,7 @@ def enroll(req: EnrollRequest) -> dict[str, Any]:
         texture=req.texture.strip(),
     )
     report = train_samples_blocking(_gallery(), [sample], workers=1)
-    found = observe(frame, _gallery(), detector=req.detector)
+    found = observe_for_camera(frame, _gallery(), detector=req.detector)
     app.state.last = found
     return {
         "ok": True,

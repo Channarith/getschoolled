@@ -10,7 +10,10 @@ from typing import Any, Optional
 import numpy as np
 
 from aoep_shared.object3d.capture import REALSENSE_MODES, OakSession, RealSenseSession
+from aoep_shared.object3d.cli import DEFAULT_SAMPLES
+from aoep_shared.object3d.collect import AngleCapture
 from aoep_shared.object3d.depth import align_depth
+from aoep_shared.object3d.pipeline import crop_rgb
 from aoep_shared.object3d.types import Frame
 
 from .preview import (
@@ -62,7 +65,7 @@ CONTROL_SPEC: tuple[dict[str, Any], ...] = (
 class LiveControls:
     camera: str = "realsense"
     quality: str = "clear"
-    detector: str = "depth"
+    detector: str = "auto"
     auto_exposure: bool = True
     exposure: float = 170
     gain: float = 64
@@ -149,6 +152,13 @@ class LiveHub:
         self._color = jpeg_bytes(waiting_image("Starting the camera"))
         self._depth = self._color
         self._times: list[float] = []
+        self.frozen = False
+        self.selected: Optional[int] = None
+        self.capture: Optional[AngleCapture] = None
+        self.samples_root = DEFAULT_SAMPLES
+        self._capture_lock = threading.Lock()
+        self._view_color: Optional[np.ndarray] = None
+        self._view_depth: Optional[np.ndarray] = None
 
     def controls_dict(self) -> dict[str, Any]:
         return asdict(self.controls)
@@ -186,6 +196,8 @@ class LiveHub:
                 self._gen += 1
                 self.error = ""
                 self.running = False
+                self.frozen = False
+                self.selected = None
                 self._ready.clear()
             self._thread = threading.Thread(target=self._run, name="object3d-live", daemon=True)
             self._thread.start()
@@ -212,6 +224,9 @@ class LiveHub:
             thread.join(timeout=4)
         self._thread = None
         self.running = False
+        job = self.capture
+        if job is not None and job.active:
+            job.stop("camera stopped")
 
     def status(self) -> dict[str, Any]:
         with self._lock:
@@ -226,9 +241,18 @@ class LiveHub:
                 "error": self.error,
                 "stats": dict(self.stats),
                 "seq": self._seq,
+                "frozen": self.frozen,
+                "selected": self.selected,
                 "observations": [obs.to_dict() for obs in self._observations],
+                "capture": self._capture_status(),
                 "controls": asdict(self.controls),
             }
+
+    def _capture_status(self) -> dict[str, Any]:
+        job = self.capture
+        if job is None:
+            return {"active": False, "label": "", "saved": 0, "reason": "", "folder": ""}
+        return job.status()
 
     def frame_copy(self) -> Optional[Frame]:
         with self._lock:
@@ -250,6 +274,142 @@ class LiveHub:
     def jpeg(self, view: str) -> bytes:
         with self._lock:
             return self._depth if view == "depth" else self._color
+
+    def set_frozen(self, frozen: bool) -> dict[str, Any]:
+        with self._lock:
+            self.frozen = bool(frozen)
+            if not self.frozen:
+                self.selected = None
+        return self.status()
+
+    def pick(self, x: float, y: float) -> dict[str, Any]:
+        if not (0.0 <= float(x) <= 1.0 and 0.0 <= float(y) <= 1.0):
+            return {"ok": False, "error": "click the picture"}
+        with self._lock:
+            frame = self._frame
+            observations = list(self._observations)
+            color = None if self._view_color is None else self._view_color
+            depth_image = None if self._view_depth is None else self._view_depth
+            if frame is None:
+                return {"ok": False, "error": "no frame yet"}
+            self.frozen = True
+            height, width = frame.rgb.shape[:2]
+            index = _hit_index(observations, float(x) * width, float(y) * height)
+            self.selected = index
+        if index is None:
+            body = self.status()
+            body.update({"ok": False, "error": "click an object box"})
+            return body
+        self._repaint(color, depth_image, observations)
+        obs = observations[index]
+        body = self.status()
+        body.update({
+            "ok": True,
+            "index": index,
+            "label": obs.label,
+            "name": obs.name,
+            "bbox": list(obs.bbox),
+        })
+        return body
+
+    def select_index(self, index: int) -> dict[str, Any]:
+        with self._lock:
+            observations = list(self._observations)
+            color = None if self._view_color is None else self._view_color
+            depth_image = None if self._view_depth is None else self._view_depth
+            if index < 0 or index >= len(observations):
+                return {"ok": False, "error": "no object at that index"}
+            self.frozen = True
+            self.selected = int(index)
+        self._repaint(color, depth_image, observations)
+        obs = observations[index]
+        body = self.status()
+        body.update({
+            "ok": True,
+            "index": index,
+            "label": obs.label,
+            "name": obs.name,
+            "bbox": list(obs.bbox),
+        })
+        return body
+
+    def label_and_capture(
+        self,
+        label: str,
+        *,
+        index: Optional[int] = None,
+        maker: str = "",
+        year: int = 0,
+        celsius: Optional[float] = None,
+        smell: str = "",
+        texture: str = "",
+    ) -> dict[str, Any]:
+        with self._lock:
+            frame = self._frame
+            observations = list(self._observations)
+            chosen = self.selected if index is None else index
+        if frame is None:
+            return {"ok": False, "error": "no frame yet"}
+        if not observations:
+            return {"ok": False, "error": "no object to label"}
+        if chosen is None or chosen < 0 or chosen >= len(observations):
+            chosen = 0
+        obs = observations[chosen]
+        try:
+            job = AngleCapture.begin(
+                self.samples_root,
+                label,
+                crop_rgb(frame.rgb, obs.bbox),
+                obs.bbox,
+                now=time.monotonic(),
+                kind=obs.kind,
+                maker=maker,
+                year=year or None,
+                heat_c=celsius,
+                smell=smell,
+                texture=texture,
+                camera=frame.camera,
+            )
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        with self._capture_lock:
+            self.capture = job
+        with self._lock:
+            self.frozen = False
+            self.selected = chosen
+        body = self.status()
+        body["ok"] = True
+        return body
+
+    def stop_capture(self) -> dict[str, Any]:
+        with self._capture_lock:
+            job = self.capture
+            if job is not None and job.active:
+                job.stop("stopped")
+        body = self.status()
+        body["ok"] = True
+        return body
+
+    def _repaint(self, color: Optional[np.ndarray], depth_image: Optional[np.ndarray], observations: list[Any]) -> None:
+        if color is None:
+            return
+        with self._lock:
+            selected = self.selected
+        burned_color, burned_depth = self._burn(
+            color,
+            color if depth_image is None else depth_image,
+            observations,
+            selected,
+        )
+        with self._lock:
+            self._color = jpeg_bytes(burned_color)
+            self._depth = jpeg_bytes(burned_depth)
+
+    def _burn(self, color, depth_image, observations, selected):
+        if self.controls.overlay and observations:
+            color = draw_overlay(color, observations, selected=selected)
+            depth_image = draw_overlay(depth_image, observations, selected=selected)
+        return color, depth_image
 
     def _run(self) -> None:
         gen = self._gen
@@ -283,8 +443,9 @@ class LiveHub:
                     continue
                 misses = 0
                 tick += 1
+                stride = 3 if self.controls.detector == "coco" else 1
                 try:
-                    self._publish(frame, detect=tick % 3 == 0)
+                    self._publish(frame, detect=tick % stride == 0)
                 except Exception:
                     continue
                 self._ready.set()
@@ -397,7 +558,7 @@ class LiveHub:
                 "coverage": 0.0,
                 "scene_near_m": None,
                 "scene_far_m": None,
-                "hint": "OAK stereo depth needs a USB 3 cable. Color is live.",
+                "hint": "No stereo depth on this link. Object boxes come from the color image.",
             }
         else:
             depth_image, stats = colorize_depth(
@@ -409,10 +570,6 @@ class LiveHub:
                 auto_range=controls.auto_range,
                 fill_holes=controls.fill_holes,
             )
-        if controls.overlay and observations:
-            nearest = observations[:4]
-            color = draw_overlay(color, nearest)
-            depth_image = draw_overlay(depth_image, nearest)
         now = time.monotonic()
         self._times.append(now)
         self._times = [stamp for stamp in self._times if now - stamp < 2.0]
@@ -422,10 +579,43 @@ class LiveHub:
             if span > 0:
                 fps = (len(self._times) - 1) / span
         with self._lock:
+            frozen = self.frozen
+        if frozen:
+            with self._lock:
+                self.fps = fps
+                self.stats = stats
+            return
+        selected = None
+        with self._capture_lock:
+            job = self.capture
+            if job is not None and job.active:
+                selected = job.step(frame, observations, now=now, fps=fps)
+        burned_color, burned_depth = self._burn(color, depth_image, observations, selected)
+        with self._lock:
+            if self.frozen:
+                self.fps = fps
+                self.stats = stats
+                return
+            self._view_color = color
+            self._view_depth = depth_image
             self._frame = frame
             self._observations = observations
+            self.selected = selected
             self._seq += 1
-            self._color = jpeg_bytes(color)
-            self._depth = jpeg_bytes(depth_image)
+            self._color = jpeg_bytes(burned_color)
+            self._depth = jpeg_bytes(burned_depth)
             self.stats = stats
             self.fps = fps
+
+
+def _hit_index(observations: list[Any], x: float, y: float) -> Optional[int]:
+    """Smallest box that contains the click, in frame pixels."""
+    inside: list[tuple[float, int]] = []
+    for index, obs in enumerate(observations):
+        bx, by, bw, bh = (float(value) for value in obs.bbox)
+        if bx <= x <= bx + bw and by <= y <= by + bh:
+            inside.append((bw * bh, index))
+    if not inside:
+        return None
+    inside.sort()
+    return inside[0][1]

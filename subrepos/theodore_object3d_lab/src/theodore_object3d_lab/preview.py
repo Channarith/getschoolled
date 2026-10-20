@@ -195,14 +195,20 @@ def _stretch(image: np.ndarray) -> np.ndarray:
     return np.clip((flat - lo) * (255.0 / (hi - lo)), 0, 255).astype(np.uint8)
 
 
-def draw_overlay(rgb: np.ndarray, observations: list[Any]) -> np.ndarray:
+def draw_overlay(
+    rgb: np.ndarray,
+    observations: list[Any],
+    selected: Optional[int] = None,
+) -> np.ndarray:
     cv2 = _cv2()
     if cv2 is None or not observations:
         return rgb
     bgr = cv2.cvtColor(np.ascontiguousarray(rgb), cv2.COLOR_RGB2BGR)
-    for obs in observations:
+    for index, obs in enumerate(observations):
         x, y, w, h = (int(v) for v in obs.bbox)
-        cv2.rectangle(bgr, (x, y), (x + w, y + h), (198, 210, 62), 2)
+        picked = selected is not None and index == selected
+        color = (80, 220, 255) if picked else (198, 210, 62)
+        cv2.rectangle(bgr, (x, y), (x + w, y + h), color, 3 if picked else 2)
         meters = getattr(obs, "distance_m", None)
         name = getattr(obs, "name", None) or getattr(obs, "label", "object")
         text = name if meters is None else f"{name} {float(meters):.2f} m"
