@@ -1,10 +1,10 @@
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
+import { Camera } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Linking,
   Modal,
   ScrollView,
@@ -44,6 +44,7 @@ import {
 } from "../learnerCheck";
 import AnimatedPressable from "./AnimatedPressable";
 import KenBurnsImage from "./KenBurnsImage";
+import LiveFaceCamera, { type LiveFaceCameraHandle } from "./LiveFaceCamera";
 import { useLayoutMetrics } from "../layout";
 
 type Step = "welcome" | "scan" | "voice" | "identity" | "complete";
@@ -70,12 +71,12 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
   welcome: {
     kicker: "Optional · about 1 minute",
     title: "Set up your Salareen Learner Check.",
-    body: "It helps us know it’s really you in accredited courses. Take five quick selfies as the frame asks, then read one sentence out loud. We keep protected templates only, never your photos, audio, or ID images.",
+    body: "It helps us know it’s really you in accredited courses. Look into the live camera, like a video call, and turn when the frame asks. Then read one sentence out loud. We keep protected templates only, never the video, audio, or ID images.",
   },
   scan: {
     kicker: "Face check",
     title: "Look straight at the camera.",
-    body: "Checking distinctive features. Face a window or a lamp so your face is well lit. Face map ready means these looks were captured. The lines guide the photo. They are not proof that nobody else could look similar.",
+    body: "The camera stays on. Turn when the arrow asks. We read your face from the live video, so there is no photo to take.",
   },
   voice: {
     kicker: "Voice check",
@@ -96,15 +97,31 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
 
 type Shot = {
   base64: string;
-  uri: string;
   contour: FaceContour | null;
   frame: [number, number];
   /**
-   * Overlay rings for this preview only. Coordinates are not enrolled and
-   * are dropped when the photo is deleted.
+   * Overlay rings for this preview only. Coordinates are not enrolled.
    */
   marks: FaceMark[];
 };
+
+export type LiveFrameCode = "anchor" | "keep" | "none" | "one" | "center" | "turn";
+
+/** What to do with one live frame. Sideways looks accept either mirror direction. */
+export function liveFrameAction(
+  faceCount: number,
+  centered: boolean,
+  hasAnchor: boolean,
+  target: Pose | null,
+  seen: Pose | null,
+  otherSideways: Pose | null,
+): LiveFrameCode {
+  if (faceCount > 1) return "one";
+  if (faceCount !== 1) return "none";
+  if (!hasAnchor) return centered ? "anchor" : "center";
+  if (!target) return "center";
+  return stillMatchesTarget(target, seen, otherSideways) ? "keep" : "turn";
+}
 
 type Problem = { message: string; settings?: boolean };
 
@@ -202,6 +219,9 @@ export default function BiometricSetupModal({
   const [order, setOrder] = useState<Pose[]>(() => shuffledPoses());
   const [shots, setShots] = useState<Shot[]>([]);
   const [contourNote, setContourNote] = useState("");
+  const [scanHint, setScanHint] = useState("Center your face in the frame.");
+  const [liveContour, setLiveContour] = useState<Shot | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [bars, setBars] = useState<number[]>(() => Array(WAVE_BARS).fill(0));
@@ -240,9 +260,14 @@ export default function BiometricSetupModal({
 
   const shotsRef = useRef<Shot[]>([]);
   shotsRef.current = shots;
+  const orderRef = useRef(order);
+  orderRef.current = order;
+  const cameraRef = useRef<LiveFaceCameraHandle>(null);
+  const readyRef = useRef(false);
+  const savingRef = useRef(false);
+  const genRef = useRef(0);
   useEffect(() => () => {
     void stopRecording();
-    shotsRef.current.forEach((shot) => void discardFile(shot.uri));
   }, [stopRecording]);
 
   async function withBusy(action: () => Promise<void>) {
@@ -258,18 +283,31 @@ export default function BiometricSetupModal({
   }
 
   function resetScan() {
-    shotsRef.current.forEach((shot) => void discardFile(shot.uri));
+    genRef.current += 1;
+    shotsRef.current = [];
     setShots([]);
+    setLiveContour(null);
     setOrder(shuffledPoses());
     setContourNote("");
+    setScanHint("Center your face in the frame.");
     baseRef.current = null;
     seenRef.current = {};
+    savingRef.current = false;
   }
 
   async function begin() {
     await withBusy(async () => {
       await setMobileBiometricConsent(studentId, true, minor ? guardian : false);
+      const permission = await outsideTheSetupWindow(() => Camera.requestCameraPermissionsAsync());
+      if (!permission.granted) {
+        setProblem({
+          message: "Camera access is off for Salareen. Allow the camera in Settings, then try again.",
+          settings: !permission.canAskAgain,
+        });
+        return;
+      }
       resetScan();
+      readyRef.current = false;
       setStep("scan");
     });
   }
@@ -308,70 +346,154 @@ export default function BiometricSetupModal({
     });
   }
 
-  async function capture() {
-    await withBusy(async () => {
-      const asset = await takePhoto(true);
-      if (!asset?.base64) return;
-      const fingerprint = stillFingerprint(asset.base64);
-      if (shots.some((shot) => stillFingerprint(shot.base64) === fingerprint)) {
-        await discardFile(asset.uri);
-        setProblem({ message: "That looks like the same photo as before. Turn as prompted and take a new still." });
-        return;
-      }
-      const target = shots.length === 0 ? null : order[shots.length - 1];
-      let contour: FaceContour | null = null;
-      let marks: FaceMark[] = [];
-      let frame: [number, number] = [asset.width || 3, asset.height || 4];
-      const preview = await previewMobileFace(studentId, asset.base64).catch(() => null);
-      if (preview) {
-        if (preview.faces.length !== 1) {
-          await discardFile(asset.uri);
-          setProblem({
-            message: preview.faces.length
-              ? "Only one face, please. Try again."
-              : "We couldn’t see your face clearly. Face a window or lamp and try again.",
-          });
+  function noteHint(next: string) {
+    setScanHint((prev) => (prev === next ? prev : next));
+  }
+
+  useEffect(() => {
+    if (!visible || step !== "scan") return;
+    let cancelled = false;
+    const wait = (ms: number) => new Promise<void>((resolve) => {
+      setTimeout(resolve, ms);
+    });
+
+    const run = async () => {
+      const started = Date.now();
+      while (!cancelled && !readyRef.current) {
+        if (Date.now() - started > 8000) {
+          setProblem({ message: "The camera didn’t start. Close other apps using the camera and try again." });
           return;
         }
-        const face = preview.faces[0];
-        frame = [face.frame_size[0] || frame[0], face.frame_size[1] || frame[1]];
-        contour = faceContour(face.landmarks, face.bbox);
-        // The still is decoded on this phone for the markers. Only the region
-        // and point are kept; the JPEG is deleted with the preview file.
-        marks = faceMarksFromJpeg(asset.base64, face.landmarks, frame, face.bbox);
-        const geometry = faceGeometry(face.landmarks, face.bbox, frame);
-        if (geometry && !target) baseRef.current = geometry;
-        if (geometry && target && baseRef.current) {
-          const seen = poseFromBaseline(baseRef.current, geometry);
-          const otherSideways = target === "left" ? seenRef.current.right ?? null
-            : target === "right" ? seenRef.current.left ?? null : null;
-          if (!stillMatchesTarget(target, seen, otherSideways)) {
-            await discardFile(asset.uri);
-            setProblem({ message: `${seen ? "Almost." : "Turn a little more."} ${POSE_COPY[target]}, then take the photo again.` });
+        await wait(80);
+      }
+      let misses = 0;
+      while (!cancelled) {
+        if (savingRef.current) return;
+        const seenGen = genRef.current;
+        const frameShot = await cameraRef.current?.grabFrame();
+        if (cancelled || genRef.current !== seenGen) continue;
+        if (!frameShot?.base64) {
+          await wait(160);
+          continue;
+        }
+        const fingerprint = stillFingerprint(frameShot.base64);
+        if (shotsRef.current.some((shot) => stillFingerprint(shot.base64) === fingerprint)) {
+          await wait(80);
+          continue;
+        }
+        const pending = previewMobileFace(studentId, frameShot.base64)
+          .then((value) => ({ ok: true as const, value }))
+          .catch((reason: unknown) => ({ ok: false as const, reason }));
+        const preview = await Promise.race([
+          pending,
+          wait(2500).then(() => ({ ok: false as const, reason: null })),
+        ]);
+        if (cancelled || genRef.current !== seenGen) continue;
+        if (!preview.ok) {
+          const status = (preview.reason as { status?: number } | null)?.status;
+          if (status === 503) {
+            setProblem({ message: "The face check service is unavailable. Try again in a minute." });
             return;
           }
-          if (seen) seenRef.current[target] = seen;
+          misses += 1;
+          if (misses === 6) {
+            setContourNote("Still watching the live camera. If the lines don’t appear, check your connection.");
+          }
+          await wait(120);
+          continue;
         }
-      } else {
-        setContourNote("Face mesh unavailable right now; your photos are still checked when you finish.");
-      }
-      const next = [...shots, { base64: asset.base64, uri: asset.uri, contour, frame, marks }];
-      setShots(next);
-      if (next.length === order.length + 1) {
+        misses = 0;
+        const faces = preview.value.faces;
+        const target = shotsRef.current.length === 0 ? null : orderRef.current[shotsRef.current.length - 1] ?? null;
+        const face = faces.length === 1 ? faces[0] : null;
+        const frame: [number, number] = [
+          face?.frame_size?.[0] || frameShot.width || 3,
+          face?.frame_size?.[1] || frameShot.height || 4,
+        ];
+        const geometry = face ? faceGeometry(face.landmarks, face.bbox, frame) : null;
+        const seen = geometry && baseRef.current ? poseFromBaseline(baseRef.current, geometry) : null;
+        const otherSideways = target === "left" ? seenRef.current.right ?? null
+          : target === "right" ? seenRef.current.left ?? null : null;
+        const action = liveFrameAction(
+          faces.length,
+          Boolean(geometry?.centered),
+          Boolean(baseRef.current),
+          target,
+          seen,
+          otherSideways,
+        );
+        if (face && action !== "none" && action !== "one") {
+          const contour = faceContour(face.landmarks, face.bbox);
+          setLiveContour({ base64: "", contour, frame, marks: [] });
+        } else if (action === "none" || action === "one") {
+          setLiveContour(null);
+        }
+        if (action === "none") {
+          noteHint("Center your face in the frame.");
+          await wait(180);
+          continue;
+        }
+        if (action === "one") {
+          noteHint("Only one face, please.");
+          await wait(180);
+          continue;
+        }
+        if (action === "center") {
+          noteHint("Center your face in the frame.");
+          await wait(180);
+          continue;
+        }
+        if (action === "turn") {
+          if (target) noteHint(POSE_COPY[target]);
+          await wait(120);
+          continue;
+        }
+        if (!face || !geometry) continue;
+        const marks = faceMarksFromJpeg(frameShot.base64, face.landmarks, frame, face.bbox);
+        const contour = faceContour(face.landmarks, face.bbox);
+        const kept: Shot = { base64: frameShot.base64, contour, frame, marks };
+        if (action === "anchor") {
+          baseRef.current = geometry;
+          noteHint(POSE_COPY[orderRef.current[0]]);
+        } else if (target && seen) {
+          seenRef.current[target] = seen;
+          const nextPose = orderRef.current[shotsRef.current.length];
+          if (nextPose) noteHint(POSE_COPY[nextPose]);
+        }
+        const next = [...shotsRef.current, kept];
+        shotsRef.current = next;
+        setShots(next);
+        setLiveContour(kept);
+        if (next.length < orderRef.current.length + 1) continue;
+        savingRef.current = true;
+        noteHint("Saving your face check…");
+        setBusy(true);
         try {
-          await enrollMobileFaceImages(studentId, next.map((shot) => shot.base64), order);
+          await enrollMobileFaceImages(
+            studentId,
+            next.map((shot) => shot.base64),
+            orderRef.current,
+          );
+          if (cancelled) return;
+          setShots([]);
+          shotsRef.current = [];
+          setLiveContour(null);
+          setStep("voice");
         } catch (reason) {
-          next.forEach((shot) => void discardFile(shot.uri));
           resetScan();
           setProblem(faceEnrollmentProblem(reason));
-          return;
+        } finally {
+          savingRef.current = false;
+          setBusy(false);
         }
-        next.forEach((shot) => void discardFile(shot.uri));
-        setShots([]);
-        setStep("voice");
+        return;
       }
-    });
-  }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, step, attempt, studentId]);
 
   async function recordVoice() {
     setBusy(true);
@@ -462,12 +584,12 @@ export default function BiometricSetupModal({
 
   const text = copy[step];
   const target = step === "scan" && shots.length > 0 ? order[shots.length - 1] : null;
-  const title = step === "scan" && target
-    ? POSE_COPY[target]
+  const title = step === "scan"
+    ? scanHint
     : step === "voice" && recording ? "Keep reading…" : text.title;
   const done = step === "identity" || step === "complete";
   const progress = STEPS.indexOf(step);
-  const latest = shots[shots.length - 1];
+  const latest = liveContour;
   const { isMedium, isExpanded } = useLayoutMetrics();
   const wide = isMedium || isExpanded;
 
@@ -487,10 +609,16 @@ export default function BiometricSetupModal({
           <View style={[styles.artPane, !wide && styles.artBand]}>
             <KenBurnsImage source={step === "voice" ? ART.voice : ART.face} style={StyleSheet.absoluteFill} />
             <View style={styles.frame}>
-            {step === "scan" && latest ? (
+            {step === "scan" ? (
               <>
-                <Image source={{ uri: latest.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                {latest.contour ? (
+                <LiveFaceCamera
+                  key={attempt}
+                  ref={cameraRef}
+                  onReady={() => { readyRef.current = true; }}
+                  onError={(message) => setProblem({ message })}
+                />
+                <View style={styles.liveDot} accessibilityLabel="Live camera" />
+                {latest?.contour ? (
                   <Svg
                     style={StyleSheet.absoluteFill}
                     viewBox={`0 0 ${latest.frame[0]} ${latest.frame[1]}`}
@@ -620,12 +748,10 @@ export default function BiometricSetupModal({
             ) : null}
             {step === "scan" ? (
               <>
-                <Action
-                  title={shots.length === 0 ? "Take the first photo" : `Take photo: ${target}`}
-                  disabled={busy}
-                  onPress={() => void capture()}
-                />
                 {shots.length > 0 ? <Action title="Start over" secondary disabled={busy} onPress={resetScan} /> : null}
+                {problem ? (
+                  <Action title="Try again" disabled={busy} onPress={() => { setProblem(null); readyRef.current = false; setAttempt((n) => n + 1); }} />
+                ) : null}
                 {canSkip ? <Action title="Set up later" secondary disabled={busy} onPress={() => void finish(true)} /> : null}
               </>
             ) : null}
@@ -699,6 +825,10 @@ const styles = StyleSheet.create({
   cornerBL: { bottom: 14, left: 14, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 16 },
   cornerBR: { bottom: 14, right: 14, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 16 },
   cornerDone: { borderColor: C.accent },
+  liveDot: {
+    position: "absolute", top: 18, right: 18, width: 12, height: 12, borderRadius: 6,
+    backgroundColor: "#ff4d4f", borderWidth: 2, borderColor: "#ffffff",
+  },
   cue: {
     position: "absolute", width: CUE, height: CUE, borderRadius: CUE / 2, overflow: "hidden",
     backgroundColor: C.accent, color: "#ffffff", textAlign: "center", lineHeight: CUE, fontSize: 24, fontWeight: "800",

@@ -6,23 +6,21 @@
  *                 mascot3d/Mascot.glb) playing one of 15 Mixamo-rigged
  *                 skeletal clips (Big_Wave_Hello, Confident_Strut,
  *                 Boom_Dance, Indoor_Swing, …). Scene-aware via the
- *                 sceneToMeshy adapter below. **Default** so onboarding
- *                 and the biometric setup assistant share the same live
- *                 animated character instead of a static image.
+ *                 sceneToMeshy adapter below. Opt in with ?mascot3d=meshy.
  *   - "css"     → the lightweight CSS MascotActor (SSR-safe fallback,
  *                 and the opt-out when WebGL is unavailable)
  *   - "pane"    → the older MascotActor3D canvas (Fox placeholder; kept
  *                 for the age-morph physics prototype only)
- *   - "overlay" → MascotOverlay3D rendered as a fixed full-viewport
- *                 canvas that walks across the page and points at
- *                 `data-mascot-target` elements like a video-game NPC
+ *   - "overlay" → MascotOverlay3D, the Meshy mesh as a screen overlay.
+ *                 It walks inside the art stage and points at the active
+ *                 control. The form stays clickable.
  *
  * Which one wins is decided client-side so you can flip modes without a
  * server restart. In priority order:
  *   1. URL query `?mascot3d=meshy|overlay|pane|0` (sticky in localStorage)
  *   2. localStorage `aoep.mascot3d` = same values
  *   3. Build-time env `NEXT_PUBLIC_MASCOT_3D` = same values
- *   4. Hard-coded default: "meshy"
+ *   4. Hard-coded default: "overlay" (the Meshy mesh on the screen)
  *
  * The WebGL versions can't SSR (no document in Node), so they are loaded
  * via next/dynamic with ssr:false. Server render always falls back to the
@@ -150,13 +148,9 @@ export default function MascotActorChoice(props: Props) {
       return;
     }
     const sticky = normalizeMode(window.localStorage.getItem("aoep.mascot3d"));
-    // Default to the "overlay" mode: the full-viewport Meshy character
-    // that walks between data-mascot-target elements and dwells with a
-    // pointing idle at each one. That is what the user actually wants
-    // during onboarding - the mascot visibly moves to the active rating
-    // card and asks them to score it, like a game-NPC guide. The
-    // in-pane "meshy" mode is still available via ?mascot3d=meshy; CSS
-    // stays available via ?mascot3d=0 for SSR + WebGL opt-out.
+    // Default is the Meshy mesh overlay: it shares the screen with the
+    // form, stands in the art stage, and marks the active control.
+    // ?mascot3d=meshy keeps the in-pane clip player. ?mascot3d=0 is CSS.
     setMode(sticky ?? ENV_MODE ?? "overlay");
   }, []);
 

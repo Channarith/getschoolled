@@ -12,6 +12,7 @@ import {
   bytesFromBase64,
   faceContour,
   faceGeometry,
+  cosineSimilarity,
   faceMarks,
   decodeJpegLuma,
   faceMarksFromJpeg,
@@ -22,6 +23,7 @@ import {
   poseFromBaseline,
   shuffledPoses,
   stableFaceMarks,
+  sfaceWarpMatrix,
   svgPath,
   waveformBars,
 } from "../../app/lib/learnerCheck.ts";
@@ -151,6 +153,46 @@ test("contour wraps the landmarks and is hidden without them", () => {
   assert.equal(faceContour([[1, 1]]), null);
   assert.equal(faceContour([[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]), null);
   assert.equal(faceContour([[NaN, 1], [2, 2], [3, 3], [4, 4], [5, 5]]), null);
+});
+
+test("live scan draws an oval plus the eyes and nose", () => {
+  const contour = faceContour(FRONTAL, 12, null, "features");
+  assert.ok(contour);
+  assert.equal(contour.outline.length, 12);
+  assert.equal(contour.grid.length, 0);
+  assert.equal(contour.mouth.length, 0);
+  assert.equal(contour.rightEye.length, 6);
+  assert.equal(contour.leftEye.length, 6);
+  assert.deepEqual(contour.nose[1], FRONTAL[2]);
+  const full = faceContour(FRONTAL);
+  assert.ok(full.grid.length >= 12);
+});
+
+test("sface warp puts the five landmarks on the canonical face", () => {
+  const template = [
+    [38.2946, 51.6963],
+    [73.5318, 51.5014],
+    [56.0252, 71.7366],
+    [41.5493, 92.3655],
+    [70.7299, 92.2041],
+  ];
+  const identity = sfaceWarpMatrix(template);
+  assert.ok(identity);
+  const apply = (m, x, y) => [m[0] * x + m[1] * y + m[2], m[3] * x + m[4] * y + m[5]];
+  template.forEach(([x, y]) => {
+    const [px, py] = apply(identity, x, y);
+    assert.ok(Math.hypot(px - x, py - y) < 1e-4);
+  });
+  const shifted = template.map(([x, y]) => [x + 18, y - 7]);
+  const back = sfaceWarpMatrix(shifted);
+  shifted.forEach(([x, y], i) => {
+    const [px, py] = apply(back, x, y);
+    assert.ok(Math.hypot(px - template[i][0], py - template[i][1]) < 1e-3);
+  });
+  assert.equal(sfaceWarpMatrix([[1, 1]]), null);
+  assert.ok(cosineSimilarity([1, 0, 0], [0.24, Math.sqrt(1 - 0.24 ** 2), 0]) > 0.23);
+  assert.ok(cosineSimilarity([1, 0, 0], [0, 1, 0]) < 0.01);
+  assert.equal(cosineSimilarity([1], [1, 0]), 0);
 });
 
 test("mesh is an estimated grid, not a dense landmarker, and stays inside the outline", () => {

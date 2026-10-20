@@ -1,30 +1,22 @@
 "use client";
 
 /**
- * MascotOverlay3D — a video-game-style interactive mascot that lives in a
- * fixed full-viewport canvas OVERLAID on the whole app. Unlike MascotActor3D
- * (which renders inside a small art pane), this character:
+ * MascotOverlay3D — the setup-assistant mesh. The Meshy character
+ * (public/mascot3d/Mascot.glb) is a screen overlay: it shares the viewport
+ * with the form, walks inside the art stage, and turns toward the active
+ * control. A small marker sits on that control. Clicks pass through.
  *
- *   - fills the entire browser viewport
- *   - walks across the screen with a real glTF skeletal animation
- *   - rotates to face its target
- *   - visits UI elements tagged with `data-mascot-target="<name>"` in order
- *   - plays Survey (idle) at each target for a dwell time, then moves on
- *   - draws a soft "look here" pulse overlay at the current target so the
- *     user sees exactly what the mascot is pointing to
- *   - uses `pointer-events: none` so it never blocks real clicks
+ *   - position:fixed over the viewport, so screen pixels match the form
+ *   - feet stay inside [data-mascot-stage] (left stage on desktop, top
+ *     band on a phone), lined up with the active field
+ *   - scale is derived from that stage so the body fits it
+ *   - plays an idle clip at each stop, then walks to the next
  *
  * Target coordination:
- *   1. Each UI element you want the mascot to visit gets a
- *      `data-mascot-target="<name>"` attribute.
- *   2. STEP_TOURS below maps each onboarding step to an ordered list of
- *      target names. The mascot walks the list on loop.
- *   3. The character uses raycasting through the camera to turn screen
- *      coordinates into world coordinates on the ground plane (Y = 0).
- *
- * Swap-in a custom character the same way as MascotActor3D:
- *   drop a rigged .glb at /mascot3d/Mascot.glb (clip names Survey/Walk/Run)
- *   and change MODEL_URL below.
+ *   1. Tag a control with `data-mascot-target="<name>"`.
+ *   2. Tag the stage with `data-mascot-stage`.
+ *   3. STEP_TOURS maps each onboarding step to an ordered list of names.
+ *   4. Raycasting turns those screen points into ground-plane positions.
  */
 
 import {
@@ -34,6 +26,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   Canvas,
   useFrame,
@@ -99,25 +92,15 @@ const ARRIVAL_RADIUS = 0.35; // world units
 type Breakpoint = "desktop" | "tablet" | "phonePortrait";
 
 /**
- * Per-breakpoint stage configuration. These values were tuned by hand so
- * the Meshy character (native ~1.8 m tall) fills the viewport without
- * clipping the head into the onboarding chrome at the top:
+ * Per-breakpoint camera. `scale` is a ceiling. The live scale is computed
+ * from the art stage height so the ~1.8 m mesh fills that stage and stays
+ * beside the form.
  *
- *   - desktop (>=1024px landscape): character ~75% of viewport height.
- *     Camera a bit closer than the old (0, 2.4, 5.5) at FOV 50, scale 2.0.
- *   - tablet (768-1023px) and phone landscape: ~85% viewport height,
- *     slight horizontal breathing room from a wider FOV at the same scale.
- *   - phone portrait (<768px): ~92% viewport height with a tighter FOV so
- *     the whole body fits. Camera pulled back further (z=6.0) and the
- *     lookAt lifted (y=1.6, above the character's hip) which tilts the
- *     camera UP visually — that pushes the character DOWN in the frame so
- *     the head does not poke into the onboarding text at the top.
- *     (The user-facing spec called this "bias the camera DOWN"; what the
- *     renderer actually needs is a higher lookAt to achieve the same
- *     visual result.)
+ *   - desktop (>=1024px landscape): left stage, about half the window.
+ *   - tablet and phone landscape: same side-by-side stage.
+ *   - phone portrait (<768px): the stage is a short band above the form.
  */
 type BreakpointConfig = {
-  backdropHeight: string;
   cameraPos: [number, number, number];
   cameraLookAt: [number, number, number];
   fov: number;
@@ -126,25 +109,22 @@ type BreakpointConfig = {
 
 const BREAKPOINT_CONFIG: Record<Breakpoint, BreakpointConfig> = {
   desktop: {
-    backdropHeight: "min(85vh, 900px)",
-    cameraPos: [0, 2.1, 4.6],
+    cameraPos: [0, 1.9, 5.6],
     cameraLookAt: [0, 1.05, 0],
-    fov: 50,
-    scale: 2.0,
+    fov: 42,
+    scale: 1.5,
   },
   tablet: {
-    backdropHeight: "min(90vh, 820px)",
-    cameraPos: [0, 2.0, 4.9],
-    cameraLookAt: [0, 1.1, 0],
-    fov: 48,
-    scale: 2.1,
+    cameraPos: [0, 1.85, 5.8],
+    cameraLookAt: [0, 1.05, 0],
+    fov: 42,
+    scale: 1.35,
   },
   phonePortrait: {
-    backdropHeight: "95vh",
-    cameraPos: [0, 2.4, 6.0],
-    cameraLookAt: [0, 1.6, 0],
-    fov: 38,
-    scale: 2.4,
+    cameraPos: [0, 2.2, 7.2],
+    cameraLookAt: [0, 1.35, 0],
+    fov: 36,
+    scale: 1.15,
   },
 };
 
@@ -231,19 +211,113 @@ function CameraRig({ config }: { config: BreakpointConfig }) {
   return null;
 }
 
+type ScreenPoint = { x: number; y: number };
+
+type Placement = {
+  /** Feet, in viewport pixels, kept inside the art stage. */
+  stand: ScreenPoint;
+  /** Point the character turns toward (the active control). */
+  look: ScreenPoint;
+  /** Marker drawn on the control, off the text the user is editing. */
+  pointer: ScreenPoint;
+};
+
 /**
- * Resolve the current waypoint's center position in screen pixels.
- * Returns null when the DOM element is missing or offscreen.
+ * Place the mesh on the real screen. Feet stay inside the art stage and
+ * shift toward the active control. The marker sits on the outer edge of
+ * that control so the input itself stays clear.
  */
-function screenCenterOf(name: string): { x: number; y: number } | null {
+function placeOnScreen(name: string): Placement | null {
   if (typeof document === "undefined") return null;
   const el = document.querySelector<HTMLElement>(`[data-mascot-target="${name}"]`);
-  if (!el) return null;
+  const stage = document.querySelector<HTMLElement>("[data-mascot-stage]");
+  if (!el || !stage) return null;
   const rect = el.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) return null;
-  // Point slightly BELOW the element so the character stands at its base
-  // instead of overlapping. Fine-tuned on 1024px wide onboarding.
-  return { x: rect.left + rect.width / 2, y: rect.bottom + 32 };
+  const stageRect = stage.getBoundingClientRect();
+  if (rect.width < 2 || rect.height < 2 || stageRect.width < 2 || stageRect.height < 2) {
+    return null;
+  }
+
+  const targetX = rect.left + rect.width / 2;
+  const targetY = rect.top + rect.height / 2;
+  const inset = Math.min(stageRect.width * 0.28, 220);
+  const standX = Math.min(
+    stageRect.right - inset,
+    Math.max(stageRect.left + inset, targetX),
+  );
+  const standY = stageRect.bottom - Math.min(28, stageRect.height * 0.08);
+
+  const stageOnLeft = stageRect.right <= rect.left + 12;
+  const stageAbove = stageRect.bottom <= rect.top + 12;
+  const pointer = stageAbove
+    ? { x: targetX, y: rect.top - 6 }
+    : stageOnLeft
+      ? { x: rect.left - 6, y: targetY }
+      : { x: rect.left + 16, y: targetY };
+
+  return {
+    stand: { x: standX, y: standY },
+    look: { x: targetX, y: targetY },
+    pointer,
+  };
+}
+
+/** Feet in the middle of the art stage when the current step has no target. */
+function stageHome(): Placement | null {
+  if (typeof document === "undefined") return null;
+  const stage = document.querySelector<HTMLElement>("[data-mascot-stage]");
+  if (!stage) return null;
+  const rect = stage.getBoundingClientRect();
+  if (rect.width < 2 || rect.height < 2) return null;
+  const stand = {
+    x: rect.left + rect.width / 2,
+    y: rect.bottom - Math.min(28, rect.height * 0.08),
+  };
+  return {
+    stand,
+    look: { x: stand.x, y: rect.top + rect.height * 0.35 },
+    pointer: stand,
+  };
+}
+
+/** Scale so the 1.8 m mesh fills about 70% of the art stage. */
+function scaleForStage(
+  stageHeight: number,
+  viewportHeight: number,
+  config: BreakpointConfig,
+): number {
+  if (viewportHeight <= 0 || stageHeight <= 0) return config.scale;
+  const fov = (config.fov * Math.PI) / 180;
+  const visible = 2 * Math.abs(config.cameraPos[2]) * Math.tan(fov / 2);
+  const fraction = (stageHeight * 0.7) / viewportHeight;
+  const next = (fraction * visible) / 1.8;
+  return Math.max(0.55, Math.min(next, config.scale));
+}
+
+function useStageBox(step: string | undefined): DOMRect | null {
+  const [box, setBox] = useState<DOMRect | null>(() => {
+    if (typeof document === "undefined") return null;
+    const el = document.querySelector<HTMLElement>("[data-mascot-stage]");
+    return el ? el.getBoundingClientRect() : null;
+  });
+  useEffect(() => {
+    const read = () => {
+      const el = document.querySelector<HTMLElement>("[data-mascot-stage]");
+      setBox(el ? el.getBoundingClientRect() : null);
+    };
+    read();
+    const el = document.querySelector<HTMLElement>("[data-mascot-stage]");
+    const observer = el ? new ResizeObserver(read) : null;
+    if (el && observer) observer.observe(el);
+    window.addEventListener("resize", read);
+    window.addEventListener("scroll", read, true);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", read);
+      window.removeEventListener("scroll", read, true);
+    };
+  }, [step]);
+  return box;
 }
 
 /**
@@ -278,14 +352,29 @@ function screenToGround(
  * The character's bones animate via useAnimations; we just move the whole
  * group through 3D space and keep it facing its walk direction.
  */
+function yawToward(from: THREE.Vector3, to: THREE.Vector3): number | null {
+  const dx = to.x - from.x;
+  const dz = to.z - from.z;
+  if (dx * dx + dz * dz < 1e-4) return null;
+  return Math.atan2(dx, dz);
+}
+
+function turnToward(group: THREE.Group, yaw: number, delta: number) {
+  const current = group.rotation.y;
+  const diff = Math.atan2(Math.sin(yaw - current), Math.cos(yaw - current));
+  group.rotation.y = current + diff * Math.min(1, delta * 6);
+}
+
 function Character({
   targetWorldRef,
+  lookWorldRef,
   arrivedRef,
   speed,
   idleClip,
   scale,
 }: {
   targetWorldRef: React.MutableRefObject<THREE.Vector3 | null>;
+  lookWorldRef: React.MutableRefObject<THREE.Vector3 | null>;
   arrivedRef: React.MutableRefObject<boolean>;
   speed: number;
   idleClip: string;
@@ -350,6 +439,9 @@ function Character({
     if (dist < ARRIVAL_RADIUS) {
       arrivedRef.current = true;
       setActive(resolvedIdle);
+      const look = lookWorldRef.current;
+      const yaw = look ? yawToward(g.position, look) : null;
+      if (yaw !== null) turnToward(g, yaw, delta);
       return;
     }
     arrivedRef.current = false;
@@ -358,20 +450,12 @@ function Character({
     const step = Math.min(dist, speed * delta);
     g.position.add(toTarget.multiplyScalar(step));
     // Face the direction of motion. atan2(x, z) orients +Z-forward meshes.
-    const yaw = Math.atan2(toTarget.x, toTarget.z);
-    // Smoothly rotate toward yaw.
-    const current = g.rotation.y;
-    const diff = Math.atan2(Math.sin(yaw - current), Math.cos(yaw - current));
-    g.rotation.y = current + diff * Math.min(1, delta * 6);
+    turnToward(g, Math.atan2(toTarget.x, toTarget.z), delta);
   });
 
-  // Mascot.glb native dimensions are in meters (~1.8 m tall from the
-  // Meshy export + scripts/mascot_meshy_prep.py). Prior builds used a
-  // fixed scale of 1.2 which rendered the character around 2.1 m — too
-  // small for the fixed overlay (user feedback 2026-10-19). Scale now
-  // comes from the active breakpoint config: 2.0 on desktop, 2.1 on
-  // tablet, 2.4 on phone portrait. Feet stay at y=0 so ContactShadows
-  // continues to render under them.
+  // Mascot.glb is about 1.8 m tall. Scale comes from the art stage so
+  // the body fills that region. Feet stay at y=0 so ContactShadows
+  // render under them.
   return (
     <group ref={group} scale={scale} position={[0, 0, 0]}>
       <primitive object={gltfScene} />
@@ -390,18 +474,21 @@ function TourDriver({
   tour,
   dwell,
   targetWorldRef,
+  lookWorldRef,
   arrivedRef,
   setPointerPx,
 }: {
   tour: string[];
   dwell: number;
   targetWorldRef: React.MutableRefObject<THREE.Vector3 | null>;
+  lookWorldRef: React.MutableRefObject<THREE.Vector3 | null>;
   arrivedRef: React.MutableRefObject<boolean>;
-  setPointerPx: (p: { x: number; y: number } | null) => void;
+  setPointerPx: (p: ScreenPoint | null) => void;
 }) {
   const { camera, size } = useThree();
   const indexRef = useRef(0);
   const dwellElapsedRef = useRef(0);
+  const lastPointer = useRef<ScreenPoint | null>(null);
 
   // Reset to the first waypoint whenever the tour changes.
   useEffect(() => {
@@ -411,20 +498,50 @@ function TourDriver({
 
   useFrame((_state, delta) => {
     if (!tour.length) {
-      targetWorldRef.current = null;
-      setPointerPx(null);
+      const home = stageHome();
+      const viewport = { width: size.width, height: size.height };
+      const world = home
+        ? screenToGround(home.stand.x, home.stand.y, camera, viewport)
+        : null;
+      targetWorldRef.current = world;
+      lookWorldRef.current = home
+        ? screenToGround(home.look.x, home.look.y, camera, viewport)
+        : null;
+      if (lastPointer.current) {
+        lastPointer.current = null;
+        setPointerPx(null);
+      }
       return;
     }
     const name = tour[indexRef.current % tour.length];
-    const px = screenCenterOf(name);
-    if (!px) {
-      // Skip missing waypoint — step the index.
+    const named = placeOnScreen(name);
+    const placed = named ?? stageHome();
+    if (!placed) {
       indexRef.current = (indexRef.current + 1) % tour.length;
       return;
     }
-    const world = screenToGround(px.x, px.y, camera, { width: size.width, height: size.height });
+    if (!named) {
+      indexRef.current = (indexRef.current + 1) % tour.length;
+    }
+    const viewport = { width: size.width, height: size.height };
+    const world = screenToGround(placed.stand.x, placed.stand.y, camera, viewport);
+    const look = screenToGround(placed.look.x, placed.look.y, camera, viewport);
     if (world) targetWorldRef.current = world;
-    setPointerPx(px);
+    if (look) {
+      lookWorldRef.current = look;
+    } else if (world) {
+      const dir = Math.sign(placed.look.x - placed.stand.x) || 1;
+      lookWorldRef.current = world.clone().add(new THREE.Vector3(dir, 0, 0));
+    }
+    const prev = lastPointer.current;
+    const next = named ? placed.pointer : null;
+    const moved = next
+      ? !prev || Math.abs(prev.x - next.x) > 2 || Math.abs(prev.y - next.y) > 2
+      : prev !== null;
+    if (moved) {
+      lastPointer.current = next;
+      setPointerPx(next);
+    }
 
     if (arrivedRef.current) {
       dwellElapsedRef.current += delta;
@@ -485,47 +602,53 @@ export default function MascotOverlay3D({
     }
   }, [scene]);
 
-  const tour = STEP_TOURS[step] ?? STEP_TOURS.about;
+  const tour = STEP_TOURS[step] ?? [];
+  const stageBox = useStageBox(step);
+  const lookWorldRef = useRef<THREE.Vector3 | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  return (
-    <>
-      {/* Contrast backdrop: the Meshy character is a cream/gold Buddha
-          that disappears into the site's cream (#f4e9d8) page background.
-          On 2026-10-19 the user reported the v0.78.0 rgba(26,20,10,0.32)
-          wash was still "golden on cream" — the mascot blended in. We
-          switched to a bold ocean-blue radial "stage spotlight" centered
-          where the character walks (50% x 95%). Gold-on-deep-blue is a
-          classic high-contrast pairing and reads clearly without hiding
-          the onboarding chrome: the gradient fades to transparent by 70%
-          radius so the setup-assistant text/panels above remain legible.
-          Lower z-index (999) than the Canvas (1000) so the mascot renders
-          ON TOP of this plate, and `pointer-events: none` so page clicks
-          still pass through to the onboarding form underneath.
+  const meshScale = scaleForStage(
+    stageBox?.height ?? 0,
+    typeof window === "undefined" ? 0 : window.innerHeight,
+    config,
+  );
 
-          The backdrop height now scales with the active breakpoint so a
-          taller mascot (phone portrait) gets a taller stage — matches the
-          Canvas viewport the character is rendered into. */}
+  if (!mounted) return null;
+
+  const overlay = (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 40,
+      }}
+    >
+      {stageBox && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            left: stageBox.left,
+            top: stageBox.top,
+            width: stageBox.width,
+            height: stageBox.height,
+            pointerEvents: "none",
+            zIndex: 0,
+            background:
+              "radial-gradient(ellipse 70% 55% at 50% 100%, rgba(11, 34, 56, 0.92) 0%, rgba(11, 34, 56, 0.55) 28%, rgba(11, 34, 56, 0.18) 58%, rgba(11, 34, 56, 0) 78%)",
+          }}
+        />
+      )}
       <div
         aria-hidden="true"
         style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: config.backdropHeight,
-          pointerEvents: "none",
-          zIndex: 999,
-          background:
-            "radial-gradient(ellipse 55% 65% at 50% 95%, rgba(11, 34, 56, 1) 0%, rgba(11, 34, 56, 0.78) 20%, rgba(11, 34, 56, 0.42) 45%, rgba(11, 34, 56, 0.12) 62%, rgba(11, 34, 56, 0) 72%)",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position: "fixed",
+          position: "absolute",
           inset: 0,
           pointerEvents: "none",
-          zIndex: 1000,
+          zIndex: 1,
         }}
       >
         <Canvas
@@ -572,15 +695,17 @@ export default function MascotOverlay3D({
           <Suspense fallback={null}>
             <Character
               targetWorldRef={targetWorldRef}
+              lookWorldRef={lookWorldRef}
               arrivedRef={arrivedRef}
               speed={speed}
               idleClip={idleClip}
-              scale={config.scale}
+              scale={meshScale}
             />
             <TourDriver
               tour={tour}
               dwell={dwell}
               targetWorldRef={targetWorldRef}
+              lookWorldRef={lookWorldRef}
               arrivedRef={arrivedRef}
               setPointerPx={setPointerPx}
             />
@@ -595,23 +720,20 @@ export default function MascotOverlay3D({
           </Suspense>
         </Canvas>
       </div>
-      {/* The glowing pulse at the current waypoint. Rendered as HTML (not
-          inside the Canvas) so it crisply tracks the DOM element even while
-          the character is still walking there. */}
       {pointerPx && (
         <div
           aria-hidden="true"
           style={{
             position: "fixed",
-            left: pointerPx.x - 32,
-            top: pointerPx.y - 32,
-            width: 64,
-            height: 64,
+            left: pointerPx.x - 14,
+            top: pointerPx.y - 14,
+            width: 28,
+            height: 28,
             pointerEvents: "none",
-            zIndex: 1001,
+            zIndex: 2,
             borderRadius: "50%",
             boxShadow:
-              "0 0 0 2px rgba(250, 196, 72, 0.75), 0 0 32px 6px rgba(250, 196, 72, 0.45)",
+              "0 0 0 2px rgba(250, 196, 72, 0.9), 0 0 18px 4px rgba(250, 196, 72, 0.45)",
             animation: "aoep-mascot-pulse 1.6s ease-in-out infinite",
           }}
         />
@@ -622,8 +744,10 @@ export default function MascotOverlay3D({
           50%      { transform: scale(1.12); opacity: 0.55; }
         }
       `}</style>
-    </>
+    </div>
   );
+
+  return createPortal(overlay, document.body);
 }
 
 useGLTF.preload(MODEL_URL);

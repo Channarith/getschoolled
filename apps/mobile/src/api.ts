@@ -2494,6 +2494,42 @@ export async function selectMobileOnboardingPlan(tier: string): Promise<void> {
   }
 }
 
+export type MobileOnboardingBilling = {
+  line1: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  card_number: string;
+  exp_month: number;
+  exp_year: number;
+  cvv: string;
+};
+
+export async function submitMobileOnboardingBilling(
+  body: MobileOnboardingBilling,
+): Promise<{ validated: boolean; card_last4: string }> {
+  const tok = getToken();
+  if (!tok) throw new Error("not signed in");
+  const response = await fetch(`${IDENTITY_URL}/onboarding/billing`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    let detail = `billing check failed: ${response.status}`;
+    try {
+      const payload = (await response.json()) as { detail?: unknown };
+      if (typeof payload.detail === "string") detail = payload.detail;
+      else if (Array.isArray(payload.detail)) detail = "Check the billing address and card fields.";
+    } catch {
+      /* keep the status message */
+    }
+    throw new Error(detail);
+  }
+  return response.json() as Promise<{ validated: boolean; card_last4: string }>;
+}
+
 /** @deprecated use selectMobileOnboardingPlan("free") */
 export async function selectMobileFreePlan(): Promise<void> {
   return selectMobileOnboardingPlan("free");

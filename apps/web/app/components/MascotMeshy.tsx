@@ -57,6 +57,7 @@ import {
 } from "./mascot3d/expressions";
 
 const MODEL_URL = "/mascot3d/Mascot.glb";
+const DRACO_DECODER = "/mascot3d/draco/";
 
 /**
  * Every animation clip baked into the current Mascot.glb. Pinned to
@@ -138,6 +139,12 @@ type Props = {
   className?: string;
   /** True = show mouse-drag orbit controls (handy in the lab, off in prod). */
   interactive?: boolean;
+  /** Clear canvas so the mesh sits on the setup-assistant stage. */
+  transparent?: boolean;
+  /** Solid stage color behind the mesh. Wins over `transparent`. */
+  backdrop?: string;
+  /** Stop the render loop without destroying the WebGL canvas. */
+  paused?: boolean;
 };
 
 /* ---------------------------------------------------------------------
@@ -184,6 +191,80 @@ function snapshotEmissives(root: THREE.Object3D): OriginalEmissive[] {
     }
   });
   return snaps;
+}
+
+function contrastByte(value: number): number {
+  return value < 0 ? 0 : value > 255 ? 255 : Math.round(value);
+}
+
+/**
+ * Pull the baked stone down, then stretch it. The albedo sits around
+ * luma 160–190, so a contrast stretch around 128 only makes it lighter
+ * and the eyes disappear. Darken first, then spread the result so the
+ * sockets stay dark and the gold stays readable.
+ */
+function gradeStoneByte(value: number): number {
+  const darkened = value * 0.58;
+  return contrastByte((darkened - 92) * 2.05 + 92);
+}
+
+function contrastSource(
+  source: CanvasImageSource,
+  width: number,
+  height: number,
+): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(source, 0, 0, width, height);
+  const image = ctx.getImageData(0, 0, width, height);
+  const data = image.data;
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = gradeStoneByte(data[i]);
+    data[i + 1] = gradeStoneByte(data[i + 1]);
+    data[i + 2] = gradeStoneByte(data[i + 2]);
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+
+function clarifyStoneMesh(root: THREE.Object3D): void {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.material) return;
+    const sourceMats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const mats = sourceMats.map((mat) => mat.clone());
+    mesh.material = Array.isArray(mesh.material) ? mats : mats[0];
+    for (const mat of mats) {
+      const standard = mat as THREE.MeshStandardMaterial;
+      if (!standard.isMeshStandardMaterial) continue;
+      // The metallic map turns the face into a dark mirror. Keep a little
+      // metal and let the base color carry the features.
+      standard.metalness = Math.min(standard.metalness ?? 1, 0.08);
+      if ((standard.roughness ?? 1) < 0.62) standard.roughness = 0.62;
+      standard.envMapIntensity = 0.22;
+      if (standard.normalScale) standard.normalScale.set(1.35, 1.35);
+      const map = standard.map;
+      const image = map?.image as (CanvasImageSource & { width?: number; height?: number }) | undefined;
+      if (map && image?.width && image.height) {
+        try {
+          const boosted = contrastSource(image, image.width, image.height);
+          if (boosted) {
+            standard.map = map.clone();
+            standard.map.image = boosted;
+            standard.map.colorSpace = THREE.SRGBColorSpace;
+            standard.map.needsUpdate = true;
+          }
+        } catch {
+          /* keep the baked map if the browser cannot read it */
+        }
+      }
+      standard.needsUpdate = true;
+    }
+  });
 }
 
 function applyMoodTint(snaps: OriginalEmissive[], mood: MoodProfile): void {
@@ -364,14 +445,18 @@ function Character({
   // child) can stay in world units and render at sensible sprite sizes.
   const innerRef = useRef<THREE.Group>(null);
 
-  const { scene, animations } = useGLTF(MODEL_URL);
+  const { scene, animations } = useGLTF(MODEL_URL, DRACO_DECODER, false);
 
   // SkeletonUtils.clone deep-clones the scene AND rebinds every
   // SkinnedMesh's `.skeleton` to the cloned bone chain. Without this,
   // animations would update the cloned bones but the SkinnedMesh would
   // still render using the original (static) ones - which is exactly
   // the "no movement" bug this fixes.
-  const cloned = useMemo(() => cloneWithSkeleton(scene) as THREE.Object3D, [scene]);
+  const cloned = useMemo(() => {
+    const next = cloneWithSkeleton(scene) as THREE.Object3D;
+    clarifyStoneMesh(next);
+    return next;
+  }, [scene]);
 
   // drei's useAnimations wires an AnimationMixer to the inner group
   // (which contains the cloned skeleton) and exposes AnimationActions
@@ -479,9 +564,9 @@ function Character({
 function CameraRig({ motion }: { motion?: MotionState }) {
   const { camera } = useThree();
   useEffect(() => {
-    const target = motion === "run" ? [0, 1.3, 4.2]
-      : motion === "walk" ? [0, 1.2, 3.8]
-      : [0, 1.1, 3.4];
+    const target = motion === "run" ? [0, 1.15, 3.55]
+      : motion === "walk" ? [0, 1.08, 3.2]
+      : [0, 1.05, 2.85];
     const start = camera.position.clone();
     const end = new THREE.Vector3(target[0], target[1], target[2]);
     let frame = 0;
@@ -490,7 +575,7 @@ function CameraRig({ motion }: { motion?: MotionState }) {
       frame += 1;
       const a = Math.min(1, frame / FRAMES);
       camera.position.lerpVectors(start, end, a);
-      camera.lookAt(0, 0.7, 0);
+      camera.lookAt(0, 0.82, 0);
       if (frame < FRAMES) requestAnimationFrame(tick);
     };
     tick();
@@ -533,28 +618,74 @@ export default function MascotMeshy({
   fill = false,
   className,
   interactive = false,
+  transparent = false,
+  backdrop,
+  paused = false,
 }: Props) {
   const activeClip = useActiveClip(motion, clip, idleRotation, rotationIntervalMs);
+  const [canvasKey, setCanvasKey] = useState(0);
+  const restores = useRef(0);
+  const pausedRef = useRef(paused);
+  const glRef = useRef<THREE.WebGLRenderer | null>(null);
+  pausedRef.current = paused;
+  useEffect(() => {
+    if (paused) return;
+    const gl = glRef.current;
+    if (!gl || !gl.getContext().isContextLost() || restores.current >= 2) return;
+    restores.current += 1;
+    setCanvasKey((key) => key + 1);
+  }, [paused]);
   const wrapperStyle: React.CSSProperties = fill
-    ? { width: "100%", height: "100%", display: "block" }
-    : { width: size, height: size, display: "block" };
+    ? { position: "absolute", inset: 0 }
+    : { position: "relative", width: size, height: size, display: "block" };
 
   return (
     <div className={className} style={wrapperStyle}>
       <Canvas
+        key={canvasKey}
         shadows
-        camera={{ position: [0, 1.1, 3.4], fov: 32 }}
+        camera={{ position: [0, 1.05, 2.85], fov: 30 }}
         dpr={[1, 2]}
+        frameloop={paused ? "never" : "always"}
+        gl={{
+          alpha: !backdrop && transparent,
+          antialias: true,
+          premultipliedAlpha: Boolean(backdrop) || !transparent,
+        }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: backdrop ?? (transparent ? "transparent" : "#111318"),
+        }}
+        onCreated={({ gl }) => {
+          glRef.current = gl;
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 0.92;
+          if (backdrop) gl.setClearColor(backdrop, 1);
+          else if (transparent) gl.setClearColor(0x000000, 0);
+          const onLost = (event: Event) => {
+            event.preventDefault();
+            // The face check hides this canvas. Rebuilding it then fights the
+            // camera and logs a second context loss. Leave it until it is shown.
+            if (pausedRef.current || !gl.domElement.isConnected || restores.current >= 2) return;
+            restores.current += 1;
+            window.setTimeout(() => setCanvasKey((key) => key + 1), 40);
+          };
+          gl.domElement.addEventListener("webglcontextlost", onLost);
+        }}
       >
-        <ambientLight intensity={0.55} />
+        <ambientLight intensity={0.28} />
+        <hemisphereLight args={["#cbb892", "#0a1422", 0.32]} />
         <directionalLight
-          position={[2.5, 4, 3]}
-          intensity={1.1}
+          position={[1.4, 3.6, 2.2]}
+          intensity={1.15}
+          color="#ffe8c2"
           castShadow
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
         />
-        <directionalLight position={[-3, 2, -2]} intensity={0.3} color="#88aaff" />
+        <directionalLight position={[-2.4, 1.1, 1.6]} intensity={0.28} color="#c5d4ee" />
+        <directionalLight position={[-0.4, 1.8, -2.6]} intensity={0.72} color="#9ec0ff" />
 
         <Suspense fallback={null}>
           <Character expression={expression} activeClip={activeClip} />
@@ -567,12 +698,12 @@ export default function MascotMeshy({
           blur={2.4}
           far={2}
         />
-        <Environment preset="apartment" />
+        {backdrop || transparent ? null : <Environment preset="apartment" />}
         <CameraRig motion={motion} />
-        {interactive && <OrbitControls enablePan={false} enableZoom={true} target={[0, 0.7, 0]} />}
+        {interactive && <OrbitControls enablePan={false} enableZoom={true} target={[0, 0.82, 0]} />}
       </Canvas>
     </div>
   );
 }
 
-useGLTF.preload(MODEL_URL);
+useGLTF.preload(MODEL_URL, DRACO_DECODER, false);

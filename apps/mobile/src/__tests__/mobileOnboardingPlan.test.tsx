@@ -22,31 +22,72 @@ jest.mock("../api", () => ({
   getMe: jest.fn(() => Promise.resolve({ id: "acct-1" })),
   startMobileBillingCheckout: jest.fn(() => Promise.resolve({ session_id: "s1", url: "", provider: "sandbox" })),
   selectMobileOnboardingPlan: jest.fn(() => Promise.resolve()),
+  submitMobileOnboardingBilling: jest.fn(() => Promise.resolve({ validated: true, card_last4: "4242" })),
   completeMobileAccountOnboarding: jest.fn(() => Promise.resolve()),
 }));
 
+function fillBilling(screen: ReturnType<typeof render>) {
+  fireEvent.changeText(screen.getByLabelText("Street address"), "1348 Mokelumne Dr");
+  fireEvent.changeText(screen.getByLabelText("City"), "Antioch");
+  fireEvent.changeText(screen.getByLabelText("State"), "CA");
+  fireEvent.changeText(screen.getByLabelText("ZIP"), "94531");
+  fireEvent.changeText(screen.getByLabelText("Card number"), "4242 4242 4242 4242");
+  fireEvent.changeText(screen.getByLabelText("MM"), "12");
+  fireEvent.changeText(screen.getByLabelText("YYYY"), "2030");
+  fireEvent.changeText(screen.getByLabelText("CVV"), "123");
+}
+
 describe("MobileOnboardingPlanStep", () => {
-  test("hides Free when the offer is unavailable and completes a paid plan", async () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test("free plan claims and completes onboarding", async () => {
+    const api = require("../api");
+    api.getMobileFreePlanOffer.mockResolvedValueOnce({ available: true, reason: "" });
+    const onComplete = jest.fn();
+    const screen = render(
+      <MobileOnboardingPlanStep visible displayName="Maya" ageBand="adult" onComplete={onComplete} />,
+    );
+    await waitFor(() => screen.getByText("Free"));
+    fireEvent.press(screen.getByText("Start learning"));
+    await waitFor(() => expect(api.selectMobileOnboardingPlan).toHaveBeenCalledWith("free"));
+    expect(api.submitMobileOnboardingBilling).not.toHaveBeenCalled();
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
+  });
+
+  test("sandbox paid plan saves billing before selecting the plan", async () => {
     const onComplete = jest.fn();
     const api = require("../api");
     const screen = render(
       <MobileOnboardingPlanStep visible displayName="Maya" ageBand="adult" onComplete={onComplete} />,
     );
     await waitFor(() => expect(screen.queryByText("Free")).toBeNull());
-    expect(screen.getByText("Standard")).toBeTruthy();
     fireEvent.press(screen.getByText("Continue to payment"));
+    await waitFor(() => screen.getByText("Billing details."));
+    expect(api.selectMobileOnboardingPlan).not.toHaveBeenCalled();
+    fillBilling(screen);
+    fireEvent.press(screen.getByText("Validate and start learning"));
     await waitFor(() => expect(api.selectMobileOnboardingPlan).toHaveBeenCalledWith("basic"));
+    expect(api.submitMobileOnboardingBilling).toHaveBeenCalledWith(expect.objectContaining({
+      card_number: "4242424242424242", exp_month: 12, exp_year: 2030, state: "CA", postal_code: "94531",
+    }));
+    const billingOrder = api.submitMobileOnboardingBilling.mock.invocationCallOrder[0];
+    const planOrder = api.selectMobileOnboardingPlan.mock.invocationCallOrder[0];
+    expect(billingOrder).toBeLessThan(planOrder);
     expect(onComplete).toHaveBeenCalled();
   });
 
-  test("surfaces checkout/plan errors instead of dead-ending", async () => {
+  test("surfaces billing errors instead of dead-ending", async () => {
     const api = require("../api");
-    api.selectMobileOnboardingPlan.mockRejectedValueOnce(new Error("402 paid tiers require verified payment"));
+    api.submitMobileOnboardingBilling.mockRejectedValueOnce(new Error("card number failed validation"));
     const screen = render(
       <MobileOnboardingPlanStep visible displayName="Maya" ageBand="adult" onComplete={() => undefined} />,
     );
     await waitFor(() => screen.getByText("Standard"));
     fireEvent.press(screen.getByText("Continue to payment"));
-    await waitFor(() => expect(screen.getByText(/402 paid tiers require verified payment/)).toBeTruthy());
+    await waitFor(() => screen.getByText("Billing details."));
+    fillBilling(screen);
+    fireEvent.press(screen.getByText("Validate and start learning"));
+    await waitFor(() => expect(screen.getByText(/card number failed validation/)).toBeTruthy());
+    expect(api.selectMobileOnboardingPlan).not.toHaveBeenCalled();
   });
 });

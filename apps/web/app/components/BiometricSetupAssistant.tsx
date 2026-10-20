@@ -14,23 +14,21 @@ import {
   updateSetupAssistant,
 } from "../lib/api";
 import { createVisionEngine, type VisionEngine } from "../lib/vision";
+import { createMockVisionEngine, learnerCheckMockEnabled } from "../lib/visionMock";
 import {
   POSES,
   describeMediaError,
   faceContour,
   faceGeometry,
-  faceMarks,
+  cosineSimilarity,
   lightingAction,
   levelFromTimeDomain,
   meanLuma,
   pickRecorderMime,
   poseFromBaseline,
   shuffledPoses,
-  stableFaceMarks,
   svgPath,
   waveformBars,
-  type FaceContour,
-  type FaceMark,
   type Geometry,
   type LevelSample,
   type LightingAction,
@@ -49,11 +47,18 @@ const VOICE_PROMPT =
 
 const VOICE_SECONDS = 10;
 const WAVE_BARS = 60;
-// 110 ms ≈ 9 fps. We split the slow SFace embed off the hot path (see tick()
-// below), so this interval drives only landmark detection + mesh rendering,
-// which is cheap enough to run this fast on CPU.
-const SCAN_INTERVAL_MS = 110;
 const LIGHT_CHECK_MS = 1200;
+// 640×480 is enough for YuNet (it tracks a 320px image) and for the 112px
+// face crop. A 960×1280 stream only added copy time.
+const CAMERA_VIDEO: MediaTrackConstraints = {
+  facingMode: "user",
+  width: { ideal: 640 },
+  height: { ideal: 480 },
+  frameRate: { ideal: 30, max: 30 },
+};
+// Same-person turned heads land around 0.18–0.35. Stay above the server
+// gate (0.18, or 0.22 on an identity process that has not restarted).
+const POSE_MATCH_MIN = 0.24;
 
 const POSE_COPY: Record<Pose, string> = {
   left: "Look to your left",
@@ -138,11 +143,15 @@ export default function BiometricSetupAssistant({
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<Problem | null>(null);
+  const [faceNote, setFaceNote] = useState<string | null>(null);
+  const [faceStatus, setFaceStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [voiceSaved, setVoiceSaved] = useState(false);
+  const faceSavedRef = useRef(false);
+  const voiceSavedRef = useRef(false);
   const [hint, setHint] = useState("Starting camera…");
   const [targets, setTargets] = useState<Pose[]>(() => [...POSES]);
   const [captured, setCaptured] = useState<Pose[]>([]);
   const [anchored, setAnchored] = useState(false);
-  const [contour, setContour] = useState<{ shape: FaceContour; frame: [number, number]; marks: FaceMark[] } | null>(null);
   const [lighting, setLighting] = useState<LightingAction>("none");
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -150,7 +159,14 @@ export default function BiometricSetupAssistant({
   const [guardianConsent, setGuardianConsent] = useState(ageBand === "adult");
   const [idFile, setIdFile] = useState<File | null>(null);
   const [hasEnrollment, setHasEnrollment] = useState(false);
+  const [mock, setMock] = useState(false);
+  useEffect(() => setMock(learnerCheckMockEnabled()), []);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const contourSvgRef = useRef<SVGSVGElement>(null);
+  const outlinePathRef = useRef<SVGPathElement>(null);
+  const rightEyePathRef = useRef<SVGPathElement>(null);
+  const leftEyePathRef = useRef<SVGPathElement>(null);
+  const nosePathRef = useRef<SVGPathElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pendingCameraRef = useRef<Promise<MediaStream> | null>(null);
   const engineRef = useRef<VisionEngine | null>(null);
@@ -185,37 +201,61 @@ export default function BiometricSetupAssistant({
 
   const resetScan = useCallback(() => {
     const order = shuffledPoses();
+    faceSavedRef.current = false;
+    setFaceStatus("idle");
+    setFaceNote(null);
     scanRef.current = { neutral: null, base: null, order, poses: {}, enrolling: false };
     setTargets(order);
     setCaptured([]);
     setAnchored(false);
-    setContour(null);
+    if (contourSvgRef.current) contourSvgRef.current.style.visibility = "hidden";
     setElapsed(0);
   }, []);
 
-  const enrollFace = useCallback(async () => {
+  const faceSaveRef = useRef<Promise<boolean> | null>(null);
+  const nextStage: Stage = requireGovernmentId ? "identity" : "complete";
+
+  // The face save runs while the learner moves on to the voice check. Each
+  // check is saved on its own, so a failed face save keeps the voice
+  // recording and only the face has to be redone.
+  const enrollFace = useCallback((): Promise<boolean> => {
+    if (faceSavedRef.current) return Promise.resolve(true);
+    if (faceSaveRef.current) return faceSaveRef.current;
     const scan = scanRef.current;
-    if (scan.enrolling || !scan.neutral) return;
+    if (!scan.neutral) return Promise.resolve(false);
     scan.enrolling = true;
     setHint("Face map ready");
-    try {
-      const vectors = [scan.neutral, ...scan.order.map((pose) => scan.poses[pose] as number[])];
-      await enrollBiometricFace(studentId, vectors, scan.order);
-      stopMedia();
-      setLighting("none");
-      setStage("voice");
-    } catch (reason) {
-      setProblem({ kind: "save", message: `Couldn’t save your face check: ${String((reason as Error)?.message ?? reason)}` });
-      stopMedia();
-    }
-  }, [stopMedia, studentId]);
+    stopMedia();
+    setLighting("none");
+    setFaceStatus("saving");
+    setFaceNote(null);
+    setStage("voice");
+    const pending = (async () => {
+      try {
+        const vectors = [scan.neutral as number[], ...scan.order.map((pose) => scan.poses[pose] as number[])];
+        await enrollBiometricFace(studentId, vectors, scan.order);
+        faceSavedRef.current = true;
+        setFaceStatus("saved");
+        if (voiceSavedRef.current) setStage(nextStage);
+        return true;
+      } catch (reason) {
+        setFaceStatus("failed");
+        setFaceNote(`Couldn’t save your face check: ${String((reason as Error)?.message ?? reason)}`);
+        return false;
+      } finally {
+        scan.enrolling = false;
+        faceSaveRef.current = null;
+      }
+    })();
+    faceSaveRef.current = pending;
+    return pending;
+  }, [nextStage, stopMedia, studentId]);
 
   // Look-target scan: track head direction from the live landmarks and keep
   // one embedding per target, in a fresh random order each attempt.
   useEffect(() => {
     if (stage !== "scan") return;
     let cancelled = false;
-    let timer = 0;
     let clock = 0;
     let processing = false;
     let lastLightCheck = 0;
@@ -224,39 +264,40 @@ export default function BiometricSetupAssistant({
     const probe = document.createElement("canvas");
     probe.width = 48;
     probe.height = 64;
-    const markProbe = document.createElement("canvas");
-    const markHistory: FaceMark[][] = [];
+    let locking = false;
+    let retryAt = 0;
+    let raf = 0;
 
-    function sampleMarks(
-      video: HTMLVideoElement,
-      landmarks: number[][],
-      box: number[] | undefined,
+    function stillFrame(video: HTMLVideoElement): HTMLCanvasElement | null {
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      if (!width || !height) return null;
+      const still = document.createElement("canvas");
+      still.width = width;
+      still.height = height;
+      const ctx = still.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return null;
+      ctx.drawImage(video, 0, 0, width, height);
+      return still;
+    }
+
+    function hideLiveContour() {
+      const svg = contourSvgRef.current;
+      if (svg) svg.style.visibility = "hidden";
+    }
+
+    function showLiveContour(
+      shape: NonNullable<ReturnType<typeof faceContour>>,
       frame: [number, number],
-    ): FaceMark[] {
-      const srcW = frame[0] || video.videoWidth;
-      const srcH = frame[1] || video.videoHeight;
-      if (!srcW || !srcH) return [];
-      const tw = 180;
-      const scale = tw / srcW;
-      const th = Math.max(1, Math.round(srcH * scale));
-      if (markProbe.width !== tw) markProbe.width = tw;
-      if (markProbe.height !== th) markProbe.height = th;
-      const ctx = markProbe.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return [];
-      ctx.drawImage(video, 0, 0, tw, th);
-      const scaledBox = box && box.length >= 4
-        ? [box[0] * scale, box[1] * scale, box[2] * scale, box[3] * scale]
-        : null;
-      return faceMarks(
-        ctx.getImageData(0, 0, tw, th).data,
-        tw,
-        th,
-        landmarks.map(([x, y]) => [x * scale, y * scale]),
-        scaledBox,
-      ).map((mark) => ({
-        ...mark,
-        point: [mark.point[0] / scale, mark.point[1] / scale],
-      }));
+    ) {
+      const svg = contourSvgRef.current;
+      if (!svg) return;
+      svg.setAttribute("viewBox", `0 0 ${frame[0]} ${frame[1]}`);
+      svg.style.visibility = "visible";
+      outlinePathRef.current?.setAttribute("d", svgPath(shape.outline, true));
+      rightEyePathRef.current?.setAttribute("d", svgPath(shape.rightEye, true));
+      leftEyePathRef.current?.setAttribute("d", svgPath(shape.leftEye, true));
+      nosePathRef.current?.setAttribute("d", svgPath(shape.nose));
     }
 
     async function start() {
@@ -270,7 +311,7 @@ export default function BiometricSetupAssistant({
         const stream = pending
           ? await pending
           : await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 1280 } },
+            video: CAMERA_VIDEO,
             audio: false,
           });
         if (cancelled) {
@@ -288,7 +329,7 @@ export default function BiometricSetupAssistant({
       }
       setHint("Loading face model…");
       try {
-        engineRef.current ??= await createVisionEngine();
+        engineRef.current ??= mock ? createMockVisionEngine() : await createVisionEngine();
       } catch (reason) {
         if (cancelled) return;
         stopMedia();
@@ -303,7 +344,14 @@ export default function BiometricSetupAssistant({
       setHint("Center your face in the frame.");
       const started = performance.now();
       clock = window.setInterval(() => setElapsed((performance.now() - started) / 1000), 250);
-      timer = window.setInterval(tick, SCAN_INTERVAL_MS);
+      const loop = () => {
+        if (cancelled) return;
+        const startedAt = performance.now();
+        tick();
+        const elapsed = performance.now() - startedAt;
+        raf = window.setTimeout(loop, Math.max(16, 40 - elapsed));
+      };
+      raf = window.setTimeout(loop, 0);
     }
 
     async function checkLight(video: HTMLVideoElement) {
@@ -343,37 +391,21 @@ export default function BiometricSetupAssistant({
           lastLightCheck = now;
           void checkLight(video);
         }
-        // Fast path for every tick: YuNet landmarks only. SFace (the slow
-        // 38 MB ONNX net) is skipped unless we are about to capture — either
-        // the neutral baseline or a matched pose. This keeps the pose
-        // feedback responsive at ~10 fps even on CPU.
-        const needsEmbedding = !scan.base;
-        let faces = needsEmbedding
-          ? engine.detectAndEmbed(video)
-          : engine.detect(video);
+        const faces = engine.detect(video);
         if (faces.length !== 1) {
-          markHistory.length = 0;
-          setContour(null);
+          hideLiveContour();
           setHint(faces.length ? "Only one face, please." : "Center your face in the frame.");
           return;
         }
-        let face = faces[0];
+        const face = faces[0];
         const frame = (face.frame_size ?? [video.videoWidth, video.videoHeight]) as [number, number];
-        // Fewer mesh samples than the 32-point default: 18 lines look just
-        // as readable and cut SVG path cost by ~45%, which matters because
-        // this re-renders every scan tick.
-        const shape = faceContour(face.landmarks, 18, face.bbox);
+        const shape = faceContour(face.landmarks, 32, face.bbox, "features");
         if (!shape || !face.landmarks) {
-          markHistory.length = 0;
-          setContour(null);
-        } else {
-          // Pixels stay in this canvas. The mesh and any mark are drawn from
-          // them here; the frame is not uploaded.
-          const found = sampleMarks(video, face.landmarks, face.bbox, frame);
-          markHistory.push(found);
-          if (markHistory.length > 5) markHistory.shift();
-          setContour({ shape, frame, marks: stableFaceMarks(markHistory, 3) });
+          hideLiveContour();
+          return;
         }
+        const landmarks = face.landmarks;
+        showLiveContour(shape, frame);
         const geometry = faceGeometry(face.landmarks ?? [], face.bbox ?? [0, 0, frame[0], frame[1]], frame);
         if (!geometry) return;
         if (!scan.base) {
@@ -381,36 +413,59 @@ export default function BiometricSetupAssistant({
             setHint("Center your face in the frame.");
             return;
           }
-          scan.base = geometry;
-          scan.neutral = face.embedding;
-          setAnchored(true);
-          setHint(`Checking distinctive features. ${POSE_COPY[scan.order[0]]}`);
+          if (locking) return;
+          locking = true;
+          const geometryNow = geometry;
+          const marks = landmarks.map((point) => [point[0], point[1]]);
+          const still = stillFrame(video);
+          window.setTimeout(() => {
+            if (cancelled) return;
+            try {
+              const vector = still ? engine.embedAt(still, marks) : null;
+              locking = false;
+              if (!vector?.length || scan.base) return;
+              scan.base = geometryNow;
+              scan.neutral = vector;
+              setAnchored(true);
+              setHint(`Checking distinctive features. ${POSE_COPY[scan.order[0]]}`);
+            } catch {
+              locking = false;
+            }
+          }, 0);
           return;
         }
-        const target = scan.order.find((pose) => !scan.poses[pose]);
-        if (!target) return;
+        const target = scan.order.find((pose) => scan.poses[pose] == null);
+        if (!target || locking || now < retryAt) return;
         const pose = poseFromBaseline(scan.base, geometry);
         if (pose !== target) {
           setHint(POSE_COPY[target]);
           return;
         }
-        // The pose matches — now (and only now) run the full embed step so
-        // we have a vector to store for this pose.
-        const embedded = engine.detectAndEmbed(video);
-        if (embedded.length !== 1) {
-          // Face moved out of frame between detect and embed — retry next tick.
-          return;
-        }
-        face = embedded[0];
-        scan.poses[target] = face.embedding;
-        const done = scan.order.filter((item) => scan.poses[item]);
-        setCaptured(done);
-        const next = scan.order.find((item) => !scan.poses[item]);
-        if (next) {
-          setHint(`Checking distinctive features. ${POSE_COPY[next]}`);
-        } else {
-          void enrollFace();
-        }
+        locking = true;
+        const poseTarget = target;
+        const marks = landmarks.map((point) => [point[0], point[1]]);
+        const still = stillFrame(video);
+        window.setTimeout(() => {
+          if (cancelled) return;
+          try {
+            const vector = still && scan.neutral ? engine.embedAt(still, marks) : null;
+            const score = vector && scan.neutral ? cosineSimilarity(scan.neutral, vector) : 0;
+            if (!vector?.length || score < POSE_MATCH_MIN) {
+              locking = false;
+              retryAt = performance.now() + 450;
+              setHint(`${POSE_COPY[poseTarget]}. Ease back a little and hold.`);
+              return;
+            }
+            scan.poses[poseTarget] = vector;
+            setCaptured(scan.order.filter((item) => (scan.poses[item]?.length ?? 0) > 0));
+            locking = false;
+            const next = scan.order.find((item) => !(scan.poses[item]?.length));
+            if (next) setHint(`Checking distinctive features. ${POSE_COPY[next]}`);
+            else void enrollFace();
+          } catch {
+            locking = false;
+          }
+        }, 0);
       } finally {
         processing = false;
       }
@@ -419,11 +474,11 @@ export default function BiometricSetupAssistant({
     void start();
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      window.clearTimeout(raf);
       window.clearInterval(clock);
       stopMedia();
     };
-  }, [attempt, enrollFace, resetScan, stage, stopMedia]);
+  }, [attempt, enrollFace, mock, resetScan, stage, stopMedia]);
 
   async function recordVoice() {
     const micPromise = navigator.mediaDevices?.getUserMedia?.({
@@ -503,7 +558,10 @@ export default function BiometricSetupAssistant({
       } finally {
         blob = null;
       }
-      setStage(requireGovernmentId ? "identity" : "complete");
+      voiceSavedRef.current = true;
+      setVoiceSaved(true);
+      const faceSaved = faceSavedRef.current || (await (faceSaveRef.current ?? Promise.resolve(false)));
+      if (faceSaved) setStage(nextStage);
     } catch (reason) {
       setProblem(voiceProblem(reason));
     } finally {
@@ -522,7 +580,7 @@ export default function BiometricSetupAssistant({
     // Start the camera prompt in this tap. Waiting on the network first makes
     // phones show Allow and then ignore the tap.
     const cameraPromise = navigator.mediaDevices?.getUserMedia?.({
-      video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 1280 } },
+      video: CAMERA_VIDEO,
       audio: false,
     });
     pendingCameraRef.current = cameraPromise ?? null;
@@ -591,7 +649,7 @@ export default function BiometricSetupAssistant({
 
   function openCamera() {
     const cameraPromise = navigator.mediaDevices?.getUserMedia?.({
-      video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 1280 } },
+      video: CAMERA_VIDEO,
       audio: false,
     });
     pendingCameraRef.current = cameraPromise ?? null;
@@ -601,6 +659,14 @@ export default function BiometricSetupAssistant({
   function retryScan() {
     setProblem(null);
     openCamera();
+    setAttempt((value) => value + 1);
+  }
+
+  function redoFace() {
+    setProblem(null);
+    setFaceNote(null);
+    openCamera();
+    setStage("scan");
     setAttempt((value) => value + 1);
   }
 
@@ -614,6 +680,11 @@ export default function BiometricSetupAssistant({
       <header className={styles.topbar}>
         <span className={styles.brand}>Salareen</span>
         {stepLabel && <span className={styles.stepLabel}>{stepLabel}</span>}
+        {mock && <span className={styles.mockBadge} data-testid="learner-check-mock">Mock face data</span>}
+        <nav className={styles.steps} aria-label="Learner Check steps">
+          <span data-state={stage === "intro" || stage === "scan" ? "now" : "done"}>Face</span>
+          <span data-state={stage === "voice" ? "now" : stage === "identity" || stage === "complete" ? "done" : "next"}>Voice</span>
+        </nav>
         {(stage === "scan" || recording) && (
           <span className={styles.rec} aria-live="polite">
             <i /> {formatClock(elapsed)}
@@ -677,8 +748,23 @@ export default function BiometricSetupAssistant({
           )}
           {stage === "voice" && (
             <>
-              <span className={styles.eyebrow}>Voice check</span>
-              <h1>{recording ? "Keep reading…" : busy ? "Saving your voice check…" : "Now read this out loud."}</h1>
+              <span className={styles.eyebrow}>Voice check · {VOICE_SECONDS} seconds</span>
+              <h1>
+                {recording ? "Keep reading…"
+                  : busy ? "Saving your voice check…"
+                  : voiceSaved && faceStatus === "saving" ? "Saving your face check…"
+                  : voiceSaved ? "Voice check saved."
+                  : "Voice check"}
+              </h1>
+              <ul className={styles.status} aria-label="Learner Check progress">
+                <li data-state={faceStatus} data-testid="face-status">
+                  Face check: {faceStatus === "saved" ? "saved" : faceStatus === "failed" ? "not saved" : "saving…"}
+                </li>
+                <li data-state={voiceSaved ? "saved" : "idle"} data-testid="voice-status">
+                  Voice check: {voiceSaved ? "saved" : "not recorded yet"}
+                </li>
+              </ul>
+              {!voiceSaved && <p>Read this sentence out loud. The bars move when your microphone hears you.</p>}
               <blockquote className={styles.prompt}>{VOICE_PROMPT}</blockquote>
               <div className={styles.wave} role="progressbar" aria-label="Voice recording" aria-valuemin={0} aria-valuemax={VOICE_SECONDS} aria-valuenow={Math.round(elapsed)}>
                 <svg viewBox={`0 0 ${WAVE_BARS * 10} 64`} preserveAspectRatio="none" aria-hidden="true">
@@ -731,6 +817,9 @@ export default function BiometricSetupAssistant({
             </>
           )}
 
+          {faceNote && stage === "voice" && (
+            <p className={styles.error} role="alert" aria-live="assertive">{faceNote}</p>
+          )}
           {problem && (
             <p className={styles.error} role="alert" aria-live="assertive" data-kind={problem.kind}>{problem.message}</p>
           )}
@@ -767,11 +856,18 @@ export default function BiometricSetupAssistant({
             )}
             {stage === "voice" && (
               <>
-                <button className={styles.primary} disabled={busy} onClick={() => void recordVoice()}>
-                  {recording
-                    ? `Recording… ${Math.max(0, Math.ceil(VOICE_SECONDS - elapsed))}s`
-                    : problem ? "Try again" : "Start recording"}
-                </button>
+                {faceStatus === "failed" && !recording && !busy && (
+                  <button className={voiceSaved ? styles.primary : styles.secondary} onClick={redoFace}>
+                    Redo face check
+                  </button>
+                )}
+                {!voiceSaved && (
+                  <button className={styles.primary} disabled={busy} onClick={() => void recordVoice()}>
+                    {recording
+                      ? `Recording… ${Math.max(0, Math.ceil(VOICE_SECONDS - elapsed))}s`
+                      : problem ? "Try the voice check again" : "Start voice check"}
+                  </button>
+                )}
                 {canSkip && !busy && (
                   <button className={styles.secondary} onClick={() => void skip()}>Set up later</button>
                 )}
@@ -811,8 +907,7 @@ export default function BiometricSetupAssistant({
             <span className={`${styles.corner} ${styles.cornerTR}`} aria-hidden="true" />
             <span className={`${styles.corner} ${styles.cornerBL}`} aria-hidden="true" />
             <span className={`${styles.corner} ${styles.cornerBR}`} aria-hidden="true" />
-            {stage === "scan" ? (
-              <div className={styles.mirror}>
+            <div className={styles.mirror} style={stage === "scan" ? undefined : { display: "none" }}>
                 <video
                   ref={videoRef}
                   className={styles.camera}
@@ -821,52 +916,33 @@ export default function BiometricSetupAssistant({
                   aria-label="Live camera feed for Learner Check face scan"
                   aria-describedby="learner-check-scan-desc"
                 />
-                {contour && scanning && (
-                  <svg
-                    className={styles.contour}
-                    viewBox={`0 0 ${contour.frame[0]} ${contour.frame[1]}`}
-                    preserveAspectRatio="xMidYMid slice"
-                    aria-hidden="true"
-                  >
-                    <path className={styles.outline} d={svgPath(contour.shape.outline, true)} />
-                    {contour.shape.grid.map((line, index) => (
-                      <path key={`grid-${index}`} d={svgPath(line)} />
-                    ))}
-                    <path d={svgPath(contour.shape.rightEye, true)} />
-                    <path d={svgPath(contour.shape.leftEye, true)} />
-                    <path d={svgPath(contour.shape.nose)} />
-                    <path d={svgPath(contour.shape.mouth, true)} />
-                    {contour.marks.map((mark, index) => (
-                      <circle
-                        key={`${mark.region}-${index}`}
-                        className={styles.mark}
-                        data-region={mark.region}
-                        cx={mark.point[0]}
-                        cy={mark.point[1]}
-                        r={Math.max(5, contour.frame[0] / 110)}
-                      >
-                        <title>{mark.region}</title>
-                      </circle>
-                    ))}
-                  </svg>
-                )}
+                <svg
+                  ref={contourSvgRef}
+                  className={styles.contour}
+                  preserveAspectRatio="xMidYMid slice"
+                  style={{ visibility: "hidden" }}
+                  aria-hidden="true"
+                >
+                  <path ref={outlinePathRef} className={styles.outline} />
+                  <path ref={rightEyePathRef} className={styles.feature} />
+                  <path ref={leftEyePathRef} className={styles.feature} />
+                  <path ref={nosePathRef} className={styles.feature} />
+                </svg>
               </div>
-            ) : (
-              // Non-scan stages (intro / voice / identity / complete) are the
-              // "waiting" moments the mascot should fill. Idle rotation cycles
-              // through the family-friendly subset of the 15 Meshy clips every
-              // 5 s (Big_Wave_Hello -> Confident_Strut -> Indoor_Swing -> ...)
-              // so the character stays alive while the user reads, speaks, or
-              // uploads. The expression tracks the current stage.
-              <div className={styles.mascotStage}>
+              <div
+                className={styles.mascotStage}
+                style={stage === "scan" ? { visibility: "hidden", pointerEvents: "none" } : undefined}
+                aria-hidden={stage === "scan"}
+              >
                 <MascotMeshy
                   expression={mascotExpressionFor(stage)}
                   motion="idle"
                   idleRotation
                   fill
+                  backdrop="#071422"
+                  paused={stage === "scan"}
                 />
               </div>
-            )}
             {scanning && target && anchored && (
               <span className={styles.cue} data-pose={target} aria-hidden="true">{POSE_ARROW[target]}</span>
             )}

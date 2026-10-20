@@ -78,10 +78,10 @@ def _bootstrap_on_startup() -> None:
         _reseed_lock = _threading.Lock()
 
     from .bootstrap import bootstrap_accounts
-    from .persistence import load_identity_status, save_to_redis_with_retry
+    from .persistence import effective_redis_url, load_identity_status, save_to_redis_with_retry
 
     status = "unconfigured"
-    if os.environ.get("REDIS_URL", "").strip():
+    if effective_redis_url():
         status = "error"
         for attempt in range(1, 6):
             status = load_identity_status(app.state.accounts)
@@ -1680,6 +1680,16 @@ def _save_setup(acct, student_id: str, state: SetupAssistantState) -> dict:
     return normalize_setup_state(profile.biometric_setup).model_dump()
 
 
+def _perception_detail(exc: urllib.error.HTTPError) -> str:
+    """Perception's own message, not its JSON envelope inside ours."""
+    raw = exc.read().decode("utf-8", errors="replace")
+    try:
+        detail = json.loads(raw).get("detail")
+    except (ValueError, AttributeError):
+        return raw
+    return detail if isinstance(detail, str) else raw
+
+
 def _perception_json(path: str, payload: dict) -> dict:
     request = urllib.request.Request(
         getattr(app.state.config, "vision_base_url", "http://perception:8200").rstrip("/")
@@ -1695,8 +1705,7 @@ def _perception_json(path: str, payload: dict) -> dict:
         with urllib.request.urlopen(request, timeout=30.0) as response:
             return json.loads(response.read())
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise HTTPException(status_code=exc.code, detail=detail) from exc
+        raise HTTPException(status_code=exc.code, detail=_perception_detail(exc)) from exc
     except urllib.error.URLError as exc:
         raise HTTPException(status_code=503, detail="biometric provider unavailable") from exc
 
@@ -1722,8 +1731,7 @@ def _perception_image(path: str, image: bytes) -> dict:
         with urllib.request.urlopen(request, timeout=30.0) as response:
             return json.loads(response.read())
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise HTTPException(status_code=exc.code, detail=detail) from exc
+        raise HTTPException(status_code=exc.code, detail=_perception_detail(exc)) from exc
     except urllib.error.URLError as exc:
         raise HTTPException(status_code=503, detail="biometric provider unavailable") from exc
 
@@ -1739,8 +1747,7 @@ def _perception_delete(student_id: str) -> None:
         with urllib.request.urlopen(request, timeout=10.0):
             return
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise HTTPException(status_code=exc.code, detail=detail) from exc
+        raise HTTPException(status_code=exc.code, detail=_perception_detail(exc)) from exc
     except urllib.error.URLError as exc:
         raise HTTPException(status_code=503, detail="biometric provider unavailable") from exc
 
@@ -1878,9 +1885,9 @@ def _require_completed_pose_embeddings(
     neutral = embeddings[0]
     if not neutral:
         raise HTTPException(status_code=422, detail="face embedding is empty")
-    # Pose-liveness uses the LOOSER POSE_CHALLENGE_THRESHOLD (default 0.22,
+    # Pose-liveness uses the LOOSER POSE_CHALLENGE_THRESHOLD (default 0.18,
     # tunable via AOEP_POSE_CHALLENGE_THRESHOLD) because an extreme head
-    # yaw/pitch SFace embedding often sits in 0.20-0.35 for the same
+    # yaw/pitch SFace embedding often sits in the 0.18-0.35 band for the same
     # person. The strict 0.363 bar is still used for the actual identity
     # match path (see FaceGallery.identify). Zero disables the gate.
     for embedding in embeddings[1:]:
@@ -1889,8 +1896,12 @@ def _require_completed_pose_embeddings(
         movement = sum((a - b) ** 2 for a, b in zip(neutral, embedding))
         if movement < 0.000001:
             raise HTTPException(status_code=422, detail="pose challenge frames must not be static")
-        if POSE_CHALLENGE_THRESHOLD > 0 and cosine_similarity(neutral, embedding) < POSE_CHALLENGE_THRESHOLD:
-            raise HTTPException(status_code=422, detail="pose challenge face does not match portrait")
+        score = cosine_similarity(neutral, embedding)
+        if POSE_CHALLENGE_THRESHOLD > 0 and score < POSE_CHALLENGE_THRESHOLD:
+            raise HTTPException(
+                status_code=422,
+                detail=f"pose challenge face does not match portrait ({score:.2f})",
+            )
 
 
 @app.post("/students/{student_id}/biometric-face")

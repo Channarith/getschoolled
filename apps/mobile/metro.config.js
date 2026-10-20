@@ -44,6 +44,29 @@ config.resolver.blockList = new RegExp(
 
 config.watchFolders = [path.resolve(__dirname)];
 
+// metro-config's default emptyModulePath is require.resolve("metro-runtime/..."),
+// which walks out of this app and lands in ~/node_modules when that directory
+// exists. Metro then refuses the file because it is outside the project, and
+// every stripped native module fails the bundle with:
+//   Unable to resolve module /Users/<you>/node_modules/metro-runtime/.../empty-module.js
+// Point at an in-repo stub instead.
+config.resolver.emptyModulePath = path.resolve(
+  __dirname,
+  "src/shims/metro-empty-module.js",
+);
+
+// Do not walk parent directories (repo root, $HOME). A ~/pnpm-workspace.yaml
+// makes ~/node_modules a second install tree and Metro will bind packages from
+// there instead of apps/mobile/node_modules.
+const localNodeModules = path.resolve(__dirname, "node_modules");
+config.resolver.nodeModulesPaths = [
+  localNodeModules,
+  ...(config.resolver.nodeModulesPaths || []).filter(
+    (entry) => entry !== localNodeModules,
+  ),
+];
+config.resolver.disableHierarchicalLookup = true;
+
 // Belt-and-suspenders: pin packages Metro/export:embed must resolve under pnpm on EAS.
 function pinPackage(config, name) {
   try {
@@ -66,6 +89,7 @@ for (const pkg of [
   "@babel/runtime",
   "expo-asset",
   "@react-native/assets-registry",
+  "metro-runtime",
 ]) {
   pinPackage(config, pkg);
 }

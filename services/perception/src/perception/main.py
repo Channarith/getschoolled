@@ -354,7 +354,11 @@ def _voice_embedding(audio_b64: str) -> list[float]:
     dependencies=[Depends(require_internal)],
 )
 def enroll_voiceprint(student_id: str, req: VoiceSampleRequest) -> VoiceEnrollmentResponse:
-    template_ref = _voice_gallery().enroll(student_id, _voice_embedding(req.audio_b64))
+    embedding = _voice_embedding(req.audio_b64)
+    try:
+        template_ref = _voice_gallery().enroll(student_id, embedding)
+    except VoiceIdentityUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return VoiceEnrollmentResponse(student_id=student_id, template_ref=template_ref)
 
 
@@ -364,7 +368,11 @@ def enroll_voiceprint(student_id: str, req: VoiceSampleRequest) -> VoiceEnrollme
     dependencies=[Depends(require_internal)],
 )
 def verify_voiceprint(student_id: str, req: VoiceSampleRequest) -> VoiceEnrollmentResponse:
-    match = _voice_gallery().verify(student_id, _voice_embedding(req.audio_b64))
+    probe = _voice_embedding(req.audio_b64)
+    try:
+        match = _voice_gallery().verify(student_id, probe)
+    except VoiceIdentityUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return VoiceEnrollmentResponse(
         student_id=student_id,
         template_ref="",
@@ -382,7 +390,10 @@ def delete_biometrics(student_id: str) -> dict:
     delete = getattr(provider, "delete_student", None)
     if callable(delete):
         delete(student_id)
-    _voice_gallery().remove(student_id)
+    try:
+        _voice_gallery().remove(student_id)
+    except VoiceIdentityUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {"student_id": student_id, "deleted": True}
 
 

@@ -67,7 +67,9 @@ class VoucherStore:
         self._load()
 
     def _redis(self):
-        url = os.environ.get("REDIS_URL", "").strip()
+        from aoep_shared.redis_url import runtime_redis_url
+
+        url = runtime_redis_url()
         if not url:
             return None
         try:

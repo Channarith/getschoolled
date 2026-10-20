@@ -274,23 +274,35 @@ def hydrate_free_claims(store: "AccountStore") -> None:
         durable_free_claim_count(known)
 
 
+def effective_redis_url() -> str:
+    """Redis URL this process can dial, or empty when local mode should skip it.
+
+    See ``aoep_shared.redis_url.runtime_redis_url``. Cloud always keeps the
+    cluster URL, including the Vultr Redis password when one is configured.
+    """
+    from aoep_shared.redis_url import runtime_redis_url
+
+    return runtime_redis_url()
+
+
 def redis_configured() -> bool:
-    return bool(os.environ.get("REDIS_URL", "").strip())
+    return bool(effective_redis_url())
 
 
 def _redis_client():
-    url = os.environ.get("REDIS_URL", "").strip()
+    url = effective_redis_url()
     if not url:
         return None
     try:
-        import redis  # type: ignore[import-not-found]
+        from aoep_shared.redis_url import open_redis
+    except ImportError:
+        logger.warning("REDIS_URL set but redis helper is missing; identity stays in-memory")
+        return None
+    try:
+        return open_redis(url, decode_responses=True, socket_connect_timeout=2)
     except ImportError:
         logger.warning("REDIS_URL set but redis package not installed; identity stays in-memory")
         return None
-    try:
-        client = redis.from_url(url, decode_responses=True, socket_connect_timeout=2)
-        client.ping()
-        return client
     except Exception as exc:
         logger.warning("Redis unavailable for identity persistence (%s); in-memory only", exc)
         return None

@@ -14,6 +14,7 @@
 // engine).
 
 import { visionModelUrl, type WireFace } from "./api";
+import { sfaceWarpMatrix } from "./learnerCheck";
 import { ModelLoadError, OPENCV_JS_URL, waitForCvRuntime } from "./opencvRuntime";
 import { fetchVisionModel } from "./visionModels";
 
@@ -21,6 +22,11 @@ const DETECTOR_NAME = "face_detection_yunet_2023mar.onnx";
 const RECOGNIZER_NAME = "face_recognition_sface_2021dec.onnx";
 // YuNet's detection threshold; matches the server engine default.
 const DET_SCORE_THRESHOLD = 0.7;
+// YuNet is built for about a 320px input. Tracking uses that size so the
+// eyes and nose stay on the live face. The saved embedding uses a larger
+// frame so the aligned 112px crop is sharp enough to match the portrait.
+const TRACK_LONG_EDGE = 256;
+const EMBED_LONG_EDGE = 480;
 
 export type ImageSource =
   | HTMLVideoElement
@@ -39,6 +45,11 @@ export type VisionEngine = {
    * a mid-range Mac this is ~5-8× faster than the full embed path.
    */
   detect: (source: ImageSource) => WireFace[];
+  /**
+   * SFace embedding for landmarks already found by {@link detect}. Skips a
+   * second YuNet pass so the saved vector is the same face the oval tracked.
+   */
+  embedAt: (source: ImageSource, landmarks: number[][]) => number[] | null;
   /** Free native (WASM) handles. */
   dispose: () => void;
 };
@@ -105,15 +116,13 @@ export async function createVisionEngine(): Promise<VisionEngine> {
   const recognizer = await withStagedModel(cv, RECOGNIZER_NAME, () => cv.readNet(RECOGNIZER_NAME));
 
   const canvas = document.createElement("canvas");
+  const embedCanvas = document.createElement("canvas");
+  let bgr: { delete: () => void } | null = null;
+  let out: { data32F: Float32Array; delete: () => void } | null = null;
+  let trackWidth = 0;
+  let trackHeight = 0;
 
-  /**
-   * Core detect helper. If `withEmbedding` is false we skip the SFace
-   * forward pass entirely — the single biggest CPU cost. Shared between
-   * {@link detect} (fast landmarks-only) and {@link detectAndEmbed}
-   * (slow full capture).
-   */
-  function runDetect(source: ImageSource, withEmbedding: boolean): WireFace[] {
-    // Draw the source onto a canvas so OpenCV can read RGBA pixels.
+  function sourceSize(source: ImageSource): [number, number] | null {
     const width =
       (source as HTMLVideoElement).videoWidth ||
       (source as HTMLImageElement).naturalWidth ||
@@ -122,73 +131,120 @@ export async function createVisionEngine(): Promise<VisionEngine> {
       (source as HTMLVideoElement).videoHeight ||
       (source as HTMLImageElement).naturalHeight ||
       (source as HTMLCanvasElement).height;
-    if (!width || !height) return [];
+    return width && height ? [width, height] : null;
+  }
 
-    if (canvas.width !== width) canvas.width = width;
-    if (canvas.height !== height) canvas.height = height;
+  function drawScaled(target: HTMLCanvasElement, source: ImageSource, limit: number): [number, number, number] | null {
+    const size = sourceSize(source);
+    if (!size) return null;
+    const [width, height] = size;
+    const longEdge = Math.max(width, height);
+    const scale = longEdge > limit ? limit / longEdge : 1;
+    const dw = Math.max(1, Math.round(width * scale));
+    const dh = Math.max(1, Math.round(height * scale));
+    if (target.width !== dw) target.width = dw;
+    if (target.height !== dh) target.height = dh;
+    const ctx = target.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(source, 0, 0, dw, dh);
+    return [dw, dh, scale];
+  }
+
+  function ensureTrack(dw: number, dh: number) {
+    if (bgr && trackWidth === dw && trackHeight === dh) return;
+    bgr?.delete();
+    bgr = new cv.Mat(dh, dw, cv.CV_8UC3);
+    detector.setInputSize(new cv.Size(dw, dh));
+    trackWidth = dw;
+    trackHeight = dh;
+  }
+
+  function embedOnBgr(mat: { delete?: () => void }, landmarks: number[][]): number[] {
+    const aligned = new cv.Mat();
+    const face112 = new cv.Size(112, 112);
+    let transform: { delete: () => void } | null = null;
+    try {
+      const warp = sfaceWarpMatrix(landmarks);
+      if (warp) {
+        transform = cv.matFromArray(2, 3, cv.CV_32F, warp);
+        cv.warpAffine(mat, aligned, transform, face112);
+      } else {
+        return [];
+      }
+      const blob = cv.blobFromImage(aligned, 1, face112, new cv.Scalar(0, 0, 0, 0), true, false);
+      recognizer.setInput(blob);
+      const vec = recognizer.forward();
+      const embedding = Array.from(vec.data32F as Float32Array);
+      blob.delete();
+      vec.delete();
+      return embedding;
+    } finally {
+      transform?.delete();
+      aligned.delete();
+    }
+  }
+
+  function runDetect(source: ImageSource, withEmbedding: boolean): WireFace[] {
+    const size = sourceSize(source);
+    if (!size) return [];
+    const [width, height] = size;
+    const drawn = drawScaled(canvas, source, withEmbedding ? EMBED_LONG_EDGE : TRACK_LONG_EDGE);
+    if (!drawn) return [];
+    const [dw, dh, scale] = drawn;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return [];
-    ctx.drawImage(source, 0, 0, width, height);
-
-    const rgba = cv.imread(canvas); // CV_8UC4
-    const bgr = new cv.Mat();
-    cv.cvtColor(rgba, bgr, cv.COLOR_RGBA2BGR);
-
-    const out = new cv.Mat();
-    detector.setInputSize(new cv.Size(width, height));
-    detector.detect(bgr, out);
+    ensureTrack(dw, dh);
+    if (!bgr) return [];
+    const fresh = cv.imread(canvas);
+    try {
+      cv.cvtColor(fresh, bgr, cv.COLOR_RGBA2BGR);
+    } finally {
+      fresh.delete();
+    }
+    if (!out) out = new cv.Mat();
+    const detected = out;
+    if (!detected) return [];
+    detector.detect(bgr, detected);
+    const inv = scale > 0 ? 1 / scale : 1;
 
     const faces: WireFace[] = [];
-    // Each detection row is 15 floats: x, y, w, h, then 5 (x,y) landmarks,
-    // then the detection score.
-    const data = out.data32F as Float32Array;
+    const data = detected.data32F as Float32Array;
     for (let i = 0; i + 15 <= data.length; i += 15) {
       const x = Math.max(0, Math.round(data[i]));
       const y = Math.max(0, Math.round(data[i + 1]));
       const w = Math.round(data[i + 2]);
       const h = Math.round(data[i + 3]);
-      if (w <= 0 || h <= 0) continue;
-      const rw = Math.min(w, width - x);
-      const rh = Math.min(h, height - y);
-      if (rw <= 0 || rh <= 0) continue;
-
-      let embedding: number[] = [];
-      if (withEmbedding) {
-        const rect = new cv.Rect(x, y, rw, rh);
-        const roi = bgr.roi(rect);
-        const blob = cv.blobFromImage(
-          roi,
-          1.0,
-          new cv.Size(112, 112),
-          new cv.Scalar(0, 0, 0, 0),
-          true,
-          false
-        );
-        recognizer.setInput(blob);
-        const vec = recognizer.forward();
-        embedding = Array.from(vec.data32F as Float32Array);
-        blob.delete();
-        vec.delete();
-        roi.delete();
-      }
-
-      const landmarks: number[][] = [];
-      for (let k = 0; k < 5; k++) {
-        landmarks.push([data[i + 4 + 2 * k], data[i + 5 + 2 * k]]);
-      }
-
+      if (w <= 1 || h <= 1) continue;
+      const localMarks: number[][] = [];
+      for (let k = 0; k < 5; k++) localMarks.push([data[i + 4 + 2 * k], data[i + 5 + 2 * k]]);
+      const embedding = withEmbedding ? embedOnBgr(bgr, localMarks) : [];
       faces.push({
         embedding,
-        landmarks,
-        bbox: [x, y, w, h],
+        landmarks: localMarks.map(([lx, ly]) => [lx * inv, ly * inv]),
+        bbox: [Math.round(x * inv), Math.round(y * inv), Math.round(w * inv), Math.round(h * inv)],
         frame_size: [width, height],
       });
     }
-
-    rgba.delete();
-    bgr.delete();
-    out.delete();
     return faces;
+  }
+
+  function embedAt(source: ImageSource, landmarks: number[][]): number[] | null {
+    const size = sourceSize(source);
+    if (!size || landmarks.length < 5) return null;
+    const drawn = drawScaled(embedCanvas, source, EMBED_LONG_EDGE);
+    if (!drawn) return null;
+    const [, , scale] = drawn;
+    const rgbaE = cv.imread(embedCanvas);
+    const bgrE = new cv.Mat();
+    try {
+      cv.cvtColor(rgbaE, bgrE, cv.COLOR_RGBA2BGR);
+      const local = landmarks.slice(0, 5).map(([x, y]) => [x * scale, y * scale]);
+      const embedding = embedOnBgr(bgrE, local);
+      return embedding.length ? embedding : null;
+    } finally {
+      rgbaE.delete();
+      bgrE.delete();
+    }
   }
 
   function detectAndEmbed(source: ImageSource): WireFace[] {
@@ -200,14 +256,16 @@ export async function createVisionEngine(): Promise<VisionEngine> {
   }
 
   function dispose(): void {
-    for (const handle of [detector, recognizer]) {
+    for (const handle of [detector, recognizer, bgr, out]) {
       try {
-        handle.delete?.();
+        handle?.delete?.();
       } catch {
         /* best-effort */
       }
     }
+    bgr = null;
+    out = null;
   }
 
-  return { detectAndEmbed, detect, dispose };
+  return { detectAndEmbed, detect, embedAt, dispose };
 }

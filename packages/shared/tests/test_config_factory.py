@@ -50,6 +50,36 @@ def test_local_mode_selects_local_impls():
     assert isinstance(factory.payment(), SandboxPaymentProvider)
 
 
+def test_unresolvable_perception_host_uses_native_port(monkeypatch):
+    import socket
+
+    def _missing(*_args, **_kwargs):
+        raise socket.gaierror("perception")
+
+    monkeypatch.setattr(socket, "getaddrinfo", _missing)
+    cfg = load_config(env={"DEPLOY_MODE": "local"})
+    assert cfg.vision_base_url == "http://127.0.0.1:8003"
+
+
+def test_cloud_keeps_perception_hostname_when_dns_fails(monkeypatch):
+    import socket
+
+    def _missing(*_args, **_kwargs):
+        raise socket.gaierror("perception")
+
+    monkeypatch.setattr(socket, "getaddrinfo", _missing)
+    cfg = load_config(env={"DEPLOY_MODE": "cloud"})
+    assert cfg.vision_base_url == "http://perception:8200"
+
+
+def test_resolvable_perception_host_keeps_configured_url(monkeypatch):
+    import socket
+
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *_a, **_k: [])
+    cfg = load_config(env={"DEPLOY_MODE": "local", "VISION_BASE_URL": "http://perception:8200"})
+    assert cfg.vision_base_url == "http://perception:8200"
+
+
 def test_factory_caches_instances():
     factory = build_factory(load_config(env={}))
     assert factory.llm() is factory.llm()

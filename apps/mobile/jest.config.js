@@ -24,6 +24,7 @@ const TRANSPILE = [
 
 module.exports = {
   preset: "jest-expo",
+  setupFiles: ["<rootDir>/jest.expoCameraSetup.js"],
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   // The previous single pattern assumed a hoisted node_modules. Under pnpm the
   // real path is node_modules/.pnpm/<pkg>@<ver>/node_modules/<pkg>, so the first

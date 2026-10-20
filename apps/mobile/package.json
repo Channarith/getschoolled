@@ -1,8 +1,8 @@
 {
   "name": "aiclassroom-mobile",
-  "version": "0.91.0",
+  "version": "0.92.0",
   "private": true,
-  "packageManager": "pnpm@11.8.0",
+  "packageManager": "pnpm@12.14.0",
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
   "main": "index.ts",
   "scripts": {
@@ -84,6 +84,7 @@
     "expo-auth-session": "~5.5.2",
     "expo-av": "~14.0.7",
     "expo-build-properties": "0.12.5",
+    "expo-camera": "~15.0.16",
     "expo-constants": "~16.0.2",
     "expo-crypto": "~13.0.2",
     "expo-device": "~6.0.2",

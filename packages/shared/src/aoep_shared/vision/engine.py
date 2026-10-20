@@ -40,11 +40,10 @@ def _env_float(name: str, default: float) -> float:
 # Looser threshold used ONLY for the pose-challenge liveness check (neutral
 # portrait vs. left/right/up/down captures of the SAME person). SFace is
 # calibrated against frontal portraits, so an extreme head yaw/pitch cosine
-# often sits in the 0.20-0.35 band for the same person. Keeping the strict
+# often sits in the 0.18-0.35 band for the same person. Keeping the strict
 # 0.363 bar here was rejecting legitimate pose captures with a 422 "pose
-# challenge face does not match portrait" error. We relax this bar for the
-# pose-only step and keep DEFAULT_MATCH_THRESHOLD at 0.363 for the actual
-# identity-match path (login re-verification, class check-in, etc.).
+# challenge face does not match portrait" error. 0.18 accepts that band.
+# Identity matching stays at DEFAULT_MATCH_THRESHOLD (0.363).
 #
 # Override at runtime with AOEP_POSE_CHALLENGE_THRESHOLD (float). Set it to
 # 0.0 to disable the pose-vs-portrait similarity gate entirely (local-dev
@@ -52,7 +51,7 @@ def _env_float(name: str, default: float) -> float:
 # still apply).
 POSE_CHALLENGE_THRESHOLD = _env_float(
     "AOEP_POSE_CHALLENGE_THRESHOLD",
-    0.22,
+    0.18,
 )
 # Neutral portrait plus left, right, up, and down. A high-assurance match
 # waits until all five templates are enrolled.

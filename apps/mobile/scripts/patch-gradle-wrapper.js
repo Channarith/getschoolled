@@ -139,6 +139,13 @@ function patchRootBuildGradle() {
     "url(new File(rootDir, '../node_modules/jsc-android/dist'))",
   );
 
+  // expo-camera's config plugin resolves its barcode maven repo with a Node
+  // one-liner. pnpm's layout makes that execute() miss the package.
+  content = content.replace(
+    /new File\(\["node", "--print", "require\.resolve\('expo-camera\/package\.json'\)"\]\.execute\(null, rootDir\)\.text\.trim\(\), "\.\.\/android\/maven"\)/,
+    'new File(rootDir, "../node_modules/expo-camera/android/maven")',
+  );
+
   if (!content.includes(patchedMarker)) {
     content = content.replace(
       "// Top-level build file",
@@ -149,7 +156,7 @@ function patchRootBuildGradle() {
   return writeIfChanged(
     rootBuildPath,
     content,
-    "Android build.gradle patched: local react-native + jsc-android maven paths",
+    "Android build.gradle patched: local react-native, jsc-android, and expo-camera maven paths",
   );
 }
 
