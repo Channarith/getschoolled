@@ -1083,6 +1083,30 @@ export function meteringToLevel(db: number | undefined | null): number {
   return Math.min(1, Math.max(0, (db + 50) / 45));
 }
 
+/** Reject when a native call or upload does not settle in time. The call itself keeps running. */
+export function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (reason) => { clearTimeout(timer); reject(reason); },
+    );
+  });
+}
+
+/** Peak metering (dBFS) below this means the phone never heard speech. */
+export const SILENT_PEAK_DB = -55;
+
+/**
+ * True when the phone reported metering for the whole take and none of it
+ * rose to speech. Phones that report no metering are never called silent here.
+ */
+export function isSilentTake(peakDb: number | null | undefined, sawMetering: boolean): boolean {
+  if (!sawMetering) return false;
+  if (peakDb == null || !Number.isFinite(peakDb)) return true;
+  return peakDb < SILENT_PEAK_DB;
+}
+
 /** The site palette (apps/web/app/globals.css) used by the setup assistant. */
 export const SETUP_COLORS = {
   bg: "#f4e9d8",

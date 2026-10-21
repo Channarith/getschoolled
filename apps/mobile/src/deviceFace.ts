@@ -1,4 +1,4 @@
-import type { Point } from "./learnerCheck";
+import { withTimeout, type Point } from "./learnerCheck";
 
 /**
  * On-device face read for Learner Check.
@@ -156,6 +156,9 @@ export const FRAME_HINT: Record<Exclude<FrameVerdict, "ok">, string> = {
   eyes: "Keep your eyes open.",
 };
 
+/** One read of a still should take well under a second; do not wait forever on a stuck one. */
+export const DETECT_TIMEOUT_MS = 6000;
+
 type FaceDetectionModule = {
   detect: (imageURL: string, options?: Record<string, unknown>) => Promise<MlFace[]>;
 };
@@ -182,12 +185,12 @@ export async function detectDeviceFaces(
   if (typeof detect !== "function") {
     throw new Error("The on-device face reader is not in this build. Rebuild the app and try again.");
   }
-  const faces = await detect(uri, {
+  const faces = await withTimeout(detect(uri, {
     performanceMode: "fast",
     landmarkMode: contours ? "all" : "none",
     contourMode: contours ? "all" : "none",
     classificationMode: "all",
     minFaceSize: contours ? 0.08 : 0.12,
-  });
+  }), DETECT_TIMEOUT_MS, "The on-device face reader took too long.");
   return (faces ?? []).map((face) => readMlKitFace(face)).filter((face): face is DeviceFaceRead => face != null);
 }
