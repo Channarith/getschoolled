@@ -182,8 +182,7 @@ async def detect_landmarks(file: UploadFile = File(...)) -> LandmarksResponse:
     contour on the captured photo. Nothing is stored and no embedding leaves."""
     data = await file.read()
     try:
-        engine = _vision().engine()
-        faces = engine.detect_faces(data)
+        faces = _vision().engine().detect_landmarks(data)
     except AttributeError as exc:
         raise HTTPException(status_code=503, detail="face landmarks are not available") from exc
     except ValueError as exc:

@@ -56,7 +56,11 @@ POSE_CHALLENGE_THRESHOLD = _env_float(
 # Neutral portrait plus left, right, up, and down. A high-assurance match
 # waits until all five templates are enrolled.
 LIVENESS_TEMPLATE_COUNT = 5
-DEFAULT_DET_SCORE_THRESHOLD = 0.7
+# Live mobile capture must work with lower-light front cameras, glasses, and
+# ordinary phone compression. The pose flow still requires one centered face
+# and five distinct looks before enrollment, so use a forgiving detector score
+# here rather than rejecting a real learner before they can begin.
+DEFAULT_DET_SCORE_THRESHOLD = 0.45
 
 
 @dataclass
@@ -163,6 +167,40 @@ class FaceRecognitionEngine:
                     bbox=(x, y, bw, bh),
                     det_score=float(row[-1]),
                     embedding=feat.tolist(),
+                    landmarks=landmarks,
+                    frame_size=(w, h),
+                )
+            )
+        faces.sort(key=lambda f: f.area, reverse=True)
+        return faces
+
+    def detect_landmarks(self, image: ImageLike) -> List[DetectedFace]:
+        """Return YuNet geometry without running the expensive SFace embedder.
+
+        The native setup assistant calls this continuously while rendering its
+        camera outline. It needs only the bounding box and five landmarks; doing
+        recognition for each preview frame wastes CPU and makes an otherwise
+        usable front-camera frame time out under load. Enrollment still uses
+        :meth:`detect_faces`, which computes a real embedding for every saved
+        pose image.
+        """
+        img = self._decode(image)
+        h, w = img.shape[:2]
+        self._detector.setInputSize((w, h))
+        _, raw = self._detector.detect(img)
+        faces: List[DetectedFace] = []
+        if raw is None:
+            return faces
+        for row in raw:
+            x, y, bw, bh = (int(v) for v in row[:4])
+            landmarks = [
+                (float(row[4 + 2 * i]), float(row[5 + 2 * i])) for i in range(5)
+            ]
+            faces.append(
+                DetectedFace(
+                    bbox=(x, y, bw, bh),
+                    det_score=float(row[-1]),
+                    embedding=[],
                     landmarks=landmarks,
                     frame_size=(w, h),
                 )

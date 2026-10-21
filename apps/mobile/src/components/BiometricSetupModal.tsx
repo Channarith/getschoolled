@@ -642,7 +642,7 @@ export default function BiometricSetupModal({
   const latest = liveContour;
   const { isMedium, isExpanded } = useLayoutMetrics();
   const wide = isMedium || isExpanded;
-  const scanPhone = !wide && step === "scan";
+  const scanning = step === "scan";
   const [frameBox, setFrameBox] = useState({ width: 0, height: 0 });
 
   return (
@@ -657,11 +657,11 @@ export default function BiometricSetupModal({
           </View>
           {stepLabel ? <Text style={styles.stepLabel}>{stepLabel}</Text> : null}
         </View>
-        <View style={[styles.split, !wide && styles.splitStack]}>
-          <View style={[styles.artPane, !wide && step !== "scan" && styles.artBand, scanPhone && styles.scanArt]}>
-            <KenBurnsImage source={step === "voice" ? ART.voice : ART.face} style={StyleSheet.absoluteFill} />
+        <View style={[styles.split, !wide && styles.splitStack, scanning && styles.scanSplit]}>
+          <View style={[styles.artPane, !wide && step !== "scan" && styles.artBand, scanning && styles.scanArtFull]}>
+            {!scanning ? <KenBurnsImage source={step === "voice" ? ART.voice : ART.face} style={StyleSheet.absoluteFill} /> : null}
             <View
-              style={scanPhone ? styles.frameScan : styles.frame}
+              style={scanning ? styles.frameFill : styles.frame}
               onLayout={(event) => {
                 const next = {
                   width: Math.round(event.nativeEvent.layout.width),
@@ -769,33 +769,37 @@ export default function BiometricSetupModal({
             ))}
             {done ? <Text style={styles.check}>✓</Text> : null}
           </View>
-            {step === "scan" ? (
-              <View style={styles.poseRow}>
-                {order.map((pose, index) => {
-                  const captured = shots.length > index + 1;
-                  const now = pose === target;
-                  return (
-                    <View key={pose} style={[styles.poseChip, now && styles.poseChipNow, captured && styles.poseChipDone]}>
-                      <Text style={[styles.poseChipText, now && styles.poseChipTextNow, captured && styles.poseChipTextOn]}>
-                        {captured ? "✓" : POSE_ARROW[pose]} {pose}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            ) : null}
           </View>
-          <View style={styles.pane}>
-          <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.contentInner, wide && styles.contentCenter]}>
-          <Text style={styles.kicker}>{text.kicker}{step === "scan" ? ` · ${Math.max(0, shots.length - 1)} of ${order.length}` : ""}</Text>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.body}>{text.body}</Text>
+          <View style={[styles.pane, scanning && styles.scanHud]} pointerEvents={scanning ? "box-none" : "auto"}>
+          <ScrollView
+            style={scanning ? undefined : styles.paneScroll}
+            contentContainerStyle={[styles.contentInner, wide && styles.contentCenter, scanning && styles.scanContent]}
+            scrollEnabled={!scanning}
+          >
+          {scanning ? (
+            <View style={styles.poseRow}>
+              {order.map((pose, index) => {
+                const captured = shots.length > index + 1;
+                const now = pose === target;
+                return (
+                  <View key={pose} style={[styles.poseChip, styles.poseChipOnCamera, now && styles.poseChipNowGlass, captured && styles.poseChipDoneGlass]}>
+                    <Text style={[styles.poseChipText, styles.poseChipTextOnCamera, now && styles.poseChipTextNow, captured && styles.poseChipTextOn]}>
+                      {captured ? "✓" : POSE_ARROW[pose]} {pose}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+          <Text style={[styles.kicker, scanning && styles.scanKicker]}>{text.kicker}{step === "scan" ? ` · ${Math.max(0, shots.length - 1)} of ${order.length}` : ""}</Text>
+          <Text style={[styles.title, scanning && styles.scanTitle]}>{title}</Text>
+          <Text style={[styles.body, scanning && styles.scanBody]}>{text.body}</Text>
           {step === "scan" && latest?.contour ? (
             <Text style={styles.small}>
               Face map ready. The lines are a capture guide. A dot, if one shows, is an optional note about a darker spot. It is not saved, and it is not the identity check.
             </Text>
           ) : null}
-          {contourNote ? <Text style={styles.small}>{contourNote}</Text> : null}
+          {contourNote ? <Text style={[styles.small, scanning && styles.scanBody]}>{contourNote}</Text> : null}
           {step === "voice" ? (
             <>
               <Text style={styles.prompt}>{PROMPT}</Text>
@@ -813,11 +817,13 @@ export default function BiometricSetupModal({
           ) : null}
           {problem ? <Text style={styles.error} accessibilityRole="alert">{problem.message}</Text> : null}
           {busy && !recording ? <ActivityIndicator color={C.accent} style={styles.spinner} /> : null}
-          <Text style={styles.note}>
-            Games and general courses skip this. Accredited courses need it before the first full lesson.
-          </Text>
+          {!scanning ? (
+            <Text style={styles.note}>
+              Games and general courses skip this. Accredited courses need it before the first full lesson.
+            </Text>
+          ) : null}
           </ScrollView>
-          <View style={styles.actions}>
+          <View style={[styles.actions, scanning && styles.scanActions]} pointerEvents="auto">
             {problem?.settings ? (
               <Action title="Open Settings" onPress={() => void Linking.openSettings()} />
             ) : null}
@@ -832,11 +838,11 @@ export default function BiometricSetupModal({
             ) : null}
             {step === "scan" ? (
               <>
-                {shots.length > 0 ? <Action title="Start over" secondary disabled={busy} onPress={resetScan} /> : null}
+                {shots.length > 0 ? <Action title="Start over" secondary glass disabled={busy} onPress={resetScan} /> : null}
                 {problem ? (
-                  <Action title="Try again" disabled={busy} onPress={() => { setProblem(null); readyRef.current = false; setAttempt((n) => n + 1); }} />
+                  <Action title="Try again" glass disabled={busy} onPress={() => { setProblem(null); readyRef.current = false; setAttempt((n) => n + 1); }} />
                 ) : null}
-                {canSkip ? <Action title="Set up later" secondary disabled={busy} onPress={() => void finish(true)} /> : null}
+                {canSkip ? <Action title="Set up later" secondary glass disabled={busy} onPress={() => void finish(true)} /> : null}
               </>
             ) : null}
             {step === "voice" ? (
@@ -864,16 +870,21 @@ export default function BiometricSetupModal({
   );
 }
 
-function Action({ title, onPress, secondary = false, disabled = false }: {
-  title: string; onPress: () => void; secondary?: boolean; disabled?: boolean;
+function Action({ title, onPress, secondary = false, disabled = false, glass = false }: {
+  title: string; onPress: () => void; secondary?: boolean; disabled?: boolean; glass?: boolean;
 }) {
   return (
     <AnimatedPressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.button, secondary && styles.buttonSecondary, disabled && styles.disabled]}
+      style={[
+        styles.button,
+        secondary && styles.buttonSecondary,
+        glass && (secondary ? styles.buttonGlassSecondary : styles.buttonGlass),
+        disabled && styles.disabled,
+      ]}
     >
-      <Text style={[styles.buttonText, secondary && styles.buttonTextSecondary]}>{title}</Text>
+      <Text style={[styles.buttonText, secondary && !glass && styles.buttonTextSecondary]}>{title}</Text>
     </AnimatedPressable>
   );
 }
@@ -887,9 +898,10 @@ const styles = StyleSheet.create({
   brand: { color: C.text, fontSize: 17, fontWeight: "800" },
   split: { flex: 1, flexDirection: "row", minHeight: 0 },
   splitStack: { flexDirection: "column" },
+  scanSplit: { position: "relative" },
   artPane: { flex: 1.15, minWidth: 0, alignItems: "center", justifyContent: "center", backgroundColor: C.panel2, overflow: "hidden" },
   artBand: { flex: 0, width: "100%", height: "34%" },
-  scanArt: { flex: 1.45, width: "100%", justifyContent: "flex-start", paddingBottom: 8 },
+  scanArtFull: { ...StyleSheet.absoluteFillObject, flex: 0, width: "100%", height: "100%" },
   pane: { flex: 1, minWidth: 0, minHeight: 0, backgroundColor: C.panel },
   paneScroll: { flex: 1 },
   contentInner: { flexGrow: 1, padding: 20, gap: 8 },
@@ -902,10 +914,20 @@ const styles = StyleSheet.create({
     width: "72%", maxWidth: 420, aspectRatio: 3 / 4, maxHeight: "86%",
     borderRadius: 16, overflow: "hidden", backgroundColor: "#111111", borderWidth: 1, borderColor: C.border,
   },
-  frameScan: {
-    width: "92%", maxWidth: 420, flex: 1, marginTop: 8,
-    borderRadius: 16, overflow: "hidden", backgroundColor: "#111111", borderWidth: 1, borderColor: C.border,
+  frameFill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 0, overflow: "hidden", backgroundColor: "#111111",
   },
+  scanHud: {
+    position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 20, elevation: 20,
+    backgroundColor: "rgba(8, 16, 28, 0.22)",
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+  },
+  scanContent: { flexGrow: 0, paddingTop: 12, paddingBottom: 0, gap: 4 },
+  scanKicker: { color: "#9ee7df", marginTop: 0 },
+  scanTitle: { color: "#ffffff", fontSize: 26, lineHeight: 30, marginTop: 2 },
+  scanBody: { color: "#e7eef8", marginTop: 4 },
+  scanActions: { borderTopWidth: 0, backgroundColor: "transparent", paddingTop: 4 },
   cameraClip: { ...StyleSheet.absoluteFillObject, zIndex: 0, elevation: 0, overflow: "hidden" },
   cameraLayer: { zIndex: 0, elevation: 0 },
   overlay: {
@@ -930,19 +952,19 @@ const styles = StyleSheet.create({
     minWidth: 64, minHeight: 48, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16,
     alignItems: "center", justifyContent: "center",
   },
-  cueOn: { backgroundColor: C.accent },
-  cueIdle: { backgroundColor: "rgba(15, 23, 42, 0.78)", borderWidth: 1, borderColor: "#ffffff" },
+  cueOn: { backgroundColor: "rgba(47, 107, 216, 0.42)" },
+  cueIdle: { backgroundColor: "rgba(15, 23, 42, 0.28)", borderWidth: 1, borderColor: "rgba(255,255,255,0.8)" },
   cueText: { color: "#ffffff", fontSize: 18, fontWeight: "800", lineHeight: 20 },
   cueLabel: { color: "#ffffff", fontSize: 11, fontWeight: "800", textTransform: "capitalize", lineHeight: 13 },
   cue_left: { left: 8, top: "38%" },
   cue_right: { right: 8, top: "38%" },
   cue_up: { top: 28, left: 0, right: 0, alignItems: "center" },
-  cue_down: { bottom: 10, left: 0, right: 0, alignItems: "center" },
+  cue_down: { bottom: "34%", left: 0, right: 0, alignItems: "center" },
   straight: {
     position: "absolute", top: "44%", left: 0, right: 0, alignItems: "center", zIndex: 5, elevation: 5,
   },
   straightText: {
-    color: "#ffffff", fontSize: 15, fontWeight: "800", backgroundColor: "rgba(15, 23, 42, 0.72)",
+    color: "#ffffff", fontSize: 15, fontWeight: "800", backgroundColor: "rgba(15, 23, 42, 0.28)",
     overflow: "hidden", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6,
   },
   poseRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", paddingHorizontal: 12, paddingTop: 8 },
@@ -950,6 +972,10 @@ const styles = StyleSheet.create({
     minHeight: 36, borderRadius: 12, paddingHorizontal: 10, alignItems: "center", justifyContent: "center",
     backgroundColor: C.panel, borderWidth: 1, borderColor: C.border,
   },
+  poseChipOnCamera: { backgroundColor: "rgba(15, 23, 42, 0.22)", borderColor: "rgba(255,255,255,0.72)" },
+  poseChipNowGlass: { backgroundColor: "rgba(47, 107, 216, 0.38)", borderColor: "rgba(255,255,255,0.9)" },
+  poseChipDoneGlass: { backgroundColor: "rgba(15, 157, 143, 0.4)", borderColor: "rgba(255,255,255,0.72)" },
+  poseChipTextOnCamera: { color: "#ffffff" },
   poseChipNow: { borderColor: C.accent, backgroundColor: C.panel },
   poseChipDone: { backgroundColor: C.teal, borderColor: C.teal },
   poseChipText: { color: C.text, fontWeight: "800", textTransform: "capitalize" },
@@ -996,6 +1022,8 @@ const styles = StyleSheet.create({
   },
   button: { backgroundColor: C.accent, borderRadius: 12, minHeight: 52, alignItems: "center", justifyContent: "center", paddingHorizontal: 22 },
   buttonSecondary: { backgroundColor: C.panel, borderWidth: 1, borderColor: C.border },
+  buttonGlass: { backgroundColor: "rgba(47, 107, 216, 0.42)", borderWidth: 1, borderColor: "rgba(255,255,255,0.55)" },
+  buttonGlassSecondary: { backgroundColor: "rgba(255, 255, 255, 0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.7)" },
   buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "800" },
   buttonTextSecondary: { color: C.text },
   disabled: { opacity: .45 },
