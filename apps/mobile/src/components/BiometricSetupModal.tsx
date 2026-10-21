@@ -86,7 +86,9 @@ export const SAVE_TIMEOUT_MS = 15_000;
 /** Camera restarts allowed after a still never came back. */
 const MAX_CAMERA_STALLS = 2;
 /** After the fifth still, wait at most this long for extra candidates. */
-const EXTRA_STILLS_MS = 2500;
+const EXTRA_STILLS_MS = 1200;
+/** Least time between kept stills, so the outline can follow the face and each still differs a little. */
+const KEEP_SPACING_MS = 500;
 /** Empty reads in a row before the server is asked to find the face instead. */
 const ASSIST_AFTER_EMPTY = 8;
 
@@ -460,6 +462,7 @@ export default function BiometricSetupModal({
       const kept: ScoredStill[] = [];
       const prints = new Set<string>();
       let fullAt = 0;
+      let lastKeptAt = 0;
       let assist = false;
       let previousBox: FaceBox | null = null;
       let blurSkips = 0;
@@ -518,11 +521,10 @@ export default function BiometricSetupModal({
         }
         let faces: Awaited<ReturnType<typeof detectDeviceFaces>> = [];
         try {
-          // The outline read is slower. Once a good frame is kept, the rest
-          // only need the quick one-face check and the outline stays drawn.
-          // After several empty reads the quick detector may be the problem, so
+          // Every read draws the outline so it keeps following the face. After
+          // several empty reads the quick detector may be the problem, so
           // switch to the slower, more forgiving one.
-          faces = await detectDeviceFaces(shot.uri, { contours: kept.length === 0, accurate: emptyStreak >= 4 });
+          faces = await detectDeviceFaces(shot.uri, { contours: true, accurate: emptyStreak >= 4 });
         } catch (reason) {
           await discardFile(shot.uri);
           if (cancelled) return;
@@ -582,6 +584,13 @@ export default function BiometricSetupModal({
           await discardFile(shot.uri);
           continue;
         }
+        // Not every read becomes a kept still. Waiting between them lets the
+        // outline catch up on a slow phone and gives each still a small natural
+        // difference from the last.
+        if (lastKeptAt && Date.now() - lastKeptAt < KEEP_SPACING_MS) {
+          await discardFile(shot.uri);
+          continue;
+        }
         let base64 = "";
         try {
           base64 = await FileSystem.readAsStringAsync(shot.uri, { encoding: FileSystem.EncodingType.Base64 });
@@ -604,6 +613,7 @@ export default function BiometricSetupModal({
         const print = stillFingerprint(base64);
         if (prints.has(print)) continue;
         prints.add(print);
+        lastKeptAt = Date.now();
         kept.push({ base64, score: stillScore(face!, frame, base64.length, Math.max(...recentLengths)) });
         setCaptured(Math.min(kept.length, FACE_PHOTOS));
         if (kept.length >= FACE_PHOTOS && !fullAt) fullAt = Date.now();

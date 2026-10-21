@@ -180,14 +180,14 @@ export function faceGeometry(landmarks: number[][], bbox: number[], frame: numbe
   if (faceHeight <= 1) return null;
   const noseAlong = (nose[0] - eyeMid[0]) * u[0] + (nose[1] - eyeMid[1]) * u[1];
   const noseDown = (nose[0] - eyeMid[0]) * v[0] + (nose[1] - eyeMid[1]) * v[1];
-  const cx = bbox[0] + bbox[2] / 2;
-  const cy = bbox[1] + bbox[3] / 2;
   const frameW = frame[0] || 1;
   const frameH = frame[1] || 1;
   return {
     yaw: noseAlong / eyeDist,
     pitch: noseDown / faceHeight,
-    centered: Math.abs(cx / frameW - 0.5) < 0.2 && Math.abs(cy / frameH - 0.5) < 0.22,
+    // "Centered" now means the whole face is in the picture, not inside the oval.
+    centered: bbox[0] >= frameW * 0.03 && bbox[1] >= frameH * 0.03
+      && bbox[0] + bbox[2] <= frameW * 0.97 && bbox[1] + bbox[3] <= frameH * 0.97,
     roll: headRoll(points),
   };
 }

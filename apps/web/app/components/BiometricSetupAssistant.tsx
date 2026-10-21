@@ -93,6 +93,8 @@ const ANCHOR_SHARP_RATIO = 0.6;
 const ANCHOR_TRIES = 12;
 const POSE_SHARP_RATIO = 0.45;
 const POSE_TRIES = 6;
+// About three seconds of ticks at the scan's pace, across all reference-frame gates.
+const ANCHOR_HOLD_TICKS = 75;
 
 const POSE_COPY: Record<Pose, string> = {
   left: "Look to your left",
@@ -425,6 +427,7 @@ export default function BiometricSetupAssistant({
     let previousBox: number[] | null = null;
     let bestSharp = 0;
     let anchorTries = 0;
+    let anchorHeld = 0;
     let anchorSharp = 0;
     let poseRejects = 0;
     const sharpProbe = document.createElement("canvas");
@@ -532,7 +535,7 @@ export default function BiometricSetupAssistant({
         return;
       }
       if (cancelled) return;
-      setHint("Center your face in the circle.");
+      setHint("Keep your whole face in view.");
       const started = performance.now();
       clock = window.setInterval(() => setElapsed((performance.now() - started) / 1000), 250);
       const loop = () => {
@@ -585,7 +588,7 @@ export default function BiometricSetupAssistant({
         const faces = engine.detect(video);
         if (faces.length !== 1) {
           hideLiveContour();
-          setHint(faces.length ? "Only one face, please." : "Center your face in the circle.");
+          setHint(faces.length ? "Only one face, please." : "Keep your whole face in view.");
           return;
         }
         const face = faces[0];
@@ -598,11 +601,15 @@ export default function BiometricSetupAssistant({
         if (!geometry) return;
         if (!scan.base) {
           if (!geometry.centered) {
-            setHint("Center your face in the circle.");
+            setHint("Keep your whole face in view.");
             stableTicks = 0;
             return;
           }
-          if (Math.abs(geometry.roll) > ANCHOR_ROLL_DEGREES) {
+          // The quality gates only hold the reference frame for a few seconds in
+          // total. After that the scan goes ahead with what it has.
+          const gated = anchorHeld < ANCHOR_HOLD_TICKS;
+          if (gated && Math.abs(geometry.roll) > ANCHOR_ROLL_DEGREES) {
+            anchorHeld += 1;
             setHint("Keep your head level.");
             stableTicks = 0;
             return;
@@ -614,7 +621,8 @@ export default function BiometricSetupAssistant({
             && Math.hypot(box[0] - previousBox[0], box[1] - previousBox[1]) > 0.12 * Math.max(box[2], previousBox[2]);
           previousBox = box;
           stableTicks = moved ? 0 : stableTicks + 1;
-          if (stableTicks < 3) {
+          if (gated && stableTicks < 3) {
+            anchorHeld += 1;
             setHint("Hold still…");
             return;
           }
@@ -625,8 +633,9 @@ export default function BiometricSetupAssistant({
           const still = stillFrame(video);
           const sharp = faceSharpness(still, face.bbox);
           bestSharp = Math.max(bestSharp * 0.97, sharp);
-          if (anchorTries < ANCHOR_TRIES && sharp < ANCHOR_SHARP_RATIO * bestSharp) {
+          if (gated && anchorTries < ANCHOR_TRIES && sharp < ANCHOR_SHARP_RATIO * bestSharp) {
             anchorTries += 1;
+            anchorHeld += 1;
             locking = false;
             setHint("Hold still…");
             return;
@@ -655,7 +664,8 @@ export default function BiometricSetupAssistant({
           setHint(POSE_COPY[target]);
           return;
         }
-        if (Math.abs(geometry.roll) > POSE_ROLL_DEGREES) {
+        if (Math.abs(geometry.roll) > POSE_ROLL_DEGREES && poseRejects < POSE_TRIES * 4) {
+          poseRejects += 1;
           setHint("Keep your head level.");
           return;
         }

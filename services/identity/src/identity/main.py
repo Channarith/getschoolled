@@ -2127,6 +2127,11 @@ def enroll_biometric_face_quick(
         if exc.status_code != 404:
             raise
         enrollments = _enroll_face_photos_one_by_one(student_id, decoded[:LIVENESS_TEMPLATE_COUNT])
+    if enrollments < LIVENESS_TEMPLATE_COUNT:
+        raise HTTPException(
+            status_code=422,
+            detail=f"the face check needs {LIVENESS_TEMPLATE_COUNT} clear photos; only {enrollments} were usable",
+        )
     state.portrait = state.portrait.model_validate(
         mark_record(state.portrait, "verified", template_ref=f"face:{student_id}")
     )

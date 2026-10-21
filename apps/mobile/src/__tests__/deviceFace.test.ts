@@ -67,7 +67,7 @@ describe("on-device face read", () => {
     expect(readMlKitFace(face)?.eyesOpen).toBeNull();
   });
 
-  it("keeps only a centered, straight-on, open-eyed still", () => {
+  it("keeps only a whole-face, straight-on, open-eyed still", () => {
     const frame: [number, number] = [480, 640];
     const good = (patch: Partial<DeviceFaceRead> = {}): DeviceFaceRead => ({
       landmarks: null,
@@ -165,7 +165,7 @@ describe("iOS still orientation and scan failure message", () => {
   });
 
   it("tells the learner what the phone actually saw", () => {
-    expect(scanFailureMessage({ center: 9, none: 2 })).toMatch(/inside the circle/);
+    expect(scanFailureMessage({ center: 9, none: 2 })).toMatch(/cut off/);
     expect(scanFailureMessage({ eyes: 7, straight: 1 })).toMatch(/eyes/);
     expect(scanFailureMessage({ none: 12 })).toMatch(/clear look/);
     expect(scanFailureMessage({})).toMatch(/clear look/);
@@ -223,5 +223,15 @@ describe("recognition robustness helpers", () => {
     expect(good).toBeGreaterThan(stillScore(face({ yaw: 20 }), frame, 100, 100));
     expect(good).toBeGreaterThan(stillScore(face(), frame, 55, 100));
     expect(rankStills([{ base64: "b", score: 0.2 }, { base64: "a", score: 0.9 }])).toEqual(["a", "b"]);
+  });
+
+  it("does not need the face inside the oval, only whole in the picture", () => {
+    const base = { landmarks: null, strokes: [], smiling: null, yaw: 0, pitch: 0, eyesOpen: 1, roll: 0 };
+    const off = { ...base, bbox: [30, 800, 220, 250], faceWidth: 220 } as DeviceFaceRead;
+    expect(frameVerdict([off], [720, 1280])).toBe("ok");
+    const cut = { ...base, bbox: [-20, 400, 260, 300], faceWidth: 260 } as DeviceFaceRead;
+    expect(frameVerdict([cut], [720, 1280])).toBe("center");
+    const bottomCut = { ...base, bbox: [250, 1100, 220, 250], faceWidth: 220 } as DeviceFaceRead;
+    expect(frameVerdict([bottomCut], [720, 1280])).toBe("center");
   });
 });

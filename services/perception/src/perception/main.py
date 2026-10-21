@@ -385,8 +385,17 @@ def enroll_face_images(student_id: str, req: EnrollFaceImagesRequest) -> EnrollR
             sharpness=getattr(face, "sharpness", None),
             roll=getattr(face, "roll_degrees", None),
         ))
-    if not candidates:
-        raise HTTPException(status_code=422, detail="no face detected in the photos")
+    # Never store fewer templates than the check promises. A single photo keeps
+    # its old meaning; with several, a shortfall is refused here, not stored.
+    needed = min(total, LIVENESS_TEMPLATE_COUNT)
+    if len(candidates) < needed:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"only {len(candidates)} of {total} photos showed a clear face. "
+                "Look straight at the camera, hold still, and try again."
+            ),
+        )
     try:
         chosen = choose_templates(candidates)
     except EnrollmentRefused as exc:

@@ -140,6 +140,8 @@ export type FrameVerdict = "ok" | "none" | "many" | "closer" | "back" | "center"
 export const STRAIGHT_DEGREES = 24;
 /** Sideways head tilt (Z axis) we still keep. The server levels small tilts; large ones lose the face. */
 export const ROLL_DEGREES = 30;
+/** Share of the picture kept clear at each edge so the whole face is in view. */
+export const FRAME_MARGIN = 0.02;
 
 /**
  * Whether one still is good enough to keep for the face check.
@@ -154,10 +156,13 @@ export function frameVerdict(faces: DeviceFaceRead[], frame: [number, number]): 
   const [width, height] = frame;
   const cue = faceDistanceCue(face.faceWidth, Math.max(width, height));
   if (cue !== "ok") return cue;
+  // The face does not have to sit inside the on-screen oval, only be whole in
+  // the picture: a face cut off by the edge cannot give a full outline.
   const [left, top, boxWidth, boxHeight] = face.bbox;
-  const dx = Math.abs(left + boxWidth / 2 - width / 2) / width;
-  const dy = Math.abs(top + boxHeight / 2 - height / 2) / height;
-  if (dx > 0.26 || dy > 0.28) return "center";
+  if (
+    left < width * FRAME_MARGIN || top < height * FRAME_MARGIN
+    || left + boxWidth > width * (1 - FRAME_MARGIN) || top + boxHeight > height * (1 - FRAME_MARGIN)
+  ) return "center";
   if (Math.abs(face.yaw ?? 0) > STRAIGHT_DEGREES || Math.abs(face.pitch ?? 0) > STRAIGHT_DEGREES) return "straight";
   if (face.roll != null && Math.abs(face.roll) > ROLL_DEGREES) return "tilt";
   if (face.eyesOpen != null && face.eyesOpen < 0.25) return "eyes";
@@ -217,7 +222,7 @@ const FAILURE_MESSAGE: Record<Exclude<FrameVerdict, "ok" | "none">, string> = {
   many: "We saw more than one face. Make sure only you are in the picture, then try again.",
   closer: "You looked too far from the camera. Bring the phone a little closer, then try again.",
   back: "You looked too close to the camera. Move the phone back a little, then try again.",
-  center: "We couldn’t line your face up with the circle. Keep your face inside the circle at eye level, then try again.",
+  center: "Part of your face was cut off by the edge of the picture. Hold the phone at eye level so your whole face is in view, then try again.",
   straight: "We need you looking straight at the camera. Hold the phone at eye level, then try again.",
   tilt: "Your head was tilted to the side. Keep it level and try again.",
   eyes: "We couldn’t see your eyes clearly. Face a light, keep your eyes open and look at the camera, then try again.",
@@ -240,7 +245,7 @@ export function scanFailureMessage(counts: VerdictCounts): string {
 }
 
 /** Most stills kept for one face check. The best five are used; the server may pick among all of them. */
-export const FACE_CANDIDATES = 7;
+export const FACE_CANDIDATES = 6;
 
 export type FaceBox = { cx: number; cy: number; width: number };
 
@@ -287,7 +292,7 @@ export const FRAME_HINT: Record<Exclude<FrameVerdict, "ok">, string> = {
   many: "Only one face, please.",
   closer: "Move a little closer.",
   back: "Move back a little.",
-  center: "Center your face in the circle.",
+  center: "Keep your whole face in view.",
   straight: "Look straight at the camera.",
   tilt: "Keep your head level.",
   eyes: "Keep your eyes open.",

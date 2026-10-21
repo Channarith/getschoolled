@@ -133,3 +133,13 @@ def test_too_few_agreeing_photos_refuse_with_a_clear_message():
     assert refused.status_code == 422
     assert "same clear face" in refused.json()["detail"]
     assert provider._gallery.count("learner") == 1
+
+
+def test_seven_photos_with_only_three_faces_do_not_replace_the_old_check():
+    photos = [_photo(n) for n in range(7)]
+    provider = _provider({photo: [1.0, 0.01 * n, 0.0] for n, photo in enumerate(photos[:3])})
+    provider._gallery.enroll("learner", [1.0, 0.0, 0.0])
+    refused = _post("learner", photos)
+    assert refused.status_code == 422
+    assert "only 3 of 7" in refused.json()["detail"]
+    assert provider._gallery.count("learner") == 1

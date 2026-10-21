@@ -560,3 +560,18 @@ def test_quick_face_check_takes_up_to_eight_photos(monkeypatch):
     assert sent == [8]
     too_many = client.post(url, headers=headers, json={"images_b64": [_photo(n) for n in range(9)]})
     assert too_many.status_code == 422
+
+
+def test_quick_face_check_is_not_verified_when_fewer_than_five_templates_were_kept(monkeypatch):
+    headers, student = _account()
+    student_id = student["id"]
+    client.put(f"/students/{student_id}/biometric-consent", headers=headers, json={"granted": True})
+    monkeypatch.setattr(identity_main, "_perception_json", lambda path, payload: {"enrollments": 3})
+    refused = client.post(
+        f"/students/{student_id}/biometric-face-quick",
+        headers=headers,
+        json={"images_b64": [_photo(n) for n in range(5)]},
+    )
+    assert refused.status_code == 422
+    setup = client.get(f"/students/{student_id}/setup-assistant", headers=headers).json()
+    assert setup["portrait"]["status"] != "verified"
