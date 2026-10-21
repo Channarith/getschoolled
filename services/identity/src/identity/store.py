@@ -1433,7 +1433,12 @@ class AccountStore:
         return self.add_student(account_id, name, age_band="adult")
 
     def list_students(self, account_id: str) -> List[StudentProfile]:
-        students = list(self._by_id[account_id].students.values())
+        # Another replica may have added the learner after this pod loaded the account.
+        self.reload_account(account_id)
+        acct = self._by_id.get(account_id)
+        if acct is None:
+            return []
+        students = list(acct.students.values())
         changed = False
         for prof in students:
             changed = self._backfill_profile_score(prof) or changed
@@ -1442,7 +1447,11 @@ class AccountStore:
         return students
 
     def get_student(self, account_id: str, student_id: str) -> Optional[StudentProfile]:
-        prof = self._by_id[account_id].students.get(student_id)
+        acct = self._by_id.get(account_id)
+        prof = acct.students.get(student_id) if acct is not None else None
+        if prof is None and self.reload_account(account_id):
+            acct = self._by_id.get(account_id)
+            prof = acct.students.get(student_id) if acct is not None else None
         if prof is not None and self._backfill_profile_score(prof):
             self._persist()
         return prof

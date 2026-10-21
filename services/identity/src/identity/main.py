@@ -1254,9 +1254,7 @@ def get_voice_enrollment(student_id: str, acct=Depends(current_account)) -> dict
 
     No raw audio is retained or retrievable.
     """
-    prof = app.state.accounts.get_student(acct.id, student_id)
-    if prof is None:
-        raise HTTPException(status_code=404, detail="unknown student profile")
+    prof = _owned_student(acct, student_id)
     setup = normalize_setup_state(prof.biometric_setup)
     return {
         "student_id": student_id,
@@ -1669,10 +1667,7 @@ def record_consent(req: ConsentRequest, acct=Depends(current_account)) -> dict:
 # Setup assistant and biometric identity
 # --------------------------------------------------------------------------- #
 def _owned_student(acct, student_id: str):
-    accounts = app.state.accounts
-    student = accounts.get_student(acct.id, student_id)
-    if student is None and accounts.reload_account(acct.id):
-        student = accounts.get_student(acct.id, student_id)
+    student = app.state.accounts.get_student(acct.id, student_id)
     if student is None:
         raise HTTPException(status_code=404, detail="student not found")
     return student

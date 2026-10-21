@@ -70,6 +70,14 @@ def test_student_added_on_another_replica_reloads_instead_of_404(monkeypatch):
     resp = client.get(f"/students/{hidden.id}/setup-assistant", headers=headers)
     assert resp.status_code == 200
     assert reloads == [account_id]
+    voice = client.get(f"/students/{hidden.id}/voice-enrollment", headers=headers)
+    assert voice.status_code == 200
+    consent = client.put(
+        f"/students/{hidden.id}/biometric-consent",
+        headers=headers,
+        json={"granted": True},
+    )
+    assert consent.status_code == 200
     monkeypatch.setattr(accounts, "reload_account", lambda aid: False)
     assert client.get("/students/missing/setup-assistant", headers=headers).status_code == 404
 
