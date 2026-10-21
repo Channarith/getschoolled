@@ -16,6 +16,8 @@ import {
   updateSetupAssistant,
 } from "../lib/api";
 import { createVisionEngine, type VisionEngine } from "../lib/vision";
+import { isDeferredUpload } from "../lib/pendingUpload";
+import { blobToBase64, dropPendingFace, flushPendingLearnerCheck, queuePendingFace, queuePendingVoice } from "../lib/pendingBiometrics";
 import { createMockVisionEngine, learnerCheckMockEnabled } from "../lib/visionMock";
 import {
   POSES,
@@ -169,8 +171,9 @@ export default function BiometricSetupAssistant({
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [faceNote, setFaceNote] = useState<string | null>(null);
-  const [faceStatus, setFaceStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [faceStatus, setFaceStatus] = useState<"idle" | "saving" | "saved" | "queued" | "failed">("idle");
   const [voiceSaved, setVoiceSaved] = useState(false);
+  const [voiceHeld, setVoiceHeld] = useState(false);
   const faceSavedRef = useRef(false);
   const voiceSavedRef = useRef(false);
   const [hint, setHint] = useState("Starting camera…");
@@ -262,6 +265,7 @@ export default function BiometricSetupAssistant({
         || state.government_id.status === "verified",
       );
     }).catch(() => undefined);
+    void flushPendingLearnerCheck();
   }, [studentId]);
 
   const resetScan = useCallback(() => {
@@ -330,15 +334,34 @@ export default function BiometricSetupAssistant({
     setFaceNote(null);
     setStage("voice");
     const pending = (async () => {
+      const vectors = [scan.neutral as number[], ...scan.order.map((pose) => scan.poses[pose] as number[])];
+      let id = activeStudentRef.current;
       try {
-        const vectors = [scan.neutral as number[], ...scan.order.map((pose) => scan.poses[pose] as number[])];
-        const id = await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
+        id = await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
         await withTimeout(enrollBiometricFace(id, vectors, scan.order), SAVE_TIMEOUT_MS, "Saving the face check");
         faceSavedRef.current = true;
         setFaceStatus("saved");
+        setFaceNote(null);
         if (voiceSavedRef.current) setStage(nextStage);
         return true;
       } catch (reason) {
+        if (isDeferredUpload(reason)) {
+          try {
+            await queuePendingFace(id, vectors, scan.order, {
+              granted: true,
+              guardianGranted: minor ? guardianConsent : false,
+            });
+            faceSavedRef.current = true;
+            setFaceStatus("queued");
+            setFaceNote("Saved on this computer. We’ll send your face check when you’re connected.");
+            if (voiceSavedRef.current) setStage(nextStage);
+            return true;
+          } catch (keepReason) {
+            setFaceStatus("failed");
+            setFaceNote(`Couldn’t save your face check: ${String((keepReason as Error)?.message ?? keepReason)}`);
+            return false;
+          }
+        }
         setFaceStatus("failed");
         setFaceNote(`Couldn’t save your face check: ${String((reason as Error)?.message ?? reason)}`);
         return false;
@@ -349,7 +372,7 @@ export default function BiometricSetupAssistant({
     })();
     faceSaveRef.current = pending;
     return pending;
-  }, [ensureConsent, nextStage, stopMedia]);
+  }, [ensureConsent, guardianConsent, minor, nextStage, stopMedia]);
 
   // Look-target scan: track head direction from the live landmarks and keep
   // one embedding per target, in a fresh random order each attempt.
@@ -687,12 +710,26 @@ export default function BiometricSetupAssistant({
       try {
         const id = await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
         await withTimeout(enrollVoiceprint(id, blob), SAVE_TIMEOUT_MS, "Saving the voice check");
+        voiceSavedRef.current = true;
+        setVoiceHeld(false);
+        setVoiceSaved(true);
+        if (faceSavedRef.current) setStage(nextStage);
+      } catch (reason) {
+        if (!blob || !isDeferredUpload(reason)) throw reason;
+        await queuePendingVoice(
+          activeStudentRef.current,
+          { mime: blob.type || "audio/webm", base64: await blobToBase64(blob) },
+          { granted: true, guardianGranted: minor ? guardianConsent : false },
+        );
+        voiceSavedRef.current = true;
+        setVoiceHeld(true);
+        setVoiceSaved(true);
+        setProblem(null);
+        setFaceNote((current) => current ?? "Saved on this computer. We’ll send your voice check when you’re connected.");
+        if (faceSavedRef.current) setStage(nextStage);
       } finally {
         blob = null;
       }
-      voiceSavedRef.current = true;
-      setVoiceSaved(true);
-      if (faceSavedRef.current) setStage(nextStage);
     } catch (reason) {
       setProblem(voiceProblem(reason));
     } finally {
@@ -781,6 +818,9 @@ export default function BiometricSetupAssistant({
   function redoFace() {
     setProblem(null);
     setFaceNote(null);
+    setFaceStatus("idle");
+    faceSavedRef.current = false;
+    void dropPendingFace(activeStudentRef.current);
     openCamera();
     setStage("scan");
     setAttempt((value) => value + 1);
@@ -820,7 +860,7 @@ export default function BiometricSetupAssistant({
               <ul className={styles.facts}>
                 <li><b>Face check</b> Look left, right, up and down when the frame asks.</li>
                 <li><b>Voice check</b> Read a short sentence for {VOICE_SECONDS} seconds.</li>
-                <li><b>Private</b> We keep protected templates only, never the video, audio, or ID photo.</li>
+                <li><b>Private</b> This device reads your face and voice first. We send the check when you’re connected, and we don’t keep the video.</li>
               </ul>
               {minor && (
                 <label className={styles.consent}>
@@ -859,15 +899,16 @@ export default function BiometricSetupAssistant({
                 {recording ? "Keep reading…"
                   : busy ? "Saving your voice check…"
                   : voiceSaved && faceStatus === "saving" ? "Saving your face check…"
+                  : voiceSaved && voiceHeld ? "Voice check saved on this device."
                   : voiceSaved ? "Voice check saved."
                   : "Voice check"}
               </h1>
               <ul className={styles.status} aria-label="Learner Check progress">
                 <li data-state={faceStatus} data-testid="face-status">
-                  Face check: {faceStatus === "saved" ? "saved" : faceStatus === "failed" ? "not saved" : "saving…"}
+                  Face check: {faceStatus === "saved" ? "saved" : faceStatus === "queued" ? "saved on this device" : faceStatus === "failed" ? "not saved" : "saving…"}
                 </li>
-                <li data-state={voiceSaved ? "saved" : "idle"} data-testid="voice-status">
-                  Voice check: {voiceSaved ? "saved" : "not recorded yet"}
+                <li data-state={voiceSaved ? (voiceHeld ? "queued" : "saved") : "idle"} data-testid="voice-status">
+                  Voice check: {voiceSaved ? (voiceHeld ? "saved on this device" : "saved") : "not recorded yet"}
                 </li>
               </ul>
               {!voiceSaved && <p>Read this sentence out loud. The bars move when your microphone hears you.</p>}
@@ -924,7 +965,7 @@ export default function BiometricSetupAssistant({
           )}
 
           {faceNote && stage === "voice" && (
-            <p className={styles.error} role="alert" aria-live="assertive">{faceNote}</p>
+            <p className={faceStatus === "failed" ? styles.error : styles.lightNote} role={faceStatus === "failed" ? "alert" : "status"} aria-live={faceStatus === "failed" ? "assertive" : "polite"}>{faceNote}</p>
           )}
           {problem && (
             <p className={styles.error} role="alert" aria-live="assertive" data-kind={problem.kind}>{problem.message}</p>

@@ -42,6 +42,34 @@ def test_stalled_redis_write_keeps_the_account(monkeypatch):
     assert calls["n"] == 2
 
 
+def test_plan_change_serializes_only_that_account(monkeypatch):
+    from identity import persistence
+    from aoep_shared.schemas import PlanTier
+
+    store = AccountStore()
+    alice = store.create("plan-a@example.com", "Secret123")
+    for n in range(20):
+        store.create(f"plan-other-{n}@example.com", "Secret123")
+
+    seen: list[str] = []
+    real_blob = persistence._blob
+
+    def spy(st, aid):
+        seen.append(aid)
+        return real_blob(st, aid)
+
+    class _Ok:
+        def eval(self, *_args, **_kwargs):
+            return 1
+
+    monkeypatch.setattr(persistence, "redis_configured", lambda: True)
+    monkeypatch.setattr(persistence, "_redis_client", lambda: _Ok())
+    monkeypatch.setattr(persistence, "_blob", spy)
+    store.set_tier(alice.id, PlanTier.FREE)
+    store.authenticate("plan-a@example.com", "Secret123")
+    assert set(seen) == {alice.id}
+
+
 def test_persistence_conflict_is_not_treated_as_a_storage_outage(monkeypatch):
     from identity import persistence
 

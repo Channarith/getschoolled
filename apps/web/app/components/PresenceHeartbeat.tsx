@@ -1,6 +1,8 @@
 "use client";
 import { useEffect } from "react";
 import { presencePing } from "../lib/api";
+import { flushPendingLearnerCheck } from "../lib/pendingBiometrics";
+import { flushPendingOnboardingSync } from "../lib/onboardingSync";
 
 /**
  * Invisible component that pings /presence/ping every 60 seconds
@@ -25,8 +27,22 @@ export default function PresenceHeartbeat() {
     };
 
     ping(); // immediate ping on mount
-    const interval = setInterval(ping, 60_000);
-    return () => clearInterval(interval);
+    void flushPendingLearnerCheck();
+    void flushPendingOnboardingSync();
+    const interval = setInterval(() => {
+      ping();
+      void flushPendingLearnerCheck();
+      void flushPendingOnboardingSync();
+    }, 60_000);
+    const sendHeld = () => {
+      void flushPendingLearnerCheck(true);
+      void flushPendingOnboardingSync(true);
+    };
+    window.addEventListener("online", sendHeld);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("online", sendHeld);
+    };
   }, []);
 
   return null;

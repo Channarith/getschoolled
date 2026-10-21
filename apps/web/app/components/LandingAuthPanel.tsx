@@ -7,6 +7,7 @@ import AppBadges from "./AppBadges";
 import { GoogleIcon, FacebookIcon, AppleIcon } from "./BrandIcons";
 import {
   AUTH_EVENT,
+  getOnboardingStatus,
   login,
   signup,
   setToken,
@@ -50,7 +51,9 @@ export default function LandingAuthPanel({ onSignedIn }: { onSignedIn?: () => vo
         } catch { /* non-critical — onboarding page handles this */ }
         router.push("/onboarding");
       } else {
-        signedIn();
+        const status = await getOnboardingStatus().catch(() => null);
+        if (status && !status.completed) router.push("/onboarding");
+        else signedIn();
       }
     } catch (e: any) {
       const msg = e?.message || String(e);
@@ -71,7 +74,9 @@ export default function LandingAuthPanel({ onSignedIn }: { onSignedIn?: () => vo
     try {
       const res = await signInWithSocial(provider);
       setToken(res.token);
-      signedIn();
+      const status = await getOnboardingStatus().catch(() => null);
+      if (status && !status.completed) router.push("/onboarding");
+      else signedIn();
     } catch (e: any) {
       if (e?.error !== "popup_closed_by_user") setSocialError(String(e?.message || e));
     } finally { setSocialBusy(false); }

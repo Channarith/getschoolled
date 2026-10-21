@@ -16,7 +16,7 @@ export type LiveFrame = {
 };
 
 export type LiveFaceCameraHandle = {
-  grabFrame: (options?: { retainFile?: boolean }) => Promise<LiveFrame | null>;
+  grabFrame: (options?: { retainFile?: boolean; includeBase64?: boolean }) => Promise<LiveFrame | null>;
 };
 
 type Props = {
@@ -58,18 +58,20 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
       if (!readyRef.current || busyRef.current || !cameraRef.current) return null;
       busyRef.current = true;
       try {
+        const includeBase64 = options?.includeBase64 !== false;
         const photo = await cameraRef.current.takePictureAsync({
           quality: 0.32,
-          base64: true,
+          base64: includeBase64,
           exif: false,
         });
-        if (!photo?.base64) return null;
+        if (!photo) return null;
+        if (includeBase64 && !photo.base64) return null;
         const keep = options?.retainFile && photo.uri && !photo.uri.startsWith("data:");
         if (!keep && photo.uri && !photo.uri.startsWith("data:")) {
           void FileSystem.deleteAsync(photo.uri, { idempotent: true }).catch(() => undefined);
         }
         return {
-          base64: photo.base64,
+          base64: photo.base64 ?? "",
           width: photo.width,
           height: photo.height,
           uri: keep ? photo.uri : undefined,

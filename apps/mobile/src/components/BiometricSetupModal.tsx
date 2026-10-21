@@ -22,7 +22,6 @@ import {
   enrollMobileFaceImages,
   enrollMobileVoiceprint,
   getMobileSetupState,
-  previewMobileFace,
   setMobileBiometricConsent,
   submitMobileGovernmentId,
 } from "../api";
@@ -42,9 +41,18 @@ import {
   type LevelSample,
   type Pose,
 } from "../learnerCheck";
+import { detectDeviceFaces, faceDistanceCue, isOnDeviceReaderMissing, type DeviceStroke } from "../deviceFace";
+import { isDeferredUpload } from "../pendingUpload";
+import {
+  flushPendingLearnerCheck,
+  queuePendingFace,
+  queuePendingVoice,
+  rememberPendingConsent,
+} from "../pendingBiometrics";
 import AnimatedPressable from "./AnimatedPressable";
 import KenBurnsImage from "./KenBurnsImage";
 import LiveFaceCamera, { type LiveFaceCameraHandle } from "./LiveFaceCamera";
+import MobileMascotMeshy from "./MobileMascotMeshy";
 import { useLayoutMetrics } from "../layout";
 
 type Step = "welcome" | "scan" | "voice" | "identity" | "complete";
@@ -71,17 +79,17 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
   welcome: {
     kicker: "Optional · about 1 minute",
     title: "Set up your Salareen Learner Check.",
-    body: "It helps us know it’s really you in accredited courses. Look into the live camera, like a video call, and turn when the frame asks. Then read one sentence out loud. We keep protected templates only, never the video, audio, or ID images.",
+    body: "It helps us know it’s really you in accredited courses. This phone reads your face and your voice. Turn when the frame asks, then read one sentence out loud. We send that check when you’re connected.",
   },
   scan: {
     kicker: "Face check",
     title: "Look straight at the camera.",
-    body: "The camera stays on. Turn when the arrow asks. We read your face from the live video, so there is no photo to take.",
+    body: "This phone reads your face. Turn when the arrow asks. The lines follow you on the device. We send the check when you’re connected.",
   },
   voice: {
     kicker: "Voice check",
     title: "Now read this out loud.",
-    body: "Speak naturally for 10 seconds. The recording is deleted from this phone as soon as your voiceprint is made.",
+    body: "Speak naturally for 10 seconds. The recording stays on this phone until the voice check is sent.",
   },
   identity: {
     kicker: "Accredited course · Government ID",
@@ -98,6 +106,7 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
 type Shot = {
   base64: string;
   contour: FaceContour | null;
+  strokes: DeviceStroke[];
   frame: [number, number];
   /**
    * Overlay rings for this preview only. Coordinates are not enrolled.
@@ -233,6 +242,7 @@ export default function BiometricSetupModal({
   const [order, setOrder] = useState<Pose[]>(() => shuffledPoses());
   const [shots, setShots] = useState<Shot[]>([]);
   const [contourNote, setContourNote] = useState("");
+  const [pendingNote, setPendingNote] = useState("");
   const [scanHint, setScanHint] = useState("Center your face in the circle.");
   const [liveContour, setLiveContour] = useState<Shot | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -249,9 +259,26 @@ export default function BiometricSetupModal({
   const seenRef = useRef<Partial<Record<Pose, Pose>>>({});
   const minor = ageBand !== "adult";
   const canSkip = !requireGovernmentId;
+  const consentRef = useRef<Promise<void> | null>(null);
+
+  // Face and voice uploads wait for consent. Sent on its own, a slow consent
+  // landed after the face upload and identity refused it with 409.
+  function ensureConsent(): Promise<void> {
+    if (!consentRef.current) {
+      const pending = setMobileBiometricConsent(studentId, true, minor ? guardian : false)
+        .then(() => undefined);
+      consentRef.current = pending;
+      pending.catch(() => {
+        if (consentRef.current === pending) consentRef.current = null;
+      });
+    }
+    return consentRef.current;
+  }
 
   useEffect(() => {
     if (!visible) return;
+    consentRef.current = null;
+    void flushPendingLearnerCheck();
     getMobileSetupState(studentId).then((state) => {
       setHasEnrollment(
         state.portrait.status === "verified"
@@ -303,6 +330,7 @@ export default function BiometricSetupModal({
     setLiveContour(null);
     setOrder(shuffledPoses());
     setContourNote("");
+    setPendingNote("");
     setScanHint("Center your face in the circle.");
     baseRef.current = null;
     seenRef.current = {};
@@ -310,8 +338,9 @@ export default function BiometricSetupModal({
   }
 
   async function begin() {
-    await withBusy(async () => {
-      await setMobileBiometricConsent(studentId, true, minor ? guardian : false);
+    setBusy(true);
+    setProblem(null);
+    try {
       const permission = await outsideTheSetupWindow(() => Camera.requestCameraPermissionsAsync());
       if (!permission.granted) {
         setProblem({
@@ -320,10 +349,16 @@ export default function BiometricSetupModal({
         });
         return;
       }
+      const guardianGranted = minor ? guardian : false;
+      await rememberPendingConsent(studentId, guardianGranted).catch(() => undefined);
+      consentRef.current = null;
+      void ensureConsent().catch(() => undefined);
       resetScan();
       readyRef.current = false;
       setStep("scan");
-    });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function outsideTheSetupWindow<T>(action: () => Promise<T>): Promise<T> {
@@ -381,58 +416,54 @@ export default function BiometricSetupModal({
         await wait(80);
       }
       let misses = 0;
-      let serviceFails = 0;
+      const saveTimeout = <T,>(promise: Promise<T>, ms: number) => new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Saving the face check is taking too long.")), ms);
+        promise.then(
+          (value) => { clearTimeout(timer); resolve(value); },
+          (reason) => { clearTimeout(timer); reject(reason); },
+        );
+      });
       while (!cancelled) {
         if (savingRef.current) return;
-        // Each sample is a still. Space them so Android does not fire the shutter on every tick.
+        // The on-device reader needs a still file. Space the samples so the shutter is not a burst.
         await wait(700);
         if (cancelled) return;
         const seenGen = genRef.current;
-        const frameShot = await cameraRef.current?.grabFrame();
-        if (cancelled || genRef.current !== seenGen) continue;
-        if (!frameShot?.base64) {
+        const frameShot = await cameraRef.current?.grabFrame({ retainFile: true, includeBase64: false });
+        if (cancelled || genRef.current !== seenGen) {
+          await discardFile(frameShot?.uri);
+          continue;
+        }
+        if (!frameShot?.uri) {
           await wait(160);
           continue;
         }
-        const fingerprint = stillFingerprint(frameShot.base64);
-        const duplicate = shotsRef.current.some((shot) => stillFingerprint(shot.base64) === fingerprint);
-        const pending = previewMobileFace(studentId, frameShot.base64)
-          .then((value) => ({ ok: true as const, value }))
-          .catch((reason: unknown) => ({ ok: false as const, reason }));
-        const preview = await Promise.race([
-          pending,
-          wait(8000).then(() => ({ ok: false as const, reason: null })),
-        ]);
-        if (cancelled || genRef.current !== seenGen) continue;
-        if (!preview.ok) {
-          const status = (preview.reason as { status?: number } | null)?.status;
-          if (status === 503 || status === 502) {
-            // One refused frame is a cold service. Stop only after it keeps refusing.
-            serviceFails += 1;
-            if (serviceFails >= 4) {
-              setProblem(faceEnrollmentProblem(preview.reason));
-              return;
-            }
-            await wait(500);
-            continue;
+        let faces: Awaited<ReturnType<typeof detectDeviceFaces>> = [];
+        try {
+          faces = await detectDeviceFaces(frameShot.uri);
+        } catch (reason) {
+          await discardFile(frameShot.uri);
+          if (cancelled) return;
+          if (isOnDeviceReaderMissing(reason)) {
+            setProblem({
+              message: "This app doesn’t include the on-device face reader yet. Rebuild the app, then the face check runs on this phone.",
+            });
+            return;
           }
-          serviceFails = 0;
           misses += 1;
-          if (misses === 6) {
-            setContourNote("Still watching the live camera. If the lines don’t appear, check your connection.");
-          }
-          await wait(120);
+          if (misses === 6) setContourNote("Still reading the camera on this device.");
+          await wait(160);
+          continue;
+        }
+        if (cancelled || genRef.current !== seenGen) {
+          await discardFile(frameShot.uri);
           continue;
         }
         misses = 0;
-        const faces = preview.value.faces;
-        const target = shotsRef.current.length === 0 ? null : orderRef.current[shotsRef.current.length - 1] ?? null;
         const face = faces.length === 1 ? faces[0] : null;
-        const frame: [number, number] = [
-          face?.frame_size?.[0] || frameShot.width || 3,
-          face?.frame_size?.[1] || frameShot.height || 4,
-        ];
-        const geometry = face ? faceGeometry(face.landmarks, face.bbox, frame) : null;
+        const frame: [number, number] = [frameShot.width || 3, frameShot.height || 4];
+        const geometry = face?.landmarks ? faceGeometry(face.landmarks, face.bbox, frame) : null;
+        const target = shotsRef.current.length === 0 ? null : orderRef.current[shotsRef.current.length - 1] ?? null;
         const seen = geometry && baseRef.current ? poseFromBaseline(baseRef.current, geometry) : null;
         const otherSideways = target === "left" ? seenRef.current.right ?? null
           : target === "right" ? seenRef.current.left ?? null : null;
@@ -444,40 +475,73 @@ export default function BiometricSetupModal({
           seen,
           otherSideways,
         );
-        if (face && action !== "one") {
-          const contour = faceContour(face.landmarks, face.bbox);
-          setLiveContour({ base64: "", contour, frame, marks: [] });
-        } else if (action === "none" || action === "one") {
-          setLiveContour(null);
+        const preview: Shot | null = face ? {
+          base64: "",
+          contour: face.landmarks ? faceContour(face.landmarks, face.bbox) : null,
+          strokes: face.strokes,
+          frame,
+          marks: [],
+        } : null;
+        if (preview && action !== "one") setLiveContour(preview);
+        else if (action === "none" || action === "one") setLiveContour(null);
+        if (face?.smiling != null && face.smiling > 0.7 && !baseRef.current) setContourNote("Smile seen.");
+        if (!baseRef.current && face) {
+          const cue = faceDistanceCue(face.faceWidth, Math.max(frame[0], frame[1]));
+          if (cue !== "ok") {
+            noteHint(cue === "closer" ? "Move a little closer." : "Move back a little.");
+            await discardFile(frameShot.uri);
+            await wait(180);
+            continue;
+          }
         }
         if (action === "none") {
           noteHint("Center your face in the circle.");
+          await discardFile(frameShot.uri);
           await wait(180);
           continue;
         }
         if (action === "one") {
           noteHint("Only one face, please.");
+          await discardFile(frameShot.uri);
           await wait(180);
           continue;
         }
         if (action === "center") {
           noteHint("Center your face in the circle.");
+          await discardFile(frameShot.uri);
           await wait(180);
           continue;
         }
         if (action === "turn") {
           if (target) noteHint(POSE_COPY[target]);
+          await discardFile(frameShot.uri);
           await wait(120);
           continue;
         }
-        if (!face || !geometry) continue;
-        if (duplicate) {
+        if (!face?.landmarks || !geometry) {
+          await discardFile(frameShot.uri);
+          continue;
+        }
+        let base64 = "";
+        try {
+          base64 = await FileSystem.readAsStringAsync(frameShot.uri, { encoding: FileSystem.EncodingType.Base64 });
+        } catch {
+          base64 = "";
+        }
+        await discardFile(frameShot.uri);
+        if (!base64) continue;
+        if (shotsRef.current.some((shot) => stillFingerprint(shot.base64) === stillFingerprint(base64))) {
           await wait(120);
           continue;
         }
-        const marks = faceMarksFromJpeg(frameShot.base64, face.landmarks, frame, face.bbox);
-        const contour = faceContour(face.landmarks, face.bbox);
-        const kept: Shot = { base64: frameShot.base64, contour, frame, marks };
+        const marks = faceMarksFromJpeg(base64, face.landmarks, frame, face.bbox);
+        const kept: Shot = {
+          base64,
+          contour: faceContour(face.landmarks, face.bbox),
+          strokes: face.strokes,
+          frame,
+          marks,
+        };
         if (action === "anchor") {
           baseRef.current = geometry;
           noteHint(POSE_COPY[orderRef.current[0]]);
@@ -494,20 +558,38 @@ export default function BiometricSetupModal({
         savingRef.current = true;
         noteHint("Saving your face check…");
         setBusy(true);
-        try {
-          await enrollMobileFaceImages(
-            studentId,
-            next.map((shot) => shot.base64),
-            orderRef.current,
-          );
-          if (cancelled) return;
+        const images = next.map((shot) => shot.base64);
+        const poses = orderRef.current;
+        const moveOn = () => {
           setShots([]);
           shotsRef.current = [];
           setLiveContour(null);
           setStep("voice");
+        };
+        try {
+          await saveTimeout(
+            ensureConsent().then(() => enrollMobileFaceImages(studentId, images, poses)),
+            12000,
+          );
+          if (cancelled) return;
+          moveOn();
         } catch (reason) {
-          resetScan();
-          setProblem(faceEnrollmentProblem(reason));
+          if (isDeferredUpload(reason)) {
+            try {
+              await queuePendingFace(studentId, images, poses, {
+                granted: true,
+                guardianGranted: minor ? guardian : false,
+              });
+              setPendingNote("Saved on this phone. We’ll send your face check when you’re connected.");
+              if (!cancelled) moveOn();
+            } catch (keepReason) {
+              resetScan();
+              setProblem({ message: String((keepReason as Error)?.message ?? keepReason) });
+            }
+          } else {
+            resetScan();
+            setProblem(faceEnrollmentProblem(reason));
+          }
         } finally {
           savingRef.current = false;
           setBusy(false);
@@ -587,10 +669,32 @@ export default function BiometricSetupModal({
       uri = active.getURI();
       if (!uri) throw new Error("No audio was recorded");
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      await discardFile(uri);
-      uri = null;
-      await enrollMobileVoiceprint(studentId, base64);
-      setStep(requireGovernmentId ? "identity" : "complete");
+      const recordedUri = uri;
+      try {
+        await ensureConsent();
+        await enrollMobileVoiceprint(studentId, base64);
+        await discardFile(recordedUri);
+        uri = null;
+        setStep(requireGovernmentId ? "identity" : "complete");
+      } catch (reason) {
+        if (!isDeferredUpload(reason)) {
+          await discardFile(recordedUri);
+          uri = null;
+          throw reason;
+        }
+        await queuePendingVoice(studentId, recordedUri, {
+          granted: true,
+          guardianGranted: minor ? guardian : false,
+        });
+        await discardFile(recordedUri);
+        uri = null;
+        setPendingNote((current) => (
+          current
+            ? "Saved on this phone. We’ll send your face and voice checks when you’re connected."
+            : "Saved on this phone. We’ll send your voice check when you’re connected."
+        ));
+        setStep(requireGovernmentId ? "identity" : "complete");
+      }
     } catch (reason) {
       setProblem(voiceProblem(reason));
     } finally {
@@ -622,7 +726,11 @@ export default function BiometricSetupModal({
     await withBusy(async () => {
       await stopRecording();
       resetScan();
-      await completeMobileSetup(studentId, skipped);
+      try {
+        await completeMobileSetup(studentId, skipped);
+      } catch (reason) {
+        if (!isDeferredUpload(reason)) throw reason;
+      }
       onComplete?.();
       onDismiss();
     });
@@ -689,12 +797,12 @@ export default function BiometricSetupModal({
                 <View style={styles.overlay} pointerEvents="none" collapsable={false}>
                 <View style={styles.faceGuideWrap}>
                   <View
-                    style={[styles.faceGuide, latest?.contour ? styles.faceGuideOn : null]}
+                    style={[styles.faceGuide, latest?.contour || latest?.strokes.length ? styles.faceGuideOn : null]}
                     testID="face-guide"
                   />
                 </View>
                 <View style={styles.liveDot} accessibilityLabel="Live camera" />
-                {latest?.contour && frameBox.width > 0 ? (
+                {(latest?.strokes.length || latest?.contour) && frameBox.width > 0 ? (
                   <Svg
                     style={styles.mesh}
                     width={frameBox.width}
@@ -704,6 +812,18 @@ export default function BiometricSetupModal({
                     pointerEvents="none"
                     testID="face-contour"
                   >
+                    {latest.strokes.length > 0 ? latest.strokes.map((stroke, index) => (
+                      <Path
+                        key={`stroke-${index}`}
+                        d={svgPath(stroke.points, stroke.closed)}
+                        fill="none"
+                        stroke={index === 0 ? "#f4fcff" : "#d7f4ff"}
+                        strokeWidth={Math.max(index === 0 ? 1.75 : 1.15, latest.frame[0] / (index === 0 ? 220 : 340))}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    )) : latest.contour ? (
+                      <>
                     <Path
                       d={svgPath(latest.contour.outline, true)}
                       fill="none"
@@ -742,6 +862,8 @@ export default function BiometricSetupModal({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
+                      </>
+                    ) : null}
                     {latest.marks.map((mark, index) => (
                       <Circle
                         key={`${mark.region}-${index}`}
@@ -763,7 +885,17 @@ export default function BiometricSetupModal({
                 </View>
               </>
             ) : (
-              <KenBurnsImage key={step === "voice" ? "voice" : "face"} source={step === "voice" ? ART.voice : ART.face} duration={16} />
+              <>
+                <KenBurnsImage key={step === "voice" ? "voice" : "face"} source={step === "voice" ? ART.voice : ART.face} duration={16} />
+                <MobileMascotMeshy
+                  scene={
+                    step === "voice" ? { kind: "tutoring" }
+                      : step === "complete" ? { kind: "dance" }
+                        : { kind: "idle" }
+                  }
+                  style={StyleSheet.absoluteFill}
+                />
+              </>
             )}
             {scanning ? null : (["TL", "TR", "BL", "BR"] as const).map((corner) => (
               <View key={corner} style={[styles.corner, styles[`corner${corner}`], done && styles.cornerDone]} />
@@ -801,6 +933,7 @@ export default function BiometricSetupModal({
             </Text>
           ) : null}
           {contourNote ? <Text style={[styles.small, scanning && styles.scanBody]}>{contourNote}</Text> : null}
+          {pendingNote ? <Text style={[styles.small, scanning && styles.scanBody]}>{pendingNote}</Text> : null}
           {step === "voice" ? (
             <>
               <Text style={styles.prompt}>{PROMPT}</Text>

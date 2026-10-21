@@ -320,28 +320,24 @@
 }
 
 .scale {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
   max-width: 100%;
 }
 
 .scale button {
-  width: 30px;
-  height: 30px;
-  flex: 0 1 30px;
+  width: 100%;
+  height: 52px;
   min-width: 0;
   padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  background: rgba(8, 16, 28, 0.55);
   color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 800;
   cursor: pointer;
   transition: background 120ms ease, transform 120ms ease;
 }
@@ -644,20 +640,15 @@
   }
 
   .scale {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
     width: 100%;
-    background: color-mix(in srgb, var(--sa-accent) 8%, var(--sa-panel-2));
-    backdrop-filter: none;
   }
 
   .scale button {
-    width: 26px;
-    height: 26px;
-    flex: 0 0 26px;
-    font-size: 11px;
+    height: 52px;
+    font-size: 18px;
     color: var(--sa-text);
+    background: var(--sa-panel-2);
+    border-color: var(--sa-border);
   }
 
   .scale .scaleOn {

@@ -304,7 +304,7 @@ export async function setPreviewMode(on: boolean): Promise<void> {
   await writeJSON(KEYS.previewMode, on);
 }
 
-/** True only after email signup, until the setup assistant finishes or the user logs in. */
+/** Email signup sets this. The assistant itself opens from the account's onboarding status. */
 export async function isSetupAssistantPending(): Promise<boolean> {
   try {
     return (await AsyncStorage.getItem(KEYS.setupAssistant)) === "1";

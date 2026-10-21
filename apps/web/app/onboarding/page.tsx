@@ -29,6 +29,7 @@ import {
   type ConsumerPlan,
 } from "../lib/api";
 import { formatMonthlyPrice, orderedConsumerPlans } from "../lib/consumerPlansDisplay";
+import { isRetryableIdentityWrite, queueLearningProfileSync, queueOnboardingSync } from "../lib/onboardingSync";
 import styles from "./Onboarding.module.css";
 
 // The learn step now shows exactly one mode card per page across every
@@ -342,7 +343,12 @@ export default function OnboardingPage() {
       } catch (reason) {
         const msg = String(reason);
         const is404 = /\b404\b/.test(msg) || /unknown student profile/i.test(msg);
-        if (!is404) {
+        if (isRetryableIdentityWrite(reason)) {
+          // Identity is slow or down. Keep the ratings here and move on;
+          // the outbox sends them once identity answers again.
+          queueLearningProfileSync(effectiveStudentId, answers);
+          saveOk = false;
+        } else if (!is404) {
           // Non-404 failure (500, timeout, offline): best-effort skip so
           // the user can still move forward. We only hard-throw if even
           // the skip fails - because at that point there is nothing we
@@ -445,7 +451,13 @@ export default function OnboardingPage() {
       return;
     }
     return run(async () => {
-      await selectOnboardingPlan(plan);
+      try {
+        await selectOnboardingPlan(plan);
+      } catch (reason) {
+        if (!isRetryableIdentityWrite(reason)) throw reason;
+        finishLocally(true);
+        return;
+      }
       await finish();
     });
   }
@@ -480,8 +492,27 @@ export default function OnboardingPage() {
     });
   }
 
+  function finishLocally(includeFreePlan = false) {
+    queueOnboardingSync(
+      { learner_name: name.trim(), age_band: ageBand },
+      includeFreePlan ? "free" : undefined,
+    );
+    Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
+    localStorage.removeItem("onboarding_step");
+    router.push("/");
+  }
+
   async function finish() {
-    await completeOnboarding({ learner_name: name.trim(), age_band: ageBand });
+    try {
+      await completeOnboarding({ learner_name: name.trim(), age_band: ageBand });
+    } catch (reason) {
+      if (!isRetryableIdentityWrite(reason)) throw reason;
+      // The account can use ordinary courses while this idempotent account
+      // flag waits for identity. The outbox applies capped backoff, rather
+      // than holding the learner here or multiplying 504 traffic.
+      finishLocally();
+      return;
+    }
     Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem("onboarding_step");
     router.push("/");

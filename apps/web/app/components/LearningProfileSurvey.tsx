@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import SurveyForm from "./SurveyForm";
 import {
   createStudent,
   getMe,
+  getOnboardingStatus,
   getOnboardingSurvey,
   getToken,
   identitySupportsLearningProfile,
@@ -15,6 +17,7 @@ import {
   type StudentProfile,
   type SurveyTemplate,
 } from "../lib/api";
+import { hasPendingOnboardingSync } from "../lib/onboardingSync";
 
 export const OPEN_LEARNING_PROFILE_EVENT = "aoep-open-learning-profile";
 
@@ -123,6 +126,7 @@ function answersFromProfile(student: StudentProfile): Record<string, string | nu
 
 /** Edit dialog for a saved learning profile, opened from Account. First sign-in asks these questions inside the onboarding assistant. */
 export default function LearningProfileSurvey() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
   const [manual, setManual] = useState(false);
@@ -182,6 +186,26 @@ export default function LearningProfileSurvey() {
     window.addEventListener(OPEN_LEARNING_PROFILE_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_LEARNING_PROFILE_EVENT, onOpen);
   }, [openForStudent]);
+
+  // Any signed-in page. An unfinished account goes to the setup assistant
+  // (About you, the 1–10 ratings, Learner Check, and the plan) instead of
+  // the home page. Signup, login, and social sign-in all pass through here.
+  useEffect(() => {
+    if (!getToken()) return;
+    if (window.location.pathname.startsWith("/onboarding")) return;
+    let cancelled = false;
+    getOnboardingStatus()
+      .then((status) => {
+        // An ingress 504 can arrive after identity accepted the final
+        // onboarding write. Let the learner use the site while our bounded
+        // outbox retries that idempotent work.
+        if (!cancelled && !status.completed && !hasPendingOnboardingSync()) {
+          router.replace("/onboarding");
+        }
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [router]);
 
   async function onSubmit() {
     if (!template || !studentId || !accountId) return;

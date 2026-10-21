@@ -1224,7 +1224,10 @@ export function describeMediaError(reason: unknown, device: "camera" | "micropho
   const raw = String((reason as { message?: string } | null)?.message ?? reason ?? "");
   const Device = device === "camera" ? "Camera" : "Microphone";
   if (name === "ModelLoadError") {
-    return { kind: "model", message: `Couldn’t load the face model. Check your connection and try again. (${raw})` };
+    return {
+      kind: "model",
+      message: `The face reader on this computer isn’t ready yet. Open Salareen once while you’re online so it can download, then the check runs here. (${raw})`,
+    };
   }
   if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
     return {

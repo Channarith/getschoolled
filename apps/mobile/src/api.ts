@@ -6,6 +6,25 @@ import { getToken, clearAuthToken } from "./storage";
 
 export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL, MUSIC_URL, musicTtsUri };
 
+/**
+ * React Native's fetch has no timeout. A stalled identity pod left setup and
+ * sign-in spinning forever instead of reaching their offline path. Biometric
+ * uploads run several perception calls, so they get longer.
+ */
+export function identityTimeoutMs(url: string): number | null {
+  if (!IDENTITY_URL || !url.startsWith(IDENTITY_URL)) return null;
+  return /biometric|voiceprint|government-id|face-preview/.test(url) ? 90_000 : 25_000;
+}
+
+const fetch: typeof globalThis.fetch = (input, init) => {
+  const url = typeof input === "string" ? input : String((input as { url?: string }).url ?? input);
+  const ms = identityTimeoutMs(url);
+  if (ms == null || init?.signal) return globalThis.fetch(input, init);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return globalThis.fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+};
+
 export function translateText(
   text: string,
   source: string,
@@ -2547,7 +2566,7 @@ export async function selectMobileOnboardingPlan(tier: string): Promise<void> {
     } catch {
       /* keep the status message */
     }
-    throw new Error(detail);
+    throw Object.assign(new Error(detail), { status: response.status });
   }
 }
 

@@ -346,3 +346,24 @@ def test_setup_assistant_learner_age_sets_band_and_ratings_build_profile():
         json={"answers": {"modality_ratings": {**ratings, "gaming": 11}}},
     )
     assert bad.status_code == 422
+
+
+def test_busy_perception_fails_fast_instead_of_holding_identity(monkeypatch):
+    import threading
+    import urllib.request
+
+    import pytest
+    from fastapi import HTTPException
+
+    slots = threading.BoundedSemaphore(1)
+    slots.acquire()
+    monkeypatch.setattr(identity_main, "_PERCEPTION_SLOTS", slots)
+
+    def never(*_args, **_kwargs):
+        raise AssertionError("perception must not be called while every slot is busy")
+
+    monkeypatch.setattr(urllib.request, "urlopen", never)
+    with pytest.raises(HTTPException) as busy:
+        identity_main._perception_send(urllib.request.Request("http://perception.invalid/embed"), 1.0)
+    assert busy.value.status_code == 503
+    assert busy.value.headers == {"Retry-After": "10"}

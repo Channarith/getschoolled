@@ -21,6 +21,7 @@ const PACKAGE_LIBS = [
   ["node_modules/@react-native-async-storage/async-storage/android", "com.reactnativecommunity.asyncstorage"],
   ["node_modules/react-native-view-shot/android", "fr.greweb.reactnativeviewshot"],
   ["node_modules/react-native-google-mobile-ads/android", "io.invertase.googlemobileads"],
+  ["node_modules/@react-native-ml-kit/face-detection/android", "com.rnmlkit.facedetection"],
 ];
 
 const REPLACE_ATTRS = [

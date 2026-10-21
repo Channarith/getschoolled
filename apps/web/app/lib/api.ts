@@ -368,6 +368,16 @@ export async function getOnboardingStatus(): Promise<OnboardingStatus> {
   );
 }
 
+/** Home for a signed-in account. Unfinished setup goes to the assistant. */
+export async function pathAfterAuth(): Promise<"/" | "/onboarding"> {
+  try {
+    const status = await getOnboardingStatus();
+    return status.completed ? "/" : "/onboarding";
+  } catch {
+    return "/";
+  }
+}
+
 export async function setup2fa(): Promise<{ secret: string; otpauth_uri: string }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/auth/2fa/setup`, { method: "POST", headers: authHeaders() })
