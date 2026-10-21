@@ -9,8 +9,10 @@ import {
   enrollBiometricFace,
   enrollVoiceprint,
   getSetupAssistant,
+  listStudents,
   setBiometricConsent,
   submitGovernmentId,
+  submitOnboardingLearner,
   updateSetupAssistant,
 } from "../lib/api";
 import { createVisionEngine, type VisionEngine } from "../lib/vision";
@@ -146,6 +148,9 @@ function voiceProblem(reason: unknown): Problem {
   if (/between 8 and 15|too short|decoded/i.test(message)) {
     return { kind: "save", message: "The recording didn’t come through in full. Try again and keep reading until the bar fills." };
   }
+  if (/\b404\b|student not found|unknown student profile/i.test(message)) {
+    return { kind: "save", message: "This learner profile is out of date. Go back to About you and continue again." };
+  }
   return { kind: "save", message: `Couldn’t save your voice check: ${message}` };
 }
 
@@ -200,6 +205,44 @@ export default function BiometricSetupAssistant({
 
   const minor = ageBand !== "adult";
   const canSkip = allowSkip && !requireGovernmentId;
+  // The page can hand us a learner id left in the browser by an earlier signup.
+  // Face and voice consent then 404. Rebind to a learner this account owns.
+  const activeStudentRef = useRef(studentId);
+  useEffect(() => {
+    activeStudentRef.current = studentId;
+  }, [studentId]);
+
+  const rememberStudent = useCallback((id: string) => {
+    activeStudentRef.current = id;
+    try {
+      localStorage.setItem("onboarding_student_id", id);
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  const resolveStudent = useCallback(async (): Promise<string> => {
+    const current = activeStudentRef.current;
+    try {
+      const listed = await listStudents();
+      if (listed.students.some((student) => student.id === current)) return current;
+      const fallback = listed.students[0]?.id;
+      if (fallback) {
+        rememberStudent(fallback);
+        return fallback;
+      }
+      const name = localStorage.getItem("onboarding_learner_name")?.trim() || "";
+      const age = Number(localStorage.getItem("onboarding_age"));
+      if (name && age >= 3 && age <= 120) {
+        const created = await submitOnboardingLearner({ learner_name: name, age });
+        rememberStudent(created.student.id);
+        return created.student.id;
+      }
+    } catch {
+      /* The consent call reports the real failure. */
+    }
+    return current;
+  }, [rememberStudent]);
 
   const stopMedia = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -233,27 +276,41 @@ export default function BiometricSetupAssistant({
   }, []);
 
   const faceSaveRef = useRef<Promise<boolean> | null>(null);
-  const consentRef = useRef<Promise<void> | null>(null);
+  const consentRef = useRef<Promise<string> | null>(null);
   const nextStage: Stage = requireGovernmentId ? "identity" : "complete";
 
   // The camera opens before this finishes. Waiting on identity first left the
   // camera light on over the intro screen whenever identity was slow.
-  const ensureConsent = useCallback((): Promise<void> => {
+  const ensureConsent = useCallback((): Promise<string> => {
     if (consentRef.current) return consentRef.current;
     const pending = (async () => {
-      await setBiometricConsent(studentId, {
+      const body = {
         granted: true,
         guardian_granted: minor ? guardianConsent : false,
         retention_days: 365,
-      });
-      await updateSetupAssistant(studentId, { current_step: "biometrics" }).catch(() => undefined);
+      };
+      let id = await resolveStudent();
+      try {
+        await setBiometricConsent(id, body);
+      } catch (reason) {
+        const missing = /\b404\b|student not found|unknown student profile/i.test(String(reason));
+        const name = localStorage.getItem("onboarding_learner_name")?.trim() || "";
+        const age = Number(localStorage.getItem("onboarding_age"));
+        if (!missing || !name || age < 3 || age > 120) throw reason;
+        const created = await submitOnboardingLearner({ learner_name: name, age });
+        id = created.student.id;
+        rememberStudent(id);
+        await setBiometricConsent(id, body);
+      }
+      await updateSetupAssistant(id, { current_step: "biometrics" }).catch(() => undefined);
+      return id;
     })();
     consentRef.current = pending;
     pending.catch(() => {
       if (consentRef.current === pending) consentRef.current = null;
     });
     return pending;
-  }, [guardianConsent, minor, studentId]);
+  }, [guardianConsent, minor, rememberStudent, resolveStudent]);
 
   // The face save runs while the learner moves on to the voice check. Each
   // check is saved on its own, so a failed face save keeps the voice
@@ -273,8 +330,8 @@ export default function BiometricSetupAssistant({
     const pending = (async () => {
       try {
         const vectors = [scan.neutral as number[], ...scan.order.map((pose) => scan.poses[pose] as number[])];
-        await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
-        await withTimeout(enrollBiometricFace(studentId, vectors, scan.order), SAVE_TIMEOUT_MS, "Saving the face check");
+        const id = await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
+        await withTimeout(enrollBiometricFace(id, vectors, scan.order), SAVE_TIMEOUT_MS, "Saving the face check");
         faceSavedRef.current = true;
         setFaceStatus("saved");
         if (voiceSavedRef.current) setStage(nextStage);
@@ -290,7 +347,7 @@ export default function BiometricSetupAssistant({
     })();
     faceSaveRef.current = pending;
     return pending;
-  }, [ensureConsent, nextStage, stopMedia, studentId]);
+  }, [ensureConsent, nextStage, stopMedia]);
 
   // Look-target scan: track head direction from the live landmarks and keep
   // one embedding per target, in a fresh random order each attempt.
@@ -610,8 +667,8 @@ export default function BiometricSetupAssistant({
       stopMedia();
       if (!blob.size) throw new Error("silent");
       try {
-        await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
-        await withTimeout(enrollVoiceprint(studentId, blob), SAVE_TIMEOUT_MS, "Saving the voice check");
+        const id = await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
+        await withTimeout(enrollVoiceprint(id, blob), SAVE_TIMEOUT_MS, "Saving the voice check");
       } finally {
         blob = null;
       }
@@ -649,7 +706,7 @@ export default function BiometricSetupAssistant({
     setBusy(true);
     setProblem(null);
     try {
-      const result = await submitGovernmentId(studentId, "government_id", idFile);
+      const result = await submitGovernmentId(await resolveStudent(), "government_id", idFile);
       if (result.status !== "verified") {
         throw new Error("The portrait on this ID did not match. Use a clear, well-lit image and try again.");
       }
@@ -662,13 +719,13 @@ export default function BiometricSetupAssistant({
   }
 
   async function finish() {
-    await updateSetupAssistant(studentId, { current_step: "complete", complete: true }).catch(() => undefined);
+    await updateSetupAssistant(activeStudentRef.current, { current_step: "complete", complete: true }).catch(() => undefined);
     onComplete?.();
   }
 
   async function skip() {
     stopMedia();
-    await updateSetupAssistant(studentId, {
+    await updateSetupAssistant(activeStudentRef.current, {
       current_step: "complete",
       skipped_biometrics: true,
       complete: true,
@@ -680,7 +737,7 @@ export default function BiometricSetupAssistant({
     setBusy(true);
     setProblem(null);
     try {
-      await deleteBiometrics(studentId);
+      await deleteBiometrics(await resolveStudent());
       setHasEnrollment(false);
     } catch (reason) {
       setProblem({ kind: "save", message: String((reason as Error)?.message ?? reason) });
