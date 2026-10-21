@@ -16,7 +16,8 @@ import type { ClipName } from "./MascotMeshy";
 const MascotMeshy = dynamic(() => import("./MascotMeshy"), { ssr: false });
 
 const STORAGE_KEY = "aoep.mascot.drag.v2";
-const STAGE = "#0c2c4a";
+/** Same dark stage as the Learner Check voice page, so the bronze reads the same. */
+const STAGE = "#071422";
 
 type Frame = { x: number; y: number; size: number };
 
@@ -71,6 +72,7 @@ function Mesh({ scene }: { scene: MascotScene }) {
       motion="idle"
       fill
       transparent
+      holdStone
     />
   );
 }

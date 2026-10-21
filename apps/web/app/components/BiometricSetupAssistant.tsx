@@ -1043,6 +1043,7 @@ export default function BiometricSetupAssistant({
                   idleRotation
                   fill
                   backdrop="#071422"
+                  holdStone
                   paused={stage === "scan"}
                 />
               </div>
