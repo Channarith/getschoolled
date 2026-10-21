@@ -35,13 +35,16 @@ def _restore_vision_provider():
 @dataclass
 class _Face:
     embedding: list
+    det_score: float = 1.0
+    sharpness: float | None = None
+    roll_degrees: float | None = None
 
 
 class _Engine:
     def __init__(self, vectors):
         self._vectors = {base64.b64encode(key).decode(): value for key, value in vectors.items()}
 
-    def detect_faces(self, image):
+    def detect_faces(self, image, **_options):
         vector = self._vectors.get(base64.b64encode(image).decode())
         return [_Face(vector)] if vector else []
 
@@ -98,3 +101,35 @@ def test_a_photo_without_a_face_is_named():
     refused = _post("learner", photos)
     assert refused.status_code == 422
     assert refused.json()["detail"] == "no face detected in photo 3"
+
+
+def test_eight_photos_drop_the_outlier_and_keep_the_best_five():
+    photos = [_photo(n) for n in range(7)]
+    vectors = {photo: [1.0, 0.02 * n, 0.0] for n, photo in enumerate(photos)}
+    vectors[photos[0]] = [0.0, 1.0, 0.0]  # a bad first frame must not sink the check
+    provider = _provider(vectors)
+    saved = _post("learner", photos)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["enrollments"] == 5
+    assert provider._gallery.count("learner") == 5
+
+
+def test_photos_without_a_face_are_skipped_when_enough_remain():
+    photos = [_photo(n) for n in range(7)]
+    _provider({photo: [1.0, 0.01 * n, 0.0] for n, photo in enumerate(photos[:5])})
+    saved = _post("learner", photos)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["enrollments"] == 5
+
+
+def test_too_few_agreeing_photos_refuse_with_a_clear_message():
+    photos = [_photo(n) for n in range(7)]
+    vectors = {photo: [1.0, 0.0, 0.0] for photo in photos[:3]}
+    vectors.update({photo: [0.0, 1.0, 0.0] for photo in photos[3:5]})
+    vectors.update({photo: [0.0, 0.0, 1.0] for photo in photos[5:]})
+    provider = _provider(vectors)
+    provider._gallery.enroll("learner", [1.0, 0.0, 0.0])
+    refused = _post("learner", photos)
+    assert refused.status_code == 422
+    assert "same clear face" in refused.json()["detail"]
+    assert provider._gallery.count("learner") == 1

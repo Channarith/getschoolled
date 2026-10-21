@@ -21,6 +21,8 @@ export type DeviceFaceRead = {
   pitch: number | null;
   /** Lower of the two open-eye scores, 0 to 1. Null when the phone did not score it. */
   eyesOpen: number | null;
+  /** Head tilt in the picture plane (the Z axis), in degrees. 0 is level. */
+  roll: number | null;
 };
 
 type MlPoint = { x?: number; y?: number };
@@ -87,6 +89,17 @@ export function isOnDeviceReaderMissing(reason: unknown): boolean {
   return /doesn't seem to be linked|does not seem to be linked|not in this build|rebuild the app/i.test(message);
 }
 
+/** Head tilt from the eye line (right eye first). Null without both eyes. */
+export function rollFromLandmarks(landmarks: number[][] | null): number | null {
+  if (!landmarks || landmarks.length < 2) return null;
+  const [right, left] = landmarks;
+  if (!right || !left || (right[0] === left[0] && right[1] === left[1])) return null;
+  let angle = (Math.atan2(left[1] - right[1], left[0] - right[0]) * 180) / Math.PI;
+  if (angle > 90) angle -= 180;
+  else if (angle < -90) angle += 180;
+  return angle;
+}
+
 export function readMlKitFace(face: MlFace | null | undefined): DeviceFaceRead | null {
   if (!face?.frame) return null;
   const left = Number(face.frame.left);
@@ -107,8 +120,9 @@ export function readMlKitFace(face: MlFace | null | undefined): DeviceFaceRead |
   }
   const leftEye = finite(face.leftEyeOpenProbability);
   const rightEye = finite(face.rightEyeOpenProbability);
+  const marks = landmarks.every((item) => item) ? landmarks.map((item) => [item![0], item![1]]) : null;
   return {
-    landmarks: landmarks.every((item) => item) ? landmarks.map((item) => [item![0], item![1]]) : null,
+    landmarks: marks,
     bbox: [left, top, width, height],
     strokes,
     smiling: finite(face.smilingProbability),
@@ -116,13 +130,16 @@ export function readMlKitFace(face: MlFace | null | undefined): DeviceFaceRead |
     yaw: finite(face.rotationY),
     pitch: finite(face.rotationX),
     eyesOpen: leftEye == null && rightEye == null ? null : Math.min(leftEye ?? 1, rightEye ?? 1),
+    roll: finite((face as { rotationZ?: number }).rotationZ) ?? rollFromLandmarks(marks),
   };
 }
 
-export type FrameVerdict = "ok" | "none" | "many" | "closer" | "back" | "center" | "straight" | "eyes";
+export type FrameVerdict = "ok" | "none" | "many" | "closer" | "back" | "center" | "straight" | "tilt" | "eyes";
 
 /** Head turn or tilt we still count as looking at the camera. */
 export const STRAIGHT_DEGREES = 24;
+/** Sideways head tilt (Z axis) we still keep. The server levels small tilts; large ones lose the face. */
+export const ROLL_DEGREES = 30;
 
 /**
  * Whether one still is good enough to keep for the face check.
@@ -142,6 +159,7 @@ export function frameVerdict(faces: DeviceFaceRead[], frame: [number, number]): 
   const dy = Math.abs(top + boxHeight / 2 - height / 2) / height;
   if (dx > 0.26 || dy > 0.28) return "center";
   if (Math.abs(face.yaw ?? 0) > STRAIGHT_DEGREES || Math.abs(face.pitch ?? 0) > STRAIGHT_DEGREES) return "straight";
+  if (face.roll != null && Math.abs(face.roll) > ROLL_DEGREES) return "tilt";
   if (face.eyesOpen != null && face.eyesOpen < 0.25) return "eyes";
   return "ok";
 }
@@ -201,6 +219,7 @@ const FAILURE_MESSAGE: Record<Exclude<FrameVerdict, "ok" | "none">, string> = {
   back: "You looked too close to the camera. Move the phone back a little, then try again.",
   center: "We couldn’t line your face up with the circle. Keep your face inside the circle at eye level, then try again.",
   straight: "We need you looking straight at the camera. Hold the phone at eye level, then try again.",
+  tilt: "Your head was tilted to the side. Keep it level and try again.",
   eyes: "We couldn’t see your eyes clearly. Face a light, keep your eyes open and look at the camera, then try again.",
 };
 
@@ -220,6 +239,49 @@ export function scanFailureMessage(counts: VerdictCounts): string {
   return FAILURE_MESSAGE[top];
 }
 
+/** Most stills kept for one face check. The best five are used; the server may pick among all of them. */
+export const FACE_CANDIDATES = 7;
+
+export type FaceBox = { cx: number; cy: number; width: number };
+
+export function faceBox(face: DeviceFaceRead): FaceBox {
+  const [left, top, width, height] = face.bbox;
+  return { cx: left + width / 2, cy: top + height / 2, width };
+}
+
+/** The face moved more than a fifth of its width since the last still, so this one is likely smeared. */
+export function movedTooMuch(previous: FaceBox | null, now: FaceBox): boolean {
+  if (!previous) return false;
+  const shift = Math.hypot(now.cx - previous.cx, now.cy - previous.cy);
+  return shift > 0.2 * Math.max(previous.width, now.width);
+}
+
+/**
+ * A blurred still compresses smaller than a sharp one at the same JPEG quality.
+ * Compare against the largest recent still; no sharpness metric is available here.
+ */
+export function looksBlurred(length: number, recentLengths: number[]): boolean {
+  if (recentLengths.length < 2) return false;
+  return length < 0.55 * Math.max(...recentLengths);
+}
+
+/** Higher is a better reference photo: level, frontal, eyes open, centered, detailed. */
+export function stillScore(face: DeviceFaceRead, frame: [number, number], length: number, largest: number): number {
+  const turn = (Math.abs(face.yaw ?? 0) + Math.abs(face.pitch ?? 0)) / (2 * STRAIGHT_DEGREES);
+  const tilt = Math.abs(face.roll ?? 0) / ROLL_DEGREES;
+  const [left, top, width, height] = face.bbox;
+  const off = Math.hypot((left + width / 2) / frame[0] - 0.5, (top + height / 2) / frame[1] - 0.5);
+  const detail = largest > 0 ? Math.min(1, length / largest) : 1;
+  return 1 - 0.5 * turn - 0.3 * tilt + 0.3 * (face.eyesOpen ?? 1) + 0.4 * detail - 0.5 * off;
+}
+
+export type ScoredStill = { base64: string; score: number };
+
+/** Best first. The first one is the reference the others are compared with. */
+export function rankStills(stills: ScoredStill[]): string[] {
+  return [...stills].sort((a, b) => b.score - a.score).map((still) => still.base64);
+}
+
 export const FRAME_HINT: Record<Exclude<FrameVerdict, "ok">, string> = {
   none: "Look at the camera.",
   many: "Only one face, please.",
@@ -227,6 +289,7 @@ export const FRAME_HINT: Record<Exclude<FrameVerdict, "ok">, string> = {
   back: "Move back a little.",
   center: "Center your face in the circle.",
   straight: "Look straight at the camera.",
+  tilt: "Keep your head level.",
   eyes: "Keep your eyes open.",
 };
 

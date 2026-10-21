@@ -23,7 +23,48 @@ export function shuffledPoses(random: () => number = Math.random): Pose[] {
   return order;
 }
 
-export type Geometry = { yaw: number; pitch: number; centered: boolean };
+export type Geometry = { yaw: number; pitch: number; centered: boolean; roll: number };
+
+/** Head tilt in the picture plane (Z axis) in degrees from the eye line; 0 is level. */
+export function headRoll(landmarks: number[][]): number {
+  const [rightEye, leftEye] = landmarks;
+  if (!rightEye || !leftEye) return 0;
+  let angle = (Math.atan2(leftEye[1] - rightEye[1], leftEye[0] - rightEye[0]) * 180) / Math.PI;
+  if (angle > 90) angle -= 180;
+  else if (angle < -90) angle += 180;
+  return angle;
+}
+
+/** Luma (0-255) of RGBA pixels, one value per pixel. */
+export function lumaFromRgba(rgba: ArrayLike<number>): number[] {
+  const out: number[] = [];
+  for (let i = 0; i + 2 < rgba.length; i += 4) {
+    out.push(0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]);
+  }
+  return out;
+}
+
+/**
+ * Variance of the Laplacian of a grayscale picture: higher is sharper. Compare
+ * pictures of the same size and framing; there is no absolute "sharp" number.
+ */
+export function laplacianVariance(gray: ArrayLike<number>, width: number, height: number): number {
+  if (width < 3 || height < 3) return 0;
+  let sum = 0;
+  let sumSq = 0;
+  let count = 0;
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const i = y * width + x;
+      const value = gray[i - 1] + gray[i + 1] + gray[i - width] + gray[i + width] - 4 * gray[i];
+      sum += value;
+      sumSq += value * value;
+      count += 1;
+    }
+  }
+  const mean = sum / count;
+  return sumSq / count - mean * mean;
+}
 
 /** SFace's 112×112 canonical eyes, nose, and mouth corners (OpenCV FaceRecognizerSF). */
 const SFACE_TEMPLATE: Point[] = [
@@ -147,6 +188,7 @@ export function faceGeometry(landmarks: number[][], bbox: number[], frame: numbe
     yaw: noseAlong / eyeDist,
     pitch: noseDown / faceHeight,
     centered: Math.abs(cx / frameW - 0.5) < 0.2 && Math.abs(cy / frameH - 0.5) < 0.22,
+    roll: headRoll(points),
   };
 }
 

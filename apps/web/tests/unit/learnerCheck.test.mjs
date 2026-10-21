@@ -398,3 +398,24 @@ test("camera permission and model failures are told apart", () => {
   assert.match(missing.message, /503/);
   assert.match(describeMediaError({ name: "NotAllowedError" }, "microphone").message, /Microphone access is blocked/);
 });
+
+import { headRoll, laplacianVariance, lumaFromRgba } from "../../app/lib/learnerCheck.ts";
+
+test("head roll reads the eye line and ignores which way it is listed", () => {
+  assert.equal(Math.round(headRoll([[100, 100], [200, 100]])), 0);
+  assert.equal(Math.round(headRoll([[100, 100], [200, 158]])), 30);
+  assert.equal(Math.round(headRoll([[200, 100], [100, 158]])), -30);
+  assert.equal(headRoll([]), 0);
+});
+
+test("a blurred picture has a lower Laplacian variance than a sharp one", () => {
+  const w = 16;
+  const sharp = Array.from({ length: w * w }, (_, i) => ((i % w) + Math.floor(i / w)) % 2 ? 255 : 0);
+  const blurred = Array.from({ length: w * w }, () => 128);
+  assert.ok(laplacianVariance(sharp, w, w) > 100 * (laplacianVariance(blurred, w, w) + 1));
+  assert.equal(laplacianVariance([1, 2], 2, 1), 0);
+});
+
+test("luma is taken per pixel from RGBA", () => {
+  assert.deepEqual(lumaFromRgba([255, 255, 255, 255, 0, 0, 0, 255]).map(Math.round), [255, 0]);
+});
