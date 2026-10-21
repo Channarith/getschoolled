@@ -83,6 +83,47 @@ def cookies_requested() -> bool:
     return bool((os.environ.get("YT_DLP_COOKIES") or os.environ.get("COSYVOICE_COOKIES_FILE") or "").strip())
 
 
+def yt_dlp_auth_args(*, include_client: bool = True) -> List[str]:
+    """Operator auth / pacing options from env (never hard-coded cookies).
+
+    YouTube rate-limits anonymous bulk downloads. A signed-in browser profile
+    is the working route on the Spark:
+
+      YT_DLP_COOKIES_FROM_BROWSER=chromium:/path/to/chromium/profile
+      YT_DLP_COOKIES=/path/to/cookies.txt
+      YT_DLP_PLAYER_CLIENT=web_safari
+      YT_DLP_SLEEP_REQUESTS=3
+    """
+    args: List[str] = []
+    browser = os.environ.get("YT_DLP_COOKIES_FROM_BROWSER", "").strip()
+    cookies = os.environ.get("YT_DLP_COOKIES", "").strip() or os.environ.get("COSYVOICE_COOKIES_FILE", "").strip()
+    if browser:
+        args.extend(["--cookies-from-browser", browser])
+    elif cookies:
+        args.extend(["--cookies", cookies])
+    client = os.environ.get("YT_DLP_PLAYER_CLIENT", "").strip()
+    if client and include_client:
+        args.extend(["--extractor-args", f"youtube:player_client={client}"])
+    sleep = os.environ.get("YT_DLP_SLEEP_REQUESTS", "").strip()
+    if sleep and sleep != "0":
+        args.extend(["--sleep-requests", sleep])
+    return args
+
+
+def captions_requested() -> bool:
+    """Captions are fetched when asked, or whenever download auth is configured."""
+    flag = os.environ.get("AOEP_YT_CAPTIONS", "").strip().lower()
+    if flag in ("0", "false", "no"):
+        return False
+    if flag in ("1", "true", "yes"):
+        return True
+    return bool(
+        os.environ.get("YT_DLP_COOKIES_FROM_BROWSER", "").strip()
+        or os.environ.get("YT_DLP_COOKIES", "").strip()
+        or os.environ.get("COSYVOICE_COOKIES_FILE", "").strip()
+    )
+
+
 def build_yt_dlp_command(
     url: str,
     dest_dir: Path,
@@ -106,11 +147,18 @@ def build_yt_dlp_command(
         "--write-info-json",
         "--no-warnings",
     ]
-    if cookies is not None:
+    browser = os.environ.get("YT_DLP_COOKIES_FROM_BROWSER", "").strip()
+    if browser:
+        cmd.extend(["--cookies-from-browser", browser])
+    elif cookies is not None:
         cmd.extend(["--cookies", str(cookies)])
-    sleep_requests = os.environ.get("YT_DLP_SLEEP_REQUESTS", "1")
-    if sleep_requests and sleep_requests != "0":
-        cmd.extend(["--sleep-requests", sleep_requests])
+    client = os.environ.get("YT_DLP_PLAYER_CLIENT", "").strip()
+    if client:
+        cmd.extend(["--extractor-args", f"youtube:player_client={client}"])
+    if "--sleep-requests" not in cmd:
+        sleep_requests = os.environ.get("YT_DLP_SLEEP_REQUESTS", "1")
+        if sleep_requests and sleep_requests != "0":
+            cmd.extend(["--sleep-requests", sleep_requests])
     cmd.append(url)
     return cmd
 
@@ -247,6 +295,94 @@ def download_urls(
     urls: List[str], dest_dir: Path, *, sample_rate: int = 24000
 ) -> List[DownloadedMedia]:
     return [download_url(u, dest_dir, sample_rate=sample_rate) for u in urls]
+
+
+def download_captions(
+    url: str,
+    dest_dir: Path,
+    *,
+    languages: Optional[List[str]] = None,
+) -> List[Path]:
+    """Fetch a video's own captions (manual or auto) as VTT files.
+
+    Captions are timed ground truth. Failure must not fail an audio download.
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    media_id = _media_id_for_url(url)
+    wanted = languages or ["km.*", "en.*"]
+    prefixes = tuple(w.rstrip("*").rstrip(".") for w in wanted)
+    existing = [
+        p
+        for p in sorted(dest_dir.glob(f"{media_id}.*.vtt"))
+        if any(f".{prefix}" in p.name for prefix in prefixes if prefix)
+    ]
+    if existing:
+        return existing
+    if not yt_dlp_available():
+        return []
+    cmd = [
+        yt_dlp_bin(),
+        *yt_dlp_auth_args(),
+        "--no-playlist",
+        "-f", "sb0/best",
+        "--skip-download",
+        "--write-subs",
+        "--write-auto-subs",
+        "--sub-langs", ",".join(wanted),
+        "--sub-format", "vtt",
+        "--no-warnings",
+        "-o", str(dest_dir / f"{media_id}.%(ext)s"),
+        url,
+    ]
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=300, text=True)
+    except Exception:  # noqa: BLE001 — captions are best-effort
+        return []
+    return sorted(dest_dir.glob(f"{media_id}.*.vtt"))
+
+
+def parse_vtt(path: Path) -> list[tuple[float, float, str]]:
+    """Parse a VTT file into (start_s, end_s, text) rows, de-duplicated."""
+    import re
+
+    rows: list[tuple[float, float, str]] = []
+    stamp = re.compile(
+        r"(\d+):(\d+):(\d+)[.,](\d+)\s*-->\s*(\d+):(\d+):(\d+)[.,](\d+)"
+    )
+    prev = ""
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return rows
+    start = end = None
+    for line in lines:
+        match = stamp.search(line)
+        if match:
+            g = [int(x) for x in match.groups()]
+            start = g[0] * 3600 + g[1] * 60 + g[2] + g[3] / 1000.0
+            end = g[4] * 3600 + g[5] * 60 + g[6] + g[7] / 1000.0
+            continue
+        text = re.sub(r"<[^>]+>", "", line).strip()
+        if not text or start is None or text == prev:
+            continue
+        if text.startswith(prev) and prev:
+            text = text[len(prev):].strip()
+            if not text:
+                continue
+        rows.append((start, end or start, text))
+        prev = re.sub(r"<[^>]+>", "", line).strip()
+    return rows
+
+
+def caption_text_for_window(
+    captions: list[tuple[float, float, str]], start_s: float, end_s: float
+) -> str:
+    """Join caption text whose cues overlap ``[start_s, end_s]``."""
+    picked: list[str] = []
+    for cue_start, cue_end, text in captions:
+        if cue_end >= start_s and cue_start <= end_s and text not in picked:
+            picked.append(text)
+    return " ".join(picked).strip()
 
 
 def copy_local_media(media_dir: Path, dest_dir: Path) -> List[DownloadedMedia]:

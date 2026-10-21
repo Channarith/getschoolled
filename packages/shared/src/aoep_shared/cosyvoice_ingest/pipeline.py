@@ -15,7 +15,16 @@ from ..dictionary_audio import (
     read_wav_mono,
     write_wav_mono,
 )
-from .download import DownloadError, DownloadedMedia, copy_local_media, download_url
+from .download import (
+    DownloadError,
+    DownloadedMedia,
+    caption_text_for_window,
+    captions_requested,
+    copy_local_media,
+    download_captions,
+    download_url,
+    parse_vtt,
+)
 from .errors import classify_download_error, classify_qc_reason, sanitize_process_text
 from .export import CosyVoiceUtterance, RecipePaths, write_cosyvoice_recipe
 from .merge import default_merge_into, merge_language_pool
@@ -235,9 +244,14 @@ def run_ingest(
                     urls = urls[: max(0, int(config.max_urls))]
                 for url in urls:
                     try:
-                        media.append(
-                            download_url(url, raw_dir, sample_rate=config.sample_rate)
-                        )
+                        item = download_url(url, raw_dir, sample_rate=config.sample_rate)
+                        media.append(item)
+                        if captions_requested():
+                            download_captions(
+                                url,
+                                raw_dir,
+                                languages=[f"{config.language}.*", "en.*"],
+                            )
                     except DownloadError as exc:
                         _record_error(
                             report,
@@ -342,7 +356,7 @@ def run_ingest(
             cleaned.append((m, src, None))
 
     # --- segment ---
-    seg_paths: List[tuple[DownloadedMedia, Path, float, Optional[float]]] = []
+    seg_paths: List[tuple[DownloadedMedia, Path, float, Optional[float], float]] = []
     if _stage_enabled("segment", start_stage, stop_stage, selected):
         for m, clean_path, snr in cleaned:
             try:
@@ -370,7 +384,7 @@ def run_ingest(
                 piece = slice_pcm16(pcm, seg.start_sample, seg.end_sample)
                 dest = seg_dir / f"{utt_id}.wav"
                 write_wav_mono(dest, piece, rate)
-                seg_paths.append((m, dest, seg.duration_sec, snr))
+                seg_paths.append((m, dest, seg.duration_sec, snr, seg.start_sample / float(rate or 1)))
         report.stages["segment"] = {
             "utterances": len(seg_paths),
             "dir": str(seg_dir),
@@ -386,14 +400,43 @@ def run_ingest(
                 dur = (len(pcm) / 2) / float(rate or config.sample_rate)
             except Exception:
                 dur = 0.0
-            seg_paths.append((m, wav, dur, None))
+            seg_paths.append((m, wav, dur, None, 0.0))
 
     # --- transcribe ---
     if _stage_enabled("transcribe", start_stage, stop_stage, selected):
         empty = 0
         rejected_text: dict[str, int] = {}
-        for m, wav_path, dur, snr in seg_paths:
-            tr: TranscriptResult = transcribe_wav(wav_path, language=config.language)
+        from_captions = 0
+        caption_cache: dict[str, list] = {}
+
+        def captions_for(item: DownloadedMedia) -> list:
+            if item.media_id not in caption_cache:
+                rows: list = []
+                raw_dir = item.audio_path.parent if item.audio_path else None
+                if raw_dir is not None and captions_requested():
+                    lang = (config.language or "").lower()
+                    vtts = sorted(raw_dir.glob(f"{item.media_id}.*.vtt"))
+                    vtts.sort(
+                        key=lambda p: (
+                            0 if f".{lang}" in p.name else 1,
+                            0 if "-orig" in p.name else 1,
+                        )
+                    )
+                    if vtts:
+                        rows = parse_vtt(vtts[0])
+                caption_cache[item.media_id] = rows
+            return caption_cache[item.media_id]
+
+        for m, wav_path, dur, snr, start_s in seg_paths:
+            tr: Optional[TranscriptResult] = None
+            rows = captions_for(m)
+            if rows:
+                text_cap = caption_text_for_window(rows, start_s, start_s + dur)
+                if text_cap:
+                    tr = TranscriptResult(text_cap, config.language, "youtube-captions", True, "ok")
+                    from_captions += 1
+            if tr is None:
+                tr = transcribe_wav(wav_path, language=config.language)
             text = tr.text.strip()
             if not text:
                 empty += 1
@@ -435,6 +478,7 @@ def run_ingest(
             "segments": len(seg_paths),
             "with_text": sum(1 for u in utterances if u.text and not u.text.startswith("<missing")),
             "empty": empty,
+            "from_captions": from_captions,
             "rejected_transcript": rejected_text,
             "asr_available": report.asr_available,
         }
@@ -445,7 +489,7 @@ def run_ingest(
             )
     else:
         # Load prior segments without ASR — cannot invent text
-        for m, wav_path, dur, snr in seg_paths:
+        for m, wav_path, dur, snr, _start_s in seg_paths:
             spk = (
                 m.media_id
                 if (not config.speaker or config.speaker == "auto")

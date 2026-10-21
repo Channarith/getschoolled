@@ -20,9 +20,73 @@ from aoep_shared.cosyvoice_ingest.merge import (
     merge_cosyvoice_recipes,
     merge_language_pool,
 )
+from aoep_shared.cosyvoice_ingest.download import (
+    caption_text_for_window,
+    parse_vtt,
+    yt_dlp_auth_args,
+)
 from aoep_shared.cosyvoice_ingest.segment import segment_pcm16, slice_pcm16
 from aoep_shared.cosyvoice_ingest.urls import is_allowed_media_url, load_url_list
 from aoep_shared.dictionary_audio import write_wav_mono
+
+
+def test_yt_dlp_auth_args_from_env(monkeypatch):
+    monkeypatch.setenv(
+        "YT_DLP_COOKIES_FROM_BROWSER", "chromium:/home/u/snap/chromium/common/chromium"
+    )
+    monkeypatch.setenv("YT_DLP_PLAYER_CLIENT", "web_safari")
+    monkeypatch.setenv("YT_DLP_SLEEP_REQUESTS", "3")
+    args = yt_dlp_auth_args()
+    assert "--cookies-from-browser" in args
+    assert "chromium:/home/u/snap/chromium/common/chromium" in args
+    assert "youtube:player_client=web_safari" in args
+    assert "--sleep-requests" in args and "3" in args
+
+
+def test_parse_vtt_and_window(tmp_path):
+    vtt = tmp_path / "src_x.km.vtt"
+    vtt.write_text(
+        "WEBVTT\n\n"
+        "00:00:01.000 --> 00:00:03.000\n"
+        "Hello <00:00:02.000><c>world</c>\n\n"
+        "00:00:03.000 --> 00:00:05.000\n"
+        "Hello world\n"
+        "second line\n\n"
+        "00:00:05.000 --> 00:00:07.000\n"
+        "third line\n",
+        encoding="utf-8",
+    )
+    rows = parse_vtt(vtt)
+    assert rows[0] == (1.0, 3.0, "Hello world")
+    assert caption_text_for_window(rows, 2.5, 4.0) == "Hello world second line"
+    assert caption_text_for_window(rows, 20.0, 25.0) == ""
+
+
+def test_khmer_mms_is_used_when_detection_says_khmer(tmp_path, monkeypatch):
+    from aoep_shared.cosyvoice_ingest import transcribe as asr
+
+    wav = tmp_path / "clip.wav"
+    wav.write_bytes(b"RIFF")
+    monkeypatch.setenv("AOEP_ASR_KM_ENGINE", "mms")
+    monkeypatch.setattr(asr, "asr_available", lambda: True)
+    monkeypatch.setattr(asr, "_detect_language_whisper", lambda *_a, **_k: "km")
+    monkeypatch.setattr(
+        asr,
+        "_transcribe_mms_khmer",
+        lambda _wav: asr.TranscriptResult("សួស្តី", "km", "mms-1b-all:khm", True, "ok"),
+    )
+    called = {"whisper": False}
+
+    def boom(*_a, **_k):
+        called["whisper"] = True
+        raise AssertionError("whisper should not run when MMS succeeds")
+
+    monkeypatch.setattr(asr, "_transcribe_openai", boom)
+    monkeypatch.setattr(asr, "_transcribe_faster", boom)
+    result = asr.transcribe_wav(wav, language="km")
+    assert result.ok and result.engine == "mms-1b-all:khm"
+    assert result.text == "សួស្តី"
+    assert called["whisper"] is False
 
 
 def _tone_pcm(seconds: float, sr: int = 24000, hz: float = 220.0, amp: float = 0.3) -> bytes:
