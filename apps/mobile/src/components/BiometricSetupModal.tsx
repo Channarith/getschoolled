@@ -5,8 +5,10 @@ import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Linking,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -37,9 +39,12 @@ import {
 import {
   FRAME_HINT,
   detectDeviceFaces,
+  frameForFaces,
   frameVerdict,
   isOnDeviceReaderMissing,
+  scanFailureMessage,
   type DeviceStroke,
+  type VerdictCounts,
 } from "../deviceFace";
 import { isConsentMissing, isDeferredUpload } from "../pendingUpload";
 import {
@@ -52,6 +57,7 @@ import AnimatedPressable from "./AnimatedPressable";
 import KenBurnsImage from "./KenBurnsImage";
 import LiveFaceCamera, { type LiveFaceCameraHandle } from "./LiveFaceCamera";
 import MobileMascotMeshy from "./MobileMascotMeshy";
+import ScanRing from "./ScanRing";
 import { useLayoutMetrics } from "../layout";
 
 type Step = "welcome" | "scan" | "voice" | "identity" | "complete";
@@ -106,6 +112,17 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
 };
 
 type Problem = { message: string; settings?: boolean };
+
+/** Size of the still as the learner sees it (turned upright). Falls back to what the camera reported. */
+async function uprightSize(uri: string, fallback: [number, number]): Promise<[number, number]> {
+  try {
+    return await withTimeout(new Promise<[number, number]>((resolve, reject) => {
+      Image.getSize(uri, (width, height) => resolve([width, height]), reject);
+    }), 1500, "Reading the picture size timed out.");
+  } catch {
+    return fallback;
+  }
+}
 
 async function discardFile(uri: string | null | undefined) {
   if (!uri) return;
@@ -430,13 +447,14 @@ export default function BiometricSetupModal({
       const prints = new Set<string>();
       const started = Date.now();
       let readFailures = 0;
+      const seen: VerdictCounts = {};
+      let upright: [number, number] | null = null;
       while (!cancelled && genRef.current === gen && kept.length < FACE_PHOTOS) {
         if (stallsRef.current > MAX_CAMERA_STALLS) return;
         if (Date.now() - started > SCAN_LIMIT_MS) {
           setFaceSeen(false);
-          setProblem({
-            message: "We couldn’t get a clear look. Face a window or lamp, hold the phone at eye level, and try again.",
-          });
+          console.warn(`[face] scan gave up: ${JSON.stringify(seen)}`);
+          setProblem({ message: scanFailureMessage(seen) });
           return;
         }
         const shot = await cameraRef.current?.grabFrame({ retainFile: true, includeBase64: false });
@@ -470,8 +488,15 @@ export default function BiometricSetupModal({
           await wait(60);
           continue;
         }
-        const frame: [number, number] = [shot.width || 3, shot.height || 4];
+        let size: [number, number] = [shot.width || 3, shot.height || 4];
+        if (Platform.OS === "ios") {
+          // The still can be stored sideways. Measure the upright picture once.
+          upright = upright ?? await uprightSize(shot.uri, size);
+          size = upright;
+        }
+        const frame = frameForFaces(size, faces);
         const verdict = frameVerdict(faces, frame);
+        seen[verdict] = (seen[verdict] ?? 0) + 1;
         const face = faces.length ? faces.reduce((a, b) => (b.faceWidth > a.faceWidth ? b : a)) : null;
         setFaceSeen(verdict === "ok");
         if (face?.strokes.length) setLiveStrokes({ strokes: face.strokes, frame });
@@ -768,6 +793,7 @@ export default function BiometricSetupModal({
   const wide = isMedium || isExpanded;
   const scanning = step === "scan";
   const [frameBox, setFrameBox] = useState({ width: 0, height: 0 });
+  const guideSize = frameBox.width > 0 ? Math.min(Math.round(frameBox.width * 0.72), 420) : 0;
 
   return (
     <Modal visible={visible && !systemPrompt} animationType="fade" presentationStyle="fullScreen" onRequestClose={onDismiss}>
@@ -810,10 +836,21 @@ export default function BiometricSetupModal({
                 </View>
                 <View style={styles.overlay} pointerEvents="none" collapsable={false}>
                 <View style={styles.faceGuideWrap}>
-                  <View
-                    style={[styles.faceGuide, faceSeen && styles.faceGuideOn]}
-                    testID="face-guide"
-                  />
+                  <View style={guideSize ? { width: guideSize, height: guideSize } : styles.faceGuideAuto}>
+                    <View
+                      style={[
+                        styles.faceGuide,
+                        guideSize ? { width: guideSize, height: guideSize, maxWidth: guideSize, aspectRatio: undefined } : null,
+                        faceSeen && styles.faceGuideOn,
+                      ]}
+                      testID="face-guide"
+                    />
+                    {guideSize ? (
+                      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                        <ScanRing size={guideSize} progress={captured / FACE_PHOTOS} found={faceSeen} />
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
                 <View style={styles.liveDot} accessibilityLabel="Live camera" />
                 {liveStrokes && frameBox.width > 0 ? (
@@ -1048,6 +1085,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   faceGuideOn: { borderColor: "#b6ffcf" },
+  faceGuideAuto: { width: "72%", maxWidth: 420, aspectRatio: 1 },
   mesh: { position: "absolute", top: 0, left: 0, zIndex: 6, elevation: 6 },
   corner: { position: "absolute", width: 28, height: 28, borderColor: C.teal, zIndex: 12, elevation: 12 },
   cornerTL: { top: 14, left: 14, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 16 },
