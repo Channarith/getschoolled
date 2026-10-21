@@ -15,6 +15,7 @@ import {
   type ConsumerPlan,
 } from "../api";
 import { SETUP_COLORS as C } from "../learnerCheck";
+import { isRetryableIdentityWrite, queueOnboardingSync } from "../onboardingSync";
 import AnimatedPressable from "./AnimatedPressable";
 import KenBurnsImage from "./KenBurnsImage";
 import MobileMascotMeshy from "./MobileMascotMeshy";
@@ -72,15 +73,32 @@ export default function MobileOnboardingPlanStep({
     .filter((plan): plan is ConsumerPlan => Boolean(plan))
     .filter((plan) => freeOffer || plan.tier !== "free");
 
+  // A busy identity service must not hold the learner here. The free plan
+  // claim and completion are idempotent, so they are kept on the phone and
+  // retried with backoff. Paid plans still wait for identity to confirm.
   async function finishFree() {
-    await selectMobileOnboardingPlan("free");
-    await completeMobileAccountOnboarding(displayName.trim(), ageBand);
+    const name = displayName.trim();
+    let planSaved = false;
+    try {
+      await selectMobileOnboardingPlan("free");
+      planSaved = true;
+      await completeMobileAccountOnboarding(name, ageBand);
+    } catch (reason) {
+      if (!isRetryableIdentityWrite(reason)) throw reason;
+      await queueOnboardingSync(name, ageBand, planSaved ? undefined : "free");
+    }
     onComplete();
   }
 
   async function finishPaid(selected: string) {
     await selectMobileOnboardingPlan(selected);
-    await completeMobileAccountOnboarding(displayName.trim(), ageBand);
+    const name = displayName.trim();
+    try {
+      await completeMobileAccountOnboarding(name, ageBand);
+    } catch (reason) {
+      if (!isRetryableIdentityWrite(reason)) throw reason;
+      await queueOnboardingSync(name, ageBand);
+    }
     onComplete();
   }
 

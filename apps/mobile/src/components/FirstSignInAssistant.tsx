@@ -21,6 +21,7 @@ import KenBurnsImage from "./KenBurnsImage";
 import MobileMascotMeshy from "./MobileMascotMeshy";
 import { type MascotScene } from "./MascotActor";
 import { useLayoutMetrics } from "../layout";
+import { isRetryableIdentityWrite, queueLearningProfileSync } from "../onboardingSync";
 
 type Props = {
   visible: boolean;
@@ -121,11 +122,19 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
 
   function saveLearning() {
     return withBusy(async () => {
-      const saved = learnerSave.current ? await learnerSave.current : null;
-      const id = saved?.studentId || studentId;
+      const learner = learnerSave.current ? await learnerSave.current : null;
+      const id = learner?.studentId || studentId;
       const answers = { modality_ratings: ratings };
-      await submitLearningProfile(id, answers);
-      const me = await getMe().catch(() => null);
+      let saved = true;
+      try {
+        await submitLearningProfile(id, answers);
+      } catch (reason) {
+        // A busy identity service must not hold the learner on the ratings.
+        if (!id || !isRetryableIdentityWrite(reason)) throw reason;
+        await queueLearningProfileSync(id, answers);
+        saved = false;
+      }
+      const me = saved ? await getMe().catch(() => null) : null;
       if (me) {
         void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: id, answers })
           .catch(() => undefined);
@@ -402,7 +411,7 @@ const styles = StyleSheet.create({
   scale: { gap: 12, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
   scaleRow: { flexDirection: "row", alignItems: "stretch", gap: 12 },
   dot: {
-    flex: 1, minHeight: 64, borderRadius: 16, alignItems: "center", justifyContent: "center",
+    flex: 1, flexBasis: 0, minWidth: 0, height: 64, borderRadius: 16, alignItems: "center", justifyContent: "center",
     backgroundColor: C.panel2, borderWidth: 1, borderColor: C.border,
   },
   dotOn: { backgroundColor: C.accent, borderColor: C.accent },

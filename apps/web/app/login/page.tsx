@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   getOAuthProviderStatus,
+  getOnboardingStatus,
   login,
   loginWithApple,
   loginWithFacebook,
@@ -31,6 +32,10 @@ function passwordProblems(pw: string, t: (k: string) => string): string[] {
 export default function LoginPage() {
   const { t } = useT();
   const router = useRouter();
+  async function continueSignedIn() {
+    const status = await getOnboardingStatus().catch(() => null);
+    router.push(status && !status.completed ? "/onboarding" : "/");
+  }
   const signupsOpen = useFlag<boolean>("ops.new_signups", true);
   const demoOnly = useFlag<boolean>(SALES_DEMO_FLAGS.exclusive, false);
   const loginGateHidden = useLoginGateHidden();
@@ -101,7 +106,7 @@ export default function LoginPage() {
       if (mfaToken) {
         const res = await verify2faLogin(mfaToken, mfaCode);
         setToken(res.token);
-        router.push("/");
+        await continueSignedIn();
         return;
       }
       const res = mode === "login"
@@ -112,7 +117,8 @@ export default function LoginPage() {
         return;
       }
       setToken(res.token);
-      router.push(mode === "signup" ? "/onboarding" : "/");
+      if (mode === "signup") router.push("/onboarding");
+      else await continueSignedIn();
     } catch (err) {
       const msg = String(err);
       if (mode === "signup" && /already exists/i.test(msg)) {
@@ -213,7 +219,7 @@ export default function LoginPage() {
                         if (!em) { setBusy(false); return; }
                         const res = await loginWithGoogle(`sandbox_google_${em}`);
                         setToken(res.token);
-                        router.push("/");
+                        await continueSignedIn();
                         return;
                       }
                       // Real Google sign-in via Google Identity Services one-tap
@@ -236,7 +242,7 @@ export default function LoginPage() {
                               try {
                                 const res = await loginWithGoogle(resp.credential);
                                 setToken(res.token);
-                                router.push("/");
+                                await continueSignedIn();
                                 resolve();
                               } catch (e) { reject(e); }
                             },
@@ -268,7 +274,7 @@ export default function LoginPage() {
                         if (!em) { setBusy(false); return; }
                         const res = await loginWithFacebook(`sandbox_facebook_${em}`);
                         setToken(res.token);
-                        router.push("/");
+                        await continueSignedIn();
                         return;
                       }
                       const FACEBOOK_APP_ID = "1071803295271778";
@@ -292,7 +298,7 @@ export default function LoginPage() {
                       });
                       const res = await loginWithFacebook(accessToken);
                       setToken(res.token);
-                      router.push("/");
+                      await continueSignedIn();
                   } catch (e) { setError(String(e)); setBusy(false); }
                 }}
                 style={{ display: "flex", alignItems: "center", gap: 8 }}
@@ -310,7 +316,7 @@ export default function LoginPage() {
                       if (!em) { setBusy(false); return; }
                       const res = await loginWithApple(`sandbox_apple_${em}`);
                       setToken(res.token);
-                      router.push("/");
+                      await continueSignedIn();
                       return;
                     }
                     // Apple Sign In for web — requires a Services ID registered at
@@ -336,7 +342,7 @@ export default function LoginPage() {
                     if (!identityToken) throw new Error("Apple sign-in did not return an identity token");
                     const res = await loginWithApple(identityToken);
                     setToken(res.token);
-                    router.push("/");
+                    await continueSignedIn();
                   } catch (e: any) {
                     if (e?.error !== "popup_closed_by_user") setError(String(e?.message || e));
                     setBusy(false);

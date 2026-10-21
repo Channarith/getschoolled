@@ -24,6 +24,13 @@ describe("mobile Meshy mascot", () => {
     expect(mascotViewerHtml("idle").includes('clip: "idle"')).toBe(true);
   });
 
+  test("local model reads go through XMLHttpRequest before the viewer runs", () => {
+    const html = mascotViewerHtml("idle");
+    const shim = html.indexOf("XMLHttpRequest");
+    expect(shim).toBeGreaterThan(-1);
+    expect(shim).toBeLessThan(html.indexOf(`src="${MASCOT_VIEWER_FILE}"`));
+  });
+
   test("the page and the viewer agree on the Draco decoder filename", () => {
     expect(MASCOT_DECODER_FILE).toBe("draco_decoder.js");
     expect(mascotViewerHtml("idle")).toContain(MASCOT_VIEWER_FILE);

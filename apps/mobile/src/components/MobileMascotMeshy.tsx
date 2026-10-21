@@ -14,6 +14,7 @@ import MascotActor, { type MascotScene } from "./MascotActor";
 export const MASCOT_DECODER_FILE = "draco_decoder.js";
 export const MASCOT_VIEWER_FILE = "viewer.js";
 export const MASCOT_MODEL_FILE = "Mascot.glb";
+const CACHE_DIR = "mascot-meshy-v2";
 
 const VIEWER = require("../../assets/mascot3d/viewer.txt");
 const DECODER = require("../../assets/mascot3d/draco_decoder.txt");
@@ -46,6 +47,45 @@ export function clipForMascotScene(scene: MascotScene): string {
   }
 }
 
+/**
+ * three.js loads the GLB and the Draco decoder with fetch(). Android WebView
+ * and WKWebView refuse fetch() for file:// URLs, so the viewer failed before
+ * the first frame and the 2D fallback took its place. XMLHttpRequest can read
+ * the same local files, so local URLs go through it.
+ */
+export const LOCAL_FETCH_SHIM = `(function () {
+  var nativeFetch = window.fetch ? window.fetch.bind(window) : null;
+  function isLocal(url) {
+    return /^file:/i.test(url) || !/^[a-z][a-z0-9+.-]*:/i.test(url);
+  }
+  window.fetch = function (input, init) {
+    var url = typeof input === "string" ? input : (input && input.url) || String(input);
+    if (!isLocal(url) && nativeFetch) return nativeFetch(input, init);
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", url, true);
+      xhr.responseType = "arraybuffer";
+      xhr.onload = function () {
+        var ok = xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300);
+        if (!ok || !xhr.response) {
+          reject(new TypeError("local file unreadable: " + url + " (" + xhr.status + ")"));
+          return;
+        }
+        resolve(new Response(xhr.response, { status: 200 }));
+      };
+      xhr.onerror = function () {
+        reject(new TypeError("local file unreadable: " + url));
+      };
+      xhr.send();
+    });
+  };
+  window.addEventListener("error", function (event) {
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage("error:" + (event.message || "script error"));
+    }
+  });
+})();`;
+
 export function mascotViewerHtml(clip: string): string {
   const safe = clip.replace(/[^A-Za-z0-9_]/g, "") || "idle";
   return `<!DOCTYPE html>
@@ -59,6 +99,7 @@ export function mascotViewerHtml(clip: string): string {
 </style>
 </head>
 <body>
+<script>${LOCAL_FETCH_SHIM}</script>
 <script src="${MASCOT_VIEWER_FILE}"></script>
 <script>MascotViewer.start({ modelUrl: "${MASCOT_MODEL_FILE}", clip: "${safe}" });</script>
 </body>
@@ -84,7 +125,10 @@ function ensureViewerFiles(): Promise<string> {
       const FileSystem = require("expo-file-system") as typeof import("expo-file-system");
       const root = FileSystem.cacheDirectory;
       if (!root) throw new Error("no cache directory");
-      const dir = `${root}mascot-meshy/`;
+      // A new directory prevents an Android WebView from retaining an older
+      // file:// viewer after an app update. Android caches local scripts much
+      // more aggressively than iOS does.
+      const dir = `${root}${CACHE_DIR}/`;
       await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
       await copyAsset(VIEWER, dir + MASCOT_VIEWER_FILE);
       await copyAsset(DECODER, dir + MASCOT_DECODER_FILE);
@@ -120,10 +164,11 @@ export default function MobileMascotMeshy({ scene, style }: Props) {
     }, 20000);
     void ensureViewerFiles()
       .then(async (dir) => {
-        const htmlPath = `${dir}index-${clip}.html`;
-        const FileSystem = require("expo-file-system") as typeof import("expo-file-system");
-        await FileSystem.writeAsStringAsync(htmlPath, mascotViewerHtml(clip));
-        if (!cancel) setPage(htmlPath);
+        // Supplying the markup directly avoids Android WebView's inconsistent
+        // handling of a file:// HTML document that then loads another local
+        // JavaScript file. `baseUrl` retains the same local directory for the
+        // viewer, Draco decoder, and GLB.
+        if (!cancel) setPage(dir);
       })
       .catch(() => {
         if (!cancel) setFailed(true);
@@ -142,30 +187,40 @@ export default function MobileMascotMeshy({ scene, style }: Props) {
     );
   }
 
-  const dir = page ? page.slice(0, page.lastIndexOf("/") + 1) : undefined;
   return (
     <View style={[styles.fill, style]} testID="mobile-mascot-meshy" pointerEvents="none">
       {page ? (
         <WebView
           key={clip}
-          source={{ uri: page }}
+          source={{ html: mascotViewerHtml(clip), baseUrl: page }}
           style={styles.web}
           originWhitelist={["*"]}
-          allowingReadAccessToURL={dir}
+          allowingReadAccessToURL={page}
           allowFileAccess
           allowFileAccessFromFileURLs
+          allowUniversalAccessFromFileURLs
+          javaScriptEnabled
+          domStorageEnabled
+          cacheEnabled={false}
           scrollEnabled={false}
           bounces={false}
           androidLayerType="hardware"
           setSupportMultipleWindows={false}
-          onError={() => setFailed(true)}
-          onHttpError={() => setFailed(true)}
+          onError={(event) => {
+            console.warn(`[mascot] webview: ${event.nativeEvent.description}`);
+            setFailed(true);
+          }}
+          onHttpError={(event) => {
+            console.warn(`[mascot] ${event.nativeEvent.statusCode} ${event.nativeEvent.url}`);
+            setFailed(true);
+          }}
           onMessage={(event) => {
             const data = event.nativeEvent.data || "";
             if (data === "ready") {
               readyRef.current = true;
               setReady(true);
             } else if (data.startsWith("error:")) {
+              console.warn(`[mascot] ${data.slice(6)}`);
               setFailed(true);
             }
           }}

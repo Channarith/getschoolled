@@ -9,6 +9,7 @@ service is the account + enrollment system of record.
 from __future__ import annotations
 
 import os
+import threading
 import time
 import base64
 import hashlib
@@ -1690,6 +1691,32 @@ def _perception_detail(exc: urllib.error.HTTPError) -> str:
     return detail if isinstance(detail, str) else raw
 
 
+# Perception calls block a worker thread for up to 30s. Without a cap, a slow
+# perception pod holds every thread and sign-in, plans, and onboarding queue
+# behind it until the gateway returns 504.
+_PERCEPTION_SLOTS = threading.BoundedSemaphore(
+    max(1, int(os.environ.get("IDENTITY_PERCEPTION_CONCURRENCY", "6") or 6))
+)
+
+
+def _perception_send(request: urllib.request.Request, timeout: float) -> dict:
+    if not _PERCEPTION_SLOTS.acquire(timeout=2.0):
+        raise HTTPException(
+            status_code=503,
+            detail="biometric provider is busy",
+            headers={"Retry-After": "10"},
+        )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        raise HTTPException(status_code=exc.code, detail=_perception_detail(exc)) from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise HTTPException(status_code=503, detail="biometric provider unavailable") from exc
+    finally:
+        _PERCEPTION_SLOTS.release()
+
+
 def _perception_json(path: str, payload: dict) -> dict:
     request = urllib.request.Request(
         getattr(app.state.config, "vision_base_url", "http://perception:8200").rstrip("/")
@@ -1701,16 +1728,11 @@ def _perception_json(path: str, payload: dict) -> dict:
         },
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(request, timeout=30.0) as response:
-            return json.loads(response.read())
-    except urllib.error.HTTPError as exc:
-        raise HTTPException(status_code=exc.code, detail=_perception_detail(exc)) from exc
-    except urllib.error.URLError as exc:
-        raise HTTPException(status_code=503, detail="biometric provider unavailable") from exc
+    return _perception_send(request, 30.0)
 
 
 def _perception_image(path: str, image: bytes) -> dict:
+    timeout = 8.0 if path == "/detect-landmarks" else 30.0
     boundary = "----salareen-biometric-boundary"
     body = (
         f"--{boundary}\r\n"
@@ -1727,13 +1749,7 @@ def _perception_image(path: str, image: bytes) -> dict:
         },
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(request, timeout=30.0) as response:
-            return json.loads(response.read())
-    except urllib.error.HTTPError as exc:
-        raise HTTPException(status_code=exc.code, detail=_perception_detail(exc)) from exc
-    except urllib.error.URLError as exc:
-        raise HTTPException(status_code=503, detail="biometric provider unavailable") from exc
+    return _perception_send(request, timeout)
 
 
 def _perception_delete(student_id: str) -> None:

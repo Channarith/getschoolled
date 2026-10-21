@@ -28,6 +28,8 @@ import {
 } from "./src/narrationTts";
 import {
   getMyList, getReadIds, getSettings, listContinue, setLastOpenAt } from "./src/storage";
+import { flushPendingLearnerCheck } from "./src/pendingBiometrics";
+import { flushPendingOnboardingSync, hasPendingOnboardingSync } from "./src/onboardingSync";
 import { AuthLoadingScreen, MfaAuthScreen } from "./src/screens/AuthScreen";
 import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import AudioCoursesScreen from "./src/screens/AudioCoursesScreen";
@@ -77,7 +79,7 @@ import {
 import { installClientLog } from "./src/clientLog";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
-import { isSetupAssistantPending, setSettings, setSetupAssistantPending } from "./src/storage";
+import { setSettings, setSetupAssistantPending } from "./src/storage";
 
 const SALES_DEMO_FLAG_KEYS = [
   ...Object.values(SALES_DEMO_FLAGS),
@@ -253,6 +255,23 @@ function AppInner() {
 
   useEffect(() => {
     if (!authenticated) return;
+    const send = () => {
+      void flushPendingLearnerCheck();
+      void flushPendingOnboardingSync();
+    };
+    send();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") send();
+    });
+    const timer = setInterval(send, 60_000);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
+  }, [authenticated]);
+
+  useEffect(() => {
+    if (!authenticated) return;
     const guard = { cancelled: false };
     const subs: { remove(): void }[] = [];
     void bootstrap(guard, subs);
@@ -332,8 +351,13 @@ function AppInner() {
       }
       if (id) await setSettings({ studentId: id });
       const status = await getAccountOnboardingStatus();
-      const settingUp = await isSetupAssistantPending();
-      if (!status.completed && settingUp) {
+      // The account flag is the source of truth. A local "just signed up"
+      // bit used to gate this, and Google, Apple, and Facebook sign-in
+      // cleared it, so those new accounts never saw About you, the 1–10
+      // ratings, or Learner Check.
+      // A finish still queued on this phone means identity has not caught up
+      // yet. Showing onboarding again would make the learner redo it.
+      if (!status.completed && !(await hasPendingOnboardingSync())) {
         const refreshed = (await listStudents()).students[0] ?? null;
         setOnboardingStudent(refreshed);
       } else {

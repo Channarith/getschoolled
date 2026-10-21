@@ -351,7 +351,7 @@ class AccountStore:
                     existing.billing_validated_at = time.time()
             if alias and alias not in self._id_by_email:
                 self._id_by_email[alias] = existing.id
-            self._persist()
+            self._persist(existing.id)
             return existing
         acct = Account(
             email=email,
@@ -369,7 +369,7 @@ class AccountStore:
         self._id_by_email[email] = acct.id
         if alias and alias not in self._id_by_email:
             self._id_by_email[alias] = acct.id
-        self._persist()
+        self._persist(acct.id)
         return acct
 
     def seed_admin(self, email: str, password: str, *, username: str = "admin",
@@ -451,7 +451,7 @@ class AccountStore:
                 acct.id, success=False, ip=ip, user_agent=user_agent,
                 country_hint=country_hint, method="password", reason="bad_password",
             )
-            self._persist()
+            self._persist(acct.id)
             return None
         acct.failed_logins = 0
         acct.locked_until = None
@@ -461,7 +461,7 @@ class AccountStore:
             acct.id, success=True, ip=ip, user_agent=user_agent,
             country_hint=country_hint, method="password",
         )
-        self._persist()
+        self._persist(acct.id)
         return acct
 
     def record_login_event(
@@ -515,7 +515,7 @@ class AccountStore:
         acct.oauth_subject = subject
         if display_name and not acct.display_name:
             acct.display_name = display_name
-        self._persist()
+        self._persist(account_id)
         return acct
 
     def oauth_login_success(
@@ -568,31 +568,31 @@ class AccountStore:
         self._by_id[acct.id] = acct
         self._id_by_email[acct.email] = acct.id
         self.ensure_default_student(acct.id)
-        self._persist()
+        self._persist(acct.id)
         return acct
 
     def set_totp_secret(self, account_id: str, secret: str) -> None:
         acct = self._by_id[account_id]
         acct.totp_secret = secret
         acct.totp_enabled = False
-        self._persist()
+        self._persist(account_id)
 
     def enable_totp(self, account_id: str) -> None:
         acct = self._by_id[account_id]
         acct.totp_enabled = True
-        self._persist()
+        self._persist(account_id)
 
     def disable_totp(self, account_id: str) -> None:
         acct = self._by_id[account_id]
         acct.totp_secret = ""
         acct.totp_enabled = False
-        self._persist()
+        self._persist(account_id)
 
     def add_passkey(self, account_id: str, cred: PasskeyCredential) -> None:
         acct = self._by_id[account_id]
         acct.passkeys = [c for c in acct.passkeys if c.credential_id != cred.credential_id]
         acct.passkeys.append(cred)
-        self._persist()
+        self._persist(account_id)
 
     def passkey_by_id(self, account_id: str, credential_id: str) -> Optional[PasskeyCredential]:
         acct = self._by_id.get(account_id)
@@ -618,7 +618,7 @@ class AccountStore:
     def set_password(self, account_id: str, new_password: str) -> None:
         acct = self._by_id[account_id]
         acct.password_hash = hash_password(new_password)
-        self._persist()
+        self._persist(account_id)
 
     def set_billing_profile(
         self,
@@ -634,7 +634,7 @@ class AccountStore:
             # Only a real payment method validates billing — saving a phone
             # number or address alone must not unlock paid-tier activation.
             acct.billing_validated_at = time.time()
-        self._persist()
+        self._persist(account_id)
         return acct
 
     def complete_onboarding(self, account_id: str) -> Account:
@@ -648,7 +648,7 @@ class AccountStore:
         for key, val in fields.items():
             if val is not None and hasattr(acct, key):
                 setattr(acct, key, val)
-        self._persist()
+        self._persist(account_id)
         return acct
 
     def set_avatar(self, account_id: str, avatar_id: str) -> Account:
@@ -691,7 +691,7 @@ class AccountStore:
             prof.course_progress[key] = row
         else:
             acct.course_progress[key] = row
-        self._persist()
+        self._persist(account_id)
         return row
 
     def get_course_progress(
@@ -724,7 +724,7 @@ class AccountStore:
         acct = self._by_id[account_id]
         prof = acct.students[student_id]
         prof.avatar_id = resolve_avatar_id(avatar_id)
-        self._persist()
+        self._persist(account_id)
         return prof
 
     def _known_free_claims(self) -> list[tuple[str, str]]:
@@ -758,7 +758,7 @@ class AccountStore:
         acct.billing_anchor_day = None
         acct.next_billing_at = None
         acct.billing_amount_usd = None
-        self._persist()
+        self._persist(acct.id)
         return acct
 
     def claim_free_plan(self, account_id: str, *, now: Optional[float] = None) -> Account:
@@ -832,7 +832,7 @@ class AccountStore:
             acct.free_plan_claimed_at = claimed_at
             acct.free_plan_expires_at = expires_at
             try:
-                self._persist()
+                self._persist(account_id)
             except PersistenceConflict:
                 # Another replica already saved this account. Its blob is loaded
                 # before the conflict is raised, so keep that copy.
@@ -855,7 +855,7 @@ class AccountStore:
             acct.billing_anchor_day = None
             acct.next_billing_at = None
             acct.billing_amount_usd = None
-        self._persist()
+        self._persist(account_id)
         return acct
 
     def activate_subscription(
@@ -877,7 +877,7 @@ class AccountStore:
         acct.billing_anchor_day = anchor
         acct.billing_amount_usd = price_usd_for_tier(tier.value)
         acct.next_billing_at = initial_next_billing_at(now, anchor_day=anchor)
-        self._persist()
+        self._persist(account_id)
         return acct
 
     # --- portfolio --------------------------------------------------------- #
@@ -895,10 +895,10 @@ class AccountStore:
             if enrollment.hands_on is not None:
                 existing.hands_on = enrollment.hands_on
             existing.updated_at = time.time()
-            self._persist()
+            self._persist(account_id)
             return existing
         acct.enrollments[enrollment.course_id] = enrollment
-        self._persist()
+        self._persist(account_id)
         return enrollment
 
     def set_status(self, account_id: str, course_id: str, status: EnrollmentStatus,
@@ -924,7 +924,7 @@ class AccountStore:
                                         hands_on=enr.hands_on)
             acct.points.earn(pts, reason="course_passed", ref=course_id)
             enr.points_awarded = True
-        self._persist()
+        self._persist(account_id)
         return enr
 
     # --- rewards ----------------------------------------------------------- #
@@ -942,7 +942,7 @@ class AccountStore:
         """Deduct reward points. Returns new balance."""
         acct = self._by_id[account_id]
         acct.points.spend(cost, reason=reason, ref=ref)
-        self._persist()
+        self._persist(account_id)
         return acct.points.balance
 
     def earn_points(
@@ -958,7 +958,7 @@ class AccountStore:
             return self.points_balance(account_id)
         acct = self._by_id[account_id]
         acct.points.earn(amount, reason=reason, ref=ref)
-        self._persist()
+        self._persist(account_id)
         return acct.points.balance
 
     def award_grant(self, account_id: str, points: int, *, reason: str,
@@ -979,7 +979,7 @@ class AccountStore:
             return acct.points.balance, 0
         self._used_grant_nonces.add(nonce_key)
         acct.points.earn(points, reason=reason, ref=ref)
-        self._persist()
+        self._persist(account_id)
         return acct.points.balance, points
 
     def redeem(self, account_id: str, prize) -> dict:
@@ -994,7 +994,7 @@ class AccountStore:
             "detail": redemption.detail, "created_at": redemption.created_at,
         }
         acct.redemptions.append(rec)
-        self._persist()
+        self._persist(account_id)
         return rec
 
     def rewards_summary(self, account_id: str) -> dict:
@@ -1039,7 +1039,7 @@ class AccountStore:
         st["best_by_subject"][subject] = max(prev, pts)
         st["points_by_age"][age_group] = st["points_by_age"].get(age_group, 0) + pts
         st["last_age_group"] = age_group
-        self._persist()
+        self._persist(account_id)
         return st
 
     def leaderboard(self, *, subject: Optional[str] = None, age_group: Optional[str] = None,
@@ -1099,7 +1099,7 @@ class AccountStore:
             return self.add_student(account_id, display_name, age_band=age_band)
         prof.display_name = display_name
         prof.age_band = age_band
-        self._persist()
+        self._persist(account_id)
         return prof
 
     def apply_learning_profile(self, account_id: str, student_id: str, profile) -> StudentProfile:
@@ -1122,7 +1122,7 @@ class AccountStore:
         prof.profile_score_version = profile.profile_score_version
         prof.onboarding_completed_at = profile.completed_at
         prof.onboarding_answers = dict(profile.raw_answers)
-        self._persist()
+        self._persist(account_id)
         return prof
 
     def record_verified_assessment_pass(
@@ -1228,7 +1228,7 @@ class AccountStore:
             "ksb_codes": list(ksb_codes),
             "recorded_at": time.time(),
         })
-        self._persist()
+        self._persist(account_id)
         return prof
 
     def due_retention_checks(
@@ -1289,7 +1289,7 @@ class AccountStore:
             "retention_check_id": check_id,
             "recorded_at": check["completed_at"],
         })
-        self._persist()
+        self._persist(account_id)
         return dict(check)
 
     def record_adaptation_event(
@@ -1409,7 +1409,7 @@ class AccountStore:
                 merged["physical_skill"] = raw["physical_skill"]
         if merged != prof.adaptation:
             prof.adaptation = merged
-        self._persist()
+        self._persist(account_id)
         return prof
 
     def skip_learning_profile(self, account_id: str, student_id: str) -> StudentProfile:
@@ -1421,7 +1421,7 @@ class AccountStore:
             prof.onboarding_completed_at = time.time()
         if not prof.learner_category:
             prof.learner_category = "skipped"
-        self._persist()
+        self._persist(account_id)
         return prof
 
     def ensure_default_student(self, account_id: str) -> StudentProfile:
@@ -1443,7 +1443,7 @@ class AccountStore:
         for prof in students:
             changed = self._backfill_profile_score(prof) or changed
         if changed:
-            self._persist()
+            self._persist(account_id)
         return students
 
     def get_student(self, account_id: str, student_id: str) -> Optional[StudentProfile]:
@@ -1453,7 +1453,7 @@ class AccountStore:
             acct = self._by_id.get(account_id)
             prof = acct.students.get(student_id) if acct is not None else None
         if prof is not None and self._backfill_profile_score(prof):
-            self._persist()
+            self._persist(account_id)
         return prof
 
     def _student_or_raise(self, account_id: str, student_id: str) -> StudentProfile:
@@ -1470,7 +1470,7 @@ class AccountStore:
     ) -> StudentProfile:
         prof = self._student_or_raise(account_id, student_id)
         prof.focus_profile = profile
-        self._persist()
+        self._persist(account_id)
         return prof
 
     def update_biometric_setup(
@@ -1545,7 +1545,7 @@ class AccountStore:
         if prof is None:
             raise KeyError(student_id)
         prof.mastery[skill] = max(0.0, min(1.0, float(value)))
-        self._persist()
+        self._persist(account_id)
         return prof
 
     def record_completion(
@@ -1573,7 +1573,7 @@ class AccountStore:
             )
             prof = self._by_id[account_id].students[student_id]
         else:
-            self._persist()
+            self._persist(account_id)
         return prof
 
     def record_class_context(self, account_id: str, student_id: str,
@@ -1591,10 +1591,10 @@ class AccountStore:
                 context.id = existing.id
                 context.created_at = existing.created_at
                 prof.class_contexts[idx] = context
-                self._persist()
+                self._persist(account_id)
                 return context
         prof.class_contexts.append(context)
-        self._persist()
+        self._persist(account_id)
         return context
 
     def create_profile_share_grant(self, account_id: str, student_id: str, *,
@@ -1609,7 +1609,7 @@ class AccountStore:
             expires_at=time.time() + max(60, min(int(ttl_s), 86_400)),
         )
         self._by_id[account_id].profile_share_grants[grant.id] = grant
-        self._persist()
+        self._persist(account_id)
         return grant
 
     def profile_share_grant(self, account_id: str, grant_id: str) -> Optional[ProfileShareGrant]:
@@ -1622,7 +1622,7 @@ class AccountStore:
         if prof is None:
             raise KeyError(student_id)
         if self._backfill_profile_score(prof):
-            self._persist()
+            self._persist(account_id)
         wanted = set(scopes or [
             "profile", "interests", "mastery", "completions", "class_context",
             "learning_profile", "adaptation", "pace", "assessment",

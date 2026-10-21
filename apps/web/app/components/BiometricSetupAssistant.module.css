@@ -271,7 +271,8 @@
   color: var(--sa-muted);
 }
 
-.status li[data-state="saved"] {
+.status li[data-state="saved"],
+.status li[data-state="queued"] {
   border-color: var(--sa-teal);
   color: var(--sa-teal);
 }

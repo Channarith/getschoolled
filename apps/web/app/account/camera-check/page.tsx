@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import BiometricSetupAssistant from "../../components/BiometricSetupAssistant";
-import { completeOnboarding, listStudents, type StudentProfile } from "../../lib/api";
+import { completeOnboarding, getToken, listStudents, type StudentProfile } from "../../lib/api";
+import { isRetryableIdentityWrite, queueOnboardingSync } from "../../lib/onboardingSync";
 
 export default function CameraCheckPage() {
   return (
@@ -22,17 +23,41 @@ function CameraCheckContent() {
   const returnTo = search.get("returnTo");
 
   useEffect(() => {
-    listStudents().then((result) => setStudent(result.students[0] ?? null)).catch(() => {
-      router.replace("/login");
-    });
+    // Only a missing or rejected sign-in goes to /login. A slow identity
+    // service used to sign people out of this page.
+    let cancelled = false;
+    let timer: number | undefined;
+    const load = (attempt: number) => {
+      listStudents().then((result) => {
+        if (!cancelled) setStudent(result.students[0] ?? null);
+      }).catch((reason) => {
+        if (cancelled) return;
+        if (!getToken() || /\b401\b|not signed in/i.test(String(reason)) || attempt >= 4) {
+          router.replace("/login");
+          return;
+        }
+        timer = window.setTimeout(() => load(attempt + 1), 5_000 * 2 ** attempt);
+      });
+    };
+    load(0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [router]);
 
   async function done() {
     if (onboarding) {
-      await completeOnboarding({
+      const finish = {
         learner_name: localStorage.getItem("onboarding_learner_name") || student?.display_name || "",
         age_band: localStorage.getItem("onboarding_age_band") || student?.age_band || "adult",
-      });
+      };
+      try {
+        await completeOnboarding(finish);
+      } catch (reason) {
+        if (!isRetryableIdentityWrite(reason)) throw reason;
+        queueOnboardingSync(finish);
+      }
       localStorage.removeItem("onboarding_step");
       localStorage.removeItem("onboarding_plan");
       localStorage.removeItem("onboarding_learner_name");
