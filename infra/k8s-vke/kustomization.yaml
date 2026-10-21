@@ -11,6 +11,7 @@ patches:
   - path: configmap-vke.yaml
   - path: ingress-vke.yaml
   - path: pvc-vke.yaml
+  - path: capacity-vke.yaml
 patchesStrategicMerge:
   - ingress-vke-delete-origin.yaml
 images:
