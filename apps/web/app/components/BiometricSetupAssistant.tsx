@@ -192,6 +192,8 @@ export default function BiometricSetupAssistant({
   const rightEyePathRef = useRef<SVGPathElement>(null);
   const leftEyePathRef = useRef<SVGPathElement>(null);
   const nosePathRef = useRef<SVGPathElement>(null);
+  const mouthPathRef = useRef<SVGPathElement>(null);
+  const gridPathRef = useRef<SVGPathElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pendingCameraRef = useRef<Promise<MediaStream> | null>(null);
   const engineRef = useRef<VisionEngine | null>(null);
@@ -385,17 +387,36 @@ export default function BiometricSetupAssistant({
     }
 
     function showLiveContour(
-      shape: NonNullable<ReturnType<typeof faceContour>>,
+      shape: ReturnType<typeof faceContour>,
       frame: [number, number],
+      bbox: number[] | undefined,
     ) {
       const svg = contourSvgRef.current;
       if (!svg) return;
       svg.setAttribute("viewBox", `0 0 ${frame[0]} ${frame[1]}`);
       svg.style.visibility = "visible";
+      if (!shape && bbox) {
+        const [x, y, width, height] = bbox;
+        const cx = x + width / 2;
+        const cy = y + height / 2;
+        outlinePathRef.current?.setAttribute(
+          "d",
+          `M ${cx} ${y} C ${x + width * 0.06} ${y + height * 0.18}, ${x} ${y + height * 0.72}, ${cx} ${y + height} C ${x + width} ${y + height * 0.72}, ${x + width * 0.94} ${y + height * 0.18}, ${cx} ${y} Z`,
+        );
+        rightEyePathRef.current?.setAttribute("d", "");
+        leftEyePathRef.current?.setAttribute("d", "");
+        nosePathRef.current?.setAttribute("d", "");
+        mouthPathRef.current?.setAttribute("d", "");
+        gridPathRef.current?.setAttribute("d", "");
+        return;
+      }
+      if (!shape) return;
       outlinePathRef.current?.setAttribute("d", svgPath(shape.outline, true));
       rightEyePathRef.current?.setAttribute("d", svgPath(shape.rightEye, true));
       leftEyePathRef.current?.setAttribute("d", svgPath(shape.leftEye, true));
       nosePathRef.current?.setAttribute("d", svgPath(shape.nose));
+      mouthPathRef.current?.setAttribute("d", svgPath(shape.mouth));
+      gridPathRef.current?.setAttribute("d", shape.grid.map((line) => svgPath(line)).join(" "));
     }
 
     async function start() {
@@ -497,13 +518,10 @@ export default function BiometricSetupAssistant({
         }
         const face = faces[0];
         const frame = (face.frame_size ?? [video.videoWidth, video.videoHeight]) as [number, number];
-        const shape = faceContour(face.landmarks, 32, face.bbox, "features");
-        if (!shape || !face.landmarks) {
-          hideLiveContour();
-          return;
-        }
+        const shape = faceContour(face.landmarks, 32, face.bbox);
+        showLiveContour(shape, frame, face.bbox);
+        if (!shape || !face.landmarks) return;
         const landmarks = face.landmarks;
-        showLiveContour(shape, frame);
         const geometry = faceGeometry(face.landmarks ?? [], face.bbox ?? [0, 0, frame[0], frame[1]], frame);
         if (!geometry) return;
         if (!scan.base) {
@@ -697,7 +715,6 @@ export default function BiometricSetupAssistant({
     });
     pendingCameraRef.current = cameraPromise ?? null;
     cameraPromise?.catch(() => undefined);
-    ensureConsent().catch(() => undefined);
     setStage("scan");
   }
 
@@ -824,16 +841,6 @@ export default function BiometricSetupAssistant({
               <p id="learner-check-scan-desc" className={styles.meshNote}>
                 Checking distinctive features. Face map ready means the looks were captured and the lines followed your face. The map is a capture guide. It is not proof that nobody else could look similar. A dot, if one shows, is an optional note about a darker spot and is not saved.
               </p>
-              <ol className={styles.targets} aria-label="Look prompts">
-                {targets.map((pose) => (
-                  <li
-                    key={pose}
-                    className={captured.includes(pose) ? styles.targetDone : pose === target ? styles.targetNow : ""}
-                  >
-                    <span aria-hidden="true">{captured.includes(pose) ? "✓" : POSE_ARROW[pose]}</span> {pose}
-                  </li>
-                ))}
-              </ol>
               {lighting === "torch" && (
                 <p className={styles.lightNote}>It’s a little dark, so we turned on your camera light.</p>
               )}
@@ -1030,6 +1037,8 @@ export default function BiometricSetupAssistant({
                   <path ref={rightEyePathRef} className={styles.feature} />
                   <path ref={leftEyePathRef} className={styles.feature} />
                   <path ref={nosePathRef} className={styles.feature} />
+                  <path ref={mouthPathRef} className={styles.feature} />
+                  <path ref={gridPathRef} className={styles.grid} />
                 </svg>
               </div>
               <div
