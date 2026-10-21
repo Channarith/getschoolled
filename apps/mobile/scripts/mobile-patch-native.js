@@ -26,6 +26,8 @@ const PATCHES = [
   { script: "patch-livekit-manifests.js", required: false },
   // Android: library manifest warnings, and the SoLoader enabled=true override.
   { script: "patch-android-library-warnings.js", required: false },
+  // Learner Check: no shutter click per face-check still, faster iOS stills.
+  { script: "patch-expo-camera-quiet-capture.js", required: false },
 ];
 
 function runPatch(script) {

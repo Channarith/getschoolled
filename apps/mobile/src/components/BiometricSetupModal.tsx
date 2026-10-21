@@ -14,12 +14,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
+import Svg, { Line, Path, Rect } from "react-native-svg";
 
 import {
   completeMobileSetup,
   deleteMobileBiometrics,
-  enrollMobileFaceImages,
+  enrollMobileFaceQuick,
   enrollMobileVoiceprint,
   getMobileSetupState,
   setMobileBiometricConsent,
@@ -27,22 +27,19 @@ import {
 } from "../api";
 import {
   SETUP_COLORS as C,
-  faceContour,
-  faceGeometry,
-  faceMarksFromJpeg,
   meteringToLevel,
-  poseFromBaseline,
-  shuffledPoses,
   svgPath,
   waveformBars,
-  type FaceContour,
-  type FaceMark,
-  type Geometry,
   type LevelSample,
-  type Pose,
 } from "../learnerCheck";
-import { detectDeviceFaces, faceDistanceCue, isOnDeviceReaderMissing, type DeviceStroke } from "../deviceFace";
-import { isDeferredUpload } from "../pendingUpload";
+import {
+  FRAME_HINT,
+  detectDeviceFaces,
+  frameVerdict,
+  isOnDeviceReaderMissing,
+  type DeviceStroke,
+} from "../deviceFace";
+import { isConsentMissing, isDeferredUpload } from "../pendingUpload";
 import {
   flushPendingLearnerCheck,
   queuePendingFace,
@@ -62,13 +59,10 @@ const PROMPT =
 const VOICE_SECONDS = 10;
 const WAVE_BARS = 40;
 
-const POSE_COPY: Record<Pose, string> = {
-  left: "Look to your left",
-  right: "Look to your right",
-  up: "Look up",
-  down: "Look down",
-};
-const POSE_ARROW: Record<Pose, string> = { left: "←", right: "→", up: "↑", down: "↓" };
+/** Straight-on stills per face check. Identity needs five for an ID match. */
+export const FACE_PHOTOS = 5;
+/** Give up on one round after this long without five good stills. */
+const SCAN_LIMIT_MS = 20_000;
 
 const ART = {
   face: require("../../assets/setup-assistant/face-scan.webp"),
@@ -79,12 +73,12 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
   welcome: {
     kicker: "Optional · about 1 minute",
     title: "Set up your Salareen Learner Check.",
-    body: "It helps us know it’s really you in accredited courses. This phone reads your face and your voice. Turn when the frame asks, then read one sentence out loud. We send that check when you’re connected.",
+    body: "It helps us know it’s really you in accredited courses. The camera stays live, the outline follows your face, then you read one sentence out loud.",
   },
   scan: {
     kicker: "Face check",
-    title: "Look straight at the camera.",
-    body: "This phone reads your face. Turn when the arrow asks. The lines follow you on the device. We send the check when you’re connected.",
+    title: "Look at the camera.",
+    body: "Hold the phone at eye level. The outline follows your face on this live camera. Nothing is saved as a photo.",
   },
   voice: {
     kicker: "Voice check",
@@ -103,35 +97,6 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
   },
 };
 
-type Shot = {
-  base64: string;
-  contour: FaceContour | null;
-  strokes: DeviceStroke[];
-  frame: [number, number];
-  /**
-   * Overlay rings for this preview only. Coordinates are not enrolled.
-   */
-  marks: FaceMark[];
-};
-
-export type LiveFrameCode = "anchor" | "keep" | "none" | "one" | "center" | "turn";
-
-/** What to do with one live frame. Sideways looks accept either mirror direction. */
-export function liveFrameAction(
-  faceCount: number,
-  centered: boolean,
-  hasAnchor: boolean,
-  target: Pose | null,
-  seen: Pose | null,
-  otherSideways: Pose | null,
-): LiveFrameCode {
-  if (faceCount > 1) return "one";
-  if (faceCount !== 1) return "none";
-  if (!hasAnchor) return centered ? "anchor" : "center";
-  if (!target) return "center";
-  return stillMatchesTarget(target, seen, otherSideways) ? "keep" : "turn";
-}
-
 type Problem = { message: string; settings?: boolean };
 
 async function discardFile(uri: string | null | undefined) {
@@ -143,7 +108,7 @@ export function faceEnrollmentProblem(reason: unknown): Problem {
   const status = (reason as { status?: number })?.status;
   const message = String((reason as Error)?.message ?? reason).replace(/^Error:\s*/, "");
   if (status === 422) {
-    return { message: message || "Those photos did not pass the face check. Follow each look prompt and try again." };
+    return { message: message || "Those photos did not pass the face check. Hold the phone at eye level in good light and try again." };
   }
   if (status === 503 || status === 502) {
     const detail = message && !/unavailable/i.test(message) ? ` ${message}` : "";
@@ -179,15 +144,6 @@ function voiceProblem(reason: unknown): Problem {
     return { message: "The recording didn’t come through in full. Try again and keep reading until the bar fills." };
   }
   return { message: `Couldn’t save your voice check: ${message.replace(/^Error:\s*/, "")}` };
-}
-
-/** On a still we can’t know if the camera mirrored the photo, so left/right only
- *  has to be a clear sideways turn (opposite to the other sideways shot). */
-export function stillMatchesTarget(target: Pose, seen: Pose | null, otherSideways: Pose | null): boolean {
-  if (!seen) return false;
-  const sideways = (pose: Pose) => pose === "left" || pose === "right";
-  if (!sideways(target)) return seen === target;
-  return sideways(seen) && seen !== otherSideways;
 }
 
 function Waveform({ bars, progress }: { bars: number[]; progress: number }) {
@@ -239,12 +195,11 @@ export default function BiometricSetupModal({
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [guardian, setGuardian] = useState(ageBand === "adult");
-  const [order, setOrder] = useState<Pose[]>(() => shuffledPoses());
-  const [shots, setShots] = useState<Shot[]>([]);
-  const [contourNote, setContourNote] = useState("");
+  const [captured, setCaptured] = useState(0);
+  const [faceSeen, setFaceSeen] = useState(false);
+  const [liveStrokes, setLiveStrokes] = useState<{ strokes: DeviceStroke[]; frame: [number, number] } | null>(null);
   const [pendingNote, setPendingNote] = useState("");
-  const [scanHint, setScanHint] = useState("Center your face in the circle.");
-  const [liveContour, setLiveContour] = useState<Shot | null>(null);
+  const [scanHint, setScanHint] = useState("Look at the camera.");
   const [attempt, setAttempt] = useState(0);
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -255,8 +210,6 @@ export default function BiometricSetupModal({
   // Hide this window before asking, and bring it back after the prompt closes.
   const [systemPrompt, setSystemPrompt] = useState(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const baseRef = useRef<Geometry | null>(null);
-  const seenRef = useRef<Partial<Record<Pose, Pose>>>({});
   const minor = ageBand !== "adult";
   const canSkip = !requireGovernmentId;
   const consentRef = useRef<Promise<void> | null>(null);
@@ -273,6 +226,21 @@ export default function BiometricSetupModal({
       });
     }
     return consentRef.current;
+  }
+
+  // Identity can say "consent is required" right after it took the consent,
+  // when the upload reaches a server that has not read it yet. The learner
+  // already agreed, so send the consent once more and retry the upload.
+  async function sendWithConsent(send: () => Promise<unknown>): Promise<void> {
+    await ensureConsent();
+    try {
+      await send();
+    } catch (reason) {
+      if (!isConsentMissing(reason)) throw reason;
+      consentRef.current = null;
+      await ensureConsent();
+      await send();
+    }
   }
 
   useEffect(() => {
@@ -299,10 +267,6 @@ export default function BiometricSetupModal({
     await discardFile(active.getURI());
   }, []);
 
-  const shotsRef = useRef<Shot[]>([]);
-  shotsRef.current = shots;
-  const orderRef = useRef(order);
-  orderRef.current = order;
   const cameraRef = useRef<LiveFaceCameraHandle>(null);
   const readyRef = useRef(false);
   const savingRef = useRef(false);
@@ -325,15 +289,11 @@ export default function BiometricSetupModal({
 
   function resetScan() {
     genRef.current += 1;
-    shotsRef.current = [];
-    setShots([]);
-    setLiveContour(null);
-    setOrder(shuffledPoses());
-    setContourNote("");
+    setCaptured(0);
+    setFaceSeen(false);
+    setLiveStrokes(null);
     setPendingNote("");
-    setScanHint("Center your face in the circle.");
-    baseRef.current = null;
-    seenRef.current = {};
+    setScanHint("Look at the camera.");
     savingRef.current = false;
   }
 
@@ -399,202 +359,134 @@ export default function BiometricSetupModal({
     setScanHint((prev) => (prev === next ? prev : next));
   }
 
+  // Face check: keep five quick straight-on stills from the live preview.
+  // The phone checks each one (one face, centered, close enough, looking at
+  // the camera, eyes open) and drops the rest, so there is nothing to follow.
   useEffect(() => {
     if (!visible || step !== "scan") return;
     let cancelled = false;
     const wait = (ms: number) => new Promise<void>((resolve) => {
       setTimeout(resolve, ms);
     });
+    const saveTimeout = <T,>(promise: Promise<T>, ms: number) => new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Saving the face check is taking too long.")), ms);
+      promise.then(
+        (value) => { clearTimeout(timer); resolve(value); },
+        (reason) => { clearTimeout(timer); reject(reason); },
+      );
+    });
 
     const run = async () => {
-      const started = Date.now();
+      const opened = Date.now();
       while (!cancelled && !readyRef.current) {
-        if (Date.now() - started > 8000) {
+        if (Date.now() - opened > 8000) {
           setProblem({ message: "The camera didn’t start. Close other apps using the camera and try again." });
           return;
         }
         await wait(80);
       }
-      let misses = 0;
-      const saveTimeout = <T,>(promise: Promise<T>, ms: number) => new Promise<T>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error("Saving the face check is taking too long.")), ms);
-        promise.then(
-          (value) => { clearTimeout(timer); resolve(value); },
-          (reason) => { clearTimeout(timer); reject(reason); },
-        );
-      });
-      while (!cancelled) {
-        if (savingRef.current) return;
-        // The on-device reader needs a still file. Space the samples so the shutter is not a burst.
-        await wait(700);
-        if (cancelled) return;
-        const seenGen = genRef.current;
-        const frameShot = await cameraRef.current?.grabFrame({ retainFile: true, includeBase64: false });
-        if (cancelled || genRef.current !== seenGen) {
-          await discardFile(frameShot?.uri);
-          continue;
+      // Let exposure and focus settle before the first still.
+      await wait(450);
+      const gen = genRef.current;
+      const kept: string[] = [];
+      const prints = new Set<string>();
+      const started = Date.now();
+      let readFailures = 0;
+      while (!cancelled && genRef.current === gen && kept.length < FACE_PHOTOS) {
+        if (Date.now() - started > SCAN_LIMIT_MS) {
+          setFaceSeen(false);
+          setProblem({
+            message: "We couldn’t get a clear look. Face a window or lamp, hold the phone at eye level, and try again.",
+          });
+          return;
         }
-        if (!frameShot?.uri) {
-          await wait(160);
+        const shot = await cameraRef.current?.grabFrame({ retainFile: true, includeBase64: false });
+        if (cancelled || genRef.current !== gen) {
+          await discardFile(shot?.uri);
+          return;
+        }
+        if (!shot?.uri) {
+          await wait(120);
           continue;
         }
         let faces: Awaited<ReturnType<typeof detectDeviceFaces>> = [];
         try {
-          faces = await detectDeviceFaces(frameShot.uri);
+          faces = await detectDeviceFaces(shot.uri, { contours: true });
         } catch (reason) {
-          await discardFile(frameShot.uri);
+          await discardFile(shot.uri);
           if (cancelled) return;
           if (isOnDeviceReaderMissing(reason)) {
             setProblem({
-              message: "This app doesn’t include the on-device face reader yet. Rebuild the app, then the face check runs on this phone.",
+              message: "This app doesn’t include the on-device face reader yet. Update the app, then try the face check again.",
             });
             return;
           }
-          misses += 1;
-          if (misses === 6) setContourNote("Still reading the camera on this device.");
-          await wait(160);
-          continue;
-        }
-        if (cancelled || genRef.current !== seenGen) {
-          await discardFile(frameShot.uri);
-          continue;
-        }
-        misses = 0;
-        const face = faces.length === 1 ? faces[0] : null;
-        const frame: [number, number] = [frameShot.width || 3, frameShot.height || 4];
-        const geometry = face?.landmarks ? faceGeometry(face.landmarks, face.bbox, frame) : null;
-        const target = shotsRef.current.length === 0 ? null : orderRef.current[shotsRef.current.length - 1] ?? null;
-        const seen = geometry && baseRef.current ? poseFromBaseline(baseRef.current, geometry) : null;
-        const otherSideways = target === "left" ? seenRef.current.right ?? null
-          : target === "right" ? seenRef.current.left ?? null : null;
-        const action = liveFrameAction(
-          faces.length,
-          Boolean(geometry?.centered),
-          Boolean(baseRef.current),
-          target,
-          seen,
-          otherSideways,
-        );
-        const preview: Shot | null = face ? {
-          base64: "",
-          contour: face.landmarks ? faceContour(face.landmarks, face.bbox) : null,
-          strokes: face.strokes,
-          frame,
-          marks: [],
-        } : null;
-        if (preview && action !== "one") setLiveContour(preview);
-        else if (action === "none" || action === "one") setLiveContour(null);
-        if (face?.smiling != null && face.smiling > 0.7 && !baseRef.current) setContourNote("Smile seen.");
-        if (!baseRef.current && face) {
-          const cue = faceDistanceCue(face.faceWidth, Math.max(frame[0], frame[1]));
-          if (cue !== "ok") {
-            noteHint(cue === "closer" ? "Move a little closer." : "Move back a little.");
-            await discardFile(frameShot.uri);
-            await wait(180);
-            continue;
+          readFailures += 1;
+          if (readFailures >= 8) {
+            setProblem({ message: "This phone couldn’t read the camera. Try again." });
+            return;
           }
-        }
-        if (action === "none") {
-          noteHint("Center your face in the circle.");
-          await discardFile(frameShot.uri);
-          await wait(180);
+          await wait(150);
           continue;
         }
-        if (action === "one") {
-          noteHint("Only one face, please.");
-          await discardFile(frameShot.uri);
-          await wait(180);
-          continue;
-        }
-        if (action === "center") {
-          noteHint("Center your face in the circle.");
-          await discardFile(frameShot.uri);
-          await wait(180);
-          continue;
-        }
-        if (action === "turn") {
-          if (target) noteHint(POSE_COPY[target]);
-          await discardFile(frameShot.uri);
-          await wait(120);
-          continue;
-        }
-        if (!face?.landmarks || !geometry) {
-          await discardFile(frameShot.uri);
+        const frame: [number, number] = [shot.width || 3, shot.height || 4];
+        const verdict = frameVerdict(faces, frame);
+        const face = faces.length ? faces.reduce((a, b) => (b.faceWidth > a.faceWidth ? b : a)) : null;
+        setFaceSeen(verdict === "ok");
+        setLiveStrokes(face?.strokes.length ? { strokes: face.strokes, frame } : null);
+        if (verdict !== "ok") {
+          noteHint(FRAME_HINT[verdict]);
+          await discardFile(shot.uri);
+          await wait(150);
           continue;
         }
         let base64 = "";
         try {
-          base64 = await FileSystem.readAsStringAsync(frameShot.uri, { encoding: FileSystem.EncodingType.Base64 });
+          base64 = await FileSystem.readAsStringAsync(shot.uri, { encoding: FileSystem.EncodingType.Base64 });
         } catch {
           base64 = "";
         }
-        await discardFile(frameShot.uri);
+        await discardFile(shot.uri);
         if (!base64) continue;
-        if (shotsRef.current.some((shot) => stillFingerprint(shot.base64) === stillFingerprint(base64))) {
-          await wait(120);
-          continue;
-        }
-        const marks = faceMarksFromJpeg(base64, face.landmarks, frame, face.bbox);
-        const kept: Shot = {
-          base64,
-          contour: faceContour(face.landmarks, face.bbox),
-          strokes: face.strokes,
-          frame,
-          marks,
-        };
-        if (action === "anchor") {
-          baseRef.current = geometry;
-          noteHint(POSE_COPY[orderRef.current[0]]);
-        } else if (target && seen) {
-          seenRef.current[target] = seen;
-          const nextPose = orderRef.current[shotsRef.current.length];
-          if (nextPose) noteHint(POSE_COPY[nextPose]);
-        }
-        const next = [...shotsRef.current, kept];
-        shotsRef.current = next;
-        setShots(next);
-        setLiveContour(kept);
-        if (next.length < orderRef.current.length + 1) continue;
-        savingRef.current = true;
-        noteHint("Saving your face check…");
-        setBusy(true);
-        const images = next.map((shot) => shot.base64);
-        const poses = orderRef.current;
-        const moveOn = () => {
-          setShots([]);
-          shotsRef.current = [];
-          setLiveContour(null);
-          setStep("voice");
-        };
-        try {
-          await saveTimeout(
-            ensureConsent().then(() => enrollMobileFaceImages(studentId, images, poses)),
-            12000,
-          );
-          if (cancelled) return;
-          moveOn();
-        } catch (reason) {
-          if (isDeferredUpload(reason)) {
-            try {
-              await queuePendingFace(studentId, images, poses, {
-                granted: true,
-                guardianGranted: minor ? guardian : false,
-              });
-              setPendingNote("Saved on this phone. We’ll send your face check when you’re connected.");
-              if (!cancelled) moveOn();
-            } catch (keepReason) {
-              resetScan();
-              setProblem({ message: String((keepReason as Error)?.message ?? keepReason) });
-            }
-          } else {
+        const print = stillFingerprint(base64);
+        if (prints.has(print)) continue;
+        prints.add(print);
+        kept.push(base64);
+        setCaptured(kept.length);
+        noteHint(kept.length < FACE_PHOTOS ? "Hold still…" : "Saving your face check…");
+      }
+      if (cancelled || genRef.current !== gen || kept.length < FACE_PHOTOS) return;
+
+      savingRef.current = true;
+      setBusy(true);
+      const moveOn = () => {
+        setCaptured(0);
+        setFaceSeen(false);
+        setStep("voice");
+      };
+      try {
+        await saveTimeout(sendWithConsent(() => enrollMobileFaceQuick(studentId, kept)), 20_000);
+        if (!cancelled) moveOn();
+      } catch (reason) {
+        if (isDeferredUpload(reason)) {
+          try {
+            await queuePendingFace(studentId, kept, {
+              granted: true,
+              guardianGranted: minor ? guardian : false,
+            });
+            setPendingNote("Saved on this phone. We’ll send your face check when you’re connected.");
+            if (!cancelled) moveOn();
+          } catch (keepReason) {
             resetScan();
-            setProblem(faceEnrollmentProblem(reason));
+            setProblem({ message: String((keepReason as Error)?.message ?? keepReason) });
           }
-        } finally {
-          savingRef.current = false;
-          setBusy(false);
+        } else {
+          resetScan();
+          setProblem(faceEnrollmentProblem(reason));
         }
-        return;
+      } finally {
+        savingRef.current = false;
+        setBusy(false);
       }
     };
     void run();
@@ -671,8 +563,7 @@ export default function BiometricSetupModal({
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       const recordedUri = uri;
       try {
-        await ensureConsent();
-        await enrollMobileVoiceprint(studentId, base64);
+        await sendWithConsent(() => enrollMobileVoiceprint(studentId, base64));
         await discardFile(recordedUri);
         uri = null;
         setStep(requireGovernmentId ? "identity" : "complete");
@@ -744,13 +635,11 @@ export default function BiometricSetupModal({
   }
 
   const text = copy[step];
-  const target = step === "scan" && shots.length > 0 ? order[shots.length - 1] : null;
   const title = step === "scan"
     ? scanHint
     : step === "voice" && recording ? "Keep reading…" : text.title;
   const done = step === "identity" || step === "complete";
   const progress = STEPS.indexOf(step);
-  const latest = liveContour;
   const { isMedium, isExpanded } = useLayoutMetrics();
   const wide = isMedium || isExpanded;
   const scanning = step === "scan";
@@ -797,90 +686,33 @@ export default function BiometricSetupModal({
                 <View style={styles.overlay} pointerEvents="none" collapsable={false}>
                 <View style={styles.faceGuideWrap}>
                   <View
-                    style={[styles.faceGuide, latest?.contour || latest?.strokes.length ? styles.faceGuideOn : null]}
+                    style={[styles.faceGuide, faceSeen && styles.faceGuideOn]}
                     testID="face-guide"
                   />
                 </View>
                 <View style={styles.liveDot} accessibilityLabel="Live camera" />
-                {(latest?.strokes.length || latest?.contour) && frameBox.width > 0 ? (
+                {liveStrokes && frameBox.width > 0 ? (
                   <Svg
                     style={styles.mesh}
                     width={frameBox.width}
                     height={frameBox.height}
-                    viewBox={`0 0 ${latest.frame[0]} ${latest.frame[1]}`}
+                    viewBox={`0 0 ${liveStrokes.frame[0]} ${liveStrokes.frame[1]}`}
                     preserveAspectRatio="xMidYMid slice"
                     pointerEvents="none"
                     testID="face-contour"
                   >
-                    {latest.strokes.length > 0 ? latest.strokes.map((stroke, index) => (
+                    {liveStrokes.strokes.map((stroke, index) => (
                       <Path
                         key={`stroke-${index}`}
                         d={svgPath(stroke.points, stroke.closed)}
                         fill="none"
                         stroke={index === 0 ? "#f4fcff" : "#d7f4ff"}
-                        strokeWidth={Math.max(index === 0 ? 1.75 : 1.15, latest.frame[0] / (index === 0 ? 220 : 340))}
+                        strokeWidth={Math.max(index === 0 ? 1.75 : 1.15, liveStrokes.frame[0] / (index === 0 ? 220 : 340))}
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                      />
-                    )) : latest.contour ? (
-                      <>
-                    <Path
-                      d={svgPath(latest.contour.outline, true)}
-                      fill="none"
-                      stroke="#f4fcff"
-                      strokeWidth={Math.max(1.75, latest.frame[0] / 220)}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    {latest.contour.grid.map((line, index) => (
-                      <Path
-                        key={`grid-${index}`}
-                        d={svgPath(line)}
-                        fill="none"
-                        stroke="#d7f4ff"
-                        strokeWidth={Math.max(1.15, latest.frame[0] / 340)}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    ))}
-                    {[latest.contour.rightEye, latest.contour.leftEye, latest.contour.mouth].map((line, index) => (
-                      <Path
-                        key={`feat-${index}`}
-                        d={svgPath(line, true)}
-                        fill="none"
-                        stroke="#d7f4ff"
-                        strokeWidth={Math.max(1.15, latest.frame[0] / 340)}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    ))}
-                    <Path
-                      d={svgPath(latest.contour.nose)}
-                      fill="none"
-                      stroke="#d7f4ff"
-                      strokeWidth={Math.max(1.15, latest.frame[0] / 340)}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                      </>
-                    ) : null}
-                    {latest.marks.map((mark, index) => (
-                      <Circle
-                        key={`${mark.region}-${index}`}
-                        cx={mark.point[0]}
-                        cy={mark.point[1]}
-                        r={Math.max(5, latest.frame[0] / 110)}
-                        fill="none"
-                        stroke="#ffe3a3"
-                        strokeWidth={Math.max(1.5, latest.frame[0] / 280)}
                       />
                     ))}
                   </Svg>
-                ) : null}
-                {!target ? (
-                  <View style={styles.straight}>
-                    <Text style={styles.straightText}>Look straight</Text>
-                  </View>
                 ) : null}
                 </View>
               </>
@@ -910,29 +742,20 @@ export default function BiometricSetupModal({
             scrollEnabled={!scanning}
           >
           {scanning ? (
-            <View style={styles.poseRow}>
-              {order.map((pose, index) => {
-                const captured = shots.length > index + 1;
-                const now = pose === target;
-                return (
-                  <View key={pose} style={[styles.poseChip, styles.poseChipOnCamera, now && styles.poseChipNowGlass, captured && styles.poseChipDoneGlass]}>
-                    <Text style={[styles.poseChipText, styles.poseChipTextOnCamera, now && styles.poseChipTextNow, captured && styles.poseChipTextOn]}>
-                      {captured ? "✓" : POSE_ARROW[pose]} {pose}
-                    </Text>
-                  </View>
-                );
-              })}
+            <View
+              style={styles.shotRow}
+              accessibilityRole="progressbar"
+              accessibilityLabel="Face check"
+              accessibilityValue={{ min: 0, max: FACE_PHOTOS, now: captured }}
+            >
+              {Array.from({ length: FACE_PHOTOS }, (_, index) => (
+                <View key={index} style={[styles.shotDot, index < captured && styles.shotDotOn]} />
+              ))}
             </View>
           ) : null}
-          <Text style={[styles.kicker, scanning && styles.scanKicker]}>{text.kicker}{step === "scan" ? ` · ${Math.max(0, shots.length - 1)} of ${order.length}` : ""}</Text>
+          <Text style={[styles.kicker, scanning && styles.scanKicker]}>{text.kicker}</Text>
           <Text style={[styles.title, scanning && styles.scanTitle]}>{title}</Text>
           <Text style={[styles.body, scanning && styles.scanBody]}>{text.body}</Text>
-          {step === "scan" && latest?.contour ? (
-            <Text style={styles.small}>
-              Face map ready. The lines are a capture guide. A dot, if one shows, is an optional note about a darker spot. It is not saved, and it is not the identity check.
-            </Text>
-          ) : null}
-          {contourNote ? <Text style={[styles.small, scanning && styles.scanBody]}>{contourNote}</Text> : null}
           {pendingNote ? <Text style={[styles.small, scanning && styles.scanBody]}>{pendingNote}</Text> : null}
           {step === "voice" ? (
             <>
@@ -972,9 +795,8 @@ export default function BiometricSetupModal({
             ) : null}
             {step === "scan" ? (
               <>
-                {shots.length > 0 ? <Action title="Start over" secondary glass disabled={busy} onPress={resetScan} /> : null}
                 {problem ? (
-                  <Action title="Try again" glass disabled={busy} onPress={() => { setProblem(null); readyRef.current = false; setAttempt((n) => n + 1); }} />
+                  <Action title="Try again" glass disabled={busy} onPress={() => { setProblem(null); resetScan(); readyRef.current = false; setAttempt((n) => n + 1); }} />
                 ) : null}
                 {canSkip ? <Action title="Set up later" secondary glass disabled={busy} onPress={() => void finish(true)} /> : null}
               </>
@@ -1098,40 +920,12 @@ const styles = StyleSheet.create({
     position: "absolute", top: 18, right: 18, width: 12, height: 12, borderRadius: 6,
     backgroundColor: "#ff4d4f", borderWidth: 2, borderColor: "#ffffff", zIndex: 6, elevation: 6,
   },
-  cueAnchor: { position: "absolute", zIndex: 6, elevation: 6 },
-  cue: {
-    minWidth: 64, minHeight: 48, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16,
-    alignItems: "center", justifyContent: "center",
+  shotRow: { flexDirection: "row", gap: 10, justifyContent: "center", paddingTop: 10 },
+  shotDot: {
+    width: 14, height: 14, borderRadius: 7,
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.85)", backgroundColor: "rgba(15, 23, 42, 0.25)",
   },
-  cueOn: { backgroundColor: "rgba(47, 107, 216, 0.42)" },
-  cueIdle: { backgroundColor: "rgba(15, 23, 42, 0.28)", borderWidth: 1, borderColor: "rgba(255,255,255,0.8)" },
-  cueText: { color: "#ffffff", fontSize: 18, fontWeight: "800", lineHeight: 20 },
-  cueLabel: { color: "#ffffff", fontSize: 11, fontWeight: "800", textTransform: "capitalize", lineHeight: 13 },
-  cue_left: { left: 8, top: "38%" },
-  cue_right: { right: 8, top: "38%" },
-  cue_up: { top: 28, left: 0, right: 0, alignItems: "center" },
-  cue_down: { bottom: "34%", left: 0, right: 0, alignItems: "center" },
-  straight: {
-    position: "absolute", top: "44%", left: 0, right: 0, alignItems: "center", zIndex: 5, elevation: 5,
-  },
-  straightText: {
-    color: "#ffffff", fontSize: 15, fontWeight: "800", backgroundColor: "rgba(15, 23, 42, 0.28)",
-    overflow: "hidden", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6,
-  },
-  poseRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", paddingHorizontal: 12, paddingTop: 8 },
-  poseChip: {
-    minHeight: 36, borderRadius: 12, paddingHorizontal: 10, alignItems: "center", justifyContent: "center",
-    backgroundColor: C.panel, borderWidth: 1, borderColor: C.border,
-  },
-  poseChipOnCamera: { backgroundColor: "rgba(15, 23, 42, 0.22)", borderColor: "rgba(255,255,255,0.72)" },
-  poseChipNowGlass: { backgroundColor: "rgba(47, 107, 216, 0.38)", borderColor: "rgba(255,255,255,0.9)" },
-  poseChipDoneGlass: { backgroundColor: "rgba(15, 157, 143, 0.4)", borderColor: "rgba(255,255,255,0.72)" },
-  poseChipTextOnCamera: { color: "#ffffff" },
-  poseChipNow: { borderColor: C.accent, backgroundColor: C.panel },
-  poseChipDone: { backgroundColor: C.teal, borderColor: C.teal },
-  poseChipText: { color: C.text, fontWeight: "800", textTransform: "capitalize" },
-  poseChipTextNow: { color: C.accent },
-  poseChipTextOn: { color: "#ffffff" },
+  shotDotOn: { backgroundColor: "#7ee0a1", borderColor: "#ffffff" },
   check: {
     ...StyleSheet.absoluteFillObject, textAlign: "center", textAlignVertical: "center",
     lineHeight: 300, fontSize: 96, fontWeight: "800", color: "#ffffff", backgroundColor: "rgba(15,157,143,.55)",

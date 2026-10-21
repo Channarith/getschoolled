@@ -16,7 +16,7 @@ import {
   updateSetupAssistant,
 } from "../lib/api";
 import { createVisionEngine, type VisionEngine } from "../lib/vision";
-import { isDeferredUpload } from "../lib/pendingUpload";
+import { isConsentMissing, isDeferredUpload } from "../lib/pendingUpload";
 import { blobToBase64, dropPendingFace, flushPendingLearnerCheck, queuePendingFace, queuePendingVoice } from "../lib/pendingBiometrics";
 import { createMockVisionEngine, learnerCheckMockEnabled } from "../lib/visionMock";
 import {
@@ -308,7 +308,9 @@ export default function BiometricSetupAssistant({
         rememberStudent(id);
         await setBiometricConsent(id, body);
       }
-      await updateSetupAssistant(id, { current_step: "biometrics" }).catch(() => undefined);
+      // The face save only needs the consent grant. Waiting here for the
+      // step update added another identity write before the learner could finish.
+      void updateSetupAssistant(id, { current_step: "biometrics" }).catch(() => undefined);
       return id;
     })();
     consentRef.current = pending;
@@ -317,6 +319,25 @@ export default function BiometricSetupAssistant({
     });
     return pending;
   }, [guardianConsent, minor, rememberStudent, resolveStudent]);
+
+  // Identity can answer "consent is required" right after it accepted the
+  // consent, when the save reaches a server that has not read it yet. The
+  // learner already agreed, so send the consent once more and retry.
+  const sendWithConsent = useCallback(async (
+    send: (id: string) => Promise<unknown>,
+    label: string,
+  ): Promise<string> => {
+    let id = await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
+    try {
+      await withTimeout(send(id), SAVE_TIMEOUT_MS, label);
+    } catch (reason) {
+      if (!isConsentMissing(reason)) throw reason;
+      consentRef.current = null;
+      id = await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
+      await withTimeout(send(id), SAVE_TIMEOUT_MS, label);
+    }
+    return id;
+  }, [ensureConsent]);
 
   // The face save runs while the learner moves on to the voice check. Each
   // check is saved on its own, so a failed face save keeps the voice
@@ -337,8 +358,7 @@ export default function BiometricSetupAssistant({
       const vectors = [scan.neutral as number[], ...scan.order.map((pose) => scan.poses[pose] as number[])];
       let id = activeStudentRef.current;
       try {
-        id = await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
-        await withTimeout(enrollBiometricFace(id, vectors, scan.order), SAVE_TIMEOUT_MS, "Saving the face check");
+        id = await sendWithConsent((learner) => enrollBiometricFace(learner, vectors, scan.order), "Saving the face check");
         faceSavedRef.current = true;
         setFaceStatus("saved");
         setFaceNote(null);
@@ -372,7 +392,7 @@ export default function BiometricSetupAssistant({
     })();
     faceSaveRef.current = pending;
     return pending;
-  }, [ensureConsent, guardianConsent, minor, nextStage, stopMedia]);
+  }, [guardianConsent, minor, nextStage, sendWithConsent, stopMedia]);
 
   // Look-target scan: track head direction from the live landmarks and keep
   // one embedding per target, in a fresh random order each attempt.
@@ -708,8 +728,8 @@ export default function BiometricSetupAssistant({
       stopMedia();
       if (!blob.size) throw new Error("silent");
       try {
-        const id = await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
-        await withTimeout(enrollVoiceprint(id, blob), SAVE_TIMEOUT_MS, "Saving the voice check");
+        const clip = blob;
+        await sendWithConsent((learner) => enrollVoiceprint(learner, clip), "Saving the voice check");
         voiceSavedRef.current = true;
         setVoiceHeld(false);
         setVoiceSaved(true);
@@ -772,14 +792,16 @@ export default function BiometricSetupAssistant({
     }
   }
 
-  async function finish() {
-    await updateSetupAssistant(activeStudentRef.current, { current_step: "complete", complete: true }).catch(() => undefined);
+  function finish() {
+    // The learner can move on while this flag is saved. Waiting on identity
+    // held the last step for as long as that write took.
+    void updateSetupAssistant(activeStudentRef.current, { current_step: "complete", complete: true }).catch(() => undefined);
     onComplete?.();
   }
 
-  async function skip() {
+  function skip() {
     stopMedia();
-    await updateSetupAssistant(activeStudentRef.current, {
+    void updateSetupAssistant(activeStudentRef.current, {
       current_step: "complete",
       skipped_biometrics: true,
       complete: true,

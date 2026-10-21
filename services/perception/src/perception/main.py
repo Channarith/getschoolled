@@ -321,6 +321,71 @@ def enroll_embedding(student_id: str, req: EnrollEmbeddingRequest) -> EnrollResp
     return EnrollResponse(student_id=student_id, enrollments=count)
 
 
+class EnrollEmbeddingsRequest(BaseModel):
+    embeddings: list[list[float]]
+
+
+@app.post("/enroll-embeddings/{student_id}", response_model=EnrollResponse,
+          dependencies=[Depends(require_internal)])
+def enroll_embeddings(student_id: str, req: EnrollEmbeddingsRequest) -> EnrollResponse:
+    """Portrait plus pose checks in one call, so setup is not five round trips."""
+    try:
+        count = _vision().enroll_embeddings(student_id, req.embeddings)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return EnrollResponse(student_id=student_id, enrollments=count)
+
+
+class EnrollFaceImagesRequest(BaseModel):
+    images_b64: list[str]
+
+
+@app.post("/enroll-face-images/{student_id}", response_model=EnrollResponse,
+          dependencies=[Depends(require_internal)])
+def enroll_face_images(student_id: str, req: EnrollFaceImagesRequest) -> EnrollResponse:
+    """The phone face check: several straight-on photos in one call.
+
+    Each photo must hold a face that matches the first one. The learner's old
+    templates are replaced only after every photo passes.
+    """
+    from aoep_shared.vision.engine import DEFAULT_MATCH_THRESHOLD, cosine_similarity
+
+    if not 1 <= len(req.images_b64) <= 8:
+        raise HTTPException(status_code=422, detail="send between one and eight face photos")
+    try:
+        engine = _vision().engine()
+    except (NotImplementedError, ModelsUnavailable) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    embeddings: list[list[float]] = []
+    for index, encoded in enumerate(req.images_b64, start=1):
+        try:
+            data = base64.b64decode(encoded, validate=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"face photo {index} is invalid") from exc
+        try:
+            faces = engine.detect_faces(data)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except (NotImplementedError, ModelsUnavailable) as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        if not faces:
+            raise HTTPException(status_code=422, detail=f"no face detected in photo {index}")
+        embeddings.append(list(faces[0].embedding))
+    anchor = embeddings[0]
+    for index, embedding in enumerate(embeddings[1:], start=2):
+        score = cosine_similarity(anchor, embedding)
+        if score < DEFAULT_MATCH_THRESHOLD:
+            raise HTTPException(
+                status_code=422,
+                detail=f"photo {index} does not look like the same person ({score:.2f})",
+            )
+    try:
+        count = _vision().replace_embeddings(student_id, embeddings)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return EnrollResponse(student_id=student_id, enrollments=count)
+
+
 class VoiceSampleRequest(BaseModel):
     audio_b64: str
 

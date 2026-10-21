@@ -183,6 +183,12 @@ class VisionProvider(Provider):
     def enroll_embedding(self, student_id: str, embedding: Sequence[float]) -> int:
         raise NotImplementedError
 
+    def enroll_embeddings(self, student_id: str, embeddings: Sequence[Sequence[float]]) -> int:
+        raise NotImplementedError
+
+    def replace_embeddings(self, student_id: str, embeddings: Sequence[Sequence[float]]) -> int:
+        raise NotImplementedError
+
 
 # --------------------------------------------------------------------------- #
 # Media (LiveKit WebRTC backbone)

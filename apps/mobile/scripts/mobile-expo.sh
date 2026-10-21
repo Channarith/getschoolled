@@ -15,10 +15,23 @@ mobile_deps_ensure_metro_local || exit 1
 # Auto-offline when expo.dev is unreachable (corporate proxy / sandbox returns
 # "Blocked by…" and Expo crashes with SyntaxError on JSON.parse). Launch scripts
 # already set EXPO_OFFLINE=1; this covers bare `mobile-expo.sh start`.
-if [ -z "${EXPO_OFFLINE:-}" ]; then
+# Do not do this for prebuild. Offline mode extracts the native template from a
+# stale npm cache, and that cache has produced an empty project.pbxproj. The
+# entitlements step then dies with "end of input" before any Xcode build starts.
+if [ -z "${EXPO_OFFLINE:-}" ] && [ "${1:-}" != "prebuild" ]; then
   if ! curl -fsS --max-time 2 "https://expo.dev" >/dev/null 2>&1; then
     export EXPO_OFFLINE=1
     echo "==> EXPO_OFFLINE=1 (expo.dev unreachable — skip native-module version fetch)"
+  fi
+fi
+
+# ~/.npm is root-owned on some machines. Expo then cannot unpack the iOS
+# template and prebuild fails the same way. A cache inside the repo is writable.
+if [ "${1:-}" = "prebuild" ] && [ -z "${npm_config_cache:-}" ]; then
+  if [ ! -w "${HOME}/.npm" ]; then
+    export npm_config_cache="$ROOT/.npm-cache"
+    mkdir -p "$npm_config_cache"
+    echo "==> npm cache is not writable; using $npm_config_cache"
   fi
 fi
 

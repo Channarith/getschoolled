@@ -1,5 +1,6 @@
-import { faceDistanceCue, isOnDeviceReaderMissing, readMlKitFace } from "../deviceFace";
+import { faceDistanceCue, frameVerdict, isOnDeviceReaderMissing, readMlKitFace, type DeviceFaceRead } from "../deviceFace";
 import {
+  isConsentMissing,
   isDeferredUpload,
   isForeignLearner,
   isRejectedCapture,
@@ -52,6 +53,46 @@ describe("on-device face read", () => {
     expect(faceDistanceCue(0, 1000)).toBe("ok");
   });
 
+  it("reads head angle and open eyes for the straight-on check", () => {
+    const read = readMlKitFace({
+      ...face,
+      rotationX: -4,
+      rotationY: 9,
+      leftEyeOpenProbability: 0.92,
+      rightEyeOpenProbability: 0.81,
+    });
+    expect(read?.yaw).toBe(9);
+    expect(read?.pitch).toBe(-4);
+    expect(read?.eyesOpen).toBe(0.81);
+    expect(readMlKitFace(face)?.eyesOpen).toBeNull();
+  });
+
+  it("keeps only a centered, straight-on, open-eyed still", () => {
+    const frame: [number, number] = [480, 640];
+    const good = (patch: Partial<DeviceFaceRead> = {}): DeviceFaceRead => ({
+      landmarks: null,
+      bbox: [140, 200, 200, 240],
+      strokes: [],
+      smiling: null,
+      faceWidth: 200,
+      yaw: 3,
+      pitch: -2,
+      eyesOpen: 0.9,
+      ...patch,
+    });
+    expect(frameVerdict([good()], frame)).toBe("ok");
+    expect(frameVerdict([], frame)).toBe("none");
+    expect(frameVerdict([good(), good({ bbox: [10, 10, 180, 200], faceWidth: 180 })], frame)).toBe("many");
+    expect(frameVerdict([good(), good({ bbox: [10, 10, 40, 50], faceWidth: 40 })], frame)).toBe("ok");
+    expect(frameVerdict([good({ faceWidth: 60, bbox: [210, 290, 60, 70] })], frame)).toBe("closer");
+    expect(frameVerdict([good({ faceWidth: 420, bbox: [30, 110, 420, 460] })], frame)).toBe("back");
+    expect(frameVerdict([good({ bbox: [0, 200, 200, 240] })], frame)).toBe("center");
+    expect(frameVerdict([good({ yaw: 30 })], frame)).toBe("straight");
+    expect(frameVerdict([good({ pitch: -25 })], frame)).toBe("straight");
+    expect(frameVerdict([good({ eyesOpen: 0.1 })], frame)).toBe("eyes");
+    expect(frameVerdict([good({ eyesOpen: null, yaw: null, pitch: null })], frame)).toBe("ok");
+  });
+
   it("recognizes a build that has not linked the on-device reader", () => {
     expect(isOnDeviceReaderMissing(new Error(
       "The package '@react-native-ml-kit/face-detection' doesn't seem to be linked.",
@@ -83,6 +124,13 @@ describe("held learner-check retries", () => {
     expect(isForeignLearner(notOurs)).toBe(true);
     expect(isForeignLearner(new Error("401 not signed in"))).toBe(true);
     expect(isForeignLearner(Object.assign(new Error("pose left missing"), { status: 422 }))).toBe(false);
+  });
+
+  it("sends the consent again when identity has not seen it yet", () => {
+    expect(isConsentMissing(Object.assign(new Error("biometric consent is required"), { status: 409 }))).toBe(true);
+    expect(isConsentMissing(new Error("409 biometric consent is required"))).toBe(true);
+    expect(isConsentMissing(Object.assign(new Error("game already submitted"), { status: 409 }))).toBe(false);
+    expect(isConsentMissing(Object.assign(new Error("consent"), { status: 422 }))).toBe(false);
   });
 
   it("backs off and stops growing at 15 minutes", () => {

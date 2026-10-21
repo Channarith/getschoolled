@@ -2459,6 +2459,14 @@ export function enrollMobileFaceImages(
   });
 }
 
+/** Five straight-on stills the phone already checked. No head turns. */
+export function enrollMobileFaceQuick(
+  studentId: string,
+  imagesBase64: string[],
+): Promise<{ verified: boolean }> {
+  return biometricRequest(studentId, "biometric-face-quick", "POST", { images_b64: imagesBase64 });
+}
+
 export function enrollMobileVoiceprint(
   studentId: string,
   audioBase64: string,
