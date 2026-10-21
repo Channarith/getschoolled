@@ -1669,7 +1669,10 @@ def record_consent(req: ConsentRequest, acct=Depends(current_account)) -> dict:
 # Setup assistant and biometric identity
 # --------------------------------------------------------------------------- #
 def _owned_student(acct, student_id: str):
-    student = app.state.accounts.get_student(acct.id, student_id)
+    accounts = app.state.accounts
+    student = accounts.get_student(acct.id, student_id)
+    if student is None and accounts.reload_account(acct.id):
+        student = accounts.get_student(acct.id, student_id)
     if student is None:
         raise HTTPException(status_code=404, detail="student not found")
     return student

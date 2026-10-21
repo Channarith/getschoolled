@@ -186,6 +186,9 @@ spec:
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
+          # The cloud vision provider has no engine; face-preview needs the in-pod YuNet/SFace one.
+          env:
+            - { name: VISION_MODE, value: local }
           resources:
             requests: { cpu: 250m, memory: 768Mi }
             limits:   { cpu: "1",  memory: 1.5Gi }

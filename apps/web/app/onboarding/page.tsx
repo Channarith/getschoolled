@@ -19,6 +19,7 @@ import {
   startBillingCheckout,
   getOnboardingStatus,
   getToken,
+  listStudents,
   selectOnboardingPlan,
   skipLearningProfile,
   submitLearningProfile,
@@ -72,6 +73,7 @@ const STORAGE = {
   ageBand: "onboarding_age_band",
   ratings: "onboarding_modality_ratings",
   student: "onboarding_student_id",
+  owner: "onboarding_account_id",
   plan: "onboarding_plan",
   consent: "onboarding_consent",
 };
@@ -160,16 +162,43 @@ export default function OnboardingPage() {
     const saved = localStorage.getItem(STORAGE.step) as Step | null;
     const savedStudent = localStorage.getItem(STORAGE.student) || "";
     const known = (["account", ...BASE_STEPS] as Step[]).includes(saved as Step);
-    if (saved && known && saved !== "account" && (saved === "about" || savedStudent)) setStep(saved);
+    const resumable = Boolean(saved && known && saved !== "account" && (saved === "about" || savedStudent));
     const savedName = localStorage.getItem(STORAGE.name) || "";
     setName(savedName);
-    getMe().then((me) => {
-      if (!savedName && me.display_name) setName((current) => current || me.display_name);
-    }).catch(() => undefined);
     const savedAge = Number(localStorage.getItem(STORAGE.age));
     if (savedAge) setAge(savedAge);
     setRatings(readJson(STORAGE.ratings, {}));
-    setStudentId(savedStudent);
+    // Saved steps and the learner id are only resumed for the account that
+    // made them. A leftover id from another signup skipped the survey and sent
+    // the face check to a learner this account does not own (404).
+    void (async () => {
+      const me = await getMe().catch(() => null);
+      if (!me) {
+        setStudentId(savedStudent);
+        if (resumable) setStep(saved as Step);
+        return;
+      }
+      if (!savedName && me.display_name) setName((current) => current || me.display_name);
+      const owner = localStorage.getItem(STORAGE.owner);
+      const owned = savedStudent
+        ? await listStudents()
+          .then((r) => r.students.some((s) => s.id === savedStudent))
+          .catch(() => true)
+        : true;
+      if ((owner && owner !== me.id) || !owned) {
+        Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
+        localStorage.setItem(STORAGE.owner, me.id);
+        setRatings({});
+        setAge("");
+        setName(me.display_name || "");
+        setStudentId("");
+        setStep("about");
+        return;
+      }
+      localStorage.setItem(STORAGE.owner, me.id);
+      setStudentId(savedStudent);
+      if (resumable) setStep(saved as Step);
+    })();
     setPlan(localStorage.getItem(STORAGE.plan) || "free");
     // Rehydrate consent choices so a page refresh mid-onboarding doesn't lose
     // what the user already ticked. We only read; we don't resurrect the ack
@@ -271,6 +300,7 @@ export default function OnboardingPage() {
       localStorage.setItem(STORAGE.ageBand, result.age_band);
       localStorage.setItem(STORAGE.student, result.student.id);
       setStudentId(result.student.id);
+      void getMe().then((me) => localStorage.setItem(STORAGE.owner, me.id)).catch(() => undefined);
       setStep("learn");
     });
   }
