@@ -7,11 +7,13 @@ import * as FileSystem from "expo-file-system";
 
 import {
   enrollMobileFaceImages,
+  enrollMobileFaceQuick,
   enrollMobileVoiceprint,
   setMobileBiometricConsent,
 } from "./api";
 import {
   PENDING_MAX_AGE_MS,
+  isConsentMissing,
   isForeignLearner,
   isRejectedCapture,
   pendingRetryDelayMs,
@@ -20,11 +22,14 @@ import {
 const ROOT = "learner-check-pending";
 
 type Consent = { granted: boolean; guardianGranted: boolean };
-type FacePayload = { files: string[]; poses: string[] };
+/** No poses: the straight-on check. Poses: a check saved by an older build. */
+type FacePayload = { files: string[]; poses?: string[] };
 type VoicePayload = { file: string };
 type Manifest = {
   studentId: string;
   consent?: Consent;
+  /** Set once identity took the consent. Kept so a 409 can send it again. */
+  consentSent?: boolean;
   face?: FacePayload;
   voice?: VoicePayload;
   queuedAt?: number;
@@ -80,7 +85,30 @@ function freshAttempt(manifest: Manifest, consent?: Consent): void {
   manifest.attempts = 0;
   manifest.retryAt = Date.now() + pendingRetryDelayMs(0);
   manifest.queuedAt = manifest.queuedAt ?? Date.now();
-  if (consent) manifest.consent = consent;
+  if (consent) {
+    manifest.consent = consent;
+    delete manifest.consentSent;
+  }
+}
+
+async function sendConsent(manifest: Manifest): Promise<void> {
+  if (!manifest.consent) return;
+  await setMobileBiometricConsent(
+    manifest.studentId,
+    manifest.consent.granted,
+    manifest.consent.guardianGranted,
+  );
+}
+
+/** One upload, sending the saved consent again if identity has not seen it. */
+async function withConsent(manifest: Manifest, send: () => Promise<unknown>): Promise<void> {
+  try {
+    await send();
+  } catch (reason) {
+    if (!isConsentMissing(reason) || !manifest.consent) throw reason;
+    await sendConsent(manifest);
+    await send();
+  }
 }
 
 export async function rememberPendingConsent(studentId: string, guardianGranted: boolean): Promise<void> {
@@ -88,13 +116,13 @@ export async function rememberPendingConsent(studentId: string, guardianGranted:
   if (!loaded) return;
   loaded.manifest.studentId = studentId;
   loaded.manifest.consent = { granted: true, guardianGranted };
+  delete loaded.manifest.consentSent;
   await writeManifest(loaded.folder, loaded.manifest);
 }
 
 export async function queuePendingFace(
   studentId: string,
   imagesBase64: string[],
-  poses: string[],
   consent?: Consent,
 ): Promise<void> {
   const loaded = await load(studentId);
@@ -106,7 +134,7 @@ export async function queuePendingFace(
     files.push(name);
   }
   loaded.manifest.studentId = studentId;
-  loaded.manifest.face = { files, poses };
+  loaded.manifest.face = { files };
   freshAttempt(loaded.manifest, consent);
   await writeManifest(loaded.folder, loaded.manifest);
 }
@@ -162,14 +190,10 @@ async function flushFolder(folderName: string, force: boolean): Promise<void> {
     return;
   }
   if (!force && manifest.retryAt && manifest.retryAt > now) return;
-  if (manifest.consent) {
+  if (manifest.consent && !manifest.consentSent) {
     try {
-      await setMobileBiometricConsent(
-        manifest.studentId,
-        manifest.consent.granted,
-        manifest.consent.guardianGranted,
-      );
-      delete manifest.consent;
+      await sendConsent(manifest);
+      manifest.consentSent = true;
       await writeManifest(folder, manifest);
     } catch (reason) {
       if (isRejectedCapture(reason) && !isForeignLearner(reason)) {
@@ -186,7 +210,12 @@ async function flushFolder(folderName: string, force: boolean): Promise<void> {
       for (const file of manifest.face.files) {
         images.push(await FileSystem.readAsStringAsync(`${folder}${file}`));
       }
-      await enrollMobileFaceImages(manifest.studentId, images, manifest.face.poses);
+      const poses = manifest.face.poses;
+      await withConsent(manifest, () => (
+        poses?.length
+          ? enrollMobileFaceImages(manifest.studentId, images, poses)
+          : enrollMobileFaceQuick(manifest.studentId, images)
+      ));
       await dropFace(folder, manifest);
     } catch (reason) {
       if (isRejectedCapture(reason) && !isForeignLearner(reason)) {
@@ -203,7 +232,7 @@ async function flushFolder(folderName: string, force: boolean): Promise<void> {
       const audio = await FileSystem.readAsStringAsync(`${folder}${current.voice.file}`, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      await enrollMobileVoiceprint(current.studentId, audio);
+      await withConsent(current, () => enrollMobileVoiceprint(current.studentId, audio));
       await dropVoice(folder, current);
     } catch (reason) {
       if (isRejectedCapture(reason) && !isForeignLearner(reason)) {
@@ -215,7 +244,7 @@ async function flushFolder(folderName: string, force: boolean): Promise<void> {
     }
   }
   const left = await readManifest(folder);
-  if (left && !left.face && !left.voice && !left.consent) {
+  if (left && !left.face && !left.voice && (!left.consent || left.consentSent)) {
     await FileSystem.deleteAsync(folder, { idempotent: true }).catch(() => undefined);
   }
 }

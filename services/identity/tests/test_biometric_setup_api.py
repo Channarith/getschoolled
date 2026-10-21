@@ -166,7 +166,7 @@ def test_face_enrollment_stores_nothing_until_poses_match(monkeypatch):
 
     def fake_json(path, payload):
         calls.append(path)
-        return {"student_id": student_id, "enrollments": len(calls)}
+        return {"student_id": student_id, "enrollments": len(payload.get("embeddings", []))}
 
     monkeypatch.setattr(identity_main, "_perception_json", fake_json)
     short = client.post(
@@ -207,7 +207,7 @@ def test_face_enrollment_stores_nothing_until_poses_match(monkeypatch):
         },
     )
     assert ready.status_code == 200
-    assert calls == [f"/enroll-embedding/{student_id}"] * 5
+    assert calls == [f"/enroll-embeddings/{student_id}"]
     assert ready.json()["enrollments"] == 5
 
 
@@ -367,3 +367,178 @@ def test_busy_perception_fails_fast_instead_of_holding_identity(monkeypatch):
         identity_main._perception_send(urllib.request.Request("http://perception.invalid/embed"), 1.0)
     assert busy.value.status_code == 503
     assert busy.value.headers == {"Retry-After": "10"}
+
+
+def test_face_save_sees_consent_stored_on_another_replica(monkeypatch):
+    """A pod that has not seen the grant yet re-reads it instead of answering 409."""
+    import copy
+
+    headers, student = _account()
+    student_id = student["id"]
+    granted = client.put(
+        f"/students/{student_id}/biometric-consent",
+        headers=headers,
+        json={"granted": True},
+    )
+    assert granted.status_code == 200
+    store = identity_main.app.state.accounts
+    account = next(item for item in store._by_id.values() if student_id in item.students)
+    profile = account.students[student_id]
+    stored = copy.deepcopy(profile.biometric_setup)
+    profile.biometric_setup = copy.deepcopy(stored)
+    profile.biometric_setup["consent"]["granted"] = False
+
+    def hydrate(target, account_id):
+        if account_id != account.id:
+            return False
+        target._by_id[account_id].students[student_id].biometric_setup = copy.deepcopy(stored)
+        return True
+
+    monkeypatch.setattr("identity.persistence.hydrate_account", hydrate)
+    monkeypatch.setattr(
+        identity_main,
+        "_perception_json",
+        lambda path, payload: {
+            "student_id": student_id,
+            "enrollments": len(payload.get("embeddings", [])),
+        },
+    )
+    face = client.post(
+        f"/students/{student_id}/biometric-face",
+        headers=headers,
+        json={
+            "embeddings": [
+                [1.0, 0.0, 0.0],
+                [0.98, 0.15, 0.0],
+                [0.98, -0.15, 0.0],
+                [0.98, 0.0, 0.15],
+                [0.98, 0.0, -0.15],
+            ],
+            "pose_sequence": ["left", "right", "up", "down"],
+        },
+    )
+    assert face.status_code == 200, face.text
+
+
+def _photo(seed: int) -> str:
+    return base64.b64encode(b"\xff\xd8\xff" + bytes([seed]) * 1500).decode()
+
+
+def test_quick_face_check_sends_one_batch_to_perception(monkeypatch):
+    headers, student = _account()
+    student_id = student["id"]
+    client.put(f"/students/{student_id}/biometric-consent", headers=headers, json={"granted": True})
+    calls: list[str] = []
+
+    def fake_json(path, payload):
+        calls.append(path)
+        return {"student_id": student_id, "enrollments": len(payload["images_b64"])}
+
+    monkeypatch.setattr(identity_main, "_perception_json", fake_json)
+    saved = client.post(
+        f"/students/{student_id}/biometric-face-quick",
+        headers=headers,
+        json={"images_b64": [_photo(n) for n in range(5)]},
+    )
+    assert saved.status_code == 200, saved.text
+    assert calls == [f"/enroll-face-images/{student_id}"]
+    setup = client.get(f"/students/{student_id}/setup-assistant", headers=headers).json()
+    assert setup["portrait"]["status"] == "verified"
+    assert setup["pose"]["status"] == "verified"
+
+
+def test_quick_face_check_needs_five_distinct_photos(monkeypatch):
+    headers, student = _account()
+    student_id = student["id"]
+    client.put(f"/students/{student_id}/biometric-consent", headers=headers, json={"granted": True})
+    monkeypatch.setattr(identity_main, "_perception_json", lambda path, payload: {"enrollments": 5})
+    short = client.post(
+        f"/students/{student_id}/biometric-face-quick",
+        headers=headers,
+        json={"images_b64": [_photo(n) for n in range(3)]},
+    )
+    assert short.status_code == 422
+    repeated = client.post(
+        f"/students/{student_id}/biometric-face-quick",
+        headers=headers,
+        json={"images_b64": [_photo(1)] * 5},
+    )
+    assert repeated.status_code == 422
+
+
+def test_quick_face_check_falls_back_when_perception_is_older(monkeypatch):
+    from fastapi import HTTPException
+
+    headers, student = _account()
+    student_id = student["id"]
+    client.put(f"/students/{student_id}/biometric-consent", headers=headers, json={"granted": True})
+
+    def missing(path, payload):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    paths: list[str] = []
+
+    def fake_image(path, payload):
+        paths.append(path)
+        if path == "/embed":
+            return {"embedding": [1.0, 0.0, 0.0] if len(paths) != 3 else [0.0, 1.0, 0.0]}
+        return {"enrollments": paths.count(path)}
+
+    monkeypatch.setattr(identity_main, "_perception_json", missing)
+    monkeypatch.setattr(identity_main, "_perception_image", fake_image)
+    stranger = client.post(
+        f"/students/{student_id}/biometric-face-quick",
+        headers=headers,
+        json={"images_b64": [_photo(n) for n in range(5)]},
+    )
+    assert stranger.status_code == 422
+    assert not any(path.startswith("/enroll/") for path in paths)
+
+    paths.clear()
+    monkeypatch.setattr(
+        identity_main,
+        "_perception_image",
+        lambda path, payload: paths.append(path) or (
+            {"embedding": [1.0, 0.0, 0.0]} if path == "/embed" else {"enrollments": len(paths) - 5}
+        ),
+    )
+    saved = client.post(
+        f"/students/{student_id}/biometric-face-quick",
+        headers=headers,
+        json={"images_b64": [_photo(n) for n in range(5)]},
+    )
+    assert saved.status_code == 200, saved.text
+    assert paths.count("/embed") == 5
+    assert paths.count(f"/enroll/{student_id}") == 5
+    assert saved.json()["enrollments"] == 5
+
+
+def test_voice_save_sees_consent_stored_on_another_replica(monkeypatch):
+    import copy
+
+    headers, student = _account()
+    student_id = student["id"]
+    client.put(f"/students/{student_id}/biometric-consent", headers=headers, json={"granted": True})
+    store = identity_main.app.state.accounts
+    account = next(item for item in store._by_id.values() if student_id in item.students)
+    stored = copy.deepcopy(account.students[student_id].biometric_setup)
+    account.students[student_id].biometric_setup["consent"]["granted"] = False
+
+    def hydrate(target, account_id):
+        if account_id != account.id:
+            return False
+        target._by_id[account_id].students[student_id].biometric_setup = copy.deepcopy(stored)
+        return True
+
+    monkeypatch.setattr("identity.persistence.hydrate_account", hydrate)
+    monkeypatch.setattr(
+        identity_main,
+        "_perception_json",
+        lambda path, payload: {"template_ref": "voice:x"},
+    )
+    voice = client.post(
+        f"/students/{student_id}/voiceprint",
+        headers=headers,
+        json={"audio_b64": base64.b64encode(b"\0" * 2000).decode()},
+    )
+    assert voice.status_code == 200, voice.text

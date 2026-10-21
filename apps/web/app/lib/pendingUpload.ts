@@ -48,6 +48,15 @@ export function isForeignLearner(reason: unknown): boolean {
   );
 }
 
+/**
+ * Identity has not seen this learner's consent yet. The learner already
+ * agreed, so the fix is to send the consent again, not to fail the check.
+ */
+export function isConsentMissing(reason: unknown): boolean {
+  return uploadStatus(reason) === 409
+    && /consent/i.test(String((reason as Error)?.message ?? reason ?? ""));
+}
+
 export const PENDING_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
 /** 15s, 30s, 1m ... capped at 15 minutes, so a struggling service is not hammered. */

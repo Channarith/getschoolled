@@ -87,6 +87,41 @@ class _BaseVisionProvider(VisionProvider):
         self._persist_gallery()
         return count
 
+    def enroll_embeddings(self, student_id: str, embeddings: Sequence[Sequence[float]]) -> int:
+        """Enroll several on-device embeddings and write the gallery once."""
+        count = 0
+        for embedding in embeddings:
+            vec = [float(x) for x in embedding]
+            if not vec:
+                raise ValueError("empty embedding")
+            count = self._gallery.enroll(student_id, vec)
+        if count:
+            self._persist_gallery()
+        return count
+
+    def replace_embeddings(self, student_id: str, embeddings: Sequence[Sequence[float]]) -> int:
+        """Swap this learner's face templates for a new set in one gallery write.
+
+        A redone face check replaces the old one instead of piling up templates
+        from every attempt. Nothing changes when any embedding is unusable.
+        """
+        vectors = [[float(x) for x in embedding] for embedding in embeddings]
+        if not vectors or any(not vec for vec in vectors):
+            raise ValueError("empty embedding")
+        previous = list(self._gallery._embeddings.get(student_id, []))
+        self._gallery.remove(student_id)
+        try:
+            count = 0
+            for vec in vectors:
+                count = self._gallery.enroll(student_id, vec)
+        except ValueError:
+            self._gallery.remove(student_id)
+            if previous:
+                self._gallery._embeddings[student_id] = previous
+            raise
+        self._persist_gallery()
+        return count
+
     def delete_student(self, student_id: str) -> None:
         self._gallery.remove(student_id)
         self._persist_gallery()

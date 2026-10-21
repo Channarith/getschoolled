@@ -51,7 +51,8 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
   const readyRef = useRef(false);
   const busyRef = useRef(false);
   const sizedRef = useRef(false);
-  const [pictureSize, setPictureSize] = useState<string | undefined>(undefined);
+  // Same live size as the vision lab: 1280×720 front camera, not a photo session.
+  const [pictureSize, setPictureSize] = useState<string | undefined>("1280x720");
 
   useImperativeHandle(ref, () => ({
     async grabFrame(options) {
@@ -90,30 +91,23 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         facing={facing}
-        mode="picture"
+        mode="video"
         mute
         mirror
         animateShutter={false}
         flash="off"
-        ratio="4:3"
+        ratio="16:9"
         pictureSize={pictureSize}
         onMountError={({ message }) => onError?.(message || "The camera didn’t start.")}
         onCameraReady={() => {
-          if (!sizedRef.current) {
-            sizedRef.current = true;
-            void cameraRef.current?.getAvailablePictureSizesAsync?.().then((sizes) => {
-              const picked = pickLivePictureSize(sizes ?? []);
-              if (picked) setPictureSize(picked);
-              readyRef.current = true;
-              onReady?.();
-            }).catch(() => {
-              readyRef.current = true;
-              onReady?.();
-            });
-            return;
-          }
           readyRef.current = true;
           onReady?.();
+          if (sizedRef.current) return;
+          sizedRef.current = true;
+          void cameraRef.current?.getAvailablePictureSizesAsync?.().then((sizes) => {
+            const picked = pickLivePictureSize(sizes ?? []);
+            if (picked && picked !== pictureSize) setPictureSize(picked);
+          }).catch(() => undefined);
         }}
       />
     </View>

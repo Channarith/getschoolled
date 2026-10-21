@@ -1220,7 +1220,7 @@ def enroll_voice(
 ) -> dict:
     if not req.voice_name_sample_b64.strip():
         raise HTTPException(status_code=422, detail="voice_name_sample_b64 must not be empty")
-    student = _owned_student(acct, student_id)
+    student = _student_for_biometric(acct, student_id)
     state = normalize_setup_state(student.biometric_setup)
     if not state.consent.granted:
         raise HTTPException(status_code=409, detail="biometric consent is required")
@@ -1674,6 +1674,23 @@ def _owned_student(acct, student_id: str):
     return student
 
 
+def _student_for_biometric(acct, student_id: str):
+    """The learner, re-read once when this pod has not seen their consent yet.
+
+    Consent is written by whichever identity pod handled that request. A face
+    or voice save often lands on a different pod whose memory still has the
+    learner without consent, and that pod answers 409 even though the grant
+    is already stored. One reload picks the grant up. When this pod already
+    has it, the face save does not pay for that read.
+    """
+    student = _owned_student(acct, student_id)
+    if normalize_setup_state(student.biometric_setup).consent.granted:
+        return student
+    if app.state.accounts.reload_account(acct.id):
+        student = _owned_student(acct, student_id)
+    return student
+
+
 def _save_setup(acct, student_id: str, state: SetupAssistantState) -> dict:
     profile = app.state.accounts.update_biometric_setup(
         acct.id, student_id, state.model_dump()
@@ -1793,6 +1810,10 @@ class FaceImageEnrollmentRequest(BaseModel):
     pose_sequence: list[str] = Field(default_factory=list)
 
 
+class QuickFaceEnrollmentRequest(BaseModel):
+    images_b64: list[str]
+
+
 class VoiceprintRequest(BaseModel):
     audio_b64: str
 
@@ -1825,6 +1846,9 @@ def setup_assistant_status(student_id: str, acct=Depends(current_account)) -> di
 def update_setup_assistant(
     student_id: str, req: SetupProgressRequest, acct=Depends(current_account)
 ) -> dict:
+    # Another pod may have just stored consent. Editing the stale copy and
+    # writing it back would erase that grant and the next face save would 409.
+    app.state.accounts.reload_account(acct.id)
     student = _owned_student(acct, student_id)
     state = normalize_setup_state(student.biometric_setup)
     valid_steps = SetupAssistantState.model_fields["current_step"].annotation.__args__
@@ -1924,16 +1948,25 @@ def _require_completed_pose_embeddings(
 def enroll_biometric_face(
     student_id: str, req: FaceEnrollmentRequest, acct=Depends(current_account)
 ) -> dict:
-    student = _owned_student(acct, student_id)
+    student = _student_for_biometric(acct, student_id)
     state = normalize_setup_state(student.biometric_setup)
     if not state.consent.granted:
         raise HTTPException(status_code=409, detail="biometric consent is required")
     _require_completed_pose_embeddings(req.embeddings, req.pose_sequence)
-    enrollments = 0
-    # Nothing is written until the neutral portrait and all four poses agree.
-    for embedding in req.embeddings:
-        result = _perception_json(f"/enroll-embedding/{student_id}", {"embedding": embedding})
-        enrollments = int(result.get("enrollments", enrollments))
+    # One perception call for the portrait and the four poses. Five separate
+    # calls made a new learner wait on five round trips before they could finish.
+    try:
+        result = _perception_json(
+            f"/enroll-embeddings/{student_id}",
+            {"embeddings": req.embeddings},
+        )
+    except HTTPException as exc:
+        if exc.status_code != 404:
+            raise
+        # Perception is still on a release without the batch call.
+        for embedding in req.embeddings:
+            result = _perception_json(f"/enroll-embedding/{student_id}", {"embedding": embedding})
+    enrollments = int(result.get("enrollments", 0))
     state.portrait = state.portrait.model_validate(
         mark_record(state.portrait, "verified", template_ref=f"face:{student_id}")
     )
@@ -1949,7 +1982,7 @@ def face_preview(
     """Landmarks for one captured still so the app can draw the face contour.
 
     Stateless: the image is forwarded once and not stored or enrolled."""
-    student = _owned_student(acct, student_id)
+    student = _student_for_biometric(acct, student_id)
     state = normalize_setup_state(student.biometric_setup)
     if not state.consent.granted:
         raise HTTPException(status_code=409, detail="biometric consent is required")
@@ -1967,7 +2000,7 @@ def face_preview(
 def enroll_biometric_face_images(
     student_id: str, req: FaceImageEnrollmentRequest, acct=Depends(current_account)
 ) -> dict:
-    student = _owned_student(acct, student_id)
+    student = _student_for_biometric(acct, student_id)
     state = normalize_setup_state(student.biometric_setup)
     if not state.consent.granted:
         raise HTTPException(status_code=409, detail="biometric consent is required")
@@ -2001,11 +2034,85 @@ def enroll_biometric_face_images(
     return {"student_id": student_id, "verified": True, "enrollments": enrollments}
 
 
+def _decoded_face_photos(images_b64: list[str]) -> list[bytes]:
+    decoded: list[bytes] = []
+    for encoded in images_b64:
+        try:
+            image = base64.b64decode(encoded, validate=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="face image is invalid") from exc
+        if not 1_000 <= len(image) <= 8 * 1024 * 1024:
+            raise HTTPException(status_code=422, detail="face image size is invalid")
+        decoded.append(image)
+    if len({hashlib.sha256(image).digest() for image in decoded}) != len(decoded):
+        raise HTTPException(status_code=422, detail="face photos must not be repeated")
+    return decoded
+
+
+def _enroll_face_photos_one_by_one(student_id: str, decoded: list[bytes]) -> int:
+    """Same checks as perception's batch call, for a perception release without it."""
+    from aoep_shared.vision.engine import DEFAULT_MATCH_THRESHOLD, cosine_similarity
+
+    embedded = [_perception_image("/embed", image)["embedding"] for image in decoded]
+    for index, embedding in enumerate(embedded[1:], start=2):
+        score = cosine_similarity(embedded[0], embedding)
+        if score < DEFAULT_MATCH_THRESHOLD:
+            raise HTTPException(
+                status_code=422,
+                detail=f"photo {index} does not look like the same person ({score:.2f})",
+            )
+    enrollments = 0
+    for image in decoded:
+        result = _perception_image(f"/enroll/{student_id}", image)
+        enrollments = int(result.get("enrollments", enrollments))
+    return enrollments
+
+
+@app.post("/students/{student_id}/biometric-face-quick")
+def enroll_biometric_face_quick(
+    student_id: str, req: QuickFaceEnrollmentRequest, acct=Depends(current_account)
+) -> dict:
+    """Phone face check: five straight-on photos the phone already checked.
+
+    The phone keeps only frames with one centered, open-eyed face, so this
+    route asks for no head turns. Perception confirms each photo matches the
+    first and replaces the learner's face templates in one call.
+    """
+    from aoep_shared.vision.engine import LIVENESS_TEMPLATE_COUNT
+
+    student = _student_for_biometric(acct, student_id)
+    state = normalize_setup_state(student.biometric_setup)
+    if not state.consent.granted:
+        raise HTTPException(status_code=409, detail="biometric consent is required")
+    if len(req.images_b64) != LIVENESS_TEMPLATE_COUNT:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{LIVENESS_TEMPLATE_COUNT} face photos are required",
+        )
+    decoded = _decoded_face_photos(req.images_b64)
+    try:
+        result = _perception_json(
+            f"/enroll-face-images/{student_id}",
+            {"images_b64": [base64.b64encode(image).decode("ascii") for image in decoded]},
+        )
+        enrollments = int(result.get("enrollments", 0))
+    except HTTPException as exc:
+        if exc.status_code != 404:
+            raise
+        enrollments = _enroll_face_photos_one_by_one(student_id, decoded)
+    state.portrait = state.portrait.model_validate(
+        mark_record(state.portrait, "verified", template_ref=f"face:{student_id}")
+    )
+    state.pose = state.pose.model_validate(mark_record(state.pose, "verified"))
+    _save_setup(acct, student_id, state)
+    return {"student_id": student_id, "verified": True, "enrollments": enrollments}
+
+
 @app.post("/students/{student_id}/voiceprint")
 def enroll_voiceprint(
     student_id: str, req: VoiceprintRequest, acct=Depends(current_account)
 ) -> dict:
-    student = _owned_student(acct, student_id)
+    student = _student_for_biometric(acct, student_id)
     state = normalize_setup_state(student.biometric_setup)
     if not state.consent.granted:
         raise HTTPException(status_code=409, detail="biometric consent is required")
@@ -2038,7 +2145,7 @@ def _ephemeral_image(encoded: str) -> bytes:
 def submit_government_id(
     student_id: str, req: DocumentSubmissionRequest, acct=Depends(current_account)
 ) -> dict:
-    student = _owned_student(acct, student_id)
+    student = _student_for_biometric(acct, student_id)
     state = normalize_setup_state(student.biometric_setup)
     if not state.consent.granted:
         raise HTTPException(status_code=409, detail="biometric consent is required")

@@ -1,5 +1,5 @@
 import { ageAtOffset, AGE_ROW_HEIGHT } from "../components/AgeWheel";
-import { faceEnrollmentProblem, liveFrameAction, stillFingerprint, stillMatchesTarget } from "../components/BiometricSetupModal";
+import { FACE_PHOTOS, faceEnrollmentProblem, stillFingerprint } from "../components/BiometricSetupModal";
 import { pickLivePictureSize } from "../components/LiveFaceCamera";
 import {
   AGE_OPTIONS,
@@ -188,14 +188,6 @@ describe("Learner Check helpers (native)", () => {
     expect(poseFromBaseline(neutral!, faceGeometry(turned, box, frame)!, false)).toBe("right");
   });
 
-  it("accepts a sideways still either way the camera mirrored it, but not twice the same way", () => {
-    expect(stillMatchesTarget("up", "up", null)).toBe(true);
-    expect(stillMatchesTarget("up", "down", null)).toBe(false);
-    expect(stillMatchesTarget("left", "right", null)).toBe(true);
-    expect(stillMatchesTarget("right", "right", "right")).toBe(false);
-    expect(stillMatchesTarget("left", null, null)).toBe(false);
-  });
-
   it("maps server 422 face enrollment detail for the learner", () => {
     const problem = faceEnrollmentProblem(Object.assign(new Error("pose left missing"), { status: 422 }));
     expect(problem.message).toContain("pose left missing");
@@ -209,14 +201,8 @@ describe("Learner Check helpers (native)", () => {
     expect(problem.message).toContain("face landmarks are not available");
   });
 
-  it("reads a live frame as a look, not a still the learner has to retake", () => {
-    expect(liveFrameAction(0, true, false, null, null, null)).toBe("none");
-    expect(liveFrameAction(2, true, false, null, null, null)).toBe("one");
-    expect(liveFrameAction(1, false, false, null, null, null)).toBe("center");
-    expect(liveFrameAction(1, true, false, null, null, null)).toBe("anchor");
-    expect(liveFrameAction(1, true, true, "left", "right", null)).toBe("keep");
-    expect(liveFrameAction(1, true, true, "up", "down", null)).toBe("turn");
-    expect(liveFrameAction(1, true, true, "right", "right", "right")).toBe("turn");
+  it("keeps five stills, enough for a government ID match", () => {
+    expect(FACE_PHOTOS).toBe(5);
   });
 
   it("picks a modest live-frame size so the face check stays fast", () => {
