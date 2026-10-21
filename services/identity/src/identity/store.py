@@ -409,6 +409,12 @@ class AccountStore:
             return self._by_id.get(aid) if aid else None
         return None
 
+    def reload_account(self, account_id: str) -> bool:
+        """Replace this pod's copy with the stored one, which another replica may have changed."""
+        from .persistence import hydrate_account
+
+        return hydrate_account(self, account_id)
+
     def by_id(self, account_id: str) -> Optional[Account]:
         acct = self._by_id.get(account_id)
         if acct is not None:

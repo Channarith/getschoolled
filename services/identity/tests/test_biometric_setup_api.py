@@ -53,6 +53,27 @@ def test_setup_assistant_persists_only_the_changed_account(monkeypatch):
     assert persisted == [(account.id,)]
 
 
+def test_student_added_on_another_replica_reloads_instead_of_404(monkeypatch):
+    headers, _ = _account()
+    accounts = identity_main.app.state.accounts
+    account_id = client.get("/auth/me", headers=headers).json()["id"]
+    hidden = accounts.add_student(account_id, "Other replica", age_band="adult")
+    accounts.get_by_id(account_id).students.pop(hidden.id)
+    reloads: list[str] = []
+
+    def reload(aid):
+        reloads.append(aid)
+        accounts.get_by_id(aid).students[hidden.id] = hidden
+        return True
+
+    monkeypatch.setattr(accounts, "reload_account", reload)
+    resp = client.get(f"/students/{hidden.id}/setup-assistant", headers=headers)
+    assert resp.status_code == 200
+    assert reloads == [account_id]
+    monkeypatch.setattr(accounts, "reload_account", lambda aid: False)
+    assert client.get("/students/missing/setup-assistant", headers=headers).status_code == 404
+
+
 def test_minor_requires_guardian_biometric_consent():
     headers, _ = _account()
     student = client.post(
