@@ -82,6 +82,64 @@ def _faster_engine(model_name: str, device: str, compute_type: str):
     return _cache_get(("faster-whisper", model_name, device, compute_type), factory)
 
 
+def _detect_language_whisper(wav: Path, model_name: str) -> Optional[str]:
+    """Top Whisper language for a clip, or None when detection is unavailable."""
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            return None
+        import whisper
+
+        engine = _openai_engine(model_name, "cuda")
+        audio = whisper.load_audio(str(wav))
+        mel = whisper.log_mel_spectrogram(
+            whisper.pad_or_trim(audio), n_mels=engine.dims.n_mels
+        ).to(engine.device)
+        _, probs = engine.detect_language(mel)
+        return max(probs, key=probs.get) if probs else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _transcribe_mms_khmer(wav: Path) -> Optional[TranscriptResult]:
+    """Meta MMS (facebook/mms-1b-all, khm adapter) for Khmer speech.
+
+    Whisper invents Khmer-looking text over real Khmer speech. MMS was trained
+    for Khmer. Returns None when the weights are unavailable so callers fall back.
+    Opt in with AOEP_ASR_KM_ENGINE=mms.
+    """
+    try:
+        import torch
+        from transformers import AutoProcessor, Wav2Vec2ForCTC
+
+        def factory():
+            processor = AutoProcessor.from_pretrained("facebook/mms-1b-all")
+            model = Wav2Vec2ForCTC.from_pretrained("facebook/mms-1b-all", torch_dtype=torch.float32)
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            model = model.to(device)
+            processor.tokenizer.set_target_lang("khm")
+            model.load_adapter("khm")
+            return (processor, model, device)
+
+        processor, model, device = _cache_get(("mms", "facebook/mms-1b-all", "khm", "fp32"), factory)
+        import whisper
+
+        audio = whisper.load_audio(str(wav))
+        if len(audio) < 1600:
+            return TranscriptResult("", "km", "mms-1b-all:khm", False, "too_short")
+        inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
+        inputs = {k: v.to(device) if hasattr(v, "to") else v for k, v in inputs.items()}
+        with torch.no_grad():
+            logits = model(**inputs).logits
+        text = processor.batch_decode(torch.argmax(logits, dim=-1))[0].strip()
+        if not text:
+            return TranscriptResult("", "km", "mms-1b-all:khm", False, "empty_transcript")
+        return TranscriptResult(text, "km", "mms-1b-all:khm", True, "ok")
+    except Exception:  # noqa: BLE001 — fall back to Whisper on any MMS failure
+        return None
+
+
 def _transcribe_openai(wav: Path, *, language: str, model_name: str, device: str) -> TranscriptResult:
     if device == "cuda":
         try:
@@ -168,6 +226,17 @@ def transcribe_wav(
         )
 
     model_name = model or asr_model_name()
+    # Khmer-native speech: MMS transcribes it; Whisper invents it. English
+    # lessons inside the Khmer pool stay on Whisper after language detection.
+    if (language or "").lower() in {"km", "khm"} and os.environ.get("AOEP_ASR_KM_ENGINE", "").strip().lower() == "mms":
+        detected = _detect_language_whisper(wav, model_name)
+        if detected in (None, "km", "khm"):
+            mms_result = _transcribe_mms_khmer(wav)
+            if mms_result is not None and mms_result.ok:
+                return mms_result
+    if os.environ.get("AOEP_ASR_DETECT_LANGUAGE", "").strip().lower() in {"1", "true", "yes"}:
+        language = ""
+
     ctype = compute_type or os.environ.get("AOEP_ASR_COMPUTE_TYPE", "int8")
     device = os.environ.get("AOEP_ASR_DEVICE", "cpu").strip().lower() or "cpu"
     engine_name = os.environ.get("AOEP_ASR_ENGINE", "faster-whisper").strip().lower()
