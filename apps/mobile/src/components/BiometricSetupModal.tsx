@@ -233,7 +233,7 @@ export default function BiometricSetupModal({
   const [order, setOrder] = useState<Pose[]>(() => shuffledPoses());
   const [shots, setShots] = useState<Shot[]>([]);
   const [contourNote, setContourNote] = useState("");
-  const [scanHint, setScanHint] = useState("Center your face in the frame.");
+  const [scanHint, setScanHint] = useState("Center your face in the circle.");
   const [liveContour, setLiveContour] = useState<Shot | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [recording, setRecording] = useState(false);
@@ -303,7 +303,7 @@ export default function BiometricSetupModal({
     setLiveContour(null);
     setOrder(shuffledPoses());
     setContourNote("");
-    setScanHint("Center your face in the frame.");
+    setScanHint("Center your face in the circle.");
     baseRef.current = null;
     seenRef.current = {};
     savingRef.current = false;
@@ -384,6 +384,9 @@ export default function BiometricSetupModal({
       let serviceFails = 0;
       while (!cancelled) {
         if (savingRef.current) return;
+        // Each sample is a still. Space them so Android does not fire the shutter on every tick.
+        await wait(700);
+        if (cancelled) return;
         const seenGen = genRef.current;
         const frameShot = await cameraRef.current?.grabFrame();
         if (cancelled || genRef.current !== seenGen) continue;
@@ -448,7 +451,7 @@ export default function BiometricSetupModal({
           setLiveContour(null);
         }
         if (action === "none") {
-          noteHint("Center your face in the frame.");
+          noteHint("Center your face in the circle.");
           await wait(180);
           continue;
         }
@@ -458,7 +461,7 @@ export default function BiometricSetupModal({
           continue;
         }
         if (action === "center") {
-          noteHint("Center your face in the frame.");
+          noteHint("Center your face in the circle.");
           await wait(180);
           continue;
         }
@@ -684,6 +687,12 @@ export default function BiometricSetupModal({
                   />
                 </View>
                 <View style={styles.overlay} pointerEvents="none" collapsable={false}>
+                <View style={styles.faceGuideWrap}>
+                  <View
+                    style={[styles.faceGuide, latest?.contour ? styles.faceGuideOn : null]}
+                    testID="face-guide"
+                  />
+                </View>
                 <View style={styles.liveDot} accessibilityLabel="Live camera" />
                 {latest?.contour && frameBox.width > 0 ? (
                   <Svg
@@ -746,14 +755,6 @@ export default function BiometricSetupModal({
                     ))}
                   </Svg>
                 ) : null}
-                {(["left", "right", "up", "down"] as const).map((pose) => (
-                  <View key={pose} style={[styles.cueAnchor, styles[`cue_${pose}`]]} testID={`pose-cue-${pose}`}>
-                    <View style={[styles.cue, pose === target ? styles.cueOn : styles.cueIdle]}>
-                      <Text style={styles.cueText}>{POSE_ARROW[pose]}</Text>
-                      <Text style={styles.cueLabel}>{pose}</Text>
-                    </View>
-                  </View>
-                ))}
                 {!target ? (
                   <View style={styles.straight}>
                     <Text style={styles.straightText}>Look straight</Text>
@@ -764,7 +765,7 @@ export default function BiometricSetupModal({
             ) : (
               <KenBurnsImage key={step === "voice" ? "voice" : "face"} source={step === "voice" ? ART.voice : ART.face} duration={16} />
             )}
-            {(["TL", "TR", "BL", "BR"] as const).map((corner) => (
+            {scanning ? null : (["TL", "TR", "BL", "BR"] as const).map((corner) => (
               <View key={corner} style={[styles.corner, styles[`corner${corner}`], done && styles.cornerDone]} />
             ))}
             {done ? <Text style={styles.check}>✓</Text> : null}
@@ -936,7 +937,24 @@ const styles = StyleSheet.create({
     elevation: 8,
     backgroundColor: "transparent",
   },
-  mesh: { position: "absolute", top: 0, left: 0, zIndex: 4, elevation: 4 },
+  faceGuideWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: "16%",
+    zIndex: 5,
+  },
+  faceGuide: {
+    width: "72%",
+    maxWidth: 420,
+    aspectRatio: 1,
+    borderRadius: 999,
+    borderWidth: 4,
+    borderColor: "rgba(255,255,255,0.96)",
+    backgroundColor: "transparent",
+  },
+  faceGuideOn: { borderColor: "#b6ffcf" },
+  mesh: { position: "absolute", top: 0, left: 0, zIndex: 6, elevation: 6 },
   corner: { position: "absolute", width: 28, height: 28, borderColor: C.teal, zIndex: 12, elevation: 12 },
   cornerTL: { top: 14, left: 14, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 16 },
   cornerTR: { top: 14, right: 14, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 16 },

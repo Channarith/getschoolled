@@ -5,6 +5,10 @@
  * names an attribute that no other manifest declares. Namespace stays in each
  * library build.gradle, so removing the ignored attributes does not change
  * the installed app.
+ *
+ * SoLoader 0.10.5 sets com.facebook.soloader.enabled=false. Expo modules need
+ * it true, so that meta-data must keep tools:replace or the release manifest
+ * merger fails.
  */
 const fs = require("fs");
 const path = require("path");
@@ -24,11 +28,9 @@ const REPLACE_ATTRS = [
     "node_modules/expo-file-system/android/src/main/AndroidManifest.xml",
     /\s+tools:replace="android:authorities"/,
   ],
-  [
-    "node_modules/expo-modules-core/android/src/main/AndroidManifest.xml",
-    /\s+tools:replace="android:value"/,
-  ],
 ];
+
+const SOLOADER_MANIFEST = "node_modules/expo-modules-core/android/src/main/AndroidManifest.xml";
 
 function ensureNamespace(gradlePath, namespace) {
   if (!fs.existsSync(gradlePath)) return false;
@@ -52,6 +54,34 @@ function stripPackage(manifestPath) {
   console.log(`patch-android-library-warnings: removed package= from ${path.relative(ROOT, manifestPath)}`);
 }
 
+function ensureAppSoloaderOverride() {
+  const rel = "android/app/src/main/AndroidManifest.xml";
+  const filePath = path.join(ROOT, rel);
+  if (!fs.existsSync(filePath)) return;
+  const src = fs.readFileSync(filePath, "utf8");
+  if (src.includes('android:name="com.facebook.soloader.enabled"')) return;
+  const entry = '    <meta-data android:name="com.facebook.soloader.enabled" android:value="true" tools:replace="android:value"/>\n';
+  const next = src.replace(/<application\b[^>]*>/, (open) => `${open}\n${entry.trimEnd()}`);
+  if (next === src) return;
+  fs.writeFileSync(filePath, next);
+  console.log(`patch-android-library-warnings: SoLoader manifest override kept in ${rel}`);
+}
+
+function ensureSoloaderOverride(rel) {
+  const filePath = path.join(ROOT, rel);
+  if (!fs.existsSync(filePath)) return;
+  const src = fs.readFileSync(filePath, "utf8");
+  if (!src.includes('android:name="com.facebook.soloader.enabled"')) return;
+  if (/com\.facebook\.soloader\.enabled"[\s\S]{0,180}tools:replace="android:value"/.test(src)) return;
+  const next = src.replace(
+    /(android:name="com\.facebook\.soloader\.enabled"[\s\S]*?android:value="true")/,
+    '$1 tools:replace="android:value"',
+  );
+  if (next === src) return;
+  fs.writeFileSync(filePath, next);
+  console.log(`patch-android-library-warnings: SoLoader manifest override kept in ${rel}`);
+}
+
 function main() {
   for (const [dir, namespace] of PACKAGE_LIBS) {
     const base = path.join(ROOT, dir);
@@ -71,6 +101,8 @@ function main() {
     fs.writeFileSync(filePath, next);
     console.log(`patch-android-library-warnings: removed unused tools:replace from ${rel}`);
   }
+  ensureSoloaderOverride(SOLOADER_MANIFEST);
+  ensureAppSoloaderOverride();
 }
 
 main();

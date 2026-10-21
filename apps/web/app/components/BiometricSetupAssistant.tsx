@@ -460,7 +460,7 @@ export default function BiometricSetupAssistant({
         return;
       }
       if (cancelled) return;
-      setHint("Center your face in the frame.");
+      setHint("Center your face in the circle.");
       const started = performance.now();
       clock = window.setInterval(() => setElapsed((performance.now() - started) / 1000), 250);
       const loop = () => {
@@ -513,7 +513,7 @@ export default function BiometricSetupAssistant({
         const faces = engine.detect(video);
         if (faces.length !== 1) {
           hideLiveContour();
-          setHint(faces.length ? "Only one face, please." : "Center your face in the frame.");
+          setHint(faces.length ? "Only one face, please." : "Center your face in the circle.");
           return;
         }
         const face = faces[0];
@@ -526,7 +526,7 @@ export default function BiometricSetupAssistant({
         if (!geometry) return;
         if (!scan.base) {
           if (!geometry.centered) {
-            setHint("Center your face in the frame.");
+            setHint("Center your face in the circle.");
             return;
           }
           if (locking) return;
@@ -1025,6 +1025,11 @@ export default function BiometricSetupAssistant({
                   playsInline
                   aria-label="Live camera feed for Learner Check face scan"
                   aria-describedby="learner-check-scan-desc"
+                />
+                <div
+                  className={styles.faceGuide}
+                  data-locked={anchored ? "true" : "false"}
+                  aria-hidden="true"
                 />
                 <svg
                   ref={contourSvgRef}
