@@ -611,8 +611,14 @@ def _save_dirty_accounts(store: "AccountStore", client, account_ids=None) -> Non
         candidates = list(store._by_id)
     # Serialize each account once. The comparison, the Redis write, and the
     # remembered copy all use this string; they each built their own before.
-    current = {aid: _blob(store, aid) for aid in candidates}
-    dirty = [aid for aid in candidates if store._persisted_blobs.get(aid) != current[aid]]
+    # Only dirty accounts keep their string, so a full save does not hold every
+    # account's blob in memory at once.
+    current: dict[str, str] = {}
+    for aid in candidates:
+        blob = _blob(store, aid)
+        if store._persisted_blobs.get(aid) != blob:
+            current[aid] = blob
+    dirty = list(current)
     removed = [aid for aid in list(store._persisted_blobs) if aid not in store._by_id]
     for aid in removed:
         client.delete(_acct_key(aid))

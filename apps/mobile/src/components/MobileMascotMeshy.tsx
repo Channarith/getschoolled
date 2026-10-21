@@ -115,11 +115,10 @@ export function mascotPageFile(clip: string): string {
 export type MascotSource = { html: string; baseUrl: string } | { uri: string };
 
 /**
- * iOS WKWebView will not read file:// scripts or models for a page given with
- * loadHTMLString (the device blocks it; the simulator does not), so the 3D
- * mascot fell back to the flat picture. iOS opens a real file instead, with
- * read access to its folder. Android keeps the inline markup, which its
- * WebView handles more reliably than a file:// page.
+ * v0.94.2 switched this from opening a real file to inline markup, and the 3D
+ * mascot stopped appearing on iPhone (it fell back to the flat picture). iOS
+ * goes back to opening a page file with read access to its folder, which is
+ * what worked before. Android keeps the inline markup that fixed it there.
  */
 export function mascotSourceFor(os: string, dir: string, clip: string): MascotSource {
   if (os === "ios") return { uri: `${dir}${mascotPageFile(clip)}` };
