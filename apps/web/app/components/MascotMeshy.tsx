@@ -145,6 +145,9 @@ type Props = {
   backdrop?: string;
   /** Stop the render loop without destroying the WebGL canvas. */
   paused?: boolean;
+  /** Keep the darkened stone from the voice-check page. Expression still
+   *  changes posture and motion, but not the bronze color. */
+  holdStone?: boolean;
 };
 
 /* ---------------------------------------------------------------------
@@ -574,9 +577,11 @@ function ParticleOverlay({
 function Character({
   expression,
   activeClip,
+  holdStone = false,
 }: {
   expression: Expression;
   activeClip: ClipName;
+  holdStone?: boolean;
 }) {
   // Outer group: owns the mood posture (tilt + lean). Scale stays at 1.
   const outerRef = useRef<THREE.Group>(null);
@@ -640,10 +645,11 @@ function Character({
     );
   }, [names, emissiveSnaps.length, uniformScale]);
 
-  // Apply mood tint whenever expression changes.
+  // Apply mood tint whenever expression changes. Setup assistant pages
+  // hold the voice-check bronze (the cute grade, no extra wash).
   useEffect(() => {
-    applyMoodTint(emissiveSnaps, MOOD_PROFILES[expression]);
-  }, [emissiveSnaps, expression]);
+    applyMoodTint(emissiveSnaps, holdStone ? MOOD_PROFILES.cute : MOOD_PROFILES[expression]);
+  }, [emissiveSnaps, expression, holdStone]);
 
   // Play the active clip. Fade between clip changes.
   useEffect(() => {
@@ -761,6 +767,7 @@ export default function MascotMeshy({
   transparent = false,
   backdrop,
   paused = false,
+  holdStone = false,
 }: Props) {
   const activeClip = useActiveClip(motion, clip, idleRotation, rotationIntervalMs);
   const [canvasKey, setCanvasKey] = useState(0);
@@ -832,7 +839,7 @@ export default function MascotMeshy({
         <directionalLight position={[-0.4, 1.8, -2.6]} intensity={0.18} color="#f4e7cf" />
 
         <Suspense fallback={null}>
-          <Character expression={expression} activeClip={activeClip} />
+          <Character expression={expression} activeClip={activeClip} holdStone={holdStone} />
         </Suspense>
 
         <ContactShadows
