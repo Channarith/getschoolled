@@ -30,9 +30,9 @@ function sceneToMeshy(scene: MascotScene): {
     case "idle":
       return { expression: "cute", idleRotation: true };
     case "flyin-point":
-      return { expression: "excited", clip: "Big_Wave_Hello", idleRotation: false };
+      return { expression: "cute", clip: "Big_Wave_Hello", idleRotation: false };
     case "dance":
-      return { expression: "excited", clip: "Boom_Dance", idleRotation: false };
+      return { expression: "cute", clip: "Indoor_Swing", idleRotation: false };
     case "age-morph":
       return { expression: "curious", idleRotation: true };
     case "video":
@@ -46,7 +46,7 @@ function sceneToMeshy(scene: MascotScene): {
     case "tutoring":
       return { expression: "curious", clip: "Wave_for_Help_1", idleRotation: false };
     case "gaming":
-      return { expression: "excited", clip: "_360_Power_Spin_Jump", idleRotation: false };
+      return { expression: "curious", clip: "Jump_Rope", idleRotation: false };
   }
 }
 

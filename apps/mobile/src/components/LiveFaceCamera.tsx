@@ -6,7 +6,7 @@
 import { CameraView } from "expo-camera";
 import * as FileSystem from "expo-file-system";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 export type LiveFrame = {
   base64: string;
@@ -51,8 +51,12 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
   const readyRef = useRef(false);
   const busyRef = useRef(false);
   const sizedRef = useRef(false);
-  // Same live size as the vision lab: 1280×720 front camera, not a photo session.
+  // Same live size as the vision lab: 1280×720 front camera.
   const [pictureSize, setPictureSize] = useState<string | undefined>("1280x720");
+  // iOS keeps photo output in a video session, which is the fast preset.
+  // Android binds photo capture only in picture mode; in video mode every
+  // grab fails and the face check never sees a frame.
+  const mode = Platform.OS === "ios" ? "video" : "picture";
 
   useImperativeHandle(ref, () => ({
     async grabFrame(options) {
@@ -91,7 +95,7 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         facing={facing}
-        mode="video"
+        mode={mode}
         mute
         mirror
         animateShutter={false}
@@ -105,6 +109,8 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
           if (sizedRef.current) return;
           sizedRef.current = true;
           void cameraRef.current?.getAvailablePictureSizesAsync?.().then((sizes) => {
+            // Changing the size restarts the camera, so keep 1280×720 when offered.
+            if (pictureSize && sizes?.includes(pictureSize)) return;
             const picked = pickLivePictureSize(sizes ?? []);
             if (picked && picked !== pictureSize) setPictureSize(picked);
           }).catch(() => undefined);

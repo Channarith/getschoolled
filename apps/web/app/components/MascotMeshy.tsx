@@ -100,18 +100,16 @@ export const MOTION_TO_CLIP: Record<MotionState, ClipName> = {
  * Family-friendly rotation of calm / charming idles for the setup
  * assistant's wait moments. Deliberately skips the aggressive /
  * showoff clips (Boxing_Practice, Breakdance_1990, Thrust_Slash,
- * One_Arm_Handstand, Step_in_High_Kick) since this is an education
- * mascot and those read as "mascot is going to fight you" rather than
- * "cute statue is being patient while you set up".
+ * One_Arm_Handstand, Step_in_High_Kick) and the popping ones
+ * (Boom_Dance, _360_Power_Spin_Jump). Those strobe and scale in a
+ * way that is hard to look at during setup.
  */
 export const IDLE_ROTATION: ClipName[] = [
   "Big_Wave_Hello",
   "Confident_Strut",
   "Indoor_Swing",
-  "Boom_Dance",
   "Wave_for_Help_1",
-  "Jump_Rope",
-  "_360_Power_Spin_Jump",
+  "Walking",
   "Wave_for_Help_2",
 ];
 
@@ -489,16 +487,19 @@ function ParticleOverlay({
   expression,
   headY,
   headSpread,
+  suppressed = false,
 }: {
   expression: Expression;
   /** World-space Y coordinate near the character's head. */
   headY: number;
   /** World-space X spread (character width) for scattering particles. */
   headSpread: number;
+  /** Setup pages keep the stone look and skip the popping star overlay. */
+  suppressed?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const spritesRef = useRef<THREE.Sprite[]>([]);
-  const kind = MOOD_PROFILES[expression].particles;
+  const kind = suppressed ? "none" : MOOD_PROFILES[expression].particles;
 
   useEffect(() => {
     const group = groupRef.current;
@@ -675,7 +676,10 @@ function Character({
     if (!outer || !inner) return;
     const mood = MOOD_PROFILES[expression];
     const t = state.clock.getElapsedTime();
-    const pulse = mood.pulseHz > 0
+    // The excited mood pulses the whole body several times a second.
+    // Setup holds the stone grade and skips that scale, which reads as
+    // the character popping in and out.
+    const pulse = !holdStone && mood.pulseHz > 0
       ? 1 + Math.sin(t * mood.pulseHz * Math.PI * 2) * mood.pulseAmp
       : 1;
     // Posture on the outer group (world units).
@@ -698,6 +702,7 @@ function Character({
         expression={expression}
         headY={worldHeight * 0.9}
         headSpread={worldWidth * 0.5}
+        suppressed={holdStone}
       />
     </group>
   );
