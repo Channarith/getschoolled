@@ -386,7 +386,7 @@ export default function BiometricSetupModal({
         await wait(80);
       }
       // Let exposure and focus settle before the first still.
-      await wait(450);
+      await wait(250);
       const gen = genRef.current;
       const kept: string[] = [];
       const prints = new Set<string>();
@@ -406,12 +406,14 @@ export default function BiometricSetupModal({
           return;
         }
         if (!shot?.uri) {
-          await wait(120);
+          await wait(60);
           continue;
         }
         let faces: Awaited<ReturnType<typeof detectDeviceFaces>> = [];
         try {
-          faces = await detectDeviceFaces(shot.uri, { contours: true });
+          // The outline read is slower. Once a good frame is kept, the rest
+          // only need the quick one-face check and the outline stays drawn.
+          faces = await detectDeviceFaces(shot.uri, { contours: kept.length === 0 });
         } catch (reason) {
           await discardFile(shot.uri);
           if (cancelled) return;
@@ -426,18 +428,18 @@ export default function BiometricSetupModal({
             setProblem({ message: "This phone couldn’t read the camera. Try again." });
             return;
           }
-          await wait(150);
+          await wait(60);
           continue;
         }
         const frame: [number, number] = [shot.width || 3, shot.height || 4];
         const verdict = frameVerdict(faces, frame);
         const face = faces.length ? faces.reduce((a, b) => (b.faceWidth > a.faceWidth ? b : a)) : null;
         setFaceSeen(verdict === "ok");
-        setLiveStrokes(face?.strokes.length ? { strokes: face.strokes, frame } : null);
+        if (face?.strokes.length) setLiveStrokes({ strokes: face.strokes, frame });
+        else if (!face) setLiveStrokes(null);
         if (verdict !== "ok") {
           noteHint(FRAME_HINT[verdict]);
           await discardFile(shot.uri);
-          await wait(150);
           continue;
         }
         let base64 = "";

@@ -77,7 +77,7 @@ function point(value: MlPoint | undefined): Point | null {
 export function faceDistanceCue(faceWidth: number, frameSpan: number): "closer" | "back" | "ok" {
   if (!(faceWidth > 0) || !(frameSpan > 0)) return "ok";
   const ratio = faceWidth / frameSpan;
-  if (ratio < 0.16) return "closer";
+  if (ratio < 0.13) return "closer";
   if (ratio > 0.62) return "back";
   return "ok";
 }
@@ -122,7 +122,7 @@ export function readMlKitFace(face: MlFace | null | undefined): DeviceFaceRead |
 export type FrameVerdict = "ok" | "none" | "many" | "closer" | "back" | "center" | "straight" | "eyes";
 
 /** Head turn or tilt we still count as looking at the camera. */
-export const STRAIGHT_DEGREES = 18;
+export const STRAIGHT_DEGREES = 24;
 
 /**
  * Whether one still is good enough to keep for the face check.
@@ -140,9 +140,9 @@ export function frameVerdict(faces: DeviceFaceRead[], frame: [number, number]): 
   const [left, top, boxWidth, boxHeight] = face.bbox;
   const dx = Math.abs(left + boxWidth / 2 - width / 2) / width;
   const dy = Math.abs(top + boxHeight / 2 - height / 2) / height;
-  if (dx > 0.2 || dy > 0.22) return "center";
+  if (dx > 0.26 || dy > 0.28) return "center";
   if (Math.abs(face.yaw ?? 0) > STRAIGHT_DEGREES || Math.abs(face.pitch ?? 0) > STRAIGHT_DEGREES) return "straight";
-  if (face.eyesOpen != null && face.eyesOpen < 0.35) return "eyes";
+  if (face.eyesOpen != null && face.eyesOpen < 0.25) return "eyes";
   return "ok";
 }
 

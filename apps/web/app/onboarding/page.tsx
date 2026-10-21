@@ -11,7 +11,6 @@ import AccountStep from "./AccountStep";
 import { useT } from "../lib/i18n";
 import {
   AUTH_EVENT,
-  completeOnboarding,
   getConsumerPlans,
   getFreePlanOffer,
   getMe,
@@ -29,7 +28,7 @@ import {
   type ConsumerPlan,
 } from "../lib/api";
 import { formatMonthlyPrice, orderedConsumerPlans } from "../lib/consumerPlansDisplay";
-import { isRetryableIdentityWrite, queueLearningProfileSync, queueOnboardingSync } from "../lib/onboardingSync";
+import { flushPendingOnboardingSync, isRetryableIdentityWrite, queueLearningProfileSync, queueOnboardingSync } from "../lib/onboardingSync";
 import styles from "./Onboarding.module.css";
 
 // The learn step now shows exactly one mode card per page across every
@@ -450,16 +449,12 @@ export default function OnboardingPage() {
       setStep("payment");
       return;
     }
-    return run(async () => {
-      try {
-        await selectOnboardingPlan(plan);
-      } catch (reason) {
-        if (!isRetryableIdentityWrite(reason)) throw reason;
-        finishLocally(true);
-        return;
-      }
-      await finish();
-    });
+    // The free-plan claim and the completion flag are idempotent. Waiting
+    // for both identity writes is what left this button on "Finishing…".
+    if (busyRef.current) return;
+    busyRef.current = true;
+    finishLocally(true);
+    void flushPendingOnboardingSync(true);
   }
 
   function savePayment() {
@@ -502,20 +497,11 @@ export default function OnboardingPage() {
     router.push("/");
   }
 
-  async function finish() {
-    try {
-      await completeOnboarding({ learner_name: name.trim(), age_band: ageBand });
-    } catch (reason) {
-      if (!isRetryableIdentityWrite(reason)) throw reason;
-      // The account can use ordinary courses while this idempotent account
-      // flag waits for identity. The outbox applies capped backoff, rather
-      // than holding the learner here or multiplying 504 traffic.
-      finishLocally();
-      return;
-    }
-    Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
-    localStorage.removeItem("onboarding_step");
-    router.push("/");
+  function finish() {
+    // Same as the free plan: record the completion locally and let the
+    // outbox reach identity. The payment step has already validated.
+    finishLocally();
+    void flushPendingOnboardingSync(true);
   }
 
   const stepOrder: Step[] = includeAccount ? ["account", ...BASE_STEPS] : BASE_STEPS;
@@ -523,14 +509,14 @@ export default function OnboardingPage() {
   const stepLabel = `Step ${stepIndex + 1} of ${stepOrder.length} · ${STEP_LABEL[step]}`;
 
   // Scene the MascotActor plays in the art pane. Recomputed per step so the
-  // mascot flies in on sign-in, morphs by age on "About you", acts out the
-  // focused learning mode, and idles on plan/payment.
+  // mascot waves on sign-in, morphs by age on "About you", and acts out the
+  // focused learning mode. Plan and payment stay on the calm idle cycle.
+  // The sparkle dance reads as stars popping in and out, which is hard to
+  // look at while choosing a plan.
   const mascotScene: MascotScene = useMemo(() => {
     if (step === "account") return { kind: "flyin-point", pointAt: "down" };
     if (step === "about") return { kind: "age-morph", age: typeof age === "number" ? age : 30 };
     if (step === "learn") return sceneForMode(focus);
-    if (step === "consent") return { kind: "idle" };
-    if (step === "plan") return { kind: "dance" };
     return { kind: "idle" };
   }, [step, age, focus]);
 
