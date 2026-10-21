@@ -22,6 +22,28 @@ def _unique_email() -> str:
     return f"test-{uuid.uuid4().hex[:8]}@example.com"
 
 
+def test_signup_succeeds_when_redis_write_times_out(monkeypatch):
+    from identity import persistence
+
+    class _Stalled:
+        def eval(self, *_args, **_kwargs):
+            raise TimeoutError("timed out")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(persistence, "redis_configured", lambda: True)
+    monkeypatch.setattr(persistence, "_redis_client", lambda: _Stalled())
+    email = _unique_email()
+    response = client.post("/auth/signup", json={
+        "email": email,
+        "password": "Secret123!",
+        "display_name": "Busy Redis",
+    })
+    assert response.status_code == 200, response.text
+    assert response.json()["account"]["email"] == email
+
+
 def _signup(email: str | None = None, display_name: str = "Test User") -> tuple[str, str]:
     """Signup and return (token, account_id)."""
     email = email or _unique_email()

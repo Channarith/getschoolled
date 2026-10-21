@@ -24,6 +24,7 @@ class StoryboardExperience:
     profile_mode: str
     source_language: str = "en"
     translation_ready: bool = True
+    learning_modality: str = ""
 
 
 _DOMAIN_RULES: tuple[tuple[tuple[str, ...], str, tuple[str, ...]], ...] = (
@@ -150,11 +151,19 @@ def build_generic_storyboard(
     narration: str,
     language: str = "en",
     profile: dict[str, str] | None = None,
+    learning_modality: str = "",
 ) -> StoryboardExperience:
     """Create a deterministic multimodal scene from one curriculum slide."""
+    from aoep_shared.modality_mix import modality_activity, profile_mode_for
+
     key = f"{lesson_id}:{slide_index}:{title}"
     seed = int(hashlib.sha256(key.encode("utf-8")).hexdigest()[:8], 16)
-    mode = _profile_mode(profile)
+    forced = (learning_modality or "").strip().lower()
+    if forced:
+        mode = profile_mode_for(forced)
+    else:
+        mode = _profile_mode(profile)
+        forced = ""
     combined = f"{lesson_id} {title} {body} {narration}"
     backdrop, cast_kinds = _domain(combined, seed)
     sentences = _sentences(body or narration)
@@ -176,6 +185,17 @@ def build_generic_storyboard(
         )
 
     camera = _CAMERAS[(seed + (0 if mode == "visual" else 2)) % len(_CAMERAS)]
+    duration = 16.0 if mode == "auditory" else 12.0
+    if forced == "video":
+        camera = "ken-burns"
+        duration = 18.0
+    elif forced == "presentation":
+        camera = "pan-right"
+    elif forced == "gaming":
+        camera = "push-in"
+        duration = 14.0
+    elif forced == "tutoring":
+        camera = "pull-out"
     scene = Scene(
         scene_id=f"auto-{lesson_id}-{slide_index:03d}",
         title=title,
@@ -185,7 +205,7 @@ def build_generic_storyboard(
         cast=_cast(cast_kinds, seed, mode),
         objects=tuple(callouts),
         concept=concept[:180],
-        duration_hint_s=16.0 if mode == "auditory" else 12.0,
+        duration_hint_s=duration,
     )
     segment = SegmentStoryboard(
         lesson_id=lesson_id,
@@ -194,18 +214,24 @@ def build_generic_storyboard(
         learning_goal=concept[:180],
         scene=scene,
     )
-    prompt = (
-        f"Act it out: choose the safest next step in a scenario about {title}."
-        if mode == "hands_on"
-        else f"Pause and explain how {title} changes a real decision."
-    )
+    prompt = modality_activity(forced, title) if forced else ""
+    if not prompt:
+        prompt = (
+            f"Act it out: choose the safest next step in a scenario about {title}."
+            if mode == "hands_on"
+            else f"Pause and explain how {title} changes a real decision."
+        )
+    modalities = ("scene", "narration", "captions", "examples", "activity")
+    if forced:
+        modalities = (forced,) + modalities
     return StoryboardExperience(
         segment=segment,
         examples=examples,
         activity_prompt=prompt,
-        modalities=("scene", "narration", "captions", "examples", "activity"),
+        modalities=modalities,
         profile_mode=mode,
         source_language=language or "en",
+        learning_modality=forced,
     )
 
 
@@ -219,6 +245,7 @@ def experience_dict(experience: StoryboardExperience) -> dict[str, Any]:
             "profile_mode": experience.profile_mode,
             "source_language": experience.source_language,
             "translation_ready": experience.translation_ready,
+            "learning_modality": experience.learning_modality,
         }
     )
     return out

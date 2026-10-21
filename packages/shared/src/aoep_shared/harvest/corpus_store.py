@@ -155,6 +155,14 @@ class HarvestCorpusStore:
                     CREATE INDEX IF NOT EXISTS idx_chunks_url ON chunks(url_key);
                     CREATE INDEX IF NOT EXISTS idx_chunks_course ON chunks(course_id);
                     CREATE INDEX IF NOT EXISTS idx_courses_subject ON courses(subject);
+                    CREATE TABLE IF NOT EXISTS harvest_topics (
+                        topic TEXT PRIMARY KEY,
+                        state TEXT NOT NULL DEFAULT 'pending',
+                        created_at TEXT NOT NULL,
+                        claimed_at TEXT
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_harvest_topics_state
+                        ON harvest_topics(state);
                     """
                 )
                 self._fts = _fts5_available(conn)
@@ -396,6 +404,75 @@ class HarvestCorpusStore:
             finally:
                 conn.close()
 
+    def enqueue_topics(self, topics, *, limit: int = 0, progress=None) -> int:
+        """Insert topic strings into the durable backlog. ``limit`` 0 means all.
+
+        Existing topics are left alone, so a rerun resumes instead of duplicating.
+        """
+        inserted = 0
+        taken = 0
+        batch: List[tuple] = []
+        now = _now()
+        cap = limit if limit and limit > 0 else None
+
+        def _flush(conn: sqlite3.Connection) -> None:
+            nonlocal inserted
+            if not batch:
+                return
+            before = conn.total_changes
+            conn.executemany(
+                "INSERT OR IGNORE INTO harvest_topics(topic, state, created_at) "
+                "VALUES (?, 'pending', ?)",
+                batch,
+            )
+            inserted += conn.total_changes - before
+            batch.clear()
+            conn.commit()
+
+        with self._lock:
+            conn = self._connect()
+            try:
+                for topic in topics:
+                    if cap is not None and taken >= cap:
+                        break
+                    taken += 1
+                    batch.append((topic, now))
+                    if len(batch) >= 5000:
+                        _flush(conn)
+                        if progress and taken % 100000 == 0:
+                            progress(taken, inserted)
+                _flush(conn)
+                if progress:
+                    progress(taken, inserted)
+                return inserted
+            finally:
+                conn.close()
+
+    def claim_topics(self, limit: int = 1) -> List[str]:
+        """Mark the next pending topics claimed and return them."""
+        if limit <= 0:
+            return []
+        with self._lock:
+            conn = self._connect()
+            try:
+                rows = conn.execute(
+                    "SELECT topic FROM harvest_topics WHERE state='pending' "
+                    "ORDER BY rowid LIMIT ?",
+                    (int(limit),),
+                ).fetchall()
+                topics = [row["topic"] for row in rows]
+                if not topics:
+                    return []
+                now = _now()
+                conn.executemany(
+                    "UPDATE harvest_topics SET state='claimed', claimed_at=? WHERE topic=?",
+                    [(now, topic) for topic in topics],
+                )
+                conn.commit()
+                return topics
+            finally:
+                conn.close()
+
     def stats(self) -> Dict[str, int]:
         with self._lock:
             conn = self._connect()
@@ -406,6 +483,12 @@ class HarvestCorpusStore:
                     "courses": conn.execute("SELECT COUNT(*) FROM courses").fetchone()[0],
                     "queue_pending": conn.execute(
                         "SELECT COUNT(*) FROM harvest_queue WHERE state='pending'"
+                    ).fetchone()[0],
+                    "topics_pending": conn.execute(
+                        "SELECT COUNT(*) FROM harvest_topics WHERE state='pending'"
+                    ).fetchone()[0],
+                    "topics_total": conn.execute(
+                        "SELECT COUNT(*) FROM harvest_topics"
                     ).fetchone()[0],
                 }
             finally:

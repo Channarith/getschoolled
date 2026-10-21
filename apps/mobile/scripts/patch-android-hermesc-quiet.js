@@ -7,66 +7,67 @@
  * function scope where it's used — all of these come from third-party
  * libraries and are expected globals at runtime. They are not actionable.
  *
- * React Native surfaces this via `hermesFlags` in android/app/build.gradle.
- * We append "-w" (disable all Hermes warnings) there so the Android build
- * is as quiet as iOS (where patch-hermesc-quiet-warnings.js does the same).
+ * Expo prebuild writes android/app/build.gradle with hermesFlags commented
+ * out, so this script inserts an active flag list that keeps the React
+ * Native defaults and adds "-w" (disable Hermes warnings).
  */
 const fs = require("fs");
 const path = require("path");
 
-const BUILD_GRADLE = path.join(__dirname, "..", "android", "app", "build.gradle");
+const ANDROID = path.join(__dirname, "..", "android");
+const APP_GRADLE = path.join(ANDROID, "app", "build.gradle");
+const ROOT_GRADLE = path.join(ANDROID, "build.gradle");
 
-const MARKER = "// hermesc-quiet-warnings: patched";
+const HERMES_MARKER = "// hermesc-quiet-warnings: patched";
+const JAVAC_MARKER = "// javac-quiet-notes: patched";
+const HERMES_FLAGS = 'hermesFlags = ["-O", "-output-source-map", "-w"]';
 
-function main() {
-  if (!fs.existsSync(BUILD_GRADLE)) {
+function patchHermesFlags() {
+  if (!fs.existsSync(APP_GRADLE)) {
     console.log("patch-android-hermesc-quiet: android/app/build.gradle missing — skip (run prebuild first)");
     return;
   }
-
-  let src = fs.readFileSync(BUILD_GRADLE, "utf8");
-  if (src.includes(MARKER)) {
-    console.log("patch-android-hermesc-quiet: already patched");
+  let src = fs.readFileSync(APP_GRADLE, "utf8");
+  if (src.includes(HERMES_MARKER) && /hermesFlags\s*=\s*\[[^\]]*"-w"/.test(src)) {
+    console.log("patch-android-hermesc-quiet: hermesFlags already patched");
     return;
   }
 
-  // React Native's default hermesFlags line — append -w to the array.
-  // Pattern matches both single-line and the common multi-line form.
-  const PATTERNS = [
-    // hermesFlags: ["-O", "-output-source-map"]
-    {
-      re: /(hermesFlags\s*:\s*\[)([^\]]*)(\])/,
-      replacement: (_, open, flags, close) => {
-        const cleaned = flags.trim().replace(/,?\s*$/, "");
-        return `${open}${cleaned ? cleaned + ", " : ""}"-w"${close} ${MARKER}`;
-      },
-    },
-    // hermesFlags = ["-O", ...] (Kotlin DSL)
-    {
-      re: /(hermesFlags\s*=\s*listOf\()([^)]*)(\))/,
-      replacement: (_, open, flags, close) => {
-        const cleaned = flags.trim().replace(/,?\s*$/, "");
-        return `${open}${cleaned ? cleaned + ", " : ""}"-w"${close} ${MARKER}`;
-      },
-    },
-  ];
-
-  let patched = false;
-  for (const { re, replacement } of PATTERNS) {
-    if (re.test(src)) {
-      src = src.replace(re, replacement);
-      patched = true;
-      break;
+  const active = src.match(/^(\s*)hermesFlags\s*=\s*\[([^\]]*)\]/m);
+  if (active && !active[0].trim().startsWith("//")) {
+    const indent = active[1];
+    const flags = active[2].includes('"-w"') ? active[2] : `${active[2].trim().replace(/,\s*$/, "")}, "-w"`;
+    src = src.replace(active[0], `${indent}hermesFlags = [${flags}] ${HERMES_MARKER}`);
+  } else {
+    const anchor = /^(\s*)hermesCommand\s*=.*$/m;
+    if (!anchor.test(src)) {
+      console.log("patch-android-hermesc-quiet: hermesCommand not found in build.gradle — skip");
+      return;
     }
+    src = src.replace(anchor, (line) => `${line}\n    ${HERMES_FLAGS} ${HERMES_MARKER}`);
   }
-
-  if (!patched) {
-    console.log("patch-android-hermesc-quiet: hermesFlags not found in build.gradle — skip");
-    return;
-  }
-
-  fs.writeFileSync(BUILD_GRADLE, src);
+  fs.writeFileSync(APP_GRADLE, src);
   console.log("patch-android-hermesc-quiet: added -w to hermesFlags");
 }
 
-main();
+function patchJavacNotes() {
+  if (!fs.existsSync(ROOT_GRADLE)) return;
+  let src = fs.readFileSync(ROOT_GRADLE, "utf8");
+  if (src.includes(JAVAC_MARKER)) {
+    console.log("patch-android-hermesc-quiet: javac notes already patched");
+    return;
+  }
+  src += `
+${JAVAC_MARKER}
+subprojects { subproject ->
+    subproject.tasks.withType(JavaCompile).configureEach {
+        options.compilerArgs.add("-nowarn")
+    }
+}
+`;
+  fs.writeFileSync(ROOT_GRADLE, src);
+  console.log("patch-android-hermesc-quiet: suppressed dependency javac notes");
+}
+
+patchHermesFlags();
+patchJavacNotes();

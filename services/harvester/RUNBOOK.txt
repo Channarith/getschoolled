@@ -85,7 +85,39 @@ ONLINE CRAWL (OER, schools, public data, search engines)
     where it left off. The crawl stops automatically when the queue drains
     (use --keep-waiting to keep the daemon alive waiting for new seeds).
   - Each batch prints a "run" block: pages_total, pages_this_hour, elapsed_min,
-    queue_pending.
+    queue_pending, topics_pending.
+
+MILLION-TOPIC BACKLOG
+  Named --topics only enqueue a handful of search seeds. Paid-demand topics
+  (AI, cloud, cybersecurity, data, trades, finance, certs, and the rest of the
+  catalog) live in the harvest_topics table inside the corpus database. The
+  catalog is larger than one million phrases. Insert them once, then let the
+  daemon claim one topic whenever the URL queue runs low:
+
+    python3 services/harvester/src/harvester/run.py --crawl \\
+      --queue-topics 0 \\
+      --daemon --keep-waiting --per-hour 60 --interval 60 \\
+      --out-dir output/harvest
+
+  --queue-topics 0 inserts the full catalog. A positive number inserts that
+  many. A second run skips topics already stored. topics_pending in the JSON
+  summary is how many are still waiting. The crawl does not fetch a million
+  pages in one sitting; --per-hour still paces it.
+
+  Named university courses (Stanford Engineering Everywhere, CC BY-NC-SA, and
+  Berkeley CS 61A / Data 8 materials that allow reuse) are in
+  seeds/university-courses.jsonl. Pass --seeds so they enqueue at high
+  priority, ahead of the topic backlog:
+
+    python3 services/harvester/src/harvester/run.py --crawl \\
+      --seeds seeds/university-courses.jsonl \\
+      --queue-topics 0 \\
+      --daemon --keep-waiting --per-hour 60 --interval 60 \\
+      --out-dir output/harvest
+
+  Caltech's public courses are not in that file. Learning From Data is
+  CC BY-NC-ND, and the Feynman Lectures are free to read online only. Both
+  forbid the derivative lessons this crawler writes.
 
   Each ingested course lands under output/harvest/courses/<course_id>/ with
   .pptx, .course.json (includes theme: poster, wallpaper, accent), and optional

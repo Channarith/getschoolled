@@ -41,7 +41,7 @@ export default function SearchScreen({
   onOpenSettings,
 }: {
   onBack: () => void;
-  onOpenCourse: (id: string, deepLink?: string) => void;
+  onOpenCourse: (id: string, deepLink?: string, title?: string) => void;
   onOpenSettings: (section?: string) => void;
 }) {
   const { t } = useT();
@@ -99,7 +99,10 @@ export default function SearchScreen({
     })();
 
     return () => { cancelled = true; };
-  }, [debouncedQuery, t]);
+    // `t` is read for settings labels only. Keeping it out of the deps stops a
+    // fresh translator identity from re-running the search on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery]);
 
   const renderItem = ({ item }: { item: ResultItem }) => {
     if (item.kind === "course") {
@@ -108,7 +111,7 @@ export default function SearchScreen({
         <TouchableOpacity
           style={styles.result}
           accessibilityRole="button"
-          onPress={() => onOpenCourse(c.id, c.deep_link)}
+          onPress={() => onOpenCourse(c.source_id || c.id, c.deep_link, c.title)}
         >
           <View style={styles.resultIcon}>
             <Text style={styles.resultIconText}>&#x1F4DA;</Text>

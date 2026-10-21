@@ -188,6 +188,12 @@ export type StringKey =
   | "lesson.reengage" | "lesson.quiz" | "lesson.finish" | "lesson.earned"
   | "lesson.guestFinish" | "lesson.quizTitle" | "lesson.correct" | "lesson.incorrect"
   | "lesson.quizNext"
+  | "adapt.starting" | "adapt.lookedAway" | "adapt.easier" | "adapt.movingAhead"
+  | "adapt.reteach" | "adapt.slowing" | "adapt.staysVisual" | "adapt.staysReading"
+  | "adapt.staysListening" | "adapt.staysPractice"
+  | "adapt.style.visual" | "adapt.style.listening" | "adapt.style.reading"
+  | "adapt.style.practice" | "adapt.style.balanced"
+  | "adapt.pace.slow" | "adapt.pace.moderate" | "adapt.pace.fast"
   | "careers.searchRole" | "careers.searchLocation"
   | "careers.coverage" | "careers.apply" | "careers.tapMatch" | "careers.empty"
   | "home.navWorlds" | "home.navCorporate" | "home.navKids"
@@ -367,6 +373,24 @@ const EN: Record<StringKey, string> = {
   "lesson.correct": "Correct!",
   "lesson.incorrect": "Not quite — review and try the next one.",
   "lesson.quizNext": "Next question",
+  "adapt.starting": "Starting from your profile: {style}, {pace}.",
+  "adapt.lookedAway": "You looked away, so this part slows down.",
+  "adapt.easier": "The next check will be easier.",
+  "adapt.movingAhead": "You're keeping up, so we're moving ahead.",
+  "adapt.reteach": "Let's go over that once more before the next slide.",
+  "adapt.slowing": "Taking this more slowly.",
+  "adapt.staysVisual": "You've stayed with the pictures, so this part stays visual.",
+  "adapt.staysReading": "You've stayed with the text, so this part stays in writing.",
+  "adapt.staysListening": "You've been speaking along, so this part stays spoken.",
+  "adapt.staysPractice": "You've been practicing, so this part stays hands-on.",
+  "adapt.style.visual": "pictures first",
+  "adapt.style.listening": "listening first",
+  "adapt.style.reading": "reading first",
+  "adapt.style.practice": "practice first",
+  "adapt.style.balanced": "a balanced mix",
+  "adapt.pace.slow": "a slower pace",
+  "adapt.pace.moderate": "steady pace",
+  "adapt.pace.fast": "a quicker pace",
 
   "rail.continue": "Continue listening",
   "rail.continueSub": "Pick up where you left off.",

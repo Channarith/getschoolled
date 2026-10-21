@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import {
-  Animated, Pressable, type PressableProps, type StyleProp, type ViewStyle,
+  Animated, Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle,
 } from "react-native";
 
 import { theme } from "../theme";
@@ -20,6 +20,7 @@ export default function AnimatedPressable({
   return (
     <Pressable
       {...rest}
+      style={[styles.hit, style]}
       onPressIn={(e) => {
         Animated.spring(scale, {
           toValue: scaleTo,
@@ -39,9 +40,13 @@ export default function AnimatedPressable({
         onPressOut?.(e);
       }}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }]}>
+      <Animated.View style={{ transform: [{ scale }] }} pointerEvents="none">
         {children}
       </Animated.View>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  hit: { alignItems: "center", justifyContent: "center" },
+});

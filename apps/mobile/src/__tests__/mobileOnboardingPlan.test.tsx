@@ -3,6 +3,12 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 
 import MobileOnboardingPlanStep from "../components/MobileOnboardingPlanStep";
 
+jest.mock("../components/MobileMascotMeshy", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return { __esModule: true, default: () => React.createElement(View, { testID: "mobile-mascot-meshy" }) };
+});
+
 jest.mock("../components/KenBurnsImage", () => {
   const React = require("react");
   const { View } = require("react-native");

@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 
 from aoep_shared.rag import RagIndex
+from aoep_shared.harvest import SQLiteAcquisitionQueue, validate_rights
 from aoep_shared.scene import (
     ExtractedObject,
     Layer,
@@ -79,6 +80,9 @@ app = create_service("curriculum")
 app.state.decks = DeckStore()
 app.state.scenes = {}
 app.state.catalog = CatalogStore(path=os.environ.get("CATALOG_PATH") or None)
+app.state.acquisition_queue = SQLiteAcquisitionQueue(
+    os.environ.get("CATALOG_ACQUISITION_QUEUE") or "/tmp/aoep_catalog_acquisition.db"
+)
 
 # Populate the /corporate funnel out of the box (mirrors the audio catalog
 # bridge's empty-store fallback; disable with SEED_CORPORATE_PROGRAMS=0).
@@ -401,8 +405,13 @@ def create_course(req: CreateCourseRequest) -> Course:
 
 
 @app.get("/courses", response_model=list[Course])
-def list_courses() -> list[Course]:
-    return app.state.catalog.list_courses()
+def list_courses(limit: int = 100, offset: int = 0, response: Response = None) -> list[Course]:
+    courses = app.state.catalog.list_courses()
+    bounded_limit = min(max(limit, 1), 200)
+    if response is not None:
+        response.headers["X-Total-Count"] = str(len(courses))
+        response.headers["X-Limit"] = str(bounded_limit)
+    return courses[max(0, offset):max(0, offset) + bounded_limit]
 
 
 @app.get("/courses/search", response_model=list[Course])
@@ -1003,6 +1012,12 @@ class RecommendRequest(BaseModel):
     completed_course_ids: list[str] = []
     interests: list[str] = []
     top_n: int = 5
+    profile_score: str = ""
+    primary_style: str = ""
+    pace: str = ""
+    session_length: str = ""
+    reading_level: str = ""
+    live_style: str = ""
 
 
 def _course_duration_min(course_id: str) -> int:
@@ -1028,7 +1043,7 @@ def recommend(req: RecommendRequest) -> dict:
     """
     from aoep_shared.foresight import StudentProfile
 
-    from .recommend_service import run_recommend
+    from .recommend_service import LearnerHints, run_recommend
 
     courses = app.state.catalog.list_courses()
     profile = StudentProfile(
@@ -1037,7 +1052,15 @@ def recommend(req: RecommendRequest) -> dict:
         completed_course_ids=req.completed_course_ids or [],
         interests=req.interests or [],
     )
-    return run_recommend(profile, courses, top_n=req.top_n)
+    hints = LearnerHints(
+        profile_score=req.profile_score,
+        primary_style=req.primary_style,
+        pace=req.pace,
+        session_length=req.session_length,
+        reading_level=req.reading_level,
+        live_style=req.live_style,
+    )
+    return run_recommend(profile, courses, top_n=req.top_n, hints=hints)
 
 
 @app.get("/courses/{course_id}/ad-breaks")
@@ -1134,6 +1157,53 @@ def delete_course(course_id: str) -> dict:
     return {"deleted": course_id}
 
 
+class LessonClipRequest(BaseModel):
+    topic: str
+    language: str = "en"
+    duration_sec: int = 30
+    source_url: str = ""
+    references: list[dict] = []
+
+
+def _lesson_clips(req: LessonClipRequest) -> dict:
+    from aoep_shared.video_clips import build_lesson_clips
+
+    topic = (req.topic or "").strip()
+    if not topic:
+        raise HTTPException(status_code=422, detail="topic is required")
+    return build_lesson_clips(
+        topic=topic,
+        language=req.language,
+        duration_sec=req.duration_sec,
+        source_url=req.source_url,
+        references=req.references,
+    )
+
+
+@app.post("/clips")
+def build_clips(req: LessonClipRequest) -> dict:
+    """Build a short clip list. YouTube/online results are metadata only."""
+    return _lesson_clips(req)
+
+
+@app.post("/courses/{course_id}/clips", dependencies=[Depends(require_internal)])
+def attach_course_clips(course_id: str, req: LessonClipRequest) -> dict:
+    """Attach a clip to the course trailer the catalog player already reads."""
+    if app.state.catalog.get_course(course_id) is None:
+        raise HTTPException(status_code=404, detail="unknown course")
+    built = _lesson_clips(req)
+    trailer = built.get("trailer_url") or None
+    updated = app.state.catalog.patch_course(
+        course_id,
+        trailer_url=trailer,
+        media_format="video",
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="unknown course")
+    built["course_id"] = course_id
+    return built
+
+
 class CreateProgramRequest(BaseModel):
     title: str
     audience: str = ""
@@ -1141,19 +1211,29 @@ class CreateProgramRequest(BaseModel):
     course_ids: list[str] = []
     adaptive_rules: dict = {}
     delivery_mode: DeliveryMode = DeliveryMode.AI
+    category_slug: str = ""
+    lifecycle_state: str = "published"
 
 
 @app.post("/programs", response_model=Program, dependencies=[Depends(require_internal)])
 def create_program(req: CreateProgramRequest) -> Program:
+    missing = [course_id for course_id in req.course_ids if app.state.catalog.get_course(course_id) is None]
+    if missing:
+        raise HTTPException(status_code=422, detail={"missing_course_ids": missing})
     return app.state.catalog.create_program(Program(**req.model_dump()))
 
 
 @app.get("/programs", response_model=list[Program])
-def list_programs(audience: str | None = None) -> list[Program]:
+def list_programs(audience: str | None = None, limit: int = 100, offset: int = 0,
+                  response: Response = None) -> list[Program]:
     progs = app.state.catalog.list_programs()
     if audience:
         progs = [p for p in progs if audience.lower() in (p.audience or "").lower()]
-    return progs
+    bounded_limit = min(max(limit, 1), 200)
+    if response is not None:
+        response.headers["X-Total-Count"] = str(len(progs))
+        response.headers["X-Limit"] = str(bounded_limit)
+    return progs[max(0, offset):max(0, offset) + bounded_limit]
 
 
 @app.get("/programs/{program_id}", response_model=Program)
@@ -1169,6 +1249,95 @@ def delete_program(program_id: str) -> dict:
     if not app.state.catalog.delete_program(program_id):
         raise HTTPException(status_code=404, detail="unknown program")
     return {"deleted": program_id}
+
+
+class CreateAcquisitionJobRequest(BaseModel):
+    category_slug: str
+    source_uri: str
+    sha256: str
+    license: str = ""
+    rights_assertion: str = ""
+    source_type: str = "text"
+    title: str = ""
+    priority: int = 0
+
+
+@app.post("/catalog/acquisition/jobs", dependencies=[Depends(require_internal)])
+def create_acquisition_job(req: CreateAcquisitionJobRequest) -> dict:
+    """Register a rights-verified source for a category-specific worker."""
+    if not req.category_slug.strip() or not req.source_uri.strip() or not req.sha256.strip():
+        raise HTTPException(status_code=422, detail="category_slug, source_uri, and sha256 are required")
+    if not validate_rights(license=req.license, rights_assertion=req.rights_assertion):
+        raise HTTPException(status_code=422, detail="source must be open licensed or rights asserted")
+    payload = {
+        "source_uri": req.source_uri, "sha256": req.sha256, "license": req.license,
+        "rights_assertion": req.rights_assertion, "source_type": req.source_type, "title": req.title,
+    }
+    queued = app.state.acquisition_queue.enqueue(
+        category_slug=req.category_slug.strip(), payload=payload, priority=req.priority,
+    )
+    return {"queued": queued, "category_slug": req.category_slug}
+
+
+@app.get("/catalog/acquisition/status", dependencies=[Depends(require_internal)])
+def acquisition_status(category_slug: str | None = None) -> dict:
+    return {"category_slug": category_slug, "states": app.state.acquisition_queue.status(category_slug=category_slug)}
+
+
+class PromoteAcquiredCourseRequest(BaseModel):
+    course_id: str
+    title: str
+    subject: str
+    source_fingerprint: str
+    source: str = ""
+    description: str = ""
+    quality_grade: str
+
+
+class PromoteAcquisitionRequest(BaseModel):
+    title: str
+    category_slug: str
+    audience: str = ""
+    description: str = ""
+    courses: list[PromoteAcquiredCourseRequest]
+    approved_by: str = ""
+    required_topics: list[str] = []
+
+
+@app.post("/catalog/acquisition/promote", response_model=Program, dependencies=[Depends(require_internal)])
+def promote_acquisition(req: PromoteAcquisitionRequest) -> Program:
+    """Promote human-approved, deduplicated staged courses into one program."""
+    if not req.approved_by.strip():
+        raise HTTPException(status_code=422, detail="approved_by is required")
+    if not 1 <= len(req.courses) <= 60:
+        raise HTTPException(status_code=422, detail="programs require between 1 and 60 courses")
+    covered_topics = {course.subject.strip().lower() for course in req.courses}
+    missing_topics = [topic for topic in req.required_topics if topic.strip().lower() not in covered_topics]
+    if missing_topics:
+        raise HTTPException(status_code=422, detail={"missing_required_topics": missing_topics})
+    course_ids: list[str] = []
+    for staged in req.courses:
+        if staged.quality_grade.upper() in {"D", "F"}:
+            raise HTTPException(status_code=422, detail=f"course {staged.course_id} failed quality review")
+        duplicate = next(
+            (course for course in app.state.catalog.list_courses()
+             if course.source_fingerprint == staged.source_fingerprint),
+            None,
+        )
+        if duplicate is not None and duplicate.course_id != staged.course_id:
+            raise HTTPException(status_code=409, detail=f"duplicate source fingerprint: {staged.source_fingerprint}")
+        course = Course(
+            course_id=staged.course_id, title=staged.title, subject=staged.subject,
+            description=staged.description, source=staged.source,
+            source_fingerprint=staged.source_fingerprint, lifecycle_state="published",
+            validation_status="validated", reviewed_by=req.approved_by,
+        )
+        app.state.catalog.upsert_course(course)
+        course_ids.append(staged.course_id)
+    return app.state.catalog.create_program(Program(
+        title=req.title, audience=req.audience, description=req.description,
+        course_ids=course_ids, category_slug=req.category_slug, lifecycle_state="published",
+    ))
 
 
 @app.get("/catalog")

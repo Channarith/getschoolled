@@ -278,10 +278,10 @@ class AccountStore:
         self._submitted_game_ids.pop(account_id, None)
         self._persist()
 
-    def _persist(self) -> None:
+    def _persist(self, *account_ids: str) -> None:
         from .persistence import persist_hook
 
-        persist_hook(self)
+        persist_hook(self, account_ids or None)
 
     def list_all_accounts(self) -> List[Account]:
         """All accounts (operator/admin tooling)."""
@@ -305,7 +305,7 @@ class AccountStore:
         )
         self._by_id[acct.id] = acct
         self._id_by_email[email] = acct.id
-        self._persist()
+        self._persist(acct.id)
         return acct
 
     def seed_account(
@@ -481,7 +481,7 @@ class AccountStore:
         ))
         if len(acct.login_events) > 50:
             acct.login_events = acct.login_events[-50:]
-        self._persist()
+        self._persist(account_id)
 
     def login_history(self, account_id: str, limit: int = 20) -> List[dict]:
         acct = self._by_id.get(account_id)
@@ -634,7 +634,7 @@ class AccountStore:
     def complete_onboarding(self, account_id: str) -> Account:
         acct = self._by_id[account_id]
         acct.onboarding_completed_at = time.time()
-        self._persist()
+        self._persist(account_id)
         return acct
 
     def patch_account(self, account_id: str, **fields) -> Account:
@@ -1081,7 +1081,7 @@ class AccountStore:
         prof = StudentProfile(display_name=display_name, age_band=age_band,
                               interests=list(interests or []))
         acct.students[prof.id] = prof
-        self._persist()
+        self._persist(account_id)
         return prof
 
     def upsert_primary_learner(self, account_id: str, display_name: str,
@@ -1375,6 +1375,10 @@ class AccountStore:
             if payload.get("timeline"):
                 prof.goal_timeline = str(payload["timeline"])
             adapt.profile_revision += 1
+        elif et == "live_emphasis":
+            style = str(payload.get("style") or "").strip().lower()
+            if style in {"visual", "reading", "listening", "practice"}:
+                raw["live_style"] = style
         elif et == "readiness":
             dims = payload.get("readiness_dimensions") or payload.get("lx_components")
             if isinstance(dims, dict):
@@ -1387,14 +1391,17 @@ class AccountStore:
             if "lx_score" in payload:
                 adapt.record_lx_sample(float(payload["lx_score"]))
         prof.adaptation = adapt.to_dict()
-        # Preserve readiness fields that the adaptation dataclass does not own.
+        # Preserve fields the adaptation dataclass does not own.
+        merged = dict(prof.adaptation or {})
+        if raw.get("live_style"):
+            merged["live_style"] = raw["live_style"]
         if et == "readiness":
-            merged = dict(prof.adaptation or {})
             if "readiness_dimensions" in raw:
                 merged["readiness_dimensions"] = raw["readiness_dimensions"]
                 merged["lx_components"] = raw.get("lx_components") or raw["readiness_dimensions"]
             if "physical_skill" in raw:
                 merged["physical_skill"] = raw["physical_skill"]
+        if merged != prof.adaptation:
             prof.adaptation = merged
         self._persist()
         return prof
@@ -1462,7 +1469,10 @@ class AccountStore:
 
         prof = self._student_or_raise(account_id, student_id)
         prof.biometric_setup = normalize_setup_state(setup).model_dump()
-        self._persist()
+        # This endpoint is invoked on every learner-check transition.  Saving
+        # every account makes a single student's setup write grow linearly
+        # with the whole identity store and can exhaust the gateway timeout.
+        self._persist(account_id)
         return prof
 
     def enroll_voice(
@@ -1485,7 +1495,7 @@ class AccountStore:
         prof.voice_name_sample_mime = ""
         prof.voice_name_text = voice_name_text
         prof.voice_enrolled_at = time.time()
-        self._persist()
+        self._persist(account_id)
         return prof
 
     @staticmethod

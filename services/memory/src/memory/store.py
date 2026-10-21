@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 
-from aoep_shared.adaptive import LearnerSignals, signals_from_events
+from aoep_shared.adaptive import LearnerSignals, signals_from_events, unit_score
 from aoep_shared.knowledge import BayesianKnowledgeTracing
 from aoep_shared.schemas import ConsentRecord, ConsentScope
 
@@ -27,6 +27,7 @@ class TopicBehavior:
     quiz_outcomes: list[bool] = field(default_factory=list)
     response_latencies_s: list[float] = field(default_factory=list)
     attention_samples: list[float] = field(default_factory=list)
+    pronunciation_scores: list[float] = field(default_factory=list)
     questions_asked: int = 0
     slides_seen: int = 0
 
@@ -126,6 +127,7 @@ class MemoryStore:
         attention: float | None = None,
         asked_question: bool = False,
         saw_slide: bool = False,
+        pronunciation_score: float | None = None,
     ) -> None:
         """Record raw learning-behavior events that feed the adaptive policy."""
         # BUG 14 FIX: hold the lock for the student lookup + behavior update so
@@ -148,6 +150,10 @@ class MemoryStore:
                 beh.attention_samples.append(attention)
                 if len(beh.attention_samples) > _MAX_BEHAVIOR_EVENTS:
                     beh.attention_samples = beh.attention_samples[-_MAX_BEHAVIOR_EVENTS:]
+            if pronunciation_score is not None:
+                beh.pronunciation_scores.append(unit_score(pronunciation_score))
+                if len(beh.pronunciation_scores) > _MAX_BEHAVIOR_EVENTS:
+                    beh.pronunciation_scores = beh.pronunciation_scores[-_MAX_BEHAVIOR_EVENTS:]
             if asked_question:
                 beh.questions_asked += 1
             if saw_slide:
@@ -201,7 +207,19 @@ class MemoryStore:
             quiz_outcomes=beh.quiz_outcomes,
             response_latencies_s=beh.response_latencies_s,
             attention_samples=beh.attention_samples,
+            pronunciation_scores=beh.pronunciation_scores,
             questions_asked=beh.questions_asked,
             slides_seen=max(1, beh.slides_seen),
             topic_mastery=mastery,
         )
+
+    def behavior_evidence(self, student_id: str, topic: str) -> dict:
+        """How much live camera and spoken-practice evidence backs the signals."""
+        mem = self._students.get(student_id)
+        beh = mem.behavior.get(topic, TopicBehavior()) if mem else TopicBehavior()
+        pron = beh.pronunciation_scores[-10:]
+        return {
+            "attention_samples": len(beh.attention_samples),
+            "pronunciation_samples": len(beh.pronunciation_scores),
+            "pronunciation_mean": (sum(pron) / len(pron)) if pron else None,
+        }

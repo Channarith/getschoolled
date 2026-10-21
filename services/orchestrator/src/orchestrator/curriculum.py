@@ -40,6 +40,7 @@ class Slide(BaseModel):
     storyboard_profile_mode: str = "mixed"
     storyboard_source_language: str = "en"
     storyboard_translation_ready: bool = False
+    storyboard_format: str = ""
 
 
 class KSBItem(BaseModel):

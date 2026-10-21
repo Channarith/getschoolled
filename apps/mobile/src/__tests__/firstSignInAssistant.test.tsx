@@ -16,7 +16,7 @@ jest.mock("../components/KenBurnsImage", () => {
 // MascotActor spins Animated loops - stub it out for walker/age tests so
 // Jest doesn't fire act() warnings over something unrelated to the behavior
 // under test. Dedicated coverage lives in mascotActor.test.tsx.
-jest.mock("../components/MascotActor", () => {
+jest.mock("../components/MobileMascotMeshy", () => {
   const React = require("react");
   const { View } = require("react-native");
   return {

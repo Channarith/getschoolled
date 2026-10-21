@@ -22,13 +22,14 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import csv
 from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 SUPPORTED_SOURCE_TYPES: Tuple[str, ...] = (
-    "text", "html", "url", "pdf", "pptx", "docx", "database",
+    "text", "csv", "html", "url", "pdf", "pptx", "docx", "database",
 )
 
 _HEADING_HINT = re.compile(r"^(chapter|section|unit|lesson|part|module)\b", re.IGNORECASE)
@@ -94,6 +95,17 @@ def extract_text(text: str, *, default_title: str = "Untitled") -> ExtractedDoc:
     flush()
     return ExtractedDoc(title=title, source_type="text",
                         sections=[s for s in sections if s[1]])
+
+
+def extract_csv(text: str, *, default_title: str = "Untitled") -> ExtractedDoc:
+    """Turn rows into small, reviewable source sections without formula execution."""
+    rows = csv.DictReader(text.splitlines())
+    sections: List[Tuple[str, str]] = []
+    for index, row in enumerate(rows, start=1):
+        values = [str(value).strip() for value in row.values() if value]
+        if values:
+            sections.append((values[0] or f"Row {index}", " ".join(values)))
+    return ExtractedDoc(title=default_title, source_type="csv", sections=sections)
 
 
 # --------------------------------------------------------------------------- #
@@ -309,6 +321,8 @@ def extract(source_type: str, data, *, default_title: str = "Untitled", **kwargs
     st = (source_type or "text").lower()
     if st == "text":
         return extract_text(_as_text(data), default_title=default_title)
+    if st == "csv":
+        return extract_csv(_as_text(data), default_title=default_title)
     if st in ("html", "url"):
         return extract_html(_as_text(data), default_title=default_title)
     if st == "pdf":
@@ -328,7 +342,7 @@ def extract_file(path: str, *, source_type: Optional[str] = None,
     p = Path(path)
     st = source_type or _infer_source_type(p)
     title = default_title or p.stem
-    if st in ("text", "html", "url"):
+    if st in ("text", "csv", "html", "url"):
         return extract(st, p.read_text(encoding="utf-8", errors="replace"), default_title=title)
     return extract(st, p.read_bytes(), default_title=title)
 
@@ -339,6 +353,7 @@ def _infer_source_type(path: Path) -> str:
         "pdf": "pdf", "pptx": "pptx", "ppt": "pptx",
         "docx": "docx", "doc": "docx",
         "html": "html", "htm": "html",
+        "csv": "csv",
         "txt": "text", "md": "text", "rst": "text",
         "db": "database", "sqlite": "database", "sqlite3": "database",
     }.get(ext, "text")

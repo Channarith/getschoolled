@@ -1155,6 +1155,7 @@ export function startLessonSession(
   lessonId: string,
   studentId?: string,
   classType: "solo" | "group" = "group",
+  profile?: { profileScore?: string; sessionLength?: string; liveStyle?: string },
 ): Promise<LessonSessionView> {
   return get<LessonSessionView>(ORCHESTRATOR_URL, "/api/sessions", {
     method: "POST",
@@ -1163,6 +1164,9 @@ export function startLessonSession(
       lesson_id: lessonId,
       class_type: classType,
       student_id: studentId ?? null,
+      profile_score: profile?.profileScore || "",
+      session_length: profile?.sessionLength || "",
+      live_style: profile?.liveStyle || "",
     }),
   });
 }
@@ -1697,6 +1701,8 @@ export type QuizGrade = {
 export type Reengagement = { text: string; citations: string[]; prompt?: string };
 export type LxTickResult = {
   strategy?: string; pacing?: string; difficulty?: string; wellness_nudge?: string;
+  learner_line_key?: string; learner_line_style?: string; learner_line_pace?: string;
+  teaching_strategy?: string; reteach?: boolean;
 };
 export type LangInfo = {
   code: string; name: string; native: string; flag: string; tier: string; phrase_count: number;
@@ -2083,6 +2089,13 @@ export async function recordAssessmentPass(
   });
 }
 
+export function getStudentAdaptation(studentId: string): Promise<{
+  adaptation: Record<string, unknown>;
+  learning_pace?: string;
+}> {
+  return get(IDENTITY_URL, `/students/${encodeURIComponent(studentId)}/adaptation`);
+}
+
 export function directorLxTick(body: Record<string, unknown>): Promise<LxTickResult> {
   return get(ORCHESTRATOR_URL, "/director/lx-tick", {
     method: "POST",
@@ -2183,6 +2196,50 @@ export async function pronounce(target: string, heard: string, mouthOpenness?: n
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ target, heard, mouth_openness: mouthOpenness ?? null }),
+  });
+}
+
+export function pronunciationUnit(score: number): number {
+  if (!Number.isFinite(score)) return 0;
+  const unit = score > 1 ? score / 100 : score;
+  return Math.max(0, Math.min(1, unit));
+}
+
+export async function recordBehavior(event: {
+  student_id: string;
+  topic: string;
+  quiz_correct?: boolean | null;
+  attention?: number | null;
+  asked_question?: boolean;
+  saw_slide?: boolean;
+  pronunciation_score?: number | null;
+}): Promise<{ recorded: boolean }> {
+  return get(MEMORY_URL, "/behavior", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(event),
+  });
+}
+
+export async function recordPronunciationScore(
+  topic: string,
+  score: number,
+  studentId?: string,
+): Promise<void> {
+  let sid = (studentId || "").trim();
+  if (!sid) {
+    try {
+      const listed = await listStudents();
+      sid = listed.students?.[0]?.id || "";
+    } catch {
+      return;
+    }
+  }
+  if (!sid || !topic) return;
+  await recordBehavior({
+    student_id: sid,
+    topic,
+    pronunciation_score: pronunciationUnit(score),
   });
 }
 

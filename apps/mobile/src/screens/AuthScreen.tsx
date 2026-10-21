@@ -14,7 +14,8 @@ import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import KenBurnsImage from "../components/KenBurnsImage";
 import GlassPanel from "../components/GlassPanel";
-import MascotActor, { type MascotPointDirection } from "../components/MascotActor";
+import MobileMascotMeshy from "../components/MobileMascotMeshy";
+import { type MascotPointDirection } from "../components/MascotActor";
 import PrimaryButton from "../components/PrimaryButton";
 import { DEPLOY_MODE, QA_TEST_ACCOUNTS } from "../config";
 import { LANGUAGES, languageInfo, useT } from "../i18n";
@@ -228,18 +229,15 @@ export default function AuthScreen({
         </View>
 
         {/*
-          Mascot fly-in on the sign-in / create-account page. Only shown in
-          setup mode (first-time users on the onboarding assistant) — regular
-          sign-in keeps the clean legacy look. The mascot points at the primary
-          CTA (down on phone layouts; sideways on tablet) and starts the
-          onboarding "feels alive" effect that continues through the setup
-          assistant.
+          Meshy mascot on the create-account page. Setup mode only — regular
+          sign-in keeps the clean legacy look. The GLB plays Big Wave Hello
+          (the same clip as the web setup assistant) above the form.
         */}
         {setup ? (
           <View style={styles.setupMascotRow} pointerEvents="none">
-            <MascotActor
+            <MobileMascotMeshy
               scene={{ kind: "flyin-point", pointAt: pointDirection, delay: 200 }}
-              size={140}
+              style={styles.setupMascotStage}
             />
           </View>
         ) : null}
@@ -502,6 +500,10 @@ const styles = StyleSheet.create({
   setupMascotRow: {
     alignItems: "center",
     marginBottom: 12,
+  },
+  setupMascotStage: {
+    width: 230,
+    height: 230,
   },
   backBtn: { paddingHorizontal: theme.spacing.screenX, paddingTop: 8 },
   backText: { color: "rgba(255,255,255,0.7)", fontSize: 16 },

@@ -9,16 +9,32 @@
 export type CatalogRoute =
   | { kind: "kidsLesson"; courseId: string }
   | { kind: "game"; subject: string }
+  | { kind: "lesson"; lessonId: string }
   | { kind: "drive"; courseId: string };
+
+function queryValue(link: string, key: string): string {
+  const match = link.match(new RegExp(`[?&]${key}=([^&]+)`));
+  return match ? decodeURIComponent(match[1]) : "";
+}
 
 export function routeForCatalogItem(id: string, deepLink?: string): CatalogRoute {
   const link = (deepLink || "").trim();
 
-  const kidsLesson = link.match(/^\/kids\/learn\?course=([^&]+)/);
-  if (kidsLesson) return { kind: "kidsLesson", courseId: decodeURIComponent(kidsLesson[1]) };
+  const kidsCourse = link.startsWith("/kids/learn") ? queryValue(link, "course") : "";
+  if (kidsCourse) return { kind: "kidsLesson", courseId: kidsCourse };
 
-  const arcade = link.match(/^\/arcade\?subject=([^&]+)/);
-  if (arcade) return { kind: "game", subject: decodeURIComponent(arcade[1]) };
+  const subject = link.startsWith("/arcade") ? queryValue(link, "subject") : "";
+  if (subject) return { kind: "game", subject };
+
+  // Live classes (CPR and the rest of the lesson catalog) are not audio courses.
+  // Sending them to Drive leaves the player spinning on an id it cannot load.
+  const lessonId = link.startsWith("/class") || link.startsWith("/corporate/learn")
+    ? queryValue(link, "lesson")
+    : "";
+  if (lessonId) return { kind: "lesson", lessonId };
+
+  const driveCourse = link.startsWith("/drive") ? queryValue(link, "course") : "";
+  if (driveCourse) return { kind: "drive", courseId: driveCourse };
 
   return { kind: "drive", courseId: id };
 }

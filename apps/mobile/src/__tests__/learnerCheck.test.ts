@@ -201,6 +201,14 @@ describe("Learner Check helpers (native)", () => {
     expect(problem.message).toContain("pose left missing");
   });
 
+  it("keeps the face-service reason when perception is down", () => {
+    const problem = faceEnrollmentProblem(Object.assign(
+      new Error("face landmarks are not available"),
+      { status: 503 },
+    ));
+    expect(problem.message).toContain("face landmarks are not available");
+  });
+
   it("reads a live frame as a look, not a still the learner has to retake", () => {
     expect(liveFrameAction(0, true, false, null, null, null)).toBe("none");
     expect(liveFrameAction(2, true, false, null, null, null)).toBe("one");
@@ -220,5 +228,10 @@ describe("Learner Check helpers (native)", () => {
   it("fingerprints stills to block obvious duplicate uploads", () => {
     expect(stillFingerprint("abc123")).toBe(stillFingerprint("abc123"));
     expect(stillFingerprint("abc123")).not.toBe(stillFingerprint("xyz999"));
+    const header = "/9j/4AAQSkZJRgABAQAAAQABAAD/".repeat(4);
+    const neutral = `${header}${"neutral-portrait-scan-bytes-aaaa".repeat(8)}`;
+    const lookUp = `${header}${"look-up-pose-scan-bytes-bbbbbbbb".repeat(8)}`;
+    expect(neutral.slice(0, 96)).toBe(lookUp.slice(0, 96));
+    expect(stillFingerprint(neutral)).not.toBe(stillFingerprint(lookUp));
   });
 });

@@ -60,6 +60,7 @@ import { createVisionEngine, type VisionEngine } from "../../lib/vision";
 import CameraLightingScreener from "../../components/CameraLightingScreener";
 import CameraQualityGateOverlay from "../../components/CameraQualityGateOverlay";
 import CourseStoryboardPlayer from "../../components/CourseStoryboardPlayer";
+import ModalityMixScore, { modalityLabel } from "../../components/ModalityMixScore";
 import {
   DEFAULT_LIGHTING_THRESHOLDS,
   NIGHT_VISION_THRESHOLDS,
@@ -390,6 +391,7 @@ function ParticipantTile({
   liveKitTrack,
   hasFloor,
   slide,
+  modalityMix,
   onContainerRef,
   fullscreenControls,
   cornerOverlay,
@@ -410,6 +412,7 @@ function ParticipantTile({
   liveKitTrack?: MediaStreamTrack | null;
   hasFloor?: boolean;
   slide?: LiveRoomState["slide"] | null;
+  modalityMix?: LiveRoomState["modality_mix"];
   // Lets the parent grab this tile's element (e.g. to fullscreen the host).
   onContainerRef?: (el: HTMLDivElement | null) => void;
   // Native fullscreen only renders descendants of the fullscreen element, so
@@ -590,6 +593,7 @@ function ParticipantTile({
             >
               Slide {slide.index + 1}
             </div>
+            <ModalityMixScore mix={modalityMix} slideFormat={slide.storyboard_format} />
             <div
               style={{
                 fontSize: fullscreen ? "clamp(32px, 7vw, 88px)" : large ? 30 : 20,
@@ -627,7 +631,10 @@ function ParticipantTile({
                 sceneId={slide.storyboard_scene_id}
                 fullscreen={fullscreen}
                 captions={captionsOn}
+                formatName={modalityLabel(slide.storyboard_format)}
               />
+            ) : slide.storyboard_activity ? (
+              <p data-testid="modality-activity">{slide.storyboard_activity}</p>
             ) : null}
             <div
               aria-hidden
@@ -3262,6 +3269,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   fullscreen={isFullscreen}
                   localStream={iAmHost && cameraOn ? localStream : null}
                   liveKitTrack={iAmHost && cameraOn ? null : trackFor(host.id)}
+                  modalityMix={room?.modality_mix}
                   slide={!room?.presenting && room?.welcome_message ? {
                     index: 0,
                     title: humanTaught ? `Welcome to ${room.title}` : "Welcome to Transparent AI",

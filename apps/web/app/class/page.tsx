@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "../lib/i18n";
 import {
+  canonicalStyle,
+  emptyEmphasisVotes,
+  formatAdaptLine,
+  noteEmphasis,
+  type AdaptTick,
+  type Emphasis,
+} from "../lib/adaptationLine";
+import {
   advance,
   ask,
   askStream,
@@ -23,7 +31,11 @@ import {
   listLessons,
   listStudents,
   getMe,
+  directorLxTick,
+  getStudentAdaptation,
   pronounce,
+  recordAdaptationEvent,
+  recordPronunciationScore,
   reengage,
   recordAssessmentAttempt,
   recordAssessmentPass,
@@ -63,6 +75,7 @@ import { FullCourseLinks } from "../components/FullCourseLinks";
 import AiPresenter from "../components/AiPresenter";
 import AssessmentCheckpointPanel from "../components/AssessmentCheckpointPanel";
 import CourseStoryboardPlayer from "../components/CourseStoryboardPlayer";
+import ModalityMixScore, { modalityLabel } from "../components/ModalityMixScore";
 import VideoAdBreak from "../components/VideoAdBreak";
 import { useCourseAds, effectiveAdTier } from "../lib/useCourseAds";
 import { buildNarrationSpeakOptions } from "../lib/narrationTts";
@@ -99,9 +112,12 @@ function difficultyStyle(d: string): { background: string; color: string; border
 
 export default function ClassPage() {
   const router = useRouter();
-  const { locale } = useT();
+  const { locale, t } = useT();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string>("");
+  // Set when the page was opened as /class?lesson=<id> (search, rails).
+  const requestedLessonRef = useRef("");
+  const autoStartedRef = useRef(false);
   // The Live Class page is always a Solo (1:1) live room with the AI. Group
   // classes live under their own "Group Classes" section, so no mode selector
   // is shown here.
@@ -153,6 +169,11 @@ export default function ClassPage() {
   const [quiz, setQuiz] = useState<QuizItemView[] | null>(null);
   const [quizIdx, setQuizIdx] = useState(0);
   const [quizDifficulty, setQuizDifficulty] = useState<string>("");
+  const [adaptTick, setAdaptTick] = useState<AdaptTick | null>(null);
+  const [liveEmphasis, setLiveEmphasis] = useState<Emphasis | "">("");
+  const liveStyleRef = useRef("");
+  const surveyStyleRef = useRef("balanced");
+  const emphasisVotesRef = useRef(emptyEmphasisVotes());
   const [quizPick, setQuizPick] = useState<number | null>(null);
   const [quizGrade, setQuizGrade] = useState<QuizGrade | null>(null);
   const [heard, setHeard] = useState("");
@@ -174,7 +195,18 @@ export default function ClassPage() {
     setLoggedIn(Boolean(getToken()));
     if (getToken()) {
       getMe().then((a) => setTier((a.tier || "basic").toLowerCase())).catch(() => {});
-      listStudents().then((r) => setStudentProfile(r.students[0] ?? null)).catch(() => {});
+      listStudents().then((r) => {
+        const first = r.students[0] ?? null;
+        setStudentProfile(first);
+        surveyStyleRef.current = canonicalStyle(first?.primary_style);
+        if (!first?.id) return;
+        getStudentAdaptation(first.id).then((prof) => {
+          const saved = String(prof.adaptation?.live_style || "");
+          if (!saved) return;
+          liveStyleRef.current = saved;
+          setLiveEmphasis(saved as Emphasis);
+        }).catch(() => {});
+      }).catch(() => {});
     }
     getXaiVoiceStatus()
       .then((s) => {
@@ -182,10 +214,13 @@ export default function ClassPage() {
         setXaiVoiceHint(s.hint || "");
       })
       .catch(() => setXaiVoiceReady(false));
+    const wanted = new URLSearchParams(window.location.search).get("lesson")?.trim() || "";
+    requestedLessonRef.current = wanted;
     listLessons()
       .then((ls) => {
         setLessons(ls);
-        if (ls.length) setLessonId(ls[0].lesson_id);
+        if (wanted) setLessonId(wanted);
+        else if (ls.length) setLessonId(ls[0].lesson_id);
       })
       .catch((e) => setError(String(e)));
     getDisclosure()
@@ -362,7 +397,24 @@ export default function ClassPage() {
       setHeard(said);
       setListening(false);
       try { rec.stop(); } catch { /* */ }
-      pronounce(target, said).then(setPron).catch((err) => setError(String(err)));
+      pronounce(target, said)
+        .then((result) => {
+          setPron(result);
+          const sid = studentProfile?.id || "";
+          const topic = view?.lesson.title || "";
+          if (sid && topic) {
+            void recordPronunciationScore(topic, result.score, sid).catch(() => undefined);
+          }
+          const next = noteEmphasis(emphasisVotesRef.current, "listening");
+          if (next && next !== liveStyleRef.current && next !== surveyStyleRef.current) {
+            liveStyleRef.current = next;
+            setLiveEmphasis(next);
+            if (sid) {
+              void recordAdaptationEvent(sid, "live_emphasis", { style: next }).catch(() => undefined);
+            }
+          }
+        })
+        .catch((err) => setError(String(err)));
     });
     pauseSubmitterRef.current = submitter;
     rec.onresult = (e) => {
@@ -443,6 +495,27 @@ export default function ClassPage() {
     const body = translated?.body || slide.body;
     const narration = translated?.narration || slide.narration;
     speak(`${title}. ${narration || body}`);
+    const sid = studentProfile?.id;
+    if (sid && view) {
+      void directorLxTick({
+        class_type: classType,
+        slides_total: view.lesson.slides.length,
+        slide_index: slide.index,
+        attention: 1,
+        declared_pace: studentProfile?.learning_pace || "moderate",
+        survey_style: surveyStyleRef.current,
+        live_style: liveStyleRef.current,
+        quiz_accuracy: 0.5,
+        topic_mastery: 0.5,
+      }).then((tick) => {
+        setAdaptTick({
+          learner_line_key: tick.learner_line_key || "adapt.starting",
+          learner_line_style: tick.learner_line_style || surveyStyleRef.current,
+          learner_line_pace: tick.learner_line_pace || studentProfile?.learning_pace || "moderate",
+        });
+        if (tick.difficulty) setQuizDifficulty(tick.difficulty);
+      }).catch(() => undefined);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide?.index, view?.session.session_id, locale, localizedSlide]);
 
@@ -485,6 +558,12 @@ export default function ClassPage() {
         classType,
         place.studentId || getStudentId(),
         place.slideIndex,
+        {
+          profileScore: studentProfile?.profile_score || "",
+          sessionLength: studentProfile?.session_length || "",
+          liveStyle: liveStyleRef.current,
+          modalityRatings: studentProfile?.modality_ratings,
+        },
       );
       setView(v);
       setSlide(v.slide);
@@ -635,6 +714,18 @@ export default function ClassPage() {
     }
   }
 
+  // A search result lands on /class?lesson=<id>. Start that class once the
+  // lesson id is in state, instead of leaving the picker on the first lesson.
+  useEffect(() => {
+    const wanted = requestedLessonRef.current;
+    if (!wanted || autoStartedRef.current || view) return;
+    if (lessonId !== wanted || !loggedIn || busy) return;
+    autoStartedRef.current = true;
+    void onStart();
+    // onStart closes over the lessonId from this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId, loggedIn, busy, view]);
+
   async function onStart() {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
     // Solo (1:1) uses the SAME Salareen classroom as group classes — just the
@@ -644,9 +735,15 @@ export default function ClassPage() {
       setBusy(true);
       try {
         const place = await resumeSlideForLesson(lessonId, studentProfile?.id);
+        let ratings = studentProfile?.modality_ratings;
+        if (!ratings) {
+          const listed = await listStudents().catch(() => ({ students: [] }));
+          ratings = listed.students?.[0]?.modality_ratings;
+        }
         const { room_id } = await startSoloLiveRoom(lessonId, "", {
           startSlide: place.slideIndex,
           studentId: place.studentId,
+          modalityRatings: ratings,
         });
         router.push(`/live-room/${encodeURIComponent(room_id)}`);
         return;
@@ -1049,6 +1146,9 @@ export default function ClassPage() {
           </p>
           <div className="row">
             <select value={lessonId} onChange={(e) => setLessonId(e.target.value)}>
+              {lessonId && !lessons.some((l) => l.lesson_id === lessonId) && (
+                <option value={lessonId}>{lessonId}</option>
+              )}
               {lessons.map((l) => (
                 <option key={l.lesson_id} value={l.lesson_id}>
                   {l.title}
@@ -1120,7 +1220,11 @@ export default function ClassPage() {
           <div className="slide">
             <div className="muted">
               {view.lesson.title} · Slide {slide.index + 1} of {view.lesson.slides.length}
+              {adaptTick ? (
+                <span style={{ marginLeft: 12 }}>{formatAdaptLine(t, adaptTick)}</span>
+              ) : null}
             </div>
+            <ModalityMixScore mix={view.session.modality_mix} slideFormat={slide.storyboard_format} />
             <h2 style={{ overflowWrap: "anywhere" }}>{slideCopy?.title || slide.title}</h2>
             {slide.storyboard_svg ? (
               <CourseStoryboardPlayer
@@ -1128,11 +1232,15 @@ export default function ClassPage() {
                 concept={slide.storyboard_concept}
                 examples={slide.storyboard_examples}
                 activity={slide.storyboard_activity}
-                profileMode={slide.storyboard_profile_mode}
+                profileMode={liveEmphasis || slide.storyboard_profile_mode}
+                emphasis={liveEmphasis || (canonicalStyle(studentProfile?.primary_style) === "balanced" ? "" : canonicalStyle(studentProfile?.primary_style) as "visual" | "reading" | "listening" | "practice")}
                 sourceLanguage={slide.storyboard_source_language}
                 sceneId={slide.storyboard_scene_id}
                 captions={captionsOn}
+                formatName={modalityLabel(slide.storyboard_format)}
               />
+            ) : slide.storyboard_activity ? (
+              <p data-testid="modality-activity">{slide.storyboard_activity}</p>
             ) : null}
             {captionsOn ? (
               <>

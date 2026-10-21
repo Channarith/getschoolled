@@ -44,6 +44,11 @@ def _without_password(url: str) -> str:
     return urlunparse((parts.scheme, f"{host}{port}", parts.path, "", parts.query, parts.fragment))
 
 
+# A stuck Redis command must fail the request. With no socket timeout, redis-py
+# blocks until the gateway returns 504 (signup and onboarding hit this).
+_DEFAULT_SOCKET_TIMEOUT_S = 2.0
+
+
 def open_redis(url: str, **kwargs):
     """Connect and ping. If Redis has no password yet, retry without AUTH.
 
@@ -53,6 +58,8 @@ def open_redis(url: str, **kwargs):
     """
     import redis
 
+    kwargs.setdefault("socket_connect_timeout", _DEFAULT_SOCKET_TIMEOUT_S)
+    kwargs.setdefault("socket_timeout", _DEFAULT_SOCKET_TIMEOUT_S)
     client = redis.from_url(url, **kwargs)
     try:
         client.ping()

@@ -57,12 +57,17 @@ spec:
             - "yes"
             - --appendfsync
             - everysec
-            - --save
-            - "900 1 300 10 60 10000"
             - --maxmemory
             - "256mb"
             - --maxmemory-policy
             - volatile-lru
+            # AOF is the durability path. RDB --save forks the process, and a
+            # fork inside the old 384Mi limit OOM-killed Redis mid-write. Those
+            # half-open connections blocked signup until the gateway returned 504.
+            - --save
+            - ""
+            - --tcp-keepalive
+            - "60"
             # Require password authentication. The password is sourced from the
             # aoep-secrets Secret (key: redis-password). After adding auth, also
             # update REDIS_URL in the ConfigMap to include the password:
@@ -81,7 +86,8 @@ spec:
               mountPath: /data
           resources:
             requests: { cpu: 100m, memory: 256Mi }
-            limits:   { cpu: 500m, memory: 384Mi }
+            # Headroom for an AOF rewrite fork (about 2x the 256mb dataset).
+            limits:   { cpu: 500m, memory: 768Mi }
           readinessProbe:
             exec: { command: ["sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping"] }
             initialDelaySeconds: 5

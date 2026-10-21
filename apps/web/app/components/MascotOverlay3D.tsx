@@ -655,7 +655,7 @@ export default function MascotOverlay3D({
           camera={{ position: config.cameraPos, fov: config.fov }}
           shadows
           dpr={[1, 2]}
-          style={{ background: "transparent" }}
+          style={{ background: "transparent", pointerEvents: "none" }}
           gl={{ antialias: true, alpha: true, premultipliedAlpha: false }}
         >
           {/* Lighting tuned to make a cream/gold character pop against a

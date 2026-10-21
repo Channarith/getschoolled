@@ -39,6 +39,20 @@ def test_setup_resumes_and_general_courses_remain_optional():
     assert assurance == {"allowed": True, "required": False, "missing": [], "reason": ""}
 
 
+def test_setup_assistant_persists_only_the_changed_account(monkeypatch):
+    from identity.store import AccountStore
+
+    store = AccountStore()
+    account = store.create("scoped-setup@example.com", "S3cretpass")
+    student = store.ensure_default_student(account.id)
+    persisted: list[tuple[str, ...]] = []
+    monkeypatch.setattr(store, "_persist", lambda *account_ids: persisted.append(account_ids))
+
+    store.update_biometric_setup(account.id, student.id, {"current_step": "biometrics"})
+
+    assert persisted == [(account.id,)]
+
+
 def test_minor_requires_guardian_biometric_consent():
     headers, _ = _account()
     student = client.post(

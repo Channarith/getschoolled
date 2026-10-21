@@ -149,6 +149,17 @@ def signals_from_models(
     )
 
 
+def unit_score(value: float) -> float:
+    """Clamp a 0..1 score. Values above 1 are treated as a 0..100 percent."""
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if score > 1.0:
+        score = score / 100.0
+    return max(0.0, min(1.0, score))
+
+
 def signals_from_events(
     *,
     quiz_outcomes: List[bool] | None = None,
@@ -158,14 +169,26 @@ def signals_from_events(
     slides_seen: int = 1,
     topic_mastery: float = 0.5,
     accuracy_window: int = 10,
+    pronunciation_scores: List[float] | None = None,
 ) -> LearnerSignals:
-    """Aggregate raw behavior events into :class:`LearnerSignals`."""
+    """Aggregate raw behavior events into :class:`LearnerSignals`.
+
+    Pronunciation scores (0..1, or 0..100) blend into quiz accuracy so spoken
+    practice moves pacing the same way a quiz item does. Quiz outcomes stay
+    the larger share when both exist.
+    """
     all_outcomes = quiz_outcomes or []
     if accuracy_window > 0:
         outcomes = all_outcomes[-accuracy_window:]
     else:
         outcomes = all_outcomes
     accuracy = (sum(1 for o in outcomes if o) / len(outcomes)) if outcomes else 0.5
+    pron = [unit_score(s) for s in (pronunciation_scores or [])]
+    if accuracy_window > 0:
+        pron = pron[-accuracy_window:]
+    if pron:
+        pron_mean = sum(pron) / len(pron)
+        accuracy = (0.7 * accuracy + 0.3 * pron_mean) if outcomes else pron_mean
     latencies = response_latencies_s or []
     avg_latency = (sum(latencies) / len(latencies)) if latencies else 5.0
     attention = attention_samples or []

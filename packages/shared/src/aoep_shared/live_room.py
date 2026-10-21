@@ -389,6 +389,7 @@ class SlideSync:
     storyboard_profile_mode: str = "mixed"
     storyboard_source_language: str = "en"
     storyboard_translation_ready: bool = False
+    storyboard_format: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -520,6 +521,7 @@ class LiveRoom:
     presence_hold_started_at: str = ""
     # Synchronized educational mini-game (private answer is stripped publicly).
     group_game: Optional[dict] = None
+    modality_mix: Dict[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
@@ -642,6 +644,7 @@ class LiveRoom:
             "chat": [asdict(m) for m in self.chat[-200:]],
             "recording": self.recording.to_dict(),
             "slide": self.slide.to_dict(),
+            "modality_mix": dict(self.modality_mix or {}),
             "raised_hands": [p.to_dict() for p in self.raised_hands()],
             "banned": [b.to_dict() for b in self.banned_list()],
             "speaking_queue": [e.to_dict() for e in self.active_queue()],
@@ -807,6 +810,8 @@ class LiveRoomStore:
         slide_storyboard_profile_mode: str = "mixed",
         slide_storyboard_source_language: str = "en",
         slide_storyboard_translation_ready: bool = False,
+        slide_storyboard_format: str = "",
+        modality_mix: dict | None = None,
         slide_index: int = 0,
         country: str = "",
         state: str = "",
@@ -882,7 +887,9 @@ class LiveRoomStore:
                 storyboard_profile_mode=slide_storyboard_profile_mode,
                 storyboard_source_language=slide_storyboard_source_language,
                 storyboard_translation_ready=slide_storyboard_translation_ready,
+                storyboard_format=slide_storyboard_format or "",
             ),
+            modality_mix=dict(modality_mix or {}),
             country=country.strip(),
             state=state.strip(),
             city=city.strip(),
@@ -2225,6 +2232,7 @@ class LiveRoomStore:
         storyboard_profile_mode: str = "mixed",
         storyboard_source_language: str = "en",
         storyboard_translation_ready: bool = False,
+        storyboard_format: str = "",
     ) -> SlideSync:
         room = self.require(room_id)
         room.slide = SlideSync(
@@ -2240,6 +2248,7 @@ class LiveRoomStore:
             storyboard_profile_mode=storyboard_profile_mode,
             storyboard_source_language=storyboard_source_language,
             storyboard_translation_ready=storyboard_translation_ready,
+            storyboard_format=storyboard_format or "",
         )
         self._commit(room)
         return room.slide

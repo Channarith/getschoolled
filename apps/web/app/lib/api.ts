@@ -975,6 +975,7 @@ export async function setStudentMastery(studentId: string, skill: string, value:
 
 export type ForesightRec = {
   course_id: string; title: string; score: number; covers_gaps: string[]; reason: string;
+  reason_style?: string;
 };
 export type ForesightResult = {
   student_id: string; difficulty: string; gaps: string[];
@@ -987,6 +988,8 @@ export type ForesightResult = {
 export async function recommendForProfile(args: {
   student_id?: string; mastery: Record<string, number>;
   completed_course_ids?: string[]; interests?: string[]; top_n?: number;
+  profile_score?: string; primary_style?: string; pace?: string;
+  session_length?: string; reading_level?: string; live_style?: string;
 }, signal?: AbortSignal): Promise<ForesightResult> {
   return jsonOrThrow(
     await fetch(`${CURRICULUM_URL}/recommend`, {
@@ -1504,6 +1507,7 @@ export type Slide = {
   storyboard_profile_mode?: string;
   storyboard_source_language?: string;
   storyboard_translation_ready?: boolean;
+  storyboard_format?: string;
 };
 
 export type Lesson = {
@@ -1521,12 +1525,36 @@ export type Lesson = {
   slides: Slide[];
 };
 
+export type ModalityMixRow = {
+  modality: string;
+  label: string;
+  rating: number;
+  percent: number | null;
+  pages: number;
+  removed: boolean;
+  reason: string;
+  reason_text: string;
+  share_pages?: number | null;
+};
+
+export type ModalityMix = {
+  context: string;
+  context_label: string;
+  context_detail: string;
+  page_count: number;
+  lines: string[];
+  rows: ModalityMixRow[];
+  assignment?: string[];
+  counts?: Record<string, number>;
+};
+
 export type SessionState = {
   session_id: string;
   class_type: string;
   lesson_id: string;
   current_slide: number;
   history: { role: string; text: string }[];
+  modality_mix?: ModalityMix;
 };
 
 export type SessionView = {
@@ -1721,6 +1749,12 @@ export async function startSession(
   classType: string,
   studentId?: string,
   startSlide = 0,
+  profile?: {
+    profileScore?: string;
+    sessionLength?: string;
+    liveStyle?: string;
+    modalityRatings?: Record<string, number>;
+  },
 ): Promise<SessionView> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
@@ -1731,6 +1765,10 @@ export async function startSession(
         class_type: classType,
         student_id: studentId ?? null,
         start_slide: Math.max(0, Math.floor(startSlide || 0)),
+        profile_score: profile?.profileScore || "",
+        session_length: profile?.sessionLength || "",
+        live_style: profile?.liveStyle || "",
+        modality_ratings: profile?.modalityRatings || {},
       }),
     })
   );
@@ -2333,7 +2371,9 @@ export type LiveRoomState = {
     storyboard_profile_mode?: string;
     storyboard_source_language?: string;
     storyboard_translation_ready?: boolean;
+    storyboard_format?: string;
   };
+  modality_mix?: ModalityMix;
   raised_hands: LiveParticipant[];
   whiteboard_strokes?: {
     id: string;
@@ -2464,7 +2504,11 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
 export async function startSoloLiveRoom(
   lessonId: string,
   creatorName = "",
-  opts?: { startSlide?: number; studentId?: string },
+  opts?: {
+    startSlide?: number;
+    studentId?: string;
+    modalityRatings?: Record<string, number>;
+  },
 ): Promise<{ room_id: string }> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/solo`, {
@@ -2475,6 +2519,7 @@ export async function startSoloLiveRoom(
         creator_name: creatorName,
         student_id: opts?.studentId || null,
         start_slide: Math.max(0, Math.floor(opts?.startSlide || 0)),
+        modality_ratings: opts?.modalityRatings || {},
       }),
     })
   );
@@ -3131,14 +3176,21 @@ export type ClassQuizItem = {
   topic?: string;
 };
 
-export async function generateClassQuiz(topic: string, passages: string[], maxItems = 3): Promise<{
+export async function generateClassQuiz(
+  topic: string,
+  passages: string[],
+  maxItems = 3,
+  difficulty = "",
+): Promise<{
   items: ClassQuizItem[];
 }> {
+  const body: Record<string, unknown> = { topic, passages, max_items: maxItems };
+  if (difficulty) body.difficulty = difficulty;
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/assessment/quiz`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ topic, passages, max_items: maxItems }),
+      body: JSON.stringify(body),
     })
   );
 }
@@ -3171,6 +3223,8 @@ export async function recordBehavior(event: {
   attention?: number | null;
   asked_question?: boolean;
   saw_slide?: boolean;
+  /** 0..1, or 0..100. Spoken practice blends into adaptive accuracy. */
+  pronunciation_score?: number | null;
 }): Promise<{ recorded: boolean }> {
   return jsonOrThrow(
     await fetch(`${MEMORY_URL}/behavior`, {
@@ -3179,6 +3233,36 @@ export async function recordBehavior(event: {
       body: JSON.stringify(event),
     })
   );
+}
+
+/** Map a pronounce() score (0..100 or 0..1) onto the behavior scale. */
+export function pronunciationUnit(score: number): number {
+  if (!Number.isFinite(score)) return 0;
+  const unit = score > 1 ? score / 100 : score;
+  return Math.max(0, Math.min(1, unit));
+}
+
+/** Store a pronunciation attempt on the learner's behavior for this topic. */
+export async function recordPronunciationScore(
+  topic: string,
+  score: number,
+  studentId?: string,
+): Promise<void> {
+  let sid = (studentId || "").trim();
+  if (!sid && getToken()) {
+    try {
+      const listed = await listStudents();
+      sid = listed.students?.[0]?.id || "";
+    } catch {
+      return;
+    }
+  }
+  if (!sid || !topic) return;
+  await recordBehavior({
+    student_id: sid,
+    topic,
+    pronunciation_score: pronunciationUnit(score),
+  });
 }
 
 export async function updateTopicMastery(
@@ -3203,6 +3287,9 @@ export type LxTickResult = {
   difficulty: string;
   reteach: boolean;
   reasons: string[];
+  learner_line_key?: string;
+  learner_line_style?: string;
+  learner_line_pace?: string;
 };
 
 export async function directorLxTick(body: Record<string, unknown>): Promise<LxTickResult> {

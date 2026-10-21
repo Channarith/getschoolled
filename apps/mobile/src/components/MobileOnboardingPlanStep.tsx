@@ -17,6 +17,7 @@ import {
 import { SETUP_COLORS as C } from "../learnerCheck";
 import AnimatedPressable from "./AnimatedPressable";
 import KenBurnsImage from "./KenBurnsImage";
+import MobileMascotMeshy from "./MobileMascotMeshy";
 
 const ART = require("../../assets/setup-assistant/plan.webp");
 const TIER_ORDER = ["free", "basic", "pro", "premium"] as const;
@@ -174,6 +175,7 @@ export default function MobileOnboardingPlanStep({
         <View style={styles.split}>
           <View style={styles.artPane}>
             <KenBurnsImage source={ART} style={StyleSheet.absoluteFill} />
+            <MobileMascotMeshy scene={{ kind: "idle" }} style={StyleSheet.absoluteFill} />
           </View>
           <KeyboardAvoidingView
             style={styles.pane}

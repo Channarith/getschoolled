@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 # Allow running from a clean checkout without manually setting PYTHONPATH.
@@ -26,6 +28,7 @@ from aoep_shared.harvest import (  # noqa: E402
     HarvestPipeline,
     HarvestQueue,
     SourceSpec,
+    SQLiteAcquisitionQueue,
     export_course_package,
     extract,
     extract_file,
@@ -34,10 +37,67 @@ from aoep_shared.harvest import (  # noqa: E402
     infer_harvest_metadata,
     merge_tags,
     partition_course_into_lessons,
+    inspect_import,
 )
 
 DEFAULT_OUT_DIR = _REPO / "output" / "harvest"
 DEFAULT_SEEDS = _REPO / "seeds" / "harassment-training.jsonl"
+
+
+def _acquire(args: argparse.Namespace) -> int:
+    """Queue and process owned/open sources with isolated category workers."""
+    if not args.category:
+        raise SystemExit("--category is required with --acquire")
+    if not args.import_path:
+        raise SystemExit("--import-path is required with --acquire")
+    queue = SQLiteAcquisitionQueue(args.queue_db or Path(args.out_dir) / "acquisition_jobs.db")
+    asset = inspect_import(
+        _resolve_repo_path(args.import_path),
+        rights_assertion=args.rights_assertion,
+        license=args.license,
+    )
+    payload = {
+        "source_uri": asset.path.as_uri(), "sha256": asset.sha256,
+        "license": asset.license, "rights_assertion": asset.rights_assertion,
+        "source_type": asset.source_kind, "title": asset.path.stem,
+    }
+    for category in args.category:
+        queue.enqueue(category_slug=category, payload=payload, priority=args.priority)
+
+    def process(category: str) -> dict:
+        worker_id = f"{category}-{uuid.uuid4().hex[:8]}"
+        job = queue.claim_next(worker_id=worker_id, category_slug=category)
+        if job is None:
+            return {"category": category, "status": "empty"}
+        try:
+            source_path = Path(job.payload["source_uri"].removeprefix("file://"))
+            doc = extract_file(str(source_path), default_title=job.payload["title"])
+            cid = hashlib.sha256(job.idempotency_key.encode()).hexdigest()[:12]
+            course = generate_course(doc, subject=category, source=job.payload["source_uri"], course_id=cid)
+            report = HarvestCritic().review(course)
+            if not report.passed or report.grade in ("D", "F"):
+                queue.reject(job, reason=f"quality grade {report.grade}")
+                return {"category": category, "status": "rejected", "grade": report.grade}
+            lessons = partition_course_into_lessons(course, max_slides=args.max_slides_per_lesson)
+            result = {"course_ids": [], "grade": report.grade, "source_sha256": asset.sha256}
+            for lesson in lessons:
+                # Stable program/category artifact layout makes retries overwrite safely.
+                destination = Path(args.out_dir) / "catalog" / category / lesson.course_id
+                package = export_course_package(
+                    lesson, destination, write_pptx=True, with_media=args.with_media, repo_root=_REPO,
+                )
+                result["course_ids"].append(lesson.course_id)
+                result.setdefault("packages", []).append(str(package.course_json_path))
+            queue.finish(job, result=result)
+            return {"category": category, "status": "completed", **result}
+        except Exception as exc:
+            queue.fail(job, error=str(exc))
+            return {"category": category, "status": "retry", "error": str(exc)}
+
+    with ThreadPoolExecutor(max_workers=max(1, min(args.workers, len(args.category)))) as pool:
+        outcomes = list(as_completed([pool.submit(process, c) for c in args.category]))
+    print(json.dumps([future.result() for future in outcomes], indent=2))
+    return 0
 
 
 def _resolve_repo_path(path: str | Path) -> Path:
@@ -287,6 +347,35 @@ def _crawl(args: argparse.Namespace) -> int:
     if env_seeds:
         session.enqueue_seeds(env_seeds)
 
+    if getattr(args, "queue_topics", None) is not None:
+        from aoep_shared.harvest.topic_catalog import fill_topic_backlog, paid_topic_count
+
+        catalog_n = paid_topic_count()
+        target = int(args.queue_topics)
+        if target < 0:
+            raise SystemExit("--queue-topics must be 0 (full catalog) or a positive count")
+
+        def _topic_progress(taken: int, inserted: int) -> None:
+            print(
+                f"Topic backlog: scanned {taken:,} inserted {inserted:,} "
+                f"(catalog {catalog_n:,})",
+                file=sys.stderr,
+                flush=True,
+            )
+
+        inserted = fill_topic_backlog(
+            session.corpus,
+            limit=target,
+            progress=_topic_progress,
+        )
+        pending = session.corpus.stats().get("topics_pending", 0)
+        print(
+            f"Topic backlog ready: inserted {inserted:,} this run, "
+            f"{pending:,} pending, catalog size {catalog_n:,}",
+            file=sys.stderr,
+            flush=True,
+        )
+
     from aoep_shared.harvest.crawl import CrawlLimits, next_crawl_action
 
     limits = CrawlLimits(
@@ -306,6 +395,12 @@ def _crawl(args: argparse.Namespace) -> int:
 
     while True:
         batch_no += 1
+        # Spend the saved URL queue first. When it thins out, claim one backlog
+        # topic and add its open-catalog seeds. A million topics stay in SQLite
+        # until the paced crawl reaches them.
+        url_waiting = int(session.corpus.stats().get("queue_pending", 0))
+        if url_waiting < batch:
+            session.promote_backlog(1)
         metrics = session.run_once(max_items=batch)
         stats = session.corpus.stats()
         delta = metrics.fetched - prev_fetched
@@ -320,6 +415,7 @@ def _crawl(args: argparse.Namespace) -> int:
                 "pages_this_hour": hour_pages,
                 "elapsed_min": round(elapsed / 60, 1),
                 "queue_pending": stats.get("queue_pending", 0),
+                "topics_pending": stats.get("topics_pending", 0),
             },
         }
         # Listing packages scans + sorts the whole courses dir; over a days-long
@@ -340,10 +436,14 @@ def _crawl(args: argparse.Namespace) -> int:
             hour_start = now
             hour_pages = 0
 
+        url_pending = int(stats.get("queue_pending", 0))
+        topic_pending = int(stats.get("topics_pending", 0))
+        # A drained URL queue is not done while backlog topics remain.
+        still_queued = url_pending if url_pending or not topic_pending else 1
         action, reason, seconds = next_crawl_action(
             pages_total=metrics.fetched,
             made_progress=delta > 0,
-            queue_pending=int(stats.get("queue_pending", 0)),
+            queue_pending=still_queued,
             elapsed_s=elapsed,
             hour_pages=hour_pages,
             hour_elapsed_s=now - hour_start,
@@ -437,10 +537,29 @@ def main(argv: list[str] | None = None) -> int:
                     help="export per-slide narration audio + demo-video refs (media_manifest.json)")
     ap.add_argument("--crawl", action="store_true",
                     help="online crawl: discover OER/search seeds, fetch, generate, RAG index")
+    ap.add_argument("--acquire", action="store_true",
+                    help="queue and process a rights-verified local catalog import")
+    ap.add_argument("--import-path", default=None,
+                    help="local CSV/PDF/DOCX/HTML/PPTX/text/database source for --acquire")
+    ap.add_argument("--category", action="append", default=None,
+                    help="category worker to run (repeatable with --acquire)")
+    ap.add_argument("--rights-assertion", default="",
+                    help="owned|licensed|internal, required unless --license is open")
+    ap.add_argument("--license", default="", help="open source license for --acquire")
+    ap.add_argument("--queue-db", default=None,
+                    help="local durable queue path for development acquisition workers")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="number of category workers for --acquire")
+    ap.add_argument("--priority", type=int, default=0, help="acquisition job priority")
     ap.add_argument("--topic", action="append", default=None, metavar="TOPIC",
                     help="with --crawl: discover seeds for this topic (repeatable for a batch)")
     ap.add_argument("--topics", default=None, metavar="A,B,C",
                     help="with --crawl: comma-separated list of topics to batch-crawl at once")
+    ap.add_argument("--queue-topics", type=int, default=None, metavar="N",
+                    help=("with --crawl: insert N paid-learning topics into the "
+                          "durable backlog before crawling. 0 inserts the full "
+                          "catalog (more than one million). Already-queued topics "
+                          "are skipped."))
     ap.add_argument("--daemon", action="store_true",
                     help="with --crawl: run forever (background harvest loop)")
     ap.add_argument("--interval", type=int, default=60,
@@ -472,6 +591,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.corpus_search:
         return _corpus_search(args)
+
+    if args.acquire:
+        return _acquire(args)
 
     if args.crawl:
         return _crawl(args)

@@ -6,6 +6,7 @@ import {
 import {
   advanceLessonSession, askLessonSession, directorLxTick, enrollCourse,
   getAssessmentPolicy, getLessonAccreditation, getMobileIdentityAssurance,
+  getStudentAdaptation,
   getPostClassSurvey, getPulseSurvey, getQuiz, getRewards, gradeQuiz,
   listStudents, reengageLessonSession, recordAssessmentAttempt, recordAssessmentPass,
   setEnrollmentStatus, startAssessmentCheckpoint, startLessonSession,
@@ -38,6 +39,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import AdaptiveContent from "../layout/AdaptiveContent";
+import { formatAdaptLine } from "../adaptationLine";
 import { useLayoutMetrics } from "../layout";
 import { getSettings } from "../storage";
 import { theme } from "../theme";
@@ -170,10 +172,11 @@ export default function LessonScreen({
       try {
         const settings = await getSettings();
         studentIdRef.current = settings.studentId;
+        let first: StudentProfile | null = null;
         if (account) {
           try {
             const listed = await listStudents();
-            const first = listed.students[0] ?? null;
+            first = listed.students[0] ?? null;
             if (first) {
               studentIdRef.current = first.id;
               if (alive) setStudentProfile(first);
@@ -191,7 +194,18 @@ export default function LessonScreen({
             return;
           }
         }
-        const v = await startLessonSession(lessonId, studentIdRef.current, classType);
+        let liveStyle = "";
+        if (first?.id) {
+          try {
+            const adapt = await getStudentAdaptation(first.id);
+            liveStyle = String(adapt.adaptation?.live_style || "");
+          } catch { /* the survey style still applies */ }
+        }
+        const v = await startLessonSession(lessonId, studentIdRef.current, classType, {
+          profileScore: first?.profile_score || "",
+          sessionLength: first?.session_length || "",
+          liveStyle,
+        });
         if (!alive) return;
         setView(v);
         setSlide(v.slide);
@@ -217,7 +231,9 @@ export default function LessonScreen({
       alive = false;
       stopSpeech();
     };
-  }, [lessonId, classType, account, lightingReady]);
+    // account?.id, not the account object: a new object for the same learner
+    // (token refresh) would restart the session on every pass.
+  }, [lessonId, classType, account?.id, lightingReady]);
 
   function stopNarration() {
     stopSpeech();
@@ -311,10 +327,14 @@ export default function LessonScreen({
       const r = await directorLxTick({
         session_id: view.session.session_id,
         student_id: studentIdRef.current,
+        topic: view.lesson.title,
         slide_index: s.index,
+        slides_total: view.lesson.slides.length,
         class_type: classType,
+        declared_pace: studentProfile?.learning_pace || "moderate",
+        survey_style: studentProfile?.primary_style || "",
       });
-      const hint = r.wellness_nudge || r.pacing || r.strategy || "";
+      const hint = formatAdaptLine(t, r) || r.wellness_nudge || "";
       if (hint) setLxHint(hint);
     } catch { /* optional */ }
   }

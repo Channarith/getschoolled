@@ -1,6 +1,9 @@
 """Redis URL: local compose hostname bypass, Vultr password injection."""
 
-from aoep_shared.redis_url import authenticated_redis_url, runtime_redis_url
+import sys
+import types
+
+from aoep_shared.redis_url import authenticated_redis_url, open_redis, runtime_redis_url
 
 
 def test_password_is_added_when_the_url_has_none(monkeypatch):
@@ -72,3 +75,35 @@ def test_blank_url_stays_blank(monkeypatch):
     monkeypatch.delenv("REDIS_URL", raising=False)
     monkeypatch.delenv("REDIS_PASSWORD", raising=False)
     assert runtime_redis_url() == ""
+
+
+def _install_fake_redis(monkeypatch):
+    seen = {}
+
+    class _Client:
+        def ping(self):
+            return True
+
+    def from_url(url, **kwargs):
+        seen.clear()
+        seen["url"] = url
+        seen.update(kwargs)
+        return _Client()
+
+    redis_mod = types.ModuleType("redis")
+    redis_mod.from_url = from_url
+    monkeypatch.setitem(sys.modules, "redis", redis_mod)
+    return seen
+
+
+def test_open_redis_sets_a_socket_timeout(monkeypatch):
+    seen = _install_fake_redis(monkeypatch)
+    open_redis("redis://127.0.0.1:6379/0")
+    assert seen["socket_timeout"] == 2.0
+    assert seen["socket_connect_timeout"] == 2.0
+
+
+def test_open_redis_keeps_a_caller_timeout(monkeypatch):
+    seen = _install_fake_redis(monkeypatch)
+    open_redis("redis://127.0.0.1:6379/0", socket_timeout=0.5)
+    assert seen["socket_timeout"] == 0.5
