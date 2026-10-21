@@ -27,9 +27,11 @@ import {
 } from "../api";
 import {
   SETUP_COLORS as C,
+  isSilentTake,
   meteringToLevel,
   svgPath,
   waveformBars,
+  withTimeout,
   type LevelSample,
 } from "../learnerCheck";
 import {
@@ -63,6 +65,12 @@ const WAVE_BARS = 40;
 export const FACE_PHOTOS = 5;
 /** Give up on one round after this long without five good stills. */
 const SCAN_LIMIT_MS = 20_000;
+/** A save slower than this waits on the phone and sends when identity answers. */
+export const SAVE_TIMEOUT_MS = 15_000;
+/** Camera restarts allowed after a still never came back. */
+const MAX_CAMERA_STALLS = 2;
+
+type FaceState = "idle" | "saving" | "saved" | "queued" | "failed";
 
 const ART = {
   face: require("../../assets/setup-assistant/face-scan.webp"),
@@ -205,6 +213,9 @@ export default function BiometricSetupModal({
   const [elapsed, setElapsed] = useState(0);
   const [bars, setBars] = useState<number[]>(() => Array(WAVE_BARS).fill(0));
   const [hasEnrollment, setHasEnrollment] = useState(false);
+  const [faceState, setFaceStateValue] = useState<FaceState>("idle");
+  const [faceNote, setFaceNote] = useState("");
+  const [voiceDone, setVoiceDone] = useState(false);
   // The setup screen is its own window. Android and iOS draw the system
   // "Allow" prompt behind that window, so the button is visible but dead.
   // Hide this window before asking, and bring it back after the prompt closes.
@@ -213,6 +224,15 @@ export default function BiometricSetupModal({
   const minor = ageBand !== "adult";
   const canSkip = !requireGovernmentId;
   const consentRef = useRef<Promise<void> | null>(null);
+  const faceStateRef = useRef<FaceState>("idle");
+  const faceSaveRef = useRef<Promise<boolean> | null>(null);
+  const voiceDoneRef = useRef(false);
+  const stallsRef = useRef(0);
+
+  function setFaceState(next: FaceState) {
+    faceStateRef.current = next;
+    setFaceStateValue(next);
+  }
 
   // Face and voice uploads wait for consent. Sent on its own, a slow consent
   // landed after the face upload and identity refused it with 409.
@@ -232,7 +252,14 @@ export default function BiometricSetupModal({
   // when the upload reaches a server that has not read it yet. The learner
   // already agreed, so send the consent once more and retry the upload.
   async function sendWithConsent(send: () => Promise<unknown>): Promise<void> {
-    await ensureConsent();
+    try {
+      await ensureConsent();
+    } catch (reason) {
+      // A dropped consent call is not a refusal. Ask once more before giving up.
+      if (!isDeferredUpload(reason)) throw reason;
+      consentRef.current = null;
+      await ensureConsent();
+    }
     try {
       await send();
     } catch (reason) {
@@ -246,6 +273,11 @@ export default function BiometricSetupModal({
   useEffect(() => {
     if (!visible) return;
     consentRef.current = null;
+    faceSaveRef.current = null;
+    voiceDoneRef.current = false;
+    setVoiceDone(false);
+    setFaceState("idle");
+    setFaceNote("");
     void flushPendingLearnerCheck();
     getMobileSetupState(studentId).then((state) => {
       setHasEnrollment(
@@ -269,7 +301,6 @@ export default function BiometricSetupModal({
 
   const cameraRef = useRef<LiveFaceCameraHandle>(null);
   const readyRef = useRef(false);
-  const savingRef = useRef(false);
   const genRef = useRef(0);
   useEffect(() => () => {
     void stopRecording();
@@ -294,14 +325,28 @@ export default function BiometricSetupModal({
     setLiveStrokes(null);
     setPendingNote("");
     setScanHint("Look at the camera.");
-    savingRef.current = false;
   }
 
   async function begin() {
     setBusy(true);
     setProblem(null);
     try {
-      const permission = await outsideTheSetupWindow(() => Camera.requestCameraPermissionsAsync());
+      // Ask for the microphone here too, so the voice step never has to hide
+      // this screen for a system prompt in the middle of recording.
+      const [camera, microphone] = await Promise.all([
+        Camera.getCameraPermissionsAsync(),
+        Audio.getPermissionsAsync().catch(() => null),
+      ]);
+      let permission = camera;
+      if (!camera.granted || (microphone && !microphone.granted && microphone.canAskAgain)) {
+        permission = await outsideTheSetupWindow(async () => {
+          const asked = camera.granted ? camera : await Camera.requestCameraPermissionsAsync();
+          if (asked.granted && microphone && !microphone.granted && microphone.canAskAgain) {
+            await Audio.requestPermissionsAsync().catch(() => undefined);
+          }
+          return asked;
+        });
+      }
       if (!permission.granted) {
         setProblem({
           message: "Camera access is off for Salareen. Allow the camera in Settings, then try again.",
@@ -315,6 +360,7 @@ export default function BiometricSetupModal({
       void ensureConsent().catch(() => undefined);
       resetScan();
       readyRef.current = false;
+      stallsRef.current = 0;
       setStep("scan");
     } finally {
       setBusy(false);
@@ -368,14 +414,6 @@ export default function BiometricSetupModal({
     const wait = (ms: number) => new Promise<void>((resolve) => {
       setTimeout(resolve, ms);
     });
-    const saveTimeout = <T,>(promise: Promise<T>, ms: number) => new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Saving the face check is taking too long.")), ms);
-      promise.then(
-        (value) => { clearTimeout(timer); resolve(value); },
-        (reason) => { clearTimeout(timer); reject(reason); },
-      );
-    });
-
     const run = async () => {
       const opened = Date.now();
       while (!cancelled && !readyRef.current) {
@@ -393,6 +431,7 @@ export default function BiometricSetupModal({
       const started = Date.now();
       let readFailures = 0;
       while (!cancelled && genRef.current === gen && kept.length < FACE_PHOTOS) {
+        if (stallsRef.current > MAX_CAMERA_STALLS) return;
         if (Date.now() - started > SCAN_LIMIT_MS) {
           setFaceSeen(false);
           setProblem({
@@ -459,43 +498,93 @@ export default function BiometricSetupModal({
       }
       if (cancelled || genRef.current !== gen || kept.length < FACE_PHOTOS) return;
 
-      savingRef.current = true;
-      setBusy(true);
-      const moveOn = () => {
-        setCaptured(0);
-        setFaceSeen(false);
+      // Save in the background and go straight to the voice check, as the
+      // web app does. The voice step waits for the result before finishing.
+      const saving = saveFace(kept);
+      setCaptured(0);
+      setFaceSeen(false);
+      if (!voiceDoneRef.current) {
         setStep("voice");
-      };
-      try {
-        await saveTimeout(sendWithConsent(() => enrollMobileFaceQuick(studentId, kept)), 20_000);
-        if (!cancelled) moveOn();
-      } catch (reason) {
-        if (isDeferredUpload(reason)) {
-          try {
-            await queuePendingFace(studentId, kept, {
-              granted: true,
-              guardianGranted: minor ? guardian : false,
-            });
-            setPendingNote("Saved on this phone. We’ll send your face check when you’re connected.");
-            if (!cancelled) moveOn();
-          } catch (keepReason) {
-            resetScan();
-            setProblem({ message: String((keepReason as Error)?.message ?? keepReason) });
-          }
-        } else {
-          resetScan();
-          setProblem(faceEnrollmentProblem(reason));
-        }
-      } finally {
-        savingRef.current = false;
-        setBusy(false);
+        return;
       }
+      // Redoing the face after the voice is saved: wait for this save, and
+      // go back to the voice step to show it if it fails again.
+      setBusy(true);
+      const saved = await saving;
+      setBusy(false);
+      if (cancelled) return;
+      setStep(saved ? (requireGovernmentId ? "identity" : "complete") : "voice");
     };
     void run();
     return () => {
       cancelled = true;
     };
-  }, [visible, step, attempt, studentId]);
+  }, [visible, step, attempt, studentId, requireGovernmentId]);
+
+  function saveFace(photos: string[]): Promise<boolean> {
+    if (faceSaveRef.current) return faceSaveRef.current;
+    setFaceState("saving");
+    setFaceNote("");
+    const pending = (async () => {
+      try {
+        await withTimeout(
+          sendWithConsent(() => enrollMobileFaceQuick(studentId, photos)),
+          SAVE_TIMEOUT_MS,
+          "Saving the face check is taking too long.",
+        );
+        setFaceState("saved");
+        return true;
+      } catch (reason) {
+        if (isDeferredUpload(reason)) {
+          try {
+            await queuePendingFace(studentId, photos, {
+              granted: true,
+              guardianGranted: minor ? guardian : false,
+            });
+            setPendingNote("Saved on this phone. We’ll send your face check when you’re connected.");
+            setFaceState("queued");
+            return true;
+          } catch (keepReason) {
+            setFaceNote(String((keepReason as Error)?.message ?? keepReason));
+            setFaceState("failed");
+            return false;
+          }
+        }
+        setFaceNote(faceEnrollmentProblem(reason).message);
+        setFaceState("failed");
+        return false;
+      } finally {
+        faceSaveRef.current = null;
+      }
+    })();
+    faceSaveRef.current = pending;
+    return pending;
+  }
+
+  function redoFace() {
+    setProblem(null);
+    setFaceState("idle");
+    setFaceNote("");
+    resetScan();
+    readyRef.current = false;
+    stallsRef.current = 0;
+    setStep("scan");
+    setAttempt((n) => n + 1);
+  }
+
+  // A still that never returns usually means the camera session wedged. Start
+  // it again instead of leaving the learner on "Look at the camera."
+  function onCameraStall() {
+    if (stallsRef.current > MAX_CAMERA_STALLS) return;
+    stallsRef.current += 1;
+    if (stallsRef.current > MAX_CAMERA_STALLS) {
+      setProblem({ message: "The camera stopped responding. Close other apps using the camera and try again." });
+      return;
+    }
+    resetScan();
+    readyRef.current = false;
+    setAttempt((n) => n + 1);
+  }
 
   async function recordVoice() {
     setBusy(true);
@@ -504,7 +593,10 @@ export default function BiometricSetupModal({
     setBars(Array(WAVE_BARS).fill(0));
     let uri: string | null = null;
     try {
-      const permission = await outsideTheSetupWindow(() => Audio.requestPermissionsAsync());
+      let permission = await Audio.getPermissionsAsync();
+      if (!permission.granted) {
+        permission = await outsideTheSetupWindow(() => Audio.requestPermissionsAsync());
+      }
       if (!permission.granted) {
         setProblem({
           message: "Microphone access is off for Salareen. Allow the microphone in Settings, then try again.",
@@ -520,6 +612,8 @@ export default function BiometricSetupModal({
         playThroughEarpieceAndroid: false,
       });
       const samples: LevelSample[] = [];
+      let peakDb: number | null = null;
+      let sawMetering = false;
       // AAC in an m4a container on both platforms. The voice service decodes
       // that with ffmpeg; a 3gp/AMR clip from an Android default is easier to lose.
       const { recording: active } = await Audio.Recording.createAsync(
@@ -546,6 +640,10 @@ export default function BiometricSetupModal({
         (status) => {
           if (!status.isRecording) return;
           const t = status.durationMillis / 1000;
+          if (status.metering != null) {
+            sawMetering = true;
+            peakDb = peakDb == null ? status.metering : Math.max(peakDb, status.metering);
+          }
           // Some Android devices report no metering; keep a low "listening" bar.
           samples.push({ t, level: status.metering == null ? 0.12 : meteringToLevel(status.metering) });
           setBars(waveformBars(samples, VOICE_SECONDS, WAVE_BARS));
@@ -562,13 +660,20 @@ export default function BiometricSetupModal({
       setElapsed(VOICE_SECONDS);
       uri = active.getURI();
       if (!uri) throw new Error("No audio was recorded");
+      // The phone knows when it heard nothing. Say so now instead of sending
+      // ten silent seconds to the server and waiting for it to refuse them.
+      if (isSilentTake(peakDb, sawMetering)) throw new Error("silent");
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       const recordedUri = uri;
       try {
-        await sendWithConsent(() => enrollMobileVoiceprint(studentId, base64));
+        await withTimeout(
+          sendWithConsent(() => enrollMobileVoiceprint(studentId, base64)),
+          SAVE_TIMEOUT_MS,
+          "Saving the voice check is taking too long.",
+        );
         await discardFile(recordedUri);
         uri = null;
-        setStep(requireGovernmentId ? "identity" : "complete");
+        await continueAfterVoice();
       } catch (reason) {
         if (!isDeferredUpload(reason)) {
           await discardFile(recordedUri);
@@ -586,7 +691,7 @@ export default function BiometricSetupModal({
             ? "Saved on this phone. We’ll send your face and voice checks when you’re connected."
             : "Saved on this phone. We’ll send your voice check when you’re connected."
         ));
-        setStep(requireGovernmentId ? "identity" : "complete");
+        await continueAfterVoice();
       }
     } catch (reason) {
       setProblem(voiceProblem(reason));
@@ -597,6 +702,16 @@ export default function BiometricSetupModal({
       setRecording(false);
       setBusy(false);
     }
+  }
+
+  // The face save started while the learner read the sentence. Wait for it
+  // here so a failed face save is shown now, with a way to redo only the face.
+  async function continueAfterVoice() {
+    voiceDoneRef.current = true;
+    setVoiceDone(true);
+    await faceSaveRef.current;
+    if (faceStateRef.current === "failed") return;
+    setStep(requireGovernmentId ? "identity" : "complete");
   }
 
   async function document() {
@@ -618,6 +733,13 @@ export default function BiometricSetupModal({
   async function finish(skipped = false) {
     await withBusy(async () => {
       await stopRecording();
+      if (!skipped) {
+        await faceSaveRef.current;
+        if (faceStateRef.current === "failed") {
+          setStep("voice");
+          return;
+        }
+      }
       resetScan();
       try {
         await completeMobileSetup(studentId, skipped);
@@ -683,6 +805,7 @@ export default function BiometricSetupModal({
                     style={styles.cameraLayer}
                     onReady={() => { readyRef.current = true; }}
                     onError={(message) => setProblem({ message })}
+                    onStall={onCameraStall}
                   />
                 </View>
                 <View style={styles.overlay} pointerEvents="none" collapsable={false}>
@@ -759,6 +882,14 @@ export default function BiometricSetupModal({
           <Text style={[styles.title, scanning && styles.scanTitle]}>{title}</Text>
           <Text style={[styles.body, scanning && styles.scanBody]}>{text.body}</Text>
           {pendingNote ? <Text style={[styles.small, scanning && styles.scanBody]}>{pendingNote}</Text> : null}
+          {step === "voice" && faceState === "saving" ? (
+            <Text style={styles.small}>Saving your face check…</Text>
+          ) : null}
+          {step === "voice" && faceState === "failed" ? (
+            <Text style={styles.error} accessibilityRole="alert">
+              {voiceDone ? `Your voice check is saved. ${faceNote}` : faceNote}
+            </Text>
+          ) : null}
           {step === "voice" ? (
             <>
               <Text style={styles.prompt}>{PROMPT}</Text>
@@ -798,12 +929,18 @@ export default function BiometricSetupModal({
             {step === "scan" ? (
               <>
                 {problem ? (
-                  <Action title="Try again" glass disabled={busy} onPress={() => { setProblem(null); resetScan(); readyRef.current = false; setAttempt((n) => n + 1); }} />
+                  <Action title="Try again" glass disabled={busy} onPress={redoFace} />
                 ) : null}
                 {canSkip ? <Action title="Set up later" secondary glass disabled={busy} onPress={() => void finish(true)} /> : null}
               </>
             ) : null}
-            {step === "voice" ? (
+            {step === "voice" && faceState === "failed" ? (
+              <Action title="Redo face check" disabled={busy || recording} onPress={redoFace} />
+            ) : null}
+            {step === "voice" && voiceDone && faceState === "failed" && canSkip ? (
+              <Action title="Set up later" secondary disabled={busy} onPress={() => void finish(true)} />
+            ) : null}
+            {step === "voice" && !voiceDone ? (
               <>
                 <Action
                   title={recording ? `Recording… ${Math.max(0, Math.ceil(VOICE_SECONDS - elapsed))}s` : problem ? "Try again" : "Start recording"}

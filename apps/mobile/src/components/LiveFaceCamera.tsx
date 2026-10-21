@@ -8,6 +8,8 @@ import * as FileSystem from "expo-file-system";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
+import { withTimeout } from "../learnerCheck";
+
 export type LiveFrame = {
   base64: string;
   width: number;
@@ -24,7 +26,12 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   onReady?: () => void;
   onError?: (message: string) => void;
+  /** A still did not come back in time. The caller can restart the camera. */
+  onStall?: () => void;
 };
+
+/** takePictureAsync can stay pending forever on some Android cameras. */
+export const GRAB_TIMEOUT_MS = 5000;
 
 /** Prefer a ~720px still so face reads stay fast without a multi-megapixel JPEG. */
 export function pickLivePictureSize(sizes: string[]): string | null {
@@ -44,7 +51,7 @@ export function pickLivePictureSize(sizes: string[]): string | null {
 }
 
 const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFaceCamera(
-  { facing = "front", style, onReady, onError },
+  { facing = "front", style, onReady, onError, onStall },
   ref,
 ) {
   const cameraRef = useRef<CameraView>(null);
@@ -64,11 +71,15 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
       busyRef.current = true;
       try {
         const includeBase64 = options?.includeBase64 !== false;
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.32,
-          base64: includeBase64,
-          exif: false,
-        });
+        const photo = await withTimeout(
+          cameraRef.current.takePictureAsync({
+            quality: 0.32,
+            base64: includeBase64,
+            exif: false,
+          }),
+          GRAB_TIMEOUT_MS,
+          "The camera stopped returning pictures.",
+        );
         if (!photo) return null;
         if (includeBase64 && !photo.base64) return null;
         const keep = options?.retainFile && photo.uri && !photo.uri.startsWith("data:");
@@ -81,13 +92,14 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
           height: photo.height,
           uri: keep ? photo.uri : undefined,
         };
-      } catch {
+      } catch (reason) {
+        if (/stopped returning pictures/.test(String((reason as Error)?.message ?? ""))) onStall?.();
         return null;
       } finally {
         busyRef.current = false;
       }
     },
-  }), []);
+  }), [onStall]);
 
   return (
     <View style={[styles.fill, style]} collapsable={false}>
