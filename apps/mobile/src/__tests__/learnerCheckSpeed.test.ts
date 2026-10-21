@@ -34,7 +34,7 @@ describe("Learner Check timeouts", () => {
     mockDetect.mockReturnValue(new Promise(() => undefined));
     const caught = detectDeviceFaces("file:///frame.jpg").catch((reason: Error) => reason);
     jest.advanceTimersByTime(DETECT_TIMEOUT_MS);
-    expect((await caught).message).toMatch(/took too long/);
+    expect(((await caught) as Error).message).toMatch(/took too long/);
   });
 
   it("a timed-out save is deferred to the phone, not shown as a refusal", () => {

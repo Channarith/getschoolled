@@ -301,7 +301,6 @@ export default function BiometricSetupModal({
 
   const cameraRef = useRef<LiveFaceCameraHandle>(null);
   const readyRef = useRef(false);
-  const savingRef = useRef(false);
   const genRef = useRef(0);
   useEffect(() => () => {
     void stopRecording();
@@ -326,7 +325,6 @@ export default function BiometricSetupModal({
     setLiveStrokes(null);
     setPendingNote("");
     setScanHint("Look at the camera.");
-    savingRef.current = false;
   }
 
   async function begin() {
@@ -502,10 +500,20 @@ export default function BiometricSetupModal({
 
       // Save in the background and go straight to the voice check, as the
       // web app does. The voice step waits for the result before finishing.
-      void saveFace(kept);
+      const saving = saveFace(kept);
       setCaptured(0);
       setFaceSeen(false);
-      setStep(voiceDoneRef.current ? (requireGovernmentId ? "identity" : "complete") : "voice");
+      if (!voiceDoneRef.current) {
+        setStep("voice");
+        return;
+      }
+      // Redoing the face after the voice is saved: wait for this save, and
+      // go back to the voice step to show it if it fails again.
+      setBusy(true);
+      const saved = await saving;
+      setBusy(false);
+      if (cancelled) return;
+      setStep(saved ? (requireGovernmentId ? "identity" : "complete") : "voice");
     };
     void run();
     return () => {
@@ -725,7 +733,13 @@ export default function BiometricSetupModal({
   async function finish(skipped = false) {
     await withBusy(async () => {
       await stopRecording();
-      if (!skipped) await faceSaveRef.current;
+      if (!skipped) {
+        await faceSaveRef.current;
+        if (faceStateRef.current === "failed") {
+          setStep("voice");
+          return;
+        }
+      }
       resetScan();
       try {
         await completeMobileSetup(studentId, skipped);
@@ -915,7 +929,7 @@ export default function BiometricSetupModal({
             {step === "scan" ? (
               <>
                 {problem ? (
-                  <Action title="Try again" glass disabled={busy} onPress={() => { setProblem(null); resetScan(); readyRef.current = false; setAttempt((n) => n + 1); }} />
+                  <Action title="Try again" glass disabled={busy} onPress={redoFace} />
                 ) : null}
                 {canSkip ? <Action title="Set up later" secondary glass disabled={busy} onPress={() => void finish(true)} /> : null}
               </>
