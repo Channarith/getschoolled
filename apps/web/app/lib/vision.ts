@@ -20,8 +20,10 @@ import { fetchVisionModel } from "./visionModels";
 
 const DETECTOR_NAME = "face_detection_yunet_2023mar.onnx";
 const RECOGNIZER_NAME = "face_recognition_sface_2021dec.onnx";
-// YuNet's detection threshold; matches the server engine default.
-const DET_SCORE_THRESHOLD = 0.7;
+// Keep live browser tracking as forgiving as the mobile/server preview. The
+// scan uses these landmarks only for the on-screen contour; enrollment still
+// requires all pose embeddings to match before anything is uploaded.
+const DET_SCORE_THRESHOLD = 0.45;
 // YuNet is built for about a 320px input. Tracking uses that size so the
 // eyes and nose stay on the live face. The saved embedding uses a larger
 // frame so the aligned 112px crop is sharp enough to match the portrait.
