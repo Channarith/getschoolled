@@ -146,6 +146,80 @@ export function frameVerdict(faces: DeviceFaceRead[], frame: [number, number]): 
   return "ok";
 }
 
+/**
+ * The size of the picture the face boxes are measured in. iOS can report the
+ * sensor's landscape size for a still that is stored sideways, while ML Kit
+ * measures the face in the upright picture; every box then looks off-centre.
+ * When the boxes cannot fit the reported size but fit it turned, use the
+ * turned size.
+ */
+export function frameForFaces(frame: [number, number], faces: DeviceFaceRead[]): [number, number] {
+  const [width, height] = frame;
+  if (!faces.length || !(width > 0) || !(height > 0)) return frame;
+  const fits = (w: number, h: number) => faces.every((face) => {
+    const [left, top, boxWidth, boxHeight] = face.bbox;
+    return left >= -w * 0.05 && top >= -h * 0.05 && left + boxWidth <= w * 1.05 && top + boxHeight <= h * 1.05;
+  });
+  if (fits(width, height)) return frame;
+  if (fits(height, width)) return [height, width];
+  return frame;
+}
+
+export type ScanStats = {
+  grabbed: number;
+  grabMissed: number;
+  faceFrames: number;
+  emptyFrames: number;
+  readFailures: number;
+  size: [number, number] | null;
+  upright: [number, number] | null;
+  lastGrabError: string;
+  lastReadError: string;
+};
+
+/** One short line for the failure card, so a screenshot says what the phone saw. */
+export function scanDiagnostics(stats: ScanStats, counts: VerdictCounts): string {
+  const verdicts = Object.entries(counts).map(([name, n]) => `${name} ${n}`).join(", ") || "none";
+  const dims = (d: [number, number] | null) => (d ? `${d[0]}x${d[1]}` : "?");
+  const parts = [
+    `pictures ${stats.grabbed} ok / ${stats.grabMissed} missed`,
+    `faces found in ${stats.faceFrames}, none in ${stats.emptyFrames}`,
+    `size ${dims(stats.size)}, upright ${dims(stats.upright)}`,
+    `verdicts: ${verdicts}`,
+  ];
+  if (stats.readFailures) parts.push(`reader errors ${stats.readFailures}`);
+  if (stats.lastGrabError) parts.push(`camera: ${stats.lastGrabError.slice(0, 80)}`);
+  if (stats.lastReadError) parts.push(`reader: ${stats.lastReadError.slice(0, 80)}`);
+  return parts.join(" · ");
+}
+
+export type VerdictCounts = Partial<Record<FrameVerdict, number>>;
+
+const FAILURE_MESSAGE: Record<Exclude<FrameVerdict, "ok" | "none">, string> = {
+  many: "We saw more than one face. Make sure only you are in the picture, then try again.",
+  closer: "You looked too far from the camera. Bring the phone a little closer, then try again.",
+  back: "You looked too close to the camera. Move the phone back a little, then try again.",
+  center: "We couldn’t line your face up with the circle. Keep your face inside the circle at eye level, then try again.",
+  straight: "We need you looking straight at the camera. Hold the phone at eye level, then try again.",
+  eyes: "We couldn’t see your eyes clearly. Face a light, keep your eyes open and look at the camera, then try again.",
+};
+
+/** What to tell the learner when no five frames passed, from what the phone actually saw. */
+export function scanFailureMessage(counts: VerdictCounts): string {
+  let top: FrameVerdict = "none";
+  let best = 0;
+  for (const [verdict, count] of Object.entries(counts) as [FrameVerdict, number][]) {
+    if (verdict !== "ok" && count > best) {
+      top = verdict;
+      best = count;
+    }
+  }
+  if (top === "none") {
+    return "We couldn’t get a clear look. Face a window or lamp, hold the phone at eye level, and try again.";
+  }
+  return FAILURE_MESSAGE[top];
+}
+
 export const FRAME_HINT: Record<Exclude<FrameVerdict, "ok">, string> = {
   none: "Look at the camera.",
   many: "Only one face, please.",
@@ -170,7 +244,7 @@ type FaceDetectionModule = {
  */
 export async function detectDeviceFaces(
   uri: string,
-  { contours = true }: { contours?: boolean } = {},
+  { contours = true, accurate = false }: { contours?: boolean; accurate?: boolean } = {},
 ): Promise<DeviceFaceRead[]> {
   let detect: FaceDetectionModule["detect"] | undefined;
   try {
@@ -185,12 +259,20 @@ export async function detectDeviceFaces(
   if (typeof detect !== "function") {
     throw new Error("The on-device face reader is not in this build. Rebuild the app and try again.");
   }
-  const faces = await withTimeout(detect(uri, {
+  // The accurate pass is the fallback when the fast one keeps finding nothing:
+  // no outline, a smaller minimum face, the slower detector.
+  const faces = await withTimeout(detect(uri, accurate ? {
+    performanceMode: "accurate",
+    landmarkMode: "none",
+    contourMode: "none",
+    classificationMode: "all",
+    minFaceSize: 0.05,
+  } : {
     performanceMode: "fast",
     landmarkMode: contours ? "all" : "none",
     contourMode: contours ? "all" : "none",
     classificationMode: "all",
     minFaceSize: contours ? 0.08 : 0.12,
-  }), DETECT_TIMEOUT_MS, "The on-device face reader took too long.");
+  }), accurate ? DETECT_TIMEOUT_MS * 2 : DETECT_TIMEOUT_MS, "The on-device face reader took too long.");
   return (faces ?? []).map((face) => readMlKitFace(face)).filter((face): face is DeviceFaceRead => face != null);
 }

@@ -140,3 +140,41 @@ describe("held learner-check retries", () => {
     expect(pendingRetryDelayMs(40)).toBe(15 * 60 * 1000);
   });
 });
+
+import { frameForFaces, scanDiagnostics, scanFailureMessage } from "../deviceFace";
+
+describe("iOS still orientation and scan failure message", () => {
+  const face = (left: number, top: number, w: number, h: number): DeviceFaceRead => ({
+    landmarks: null, bbox: [left, top, w, h], strokes: [], smiling: null, faceWidth: w, yaw: 0, pitch: 0, eyesOpen: 1,
+  });
+
+  it("turns a sideways frame size when the face box only fits upright", () => {
+    const faces = [face(210, 480, 300, 340)];
+    expect(frameForFaces([1280, 720], faces)).toEqual([720, 1280]);
+    expect(frameVerdict(faces, frameForFaces([1280, 720], faces))).toBe("ok");
+    expect(frameVerdict(faces, [1280, 720])).toBe("center");
+  });
+
+  it("leaves a frame alone when the box already fits", () => {
+    expect(frameForFaces([720, 1280], [face(210, 480, 300, 340)])).toEqual([720, 1280]);
+    expect(frameForFaces([720, 1280], [])).toEqual([720, 1280]);
+  });
+
+  it("tells the learner what the phone actually saw", () => {
+    expect(scanFailureMessage({ center: 9, none: 2 })).toMatch(/inside the circle/);
+    expect(scanFailureMessage({ eyes: 7, straight: 1 })).toMatch(/eyes/);
+    expect(scanFailureMessage({ none: 12 })).toMatch(/clear look/);
+    expect(scanFailureMessage({})).toMatch(/clear look/);
+  });
+
+  it("writes one line that says what the phone saw", () => {
+    const line = scanDiagnostics({
+      grabbed: 14, grabMissed: 2, faceFrames: 0, emptyFrames: 14, readFailures: 0,
+      size: [1280, 720], upright: [720, 1280], lastGrabError: "", lastReadError: "",
+    }, { none: 14 });
+    expect(line).toContain("pictures 14 ok / 2 missed");
+    expect(line).toContain("faces found in 0, none in 14");
+    expect(line).toContain("upright 720x1280");
+    expect(line).toContain("verdicts: none 14");
+  });
+});

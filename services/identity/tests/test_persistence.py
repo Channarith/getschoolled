@@ -89,3 +89,46 @@ def test_persistence_conflict_is_not_treated_as_a_storage_outage(monkeypatch):
     store = AccountStore()
     with pytest.raises(PersistenceConflict):
         store.create("race-redis@example.com", "Secret123")
+
+
+def test_a_save_serializes_the_account_once(monkeypatch):
+    from identity import persistence
+    from aoep_shared.schemas import PlanTier
+
+    store = AccountStore()
+    alice = store.create("once-a@example.com", "Secret123")
+
+    sent: list[str] = []
+    seen: list[str] = []
+    real_blob = persistence._blob
+
+    def spy(st, aid):
+        seen.append(aid)
+        return real_blob(st, aid)
+
+    class _Ok:
+        def eval(self, _script, _n, _rev, _key, _idx, _email_idx, _aid, _expected, blob, _email):
+            sent.append(blob)
+            return 7
+
+    monkeypatch.setattr(persistence, "redis_configured", lambda: True)
+    monkeypatch.setattr(persistence, "_redis_client", lambda: _Ok())
+    monkeypatch.setattr(persistence, "_blob", spy)
+    store.set_tier(alice.id, PlanTier.FREE)
+    assert seen == [alice.id]
+    assert len(sent) == 1
+    assert store._persisted_blobs[alice.id] == sent[0]
+    assert store._account_revs[alice.id] == 7
+
+
+def test_slow_identity_write_is_logged_with_its_duration(caplog, monkeypatch):
+    import logging
+
+    from fastapi.testclient import TestClient
+
+    from identity import main
+
+    monkeypatch.setattr(main, "_SLOW_REQUEST_MS", -1)
+    with caplog.at_level(logging.WARNING, logger="identity.slow"):
+        TestClient(main.app).post("/onboarding/complete", json={"learner_name": "x", "age_band": "adult"})
+    assert any("slow identity write: POST /onboarding/complete" in r.message for r in caplog.records)

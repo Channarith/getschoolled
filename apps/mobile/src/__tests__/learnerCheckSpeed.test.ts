@@ -55,3 +55,11 @@ describe("silent take check", () => {
     expect(isSilentTake(null, false)).toBe(false);
   });
 });
+
+describe("onboarding save wait", () => {
+  it("a save that outlasts the wait goes to the outbox, not an error screen", () => {
+    const { isRetryableIdentityWrite } = require("../onboardingSync");
+    expect(isRetryableIdentityWrite(new Error("Saving your answers timed out."))).toBe(true);
+    expect(isRetryableIdentityWrite(new Error("Finishing setup timed out."))).toBe(true);
+  });
+});

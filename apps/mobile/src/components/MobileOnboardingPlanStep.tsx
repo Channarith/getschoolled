@@ -15,7 +15,8 @@ import {
   type ConsumerPlan,
 } from "../api";
 import { SETUP_COLORS as C } from "../learnerCheck";
-import { isRetryableIdentityWrite, queueOnboardingSync } from "../onboardingSync";
+import { withTimeout } from "../learnerCheck";
+import { SAVE_WAIT_MS, isRetryableIdentityWrite, queueOnboardingSync } from "../onboardingSync";
 import AnimatedPressable from "./AnimatedPressable";
 import KenBurnsImage from "./KenBurnsImage";
 import MobileMascotMeshy from "./MobileMascotMeshy";
@@ -79,10 +80,14 @@ export default function MobileOnboardingPlanStep({
   async function finishFree() {
     const name = displayName.trim();
     let planSaved = false;
-    try {
+    const sending = (async () => {
       await selectMobileOnboardingPlan("free");
       planSaved = true;
       await completeMobileAccountOnboarding(name, ageBand);
+    })();
+    sending.catch(() => undefined);
+    try {
+      await withTimeout(sending, SAVE_WAIT_MS, "Finishing setup timed out.");
     } catch (reason) {
       if (!isRetryableIdentityWrite(reason)) throw reason;
       await queueOnboardingSync(name, ageBand, planSaved ? undefined : "free");
@@ -93,8 +98,10 @@ export default function MobileOnboardingPlanStep({
   async function finishPaid(selected: string) {
     await selectMobileOnboardingPlan(selected);
     const name = displayName.trim();
+    const finishing = completeMobileAccountOnboarding(name, ageBand);
+    finishing.catch(() => undefined);
     try {
-      await completeMobileAccountOnboarding(name, ageBand);
+      await withTimeout(finishing, SAVE_WAIT_MS, "Finishing setup timed out.");
     } catch (reason) {
       if (!isRetryableIdentityWrite(reason)) throw reason;
       await queueOnboardingSync(name, ageBand);

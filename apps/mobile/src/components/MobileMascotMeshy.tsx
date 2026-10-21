@@ -6,7 +6,7 @@
  * phone does not fetch them.
  */
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import WebView from "react-native-webview";
 
 import MascotActor, { type MascotScene } from "./MascotActor";
@@ -106,6 +106,28 @@ export function mascotViewerHtml(clip: string): string {
 </html>`;
 }
 
+/** One small HTML file per clip, next to the viewer, for iOS to open as a file. */
+export function mascotPageFile(clip: string): string {
+  const safe = clip.replace(/[^A-Za-z0-9_]/g, "") || "idle";
+  return `mascot-${safe}.html`;
+}
+
+export type MascotSource = { html: string; baseUrl: string } | { uri: string };
+
+/**
+ * v0.94.2 switched this from opening a real file to inline markup, and the 3D
+ * mascot stopped appearing on iPhone (it fell back to the flat picture). iOS
+ * goes back to opening a page file with read access to its folder, which is
+ * what worked before. Android keeps the inline markup that fixed it there.
+ */
+export function mascotSourceFor(os: string, dir: string, clip: string, attempt = 0): MascotSource {
+  // The second attempt uses the other way of loading, in case the first is
+  // refused on this device.
+  const asFile = (os === "ios") !== (attempt > 0);
+  if (asFile) return { uri: `${dir}${mascotPageFile(clip)}` };
+  return { html: mascotViewerHtml(clip), baseUrl: dir };
+}
+
 let filesReady: Promise<string> | null = null;
 
 async function copyAsset(moduleId: number, dest: string): Promise<void> {
@@ -150,34 +172,48 @@ type Props = {
 export default function MobileMascotMeshy({ scene, style }: Props) {
   const clip = clipForMascotScene(scene);
   const [page, setPage] = useState<string | null>(null);
+  const [source, setSource] = useState<MascotSource | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [tried, setTried] = useState({ clip, attempt: 0 });
+  const attempt = tried.clip === clip ? tried.attempt : 0;
   const readyRef = useRef(false);
+
+  function fail() {
+    if (attempt === 0) setTried({ clip, attempt: 1 });
+    else setFailed(true);
+  }
 
   useEffect(() => {
     let cancel = false;
     readyRef.current = false;
     setReady(false);
     setFailed(false);
+    setSource(null);
     const timer = setTimeout(() => {
-      if (!cancel && !readyRef.current) setFailed(true);
-    }, 20000);
+      if (!cancel && !readyRef.current) fail();
+    }, attempt === 0 ? 9000 : 15000);
     void ensureViewerFiles()
       .then(async (dir) => {
         // Supplying the markup directly avoids Android WebView's inconsistent
         // handling of a file:// HTML document that then loads another local
         // JavaScript file. `baseUrl` retains the same local directory for the
         // viewer, Draco decoder, and GLB.
-        if (!cancel) setPage(dir);
+        const FileSystem = require("expo-file-system") as typeof import("expo-file-system");
+        await FileSystem.writeAsStringAsync(`${dir}${mascotPageFile(clip)}`, mascotViewerHtml(clip));
+        if (cancel) return;
+        setSource(mascotSourceFor(Platform.OS, dir, clip, attempt));
+        setPage(dir);
       })
       .catch(() => {
-        if (!cancel) setFailed(true);
+        if (!cancel) fail();
       });
     return () => {
       cancel = true;
       clearTimeout(timer);
     };
-  }, [clip]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clip, attempt]);
 
   if (failed) {
     return (
@@ -189,10 +225,10 @@ export default function MobileMascotMeshy({ scene, style }: Props) {
 
   return (
     <View style={[styles.fill, style]} testID="mobile-mascot-meshy" pointerEvents="none">
-      {page ? (
+      {page && source ? (
         <WebView
-          key={clip}
-          source={{ html: mascotViewerHtml(clip), baseUrl: page }}
+          key={`${clip}-${attempt}`}
+          source={source}
           style={styles.web}
           originWhitelist={["*"]}
           allowingReadAccessToURL={page}
@@ -208,11 +244,11 @@ export default function MobileMascotMeshy({ scene, style }: Props) {
           setSupportMultipleWindows={false}
           onError={(event) => {
             console.warn(`[mascot] webview: ${event.nativeEvent.description}`);
-            setFailed(true);
+            fail();
           }}
           onHttpError={(event) => {
             console.warn(`[mascot] ${event.nativeEvent.statusCode} ${event.nativeEvent.url}`);
-            setFailed(true);
+            fail();
           }}
           onMessage={(event) => {
             const data = event.nativeEvent.data || "";
@@ -221,7 +257,7 @@ export default function MobileMascotMeshy({ scene, style }: Props) {
               setReady(true);
             } else if (data.startsWith("error:")) {
               console.warn(`[mascot] ${data.slice(6)}`);
-              setFailed(true);
+              fail();
             }
           }}
         />

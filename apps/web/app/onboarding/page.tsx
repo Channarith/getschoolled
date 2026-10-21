@@ -28,7 +28,7 @@ import {
   type ConsumerPlan,
 } from "../lib/api";
 import { formatMonthlyPrice, orderedConsumerPlans } from "../lib/consumerPlansDisplay";
-import { flushPendingOnboardingSync, isRetryableIdentityWrite, queueLearningProfileSync, queueOnboardingSync } from "../lib/onboardingSync";
+import { SAVE_WAIT_MS, flushPendingOnboardingSync, isRetryableIdentityWrite, queueLearningProfileSync, queueOnboardingSync, waitFor } from "../lib/onboardingSync";
 import styles from "./Onboarding.module.css";
 
 // The learn step now shows exactly one mode card per page across every
@@ -338,7 +338,9 @@ export default function OnboardingPage() {
       let effectiveStudentId = studentId;
       let saveOk = true;
       try {
-        await submitLearningProfile(effectiveStudentId, answers);
+        const sending = submitLearningProfile(effectiveStudentId, answers);
+        sending.catch(() => undefined);
+        await waitFor(sending, SAVE_WAIT_MS, "Saving your answers timed out.");
       } catch (reason) {
         const msg = String(reason);
         const is404 = /\b404\b/.test(msg) || /unknown student profile/i.test(msg);
@@ -387,9 +389,10 @@ export default function OnboardingPage() {
           }
         }
       }
-      const me = await getMe().catch(() => null);
-      if (me && saveOk) {
-        void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: effectiveStudentId, answers })
+      if (saveOk) {
+        // Analytics only. Nothing on the next step needs it.
+        void getMe()
+          .then((me) => submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: effectiveStudentId, answers }))
           .catch(() => undefined);
       }
       window.dispatchEvent(new CustomEvent("aoep-learning-profile-saved"));

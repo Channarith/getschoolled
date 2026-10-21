@@ -3,6 +3,8 @@ import {
   MASCOT_MODEL_FILE,
   MASCOT_VIEWER_FILE,
   clipForMascotScene,
+  mascotPageFile,
+  mascotSourceFor,
   mascotViewerHtml,
 } from "../components/MobileMascotMeshy";
 
@@ -34,5 +36,19 @@ describe("mobile Meshy mascot", () => {
   test("the page and the viewer agree on the Draco decoder filename", () => {
     expect(MASCOT_DECODER_FILE).toBe("draco_decoder.js");
     expect(mascotViewerHtml("idle")).toContain(MASCOT_VIEWER_FILE);
+  });
+
+  test("iOS opens a real file with read access, Android keeps inline markup", () => {
+    const dir = "file:///cache/mascot-meshy-v2/";
+    expect(mascotSourceFor("ios", dir, "Big_Wave_Hello")).toEqual({ uri: `${dir}mascot-Big_Wave_Hello.html` });
+    const android = mascotSourceFor("android", dir, "idle");
+    expect(android).toEqual({ html: mascotViewerHtml("idle"), baseUrl: dir });
+    expect(mascotPageFile("../evil clip")).toBe("mascot-evilclip.html");
+  });
+
+  test("the second attempt loads the other way", () => {
+    const dir = "file:///cache/mascot-meshy-v2/";
+    expect(mascotSourceFor("ios", dir, "idle", 1)).toEqual({ html: mascotViewerHtml("idle"), baseUrl: dir });
+    expect(mascotSourceFor("android", dir, "idle", 1)).toEqual({ uri: `${dir}mascot-idle.html` });
   });
 });

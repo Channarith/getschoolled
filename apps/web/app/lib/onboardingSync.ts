@@ -57,6 +57,20 @@ function retryDelay(attempts: number): number {
   return Math.min(MAX_DELAY_MS, 15_000 * (2 ** Math.min(attempts, 6)));
 }
 
+/** How long a final onboarding save may hold the learner before it moves to the outbox. */
+export const SAVE_WAIT_MS = 5000;
+
+/** Reject when a save does not settle in time. The request itself keeps running. */
+export function waitFor<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (reason) => { clearTimeout(timer); reject(reason); },
+    );
+  });
+}
+
 export function isRetryableIdentityWrite(reason: unknown): boolean {
   const message = String((reason as Error)?.message ?? reason ?? "");
   const status = Number(message.match(/\b(502|503|504|408|429)\b/)?.[1]);
