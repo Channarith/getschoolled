@@ -61,6 +61,7 @@ test("face check, voice check, then Continue to the plan step", async ({ page })
   await expect(page.getByTestId("learner-check-mock")).toBeVisible();
   await expect(page.getByText(/Face check · \d of 4/)).toBeVisible();
   await expect(page.locator('svg[class*="contour"]')).toBeVisible();
+  await expect(page.locator('[class*="faceGuide"]')).toBeVisible();
   await expect(page.getByRole("list", { name: "Look prompts" })).toHaveCount(0);
 
   await expect(page.getByTestId("face-status")).toHaveText("Face check: saved", { timeout: 45_000 });

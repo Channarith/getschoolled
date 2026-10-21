@@ -24,7 +24,7 @@ const PATCHES = [
   { script: "patch-android-hermesc-quiet.js", required: false },
   // Android: remove deprecated package= from LiveKit manifests (AGP 8+ warning).
   { script: "patch-livekit-manifests.js", required: false },
-  // Android: other library manifest warnings (package= and unused tools:replace).
+  // Android: library manifest warnings, and the SoLoader enabled=true override.
   { script: "patch-android-library-warnings.js", required: false },
 ];
 

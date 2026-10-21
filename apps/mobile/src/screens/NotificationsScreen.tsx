@@ -154,7 +154,9 @@ export default function NotificationsScreen({ onOpenCourse, onOpenDrive, onUnrea
           ) : null}
           <Text style={styles.sub}>
             {scheduled
-              ? t("notif.subScheduled", { n: scheduled })
+              ? (scheduled === 1
+                ? t("notif.subScheduledOne")
+                : t("notif.subScheduled", { n: scheduled }))
               : t("notif.subEmpty")}
           </Text>
           {items.length > 0 ? (
@@ -178,8 +180,11 @@ export default function NotificationsScreen({ onOpenCourse, onOpenDrive, onUnrea
         const iconName = ICONS[item.icon] || "notifications";
         return (
           <AnimatedPressable
+            fill
             onPress={() => void onItemPress(item)}
             style={styles.rowWrap}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.title}. ${item.body}`}
           >
             <GlassPanel
               style={[styles.row, !isRead && styles.rowUnread]}
@@ -193,7 +198,7 @@ export default function NotificationsScreen({ onOpenCourse, onOpenDrive, onUnrea
                 />
               </View>
               <View style={styles.itemBodyWrap}>
-                <Text style={[styles.itemTitle, !isRead && styles.itemTitleUnread]}>
+                <Text style={[styles.itemTitle, isRead && styles.itemTitleRead]}>
                   {item.title}
                 </Text>
                 <Text style={styles.itemBody}>{item.body}</Text>
@@ -227,9 +232,14 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", marginHorizontal: theme.spacing.screenX, marginTop: 40, padding: 28, gap: 8 },
   emptyTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "700", marginTop: 8 },
   emptyBody: { color: theme.colors.muted, textAlign: "center", ...theme.typography.body },
-  rowWrap: { marginHorizontal: theme.spacing.screenX, marginBottom: 10 },
+  rowWrap: { marginHorizontal: theme.spacing.screenX, marginBottom: 12 },
   row: {
-    flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 14,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: theme.colors.panelSolid,
   },
   rowUnread: { borderLeftWidth: 3, borderLeftColor: theme.colors.netflix },
   iconCircle: {
@@ -238,10 +248,10 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   iconCircleUnread: { backgroundColor: "rgba(229,9,20,0.15)" },
-  itemBodyWrap: { flex: 1, minWidth: 0 },
-  itemTitle: { color: theme.colors.muted, fontSize: 14, fontWeight: "600", lineHeight: 18 },
-  itemTitleUnread: { color: theme.colors.text, fontWeight: "800" },
-  itemBody: { color: theme.colors.muted, fontSize: 12, marginTop: 4, lineHeight: 16 },
-  itemTime: { color: "#5d6890", fontSize: 11, marginTop: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.netflix, marginTop: 6 },
+  itemBodyWrap: { flex: 1, flexGrow: 1, minWidth: 0 },
+  itemTitle: { color: "#f4f7ff", fontSize: 17, fontWeight: "800", lineHeight: 23 },
+  itemTitleRead: { color: "#d5dced", fontWeight: "700" },
+  itemBody: { color: "#e4eaf6", fontSize: 15, marginTop: 6, lineHeight: 22 },
+  itemTime: { color: "#c3cce0", fontSize: 13, marginTop: 8, lineHeight: 18 },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.netflix, marginTop: 6 },
 });

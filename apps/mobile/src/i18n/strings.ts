@@ -52,7 +52,7 @@ export type StringKey =
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
   // Notifications
-  | "notif.title" | "notif.subEmpty" | "notif.subScheduled"
+  | "notif.title" | "notif.subEmpty" | "notif.subScheduled" | "notif.subScheduledOne"
   | "notif.markAll" | "notif.unread" | "notif.error"
   | "notif.emptyTitle" | "notif.emptyBody"
   // Settings
@@ -467,6 +467,7 @@ const EN: Record<StringKey, string> = {
   "notif.title": "Alerts",
   "notif.subEmpty": "Personalized inbox + on-device daily reminders. Manage in Settings.",
   "notif.subScheduled": "{n} alerts scheduled on your device.",
+  "notif.subScheduledOne": "1 alert scheduled on your device.",
   "notif.markAll": "Mark all as read",
   "notif.unread": "{n} new",
   "notif.error": "Could not load notifications ({error}).",

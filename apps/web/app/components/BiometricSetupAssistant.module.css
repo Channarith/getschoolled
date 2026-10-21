@@ -440,6 +440,7 @@
 .contour {
   position: absolute;
   inset: 0;
+  z-index: 6;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -603,6 +604,30 @@
   aspect-ratio: auto;
   border: 0;
   border-radius: 0;
+}
+
+.shell[data-stage="scan"] .corner {
+  display: none;
+}
+
+.faceGuide {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 38%;
+  width: min(72vmin, 440px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 4px solid rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 0 0 999px rgba(7, 20, 34, 0.46);
+  pointer-events: none;
+}
+
+.faceGuide[data-locked="true"] {
+  border-color: #b6ffcf;
 }
 
 .shell[data-stage="scan"] .copy {
