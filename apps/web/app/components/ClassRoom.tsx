@@ -22,6 +22,7 @@ import {
   listLessons,
   listStudents,
   pronounce,
+  pronunciationUnit,
   recordAdaptationEvent,
   recordAssessmentAttempt,
   recordAssessmentPass,
@@ -64,10 +65,21 @@ import {
 import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
 import CourseStoryboardPlayer from "./CourseStoryboardPlayer";
+import ModalityMixScore, { modalityLabel } from "./ModalityMixScore";
 import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
 import CameraLightingScreener from "./CameraLightingScreener";
 import LessonCameraCorner from "./LessonCameraCorner";
 import { LEFT_LINE, PAUSE_LINE, RESUME_LINE, type PresenceCue } from "../lib/learnerFocus";
+import {
+  canonicalStyle,
+  difficultyBadgeStyle,
+  emptyEmphasisVotes,
+  formatAdaptLine,
+  noteEmphasis,
+  paceDwellFactor,
+  type AdaptTick,
+  type Emphasis,
+} from "../lib/adaptationLine";
 import { useT } from "../lib/i18n";
 import { buildNarrationSpeakOptions } from "../lib/narrationTts";
 import { cancelSpeech, localeToBcp47, speakNaturally } from "../lib/tts";
@@ -211,12 +223,29 @@ export default function ClassRoom({
   const [lxScore, setLxScore] = useState<number | null>(null);
   const [lxTarget, setLxTarget] = useState(75);
   const [lxStrategy, setLxStrategy] = useState("");
+  const [adaptTick, setAdaptTick] = useState<AdaptTick | null>(null);
+  const [quizDifficulty, setQuizDifficulty] = useState("");
+  const [liveEmphasis, setLiveEmphasis] = useState<Emphasis | "">("");
   const [wellness, setWellness] = useState("ok");
   const sessionStartRef = useRef<number | null>(null);
   const frustrationCountRef = useRef(0);
   const questionsAskedRef = useRef(0);
   const quizStatsRef = useRef({ correct: 0, total: 0 });
   const declaredPaceRef = useRef("moderate");
+  const surveyStyleRef = useRef("balanced");
+  const liveStyleRef = useRef("");
+  const pacingRef = useRef("normal");
+  const reteachRef = useRef(false);
+  const emphasisVotesRef = useRef(emptyEmphasisVotes());
+  const lastEmphasisVoteRef = useRef(0);
+  const listenedSlideRef = useRef(-1);
+  const attentionSamplesRef = useRef<number[]>([]);
+  const lowAttentionTickedRef = useRef(false);
+  const lastAttentionPostRef = useRef(0);
+  const lessonTitleRef = useRef("");
+  const refreshLxRef = useRef<(slideIndex: number, slidesTotal: number) => Promise<void>>(
+    async () => undefined,
+  );
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const autoStartedRef = useRef(false);
   const completedCheckpointsRef = useRef<Set<string>>(new Set());
@@ -239,10 +268,16 @@ export default function ClassRoom({
         const sid = first?.id ?? "";
         setStudentId(sid);
         setStudentProfile(first);
+        surveyStyleRef.current = canonicalStyle(first?.primary_style);
         if (sid) {
           getStudentAdaptation(sid).then((prof) => {
             setAdaptationProfile(prof.adaptation ?? {});
             declaredPaceRef.current = prof.learning_pace || "moderate";
+            const saved = String(prof.adaptation?.live_style || "");
+            if (saved) {
+              liveStyleRef.current = saved;
+              setLiveEmphasis(saved as Emphasis);
+            }
           }).catch(() => {});
         }
       }).catch(() => {});
@@ -578,11 +613,17 @@ export default function ClassRoom({
     // end — pausing on repeat-after-me, quizzes, pulse checks, and the last slide.
     // Narrate the full slide body (a substantive mini-lecture), not just the
     // terse one-line script, so a self-paced course actually teaches in depth.
-    const line = slide.say_aloud
+    const concept = (storyboardI18n?.concept || slide.storyboard_concept || "").trim();
+    const recap = reteachRef.current && concept ? `${concept}. ` : "";
+    const line = recap + (slide.say_aloud
       ? (storyboardI18n?.narration || slide.narration || `Repeat after me: ${slide.say_aloud}`)
       : `${storyboardI18n?.title || slide.title}. ${
           storyboardI18n?.body || slide.body || storyboardI18n?.narration || slide.narration || ""
-        }`.trim();
+        }`.trim());
+    if (slide.say_aloud && listenedSlideRef.current !== slide.index) {
+      listenedSlideRef.current = slide.index;
+      applyLiveEmphasis("listening");
+    }
     const isLast = slide.index >= view.lesson.slides.length - 1;
     let advanced = false;
     const goNext = () => {
@@ -596,8 +637,11 @@ export default function ClassRoom({
     // Narrate the slide; for a normal slide, advance shortly after it finishes.
     // For a repeat-after-me slide we DON'T advance on narration-end — the dwell
     // timer below gives the learner a beat to speak, then continues.
+    const dwellFactor = paceDwellFactor(pacingRef.current);
     speak(line, () => {
-      if (!slide.say_aloud) autoAdvanceRef.current = setTimeout(goNext, 500);
+      if (!slide.say_aloud) {
+        autoAdvanceRef.current = setTimeout(goNext, Math.round(500 * dwellFactor));
+      }
     });
     // Also advance after an estimated reading time, so the lecture never stalls
     // even if the browser's speech `onend` doesn't fire (a known long-text quirk)
@@ -606,8 +650,8 @@ export default function ClassRoom({
     if (autoplayRef.current && speakAnswers && !isLast) {
       const words = line.split(/\s+/).filter(Boolean).length;
       const dwellMs = slide.say_aloud
-        ? 15000  // repeat-after-me: give ~15s to echo the phrase, then move on
-        : Math.min(90000, Math.max(7000, words * 430));
+        ? Math.round(15000 * dwellFactor)
+        : Math.min(90000, Math.max(7000, Math.round(words * 430 * dwellFactor)));
       autoAdvanceRef.current = setTimeout(goNext, dwellMs);
     }
     return () => { if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; } };
@@ -681,9 +725,12 @@ export default function ClassRoom({
           if (studentId) {
             recordBehavior({
               student_id: studentId,
-              topic: view?.lesson.title ?? "",
+              topic: view?.lesson.title ?? lessonTitleRef.current,
               saw_slide: true,
+              pronunciation_score: pronunciationUnit(r.score),
+              ...attentionFields(),
             }).catch(() => {});
+            applyLiveEmphasis("listening");
           }
         })
         .catch((err) => setError(String(err)));
@@ -725,24 +772,56 @@ export default function ClassRoom({
     }
   }
 
+  function attentionNow(): number | null {
+    const samples = attentionSamplesRef.current;
+    if (!samples.length) return null;
+    return samples.reduce((sum, value) => sum + value, 0) / samples.length;
+  }
+
+  function attentionFields(): { attention?: number } {
+    const live = attentionNow();
+    return live == null ? {} : { attention: live };
+  }
+
+  function noteAttention(score: number) {
+    const samples = attentionSamplesRef.current;
+    samples.push(Math.max(0, Math.min(1, score)));
+    if (samples.length > 8) samples.splice(0, samples.length - 8);
+  }
+
+  function applyLiveEmphasis(kind: Emphasis) {
+    const next = noteEmphasis(emphasisVotesRef.current, kind);
+    if (!next || next === liveStyleRef.current) return;
+    if (next === surveyStyleRef.current) return;
+    liveStyleRef.current = next;
+    setLiveEmphasis(next);
+    if (studentId) {
+      recordAdaptationEvent(studentId, "live_emphasis", { style: next }).catch(() => {});
+    }
+  }
+
   async function refreshLxTick(slideIndex: number, slidesTotal: number) {
     if (!studentId || !getToken()) return;
     const stats = quizStatsRef.current;
-    const quizAccuracy = stats.total > 0 ? stats.correct / stats.total : 0.5;
+    const quizAccuracy = stats.total > 0 ? stats.correct / stats.total : null;
+    const liveAttention = attentionNow();
+    // Unmeasured signals are left out so the Director fills them from Memory's
+    // stored camera attention and pronunciation for this learner and topic.
     try {
       const tick = await directorLxTick({
+        student_id: studentId,
+        topic: lessonTitleRef.current || view?.lesson.title || "",
         class_type: classType,
         slides_total: slidesTotal,
         slide_index: slideIndex,
         pending_questions: 0,
-        attention: 0.75,
+        ...(liveAttention != null ? { attention: liveAttention, attention_trend: liveAttention } : {}),
         slides_since_quiz: slidesSinceQuiz,
-        topic_mastery: quizAccuracy,
-        quiz_accuracy: quizAccuracy,
-        avg_response_latency_s: 8,
-        attention_trend: 0.75,
+        ...(quizAccuracy != null ? { topic_mastery: quizAccuracy, quiz_accuracy: quizAccuracy } : {}),
         question_rate: questionsAskedRef.current / Math.max(1, slideIndex + 1),
         declared_pace: declaredPaceRef.current,
+        survey_style: surveyStyleRef.current,
+        live_style: liveStyleRef.current,
         adaptation: adaptationProfile,
         wellness_state: wellness,
         course_complexity: slidesTotal > 30 ? 4 : slidesTotal < 12 ? 2 : 3,
@@ -751,15 +830,32 @@ export default function ClassRoom({
       setLxScore(tick.lx_score);
       setLxTarget(tick.lx_target);
       setLxStrategy(tick.teaching_strategy);
+      pacingRef.current = tick.pacing || "normal";
+      reteachRef.current = Boolean(tick.reteach);
+      setQuizDifficulty(tick.difficulty || "");
+      setAdaptTick({
+        learner_line_key: tick.learner_line_key || "adapt.starting",
+        learner_line_style: tick.learner_line_style || surveyStyleRef.current,
+        learner_line_pace: tick.learner_line_pace || declaredPaceRef.current,
+      });
       recordAdaptationEvent(studentId, "lx_tick", {
         score: tick.lx_score,
         strategy: tick.teaching_strategy,
         success: tick.lx_score >= tick.lx_target,
       }).catch(() => {});
+      if (liveAttention != null) {
+        recordBehavior({
+          student_id: studentId,
+          topic: lessonTitleRef.current || view?.lesson.title || "",
+          attention: liveAttention,
+        }).catch(() => {});
+      }
     } catch {
       /* offline: keep teaching */
     }
   }
+  refreshLxRef.current = refreshLxTick;
+  if (view?.lesson.title) lessonTitleRef.current = view.lesson.title;
 
   async function onStart() {
     // HARD RULE: accreditation / certification courses require a registered account.
@@ -804,7 +900,14 @@ export default function ClassRoom({
         classType,
         place.studentId || undefined,
         place.slideIndex,
+        {
+          profileScore: studentProfile?.profile_score || "",
+          sessionLength: studentProfile?.session_length || "",
+          liveStyle: liveStyleRef.current,
+          modalityRatings: studentProfile?.modality_ratings,
+        },
       );
+      lessonTitleRef.current = v.lesson.title;
       sessionStartRef.current = Date.now();
       frustrationCountRef.current = 0;
       questionsAskedRef.current = 0;
@@ -858,6 +961,7 @@ export default function ClassRoom({
           student_id: studentId,
           topic: view.lesson.title,
           saw_slide: true,
+          ...attentionFields(),
         }).catch(() => {});
       }
       await refreshLxTick(s.index, view.lesson.slides.length);
@@ -882,7 +986,12 @@ export default function ClassRoom({
         const passages = view.lesson.slides
           .slice(Math.max(0, s.index - 3), s.index + 1)
           .map((sl) => `${sl.title}: ${sl.body || sl.narration}`);
-        const quiz = await generateClassQuiz(view.lesson.title, passages, 2);
+        const quiz = await generateClassQuiz(
+          view.lesson.title,
+          passages,
+          2,
+          quizDifficulty || (pacingRef.current === "slow" ? "easy" : ""),
+        );
         if (quiz.items?.length) {
           setPopQuiz(quiz.items);
           setPopQuizAnswers({});
@@ -974,6 +1083,7 @@ export default function ClassRoom({
           student_id: studentId,
           topic: view.lesson.title,
           quiz_correct: graded.correct,
+          ...attentionFields(),
         }).catch(() => {});
         await updateTopicMastery(studentId, view.lesson.title, graded.correct).catch(() => {});
       }
@@ -1200,6 +1310,7 @@ export default function ClassRoom({
         student_id: studentId,
         topic: view.lesson.title,
         asked_question: true,
+        ...attentionFields(),
       }).catch(() => {});
     }
     setBusy(true);
@@ -1453,6 +1564,35 @@ export default function ClassRoom({
               stream={lessonCamera}
               lessonContext={view.lesson.title}
               participantId={studentId || "student"}
+              onAttention={(score) => {
+                noteAttention(score);
+                const mean = attentionNow();
+                const session = view;
+                if (mean == null || !session) return;
+                const now = Date.now();
+                if (score >= 0.7 && slide?.storyboard_svg && now - lastEmphasisVoteRef.current > 8000) {
+                  lastEmphasisVoteRef.current = now;
+                  applyLiveEmphasis("visual");
+                } else if (captionsOn && score < 0.45 && now - lastEmphasisVoteRef.current > 8000) {
+                  lastEmphasisVoteRef.current = now;
+                  applyLiveEmphasis("reading");
+                }
+                if (studentId && now - lastAttentionPostRef.current > 15000) {
+                  lastAttentionPostRef.current = now;
+                  recordBehavior({
+                    student_id: studentId,
+                    topic: lessonTitleRef.current || session.lesson.title,
+                    attention: mean,
+                  }).catch(() => {});
+                }
+                if (mean < 0.5) {
+                  if (lowAttentionTickedRef.current) return;
+                  lowAttentionTickedRef.current = true;
+                  void refreshLxRef.current(slide?.index ?? 0, session.lesson.slides.length);
+                } else {
+                  lowAttentionTickedRef.current = false;
+                }
+              }}
               onCue={(cue: PresenceCue) => {
                 void postLearnerFocus({
                   kind: cue.kind,
@@ -1519,13 +1659,11 @@ export default function ClassRoom({
                 current: slide.index + 1,
                 total: view.lesson.slides.length,
               })}
-              {lxScore !== null && (
-                <span style={{ marginLeft: 12 }}>
-                  · {t("class.lxScore", { score: lxScore, target: lxTarget })}
-                  {lxStrategy ? ` · ${lxStrategy.replace(/_/g, " ")}` : ""}
-                </span>
-              )}
+              {adaptTick ? (
+                <span style={{ marginLeft: 12 }}>{formatAdaptLine(t, adaptTick)}</span>
+              ) : null}
             </div>
+            <ModalityMixScore mix={view.session.modality_mix} slideFormat={slide.storyboard_format} />
             <h2 style={isFullscreen ? { fontSize: "clamp(30px, 4.2vw, 52px)", lineHeight: 1.15, color: "#fff", margin: "6px 0", overflowWrap: "anywhere" } : { overflowWrap: "anywhere" }}>{storyboardI18n?.title || slide.title}</h2>
             {slide.storyboard_svg ? (
               <CourseStoryboardPlayer
@@ -1534,12 +1672,16 @@ export default function ClassRoom({
                 translatedConcept={storyboardI18n?.concept}
                 examples={storyboardI18n?.examples || slide.storyboard_examples}
                 activity={storyboardI18n?.activity || slide.storyboard_activity}
-                profileMode={slide.storyboard_profile_mode}
+                profileMode={liveEmphasis || slide.storyboard_profile_mode}
+                emphasis={liveEmphasis || (canonicalStyle(studentProfile?.primary_style) === "balanced" ? "" : canonicalStyle(studentProfile?.primary_style) as "visual" | "reading" | "listening" | "practice")}
                 sourceLanguage={slide.storyboard_source_language}
                 sceneId={slide.storyboard_scene_id}
                 fullscreen={isFullscreen}
                 captions={captionsOn}
+                formatName={modalityLabel(slide.storyboard_format)}
               />
+            ) : slide.storyboard_activity ? (
+              <p data-testid="modality-activity">{slide.storyboard_activity}</p>
             ) : null}
             {askVisual?.svg ? (
               <div style={{ marginTop: 12 }}>
@@ -1831,7 +1973,21 @@ export default function ClassRoom({
 
           {popQuiz && popQuiz.length > 0 && (
             <div className="card" style={{ borderColor: "#6ea8fe" }}>
-              <h3 style={{ marginTop: 0 }}>Pop quiz — check your understanding</h3>
+              <h3 style={{ marginTop: 0 }}>
+                Pop quiz — check your understanding
+                {quizDifficulty ? (
+                  <span style={{
+                    marginLeft: 10,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    padding: "2px 8px",
+                    ...difficultyBadgeStyle(quizDifficulty),
+                  }}>
+                    {t("class.quizDifficulty", { level: quizDifficulty })}
+                  </span>
+                ) : null}
+              </h3>
               {popQuiz.map((item) => (
                 <div key={item.item_id} style={{ marginBottom: 12 }}>
                   <p><strong>{item.prompt}</strong></p>

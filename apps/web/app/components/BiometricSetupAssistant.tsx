@@ -46,6 +46,26 @@ const VOICE_PROMPT =
   "Today I’m ready to learn with Salareen. Can you hear my voice clearly? Yes—I’m speaking naturally and confidently.";
 
 const VOICE_SECONDS = 10;
+const SAVE_TIMEOUT_MS = 12_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(
+      () => reject(new Error(`${label} is taking too long. Continue, or try again.`)),
+      ms,
+    );
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (reason) => {
+        window.clearTimeout(timer);
+        reject(reason);
+      },
+    );
+  });
+}
 const WAVE_BARS = 60;
 const LIGHT_CHECK_MS = 1200;
 // 640×480 is enough for YuNet (it tracks a 320px image) and for the 112px
@@ -213,7 +233,27 @@ export default function BiometricSetupAssistant({
   }, []);
 
   const faceSaveRef = useRef<Promise<boolean> | null>(null);
+  const consentRef = useRef<Promise<void> | null>(null);
   const nextStage: Stage = requireGovernmentId ? "identity" : "complete";
+
+  // The camera opens before this finishes. Waiting on identity first left the
+  // camera light on over the intro screen whenever identity was slow.
+  const ensureConsent = useCallback((): Promise<void> => {
+    if (consentRef.current) return consentRef.current;
+    const pending = (async () => {
+      await setBiometricConsent(studentId, {
+        granted: true,
+        guardian_granted: minor ? guardianConsent : false,
+        retention_days: 365,
+      });
+      await updateSetupAssistant(studentId, { current_step: "biometrics" }).catch(() => undefined);
+    })();
+    consentRef.current = pending;
+    pending.catch(() => {
+      if (consentRef.current === pending) consentRef.current = null;
+    });
+    return pending;
+  }, [guardianConsent, minor, studentId]);
 
   // The face save runs while the learner moves on to the voice check. Each
   // check is saved on its own, so a failed face save keeps the voice
@@ -233,7 +273,8 @@ export default function BiometricSetupAssistant({
     const pending = (async () => {
       try {
         const vectors = [scan.neutral as number[], ...scan.order.map((pose) => scan.poses[pose] as number[])];
-        await enrollBiometricFace(studentId, vectors, scan.order);
+        await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
+        await withTimeout(enrollBiometricFace(studentId, vectors, scan.order), SAVE_TIMEOUT_MS, "Saving the face check");
         faceSavedRef.current = true;
         setFaceStatus("saved");
         if (voiceSavedRef.current) setStage(nextStage);
@@ -249,7 +290,7 @@ export default function BiometricSetupAssistant({
     })();
     faceSaveRef.current = pending;
     return pending;
-  }, [nextStage, stopMedia, studentId]);
+  }, [ensureConsent, nextStage, stopMedia, studentId]);
 
   // Look-target scan: track head direction from the live landmarks and keep
   // one embedding per target, in a fresh random order each attempt.
@@ -526,10 +567,13 @@ export default function BiometricSetupAssistant({
       recorder.ondataavailable = (event) => {
         if (event.data.size) chunks.push(event.data);
       };
-      const finished = new Promise<Blob>((resolve, reject) => {
-        recorder.onerror = () => reject(new Error("Voice recording failed"));
-        recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType || mimeType || "audio/webm" }));
+      let finishRecording: (blob: Blob) => void = () => undefined;
+      const finished = new Promise<Blob>((resolve) => {
+        finishRecording = resolve;
       });
+      const clipType = () => recorder.mimeType || mimeType || "audio/mp4";
+      recorder.onerror = () => finishRecording(new Blob(chunks, { type: clipType() }));
+      recorder.onstop = () => finishRecording(new Blob(chunks, { type: clipType() }));
       recorder.start(250);
       setRecording(true);
       const started = performance.now();
@@ -545,8 +589,20 @@ export default function BiometricSetupAssistant({
       };
       frame = requestAnimationFrame(draw);
       await new Promise<void>((resolve) => window.setTimeout(resolve, VOICE_SECONDS * 1000 + 150));
-      if (recorder.state !== "inactive") recorder.stop();
+      // Safari often never fires onstop unless data is requested, which left
+      // the page on "Saving your voice check…" with no buttons.
+      const stopTimer = window.setTimeout(
+        () => finishRecording(new Blob(chunks, { type: clipType() })),
+        2000,
+      );
+      if (recorder.state !== "inactive") {
+        try { recorder.requestData(); } catch { /* not supported on every browser */ }
+        recorder.stop();
+      } else {
+        finishRecording(new Blob(chunks, { type: clipType() }));
+      }
       let blob: Blob | null = await finished;
+      window.clearTimeout(stopTimer);
       chunks = [];
       cancelAnimationFrame(frame);
       setElapsed(VOICE_SECONDS);
@@ -554,14 +610,14 @@ export default function BiometricSetupAssistant({
       stopMedia();
       if (!blob.size) throw new Error("silent");
       try {
-        await enrollVoiceprint(studentId, blob);
+        await withTimeout(ensureConsent(), SAVE_TIMEOUT_MS, "Saving consent");
+        await withTimeout(enrollVoiceprint(studentId, blob), SAVE_TIMEOUT_MS, "Saving the voice check");
       } finally {
         blob = null;
       }
       voiceSavedRef.current = true;
       setVoiceSaved(true);
-      const faceSaved = faceSavedRef.current || (await (faceSaveRef.current ?? Promise.resolve(false)));
-      if (faceSaved) setStage(nextStage);
+      if (faceSavedRef.current) setStage(nextStage);
     } catch (reason) {
       setProblem(voiceProblem(reason));
     } finally {
@@ -574,8 +630,7 @@ export default function BiometricSetupAssistant({
     }
   }
 
-  async function begin() {
-    setBusy(true);
+  function begin() {
     setProblem(null);
     // Start the camera prompt in this tap. Waiting on the network first makes
     // phones show Allow and then ignore the tap.
@@ -585,21 +640,8 @@ export default function BiometricSetupAssistant({
     });
     pendingCameraRef.current = cameraPromise ?? null;
     cameraPromise?.catch(() => undefined);
-    try {
-      await setBiometricConsent(studentId, {
-        granted: true,
-        guardian_granted: minor ? guardianConsent : false,
-        retention_days: 365,
-      });
-      await updateSetupAssistant(studentId, { current_step: "biometrics" });
-      setStage("scan");
-    } catch (reason) {
-      pendingCameraRef.current = null;
-      cameraPromise?.then((stream) => stream.getTracks().forEach((track) => track.stop())).catch(() => undefined);
-      setProblem({ kind: "save", message: String((reason as Error)?.message ?? reason) });
-    } finally {
-      setBusy(false);
-    }
+    ensureConsent().catch(() => undefined);
+    setStage("scan");
   }
 
   async function submitId() {
@@ -833,7 +875,7 @@ export default function BiometricSetupAssistant({
                 <button
                   className={styles.primary}
                   disabled={busy || (minor && !guardianConsent)}
-                  onClick={() => void begin()}
+                  onClick={begin}
                 >Get started</button>
                 {canSkip && (
                   <button className={styles.secondary} onClick={() => void skip()}>Set up later</button>
@@ -868,7 +910,10 @@ export default function BiometricSetupAssistant({
                       : problem ? "Try the voice check again" : "Start voice check"}
                   </button>
                 )}
-                {canSkip && !busy && (
+                {voiceSaved && (
+                  <button className={styles.primary} onClick={() => setStage(nextStage)}>Continue</button>
+                )}
+                {canSkip && (
                   <button className={styles.secondary} onClick={() => void skip()}>Set up later</button>
                 )}
               </>
@@ -911,6 +956,7 @@ export default function BiometricSetupAssistant({
                 <video
                   ref={videoRef}
                   className={styles.camera}
+                  autoPlay
                   muted
                   playsInline
                   aria-label="Live camera feed for Learner Check face scan"

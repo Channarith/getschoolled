@@ -26,9 +26,13 @@ type Props = {
   examples?: string[];
   activity?: string;
   profileMode?: string;
+  /** Live emphasis: lead with the matching block even before captions are on. */
+  emphasis?: "" | "visual" | "reading" | "listening" | "practice";
   sourceLanguage?: string;
   /** Lesson body/concept text. Hidden until closed captions are on. */
   captions?: boolean;
+  /** Allocated page format, already labeled for the learner. */
+  formatName?: string;
 };
 
 export default function CourseStoryboardPlayer({
@@ -40,8 +44,10 @@ export default function CourseStoryboardPlayer({
   examples: examplesProp,
   activity,
   profileMode = "mixed",
+  emphasis = "",
   sourceLanguage = "en",
   captions = false,
+  formatName = "",
 }: Props) {
   const examples = useMemo(() => examplesProp || [], [examplesProp]);
   const { locale } = useT();
@@ -96,6 +102,37 @@ export default function CourseStoryboardPlayer({
         style={{ width: "100%", lineHeight: 0 }}
         dangerouslySetInnerHTML={{ __html: sanitizeStoryboardSvg(svg) }}
       />
+      {formatName ? (
+        <div data-testid="slide-modality" style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", padding: "8px 12px 0" }}>
+          This page: {formatName}
+        </div>
+      ) : null}
+      {!captions && formatName && shownActivity ? (
+        <figcaption style={{ fontSize: fullscreen ? 15 : 13, color: "#fde68a", padding: "4px 12px 10px" }}>
+          {shownActivity}
+        </figcaption>
+      ) : null}
+      {!captions && emphasis === "visual" && shownConcept ? (
+        <figcaption style={{ fontSize: fullscreen ? 15 : 13, color: "#e2e8f0", padding: "8px 12px 10px" }}>
+          {shownConcept}
+        </figcaption>
+      ) : null}
+      {!captions && emphasis === "reading" && (shownConcept || shownExamples.length) ? (
+        <figcaption style={{ fontSize: fullscreen ? 15 : 13, color: "#e2e8f0", padding: "8px 12px 10px" }}>
+          {shownConcept ? <div>{shownConcept}</div> : null}
+          {shownExamples.length ? <div style={{ marginTop: 6 }}>{shownExamples.join(" · ")}</div> : null}
+        </figcaption>
+      ) : null}
+      {!captions && emphasis === "listening" && shownConcept ? (
+        <figcaption style={{ fontSize: fullscreen ? 15 : 13, color: "#e2e8f0", padding: "8px 12px 10px" }}>
+          {shownConcept}
+        </figcaption>
+      ) : null}
+      {!captions && emphasis === "practice" && shownActivity ? (
+        <figcaption style={{ fontSize: fullscreen ? 15 : 13, color: "#fde68a", padding: "8px 12px 10px" }}>
+          {shownActivity}
+        </figcaption>
+      ) : null}
       {captions && shownConcept ? (
         <figcaption
           style={{

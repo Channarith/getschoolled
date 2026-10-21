@@ -44,6 +44,17 @@ config.resolver.blockList = new RegExp(
 
 config.watchFolders = [path.resolve(__dirname)];
 
+// The Meshy mascot is a Draco GLB plus two text files that hold the viewer
+// and decoder. Expo's default lists omit both extensions, so Metro reports
+// the files as missing even when they are on disk.
+const mascotAssetExts = ["glb", "txt"];
+config.resolver.assetExts = Array.from(
+  new Set([...(config.resolver.assetExts || []), ...mascotAssetExts]),
+);
+config.resolver.sourceExts = (config.resolver.sourceExts || []).filter(
+  (ext) => !mascotAssetExts.includes(ext),
+);
+
 // metro-config's default emptyModulePath is require.resolve("metro-runtime/..."),
 // which walks out of this app and lands in ~/node_modules when that directory
 // exists. Metro then refuses the file because it is outside the project, and

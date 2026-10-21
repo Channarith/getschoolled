@@ -289,23 +289,56 @@ def redis_configured() -> bool:
     return bool(effective_redis_url())
 
 
+_cached_client = None
+_cached_url = None
+
+
+def _drop_redis_client() -> None:
+    global _cached_client, _cached_url
+    client = _cached_client
+    _cached_client = None
+    _cached_url = None
+    if client is not None:
+        try:
+            client.close()
+        except Exception:
+            pass
+
+
 def _redis_client():
+    """Reuse one client. A new connection plus ping on every signup adds a hang point."""
+    global _cached_client, _cached_url
     url = effective_redis_url()
     if not url:
+        _drop_redis_client()
         return None
+    if _cached_client is not None and _cached_url == url:
+        return _cached_client
+    if _cached_client is not None:
+        _drop_redis_client()
     try:
         from aoep_shared.redis_url import open_redis
     except ImportError:
         logger.warning("REDIS_URL set but redis helper is missing; identity stays in-memory")
         return None
     try:
-        return open_redis(url, decode_responses=True, socket_connect_timeout=2)
+        client = open_redis(
+            url,
+            decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+            socket_keepalive=True,
+            health_check_interval=30,
+        )
     except ImportError:
         logger.warning("REDIS_URL set but redis package not installed; identity stays in-memory")
         return None
     except Exception as exc:
         logger.warning("Redis unavailable for identity persistence (%s); in-memory only", exc)
         return None
+    _cached_client = client
+    _cached_url = url
+    return client
 
 
 def _serialize_account(acct: "Account") -> dict:
@@ -562,11 +595,19 @@ def claim_grant_nonce(nonce_key: str) -> bool:
         return False
 
 
-def _save_dirty_accounts(store: "AccountStore", client) -> None:
+def _save_dirty_accounts(store: "AccountStore", client, account_ids=None) -> None:
     if not getattr(store, "_redis_writes", True):
         return
+    # A signup used to serialize every account in memory before writing one
+    # row. That stayed fast while the snapshot was small and now holds the
+    # request until the gateway times out. Callers that know the changed id
+    # write only that row.
+    if account_ids:
+        candidates = [aid for aid in account_ids if aid in store._by_id]
+    else:
+        candidates = list(store._by_id)
     dirty = [
-        aid for aid in list(store._by_id)
+        aid for aid in candidates
         if store._persisted_blobs.get(aid) != _blob(store, aid)
     ]
     removed = [aid for aid in list(store._persisted_blobs) if aid not in store._by_id]
@@ -597,6 +638,10 @@ def _save_dirty_accounts(store: "AccountStore", client) -> None:
             rev = int(client.hget(_rev_key(), aid) or 0)
             if remote:
                 _apply_wrapper(store, aid, remote, rev)
+                # A timed-out insert can still land. Rev 0 means this process
+                # had not saved the row yet, so the remote copy is that save.
+                if expected == "0":
+                    continue
             raise PersistenceConflict(aid)
         store._account_revs[aid] = int(new_rev)
         store._persisted_blobs[aid] = _blob(store, aid)
@@ -665,14 +710,34 @@ def load_game_round(game_id: str) -> Optional[str]:
         return None
 
 
-def persist_hook(store: "AccountStore") -> None:
-    """Save the accounts this process actually changed, one key at a time."""
+def persist_hook(store: "AccountStore", account_ids=None) -> None:
+    """Save the accounts this process actually changed, one key at a time.
+
+    A stuck command used to sit until the gateway returned 504. Each attempt
+    is bounded, then one fresh connection is tried. The account stays either
+    way, which is how signup behaved before the timeout was added.
+    """
     if not getattr(store, "_redis_writes", True):
         return
     if not redis_configured():
         return
-    client = _redis_client()
-    if client is None:
-        logger.warning("identity mutation not persisted; Redis is unavailable")
-        return
-    _save_dirty_accounts(store, client)
+    last: Exception | None = None
+    for attempt in range(2):
+        client = _redis_client()
+        if client is None:
+            logger.warning("identity mutation not persisted; Redis is unavailable")
+            return
+        try:
+            _save_dirty_accounts(store, client, account_ids)
+            return
+        except PersistenceConflict:
+            raise
+        except Exception as exc:
+            last = exc
+            _drop_redis_client()
+            logger.warning(
+                "identity persist failed (%s); %s",
+                exc,
+                "retrying" if attempt == 0 else "keeping the in-memory account",
+            )
+    logger.error("identity persist failed after retry (%s)", last)

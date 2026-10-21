@@ -42,6 +42,7 @@ export default function DriveModeScreen({
   useAndroidBackTo(() => { stopAllTts(); onBack(); });
   useEffect(() => { return () => { stopAllTts(); }; }, []);
   const [course, setCourse] = useState<AudioCourse | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -143,13 +144,15 @@ export default function DriveModeScreen({
       instructorRef.current = s.instructorId || "";
       const tloc = normalizeTrainingLocale(s.trainingLocale || locale);
       setTrainingLang(tloc);
+      setCourse(null);
+      setLoadError("");
       getAudioCourse(courseId, locale, tloc)
         .then((c) => {
           agentStartedRef.current = false;
           setCourse(c);
           void prepareHandsFree(c, tloc);
         })
-        .catch(() => {});
+        .catch((e) => setLoadError((e as Error).message || "This course could not be opened."));
     });
     void getMyList().then((ids) => setSaved(ids.includes(courseId)));
     return () => {
@@ -504,7 +507,18 @@ export default function DriveModeScreen({
   if (!course) {
     return (
       <View style={styles.c}>
-        <ActivityIndicator color={theme.colors.netflix} size="large" />
+        {loadError ? (
+          <>
+            <Text style={{ color: theme.colors.text, textAlign: "center", marginBottom: 16 }}>
+              {loadError}
+            </Text>
+            <AnimatedPressable onPress={onBack}>
+              <Text style={{ color: theme.colors.accent }}>{t("liveClass.back")}</Text>
+            </AnimatedPressable>
+          </>
+        ) : (
+          <ActivityIndicator color={theme.colors.netflix} size="large" />
+        )}
       </View>
     );
   }

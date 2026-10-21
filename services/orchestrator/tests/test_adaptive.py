@@ -71,6 +71,20 @@ def test_signals_from_events_aggregation():
     assert round(s.skill(), 3) == round(0.5 * 0.7 + 0.5 * 0.75, 3)
 
 
+def test_pronunciation_blends_into_accuracy_when_quizzes_exist():
+    s = signals_from_events(
+        quiz_outcomes=[True, True, False, True],
+        pronunciation_scores=[40],
+    )
+    # 0.7 * 0.75 + 0.3 * 0.40
+    assert round(s.quiz_accuracy, 3) == 0.645
+
+
+def test_pronunciation_alone_sets_accuracy():
+    s = signals_from_events(pronunciation_scores=[85, 60])
+    assert round(s.quiz_accuracy, 3) == round((0.85 + 0.60) / 2, 3)
+
+
 def test_attention_drop_forces_slow_even_if_skilled():
     s = LearnerSignals(topic_mastery=0.9, quiz_accuracy=0.9, attention_trend=0.2,
                        avg_response_latency_s=3.0)

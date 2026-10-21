@@ -44,6 +44,22 @@ describe("kids catalog deep-link routing", () => {
     });
   });
 
+  it("opens a live class such as CPR in the lesson player", () => {
+    expect(
+      routeForCatalogItem(
+        "lesson:cpr-first-aid-certification",
+        "/class?lesson=cpr-first-aid-certification",
+      ),
+    ).toEqual({ kind: "lesson", lessonId: "cpr-first-aid-certification" });
+  });
+
+  it("opens an audio deep link by its course id", () => {
+    expect(routeForCatalogItem("audio:intro-ml", "/drive?course=intro-ml")).toEqual({
+      kind: "drive",
+      courseId: "intro-ml",
+    });
+  });
+
   it("falls back to Drive for a deep link it does not understand", () => {
     expect(routeForCatalogItem("c1", "/watch?course=c1")).toEqual({
       kind: "drive",

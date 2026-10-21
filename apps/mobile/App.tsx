@@ -455,7 +455,7 @@ function AppInner() {
    * arcade games are not audio courses, so routing everything to Drive left
    * them unopenable.
    */
-  const openCatalogItem = (id: string, deepLink?: string) => {
+  const openCatalogItem = (id: string, deepLink?: string, title?: string) => {
     if (!authenticated) return;
     const studio = studioCourseFromLink(id, deepLink);
     if (studio) {
@@ -471,6 +471,13 @@ function AppInner() {
     if (route.kind === "game") {
       setShowKids(false);
       openGame(route.subject, true);
+      return;
+    }
+    if (route.kind === "lesson") {
+      setShowKids(false);
+      setShowSearch(false);
+      setShowLiveClass(false);
+      setActiveLesson({ id: route.lessonId, title: title || "", classType: "solo" });
       return;
     }
     openCourse(route.courseId);
@@ -622,7 +629,10 @@ function AppInner() {
     screen = (
       <SearchScreen
         onBack={() => setShowSearch(false)}
-        onOpenCourse={(id, deepLink) => { setShowSearch(false); openCatalogItem(id, deepLink); }}
+        onOpenCourse={(id, deepLink, title) => {
+          setShowSearch(false);
+          openCatalogItem(id, deepLink, title);
+        }}
         onOpenSettings={(section) => {
           setShowSearch(false);
           if (section === "account") {

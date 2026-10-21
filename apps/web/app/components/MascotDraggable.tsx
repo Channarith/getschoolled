@@ -117,6 +117,9 @@ export default function MascotDraggable({ scene }: { scene: MascotScene }) {
 
   const beginDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
+    // A modal (the consent notice) sits in the top layer. If a hit still
+    // reaches this stage, ignore it so the character cannot eat the click.
+    if (document.querySelector("dialog[open]")) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const size = floating?.size ?? Math.max(280, Math.min(rect.width, rect.height, 520));
     const originX = floating ? floating.x : rect.left + (rect.width - size) / 2;

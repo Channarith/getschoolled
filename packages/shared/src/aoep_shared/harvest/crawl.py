@@ -67,6 +67,24 @@ class CrawlSession:
         self.metrics.discovered += n
         return n
 
+    def promote_backlog(self, n: int = 1) -> int:
+        """Turn claimed backlog topics into a few open-catalog seed URLs.
+
+        Search engines are not called here. Each topic becomes stable links on
+        Archive.org, Wikibooks, and OER Commons, which the crawl can fetch and
+        expand. One claim per batch keeps a million-topic backlog from flooding
+        the URL queue.
+        """
+        from .topic_catalog import open_seed_specs
+
+        topics = self.corpus.claim_topics(n)
+        specs = []
+        for topic in topics:
+            specs.extend(open_seed_specs(topic))
+        added = self.queue.enqueue_many(specs)
+        self.metrics.discovered += added
+        return added
+
     def _fetch(self, spec: SourceSpec) -> bytes:
         data, st = fetch_url(spec)
         spec.source_type = st

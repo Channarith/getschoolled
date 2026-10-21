@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   AUTH_EVENT,
   getHomeFeed,
+  getStudentAdaptation,
   getToken,
   listStudents,
   recommendForProfile,
@@ -13,6 +14,15 @@ import {
   type StudentProfile,
 } from "../lib/api";
 import { useT } from "../lib/i18n";
+
+function pickReason(
+  rec: ForesightRec,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  const key = rec.reason?.startsWith("rec.") ? rec.reason : "rec.becauseFirst";
+  const style = t(`adapt.style.${rec.reason_style || "balanced"}`);
+  return t(key, { style });
+}
 
 function homeFeedToResult(students: StudentProfile[], selected: string): ForesightResult {
   return {
@@ -34,6 +44,7 @@ export default function RecommendedPage() {
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
+  const [liveStyle, setLiveStyle] = useState("");
 
   useEffect(() => {
     let ctrl: AbortController | null = null;
@@ -74,7 +85,8 @@ export default function RecommendedPage() {
         title: c.title,
         score: 1,
         covers_gaps: [],
-        reason: "Popular starter pick — great for your first classes",
+        reason: "rec.becauseFirst",
+        reason_style: "balanced",
       }));
       setResult({
         ...base,
@@ -91,13 +103,41 @@ export default function RecommendedPage() {
   }, [locale]);
 
   useEffect(() => {
+    if (!selected || !getToken()) {
+      setLiveStyle("");
+      return;
+    }
+    let cancelled = false;
+    getStudentAdaptation(selected)
+      .then((row) => {
+        if (cancelled) return;
+        const style = row.adaptation?.live_style;
+        setLiveStyle(typeof style === "string" ? style : "");
+      })
+      .catch(() => {
+        if (!cancelled) setLiveStyle("");
+      });
+    return () => { cancelled = true; };
+  }, [selected]);
+
+  useEffect(() => {
     const prof = students.find((s) => s.id === selected);
     if (!prof) return;
     const controller = new AbortController();
     setError("");
     recommendForProfile(
-      { student_id: prof.id, mastery: prof.mastery,
-        completed_course_ids: prof.completed_course_ids, interests: prof.interests },
+      {
+        student_id: prof.id,
+        mastery: prof.mastery,
+        completed_course_ids: prof.completed_course_ids,
+        interests: prof.interests,
+        profile_score: prof.profile_score,
+        primary_style: prof.primary_style,
+        pace: prof.learning_pace,
+        session_length: prof.session_length,
+        reading_level: prof.reading_level,
+        live_style: liveStyle,
+      },
       controller.signal,
     )
       .then((r) => {
@@ -112,7 +152,7 @@ export default function RecommendedPage() {
         applyHomeFallback(homeFeedToResult(students, prof.id), prof.id);
       });
     return () => controller.abort();
-  }, [selected, students, locale, applyHomeFallback]);
+  }, [selected, students, locale, liveStyle, applyHomeFallback]);
 
   if (authResolved && !loggedIn) {
     return (
@@ -194,10 +234,7 @@ export default function RecommendedPage() {
                 <div className="muted" style={{ fontSize: 12 }}>
                   {t("recommended.matchScore", { score: r.score })}
                 </div>
-                <p className="muted" style={{ marginTop: 6 }}>{r.reason}</p>
-                {r.covers_gaps.length > 0 && (
-                  <div style={{ fontSize: 11 }}>{t("recommended.covers")} {r.covers_gaps.join(", ")}</div>
-                )}
+                <p className="muted" style={{ marginTop: 6 }}>{pickReason(r, t)}</p>
                 <Link href={`/browse?q=${encodeURIComponent(r.title)}`} style={{ fontSize: 13 }}>
                   {t("recommended.openCourse")}
                 </Link>

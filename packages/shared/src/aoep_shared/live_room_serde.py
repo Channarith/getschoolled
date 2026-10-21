@@ -87,6 +87,7 @@ def live_room_to_dict(room: LiveRoom) -> Dict[str, Any]:
       "presence_hold_reason": getattr(room, "presence_hold_reason", "") or "",
       "presence_hold_started_at": getattr(room, "presence_hold_started_at", "") or "",
       "group_game": dict(getattr(room, "group_game", None) or {}) or None,
+      "modality_mix": dict(getattr(room, "modality_mix", None) or {}),
   }
 
 
@@ -199,4 +200,5 @@ def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
       presence_hold_reason=data.get("presence_hold_reason") or "",
       presence_hold_started_at=data.get("presence_hold_started_at") or "",
       group_game=dict(data.get("group_game") or {}) or None,
+      modality_mix=dict(data.get("modality_mix") or {}),
   )

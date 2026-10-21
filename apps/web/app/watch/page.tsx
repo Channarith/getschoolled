@@ -3,11 +3,12 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { getAdBreaks, getMe, getToken, searchCourses, type AdBreak, type AdPlan, type CatalogCourse } from "../lib/api";
+import { CURRICULUM_URL, getAdBreaks, getMe, getToken, searchCourses, type AdBreak, type AdPlan, type CatalogCourse } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useFlag } from "../lib/flags";
 import { effectiveAdTier } from "../lib/useCourseAds";
 import VideoAdBreak from "../components/VideoAdBreak";
+import LessonClipPlayer from "../components/LessonClipPlayer";
 
 const COURSE_SECONDS = 60; // compressed demo runtime for the simulated player
 const AD_FREE_TIERS = new Set(["pro", "premium"]);
@@ -28,6 +29,8 @@ function WatchInner() {
   const [playing, setPlaying] = useState(false);
   const [contentTime, setContentTime] = useState(0);
   const [ad, setAd] = useState<AdBreak | null>(null);
+  const [trailerUrl, setTrailerUrl] = useState("");
+  const [clipTitle, setClipTitle] = useState("");
   const playedMidrolls = useRef<Set<number>>(new Set());
   const log = useRef<string[]>([]);
   const [, force] = useState(0);
@@ -39,6 +42,28 @@ function WatchInner() {
       if (!courseId && c.length) setCourseId(c[0].course_id);
     }).catch((e) => setError(String(e)));
   }, [watchEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!courseId) {
+      setTrailerUrl("");
+      setClipTitle("");
+      return;
+    }
+    let cancelled = false;
+    fetch(`${CURRICULUM_URL}/courses/${encodeURIComponent(courseId)}`, { cache: "no-store" })
+      .then(async (res) => (res.ok ? res.json() : null))
+      .then((course) => {
+        if (cancelled || !course) return;
+        setTrailerUrl(typeof course.trailer_url === "string" ? course.trailer_url : "");
+        setClipTitle(typeof course.title === "string" ? course.title : "");
+      })
+      .catch(() => {
+        if (!cancelled) setTrailerUrl("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -116,10 +141,23 @@ function WatchInner() {
 
   if (!watchEnabled) {
     return (
-      <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-        <h1>Watch is temporarily unavailable</h1>
-        <p className="muted">This experimental window is disabled while testing is completed.</p>
-        <Link href="/browse">Browse courses</Link>
+      <main style={{ maxWidth: 860, margin: "0 auto", padding: 24 }}>
+        <h1 style={{ marginBottom: 4 }}>Lesson clip</h1>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Short video-lesson clips play here. The ad demo stays off while that experiment is disabled.
+        </p>
+        <div style={{ position: "relative", background: "#000", borderRadius: 12, aspectRatio: "16/9", overflow: "hidden" }}>
+          {trailerUrl ? (
+            <LessonClipPlayer url={trailerUrl} title={clipTitle} />
+          ) : (
+            <div style={{ color: "#888", padding: 24 }}>
+              {courseId
+                ? "This course has no clip yet."
+                : "Open /watch?course=… for a course with a trailer clip."}
+            </div>
+          )}
+        </div>
+        <p style={{ marginTop: 16 }}><Link href="/browse">Browse courses</Link></p>
       </main>
     );
   }
@@ -147,13 +185,18 @@ function WatchInner() {
       {error && <p style={{ color: "#e11d48" }}>{error}</p>}
 
       <div style={{ position: "relative", background: "#000", borderRadius: 12, aspectRatio: "16/9", display: "flex",
-        alignItems: "center", justifyContent: "center", color: "#888", marginTop: 16 }}>
-        {playing ? (
+        alignItems: "center", justifyContent: "center", color: "#888", marginTop: 16, overflow: "hidden" }}>
+        {trailerUrl && !ad ? (
+          <div style={{ position: "absolute", inset: 0 }}>
+            <LessonClipPlayer url={trailerUrl} title={clipTitle} />
+          </div>
+        ) : null}
+        {playing && !trailerUrl ? (
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 28, color: "#fff" }}>▶ Playing course</div>
             <div style={{ color: "#aaa", marginTop: 8 }}>{contentTime}s / {COURSE_SECONDS}s</div>
           </div>
-        ) : !ad ? (
+        ) : !ad && !trailerUrl ? (
           <div>Press Play to start</div>
         ) : null}
         {ad && (

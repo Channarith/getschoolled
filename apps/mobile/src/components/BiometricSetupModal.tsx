@@ -136,20 +136,34 @@ export function faceEnrollmentProblem(reason: unknown): Problem {
   if (status === 422) {
     return { message: message || "Those photos did not pass the face check. Follow each look prompt and try again." };
   }
-  if (status === 503) {
-    return { message: "The face check service is unavailable. Try again in a minute." };
+  if (status === 503 || status === 502) {
+    const detail = message && !/unavailable/i.test(message) ? ` ${message}` : "";
+    return { message: `The face check service is unavailable.${detail} Try again in a minute.` };
   }
   return { message: message || "Could not save your face check. Try again." };
 }
 
+/**
+ * Identity of one JPEG still. The first bytes are the JFIF header, which is
+ * the same for every photo from this camera, so a prefix compare treated every
+ * later look (up, right, down, left) as a duplicate of the neutral portrait
+ * and the contour never moved. Sample the compressed scan instead.
+ */
 export function stillFingerprint(base64: string): string {
-  return base64.slice(0, 96);
+  const length = base64.length;
+  if (length < 180) return base64;
+  const mid = Math.floor(length / 2);
+  return `${length}:${base64.slice(mid, mid + 64)}:${base64.slice(-64)}`;
 }
 
 function voiceProblem(reason: unknown): Problem {
   const status = (reason as { status?: number })?.status;
   const message = String((reason as Error)?.message ?? reason);
-  if (status === 503) return { message: "The voice check isn’t available right now. Try again in a minute, or set it up later." };
+  if (status === 503 || status === 502) {
+    const detail = message.replace(/^Error:\s*/, "");
+    const extra = detail && !/unavailable/i.test(detail) ? ` ${detail}` : "";
+    return { message: `The voice check isn’t available right now.${extra} Try again in a minute, or set it up later.` };
+  }
   if (/silent|too quiet/i.test(message)) return { message: "We couldn’t hear you. Hold the phone closer and read the sentence out loud." };
   if (/clipped/i.test(message)) return { message: "That was too loud. Hold the phone a little farther away and try again." };
   if (/between 8 and 15|too short|decoded/i.test(message)) {
@@ -367,6 +381,7 @@ export default function BiometricSetupModal({
         await wait(80);
       }
       let misses = 0;
+      let serviceFails = 0;
       while (!cancelled) {
         if (savingRef.current) return;
         const seenGen = genRef.current;
@@ -377,24 +392,28 @@ export default function BiometricSetupModal({
           continue;
         }
         const fingerprint = stillFingerprint(frameShot.base64);
-        if (shotsRef.current.some((shot) => stillFingerprint(shot.base64) === fingerprint)) {
-          await wait(80);
-          continue;
-        }
+        const duplicate = shotsRef.current.some((shot) => stillFingerprint(shot.base64) === fingerprint);
         const pending = previewMobileFace(studentId, frameShot.base64)
           .then((value) => ({ ok: true as const, value }))
           .catch((reason: unknown) => ({ ok: false as const, reason }));
         const preview = await Promise.race([
           pending,
-          wait(2500).then(() => ({ ok: false as const, reason: null })),
+          wait(8000).then(() => ({ ok: false as const, reason: null })),
         ]);
         if (cancelled || genRef.current !== seenGen) continue;
         if (!preview.ok) {
           const status = (preview.reason as { status?: number } | null)?.status;
-          if (status === 503) {
-            setProblem({ message: "The face check service is unavailable. Try again in a minute." });
-            return;
+          if (status === 503 || status === 502) {
+            // One refused frame is a cold service. Stop only after it keeps refusing.
+            serviceFails += 1;
+            if (serviceFails >= 4) {
+              setProblem(faceEnrollmentProblem(preview.reason));
+              return;
+            }
+            await wait(500);
+            continue;
           }
+          serviceFails = 0;
           misses += 1;
           if (misses === 6) {
             setContourNote("Still watching the live camera. If the lines don’t appear, check your connection.");
@@ -422,7 +441,7 @@ export default function BiometricSetupModal({
           seen,
           otherSideways,
         );
-        if (face && action !== "none" && action !== "one") {
+        if (face && action !== "one") {
           const contour = faceContour(face.landmarks, face.bbox);
           setLiveContour({ base64: "", contour, frame, marks: [] });
         } else if (action === "none" || action === "one") {
@@ -449,6 +468,10 @@ export default function BiometricSetupModal({
           continue;
         }
         if (!face || !geometry) continue;
+        if (duplicate) {
+          await wait(120);
+          continue;
+        }
         const marks = faceMarksFromJpeg(frameShot.base64, face.landmarks, frame, face.bbox);
         const contour = faceContour(face.landmarks, face.bbox);
         const kept: Shot = { base64: frameShot.base64, contour, frame, marks };
@@ -510,10 +533,37 @@ export default function BiometricSetupModal({
         });
         return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
       const samples: LevelSample[] = [];
+      // AAC in an m4a container on both platforms. The voice service decodes
+      // that with ffmpeg; a 3gp/AMR clip from an Android default is easier to lose.
       const { recording: active } = await Audio.Recording.createAsync(
-        { ...Audio.RecordingOptionsPresets.HIGH_QUALITY, isMeteringEnabled: true },
+        {
+          isMeteringEnabled: true,
+          android: {
+            extension: ".m4a",
+            outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+            audioEncoder: Audio.AndroidAudioEncoder.AAC,
+            sampleRate: 44100,
+            numberOfChannels: 1,
+            bitRate: 128000,
+          },
+          ios: {
+            extension: ".m4a",
+            outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+            audioQuality: Audio.IOSAudioQuality.HIGH,
+            sampleRate: 44100,
+            numberOfChannels: 1,
+            bitRate: 128000,
+          },
+          web: { mimeType: "audio/webm", bitsPerSecond: 128000 },
+        },
         (status) => {
           if (!status.isRecording) return;
           const t = status.durationMillis / 1000;
@@ -592,6 +642,8 @@ export default function BiometricSetupModal({
   const latest = liveContour;
   const { isMedium, isExpanded } = useLayoutMetrics();
   const wide = isMedium || isExpanded;
+  const scanPhone = !wide && step === "scan";
+  const [frameBox, setFrameBox] = useState({ width: 0, height: 0 });
 
   return (
     <Modal visible={visible && !systemPrompt} animationType="fade" presentationStyle="fullScreen" onRequestClose={onDismiss}>
@@ -606,23 +658,41 @@ export default function BiometricSetupModal({
           {stepLabel ? <Text style={styles.stepLabel}>{stepLabel}</Text> : null}
         </View>
         <View style={[styles.split, !wide && styles.splitStack]}>
-          <View style={[styles.artPane, !wide && styles.artBand]}>
+          <View style={[styles.artPane, !wide && step !== "scan" && styles.artBand, scanPhone && styles.scanArt]}>
             <KenBurnsImage source={step === "voice" ? ART.voice : ART.face} style={StyleSheet.absoluteFill} />
-            <View style={styles.frame}>
+            <View
+              style={scanPhone ? styles.frameScan : styles.frame}
+              onLayout={(event) => {
+                const next = {
+                  width: Math.round(event.nativeEvent.layout.width),
+                  height: Math.round(event.nativeEvent.layout.height),
+                };
+                setFrameBox((current) => (
+                  current.width === next.width && current.height === next.height ? current : next
+                ));
+              }}
+            >
             {step === "scan" ? (
               <>
-                <LiveFaceCamera
-                  key={attempt}
-                  ref={cameraRef}
-                  onReady={() => { readyRef.current = true; }}
-                  onError={(message) => setProblem({ message })}
-                />
+                <View style={styles.cameraClip} collapsable={false}>
+                  <LiveFaceCamera
+                    key={attempt}
+                    ref={cameraRef}
+                    style={styles.cameraLayer}
+                    onReady={() => { readyRef.current = true; }}
+                    onError={(message) => setProblem({ message })}
+                  />
+                </View>
+                <View style={styles.overlay} pointerEvents="none" collapsable={false}>
                 <View style={styles.liveDot} accessibilityLabel="Live camera" />
-                {latest?.contour ? (
+                {latest?.contour && frameBox.width > 0 ? (
                   <Svg
-                    style={StyleSheet.absoluteFill}
+                    style={styles.mesh}
+                    width={frameBox.width}
+                    height={frameBox.height}
                     viewBox={`0 0 ${latest.frame[0]} ${latest.frame[1]}`}
                     preserveAspectRatio="xMidYMid slice"
+                    pointerEvents="none"
                     testID="face-contour"
                   >
                     <Path
@@ -676,6 +746,20 @@ export default function BiometricSetupModal({
                     ))}
                   </Svg>
                 ) : null}
+                {(["left", "right", "up", "down"] as const).map((pose) => (
+                  <View key={pose} style={[styles.cueAnchor, styles[`cue_${pose}`]]} testID={`pose-cue-${pose}`}>
+                    <View style={[styles.cue, pose === target ? styles.cueOn : styles.cueIdle]}>
+                      <Text style={styles.cueText}>{POSE_ARROW[pose]}</Text>
+                      <Text style={styles.cueLabel}>{pose}</Text>
+                    </View>
+                  </View>
+                ))}
+                {!target ? (
+                  <View style={styles.straight}>
+                    <Text style={styles.straightText}>Look straight</Text>
+                  </View>
+                ) : null}
+                </View>
               </>
             ) : (
               <KenBurnsImage key={step === "voice" ? "voice" : "face"} source={step === "voice" ? ART.voice : ART.face} duration={16} />
@@ -683,26 +767,26 @@ export default function BiometricSetupModal({
             {(["TL", "TR", "BL", "BR"] as const).map((corner) => (
               <View key={corner} style={[styles.corner, styles[`corner${corner}`], done && styles.cornerDone]} />
             ))}
-            {target ? (
-              <Text style={[styles.cue, styles[`cue_${target}`]]} accessibilityElementsHidden>{POSE_ARROW[target]}</Text>
-            ) : null}
             {done ? <Text style={styles.check}>✓</Text> : null}
           </View>
+            {step === "scan" ? (
+              <View style={styles.poseRow}>
+                {order.map((pose, index) => {
+                  const captured = shots.length > index + 1;
+                  const now = pose === target;
+                  return (
+                    <View key={pose} style={[styles.poseChip, now && styles.poseChipNow, captured && styles.poseChipDone]}>
+                      <Text style={[styles.poseChipText, now && styles.poseChipTextNow, captured && styles.poseChipTextOn]}>
+                        {captured ? "✓" : POSE_ARROW[pose]} {pose}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
           </View>
           <View style={styles.pane}>
           <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.contentInner, wide && styles.contentCenter]}>
-          {step === "scan" ? (
-            <View style={styles.targets}>
-              {order.map((pose, index) => {
-                const captured = shots.length > index + 1;
-                return (
-                  <Text key={pose} style={[styles.target, pose === target && styles.targetNow, captured && styles.targetDone]}>
-                    {captured ? "✓" : POSE_ARROW[pose]} {pose}
-                  </Text>
-                );
-              })}
-            </View>
-          ) : null}
           <Text style={styles.kicker}>{text.kicker}{step === "scan" ? ` · ${Math.max(0, shots.length - 1)} of ${order.length}` : ""}</Text>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.body}>{text.body}</Text>
@@ -794,8 +878,6 @@ function Action({ title, onPress, secondary = false, disabled = false }: {
   );
 }
 
-const CUE = 48;
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.panel },
   header: {
@@ -807,6 +889,7 @@ const styles = StyleSheet.create({
   splitStack: { flexDirection: "column" },
   artPane: { flex: 1.15, minWidth: 0, alignItems: "center", justifyContent: "center", backgroundColor: C.panel2, overflow: "hidden" },
   artBand: { flex: 0, width: "100%", height: "34%" },
+  scanArt: { flex: 1.45, width: "100%", justifyContent: "flex-start", paddingBottom: 8 },
   pane: { flex: 1, minWidth: 0, minHeight: 0, backgroundColor: C.panel },
   paneScroll: { flex: 1 },
   contentInner: { flexGrow: 1, padding: 20, gap: 8 },
@@ -819,7 +902,20 @@ const styles = StyleSheet.create({
     width: "72%", maxWidth: 420, aspectRatio: 3 / 4, maxHeight: "86%",
     borderRadius: 16, overflow: "hidden", backgroundColor: "#111111", borderWidth: 1, borderColor: C.border,
   },
-  corner: { position: "absolute", width: 40, height: 40, borderColor: C.teal },
+  frameScan: {
+    width: "92%", maxWidth: 420, flex: 1, marginTop: 8,
+    borderRadius: 16, overflow: "hidden", backgroundColor: "#111111", borderWidth: 1, borderColor: C.border,
+  },
+  cameraClip: { ...StyleSheet.absoluteFillObject, zIndex: 0, elevation: 0, overflow: "hidden" },
+  cameraLayer: { zIndex: 0, elevation: 0 },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 8,
+    elevation: 8,
+    backgroundColor: "transparent",
+  },
+  mesh: { position: "absolute", top: 0, left: 0, zIndex: 4, elevation: 4 },
+  corner: { position: "absolute", width: 28, height: 28, borderColor: C.teal, zIndex: 12, elevation: 12 },
   cornerTL: { top: 14, left: 14, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 16 },
   cornerTR: { top: 14, right: 14, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 16 },
   cornerBL: { bottom: 14, left: 14, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 16 },
@@ -827,16 +923,38 @@ const styles = StyleSheet.create({
   cornerDone: { borderColor: C.accent },
   liveDot: {
     position: "absolute", top: 18, right: 18, width: 12, height: 12, borderRadius: 6,
-    backgroundColor: "#ff4d4f", borderWidth: 2, borderColor: "#ffffff",
+    backgroundColor: "#ff4d4f", borderWidth: 2, borderColor: "#ffffff", zIndex: 6, elevation: 6,
   },
+  cueAnchor: { position: "absolute", zIndex: 6, elevation: 6 },
   cue: {
-    position: "absolute", width: CUE, height: CUE, borderRadius: CUE / 2, overflow: "hidden",
-    backgroundColor: C.accent, color: "#ffffff", textAlign: "center", lineHeight: CUE, fontSize: 24, fontWeight: "800",
+    minWidth: 64, minHeight: 48, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16,
+    alignItems: "center", justifyContent: "center",
   },
-  cue_left: { left: 10, top: "50%", marginTop: -CUE / 2 },
-  cue_right: { right: 10, top: "50%", marginTop: -CUE / 2 },
-  cue_up: { top: 10, left: "50%", marginLeft: -CUE / 2 },
-  cue_down: { bottom: 10, left: "50%", marginLeft: -CUE / 2 },
+  cueOn: { backgroundColor: C.accent },
+  cueIdle: { backgroundColor: "rgba(15, 23, 42, 0.78)", borderWidth: 1, borderColor: "#ffffff" },
+  cueText: { color: "#ffffff", fontSize: 18, fontWeight: "800", lineHeight: 20 },
+  cueLabel: { color: "#ffffff", fontSize: 11, fontWeight: "800", textTransform: "capitalize", lineHeight: 13 },
+  cue_left: { left: 8, top: "38%" },
+  cue_right: { right: 8, top: "38%" },
+  cue_up: { top: 28, left: 0, right: 0, alignItems: "center" },
+  cue_down: { bottom: 10, left: 0, right: 0, alignItems: "center" },
+  straight: {
+    position: "absolute", top: "44%", left: 0, right: 0, alignItems: "center", zIndex: 5, elevation: 5,
+  },
+  straightText: {
+    color: "#ffffff", fontSize: 15, fontWeight: "800", backgroundColor: "rgba(15, 23, 42, 0.72)",
+    overflow: "hidden", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  poseRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", paddingHorizontal: 12, paddingTop: 8 },
+  poseChip: {
+    minHeight: 36, borderRadius: 12, paddingHorizontal: 10, alignItems: "center", justifyContent: "center",
+    backgroundColor: C.panel, borderWidth: 1, borderColor: C.border,
+  },
+  poseChipNow: { borderColor: C.accent, backgroundColor: C.panel },
+  poseChipDone: { backgroundColor: C.teal, borderColor: C.teal },
+  poseChipText: { color: C.text, fontWeight: "800", textTransform: "capitalize" },
+  poseChipTextNow: { color: C.accent },
+  poseChipTextOn: { color: "#ffffff" },
   check: {
     ...StyleSheet.absoluteFillObject, textAlign: "center", textAlignVertical: "center",
     lineHeight: 300, fontSize: 96, fontWeight: "800", color: "#ffffff", backgroundColor: "rgba(15,157,143,.55)",

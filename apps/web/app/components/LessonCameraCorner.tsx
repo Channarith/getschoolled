@@ -6,7 +6,7 @@ import {
   endWebcamSession,
   submitWebcamFrame,
 } from "../lib/api";
-import { createPresenceWatch, yawFromFivePoint, type PresenceCue } from "../lib/learnerFocus";
+import { attentionFromFace, createPresenceWatch, yawFromFivePoint, type PresenceCue } from "../lib/learnerFocus";
 import { createVisionEngine, type VisionEngine } from "../lib/vision";
 
 type FaceDetectorLike = {
@@ -21,6 +21,8 @@ type Props = {
   onAway?: () => void;
   /** Sustained away, return, look-away, or phone-pose cues. YuNet has yaw only. */
   onCue?: (cue: PresenceCue) => void;
+  /** 0..1 engagement for this frame. 0 when no face is in frame. */
+  onAttention?: (attention: number) => void;
 };
 
 function faceDetector(): FaceDetectorLike | null {
@@ -45,13 +47,16 @@ export default function LessonCameraCorner({
   participantId = "student",
   onAway,
   onCue,
+  onAttention,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const onAwayRef = useRef(onAway);
   const onCueRef = useRef(onCue);
+  const onAttentionRef = useRef(onAttention);
   onAwayRef.current = onAway;
   onCueRef.current = onCue;
+  onAttentionRef.current = onAttention;
   const watchRef = useRef(createPresenceWatch());
   const [hidden, setHidden] = useState(false);
   const [watching, setWatching] = useState(false);
@@ -113,7 +118,12 @@ export default function LessonCameraCorner({
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, w, h);
 
-      const publish = (facePresent: boolean, pose?: { yawDeg: number; gazeFrontal: number } | null) => {
+      const publish = (
+        facePresent: boolean,
+        pose?: { yawDeg: number; gazeFrontal: number } | null,
+        attention = facePresent ? 1 : 0,
+      ) => {
+        onAttentionRef.current?.(facePresent ? attention : 0);
         if (facePresent) {
           awaySince = 0;
           nudged = false;
@@ -144,6 +154,7 @@ export default function LessonCameraCorner({
           void submitWebcamFrame(sessionId, blob, {
             participantId,
             facePresent,
+            attention: facePresent ? attention : 0,
           }).catch(() => undefined);
         }, "image/jpeg", 0.7);
       };
@@ -152,7 +163,12 @@ export default function LessonCameraCorner({
       if (engine) {
         try {
           const detected = engine.detectAndEmbed(video);
-          publish(detected.length > 0, yawFromFivePoint(detected[0]?.landmarks));
+          const face = detected[0];
+          publish(
+            detected.length > 0,
+            yawFromFivePoint(face?.landmarks),
+            face ? attentionFromFace(face) : 0,
+          );
         } catch {
           /* A bad frame is skipped. The camera stays on. */
         }

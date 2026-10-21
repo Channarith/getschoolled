@@ -15,6 +15,13 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from aoep_shared.groundedness import guard_answer
+from aoep_shared.modality_mix import (
+    allocate_modality_mix,
+    clean_modality_ratings,
+    modality_activity,
+    profile_mode_for,
+    resolve_delivery_context,
+)
 from aoep_shared.current_awareness import (
     CurrentAwarenessResult,
     research_current_topic,
@@ -39,14 +46,32 @@ def enrich_slide_storyboard(
     source_index: int | None = None,
     language: str = "en",
     profile_score: str = "",
+    live_style: str = "",
     audio_only: bool = False,
+    learning_modality: str = "",
+    delivery_context: str = "",
 ) -> Slide:
     """Attach a curated or generated multimodal storyboard to every slide.
 
     Audio / Drive Mode courses are consumed hands-free and eyes-free, so they
     get NO pictures or animations — the slide is returned unchanged.
+    A video-game delivery keeps only a game challenge or a 1:1 tutor prompt.
     """
+    fmt = (learning_modality or "").strip().lower()
+    if fmt and delivery_context == "video_game":
+        return slide.model_copy(update={
+            "storyboard_svg": "",
+            "storyboard_concept": "",
+            "storyboard_scene_id": "",
+            "storyboard_examples": [],
+            "storyboard_activity": modality_activity(fmt, slide.title),
+            "storyboard_modalities": [fmt],
+            "storyboard_profile_mode": profile_mode_for(fmt),
+            "storyboard_format": fmt,
+        })
     if audio_only:
+        if fmt:
+            return slide.model_copy(update={"storyboard_format": fmt})
         return slide
     try:
         from aoep_shared.cert_storyboard import has_storyboard, storyboard_for_slide
@@ -57,6 +82,8 @@ def enrich_slide_storyboard(
         )
         from aoep_shared.catalog_selection import profile_dimensions
     except Exception:
+        if fmt:
+            return slide.model_copy(update={"storyboard_format": fmt})
         return slide
     idx = source_index if source_index is not None else slide.index
     data = None
@@ -71,7 +98,12 @@ def enrich_slide_storyboard(
             if indexed and indexed.get("title") == slide.title:
                 data = indexed
     if data is None:
+        from aoep_shared.adaptation_line import storyboard_style
+
         profile = profile_dimensions(profile_score) if profile_score else {}
+        mapped = storyboard_style(live_style)
+        if mapped:
+            profile = {**profile, "primary_style": mapped}
         data = experience_dict(
             build_generic_storyboard(
                 lesson_id=lesson_id,
@@ -81,9 +113,26 @@ def enrich_slide_storyboard(
                 narration=slide.narration,
                 language=language,
                 profile=profile,
+                learning_modality=fmt,
             )
         )
+    elif fmt:
+        lead = modality_activity(fmt, slide.title)
+        existing = data.get("activity_prompt") or ""
+        activity = existing if not lead or lead in existing else f"{lead} {existing}".strip()
+        modalities = list(data.get("modalities") or [])
+        if fmt not in modalities:
+            modalities = [fmt, *modalities]
+        data = {
+            **data,
+            "activity_prompt": activity,
+            "modalities": modalities,
+            "profile_mode": profile_mode_for(fmt),
+            "learning_modality": fmt,
+        }
     if not data:
+        if fmt:
+            return slide.model_copy(update={"storyboard_format": fmt})
         return slide
     return slide.model_copy(
         update={
@@ -101,6 +150,7 @@ def enrich_slide_storyboard(
             "storyboard_translation_ready": bool(
                 data.get("translation_ready", True)
             ),
+            "storyboard_format": data.get("learning_modality") or fmt,
         }
     )
 
@@ -116,6 +166,7 @@ class SessionState(BaseModel):
     lesson_id: str
     student_id: Optional[str] = None
     profile_score: str = ""
+    live_style: str = ""
     current_slide: int = 0
     session_budget_min: Optional[int] = None
     planned_duration_min: Optional[float] = None
@@ -126,6 +177,7 @@ class SessionState(BaseModel):
     # Practice-scene ids already shown in this session, keyed by slide index.
     # The class draws the next unused scene and does not repeat it.
     practice_scene_by_slide: Dict[str, str] = Field(default_factory=dict)
+    modality_mix: Dict = Field(default_factory=dict)
 
 
 class Answer(BaseModel):
@@ -183,6 +235,7 @@ class SlideWithBreak(BaseModel):
     storyboard_profile_mode: str = "mixed"
     storyboard_source_language: str = "en"
     storyboard_translation_ready: bool = False
+    storyboard_format: str = ""
     # When the learner just finished a segment boundary, this is set.
     # None (absent) means no break is due; a dict with "due", "message", and
     # "choices" means the UI should offer "Keep going / Take a break".
@@ -313,7 +366,9 @@ class TeachingSessions:
         student_id: Optional[str] = None,
         session_budget_min: Optional[int] = None,
         profile_score: str = "",
+        live_style: str = "",
         start_slide: int = 0,
+        modality_ratings: Optional[Dict[str, int]] = None,
     ) -> SessionState:
         lesson = self.curriculum.get(lesson_id)
         if lesson is None:
@@ -328,15 +383,32 @@ class TeachingSessions:
 
             slide_indices = plan_slide_indices(lesson.slides, session_budget_min)
             planned_duration = planned_duration_minutes(len(slide_indices))
+        page_count = len(slide_indices) if slide_indices else len(lesson.slides)
+        context, detail = resolve_delivery_context(
+            class_type=class_type,
+            audio_only=lesson.audio_only,
+            mode=lesson.mode,
+            audience=lesson.audience,
+            track=lesson.track,
+            delivery=lesson.delivery,
+        )
+        ratings = clean_modality_ratings(modality_ratings)
+        modality_mix: Dict = {}
+        if ratings and page_count > 0:
+            modality_mix = allocate_modality_mix(
+                ratings, page_count, context, context_detail=detail,
+            )
         session = SessionState(
             session_id=uuid.uuid4().hex[:20],
             class_type=class_type,
             lesson_id=lesson_id,
             student_id=student_id,
             profile_score=profile_score,
+            live_style=live_style,
             session_budget_min=session_budget_min,
             planned_duration_min=planned_duration,
             slide_indices=slide_indices,
+            modality_mix=modality_mix,
         )
         last = (len(slide_indices) - 1) if slide_indices else (len(lesson.slides) - 1)
         session.current_slide = max(0, min(int(start_slide or 0), max(0, last)))
@@ -397,13 +469,19 @@ class TeachingSessions:
             source_index = session.current_slide
             position = session.current_slide
         slide = lesson.slides[source_index].model_copy(update={"index": position})
+        mix = session.modality_mix or {}
+        assignment = mix.get("assignment") or []
+        learning_modality = assignment[position] if 0 <= position < len(assignment) else ""
         slide = enrich_slide_storyboard(
             session.lesson_id,
             slide,
             source_index=source_index,
             language=lesson.language,
             profile_score=session.profile_score,
+            live_style=session.live_style,
             audio_only=lesson.audio_only,
+            learning_modality=learning_modality,
+            delivery_context=str(mix.get("context") or ""),
         )
         return self._attach_practice_scene(session, slide, lesson.language or "en")
 
@@ -489,6 +567,7 @@ class TeachingSessions:
                 storyboard_translation_ready=bool(
                     getattr(current, "storyboard_translation_ready", False)
                 ),
+                storyboard_format=getattr(current, "storyboard_format", "") or "",
                 segment_break=brk,
             )
 

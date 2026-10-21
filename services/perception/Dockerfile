@@ -11,10 +11,11 @@ COPY VERSION /app/VERSION
 COPY services/perception/requirements.txt /app/services/perception/requirements.txt
 RUN pip install --no-cache-dir -e /app/packages/shared \
     && pip install --no-cache-dir -r /app/services/perception/requirements.txt
-# YuNet + SFace are gitignored. Bake them here so a request never waits on GitHub.
-# URLs live in aoep_shared.vision.models.
+# YuNet, SFace, and the speaker-embedding model are gitignored. Bake them
+# here so face or voice enrollment never depends on a runtime GitHub download.
+# URLs and checksum verification live in aoep_shared.
 ENV VISION_MODEL_DIR=/opt/aoep/vision-models
-RUN python3 -c "from aoep_shared.vision.models import ensure_models; ensure_models()"
+RUN python3 -c "from aoep_shared.vision.models import ensure_models; from aoep_shared.voice_identity import resolve_model_path; ensure_models(); resolve_model_path()"
 COPY services/perception /app/services/perception
 ENV PYTHONPATH=/app/services/perception/src
 WORKDIR /app/services/perception

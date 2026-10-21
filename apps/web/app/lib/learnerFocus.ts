@@ -204,6 +204,39 @@ export function createPresenceWatch() {
   };
 }
 
+/**
+ * Same attention score as ``aoep_shared.vision.engagement.estimate_engagement``.
+ * YuNet order: right eye, left eye, nose, right mouth, left mouth.
+ * Returns 0 when the face geometry is missing.
+ */
+export function attentionFromFace(face: {
+  landmarks?: number[][];
+  bbox?: number[];
+  frame_size?: number[];
+} | null | undefined): number {
+  const landmarks = face?.landmarks;
+  if (!landmarks || landmarks.length < 5) return 0;
+  const right = landmarks[0];
+  const left = landmarks[1];
+  const nose = landmarks[2];
+  if (!right || !left || !nose) return 0;
+  const interOcular = Math.hypot(left[0] - right[0], left[1] - right[1]) || 1;
+  const eyeMidX = (right[0] + left[0]) / 2;
+  const gazeFrontal = Math.max(0, 1 - (Math.abs(nose[0] - eyeMidX) / interOcular) * 1.6);
+  const frame = face?.frame_size;
+  const bbox = face?.bbox;
+  if (!frame || frame.length < 2 || !bbox || bbox.length < 4 || frame[0] <= 0) {
+    return Math.max(0, Math.min(1, gazeFrontal));
+  }
+  const frameW = frame[0];
+  const faceW = bbox[2] / frameW;
+  const cx = (bbox[0] + bbox[2] / 2) / frameW;
+  const centered = Math.max(0, 1 - Math.abs(cx - 0.5) * 1.2);
+  const sizePresence = Math.min(1, faceW / 0.12);
+  const presence = 0.5 * centered + 0.5 * sizePresence;
+  return Math.max(0, Math.min(1, 0.7 * gazeFrontal + 0.3 * presence));
+}
+
 /** YuNet order: right eye, left eye, nose, mouth corners. Yaw only. */
 export function yawFromFivePoint(landmarks: number[][] | undefined): { yawDeg: number; gazeFrontal: number } | null {
   if (!landmarks || landmarks.length < 3) return null;

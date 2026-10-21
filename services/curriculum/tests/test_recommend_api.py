@@ -59,3 +59,50 @@ def test_recommend_cold_start_via_http():
     assert out["difficulty"] == "beginner"
     assert out["recommendations"]
     assert out["recommendations"][0]["title"] == "Starter Math"
+    assert out["recommendations"][0]["reason"] == "rec.becauseFirst"
+
+
+def test_recommend_cold_start_follows_profile():
+    app.state.catalog = CatalogStore()
+    _course(title="Long text", subject="history", tags=["history"], level="beginner",
+            media_format="text", duration_min=45)
+    _course(title="Short listen", subject="music", tags=["music"], level="beginner",
+            media_format="audio", duration_min=10)
+
+    out = client.post("/recommend", json={
+        "student_id": "listener",
+        "mastery": {},
+        "primary_style": "visual",
+        "live_style": "listening",
+        "session_length": "short",
+        "top_n": 2,
+    }).json()
+
+    assert out["recommendations"][0]["title"] == "Short listen"
+    assert out["recommendations"][0]["reason"] == "rec.becauseStyle"
+    assert out["recommendations"][0]["reason_style"] == "listening"
+
+
+def test_recommend_gap_reason_outranks_finished_course():
+    app.state.catalog = CatalogStore()
+    done = _course(title="Fractions", subject="math", tags=["fractions"], level="beginner")
+    _course(title="More Fractions", subject="math", tags=["fractions"], level="beginner",
+            media_format="video")
+    _course(title="Algebra", subject="math", tags=["algebra"], level="intermediate",
+            media_format="text")
+
+    out = client.post("/recommend", json={
+        "student_id": "stu1",
+        "mastery": {"fractions": 0.9, "algebra": 0.2},
+        "completed_course_ids": [done["course_id"]],
+        "primary_style": "reading",
+        "top_n": 5,
+    }).json()
+
+    titles = [r["title"] for r in out["recommendations"]]
+    assert "Algebra" in titles
+    algebra = next(r for r in out["recommendations"] if r["title"] == "Algebra")
+    more = next(r for r in out["recommendations"] if r["title"] == "More Fractions")
+    assert algebra["reason"] == "rec.becauseGap"
+    assert more["reason"] == "rec.becauseFinished"
+    assert titles.index("Algebra") < titles.index("More Fractions")

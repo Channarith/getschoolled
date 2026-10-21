@@ -11,6 +11,17 @@ critiques them:
 """
 
 from .auto_tags import InferredMetadata, infer_harvest_metadata, merge_tags
+from .acquisition import (
+    AcquisitionJob,
+    CategoryBlueprint,
+    IntakeAsset,
+    SQLiteAcquisitionQueue,
+    csv_rows_as_sections,
+    inspect_import,
+    iter_import_files,
+    source_fingerprint,
+    validate_rights,
+)
 from .composition import (
     CATEGORY_INDEX,
     COMPOSITION_VERSION,
@@ -35,6 +46,7 @@ from .extractors import (
     SUPPORTED_SOURCE_TYPES,
     ExtractedDoc,
     extract,
+    extract_csv,
     extract_database,
     extract_docx,
     extract_file,
@@ -85,6 +97,16 @@ __all__ = [
     "normalize_license",
     "HarvestStats",
     "HarvestWorker",
+    # durable catalog acquisition
+    "AcquisitionJob",
+    "CategoryBlueprint",
+    "IntakeAsset",
+    "SQLiteAcquisitionQueue",
+    "csv_rows_as_sections",
+    "inspect_import",
+    "iter_import_files",
+    "source_fingerprint",
+    "validate_rights",
     "HarvestPipeline",
     "CatalogUpsertStore",
     "BatchMetrics",
@@ -95,6 +117,7 @@ __all__ = [
     "SUPPORTED_SOURCE_TYPES",
     "ExtractedDoc",
     "extract",
+    "extract_csv",
     "extract_file",
     "extract_text",
     "extract_html",

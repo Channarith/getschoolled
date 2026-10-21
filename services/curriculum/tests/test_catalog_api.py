@@ -51,3 +51,32 @@ def test_unknown_404s():
     assert client.get("/courses/nope").status_code == 404
     assert client.get("/programs/nope").status_code == 404
     assert client.post("/programs/nope/plan", json={"mastery": {}}).status_code == 404
+
+
+def test_acquisition_requires_rights_and_promotes_reviewed_courses():
+    denied = client.post("/catalog/acquisition/jobs", json={
+        "category_slug": "drivers-ed", "source_uri": "file:///course.pdf", "sha256": "abc",
+    })
+    assert denied.status_code == 422
+    accepted = client.post("/catalog/acquisition/jobs", json={
+        "category_slug": "drivers-ed", "source_uri": "file:///course.pdf", "sha256": "abc",
+        "rights_assertion": "owned",
+    })
+    assert accepted.status_code == 200
+    promoted = client.post("/catalog/acquisition/promote", json={
+        "title": "Driver Fundamentals", "category_slug": "drivers-ed", "approved_by": "reviewer",
+        "courses": [{
+            "course_id": "driver-course-1", "title": "Rules of the Road", "subject": "drivers-ed",
+            "source_fingerprint": "source-one", "quality_grade": "A",
+        }],
+    })
+    assert promoted.status_code == 200
+    assert promoted.json()["course_ids"] == ["driver-course-1"]
+    incomplete = client.post("/catalog/acquisition/promote", json={
+        "title": "Incomplete", "category_slug": "drivers-ed", "approved_by": "reviewer",
+        "required_topics": ["law"], "courses": [{
+            "course_id": "driver-course-2", "title": "Vehicles", "subject": "drivers-ed",
+            "source_fingerprint": "source-two", "quality_grade": "A",
+        }],
+    })
+    assert incomplete.status_code == 422

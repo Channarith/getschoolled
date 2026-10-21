@@ -5,7 +5,7 @@ import {
 
 import {
   explainLangWord, getLangCourse, getLearnLanguages, languagePractice,
-  newLangExercise, pronounce, scoreMusicVideoTranslation,
+  newLangExercise, pronounce, recordPronunciationScore, scoreMusicVideoTranslation,
   type LangCourse, type LangExercise, type LangInfo,
   type LangWordExplanation, type MusicVideoScore, type Pronounce,
 } from "../api";
@@ -145,6 +145,8 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     try {
       const r = await pronounce(target, text);
       setPron(r);
+      const topic = codeRef.current || "pronunciation";
+      void recordPronunciationScore(topic, r.score).catch(() => undefined);
       if (r.passed && codeRef.current) {
         try { await languagePractice(codeRef.current, "pronunciation", r.stars, 3); } catch { /* offline ok */ }
       }

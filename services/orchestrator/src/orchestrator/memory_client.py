@@ -14,7 +14,9 @@ from __future__ import annotations
 import json
 import logging
 import urllib.error
+import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from typing import Optional
 
 from aoep_shared.adaptive import LearnerSignals
@@ -85,6 +87,7 @@ class MemoryClient:
         attention: Optional[float] = None,
         asked_question: bool = False,
         saw_slide: bool = False,
+        pronunciation_score: Optional[float] = None,
     ) -> None:
         """POST a learning-behavior event. Best-effort; never raises."""
         self._post("/behavior", {
@@ -95,6 +98,7 @@ class MemoryClient:
             "attention": attention,
             "asked_question": asked_question,
             "saw_slide": saw_slide,
+            "pronunciation_score": pronunciation_score,
         })
 
     def update_mastery(self, student_id: str, topic: str, correct: bool) -> Optional[float]:
@@ -110,11 +114,24 @@ class MemoryClient:
     # -- reads (drive adaptive difficulty/pacing) -------------------------- #
     def learner_signals(self, student_id: str, topic: str) -> LearnerSignals:
         """GET aggregated adaptive signals. Returns neutral defaults on any failure."""
-        resp = self._get(f"/learner/{student_id}/{topic}")
+        snapshot = self.learner_snapshot(student_id, topic)
+        return snapshot.signals if snapshot else LearnerSignals()
+
+    def learner_snapshot(self, student_id: str, topic: str) -> Optional["LearnerSnapshot"]:
+        """Signals plus how much camera/pronunciation evidence backs them.
+
+        None when memory is off or unreachable, so callers can tell stored
+        behavior apart from neutral defaults.
+        """
+        if not student_id or not topic:
+            return None
+        resp = self._get(
+            f"/learner/{urllib.parse.quote(student_id, safe='')}/{urllib.parse.quote(topic, safe='')}"
+        )
         if not resp:
-            return LearnerSignals()
+            return None
         defaults = LearnerSignals()
-        return LearnerSignals(
+        signals = LearnerSignals(
             topic_mastery=_as_float(resp.get("topic_mastery"), defaults.topic_mastery),
             quiz_accuracy=_as_float(resp.get("quiz_accuracy"), defaults.quiz_accuracy),
             avg_response_latency_s=_as_float(
@@ -122,6 +139,21 @@ class MemoryClient:
             attention_trend=_as_float(resp.get("attention_trend"), defaults.attention_trend),
             question_rate=_as_float(resp.get("question_rate"), defaults.question_rate),
         )
+        pron = resp.get("pronunciation_mean")
+        return LearnerSnapshot(
+            signals=signals,
+            attention_samples=int(_as_float(resp.get("attention_samples"), 0)),
+            pronunciation_samples=int(_as_float(resp.get("pronunciation_samples"), 0)),
+            pronunciation_mean=float(pron) if isinstance(pron, (int, float)) else None,
+        )
+
+
+@dataclass(frozen=True)
+class LearnerSnapshot:
+    signals: LearnerSignals
+    attention_samples: int = 0
+    pronunciation_samples: int = 0
+    pronunciation_mean: Optional[float] = None
 
 
 def _as_float(value, default: float) -> float:

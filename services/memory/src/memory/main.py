@@ -588,6 +588,7 @@ class BehaviorEvent(BaseModel):
     attention: float | None = None
     asked_question: bool = False
     saw_slide: bool = False
+    pronunciation_score: float | None = None
 
 
 @app.post("/behavior")
@@ -603,6 +604,7 @@ def record_behavior(req: BehaviorEvent, request: Request) -> dict:
         attention=req.attention,
         asked_question=req.asked_question,
         saw_slide=req.saw_slide,
+        pronunciation_score=req.pronunciation_score,
     )
     return {"student_id": req.student_id, "topic": req.topic, "recorded": True}
 
@@ -623,4 +625,5 @@ def learner_signals(student_id: str, topic: str, request: Request) -> dict:
         "attention_trend": s.attention_trend,
         "question_rate": s.question_rate,
         "skill": s.skill(),
+        **app.state.store.behavior_evidence(student_id, topic),
     }

@@ -44,6 +44,35 @@ def test_behavior_endpoint_then_learner_endpoint():
     assert "skill" in body
 
 
+def test_pronunciation_score_is_stored_and_blended():
+    store = MemoryStore()
+    store.record_behavior("s4", "spanish", pronunciation_score=80)
+    store.record_behavior("s4", "spanish", pronunciation_score=0.6)
+    sig = store.learner_signals("s4", "spanish")
+    assert round(sig.quiz_accuracy, 3) == round((0.8 + 0.6) / 2, 3)
+
+
+def test_pronunciation_endpoint_records():
+    client.post(
+        "/behavior",
+        json={"student_id": "s5", "topic": "french", "pronunciation_score": 90},
+    )
+    body = client.get("/learner/s5/french").json()
+    assert round(body["quiz_accuracy"], 2) == 0.9
+
+
+def test_learner_endpoint_reports_camera_and_pronunciation_evidence():
+    client.post("/behavior", json={"student_id": "s6", "topic": "german", "attention": 0.3})
+    client.post("/behavior", json={"student_id": "s6", "topic": "german", "pronunciation_score": 70})
+    body = client.get("/learner/s6/german").json()
+    assert body["attention_samples"] == 1
+    assert body["pronunciation_samples"] == 1
+    assert round(body["pronunciation_mean"], 2) == 0.7
+    empty = client.get("/learner/nobody-here/german").json()
+    assert empty["attention_samples"] == 0
+    assert empty["pronunciation_mean"] is None
+
+
 def test_mastery_feeds_learner_signal():
     client.post("/mastery", json={"student_id": "s3", "topic": "geo", "correct": True})
     body = client.get("/learner/s3/geo").json()

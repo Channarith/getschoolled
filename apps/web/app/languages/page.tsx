@@ -10,6 +10,7 @@ import {
   languagePractice,
   newLangExercise,
   pronounce,
+  recordPronunciationScore,
   scoreMusicVideoTranslation,
   type LangCourse,
   type LangExercise,
@@ -195,6 +196,9 @@ export default function LanguagesPage() {
     try {
       const r = await pronounce(ex.target, text);
       setPron(r);
+      if (loggedIn && course) {
+        void recordPronunciationScore(course.code || "pronunciation", r.score).catch(() => undefined);
+      }
       bumpStreak();
       if (loggedIn && course && r.passed) {
         const res = await languagePractice(course.code, "pronunciation", r.stars, 3);

@@ -60,6 +60,8 @@ def _identity_persistence_conflict(request, exc):
     # The middleware uses this header to tell CAS-race 409s apart from
     # client-authored 409s and re-dispatches the request a few times.
     return tag_persistence_conflict(response)
+
+
 try:
     load_from_redis(app.state.accounts)
 except Exception:

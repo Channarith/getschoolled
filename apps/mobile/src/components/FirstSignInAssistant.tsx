@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
-  Modal, ScrollView, StyleSheet, Text, TextInput, View,
+  Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -18,7 +18,8 @@ import AnimatedPressable from "./AnimatedPressable";
 import AvatarImage from "./AvatarImage";
 import BiometricSetupModal from "./BiometricSetupModal";
 import KenBurnsImage from "./KenBurnsImage";
-import MascotActor, { type MascotScene } from "./MascotActor";
+import MobileMascotMeshy from "./MobileMascotMeshy";
+import { type MascotScene } from "./MascotActor";
 import { useLayoutMetrics } from "../layout";
 
 type Props = {
@@ -75,9 +76,11 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
   const [focus, setFocus] = useState<string>("video");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const learnerSave = useRef<Promise<{ studentId: string }> | null>(null);
 
-  const { isMedium, isExpanded } = useLayoutMetrics();
+  const { isCompact, isMedium, isExpanded, height, insets } = useLayoutMetrics();
   const wide = isMedium || isExpanded;
+  const artHeight = isCompact ? Math.min(112, Math.round(height * 0.15)) : undefined;
   const ageBand = age ? ageBandFor(age) : "adult";
   const aboutReady = name.trim().length > 0 && age >= AGE_MIN && age <= AGE_MAX;
   const rated = LEARNING_MODES.filter((mode) => ratings[mode.id] != null).length;
@@ -98,20 +101,33 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
   }
 
   function saveAbout() {
-    return withBusy(async () => {
-      const result = await submitMobileOnboardingLearner(name.trim(), age);
-      setStudentId(result.studentId);
-      setStage("learn");
-    });
+    Keyboard.dismiss();
+    setError("");
+    setStage("learn");
+    const pending = submitMobileOnboardingLearner(name.trim(), age);
+    learnerSave.current = pending;
+    pending
+      .then((result) => {
+        if (learnerSave.current !== pending) return;
+        setStudentId(result.studentId);
+      })
+      .catch((reason) => {
+        if (learnerSave.current !== pending) return;
+        learnerSave.current = null;
+        setError(String(reason).replace(/^Error:\s*/, ""));
+        setStage("about");
+      });
   }
 
   function saveLearning() {
     return withBusy(async () => {
+      const saved = learnerSave.current ? await learnerSave.current : null;
+      const id = saved?.studentId || studentId;
       const answers = { modality_ratings: ratings };
-      await submitLearningProfile(studentId, answers);
+      await submitLearningProfile(id, answers);
       const me = await getMe().catch(() => null);
       if (me) {
-        void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: studentId, answers })
+        void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: id, answers })
           .catch(() => undefined);
       }
       setStage("identity");
@@ -121,7 +137,11 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
   return (
     <>
       <Modal visible={visible && stage !== "identity" && stage !== "plan"} animationType="fade" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.root} edges={["top", "left", "right", "bottom"]}>
+        <SafeAreaView style={styles.root} edges={["top", "left", "right"]}>
+          <KeyboardAvoidingView
+            style={styles.fill}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
           <View style={styles.header}>
             <Text style={styles.brand}>Salareen</Text>
             <View style={styles.bars}>
@@ -133,39 +153,32 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
           </View>
           <View style={[styles.split, !wide && styles.splitStack, stage === "learn" && styles.splitLearn]}>
             {/*
-              Art pane. On About: a cream backdrop + the age-morph mascot that
-              grows/shrinks with the AgeWheel (child → teen → adult → senior
-              accessory). On Learn: the mascot acts out the current survey
-              modality (watching a tiny TV, teaching with a baton, sitting on
-              a chair, reading, tutoring, gaming).
+              Art pane. The Meshy GLB plays in front of the photo: a calm
+              idle while the age wheel is in use, and a matching clip for
+              the learning-mode card that is open.
             */}
-            <View style={[styles.artPane, !wide && styles.artBand]}>
-              {stage === "about" ? (
-                <View style={styles.mascotStage} pointerEvents="none">
-                  <KenBurnsImage source={ART.about} style={StyleSheet.absoluteFill} />
-                  <MascotActor
-                    scene={age > 0 ? { kind: "age-morph", age } : { kind: "idle" }}
-                    size={wide ? 220 : 160}
-                  />
-                </View>
-              ) : (
-                <View style={styles.mascotStage} pointerEvents="none">
-                  <KenBurnsImage source={ART.learn} style={StyleSheet.absoluteFill} />
-                  {currentMode ? (
-                    <MascotActor
-                      key={currentMode.id}
-                      scene={{ kind: currentMode.sceneKind } as MascotScene}
-                      size={wide ? 220 : 170}
-                    />
-                  ) : null}
-                </View>
-              )}
+            <View style={[
+              styles.artPane,
+              stage === "learn" && styles.artPaneLearn,
+              isCompact && stage !== "learn" && { flex: 0, height: artHeight },
+            ]}>
+              <View style={styles.mascotStage} pointerEvents="none">
+                <KenBurnsImage source={stage === "about" ? ART.about : ART.learn} style={StyleSheet.absoluteFill} />
+                <MobileMascotMeshy
+                  scene={
+                    stage === "about"
+                      ? (age > 0 ? { kind: "age-morph", age } : { kind: "idle" })
+                      : ({ kind: currentMode?.sceneKind ?? "idle" } as MascotScene)
+                  }
+                  style={StyleSheet.absoluteFill}
+                />
+              </View>
             </View>
             <View style={styles.pane}>
           {stage === "about" ? (
-            <ScrollView contentContainerStyle={[styles.paneBody, wide && styles.paneCenter]} keyboardShouldPersistTaps="handled">
+            <ScrollView style={styles.scroller} contentContainerStyle={[styles.paneBody, wide && styles.paneCenter]} keyboardShouldPersistTaps="handled">
               <View>
-                <Text style={styles.title}>What should we call you?</Text>
+                <Text style={[styles.title, isCompact && styles.titleCompact]}>What should we call you?</Text>
                 <Text style={styles.body}>This name appears on your profile and in class.</Text>
                 <Text style={styles.label} nativeID="profile-name-label">Profile name</Text>
                 <View style={styles.nameRow}>
@@ -208,7 +221,7 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
               ``learnIndex``; Next / Back traverse the LEARNING_MODES list.
             */
             <ScrollView style={styles.learn} contentContainerStyle={styles.learnInner}>
-              <Text style={styles.title}>How do you learn best?</Text>
+              <Text style={[styles.title, isCompact && styles.titleCompact]}>How do you learn best?</Text>
               <Text style={styles.body}>
                 Rate from 1 (not for me) to 10 (I love it). Step {learnIndex + 1} of {LEARNING_MODES.length}.
               </Text>
@@ -233,8 +246,9 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
                               key={n}
                               testID={`rate-${currentMode.id}-${n}`}
                               accessibilityRole="radio"
-                              accessibilityLabel={`${n}`}
+                              accessibilityLabel={`${n} out of 10`}
                               accessibilityState={{ checked: currentRating === n }}
+                              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                               style={[styles.dot, on && styles.dotOn]}
                               onPress={() => {
                                 setRatings((current) => ({ ...current, [currentMode.id]: n }));
@@ -258,7 +272,7 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
               {error ? <Text style={styles.error}>{error}</Text> : null}
             </ScrollView>
           )}
-              <View style={styles.foot}>
+              <View style={[styles.foot, { paddingBottom: Math.max(insets.bottom, 12) }]}>
                 {stage === "about" ? (
                   <AnimatedPressable
                     disabled={busy || !aboutReady}
@@ -308,6 +322,7 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
       <BiometricSetupModal
@@ -330,6 +345,7 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.panel },
+  fill: { flex: 1 },
   header: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.bg,
@@ -342,20 +358,22 @@ const styles = StyleSheet.create({
   splitStack: { flexDirection: "column" },
   splitLearn: { flexDirection: "column" },
   artPane: { flex: 1.15, minWidth: 0, backgroundColor: C.panel2, overflow: "hidden" },
-  artBand: { flex: 0, height: "28%" },
+  artPaneLearn: { flex: 0, height: 148 },
   pane: { flex: 1, minWidth: 0, minHeight: 0, backgroundColor: C.panel, borderLeftWidth: 1, borderLeftColor: C.border },
-  paneBody: { flexGrow: 1, padding: 24, gap: 8 },
+  scroller: { flex: 1 },
+  paneBody: { flexGrow: 1, padding: 20, gap: 8 },
   paneCenter: { justifyContent: "center" },
   learn: { flex: 1 },
   learnInner: { padding: 16, paddingBottom: 16, gap: 12 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   foot: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16,
+    flexShrink: 0, flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 16, paddingTop: 10,
     borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.panel,
   },
   kicker: { color: C.teal, fontSize: 12, fontWeight: "800", letterSpacing: 0.6 },
   title: { color: C.text, fontSize: 32, lineHeight: 36, fontWeight: "900", letterSpacing: -0.8, marginTop: 8 },
+  titleCompact: { fontSize: 26, lineHeight: 30, marginTop: 0 },
   body: { color: C.muted, fontSize: 16, lineHeight: 23, marginTop: 8, marginBottom: 14 },
   label: { color: C.text, fontSize: 15, fontWeight: "700", marginBottom: 8 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -381,16 +399,16 @@ const styles = StyleSheet.create({
     textAlign: "center", lineHeight: 44, fontSize: 19, fontWeight: "900", color: "#ffffff",
     backgroundColor: C.accent,
   },
-  scale: { gap: 6, padding: 12 },
-  scaleRow: { flexDirection: "row", gap: 6 },
+  scale: { gap: 12, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
+  scaleRow: { flexDirection: "row", alignItems: "stretch", gap: 12 },
   dot: {
-    flex: 1, minWidth: 0, height: 44, borderRadius: 10, alignItems: "center", justifyContent: "center",
+    flex: 1, minHeight: 64, borderRadius: 16, alignItems: "center", justifyContent: "center",
     backgroundColor: C.panel2, borderWidth: 1, borderColor: C.border,
   },
   dotOn: { backgroundColor: C.accent, borderColor: C.accent },
-  dotText: { color: C.text, fontSize: 15, fontWeight: "700" },
+  dotText: { color: C.text, fontSize: 22, fontWeight: "800" },
   dotTextOn: { color: "#ffffff" },
-  button: { flex: 1, minHeight: 48, borderRadius: 12, backgroundColor: C.accent, justifyContent: "center", alignItems: "center" },
+  button: { flex: 1, minHeight: 52, borderRadius: 12, backgroundColor: C.accent, justifyContent: "center", alignItems: "center" },
   buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "800" },
   disabled: { opacity: 0.45 },
   linkButton: { alignSelf: "center", paddingVertical: 10 },

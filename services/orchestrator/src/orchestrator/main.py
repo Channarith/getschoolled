@@ -11,6 +11,7 @@ import contextvars
 import uuid
 from collections import OrderedDict
 from dataclasses import asdict
+from typing import Dict
 
 from aoep_shared.adaptive import AdaptivePolicy, Difficulty, LearnerSignals, Pacing
 from aoep_shared.assessment import (
@@ -32,7 +33,7 @@ from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import ClassType
 from aoep_shared.service import create_service
 from fastapi import BackgroundTasks, Depends, File, Form, Header, HTTPException, Request, Response, UploadFile, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .curriculum import CourseKSB, Lesson
 from .director import ClassContext, Director, LessonState
@@ -232,8 +233,12 @@ class StartSessionRequest(BaseModel):
     session_length: str = ""
     session_budget_min: int | None = None
     observed_pace: str = ""
+    # In-class emphasis (visual, reading, listening, practice). Does not
+    # rewrite the saved survey; it only changes this session's storyboard.
+    live_style: str = ""
     # Slide index saved on the learner's account or student profile.
     start_slide: int = 0
+    modality_ratings: Dict[str, int] = Field(default_factory=dict)
 
     model_config = {"extra": "forbid"}
 
@@ -622,7 +627,9 @@ def api_start_session(
             student_id=req.student_id,
             session_budget_min=budget,
             profile_score=req.profile_score,
+            live_style=req.live_style,
             start_slide=req.start_slide,
+            modality_ratings=req.modality_ratings,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {req.lesson_id}")
@@ -982,6 +989,49 @@ class PlanRequest(DirectorTickRequest):
     adaptation: dict = {}
     course_complexity: int = 3
     wellness_state: str = "ok"
+    # With both set, stored camera attention and pronunciation from the memory
+    # service fill any signal the client did not measure this tick.
+    student_id: str | None = None
+    topic: str | None = None
+
+
+def _signals_with_memory(req: PlanRequest) -> LearnerSignals:
+    """Learner signals for a Director tick, backed by Memory where unmeasured.
+
+    Fields the client sent win: they are this session's live readings. Fields
+    it left out come from Memory's stored behavior for ``student_id``/``topic``.
+    Pronunciation practice blends into accuracy the same 0.7/0.3 way Memory
+    blends it, so spoken practice moves pacing even mid-session.
+    """
+    sent = req.model_fields_set
+    signals = LearnerSignals(
+        topic_mastery=req.topic_mastery,
+        quiz_accuracy=req.quiz_accuracy,
+        avg_response_latency_s=req.avg_response_latency_s,
+        attention_trend=req.attention_trend,
+        question_rate=req.question_rate,
+    )
+    if not (req.student_id and req.topic):
+        return signals
+    lookup = getattr(get_sessions().memory, "learner_snapshot", None)
+    snapshot = lookup(req.student_id, req.topic) if lookup else None
+    if snapshot is None:
+        return signals
+    stored = snapshot.signals
+    if "topic_mastery" not in sent:
+        signals.topic_mastery = stored.topic_mastery
+    if "avg_response_latency_s" not in sent:
+        signals.avg_response_latency_s = stored.avg_response_latency_s
+    if "question_rate" not in sent:
+        signals.question_rate = stored.question_rate
+    if "attention_trend" not in sent and snapshot.attention_samples:
+        signals.attention_trend = stored.attention_trend
+    if "quiz_accuracy" not in sent:
+        signals.quiz_accuracy = stored.quiz_accuracy
+    elif snapshot.pronunciation_mean is not None:
+        signals.quiz_accuracy = max(0.0, min(1.0,
+            0.7 * req.quiz_accuracy + 0.3 * snapshot.pronunciation_mean))
+    return signals
 
 
 class PlanResponse(BaseModel):
@@ -1003,13 +1053,7 @@ def director_plan(req: PlanRequest) -> PlanResponse:
         attention=req.attention,
         slides_since_quiz=req.slides_since_quiz,
     )
-    signals = LearnerSignals(
-        topic_mastery=req.topic_mastery,
-        quiz_accuracy=req.quiz_accuracy,
-        avg_response_latency_s=req.avg_response_latency_s,
-        attention_trend=req.attention_trend,
-        question_rate=req.question_rate,
-    )
+    signals = _signals_with_memory(req)
     from aoep_shared.learner_adaptation import LearnerAdaptation, merge_pacing_plan
 
     adapt = LearnerAdaptation(**{
@@ -1058,6 +1102,8 @@ def director_plan(req: PlanRequest) -> PlanResponse:
 
 class LxTickRequest(PlanRequest):
     frustration_events: int = 0
+    survey_style: str = ""
+    live_style: str = ""
 
 
 class LxTickResponse(BaseModel):
@@ -1071,6 +1117,9 @@ class LxTickResponse(BaseModel):
     reteach: bool
     reasons: list[str]
     next_state: LessonState
+    learner_line_key: str = "adapt.starting"
+    learner_line_style: str = "balanced"
+    learner_line_pace: str = "moderate"
 
 
 @app.post("/director/lx-tick", response_model=LxTickResponse)
@@ -1088,13 +1137,7 @@ def director_lx_tick(req: LxTickRequest) -> LxTickResponse:
         attention=req.attention,
         slides_since_quiz=req.slides_since_quiz,
     )
-    signals = LearnerSignals(
-        topic_mastery=req.topic_mastery,
-        quiz_accuracy=req.quiz_accuracy,
-        avg_response_latency_s=req.avg_response_latency_s,
-        attention_trend=req.attention_trend,
-        question_rate=req.question_rate,
-    )
+    signals = _signals_with_memory(req)
     adapt = adaptation_from_dict(req.adaptation) if req.adaptation else None
     if adapt and req.adaptation.get("failed_approaches"):
         from aoep_shared.learner_adaptation import FailedApproach
@@ -1120,6 +1163,17 @@ def director_lx_tick(req: LxTickRequest) -> LxTickResponse:
         strategy_bandit=bandit,
     )
     state, _ = director.plan(ctx, signals)
+    from aoep_shared.adaptation_line import adaptation_line_from_values
+
+    line = adaptation_line_from_values(
+        result.pacing,
+        result.difficulty,
+        reteach=result.reteach,
+        attention=req.attention,
+        survey_style=req.survey_style,
+        live_style=req.live_style,
+        declared_pace=req.declared_pace,
+    )
     return LxTickResponse(
         lx_score=result.lx_score,
         lx_components=result.components.as_dict(),
@@ -1131,6 +1185,9 @@ def director_lx_tick(req: LxTickRequest) -> LxTickResponse:
         reteach=result.reteach,
         reasons=result.reasons,
         next_state=state,
+        learner_line_key=line["key"],
+        learner_line_style=line["style"],
+        learner_line_pace=line["pace"],
     )
 
 
@@ -1141,6 +1198,8 @@ class QuizRequest(BaseModel):
     topic: str
     passages: list[str]
     max_items: int = 4
+    # When the live class already chose a difficulty, use it for this quiz.
+    difficulty: Difficulty | None = None
     # When student_id is set, difficulty adapts to the learner's mastery signals
     # (pulled from the memory service) instead of the static MEDIUM default.
     student_id: str | None = None
@@ -1602,8 +1661,8 @@ def assessment_checkpoint_submit(
 def assessment_quiz(req: QuizRequest) -> QuizResponse:
     # Adapt difficulty to the learner when we know who they are; otherwise keep
     # the static MEDIUM default (unchanged behavior for anonymous callers).
-    difficulty = Difficulty.MEDIUM
-    if req.student_id:
+    difficulty = req.difficulty or Difficulty.MEDIUM
+    if req.difficulty is None and req.student_id:
         signals = get_sessions().memory.learner_signals(req.student_id, req.topic)
         difficulty = AdaptivePolicy().plan(signals, class_type=req.class_type).difficulty
     from aoep_shared.class_scenes import (  # noqa: E402
@@ -2542,6 +2601,8 @@ def start_group_class(
             slide_storyboard_profile_mode=slide.storyboard_profile_mode,
             slide_storyboard_source_language=slide.storyboard_source_language,
             slide_storyboard_translation_ready=slide.storyboard_translation_ready,
+            slide_storyboard_format=slide.storyboard_format,
+            modality_mix=state.modality_mix,
             country=req.country,
             state=req.state,
             city=req.city,
@@ -2760,7 +2821,9 @@ class StartSoloRoomRequest(BaseModel):
     session_length: str = ""
     session_budget_min: int | None = None
     observed_pace: str = ""
+    live_style: str = ""
     start_slide: int = 0
+    modality_ratings: Dict[str, int] = Field(default_factory=dict)
 
     model_config = {"extra": "forbid"}
 
@@ -2946,7 +3009,9 @@ def start_solo_live_room(
             student_id=req.student_id,
             session_budget_min=budget,
             profile_score=req.profile_score,
+            live_style=req.live_style,
             start_slide=req.start_slide,
+            modality_ratings=req.modality_ratings,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
@@ -2975,6 +3040,8 @@ def start_solo_live_room(
             slide_storyboard_profile_mode=slide.storyboard_profile_mode,
             slide_storyboard_source_language=slide.storyboard_source_language,
             slide_storyboard_translation_ready=slide.storyboard_translation_ready,
+            slide_storyboard_format=slide.storyboard_format,
+            modality_mix=state.modality_mix,
             slide_index=state.current_slide,
             creator_name=(req.creator_name or "").strip() or "You",
             creator_account_id=account_id,
@@ -3146,6 +3213,12 @@ def _ensure_group_class_room(room_id: str):
         slide = sessions.current_slide(session_id)
 
     gc.live_room_id = room_id
+    room_mix: dict = {}
+    if session_id:
+        try:
+            room_mix = sessions.get_session(session_id).modality_mix or {}
+        except KeyError:
+            room_mix = {}
     live = store.open_room(  # idempotent: returns the existing room if present
         room_id=room_id,
         class_id=gc.id,
@@ -3164,6 +3237,8 @@ def _ensure_group_class_room(room_id: str):
         slide_storyboard_profile_mode=slide.storyboard_profile_mode,
         slide_storyboard_source_language=slide.storyboard_source_language,
         slide_storyboard_translation_ready=slide.storyboard_translation_ready,
+        slide_storyboard_format=getattr(slide, "storyboard_format", "") or "",
+        modality_mix=room_mix,
         creator_name=gc.host or "Salareen",
         creator_account_id=gc.instructor_account_id or gc.created_by_account_id,
         **_human_taught_kwargs(gc),
@@ -4055,6 +4130,7 @@ def _advance_room_slide(room_id: str, background: BackgroundTasks) -> dict:
         storyboard_profile_mode=slide.storyboard_profile_mode,
         storyboard_source_language=slide.storyboard_source_language,
         storyboard_translation_ready=slide.storyboard_translation_ready,
+        storyboard_format=getattr(slide, "storyboard_format", "") or "",
     )
     store.note_slide_started(room_id)  # reset the auto-advance dwell timer
     if narration:

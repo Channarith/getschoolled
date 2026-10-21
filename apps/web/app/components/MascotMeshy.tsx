@@ -198,14 +198,125 @@ function contrastByte(value: number): number {
 }
 
 /**
- * Pull the baked stone down, then stretch it. The albedo sits around
- * luma 160–190, so a contrast stretch around 128 only makes it lighter
- * and the eyes disappear. Darken first, then spread the result so the
- * sockets stay dark and the gold stays readable.
+ * Ease the baked stone down without posterizing it. A hard stretch
+ * turned the sandstone into noisy blocks and made the atlas gaps read
+ * as holes. Eyes stay darker than the gold; the rest stays one material.
  */
 function gradeStoneByte(value: number): number {
-  const darkened = value * 0.58;
-  return contrastByte((darkened - 92) * 2.05 + 92);
+  const darkened = value * 0.88;
+  const curved = (darkened - 120) * 1.12 + 120;
+  // A texel at 0 is an atlas gap. The mesh samples it and the stage
+  // shows through. Keep a floor so carved shadows stay brown, not holes.
+  return contrastByte(curved < 22 ? 22 : curved);
+}
+
+/**
+ * The albedo is a UV atlas. The gaps between islands are pure black, and
+ * the mesh samples them, so the stage shows through as pixelated holes.
+ * Paint each black texel with the nearest stone color. Dark features
+ * such as the eyes sit above this cutoff and stay put.
+ */
+function sealAtlasHoles(data: Uint8ClampedArray, width: number, height: number): void {
+  const count = width * height;
+  const hole = new Uint8Array(count);
+  for (let p = 0, i = 0; p < count; p += 1, i += 4) {
+    const max = data[i] > data[i + 1]
+      ? (data[i] > data[i + 2] ? data[i] : data[i + 2])
+      : (data[i + 1] > data[i + 2] ? data[i + 1] : data[i + 2]);
+    hole[p] = max < 8 ? 1 : 0;
+  }
+  const qx = new Int32Array(count);
+  const qy = new Int32Array(count);
+  const color = new Uint8Array(count * 3);
+  const filled = new Uint8Array(count);
+  let tail = 0;
+  const push = (x: number, y: number, r: number, g: number, b: number) => {
+    const p = y * width + x;
+    if (!hole[p] || filled[p]) return;
+    filled[p] = 1;
+    const o = p * 3;
+    color[o] = r;
+    color[o + 1] = g;
+    color[o + 2] = b;
+    qx[tail] = x;
+    qy[tail] = y;
+    tail += 1;
+  };
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const p = y * width + x;
+      if (hole[p]) continue;
+      const i = p * 4;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      if (x > 0) push(x - 1, y, r, g, b);
+      if (x + 1 < width) push(x + 1, y, r, g, b);
+      if (y > 0) push(x, y - 1, r, g, b);
+      if (y + 1 < height) push(x, y + 1, r, g, b);
+    }
+  }
+  let head = 0;
+  while (head < tail) {
+    const x = qx[head];
+    const y = qy[head];
+    head += 1;
+    const o = (y * width + x) * 3;
+    const r = color[o];
+    const g = color[o + 1];
+    const b = color[o + 2];
+    if (x > 0) push(x - 1, y, r, g, b);
+    if (x + 1 < width) push(x + 1, y, r, g, b);
+    if (y > 0) push(x, y - 1, r, g, b);
+    if (y + 1 < height) push(x, y + 1, r, g, b);
+  }
+  for (let p = 0; p < count; p += 1) {
+    if (!filled[p]) continue;
+    const i = p * 4;
+    const o = p * 3;
+    data[i] = color[o];
+    data[i + 1] = color[o + 1];
+    data[i + 2] = color[o + 2];
+  }
+  // The gap has a dark brown halo. Two passes pull that fringe in so
+  // linear filtering cannot pick it back up. Eyes sit inside the face
+  // island, away from the gaps, so they are not painted over.
+  for (let pass = 0; pass < 2; pass += 1) {
+    const extra: number[] = [];
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const p = y * width + x;
+        if (!filled[p]) continue;
+        const i = p * 4;
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const around = [
+          x > 0 ? p - 1 : -1,
+          x + 1 < width ? p + 1 : -1,
+          y > 0 ? p - width : -1,
+          y + 1 < height ? p + width : -1,
+        ];
+        for (const n of around) {
+          if (n < 0 || filled[n]) continue;
+          const j = n * 4;
+          const max = data[j] > data[j + 1]
+            ? (data[j] > data[j + 2] ? data[j] : data[j + 2])
+            : (data[j + 1] > data[j + 2] ? data[j + 1] : data[j + 2]);
+          if (max < 48) extra.push(n, r, g, b);
+        }
+      }
+    }
+    for (let k = 0; k < extra.length; k += 4) {
+      const n = extra[k];
+      if (filled[n]) continue;
+      filled[n] = 1;
+      const j = n * 4;
+      data[j] = extra[k + 1];
+      data[j + 1] = extra[k + 2];
+      data[j + 2] = extra[k + 3];
+    }
+  }
 }
 
 function contrastSource(
@@ -222,13 +333,33 @@ function contrastSource(
   ctx.drawImage(source, 0, 0, width, height);
   const image = ctx.getImageData(0, 0, width, height);
   const data = image.data;
+  sealAtlasHoles(data, width, height);
   for (let i = 0; i < data.length; i += 4) {
     data[i] = gradeStoneByte(data[i]);
     data[i + 1] = gradeStoneByte(data[i + 1]);
     data[i + 2] = gradeStoneByte(data[i + 2]);
   }
   ctx.putImageData(image, 0, 0);
-  return canvas;
+  // The baked map is 512px and was sampled with nearest filtering, so the
+  // stone broke into squares. Draw it at 2x with smoothing before the GPU
+  // magnifies it again.
+  const smooth = document.createElement("canvas");
+  smooth.width = width * 2;
+  smooth.height = height * 2;
+  const smoothCtx = smooth.getContext("2d");
+  if (!smoothCtx) return canvas;
+  smoothCtx.imageSmoothingEnabled = true;
+  smoothCtx.imageSmoothingQuality = "high";
+  smoothCtx.drawImage(canvas, 0, 0, smooth.width, smooth.height);
+  return smooth;
+}
+
+function smoothTexture(map: THREE.Texture, anisotropy: number): void {
+  map.magFilter = THREE.LinearFilter;
+  map.minFilter = THREE.LinearMipmapLinearFilter;
+  map.generateMipmaps = true;
+  map.anisotropy = anisotropy;
+  map.needsUpdate = true;
 }
 
 function clarifyStoneMesh(root: THREE.Object3D): void {
@@ -244,9 +375,16 @@ function clarifyStoneMesh(root: THREE.Object3D): void {
       // The metallic map turns the face into a dark mirror. Keep a little
       // metal and let the base color carry the features.
       standard.metalness = Math.min(standard.metalness ?? 1, 0.08);
-      if ((standard.roughness ?? 1) < 0.62) standard.roughness = 0.62;
-      standard.envMapIntensity = 0.22;
-      if (standard.normalScale) standard.normalScale.set(1.35, 1.35);
+      if ((standard.roughness ?? 1) < 0.72) standard.roughness = 0.72;
+      standard.envMapIntensity = 0.12;
+      standard.transparent = false;
+      standard.alphaTest = 0;
+      standard.depthWrite = true;
+      if (standard.normalScale) standard.normalScale.set(0.45, 0.45);
+      const anisotropy = 8;
+      for (const tex of [standard.normalMap, standard.roughnessMap, standard.metalnessMap, standard.aoMap]) {
+        if (tex) smoothTexture(tex, anisotropy);
+      }
       const map = standard.map;
       const image = map?.image as (CanvasImageSource & { width?: number; height?: number }) | undefined;
       if (map && image?.width && image.height) {
@@ -256,10 +394,12 @@ function clarifyStoneMesh(root: THREE.Object3D): void {
             standard.map = map.clone();
             standard.map.image = boosted;
             standard.map.colorSpace = THREE.SRGBColorSpace;
-            standard.map.needsUpdate = true;
+            smoothTexture(standard.map, anisotropy);
+          } else {
+            smoothTexture(map, anisotropy);
           }
         } catch {
-          /* keep the baked map if the browser cannot read it */
+          smoothTexture(map, anisotropy);
         }
       }
       standard.needsUpdate = true;
@@ -656,6 +796,10 @@ export default function MascotMeshy({
           position: "absolute",
           inset: 0,
           background: backdrop ?? (transparent ? "transparent" : "#111318"),
+          // Fiber's canvas root defaults to pointer-events:auto, which
+          // re-enables hits even when a parent set pointer-events:none.
+          // That full-size canvas was swallowing the consent button.
+          pointerEvents: interactive ? "auto" : "none",
         }}
         onCreated={({ gl }) => {
           glRef.current = gl;
@@ -674,18 +818,18 @@ export default function MascotMeshy({
           gl.domElement.addEventListener("webglcontextlost", onLost);
         }}
       >
-        <ambientLight intensity={0.28} />
-        <hemisphereLight args={["#cbb892", "#0a1422", 0.32]} />
+        <ambientLight intensity={0.46} />
+        <hemisphereLight args={["#f3e6cf", "#3a2e22", 0.38]} />
         <directionalLight
           position={[1.4, 3.6, 2.2]}
-          intensity={1.15}
-          color="#ffe8c2"
+          intensity={1.05}
+          color="#fff1d6"
           castShadow
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
         />
-        <directionalLight position={[-2.4, 1.1, 1.6]} intensity={0.28} color="#c5d4ee" />
-        <directionalLight position={[-0.4, 1.8, -2.6]} intensity={0.72} color="#9ec0ff" />
+        <directionalLight position={[-2.4, 1.1, 1.6]} intensity={0.22} color="#f0e2c4" />
+        <directionalLight position={[-0.4, 1.8, -2.6]} intensity={0.18} color="#f4e7cf" />
 
         <Suspense fallback={null}>
           <Character expression={expression} activeClip={activeClip} />

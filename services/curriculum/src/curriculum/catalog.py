@@ -78,6 +78,8 @@ class Course(BaseModel):
     source: str = ""
     deep_link: str = ""
     global_id: str = ""
+    lifecycle_state: str = "published"
+    source_fingerprint: str = ""
 
     @model_validator(mode="after")
     def _defaults(self) -> "Course":
@@ -98,6 +100,16 @@ class Program(BaseModel):
     # unlocked only once its prerequisites are mastered above the threshold.
     adaptive_rules: Dict[str, Dict[str, float]] = Field(default_factory=dict)
     delivery_mode: DeliveryMode = DeliveryMode.AI
+    lifecycle_state: str = "published"
+    category_slug: str = ""
+
+    @model_validator(mode="after")
+    def _course_bounds(self) -> "Program":
+        if len(self.course_ids) > 60:
+            raise ValueError("a program can contain at most 60 courses")
+        if len(set(self.course_ids)) != len(self.course_ids):
+            raise ValueError("program course_ids must be unique")
+        return self
 
 
 class CatalogStore:
@@ -114,6 +126,10 @@ class CatalogStore:
         self.courses[course.course_id] = course
         self._autosave()
         return course
+
+    def upsert_course(self, course: Course) -> Course:
+        """Create or replace a course while preserving durable-store semantics."""
+        return self.create_course(course)
 
     def get_course(self, course_id: str) -> Optional[Course]:
         return self.courses.get(course_id)
@@ -221,6 +237,19 @@ class CatalogStore:
         if existed:
             self._autosave()
         return existed
+
+    def patch_course(self, course_id: str, **fields: object) -> Optional[Course]:
+        """Update playable media fields already on the course record."""
+        allowed = {"trailer_url", "hls_url", "media_format"}
+        with self._lock:
+            course = self.courses.get(course_id)
+            if course is None:
+                return None
+            for key, value in fields.items():
+                if key in allowed:
+                    setattr(course, key, value)
+            self._autosave()
+            return course
 
     # --- programs ---------------------------------------------------------- #
     def create_program(self, program: Program) -> Program:

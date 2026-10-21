@@ -37,6 +37,9 @@ module.exports = {
     `node_modules/(?!\\.pnpm/)(?!(${TRANSPILE}))`,
   ],
   testMatch: ["<rootDir>/src/**/__tests__/**/*.test.ts?(x)"],
+  moduleNameMapper: {
+    "mascot3d/.+\\.(glb|txt)$": "<rootDir>/src/shims/glb-asset.js",
+  },
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
     "!src/**/__tests__/**",

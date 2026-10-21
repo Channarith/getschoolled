@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { acceptLegal, DISCLAIMER_ACCEPTED_EVENT, getMe, getToken } from "../lib/api";
@@ -31,6 +31,7 @@ function isLegalPath(pathname: string | null): boolean {
 
 export default function DisclaimerGate() {
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const pathname = usePathname();
 
   // Re-evaluate on every route change so it triggers right after login (which
@@ -48,6 +49,19 @@ export default function DisclaimerGate() {
       setOpen(false);
     }
   }, [pathname]);
+
+  // showModal() puts this notice in the browser top layer, above the
+  // setup-assistant WebGL mascot. A plain z-index overlay loses: the
+  // mascot canvas is the next hit target under the frosted card, so the
+  // consent click starts a drag on the character instead of the button.
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!open || !dialog) return;
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, [open]);
 
   async function onConsent() {
     try {
@@ -73,17 +87,37 @@ export default function DisclaimerGate() {
   if (!open) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      className="aoep-disclaimer-dialog"
       aria-label="AI and consent disclaimer"
-      style={{
-        position: "fixed", inset: 0, zIndex: 1000, display: "flex",
-        alignItems: "center", justifyContent: "center",
-        background: "rgba(0,0,0,0.6)", padding: 16,
-      }}
+      onCancel={(event) => event.preventDefault()}
     >
-      <div className="card" style={{ maxWidth: 640, maxHeight: "86vh", overflowY: "auto" }}>
+      <style>{`
+        .aoep-disclaimer-dialog {
+          border: none;
+          padding: 0;
+          margin: auto;
+          background: transparent;
+          width: min(640px, calc(100vw - 32px));
+          max-height: 86vh;
+          overflow: visible;
+        }
+        .aoep-disclaimer-dialog::backdrop {
+          background: rgba(0, 0, 0, 0.6);
+        }
+      `}</style>
+      <div
+        className="card"
+        style={{
+          margin: 0,
+          maxHeight: "86vh",
+          overflowY: "auto",
+          background: "var(--panel, #ffffff)",
+          backdropFilter: "none",
+          WebkitBackdropFilter: "none",
+        }}
+      >
         <h2>Before you begin</h2>
         <p>
           <strong>This is an AI-driven course experience.</strong> Instruction,
@@ -107,7 +141,7 @@ export default function DisclaimerGate() {
           For minors, a parent/guardian or the school must have provided consent.
         </p>
         <div className="row" style={{ marginTop: 12, gap: 8 }}>
-          <button onClick={onConsent}>I understand and consent</button>
+          <button type="button" onClick={onConsent}>I understand and consent</button>
           <Link href="/legal" style={{ alignSelf: "center" }}>Review full notices</Link>
         </div>
         <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
@@ -115,6 +149,6 @@ export default function DisclaimerGate() {
           not legal advice.
         </p>
       </div>
-    </div>
+    </dialog>
   );
 }
