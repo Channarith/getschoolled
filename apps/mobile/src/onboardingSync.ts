@@ -14,6 +14,8 @@ import { getToken } from "./storage";
 const KEY = "aoep_pending_onboarding_sync_v1";
 const MAX_BACKOFF_STEP = 6;
 const MAX_DELAY_MS = 15 * 60_000;
+/** How long a final onboarding save may hold the learner before it moves to the outbox. */
+export const SAVE_WAIT_MS = 5000;
 
 type PendingOnboarding = {
   tokenTail: string;

@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# A save slower than this is logged, so slow onboarding writes show up with a number.
+_SLOW_PERSIST_MS = 250
+
 REDIS_KEY = "aoep:identity:v1:state"
 FREE_CLAIM_KEY = "aoep:identity:v1:free_plan_claims"
 
@@ -606,10 +609,10 @@ def _save_dirty_accounts(store: "AccountStore", client, account_ids=None) -> Non
         candidates = [aid for aid in account_ids if aid in store._by_id]
     else:
         candidates = list(store._by_id)
-    dirty = [
-        aid for aid in candidates
-        if store._persisted_blobs.get(aid) != _blob(store, aid)
-    ]
+    # Serialize each account once. The comparison, the Redis write, and the
+    # remembered copy all use this string; they each built their own before.
+    current = {aid: _blob(store, aid) for aid in candidates}
+    dirty = [aid for aid in candidates if store._persisted_blobs.get(aid) != current[aid]]
     removed = [aid for aid in list(store._persisted_blobs) if aid not in store._by_id]
     for aid in removed:
         client.delete(_acct_key(aid))
@@ -620,7 +623,7 @@ def _save_dirty_accounts(store: "AccountStore", client, account_ids=None) -> Non
     for aid in dirty:
         expected = str(store._account_revs.get(aid, 0))
         email = store._by_id[aid].email.lower()
-        blob = json.dumps(_payload(store, aid), separators=(",", ":"))
+        blob = current[aid]
         new_rev = client.eval(
             _CAS_LUA,
             4,
@@ -644,7 +647,7 @@ def _save_dirty_accounts(store: "AccountStore", client, account_ids=None) -> Non
                     continue
             raise PersistenceConflict(aid)
         store._account_revs[aid] = int(new_rev)
-        store._persisted_blobs[aid] = _blob(store, aid)
+        store._persisted_blobs[aid] = current[aid]
 
 
 def load_from_redis_with_retry(store: "AccountStore", *, attempts: int = 5, delay_s: float = 0.4) -> bool:
@@ -728,7 +731,11 @@ def persist_hook(store: "AccountStore", account_ids=None) -> None:
             logger.warning("identity mutation not persisted; Redis is unavailable")
             return
         try:
+            started = time.perf_counter()
             _save_dirty_accounts(store, client, account_ids)
+            elapsed_ms = (time.perf_counter() - started) * 1000
+            if elapsed_ms >= _SLOW_PERSIST_MS:
+                logger.warning("identity persist slow: %.0f ms for %s", elapsed_ms, account_ids or "all accounts")
             return
         except PersistenceConflict:
             raise

@@ -6,7 +6,7 @@
  * phone does not fetch them.
  */
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import WebView from "react-native-webview";
 
 import MascotActor, { type MascotScene } from "./MascotActor";
@@ -106,6 +106,26 @@ export function mascotViewerHtml(clip: string): string {
 </html>`;
 }
 
+/** One small HTML file per clip, next to the viewer, for iOS to open as a file. */
+export function mascotPageFile(clip: string): string {
+  const safe = clip.replace(/[^A-Za-z0-9_]/g, "") || "idle";
+  return `mascot-${safe}.html`;
+}
+
+export type MascotSource = { html: string; baseUrl: string } | { uri: string };
+
+/**
+ * iOS WKWebView will not read file:// scripts or models for a page given with
+ * loadHTMLString (the device blocks it; the simulator does not), so the 3D
+ * mascot fell back to the flat picture. iOS opens a real file instead, with
+ * read access to its folder. Android keeps the inline markup, which its
+ * WebView handles more reliably than a file:// page.
+ */
+export function mascotSourceFor(os: string, dir: string, clip: string): MascotSource {
+  if (os === "ios") return { uri: `${dir}${mascotPageFile(clip)}` };
+  return { html: mascotViewerHtml(clip), baseUrl: dir };
+}
+
 let filesReady: Promise<string> | null = null;
 
 async function copyAsset(moduleId: number, dest: string): Promise<void> {
@@ -150,6 +170,7 @@ type Props = {
 export default function MobileMascotMeshy({ scene, style }: Props) {
   const clip = clipForMascotScene(scene);
   const [page, setPage] = useState<string | null>(null);
+  const [source, setSource] = useState<MascotSource | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const readyRef = useRef(false);
@@ -159,6 +180,7 @@ export default function MobileMascotMeshy({ scene, style }: Props) {
     readyRef.current = false;
     setReady(false);
     setFailed(false);
+    setSource(null);
     const timer = setTimeout(() => {
       if (!cancel && !readyRef.current) setFailed(true);
     }, 20000);
@@ -168,7 +190,13 @@ export default function MobileMascotMeshy({ scene, style }: Props) {
         // handling of a file:// HTML document that then loads another local
         // JavaScript file. `baseUrl` retains the same local directory for the
         // viewer, Draco decoder, and GLB.
-        if (!cancel) setPage(dir);
+        if (Platform.OS === "ios") {
+          const FileSystem = require("expo-file-system") as typeof import("expo-file-system");
+          await FileSystem.writeAsStringAsync(`${dir}${mascotPageFile(clip)}`, mascotViewerHtml(clip));
+        }
+        if (cancel) return;
+        setSource(mascotSourceFor(Platform.OS, dir, clip));
+        setPage(dir);
       })
       .catch(() => {
         if (!cancel) setFailed(true);
@@ -189,10 +217,10 @@ export default function MobileMascotMeshy({ scene, style }: Props) {
 
   return (
     <View style={[styles.fill, style]} testID="mobile-mascot-meshy" pointerEvents="none">
-      {page ? (
+      {page && source ? (
         <WebView
           key={clip}
-          source={{ html: mascotViewerHtml(clip), baseUrl: page }}
+          source={source}
           style={styles.web}
           originWhitelist={["*"]}
           allowingReadAccessToURL={page}

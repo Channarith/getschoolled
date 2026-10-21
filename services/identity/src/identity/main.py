@@ -8,6 +8,7 @@ service is the account + enrollment system of record.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -48,6 +49,28 @@ from .concurrency import (  # noqa: E402
 # Transparently retry PersistenceConflict (Redis CAS race) at the HTTP layer so
 # mobile learners don't see 409 storms during onboarding. See concurrency.py.
 install_persistence_retry_middleware(app)
+
+
+_SLOW_REQUEST_MS = 800
+
+
+@app.middleware("http")
+async def _log_slow_writes(request, call_next):
+    """Name the slow writes (onboarding saves, plan claim) with their duration."""
+    if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+        return await call_next(request)
+    started = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    if elapsed_ms >= _SLOW_REQUEST_MS:
+        logging.getLogger("identity.slow").warning(
+            "slow identity write: %s %s -> %s in %.0f ms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+        )
+    return response
 
 
 @app.exception_handler(_PersistenceConflict)

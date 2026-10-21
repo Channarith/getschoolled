@@ -21,7 +21,8 @@ import KenBurnsImage from "./KenBurnsImage";
 import MobileMascotMeshy from "./MobileMascotMeshy";
 import { type MascotScene } from "./MascotActor";
 import { useLayoutMetrics } from "../layout";
-import { isRetryableIdentityWrite, queueLearningProfileSync } from "../onboardingSync";
+import { withTimeout } from "../learnerCheck";
+import { SAVE_WAIT_MS, isRetryableIdentityWrite, queueLearningProfileSync } from "../onboardingSync";
 
 type Props = {
   visible: boolean;
@@ -126,17 +127,21 @@ export default function FirstSignInAssistant({ visible, student, onComplete }: P
       const id = learner?.studentId || studentId;
       const answers = { modality_ratings: ratings };
       let saved = true;
+      const sending = submitLearningProfile(id, answers);
+      sending.catch(() => undefined);
       try {
-        await submitLearningProfile(id, answers);
+        await withTimeout(sending, SAVE_WAIT_MS, "Saving your answers timed out.");
       } catch (reason) {
         // A busy identity service must not hold the learner on the ratings.
+        // The request keeps running; the outbox sends the same ratings again.
         if (!id || !isRetryableIdentityWrite(reason)) throw reason;
         await queueLearningProfileSync(id, answers);
         saved = false;
       }
-      const me = saved ? await getMe().catch(() => null) : null;
-      if (me) {
-        void submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: id, answers })
+      if (saved) {
+        // Analytics only. Nothing on the next screen needs it.
+        void getMe()
+          .then((me) => submitOnboardingSurveyAnalytics({ account_id: me.id, student_id: id, answers }))
           .catch(() => undefined);
       }
       setStage("identity");
