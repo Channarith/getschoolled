@@ -580,6 +580,82 @@
   }
 }
 
+/* The live face check fills the viewport. Prompts and buttons sit on the camera. */
+.shell[data-stage="scan"] .stageArea {
+  display: block;
+  position: relative;
+}
+
+.shell[data-stage="scan"] .frameWrap {
+  position: absolute;
+  inset: 0;
+  order: 0;
+  background: #111111;
+}
+
+.shell[data-stage="scan"] .frame {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}
+
+.shell[data-stage="scan"] .copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  max-height: 46%;
+  justify-content: flex-end;
+  padding: 28px 20px calc(16px + env(safe-area-inset-bottom));
+  border: 0;
+  color: #ffffff;
+  background: linear-gradient(transparent, rgba(8, 16, 28, 0.2) 28%);
+  pointer-events: none;
+}
+
+.shell[data-stage="scan"] .copy h1,
+.shell[data-stage="scan"] .copy p,
+.shell[data-stage="scan"] .eyebrow,
+.shell[data-stage="scan"] .footnote {
+  color: #ffffff;
+}
+
+.shell[data-stage="scan"] .targets,
+.shell[data-stage="scan"] .actions,
+.shell[data-stage="scan"] .error {
+  pointer-events: auto;
+}
+
+.shell[data-stage="scan"] .targets li {
+  background: rgba(15, 23, 42, 0.22);
+  border-color: rgba(255, 255, 255, 0.72);
+  color: #ffffff;
+}
+
+.shell[data-stage="scan"] .primary,
+.shell[data-stage="scan"] .secondary,
+.shell[data-stage="scan"] .ghost {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.shell[data-stage="scan"] .primary {
+  background: rgba(47, 107, 216, 0.42);
+}
+
+.shell[data-stage="scan"] .cue {
+  background: rgba(47, 107, 216, 0.42);
+}
+
+.shell[data-stage="scan"] .cue[data-pose="down"] {
+  bottom: 38%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rec i {
     animation: none;

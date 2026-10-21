@@ -42,7 +42,7 @@ class _Engine:
     def __init__(self):
         self.calls = 0
 
-    def detect_faces(self, image):
+    def detect_landmarks(self, image):
         self.calls += 1
         return [_Face((30, 30, 40, 50), 0.91, [0.1, 0.2, 0.3],
                       [(40, 50), (60, 50), (50, 62), (44, 74), (56, 74)], (200, 200))]
