@@ -141,7 +141,7 @@ describe("held learner-check retries", () => {
   });
 });
 
-import { frameForFaces, scanFailureMessage } from "../deviceFace";
+import { frameForFaces, scanDiagnostics, scanFailureMessage } from "../deviceFace";
 
 describe("iOS still orientation and scan failure message", () => {
   const face = (left: number, top: number, w: number, h: number): DeviceFaceRead => ({
@@ -165,5 +165,16 @@ describe("iOS still orientation and scan failure message", () => {
     expect(scanFailureMessage({ eyes: 7, straight: 1 })).toMatch(/eyes/);
     expect(scanFailureMessage({ none: 12 })).toMatch(/clear look/);
     expect(scanFailureMessage({})).toMatch(/clear look/);
+  });
+
+  it("writes one line that says what the phone saw", () => {
+    const line = scanDiagnostics({
+      grabbed: 14, grabMissed: 2, faceFrames: 0, emptyFrames: 14, readFailures: 0,
+      size: [1280, 720], upright: [720, 1280], lastGrabError: "", lastReadError: "",
+    }, { none: 14 });
+    expect(line).toContain("pictures 14 ok / 2 missed");
+    expect(line).toContain("faces found in 0, none in 14");
+    expect(line).toContain("upright 720x1280");
+    expect(line).toContain("verdicts: none 14");
   });
 });

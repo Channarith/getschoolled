@@ -45,4 +45,10 @@ describe("mobile Meshy mascot", () => {
     expect(android).toEqual({ html: mascotViewerHtml("idle"), baseUrl: dir });
     expect(mascotPageFile("../evil clip")).toBe("mascot-evilclip.html");
   });
+
+  test("the second attempt loads the other way", () => {
+    const dir = "file:///cache/mascot-meshy-v2/";
+    expect(mascotSourceFor("ios", dir, "idle", 1)).toEqual({ html: mascotViewerHtml("idle"), baseUrl: dir });
+    expect(mascotSourceFor("android", dir, "idle", 1)).toEqual({ uri: `${dir}mascot-idle.html` });
+  });
 });

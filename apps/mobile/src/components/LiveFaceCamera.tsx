@@ -19,6 +19,8 @@ export type LiveFrame = {
 
 export type LiveFaceCameraHandle = {
   grabFrame: (options?: { retainFile?: boolean; includeBase64?: boolean }) => Promise<LiveFrame | null>;
+  /** Why the last grab returned nothing, for the failure card. */
+  lastError: () => string;
 };
 
 type Props = {
@@ -58,6 +60,7 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
   const readyRef = useRef(false);
   const busyRef = useRef(false);
   const sizedRef = useRef(false);
+  const lastErrorRef = useRef("");
   // Same live size as the vision lab: 1280×720 front camera.
   const [pictureSize, setPictureSize] = useState<string | undefined>("1280x720");
   // iOS keeps photo output in a video session, which is the fast preset.
@@ -66,8 +69,12 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
   const mode = Platform.OS === "ios" ? "video" : "picture";
 
   useImperativeHandle(ref, () => ({
+    lastError: () => lastErrorRef.current,
     async grabFrame(options) {
-      if (!readyRef.current || busyRef.current || !cameraRef.current) return null;
+      if (!readyRef.current || busyRef.current || !cameraRef.current) {
+        lastErrorRef.current = !readyRef.current ? "not ready" : busyRef.current ? "busy" : "no camera";
+        return null;
+      }
       busyRef.current = true;
       try {
         const includeBase64 = options?.includeBase64 !== false;
@@ -80,8 +87,12 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
           GRAB_TIMEOUT_MS,
           "The camera stopped returning pictures.",
         );
-        if (!photo) return null;
+        if (!photo) {
+          lastErrorRef.current = "empty picture";
+          return null;
+        }
         if (includeBase64 && !photo.base64) return null;
+        lastErrorRef.current = "";
         const keep = options?.retainFile && photo.uri && !photo.uri.startsWith("data:");
         if (!keep && photo.uri && !photo.uri.startsWith("data:")) {
           void FileSystem.deleteAsync(photo.uri, { idempotent: true }).catch(() => undefined);
@@ -93,6 +104,7 @@ const LiveFaceCamera = forwardRef<LiveFaceCameraHandle, Props>(function LiveFace
           uri: keep ? photo.uri : undefined,
         };
       } catch (reason) {
+        lastErrorRef.current = String((reason as Error)?.message ?? reason);
         if (/stopped returning pictures/.test(String((reason as Error)?.message ?? ""))) onStall?.();
         return null;
       } finally {

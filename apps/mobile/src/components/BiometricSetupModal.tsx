@@ -42,8 +42,10 @@ import {
   frameForFaces,
   frameVerdict,
   isOnDeviceReaderMissing,
+  scanDiagnostics,
   scanFailureMessage,
   type DeviceStroke,
+  type ScanStats,
   type VerdictCounts,
 } from "../deviceFace";
 import { isConsentMissing, isDeferredUpload } from "../pendingUpload";
@@ -111,7 +113,7 @@ const copy: Record<Step, { kicker: string; title: string; body: string }> = {
   },
 };
 
-type Problem = { message: string; settings?: boolean };
+type Problem = { message: string; settings?: boolean; detail?: string };
 
 /** Size of the still as the learner sees it (turned upright). Falls back to what the camera reported. */
 async function uprightSize(uri: string, fallback: [number, number]): Promise<[number, number]> {
@@ -449,12 +451,18 @@ export default function BiometricSetupModal({
       let readFailures = 0;
       const seen: VerdictCounts = {};
       let upright: [number, number] | null = null;
+      let emptyStreak = 0;
+      const stats: ScanStats = {
+        grabbed: 0, grabMissed: 0, faceFrames: 0, emptyFrames: 0, readFailures: 0,
+        size: null, upright: null, lastGrabError: "", lastReadError: "",
+      };
+      const detail = () => scanDiagnostics(stats, seen);
       while (!cancelled && genRef.current === gen && kept.length < FACE_PHOTOS) {
         if (stallsRef.current > MAX_CAMERA_STALLS) return;
         if (Date.now() - started > SCAN_LIMIT_MS) {
           setFaceSeen(false);
-          console.warn(`[face] scan gave up: ${JSON.stringify(seen)}`);
-          setProblem({ message: scanFailureMessage(seen) });
+          console.warn(`[face] scan gave up: ${detail()}`);
+          setProblem({ message: scanFailureMessage(seen), detail: detail() });
           return;
         }
         const shot = await cameraRef.current?.grabFrame({ retainFile: true, includeBase64: false });
@@ -463,14 +471,19 @@ export default function BiometricSetupModal({
           return;
         }
         if (!shot?.uri) {
+          stats.grabMissed += 1;
+          stats.lastGrabError = cameraRef.current?.lastError() ?? "";
           await wait(60);
           continue;
         }
+        stats.grabbed += 1;
         let faces: Awaited<ReturnType<typeof detectDeviceFaces>> = [];
         try {
           // The outline read is slower. Once a good frame is kept, the rest
           // only need the quick one-face check and the outline stays drawn.
-          faces = await detectDeviceFaces(shot.uri, { contours: kept.length === 0 });
+          // After several empty reads the quick detector may be the problem, so
+          // switch to the slower, more forgiving one.
+          faces = await detectDeviceFaces(shot.uri, { contours: kept.length === 0, accurate: emptyStreak >= 4 });
         } catch (reason) {
           await discardFile(shot.uri);
           if (cancelled) return;
@@ -481,8 +494,11 @@ export default function BiometricSetupModal({
             return;
           }
           readFailures += 1;
+          stats.readFailures = readFailures;
+          stats.lastReadError = String((reason as Error)?.message ?? reason);
           if (readFailures >= 8) {
-            setProblem({ message: "This phone couldn’t read the camera. Try again." });
+            console.warn(`[face] reader failed: ${detail()}`);
+            setProblem({ message: "This phone couldn’t read the camera. Try again.", detail: detail() });
             return;
           }
           await wait(60);
@@ -493,6 +509,15 @@ export default function BiometricSetupModal({
           // The still can be stored sideways. Measure the upright picture once.
           upright = upright ?? await uprightSize(shot.uri, size);
           size = upright;
+        }
+        stats.size = size;
+        stats.upright = upright;
+        if (faces.length) {
+          stats.faceFrames += 1;
+          emptyStreak = 0;
+        } else {
+          stats.emptyFrames += 1;
+          emptyStreak += 1;
         }
         const frame = frameForFaces(size, faces);
         const verdict = frameVerdict(faces, frame);
@@ -943,6 +968,7 @@ export default function BiometricSetupModal({
             </View>
           ) : null}
           {problem ? <Text style={styles.error} accessibilityRole="alert">{problem.message}</Text> : null}
+          {problem?.detail ? <Text style={[styles.small, scanning && styles.scanBody]} selectable>{problem.detail}</Text> : null}
           {busy && !recording ? <ActivityIndicator color={C.accent} style={styles.spinner} /> : null}
           {!scanning ? (
             <Text style={styles.note}>
