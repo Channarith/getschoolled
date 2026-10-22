@@ -419,3 +419,15 @@ test("a blurred picture has a lower Laplacian variance than a sharp one", () => 
 test("luma is taken per pixel from RGBA", () => {
   assert.deepEqual(lumaFromRgba([255, 255, 255, 255, 0, 0, 0, 255]).map(Math.round), [255, 0]);
 });
+
+import { MODES, savedModalityRatings } from "../../app/lib/learningModes.ts";
+
+test("the learning profile edit asks the six setup modes and prefills valid saved ratings", () => {
+  assert.deepEqual(MODES.map((mode) => mode.id), ["video", "live_teacher", "presentation", "reading", "tutoring", "gaming"]);
+  assert.deepEqual(
+    savedModalityRatings({ modality_ratings: { video: 3, reading: 9, gaming: 99, bogus: 5, tutoring: "7" } }),
+    { video: 3, reading: 9, tutoring: 7 },
+  );
+  assert.deepEqual(savedModalityRatings(undefined), {});
+  assert.deepEqual(savedModalityRatings({ modality_ratings: "x" }), {});
+});
