@@ -7,20 +7,13 @@ import {
   HEART_CLEFT_PALMS, HEART_POINT_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
   PAUSE_LINE, RESUME_LINE,
-<<<<<<< HEAD
   activeFingertips, advanceMirrorBeat, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch,
   debiasedGazeDown, defaultMirrorPace, fingersPointed, freshMirrorRun, handShape, headPoseFromMesh,
-  heartRatios, isHeartShape, localMathRound, mapMirroredLandmark, mirrorBeatMatched, mirrorPace,
+  heartRatios, isHeartShape, mapMirroredLandmark, mirrorBeatMatched, mirrorPace,
   mirrorPose, mirrorSummary, MIRROR_ROUTINE, newThrowTracker, profileTouchAge,
   advanceNinjaWeave, freshNinjaRun, ninjaSealFits, ninjaTechnique, recognizeNinjaSeal,
   NINJA_DEFAULT_TECHNIQUE, NINJA_ELEMENTS, NINJA_SEALS, NINJA_TECHNIQUES, ninjaEffectParticles, ninjaEffectSpec,
   ninjaTechniqueList, projectThrowTarget, syntheticHand,
-=======
-  activeFingertips, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch,
-  debiasedGazeDown, fingersPointed, handShape, headPoseFromMesh,
-  heartRatios, isHeartShape, mapMirroredLandmark, newThrowTracker, profileTouchAge,
-  projectThrowTarget, syntheticHand,
->>>>>>> 2aaa58c3 (Pop Quiz Toss: quiz rounds, themed targets, curve throws, voice + throw scoring, tutorial, adult ages)
   tipHitsTarget, traceProgress,
 } from "./vision_math.js";
 import {createPopQuizGame} from "./pop_quiz_game.js";
@@ -597,12 +590,8 @@ function drawVision() {
     }
   }
   for (const hand of state.handData) drawFistMark(hand);
-<<<<<<< HEAD
-  drawMathThrowGuide();
-  drawMirrorGhost(w, h);
-=======
   if(state.game==="pop-quiz-toss")popQuiz.drawGuide(ctx);
->>>>>>> 2aaa58c3 (Pop Quiz Toss: quiz rounds, themed targets, curve throws, voice + throw scoring, tutorial, adult ages)
+  drawMirrorGhost(w, h);
   ctx.restore();
   renderVisionReadout();
 }
@@ -1928,11 +1917,8 @@ function chooseGame() {
   if (!select) return;
   const previousGame=state.game;
   state.game=select.value;
-<<<<<<< HEAD
   document.body.classList.toggle("ninja-play", state.game === "ninja-weave");
-=======
   if (previousGame==="pop-quiz-toss" && state.game!=="pop-quiz-toss") popQuiz.teardown();
->>>>>>> 2aaa58c3 (Pop Quiz Toss: quiz rounds, themed targets, curve throws, voice + throw scoring, tutorial, adult ages)
   if (state.game!=="karaoke") hideKaraoke();
   if (state.game!==previousGame) state.audioIndex=0;
   state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
@@ -2043,12 +2029,8 @@ function clearRound() {
   state.sawFinger = false;
   state.sawScreen = false;
   hideTarget();
-<<<<<<< HEAD
-  for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption,.math-target,.math-ball,.ninja-sequence,.ninja-fx")]) node.remove();
-=======
-  for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption")]) node.remove();
+  for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption,.ninja-sequence,.ninja-fx")]) node.remove();
   popQuiz.clearRoundVisuals();
->>>>>>> 2aaa58c3 (Pop Quiz Toss: quiz rounds, themed targets, curve throws, voice + throw scoring, tutorial, adult ages)
   hideCountdown();
   state.trail=[];state.object=null;state.lastTip=null;state.lastFaceY=null;state.lastHandY=null;
 }
