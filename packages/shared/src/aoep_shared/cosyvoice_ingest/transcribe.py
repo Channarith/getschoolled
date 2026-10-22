@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import gc
 import os
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+
+from .guard import available_mb, env_int, is_memory_error
 
 
 DEFAULT_MODEL = "base"
@@ -47,6 +50,33 @@ def asr_available() -> bool:
         return True
     except Exception:
         return False
+
+
+def release_asr_models() -> None:
+    """Drop cached ASR weights so a memory error does not stick until the next kill."""
+    with _MODEL_LOCK:
+        _MODEL_CACHE.clear()
+    gc.collect()
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:  # noqa: BLE001
+        return
+
+
+def _memory_blocked(floor_name: str, default: int) -> bool:
+    floor = env_int(floor_name, default)
+    if floor <= 0:
+        return False
+    free = available_mb()
+    return free is not None and free < floor
+
+
+def _oom_result(language: str, engine: str) -> TranscriptResult:
+    release_asr_models()
+    return TranscriptResult("", language, engine, False, "oom")
 
 
 def _cache_get(key: Tuple[str, str, str, str], factory):
@@ -136,7 +166,11 @@ def _transcribe_mms_khmer(wav: Path) -> Optional[TranscriptResult]:
         if not text:
             return TranscriptResult("", "km", "mms-1b-all:khm", False, "empty_transcript")
         return TranscriptResult(text, "km", "mms-1b-all:khm", True, "ok")
-    except Exception:  # noqa: BLE001 — fall back to Whisper on any MMS failure
+    except MemoryError:
+        return _oom_result("km", "mms-1b-all:khm")
+    except Exception as exc:  # noqa: BLE001 — fall back to Whisper on any MMS failure
+        if is_memory_error(str(exc)):
+            return _oom_result("km", "mms-1b-all:khm")
         return None
 
 
@@ -157,7 +191,11 @@ def _transcribe_openai(wav: Path, *, language: str, model_name: str, device: str
             fp16=device == "cuda",
             condition_on_previous_text=False,
         )
+    except MemoryError:
+        return _oom_result(language, f"openai-whisper:{model_name}")
     except Exception as exc:
+        if is_memory_error(str(exc)):
+            return _oom_result(language, f"openai-whisper:{model_name}")
         return TranscriptResult("", language, f"openai-whisper:{model_name}", False, f"asr_error:{exc}")
     text = str((result or {}).get("text") or "").strip()
     detected = str((result or {}).get("language") or language)
@@ -192,8 +230,12 @@ def _transcribe_faster(
         if not text:
             return TranscriptResult("", str(detected), f"faster-whisper:{model_name}", False, "empty_transcript")
         return TranscriptResult(text, str(detected), f"faster-whisper:{model_name}", True, "ok")
+    except MemoryError:
+        return _oom_result(language, f"faster-whisper:{model_name}")
     except Exception as exc:
         message = str(exc)
+        if is_memory_error(message):
+            return _oom_result(language, f"faster-whisper:{model_name}")
         if device == "cuda" and "cuda" in message.lower():
             _FASTER_WHISPER_CUDA_BROKEN = True
             return None
@@ -216,6 +258,9 @@ def transcribe_wav(
     if not wav.is_file():
         return TranscriptResult("", language, "none", False, "missing_wav")
 
+    if _memory_blocked("AOEP_ASR_MIN_FREE_MB", 0):
+        return TranscriptResult("", language, "none", False, "low_memory")
+
     if not asr_available():
         return TranscriptResult(
             "",
@@ -229,10 +274,15 @@ def transcribe_wav(
     # Khmer-native speech: MMS transcribes it; Whisper invents it. English
     # lessons inside the Khmer pool stay on Whisper after language detection.
     if (language or "").lower() in {"km", "khm"} and os.environ.get("AOEP_ASR_KM_ENGINE", "").strip().lower() == "mms":
-        detected = _detect_language_whisper(wav, model_name)
+        # Whisper plus MMS is two large models. Under the single-model floor,
+        # trust the pool language and load only MMS.
+        if _memory_blocked("AOEP_ASR_SINGLE_MODEL_MB", 0):
+            detected: Optional[str] = "km"
+        else:
+            detected = _detect_language_whisper(wav, model_name)
         if detected in (None, "km", "khm"):
             mms_result = _transcribe_mms_khmer(wav)
-            if mms_result is not None and mms_result.ok:
+            if mms_result is not None and (mms_result.ok or mms_result.reason == "oom"):
                 return mms_result
     if os.environ.get("AOEP_ASR_DETECT_LANGUAGE", "").strip().lower() in {"1", "true", "yes"}:
         language = ""

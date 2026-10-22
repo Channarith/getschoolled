@@ -15,6 +15,12 @@ from typing import Callable, List, Optional
 from urllib.parse import urlparse
 
 from .errors import classify_download_error, sanitize_process_text
+from .guard import (
+    clear_download_limit,
+    cooldown_remaining,
+    limit_backoff_seconds,
+    note_download_limit,
+)
 
 
 # Pinned in packages/shared[cosyvoice-ingest] (yt-dlp==2026.8.19).
@@ -22,7 +28,9 @@ from .errors import classify_download_error, sanitize_process_text
 #   pip install -e 'packages/shared[cosyvoice-ingest]'
 DEFAULT_YT_DLP = "yt-dlp"
 # Whole-process retries after yt-dlp exits. Private videos are not retried.
-_RETRYABLE = {"bot_check", "http_403", "unavailable", "other"}
+# rate_limit and bot_check use a longer pause than a generic network blip.
+_RETRYABLE = {"bot_check", "http_403", "unavailable", "rate_limit", "oom", "other"}
+_LIMIT_CATEGORIES = {"bot_check", "rate_limit"}
 
 
 class DownloadError(RuntimeError):
@@ -188,6 +196,20 @@ def _backoff(attempt: int, sleep: Callable[[float], None], rng: random.Random) -
     sleep(base * (2 ** (attempt - 1)) + rng.random() * base)
 
 
+def _limit_pause(attempt: int, sleep: Callable[[float], None], rng: random.Random) -> None:
+    """Longer pause after YouTube rate limits and bot checks."""
+    pause = limit_backoff_seconds(attempt)
+    if pause <= 0:
+        return
+    sleep(pause + rng.random() * min(pause, 1.0))
+
+
+def _wait_cooldown(sleep: Callable[[float], None]) -> None:
+    remaining = cooldown_remaining()
+    if remaining > 0:
+        sleep(remaining)
+
+
 def _raise_download_error(url: str, text: str) -> None:
     clean = sanitize_process_text(text)
     category = classify_download_error(clean or text)
@@ -237,9 +259,12 @@ def download_url(
     attempts = max(1, int(_env_float("YT_DLP_RETRIES", 3)))
     cookies = cookies_file()
     last_error: Optional[DownloadError] = None
+    _wait_cooldown(sleep)
     for attempt in range(attempts):
         if attempt == 0:
             _pace(sleep, clock)
+        elif last_error is not None and last_error.category in _LIMIT_CATEGORIES:
+            _limit_pause(attempt, sleep, clock)
         else:
             _backoff(attempt, sleep, clock)
         cmd = build_yt_dlp_command(
@@ -248,6 +273,7 @@ def download_url(
         try:
             subprocess.run(cmd, check=True, capture_output=True, timeout=3600, text=True)
             last_error = None
+            clear_download_limit()
             break
         except FileNotFoundError as exc:
             raise DownloadError(f"{yt_dlp_bin()} not found", category="other") from exc
@@ -263,6 +289,8 @@ def download_url(
                 _raise_download_error(url, blob)
             except DownloadError as err:
                 last_error = err
+        if last_error is not None:
+            note_download_limit(last_error.category)
         if last_error is None or last_error.category not in _RETRYABLE:
             break
     if last_error is not None:
@@ -320,6 +348,7 @@ def download_captions(
         return existing
     if not yt_dlp_available():
         return []
+    _wait_cooldown(time.sleep)
     cmd = [
         yt_dlp_bin(),
         *yt_dlp_auth_args(),
@@ -335,9 +364,12 @@ def download_captions(
         url,
     ]
     try:
-        subprocess.run(cmd, capture_output=True, timeout=300, text=True)
+        finished = subprocess.run(cmd, capture_output=True, timeout=300, text=True)
     except Exception:  # noqa: BLE001 — captions are best-effort
         return []
+    blob = (finished.stderr or "") + "\n" + (finished.stdout or "")
+    if finished.returncode:
+        note_download_limit(classify_download_error(blob))
     return sorted(dest_dir.glob(f"{media_id}.*.vtt"))
 
 

@@ -5,14 +5,18 @@ from __future__ import annotations
 import re
 from typing import Mapping
 
+from .guard import is_memory_error, is_rate_limit_text
+
 # Categories the queue and channel report both record.
 ERROR_CATEGORIES = (
+    "rate_limit",
     "bot_check",
     "http_403",
     "private",
     "unavailable",
     "no_segments",
     "denoise_reject",
+    "oom",
     "other",
 )
 
@@ -38,6 +42,10 @@ def sanitize_process_text(text: str, limit: int = 1200) -> str:
 def classify_download_error(text: str) -> str:
     """Map yt-dlp/ffmpeg download text onto one error category."""
     low = (text or "").lower()
+    if is_memory_error(text or ""):
+        return "oom"
+    if is_rate_limit_text(text or ""):
+        return "rate_limit"
     if (
         "sign in to confirm" in low
         or "not a bot" in low

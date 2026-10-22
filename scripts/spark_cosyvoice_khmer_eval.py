@@ -9,9 +9,12 @@ edit pretrained_models, and does not change the serving config.
 from __future__ import annotations
 
 import argparse
+import gc
 import json
+import os
 import shutil
 import sys
+import time
 import traceback
 from pathlib import Path
 
@@ -22,6 +25,11 @@ import torch
 import torchaudio
 import torchaudio.compliance.kaldi as kaldi
 
+from aoep_shared.cosyvoice_ingest.guard import (
+    available_mb,
+    backoff_seconds,
+    is_memory_error,
+)
 from aoep_shared.cosyvoice_ingest.khmer_eval import (
     candidate_beats_baseline,
     character_error_rate,
@@ -157,6 +165,50 @@ def _synthesize(model, text: str, prompt_text: str, prompt_wav: str, out_path: P
     return float(len(audio)) / float(model.sample_rate)
 
 
+def _cuda_memory_error(exc: BaseException) -> bool:
+    name = type(exc).__name__
+    if name in {"OutOfMemoryError", "MemoryError"}:
+        return True
+    if is_memory_error(str(exc)):
+        return True
+    return name == "AcceleratorError" and "out of memory" in str(exc).lower()
+
+
+def _load_cosyvoice(model_dir: Path):
+    """Load CosyVoice, backing off when the GPU cannot allocate a context.
+
+    The first attempt is fp32. Later attempts use fp16, which is about half
+    the weight memory, after the cache is dropped.
+    """
+    from cosyvoice.cli.cosyvoice import CosyVoice
+
+    attempts = max(1, int(os.environ.get("AOEP_EVAL_LOAD_ATTEMPTS", "3") or "3"))
+    last: BaseException | None = None
+    for attempt in range(1, attempts + 1):
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+        fp16 = attempt > 1
+        print(f"loading CosyVoice fp16={fp16} attempt={attempt}", flush=True)
+        try:
+            return CosyVoice(str(model_dir), fp16=fp16)
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            if not _cuda_memory_error(exc):
+                raise
+            print(
+                f"GPU memory error loading CosyVoice ({type(exc).__name__}); backing off",
+                flush=True,
+            )
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            time.sleep(backoff_seconds(attempt, base=5.0, cap=60.0))
+    if last is not None:
+        raise last
+    raise RuntimeError(f"could not load CosyVoice from {model_dir}")
+
+
 def _synth_side(
     *,
     name: str,
@@ -166,10 +218,8 @@ def _synth_side(
     wavs: dict[str, str],
     out_dir: Path,
 ) -> list[dict]:
-    from cosyvoice.cli.cosyvoice import CosyVoice
-
     print(f"loading {name} from {model_dir}", flush=True)
-    model = CosyVoice(str(model_dir), fp16=False)
+    model = _load_cosyvoice(model_dir)
     rows = []
     try:
         for index, pair in enumerate(pairs, 1):
@@ -210,8 +260,10 @@ def _synth_side(
 def _transcribe(paths: list[Path]) -> dict[str, str]:
     import whisper
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"loading whisper large-v3 on {device}", flush=True)
+    free = available_mb()
+    floor = int(os.environ.get("AOEP_EVAL_ASR_CUDA_MB", "16384") or "16384")
+    device = "cuda" if torch.cuda.is_available() and (free is None or free >= floor) else "cpu"
+    print(f"loading whisper large-v3 on {device} free_mb={free}", flush=True)
     asr = whisper.load_model("large-v3", device=device)
     found: dict[str, str] = {}
     for index, path in enumerate(paths, 1):
