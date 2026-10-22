@@ -15,8 +15,14 @@ import { NextResponse } from "next/server";
  *   1. apps/web/public/downloads/salareen-latest.apk  — staged into the image
  *      by `scripts/stage_apk_for_web.sh` before `docker build` (preferred:
  *      no CORS, no outbound bandwidth, works even when object storage is down).
- *   2. NEXT_PUBLIC_ANDROID_APK_URL                    — fallback to the legacy
- *      Object Storage URL for environments that haven't staged a local file.
+ *   2. ANDROID_APK_URL (runtime) / NEXT_PUBLIC_ANDROID_APK_URL / the built-in
+ *      default — redirect to the Object Storage file. That file is stored with
+ *      Content-Disposition: attachment, so phones download it instead of
+ *      trying to view it.
+ *
+ * This lives at /download/android, not under /api: the ingress sends every
+ * /api/ path to the orchestrator except /api/admin/, so a web route under
+ * /api/download never received the request.
  */
 
 export const runtime = "nodejs";
@@ -63,18 +69,14 @@ function stagedApkFilename(): string {
   return "salareen.apk";
 }
 
-function apkSourceUrl(): string {
-  return (process.env.NEXT_PUBLIC_ANDROID_APK_URL || "").trim();
-}
+// Same file the /download page names as its fallback. Next inlines
+// NEXT_PUBLIC_* at build time, so a value set only on the running pod would
+// be ignored; ANDROID_APK_URL is read at request time.
+const DEFAULT_APK_URL =
+  "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.94.9/app-release.apk";
 
-function filenameFromUrl(url: string): string {
-  try {
-    const last = new URL(url).pathname.split("/").filter(Boolean).pop() || "";
-    if (last.toLowerCase().endsWith(".apk")) return last;
-  } catch {
-    /* fall through */
-  }
-  return "salareen.apk";
+function apkSourceUrl(): string {
+  return (process.env.ANDROID_APK_URL || process.env.NEXT_PUBLIC_ANDROID_APK_URL || DEFAULT_APK_URL).trim();
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -114,56 +116,8 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const source = apkSourceUrl();
-  if (!source) {
-    return NextResponse.json(
-      { detail: "Android APK download is not configured" },
-      { status: 404 },
-    );
+  if (!/^https:\/\//i.test(source)) {
+    return NextResponse.json({ detail: "Android APK download is not configured" }, { status: 404 });
   }
-
-  const filename = filenameFromUrl(source);
-  const range = request.headers.get("range");
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(source, {
-      cache: "no-store",
-      headers: range ? { Range: range } : undefined,
-      // Follow redirects from object storage CDNs.
-      redirect: "follow",
-    });
-  } catch (err) {
-    return NextResponse.json(
-      { detail: `Could not reach APK storage: ${String(err)}` },
-      { status: 502 },
-    );
-  }
-
-  if (!upstream.ok && upstream.status !== 206) {
-    return NextResponse.json(
-      { detail: `APK storage returned HTTP ${upstream.status}` },
-      { status: 502 },
-    );
-  }
-
-  const headers = new Headers();
-  headers.set("Content-Type", "application/vnd.android.package-archive");
-  headers.set(
-    "Content-Disposition",
-    `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
-  );
-  headers.set("Cache-Control", "public, max-age=300");
-  headers.set("X-Content-Type-Options", "nosniff");
-
-  const length = upstream.headers.get("content-length");
-  if (length) headers.set("Content-Length", length);
-  const acceptRanges = upstream.headers.get("accept-ranges");
-  if (acceptRanges) headers.set("Accept-Ranges", acceptRanges);
-  const contentRange = upstream.headers.get("content-range");
-  if (contentRange) headers.set("Content-Range", contentRange);
-
-  return new NextResponse(upstream.body, {
-    status: upstream.status,
-    headers,
-  });
+  return NextResponse.redirect(source, 302);
 }

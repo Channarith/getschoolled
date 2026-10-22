@@ -23,7 +23,7 @@ const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? "";
 // (committed path, served from the Docker image) and falls back to the
 // configured object-storage URL. The button is always wired because the API
 // route itself handles the 404 case when neither source exists.
-const ANDROID_DOWNLOAD_HREF = "/api/download/android";
+const ANDROID_DOWNLOAD_HREF = "/download/android";
 
 function StoreButton({
   href,
