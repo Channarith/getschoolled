@@ -93,6 +93,8 @@ data:
   # Mobile app download targets for /download (empty -> "Coming soon"). Set these
   # to the hosted APK + Play/App Store links once published; inlined at build.
   NEXT_PUBLIC_ANDROID_APK_URL: "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.94.9/app-release.apk"
+  # Read by the web pod at request time (NEXT_PUBLIC_* is baked in at build).
+  ANDROID_APK_URL: "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.94.9/app-release.apk"
   NEXT_PUBLIC_PLAY_STORE_URL: ""
   NEXT_PUBLIC_IOS_APP_URL: "https://testflight.apple.com/join/uTxcWnCZ"
   NEXT_PUBLIC_APP_STORE_URL: ""
