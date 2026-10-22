@@ -25,6 +25,8 @@ import {
   faceContour,
   faceGeometry,
   cosineSimilarity,
+  laplacianVariance,
+  lumaFromRgba,
   lightingAction,
   levelFromTimeDomain,
   meanLuma,
@@ -83,6 +85,16 @@ const CAMERA_VIDEO: MediaTrackConstraints = {
 // Same-person turned heads land around 0.18–0.35. Stay above the server
 // gate (0.18, or 0.22 on an identity process that has not restarted).
 const POSE_MATCH_MIN = 0.24;
+// Quality gates for the reference and look frames. Each can be waived after a
+// few tries so a dim room or a slow camera never blocks the scan.
+const ANCHOR_ROLL_DEGREES = 20;
+const POSE_ROLL_DEGREES = 35;
+const ANCHOR_SHARP_RATIO = 0.6;
+const ANCHOR_TRIES = 12;
+const POSE_SHARP_RATIO = 0.45;
+const POSE_TRIES = 6;
+// About three seconds of ticks at the scan's pace, across all reference-frame gates.
+const ANCHOR_HOLD_TICKS = 75;
 
 const POSE_COPY: Record<Pose, string> = {
   left: "Look to your left",
@@ -410,6 +422,26 @@ export default function BiometricSetupAssistant({
     let locking = false;
     let retryAt = 0;
     let raf = 0;
+    // Quality gates. Sharpness is only ever compared with other frames of this scan.
+    let stableTicks = 0;
+    let previousBox: number[] | null = null;
+    let bestSharp = 0;
+    let anchorTries = 0;
+    let anchorHeld = 0;
+    let anchorSharp = 0;
+    let poseRejects = 0;
+    const sharpProbe = document.createElement("canvas");
+    sharpProbe.width = 64;
+    sharpProbe.height = 64;
+
+    function faceSharpness(still: HTMLCanvasElement | null, bbox: number[] | undefined): number {
+      if (!still || !bbox) return 0;
+      const ctx = sharpProbe.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return 0;
+      const [x, y, width, height] = bbox;
+      ctx.drawImage(still, Math.max(0, x), Math.max(0, y), Math.max(8, width), Math.max(8, height), 0, 0, 64, 64);
+      return laplacianVariance(lumaFromRgba(ctx.getImageData(0, 0, 64, 64).data), 64, 64);
+    }
 
     function stillFrame(video: HTMLVideoElement): HTMLCanvasElement | null {
       const width = video.videoWidth;
@@ -503,7 +535,7 @@ export default function BiometricSetupAssistant({
         return;
       }
       if (cancelled) return;
-      setHint("Center your face in the circle.");
+      setHint("Keep your whole face in view.");
       const started = performance.now();
       clock = window.setInterval(() => setElapsed((performance.now() - started) / 1000), 250);
       const loop = () => {
@@ -556,7 +588,7 @@ export default function BiometricSetupAssistant({
         const faces = engine.detect(video);
         if (faces.length !== 1) {
           hideLiveContour();
-          setHint(faces.length ? "Only one face, please." : "Center your face in the circle.");
+          setHint(faces.length ? "Only one face, please." : "Keep your whole face in view.");
           return;
         }
         const face = faces[0];
@@ -569,7 +601,29 @@ export default function BiometricSetupAssistant({
         if (!geometry) return;
         if (!scan.base) {
           if (!geometry.centered) {
-            setHint("Center your face in the circle.");
+            setHint("Keep your whole face in view.");
+            stableTicks = 0;
+            return;
+          }
+          // The quality gates only hold the reference frame for a few seconds in
+          // total. After that the scan goes ahead with what it has.
+          const gated = anchorHeld < ANCHOR_HOLD_TICKS;
+          if (gated && Math.abs(geometry.roll) > ANCHOR_ROLL_DEGREES) {
+            anchorHeld += 1;
+            setHint("Keep your head level.");
+            stableTicks = 0;
+            return;
+          }
+          // The first frame is the reference every other look is compared with,
+          // so wait for the face to settle and for a frame as sharp as this scan has seen.
+          const box = face.bbox ?? null;
+          const moved = box && previousBox
+            && Math.hypot(box[0] - previousBox[0], box[1] - previousBox[1]) > 0.12 * Math.max(box[2], previousBox[2]);
+          previousBox = box;
+          stableTicks = moved ? 0 : stableTicks + 1;
+          if (gated && stableTicks < 3) {
+            anchorHeld += 1;
+            setHint("Hold still…");
             return;
           }
           if (locking) return;
@@ -577,6 +631,16 @@ export default function BiometricSetupAssistant({
           const geometryNow = geometry;
           const marks = landmarks.map((point) => [point[0], point[1]]);
           const still = stillFrame(video);
+          const sharp = faceSharpness(still, face.bbox);
+          bestSharp = Math.max(bestSharp * 0.97, sharp);
+          if (gated && anchorTries < ANCHOR_TRIES && sharp < ANCHOR_SHARP_RATIO * bestSharp) {
+            anchorTries += 1;
+            anchorHeld += 1;
+            locking = false;
+            setHint("Hold still…");
+            return;
+          }
+          anchorSharp = sharp;
           window.setTimeout(() => {
             if (cancelled) return;
             try {
@@ -600,10 +664,22 @@ export default function BiometricSetupAssistant({
           setHint(POSE_COPY[target]);
           return;
         }
+        if (Math.abs(geometry.roll) > POSE_ROLL_DEGREES && poseRejects < POSE_TRIES * 4) {
+          poseRejects += 1;
+          setHint("Keep your head level.");
+          return;
+        }
+        const still = stillFrame(video);
+        // A frame much blurrier than the reference is usually motion. Skip a few, then take it.
+        if (anchorSharp > 0 && faceSharpness(still, face.bbox) < POSE_SHARP_RATIO * anchorSharp && poseRejects < POSE_TRIES) {
+          poseRejects += 1;
+          setHint("Hold still…");
+          return;
+        }
+        poseRejects = 0;
         locking = true;
         const poseTarget = target;
         const marks = landmarks.map((point) => [point[0], point[1]]);
-        const still = stillFrame(video);
         window.setTimeout(() => {
           if (cancelled) return;
           try {

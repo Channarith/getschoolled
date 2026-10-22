@@ -39,13 +39,21 @@ import {
 import {
   FRAME_HINT,
   detectDeviceFaces,
+  FACE_CANDIDATES,
+  faceBox,
   frameForFaces,
   frameVerdict,
   isOnDeviceReaderMissing,
+  looksBlurred,
+  movedTooMuch,
+  rankStills,
   scanDiagnostics,
   scanFailureMessage,
+  stillScore,
   type DeviceStroke,
+  type FaceBox,
   type ScanStats,
+  type ScoredStill,
   type VerdictCounts,
 } from "../deviceFace";
 import { isConsentMissing, isDeferredUpload } from "../pendingUpload";
@@ -77,6 +85,12 @@ const SCAN_LIMIT_MS = 20_000;
 export const SAVE_TIMEOUT_MS = 15_000;
 /** Camera restarts allowed after a still never came back. */
 const MAX_CAMERA_STALLS = 2;
+/** After the fifth still, wait at most this long for extra candidates. */
+const EXTRA_STILLS_MS = 1200;
+/** Least time between kept stills, so the outline can follow the face and each still differs a little. */
+const KEEP_SPACING_MS = 500;
+/** Empty reads in a row before the server is asked to find the face instead. */
+const ASSIST_AFTER_EMPTY = 8;
 
 type FaceState = "idle" | "saving" | "saved" | "queued" | "failed";
 
@@ -445,8 +459,14 @@ export default function BiometricSetupModal({
       // Let exposure and focus settle before the first still.
       await wait(250);
       const gen = genRef.current;
-      const kept: string[] = [];
+      const kept: ScoredStill[] = [];
       const prints = new Set<string>();
+      let fullAt = 0;
+      let lastKeptAt = 0;
+      let assist = false;
+      let previousBox: FaceBox | null = null;
+      let blurSkips = 0;
+      const recentLengths: number[] = [];
       const started = Date.now();
       let readFailures = 0;
       const seen: VerdictCounts = {};
@@ -457,9 +477,12 @@ export default function BiometricSetupModal({
         size: null, upright: null, lastGrabError: "", lastReadError: "",
       };
       const detail = () => scanDiagnostics(stats, seen);
-      while (!cancelled && genRef.current === gen && kept.length < FACE_PHOTOS) {
+      while (!cancelled && genRef.current === gen && kept.length < FACE_CANDIDATES) {
         if (stallsRef.current > MAX_CAMERA_STALLS) return;
+        // Five good stills are enough; extras only improve which five are used.
+        if (fullAt && Date.now() - fullAt > EXTRA_STILLS_MS) break;
         if (Date.now() - started > SCAN_LIMIT_MS) {
+          if (kept.length >= FACE_PHOTOS) break;
           setFaceSeen(false);
           console.warn(`[face] scan gave up: ${detail()}`);
           setProblem({ message: scanFailureMessage(seen), detail: detail() });
@@ -477,13 +500,31 @@ export default function BiometricSetupModal({
           continue;
         }
         stats.grabbed += 1;
+        if (assist) {
+          // The phone cannot find the face, so send plain stills and let the
+          // server look for it. It will refuse them with a reason if it cannot.
+          let raw = "";
+          try {
+            raw = await FileSystem.readAsStringAsync(shot.uri, { encoding: FileSystem.EncodingType.Base64 });
+          } catch {
+            raw = "";
+          }
+          await discardFile(shot.uri);
+          const rawPrint = raw ? stillFingerprint(raw) : "";
+          if (raw && !prints.has(rawPrint)) {
+            prints.add(rawPrint);
+            kept.push({ base64: raw, score: -kept.length });
+            setCaptured(Math.min(kept.length, FACE_PHOTOS));
+            if (kept.length >= FACE_PHOTOS && !fullAt) fullAt = Date.now();
+          }
+          continue;
+        }
         let faces: Awaited<ReturnType<typeof detectDeviceFaces>> = [];
         try {
-          // The outline read is slower. Once a good frame is kept, the rest
-          // only need the quick one-face check and the outline stays drawn.
-          // After several empty reads the quick detector may be the problem, so
+          // Every read draws the outline so it keeps following the face. After
+          // several empty reads the quick detector may be the problem, so
           // switch to the slower, more forgiving one.
-          faces = await detectDeviceFaces(shot.uri, { contours: kept.length === 0, accurate: emptyStreak >= 4 });
+          faces = await detectDeviceFaces(shot.uri, { contours: true, accurate: emptyStreak >= 4 });
         } catch (reason) {
           await discardFile(shot.uri);
           if (cancelled) return;
@@ -496,10 +537,10 @@ export default function BiometricSetupModal({
           readFailures += 1;
           stats.readFailures = readFailures;
           stats.lastReadError = String((reason as Error)?.message ?? reason);
-          if (readFailures >= 8) {
-            console.warn(`[face] reader failed: ${detail()}`);
-            setProblem({ message: "This phone couldn’t read the camera. Try again.", detail: detail() });
-            return;
+          if (readFailures >= 4 && !kept.length) {
+            assist = true;
+            noteHint("Hold still. Checking with our server…");
+            continue;
           }
           await wait(60);
           continue;
@@ -519,6 +560,10 @@ export default function BiometricSetupModal({
           stats.emptyFrames += 1;
           emptyStreak += 1;
         }
+        if (emptyStreak >= ASSIST_AFTER_EMPTY && !kept.length) {
+          assist = true;
+          noteHint("Hold still. Checking with our server…");
+        }
         const frame = frameForFaces(size, faces);
         const verdict = frameVerdict(faces, frame);
         seen[verdict] = (seen[verdict] ?? 0) + 1;
@@ -531,6 +576,21 @@ export default function BiometricSetupModal({
           await discardFile(shot.uri);
           continue;
         }
+        const box = faceBox(face!);
+        const moved = movedTooMuch(previousBox, box);
+        previousBox = box;
+        if (moved) {
+          noteHint("Hold still…");
+          await discardFile(shot.uri);
+          continue;
+        }
+        // Not every read becomes a kept still. Waiting between them lets the
+        // outline catch up on a slow phone and gives each still a small natural
+        // difference from the last.
+        if (lastKeptAt && Date.now() - lastKeptAt < KEEP_SPACING_MS) {
+          await discardFile(shot.uri);
+          continue;
+        }
         let base64 = "";
         try {
           base64 = await FileSystem.readAsStringAsync(shot.uri, { encoding: FileSystem.EncodingType.Base64 });
@@ -539,18 +599,31 @@ export default function BiometricSetupModal({
         }
         await discardFile(shot.uri);
         if (!base64) continue;
+        // A smeared still is smaller than a sharp one. Skip it, but never more
+        // than three in a row so a dim room cannot stall the scan.
+        const blurred = looksBlurred(base64.length, recentLengths);
+        recentLengths.push(base64.length);
+        if (recentLengths.length > 4) recentLengths.shift();
+        if (blurred && blurSkips < 3) {
+          blurSkips += 1;
+          noteHint("Hold still…");
+          continue;
+        }
+        blurSkips = 0;
         const print = stillFingerprint(base64);
         if (prints.has(print)) continue;
         prints.add(print);
-        kept.push(base64);
-        setCaptured(kept.length);
+        lastKeptAt = Date.now();
+        kept.push({ base64, score: stillScore(face!, frame, base64.length, Math.max(...recentLengths)) });
+        setCaptured(Math.min(kept.length, FACE_PHOTOS));
+        if (kept.length >= FACE_PHOTOS && !fullAt) fullAt = Date.now();
         noteHint(kept.length < FACE_PHOTOS ? "Hold still…" : "Saving your face check…");
       }
       if (cancelled || genRef.current !== gen || kept.length < FACE_PHOTOS) return;
 
       // Save in the background and go straight to the voice check, as the
       // web app does. The voice step waits for the result before finishing.
-      const saving = saveFace(kept);
+      const saving = saveFace(rankStills(kept));
       setCaptured(0);
       setFaceSeen(false);
       if (!voiceDoneRef.current) {

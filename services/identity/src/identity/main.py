@@ -1833,6 +1833,9 @@ class FaceImageEnrollmentRequest(BaseModel):
     pose_sequence: list[str] = Field(default_factory=list)
 
 
+MAX_FACE_PHOTOS = 8
+
+
 class QuickFaceEnrollmentRequest(BaseModel):
     images_b64: list[str]
 
@@ -2107,10 +2110,11 @@ def enroll_biometric_face_quick(
     state = normalize_setup_state(student.biometric_setup)
     if not state.consent.granted:
         raise HTTPException(status_code=409, detail="biometric consent is required")
-    if len(req.images_b64) != LIVENESS_TEMPLATE_COUNT:
+    # Five is the minimum. Up to eight may be sent; perception keeps the best five.
+    if not LIVENESS_TEMPLATE_COUNT <= len(req.images_b64) <= MAX_FACE_PHOTOS:
         raise HTTPException(
             status_code=422,
-            detail=f"{LIVENESS_TEMPLATE_COUNT} face photos are required",
+            detail=f"{LIVENESS_TEMPLATE_COUNT} to {MAX_FACE_PHOTOS} face photos are required",
         )
     decoded = _decoded_face_photos(req.images_b64)
     try:
@@ -2122,7 +2126,12 @@ def enroll_biometric_face_quick(
     except HTTPException as exc:
         if exc.status_code != 404:
             raise
-        enrollments = _enroll_face_photos_one_by_one(student_id, decoded)
+        enrollments = _enroll_face_photos_one_by_one(student_id, decoded[:LIVENESS_TEMPLATE_COUNT])
+    if enrollments < LIVENESS_TEMPLATE_COUNT:
+        raise HTTPException(
+            status_code=422,
+            detail=f"the face check needs {LIVENESS_TEMPLATE_COUNT} clear photos; only {enrollments} were usable",
+        )
     state.portrait = state.portrait.model_validate(
         mark_record(state.portrait, "verified", template_ref=f"face:{student_id}")
     )

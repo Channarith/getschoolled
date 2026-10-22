@@ -345,10 +345,14 @@ class EnrollFaceImagesRequest(BaseModel):
 def enroll_face_images(student_id: str, req: EnrollFaceImagesRequest) -> EnrollResponse:
     """The phone face check: several straight-on photos in one call.
 
-    Each photo must hold a face that matches the first one. The learner's old
-    templates are replaced only after every photo passes.
+    Five photos must all match the first. With more (up to eight) the most
+    typical face is the reference and the five best are kept, so one blurred or
+    tilted photo does not sink the check. A sideways picture is turned upright
+    before giving up. The learner's old templates are replaced only after the
+    photos pass.
     """
-    from aoep_shared.vision.engine import DEFAULT_MATCH_THRESHOLD, cosine_similarity
+    from aoep_shared.vision.engine import LIVENESS_TEMPLATE_COUNT
+    from aoep_shared.vision.enrollment import Candidate, EnrollmentRefused, choose_templates
 
     if not 1 <= len(req.images_b64) <= 8:
         raise HTTPException(status_code=422, detail="send between one and eight face photos")
@@ -356,31 +360,48 @@ def enroll_face_images(student_id: str, req: EnrollFaceImagesRequest) -> EnrollR
         engine = _vision().engine()
     except (NotImplementedError, ModelsUnavailable) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    embeddings: list[list[float]] = []
+    total = len(req.images_b64)
+    candidates: list[Candidate] = []
     for index, encoded in enumerate(req.images_b64, start=1):
         try:
             data = base64.b64decode(encoded, validate=True)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=f"face photo {index} is invalid") from exc
         try:
-            faces = engine.detect_faces(data)
+            faces = engine.detect_faces(data, any_rotation=True)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except (NotImplementedError, ModelsUnavailable) as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         if not faces:
-            raise HTTPException(status_code=422, detail=f"no face detected in photo {index}")
-        embeddings.append(list(faces[0].embedding))
-    anchor = embeddings[0]
-    for index, embedding in enumerate(embeddings[1:], start=2):
-        score = cosine_similarity(anchor, embedding)
-        if score < DEFAULT_MATCH_THRESHOLD:
-            raise HTTPException(
-                status_code=422,
-                detail=f"photo {index} does not look like the same person ({score:.2f})",
-            )
+            if total <= LIVENESS_TEMPLATE_COUNT:
+                raise HTTPException(status_code=422, detail=f"no face detected in photo {index}")
+            continue
+        face = faces[0]
+        candidates.append(Candidate(
+            index=index,
+            embedding=list(face.embedding),
+            det_score=float(getattr(face, "det_score", 1.0)),
+            sharpness=getattr(face, "sharpness", None),
+            roll=getattr(face, "roll_degrees", None),
+        ))
+    # Never store fewer templates than the check promises. A single photo keeps
+    # its old meaning; with several, a shortfall is refused here, not stored.
+    needed = min(total, LIVENESS_TEMPLATE_COUNT)
+    if len(candidates) < needed:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"only {len(candidates)} of {total} photos showed a clear face. "
+                "Look straight at the camera, hold still, and try again."
+            ),
+        )
     try:
-        count = _vision().replace_embeddings(student_id, embeddings)
+        chosen = choose_templates(candidates)
+    except EnrollmentRefused as exc:
+        raise HTTPException(status_code=422, detail=exc.detail) from exc
+    try:
+        count = _vision().replace_embeddings(student_id, [list(c.embedding) for c in chosen])
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return EnrollResponse(student_id=student_id, enrollments=count)

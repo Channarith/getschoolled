@@ -77,10 +77,28 @@ class DetectedFace:
     embedding: List[float]  # 128-d SFace feature (unnormalized; use cosine)
     landmarks: List[Tuple[float, float]] = field(default_factory=list)
     frame_size: Tuple[int, int] = (0, 0)
+    # Laplacian variance of the face crop. Higher is sharper; None when not measured.
+    sharpness: Optional[float] = None
 
     @property
     def area(self) -> int:
         return self.bbox[2] * self.bbox[3]
+
+    @property
+    def roll_degrees(self) -> Optional[float]:
+        """In-plane head tilt from the eye line; 0 is level."""
+        if len(self.landmarks) < 2:
+            return None
+        (rx, ry), (lx, ly) = self.landmarks[0], self.landmarks[1]
+        if rx == lx and ry == ly:
+            return None
+        angle = math.degrees(math.atan2(ly - ry, lx - rx))
+        # The eyes are listed right-eye-first, so a level face reads ~0 or ~180.
+        if angle > 90:
+            angle -= 180
+        elif angle < -90:
+            angle += 180
+        return angle
 
 
 def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
@@ -145,9 +163,20 @@ class FaceRecognitionEngine:
             raise ValueError("could not decode image input")
         return img
 
-    def detect_faces(self, image: ImageLike) -> List[DetectedFace]:
-        """Return all detected faces (largest first), each with an embedding."""
-        img = self._decode(image)
+    def _face_sharpness(self, img, bbox: Tuple[int, int, int, int]) -> Optional[float]:
+        """Laplacian variance of the face crop at a fixed size, so photos compare fairly."""
+        cv2 = self._cv2
+        x, y, bw, bh = bbox
+        height, width = img.shape[:2]
+        x0, y0 = max(0, x), max(0, y)
+        x1, y1 = min(width, x + bw), min(height, y + bh)
+        if x1 - x0 < 8 or y1 - y0 < 8:
+            return None
+        crop = cv2.cvtColor(img[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY)
+        crop = cv2.resize(crop, (96, 96), interpolation=cv2.INTER_AREA)
+        return float(cv2.Laplacian(crop, cv2.CV_64F).var())
+
+    def _faces_in(self, img) -> List[DetectedFace]:
         h, w = img.shape[:2]
         self._detector.setInputSize((w, h))
         _, raw = self._detector.detect(img)
@@ -158,7 +187,6 @@ class FaceRecognitionEngine:
             aligned = self._recognizer.alignCrop(img, row)
             feat = self._recognizer.feature(aligned).flatten().astype("float32")
             x, y, bw, bh = (int(v) for v in row[:4])
-            # YuNet emits 5 landmarks at indices 4..13 (x, y pairs).
             landmarks = [
                 (float(row[4 + 2 * i]), float(row[5 + 2 * i])) for i in range(5)
             ]
@@ -169,10 +197,29 @@ class FaceRecognitionEngine:
                     embedding=feat.tolist(),
                     landmarks=landmarks,
                     frame_size=(w, h),
+                    sharpness=self._face_sharpness(img, (x, y, bw, bh)),
                 )
             )
         faces.sort(key=lambda f: f.area, reverse=True)
         return faces
+
+    def detect_faces(self, image: ImageLike, *, any_rotation: bool = False) -> List[DetectedFace]:
+        """Return all detected faces (largest first), each with an embedding.
+
+        ``any_rotation`` also tries the picture turned a quarter or half turn
+        when nothing is found. Some phones store a still sideways, and a face
+        lying on its side is not detected upright.
+        """
+        img = self._decode(image)
+        faces = self._faces_in(img)
+        if faces or not any_rotation:
+            return faces
+        cv2 = self._cv2
+        for turn in (cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_180):
+            faces = self._faces_in(cv2.rotate(img, turn))
+            if faces:
+                return faces
+        return []
 
     def detect_landmarks(self, image: ImageLike) -> List[DetectedFace]:
         """Return YuNet geometry without running the expensive SFace embedder.

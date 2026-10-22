@@ -67,7 +67,7 @@ describe("on-device face read", () => {
     expect(readMlKitFace(face)?.eyesOpen).toBeNull();
   });
 
-  it("keeps only a centered, straight-on, open-eyed still", () => {
+  it("keeps only a whole-face, straight-on, open-eyed still", () => {
     const frame: [number, number] = [480, 640];
     const good = (patch: Partial<DeviceFaceRead> = {}): DeviceFaceRead => ({
       landmarks: null,
@@ -78,6 +78,7 @@ describe("on-device face read", () => {
       yaw: 3,
       pitch: -2,
       eyesOpen: 0.9,
+      roll: 0,
       ...patch,
     });
     expect(frameVerdict([good()], frame)).toBe("ok");
@@ -141,11 +142,14 @@ describe("held learner-check retries", () => {
   });
 });
 
-import { frameForFaces, scanDiagnostics, scanFailureMessage } from "../deviceFace";
+import {
+  faceBox, frameForFaces, looksBlurred, movedTooMuch, rankStills, rollFromLandmarks, scanDiagnostics,
+  scanFailureMessage, stillScore,
+} from "../deviceFace";
 
 describe("iOS still orientation and scan failure message", () => {
   const face = (left: number, top: number, w: number, h: number): DeviceFaceRead => ({
-    landmarks: null, bbox: [left, top, w, h], strokes: [], smiling: null, faceWidth: w, yaw: 0, pitch: 0, eyesOpen: 1,
+    landmarks: null, bbox: [left, top, w, h], strokes: [], smiling: null, faceWidth: w, yaw: 0, pitch: 0, eyesOpen: 1, roll: 0,
   });
 
   it("turns a sideways frame size when the face box only fits upright", () => {
@@ -161,7 +165,7 @@ describe("iOS still orientation and scan failure message", () => {
   });
 
   it("tells the learner what the phone actually saw", () => {
-    expect(scanFailureMessage({ center: 9, none: 2 })).toMatch(/inside the circle/);
+    expect(scanFailureMessage({ center: 9, none: 2 })).toMatch(/cut off/);
     expect(scanFailureMessage({ eyes: 7, straight: 1 })).toMatch(/eyes/);
     expect(scanFailureMessage({ none: 12 })).toMatch(/clear look/);
     expect(scanFailureMessage({})).toMatch(/clear look/);
@@ -176,5 +180,58 @@ describe("iOS still orientation and scan failure message", () => {
     expect(line).toContain("faces found in 0, none in 14");
     expect(line).toContain("upright 720x1280");
     expect(line).toContain("verdicts: none 14");
+  });
+});
+
+describe("recognition robustness helpers", () => {
+  const face = (over: Partial<DeviceFaceRead> = {}): DeviceFaceRead => ({
+    landmarks: null, bbox: [200, 400, 300, 340], strokes: [], smiling: null, faceWidth: 300,
+    yaw: 0, pitch: 0, eyesOpen: 1, roll: 0, ...over,
+  });
+  const frame: [number, number] = [720, 1280];
+
+  it("rejects a head tilted past the limit, accepts a modest tilt", () => {
+    expect(frameVerdict([face({ roll: 40 })], frame)).toBe("tilt");
+    expect(frameVerdict([face({ roll: -35 })], frame)).toBe("tilt");
+    expect(frameVerdict([face({ roll: 20 })], frame)).toBe("ok");
+    expect(frameVerdict([face({ roll: null })], frame)).toBe("ok");
+  });
+
+  it("reads tilt from the eye line when ML Kit gives none", () => {
+    expect(rollFromLandmarks([[100, 100], [200, 100]])).toBeCloseTo(0);
+    expect(rollFromLandmarks([[100, 100], [200, 150]])).toBeCloseTo(26.57, 1);
+    expect(rollFromLandmarks(null)).toBeNull();
+  });
+
+  it("flags a face that moved a fifth of its width between stills", () => {
+    const a = faceBox(face());
+    expect(movedTooMuch(null, a)).toBe(false);
+    expect(movedTooMuch(a, faceBox(face({ bbox: [210, 405, 300, 340] })))).toBe(false);
+    expect(movedTooMuch(a, faceBox(face({ bbox: [300, 400, 300, 340] })))).toBe(true);
+  });
+
+  it("treats a much smaller still as blurred, but only once there is something to compare", () => {
+    expect(looksBlurred(10, [])).toBe(false);
+    expect(looksBlurred(10, [100])).toBe(false);
+    expect(looksBlurred(50, [100, 90])).toBe(true);
+    expect(looksBlurred(70, [100, 90])).toBe(false);
+  });
+
+  it("ranks a level, frontal, detailed still first", () => {
+    const good = stillScore(face(), frame, 100, 100);
+    expect(good).toBeGreaterThan(stillScore(face({ roll: 25 }), frame, 100, 100));
+    expect(good).toBeGreaterThan(stillScore(face({ yaw: 20 }), frame, 100, 100));
+    expect(good).toBeGreaterThan(stillScore(face(), frame, 55, 100));
+    expect(rankStills([{ base64: "b", score: 0.2 }, { base64: "a", score: 0.9 }])).toEqual(["a", "b"]);
+  });
+
+  it("does not need the face inside the oval, only whole in the picture", () => {
+    const base = { landmarks: null, strokes: [], smiling: null, yaw: 0, pitch: 0, eyesOpen: 1, roll: 0 };
+    const off = { ...base, bbox: [30, 800, 220, 250], faceWidth: 220 } as DeviceFaceRead;
+    expect(frameVerdict([off], [720, 1280])).toBe("ok");
+    const cut = { ...base, bbox: [-20, 400, 260, 300], faceWidth: 260 } as DeviceFaceRead;
+    expect(frameVerdict([cut], [720, 1280])).toBe("center");
+    const bottomCut = { ...base, bbox: [250, 1100, 220, 250], faceWidth: 220 } as DeviceFaceRead;
+    expect(frameVerdict([bottomCut], [720, 1280])).toBe("center");
   });
 });
