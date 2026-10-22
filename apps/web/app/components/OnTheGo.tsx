@@ -76,8 +76,8 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   const [playing, setPlaying] = useState(false);
   const rate = 1;
   const [error, setError] = useState("");
-  const [, setAssistantOpen] = useState(false);
-  const [, setAssistantStatus] = useState("");
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantStatus, setAssistantStatus] = useState("");
   const [, setAssistantTranscript] = useState("");
   const [, setAssistantAnswer] = useState("");
   const [listening, setListening] = useState(false);
@@ -870,11 +870,34 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     playGenRef.current++;
     cancelSpeech();
     const genSnapshot = playGenRef.current;
-    speak(t("drive.resumePrompt", { answer }), () => {
+    speak(answer, () => {
       if (playGenRef.current !== genSnapshot) return;
-      resumeAfterAssistant(6500);
+      // A short pause for a follow-up (tap the mascot), then say so and go back.
+      clearResumeTimer();
+      setAssistantStatus(t("drive.backToCourse"));
+      resumeTimerRef.current = setTimeout(() => {
+        if (playGenRef.current !== genSnapshot) return;
+        speak(t("drive.backToCourse"), () => {
+          if (playGenRef.current !== genSnapshot) return;
+          resumeAfterAssistant(0);
+        });
+      }, 2500);
     });
   }
+
+  // After the mascot is tapped, tapping anywhere else on the page resumes the lesson.
+  useEffect(() => {
+    if (!assistantOpen) return;
+    const onTap = (event: MouseEvent) => {
+      const el = event.target as HTMLElement | null;
+      if (el?.closest("[data-testid='on-the-go-mascot'], button, a, input, select, textarea")) return;
+      stopVoiceRecognition();
+      resumeAfterAssistant(0);
+    };
+    document.addEventListener("click", onTap);
+    return () => document.removeEventListener("click", onTap);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assistantOpen]);
 
   const langLabel = TRAINING_LOCALE_LABELS[trainingLang] || trainingLang;
   const paid = accountReady && loggedIn && tier !== "free";
@@ -1054,6 +1077,30 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
           {voiceLive && (
             <p className="muted" style={{ marginTop: 10, fontSize: 14 }}>{t("drive.voiceAgentOn")}</p>
           )}
+        </div>
+      )}
+
+      {canDrive && (
+        <div style={{ position: "fixed", right: 18, bottom: 18, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          {assistantOpen && assistantStatus && (
+            <div role="status" aria-live="polite" style={{ maxWidth: 240, padding: "8px 12px", borderRadius: 12, background: "#0b1020", color: "#e8ecf6", fontSize: 14, boxShadow: "0 6px 20px rgba(0,0,0,.35)" }}>
+              {assistantStatus}
+            </div>
+          )}
+          <button
+            type="button"
+            data-testid="on-the-go-mascot"
+            aria-label="Pause and ask a question"
+            title="Pause and ask a question"
+            disabled={demoEnded}
+            onClick={() => { if (!listening) void startVoiceRecognition(false); }}
+            style={{
+              width: 72, height: 72, padding: 0, borderRadius: "50%", cursor: "pointer",
+              border: `3px solid ${listening ? "#22c55e" : "#d4af37"}`,
+              background: "#0b1020 url(/logo-mark.webp) center/cover no-repeat",
+              boxShadow: listening ? "0 0 0 6px rgba(34,197,94,.35), 0 8px 24px rgba(0,0,0,.4)" : "0 8px 24px rgba(0,0,0,.4)",
+            }}
+          />
         </div>
       )}
     </main>

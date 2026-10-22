@@ -294,6 +294,7 @@ const SHARED: Record<string, string> = {
   "drive.skipAnswer": "Skipping to the next segment.",
   "drive.repeatAnswer": "Going back so you can hear that part again.",
   "drive.answeringStatus": "Answering your question. I will resume automatically unless you pause.",
+  "drive.backToCourse": "I will go back and resume if there are no further questions.",
   "drive.resumePrompt": "{answer} Would you like to resume? Say resume, or I will continue shortly.",
   "drive.typedQuestion": "Answering your typed question.",
   "drive.pauseAskStatus": "Paused. Ask a question or resume when ready.",
