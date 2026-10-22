@@ -6,6 +6,8 @@ import json
 import struct
 from pathlib import Path
 
+import pytest
+
 from aoep_shared.cosyvoice_ingest.transcribe import transcribe_wav
 from aoep_shared.dictionary_audio import write_wav_mono
 from aoep_shared.cosyvoice_ingest.guard import (
@@ -23,6 +25,7 @@ from aoep_shared.cosyvoice_ingest.queue import execute_queue, request_stop
 
 
 def test_transcribe_refuses_when_memory_is_below_the_floor(tmp_path: Path, monkeypatch):
+    pytest.importorskip("faster_whisper")  # the memory check runs after the optional ASR import
     wav = tmp_path / "clip.wav"
     write_wav_mono(wav, struct.pack("<hh", 0, 0), 24000)
     monkeypatch.setenv("AOEP_ASR_MIN_FREE_MB", "99999999")
