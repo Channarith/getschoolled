@@ -112,3 +112,15 @@ def test_voice_overlay_hides_chrome_by_default_via_css() -> None:
     # Fail-safe: the overlay also tags .aoep-voice-revealed when the learner
     # falls back to classic chrome; CSS must hide the pill at that point.
     assert ".sala-pill" in html
+
+
+def test_demo_mode_is_clean_and_uses_the_logo_avatar():
+    html = render_studio_page()
+    assert "body.demo-clean #course-price" in html
+    assert "salareen-logo.webp" in html
+    js = _VOICE_JS.read_text(encoding="utf-8")
+    assert 'params.get("demo") === "1"' in js
+    assert "parseDemoCommand" in js
+    assert (_PKG_ROOT / "voice_static" / "salareen-logo.webp").is_file()
+    # Demo-only commands must not leak into the catalog shared with web + mobile.
+    assert "audio_off" not in _extract_catalog(js)

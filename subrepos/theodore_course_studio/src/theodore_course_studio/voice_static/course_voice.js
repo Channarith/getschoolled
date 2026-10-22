@@ -298,6 +298,81 @@ function dispatchIntent(intent, { reveal }) {
   }
 }
 
+// ---- Demo-only commands -----------------------------------------------------
+// Kept out of courseVoiceIntentCatalog() so the web/mobile parity test is unaffected.
+// Everything here stays inside this course page.
+
+let audioGain = 1;
+let audioGainInstalled = false;
+
+function installAudioGain() {
+  if (audioGainInstalled) return;
+  audioGainInstalled = true;
+  try {
+    const desc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "volume");
+    if (desc && desc.set && desc.get) {
+      Object.defineProperty(HTMLMediaElement.prototype, "volume", {
+        configurable: true,
+        get() { return desc.get.call(this); },
+        set(v) { desc.set.call(this, Math.max(0, Math.min(1, Number(v) * audioGain))); },
+      });
+    }
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function patchedPlay(...args) {
+      try { desc.set.call(this, Math.max(0, Math.min(1, audioGain))); } catch { /* non-fatal */ }
+      return play.apply(this, args);
+    };
+    const synth = window.speechSynthesis;
+    if (synth && typeof synth.speak === "function") {
+      const speak = synth.speak.bind(synth);
+      synth.speak = (u) => { try { u.volume = Math.min(1, audioGain); } catch { /* non-fatal */ } return speak(u); };
+    }
+  } catch { /* non-fatal */ }
+}
+
+function applyAudioGain(next) {
+  audioGain = Math.max(0, Math.min(1, next));
+  installAudioGain();
+  document.querySelectorAll("audio, video").forEach((m) => { try { m.volume = audioGain; } catch { /* non-fatal */ } });
+  try {
+    if (audioGain === 0) window.speechSynthesis?.cancel();
+  } catch { /* non-fatal */ }
+}
+
+export function parseDemoCommand(utterance) {
+  const text = normalize(utterance);
+  if (!text) return null;
+  if (/^(?:un\s*mute|sound\s+on|turn\s+(?:the\s+)?(?:sound|audio|volume)\s+on)$/.test(text)) return { kind: "audio_on" };
+  if (/^(?:mute|sound\s+off|turn\s+(?:the\s+)?(?:sound|audio|volume)\s+off|mute\s+(?:the\s+)?(?:sound|audio|volume|course|lesson))$/.test(text)) return { kind: "audio_off" };
+  if (/\b(?:volume\s+up|louder|turn\s+(?:it|the\s+volume)\s+up)\b/.test(text)) return { kind: "volume", delta: 0.25 };
+  if (/\b(?:volume\s+down|quieter|softer|turn\s+(?:it|the\s+volume)\s+down)\b/.test(text)) return { kind: "volume", delta: -0.25 };
+  if (/\b(?:hide|remove)\s+(?:the\s+)?(?:camera|webcam|my\s+(?:camera|face|video))\b/.test(text)) return { kind: "camera_hide" };
+  if (/\b(?:show|turn\s+on)\s+(?:the\s+)?(?:camera|webcam)\b/.test(text)) return { kind: "camera_show" };
+  return null;
+}
+
+function dispatchDemoCommand(cmd) {
+  switch (cmd.kind) {
+    case "audio_off": applyAudioGain(0); announce("Sound off."); return true;
+    case "audio_on": applyAudioGain(audioGain > 0 ? audioGain : 1); announce("Sound on."); return true;
+    case "volume": applyAudioGain((audioGain || 0) + cmd.delta); return true;
+    case "camera_hide":
+    case "camera_show": {
+      const cam = document.getElementById("student-cam");
+      if (cam) cam.style.display = cmd.kind === "camera_hide" ? "none" : "";
+      return true;
+    }
+    default: return false;
+  }
+}
+
+function askTheCourse(question) {
+  const box = document.getElementById("voice-ask");
+  if (!box) return false;
+  box.value = question;
+  return clickById("btn-talk-send");
+}
+
 // ---- Overlay UI --------------------------------------------------------------
 
 function el(tag, attrs, children) {
@@ -332,6 +407,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     typeToAsk: Boolean(opts.typeToAsk),
     locale: String(opts.locale || "en-US"),
     stageSelector: opts.stageSelector || "#teach-stage",
+    demo: Boolean(opts.demo),
   };
 
   if (!document.body) {
@@ -343,6 +419,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   // STUDIO_CSS already does the heavy lifting; .aoep-voice-first just
   // re-applies it alongside tagging the mode for CSS/JS checks.
   document.body.classList.add("aoep-voice-first", "chrome-hidden");
+  if (options.demo) document.body.classList.add("demo-clean");
 
   const root = el("div", {
     "aria-live": "polite",
@@ -358,7 +435,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   root.appendChild(announceLive);
   document.body.appendChild(root);
 
-  let consented = readConsent();
+  let consented = options.demo ? false : readConsent();
   let muted = false;
   let listening = false;
   let recognizer = null;
@@ -371,6 +448,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   })();
 
   function reveal(reason) {
+    if (options.demo) return;
     document.body.classList.remove("aoep-voice-first", "chrome-hidden");
     document.body.classList.add("aoep-voice-revealed");
     announce(reason === "voice-command"
@@ -388,6 +466,19 @@ export function initCourseVoiceOverlay(opts = {}) {
     }
   }
 
+  function handleUtterance(transcript) {
+    if (options.demo) {
+      const demoCmd = parseDemoCommand(transcript);
+      if (demoCmd) { dispatchDemoCommand(demoCmd); return; }
+    }
+    const intent = parseCourseVoiceIntent(transcript);
+    if (!intent) { if (!options.demo) recordMiss(transcript); return; }
+    if (intent.kind === "mute_mic") { setMuted(true); return; }
+    if (options.demo && intent.kind === "ask") { askTheCourse(intent.question); return; }
+    if (options.demo && intent.kind === "start") { clickById("btn-start-voice"); return; }
+    dispatchIntent(intent, { reveal });
+  }
+
   function startRecognizer() {
     const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Ctor || muted || !consented) return;
@@ -401,10 +492,7 @@ export function initCourseVoiceOverlay(opts = {}) {
         const first = event.results[i]?.[0];
         const transcript = (first?.transcript || "").trim();
         if (!transcript) continue;
-        const intent = parseCourseVoiceIntent(transcript);
-        if (!intent) { recordMiss(transcript); continue; }
-        if (intent.kind === "mute_mic") { setMuted(true); continue; }
-        dispatchIntent(intent, { reveal });
+        handleUtterance(transcript);
       }
     };
     rec.onerror = (event) => {
@@ -441,7 +529,7 @@ export function initCourseVoiceOverlay(opts = {}) {
 
   function setConsented(value) {
     consented = Boolean(value);
-    writeConsent(consented);
+    if (!options.demo) writeConsent(consented);
     if (consented) startRecognizer();
     else stopRecognizer();
     renderOverlay();
@@ -606,6 +694,8 @@ export function initCourseVoiceOverlay(opts = {}) {
     const stage = document.querySelector(options.stageSelector);
     if (!stage) return;
     stage.addEventListener("dblclick", (event) => {
+      // Demo: the studio's own double-click already toggles full screen.
+      if (options.demo) return;
       // Ignore double-clicks on actual controls; only trigger when the user
       // double-clicked the lesson content itself.
       if (event.target.closest("button, select, input, a, [role='button']")) return;
@@ -630,8 +720,28 @@ export function initCourseVoiceOverlay(opts = {}) {
   // Allow the dispatcher to request mute via a custom event (type-to-ask path).
   window.addEventListener("sala:mute-mic", () => setMuted(true));
 
+  // Demo: the avatar is the only control. One click starts the course (the
+  // avatar talks) and opens the mic; clicking again mutes or unmutes it.
+  function wireAvatarGesture() {
+    document.addEventListener("click", (event) => {
+      const wrap = event.target.closest && event.target.closest("#theodore-avatar-wrap");
+      if (!wrap) return;
+      event.stopPropagation();
+      const welcome = document.getElementById("page-welcome");
+      if (welcome && !welcome.hidden) clickById("btn-start-voice");
+      if (!consented) setConsented(true);
+      else setMuted(!muted);
+    }, true);
+    const sync = () => {
+      const wrap = document.getElementById("theodore-avatar-wrap");
+      if (wrap) wrap.classList.toggle("sala-listening", Boolean(listening && !muted));
+    };
+    setInterval(sync, 400);
+  }
+
   renderOverlay();
   renderTypeToAsk();
+  if (options.demo) wireAvatarGesture();
   wireStageGestures();
   if (consented) startRecognizer();
 
@@ -661,6 +771,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     initCourseVoiceOverlay({
       typeToAsk: params.get("typemode") === "1",
       locale: params.get("lang") || "en-US",
+      demo: params.get("demo") === "1",
     });
   } catch { /* defensive — never block the player on overlay boot */ }
 })();

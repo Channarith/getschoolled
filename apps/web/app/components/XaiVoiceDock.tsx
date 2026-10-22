@@ -22,9 +22,8 @@ function voiceMode(pathname: string): XaiVoiceMode | null {
   // (Serenity teacher + xAI Grok voice).
   if (pathname === "/group-classes" || pathname.startsWith("/live-room")) return "group";
   if (pathname.startsWith("/learn/")) return "solo";
-  if (pathname.startsWith("/demo/drivers-ed") || pathname.startsWith("/demo/course-studio")) {
-    return "solo";
-  }
+  // The demo avatar inside the course page is the only voice there.
+  if (pathname.startsWith("/demo/course-studio")) return "solo";
   if (pathname === "/serenity") return "solo";
   return null;
 }

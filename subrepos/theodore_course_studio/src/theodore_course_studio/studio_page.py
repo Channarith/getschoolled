@@ -406,6 +406,25 @@ STUDIO_CSS = """
     body.aoep-voice-first .layout { display:block; }
     body.aoep-voice-first .panel { background:transparent; border:0; box-shadow:none; padding:0; }
     body.aoep-voice-first .teach-stage { cursor:zoom-in; user-select:none; }
+    /* Demo (?demo=1): only the lesson and the avatar. Sala is the control. */
+    body.demo-clean #course-price,
+    body.demo-clean #sample-banner,
+    body.demo-clean #course-map,
+    body.demo-clean #page-welcome p,
+    body.demo-clean #proceed-cue,
+    body.demo-clean #teach-title,
+    body.demo-clean .lesson-toolbar,
+    body.demo-clean .talk-panel,
+    body.demo-clean .sala-pill,
+    body.demo-clean .sala-consent,
+    body.demo-clean .avatar-hide-btn,
+    body.demo-clean .avatar-label,
+    body.demo-clean .avatar-drag-handle,
+    body.demo-clean .avatar-resize-handle { display:none !important; }
+    body.demo-clean .theodore-avatar-wrap { cursor:pointer; }
+    body.demo-clean #theodore-avatar { background:url(/api/studio/voice-overlay/salareen-logo.webp) center/contain no-repeat; }
+    body.demo-clean #theodore-avatar > * { display:none !important; }
+    body.demo-clean .theodore-avatar-wrap.sala-listening { box-shadow:0 0 0 3px #22c55e, 0 0 28px rgba(34,197,94,.55); border-radius:18px; }
     body.aoep-voice-revealed .sala-pill,
     body.aoep-voice-revealed .sala-consent { display:none !important; }
     .sala-pill:focus-visible,
