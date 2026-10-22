@@ -18,6 +18,7 @@ from aoep_shared.full_programs import (
     discover_programs,
     expand_programs,
     may_award_program_completion,
+    may_issue_external_card,
     plan_program,
     published_slide_counts,
 )
@@ -169,3 +170,18 @@ def test_async_plan_writes_a_manifest(tmp_path: Path):
     payload = json.loads((tmp_path / spec.program_id / "program.json").read_text())
     assert payload["external_card_issued"] is False
     assert payload["status"] == "review_draft"
+
+
+def test_external_card_stays_off_until_a_person_signs_and_subjects_clear():
+    refused, reason = may_issue_external_card(human_signed=False, subject_min=0.9)
+    assert refused is False
+    assert reason == "human_signature_required"
+    refused, reason = may_issue_external_card(human_signed=True, subject_min=0.14)
+    assert refused is False
+    assert reason == "subject_floor"
+    refused, reason = may_issue_external_card(human_signed=True, subject_min=0.9)
+    assert refused is False
+    assert reason == "external_card_not_issued"
+    view = accreditation_view("cpr-first-aid-certification")
+    assert view["external_card_issued"] is False
+    assert view["external_card_block"] == "human_signature_required"

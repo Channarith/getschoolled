@@ -33,6 +33,7 @@ SESSIONS="${SESSIONS:-$OUT/data/sessions.json}"
 SERVE_URL="${SERVE_URL:-http://127.0.0.1:8342/v1}"
 SERVE_MODEL="${SERVE_MODEL:-qwen3.6-35b-a3b}"
 MAX_FAIRNESS_GAP="${MAX_FAIRNESS_GAP:-0.1}"
+MIN_SUBJECT_SCORE="${MIN_SUBJECT_SCORE:-0.40}"
 
 mkdir -p "$OUT/data" "$OUT/adapters" "$OUT/eval" "$OUT/bakeoff" "$OUT/logs"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -82,14 +83,16 @@ echo "== 4/5 evaluate base and adapter =="
   --base-model "$BASE_MODEL" \
   --eval "$OUT/data/eval.jsonl" \
   --max-new-tokens 96 \
-  --metrics-out "$OUT/eval/base.json"
+  --metrics-out "$OUT/eval/base.json" \
+  --truth-log "$OUT/truth_curve.jsonl"
 
 "$PY" training/evaluate.py --offline --device cuda \
   --base-model "$BASE_MODEL" \
   --adapter "$OUT/adapters/stem" \
   --eval "$OUT/data/eval.jsonl" \
   --max-new-tokens 96 \
-  --metrics-out "$OUT/eval/stem.json"
+  --metrics-out "$OUT/eval/stem.json" \
+  --truth-log "$OUT/truth_curve.jsonl"
 
 # The frozen benchmark is never trained on, so it is the score that counts.
 FROZEN="${EVAL_FROZEN:-$ROOT/training/data/eval_frozen.jsonl}"
@@ -99,13 +102,15 @@ if [[ -f "$FROZEN" ]]; then
     --base-model "$BASE_MODEL" \
     --eval "$FROZEN" \
     --max-new-tokens 96 \
-    --metrics-out "$OUT/eval/base.frozen.json"
+    --metrics-out "$OUT/eval/base.frozen.json" \
+    --truth-log "$OUT/truth_curve.jsonl"
   "$PY" training/evaluate.py --offline --device cuda \
     --base-model "$BASE_MODEL" \
     --adapter "$OUT/adapters/stem" \
     --eval "$FROZEN" \
     --max-new-tokens 96 \
-    --metrics-out "$OUT/eval/stem.frozen.json"
+    --metrics-out "$OUT/eval/stem.frozen.json" \
+    --truth-log "$OUT/truth_curve.jsonl"
 else
   echo "WARNING: no frozen benchmark at $FROZEN; scoring on the 10% split only." >&2
 fi
@@ -127,6 +132,7 @@ def add(name, track, path):
             "accuracy": float(metrics["accuracy"]),
             "fairness_gap": float(metrics.get("fairness_gap") or 0.0),
             "token_f1": float(metrics.get("token_f1") or metrics["accuracy"]),
+            "subject_min": metrics.get("subject_min"),
         },
     })
 
@@ -149,10 +155,14 @@ PY
 
 # The live Qwen server is optional. A failure here must not discard the
 # adapter eval; the bake-off still compares base vs adapter.
+SERVE_EVAL="$OUT/data/eval.jsonl"
+if [[ -f "${EVAL_FROZEN:-$ROOT/training/data/eval_frozen.jsonl}" ]]; then
+  SERVE_EVAL="${EVAL_FROZEN:-$ROOT/training/data/eval_frozen.jsonl}"
+fi
 if "$PY" training/spark_serve_eval.py \
     --base-url "$SERVE_URL" \
     --model "$SERVE_MODEL" \
-    --eval "$OUT/data/eval.jsonl" \
+    --eval "$SERVE_EVAL" \
     --metrics-out "$OUT/eval/serving.json"; then
   "$PY" - <<PY
 import json
@@ -181,6 +191,7 @@ fi
   --candidates "$OUT/bakeoff/candidates.json" \
   --primary accuracy \
   --max-fairness-gap "$MAX_FAIRNESS_GAP" \
+  --min-subject-score "$MIN_SUBJECT_SCORE" \
   > "$OUT/bakeoff/result.json"
 
 # bakeoff.py prints JSON to stdout, which we redirected. Also show it.
@@ -190,31 +201,28 @@ CHAMPION="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("c
 echo "bakeoff_champion=$CHAMPION"
 echo "train_seconds=$TRAIN_SEC" | tee "$OUT/train_seconds.txt"
 
-if [[ "$CHAMPION" == "stem-qlora" ]]; then
-  echo "== promoting stem-qlora (it won) =="
+# Beating the base on a fresh ledger is not progress. Keep the adapter only
+# when the frozen-exam score is strictly higher than the last promoted score
+# and no sampled subject sits under the floor.
+if "$PY" training/promotion_gate.py \
+    --name stem-qlora \
+    --champion "$CHAMPION" \
+    --frozen-metrics "$OUT/eval/stem.frozen.json" \
+    --split-metrics "$OUT/eval/stem.json" \
+    --previous "$OUT/promoted_frozen.json" \
+    --subject-floor "$MIN_SUBJECT_SCORE" \
+    --write-promoted "$OUT/promoted_frozen.json" \
+    | tee "$OUT/bakeoff/promote.json"; then
+  echo "== promoting stem-qlora (frozen score rose and cleared the subject floor) =="
   "$PY" training/promote.py \
     --candidates "$OUT/bakeoff/candidates.json" \
     --champion-path "$OUT/champion.json" \
     --primary accuracy \
     --max-fairness-gap "$MAX_FAIRNESS_GAP" \
-    | tee "$OUT/bakeoff/promote.json"
+    --min-subject-score "$MIN_SUBJECT_SCORE" \
+    | tee -a "$OUT/bakeoff/promote.json"
 else
-  echo "== stem-qlora did not win; leaving it as a candidate (no promote) =="
-  "$PY" - <<PY
-import json
-from pathlib import Path
-out = Path("$OUT")
-result = json.loads((out / "bakeoff" / "result.json").read_text(encoding="utf-8"))
-note = {
-    "promoted": False,
-    "candidate": "stem-qlora",
-    "adapter": str(out / "adapters" / "stem"),
-    "champion": result.get("champion"),
-    "reason": "promote only when the STEM adapter wins the bake-off",
-}
-(out / "candidate.json").write_text(json.dumps(note, indent=2) + "\n", encoding="utf-8")
-print(json.dumps(note))
-PY
+  echo "== not promoting; frozen score did not rise or a subject is under the floor =="
 fi
 
 echo "== done train_seconds=$TRAIN_SEC log=$LOG =="

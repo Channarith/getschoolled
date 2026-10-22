@@ -45,7 +45,11 @@ def normalize_training_locale(locale: Optional[str]) -> str:
     """
     if not locale:
         return DEFAULT_TRAINING_LOCALE
-    base = locale.lower().split("-")[0].split("_")[0]
+    raw = locale.lower().replace("_", "-")
+    # zh-HK is Cantonese. It must not collapse to Mandarin (zh) or English.
+    if raw in {"yue", "zh-hk", "zh-mo", "zh-yue", "cantonese"} or raw.startswith("yue-"):
+        return "yue"
+    base = raw.split("-")[0]
     if base in SUPPORTED_LANGUAGES:
         return base
     return DEFAULT_TRAINING_LOCALE

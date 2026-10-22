@@ -58,10 +58,19 @@ def build_items(per_kind: int = 100, seed: int = 20261021) -> list[dict]:
     if len(topics) < 2:
         raise SystemExit("not enough authored lessons to build a benchmark")
 
+    by_category: dict[str, list] = {}
+    for row in topics:
+        by_category.setdefault(row[0], []).append(row)
+    categories = sorted(by_category)
+
+    def _pick(index: int):
+        category = categories[index % len(categories)]
+        return by_category[category][rng.randrange(len(by_category[category]))]
+
     recall: list[dict] = []
     abstain: list[dict] = []
     for index in range(per_kind):
-        category, title, sections = topics[rng.randrange(len(topics))]
+        category, title, sections = _pick(index)
         heading, text = sections[rng.randrange(len(sections))]
         level = LEVELS[index % len(LEVELS)]
         recall.append({
@@ -73,13 +82,14 @@ def build_items(per_kind: int = 100, seed: int = 20261021) -> list[dict]:
                 f"Explain '{heading}' using only this passage."
             ),
             "response": _lead(text),
+            "passage": text,
             "tags": [category, "recall"],
         })
     for index in range(per_kind):
-        category, title, sections = topics[rng.randrange(len(topics))]
-        other_category, other_title, _ = topics[rng.randrange(len(topics))]
+        category, title, sections = _pick(index + per_kind)
+        _other_category, other_title, _other_sections = topics[rng.randrange(len(topics))]
         while other_title == title:
-            other_category, other_title, _ = topics[rng.randrange(len(topics))]
+            _other_category, other_title, _other_sections = topics[rng.randrange(len(topics))]
         heading, text = sections[rng.randrange(len(sections))]
         level = LEVELS[index % len(LEVELS)]
         abstain.append({
@@ -91,6 +101,7 @@ def build_items(per_kind: int = 100, seed: int = 20261021) -> list[dict]:
                 f"Using only this passage, what can you tell me about {other_title}?"
             ),
             "response": ABSTAIN_REFERENCE,
+            "passage": text,
             "tags": [category, "abstain"],
         })
     items = recall + abstain
