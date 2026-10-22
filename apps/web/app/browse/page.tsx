@@ -56,6 +56,10 @@ function BrowseInner() {
   }, []);
 
   useEffect(() => {
+    if (authResolved && !loggedIn) router.replace("/login");
+  }, [authResolved, loggedIn, router]);
+
+  useEffect(() => {
     if (!loggedIn) return;
     const controller = new AbortController();
     setCatalogLoading(true);
@@ -98,21 +102,10 @@ function BrowseInner() {
     }
   }
 
-  if (!authResolved) {
+  if (!authResolved || !loggedIn) {
     return (
       <main className="container">
         <p className="muted">{t("browse.loading")}</p>
-      </main>
-    );
-  }
-
-  if (!loggedIn) {
-    return (
-      <main className="container">
-        <h1>{t("browse.title")}</h1>
-        <div className="card">
-          <p>{t("browse.signIn")} <Link href="/login">{t("profile.signIn")}</Link></p>
-        </div>
       </main>
     );
   }

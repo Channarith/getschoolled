@@ -515,18 +515,6 @@ export default function OurStoryContent() {
           <div className="os-closing os-reveal">
             <div className="tagline">{t("story.closingTagline")}</div>
             <p>{t("story.closingBody")}</p>
-            <a href="/browse" className="os-cta">
-              {t("story.closingCta")}
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M5 12h14M13 6l6 6-6 6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </a>
           </div>
         </main>
       </div>
