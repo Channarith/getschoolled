@@ -7,10 +7,13 @@ import {
   HEART_CLEFT_PALMS, HEART_POINT_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
   PAUSE_LINE, RESUME_LINE,
-  activeFingertips, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch,
-  debiasedGazeDown, fingersPointed, handShape, headPoseFromMesh,
-  heartRatios, isHeartShape, localMathRound, mapMirroredLandmark, newThrowTracker, profileTouchAge,
-  projectThrowTarget, syntheticHand,
+  activeFingertips, advanceMirrorBeat, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch,
+  debiasedGazeDown, defaultMirrorPace, fingersPointed, freshMirrorRun, handShape, headPoseFromMesh,
+  heartRatios, isHeartShape, localMathRound, mapMirroredLandmark, mirrorBeatMatched, mirrorPace,
+  mirrorPose, mirrorSummary, MIRROR_ROUTINE, newThrowTracker, profileTouchAge,
+  advanceNinjaWeave, freshNinjaRun, ninjaSealFits, ninjaTechnique, recognizeNinjaSeal,
+  NINJA_DEFAULT_TECHNIQUE, NINJA_ELEMENTS, NINJA_SEALS, NINJA_TECHNIQUES, ninjaEffectParticles, ninjaEffectSpec,
+  ninjaTechniqueList, projectThrowTarget, syntheticHand,
   tipHitsTarget, traceProgress,
 } from "./vision_math.js";
 
@@ -63,7 +66,7 @@ const GAMES = [
   "karaoke",
   "oh-behave","heart","idea",
   "fist-bump","wow","blow-kiss","wink","make-pose","balloon","fish","popcorn",
-  "fruit-cut","air-drums","bird-flap","head-bop","face-chase","stand-sit",
+  "mirror-hall","ninja-weave","fruit-cut","air-drums","bird-flap","head-bop","face-chase","stand-sit",
   "dance-freeze","rainbow-reach",
 ];
 // Missing ids get Play only. A new game cannot inherit the letter, mic, and undo row.
@@ -102,6 +105,8 @@ const GAME_CONTROLS = {
   "balloon": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "fish": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "popcorn": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "mirror-hall": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "ninja-weave": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "fruit-cut": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "air-drums": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "bird-flap": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
@@ -331,6 +336,9 @@ async function start(camera=true) {
   state.seated = Boolean($("seated")?.checked);
   state.share = Boolean($("share")?.checked);
   state.demo = !camera;
+  // Create the effects context from the user's Start/Demo gesture. Browsers
+  // may reject a later completion sound if no context was opened here.
+  fxAudioContext();
   $("setup")?.classList.add("hidden");
   $("play")?.classList.remove("hidden");
   if ($("game")?.value) state.game = $("game").value;
@@ -484,7 +492,7 @@ function detectFrame() {
     }
   } catch (error) { console.warn("[children-lab] face frame skipped",error); }
   try {
-    if (state.hands && !screenTouch()) {
+    if (state.hands && (!screenTouch() || state.game === "ninja-weave")) {
       const result=state.hands.detectForVideo(video,now);
       const labels=(result.handedness||[]).map(row=>row?.[0]?.categoryName||"");
       const previous=state.handData.map(hand=>hand.tip);
@@ -582,6 +590,7 @@ function drawVision() {
   }
   for (const hand of state.handData) drawFistMark(hand);
   drawMathThrowGuide();
+  drawMirrorGhost(w, h);
   ctx.restore();
   renderVisionReadout();
 }
@@ -974,6 +983,21 @@ function gestureReadout() {
       return `hands ${hands.length}/2`;
     case "dance-freeze":
       return `${state.phase===0?"dance":"freeze"} · motion ${state.handMotion.toFixed(1)}`;
+    case "mirror-hall": {
+      const pose = state.mirror ? mirrorPose(state.mirror.index, {seated: state.seated}) : null;
+      const pace = mirrorPace(state.mirror?.pace);
+      return pose ? `${pose.prompt} · beat ${(state.mirror.index || 0) + 1}/${MIRROR_ROUTINE.length} · ${pace.id}` : "waiting";
+    }
+    case "ninja-weave": {
+      const technique = ninjaTechnique(state.ninja?.technique);
+      const expected = technique.sequence[state.ninja?.index || 0];
+      const hands = airHands();
+      const {w: width, h: height} = stageBox();
+      const seen = recognizeNinjaSeal(hands, width, height);
+      const close = expected && seen !== expected
+        && ninjaSealFits(hands, expected, width, height, {mirrorOk: state.ninja?.pace === "easy"});
+      return `seal ${close ? `${expected} close` : (seen || "none")} · need ${expected || "finish"} · ${(state.ninja?.index || 0)}/${technique.sequence.length}`;
+    }
     case "fruit-cut": case "balloon": case "fish": case "popcorn":
       return `${state.object?.hit?"hit":"seeking"} · ${state.game==="popcorn"?"mouth-o":"index"}`;
     case "say-letter":
@@ -1322,6 +1346,294 @@ function regionOtherThan(current) {
   const keys = Object.keys(REGIONS).filter((key) => key !== current && (!state.seated || !key.startsWith("bottom")));
   return randomOf(keys) || "top";
 }
+function ensureMirrorPace() {
+  const select = $("mirror-pace");
+  if (select && select.dataset.touched !== "1") {
+    const next = defaultMirrorPace(state.age);
+    if ([...select.options].some((opt) => opt.value === next)) select.value = next;
+  }
+  state.mirrorPace = mirrorPace(select?.value || defaultMirrorPace(state.age)).id;
+}
+function mirrorClick() {
+  if (state.muted) return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+  try {
+    if (!state.mirrorAudio) state.mirrorAudio = new AudioCtx();
+    const audio = state.mirrorAudio;
+    if (audio.state === "suspended") audio.resume().catch(() => {});
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.frequency.value = 880;
+    const t = audio.currentTime;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.07, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    osc.connect(gain);
+    gain.connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + 0.13);
+  } catch (_) {}
+}
+function mirrorLiveNormalized() {
+  const {w, h} = stageBox();
+  if (!w || !h) return {head: null, left: null, right: null};
+  let head = null;
+  if (state.demo && state.faceData && Number.isFinite(state.faceData.cx)) {
+    head = {x: state.faceData.cx, y: state.faceData.cy};
+  } else if (state.faceData?.points?.length) {
+    const nose = state.faceData.points[1] || state.faceData.points[0];
+    const pixel = mirrored(nose);
+    if (pixel) head = {x: pixel.x / w, y: pixel.y / h};
+  } else if (state.faceData && Number.isFinite(state.faceData.cx)) {
+    head = {x: state.faceData.cx, y: state.faceData.cy};
+  }
+  const hands = airHands().filter((hand) => hand?.tip && Number.isFinite(hand.tip.x));
+  const sorted = [...hands].sort((a, b) => a.tip.x - b.tip.x);
+  const norm = (hand) => ({x: hand.tip.x / w, y: hand.tip.y / h});
+  return {
+    head,
+    left: sorted.length ? norm(sorted[0]) : null,
+    right: sorted.length >= 2 ? norm(sorted[sorted.length - 1]) : null,
+  };
+}
+function drawMirrorGhost(w, h) {
+  if (!ctx || state.game !== "mirror-hall" || !state.mirror || !w || !h) return;
+  const pose = mirrorPose(state.mirror.index, {seated: state.seated});
+  const pace = mirrorPace(state.mirror.pace);
+  const radius = pace.radius * Math.min(w, h);
+  const spot = (point) => ({x: point.x * w, y: point.y * h});
+  const head = spot(pose.head);
+  const left = spot(pose.left);
+  const right = spot(pose.right);
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(253, 224, 71, .9)";
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(left.x, left.y);
+  ctx.lineTo(head.x, head.y);
+  ctx.lineTo(right.x, right.y);
+  ctx.stroke();
+  for (const light of [head, left, right]) {
+    ctx.beginPath();
+    ctx.arc(light.x, light.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(253, 224, 71, .22)";
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#fde68a";
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function armMirrorBeat(now) {
+  const run = state.mirror;
+  if (!run || run.finished) return;
+  const pose = mirrorPose(run.index, {seated: state.seated});
+  run.windowStart = now;
+  run.matchedSince = null;
+  mirrorClick();
+  const seatedNote = state.seated ? " Seated targets stay up high." : "";
+  setPrompt(
+    pose.prompt,
+    `Match the lights.${seatedNote} Beat ${run.index + 1} of ${MIRROR_ROUTINE.length}.`,
+    `Match the lights. ${pose.prompt}.`,
+  );
+}
+function noteMirrorPause(now) {
+  const run = state.mirror;
+  if (state.game !== "mirror-hall" || !run || run.finished || run.pausedAt) return;
+  run.pausedAt = now;
+}
+function finishMirrorHall() {
+  const summary = mirrorSummary(state.mirror);
+  succeed(`${summary.stars} stars. ${summary.line}`);
+  state.combo = summary.bestCombo;
+  setText("combo", `Combo ${summary.bestCombo}`);
+  setText("stars", `${"★".repeat(summary.stars)}${"☆".repeat(3 - summary.stars)}`);
+}
+function updateMirrorHall(now) {
+  const run = state.mirror;
+  if (!run || run.finished || state.roundDone) return;
+  if (run.pausedAt) {
+    const delta = now - run.pausedAt;
+    if (Number.isFinite(run.windowStart)) run.windowStart += delta;
+    if (Number.isFinite(run.matchedSince)) run.matchedSince += delta;
+    run.pausedAt = 0;
+  }
+  const pose = mirrorPose(run.index, {seated: state.seated});
+  const pace = mirrorPace(run.pace);
+  const matched = mirrorBeatMatched(mirrorLiveNormalized(), pose, pace.radius);
+  const step = advanceMirrorBeat(run, {matched, now});
+  state.mirror = step;
+  if (step.event === "done") {
+    finishMirrorHall();
+    return;
+  }
+  if (step.event === "hit" || step.event === "miss") {
+    state.combo = step.combo;
+    setText("combo", `Combo ${step.combo}`);
+    armMirrorBeat(now);
+    return;
+  }
+  if (step.event === "retry") {
+    mirrorClick();
+    setPrompt(pose.prompt, "Try once more. Match the lights.", `Match the lights. ${pose.prompt}.`);
+  }
+}
+function ensureNinjaPace() {
+  const select = $("mirror-pace");
+  if (select && select.dataset.touched !== "1") {
+    const next = defaultMirrorPace(state.age);
+    if ([...select.options].some((opt) => opt.value === next)) select.value = next;
+  }
+  return mirrorPace(select?.value || defaultMirrorPace(state.age)).id;
+}
+function ninjaPrompt(copy = "A few matching glimpses count. Pause or correct a mistake whenever you need.") {
+  const run = state.ninja;
+  if (!run) return;
+  const technique = ninjaTechnique(run.technique);
+  const sealId = technique.sequence[run.index];
+  const seal = NINJA_SEALS[sealId];
+  setPrompt(
+    `${technique.glyph} ${technique.label} ${run.index + 1}/${technique.sequence.length} · ${seal.glyph} ${seal.label}`,
+    `${seal.how} ${copy}`,
+    `${seal.label}. ${seal.how} ${copy}`,
+  );
+}
+const NINJA_PROGRESS_KEY = "theodoreNinjaWeaveV1";
+function ninjaProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(NINJA_PROGRESS_KEY) || "[]");
+    return new Set(Array.isArray(saved) ? saved.filter((id) => NINJA_TECHNIQUES[id]) : []);
+  } catch (_) {
+    return new Set();
+  }
+}
+function saveNinjaProgress(id) {
+  const done = ninjaProgress();
+  done.add(id);
+  try { localStorage.setItem(NINJA_PROGRESS_KEY, JSON.stringify([...done])); } catch (_) {}
+  return done;
+}
+function fillNinjaTechniques(selected = "") {
+  const elementSelect = $("ninja-element");
+  const techniqueSelect = $("ninja-technique");
+  if (!elementSelect || !techniqueSelect) return;
+  if (!elementSelect.options.length) {
+    elementSelect.replaceChildren(...Object.values(NINJA_ELEMENTS).map((element) => {
+      const option = document.createElement("option");
+      option.value = element.id;
+      option.textContent = `${element.glyph} ${element.label}`;
+      return option;
+    }));
+  }
+  const wanted = NINJA_TECHNIQUES[selected] || NINJA_TECHNIQUES[techniqueSelect.value];
+  if (wanted) elementSelect.value = wanted.element;
+  const done = ninjaProgress();
+  const list = ninjaTechniqueList(elementSelect.value || "fire");
+  techniqueSelect.replaceChildren(...list.map((technique) => {
+    const option = document.createElement("option");
+    option.value = technique.id;
+    option.textContent = `${done.has(technique.id) ? "★ " : ""}${technique.label} · ${technique.sequence.length} signs`;
+    return option;
+  }));
+  techniqueSelect.value = wanted && wanted.element === elementSelect.value ? wanted.id : (list[0]?.id || NINJA_DEFAULT_TECHNIQUE);
+  setText("ninja-progress", `★ ${done.size}/${Object.keys(NINJA_TECHNIQUES).length}`);
+}
+function nextNinjaTechnique(id) {
+  const ids = Object.values(NINJA_ELEMENTS).flatMap((element) => ninjaTechniqueList(element.id).map((t) => t.id));
+  const at = ids.indexOf(id);
+  return ids[(at + 1) % ids.length] || NINJA_DEFAULT_TECHNIQUE;
+}
+function renderNinjaSequence() {
+  let row = spriteLayer.querySelector(".ninja-sequence");
+  if (!state.ninja || state.game !== "ninja-weave") {
+    row?.remove();
+    return;
+  }
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "ninja-sequence";
+    spriteLayer.append(row);
+  }
+  const technique = ninjaTechnique(state.ninja.technique);
+  row.replaceChildren(...technique.sequence.map((sealId, index) => {
+    const chip = document.createElement("span");
+    const seal = NINJA_SEALS[sealId];
+    const first = document.createElement("i");
+    const second = document.createElement("i");
+    first.textContent = seal.glyphA;
+    second.textContent = seal.glyphB;
+    chip.append(first, second);
+    chip.title = `${seal.label}: ${seal.how}`;
+    chip.setAttribute("aria-label", seal.label);
+    const status = index < state.ninja.index ? "done" : index === state.ninja.index ? "active" : "";
+    chip.className = `place-${seal.placement} ${status}`.trim();
+    return chip;
+  }));
+}
+function startNinjaWeave() {
+  if (screenTouch()) setTouchMode("air");
+  if (!$("ninja-technique")?.options.length) fillNinjaTechniques();
+  const technique = ninjaTechnique($("ninja-technique")?.value || NINJA_DEFAULT_TECHNIQUE);
+  const pace = ensureNinjaPace();
+  state.ninja = freshNinjaRun(technique.id, pace);
+  state.ninja.stepStartedAt = performance.now();
+  state.combo = 0;
+  renderScore();
+  renderNinjaSequence();
+  ninjaPrompt();
+  ninjaSound("start", technique.id);
+}
+function finishNinjaWeave() {
+  const run = state.ninja;
+  const technique = ninjaTechnique(run?.technique);
+  state.combo = run?.bestCombo || 0;
+  renderScore();
+  launchNinjaEffect(technique.id);
+  ninjaSound("finish", technique.id);
+  saveNinjaProgress(technique.id);
+  fillNinjaTechniques(nextNinjaTechnique(technique.id));
+  succeed(`${technique.label}! ${technique.sequence.length} signs complete with a ${run?.bestCombo || 0}-sign combo.`);
+}
+function updateNinjaWeave(now) {
+  const run = state.ninja;
+  if (!run || run.finished || state.roundDone) return;
+  if (run.pausedAt) {
+    const delta = now - run.pausedAt;
+    if (Number.isFinite(run.stepStartedAt)) run.stepStartedAt += delta;
+    if (Number.isFinite(run.holdSince)) run.holdSince += delta;
+    if (Number.isFinite(run.holdBrokenAt)) run.holdBrokenAt += delta;
+    if (Number.isFinite(run.lastMatchedAt)) run.lastMatchedAt += delta;
+    if (Number.isFinite(run.releaseSince)) run.releaseSince += delta;
+    run.pausedAt = 0;
+  }
+  const hands = airHands();
+  const {w: width, h: height} = stageBox();
+  const technique = ninjaTechnique(run.technique);
+  const expected = technique.sequence[run.index];
+  const seal = ninjaSealFits(hands, expected, width, height, {mirrorOk: run.pace === "easy"})
+    ? expected
+    : recognizeNinjaSeal(hands, width, height);
+  const previousEvent = run.event;
+  const step = advanceNinjaWeave(run, {seal, now});
+  state.ninja = step;
+  if (step.event === "done") {
+    renderNinjaSequence();
+    finishNinjaWeave();
+    return;
+  }
+  if (step.event === "step") {
+    state.combo = step.combo;
+    renderScore();
+    renderNinjaSequence();
+    ninjaSound("step", step.technique);
+    ninjaPrompt("Good. Relax your hands. Start the next sign whenever you are ready.");
+  } else if (step.event === "wrong" && previousEvent !== "wrong") {
+    ninjaPrompt("That is okay. Adjust toward the highlighted sign; your earlier matches still count.");
+  }
+}
 function updateGestureGame(now) {
   if (state.roundDone || state.voiceAway) return;
   if (state.game==="heart" && poseCommit(isHeart(airHands()))) succeed("A heart made with two hands!");
@@ -1420,7 +1732,9 @@ function updateGestureGame(now) {
     if(state.phase===1 && y > (state.sitLow ?? y) + 0.08) succeed("Stand and sit complete!");
   } else if (state.game==="rainbow-reach" && airHands().length>=2) {
     const tips=airHands().map(h=>h.tip),box=stageBox();if(tips.every(p=>p&&p.y<box.h*.35)&&Math.abs(tips[0].x-tips[1].x)>box.w*.45)succeed("Rainbow reach!");
-    } else if (state.game==="dance-freeze") {
+    } else if (state.game==="mirror-hall") updateMirrorHall(now);
+    else if (state.game==="ninja-weave") updateNinjaWeave(now);
+    else if (state.game==="dance-freeze") {
     const moving = isDancing();
     if (state.phase===0) {
       if (moving) state.hitCount += 1;
@@ -1467,6 +1781,8 @@ function loop(now) {
   watchPresence(now);
   if (state.voiceAway) {
     if (state.deadline && !state.pausedAt) state.pausedAt = now;
+    noteMirrorPause(now);
+    if (state.game === "ninja-weave" && state.ninja && !state.ninja.pausedAt) state.ninja.pausedAt = now;
   } else {
     updateTrace();updatePicturePlay();updateObjectGame();updateMathToss(now);updateGestureGame(now);
     tickCountdown(now);
@@ -1577,6 +1893,7 @@ function watchPresence(now) {
 }
 
 function successHoldMs() {
+  if (state.game === "ninja-weave") return 3000;
   let fromQuery = "";
   try { fromQuery = new URLSearchParams(location.search).get("pace") || ""; } catch (_) {}
   const pace = (fromQuery || $("pace")?.value || state.pace || "patient").toLowerCase();
@@ -1604,6 +1921,13 @@ function applyGameControls() {
   setControl("undo", flags.undo);
   const wordsToggle = $("words-toggle");
   if (wordsToggle) wordsToggle.classList.toggle("hidden", !flags.words);
+  const mirrorPaceControl = $("mirror-pace-control");
+  if (mirrorPaceControl) mirrorPaceControl.classList.toggle(
+    "hidden",
+    state.game !== "mirror-hall" && state.game !== "ninja-weave",
+  );
+  const ninjaTechniqueControl = $("ninja-technique-control");
+  if (ninjaTechniqueControl) ninjaTechniqueControl.classList.toggle("hidden", state.game !== "ninja-weave");
   const words = $("show-words");
   if (words) {
     words.disabled = !flags.words;
@@ -1713,6 +2037,7 @@ function chooseGame() {
   if (!select) return;
   const previousGame=state.game;
   state.game=select.value;
+  document.body.classList.toggle("ninja-play", state.game === "ninja-weave");
   if (state.game!=="karaoke") hideKaraoke();
   if (state.game!==previousGame) state.audioIndex=0;
   state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
@@ -1781,6 +2106,13 @@ function chooseGame() {
     else setPrompt("Stand up","Step back so Theodore sees you, then stand gently.");
   } else if(state.game==="dance-freeze"){setPrompt("Dance!","Move any way you like… freeze when Theodore says freeze.");spawnObject("","🎵");}
   else if(state.game==="rainbow-reach"){setPrompt("Rainbow reach","Stretch both hands toward opposite top corners.");}
+  else if(state.game==="mirror-hall"){
+    ensureMirrorPace();
+    state.combo = 0;
+    state.mirror = freshMirrorRun(state.mirrorPace);
+    armMirrorBeat(performance.now());
+  }
+  else if(state.game==="ninja-weave") startNinjaWeave();
   else if(state.game==="karaoke"){
     showKaraoke();
     setPrompt("Karaoke sing-along","Pick a song. The words stay large, and your language sings louder than the English track.");
@@ -1817,7 +2149,7 @@ function clearRound() {
   state.sawFinger = false;
   state.sawScreen = false;
   hideTarget();
-  for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption,.math-target,.math-ball")]) node.remove();
+  for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption,.math-target,.math-ball,.ninja-sequence,.ninja-fx")]) node.remove();
   hideCountdown();
   state.trail=[];state.object=null;state.lastTip=null;state.lastFaceY=null;state.lastHandY=null;
   state.mathTargets=[];state.throwBall=null;state.throwTracker=newThrowTracker();
@@ -1900,6 +2232,153 @@ function renderScore(){
   setText("fun-score", `Fun ${state.fun}`);
   setText("combo", `Combo ${state.combo}`);
   setText("stars", state.fun>=85?"★★★":state.fun>=60?"★★☆":state.fun>0?"★☆☆":"☆☆☆");
+}
+
+function fxAudioContext() {
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return null;
+  try {
+    if (!state.fxAudio) state.fxAudio = new AudioCtx();
+    if (state.fxAudio.state === "suspended") state.fxAudio.resume().catch(() => {});
+    return state.fxAudio;
+  } catch (_) {
+    return null;
+  }
+}
+function fxTone(audio, {at=0, from=440, to=440, duration=.16, volume=.06, type="sine"}={}) {
+  const start = audio.currentTime + at;
+  const osc = audio.createOscillator();
+  const gain = audio.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(from, start);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), start + duration);
+  gain.gain.setValueAtTime(.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + Math.min(.025, duration / 3));
+  gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+  osc.connect(gain);gain.connect(audio.destination);
+  osc.start(start);osc.stop(start + duration + .02);
+}
+function fxNoise(audio, {at=0, duration=.7, volume=.05, lowpass=1200, filter="lowpass"}={}) {
+  const frames = Math.max(1, Math.floor(audio.sampleRate * duration));
+  const buffer = audio.createBuffer(1, frames, audio.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i=0;i<frames;i++) data[i]=(Math.random()*2-1)*(1-i/frames);
+  const source=audio.createBufferSource(),biquad=audio.createBiquadFilter(),gain=audio.createGain();
+  source.buffer=buffer;biquad.type=filter;biquad.frequency.value=lowpass;gain.gain.value=volume;
+  source.connect(biquad);biquad.connect(gain);gain.connect(audio.destination);source.start(audio.currentTime+at);
+}
+const NINJA_SOUNDS = {
+  roar(audio, p) {
+    fxNoise(audio,{duration:1.15,volume:.075,lowpass:1450*p});
+    fxTone(audio,{from:110*p,to:620*p,duration:.8,volume:.09,type:"sawtooth"});
+    fxTone(audio,{at:.32,from:420*p,to:980*p,duration:.6,volume:.045,type:"triangle"});
+  },
+  splash(audio, p) {
+    fxNoise(audio,{duration:1.3,volume:.04,lowpass:850*p});
+    for(let i=0;i<5;i++)fxTone(audio,{at:i*.12,from:(260+i*35)*p,to:(520+i*50)*p,duration:.42,volume:.04});
+  },
+  rumble(audio, p) {
+    fxTone(audio,{from:95*p,to:38,duration:1.2,volume:.12});
+    fxTone(audio,{at:.08,from:64*p,to:42,duration:.9,volume:.08,type:"square"});
+    fxNoise(audio,{duration:.65,volume:.05,lowpass:260*p});
+  },
+  whoosh(audio, p) {
+    fxNoise(audio,{duration:1.1,volume:.07,lowpass:900*p,filter:"bandpass"});
+    fxNoise(audio,{at:.35,duration:.8,volume:.05,lowpass:1800*p,filter:"bandpass"});
+    fxTone(audio,{from:300*p,to:900*p,duration:.7,volume:.025,type:"triangle"});
+  },
+  zap(audio, p) {
+    for(let i=0;i<4;i++)fxTone(audio,{at:i*.09,from:(1400-i*200)*p,to:120,duration:.12,volume:.05,type:"square"});
+    fxNoise(audio,{at:.05,duration:.5,volume:.06,lowpass:3200*p,filter:"highpass"});
+  },
+  chime(audio, p) {
+    [1,1.25,1.5,2].forEach((step,i)=>fxTone(audio,{at:i*.11,from:880*step*p,to:880*step*p,duration:.7,volume:.035}));
+  },
+  shine(audio, p) {
+    [1,1.26,1.5,1.88,2.52].forEach((step,i)=>fxTone(audio,{at:i*.08,from:520*step*p,to:540*step*p,duration:.5,volume:.035,type:"triangle"}));
+  },
+  hum(audio, p) {
+    fxTone(audio,{from:146*p,to:110*p,duration:1.4,volume:.07});
+    fxTone(audio,{from:220*p,to:165*p,duration:1.4,volume:.04});
+    fxTone(audio,{at:.4,from:330*p,to:660*p,duration:.6,volume:.025,type:"triangle"});
+  },
+  rustle(audio, p) {
+    for(let i=0;i<6;i++)fxNoise(audio,{at:i*.11,duration:.16,volume:.05,lowpass:2400*p,filter:"bandpass"});
+    fxTone(audio,{at:.3,from:392*p,to:523*p,duration:.5,volume:.03});
+  },
+  clang(audio, p) {
+    [1,2.76,5.4].forEach((ratio)=>fxTone(audio,{from:300*ratio*p,to:290*ratio*p,duration:1.1,volume:.04/ratio+.01,type:"triangle"}));
+    fxNoise(audio,{duration:.12,volume:.06,lowpass:5000,filter:"highpass"});
+  },
+};
+function ninjaSound(kind, techniqueId=NINJA_DEFAULT_TECHNIQUE) {
+  if (state.muted) return;
+  const audio=fxAudioContext();
+  if (!audio) return;
+  try {
+    if (kind==="step"||kind==="start") {
+      fxTone(audio,{from:kind==="start"?330:520,to:kind==="start"?660:780,duration:.12,volume:.045,type:"triangle"});
+      return;
+    }
+    if (kind==="miss") {
+      fxTone(audio,{from:180,to:90,duration:.22,volume:.035,type:"square"});
+      return;
+    }
+    const spec=ninjaEffectSpec(techniqueId);
+    (NINJA_SOUNDS[spec.sound]||NINJA_SOUNDS.roar)(audio, spec.pitch);
+  } catch (_) {}
+}
+function launchNinjaEffect(techniqueId) {
+  const spec=ninjaEffectSpec(techniqueId);
+  const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const phone=document.body.classList.contains("phone-play");
+  const fx=document.createElement("div");
+  fx.className=`ninja-fx ninja-${spec.element} ninja-form-${spec.form}${spec.shake&&!reduced?" ninja-shake":""}`;
+  fx.setAttribute("aria-hidden","true");
+  spec.colors.forEach((color,i)=>fx.style.setProperty(`--c${i+1}`,color));
+  const core=document.createElement("i");
+  core.className="ninja-fx-core";
+  core.style.left=`${spec.focus.x*100}%`;
+  core.style.top=`${spec.focus.y*100}%`;
+  const title=document.createElement("strong");
+  title.className="ninja-fx-title";
+  title.textContent=`${NINJA_ELEMENTS[spec.element].glyph} ${spec.label}!`;
+  fx.append(core,title);
+  const canAnimate=typeof core.animate==="function";
+  if (canAnimate&&!reduced) {
+    core.animate([
+      {transform:"translate(-50%,-50%) scale(.1)",opacity:0},
+      {transform:"translate(-50%,-50%) scale(1.3)",opacity:1,offset:.3},
+      {transform:"translate(-50%,-50%) scale(3.2)",opacity:0},
+    ],{duration:1800,easing:"ease-out",fill:"forwards"});
+    title.animate([
+      {transform:"translate(-50%,0) scale(.6)",opacity:0},
+      {transform:"translate(-50%,0) scale(1.08)",opacity:1,offset:.2},
+      {transform:"translate(-50%,0) scale(1)",opacity:1,offset:.8},
+      {transform:"translate(-50%,-12px) scale(1)",opacity:0},
+    ],{duration:2400,easing:"ease-out",fill:"forwards"});
+  }
+  if (!reduced) {
+    for (const particle of ninjaEffectParticles(spec.id, phone?18:28)) {
+      const dot=document.createElement("b");
+      dot.className=`ninja-p ninja-p-${spec.particle}`;
+      const start=particle.points[0];
+      dot.style.left=`${start.x*100}%`;
+      dot.style.top=`${start.y*100}%`;
+      dot.style.setProperty("--s",String(particle.size));
+      fx.append(dot);
+      if (!canAnimate) continue;
+      const last=particle.points.length-1;
+      dot.animate(particle.points.map((point,i)=>({
+        left:`${point.x*100}%`,
+        top:`${point.y*100}%`,
+        opacity:i===0?0:i===last?0:1,
+        transform:`translate(-50%,-50%) rotate(${Math.round(particle.spin*i/Math.max(1,last))}deg) scale(${particle.size*(i===0?.4:1)})`,
+      })),{duration:1500,delay:particle.delay,easing:"cubic-bezier(.2,.7,.3,1)",fill:"both"});
+    }
+  }
+  spriteLayer.append(fx);
+  setTimeout(()=>fx.remove(),reduced?1600:3000);
 }
 
 function fireworks() {
@@ -2154,11 +2633,11 @@ function applyDemoPointer(event) {
   const tip = {x:event.clientX-box.left, y:event.clientY-box.top};
   const w = Math.max(1, box.width), h = Math.max(1, box.height);
   const nx = clamp01(tip.x/w), ny = clamp01(tip.y/h);
-  const pose = event.altKey ? "fist" : "index";
+  const pose = event.altKey ? "fist" : ((event.ctrlKey || event.metaKey) ? "open" : "index");
   const primary = handMetrics(syntheticHand({x:nx,y:ny}, {pose}), "Pointer");
   state.handData = primary ? [primary] : [];
   if (event.shiftKey) {
-    const other = handMetrics(syntheticHand({x:clamp01(1-nx), y:ny}, {pose:"open"}), "Pointer-2");
+    const other = handMetrics(syntheticHand({x:clamp01(1-nx), y:ny}, {pose}), "Pointer-2");
     if (other) state.handData.push(other);
   }
   const smile = demoExpression(event)==="happy" ? 0.7 : 0.05;
@@ -2394,6 +2873,21 @@ $("age")?.addEventListener("change",()=>{
 });
 $("pace")?.addEventListener("change", () => {
   state.pace = $("pace")?.value || "patient";
+});
+$("mirror-pace")?.addEventListener("change", () => {
+  const select = $("mirror-pace");
+  if (select) select.dataset.touched = "1";
+  state.mirrorPace = mirrorPace(select?.value).id;
+  if (state.mirror) state.mirror.pace = state.mirrorPace;
+  if (state.ninja) state.ninja.pace = state.mirrorPace;
+});
+fillNinjaTechniques();
+$("ninja-element")?.addEventListener("change", () => {
+  fillNinjaTechniques(ninjaTechniqueList($("ninja-element").value)[0]?.id);
+  if (state.game === "ninja-weave") chooseGame();
+});
+$("ninja-technique")?.addEventListener("change", () => {
+  if (state.game === "ninja-weave") chooseGame();
 });
 $("show-words")?.addEventListener("change", () => {
   state.showWords = Boolean($("show-words")?.checked);

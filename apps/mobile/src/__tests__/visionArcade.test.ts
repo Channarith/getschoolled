@@ -10,7 +10,7 @@ declare function require(name: "path"): { resolve(...parts: string[]): string };
 describe("vision arcade", () => {
   it("lists every webcam lab game", () => {
     const ids = visionGameIds();
-    expect(ids).toHaveLength(41);
+    expect(ids).toHaveLength(43);
     expect(new Set(ids).size).toBe(ids.length);
     expect(VISION_ARCADE.map((section) => section.id)).toEqual(["learn", "listen", "sing", "face", "move"]);
     expect(ids).toContain("trace-letter");
@@ -18,6 +18,10 @@ describe("vision arcade", () => {
     expect(ids).toContain("spell-aloud");
     expect(ids).toContain("karaoke");
     expect(ids).toContain("rainbow-reach");
+    expect(ids).toContain("mirror-hall");
+    expect(ids).toContain("ninja-weave");
+    expect(ids[ids.indexOf("popcorn") + 1]).toBe("mirror-hall");
+    expect(ids[ids.indexOf("mirror-hall") + 1]).toBe("ninja-weave");
   });
 
   it("opens the lab in the app, with a game when one is chosen", () => {

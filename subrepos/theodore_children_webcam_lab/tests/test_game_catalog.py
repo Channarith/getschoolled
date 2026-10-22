@@ -68,6 +68,8 @@ LOOP = {
     "face-chase": "updateGestureGame",
     "stand-sit": "updateGestureGame",
     "dance-freeze": "updateGestureGame",
+    "mirror-hall": "updateGestureGame",
+    "ninja-weave": "updateGestureGame",
     "rainbow-reach": "updateGestureGame",
 }
 
@@ -86,7 +88,7 @@ def test_every_menu_game_is_in_the_api_and_the_game_loop():
     catalog = list(all_game_ids())
     assert catalog == [game_id for _group, games in GAME_MENU for game_id, _ in games]
     assert set(catalog) == set(LOOP)
-    assert len(catalog) == len(LOOP) == 41
+    assert len(catalog) == len(LOOP) == 43
     assert AUDIO_GAMES <= set(catalog)
 
     html = render_children_page("test")
@@ -126,6 +128,44 @@ def test_every_picture_word_has_a_glyph_on_both_sides():
     for word, glyph in PICTURE_EMOJI.items():
         assert glyph in script
         assert word in script
+
+
+def test_ninja_weave_is_original_local_and_has_many_signs_and_finishers():
+    script = _js()
+    math = (
+        ROOT / "src/theodore_children_webcam_lab/static/vision_math.js"
+    ).read_text()
+    css = (
+        ROOT / "src/theodore_children_webcam_lab/static/app.css"
+    ).read_text()
+    html = render_children_page("test")
+
+    assert "function updateNinjaWeave" in script
+    assert "function launchNinjaEffect" in script
+    assert "function ninjaSound" in script
+    assert "recognizeNinjaSeal" in script
+    assert 'id="ninja-element"' in html
+    assert 'id="ninja-technique"' in html
+    assert 'id="ninja-progress"' in html
+    assert "function fillNinjaTechniques" in script
+    assert "ninjaEffectParticles(" in script
+    assert "NINJA_SOUNDS" in script
+    assert "NINJA_TECHNIQUES" in math
+    assert "NINJA_ELEMENTS" in math
+    elements = ("fire", "water", "earth", "wind", "thunder", "ice", "sun", "moon", "leaf", "steel")
+    assert all(f"  {element}: {{" in math for element in elements)
+    particles = ("orb", "drop", "rock", "streak", "bolt", "shard", "star", "leaf")
+    assert all(f".ninja-p-{kind}" in css or kind == "orb" for kind in particles)
+    sounds = ("roar", "splash", "rumble", "whoosh", "zap", "chime", "shine", "hum", "rustle", "clang")
+    assert all(f"  {sound}(audio, p)" in script for sound in sounds)
+    assert "naruto" not in (script + math + css + html).lower()
+    hands = script.split("function detectFrame")[1].split("function drawFistMark")[0]
+    assert 'state.game === "ninja-weave"' in hands
+    assert 'setTouchMode("air")' in script.split("function startNinjaWeave")[1].split("function ")[0]
+    assert "body.phone-play .ninja-sequence" in css
+    assert "body.phone-play.ninja-play .score #combo" in css
+    assert "prefers-reduced-motion:reduce" in css
+    assert ".ninja-fx-core" in css.split("prefers-reduced-motion:reduce")[1]
 
 
 def test_coloring_scratches_and_phones_can_switch_touch():
@@ -249,7 +289,7 @@ def test_each_game_has_its_own_controls_and_launch_is_not_trace_letter():
         game_id for game_id in catalog
         if game_id not in DRAWING_GAMES and game_id != "say-letter" and game_id not in AUDIO_GAMES
     ]
-    assert {"heart", "fist-bump", "fruit-cut", "dance-freeze", "oh-behave"} <= set(gesture)
+    assert {"heart", "fist-bump", "fruit-cut", "dance-freeze", "oh-behave", "ninja-weave"} <= set(gesture)
     for game_id in gesture:
         row = controls[game_id]
         assert row["words"] is False, game_id

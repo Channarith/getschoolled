@@ -105,6 +105,7 @@ export function handShape(points) {
     count,
     thumbOut,
     tipPalms,
+    fingers,
     indexUp: fingers[0] && !fingers[1] && !fingers[2] && !fingers[3],
     fist: farthest < FIST_MAX_PALMS,
   };
@@ -747,4 +748,722 @@ export function localMathRound(age, index) {
     answer,
     choices,
   };
+}
+
+// Mirror Hall. A beat is three lights — head and both hands — in stage
+// fractions (y grows downward). Matching uses position only. Expressions are
+// not part of the score.
+export const MIRROR_HOLD_MS = 400;
+export const MIRROR_SEATED_MAX_Y = 0.58;
+export const MIRROR_PACES = {
+  easy: { id: "easy", radius: 0.18, windowMs: 2200, retries: 1 },
+  family: { id: "family", radius: 0.12, windowMs: 1500, retries: 0 },
+  sharp: { id: "sharp", radius: 0.075, windowMs: 900, retries: 0 },
+};
+export const MIRROR_ROUTINE = [
+  { id: "hands-up", prompt: "Hands up", head: { x: 0.5, y: 0.34 }, left: { x: 0.34, y: 0.12 }, right: { x: 0.66, y: 0.12 } },
+  { id: "wide-star", prompt: "Make a star", head: { x: 0.5, y: 0.3 }, left: { x: 0.14, y: 0.62 }, right: { x: 0.86, y: 0.62 } },
+  { id: "hands-together", prompt: "Hands together", head: { x: 0.5, y: 0.38 }, left: { x: 0.46, y: 0.16 }, right: { x: 0.54, y: 0.16 } },
+  { id: "one-hand-high", prompt: "One hand high", head: { x: 0.5, y: 0.32 }, left: { x: 0.3, y: 0.1 }, right: { x: 0.68, y: 0.4 } },
+  { id: "lean-left", prompt: "Lean left", head: { x: 0.34, y: 0.36 }, left: { x: 0.16, y: 0.22 }, right: { x: 0.48, y: 0.28 } },
+  { id: "lean-right", prompt: "Lean right", head: { x: 0.66, y: 0.36 }, left: { x: 0.52, y: 0.28 }, right: { x: 0.84, y: 0.22 } },
+  { id: "frame-face", prompt: "Frame your face", head: { x: 0.5, y: 0.36 }, left: { x: 0.34, y: 0.32 }, right: { x: 0.66, y: 0.32 } },
+  { id: "freeze", prompt: "Freeze", head: { x: 0.5, y: 0.3 }, left: { x: 0.36, y: 0.78 }, right: { x: 0.64, y: 0.78 } },
+];
+
+export function mirrorPace(pace) {
+  const key = String(pace || "").trim().toLowerCase();
+  return MIRROR_PACES[key] || MIRROR_PACES.family;
+}
+
+export function defaultMirrorPace(ageBand) {
+  return isYoungTouchAge(ageBand) ? "easy" : "family";
+}
+
+export function clampMirrorPoint(point, seated) {
+  if (!point) return null;
+  const x = Number(point.x);
+  const y = Number(point.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y: seated ? Math.min(y, MIRROR_SEATED_MAX_Y) : y };
+}
+
+export function mirrorPose(index, { seated = false } = {}) {
+  const slot = ((Number(index) || 0) % MIRROR_ROUTINE.length + MIRROR_ROUTINE.length) % MIRROR_ROUTINE.length;
+  const beat = MIRROR_ROUTINE[slot];
+  return {
+    id: beat.id,
+    prompt: beat.prompt,
+    index: slot,
+    head: clampMirrorPoint(beat.head, seated),
+    left: clampMirrorPoint(beat.left, seated),
+    right: clampMirrorPoint(beat.right, seated),
+  };
+}
+
+export function mirrorPointHit(live, target, radius) {
+  if (!live || !target) return false;
+  const reach = Number(radius);
+  if (![live.x, live.y, target.x, target.y, reach].every(Number.isFinite) || reach <= 0) return false;
+  return Math.hypot(live.x - target.x, live.y - target.y) <= reach;
+}
+
+export function mirrorBeatMatched(live, pose, radius) {
+  if (!live || !pose) return false;
+  return mirrorPointHit(live.head, pose.head, radius)
+    && mirrorPointHit(live.left, pose.left, radius)
+    && mirrorPointHit(live.right, pose.right, radius);
+}
+
+export function mirrorStars(hits, total = MIRROR_ROUTINE.length) {
+  const beats = Number(total) > 0 ? Number(total) : MIRROR_ROUTINE.length;
+  const ratio = Math.max(0, Number(hits) || 0) / beats;
+  if (ratio >= 0.85) return 3;
+  if (ratio >= 0.6) return 2;
+  return 1;
+}
+
+export function mirrorSummary(run) {
+  const hits = Math.max(0, Number(run?.hits) || 0);
+  const total = MIRROR_ROUTINE.length;
+  const bestCombo = Math.max(0, Number(run?.bestCombo) || 0);
+  const stars = mirrorStars(hits, total);
+  return {
+    hits,
+    total,
+    bestCombo,
+    stars,
+    line: `${hits} of ${total} lights. Best combo ${bestCombo}.`,
+  };
+}
+
+export function freshMirrorRun(pace) {
+  const chosen = mirrorPace(pace);
+  return {
+    index: 0,
+    hits: 0,
+    combo: 0,
+    bestCombo: 0,
+    retries: 0,
+    windowStart: null,
+    matchedSince: null,
+    finished: false,
+    pace: chosen.id,
+    lastEvent: "",
+  };
+}
+
+function mirrorFailBeat(run, pace, now) {
+  if (run.retries < pace.retries) {
+    return {
+      ...run,
+      retries: run.retries + 1,
+      windowStart: now,
+      matchedSince: null,
+      event: "retry",
+    };
+  }
+  return mirrorAdvanceBeat({ ...run, combo: 0, matchedSince: null }, "miss");
+}
+
+function mirrorAdvanceBeat(run, event) {
+  const index = run.index + 1;
+  if (index >= MIRROR_ROUTINE.length) {
+    return {
+      ...run,
+      finished: true,
+      matchedSince: null,
+      event: "done",
+      lastEvent: event,
+    };
+  }
+  return {
+    ...run,
+    index,
+    retries: 0,
+    windowStart: null,
+    matchedSince: null,
+    event,
+    lastEvent: event,
+  };
+}
+
+// One frame of a Mirror Hall beat. `matched` means the head and both hands
+// are inside the pace radius right now. A hit needs that to stay true for
+// MIRROR_HOLD_MS before the window ends. Easy may repeat a missed beat once.
+export function advanceMirrorBeat(run, { matched = false, now = 0 } = {}) {
+  const pace = mirrorPace(run?.pace);
+  const next = {
+    index: Math.max(0, Number(run?.index) || 0),
+    hits: Math.max(0, Number(run?.hits) || 0),
+    combo: Math.max(0, Number(run?.combo) || 0),
+    bestCombo: Math.max(0, Number(run?.bestCombo) || 0),
+    retries: Math.max(0, Number(run?.retries) || 0),
+    windowStart: Number.isFinite(run?.windowStart) ? run.windowStart : now,
+    matchedSince: Number.isFinite(run?.matchedSince) ? run.matchedSince : null,
+    finished: Boolean(run?.finished),
+    pace: pace.id,
+    lastEvent: run?.lastEvent || "",
+  };
+  if (next.finished) return { ...next, event: "done" };
+  const expireAt = next.windowStart + pace.windowMs;
+  if (matched) {
+    if (!Number.isFinite(next.matchedSince)) next.matchedSince = now;
+    if (now - next.matchedSince >= MIRROR_HOLD_MS) {
+      next.hits += 1;
+      next.combo += 1;
+      next.bestCombo = Math.max(next.bestCombo, next.combo);
+      return mirrorAdvanceBeat(next, "hit");
+    }
+    if (now >= expireAt) return mirrorFailBeat(next, pace, now);
+    return { ...next, event: "hold" };
+  }
+  next.matchedSince = null;
+  if (now >= expireAt) return mirrorFailBeat(next, pace, now);
+  return { ...next, event: "waiting" };
+}
+
+// Original Ninja Weave vocabulary. Every sign is a plain two-hand pose built
+// from five everyday hand shapes and three placements. No names, signs, or
+// sequences come from an existing franchise.
+export const NINJA_HAND_SHAPES = {
+  fist: { id: "fist", word: "Stone", glyph: "✊", how: "a fist" },
+  point: { id: "point", word: "Needle", glyph: "☝️", how: "one finger up" },
+  open: { id: "open", word: "Leaf", glyph: "🖐️", how: "an open hand" },
+  peace: { id: "peace", word: "Twin", glyph: "✌️", how: "two fingers up" },
+  horns: { id: "horns", word: "Hook", glyph: "🤘", how: "first and little finger up" },
+};
+
+export const NINJA_PLACEMENTS = {
+  together: { id: "together", word: "Gate", how: "hands close together" },
+  apart: { id: "apart", word: "Wings", how: "hands wide apart" },
+  stacked: { id: "stacked", word: "Tower", how: "one hand above the other" },
+};
+
+const NINJA_EASY_SHAPES = new Set(["fist", "point", "open"]);
+
+function ninjaSealLevel(a, b, placement) {
+  if (a === "horns" || b === "horns") return 3;
+  if (placement === "stacked" || !NINJA_EASY_SHAPES.has(a) || !NINJA_EASY_SHAPES.has(b)) return 2;
+  return 1;
+}
+
+function buildNinjaSeals() {
+  const seals = {};
+  for (const placement of Object.values(NINJA_PLACEMENTS)) {
+    for (const a of Object.values(NINJA_HAND_SHAPES)) {
+      for (const b of Object.values(NINJA_HAND_SHAPES)) {
+        const id = `${a.id}-${b.id}-${placement.id}`;
+        const label = a.id === b.id
+          ? `Double ${a.word} ${placement.word}`
+          : `${a.word}-${b.word} ${placement.word}`;
+        const [first, second] = placement.id === "stacked" ? ["Top", "bottom"] : ["Left", "right"];
+        seals[id] = {
+          id,
+          label,
+          a: a.id,
+          b: b.id,
+          placement: placement.id,
+          level: ninjaSealLevel(a.id, b.id, placement.id),
+          glyph: `${a.glyph}${b.glyph}`,
+          glyphA: a.glyph,
+          glyphB: b.glyph,
+          how: `${first} hand ${a.how}, ${second} hand ${b.how}, ${placement.how}.`,
+        };
+      }
+    }
+  }
+  return seals;
+}
+
+export const NINJA_SEALS = buildNinjaSeals();
+
+export const NINJA_ELEMENTS = {
+  fire: { id: "fire", label: "Fire", glyph: "🔥", colors: ["#fef08a", "#fb923c", "#dc2626"], particle: "orb", sound: "roar" },
+  water: { id: "water", label: "Water", glyph: "💧", colors: ["#ecfeff", "#22d3ee", "#2563eb"], particle: "drop", sound: "splash" },
+  earth: { id: "earth", label: "Earth", glyph: "🪨", colors: ["#f5d491", "#a16207", "#422006"], particle: "rock", sound: "rumble" },
+  wind: { id: "wind", label: "Wind", glyph: "🌀", colors: ["#f0fdfa", "#99f6e4", "#14b8a6"], particle: "streak", sound: "whoosh" },
+  thunder: { id: "thunder", label: "Thunder", glyph: "⚡", colors: ["#fffbeb", "#facc15", "#7c3aed"], particle: "bolt", sound: "zap" },
+  ice: { id: "ice", label: "Ice", glyph: "❄️", colors: ["#f8fafc", "#bae6fd", "#38bdf8"], particle: "shard", sound: "chime" },
+  sun: { id: "sun", label: "Sun", glyph: "☀️", colors: ["#ffffff", "#fde68a", "#f59e0b"], particle: "star", sound: "shine" },
+  moon: { id: "moon", label: "Moon", glyph: "🌙", colors: ["#ede9fe", "#a78bfa", "#4c1d95"], particle: "orb", sound: "hum" },
+  leaf: { id: "leaf", label: "Leaf", glyph: "🌿", colors: ["#dcfce7", "#4ade80", "#15803d"], particle: "leaf", sound: "rustle" },
+  steel: { id: "steel", label: "Steel", glyph: "⚙️", colors: ["#f8fafc", "#94a3b8", "#334155"], particle: "shard", sound: "clang" },
+};
+
+// Ordered from shortest to longest weave. The tier sets the sign count.
+export const NINJA_FORMS = [
+  { id: "burst", label: "Burst" },
+  { id: "ring", label: "Ring" },
+  { id: "fountain", label: "Fountain", focus: { x: 0.5, y: 0.85 } },
+  { id: "rain", label: "Rain", focus: { x: 0.5, y: 0.2 } },
+  { id: "wave", label: "Wave", focus: { x: 0.5, y: 0.8 } },
+  { id: "bloom", label: "Bloom" },
+  { id: "spiral", label: "Spiral" },
+  { id: "comet", label: "Comet", focus: { x: 0.82, y: 0.25 } },
+  { id: "pillar", label: "Pillar", focus: { x: 0.5, y: 0.85 }, shake: true },
+  { id: "fan", label: "Fan", focus: { x: 0.5, y: 0.82 } },
+  { id: "orbit", label: "Orbit" },
+  { id: "wall", label: "Wall", focus: { x: 0.5, y: 0.75 }, shake: true },
+  { id: "vortex", label: "Vortex" },
+  { id: "lance", label: "Lance", focus: { x: 0.88, y: 0.55 } },
+  { id: "tide", label: "Tide" },
+  { id: "cascade", label: "Cascade", focus: { x: 0.5, y: 0.2 } },
+  { id: "shield", label: "Shield", focus: { x: 0.5, y: 0.75 } },
+  { id: "nova", label: "Nova" },
+  { id: "swarm", label: "Swarm" },
+  { id: "quake", label: "Quake", focus: { x: 0.5, y: 0.85 }, shake: true },
+  { id: "twin", label: "Twin Burst" },
+  { id: "crown", label: "Crown", focus: { x: 0.5, y: 0.4 } },
+];
+
+export const NINJA_TIER_LENGTHS = [3, 4, 5, 6];
+
+function ninjaFormTier(index) {
+  if (index < 6) return 0;
+  if (index < 12) return 1;
+  if (index < 17) return 2;
+  return 3;
+}
+
+// Seeded so every device builds the same sequences and the same effect paths.
+export function ninjaRandom(seed) {
+  let a = 2166136261;
+  for (const ch of String(seed)) a = Math.imul(a ^ ch.charCodeAt(0), 16777619);
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function ninjaShuffle(items, rand) {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function buildNinjaTechniques() {
+  const seals = Object.values(NINJA_SEALS);
+  const pools = [
+    seals.filter((seal) => seal.level === 1),
+    seals.filter((seal) => seal.level <= 2),
+    seals,
+  ].map((pool) => pool.map((seal) => seal.id));
+  const rand = ninjaRandom("ninja-weave-v2");
+  // The longest weaves deal from a shuffled deck so every sign is used.
+  let deck = ninjaShuffle(seals.map((seal) => seal.id), rand);
+  let deckAt = 0;
+  const dealSeal = () => {
+    if (deckAt >= deck.length) {
+      deck = ninjaShuffle(deck, rand);
+      deckAt = 0;
+    }
+    return deck[deckAt++];
+  };
+  const used = new Set();
+  const techniques = {};
+  NINJA_FORMS.forEach((form, formIndex) => {
+    const tier = ninjaFormTier(formIndex);
+    const length = NINJA_TIER_LENGTHS[tier];
+    for (const element of Object.values(NINJA_ELEMENTS)) {
+      let sequence = [];
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        sequence = [];
+        while (sequence.length < length) {
+          const pool = pools[Math.min(tier, 2)];
+          const id = tier === 3 ? dealSeal() : pool[Math.floor(rand() * pool.length)];
+          if (id !== sequence[sequence.length - 1]) sequence.push(id);
+        }
+        if (!used.has(sequence.join(" "))) break;
+      }
+      used.add(sequence.join(" "));
+      const id = `${element.id}-${form.id}`;
+      techniques[id] = {
+        id,
+        label: `${element.label} ${form.label}`,
+        glyph: element.glyph,
+        element: element.id,
+        form: form.id,
+        tier,
+        sequence,
+      };
+    }
+  });
+  return techniques;
+}
+
+// One technique per finisher effect: element x form.
+export const NINJA_TECHNIQUES = buildNinjaTechniques();
+export const NINJA_EFFECTS = NINJA_TECHNIQUES;
+export const NINJA_DEFAULT_TECHNIQUE = "fire-burst";
+
+export function ninjaTechniqueList(element) {
+  const wanted = String(element || "").toLowerCase();
+  return NINJA_FORMS
+    .map((form) => NINJA_TECHNIQUES[`${wanted}-${form.id}`])
+    .filter(Boolean);
+}
+
+export function ninjaEffectSpec(id) {
+  const technique = ninjaTechnique(id);
+  const element = NINJA_ELEMENTS[technique.element];
+  const formIndex = NINJA_FORMS.findIndex((form) => form.id === technique.form);
+  const form = NINJA_FORMS[formIndex];
+  return {
+    id: technique.id,
+    label: technique.label,
+    element: element.id,
+    form: form.id,
+    colors: element.colors,
+    particle: element.particle,
+    sound: element.sound,
+    focus: form.focus || { x: 0.5, y: 0.5 },
+    shake: Boolean(form.shake),
+    pitch: Math.round((0.8 + (formIndex % 6) * 0.08) * 100) / 100,
+  };
+}
+
+const TAU = Math.PI * 2;
+const ninjaAt = (radius, angle, cx = 0.5, cy = 0.5) => ({
+  x: cx + Math.cos(angle) * radius,
+  y: cy + Math.sin(angle) * radius,
+});
+
+// Each form returns a path in stage fractions (0..1) plus a start delay in ms.
+const NINJA_FORM_PATHS = {
+  burst: ({ a, j }) => ({ points: [ninjaAt(0.02, a), ninjaAt(0.3 + j * 0.15, a)], delay: j * 120 }),
+  ring: ({ a }) => ({ points: [ninjaAt(0.04, a), ninjaAt(0.36, a)], delay: 0 }),
+  fountain: ({ t, j }) => ({
+    points: [{ x: 0.5, y: 1.02 }, { x: 0.5 + (t - 0.5) * 0.5, y: 0.18 + j * 0.12 }, { x: 0.5 + (t - 0.5), y: 0.72 }],
+    delay: j * 600,
+  }),
+  rain: ({ t, j }) => ({ points: [{ x: t, y: -0.08 }, { x: t + (j - 0.5) * 0.06, y: 1.06 }], delay: j * 900 }),
+  wave: ({ t }) => ({
+    points: [{ x: t, y: 1.06 }, { x: t, y: 0.55 + 0.12 * Math.sin(t * 4 * Math.PI) }, { x: t + 0.05, y: 1.06 }],
+    delay: t * 500,
+  }),
+  bloom: ({ a, j }) => ({ points: [ninjaAt(0.02, a), ninjaAt(0.18, a), ninjaAt(0.36, a + 0.7)], delay: j * 150 }),
+  spiral: ({ a, t }) => ({
+    points: [ninjaAt(0.02, a * 2), ninjaAt(0.2, a * 2 + 1.5), ninjaAt(0.4, a * 2 + 3)],
+    delay: t * 450,
+  }),
+  comet: ({ t, j }) => ({
+    points: [{ x: -0.08 + j * 0.05, y: 0.82 + (j - 0.5) * 0.08 }, { x: 1.08, y: 0.18 + (j - 0.5) * 0.12 }],
+    delay: t * 550,
+  }),
+  pillar: ({ t, j }) => ({
+    points: [{ x: 0.5 + (j - 0.5) * 0.18, y: 1.06 }, { x: 0.5 + (j - 0.5) * 0.1, y: -0.08 }],
+    delay: t * 600,
+  }),
+  fan: ({ t, j }) => {
+    const angle = -Math.PI * (0.15 + 0.7 * t);
+    return { points: [ninjaAt(0.03, angle, 0.5, 0.85), ninjaAt(0.55, angle, 0.5, 0.85)], delay: j * 150 };
+  },
+  orbit: ({ a }) => ({
+    points: [ninjaAt(0.3, a), ninjaAt(0.3, a + Math.PI / 2), ninjaAt(0.3, a + Math.PI), ninjaAt(0.3, a + 1.5 * Math.PI)],
+    delay: 0,
+  }),
+  wall: ({ t, j }) => ({
+    points: [{ x: t, y: 1.06 }, { x: t, y: 0.58 + j * 0.06 }, { x: t, y: 0.62 }],
+    delay: Math.abs(t - 0.5) * 700,
+  }),
+  vortex: ({ a, j }) => ({ points: [ninjaAt(0.48, a), ninjaAt(0.24, a + 1.6), ninjaAt(0.02, a + 3.2)], delay: j * 300 }),
+  lance: ({ t, j }) => ({
+    points: [{ x: 0.08, y: 0.55 + (j - 0.5) * 0.05 }, { x: 1.08, y: 0.55 + (t - 0.5) * 0.14 }],
+    delay: t * 350,
+  }),
+  tide: ({ t, a, j }) => ({
+    points: [{ x: -0.08, y: 0.25 + t * 0.6 }, { x: 0.5, y: 0.2 + t * 0.6 + 0.05 * Math.sin(a * 3) }, { x: 1.08, y: 0.25 + t * 0.6 }],
+    delay: j * 300,
+  }),
+  cascade: ({ t }) => ({
+    points: [{ x: t, y: -0.06 }, { x: t + 0.06, y: 0.35 }, { x: t - 0.06, y: 0.7 }, { x: t, y: 1.06 }],
+    delay: t * 500,
+  }),
+  shield: ({ t }) => {
+    const angle = -Math.PI * t;
+    return { points: [ninjaAt(0.02, angle, 0.5, 0.75), ninjaAt(0.42, angle, 0.5, 0.75)], delay: t * 300 };
+  },
+  nova: ({ a, i }) => ({ points: [ninjaAt(0.02, a), ninjaAt(0.12, a), ninjaAt(0.55, a + 0.2)], delay: (i % 2) * 350 }),
+  swarm: ({ rand }) => ({
+    points: Array.from({ length: 4 }, () => ({ x: 0.5 + (rand() - 0.5) * 0.8, y: 0.5 + (rand() - 0.5) * 0.7 })),
+    delay: rand() * 300,
+  }),
+  quake: ({ t, j }) => ({
+    points: [{ x: t, y: 1.06 }, { x: t, y: 0.66 + j * 0.1 }, { x: t + (j - 0.5) * 0.1, y: 1.06 }],
+    delay: Math.abs(t - 0.5) * 400,
+  }),
+  twin: ({ a, i }) => {
+    const cx = i % 2 ? 0.3 : 0.7;
+    return { points: [ninjaAt(0.02, a, cx), ninjaAt(0.24, a, cx)], delay: (i % 2) * 200 };
+  },
+  crown: ({ t }) => {
+    const angle = -Math.PI * t;
+    return { points: [{ x: 0.5, y: 1.02 }, ninjaAt(0.26, angle, 0.5, 0.42)], delay: t * 400 };
+  },
+};
+
+function ninjaTurn(point, angle) {
+  const dx = point.x - 0.5;
+  const dy = point.y - 0.5;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return { x: 0.5 + dx * cos - dy * sin, y: 0.5 + dx * sin + dy * cos };
+}
+
+function ninjaScale(point, factor) {
+  return { x: 0.5 + (point.x - 0.5) * factor, y: 0.5 + (point.y - 0.5) * factor };
+}
+
+// Each element moves its particles its own way on top of the form's path:
+// fire rises, water falls, wind swirls, thunder zigzags, leaves flutter.
+const NINJA_ELEMENT_DRIFT = {
+  fire: (p, u) => ({ x: p.x, y: p.y - 0.08 * u }),
+  water: (p, u) => ({ x: p.x, y: p.y + 0.06 * u }),
+  earth: (p, u) => ({ x: p.x, y: p.y + 0.03 * u * u }),
+  wind: (p, u) => ninjaTurn(p, 0.5 * u),
+  thunder: (p, u, k) => ({ x: p.x + (k % 2 ? 0.03 : -0.03) * u, y: p.y }),
+  ice: (p, u) => ninjaScale(p, 1 - 0.1 * u),
+  sun: (p, u) => ninjaScale(p, 1 + 0.12 * u),
+  moon: (p, u) => ninjaTurn(p, -0.4 * u),
+  leaf: (p, u, k, j) => ({ x: p.x + 0.04 * Math.sin(u * TAU + j * TAU), y: p.y }),
+  steel: (p, u) => ({ x: 0.5 + (p.x - 0.5) * (1 + 0.05 * u), y: p.y }),
+};
+
+// Pure particle plan for one finisher. The page animates these paths; tests
+// check that every one of the effects produces finite, on-stage motion.
+export function ninjaEffectParticles(id, count = 24) {
+  const technique = ninjaTechnique(id);
+  const path = NINJA_FORM_PATHS[technique.form] || NINJA_FORM_PATHS.burst;
+  const drift = NINJA_ELEMENT_DRIFT[technique.element] || ((p) => p);
+  const rand = ninjaRandom(technique.id);
+  const n = Math.max(6, Math.min(48, Math.round(Number(count) || 24)));
+  const round = (value) => Math.round(Math.max(-0.2, Math.min(1.2, value)) * 1000) / 1000;
+  return Array.from({ length: n }, (_, i) => {
+    const t = n > 1 ? i / (n - 1) : 0;
+    const j = rand();
+    const plan = path({ i, n, t, a: (TAU * i) / n, j, rand });
+    let points = plan.points;
+    if (points.length === 2) {
+      const [from, to] = points;
+      points = [from, { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }, to];
+    }
+    const last = points.length - 1;
+    points = points.map((p, k) => drift(p, k / last, k, j));
+    return {
+      points: points.map((p) => ({ x: round(p.x), y: round(p.y) })),
+      delay: Math.round(plan.delay),
+      size: Math.round((0.6 + rand() * 0.8) * 100) / 100,
+      spin: Math.round((rand() * 2 - 1) * 360),
+    };
+  });
+}
+
+// A sign is accepted from a few matching camera samples, not one uninterrupted
+// hold. This absorbs hand-tracker lag and lets a player correct intermediate
+// poses without losing evidence already collected for the requested sign.
+export const NINJA_HOLD_MS = 120;
+export const NINJA_INITIAL_CREDIT_MS = 55;
+export const NINJA_SAMPLE_CAP_MS = 85;
+export const NINJA_HOLD_GRACE_MS = 1200;
+export const NINJA_RELEASE_MS = 100;
+// Placement thresholds as stage fractions. Together and Apart overlap on
+// purpose: an in-between spacing satisfies whichever one the weave asks for.
+export const NINJA_TOGETHER_MAX = 0.42;
+export const NINJA_APART_MIN = 0.18;
+export const NINJA_STACK_MIN = 0.12;
+
+export function ninjaTechnique(id) {
+  return NINJA_TECHNIQUES[String(id || "").toLowerCase()] || NINJA_TECHNIQUES[NINJA_DEFAULT_TECHNIQUE];
+}
+
+function ninjaTwoHands(hands) {
+  const two = (Array.isArray(hands) ? hands : [])
+    .filter((hand) => hand?.wrist && Number.isFinite(hand.wrist.x) && Number.isFinite(hand.wrist.y))
+    .slice(0, 2);
+  return two.length === 2 ? two : null;
+}
+
+// [index, middle, ring, pinky]. Synthetic or screen hands without per-finger
+// flags fall back to fist / indexUp / count.
+export function ninjaFingers(hand) {
+  if (Array.isArray(hand?.fingers) && hand.fingers.length >= 4) {
+    return hand.fingers.slice(0, 4).map(Boolean);
+  }
+  if (!hand || hand.fist) return [false, false, false, false];
+  if (hand.indexUp) return [true, false, false, false];
+  const count = Number(hand.count) || 0;
+  if (count >= 4) return [true, true, true, true];
+  if (count === 3) return [true, true, true, false];
+  if (count === 2) return [true, true, false, false];
+  if (count === 1) return [true, false, false, false];
+  return [false, false, false, false];
+}
+
+// Loose per-hand check: one stray finger does not break a shape.
+export function ninjaShapeFits(hand, shape) {
+  if (!hand) return false;
+  const [index, middle, ring, pinky] = ninjaFingers(hand);
+  const up = [index, middle, ring, pinky].filter(Boolean).length;
+  if (shape === "fist") return Boolean(hand.fist) || up === 0 || (up === 1 && !index);
+  if (hand.fist) return false;
+  if (shape === "point") return index && !middle && !ring;
+  if (shape === "peace") return index && middle && !(ring && pinky);
+  if (shape === "open") return up >= 3;
+  if (shape === "horns") return index && pinky && !(middle && ring);
+  return false;
+}
+
+export function ninjaShapeOf(hand) {
+  if (!hand) return null;
+  const [index, middle, ring, pinky] = ninjaFingers(hand);
+  const up = [index, middle, ring, pinky].filter(Boolean).length;
+  if (hand.fist || up === 0) return "fist";
+  if (up >= 3) return "open";
+  if (index && pinky && !middle && !ring) return "horns";
+  if (index && middle && !ring && !pinky) return "peace";
+  if (index && !middle && !ring) return "point";
+  if (up === 1) return "fist";
+  return null;
+}
+
+function ninjaGap(two, stageWidth, stageHeight) {
+  const width = Math.max(1, Number(stageWidth) || 1);
+  const height = Math.max(1, Number(stageHeight) || width);
+  return {
+    dx: Math.abs(two[0].wrist.x - two[1].wrist.x) / width,
+    dy: Math.abs(two[0].wrist.y - two[1].wrist.y) / height,
+  };
+}
+
+function ninjaPlacementFits(placement, { dx, dy }) {
+  if (placement === "stacked") return dy >= NINJA_STACK_MIN && dy >= dx * 0.8;
+  if (placement === "together") return dx <= NINJA_TOGETHER_MAX && dy <= 0.3;
+  if (placement === "apart") return dx >= NINJA_APART_MIN && dy < dx * 1.25;
+  return false;
+}
+
+function ninjaPlacementOf({ dx, dy }) {
+  if (dy >= 0.15 && dy > dx) return "stacked";
+  return dx <= 0.3 ? "together" : "apart";
+}
+
+// Side-by-side signs read left to right; stacked signs read top to bottom.
+function ninjaOrdered(two, placement) {
+  const key = placement === "stacked" ? "y" : "x";
+  return [...two].sort((p, q) => p.wrist[key] - q.wrist[key]);
+}
+
+// True when the hands are close enough to the sign the weave is waiting for.
+// The readout can still name a different best guess; this is the looser check.
+// mirrorOk also accepts the two hand shapes swapped (Easy pace).
+export function ninjaSealFits(hands, expected, stageWidth = 1, stageHeight = stageWidth, { mirrorOk = false } = {}) {
+  const seal = NINJA_SEALS[expected];
+  const two = ninjaTwoHands(hands);
+  if (!seal || !two) return false;
+  if (!ninjaPlacementFits(seal.placement, ninjaGap(two, stageWidth, stageHeight))) return false;
+  const [first, second] = ninjaOrdered(two, seal.placement);
+  if (ninjaShapeFits(first, seal.a) && ninjaShapeFits(second, seal.b)) return true;
+  return Boolean(mirrorOk) && ninjaShapeFits(first, seal.b) && ninjaShapeFits(second, seal.a);
+}
+
+export function recognizeNinjaSeal(hands, stageWidth = 1, stageHeight = stageWidth) {
+  const two = ninjaTwoHands(hands);
+  if (!two) return null;
+  const placement = ninjaPlacementOf(ninjaGap(two, stageWidth, stageHeight));
+  const [first, second] = ninjaOrdered(two, placement);
+  const a = ninjaShapeOf(first);
+  const b = ninjaShapeOf(second);
+  if (!a || !b) return null;
+  const id = `${a}-${b}-${placement}`;
+  return NINJA_SEALS[id] ? id : null;
+}
+
+export function freshNinjaRun(technique = NINJA_DEFAULT_TECHNIQUE, pace = "family") {
+  const chosen = ninjaTechnique(technique);
+  const speed = MIRROR_PACES[String(pace || "").toLowerCase()]?.id || "family";
+  return {
+    technique: chosen.id,
+    pace: speed,
+    index: 0,
+    combo: 0,
+    bestCombo: 0,
+    holdSince: null,
+    holdBrokenAt: null,
+    evidenceMs: 0,
+    lastMatchedAt: null,
+    mistakes: 0,
+    releaseSince: null,
+    stepStartedAt: null,
+    awaitRelease: false,
+    lastSeal: null,
+    finished: false,
+    event: "",
+  };
+}
+
+export function advanceNinjaWeave(run, { seal = null, now = 0 } = {}) {
+  const next = { ...freshNinjaRun(run?.technique, run?.pace), ...(run || {}) };
+  if (next.finished) return { ...next, event: "done" };
+  const technique = ninjaTechnique(next.technique);
+  const expected = technique.sequence[next.index];
+  if (!Number.isFinite(next.stepStartedAt)) next.stepStartedAt = now;
+
+  if (next.awaitRelease) {
+    if (seal === next.lastSeal) {
+      next.releaseSince = null;
+      return { ...next, event: "release" };
+    }
+    if (!Number.isFinite(next.releaseSince)) next.releaseSince = now;
+    if (now - next.releaseSince < NINJA_RELEASE_MS) return { ...next, event: "release" };
+    next.awaitRelease = false;
+    next.releaseSince = null;
+    next.lastSeal = null;
+    next.stepStartedAt = now;
+  }
+
+  if (seal !== expected) {
+    if (seal) next.mistakes += 1;
+    if (Number.isFinite(next.holdSince) && !Number.isFinite(next.holdBrokenAt)) {
+      next.holdBrokenAt = now;
+    }
+    const recentlyMatched = Number.isFinite(next.lastMatchedAt)
+      && now - next.lastMatchedAt <= NINJA_HOLD_GRACE_MS;
+    return {
+      ...next,
+      event: recentlyMatched ? "hold" : (seal ? "wrong" : "waiting"),
+    };
+  }
+
+  const gap = Number.isFinite(next.lastMatchedAt) ? Math.max(0, now - next.lastMatchedAt) : null;
+  const credit = gap === null || gap > NINJA_HOLD_GRACE_MS
+    ? NINJA_INITIAL_CREDIT_MS
+    : Math.min(NINJA_SAMPLE_CAP_MS, gap);
+  next.evidenceMs = Math.min(NINJA_HOLD_MS, (Number(next.evidenceMs) || 0) + credit);
+  next.lastMatchedAt = now;
+  next.holdBrokenAt = null;
+  if (!Number.isFinite(next.holdSince)) next.holdSince = now;
+  if (next.evidenceMs < NINJA_HOLD_MS) return { ...next, event: "hold" };
+
+  next.index += 1;
+  next.combo += 1;
+  next.bestCombo = Math.max(next.bestCombo, next.combo);
+  next.holdSince = null;
+  next.evidenceMs = 0;
+  next.lastMatchedAt = null;
+  next.mistakes = 0;
+  next.stepStartedAt = now;
+  next.lastSeal = seal;
+  if (next.index >= technique.sequence.length) {
+    next.finished = true;
+    return { ...next, event: "done" };
+  }
+  next.awaitRelease = true;
+  next.releaseSince = null;
+  return { ...next, event: "step" };
 }

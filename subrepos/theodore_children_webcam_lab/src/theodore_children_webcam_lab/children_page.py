@@ -128,6 +128,16 @@ __GAME_SELECT__
           <option value="steady">Steady</option>
           <option value="quick">Quick</option>
         </select></label>
+        <label id="mirror-pace-control" class="hidden">Challenge pace<select id="mirror-pace" aria-label="Vision challenge pace">
+          <option value="easy">Easy</option>
+          <option value="family" selected>Family</option>
+          <option value="sharp">Sharp</option>
+        </select></label>
+        <span id="ninja-technique-control" class="hidden ninja-controls">
+          <label>Element<select id="ninja-element" aria-label="Ninja Weave element"></select></label>
+          <label>Technique<select id="ninja-technique" aria-label="Ninja Weave technique"></select></label>
+          <span id="ninja-progress" class="ninja-progress" aria-live="polite"></span>
+        </span>
         <button id="play-game" class="primary" data-i18n="play">Play</button>
         <button id="hear" data-i18n="hear">Hear Theodore</button>
         <button id="mic" data-i18n="say">🎤 Say it</button>
