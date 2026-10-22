@@ -15,7 +15,7 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 OUT="${AOEP_COURSE_TRANSLATION_DIR:-$HOME/translations}"
 PORT="${TRANSLATE_PORT:-8002}"
-DEMO="audio-introduction-to-machine-learning"
+DEMO="audio-intro-to-machine-learning"
 SPARK_LANGS="es fr de it pt nl pl ru uk tr ar he hi bn ur fa zh ja ko vi"
 IBUY_LANGS="th id sw el cs km"
 
