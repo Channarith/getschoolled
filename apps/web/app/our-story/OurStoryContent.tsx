@@ -14,9 +14,10 @@
 //   mascot           -> front-page MascotImage component (locale-aware)
 //   platform diagram -> on-theme HTML/SVG ecosystem (AI teacher + agent cards)
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import MascotImage from "../components/MascotImage";
+import { EcoPopover } from "./EcoDetails";
 import { useT } from "../lib/i18n";
 
 const styles = `
@@ -69,7 +70,7 @@ const styles = `
 
 /* ECOSYSTEM — AI teacher (center) + specialized agent cards, on-theme */
 .os-eco{margin:26px 0 12px;border-radius:20px;padding:34px clamp(18px,3.5vw,40px) 30px;
-  border:1px solid var(--line);position:relative;overflow:hidden;color:#f4efe4;
+  border:1px solid var(--line);position:relative;color:#f4efe4;
   background:radial-gradient(130% 100% at 50% -10%, #33254e 0%, #271d3d 46%, #1e1631 100%)}
 .os-eco::before{content:"";position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(60% 45% at 50% 42%, rgba(201,163,94,.10), transparent 70%)}
@@ -103,9 +104,49 @@ const styles = `
 .os-eco-ic{flex:0 0 auto;width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;
   color:var(--gold-bright);background:rgba(201,163,94,.12);border:1px solid rgba(201,163,94,.28);margin-top:1px}
 .os-eco-ic svg{width:21px;height:21px;display:block}
-.os-eco-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.os-eco-text{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 0}
 .os-eco-lb{font-size:13.5px;font-weight:600;line-height:1.3;color:#f0e9db}
 .os-eco-desc{font-size:12px;line-height:1.4;color:rgba(240,233,219,.72)}
+
+
+/* Feature-card details: hover, keyboard focus or tap. */
+.os-eco-card{position:relative}
+.os-eco-card.is-open,.os-eco-card:focus-within,.os-eco-card:hover{z-index:40}
+.os-eco-card:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px}
+.os-pop{position:absolute;z-index:50;width:min(390px,86vw);padding:16px 18px 14px;border-radius:14px;
+  background:#1b1330;border:1px solid var(--gold-bright);color:#f0e9db;text-align:left;
+  box-shadow:0 18px 44px rgba(0,0,0,.5);opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateY(4px);transition:opacity .16s ease,transform .16s ease,visibility .16s}
+.os-eco-card:hover .os-pop,.os-eco-card:focus-within .os-pop,.os-eco-card.is-open .os-pop{
+  opacity:1;visibility:visible;pointer-events:auto;transform:none}
+.os-pop.at-right{left:calc(100% + 10px);top:0}
+.os-pop.at-left{right:calc(100% + 10px);top:0}
+.os-pop.at-above{bottom:calc(100% + 10px);left:0}
+.os-pop.at-above-end{bottom:calc(100% + 10px);right:0}
+.os-pop-title{font-family:var(--serif);font-size:18px;color:var(--gold-bright);margin-bottom:6px}
+.os-pop-sum{margin:0 0 10px;font-size:13px;line-height:1.5;color:rgba(240,233,219,.9)}
+.os-pop-flow{list-style:none;margin:2px 0 10px;padding:0;display:flex;flex-wrap:wrap;gap:6px 4px;align-items:center}
+.os-pop-flow li{display:inline-flex;align-items:center;gap:6px;padding:5px 8px 5px 5px;border-radius:9px;
+  background:rgba(201,163,94,.10);border:1px solid rgba(201,163,94,.4);font-size:12px;line-height:1.25}
+.os-pop-num{flex:0 0 auto;width:17px;height:17px;border-radius:50%;background:var(--gold-bright);color:#1b1330;
+  font:700 10px 'Inter',sans-serif;display:inline-flex;align-items:center;justify-content:center}
+.os-pop-arrow{width:12px;height:12px;flex:0 0 auto;margin-left:2px;fill:none;stroke:var(--gold-bright);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.os-pop-points{margin:0;padding:0;list-style:none;display:grid;gap:5px}
+.os-pop-points li{font-size:12.5px;line-height:1.4;padding-left:16px;position:relative;color:rgba(240,233,219,.85)}
+.os-pop-points li::before{content:"";position:absolute;left:2px;top:.5em;width:6px;height:6px;border-radius:50%;background:var(--gold-bright)}
+.os-pop-chart{margin-top:12px;padding-top:10px;border-top:1px solid rgba(201,163,94,.25)}
+.os-pop-chart-title{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:6px}
+.os-pop-bar{display:grid;grid-template-columns:82px 1fr;align-items:center;gap:8px;font-size:11.5px;margin:3px 0}
+.os-pop-bar i{display:block;height:7px;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--gold-bright))}
+@media(max-width:900px){
+  .os-eco-card{flex-wrap:wrap}
+  .os-pop,.os-pop.at-right,.os-pop.at-left,.os-pop.at-above,.os-pop.at-above-end{
+    position:static;flex:0 0 100%;width:auto;margin-top:8px;display:none;opacity:1;visibility:visible;
+    transform:none;pointer-events:auto;box-shadow:none;background:rgba(0,0,0,.22)}
+  .os-eco-card.is-open .os-pop{display:block}
+  .os-eco-card:hover .os-pop,.os-eco-card:focus-within .os-pop{display:none}
+  .os-eco-card.is-open:hover .os-pop,.os-eco-card.is-open:focus-within .os-pop{display:block}
+}
 
 .os-eco-hint{position:relative;text-align:center;margin-top:22px;font-style:italic;
   font-family:var(--serif);font-size:16px;color:rgba(244,239,228,.72)}
@@ -318,14 +359,37 @@ function renderInline(line: string, keyPrefix: string): React.ReactNode[] {
 // the platform; they are not navigation. The `title` attribute mirrors the
 // subtitle so the full phrase is available on hover (desktop) + long-press
 // (mobile) even when the subtitle is clipped.
-function ecoCard(
-  c: EcoCard,
-  t: (key: string, vars?: Record<string, string | number>) => string,
-): React.ReactNode {
+type EcoSide = "left" | "right" | "bottom-start" | "bottom-end";
+
+function EcoCardView({
+  c, t, side,
+}: {
+  c: EcoCard;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+  side: EcoSide;
+}) {
+  const [open, setOpen] = useState(false);
   const label = t(c.key);
   const desc = t(`${c.key}Desc`);
+  const popId = `os-pop-${c.id}`;
+  // A translated detail string when one exists; otherwise the English default.
+  const tr = (key: string, fallback: string) => {
+    const v = t(key);
+    return v === key ? fallback : v;
+  };
+  const at = { left: "at-right", right: "at-left", "bottom-start": "at-above", "bottom-end": "at-above-end" }[side];
   return (
-    <div className="os-eco-card" key={c.id} title={`${label} — ${desc}`}>
+    <div
+      className={`os-eco-card${open ? " is-open" : ""}`}
+      tabIndex={0}
+      aria-describedby={popId}
+      onClick={() => setOpen((v) => !v)}
+      onBlur={() => setOpen(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") { setOpen(false); (e.currentTarget as HTMLElement).blur(); }
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); }
+      }}
+    >
       <span className="os-eco-ic" aria-hidden="true">
         <svg
           viewBox="0 0 24 24"
@@ -342,6 +406,7 @@ function ecoCard(
         <span className="os-eco-lb">{label}</span>
         <span className="os-eco-desc">{desc}</span>
       </div>
+      <EcoPopover id={c.id} label={label} popId={popId} tr={tr} at={at} />
     </div>
   );
 }
@@ -458,7 +523,7 @@ export default function OurStoryContent() {
 
               <div className="os-eco-stage">
                 <div className="os-eco-side">
-                  {ECO_LEFT.map((c) => ecoCard(c, t))}
+                  {ECO_LEFT.map((c) => <EcoCardView key={c.id} c={c} t={t} side="left" />)}
                 </div>
 
                 <div className="os-eco-center">
@@ -473,12 +538,12 @@ export default function OurStoryContent() {
                 </div>
 
                 <div className="os-eco-side">
-                  {ECO_RIGHT.map((c) => ecoCard(c, t))}
+                  {ECO_RIGHT.map((c) => <EcoCardView key={c.id} c={c} t={t} side="right" />)}
                 </div>
               </div>
 
               <div className="os-eco-grid">
-                {ECO_BOTTOM.map((c) => ecoCard(c, t))}
+                {ECO_BOTTOM.map((c, i) => <EcoCardView key={c.id} c={c} t={t} side={i % 4 >= 2 ? "bottom-end" : "bottom-start"} />)}
               </div>
 
               <div className="os-eco-hint">{t("story.eco.hint")}</div>
