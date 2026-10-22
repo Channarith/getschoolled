@@ -3510,6 +3510,42 @@ export async function adminListAccounts(): Promise<{ accounts: Account[]; count:
   );
 }
 
+export type ReviewStats = {
+  lang: string; units_total: number; units_reviewed: number; units_remaining: number;
+  pages_total: number; pages_covered: number; untranslated_units: number;
+  by_verdict: Record<string, number>; by_reviewer: Record<string, number>;
+};
+export type ReviewUnit = {
+  key: string; lang: string; pages: number; courses: string[];
+  source: { heading: string; text: string };
+  machine: { heading: string; text: string };
+};
+
+export async function reviewOverview(): Promise<{ languages: ReviewStats[] }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/admin/translation-review/overview`, { headers: authHeaders(), cache: "no-store" })
+  );
+}
+
+export async function reviewNext(lang: string, skip: string[]): Promise<{ unit: ReviewUnit | null; stats: ReviewStats }> {
+  const p = new URLSearchParams({ lang, skip: skip.join(",") });
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/admin/translation-review/next?${p}`, { headers: authHeaders(), cache: "no-store" })
+  );
+}
+
+export async function reviewSubmit(body: {
+  lang: string; key: string; verdict: string; heading?: string; text?: string; note?: string;
+}): Promise<{ saved: boolean; stats: ReviewStats }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/admin/translation-review/submit`, {
+      method: "POST",
+      headers: { ...authHeaders(), "content-type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  );
+}
+
 export async function adminSetFlag(
   secret: string, key: string,
   patch: { enabled?: boolean; value?: unknown; rollout_pct?: number; tiers?: string[] | null; clear_value?: boolean }

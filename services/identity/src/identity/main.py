@@ -433,6 +433,77 @@ def set_account_language(req: LanguagePreference, acct=Depends(current_account))
     return {"preferred_language": updated.preferred_language}
 
 
+# ---- Translation review (staff only, not linked from the site) ---------------
+
+def _reviewer_emails() -> set:
+    raw = os.environ.get("TRANSLATION_REVIEWER_EMAILS", "")
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+
+def require_reviewer(acct=Depends(current_account)):
+    """Operator admins, plus any email listed in TRANSLATION_REVIEWER_EMAILS."""
+    if acct.is_admin or (acct.email or "").lower() in _reviewer_emails():
+        return acct
+    raise HTTPException(status_code=403, detail="translation reviewers only")
+
+
+def _review_store():
+    store = getattr(app.state, "review_store", None)
+    if store is None:
+        from aoep_shared.translation_review import MemoryKV, RedisKV, ReviewStore
+        from .persistence import _redis_client, redis_configured
+
+        client = _redis_client() if redis_configured() else None
+        store = ReviewStore(RedisKV(client) if client is not None else MemoryKV())
+        app.state.review_store = store
+    return store
+
+
+class TranslationReviewSubmit(BaseModel):
+    lang: str
+    key: str
+    verdict: str
+    heading: str = ""
+    text: str = ""
+    note: str = ""
+
+
+@app.get("/admin/translation-review/overview")
+def translation_review_overview(_acct=Depends(require_reviewer)) -> dict:
+    from aoep_shared.translation_review import reviewable_languages
+
+    store = _review_store()
+    languages = [store.stats(lang) for lang in reviewable_languages()]
+    languages.sort(key=lambda row: -row["units_total"])
+    return {"languages": languages}
+
+
+@app.get("/admin/translation-review/next")
+def translation_review_next(
+    lang: str, skip: str = "", acct=Depends(require_reviewer),
+) -> dict:
+    store = _review_store()
+    unit = store.next_unit(lang, acct.email, [k for k in skip.split(",") if k])
+    return {"unit": unit, "stats": store.stats(lang)}
+
+
+@app.post("/admin/translation-review/submit")
+def translation_review_submit(req: TranslationReviewSubmit, acct=Depends(require_reviewer)) -> dict:
+    store = _review_store()
+    try:
+        store.submit(req.lang, req.key, acct.email, req.verdict, req.heading, req.text, req.note)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=409, detail=f"already reviewed by {exc}") from exc
+    return {"saved": True, "stats": store.stats(req.lang)}
+
+
+@app.get("/admin/translation-review/export")
+def translation_review_export(lang: str, _acct=Depends(require_reviewer)) -> dict:
+    return {"pairs": _review_store().gold_pairs(lang)}
+
+
 @app.get("/admin/accounts")
 def admin_list_accounts(_acct=Depends(require_admin_account)) -> dict:
     """List every member account (operator admin UI)."""
