@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Salareen frontier readiness — 22 Oct 2026, 8:16 AM PT</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0e141b; color:#e7ecf1; font:16px/1.45 "Iowan Old Style", Palatino, "Palatino Linotype", serif; }
+  header, main { max-width:1080px; margin:0 auto; padding:28px 22px 8px; }
+  h1 { font-weight:650; font-size:34px; letter-spacing:-0.03em; margin:0 0 8px; }
+  h2 { font-size:22px; margin:36px 0 8px; letter-spacing:-0.02em; }
+  h3 { font-size:16px; margin:0 0 6px; font-weight:650; }
+  p { margin:8px 0; }
+  .lede { font-size:18px; max-width:74ch; color:#d5dee6; }
+  .meta { color:#8b98a5; font:13px/1.4 ui-sans-serif, system-ui, sans-serif; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:18px; }
+  .card { background:#161d26; border:1px solid #2a3542; border-radius:14px; padding:14px 14px 12px; }
+  .card b { display:block; font:22px/1.1 ui-sans-serif, system-ui, sans-serif; letter-spacing:-0.03em; }
+  .card span, .note, figcaption, td, th { font:13px/1.35 ui-sans-serif, system-ui, sans-serif; }
+  .card span { color:#8b98a5; }
+  .ok { color:#8ee0c8; } .warn { color:#e6b35a; } .bad { color:#f0a598; }
+  .row { display:grid; grid-template-columns:1.2fr .8fr; gap:16px; align-items:start; }
+  figure { margin:12px 0; background:#121920; border:1px solid #2a3542; border-radius:14px; padding:12px; }
+  figcaption { color:#8b98a5; margin-bottom:8px; }
+  svg { width:100%; height:auto; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; color:#c5d0da; font:12px/1 ui-sans-serif, system-ui, sans-serif; margin:4px 0 8px; }
+  .sw { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .donuts { display:flex; flex-wrap:wrap; gap:8px; }
+  .donut { width:168px; text-align:center; }
+  .donut p { color:#8b98a5; font:12px/1.35 ui-sans-serif, system-ui, sans-serif; margin:0; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:8px 8px; border-bottom:1px solid #2a3542; vertical-align:top; }
+  th { color:#8b98a5; font-weight:600; }
+  .scene { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:stretch; }
+  .step { flex:1 1 120px; background:#1a222c; border:1px solid #2c3a48; border-radius:12px; padding:10px; }
+  .step b { display:block; font:14px/1.2 ui-sans-serif, system-ui, sans-serif; margin-bottom:6px; }
+  .step p { margin:0; color:#c5d0da; font:12px/1.35 ui-sans-serif, system-ui, sans-serif; }
+  .step em { display:block; margin-top:8px; color:#e6b35a; font-style:normal; font:12px/1.3 ui-sans-serif, system-ui, sans-serif; }
+  .kicker { font:12px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing:.14em; text-transform:uppercase; color:#3dbea5; }
+  footer { max-width:1080px; margin:0 auto; padding:8px 22px 40px; color:#8b98a5; font:12px/1.4 ui-sans-serif, system-ui, sans-serif; }
+  @media (max-width:800px) { .grid,.row,.scene { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Salareen · measured on Chans-Spark</div>
+  <h1>Where the model stands, and what still blocks a frontier tutor.</h1>
+  <p class="lede">The Spark trained through the night. The STEM adapter score did not move. Khmer finished eight epochs and was not promoted. A hard reboot at 4:06 AM PT stopped course translation at 1,000 of 4,440 and brought Khmer back onto the GPU. Nothing in this stack yet earns an outside credential.</p>
+  <p class="meta">Snapshot 22 Oct 2026, 8:16 AM Pacific. Machine clock is China time; every clock time below is Pacific. Scores are token-overlap F1 unless a row says otherwise. Proposed bars are targets, drawn next to measurements so the gap is visible. They are not results.</p>
+</header>
+<main>
+  <section class="grid">
+    <div class="card"><b>31.5%</b><span>STEM adapter, 41 items. Base is 12.1%. Same adapter number on all 40 scored cycles since 19 Oct.</span></div>
+    <div class="card"><b class="warn">16%</b><span>Typical score of the served 35B on that same small set. Range 11.7% to 21.3%. It is not the promoted model.</span></div>
+    <div class="card"><b class="warn">27.4%</b><span>Khmer speech-token accuracy after epoch 7. Dev loss 3.40 → 2.94. Checkpoint not promoted. Next run starts from the original base again.</span></div>
+    <div class="card"><b class="bad">0</b><span>Outside cards issued. The accreditation view hardcodes <code>external_card_issued: false</code> and <code>program_completion_eligible: false</code>.</span></div>
+  </section>
+
+  <h2>What is running now</h2>
+  <div class="row">
+    <div>
+      <p>Khmer CosyVoice holds the GPU at about 14.6 GB and is in a new pass that loads <code>CosyVoice-300M/llm.pt</code>, not <code>epoch_7_whole.pt</code>. A training batch near step 1,567 showed loss 2.94 and token accuracy 0.29. That is one batch, not a dev score. STEM nightly is active and waiting on the same GPU lock, so its bake-off cannot finish. Voice ingest is back at 3 workers. The NLLB server on port 8002 is down. The clean-catalog translation process is gone. About 63 GB of the 121 GB unified memory is free.</p>
+      <p>The reboot at 4:06 AM PT left no shutdown record. The previous boot’s log stops while Qwen was still answering. After the reboot the enabled user services started again, including Khmer, which had been stopped on purpose. Two Python processes were OOM-killed at 4:42 AM PT (~31 GB) and 5:12 AM PT (~80 GB).</p>
+    </div>
+    <div class="card">
+      <h3>Overnight STEM</h3>
+      <p>From Wednesday afternoon through 3:40 AM PT the nightly loop finished about once an hour and promoted <code>stem-qlora</code> each time. Promotion means the adapter beat the 12.1% base on the 41-item overlap check, with a fairness gap of 6.2 points under a 10-point gate. The adapter’s 31.5% did not rise. Promoting the same checkpoint every hour is not learning.</p>
+    </div>
+  </div>
+
+  <h2>How much is done</h2>
+  <div class="donuts">
+    <div class="donut">
+<svg viewBox="0 0 140 140" width="140" height="140">
+<circle cx="70" cy="70" r="54" fill="none" stroke="#243140" stroke-width="12"/>
+<circle cx="70" cy="70" r="54" fill="none" stroke="#3dbea5" stroke-width="12" stroke-linecap="round"
+ stroke-dasharray="152.68 186.61" transform="rotate(-90 70 70)"/>
+<text x="70" y="66" text-anchor="middle" fill="#e7ecf1" font-size="22" font-weight="650">45%</text>
+<text x="70" y="86" text-anchor="middle" fill="#8b98a5" font-size="11">of 70%</text>
+</svg>
+<p>STEM overlap vs a proposed useful-tutor bar of 70% on this same proxy. 31.5 / 70.</p>
+</div>
+    <div class="donut">
+<svg viewBox="0 0 140 140" width="140" height="140">
+<circle cx="70" cy="70" r="54" fill="none" stroke="#243140" stroke-width="12"/>
+<circle cx="70" cy="70" r="54" fill="none" stroke="#e07a6a" stroke-width="12" stroke-linecap="round"
+ stroke-dasharray="0.00 339.29" transform="rotate(-90 70 70)"/>
+<text x="70" y="66" text-anchor="middle" fill="#e7ecf1" font-size="22" font-weight="650">0%</text>
+<text x="70" y="86" text-anchor="middle" fill="#8b98a5" font-size="11">improved</text>
+</svg>
+<p>Share of 40 STEM cycles whose adapter score changed. It stayed 0.3151.</p>
+</div>
+    <div class="donut">
+<svg viewBox="0 0 140 140" width="140" height="140">
+<circle cx="70" cy="70" r="54" fill="none" stroke="#243140" stroke-width="12"/>
+<circle cx="70" cy="70" r="54" fill="none" stroke="#e6b35a" stroke-width="12" stroke-linecap="round"
+ stroke-dasharray="78.04 261.25" transform="rotate(-90 70 70)"/>
+<text x="70" y="66" text-anchor="middle" fill="#e7ecf1" font-size="22" font-weight="650">23%</text>
+<text x="70" y="86" text-anchor="middle" fill="#8b98a5" font-size="11">written</text>
+</svg>
+<p>Clean-catalog jobs written before the reboot killed the batch. 1,000 / 4,440. Job is stopped.</p>
+</div>
+    <div class="donut">
+<svg viewBox="0 0 140 140" width="140" height="140">
+<circle cx="70" cy="70" r="54" fill="none" stroke="#243140" stroke-width="12"/>
+<circle cx="70" cy="70" r="54" fill="none" stroke="#e07a6a" stroke-width="12" stroke-linecap="round"
+ stroke-dasharray="0.00 339.29" transform="rotate(-90 70 70)"/>
+<text x="70" y="66" text-anchor="middle" fill="#e7ecf1" font-size="22" font-weight="650">0%</text>
+<text x="70" y="86" text-anchor="middle" fill="#8b98a5" font-size="11">playable</text>
+</svg>
+<p>Demo lesson translations the app can serve. Mandarin and Khmer files are 108 segments; the lesson is 10.</p>
+</div>
+    <div class="donut">
+<svg viewBox="0 0 140 140" width="140" height="140">
+<circle cx="70" cy="70" r="54" fill="none" stroke="#243140" stroke-width="12"/>
+<circle cx="70" cy="70" r="54" fill="none" stroke="#3dbea5" stroke-width="12" stroke-linecap="round"
+ stroke-dasharray="339.29 0.00" transform="rotate(-90 70 70)"/>
+<text x="70" y="66" text-anchor="middle" fill="#e7ecf1" font-size="22" font-weight="650">100%</text>
+<text x="70" y="86" text-anchor="middle" fill="#8b98a5" font-size="11">epochs</text>
+</svg>
+<p>Khmer epochs finished in the last full pass, 8 of 8. Promotion of that pass is 0.</p>
+</div>
+    <div class="donut">
+<svg viewBox="0 0 140 140" width="140" height="140">
+<circle cx="70" cy="70" r="54" fill="none" stroke="#243140" stroke-width="12"/>
+<circle cx="70" cy="70" r="54" fill="none" stroke="#e07a6a" stroke-width="12" stroke-linecap="round"
+ stroke-dasharray="0.00 339.29" transform="rotate(-90 70 70)"/>
+<text x="70" y="66" text-anchor="middle" fill="#e7ecf1" font-size="22" font-weight="650">0%</text>
+<text x="70" y="86" text-anchor="middle" fill="#8b98a5" font-size="11">Cantonese</text>
+</svg>
+<p>Course text files in yue. Cantonese is not in the 27-language NLLB list.</p>
+</div>
+    <div class="donut">
+<svg viewBox="0 0 140 140" width="140" height="140">
+<circle cx="70" cy="70" r="54" fill="none" stroke="#243140" stroke-width="12"/>
+<circle cx="70" cy="70" r="54" fill="none" stroke="#e07a6a" stroke-width="12" stroke-linecap="round"
+ stroke-dasharray="0.00 339.29" transform="rotate(-90 70 70)"/>
+<text x="70" y="66" text-anchor="middle" fill="#e7ecf1" font-size="22" font-weight="650">0%</text>
+<text x="70" y="86" text-anchor="middle" fill="#8b98a5" font-size="11">cards</text>
+</svg>
+<p>External certificates this code path can issue today.</p>
+</div>
+    <div class="donut">
+<svg viewBox="0 0 140 140" width="140" height="140">
+<circle cx="70" cy="70" r="54" fill="none" stroke="#243140" stroke-width="12"/>
+<circle cx="70" cy="70" r="54" fill="none" stroke="#7aa2ff" stroke-width="12" stroke-linecap="round"
+ stroke-dasharray="0 339.29" transform="rotate(-90 70 70)"/>
+<text x="70" y="74" text-anchor="middle" fill="#e7ecf1" font-size="28" font-weight="650">36</text>
+</svg>
+<p>Cert-prep lesson ids listed. A listing is not a signed program. The ring is not a percent.</p>
+</div>
+  </div>
+  <p class="note">Percent rings are gate progress, not a single “AI score.” A ring at 45% means 45% of that named bar, and the caption says which bar.</p>
+
+  <h2>Time series — the tutor score is flat</h2>
+  <figure>
+    <figcaption>Pacific time. Teal is the STEM adapter (flat at 31.5%). Gray is the base (12.1%). Blue is the served 35B on the same 41-item overlap check. The gold line is the 4:06 AM reboot. Y-axis stops at 40% so the flat line is readable. A frontier tutor is not this chart.</figcaption>
+    <div class="legend"><span><i class="sw" style="background:#3dbea5"></i>adapter 31.5%</span><span><i class="sw" style="background:#6d7c8b"></i>base 12.1%</span><span><i class="sw" style="background:#7aa2ff"></i>served 35B</span></div>
+    <svg viewBox="0 0 920 320" role="img" aria-label="Token overlap scores over two days">
+<line x1="48" y1="217.5" x2="904" y2="217.5" stroke="#2a3542"/><text x="40" y="221.5" fill="#8b98a5" font-size="11" text-anchor="end">10%</text><line x1="48" y1="151.0" x2="904" y2="151.0" stroke="#2a3542"/><text x="40" y="155.0" fill="#8b98a5" font-size="11" text-anchor="end">20%</text><line x1="48" y1="84.5" x2="904" y2="84.5" stroke="#2a3542"/><text x="40" y="88.5" fill="#8b98a5" font-size="11" text-anchor="end">30%</text><line x1="48" y1="18.0" x2="904" y2="18.0" stroke="#2a3542"/><text x="40" y="22.0" fill="#8b98a5" font-size="11" text-anchor="end">40%</text>
+<polyline fill="none" stroke="#6d7c8b" stroke-width="2.2" points="48.0,203.5 72.5,203.5 96.9,203.5 121.4,203.5 145.8,203.5 170.3,203.5 194.7,203.5 219.2,203.5 243.7,203.5 268.1,203.5 292.6,203.5 317.0,203.5 341.5,203.5 365.9,203.5 390.4,203.5 414.9,203.5 439.3,203.5 463.8,203.5 488.2,203.5 512.7,203.5 537.1,203.5 561.6,203.5 586.1,203.5 610.5,203.5 635.0,203.5 659.4,203.5 683.9,203.5 708.3,203.5 732.8,203.5 757.3,203.5 781.7,203.5 806.2,203.5 830.6,203.5 855.1,203.5 879.5,203.5 904.0,203.5"/>
+<polyline fill="none" stroke="#3dbea5" stroke-width="2.2" points="48.0,74.5 72.5,74.5 96.9,74.5 121.4,74.5 145.8,74.5 170.3,74.5 194.7,74.5 219.2,74.5 243.7,74.5 268.1,74.5 292.6,74.5 317.0,74.5 341.5,74.5 365.9,74.5 390.4,74.5 414.9,74.5 439.3,74.5 463.8,74.5 488.2,74.5 512.7,74.5 537.1,74.5 561.6,74.5 586.1,74.5 610.5,74.5 635.0,74.5 659.4,74.5 683.9,74.5 708.3,74.5 732.8,74.5 757.3,74.5 781.7,74.5 806.2,74.5 830.6,74.5 855.1,74.5 879.5,74.5 904.0,74.5"/>
+<polyline fill="none" stroke="#7aa2ff" stroke-width="2.2" points="48.0,176.4 72.5,176.4 96.9,176.4 121.4,176.4 145.8,176.4 170.3,176.4 194.7,176.4 219.2,176.4 243.7,176.4 268.1,176.4 292.6,176.4 317.0,176.4 341.5,176.4 365.9,175.3 390.4,175.3 414.9,176.4 439.3,176.4 463.8,176.4 488.2,176.4 512.7,176.4 537.1,176.4 561.6,176.4 586.1,176.4 610.5,176.4 635.0,142.6 659.4,174.8 683.9,147.0 708.3,206.2 732.8,147.3 757.3,175.3 781.7,175.3 806.2,176.4 830.6,175.3 855.1,174.1 879.5,168.7 904.0,175.3"/>
+<line x1="879.5" y1="18" x2="879.5" y2="284" stroke="#e6b35a" stroke-dasharray="4 3"/><text x="883.5" y="32" fill="#e6b35a" font-size="11">reboot 4:06a PT</text>
+<text x="48.0" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/19 10a</text><text x="194.7" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/19 9p</text><text x="341.5" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/20 8a</text><text x="488.2" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/20 8p</text><text x="635.0" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/21 10a</text><text x="781.7" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/21 11p</text><text x="904.0" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/22 5a</text>
+</svg>
+  </figure>
+  <figure>
+    <figcaption>Fairness gap on the served 35B bake-off. The red line is the code gate at 10 points. One cycle, 22 Oct 12:22 China time (21 Oct 9:22 PM PT), hit 25.6 points and would fail that gate if this score were the one allowed to promote. The adapter’s own gap stayed 6.2 points, which passes.</figcaption>
+    <svg viewBox="0 0 920 320" role="img" aria-label="Serve-eval fairness gap">
+<line x1="48" y1="239.7" x2="904" y2="239.7" stroke="#2a3542"/><text x="40" y="243.7" fill="#8b98a5" font-size="11" text-anchor="end">5%</text><line x1="48" y1="195.3" x2="904" y2="195.3" stroke="#2a3542"/><text x="40" y="199.3" fill="#8b98a5" font-size="11" text-anchor="end">10%</text><line x1="48" y1="106.7" x2="904" y2="106.7" stroke="#2a3542"/><text x="40" y="110.7" fill="#8b98a5" font-size="11" text-anchor="end">20%</text><line x1="48" y1="18.0" x2="904" y2="18.0" stroke="#2a3542"/><text x="40" y="22.0" fill="#8b98a5" font-size="11" text-anchor="end">30%</text>
+<line x1="48" y1="195.3" x2="904" y2="195.3" stroke="#e07a6a" stroke-dasharray="5 4"/>
+<text x="904" y="189.3" fill="#e07a6a" font-size="11" text-anchor="end">gate 10 pts</text>
+<polyline fill="none" stroke="#e6b35a" stroke-width="2.2" points="48.0,228.5 72.5,228.5 96.9,228.5 121.4,228.5 145.8,228.5 170.3,228.5 194.7,228.5 219.2,228.5 243.7,228.5 268.1,228.5 292.6,228.5 317.0,228.5 341.5,228.5 365.9,230.4 390.4,230.4 414.9,228.5 439.3,228.5 463.8,228.5 488.2,228.5 512.7,228.5 537.1,228.5 561.6,228.5 586.1,228.5 610.5,228.5 635.0,267.1 659.4,208.1 683.9,284.0 708.3,268.0 732.8,56.7 757.3,230.4 781.7,230.4 806.2,228.5 830.6,230.4 855.1,236.3 879.5,258.9 904.0,230.4"/>
+<text x="48.0" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/19 10a</text><text x="194.7" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/19 9p</text><text x="341.5" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/20 8a</text><text x="488.2" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/20 8p</text><text x="635.0" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/21 10a</text><text x="781.7" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/21 11p</text><text x="904.0" y="312" fill="#8b98a5" font-size="11" text-anchor="middle">10/22 5a</text>
+</svg>
+  </figure>
+  <p>Inference: the nightly job is rescoring a frozen adapter against a small overlap set, then promoting it because 31.5 beats 12.1. The served 35B jumps between 12% and 21% with a small and unstable item count (n from 31 to 41). That jump is noise and load, not a model getting smarter. A real gain shows up as a new number on a frozen exam the trainer cannot see during the run. That 200-item set exists on main (<code>training/data/eval_frozen.jsonl</code>). This Spark loop is not scoring it.</p>
+
+  <h2>Khmer voice — eight epochs, then back to the base</h2>
+  <figure>
+    <figcaption>Dev set, 64 utterances, 2,477 train. Teal is loss (left, 2.9 to 3.5). Blue is speech-token accuracy (right, 20% to 30%). Epoch 7 ended at loss 2.941 and accuracy 27.4%. Early-stop patience is 2. Loss was still falling by tiny amounts, so it ran all 8 epochs. The serving config was left unchanged.</figcaption>
+    <div class="legend"><span><i class="sw" style="background:#3dbea5"></i>dev loss</span><span><i class="sw" style="background:#7aa2ff"></i>dev token accuracy</span></div>
+    <svg viewBox="0 0 920 300" role="img" aria-label="Khmer dev loss and accuracy by epoch">
+<line x1="48" y1="223.0" x2="904" y2="223.0" stroke="#2a3542"/><text x="40" y="227.0" fill="#8b98a5" font-size="11" text-anchor="end">3.0</text><line x1="48" y1="141.0" x2="904" y2="141.0" stroke="#2a3542"/><text x="40" y="145.0" fill="#8b98a5" font-size="11" text-anchor="end">3.2</text><line x1="48" y1="59.0" x2="904" y2="59.0" stroke="#2a3542"/><text x="40" y="63.0" fill="#8b98a5" font-size="11" text-anchor="end">3.4</text>
+<polyline fill="none" stroke="#3dbea5" stroke-width="2.4" points="48.0,59.2 170.3,177.4 292.6,207.3 414.9,224.1 537.1,231.1 659.4,238.8 781.7,243.2 904.0,247.3"/>
+<polyline fill="none" stroke="#7aa2ff" stroke-width="2.4" points="48.0,203.0 170.3,133.9 292.6,110.2 414.9,107.1 537.1,97.9 659.4,98.2 781.7,87.9 904.0,82.5"/>
+<circle cx="48.0" cy="59.2" r="3.5" fill="#3dbea5"/><circle cx="170.3" cy="177.4" r="3.5" fill="#3dbea5"/><circle cx="292.6" cy="207.3" r="3.5" fill="#3dbea5"/><circle cx="414.9" cy="224.1" r="3.5" fill="#3dbea5"/><circle cx="537.1" cy="231.1" r="3.5" fill="#3dbea5"/><circle cx="659.4" cy="238.8" r="3.5" fill="#3dbea5"/><circle cx="781.7" cy="243.2" r="3.5" fill="#3dbea5"/><circle cx="904.0" cy="247.3" r="3.5" fill="#3dbea5"/>
+<circle cx="48.0" cy="203.0" r="3.5" fill="#7aa2ff"/><circle cx="170.3" cy="133.9" r="3.5" fill="#7aa2ff"/><circle cx="292.6" cy="110.2" r="3.5" fill="#7aa2ff"/><circle cx="414.9" cy="107.1" r="3.5" fill="#7aa2ff"/><circle cx="537.1" cy="97.9" r="3.5" fill="#7aa2ff"/><circle cx="659.4" cy="98.2" r="3.5" fill="#7aa2ff"/><circle cx="781.7" cy="87.9" r="3.5" fill="#7aa2ff"/><circle cx="904.0" cy="82.5" r="3.5" fill="#7aa2ff"/>
+<text x="48.0" y="292" fill="#8b98a5" font-size="11" text-anchor="middle">e0</text><text x="170.3" y="292" fill="#8b98a5" font-size="11" text-anchor="middle">e1</text><text x="292.6" y="292" fill="#8b98a5" font-size="11" text-anchor="middle">e2</text><text x="414.9" y="292" fill="#8b98a5" font-size="11" text-anchor="middle">e3</text><text x="537.1" y="292" fill="#8b98a5" font-size="11" text-anchor="middle">e4</text><text x="659.4" y="292" fill="#8b98a5" font-size="11" text-anchor="middle">e5</text><text x="781.7" y="292" fill="#8b98a5" font-size="11" text-anchor="middle">e6</text><text x="904.0" y="292" fill="#8b98a5" font-size="11" text-anchor="middle">e7</text><text x="908" y="218.8" fill="#7aa2ff" font-size="11">22%</text><text x="908" y="145.0" fill="#7aa2ff" font-size="11">25%</text><text x="908" y="71.2" fill="#7aa2ff" font-size="11">28%</text>
+</svg>
+  </figure>
+  <p>The voice log shows 13 cycles that exited 0 and 20 that exited 1, and 19 lines that say training failed. Listener error rate, speaker similarity, and a Khmer lesson read-aloud were not measured. Edge voices already exist for playback: Mandarin Xiaoxiao / Yunxi, Cantonese HiuMaan, Khmer Sreymom / Piseth. Those can speak text we have. They are not a fine-tuned Salareen voice.</p>
+
+  <h2>Subject dependency — the spread is the bias that matters</h2>
+  <figure>
+    <figcaption>Adapter token-overlap by subject on the 41-item check. Geometry is 59%. Python files is 13%. Linear algebra is 14%. The gap between the best and worst subject is 46 points. The fairness gate only compares audience groups (reading level or language). It does not fail a model for being weak in a subject. Red bars are under 20%. Gold is under 40%. The dashed line is a proposed floor of 70% before a subject is treated as reliable.</figcaption>
+    <svg viewBox="0 0 780 560" role="img" aria-label="Accuracy by subject">
+<line x1="36" y1="40.0" x2="760" y2="40.0" stroke="#e07a6a" stroke-dasharray="4 3"/>
+<text x="760" y="36.0" fill="#e07a6a" font-size="11" text-anchor="end">proposed subject floor 70%</text>
+<rect x="40" y="431.5" width="22" height="88.5" fill="#e07a6a" rx="3"/><text x="51" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 51 536)">Python files</text><text x="51" y="427.5" fill="#c5d0da" font-size="9" text-anchor="middle">13%</text><rect x="76" y="425.4" width="22" height="94.6" fill="#e07a6a" rx="3"/><text x="87" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 87 536)">Linear algebra</text><text x="87" y="421.4" fill="#c5d0da" font-size="9" text-anchor="middle">14%</text><rect x="112" y="395.3" width="22" height="124.7" fill="#e07a6a" rx="3"/><text x="123" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 123 536)">Trigonometry</text><text x="123" y="391.3" fill="#c5d0da" font-size="9" text-anchor="middle">18%</text><rect x="148" y="382.9" width="22" height="137.1" fill="#e6b35a" rx="3"/><text x="159" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 159 536)">Python start</text><text x="159" y="378.9" fill="#c5d0da" font-size="9" text-anchor="middle">20%</text><rect x="184" y="361.7" width="22" height="158.3" fill="#e6b35a" rx="3"/><text x="195" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 195 536)">Statistics</text><text x="195" y="357.7" fill="#c5d0da" font-size="9" text-anchor="middle">23%</text><rect x="220" y="359.2" width="22" height="160.8" fill="#e6b35a" rx="3"/><text x="231" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 231 536)">Olympiad</text><text x="231" y="355.2" fill="#c5d0da" font-size="9" text-anchor="middle">23%</text><rect x="256" y="355.4" width="22" height="164.6" fill="#e6b35a" rx="3"/><text x="267" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 267 536)">Python lists</text><text x="267" y="351.4" fill="#c5d0da" font-size="9" text-anchor="middle">24%</text><rect x="292" y="346.7" width="22" height="173.3" fill="#e6b35a" rx="3"/><text x="303" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 303 536)">Arithmetic</text><text x="303" y="342.7" fill="#c5d0da" font-size="9" text-anchor="middle">25%</text><rect x="328" y="336.4" width="22" height="183.6" fill="#e6b35a" rx="3"/><text x="339" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 339 536)">Python functions</text><text x="339" y="332.4" fill="#c5d0da" font-size="9" text-anchor="middle">27%</text><rect x="364" y="332.4" width="22" height="187.6" fill="#e6b35a" rx="3"/><text x="375" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 375 536)">Python operators</text><text x="375" y="328.4" fill="#c5d0da" font-size="9" text-anchor="middle">27%</text><rect x="400" y="324.1" width="22" height="195.9" fill="#e6b35a" rx="3"/><text x="411" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 411 536)">Python OOP</text><text x="411" y="320.1" fill="#c5d0da" font-size="9" text-anchor="middle">29%</text><rect x="436" y="290.8" width="22" height="229.2" fill="#e6b35a" rx="3"/><text x="447" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 447 536)">Python modules</text><text x="447" y="286.8" fill="#c5d0da" font-size="9" text-anchor="middle">33%</text><rect x="472" y="286.1" width="22" height="233.9" fill="#e6b35a" rx="3"/><text x="483" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 483 536)">Problem solving</text><text x="483" y="282.1" fill="#c5d0da" font-size="9" text-anchor="middle">34%</text><rect x="508" y="279.1" width="22" height="240.9" fill="#e6b35a" rx="3"/><text x="519" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 519 536)">Python strings</text><text x="519" y="275.1" fill="#c5d0da" font-size="9" text-anchor="middle">35%</text><rect x="544" y="270.7" width="22" height="249.3" fill="#e6b35a" rx="3"/><text x="555" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 555 536)">Fractions</text><text x="555" y="266.7" fill="#c5d0da" font-size="9" text-anchor="middle">36%</text><rect x="580" y="262.9" width="22" height="257.1" fill="#e6b35a" rx="3"/><text x="591" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 591 536)">Calculus 1</text><text x="591" y="258.9" fill="#c5d0da" font-size="9" text-anchor="middle">38%</text><rect x="616" y="215.3" width="22" height="304.7" fill="#3dbea5" rx="3"/><text x="627" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 627 536)">Python loops</text><text x="627" y="211.3" fill="#c5d0da" font-size="9" text-anchor="middle">44%</text><rect x="652" y="199.2" width="22" height="320.8" fill="#3dbea5" rx="3"/><text x="663" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 663 536)">Calculus 2</text><text x="663" y="195.2" fill="#c5d0da" font-size="9" text-anchor="middle">47%</text><rect x="688" y="169.9" width="22" height="350.1" fill="#3dbea5" rx="3"/><text x="699" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 699 536)">Photosynthesis</text><text x="699" y="165.9" fill="#c5d0da" font-size="9" text-anchor="middle">51%</text><rect x="724" y="116.7" width="22" height="403.3" fill="#3dbea5" rx="3"/><text x="735" y="536" fill="#8b98a5" font-size="10" text-anchor="end" transform="rotate(-55 735 536)">Geometry</text><text x="735" y="112.7" fill="#c5d0da" font-size="9" text-anchor="middle">59%</text>
+</svg>
+  </figure>
+  <p>Protected attributes are kept out of the training context by the data guardrail. That is the right ban, and it is not a substitute for a subject floor. A learner in linear algebra is not getting the same tutor as a learner in geometry. For an accredited course that difference is a dependency: the credential is only as strong as the weakest scored objective.</p>
+
+  <h2>Truth curve</h2>
+  <div class="row">
+    <figure>
+      <figcaption>Target curve in teal: when the tutor says it is 80% sure, about 80% of those claims should be true. The dashed red bow is an illustration of overconfidence, not a fit to our model. We have not logged confidence against later human marks, so a measured truth curve does not exist yet.</figcaption>
+      <svg viewBox="0 0 420 260" role="img" aria-label="Target truth curve versus an overconfident illustration">
+<line x1="40" y1="210" x2="360" y2="210" stroke="#8b98a5"/>
+<line x1="40" y1="210" x2="40" y2="30" stroke="#8b98a5"/>
+<polyline fill="none" stroke="#3dbea5" stroke-width="2.4" points="40,210.0 72,193.0 104,176.0 136,159.0 168,142.0 200,125.0 232,108.0 264,91.0 296,74.0 328,57.0 360,40.0"/>
+<polyline fill="none" stroke="#e07a6a" stroke-width="2.2" stroke-dasharray="5 4" points="40,210.0 72,205.7 104,197.1 136,185.2 168,170.8 200,153.9 232,134.9 264,113.9 296,91.0 328,66.4 360,40.0"/>
+<text x="200" y="242" fill="#8b98a5" font-size="12" text-anchor="middle">claimed confidence</text>
+<text x="16" y="120" fill="#8b98a5" font-size="12" transform="rotate(-90 16 120)">share of claims that were true</text>
+<text x="200" y="22" fill="#3dbea5" font-size="12" text-anchor="middle">target: say 80% only when 80% are true</text>
+</svg>
+    </figure>
+    <div>
+      <p>The code that stands in for this curve is <code>check_grounding</code>. It splits an answer into claims and scores token overlap with the lesson passage. A claim needs support of at least 0.50. The answer passes when at least 70% of claims clear that bar. Otherwise the tutor is supposed to abstain and quote the lesson.</p>
+      <p>That guard is the right shape for education. It is not yet a calibration curve. Token overlap can mark a reworded true sentence as unsupported, and it can mark a fluent false sentence as supported if the words match. Frontier use needs three extra marks on every scored answer: grounded or not, abstained or not, and whether a human later agreed. Plot those. The teal diagonal is the target. The live tutor has not been plotted.</p>
+      <table>
+        <tr><th>Mark</th><th>Today</th><th>Accredited bar (proposed)</th></tr>
+        <tr><td>Claim support</td><td>0.50 overlap to count</td><td>Keep a lexical floor, add a human-checked subset</td></tr>
+        <tr><td>Answer pass</td><td>70% of claims</td><td>90% of claims, else abstain</td></tr>
+        <tr><td>Abstention</td><td>Implemented as a fallback quote</td><td>Counted as a success when the lesson does not contain the answer</td></tr>
+        <tr><td>Calibration error</td><td>Not measured</td><td>Under 5 points across confidence bins</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2>Translation and the demo lesson</h2>
+  <svg viewBox="0 0 720 360" role="img" aria-label="Translation files on disk by language"><text x="0" y="30" fill="#c5d0da" font-size="12">Mandarin zh</text><rect x="130" y="18" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="18" width="408.2" height="16" fill="#3dbea5" rx="3"/><text x="560" y="30" fill="#8b98a5" font-size="12">972 files on disk</text><text x="0" y="58" fill="#c5d0da" font-size="12">Khmer km</text><rect x="130" y="46" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="46" width="408.2" height="16" fill="#3dbea5" rx="3"/><text x="560" y="58" fill="#8b98a5" font-size="12">972 files on disk</text><text x="0" y="86" fill="#c5d0da" font-size="12">Spanish es</text><rect x="130" y="74" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="74" width="407.8" height="16" fill="#3dbea5" rx="3"/><text x="560" y="86" fill="#8b98a5" font-size="12">971 files on disk</text><text x="0" y="114" fill="#c5d0da" font-size="12">Vietnamese</text><rect x="130" y="102" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="102" width="407.8" height="16" fill="#3dbea5" rx="3"/><text x="560" y="114" fill="#8b98a5" font-size="12">971 files on disk</text><text x="0" y="142" fill="#c5d0da" font-size="12">Thai</text><rect x="130" y="130" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="130" width="404.5" height="16" fill="#3dbea5" rx="3"/><text x="560" y="142" fill="#8b98a5" font-size="12">963 files on disk</text><text x="0" y="170" fill="#c5d0da" font-size="12">Swahili</text><rect x="130" y="158" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="158" width="60.9" height="16" fill="#3dbea5" rx="3"/><text x="560" y="170" fill="#8b98a5" font-size="12">145 files on disk</text><text x="0" y="198" fill="#c5d0da" font-size="12">Indonesian</text><rect x="130" y="186" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="186" width="60.9" height="16" fill="#3dbea5" rx="3"/><text x="560" y="198" fill="#8b98a5" font-size="12">145 files on disk</text><text x="0" y="226" fill="#c5d0da" font-size="12">Czech</text><rect x="130" y="214" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="214" width="60.5" height="16" fill="#3dbea5" rx="3"/><text x="560" y="226" fill="#8b98a5" font-size="12">144 files on disk</text><text x="0" y="254" fill="#c5d0da" font-size="12">Greek</text><rect x="130" y="242" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="242" width="60.5" height="16" fill="#3dbea5" rx="3"/><text x="560" y="254" fill="#8b98a5" font-size="12">144 files on disk</text><text x="0" y="282" fill="#c5d0da" font-size="12">French</text><rect x="130" y="270" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="270" width="30.7" height="16" fill="#3dbea5" rx="3"/><text x="560" y="282" fill="#8b98a5" font-size="12">73 files on disk</text><text x="0" y="310" fill="#c5d0da" font-size="12">Japanese</text><rect x="130" y="298" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="298" width="30.2" height="16" fill="#3dbea5" rx="3"/><text x="560" y="310" fill="#8b98a5" font-size="12">72 files on disk</text><text x="0" y="338" fill="#c5d0da" font-size="12">Cantonese yue</text><rect x="130" y="326" width="420" height="16" fill="#243140" rx="3"/><rect x="130" y="326" width="0.0" height="16" fill="#e07a6a" rx="3"/><text x="560" y="338" fill="#8b98a5" font-size="12">0 files on disk</text></svg>
+  <p>File counts above are the cache on disk, mostly the old padded catalog (about 948 courses, often 76 or 108 segments). The app serves a file only when the segment count matches the live lesson. The live catalog is 222 own-lesson courses of 10 to 12 segments. This morning, zero of those courses had a Mandarin or Khmer file of the right length. Cantonese has zero files. The demo, Intro to Machine Learning (<code>audio-intro-to-machine-learning</code>), is 10 English segments. Its Mandarin and Khmer files are 108 segments, so the app speaks English. Segments 1–8 of those files are a real translation of the lesson. Segment 9 onward is unrelated padding. The clean batch that would rewrite them reached 1,000 of 4,440 and died at the reboot.</p>
+
+  <h2>Voice agents</h2>
+  <table>
+    <tr><th>Path</th><th>Measured state</th><th>Needed for a lesson</th></tr>
+    <tr><td>Edge neural voice</td><td>Registered for Mandarin, Cantonese, and Khmer</td><td>Cantonese text to read. Mandarin and Khmer text at the lesson’s real length.</td></tr>
+    <tr><td>Khmer CosyVoice</td><td>One full 8-epoch pass, not promoted. New pass restarted from the base weights.</td><td>Promote only after a listening check. Chain the next run from epoch 7, or stop restarting from the base.</td></tr>
+    <tr><td>Mandarin / Cantonese ingest</td><td>23 Mandarin, 13 Taiwanese, 13 Cantonese corpus directories on disk</td><td>Those are training audio, not this course’s narration. No Cantonese fine-tune has been promoted.</td></tr>
+    <tr><td>Live agent</td><td>Qwen 35B, Nemotron, and DeepSeek are listening on localhost</td><td>One voice per lesson language, grounded in that lesson, able to stop when the passage does not support the answer.</td></tr>
+  </table>
+
+  <h2>Deep specializations and tabular mastery</h2>
+  <p>The product already names specialist prep: OSHA, HIPAA, food handler, CompTIA, HVAC EPA, ASE, pharmacy tech, real estate, CPR, DMV. Those ids sit in <code>CERTIFIABLE_LESSONS</code>. A specialization is reliable only when each objective has its own row: items, difficulty, pass mark, and a human-signed key. That is a table, not a chat model.</p>
+  <p>We do not have a fitted tabular model (no item-response, no logistic mastery, no per-objective standard error). What we have is the subject table above, 20 tags, one overlap mean each, on 41 items total. A frontier education system keeps the language model for explanation and a small tabular model for “can this person be marked passed on this objective.” The table is what an auditor can recompute. The language model is not.</p>
+  <table>
+    <tr><th>Tabular field</th><th>Why it exists</th><th>Status</th></tr>
+    <tr><td>Item id, objective, keyed answer</td><td>A pass mark needs a stable item</td><td>Eval JSONL exists. Frozen 200-item file is on main and is not the Spark score.</td></tr>
+    <tr><td>Difficulty and discrimination</td><td>Stops a lucky pass on easy items</td><td>Not fitted</td></tr>
+    <tr><td>Group and subject means</td><td>Bias and dependency</td><td>Subject means measured. Audience gap measured at 6.2 pts on the adapter.</td></tr>
+    <tr><td>Attempt, abstain, human agree</td><td>Truth curve</td><td>Not logged as a table</td></tr>
+    <tr><td>Signer, body, card id</td><td>Accreditation</td><td>Card issuance is off in code</td></tr>
+  </table>
+
+  <h2>Accreditation dependencies</h2>
+  <p>A completion record is withheld until three things are true together: the published program has at least 200 slides, it includes a summative check, and a human of record has signed it. The view returned to the app sets the award to none and the external card to false. Guests can sample. A credited attempt needs a registered account, and a face, voice, and government-id check is required before the first full credited lesson. Membership tier is a separate gate. None of that issues an OSHA card, a DMV card, or a state diploma. Prep courses can teach toward those bodies. Salareen does not print their cards.</p>
+  <table>
+    <tr><th>Dependency</th><th>If it fails</th></tr>
+    <tr><td>Registered account</td><td>Guest cannot start or be marked passed on a certifiable lesson</td></tr>
+    <tr><td>Identity assurance</td><td>No first full credited lesson</td></tr>
+    <tr><td>Program length ≥ 200 slides</td><td>The deck stays a sample</td></tr>
+    <tr><td>Summative check</td><td>No completion record</td></tr>
+    <tr><td>Human signature</td><td>Draft stays a draft</td></tr>
+    <tr><td>Outside body</td><td>Still no card. This software does not issue one.</td></tr>
+    <tr><td>Subject floor and truth curve</td><td>A signature on a 31% overlap model would not be a reliable credential</td></tr>
+  </table>
+
+  <h2>Cleaning</h2>
+  <table>
+    <tr><th>Cleaner</th><th>What it does</th><th>What is still dirty</th></tr>
+    <tr><td>Dedup</td><td>Drops near-copy documents at Jaccard 0.8</td><td>Nightly STEM export can still rescore the same adapter</td></tr>
+    <tr><td>Fairness guardrail</td><td>Training context is pedagogical. Race and ethnicity are excluded.</td><td>Subject collapse is unguarded</td></tr>
+    <tr><td>Khmer text filter</td><td>Training text must be mostly Khmer script</td><td>Lesson Khmer still contains English leftovers in the overview</td></tr>
+    <tr><td>Translation length check</td><td>A file is served only when its segment count matches the lesson</td><td>972 Mandarin and Khmer files are the wrong length, so they are refused</td></tr>
+    <tr><td>Padding removal</td><td>Catalog no longer appends “Related context” from other topics</td><td>The cache still holds those padded files</td></tr>
+  </table>
+
+  <h2>Common scores, with our number beside the target</h2>
+  <table>
+    <tr><th>Score</th><th>Measured</th><th>Gate we already encode</th><th>Proposed before a specialization is called reliable</th></tr>
+    <tr><td>Token overlap F1</td><td>31.5% adapter, 12.1% base, ~16% served 35B</td><td>Higher than the base wins the bake-off</td><td>70% on a frozen set the run cannot fit</td></tr>
+    <tr><td>Fairness gap</td><td>6.2 pts adapter; served gap has hit 25.6</td><td>Reject above 10 pts</td><td>5 pts, and publish the groups</td></tr>
+    <tr><td>Subject floor</td><td>13% to 59%</td><td>None</td><td>No objective under 70% of the keyed items</td></tr>
+    <tr><td>Groundedness</td><td>Not run on the live tutor</td><td>70% of claims, support 0.50</td><td>90%, else abstain</td></tr>
+    <tr><td>Abstention on uncoverable questions</td><td>The frozen set’s design includes these items. This loop did not score them.</td><td>Hallucination guard can quote the passage</td><td>Count a correct abstain as a hit</td></tr>
+    <tr><td>Speech token accuracy</td><td>27.4% Khmer dev</td><td>Early stop, patience 2, not fired</td><td>A blind listening check before promotion</td></tr>
+    <tr><td>Translation coverage</td><td>zh and km files exist; shape does not match; yue is absent</td><td>Length must match</td><td>222 courses × Mandarin, Cantonese, Khmer, same shape</td></tr>
+    <tr><td>Credential issuance</td><td>0 cards</td><td>Hard off until signature and 200 slides</td><td>Leave it off until the rows above are true</td></tr>
+  </table>
+
+  <h2>The path</h2>
+  <div class="flow" aria-label="Path from clean data to a served accredited lesson">
+    <div class="step"><b>1 Clean</b><p>Script filter, dedup, and drop padded lessons.</p><em>Pipeline is built. The cache is still padded.</em></div>
+    <div class="step"><b>2 Frozen exam</b><p>200 items, fixed, unseen by the training split.</p><em>On main. This Spark loop scores 41 items instead.</em></div>
+    <div class="step"><b>3 Train</b><p>One GPU lock. STEM or Khmer, not both.</p><em>Khmer holds the lock now.</em></div>
+    <div class="step"><b>4 Fairness</b><p>Gap under 10 points, and no subject under the floor.</p><em>The gap passes. The subjects do not.</em></div>
+    <div class="step"><b>5 Ground</b><p>Every claim overlaps the lesson, or the tutor abstains.</p><em>The guard exists. It is not scored live.</em></div>
+    <div class="step"><b>6 Human sign</b><p>200-slide program, summative check, person of record.</p><em>Cards are hardcoded off.</em></div>
+    <div class="step"><b>7 Serve</b><p>Same-shape text and a voice for Mandarin, Cantonese, and Khmer.</p><em>The demo still speaks English.</em></div>
+  </div>
+  <h2>Scenarios</h2>
+  <div class="scene">
+    <div class="card">
+      <h3>Demo, Intro to Machine Learning</h3>
+      <p>A visitor taps Start. The lesson is ten English parts: examples, splits, features, the training loop, overfitting, evaluation, deployment, ethics, then a recap. Mandarin and Khmer text for the eight teaching parts is already written and is the best AI lesson we have. The app will not play it, because the stored files are 108 segments. Cantonese has no text, so HiuMaan has nothing in Cantonese to read. This is the course to keep as the demo. It is not ready to demonstrate three languages.</p>
+    </div>
+    <div class="card">
+      <h3>Khmer parent, audio on the drive</h3>
+      <p>They pick Khmer. The gateway that was translating is down. The cached lesson is the wrong shape, so the voice speaks English with a Khmer voice setting only if the client forces it, and the words will not match. Sreymom can speak real Khmer once a 10-segment file exists. The fine-tune is not what they will hear.</p>
+    </div>
+    <div class="card">
+      <h3>Cantonese learner</h3>
+      <p>There is no phrase course, no NLLB code, and no <code>yue.json</code>. Ingest directories exist for training a voice later. A demo that promises Cantonese today would be reading Mandarin with a Hong Kong voice, which is the wrong language.</p>
+    </div>
+    <div class="card">
+      <h3>Accredited OSHA pass</h3>
+      <p>The id is listed, with a 2.0 CEU label and the body name OSHA. A guest is stopped. A registered learner still cannot receive a completion record or an outside card. The module says so on purpose. Signing that program on top of a 31% overlap tutor would put a name on a score that has not moved in 40 cycles.</p>
+    </div>
+  </div>
+
+  <h2>Where to go next, in order</h2>
+  <p>Stop treating a repeated promotion as progress. Point the Spark eval at the frozen 200-item set and keep the adapter only when that number rises. Add a subject floor so linear algebra cannot hide inside a 31% average. Log groundedness, abstention, and later human agreement so the truth curve becomes a plot instead of a drawing. Restart translation only for the 222-course catalog, at concurrency 1 on this machine, and do not load a second Khmer run from the base weights while that eval needs the GPU. Write Cantonese as its own language or keep it out of the demo. Leave external cards off until a person of record signs a program that clears the subject floor.</p>
+</main>
+<footer>
+  Sources on this machine: <code>~/.local/share/aoep-train/llm.log</code> (40 scored cycles), Khmer log <code>train-20261022T110626Z.log</code> epochs 0–7, translation cache counts, <code>training/evaluate.py</code>, <code>training/bakeoff.py</code> fairness gate 0.10, <code>aoep_shared/groundedness.py</code>, <code>aoep_shared/full_programs.py</code> (200-slide floor, cards off), <code>CERTIFIABLE_LESSONS</code>. Host Chans-Spark. Generated 22 Oct 2026, 8:16 AM PT.
+</footer>
+</body>
+</html>
