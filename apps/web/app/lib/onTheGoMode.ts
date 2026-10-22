@@ -46,8 +46,9 @@ export function onTheGoExperience(mode: OnTheGoMode): OnTheGoExperience {
  * before this change - does NOT depend on the drivers-ed handbook harvest
  * cache that was returning 500 on the Studio page.
  */
-export const DEMO_COURSE_ID = "audio-introduction-to-machine-learning";
-export const DEMO_COURSE_TITLE_FALLBACK = "Introduction to Machine Learning";
+// The old slug had no lesson of its own and only played other topics' text.
+export const DEMO_COURSE_ID = "audio-intro-to-machine-learning";
+export const DEMO_COURSE_TITLE_FALLBACK = "Intro to Machine Learning";
 
 /**
  * Preference order when picking a single demo course from a catalog listing.
