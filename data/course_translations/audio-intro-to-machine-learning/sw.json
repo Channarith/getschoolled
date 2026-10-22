@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-intro-to-machine-learning",
+  "title": "Utangulizi wa Machine Learning",
+  "category": "Technology",
+  "source_language": "en",
+  "language": "sw",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Muhtasari",
+      "text": "Karibu. Katika somo hili tunachunguza Utangulizi wa Kujifunza kwa Mashine. Tutashughulikia sehemu nane, kuanzia na Kujifunza kutoka kwa Mifano, Mgawanyo wa Data, Vipengele na Mifano, Mzunguko wa Mafunzo, Overfitting, Tathmini, Utekelezaji, na Mipaka na Maadili. Unaposikiliza, angalia jinsi kila sehemu inavyojengwa juu ya ile iliyotangulia — hauhitaji kuchukua maelezo, fuata tu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Kujifunza kutokana na mifano",
+      "text": "Ujifunzaji wa mashine hujenga mifano inayoboresha utendaji wa kazi kwa kutafuta mifumo katika data badala ya sheria zilizowekwa kwa mkono. Ujifunzaji unaosimamiwa hutumia mifano iliyo na lebo; ujifunzaji usiosimamiwa hupata muundo bila lebo. Ujifunzaji wa kuimarisha hujifunza kutokana na zawadi katika mazingira kama michezo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Mgawanyo wa data",
+      "text": "Data hugawanywa katika seti za mafunzo, uthibitishaji na majaribio ili kupima ujumla. Uvujaji—taarifa za majaribio katika mafunzo—huongeza alama kwa njia ya kupotosha. Uthibitishaji mtambuka hutoa makadirio thabiti kwenye seti ndogo za data.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Vipengele na Mifano",
+      "text": "Vipengele ni viingizo; lebo ni malengo katika uainishaji na urejeshaji. Mifano ya mstari ni baselines zinazoweza kufasiriwa; ensembles za miti hushughulikia data ya jedwali vizuri. Mitandao ya neva huwa bora kwenye picha, sauti na maandishi ikiwa na data na nguvu ya kompyuta ya kutosha.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Kitanzi cha mafunzo",
+      "text": "Loss functions hupima makosa; optimizers kama Adam hurekebisha uzito ili kupunguza loss katika epochs. Ukubwa wa batch na kiwango cha kujifunza huathiri uthabiti na kasi. GPUs huharakisha operesheni za matrix wakati wa kufundisha mifano mikubwa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Kufaa kupita kiasi",
+      "text": "Miundo inayokumbuka kelele za data ya mafunzo hushindwa kwenye data mpya. Regularization, dropout na early stopping hupunguza overfitting. Data yenye anuwai zaidi mara nyingi husaidia zaidi kuliko kuongeza ukubwa wa miundo bila kikomo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Tathmini",
+      "text": "Uainishaji hutumia usahihi, ukumbusho, na F1 hasa wakati madarasa hayana usawa. Urejeshaji hutumia MAE na RMSE. Chagua vipimo vinavyolingana na gharama halisi za chanya za uwongo na hasi za uwongo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Upelekwaji",
+      "text": "Modeli hutoa utabiri kupitia API au kwa kufanya inference moja kwa moja kwenye kifaa. Ufuatiliaji hugundua mabadiliko ya data wakati pembejeo za ulimwengu halisi zinabadilika. Mazoea ya MLOps yanahifadhi matoleo ya data, msimbo na modeli ili kuhakikisha uzalishwaji upya.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Mipaka na maadili",
+      "text": "Modeli zinaweza kuwa na upendeleo, dhaifu katika hali za kipekee, na zisizoeleweka katika mitandao ya kina. Matumizi yenye hatari kubwa katika dawa na haki yanahitaji usimamizi na uwazi. ML huongeza uamuzi wa binadamu; haibadilishi uwajibikaji.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Mambo muhimu",
+      "text": "Mambo muhimu ya kujifunza. Hebu tuangalie tena mambo makuu.\n\nKujifunza kutoka kwa Mifano. Machine learning hujenga mifano inayoboresha utendaji wa kazi kwa kutafuta mifumo katika data badala ya sheria zilizowekwa kwa mkono. Supervised learning hutumia mifano iliyo na lebo; unsupervised learning hupata muundo bila lebo. Reinforcement learning hujifunza kutoka kwa zawadi katika mazingira kama michezo.\n\nMgawanyo wa Data. Data hugawanywa katika seti za mafunzo, uthibitishaji na majaribio ili kupima uwezo wa kujumlisha. Leakage—taarifa za majaribio zikiingia kwenye mafunzo—inapandisha alama kwa njia ya kupotosha. Cross-validation hutoa makadirio thabiti kwenye seti ndogo za data.\n\nVipengele na Mifano. Vipengele ni pembejeo; lebo ni malengo katika uainishaji na urejeshaji. Mifano ya mstari ni baselines zinazoeleweka; tree ensembles hushughulikia data ya tabular vizuri. Neural networks hufanya vizuri kwenye picha, sauti na maandishi ikiwa kuna data na nguvu za kutosha.\n\nKitanzi cha Mafunzo. Kazi za hasara hupima makosa; optimizers kama Adam hurekebisha uzito ili kupunguza hasara kwa wakati wa epochs. Ukubwa wa batch na kiwango cha kujifunza huathiri uthabiti na kasi. GPUs huharakisha operesheni za matrix wakati wa kufundisha mifano mikubwa.\n\nOverfitting. Mifano inayokumbuka kelele za mafunzo inashindwa kwenye data mpya. Regularization, dropout na early stopping hupunguza overfitting. Data yenye anuwai zaidi mara nyingi husaidia zaidi kuliko kuongeza ukubwa wa mifano bila kikomo.\n\nTathmini. Uainishaji hutumia precision, recall na F1 hasa wakati madarasa hayana usawa. Urejeshaji hutumia MAE na RMSE. Chagua metriki zinazolingana na gharama halisi za positive false na negative false.\n\nUtekelezaji. Mifano hutoa utabiri kupitia API au inference kwenye kifaa. Ufuatiliaji hugundua data drift wakati pembejeo za ulimwengu halisi zinabadilika. Mazoea ya MLOps yanatoa toleo la data, code na mifano kwa ajili ya uzalishaji tena.\n\nMipaka na Maadili. Mifano inaweza kuwa na upendeleo, dhaifu kwenye kesi za pembeni na isiyoeleweka katika mitandao ya kina. Matumizi ya hatari kubwa katika dawa na haki yanahitaji usimamizi na uwazi. ML huongeza uamuzi wa binadamu; haibadilishi uwajibikaji.\n\nKumbuka haya, na utakuwa na ufahamu mzuri wa Utangulizi wa Machine Learning. Hiyo ndiyo mwisho wa somo hili — asante kwa kusikiliza.",
+      "kind": "narration"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-ada-lovelace-first-programmer",
+  "title": "Ada Lovelace, İlk Programcı",
+  "category": "True Stories & Biographies",
+  "source_language": "en",
+  "language": "tr",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Genel Bakış",
+      "text": "Hoş geldiniz. Bu derste Ada Lovelace'i, İlk Programcı'yı keşfedeceğiz. 1815-1852, İlk Algoritma, Vizyon, Babbage İşbirliği, Gecikmiş Miras, Cinsiyet Engelleri, Modern Tanınma ve İlham olmak üzere 8 bölümü ele alacağız. Dinlerken her bölümün bir öncekine nasıl dayandığını fark edin — not almanıza gerek yok, sadece takip edin.",
+      "kind": "narration"
+    },
+    {
+      "heading": "1815-1852",
+      "text": "Augusta Ada King, Lovelace Kontesi, Charles Babbage ile Analitik Motor tasarımı üzerinde çalıştı. Luigi Menabrea'nın makalesini çevirdi ve kapsamlı notlar ekledi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlk Algoritma",
+      "text": "Note G'si, motor üzerinde Bernoulli sayılarını hesaplamak için bir algoritma tanımladı—genellikle ilk bilgisayar programı olarak anılır. Makinelerin yalnızca sayı hesaplama ötesinde sembolleri manipüle edebildiğini gördü.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Vizyon",
+      "text": "Lovelace, kurallar sembolik olarak ifade edilebilirse motorların müzik besteleyebileceğini düşündü. Hesaplama ile gerçek yaratıcılık arasındaki farkı şüpheci bir şekilde vurguladı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Babbage İşbirliği",
+      "text": "Babbage Fark ve Analitik Motorları tasarladı; Lovelace tasarımlarının matematiksel çıkarımlarını netleştirdi. Finansman kısıtlamaları, tam Analitik Motor'un yaşamları boyunca inşa edilmesini engelledi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Miras gecikti",
+      "text": "Katkıları 1950'lerde B.V. Bowden ve Alan Turing dönemi tarihçileri tarafından yeniden keşfedildi. Ada programlama dili 1980'de onun onuruna adlandırıldı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Cinsiyet Engelleri",
+      "text": "Kadınların üniversitelerden ve bilimsel topluluklardan dışlanması, o dönemde resmi tanınmayı sınırlıyordu. Aristokratik eğitimi ve annesi Annabella'nın matematik eğitimi, onun yolunu açtı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Modern Tanınma",
+      "text": "Ada Lovelace Günü her Ekim ayında STEM alanlarındaki kadınları kutlar. Babbage ile Ada'nın belirli içgörüleri ne kadar adil katkıda bulunduğu tartışmaları devam ediyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlham",
+      "text": "Hikayesi, yaratıcı öngörünün donanımla birlikte önemli olduğunu gösteriyor. Erken bilgisayar tarihi, şimdi kanona dahil edilen göz ardı edilmiş figürleri içeriyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Önemli çıkarımlar",
+      "text": "Ana noktalar. Ana noktaları özetleyelim. 1815-1852. Augusta Ada King, Lovelace Kontesi, Charles Babbage ile Analitik Motor tasarımı üzerinde çalıştı. Luigi Menabrea’nın makalesini çevirdi ve kapsamlı notlar ekledi. İlk Algoritma. Not G’si, motor üzerinde Bernoulli sayılarını hesaplamak için bir algoritma tanımladı; genellikle ilk bilgisayar programı olarak kabul edilir. Makinelerin yalnızca sayı hesaplama ötesinde sembolleri manipüle edebileceğini gördü. Vizyon. Lovelace, kurallar sembolik olarak ifade edilebilirse motorların müzik besteleyebileceğini öngördü. Hesaplama ile gerçek yaratıcılık arasında şüpheci bir ayrım yaptı. Babbage İşbirliği. Babbage, Fark ve Analitik Motorları tasarladı; Lovelace ise tasarımlarının matematiksel sonuçlarını netleştirdi. Finansman kısıtları, Analitik Motor’un tam olarak inşa edilmesini ömürleri boyunca engelledi. Gecikmiş Miras. Katkıları 1950’lerde B.V. Bowden ve Alan Turing dönemi tarihçileri tarafından yeniden keşfedildi. Ada programlama dili 1980’de onun onuruna adlandırıldı. Cinsiyet Engelleri. Kadınların üniversitelerden ve bilimsel topluluklardan dışlanması, dönemin resmi tanınmasını sınırladı. Aristokratik eğitimi ve annesi Annabella’nın matematik dersleri yolunu açtı. Modern Tanınma. Ada Lovelace Günü her Ekim ayında STEM alanındaki kadınları kutlar. Babbage ile Ada’nın belirli içgörülere ne kadar katkıda bulunduğu tartışmaları devam ediyor. İlham. Hikayesi, donanımın yanı sıra hayal gücünün de önemli olduğunu gösteriyor. Erken bilgisayar tarihi, şimdi kanona geri kazandırılan göz ardı edilmiş figürleri de içerir. Bunları aklınızda tutun, Ada Lovelace, İlk Programcı hakkında sağlam bir kavrayışa sahip olacaksınız. Dersin sonu — dinlediğiniz için teşekkürler.",
+      "kind": "narration"
+    }
+  ]
+}

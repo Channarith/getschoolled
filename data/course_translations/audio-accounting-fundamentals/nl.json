@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-accounting-fundamentals",
+  "title": "Basisprincipes van boekhouden",
+  "category": "Business & Finance",
+  "source_language": "en",
+  "language": "nl",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Overzicht",
+      "text": "Welkom. In deze les verkennen we Accounting Fundamentals. We behandelen 8 onderdelen, beginnend met What Is Accounting, The Accounting Equation, Assets Liabilities Equity, Revenue and Expenses, The Income Statement, The Balance Sheet, Cash Flow Statement en Why Accounting Matters. Terwijl je luistert, merk je hoe elk onderdeel voortbouwt op het vorige — je hoeft geen aantekeningen te maken, volg gewoon mee.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Wat is boekhouden?",
+      "text": "Boekhouding is het systematisch vastleggen, samenvatten en rapporteren van financiële transacties om besluitvorming mogelijk te maken door eigenaren, investeerders, crediteuren en toezichthouders. Vaak de taal van het bedrijfsleven genoemd, vertaalt boekhouding de economische realiteit van een organisatie naar gestandaardiseerde numerieke rapporten. Financiële boekhouding produceert rapporten voor externe gebruikers zoals aandeelhouders en belastingautoriteiten. Management accounting produceert interne rapporten voor organisatorische besluitvorming. Elke zakelijke transactie, een verkoop, een aankoop of een lening, heeft een boekhoudkundig gevolg dat moet worden vastgelegd om een accuraat beeld van de financiële positie te behouden.",
+      "kind": "narration"
+    },
+    {
+      "heading": "De boekhoudkundige vergelijking",
+      "text": "De fundamentele boekhoudkundige vergelijking is Activa gelijk aan Passiva plus Eigen vermogen. Deze vergelijking moet altijd in evenwicht zijn, omdat elke transactie minstens twee rekeningen beïnvloedt op een manier die dat evenwicht behoudt. Daarom heet het systeem dubbel boekhouden. Als je apparatuur ter waarde van tienduizend dollar contant koopt, blijven de activa onveranderd, omdat het contante geld daalt maar de apparatuur met hetzelfde bedrag stijgt. Als je geld leent, nemen zowel activa als passiva evenveel toe. Deze elegante beperking zorgt voor interne consistentie in de financiële administratie en maakt fouten zichtbaar door de onevenwichtigheid die ze veroorzaken.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Activa Passiva Eigen vermogen",
+      "text": "Activa zijn middelen die het bedrijf bezit of controleert en die toekomstige economische waarde hebben: contant geld, voorraad, apparatuur, gebouwen, vorderingen en immateriële activa zoals octrooien. Passiva zijn verplichtingen die het bedrijf aan anderen verschuldigd is: leningen, crediteuren aan leveranciers, lonen aan werknemers en belastingen aan de autoriteiten. Eigen vermogen vertegenwoordigt het resterende belang van de eigenaren in de activa nadat alle passiva zijn betaald. Eigen vermogen neemt toe door winsten en investeringen van de eigenaren; het neemt af door verliezen en opnames door eigenaren. Het begrijpen van deze drie categorieën vormt de basis voor het accuraat lezen van elk financieel overzicht.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Omzet en kosten",
+      "text": "Omzet is de inkomsten die worden verdiend met de primaire activiteiten van het bedrijf: het verkopen van producten of het verlenen van diensten. Kosten zijn de uitgaven die worden gemaakt om die omzet te genereren, inclusief salarissen, huur, materialen, nutsvoorzieningen en afschrijvingen op apparatuur. Nettowinst, of winst, is omzet minus kosten. Bij het toerekeningsstelsel wordt omzet geboekt wanneer deze wordt verdiend en kosten wanneer deze worden gemaakt, ongeacht wanneer het geld daadwerkelijk van eigenaar wisselt. Een bedrijf dat in december een dienst heeft geleverd, boekt die omzet in december, ook als de betaling pas in januari binnenkomt. Dit matchingbeginsel geeft een waarheidsgetrouwer beeld van de economische prestaties over een bepaalde periode.",
+      "kind": "narration"
+    },
+    {
+      "heading": "De winst- en verliesrekening",
+      "text": "De winst- en verliesrekening, ook wel resultatenrekening genoemd, vat de opbrengsten en kosten over een bepaalde periode samen: een maand, kwartaal of jaar. Hij begint met de bruto-omzet, trekt de directe kosten voor het produceren van goederen of diensten af om tot de brutowinst te komen, en trekt daarna de operationele kosten zoals huur en salarissen af om bij het operationele resultaat uit te komen. Rentelasten en belastingen worden vervolgens afgetrokken om tot de nettowinst te komen. Een winstgevend bedrijf laat een positieve nettowinst zien; een verlieslatend bedrijf een negatief resultaat. Investeerders en managers analyseren winst- en verliesrekeningen om de efficiëntie, winstgevendheidstrends en de duurzaamheid van de resultaten te beoordelen.",
+      "kind": "narration"
+    },
+    {
+      "heading": "De Balans",
+      "text": "De balans geeft een momentopname van de financiële positie van een bedrijf op een specifiek moment, met een overzicht van alle activa, passiva en het eigen vermogen. Anders dan de winst- en verliesrekening, die een periode beslaat, legt de balans één enkel punt vast. Vlottende activa zoals contanten en voorraad worden binnen een jaar omgezet in geld. Vaste activa zoals apparatuur en onroerend goed leveren waarde over meerdere jaren. Kortlopende verplichtingen moeten binnen een jaar worden betaald; langlopende verplichtingen lopen daaroverheen. De balans laat zien of een bedrijf zijn kortetermijnverplichtingen kan nakomen en hoe de middelen binnen de organisatie worden ingezet.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Kasstroomoverzicht",
+      "text": "Het kasstroomoverzicht laat zien hoe het geld daadwerkelijk in en uit het bedrijf is gestroomd gedurende een periode, en is verdeeld in drie onderdelen. Operationele activiteiten tonen het geld dat is gegenereerd of verbruikt door de kernactiviteiten van het bedrijf. Investeringsactiviteiten tonen het geld dat is uitgegeven aan of ontvangen van langetermijnactiva. Financieringsactiviteiten tonen het geld afkomstig van of betaald aan verschaffers van vreemd en eigen vermogen. Een bedrijf kan boekhoudkundige winst rapporteren terwijl het negatieve kasstroom heeft als klanten traag betalen. Het kasstroomoverzicht wordt vaak gezien als het meest betrouwbare financiële overzicht omdat geld moeilijker te manipuleren is dan boekingen op basis van het toerekeningsbeginsel.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Waarom boekhouding belangrijk is",
+      "text": "Boekhouding stelt elke belanghebbende in een bedrijf in staat om weloverwogen beslissingen te nemen op basis van gedeelde, gestandaardiseerde informatie. Eigenaren gebruiken boekhoudkundige gegevens om de prestaties te evalueren en strategische beslissingen te nemen. Investeerders gebruiken financiële overzichten om te beoordelen of een bedrijf een investering waard is. Kredietverstrekkers beoordelen de kredietwaardigheid op basis van de sterkte van de balans en de kasstroom. Belastingautoriteiten zorgen ervoor dat bedrijven hun inkomen nauwkeurig rapporteren. Binnen organisaties helpt management accounting managers om middelen toe te wijzen aan de meest winstgevende activiteiten, kosten te beheersen en te plannen voor toekomstige periodes. Zonder betrouwbare boekhouding kunnen bedrijven niet weten of ze winstgevend zijn of of ze aan hun komende financiële verplichtingen kunnen voldoen.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Belangrijkste punten",
+      "text": "Belangrijkste inzichten. Laten we de belangrijkste punten samenvatten. Wat is boekhouding. Boekhouding is het systematisch vastleggen, samenvatten en rapporteren van financiële transacties om besluitvorming mogelijk te maken door eigenaren, investeerders, crediteuren en toezichthouders. Vaak de taal van het bedrijfsleven genoemd, vertaalt boekhouding de economische werkelijkheid van een organisatie in gestandaardiseerde numerieke rapporten. Financiële boekhouding produceert rapporten voor externe gebruikers zoals aandeelhouders en belastingautoriteiten. Management accounting produceert interne rapporten voor besluitvorming binnen de organisatie. Elke zakelijke transactie, een verkoop, een aankoop of een lening, heeft een boekhoudkundig gevolg dat moet worden vastgelegd om een accuraat beeld van de financiële positie te behouden. De boekhoudkundige vergelijking. De fundamentele boekhoudkundige vergelijking is Activa gelijk aan Verplichtingen plus Eigen vermogen. Deze vergelijking moet altijd in evenwicht zijn, omdat elke transactie minstens twee rekeningen beïnvloedt op een manier die dit evenwicht behoudt, daarom wordt het systeem dubbele boekhouding genoemd. Wanneer je apparatuur ter waarde van tienduizend dollar met contant geld koopt, blijven de activa onveranderd omdat contant geld afneemt maar apparatuur met hetzelfde bedrag toeneemt. Wanneer je geld leent, nemen zowel activa als verplichtingen evenredig toe. Deze elegante beperking zorgt voor interne consistentie in financiële administraties en maakt fouten detecteerbaar door de onevenwichtigheid die ze veroorzaken. Activa Verplichtingen Eigen vermogen. Activa zijn middelen die het bedrijf bezit of controleert en die toekomstige economische waarde hebben: contant geld, voorraad, apparatuur, gebouwen, debiteuren en immateriële activa zoals patenten. Verplichtingen zijn verplichtingen die het bedrijf aan anderen heeft: leningen, crediteuren, lonen aan werknemers en belastingen aan autoriteiten. Eigen vermogen vertegenwoordigt het resterende belang van de eigenaren in de activa nadat alle verplichtingen zijn betaald. Eigen vermogen neemt toe door winsten en investeringen van eigenaren; het neemt af door verliezen en opnames door eigenaren. Inzicht in deze drie categorieën vormt de basis voor het accuraat lezen van elke financiële verklaring. Omzet en kosten. Omzet is inkomen verdiend uit de primaire activiteiten van het bedrijf, het verkopen van producten of het verlenen van diensten. Kosten zijn uitgaven gemaakt om die omzet te genereren, inclusief salarissen, huur, materialen, nutsvoorzieningen en afschrijving van apparatuur. Nettowinst, of winst, is omzet minus kosten. Accrual accounting registreert omzet wanneer die is verdiend en kosten wanneer die zijn gemaakt, ongeacht wanneer het geld daadwerkelijk van eigenaar wisselt. Een bedrijf dat in december een dienst heeft geleverd, registreert die omzet in december, ook als de betaling in januari binnenkomt. Dit matching-principe geeft een waarheidsgetrouwer beeld van de economische prestaties over een periode. De winst- en verliesrekening. De winst- en verliesrekening, ook wel resultatenrekening genoemd, vat de omzet en kosten over een specifieke periode samen: een maand, kwartaal of jaar. Hij begint met de bruto-omzet, trekt de directe kosten van het produceren van goederen of diensten af om tot de brutowinst te komen, en trekt vervolgens operationele kosten zoals huur en salarissen af om tot het operationele resultaat te komen. Rentelasten en belastingen worden afgetrokken om tot de nettowinst te komen. Een winstgevend bedrijf toont een positieve nettowinst; een verlieslatend bedrijf toont een negatief",
+      "kind": "narration"
+    }
+  ]
+}

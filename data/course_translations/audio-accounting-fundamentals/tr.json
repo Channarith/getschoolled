@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-accounting-fundamentals",
+  "title": "Muhasebe Temelleri",
+  "category": "Business & Finance",
+  "source_language": "en",
+  "language": "tr",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Genel Bakış",
+      "text": "Hoş geldiniz. Bu derste Muhasebe Temellerini inceleyeceğiz. 8 bölüm ele alacağız; What Is Accounting, The Accounting Equation, Assets Liabilities Equity, Revenue and Expenses, The Income Statement, The Balance Sheet, Cash Flow Statement ve Why Accounting Matters ile başlayarak. Dinlerken her bölümün bir öncekine nasıl dayandığını fark edin — not almanıza gerek yok, sadece takip edin.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Muhasebe nedir?",
+      "text": "Muhasebe, sahipler, yatırımcılar, alacaklılar ve düzenleyiciler tarafından karar alma süreçlerini desteklemek amacıyla finansal işlemlerin sistematik olarak kaydedilmesi, özetlenmesi ve raporlanmasıdır. İşletmenin dili olarak da adlandırılan muhasebe, bir organizasyonun ekonomik gerçekliğini standartlaştırılmış sayısal raporlara dönüştürür. Finansal muhasebe, hissedarlar ve vergi otoriteleri gibi dış kullanıcılar için raporlar üretir. Yönetim muhasebesi ise organizasyonel karar alma süreçleri için iç raporlar üretir. Her iş işlemi, bir satış, bir alım veya bir kredi, finansal pozisyonun doğru bir resmini korumak için kaydedilmesi gereken bir muhasebe sonucuna sahiptir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Muhasebe Denklemi",
+      "text": "Temel muhasebe denklemi Varlıklar eşittir Yükümlülükler artı Özkaynaklar'dır. Bu denklemin her zaman dengede kalması gerekir çünkü her işlem en az iki hesabı bu dengeyi koruyacak şekilde etkiler, bu yüzden sisteme çift taraflı kayıt sistemi denir. Nakit kullanarak on bin dolar değerinde ekipman aldığınızda, nakit azalırken ekipman aynı miktarda arttığı için varlıklar değişmeden kalır. Para borç aldığınızda hem varlıklar hem yükümlülükler eşit oranda artar. Bu zarif kısıtlama, finansal kayıtların iç tutarlılığını sağlar ve hataların yarattığı dengesizlik sayesinde tespit edilmesini mümkün kılar.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Varlıklar Yükümlülükler Özkaynaklar",
+      "text": "Varlıklar, işletmenin sahip olduğu veya kontrol ettiği ve gelecekte ekonomik değeri olan kaynaklardır: nakit, stoklar, ekipman, binalar, alacak hesapları ve patentler gibi maddi olmayan varlıklar. Yükümlülükler, işletmenin başkalarına borçlu olduğu yükümlülüklerdir: krediler, tedarikçilere borçlu olunan hesaplar, çalışanlara borçlu olunan ücretler ve yetkililere borçlu olunan vergiler. Özkaynak, tüm yükümlülükler ödendikten sonra varlıklara sahip olanların kalan ilgisini temsil eder. Özkaynak, kârlar ve sahip yatırımlarıyla artar; zararlar ve sahip çekilmeleriyle azalır. Bu üç kategoriyi anlamak, herhangi bir finansal tabloyu doğru okumak için temeldir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Gelir ve Giderler",
+      "text": "Gelir, işletmenin temel faaliyetlerinden, ürün satışı veya hizmet sunumu yoluyla elde edilen gelirdir. Giderler, bu geliri üretmek için yapılan maliyetlerdir ve maaşlar, kira, malzemeler, faturalar ile ekipman amortismanı gibi unsurları içerir. Net gelir veya kâr, gelirden giderlerin çıkarılmasıyla elde edilir. Tahakkuk esasına dayalı muhasebe, geliri kazanıldığında ve giderleri oluştuğunda kaydeder, nakdin fiilen el değiştirmesinden bağımsız olarak. Aralık ayında hizmet sunan bir işletme, ödemenin Ocak ayında alınması durumunda bile geliri Aralık ayında kaydeder. Bu eşleştirme ilkesi, herhangi bir dönem için ekonomik performansı daha gerçekçi bir şekilde gösterir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Gelir Tablosu",
+      "text": "Gelir tablosu, aynı zamanda kar ve zarar tablosu olarak da bilinir, belirli bir dönem boyunca gelir ve giderleri özetler: bir ay, çeyrek veya yıl. Brüt gelirle başlar, mal veya hizmetlerin doğrudan maliyetlerini çıkararak brüt kara ulaşır, ardından kira ve maaş gibi işletme giderlerini düşerek faaliyet gelirine varır. Faiz gideri ve vergiler çıkarılarak net kara ulaşılır. Kârlı bir işletme pozitif net gelir gösterirken, zarar eden bir işletme negatif sonuç gösterir. Yatırımcılar ve yöneticiler, verimliliği, kârlılık eğilimlerini ve kazançların sürdürülebilirliğini değerlendirmek için gelir tablolarını inceler.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bilanço",
+      "text": "Bilanço, bir işletmenin belirli bir andaki finansal durumunun anlık görüntüsünü sunar ve tüm varlıkları, yükümlülükleri ile öz sermayeyi listeler. Gelir tablosundan farklı olarak bilanço bir dönemi değil, tek bir noktayı yansıtır. Nakit ve stok gibi dönen varlıklar bir yıl içinde nakde döner. Ekipman ve mülk gibi duran varlıklar ise birden fazla yıl boyunca değer sağlar. Kısa vadeli yükümlülükler bir yıl içinde ödenir; uzun vadeli yükümlülükler ise bunun ötesine uzanır. Bilanço, işletmenin yakın vadeli borçlarını ödeyip ödeyemeyeceğini ve kaynaklarının organizasyon içinde nasıl dağıldığını gösterir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Nakit Akış Tablosu",
+      "text": "Nakit akış tablosu, bir dönemde nakitin işletmeye nasıl girip çıktığını takip eder ve üç bölüme ayrılır. İşletme faaliyetleri, temel işletme operasyonları tarafından üretilen veya tüketilen nakdi gösterir. Yatırım faaliyetleri, uzun vadeli varlıklara harcanan veya onlardan elde edilen nakdi gösterir. Finansman faaliyetleri, borç ve öz sermaye sağlayıcılarından sağlanan veya onlara ödenen nakdi gösterir. Bir işletme, müşteriler yavaş ödeme yapıyorsa muhasebe kârı rapor ederken negatif nakit akışı yaşayabilir. Nakit akış tablosu genellikle en güvenilir finansal tablo olarak kabul edilir çünkü nakit, tahakkuk muhasebesi kayıtlarından daha zor manipüle edilebilir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Muhasebe Neden Önemlidir?",
+      "text": "Muhasebe, bir işletmedeki tüm paydaşların ortak ve standartlaştırılmış bilgilere dayanarak bilinçli kararlar almasını sağlar. İşletme sahipleri muhasebe verilerini performansı değerlendirmek ve stratejik kararlar almak için kullanır. Yatırımcılar finansal tabloları inceleyerek bir işletmenin yatırıma değer olup olmadığını değerlendirir. Kredi verenler bilanço gücünden ve nakit akışından kredi değerliliğini ölçer. Vergi otoriteleri ise işletmelerin geliri doğru raporladığından emin olur. Kuruluş içinde yönetim muhasebesi, yöneticilerin kaynakları en kârlı alanlara yönlendirmesine, maliyetleri kontrol etmesine ve gelecek dönemleri planlamasına yardımcı olur. Güvenilir muhasebe olmadan işletmeler kârlı olup olmadıklarını ya da yaklaşan mali yükümlülüklerini karşılayıp karşılayamayacaklarını bilemez.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Önemli çıkarımlar",
+      "text": "Ana noktalar. Ana noktaları özetleyelim. Muhasebe Nedir. Muhasebe, sahiplerin, yatırımcıların, alacaklıların ve düzenleyici kurumların karar almasını sağlamak amacıyla finansal işlemlerin sistematik olarak kaydedilmesi, özetlenmesi ve raporlanmasıdır. İş dünyasının dili olarak da adlandırılan muhasebe, bir organizasyonun ekonomik gerçekliğini standartlaştırılmış sayısal raporlara dönüştürür. Finansal muhasebe, hissedarlar ve vergi daireleri gibi dış kullanıcılar için raporlar üretir. Yönetim muhasebesi ise organizasyon içi karar alma süreçleri için iç raporlar hazırlar. Her iş işlemi —bir satış, bir alım veya bir kredi— finansal durumun doğru bir şekilde yansıtılması için kaydedilmesi gereken bir muhasebe sonucuna sahiptir.\n\nMuhasebe Denklemi. Temel muhasebe denklemi Varlıklar eşittir Yükümlülükler artı Özkaynak şeklindedir. Bu denklemin her zaman dengede kalması gerekir çünkü her işlem en az iki hesabı etkiler ve bu dengeyi korur; bu nedenle sisteme çift taraflı kayıt sistemi denir. On bin dolar değerinde ekipmanı nakit kullanarak aldığınızda varlıklar değişmez, çünkü nakit azalırken ekipman aynı miktarda artar. Para borç aldığınızda ise hem varlıklar hem yükümlülükler eşit oranda artar. Bu zarif kısıtlama, finansal kayıtlarda iç tutarlılığı sağlar ve hataların yarattığı dengesizlik sayesinde tespit edilmesini mümkün kılar.\n\nVarlıklar Yükümlülükler Özkaynak. Varlıklar, işletmenin sahip olduğu veya kontrol ettiği ve gelecekte ekonomik değeri olan kaynaklardır: nakit, stok, ekipman, binalar, ticari alacaklar ve patent gibi maddi olmayan varlıklar. Yükümlülükler, işletmenin başkalarına olan borçlarıdır: krediler, tedarikçilere olan ticari borçlar, çalışanlara ödenecek maaşlar ve vergi dairelerine olan borçlar. Özkaynak, tüm yükümlülükler ödendikten sonra varlıklara kalan sahiplerin kalıntı hakkını temsil eder. Özkaynak, kârlar ve sahiplerin yatırımlarıyla artar; zararlar ve sahiplerin çekişleriyle azalır. Bu üç kategoriyi anlamak, herhangi bir finansal tabloyu doğru okumak için temel oluşturur.\n\nGelir ve Giderler. Gelir, işletmenin ana faaliyetlerinden elde edilen kazançtır; ürün satmak veya hizmet sunmak gibi. Giderler ise bu geliri elde etmek için yapılan maliyetlerdir: maaşlar, kira, malzeme, faturalar ve ekipman amortismanı gibi. Net kâr veya zarar, gelir eksi giderlerdir. Tahakkuk esasına göre muhasebe, geliri kazanıldığında ve giderleri oluştuğunda kaydeder; nakit fiilen el değiştirmiş olsun ya da olmasın. Aralık ayında hizmet sunan bir işletme, ödemeyi Ocak ayında alsa bile geliri Aralık ayında kaydeder. Bu eşleştirme ilkesi, herhangi bir dönem için ekonomik performansın daha doğru bir resmini sunar.\n\nGelir Tablosu. Gelir tablosu, belirli bir dönem —ay, çeyrek veya yıl— boyunca gelir ve giderleri özetler. Brüt gelirle başlar, mal veya hizmet üretiminin doğrudan maliyetlerini çıkararak brüt kâra ulaşır, ardından kira ve maaş gibi faaliyet giderlerini çıkararak faaliyet kârına varır. Faiz gideri ve vergiler çıkarılarak net kâra ulaşılır. Kârlı bir işletme pozitif net kâr gösterir; zarar eden işletme ise negatif sonuç gösterir. Yat",
+      "kind": "narration"
+    }
+  ]
+}

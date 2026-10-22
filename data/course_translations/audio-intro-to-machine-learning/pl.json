@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-intro-to-machine-learning",
+  "title": "Wstęp do uczenia maszynowego",
+  "category": "Technology",
+  "source_language": "en",
+  "language": "pl",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Przegląd",
+      "text": "Witamy. W tej lekcji poznamy wprowadzenie do uczenia maszynowego. Omówimy osiem części, zaczynając od uczenia się na przykładach, podziałów danych, cech i modeli, pętli treningowej, przeuczenia, ewaluacji, wdrożenia oraz ograniczeń i etyki. Podczas słuchania zauważcie, jak każda część opiera się na poprzedniej — nie musicie robić notatek, po prostu słuchajcie dalej.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Uczenie się na przykładach",
+      "text": "Uczenie maszynowe buduje modele, które poprawiają się w zadaniach, znajdując wzorce w danych zamiast ręcznie kodowanych reguł. Uczenie nadzorowane korzysta z oznaczonych przykładów; uczenie nienadzorowane odkrywa strukturę bez etykiet. Uczenie ze wzmocnieniem uczy się na podstawie nagród w środowiskach takich jak gry.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Podziały danych",
+      "text": "Dane dzielimy na zbiory treningowe, walidacyjne i testowe, aby ocenić generalizację. Wyciek danych — informacje testowe w zbiorze treningowym — sztucznie zawyża wyniki. Walidacja krzyżowa daje solidne oszacowania na mniejszych zbiorach danych.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Funkcje i modele",
+      "text": "Cechy to wejścia; etykiety to cele w klasyfikacji i regresji. Modele liniowe to interpretowalne linie bazowe; zespoły drzew dobrze radzą sobie z danymi tabelarycznymi. Sieci neuronowe świetnie sprawdzają się na obrazach, audio i tekście przy wystarczającej ilości danych i mocy obliczeniowej.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Pętla treningowa",
+      "text": "Funkcje straty mierzą błąd; optymalizatory takie jak Adam dostosowują wagi, żeby zmniejszyć stratę w kolejnych epokach. Rozmiar batcha i współczynnik uczenia wpływają na stabilność i szybkość. GPU przyspieszają operacje macierzowe przy trenowaniu dużych modeli.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Przeuczenie",
+      "text": "Modele, które zapamiętują szum treningowy, zawodzą na nowych danych. Regularyzacja, dropout i wczesne zatrzymanie zmniejszają przeuczenie. Bardziej zróżnicowane dane często pomagają bardziej niż nieustannie większe modele.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ocena",
+      "text": "W klasyfikacji stosuje się precyzję, recall i F1, zwłaszcza gdy klasy są niezrównoważone. W regresji używa się MAE i RMSE. Wybieraj metryki zgodne z rzeczywistymi kosztami fałszywych pozytywów i fałszywych negatywów.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Wdrożenie",
+      "text": "Modele dostarczają predykcje poprzez API lub inferencję na urządzeniu. Monitorowanie wykrywa dryf danych, gdy zmieniają się dane wejściowe ze świata rzeczywistego. Praktyki MLOps wersjonują dane, kod i modele dla zapewnienia powtarzalności.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ograniczenia i etyka",
+      "text": "Modele mogą być obciążone uprzedzeniami, kruche w przypadkach skrajnych i nieprzejrzyste w głębokich sieciach. Zastosowania o wysokim ryzyku w medycynie i wymiarze sprawiedliwości wymagają nadzoru oraz przejrzystości. ML wspomaga ludzki osąd; nie zastępuje odpowiedzialności.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Kluczowe wnioski",
+      "text": "Kluczowe wnioski. Podsumujmy główne punkty.\n\nUczenie się na przykładach. Uczenie maszynowe tworzy modele, które doskonalą się w zadaniach, znajdując wzorce w danych zamiast ręcznie pisanych reguł. Uczenie nadzorowane korzysta z oznaczonych przykładów, a uczenie nienadzorowane odkrywa strukturę bez etykiet. Uczenie przez wzmacnianie uczy się na podstawie nagród w środowiskach, takich jak gry.\n\nPodział danych. Dane dzieli się na zbiory treningowy, walidacyjny i testowy, aby zmierzyć zdolność do generalizacji. Wyciek danych — czyli informacje ze zbioru testowego obecne w treningowym — sztucznie zawyża wyniki. Walidacja krzyżowa daje bardziej wiarygodne oszacowania przy mniejszych zbiorach.\n\nCechy i modele. Cechy to dane wejściowe, a etykiety to cele w klasyfikacji i regresji. Modele liniowe to interpretowalne punkty odniesienia, a zespoły drzew dobrze radzą sobie z danymi tabelarycznymi. Sieci neuronowe świetnie sprawdzają się na obrazach, dźwięku i tekście, gdy jest wystarczająco dużo danych i mocy obliczeniowej.\n\nPętla treningowa. Funkcje straty mierzą błąd, a optymalizatory takie jak Adam dostosowują wagi, by zmniejszać stratę w kolejnych epokach. Wielkość batcha i szybkość uczenia wpływają na stabilność i prędkość. GPU przyspieszają operacje macierzowe przy trenowaniu dużych modeli.\n\nPrzeuczenie. Modele, które zapamiętują szum treningowy, zawodzą na nowych danych. Regularyzacja, dropout i wczesne zatrzymanie pomagają je ograniczyć. Często bardziej pomaga zróżnicowany zbiór danych niż nieustanne powiększanie modelu.\n\nEwaluacja. W klasyfikacji używa się precyzji, czułości i F1, zwłaszcza przy niezrównoważonych klasach. W regresji stosuje się MAE i RMSE. Wybieraj metryki zgodne z rzeczywistymi kosztami fałszywych pozytywów i negatywów.\n\nWdrażanie. Modele udostępniają predykcje przez API lub inferencję na urządzeniu. Monitorowanie wykrywa dryf danych, gdy zmieniają się rzeczywiste dane wejściowe. Praktyki MLOps wersjonują dane, kod i modele dla powtarzalności.\n\nOgraniczenia i etyka. Modele mogą być stronnicze, kruche w nietypowych przypadkach i nieprzejrzyste w głębokich sieciach. Zastosowania o wysokim ryzyku w medycynie czy wymiarze sprawiedliwości wymagają nadzoru i przejrzystości. ML wspiera ludzkie osądy, ale nie zwalnia z odpowiedzialności.\n\nMiej to na uwadze, a zdobędziesz solidne podstawy wprowadzenia do uczenia maszynowego. To koniec lekcji — dziękuję za uwagę.",
+      "kind": "narration"
+    }
+  ]
+}
