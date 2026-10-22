@@ -182,7 +182,13 @@ async def translate_catalog(
         async with semaphore:
             event = "written"
             try:
-                if not force and load_translation(course.course_id, language, root):
+                expected = sum(
+                    1 for row in course.segments
+                    if str(row.get("heading") or "").strip() and str(row.get("text") or "").strip()
+                )
+                stored_record = None if force else load_translation(course.course_id, language, root)
+                # A file of another length was made from older, padded content.
+                if stored_record and len(stored_record.get("segments") or []) == expected:
                     async with lock:
                         counts["skipped"] += 1
                         done += 1

@@ -144,55 +144,6 @@ def _deepen_en_segments(title: str, segs: List[AudioSegment]) -> List[AudioSegme
     ]
 
 
-def _extended_knowledge_segments(
-    category: str,
-    title: str,
-    primary: List[tuple],
-) -> List[AudioSegment]:
-    """Build an honest 30+ minute course from authored, related material.
-
-    The selected topic comes first. If its standalone source is too short, add
-    clearly-labelled context from other authored topics in the same category,
-    then other categories only if needed. This avoids fabricated padding and
-    keeps every narration body unique while guaranteeing substantial Drive
-    lessons even when the optional harvest cache is unavailable.
-    """
-    seen_topics: set = {title}
-    ordered_topics = [title]
-    for t in _TOPICS.get(category, []):
-        if t != title and t not in seen_topics:
-            seen_topics.add(t)
-            ordered_topics.append(t)
-    for cat, titles in _TOPICS.items():
-        if cat != category:
-            for t in titles:
-                if t not in seen_topics:
-                    seen_topics.add(t)
-                    ordered_topics.append(t)
-
-    segments: List[AudioSegment] = []
-    for topic in ordered_topics:
-        sections = primary if topic == title else TOPIC_SECTIONS.get(topic, [])
-        for heading, text in sections:
-            clean = " ".join((text or "").replace("\n", " ").split())
-            if not clean:
-                continue
-            segments.append(AudioSegment(
-                heading=heading if topic == title else f"Related context — {topic}: {heading}",
-                text=clean,
-            ))
-        framed = _deepen_en_segments(title, segments)
-        if (
-            len(framed) >= MIN_DRIVE_SEGMENTS
-            and _narration_words(framed) >= MIN_DRIVE_WORDS
-        ):
-            break
-        if len(segments) > 500:
-            break
-
-    return _deepen_en_segments(title, segments)
-
-
 # --------------------------------------------------------------------------- #
 # Language audio lessons (listen & repeat) - reuses the phrasebook.
 # --------------------------------------------------------------------------- #
@@ -991,43 +942,23 @@ _TOPICS: Dict[str, List[str]] = {
 
 def _knowledge_course(
     category: str, title: str, locale: str, training_locale: str,
-) -> AudioCourse:
-    """Build a knowledge audio lesson.
+) -> Optional[AudioCourse]:
+    """Build a knowledge audio lesson from this topic's own content only.
 
-    ``locale`` localizes category labels for the UI. ``training_locale`` is
-    applied to the complete body by ``_maybe_translate`` when a translator is
-    available; otherwise the honest English source and locale are returned.
-
-    Content priority for English body:
-      1. Harvested rich content from the drive_content_cache.db SQLite store
-         (28 segments × ~125 words ≈ 30 min — populated by the drive_topic_harvest
-         CLI or the POST /admin/harvest-drive-topic endpoint).
-      2. Authored TOPIC_SECTIONS, extended with clearly-labelled related
-         context until the lesson reaches at least 30 minutes.
-
-    Either way the lesson is wrapped with an Overview + Key-takeaways by
-    ``_deepen_en_segments`` and must contain at least 30 segments.
+    The English body is the harvested lesson from the drive content cache
+    (populated by the drive_topic_harvest CLI or POST /admin/harvest-drive-topic)
+    or else the authored TOPIC_SECTIONS. It is wrapped with an Overview and
+    Key-takeaways. A topic with neither has no real lesson yet: returns ``None``
+    so the catalog never plays another topic's text under this title.
     """
     tloc = normalize_training_locale(training_locale)
-    display_title = localize_course_title(title, tloc)
-    cat_local = localize_category(category, locale)
-    # A few locales have three translated summary facts. Those are useful as
-    # previews, but they are not a complete Drive lesson; using them here was
-    # the source of the reported 3-segment courses. Build the substantial
-    # English source first, then _maybe_translate() translates the full body
-    # when a body translator is available (otherwise it honestly stays English).
     rich = _get_harvested_sections(title)
     source = rich if rich else list(TOPIC_SECTIONS.get(title, []))
-    candidate = [AudioSegment(heading=h, text=t) for h, t in source]
-    framed = _deepen_en_segments(title, candidate)
-    if (
-        len(framed) >= MIN_DRIVE_SEGMENTS
-        and _narration_words(framed) >= MIN_DRIVE_WORDS
-    ):
-        segs = framed
-    else:
-        segs = _extended_knowledge_segments(category, title, source)
-    body_loc = "en"
+    if not source:
+        return None
+    display_title = localize_course_title(title, tloc)
+    cat_local = localize_category(category, locale)
+    segs = _deepen_en_segments(title, [AudioSegment(heading=h, text=t) for h, t in source])
     slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
     return AudioCourse(
         id=f"audio-{slug}",
@@ -1035,10 +966,10 @@ def _knowledge_course(
         category=cat_local,
         subject=cat_local,
         level=localize_level("beginner", locale),
-        duration_min=_duration(segs, min_minutes=MIN_DRIVE_MINUTES),
+        duration_min=_duration(segs, min_minutes=1),
         tags=[category.lower().split(" ")[0], "audio", "drive-safe"],
         segments=segs,
-        body_locale=body_loc,
+        body_locale="en",
     )
 
 
@@ -1068,7 +999,9 @@ def build_catalog(locale: str = DEFAULT_LOCALE, training_locale: Optional[str] =
     catalog.extend(_language_courses(locale))
     for category, titles in _TOPICS.items():
         for title in titles:
-            catalog.append(_knowledge_course(category, title, locale, tloc))
+            course = _knowledge_course(category, title, locale, tloc)
+            if course is not None:
+                catalog.append(course)
     return catalog
 
 
@@ -1161,7 +1094,9 @@ def _course_from_library(course: AudioCourse, tloc: str) -> Optional[AudioCourse
             segments.append(
                 AudioSegment(heading=heading, text=text, kind=str(row.get("kind") or "narration"))
             )
-    if not segments:
+    # A file made before padding was removed has other topics' text and a
+    # different length. Only a same-shape file can be served for this course.
+    if len(segments) != len(course.segments):
         return None
     localized = course.model_copy(deep=True)
     localized.segments = segments

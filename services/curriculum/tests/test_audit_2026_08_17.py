@@ -62,7 +62,7 @@ def test_search_accepts_the_displayed_media_format_vocabulary():
 # MED-50 ------------------------------------------------------------------- #
 
 def test_view_recording_for_audio_course_feeds_popularity():
-    cid = "audio-401k-and-retirement-basics"
+    cid = "audio-budgeting-basics"
     first = client.post(f"/courses/{cid}/view")
     assert first.status_code == 200, first.text
     second = client.post(f"/courses/{cid}/view")
