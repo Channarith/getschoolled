@@ -1,0 +1,80 @@
+SALAREEN EDUCATION MODEL - AUTOMATED TRAINING ON THE DGX SPARK / IBUYPOWER
+==========================================================================
+Plain text on purpose (repo no-markdown house rule).
+
+Goal: start from the best open-weight base we can run, fine-tune it on clean
+education data, and promote a new model only when it beats the current one on a
+frozen benchmark. The pipeline already exists (training/); this runbook is the
+order to run it in and what has to be true first.
+
+WHAT RUNS WHERE
+  DGX Spark      : fine-tune (QLoRA) + evaluate + bake-off, nightly, via
+                   training/spark_nightly.sh under the GPU lock ~/.gs-gpu.lock.
+  iBuyPower      : same scripts. Use it for the course translation batch
+                   (docs/translation-run.txt) or as a second trainer; do not run
+                   both machines against the same output folder.
+  Production     : never trains. It only serves the promoted model (later).
+
+THE BENCHMARK (frozen, never trained on)
+  training/data/eval_frozen.jsonl   200 items built by training/build_eval_set.py
+    recall  (100): explain a passage faithfully.
+    abstain (100): a question the passage does not cover; the right answer is to
+                   say so. This is the hallucination test.
+  Scored with token-overlap F1 (training/evaluate.py), grouped by reading level
+  for the fairness gap. Items are synthetic-v1: replace them with human-written
+  references from the staff review lab over time. Regenerate only on purpose:
+  python3 training/build_eval_set.py   (deterministic, same output every time).
+  Limits: F1 measures word overlap, not teaching quality. Add a second scorer
+  (abstain correctness, hint-before-answer) once this loop runs end to end.
+
+CHOOSING THE BASE MODEL (do this before any fine-tuning)
+  Do not pick by reputation. Score each candidate base on the frozen set and take
+  the best that fits the Spark:
+    for M in /path/to/modelA /path/to/modelB; do
+      python3 training/evaluate.py --offline --device cuda --base-model "$M" \
+        --eval training/data/eval_frozen.jsonl --max-new-tokens 96 \
+        --metrics-out "output/spark/eval/$(basename $M).json"
+    done
+  Candidates to try: the current config base (qwen2.5-7b-instruct), and the newest
+  Qwen / Gemma / Llama instruct models already on the Spark (it serves a 35B
+  Qwen mixture-of-experts through llama-server). Weigh multilingual strength
+  (we ship 27 languages, including Khmer, Swahili and Bengali) and the Spark's 128 GB
+  of unified memory (QLoRA of 7B-14B is comfortable; larger needs checking).
+  Also score Grok on the same file through its API for a cloud ceiling.
+  Set the winner: BASE_MODEL=/path/to/winner and base_model in
+  training/config/finetune.spark.yaml.
+
+TRAINING DATA
+  training/spark_seed_sessions.py turns sample-curriculum (176 authored slide
+  files, STEM first) into sessions. That content is authored, not the padded audio
+  filler removed in v0.94.18. The audio lessons are used only for the frozen
+  benchmark, so the model is never tested on what it trained on. Grow the data
+  with staff-reviewed translations and corrections (review lab export) and
+  consented, anonymized class sessions. Race and ethnicity are never used.
+
+ORDER OF OPERATIONS ON THE SPARK
+  1. Download the chosen base to models/weights/<name> on a networked box
+     (spark_nightly.sh runs offline and exits if BASE_MODEL is missing):
+       huggingface-cli download <repo> --local-dir models/weights/<name>
+  2. pip install -r training/requirements.txt in .venv.
+  3. CHECK_ONLY=1 ./training/train.sh      (validates the pipeline, no GPU)
+  4. ONE manual full run:  training/spark_nightly.sh
+     Confirm all five stages finish and that output/spark/eval/*.frozen.json and
+     output/spark/bakeoff exist. Read the bake-off: the adapter must beat the base
+     on the frozen score without widening the fairness gap.
+  5. Only then arm the timer:  training/systemd/install-user-timer.sh --enable
+     Do not arm it earlier: with a missing base model it fails every night, silently.
+  6. Check output/spark/logs/ the next morning.
+
+PROMOTION
+  training/promote.py moves the champion pointer only when the candidate wins the
+  fairness-gated bake-off. Serving a promoted model in production is a separate
+  step (an inference node; the LLM deployment is scaled to 0 today).
+
+COSYVOICE (SEPARATE PROJECT, NOT PART OF THIS RUN)
+  CosyVoice is at 0 replicas because its manifest needs a GPU node labelled
+  aoep.gpu/pool=true and the GPU pool is at 0 - nobody disabled it. Running it in
+  production means renting a GPU node (a recurring cost to decide). Improving the
+  voice is also different data (reference audio per language and speaker, not
+  transcripts); start with CosyVoice 2 zero-shot and instruct modes, then measure
+  with a listening panel before any fine-tune.

@@ -91,6 +91,25 @@ echo "== 4/5 evaluate base and adapter =="
   --max-new-tokens 96 \
   --metrics-out "$OUT/eval/stem.json"
 
+# The frozen benchmark is never trained on, so it is the score that counts.
+FROZEN="${EVAL_FROZEN:-$ROOT/training/data/eval_frozen.jsonl}"
+if [[ -f "$FROZEN" ]]; then
+  echo "== 4b/5 frozen benchmark ($FROZEN) =="
+  "$PY" training/evaluate.py --offline --device cuda \
+    --base-model "$BASE_MODEL" \
+    --eval "$FROZEN" \
+    --max-new-tokens 96 \
+    --metrics-out "$OUT/eval/base.frozen.json"
+  "$PY" training/evaluate.py --offline --device cuda \
+    --base-model "$BASE_MODEL" \
+    --adapter "$OUT/adapters/stem" \
+    --eval "$FROZEN" \
+    --max-new-tokens 96 \
+    --metrics-out "$OUT/eval/stem.frozen.json"
+else
+  echo "WARNING: no frozen benchmark at $FROZEN; scoring on the 10% split only." >&2
+fi
+
 echo "== 5/5 bake-off =="
 "$PY" - <<PY
 import json
@@ -111,8 +130,12 @@ def add(name, track, path):
         },
     })
 
-add("qwen-base", "B", out / "eval" / "base.json")
-add("stem-qlora", "B", out / "eval" / "stem.json")
+def best(name):
+    frozen = out / "eval" / f"{name}.frozen.json"
+    return frozen if frozen.is_file() else out / "eval" / f"{name}.json"
+
+add("qwen-base", "B", best("base"))
+add("stem-qlora", "B", best("stem"))
 
 serve_path = out / "eval" / "serving.json"
 if serve_path.is_file():
