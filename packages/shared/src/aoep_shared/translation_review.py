@@ -127,6 +127,13 @@ def _catalog_units() -> Dict[str, Dict[str, Any]]:
     return units
 
 
+@functools.lru_cache(maxsize=1)
+def _course_lengths() -> Dict[str, int]:
+    from .audio_courses import build_catalog
+
+    return {c.id: len(c.segments) for c in build_catalog("en", "en")}
+
+
 def _library_record(course_id: str, lang: str) -> Optional[dict]:
     path = library_dir() / safe_course_id(course_id) / f"{lang}.json"
     try:
@@ -148,7 +155,8 @@ def _machine_for_language(lang: str, signature: int) -> Dict[str, Dict[str, str]
             if not record:
                 continue
             rows = record.get("segments") or []
-            if index < len(rows):
+            # Only a file shaped like the current course (older padded files are not).
+            if len(rows) == _course_lengths().get(course_id) and index < len(rows):
                 heading = str(rows[index].get("heading") or "").strip()
                 text = str(rows[index].get("text") or "").strip()
                 if heading and text:

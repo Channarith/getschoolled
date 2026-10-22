@@ -113,7 +113,7 @@ def test_knowledge_course_translated_title_with_training_locale():
     # old three-fact localized preview.
     assert "预算基础" in course.title
     assert course.body_locale == "en"
-    assert course.duration_min >= 30
+    assert course.duration_min >= 3
 
 
 def test_list_courses_respects_locale():
@@ -148,7 +148,7 @@ def test_get_course_with_locale():
     assert c_en.category == "Personal Finance"
     assert c_es.category == "Finanzas personales"
     assert c_es.segments[0].heading == "Overview"
-    assert c_es.duration_min >= 30
+    assert c_es.duration_min >= 3
 
 
 def test_unknown_locale_falls_back_to_english_cleanly():

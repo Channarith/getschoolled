@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+import json
 from pathlib import Path
 
 import pytest
@@ -11,15 +11,29 @@ from fastapi.testclient import TestClient
 from identity.main import app
 from identity.store import AccountStore
 
-LIB = Path(__file__).resolve().parents[3] / "data" / "course_translations"
 client = TestClient(app)
 
 
+def _write_library(root: Path) -> None:
+    """Fake fr and es files, shaped like the current catalog, for a few courses."""
+    from aoep_shared.audio_courses import build_catalog
+
+    for course in [c for c in build_catalog("en", "en") if not c.id.startswith("lang-")][:6]:
+        for lang in ("fr", "es"):
+            folder = root / course.id
+            folder.mkdir(parents=True, exist_ok=True)
+            rows = [{"heading": f"{lang} {s.heading}", "text": f"{lang} {s.text}", "kind": "narration"}
+                    for s in course.segments]
+            (folder / f"{lang}.json").write_text(json.dumps({"course_id": course.id, "segments": rows}))
+
+
 @pytest.fixture(autouse=True)
-def _library(monkeypatch):
-    monkeypatch.setenv("AOEP_COURSE_TRANSLATION_DIR", str(LIB))
+def _library(monkeypatch, tmp_path):
+    _write_library(tmp_path)
+    monkeypatch.setenv("AOEP_COURSE_TRANSLATION_DIR", str(tmp_path))
     monkeypatch.setenv("TRANSLATION_REVIEWER_EMAILS", "reviewer@example.com")
     tr._machine_for_language.cache_clear()
+    tr._course_lengths.cache_clear()
     app.state.review_store = tr.ReviewStore(tr.MemoryKV())
     app.state.accounts = AccountStore()
     app.state.accounts.seed_admin("admin@salareen.com", "88888888", username="admin")

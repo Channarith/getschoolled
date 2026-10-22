@@ -1094,7 +1094,9 @@ def _course_from_library(course: AudioCourse, tloc: str) -> Optional[AudioCourse
             segments.append(
                 AudioSegment(heading=heading, text=text, kind=str(row.get("kind") or "narration"))
             )
-    if not segments:
+    # A file made before padding was removed has other topics' text and a
+    # different length. Only a same-shape file can be served for this course.
+    if len(segments) != len(course.segments):
         return None
     localized = course.model_copy(deep=True)
     localized.segments = segments
