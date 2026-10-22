@@ -9,7 +9,7 @@ import { useT } from "../lib/i18n";
 // URLs are configurable via NEXT_PUBLIC_* (inlined at web build time); when a URL
 // is unset the button shows a "Coming soon" disabled state instead of a dead link.
 const DEFAULT_ANDROID_APK_URL =
-  "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.26.1/app-release.apk";
+  "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.94.9/app-release.apk";
 const ANDROID_APK_URL = process.env.NEXT_PUBLIC_ANDROID_APK_URL || DEFAULT_ANDROID_APK_URL;
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL ?? "";
 // TestFlight (iOS beta) invite. User asked us to update this to the current
