@@ -164,19 +164,11 @@ def test_the_queue_finishes_a_started_course_before_opening_a_new_one():
         client.post("/admin/translation-review/submit", json={"lang": "fr", "key": unit["key"], "verdict": "correct"}, headers=admin)
 
 
-def test_unfinished_partial_files_are_not_listed_as_languages(tmp_path):
-    folder = tmp_path / "audio-x"
-    folder.mkdir()
+def test_unfinished_partial_files_are_not_listed_as_languages(tmp_path, monkeypatch):
+    lib = tmp_path / "only-this"
+    folder = lib / "audio-x"
+    folder.mkdir(parents=True)
     (folder / "fr.json").write_text("{}")
     (folder / "de.partial.json").write_text("{}")
-    import os
-
-    old = os.environ.get("AOEP_COURSE_TRANSLATION_DIR")
-    os.environ["AOEP_COURSE_TRANSLATION_DIR"] = str(tmp_path)
-    try:
-        assert tr.reviewable_languages() == ["fr"]
-    finally:
-        if old is None:
-            os.environ.pop("AOEP_COURSE_TRANSLATION_DIR")
-        else:
-            os.environ["AOEP_COURSE_TRANSLATION_DIR"] = old
+    monkeypatch.setenv("AOEP_COURSE_TRANSLATION_DIR", str(lib))
+    assert tr.reviewable_languages() == ["fr"]
