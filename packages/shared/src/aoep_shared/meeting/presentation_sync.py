@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import html
 import json
-import os
 import socket
 import threading
 import webbrowser
@@ -12,6 +11,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import List, Optional
 
+from ..live_output import live_output_suppressed
 from .base import PresentationPlan, PresentationStep
 from .presentation_assets import enrich_course_slides_for_deck, load_theme
 
@@ -371,7 +371,7 @@ class SyncedSlideShow:
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
         self._thread.start()
         url = f"http://127.0.0.1:{self.port}/slide_deck.html"
-        if open_browser and not self._browser_opened and not os.environ.get("HEADLESS"):
+        if open_browser and not self._browser_opened and not live_output_suppressed():
             try:
                 webbrowser.open(url)
             except Exception:
@@ -394,7 +394,7 @@ class SyncedSlideShow:
 
 def open_meeting_url(url: str) -> None:
     """Open Zoom / Meet / Teams join link in the default browser."""
-    if not url or url.startswith("local://"):
+    if not url or url.startswith("local://") or live_output_suppressed():
         return
     try:
         webbrowser.open(url)

@@ -154,6 +154,10 @@ def speak_live(
     narration = (text or "").strip()
     if not narration:
         return False
+    from ..live_output import live_output_suppressed
+
+    if live_output_suppressed():
+        return True
     narration = narration[:8000]
     rate = max(80, min(380, int(wpm * max(pace_multiplier, 0.5))))
 

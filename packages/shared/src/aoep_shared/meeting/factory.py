@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from ..live_output import live_output_suppressed
 from .base import MeetingProvider
 from .providers import (
     GoogleMeetProvider,
@@ -125,7 +126,7 @@ def present_with_provider(
         language=language_resolved,
         tts_engine=tts_engine,
         sync_slides=sync_slides,
-        open_slides=not os.environ.get("HEADLESS"),
+        open_slides=not live_output_suppressed(),
         slide_dir=slide_dir,
         course_title=course_title,
         course_slides=course_slides or [],

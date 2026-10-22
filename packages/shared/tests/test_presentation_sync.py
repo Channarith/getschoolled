@@ -1,5 +1,7 @@
 """Synced slide deck HTML generation."""
 
+import os
+
 from aoep_shared.meeting.base import PresentationPlan, PresentationStep
 from aoep_shared.meeting.presentation_sync import SyncedSlideShow, write_slide_deck_html
 
@@ -40,6 +42,23 @@ def test_slideshow_start_skips_browser_when_headless(monkeypatch, tmp_path):
         show.stop()
 
 
+def test_slideshow_start_skips_browser_under_pytest(monkeypatch, tmp_path):
+    opened: list[str] = []
+    monkeypatch.setattr(
+        "aoep_shared.meeting.presentation_sync.webbrowser.open",
+        lambda url: opened.append(url),
+    )
+    monkeypatch.delenv("HEADLESS", raising=False)
+    show = SyncedSlideShow(tmp_path)
+    try:
+        url = show.start(open_browser=True)
+        assert url.startswith("http://127.0.0.1:")
+        assert os.environ.get("PYTEST_CURRENT_TEST")
+        assert opened == []
+    finally:
+        show.stop()
+
+
 def test_slideshow_start_opens_browser_when_not_headless(monkeypatch, tmp_path):
     opened: list[str] = []
     monkeypatch.setattr(
@@ -47,6 +66,7 @@ def test_slideshow_start_opens_browser_when_not_headless(monkeypatch, tmp_path):
         lambda url: opened.append(url),
     )
     monkeypatch.delenv("HEADLESS", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     show = SyncedSlideShow(tmp_path)
     try:
         url = show.start(open_browser=True)
