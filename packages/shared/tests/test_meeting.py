@@ -119,6 +119,22 @@ def test_local_play_provider_prints_and_speaks(monkeypatch, capsys):
     assert result.steps_presented == 3
 
 
+def test_speak_natural_blocking_is_silent_under_pytest(monkeypatch):
+    launched: list[list[str]] = []
+
+    def _boom(*args, **kwargs):
+        launched.append(list(args[0]) if args else [])
+        raise AssertionError("presenter tried to speak during pytest")
+
+    monkeypatch.delenv("HEADLESS", raising=False)
+    monkeypatch.setattr("aoep_shared.harvest.media.subprocess.Popen", _boom)
+    monkeypatch.setattr("aoep_shared.meeting.natural_tts.play_audio_file", _boom)
+    from aoep_shared.meeting.natural_tts import speak_natural_blocking
+
+    assert speak_natural_blocking("Welcome to Chemistry. You will learn: Balancing.") is True
+    assert launched == []
+
+
 def test_present_with_provider_does_not_open_slides_when_headless(monkeypatch):
     captured: dict[str, object] = {}
 

@@ -300,6 +300,10 @@ def speak_natural_blocking(
     narration = (text or "").strip()
     if not narration:
         return False
+    from ..live_output import live_output_suppressed
+
+    if live_output_suppressed():
+        return True
 
     engine = (tts_engine or "auto").lower()
     root = Path(repo_root) if repo_root else None
