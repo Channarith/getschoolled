@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-accounting-fundamentals",
+  "title": "Dasar-Dasar Akuntansi",
+  "category": "Business & Finance",
+  "source_language": "en",
+  "language": "id",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Gambaran Umum",
+      "text": "Selamat datang. Dalam pelajaran ini kita akan mengeksplorasi Dasar-Dasar Akuntansi. Kita akan membahas 8 bagian, dimulai dengan What Is Accounting, The Accounting Equation, Assets Liabilities Equity, Revenue and Expenses, The Income Statement, The Balance Sheet, Cash Flow Statement, dan Why Accounting Matters. Saat mendengarkan, perhatikan bagaimana setiap bagian dibangun di atas bagian sebelumnya — Anda tidak perlu mencatat, cukup ikuti saja.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Apa itu akuntansi?",
+      "text": "Akuntansi adalah pencatatan, peringkasan, dan pelaporan transaksi keuangan secara sistematis untuk memungkinkan pengambilan keputusan oleh pemilik, investor, kreditor, dan regulator. Sering disebut sebagai bahasa bisnis, akuntansi menerjemahkan realitas ekonomi suatu organisasi menjadi laporan numerik yang terstandarisasi. Akuntansi keuangan menghasilkan laporan untuk pengguna eksternal seperti pemegang saham dan otoritas pajak. Akuntansi manajemen menghasilkan laporan internal untuk pengambilan keputusan organisasi. Setiap transaksi bisnis, seperti penjualan, pembelian, atau pinjaman, memiliki konsekuensi akuntansi yang harus dicatat untuk menjaga gambaran akurat tentang posisi keuangan.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Persamaan Akuntansi",
+      "text": "Persamaan akuntansi dasar adalah Aset sama dengan Kewajiban ditambah Ekuitas. Persamaan ini harus selalu seimbang karena setiap transaksi memengaruhi setidaknya dua akun dengan cara yang mempertahankan keseimbangan tersebut, itulah sebabnya sistem ini disebut pembukuan berpasangan. Ketika Anda membeli peralatan senilai sepuluh ribu dolar menggunakan kas, aset tetap tidak berubah karena kas berkurang tetapi peralatan bertambah dengan jumlah yang sama. Ketika Anda meminjam uang, baik aset maupun kewajiban meningkat secara setara. Batasan yang elegan ini memastikan konsistensi internal dalam catatan keuangan dan membuat kesalahan dapat terdeteksi melalui ketidakseimbangan yang ditimbulkannya.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Aset Liabilitas Ekuitas",
+      "text": "Aset adalah sumber daya yang dimiliki atau dikendalikan bisnis dan memiliki nilai ekonomi di masa depan: kas, persediaan, peralatan, bangunan, piutang usaha, serta aset tidak berwujud seperti paten. Kewajiban adalah utang yang harus dibayar bisnis kepada pihak lain: pinjaman, utang usaha kepada pemasok, gaji karyawan, dan pajak kepada otoritas. Ekuitas mencerminkan hak residual pemilik atas aset setelah semua kewajiban dilunasi. Ekuitas bertambah melalui laba dan investasi pemilik, serta berkurang karena kerugian dan penarikan pemilik. Memahami ketiga kategori ini menjadi dasar untuk membaca laporan keuangan dengan akurat.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Pendapatan dan Beban",
+      "text": "Pendapatan adalah penghasilan yang diperoleh dari aktivitas utama bisnis, yaitu menjual produk atau menyediakan jasa. Beban adalah biaya yang dikeluarkan untuk menghasilkan pendapatan tersebut, termasuk gaji, sewa, bahan, utilitas, dan penyusutan peralatan. Laba bersih, atau keuntungan, adalah pendapatan dikurangi beban. Akuntansi akrual mencatat pendapatan saat diperoleh dan beban saat terjadi, terlepas dari kapan kas benar-benar berpindah tangan. Sebuah bisnis yang memberikan layanan di bulan Desember akan mencatat pendapatan tersebut pada Desember, meskipun pembayaran baru diterima pada Januari. Prinsip penjodohan ini memberikan gambaran yang lebih akurat tentang kinerja ekonomi untuk periode apa pun.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Laporan Laba Rugi",
+      "text": "Laporan laba rugi, yang juga disebut laporan pendapatan, merangkum pendapatan dan pengeluaran selama periode tertentu, baik sebulan, triwulan, maupun setahun. Laporan ini dimulai dari pendapatan kotor, lalu mengurangi biaya langsung untuk memproduksi barang atau jasa guna mendapatkan laba kotor. Selanjutnya, dikurangi lagi dengan biaya operasional seperti sewa dan gaji untuk menghasilkan laba operasional. Setelah itu, beban bunga dan pajak dikurangkan untuk memperoleh laba bersih. Bisnis yang untung akan menunjukkan laba bersih positif, sedangkan bisnis yang rugi menunjukkan hasil negatif. Investor dan manajer menganalisis laporan laba rugi untuk menilai efisiensi, tren profitabilitas, serta keberlanjutan pendapatan.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Neraca",
+      "text": "Neraca memberikan gambaran posisi keuangan suatu bisnis pada suatu titik waktu tertentu, dengan mencantumkan semua aset, liabilitas, dan ekuitas. Berbeda dengan laporan laba rugi yang mencakup suatu periode, neraca hanya menangkap satu titik waktu saja. Aset lancar seperti kas dan persediaan bisa berubah menjadi kas dalam waktu satu tahun. Aset jangka panjang seperti peralatan dan properti memberikan nilai selama beberapa tahun. Liabilitas jangka pendek jatuh tempo dalam satu tahun, sedangkan liabilitas jangka panjang melebihi jangka waktu itu. Neraca menunjukkan apakah bisnis mampu membayar kewajiban jangka pendeknya dan bagaimana sumber dayanya dialokasikan di seluruh organisasi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Laporan Arus Kas",
+      "text": "Laporan arus kas melacak bagaimana kas benar-benar bergerak masuk dan keluar dari bisnis selama suatu periode, dibagi menjadi tiga bagian. Aktivitas operasional menunjukkan kas yang dihasilkan atau dikonsumsi oleh operasi bisnis inti. Aktivitas investasi menunjukkan kas yang dikeluarkan atau diterima dari aset jangka panjang. Aktivitas pendanaan menunjukkan kas dari atau dibayarkan kepada penyedia utang dan ekuitas. Sebuah bisnis dapat melaporkan laba akuntansi sambil mengalami arus kas negatif jika pelanggan lambat membayar. Laporan arus kas sering dianggap sebagai laporan keuangan yang paling andal karena kas lebih sulit dimanipulasi daripada entri akuntansi akrual.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Mengapa Akuntansi Penting",
+      "text": "Akuntansi memungkinkan setiap pemangku kepentingan dalam bisnis untuk membuat keputusan yang tepat berdasarkan informasi bersama yang terstandarisasi. Pemilik menggunakan data akuntansi untuk mengevaluasi kinerja dan membuat keputusan strategis. Investor menggunakan laporan keuangan untuk menilai apakah suatu bisnis layak diinvestasikan. Pemberi pinjaman mengevaluasi kelayakan kredit berdasarkan kekuatan neraca dan arus kas. Otoritas pajak memastikan bisnis melaporkan pendapatan secara akurat. Di dalam organisasi, akuntansi manajemen membantu manajer mengalokasikan sumber daya ke aktivitas yang paling menguntungkan, mengendalikan biaya, dan merencanakan periode mendatang. Tanpa akuntansi yang andal, bisnis tidak dapat mengetahui apakah mereka menguntungkan atau apakah mereka mampu memenuhi kewajiban keuangan yang akan datang.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Poin-poin kunci",
+      "text": "Poin-poin utama. Mari kita rangkum poin-poin utamanya. Apa Itu Akuntansi. Akuntansi adalah pencatatan, peringkasan, dan pelaporan transaksi keuangan secara sistematis untuk mendukung pengambilan keputusan oleh pemilik, investor, kreditor, dan regulator. Sering disebut bahasa bisnis, akuntansi menerjemahkan realitas ekonomi suatu organisasi ke dalam laporan angka yang terstandar. Akuntansi keuangan menghasilkan laporan untuk pengguna eksternal seperti pemegang saham dan otoritas pajak. Akuntansi manajemen menghasilkan laporan internal untuk pengambilan keputusan organisasi. Setiap transaksi bisnis, baik penjualan, pembelian, maupun pinjaman, memiliki konsekuensi akuntansi yang harus dicatat agar gambaran posisi keuangan tetap akurat. Persamaan Akuntansi. Persamaan akuntansi dasar adalah Aset sama dengan Liabilitas ditambah Ekuitas. Persamaan ini harus selalu seimbang karena setiap transaksi memengaruhi setidaknya dua akun dengan cara yang menjaga keseimbangan tersebut, itulah sebabnya sistem ini disebut pembukuan berpasangan ganda. Saat Anda membeli peralatan senilai sepuluh ribu dolar dengan uang tunai, aset tetap tidak berubah karena kas berkurang tetapi peralatan bertambah dengan jumlah yang sama. Saat Anda meminjam uang, baik aset maupun liabilitas meningkat secara seimbang. Batasan yang elegan ini memastikan konsistensi internal dalam catatan keuangan dan membuat kesalahan mudah terdeteksi melalui ketidakseimbangan yang ditimbulkannya. Aset, Liabilitas, Ekuitas. Aset adalah sumber daya yang dimiliki atau dikendalikan bisnis dan memiliki nilai ekonomi di masa depan: kas, persediaan, peralatan, bangunan, piutang, serta aset tak berwujud seperti paten. Liabilitas adalah kewajiban yang harus dibayar bisnis kepada pihak lain: pinjaman, utang dagang kepada pemasok, gaji yang terutang kepada karyawan, dan pajak yang terutang kepada otoritas. Ekuitas mewakili kepentingan sisa pemilik atas aset setelah semua liabilitas dibayar. Ekuitas meningkat melalui laba dan investasi pemilik; ia menurun melalui kerugian dan penarikan pemilik. Memahami ketiga kategori ini adalah dasar untuk membaca setiap laporan keuangan dengan akurat. Pendapatan dan Beban. Pendapatan adalah penghasilan yang diperoleh dari kegiatan utama bisnis, yaitu menjual produk atau menyediakan jasa. Beban adalah biaya yang dikeluarkan untuk menghasilkan pendapatan tersebut, termasuk gaji, sewa, bahan baku, utilitas, dan penyusutan peralatan. Laba bersih, atau keuntungan, adalah pendapatan dikurangi beban. Akuntansi akrual mencatat pendapatan saat diperoleh dan beban saat terjadi, terlepas dari kapan kas benar-benar berpindah tangan. Bisnis yang memberikan jasa pada bulan Desember mencatat pendapatan tersebut di Desember meskipun pembayaran baru diterima di Januari. Prinsip penandingan ini memberikan gambaran yang lebih akurat tentang kinerja ekonomi untuk periode tertentu. Laporan Laba Rugi. Laporan laba rugi, juga disebut laporan untung rugi, merangkum pendapatan dan beban selama periode tertentu: sebulan, triwulan, atau setahun. Laporan ini",
+      "kind": "narration"
+    }
+  ]
+}

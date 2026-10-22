@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-accounting-fundamentals",
+  "title": "Grundlagen der Buchhaltung",
+  "category": "Business & Finance",
+  "source_language": "en",
+  "language": "de",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Überblick",
+      "text": "Willkommen. In dieser Lektion befassen wir uns mit den Grundlagen der Buchhaltung. Wir werden acht Teile behandeln, beginnend mit What Is Accounting, The Accounting Equation, Assets Liabilities Equity, Revenue and Expenses, The Income Statement, The Balance Sheet, Cash Flow Statement und Why Accounting Matters. Achten Sie beim Zuhören darauf, wie jeder Teil auf dem vorherigen aufbaut – Sie müssen keine Notizen machen, hören Sie einfach zu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Was ist Buchhaltung?",
+      "text": "Das Rechnungswesen ist die systematische Erfassung, Zusammenfassung und Berichterstattung von Finanztransaktionen, um Entscheidungen von Eigentümern, Investoren, Gläubigern und Aufsichtsbehörden zu ermöglichen. Oft als Sprache der Wirtschaft bezeichnet, übersetzt das Rechnungswesen die wirtschaftliche Realität einer Organisation in standardisierte numerische Berichte. Die Finanzbuchhaltung erstellt Berichte für externe Nutzer wie Aktionäre und Steuerbehörden. Das interne Rechnungswesen erstellt interne Berichte für unternehmerische Entscheidungen. Jede Geschäftstransaktion – ein Verkauf, ein Einkauf oder ein Darlehen – hat eine buchhalterische Konsequenz, die erfasst werden muss, um ein genaues Bild der finanziellen Lage zu erhalten.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Die Bilanzgleichung",
+      "text": "Die fundamentale Bilanzgleichung lautet: Aktiva = Verbindlichkeiten plus Eigenkapital. Diese Gleichung muss stets ausgeglichen sein, weil jede Buchung mindestens zwei Konten so beeinflusst, dass das Gleichgewicht erhalten bleibt – deshalb heißt das System doppelte Buchführung. Wenn Sie Ausrüstung im Wert von zehntausend Dollar bar kaufen, bleiben die Aktiva unverändert, da das Bargeld sinkt, aber die Ausrüstung um denselben Betrag steigt. Wenn Sie Geld aufnehmen, erhöhen sich sowohl die Aktiva als auch die Verbindlichkeiten gleichermaßen. Diese elegante Einschränkung sichert die interne Konsistenz der Finanzunterlagen und macht Fehler durch entstehende Ungleichgewichte erkennbar.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Vermögenswerte Verbindlichkeiten Eigenkapital",
+      "text": "Vermögenswerte sind Ressourcen, die das Unternehmen besitzt oder kontrolliert und die einen zukünftigen wirtschaftlichen Nutzen haben: Bargeld, Vorräte, Ausrüstung, Gebäude, Forderungen aus Lieferungen und Leistungen sowie immaterielle Vermögenswerte wie Patente. Verbindlichkeiten sind Verpflichtungen des Unternehmens gegenüber Dritten: Kredite, Verbindlichkeiten gegenüber Lieferanten, Löhne, die Mitarbeitern geschuldet werden, und Steuern, die an Behörden zu zahlen sind. Das Eigenkapital repräsentiert das verbleibende Interesse der Eigentümer an den Vermögenswerten nach Begleichung aller Verbindlichkeiten. Eigenkapital erhöht sich durch Gewinne und Einlagen der Eigentümer und verringert sich durch Verluste und Entnahmen der Eigentümer. Das Verständnis dieser drei Kategorien ist die Grundlage für das korrekte Lesen jeder Finanzberichterstattung.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Umsatz und Ausgaben",
+      "text": "Der Umsatz ist der Ertrag aus den primären Geschäftstätigkeiten eines Unternehmens, also dem Verkauf von Produkten oder der Erbringung von Dienstleistungen. Aufwendungen sind Kosten, die bei der Erzielung dieses Umsatzes anfallen, darunter Gehälter, Miete, Materialien, Nebenkosten und Abschreibungen auf Anlagen. Der Nettogewinn oder Gewinn ergibt sich aus dem Umsatz abzüglich der Aufwendungen. Die Accrual-Buchhaltung erfasst Umsatz, sobald er erwirtschaftet wird, und Aufwendungen, sobald sie anfallen – unabhängig davon, wann tatsächlich Bargeld fließt. Ein Unternehmen, das im Dezember eine Dienstleistung erbracht hat, bucht diesen Umsatz im Dezember, auch wenn die Zahlung erst im Januar eingeht. Dieses Matching-Prinzip vermittelt ein realistischeres Bild der wirtschaftlichen Leistung eines Zeitraums.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Die Gewinn- und Verlustrechnung",
+      "text": "Die Gewinn- und Verlustrechnung, auch als Profit-and-Loss-Statement bezeichnet, fasst Umsätze und Aufwendungen über einen bestimmten Zeitraum zusammen: einen Monat, ein Quartal oder ein Jahr. Sie beginnt mit dem Bruttoumsatz, zieht die direkten Kosten für die Herstellung von Waren oder Dienstleistungen ab, um zum Bruttogewinn zu gelangen, und subtrahiert dann die betrieblichen Aufwendungen wie Miete und Gehälter, um das Betriebsergebnis zu erreichen. Zinsaufwendungen und Steuern werden abgezogen, um zum Jahresüberschuss zu gelangen. Ein profitables Unternehmen weist einen positiven Jahresüberschuss aus; ein verlustbringendes Unternehmen zeigt ein negatives Ergebnis. Investoren und Manager analysieren Gewinn- und Verlustrechnungen, um die Effizienz, Rentabilitätstrends und die Nachhaltigkeit der Erträge zu bewerten.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Die Bilanz",
+      "text": "Die Bilanz gibt einen Überblick über die finanzielle Lage eines Unternehmens zu einem bestimmten Zeitpunkt und listet alle Vermögenswerte, Verbindlichkeiten und das Eigenkapital auf. Im Gegensatz zur Gewinn- und Verlustrechnung, die einen Zeitraum abdeckt, erfasst die Bilanz nur einen einzelnen Zeitpunkt. Umlaufvermögen wie Bargeld und Vorräte wird innerhalb eines Jahres in Bargeld umgewandelt. Anlagevermögen wie Maschinen und Immobilien bieten über mehrere Jahre hinweg Wert. Kurzfristige Verbindlichkeiten sind innerhalb eines Jahres fällig, langfristige Verbindlichkeiten erstrecken sich darüber hinaus. Die Bilanz zeigt, ob ein Unternehmen seine kurzfristigen Verpflichtungen begleichen kann und wie seine Ressourcen im Unternehmen eingesetzt werden.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Kapitalflussrechnung",
+      "text": "Die Kapitalflussrechnung zeigt, wie sich das Geld in einem Zeitraum tatsächlich in das Unternehmen hinein- und herausbewegt hat, und ist in drei Abschnitte unterteilt. Die operativen Aktivitäten zeigen das durch die Kerngeschäftsaktivitäten generierte oder verbrauchte Geld. Die Investitionstätigkeiten zeigen das für langfristige Vermögenswerte ausgegebene oder von diesen erhaltene Geld. Die Finanzierungstätigkeiten zeigen das von Fremd- und Eigenkapitalgebern erhaltene oder an diese gezahlte Geld. Ein Unternehmen kann einen buchhalterischen Gewinn ausweisen und gleichzeitig einen negativen Cashflow haben, wenn Kunden langsam zahlen. Die Kapitalflussrechnung gilt oft als der zuverlässigste Finanzabschluss, weil Bargeld schwieriger zu manipulieren ist als Abgrenzungsbuchungen.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Warum Buchhaltung wichtig ist",
+      "text": "Das Rechnungswesen ermöglicht es allen Beteiligten eines Unternehmens, fundierte Entscheidungen auf Basis gemeinsamer, standardisierter Informationen zu treffen. Eigentümer nutzen Buchhaltungsdaten, um die Leistung zu bewerten und strategische Entscheidungen zu fällen. Investoren ziehen Finanzberichte heran, um zu prüfen, ob sich eine Investition in ein Unternehmen lohnt. Kreditgeber beurteilen die Kreditwürdigkeit anhand der Bilanzstärke und des Cashflows. Steuerbehörden sorgen dafür, dass Unternehmen ihre Einnahmen korrekt ausweisen. Innerhalb von Organisationen unterstützt das interne Rechnungswesen Manager dabei, Ressourcen den profitabelsten Aktivitäten zuzuweisen, Kosten zu kontrollieren und für künftige Perioden zu planen. Ohne zuverlässiges Rechnungswesen können Unternehmen nicht erkennen, ob sie profitabel arbeiten oder ihren künftigen finanziellen Verpflichtungen nachkommen können.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Wichtige Erkenntnisse",
+      "text": "Wichtige Erkenntnisse. Lassen Sie uns die Hauptpunkte zusammenfassen. Was ist Buchhaltung. Buchhaltung ist die systematische Erfassung, Zusammenfassung und Berichterstattung von Finanztransaktionen, um Entscheidungen von Eigentümern, Investoren, Gläubigern und Aufsichtsbehörden zu ermöglichen. Oft als Sprache des Geschäfts bezeichnet, übersetzt die Buchhaltung die wirtschaftliche Realität einer Organisation in standardisierte Zahlenberichte. Die Finanzbuchhaltung erstellt Berichte für externe Nutzer wie Aktionäre und Steuerbehörden. Die Kostenrechnung oder interne Buchhaltung erstellt Berichte für unternehmerische Entscheidungen. Jede Geschäftstransaktion, ein Verkauf, ein Einkauf oder ein Kredit, hat buchhalterische Auswirkungen, die erfasst werden müssen, um ein genaues Bild der finanziellen Lage zu erhalten. Die Bilanzgleichung. Die grundlegende Bilanzgleichung lautet: Vermögen gleich Verbindlichkeiten plus Eigenkapital. Diese Gleichung muss stets ausgeglichen sein, weil jede Transaktion mindestens zwei Konten so beeinflusst, dass das Gleichgewicht erhalten bleibt – deshalb heißt das System doppelte Buchführung. Wenn Sie für zehntausend Dollar Ausrüstung bar kaufen, bleibt das Vermögen unverändert, weil das Bargeld sinkt, aber die Ausrüstung um denselben Betrag steigt. Wenn Sie Geld leihen, steigen sowohl Vermögen als auch Verbindlichkeiten gleichermaßen. Diese elegante Einschränkung sorgt für interne Konsistenz in den Finanzunterlagen und macht Fehler durch entstehende Ungleichgewichte erkennbar. Vermögen, Verbindlichkeiten, Eigenkapital. Vermögen sind Ressourcen, die das Unternehmen besitzt oder kontrolliert und die künftigen wirtschaftlichen Nutzen haben: Bargeld, Vorräte, Ausrüstung, Gebäude, Forderungen und immaterielle Vermögenswerte wie Patente. Verbindlichkeiten sind Verpflichtungen des Unternehmens gegenüber Dritten: Kredite, Verbindlichkeiten gegenüber Lieferanten, Lohnverbindlichkeiten und Steuerverbindlichkeiten. Eigenkapital stellt den Restanspruch der Eigentümer an den Vermögenswerten nach Abzug aller Verbindlichkeiten dar. Eigenkapital steigt durch Gewinne und Einlagen der Eigentümer; es sinkt durch Verluste und Entnahmen der Eigentümer. Das Verständnis dieser drei Kategorien ist die Grundlage, um jede Bilanz richtig zu lesen. Umsatz und Aufwendungen. Umsatz ist der Ertrag aus den primären Tätigkeiten des Unternehmens, dem Verkauf von Produkten oder der Erbringung von Dienstleistungen. Aufwendungen sind Kosten, die bei der Erzielung dieses Umsatzes anfallen, einschließlich Gehälter, Miete, Material, Nebenkosten und Abschreibungen auf Ausrüstung. Der Jahresüberschuss oder Gewinn ist Umsatz minus Aufwendungen. Die periodengerechte Buchhaltung erfasst Umsatz, wenn er erzielt wird, und Aufwendungen, wenn sie anfallen – unabhängig davon, wann tatsächlich Geld fließt. Ein Unternehmen, das im Dezember eine Dienstleistung erbracht hat, bucht diesen Umsatz im Dezember, auch wenn die Zahlung erst im Januar eingeht. Dieses Matching-Prinzip liefert ein realistischeres Bild der wirts",
+      "kind": "narration"
+    }
+  ]
+}

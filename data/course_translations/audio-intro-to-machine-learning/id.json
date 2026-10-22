@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-intro-to-machine-learning",
+  "title": "Pengantar Machine Learning",
+  "category": "Technology",
+  "source_language": "en",
+  "language": "id",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Gambaran Umum",
+      "text": "Selamat datang. Dalam pelajaran ini, kita akan mengeksplorasi Pengantar Machine Learning. Kita akan membahas 8 bagian, dimulai dari Belajar dari Contoh, Pemisahan Data, Fitur dan Model, Loop Pelatihan, Overfitting, Evaluasi, Deployment, serta Batasan dan Etika. Saat mendengarkan, perhatikan bagaimana setiap bagian dibangun di atas bagian sebelumnya — Anda tidak perlu mencatat, cukup ikuti saja.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Belajar dari Contoh",
+      "text": "Pembelajaran mesin membangun model yang meningkatkan kemampuannya pada tugas dengan menemukan pola dalam data, bukan menggunakan aturan yang dikodekan manual. Pembelajaran terawasi memakai contoh berlabel; pembelajaran tak terawasi menemukan struktur tanpa label. Pembelajaran penguatan belajar dari imbalan di lingkungan seperti permainan.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Pembagian Data",
+      "text": "Data dibagi menjadi set pelatihan, validasi, dan pengujian untuk mengukur generalisasi. Kebocoran—informasi pengujian yang masuk ke pelatihan—meningkatkan skor secara menyesatkan. Validasi silang memberikan estimasi yang lebih handal pada dataset yang lebih kecil.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Fitur dan Model",
+      "text": "Fitur adalah input; label adalah target dalam klasifikasi dan regresi. Model linear adalah baseline yang mudah diinterpretasikan; ensemble pohon menangani data tabular dengan baik. Jaringan neural unggul pada gambar, audio, dan teks jika tersedia cukup data dan komputasi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Loop Pelatihan",
+      "text": "Loss functions mengukur error; optimizer seperti Adam menyesuaikan weights untuk mengurangi loss selama epochs. Batch size dan learning rate memengaruhi stabilitas dan kecepatan. GPUs mempercepat operasi matriks saat training model besar.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Overfitting",
+      "text": "Model yang menghafal noise data pelatihan akan gagal pada data baru. Regularisasi, dropout, dan early stopping mengurangi overfitting. Data yang lebih beragam sering membantu lebih daripada model yang terus diperbesar.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Evaluasi",
+      "text": "Klasifikasi pakai precision, recall, dan F1, terutama kalau kelasnya imbalanced. Regresi pakai MAE dan RMSE. Pilih metrik yang sesuai dengan biaya nyata dari false positive dan false negative.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Penerapan",
+      "text": "Model memberikan prediksi melalui API atau inferensi on-device. Pemantauan mendeteksi data drift ketika input dunia nyata berubah. Praktik MLOps memversioning data, kode, dan model untuk reproduktibilitas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Batasan dan Etika",
+      "text": "Model dapat memiliki bias, rapuh pada kasus tepi, dan tidak transparan dalam jaringan dalam. Penggunaan berisiko tinggi di bidang kedokteran dan peradilan memerlukan pengawasan serta transparansi. ML melengkapi penilaian manusia; ia tidak menggantikan akuntabilitas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Poin-poin kunci",
+      "text": "Poin-poin utama. Mari kita rangkum hal-hal pentingnya.\n\nBelajar dari Contoh. Machine learning membangun model yang semakin baik dalam mengerjakan tugas dengan menemukan pola dalam data, bukan dengan aturan yang dikodekan manual. Supervised learning menggunakan contoh berlabel, sedangkan unsupervised learning mencari struktur tanpa label. Reinforcement learning belajar dari reward di lingkungan seperti game.\n\nPembagian Data. Data dibagi menjadi training set, validation set, dan test set untuk mengukur kemampuan generalisasi. Data leakage—informasi test yang bocor ke training—bisa membuat skor tampak lebih baik secara menyesatkan. Cross-validation memberikan estimasi yang lebih andal pada dataset kecil.\n\nFitur dan Model. Fitur adalah input, sedangkan label adalah target pada klasifikasi dan regresi. Model linear menjadi baseline yang mudah diinterpretasi, sementara tree ensemble biasanya bagus untuk data tabular. Neural network unggul pada gambar, audio, dan teks jika data dan komputasinya cukup.\n\nTraining Loop. Loss function mengukur kesalahan, sedangkan optimizer seperti Adam menyesuaikan bobot untuk mengurangi loss seiring epoch. Ukuran batch dan learning rate memengaruhi stabilitas serta kecepatan. GPU mempercepat operasi matriks saat melatih model besar.\n\nOverfitting. Model yang menghafal noise data training akan gagal pada data baru. Regularization, dropout, dan early stopping bisa mengurangi overfitting. Data yang lebih beragam sering kali lebih membantu daripada sekadar memperbesar model terus-menerus.\n\nEvaluasi. Klasifikasi menggunakan precision, recall, dan F1, terutama saat kelas tidak seimbang. Regresi menggunakan MAE dan RMSE. Pilih metrik yang sesuai dengan biaya nyata dari false positive dan false negative.\n\nDeployment. Model menyajikan prediksi melalui API atau inferensi di perangkat. Monitoring mendeteksi data drift ketika input dunia nyata berubah. Praktik MLOps memversion data, kode, dan model agar bisa direproduksi.\n\nBatasan dan Etika. Model bisa bias, rapuh pada kasus ekstrem, dan sulit dijelaskan pada jaringan dalam. Penggunaan berisiko tinggi di bidang medis dan hukum memerlukan pengawasan serta transparansi. ML hanya melengkapi penilaian manusia, bukan menggantikan akuntabilitas.\n\nIngat hal-hal ini, dan kamu akan punya pemahaman dasar yang solid tentang Pengantar Machine Learning. Itu akhir pelajaran kali ini—terima kasih sudah mendengarkan.",
+      "kind": "narration"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-ada-lovelace-first-programmer",
+  "title": "Ada Lovelace, de eerste programmeur",
+  "category": "True Stories & Biographies",
+  "source_language": "en",
+  "language": "nl",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Overzicht",
+      "text": "Welkom. In deze les verkennen we Ada Lovelace, de eerste programmeur. We behandelen acht onderdelen, beginnend met 1815-1852, Eerste algoritme, Visie, Samenwerking met Babbage, Vertraagde nalatenschap, Genderbarrières, Moderne erkenning en Inspiratie. Terwijl je luistert, merk op hoe elk onderdeel voortbouwt op het vorige — je hoeft geen aantekeningen te maken, volg gewoon mee.",
+      "kind": "narration"
+    },
+    {
+      "heading": "1815-1852",
+      "text": "Augusta Ada King, gravin van Lovelace, werkte samen met Charles Babbage aan het ontwerp van de Analytical Engine. Ze vertaalde het artikel van Luigi Menabrea en voegde er uitgebreide notities aan toe.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Eerste algoritme",
+      "text": "Haar Note G beschreef een algoritme om Bernoulli-getallen te berekenen op de engine—vaak het eerste computerprogramma genoemd. Ze zag machines die symbolen manipuleerden, verder dan louter rekenwerk.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Visie",
+      "text": "Lovelace speculeerde dat machines muziek zouden kunnen componeren als de regels symbolisch konden worden uitgedrukt. Ze maakte sceptisch onderscheid tussen berekening en ware creativiteit.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Babbage Samenwerking",
+      "text": "Babbage ontwierp de Difference Engine en de Analytical Engine; Lovelace verduidelijkte de wiskundige implicaties van zijn ontwerpen. Beperkingen in de financiering verhinderden de bouw van een volledige Analytical Engine tijdens hun leven.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Legacy Vertraagd",
+      "text": "Haar bijdragen werden in de jaren 1950 herontdekt door B.V. Bowden en historici uit het Alan Turing-tijdperk. De Ada-programmeertaal werd in 1980 naar haar vernoemd.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Genderbarrières",
+      "text": "Vrouwen werden uitgesloten van universiteiten en wetenschappelijke genootschappen, wat hun formele erkenning in die tijd beperkte. Een aristocratische opleiding en de wiskundebijles van haar moeder Annabella maakten haar weg mogelijk.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Moderne herkenning",
+      "text": "Ada Lovelace Day viert vrouwen in STEM elke oktober. De debatten over hoeveel Babbage versus Ada eerlijk bijdroeg aan specifieke inzichten gaan door.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Inspiratie",
+      "text": "Haar verhaal laat zien dat verbeeldingsvolle vooruitziendheid net zo belangrijk is als hardware. De vroege geschiedenis van de informatica omvat figuren die lange tijd over het hoofd zijn gezien en nu weer in de canon zijn opgenomen.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Belangrijkste punten",
+      "text": "Belangrijkste inzichten. Laten we de belangrijkste punten even samenvatten. 1815-1852. Augusta Ada King, gravin van Lovelace, werkte samen met Charles Babbage aan het ontwerp van de Analytical Engine. Ze vertaalde het artikel van Luigi Menabrea en voegde er uitgebreide noten aan toe. Eerste algoritme. Haar Note G beschreef een algoritme om Bernouilli-getallen te berekenen op de machine – vaak het eerste computerprogramma genoemd. Ze zag dat machines symbolen konden manipuleren, verder dan alleen rekenen. Visie. Lovelace speculeerde dat machines muziek zouden kunnen componeren als de regels symbolisch uitgedrukt konden worden. Ze maakte een duidelijk onderscheid tussen rekenen en echte creativiteit, en bleef daar sceptisch over. Samenwerking met Babbage. Babbage ontwierp de Difference Engine en de Analytical Engine; Lovelace verduidelijkte de wiskundige implicaties van zijn ontwerpen. Door geldgebrek is de volledige Analytical Engine nooit gebouwd tijdens hun leven. Erfenis laat ontdekt. Haar bijdragen werden in de jaren vijftig herontdekt door B.V. Bowden en historici uit de tijd van Alan Turing. De programmeertaal Ada werd in 1980 naar haar vernoemd. Genderbarrières. Vrouwen werden destijds uitgesloten van universiteiten en wetenschappelijke genootschappen, waardoor formele erkenning beperkt bleef. Haar aristocratische opvoeding en de wiskundelessen van haar moeder Annabella maakten haar pad mogelijk. Moderne erkenning. Ada Lovelace Day viert elk jaar in oktober vrouwen in de wetenschap en techniek. Er wordt nog steeds gediscussieerd over hoeveel Babbage en Ada precies hebben bijgedragen aan specifieke inzichten. Inspiratie. Haar verhaal laat zien dat verbeeldingskracht en vooruitziendheid net zo belangrijk zijn als hardware. De vroege computerhistorie bevat ook over het hoofd geziene figuren die nu weer in het verhaal worden opgenomen. Houd dit in gedachten, dan heb je een goed beeld van Ada Lovelace, de eerste programmeur. Dat was het einde van deze les – bedankt voor het luisteren.",
+      "kind": "narration"
+    }
+  ]
+}

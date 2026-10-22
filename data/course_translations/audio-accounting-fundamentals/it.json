@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-accounting-fundamentals",
+  "title": "Fondamenti di contabilità",
+  "category": "Business & Finance",
+  "source_language": "en",
+  "language": "it",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Panoramica",
+      "text": "Benvenuti. In questa lezione esploreremo i Fondamenti di Contabilità. Tratteremo 8 parti, a partire da Cos’è la Contabilità, L’Equazione Contabile, Attività, Passività e Patrimonio Netto, Ricavi e Spese, Il Conto Economico, Lo Stato Patrimoniale, Il Rendiconto Finanziario e Perché la Contabilità è Importante. Mentre ascoltate, notate come ogni parte si basi su quella precedente: non serve prendere appunti, basta seguire.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Cos'è la contabilità?",
+      "text": "La contabilità è la registrazione sistematica, la sintesi e la rendicontazione delle transazioni finanziarie per consentire il processo decisionale da parte di proprietari, investitori, creditori e autorità di regolamentazione. Spesso definita il linguaggio degli affari, la contabilità traduce la realtà economica di un'organizzazione in report numerici standardizzati. La contabilità finanziaria produce report per utenti esterni come azionisti e autorità fiscali. La contabilità gestionale produce report interni per il processo decisionale organizzativo. Ogni transazione aziendale, una vendita, un acquisto o un prestito, ha una conseguenza contabile che deve essere registrata per mantenere un quadro accurato della posizione finanziaria.",
+      "kind": "narration"
+    },
+    {
+      "heading": "L'equazione contabile",
+      "text": "L'equazione fondamentale della contabilità è Attività uguale a Passività più Patrimonio netto. Questa equazione deve sempre bilanciarsi perché ogni transazione influisce su almeno due conti in modo da mantenere l'equilibrio, ed è per questo che il sistema si chiama contabilità a partita doppia. Quando acquisti attrezzature del valore di diecimila dollari pagando in contanti, le attività rimangono invariate perché i contanti diminuiscono ma le attrezzature aumentano della stessa somma. Quando prendi in prestito denaro, sia le attività che le passività aumentano in egual misura. Questo vincolo elegante garantisce la coerenza interna nei registri finanziari e rende gli errori rilevabili grazie allo squilibrio che creano.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Attività Passività Patrimonio netto",
+      "text": "Le attività sono risorse che l'azienda possiede o controlla e che hanno un valore economico futuro: contanti, scorte, attrezzature, edifici, crediti verso clienti e attività immateriali come i brevetti. Le passività sono obbligazioni che l'azienda deve ad altri: prestiti, debiti verso fornitori, stipendi dovuti ai dipendenti e tasse dovute alle autorità. Il patrimonio netto rappresenta l'interesse residuo dei proprietari nelle attività dopo che tutte le passività sono state pagate. Il patrimonio netto aumenta attraverso i profitti e gli investimenti dei proprietari; diminuisce attraverso le perdite e i prelievi dei proprietari. Comprendere queste tre categorie è il fondamento per leggere con precisione qualsiasi bilancio.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ricavi e spese",
+      "text": "I ricavi sono i proventi derivanti dalle attività principali dell’azienda, cioè la vendita di prodotti o la fornitura di servizi. Le spese sono i costi sostenuti per generare tali ricavi, inclusi stipendi, affitti, materiali, utenze e ammortamento delle attrezzature. L’utile netto, o profitto, è dato dai ricavi meno le spese. La contabilità per competenza registra i ricavi quando vengono maturati e le spese quando vengono sostenute, indipendentemente dal momento in cui avviene lo scambio di denaro. Un’azienda che ha fornito un servizio a dicembre registra quel ricavo a dicembre anche se il pagamento arriva a gennaio. Questo principio di competenza offre un quadro più veritiero della performance economica di un periodo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Il conto economico",
+      "text": "Il conto economico, noto anche come conto profitti e perdite, riassume i ricavi e le spese su un periodo specifico: un mese, un trimestre o un anno. Inizia con i ricavi lordi, sottrae i costi diretti di produzione di beni o servizi per arrivare all'utile lordo, quindi sottrae le spese operative come l'affitto e gli stipendi per arrivare al reddito operativo. Le spese per interessi e le imposte vengono detratte per arrivare all'utile netto. Un'azienda redditizia mostra un utile netto positivo; un'azienda in perdita mostra un risultato negativo. Gli investitori e i manager analizzano i conti economici per valutare l'efficienza, le tendenze di redditività e la sostenibilità degli utili.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Lo stato patrimoniale",
+      "text": "Lo stato patrimoniale offre un'istantanea della posizione finanziaria di un'azienda in un momento preciso, elencando tutte le attività, le passività e il patrimonio netto. A differenza del conto economico, che copre un periodo, lo stato patrimoniale cattura un singolo istante. Le attività correnti come la liquidità e le scorte si convertono in contanti entro un anno. Le attività a lungo termine come macchinari e immobili generano valore su più anni. Le passività correnti sono dovute entro un anno; quelle a lungo termine si estendono oltre. Lo stato patrimoniale rivela se un'azienda può pagare i suoi obblighi a breve termine e come le sue risorse sono distribuite all'interno dell'organizzazione.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Rendiconto dei flussi di cassa",
+      "text": "Il rendiconto dei flussi di cassa traccia come il denaro è effettivamente entrato e uscito dall’azienda durante un periodo, diviso in tre sezioni. Le attività operative mostrano il contante generato o consumato dalle operazioni principali dell’azienda. Le attività di investimento indicano il denaro speso o incassato per attività a lungo termine. Le attività di finanziamento mostrano il contante proveniente o versato ai finanziatori di debito e capitale. Un’azienda può registrare un utile contabile pur avendo un flusso di cassa negativo se i clienti pagano in ritardo. Il rendiconto dei flussi di cassa è spesso considerato il bilancio più affidabile perché il contante è più difficile da manipolare rispetto alle scritture contabili per competenza.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Perché la contabilità è importante",
+      "text": "La contabilità consente a ogni stakeholder di un’azienda di prendere decisioni consapevoli basate su informazioni condivise e standardizzate. I proprietari utilizzano i dati contabili per valutare le performance e prendere decisioni strategiche. Gli investitori si servono dei bilanci per capire se un’impresa merita di essere finanziata. I finanziatori valutano l’affidabilità creditizia dalla solidità del bilancio e dal flusso di cassa. Le autorità fiscali verificano che le aziende dichiarino correttamente i redditi. All’interno delle organizzazioni, la contabilità gestionale aiuta i manager ad allocare le risorse alle attività più redditizie, a controllare i costi e a pianificare i periodi futuri. Senza una contabilità affidabile, le imprese non possono sapere se sono redditizie né se saranno in grado di far fronte agli obblighi finanziari imminenti.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Punti chiave",
+      "text": "Punti chiave. Ricapitoliamo i concetti principali. Cos’è la contabilità. La contabilità è la registrazione sistematica, la sintesi e la rendicontazione delle transazioni finanziarie, per consentire il processo decisionale a proprietari, investitori, creditori e autorità di controllo. Spesso definita il linguaggio degli affari, la contabilità traduce la realtà economica di un’organizzazione in report numerici standardizzati. La contabilità finanziaria produce report per utenti esterni come azionisti e autorità fiscali. La contabilità direzionale produce report interni per le decisioni aziendali. Ogni transazione commerciale, una vendita, un acquisto o un finanziamento, ha una conseguenza contabile che va registrata per mantenere un quadro accurato della posizione finanziaria. L’equazione contabile. L’equazione contabile fondamentale è Attività uguale a Passività più Patrimonio netto. Questa equazione deve sempre bilanciarsi perché ogni transazione influenza almeno due conti in modo da mantenere l’equilibrio, ed è per questo che il sistema si chiama contabilità a partita doppia. Quando acquisti attrezzature per diecimila dollari pagando in contanti, le attività restano invariate perché il denaro diminuisce ma le attrezzature aumentano dello stesso importo. Quando ottieni un prestito, sia le attività che le passività aumentano in egual misura. Questo vincolo elegante garantisce la coerenza interna dei dati finanziari e rende gli errori individuabili grazie allo squilibrio che creano. Attività, Passività, Patrimonio netto. Le attività sono le risorse che l’azienda possiede o controlla e che hanno un valore economico futuro: liquidità, scorte, attrezzature, immobili, crediti verso clienti e attività immateriali come i brevetti. Le passività sono gli obblighi dell’azienda verso terzi: prestiti, debiti verso fornitori, stipendi da pagare ai dipendenti e imposte da versare. Il patrimonio netto rappresenta l’interesse residuo dei proprietari sulle attività dopo aver pagato tutte le passività. Il patrimonio netto aumenta con gli utili e gli apporti dei soci; diminuisce con le perdite e i prelievi dei soci. Capire queste tre categorie è la base per leggere correttamente qualsiasi bilancio. Ricavi e costi. I ricavi sono i proventi derivanti dalle attività principali dell’azienda, cioè la vendita di prodotti o la fornitura di servizi. I costi sono le spese sostenute per generare quei ricavi, inclusi stipendi, affitti, materiali, utenze e ammortamento delle attrezzature. L’utile netto, o profitto, è dato dai ricavi meno i costi. La contabilità per competenza registra i ricavi quando vengono maturati e i costi quando vengono sostenuti, indipendentemente dal momento in cui avviene lo scambio di denaro. Un’azienda che ha erogato un servizio a dicembre registra quel ricavo a dicembre anche se il pagamento arriva a gennaio. Questo principio di correlazione offre un quadro più fedele della performance economica di un periodo. Il conto economico. Il conto economico, detto anche conto profitti e perdite, riassume ricavi e costi relativi a un periodo specifico: un mese, un trimestre o un anno. Parte dai ricavi lordi, sottrae i costi diretti per produrre beni o servizi per arrivare al margine lordo, poi sottrae i costi operativi come affitto e stipendi per arrivare all’utile operativo. Si sottraggono poi gli oneri finanziari e le imposte per arrivare all’utile netto. Un’azienda in utile mostra un risultato netto positivo; un’azienda in perdita mostra un risultato negativo. Investitori e manager analizzano il conto economico per valutare l’efficienza, l’andamento della redditività e la sostenibilità degli utili. Lo stato patrimoniale. Lo stato patrimoniale offre una fotografia della situazione finanziaria dell’azienda in un momento preciso, elencando tutte le attività, le passività e il patrimonio netto. A differenza",
+      "kind": "narration"
+    }
+  ]
+}

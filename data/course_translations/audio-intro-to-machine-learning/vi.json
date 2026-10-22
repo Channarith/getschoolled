@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-intro-to-machine-learning",
+  "title": "Giới thiệu về Học máy",
+  "category": "Technology",
+  "source_language": "en",
+  "language": "vi",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Tổng quan",
+      "text": "Chào mừng. Trong bài học này chúng ta sẽ khám phá Intro to Machine Learning. Chúng ta sẽ đề cập 8 phần, bắt đầu với Learning from Examples, Data Splits, Features and Models, Training Loop, Overfitting, Evaluation, Deployment, và Limits and Ethics. Khi lắng nghe, hãy chú ý cách mỗi phần xây dựng dựa trên phần trước — bạn không cần ghi chép, chỉ cần theo dõi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Học từ các ví dụ",
+      "text": "Học máy xây dựng các mô hình giúp cải thiện hiệu suất trên các tác vụ bằng cách tìm các mẫu trong dữ liệu thay vì dùng các quy tắc được lập trình thủ công. Học có giám sát sử dụng các ví dụ đã được gán nhãn; học không giám sát tìm cấu trúc mà không cần nhãn. Học tăng cường học từ phần thưởng trong các môi trường như trò chơi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Phân chia dữ liệu",
+      "text": "Dữ liệu được chia thành tập huấn luyện, tập kiểm định và tập kiểm tra để đánh giá khả năng khái quát hóa. Rò rỉ dữ liệu—thông tin từ tập kiểm tra xuất hiện trong tập huấn luyện—làm thổi phồng điểm số một cách sai lệch. Xác thực chéo mang lại các ước lượng đáng tin cậy trên các tập dữ liệu nhỏ hơn.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Tính năng và Mô hình",
+      "text": "Đặc trưng là đầu vào; nhãn là mục tiêu trong phân loại và hồi quy. Mô hình tuyến tính là các baseline dễ diễn giải; các ensemble cây xử lý tốt dữ liệu dạng bảng. Mạng nơ-ron vượt trội trên hình ảnh, âm thanh và văn bản khi có đủ dữ liệu cùng tài nguyên tính toán.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Vòng lặp huấn luyện",
+      "text": "Các hàm loss đo lường sai số; các optimizer như Adam điều chỉnh trọng số để giảm loss qua các epoch. Batch size và learning rate ảnh hưởng đến độ ổn định và tốc độ. GPU tăng tốc các phép toán ma trận khi huấn luyện mô hình lớn.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Quá khớp",
+      "text": "Các mô hình ghi nhớ nhiễu trong dữ liệu huấn luyện sẽ thất bại khi gặp dữ liệu mới. Regularization, dropout và early stopping giúp giảm overfitting. Dữ liệu đa dạng hơn thường mang lại hiệu quả tốt hơn so với việc cứ làm mô hình ngày càng lớn.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Đánh giá",
+      "text": "Phân loại dùng precision, recall và F1, đặc biệt khi các lớp bị mất cân bằng. Hồi quy dùng MAE và RMSE. Nên chọn chỉ số phù hợp với chi phí thực tế của false positive và false negative.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Triển khai",
+      "text": "Các mô hình cung cấp dự đoán thông qua API hoặc chạy inference trên thiết bị. Giám sát phát hiện data drift khi đầu vào thực tế thay đổi. Thực hành MLOps phiên bản hóa dữ liệu, mã nguồn và mô hình để đảm bảo khả năng tái tạo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Giới hạn và Đạo đức",
+      "text": "Các mô hình có thể có thiên kiến, dễ vỡ ở các trường hợp biên, và khó giải thích trong mạng sâu. Ứng dụng rủi ro cao trong y tế và tư pháp đòi hỏi giám sát cùng minh bạch. Học máy bổ trợ phán đoán của con người chứ không thay thế trách nhiệm giải trình.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Những điểm chính",
+      "text": "Những điểm chính cần nhớ. Hãy tóm tắt lại các ý chính.\n\nHọc từ Ví dụ. Học máy xây dựng mô hình cải thiện hiệu suất trên các tác vụ bằng cách tìm ra các mẫu trong dữ liệu thay vì dùng các quy tắc được viết thủ công. Học có giám sát sử dụng các ví dụ đã được gán nhãn; học không giám sát tìm cấu trúc mà không cần nhãn. Học tăng cường học từ phần thưởng trong môi trường như trò chơi.\n\nChia dữ liệu. Dữ liệu được chia thành tập huấn luyện, tập xác thực và tập kiểm tra để đo lường khả năng khái quát hóa. Rò rỉ dữ liệu—thông tin từ tập kiểm tra lẫn vào tập huấn luyện—làm tăng điểm số một cách sai lệch. Kiểm định chéo cho ước lượng ổn định hơn trên tập dữ liệu nhỏ.\n\nĐặc trưng và Mô hình. Đặc trưng là đầu vào; nhãn là mục tiêu trong bài toán phân loại và hồi quy. Mô hình tuyến tính là baseline dễ giải thích; các mô hình ensemble dựa trên cây hoạt động tốt với dữ liệu dạng bảng. Mạng nơ-ron vượt trội trên hình ảnh, âm thanh và văn bản khi có đủ dữ liệu và tài nguyên tính toán.\n\nVòng lặp Huấn luyện. Hàm mất mát đo lường sai số; các thuật toán tối ưu như Adam điều chỉnh trọng số để giảm mất mát qua các epoch. Kích thước batch và tốc độ học ảnh hưởng đến độ ổn định và tốc độ. GPU tăng tốc các phép toán ma trận khi huấn luyện mô hình lớn.\n\nQuá khớp. Các mô hình ghi nhớ nhiễu trong dữ liệu huấn luyện sẽ thất bại trên dữ liệu mới. Chính quy hóa, dropout và dừng sớm giúp giảm quá khớp. Dữ liệu đa dạng thường hiệu quả hơn việc cứ mãi làm mô hình lớn hơn.\n\nĐánh giá. Phân loại dùng precision, recall và F1, đặc biệt khi các lớp mất cân bằng. Hồi quy dùng MAE và RMSE. Chọn chỉ số phù hợp với chi phí thực tế của các trường hợp dương tính giả và âm tính giả.\n\nTriển khai. Mô hình cung cấp dự đoán qua API hoặc chạy suy luận ngay trên thiết bị. Giám sát phát hiện hiện tượng data drift khi dữ liệu thực tế thay đổi. Thực hành MLOps giúp phiên bản hóa dữ liệu, mã nguồn và mô hình để đảm bảo khả năng tái lập.\n\nGiới hạn và Đạo đức. Mô hình có thể thiên kiến, dễ vỡ với các trường hợp biên và khó giải thích ở mạng sâu. Các ứng dụng quan trọng trong y tế và tư pháp đòi hỏi giám sát và minh bạch. Học máy hỗ trợ phán đoán của con người chứ không thay thế trách nhiệm giải trình.\n\nHãy ghi nhớ những điều này, bạn sẽ nắm vững kiến thức cơ bản về Nhập môn Học máy. Đó là kết thúc bài học—cảm ơn bạn đã lắng nghe.",
+      "kind": "narration"
+    }
+  ]
+}
