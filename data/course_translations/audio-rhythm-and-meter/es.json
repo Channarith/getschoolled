@@ -1,0 +1,295 @@
+{
+  "course_id": "audio-rhythm-and-meter",
+  "title": "Ritmo y métrica",
+  "category": "Music Theory & History",
+  "source_language": "en",
+  "language": "es",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Descripción general",
+      "text": "Bienvenidos. En esta lección exploramos el ritmo y el compás. Cubriremos 55 partes, comenzando con Contexto relacionado — The History of Jazz: Origins in New Orleans, Contexto relacionado — The History of Jazz: Ragtime and Early Jazz, Contexto relacionado — The History of Jazz: The Swing Era, Contexto relacionado — The History of Jazz: Bebop Revolution, Contexto relacionado — The History of Jazz: Cool Jazz and Hard Bop, Contexto relacionado — The History of Jazz: Free Jazz and Avant-Garde, Contexto relacionado — The History of Jazz: Fusion and Electric Jazz, Contexto relacionado — The History of Jazz: Jazz Today, Contexto relacionado — Ancient Egypt: The Nile's Annual Rhythm, Contexto relacionado — Ancient Egypt: Pharaohs and Divine Kingship, Contexto relacionado — Ancient Egypt: Hieroglyphs and Writing y Contexto relacionado — Ancient Egypt: Religion and the Afterlife, seguido de contexto relacionado adicional. Mientras escuchas, observa cómo cada parte se construye sobre la anterior; no necesitas tomar notas, solo sigue el flujo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La historia del jazz: Orígenes en Nueva Orleans",
+      "text": "El jazz surgió en Nueva Orleans a principios del siglo XX a partir de la convergencia de tradiciones musicales afroamericanas: el blues, el ragtime, el gospel y la música de bandas de metales que se interpretaba en funerales y celebraciones. La mezcla cultural única de la ciudad, con influencias africanas, caribeñas, criollas y europeas, creó las condiciones para una síntesis musical sin precedentes. El jazz primitivo era música de baile, que se tocaba en clubes y salones de baile de Storyville, el distrito de entretenimiento de la ciudad. La música enfatizaba la improvisación colectiva —varios músicos creando líneas melódicas al mismo tiempo— en lugar de composiciones preestablecidas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La historia del jazz: Ragtime y Early Jazz",
+      "text": "El ragtime, un estilo de piano sincopado popularizado por el Maple Leaf Rag de Scott Joplin en 1899, precedió al jazz y aportó su sofisticación rítmica a la forma emergente. El jazz primitivo de Nueva Orleans, conocido como Dixieland, se caracterizaba por la improvisación colectiva sobre una sección rítmica. El cornetista Buddy Bolden suele considerarse el primer músico de jazz, aunque las grabaciones preceden a la documentación de su ejecución. La Original Dixieland Jass Band realizó la primera grabación comercial de jazz en 1917, llevando esta nueva música a la atención nacional e iniciando un período de explosivo interés popular.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La historia del jazz: La era del swing",
+      "text": "En los años treinta, el jazz había evolucionado hacia el swing: grandes bandas que interpretaban arreglos escritos con solistas destacados improvisando sobre el conjunto. Líderes como Duke Ellington, Count Basie y Benny Goodman dirigían orquestas de quince o más músicos a través de arreglos complejos. El swing se convirtió en la música popular de Estados Unidos, impulsando la fiebre del baile que llenaba salones de todo el país. La radio y las grabaciones difundieron la música entre oyentes que nunca habían pisado un club nocturno. La época produjo solistas icónicos como el saxofonista tenor Coleman Hawkins y el trompetista Louis Armstrong, quienes habían definido el vocabulario del jazz temprano.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La historia del jazz: La revolución del bebop",
+      "text": "En los primeros años de la década de 1940, jóvenes músicos como Charlie Parker, Dizzy Gillespie y Thelonious Monk desarrollaron el bebop en pequeños clubes de Harlem. El bebop era deliberadamente complejo —tempos rápidos, armonías intrincadas e improvisación virtuosa— y estaba pensado para escucharse, no para bailarse. Rechazó la accesibilidad comercial del swing y afirmó el jazz como música artística seria. Las improvisaciones de Parker en el saxofón alto cambiaron por completo lo que los músicos de jazz consideraban posible, introduciendo un nuevo vocabulario melódico y rítmico que aún define la técnica del jazz. El bebop separó definitivamente al jazz del mercado popular masivo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La historia del jazz: Cool Jazz y Hard Bop",
+      "text": "Los años 50 vieron cómo el jazz se diversificaba. El cool jazz, asociado con las grabaciones Birth of the Cool de Miles Davis y los músicos de la Costa Oeste, aportó una calidad relajada y contenida inspirada en las influencias de la música clásica europea. El hard bop, desarrollado por Art Blakey, Horace Silver y Clifford Brown, regresó a las raíces del blues y el gospel con mayor intensidad rítmica y mayor franqueza emocional. Ambos movimientos respondieron al bebop de formas diferentes, aunque compartían su sofisticación armónica e improvisacional. El pluralismo de la década estableció el jazz como una forma que abarcaba muchos enfoques estilísticos distintos en lugar de una sola práctica unificada.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La historia del jazz: Free Jazz y Avant-Garde",
+      "text": "La grabación Free Jazz de Ornette Coleman de 1960 marcó una ruptura radical con las convenciones del bebop: improvisación colectiva sin cambios de acordes predeterminados ni tempos fijos. John Coltrane, a partir de A Love Supreme en 1964, impulsó una intensidad espiritual y técnicas extendidas. El free jazz resultó controvertido y marginal desde el punto de vista comercial, pero influyente artísticamente, ampliando los límites de lo que el jazz podía ser. El movimiento coincidió con la época de los derechos civiles y muchos de sus practicantes lo entendieron como una afirmación de la libertad cultural afroamericana frente a las restricciones musicales europeas y los compromisos comerciales.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La historia del jazz: Fusión y jazz eléctrico",
+      "text": "El Bitches Brew de Miles Davis en 1970 fusionó la improvisación del jazz con ritmos de rock, instrumentos amplificados y experimentación en el estudio. La fusión jazz-rock atrajo al público del rock, pero alienó a los puristas del jazz. Bandas como Weather Report, Mahavishnu Orchestra y Return to Forever exploraron la intersección entre la complejidad del jazz y la energía del rock a lo largo de la década. Los instrumentos eléctricos y las técnicas de estudio abrieron nuevas posibilidades sonoras, al tiempo que generaron controversia sobre si el enfoque comercial de la fusión comprometía la integridad artística del jazz. La fusión produjo interpretaciones virtuosas y producciones innovadoras, dejando un impacto duradero en músicos de todos los géneros.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La historia del jazz: El jazz hoy",
+      "text": "El jazz contemporáneo abarca desde los músicos tradicionalistas que extienden la línea del bebop hasta artistas que incorporan el hip-hop, la música electrónica y tradiciones globales. Wynton Marsalis impulsó el neoclasicismo en el Lincoln Center, defendiendo el estatus canónico de la tradición del jazz. Artistas como Kamasi Washington acercan el jazz a nuevas audiencias a través de sus conexiones con la cultura del hip-hop. Los programas de educación jazzística en las universidades han formado músicos técnicamente sofisticados en todo el mundo. Los clubes pequeños y los festivales mantienen viva la cultura de las actuaciones en vivo, mientras que las plataformas de streaming han hecho el catálogo histórico del jazz más accesible que nunca para los nuevos oyentes curiosos.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: El ritmo anual del Nilo",
+      "text": "La civilización egipcia creció a lo largo del Nilo porque sus inundaciones predecibles depositaban limo fértil cada verano. Los agricultores ajustaban la siembra a la crecida, y el excedente de grano sustentaba a escribas, sacerdotes y faraones. Sin el río, el Sáhara habría dejado la región en gran parte inhabitable para asentamientos densos.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: Faraones y Realeza Divina",
+      "text": "Los faraones eran vistos como vínculos vivos entre los dioses y el pueblo, responsables de la ma'at, el orden cósmico y la justicia. Proyectos monumentales como las pirámides de Giza expresaban el poder real y movilizaban a miles de trabajadores e ingenieros. Las dinastías surgieron y cayeron a lo largo de tres milenios, desde la unificación de Narmer alrededor del 3100 a. C. hasta la caída de Cleopatra en el 30 a. C.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: Jeroglíficos y escritura",
+      "text": "Los jeroglíficos egipcios combinaban signos logográficos y alfabéticos, que se usaban en templos, tumbas y papiros. Los escribas se formaban durante años; los registros escritos llevaban el control de impuestos, contratos y textos religiosos como el Libro de los Muertos. La inscripción trilingüe de la Piedra Rosetta permitió a Champollion descifrar los jeroglíficos en 1822, reabriendo una voz perdida.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: Religión y el más allá",
+      "text": "Los egipcios creían que el ka y el ba —esencias espirituales— necesitaban cuerpos preservados y ofrendas para alcanzar el más allá. La momificación, los vasos canopos y los bienes funerarios reflejaban rituales elaborados supervisados por sacerdotes de Osiris y Ra. El Valle de los Reyes esconde cámaras funerarias ricamente pintadas, muchas de ellas saqueadas a pesar de sus entradas ocultas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: Vida diaria y trabajo",
+      "text": "La mayoría de los egipcios se dedicaban a la agricultura, la pesca o elaboraban cerámica, lino y cerveza a partir de trigo emmer y cebada. Las casas de ladrillo de barro rodeaban patios; el pan y la cerveza eran alimentos básicos para los trabajadores que construían las tumbas reales. Las mujeres podían poseer propiedades y llevar a cabo negocios, aunque los matrimonios entre la élite a menudo consolidaban alianzas políticas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: Maravillas de la ingeniería",
+      "text": "La Gran Pirámide de Khufu medía originalmente 146 metros de altura y utilizaba aproximadamente 2,3 millones de bloques de piedra. Los ingenieros alinearon las estructuras con los puntos cardinales con una precisión notable usando herramientas de observación y técnicas de agrimensura. Los templos de Karnak y Luxor crecieron a lo largo de los siglos, mostrando cómo la arquitectura proclamaba la devoción faraónica a los dioses.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: Comercio e Imperio",
+      "text": "Egipto importaba cedro del Líbano, oro de Nubia y lapislázuli de la lejana Afganistán. Los faraones del Reino Nuevo, como Tutmosis III, proyectaron su poder hacia Canaán y Nubia, creando un imperio temprano. El control de las rutas comerciales y las exportaciones de grano convirtieron a Egipto en un premio estratégico para los gobernantes persas, griegos y romanos posteriores.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: Declive y Legado",
+      "text": "La fragmentación del período tardío, la conquista persa y la llegada de Alejandro transformaron el papel político de Egipto. Los gobernantes griegos ptolemaicos gobernaron desde Alejandría, fusionando las tradiciones helénicas y egipcias hasta que Roma anexó el reino. El arte, la medicina y las prácticas administrativas egipcias influyeron en los vecinos y aún dan forma a los museos y la erudición actual.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: Arqueología hoy",
+      "text": "Sitios como Saqqara y Abydos siguen revelando tumbas, que muestran objetos cotidianos y reinas olvidadas. Los escaneos modernos evitan excavaciones destructivas al cartografiar cámaras ocultas dentro de las pirámides y los envoltorios de las momias. Los debates sobre la repatriación y el turismo equilibran la preservación con la identidad nacional y las necesidades económicas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — Antiguo Egipto: Por qué Egipto perdura en la memoria",
+      "text": "El período de la historia egipcia —más largo que el de la Grecia y Roma clásicas combinadas— ofrece un laboratorio para la formación del Estado. Su cultura visual es instantáneamente reconocible: los ankh, los escarabajos y los discos solares alados circulan en la cultura popular global. Estudiar Egipto aclara cómo el entorno, la religión y la burocracia pueden estabilizar una sociedad durante milenios.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: De ciudad-estado a potencia mediterránea",
+      "text": "Roma comenzó como un pequeño asentamiento latino; la leyenda sitúa su fundación en el año 753 a. C., a orillas del río Tíber. Tras expulsar a los reyes, la República se expandió por Italia mediante alianzas y legiones de ciudadanos-soldados. La victoria en las Guerras Púnicas contra Cartago le dio el control de Sicilia, España y el dominio sobre el Mediterráneo occidental.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: Instituciones republicanas",
+      "text": "El Senado asesoraba a los magistrados; los cónsules comandaban los ejércitos y dirigían el gobierno por mandatos de un año. Mecanismos de control como los vetos de los tribunos buscaban equilibrar los intereses de patricios y plebeyos, aunque la desigualdad persistía. La expansión tensó la República, enriqueciendo a las élites mientras los veteranos exigían tierras y voz política.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: César, la Guerra Civil y el Imperio",
+      "text": "La conquista de la Galia por Julio César y su cruce del Rubicón en el 49 a. C. rompieron las normas republicanas. Su asesinato en el 44 a. C. no logró restaurar el viejo orden; en cambio, los caudillos compitieron por el control. Octavio derrotó a Marco Antonio en Accio en el 31 a. C. y se convirtió en Augusto, el primer emperador, en el 27 a. C.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: Administración Imperial",
+      "text": "Las provincias eran gobernadas por funcionarios designados; las élites locales solían administrar los asuntos cotidianos bajo la ley romana. Las carreteras, acueductos y la red de mensajería del cursus publicus integraban a pueblos diversos a través de tres continentes. El latín se extendió como lengua administrativa, mientras que el griego seguía siendo esencial en las provincias orientales.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: Ejército y Defensa de las Fronteras",
+      "text": "Las legiones de infantería pesada, con apoyo de caballería e ingenieros, construyeron fuertes a lo largo de las fronteras del Rin, el Danubio y el Éufrates. El sueldo, las pensiones y las recompensas de ciudadanía ataban a los soldados al Estado, pero las guerras civiles a veces volvían los ejércitos hacia el interior. El Muro de Adriano en Britania simbolizaba los límites de la expansión y una gestión pragmática de las fronteras.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: Derecho, Ciudadanía y Sociedad",
+      "text": "El derecho romano codificó los contratos, la propiedad y los derechos familiares, influyendo en los sistemas de derecho civil modernos. La ciudadanía se expandió con el tiempo; el Edicto de Caracalla de 212 d.C. la concedió a casi todos los habitantes libres. La esclavitud sustentó la agricultura y el trabajo urbano, mientras que los libertos podían ascender en el comercio aunque persistía el estigma.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: Economía y vida urbana",
+      "text": "Ciudades como Roma, Alejandría y Antioquía albergaban a cientos de miles de habitantes, alimentadas por flotas de grano procedentes de Egipto. Los mercados comerciaban aceite de oliva, vino, salsa de pescado garum y cerámica a través de las rutas marítimas del Mare Nostrum. Los baños públicos, foros y anfiteatros exhibían riqueza y ofrecían ocio, política y espectáculos.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: Religión y mezcla cultural",
+      "text": "Los romanos absorbieron dioses de los pueblos conquistados, asociando deidades locales con las suyas propias, como Júpiter. Los cultos mistéricos, las escuelas filosóficas y, finalmente, el cristianismo desafiaron los ritos paganos tradicionales. El arte imperial copiaba estilos griegos al tiempo que celebraba a los emperadores mediante arcos, monedas y retratos realistas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: Crisis y División",
+      "text": "Las crisis del siglo III provocaron un rápido recambio de emperadores, inflación e invasiones en las fronteras. Diocleciano reorganizó el gobierno en una tetrarquía y estableció controles de precios; más tarde, Constantino trasladó la capital al este, a Bizancio. El imperio se dividió formalmente; la mitad occidental colapsó en el 476 d. C., mientras que el estado bizantino oriental continuó durante varios siglos más.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Imperio Romano: La influencia duradera de Roma",
+      "text": "Las lenguas romances, los principios jurídicos y el urbanismo se remontan a modelos romanos. La Iglesia católica preservó el saber latino; la imaginería republicana inspiró revoluciones posteriores. Las ruinas que van desde el Coliseo hasta Pompeya convierten a Roma en una lección tangible sobre infraestructura, poder y fragilidad.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Ruta de la Seda: Orígenes y rutas",
+      "text": "La Ruta de la Seda no era una sola carretera, sino una red de rutas comerciales que conectaban China con el Mediterráneo desde aproximadamente el siglo II a. C. Las caravanas cruzaban desiertos, montañas y estepas, con centros clave en Samarcanda, Kashgar y Constantinopla. La seda, las especias, el papel y las ideas —no solo mercancías— fluían por estos caminos durante más de un milenio.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Ruta de la Seda: Conexiones de la Dinastía Han",
+      "text": "El emperador Wu de Han envió al emisario Zhang Qian hacia el oeste alrededor del 138 a. C., abriendo relaciones diplomáticas y comerciales con los reinos de Asia Central. La seda china se volvió tan apreciada en Roma que Plinio el Viejo se quejó de que el oro se drenaba hacia el este. La ruta también difundió el budismo desde la India hasta China y, finalmente, Japón.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Ruta de la Seda: Intercambio cultural",
+      "text": "Las religiones, las tecnologías y los estilos artísticos cruzaron la Ruta de la Seda junto con las mercancías. La fabricación de papel se extendió desde China al mundo islámico y luego a Europa, revolucionando la alfabetización. Los conceptos matemáticos como el cero y el álgebra viajaron a través de los eruditos persas y árabes.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Ruta de la Seda: Peligros del viaje",
+      "text": "Los comerciantes enfrentaban bandidos, climas hostiles e inestabilidad política en docenas de estados independientes. Las caravanas se organizaban en grandes grupos con guardias armados para protegerse al cruzar el desierto de Taklamakan. El momento estacional importaba: las nieves invernales bloqueaban los pasos de montaña como los de los Pamir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Ruta de la Seda: La Paz Mongol",
+      "text": "Bajo el Imperio Mongol en los siglos XIII y XIV, la Pax Mongolica hizo que los viajes fueran más seguros por Eurasia durante una generación. El relato de Marco Polo describió ciudades prósperas y la corte de Kublai Khan en Catay. Las estaciones de relevo postal llamadas yam permitieron una comunicación rápida por todo el imperio.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Ruta de la Seda: Declive y Legado",
+      "text": "Las rutas comerciales oceánicas tras el viaje de Vasco da Gama a la India en 1498 desplazaron gradualmente el comercio de caravanas por tierra. El control del Imperio Otomano sobre los puertos del Mediterráneo oriental elevó los costos, lo que favoreció el transporte marítimo. Hoy, la Iniciativa de la Franja y la Ruta evoca las ambiciones históricas de conectar Asia y Europa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Ruta de la Seda: Bienes comerciales cotidianos",
+      "text": "Más allá de la seda, los comerciantes transportaban té, porcelana, caballos, lana, vidrio y piedras preciosas. Los mercaderes sogdianos de Asia Central solían actuar como intermediarios que hablaban varios idiomas. Los precios reflejaban la distancia, el riesgo y los monopolios en cuellos de botella como el Corredor de Gansu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Ruta de la Seda: Evidencia arqueológica",
+      "text": "Las cuevas de Mogao en Dunhuang conservan arte budista que muestra los diversos rostros y trajes de los viajeros de la Ruta de la Seda. Los naufragios y los asentamientos en los oasis revelan cocinas mixtas y costumbres funerarias. Los estudios de ADN de esqueletos antiguos confirman la migración a larga distancia y los matrimonios mixtos.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Ruta de la Seda: Por qué sigue importando",
+      "text": "La Ruta de la Seda ilustra cómo el comercio puede difundir la cultura y la tecnología más rápido que los ejércitos. Las cadenas de suministro modernas aún dependen de puntos de estrangulamiento e intermediarios, solo que con contenedores en lugar de camellos. Comprender esta historia ayuda a explicar el interés geopolítico en Asia Central hoy.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Renacimiento: Qué significa Renacimiento",
+      "text": "El Renacimiento, que significa renacimiento, describe un florecimiento cultural en Europa aproximadamente entre los siglos XIV y XVII. Comenzó en las ciudades-estado italianas como Florencia y Venecia, impulsado por la riqueza del comercio y los textos clásicos recuperados de Bizancio y las bibliotecas árabes. Los artistas y pensadores se inspiraron en la antigua Grecia y Roma como modelos, al tiempo que innovaban con audacia.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Renacimiento: Humanismo y Educación",
+      "text": "Los humanistas, como Petrarca, enfatizaban el estudio de la literatura clásica, la historia y la retórica para mejorar la vida cívica. Las universidades ampliaron sus planes de estudio más allá de la teología para incluir el derecho, la medicina y las artes liberales. La imprenta, inventada por Gutenberg alrededor de 1440, multiplicó los libros y difundió las ideas humanistas por toda Europa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Renacimiento: Revolución artística",
+      "text": "Los artistas desarrollaron la perspectiva lineal, la precisión anatómica y las técnicas de pintura al óleo que crearon un realismo sorprendente. Leonardo da Vinci, Michelangelo y Raphael produjeron obras que aún definen la cultura visual occidental. El mecenazgo de familias como los Medici financió talleres donde los aprendices aprendían copiando a los maestros.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Renacimiento: Ciencia y Observación",
+      "text": "Los pensadores del Renacimiento empezaron a dar más peso a la observación directa que a la autoridad puramente escolástica. Copérnico propuso un cosmos heliocéntrico en 1543, aunque tardó décadas en ser aceptado. Vesalio diseccionó cuerpos humanos y corrigió los errores anatómicos de Galeno que llevaban siglos vigentes.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Renacimiento: Exploración y contacto global",
+      "text": "Los navegantes portugueses y españoles abrieron rutas marítimas hacia África, Asia y las Américas durante esta época. Colón llegó al Caribe en 1492; Vasco da Gama llegó a la India en 1498. Estos viajes trajeron riqueza, nuevos cultivos y epidemias devastadoras a las poblaciones indígenas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Renacimiento: Política y Ciudades-Estado",
+      "text": "La competencia entre las repúblicas, ducados y estados papales italianos impulsó tanto el arte como la guerra. El Príncipe de Maquiavelo analizó el poder con un cinismo pragmático que escandalizó a sus contemporáneos. La caída de Constantinopla en 1453 envió a los eruditos griegos hacia el oeste, acelerando el renacimiento clásico.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Renacimiento: Arquitectura y Espacio Público",
+      "text": "La cúpula de Filippo Brunelleschi para la Catedral de Florencia demostró el genio de la ingeniería al emplear un diseño de doble cáscara sin andamios. Las villas de Palladio influyeron en edificios gubernamentales de todo el mundo, incluido Monticello de Thomas Jefferson. Las plazas urbanas se convirtieron en escenarios para la identidad cívica y las procesiones religiosas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Renacimiento: Límites y contradicciones",
+      "text": "El esplendor del Renacimiento coexistió con las cacerías de brujas, la esclavitud en las colonias y las rígidas jerarquías de clase. Mujeres talentosas como Artemisia Gentileschi enfrentaron barreras de mecenazgo que los hombres no tenían que superar. No toda Europa participó por igual; el arte del Renacimiento del norte desarrolló temas y técnicas distintos.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — El Renacimiento: Influencia duradera",
+      "text": "Los ideales del Renacimiento sobre el logro individual y la investigación empírica contribuyeron a impulsar la Revolución Científica y la Ilustración. Los museos siguen organizando sus galerías en torno a los maestros renacentistas como base de la historia del arte occidental. Esta época enseña que la renovación cultural suele surgir tras las crisis, el comercio y el conocimiento recuperado.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Revolución Industrial: De las herramientas manuales a las máquinas",
+      "text": "La Revolución Industrial comenzó en Gran Bretaña a finales del siglo XVIII, pasando la producción de los hogares y talleres a las fábricas. Las máquinas de vapor, impulsadas por carbón, movieron las fábricas textiles y posteriormente los ferrocarriles por todo el país. La producción por trabajador se disparó, pero los trabajadores enfrentaron largas jornadas, trabajo infantil y condiciones peligrosas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Revolución Industrial: Los textiles lideran el camino",
+      "text": "Innovaciones como la spinning jenny y el power loom mecanizaron la producción de tela que se había hecho a mano durante siglos. Las importaciones de algodón de las colonias alimentaron las fábricas británicas, vinculando el crecimiento industrial al comercio global y la esclavitud. Ciudades fabriles como Manchester crecieron rápidamente, atrayendo a migrantes rurales en busca de salarios.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Revolución Industrial: Hierro, Carbón y Vapor",
+      "text": "El hierro fundido con coque sustituyó al carbón vegetal, permitiendo raíles, puentes y maquinaria más resistentes. La máquina de vapor mejorada de James Watt (patentada en 1769) se convirtió en la fuente de energía que definió la época. La minería del carbón se expandió de forma dramática, transformando paisajes y creando nuevos riesgos laborales.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Revolución Industrial: El transporte transformado",
+      "text": "Los canales y posteriormente los ferrocarriles redujeron el costo y el tiempo de transportar mercancías y personas. El Rocket de George Stephenson (1829) demostró las locomotoras de vapor prácticas en el Ferrocarril de Liverpool y Manchester. El transporte más rápido integró los mercados nacionales y estandarizó los precios entre las regiones.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Revolución Industrial: Urbanización y Clase",
+      "text": "Las ciudades crecieron rápidamente con trabajadores fabriles que vivían en tugurios abarrotados e insalubres. Surgió una nueva clase media industrial de dueños y gerentes, junto a una clase obrera urbana. Los reformadores documentaron la pobreza; las leyes limitaron gradualmente el trabajo infantil y mejoraron la inspección de fábricas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Revolución Industrial: Expansión más allá de Gran Bretaña",
+      "text": "Bélgica, Francia, Alemania y Estados Unidos se industrializaron en el siglo XIX, adoptando a menudo técnicas británicas. El proteccionismo y las patentes determinaron quién podía copiar las máquinas y la rapidez con que se extendía la industria. La industrialización Meiji de Japón demostró más tarde que el modelo podía transformar también a las sociedades no occidentales.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Revolución Industrial: Movimientos obreros",
+      "text": "Los trabajadores organizaron sindicatos y huelgas para exigir jornadas más cortas, condiciones más seguras y salarios más altos. Los luditas rompieron máquinas en las primeras protestas, aunque los historiadores señalan que se dirigían contra empleadores específicos, no contra toda la tecnología. Las ideas socialistas y comunistas ganaron terreno al criticar las desigualdades del capitalismo industrial.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Revolución Industrial: Costos ambientales",
+      "text": "El humo del carbón contaminaba el aire; los residuos de las fábricas ensuciaban los ríos en los distritos industriales. La deforestación y la minería desfiguraron el campo alrededor de las ciudades en crecimiento. Estos patrones prefiguran los debates modernos sobre el crecimiento, el clima y la regulación.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Contexto relacionado — La Revolución Industrial: Legado para hoy",
+      "text": "La producción en masa, el trabajo asalariado y las cadenas de suministro globales se remontan directamente a esta revolución. Los niveles de vida aumentaron a lo largo de generaciones en las naciones industriales, aunque los beneficios se compartieron de manera desigual. Comprender la Revolución Industrial aclara cómo la tecnología puede crear simultáneamente riqueza y disrupción.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Puntos clave",
+      "text": "Puntos clave. Repasemos los puntos principales. Contexto relacionado — La historia del jazz: Orígenes en Nueva Orleans. El jazz surgió en Nueva Orleans a principios del siglo XX a partir de la convergencia de tradiciones musicales afroamericanas: el blues, el ragtime, el gospel y la música de bandas de metales que se interpretaba en funerales y celebraciones. La mezcla cultural única de la ciudad, con influencias africanas, caribeñas, criollas y europeas, creó las condiciones para una síntesis musical sin precedentes. El jazz primitivo era música de baile, que se tocaba en clubes y salones de baile de Storyville, el distrito de entretenimiento de la ciudad. La música enfatizaba la improvisación colectiva —varios músicos creando líneas melódicas al mismo tiempo— en lugar de composiciones preestablecidas. Contexto relacionado — La historia del jazz: Ragtime y jazz primitivo. El ragtime, un estilo de piano sincopado popularizado por el Maple Leaf Rag de Scott Joplin en 1899, precedió al jazz y aportó su sofisticación rítmica a la forma emergente. El jazz primitivo de Nueva Orleans, llamado dixieland, destacaba por la improvisación colectiva sobre una sección rítmica. El cornetista Buddy Bolden suele considerarse el primer músico de jazz, aunque no hay grabaciones que documenten su forma de tocar. La Original Dixieland Jass Band realizó la primera grabación comercial de jazz en 1917, llevando esta nueva música a la atención nacional e iniciando un período de explosivo interés popular. Contexto relacionado — La historia del jazz: La era del swing. En la década de 1930, el jazz evolucionó hacia el swing: grandes big bands que interpretaban arreglos escritos con solistas destacados que improvisaban sobre el conjunto. Líderes de bandas como Duke Ellington, Count Basie y Benny Goodman dirigían orquestas de quince o más músicos a través de arreglos complejos. El swing se convirtió en la música popular de Estados Unidos, impulsando la fiebre del baile que llenaba los salones de baile de todo el país. La radio y las grabaciones difundieron la música a oyentes que nunca habían estado en un club nocturno. La era produjo solistas icónicos como el saxofonista tenor Coleman Hawkins y el trompetista Louis Armstrong, que definieron el vocabulario del jazz primitivo. Contexto relacionado — La historia del jazz: La revolución del bebop. A principios de la década de 1940, jóvenes músicos como Charlie Parker, Dizzy Gillespie y Thelonious Monk desarrollaron el bebop en pequeños clubes de Harlem. El bebop era deliberadamente complejo —tempos rápidos, armonías intrincadas, improvisación virtuosa— pensado para escuchar más que para bailar. Rechazaba la accesibilidad comercial del swing y afirmaba el jazz como música de arte seria. Las improvisaciones de Parker al saxofón alto cambiaron fundamentalmente lo que los músicos de jazz consideraban posible, introduciendo un nuevo vocabulario melódico y rítmico que aún define la técnica del jazz. El bebop separó al jazz del mercado popular mainstream de forma permanente. Contexto relacionado — La historia del jazz: Cool jazz y hard bop. La década de 1950 vio cómo el jazz se diversificaba. El cool jazz, asociado a las grabaciones Birth of the Cool de Miles Davis y a los músicos de la Costa Oeste, aportó una calidad relajada y contenida con influencias de la música clásica europea. El hard bop, desarrollado por Art Blakey, Horace Silver y Clifford Brown, volvió a las raíces del blues y el gospel con mayor intensidad rítmica y franqueza emocional. Ambos movimientos respondieron de forma diferente al",
+      "kind": "narration"
+    }
+  ]
+}

@@ -1,0 +1,390 @@
+{
+  "course_id": "audio-phonetics-and-phonology",
+  "title": "Fonetik dan Fonologi",
+  "category": "Language & Linguistics",
+  "source_language": "en",
+  "language": "id",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Gambaran umum",
+      "text": "Selamat datang. Dalam pelajaran ini kita mengeksplorasi Fonetik dan Fonologi. Kita akan membahas 74 bagian, dimulai dengan Konteks terkait — Ancient Egypt: The Nile's Annual Rhythm, Konteks terkait — Ancient Egypt: Pharaohs and Divine Kingship, Konteks terkait — Ancient Egypt: Hieroglyphs and Writing, Konteks terkait — Ancient Egypt: Religion and the Afterlife, Konteks terkait — Ancient Egypt: Daily Life and Labor, Konteks terkait — Ancient Egypt: Engineering Marvels, Konteks terkait — Ancient Egypt: Trade and Empire, Konteks terkait — Ancient Egypt: Decline and Legacy, Konteks terkait — Ancient Egypt: Archaeology Today, Konteks terkait — Ancient Egypt: Why Egypt Endures in Memory, Konteks terkait — The Roman Empire: From City-State to Mediterranean Power, dan Konteks terkait — The Roman Empire: Republican Institutions, diikuti oleh konteks terkait tambahan. Saat Anda mendengarkan, perhatikan bagaimana setiap bagian membangun yang sebelumnya — Anda tidak perlu mencatat, cukup ikuti saja.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Mesir Kuno: Irama Tahunan Sungai Nil",
+      "text": "Peradaban Mesir berkembang di sepanjang Sungai Nil karena banjirnya yang teratur mengendapkan lumpur subur setiap musim panas. Petani menyesuaikan waktu tanam dengan banjir itu, dan surplus gandum mendukung para juru tulis, pendeta, serta firaun. Tanpa sungai tersebut, Sahara akan membuat wilayah itu sebagian besar tidak layak huni untuk pemukiman padat.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Mesir Kuno: Firaun dan Kerajaan Ilahi",
+      "text": "Firaun dipahami sebagai penghubung hidup antara para dewa dan manusia, yang bertanggung jawab atas ma'at—ketertiban kosmik dan keadilan. Proyek-proyek monumental seperti piramida di Giza mencerminkan kekuasaan kerajaan dan mengorganisir ribuan pekerja serta insinyur. Dinasti-dinasti bangkit dan runtuh selama tiga milenium, dari penyatuan Narmer sekitar 3100 SM hingga kejatuhan Cleopatra pada 30 SM.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Mesir Kuno: Hieroglif dan Tulisan",
+      "text": "Hieroglif Mesir menggabungkan tanda logografis dan alfabetis, yang dipakai di kuil, makam, dan papirus. Para juru tulis dilatih bertahun-tahun; catatan tertulis mencatat pajak, kontrak, serta teks keagamaan seperti Kitab Orang Mati. Prasasti trilingual di Batu Rosetta memungkinkan Champollion menguraikan hieroglif pada 1822, membuka kembali suara yang hilang.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Mesir Kuno: Agama dan Kehidupan Akhirat",
+      "text": "Orang Mesir percaya bahwa ka dan ba—esensi spiritual—membutuhkan tubuh yang diawetkan serta persembahan untuk mencapai alam akhirat. Mumifikasi, guci kanopik, dan barang-barang makam mencerminkan ritual rumit yang diawasi para pendeta Osiris dan Ra. Lembah Para Raja menyimpan ruang pemakaman yang dicat indah, banyak di antaranya telah dirampok meskipun pintu masuknya tersembunyi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Mesir Kuno: Kehidupan Sehari-hari dan Pekerjaan",
+      "text": "Sebagian besar orang Mesir bertani, menangkap ikan, atau membuat tembikar, linen, dan bir dari gandum emmer serta jelai. Rumah-rumah dari bata lumpur mengelilingi halaman; roti dan bir merupakan makanan pokok bagi para pekerja yang membangun makam kerajaan. Wanita dapat memiliki properti dan menjalankan bisnis, meskipun pernikahan di kalangan elit sering mempererat aliansi politik.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Mesir Kuno: Keajaiban Teknik",
+      "text": "Piramida Agung Khufu awalnya berdiri setinggi 146 meter dan dibangun dari sekitar 2,3 juta balok batu. Para insinyur menyelaraskan bangunan-bangunan itu ke arah kardinal dengan ketelitian luar biasa menggunakan alat bidik dan teknik survei. Kuil-kuil di Karnak dan Luxor berkembang selama berabad-abad, menunjukkan bagaimana arsitektur mempromosikan pengabdian para firaun kepada dewa-dewa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Mesir Kuno: Perdagangan dan Kekaisaran",
+      "text": "Mesir mengimpor kayu cedar dari Lebanon, emas dari Nubia, dan lapis lazuli dari Afghanistan yang jauh. Firaun Kerajaan Baru seperti Thutmose III memperluas kekuasaan ke Kanaan dan Nubia, membentuk kekaisaran awal. Kontrol atas rute perdagangan dan ekspor gandum menjadikan Mesir sebagai incaran strategis bagi penguasa Persia, Yunani, dan Romawi di kemudian hari.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Mesir Kuno: Kemunduran dan Warisan",
+      "text": "Fragmentasi pada periode akhir, penaklukan Persia, dan kedatangan Alexander mengubah peran politik Mesir. Para penguasa Yunani Ptolemaik memerintah dari Aleksandria dengan memadukan tradisi Helenik dan Mesir hingga Roma menganeksasi kerajaan tersebut. Seni, pengobatan, dan praktik administratif Mesir memengaruhi negara-negara tetangga serta masih membentuk museum dan kajian ilmiah hingga kini.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Mesir Kuno: Arkeologi Hari Ini",
+      "text": "Situs seperti Saqqara dan Abydos terus menemukan makam, mengungkapkan benda sehari-hari dan ratu-ratu yang terlupakan. Pemindaian modern menghindari penggalian yang merusak, memetakan ruang tersembunyi di dalam piramida dan pembungkus mumi. Perdebatan soal repatriasi dan pariwisata menyeimbangkan pelestarian dengan identitas nasional serta kebutuhan ekonomi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Mesir Kuno: Mengapa Mesir Tetap Dikenang",
+      "text": "Rentang sejarah Mesir—lebih panjang daripada Yunani dan Roma klasik jika digabungkan—menawarkan laboratorium untuk pembentukan negara. Budaya visualnya langsung dikenali: ankh, scarab, dan cakram matahari bersayap beredar dalam budaya populer global. Mempelajari Mesir menjelaskan bagaimana lingkungan, agama, dan birokrasi bisa menstabilkan masyarakat selama ribuan tahun.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Kekaisaran Romawi: Dari Negara Kota hingga Kekuatan Mediterania",
+      "text": "Roma bermula sebagai pemukiman Latin kecil, menurut legenda didirikan pada 753 SM di tepi Sungai Tiber. Setelah mengusir para raja, Republik meluas ke seluruh Italia melalui aliansi dan legiun prajurit warga. Kemenangan dalam Perang Punik melawan Kartago membawa Sisilia, Spanyol, serta dominasi atas Mediterania barat.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Kekaisaran Romawi: Institusi Republik",
+      "text": "Senat menasihati para magistrat; konsul memimpin pasukan dan memimpin pemerintahan selama masa jabatan satu tahun. Pengawasan seperti veto tribun bertujuan menyeimbangkan kepentingan patricius dan plebeius, meskipun ketidaksetaraan tetap ada. Ekspansi membebani Republik, memperkaya elit sementara para veteran menuntut tanah dan suara politik.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Kekaisaran Romawi: Caesar, Perang Saudara, dan Kekaisaran",
+      "text": "Penaklukan Gaul oleh Julius Caesar dan penyeberangannya melintasi Rubicon pada 49 SM menghancurkan norma-norma republik. Pembunuhannya pada 44 SM gagal memulihkan tatanan lama; sebaliknya, para panglima perang bersaing memperebutkan kekuasaan. Octavian mengalahkan Mark Antony di Actium pada 31 SM dan menjadi Augustus, kaisar pertama, pada 27 SM.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Kekaisaran Romawi: Administrasi Kekaisaran",
+      "text": "Provinsi-provinsi diperintah oleh pejabat yang ditunjuk; elit lokal sering mengelola urusan sehari-hari berdasarkan hukum Romawi. Jalan-jalan, akuaduk, dan jaringan kurir cursus publicus menyatukan berbagai masyarakat di tiga benua. Bahasa Latin menyebar sebagai bahasa administratif, sementara bahasa Yunani tetap penting di provinsi-provinsi timur.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Kekaisaran Romawi: Tentara dan Pertahanan Perbatasan",
+      "text": "Legiun infanteri berat beserta kavaleri pendukung dan insinyur membangun benteng-benteng di sepanjang perbatasan Rhine, Danube, dan Euphrates. Gaji, pensiun, serta hadiah kewarganegaraan mengikat para prajurit pada negara, tetapi perang saudara kadang mengarahkan pasukan ke dalam negeri. Tembok Hadrian di Britania melambangkan batas ekspansi serta pengelolaan perbatasan yang pragmatis.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Kekaisaran Romawi: Hukum, Kewarganegaraan, dan Masyarakat",
+      "text": "Hukum Romawi mengkodifikasi kontrak, properti, dan hak keluarga, yang memengaruhi sistem hukum perdata modern. Kewarganegaraan meluas seiring waktu; Edik Caracalla tahun 212 M memberikannya kepada hampir semua penduduk bebas. Perbudakan menopang pertanian dan tenaga kerja perkotaan, sementara orang merdeka bisa naik dalam perdagangan meskipun stigma masih melekat.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Kekaisaran Romawi: Ekonomi dan Kehidupan Perkotaan",
+      "text": "Kota-kota seperti Roma, Aleksandria, dan Antiokhia menampung ratusan ribu penduduk, yang dipasok oleh armada gandum dari Mesir. Pasar-pasar memperdagangkan minyak zaitun, anggur, saus ikan garum, dan tembikar melalui rute laut Mare Nostrum. Pemandian umum, forum, dan amfiteater menampilkan kekayaan serta menawarkan waktu luang, politik, dan tontonan.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Kekaisaran Romawi: Agama dan Perpaduan Budaya",
+      "text": "Orang Romawi menyerap dewa-dewa dari bangsa yang ditaklukkan, memasangkan dewa lokal dengan dewa mereka sendiri seperti Jupiter. Kultus misteri, sekolah filsafat, dan akhirnya Kekristenan menantang ritus pagan tradisional. Seni kekaisaran meniru gaya Yunani sambil merayakan para kaisar melalui lengkungan, koin, dan potret realistis.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Kekaisaran Romawi: Krisis dan Perpecahan",
+      "text": "Krisis abad ketiga membawa pergantian kaisar yang cepat, inflasi, dan invasi di perbatasan. Diokletianus mengatur ulang pemerintahan menjadi tetrarki serta kontrol harga; kemudian Konstantinus memindahkan ibu kota ke timur ke Bizantium. Kekaisaran secara resmi terpecah; bagian barat runtuh pada 476 Masehi sementara negara Bizantium di timur berlanjut selama berabad-abad lagi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Kekaisaran Romawi: Pengaruh Abadi Roma",
+      "text": "Bahasa-bahasa Roman, prinsip-prinsip hukum, dan perencanaan kota berasal dari model-model Romawi. Gereja Katolik melestarikan pembelajaran Latin; citra republik menginspirasi revolusi-revolusi selanjutnya. Reruntuhan dari Koloseum hingga Pompeii menjadikan Roma sebagai pelajaran nyata tentang infrastruktur, kekuasaan, dan kerapuhan.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Jalur Sutra: Asal-usul dan Rute",
+      "text": "Jalan Sutra bukanlah satu jalan tunggal, melainkan jaringan rute perdagangan yang menghubungkan Tiongkok dengan Mediterania sejak sekitar abad ke-2 SM. Kafilah melintasi gurun, pegunungan, dan stepa, dengan pusat-pusat utama di Samarkand, Kashgar, dan Konstantinopel. Sutra, rempah-rempah, kertas, dan ide—bukan hanya barang—mengalir melalui jalur-jalur ini selama lebih dari satu milenium.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Jalur Sutra: Koneksi Dinasti Han",
+      "text": "Kaisar Wu dari Han mengirim utusan Zhang Qian ke barat sekitar 138 SM, membuka hubungan diplomatik dan komersial dengan kerajaan-kerajaan Asia Tengah. Sutra Cina menjadi sangat dihargai di Roma sehingga Pliny the Elder mengeluh tentang emas yang mengalir ke timur. Rute tersebut juga menyebarkan agama Buddha dari India ke Cina dan akhirnya ke Jepang.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Jalur Sutra: Pertukaran Budaya",
+      "text": "Agama, teknologi, dan gaya seni melintasi Jalur Sutra bersama barang dagangan. Pembuatan kertas menyebar dari Cina ke dunia Islam dan kemudian ke Eropa, merevolusi literasi. Konsep matematika seperti nol dan aljabar menyebar melalui sarjana Persia dan Arab.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Jalur Sutra: Bahaya Perjalanan",
+      "text": "Para pedagang menghadapi bandit, iklim yang keras, dan ketidakstabilan politik di puluhan negara merdeka. Karavan diorganisir dalam kelompok besar dengan penjaga bersenjata untuk perlindungan saat melewati Gurun Taklamakan. Waktu musiman sangat penting: salju musim dingin menghalangi jalur pegunungan seperti di Pegunungan Pamir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Jalur Sutra: Perdamaian Mongol",
+      "text": "Di bawah Kekaisaran Mongol pada abad ke-13 dan ke-14, Pax Mongolica membuat perjalanan lebih aman melintasi Eurasia selama satu generasi. Catatan Marco Polo menggambarkan kota-kota yang makmur serta istana Kublai Khan di Cathay. Stasiun pos relai yang disebut yam memungkinkan komunikasi cepat di seluruh kekaisaran.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Jalur Sutra: Kemunduran dan Warisan",
+      "text": "Rute perdagangan laut setelah pelayaran Vasco da Gama ke India pada 1498 secara bertahap menggeser perdagangan kafilah darat. Penguasaan Kekaisaran Utsmaniyah atas pelabuhan-pelabuhan Mediterania timur menambah biaya sehingga pengiriman laut lebih disukai. Saat ini Inisiatif Sabuk dan Jalan mencerminkan ambisi historis untuk menghubungkan Asia dan Eropa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Jalur Sutra: Barang Dagangan Sehari-hari",
+      "text": "Selain sutra, para pedagang juga mengangkut teh, porselen, kuda, wol, kaca, dan batu-batu berharga. Pedagang Sogdian dari Asia Tengah sering berperan sebagai perantara yang menguasai banyak bahasa. Harga mencerminkan jarak, risiko, dan monopoli di titik-titik sempit seperti Koridor Gansu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Jalur Sutra: Bukti Arkeologis",
+      "text": "Gua Mogao di Dunhuang menyimpan seni Buddha yang menampilkan wajah dan kostum beragam para pelancong Jalur Sutra. Bangkai kapal dan pemukiman oasis mengungkapkan masakan campuran serta adat pemakaman. Studi DNA pada kerangka kuno mengonfirmasi migrasi jarak jauh dan pernikahan silang.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Jalur Sutra: Mengapa Masih Penting",
+      "text": "Jalur Sutra menunjukkan bagaimana perdagangan bisa menyebarkan budaya dan teknologi lebih cepat daripada pasukan. Rantai pasokan modern masih bergantung pada titik-titik sempit dan perantara, cuma pakai kontainer bukan unta. Memahami sejarah ini membantu menjelaskan minat geopolitik di Asia Tengah saat ini.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Renaisans: Apa Arti Renaisans",
+      "text": "Renaissance, yang berarti kelahiran kembali, menggambarkan kebangkitan budaya di Eropa sekitar abad ke-14 hingga abad ke-17. Gerakan ini dimulai di kota-kota negara Italia seperti Florence dan Venice, didorong oleh kekayaan perdagangan serta teks klasik yang ditemukan kembali dari Bizantium dan perpustakaan Arab. Para seniman dan pemikir menjadikan Yunani dan Roma kuno sebagai model sambil berinovasi dengan berani.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Renaisans: Humanisme dan Pendidikan",
+      "text": "Kaum humanis seperti Petrarch menekankan pentingnya mempelajari sastra klasik, sejarah, dan retorika untuk memperbaiki kehidupan masyarakat. Universitas memperluas kurikulum mereka di luar teologi hingga mencakup hukum, kedokteran, dan seni liberal. Mesin cetak yang ditemukan Gutenberg sekitar tahun 1440 memperbanyak buku serta menyebarkan gagasan humanis ke seluruh Eropa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Renaisans: Revolusi Artistik",
+      "text": "Seniman mengembangkan perspektif linier, akurasi anatomi, dan teknik melukis minyak yang menciptakan realisme menakjubkan. Leonardo da Vinci, Michelangelo, dan Raphael menghasilkan karya yang masih mendefinisikan budaya visual Barat. Patronase dari keluarga seperti Medici mendanai studio tempat para magang belajar dengan meniru para maestro.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Renaisans: Sains dan Observasi",
+      "text": "Para pemikir Renaisans mulai mengutamakan observasi langsung daripada otoritas skolastik semata. Copernicus mengusulkan kosmos heliosentris pada tahun 1543, meskipun butuh puluhan tahun untuk diterima. Vesalius membedah tubuh manusia dan mengoreksi kesalahan anatomi Galen yang telah bertahan selama berabad-abad.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Renaisans: Eksplorasi dan Kontak Global",
+      "text": "Navigator Portugis dan Spanyol membuka rute laut ke Afrika, Asia, dan Amerika pada era ini. Columbus mencapai Karibia pada 1492; Vasco da Gama mencapai India pada 1498. Pelayaran-pelayaran ini membawa kekayaan, tanaman baru, serta epidemi yang menghancurkan bagi penduduk asli.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Renaisans: Politik dan Negara Kota",
+      "text": "Persaingan di antara republik-republik Italia, kadipaten-kadipaten, dan negara-negara kepausan mendorong seni sekaligus peperangan. The Prince karya Machiavelli menganalisis kekuasaan dengan sinisme pragmatis yang mengejutkan orang-orang sezamannya. Jatuhnya Konstantinopel pada 1453 mengirim para sarjana Yunani ke barat, mempercepat kebangkitan klasik.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Renaisans: Arsitektur dan Ruang Publik",
+      "text": "Kubah Filippo Brunelleschi untuk Katedral Florence menunjukkan kejeniusan teknik dengan desain cangkang ganda tanpa perancah. Vila-vila Palladio memengaruhi bangunan pemerintahan di seluruh dunia, termasuk Monticello milik Thomas Jefferson. Alun-alun kota menjadi panggung bagi identitas sipil dan prosesi keagamaan.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Renaisans: Batasan dan Kontradiksi",
+      "text": "Kecemerlangan Renaisans berdampingan dengan perburuan penyihir, perbudakan di koloni, dan hierarki kelas yang kaku. Wanita berbakat seperti Artemisia Gentileschi harus berjuang melawan hambatan patronase yang tidak dihadapi pria. Tidak semua wilayah Eropa berpartisipasi secara sama; seni Renaisans Utara mengembangkan tema dan teknik yang khas.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Renaisans: Pengaruh yang Abadi",
+      "text": "Cita-cita Renaisans tentang pencapaian individu dan penyelidikan empiris turut menyemai Revolusi Ilmiah serta Abad Pencerahan. Museum-museum hingga kini masih menyusun galeri-galeri mereka berpusat pada para maestro Renaisans sebagai fondasi sejarah seni Barat. Zaman itu mengajarkan bahwa pembaruan budaya sering muncul setelah krisis, perdagangan, dan pemulihan pengetahuan.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Revolusi Industri: Dari Alat Tangan ke Mesin",
+      "text": "Revolusi Industri dimulai di Inggris pada akhir 1700-an, mengalihkan produksi dari rumah dan bengkel ke pabrik. Mesin uap yang digerakkan oleh batu bara menggerakkan pabrik tekstil dan kemudian kereta api di seluruh negeri. Output per pekerja melonjak, tetapi para pekerja menghadapi jam kerja panjang, tenaga kerja anak, dan kondisi berbahaya.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Revolusi Industri: Tekstil Memimpin Jalan",
+      "text": "Inovasi seperti spinning jenny dan power loom memekanisasi produksi kain yang sebelumnya dilakukan dengan tangan selama berabad-abad. Impor kapas dari koloni memasok pabrik-pabrik Inggris, menghubungkan pertumbuhan industri dengan perdagangan global dan perbudakan. Kota-kota pabrik seperti Manchester tumbuh pesat, menarik migran pedesaan yang mencari upah.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Revolusi Industri: Besi, Batu Bara, dan Uap",
+      "text": "Besi yang dilebur dengan kokas menggantikan arang, memungkinkan pembuatan rel, jembatan, dan mesin yang lebih kuat. Mesin uap hasil perbaikan James Watt (dipatenkan 1769) menjadi sumber tenaga utama pada zamannya. Penambangan batu bara meluas secara dramatis, mengubah bentang alam dan menimbulkan bahaya pekerjaan baru.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Revolusi Industri: Transportasi yang Berubah",
+      "text": "Kanal dan kemudian kereta api mengurangi biaya serta waktu untuk mengangkut barang dan orang. Rocket milik George Stephenson (1829) menunjukkan lokomotif uap yang praktis di Liverpool and Manchester Railway. Transportasi yang lebih cepat mengintegrasikan pasar nasional dan menstandarisasi harga di seluruh wilayah.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Revolusi Industri: Urbanisasi dan Kelas",
+      "text": "Kota-kota membengkak karena pekerja pabrik yang tinggal di rumah petak padat dan tidak sehat. Kelas menengah industri baru yang terdiri dari pemilik dan manajer muncul bersamaan dengan kelas pekerja perkotaan. Para reformis mendokumentasikan kemiskinan; undang-undang secara bertahap membatasi pekerja anak dan meningkatkan inspeksi pabrik.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Revolusi Industri: Penyebaran di Luar Britania",
+      "text": "Belgia, Prancis, Jerman, dan Amerika Serikat mengalami industrialisasi pada abad ke-19, sering mengadopsi teknik-teknik Inggris. Proteksionisme dan paten menentukan siapa yang bisa meniru mesin dan seberapa cepat industri menyebar. Industrialisasi Meiji di Jepang kemudian menunjukkan bahwa model tersebut juga bisa mengubah masyarakat non-Barat.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Revolusi Industri: Gerakan Buruh",
+      "text": "Pekerja membentuk serikat dan melakukan mogok kerja untuk menuntut jam kerja lebih pendek, kondisi yang lebih aman, serta upah lebih tinggi. Kaum Luddite menghancurkan mesin dalam protes awal, meskipun sejarawan mencatat mereka menargetkan pengusaha tertentu, bukan seluruh teknologi. Ide-ide sosialis dan komunis semakin populer karena mengkritik ketimpangan kapitalisme industri.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Revolusi Industri: Biaya Lingkungan",
+      "text": "Asap batu bara mencemari udara; limbah pabrik mencemari sungai di kawasan industri. Deforestasi dan penambangan merusak pedesaan di sekitar kota-kota yang berkembang. Pola-pola ini menggambarkan perdebatan modern tentang pertumbuhan, iklim, dan regulasi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Revolusi Industri: Warisan untuk Hari Ini",
+      "text": "Produksi massal, tenaga kerja upahan, dan rantai pasokan global berasal langsung dari revolusi ini. Standar hidup meningkat selama beberapa generasi di negara-negara industri, meskipun manfaatnya tidak dibagikan secara merata. Memahami Revolusi Industri menjelaskan bagaimana teknologi dapat menciptakan kekayaan dan disrupsi secara bersamaan.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dunia II secara Singkat: Asal-usul pada 1930-an",
+      "text": "Depresi Besar mengguncang demokrasi dan memperkuat partai-partai ekstremis, terutama di Jerman dan Jepang. Rezim Nazi Adolf Hitler melakukan remiliterisasi, menganeksasi Austria dan Cekoslowakia, serta mengejar Lebensraum di timur. Kebijakan appeasement di Munich pada 1938 gagal mencegah agresi lebih lanjut; perang meletus di Eropa pada September 1939.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Perang Dunia II Secara Singkat: Dua Teater Perang",
+      "text": "Eropa menyaksikan kampanye blitzkrieg, Pertempuran Britania, dan Front Timur yang masif antara Jerman dan Uni Soviet. Perang Pasifik membuat Jepang berhadapan dengan Amerika Serikat, Tiongkok, dan pasukan Sekutu setelah Pearl Harbor pada Desember 1941. Pertempuran berlangsung di berbagai benua, lautan, dan langit dengan mobilisasi industri yang belum pernah terjadi sebelumnya.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dunia II secara Singkat: Strategi Sekutu",
+      "text": "Britania, Uni Soviet, dan Amerika Serikat membentuk inti koalisi Sekutu meskipun ada perbedaan ideologi. Bantuan Lend-Lease serta kampanye pengeboman gabungan membebani produksi dan logistik Poros. D-Day pada 6 Juni 1944 membuka front barat di Prancis sementara Tentara Merah mendorong ke barat dari timur.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dunia II secara Singkat: Holocaust",
+      "text": "Nazi Jerman secara sistematis membunuh enam juta orang Yahudi dan jutaan lainnya di kamp-kamp serta melalui penembakan massal. Kebijakan ideologi rasial, ghetto, dan deportasi berujung pada pembunuhan yang terindustrialisasi di Auschwitz dan tempat-tempat lain. Genosida ini tetap menjadi inti pemahaman tentang taruhan moral perang serta hukum hak asasi manusia pascaperang.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dunia II secara Singkat: Titik Balik",
+      "text": "Stalingrad (1942–43) dan Midway (1942) menandai pembalikan besar bagi nasib Blok Poros di darat dan laut. Italia menyerah pada 1943; Jerman menghadapi perang dua front yang tidak bisa ditahannya melawan sumber daya Sekutu yang lebih unggul. Bom atom di Hiroshima dan Nagasaki pada Agustus 1945 mendahului penyerahan Jepang.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Perang Dunia II Secara Singkat: Front Dalam Negeri",
+      "text": "Wanita memasuki pabrik; penjatahan, propaganda, dan sensor membentuk kehidupan sehari-hari di negara-negara yang berperang. Pemecahan kode di Bletchley Park dan produksi industri Amerika Serikat terbukti sama pentingnya dengan kepahlawanan di medan perang. Penduduk di wilayah pendudukan menghadapi perlawanan, kolaborasi, dan pembalasan brutal.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dunia II secara singkat: Akhir dan dampaknya",
+      "text": "Jerman menyerah pada Mei 1945; Jepang pada September setelah serangan atom dan masuknya Uni Soviet ke dalam Perang Pasifik. Diperkirakan 70–85 juta orang tewas, termasuk warga sipil akibat pemboman, kelaparan, dan genosida. Perserikatan Bangsa-Bangsa, NATO, Pakta Warsawa, serta gerakan dekolonisasi membentuk kembali tatanan dunia pascaperang.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Perang Dunia II secara Singkat: Teknologi dan Taktik",
+      "text": "Radar, jet, kapal induk, dan serangan amfibi menentukan arah peperangan modern. Roket yang dikembangkan untuk perang kemudian mendorong era antariksa; senjata nuklir memperkenalkan era strategis baru. Pelajaran dalam logistik, intelijen, dan senjata gabungan masih memengaruhi doktrin militer.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Perang Dunia II Secara Singkat: Mengapa Masih Penting",
+      "text": "Perang Dunia II membentuk institusi, perbatasan, dan aliansi yang menjadi dasar politik internasional hingga kini. Kenangan akan Holocaust mendorong pendidikan melawan antisemitisme serta upaya pencegahan genosida. Skala perang tersebut memperingatkan bagaimana krisis ekonomi dan nasionalisme bisa berujung pada bencana global.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Perang Dingin: Dua Kekuatan Super Muncul",
+      "text": "Setelah 1945, Amerika Serikat dan Uni Soviet memimpin blok-blok yang saling bersaing dengan sistem ekonomi dan politik yang berbeda. Eropa terbagi oleh Tirai Besi; Jerman terpecah menjadi Jerman Timur dan Jerman Barat. Kedua belah pihak memiliki senjata nuklir, menciptakan keseimbangan teror yang mencegah perang langsung antar negara adidaya.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dingin: Ideologi dan Penahanan",
+      "text": "Kebijakan AS di bawah George Kennan bertujuan membendung ekspansi Soviet tanpa harus mengembalikannya di mana-mana. Komunisme menjanjikan kesetaraan kelas; kapitalisme menekankan pasar dan hak-hak individu—masing-masing pihak mengklaim superioritas moral. Propaganda, spionase, dan perang proksi menyebarkan persaingan secara global.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dingin: Krisis dan Insiden Hampir Terjadi",
+      "text": "Blokade Berlin (1948–49), Perang Korea (1950–53), Krisis Rudal Kuba (1962), dan Perang Vietnam menguji batas-batas. Krisis rudal itu membawa dunia paling dekat dengan pertukaran nuklir; diplomasi dan kerahasiaan mencegah perang. Perlombaan senjata rudal, kapal selam, serta belanja SDI di kemudian hari membebani kedua ekonomi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dingin: NATO dan Pakta Warsawa",
+      "text": "NATO (1949) mengikat Eropa Barat dan Amerika Utara dalam pertahanan kolektif. Pakta Warsawa mencerminkan hal ini di Eropa Timur, memperkuat pengaruh Soviet. Negara-negara netral seperti Finlandia dan Austria menavigasi di antara blok-blok tersebut dengan keberhasilan yang bervariasi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dingin: Dekolonisasi dan Dunia Ketiga",
+      "text": "Negara-negara yang baru merdeka di Afrika dan Asia sering menjadi arena persaingan Perang Dingin. Negara-negara adidaya mendukung kudeta, pemberontakan, dan diktator ketika itu sesuai dengan tujuan strategis mereka. Pemimpin Gerakan Non-Blok seperti Nehru dan Nasser berusaha menjaga kemandirian dari kedua blok.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dingin: Perlombaan Antariksa dan Teknologi",
+      "text": "Sputnik pada 1957 mengejutkan orang Amerika dan mempercepat pendidikan sains serta pendanaan NASA. Pendaratan Apollo 11 di bulan pada 1969 menunjukkan prestise teknologi AS. Teknologi dual-use—roket, satelit, komputer—merembes ke ekonomi sipil.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Perang Dingin: Détente dan Ketegangan yang Diperbarui",
+      "text": "Nixon dan Brezhnev mengupayakan perjanjian pengendalian senjata seperti SALT pada 1970-an, yang sempat meredakan ketegangan. Invasi Soviet ke Afghanistan (1979) dan pembangunan pertahanan Reagan memperbarui konfrontasi. Stagnasi ekonomi di Uni Soviet serta upaya reformasi di bawah Gorbachev melemahkan sistem Soviet.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Perang Dingin: Akhir Perang Dingin",
+      "text": "Revolusi pada 1989 menggulingkan rezim komunis di seluruh Eropa Timur; Tembok Berlin runtuh pada November. Uni Soviet bubar pada 1991, meninggalkan Amerika Serikat sebagai satu-satunya negara adidaya untuk sementara waktu. Negara-negara bekas Pakta Warsawa bergabung dengan NATO dan Uni Eropa, mengubah keamanan Eropa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Perang Dingin: Efek yang Bertahan Lama",
+      "text": "Persenjataan nuklir masih ada, meskipun telah berkurang dari puncaknya pada masa Perang Dingin; perjanjian nonproliferasi terus berlanjut. Pola perang proksi masih berlanjut dalam konflik regional dengan dukungan kekuatan besar. Sejarah Perang Dingin menjelaskan peran NATO, ketegangan Rusia-Barat, dan institusi global yang lahir pada tahun 1945.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Zaman Penjelajahan: Motif Pelayaran",
+      "text": "Kekuatan Eropa mencari akses langsung ke rempah-rempah Asia, emas, dan rute perdagangan dengan melewati perantara Ottoman. Kemajuan navigasi—kompas, astrolabe, peta yang lebih baik—membuat penyeberangan samudra lebih memungkinkan. Sponsor kerajaan dan investor pedagang mendanai ekspedisi yang menjanjikan kejayaan dan keuntungan.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Zaman Penjelajahan: Portugal Membuka Jalan",
+      "text": "Pangeran Henry sang Navigator mendorong eksplorasi Atlantik; da Gama mencapai India melalui laut pada tahun 1498. Pangkalan Portugis di Afrika, Brasil, dan Asia membangun kekaisaran perdagangan yang mencakup cengkih, budak, dan perak. Perjanjian Tordesillas (1494) membagi wilayah baru antara Spanyol dan Portugal dengan persetujuan Paus.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Zaman Penjelajahan: Columbus dan Amerika",
+      "text": "Christopher Columbus, yang mencari rute barat ke Asia, mencapai pulau-pulau Karibia pada 1492 di bawah dukungan Spanyol. Pelayarannya memulai kontak berkelanjutan antara Eropa dan Amerika dengan dampak yang sangat besar. Penjelajah selanjutnya seperti Magellan mengelilingi dunia, membuktikan skala penuh Bumi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Zaman Penjelajahan: Penaklukan dan Koloni",
+      "text": "Para penakluk Spanyol menjatuhkan kekaisaran Aztec dan Inca dengan memanfaatkan kuda, baja, aliansi, serta penyakit. Sistem encomienda dan perkebunan mengeksploitasi tenaga kerja dan sumber daya untuk pasar Eropa. Para misionaris dan administrator memaksakan agama Kristen serta kerangka hukum baru kepada masyarakat pribumi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Zaman Penjelajahan: Columbian Exchange",
+      "text": "Tanaman dan hewan menyeberangi lautan: kentang dan jagung ke Eropa; gandum dan kuda ke Amerika. Penyakit seperti cacar menghancurkan populasi yang tak memiliki kekebalan, sehingga memudahkan penaklukan. Perak dari Potosí mengalir ke Tiongkok melalui Manila, menghubungkan ekonomi global.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Zaman Penjelajahan: Persaingan Antar Kekuatan",
+      "text": "Inggris, Prancis, dan Belanda menantang dominasi Iberia dengan privateer dan perusahaan dagang. Perusahaan Hudson Bay, Dutch East India, dan British East India bertindak sebagai negara semu di luar negeri. Persaingan atas koloni berkontribusi pada perang-perang di masa depan di Eropa dan Amerika.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks Terkait — Zaman Penjelajahan: Dampak terhadap Masyarakat Pribumi",
+      "text": "Keruntuhan populasi, relokasi paksa, dan penindasan budaya terjadi setelah kontak di banyak wilayah. Gerakan perlawanan dan budaya sinkretis tetap bertahan meskipun ada tekanan kolonial. Debat modern soal hak tanah dan repatriasi terkait dengan warisan era itu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Zaman Penjelajahan: Pengetahuan Ilmiah dan Geografis",
+      "text": "Para penjelajah memetakan garis pantai, arus laut, dan angin, sedangkan para naturalis mengkatalogkan spesies baru. Laporan-laporan tersebut menantang geografi abad pertengahan dan memicu rasa ingin tahu Zaman Pencerahan tentang keanekaragaman manusia. Peta-peta akurat menjadi aset strategis bagi angkatan laut maupun para pedagang.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Konteks terkait — Zaman Penjelajahan: Mengapa Penjelajahan Mengubah Dunia",
+      "text": "Zaman itu menghubungkan benua-benua menjadi satu sistem ekonomi dengan pola ketidaksetaraan yang bertahan lama. Ia menyebarkan bahasa, agama, dan sistem hukum ke seluruh dunia sambil mengekstraksi kekayaan dari koloni-koloni. Memahami eksplorasi menjelaskan bagaimana globalisasi sudah dimulai jauh sebelum era internet.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Poin-poin kunci",
+      "text": "Poin-poin utama. Mari kita rangkum poin-poin utamanya. Konteks terkait — Mesir Kuno: Irama Tahunan Sungai Nil. Peradaban Mesir berkembang di sepanjang Sungai Nil karena banjirnya yang dapat diprediksi setiap musim panas meninggalkan lumpur subur. Para petani mengatur waktu tanam sesuai dengan banjir itu, dan surplus gandum mendukung para juru tulis, imam, serta firaun. Tanpa sungai itu, Sahara akan membuat wilayah tersebut hampir tidak layak huni untuk pemukiman padat. Konteks terkait — Mesir Kuno: Firaun dan Kekuasaan Ilahi. Firaun dipandang sebagai penghubung hidup antara dewa dan manusia, bertanggung jawab menjaga ma’at—keteraturan kosmis dan keadilan. Proyek monumental seperti piramida di Giza mencerminkan kekuasaan kerajaan dan mengorganisasi ribuan pekerja serta insinyur. Dinasti naik dan turun selama tiga milenium, mulai dari penyatuan oleh Narmer sekitar 3100 SM hingga kejatuhan Cleopatra pada 30 SM. Konteks terkait — Mesir Kuno: Hieroglif dan Tulisan. Hieroglif Mesir menggabungkan tanda logografis dan alfabetis, digunakan di kuil, makam, dan papirus. Juru tulis dilatih bertahun-tahun; catatan tertulis mencatat pajak, kontrak, dan teks keagamaan seperti Kitab Orang Mati. Prasasti tiga bahasa di Batu Rosetta memungkinkan Champollion menguraikan hieroglif pada 1822, membuka kembali suara yang hilang. Konteks terkait — Mesir Kuno: Agama dan Kehidupan Setelah Mati. Orang Mesir percaya ka dan ba—esensi spiritual—membutuhkan tubuh yang diawetkan serta persembahan untuk mencapai alam akhirat. Mumifikasi, guci kanopik, dan barang kuburan mencerminkan ritual rumit yang diawasi imam Osiris dan Ra. Lembah Para Raja menyimpan ruang pemakaman yang kaya lukisan, banyak yang dirampok meski pintu masuknya tersembunyi. Konteks terkait — Mesir Kuno: Kehidupan Sehari-hari dan Pekerjaan. Sebagian besar orang Mesir bertani, menangkap ikan, atau membuat tembikar, linen, dan bir dari gandum emmer serta barley. Rumah dari bata lumpur mengelilingi halaman; roti dan bir menjadi makanan pokok bagi pekerja yang membangun makam kerajaan. Perempuan bisa memiliki properti dan menjalankan bisnis, meski pernikahan kalangan elit sering mempererat aliansi politik. Konteks terkait — Mesir Kuno: Keajaiban Teknik. Piramida Agung Khufu awalnya setinggi 146 meter, menggunakan sekitar 2,3 juta balok batu. Insinyur menyelaraskan bangunan ke arah kardinal dengan presisi luar biasa menggunakan alat bidik dan teknik survei. Kuil di Karnak dan Luxor berkembang selama berabad-abad, menunjukkan bagaimana arsitektur mempromosikan pengabdian firaun kepada dewa. Konteks terkait — Mesir Kuno: Perdagangan dan Kekaisaran. Mesir mengimpor kayu cedar dari Lebanon, emas dari Nubia, dan lapis lazuli dari Afganistan yang jauh. Firaun Kerajaan Baru seperti Thutmose",
+      "kind": "narration"
+    }
+  ]
+}

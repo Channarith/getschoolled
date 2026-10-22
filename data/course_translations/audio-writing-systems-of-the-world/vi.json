@@ -1,0 +1,390 @@
+{
+  "course_id": "audio-writing-systems-of-the-world",
+  "title": "Hệ thống chữ viết của thế giới",
+  "category": "Language & Linguistics",
+  "source_language": "en",
+  "language": "vi",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Tổng quan",
+      "text": "Chào mừng. Trong bài học này, chúng ta sẽ khám phá Hệ thống chữ viết của thế giới. Chúng ta sẽ đề cập đến 74 phần, bắt đầu với Bối cảnh liên quan — Ai Cập Cổ đại: Nhịp điệu Hàng năm của Sông Nile, Bối cảnh liên quan — Ai Cập Cổ đại: Các Pharaoh và Quyền lực Thần thánh, Bối cảnh liên quan — Ai Cập Cổ đại: Chữ tượng hình và Chữ viết, Bối cảnh liên quan — Ai Cập Cổ đại: Tôn giáo và Cuộc sống Sau khi chết, Bối cảnh liên quan — Ai Cập Cổ đại: Đời sống Hàng ngày và Lao động, Bối cảnh liên quan — Ai Cập Cổ đại: Những Kỳ quan Kỹ thuật, Bối cảnh liên quan — Ai Cập Cổ đại: Thương mại và Đế chế, Bối cảnh liên quan — Ai Cập Cổ đại: Sự Suy tàn và Di sản, Bối cảnh liên quan — Ai Cập Cổ đại: Khảo cổ học Ngày nay, Bối cảnh liên quan — Ai Cập Cổ đại: Lý do Ai Cập Vẫn Còn Trong Ký ức, Bối cảnh liên quan — Đế chế La Mã: Từ Thành bang đến Cường quốc Địa Trung Hải, và Bối cảnh liên quan — Đế chế La Mã: Các Tổ chức Cộng hòa, tiếp theo là các bối cảnh liên quan bổ sung. Khi bạn lắng nghe, hãy chú ý cách mỗi phần xây dựng dựa trên phần trước — bạn không cần ghi chép, chỉ cần theo dõi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Nhịp điệu hàng năm của sông Nile",
+      "text": "Nền văn minh Ai Cập phát triển dọc theo sông Nile vì lũ lụt có thể dự đoán được của nó bồi đắp phù sa màu mỡ mỗi mùa hè. Nông dân tính thời gian gieo trồng theo mùa lũ, và ngũ cốc dư thừa nuôi sống các thư lại, tu sĩ cùng các pharaoh. Nếu không có con sông, Sahara đã khiến khu vực này hầu như không thể sinh sống cho các khu định cư đông đúc.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Các Pharaoh và Vương quyền thần thánh",
+      "text": "Các pharaoh được hiểu là những cầu nối sống giữa các vị thần và con người, chịu trách nhiệm duy trì ma'at – trật tự vũ trụ và công lý. Những công trình đồ sộ như kim tự tháp Giza thể hiện quyền lực hoàng gia và huy động hàng nghìn lao động cùng kỹ sư. Các triều đại thăng trầm suốt ba thiên niên kỷ, từ sự thống nhất của Narmer khoảng năm 3100 TCN đến sự sụp đổ của Cleopatra năm 30 TCN.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Chữ tượng hình và Chữ viết",
+      "text": "Chữ tượng hình Ai Cập kết hợp cả ký hiệu tượng hình lẫn chữ cái, được dùng trên đền đài, lăng mộ và giấy papyrus. Các thư lại phải học hành nhiều năm; những ghi chép bằng chữ viết dùng để theo dõi thuế má, hợp đồng cũng như các văn bản tôn giáo như Sách của Người Chết. Dòng chữ ba ngôn ngữ trên Bia Rosetta đã giúp Champollion giải mã chữ tượng hình vào năm 1822, khôi phục lại một tiếng nói đã mất.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Tôn giáo và Thế giới bên kia",
+      "text": "Người Ai Cập tin rằng ka và ba—những tinh túy tinh thần—cần có thân xác được bảo quản cùng các lễ vật để đến được thế giới bên kia. Việc ướp xác, bình canopic và đồ tùy táng phản ánh các nghi thức phức tạp do các tư tế của Osiris và Ra giám sát. Thung lũng các Vua che giấu những phòng mộ được vẽ tranh lộng lẫy, nhiều nơi đã bị cướp phá bất chấp lối vào ẩn giấu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Ai Cập cổ đại: Đời sống hàng ngày và lao động",
+      "text": "Hầu hết người Ai Cập làm nông, đánh cá hoặc sản xuất đồ gốm, vải lanh và bia từ lúa mì emmer và lúa mạch. Những ngôi nhà xây bằng gạch bùn bao quanh sân trong; bánh mì và bia là thực phẩm chính trong khẩu phần của công nhân xây lăng mộ hoàng gia. Phụ nữ có thể sở hữu tài sản và kinh doanh, mặc dù các cuộc hôn nhân của giới thượng lưu thường nhằm củng cố liên minh chính trị.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Ai Cập Cổ Đại: Những Kỳ Quan Kỹ Thuật",
+      "text": "Kim tự tháp vĩ đại của Khufu ban đầu cao 146 mét, sử dụng khoảng 2,3 triệu khối đá. Các kỹ sư đã căn chỉnh các công trình theo các hướng chính với độ chính xác đáng kinh ngạc bằng cách sử dụng công cụ ngắm và kỹ thuật đo đạc. Các đền thờ ở Karnak và Luxor phát triển qua nhiều thế kỷ, cho thấy cách kiến trúc thể hiện lòng sùng kính của các pharaoh đối với các vị thần.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Thương mại và Đế chế",
+      "text": "Ai Cập nhập khẩu gỗ tuyết tùng từ Li-băng, vàng từ Nubia và ngọc lưu ly từ Afghanistan xa xôi. Các pharaoh thời Tân Vương quốc như Thutmose III đã mở rộng quyền lực sang Canaan và Nubia, tạo nên một đế chế sớm. Việc kiểm soát các tuyến thương mại và xuất khẩu ngũ cốc khiến Ai Cập trở thành mục tiêu chiến lược cho các nhà cai trị Ba Tư, Hy Lạp và La Mã sau này.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Sự suy tàn và di sản",
+      "text": "Sự phân mảnh thời kỳ Hậu kỳ, cuộc chinh phục của Ba Tư và sự đến của Alexander đã thay đổi vai trò chính trị của Ai Cập. Các nhà cai trị Hy Lạp triều đại Ptolemaios cai trị từ Alexandria, hòa trộn truyền thống Hy Lạp và Ai Cập cho đến khi La Mã sáp nhập vương quốc. Nghệ thuật, y học và thực tiễn hành chính của Ai Cập đã ảnh hưởng đến các nước láng giềng và vẫn định hình các bảo tàng cũng như học thuật ngày nay.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Khảo cổ học ngày nay",
+      "text": "Những địa điểm như Saqqara và Abydos tiếp tục mang lại những ngôi mộ mới, tiết lộ các đồ vật hàng ngày và những nữ hoàng bị lãng quên. Công nghệ quét hiện đại giúp tránh các cuộc khai quật phá hoại, đồng thời lập bản đồ các phòng ngầm bên trong kim tự tháp và lớp quấn xác ướp. Các cuộc tranh luận về việc hồi hương và du lịch đang cân bằng giữa bảo tồn với bản sắc quốc gia và nhu cầu kinh tế.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Tại sao Ai Cập vẫn còn trong ký ức",
+      "text": "Khoảng thời gian của lịch sử Ai Cập—dài hơn Hy Lạp và La Mã cổ điển cộng lại—mang đến một phòng thí nghiệm cho sự hình thành nhà nước. Văn hóa thị giác của nó dễ nhận biết ngay lập tức: các biểu tượng ankh, bọ hung và đĩa mặt trời có cánh đang lưu hành trong văn hóa đại chúng toàn cầu. Việc nghiên cứu Ai Cập làm rõ cách môi trường, tôn giáo và quan liêu có thể ổn định một xã hội suốt hàng thiên niên kỷ.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Từ Thành bang đến Cường quốc Địa Trung Hải",
+      "text": "La Mã bắt đầu như một khu định cư Latin nhỏ, theo truyền thuyết thì được thành lập vào năm 753 TCN bên sông Tiber. Sau khi trục xuất các vị vua, Cộng hòa La Mã mở rộng khắp Ý thông qua các liên minh và quân đoàn binh lính công dân. Chiến thắng trong Chiến tranh Punic chống Carthage mang lại Sicilia, Tây Ban Nha và quyền thống trị miền tây Địa Trung Hải.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Các thể chế Cộng hòa",
+      "text": "Viện Nguyên lão cố vấn cho các quan chức; các quan chấp chính chỉ huy quân đội và lãnh đạo chính phủ với nhiệm kỳ một năm. Các biện pháp kiểm soát như quyền phủ quyết của quan bảo dân nhằm cân bằng lợi ích giữa quý tộc và bình dân, dù sự bất bình đẳng vẫn tồn tại. Sự bành trướng đã gây căng thẳng cho Cộng hòa, làm giàu cho giới tinh hoa trong khi các cựu binh đòi đất đai và tiếng nói chính trị.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Caesar, Nội chiến và Đế chế",
+      "text": "Cuộc chinh phục xứ Gaul và việc vượt sông Rubicon năm 49 TCN của Julius Caesar đã phá vỡ các chuẩn mực cộng hòa. Việc ám sát ông năm 44 TCN không khôi phục được trật tự cũ; thay vào đó, các lãnh chúa tranh giành quyền kiểm soát. Octavian đánh bại Mark Antony tại Actium năm 31 TCN và trở thành Augustus, vị hoàng đế đầu tiên, vào năm 27 TCN.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Quản trị Đế quốc",
+      "text": "Các tỉnh được cai trị bởi các quan chức được bổ nhiệm; giới tinh hoa địa phương thường quản lý công việc hàng ngày theo luật La Mã. Đường sá, cống dẫn nước và mạng lưới chuyển phát công cộng cursus publicus đã kết nối các dân tộc đa dạng trên ba châu lục. Tiếng Latin lan tỏa như ngôn ngữ hành chính, trong khi tiếng Hy Lạp vẫn giữ vai trò quan trọng ở các tỉnh phía đông.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Quân đội và Phòng thủ Biên giới",
+      "text": "Các quân đoàn bộ binh nặng, được hỗ trợ bởi kỵ binh và kỹ sư, đã xây dựng các pháo đài dọc theo biên giới sông Rhine, Danube và Euphrates. Tiền lương, trợ cấp hưu trí cùng quyền công dân như phần thưởng đã gắn kết binh lính với nhà nước, nhưng các cuộc nội chiến đôi khi khiến quân đội quay vào nội bộ. Bức tường Hadrian ở Britania tượng trưng cho giới hạn của sự bành trướng và cách quản lý biên giới thực tế.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Luật pháp, Quyền công dân và Xã hội",
+      "text": "Luật La Mã đã pháp điển hóa các hợp đồng, quyền sở hữu và quyền gia đình, ảnh hưởng đến các hệ thống luật dân sự hiện đại. Quyền công dân được mở rộng theo thời gian; Sắc lệnh của Caracalla năm 212 sau Công nguyên đã trao quyền này cho gần như tất cả cư dân tự do. Nô lệ là nền tảng của nông nghiệp và lao động đô thị, trong khi những người được giải phóng có thể thăng tiến trong thương mại dù định kiến vẫn còn tồn tại.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Kinh tế và Đời sống đô thị",
+      "text": "Các thành phố như Rome, Alexandria và Antioch có hàng trăm nghìn dân cư, được nuôi dưỡng bởi các hạm đội chở ngũ cốc từ Ai Cập. Thị trường buôn bán dầu ô liu, rượu vang, nước mắm garum và đồ gốm qua các tuyến đường biển Mare Nostrum. Các nhà tắm công cộng, quảng trường và đấu trường thể hiện sự giàu có, đồng thời mang lại giải trí, chính trị và các buổi trình diễn.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Tôn giáo và Sự pha trộn văn hóa",
+      "text": "Người La Mã tiếp nhận các vị thần từ các dân tộc bị chinh phục, ghép đôi các vị thần địa phương với thần của họ như Jupiter. Các giáo phái huyền bí, các trường phái triết học và cuối cùng là Cơ Đốc giáo đã thách thức các nghi thức ngoại giáo truyền thống. Nghệ thuật đế quốc sao chép phong cách Hy Lạp đồng thời tôn vinh các hoàng đế qua các vòm cung, đồng xu và chân dung chân thực.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế quốc La Mã: Khủng hoảng và Phân chia",
+      "text": "Các cuộc khủng hoảng thế kỷ thứ ba dẫn đến sự thay phiên nhanh chóng các hoàng đế, lạm phát và các cuộc xâm lược biên giới. Diocletian tái tổ chức chính phủ thành chế độ tứ đầu và kiểm soát giá cả; Constantine sau đó dời đô sang phía đông đến Byzantium. Đế chế chính thức bị chia cắt; nửa phía tây sụp đổ vào năm 476 SCN trong khi nhà nước Byzantine phía đông tiếp tục tồn tại thêm nhiều thế kỷ nữa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Ảnh hưởng lâu dài của Rome",
+      "text": "Các ngôn ngữ Roman, các nguyên tắc pháp lý và quy hoạch đô thị đều có nguồn gốc từ mô hình La Mã. Giáo hội Công giáo đã bảo tồn tri thức Latin; hình ảnh cộng hòa truyền cảm hứng cho các cuộc cách mạng sau này. Các tàn tích từ Colosseum đến Pompeii khiến La Mã trở thành một bài học cụ thể về cơ sở hạ tầng, quyền lực và sự mong manh.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ Lụa: Nguồn gốc và Các tuyến đường",
+      "text": "Con đường Tơ lụa không phải chỉ là một con đường mà là mạng lưới các tuyến đường thương mại nối Trung Quốc với Địa Trung Hải từ khoảng thế kỷ thứ 2 trước Công nguyên. Các đoàn lữ hành đã băng qua sa mạc, núi non và thảo nguyên, với các trung tâm chính tại Samarkand, Kashgar và Constantinople. Lụa, gia vị, giấy và cả những ý tưởng—không chỉ hàng hóa—đã lưu thông dọc theo những tuyến đường này suốt hơn một nghìn năm.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ Lụa: Các mối liên hệ với Nhà Hán",
+      "text": "Hán Vũ Đế đã cử sứ giả Trương Khiên đi về phía tây vào khoảng năm 138 TCN, mở ra các mối quan hệ ngoại giao và thương mại với các vương quốc Trung Á. Lụa Trung Quốc trở nên được ưa chuộng đến mức ở La Mã, Pliny Trưởng lão đã phàn nàn về việc vàng chảy về phía đông. Con đường này cũng lan truyền Phật giáo từ Ấn Độ sang Trung Quốc và sau đó là Nhật Bản.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con Đường Tơ Lụa: Trao Đổi Văn Hóa",
+      "text": "Các tôn giáo, công nghệ và phong cách nghệ thuật đã lan truyền dọc theo Con đường Tơ lụa cùng với hàng hóa. Kỹ thuật làm giấy lan từ Trung Quốc sang thế giới Hồi giáo rồi đến châu Âu, cách mạng hóa việc biết chữ. Các khái niệm toán học như số không và đại số được truyền bá qua các học giả Ba Tư và Ả Rập.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Con đường tơ lụa: Những nguy hiểm của hành trình",
+      "text": "Thương nhân phải đối mặt với bọn cướp, khí hậu khắc nghiệt và sự bất ổn chính trị trên hàng chục quốc gia độc lập. Các đoàn caravan được tổ chức thành những nhóm lớn có vũ trang hộ tống để bảo vệ khi đi qua sa mạc Taklamakan. Thời gian theo mùa rất quan trọng: tuyết mùa đông chặn các đèo núi như những con đường qua dãy Pamir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ lụa: Hòa bình Mông Cổ",
+      "text": "Dưới thời Đế quốc Mông Cổ vào thế kỷ 13 và 14, Pax Mongolica đã khiến việc đi lại an toàn hơn trên khắp lục địa Á-Âu trong một thế hệ. Lời kể của Marco Polo mô tả những thành phố thịnh vượng và triều đình của Hốt Tất Liệt ở Cathay. Các trạm chuyển tiếp bưu chính gọi là yam cho phép liên lạc nhanh chóng trên khắp đế quốc.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ lụa: Sự suy tàn và Di sản",
+      "text": "Các tuyến đường thương mại biển sau chuyến đi của Vasco da Gama đến Ấn Độ năm 1498 dần thay thế thương mại caravan trên bộ. Việc Đế quốc Ottoman kiểm soát các cảng phía đông Địa Trung Hải đã làm tăng chi phí, khiến vận chuyển bằng đường biển trở nên thuận lợi hơn. Ngày nay, Sáng kiến Vành đai và Con đường gợi nhớ những tham vọng lịch sử nhằm kết nối châu Á và châu Âu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ lụa: Hàng hóa thương mại hàng ngày",
+      "text": "Ngoài lụa, các thương nhân còn vận chuyển trà, sứ, ngựa, len, thủy tinh và đá quý. Các thương nhân Sogd từ Trung Á thường đóng vai trò trung gian, những người nói được nhiều ngôn ngữ. Giá cả phản ánh khoảng cách, rủi ro và các độc quyền tại các điểm nghẽn như Hành lang Cam Túc.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ Lụa: Bằng chứng khảo cổ học",
+      "text": "Các hang Mogao ở Đôn Hoàng bảo tồn nghệ thuật Phật giáo thể hiện khuôn mặt và trang phục đa dạng của những người lữ hành trên Con đường Tơ lụa. Xác tàu đắm và các khu định cư ở ốc đảo tiết lộ ẩm thực hỗn hợp cùng phong tục mai táng. Các nghiên cứu ADN trên bộ xương cổ xác nhận sự di cư đường dài và hôn nhân hỗn hợp.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường tơ lụa: Tại sao nó vẫn quan trọng",
+      "text": "Con đường Tơ lụa cho thấy thương mại có thể lan tỏa văn hóa và công nghệ nhanh hơn cả quân đội. Các chuỗi cung ứng hiện đại vẫn phụ thuộc vào các điểm nghẽn và trung gian, chỉ khác là dùng container thay vì lạc đà. Hiểu lịch sử này giúp giải thích sự quan tâm địa chính trị đối với Trung Á ngày nay.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Phục Hưng nghĩa là gì",
+      "text": "Thời Phục Hưng, nghĩa là sự tái sinh, mô tả một làn sóng văn hóa nở rộ ở châu Âu từ khoảng thế kỷ 14 đến 17. Nó khởi nguồn từ các thành bang Ý như Florence và Venice, được thúc đẩy bởi của cải từ thương mại cùng các văn bản cổ điển được khôi phục từ Byzantium và các thư viện Ả Rập. Các nghệ sĩ và nhà tư tưởng lấy Hy Lạp và La Mã cổ đại làm hình mẫu, đồng thời đổi mới một cách táo bạo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Chủ nghĩa Nhân văn và Giáo dục",
+      "text": "Các nhà nhân văn như Petrarch nhấn mạnh việc nghiên cứu văn học cổ điển, lịch sử và tu từ học nhằm cải thiện đời sống công dân. Các trường đại học mở rộng chương trình giảng dạy vượt ra ngoài thần học để bao gồm luật, y học và các môn nghệ thuật tự do. Máy in do Gutenberg phát minh vào khoảng năm 1440 đã nhân lên số lượng sách và lan truyền các ý tưởng nhân văn khắp châu Âu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Cuộc cách mạng nghệ thuật",
+      "text": "Các nghệ sĩ đã phát triển phối cảnh tuyến tính, độ chính xác giải phẫu và kỹ thuật vẽ sơn dầu, tạo nên sự chân thực gây ấn tượng mạnh. Leonardo da Vinci, Michelangelo và Raphael đã tạo ra những tác phẩm vẫn định hình văn hóa thị giác phương Tây. Sự bảo trợ từ các gia đình như Medici đã tài trợ cho các xưởng vẽ, nơi các học việc học hỏi bằng cách sao chép các bậc thầy.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Khoa học và Quan sát",
+      "text": "Các nhà tư tưởng thời Phục Hưng bắt đầu ưu tiên quan sát trực tiếp thay vì dựa hoàn toàn vào quyền uy học thuật kinh viện. Copernicus đề xuất mô hình vũ trụ nhật tâm vào năm 1543, dù phải mất hàng thập kỷ để được chấp nhận. Vesalius mổ xẻ cơ thể người và sửa chữa những sai lầm giải phẫu của Galen đã tồn tại qua nhiều thế kỷ.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Khám phá và Tiếp xúc Toàn cầu",
+      "text": "Trong thời đại này, các nhà hàng hải Bồ Đào Nha và Tây Ban Nha đã mở các tuyến đường biển đến châu Phi, châu Á và châu Mỹ. Columbus đến vùng Caribe năm 1492; Vasco da Gama đến Ấn Độ năm 1498. Những chuyến đi này mang lại sự giàu có, các loại cây trồng mới và những trận dịch bệnh tàn khốc cho cư dân bản địa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Chính trị và Các thành bang",
+      "text": "Sự cạnh tranh giữa các nước cộng hòa Ý, các công quốc và các quốc gia Giáo hoàng đã thúc đẩy cả nghệ thuật lẫn chiến tranh. Tác phẩm \"Quân vương\" của Machiavelli phân tích quyền lực với sự hoài nghi thực dụng đến mức gây sốc cho người đương thời. Việc Constantinopolis thất thủ năm 1453 đã khiến các học giả Hy Lạp di cư sang phương Tây, thúc đẩy sự phục hưng cổ điển.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Phục Hưng: Kiến trúc và Không gian công cộng",
+      "text": "Vòm của Filippo Brunelleschi cho Nhà thờ Chính tòa Florence thể hiện tài năng kỹ thuật xuất sắc với thiết kế vỏ kép, không cần giàn giáo. Các biệt thự của Palladio đã ảnh hưởng đến các công trình chính phủ trên toàn thế giới, bao gồm cả Monticello của Thomas Jefferson. Các quảng trường đô thị trở thành sân khấu cho bản sắc công dân và các cuộc rước tôn giáo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Những giới hạn và mâu thuẫn",
+      "text": "Sự rực rỡ của thời Phục Hưng cùng tồn tại với nạn săn phù thủy, chế độ nô lệ ở thuộc địa và hệ thống giai cấp cứng nhắc. Những phụ nữ tài năng như Artemisia Gentileschi phải đấu tranh với những rào cản bảo trợ mà đàn ông không gặp phải. Không phải toàn bộ châu Âu đều tham gia như nhau; nghệ thuật Phục Hưng miền Bắc đã phát triển các chủ đề và kỹ thuật riêng biệt.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Ảnh hưởng bền vững",
+      "text": "Những lý tưởng Phục Hưng về thành tựu cá nhân và nghiên cứu thực nghiệm đã góp phần khởi xướng Cách mạng Khoa học và Thời kỳ Khai Sáng. Các bảo tàng vẫn sắp xếp các phòng trưng bày xoay quanh các bậc thầy Phục Hưng như nền tảng của lịch sử nghệ thuật phương Tây. Kỷ nguyên ấy cho thấy sự đổi mới văn hóa thường đến sau khủng hoảng, thương mại và tri thức được khôi phục.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cách mạng Công nghiệp: Từ Công Cụ Thủ Công đến Máy Móc",
+      "text": "Cách mạng Công nghiệp bắt đầu ở Anh vào cuối những năm 1700, chuyển sản xuất từ nhà cửa và xưởng thủ công sang các nhà máy. Động cơ hơi nước chạy bằng than đã vận hành các nhà máy dệt và sau đó là đường sắt khắp đất nước. Năng suất mỗi công nhân tăng vọt, nhưng người lao động phải chịu đựng giờ làm việc dài, lao động trẻ em và điều kiện nguy hiểm.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Ngành dệt may dẫn đầu",
+      "text": "Các sáng chế như spinning jenny và power loom đã cơ giới hóa việc sản xuất vải từng được thực hiện bằng tay trong nhiều thế kỷ. Việc nhập khẩu bông từ các thuộc địa nuôi sống các nhà máy Anh, gắn liền sự tăng trưởng công nghiệp với thương mại toàn cầu và chế độ nô lệ. Các thị trấn nhà máy như Manchester phát triển nhanh chóng, thu hút người di cư từ nông thôn đến tìm việc làm có lương.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Sắt, Than đá và Hơi nước",
+      "text": "Sắt luyện bằng than cốc thay thế than củi, cho phép chế tạo các đường ray, cầu và máy móc chắc chắn hơn. Động cơ hơi nước cải tiến của James Watt (được cấp bằng sáng chế năm 1769) trở thành nguồn năng lượng tiêu biểu của thời đại. Ngành khai thác than mở rộng mạnh mẽ, làm thay đổi cảnh quan và tạo ra các mối nguy hiểm nghề nghiệp mới.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cách mạng Công nghiệp: Giao thông vận tải được biến đổi",
+      "text": "Kênh đào và sau đó là đường sắt đã giảm chi phí cũng như thời gian vận chuyển hàng hóa và con người. Tàu Rocket của George Stephenson (1829) đã chứng minh tính khả thi của đầu máy hơi nước trên Đường sắt Liverpool và Manchester. Vận tải nhanh hơn đã kết nối các thị trường trong nước và chuẩn hóa giá cả giữa các vùng.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cách mạng Công nghiệp: Đô thị hóa và Giai cấp",
+      "text": "Các thành phố phình to với công nhân nhà máy sống trong những khu nhà chật chội, bẩn thỉu. Một giai cấp trung lưu công nghiệp mới gồm chủ sở hữu và quản lý đã xuất hiện cùng với giai cấp công nhân đô thị. Những nhà cải cách ghi nhận tình trạng nghèo đói; các luật dần hạn chế lao động trẻ em và cải thiện việc kiểm tra nhà máy.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Lan tỏa vượt ra ngoài nước Anh",
+      "text": "Bỉ, Pháp, Đức và Hoa Kỳ đã công nghiệp hóa vào những năm 1800, thường áp dụng kỹ thuật của Anh. Chủ nghĩa bảo hộ và bằng sáng chế đã định hình ai có thể sao chép máy móc và tốc độ lan rộng của công nghiệp. Quá trình công nghiệp hóa thời Minh Trị của Nhật Bản sau này cho thấy mô hình này cũng có thể biến đổi các xã hội phi phương Tây.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cách mạng Công nghiệp: Các phong trào lao động",
+      "text": "Công nhân đã tổ chức công đoàn và đình công để đòi giảm giờ làm, cải thiện điều kiện làm việc an toàn hơn và tăng lương. Những người Luddite đã đập phá máy móc trong các cuộc biểu tình ban đầu, dù các nhà sử học lưu ý họ chỉ nhắm vào một số chủ sử dụng lao động cụ thể chứ không phải toàn bộ công nghệ. Các tư tưởng xã hội chủ nghĩa và cộng sản ngày càng lan rộng khi chỉ trích những bất bình đẳng của chủ nghĩa tư bản công nghiệp.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Chi phí Môi trường",
+      "text": "Khói than làm ô nhiễm không khí; chất thải nhà máy làm bẩn sông ngòi ở các khu công nghiệp. Việc phá rừng và khai thác mỏ để lại những vết sẹo trên vùng nông thôn xung quanh các thành phố đang phát triển. Những mô hình này báo trước các cuộc tranh luận hiện đại về tăng trưởng, khí hậu và quy định.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Di sản cho Ngày Nay",
+      "text": "Sản xuất hàng loạt, lao động làm thuê và chuỗi cung ứng toàn cầu đều bắt nguồn trực tiếp từ cuộc cách mạng này. Mức sống đã tăng lên qua nhiều thế hệ ở các quốc gia công nghiệp, mặc dù lợi ích được chia sẻ không đồng đều. Hiểu về Cách mạng Công nghiệp làm rõ cách công nghệ có thể đồng thời tạo ra của cải và sự gián đoạn.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thế chiến II tóm tắt: Nguồn gốc từ những năm 1930",
+      "text": "Đại suy thoái đã làm suy yếu các nền dân chủ và thúc đẩy các đảng cực đoan, đặc biệt là ở Đức và Nhật Bản. Chế độ Nazi của Adolf Hitler đã tái vũ trang, sáp nhập Áo và Tiệp Khắc, đồng thời theo đuổi Lebensraum ở phía đông. Chính sách xoa dịu tại Munich năm 1938 đã thất bại trong việc ngăn chặn sự xâm lược tiếp theo; chiến tranh bùng nổ ở châu Âu vào tháng 9 năm 1939.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thế chiến II tóm tắt: Hai chiến trường",
+      "text": "Châu Âu chứng kiến các chiến dịch blitzkrieg, Trận chiến Anh Quốc và Mặt trận phía Đông khổng lồ giữa Đức và Liên Xô. Chiến tranh Thái Bình Dương đã đưa Nhật Bản đối đầu với Hoa Kỳ, Trung Quốc và lực lượng Đồng Minh sau Trân Châu Cảng vào tháng 12 năm 1941. Cuộc chiến lan rộng khắp các châu lục, đại dương và bầu trời với quy mô huy động công nghiệp chưa từng có.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Thế giới thứ Hai tóm tắt: Chiến lược phe Đồng Minh",
+      "text": "Anh, Liên Xô và Hoa Kỳ tạo thành nòng cốt của liên minh Đồng Minh bất chấp những khác biệt về ý thức hệ. Viện trợ Lend-Lease cùng các chiến dịch ném bom phối hợp đã gây căng thẳng cho sản xuất và hậu cần của phe Trục. D-Day vào ngày 6 tháng 6 năm 1944 đã mở mặt trận phía tây ở Pháp trong khi Hồng Quân đẩy mạnh về phía tây từ phía đông.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Thế giới thứ Hai tóm tắt: Holocaust",
+      "text": "Đức Quốc xã đã có hệ thống sát hại sáu triệu người Do Thái và hàng triệu người khác trong các trại tập trung cùng các cuộc hành quyết hàng loạt. Các chính sách ý thức hệ chủng tộc, khu ghetto và trục xuất đã dẫn đến việc giết chóc công nghiệp hóa tại Auschwitz và những nơi khác. Thảm họa diệt chủng này vẫn giữ vai trò trung tâm trong việc hiểu về các vấn đề đạo đức của cuộc chiến tranh và luật nhân quyền sau chiến tranh.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thế chiến II tóm tắt: Những bước ngoặt",
+      "text": "Stalingrad (1942–43) và Midway (1942) đánh dấu những bước ngoặt lớn cho vận mệnh phe Trục trên bộ lẫn trên biển. Ý đầu hàng năm 1943; Đức phải đối mặt với cuộc chiến hai mặt trận mà họ không thể duy trì trước nguồn lực vượt trội của phe Đồng Minh. Bom nguyên tử thả xuống Hiroshima và Nagasaki vào tháng 8 năm 1945 đã dẫn đến sự đầu hàng của Nhật Bản.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Thế giới thứ hai Tóm tắt: Mặt trận Hậu phương",
+      "text": "Phụ nữ bước vào các nhà máy; chế độ phân phối khẩu phần, tuyên truyền và kiểm duyệt đã định hình cuộc sống hàng ngày tại các quốc gia tham chiến. Việc giải mã mật mã tại Bletchley Park và sản lượng công nghiệp của Hoa Kỳ chứng tỏ quan trọng không kém gì lòng anh hùng trên chiến trường. Người dân ở các vùng bị chiếm đóng phải đối mặt với sự kháng cự, hợp tác và những cuộc trả thù tàn bạo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thế chiến II tóm tắt: Kết thúc và hậu quả",
+      "text": "Đức đầu hàng vào tháng 5 năm 1945; Nhật Bản thì đến tháng 9 sau các cuộc tấn công bằng bom nguyên tử và Liên Xô tham chiến ở Thái Bình Dương. Ước tính khoảng 70–85 triệu người thiệt mạng, trong đó có thường dân do ném bom, nạn đói và diệt chủng. Liên Hiệp Quốc, NATO, Hiệp ước Warsaw cùng các phong trào phi thực dân hóa đã định hình lại trật tự thế giới sau chiến tranh.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Thế giới thứ Hai tóm tắt: Công nghệ và Chiến thuật",
+      "text": "Ra-đa, máy bay phản lực, tàu sân bay và các cuộc đổ bộ thủy bộ đã định hướng cho chiến tranh hiện đại. Tên lửa được phát triển phục vụ chiến tranh sau này đã thúc đẩy kỷ nguyên không gian; vũ khí hạt nhân mở ra một kỷ nguyên chiến lược mới. Những bài học về hậu cần, tình báo và tác chiến hợp đồng binh chủng vẫn tiếp tục định hình học thuyết quân sự.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Thế giới thứ Hai Tóm tắt: Tại sao Nó Vẫn Quan Trọng",
+      "text": "Chiến tranh Thế giới thứ Hai đã thiết lập các thể chế, biên giới và liên minh định hình chính trị quốc tế ngày nay. Ký ức về Holocaust thúc đẩy giáo dục chống chủ nghĩa bài Do Thái và các nỗ lực ngăn chặn diệt chủng. Quy mô của cuộc chiến cảnh báo cách khủng hoảng kinh tế và chủ nghĩa dân tộc có thể leo thang thành thảm họa toàn cầu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Lạnh: Hai Siêu cường Trỗi dậy",
+      "text": "Sau năm 1945, Hoa Kỳ và Liên Xô dẫn đầu các khối đối thủ với các hệ thống kinh tế và chính trị đối lập. Châu Âu bị chia cắt dọc theo Bức màn sắt; Đức bị tách thành Đông và Tây. Cả hai bên đều sở hữu vũ khí hạt nhân, tạo ra sự cân bằng khủng bố ngăn cản chiến tranh trực tiếp giữa các siêu cường.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Chiến tranh Lạnh: Hệ tư tưởng và Kiềm chế",
+      "text": "Chính sách của Mỹ dưới thời George Kennan nhằm kiềm chế sự bành trướng của Liên Xô mà không nhất thiết phải đẩy lùi nó ở mọi nơi. Chủ nghĩa cộng sản hứa hẹn sự bình đẳng giai cấp; chủ nghĩa tư bản nhấn mạnh thị trường và quyền cá nhân—mỗi bên đều tự nhận là ưu việt về mặt đạo đức. Tuyên truyền, gián điệp và chiến tranh ủy nhiệm đã lan rộng cuộc cạnh tranh ra toàn cầu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Lạnh: Các cuộc khủng hoảng và những lần suýt xảy ra",
+      "text": "Cuộc phong tỏa Berlin (1948–49), Chiến tranh Triều Tiên (1950–53), Khủng hoảng tên lửa Cuba (1962) và Chiến tranh Việt Nam đã thử thách các giới hạn. Khủng hoảng tên lửa đưa thế giới đến gần nhất với nguy cơ trao đổi hạt nhân; ngoại giao và sự bí mật đã ngăn chặn chiến tranh. Cuộc chạy đua vũ trang về tên lửa, tàu ngầm và sau này chi tiêu cho SDI đã làm căng thẳng cả hai nền kinh tế.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Lạnh: NATO và Khối Warszawa",
+      "text": "NATO (1949) đã ràng buộc Tây Âu và Bắc Mỹ trong phòng thủ tập thể. Hiệp ước Warszawa làm theo cách tương tự ở Đông Âu, củng cố ảnh hưởng của Liên Xô. Các quốc gia trung lập như Phần Lan và Áo đã xoay xở giữa các khối với mức độ thành công khác nhau.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Lạnh: Phi thực dân hóa và Thế giới thứ ba",
+      "text": "Các quốc gia mới độc lập ở châu Phi và châu Á thường trở thành đấu trường cho cuộc cạnh tranh Chiến tranh Lạnh. Các siêu cường ủng hộ các cuộc đảo chính, nổi dậy và các nhà độc tài khi điều đó thuận lợi cho mục tiêu chiến lược của họ. Các lãnh đạo Phong trào Không liên kết như Nehru và Nasser tìm cách độc lập khỏi cả hai khối.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Lạnh: Cuộc đua Không gian và Công nghệ",
+      "text": "Sputnik năm 1957 đã gây sốc cho người Mỹ và thúc đẩy giáo dục khoa học cũng như tài trợ cho NASA. Cuộc hạ cánh lên Mặt Trăng của Apollo 11 năm 1969 đã thể hiện uy tín công nghệ của Mỹ. Công nghệ lưỡng dụng—tên lửa, vệ tinh, máy tính—đã lan tỏa vào nền kinh tế dân sự.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Chiến tranh Lạnh: Détente và Căng thẳng Tái diễn",
+      "text": "Nixon và Brezhnev theo đuổi các hiệp ước kiểm soát vũ trang như SALT vào những năm 1970, tạm thời làm dịu căng thẳng. Cuộc xâm lược Afghanistan của Liên Xô năm 1979 cùng với việc Reagan tăng cường lực lượng quốc phòng đã làm sống lại sự đối đầu. Sự trì trệ kinh tế ở Liên Xô và các nỗ lực cải cách dưới thời Gorbachev đã làm suy yếu hệ thống Xô Viết.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Chiến tranh Lạnh: Kết thúc Chiến tranh Lạnh",
+      "text": "Các cuộc cách mạng năm 1989 đã lật đổ các chế độ cộng sản khắp Đông Âu; Bức tường Berlin sụp đổ vào tháng 11. Liên Xô tan rã năm 1991, để lại Hoa Kỳ là siêu cường duy nhất trong một thời gian. Các quốc gia thành viên cũ của Hiệp ước Warsaw đã gia nhập NATO và EU, định hình lại an ninh châu Âu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Chiến tranh Lạnh: Những tác động lâu dài",
+      "text": "Kho vũ khí hạt nhân vẫn còn, dù đã giảm so với đỉnh cao thời Chiến tranh Lạnh; các hiệp ước không phổ biến vũ khí hạt nhân vẫn tiếp tục. Mô hình chiến tranh ủy nhiệm vẫn tồn tại trong các xung đột khu vực có sự hậu thuẫn của các cường quốc. Lịch sử Chiến tranh Lạnh giải thích vai trò của NATO, căng thẳng Nga - phương Tây, và các thể chế toàn cầu ra đời năm 1945.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Kỷ nguyên Khám phá: Động cơ cho các chuyến thám hiểm",
+      "text": "Các cường quốc châu Âu tìm kiếm quyền tiếp cận trực tiếp đến gia vị, vàng và các tuyến thương mại châu Á, bỏ qua các trung gian Ottoman. Những tiến bộ trong hàng hải như la bàn, thước đo sao và bản đồ tốt hơn đã khiến việc vượt đại dương trở nên khả thi hơn. Sự tài trợ của hoàng gia cùng các nhà đầu tư thương nhân đã tài trợ cho những chuyến thám hiểm hứa hẹn vinh quang và lợi nhuận.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời đại Khám phá: Bồ Đào Nha Mở Đường",
+      "text": "Hoàng tử Henry the Navigator thúc đẩy việc thám hiểm Đại Tây Dương; da Gama đã tới Ấn Độ bằng đường biển năm 1498. Các căn cứ Bồ Đào Nha ở châu Phi, Brazil và châu Á đã xây dựng nên một đế chế thương mại về đinh hương, nô lệ và bạc. Hiệp ước Tordesillas (1494) phân chia các vùng đất mới giữa Tây Ban Nha và Bồ Đào Nha dưới sự phê chuẩn của Giáo hoàng.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời đại Khám phá: Columbus và Châu Mỹ",
+      "text": "Christopher Columbus, tìm kiếm tuyến đường phía tây đến châu Á, đã đến các đảo Caribe năm 1492 dưới sự bảo trợ của Tây Ban Nha. Những chuyến đi của ông đã mở ra sự tiếp xúc bền vững giữa châu Âu và châu Mỹ với những hậu quả sâu rộng. Các nhà thám hiểm sau này như Magellan đã đi vòng quanh thế giới, chứng minh quy mô đầy đủ của Trái Đất.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Thời đại Khám phá: Chinh phục và Thuộc địa",
+      "text": "Các conquistador Tây Ban Nha đã lật đổ các đế chế Aztec và Inca nhờ ngựa, vũ khí thép, liên minh và bệnh dịch. Hệ thống encomienda cùng các đồn điền đã bóc lột sức lao động và tài nguyên để cung cấp cho thị trường châu Âu. Các nhà truyền giáo và quan chức hành chính đã áp đặt Kitô giáo cùng các khuôn khổ pháp lý mới lên người bản địa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời đại Khám phá: Columbian Exchange",
+      "text": "Cây trồng và động vật đã vượt đại dương: khoai tây và ngô sang châu Âu; lúa mì và ngựa sang châu Mỹ. Những căn bệnh như đậu mùa tàn phá dân số thiếu miễn dịch, tạo điều kiện thuận lợi cho việc chinh phục. Bạc từ Potosí chảy đến Trung Quốc qua Manila, nối liền các nền kinh tế toàn cầu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời đại Khám phá: Cuộc cạnh tranh giữa các cường quốc",
+      "text": "Anh, Pháp và Hà Lan đã thách thức sự thống trị của Iberia bằng các tàu tư nhân vũ trang và các công ty thương mại. Công ty Vịnh Hudson, Công ty Đông Ấn Hà Lan và Công ty Đông Ấn Anh hoạt động như những thực thể gần như nhà nước ở hải ngoại. Cuộc ganh đua thuộc địa đã góp phần dẫn đến các cuộc chiến tranh sau này ở châu Âu và châu Mỹ.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời đại Khám phá: Tác động đến các dân tộc bản địa",
+      "text": "Sự sụp đổ dân số, việc di dời cưỡng bức và đàn áp văn hóa đã xảy ra sau khi tiếp xúc ở nhiều khu vực. Các phong trào kháng cự và những nền văn hóa hỗn hợp vẫn tồn tại bất chấp áp lực thuộc địa. Các tranh luận hiện đại về quyền đất đai và hồi hương đều gắn liền với di sản của thời kỳ này.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời đại Khám phá: Kiến thức Khoa học và Địa lý",
+      "text": "Các nhà thám hiểm đã vẽ bản đồ các bờ biển, dòng hải lưu và gió; các nhà tự nhiên học đã phân loại các loài mới. Các báo cáo đã thách thức địa lý thời Trung cổ và khơi dậy trí tò mò của Thời Khai sáng về sự đa dạng của con người. Bản đồ chính xác trở thành tài sản chiến lược cho cả hải quân và thương nhân.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời đại Khám phá: Tại sao Việc Khám phá Lại Thay đổi Thế giới",
+      "text": "Thời đại đó đã kết nối các châu lục thành một hệ thống kinh tế duy nhất với những mô hình bất bình đẳng kéo dài. Nó lan truyền ngôn ngữ, tôn giáo và hệ thống pháp luật trên toàn cầu trong khi khai thác của cải từ các thuộc địa. Hiểu về cuộc thám hiểm làm rõ cách toàn cầu hóa bắt đầu từ lâu trước thời đại internet.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Những điểm chính",
+      "text": "Các điểm chính. Hãy tóm tắt lại các ý chính.\n\nBối cảnh liên quan — Ai Cập cổ đại: Nhịp điệu hàng năm của sông Nile. Nền văn minh Ai Cập phát triển dọc theo sông Nile nhờ những trận lũ định kỳ mỗi mùa hè mang theo lớp phù sa màu mỡ. Nông dân tính toán thời vụ gieo trồng theo chu kỳ ngập lụt, và lượng ngũ cốc dư thừa nuôi sống các thư lại, tư tế cùng các pharaoh. Nếu không có con sông này, Sahara đã khiến khu vực gần như không thể cư trú dày đặc.\n\nBối cảnh liên quan — Ai Cập cổ đại: Các pharaoh và chế độ vua thần quyền. Người Ai Cập coi pharaoh là cầu nối sống giữa các vị thần và con người, có trách nhiệm duy trì ma'at—trật tự vũ trụ và công lý. Các công trình đồ sộ như kim tự tháp Giza thể hiện quyền lực hoàng gia và huy động hàng nghìn lao động cùng kỹ sư. Các triều đại thăng trầm qua ba thiên niên kỷ, từ sự thống nhất của Narmer khoảng năm 3100 TCN đến khi Cleopatra sụp đổ năm 30 TCN.\n\nBối cảnh liên quan — Ai Cập cổ đại: Chữ tượng hình và chữ viết. Chữ tượng hình Ai Cập kết hợp dấu hiệu ghi ý và ghi âm, được dùng trên đền đài, lăng mộ và giấy papyrus. Thư lại phải học hành nhiều năm; các văn bản ghi chép thuế má, hợp đồng và kinh sách tôn giáo như Sách của Người Chết. Bia đá Rosetta với ba ngôn ngữ đã giúp Champollion giải mã chữ tượng hình năm 1822, mở lại tiếng nói đã mất.\n\nBối cảnh liên quan — Ai Cập cổ đại: Tôn giáo và thế giới bên kia. Người Ai Cập tin rằng ka và ba—hai linh hồn—cần xác ướp và lễ vật để đến được thế giới bên kia. Việc ướp xác, bình canopic và đồ tùy táng phản ánh các nghi thức phức tạp do các tư tế Osiris và Ra chủ trì. Thung lũng các vị Vua ẩn giấu những phòng mộ được vẽ tranh rực rỡ, nhiều nơi bị cướp phá dù lối vào đã được giấu kín.\n\nBối cảnh liên quan — Ai Cập cổ đại: Đời sống hàng ngày và lao động. Đa số người Ai Cập làm nông, đánh cá hoặc thủ công như làm gốm, vải lanh và bia từ lúa mì emmer cùng lúa mạch. Nhà cửa xây bằng gạch bùn bao quanh sân trong; bánh mì và bia là thức ăn chính của công nhân xây lăng mộ hoàng gia. Phụ nữ có thể sở hữu tài sản và buôn bán, dù các cuộc hôn nhân tầng lớp thường nhằm củng cố liên minh chính trị.\n\nBối cảnh liên quan — Ai Cập cổ đại: Những kỳ quan kỹ thuật. Kim tự tháp Khufu ban đầu cao 146 mét, sử dụng khoảng 2,3 triệu khối đá. Các kỹ sư căn chỉnh công trình theo các hướng chính xác với độ chính xác đáng kinh ngạc nhờ công cụ ngắm và kỹ thuật đo đạc. Đền Karnak và Luxor được mở rộng qua nhiều thế kỷ, thể hiện cách kiến trúc quảng bá lòng sùng kính của pharaoh đối với thần linh.\n\nBối cảnh liên quan — Ai Cập cổ đại: Thương mại và đế chế. Ai Cập nhập khẩu gỗ tuyết tùng từ Liban, vàng từ Nubia và ngọc lưu ly từ Afghanistan xa xôi. Các pharaoh thời Tân Vương quốc như Thutmose III mở rộng ảnh hưởng đến Canaan và",
+      "kind": "narration"
+    }
+  ]
+}

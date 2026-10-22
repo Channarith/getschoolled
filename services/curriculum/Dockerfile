@@ -9,6 +9,9 @@ RUN pip install --no-cache-dir -e /app/packages/shared \
     && pip install --no-cache-dir -r /app/services/curriculum/requirements.txt
 COPY services/curriculum /app/services/curriculum
 COPY sample-curriculum /app/sample-curriculum
+# Pre-translated audio courses (interim: replace with a volume once the full batch is done).
+COPY data/course_translations /app/course_translations
+ENV AOEP_COURSE_TRANSLATION_DIR=/app/course_translations
 ENV PYTHONPATH=/app/services/curriculum/src
 WORKDIR /app/services/curriculum
 EXPOSE 8000
