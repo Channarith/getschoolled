@@ -39,7 +39,9 @@ class _BaseSpeechProvider(SpeechProvider):
 
     def translate(self, text: str, *, source: str, target: str) -> str:
         for lang in (source, target):
-            if lang not in SUPPORTED_LANGUAGES:
+            # yue is Cantonese (yue_Hant), not a 27-language platform code
+            # and not an alias of Mandarin.
+            if lang not in SUPPORTED_LANGUAGES and lang != "yue":
                 raise ValueError(f"Unsupported language: {lang}")
         # Prefer in-process NLLB when transformers weights are available
         # (local Spark / GPU). Falls through to NotImplementedError so the
