@@ -50,6 +50,7 @@ export default function TranslationReviewPage() {
   const [skipped, setSkipped] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async (language: string, skip: string[]) => {
     setBusy(true);
@@ -73,8 +74,8 @@ export default function TranslationReviewPage() {
     if (!getToken()) { setSignedIn(false); return; }
     setSignedIn(true);
     reviewOverview()
-      .then((res) => { setLangs(res.languages); if (res.languages[0]) setLang(res.languages[0].lang); })
-      .catch((e) => setDenied(/403|reviewers only/i.test(String(e.message || e))));
+      .then((res) => { setLangs(res.languages); if (res.languages[0]) setLang(res.languages[0].lang); setLoaded(true); })
+      .catch((e) => { setDenied(/403|reviewers only/i.test(String(e.message || e))); setLoaded(true); });
   }, []);
 
   useEffect(() => { if (lang) { setSkipped([]); void load(lang, []); } }, [lang, load]);
@@ -110,6 +111,20 @@ export default function TranslationReviewPage() {
     const next = [...skipped, unit.key];
     setSkipped(next);
     await load(lang, next);
+  }
+
+  if (loaded && langs.length === 0) {
+    return (
+      <main className="container" style={{ maxWidth: 900 }}>
+        <h1>Translation review</h1>
+        <div className="card">
+          <strong>No translations to review yet.</strong>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Passages appear here as machine translations are added for each language. Check back soon.
+          </p>
+        </div>
+      </main>
+    );
   }
 
   const totalUnits = langs.reduce((n, r) => n + r.units_total, 0);
