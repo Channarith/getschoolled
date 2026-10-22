@@ -216,7 +216,7 @@ def reviewable_languages() -> List[str]:
     try:
         for entry in root.iterdir():
             if entry.is_dir():
-                langs.update(p.stem for p in entry.glob("*.json"))
+                langs.update(p.stem for p in entry.glob("*.json") if p.stem in TARGET_LANGUAGES)
     except OSError:
         pass
     return sorted(langs)
