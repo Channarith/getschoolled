@@ -19,7 +19,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from .course_translation_library import library_dir, safe_course_id
+from .course_translation_library import TARGET_LANGUAGES, library_dir, safe_course_id
 
 VERDICTS = ("correct", "small_fix", "source_wrong", "better")
 CLAIM_SECONDS = 600
@@ -134,6 +134,37 @@ def _course_lengths() -> Dict[str, int]:
     return {c.id: len(c.segments) for c in build_catalog("en", "en")}
 
 
+@functools.lru_cache(maxsize=1)
+def _course_index() -> Dict[str, Dict[str, Any]]:
+    """course id -> {title, order, keys (unit key per segment, in order)}."""
+    from .audio_courses import build_catalog
+
+    out: Dict[str, Dict[str, Any]] = {}
+    for order, course in enumerate(build_catalog("en", "en")):
+        if course.id.startswith("lang-"):
+            continue
+        keys = [unit_key(s.heading, s.text) for s in course.segments if s.heading and s.text]
+        out[course.id] = {
+            "title": course.title.replace(" (audio)", "").strip(),
+            "order": order,
+            "segments": len(course.segments),
+            "keys": keys,
+        }
+    return out
+
+
+@functools.lru_cache(maxsize=1)
+def _unit_courses() -> Dict[str, List[str]]:
+    """unit key -> the course ids that use it."""
+    out: Dict[str, List[str]] = {}
+    for course_id, info in _course_index().items():
+        for key in info["keys"]:
+            out.setdefault(key, [])
+            if course_id not in out[key]:
+                out[key].append(course_id)
+    return out
+
+
 def _library_record(course_id: str, lang: str) -> Optional[dict]:
     path = library_dir() / safe_course_id(course_id) / f"{lang}.json"
     try:
@@ -185,7 +216,7 @@ def reviewable_languages() -> List[str]:
     try:
         for entry in root.iterdir():
             if entry.is_dir():
-                langs.update(p.stem for p in entry.glob("*.json"))
+                langs.update(p.stem for p in entry.glob("*.json") if p.stem in TARGET_LANGUAGES)
     except OSError:
         pass
     return sorted(langs)
@@ -223,9 +254,22 @@ class ReviewStore:
         machine = self._machine(lang)
         done = self._reviews(lang)
         skipped = set(skip or [])
+        # Finish the courses already started before opening new ones, then the
+        # most reused passages, so courses reach "complete" one at a time.
+        courses = _course_index()
+        owners = _unit_courses()
+
+        def progress(key: str) -> float:
+            best = 0.0
+            for course_id in owners.get(key, []):
+                keys = [k for k in courses[course_id]["keys"] if k in machine]
+                if keys:
+                    best = max(best, sum(1 for k in keys if k in done) / len(keys))
+            return best
+
         ranked = sorted(
             (k for k in machine if k not in done and k not in skipped),
-            key=lambda k: (-units[k]["pages"], k),
+            key=lambda k: (-progress(k), -units[k]["pages"], k),
         )
         for key in ranked[:200]:
             if self.kv.claim(self._claim(lang, key), reviewer, CLAIM_SECONDS) is not None:
@@ -296,6 +340,59 @@ class ReviewStore:
             "by_verdict": by_verdict,
             "by_reviewer": dict(sorted(by_reviewer.items(), key=lambda kv: -kv[1])),
             "untranslated_units": len(units) - len(machine),
+        }
+
+    def overview(self) -> dict:
+        """Every language we support, with its review numbers (zero when untranslated)."""
+        rows = []
+        for lang in TARGET_LANGUAGES:
+            row = self.stats(lang)
+            row["translated"] = row["units_total"] > 0
+            rows.append(row)
+        rows.sort(key=lambda r: (not r["translated"], -r["units_total"], r["lang"]))
+        return {"languages": rows}
+
+    def course_progress(self) -> dict:
+        """Per course: which languages are translated and how far each is reviewed."""
+        courses = _course_index()
+        langs = list(TARGET_LANGUAGES)
+        machine = {lang: self._machine(lang) for lang in langs}
+        reviews = {lang: self._reviews(lang) for lang in langs}
+        rows = []
+        for course_id, info in courses.items():
+            per_lang: Dict[str, dict] = {}
+            for lang in langs:
+                keys = [k for k in dict.fromkeys(info["keys"]) if k in machine[lang]]
+                if not keys:
+                    continue
+                reviewed = sum(1 for k in keys if k in reviews[lang])
+                per_lang[lang] = {
+                    "units": len(keys),
+                    "reviewed": reviewed,
+                    "complete": reviewed == len(keys),
+                }
+            rows.append({
+                "id": course_id,
+                "title": info["title"],
+                "languages": per_lang,
+                "translated": sorted(per_lang),
+                "complete": sorted(l for l, v in per_lang.items() if v["complete"]),
+            })
+        with_translation = [r for r in rows if r["translated"]]
+        # A course is "completed" when every language it has is fully reviewed.
+        completed = [r for r in with_translation if len(r["complete"]) == len(r["translated"])]
+        in_progress = [r for r in with_translation if r not in completed]
+        in_progress.sort(key=lambda r: (-(len(r["complete"]) / max(1, len(r["translated"]))), r["title"]))
+        return {
+            "totals": {
+                "courses": len(rows),
+                "languages_supported": len(langs),
+                "courses_translated": len(with_translation),
+                "courses_completed": len(completed),
+                "courses_not_started": len(rows) - len(with_translation),
+            },
+            "completed": sorted(completed, key=lambda r: r["title"]),
+            "in_progress": in_progress,
         }
 
     def gold_pairs(self, lang: str) -> List[dict]:

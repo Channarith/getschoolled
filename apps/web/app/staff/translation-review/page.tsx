@@ -5,9 +5,12 @@ import Link from "next/link";
 
 import {
   getToken,
+  reviewCourses,
   reviewNext,
   reviewOverview,
   reviewSubmit,
+  type ReviewCourse,
+  type ReviewCourses,
   type ReviewStats,
   type ReviewUnit,
 } from "../../lib/api";
@@ -51,6 +54,9 @@ export default function TranslationReviewPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const [tab, setTab] = useState<"review" | "courses">("review");
+  const [courses, setCourses] = useState<ReviewCourses | null>(null);
 
   const load = useCallback(async (language: string, skip: string[]) => {
     setBusy(true);
@@ -74,15 +80,31 @@ export default function TranslationReviewPage() {
     if (!getToken()) { setSignedIn(false); return; }
     setSignedIn(true);
     reviewOverview()
-      .then((res) => { setLangs(res.languages); if (res.languages[0]) setLang(res.languages[0].lang); setLoaded(true); })
-      .catch((e) => { setDenied(/403|reviewers only/i.test(String(e.message || e))); setLoaded(true); });
+      .then((res) => {
+        setLangs(res.languages);
+        const first = res.languages.find((r) => r.translated !== false && r.units_total > 0);
+        if (first) setLang(first.lang);
+        setLoaded(true);
+      })
+      .catch((e) => {
+        const msg = String(e.message || e);
+        setDenied(/403|reviewers only/i.test(msg));
+        setExpired(/401|expired|session|sign in/i.test(msg));
+        setLoaded(true);
+      });
   }, []);
+
+  useEffect(() => {
+    if (tab !== "courses" || courses) return;
+    reviewCourses().then(setCourses).catch((e) => setError(String(e.message || e)));
+  }, [tab, courses]);
 
   useEffect(() => { if (lang) { setSkipped([]); void load(lang, []); } }, [lang, load]);
 
   if (signedIn === null) return <main className="container"><p className="muted">Loading…</p></main>;
   if (!signedIn) return <main className="container"><p>Please <Link href="/login">sign in</Link> to continue.</p></main>;
   if (denied) return <main className="container"><p className="muted">This page is for Salareen staff.</p></main>;
+  if (expired) return <main className="container"><p>Your session has ended. Please <Link href="/login">sign in again</Link>.</p></main>;
 
   const needsText = verdict === "small_fix" || verdict === "better";
 
@@ -113,20 +135,6 @@ export default function TranslationReviewPage() {
     await load(lang, next);
   }
 
-  if (loaded && langs.length === 0) {
-    return (
-      <main className="container" style={{ maxWidth: 900 }}>
-        <h1>Translation review</h1>
-        <div className="card">
-          <strong>No translations to review yet.</strong>
-          <p className="muted" style={{ marginBottom: 0 }}>
-            Passages appear here as machine translations are added for each language. Check back soon.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
   const totalUnits = langs.reduce((n, r) => n + r.units_total, 0);
   const doneUnits = langs.reduce((n, r) => n + r.units_reviewed, 0);
 
@@ -144,12 +152,31 @@ export default function TranslationReviewPage() {
         <div className="muted">{doneUnits} of {totalUnits} passages reviewed, {totalUnits - doneUnits} remaining</div>
       </div>
 
+      <div role="tablist" aria-label="Views" style={{ display: "flex", gap: 8, margin: "16px 0 8px" }}>
+        <button type="button" role="tab" aria-selected={tab === "review"} onClick={() => setTab("review")}
+          className={tab === "review" ? "" : "secondary"}>Review</button>
+        <button type="button" role="tab" aria-selected={tab === "courses"} onClick={() => setTab("courses")}
+          className={tab === "courses" ? "" : "secondary"}>Courses and languages</button>
+      </div>
+
+      {tab === "courses" ? (
+        <CoursesView data={courses} error={error} />
+      ) : !langs.some((r) => r.units_total > 0) ? (
+        <div className="card">
+          <strong>No translations to review yet.</strong>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Passages appear here as machine translations are added for each language. Check back soon.
+          </p>
+        </div>
+      ) : (
+        <>
       <label style={{ display: "block", margin: "16px 0" }}>
         Language{" "}
         <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label="Language">
           {langs.map((r) => (
-            <option key={r.lang} value={r.lang}>
-              {LANG_NAMES[r.lang] || r.lang} ({r.units_reviewed}/{r.units_total})
+            <option key={r.lang} value={r.lang} disabled={r.units_total === 0}>
+              {LANG_NAMES[r.lang] || r.lang}
+              {r.units_total > 0 ? ` (${r.units_reviewed}/${r.units_total})` : " — no translation yet"}
             </option>
           ))}
         </select>
@@ -216,6 +243,72 @@ export default function TranslationReviewPage() {
           </div>
         </div>
       )}
+        </>
+      )}
     </main>
+  );
+}
+
+function Chip({ lang, info }: { lang: string; info: { units: number; reviewed: number; complete: boolean } }) {
+  const pct = info.units ? Math.round((info.reviewed / info.units) * 100) : 0;
+  const color = info.complete ? "#166534" : info.reviewed > 0 ? "#b45309" : "#475569";
+  return (
+    <span
+      title={`${LANG_NAMES[lang] || lang}: ${info.reviewed} of ${info.units} passages reviewed`}
+      style={{
+        display: "inline-block", margin: "2px 4px 2px 0", padding: "2px 8px", borderRadius: 99,
+        background: color, color: "#fff", fontSize: 12, fontWeight: 700,
+      }}
+    >
+      {lang.toUpperCase()}{info.complete ? " ✓" : ` ${pct}%`}
+    </span>
+  );
+}
+
+function CourseRow({ course }: { course: ReviewCourse }) {
+  return (
+    <div style={{ padding: "8px 0", borderTop: "1px solid #e5e7eb" }}>
+      <strong>{course.title}</strong>
+      <div>
+        {course.translated.map((lang) => <Chip key={lang} lang={lang} info={course.languages[lang]} />)}
+      </div>
+    </div>
+  );
+}
+
+function CoursesView({ data, error }: { data: ReviewCourses | null; error: string }) {
+  if (error && !data) return <div className="card" style={{ borderColor: "#dc2626" }}>{error}</div>;
+  if (!data) return <p className="muted">Loading courses…</p>;
+  const t = data.totals;
+  return (
+    <div>
+      <div className="card">
+        <div><strong>{t.courses_completed}</strong> of {t.courses} courses completed (every translated language reviewed)</div>
+        <div className="muted">
+          {t.courses_translated} courses have at least one translation · {t.courses_not_started} not started ·
+          {" "}{t.languages_supported} languages supported
+        </div>
+        <div style={{ marginTop: 6 }}>
+          <Bar done={t.courses_completed} total={t.courses} />
+        </div>
+      </div>
+
+      <h2 style={{ marginTop: 18 }}>Completed ({data.completed.length})</h2>
+      {data.completed.length === 0 ? (
+        <p className="muted">No course is fully reviewed yet. Finish one course at a time: the review queue keeps going in the same course until it is done.</p>
+      ) : (
+        <div className="card">{data.completed.map((c) => <CourseRow key={c.id} course={c} />)}</div>
+      )}
+
+      <h2 style={{ marginTop: 18 }}>In progress ({data.in_progress.length})</h2>
+      {data.in_progress.length === 0 ? (
+        <p className="muted">Nothing in progress.</p>
+      ) : (
+        <div className="card">{data.in_progress.map((c) => <CourseRow key={c.id} course={c} />)}</div>
+      )}
+      <p className="muted" style={{ marginTop: 12 }}>
+        {t.courses_not_started} courses have no translation yet and are not listed.
+      </p>
+    </div>
   );
 }

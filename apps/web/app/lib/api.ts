@@ -3514,6 +3514,20 @@ export type ReviewStats = {
   lang: string; units_total: number; units_reviewed: number; units_remaining: number;
   pages_total: number; pages_covered: number; untranslated_units: number;
   by_verdict: Record<string, number>; by_reviewer: Record<string, number>;
+  translated?: boolean;
+};
+export type ReviewCourseLang = { units: number; reviewed: number; complete: boolean };
+export type ReviewCourse = {
+  id: string; title: string; translated: string[]; complete: string[];
+  languages: Record<string, ReviewCourseLang>;
+};
+export type ReviewCourses = {
+  totals: {
+    courses: number; languages_supported: number; courses_translated: number;
+    courses_completed: number; courses_not_started: number;
+  };
+  completed: ReviewCourse[];
+  in_progress: ReviewCourse[];
 };
 export type ReviewUnit = {
   key: string; lang: string; pages: number; courses: string[];
@@ -3524,6 +3538,12 @@ export type ReviewUnit = {
 export async function reviewOverview(): Promise<{ languages: ReviewStats[] }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/admin/translation-review/overview`, { headers: authHeaders(), cache: "no-store" })
+  );
+}
+
+export async function reviewCourses(): Promise<ReviewCourses> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/admin/translation-review/courses`, { headers: authHeaders(), cache: "no-store" })
   );
 }
 

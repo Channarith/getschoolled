@@ -147,3 +147,6 @@ apps/web/public/downloads/*.exe
 apps/web/public/downloads/*.msi
 apps/web/public/downloads/*.AppImage
 apps/web/public/downloads/latest.json
+
+# translations still being written
+data/course_translations/**/*.partial.json
