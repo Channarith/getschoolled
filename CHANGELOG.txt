@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-22 - v0.94.28 - Languages xAI's voice agent cannot speak (Dutch, Polish, Ukrainian, Hebrew, Urdu, Persian, Thai, Swahili, Greek, Czech, plus Khmer and Cantonese) stay on our own neural voice. An explicit Grok session no longer opens with an empty hint for those languages, and a language with no voice is not read as English.
 - 2026-10-22 - v0.94.28 - A reboot resumes STEM training and the 222-course translation, and it does not load Khmer from the base weights. Ingest stays at one worker while the exam is alive.
 - 2026-10-22 - v0.94.28 - Frontier readiness rebuilds from the frozen exam, the STEM-subject exam, the truth log, and the 222-course cache (`python3 training/frontier_readiness.py --record`). A subject with one item still sets the floor, so linear algebra cannot hide, and that subject now has its own frozen items.
 - 2026-10-22 - v0.94.28 - STEM promotion now requires a higher score on the frozen 200-item exam and a subject floor, so a repeated win over the base is not progress. Eval logs groundedness, abstention, and a blank human-agreement field. Cantonese (yue) translates as its own file and stays off the 27-language list, and zh-HK no longer becomes Mandarin. Outside cards stay off until a person signs and the subject floor clears, and even then Salareen does not print the outside card.

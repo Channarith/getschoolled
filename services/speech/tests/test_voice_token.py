@@ -262,3 +262,19 @@ def test_explicit_xai_refuses_khmer_without_minting(monkeypatch):
     assert body["token"] is None
     assert body["engine"] == "xai"
     assert "xai-test-key" not in json.dumps(body)
+
+
+def test_explicit_xai_refuses_dutch_without_minting(monkeypatch):
+    from aoep_shared import xai_realtime as xr
+
+    _set_xai(monkeypatch, key="xai-test-key")
+    called = []
+    monkeypatch.setattr(xr, "mint_ephemeral_token", lambda **kwargs: called.append(kwargs))
+    response = client.post("/voice/token", json={"mode": "solo", "language": "nl", "engine": "xai"})
+    assert response.status_code == 200
+    body = response.json()
+    assert called == []
+    assert body["use_xai"] is False
+    assert body["token"] is None
+    assert body["spoken_language"]["edge_voice"] == "nl-NL-FennaNeural"
+    assert "xai-test-key" not in json.dumps(body)
