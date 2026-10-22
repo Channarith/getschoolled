@@ -1,0 +1,778 @@
+{
+ "4-6": [
+  {
+   "q": "What color is a banana?",
+   "a": "Yellow",
+   "wrong": [
+    "Red",
+    "Blue"
+   ]
+  },
+  {
+   "q": "Which animal says moo?",
+   "a": "Cow",
+   "wrong": [
+    "Dog",
+    "Cat"
+   ]
+  },
+  {
+   "q": "What do bees make?",
+   "a": "Honey",
+   "wrong": [
+    "Milk",
+    "Juice"
+   ]
+  },
+  {
+   "q": "How many legs does a dog have?",
+   "a": "Four",
+   "wrong": [
+    "Two",
+    "Six"
+   ]
+  },
+  {
+   "q": "What shape is a ball?",
+   "a": "Round",
+   "wrong": [
+    "Square",
+    "Triangle"
+   ]
+  },
+  {
+   "q": "What color is the sky on a sunny day?",
+   "a": "Blue",
+   "wrong": [
+    "Green",
+    "Pink"
+   ]
+  },
+  {
+   "q": "Which animal has a long trunk?",
+   "a": "Elephant",
+   "wrong": [
+    "Lion",
+    "Rabbit"
+   ]
+  },
+  {
+   "q": "What do we use to see?",
+   "a": "Eyes",
+   "wrong": [
+    "Ears",
+    "Nose"
+   ]
+  },
+  {
+   "q": "What is frozen water called?",
+   "a": "Ice",
+   "wrong": [
+    "Steam",
+    "Sand"
+   ]
+  },
+  {
+   "q": "Which fruit is red and grows on trees?",
+   "a": "Apple",
+   "wrong": [
+    "Banana",
+    "Lemon"
+   ]
+  },
+  {
+   "q": "Which animal says quack?",
+   "a": "Duck",
+   "wrong": [
+    "Pig",
+    "Fish"
+   ]
+  },
+  {
+   "q": "Where do fish live?",
+   "a": "Water",
+   "wrong": [
+    "Sand",
+    "Trees"
+   ]
+  },
+  {
+   "q": "What color is grass?",
+   "a": "Green",
+   "wrong": [
+    "Purple",
+    "Orange"
+   ]
+  },
+  {
+   "q": "How many days are in a week?",
+   "a": "Seven",
+   "wrong": [
+    "Five",
+    "Ten"
+   ]
+  },
+  {
+   "q": "What do you wear on your feet?",
+   "a": "Shoes",
+   "wrong": [
+    "Hats",
+    "Gloves"
+   ]
+  },
+  {
+   "q": "What is the opposite of hot?",
+   "a": "Cold",
+   "wrong": [
+    "Big",
+    "Soft"
+   ]
+  },
+  {
+   "q": "What shines in the sky at night?",
+   "a": "Moon",
+   "wrong": [
+    "Sun",
+    "Rainbow"
+   ]
+  },
+  {
+   "q": "Which animal hops and says ribbit?",
+   "a": "Frog",
+   "wrong": [
+    "Snake",
+    "Fish"
+   ]
+  },
+  {
+   "q": "What do cows give us?",
+   "a": "Milk",
+   "wrong": [
+    "Eggs",
+    "Bread"
+   ]
+  },
+  {
+   "q": "What is the opposite of up?",
+   "a": "Down",
+   "wrong": [
+    "Soft",
+    "Round"
+   ]
+  },
+  {
+   "q": "Which season is snowy?",
+   "a": "Winter",
+   "wrong": [
+    "Summer",
+    "Spring"
+   ]
+  },
+  {
+   "q": "What color do blue and yellow make?",
+   "a": "Green",
+   "wrong": [
+    "Purple",
+    "Orange"
+   ]
+  },
+  {
+   "q": "Which animal has feathers and flies?",
+   "a": "Bird",
+   "wrong": [
+    "Fish",
+    "Cat"
+   ]
+  },
+  {
+   "q": "What do you brush every day?",
+   "a": "Teeth",
+   "wrong": [
+    "Shoes",
+    "Table"
+   ]
+  }
+ ],
+ "7-10": [
+  {
+   "q": "What is the capital of France?",
+   "a": "Paris",
+   "wrong": [
+    "London",
+    "Rome"
+   ]
+  },
+  {
+   "q": "How many continents are there?",
+   "a": "Seven",
+   "wrong": [
+    "Five",
+    "Nine"
+   ]
+  },
+  {
+   "q": "Which planet do we live on?",
+   "a": "Earth",
+   "wrong": [
+    "Mars",
+    "Venus"
+   ]
+  },
+  {
+   "q": "What gas do plants take in?",
+   "a": "Carbon dioxide",
+   "wrong": [
+    "Oxygen",
+    "Helium"
+   ]
+  },
+  {
+   "q": "Which is the largest ocean?",
+   "a": "Pacific",
+   "wrong": [
+    "Atlantic",
+    "Indian"
+   ]
+  },
+  {
+   "q": "What is H2O?",
+   "a": "Water",
+   "wrong": [
+    "Salt",
+    "Air"
+   ]
+  },
+  {
+   "q": "Which of these is a mammal?",
+   "a": "Dolphin",
+   "wrong": [
+    "Shark",
+    "Trout"
+   ]
+  },
+  {
+   "q": "What is the fastest land animal?",
+   "a": "Cheetah",
+   "wrong": [
+    "Lion",
+    "Horse"
+   ]
+  },
+  {
+   "q": "What does a caterpillar turn into?",
+   "a": "Butterfly",
+   "wrong": [
+    "Spider",
+    "Beetle"
+   ]
+  },
+  {
+   "q": "How many sides does a hexagon have?",
+   "a": "Six",
+   "wrong": [
+    "Five",
+    "Eight"
+   ]
+  },
+  {
+   "q": "What is the biggest planet?",
+   "a": "Jupiter",
+   "wrong": [
+    "Saturn",
+    "Earth"
+   ]
+  },
+  {
+   "q": "Which of these is a prime number?",
+   "a": "Seven",
+   "wrong": [
+    "Nine",
+    "Eight"
+   ]
+  },
+  {
+   "q": "What is the closest star to Earth?",
+   "a": "The Sun",
+   "wrong": [
+    "Sirius",
+    "Polaris"
+   ]
+  },
+  {
+   "q": "Which of these is a reptile?",
+   "a": "Snake",
+   "wrong": [
+    "Frog",
+    "Whale"
+   ]
+  },
+  {
+   "q": "What language do people speak in Brazil?",
+   "a": "Portuguese",
+   "wrong": [
+    "Spanish",
+    "French"
+   ]
+  },
+  {
+   "q": "What do we call animals that only eat plants?",
+   "a": "Herbivores",
+   "wrong": [
+    "Carnivores",
+    "Predators"
+   ]
+  },
+  {
+   "q": "What is the hardest natural substance?",
+   "a": "Diamond",
+   "wrong": [
+    "Gold",
+    "Iron"
+   ]
+  },
+  {
+   "q": "At what Celsius temperature does water freeze?",
+   "a": "Zero",
+   "wrong": [
+    "Ten",
+    "One hundred"
+   ]
+  },
+  {
+   "q": "Which force pulls things toward the ground?",
+   "a": "Gravity",
+   "wrong": [
+    "Friction",
+    "Magnetism"
+   ]
+  },
+  {
+   "q": "Which organ pumps blood around the body?",
+   "a": "Heart",
+   "wrong": [
+    "Lungs",
+    "Brain"
+   ]
+  },
+  {
+   "q": "How many minutes are in an hour?",
+   "a": "Sixty",
+   "wrong": [
+    "Thirty",
+    "Hundred"
+   ]
+  },
+  {
+   "q": "Which country is shaped like a boot?",
+   "a": "Italy",
+   "wrong": [
+    "Spain",
+    "Greece"
+   ]
+  },
+  {
+   "q": "What do bees collect from flowers?",
+   "a": "Nectar",
+   "wrong": [
+    "Sand",
+    "Seeds"
+   ]
+  },
+  {
+   "q": "Which letter is a vowel?",
+   "a": "U",
+   "wrong": [
+    "T",
+    "P"
+   ]
+  }
+ ],
+ "11-17": [
+  {
+   "q": "What is the chemical symbol for gold?",
+   "a": "Au",
+   "wrong": [
+    "Ag",
+    "Go"
+   ]
+  },
+  {
+   "q": "Who painted the Mona Lisa?",
+   "a": "Da Vinci",
+   "wrong": [
+    "Picasso",
+    "Van Gogh"
+   ]
+  },
+  {
+   "q": "What is the powerhouse of the cell?",
+   "a": "Mitochondria",
+   "wrong": [
+    "Nucleus",
+    "Ribosome"
+   ]
+  },
+  {
+   "q": "What is the largest hot desert?",
+   "a": "Sahara",
+   "wrong": [
+    "Gobi",
+    "Kalahari"
+   ]
+  },
+  {
+   "q": "What is the square root of 144?",
+   "a": "Twelve",
+   "wrong": [
+    "Fourteen",
+    "Eleven"
+   ]
+  },
+  {
+   "q": "Who wrote Romeo and Juliet?",
+   "a": "Shakespeare",
+   "wrong": [
+    "Dickens",
+    "Homer"
+   ]
+  },
+  {
+   "q": "Which gas makes up most of the air?",
+   "a": "Nitrogen",
+   "wrong": [
+    "Oxygen",
+    "Carbon dioxide"
+   ]
+  },
+  {
+   "q": "Which planet is called the Red Planet?",
+   "a": "Mars",
+   "wrong": [
+    "Venus",
+    "Mercury"
+   ]
+  },
+  {
+   "q": "What is the currency of Japan?",
+   "a": "Yen",
+   "wrong": [
+    "Won",
+    "Yuan"
+   ]
+  },
+  {
+   "q": "Which river runs through Egypt?",
+   "a": "Nile",
+   "wrong": [
+    "Amazon",
+    "Danube"
+   ]
+  },
+  {
+   "q": "At what Celsius temperature does water boil at sea level?",
+   "a": "One hundred",
+   "wrong": [
+    "Ninety",
+    "Eighty"
+   ]
+  },
+  {
+   "q": "Who was the first person to walk on the Moon?",
+   "a": "Neil Armstrong",
+   "wrong": [
+    "Buzz Aldrin",
+    "Yuri Gagarin"
+   ]
+  },
+  {
+   "q": "What is the smallest prime number?",
+   "a": "Two",
+   "wrong": [
+    "One",
+    "Three"
+   ]
+  },
+  {
+   "q": "What is the largest mammal?",
+   "a": "Blue whale",
+   "wrong": [
+    "Elephant",
+    "Giraffe"
+   ]
+  },
+  {
+   "q": "Which blood cells carry oxygen?",
+   "a": "Red",
+   "wrong": [
+    "White",
+    "Clear"
+   ]
+  },
+  {
+   "q": "Which ocean lies between Africa and Australia?",
+   "a": "Indian",
+   "wrong": [
+    "Pacific",
+    "Arctic"
+   ]
+  },
+  {
+   "q": "What is the capital of Japan?",
+   "a": "Tokyo",
+   "wrong": [
+    "Kyoto",
+    "Osaka"
+   ]
+  },
+  {
+   "q": "Who developed the theory of relativity?",
+   "a": "Einstein",
+   "wrong": [
+    "Newton",
+    "Darwin"
+   ]
+  },
+  {
+   "q": "Which element has the symbol O?",
+   "a": "Oxygen",
+   "wrong": [
+    "Gold",
+    "Iron"
+   ]
+  },
+  {
+   "q": "How many players does a soccer team have on the field?",
+   "a": "Eleven",
+   "wrong": [
+    "Nine",
+    "Twelve"
+   ]
+  },
+  {
+   "q": "What is the tallest mountain above sea level?",
+   "a": "Everest",
+   "wrong": [
+    "K2",
+    "Denali"
+   ]
+  },
+  {
+   "q": "Which language has the most native speakers?",
+   "a": "Mandarin",
+   "wrong": [
+    "English",
+    "Spanish"
+   ]
+  },
+  {
+   "q": "Which vitamin do we get from sunlight?",
+   "a": "Vitamin D",
+   "wrong": [
+    "Vitamin C",
+    "Vitamin A"
+   ]
+  },
+  {
+   "q": "What is the capital of Canada?",
+   "a": "Ottawa",
+   "wrong": [
+    "Toronto",
+    "Montreal"
+   ]
+  }
+ ],
+ "adult": [
+  {
+   "q": "What is the capital of Australia?",
+   "a": "Canberra",
+   "wrong": [
+    "Sydney",
+    "Melbourne"
+   ]
+  },
+  {
+   "q": "Who wrote the novel 1984?",
+   "a": "George Orwell",
+   "wrong": [
+    "Aldous Huxley",
+    "Ray Bradbury"
+   ]
+  },
+  {
+   "q": "What is the chemical symbol for sodium?",
+   "a": "Na",
+   "wrong": [
+    "K",
+    "Sd"
+   ]
+  },
+  {
+   "q": "In which year did World War II end?",
+   "a": "1945",
+   "wrong": [
+    "1939",
+    "1950"
+   ]
+  },
+  {
+   "q": "What is the currency of Switzerland?",
+   "a": "Franc",
+   "wrong": [
+    "Euro",
+    "Krone"
+   ]
+  },
+  {
+   "q": "What is the largest organ of the human body?",
+   "a": "Skin",
+   "wrong": [
+    "Liver",
+    "Heart"
+   ]
+  },
+  {
+   "q": "Who painted The Starry Night?",
+   "a": "Van Gogh",
+   "wrong": [
+    "Monet",
+    "Picasso"
+   ]
+  },
+  {
+   "q": "What is the scientific study of earthquakes called?",
+   "a": "Seismology",
+   "wrong": [
+    "Meteorology",
+    "Ecology"
+   ]
+  },
+  {
+   "q": "What is the capital of Brazil?",
+   "a": "Brasilia",
+   "wrong": [
+    "Rio",
+    "Sao Paulo"
+   ]
+  },
+  {
+   "q": "How many bones are in the adult human body?",
+   "a": "206",
+   "wrong": [
+    "106",
+    "306"
+   ]
+  },
+  {
+   "q": "Which planet is famous for its rings?",
+   "a": "Saturn",
+   "wrong": [
+    "Mars",
+    "Mercury"
+   ]
+  },
+  {
+   "q": "Who discovered penicillin?",
+   "a": "Fleming",
+   "wrong": [
+    "Pasteur",
+    "Curie"
+   ]
+  },
+  {
+   "q": "What is the main language of Egypt?",
+   "a": "Arabic",
+   "wrong": [
+    "Hebrew",
+    "Persian"
+   ]
+  },
+  {
+   "q": "Which vitamin prevents scurvy?",
+   "a": "Vitamin C",
+   "wrong": [
+    "Vitamin K",
+    "Vitamin D"
+   ]
+  },
+  {
+   "q": "What is the chemical formula for table salt?",
+   "a": "NaCl",
+   "wrong": [
+    "KCl",
+    "NaOH"
+   ]
+  },
+  {
+   "q": "Who was the first President of the United States?",
+   "a": "Washington",
+   "wrong": [
+    "Lincoln",
+    "Jefferson"
+   ]
+  },
+  {
+   "q": "What is the smallest unit of an element?",
+   "a": "Atom",
+   "wrong": [
+    "Cell",
+    "Molecule"
+   ]
+  },
+  {
+   "q": "What is the largest planet in our solar system?",
+   "a": "Jupiter",
+   "wrong": [
+    "Saturn",
+    "Neptune"
+   ]
+  },
+  {
+   "q": "Which city hosted the 2016 Summer Olympics?",
+   "a": "Rio",
+   "wrong": [
+    "London",
+    "Beijing"
+   ]
+  },
+  {
+   "q": "Who wrote Pride and Prejudice?",
+   "a": "Jane Austen",
+   "wrong": [
+    "Charlotte Bronte",
+    "Emily Dickinson"
+   ]
+  },
+  {
+   "q": "Which metal is liquid at room temperature?",
+   "a": "Mercury",
+   "wrong": [
+    "Lead",
+    "Iron"
+   ]
+  },
+  {
+   "q": "What is the capital of Canada?",
+   "a": "Ottawa",
+   "wrong": [
+    "Toronto",
+    "Vancouver"
+   ]
+  },
+  {
+   "q": "What does a seismograph measure?",
+   "a": "Earthquakes",
+   "wrong": [
+    "Rainfall",
+    "Wind"
+   ]
+  },
+  {
+   "q": "Which ocean is the deepest?",
+   "a": "Pacific",
+   "wrong": [
+    "Atlantic",
+    "Arctic"
+   ]
+  }
+ ]
+}

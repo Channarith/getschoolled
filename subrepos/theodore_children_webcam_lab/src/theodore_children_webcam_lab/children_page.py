@@ -54,7 +54,7 @@ _PAGE = """<!doctype html>
         <p data-i18n="intro">Camera games and listening games for ages 4–10. Video stays in this browser. No recordings or Face ID.</p></div>
       </div>
       <div class="setup-grid">
-        <label><span data-i18n="age">Age group</span><select id="age"><option value="4-6">4–6</option><option value="7-10" selected>7–10</option></select></label>
+        <label><span data-i18n="age">Age group</span><select id="age"><option value="4-6">4–6</option><option value="7-10" selected>7–10</option><option value="11-17">11–17</option><option value="adult">Adult 18+</option></select></label>
         <label><span data-i18n="theme">Theme</span><select id="theme"><option value="mix" data-i18n="mix">Mix everything</option><option value="cuddly" data-i18n="cuddly">Cuddly</option><option value="hero" data-i18n="hero">Hero & adventure</option></select></label>
         <label class="check"><input id="seated" type="checkbox"> <span data-i18n="seated">Seated-only movement</span></label>
         <label class="check"><input id="share" type="checkbox"> <span data-i18n="share">Share anonymous lab stats</span></label>

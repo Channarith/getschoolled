@@ -6,7 +6,9 @@ from theodore_children_webcam_lab.game_engine import (
     audio_round_public,
     fun_score,
     is_closed_fist,
-    math_toss_round,
+    normalize_quiz_band,
+    pop_quiz_round,
+    quiz_bank,
     next_oh_behave_timer,
     oh_behave_hit,
     score_audio,
@@ -60,18 +62,36 @@ def test_letter_aliases_and_noun_plurals_are_child_friendly():
     assert score_spoken("apple", "truck", kind="noun")["passed"] is False
 
 
-def test_math_toss_rounds_are_age_adaptive_and_deterministic():
-    young = math_toss_round("4-6", 4)
-    assert young == math_toss_round("child", 4)
-    assert len(young["choices"]) == 2
-    assert young["answer"] in young["choices"]
-    assert min(young["choices"]) >= 0
+def test_pop_quiz_rounds_are_age_adaptive_and_deterministic():
+    young = pop_quiz_round("4-6", 4)
+    assert young == pop_quiz_round("child", 4)
+    assert young["age_band"] == "4-6"
+    assert len(young["choices"]) == 2 and young["answer"] in young["choices"]
 
-    older = math_toss_round("7-10", 5)
-    assert older == math_toss_round("teen", 5)
-    assert len(older["choices"]) == len(set(older["choices"])) == 3
-    assert older["answer"] in older["choices"]
-    assert "×" in older["question"]
+    teen = pop_quiz_round("teen", 5)
+    assert teen["age_band"] == "11-17" and teen == pop_quiz_round("13", 5)
+    adult = pop_quiz_round("adult", 0)
+    assert adult["age_band"] == "adult" and adult == pop_quiz_round("34", 0)
+    assert pop_quiz_round("7-10", 2)["age_band"] == "7-10"
+    assert normalize_quiz_band("nonsense") == "7-10" and normalize_quiz_band("500") == "7-10"
+    # The answer alternates sides so it is not always left or right.
+    assert pop_quiz_round("7-10", 0)["choices"][0] == pop_quiz_round("7-10", 0)["answer"]
+    assert pop_quiz_round("7-10", 1)["choices"][1] == pop_quiz_round("7-10", 1)["answer"]
+    assert pop_quiz_round("adult", -3) == pop_quiz_round("adult", 0)
+
+
+def test_quiz_bank_has_short_clean_answers_for_every_band():
+    bank = quiz_bank()
+    assert set(bank) == {"4-6", "7-10", "11-17", "adult"}
+    for band, rows in bank.items():
+        assert len(rows) >= 20, band
+        questions = [row["q"] for row in rows]
+        assert len(questions) == len(set(questions)), f"{band} repeats a question"
+        for row in rows:
+            assert 1 <= len(row["a"].split()) <= 2, (band, row)
+            assert row["wrong"] and all(1 <= len(w.split()) <= 2 for w in row["wrong"]), (band, row)
+            assert row["a"] not in row["wrong"], (band, row)
+            assert len(set(row["wrong"])) == len(row["wrong"]), (band, row)
 
 
 def test_fun_score_rewards_success_combo_and_persistence():

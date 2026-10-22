@@ -26,7 +26,7 @@ export const VISION_ARCADE: VisionSection[] = [
       { id: "connect-dots", label: "Connect the dots", emoji: "🔢" },
       { id: "trace-outline", label: "Trace the outline", emoji: "✒️" },
       { id: "say-letter", label: "Say the letter", emoji: "🔤" },
-      { id: "math-toss", label: "Math Toss", emoji: "🥎" },
+      { id: "pop-quiz-toss", label: "Pop Quiz Toss", emoji: "🎯" },
     ],
   },
   {

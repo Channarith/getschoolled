@@ -29,7 +29,7 @@ from .game_engine import (
     all_game_ids,
     audio_round_public,
     fun_score,
-    math_toss_round,
+    pop_quiz_round,
     score_audio,
     score_spoken,
 )
@@ -43,7 +43,7 @@ VISION_ASSET_DIR = Path(
 app = FastAPI(
     title="Theodore Children Webcam Lab",
     version=__version__,
-    description="Private, playful browser-local face and hand learning games for ages 4-10.",
+    description="Private, playful browser-local face and hand learning games for ages 4 and up.",
 )
 install_live_audio_routes(
     app,
@@ -142,7 +142,7 @@ def health() -> dict[str, Any]:
         "ok": True,
         "service": "theodore-children-webcam-lab",
         "version": __version__,
-        "ages": [4, 10],
+        "ages": [4, 99],
         "camera_uploads": False,
         "audio_uploads": False,
         "face_id": False,
@@ -203,15 +203,16 @@ def audio_round(game: str, index: int = 0) -> dict[str, Any]:
     return audio_round_public(game, index)
 
 
-@app.get("/api/child/math-round")
-def math_round(age: str = "7-10", index: int = 0) -> dict[str, Any]:
+@app.get("/api/child/quiz-round")
+@app.get("/api/child/math-round")  # the old path, kept so an open page keeps working
+def quiz_round(age: str = "7-10", index: int = 0) -> dict[str, Any]:
     if index < 0:
         raise HTTPException(status_code=422, detail="index must be zero or more")
     # A deterministic round depends only on (age, index); allowing arbitrary
     # 10-digit indices invites noisy requests without serving any gameplay need.
     if index > 10_000:
         raise HTTPException(status_code=422, detail="index must be 10000 or less")
-    return math_toss_round(age, index)
+    return pop_quiz_round(age, index)
 
 
 @app.post("/api/child/audio-check")

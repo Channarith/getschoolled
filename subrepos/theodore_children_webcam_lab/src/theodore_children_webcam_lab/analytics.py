@@ -62,7 +62,7 @@ def sanitize_event(raw: dict[str, Any]) -> dict[str, Any]:
     event["fun_score"] = max(0, min(100, int(event.get("fun_score") or 0)))
     event["duration_ms"] = max(0, min(3_600_000, int(event.get("duration_ms") or 0)))
     event["attempts"] = max(0, min(100, int(event.get("attempts") or 0)))
-    event["age_band"] = event.get("age_band") if event.get("age_band") in {"4-6", "7-10"} else "unknown"
+    event["age_band"] = event.get("age_band") if event.get("age_band") in {"4-6", "7-10", "11-17", "adult"} else "unknown"
     raw_components = event.get("components")
     if raw_components is None:
         event.pop("components", None)
