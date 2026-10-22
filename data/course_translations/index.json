@@ -1,0 +1,64 @@
+{
+  "courses": [
+    {
+      "course_id": "audio-intro-to-machine-learning",
+      "title": "សេចក្តីផ្ដើមអំពីម៉ាស៊ីនរៀន",
+      "category": "Technology",
+      "languages": [
+        "es",
+        "fr",
+        "km"
+      ]
+    },
+    {
+      "course_id": "audio-an-introduction-to-stoicism",
+      "title": "ការណែនាំអំពីស្តូអ៊ីស៊ីស",
+      "category": "Focus & Philosophy",
+      "languages": [
+        "es",
+        "fr",
+        "km"
+      ]
+    },
+    {
+      "course_id": "audio-a-tour-of-impressionism",
+      "title": "ដំណើរទស្សនា អ៊ីមព្រិសស្យូន",
+      "category": "Arts & Culture",
+      "languages": [
+        "es",
+        "fr",
+        "km"
+      ]
+    },
+    {
+      "course_id": "audio-ada-lovelace-first-programmer",
+      "title": "អាដា ឡូវឡេស អ្នកសរសេរកម្មវិធីដំបូងគេ",
+      "category": "True Stories & Biographies",
+      "languages": [
+        "es",
+        "fr",
+        "km"
+      ]
+    },
+    {
+      "course_id": "audio-acting-techniques",
+      "title": "បច្ចេកទេសសម្តែង",
+      "category": "Arts & Film",
+      "languages": [
+        "es",
+        "fr",
+        "km"
+      ]
+    },
+    {
+      "course_id": "audio-accounting-fundamentals",
+      "title": "មូលដ្ឋានគណនេយ្យ",
+      "category": "Business & Finance",
+      "languages": [
+        "es",
+        "fr",
+        "km"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "course_id": "audio-accounting-fundamentals",
+  "title": "Fondamentaux de la comptabilité",
+  "category": "Business & Finance",
+  "source_language": "en",
+  "language": "fr",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Aperçu",
+      "text": "Bienvenue. Dans cette leçon, nous explorons les fondamentaux de la comptabilité. Nous aborderons 8 parties, en commençant par Qu’est-ce que la comptabilité, L’équation comptable, Actifs Passifs Capitaux propres, Revenus et Dépenses, Le compte de résultat, Le bilan, L’état des flux de trésorerie et Pourquoi la comptabilité est importante. En écoutant, remarquez comment chaque partie s’appuie sur la précédente — vous n’avez pas besoin de prendre des notes, contentez-vous de suivre.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Qu'est-ce que la comptabilité ?",
+      "text": "La comptabilité est l'enregistrement systématique, la synthèse et la présentation des transactions financières afin de permettre la prise de décision par les propriétaires, les investisseurs, les créanciers et les autorités de régulation. Souvent qualifiée de langage des affaires, la comptabilité traduit la réalité économique d’une organisation en rapports chiffrés standardisés. La comptabilité financière produit des rapports destinés aux utilisateurs externes, comme les actionnaires et les autorités fiscales. La comptabilité de gestion élabore des rapports internes pour aider à la prise de décision au sein de l’organisation. Chaque transaction commerciale, qu’il s’agisse d’une vente, d’un achat ou d’un prêt, a une incidence comptable qui doit être enregistrée pour conserver une image fidèle de la situation financière.",
+      "kind": "narration"
+    },
+    {
+      "heading": "L'équation comptable",
+      "text": "L'équation comptable fondamentale stipule que les actifs sont égaux aux passifs plus les capitaux propres. Cette équation doit toujours être en équilibre, car chaque transaction affecte au moins deux comptes de manière à maintenir cet équilibre, c'est pourquoi le système est appelé la comptabilité en partie double. Lorsque vous achetez de l'équipement d'une valeur de dix mille dollars en utilisant de la trésorerie, les actifs restent inchangés, car la trésorerie diminue mais l'équipement augmente du même montant. Lorsque vous empruntez de l'argent, les actifs et les passifs augmentent de la même façon. Cette contrainte élégante assure la cohérence interne des registres financiers et rend les erreurs détectables grâce au déséquilibre qu'elles créent.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Actifs, Passifs, Capitaux propres",
+      "text": "Les actifs sont les ressources que l’entreprise possède ou contrôle et qui ont une valeur économique future : la trésorerie, les stocks, l’équipement, les bâtiments, les créances clients et les actifs incorporels comme les brevets. Les passifs sont les obligations que l’entreprise doit à des tiers : les emprunts, les comptes fournisseurs, les salaires dus aux employés et les impôts dus aux autorités. Les capitaux propres représentent la part résiduelle des propriétaires dans les actifs une fois tous les passifs réglés. Les capitaux propres augmentent grâce aux bénéfices et aux apports des propriétaires ; ils diminuent en cas de pertes et de retraits des propriétaires. La compréhension de ces trois catégories est la base pour lire correctement tout état financier.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Revenus et dépenses",
+      "text": "Le chiffre d'affaires correspond aux revenus générés par les activités principales de l'entreprise, c'est-à-dire la vente de produits ou la prestation de services. Les charges sont les coûts engagés pour générer ces revenus, notamment les salaires, les loyers, les matières premières, les factures d'énergie et l'amortissement des équipements. Le résultat net, ou bénéfice, correspond au chiffre d'affaires moins les charges. La comptabilité d'engagement enregistre les produits lorsqu'ils sont réalisés et les charges lorsqu'elles sont engagées, indépendamment du moment où l'argent change effectivement de mains. Une entreprise qui a fourni un service en décembre enregistre ce produit en décembre, même si le paiement n'arrive qu'en janvier. Ce principe de rattachement donne une image plus fidèle de la performance économique sur une période donnée.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Le compte de résultat",
+      "text": "Le compte de résultat, aussi appelé état des profits et pertes, résume les revenus et les dépenses sur une période donnée : un mois, un trimestre ou une année. Il commence par le chiffre d’affaires brut, déduit les coûts directs de production des biens ou services pour obtenir la marge brute, puis soustrait les charges d’exploitation comme le loyer et les salaires pour arriver au résultat d’exploitation. Les frais d’intérêts et les impôts sont ensuite déduits pour obtenir le résultat net. Une entreprise rentable affiche un résultat net positif, tandis qu’une entreprise en perte affiche un résultat négatif. Les investisseurs et les gestionnaires analysent les comptes de résultat pour évaluer l’efficacité, les tendances de rentabilité et la pérennité des bénéfices.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Le Bilan",
+      "text": "Le bilan fournit un instantané de la situation financière d'une entreprise à un moment précis, en listant tous les actifs, les passifs et les capitaux propres. Contrairement au compte de résultat, qui couvre une période, le bilan capture un point unique dans le temps. Les actifs courants comme la trésorerie et les stocks se convertissent en liquidités dans l'année. Les actifs à long terme comme les équipements et les biens immobiliers apportent de la valeur sur plusieurs années. Les passifs courants sont dus dans l'année ; les passifs à long terme s'étendent au-delà. Le bilan montre si une entreprise peut payer ses obligations à court terme et comment ses ressources sont déployées au sein de l'organisation.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Tableau des flux de trésorerie",
+      "text": "Le tableau des flux de trésorerie suit les mouvements réels de trésorerie entrant et sortant de l’entreprise au cours d’une période, et il est divisé en trois sections. Les activités d’exploitation montrent la trésorerie générée ou consommée par les opérations principales de l’entreprise. Les activités d’investissement indiquent la trésorerie dépensée ou reçue pour les actifs à long terme. Les activités de financement reflètent la trésorerie provenant des ou versée aux créanciers et aux actionnaires. Une entreprise peut afficher un bénéfice comptable tout en ayant un flux de trésorerie négatif si les clients paient avec retard. Le tableau des flux de trésorerie est souvent considéré comme l’état financier le plus fiable, car la trésorerie est plus difficile à manipuler que les écritures de comptabilité d’exercice.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Pourquoi la comptabilité compte",
+      "text": "La comptabilité permet à chaque partie prenante d’une entreprise de prendre des décisions éclairées sur la base d’informations partagées et normalisées. Les propriétaires utilisent les données comptables pour évaluer la performance et prendre des décisions stratégiques. Les investisseurs se servent des états financiers pour déterminer si une entreprise mérite un investissement. Les prêteurs évaluent la solvabilité à partir de la solidité du bilan et des flux de trésorerie. Les autorités fiscales veillent à ce que les entreprises déclarent leurs revenus avec exactitude. Au sein des organisations, la comptabilité de gestion aide les managers à allouer les ressources aux activités les plus rentables, à maîtriser les coûts et à planifier les périodes futures. Sans une comptabilité fiable, les entreprises ne peuvent pas savoir si elles sont rentables ni si elles pourront honorer leurs obligations financières à venir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Points clés",
+      "text": "Points clés. Récapitulons les principaux éléments. Qu’est-ce que la comptabilité ? La comptabilité est l’enregistrement systématique, la synthèse et le reporting des transactions financières, permettant aux propriétaires, investisseurs, créanciers et autorités de prendre des décisions. Souvent appelée le langage des affaires, elle traduit la réalité économique d’une organisation en rapports chiffrés normalisés. La comptabilité financière produit des rapports destinés aux utilisateurs externes comme les actionnaires et les administrations fiscales. La comptabilité de gestion élabore des rapports internes pour les décisions de l’organisation. Chaque transaction commerciale, qu’il s’agisse d’une vente, d’un achat ou d’un prêt, a une conséquence comptable qui doit être enregistrée pour conserver une image fidèle de la situation financière. L’équation comptable. L’équation comptable fondamentale est : Actifs = Passifs + Capitaux propres. Cette équation doit toujours être équilibrée, car chaque transaction affecte au moins deux comptes de manière à préserver cet équilibre, d’où le nom de comptabilité en partie double. Lorsque vous achetez un équipement de dix mille dollars en espèces, les actifs restent inchangés : la trésorerie diminue, mais l’équipement augmente du même montant. Lorsque vous empruntez de l’argent, les actifs et les passifs augmentent simultanément. Cette contrainte élégante garantit la cohérence interne des registres financiers et permet de détecter les erreurs par le déséquilibre qu’elles créent. Actifs, Passifs, Capitaux propres. Les actifs sont les ressources que l’entreprise possède ou contrôle et qui ont une valeur économique future : trésorerie, stocks, équipements, immeubles, créances clients et actifs incorporels comme les brevets. Les passifs sont les obligations de l’entreprise envers des tiers : emprunts, dettes fournisseurs, salaires à payer et impôts dus. Les capitaux propres représentent l’intérêt résiduel des propriétaires dans les actifs après paiement de tous les passifs. Ils augmentent grâce aux bénéfices et aux apports des propriétaires ; ils diminuent en cas de pertes ou de retraits. Comprendre ces trois catégories est la base pour lire correctement tout état financier. Produits et charges. Les produits sont les revenus générés par les activités principales de l’entreprise, vente de biens ou prestation de services. Les charges sont les coûts engagés pour générer ces produits : salaires, loyers, matières premières, services publics et amortissement des équipements. Le résultat net, ou bénéfice, correspond aux produits moins les charges. La comptabilité d’exercice enregistre les produits lorsqu’ils sont gagnés et les charges lorsqu’elles sont engagées, indépendamment des flux de trésorerie. Une entreprise qui a fourni un service en décembre comptabilise ce produit en décembre, même si le paiement arrive en janvier. Ce principe de rattachement donne une image plus fidèle de la performance économique sur une période. Le compte de résultat. Le compte de résultat, aussi appelé état des profits et pertes, synthétise les produits et les charges sur une période donnée : un mois, un trimestre ou un an. Il commence par le chiffre d’affaires brut, déduit les coûts directs de production pour obtenir la marge brute, puis soustrait les charges d’exploitation comme les loyers et les salaires pour arriver au résultat opérationnel. Les intérêts et les impôts sont ensuite déduits pour obtenir le résultat net. Une entreprise rentable affiche un résultat net positif ; une entreprise en perte affiche un résultat négatif. Les investisseurs et les dirigeants analysent le compte de résultat pour évaluer l’efficacité, les tendances de rentabilité et la pérennité des résultats. Le bilan. Le bilan présente un instantané de la situation financière de l’entreprise à un moment précis, en listant tous les actifs, passifs et capitaux propres. Contrairement au compte de résultat qui",
+      "kind": "narration"
+    }
+  ]
+}
