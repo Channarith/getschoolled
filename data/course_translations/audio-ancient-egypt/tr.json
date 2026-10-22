@@ -1,0 +1,390 @@
+{
+  "course_id": "audio-ancient-egypt",
+  "title": "Eski Mısır",
+  "category": "History",
+  "source_language": "en",
+  "language": "tr",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Genel Bakış",
+      "text": "Hoş geldiniz. Bu derste Eski Mısır'ı keşfediyoruz. Nil'in Yıllık Ritmi, Firavunlar ve İlahi Krallık, Hiyeroglifler ve Yazı, Din ve Öbür Dünya, Günlük Yaşam ve Emek, Mühendislik Harikaları, Ticaret ve İmparatorluk, Düşüş ve Miras, Günümüz Arkeolojisi, Mısır'ın Hafızada Neden Kalıcı Olduğu, İlgili bağlam — Roma İmparatorluğu: Şehir-Devletten Akdeniz Gücüne ve İlgili bağlam — Roma İmparatorluğu: Cumhuriyetçi Kurumlar ile başlayarak 74 bölümü ele alacağız, ardından ek ilgili bağlamlar gelecek. Dinlerken her bölümün bir öncekine nasıl dayandığını fark edin — not almanıza gerek yok, sadece takip edin.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Nil'in Yıllık Ritmi",
+      "text": "Mısır uygarlığı Nil boyunca gelişti çünkü nehrin öngörülebilir taşkınları her yaz verimli silt biriktiriyordu. Çiftçiler ekim zamanını taşkınlara göre ayarlıyorlardı ve fazla tahıl katipleri, rahipleri ve firavunları destekliyordu. Nehir olmasaydı Sahara bölgenin yoğun yerleşim için büyük ölçüde yaşanmaz kalmasına yol açardı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Firavunlar ve Tanrısal Hükümdarlık",
+      "text": "Firavunlar, tanrılarla insanlar arasında yaşayan bağlar olarak görülürdü ve ma'at'tan — kozmik düzen ve adaletten — sorumluydu. Gize Piramitleri gibi anıtsal projeler, kraliyet gücünü yansıtıyor ve binlerce işçiyle mühendisi organize ediyordu. Hanedanlıklar, Narmer'in yaklaşık MÖ 3100'deki birleştirmesinden Kleopatra'nın MÖ 30'daki düşüşüne kadar üç bin yıl boyunca yükseldi ve düştü.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Hiyeroglifler ve Yazı",
+      "text": "Mısır hiyeroglifleri, logografik ve alfabetik işaretleri birleştirir, tapınaklarda, mezarlarda ve papirüslerde kullanılırdı. Yazıcılar yıllarca eğitim alırdı; yazılı kayıtlar vergileri, sözleşmeleri ve Ölüler Kitabı gibi dini metinleri takip ederdi. Rosetta Taşı’nın üç dilli yazıtı, Champollion’un 1822’de hiyeroglifleri çözmesini sağladı ve kayıp bir sesi yeniden duyulur kıldı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Din ve Ahiret",
+      "text": "Mısırlılar, ka ve ba'nın (ruhani özler) ahirete ulaşmak için korunmuş bedenlere ve sunulara ihtiyaç duyduğuna inanıyordu. Mumyalama, kanopik kavanozlar ve mezar eşyaları, Osiris ile Ra rahiplerinin denetimindeki karmaşık ritüelleri yansıtıyordu. Krallar Vadisi, zengin biçimde boyanmış gömü odalarını gizler; girişleri gizli olmasına rağmen çoğu yağmalanmıştır.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Günlük Yaşam ve Emek",
+      "text": "Mısırlıların çoğu tarım yapar, balık avlar ya da emmer buğdayı ve arpadan çömlek, keten ve bira üretirdi. Kerpiç evler avluları çevrelerdi; ekmek ve bira, kraliyet mezarlarını inşa eden işçilerin temel gıdalarıydı. Kadınlar mülk sahibi olabilir ve iş yürütebilirlerdi, ancak üst tabaka evlilikleri genellikle siyasi ittifakları pekiştirirdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Mühendislik Harikaları",
+      "text": "Khufu'nun Büyük Piramidi başlangıçta 146 metre yüksekliğindeydi ve yaklaşık 2,3 milyon taş blok kullanılarak inşa edilmişti. Mühendisler, yapıları ana yönlere olağanüstü bir hassasiyetle hizalıyor, nişan alma araçları ve ölçüm teknikleriyle çalışıyordu. Karnak ve Luxor'daki tapınaklar yüzyıllar boyunca genişleyerek, mimarinin firavunların tanrılara olan bağlılığını nasıl sergilediğini gösteriyordu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ticaret ve İmparatorluk",
+      "text": "Mısır, Lübnan'dan sedir, Nübye'den altın ve uzak Afganistan'dan lapis lazuli ithal ederdi. Yeni Krallık firavunları, Thutmose III gibi, Kenan ve Nübye'ye güçlerini yansıtarak erken bir imparatorluk oluşturdular. Ticaret yollarının ve tahıl ihracatının kontrolü, Mısır'ı sonraki Pers, Yunan ve Roma hükümdarları için stratejik bir ödül haline getirdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Düşüş ve Miras",
+      "text": "Geç Dönem'deki parçalanma, Pers fethi ve İskender'in gelişi Mısır'ın siyasi rolünü dönüştürdü. Ptolemaioslu Yunan hükümdarlar İskenderiye'den yöneterek Helenistik ve Mısır geleneklerini harmanladılar, ta ki Roma krallığı ilhak edene kadar. Mısır sanatı, tıbbı ve idari uygulamaları komşuları etkiledi ve bugün hâlâ müzeleri ve akademik çalışmaları şekillendiriyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Arkeoloji Bugün",
+      "text": "Saqqara ve Abydos gibi alanlar mezar vermeye devam ediyor; bu da günlük nesneleri ve unutulmuş kraliçeleri ortaya çıkarıyor. Modern tarama teknikleri yıkıcı kazılardan kaçınarak piramitlerin içindeki ve mumya sargılarındaki gizli odaları haritalandırıyor. İade ve turizm tartışmaları ise korumayı ulusal kimlik ile ekonomik ihtiyaçlar arasında dengelemeye çalışıyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Mısır Neden Hafızalarda Kalır",
+      "text": "Mısır tarihinin süresi—klasik Yunan ve Roma’nın toplamından daha uzun—devlet oluşumu için bir laboratuvar sunar. Görsel kültürü anında tanınır: ankhlar, skarabeler ve kanatlı güneş diskleri küresel popüler kültürde dolaşır. Mısır’ı incelemek, çevrenin, dinin ve bürokrasinin bir toplumu binlerce yıl boyunca nasıl istikrarlı kılabileceğini açıklar.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: Şehir-Devletten Akdeniz Gücüne",
+      "text": "Roma, Tiber Nehri üzerinde MÖ 753'te kurulmuş küçük bir Latin yerleşimi olarak başladı. Kralları kovduktan sonra Cumhuriyet, ittifaklar ve vatandaş-asker lejyonları aracılığıyla İtalya boyunca genişledi. Kartaca'ya karşı Pön Savaşları'ndaki zafer, Sicilya'yı, İspanya'yı ve batı Akdeniz üzerinde hakimiyeti getirdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: Cumhuriyet Kurumları",
+      "text": "Senato, magistratlara tavsiyede bulunurdu; konsüller orduları komuta eder ve hükümeti bir yıllık dönemler için yönetirdi. Tribünlerin veto hakları gibi denetimler, patrisyen ve pleb çıkarlarını dengelemeyi amaçlasa da eşitsizlik devam etti. Genişleme Cumhuriyeti zorladı, elitleri zenginleştirirken gaziler toprak ve siyasi söz hakkı talep etti.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: Caesar, İç Savaş ve İmparatorluk",
+      "text": "Julius Caesar'ın Galya'yı fethi ve MÖ 49'da Rubicon'u geçmesi cumhuriyet normlarını sarstı. MÖ 44'teki suikastı eski düzeni geri getiremedi; bunun yerine savaş lordları kontrol için rekabet etti. Octavianus, MÖ 31'de Aktium'da Mark Antonyus'u yenerek MÖ 27'de ilk imparator Augustus oldu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: İmparatorluk İdaresi",
+      "text": "Eyaletler atanmış yetkililer tarafından yönetiliyordu; yerel elitler genellikle Roma hukuku altında günlük işleri idare ediyordu. Yollar, su kemerleri ve cursus publicus kurye ağı, üç kıta boyunca farklı halkları birbirine bağlıyordu. Latince idari dil olarak yayılırken, Yunanca doğu eyaletlerinde hayati önemini korudu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: Ordu ve Sınır Savunması",
+      "text": "Ağır piyade lejyonları, destekleyici süvari ve mühendislerle Ren, Tuna ve Fırat sınırları boyunca kaleler inşa etti. Maaş, emekli aylıkları ve vatandaşlık ödülleri askerleri devlete bağladı, ancak iç savaşlar bazen orduları içe yöneltti. Britanya’daki Hadrian Duvarı, genişlemenin sınırlarını ve pragmatik sınır yönetimini simgeliyordu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: Hukuk, Vatandaşlık ve Toplum",
+      "text": "Roma hukuku sözleşmeleri, mülkiyeti ve aile haklarını düzenleyerek modern medeni hukuk sistemlerini etkiledi. Vatandaşlık zamanla genişledi; Caracalla'nın 212 MS Fermanı bunu neredeyse tüm özgür sakinlere tanıdı. Kölelik tarım ve kent emeğinin temelini oluştururken, azatlılar ticarette yükselse de damga devam etti.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: Ekonomi ve Kentsel Yaşam",
+      "text": "Roma, İskenderiye ve Antakya gibi şehirler yüz binlerce insanı barındırıyor, Mısır'dan gelen tahıl filolarıyla besleniyordu. Pazarlar zeytinyağı, şarap, garum balık sosu ve çömlek gibi ürünleri Mare Nostrum deniz yolları üzerinden ticaret ediyordu. Halk hamamları, forumlar ve amfitiyatrolar zenginliği sergiliyor, boş zaman, siyaset ve gösteri imkanı sunuyordu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: Din ve Kültürel Karışım",
+      "text": "Romalılar, fethedilen halkların tanrılarını kendi tanrılarıyla eşleştirerek benimsediler, örneğin Jüpiter gibi. Gizem kültleri, felsefi okullar ve sonunda Hristiyanlık, geleneksel pagan ritüellerine meydan okudu. İmparatorluk sanatı Yunan tarzlarını taklit ederken kemerler, sikkeler ve gerçekçi portreler aracılığıyla imparatorları yüceltti.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: Kriz ve Bölünme",
+      "text": "Üçüncü yüzyıl krizleri hızlı imparator değişimlerine, enflasyona ve sınır istilalarına yol açtı. Diocletian hükümeti tetrarşi ve fiyat kontrolleriyle yeniden düzenledi; Konstantin ise daha sonra başkenti doğuya Byzantium’a taşıdı. İmparatorluk resmen ikiye ayrıldı; batı yarısı 476’da çökerken doğudaki Bizans devleti yüzyıllarca daha varlığını sürdürdü.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Roma İmparatorluğu: Roma'nın Kalıcı Etkisi",
+      "text": "Roman dilleri, hukuki ilkeler ve kentsel planlama Roma modellerine dayanır. Katolik Kilisesi Latin öğrenimini korudu; cumhuriyetçi imgeler sonraki devrimlere ilham verdi. Kolezyum'dan Pompeii'ye kadar uzanan kalıntılar, Roma'yı altyapı, güç ve kırılganlık konusunda somut bir ders haline getiriyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İpek Yolu: Kökenleri ve Rotaları",
+      "text": "İpek Yolu tek bir yol değil, Çin'i Akdeniz'e kabaca MÖ 2. yüzyıldan itibaren bağlayan bir ticaret yolları ağıydı. Kervanlar çölleri, dağları ve bozkırları aşarak Semerkant, Kaşgar ve Konstantinopolis gibi önemli merkezlerden geçerdi. İpek, baharat, kağıt ve fikirler—yalnızca mallar değil—bu yollar boyunca bin yıldan fazla aktı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İpek Yolu: Han Hanedanı Bağlantıları",
+      "text": "Han İmparatoru Wu, yaklaşık MÖ 138'de elçi Zhang Qian'ı batıya gönderdi ve bu, Orta Asya krallıklarıyla diplomatik ve ticari bağları açtı. Çin ipeği Roma'da o kadar değerli hale geldi ki Yaşlı Plinius, altının doğuya aktığından şikayet etti. Bu yol aynı zamanda Budizm'in Hindistan'dan Çin'e ve sonunda Japonya'ya yayılmasına da katkıda bulundu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İpek Yolu: Kültürel Değişim",
+      "text": "İpek Yolu boyunca dinler, teknolojiler ve sanatsal üsluplar mallarla birlikte taşındı. Kağıt yapımı Çin’den İslam dünyasına ve oradan Avrupa’ya yayıldı, okuryazarlıkta devrim yarattı. Sıfır ve cebir gibi matematik kavramları Pers ve Arap alimleri aracılığıyla aktarıldı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İpek Yolu: Yolculuğun Tehlikeleri",
+      "text": "Tüccarlar, düzinelerce bağımsız devlet boyunca haydutlar, zorlu iklimler ve siyasi istikrarsızlıkla karşılaştı. Kervanlar, Taklamakan Çölü'nden geçerken koruma için silahlı muhafızlarla büyük gruplar halinde organize edildi. Mevsimsel zamanlama önemliydi: Kış karları Pamirler'deki gibi dağ geçitlerini kapattı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İpek Yolu: Moğol Barışı",
+      "text": "13. ve 14. yüzyıllarda Moğol İmparatorluğu döneminde Pax Mongolica, Avrasya boyunca seyahati bir nesil boyunca daha güvenli hale getirdi. Marco Polo'nun anlatımı, Cathay'deki gelişen şehirleri ve Kubilay Han'ın sarayını betimledi. Yam adı verilen posta aktarma istasyonları, imparatorluk genelinde hızlı iletişimi sağladı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İpek Yolu: Düşüş ve Mirası",
+      "text": "1498'de Vasco da Gama'nın Hindistan'a yaptığı yolculuktan sonra okyanus ticaret yolları, karasal kervan ticaretini giderek yerinden etti. Osmanlı İmparatorluğu'nun doğu Akdeniz limanlarını kontrol etmesi, deniz taşımacılığını tercih ettiren ek maliyetler yarattı. Bugün Kuşak ve Yol Girişimi, Asya ile Avrupa'yı bağlama yönündeki tarihi emelleri yansıtıyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İpek Yolu: Günlük Ticaret Malları",
+      "text": "İpeğin ötesinde tüccarlar çay, porselen, at, yün, cam ve değerli taşlar da taşıyorlardı. Orta Asya’dan Sogdiyalı tüccarlar genellikle birden fazla dil bilen aracılar olarak hizmet veriyordu. Fiyatlar mesafeyi, riski ve Gansu Koridoru gibi dar boğazlardaki tekelleri yansıtıyordu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İpek Yolu: Arkeolojik Kanıtlar",
+      "text": "Dunhuang'un Mogao Mağaraları, İpek Yolu yolcularının çeşitli yüzlerini ve kıyafetlerini gösteren Budist sanatını koruyor. Gemi enkazları ve vaha yerleşimleri, karışık mutfakları ve defin geleneklerini ortaya çıkarıyor. Eski iskeletlerin DNA çalışmaları, uzun mesafeli göçü ve evlilikler arası karışımı doğruluyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İpek Yolu: Neden Hala Önemli",
+      "text": "İpek Yolu, ticaretin kültürü ve teknolojiyi ordulardan daha hızlı yayabileceğini gösteriyor. Modern tedarik zincirleri hâlâ dar boğazlara ve aracılara bağlı, sadece develer yerine konteynerlerle. Bu tarihi anlamak, bugün Orta Asya'ya yönelik jeopolitik ilgiyi açıklamaya yardımcı oluyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Rönesans: Rönesans Ne Anlama Gelir",
+      "text": "Rönesans, yeniden doğuş anlamına gelir ve Avrupa'da yaklaşık 14. yüzyıldan 17. yüzyıla kadar süren bir kültürel çiçeklenmeyi tanımlar. İtalyan şehir devletlerinde, örneğin Floransa ve Venedik'te başladı; ticaret zenginliği ve Bizans ile Arap kütüphanelerinden kurtarılan klasik metinlerle beslendi. Sanatçılar ve düşünürler, antik Yunan ve Roma'yı model olarak alırken cesurca yenilikler yaptılar.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Rönesans: Hümanizm ve Eğitim",
+      "text": "Petrarch gibi hümanistler, klasik edebiyat, tarih ve retorik çalışmalarını sivil hayatı iyileştirmek için vurguladılar. Üniversiteler müfredatlarını teolojinin ötesine genişleterek hukuk, tıp ve liberal sanatları da kapsayacak şekilde genişlettiler. Gutenberg tarafından yaklaşık 1440 yılında icat edilen matbaa, kitap sayısını artırdı ve hümanist fikirleri Avrupa'ya yaydı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Rönesans: Sanatsal Devrim",
+      "text": "Sanatçılar, şaşırtıcı bir gerçekçilik yaratan doğrusal perspektif, anatomik doğruluk ve yağlı boya teknikleri geliştirdiler. Leonardo da Vinci, Michelangelo ve Raphael, Batı görsel kültürünü hâlâ tanımlayan eserler ürettiler. Medici gibi ailelerin himayesi, çırakların ustaları kopyalayarak öğrendiği atölyeleri finanse etti.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Rönesans: Bilim ve Gözlem",
+      "text": "Rönesans düşünürleri, salt skolastik otorite yerine doğrudan gözlemi ön plana çıkarmaya başladılar. 1543’te Kopernik, güneş merkezli bir kozmos önerdi ancak kabul görmesi onlarca yıl sürdü. Vesalius insan bedenlerini disseke ederek yüzyıllardır süregelen Galen’in anatomik hatalarını düzeltti.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Rönesans: Keşif ve Küresel Temas",
+      "text": "Portekizli ve İspanyol denizciler bu dönemde Afrika, Asya ve Amerika'ya deniz yolları açtılar. Kolomb 1492'de Karayipler'e ulaştı; Vasco da Gama 1498'de Hindistan'a ulaştı. Bu yolculuklar yerli halklara zenginlik, yeni ürünler ve yıkıcı salgınlar getirdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Rönesans: Siyaset ve Şehir-Devletler",
+      "text": "İtalyan cumhuriyetleri, dükalıkları ve papalık devletleri arasındaki rekabet hem sanatı hem de savaşı körükledi. Machiavelli'nin Prens'i gücü pragmatik bir sinizmle analiz etti ve bu çağdaşlarını şok etti. 1453'te Konstantinopolis'in düşüşü Yunan bilginlerini batıya gönderdi ve klasik canlanmayı hızlandırdı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili Bağlam — Rönesans: Mimarlık ve Kamusal Alan",
+      "text": "Filippo Brunelleschi'nin Floransa Katedrali için yaptığı kubbe, iskele kullanmadan çift kabuklu tasarım ile mühendislik dehasını sergiledi. Palladio'nun villaları, Thomas Jefferson'ın Monticello'su da dahil olmak üzere dünya çapındaki hükümet binalarını etkiledi. Kent meydanları, sivil kimlik ve dini geçit törenleri için sahneler haline geldi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Rönesans: Sınırlar ve Çelişkiler",
+      "text": "Rönesans'ın parlaklığı, cadı avları, kolonilerdeki kölelik ve katı sınıf hiyerarşileriyle bir arada var oldu. Artemisia Gentileschi gibi yetenekli kadınlar, erkeklerin karşılaşmadığı patronaj engellerine karşı mücadele etti. Avrupa'nın tamamı eşit şekilde katılmadı; kuzey Rönesans sanatı farklı temalar ve teknikler geliştirdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Rönesans: Kalıcı Etki",
+      "text": "Rönesans'ın bireysel başarı ve ampirik sorgulama idealleri, Bilimsel Devrim ile Aydınlanma'nın temellerini atmaya yardımcı oldu. Müzeler hâlâ galerilerini Rönesans ustaları etrafında, Batı sanat tarihinin temeli olarak düzenliyor. Bu dönem, kültürel yenilenmenin genellikle kriz, ticaret ve yeniden kazanılan bilgiyle geldiğini gösteriyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Sanayi Devrimi: El Aletlerinden Makinelere",
+      "text": "Sanayi Devrimi, 1700'lerin sonlarında Britanya'da başladı ve üretimi evlerden ile atölyelerden fabrikalara kaydırdı. Kömürle çalışan buhar makineleri, tekstil fabrikalarını ve daha sonra ülke çapındaki demiryollarını çalıştırdı. İşçi başına üretim fırladı, ancak işçiler uzun saatler, çocuk işçiliği ve tehlikeli koşullarla karşı karşıya kaldı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Sanayi Devrimi: Tekstiller Öncü Rol Oynuyor",
+      "text": "Spinning jenny ve power loom gibi yenilikler, yüzyıllardır elle yapılan kumaş üretimini makineleştirdi. Kolonilerden gelen pamuk ithalatı İngiliz fabrikalarını besleyerek endüstriyel büyümeyi küresel ticarete ve köleliğe bağladı. Manchester gibi fabrika kasabaları hızla büyüdü, ücret arayan kırsal göçmenleri kendine çekti.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Sanayi Devrimi: Demir, Kömür ve Buhar",
+      "text": "Kokla eritilen demir, odun kömürünün yerini aldı ve daha güçlü raylar, köprüler ile makinelerin yapılmasını sağladı. James Watt’ın geliştirilmiş buhar makinesi (1769’da patentlendi) dönemin belirleyici güç kaynağı haline geldi. Kömür madenciliği büyük ölçüde genişledi, manzaraları yeniden şekillendirdi ve yeni mesleki tehlikeler yarattı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Sanayi Devrimi: Ulaşım Dönüştü",
+      "text": "Kanallar ve ardından demiryolları, mal ve insanların taşınmasının maliyetini ve süresini azalttı. George Stephenson'un Rocket'i (1829), Liverpool ve Manchester Demiryolu'nda pratik buharlı lokomotifleri gösterdi. Daha hızlı ulaşım, ulusal pazarları entegre etti ve bölgeler arasında fiyatları standartlaştırdı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Sanayi Devrimi: Kentleşme ve Sınıf",
+      "text": "Kentler, kalabalık ve sağlıksız konutlarda yaşayan fabrika işçileriyle dolup taştı. Sahipler ve yöneticilerden oluşan yeni bir sanayi orta sınıfı, kentsel işçi sınıfıyla birlikte ortaya çıktı. Reformcular yoksulluğu belgeledi; yasalar yavaş yavaş çocuk işçiliğini sınırladı ve fabrika denetimlerini iyileştirdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Sanayi Devrimi: Britanya Dışına Yayılması",
+      "text": "Belçika, Fransa, Almanya ve Amerika Birleşik Devletleri 1800’lerde sanayileşti, genellikle İngiliz tekniklerini benimseyerek. Korumacılık ve patentler, makineleri kopyalayabilecek olanları ve sanayinin ne kadar hızlı yayılacağını belirledi. Japonya’nın Meiji sanayileşmesi ise daha sonra modelin Batı dışı toplumları da dönüştürebileceğini gösterdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Sanayi Devrimi: İşçi Hareketleri",
+      "text": "İşçiler daha kısa çalışma saatleri, daha güvenli koşullar ve daha yüksek ücret talep etmek için sendikalar kurup grevler düzenlediler. Ludditeler ilk protestolarda makineleri kırdılar, ancak tarihçiler onların tüm teknolojiyi değil, belirli işverenleri hedef aldıklarını belirtiyor. Sosyalist ve komünist fikirler, endüstriyel kapitalizmin yarattığı eşitsizlikleri eleştirerek yaygınlaştı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Sanayi Devrimi: Çevresel Maliyetler",
+      "text": "Kömür dumanı havayı kirletti; fabrika atıkları sanayi bölgelerindeki nehirleri kirletti. Ormansızlaşma ve madencilik, büyüyen şehirlerin çevresindeki kırsal alanı tahrip etti. Bu örüntüler, büyüme, iklim ve düzenleme konusundaki modern tartışmaları önceden yansıtıyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili Bağlam — Sanayi Devrimi: Günümüz İçin Miras",
+      "text": "Kitlesel üretim, ücretli emek ve küresel tedarik zincirleri doğrudan bu devrime dayanır. Sanayi ülkelerinde yaşam standartları nesiller boyunca yükseldi, ancak faydalar eşit olmayan şekilde paylaşıldı. Sanayi Devrimi'ni anlamak, teknolojinin aynı anda hem zenginlik hem de bozulma yaratabileceğini açıklar.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Kısaca II. Dünya Savaşı: 1930'lardaki Kökenleri",
+      "text": "Büyük Buhran demokrasileri istikrarsızlaştırdı ve özellikle Almanya ile Japonya'da aşırı uç partileri güçlendirdi. Adolf Hitler'in Nazi rejimi yeniden silahlandı, Avusturya ve Çekoslovakya'yı ilhak etti ve doğuda Lebensraum peşinde koştu. 1938 Münih'teki yatıştırma politikası daha fazla saldırganlığı önleyemedi; savaş Eylül 1939'da Avrupa'da patlak verdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Kısaca II. Dünya Savaşı: İki Savaş Tiyatrosu",
+      "text": "Avrupa, blitzkrieg kampanyalarına, Britanya Savaşı'na ve Almanya ile SSCB arasındaki muazzam Doğu Cephesi'ne tanık oldu. Pasifik Savaşı, Pearl Harbor'dan sonra Aralık 1941'de Japonya'yı Amerika Birleşik Devletleri, Çin ve Müttefik kuvvetlere karşı karşıya getirdi. Çatışmalar kıtalar, okyanuslar ve gökyüzü boyunca benzeri görülmemiş bir endüstriyel seferberlikle yayıldı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — II. Dünya Savaşı Kısaca: Müttefik Stratejisi",
+      "text": "Britanya, Sovyetler Birliği ve Amerika Birleşik Devletleri, ideolojik farklılıklara rağmen Müttefik koalisyonunun temelini oluşturdu. Lend-Lease yardımları ve ortak bombardıman kampanyaları Mihver üretimini ve lojistiğini zorladı. 6 Haziran 1944’teki D-Day, Fransa’da batı cephesini açarken Kızıl Ordu doğudan batıya doğru ilerliyordu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Kısaca II. Dünya Savaşı: Holokost",
+      "text": "Nazi Almanyası, sistematik bir şekilde altı milyon Yahudi'yi ve milyonlarca diğerini kamplarda ve toplu infazlarda katletti. Irk ideolojisi, gettolar ve sürgün politikaları, Auschwitz ve diğer yerlerde endüstriyel katliamla sonuçlandı. Bu soykırım, savaşın ahlaki boyutlarını ve savaş sonrası insan hakları hukukunu anlamada hâlâ merkezi bir yer tutuyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Kısaca II. Dünya Savaşı: Dönüm Noktaları",
+      "text": "Stalingrad (1942–43) ve Midway (1942), Mihver'in kara ve denizdeki talihinde büyük ters dönüşlere işaret etti. İtalya 1943'te teslim oldu; Almanya, Müttefiklerin üstün kaynaklarına karşı sürdüremeyeceği iki cepheli bir savaşla karşı karşıya kaldı. Ağustos 1945'te Hiroşima ve Nagazaki'ye atılan atom bombaları Japonya'nın teslim olmasını önceledi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İkinci Dünya Savaşı Kısaca: İç Cepheler",
+      "text": "Kadınlar fabrikalara girdi; karne uygulaması, propaganda ve sansür savaşan ülkelerde günlük hayatı şekillendirdi. Bletchley Park’taki şifre çözme çalışmaları ve Birleşik Devletler’deki endüstriyel üretim, savaş alanındaki kahramanlık kadar hayati önem taşıdı. İşgal altındaki halklar direniş, işbirliği ve acımasız misillemelerle karşılaştı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İkinci Dünya Savaşı Kısaca: Sonu ve Sonrası",
+      "text": "Almanya Mayıs 1945'te teslim oldu; Japonya ise atom saldırıları ve Sovyetlerin Pasifik savaşına girmesinin ardından Eylül ayında teslim oldu. Tahmini 70-85 milyon insan öldü; bunlar arasında bombalama, kıtlık ve soykırımdan kaynaklanan siviller de vardı. Birleşmiş Milletler, NATO, Varşova Paktı ve sömürgecilikten kurtulma hareketleri savaş sonrası dünya düzenini yeniden şekillendirdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Kısaca II. Dünya Savaşı: Teknoloji ve Taktikler",
+      "text": "Radar, jetler, uçak gemileri ve amfibi taarruz modern savaşın yönünü belirledi. Savaş için geliştirilen roketler daha sonra uzay çağını ilerletti; nükleer silahlar yeni bir stratejik dönem başlattı. Lojistik, istihbarat ve kombine silahlar alanındaki dersler hâlâ askeri doktrini şekillendirmeye devam ediyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — İkinci Dünya Savaşı Kısaca: Neden Hala Önemli",
+      "text": "İkinci Dünya Savaşı, bugün uluslararası politikayı şekillendiren kurumlar, sınırlar ve ittifaklar kurdu. Holokost'un anısı, antisemitizme karşı eğitimi ve soykırım önleme çabalarını yönlendiriyor. Savaşın ölçeği, ekonomik kriz ve milliyetçiliğin küresel bir felakete nasıl tırmanabileceğini uyarıyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Soğuk Savaş: İki Süper Güç Ortaya Çıkıyor",
+      "text": "1945'ten sonra Amerika Birleşik Devletleri ve Sovyetler Birliği, rekabet eden ekonomik ve siyasi sistemlere sahip rakip bloklara liderlik etti. Avrupa Demir Perde boyunca bölündü; Almanya Doğu ve Batı olarak ayrıldı. Her iki taraf da nükleer silahlara sahipti, bu da doğrudan süper güç savaşını caydıran bir terör dengesi yarattı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Soğuk Savaş: İdeoloji ve Çevreleme",
+      "text": "ABD'nin George Kennan dönemindeki politikası, Sovyet yayılmasını her yerde geri çevirmeksizin kontrol altında tutmayı hedefliyordu. Komünizm sınıf eşitliği vaat ediyordu; kapitalizm ise piyasaları ve bireysel hakları vurguluyordu—her iki taraf da ahlaki üstünlük iddiasındaydı. Propaganda, casusluk ve vekalet savaşları rekabeti küresel ölçekte yaydı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Soğuk Savaş: Krizler ve Yakın Kaçışlar",
+      "text": "Berlin Ablukası (1948–49), Kore Savaşı (1950–53), Küba Füze Krizi (1962) ve Vietnam Savaşı sınırları zorladı. Füze krizi dünyayı nükleer çatışmaya en yaklaştırdı; diplomasi ve gizlilik savaşı önledi. Füzeler, denizaltılar ve daha sonra SDI harcamalarındaki silahlanma yarışları her iki ekonomiyi de zorladı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Soğuk Savaş: NATO ve Varşova Paktı",
+      "text": "NATO (1949), Batı Avrupa ile Kuzey Amerika'yı kolektif savunmada birbirine bağladı. Varşova Paktı bunu Doğu Avrupa'da benzer şekilde kurarak Sovyet etkisini pekiştirdi. Finlandiya ve Avusturya gibi tarafsız devletler, bloklar arasında değişen başarılarla denge politikası izledi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Soğuk Savaş: Dekolonizasyon ve Üçüncü Dünya",
+      "text": "Afrika ve Asya'daki yeni bağımsız ülkeler, sıklıkla Soğuk Savaş rekabetinin arenası haline geldi. Süper güçler, stratejik hedeflerine uygun gördüklerinde darbeleri, ayaklanmaları ve diktatörleri destekledi. Nehru ve Nasser gibi Bağlantısızlar Hareketi liderleri ise her iki bloktan da bağımsız kalmaya çalıştı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Soğuk Savaş: Uzay ve Teknoloji Yarışı",
+      "text": "1957'de Sputnik Amerikalıları şoke etti ve bilim eğitimini ile NASA finansmanını hızlandırdı. 1969 Apollo 11 Ay inişi, ABD'nin teknolojik prestijini sergiledi. Çift kullanımlı teknolojiler—roketler, uydular, bilgisayarlar—sivil ekonomilere yayıldı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Soğuk Savaş: Detant ve Yenilenen Gerilim",
+      "text": "Nixon ve Brejnev, 1970'lerde SALT gibi silah kontrol anlaşmalarını takip ederek gerilimleri kısa süreliğine hafifletti. Sovyetlerin Afganistan'ı işgali (1979) ve Reagan'ın savunma güçlendirmesi çatışmayı yeniden alevlendirdi. SSCB'deki ekonomik durgunluk ve Gorbaçov'un reform girişimleri Sovyet sistemini zayıflattı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Soğuk Savaş: Soğuk Savaş'ın Sonu",
+      "text": "1989'daki devrimler Doğu Avrupa'daki komünist rejimleri devirdi; Berlin Duvarı Kasım ayında yıkıldı. Sovyetler Birliği 1991'de dağıldı ve Amerika Birleşik Devletleri'ni bir süreliğine tek süper güç olarak bıraktı. Eski Varşova Paktı devletleri NATO ve AB'ye katıldı, Avrupa güvenliğini yeniden şekillendirdi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Soğuk Savaş: Kalıcı Etkiler",
+      "text": "Nükleer silah stokları, Soğuk Savaş dönemindeki zirvelerinden azaltılmış olsa da hâlâ varlığını sürdürüyor; nükleer silahların yayılmasını önleme antlaşmaları devam ediyor. Vekalet savaşı kalıpları, büyük güçlerin desteğiyle bölgesel çatışmalarda sürüyor. Soğuk Savaş tarihi, NATO'nun rolünü, Rusya-Batı gerilimlerini ve 1945'te doğan küresel kurumları açıklıyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Keşifler Çağı: Seyahatlerin Nedenleri",
+      "text": "Avrupa güçleri, Osmanlı aracılarından kaçınarak Asya baharatlarına, altına ve ticaret yollarına doğrudan erişim aradı. Navigasyondaki ilerlemeler—pusula, usturlap, daha iyi haritalar—okyanus geçişlerini daha mümkün kıldı. Kraliyet sponsorluğu ve tüccar yatırımcılar, şan ve kâr vaat eden seferleri finanse etti.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Keşifler Çağı: Portekiz Yolu Açıyor",
+      "text": "Denizci Prens Henry Atlantik keşiflerini teşvik etti; da Gama 1498'de deniz yoluyla Hindistan'a ulaştı. Afrika, Brezilya ve Asya'daki Portekiz üsleri karanfil, köle ve gümüş ticaretine dayalı bir imparatorluk kurdu. Tordesillas Antlaşması (1494), yeni toprakları İspanya ve Portekiz arasında papal onayla paylaştırdı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Keşifler Çağı: Kolomb ve Amerika",
+      "text": "Kristof Kolomb, Asya'ya batıdan bir rota ararken 1492'de İspanyol himayesi altında Karayip adalarına ulaştı. Yolculukları, Avrupa ile Amerika kıtaları arasında derin sonuçlar doğuran sürekli bir temas başlattı. Daha sonraki kaşifler, Macellan gibi, Dünya'nın tam ölçeğini kanıtlayarak dünyayı dolaştı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Keşifler Çağı: Fetih ve Koloniler",
+      "text": "İspanyol conquistadorlar atlar, çelik, ittifaklar ve hastalıklar kullanarak Aztek ve İnka imparatorluklarını devirdi. Encomienda ve plantasyon sistemleri Avrupa pazarları için işgücü ve kaynakları sömürdü. Misyonerler ve yöneticiler yerli halklara Hristiyanlığı ve yeni yasal çerçeveleri dayattı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Keşifler Çağı: Kolomb Mübadelesi",
+      "text": "Bitkiler ve hayvanlar okyanusları aştı: patates ve mısır Avrupa'ya; buğday ve atlar Amerika'ya. Çiçek hastalığı gibi hastalıklar bağışıklığı olmayan nüfusları harap ederek fetihleri kolaylaştırdı. Potosí'den gelen gümüş Manila üzerinden Çin'e aktı ve küresel ekonomileri birbirine bağladı.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Keşifler Çağı: Güçler Arası Rekabet",
+      "text": "İngiltere, Fransa ve Hollanda, özel gemiler ve ticaret şirketleriyle İber egemenliğine meydan okudu. Hudson Körfezi, Hollanda Doğu Hindistan ve Britanya Doğu Hindistan şirketleri yurtdışında yarı devletler gibi davrandı. Koloniler üzerindeki rekabet, Avrupa ve Amerika'daki gelecekteki savaşlara katkıda bulundu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Keşifler Çağı: Yerli Halklar Üzerindeki Etki",
+      "text": "Birçok bölgede temasın ardından nüfus çöküşü, zorunlu yer değiştirme ve kültürel baskı yaşandı. Sömürge baskısına rağmen direniş hareketleri ve senkretik kültürler varlığını sürdürdü. Toprak hakları ve iade konularındaki modern tartışmalar bu dönemin miraslarına bağlanıyor.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Keşifler Çağı: Bilimsel ve Coğrafi Bilgi",
+      "text": "Kaşifler kıyı şeritlerini, akıntıları ve rüzgarları haritaladılar; doğabilimciler yeni türleri katalogladılar. Raporlar Ortaçağ coğrafyasını sorguladı ve Aydınlanma'nın insan çeşitliliği konusundaki merakını körükledi. Doğru haritalar hem donanmalar hem de tüccarlar için stratejik varlıklar haline geldi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "İlgili bağlam — Keşifler Çağı: Keşifler Dünyayı Neden Değiştirdi",
+      "text": "Bu çağ kıtaları kalıcı eşitsizlik kalıplarıyla tek bir ekonomik sisteme bağladı. Sömürgelerden servet çıkarırken dilleri, dinleri ve yasal sistemleri küresel olarak yaydı. Keşifleri anlamak, küreselleşmenin internet çağından çok önce başladığını açıklar.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Önemli çıkarımlar",
+      "text": "Ana Noktalar. Ana noktaları özetleyelim. Nil’in Yıllık Ritmi. Mısır uygarlığı Nil boyunca gelişti; çünkü nehrin her yaz düzenli taşkını verimli alüvyonu toprağa bırakıyordu. Çiftçiler ekimi taşkın dönemine göre planlar, artan tahıl ise katipleri, rahipleri ve firavunları desteklerdi. Nehir olmasaydı Sahra bölgenin yoğun yerleşim için büyük ölçüde yaşanmaz kalmasına yol açardı. Firavunlar ve Tanrısal Krallık. Firavunlar tanrılarla insanlar arasında yaşayan bağ olarak görülür, ma’at—yani kozmik düzen ve adalet—onların sorumluluğundaydı. Giza piramitleri gibi anıtsal projeler kraliyet gücünü yansıtır, binlerce işçi ve mühendisi organize ederdi. Hanedanlar üç bin yıl boyunca yükseldi ve düştü; Narmer’in MÖ 3100 civarındaki birliğinden Kleopatra’nın MÖ 30’daki düşüşüne kadar. Hiyeroglifler ve Yazı. Mısır hiyeroglifleri logografik ve alfabetik işaretleri birleştirirdi; tapınaklarda, mezarlarda ve papirüslerde kullanılırdı. Katipler yıllarca eğitim alırdı; yazılı kayıtlar vergileri, sözleşmeleri ve Ölüler Kitabı gibi dini metinleri takip ederdi. Rosetta Taşı’nın üç dilli yazıtı Champollion’un 1822’de hiyeroglifleri çözmesini sağladı ve kayıp bir sesi yeniden duyurdu. Din ve Öbür Dünya. Mısırlılar ka ve ba adlı ruhsal özlerin korunmuş bedenlere ve sunulara ihtiyaç duyduğuna inanırdı ki öbür dünyaya ulaşabilsinler. Mumyalama, kanopik kavanozlar ve mezar eşyaları Osiris ve Ra rahiplerinin yönettiği karmaşık ritüelleri yansıtırdı. Krallar Vadisi, gizli girişlere rağmen çoğu yağmalanmış zengin süslemeli mezar odalarını saklar. Günlük Yaşam ve Emek. Çoğu Mısırlı çiftçilik yapar, balık tutar ya da emmer buğdayı ve arpadan çanak çömlek, keten ve bira üretirdi. Kerpiç evler avluları çevrelerdi; kral mezarlarını inşa eden işçilerin temel gıdası ekmek ve biraydı. Kadınlar mülk sahibi olabilir ve iş yapabilirdi, ancak seçkin evlilikler genellikle siyasi ittifakları güçlendirirdi. Mühendislik Harikaları. Keops’un Büyük Piramidi orijinalinde 146 metre yüksekliğindeydi ve yaklaşık 2,3 milyon taş blok kullanılmıştı. Mühendisler yapıları yön bulma aletleri ve ölçüm teknikleriyle olağanüstü hassasiyetle ana yönlere hizalarlardı. Karnak ve Luksor tapınakları yüzyıllar içinde büyüyerek firavunların tanrılara bağlılığını mimariyle sergilerdi. Ticaret ve İmparatorluk. Mısır Lübnan’dan sedir, Nubya’dan altın ve uzak Afganistan’dan lapis lazuli ithal ederdi. Yeni Krallık firavunları, Thutmose III gibi, Kenan ve Nubya’ya güç yansıtarak erken bir imparatorluk kurdu. Ticaret yolları ve tahıl ihracatının kontrolü Mısır’ı sonraki Pers, Yunan ve Roma yöneticileri için stratejik bir ödül haline getirdi. Çöküş ve Miras. Geç dönem parçalanması, Pers işgali ve İ",
+      "kind": "narration"
+    }
+  ]
+}

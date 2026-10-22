@@ -1,0 +1,295 @@
+{
+  "course_id": "audio-rhythm-and-meter",
+  "title": "Nhịp điệu và nhịp",
+  "category": "Music Theory & History",
+  "source_language": "en",
+  "language": "vi",
+  "source": "batch",
+  "segments": [
+    {
+      "heading": "Tổng quan",
+      "text": "Chào mừng. Trong bài học này, chúng ta sẽ khám phá Nhịp điệu và Nhịp phách. Chúng ta sẽ đề cập đến 55 phần, bắt đầu với Ngữ cảnh liên quan — Lịch sử Jazz: Nguồn gốc ở New Orleans, Ngữ cảnh liên quan — Lịch sử Jazz: Ragtime và Jazz ban đầu, Ngữ cảnh liên quan — Lịch sử Jazz: Kỷ nguyên Swing, Ngữ cảnh liên quan — Lịch sử Jazz: Cuộc cách mạng Bebop, Ngữ cảnh liên quan — Lịch sử Jazz: Cool Jazz và Hard Bop, Ngữ cảnh liên quan — Lịch sử Jazz: Free Jazz và Avant-Garde, Ngữ cảnh liên quan — Lịch sử Jazz: Fusion và Jazz điện tử, Ngữ cảnh liên quan — Lịch sử Jazz: Jazz ngày nay, Ngữ cảnh liên quan — Ai Cập cổ đại: Nhịp điệu hàng năm của sông Nile, Ngữ cảnh liên quan — Ai Cập cổ đại: Các Pharaon và Vương quyền thần thánh, Ngữ cảnh liên quan — Ai Cập cổ đại: Chữ tượng hình và chữ viết, Ngữ cảnh liên quan — Ai Cập cổ đại: Tôn giáo và kiếp sau, tiếp theo là các ngữ cảnh liên quan bổ sung. Trong khi lắng nghe, hãy chú ý cách mỗi phần xây dựng dựa trên phần trước — bạn không cần ghi chép, chỉ cần theo dõi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Lịch sử Jazz: Nguồn gốc ở New Orleans",
+      "text": "Jazz xuất hiện ở New Orleans vào đầu thế kỷ 20 từ sự hội tụ của các truyền thống âm nhạc Mỹ gốc Phi: blues, ragtime, gospel và âm nhạc ban kèn đồng biểu diễn trong đám tang cũng như các buổi lễ hội. Sự pha trộn văn hóa độc đáo của thành phố với ảnh hưởng từ châu Phi, Caribe, Creole và châu Âu đã tạo điều kiện cho một sự tổng hợp âm nhạc chưa từng có. Jazz thời kỳ đầu là nhạc khiêu vũ, được chơi trong các câu lạc bộ và sảnh nhảy của Storyville, khu giải trí của thành phố. Âm nhạc nhấn mạnh sự ngẫu hứng tập thể — nhiều nhạc sĩ cùng lúc sáng tạo các giai điệu — thay vì bản soạn được sắp đặt trước.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Lịch sử Jazz: Ragtime và Jazz sơ kỳ",
+      "text": "Ragtime, một phong cách piano nhịp nghịch được phổ biến bởi bản Maple Leaf Rag của Scott Joplin năm 1899, đã đi trước jazz và đóng góp sự tinh tế về nhịp điệu cho thể loại đang hình thành. Jazz New Orleans ban đầu, gọi là Dixieland, nổi bật với sự ngẫu hứng tập thể trên nền một bộ nhịp điệu. Nghệ sĩ kèn cornet Buddy Bolden thường được coi là nhạc sĩ jazz đầu tiên, dù các bản thu âm có trước tài liệu về lối chơi của ông. Ban Original Dixieland Jass Band thực hiện bản thu âm jazz thương mại đầu tiên vào năm 1917, đưa âm nhạc mới này đến sự chú ý toàn quốc và khởi đầu giai đoạn hứng thú phổ biến bùng nổ.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Lịch sử Jazz: Kỷ nguyên Swing",
+      "text": "Đến những năm 1930, jazz đã phát triển thành thể loại swing với những ban nhạc lớn hơn biểu diễn các bản phối khí được viết sẵn, trong đó các nghệ sĩ độc tấu nổi bật ngẫu hứng trên nền dàn nhạc. Các nhạc trưởng như Duke Ellington, Count Basie và Benny Goodman đã chỉ huy dàn nhạc gồm mười lăm nhạc công trở lên qua những bản phối phức tạp. Swing trở thành âm nhạc đại chúng của Mỹ, khơi dậy cơn sốt khiêu vũ lấp đầy các phòng khiêu vũ khắp nơi. Phát thanh và các bản thu âm đã mang âm nhạc đến với những người nghe chưa từng đặt chân đến hộp đêm. Thời đại này đã sản sinh ra những nghệ sĩ độc tấu mang tính biểu tượng, trong đó có nghệ sĩ saxophone tenor Coleman Hawkins và nghệ sĩ trumpet Louis Armstrong, người đã định hình ngôn ngữ jazz ban đầu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Lịch sử Jazz: Cuộc cách mạng Bebop",
+      "text": "Vào đầu những năm 1940, những nhạc sĩ trẻ như Charlie Parker, Dizzy Gillespie và Thelonious Monk đã phát triển thể loại bebop tại các câu lạc bộ nhỏ ở Harlem. Bebop được cố ý tạo ra với sự phức tạp — nhịp độ nhanh, hòa âm tinh xảo, ngẫu hứng điêu luyện — nhằm để nghe chứ không phải để nhảy múa. Nó bác bỏ tính dễ tiếp cận thương mại của swing và khẳng định jazz như một loại nhạc nghệ thuật nghiêm túc. Những bản ngẫu hứng saxophone alto của Parker đã thay đổi cơ bản những gì các nhạc sĩ jazz cho là có thể, giới thiệu vốn từ vựng giai điệu và nhịp điệu mới mà vẫn định nghĩa kỹ thuật jazz. Bebop đã tách jazz khỏi thị trường phổ thông chính thống một cách vĩnh viễn.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Lịch sử Jazz: Cool Jazz và Hard Bop",
+      "text": "Thập niên 1950 chứng kiến jazz đa dạng hóa. Cool jazz, gắn liền với các bản thu Birth of the Cool của Miles Davis và các nghệ sĩ bờ Tây, mang đến chất lượng thư giãn, tinh tế, chịu ảnh hưởng từ âm nhạc cổ điển châu Âu. Hard bop, do Art Blakey, Horace Silver và Clifford Brown phát triển, quay về gốc rễ blues và gospel với cường độ nhịp điệu mạnh mẽ hơn cùng sự trực tiếp về cảm xúc. Cả hai phong trào đều phản ứng với bebop theo cách khác nhau nhưng vẫn chia sẻ sự tinh vi về hòa âm và ngẫu hứng của nó. Chủ nghĩa đa nguyên của thập niên đã xác lập jazz như một hình thức bao gồm nhiều cách tiếp cận phong cách riêng biệt thay vì một thực hành thống nhất.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Lịch sử Jazz: Free Jazz và Avant-Garde",
+      "text": "Bản thu âm Free Jazz năm 1960 của Ornette Coleman đã báo hiệu một sự rời bỏ triệt để khỏi các quy ước bebop: ngẫu hứng tập thể mà không có hợp âm định trước hay nhịp độ cố định. John Coltrane, bắt đầu từ A Love Supreme năm 1964, đã hướng tới cường độ tinh thần và kỹ thuật mở rộng. Free jazz gây tranh cãi và ít thành công về mặt thương mại nhưng có ảnh hưởng nghệ thuật lớn, mở rộng ranh giới của những gì jazz có thể là. Phong trào này trùng với thời kỳ dân quyền và được nhiều nghệ sĩ hiểu như một sự khẳng định tự do văn hóa Mỹ gốc Phi khỏi các ràng buộc âm nhạc châu Âu và những thỏa hiệp thương mại.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Lịch sử Jazz: Fusion và Electric Jazz",
+      "text": "Bitches Brew của Miles Davis năm 1970 đã kết hợp ngẫu hứng jazz với nhịp điệu rock, nhạc cụ khuếch đại và thí nghiệm phòng thu. Jazz-rock fusion thu hút khán giả rock nhưng làm xa lánh những người theo chủ nghĩa thuần túy jazz. Các ban nhạc như Weather Report, Mahavishnu Orchestra và Return to Forever đã khám phá sự giao thoa giữa sự phức tạp của jazz và năng lượng rock suốt thập niên đó. Các nhạc cụ điện và kỹ thuật phòng thu mở ra những khả năng âm thanh mới đồng thời gây tranh cãi về việc liệu xu hướng thương mại của fusion có làm tổn hại đến tính toàn vẹn nghệ thuật của jazz hay không. Fusion tạo ra những màn trình diễn điêu luyện và sản xuất sáng tạo, để lại ảnh hưởng lâu dài cho các nhạc sĩ thuộc nhiều thể loại.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Lịch sử Jazz: Jazz Ngày Nay",
+      "text": "Jazz đương đại bao gồm từ những nghệ sĩ theo truyền thống, những người tiếp nối dòng nhạc bebop, cho đến những nghệ sĩ kết hợp hip-hop, nhạc điện tử và các truyền thống từ khắp nơi trên thế giới. Wynton Marsalis đã ủng hộ chủ nghĩa tân cổ điển tại Lincoln Center, khẳng định vị thế kinh điển của truyền thống jazz. Các nghệ sĩ như Kamasi Washington mang jazz đến với khán giả mới thông qua mối liên hệ với văn hóa hip-hop. Các chương trình giáo dục jazz tại các trường đại học đã đào tạo ra những nhạc sĩ có kỹ thuật tinh xảo trên toàn thế giới. Các câu lạc bộ nhỏ và lễ hội duy trì văn hóa biểu diễn trực tiếp, trong khi streaming đã khiến kho nhạc jazz lịch sử dễ tiếp cận hơn bao giờ hết đối với những người nghe mới tò mò.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Nhịp điệu hàng năm của sông Nile",
+      "text": "Nền văn minh Ai Cập phát triển dọc theo sông Nile vì lũ lụt có thể dự đoán được của nó bồi đắp phù sa màu mỡ mỗi mùa hè. Nông dân tính thời gian gieo trồng theo mùa lũ, và ngũ cốc dư thừa nuôi sống các thư lại, tu sĩ cùng các pharaoh. Nếu không có con sông, Sahara đã khiến khu vực này hầu như không thể sinh sống được cho các khu định cư đông đúc.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Các Pharaoh và Vương quyền thần thánh",
+      "text": "Các pharaoh được coi là cầu nối sống giữa các vị thần và con người, chịu trách nhiệm duy trì ma'at—trật tự vũ trụ và công lý. Các công trình vĩ đại như kim tự tháp Giza thể hiện quyền lực hoàng gia và huy động hàng nghìn lao động cùng kỹ sư. Các triều đại thăng trầm suốt ba thiên niên kỷ, từ cuộc thống nhất của Narmer khoảng năm 3100 TCN đến sự sụp đổ của Cleopatra năm 30 TCN.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Chữ tượng hình và chữ viết",
+      "text": "Chữ tượng hình Ai Cập kết hợp các ký hiệu tượng hình và chữ cái, được sử dụng trên đền thờ, lăng mộ và giấy papyrus. Các thư lại được đào tạo trong nhiều năm; các ghi chép văn bản theo dõi thuế, hợp đồng và các văn bản tôn giáo như Sách của Người Chết. Dòng chữ ba ngôn ngữ trên Bia Rosetta đã giúp Champollion giải mã chữ tượng hình vào năm 1822, mở lại một giọng nói đã mất.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Ai Cập cổ đại: Tôn giáo và Sự sống sau cái chết",
+      "text": "Người Ai Cập tin rằng ka và ba—những tinh túy tinh thần—cần có thân xác được bảo quản cùng các lễ vật để đến được thế giới bên kia. Việc ướp xác, bình canopic và đồ tùy táng phản ánh các nghi thức phức tạp do các linh mục của Osiris và Ra giám sát. Thung lũng các Vua che giấu những phòng chôn cất được vẽ tranh phong phú, nhiều nơi đã bị cướp bóc dù có lối vào ẩn giấu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Ai Cập cổ đại: Đời sống và lao động hàng ngày",
+      "text": "Hầu hết người Ai Cập làm nông, đánh cá hoặc chế tạo đồ gốm, vải lanh và bia từ lúa mì emmer cùng lúa mạch. Những ngôi nhà gạch bùn bao quanh sân trong; bánh mì và bia là thực phẩm chính của thợ xây lăng mộ hoàng gia. Phụ nữ có thể sở hữu tài sản và kinh doanh, dù hôn nhân giới thượng lưu thường dùng để củng cố liên minh chính trị.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Những kỳ quan kỹ thuật",
+      "text": "Kim tự tháp vĩ đại của Khufu ban đầu cao 146 mét, được xây bằng khoảng 2,3 triệu khối đá. Các kỹ sư đã căn chỉnh các công trình theo các hướng chính với độ chính xác đáng kinh ngạc nhờ các công cụ ngắm và kỹ thuật khảo sát. Các đền thờ ở Karnak và Luxor phát triển qua nhiều thế kỷ, cho thấy kiến trúc đã quảng bá lòng sùng kính của các pharaoh đối với các vị thần.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Thương mại và Đế chế",
+      "text": "Ai Cập nhập khẩu gỗ tuyết tùng từ Li-băng, vàng từ Nubia và ngọc lưu ly từ Afghanistan xa xôi. Các pharaoh thời Tân Vương quốc như Thutmose III đã mở rộng quyền lực sang Canaan và Nubia, tạo nên một đế chế sớm. Việc kiểm soát các tuyến thương mại và xuất khẩu ngũ cốc khiến Ai Cập trở thành mục tiêu chiến lược cho các nhà cai trị Ba Tư, Hy Lạp và La Mã sau này.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Ai Cập cổ đại: Sự suy tàn và Di sản",
+      "text": "Sự phân mảnh thời kỳ cuối, cuộc chinh phục của Ba Tư và sự đến của Alexander đã biến đổi vai trò chính trị của Ai Cập. Các nhà cai trị Hy Lạp triều Ptolemaios cai trị từ Alexandria, hòa quyện truyền thống Hy Lạp và Ai Cập cho đến khi La Mã sáp nhập vương quốc. Nghệ thuật, y học và thực tiễn hành chính của Ai Cập đã ảnh hưởng đến các nước láng giềng và vẫn định hình các bảo tàng cùng học thuật ngày nay.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Ai Cập cổ đại: Khảo cổ học ngày nay",
+      "text": "Các địa điểm như Saqqara và Abydos tiếp tục phát hiện ra các ngôi mộ, tiết lộ những đồ vật đời thường và những nữ hoàng bị lãng quên. Việc quét hiện đại tránh các cuộc khai quật phá hoại, đồng thời lập bản đồ các phòng ngầm bên trong kim tự tháp và lớp bọc xác ướp. Các cuộc tranh luận về việc hồi hương và du lịch cân bằng giữa bảo tồn với bản sắc quốc gia và nhu cầu kinh tế.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Ai Cập cổ đại: Tại sao Ai Cập vẫn còn trong ký ức",
+      "text": "Khoảng thời gian của lịch sử Ai Cập—dài hơn Hy Lạp và La Mã cổ điển cộng lại—mang đến một phòng thí nghiệm cho quá trình hình thành nhà nước. Văn hóa thị giác của nó rất dễ nhận biết ngay: biểu tượng ankh, bọ hung và đĩa mặt trời có cánh đang lan tỏa trong văn hóa đại chúng toàn cầu. Việc nghiên cứu Ai Cập làm rõ cách môi trường, tôn giáo và bộ máy quan liêu có thể ổn định một xã hội qua hàng thiên niên kỷ.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Đế chế La Mã: Từ Thành bang đến Cường quốc Địa Trung Hải",
+      "text": "La Mã bắt đầu như một khu định cư Latin nhỏ, theo truyền thuyết được thành lập năm 753 TCN bên sông Tiber. Sau khi trục xuất các vị vua, Cộng hòa La Mã mở rộng khắp Ý thông qua các liên minh và quân đoàn binh lính công dân. Chiến thắng trong các cuộc Chiến tranh Punic chống Carthage mang lại Sicily, Tây Ban Nha và sự thống trị trên Địa Trung Hải phía tây.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Các thể chế Cộng hòa",
+      "text": "Viện Nguyên lão cố vấn cho các quan chức; các quan chấp chính chỉ huy quân đội và lãnh đạo chính phủ với nhiệm kỳ một năm. Các biện pháp kiểm soát như quyền phủ quyết của quan bảo dân nhằm cân bằng lợi ích giữa quý tộc và bình dân, mặc dù sự bất bình đẳng vẫn tồn tại. Sự bành trướng gây căng thẳng cho Cộng hòa, làm giàu cho giới tinh hoa trong khi các cựu binh đòi hỏi đất đai và tiếng nói chính trị.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Caesar, Nội chiến và Đế chế",
+      "text": "Cuộc chinh phục xứ Gaul của Julius Caesar và việc ông vượt sông Rubicon năm 49 TCN đã phá vỡ các chuẩn mực của nền cộng hòa. Việc ám sát ông năm 44 TCN không khôi phục được trật tự cũ; thay vào đó, các lãnh chúa tranh giành quyền kiểm soát. Octavian đánh bại Mark Antony tại Actium năm 31 TCN và trở thành Augustus, vị hoàng đế đầu tiên, năm 27 TCN.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế quốc La Mã: Quản trị đế quốc",
+      "text": "Các tỉnh được cai trị bởi các quan chức được bổ nhiệm; giới tinh hoa địa phương thường quản lý công việc hàng ngày theo luật La Mã. Đường sá, cống dẫn nước và mạng lưới chuyển phát cursus publicus đã kết nối các dân tộc đa dạng trên ba châu lục. Tiếng Latin lan tỏa như ngôn ngữ hành chính, trong khi tiếng Hy Lạp vẫn giữ vai trò quan trọng ở các tỉnh phía đông.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Quân đội và Phòng thủ biên giới",
+      "text": "Các quân đoàn bộ binh nặng được hỗ trợ bởi kỵ binh và kỹ sư đã xây dựng các pháo đài dọc theo biên giới sông Rhine, Danube và Euphrates. Tiền lương, lương hưu cùng quyền công dân như phần thưởng đã gắn kết binh lính với nhà nước, nhưng nội chiến đôi khi khiến quân đội quay vào bên trong. Bức tường Hadrian ở Britain tượng trưng cho giới hạn của sự bành trướng và cách quản lý biên giới thực tế.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Luật pháp, Quyền công dân và Xã hội",
+      "text": "Luật La Mã đã hệ thống hóa các hợp đồng, quyền sở hữu và quyền gia đình, ảnh hưởng đến các hệ thống luật dân sự hiện đại. Quyền công dân mở rộng theo thời gian; Sắc lệnh của Caracalla năm 212 CN đã trao quyền này cho gần như tất cả cư dân tự do. Nô lệ là nền tảng của nông nghiệp và lao động đô thị, trong khi những người được giải phóng có thể thăng tiến trong thương mại dù kỳ thị vẫn còn.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế quốc La Mã: Kinh tế và Đời sống đô thị",
+      "text": "Các thành phố như Rô-ma, Alexandria và Antioch có hàng trăm nghìn cư dân, được nuôi sống bởi các hạm đội chở ngũ cốc từ Ai Cập. Thị trường buôn bán dầu ô liu, rượu vang, nước mắm garum và đồ gốm qua các tuyến đường biển Mare Nostrum. Nhà tắm công cộng, diễn đàn và đấu trường thể hiện sự giàu có, đồng thời mang lại giải trí, chính trị và những cảnh tượng hoành tráng.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Tôn giáo và Sự hòa trộn văn hóa",
+      "text": "Người La Mã hấp thụ các vị thần từ các dân tộc bị chinh phục, ghép đôi các vị thần địa phương với thần của họ như Jupiter. Các giáo phái bí mật, các trường phái triết học và cuối cùng là Kitô giáo đã thách thức các nghi thức ngoại giáo truyền thống. Nghệ thuật đế quốc sao chép phong cách Hy Lạp trong khi tôn vinh các hoàng đế qua các vòm cung, đồng tiền và chân dung thực tế.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Khủng hoảng và Phân chia",
+      "text": "Những cuộc khủng hoảng thế kỷ thứ ba dẫn đến sự thay đổi nhanh chóng các hoàng đế, lạm phát và các cuộc xâm lược biên giới. Diocletian tái tổ chức chính phủ thành chế độ tứ đầu chế và kiểm soát giá cả; Constantine sau đó dời đô về phía đông đến Byzantium. Đế chế chính thức chia tách; nửa phía tây sụp đổ vào năm 476 CN trong khi nhà nước Byzantine phía đông tiếp tục tồn tại thêm nhiều thế kỷ nữa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Đế chế La Mã: Ảnh hưởng lâu dài của La Mã",
+      "text": "Các ngôn ngữ Roman, các nguyên tắc pháp lý và quy hoạch đô thị đều có nguồn gốc từ các mô hình La Mã. Giáo hội Công giáo đã bảo tồn tri thức Latin; hình ảnh cộng hòa truyền cảm hứng cho các cuộc cách mạng sau này. Các tàn tích từ Colosseum đến Pompeii biến La Mã thành một bài học hữu hình về cơ sở hạ tầng, quyền lực và sự mong manh.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ lụa: Nguồn gốc và Các tuyến đường",
+      "text": "Con đường Tơ Lụa không phải chỉ là một con đường mà là mạng lưới các tuyến đường thương mại nối Trung Quốc với Địa Trung Hải từ khoảng thế kỷ 2 trước Công nguyên. Các đoàn lữ hành đã băng qua sa mạc, núi non và thảo nguyên, với những điểm trung chuyển chính ở Samarkand, Kashgar và Constantinople. Lụa, gia vị, giấy và cả ý tưởng—không chỉ hàng hóa—đã lưu chuyển dọc theo những con đường này suốt hơn một nghìn năm.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ lụa: Mối liên hệ với Nhà Hán",
+      "text": "Hán Vũ Đế đã cử sứ giả Trương Khiên đi về phía Tây vào khoảng năm 138 trước Công nguyên, mở ra các mối quan hệ ngoại giao và thương mại với các vương quốc Trung Á. Lụa Trung Quốc trở nên được ưa chuộng đến mức ở La Mã, Pliny Già đã phàn nàn về việc vàng chảy sang phương Đông. Con đường này cũng lan truyền Phật giáo từ Ấn Độ vào Trung Quốc và sau đó là Nhật Bản.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ lụa: Trao đổi văn hóa",
+      "text": "Tôn giáo, công nghệ và phong cách nghệ thuật đã lan truyền dọc theo Con đường Tơ lụa cùng với hàng hóa. Kỹ thuật làm giấy lan từ Trung Quốc sang thế giới Hồi giáo rồi đến châu Âu, cách mạng hóa khả năng biết chữ. Các khái niệm toán học như số không và đại số đã được truyền bá qua các học giả Ba Tư và Ả Rập.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường tơ lụa: Những hiểm nguy của hành trình",
+      "text": "Các thương nhân phải đối mặt với bọn cướp, khí hậu khắc nghiệt và sự bất ổn chính trị trên hàng chục quốc gia độc lập. Các đoàn lữ hành được tổ chức thành những nhóm lớn với vệ sĩ vũ trang để bảo vệ khi đi qua sa mạc Taklamakan. Thời điểm theo mùa rất quan trọng: tuyết mùa đông chặn các đèo núi như những con đường qua dãy Pamir.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Con đường Tơ lụa: Hòa bình Mông Cổ",
+      "text": "Dưới thời Đế quốc Mông Cổ vào thế kỷ 13 và 14, Pax Mongolica đã khiến việc đi lại an toàn hơn trên khắp lục địa Á-Âu trong một thế hệ. Những ghi chép của Marco Polo mô tả các thành phố thịnh vượng và triều đình của Hốt Tất Liệt ở Cathay. Các trạm bưu chính chuyển tiếp gọi là yam cho phép liên lạc nhanh chóng trên khắp đế quốc.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ lụa: Sự suy tàn và Di sản",
+      "text": "Các tuyến đường thương mại trên biển sau chuyến đi của Vasco da Gama đến Ấn Độ năm 1498 dần thay thế thương mại caravan đường bộ. Việc Đế quốc Ottoman kiểm soát các cảng phía đông Địa Trung Hải làm tăng chi phí, từ đó ưu ái cho vận chuyển đường biển. Ngày nay, Sáng kiến Vành đai và Con đường vang vọng những tham vọng lịch sử nhằm kết nối châu Á và châu Âu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Con đường Tơ lụa: Hàng hóa thương mại hàng ngày",
+      "text": "Ngoài lụa, các thương nhân còn vận chuyển trà, đồ sứ, ngựa, len, thủy tinh và đá quý. Các thương nhân Sogd từ Trung Á thường đóng vai trò trung gian, những người nói được nhiều ngôn ngữ. Giá cả phản ánh khoảng cách, rủi ro và các độc quyền tại các điểm nghẽn như Hành lang Cam Túc.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Con đường Tơ lụa: Bằng chứng khảo cổ học",
+      "text": "Các hang Mogao ở Dunhuang lưu giữ nghệ thuật Phật giáo thể hiện nhiều khuôn mặt và trang phục đa dạng của những người du hành trên Con đường tơ lụa. Xác tàu đắm và các khu định cư ở ốc đảo tiết lộ sự pha trộn ẩm thực cùng phong tục mai táng. Các nghiên cứu ADN trên bộ xương cổ xác nhận sự di cư đường dài và hôn nhân hỗn hợp.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Con đường Tơ lụa: Tại sao nó vẫn còn quan trọng",
+      "text": "Con đường Tơ lụa cho thấy thương mại có thể lan tỏa văn hóa và công nghệ nhanh hơn quân đội. Các chuỗi cung ứng hiện đại vẫn phụ thuộc vào các điểm nghẽn và trung gian, chỉ khác là dùng container thay vì lạc đà. Hiểu lịch sử này giúp giải thích sự quan tâm địa chính trị đối với Trung Á ngày nay.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời kỳ Phục hưng: Renaissance nghĩa là gì",
+      "text": "Thời kỳ Phục Hưng, nghĩa là sự tái sinh, mô tả sự bùng nổ văn hóa ở châu Âu từ khoảng thế kỷ 14 đến 17. Nó khởi nguồn từ các thành bang Ý như Florence và Venice, được nuôi dưỡng bởi của cải từ thương mại cùng những văn bản cổ điển được tìm lại từ Byzantium và các thư viện Ả Rập. Các nghệ sĩ và tư tưởng gia lấy Hy Lạp và La Mã cổ đại làm hình mẫu, đồng thời đổi mới một cách táo bạo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Chủ nghĩa Nhân văn và Giáo dục",
+      "text": "Các nhà nhân văn như Petrarch nhấn mạnh việc nghiên cứu văn học cổ điển, lịch sử và tu từ học nhằm cải thiện đời sống công dân. Các trường đại học mở rộng chương trình giảng dạy vượt ra ngoài thần học để bao gồm luật học, y học và các môn nghệ thuật tự do. Máy in do Gutenberg phát minh vào khoảng năm 1440 đã nhân lên số lượng sách và lan truyền các ý tưởng nhân văn khắp châu Âu.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Cuộc cách mạng nghệ thuật",
+      "text": "Các nghệ sĩ đã phát triển phối cảnh tuyến tính, độ chính xác giải phẫu và kỹ thuật vẽ tranh sơn dầu, tạo nên sự chân thực ấn tượng. Leonardo da Vinci, Michelangelo và Raphael đã tạo ra những tác phẩm vẫn định hình văn hóa thị giác phương Tây. Sự bảo trợ từ các gia đình như Medici đã tài trợ cho các xưởng vẽ, nơi các học việc học hỏi bằng cách sao chép các bậc thầy.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Khoa học và Quan sát",
+      "text": "Các nhà tư tưởng thời Phục Hưng bắt đầu ưu tiên quan sát trực tiếp hơn là dựa hoàn toàn vào quyền uy học thuật. Copernicus đề xuất mô hình vũ trụ nhật tâm vào năm 1543, dù phải mất hàng thập kỷ mới được chấp nhận. Vesalius mổ xẻ cơ thể người và sửa chữa những sai lầm giải phẫu của Galen đã tồn tại qua nhiều thế kỷ.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời kỳ Phục Hưng: Khám phá và Tiếp xúc Toàn cầu",
+      "text": "Trong thời kỳ này, các nhà hàng hải Bồ Đào Nha và Tây Ban Nha đã mở các tuyến đường biển đến châu Phi, châu Á và châu Mỹ. Columbus đến vùng Caribe vào năm 1492; Vasco da Gama đến Ấn Độ vào năm 1498. Những chuyến đi này mang lại sự giàu có, các loại cây trồng mới và những trận dịch bệnh tàn khốc cho cư dân bản địa.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Chính trị và Các thành bang",
+      "text": "Sự cạnh tranh giữa các nước cộng hòa, công quốc và các quốc gia giáo hoàng Ý đã thúc đẩy cả nghệ thuật lẫn chiến tranh. Tác phẩm Quân vương của Machiavelli đã phân tích quyền lực với sự hoài nghi thực dụng khiến người đương thời phải sốc. Sự sụp đổ của Constantinople năm 1453 đã đưa các học giả Hy Lạp di cư sang phía tây, thúc đẩy sự phục hưng cổ điển.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Kiến trúc và Không gian Công cộng",
+      "text": "Vòm của Filippo Brunelleschi cho Nhà thờ Chính tòa Florence đã thể hiện thiên tài kỹ thuật với thiết kế vỏ kép mà không cần giàn giáo. Các biệt thự của Palladio đã ảnh hưởng đến các công trình chính phủ trên khắp thế giới, bao gồm cả Monticello của Thomas Jefferson. Các quảng trường đô thị trở thành sân khấu cho bản sắc công dân và các cuộc rước tôn giáo.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời Phục Hưng: Những giới hạn và mâu thuẫn",
+      "text": "Thời Phục Hưng rực rỡ cùng tồn tại với nạn săn phù thủy, chế độ nô lệ ở thuộc địa và hệ thống phân cấp giai cấp cứng nhắc. Những phụ nữ tài năng như Artemisia Gentileschi phải đấu tranh chống lại những rào cản bảo trợ mà đàn ông không gặp phải. Không phải toàn bộ châu Âu đều tham gia như nhau; nghệ thuật Phục Hưng miền Bắc đã phát triển các chủ đề và kỹ thuật riêng biệt.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Thời kỳ Phục hưng: Ảnh hưởng Bền vững",
+      "text": "Những lý tưởng Phục Hưng về thành tựu cá nhân và nghiên cứu thực nghiệm đã góp phần khơi nguồn cho Cách mạng Khoa học và Thời Khai Sáng. Các bảo tàng vẫn tổ chức các phòng trưng bày xoay quanh các bậc thầy Phục Hưng như nền tảng của lịch sử nghệ thuật phương Tây. Thời đại ấy cho thấy sự đổi mới văn hóa thường đến sau khủng hoảng, thương mại và tri thức được phục hồi.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Từ Công cụ Thủ công đến Máy móc",
+      "text": "Cách mạng Công nghiệp bắt đầu ở Anh vào cuối những năm 1700, chuyển sản xuất từ nhà ở và xưởng thủ công sang các nhà máy. Động cơ hơi nước chạy bằng than đã vận hành các nhà máy dệt và sau đó là đường sắt trên khắp đất nước. Năng suất mỗi công nhân tăng vọt, nhưng người lao động phải đối mặt với giờ làm dài, lao động trẻ em và điều kiện làm việc nguy hiểm.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Ngành dệt may dẫn đầu",
+      "text": "Những đổi mới như spinning jenny và power loom đã cơ giới hóa việc sản xuất vải vóc vốn trước đây được làm thủ công trong nhiều thế kỷ. Việc nhập khẩu bông từ các thuộc địa cung cấp nguyên liệu cho các nhà máy dệt của Anh, gắn liền tăng trưởng công nghiệp với thương mại toàn cầu và chế độ nô lệ. Các thị trấn nhà máy như Manchester phát triển nhanh chóng, thu hút người di cư từ nông thôn tìm việc làm có lương.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cách mạng Công nghiệp: Sắt, Than đá và Hơi nước",
+      "text": "Sắt luyện bằng than cốc thay thế than củi, cho phép chế tạo các đường ray, cầu và máy móc chắc chắn hơn. Động cơ hơi nước cải tiến của James Watt (được cấp bằng sáng chế năm 1769) trở thành nguồn năng lượng tiêu biểu của thời đại. Ngành khai thác than mở rộng mạnh mẽ, làm thay đổi cảnh quan và tạo ra các mối nguy hiểm nghề nghiệp mới.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Ngữ cảnh liên quan — Cách mạng Công nghiệp: Vận tải được biến đổi",
+      "text": "Kênh đào và sau đó là đường sắt đã giảm chi phí cũng như thời gian vận chuyển hàng hóa và con người. Tàu Rocket của George Stephenson (1829) đã chứng minh tính thực tiễn của đầu máy hơi nước trên Đường sắt Liverpool và Manchester. Vận tải nhanh hơn đã kết nối các thị trường quốc gia và chuẩn hóa giá cả giữa các vùng.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cách mạng Công nghiệp: Đô thị hóa và Giai cấp",
+      "text": "Các thành phố đông đúc lên với công nhân nhà máy sống trong những khu nhà trọ chật chội, thiếu vệ sinh. Một tầng lớp trung lưu công nghiệp mới gồm chủ sở hữu và quản lý đã nổi lên cùng với giai cấp công nhân đô thị. Các nhà cải cách ghi nhận tình trạng nghèo đói; luật pháp dần hạn chế lao động trẻ em và cải thiện việc thanh tra nhà máy.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Lan tỏa ra ngoài nước Anh",
+      "text": "Bỉ, Pháp, Đức và Hoa Kỳ đã công nghiệp hóa vào những năm 1800, thường áp dụng kỹ thuật của Anh. Chủ nghĩa bảo hộ và bằng sáng chế đã quyết định ai được phép sao chép máy móc cũng như tốc độ lan rộng của ngành công nghiệp. Sau này, công nghiệp hóa thời Minh Trị của Nhật Bản cho thấy mô hình này cũng có thể biến đổi cả những xã hội phi phương Tây.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cách mạng Công nghiệp: Các Phong trào Lao động",
+      "text": "Công nhân đã tổ chức các nghiệp đoàn và đình công để đòi giảm giờ làm, điều kiện làm việc an toàn hơn và tăng lương. Những người Luddite đã đập phá máy móc trong các cuộc phản đối ban đầu, mặc dù các sử gia chỉ ra rằng họ nhắm vào những chủ doanh nghiệp cụ thể chứ không phải toàn bộ công nghệ. Các tư tưởng xã hội chủ nghĩa và cộng sản đã thu hút được sự ủng hộ bằng cách phê phán những bất bình đẳng của chủ nghĩa tư bản công nghiệp.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Chi phí Môi trường",
+      "text": "Khói than làm ô nhiễm không khí; chất thải nhà máy làm bẩn sông ngòi ở các khu công nghiệp. Việc phá rừng và khai thác mỏ để lại những vết sẹo trên vùng nông thôn xung quanh các thành phố đang phát triển. Những mô hình này báo trước các cuộc tranh luận hiện đại về tăng trưởng, khí hậu và quy định.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Bối cảnh liên quan — Cuộc Cách mạng Công nghiệp: Di sản cho Ngày Nay",
+      "text": "Sản xuất hàng loạt, lao động tiền lương và chuỗi cung ứng toàn cầu đều bắt nguồn trực tiếp từ cuộc cách mạng này. Mức sống đã tăng lên qua nhiều thế hệ ở các quốc gia công nghiệp, dù lợi ích được chia sẻ không đồng đều. Hiểu về Cách mạng Công nghiệp giúp làm rõ cách công nghệ có thể đồng thời tạo ra của cải và sự gián đoạn.",
+      "kind": "narration"
+    },
+    {
+      "heading": "Những điểm chính",
+      "text": "Tóm tắt các điểm chính. Hãy ôn lại những ý chính. Ngữ cảnh liên quan — Lịch sử Jazz: Nguồn gốc tại New Orleans. Jazz xuất hiện ở New Orleans vào đầu thế kỷ 20 từ sự kết hợp của các truyền thống âm nhạc Mỹ gốc Phi: blues, ragtime, gospel và âm nhạc ban nhạc kèn đồng biểu diễn trong các đám tang và lễ hội. Sự pha trộn văn hóa độc đáo của thành phố với ảnh hưởng từ châu Phi, Caribe, Creole và châu Âu đã tạo điều kiện cho một sự tổng hợp âm nhạc chưa từng có. Jazz ban đầu là nhạc khiêu vũ, được chơi trong các câu lạc bộ và sảnh khiêu vũ của Storyville, khu giải trí của thành phố. Âm nhạc nhấn mạnh vào ngẫu hứng tập thể — nhiều nhạc sĩ đồng thời sáng tạo các giai điệu — thay vì soạn nhạc sẵn. Ngữ cảnh liên quan — Lịch sử Jazz: Ragtime và Jazz ban đầu. Ragtime, phong cách piano đồng bộ được phổ biến bởi Scott Joplin với Maple Leaf Rag năm 1899, ra đời trước jazz và đóng góp sự tinh tế về nhịp điệu cho thể loại đang hình thành. Jazz New Orleans ban đầu, gọi là Dixieland, nổi bật với ngẫu hứng tập thể trên nền nhịp. Kèn cornet Buddy Bolden thường được coi là nhạc sĩ jazz đầu tiên, dù chưa có bản ghi âm nào ghi lại cách chơi của ông. Ban nhạc Original Dixieland Jass Band thực hiện bản thu âm jazz thương mại đầu tiên năm 1917, đưa âm nhạc mới này đến sự chú ý quốc gia và bắt đầu giai đoạn bùng nổ phổ biến. Ngữ cảnh liên quan — Lịch sử Jazz: Kỷ nguyên Swing. Đến những năm 1930, jazz đã phát triển thành swing — các ban nhạc lớn hơn biểu diễn các bản phối viết sẵn với các nghệ sĩ độc tấu ngẫu hứng nổi bật trên nền dàn nhạc. Các nhạc trưởng như Duke Ellington, Count Basie và Benny Goodman dẫn dắt dàn nhạc gồm mười lăm nhạc sĩ trở lên qua các bản phối phức tạp. Swing trở thành nhạc phổ biến của Mỹ, thúc đẩy cơn sốt khiêu vũ lấp đầy các phòng khiêu vũ trên toàn quốc. Phát thanh và bản thu âm lan tỏa âm nhạc đến những người nghe chưa từng đến hộp đêm. Kỷ nguyên này tạo ra các nghệ sĩ độc tấu biểu tượng như kèn saxophone tenor Coleman Hawkins và kèn trumpet Louis Armstrong, người đã định hình ngôn ngữ jazz ban đầu. Ngữ cảnh liên quan — Lịch sử Jazz: Cuộc cách mạng Bebop. Đầu những năm 1940, các nhạc sĩ trẻ như Charlie Parker, Dizzy Gillespie và Thelonious Monk phát triển bebop trong các câu lạc bộ nhỏ ở Harlem. Bebop cố tình phức tạp — nhịp độ nhanh, hòa âm phức tạp, ngẫu hứng điêu luyện — dành cho việc lắng nghe thay vì khiêu vũ. Nó bác bỏ tính dễ tiếp cận thương mại của swing và khẳng định jazz như âm nhạc nghệ thuật nghiêm túc. Những bản ngẫu hứng saxophone alto của Parker đã thay đổi cơ bản những gì nhạc sĩ jazz coi là có thể, giới thiệu ngôn ngữ giai điệu và nhịp điệu mới vẫn định nghĩa kỹ thuật jazz. Bebop tách jazz khỏi thị trường phổ biến chính thống vĩnh viễn. Ngữ cảnh liên quan — Lịch sử Jazz: Cool Jazz và Hard Bop. Những năm 1950 chứng kiến jazz đa dạng hóa. Cool jazz, gắn với các bản thu Birth of the Cool của Miles Davis và các nghệ sĩ bờ Tây, mang chất lượng thư giãn, kín đáo, lấy cảm hứng từ ảnh hưởng cổ điển châu Âu. Hard bop,",
+      "kind": "narration"
+    }
+  ]
+}
