@@ -76,8 +76,8 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   const [playing, setPlaying] = useState(false);
   const rate = 1;
   const [error, setError] = useState("");
-  const [, setAssistantOpen] = useState(false);
-  const [, setAssistantStatus] = useState("");
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantStatus, setAssistantStatus] = useState("");
   const [, setAssistantTranscript] = useState("");
   const [, setAssistantAnswer] = useState("");
   const [listening, setListening] = useState(false);
@@ -1054,6 +1054,30 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
           {voiceLive && (
             <p className="muted" style={{ marginTop: 10, fontSize: 14 }}>{t("drive.voiceAgentOn")}</p>
           )}
+        </div>
+      )}
+
+      {canDrive && (
+        <div style={{ position: "fixed", right: 18, bottom: 18, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          {assistantOpen && assistantStatus && (
+            <div role="status" aria-live="polite" style={{ maxWidth: 240, padding: "8px 12px", borderRadius: 12, background: "#0b1020", color: "#e8ecf6", fontSize: 14, boxShadow: "0 6px 20px rgba(0,0,0,.35)" }}>
+              {assistantStatus}
+            </div>
+          )}
+          <button
+            type="button"
+            data-testid="on-the-go-mascot"
+            aria-label="Pause and ask a question"
+            title="Pause and ask a question"
+            disabled={demoEnded}
+            onClick={() => { if (!listening) void startVoiceRecognition(false); }}
+            style={{
+              width: 72, height: 72, padding: 0, borderRadius: "50%", cursor: "pointer",
+              border: `3px solid ${listening ? "#22c55e" : "#d4af37"}`,
+              background: "#0b1020 url(/logo-mark.webp) center/cover no-repeat",
+              boxShadow: listening ? "0 0 0 6px rgba(34,197,94,.35), 0 8px 24px rgba(0,0,0,.4)" : "0 8px 24px rgba(0,0,0,.4)",
+            }}
+          />
         </div>
       )}
     </main>
