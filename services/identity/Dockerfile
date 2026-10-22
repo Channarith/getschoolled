@@ -8,6 +8,9 @@ COPY services/identity/requirements.txt /app/services/identity/requirements.txt
 RUN pip install --no-cache-dir -e /app/packages/shared \
     && pip install --no-cache-dir -r /app/services/identity/requirements.txt
 COPY services/identity /app/services/identity
+# Machine translations the staff review page shows (interim: a volume later).
+COPY data/course_translations /app/course_translations
+ENV AOEP_COURSE_TRANSLATION_DIR=/app/course_translations
 ENV PYTHONPATH=/app/services/identity/src
 WORKDIR /app/services/identity
 EXPOSE 8000
