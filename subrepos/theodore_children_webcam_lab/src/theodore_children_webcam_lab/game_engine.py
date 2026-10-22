@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import difflib
+import json
 import re
 import unicodedata
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, NamedTuple
 
 LETTER_ALIASES: dict[str, set[str]] = {
@@ -67,7 +70,7 @@ GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
         ("connect-dots", "Connect the dots"),
         ("trace-outline", "Trace the outline"),
         ("say-letter", "Say the letter"),
-        ("math-toss", "Math Toss"),
+        ("pop-quiz-toss", "Pop Quiz Toss"),
     ]),
     ("Listen", [
         ("repeat-after-me", "Repeat after me"),
@@ -120,70 +123,62 @@ def all_game_ids() -> tuple[str, ...]:
     return tuple(game_id for _group, games in GAME_MENU for game_id, _title in games)
 
 
-def math_toss_round(age_band: str, index: int = 0) -> dict[str, Any]:
-    """Return a deterministic, child-safe arithmetic target round."""
+QUIZ_BANDS = ("4-6", "7-10", "11-17", "adult")
+_BAND_ALIASES = {
+    "4-6": "4-6", "child": "4-6", "kids": "4-6", "young": "4-6",
+    "7-10": "7-10", "older": "7-10",
+    "11-17": "11-17", "teen": "11-17", "teens": "11-17",
+    "adult": "adult", "adults": "adult", "18+": "adult",
+}
+
+
+def normalize_quiz_band(value: Any) -> str:
+    """Map an age label or number to a quiz band. Unknown values use 7-10."""
+    raw = str(value if value is not None else "").strip().lower().replace("\u2013", "-")
+    if raw in _BAND_ALIASES:
+        return _BAND_ALIASES[raw]
+    try:
+        years = float(raw)
+    except ValueError:
+        return "7-10"
+    if not 1 <= years <= 120:
+        return "7-10"
+    if years < 7:
+        return "4-6"
+    if years < 11:
+        return "7-10"
+    if years < 18:
+        return "11-17"
+    return "adult"
+
+
+@lru_cache(maxsize=1)
+def quiz_bank() -> dict[str, list[dict[str, Any]]]:
+    """The short-answer questions, one list per age band (static/quiz_bank.json)."""
+    path = Path(__file__).resolve().parent / "static" / "quiz_bank.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def pop_quiz_round(age_band: str, index: int = 0) -> dict[str, Any]:
+    """A deterministic two-target quiz round: the answer and one wrong choice.
+
+    The browser fallback (pop_quiz.js) uses the same bank and the same rule, so a
+    round is identical online and offline.
+    """
     slot = max(0, int(index))
-    young = str(age_band or "").strip().lower() in {"4-6", "child", "kids"}
-    if young:
-        mode = slot % 3
-        if mode == 0:
-            answer = 1 + (slot * 3) % 9
-            question = f"Count to {answer}"
-            speak = f"Which target shows {answer}?"
-        elif mode == 1:
-            left = 1 + (slot * 2) % 5
-            right = 1 + (slot * 3) % 4
-            answer = left + right
-            question = f"{left} + {right} = ?"
-            speak = f"What is {left} plus {right}?"
-        else:
-            left = 4 + (slot * 3) % 6
-            right = 1 + (slot * 2) % left
-            answer = left - right
-            question = f"{left} − {right} = ?"
-            speak = f"What is {left} minus {right}?"
-        distractor = answer + 1 if answer < 9 else answer - 1
-        choices = [answer, distractor] if slot % 2 == 0 else [distractor, answer]
-        age = "4-6"
-    else:
-        mode = slot % 3
-        if mode == 0:
-            left = 6 + (slot * 5) % 15
-            right = 3 + (slot * 7) % 12
-            answer = left + right
-            symbol = "+"
-            spoken = "plus"
-        elif mode == 1:
-            right = 2 + (slot * 3) % 10
-            answer = 3 + (slot * 5) % 16
-            left = answer + right
-            symbol = "−"
-            spoken = "minus"
-        else:
-            left = 2 + (slot * 2) % 8
-            right = 2 + (slot * 3) % 7
-            answer = left * right
-            symbol = "×"
-            spoken = "times"
-        question = f"{left} {symbol} {right} = ?"
-        speak = f"What is {left} {spoken} {right}?"
-        candidates = [max(0, answer - 2), answer + 2, max(0, answer - 1), answer + 1]
-        distractors: list[int] = []
-        for candidate in candidates:
-            if candidate != answer and candidate not in distractors:
-                distractors.append(candidate)
-            if len(distractors) == 2:
-                break
-        choices = [answer, *distractors]
-        shift = slot % len(choices)
-        choices = choices[shift:] + choices[:shift]
-        age = "7-10"
+    band = normalize_quiz_band(age_band)
+    rows = quiz_bank()[band]
+    row = rows[slot % len(rows)]
+    wrong = row["wrong"]
+    distractor = wrong[(slot // len(rows)) % len(wrong)]
+    answer = row["a"]
+    choices = [answer, distractor] if slot % 2 == 0 else [distractor, answer]
     return {
-        "round_id": f"math-toss-{age}-{slot}",
+        "round_id": f"pop-quiz-{band}-{slot}",
         "index": slot,
-        "age_band": age,
-        "question": question,
-        "speak": speak,
+        "age_band": band,
+        "question": row["q"],
+        "speak": row["q"],
         "answer": answer,
         "choices": choices,
     }
@@ -474,7 +469,7 @@ def fun_score(
 
 
 def next_oh_behave_timer(current_ms: int, *, hit: bool, age_band: str) -> int:
-    ladder = OH_BEHAVE_TIMER_MS if age_band == "7-10" else OH_BEHAVE_TIMER_MS[:3]
+    ladder = OH_BEHAVE_TIMER_MS[:3] if age_band == "4-6" else OH_BEHAVE_TIMER_MS
     try:
         index = ladder.index(current_ms)
     except ValueError:

@@ -55,47 +55,47 @@ def test_health_and_content_describe_private_browser_runtime():
     assert {"fruit-cut", "oh-behave", "trace-letter"} <= set(content["games"])
 
 
-def test_math_toss_round_api_uses_age_band_without_private_camera_data():
-    young = client.get("/api/child/math-round", params={"age": "4-6", "index": 2})
-    assert young.status_code == 200
-    payload = young.json()
-    assert payload["age_band"] == "4-6"
-    assert len(payload["choices"]) == 2
-    assert payload["answer"] in payload["choices"]
-    assert "landmarks" not in payload and "frame" not in payload
-
-    older = client.get("/api/child/math-round", params={"age": "7-10", "index": 2})
-    assert older.status_code == 200
-    assert len(older.json()["choices"]) == 3
-    assert client.get("/api/child/math-round", params={"index": -1}).status_code == 422
+def test_pop_quiz_round_api_uses_age_band_without_private_camera_data():
+    for band in ("4-6", "7-10", "11-17", "adult"):
+        reply = client.get("/api/child/quiz-round", params={"age": band, "index": 2})
+        assert reply.status_code == 200
+        payload = reply.json()
+        assert payload["age_band"] == band
+        assert len(payload["choices"]) == 2
+        assert payload["answer"] in payload["choices"]
+        assert "landmarks" not in payload and "frame" not in payload
+    # The old path still answers, for a page that was open during the rename.
+    assert client.get("/api/child/math-round", params={"age": "adult", "index": 0}).status_code == 200
+    assert client.get("/api/child/quiz-round", params={"index": -1}).status_code == 422
     # Defense in depth: a 10-digit index is caller nonsense, not gameplay;
     # cap it so bulk-fetch loops cannot pin the lab CPU.
-    assert client.get("/api/child/math-round", params={"index": 10_001}).status_code == 422
-    assert client.get("/api/child/math-round", params={"index": 10_000}).status_code == 200
+    assert client.get("/api/child/quiz-round", params={"index": 10_001}).status_code == 422
+    assert client.get("/api/child/quiz-round", params={"index": 10_000}).status_code == 200
 
 
-def test_math_toss_offline_fallback_matches_server_round_for_every_index():
-    """The browser fallback (vision_math.localMathRound) must byte-match the
-    Python round for every (age, index), or a lab restart could speak one
-    prompt and score another."""
+def test_pop_quiz_offline_fallback_matches_server_round_for_every_index():
+    """The browser fallback (pop_quiz.quizRound) must byte-match the Python
+    round for every (age, index), or a lab restart could speak one question
+    and score another."""
     node = shutil.which("node")
     if not node:
         pytest.skip("node is not installed")
-    from theodore_children_webcam_lab.game_engine import math_toss_round
+    from theodore_children_webcam_lab.game_engine import pop_quiz_round
     import json
 
-    indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 42]
-    spec = ";".join(f"{age}:{','.join(str(i) for i in indices)}" for age in ("4-6", "7-10"))
+    indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 23, 24, 25, 48, 49, 72, 100, 1000]
+    bands = ("4-6", "7-10", "11-17", "adult")
+    spec = ";".join(f"{age}:{','.join(str(i) for i in indices)}" for age in bands)
     check = ROOT / "tests/vision_math_check.mjs"
     result = subprocess.run(
-        [node, str(check), f"--emit-math-rounds={spec}"],
+        [node, str(check), f"--emit-quiz-rounds={spec}"],
         check=False,
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0, result.stderr
     emitted = [json.loads(line) for line in result.stdout.strip().splitlines() if line.strip()]
-    expected = [math_toss_round(age, i) for age in ("4-6", "7-10") for i in indices]
+    expected = [pop_quiz_round(age, i) for age in bands for i in indices]
     assert len(emitted) == len(expected)
     for got, want in zip(emitted, expected):
         assert got == want, (got, want)

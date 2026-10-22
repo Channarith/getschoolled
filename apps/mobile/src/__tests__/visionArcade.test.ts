@@ -14,7 +14,7 @@ describe("vision arcade", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(VISION_ARCADE.map((section) => section.id)).toEqual(["learn", "listen", "sing", "face", "move"]);
     expect(ids).toContain("trace-letter");
-    expect(ids).toContain("math-toss");
+    expect(ids).toContain("pop-quiz-toss");
     expect(ids).toContain("spell-aloud");
     expect(ids).toContain("karaoke");
     expect(ids).toContain("rainbow-reach");
@@ -27,12 +27,14 @@ describe("vision arcade", () => {
   it("opens the lab in the app, with a game when one is chosen", () => {
     expect(visionLabPath()).toBe("/children-lab?embed=mobile");
     expect(visionLabPath("wink")).toBe("/children-lab?embed=mobile&game=wink");
+    expect(visionLabPath("pop-quiz-toss")).toBe("/children-lab?embed=mobile&game=pop-quiz-toss");
+    expect(visionLabPath("pop-quiz-toss", "child")).toBe("/children-lab?embed=mobile&game=pop-quiz-toss&age=child");
+    // Older app builds still ask for the old id; the lab maps it to the new game.
     expect(visionLabPath("math-toss")).toBe("/children-lab?embed=mobile&game=math-toss");
-    expect(visionLabPath("math-toss", "child")).toBe("/children-lab?embed=mobile&game=math-toss&age=child");
   });
 
   it("defaults the arcade age band to the younger-safer value until the profile loads", () => {
-    // App.tsx stores arcadeAgeBand so Math Toss cannot show multiplication to a
+    // App.tsx stores arcadeAgeBand so Pop Quiz Toss cannot show a teen or adult question to a
     // 4-6 learner during the brief async profile fetch. If this default
     // changes, review child-safety before shipping.
     const fs = require("fs");

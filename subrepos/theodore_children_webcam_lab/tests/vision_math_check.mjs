@@ -4,6 +4,7 @@
 // different scales (child near / far from the camera) and rotations to prove
 // classification does not change. The old fixed-distance thresholds failed
 // exactly this: a distant child read as a permanent fist.
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import {
   FIST_MAX_PALMS, FINGERTIP_LANDMARKS, HAND_BONES, SIGNAL_HOLD_MS, AWAY_HOLD_MS, RETURN_HOLD_MS,
@@ -13,11 +14,15 @@ import {
   ninjaEffectParticles, ninjaEffectSpec, ninjaShapeFits, ninjaShapeOf, ninjaTechniqueList,
   activeFingertips, advanceMirrorBeat, advanceNinjaWeave, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame,
   createPresenceWatch, defaultMirrorPace, fingersPointed, freshMirrorRun,
-  handShape, heartRatios, isHeartShape, localMathRound, mapMirroredLandmark, mirrorBeatMatched,
+  handShape, heartRatios, isHeartShape, mapMirroredLandmark, normalizeTouchAge, mirrorBeatMatched,
   mirrorPace, mirrorPose, mirrorStars, mirrorSummary, palmSpan, profileTouchAge,
   freshNinjaRun, newThrowTracker, ninjaSealFits, ninjaTechnique, projectThrowTarget, recognizeNinjaSeal,
   syntheticHand, tipHitsTarget, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
+import {
+  answerMatches, coachHint, hasWon, levelFor, orbitTurn, quizRound, resolveThrow, roundPoints, unlockedFor,
+} from "../src/theodore_children_webcam_lab/static/pop_quiz.js";
+
 
 // A canonical right hand, palm size 1.0, fingers pointing up (-y).
 // Index order matches MediaPipe: 0 wrist, 1-4 thumb, 5-8 index, 9-12 middle,
@@ -248,7 +253,8 @@ assert.equal(tipHitsTarget([{ x: 10, y: 10 }], { x: 40, y: 40 }, 5), false);
 assert.equal(profileTouchAge({ query: "5" }), "4-6");
 assert.equal(profileTouchAge({ ageYears: "9", ageBand: "child" }), "7-10");
 assert.equal(profileTouchAge({ ageBand: "child" }), "4-6");
-assert.equal(profileTouchAge({ ageBand: "teen" }), "7-10");
+assert.equal(profileTouchAge({ ageBand: "teen" }), "11-17");
+assert.equal(profileTouchAge({ ageYears: "42" }), "adult");
 {
   const first = claimTouch(null, "balloon", 1000, 420);
   assert.equal(first.claimed, true);
@@ -277,7 +283,8 @@ assert.equal(profileTouchAge({ ageBand: "teen" }), "7-10");
   tracker = step.tracker;
   step = advanceThrowGesture(tracker, {at: 450, palm: 50, fist: false, point: {x: 150, y: 220}}, "7-10");
   assert.equal(step.event, "released");
-  assert.ok(step.release.speed > 2.8);
+  assert.ok(step.release.speed > 1.6);
+  assert.equal(step.release.assisted, false, "a fast throw is read from the motion");
   assert.ok(step.release.reversal < 0);
 
   const hit = projectThrowTarget(step.release.origin, step.release.velocity, [
@@ -292,6 +299,20 @@ assert.equal(profileTouchAge({ ageBand: "teen" }), "7-10");
   assert.equal(step.event, null);
   assert.equal(step.tracker.phase, "ready");
   assert.equal(projectThrowTarget({x: 0, y: 0}, {x: 1, y: 0}, [{id: "behind", x: -10, y: 0}], 5), null);
+}
+
+// A slow camera may miss the quick part of a throw. Opening the hand after a pull
+// still throws, aimed back along the pull, so a clumsy release is not a failure.
+{
+  let step = advanceThrowGesture(newThrowTracker(), {at: 100, palm: 50, fist: true, point: {x: 200, y: 300}}, "7-10");
+  step = advanceThrowGesture(step.tracker, {at: 300, palm: 50, fist: true, point: {x: 200, y: 300}}, "7-10");
+  step = advanceThrowGesture(step.tracker, {at: 500, palm: 50, fist: true, point: {x: 120, y: 330}}, "7-10");
+  assert.equal(step.event, "cocked");
+  // Opens slowly, barely moving: too slow to measure.
+  step = advanceThrowGesture(step.tracker, {at: 1000, palm: 50, fist: false, point: {x: 121, y: 330}}, "7-10");
+  assert.equal(step.event, "released");
+  assert.equal(step.release.assisted, true);
+  assert.ok(step.release.velocity.x > 0 && step.release.velocity.y < 0, "aimed back along the pull (right and up)");
 }
 
 // A wide stage crops a square camera. The skeleton has to land on the visible
@@ -358,35 +379,87 @@ const turned = {
 assert.equal(yunet.update({ ...turned, atMs: 0 }).length, 0);
 assert.equal(yunet.update({ ...turned, atMs: SIGNAL_HOLD_MS }).length, 0, "five-point yaw-free face is not a phone");
 
-// --- 4. The offline math round mirrors the server (shape invariants) --------
-// game_engine.math_toss_round() is the source of truth. localMathRound() is
-// the browser fallback used when /api/child/math-round is unreachable. The
-// two must agree on operation, answer, and choices for every (age, index), or
-// a lab restart could speak one prompt and score another.
-for (const age of ["4-6", "7-10"]) {
-  for (let i = 0; i < 12; i += 1) {
-    const round = localMathRound(age, i);
+// --- 4. The offline quiz round mirrors the server (shape invariants) --------
+// game_engine.pop_quiz_round() is the source of truth. quizRound() in pop_quiz.js
+// is the browser fallback used when /api/child/quiz-round is unreachable. They
+// share quiz_bank.json and one selection rule, so a lab restart can never speak
+// one question and score another.
+const QUIZ_BANK = JSON.parse(readFileSync(new URL("../src/theodore_children_webcam_lab/static/quiz_bank.json", import.meta.url), "utf8"));
+for (const age of ["4-6", "7-10", "11-17", "adult"]) {
+  assert.ok(QUIZ_BANK[age].length >= 20, `${age} has a real bank`);
+  for (let i = 0; i < 60; i += 1) {
+    const round = quizRound(QUIZ_BANK, age, i);
     assert.equal(round.age_band, age, `offline round age mismatch at ${age}/${i}`);
-    assert.equal(round.round_id, `math-toss-${age}-${i}`);
+    assert.equal(round.round_id, `pop-quiz-${age}-${i}`);
     assert.equal(round.index, i);
-    assert.ok(round.choices.length === (age === "4-6" ? 2 : 3), `${age}/${i} choices length`);
-    assert.equal(new Set(round.choices).size, round.choices.length, `${age}/${i} duplicate choice`);
+    assert.equal(round.choices.length, 2, `${age}/${i} has two targets`);
+    assert.equal(new Set(round.choices).size, 2, `${age}/${i} duplicate choice`);
     assert.ok(round.choices.includes(round.answer), `${age}/${i} answer not in choices`);
-    for (const choice of round.choices) {
-      assert.ok(Number.isInteger(choice) && choice >= 0, `${age}/${i} choice ${choice} invalid`);
-    }
-    assert.ok(round.answer >= 0, `${age}/${i} negative answer`);
+    assert.ok(round.choices.every((c) => c.split(" ").length <= 2), `${age}/${i} answers stay one or two words`);
     assert.equal(typeof round.question, "string");
-    assert.equal(typeof round.speak, "string");
   }
 }
-// A string age ("child") should resolve the same way the server/UI do.
-assert.equal(localMathRound("child", 0).age_band, "4-6");
-assert.equal(localMathRound("teen", 0).age_band, "7-10");
-assert.equal(localMathRound("", 0).age_band, "7-10", "default band is the server default");
-// Negative or garbage index clamps to zero, not NaN.
-assert.deepEqual(localMathRound("7-10", -5), localMathRound("7-10", 0));
-assert.deepEqual(localMathRound("4-6", "nope"), localMathRound("4-6", 0));
+// Alternate position so the right answer is not always the same side.
+assert.notDeepEqual(quizRound(QUIZ_BANK, "7-10", 0).choices, quizRound(QUIZ_BANK, "7-10", 1).choices.slice().reverse());
+assert.equal(quizRound(QUIZ_BANK, "child", 0).age_band, "4-6");
+assert.equal(quizRound(QUIZ_BANK, "teen", 0).age_band, "11-17");
+assert.equal(quizRound(QUIZ_BANK, "", 0).age_band, "7-10", "default band is the server default");
+assert.deepEqual(quizRound(QUIZ_BANK, "7-10", -5), quizRound(QUIZ_BANK, "7-10", 0));
+assert.deepEqual(quizRound(QUIZ_BANK, "4-6", "nope"), quizRound(QUIZ_BANK, "4-6", 0));
+// Ages beyond the two kid bands.
+assert.equal(normalizeTouchAge("13"), "11-17");
+assert.equal(normalizeTouchAge("34"), "adult");
+assert.equal(normalizeTouchAge("adult"), "adult");
+assert.equal(normalizeTouchAge("teen"), "11-17");
+
+// Points: both right = 5, one right = 2, neither = 0; first to 100 wins.
+assert.equal(roundPoints({voice: true, throwHit: true}), 5);
+assert.equal(roundPoints({voice: true, throwHit: false}), 2);
+assert.equal(roundPoints({voice: false, throwHit: true}), 2);
+assert.equal(roundPoints({voice: false, throwHit: false}), 0);
+assert.equal(hasWon(95), false);
+assert.equal(hasWon(100), true);
+
+// Voice answers tolerate small recognition slips and extra words.
+assert.ok(answerMatches("canberra", "Canberra"));
+assert.ok(answerMatches("I think it is canbera", "Canberra"));
+assert.ok(answerMatches("leonardo da vinci", "Da Vinci"));
+assert.ok(answerMatches("the sun", "The Sun"));
+assert.ok(answerMatches("seven", "Seven"));
+assert.ok(!answerMatches("sydney", "Canberra"));
+assert.ok(!answerMatches("", "Canberra"));
+
+// A throw is judged generously: the nearer target to where it is heading wins.
+{
+  const targets = [{x: 200, y: 300, radius: 80, answer: "L"}, {x: 800, y: 300, radius: 80, answer: "R"}];
+  const aim = (vx, vy) => resolveThrow({origin: {x: 500, y: 600}, velocity: {x: vx, y: vy}, history: [], orbit: []}, targets);
+  assert.equal(aim(300, -120).target.answer, "R", "right throw");
+  assert.equal(aim(-60, -400).target.answer, "L", "sloppy up-left still counts");
+  assert.equal(aim(60, -400).target.answer, "R", "sloppy up-right still counts");
+  // A spin must not turn a good straight aim into a miss.
+  const spin = Array.from({length: 24}, (_, i) => ({x: 500 + 60 * Math.cos(i / 24 * 2 * Math.PI * 1.1), y: 500 + 60 * Math.sin(i / 24 * 2 * Math.PI * 1.1), at: i * 40}));
+  const spun = (vx, vy, orbit) => resolveThrow({origin: {x: 500, y: 600}, velocity: {x: vx, y: vy}, history: [], orbit}, targets);
+  assert.equal(spun(-300, -120, spin).target.answer, "L", "curved throw aimed straight at the left answer still counts");
+  assert.equal(spun(300, -120, spin.slice().reverse()).target.answer, "R", "and the right one");
+  assert.ok(Math.abs(spun(-300, -120, spin).curve) === 1, "it is still reported as a curve ball");
+  assert.equal(resolveThrow({origin: {x: 500, y: 300}, velocity: {x: 0, y: 0}}, targets).miss, true, "no motion is no throw");
+  assert.equal(resolveThrow({origin: {x: 500, y: 100}, velocity: {x: 0, y: -300}}, targets).miss, true, "throwing away from both is a miss");
+  // A spin before release bends the throw toward the side it spins.
+  const circle = Array.from({length: 24}, (_, i) => ({x: 500 + 60 * Math.cos(i / 24 * 2 * Math.PI * 1.1), y: 500 + 60 * Math.sin(i / 24 * 2 * Math.PI * 1.1), at: i * 40}));
+  assert.ok(orbitTurn(circle) > 1.5 * Math.PI, "a swirl is a curve ball");
+  assert.equal(orbitTurn(circle.slice().reverse()) < -1.5 * Math.PI, true);
+}
+// Coaching tips.
+assert.equal(coachHint({seen: false, msSinceSeen: 3000}), "no-hand");
+assert.equal(coachHint({seen: true, wrist: {x: 0.02, y: 0.5}, palmFraction: 0.1}), "edge");
+assert.equal(coachHint({seen: true, wrist: {x: 0.5, y: 0.5}, palmFraction: 0.02}), "far");
+assert.equal(coachHint({seen: true, wrist: {x: 0.5, y: 0.5}, palmFraction: 0.4}), "close");
+assert.equal(coachHint({seen: true, wrist: {x: 0.5, y: 0.5}, palmFraction: 0.1}), null);
+// Levels unlock a ball and a target at a time.
+assert.equal(levelFor(0), 1);
+assert.equal(levelFor(400), 3);
+assert.deepEqual(unlockedFor(1).themes, ["dartboard"]);
+assert.ok(unlockedFor(4).themes.includes("bouquet"));
 
 // --- 5. Canceling a throw mid-gesture resets the state machine ---------------
 // pointercancel / touchcancel / mode-switch must not leave the tracker in
@@ -683,20 +756,18 @@ assert.equal(interrupted.event, "step");
 assert.equal(interrupted.index, 2);
 
 // --- 8. A Python-driven parity emitter --------------------------------------
-// When invoked with --emit-math-rounds=<age>:<i0>,<i1>,..., print one JSON
-// round per line so test_math_toss_fallback_matches_server() in Python can
-// diff the Node output against math_toss_round() for byte-identical parity
-// without re-implementing the round logic in Python.
-const emitArg = process.argv.find((arg) => arg.startsWith("--emit-math-rounds="));
+// With --emit-quiz-rounds=<age>:<i0>,<i1>,..., print one JSON round per line so
+// Python can diff the Node output against pop_quiz_round() byte for byte.
+const emitArg = process.argv.find((arg) => arg.startsWith("--emit-quiz-rounds="));
 if (emitArg) {
-  const spec = emitArg.slice("--emit-math-rounds=".length);
+  const spec = emitArg.slice("--emit-quiz-rounds=".length);
   for (const chunk of spec.split(";")) {
     const [age, indices] = chunk.split(":");
     if (!age || !indices) continue;
     for (const raw of indices.split(",")) {
       const i = Number(raw);
       if (!Number.isFinite(i)) continue;
-      process.stdout.write(`${JSON.stringify(localMathRound(age, i))}\n`);
+      process.stdout.write(`${JSON.stringify(quizRound(QUIZ_BANK, age, i))}\n`);
     }
   }
   process.exit(0);

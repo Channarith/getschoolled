@@ -132,9 +132,15 @@ export function normalizeTouchAge(value) {
   const raw = String(value ?? "").trim().toLowerCase().replace("–", "-");
   if (!raw) return "";
   if (raw === "4-6" || raw === "child" || raw === "kids" || raw === "young") return "4-6";
-  if (raw === "7-10" || raw === "teen" || raw === "adult" || raw === "older") return "7-10";
+  if (raw === "7-10" || raw === "older") return "7-10";
+  if (raw === "11-17" || raw === "teen" || raw === "teens") return "11-17";
+  if (raw === "adult" || raw === "adults" || raw === "18+") return "adult";
   const age = Number(raw);
-  if (Number.isFinite(age) && age >= 1 && age <= 120) return age < 7 ? "4-6" : "7-10";
+  if (Number.isFinite(age) && age >= 1 && age <= 120) {
+    if (age < 7) return "4-6";
+    if (age < 11) return "7-10";
+    return age < 18 ? "11-17" : "adult";
+  }
   return "";
 }
 
@@ -204,6 +210,7 @@ export function newThrowTracker() {
     grabPoint: null,
     cockPoint: null,
     history: [],
+    orbit: [],
     lastSeenAt: 0,
   };
 }
@@ -232,14 +239,23 @@ export function advanceThrowGesture(current, rawSample, ageBand = "7-10") {
     return {tracker: prior, event: null};
   }
 
+  // Forgiving on purpose: a webcam sees a hand at 15-30 frames a second, so a
+  // quick throw may be only two or three samples. The history is long enough for
+  // a slow camera and the pull-back thresholds are small.
   const young = isYoungTouchAge(ageBand);
-  const holdMs = young ? 100 : 150;
-  const pullPalms = young ? 0.5 : 0.7;
-  const speedPalmsPerSecond = young ? 2.1 : 2.8;
+  const holdMs = young ? 80 : 110;
+  const pullPalms = young ? 0.38 : 0.5;
+  const speedPalmsPerSecond = young ? 1.2 : 1.6;
   const history = [...(prior.history || []), sample]
-    .filter((row) => sample.at - row.at <= 220)
-    .slice(-8);
-  const tracker = {...prior, history, lastSeenAt: sample.at};
+    .filter((row) => sample.at - row.at <= 420)
+    .slice(-14);
+  // Where the fist has been while held, for spin (curve ball) detection.
+  const orbit = sample.fist
+    ? [...(prior.orbit || []), {x: sample.point.x, y: sample.point.y, at: sample.at}]
+      .filter((row) => sample.at - row.at <= 1800)
+      .slice(-40)
+    : (prior.orbit || []);
+  const tracker = {...prior, history, orbit, lastSeenAt: sample.at};
 
   if (tracker.phase === "ready") {
     if (!sample.fist) return {tracker: {...tracker, grabStartedAt: 0, grabPoint: null}, event: null};
@@ -286,7 +302,7 @@ export function advanceThrowGesture(current, rawSample, ageBand = "7-10") {
         event: null,
       };
     }
-    const baseline = history.find((row) => row.at >= sample.at - 180 && row.at < sample.at) || history[0];
+    const baseline = history.find((row) => row.at >= sample.at - 360 && row.at < sample.at) || history[0];
     const elapsed = Math.max(16, sample.at - (baseline?.at ?? sample.at - 16));
     const velocity = {
       x: (sample.point.x - (baseline?.point.x ?? sample.point.x)) * 1000 / elapsed,
@@ -297,14 +313,26 @@ export function advanceThrowGesture(current, rawSample, ageBand = "7-10") {
       x: tracker.cockPoint.x - tracker.grabPoint.x,
       y: tracker.cockPoint.y - tracker.grabPoint.y,
     };
-    const pullLength = Math.max(1e-6, Math.hypot(pull.x, pull.y));
+    const pullLength = Math.hypot(pull.x, pull.y);
     const velocityLength = Math.max(1e-6, Math.hypot(velocity.x, velocity.y));
-    const reversal = (pull.x * velocity.x + pull.y * velocity.y) / (pullLength * velocityLength);
-    if (speed >= speedPalmsPerSecond && reversal < -0.05) {
+    const reversal = (pull.x * velocity.x + pull.y * velocity.y) / (Math.max(1e-6, pullLength) * velocityLength);
+    const release = {origin: sample.point, velocity, speed, reversal, assisted: false, history, orbit: tracker.orbit};
+    if (speed >= speedPalmsPerSecond && reversal < 0.2) {
+      return {tracker: {...tracker, phase: "released"}, event: "released", release};
+    }
+    // Too slow or too sideways for the camera to read the motion: still throw,
+    // aimed back along the pull (toward where the fist started). Close counts.
+    if (pullLength > 1e-6) {
+      const nominal = speedPalmsPerSecond * sample.palm;
       return {
         tracker: {...tracker, phase: "released"},
         event: "released",
-        release: {origin: sample.point, velocity, speed, reversal},
+        release: {
+          ...release,
+          velocity: {x: -pull.x / pullLength * nominal, y: -pull.y / pullLength * nominal},
+          speed: speedPalmsPerSecond,
+          assisted: true,
+        },
       };
     }
     return {tracker: newThrowTracker(), event: "weak-release"};
@@ -668,86 +696,6 @@ function attentionEvents(watch, sample, now) {
     watch.lookOpen = false;
   }
   return events;
-}
-
-// Mirrors math_toss_round() in game_engine.py so the offline fallback never
-// shows the wrong operation, answer, or distractor set for a given
-// (age, index) when the children lab API is unreachable.
-// Lives in vision_math.js (not app.js) so the Node test harness can import it
-// and compare its output to the Python server round for byte-identical parity.
-export function localMathRound(age, index) {
-  const young = normalizeTouchAge(age) === "4-6";
-  const slot = Math.max(0, Number(index) || 0);
-  const mode = slot % 3;
-  let left;
-  let right;
-  let answer;
-  let question;
-  let speak;
-  let choices;
-  if (young) {
-    if (mode === 0) {
-      answer = 1 + (slot * 3) % 9;
-      question = `Count to ${answer}`;
-      speak = `Which target shows ${answer}?`;
-    } else if (mode === 1) {
-      left = 1 + (slot * 2) % 5;
-      right = 1 + (slot * 3) % 4;
-      answer = left + right;
-      question = `${left} + ${right} = ?`;
-      speak = `What is ${left} plus ${right}?`;
-    } else {
-      left = 4 + (slot * 3) % 6;
-      right = 1 + (slot * 2) % left;
-      answer = left - right;
-      question = `${left} \u2212 ${right} = ?`;
-      speak = `What is ${left} minus ${right}?`;
-    }
-    const distractor = answer < 9 ? answer + 1 : answer - 1;
-    choices = slot % 2 === 0 ? [answer, distractor] : [distractor, answer];
-  } else {
-    let symbol;
-    let spoken;
-    if (mode === 0) {
-      left = 6 + (slot * 5) % 15;
-      right = 3 + (slot * 7) % 12;
-      answer = left + right;
-      symbol = "+";
-      spoken = "plus";
-    } else if (mode === 1) {
-      right = 2 + (slot * 3) % 10;
-      answer = 3 + (slot * 5) % 16;
-      left = answer + right;
-      symbol = "\u2212";
-      spoken = "minus";
-    } else {
-      left = 2 + (slot * 2) % 8;
-      right = 2 + (slot * 3) % 7;
-      answer = left * right;
-      symbol = "\u00d7";
-      spoken = "times";
-    }
-    question = `${left} ${symbol} ${right} = ?`;
-    speak = `What is ${left} ${spoken} ${right}?`;
-    const candidates = [Math.max(0, answer - 2), answer + 2, Math.max(0, answer - 1), answer + 1];
-    const distractors = [];
-    for (const candidate of candidates) {
-      if (candidate !== answer && !distractors.includes(candidate)) distractors.push(candidate);
-      if (distractors.length === 2) break;
-    }
-    const base = [answer, ...distractors];
-    const shift = slot % base.length;
-    choices = [...base.slice(shift), ...base.slice(0, shift)];
-  }
-  return {
-    round_id: `math-toss-${young ? "4-6" : "7-10"}-${slot}`,
-    index: slot,
-    age_band: young ? "4-6" : "7-10",
-    question,
-    speak,
-    answer,
-    choices,
-  };
 }
 
 // Mirror Hall. A beat is three lights — head and both hands — in stage

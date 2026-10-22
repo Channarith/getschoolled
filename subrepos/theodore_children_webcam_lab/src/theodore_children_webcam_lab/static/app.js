@@ -7,6 +7,7 @@ import {
   HEART_CLEFT_PALMS, HEART_POINT_PALMS,
   KISS_NEAR_FACES, KISS_AWAY_FACES, HAND_BONES,
   PAUSE_LINE, RESUME_LINE,
+<<<<<<< HEAD
   activeFingertips, advanceMirrorBeat, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch,
   debiasedGazeDown, defaultMirrorPace, fingersPointed, freshMirrorRun, handShape, headPoseFromMesh,
   heartRatios, isHeartShape, localMathRound, mapMirroredLandmark, mirrorBeatMatched, mirrorPace,
@@ -14,8 +15,15 @@ import {
   advanceNinjaWeave, freshNinjaRun, ninjaSealFits, ninjaTechnique, recognizeNinjaSeal,
   NINJA_DEFAULT_TECHNIQUE, NINJA_ELEMENTS, NINJA_SEALS, NINJA_TECHNIQUES, ninjaEffectParticles, ninjaEffectSpec,
   ninjaTechniqueList, projectThrowTarget, syntheticHand,
+=======
+  activeFingertips, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch,
+  debiasedGazeDown, fingersPointed, handShape, headPoseFromMesh,
+  heartRatios, isHeartShape, mapMirroredLandmark, newThrowTracker, profileTouchAge,
+  projectThrowTarget, syntheticHand,
+>>>>>>> 2aaa58c3 (Pop Quiz Toss: quiz rounds, themed targets, curve throws, voice + throw scoring, tutorial, adult ages)
   tipHitsTarget, traceProgress,
 } from "./vision_math.js";
+import {createPopQuizGame} from "./pop_quiz_game.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -59,7 +67,7 @@ function isAudioGame(game = state.game) {
 // Keep in lockstep with game_engine.GAME_MENU / /api/child/content. A game in
 // the menu without a matching chooseGame + update* branch is a missing game.
 const GAMES = [
-  "trace-letter","trace-picture","color-picture","connect-dots","trace-outline","say-letter","math-toss",
+  "trace-letter","trace-picture","color-picture","connect-dots","trace-outline","say-letter","pop-quiz-toss",
   "repeat-after-me","pronounce-word","rhyme-time","listen-answer","missing-word",
   "opposites","explain-it","sum-it-up","prove-it","story-order","how-many",
   "same-or-different","finish-the-line","spell-aloud",
@@ -78,7 +86,7 @@ const GAME_CONTROLS = {
   "connect-dots": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "trace-outline": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "say-letter": {letter:true, undo:false, mic:true, typed:true, check:true, hear:true, words:false, play:true},
-  "math-toss": {letter:false, undo:false, mic:false, typed:false, check:false, hear:true, words:false, play:true},
+  "pop-quiz-toss": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:false, play:true},
   "repeat-after-me": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
   "pronounce-word": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
   "rhyme-time": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
@@ -140,7 +148,7 @@ const state = {
   voiceAway:false, heldPrompt:"", missingFaceAt:0, chaseLeft:false, bopDir:0, flapDir:0,
   presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0,
   glanceNote:false, poseOpen:false, standBase:null, sitLow:null,
-  mathIndex:0, mathRound:null, mathTargets:[], throwTracker:newThrowTracker(), throwBall:null,
+  
   playStartedAt:0, playEndsAt:0, playTick:0, playEnded:false,
 };
 const PLAY_SESSION_MS = 10 * 60 * 1000;
@@ -589,8 +597,12 @@ function drawVision() {
     }
   }
   for (const hand of state.handData) drawFistMark(hand);
+<<<<<<< HEAD
   drawMathThrowGuide();
   drawMirrorGhost(w, h);
+=======
+  if(state.game==="pop-quiz-toss")popQuiz.drawGuide(ctx);
+>>>>>>> 2aaa58c3 (Pop Quiz Toss: quiz rounds, themed targets, curve throws, voice + throw scoring, tutorial, adult ages)
   ctx.restore();
   renderVisionReadout();
 }
@@ -1178,138 +1190,17 @@ function updateObjectGame() {
   }
 }
 
-function mathRegions(count) {
-  return count<=2?["left","right"]:["top-left","top-right","bottom"];
-}
-// A canceled gesture (pointercancel/touchcancel or a touch-mode switch) must
-// not leave the throw state machine in grabbed/cocked or the virtual ball
-// on screen, or the next frame will replay a stale throw.
-function cancelMathThrow() {
-  state.throwTracker=newThrowTracker();
-  if(state.throwBall?.remove)state.throwBall.remove();
-  state.throwBall=null;
-}
-function renderMathTargets(round) {
-  for(const node of [...spriteLayer.querySelectorAll(".math-target")])node.remove();
-  const choices=Array.isArray(round?.choices)?round.choices:[];
-  // Defense in depth: round layout only supports 2 or 3 targets. A malformed
-  // or MITM-tampered payload must not blow up the DOM or create ambiguous play.
-  if(choices.length!==2&&choices.length!==3){
-    state.mathTargets=[];
-    return;
-  }
-  const regions=mathRegions(choices.length);
-  state.mathTargets=choices.map((answer,index)=>{
-    const region=regions[index]||"center";
-    const anchor=REGIONS[region]||REGIONS.center;
-    const el=document.createElement("div");
-    el.className="math-target";
-    el.dataset.answer=String(answer);
-    el.dataset.region=region;
-    el.setAttribute("role","img");
-    el.setAttribute("aria-label",`Answer ${answer}`);
-    el.textContent=String(answer);
-    el.style.left=`${anchor[0]*100}%`;el.style.top=`${anchor[1]*100}%`;
-    spriteLayer.append(el);
-    return {answer,region,el};
-  });
-}
-function mathTargetCenters() {
-  const root=stage.getBoundingClientRect();
-  return state.mathTargets.map((item)=>{
-    const rect=item.el.getBoundingClientRect();
-    return {
-      ...item,x:rect.left-root.left+rect.width/2,y:rect.top-root.top+rect.height/2,
-      radius:Math.max(catchRadius(),Math.min(rect.width,rect.height)*.58),
-    };
-  });
-}
-function mathThrowHand() {
-  return [...state.handData]
-    .filter(hand=>hand?.wrist&&(hand.screen||hand.points?.length))
-    .sort((a,b)=>(Number(b.scale)||0)-(Number(a.scale)||0))[0]||null;
-}
-function ensureMathBall() {
-  if(state.throwBall?.isConnected)return state.throwBall;
-  const el=document.createElement("div");
-  el.className="math-ball";
-  el.textContent="🥎";
-  el.setAttribute("aria-hidden","true");
-  spriteLayer.append(el);state.throwBall=el;
-  return el;
-}
-function positionMathBall(point,animate=false) {
-  if(!point)return;
-  const el=ensureMathBall();
-  el.style.transition=animate?"left .42s cubic-bezier(.2,.8,.3,1),top .42s cubic-bezier(.2,.8,.3,1),transform .42s ease":"none";
-  el.style.left=`${point.x}px`;el.style.top=`${point.y}px`;
-}
-function launchMathBall(release) {
-  const targets=mathTargetCenters();
-  const hit=projectThrowTarget(release.origin,release.velocity,targets,catchRadius());
-  const magnitude=Math.max(1,Math.hypot(release.velocity.x,release.velocity.y));
-  const box=stageBox();
-  const endpoint=hit||{
-    x:Math.max(0,Math.min(box.w,release.origin.x+release.velocity.x/magnitude*Math.max(box.w,box.h))),
-    y:Math.max(0,Math.min(box.h,release.origin.y+release.velocity.y/magnitude*Math.max(box.w,box.h))),
-  };
-  positionMathBall(release.origin);
-  requestAnimationFrame(()=>positionMathBall(endpoint,true));
-  const round=state.roundId;
-  setTimeout(()=>{
-    if(state.roundId!==round||state.roundDone)return;
-    if(!hit){
-      fail("Aim through one of the big answer targets and try again.");
-      return;
-    }
-    hit.el.classList.add("hit");
-    if(Number(hit.answer)===Number(state.mathRound?.answer))succeed("Correct answer and a great throw!");
-    else fail("Nice throw. Try the math once more.");
-  },440);
-}
-function drawMathThrowGuide() {
-  if(!ctx||state.game!=="math-toss")return;
-  const tracker=state.throwTracker;
-  if(tracker?.phase!=="cocked"||!tracker.grabPoint||!tracker.cockPoint)return;
-  const dx=tracker.grabPoint.x-tracker.cockPoint.x,dy=tracker.grabPoint.y-tracker.cockPoint.y;
-  const length=Math.max(1,Math.hypot(dx,dy)),reach=Math.max(stageBox().w,stageBox().h);
-  ctx.save();ctx.strokeStyle="#fde047";ctx.lineWidth=5;ctx.setLineDash([12,9]);
-  ctx.beginPath();ctx.moveTo(tracker.cockPoint.x,tracker.cockPoint.y);
-  ctx.lineTo(tracker.cockPoint.x+dx/length*reach,tracker.cockPoint.y+dy/length*reach);ctx.stroke();
-  ctx.restore();
-}
-function updateMathToss(now=performance.now(), handOverride=null) {
-  if(state.game!=="math-toss"||state.roundDone||!state.mathRound)return;
-  const hand=handOverride||mathThrowHand();
-  const box=stageBox();
-  const palm=hand?.screen?Math.max(36,Math.min(box.w,box.h)*.08):(Number(hand?.scale)||0)*Math.min(box.w,box.h);
-  const step=advanceThrowGesture(state.throwTracker,hand?{
-    at:now,palm:Math.max(1,palm),fist:Boolean(hand.fist),point:hand.wrist,
-  }:{at:now},state.age);
-  state.throwTracker=step.tracker;
-  if(hand?.wrist&&(step.tracker.phase==="grabbed"||step.tracker.phase==="cocked"))positionMathBall(hand.wrist);
-  if(step.event==="grabbed")setPrompt(state.mathRound.question,"Great grab. Pull your fist back.");
-  else if(step.event==="cocked")setPrompt(state.mathRound.question,"Now throw toward the answer and open your hand!");
-  else if(step.event==="released"&&step.release)launchMathBall(step.release);
-  else if(step.event==="released-early")setPrompt(state.mathRound.question,"Keep your fist closed, pull back, then open as you throw.");
-  else if(step.event==="weak-release")setPrompt(state.mathRound.question,"Good pull-back. Throw forward a little faster and open your hand.");
-}
-async function armMathToss(roundId) {
-  const index=state.mathIndex||0;
-  let data;
-  try{
-    const response=await fetch(`/api/child/math-round?age=${encodeURIComponent(state.age)}&index=${index}`);
-    if(!response.ok)throw new Error(String(response.status));
-    data=await response.json();
-  }catch(_){
-    data=localMathRound(state.age,index);
-  }
-  if(state.roundId!==roundId||state.game!=="math-toss")return;
-  state.mathRound=data;state.throwTracker=newThrowTracker();
-  renderMathTargets(data);
-  setPrompt(data.question,"Clear a little space. Grab the virtual soft ball with a fist, pull back, then throw toward the answer and open your hand. Do not throw a real object.",data.speak);
-  tellActivity(data.speak,{force:true});speak(data.speak);
-}
+// Pop Quiz Toss lives in pop_quiz_game.js; these thin wrappers keep the lab's
+// existing hooks (update loop, touch fallback, cancel) pointing at it.
+const popQuiz = createPopQuizGame({
+  state, $, stage, spriteLayer, stageBox, catchRadius,
+  setPrompt, tellActivity, speak, calculateFun, renderScore, recordEvent,
+  chooseGame: () => chooseGame(),
+});
+window.__popQuiz = popQuiz; // read-only status for tests
+function cancelQuizThrow() { popQuiz.cancelThrow(); }
+function updatePopQuizToss(now = performance.now(), handOverride = null) { popQuiz.update(now, handOverride); }
+function armPopQuiz(roundId) { return popQuiz.arm(roundId); }
 
 function hitAirDrums(now) {
   const hitting = tipHitsTarget(touchPoints(), targetPoint(), catchRadius());
@@ -1784,7 +1675,7 @@ function loop(now) {
     noteMirrorPause(now);
     if (state.game === "ninja-weave" && state.ninja && !state.ninja.pausedAt) state.ninja.pausedAt = now;
   } else {
-    updateTrace();updatePicturePlay();updateObjectGame();updateMathToss(now);updateGestureGame(now);
+    updateTrace();updatePicturePlay();updateObjectGame();updatePopQuizToss(now);updateGestureGame(now);
     tickCountdown(now);
   }
   requestAnimationFrame(loop);
@@ -2037,7 +1928,11 @@ function chooseGame() {
   if (!select) return;
   const previousGame=state.game;
   state.game=select.value;
+<<<<<<< HEAD
   document.body.classList.toggle("ninja-play", state.game === "ninja-weave");
+=======
+  if (previousGame==="pop-quiz-toss" && state.game!=="pop-quiz-toss") popQuiz.teardown();
+>>>>>>> 2aaa58c3 (Pop Quiz Toss: quiz rounds, themed targets, curve throws, voice + throw scoring, tutorial, adult ages)
   if (state.game!=="karaoke") hideKaraoke();
   if (state.game!==previousGame) state.audioIndex=0;
   state.startedAt=performance.now();state.attempts=1;state.hitCount=0;state.phase=0;state.padHeld=false;state.pausedAt=0;
@@ -2065,10 +1960,9 @@ function chooseGame() {
     else setPrompt(`Trace the ${word}`,"Follow the outline with one finger. It does not need to be perfect.",`Trace the outline of the ${word}.`);
   }
   else if(state.game==="say-letter")setPrompt(`Say ${letter}`,"Tap the microphone or type what you said.",`Listen, then say the letter ${letter}.`);
-  else if(state.game==="math-toss"){
-    state.mathRound=null;state.throwTracker=newThrowTracker();
-    setPrompt("Math Toss","Loading the next math target…");
-    void armMathToss(round);
+  else if(state.game==="pop-quiz-toss"){
+    setPrompt("Pop Quiz Toss","Getting your next question…");
+    void armPopQuiz(round);
   }
   else if(AUDIO_GAMES.has(state.game)){
     state.audioRound = null;
@@ -2149,10 +2043,14 @@ function clearRound() {
   state.sawFinger = false;
   state.sawScreen = false;
   hideTarget();
+<<<<<<< HEAD
   for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption,.math-target,.math-ball,.ninja-sequence,.ninja-fx")]) node.remove();
+=======
+  for (const node of [...spriteLayer.querySelectorAll(".sprite,.miss-gag,.miss-caption")]) node.remove();
+  popQuiz.clearRoundVisuals();
+>>>>>>> 2aaa58c3 (Pop Quiz Toss: quiz rounds, themed targets, curve throws, voice + throw scoring, tutorial, adult ages)
   hideCountdown();
   state.trail=[];state.object=null;state.lastTip=null;state.lastFaceY=null;state.lastHandY=null;
-  state.mathTargets=[];state.throwBall=null;state.throwTracker=newThrowTracker();
 }
 
 function calculateFun(success,extra={}) {
@@ -2191,7 +2089,6 @@ function succeed(message) {
   const advanceLetter=state.game==="trace-letter"||PICTURE_PLAY.has(state.game);
   if(state.game==="oh-behave")state.timerMs=nextTimer(true);
   if (AUDIO_GAMES.has(state.game)) state.audioIndex=(state.audioIndex||0)+1;
-  if (state.game==="math-toss") state.mathIndex=(state.mathIndex||0)+1;
   const result=calculateFun(true);state.fun=result.score;renderScore();fireworks();setPrompt("You did it!",message);
   $("prompt")?.classList.add("is-success");
   recordEvent("success",result);
@@ -2552,6 +2449,7 @@ window.addEventListener("theodore-live-audio-utterance", (event) => {
 });
 
 function startListening() {
+  if(state.game==="pop-quiz-toss"){popQuiz.startVoice();return;}
   if (!isAudioGame()) {
     setPrompt("Pick a listening game","Choose Say the letter or a game under Listen, then use the microphone.");
     return;
@@ -2584,6 +2482,7 @@ async function armAudioRound(round) {
   }
 }
 async function checkSpeech(heard) {
+  if(state.game==="pop-quiz-toss"){popQuiz.typedAnswer(heard);return;}
   if (!isAudioGame()) {
     setPrompt("Pick a listening game","Choose Say the letter or a game under Listen, then check what was said.");
     return;
@@ -2690,8 +2589,8 @@ function placeScreenHand(event) {
   const nx = clamp01((event.clientX - box.left) / w);
   const ny = clamp01((event.clientY - box.top) / h);
   state.handData = [{
-    indexUp: state.game!=="math-toss",
-    fist: state.game==="math-toss"&&state.screenDown,
+    indexUp: state.game!=="pop-quiz-toss",
+    fist: state.game==="pop-quiz-toss"&&state.screenDown,
     count: 1,
     tipPalms: 2.4,
     scale: 0.1,
@@ -2711,7 +2610,7 @@ function liftScreenHand() {
 }
 function setTouchMode(mode) {
   state.touchMode = mode === "screen" ? "screen" : "air";
-  if (state.game === "math-toss") cancelMathThrow();
+  if (state.game === "pop-quiz-toss") cancelQuizThrow();
   liftScreenHand();
   const screen = state.touchMode === "screen";
   const group = $("touch-mode");
@@ -2747,16 +2646,16 @@ function pokeScreenTargets() {
   updateObjectGame();
   updateTrace();
   updatePicturePlay();
-  updateMathToss(performance.now());
+  updatePopQuizToss(performance.now());
   if (state.game === "air-drums") hitAirDrums(performance.now());
 }
 function releaseScreenThrow(point) {
-  if(state.game!=="math-toss"||!point)return;
+  if(state.game!=="pop-quiz-toss"||!point)return;
   placeScreenHand(point);
   const hand=state.handData.find(row=>row.screen);
   if(!hand)return;
   hand.fist=false;hand.indexUp=true;
-  updateMathToss(performance.now(),hand);
+  updatePopQuizToss(performance.now(),hand);
 }
 function screenEventPoint(event) {
   if (Number.isFinite(event?.clientX) && Number.isFinite(event?.clientY)) return event;
@@ -2783,13 +2682,19 @@ stage?.addEventListener("pointermove",(event)=>{
     updateObjectGame();
     updateTrace();
     updatePicturePlay();
-    updateMathToss(performance.now());
+    updatePopQuizToss(performance.now());
     if (state.game === "air-drums") hitAirDrums(performance.now());
     return;
   }
   applyDemoPointer(event);
 });
+// Pop Quiz Toss draws its own buttons (tutorial, help, win) inside the stage; a press
+// on them must not start a throw or capture the pointer, or the button never clicks.
+function isPopQuizUi(event) {
+  return Boolean(event?.target?.closest?.(".pq-tutorial,.pq-win,.pq-help"));
+}
 stage?.addEventListener("pointerdown",(event)=>{
+  if (isPopQuizUi(event)) return;
   if (beginScreenTouch(event)) return;
   if (!state.demo) return;
   event.preventDefault();
@@ -2797,6 +2702,7 @@ stage?.addEventListener("pointerdown",(event)=>{
   applyDemoPointer(event);
 });
 stage?.addEventListener("pointerup",(event)=>{
+  if (isPopQuizUi(event)) return;
   if (!screenTouch()) return;
   if (state.screenPointerId == null) {
     beginScreenTouch(event);
@@ -2808,7 +2714,7 @@ stage?.addEventListener("pointerup",(event)=>{
 stage?.addEventListener("pointercancel",(event)=>{
   if (!screenTouch()) return;
   if (event.pointerId !== state.screenPointerId) return;
-  if (state.game === "math-toss") cancelMathThrow();
+  if (state.game === "pop-quiz-toss") cancelQuizThrow();
   liftScreenHand();
 });
 stage?.addEventListener("pointerleave",()=>{
@@ -2819,6 +2725,7 @@ function screenPoint(touch) {
   return {clientX: touch.clientX, clientY: touch.clientY};
 }
 stage?.addEventListener("touchstart",(event)=>{
+  if (isPopQuizUi(event)) return;
   if (!screenTouch() || state.screenDown || !event.changedTouches?.length) return;
   beginScreenTouch(event);
 },{passive:false});
@@ -2831,7 +2738,7 @@ stage?.addEventListener("touchmove",(event)=>{
   updateObjectGame();
   updateTrace();
   updatePicturePlay();
-  updateMathToss(performance.now());
+  updatePopQuizToss(performance.now());
 },{passive:false});
 stage?.addEventListener("touchend",(event)=>{
   if (!screenTouch()) return;
@@ -2844,7 +2751,7 @@ stage?.addEventListener("touchend",(event)=>{
 },{passive:false});
 stage?.addEventListener("touchcancel",()=>{
   if (!screenTouch()) return;
-  if (state.game === "math-toss") cancelMathThrow();
+  if (state.game === "pop-quiz-toss") cancelQuizThrow();
   liftScreenHand();
 });
 $("start").addEventListener("click",()=>start(true));$("demo").addEventListener("click",()=>start(false));
@@ -2978,7 +2885,9 @@ if (embedMobile) {
 function pickLaunchGame() {
   const select = $("game");
   if (!select) return;
-  const requested = new URLSearchParams(location.search).get("game");
+  const rawRequested = new URLSearchParams(location.search).get("game");
+  // Math Toss was renamed; old links and app builds still ask for it.
+  const requested = rawRequested === "math-toss" ? "pop-quiz-toss" : rawRequested;
   const options = [...select.options].map((opt) => opt.value).filter((id) => GAMES.includes(id));
   if (requested) {
     if (options.includes(requested)) select.value = requested;
