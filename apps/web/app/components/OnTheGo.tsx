@@ -870,11 +870,34 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     playGenRef.current++;
     cancelSpeech();
     const genSnapshot = playGenRef.current;
-    speak(t("drive.resumePrompt", { answer }), () => {
+    speak(answer, () => {
       if (playGenRef.current !== genSnapshot) return;
-      resumeAfterAssistant(6500);
+      // A short pause for a follow-up (tap the mascot), then say so and go back.
+      clearResumeTimer();
+      setAssistantStatus(t("drive.backToCourse"));
+      resumeTimerRef.current = setTimeout(() => {
+        if (playGenRef.current !== genSnapshot) return;
+        speak(t("drive.backToCourse"), () => {
+          if (playGenRef.current !== genSnapshot) return;
+          resumeAfterAssistant(0);
+        });
+      }, 2500);
     });
   }
+
+  // After the mascot is tapped, tapping anywhere else on the page resumes the lesson.
+  useEffect(() => {
+    if (!assistantOpen) return;
+    const onTap = (event: MouseEvent) => {
+      const el = event.target as HTMLElement | null;
+      if (el?.closest("[data-testid='on-the-go-mascot'], button, a, input, select, textarea")) return;
+      stopVoiceRecognition();
+      resumeAfterAssistant(0);
+    };
+    document.addEventListener("click", onTap);
+    return () => document.removeEventListener("click", onTap);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assistantOpen]);
 
   const langLabel = TRAINING_LOCALE_LABELS[trainingLang] || trainingLang;
   const paid = accountReady && loggedIn && tier !== "free";
