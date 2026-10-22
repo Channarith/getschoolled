@@ -19,6 +19,16 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Optional, Sequence
 
+from .guard import (
+    available_mb,
+    clamp_workers,
+    env_int,
+    is_oom_exit,
+    limit_backoff_seconds,
+    row_hit_rate_limit,
+    should_wait_for_memory,
+)
+
 # Large news dumps. The first pass skips these unless include_news is set.
 NEWS_SLUGS = frozenset(
     {
@@ -400,7 +410,12 @@ def ingest_channel(
     ]
     if max_urls:
         cmd.extend(["--max-urls", str(max_urls)])
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    child_env = os.environ.copy()
+    # Heavy ASR stays off when the box is already low on RAM. The parent
+    # queue can still run; only this channel's transcribe step refuses.
+    child_env.setdefault("AOEP_ASR_MIN_FREE_MB", "4096")
+    child_env.setdefault("AOEP_ASR_SINGLE_MODEL_MB", "12288")
+    proc = subprocess.run(cmd, capture_output=True, text=True, env=child_env)
     row = {
         "pool_id": job.pool_id,
         "slug": job.slug,
@@ -487,10 +502,14 @@ def execute_queue(
     min_videos: int,
     stop_event: Optional[threading.Event] = None,
     run_channel: Optional[RunChannel] = None,
+    sleeper: Optional[Callable[[float], None]] = None,
 ) -> int:
     """Discover channel lists and ingest them. Returns 0, 1, or 2 (nothing queued)."""
     output_root = Path(output_root)
     pool_list = sorted(pools) if pools else []
+    pause = sleeper or time.sleep
+    requested_workers = max(1, int(workers))
+    worker_count = clamp_workers(requested_workers)
     state: dict = {
         "running": True,
         "stopped": False,
@@ -499,7 +518,8 @@ def execute_queue(
         "started_at": time.time(),
         "finished_at": None,
         "pools": pool_list,
-        "workers": max(1, int(workers)),
+        "workers": worker_count,
+        "workers_requested": requested_workers,
         "include_news": bool(include_news),
         "max_urls": max_urls,
         "max_channels": max_channels,
@@ -513,7 +533,7 @@ def execute_queue(
         "recent": [],
         "cli": cli_hint(
             pools=pool_list,
-            workers=max(1, int(workers)),
+            workers=worker_count,
             max_urls=max_urls,
             max_channels=max_channels,
             include_news=include_news,
@@ -599,15 +619,58 @@ def execute_queue(
         with log_path.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
 
+    pressure = {"on": False}
+    oom_tries: dict[str, int] = {}
+    limit_hits = {"n": 0}
+    pause_until = {"t": 0.0}
+    min_free = env_int("AOEP_INGEST_MIN_FREE_MB", 8192)
+
+    def _hold_for_room() -> None:
+        """Sleep while a rate-limit cooldown or a memory crush is in effect."""
+        waits = max(1, env_int("AOEP_MEMORY_WAIT_ATTEMPTS", 30))
+        step = float(env_int("AOEP_MEMORY_WAIT_SEC", 5))
+        for _ in range(waits):
+            if stop_requested(output_root, stop_event):
+                return
+            with lock:
+                cool = pause_until["t"] - time.time()
+                active = len(state["current"])
+                pressed = bool(pressure["on"])
+            if cool > 0:
+                pause(min(cool, step if step > 0 else cool))
+                continue
+            free = available_mb()
+            if not should_wait_for_memory(
+                available=free,
+                min_mb=min_free,
+                active_jobs=active,
+                pressure=pressed,
+            ):
+                return
+            if step <= 0:
+                return
+            pause(step)
+
     def worker() -> None:
         while not stop_requested(output_root, stop_event):
+            _hold_for_room()
+            if stop_requested(output_root, stop_event):
+                return
             try:
                 job = pending.get_nowait()
             except queue.Empty:
                 return
             with lock:
-                state["current"] = list(state["current"]) + [job.key()]
-                write_status(output_root, state)
+                if pressure["on"] and state["current"]:
+                    busy = True
+                else:
+                    busy = False
+                    state["current"] = list(state["current"]) + [job.key()]
+                    write_status(output_root, state)
+            if busy:
+                pending.put(job)
+                pause(float(env_int("AOEP_MEMORY_WAIT_SEC", 5)) or 0.05)
+                continue
             try:
                 row = runner(job, max_urls, Path(cosyvoice_repo), Path(ingest_script))
             except Exception as exc:  # noqa: BLE001
@@ -619,7 +682,48 @@ def execute_queue(
                     "elapsed_s": 0,
                     "error": str(exc),
                 }
+            if is_oom_exit(row.get("returncode")) and oom_tries.get(job.key(), 0) < 1:
+                with lock:
+                    oom_tries[job.key()] = oom_tries.get(job.key(), 0) + 1
+                    pressure["on"] = True
+                row["error"] = row.get("error") or "oom"
+                with lock:
+                    state["last_error"] = "oom"
+                    state["current"] = [
+                        item for item in state["current"] if item != job.key()
+                    ] + ["oom-backoff"]
+                    log = list(state["log"])
+                    log.append(_result_line(row) + " oom-retry")
+                    state["log"] = log[-80:]
+                    write_status(output_root, state)
+                print(_result_line(row) + " oom-retry", flush=True)
+                delay = float(env_int("AOEP_OOM_BACKOFF_SEC", 600))
+                remaining = delay
+                while remaining > 0 and not stop_requested(output_root, stop_event):
+                    chunk = min(remaining, 5.0)
+                    pause(chunk)
+                    remaining -= chunk
+                with lock:
+                    state["current"] = [
+                        item for item in state["current"] if item != "oom-backoff"
+                    ]
+                    write_status(output_root, state)
+                if not stop_requested(output_root, stop_event):
+                    pending.put(job)
+                continue
+            if is_oom_exit(row.get("returncode")):
+                row["error"] = row.get("error") or "oom"
+                with lock:
+                    pressure["on"] = True
             record(row, job.key())
+            if row_hit_rate_limit(row):
+                with lock:
+                    limit_hits["n"] += 1
+                    delay = limit_backoff_seconds(limit_hits["n"])
+                    if delay > 0:
+                        pause_until["t"] = max(pause_until["t"], time.time() + delay)
+                        state["last_error"] = row.get("error") or "rate_limit"
+                        write_status(output_root, state)
 
     threads = [
         threading.Thread(target=worker, name=f"voice-queue-{index}", daemon=True)

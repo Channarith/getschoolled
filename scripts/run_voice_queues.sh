@@ -12,6 +12,16 @@ export AOEP_ASR_DETECT_LANGUAGE="${AOEP_ASR_DETECT_LANGUAGE:-1}"
 export YT_DLP_COOKIES_FROM_BROWSER="${YT_DLP_COOKIES_FROM_BROWSER:-chromium:/home/nvidia/snap/chromium/common/chromium}"
 export YT_DLP_PLAYER_CLIENT="${YT_DLP_PLAYER_CLIENT:-web_safari}"
 export YT_DLP_SLEEP_REQUESTS="${YT_DLP_SLEEP_REQUESTS:-2}"
+# Back off when YouTube says the page must be reloaded, and refuse a second
+# ASR model when free RAM is already under these floors. The queue also
+# shrinks --workers to what MemAvailable can hold.
+export YT_DLP_LIMIT_BACKOFF="${YT_DLP_LIMIT_BACKOFF:-30}"
+export YT_DLP_LIMIT_STREAK="${YT_DLP_LIMIT_STREAK:-3}"
+export YT_DLP_COOLDOWN_SEC="${YT_DLP_COOLDOWN_SEC:-120}"
+export AOEP_INGEST_MIN_FREE_MB="${AOEP_INGEST_MIN_FREE_MB:-8192}"
+export AOEP_INGEST_WORKER_MB="${AOEP_INGEST_WORKER_MB:-6144}"
+export AOEP_ASR_MIN_FREE_MB="${AOEP_ASR_MIN_FREE_MB:-4096}"
+export AOEP_ASR_SINGLE_MODEL_MB="${AOEP_ASR_SINGLE_MODEL_MB:-12288}"
 echo "=== priority pools km,zh,yue,zh_tw start $(date) ==="
 .venv/bin/python scripts/cosyvoice_batch_ingest.py --pool km,zh,yue,zh_tw --workers 3
 echo "=== remaining pools start $(date) ==="

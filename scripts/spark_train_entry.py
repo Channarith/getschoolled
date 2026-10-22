@@ -84,6 +84,8 @@ def _install() -> None:
 
 
 def main() -> None:
+    # Must be set before torch is imported. The shell also exports this.
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     train_py = os.environ.get("COSYVOICE_TRAIN_PY", "")
     if not train_py:
         sys.stderr.write("COSYVOICE_TRAIN_PY is required\n")

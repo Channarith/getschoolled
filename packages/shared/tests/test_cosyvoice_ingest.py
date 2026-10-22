@@ -343,7 +343,10 @@ def test_download_error_categories_and_cookies(tmp_path, monkeypatch):
     )
 
     assert classify_download_error("Sign in to confirm you're not a bot") == "bot_check"
+    assert classify_download_error("ERROR: [youtube] abc: The page needs to be reloaded.") == "rate_limit"
+    assert classify_download_error("HTTP Error 429: Too Many Requests") == "rate_limit"
     assert classify_download_error("ERROR: unable to download video data: HTTP Error 403: Forbidden") == "http_403"
+    assert classify_download_error("CUDA error: out of memory") == "oom"
     assert classify_download_error("Private video") == "private"
     assert classify_download_error("Video unavailable") == "unavailable"
     secret = "Cookie: SAPISID=should-not-leak\nERROR: Sign in to confirm you're not a bot"
