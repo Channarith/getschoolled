@@ -37,14 +37,7 @@ import styles from "./Onboarding.module.css";
 // focused mode on both phones and desktops.
 const LEARN_MODES_PER_PAGE = 1 as const;
 
-const MODES = [
-  { id: "video", art: "mode-video", label: "Watching videos", blurb: "Short lessons you can pause and replay." },
-  { id: "live_teacher", art: "mode-person", label: "A live teacher", blurb: "Learning in person or in a live class." },
-  { id: "presentation", art: "mode-presentation", label: "Presentations", blurb: "Slides and visual walkthroughs." },
-  { id: "reading", art: "mode-reading", label: "Reading a book", blurb: "Taking your time with text and notes." },
-  { id: "tutoring", art: "mode-tutoring", label: "1:1 tutoring", blurb: "One coach, just for you." },
-  { id: "gaming", art: "mode-gaming", label: "Gaming", blurb: "Learning by playing and doing." },
-] as const;
+import { MODES } from "../lib/learningModes";
 type ModeId = (typeof MODES)[number]["id"];
 
 type Step = "account" | "about" | "learn" | "consent" | "identity" | "plan" | "payment";

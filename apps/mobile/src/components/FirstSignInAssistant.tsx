@@ -20,6 +20,7 @@ import BiometricSetupModal from "./BiometricSetupModal";
 import KenBurnsImage from "./KenBurnsImage";
 import MobileMascotMeshy from "./MobileMascotMeshy";
 import { type MascotScene } from "./MascotActor";
+import { LEARNING_MODES } from "../learningModes";
 import { useLayoutMetrics } from "../layout";
 import { withTimeout } from "../learnerCheck";
 import { SAVE_WAIT_MS, isRetryableIdentityWrite, queueLearningProfileSync } from "../onboardingSync";
@@ -30,25 +31,7 @@ type Props = {
   onComplete: () => void;
 };
 
-/**
- * The six learning modalities the setup assistant asks about. Each one now
- * owns a themed mascot scene (`sceneKind`) so the survey page can act out the
- * modality: Sala puts on a baton for "a live teacher", picks up a book for
- * "reading", holds a joystick for "gaming", etc. Keep this list ordered —
- * the one-page-per-choice walker iterates it in order.
- */
-export const LEARNING_MODES = [
-  { id: "video",        label: "Watching videos", sceneKind: "video" },
-  { id: "live_teacher", label: "A live teacher",  sceneKind: "teacher" },
-  { id: "presentation", label: "Presentations",   sceneKind: "presentation" },
-  { id: "reading",      label: "Reading a book",  sceneKind: "reading" },
-  { id: "tutoring",     label: "1:1 tutoring",    sceneKind: "tutoring" },
-  { id: "gaming",       label: "Gaming",          sceneKind: "gaming" },
-] as const satisfies ReadonlyArray<{
-  readonly id: string;
-  readonly label: string;
-  readonly sceneKind: Extract<MascotScene, { kind: string }>["kind"];
-}>;
+export { LEARNING_MODES } from "../learningModes";
 
 const ART = {
   about: require("../../assets/setup-assistant/about.webp"),

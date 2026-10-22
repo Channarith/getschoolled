@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Modal, ScrollView, StyleSheet, Switch, Text,
-  TextInput, View,
-} from "react-native";
+import { Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
-  createStudent, getMe, getOnboardingSurvey, listStudents,
-  skipLearningProfile, submitLearningProfile, submitOnboardingSurveyAnalytics,
-  type StudentProfile, type SurveyTemplate,
+  createStudent, getMe, listStudents, submitLearningProfile, submitOnboardingSurveyAnalytics,
 } from "../api";
+import { LEARNING_MODES, savedModalityRatings } from "../learningModes";
 import AnimatedPressable from "./AnimatedPressable";
 import GlassPanel from "./GlassPanel";
 import PrimaryButton from "./PrimaryButton";
@@ -16,240 +12,139 @@ import { getToken, setSettings } from "../storage";
 import { theme } from "../theme";
 
 type Props = {
-  /** Increment to open the survey from Settings (manual edit). */
+  /** Increment to open the questions from Settings. */
   manualOpenToken?: number;
   onSaved?: () => void;
 };
 
-function requiredMissing(template: SurveyTemplate, answers: Record<string, unknown>): string[] {
-  return template.questions
-    .filter((q) => q.required && (answers[q.id] == null || answers[q.id] === ""))
-    .map((q) => q.id);
-}
+const SCALE_ROWS = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]];
 
-function answersFromProfile(student: StudentProfile): Record<string, string | number | boolean> {
-  const stored = student.onboarding_answers;
-  if (stored && Object.keys(stored).length) {
-    return stored as Record<string, string | number | boolean>;
-  }
-  const styleLabels: Record<string, string> = {
-    visual: "Visual — diagrams, video, demonstrations",
-    auditory: "Auditory — listening, discussion, narration",
-    reading_writing: "Reading & writing — notes, text, written steps",
-    hands_on: "Hands-on — practice, labs, doing it yourself",
-    mixed: "Mixed — no single style stands out",
-  };
-  const paceLabels: Record<string, string> = {
-    slow: "Slower with more review", moderate: "Moderate and steady", fast: "Faster with less repetition",
-  };
-  const structureLabels: Record<string, string> = {
-    step_by_step: "Step-by-step in order", examples_first: "Examples first, then rules",
-    big_picture: "Big picture first, then details", practice_heavy: "Short bursts with frequent practice",
-  };
-  const sessionLabels: Record<string, string> = {
-    short: "About 10 minutes", medium: "About 20–30 minutes", long: "45 minutes or longer",
-  };
-  const groupLabels: Record<string, string> = {
-    solo: "Mostly on my own", group: "Small group or class", either: "Either works for me",
-  };
-  const readingLabels: Record<string, string> = {
-    beginner: "Beginner — keep language simple", intermediate: "Intermediate",
-    advanced: "Advanced — dense text is fine",
-  };
-  const motivationLabels: Record<string, string> = {
-    career: "Career / job skills", school: "School or certification",
-    personal: "Personal curiosity", other: "Other",
-  };
-  const acc = student.accessibility || {};
-  return {
-    primary_style: styleLabels[student.primary_style || ""] || "",
-    pace: paceLabels[student.learning_pace || ""] || "",
-    structure: structureLabels[student.learning_structure || ""] || "",
-    session_length: sessionLabels[student.session_length || ""] || "",
-    group_preference: groupLabels[student.group_preference || ""] || "",
-    reading_level: readingLabels[student.reading_level || ""] || "",
-    motivation: motivationLabels[student.motivation || ""] || "",
-    needs_captions: Boolean(acc.needs_captions),
-    needs_large_text: Boolean(acc.needs_large_text),
-    needs_extra_time: Boolean(acc.needs_extra_time),
-    uses_assistive_tech: Boolean(acc.uses_assistive_tech),
-    accommodations_notes: student.accommodations_notes || "",
-  };
-}
-
-/** Edit dialog for a saved learning profile, opened from Settings. First sign-in asks these questions inside FirstSignInAssistant. */
-export default function LearningProfileSurvey({
-  manualOpenToken = 0,
-  onSaved,
-}: Props) {
-  const visibleRef = useRef(false);
+/**
+ * Settings → Update learning profile. The same six "how do you learn best"
+ * ratings as the setup assistant, one per page, without the face or voice
+ * check. The saved answers are prefilled so a change is a few taps.
+ */
+export default function LearningProfileSurvey({ manualOpenToken = 0, onSaved }: Props) {
   const [visible, setVisible] = useState(false);
-  const [manual, setManual] = useState(false);
-  const [template, setTemplate] = useState<SurveyTemplate | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string | number | boolean>>({});
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [index, setIndex] = useState(0);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [doneCategory, setDoneCategory] = useState("");
+  const opening = useRef(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    visibleRef.current = visible;
-  }, [visible]);
+  useEffect(() => () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  }, []);
 
-  async function prepare(force: boolean) {
-    if (!getToken()) return;
-    if (!force && visibleRef.current) return;
-
-    const me = await getMe();
-    const survey = await getOnboardingSurvey(me.id, me.tier);
-    if (!survey.enabled || !survey.template) return;
-
-    let students = (await listStudents()).students;
-    if (!students.length) {
-      students = [await createStudent(me.display_name || me.email.split("@")[0])];
+  async function open() {
+    if (!getToken() || opening.current) return;
+    opening.current = true;
+    try {
+      const me = await getMe();
+      let students = (await listStudents()).students;
+      if (!students.length) {
+        students = [await createStudent(me.display_name || me.email.split("@")[0])];
+      }
+      const primary = students.find((s) => s.onboarding_completed_at) ?? students[0];
+      setAccountId(me.id);
+      setStudentId(primary.id);
+      void setSettings({ studentId: primary.id });
+      setRatings(savedModalityRatings(primary.onboarding_answers));
+      setIndex(0);
+      setDoneCategory("");
+      setError("");
+      setVisible(true);
+    } finally {
+      opening.current = false;
     }
-    const primary = students.find((s) => !s.onboarding_completed_at) ?? students[0];
-    if (!force && primary.onboarding_completed_at) return;
-
-    setAccountId(me.id);
-    setStudentId(primary.id);
-    void setSettings({ studentId: primary.id });
-    setTemplate(survey.template);
-    setAnswers(primary.onboarding_completed_at ? answersFromProfile(primary) : {});
-    setDoneCategory("");
-    setError("");
-    setManual(force);
-    setVisible(true);
   }
 
   useEffect(() => {
-    if (manualOpenToken > 0) {
-      void prepare(true).catch((e) => setError(String(e)));
-    }
+    if (manualOpenToken > 0) void open().catch((e) => setError(String(e)));
   }, [manualOpenToken]);
 
-  async function onSubmit() {
-    if (!template || !studentId || !accountId) return;
-    if (requiredMissing(template, answers).length) {
-      setError("Please answer all required questions.");
+  const mode = LEARNING_MODES[index];
+  const current = mode ? ratings[mode.id] : undefined;
+  const last = index >= LEARNING_MODES.length - 1;
+
+  async function save() {
+    if (!studentId || !accountId) return;
+    if (LEARNING_MODES.some((m) => ratings[m.id] == null)) {
+      setError("Please rate all six.");
       return;
     }
     setBusy(true);
     setError("");
     try {
+      const answers = { modality_ratings: ratings };
       const res = await submitLearningProfile(studentId, answers);
-      await submitOnboardingSurveyAnalytics({
-        account_id: accountId, student_id: studentId, answers,
-      }).catch(() => undefined);
+      void submitOnboardingSurveyAnalytics({ account_id: accountId, student_id: studentId, answers })
+        .catch(() => undefined);
       setDoneCategory(res.learner_category);
       onSaved?.();
-      setTimeout(() => setVisible(false), manual ? 1200 : 1800);
+      closeTimer.current = setTimeout(() => setVisible(false), 1200);
     } catch (e) {
-      setError(String(e));
+      setError(String(e).replace(/^Error:\s*/, ""));
     } finally {
       setBusy(false);
     }
   }
 
-  async function onSkip() {
-    if (!studentId) { setVisible(false); return; }
-    setBusy(true);
-    try {
-      await skipLearningProfile(studentId);
-      onSaved?.();
-      setVisible(false);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!visible || !template) return null;
+  if (!visible) return null;
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={() => setVisible(false)}>
       <View style={styles.backdrop}>
         <GlassPanel style={styles.card} padded={false}>
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 16 }}>
-            <Text style={styles.title}>{template.title}</Text>
+            <Text style={styles.title}>How do you learn best?</Text>
             {doneCategory ? (
               <Text style={styles.body}>
                 Thanks! Profile saved ({doneCategory.replace(/_/g, " ")}).
               </Text>
             ) : (
               <>
-                {manual && (
-                  <Text style={styles.sub}>
-                    Updates sync to your account in the cloud — clearing app data will not reset this.
-                  </Text>
-                )}
-                {template.subtitle ? <Text style={styles.sub}>{template.subtitle}</Text> : null}
-                {template.questions.map((q) => (
-                  <View key={q.id} style={styles.q}>
-                    <Text style={styles.qPrompt}>{q.prompt}{q.required ? " *" : ""}</Text>
-                    {q.type === "choice" && q.options ? (
-                      <View style={styles.chips}>
-                        {q.options.map((opt) => {
-                          const on = answers[q.id] === opt;
-                          return (
-                            <AnimatedPressable key={opt} disabled={busy}
-                              onPress={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
-                              style={[styles.chip, on && styles.chipOn]}>
-                              <Text style={[styles.chipText, on && styles.chipTextOn]}>{opt}</Text>
-                            </AnimatedPressable>
-                          );
-                        })}
-                      </View>
-                    ) : null}
-                    {q.type === "bool" ? (
-                      <View style={styles.boolRow}>
-                        <Switch
-                          value={Boolean(answers[q.id])}
+                <Text style={styles.sub}>
+                  Rate from 1 (not for me) to 10 (I love it). Step {index + 1} of {LEARNING_MODES.length}.
+                  Updates sync to your account.
+                </Text>
+                <Text style={styles.mode}>{mode.label}</Text>
+                {SCALE_ROWS.map((row, rowIndex) => (
+                  <View key={rowIndex} style={styles.scaleRow}>
+                    {row.map((value) => {
+                      const on = current === value;
+                      return (
+                        <AnimatedPressable
+                          key={value}
                           disabled={busy}
-                          onValueChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
-                          trackColor={{ false: "#334155", true: theme.colors.netflix }}
-                          thumbColor="#fff"
-                        />
-                        <Text style={styles.body}>Yes</Text>
-                      </View>
-                    ) : null}
-                    {q.type === "text" ? (
-                      <TextInput
-                        style={styles.input}
-                        multiline
-                        editable={!busy}
-                        value={String(answers[q.id] ?? "")}
-                        onChangeText={(t) => setAnswers((a) => ({ ...a, [q.id]: t }))}
-                        placeholderTextColor={theme.colors.muted}
-                      />
-                    ) : null}
+                          accessibilityLabel={`${mode.label}: ${value} of 10`}
+                          onPress={() => setRatings((r) => ({ ...r, [mode.id]: value }))}
+                          style={[styles.scale, on && styles.scaleOn]}
+                        >
+                          <Text style={[styles.scaleText, on && styles.scaleTextOn]}>{value}</Text>
+                        </AnimatedPressable>
+                      );
+                    })}
                   </View>
                 ))}
                 {error ? <Text style={styles.error}>{error}</Text> : null}
                 <View style={styles.actions}>
                   <PrimaryButton
-                    label={busy ? "Saving…" : manual ? "Save changes" : "Save profile"}
-                    onPress={() => void onSubmit()}
-                    disabled={busy}
+                    label={busy ? "Saving…" : last ? "Save changes" : current == null ? "Rate to continue" : "Next"}
+                    onPress={() => (last ? void save() : setIndex((i) => Math.min(LEARNING_MODES.length - 1, i + 1)))}
+                    disabled={busy || current == null}
                     loading={busy}
                   />
-                  {!manual ? (
-                    <PrimaryButton
-                      label="Skip for now"
-                      onPress={() => void onSkip()}
-                      disabled={busy}
-                      variant="ghost"
-                    />
-                  ) : (
-                    <PrimaryButton
-                      label="Cancel"
-                      onPress={() => setVisible(false)}
-                      disabled={busy}
-                      variant="ghost"
-                    />
-                  )}
+                  <PrimaryButton
+                    label={index > 0 ? "Back" : "Cancel"}
+                    onPress={() => (index > 0 ? setIndex((i) => i - 1) : setVisible(false))}
+                    disabled={busy}
+                    variant="ghost"
+                  />
                 </View>
               </>
             )}
@@ -266,22 +161,16 @@ const styles = StyleSheet.create({
   title: { color: theme.colors.text, fontSize: 22, fontWeight: "800", marginBottom: 8 },
   sub: { color: theme.colors.muted, marginBottom: 12, lineHeight: 18 },
   body: { color: theme.colors.text, lineHeight: 20 },
-  q: { marginBottom: 14 },
-  qPrompt: { color: theme.colors.text, fontWeight: "700", marginBottom: 8 },
-  chips: { gap: 8 },
-  chip: {
+  mode: { color: theme.colors.text, fontSize: 20, fontWeight: "800", marginBottom: 12 },
+  scaleRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
+  scale: {
+    flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.06)", borderRadius: theme.radius.md,
-    padding: 10, marginBottom: 6, borderWidth: 1, borderColor: theme.colors.border,
+    borderWidth: 1, borderColor: theme.colors.border,
   },
-  chipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
-  chipText: { color: theme.colors.muted, fontSize: 13 },
-  chipTextOn: { color: "#fff", fontWeight: "700" },
-  boolRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  input: {
-    backgroundColor: "rgba(255,255,255,0.06)", color: theme.colors.text,
-    borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border,
-    padding: 10, minHeight: 72, textAlignVertical: "top",
-  },
+  scaleOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
+  scaleText: { color: theme.colors.muted, fontSize: 16, fontWeight: "700" },
+  scaleTextOn: { color: "#fff" },
   error: { color: theme.colors.danger, marginTop: 8 },
   actions: { marginTop: 16, gap: 10 },
 });
