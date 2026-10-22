@@ -282,9 +282,11 @@ class AccountStore:
         """Remove several accounts and persist once. Returns the ids actually removed."""
         removed: List[str] = []
         for account_id in dict.fromkeys(account_ids):
-            acct = self._by_id.pop(account_id, None)
-            if acct is None:
+            # by_id() loads an account this replica has not seen yet, so the
+            # shared copy is removed too and not just a local one.
+            if self.by_id(account_id) is None:
                 continue
+            acct = self._by_id.pop(account_id)
             self._id_by_email.pop(acct.email.lower(), None)
             self._game_stats.pop(account_id, None)
             self._submitted_game_ids.pop(account_id, None)
