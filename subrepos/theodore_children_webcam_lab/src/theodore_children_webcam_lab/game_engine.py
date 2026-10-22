@@ -102,6 +102,8 @@ GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
         ("popcorn", "Catch popcorn"),
     ]),
     ("Move", [
+        ("mirror-hall", "Mirror Hall"),
+        ("ninja-weave", "Ninja Weave"),
         ("fruit-cut", "Fruit cut"),
         ("air-drums", "Air drums"),
         ("bird-flap", "Flap like a bird"),

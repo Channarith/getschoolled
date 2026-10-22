@@ -77,6 +77,8 @@ export const VISION_ARCADE: VisionSection[] = [
     id: "move",
     title: "Move",
     games: [
+      { id: "mirror-hall", label: "Mirror Hall", emoji: "🪞" },
+      { id: "ninja-weave", label: "Ninja Weave", emoji: "🥷" },
       { id: "fruit-cut", label: "Fruit cut", emoji: "🍉" },
       { id: "air-drums", label: "Air drums", emoji: "🥁" },
       { id: "bird-flap", label: "Flap like a bird", emoji: "🐦" },

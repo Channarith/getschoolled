@@ -7,9 +7,16 @@
 import assert from "node:assert/strict";
 import {
   FIST_MAX_PALMS, FINGERTIP_LANDMARKS, HAND_BONES, SIGNAL_HOLD_MS, AWAY_HOLD_MS, RETURN_HOLD_MS,
-  activeFingertips, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame, createPresenceWatch, fingersPointed,
-  handShape, heartRatios, isHeartShape, localMathRound, mapMirroredLandmark, palmSpan, profileTouchAge,
-  newThrowTracker, projectThrowTarget, syntheticHand, tipHitsTarget, traceProgress,
+  MIRROR_HOLD_MS, MIRROR_PACES, MIRROR_ROUTINE, MIRROR_SEATED_MAX_Y,
+  NINJA_DEFAULT_TECHNIQUE, NINJA_EFFECTS, NINJA_ELEMENTS, NINJA_FORMS, NINJA_HAND_SHAPES, NINJA_PLACEMENTS,
+  NINJA_HOLD_GRACE_MS, NINJA_HOLD_MS, NINJA_RELEASE_MS, NINJA_SEALS, NINJA_TECHNIQUES, NINJA_TIER_LENGTHS,
+  ninjaEffectParticles, ninjaEffectSpec, ninjaShapeFits, ninjaShapeOf, ninjaTechniqueList,
+  activeFingertips, advanceMirrorBeat, advanceNinjaWeave, advanceThrowGesture, catchRadiusPx, claimTouch, coverFrame,
+  createPresenceWatch, defaultMirrorPace, fingersPointed, freshMirrorRun,
+  handShape, heartRatios, isHeartShape, localMathRound, mapMirroredLandmark, mirrorBeatMatched,
+  mirrorPace, mirrorPose, mirrorStars, mirrorSummary, palmSpan, profileTouchAge,
+  freshNinjaRun, newThrowTracker, ninjaSealFits, ninjaTechnique, projectThrowTarget, recognizeNinjaSeal,
+  syntheticHand, tipHitsTarget, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 
 // A canonical right hand, palm size 1.0, fingers pointing up (-y).
@@ -408,7 +415,274 @@ assert.deepEqual(localMathRound("4-6", "nope"), localMathRound("4-6", 0));
   assert.equal(resumed.event, null, "stale throw must not replay after cancel");
 }
 
-// --- 6. A Python-driven parity emitter --------------------------------------
+// --- 6. Mirror Hall: pace, seated lights, and a hold that scores -----------
+assert.equal(MIRROR_ROUTINE.length, 8);
+assert.equal(defaultMirrorPace("4-6"), "easy");
+assert.equal(defaultMirrorPace("7-10"), "family");
+assert.ok(MIRROR_PACES.easy.radius > MIRROR_PACES.family.radius);
+assert.ok(MIRROR_PACES.family.radius > MIRROR_PACES.sharp.radius);
+assert.equal(mirrorPace("easy").windowMs, 2200);
+assert.equal(mirrorPace("family").windowMs, 1500);
+assert.equal(mirrorPace("sharp").windowMs, 900);
+assert.equal(mirrorPace("easy").retries, 1);
+assert.equal(mirrorPace("sharp").retries, 0);
+assert.equal(mirrorPace("nope").id, "family");
+
+const standingFreeze = mirrorPose(7, { seated: false });
+const seatedFreeze = mirrorPose(7, { seated: true });
+assert.equal(standingFreeze.prompt, "Freeze");
+assert.ok(standingFreeze.left.y > MIRROR_SEATED_MAX_Y);
+assert.ok(standingFreeze.right.y > MIRROR_SEATED_MAX_Y);
+assert.equal(seatedFreeze.left.y, MIRROR_SEATED_MAX_Y);
+assert.equal(seatedFreeze.right.y, MIRROR_SEATED_MAX_Y);
+assert.equal(seatedFreeze.head.y, standingFreeze.head.y);
+
+function shiftPose(pose, dx) {
+  const move = (point) => ({ x: point.x + dx, y: point.y });
+  return { head: move(pose.head), left: move(pose.left), right: move(pose.right) };
+}
+const handsUp = mirrorPose(0);
+const easyReach = mirrorPace("easy").radius;
+assert.equal(mirrorBeatMatched(handsUp, handsUp, easyReach), true);
+assert.equal(mirrorBeatMatched(shiftPose(handsUp, easyReach * 0.5), handsUp, easyReach), true);
+assert.equal(mirrorBeatMatched(shiftPose(handsUp, easyReach + 0.02), handsUp, easyReach), false);
+assert.equal(mirrorBeatMatched(
+  { head: { x: 0, y: 1 }, left: { x: 0, y: 1 }, right: { x: 1, y: 1 } },
+  handsUp,
+  easyReach,
+), false);
+
+let hall = freshMirrorRun("family");
+let clock = 0;
+for (let beat = 0; beat < MIRROR_ROUTINE.length; beat += 1) {
+  hall = { ...hall, windowStart: clock };
+  const pose = mirrorPose(beat);
+  assert.equal(mirrorBeatMatched(pose, pose, mirrorPace("family").radius), true);
+  let step = advanceMirrorBeat(hall, { matched: true, now: clock });
+  assert.equal(step.event, "hold", `beat ${beat} should start the hold`);
+  clock += MIRROR_HOLD_MS;
+  step = advanceMirrorBeat(step, { matched: true, now: clock });
+  assert.equal(step.event, beat === MIRROR_ROUTINE.length - 1 ? "done" : "hit");
+  hall = step;
+  clock += 20;
+}
+assert.equal(hall.hits, 8);
+assert.equal(hall.bestCombo, 8);
+assert.equal(hall.finished, true);
+assert.equal(mirrorStars(hall.hits, 8), 3);
+assert.equal(mirrorSummary(hall).line, "8 of 8 lights. Best combo 8.");
+assert.equal(mirrorStars(5, 8), 2);
+assert.equal(mirrorStars(4, 8), 1);
+
+let easyMiss = { ...freshMirrorRun("easy"), windowStart: 0 };
+easyMiss = advanceMirrorBeat(easyMiss, { matched: false, now: 2200 });
+assert.equal(easyMiss.event, "retry");
+assert.equal(easyMiss.index, 0);
+assert.equal(easyMiss.retries, 1);
+easyMiss = advanceMirrorBeat(easyMiss, { matched: false, now: 4400 });
+assert.equal(easyMiss.event, "miss");
+assert.equal(easyMiss.index, 1);
+assert.equal(easyMiss.combo, 0);
+
+let sharpMiss = { ...freshMirrorRun("sharp"), windowStart: 0 };
+sharpMiss = advanceMirrorBeat(sharpMiss, { matched: false, now: 900 });
+assert.equal(sharpMiss.event, "miss");
+assert.equal(sharpMiss.retries, 0);
+assert.equal(sharpMiss.index, 1);
+
+// --- 7. Ninja Weave: 75 signs, 220 finishers, release-gated sequences -------
+const SHAPE_FINGERS = {
+  fist: [false, false, false, false],
+  point: [true, false, false, false],
+  peace: [true, true, false, false],
+  open: [true, true, true, true],
+  horns: [true, false, false, true],
+};
+const ninjaHand = (x, shape, y = 300) => ({
+  wrist: {x, y},
+  fist: shape === "fist",
+  fingers: SHAPE_FINGERS[shape],
+});
+const STAGE_W = 1000;
+const STAGE_H = 800;
+// Canonical pose for a sign: apart = 50% wide, together = 15%, stacked = 40% tall.
+function poseFor(sealId) {
+  const seal = NINJA_SEALS[sealId];
+  if (seal.placement === "stacked") return [ninjaHand(500, seal.a, 160), ninjaHand(520, seal.b, 480)];
+  const gap = seal.placement === "apart" ? 500 : 150;
+  return [ninjaHand(250, seal.a), ninjaHand(250 + gap, seal.b)];
+}
+
+assert.ok(Object.keys(NINJA_SEALS).length >= 50, "at least 50 signs");
+assert.equal(Object.keys(NINJA_SEALS).length,
+  Object.keys(NINJA_HAND_SHAPES).length ** 2 * Object.keys(NINJA_PLACEMENTS).length);
+assert.ok(Object.keys(NINJA_EFFECTS).length > 200, "over 200 finisher effects");
+assert.equal(Object.keys(NINJA_EFFECTS).length, Object.keys(NINJA_ELEMENTS).length * NINJA_FORMS.length);
+assert.equal(new Set(Object.values(NINJA_SEALS).map((seal) => seal.label)).size, Object.keys(NINJA_SEALS).length);
+assert.equal(new Set(Object.values(NINJA_EFFECTS).map((fx) => fx.label)).size, Object.keys(NINJA_EFFECTS).length);
+
+// Every sign reads back as itself from its canonical pose, and fits itself.
+for (const sealId of Object.keys(NINJA_SEALS)) {
+  const pose = poseFor(sealId);
+  assert.equal(recognizeNinjaSeal(pose, STAGE_W, STAGE_H), sealId, `recognize ${sealId}`);
+  assert.equal(ninjaSealFits(pose, sealId, STAGE_W, STAGE_H), true, `fits ${sealId}`);
+  // Hand order in the input array does not matter.
+  assert.equal(ninjaSealFits([...pose].reverse(), sealId, STAGE_W, STAGE_H), true);
+}
+assert.equal(recognizeNinjaSeal([ninjaHand(100, "open")], STAGE_W, STAGE_H), null);
+
+// Real landmarks: a horns hand comes out of handShape as horns.
+const curled = canonicalHand({ curl: 1 });
+const hornsPoints = canonicalHand({ curl: 0 }).map((point, i) => (i >= 9 && i <= 16 ? curled[i] : point));
+const hornsShape = handShape(place(hornsPoints, { scale: 0.12 }));
+assert.deepEqual(hornsShape.fingers, [true, false, false, true]);
+assert.equal(ninjaShapeOf(hornsShape), "horns");
+assert.equal(ninjaShapeOf(handShape(place(canonicalHand({ curl: 0 }), { scale: 0.12 }))), "open");
+
+// Room for error: a stray finger, three-of-four fingers, and in-between gaps.
+assert.equal(ninjaShapeFits({fingers: [false, false, true, false]}, "fist"), true);
+assert.equal(ninjaShapeFits({fingers: [true, false, false, true]}, "point"), true);
+assert.equal(ninjaShapeFits({fingers: [true, true, true, false]}, "peace"), true);
+assert.equal(ninjaShapeFits({fingers: [true, true, true, false]}, "open"), true);
+assert.equal(ninjaShapeFits({fingers: [true, true, false, true]}, "horns"), true);
+assert.equal(ninjaShapeFits({fingers: [true, true, true, true]}, "peace"), false);
+assert.equal(ninjaShapeFits({fist: true, fingers: [true, true, true, true]}, "open"), false);
+// Hands without per-finger flags (screen / demo) still work.
+assert.equal(ninjaShapeOf({indexUp: true, count: 1}), "point");
+assert.equal(ninjaShapeOf({count: 5}), "open");
+const midGap = [ninjaHand(250, "open"), ninjaHand(550, "open")];
+assert.equal(ninjaSealFits(midGap, "open-open-together", STAGE_W, STAGE_H), true);
+assert.equal(ninjaSealFits(midGap, "open-open-apart", STAGE_W, STAGE_H), true);
+assert.equal(ninjaSealFits(poseFor("open-open-apart"), "open-open-together", STAGE_W, STAGE_H), false);
+assert.equal(ninjaSealFits(poseFor("open-open-together"), "open-open-apart", STAGE_W, STAGE_H), false);
+assert.equal(ninjaSealFits(poseFor("open-open-apart"), "open-open-stacked", STAGE_W, STAGE_H), false);
+// Order matters, except on Easy pace where swapped hands are accepted.
+const swapped = poseFor("fist-open-apart");
+assert.equal(ninjaSealFits(swapped, "open-fist-apart", STAGE_W, STAGE_H), false);
+assert.equal(ninjaSealFits(swapped, "open-fist-apart", STAGE_W, STAGE_H, {mirrorOk: true}), true);
+
+// Techniques: unique sequences, consecutive signs differ, every sign is used,
+// lengths follow the form tier, early tiers stick to the easiest signs.
+const sequenceKeys = new Set();
+const usedSeals = new Set();
+for (const technique of Object.values(NINJA_TECHNIQUES)) {
+  assert.equal(technique.sequence.length, NINJA_TIER_LENGTHS[technique.tier]);
+  assert.ok(technique.sequence.every((seal) => NINJA_SEALS[seal]), technique.id);
+  technique.sequence.forEach((seal, i) => {
+    usedSeals.add(seal);
+    if (i) assert.notEqual(seal, technique.sequence[i - 1], `${technique.id} repeats a sign`);
+  });
+  if (technique.tier === 0) assert.ok(technique.sequence.every((seal) => NINJA_SEALS[seal].level === 1));
+  sequenceKeys.add(technique.sequence.join(" "));
+}
+assert.equal(sequenceKeys.size, Object.keys(NINJA_TECHNIQUES).length, "unique sequences");
+assert.equal(usedSeals.size, Object.keys(NINJA_SEALS).length, "every sign appears in a weave");
+assert.equal(ninjaTechnique("unknown").id, NINJA_DEFAULT_TECHNIQUE);
+assert.equal(ninjaTechniqueList("water").length, NINJA_FORMS.length);
+assert.ok(ninjaTechniqueList("water").every((t) => t.element === "water"));
+
+// Every finisher has a spec and a finite particle plan that stays near the stage.
+const pathSignatures = new Set();
+for (const id of Object.keys(NINJA_EFFECTS)) {
+  const spec = ninjaEffectSpec(id);
+  assert.equal(spec.id, id);
+  assert.equal(spec.colors.length, 3);
+  assert.ok(spec.pitch > 0.5 && spec.pitch < 1.5);
+  const particles = ninjaEffectParticles(id, 18);
+  assert.equal(particles.length, 18);
+  for (const particle of particles) {
+    assert.ok(particle.points.length >= 2);
+    assert.ok(particle.delay >= 0 && particle.delay <= 1000);
+    for (const point of particle.points) {
+      assert.ok(Number.isFinite(point.x) && point.x >= -0.2 && point.x <= 1.2, id);
+      assert.ok(Number.isFinite(point.y) && point.y >= -0.2 && point.y <= 1.2, id);
+    }
+  }
+  pathSignatures.add(JSON.stringify(particles.map((p) => p.points)));
+}
+assert.equal(pathSignatures.size, Object.keys(NINJA_EFFECTS).length, "every effect moves differently");
+assert.deepEqual(ninjaEffectParticles("fire-comet", 12), ninjaEffectParticles("fire-comet", 12));
+
+const firstSeal = NINJA_TECHNIQUES[NINJA_DEFAULT_TECHNIQUE].sequence[0];
+let forgiving = freshNinjaRun(NINJA_DEFAULT_TECHNIQUE, "family");
+forgiving = advanceNinjaWeave(forgiving, {seal: firstSeal, now: 0});
+assert.equal(forgiving.event, "hold");
+forgiving = advanceNinjaWeave(forgiving, {seal: null, now: 80});
+assert.equal(forgiving.event, "hold");
+assert.ok(80 <= NINJA_HOLD_GRACE_MS);
+forgiving = advanceNinjaWeave(forgiving, {seal: firstSeal, now: NINJA_HOLD_MS});
+assert.equal(forgiving.event, "step");
+
+const longest = Object.values(NINJA_TECHNIQUES).find((t) => t.sequence.length === 6);
+let weave = freshNinjaRun(longest.id, "family");
+let weaveNow = 0;
+for (const expected of longest.sequence) {
+  let step = advanceNinjaWeave(weave, {seal: expected, now: weaveNow});
+  assert.equal(step.event, "hold");
+  weaveNow += NINJA_HOLD_MS;
+  step = advanceNinjaWeave(step, {seal: expected, now: weaveNow});
+  weave = step;
+  if (!weave.finished) {
+    assert.equal(weave.event, "step");
+    weaveNow += 1;
+    weave = advanceNinjaWeave(weave, {seal: null, now: weaveNow});
+    assert.equal(weave.event, "release");
+    weaveNow += NINJA_RELEASE_MS;
+    weave = advanceNinjaWeave(weave, {seal: null, now: weaveNow});
+  }
+  weaveNow += 1;
+}
+assert.equal(weave.finished, true);
+assert.equal(weave.index, 6);
+assert.equal(weave.bestCombo, 6);
+assert.equal(weave.event, "done");
+
+let wrongWeave = freshNinjaRun("water-wave", "sharp");
+const notWanted = Object.keys(NINJA_SEALS).find((id) => id !== NINJA_TECHNIQUES["water-wave"].sequence[0]);
+wrongWeave = advanceNinjaWeave(wrongWeave, {seal: notWanted, now: 10});
+assert.equal(wrongWeave.event, "wrong");
+wrongWeave = advanceNinjaWeave(wrongWeave, {seal: null, now: 60010});
+assert.equal(wrongWeave.event, "waiting");
+assert.equal(wrongWeave.combo, 0);
+assert.equal(wrongWeave.index, 0);
+
+// Fast movement can leave only a few tracker samples. Three brief samples are
+// enough; they do not need to form one uninterrupted wall-clock hold.
+let quickWeave = freshNinjaRun(NINJA_DEFAULT_TECHNIQUE, "family");
+quickWeave = advanceNinjaWeave(quickWeave, {seal: firstSeal, now: 0});
+quickWeave = advanceNinjaWeave(quickWeave, {seal: firstSeal, now: 35});
+quickWeave = advanceNinjaWeave(quickWeave, {seal: firstSeal, now: 70});
+assert.equal(quickWeave.event, "step");
+assert.equal(quickWeave.index, 1);
+
+// Dropouts and wrong intermediate poses preserve evidence for the requested
+// sign. A player may also pause for any length of time between discrete signs.
+let interrupted = freshNinjaRun(NINJA_DEFAULT_TECHNIQUE, "family");
+interrupted = advanceNinjaWeave(interrupted, {seal: firstSeal, now: 0});
+interrupted = advanceNinjaWeave(interrupted, {seal: notWanted, now: 70});
+assert.equal(interrupted.event, "hold");
+interrupted = advanceNinjaWeave(interrupted, {seal: null, now: 500});
+assert.equal(interrupted.event, "hold");
+interrupted = advanceNinjaWeave(interrupted, {seal: notWanted, now: 900});
+assert.equal(interrupted.event, "hold");
+interrupted = advanceNinjaWeave(interrupted, {seal: firstSeal, now: 1100});
+assert.equal(interrupted.event, "step");
+
+const secondSeal = NINJA_TECHNIQUES[NINJA_DEFAULT_TECHNIQUE].sequence[1];
+const wrongForSecond = Object.keys(NINJA_SEALS).find((id) => id !== secondSeal && id !== firstSeal);
+interrupted = advanceNinjaWeave(interrupted, {seal: wrongForSecond, now: 1200});
+assert.equal(interrupted.event, "release");
+interrupted = advanceNinjaWeave(interrupted, {seal: wrongForSecond, now: 1300});
+assert.equal(interrupted.event, "wrong");
+interrupted = advanceNinjaWeave(interrupted, {seal: null, now: 61300});
+assert.equal(interrupted.event, "waiting");
+assert.equal(interrupted.index, 1);
+interrupted = advanceNinjaWeave(interrupted, {seal: secondSeal, now: 70000});
+interrupted = advanceNinjaWeave(interrupted, {seal: secondSeal, now: 70120});
+assert.equal(interrupted.event, "step");
+assert.equal(interrupted.index, 2);
+
+// --- 8. A Python-driven parity emitter --------------------------------------
 // When invoked with --emit-math-rounds=<age>:<i0>,<i1>,..., print one JSON
 // round per line so test_math_toss_fallback_matches_server() in Python can
 // diff the Node output against math_toss_round() for byte-identical parity
