@@ -1107,6 +1107,34 @@ def _course_from_library(course: AudioCourse, tloc: str) -> Optional[AudioCourse
     return localized
 
 
+def _course_from_ondemand(course: AudioCourse, tloc: str) -> Optional[AudioCourse]:
+    from .course_translation_ondemand import enabled, get_cached
+
+    if not enabled():
+        return None
+    record = get_cached(course.id, tloc, len(course.segments))
+    if not record:
+        return None
+    localized = course.model_copy(deep=True)
+    localized.segments = [
+        AudioSegment(heading=row["heading"], text=row["text"], kind=row.get("kind", "narration"))
+        for row in record["segments"]
+    ]
+    localized.body_locale = tloc
+    return localized
+
+
+def _request_ondemand(course: AudioCourse, tloc: str) -> None:
+    from .course_translation_ondemand import request_course_translation
+
+    request_course_translation(
+        course.id,
+        course.title,
+        [{"heading": s.heading, "text": s.text, "kind": s.kind} for s in course.segments],
+        tloc,
+    )
+
+
 def _maybe_translate(course: AudioCourse, tloc: str) -> AudioCourse:
     """Return ``course`` spoken in ``tloc`` when a translator can provide it.
 
@@ -1122,10 +1150,13 @@ def _maybe_translate(course: AudioCourse, tloc: str) -> AudioCourse:
     cached = _TRANSLATED_COURSES.get(key)
     if cached is not None:
         return cached
-    stored = _course_from_library(course, tloc)
+    stored = _course_from_library(course, tloc) or _course_from_ondemand(course, tloc)
     if stored is not None:
         _TRANSLATED_COURSES[key] = stored
         return stored
+    # Not translated yet: this learner hears English now; a background job (when
+    # enabled) translates the whole course so the next request gets it.
+    _request_ondemand(course, tloc)
     source = course.body_locale or "en"
     new_segments: List[AudioSegment] = []
     translated_any = False
