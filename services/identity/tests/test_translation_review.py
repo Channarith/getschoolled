@@ -34,6 +34,8 @@ def _library(monkeypatch, tmp_path):
     monkeypatch.setenv("TRANSLATION_REVIEWER_EMAILS", "reviewer@example.com")
     tr._machine_for_language.cache_clear()
     tr._course_lengths.cache_clear()
+    tr._course_index.cache_clear()
+    tr._unit_courses.cache_clear()
     app.state.review_store = tr.ReviewStore(tr.MemoryKV())
     app.state.accounts = AccountStore()
     app.state.accounts.seed_admin("admin@salareen.com", "88888888", username="admin")
@@ -116,3 +118,47 @@ def test_export_has_the_final_text_for_correct_and_typed_reviews():
     pairs = client.get("/admin/translation-review/export", params={"lang": "es"}, headers=admin).json()["pairs"]
     assert {p["verdict"] for p in pairs} == {"correct", "better"}
     assert next(p for p in pairs if p["verdict"] == "better")["target"]["text"] == "Mejor texto."
+
+
+def test_overview_lists_every_language_even_those_not_translated_yet():
+    admin = _token("admin@salareen.com", "88888888")
+    langs = client.get("/admin/translation-review/overview", headers=admin).json()["languages"]
+    assert len(langs) == 26
+    by = {row["lang"]: row for row in langs}
+    assert by["fr"]["translated"] and by["fr"]["units_total"] > 0
+    assert by["km"]["translated"] is False and by["km"]["units_total"] == 0
+    assert [r["lang"] for r in langs][:2] == sorted(r["lang"] for r in langs if r["translated"])[:2] or langs[0]["translated"]
+
+
+def test_courses_are_completed_only_when_every_translated_language_is_reviewed():
+    admin = _token("admin@salareen.com", "88888888")
+    store = app.state.review_store
+    totals = client.get("/admin/translation-review/courses", headers=admin).json()["totals"]
+    assert totals["courses_translated"] == 6 and totals["courses_completed"] == 0
+    assert totals["courses_not_started"] == totals["courses"] - 6
+
+    course_id = next(iter(tr._course_index()))
+    keys = list(dict.fromkeys(tr._course_index()[course_id]["keys"]))
+    for lang in ("fr", "es"):
+        for key in keys:
+            if key in tr._machine_for_language(lang, tr._library_signature(lang)):
+                try:
+                    store.submit(lang, key, "a@example.com", "correct")
+                except LookupError:
+                    pass  # a passage shared with another course was already reviewed
+    body = client.get("/admin/translation-review/courses", headers=admin).json()
+    done = [c for c in body["completed"] if c["id"] == course_id]
+    assert done and sorted(done[0]["complete"]) == ["es", "fr"]
+    assert body["totals"]["courses_completed"] >= 1
+    assert all(course_id != c["id"] for c in body["in_progress"])
+
+
+def test_the_queue_finishes_a_started_course_before_opening_a_new_one():
+    admin = _token("admin@salareen.com", "88888888")
+    first = client.get("/admin/translation-review/next", params={"lang": "fr"}, headers=admin).json()["unit"]
+    client.post("/admin/translation-review/submit", json={"lang": "fr", "key": first["key"], "verdict": "correct"}, headers=admin)
+    owners = set(tr._unit_courses()[first["key"]])
+    for _ in range(3):
+        unit = client.get("/admin/translation-review/next", params={"lang": "fr"}, headers=admin).json()["unit"]
+        assert set(tr._unit_courses()[unit["key"]]) & owners, "stayed in the started course"
+        client.post("/admin/translation-review/submit", json={"lang": "fr", "key": unit["key"], "verdict": "correct"}, headers=admin)

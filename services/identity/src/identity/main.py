@@ -470,12 +470,12 @@ class TranslationReviewSubmit(BaseModel):
 
 @app.get("/admin/translation-review/overview")
 def translation_review_overview(_acct=Depends(require_reviewer)) -> dict:
-    from aoep_shared.translation_review import reviewable_languages
+    return _review_store().overview()
 
-    store = _review_store()
-    languages = [store.stats(lang) for lang in reviewable_languages()]
-    languages.sort(key=lambda row: -row["units_total"])
-    return {"languages": languages}
+
+@app.get("/admin/translation-review/courses")
+def translation_review_courses(_acct=Depends(require_reviewer)) -> dict:
+    return _review_store().course_progress()
 
 
 @app.get("/admin/translation-review/next")
