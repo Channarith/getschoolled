@@ -31,6 +31,7 @@ import { playIntro, INTRO_AUTOPLAY_KEY } from "../components/IntroSequence";
 import { INTRO_VARIANTS } from "../lib/introAnimations";
 import { useT } from "../lib/i18n";
 import LanguagePicker from "../components/LanguagePicker";
+import AdminAccountsTable from "../components/AdminAccountsTable";
 // AvatarPicker (the grid of ~20 face thumbnails + the "realistic" style
 // toggle) is intentionally NOT imported here. The user asked us to hide the
 // avatar grid in profile settings because the current palette looked
@@ -56,6 +57,7 @@ export default function AccountPage() {
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [showAdminTools, setShowAdminTools] = useState(false);
   const [allAccounts, setAllAccounts] = useState<Account[]>([]);
+  const [myAccountId, setMyAccountId] = useState("");
   const [primaryStudent, setPrimaryStudent] = useState<StudentProfile | null>(null);
   const [introAutoplay, setIntroAutoplay] = useState(true);
   const [membershipPlans, setMembershipPlans] = useState<ConsumerPlan[]>([]);
@@ -76,6 +78,7 @@ export default function AccountPage() {
         getConsumerPlans().catch(() => ({} as Record<string, ConsumerPlan>)),
       ]);
       setMembershipPlans(orderedConsumerPlans(planCatalog));
+      setMyAccountId(me.id);
       setIsAdmin(Boolean(me.is_admin));
       setAdminUnlocked(Boolean(me.is_admin) || isAdminUnlocked());
       if (me.is_admin) {
@@ -527,26 +530,17 @@ export default function AccountPage() {
               {allAccounts.length === 0 ? (
                 <p className="muted">{t("account.noAccounts")}</p>
               ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: "left", padding: "6px 4px" }}>{t("account.tableEmail")}</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px" }}>{t("account.tableName")}</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px" }}>{t("account.tableTier")}</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px" }}>{t("account.tableAdmin")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allAccounts.map((a) => (
-                      <tr key={a.id}>
-                        <td style={{ padding: "6px 4px" }}>{a.email}</td>
-                        <td style={{ padding: "6px 4px" }}>{a.display_name}</td>
-                        <td style={{ padding: "6px 4px" }}>{a.tier}</td>
-                        <td style={{ padding: "6px 4px" }}>{a.is_admin ? "yes" : ""}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <AdminAccountsTable
+                  accounts={allAccounts}
+                  myId={myAccountId}
+                  onChanged={refresh}
+                  labels={{
+                    email: t("account.tableEmail"),
+                    name: t("account.tableName"),
+                    tier: t("account.tableTier"),
+                    admin: t("account.tableAdmin"),
+                  }}
+                />
               )}
             </div>
           )}

@@ -431,3 +431,18 @@ test("the learning profile edit asks the six setup modes and prefills valid save
   assert.deepEqual(savedModalityRatings(undefined), {});
   assert.deepEqual(savedModalityRatings({ modality_ratings: "x" }), {});
 });
+
+import { deletableAccounts, filterAccounts } from "../../app/lib/adminAccounts.ts";
+
+test("the admin list only offers accounts an operator may delete, and filters by email or name", () => {
+  const rows = [
+    { id: "a", email: "admin@salareen.com", display_name: "Admin", is_admin: true },
+    { id: "b", email: "me@salareen.com", display_name: "Me", is_admin: false },
+    { id: "c", email: "junk-1@example.com", display_name: "Test One", is_admin: false },
+    { id: "d", email: "junk-2@example.com", display_name: "Test Two", is_admin: false },
+  ];
+  assert.deepEqual(deletableAccounts(rows, "b").map((r) => r.id), ["c", "d"]);
+  assert.deepEqual(filterAccounts(rows, " EXAMPLE.com ").map((r) => r.id), ["c", "d"]);
+  assert.deepEqual(filterAccounts(rows, "two").map((r) => r.id), ["d"]);
+  assert.equal(filterAccounts(rows, "").length, 4);
+});

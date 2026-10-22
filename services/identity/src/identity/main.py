@@ -507,9 +507,75 @@ def translation_review_export(lang: str, _acct=Depends(require_reviewer)) -> dic
 @app.get("/admin/accounts")
 def admin_list_accounts(_acct=Depends(require_admin_account)) -> dict:
     """List every member account (operator admin UI)."""
+    from .persistence import prune_deleted_accounts
+
+    prune_deleted_accounts(app.state.accounts)
     rows = [a.public() for a in app.state.accounts.list_all_accounts()]
     rows.sort(key=lambda r: r.get("created_at", 0), reverse=True)
     return {"accounts": rows, "count": len(rows)}
+
+
+class AdminDeleteAccountsRequest(BaseModel):
+    account_ids: list[str]
+    confirm: str = ""
+
+
+MAX_ADMIN_DELETES = 50
+# Saved face and voice data is removed after the accounts, within this budget.
+ADMIN_PURGE_BUDGET_S = 15.0
+
+
+@app.post("/admin/accounts/delete")
+def admin_delete_accounts(req: AdminDeleteAccountsRequest, admin=Depends(require_admin_account)) -> dict:
+    """Delete junk or test accounts (operator admin UI).
+
+    Operator accounts and the signed-in admin are never deleted here, and the
+    request must carry the word DELETE. The accounts are removed first; saved
+    face and voice data for their learners is then removed on a best-effort,
+    time-boxed basis, so a slow biometric service can never leave an account
+    behind without its data or the other way round for long.
+    """
+    if req.confirm.strip().upper() != "DELETE":
+        raise HTTPException(status_code=400, detail="type DELETE to confirm")
+    ids = list(dict.fromkeys(req.account_ids))
+    if not 1 <= len(ids) <= MAX_ADMIN_DELETES:
+        raise HTTPException(status_code=422, detail=f"send between 1 and {MAX_ADMIN_DELETES} accounts")
+    store = app.state.accounts
+    skipped: list[dict] = []
+    allowed: list[str] = []
+    emails: dict[str, str] = {}
+    biometric_students: list[str] = []
+    for account_id in ids:
+        # by_id() so an account another replica created or saved is found too.
+        target = store.by_id(account_id)
+        if target is None:
+            skipped.append({"id": account_id, "reason": "not found"})
+        elif target.id == admin.id:
+            skipped.append({"id": account_id, "reason": "this is your own account"})
+        elif target.is_admin:
+            skipped.append({"id": account_id, "reason": "operator accounts are not deleted here"})
+        else:
+            allowed.append(account_id)
+            emails[account_id] = target.email
+            for student_id, student in list(target.students.items()):
+                setup = normalize_setup_state(student.biometric_setup)
+                if setup.portrait.status == "verified" or setup.voice.status == "verified":
+                    biometric_students.append(student_id)
+    removed = store.delete_accounts(allowed)
+    log = logging.getLogger("identity.admin")
+    log.warning("admin %s deleted %d account(s): %s", admin.email, len(removed), ", ".join(emails[i] for i in removed))
+    if removed and biometric_students:
+        started = time.monotonic()
+        failures = 0
+        for student_id in biometric_students:
+            if failures >= 2 or time.monotonic() - started > ADMIN_PURGE_BUDGET_S:
+                log.warning("stopped removing saved face and voice data early; some may remain")
+                break
+            try:
+                _perception_delete(student_id)
+            except Exception:
+                failures += 1
+    return {"deleted": [{"id": i, "email": emails[i]} for i in removed], "skipped": skipped}
 
 
 @app.post("/admin/accounts/reseed-seeded")

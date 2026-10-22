@@ -13,7 +13,7 @@ import enum
 import threading
 import time
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from aoep_shared.auth import hash_password, verify_password
 from aoep_shared.membership import membership_class_for_tier
@@ -277,6 +277,23 @@ class AccountStore:
         self._game_stats.pop(account_id, None)
         self._submitted_game_ids.pop(account_id, None)
         self._persist()
+
+    def delete_accounts(self, account_ids: Iterable[str]) -> List[str]:
+        """Remove several accounts and persist once. Returns the ids actually removed."""
+        removed: List[str] = []
+        for account_id in dict.fromkeys(account_ids):
+            # by_id() loads an account this replica has not seen yet, so the
+            # shared copy is removed too and not just a local one.
+            if self.by_id(account_id) is None:
+                continue
+            acct = self._by_id.pop(account_id)
+            self._id_by_email.pop(acct.email.lower(), None)
+            self._game_stats.pop(account_id, None)
+            self._submitted_game_ids.pop(account_id, None)
+            removed.append(account_id)
+        if removed:
+            self._persist(*removed)
+        return removed
 
     def _persist(self, *account_ids: str) -> None:
         from .persistence import persist_hook

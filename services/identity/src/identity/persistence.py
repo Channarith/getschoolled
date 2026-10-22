@@ -506,6 +506,39 @@ def _apply_wrapper(store: "AccountStore", account_id: str, raw: str, rev: int) -
     _remember(store, acct.id, rev)
 
 
+def prune_deleted_accounts(store: "AccountStore") -> int:
+    """Forget accounts another replica deleted.
+
+    Each replica keeps its own copy of every account, so one that did not take
+    the delete would keep listing (and serving) it. An account this replica has
+    saved before but that is no longer in the shared index was deleted; one it
+    has never saved is new and is kept. Returns how many were forgotten.
+    """
+    if not redis_configured():
+        return 0
+    client = _redis_client()
+    if client is None:
+        return 0
+    try:
+        raw = client.smembers(ACCOUNT_INDEX) or []
+        shared = {item.decode() if isinstance(item, bytes) else str(item) for item in raw}
+    except Exception as exc:
+        logger.warning("could not read the account index to prune deletions (%s)", exc)
+        return 0
+    if not shared:
+        return 0
+    gone = [aid for aid in list(store._by_id) if aid not in shared and aid in store._persisted_blobs]
+    for aid in gone:
+        acct = store._by_id.pop(aid, None)
+        if acct is not None:
+            store._id_by_email.pop(acct.email.lower(), None)
+        store._persisted_blobs.pop(aid, None)
+        store._account_revs.pop(aid, None)
+        store._game_stats.pop(aid, None)
+        store._submitted_game_ids.pop(aid, None)
+    return len(gone)
+
+
 def load_identity_status(store: "AccountStore") -> str:
     """Return loaded, empty, unconfigured, or error. Error must not be overwritten."""
     if not redis_configured():
