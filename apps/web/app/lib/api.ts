@@ -3546,6 +3546,22 @@ export async function reviewSubmit(body: {
   );
 }
 
+export type AdminDeleteResult = {
+  deleted: { id: string; email: string }[];
+  skipped: { id: string; reason: string }[];
+};
+
+/** Operator admin: delete junk or test accounts. The server also requires the word DELETE. */
+export async function adminDeleteAccounts(accountIds: string[], confirm: string): Promise<AdminDeleteResult> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/admin/accounts/delete`, {
+      method: "POST",
+      headers: { ...authHeaders(), "content-type": "application/json" },
+      body: JSON.stringify({ account_ids: accountIds, confirm }),
+    })
+  );
+}
+
 export async function adminSetFlag(
   secret: string, key: string,
   patch: { enabled?: boolean; value?: unknown; rollout_pct?: number; tiers?: string[] | null; clear_value?: boolean }

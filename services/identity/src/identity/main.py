@@ -507,9 +507,63 @@ def translation_review_export(lang: str, _acct=Depends(require_reviewer)) -> dic
 @app.get("/admin/accounts")
 def admin_list_accounts(_acct=Depends(require_admin_account)) -> dict:
     """List every member account (operator admin UI)."""
+    from .persistence import prune_deleted_accounts
+
+    prune_deleted_accounts(app.state.accounts)
     rows = [a.public() for a in app.state.accounts.list_all_accounts()]
     rows.sort(key=lambda r: r.get("created_at", 0), reverse=True)
     return {"accounts": rows, "count": len(rows)}
+
+
+class AdminDeleteAccountsRequest(BaseModel):
+    account_ids: list[str]
+    confirm: str = ""
+
+
+@app.post("/admin/accounts/delete")
+def admin_delete_accounts(req: AdminDeleteAccountsRequest, admin=Depends(require_admin_account)) -> dict:
+    """Delete junk or test accounts (operator admin UI).
+
+    Operator accounts and the signed-in admin are never deleted here, and the
+    request must carry the word DELETE. Saved face and voice data for the
+    accounts' learners is removed too, best effort.
+    """
+    if req.confirm.strip().upper() != "DELETE":
+        raise HTTPException(status_code=400, detail="type DELETE to confirm")
+    ids = list(dict.fromkeys(req.account_ids))
+    if not 1 <= len(ids) <= 200:
+        raise HTTPException(status_code=422, detail="send between 1 and 200 accounts")
+    store = app.state.accounts
+    skipped: list[dict] = []
+    allowed: list[str] = []
+    emails: dict[str, str] = {}
+    purge_failures = 0
+    for account_id in ids:
+        target = store._by_id.get(account_id)
+        if target is None:
+            skipped.append({"id": account_id, "reason": "not found"})
+        elif target.id == admin.id:
+            skipped.append({"id": account_id, "reason": "this is your own account"})
+        elif target.is_admin:
+            skipped.append({"id": account_id, "reason": "operator accounts are not deleted here"})
+        else:
+            allowed.append(account_id)
+            emails[account_id] = target.email
+            for student_id, student in list(target.students.items()):
+                if purge_failures >= 2:
+                    break
+                setup = normalize_setup_state(student.biometric_setup)
+                if setup.portrait.status != "verified" and setup.voice.status != "verified":
+                    continue
+                try:
+                    _perception_delete(student_id)
+                except Exception:
+                    purge_failures += 1
+    removed = store.delete_accounts(allowed)
+    logging.getLogger("identity.admin").warning(
+        "admin %s deleted %d account(s): %s", admin.email, len(removed), ", ".join(emails[i] for i in removed),
+    )
+    return {"deleted": [{"id": i, "email": emails[i]} for i in removed], "skipped": skipped}
 
 
 @app.post("/admin/accounts/reseed-seeded")
