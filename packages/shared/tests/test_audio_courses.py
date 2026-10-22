@@ -66,16 +66,12 @@ def test_courses_do_not_include_synthetic_padding_segments():
             assert phrase not in joined, f"{c.id} still contains filler narration: {phrase!r}"
 
 
-def test_knowledge_courses_start_with_selected_topic_then_add_context():
+def test_knowledge_courses_use_only_their_own_lesson():
     from aoep_shared.audio_courses import _TOPICS, get_course
     from aoep_shared.audio_topic_data import TOPIC_SECTIONS
 
     for titles in _TOPICS.values():
         for title in titles:
-            # Only test topics that have authored TOPIC_SECTIONS entries.
-            # Topics without entries rely on _extended_knowledge_segments to
-            # pull content from related topics, which is valid but can't be
-            # checked for primary-first ordering.
             if title not in TOPIC_SECTIONS:
                 continue
             slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
@@ -87,10 +83,21 @@ def test_knowledge_courses_start_with_selected_topic_then_add_context():
             assert [s.heading for s in c.segments[1:1 + len(primary)]] == [
                 heading for heading, _ in primary
             ]
-            assert all(
-                s.heading.startswith("Related context — ")
-                for s in c.segments[1 + len(primary):-1]
-            )
+            assert not any(
+                s.heading.startswith("Related context — ") for s in c.segments
+            ), f"{c.id} still borrows another topic"
+
+
+def test_translation_script_uses_the_live_demo_course():
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[3] / "scripts" / "translate_on_machine.sh"
+    demo = "audio-intro-to-machine-learning"
+    assert f'DEMO="{demo}"' in script.read_text(encoding="utf-8")
+    course = get_course(demo)
+    assert course is not None
+    assert course.segments[0].heading == "Overview"
+    assert not any(s.heading.startswith("Related context — ") for s in course.segments)
 
 
 def test_blockchain_course_has_substantive_content():
