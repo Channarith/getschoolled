@@ -13,6 +13,14 @@ def test_all_27_platform_languages_present():
     assert all(code in BCP47 for code in SUPPORTED_LANGUAGES)
 
 
+def test_cantonese_has_its_own_translation_name():
+    from theodore_audio_translation_lab.providers import language_label
+
+    assert language_label("yue") == "Cantonese"
+    assert language_label("zh") != "Cantonese"
+    assert "yue" not in SUPPORTED_LANGUAGES
+
+
 def test_locale_normalization():
     assert normalize_language("zh-CN") == "zh"
     assert normalize_language("KM-kh") == "km"

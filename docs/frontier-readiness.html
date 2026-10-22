@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Salareen frontier readiness — 2026-10-22 10:16 AM PT</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0e141b; color:#e7ecf1; font:16px/1.45 Palatino, "Palatino Linotype", serif; }
+  header, main, footer { max-width:1080px; margin:0 auto; padding:28px 22px 8px; }
+  h1 { font-size:32px; letter-spacing:-0.03em; margin:0 0 8px; }
+  h2 { font-size:22px; margin:32px 0 8px; }
+  .meta, td, th, .card span { font:13px/1.35 ui-sans-serif, system-ui, sans-serif; }
+  .meta { color:#8b98a5; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .card { background:#161d26; border:1px solid #2a3542; border-radius:14px; padding:14px; }
+  .card b { display:block; font:22px/1.1 ui-sans-serif, system-ui, sans-serif; }
+  .card span { color:#8b98a5; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #2a3542; }
+  .bar { position:relative; height:10px; background:#243140; border-radius:6px; }
+  .bar span { display:block; height:10px; border-radius:6px; }
+  .bar i { position:absolute; top:-2px; width:2px; height:14px; background:#e6b35a; }
+  code { font:12px/1.4 ui-monospace, monospace; }
+  @media (max-width:800px) { .grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Frontier readiness, measured.</h1>
+  <p class="meta">Snapshot 2026-10-22 10:16 AM PT. Rebuild with <code>python3 training/frontier_readiness.py --record</code> from the spark-eval-gates tree. The amber tick on each bar is the 40% training floor. Accreditation stays at 70% and still does not print an outside card.</p>
+</header>
+<main>
+  <section class="grid">
+    <div class="card"><b>31.5%</b><span>STEM adapter on the 41-item split. Base is 12.1%. Weakest sampled subject: python-11-files-and-exceptions 12.9%.</span></div>
+    <div class="card"><b>—</b><span>Adapter on the frozen 200-item exam. Base —. Target 70.0%. A blank means this cycle has not finished that file.</span></div>
+    <div class="card"><b>—</b><span>Adapter on the frozen STEM exam (96 items, linear algebra n=4). Subject floor —.</span></div>
+    <div class="card"><b>0</b><span>Outside cards. A person of record and a 70% subject floor are required even to ask. Salareen does not print the card.</span></div>
+  </section>
+
+  <h2>Subjects on the curriculum split</h2>
+  <p>Every sampled subject counts, including a subject with one item. Promotion needs each of them at or above 40%, and a higher frozen-exam score than the last kept adapter.</p>
+  <table>
+    <tr><th>Subject</th><th>Score</th><th>Items</th><th>Against the floor</th></tr>
+    <tr><td>python-11-files-and-exceptions</td><td>12.9%</td><td>1</td><td><div class="bar"><span style="width:12.9%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>linear-algebra</td><td>13.8%</td><td>1</td><td><div class="bar"><span style="width:13.8%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>trigonometry</td><td>18.2%</td><td>1</td><td><div class="bar"><span style="width:18.2%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>python-01-getting-started</td><td>20.0%</td><td>1</td><td><div class="bar"><span style="width:20.0%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>statistics</td><td>23.1%</td><td>1</td><td><div class="bar"><span style="width:23.1%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>math-olympiad</td><td>23.4%</td><td>3</td><td><div class="bar"><span style="width:23.4%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>python-05-collections-lists-tuples</td><td>24.0%</td><td>1</td><td><div class="bar"><span style="width:24.0%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>arithmetic</td><td>25.3%</td><td>4</td><td><div class="bar"><span style="width:25.3%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>python-09-functions</td><td>26.8%</td><td>5</td><td><div class="bar"><span style="width:26.8%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>python-04-numbers-and-operators</td><td>27.4%</td><td>3</td><td><div class="bar"><span style="width:27.4%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>python-12-object-oriented</td><td>28.6%</td><td>1</td><td><div class="bar"><span style="width:28.6%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>python-10-modules-and-packages</td><td>33.4%</td><td>3</td><td><div class="bar"><span style="width:33.4%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>problem-solving-math</td><td>34.1%</td><td>4</td><td><div class="bar"><span style="width:34.1%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>python-03-strings</td><td>35.1%</td><td>2</td><td><div class="bar"><span style="width:35.1%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>intro-to-fractions</td><td>36.4%</td><td>1</td><td><div class="bar"><span style="width:36.4%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>calculus-1</td><td>37.5%</td><td>2</td><td><div class="bar"><span style="width:37.5%;background:#e07a6a"></span><i style="left:40.0%"></i></div></td></tr><tr><td>python-08-loops</td><td>44.4%</td><td>1</td><td><div class="bar"><span style="width:44.4%;background:#3dbea5"></span><i style="left:40.0%"></i></div></td></tr><tr><td>calculus-2</td><td>46.8%</td><td>3</td><td><div class="bar"><span style="width:46.8%;background:#3dbea5"></span><i style="left:40.0%"></i></div></td></tr><tr><td>intro-to-photosynthesis</td><td>51.0%</td><td>2</td><td><div class="bar"><span style="width:51.0%;background:#3dbea5"></span><i style="left:40.0%"></i></div></td></tr><tr><td>geometry</td><td>58.8%</td><td>1</td><td><div class="bar"><span style="width:58.8%;background:#3dbea5"></span><i style="left:40.0%"></i></div></td></tr>
+  </table>
+
+  <h2>Truth curve</h2>
+  <p>Groundedness 13.5% on 158 frozen-style rows. Abstention 49.4%. Human agreement — from 0 reviews. The target for groundedness is 90.0%. Empty human agreement means nobody has reviewed a row yet.</p>
+
+  <h2>222-course translation</h2>
+  <p>Batch 104/4662: written 0, skipped 100, failed 4. Playable files match the lesson length. Cantonese is yue.json: 0 playable, 5 still partial. Demo audio-intro-to-machine-learning: es wrong-length, zh wrong-length, vi wrong-length.</p>
+  <table>
+    <tr><th>Language</th><th>Playable</th><th>Partial</th></tr>
+    <tr><td>es</td><td>51/222</td><td>0</td></tr><tr><td>fr</td><td>50/222</td><td>3</td></tr><tr><td>de</td><td>50/222</td><td>0</td></tr><tr><td>it</td><td>50/222</td><td>0</td></tr><tr><td>pt</td><td>50/222</td><td>0</td></tr><tr><td>nl</td><td>50/222</td><td>0</td></tr><tr><td>pl</td><td>50/222</td><td>0</td></tr><tr><td>ru</td><td>50/222</td><td>0</td></tr><tr><td>uk</td><td>50/222</td><td>0</td></tr><tr><td>tr</td><td>50/222</td><td>0</td></tr><tr><td>ar</td><td>50/222</td><td>0</td></tr><tr><td>he</td><td>50/222</td><td>0</td></tr><tr><td>hi</td><td>50/222</td><td>0</td></tr><tr><td>bn</td><td>50/222</td><td>0</td></tr><tr><td>ur</td><td>50/222</td><td>1</td></tr><tr><td>fa</td><td>50/222</td><td>0</td></tr><tr><td>zh</td><td>50/222</td><td>9</td></tr><tr><td>ja</td><td>50/222</td><td>0</td></tr><tr><td>ko</td><td>50/222</td><td>0</td></tr><tr><td>vi</td><td>50/222</td><td>0</td></tr><tr><td>yue</td><td>0/222</td><td>5</td></tr>
+  </table>
+
+  <h2>Promotion</h2>
+  <p>Last gate: not run yet. Promoted: None. A repeated win over the base is not a kept adapter.</p>
+
+  <h2>History</h2>
+  <table>
+    <tr><th>When</th><th>Frozen</th><th>Weakest split</th><th>Groundedness</th><th>Cantonese playable</th><th>Gate</th></tr>
+    <tr><td>2026-10-22 10:16 AM PT</td><td>—</td><td>12.9%</td><td>13.5%</td><td>0</td><td></td></tr>
+  </table>
+</main>
+<footer>
+  <p>Weekend recheck: run the command in the header and compare frozen accuracy, the weakest subject, groundedness, and Cantonese playable files with the row above.</p>
+</footer>
+</body>
+</html>

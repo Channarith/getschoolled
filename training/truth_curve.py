@@ -60,6 +60,18 @@ def truth_fields(prediction: str, row: Dict) -> Dict:
     }
 
 
+def exam_fields(eval_path: str, adapter: str = "") -> Dict:
+    """Label a truth-log row so later plots can separate exams and models."""
+    name = Path(eval_path).name
+    if name.startswith("eval_frozen_stem"):
+        exam = "stem"
+    elif name.startswith("eval_frozen"):
+        exam = "frozen"
+    else:
+        exam = "split"
+    return {"exam": exam, "model": "adapter" if adapter else "base"}
+
+
 def append_truth_row(path: str, row: Dict) -> None:
     dest = Path(path)
     dest.parent.mkdir(parents=True, exist_ok=True)

@@ -115,6 +115,27 @@ else
   echo "WARNING: no frozen benchmark at $FROZEN; scoring on the 10% split only." >&2
 fi
 
+# Audio-lesson frozen items do not include linear algebra. This file does.
+STEM_FROZEN="${EVAL_FROZEN_STEM:-$ROOT/training/data/eval_frozen_stem.jsonl}"
+if [[ -f "$STEM_FROZEN" ]]; then
+  echo "== 4c/5 frozen STEM subjects ($STEM_FROZEN) =="
+  "$PY" training/evaluate.py --offline --device cuda \
+    --base-model "$BASE_MODEL" \
+    --eval "$STEM_FROZEN" \
+    --max-new-tokens 96 \
+    --metrics-out "$OUT/eval/base.stemfrozen.json" \
+    --truth-log "$OUT/truth_curve.jsonl"
+  "$PY" training/evaluate.py --offline --device cuda \
+    --base-model "$BASE_MODEL" \
+    --adapter "$OUT/adapters/stem" \
+    --eval "$STEM_FROZEN" \
+    --max-new-tokens 96 \
+    --metrics-out "$OUT/eval/stem.stemfrozen.json" \
+    --truth-log "$OUT/truth_curve.jsonl"
+else
+  echo "WARNING: no STEM frozen exam at $STEM_FROZEN" >&2
+fi
+
 echo "== 5/5 bake-off =="
 "$PY" - <<PY
 import json
@@ -211,6 +232,8 @@ if "$PY" training/promotion_gate.py \
     --split-metrics "$OUT/eval/stem.json" \
     --previous "$OUT/promoted_frozen.json" \
     --subject-floor "$MIN_SUBJECT_SCORE" \
+    --min-subject-n 1 \
+    --stem-metrics "$OUT/eval/stem.stemfrozen.json" \
     --write-promoted "$OUT/promoted_frozen.json" \
     | tee "$OUT/bakeoff/promote.json"; then
   echo "== promoting stem-qlora (frozen score rose and cleared the subject floor) =="
@@ -226,3 +249,5 @@ else
 fi
 
 echo "== done train_seconds=$TRAIN_SEC log=$LOG =="
+"$PY" training/frontier_readiness.py --record --spark-out "$OUT" \
+  || echo "WARNING: frontier readiness report failed"

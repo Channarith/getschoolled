@@ -170,9 +170,10 @@ def main(argv: list[str] | None = None) -> int:
         if not row.get("response"):
             print("WARNING: skipping row without 'response' field", file=sys.stderr)
             continue
-        from truth_curve import append_truth_row, truth_fields
+        from truth_curve import append_truth_row, exam_fields, truth_fields
 
         fields = truth_fields(text, row)
+        fields.update(exam_fields(args.eval, args.adapter))
         fields["score"] = token_f1(text, row.get("response", ""))
         fields["group"] = _group(row)
         if not fields.get("category"):
