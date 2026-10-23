@@ -214,11 +214,12 @@ export function clampPlaybackRate(rate: number): number {
 // Only short, command-shaped utterances count, so a question like "why does the
 // brake pause the car?" is still a question for Sala.
 export function parsePlaybackCommand(text: string): PlaybackCommand | null {
-  const lower = (text || "").toLowerCase().replace(/\.(?!\d)/g, " ").replace(/[^a-z0-9.\s]/g, " ").replace(/\s+/g, " ").trim();
+  const lower = (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\.(?!\d)/g, " ").replace(/[^a-z0-9.\s]/g, " ").replace(/\s+/g, " ").trim();
   if (!lower) return null;
   const words = lower.split(" ");
   if (words.length > 6 || /^(what|why|how|who|when|where|which|can|could|does|do|is|are)\b/.test(lower) && !/^(can|could) you\b/.test(lower)) return null;
-  const body = lower.replace(/^(please |can you |could you )/, "").replace(/ please$/, "");
+  if (/^(que|por que|como|quien|quienes|cuando|donde|cual|cuales|cuanto|cuantos)\b/.test(lower)) return null;
+  const body = lower.replace(/^(please |can you |could you |por favor )/, "").replace(/ (please|por favor)$/, "");
   const speed = body.match(/^(?:set )?(?:the )?(?:speed|playback)(?: to)? (\d(?:\.\d+)?)(?: ?x)?$/) || body.match(/^(\d(?:\.\d+)?) ?x$/);
   if (speed) return { kind: "speed", rate: clampPlaybackRate(Number(speed[1])) };
   if (/^(normal|regular|default) (speed|pace)$|^(speed|pace) (reset|normal)$/.test(body)) return { kind: "speed", rate: 1 };
@@ -230,5 +231,16 @@ export function parsePlaybackCommand(text: string): PlaybackCommand | null {
   if (/^(next|skip|skip ahead|skip this|next part|next section|next lesson|move on|go forward)$/.test(body)) return { kind: "next" };
   if (/^(previous|go back|back up|last part|previous part|rewind|go to the previous( part)?)$/.test(body)) return { kind: "previous" };
   if (/^(repeat|repeat that|say that again|again|come again|one more time|replay|replay that)$/.test(body)) return { kind: "repeat" };
+  const esSpeed = body.match(/^(?:velocidad|ritmo)(?: a)? (\d(?:\.\d+)?)(?: ?x)?$/);
+  if (esSpeed) return { kind: "speed", rate: clampPlaybackRate(Number(esSpeed[1])) };
+  if (/^(velocidad|ritmo) normal$/.test(body)) return { kind: "speed", rate: 1 };
+  if (/^(mas rapido|mas rapida|acelera|acelerar|habla mas rapido)$/.test(body)) return { kind: "faster" };
+  if (/^(mas lento|mas lenta|mas despacio|despacio|habla mas despacio|baja la velocidad)$/.test(body)) return { kind: "slower" };
+  if (/^(pausa|pausar|para|detente|alto|espera|silencio|callate)( el curso| la leccion| el audio)?$/.test(body)) return { kind: "pause" };
+  if (/^(continua|continuar|sigue|seguir|reanuda|reanudar|reproduce)( el curso| la leccion| el audio)?$/.test(body)) return { kind: "resume" };
+  if (/^(empieza de nuevo|empezar de nuevo|comienza de nuevo|desde el principio|reinicia|reiniciar|vuelve a empezar)( el curso| la leccion)?$/.test(body)) return { kind: "restart" };
+  if (/^(siguiente|proximo|salta|saltar|avanza|siguiente parte|siguiente leccion)$/.test(body)) return { kind: "next" };
+  if (/^(atras|anterior|vuelve|retrocede|retroceder|parte anterior)$/.test(body)) return { kind: "previous" };
+  if (/^(repite|repetir|repite eso|repitelo|otra vez|de nuevo|dilo otra vez)$/.test(body)) return { kind: "repeat" };
   return null;
 }

@@ -825,6 +825,16 @@ const ES: Record<string, string> = {
   "arcade.title": "Vision Play",
   "languages.title": "🌍 Idiomas",
   "watch.title": "Ver",
+  "drive.restartAnswer": "Empiezo el curso de nuevo desde el principio.",
+  "drive.speedAnswer": "Velocidad ajustada a {rate} veces.",
+  "drive.helpButton": "Cómo funciona el control por voz",
+  "drive.tutorialTitle": "Habla con Sala mientras escuchas",
+  "drive.tutorialStep1": "Toca el logo de Sala, o di \"Hey Sala\", para pausar y hacer una pregunta.",
+  "drive.tutorialStep2": "Di \"pausa\", \"continúa\", \"siguiente\", \"atrás\" o \"repite\" para controlar el audio.",
+  "drive.tutorialStep3": "Di \"más rápido\", \"más lento\" o \"velocidad 1.5\" para cambiar la velocidad, y \"empieza de nuevo\" para reiniciar.",
+  "drive.tutorialStep4": "Después de una respuesta, toca en cualquier lugar para continuar, o toca a Sala para hacer otra pregunta.",
+  "drive.tutorialStep5": "Toca el botón ? en cualquier momento para ver esto otra vez.",
+  "drive.tutorialDone": "Entendido",
 };
 
 const KM: Record<string, string> = {
@@ -865,6 +875,16 @@ const KM: Record<string, string> = {
   "arcade.title": "Vision Play",
   "languages.title": "🌍 ភាសា",
   "watch.title": "មើល",
+  "drive.restartAnswer": "ខ្ញុំចាប់ផ្ដើមវគ្គសិក្សាឡើងវិញពីដើម។",
+  "drive.speedAnswer": "កំណត់ល្បឿនទៅ {rate} ដង។",
+  "drive.helpButton": "របៀបប្រើការបញ្ជាដោយសំឡេង",
+  "drive.tutorialTitle": "និយាយជាមួយ Sala ពេលកំពុងស្តាប់",
+  "drive.tutorialStep1": "ចុចលើសញ្ញា Sala ឬនិយាយថា \"Hey Sala\" ដើម្បីផ្អាក និងសួរសំណួរ។",
+  "drive.tutorialStep2": "និយាយថា \"pause\", \"resume\", \"next\", \"go back\" ឬ \"repeat that\" ដើម្បីគ្រប់គ្រងសំឡេង។",
+  "drive.tutorialStep3": "និយាយថា \"faster\", \"slower\" ឬ \"speed 1.5\" ដើម្បីប្ដូរល្បឿន និង \"start over\" ដើម្បីចាប់ផ្ដើមឡើងវិញ។",
+  "drive.tutorialStep4": "បន្ទាប់ពីចម្លើយ ចុចកន្លែងណាក៏បានដើម្បីបន្ត ឬចុចលើ Sala ដើម្បីសួរសំណួរផ្សេងទៀត។",
+  "drive.tutorialStep5": "ចុចប៊ូតុង ? ពេលណាក៏បានដើម្បីមើលវាម្ដងទៀត។",
+  "drive.tutorialDone": "យល់ហើយ",
 };
 
 export const PAGE_STRINGS: Partial<Record<Locale, Record<string, string>>> = {
