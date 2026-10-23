@@ -84,9 +84,13 @@ def test_quiz_bank_has_short_clean_answers_for_every_band():
     bank = quiz_bank()
     assert set(bank) == {"4-6", "7-10", "11-17", "adult"}
     for band, rows in bank.items():
-        assert len(rows) >= 20, band
-        questions = [row["q"] for row in rows]
+        assert len(rows) >= 80, f"{band} has only {len(rows)} questions"
+        questions = [row["q"].strip().lower() for row in rows]
         assert len(questions) == len(set(questions)), f"{band} repeats a question"
+        assert all(row["q"].endswith("?") for row in rows), band
+        # Across one full pass the right answer lands on both sides about equally.
+        sides = [pop_quiz_round(band, i)["choices"].index(row["a"]) for i, row in enumerate(rows)]
+        assert abs(sides.count(0) - sides.count(1)) <= 1, band
         for row in rows:
             assert 1 <= len(row["a"].split()) <= 2, (band, row)
             assert row["wrong"] and all(1 <= len(w.split()) <= 2 for w in row["wrong"]), (band, row)
