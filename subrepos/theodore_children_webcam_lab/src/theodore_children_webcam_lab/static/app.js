@@ -17,6 +17,7 @@ import {
   tipHitsTarget, traceProgress,
 } from "./vision_math.js";
 import {createPopQuizGame} from "./pop_quiz_game.js";
+import {createGameTutorial} from "./game_tutorial.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -1181,6 +1182,7 @@ function updateObjectGame() {
 
 // Pop Quiz Toss lives in pop_quiz_game.js; these thin wrappers keep the lab's
 // existing hooks (update loop, touch fallback, cancel) pointing at it.
+const gameTutorial = stage ? createGameTutorial(stage) : null;
 const popQuiz = createPopQuizGame({
   state, $, stage, spriteLayer, stageBox, catchRadius,
   setPrompt, tellActivity, speak, calculateFun, renderScore, recordEvent,
@@ -1918,6 +1920,7 @@ function chooseGame() {
   const previousGame=state.game;
   state.game=select.value;
   document.body.classList.toggle("ninja-play", state.game === "ninja-weave");
+  gameTutorial?.onGameChosen(state.game);
   if (previousGame==="pop-quiz-toss" && state.game!=="pop-quiz-toss") popQuiz.teardown();
   if (state.game!=="karaoke") hideKaraoke();
   if (state.game!==previousGame) state.audioIndex=0;
@@ -2673,7 +2676,7 @@ stage?.addEventListener("pointermove",(event)=>{
 // Pop Quiz Toss draws its own buttons (tutorial, help, win) inside the stage; a press
 // on them must not start a throw or capture the pointer, or the button never clicks.
 function isPopQuizUi(event) {
-  return Boolean(event?.target?.closest?.(".pq-tutorial,.pq-win,.pq-help"));
+  return Boolean(event?.target?.closest?.(".pq-tutorial,.pq-win,.pq-help,.gt-help,.gt-overlay"));
 }
 stage?.addEventListener("pointerdown",(event)=>{
   if (isPopQuizUi(event)) return;
