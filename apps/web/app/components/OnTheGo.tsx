@@ -24,7 +24,7 @@ import { useT } from "../lib/i18n";
 import { getVoicePrefs } from "../lib/voicePrefs";
 import { applyVoicePrefsToTts, accentFromPrefs, loadVoiceCatalog } from "../lib/narrationTts";
 import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, speakNaturally } from "../lib/tts";
-import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, normalizeVoicePauseSubmitMs, stripWakeWords } from "../lib/voiceCommands";
+import { clampPlaybackRate, extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, normalizeVoicePauseSubmitMs, parsePlaybackCommand, stripWakeWords } from "../lib/voiceCommands";
 import { startDriveVoice, type DriveVoiceSession } from "../lib/driveVoiceAgent";
 import {
   setTrainingLocale,
@@ -74,7 +74,8 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const rate = 1;
+  const [rate, setRate] = useState(1);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [error, setError] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantStatus, setAssistantStatus] = useState("");
@@ -831,30 +832,50 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     const command = input.trim();
     if (!command) return;
     setAssistantTranscript(command);
-    const lower = command.toLowerCase();
-    if (/\b(pause|stop|hold)\b/.test(lower)) {
-      setAssistantAnswer(t("drive.pausedAnswer"));
-      setAssistantStatus(t("drive.pausedStatus"));
-      setPlaying(false);
-      playGenRef.current++;
-      driveVoiceRef.current?.hold();
-      cancelSpeech();
-      return;
-    }
-    if (/\b(resume|continue|carry on|keep going)\b/.test(lower)) {
-      setAssistantAnswer(t("drive.resumingAnswer"));
-      resumeAfterAssistant(1000);
-      return;
-    }
-    if (/\b(next|skip ahead)\b/.test(lower)) {
-      setAssistantAnswer(t("drive.skipAnswer"));
-      playSeg(course, seg + 1);
-      return;
-    }
-    if (/\b(previous|back|repeat)\b/.test(lower)) {
-      setAssistantAnswer(t("drive.repeatAnswer"));
-      playSeg(course, Math.max(0, seg - 1));
-      return;
+    const playback = parsePlaybackCommand(command);
+    if (playback) {
+      const say = (key: string, vars?: Record<string, string | number>) => setAssistantAnswer(t(key, vars));
+      switch (playback.kind) {
+        case "pause":
+          say("drive.pausedAnswer");
+          setAssistantStatus(t("drive.pausedStatus"));
+          setPlaying(false);
+          playGenRef.current++;
+          driveVoiceRef.current?.hold();
+          cancelSpeech();
+          return;
+        case "resume":
+          say("drive.resumingAnswer");
+          resumeAfterAssistant(1000);
+          return;
+        case "next":
+          say("drive.skipAnswer");
+          playSeg(course, seg + 1);
+          return;
+        case "previous":
+          say("drive.repeatAnswer");
+          playSeg(course, Math.max(0, seg - 1));
+          return;
+        case "repeat":
+          say("drive.repeatAnswer");
+          playSeg(course, seg);
+          return;
+        case "restart":
+          say("drive.restartAnswer");
+          playSeg(course, 0);
+          return;
+        case "faster":
+        case "slower":
+        case "speed": {
+          const next = clampPlaybackRate(
+            playback.kind === "speed" ? playback.rate : rate + (playback.kind === "faster" ? 0.15 : -0.15),
+          );
+          setRate(next);
+          say("drive.speedAnswer", { rate: next });
+          setAssistantStatus(t("drive.speedAnswer", { rate: next }));
+          return;
+        }
+      }
     }
     if (driveVoiceRef.current) {
       playGenRef.current++;
@@ -884,6 +905,17 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       }, 2500);
     });
   }
+
+  const HELP_KEY = "salareen.onTheGo.voiceTutorial.v1";
+  function closeHelp() {
+    setHelpOpen(false);
+    try { localStorage.setItem(HELP_KEY, "1"); } catch { /* private mode */ }
+  }
+  useEffect(() => {
+    if (!course) return;
+    try { if (!localStorage.getItem(HELP_KEY)) setHelpOpen(true); } catch { /* private mode */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Boolean(course)]);
 
   // After the mascot is tapped, tapping anywhere else on the page resumes the lesson.
   useEffect(() => {
@@ -1080,6 +1112,27 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
         </div>
       )}
 
+      {canDrive && helpOpen && (
+        <div role="dialog" aria-modal="true" aria-label={t("drive.tutorialTitle")} data-testid="on-the-go-tutorial"
+          onClick={() => closeHelp()}
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(5,8,20,.82)", display: "grid", placeItems: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: "100%", background: "#0b1020", color: "#e8ecf6", borderRadius: 18, padding: 22, border: "2px solid #d4af37" }}>
+            <h2 style={{ margin: "0 0 12px", fontSize: 20 }}>{t("drive.tutorialTitle")}</h2>
+            <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 8, fontSize: 15 }}>
+              <li>{t("drive.tutorialStep1")}</li>
+              <li>{t("drive.tutorialStep2")}</li>
+              <li>{t("drive.tutorialStep3")}</li>
+              <li>{t("drive.tutorialStep4")}</li>
+              <li>{t("drive.tutorialStep5")}</li>
+            </ol>
+            <button type="button" data-testid="on-the-go-tutorial-close" onClick={() => closeHelp()}
+              style={{ marginTop: 16, width: "100%", padding: "10px 14px", borderRadius: 12, border: 0, background: "#d4af37", color: "#0b1020", fontWeight: 800, cursor: "pointer" }}>
+              {t("drive.tutorialDone")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {canDrive && (
         <div style={{ position: "fixed", right: 18, bottom: 18, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
           {assistantOpen && assistantStatus && (
@@ -1087,6 +1140,14 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
               {assistantStatus}
             </div>
           )}
+          <button
+            type="button"
+            data-testid="on-the-go-help"
+            aria-label={t("drive.helpButton")}
+            title={t("drive.helpButton")}
+            onClick={() => setHelpOpen(true)}
+            style={{ width: 36, height: 36, borderRadius: "50%", border: "2px solid #d4af37", background: "#0b1020", color: "#fde047", fontWeight: 800, cursor: "pointer" }}
+          >?</button>
           <button
             type="button"
             data-testid="on-the-go-mascot"

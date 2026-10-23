@@ -192,3 +192,43 @@ export function parseFollowUp(text: string): DriveCommand {
   const stripped = hasWakeWord(text) ? stripWakeWords(text) : (text || "").trim();
   return classifyCommand(stripped);
 }
+
+export type PlaybackCommand =
+  | { kind: "pause" }
+  | { kind: "resume" }
+  | { kind: "next" }
+  | { kind: "previous" }
+  | { kind: "repeat" }
+  | { kind: "restart" }
+  | { kind: "faster" }
+  | { kind: "slower" }
+  | { kind: "speed"; rate: number };
+
+export const MIN_PLAYBACK_RATE = 0.7;
+export const MAX_PLAYBACK_RATE = 1.6;
+
+export function clampPlaybackRate(rate: number): number {
+  return Math.round(Math.min(MAX_PLAYBACK_RATE, Math.max(MIN_PLAYBACK_RATE, rate)) * 100) / 100;
+}
+
+// Only short, command-shaped utterances count, so a question like "why does the
+// brake pause the car?" is still a question for Sala.
+export function parsePlaybackCommand(text: string): PlaybackCommand | null {
+  const lower = (text || "").toLowerCase().replace(/\.(?!\d)/g, " ").replace(/[^a-z0-9.\s]/g, " ").replace(/\s+/g, " ").trim();
+  if (!lower) return null;
+  const words = lower.split(" ");
+  if (words.length > 6 || /^(what|why|how|who|when|where|which|can|could|does|do|is|are)\b/.test(lower) && !/^(can|could) you\b/.test(lower)) return null;
+  const body = lower.replace(/^(please |can you |could you )/, "").replace(/ please$/, "");
+  const speed = body.match(/^(?:set )?(?:the )?(?:speed|playback)(?: to)? (\d(?:\.\d+)?)(?: ?x)?$/) || body.match(/^(\d(?:\.\d+)?) ?x$/);
+  if (speed) return { kind: "speed", rate: clampPlaybackRate(Number(speed[1])) };
+  if (/^(normal|regular|default) (speed|pace)$|^(speed|pace) (reset|normal)$/.test(body)) return { kind: "speed", rate: 1 };
+  if (/^(speed up|faster|go faster|play faster|talk faster|speak faster)$/.test(body)) return { kind: "faster" };
+  if (/^(slow down|slower|go slower|play slower|talk slower|speak slower)$/.test(body)) return { kind: "slower" };
+  if (/^(pause|stop|hold on|hold up|wait|be quiet|quiet|shush)( the)?( course| lesson| audio)?$/.test(body)) return { kind: "pause" };
+  if (/^(resume|continue|carry on|keep going|unpause|play|go on|start)( the)?( course| lesson| audio)?$/.test(body)) return { kind: "resume" };
+  if (/^(start over|restart|from the top|from the beginning|begin again)( the)?( course| lesson)?$/.test(body)) return { kind: "restart" };
+  if (/^(next|skip|skip ahead|skip this|next part|next section|next lesson|move on|go forward)$/.test(body)) return { kind: "next" };
+  if (/^(previous|go back|back up|last part|previous part|rewind|go to the previous( part)?)$/.test(body)) return { kind: "previous" };
+  if (/^(repeat|repeat that|say that again|again|come again|one more time|replay|replay that)$/.test(body)) return { kind: "repeat" };
+  return null;
+}
