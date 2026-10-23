@@ -34,3 +34,24 @@ test("questions and long sentences are not commands", () => {
   assert.equal(kind("explain how stopping distance works"), null);
   assert.equal(kind(""), null);
 });
+
+test("Spanish short commands are recognized, accents optional", () => {
+  assert.equal(kind("Pausa"), "pause");
+  assert.equal(kind("continúa"), "resume");
+  assert.equal(kind("continua por favor"), "resume");
+  assert.equal(kind("siguiente"), "next");
+  assert.equal(kind("atrás"), "previous");
+  assert.equal(kind("repite"), "repeat");
+  assert.equal(kind("empieza de nuevo"), "restart");
+  assert.equal(kind("más rápido"), "faster");
+  assert.equal(kind("más lento"), "slower");
+  assert.deepEqual(parsePlaybackCommand("velocidad 1.5"), { kind: "speed", rate: 1.5 });
+  assert.deepEqual(parsePlaybackCommand("velocidad normal"), { kind: "speed", rate: 1 });
+});
+
+test("Spanish questions and long sentences are not commands", () => {
+  assert.equal(kind("¿por qué el freno hace una pausa?"), null);
+  assert.equal(kind("¿qué es la siguiente señal?"), null);
+  assert.equal(kind("cómo continúa el camino después de la curva"), null);
+  assert.equal(kind("el coche de atrás debe esperar la luz verde"), null);
+});
