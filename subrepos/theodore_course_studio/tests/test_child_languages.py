@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from theodore_course_studio.child_i18n import (
     SOUND_SPECIFIC_TOPICS,
     translate_beats,
@@ -9,6 +11,12 @@ from theodore_course_studio.child_i18n import (
 from theodore_course_studio.early_learning import EarlyLevel, build_early_course
 from theodore_course_studio.generate import CourseBuilder
 from theodore_course_studio.teach import TeachEngine
+
+@pytest.fixture(autouse=True)
+def _no_live_translation(monkeypatch):
+    # A developer machine often has a real key; these tests must never call Grok.
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+
 
 ENGLISH_BEATS = (
     ("Red", "Red is bright.", "This is red.", "Find something red."),

@@ -50,8 +50,10 @@ test("learning mode rating scale clamps to the card width on phones", () => {
   const css = readFileSync(join(web, "app", "onboarding", "Onboarding.module.css"), "utf8");
   const scale = css.match(/\.scale \{[^}]*\}/)?.[0] ?? "";
   assert.match(scale, /max-width: 100%/);
-  assert.match(css, /@media \(max-width: 839px\)[\s\S]*\.scale[\s\S]*flex-wrap: wrap/);
-  assert.match(css, /@media \(max-width: 839px\)[\s\S]*\.scale button[\s\S]*width: 26px/);
+  assert.match(scale, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+  const button = css.match(/\.scale button \{[^}]*\}/)?.[0] ?? "";
+  assert.match(button, /width: 100%/);
+  assert.match(button, /min-width: 0/);
 });
 
 test("setup copy never says Face ID", () => {

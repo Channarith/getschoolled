@@ -394,7 +394,8 @@ test("camera permission and model failures are told apart", () => {
     "camera",
   );
   assert.equal(missing.kind, "model");
-  assert.match(missing.message, /load the face model/);
+  assert.match(missing.message, /face reader on this computer isn.t ready yet/);
+  assert.match(missing.message, /Open Salareen once while you.re online/);
   assert.match(missing.message, /503/);
   assert.match(describeMediaError({ name: "NotAllowedError" }, "microphone").message, /Microphone access is blocked/);
 });
