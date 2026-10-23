@@ -20,7 +20,7 @@ import {
   syntheticHand, tipHitsTarget, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 import {
-  answerMatches, coachHint, hasWon, levelFor, orbitTurn, quizRound, resolveThrow, roundPoints, unlockedFor,
+  answerMatches, coachHint, hasWon, levelFor, quizRound, resolveThrow, roundPoints, unlockedFor,
 } from "../src/theodore_children_webcam_lab/static/pop_quiz.js";
 
 
@@ -432,22 +432,39 @@ assert.ok(!answerMatches("", "Canberra"));
 // A throw is judged generously: the nearer target to where it is heading wins.
 {
   const targets = [{x: 200, y: 300, radius: 80, answer: "L"}, {x: 800, y: 300, radius: 80, answer: "R"}];
-  const aim = (vx, vy) => resolveThrow({origin: {x: 500, y: 600}, velocity: {x: vx, y: vy}, history: [], orbit: []}, targets);
+  const aim = (vx, vy) => resolveThrow({origin: {x: 500, y: 600}, velocity: {x: vx, y: vy}, history: []}, targets);
   assert.equal(aim(300, -120).target.answer, "R", "right throw");
   assert.equal(aim(-60, -400).target.answer, "L", "sloppy up-left still counts");
   assert.equal(aim(60, -400).target.answer, "R", "sloppy up-right still counts");
-  // A spin must not turn a good straight aim into a miss.
-  const spin = Array.from({length: 24}, (_, i) => ({x: 500 + 60 * Math.cos(i / 24 * 2 * Math.PI * 1.1), y: 500 + 60 * Math.sin(i / 24 * 2 * Math.PI * 1.1), at: i * 40}));
-  const spun = (vx, vy, orbit) => resolveThrow({origin: {x: 500, y: 600}, velocity: {x: vx, y: vy}, history: [], orbit}, targets);
-  assert.equal(spun(-300, -120, spin).target.answer, "L", "curved throw aimed straight at the left answer still counts");
-  assert.equal(spun(300, -120, spin.slice().reverse()).target.answer, "R", "and the right one");
-  assert.ok(Math.abs(spun(-300, -120, spin).curve) === 1, "it is still reported as a curve ball");
   assert.equal(resolveThrow({origin: {x: 500, y: 300}, velocity: {x: 0, y: 0}}, targets).miss, true, "no motion is no throw");
   assert.equal(resolveThrow({origin: {x: 500, y: 100}, velocity: {x: 0, y: -300}}, targets).miss, true, "throwing away from both is a miss");
-  // A spin before release bends the throw toward the side it spins.
-  const circle = Array.from({length: 24}, (_, i) => ({x: 500 + 60 * Math.cos(i / 24 * 2 * Math.PI * 1.1), y: 500 + 60 * Math.sin(i / 24 * 2 * Math.PI * 1.1), at: i * 40}));
-  assert.ok(orbitTurn(circle) > 1.5 * Math.PI, "a swirl is a curve ball");
-  assert.equal(orbitTurn(circle.slice().reverse()) < -1.5 * Math.PI, true);
+}
+// Aim follows the pull-back line, and stays put when the landmarks jitter.
+{
+  const targets = [{x: 200, y: 300, radius: 80, answer: "L"}, {x: 800, y: 300, radius: 80, answer: "R"}];
+  const run = (jitter, seed) => {
+    let s = seed;
+    const rnd = () => { s = (s * 16807) % 2147483647; return (s / 2147483647 - 0.5) * 2 * jitter; };
+    let tr = newThrowTracker();
+    let release = null;
+    const feed = (at, x, y, fist) => {
+      const step = advanceThrowGesture(tr, {at, palm: 90, fist, point: {x: x + rnd(), y: y + rnd()}}, "7-10");
+      tr = step.tracker;
+      if (step.release) release = step.release;
+    };
+    let at = 0;
+    for (let i = 0; i < 6; i += 1, at += 33) feed(at, 500, 560, true);
+    // Pull back down and to the left, so the throw heads up and to the right.
+    for (let i = 1; i <= 10; i += 1, at += 33) feed(at, 500 - i * 8, 560 + i * 14, true);
+    // A sloppy release: the open hand drifts left, against the aim.
+    feed(at, 400, 700, false);
+    return release;
+  };
+  for (const seed of [3, 7, 11, 19, 23, 42]) {
+    const release = run(8, seed);
+    assert.ok(release, "a throw is released");
+    assert.equal(resolveThrow(release, targets).target.answer, "R", `jittery pull aims at the right answer (seed ${seed})`);
+  }
 }
 // Coaching tips.
 assert.equal(coachHint({seen: false, msSinceSeen: 3000}), "no-hand");

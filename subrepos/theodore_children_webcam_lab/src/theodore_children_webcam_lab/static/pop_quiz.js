@@ -180,71 +180,20 @@ export function ballFor(index, level = 1) {
   return balls[(Math.max(0, Math.floor(index)) * 5 + 1) % balls.length];
 }
 
-// ---- Curve balls ---------------------------------------------------------------
-
-const TWO_PI = Math.PI * 2;
-
-/** Signed turning of the fist's path while held: positive = clockwise on screen. */
-export function orbitTurn(points) {
-  if (!Array.isArray(points) || points.length < 6) return 0;
-  const cx = points.reduce((s, p) => s + p.x, 0) / points.length;
-  const cy = points.reduce((s, p) => s + p.y, 0) / points.length;
-  let total = 0;
-  for (let i = 1; i < points.length; i += 1) {
-    const a = Math.atan2(points[i - 1].y - cy, points[i - 1].x - cx);
-    const b = Math.atan2(points[i].y - cy, points[i].x - cx);
-    let d = b - a;
-    while (d > Math.PI) d -= TWO_PI;
-    while (d < -Math.PI) d += TWO_PI;
-    total += d;
-  }
-  return total;
-}
-
-/** How much the last stretch of the throw bends: -1 (left) .. 1 (right). */
-export function sweepCurve(history) {
-  if (!Array.isArray(history) || history.length < 4) return 0;
-  const half = Math.floor(history.length / 2);
-  const a = history.slice(0, half + 1);
-  const b = history.slice(half);
-  const ang = (rows) => {
-    const first = rows[0].point;
-    const last = rows[rows.length - 1].point;
-    return Math.atan2(last.y - first.y, last.x - first.x);
-  };
-  let d = ang(b) - ang(a);
-  while (d > Math.PI) d -= TWO_PI;
-  while (d < -Math.PI) d += TWO_PI;
-  return Math.max(-1, Math.min(1, d / (Math.PI / 3)));
-}
-
-/** A spin before the throw (a full swirl) or a swinging arc both make a curve ball. */
-export function throwCurve(release, spinRadians = 1.5 * Math.PI) {
-  const spin = orbitTurn((release?.orbit || []).map((p) => ({x: p.x, y: p.y})));
-  if (Math.abs(spin) >= spinRadians) return {curve: spin > 0 ? 1 : -1, kind: "spin"};
-  const sweep = sweepCurve(release?.history || []);
-  if (Math.abs(sweep) >= 0.45) return {curve: sweep, kind: "sweep"};
-  return {curve: 0, kind: "none"};
-}
-
 // ---- Resolving a throw: generous on purpose -------------------------------------------
-
-const CURVE_BEND = 0.4;
 
 /**
  * Pick the target a throw is going to. Close counts: the nearest target to where
- * the (curved) throw is heading wins, unless the throw points away from every
- * target. Returns {target, miss, curve, kind, accuracy, end, control}.
+ * the throw is heading wins, unless the throw points away from every target.
+ * Straight lines only. Returns {target, miss, accuracy, perfect, end}.
  */
 export function resolveThrow(release, targets, tolerance = 2.4) {
   const velocity = release?.velocity;
   const origin = release?.origin;
   const speed = Math.hypot(Number(velocity?.x) || 0, Number(velocity?.y) || 0);
   const list = (Array.isArray(targets) ? targets : []).filter((t) => Number.isFinite(t?.x) && Number.isFinite(t?.y));
-  if (!origin || speed <= 0 || !list.length) return {target: null, miss: true, curve: 0, kind: "none", accuracy: 0};
+  if (!origin || speed <= 0 || !list.length) return {target: null, miss: true, accuracy: 0};
   const dir = {x: velocity.x / speed, y: velocity.y / speed};
-  const perp = {x: -dir.y, y: dir.x};
-  const {curve, kind} = throwCurve(release);
   let best = null;
   for (const target of list) {
     const dx = target.x - origin.x;
@@ -252,39 +201,17 @@ export function resolveThrow(release, targets, tolerance = 2.4) {
     const dist = Math.max(1, Math.hypot(dx, dy));
     const cosine = (dx * dir.x + dy * dir.y) / dist;
     if (cosine < -0.15) continue;
-    const lateral = curve * CURVE_BEND * dist;
-    const curved = {x: origin.x + dir.x * dist + perp.x * lateral, y: origin.y + dir.y * dist + perp.y 
-      * lateral};
-    const straight = {x: origin.x + dir.x * dist, y: origin.y + dir.y * dist};
     const radius = Math.max(1, Number(target.radius) || 64);
-    // Generous: a curve ball counts if EITHER the straight line or the bent path
-    // ends near the answer, so a spin never turns a good aim into a miss.
-    const straightError = Math.hypot(target.x - straight.x, target.y - straight.y) / radius;
-    const curvedError = Math.hypot(target.x - curved.x, target.y - curved.y) / radius;
-    const error = Math.min(straightError, curvedError);
-    if (!best || error < best.error) best = {target, error, dist, lateral, curvedBetter: curvedError < straightError};
+    const error = Math.hypot(target.x - (origin.x + dir.x * dist), target.y - (origin.y + dir.y * dist)) / radius;
+    if (!best || error < best.error) best = {target, error};
   }
-  if (!best) return {target: null, miss: true, curve, kind, accuracy: 0};
-  const accuracy = Math.max(0, Math.min(1, 1 - best.error / tolerance));
-  const mid = {x: (origin.x + best.target.x) / 2, y: (origin.y + best.target.y) / 2};
+  if (!best) return {target: null, miss: true, accuracy: 0};
   return {
     target: best.target,
     miss: false,
-    curve,
-    kind,
-    accuracy,
+    accuracy: Math.max(0, Math.min(1, 1 - best.error / tolerance)),
     perfect: best.error <= 0.9,
     end: {x: best.target.x, y: best.target.y},
-    control: curve ? {x: mid.x + perp.x * best.lateral * (best.curvedBetter ? 1.4 : 0.7), y: mid.y + perp.y * best.lateral * (best.curvedBetter ? 1.4 : 0.7)} : mid,
-  };
-}
-
-/** A point along a quadratic curve, t in 0..1. */
-export function curvePoint(start, control, end, t) {
-  const u = 1 - t;
-  return {
-    x: u * u * start.x + 2 * u * t * control.x + t * t * end.x,
-    y: u * u * start.y + 2 * u * t * control.y + t * t * end.y,
   };
 }
 
