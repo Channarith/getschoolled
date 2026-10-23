@@ -71,6 +71,20 @@ export function CourseStudioFrame({
 
   return (
     <div className={fill ? "course-stage-embed" : undefined}>
+      {fill && (
+        <button
+          type="button"
+          className="course-stage-exit"
+          aria-label="Leave the lesson"
+          title="Leave the lesson"
+          onClick={() => {
+            if (window.history.length > 1) window.history.back();
+            else window.location.href = "/";
+          }}
+        >
+          ✕
+        </button>
+      )}
       <iframe
         ref={frameRef}
         title={title}

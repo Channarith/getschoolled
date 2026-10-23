@@ -89,12 +89,6 @@ export default function ContactPage() {
           </div>
         ))}
       </div>
-
-      <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
-        Looking for a custom course for your company? See{" "}
-        <Link href="/corporate">Corporate training</Link>. Exploring roles you can train for? Browse{" "}
-        <Link href="/jobs">Careers</Link>.
-      </p>
     </main>
   );
 }

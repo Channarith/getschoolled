@@ -124,3 +124,16 @@ def test_demo_mode_is_clean_and_uses_the_logo_avatar():
     assert (_PKG_ROOT / "voice_static" / "salareen-logo.webp").is_file()
     # Demo-only commands must not leak into the catalog shared with web + mobile.
     assert "audio_off" not in _extract_catalog(js)
+
+
+def test_demo_has_a_tutorial_help_button_and_goes_full_screen_on_phones():
+    js = _VOICE_JS.read_text(encoding="utf-8")
+    assert "showDemoTutorial" in js and "sala_demo_tutorial_seen_v1" in js
+    assert 'clickById("btn-fullscreen")' in js and "orientation" in js
+    # Buttons live in the full-screen element, or they would not be drawn in full screen.
+    assert "fullscreenElement" in js and "mountOnTop" in js
+    html = render_studio_page()
+    for selector in (".sala-tutorial", ".sala-help", ".sala-rotate", "body.demo-clean .teach-stage"):
+        assert selector in html
+    # On phones the slide must not be capped to half the screen in the demo.
+    assert "max-height:none !important" in html

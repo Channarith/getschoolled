@@ -470,6 +470,40 @@ a {
   min-height: calc(100dvh - 9rem);
 }
 
+/* Phones: the lesson takes the whole screen (no site header, links or footer). */
+.course-stage-exit { display: none; }
+@media (max-width: 760px) {
+  .course-stage .course-stage-embed iframe {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    z-index: 900;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+  .course-stage-exit {
+    display: grid;
+    place-items: center;
+    position: fixed;
+    right: 14px;
+    top: 140px;
+    z-index: 950;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.85);
+    color: #fff;
+    font: 700 18px/1 system-ui, sans-serif;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+}
+
 /* Single-column page shell — mobile-first, compact on all viewports. */
 .page-one {
   max-width: 640px;

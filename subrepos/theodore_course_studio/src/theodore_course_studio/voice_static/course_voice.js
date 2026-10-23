@@ -722,11 +722,138 @@ export function initCourseVoiceOverlay(opts = {}) {
 
   // Demo: the avatar is the only control. One click starts the course (the
   // avatar talks) and opens the mic; clicking again mutes or unmutes it.
+  // On a phone every pixel counts: the first tap goes straight to full screen.
+  const phoneQuery = window.matchMedia ? window.matchMedia("(max-width: 760px), (max-height: 520px) and (pointer: coarse)") : null;
+  // Only the full-screen element is drawn while in full screen, so our buttons
+  // and the tutorial have to live inside it, and move back when it ends.
+  function mountOnTop(node) {
+    const host = document.fullscreenElement || document.body;
+    if (node.parentNode !== host) host.appendChild(node);
+  }
+  document.addEventListener("fullscreenchange", () => {
+    for (const node of document.querySelectorAll(".sala-help, .sala-rotate, .sala-tutorial")) mountOnTop(node);
+    showRotateHint();
+  });
+
+  function showRotateHint() {
+    if (!phoneQuery || !phoneQuery.matches) return;
+    const portrait = window.matchMedia("(orientation: portrait)").matches;
+    let hint = document.querySelector(".sala-rotate");
+    if (!portrait || !(document.body.classList.contains("presenting") || document.fullscreenElement)) { hint?.remove(); return; }
+    if (!hint) {
+      hint = el("div", { class: "sala-rotate", role: "status" }, ["\u{1F504} Turn your phone sideways for the biggest picture"]);
+      mountOnTop(hint);
+      setTimeout(() => hint?.remove(), 8000);
+    }
+  }
+  if (window.matchMedia) {
+    const orient = window.matchMedia("(orientation: portrait)");
+    if (orient.addEventListener) orient.addEventListener("change", showRotateHint);
+  }
+
+  function goFullScreenOnPhone() {
+    if (!phoneQuery || !phoneQuery.matches) return;
+    if (document.body.classList.contains("presenting") || document.fullscreenElement) return;
+    clickById("btn-fullscreen");
+    // Where the phone allows it (Android Chrome in full screen), use the wide picture.
+    setTimeout(() => {
+      try { window.screen?.orientation?.lock?.("landscape")?.catch(() => {}); } catch { /* not supported */ }
+      showRotateHint();
+    }, 400);
+  }
+
+  const TUTORIAL_KEY = "sala_demo_tutorial_seen_v1";
+  const DEMO_TUTORIAL = [
+    {
+      icon: "✨", title: "Meet Sala",
+      lines: [
+        "Tap the Sala picture to start the lesson. Tap it again to turn listening on or off.",
+        "Sala teaches out loud. Allow the microphone when your device asks.",
+      ],
+    },
+    {
+      icon: "🎙️", title: "Just say it",
+      lines: ["Talk to Sala like a teacher. Try:"],
+      chips: ["pause", "next", "back", "repeat", "captions on", "full screen", "speak Spanish", "louder", "mute"],
+      after: ["Or ask any question about the course."],
+    },
+    {
+      icon: "👆", title: "Tap and double-tap",
+      lines: [
+        "Tap the lesson to move to the next part.",
+        "Double-tap the lesson to go full screen. Double-tap again to leave full screen.",
+      ],
+    },
+    {
+      icon: "💡", title: "Good to know",
+      lines: [
+        "Find a quiet spot so Sala can hear you.",
+        "If you step out of the camera's view, the lesson pauses and picks up when you are back.",
+        "The free demo runs for 10 minutes.",
+      ],
+    },
+  ];
+
+  function showDemoTutorial(startLesson) {
+    document.querySelector(".sala-tutorial")?.remove();
+    let step = 0;
+    const overlay = document.createElement("div");
+    overlay.className = "sala-tutorial";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "How to use this lesson");
+    const render = () => {
+      const t = DEMO_TUTORIAL[step];
+      const last = step === DEMO_TUTORIAL.length - 1;
+      const chips = t.chips ? `<ul>${t.chips.map((c) => `<li>${c}</li>`).join("")}</ul>` : "";
+      overlay.innerHTML = `
+        <div class="card">
+          <div class="dots">${DEMO_TUTORIAL.map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("")}</div>
+          <div class="icon" aria-hidden="true">${t.icon}</div>
+          <h2>${t.title}</h2>
+          ${t.lines.map((l) => `<p>${l}</p>`).join("")}${chips}${(t.after || []).map((l) => `<p>${l}</p>`).join("")}
+          <div class="actions">
+            ${step > 0 ? '<button type="button" class="back">Back</button>' : '<button type="button" class="skip">Skip</button>'}
+            <button type="button" class="go">${last ? (startLesson ? "Start the lesson" : "Done") : "Next"}</button>
+          </div>
+        </div>`;
+      overlay.querySelector(".go").onclick = () => (last ? close() : (step += 1, render()));
+      const back = overlay.querySelector(".back");
+      if (back) back.onclick = () => { step -= 1; render(); };
+      const skip = overlay.querySelector(".skip");
+      if (skip) skip.onclick = () => close();
+    };
+    const close = () => {
+      try { window.localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* not kept: shows again next time */ }
+      overlay.remove();
+      if (startLesson) {
+        goFullScreenOnPhone();
+        const welcome = document.getElementById("page-welcome");
+        if (welcome && !welcome.hidden) clickById("btn-start-voice");
+        if (!consented) setConsented(true);
+      }
+    };
+    render();
+    mountOnTop(overlay);
+  }
+
+  function wireDemoHelp() {
+    if (document.querySelector(".sala-help")) return;
+    const help = el("button", { type: "button", class: "sala-help", "aria-label": "How to use this lesson", title: "How to use this lesson" }, ["?"]);
+    help.addEventListener("click", () => showDemoTutorial(false));
+    mountOnTop(help);
+    let seen = false;
+    try { seen = window.localStorage.getItem(TUTORIAL_KEY) === "1"; } catch { seen = false; }
+    if (!seen) showDemoTutorial(true);
+  }
+
   function wireAvatarGesture() {
+    wireDemoHelp();
     document.addEventListener("click", (event) => {
       const wrap = event.target.closest && event.target.closest("#theodore-avatar-wrap");
       if (!wrap) return;
       event.stopPropagation();
+      goFullScreenOnPhone();
       const welcome = document.getElementById("page-welcome");
       if (welcome && !welcome.hidden) clickById("btn-start-voice");
       if (!consented) setConsented(true);

@@ -425,6 +425,66 @@ STUDIO_CSS = """
     body.demo-clean #theodore-avatar { background:url(/api/studio/voice-overlay/salareen-logo.webp) center/contain no-repeat; }
     body.demo-clean #theodore-avatar > * { display:none !important; }
     body.demo-clean .theodore-avatar-wrap.sala-listening { box-shadow:0 0 0 3px #22c55e, 0 0 28px rgba(34,197,94,.55); border-radius:18px; }
+    /* Demo: the slide fills the whole screen (like full screen), the logo avatar is a small corner picture. */
+    html body.demo-clean { margin:0; padding:0; }
+    html body.demo-clean .teach-stage { position:relative; height:100vh; height:100dvh; min-height:100dvh; padding:0; border:0;
+      border-radius:0; overflow:hidden; background:#0f172a; }
+    html body.demo-clean #teach-stage-home, html body.demo-clean .panel { height:100%; }
+    html body.demo-clean .teacher-stage-grid { position:absolute; inset:0; display:block; }
+    html body.demo-clean .visual-timeline-stage, html body.demo-clean .storyboard-stage {
+      position:absolute; inset:0; width:100%; height:100%; aspect-ratio:unset; min-height:0 !important;
+      max-height:none !important; margin:0; border-radius:0; box-shadow:none; z-index:0; }
+    html body.demo-clean #theodore-live-audio { position:fixed; left:10px; right:140px; top:10px; bottom:auto; width:auto;
+      max-width:none; height:auto; z-index:7; pointer-events:none; }
+    html body.demo-clean #theodore-live-audio > * { pointer-events:auto; }
+    /* Short landscape phones: keep the corner pictures small. */
+    @media (max-height:520px) {
+      html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { width:64px !important; height:84px !important; right:8px !important; bottom:8px !important; }
+      html body.demo-clean #theodore-live-audio { display:none !important; }
+      html body.demo-clean .lesson-stage-content { padding:8px 84px 8px 12px; max-height:34%; }
+      html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { display:block !important; visibility:visible !important; }
+    html body.demo-clean #student-cam { width:72px; }
+    }
+    /* Portrait phones: slide on top, a strip below for the avatar and the question. */
+    @media (max-width:760px) {
+      html body.demo-clean .visual-timeline-stage, html body.demo-clean .storyboard-stage,
+      html body.demo-clean .lesson-photo { bottom:132px; height:auto; }
+      html body.demo-clean #theodore-live-audio { display:none !important; }
+      html body.demo-clean .lesson-stage-content { min-height:132px; max-height:none; padding:10px 112px 12px 12px;
+        background:#0f172a; display:flex; align-items:center; }
+      html body.demo-clean .lesson-stage-content > * { margin:0; }
+      html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { bottom:10px !important; }
+    }
+    html body.demo-clean .lesson-photo { position:absolute; inset:0; margin:0; min-height:0; z-index:0; }
+    html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { position:absolute !important; right:12px !important;
+      bottom:12px !important; top:auto !important; left:auto !important; width:clamp(64px,min(22vw,22vh),120px) !important;
+      height:clamp(80px,min(28vw,28vh),150px) !important; min-height:0 !important; z-index:6; border-radius:18px;
+      background:rgba(15,23,42,.55); border:1px solid rgba(255,255,255,.35); box-shadow:0 8px 24px rgba(0,0,0,.4); }
+    html body.demo-clean .lesson-stage-content { position:absolute; left:0; right:0; bottom:0; z-index:3; max-height:42%;
+      overflow:auto; padding:12px 130px 14px 16px; background:linear-gradient(transparent,rgba(15,23,42,.82) 25%,rgba(15,23,42,.94));
+      color:#f6efe4; border:0; }
+    html body.demo-clean #student-cam { left:10px; right:auto; top:10px; bottom:auto; width:92px; z-index:7; }
+    html body.demo-clean #sample-clock { top:8px; right:8px; }
+    /* Demo tutorial and help button. */
+    .sala-help { position:fixed; right:14px; top:92px; z-index:2147483000; width:40px; height:40px; border-radius:50%; border:0;
+      background:#fde047; color:#1e1b4b; font:900 20px/1 system-ui,sans-serif; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.35); }
+    .sala-rotate { position:fixed; left:50%; top:14px; transform:translateX(-50%); z-index:90; padding:8px 14px; border-radius:99px;
+      background:rgba(15,23,42,.92); color:#fde68a; font:800 14px/1.2 system-ui,sans-serif; border:2px solid #fde047; text-align:center; max-width:88vw; }
+    .sala-tutorial { position:fixed; inset:0; z-index:2147483200; display:grid; place-items:center; padding:14px; background:rgba(2,6,23,.82); }
+    .sala-tutorial .card { width:min(94vw,520px); max-height:94vh; overflow:auto; padding:20px 20px 16px; border-radius:24px;
+      background:linear-gradient(160deg,#312e81,#1e1b4b); border:3px solid #fde047; color:#f1f5f9; text-align:center;
+      font:500 16px/1.45 system-ui,"Avenir Next","Segoe UI",sans-serif; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+    .sala-tutorial h2 { margin:6px 0 10px; color:#fde68a; font:900 clamp(22px,6vw,30px)/1.15 system-ui,sans-serif; }
+    .sala-tutorial p { margin:8px 0; }
+    .sala-tutorial .icon { font-size:46px; line-height:60px; }
+    .sala-tutorial ul { list-style:none; margin:8px 0; padding:0; display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+    .sala-tutorial li { padding:4px 10px; border-radius:99px; background:rgba(255,255,255,.12); border:1px solid rgba(253,224,71,.5); font-weight:700; font-size:14px; }
+    .sala-tutorial .dots { display:flex; gap:6px; justify-content:center; }
+    .sala-tutorial .dots i { width:9px; height:9px; border-radius:50%; background:#475569; }
+    .sala-tutorial .dots i.on { background:#fde047; transform:scale(1.3); }
+    .sala-tutorial .actions { display:flex; gap:10px; justify-content:center; margin-top:14px; }
+    .sala-tutorial button { min-height:44px; padding:0 20px; border:0; border-radius:99px; font:900 16px/1 system-ui,sans-serif; cursor:pointer; background:#e2e8f0; color:#1e1b4b; }
+    .sala-tutorial button.go { background:#fde047; }
     body.aoep-voice-revealed .sala-pill,
     body.aoep-voice-revealed .sala-consent { display:none !important; }
     .sala-pill:focus-visible,
