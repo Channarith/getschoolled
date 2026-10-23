@@ -4,7 +4,7 @@
 // THROW the ball at it. Both right = 5 points, one right = 2, first to 100 wins.
 // Camera and microphone stay on the device; nothing here uploads anything.
 
-import {advanceThrowGesture, newThrowTracker} from "./vision_math.js";
+import {advanceThrowGesture, newThrowTracker, pullAim} from "./vision_math.js";
 import * as Q from "./pop_quiz.js";
 
 const TUTORIAL = [
@@ -31,17 +31,9 @@ const TUTORIAL = [
     lines: [
       "✊ Close your fist to grab the ball. Keep it closed.",
       "↩️ Pull your fist back toward you, like a slingshot.",
-      "🖐️ Open your hand to throw, toward the answer. Do not open early!",
+      "🖐️ Open your hand to throw. The ball flies along the yellow line, so aim the line at the answer!",
     ],
     motion: true,
-  },
-  {
-    icon: "🌀",
-    title: "Curve balls",
-    lines: [
-      "Swirl your fist in a circle before you throw, or swing your arm in an arc, to bend the ball.",
-      "Curve balls look amazing and can sneak around to the answer you were aiming at.",
-    ],
   },
   {
     icon: "💡",
@@ -674,23 +666,28 @@ export function createPopQuizGame(d) {
     if (window.__pqTrace) window.__pqTrace.push({at: Math.round(now), hand: Boolean(hand), fist: Boolean(hand?.fist), phase, event: step.event});
     if (hand?.wrist && (phase === "grabbed" || phase === "cocked")) {
       ballAt(hand.wrist);
-      const turn = Math.abs(Q.orbitTurn(step.tracker.orbit || []));
-      pq.ball?.classList.toggle("spin", turn > Math.PI);
-      pq.ball?.classList.toggle("curve-ready", turn >= 1.5 * Math.PI);
-      if (turn >= 1.5 * Math.PI && !pq.curveTold) {
-        pq.curveTold = true;
-        banner("🌀 Curve ball ready!", "curve");
-      }
+      aimAt(step.tracker);
     }
     if (step.event === "grabbed") d.setPrompt(pq.round.question, "Great grab! Keep your fist closed and pull it back.");
     else if (step.event === "cocked") d.setPrompt(pq.round.question, "Now open your hand and throw it at the answer!");
     else if (step.event === "released-early") banner("Keep your fist closed until you throw", "tip");
-    else if (step.event === "lost" && wasActive) { dropBall(); pq.curveTold = false; banner("Hand lost. Show your fist again", "tip"); }
+    else if (step.event === "lost" && wasActive) { dropBall(); clearAim(); banner("Hand lost. Show your fist again", "tip"); }
     else if (step.event === "released" && step.release) launch(step.release);
   }
 
+  function clearAim() {
+    for (const el of spriteLayer.querySelectorAll(".pq-target.aimed")) el.classList.remove("aimed");
+  }
+
+  // While the fist is pulled back, light up the answer the throw will go to.
+  function aimAt(tracker) {
+    const aim = tracker.phase === "cocked" ? pullAim(tracker) : null;
+    const hit = aim ? Q.resolveThrow({origin: aim.origin, velocity: aim.dir}, targetCenters()) : null;
+    for (const el of spriteLayer.querySelectorAll(".pq-target")) el.classList.toggle("aimed", Boolean(hit?.target && hit.target.el === el));
+  }
+
   function launch(release) {
-    pq.curveTold = false;
+    clearAim();
     const targets = targetCenters();
     const result = Q.resolveThrow(release, targets);
     const b = box();
@@ -705,23 +702,20 @@ export function createPopQuizGame(d) {
     const start = {x: release.origin.x, y: release.origin.y};
     const end = result.end;
     const tier = Q.streakTier(pq.streak).tier;
-    const curved = Math.abs(result.curve) >= 0.3;
     const ball = ensureBall(pq.ballEmoji || "⚽");
-    ball.classList.remove("spin", "curve-ready");
     ball.dataset.tier = String(tier);
     ball.classList.add("flying");
-    if (curved) banner(result.kind === "spin" ? "🌀 CURVE BALL!" : "↪️ Nice curve!", "curve");
-    const duration = reduced ? 160 : curved ? 640 : 480;
+    const duration = reduced ? 160 : 480;
     const startedAt = performance.now();
     let lastTrail = 0;
     const step = () => {
       const t = Math.min(1, (performance.now() - startedAt) / duration);
       const eased = 1 - (1 - t) ** 2.2;
-      const p = Q.curvePoint(start, result.control, end, eased);
+      const p = {x: start.x + (end.x - start.x) * eased, y: start.y + (end.y - start.y) * eased};
       ball.style.left = `${p.x}px`;
       ball.style.top = `${p.y}px`;
       ball.style.setProperty("--shrink", String(1 - 0.35 * eased));
-      ball.style.setProperty("--spin", `${Math.round(eased * (curved ? 900 : 360))}deg`);
+      ball.style.setProperty("--spin", `${Math.round(eased * 360)}deg`);
       const nowMs = performance.now();
       if (!reduced && nowMs - lastTrail > 28) {
         lastTrail = nowMs;
@@ -732,17 +726,17 @@ export function createPopQuizGame(d) {
         });
       }
       if (t < 1) requestAnimationFrame(step);
-      else landed(result, end, curved);
+      else landed(result, end);
     };
     requestAnimationFrame(step);
   }
 
-  function landed(result, end, curved) {
+  function landed(result, end) {
     pq.flying = false;
     dropBall();
     const target = result.target;
     const correct = target.answer === pq.round.answer;
-    pq.thrown = {correct, curved, perfect: Boolean(result.perfect), accuracy: result.accuracy};
+    pq.thrown = {correct, perfect: Boolean(result.perfect), accuracy: result.accuracy};
     target.el.classList.add(correct ? "hit" : "miss");
     shockwave(end.x, end.y, correct ? "#fde047" : "#94a3b8");
     burst(end.x, end.y, correct ? pick([FIRE, ["⭐", "✨", "🎉"], ["💖", "✨", "🌟"], ["🌸", "✨", "💫"]]) : ["💨", "😅"], correct ? 14 : 5);
@@ -897,7 +891,6 @@ export function createPopQuizGame(d) {
 
   function cancelThrow() {
     pq.tracker = newThrowTracker();
-    pq.curveTold = false;
     if (!pq.flying) dropBall();
   }
 

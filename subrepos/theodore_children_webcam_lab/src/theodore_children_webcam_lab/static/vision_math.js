@@ -203,6 +203,16 @@ export function claimTouch(latch, key, now, waitMs = 420) {
   return { claimed: true, latch: { key: String(key), until: at + wait } };
 }
 
+/** The slingshot aim: from the pulled-back fist toward where the grab started. */
+export function pullAim(tracker) {
+  if (!tracker?.grabPoint || !tracker?.cockPoint) return null;
+  const x = tracker.grabPoint.x - tracker.cockPoint.x;
+  const y = tracker.grabPoint.y - tracker.cockPoint.y;
+  const length = Math.hypot(x, y);
+  if (length < 1e-6) return null;
+  return {origin: tracker.smooth ? {x: tracker.smooth.x, y: tracker.smooth.y} : tracker.cockPoint, dir: {x: x / length, y: y / length}};
+}
+
 export function newThrowTracker() {
   return {
     phase: "ready",
@@ -210,7 +220,7 @@ export function newThrowTracker() {
     grabPoint: null,
     cockPoint: null,
     history: [],
-    orbit: [],
+    smooth: null,
     lastSeenAt: 0,
   };
 }
@@ -249,13 +259,17 @@ export function advanceThrowGesture(current, rawSample, ageBand = "7-10") {
   const history = [...(prior.history || []), sample]
     .filter((row) => sample.at - row.at <= 420)
     .slice(-14);
-  // Where the fist has been while held, for spin (curve ball) detection.
-  const orbit = sample.fist
-    ? [...(prior.orbit || []), {x: sample.point.x, y: sample.point.y, at: sample.at}]
-      .filter((row) => sample.at - row.at <= 1800)
-      .slice(-40)
-    : (prior.orbit || []);
-  const tracker = {...prior, history, orbit, lastSeenAt: sample.at};
+  // Webcam landmarks jitter a few pixels a frame. Smooth the point: heavy when the
+  // hand is nearly still (kills jitter), light when it moves fast (no lag).
+  const prev = prior.smooth;
+  let point = sample.point;
+  if (prev && sample.at - prev.at < 300) {
+    const speed = Math.hypot(sample.point.x - prev.x, sample.point.y - prev.y) / sample.palm;
+    const alpha = Math.max(0.35, Math.min(1, 0.35 + speed * 1.2));
+    point = {x: prev.x + (sample.point.x - prev.x) * alpha, y: prev.y + (sample.point.y - prev.y) * alpha};
+  }
+  sample.point = point;
+  const tracker = {...prior, history, smooth: {x: point.x, y: point.y, at: sample.at}, lastSeenAt: sample.at};
 
   if (tracker.phase === "ready") {
     if (!sample.fist) return {tracker: {...tracker, grabStartedAt: 0, grabPoint: null}, event: null};
@@ -316,23 +330,24 @@ export function advanceThrowGesture(current, rawSample, ageBand = "7-10") {
     const pullLength = Math.hypot(pull.x, pull.y);
     const velocityLength = Math.max(1e-6, Math.hypot(velocity.x, velocity.y));
     const reversal = (pull.x * velocity.x + pull.y * velocity.y) / (Math.max(1e-6, pullLength) * velocityLength);
-    const release = {origin: sample.point, velocity, speed, reversal, assisted: false, history, orbit: tracker.orbit};
-    if (speed >= speedPalmsPerSecond && reversal < 0.2) {
-      return {tracker: {...tracker, phase: "released"}, event: "released", release};
-    }
-    // Too slow or too sideways for the camera to read the motion: still throw,
-    // aimed back along the pull (toward where the fist started). Close counts.
-    if (pullLength > 1e-6) {
-      const nominal = speedPalmsPerSecond * sample.palm;
+    const fast = speed >= speedPalmsPerSecond && reversal < 0.2;
+    const aim = pullAim(tracker);
+    if (aim) {
+      // Aim along the slingshot line (the pull-back is long and steady; a release
+      // flick is two or three noisy frames). A clear flick only nudges it.
+      let dir = aim.dir;
+      if (fast) {
+        const vx = velocity.x / velocityLength;
+        const vy = velocity.y / velocityLength;
+        const mixed = {x: dir.x * 0.75 + vx * 0.25, y: dir.y * 0.75 + vy * 0.25};
+        const length = Math.hypot(mixed.x, mixed.y);
+        if (length > 0.3) dir = {x: mixed.x / length, y: mixed.y / length};
+      }
+      const nominal = Math.max(speed, speedPalmsPerSecond) * sample.palm;
       return {
         tracker: {...tracker, phase: "released"},
         event: "released",
-        release: {
-          ...release,
-          velocity: {x: -pull.x / pullLength * nominal, y: -pull.y / pullLength * nominal},
-          speed: speedPalmsPerSecond,
-          assisted: true,
-        },
+        release: {origin: sample.point, velocity: {x: dir.x * nominal, y: dir.y * nominal}, speed: Math.max(speed, speedPalmsPerSecond), reversal, assisted: !fast, history},
       };
     }
     return {tracker: newThrowTracker(), event: "weak-release"};

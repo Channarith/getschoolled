@@ -129,7 +129,6 @@ body.pq-playing .prompt,body.pq-playing #prompt{display:none!important}
 .pq-banner{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%) scale(.6);opacity:0;padding:.3rem 1.2rem;border-radius:18px;font-weight:1000;font-size:clamp(1.6rem,6vmin,3.4rem);color:#fff;text-shadow:0 4px 0 #0006;white-space:nowrap;pointer-events:none}
 .pq-banner.show{animation:pqBanner 1.7s cubic-bezier(.2,.9,.3,1.1) forwards}
 .pq-banner.tip{font-size:clamp(1.1rem,3.6vmin,1.9rem);background:#0f172ae6;color:#fde68a;border:2px solid #fde047}
-.pq-banner.curve{color:#a5f3fc;text-shadow:0 0 18px #22d3ee,0 4px 0 #0006}
 .pq-banner.streak{color:#fed7aa}.pq-banner.tier1{color:#fb923c;text-shadow:0 0 22px #ef4444,0 4px 0 #0006}
 .pq-banner.tier2{background:linear-gradient(90deg,#f472b6,#fde047,#34d399,#60a5fa);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 0 #0008)}
 .pq-banner.tier3{color:#bfdbfe;text-shadow:0 0 26px #60a5fa,0 0 50px #a78bfa,0 4px 0 #0006}
@@ -150,8 +149,7 @@ body.pq-playing .prompt,body.pq-playing #prompt{display:none!important}
 .pq-target.miss .pq-art{animation:pqNope .5s ease-out}
 .pq-target.reveal .pq-label{background:#bbf7d0;border-color:#16a34a;animation:pqGlow .9s ease-in-out 2}
 .pq-ball{position:absolute;z-index:6;transform:translate(-50%,-50%) scale(var(--shrink,1)) rotate(var(--spin,0deg));font-size:clamp(3rem,9vmin,6rem);line-height:1;filter:drop-shadow(0 10px 12px #0009);pointer-events:none;will-change:left,top,transform}
-.pq-ball.spin{animation:pqSpinHint .55s linear infinite}
-.pq-ball.curve-ready{filter:drop-shadow(0 0 14px #67e8f9) drop-shadow(0 0 30px #a78bfa)}
+.pq-target.aimed .pq-art{filter:drop-shadow(0 0 16px #fde047) drop-shadow(0 0 34px #f59e0b)}
 .pq-ball[data-tier="1"]{filter:drop-shadow(0 0 14px #fb923c) drop-shadow(0 0 32px #ef4444)}
 .pq-ball[data-tier="2"]{animation:pqRainbow .6s linear infinite}
 .pq-ball[data-tier="3"]{filter:drop-shadow(0 0 16px #fff) drop-shadow(0 0 34px #60a5fa) drop-shadow(0 0 60px #a78bfa)}
@@ -194,7 +192,6 @@ body.phone-play .pq-top{bottom:3rem}
 @keyframes pqBloom{0%{transform:scale(1)}40%{transform:scale(1.28) rotate(4deg);filter:drop-shadow(0 0 18px #f9a8d4)}100%{transform:scale(1)}}
 @keyframes pqNope{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px) rotate(-4deg)}50%{transform:translateX(10px) rotate(3deg)}80%{transform:translateX(-5px)}}
 @keyframes pqGlow{50%{box-shadow:0 0 0 8px #4ade80aa,0 6px 14px #0007;transform:scale(1.08)}}
-@keyframes pqSpinHint{from{transform:translate(-50%,-50%) scale(var(--shrink,1)) rotate(0)}to{transform:translate(-50%,-50%) scale(var(--shrink,1)) rotate(360deg)}}
 @keyframes pqRainbow{from{filter:hue-rotate(0) drop-shadow(0 0 18px #f472b6)}to{filter:hue-rotate(360deg) drop-shadow(0 0 18px #f472b6)}}
 @keyframes pqStep{0%{opacity:0;transform:translateX(-120%)}8%,30%{opacity:1;transform:translateX(-50%)}38%,100%{opacity:0;transform:translateX(40%)}}
-@media(prefers-reduced-motion:reduce){.pq-art,.pq-streak,.pq-ball.spin{animation:none!important}.pq-banner.show{animation:none;opacity:1;transform:translate(-50%,-50%)}}
+@media(prefers-reduced-motion:reduce){.pq-art,.pq-streak{animation:none!important}.pq-banner.show{animation:none;opacity:1;transform:translate(-50%,-50%)}}
