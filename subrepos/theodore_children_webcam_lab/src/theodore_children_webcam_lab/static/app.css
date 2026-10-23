@@ -68,7 +68,7 @@ body.phone-play.chrome-hidden .stage{height:100dvh}
 body.phone-play.stage-fill .vision-tools,body.phone-play.stage-fill .dashboard{display:none}
 body:not(.phone-play) #touch-mode{display:none!important}
 body.phone-play #touch-mode{
-  position:fixed;left:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:40;
+  position:fixed;right:12px;left:auto;bottom:calc(136px + env(safe-area-inset-bottom));z-index:40;
   display:inline-flex;align-items:center;gap:4px;padding:3px;min-height:44px;
   background:#111827;border:2px solid #5eead4;border-radius:999px;box-shadow:0 8px 18px #0008;
 }
@@ -77,7 +77,7 @@ body.phone-play #touch-mode button{
   background:transparent;color:#e2e8f0;font-size:.8rem;font-weight:800;white-space:nowrap;
 }
 body.phone-play #touch-mode button[aria-checked="true"]{background:#5eead4;color:#0f172a}
-body.phone-play.chrome-hidden #touch-mode{bottom:calc(12px + env(safe-area-inset-bottom))}
+body.phone-play .topbar{z-index:auto}
 .screen-catcher{position:absolute;inset:0;z-index:7;touch-action:none;background:transparent}
 .screen-catcher[hidden]{display:none!important}
 .stage.karaoke-on .screen-catcher{display:none!important}
