@@ -59,3 +59,12 @@ Later: fine-tune on a speaker's consented recordings (NOT run yet; stub)
   arXiv 2606.26618, title only seen). CosyVoice 2: the Spark fine-tune scripts (scripts/spark_cosyvoice_km_finetune.sh)
   are the template. Gate: consent scope model_training (already required), a held-out sentence set, listening-lab A/B
   against the zero-shot clone, and the GPU lock via gs_run.sh. Training data never leaves the Spark.
+
+Say anything (type words, hear them in an enrolled voice)
+  The enrollment page has a "Say anything" tab: pick an enrolled, consented voice, a model (VoxCPM2 or CosyVoice 2), a language and
+  up to 500 characters; the clip plays in the page and can be downloaded. It goes through the same consent gate as everything else
+  (no record or a withdrawn one = refused, and withdrawn voices stop playing), runs scripts/run_voice_say.sh under gs_run.sh (GPU lock,
+  memory gate), refuses a second queued clip for the same voice and model, and shows waiting for GPU lock / running / done.
+  VoxCPM2 compiles GPU kernels with Triton, which needs Python.h; without python3.12-dev the script sets TORCHDYNAMO_DISABLE=1.
+  Every clip is stored under ~/voices/say/<speaker>/ with a .json sidecar (ai_generated: true, "AI-generated voice of <name>") because
+  the VoxCPM2 license asks that generated audio be labelled. Command line: python3 -m tts_bakeoff.voice_clone.bakeoff say ...
