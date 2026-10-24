@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Mac scheduler for the merge train. Install:
+    sed "s#__REPO__#$PWD#g; s#__HOME__#$HOME#g" scripts/train/com.salareen.merge-train.plist > ~/Library/LaunchAgents/com.salareen.merge-train.plist
+    launchctl load ~/Library/LaunchAgents/com.salareen.merge-train.plist
+  Remove:  launchctl unload ~/Library/LaunchAgents/com.salareen.merge-train.plist
+  Starts as a DRY RUN (no TRAIN_APPLY). Change the value below to 1 only when you are happy with the summaries.
+
+  A Mac that is asleep runs nothing; launchd runs one catch-up pass after wake. To wake it for the window:
+    sudo pmset repeat wakeorpoweron MTWRFSU 07:55:00
+  The pass itself wraps the work in `caffeinate -i` so it cannot sleep half way through a deploy.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.salareen.merge-train</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO__/scripts/train/run_train.sh</string>
+  </array>
+  <key>StartInterval</key><integer>900</integer>
+  <key>RunAtLoad</key><false/>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TRAIN_APPLY</key><string>0</string>
+    <key>TRAIN_WINDOW</key><string>08-23</string>
+    <key>HOME</key><string>__HOME__</string>
+  </dict>
+  <key>WorkingDirectory</key><string>__REPO__</string>
+  <key>StandardOutPath</key><string>__REPO__/output/train/launchd.out</string>
+  <key>StandardErrorPath</key><string>__REPO__/output/train/launchd.err</string>
+</dict>
+</plist>

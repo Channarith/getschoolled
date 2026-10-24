@@ -74,10 +74,17 @@ def hint_ladder(title: str, text: str, audience: dict, tags: list[str]) -> list[
     topic = f"'{title}'" if term.lower() not in title.lower() else "this topic"
     base = {"audience": audience, "source": SOURCE, "consent": "authored", "rewards": [1.0]}
     first, last = term[0].upper(), len(term)
+    # An early hint must never contain the hidden word, even by coincidence ("together", "think", "word" can be the term).
+    candidates = [
+        f"Let's think about {topic} together. What word would fit the blank? Read the sentence again and tell me what you think.",
+        f"Take a look at {topic}. Which word belongs in the blank? Read the sentence once more and give it a try.",
+        "Read the sentence once more. Which word belongs in the blank? Give it a try.",
+    ]
+    first_hint = next((c for c in candidates if not re.search(rf"\b{re.escape(term)}\b", c, flags=re.I)), candidates[-1])
     return [
         {**base, "tags": tags + ["hint-ladder", "hint-1"], "turns": [
             {"role": "student", "text": f"{mode_hint(1)}\nI'm stuck on this. {quiz}"},
-            {"role": "teacher", "text": f"Let's think about {topic} together. What word would fit the blank? Read the sentence again and tell me what you think."}]},
+            {"role": "teacher", "text": first_hint}]},
         {**base, "tags": tags + ["hint-ladder", "hint-2"], "turns": [
             {"role": "student", "text": f"{mode_hint(2)}\nI still don't get it. {quiz}"},
             {"role": "teacher", "text": f"Here is a bigger hint: the missing word has {last} letters and starts with '{first}'. Does that help you guess it?"}]},
