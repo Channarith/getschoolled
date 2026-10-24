@@ -7442,6 +7442,7 @@ def render_studio_page() -> str:
 </head>
 <body class="theme-study">
   <script>if(/[?&]embed=mobile(?:&|$)/.test(location.search)||matchMedia("(max-width:760px)").matches)document.body.classList.add("phone-embed");</script>
+  <script src="/api/studio/voice-overlay/friendly_error.js" data-watch="^/api/studio/" data-ignore="/tts|/voice|/live-audio|/avatar"></script>
   <div class="study-bg" aria-hidden="true">
     <svg class="shelf shelf-left" viewBox="0 0 92 720" preserveAspectRatio="xMidYMin slice">
       <g fill="#1e3a5f"><rect x="8" y="24" width="16" height="150" rx="2"/><rect x="28" y="40" width="13" height="134" rx="2"/><rect x="46" y="18" width="18" height="156" rx="2"/><rect x="68" y="36" width="14" height="138" rx="2"/></g>

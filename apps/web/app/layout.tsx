@@ -9,6 +9,7 @@ import BackgroundProvider from "./components/BackgroundProvider";
 import LocalizedNav from "./components/LocalizedNav";
 import SiteFooter from "./components/SiteFooter";
 import MaintenanceBanner from "./components/MaintenanceBanner";
+import FriendlyErrorHost from "./components/FriendlyErrorHost";
 import ClientLogInit from "./components/ClientLogInit";
 import FloatingBugReporter from "./components/FloatingBugReporter";
 import { XaiVoiceDock } from "./components/XaiVoiceDock";
@@ -90,6 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <FloatingBugReporter />
             <XaiVoiceDock />
             <PresenceHeartbeat />
+            <FriendlyErrorHost />
           </FlagsProvider>
         </LocaleProvider>
       </body>

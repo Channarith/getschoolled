@@ -25,15 +25,17 @@ describe("ErrorBoundary", () => {
       <ErrorBoundary><Text>healthy screen</Text></ErrorBoundary>,
     );
     expect(getByText("healthy screen")).toBeTruthy();
-    expect(queryByText("Something went wrong on this screen")).toBeNull();
+    expect(queryByText("Sala tripped over a surprise")).toBeNull();
   });
 
   test("shows the fallback (not a crash) and the error message when a child throws", () => {
     const { getByText } = render(
       <ErrorBoundary><Boom /></ErrorBoundary>,
     );
-    expect(getByText("Something went wrong on this screen")).toBeTruthy();
-    expect(getByText("kaboom in live room")).toBeTruthy();
+    expect(getByText("Sala tripped over a surprise")).toBeTruthy();
+    // The raw message is tucked behind a small support toggle, not shown to learners.
+    fireEvent.press(getByText(/Support details/));
+    expect(getByText(/kaboom in live room/)).toBeTruthy();
     expect(spy).toHaveBeenCalled();  // logged for adb logcat / Metro
   });
 
@@ -50,12 +52,12 @@ describe("ErrorBoundary", () => {
     const { getByText, queryByText, rerender } = render(
       <ErrorBoundary resetKey="live-room"><Boom /></ErrorBoundary>,
     );
-    expect(getByText("Something went wrong on this screen")).toBeTruthy();
+    expect(getByText("Sala tripped over a surprise")).toBeTruthy();
     // Navigate elsewhere: new resetKey + a healthy child.
     rerender(
       <ErrorBoundary resetKey="home"><Text>home screen</Text></ErrorBoundary>,
     );
     expect(getByText("home screen")).toBeTruthy();
-    expect(queryByText("Something went wrong on this screen")).toBeNull();
+    expect(queryByText("Sala tripped over a surprise")).toBeNull();
   });
 });

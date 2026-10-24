@@ -8,6 +8,7 @@ resources:
   # Bare-IP site (http://45.63.91.80) — serve in place; do not 301 to www.
   - ingress-ip.yaml
   - metrics-server.yaml
+  - friendly-errors.yaml
 patches:
   - path: configmap-vke.yaml
   - path: ingress-vke.yaml

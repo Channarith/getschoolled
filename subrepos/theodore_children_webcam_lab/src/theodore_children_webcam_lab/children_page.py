@@ -234,6 +234,7 @@ __GAME_SELECT__
     });
   })();
   </script>
+  <script src="/static/friendly_error.js__ASSET_TAG__" data-watch="^/api/child/" data-ignore="/tts"></script>
   <script type="module" src="/static/app.js__ASSET_TAG__"></script>
 </body>
 </html>"""

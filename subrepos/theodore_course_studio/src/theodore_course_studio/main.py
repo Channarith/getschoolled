@@ -37,6 +37,7 @@ from .course_pay import (
     start_card_checkout,
     start_paypal_checkout,
 )
+from aoep_shared.friendly_errors import install_friendly_errors
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
 from .certification_prep import (
@@ -97,6 +98,7 @@ async def _invalid_course_id(_request: Request, exc: InvalidCourseId):
     return JSONResponse({"detail": str(exc)}, status_code=422)
 
 
+install_friendly_errors(app, script_url="/api/studio/voice-overlay/friendly_error.js")
 install_live_audio_routes(
     app,
     lab_name="Theodore Course Studio",
