@@ -26,14 +26,6 @@ export const PUBLIC_DEMOS: PublicDemo[] = [
     description: "Serenity, your holographic AI teacher, walks you through the free 10-minute driver's ed demo with Salane Voice.",
   },
   {
-    id: "on-the-go",
-    path: "/demo/on-the-go",
-    emoji: "🎧",
-    title: "Serenity · On-the-Go",
-    subtitle: "Audio only · 10-min demo",
-    description: "Serenity teaches the same driver's ed demo by ear with Salane Voice. The free trial stops at 10 minutes.",
-  },
-  {
     id: "arcade",
     path: "/children-lab?embed=mobile",
     emoji: "🎮",
@@ -42,6 +34,16 @@ export const PUBLIC_DEMOS: PublicDemo[] = [
     description: "Machine vision: faces, hands, movement, and listening. The camera stays on this device.",
   },
 ];
+
+/** Not listed in the picker: reached by four quick taps on the Salareen logo (see secretTaps.ts). */
+export const HIDDEN_ON_THE_GO_DEMO: PublicDemo = {
+  id: "on-the-go",
+  path: "/demo/on-the-go",
+  emoji: "🎧",
+  title: "Serenity · On-the-Go",
+  subtitle: "Audio only · 10-min demo",
+  description: "Serenity teaches the same driver's ed demo by ear with Salane Voice. The free trial stops at 10 minutes.",
+};
 
 export function publicDemoUrl(webAppUrl: string, path: string): string {
   const base = webAppUrl.replace(/\/$/, "");

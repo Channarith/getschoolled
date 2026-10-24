@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+
+import { useSecretLogoTaps } from "../lib/useSecretLogoTaps";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -19,6 +21,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const { t, locale } = useT();
   const learnPhrase = useLearningPhrase();
   const pathname = usePathname() ?? "/";
+  const onLogoClick = useSecretLogoTaps();
 
   const demoOnlyAnon = useDemoOnlyAnonymous();
   const fullNavTabs = useFullNavTabs();
@@ -130,6 +133,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
           <Link
             href="/"
             className="brand"
+            onClick={onLogoClick}
             style={{
               display: "inline-flex",
               alignItems: "center",

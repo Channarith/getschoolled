@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import DemoTutorial from "../../components/DemoTutorial";
 import OnTheGo from "../../components/OnTheGo";
 
-/** Public demo of the same On the Go player, limited to a 10-minute sample. */
+// Not listed anywhere public: reached by four quick clicks on the Salareen logo. Keep it out of search results.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
+
+/** Hidden demo of the same On the Go player, limited to a 10-minute sample. */
 export default function OnTheGoDemoPage() {
   return (
     <main className="course-stage">
