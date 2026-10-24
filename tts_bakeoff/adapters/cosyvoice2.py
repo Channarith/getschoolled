@@ -4,6 +4,10 @@ Two ways to run it, whichever works on the machine:
   - in-process (needs the CosyVoice repo on PYTHONPATH and Python 3.10): options model_dir, prompt_wav
   - over HTTP against the repo's server (COSYVOICE_URL, default http://127.0.0.1:9880): POST /tts
 The HTTP path matches services/cosyvoice in this repo. NOT run against real weights here.
+
+Option instruct (optional): an instruction text ending in <|endofprompt|>, e.g. 用可爱、甜美的语气说这句话<|endofprompt|>. It
+switches the in-process path to inference_instruct2(text, instruct, prompt_wav), which takes the cloned prompt wav only.
+The documented examples are Chinese; whether English text keeps the style is unverified, so compare by ear.
 """
 from __future__ import annotations
 
@@ -22,6 +26,13 @@ class CosyVoice2Adapter(Adapter):
         if not (have("cosyvoice") or os.environ.get("COSYVOICE_URL")):
             problems.append("neither the 'cosyvoice' module is importable nor COSYVOICE_URL is set")
         return {"ok": not problems, "problems": problems, "languages": sorted(self.languages)}
+
+    def _infer(self, model, text: str, lang: str, prompt):
+        if self.options.get("instruct"):
+            return model.inference_instruct2(text, self.options["instruct"], prompt, stream=False)
+        if self.options.get("prompt_text") and self.options.get("prompt_lang") == lang:  # same language as the sample: zero-shot
+            return model.inference_zero_shot(text, self.options["prompt_text"], prompt, stream=False)
+        return model.inference_cross_lingual(text, prompt, stream=False)
 
     def _synth(self, text: str, lang: str, out_wav: Path) -> int:
         url = os.environ.get("COSYVOICE_URL")
@@ -42,10 +53,7 @@ class CosyVoice2Adapter(Adapter):
 
         self._model = self._model or CosyVoice2(self.options.get("model_dir", "pretrained_models/CosyVoice2-0.5B"))
         prompt = load_wav(self.options["prompt_wav"], 16000)
-        if self.options.get("prompt_text") and self.options.get("prompt_lang") == lang:  # same language as the sample: zero-shot
-            gen = self._model.inference_zero_shot(text, self.options["prompt_text"], prompt, stream=False)
-        else:
-            gen = self._model.inference_cross_lingual(text, prompt, stream=False)
+        gen = self._infer(self._model, text, lang, prompt)
         parts = [j["tts_speech"] for j in gen]
         import torch
 

@@ -171,6 +171,7 @@ scripts/train/PAUSE
 **/voices/*/samples/
 **/voices/*/forms/
 *-clones/
+*-clone-tones/
 
 # pre-rendered demo narration in company voices: shipped via object storage, never committed
 voice-assets/
