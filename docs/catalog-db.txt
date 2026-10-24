@@ -106,6 +106,75 @@ SIZING AND COST (prices read from the Vultr API on 2026-10-24; the monthly total
   * Postgres inside the cluster: no capacity (nodes are full), the volume claims were stuck for
     weeks, and a node loss would take the database with it. Rejected.
 
+MEMORY: THE 90% RULE
+  The owner's rule: "the catalog VM's Postgres uses 90% of the VM's RAM." Implemented as below, and
+  deliberately NOT as 90% resident memory.
+
+  Why literally 90% resident would be a mistake
+    Resident memory is what the kernel's OOM killer counts. Postgres memory is not a fixed number:
+    every sort or hash node of every connection (and every parallel worker) may take work_mem, vacuum
+    takes maintenance memory, and several can happen at once. If the steady state already sits at 90%,
+    one busy minute pushes the machine over, the kernel kills a process (it prefers the biggest, which
+    is the postmaster or a backend holding shared memory), and every connection drops while recovery
+    replays the WAL. Leaving the OS 10% is not enough either: the kernel, systemd, PgBouncer, SSH and the
+    page cache itself live there.
+
+  How the 90% is satisfied instead
+      about 90% of RAM  =  worst-case RESIDENT (hard-capped at 65%)  +  kernel PAGE CACHE (the rest)
+    Postgres reads and writes through the OS page cache; effective_cache_size (88% of RAM) tells the
+    planner to count on it, so index and table pages stay in RAM exactly as they would with a larger
+    shared_buffers. The page cache is reclaimable instantly, so it can never cause an OOM; only the
+    resident part can. scripts/db/pg_memory_plan.py budgets and asserts the resident part and refuses
+    (exit 2) to print a configuration whose worst case exceeds 65% of RAM.
+
+  The worst-case resident budget (all of it can happen at once; typical use is far lower)
+      shared_buffers 37.5% of RAM (huge pages) + work_mem for every PgBouncer server connection x
+      sort/hash nodes (2 nodes x (1 + 2 parallel workers)) x hash_mem_multiplier 1.5, sized to 8% of RAM
+      + maintenance_work_mem 2.5% (cap 2 GB) + 3 autovacuum workers x 1.5% (cap 1 GB each)
+      + wal_buffers + temp_buffers x pool + 5 MB per backend + 150 MB background processes
+      + PgBouncer 64 MB + OS and systemd (350 MB + 1%).
+    max_connections is small (pool + 20): PgBouncer in transaction mode sits in front, its
+    default_pool_size is the same pool number the work_mem budget divides by.
+
+  The settings, computed for each plan size (python3 scripts/db/pg_memory_plan.py --format table):
+                               8 GB / 4 vCPU  16 GB / 6 vCPU  32 GB / 8 vCPU 64 GB / 16 vCPU
+      shared_buffers                  3072MB          6144MB         12288MB         24576MB
+      effective_cache_size            7168MB         14336MB         28800MB         57600MB
+      work_mem                           6MB             8MB            12MB            12MB
+      maintenance_work_mem             192MB           400MB           816MB          1632MB
+      autovacuum_work_mem              112MB           240MB           480MB           976MB
+      max_connections                     32              38              44              68
+      pgbouncer pool                      12              18              24              48
+      nr_hugepages (est.)               1652            3296            6583           13157
+      worst resident                   63.0%           58.7%           56.2%           55.1%
+      page cache room                 2.2 GB          5.0 GB         10.8 GB         22.3 GB
+    The default plan is vc2-4c-8gb. On the VM the planner reads the real MemTotal (about 7.7 GB on an
+    "8 GB" plan), not the plan's nominal size, and the result is still under the cap. A 4 GB VM is
+    REFUSED (worst case 70% resident): do not use vc2-2c-4gb for this database.
+
+  Operating-system protection (written by catalog_db_setup.sh)
+    * vm.swappiness = 1, vm.vfs_cache_pressure = 50, vm.dirty_background_ratio = 5, dirty_ratio = 15.
+    * Huge pages: huge_pages = try with vm.nr_hugepages set to the exact number Postgres reports it needs
+      (postgres -C shared_memory_size_in_huge_pages) plus 8; the table shows the estimate. "try" means a
+      failed reservation falls back to normal pages instead of refusing to start.
+    * A swap file of max(1 GB, RAM/8) up to 4 GB as a safety valve (almost never touched at swappiness 1).
+    * postgresql@.service drop-in: OOMScoreAdjust=-900 for the postmaster (with PG_OOM_ADJUST_VALUE=0 so
+      its children go back to the normal score: if memory ever runs out, a runaway backend dies first and
+      Postgres restarts cleanly instead of losing the postmaster), MemoryHigh at 92% of RAM (the kernel
+      throttles and reclaims; nothing is killed) and MemoryMax at 97% as the last stop, OOMPolicy=continue.
+    * vm.overcommit_memory is left at 0 (heuristic). The textbook setting for databases is 2 (strict), but
+      with huge pages reserved up front the commit limit is computed on what is left, fork() of a 3 GB
+      postmaster plus 12 backends can then fail with ENOMEM on a healthy machine, and a tiny swap file
+      makes it worse. oom_score_adj -900 plus the resident cap gives the same protection with less risk.
+      Revisit if you ever drop huge pages.
+    * Honest tradeoff: MemoryMax is per-cgroup and does not count huge pages (they are reserved outside
+      the cgroup), so it bounds the processes' own memory, not shared_buffers.
+
+  Memory health (catalog_db_health.sh, every 5 minutes, in /var/lib/catalog-db/health.json "memory")
+    postgres resident (PSS) as % of RAM (warn over 65%), memory used including page cache (warn over 97%),
+    page cache %, swap in use (warn over 200 MB), kernel OOM-kill messages in the last 24 h (critical),
+    huge pages reserved/free, pg_stat_bgwriter maxwritten_clean, and the buffer cache hit ratio.
+
 SECURITY
   * No public database port. ufw allows 5432 and 6432 only from the VPC range and from your admin
     address, SSH only from your admin address. pg_hba accepts only TLS connections (hostssl) with
