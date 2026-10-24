@@ -73,7 +73,7 @@ for Khmer. The server now renders each line with a Microsoft Edge neural voice
 (tts.py, one verified voice pair per language — km-KH-SreymomNeural for Khmer) and
 the browser plays the MP3:
 
-  pip install -e '.[voices]'                 # edge-tts==7.2.8
+  pip install -e '.[voices]'                 # edge-tts>=7.3.1,<8
   # (6.1.x and earlier get 403 from Microsoft's speech WebSocket)
   GET /api/music/tts?lang=km&rate=0.86&text=…  -> audio/mpeg (501 = no engine)
   GET /api/music/tts/status                    -> {available, engine, languages}
