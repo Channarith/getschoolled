@@ -261,6 +261,11 @@ def _concat_takes(paths: list[Path], dest: Path) -> None:
         w.writeframes((np.clip(y, -1, 1) * 32767).astype("<i2").tobytes())
 
 
+def _sample_tags(info: dict) -> dict:
+    keys = ("seconds", "snr_db", "cleaned", "snr_db_clean")
+    return {k: info[k] for k in keys if k in info}
+
+
 def finish_enrollment(base: Path, speaker: str, lang: str) -> dict:
     rec = _gated(base, speaker)
     prompts = PROMPT_SETS.get(lang)
@@ -289,7 +294,7 @@ def finish_enrollment(base: Path, speaker: str, lang: str) -> dict:
         (d / "samples" / ".raw").mkdir(parents=True, exist_ok=True)
         shutil.move(str(held), str(d / "samples" / ".raw" / dest.name))
     transcript = " ".join(p["text"] for p in prompts)
-    registry.add_sample(speaker, d / rel, transcript, lang, base, extra={"seconds": info["seconds"]})
+    registry.add_sample(speaker, d / rel, transcript, lang, base, extra=_sample_tags(info))
     return {"ok": True, "file": rel, **info}
 
 

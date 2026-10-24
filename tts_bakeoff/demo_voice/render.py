@@ -1,13 +1,17 @@
 """Render the demo manifest in a consented company voice (run on the Spark under scripts/gs_run.sh --gpu).
 
-  python3 -m tts_bakeoff.demo_voice.render run --voice channarith [--shard 0/2] [--langs en,es] [--limit N]
-  python3 -m tts_bakeoff.demo_voice.render publish          # rewrite <assets>/voices.json + per-voice index.json
+  python3 -m tts_bakeoff.demo_voice.render run --voice channarith|wei-miao|all [--shard 0/2] [--langs en,es] [--limit N]
+  python3 -m tts_bakeoff.demo_voice.render publish [--reviewed-only]   # rewrite <assets>/voices.json + per-voice index.json
+  python3 -m tts_bakeoff.demo_voice.render status           # clips present per voice and language, against the manifest
   python3 -m tts_bakeoff.demo_voice.render prune-revoked    # delete clips of any voice whose consent is gone
 
 Assets (not in git): <assets>/<voice>/<lang>/<hash>.mp3 + <hash>.json sidecar ("AI-generated voice of <name>"),
 <assets>/<voice>/index.json (hashes present, per language) and <assets>/voices.json (the selectable, consented voices).
 Default assets dir: $GS_VOICE_ASSETS or ~/voice-assets. Every synthesis goes through voice_clone.synth.build_adapter,
 so no valid consent (commercial use, model training, course narration; sample hashes intact) means no audio.
+A voice may set "primary_lang" in tts_manifest/voices.json (wei-miao: yue): that language renders first, the others are cross-lingual
+clones. Clips of machine-translated lines carry "translation_status" in their sidecar; publish --reviewed-only leaves the
+'unreviewed' ones out of index.json, so only lines a native speaker has checked are offered to the demos.
 """
 from __future__ import annotations
 
@@ -65,7 +69,24 @@ def consent_ok(speaker: str) -> bool:
         return False
 
 
-def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok) -> dict:
+def display_name(speaker: str, fallback: str) -> str:
+    try:
+        return registry.load_consent(speaker).get("name") or fallback
+    except registry.ConsentError:
+        return fallback
+
+
+def _unreviewed(mp3: Path) -> bool:
+    side = mp3.with_suffix(".json")
+    if not side.is_file():
+        return False
+    try:
+        return json.loads(side.read_text(encoding="utf-8")).get("translation_status") == "unreviewed"
+    except ValueError:
+        return False
+
+
+def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, reviewed_only: bool = False) -> dict:
     """Write voices.json (only voices whose consent is valid right now) and each voice's index.json."""
     manifest = manifest or load_manifest()
     root.mkdir(parents=True, exist_ok=True)
@@ -74,11 +95,17 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok) 
         active = bool(v.get("active", True)) and check_consent(v["speaker"])
         index: dict[str, list[str]] = {}
         for p in sorted((root / v["id"]).glob("*/*.mp3")) if active else []:
+            if reviewed_only and _unreviewed(p):
+                continue
             index.setdefault(p.parent.name, []).append(p.stem)
         if (root / v["id"]).is_dir() or active:
             (root / v["id"]).mkdir(parents=True, exist_ok=True)
             (root / v["id"] / "index.json").write_text(json.dumps({"voice": v["id"], "ext": "mp3", "clips": index}, indent=1), encoding="utf-8")
-        out.append({"id": v["id"], "label": v["label"], "ai_label": v.get("ai_label", f"AI-generated voice of {v['label']}"), "active": active})
+        label = display_name(v["speaker"], v["label"]) if active else v["label"]
+        entry = {"id": v["id"], "label": label, "ai_label": v.get("ai_label", f"AI-generated voice of {label}"), "active": active}
+        if v.get("primary_lang"):
+            entry["primary_lang"] = v["primary_lang"]
+        out.append(entry)
     doc = {"voices": out, "updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     (root / "voices.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
     return doc
@@ -95,7 +122,7 @@ def prune_revoked(root: Path, check_consent=consent_ok) -> list[str]:
 
 
 def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit: int | None, manifest: dict | None = None,
-        adapter=None, convert=wav_to_mp3) -> dict:
+        adapter=None, convert=wav_to_mp3, reviewed_only: bool = False) -> dict:
     manifest = manifest or load_manifest()
     cfg = voice_cfg(voice)
     registry.require_consent(cfg["speaker"], "course_narration")
@@ -105,6 +132,9 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
     supported = set(getattr(adapter, "languages", set()) or set())
     stats = {"ok": 0, "skipped_existing": 0, "skipped_unsupported": 0, "failed": 0}
     todo = [c for c in manifest["clips"] if in_shard(c["hash"], shard) and (not langs or c["lang"] in langs)]
+    primary = cfg.get("primary_lang")
+    if primary:
+        todo.sort(key=lambda c: c["lang"] != primary)   # stable: the voice's own language first, then the cross-lingual clones
     for n, c in enumerate(todo, 1):
         if limit is not None and stats["ok"] >= limit:
             break
@@ -124,34 +154,63 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
             mp3.with_suffix(".json").write_text(json.dumps({
                 "text": c["text"], "lang": c["lang"], "demo": c["demo"], "model": cfg["model"], "speaker": cfg["speaker"],
                 "ai_generated": True, "label": cfg.get("ai_label", f"AI-generated voice of {cfg['label']}"),
+                **({"translation_status": c["status"]} if c.get("status") else {}),
             }, ensure_ascii=False, indent=1), encoding="utf-8")
             stats["ok"] += 1
             print(f"[{n}/{len(todo)}] ok {c['demo']} {c['lang']} {c['hash']}", flush=True)
         except Exception as exc:  # noqa: BLE001
             stats["failed"] += 1
             print(f"[{n}/{len(todo)}] FAILED {c['lang']} {c['hash']}: {str(exc)[:120]}", flush=True)
-    publish(root, manifest)
+    publish(root, manifest, reviewed_only=reviewed_only)
     return stats
+
+
+def status(root: Path, manifest: dict | None = None) -> dict:
+    """{voice: {lang: [present, wanted]}} against the manifest (clips of unsupported languages still count as wanted)."""
+    manifest = manifest or load_manifest()
+    want: dict[str, int] = {}
+    for c in manifest["clips"]:
+        want[c["lang"]] = want.get(c["lang"], 0) + 1
+    out = {}
+    for v in manifest["voices"]:
+        have = {p.name: len(list(p.glob("*.mp3"))) for p in sorted((root / v["id"]).glob("*")) if p.is_dir()}
+        out[v["id"]] = {lang: [have.get(lang, 0), n] for lang, n in sorted(want.items())}
+    return out
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--voice", default="channarith")
+    r.add_argument("--voice", default="channarith", help="a voice id from tts_manifest/voices.json, or 'all' (every active voice, one after the other)")
+    r.add_argument("--reviewed-only", action="store_true")
     r.add_argument("--shard")
     r.add_argument("--langs")
     r.add_argument("--limit", type=int)
-    for name in ("run", "publish", "prune-revoked"):
-        (r if name == "run" else sub.add_parser(name)).add_argument("--assets")
+    pub = sub.add_parser("publish")
+    pub.add_argument("--reviewed-only", action="store_true")
+    for sp in (r, pub, sub.add_parser("prune-revoked"), sub.add_parser("status")):
+        sp.add_argument("--assets")
     args = ap.parse_args(argv)
     root = assets_dir(args.assets)
     if args.cmd == "run":
-        stats = run(args.voice, root, args.shard, set(args.langs.split(",")) if args.langs else None, args.limit)
-        print(json.dumps(stats))
-        return 0 if stats["failed"] == 0 else 1
+        voices = [v["id"] for v in json.loads(VOICES.read_text(encoding="utf-8"))["voices"] if v.get("active", True)] if args.voice == "all" else [args.voice]
+        bad = 0
+        for voice in voices:
+            if not consent_ok(voice_cfg(voice)["speaker"]):
+                print(f"{voice}: no valid consent right now, skipped", flush=True)
+                bad += args.voice != "all"
+                continue
+            stats = run(voice, root, args.shard, set(args.langs.split(",")) if args.langs else None, args.limit, reviewed_only=args.reviewed_only)
+            print(voice, json.dumps(stats), flush=True)
+            bad += stats["failed"] > 0
+        return 0 if bad == 0 else 1
     if args.cmd == "publish":
-        print(json.dumps(publish(root), indent=1))
+        print(json.dumps(publish(root, reviewed_only=args.reviewed_only), indent=1))
+        return 0
+    if args.cmd == "status":
+        for voice, langs in status(root).items():
+            print(voice + ": " + ", ".join(f"{k} {a}/{b}" for k, (a, b) in langs.items()))
         return 0
     print("removed:", prune_revoked(root))
     return 0

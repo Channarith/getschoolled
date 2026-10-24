@@ -1,4 +1,7 @@
-"""Consent-gated synthesis: the only way the cloning adapters are built. No consent record, no adapter."""
+"""Consent-gated synthesis: the only way the cloning adapters are built. No consent record, no adapter.
+
+The adapter returned is a ProfileAdapter: for each sentence it uses the speaker's best enrolled sample for that language.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,6 +9,7 @@ from pathlib import Path
 from tts_bakeoff import adapters
 
 from . import registry
+from .profile import ProfileAdapter
 
 CLONE_MODELS = ("voxcpm2", "cosyvoice2")
 
@@ -24,5 +28,6 @@ def build_adapter(model: str, speaker: str, base: Path | None = None, gpu: bool 
     wav, transcript, lang = registry.primary_sample(speaker, base)
     if gpu and model != "mock":
         require_gpu(f"voice-clone:{model}")
-    return adapters.get(model, reference_wav=str(wav), reference_text=transcript, prompt_wav=str(wav),
-                        prompt_text=transcript, prompt_lang=lang, **extra)
+    inner = adapters.get(model, reference_wav=str(wav), reference_text=transcript, prompt_wav=str(wav),
+                         prompt_text=transcript, prompt_lang=lang, **extra)
+    return ProfileAdapter(inner, speaker, base)   # picks the best enrolled sample for each sentence's language (voice_clone.profile)

@@ -1,0 +1,2173 @@
+{
+ "items": {
+  "001fe2abc48f11": {
+   "demo": "vision_play",
+   "en": "What is the capital of Kenya?",
+   "status": "unreviewed",
+   "text": "肯尼亞嘅首都是邊度？"
+  },
+  "002717cf607f99": {
+   "demo": "vision_play",
+   "en": "Which blood cells carry oxygen?",
+   "status": "unreviewed",
+   "text": "邊種血細胞負責運氧氣？"
+  },
+  "006c25684d4ff3": {
+   "demo": "vision_play",
+   "en": "What do you drink that comes from cows?",
+   "status": "unreviewed",
+   "text": "你飲嗰啲嚟自牛嘅係乜？"
+  },
+  "00b273887cc75a": {
+   "demo": "vision_play",
+   "en": "What is the unit of frequency?",
+   "status": "unreviewed",
+   "text": "頻率嘅單位係乜？"
+  },
+  "00bb6ba4293ea9": {
+   "demo": "vision_play",
+   "en": "What is the capital of the United Kingdom?",
+   "status": "unreviewed",
+   "text": "英國嘅首都是邊度？"
+  },
+  "00fa8d1582bc91": {
+   "demo": "vision_play",
+   "en": "What do you eat soup with?",
+   "status": "unreviewed",
+   "text": "你食湯嗰陣用乜？"
+  },
+  "00ffd5b3c8a915": {
+   "demo": "vision_play",
+   "en": "Which planet is famous for its rings?",
+   "status": "unreviewed",
+   "text": "邊個行星以佢嘅環出名？"
+  },
+  "0117f4d789df00": {
+   "demo": "vision_play",
+   "en": "Which country hosted the 2022 FIFA World Cup?",
+   "status": "unreviewed",
+   "text": "邊個國家主辦二零二二年國際足聯世界盃呀？"
+  },
+  "0120ff3fbaa184": {
+   "demo": "vision_play",
+   "en": "Which is the most populated country?",
+   "status": "unreviewed",
+   "text": "邊個國家人口最多？"
+  },
+  "0149aa6cf27c3f": {
+   "demo": "vision_play",
+   "en": "What is the SI unit of energy?",
+   "status": "unreviewed",
+   "text": "能量嘅國際單位制係乜？"
+  },
+  "014d1b5799dbc4": {
+   "demo": "vision_play",
+   "en": "What is the capital of China?",
+   "status": "unreviewed",
+   "text": "中國嘅首都是邊度？"
+  },
+  "0171269f24e727": {
+   "demo": "vision_play",
+   "en": "How many days are in a leap year?",
+   "status": "unreviewed",
+   "text": "閏年有幾多日？"
+  },
+  "0194dbd3d3f271": {
+   "demo": "vision_play",
+   "en": "What do we call words with opposite meanings?",
+   "status": "unreviewed",
+   "text": "相反意思嘅字我哋叫乜？"
+  },
+  "01e542117a4b78": {
+   "demo": "vision_play",
+   "en": "How many sides does an octagon have?",
+   "status": "unreviewed",
+   "text": "八邊形有幾多邊？"
+  },
+  "02002436ed3fd9": {
+   "demo": "vision_play",
+   "en": "What do we call a baby frog?",
+   "status": "unreviewed",
+   "text": "細隻青蛙我哋叫乜？"
+  },
+  "021e338379241a": {
+   "demo": "vision_play",
+   "en": "Who was the first President of the United States?",
+   "status": "unreviewed",
+   "text": "邊個係美國第一任總統呀？"
+  },
+  "0237da178d2622": {
+   "demo": "vision_play",
+   "en": "What is the chemical symbol for sodium?",
+   "status": "unreviewed",
+   "text": "鈉嘅化學符號係乜嘢呀？"
+  },
+  "023dfb61e96f57": {
+   "demo": "vision_play",
+   "en": "Karaoke sing-along. Pick a song. The words stay large, and your language sings louder than the English track.",
+   "status": "unreviewed",
+   "text": "卡拉OK唱歌時間。揀一首歌。字會放大，而你嘅語言會唱得比英文軌道大聲。"
+  },
+  "025614e3f9cc90": {
+   "demo": "vision_play",
+   "en": "Listen. Theodore is getting the next listening round.",
+   "status": "unreviewed",
+   "text": "聽住。Theodore 就嚟做下一個聆聽回合。"
+  },
+  "02614010373705": {
+   "demo": "vision_play",
+   "en": "Which philosopher wrote The Republic?",
+   "status": "unreviewed",
+   "text": "邊個哲學家寫咗 The Republic 呀？"
+  },
+  "0277a05541ab8a": {
+   "demo": "vision_play",
+   "en": "How many continents are there?",
+   "status": "unreviewed",
+   "text": "世界上有幾多個大洲呀？"
+  },
+  "02782f6cfcf359": {
+   "demo": "vision_play",
+   "en": "Which animal says quack?",
+   "status": "unreviewed",
+   "text": "邊隻動物會喳喳叫呀？"
+  },
+  "02824b5e8986ac": {
+   "demo": "vision_play",
+   "en": "How many chambers does the human heart have?",
+   "status": "unreviewed",
+   "text": "人類心臟有幾多個心房呀？"
+  },
+  "02b454559f3693": {
+   "demo": "vision_play",
+   "en": "Which of these is an even number?",
+   "status": "unreviewed",
+   "text": "以下邊個係雙數呀？"
+  },
+  "02bdec61e44661": {
+   "demo": "vision_play",
+   "en": "Which desert covers much of Mongolia?",
+   "status": "unreviewed",
+   "text": "邊個沙漠覆蓋咗蒙古好大部分呀？"
+  },
+  "02de60126ab974": {
+   "demo": "on_the_go",
+   "en": "Limits and Ethics. Models can be biased, brittle on edge cases, and opaque in deep networks. High-stakes uses in medicine and justice demand oversight and transparency. ML augments human judgment; it does not replace accountability.",
+   "status": "unreviewed",
+   "text": "限制同倫理。模型可能有偏差、喺邊緣情況好脆弱，同埋深度網絡入面好難解釋。喺醫學同司法嘅高風險應用，就需要監管同透明度。機器學習係 augmentation 人類判斷；佢唔會取代問責。"
+  },
+  "02e59c26fdbba7": {
+   "demo": "vision_play",
+   "en": "Which part of a plant takes in water?",
+   "status": "unreviewed",
+   "text": "植物邊部分吸水呀？"
+  },
+  "02ea366d0e3e95": {
+   "demo": "vision_play",
+   "en": "Which metal is liquid at room temperature?",
+   "status": "unreviewed",
+   "text": "邊種金屬喺室溫下係液體呀？"
+  },
+  "0306e545b0961b": {
+   "demo": "vision_play",
+   "en": "What is the largest hot desert?",
+   "status": "unreviewed",
+   "text": "最大嘅熱帶沙漠係邊個呀？"
+  },
+  "030f2bd230b75e": {
+   "demo": "vision_play",
+   "en": "Which planet has the most moons?",
+   "status": "unreviewed",
+   "text": "邊個行星有最多衛星呀？"
+  },
+  "0321bfddd37d06": {
+   "demo": "vision_play",
+   "en": "How many wheels does a bike have?",
+   "status": "unreviewed",
+   "text": "單車有幾多個轆呀？"
+  },
+  "0347a6c423e869": {
+   "demo": "vision_play",
+   "en": "Which animal says oink?",
+   "status": "unreviewed",
+   "text": "邊隻動物會嗷嗷叫呀？"
+  },
+  "035f4081544f14": {
+   "demo": "vision_play",
+   "en": "Which ocean lies between Africa and Australia?",
+   "status": "unreviewed",
+   "text": "邊個大洋喺非洲同澳洲之間呀？"
+  },
+  "036950f5006ba2": {
+   "demo": "vision_play",
+   "en": "What is the tallest mountain above sea level?",
+   "status": "unreviewed",
+   "text": "高過海平面嘅最高山係邊座呀？"
+  },
+  "036bdcfa74568c": {
+   "demo": "vision_play",
+   "en": "Which word is a noun?",
+   "status": "unreviewed",
+   "text": "邊個字係名詞呀？"
+  },
+  "0393e713d0255e": {
+   "demo": "vision_play",
+   "en": "Who won Nobel Prizes in both physics and chemistry?",
+   "status": "unreviewed",
+   "text": "邊個同時贏過物理同化學嘅諾貝爾獎呀？"
+  },
+  "03a17f0607ec5a": {
+   "demo": "vision_play",
+   "en": "Which river flows through Baghdad?",
+   "status": "unreviewed",
+   "text": "邊條河流流過巴格達呀？"
+  },
+  "03aae05dd17aa5": {
+   "demo": "vision_play",
+   "en": "How many players per side are on court in basketball?",
+   "status": "unreviewed",
+   "text": "打籃球每邊有幾多個球員上場呀？"
+  },
+  "03b1c5515e0e77": {
+   "demo": "vision_play",
+   "en": "Wink challenge. Wink one eye at Theodore.",
+   "status": "unreviewed",
+   "text": "眨眼挑戰。向 Theodore 眨一隻眼。"
+  },
+  "03c939ce622514": {
+   "demo": "vision_play",
+   "en": "What do you wear on your feet?",
+   "status": "unreviewed",
+   "text": "你喺腳上著乜嘢呀？"
+  },
+  "03d0c562f5cf6a": {
+   "demo": "vision_play",
+   "en": "What is the scientific study of earthquakes called?",
+   "status": "unreviewed",
+   "text": "研究地震嘅科學叫做乜嘢呀？"
+  },
+  "03f59316a227e8": {
+   "demo": "vision_play",
+   "en": "Who was the first woman to fly solo across the Atlantic?",
+   "status": "unreviewed",
+   "text": "邊個係第一個獨自飛越大西洋嘅女人呀？"
+  },
+  "042ae25176ac05": {
+   "demo": "vision_play",
+   "en": "Which is the largest continent?",
+   "status": "unreviewed",
+   "text": "邊個係最大嘅洲呀？"
+  },
+  "047f3657c083f4": {
+   "demo": "vision_play",
+   "en": "What particle has a negative charge?",
+   "status": "unreviewed",
+   "text": "邊粒粒子帶負電呀？"
+  },
+  "0486fab73df4ee": {
+   "demo": "vision_play",
+   "en": "What is the capital of Canada?",
+   "status": "unreviewed",
+   "text": "加拿大嘅首都是邊度呀？"
+  },
+  "0490f951bcd267": {
+   "demo": "vision_play",
+   "en": "Which ancient wonder was in Egypt?",
+   "status": "unreviewed",
+   "text": "邊個古蹟係喺埃及㗎？"
+  },
+  "049767eedaa79e": {
+   "demo": "vision_play",
+   "en": "Make a heart. Use both hands. Fingertips dip together at the top and thumbs meet at the bottom. A circle does not count.",
+   "status": "unreviewed",
+   "text": "整個心心啦。用雙手。手指尖喺上面合埋，拇指喺下面接住。圓形唔計㗎。"
+  },
+  "04b9eea411dc8b": {
+   "demo": "vision_play",
+   "en": "Which word is a verb?",
+   "status": "unreviewed",
+   "text": "邊個字係動詞呀？"
+  },
+  "04beb814ec4c93": {
+   "demo": "vision_play",
+   "en": "Which blood type is the universal donor?",
+   "status": "unreviewed",
+   "text": "邊種血型係萬能捐血者呀？"
+  },
+  "04d099ac3d6a8c": {
+   "demo": "on_the_go",
+   "en": "Overview. Welcome. In this lesson we explore Intro to Machine Learning. We'll cover 8 parts, beginning with Learning from Examples, Data Splits, Features and Models, Training Loop, Overfitting, Evaluation, Deployment, and Limits and Ethics. As you listen, notice how each part builds on the one before it — you don't need to take notes, just follow along.",
+   "status": "unreviewed",
+   "text": "總覽。歡迎嚟到呢堂課，我哋會探索機器學習入門。我哋會講八個部分，由從例子學習開始，之後係數據分割、特徵同模型、訓練循環、過度擬合、評估、部署，同埋限制同倫理。當你聽緊嘅時候，留意每個部分點樣建立喺之前嗰個上面 — 你唔使做筆記，只係跟住聽就得。"
+  },
+  "04db83ea817b55": {
+   "demo": "vision_play",
+   "en": "What color is snow?",
+   "status": "unreviewed",
+   "text": "雪係乜色呀？"
+  },
+  "04dd4b8dcb9c43": {
+   "demo": "vision_play",
+   "en": "What is seven times eight?",
+   "status": "unreviewed",
+   "text": "七乘八係幾多呀？"
+  },
+  "04ebea8912ba8f": {
+   "demo": "vision_play",
+   "en": "Which animal hops and has long ears?",
+   "status": "unreviewed",
+   "text": "邊隻動物跳嚟跳去又有長長耳朵㗎？"
+  },
+  "04ffd64e952ffd": {
+   "demo": "vision_play",
+   "en": "Pick a listening game. Choose Say the letter or a game under Listen, then use the microphone.",
+   "status": "unreviewed",
+   "text": "揀一個聆聽遊戲啦。揀話字母或者聆聽下面嘅遊戲，然後用咪高峰。"
+  },
+  "051c50fa137016": {
+   "demo": "vision_play",
+   "en": "Which animal has a very long neck?",
+   "status": "unreviewed",
+   "text": "邊隻動物有好長頸呀？"
+  },
+  "052a4a7b69a08c": {
+   "demo": "vision_play",
+   "en": "What is a baby dog called?",
+   "status": "unreviewed",
+   "text": "細隻狗叫乜呀？"
+  },
+  "055419ebe2a82f": {
+   "demo": "vision_play",
+   "en": "How many hands do you have?",
+   "status": "unreviewed",
+   "text": "你有幾多隻手呀？"
+  },
+  "058d221f1e01e0": {
+   "demo": "vision_play",
+   "en": "Pop Quiz Toss. Getting your next question…",
+   "status": "unreviewed",
+   "text": "Pop Quiz Toss. 而家畀你下一條問題…"
+  },
+  "059af149c28d2a": {
+   "demo": "vision_play",
+   "en": "What is the smallest prime number?",
+   "status": "unreviewed",
+   "text": "最細嘅質數係幾多呀？"
+  },
+  "05a621fe61eba8": {
+   "demo": "vision_play",
+   "en": "Which number comes after one?",
+   "status": "unreviewed",
+   "text": "一之後係邊個數呀？"
+  },
+  "05bbf6f4403a7d": {
+   "demo": "vision_play",
+   "en": "I have an idea!. Hold one index finger up in the air.",
+   "status": "unreviewed",
+   "text": "我有個主意！舉起一隻食指喺空中。"
+  },
+  "05ca602667069b": {
+   "demo": "vision_play",
+   "en": "What is the chemical symbol for silver?",
+   "status": "unreviewed",
+   "text": "銀嘅化學符號係乜呀？"
+  },
+  "05e1d4f18293e6": {
+   "demo": "vision_play",
+   "en": "What is the hottest planet in our solar system?",
+   "status": "unreviewed",
+   "text": "我哋太陽系入面最熱嘅行星係邊個呀？"
+  },
+  "05e8490d5a0336": {
+   "demo": "vision_play",
+   "en": "What color is grass?",
+   "status": "unreviewed",
+   "text": "草係乜色呀？"
+  },
+  "05f567cf24097c": {
+   "demo": "vision_play",
+   "en": "What shape is a window usually?",
+   "status": "unreviewed",
+   "text": "窗通常係乜形呀？"
+  },
+  "0607788db60c1f": {
+   "demo": "vision_play",
+   "en": "What is the value of pi rounded to two decimals?",
+   "status": "unreviewed",
+   "text": "圓周率保留兩位小數係幾多呀？"
+  },
+  "060a5ec4ed4baa": {
+   "demo": "vision_play",
+   "en": "Which animal has a long trunk?",
+   "status": "unreviewed",
+   "text": "邊隻動物有好長嘅鼻呀？"
+  },
+  "0642e7ee17d5a5": {
+   "demo": "vision_play",
+   "en": "What is the freezing point of water in Fahrenheit?",
+   "status": "unreviewed",
+   "text": "水嘅冰點喺華氏幾多度呀？"
+  },
+  "06491c7dc2e587": {
+   "demo": "vision_play",
+   "en": "Which programming language has a snake as its logo?",
+   "status": "unreviewed",
+   "text": "邊個程式語言嘅 logo 係一條蛇㗎？"
+  },
+  "0671b8d55cb123": {
+   "demo": "vision_play",
+   "en": "Who wrote Hamlet?",
+   "status": "unreviewed",
+   "text": "邊個寫咗 Hamlet 呀？"
+  },
+  "06aff62f6f5ca6": {
+   "demo": "vision_play",
+   "en": "Face chase. Move your face into the glowing circle.",
+   "status": "unreviewed",
+   "text": "Face chase. 將你嘅臉移入個發光嘅圓圈入面。"
+  },
+  "06c092158df653": {
+   "demo": "vision_play",
+   "en": "Pick a game. That activity is not wired yet. Choose another from the list.",
+   "status": "unreviewed",
+   "text": "揀個遊戲啦。嗰個活動仲未接駁好。喺列表度揀另一個啦。"
+  },
+  "06dee17d6456ae": {
+   "demo": "vision_play",
+   "en": "Blow a kiss. Make a little O, bring a hand near your mouth, then send it away.",
+   "status": "unreviewed",
+   "text": "Blow a kiss. 噘個小小嘅 O 形，將隻手放近你張嘴，然後送佢出去。"
+  },
+  "07092c47bb02f8": {
+   "demo": "vision_play",
+   "en": "Which composer kept writing music after going deaf?",
+   "status": "unreviewed",
+   "text": "邊個作曲家喺失聰之後仲繼續寫音樂㗎？"
+  },
+  "070d8195ab65b0": {
+   "demo": "vision_play",
+   "en": "Who wrote Harry Potter?",
+   "status": "unreviewed",
+   "text": "邊個寫咗 Harry Potter 呀？"
+  },
+  "0736713f74e178": {
+   "demo": "vision_play",
+   "en": "Who painted the ceiling of the Sistine Chapel?",
+   "status": "unreviewed",
+   "text": "邊個畫咗 Sistine Chapel 嘅天花板呀？"
+  },
+  "075c1acfd9a744": {
+   "demo": "vision_play",
+   "en": "Seated reach. Seated-only is on. Reach both hands high instead.",
+   "status": "unreviewed",
+   "text": "Seated reach. 而家只限坐低做。改為將雙手高高舉起。"
+  },
+  "079a32c40124e6": {
+   "demo": "vision_play",
+   "en": "What do plants need to grow besides sun?",
+   "status": "unreviewed",
+   "text": "除咗太陽之外，植物生長仲需要啲乜呀？"
+  },
+  "07a3561dbca517": {
+   "demo": "vision_play",
+   "en": "What do the angles of a triangle add up to?",
+   "status": "unreviewed",
+   "text": "一個三角形嘅角度加埋係幾多呀？"
+  },
+  "07a3b3e80c51fc": {
+   "demo": "vision_play",
+   "en": "Which vitamin prevents scurvy?",
+   "status": "unreviewed",
+   "text": "邊種維他命可以預防壞血病㗎？"
+  },
+  "07a7301cd0fa43": {
+   "demo": "vision_play",
+   "en": "What is the currency of the United Kingdom?",
+   "status": "unreviewed",
+   "text": "英國嘅貨幣係乜嘢呀？"
+  },
+  "07a739244363fe": {
+   "demo": "vision_play",
+   "en": "Who composed The Four Seasons?",
+   "status": "unreviewed",
+   "text": "邊個作曲咗 The Four Seasons 呀？"
+  },
+  "07b3113a54c949": {
+   "demo": "vision_play",
+   "en": "Which animal has black and white stripes?",
+   "status": "unreviewed",
+   "text": "邊隻動物有黑白間條呀？"
+  },
+  "07ce8146bd8eee": {
+   "demo": "vision_play",
+   "en": "Who wrote The Hobbit?",
+   "status": "unreviewed",
+   "text": "邊個寫咗 The Hobbit 呀？"
+  },
+  "07f4f1596cf60f": {
+   "demo": "vision_play",
+   "en": "How many sides does a pentagon have?",
+   "status": "unreviewed",
+   "text": "一個五邊形有幾多邊呀？"
+  },
+  "07faf94cf7fc28": {
+   "demo": "vision_play",
+   "en": "What does HTML describe?",
+   "status": "unreviewed",
+   "text": "HTML 係描述乜嘢㗎？"
+  },
+  "0811e750bc666e": {
+   "demo": "vision_play",
+   "en": "What star gives us light and heat?",
+   "status": "unreviewed",
+   "text": "邊粒星星畀我哋光同熱呀？"
+  },
+  "0816581faa69c7": {
+   "demo": "vision_play",
+   "en": "In which year did the Berlin Wall fall?",
+   "status": "unreviewed",
+   "text": "柏林圍牆喺邊一年倒塌㗎？"
+  },
+  "081d854b0f59e7": {
+   "demo": "vision_play",
+   "en": "Which mountain range includes Everest?",
+   "status": "unreviewed",
+   "text": "邊條山脈包括 Everest 呀？"
+  },
+  "08522913ab657e": {
+   "demo": "vision_play",
+   "en": "What process do plants use to make food?",
+   "status": "unreviewed",
+   "text": "植物用乜嘢過程嚟製造食物呀？"
+  },
+  "08732693aafd03": {
+   "demo": "vision_play",
+   "en": "Try again. I could not check that answer.",
+   "status": "unreviewed",
+   "text": "試多次啦。我核對唔到嗰個答案。"
+  },
+  "08ed38d6bfec98": {
+   "demo": "vision_play",
+   "en": "Which animal says meow?",
+   "status": "unreviewed",
+   "text": "邊隻動物會喵喵叫呀？"
+  },
+  "09034e58fd1aeb": {
+   "demo": "vision_play",
+   "en": "Which sea animal has eight arms?",
+   "status": "unreviewed",
+   "text": "邊種海洋動物有八隻手臂呀？"
+  },
+  "090d1e311ae8d9": {
+   "demo": "vision_play",
+   "en": "At what Celsius temperature does water freeze?",
+   "status": "unreviewed",
+   "text": "水喺幾多攝氏度會結冰㗎？"
+  },
+  "09288f3548160f": {
+   "demo": "vision_play",
+   "en": "Which fruit is long and yellow?",
+   "status": "unreviewed",
+   "text": "邊種生果又長又黃㗎？"
+  },
+  "09554ac86ebb12": {
+   "demo": "vision_play",
+   "en": "Which is the smallest continent?",
+   "status": "unreviewed",
+   "text": "邊個係最細嘅大洲呀？"
+  },
+  "0955a83bab5fc1": {
+   "demo": "vision_play",
+   "en": "Type instead. Speech recognition is unavailable here.",
+   "status": "unreviewed",
+   "text": "打字啦。呢度冇語音辨識。"
+  },
+  "09603f04faf426": {
+   "demo": "vision_play",
+   "en": "What is the square root of 144?",
+   "status": "unreviewed",
+   "text": "一百四十四嘅平方根係幾多？"
+  },
+  "0974b2402fea53": {
+   "demo": "vision_play",
+   "en": "What is the capital of Russia?",
+   "status": "unreviewed",
+   "text": "俄羅斯嘅首都是邊個呀？"
+  },
+  "0977d05b3086dd": {
+   "demo": "vision_play",
+   "en": "What is the chemical formula for table salt?",
+   "status": "unreviewed",
+   "text": "食鹽嘅化學式係乜嘢㗎？"
+  },
+  "0978509b973793": {
+   "demo": "vision_play",
+   "en": "What is the capital of Thailand?",
+   "status": "unreviewed",
+   "text": "泰國嘅首都是邊個呀？"
+  },
+  "097938a9734512": {
+   "demo": "vision_play",
+   "en": "What is the most abundant element in the universe?",
+   "status": "unreviewed",
+   "text": "宇宙入面最豐富嘅元素係乜嘢呀？"
+  },
+  "09954c96c2bedd": {
+   "demo": "vision_play",
+   "en": "Which city hosted the 2016 Summer Olympics?",
+   "status": "unreviewed",
+   "text": "邊個城市主辦二零一六年夏季奧運會呀？"
+  },
+  "09d3b4a9217bed": {
+   "demo": "vision_play",
+   "en": "Which language has the most native speakers?",
+   "status": "unreviewed",
+   "text": "邊種語言有最多母語人士呀？"
+  },
+  "09dcb2597f782b": {
+   "demo": "vision_play",
+   "en": "What do cows give us?",
+   "status": "unreviewed",
+   "text": "牛畀我哋乜嘢呀？"
+  },
+  "0a0fd61308ddc3": {
+   "demo": "vision_play",
+   "en": "What do you wear on your head?",
+   "status": "unreviewed",
+   "text": "你頭上戴乜嘢呀？"
+  },
+  "0a1209ecd8afad": {
+   "demo": "vision_play",
+   "en": "What is a group of fish called?",
+   "status": "unreviewed",
+   "text": "一班魚叫做乜嘢呀？"
+  },
+  "0a1602531a2eb8": {
+   "demo": "vision_play",
+   "en": "What is the square root of eighty-one?",
+   "status": "unreviewed",
+   "text": "八十一嘅平方根係幾多呀？"
+  },
+  "0a485f10cdbf2d": {
+   "demo": "vision_play",
+   "en": "Which Roman god was the king of the gods?",
+   "status": "unreviewed",
+   "text": "邊個羅馬神係眾神之王呀？"
+  },
+  "0a4c3d64a02b87": {
+   "demo": "vision_play",
+   "en": "What do you smell with?",
+   "status": "unreviewed",
+   "text": "你用乜嘢嚟聞呀？"
+  },
+  "0a69c2a80c9ae7": {
+   "demo": "vision_play",
+   "en": "Which animal has feathers and flies?",
+   "status": "unreviewed",
+   "text": "邊種動物有羽毛同埋會飛㗎？"
+  },
+  "0a9045b4f4311b": {
+   "demo": "vision_play",
+   "en": "Which vitamin do we get from sunlight?",
+   "status": "unreviewed",
+   "text": "我哋從陽光得到邊種維他命呀？"
+  },
+  "0ab3743be8b32d": {
+   "demo": "vision_play",
+   "en": "What is the atomic number of hydrogen?",
+   "status": "unreviewed",
+   "text": "氫嘅原子序數係幾多呀？"
+  },
+  "0ac67655533564": {
+   "demo": "vision_play",
+   "en": "What language do people speak in Mexico?",
+   "status": "unreviewed",
+   "text": "墨西哥人講乜嘢語言呀？"
+  },
+  "0ad34d737b42c7": {
+   "demo": "vision_play",
+   "en": "What is the currency of Brazil?",
+   "status": "unreviewed",
+   "text": "巴西嘅貨幣係乜嘢呀？"
+  },
+  "0ad860d0b58816": {
+   "demo": "vision_play",
+   "en": "What do chickens lay?",
+   "status": "unreviewed",
+   "text": "雞生乜嘢呀？"
+  },
+  "0ae341e0fc9ca9": {
+   "demo": "vision_play",
+   "en": "Which of these is a reptile?",
+   "status": "unreviewed",
+   "text": "以下邊個係爬蟲類呀？"
+  },
+  "0ae4964d2ee3ed": {
+   "demo": "vision_play",
+   "en": "Make a pose. Raise both hands and hold your biggest hero pose.",
+   "status": "unreviewed",
+   "text": "擺個姿勢。舉高雙手，擺出你最大嘅英雄姿勢。"
+  },
+  "0ae9fde56dff69": {
+   "demo": "vision_play",
+   "en": "What language do people speak in Germany?",
+   "status": "unreviewed",
+   "text": "德國人講乜嘢語言呀？"
+  },
+  "0aed97c4f072fa": {
+   "demo": "vision_play",
+   "en": "What do bees make?",
+   "status": "unreviewed",
+   "text": "蜜蜂會整乜嘢呀？"
+  },
+  "0af4d60f94c559": {
+   "demo": "vision_play",
+   "en": "How many legs does a spider have?",
+   "status": "unreviewed",
+   "text": "蜘蛛有幾多隻腳呀？"
+  },
+  "0b1054126bb8e4": {
+   "demo": "vision_play",
+   "en": "Rainbow reach. Stretch both hands toward opposite top corners.",
+   "status": "unreviewed",
+   "text": "彩虹伸展。雙手伸向相反嘅頂角。"
+  },
+  "0b106e072e4c72": {
+   "demo": "vision_play",
+   "en": "Who developed the theory of relativity?",
+   "status": "unreviewed",
+   "text": "邊個提出咗相對論呀？"
+  },
+  "0b1c1e462c3ec4": {
+   "demo": "vision_play",
+   "en": "What color do red and blue make?",
+   "status": "unreviewed",
+   "text": "紅色同藍色混埋變咩顏色呀？"
+  },
+  "0b1fa0fb98420c": {
+   "demo": "vision_play",
+   "en": "What is the opposite of big?",
+   "status": "unreviewed",
+   "text": "大嘅相反係乜呀？"
+  },
+  "0b2155077b441e": {
+   "demo": "vision_play",
+   "en": "Who wrote The Great Gatsby?",
+   "status": "unreviewed",
+   "text": "邊個寫咗《大亨小傳》呀？"
+  },
+  "0b343ef6c9093c": {
+   "demo": "vision_play",
+   "en": "Which continent is the coldest?",
+   "status": "unreviewed",
+   "text": "邊個洲最凍呀？"
+  },
+  "0b3c31db3896c6": {
+   "demo": "vision_play",
+   "en": "Who painted the Mona Lisa?",
+   "status": "unreviewed",
+   "text": "邊個畫咗《蒙娜麗莎》呀？"
+  },
+  "0b54a35cc8eb5f": {
+   "demo": "vision_play",
+   "en": "What color is a carrot?",
+   "status": "unreviewed",
+   "text": "紅蘿蔔係乜嘢顏色呀？"
+  },
+  "0b5c70c07a310f": {
+   "demo": "vision_play",
+   "en": "What is ten times ten?",
+   "status": "unreviewed",
+   "text": "十乘十係幾多呀？"
+  },
+  "0b75e5942553d0": {
+   "demo": "vision_play",
+   "en": "What is the chemical symbol for gold?",
+   "status": "unreviewed",
+   "text": "金嘅化學符號係乜呀？"
+  },
+  "0ba20c3c45385f": {
+   "demo": "vision_play",
+   "en": "What color is a banana?",
+   "status": "unreviewed",
+   "text": "香蕉係乜嘢顏色呀？"
+  },
+  "0bc2b97fbc01c1": {
+   "demo": "vision_play",
+   "en": "Dance!. Move any way you like… freeze when Theodore says freeze.",
+   "status": "unreviewed",
+   "text": "跳舞啦！隨便點郁都得… 當Theodore講freeze就定住唔郁。"
+  },
+  "0bdda3908b13e0": {
+   "demo": "vision_play",
+   "en": "Which of these is a mammal?",
+   "status": "unreviewed",
+   "text": "以下邊個係哺乳動物呀？"
+  },
+  "0bed62c51f2055": {
+   "demo": "vision_play",
+   "en": "At what Celsius temperature does water boil at sea level?",
+   "status": "unreviewed",
+   "text": "海平面嘅水喺幾多攝氏度會滾呀？"
+  },
+  "0bf0c5e0415bfb": {
+   "demo": "vision_play",
+   "en": "Stand up. Step back so Theodore sees you, then stand gently.",
+   "status": "unreviewed",
+   "text": "企起身。退後一步等Theodore見到你，然後輕輕企好。"
+  },
+  "0c08fbdb0cb52a": {
+   "demo": "vision_play",
+   "en": "What color is a fire truck?",
+   "status": "unreviewed",
+   "text": "消防車係乜嘢顏色呀？"
+  },
+  "0c2b307e618f9c": {
+   "demo": "vision_play",
+   "en": "What is fifteen percent of one hundred?",
+   "status": "unreviewed",
+   "text": "一百嘅百分之十五係幾多呀？"
+  },
+  "0c6aed73f0a995": {
+   "demo": "vision_play",
+   "en": "Which philosopher said I think, therefore I am?",
+   "status": "unreviewed",
+   "text": "邊個哲學家講過我思故我在呀？"
+  },
+  "0c6fec9bb61db8": {
+   "demo": "vision_play",
+   "en": "What is the smallest country in the world?",
+   "status": "unreviewed",
+   "text": "世界上最細嘅國家係邊個呀？"
+  },
+  "0c871e3e9fefff": {
+   "demo": "vision_play",
+   "en": "What is the opposite of in?",
+   "status": "unreviewed",
+   "text": "入面嘅相反係乜呀？"
+  },
+  "0cac5468ab6a05": {
+   "demo": "vision_play",
+   "en": "Who wrote The Odyssey?",
+   "status": "unreviewed",
+   "text": "邊個寫咗《奧德賽》呀？"
+  },
+  "0ce7c3c485c408": {
+   "demo": "vision_play",
+   "en": "Which animal says baa?",
+   "status": "unreviewed",
+   "text": "邊隻動物會咩咩叫㗎？"
+  },
+  "0cf55ac2318033": {
+   "demo": "vision_play",
+   "en": "Who proposed the laws of motion and gravity?",
+   "status": "unreviewed",
+   "text": "邊個提出咗運動定律同重力定律㗎？"
+  },
+  "0d045283b8b074": {
+   "demo": "vision_play",
+   "en": "What is the chemical symbol for lead?",
+   "status": "unreviewed",
+   "text": "鉛嘅化學符號係乜㗎？"
+  },
+  "0d0cf43ae1e022": {
+   "demo": "vision_play",
+   "en": "Who was president during the American Civil War?",
+   "status": "unreviewed",
+   "text": "美國內戰嗰陣邊個係總統㗎？"
+  },
+  "0d1272cdfc9946": {
+   "demo": "vision_play",
+   "en": "Which part of the cell contains DNA?",
+   "status": "unreviewed",
+   "text": "細胞邊部分含有DNA㗎？"
+  },
+  "0d14efc9d1800c": {
+   "demo": "vision_play",
+   "en": "How many eyes do you have?",
+   "status": "unreviewed",
+   "text": "你有幾多隻眼㗎？"
+  },
+  "0d3a263bcd0050": {
+   "demo": "vision_play",
+   "en": "What do you use to write on paper?",
+   "status": "unreviewed",
+   "text": "你用乜嚟喺紙上面寫字㗎？"
+  },
+  "0d5983f7dbedfb": {
+   "demo": "vision_play",
+   "en": "Flap like a bird. Lift both hands up and down. Fly!",
+   "status": "unreviewed",
+   "text": "好似雀仔咁拍翼。舉高雙手然後上下拍。飛呀！"
+  },
+  "0d5dc6144b1f0c": {
+   "demo": "vision_play",
+   "en": "What is the powerhouse of the cell?",
+   "status": "unreviewed",
+   "text": "細胞嘅發電廠係邊部分㗎？"
+  },
+  "0d6b7eca326e70": {
+   "demo": "vision_play",
+   "en": "Which of these is a prime number?",
+   "status": "unreviewed",
+   "text": "以下邊個係質數㗎？"
+  },
+  "0d71baf4dca677": {
+   "demo": "vision_play",
+   "en": "What is the capital of France?",
+   "status": "unreviewed",
+   "text": "法國嘅首都是邊度㗎？"
+  },
+  "0d9879382996be": {
+   "demo": "vision_play",
+   "en": "Which animal is the largest on land?",
+   "status": "unreviewed",
+   "text": "邊隻動物係陸地上最大㗎？"
+  },
+  "0d9b0db0af258f": {
+   "demo": "vision_play",
+   "en": "Which country is shaped like a boot?",
+   "status": "unreviewed",
+   "text": "邊個國家係靴形㗎？"
+  },
+  "0da0ff6be70bc1": {
+   "demo": "vision_play",
+   "en": "Which empire was ruled by Julius Caesar?",
+   "status": "unreviewed",
+   "text": "邊個帝國係由凱撒統治㗎？"
+  },
+  "0da6e1e876c278": {
+   "demo": "vision_play",
+   "en": "What is the capital of the United States?",
+   "status": "unreviewed",
+   "text": "美國嘅首都是邊度㗎？"
+  },
+  "0db183fde43c44": {
+   "demo": "vision_play",
+   "en": "What is the capital of Argentina?",
+   "status": "unreviewed",
+   "text": "阿根廷嘅首都是邊度㗎？"
+  },
+  "0db6e9696c2caa": {
+   "demo": "vision_play",
+   "en": "Who discovered penicillin?",
+   "status": "unreviewed",
+   "text": "邊個發現咗盤尼西林㗎？"
+  },
+  "0dcbe46f6b2c9f": {
+   "demo": "vision_play",
+   "en": "Which force pulls things toward the ground?",
+   "status": "unreviewed",
+   "text": "邊種力會將嘢拉向地面㗎？"
+  },
+  "0deba7f8dacaef": {
+   "demo": "vision_play",
+   "en": "What is the capital of Egypt?",
+   "status": "unreviewed",
+   "text": "埃及嘅首都是邊度㗎？"
+  },
+  "0e1e0fe12fa2f6": {
+   "demo": "vision_play",
+   "en": "Fist bump!. Make a fist and bump Theodore.",
+   "status": "unreviewed",
+   "text": "拳頭碰碰！握實拳頭同Theodore碰一碰。"
+  },
+  "0e5314234c1c05": {
+   "demo": "vision_play",
+   "en": "What is the capital of New Zealand?",
+   "status": "unreviewed",
+   "text": "紐西蘭嘅首都是邊度㗎？"
+  },
+  "0e61ea54f2aab9": {
+   "demo": "vision_play",
+   "en": "Which country has the Great Wall?",
+   "status": "unreviewed",
+   "text": "邊個國家有萬里長城㗎？"
+  },
+  "0ea9ea0a69fd35": {
+   "demo": "vision_play",
+   "en": "Which strait separates Europe and Asia at Istanbul?",
+   "status": "unreviewed",
+   "text": "邊條海峽喺伊斯坦堡分隔歐洲同亞洲㗎？"
+  },
+  "0eb6df1147319d": {
+   "demo": "vision_play",
+   "en": "Freeze!",
+   "status": "unreviewed",
+   "text": "定住！"
+  },
+  "0ee2ceda00b194": {
+   "demo": "vision_play",
+   "en": "What is the capital of Italy?",
+   "status": "unreviewed",
+   "text": "意大利嘅首都是邊度㗎？"
+  },
+  "0f1894e3e20651": {
+   "demo": "on_the_go",
+   "en": "Key takeaways. Key takeaways. Let's recap the main points. Learning from Examples. Machine learning builds models that improve on tasks by finding patterns in data instead of hand-coded rules. Supervised learning uses labeled examples; unsupervised learning finds structure without labels. Reinforcement learning learns from rewards in environments like games. Data Splits. Data is split into training, validation, and test sets to measure generalization. Leakage—test information in training—_inflates scores misleadingly. Cross-validation gives robust estimates on smaller datasets. Features and Models. Features are inputs; labels are targets in classification and regression. Linear models are interpretable baselines; tree ensembles handle tabular data well. Neural networks excel on images, audio, and text with enough data and compute. Training Loop. Loss functions measure error; optimizers like Adam adjust weights to reduce loss over epochs. Batch size and learning rate affect stability and speed. GPUs accelerate matrix operations training large models. Overfitting. Models that memorize training noise fail on new data. Regularization, dropout, and early stopping reduce overfitting. More diverse data often helps more than endlessly bigger models. Evaluation. Classification uses precision, recall, and F1 especially when classes are imbalanced. Regression uses MAE and RMSE. Choose metrics aligned with real costs of false positives and false negatives. Deployment. Models serve predictions via APIs or on-device inference. Monitoring detects data drift when real-world inputs change. MLOps practices version data, code, and models for reproducibility. Limits and Ethics. Models can be biased, brittle on edge cases, and opaque in deep networks. High-stakes uses in medicine and justice demand oversight and transparency. ML augments human judgment; it does not replace accountability. Keep these in mind, and you'll have a solid working grasp of Intro to Machine Learning. That's the end of this lesson — thanks for listening.",
+   "status": "unreviewed",
+   "text": "主要 takeaways。主要 takeaways。我哋嚟總結主要嘅重點。從例子學習。機器學習建立模型，透過喺數據入面搵到規律嚟改善任務，而唔係用手寫規則。監督式學習用有標籤嘅例子；無監督式學習喺冇標籤嘅情況下搵結構。強化學習就喺遊戲咁嘅環境入面從獎勵學習。數據分割。數據會分割成訓練集、驗證集同測試集，用嚟量度泛化能力。洩漏 — 測試資訊出現在訓練入面 — 會誤導咁 inflate 分數。交叉驗證喺細啲嘅數據集上面畀到穩健嘅估計。特徵同模型。特徵係輸入；標籤就係分類同回歸入面嘅目標。線性模型係易解釋嘅 baseline；樹集成模型好適合處理表格數據。神經網絡喺有足夠數據同運算能力嘅時候，喺圖像、音頻同文字上面表現出色。訓練循環。損失函數量度誤差；優化器例如 Adam 會調整權重，喺每個 epoch 減少損失。批次大小同學習率會影響穩定性同速度。GPU 加速矩陣運算，幫到訓練大模型。過擬合。模型如果死記訓練入面嘅噪音，喺新數據上面就會失敗。正則化、dropout 同提早停止可以減少過擬合。更多元嘅數據通常比不斷增大模型仲有效。評估。分類用精確率、召回率同 F1，尤其當類別唔平衡嘅時候。回歸就用 MAE 同 RMSE。選擇同真實假陽性同假陰性成本對齊嘅指標。部署。模型透過 API 或者裝置上推斷嚟提供預測。監測可以喺真實世界輸入改變嘅時候偵測數據漂移。MLOps 做法會將數據、程式碼同模型版本化，方便重現。限制同倫理。模型可能有偏差、喺邊緣情況好脆弱，同埋深度網絡入面好難解釋。喺醫學同司法嘅高風險應用，就需要監管同透明度。機器學習係 augmentation 人類判斷；佢唔會取代問責。記住呢啲，你就會對機器學習入門有穩固嘅工作理解。呢一課就到此為止 — 多謝你聽。"
+  },
+  "0f21b446411807": {
+   "demo": "vision_play",
+   "en": "Which ocean is the smallest?",
+   "status": "unreviewed",
+   "text": "邊個海洋係最細嘅？"
+  },
+  "0f25f43c537506": {
+   "demo": "vision_play",
+   "en": "Who wrote Charlie and the Chocolate Factory?",
+   "status": "unreviewed",
+   "text": "邊個寫咗 Charlie and the Chocolate Factory？"
+  },
+  "0f3a4028d29512": {
+   "demo": "vision_play",
+   "en": "What is the largest bone in the human body?",
+   "status": "unreviewed",
+   "text": "人體入面最大嘅骨頭係乜嘢？"
+  },
+  "0f4b0e2f970670": {
+   "demo": "vision_play",
+   "en": "Which season is snowy?",
+   "status": "unreviewed",
+   "text": "邊個季節會落雪㗎？"
+  },
+  "0f4d6cdd665899": {
+   "demo": "vision_play",
+   "en": "What do you sleep in?",
+   "status": "unreviewed",
+   "text": "你瞓覺嗰陣著乜嘢㗎？"
+  },
+  "0f596edcef4004": {
+   "demo": "vision_play",
+   "en": "What do bees collect from flowers?",
+   "status": "unreviewed",
+   "text": "蜜蜂會喺花度採集乜嘢呀？"
+  },
+  "0f5d374db351bd": {
+   "demo": "vision_play",
+   "en": "Who wrote Don Quixote?",
+   "status": "unreviewed",
+   "text": "邊個寫咗 Don Quixote？"
+  },
+  "0f8cf4e203cc85": {
+   "demo": "vision_play",
+   "en": "What do you brush every day?",
+   "status": "unreviewed",
+   "text": "你每日刷乜嘢㗎？"
+  },
+  "0f91b3c789fe0e": {
+   "demo": "vision_play",
+   "en": "What shines in the sky at night?",
+   "status": "unreviewed",
+   "text": "夜晚喺天上發光嘅係乜嘢？"
+  },
+  "0fa01584ebc5f6": {
+   "demo": "vision_play",
+   "en": "What gas do plants take in?",
+   "status": "unreviewed",
+   "text": "植物會吸收乜嘢氣體㗎？"
+  },
+  "0fb219662f7db5": {
+   "demo": "vision_play",
+   "en": "What is the currency of South Africa?",
+   "status": "unreviewed",
+   "text": "南非嘅貨幣係乜嘢？"
+  },
+  "0fd7936bbb3453": {
+   "demo": "vision_play",
+   "en": "Which animal gives us wool?",
+   "status": "unreviewed",
+   "text": "邊隻動物畀我哋羊毛㗎？"
+  },
+  "0fe94170905197": {
+   "demo": "vision_play",
+   "en": "What is the hardest part of your body?",
+   "status": "unreviewed",
+   "text": "你身體最硬嘅部分係邊度？"
+  },
+  "0fef2137e4e1ad": {
+   "demo": "vision_play",
+   "en": "Which country has the pyramids of Giza?",
+   "status": "unreviewed",
+   "text": "邊個國家有吉薩金字塔㗎？"
+  },
+  "10035023810a45": {
+   "demo": "vision_play",
+   "en": "What color is the sun?",
+   "status": "unreviewed",
+   "text": "太陽係乜嘢顏色㗎？"
+  },
+  "1003ed0a176a0e": {
+   "demo": "vision_play",
+   "en": "What is the currency of India?",
+   "status": "unreviewed",
+   "text": "印度嘅貨幣係乜嘢？"
+  },
+  "100a15a60f8eca": {
+   "demo": "vision_play",
+   "en": "Now sit down. Move gently back to your seat.",
+   "status": "unreviewed",
+   "text": "而家坐低。慢慢行返去你個位度。"
+  },
+  "10225374d567d8": {
+   "demo": "vision_play",
+   "en": "In which year did humans first land on the Moon?",
+   "status": "unreviewed",
+   "text": "人類喺邊一年第一次登陸月球㗎？"
+  },
+  "10599bbb1ac318": {
+   "demo": "vision_play",
+   "en": "What language do people speak in Japan?",
+   "status": "unreviewed",
+   "text": "日本人講乜嘢語言㗎？"
+  },
+  "107b919c523690": {
+   "demo": "vision_play",
+   "en": "Which animal carries its house on its back?",
+   "status": "unreviewed",
+   "text": "邊隻動物會將間屋背喺背脊度㗎？"
+  },
+  "107c62784905b9": {
+   "demo": "vision_play",
+   "en": "Which planet is known for its rings?",
+   "status": "unreviewed",
+   "text": "邊個行星以有環出名㗎？"
+  },
+  "108752e4958c66": {
+   "demo": "vision_play",
+   "en": "Which bird cannot fly and lives in Antarctica?",
+   "status": "unreviewed",
+   "text": "邊隻雀唔識飛同埋住喺南極㗎？"
+  },
+  "1090d73bce90c0": {
+   "demo": "vision_play",
+   "en": "Which animal hops and says ribbit?",
+   "status": "unreviewed",
+   "text": "邊隻動物會跳同埋叫 ribbit 㗎？"
+  },
+  "10bae5bb605a16": {
+   "demo": "vision_play",
+   "en": "Which season is the hottest?",
+   "status": "unreviewed",
+   "text": "邊個季節最熱㗎？"
+  },
+  "10dc86017a0c61": {
+   "demo": "vision_play",
+   "en": "What is the opposite of day?",
+   "status": "unreviewed",
+   "text": "日嘅相反係乜嘢？"
+  },
+  "11014e8a3f6a27": {
+   "demo": "vision_play",
+   "en": "What force keeps planets in orbit?",
+   "status": "unreviewed",
+   "text": "乜嘢力令行星喺軌道上運行㗎？"
+  },
+  "1101525ac9b64f": {
+   "demo": "vision_play",
+   "en": "What colorful arch appears after rain?",
+   "status": "unreviewed",
+   "text": "落雨之後會出現乜嘢色彩繽紛嘅拱形呀？"
+  },
+  "11248c822611b3": {
+   "demo": "vision_play",
+   "en": "Who wrote War and Peace?",
+   "status": "unreviewed",
+   "text": "邊個寫咗《戰爭與和平》㗎？"
+  },
+  "112c7ea998fc37": {
+   "demo": "vision_play",
+   "en": "Which animal is the king of the jungle?",
+   "status": "unreviewed",
+   "text": "邊隻動物係叢林之王呀？"
+  },
+  "117340cd6ce484": {
+   "demo": "vision_play",
+   "en": "In which year did the French Revolution begin?",
+   "status": "unreviewed",
+   "text": "法國大革命係邊一年開始㗎？"
+  },
+  "11744168b230bf": {
+   "demo": "vision_play",
+   "en": "Now send it!. Sweep your hand away to send the kiss flying.",
+   "status": "unreviewed",
+   "text": "而家發送啦！揮一揮手將個吻飛出去。"
+  },
+  "11825c6f51e942": {
+   "demo": "vision_play",
+   "en": "What is the largest moon of Saturn?",
+   "status": "unreviewed",
+   "text": "土星最大嘅衛星叫乜嘢呀？"
+  },
+  "11934c99d4bbff": {
+   "demo": "vision_play",
+   "en": "Who wrote Romeo and Juliet?",
+   "status": "unreviewed",
+   "text": "邊個寫咗《羅密歐與茱麗葉》㗎？"
+  },
+  "11c40978140cd5": {
+   "demo": "vision_play",
+   "en": "Who wrote the novel 1984?",
+   "status": "unreviewed",
+   "text": "邊個寫咗小說《1984》呀？"
+  },
+  "11de0111116d9e": {
+   "demo": "vision_play",
+   "en": "How many fingers are on one hand?",
+   "status": "unreviewed",
+   "text": "一隻手有幾多隻手指呀？"
+  },
+  "11eae59ffa3f29": {
+   "demo": "vision_play",
+   "en": "What is half of one hundred?",
+   "status": "unreviewed",
+   "text": "一百嘅一半係幾多呀？"
+  },
+  "123a8ca77282ca": {
+   "demo": "vision_play",
+   "en": "What is the next prime after seven?",
+   "status": "unreviewed",
+   "text": "七之後下一個質數係乜嘢呀？"
+  },
+  "12604d2357045b": {
+   "demo": "vision_play",
+   "en": "Which mammal can truly fly?",
+   "status": "unreviewed",
+   "text": "邊種哺乳動物可以真正飛㗎？"
+  },
+  "129c93e8346ebf": {
+   "demo": "vision_play",
+   "en": "Bop to the beat. Move your head gently up and down.",
+   "status": "unreviewed",
+   "text": "跟住節奏擺動啦。輕輕將個頭上下移動。"
+  },
+  "12b8f015df7f64": {
+   "demo": "vision_play",
+   "en": "What do we call animals that only eat plants?",
+   "status": "unreviewed",
+   "text": "我哋將只食植物嘅動物叫做乜嘢呀？"
+  },
+  "12bdd25028978f": {
+   "demo": "vision_play",
+   "en": "Which river runs through Egypt?",
+   "status": "unreviewed",
+   "text": "邊條河流流經埃及呀？"
+  },
+  "12d441e72896b4": {
+   "demo": "vision_play",
+   "en": "What is the capital of Japan?",
+   "status": "unreviewed",
+   "text": "日本嘅首都是邊度呀？"
+  },
+  "1304ef91ea7989": {
+   "demo": "vision_play",
+   "en": "Which tool measures length?",
+   "status": "unreviewed",
+   "text": "邊樣工具係量度長度㗎？"
+  },
+  "130d2f7c916eb4": {
+   "demo": "vision_play",
+   "en": "In which year did World War II end?",
+   "status": "unreviewed",
+   "text": "第二次世界大戰係邊一年結束㗎？"
+  },
+  "133633e0cf1420": {
+   "demo": "vision_play",
+   "en": "Play time is up. Thanks for playing! Tap home to start a fresh 10-minute session.",
+   "status": "unreviewed",
+   "text": "遊戲時間到。多謝你玩！撳返主頁開始一個新嘅十分鐘環節。"
+  },
+  "135411d67cd15f": {
+   "demo": "vision_play",
+   "en": "Which country has the most time zones?",
+   "status": "unreviewed",
+   "text": "邊個國家有最多時區呀？"
+  },
+  "135474ebe4013d": {
+   "demo": "vision_play",
+   "en": "Which tool measures temperature?",
+   "status": "unreviewed",
+   "text": "邊樣工具係量度溫度㗎？"
+  },
+  "1354efa2fa93f3": {
+   "demo": "vision_play",
+   "en": "What do we call a baby cow?",
+   "status": "unreviewed",
+   "text": "我哋將小牛叫做乜嘢呀？"
+  },
+  "13a481dbad9722": {
+   "demo": "vision_play",
+   "en": "What do you hear with?",
+   "status": "unreviewed",
+   "text": "我哋用乜嘢嚟聽聲呀？"
+  },
+  "13a6c4df31becc": {
+   "demo": "vision_play",
+   "en": "What is the hardest natural substance?",
+   "status": "unreviewed",
+   "text": "最硬嘅天然物質係乜嘢呀？"
+  },
+  "13abd2bfb22df5": {
+   "demo": "vision_play",
+   "en": "What is the unit of electrical resistance?",
+   "status": "unreviewed",
+   "text": "電阻嘅單位係乜嘢呀？"
+  },
+  "13e3f18925c5da": {
+   "demo": "vision_play",
+   "en": "What do you taste with?",
+   "status": "unreviewed",
+   "text": "你用乜嘢嚟嚐味呀？"
+  },
+  "13f14d23a2b9ac": {
+   "demo": "vision_play",
+   "en": "What language do people speak in Brazil?",
+   "status": "unreviewed",
+   "text": "巴西人講乜嘢語言呀？"
+  },
+  "13f4018cada0c5": {
+   "demo": "vision_play",
+   "en": "What color is the sky on a sunny day?",
+   "status": "unreviewed",
+   "text": "晴天嘅天空係乜嘢顏色呀？"
+  },
+  "13fe2b15fbf678": {
+   "demo": "vision_play",
+   "en": "How many bones are in the adult human body?",
+   "status": "unreviewed",
+   "text": "成年人有幾多塊骨頭呀？"
+  },
+  "1414f33b06bdfe": {
+   "demo": "vision_play",
+   "en": "What is the currency of Sweden?",
+   "status": "unreviewed",
+   "text": "瑞典嘅貨幣係乜嘢呀？"
+  },
+  "141cc5a0207350": {
+   "demo": "vision_play",
+   "en": "How many sides does a triangle have?",
+   "status": "unreviewed",
+   "text": "三角形有幾多邊呀？"
+  },
+  "141d9ee491faa7": {
+   "demo": "vision_play",
+   "en": "What is the capital of Morocco?",
+   "status": "unreviewed",
+   "text": "摩洛哥嘅首都是邊度呀？"
+  },
+  "143466833f704f": {
+   "demo": "vision_play",
+   "en": "Which economist wrote The Wealth of Nations?",
+   "status": "unreviewed",
+   "text": "邊個經濟學家寫咗《國富論》呀？"
+  },
+  "143d58ebd9d358": {
+   "demo": "vision_play",
+   "en": "What do plants make using sunlight?",
+   "status": "unreviewed",
+   "text": "植物用陽光製造乜嘢呀？"
+  },
+  "1445d86997ac5e": {
+   "demo": "vision_play",
+   "en": "What shape is a ball?",
+   "status": "unreviewed",
+   "text": "波係乜嘢形狀呀？"
+  },
+  "1468f55e489c2f": {
+   "demo": "vision_play",
+   "en": "What is the pH of pure water?",
+   "status": "unreviewed",
+   "text": "純水嘅pH值係幾多呀？"
+  },
+  "1489d094c4f492": {
+   "demo": "vision_play",
+   "en": "What is the closest star to Earth?",
+   "status": "unreviewed",
+   "text": "離地球最近嘅星星係邊粒呀？"
+  },
+  "14932495161202": {
+   "demo": "vision_play",
+   "en": "Which is the largest ocean?",
+   "status": "unreviewed",
+   "text": "邊個係最大嘅海洋呀？"
+  },
+  "15094bcb727c3f": {
+   "demo": "vision_play",
+   "en": "What is a baby cat called?",
+   "status": "unreviewed",
+   "text": "細隻貓叫乜嘢呀？"
+  },
+  "15223a8df137ae": {
+   "demo": "vision_play",
+   "en": "What is the opposite of hot?",
+   "status": "unreviewed",
+   "text": "熱嘅相反係乜嘢呀？"
+  },
+  "1537cffebfb300": {
+   "demo": "vision_play",
+   "en": "Which animal says woof?",
+   "status": "unreviewed",
+   "text": "邊隻動物會汪汪叫呀？"
+  },
+  "15543b7336e46f": {
+   "demo": "vision_play",
+   "en": "Which planet is closest to the Sun?",
+   "status": "unreviewed",
+   "text": "邊個行星最接近太陽呀？"
+  },
+  "15780f43cd9b72": {
+   "demo": "vision_play",
+   "en": "Which animal swims and has fins?",
+   "status": "unreviewed",
+   "text": "邊隻動物識游水又有鰭呀？"
+  },
+  "159c30858ad1d6": {
+   "demo": "vision_play",
+   "en": "What is the official language of Brazil?",
+   "status": "unreviewed",
+   "text": "巴西嘅官方語言係乜嘢呀？"
+  },
+  "15ac3947711bab": {
+   "demo": "vision_play",
+   "en": "What is the chemical formula for water?",
+   "status": "unreviewed",
+   "text": "水嘅化學式係乜嘢呀？"
+  },
+  "16038e4b1e7c79": {
+   "demo": "vision_play",
+   "en": "What do magnets attract?",
+   "status": "unreviewed",
+   "text": "磁鐵會吸乜嘢呀？"
+  },
+  "163808c4e92717": {
+   "demo": "vision_play",
+   "en": "Which is the third planet from the Sun?",
+   "status": "unreviewed",
+   "text": "太陽系由近到遠第三個行星係邊個呀？"
+  },
+  "163a60aaeead14": {
+   "demo": "vision_play",
+   "en": "Which animal lays eggs and says cluck?",
+   "status": "unreviewed",
+   "text": "邊隻動物生蛋同埋會咯咯叫呀？"
+  },
+  "1654a9641d9978": {
+   "demo": "vision_play",
+   "en": "Who wrote Pride and Prejudice?",
+   "status": "unreviewed",
+   "text": "邊個寫咗《傲慢與偏見》呀？"
+  },
+  "16572407534c34": {
+   "demo": "vision_play",
+   "en": "What do you ride on snow?",
+   "status": "unreviewed",
+   "text": "你喺雪上面會踩乜嘢呀？"
+  },
+  "165de5934284c6": {
+   "demo": "vision_play",
+   "en": "What is the largest mammal?",
+   "status": "unreviewed",
+   "text": "最大嘅哺乳動物係乜嘢呀？"
+  },
+  "1680bff531c124": {
+   "demo": "vision_play",
+   "en": "Which animal sleeps hanging upside down?",
+   "status": "unreviewed",
+   "text": "邊隻動物係倒掛住瞓覺㗎？"
+  },
+  "169be54f39179a": {
+   "demo": "vision_play",
+   "en": "What do you wear when it rains?",
+   "status": "unreviewed",
+   "text": "落雨嗰陣你會著乜嘢呀？"
+  },
+  "16ef7fc135ccd0": {
+   "demo": "vision_play",
+   "en": "What is the capital of Turkey?",
+   "status": "unreviewed",
+   "text": "土耳其嘅首都是邊度呀？"
+  },
+  "16f0e0d8e3b4c8": {
+   "demo": "vision_play",
+   "en": "What is the smallest unit of an element?",
+   "status": "unreviewed",
+   "text": "元素嘅最細單位係乜嘢呀？"
+  },
+  "16f521674fd21e": {
+   "demo": "vision_play",
+   "en": "Which food do monkeys love?",
+   "status": "unreviewed",
+   "text": "猴子最鍾意食乜嘢呀？"
+  },
+  "172258bf8c6cf0": {
+   "demo": "vision_play",
+   "en": "What is the opposite of happy?",
+   "status": "unreviewed",
+   "text": "開心嘅相反係乜嘢呀？"
+  },
+  "173f4d6064462f": {
+   "demo": "vision_play",
+   "en": "What is the capital of Scotland?",
+   "status": "unreviewed",
+   "text": "蘇格蘭嘅首都是邊度呀？"
+  },
+  "1741c5ad38848c": {
+   "demo": "vision_play",
+   "en": "What do we use to see?",
+   "status": "unreviewed",
+   "text": "我哋用乜嘢嚟睇嘢呀？"
+  },
+  "1789241867b39c": {
+   "demo": "vision_play",
+   "en": "What galaxy do we live in?",
+   "status": "unreviewed",
+   "text": "我哋住喺邊個星系呀？"
+  },
+  "179975b6287f08": {
+   "demo": "vision_play",
+   "en": "Which season has falling leaves?",
+   "status": "unreviewed",
+   "text": "邊個季節會有樹葉跌落嚟呀？"
+  },
+  "17af91b9538d91": {
+   "demo": "vision_play",
+   "en": "Who painted The Starry Night?",
+   "status": "unreviewed",
+   "text": "邊個畫咗《星夜》呀？"
+  },
+  "17cbe50072ae0b": {
+   "demo": "vision_play",
+   "en": "What is the currency of Switzerland?",
+   "status": "unreviewed",
+   "text": "瑞士嘅貨幣係乜嘢呀？"
+  },
+  "17cf6342184d3b": {
+   "demo": "vision_play",
+   "en": "What is H2O?",
+   "status": "unreviewed",
+   "text": "H2O係乜嘢呀？"
+  },
+  "17d4b29a72600c": {
+   "demo": "vision_play",
+   "en": "Which number comes after nine?",
+   "status": "unreviewed",
+   "text": "九之後嘅數字係乜嘢呀？"
+  },
+  "17eda7cb08ef49": {
+   "demo": "vision_play",
+   "en": "Air drums. Hit the drum pads with your hands on the beat.",
+   "status": "unreviewed",
+   "text": "空氣鼓。用你隻手喺拍子上打鼓墊。"
+  },
+  "17f27da71242d0": {
+   "demo": "vision_play",
+   "en": "What falls from the clouds when it rains?",
+   "status": "unreviewed",
+   "text": "落雨嗰陣有乜嘢從雲上面跌落嚟呀？"
+  },
+  "1805c618b8f77b": {
+   "demo": "vision_play",
+   "en": "How many legs does a dog have?",
+   "status": "unreviewed",
+   "text": "一隻狗有幾多隻腳呀？"
+  },
+  "182f44436271dc": {
+   "demo": "vision_play",
+   "en": "Which sport uses a shuttlecock?",
+   "status": "unreviewed",
+   "text": "邊樣運動會用到羽毛球呀？"
+  },
+  "18345edae7fd8f": {
+   "demo": "vision_play",
+   "en": "What is nine times nine?",
+   "status": "unreviewed",
+   "text": "九乘九係幾多呀？"
+  },
+  "1853f1d4e159b6": {
+   "demo": "vision_play",
+   "en": "Which element has the symbol O?",
+   "status": "unreviewed",
+   "text": "邊個元素嘅符號係O呀？"
+  },
+  "18591816f464a3": {
+   "demo": "vision_play",
+   "en": "Which is the longest river in Africa?",
+   "status": "unreviewed",
+   "text": "非洲最長嘅河流係邊條呀？"
+  },
+  "186d8214f31188": {
+   "demo": "vision_play",
+   "en": "Play time is up. Thanks for playing!",
+   "status": "unreviewed",
+   "text": "遊戲時間完喇。多謝你玩！"
+  },
+  "18779090bc01b7": {
+   "demo": "vision_play",
+   "en": "Which language is spoken in Brazil?",
+   "status": "unreviewed",
+   "text": "巴西講邊種語言呀？"
+  },
+  "188181b02090d2": {
+   "demo": "vision_play",
+   "en": "In what year did World War I begin?",
+   "status": "unreviewed",
+   "text": "第一次世界大戰喺邊一年開始㗎？"
+  },
+  "18c4a929b5b332": {
+   "demo": "on_the_go",
+   "en": "Features and Models. Features are inputs; labels are targets in classification and regression. Linear models are interpretable baselines; tree ensembles handle tabular data well. Neural networks excel on images, audio, and text with enough data and compute.",
+   "status": "unreviewed",
+   "text": "特徵同模型。特徵係輸入；標籤就係分類同回歸入面嘅目標。線性模型係易解釋嘅 baseline；樹集成模型好適合處理表格數據。神經網絡喺有足夠數據同運算能力嘅時候，喺圖像、音頻同文字上面表現出色。"
+  },
+  "18efb8cdc78602": {
+   "demo": "vision_play",
+   "en": "Which civilization built Machu Picchu?",
+   "status": "unreviewed",
+   "text": "邊個文明建造咗馬丘比丘㗎？"
+  },
+  "1910979b57b617": {
+   "demo": "vision_play",
+   "en": "What do caterpillars eat?",
+   "status": "unreviewed",
+   "text": "毛蟲食乜嘢㗎？"
+  },
+  "192491d5088584": {
+   "demo": "vision_play",
+   "en": "How many months are in a year?",
+   "status": "unreviewed",
+   "text": "一年有幾多個月㗎？"
+  },
+  "1927563461efb9": {
+   "demo": "vision_play",
+   "en": "What is the capital of Australia?",
+   "status": "unreviewed",
+   "text": "澳洲嘅首都是邊度㗎？"
+  },
+  "193088b66c6d79": {
+   "demo": "vision_play",
+   "en": "Which vehicle floats on water?",
+   "status": "unreviewed",
+   "text": "邊種交通工具喺水上浮㗎？"
+  },
+  "1946e5bb167e87": {
+   "demo": "vision_play",
+   "en": "Where do fish live?",
+   "status": "unreviewed",
+   "text": "魚喺邊度生活㗎？"
+  },
+  "19579ad02425f2": {
+   "demo": "vision_play",
+   "en": "Which state of matter is air?",
+   "status": "unreviewed",
+   "text": "空氣係邊種物態㗎？"
+  },
+  "196d748b303efa": {
+   "demo": "vision_play",
+   "en": "What is the capital of South Korea?",
+   "status": "unreviewed",
+   "text": "南韓嘅首都是邊度㗎？"
+  },
+  "1982d9211b1097": {
+   "demo": "vision_play",
+   "en": "What do we call words that mean the same?",
+   "status": "unreviewed",
+   "text": "我哋話意思一樣嘅字叫乜嘢㗎？"
+  },
+  "19938505babf55": {
+   "demo": "vision_play",
+   "en": "Which animal says moo?",
+   "status": "unreviewed",
+   "text": "邊隻動物會嗚嗚叫㗎？"
+  },
+  "19adbe6351acb2": {
+   "demo": "vision_play",
+   "en": "Who wrote The Divine Comedy?",
+   "status": "unreviewed",
+   "text": "邊個寫咗《神曲》㗎？"
+  },
+  "19bc48e3337bdf": {
+   "demo": "vision_play",
+   "en": "Which sense organ do we use to hear?",
+   "status": "unreviewed",
+   "text": "我哋用邊個感官嚟聽聲㗎？"
+  },
+  "19c28416dd59cc": {
+   "demo": "vision_play",
+   "en": "Which vehicle flies in the sky?",
+   "status": "unreviewed",
+   "text": "邊種交通工具喺天空飛㗎？"
+  },
+  "19c4ee5311ce52": {
+   "demo": "vision_play",
+   "en": "What is the capital of Germany?",
+   "status": "unreviewed",
+   "text": "德國嘅首都是邊度㗎？"
+  },
+  "19c5b48e65debe": {
+   "demo": "vision_play",
+   "en": "What color is a strawberry?",
+   "status": "unreviewed",
+   "text": "士多啤梨係乜色㗎？"
+  },
+  "19d1a4cb2f7c99": {
+   "demo": "vision_play",
+   "en": "Which planet spins on its side?",
+   "status": "unreviewed",
+   "text": "邊個行星側住轉㗎？"
+  },
+  "19e88a1ffc09bf": {
+   "demo": "vision_play",
+   "en": "Which molecule carries genetic information?",
+   "status": "unreviewed",
+   "text": "邊個分子負責帶遺傳資訊㗎？"
+  },
+  "19eb75654b13ab": {
+   "demo": "vision_play",
+   "en": "Freeze!. Hold still like a statue!",
+   "status": "unreviewed",
+   "text": "定住！企定定好似石像咁！"
+  },
+  "1a0c0a54ffd96f": {
+   "demo": "on_the_go",
+   "en": "Deployment. Models serve predictions via APIs or on-device inference. Monitoring detects data drift when real-world inputs change. MLOps practices version data, code, and models for reproducibility.",
+   "status": "unreviewed",
+   "text": "部署。模型透過 API 或者裝置上推斷嚟提供預測。監測可以喺真實世界輸入改變嘅時候偵測數據漂移。MLOps 做法會將數據、程式碼同模型版本化，方便重現。"
+  },
+  "1a239c30150197": {
+   "demo": "vision_play",
+   "en": "Listen again. I could not load that listening round.",
+   "status": "unreviewed",
+   "text": "再聽一次。我載唔到嗰個聆聽環節。"
+  },
+  "1a3d95db710bba": {
+   "demo": "vision_play",
+   "en": "Which sea animal has a hard shell and claws?",
+   "status": "unreviewed",
+   "text": "邊種海洋動物有硬殼同埋鉗㗎？"
+  },
+  "1a415b026a056d": {
+   "demo": "vision_play",
+   "en": "Who was the first person to walk on the Moon?",
+   "status": "unreviewed",
+   "text": "邊個係第一個喺月球上面行路嘅人㗎？"
+  },
+  "1a461b33e4e6ac": {
+   "demo": "vision_play",
+   "en": "What is the opposite of ancient?",
+   "status": "unreviewed",
+   "text": "古代嘅相反係乜嘢㗎？"
+  },
+  "1a6b41608354e2": {
+   "demo": "vision_play",
+   "en": "What is the chemical symbol for potassium?",
+   "status": "unreviewed",
+   "text": "鉀嘅化學符號係乜嘢㗎？"
+  },
+  "1a886bfaa37952": {
+   "demo": "on_the_go",
+   "en": "Training Loop. Loss functions measure error; optimizers like Adam adjust weights to reduce loss over epochs. Batch size and learning rate affect stability and speed. GPUs accelerate matrix operations training large models.",
+   "status": "unreviewed",
+   "text": "訓練循環。損失函數量度誤差；優化器例如 Adam 會調整權重，喺每個 epoch 減少損失。批次大小同學習率會影響穩定性同速度。GPU 加速矩陣運算，幫到訓練大模型。"
+  },
+  "1a8b2aad7a5fe7": {
+   "demo": "vision_play",
+   "en": "What is the biggest planet?",
+   "status": "unreviewed",
+   "text": "最大嘅行星係邊個㗎？"
+  },
+  "1a93282fb40ce9": {
+   "demo": "vision_play",
+   "en": "Which mathematician helped break the Enigma code?",
+   "status": "unreviewed",
+   "text": "邊個數學家幫手破解咗 Enigma 密碼呀？"
+  },
+  "1a9db360e75563": {
+   "demo": "vision_play",
+   "en": "What is the largest organ of the human body?",
+   "status": "unreviewed",
+   "text": "人體最大嘅器官係乜嘢呀？"
+  },
+  "1ab33cc8b5c2d6": {
+   "demo": "on_the_go",
+   "en": "Overfitting. Models that memorize training noise fail on new data. Regularization, dropout, and early stopping reduce overfitting. More diverse data often helps more than endlessly bigger models.",
+   "status": "unreviewed",
+   "text": "過擬合。模型如果死記訓練入面嘅噪音，喺新數據上面就會失敗。正則化、dropout 同提早停止可以減少過擬合。更多元嘅數據通常比不斷增大模型仲有效。"
+  },
+  "1b1780969ad2df": {
+   "demo": "vision_play",
+   "en": "What is the chemical symbol for tungsten?",
+   "status": "unreviewed",
+   "text": "鎢嘅化學符號係乜呀？"
+  },
+  "1b1e8122074689": {
+   "demo": "on_the_go",
+   "en": "Evaluation. Classification uses precision, recall, and F1 especially when classes are imbalanced. Regression uses MAE and RMSE. Choose metrics aligned with real costs of false positives and false negatives.",
+   "status": "unreviewed",
+   "text": "評估。分類用精確率、召回率同 F1，尤其當類別唔平衡嘅時候。回歸就用 MAE 同 RMSE。選擇同真實假陽性同假陰性成本對齊嘅指標。"
+  },
+  "1b23659cca3651": {
+   "demo": "vision_play",
+   "en": "What is the chemical formula for carbon dioxide?",
+   "status": "unreviewed",
+   "text": "二氧化碳嘅化學式係乜呀？"
+  },
+  "1b36d3c78534cd": {
+   "demo": "vision_play",
+   "en": "What is the capital of Switzerland?",
+   "status": "unreviewed",
+   "text": "瑞士嘅首都是邊度呀？"
+  },
+  "1b553ffdb4c948": {
+   "demo": "vision_play",
+   "en": "What color do blue and yellow make?",
+   "status": "unreviewed",
+   "text": "藍色同黃色混埋變咩顏色呀？"
+  },
+  "1b752732924b89": {
+   "demo": "vision_play",
+   "en": "How many rings are on the Olympic flag?",
+   "status": "unreviewed",
+   "text": "奧運會旗上面有幾多個環呀？"
+  },
+  "1b906c229d7223": {
+   "demo": "vision_play",
+   "en": "Wow face!. Open your mouth and raise your eyebrows like a surprise.",
+   "status": "unreviewed",
+   "text": "Wow face！張大個口同抬高眉毛，做出驚訝嘅樣。"
+  },
+  "1ba09d52297265": {
+   "demo": "vision_play",
+   "en": "How many sides does a hexagon have?",
+   "status": "unreviewed",
+   "text": "六邊形有幾多邊呀？"
+  },
+  "1be749d388289b": {
+   "demo": "vision_play",
+   "en": "Who painted Guernica?",
+   "status": "unreviewed",
+   "text": "邊個畫咗 Guernica 呀？"
+  },
+  "1becbf140fa11b": {
+   "demo": "vision_play",
+   "en": "How many days are in a week?",
+   "status": "unreviewed",
+   "text": "一個星期有幾多日呀？"
+  },
+  "1becee2685f815": {
+   "demo": "vision_play",
+   "en": "Pop Quiz Toss. I could not load a question. Try again in a moment.",
+   "status": "unreviewed",
+   "text": "Pop Quiz Toss。我載唔到問題。等陣再試啦。"
+  },
+  "1beeed19014150": {
+   "demo": "vision_play",
+   "en": "What is the chemical symbol for iron?",
+   "status": "unreviewed",
+   "text": "鐵嘅化學符號係乜呀？"
+  },
+  "1bf4b0d1c4a524": {
+   "demo": "vision_play",
+   "en": "How many legs does a bird have?",
+   "status": "unreviewed",
+   "text": "一隻雀仔有幾多隻腳呀？"
+  },
+  "1bfad7ec0aba9d": {
+   "demo": "vision_play",
+   "en": "Who formulated the uncertainty principle?",
+   "status": "unreviewed",
+   "text": "邊個提出咗不確定性原理呀？"
+  },
+  "1c1837432d998f": {
+   "demo": "vision_play",
+   "en": "Pick a listening game. Choose Say the letter or a game under Listen, then check what was said.",
+   "status": "unreviewed",
+   "text": "揀一個聆聽遊戲。揀 Say the letter 或者 Listen 下面嘅遊戲，之後檢查講咗乜。"
+  },
+  "1c4865e01369b9": {
+   "demo": "vision_play",
+   "en": "Which letter is a vowel?",
+   "status": "unreviewed",
+   "text": "邊個字母係元音呀？"
+  },
+  "1c798c95190ffe": {
+   "demo": "vision_play",
+   "en": "What is the opposite of open?",
+   "status": "unreviewed",
+   "text": "開嘅相反係乜呀？"
+  },
+  "1c839ff6a1f59f": {
+   "demo": "vision_play",
+   "en": "Which organ pumps blood around the body?",
+   "status": "unreviewed",
+   "text": "邊個器官負責將血液泵去全身呀？"
+  },
+  "1c9770fafe41c3": {
+   "demo": "vision_play",
+   "en": "Which instrument has eighty-eight keys?",
+   "status": "unreviewed",
+   "text": "邊樣樂器有八十八個鍵呀？"
+  },
+  "1c9ed57f1df475": {
+   "demo": "vision_play",
+   "en": "What is the opposite of fast?",
+   "status": "unreviewed",
+   "text": "快嘅相反係乜呀？"
+  },
+  "1cb27fdac58556": {
+   "demo": "vision_play",
+   "en": "How many minutes are in an hour?",
+   "status": "unreviewed",
+   "text": "一個鐘有幾多分鐘呀？"
+  },
+  "1ce7bd039ac375": {
+   "demo": "vision_play",
+   "en": "Which gas makes up most of the air?",
+   "status": "unreviewed",
+   "text": "邊種氣體喺空氣入面佔最多呀？"
+  },
+  "1ceb282df7a9d7": {
+   "demo": "vision_play",
+   "en": "I'll wait. Come back into the camera. The timer is paused.",
+   "status": "unreviewed",
+   "text": "我等你。返嚟鏡頭前面。計時器暫停咗。"
+  },
+  "1d0067109c4fcc": {
+   "demo": "on_the_go",
+   "en": "Learning from Examples. Machine learning builds models that improve on tasks by finding patterns in data instead of hand-coded rules. Supervised learning uses labeled examples; unsupervised learning finds structure without labels. Reinforcement learning learns from rewards in environments like games.",
+   "status": "unreviewed",
+   "text": "從例子學習。機器學習建立模型，透過喺數據入面搵到規律嚟改善任務，而唔係用手寫規則。監督式學習用有標籤嘅例子；無監督式學習喺冇標籤嘅情況下搵結構。強化學習就喺遊戲咁嘅環境入面從獎勵學習。"
+  },
+  "1d3238f14b5962": {
+   "demo": "vision_play",
+   "en": "What is steam?",
+   "status": "unreviewed",
+   "text": "蒸汽係乜呀？"
+  },
+  "1d480dbe53e652": {
+   "demo": "vision_play",
+   "en": "What shape is a pizza slice?",
+   "status": "unreviewed",
+   "text": "Pizza 嘅一片係乜嘢形呀？"
+  },
+  "1d4e006129b294": {
+   "demo": "vision_play",
+   "en": "Which is the largest country by area?",
+   "status": "unreviewed",
+   "text": "邊個係世界上面積最大嘅國家呀？"
+  },
+  "1d54d12acc2686": {
+   "demo": "vision_play",
+   "en": "Which is the longest river in Europe?",
+   "status": "unreviewed",
+   "text": "歐洲最長嘅河流係邊條呀？"
+  },
+  "1d745efa19417d": {
+   "demo": "vision_play",
+   "en": "In which year did the Soviet Union dissolve?",
+   "status": "unreviewed",
+   "text": "蘇聯喺邊一年解體㗎？"
+  },
+  "1d858f5d494f20": {
+   "demo": "vision_play",
+   "en": "How many strings does a standard violin have?",
+   "status": "unreviewed",
+   "text": "標準小提琴有幾多條弦呀？"
+  },
+  "1d98e376484e4a": {
+   "demo": "vision_play",
+   "en": "What is the cube of three?",
+   "status": "unreviewed",
+   "text": "三嘅立方係幾多呀？"
+  },
+  "1d9a2b05fa8f12": {
+   "demo": "vision_play",
+   "en": "What color is a school bus?",
+   "status": "unreviewed",
+   "text": "校巴係乜嘢顏色㗎？"
+  },
+  "1dd1ea3d0980bd": {
+   "demo": "vision_play",
+   "en": "What is the currency of Japan?",
+   "status": "unreviewed",
+   "text": "日本嘅貨幣叫乜呀？"
+  },
+  "1dea69288e4dc7": {
+   "demo": "vision_play",
+   "en": "What is the capital of Myanmar?",
+   "status": "unreviewed",
+   "text": "緬甸嘅首都是邊度呀？"
+  },
+  "1ded4907f1e9c0": {
+   "demo": "vision_play",
+   "en": "Who developed the theory of evolution by natural selection?",
+   "status": "unreviewed",
+   "text": "邊個提出咗自然選擇演化論呀？"
+  },
+  "1def0433a85970": {
+   "demo": "vision_play",
+   "en": "Which animal says tweet?",
+   "status": "unreviewed",
+   "text": "邊隻動物會講 tweet 呀？"
+  },
+  "1dfac00f01f05b": {
+   "demo": "vision_play",
+   "en": "Which planet do we live on?",
+   "status": "unreviewed",
+   "text": "我哋住喺邊個行星呀？"
+  },
+  "1e0ca7bf0ad358": {
+   "demo": "vision_play",
+   "en": "What is the capital of Pakistan?",
+   "status": "unreviewed",
+   "text": "巴基斯坦嘅首都是邊度呀？"
+  },
+  "1e1baf43f782dc": {
+   "demo": "vision_play",
+   "en": "What do we call a scientist who studies space?",
+   "status": "unreviewed",
+   "text": "研究太空嘅科學家我哋叫佢做乜呀？"
+  },
+  "1e33159305cf7c": {
+   "demo": "vision_play",
+   "en": "What is the largest planet in our solar system?",
+   "status": "unreviewed",
+   "text": "我哋太陽系入面最大嘅行星係邊個呀？"
+  },
+  "1e4c91f34fe858": {
+   "demo": "vision_play",
+   "en": "What is the unit of force?",
+   "status": "unreviewed",
+   "text": "力嘅單位係乜呀？"
+  },
+  "1e4f12d99dc19d": {
+   "demo": "vision_play",
+   "en": "What does a seismograph measure?",
+   "status": "unreviewed",
+   "text": "地震儀係量度乜嘢㗎？"
+  },
+  "1e5393cfdd4f6f": {
+   "demo": "vision_play",
+   "en": "What is the capital of Spain?",
+   "status": "unreviewed",
+   "text": "西班牙嘅首都是邊度呀？"
+  },
+  "1e604a61b21443": {
+   "demo": "vision_play",
+   "en": "What is the main language of Egypt?",
+   "status": "unreviewed",
+   "text": "埃及主要講乜嘢語言呀？"
+  },
+  "1e6928ac8351a9": {
+   "demo": "vision_play",
+   "en": "What is the opposite of up?",
+   "status": "unreviewed",
+   "text": "Up 嘅相反係乜呀？"
+  },
+  "1e7cbd2685d718": {
+   "demo": "vision_play",
+   "en": "How many players does a soccer team have on the field?",
+   "status": "unreviewed",
+   "text": "一隊足球隊喺場上有幾多個球員呀？"
+  },
+  "1e8f23f30e9a79": {
+   "demo": "vision_play",
+   "en": "Which fruit is red and grows on trees?",
+   "status": "unreviewed",
+   "text": "邊種生喺樹上又係紅色嘅生果呀？"
+  },
+  "1ed2167b2a7829": {
+   "demo": "vision_play",
+   "en": "Which planet is called the Red Planet?",
+   "status": "unreviewed",
+   "text": "邊個行星叫做紅色行星呀？"
+  },
+  "1ef730e7412f4c": {
+   "demo": "vision_play",
+   "en": "Which ocean is the deepest?",
+   "status": "unreviewed",
+   "text": "邊個海洋係最深㗎？"
+  },
+  "1efe76a888ecaa": {
+   "demo": "vision_play",
+   "en": "What is the capital of Vietnam?",
+   "status": "unreviewed",
+   "text": "越南嘅首都是邊度呀？"
+  },
+  "1f0c193c54c0d4": {
+   "demo": "vision_play",
+   "en": "What is frozen water called?",
+   "status": "unreviewed",
+   "text": "凍咗嘅水叫做咩呀？"
+  },
+  "1f293b7b7ebeb2": {
+   "demo": "vision_play",
+   "en": "What is the capital of Brazil?",
+   "status": "unreviewed",
+   "text": "巴西嘅首都是邊度呀？"
+  },
+  "1f3570bc58d971": {
+   "demo": "vision_play",
+   "en": "What does a caterpillar turn into?",
+   "status": "unreviewed",
+   "text": "毛蟲會變成咩呀？"
+  },
+  "1f4e6de046dcb4": {
+   "demo": "vision_play",
+   "en": "What does the Moon go around?",
+   "status": "unreviewed",
+   "text": "月亮係圍住咩嚟轉㗎？"
+  },
+  "1f4e9ad2bb6efb": {
+   "demo": "vision_play",
+   "en": "What do we call a baby horse?",
+   "status": "unreviewed",
+   "text": "小馬我哋叫做咩呀？"
+  },
+  "1f6efed86b9d5d": {
+   "demo": "vision_play",
+   "en": "What is the capital of Nigeria?",
+   "status": "unreviewed",
+   "text": "尼日利亞嘅首都是邊度呀？"
+  },
+  "1f7930c3e5ecbb": {
+   "demo": "vision_play",
+   "en": "Which organelle is the powerhouse of the cell?",
+   "status": "unreviewed",
+   "text": "邊個細胞器係細胞嘅發電廠呀？"
+  },
+  "1fa54c2743f198": {
+   "demo": "vision_play",
+   "en": "What do you use to dry off after a bath?",
+   "status": "unreviewed",
+   "text": "沖完涼之後你用咩嚟抹身呀？"
+  },
+  "1faf286ba5c604": {
+   "demo": "vision_play",
+   "en": "What is the fastest land animal?",
+   "status": "unreviewed",
+   "text": "邊隻係世界上跑得最快嘅陸上動物呀？"
+  },
+  "1fd0f32a9cb92f": {
+   "demo": "on_the_go",
+   "en": "Data Splits. Data is split into training, validation, and test sets to measure generalization. Leakage—test information in training—_inflates scores misleadingly. Cross-validation gives robust estimates on smaller datasets.",
+   "status": "unreviewed",
+   "text": "數據分割。數據會分割成訓練集、驗證集同測試集，用嚟量度泛化能力。洩漏 — 測試資訊出現在訓練入面 — 會誤導咁 inflate 分數。交叉驗證喺細啲嘅數據集上面畀到穩健嘅估計。"
+  },
+  "1fe531c3d52361": {
+   "demo": "vision_play",
+   "en": "In what year did the Titanic sink?",
+   "status": "unreviewed",
+   "text": "鐵達尼號係邊一年沉沒㗎？"
+  },
+  "1fe8bd028fd4b1": {
+   "demo": "vision_play",
+   "en": "Which is the longest river in South America?",
+   "status": "unreviewed",
+   "text": "南美洲最長嘅河流係邊條呀？"
+  }
+ },
+ "lang": "yue",
+ "model": "grok-4.20-0309-non-reasoning",
+ "source": "grok-translation-v1"
+}

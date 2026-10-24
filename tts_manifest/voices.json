@@ -7,6 +7,15 @@
       "model": "voxcpm2",
       "active": true,
       "ai_label": "AI-generated voice of Channarith"
+    },
+    {
+      "id": "wei-miao",
+      "label": "Wei Miao",
+      "speaker": "wei-miao",
+      "model": "voxcpm2",
+      "active": true,
+      "primary_lang": "yue",
+      "ai_label": "AI-generated voice of Wei Miao"
     }
   ]
 }

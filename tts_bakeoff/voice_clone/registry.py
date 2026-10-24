@@ -154,7 +154,10 @@ def add_sample(speaker: str, wav: Path, transcript: str, lang: str, base: Path |
     rel = f"samples/{wav.name}"
     if wav.resolve().parent != (d / "samples").resolve():
         raise ConsentError("sample must live in the speaker's samples directory")
-    rec["samples"][rel] = {"sha256": sha256_file(wav), "transcript": transcript.strip(), "lang": lang, **(extra or {})}
+    ev = rec.get("evidence") or {}
+    tags = {"consent_language": ev.get("consent_language") or "signed-form", "consent_text_sha256": ev.get("consent_text_sha256"),
+            "enrolled_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    rec["samples"][rel] = {"sha256": sha256_file(wav), "transcript": transcript.strip(), "lang": lang, **tags, **(extra or {})}
     _write(d / "consent.json", rec)
     return rec
 

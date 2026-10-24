@@ -42,7 +42,7 @@ def cmd_enroll(a) -> int:
         return 2
     dest = d / "samples" / (Path(a.audio).stem + ".wav")
     info = enroll.prepare(a.audio, dest, clean=False if a.no_clean else None)
-    registry.add_sample(a.speaker, dest, text, a.lang)
+    registry.add_sample(a.speaker, dest, text, a.lang, extra={k: info[k] for k in ("seconds", "snr_db", "cleaned", "snr_db_clean") if k in info})
     print(f"enrolled {dest.name}: {info}")
     return 0
 

@@ -4,7 +4,8 @@
 
 Sources: the On the Go demo course (public curriculum API, one course, every language it is translated into), Vision Play
 (literal prompts in its JS, plus the quiz bank questions) and any extra texts (a JSON-lines file of {demo, lang, text},
-for example the clips a demo reported missing). Strings built at run time (scores, names, letters) are not enumerable here;
+for example the clips a demo reported missing) and the translated lines in tts_manifest/translations/ (demo_voice.translations; each
+clip then carries the review status of its translation). Strings built at run time (scores, names, letters) are not enumerable here;
 the player falls back to the default voice for them and logs the miss. The full-course demo builds its slides per learner
 through the orchestrator, so it comes in through --extra-texts until a capture pass covers it.
 """
@@ -102,8 +103,9 @@ def extra(path: Path | None):
     return rows
 
 
-def build(langs=DEFAULT_LANGS, api="https://salareen.com", extra_texts=None, vision=True, log=print) -> dict:
-    items = on_the_go(langs, api, log) + (vision_play() if vision else []) + extra(extra_texts)
+def build(langs=DEFAULT_LANGS, api="https://salareen.com", extra_texts=None, vision=True, log=print, translated=True) -> dict:
+    from .translations import clips as translated_clips   # lazy: translations imports this module for MANIFEST
+    items = on_the_go(langs, api, log) + (vision_play() if vision else []) + extra(extra_texts) + (translated_clips() if translated else [])
     seen, clips = set(), []
     for it in items:
         text = normalize(it["text"])
@@ -113,11 +115,32 @@ def build(langs=DEFAULT_LANGS, api="https://salareen.com", extra_texts=None, vis
         if key in seen:
             continue
         seen.add(key)
-        clips.append({"id": f"{it['demo']}:{key[0]}:{key[1]}", "demo": it["demo"], "lang": key[0], "text": text, "hash": key[1]})
+        clip = {"id": f"{it['demo']}:{key[0]}:{key[1]}", "demo": it["demo"], "lang": key[0], "text": text, "hash": key[1]}
+        if it.get("status"):
+            clip["status"] = it["status"]   # translated lines: unreviewed | ok | fixed
+        clips.append(clip)
     clips.sort(key=lambda c: (c["demo"], c["lang"], c["hash"]))
     voices = json.loads(VOICES.read_text(encoding="utf-8"))["voices"]
     return {"version": 1, "hash": "cyrb53-14hex of lang+US+NFC-collapsed text", "languages": sorted({c["lang"] for c in clips}),
             "voices": voices, "clips": clips}
+
+
+def refresh_offline(path: Path = MANIFEST) -> dict:
+    """Re-merge voices.json and tts_manifest/translations/ into the committed manifest without calling the curriculum API."""
+    from .translations import clips as translated_clips
+    m = json.loads(Path(path).read_text(encoding="utf-8"))
+    clips = [c for c in m["clips"] if "status" not in c]
+    seen = {(c["lang"], c["hash"]) for c in clips}
+    for it in translated_clips():
+        text = normalize(it["text"])
+        h = clip_hash(it["lang"], text)
+        if text and (it["lang"], h) not in seen:
+            seen.add((it["lang"], h))
+            clips.append({"id": f"{it['demo']}:{it['lang']}:{h}", "demo": it["demo"], "lang": it["lang"], "text": text, "hash": h, "status": it["status"]})
+    clips.sort(key=lambda c: (c["demo"], c["lang"], c["hash"]))
+    m["clips"], m["languages"] = clips, sorted({c["lang"] for c in clips})
+    m["voices"] = json.loads(VOICES.read_text(encoding="utf-8"))["voices"]
+    return m
 
 
 def main(argv=None) -> int:
@@ -126,8 +149,9 @@ def main(argv=None) -> int:
     ap.add_argument("--api", default="https://salareen.com")
     ap.add_argument("--extra-texts")
     ap.add_argument("--out", default=str(MANIFEST))
+    ap.add_argument("--offline", action="store_true", help="no network: keep the committed clips, re-merge voices.json and the translations")
     args = ap.parse_args(argv)
-    m = build(tuple(args.langs.split(",")), args.api, Path(args.extra_texts) if args.extra_texts else None)
+    m = refresh_offline() if args.offline else build(tuple(args.langs.split(",")), args.api, Path(args.extra_texts) if args.extra_texts else None)
     Path(args.out).write_text(json.dumps(m, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     by = {}
     for c in m["clips"]:

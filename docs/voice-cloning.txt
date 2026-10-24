@@ -118,3 +118,37 @@ Say anything (type words, hear them in an enrolled voice)
   VoxCPM2 compiles GPU kernels with Triton, which needs Python.h; without python3.12-dev the script sets TORCHDYNAMO_DISABLE=1.
   Every clip is stored under ~/voices/say/<speaker>/ with a .json sidecar (ai_generated: true, "AI-generated voice of <name>") because
   the VoxCPM2 license asks that generated audio be labelled. Command line: python3 -m tts_bakeoff.voice_clone.bakeoff say ...
+
+Voice profile: several samples per speaker, the best one per language (tts_bakeoff/voice_clone/profile.py)
+  A speaker can have several enrolled samples (English, Cantonese, more sessions). Every sample records its language, length, SNR,
+  whether the cleaned copy was kept (PR #806: the recording is kept as it was if cleaning would change the voice), the language
+  and sha256 of the consent text the speaker saw, and when it was enrolled.
+  For each sentence the adapter now uses the sample that suits the sentence's language, one model load for all languages
+  (VoxCPM2 gets reference_wav + reference_text, CosyVoice 2 gets prompt_wav + prompt_text + prompt_lang). Fallback order:
+    1. same-language   a sample in the target language (a Cantonese reference for yue) with the transcript that was actually said
+    2. close-language  yue <-> zh (same script, shared sounds, different tones and words)
+    3. cross-lingual   the cleanest sample in any other language
+  Inside a tier: highest SNR (cleaned copies are judged by their cleaned SNR), then the longest. Consent, scope and every sample hash
+  are re-checked on every pick. Clone bake-off, tones, say-anything and the demo render all call synth.build_adapter, so all of them
+  get this. Stylized tones still need the stylized_versions scope (granted to nobody yet). Check a pick:
+    python3 -m tts_bakeoff.voice_clone.profile choose --speaker wei-miao --lang yue
+
+Zero-shot cloning is not training
+  What runs today (VoxCPM2 and CosyVoice 2) hears one enrolled sample as a reference and imitates it. Nothing is trained and no
+  model weights change, so one minute of clean speech is enough to start; more and cleaner samples improve it only a little.
+  Fine-tuning (LoRA or full) does change the model for one speaker, and needs much more audio. What the docs say (read 2026-10-25):
+    VoxCPM2   README: "with as little as 5-10 minutes of audio" you can adapt to a speaker, language or domain. Fine-tuning Guide
+              (voxcpm.readthedocs.io): 3-30 s per clip, 5-50 clips to clone a single speaker with LoRA, 30-50% of samples with a
+              reference clip, JSONL rows {audio, text, duration, dataset_id}, the encoder works at 16 kHz.
+    CosyVoice 2   the README states no minimum; its training recipes are written for large corpora. Treat as unknown, plan on at least the
+              VoxCPM2 numbers and expect to need more.
+  Each enrollment today is one concatenated sample of about 60 s per language, so a speaker has about 1 minute per language.
+    python3 -m tts_bakeoff.voice_clone.profile report [--speaker wei-miao]     # clean minutes per language, SNR, cleaned count, consent
+                                                                               # language, and how far each is from the VoxCPM numbers
+    python3 -m tts_bakeoff.voice_clone.profile prep --speaker wei-miao --model voxcpm2 --out ~/voices/wei-miao/finetune
+  prep is a stub: it writes a manifest.jsonl from consented samples and flags those outside 3-30 s (they would need segmenting with a
+  forced aligner, not built). It refuses to write until the minutes are there (--force writes anyway) and it never trains anything.
+  What to record next to reach fine-tune readiness: about 10 minutes of clean speech per language you want fine-tuned (Cantonese
+  first for wei-miao, English for channarith), in 5-10 sessions of 60-90 s each, read from varied text, quiet room, same microphone,
+  the transcript saved exactly. Add each one with: python3 -m tts_bakeoff.voice_clone.bakeoff enroll --speaker wei-miao
+  --audio session2.m4a --transcript-file session2.txt --lang yue (the enrollment page records one 8-line set per language today).
