@@ -10,6 +10,7 @@ import struct
 import time
 from typing import Optional
 from urllib.parse import quote
+from .safe_compare import equals as _equals
 
 
 def generate_totp_secret() -> str:
@@ -52,7 +53,7 @@ def verify_totp(
     ts = int(now if now is not None else time.time())
     step = ts // period
     for delta in range(-window, window + 1):
-        if hmac.compare_digest(totp_at(secret, counter=step + delta), code):
+        if _equals(totp_at(secret, counter=step + delta), code):
             return True
     return False
 

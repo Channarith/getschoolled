@@ -48,6 +48,8 @@ def tts_engine(language: str) -> TtsEngineResponse:
     try:
         provider = app.state.factory.speech()
         return TtsEngineResponse(language=language, engine=provider.tts_engine(language))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"speech provider unavailable: {exc}")
 
