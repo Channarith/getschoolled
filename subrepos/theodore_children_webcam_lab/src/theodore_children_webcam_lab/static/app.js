@@ -669,7 +669,7 @@ function drawVision() {
   ctx.clearRect(0,0,w,h);
   drawPicture(w,h);
   drawGuide(w,h);
-  ctx.save();ctx.lineWidth=4;ctx.lineCap="round";ctx.strokeStyle="#c4b5fd";ctx.fillStyle="#fde68a";
+  ctx.save();ctx.lineWidth=4;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#f6dc8a";ctx.fillStyle="#fde68a";ctx.shadowColor="rgba(246,200,80,.85)";ctx.shadowBlur=14;
   if (switchedOn("show-hands")) {
     for (const hand of state.handData) {
       if (!hand.points?.length) continue;
@@ -680,7 +680,7 @@ function drawVision() {
       }
       for (let i=0;i<hand.points.length;i++) {
         const p=mirrored(hand.points[i]);
-        ctx.fillStyle=[4,8,12,16,20].includes(i)?"#fde047":"#c4b5fd";
+        ctx.fillStyle=[4,8,12,16,20].includes(i)?"#fff1b0":"#f6dc8a";
         ctx.beginPath();ctx.arc(p.x,p.y,[4,8,12,16,20].includes(i)?6:3,0,Math.PI*2);ctx.fill();
       }
       if (switchedOn("show-measures") && hand.tip && hand.wrist) {
@@ -689,7 +689,7 @@ function drawVision() {
     }
   }
   if (switchedOn("show-face") && state.faceData?.points) {
-    ctx.strokeStyle="#5eead4";ctx.lineWidth=2;ctx.beginPath();
+    ctx.strokeStyle="#f6dc8a";ctx.lineWidth=3;ctx.beginPath();
     let started=false;
     for (const i of [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109]) {
       const p=state.faceData.points[i];if(!p)continue;const q=mirrored(p);
@@ -698,7 +698,7 @@ function drawVision() {
     ctx.closePath();ctx.stroke();
     for (const i of [1,10,33,61,152,199,263,291,454]) {
       const p=state.faceData.points[i];if(!p)continue;const q=mirrored(p);
-      ctx.fillStyle="#5eead4";ctx.beginPath();ctx.arc(q.x,q.y,3.5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle="#fff1b0";ctx.beginPath();ctx.arc(q.x,q.y,3.5,0,Math.PI*2);ctx.fill();
     }
     if (switchedOn("show-measures")) {
       const left=(1-(state.faceData.cx+state.faceData.width/2))*w;

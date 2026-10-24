@@ -49,7 +49,7 @@ _PAGE = """<!doctype html>
   <main id="app">
     <section id="setup" class="setup">
       <div class="theodore-card">
-        <div class="theodore" aria-hidden="true"><span class="ear left"></span><span class="ear right"></span><span class="face">ʕ•ᴥ•ʔ</span></div>
+        <img class="sala-hero" src="/static/sala-hero.png" alt="Sala, your guide" width="120" height="160">
         <div><p class="eyebrow" data-i18n="eyebrow">THEODORE'S WEBCAM PLAY LAB</p><h1 data-i18n="headline">Move, make faces, color, and laugh!</h1>
         <p data-i18n="intro">Camera games and listening games for ages 4–10. Video stays in this browser. No recordings or Face ID.</p></div>
       </div>

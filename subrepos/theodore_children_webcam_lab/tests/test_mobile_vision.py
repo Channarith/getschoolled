@@ -44,3 +44,11 @@ def test_image_bundles_the_vision_library_and_models():
     assert "AOEP_VISION_ASSET_DIR=/app/vision" in dockerfile
     for name in ("tasks-vision.mjs", "face_landmarker.task", "hand_landmarker.task"):
         assert name in dockerfile
+
+
+def test_quiet_redesign_uses_golden_sala_and_gold_outlines():
+    page = (LAB / "src" / "theodore_children_webcam_lab" / "children_page.py").read_text(encoding="utf-8")
+    assert "sala-hero.png" in page
+    assert (STATIC / "sala-hero.png").stat().st_size > 10_000
+    js = (STATIC / "app.js").read_text(encoding="utf-8")
+    assert 'shadowColor="rgba(246,200,80,.85)"' in js
