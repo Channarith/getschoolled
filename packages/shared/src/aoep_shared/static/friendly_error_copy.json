@@ -1,0 +1,110 @@
+{
+  "en": {
+    "network": {
+      "title": "Our connection is taking a little nap",
+      "body": "Sala can't reach the classroom right now. It could be a quick hiccup or some maintenance. Your progress is safe.",
+      "hint": "We will keep trying for you."
+    },
+    "offline": {
+      "title": "Sala can't find the internet",
+      "body": "Check your Wi-Fi or mobile data. We will reconnect the moment it is back.",
+      "hint": "You are offline."
+    },
+    "notfound": {
+      "title": "Oops! Sala can't find that page",
+      "body": "It may have moved, or the link has a tiny typo. Let's get you back to learning.",
+      "hint": "Page not found."
+    },
+    "notimpl": {
+      "title": "Sala is still learning this trick",
+      "body": "This part isn't ready yet, and we are working on it. Try something else for now!",
+      "hint": "Coming soon."
+    },
+    "oops": {
+      "title": "Sala tripped over a surprise",
+      "body": "Something unexpected happened on our side. It is not your fault. Please try again in a moment.",
+      "hint": "We are on it."
+    },
+    "common": {
+      "tryAgain": "Try again",
+      "retryIn": "Trying again in {n}s",
+      "home": "Go to the home page",
+      "back": "Go back",
+      "status": "Code {code}",
+      "checking": "Checking...",
+      "stillDown": "Still not back. We will keep trying."
+    }
+  },
+  "es": {
+    "network": {
+      "title": "Nuestra conexión está echando una siestita",
+      "body": "Sala no puede llegar al aula ahora mismo. Puede ser un tropiezo rápido o un poco de mantenimiento. Tu progreso está a salvo.",
+      "hint": "Seguiremos intentándolo por ti."
+    },
+    "offline": {
+      "title": "Sala no encuentra internet",
+      "body": "Revisa tu Wi-Fi o tus datos móviles. Nos reconectaremos en cuanto vuelva.",
+      "hint": "Estás sin conexión."
+    },
+    "notfound": {
+      "title": "¡Ups! Sala no encuentra esa página",
+      "body": "Quizá se movió, o el enlace tiene un error pequeñito. Volvamos a aprender.",
+      "hint": "Página no encontrada."
+    },
+    "notimpl": {
+      "title": "Sala todavía está aprendiendo este truco",
+      "body": "Esta parte aún no está lista y estamos trabajando en ella. ¡Prueba otra cosa por ahora!",
+      "hint": "Próximamente."
+    },
+    "oops": {
+      "title": "Sala tropezó con una sorpresa",
+      "body": "Pasó algo inesperado de nuestro lado. No es tu culpa. Inténtalo de nuevo en un momento.",
+      "hint": "Ya estamos en ello."
+    },
+    "common": {
+      "tryAgain": "Intentar de nuevo",
+      "retryIn": "Reintentando en {n}s",
+      "home": "Ir al inicio",
+      "back": "Volver",
+      "status": "Código {code}",
+      "checking": "Comprobando...",
+      "stillDown": "Todavía no vuelve. Seguiremos intentándolo."
+    }
+  },
+  "km": {
+    "network": {
+      "title": "ការតភ្ជាប់របស់យើងកំពុងសម្រាកបន្តិច",
+      "body": "សាឡាមិនអាចទៅដល់ថ្នាក់រៀនបានឥឡូវនេះទេ។ អាចជាបញ្ហាបន្តិចបន្តួច ឬកំពុងថែទាំប្រព័ន្ធ។ ការរៀនរបស់អ្នកមានសុវត្ថិភាព។",
+      "hint": "យើងនឹងព្យាយាមបន្តសម្រាប់អ្នក។"
+    },
+    "offline": {
+      "title": "សាឡារកអ៊ីនធឺណិតមិនឃើញ",
+      "body": "សូមពិនិត្យ Wi-Fi ឬទិន្នន័យទូរសព្ទរបស់អ្នក។ យើងនឹងភ្ជាប់ឡើងវិញភ្លាមៗពេលមាន។",
+      "hint": "អ្នកគ្មានអ៊ីនធឺណិត។"
+    },
+    "notfound": {
+      "title": "អូ! សាឡារកទំព័រនោះមិនឃើញទេ",
+      "body": "ទំព័រអាចបានផ្លាស់ទីតាំង ឬតំណមានកំហុសបន្តិច។ តោះត្រឡប់ទៅរៀនវិញ។",
+      "hint": "រកមិនឃើញទំព័រ។"
+    },
+    "notimpl": {
+      "title": "សាឡាកំពុងរៀនល្បិចនេះនៅឡើយ",
+      "body": "ផ្នែកនេះមិនទាន់រួចរាល់ទេ ហើយយើងកំពុងធ្វើវា។ សូមសាកល្បងអ្វីផ្សេងសិនទៅ!",
+      "hint": "ឆាប់ៗនេះ។"
+    },
+    "oops": {
+      "title": "សាឡាជំពប់ដួលនឹងរឿងមិននឹកស្មាន",
+      "body": "មានរឿងមិនបានរំពឹងកើតឡើងនៅខាងយើង។ មិនមែនកំហុសរបស់អ្នកទេ។ សូមព្យាយាមម្ដងទៀតបន្តិចទៀត។",
+      "hint": "យើងកំពុងដោះស្រាយ។"
+    },
+    "common": {
+      "tryAgain": "ព្យាយាមម្ដងទៀត",
+      "retryIn": "ព្យាយាមម្ដងទៀតក្នុង {n} វិនាទី",
+      "home": "ទៅទំព័រដើម",
+      "back": "ត្រឡប់ក្រោយ",
+      "status": "កូដ {code}",
+      "checking": "កំពុងពិនិត្យ...",
+      "stillDown": "នៅមិនទាន់ត្រឡប់មកវិញទេ។ យើងនឹងព្យាយាមបន្ត។"
+    }
+  }
+}

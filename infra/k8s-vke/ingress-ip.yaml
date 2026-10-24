@@ -24,6 +24,10 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # Branded mascot pages for gateway failures (HTML for browsers, JSON for API clients).
+    # Only 502/503/504: they replace the upstream body, and app-level 404/500 bodies carry detail.
+    nginx.ingress.kubernetes.io/custom-http-errors: "502,503,504"
+    nginx.ingress.kubernetes.io/default-backend: friendly-errors
 spec:
   ingressClassName: nginx
   rules:
@@ -107,6 +111,10 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # Branded mascot pages for gateway failures (HTML for browsers, JSON for API clients).
+    # Only 502/503/504: they replace the upstream body, and app-level 404/500 bodies carry detail.
+    nginx.ingress.kubernetes.io/custom-http-errors: "502,503,504"
+    nginx.ingress.kubernetes.io/default-backend: friendly-errors
     nginx.ingress.kubernetes.io/proxy-body-size: 32m
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
