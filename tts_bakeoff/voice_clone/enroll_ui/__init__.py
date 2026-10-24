@@ -15,6 +15,7 @@ import http.server
 import json
 import os
 import re
+import shlex
 import shutil
 import socketserver
 import subprocess
@@ -23,6 +24,7 @@ import threading
 import time
 import unicodedata
 import urllib.parse
+import uuid
 import wave
 from pathlib import Path
 
@@ -42,6 +44,9 @@ SYNTH_MODELS = ("voxcpm2", "cosyvoice2")
 MIN_PROOF_S, MAX_PROOF_S = 3.0, 40.0
 MIN_TAKE_S, MAX_TAKE_S = 1.0, 40.0
 _JOBS: dict[str, dict] = {}
+_SAY: dict[str, dict] = {}   # this server session's "say anything" jobs, by id
+SAY_MAX_CHARS = 500
+SAY_ACTIVE = ("waiting for GPU lock", "running")
 
 
 class UiError(Exception):
@@ -122,7 +127,8 @@ def config() -> dict:
     return {"consent_text": consent_text(), "consent_text_sha256": consent_text_sha256(), "agreements": list(AGREEMENTS),
             "roles": list(registry.ROLES), "langs": {k: LANG_NAMES[k] for k in PROMPT_SETS}, "draft_langs": list(DRAFT_LANGS),
             "prompts": PROMPT_SETS, "min_seconds": enroll.MIN_S, "max_seconds": enroll.MAX_S, "min_snr_db": enroll.MIN_SNR_DB,
-            "models": list(SYNTH_MODELS)}
+            "models": list(SYNTH_MODELS), "say_max_chars": SAY_MAX_CHARS, "say_langs": say_langs(),
+            "lang_names": {k: LANG_NAMES.get(k, k) for k in ("en", "es", "zh", "vi", "th", "km", "sw", "hi")}}
 
 
 def statement(name: str) -> str:
@@ -323,6 +329,87 @@ def synth_status(speaker: str) -> dict:
             "out": str(job["out"]), "listen": f"python3 -m tts_bakeoff.lab --out {job['out']}"}
 
 
+def say_langs() -> dict[str, list[str]]:
+    from tts_bakeoff.adapters.cosyvoice2 import CosyVoice2Adapter
+    from tts_bakeoff.adapters.voxcpm2 import VoxCPM2Adapter
+
+    return {"voxcpm2": sorted(VoxCPM2Adapter.languages), "cosyvoice2": sorted(CosyVoice2Adapter.languages)}
+
+
+def _launch(argv: list[str], env: dict, log: Path) -> subprocess.Popen:
+    with log.open("ab") as fh:
+        return subprocess.Popen(argv, cwd=ROOT, env=env, stdout=fh, stderr=subprocess.STDOUT, start_new_session=True)
+
+
+def say_state(job: dict) -> str:
+    if job["proc"].poll() is None:
+        return "running" if job["wav"].with_suffix(".running").exists() else "waiting for GPU lock"
+    return "done" if job["proc"].returncode == 0 and job["wav"].is_file() else "failed"
+
+
+def say_command(model: str, speaker: str, lang: str, text: str) -> str:
+    return (f"printf %s {shlex.quote(text)} > /tmp/say.txt && "
+            f"scripts/run_voice_say.sh {model} {speaker} {lang} runs/say-{speaker}.wav /tmp/say.txt")
+
+
+def start_say(base: Path, speaker: str, p: dict) -> dict:
+    model, lang = str(p.get("model", "")), str(p.get("lang", ""))
+    text = " ".join(str(p.get("text", "")).split())
+    if model not in SYNTH_MODELS:
+        raise UiError(400, "model must be voxcpm2 or cosyvoice2")
+    if lang not in say_langs()[model]:
+        raise UiError(400, f"{model} does not speak {lang!r} (it speaks: {', '.join(say_langs()[model])})")
+    if not text:
+        raise UiError(400, "type the words to say")
+    if len(text) > SAY_MAX_CHARS:
+        raise UiError(400, f"keep it to {SAY_MAX_CHARS} characters; this is {len(text)}")
+    rec = _gated(base, speaker, "course_narration")
+    if not rec["samples"]:
+        raise UiError(400, "enroll a sample first")
+    if not cuda_host():
+        return {"started": False, "command": say_command(model, speaker, lang, text),
+                "reason": "this machine has no CUDA GPU; run this on the Spark"}
+    for j in _SAY.values():
+        if j["speaker"] == speaker and j["model"] == model and say_state(j) in SAY_ACTIVE:
+            raise UiError(409, f"a {model} clip for {rec['name']} is already {say_state(j)}: wait for it to finish")
+    job_id = uuid.uuid4().hex[:12]
+    out_dir = base / "say" / speaker
+    out_dir.mkdir(parents=True, exist_ok=True)
+    wav, textfile, log = out_dir / f"{job_id}.wav", out_dir / f"{job_id}.txt", out_dir / f"{job_id}.log"
+    textfile.write_text(text, encoding="utf-8")
+    env = {**os.environ, "GS_VOICES_DIR": str(base)}
+    proc = _launch(["bash", str(ROOT / "scripts" / "run_voice_say.sh"), model, speaker, lang, str(wav), str(textfile)], env, log)
+    _SAY[job_id] = {"id": job_id, "speaker": speaker, "name": rec["name"], "model": model, "lang": lang, "text": text, "proc": proc,
+                    "wav": wav, "log": log, "created": time.strftime("%H:%M:%S")}
+    return {"started": True, "id": job_id, "state": say_state(_SAY[job_id])}
+
+
+def say_jobs(base: Path) -> list[dict]:
+    out = []
+    for j in reversed(list(_SAY.values())):
+        state = say_state(j)
+        row = {"id": j["id"], "speaker": j["speaker"], "name": j["name"], "model": j["model"], "lang": j["lang"], "text": j["text"],
+               "state": state, "created": j["created"], "label": f"AI-generated voice of {j['name']}"}
+        if state == "done":
+            try:
+                registry.require_consent(j["speaker"], "course_narration", base)
+                row["audio"] = f"/api/say/audio/{j['id']}.wav"
+            except registry.ConsentError:
+                row["state"] = "withdrawn"
+        elif state == "failed" and j["log"].is_file():
+            row["log_tail"] = j["log"].read_text(encoding="utf-8", errors="replace")[-600:]
+        out.append(row)
+    return out
+
+
+def say_audio(base: Path, job_id: str) -> tuple[bytes, str]:
+    job = _SAY.get(job_id)
+    if not job or say_state(job) != "done":
+        raise UiError(404, "no such clip")
+    _gated(base, job["speaker"], "course_narration")
+    return job["wav"].read_bytes(), f"{job['speaker']}-{job_id}.wav"
+
+
 def _host_ok(value: str | None) -> bool:
     if not value:
         return False
@@ -404,6 +491,22 @@ def make_handler(base: Path):
                 m = re.fullmatch(r"/api/synth/([a-z0-9_-]+)", u.path)
                 if m:
                     return self._json(200, synth_status(m.group(1)))
+                if u.path == "/api/say":
+                    return self._json(200, {"jobs": say_jobs(base)})
+                m = re.fullmatch(r"/api/say/audio/([a-f0-9]{12})\.wav", u.path)
+                if m:
+                    data, name = say_audio(base, m.group(1))
+                    self.send_response(200)
+                    self.send_header("Content-Type", "audio/wav")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.send_header("Content-Disposition", f'inline; filename="{name}"')
+                    self.send_header("X-AI-Generated", "true")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    if not head:
+                        self.wfile.write(data)
+                    return
             except UiError as exc:
                 return self._json(exc.code, {"error": exc.message})
             return self._send(404, b"not found", "text/plain; charset=utf-8", head)
@@ -443,6 +546,9 @@ def make_handler(base: Path):
             m = re.fullmatch(r"/api/synth/([a-z0-9_-]+)", path)
             if m:
                 return self._json(200, start_synth(base, m.group(1), str(self._json_body().get("model", ""))))
+            m = re.fullmatch(r"/api/say/([a-z0-9_-]+)", path)
+            if m:
+                return self._json(200, start_say(base, m.group(1), self._json_body()))
             raise UiError(404, "not found")
 
     return Handler
