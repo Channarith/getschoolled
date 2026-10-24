@@ -102,11 +102,13 @@ def build(out: Path, langs: list[str], per_lang: int, seed: int) -> dict:
 
 
 def aggregate(out: Path, rating_files: list[Path]) -> list[dict]:
-    key = json.loads((out / "panel" / "key.json").read_text(encoding="utf-8"))["panels"]
+    key_path = out / "panel" / "key.json"
+    key = json.loads(key_path.read_text(encoding="utf-8"))["panels"] if key_path.exists() else {}
     acc: dict[tuple[str, str], dict] = {}
     for f in rating_files:
         data = json.loads(f.read_text(encoding="utf-8"))
-        mapping = key.get(data["panel"])
+        # Files exported by the listening lab (tts_bakeoff/lab) carry their own "id:label" -> model key.
+        mapping = data.get("key") or key.get(data["panel"])
         if mapping is None:
             raise ValueError(f"{f}: unknown panel {data['panel']!r}")
         for r in data["ratings"]:
@@ -118,6 +120,7 @@ def aggregate(out: Path, rating_files: list[Path]) -> list[dict]:
     rows = [{"lang": lang, "model": model, "ratings": len(v["nat"]), "raters": len(v["raters"]),
              "naturalness": round(sum(v["nat"]) / len(v["nat"]), 3), "clarity": round(sum(v["clr"]) / len(v["clr"]), 3)}
             for (lang, model), v in sorted(acc.items())]
+    (out / "panel").mkdir(parents=True, exist_ok=True)
     with (out / "panel" / "panel_results.csv").open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=["lang", "model", "ratings", "raters", "naturalness", "clarity"])
         w.writeheader()
