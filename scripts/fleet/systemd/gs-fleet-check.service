@@ -1,0 +1,15 @@
+# Logs this machine's health every 10 minutes (see gs-fleet-check.timer). Read-only: it only
+# runs scripts/fleet_status.sh --local and writes warnings to the journal.
+#   journalctl --user -u gs-fleet-check --since today
+[Unit]
+Description=Salareen machine health check (read-only)
+
+[Service]
+Type=oneshot
+WorkingDirectory=@REPO@
+ExecStart=@REPO@/scripts/fleet_status.sh --local --quiet
+# fleet_status exits 1 for warnings and 2 for critical: that is information, not a unit failure.
+SuccessExitStatus=1 2
+TimeoutStartSec=90
+Nice=15
+IOSchedulingClass=idle
