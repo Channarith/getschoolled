@@ -1,4 +1,7 @@
-# Offline education-LLM fine-tuning (Linux/Ubuntu). Install on the training host
+# Offline education-LLM fine-tuning (Linux/Ubuntu).
+# ON THE DGX SPARK (aarch64) DO NOT USE THIS FILE: it pins torch==2.3.1 and would replace the working
+# CUDA 13 build. Use training/requirements-spark.txt there.
+# Install on the training host
 # (a GPU box for real runs). The data step (export.py) and run_finetune.py
 # --check work with just PyYAML; the rest are needed for actual training.
 #

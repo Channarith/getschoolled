@@ -32,6 +32,8 @@ def run_bakeoff(
     primary: str = "accuracy",
     higher_is_better: bool = True,
     max_fairness_gap: float | None = None,
+    min_subject_score: float | None = None,
+    min_metrics: Dict[str, float] | None = None,
 ) -> dict:
     """Score candidates on the same metrics and pick the champion.
 
@@ -44,10 +46,34 @@ def run_bakeoff(
     rejected: list[dict] = []
     for c in candidates:
         gap = float(c.metrics.get("fairness_gap", 0.0))
+        weakest = c.metrics.get("subject_min")
         if max_fairness_gap is not None and gap > max_fairness_gap:
             rejected.append({"name": c.name, "fairness_gap": gap, "reason": "fairness_gate"})
-        else:
-            eligible.append(c)
+            continue
+        # One weak subject sets the floor: a high average cannot hide a subject under it.
+        if (
+            min_subject_score is not None
+            and weakest is not None
+            and float(weakest) < min_subject_score
+        ):
+            rejected.append({
+                "name": c.name,
+                "subject_min": float(weakest),
+                "reason": "subject_floor",
+            })
+            continue
+        # Behaviour floors (e.g. abstain >= 0.8): a candidate that scores higher word overlap by
+        # guessing instead of abstaining, or by revealing hints, must not win. A metric that was
+        # not measured does not fail the gate.
+        failed = {
+            name: c.metrics[name]
+            for name, floor in (min_metrics or {}).items()
+            if name in c.metrics and float(c.metrics[name]) < float(floor)
+        }
+        if failed:
+            rejected.append({"name": c.name, "metrics": failed, "reason": "metric_floor"})
+            continue
+        eligible.append(c)
 
     ledger = OptimizationLedger(primary_metric=primary, higher_is_better=higher_is_better)
     for c in eligible:
@@ -82,15 +108,24 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--primary", default="accuracy")
     ap.add_argument("--lower-is-better", action="store_true")
     ap.add_argument("--max-fairness-gap", type=float, default=None)
+    ap.add_argument("--min-subject-score", type=float, default=None)
+    ap.add_argument("--min-metric", action="append", default=[], metavar="NAME=FLOOR",
+                    help="reject candidates below a floor, e.g. --min-metric abstain=0.8 (repeatable)")
     ap.add_argument("--champion-path", default=None,
                     help="if set, persist the winner as the served champion pointer")
     args = ap.parse_args(argv)
 
     data = json.loads(Path(args.candidates).read_text(encoding="utf-8"))
     cands = [Candidate(d["name"], d.get("metrics", {})) for d in data]
+    floors: Dict[str, float] = {}
+    for spec in args.min_metric:
+        name, _, value = spec.partition("=")
+        floors[name.strip()] = float(value)
     result = run_bakeoff(cands, primary=args.primary,
                          higher_is_better=not args.lower_is_better,
-                         max_fairness_gap=args.max_fairness_gap)
+                         max_fairness_gap=args.max_fairness_gap,
+                         min_subject_score=args.min_subject_score,
+                         min_metrics=floors or None)
     if args.champion_path:
         result.update(promote_champion(result, args.champion_path))
     print(json.dumps(result, indent=2))

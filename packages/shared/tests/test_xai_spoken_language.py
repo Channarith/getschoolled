@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from aoep_shared.languages import language_name, normalize_language
+from aoep_shared.languages import SUPPORTED_LANGUAGES, language_name, normalize_language
 from aoep_shared.meeting.natural_tts import neural_voice_for
 from aoep_shared.voice_catalog import resolve_voice
 from aoep_shared.xai_realtime import build_voice_session
@@ -12,7 +12,9 @@ from aoep_shared.xai_spoken_language import (
     CANTONESE_EDGE_VOICE,
     KHMER_EDGE_VOICE,
     MANDARIN_EDGE_VOICE,
+    _XAI_HINT,
     plan_spoken_language,
+    tutoring_instruction,
 )
 
 
@@ -148,3 +150,38 @@ def test_cantonese_is_distinct_from_mandarin():
     assert khmer_voice is not None
     assert khmer_voice.edge_voice.startswith("km-KH")
     assert not khmer_voice.edge_voice.startswith("th-")
+
+
+def test_languages_xai_cannot_speak_use_our_voice():
+    """Every supported language xAI's voice agent lacks stays on our neural voice."""
+    beyond = [code for code in SUPPORTED_LANGUAGES if code not in _XAI_HINT]
+    beyond.append("yue")
+    assert len(beyond) >= 12
+    assert {"nl", "pl", "uk", "he", "ur", "fa", "th", "sw", "el", "cs", "km", "yue"} <= set(beyond)
+    for code in beyond:
+        plan = plan_spoken_language(code)
+        assert plan.use_xai is False, code
+        assert plan.engine == "edge-tts"
+        assert plan.xai_language == ""
+        assert plan.edge_voice
+        assert not plan.edge_voice.startswith("en-"), code
+        assert "Aria" not in plan.edge_voice
+        session = build_voice_session("solo", language=code)
+        assert session.use_xai is False
+        assert _hint(session.session_update_event()) == ""
+    dutch = plan_spoken_language("nl-NL")
+    assert dutch.requested == "nl"
+    assert dutch.edge_voice == "nl-NL-FennaNeural"
+    assert "Dutch" in dutch.instructions
+    assert "Dutch" in tutoring_instruction("nl")
+    thai = plan_spoken_language("th")
+    assert thai.edge_voice == "th-TH-PremwadeeNeural"
+    assert thai.edge_voice != neural_voice_for("en")
+    for code in ("en", "es", "fr", "de", "zh", "ja", "ko", "vi", "ar", "hi", "id"):
+        plan = plan_spoken_language(code)
+        assert plan.use_xai is True, code
+        assert plan.xai_language
+    unknown = plan_spoken_language("tlh")
+    assert unknown.use_xai is False
+    assert unknown.edge_voice == ""
+    assert "Aria" not in json.dumps(unknown.to_dict())

@@ -38,6 +38,13 @@ class ProviderUnavailable(RuntimeError):
 XAI_DEFAULT_MODEL = "grok-4.3"
 
 
+def language_label(code: str) -> str:
+    """English name for a translation prompt. Cantonese is not one of the 27."""
+    if code == "yue":
+        return "Cantonese"
+    return LANGUAGE_NAMES.get(code, code)
+
+
 def _urlopen(request: urllib.request.Request, timeout: float):
     """Open a request, skipping an env proxy that refuses the xAI tunnel."""
     try:
@@ -304,8 +311,8 @@ class TranslationEngine:
         )
 
     def _xai_translate(self, text: str, source: str, target: str) -> TranslationResult:
-        source_name = LANGUAGE_NAMES[source]
-        target_name = LANGUAGE_NAMES[target]
+        source_name = language_label(source)
+        target_name = language_label(target)
         messages = [
             {
                 "role": "system",

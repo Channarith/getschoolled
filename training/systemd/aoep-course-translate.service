@@ -1,0 +1,16 @@
+[Unit]
+Description=AOEP 222-course NLLB translation (CPU, resumes after reboot)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/nvidia/code/gs-wt/spark-eval-gates
+ExecStart=/home/nvidia/.local/share/aoep-train/translate-forever.sh
+Nice=12
+Restart=always
+RestartSec=30
+StandardOutput=append:/home/nvidia/.local/share/aoep-train/translate.log
+StandardError=append:/home/nvidia/.local/share/aoep-train/translate.log
+
+[Install]
+WantedBy=default.target

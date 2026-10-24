@@ -16,6 +16,9 @@ def test_normalize_training_locale():
     assert normalize_training_locale("en") == "en"
     assert normalize_training_locale("es-MX") == "es"
     assert normalize_training_locale("zh-CN") == "zh"
+    assert normalize_training_locale("yue") == "yue"
+    assert normalize_training_locale("zh-HK") == "yue"
+    assert normalize_training_locale("cantonese") == "yue"
     # Every platform-supported language is now accepted as a training locale.
     assert normalize_training_locale("fr") == "fr"
     assert normalize_training_locale("ja-JP") == "ja"

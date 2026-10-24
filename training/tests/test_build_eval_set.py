@@ -28,6 +28,22 @@ def test_abstain_items_ask_about_a_different_topic_than_the_passage():
         assert title != asked
 
 
+def test_stem_exam_includes_linear_algebra_and_is_deterministic():
+    curriculum = ROOT / "sample-curriculum"
+    first = build_eval_set.build_stem_items(curriculum, per_course=2)
+    again = build_eval_set.build_stem_items(curriculum, per_course=2)
+    assert first == again
+    ids = [item["id"] for item in first]
+    assert len(ids) == len(set(ids))
+    algebra = [item for item in first if item["tags"][0] == "linear-algebra"]
+    assert len(algebra) >= 3
+    assert {item["tags"][1] for item in algebra} == {"recall", "abstain"}
+    assert all(item["passage"] and item["source"] == "synthetic-v1" for item in algebra)
+    committed = ROOT / "training" / "data" / "eval_frozen_stem.jsonl"
+    rows = [json.loads(line) for line in committed.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert [row["id"] for row in rows] == ids
+
+
 def test_committed_frozen_set_is_valid_jsonl():
     path = ROOT / "training" / "data" / "eval_frozen.jsonl"
     rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]

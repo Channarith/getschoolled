@@ -1,15 +1,29 @@
 [Unit]
-Description=AOEP Spark STEM QLoRA training cycle
-Documentation=file://@REPO@/training/RUNBOOK.txt
+Description=AOEP Spark tutor QLoRA training cycle
+Documentation=file://@REPO@/training/RUNBOOK.txt file://@REPO@/docs/training-spark-runbook.txt
 After=network-online.target
 # Does not stop CosyVoice, llama-server, or lab services. The cycle takes
-# ~/.gs-gpu.lock itself and uses a batch size of 1.
+# ~/.gs-gpu.lock itself, waits for it, and exits 75 if the GPU stays busy.
 
 [Service]
 Type=oneshot
 WorkingDirectory=@REPO@
 ExecStart=@REPO@/training/spark_nightly.sh
 Nice=10
-# One cycle can include a 7B load, one epoch, and two eval passes.
-TimeoutStartSec=8h
+IOSchedulingClass=idle
+# Hard ceilings, filled in by install-user-timer.sh from this machine: total RAM minus the host
+# reserve (16 GB on the Spark), and all cores minus 2. The cycle also enforces them per stage.
+MemoryMax=@MEMMAX@
+MemorySwapMax=0
+CPUQuota=@CPUQUOTA@
+# No orphans: stop the whole control group, never leave a stray python behind.
+KillMode=control-group
+SendSIGKILL=yes
+TimeoutStopSec=120
+OOMPolicy=kill
+# One cycle can include a 7B-14B load, one epoch, and two eval passes over four benchmarks.
+TimeoutStartSec=9h
+# Exit 75 means "GPU lock busy or memory too low to start safely": not a failure.
+SuccessExitStatus=75
+Restart=no
 # User unit: no privilege escalation, no install side effects.

@@ -23,6 +23,24 @@ WHAT IS HERE
 - spark_nightly.sh      Export, STEM QLoRA, evaluate, bake-off, conditional promote.
 - spark_seed_sessions.py
                         STEM lessons in sample-curriculum -> sessions JSON.
+- tutor_sessions.py + tutor_format.py
+                        Tutor-behaviour sessions (hint ladder, abstain, short spoken
+                        answers, refusals, learner language) and the mode lines the
+                        app and evaluation share.
+- quality_gate.py + pipeline/quality.py
+                        Dedupe, PII scrub, source/consent, language tags, and a hard
+                        failure on race/ethnicity. Runs before every export.
+- scoring.py            Word-overlap F1 for every script plus the behaviour scorers.
+- evaluate.py           Scores one or more benchmark files with one model load.
+- build_eval_behavior.py, build_eval_multilingual.py
+                        New benchmarks (eval_frozen.jsonl is never touched).
+- compare_bases.py + config/base_candidates.yaml
+                        Score candidate bases on every benchmark; one leaderboard.
+- nightly_candidates.py Bake-off inputs; the adapter may not regress on behaviour.
+- lib_limits.sh         RAM/CPU ceilings, timeout, free-RAM watchdog, no orphans.
+- requirements-spark.txt
+                        Spark/iBuyPower installs. Never pins torch (requirements.txt would
+                        replace the working CUDA 13 build).
 - systemd/              User timer template + install script (not enabled here).
 - tests/                Unit tests for the pipeline and the bias guardrail.
 

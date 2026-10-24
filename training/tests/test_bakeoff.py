@@ -48,6 +48,15 @@ def test_champion_registry_promote_and_revert(tmp_path):
     assert reg.current() == "trackA"
 
 
+def test_subject_floor_rejects_a_high_average_with_a_weak_subject():
+    res = run_bakeoff([
+        Candidate("stem-qlora", {"accuracy": 0.80, "fairness_gap": 0.02, "subject_min": 0.14}),
+        Candidate("qwen-base", {"accuracy": 0.20, "fairness_gap": 0.02, "subject_min": 0.12}),
+    ], min_subject_score=0.40)
+    assert res["champion"] is None
+    assert any(r["reason"] == "subject_floor" for r in res["rejected"])
+
+
 def test_aggregate_scores_category_and_fairness_gap():
     agg = aggregate_scores([
         {"score": 0.9, "category": "math", "group": "A"},

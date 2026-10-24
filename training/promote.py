@@ -25,11 +25,16 @@ def run_promotion(
     champion_path: Optional[str] = None,
     primary: str = "accuracy",
     max_fairness_gap: Optional[float] = 0.1,
+    min_metrics: Optional[Dict[str, float]] = None,
+    min_subject_score: Optional[float] = None,
 ) -> Dict:
     """candidates: [{name, track[A|B], metrics:{accuracy, fairness_gap, ...}}]."""
     track_by_name = {c["name"]: c.get("track") for c in candidates}
     cands = [Candidate(c["name"], c.get("metrics", {})) for c in candidates]
-    result = run_bakeoff(cands, primary=primary, max_fairness_gap=max_fairness_gap)
+    result = run_bakeoff(
+        cands, primary=primary, max_fairness_gap=max_fairness_gap, min_metrics=min_metrics,
+        min_subject_score=min_subject_score,
+    )
 
     champ = result.get("champion")
     result["track"] = track_by_name.get(champ)
@@ -51,10 +56,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--champion-path", default=None)
     ap.add_argument("--primary", default="accuracy")
     ap.add_argument("--max-fairness-gap", type=float, default=0.1)
+    ap.add_argument("--min-metric", action="append", default=[], metavar="NAME=FLOOR",
+                    help="behaviour floor, e.g. abstain=0.8 (repeatable); same gate as bakeoff.py")
+    ap.add_argument("--min-subject-score", type=float, default=None,
+                    help="reject a candidate whose weakest sampled subject is under this")
     args = ap.parse_args(argv)
+    floors = {}
+    for spec in args.min_metric:
+        name, _, value = spec.partition("=")
+        floors[name.strip()] = float(value)
     data = json.loads(Path(args.candidates).read_text(encoding="utf-8"))
     result = run_promotion(data, champion_path=args.champion_path,
-                           primary=args.primary, max_fairness_gap=args.max_fairness_gap)
+                           primary=args.primary, max_fairness_gap=args.max_fairness_gap,
+                           min_metrics=floors or None, min_subject_score=args.min_subject_score)
     print(json.dumps(result, indent=2))
     return 0
 

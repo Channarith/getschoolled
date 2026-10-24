@@ -13,6 +13,7 @@ import re
 from typing import Awaitable, Callable, Iterable
 
 from .course_translation_library import (
+    EXTRA_TRANSLATION_LANGUAGES,
     TARGET_LANGUAGES,
     load_translation,
     save_translation,
@@ -147,7 +148,7 @@ async def translate_catalog(
     codes = []
     for language in languages:
         code = normalize_language(language)
-        if code not in TARGET_LANGUAGES:
+        if code not in TARGET_LANGUAGES and code not in EXTRA_TRANSLATION_LANGUAGES:
             raise ValueError(f"unsupported target language: {language}")
         if code not in codes:
             codes.append(code)
