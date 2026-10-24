@@ -63,6 +63,14 @@ spec:
           - path: /home
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
+          # nginx prefix /home also matches /homework and /home-concepts (web pages).
+          # Longer paths win, so pin them to web.
+          - path: /homework
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
+          - path: /home-concepts
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
           # nginx prefix /audio also matches /audio-lab. Curriculum then
           # returns {"detail":"Not Found"}. Longer paths win and must hit the
           # web rewrites, which proxy to the audio-lab Service.
@@ -124,6 +132,14 @@ spec:
           - path: /home
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
+          # nginx prefix /home also matches /homework and /home-concepts (web pages).
+          # Longer paths win, so pin them to web.
+          - path: /homework
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
+          - path: /home-concepts
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
           # nginx prefix /audio also matches /audio-lab. Curriculum then
           # returns {"detail":"Not Found"}. Longer paths win and must hit the
           # web rewrites, which proxy to the audio-lab Service.
@@ -274,7 +290,7 @@ spec:
           - path: /speech(/|$)(.*)
             pathType: ImplementationSpecific
             backend: { service: { name: speech, port: { number: 8000 } } }
-          - path: /billing(/|$)(.*)
+          - path: /billing(/)(.*)
             pathType: ImplementationSpecific
             backend: { service: { name: billing, port: { number: 8000 } } }
           - path: /perception(/|$)(.*)
@@ -301,7 +317,7 @@ spec:
           - path: /speech(/|$)(.*)
             pathType: ImplementationSpecific
             backend: { service: { name: speech, port: { number: 8000 } } }
-          - path: /billing(/|$)(.*)
+          - path: /billing(/)(.*)
             pathType: ImplementationSpecific
             backend: { service: { name: billing, port: { number: 8000 } } }
           - path: /perception(/|$)(.*)
@@ -348,7 +364,7 @@ spec:
           - path: /speech(/|$)(.*)
             pathType: ImplementationSpecific
             backend: { service: { name: speech, port: { number: 8000 } } }
-          - path: /billing(/|$)(.*)
+          - path: /billing(/)(.*)
             pathType: ImplementationSpecific
             backend: { service: { name: billing, port: { number: 8000 } } }
           - path: /perception(/|$)(.*)
