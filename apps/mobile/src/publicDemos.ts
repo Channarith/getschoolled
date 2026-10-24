@@ -49,6 +49,24 @@ export function publicDemoUrl(webAppUrl: string, path: string): string {
   return `${base}${route}`;
 }
 
+/**
+ * True when an HTTP error from the WebView belongs to the page itself. A missing image,
+ * model or font (a 404 for a file the page does not need) must not replace the whole lab
+ * with the error screen; only the page failing to load should.
+ */
+export function isPageHttpError(eventUrl: string | undefined, pageUrl: string): boolean {
+  if (!eventUrl) return true;
+  const norm = (value: string) => {
+    try {
+      const u = new URL(value);
+      return `${u.origin}${u.pathname.replace(/\/+$/, "")}`;
+    } catch {
+      return value.split(/[?#]/)[0].replace(/\/+$/, "");
+    }
+  };
+  return norm(eventUrl) === norm(pageUrl);
+}
+
 export function spokenDemoCode(locale: string): string {
   const raw = (locale || "en").trim().toLowerCase().replace(/_/g, "-");
   if (

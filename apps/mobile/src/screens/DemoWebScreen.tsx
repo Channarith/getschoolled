@@ -11,7 +11,7 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { driverWaveScript } from "../driverWave";
 import { liveAudioPhoneScript } from "../liveAudioPhone";
-import { appStateScript, publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
+import { appStateScript, isPageHttpError, publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
 import { SERENITY_HERO, SERENITY_NAME } from "../serenity";
 import { ensureLoudSpeaker } from "../tts";
 import AdaptiveContent from "../layout/AdaptiveContent";
@@ -134,6 +134,7 @@ export default function DemoWebScreen({
             setError(event.nativeEvent.description || "load failed");
           }}
           onHttpError={(event) => {
+            if (!isPageHttpError(event.nativeEvent.url, url)) return;
             setLoading(false);
             setErrorStatus(event.nativeEvent.statusCode);
             setError(`HTTP ${event.nativeEvent.statusCode} ${event.nativeEvent.url || ""}`.trim());
