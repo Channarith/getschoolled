@@ -81,6 +81,7 @@ import {
   type Emphasis,
 } from "../lib/adaptationLine";
 import { useT } from "../lib/i18n";
+import DemoVoiceSelect from "./DemoVoiceSelect";
 import { buildNarrationSpeakOptions } from "../lib/narrationTts";
 import { cancelSpeech, localeToBcp47, speakNaturally } from "../lib/tts";
 import { useVoicePauseSubmitMs } from "../lib/flags";
@@ -2022,6 +2023,7 @@ export default function ClassRoom({
           <div className="card">
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ margin: 0 }}>{t("class.askTeacher")}</h3>
+              <DemoVoiceSelect />
               <label className="muted" style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <input
                   type="checkbox"

@@ -1,0 +1,41 @@
+Demo narration in a consented company voice
+===========================================
+
+What it is: the machine-vision (Vision Play), full-course and hidden On the Go demos can speak in a company voice
+(first: channarith) chosen from a "Narrator voice" selector, default Salane. It is PRE-RENDERED audio, not live cloning.
+Every clip is labelled "AI-generated voice of <name>" (VoxCPM2's licence asks for AI-generated labelling).
+
+Pieces
+  tts_manifest/voices.json              the selectable voices (id, label, speaker, model). Add a consented person here.
+  tts_manifest/demo_voice_manifest.json what the demos say: demo, lang, text, hash. Regenerate:
+        python3 -m tts_bakeoff.demo_voice.manifest [--extra-texts misses.jsonl]
+  tts_bakeoff/demo_voice/clip_hash.py   clip id = cyrb53(lang + U+241F + NFC, whitespace-collapsed text), 14 hex. The same
+        function is in apps/web/app/lib/cloneVoice.ts, apps/mobile/src/cloneVoice.ts and the Vision Play clone_voice.js;
+        tts_manifest/hash_vectors.json is checked by pytest, node and jest so the three cannot drift.
+  scripts/render_demo_voice.sh          on the Spark, under gs_run.sh --gpu: renders missing clips, resumable, shardable.
+  python3 -m tts_bakeoff.demo_voice.verify   every manifest clip present for each active voice.
+  scripts/sync_voice_assets.sh          uploads to object storage under voice-assets/ (never git; assets dir is gitignored).
+
+Languages in the manifest: on_the_go in en, es, zh, vi, th, km, sw, hi (the demo course, translated); vision_play in en.
+VoxCPM2 speaks those 8. Strings built at run time (scores, names, letters) and the full-course demo's per-learner slides are
+not enumerable: the player falls back to the default voice (never silent) and keeps misses in window.__cloneVoiceMisses
+(web); paste them into a JSON-lines file and pass --extra-texts to add them to the next render.
+
+Render on the Spark (consent must be valid: commercial use, model training, course narration; samples unchanged)
+  cd ~/code/gs-main && scripts/render_demo_voice.sh --voice channarith            # all clips; resumable
+  scripts/render_demo_voice.sh --voice channarith --shard 0/2                    # another machine takes 1/2
+  python3 -m tts_bakeoff.demo_voice.render publish                                # voices.json + index.json
+  python3 -m tts_bakeoff.demo_voice.verify
+
+Serving
+  Web:    NEXT_PUBLIC_VOICE_ASSETS_URL (default /voice-assets: copy the assets dir to apps/web/public/voice-assets at deploy,
+          or point it at the bucket URL; the bucket then needs CORS for GET and the site CSP media-src must allow it).
+  Mobile: https://salareen.com/voice-assets (constant in apps/mobile/src/cloneVoice.ts).
+  Vision Play: /voice-assets on its own origin, or window.CLONE_VOICE_ASSETS.
+  The selector stays hidden until voices.json lists an active voice, so nothing shows before assets are published.
+
+Revocation: python3 -m tts_bakeoff.voice_clone.bakeoff revoke --speaker <id>, then
+  python3 -m tts_bakeoff.demo_voice.render prune-revoked && scripts/sync_voice_assets.sh
+voices.json then lists the voice as inactive and its clips are gone; every client checks voices.json before looking a clip up.
+Clips already cached by a browser or phone keep playing until their cache expires; the files are immutable-cached for a year,
+so for an urgent withdrawal also invalidate the CDN or rename the voice id.
