@@ -18,6 +18,8 @@ import { friendlyError, isBugScreenshotTooLargeError, isOfflineError } from "../
 import { useFlag } from "../lib/flags";
 import { useT } from "../lib/i18n";
 
+import { bugButtonHidden, defaultBugPosition } from "../lib/bugButtonPlacement";
+
 const SIZE = 42;
 const STORAGE_KEY = "aoep-bug-button-position";
 type Point = { x: number; y: number };
@@ -59,7 +61,7 @@ export default function FloatingBugReporter() {
   } | null>(null);
 
   useEffect(() => {
-    let next = { x: window.innerWidth - SIZE - 14, y: window.innerHeight - SIZE - 18 };
+    let next = defaultBugPosition(pathname, window.innerWidth, window.innerHeight, SIZE);
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") as Point | null;
       if (stored && Number.isFinite(stored.x) && Number.isFinite(stored.y)) next = stored;
@@ -76,7 +78,7 @@ export default function FloatingBugReporter() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  if (!enabled || pathname === "/report-bug") return null;
+  if (!enabled || bugButtonHidden(pathname)) return null;
 
   async function openReporter() {
     setDoneId("");
