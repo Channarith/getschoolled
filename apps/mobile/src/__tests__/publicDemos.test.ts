@@ -31,3 +31,18 @@ describe("public demos", () => {
     expect(appStateScript("active").trim().endsWith("true;")).toBe(true);
   });
 });
+
+describe("isPageHttpError", () => {
+  const page = "https://www.salareen.com/children-lab?embed=mobile&game=pop-quiz-toss";
+
+  it("treats an error for the page itself as fatal", () => {
+    expect(require("../publicDemos").isPageHttpError("https://www.salareen.com/children-lab?embed=mobile", page)).toBe(true);
+    expect(require("../publicDemos").isPageHttpError(undefined, page)).toBe(true);
+  });
+
+  it("ignores a failing asset so the lab stays on screen", () => {
+    const { isPageHttpError } = require("../publicDemos");
+    expect(isPageHttpError("https://www.salareen.com/vendor/vision/tasks-vision.mjs", page)).toBe(false);
+    expect(isPageHttpError("https://www.salareen.com/favicon.ico", page)).toBe(false);
+  });
+});

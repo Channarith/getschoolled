@@ -62,6 +62,7 @@ _PAGE = """<!doctype html>
       <div class="privacy" data-i18n="privacy"><strong>Adult check:</strong> Make a clear play space. Camera landmarks and speech audio are processed by the browser; our server never receives camera frames or audio.</div>
       <button id="start" class="primary" data-i18n="start">Allow camera and start playing</button>
       <button id="demo" class="secondary" data-i18n="demo">Try pointer demo without camera</button>
+      <button id="vision-check-open" class="linklike" type="button">Camera trouble? Run the camera check</button>
     </section>
 
     <section id="play" class="play hidden" aria-live="polite">

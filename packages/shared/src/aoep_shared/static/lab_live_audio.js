@@ -62,8 +62,17 @@
         border:1px solid #5eead4;background:#07111ef2;color:#e7fbff;font:700 13px/40px system-ui,sans-serif}
       :host(.voice-hidden) .box{display:none !important}
       :host(.voice-hidden) .show-again{display:inline-block}
+      /* Phones: a 260px panel pinned bottom-left sat on top of the lab's Start and game-picker
+         buttons, so they could not be tapped. Stay a small round mic button until opened. */
+      @media (max-width:700px){
+        :host(:not(.voice-open)) .box{display:none !important}
+        :host(:not(.voice-open)) .show-again{display:inline-block}
+        .show-again{left:auto;right:12px;bottom:max(86px, calc(env(safe-area-inset-bottom) + 72px));width:44px;height:44px;min-height:44px;padding:0;
+          border-radius:50%;font-size:0;line-height:0;color:transparent;background:#07111ef2 center/22px 22px no-repeat;
+          background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e7fbff' d='M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z'/></svg>")}
+      }
     </style>
-    <button class="show-again" type="button">Show Sala</button>
+    <button class="show-again" type="button" aria-label="Show Sala voice" title="Show Sala voice">Show Sala</button>
     <div class="box" data-drag-chip="1" title="Drag Salane Voice. Tap the microphone to start or stop.">
       <div class="row">
         <i class="dot"></i>
@@ -94,11 +103,13 @@
   $(".close").onclick = (event) => {
     event.stopPropagation();
     stop();
+    host.classList.remove("voice-open");
     host.classList.add("voice-hidden");
   };
   $(".show-again").onclick = (event) => {
     event.stopPropagation();
     host.classList.remove("voice-hidden");
+    host.classList.add("voice-open");
   };
 
   function placeChip(left, top) {

@@ -10,6 +10,7 @@ except Exception:  # noqa: BLE001
     pass
 
 import hashlib
+import mimetypes
 import os
 from pathlib import Path
 from typing import Any, Literal
@@ -68,6 +69,7 @@ install_live_audio_routes(
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if VISION_ASSET_DIR.is_dir():
+    mimetypes.add_type("application/octet-stream", ".task")
     app.mount("/vendor/vision", StaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")
 
 _analytics = AggregateAnalytics()
