@@ -153,10 +153,12 @@ class AppConfig(BaseModel):
     harvest_user_agent: str = ""
     harvest_max_rps: float = 1.0
     harvest_seeds: str = ""
-    # License policy (harvest.allow_share_alike / harvest.research_only). Both default OFF:
-    # the product catalog only takes commercially usable sources until the owner decides on share-alike.
+    # License policy. The PRODUCT corpus takes commercially usable sources only; share-alike
+    # (harvest.allow_share_alike) stays OFF until the owner decides (legal review). Non-commercial
+    # text that is lawful to read goes to a separate RESEARCH corpus (harvest.research_enabled, ON):
+    # internal experiments only, never published.
     harvest_allow_share_alike: bool = False
-    harvest_research_only: bool = False
+    harvest_research_enabled: bool = True
     speech_base_url: str = "http://speech:8100"
     vision_base_url: str = "http://perception:8200"
     # Memory service base URL. Empty => the orchestrator runs the live teaching
@@ -363,7 +365,7 @@ def load_config(
         harvest_max_rps=env_float(source.get("HARVEST_MAX_RPS"), 1.0),
         harvest_seeds=get("HARVEST_SEEDS", ""),
         harvest_allow_share_alike=env_bool(source.get("AOEP_HARVEST_ALLOW_SHARE_ALIKE"), False),
-        harvest_research_only=env_bool(source.get("AOEP_HARVEST_RESEARCH_ONLY"), False),
+        harvest_research_enabled=env_bool(source.get("AOEP_HARVEST_RESEARCH"), True),
         speech_base_url=get("SPEECH_BASE_URL", "http://speech:8100"),
         vision_base_url=_native_service_url(
             get("VISION_BASE_URL", "http://perception:8200"), deploy_mode

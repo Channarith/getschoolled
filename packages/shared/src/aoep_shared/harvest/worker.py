@@ -26,6 +26,7 @@ class HarvestStats:
     fetched: int = 0
     ingested: int = 0
     skipped_license: int = 0
+    diverted_research: int = 0
     skipped_dup: int = 0
     errors: int = 0
 
@@ -81,6 +82,9 @@ class HarvestWorker:
         self._content_seen.add(chash)
 
         record = self._extract(spec, raw)
+        if record.get("status") == "diverted_research":
+            self.stats.diverted_research += 1      # kept in the research corpus, not the product
+            return "diverted_research"
         if str(record.get("status", "")).startswith("rejected_"):
             # The page's own license/robots/paywall check refused it after the fetch.
             self.stats.skipped_license += 1

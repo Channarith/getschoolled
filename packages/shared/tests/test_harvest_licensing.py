@@ -76,13 +76,24 @@ def test_policy_tiers_and_switches():
     assert not off.tier_allowed(Tier.SHARE_ALIKE)
     assert HarvestPolicy(allow_share_alike=True).tier_allowed(Tier.SHARE_ALIKE)
     for tier in (Tier.NON_COMMERCIAL, Tier.NO_DERIVATIVES, Tier.PROPRIETARY, Tier.UNKNOWN):
-        assert not HarvestPolicy(allow_share_alike=True, research_only=True).tier_allowed(tier)
+        assert not HarvestPolicy(allow_share_alike=True).tier_allowed(tier)      # never in the product corpus
 
 
-def test_policy_from_env_defaults_off_and_reads_switches():
-    assert policy_from_env({}) == HarvestPolicy(False, False)
-    p = policy_from_env({"AOEP_HARVEST_ALLOW_SHARE_ALIKE": "1", "AOEP_HARVEST_RESEARCH_ONLY": "true"})
-    assert p.allow_share_alike and p.research_only
+def test_research_eligibility_is_narrow():
+    on = HarvestPolicy()
+    assert on.research_enabled                                    # ON by default
+    assert on.research_eligible(Tier.NON_COMMERCIAL)
+    assert on.research_eligible(Tier.SHARE_ALIKE)                 # share-alike while that switch is off
+    assert not HarvestPolicy(allow_share_alike=True).research_eligible(Tier.SHARE_ALIKE)   # it is product then
+    for tier in (Tier.NO_DERIVATIVES, Tier.PROPRIETARY, Tier.UNKNOWN, Tier.COMMERCIAL_OK):
+        assert not on.research_eligible(tier)
+    assert not HarvestPolicy(research_enabled=False).research_eligible(Tier.NON_COMMERCIAL)
+
+
+def test_policy_from_env_defaults_and_switches():
+    assert policy_from_env({}) == HarvestPolicy(allow_share_alike=False, research_enabled=True)
+    p = policy_from_env({"AOEP_HARVEST_ALLOW_SHARE_ALIKE": "1", "AOEP_HARVEST_RESEARCH": "0"})
+    assert p.allow_share_alike and not p.research_enabled
 
 
 def test_decide_obligations_and_actions():
@@ -90,14 +101,22 @@ def test_decide_obligations_and_actions():
     assert by.ingest and any("attribution" in o for o in by.obligations)
     pd = decide(parse_license("public domain"))
     assert pd.ingest and pd.obligations == []
-    sa_off = decide(parse_license("CC BY-SA 4.0"))
+    no_research = HarvestPolicy(research_enabled=False)
+    sa_off = decide(parse_license("CC BY-SA 4.0"), no_research)
     assert sa_off.action == "reject" and "allow_share_alike" in sa_off.reason
+    sa_research = decide(parse_license("CC BY-SA 4.0"))
+    assert sa_research.research and sa_research.corpus == "research"          # lawful to read, not for the product
     sa_on = decide(parse_license("CC BY-SA 4.0"), HarvestPolicy(allow_share_alike=True))
-    assert sa_on.ingest and any("share-alike" in o for o in sa_on.obligations)
+    assert sa_on.ingest and sa_on.corpus == "product" and any("share-alike" in o for o in sa_on.obligations)
     nc = decide(parse_license("cc-by-nc"))
-    assert nc.action == "reject"
-    assert decide(parse_license("cc-by-nc"), HarvestPolicy(research_only=True)).action == "research_only"
+    assert nc.research and "research corpus only" in nc.reason
+    assert decide(parse_license("cc-by-nc"), no_research).action == "reject"
+    # Rejected outright whatever the switches say.
+    for lic in ("cc-by-nd", "all rights reserved", "oer", ""):
+        d = decide(parse_license(lic), HarvestPolicy(allow_share_alike=True, research_enabled=True))
+        assert d.action == "reject" and d.corpus == "", lic
     assert decide(parse_license("cc-by"), conflict=True).action == "reject"
+    assert decide(parse_license("cc-by-nc"), conflict=True).action == "reject"     # conflicting evidence: not even research
 
 
 # ------------------------------------------------------------ page detection

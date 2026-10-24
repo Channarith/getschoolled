@@ -73,6 +73,8 @@ def test_only_pages_that_prove_a_commercial_license_become_courses(tmp_path, net
         "https://none.example.net/a": page(3),
         "https://sa.example.net/a": page(4, BY_SA),
         "https://liar.example.net/a": page(5, BY_NC),
+        "https://nd.example.net/a": page(6, "https://creativecommons.org/licenses/by-nd/4.0/"),
+        "https://arr.example.net/a": page(7, footer="All rights reserved."),
     })
     s = session(tmp_path)
     s.enqueue_seeds([
@@ -81,23 +83,33 @@ def test_only_pages_that_prove_a_commercial_license_become_courses(tmp_path, net
         SourceSpec("https://none.example.net/a", subject="math"),
         SourceSpec("https://sa.example.net/a", subject="math"),
         SourceSpec("https://liar.example.net/a", license="cc-by", subject="math"),     # seed lies, page says NC
+        SourceSpec("https://nd.example.net/a", subject="math"),
+        SourceSpec("https://arr.example.net/a", subject="math"),
         SourceSpec("https://www.khanacademy.org/x", license="cc-by", subject="math"),  # denied: never fetched
     ])
     metrics = s.run_once(max_items=20)
     rows = statuses(s)
     assert rows["https://good.example.net/a"]["status"] == "ingested"
-    for url in ("nc", "none", "sa", "liar"):
-        assert rows[f"https://{url}.example.net/a"]["status"] == "rejected_license"
+    # Non-commercial and share-alike (switch off) are lawful to read: research corpus, never the product.
+    for url in ("nc", "sa"):
+        assert rows[f"https://{url}.example.net/a"]["status"] == "diverted_research"
+    # Rejected outright: unknown, conflicting, no-derivatives, all rights reserved.
+    for url in ("none", "liar", "nd", "arr"):
+        assert rows[f"https://{url}.example.net/a"]["status"] == "rejected_license", url
     assert "https://www.khanacademy.org/x" not in fetched
-    assert metrics.generated == 1 and metrics.skipped_license == 5
-    # A rejected page leaves no text behind: no chunks, no course.
-    conn = s.corpus._connect()
-    try:
-        urls_with_chunks = {r[0] for r in conn.execute(
-            "SELECT s.url FROM chunks c JOIN sources s ON s.url_key=c.url_key GROUP BY s.url")}
-    finally:
-        conn.close()
-    assert urls_with_chunks == {"https://good.example.net/a"}
+    assert metrics.generated == 1 and metrics.research_diverted == 2 and metrics.skipped_license == 5
+    # The product corpus holds text for the good page only; the research corpus holds the other two, nowhere else.
+    def urls_with_chunks(store):
+        conn = store._connect()
+        try:
+            return {r[0] for r in conn.execute(
+                "SELECT s.url FROM chunks c JOIN sources s ON s.url_key=c.url_key GROUP BY s.url")}
+        finally:
+            conn.close()
+
+    assert urls_with_chunks(s.corpus) == {"https://good.example.net/a"}
+    assert urls_with_chunks(s.research_corpus) == {"https://nc.example.net/a", "https://sa.example.net/a"}
+    assert s.research_corpus.path != s.corpus.path
 
 
 def test_provenance_is_recorded_in_db_course_json_and_attribution_file(tmp_path, net):
@@ -109,57 +121,72 @@ def test_provenance_is_recorded_in_db_course_json_and_attribution_file(tmp_path,
     src = statuses(s)["https://good.example.net/a"]
     assert (src["license_tier"], src["license_id"], src["license_verified_by"]) == ("commercial_ok", "CC-BY-4.0", "page")
     prov = json.loads(src["provenance_json"])
+    assert prov["corpus"] == "product"
     assert prov["content_hash"] and prov["fetched_at"] and prov["robots"]["robots_status"] == "none"
     assert prov["attribution"]["author"] == "Ada Teacher"
     assert prov["recipe"]["pipeline"].startswith("aoep.harvest")
     pkg = next((tmp_path / "courses").glob("*/*.course.json"))
     course = json.loads(pkg.read_text())
+    assert course["corpus"] == "product"
     assert course["license_tier"] == "commercial_ok" and "Ada Teacher" in course["attribution"]
     assert course["slides"][-1]["title"] == CREDITS_SLIDE_TITLE
     assert "CC-BY-4.0" in course["slides"][-1]["body"]
     credit = (pkg.parent / "ATTRIBUTION.txt").read_text()
     assert "Ada Teacher" in credit and "attribution" in credit.lower() and prov["content_hash"] in credit
+    assert "Corpus: product" in credit
     ok, why = course_servable(course)
     assert ok, why
     row = sqlite3.connect(s.corpus.path).execute("SELECT license_tier FROM courses").fetchone()
     assert row[0] == "commercial_ok"
 
 
-def test_share_alike_is_ingested_only_with_the_switch_and_carries_obligations(tmp_path, net):
+def test_share_alike_is_product_only_with_the_switch_and_carries_obligations(tmp_path, net):
     pages, _ = net
     pages["https://sa.example.net/a"] = page(1, BY_SA)
     off = session(tmp_path / "off")
     off.enqueue_seeds([SourceSpec("https://sa.example.net/a", subject="math")])
     off.run_once(max_items=5)
-    assert statuses(off)["https://sa.example.net/a"]["status"] == "rejected_license"
+    assert statuses(off)["https://sa.example.net/a"]["status"] == "diverted_research"
+    assert not list((tmp_path / "off" / "courses").glob("*/*"))               # no course from it
     on = session(tmp_path / "on", HarvestPolicy(allow_share_alike=True))
     on.enqueue_seeds([SourceSpec("https://sa.example.net/a", subject="math")])
     on.run_once(max_items=5)
     assert statuses(on)["https://sa.example.net/a"]["status"] == "ingested"
     course = json.loads(next((tmp_path / "on" / "courses").glob("*/*.course.json")).read_text())
-    assert course["license_tier"] == "share_alike"
+    assert course["license_tier"] == "share_alike" and course["corpus"] == "product"
     assert any("share-alike" in o for o in course["license_obligations"])
     assert "same license" in course["attribution"]
     assert course_servable(course, HarvestPolicy(allow_share_alike=True))[0]
     assert not course_servable(course, HarvestPolicy())[0]
 
 
-def test_research_only_keeps_rejected_text_in_a_separate_database(tmp_path, net):
+def test_non_commercial_text_lands_only_in_the_research_corpus_and_is_marked(tmp_path, net):
     pages, _ = net
     pages["https://nc.example.net/a"] = page(1, BY_NC)
-    s = session(tmp_path, HarvestPolicy(research_only=True))
+    s = session(tmp_path)
     s.enqueue_seeds([SourceSpec("https://nc.example.net/a", subject="math")])
     s.run_once(max_items=5)
-    assert statuses(s)["https://nc.example.net/a"]["status"] == "rejected_license"
-    assert not s.corpus.search("fractions")                       # the product corpus never sees it
-    assert s.research_corpus is not None and s.research_corpus.path != s.corpus.path
-    hits = s.research_corpus.search("fractions")
-    assert hits and hits[0].meta.get("research_only") is True
-    assert not list((tmp_path / "courses").glob("*/*"))           # and nothing is exported
+    assert statuses(s)["https://nc.example.net/a"]["status"] == "diverted_research"
+    assert not s.corpus.search("fractions")                       # the product corpus never sees the text
+    assert s.research_corpus.role == "research" and s.corpus.role == "product"
+    hits = s.research_corpus.search("fractions", internal_use=True)
+    assert hits and hits[0].meta.get("corpus") == "research" and hits[0].meta.get("internal_only") is True
+    assert not list((tmp_path / "courses").glob("*/*"))           # nothing is exported or turned into a course
+    manifest = s.research_corpus.training_manifest()
+    assert len(manifest) == 1 and manifest[0]["corpus"] == "research" and manifest[0]["license_tier"] == "non_commercial"
+    assert manifest[0]["content_hash"] and manifest[0]["chunks"] > 0
 
 
-def test_research_only_is_off_by_default(tmp_path, net):
-    assert session(tmp_path).research_corpus is None
+def test_research_corpus_is_on_by_default_and_can_be_switched_off(tmp_path, net):
+    assert session(tmp_path / "on").research_corpus is not None
+    off = session(tmp_path / "off", HarvestPolicy(research_enabled=False))
+    assert off.research_corpus is None
+    pages, _ = net
+    pages["https://nc.example.net/a"] = page(1, BY_NC)
+    off.enqueue_seeds([SourceSpec("https://nc.example.net/a", subject="math")])
+    m = off.run_once(max_items=5)
+    assert statuses(off)["https://nc.example.net/a"]["status"] == "rejected_license"
+    assert m.research_diverted == 0
 
 
 def test_children_of_a_page_do_not_inherit_its_license(tmp_path, net):

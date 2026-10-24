@@ -151,8 +151,9 @@ def test_denylisted_hosts_are_never_requested(monkeypatch):
     monkeypatch.setenv("HARVEST_USER_AGENT", GOOD_UA)
     called = []
     monkeypatch.setattr(fetcher.urllib.request, "urlopen", lambda *a, **k: called.append(a))
-    for url in ("https://www.khanacademy.org/math", "https://openstax.org/books/x", "https://ocw.mit.edu/a",
-                "https://www.coursera.org/learn/x", "https://www.youtube.com/watch?v=1", "https://arxiv.org/abs/1"):
+    for url in ("https://www.khanacademy.org/math", "https://www.udemy.com/course/x", "https://ck12.org/book/x",
+                "https://www.coursera.org/learn/x", "https://www.youtube.com/watch?v=1", "https://arxiv.org/abs/1",
+                "https://www.edx.org/learn/x", "https://www.linkedin.com/learning/x"):
         with pytest.raises(FetchBlocked, match="do-not-harvest"):
             fetcher.fetch_page(SourceSpec(url))
     assert called == []
@@ -196,9 +197,10 @@ def test_extract_links_skips_denied_and_login_links():
 # ------------------------------------------------------------ registry
 
 def test_denylist_matches_subdomains_but_not_lookalikes():
-    assert is_denied("https://www.khanacademy.org/x") and is_denied("https://ocw.mit.edu/courses")
-    assert is_denied("https://openstax.org/details/books") and is_denied("https://cnx.openstax.org/x")
-    assert is_denied("youtu.be") and is_denied("https://www.coursera.org/")
+    assert is_denied("https://www.khanacademy.org/x") and is_denied("https://sub.khanacademy.org/x")
+    assert is_denied("youtu.be") and is_denied("https://www.coursera.org/") and is_denied("https://ck12.org/b")
+    # Non-commercial but lawful to read: NOT denied. The page check sends them to the research corpus.
+    assert not is_denied("https://openstax.org/details/books") and not is_denied("https://ocw.mit.edu/courses")
     assert not is_denied("https://notkhanacademy.org/") and not is_denied("https://mit.edu/")
     assert not is_denied("u1")           # opaque test ids are not hosts
 
@@ -218,3 +220,8 @@ def test_registry_never_vets_a_denied_host():
     summary = registry_summary()
     assert not set(summary["vetted"]) & set(summary["denied"])
     assert not set(summary["per_item"]) & set(summary["denied"])
+    from aoep_shared.harvest.vetted_sources import RESEARCH_EXPECTED
+
+    expected = {d.domain for d in RESEARCH_EXPECTED}
+    assert {"openstax.org", "ocw.mit.edu"} <= expected
+    assert not expected & set(summary["denied"]) and not expected & set(summary["vetted"])

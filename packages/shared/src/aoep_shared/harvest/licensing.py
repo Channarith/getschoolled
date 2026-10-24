@@ -6,13 +6,24 @@ we may use commercially and adapt into courses. The old flat allowlist treated
 This module replaces it:
 
   Tier.COMMERCIAL_OK   CC0, public domain, CC BY, MIT, Apache-2.0, BSD
-  Tier.SHARE_ALIKE     CC BY-SA, GFDL (commercial use needs attribution AND the
-                       derivative course must carry the same license); only
-                       ingested when the policy switch is on
-  Tier.NON_COMMERCIAL  any NC variant        -> rejected for the product
+  Tier.SHARE_ALIKE     CC BY-SA, GFDL (commercial use needs attribution AND the derivative
+                       course must carry the same license); product corpus only when the
+                       policy switch is on, otherwise research corpus
+  Tier.NON_COMMERCIAL  any NC variant        -> RESEARCH corpus only, never the product
   Tier.NO_DERIVATIVES  ND without NC         -> rejected (we adapt content)
   Tier.PROPRIETARY     all rights reserved   -> rejected
   Tier.UNKNOWN         unparseable / empty / "oer" -> rejected
+
+TWO CORPORA, ONE HARD WALL
+  PRODUCT corpus   commercial-OK tier only (plus share-alike when the owner turns it on). The only
+                   corpus that may be published to the catalog, translated for customers or shown
+                   in the apps.
+  RESEARCH corpus  non-commercial (and share-alike while that switch is off) text that is lawful to
+                   read. Internal model evaluation and training experiments only. Never published,
+                   never behind an API, never mixed into course catalogs. Separate database file;
+                   corpus_store enforces the wall and publishing re-asserts it.
+  Rejected outright in both: all rights reserved, no-derivatives, unknown or empty license,
+  login/paywalled pages, noai/noindex pages, and the do-not-harvest hosts.
 
 A license string supplied by a seed list is a CLAIM. It is only trusted when
 the page itself says the same thing (link rel=license, meta tags, schema.org
@@ -210,12 +221,23 @@ def _clean_url(raw: str) -> str:
 @dataclass(frozen=True)
 class HarvestPolicy:
     allow_share_alike: bool = False     # default OFF until the owner decides (legal review)
-    research_only: bool = False         # keep rejected material in a never-published research corpus
+    research_enabled: bool = True       # keep non-product-but-lawful text in the research corpus (ON by default)
 
     def tier_allowed(self, tier: Tier) -> bool:
+        """May this tier enter the PRODUCT corpus?"""
         if tier is Tier.COMMERCIAL_OK:
             return True
         return tier is Tier.SHARE_ALIKE and self.allow_share_alike
+
+    def research_eligible(self, tier: Tier) -> bool:
+        """May this tier enter the RESEARCH corpus? (non-commercial, or share-alike while it is off)"""
+        if not self.research_enabled:
+            return False
+        return tier is Tier.NON_COMMERCIAL or (tier is Tier.SHARE_ALIKE and not self.allow_share_alike)
+
+
+PRODUCT_CORPUS = "product"
+RESEARCH_CORPUS = "research"
 
 
 def _truthy(value: Optional[str]) -> bool:
@@ -226,13 +248,14 @@ def policy_from_env(env: Optional[dict] = None) -> HarvestPolicy:
     env = os.environ if env is None else env
     return HarvestPolicy(
         allow_share_alike=_truthy(env.get("AOEP_HARVEST_ALLOW_SHARE_ALIKE")),
-        research_only=_truthy(env.get("AOEP_HARVEST_RESEARCH_ONLY")),
+        # On unless explicitly switched off with AOEP_HARVEST_RESEARCH=0.
+        research_enabled=(env.get("AOEP_HARVEST_RESEARCH", "1").strip().lower() not in {"0", "false", "no", "off"}),
     )
 
 
 @dataclass
 class Decision:
-    action: str                       # "ingest" | "research_only" | "reject"
+    action: str                       # "ingest" (product corpus) | "research" (research corpus) | "reject"
     reason: str
     info: LicenseInfo = UNKNOWN_LICENSE
     obligations: List[str] = field(default_factory=list)
@@ -242,8 +265,17 @@ class Decision:
     def ingest(self) -> bool:
         return self.action == "ingest"
 
+    @property
+    def research(self) -> bool:
+        return self.action == "research"
+
+    @property
+    def corpus(self) -> str:
+        """Which corpus this decision sends the material to ('' when rejected)."""
+        return PRODUCT_CORPUS if self.ingest else RESEARCH_CORPUS if self.research else ""
+
     def to_dict(self) -> dict:
-        return {"action": self.action, "reason": self.reason, "license": self.info.to_dict(),
+        return {"action": self.action, "corpus": self.corpus, "reason": self.reason, "license": self.info.to_dict(),
                 "obligations": list(self.obligations), "conflict": self.conflict}
 
 
@@ -262,16 +294,16 @@ def decide(info: LicenseInfo, policy: Optional[HarvestPolicy] = None, *, conflic
     """Turn a (verified) license into a decision for the product pipeline."""
     policy = policy or HarvestPolicy()
     if conflict:
-        d = Decision("reject", "conflicting license evidence on the page", info, conflict=True)
-    elif policy.tier_allowed(info.tier):
+        return Decision("reject", "conflicting license evidence on the page", info, conflict=True)
+    if policy.tier_allowed(info.tier):
         return Decision("ingest", f"{info.spdx} is {info.tier.value}", info, obligations_for(info))
-    elif info.tier is Tier.SHARE_ALIKE:
-        d = Decision("reject", f"{info.spdx} is share-alike and harvest.allow_share_alike is off", info)
-    else:
-        d = Decision("reject", f"{info.spdx or 'unknown license'} is {info.tier.value}", info)
-    if policy.research_only:
-        d.action = "research_only"
-    return d
+    if policy.research_eligible(info.tier):
+        why = ("share-alike and harvest.allow_share_alike is off" if info.tier is Tier.SHARE_ALIKE
+               else "non-commercial: not for the product")
+        return Decision("research", f"{info.spdx}: {why}; kept in the research corpus only", info)
+    if info.tier is Tier.SHARE_ALIKE:
+        return Decision("reject", f"{info.spdx} is share-alike and harvest.allow_share_alike is off", info)
+    return Decision("reject", f"{info.spdx or 'unknown license'} is {info.tier.value}", info)
 
 
 # -------------------------------------------------------- page detection
@@ -521,3 +553,28 @@ def registered_host_matches(host: str, patterns: Iterable[str]) -> Optional[str]
         if host == pat or host.endswith("." + pat):
             return pat
     return None
+
+
+def assert_product_safe(
+    *,
+    license: Optional[str] = None,
+    tier: Optional[str] = None,
+    corpus: Optional[str] = None,
+    policy: Optional[HarvestPolicy] = None,
+) -> None:
+    """Publish-time assertion of the wall: raise unless this course may reach the catalog.
+
+    A course is refused when it came from the research corpus, when its recorded tier is
+    non-commercial / no-derivatives / proprietary / unknown, when it is share-alike while that
+    switch is off, or (with no recorded tier) when its declared license parses to any of those."""
+    from .errors import CorpusWallError
+
+    policy = policy or policy_from_env()
+    if corpus == RESEARCH_CORPUS:
+        raise CorpusWallError("a research-corpus course can never be published")
+    try:
+        resolved = Tier(tier) if tier else parse_license(license).tier
+    except ValueError:
+        resolved = parse_license(license).tier
+    if not policy.tier_allowed(resolved):
+        raise CorpusWallError(f"{resolved.value} license ({license!r}) is not product-safe")

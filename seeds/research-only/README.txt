@@ -1,6 +1,8 @@
-RESEARCH-ONLY SEEDS. NOT FOR THE PRODUCT CATALOG.
+RESEARCH-CORPUS SEEDS. NOT FOR THE PRODUCT CATALOG.
 
-These sources are licensed CC BY-NC-SA / CC BY-NC (non-commercial). Salareen sells
-subscriptions, so the harvester rejects them in the normal pipeline. They may only be read
-when AOEP_HARVEST_RESEARCH_ONLY=1, which writes to a separate research corpus that is never
-published or served. See docs/harvest-sources.txt. Not legal advice.
+These sources are licensed CC BY-NC-SA / CC BY-NC (non-commercial). Salareen sells subscriptions, so
+the page check sends them to the RESEARCH corpus (a separate database file, on by default): internal
+model evaluation and training experiments only, never published, never behind an API, never mixed
+into course catalogs. Pass this file with --seeds to crawl it. See docs/harvest-sources.txt.
+Models trained on this text may carry restrictions for commercial use: legal review item.
+Not legal advice.

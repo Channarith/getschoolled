@@ -11,8 +11,14 @@ LICENSE SAFETY (read before running at scale; details in docs/harvest-sources.tx
   - A license in a seed file is only a CLAIM. The fetched page has to show the same license
     (link rel=license, meta tags, schema.org, JSON-LD, footer) or the host must be a vetted site
     (aoep_shared/harvest/vetted_sources.py). Conflicting evidence rejects the page.
-  - Do-not-harvest hosts (OpenStax, Khan Academy, MIT OCW, CK-12, Coursera, edX, Udemy, YouTube,
-    arXiv and others) are never fetched. OpenStax is CC BY-NC-SA 4.0, not CC BY.
+  - Do-not-harvest hosts (Khan Academy, CK-12, Coursera, edX, Udemy, Skillshare, LinkedIn, YouTube,
+    Vimeo, arXiv and others) are never fetched into ANY corpus. OpenStax and MIT OCW are CC BY-NC-SA
+    (OpenStax is NOT CC BY): they are fetched, and the page's license sends them to the RESEARCH corpus.
+  - TWO CORPORA, ONE HARD WALL. The PRODUCT corpus (harvest_corpus.db) only takes commercial-use sources.
+    The RESEARCH corpus (harvest_research_corpus.db, a separate file, ON by default) takes non-commercial
+    text that is lawful to read: internal model experiments only, never published, never behind an API,
+    never mixed into catalogs. A model trained on research text may be restricted for commercial use:
+    legal review item, and save corpus_store training_manifest() next to any such model.
   - HARVEST_USER_AGENT must name a real contact, for example
     "SalareenHarvester/1.0 (+https://www.salareen.com/contact)". The crawler refuses to start
     without it. robots.txt, Crawl-delay, a per-host delay (HARVEST_HOST_DELAY), noai/noindex,
@@ -22,9 +28,10 @@ LICENSE SAFETY (read before running at scale; details in docs/harvest-sources.tx
   - Audit existing corpora on EVERY machine before trusting them:
       python3 scripts/harvest_license_audit.py            # read-only report
       python3 scripts/harvest_license_audit.py --apply    # quarantine (reversible, deletes nothing)
-  - Policy switches (both default OFF): AOEP_HARVEST_ALLOW_SHARE_ALIKE=1 / --allow-share-alike;
-    AOEP_HARVEST_RESEARCH_ONLY=1 / --research-only (keeps rejected pages in a separate research
-    corpus file that is never published).
+  - Policy switches: AOEP_HARVEST_ALLOW_SHARE_ALIKE=1 / --allow-share-alike (default OFF, needs legal
+    review); AOEP_HARVEST_RESEARCH=0 / --no-research turns the research corpus off (default ON).
+  - Move legacy non-commercial text into the research corpus (copies only; product DB untouched):
+      python3 scripts/harvest_license_audit.py --migrate-research output/harvest/harvest_research_corpus.db
 
 PIPELINE (aoep_shared/harvest)
   seeds -> HarvestQueue (URL dedup) -> HarvestWorker.process per source:
@@ -127,12 +134,12 @@ MILLION-TOPIC BACKLOG
 
   Named university courses (Stanford Engineering Everywhere, CC BY-NC-SA, and
   Berkeley CS 61A / Data 8 materials) are in seeds/research-only/university-courses.jsonl.
-  They are non-commercial, so the normal pipeline REJECTS them. They are only read with
-  --research-only, into a separate research corpus that is never published:
+  They are non-commercial, so they never enter the product corpus: the page check sends them to the
+  RESEARCH corpus (internal experiments only, never published):
 
-    python3 services/harvester/src/harvester/run.py --crawl --research-only \\
+    python3 services/harvester/src/harvester/run.py --crawl \\
       --seeds seeds/research-only/university-courses.jsonl \\
-      --out-dir output/harvest-research
+      --out-dir output/harvest
 
   Caltech's public courses are not in that file. Learning From Data is
   CC BY-NC-ND, and the Feynman Lectures are free to read online only. Both

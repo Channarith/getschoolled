@@ -502,6 +502,7 @@ class GeneratedCourse:
         }
         if self.provenance:
             d["provenance"] = self.provenance
+            d["corpus"] = self.provenance.get("corpus", "product")
             d["license_tier"] = self.provenance.get("license_tier", "")
             d["license_obligations"] = list(self.provenance.get("obligations") or [])
             d["attribution"] = (self.provenance.get("attribution") or {}).get("text", "")
@@ -529,6 +530,7 @@ class GeneratedCourse:
             payload["meta_lesson_index"] = self.lesson_index
             payload["meta_lesson_count"] = self.lesson_count
         if self.provenance:
+            payload["meta_corpus"] = self.provenance.get("corpus", "product")
             payload["meta_license_tier"] = self.provenance.get("license_tier", "")
             payload["meta_license_id"] = (self.provenance.get("license") or {}).get("spdx", "")
             payload["meta_attribution"] = (self.provenance.get("attribution") or {}).get("text", "")

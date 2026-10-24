@@ -12,7 +12,7 @@ from typing import Dict, Optional
 from .corpus_store import HarvestCorpusStore
 from .critique import HarvestCritic
 from .discovery import discover_topic
-from .errors import HarvestConfigError
+from .errors import CorpusWallError, HarvestConfigError
 from .extractors import extract
 from .fetcher import extract_links, fetch_url
 from .generate import (
@@ -39,6 +39,7 @@ class CrawlMetrics:
     indexed_chunks: int = 0
     errors: int = 0
     skipped_license: int = 0
+    research_diverted: int = 0     # pages kept in the research corpus (never the product)
 
     def to_dict(self) -> Dict:
         return {
@@ -48,6 +49,7 @@ class CrawlMetrics:
             "indexed_chunks": self.indexed_chunks,
             "errors": self.errors,
             "skipped_license": self.skipped_license,
+            "research_diverted": self.research_diverted,
         }
 
 
@@ -61,9 +63,10 @@ class CrawlSession:
     expand_links: bool = True
     max_slides_per_lesson: int = MAX_SLIDES_PER_LESSON
     metrics: CrawlMetrics = field(default_factory=CrawlMetrics)
-    # Commercial-use policy (harvest.allow_share_alike / research_only, default both OFF).
+    # License policy: harvest.allow_share_alike (default OFF) and harvest.research_enabled (default ON).
     policy: HarvestPolicy = field(default_factory=policy_from_env)
-    # Optional separate corpus for material we may read but must never publish.
+    # The research corpus: a separate database for non-commercial text that is lawful to read. Internal
+    # experiments only; never published, never exposed, never mixed into the product corpus.
     research_corpus: Optional[HarvestCorpusStore] = None
 
     def enqueue_topic(self, topic: str, *, include_portals: bool = True) -> int:
@@ -135,29 +138,36 @@ class CrawlSession:
         return Verification(d, parse_license(spec.license), UNKNOWN_LICENSE, "", d.reason), None
 
     def _reject(self, spec: SourceSpec, raw: bytes, ver: Verification, scan, prov: Provenance) -> dict:
-        """Record why a page was refused. No chunks and no course are stored for it."""
-        self.metrics.skipped_license += 1
+        """A page that is not product-safe: divert it to the research corpus or record why it was refused.
+
+        Either way the PRODUCT corpus only gets a metadata row (URL, license, evidence): no chunks, no
+        course, no text. The research copy goes to a separate database file."""
+        diverted = ver.decision.research and self.research_corpus is not None
         self.corpus.upsert_source(
             url=spec.url, license=spec.license, subject=spec.subject, title=spec.title,
             source_type=spec.source_type, content_hash=prov.content_hash,
-            status="rejected_license", meta={"reason": ver.decision.reason},
-            provenance=prov.to_dict(),
+            status="diverted_research" if diverted else "rejected_license",
+            meta={"reason": ver.decision.reason}, provenance=prov.to_dict(),
         )
-        # Read-only research copy, only when the owner turned research_only on. Never published.
-        if ver.decision.action == "research_only" and self.research_corpus is not None:
+        if not diverted:
+            self.metrics.skipped_license += 1
+        if diverted:
             try:
                 doc = extract(spec.source_type, raw, default_title=spec.title or spec.url)
                 text = "\n\n".join(f"{heading}\n{body}" for heading, body in doc.nonempty_sections())
                 self.research_corpus.upsert_source(
-                    url=spec.url, license=spec.license, title=spec.title, source_type=spec.source_type,
-                    content_hash=prov.content_hash, status="research_only", provenance=prov.to_dict(),
+                    url=spec.url, license=spec.license, subject=spec.subject, title=spec.title,
+                    source_type=spec.source_type, content_hash=prov.content_hash, status="research",
+                    meta={"reason": ver.decision.reason}, provenance=prov.to_dict(),
                 )
                 self.research_corpus.index_document(
                     url=spec.url, title=spec.title or spec.url, text=text, subject=spec.subject or "general",
-                    meta={"research_only": True},
+                    meta={"corpus": "research", "internal_only": True},
                 )
+                self.metrics.research_diverted += 1
             except sqlite3.Error:
-                pass   # the research copy is best-effort; the rejection itself is already recorded
+                self.metrics.errors += 1   # the research copy failed; the product corpus is untouched
+            return {"status": "diverted_research", "reason": ver.decision.reason, "url": spec.url}
         return {"status": "rejected_license", "reason": ver.decision.reason, "url": spec.url}
 
     def _process_record(self, spec: SourceSpec, raw: bytes) -> dict:
@@ -434,13 +444,17 @@ def open_crawl_session(
     if corpus_path is None:
         env = os.environ.get("AOEP_HARVEST_CORPUS_DB", "").strip()
         corpus_path = Path(env) if env else out / "harvest_corpus.db"
-    corpus = HarvestCorpusStore(corpus_path)
+    corpus = HarvestCorpusStore(corpus_path, role="product", policy=policy)
     root = repo_root or Path.cwd()
     research = None
-    if policy.research_only:
-        # Separate file on purpose: research-only text must never share a database that is
-        # searched by tutoring or exported as courses.
-        research = HarvestCorpusStore(corpus_path.with_name(corpus_path.stem + "_research_only.db"))
+    if policy.research_enabled:
+        # A separate file on purpose: research text must never share a database that is searched by
+        # tutoring, exported as courses or published. The role is stamped into the file.
+        env_r = os.environ.get("AOEP_HARVEST_RESEARCH_DB", "").strip()
+        research_path = Path(env_r) if env_r else out / "harvest_research_corpus.db"
+        if research_path.resolve() == Path(corpus_path).resolve():
+            raise CorpusWallError("the research corpus must be a different file from the product corpus")
+        research = HarvestCorpusStore(research_path, role="research", policy=policy)
     return CrawlSession(
         corpus=corpus,
         queue=PersistentHarvestQueue(corpus, ShardFilter.from_env()),

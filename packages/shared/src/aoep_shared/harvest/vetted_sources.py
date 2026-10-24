@@ -89,14 +89,12 @@ class Denied:
     basis_url: str = ""
 
 
-# Never harvested for the product. (A research-only corpus is a separate, opt-in switch.)
+# Never harvested into ANY corpus (product or research). Non-commercial sources that are lawful to read
+# (OpenStax, MIT OCW) are NOT here: their pages carry the license, the page check sends them to the
+# research corpus. Khan Academy stays out because its Terms of Service forbid scraping and AI training.
 DENYLIST: Tuple[Denied, ...] = (
     Denied("khanacademy.org", "content is CC BY-NC-SA 4.0 and the Terms of Service forbid scraping and AI training use",
            "https://support.khanacademy.org/hc/en-us/articles/42929097425037-What-s-allowed-and-not-allowed-under-Khan-Academy-s-Terms-of-Service"),
-    Denied("openstax.org", "textbooks are CC BY-NC-SA 4.0 (non-commercial); commercial use needs OpenStax permission",
-           "https://help.openstax.org/s/article/Licensing-information-of-OpenStax-textbooks"),
-    Denied("ocw.mit.edu", "MIT OpenCourseWare is CC BY-NC-SA 4.0: commercial use not permitted",
-           "https://ocw.mit.edu/pages/privacy-and-terms-of-use/"),
     Denied("ck12.org", "CK-12 content is CC BY-NC-SA 3.0 / CK-12 curriculum materials license (non-commercial)",
            "https://info.ck12.org/terms-of-use"),
     Denied("coursera.org", "proprietary platform content; terms of service do not grant reuse"),
@@ -115,6 +113,16 @@ DENYLIST: Tuple[Denied, ...] = (
            "https://info.arxiv.org/help/license/reuse.html"),
 )
 
+# Known non-commercial sources, lawful to read: research corpus only. The page's own license still decides;
+# this table documents why they are expected to land in the research corpus (and the seed files use it).
+RESEARCH_EXPECTED: Tuple[Denied, ...] = (
+    Denied("openstax.org", "textbooks are CC BY-NC-SA 4.0 (non-commercial); commercial use needs OpenStax permission",
+           "https://help.openstax.org/s/article/Licensing-information-of-OpenStax-textbooks"),
+    Denied("ocw.mit.edu", "MIT OpenCourseWare is CC BY-NC-SA 4.0: commercial use not permitted",
+           "https://ocw.mit.edu/pages/privacy-and-terms-of-use/"),
+    Denied("see.stanford.edu", "Stanford Engineering Everywhere course pages are CC BY-NC-SA"),
+)
+
 # Hosts whose license is per item: allowed only when the page itself carries the license.
 PER_ITEM_HOSTS: Tuple[str, ...] = (
     "libretexts.org", "oercommons.org", "open.umn.edu", "archive.org", "saylor.org", "learn.saylor.org",
@@ -128,6 +136,16 @@ def is_denied(url_or_host: str) -> Optional[Denied]:
         return None
     hit = registered_host_matches(host, (d.domain for d in DENYLIST))
     return next((d for d in DENYLIST if d.domain == hit), None) if hit else None
+
+
+def research_expected_for(url_or_host: str) -> Optional[Denied]:
+    """A known non-commercial source (OpenStax, MIT OCW, ...): its text belongs in the research corpus only."""
+    host = url_or_host if "/" not in url_or_host and ":" not in url_or_host else host_of(url_or_host)
+    host = (host or "").lower()
+    if not host:
+        return None
+    hit = registered_host_matches(host, (d.domain for d in RESEARCH_EXPECTED))
+    return next((d for d in RESEARCH_EXPECTED if d.domain == hit), None) if hit else None
 
 
 def vetted_for(url: str) -> Optional[VettedSource]:

@@ -24,6 +24,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional, Protocol, Tuple
 
+from .bundle import migrate_index
+from .errors import CorpusWallError
+from .licensing import assert_product_safe
 from .objectstore import ObjectStore, course_key, unpack_course
 
 Transport = Callable[[str, str, Optional[dict], Dict[str, str]], Tuple[int, Dict[str, str], bytes]]
@@ -123,7 +126,8 @@ class ObjectStoreIndexSink:
 
 
 def build_payload(
-    course: dict, *, sha: str, tier: int, subject: str = "", source_url: str = ""
+    course: dict, *, sha: str, tier: int, subject: str = "", source_url: str = "",
+    license_tier: str = "", corpus: str = "product",
 ) -> dict:
     slides = course.get("slides") or []
     first = (slides[0].get("body") if slides else "") or ""
@@ -140,7 +144,9 @@ def build_payload(
             f"tier:{tier}",
             TIER_LABELS.get(tier, "machine-generated"),
         ]
-        + (["source:" + source_url[:80]] if source_url else []),
+        + (["source:" + source_url[:80]] if source_url else [])
+        + [f"corpus:{corpus or 'product'}"]
+        + ([f"license:{license_tier}"] if license_tier else []),
     }
 
 
@@ -220,6 +226,7 @@ class PublishReport:
     retries: int = 0
     breaker_trips: int = 0
     dry_run: int = 0
+    wall_blocked: int = 0       # refused by the product/research wall (should always be 0)
     stopped: str = ""
     errors: List[str] = field(default_factory=list)
 
@@ -242,10 +249,11 @@ class Publisher:
         self.bucket = TokenBucket(self.cfg.rate_per_sec, self.cfg.burst, clock, sleep)
         self.breaker = CircuitBreaker(self.cfg.breaker_failures, self.cfg.breaker_cooldown, clock)
         self.index.executescript(PUBLISH_SCHEMA)
+        migrate_index(self.index)
 
     def _pending(self, limit: int, attempted: set) -> List[sqlite3.Row]:
         rows = self.index.execute(
-            "SELECT c.sha256, c.tier, c.subject, c.source_url FROM courses c "
+            "SELECT c.sha256, c.tier, c.subject, c.source_url, c.license, c.license_tier, c.corpus FROM courses c "
             "LEFT JOIN publish_failures f ON f.sha256=c.sha256 "
             "WHERE c.published_at IS NULL AND f.sha256 IS NULL AND c.tier>=? ORDER BY c.tier DESC, c.subject, c.sha256 LIMIT ?",
             (self.cfg.min_tier, limit + len(attempted)),
@@ -303,6 +311,17 @@ class Publisher:
                     self._sleep(self.breaker.remaining())
                 sha = row["sha256"]
                 try:
+                    # The wall, asserted again at the last moment: nothing from the research corpus and
+                    # nothing whose license is not product-safe is ever sent to the catalog.
+                    assert_product_safe(
+                        license=row["license"], tier=row["license_tier"], corpus=row["corpus"],
+                    )
+                except CorpusWallError as exc:
+                    self._fail(sha, 0, f"wall: {exc}")
+                    report.failed_permanent += 1
+                    report.wall_blocked += 1
+                    continue
+                try:
                     course = unpack_course(self.store.get(course_key(sha)))
                     payload = build_payload(
                         course,
@@ -310,6 +329,8 @@ class Publisher:
                         tier=row["tier"],
                         subject=row["subject"] or "",
                         source_url=row["source_url"] or "",
+                        license_tier=row["license_tier"] or "",
+                        corpus=row["corpus"] or "product",
                     )
                     if self.cfg.dry_run:
                         report.dry_run += 1

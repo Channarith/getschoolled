@@ -7,3 +7,7 @@ class HarvestConfigError(RuntimeError):
 
 class FetchBlocked(PermissionError):
     """A fetch was refused on policy grounds (robots, denylist, login wall, paywall)."""
+
+
+class CorpusWallError(RuntimeError):
+    """Something tried to cross the wall between the product corpus and the research corpus."""

@@ -61,6 +61,7 @@ class Provenance:
     robots: Dict[str, Any] = field(default_factory=dict)
     recipe: Dict[str, Any] = field(default_factory=dict)
     decision: str = ""
+    corpus: str = "product"                # "product" or "research": which side of the wall this came from
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -78,6 +79,7 @@ class Provenance:
             "robots": self.robots,
             "recipe": self.recipe,
             "decision": self.decision,
+            "corpus": self.corpus,
         }
 
     def credits_lines(self) -> List[str]:
@@ -134,6 +136,7 @@ def build_provenance(
         robots=dict(fetch_info.get("robots") or {}),
         recipe=default_recipe(),
         decision=d.action,
+        corpus=d.corpus or "product",
     )
 
 
@@ -147,6 +150,7 @@ def attribution_file(prov: Provenance, *, course_title: str = "") -> str:
         lines += [f"  - {o}" for o in prov.obligations]
         lines.append("")
     lines += [
+        f"Corpus: {prov.corpus}" + ("  (internal research only, never published)" if prov.corpus == "research" else ""),
         f"License tier: {prov.license_tier}",
         f"License evidence: {prov.license.get('evidence', '')} [{prov.license.get('kind', '')}]",
         f"Verified by: {prov.license_verified_by or 'n/a'}",

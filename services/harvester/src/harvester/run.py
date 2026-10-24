@@ -322,13 +322,14 @@ def _crawl(args: argparse.Namespace) -> int:
     env_policy = policy_from_env()
     policy = HarvestPolicy(
         allow_share_alike=bool(getattr(args, "allow_share_alike", False)) or env_policy.allow_share_alike,
-        research_only=bool(getattr(args, "research_only", False)) or env_policy.research_only,
+        research_enabled=env_policy.research_enabled and not bool(getattr(args, "no_research", False)),
     )
     print(
-        "License policy: commercial-use sources only"
+        "License policy: PRODUCT corpus takes commercial-use sources only"
         + (" + share-alike (CC BY-SA, GFDL)" if policy.allow_share_alike else "")
-        + ("; non-commercial/unknown pages are kept in a separate research-only corpus, never published"
-           if policy.research_only else "; non-commercial/unknown pages are rejected"),
+        + ("; non-commercial text goes to the separate RESEARCH corpus (internal only, never published)"
+           if policy.research_enabled else "; research corpus is off: non-commercial pages are skipped")
+        + "; unknown, no-derivatives, all-rights-reserved and paywalled pages are rejected",
         file=sys.stderr,
     )
     session = open_crawl_session(
@@ -561,9 +562,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--allow-share-alike", action="store_true",
                     help="also ingest CC BY-SA / GFDL pages (courses must carry the same license; needs legal review). "
                          "Same as AOEP_HARVEST_ALLOW_SHARE_ALIKE=1")
-    ap.add_argument("--research-only", action="store_true",
-                    help="keep rejected (non-commercial/unknown) pages in a separate research-only corpus that is "
-                         "never published. Same as AOEP_HARVEST_RESEARCH_ONLY=1")
+    ap.add_argument("--no-research", action="store_true",
+                    help="do not keep non-commercial text in the research corpus (it is ON by default: a separate "
+                         "database for internal experiments, never published). Same as AOEP_HARVEST_RESEARCH=0")
     ap.add_argument("--acquire", action="store_true",
                     help="queue and process a rights-verified local catalog import")
     ap.add_argument("--import-path", default=None,

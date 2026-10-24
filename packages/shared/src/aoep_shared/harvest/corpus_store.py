@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .errors import CorpusWallError
+from .licensing import PRODUCT_CORPUS, RESEARCH_CORPUS, HarvestPolicy, Tier, policy_from_env
 from .queue import url_key
 
 _SCHEMA_VERSION = 2
@@ -61,6 +63,20 @@ def default_corpus_path() -> Path:
     if env:
         return Path(env)
     return Path(os.path.expanduser("~")) / ".cache" / "aoep" / "harvest_corpus.db"
+
+
+def default_research_corpus_path() -> Path:
+    """The research corpus is a different file from the product corpus, always."""
+    env = os.environ.get("AOEP_HARVEST_RESEARCH_DB")
+    if env:
+        return Path(env)
+    return Path(os.path.expanduser("~")) / ".cache" / "aoep" / "harvest_research_corpus.db"
+
+
+# Tiers that may never become product-corpus content (text or courses).
+_NEVER_PRODUCT = {Tier.NON_COMMERCIAL.value, Tier.NO_DERIVATIVES.value, Tier.PROPRIETARY.value}
+# Source statuses that record a refusal or a diversion: metadata only, no text.
+_METADATA_ONLY_STATUSES = {"rejected_license", "diverted_research", "rejected"}
 
 
 def _now() -> str:
@@ -117,11 +133,55 @@ class CorpusHit:
 class HarvestCorpusStore:
     """Persistent harvest corpus with FTS-backed ``search()``."""
 
-    def __init__(self, path: Optional[Path] = None) -> None:
+    def __init__(self, path: Optional[Path] = None, *, role: Optional[str] = None,
+                 policy: Optional[HarvestPolicy] = None) -> None:
         self.path = Path(path) if path else default_corpus_path()
+        self.policy = policy      # None: read the environment each time (harvest.allow_share_alike)
         self._lock = threading.RLock()
         self._fts = False
         self._ensure()
+        # "product" (the only corpus that may ever be published) or "research" (internal experiments only).
+        # The role is stored in the file, so a research database can never be opened as the product one.
+        self.role = self._claim_role(role)
+
+    def _claim_role(self, wanted: Optional[str]) -> str:
+        if wanted not in (None, PRODUCT_CORPUS, RESEARCH_CORPUS):
+            raise ValueError(f"unknown corpus role {wanted!r}")
+        with self._lock:
+            conn = self._connect()
+            try:
+                row = conn.execute("SELECT value FROM corpus_meta WHERE key='corpus_role'").fetchone()
+                if row is None:
+                    role = wanted or PRODUCT_CORPUS    # databases from before the wall are product databases
+                    conn.execute("INSERT INTO corpus_meta(key,value) VALUES('corpus_role',?)", (role,))
+                    conn.commit()
+                    return role
+                stored = row[0]
+                if wanted and wanted != stored:
+                    raise CorpusWallError(
+                        f"{self.path} is a {stored} corpus and cannot be opened as the {wanted} corpus")
+                return stored
+            finally:
+                conn.close()
+
+    def _source_tier(self, conn: sqlite3.Connection, key: str) -> Optional[str]:
+        row = conn.execute("SELECT license_tier FROM sources WHERE url_key=?", (key,)).fetchone()
+        return row[0] if row else None
+
+    def _wall_check_tier(self, tier: Optional[str], *, what: str) -> None:
+        """Refuse content that belongs on the other side of the wall. ``what``: source | text | course."""
+        if self.role == RESEARCH_CORPUS:
+            if what == "course":
+                raise CorpusWallError("the research corpus holds source text only, never courses")
+            if tier not in (Tier.NON_COMMERCIAL.value, Tier.SHARE_ALIKE.value):
+                raise CorpusWallError(
+                    f"the research corpus only takes non-commercial or share-alike sources (this one is {tier!r}); "
+                    "product-safe material belongs in the product corpus")
+            return
+        policy = self.policy or policy_from_env()
+        if tier in _NEVER_PRODUCT or (tier == Tier.SHARE_ALIKE.value and not policy.allow_share_alike):
+            raise CorpusWallError(
+                f"a {tier} source cannot become product-corpus {what}; it belongs in the research corpus")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self.path), check_same_thread=False)
@@ -231,6 +291,13 @@ class HarvestCorpusStore:
         key = url_key(url)
         prov = provenance or {}
         lic = prov.get("license") or {}
+        tier = lic.get("tier")
+        if tier and status not in _METADATA_ONLY_STATUSES:
+            self._wall_check_tier(tier, what="source")
+        if self.role == RESEARCH_CORPUS and not tier:
+            raise CorpusWallError("a research source needs a verified license tier (provenance)")
+        if tier:
+            prov = {**prov, "corpus": self.role}
         with self._lock:
             conn = self._connect()
             try:
@@ -293,6 +360,9 @@ class HarvestCorpusStore:
         with self._lock:
             conn = self._connect()
             try:
+                tier = self._source_tier(conn, key)
+                if self.role == RESEARCH_CORPUS or tier:
+                    self._wall_check_tier(tier, what="text")
                 conn.execute("DELETE FROM chunks WHERE url_key=? AND course_id IS ?",
                              (key, course_id))
                 for i, body in enumerate(chunks):
@@ -338,6 +408,11 @@ class HarvestCorpusStore:
         with self._lock:
             conn = self._connect()
             try:
+                if self.role == RESEARCH_CORPUS:
+                    raise CorpusWallError("the research corpus holds source text only, never courses")
+                tier = self._source_tier(conn, key) or (license_tier or None)
+                if tier:     # legacy rows with no recorded tier are handled by the license audit
+                    self._wall_check_tier(tier, what="course")
                 conn.execute(
                     """
                     INSERT INTO courses(course_id,url_key,title,subject,composition_score,
@@ -376,8 +451,14 @@ class HarvestCorpusStore:
                 course_id=course_id, meta={"kind": "course"},
             )
 
-    def search(self, query: str, *, top_k: int = 8, subject: Optional[str] = None) -> List[CorpusHit]:
-        """RAG retrieval over indexed chunks."""
+    def search(self, query: str, *, top_k: int = 8, subject: Optional[str] = None,
+               internal_use: bool = False) -> List[CorpusHit]:
+        """RAG retrieval over indexed chunks.
+
+        The research corpus can only be searched by internal evaluation code that says so with
+        ``internal_use=True``; nothing user-facing may pass that flag."""
+        if self.role == RESEARCH_CORPUS and not internal_use:
+            raise CorpusWallError("the research corpus is internal: search it with internal_use=True, never from a product path")
         q = (query or "").strip()
         if not q:
             return []
@@ -522,6 +603,34 @@ class HarvestCorpusStore:
                 return topics
             finally:
                 conn.close()
+
+    def training_manifest(self) -> List[Dict[str, Any]]:
+        """One record per source text held here, so a model's training data can be audited.
+
+        Records carry the corpus, license, tier, evidence, content hash and fetch time. A model
+        trained on research-corpus text should ship this manifest next to its weights."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                cols = {r[1] for r in conn.execute("PRAGMA table_info(sources)")}
+                sel = [c for c in ("license_tier", "license_id", "license_url", "license_evidence",
+                                   "license_verified_by", "canonical_url", "attribution_json") if c in cols]
+                rows = conn.execute(
+                    "SELECT s.url, s.license, s.content_hash, s.fetched_at, s.status"
+                    + "".join(f", s.{c}" for c in sel)
+                    + ", (SELECT COUNT(*) FROM chunks c WHERE c.url_key=s.url_key) AS chunks "
+                    "FROM sources s WHERE s.status NOT IN ('rejected_license','rejected','diverted_research') "
+                    "ORDER BY s.url").fetchall()
+            finally:
+                conn.close()
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            attribution = d.pop("attribution_json", None)
+            d["attribution"] = json.loads(attribution).get("text", "") if attribution else ""
+            d["corpus"] = self.role
+            out.append(d)
+        return out
 
     def stats(self) -> Dict[str, int]:
         with self._lock:

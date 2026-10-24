@@ -10,6 +10,7 @@ quarantined sources drop out of RAG retrieval).
   python3 scripts/harvest_license_audit.py --apply               # mark quarantine candidates
   python3 scripts/harvest_license_audit.py --apply --include-needs-review
   python3 scripts/harvest_license_audit.py --restore             # undo --apply (audit: rows only)
+  python3 scripts/harvest_license_audit.py --migrate-research R.db   # copy non-commercial text into the research corpus
   python3 scripts/harvest_license_audit.py --courses-dir output/harvest/courses
 
 Usual locations: output/harvest/harvest_corpus.db and ~/.cache/aoep/harvest_corpus.db
@@ -35,6 +36,7 @@ from aoep_shared.harvest.license_audit import (  # noqa: E402
     apply_quarantine,
     audit_db,
     manifest,
+    migrate_to_research,
     restore_quarantine,
     scan_course_files,
 )
@@ -62,6 +64,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--include-needs-review", action="store_true", help="with --apply: also quarantine needs_review")
     ap.add_argument("--restore", action="store_true", help="undo --apply (only rows marked by this audit)")
     ap.add_argument("--allow-share-alike", action="store_true", help="treat CC BY-SA / GFDL as usable")
+    ap.add_argument("--migrate-research", metavar="RESEARCH_DB",
+                    help="copy research-eligible (non-commercial) text into this research corpus file; "
+                         "never touches the product database, courses are not copied")
     ap.add_argument("--courses-dir", help="also scan *.course.json packages under this folder")
     ap.add_argument("--json", action="store_true", help="print the full JSON report to stdout")
     args = ap.parse_args(argv)
@@ -92,6 +97,8 @@ def main(argv: list[str] | None = None) -> int:
         print(report.text())
         if args.courses_dir:
             print("course packages:", json.dumps(scan_course_files(args.courses_dir, report)))
+        if args.migrate_research:
+            print(f"{db} -> {args.migrate_research}: {migrate_to_research(db, args.migrate_research, report, policy)}")
         if args.apply:
             print(f"{db}: {apply_quarantine(db, report, include=include)}")
         elif report.by_bucket.get(BUCKET_QUARANTINE):

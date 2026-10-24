@@ -6,6 +6,44 @@ NOT LEGAL ADVICE. This is a technical summary of what each source's own pages sa
 Share-alike, attribution wording, derivative-course handling, and whether AI generation
 counts as an adaptation all need the owner's legal review before anything ships.
 
+OWNER DECISIONS (2026-10-24)
+  1. Goal: 1,000,000 multi-lesson courses (about 8 decks each).
+  2. Sources: "approve commercial and non commercial". Implemented as TWO SEPARATE CORPORA with a hard wall,
+     because that is the only way a paid product can use non-commercial text at all:
+       PRODUCT corpus   commercial-OK tier only (CC0, public domain, CC BY, MIT, Apache, BSD, US federal
+                        works). Share-alike (CC BY-SA, GFDL) stays behind harvest.allow_share_alike, default
+                        OFF pending legal review. The ONLY corpus that may be published to the catalog,
+                        translated for customers, or shown in the apps.
+       RESEARCH corpus  non-commercial text (CC BY-NC, BY-NC-SA) and share-alike text while that switch is
+                        off, that is lawful to read. ON by default. Internal model evaluation and training
+                        experiments only. Never published, never behind an API, never mixed into course
+                        catalogs.
+     Rejected outright in both: all rights reserved, no-derivatives, unknown or empty license, login-walled or
+     paywalled pages, noai/noindex pages, and the do-not-harvest hosts (Coursera, edX, Udemy, YouTube/Vimeo
+     captions, Khan Academy because its Terms of Service forbid scraping and AI training, CK-12 and arXiv
+     because their reuse terms are unclear or absent).
+  3. How the wall is enforced in code (aoep_shared/harvest):
+     - separate database FILES. The role (product or research) is stamped into each file; a research file
+       cannot be opened as the product corpus, and the crawler refuses to point both at one path.
+     - corpus_store: the product corpus refuses text or courses from non-commercial, no-derivatives or
+       proprietary sources (and share-alike while the switch is off). The research corpus refuses courses,
+       refuses product-safe tiers, refuses sources without a verified tier, and can only be searched with
+       internal_use=True.
+     - export_bundle refuses a research database; import_bundle rejects research-marked records and refuses to
+       run with the old "allow non-commercial" override; the Publisher re-asserts assert_product_safe on every
+       row at publish time and records a wall_blocked failure instead of publishing.
+     - every artifact records its corpus: provenance (corpus field), course JSON ("corpus"), ATTRIBUTION.txt
+       ("Corpus: ..."), bundle provenance, publish tags ("corpus:product").
+  4. LEGAL-REVIEW ITEMS (not decided here, not legal advice):
+     - MODEL WEIGHTS trained on research-corpus text may carry restrictions for commercial use. A
+       non-commercial license can follow the text into derived models. Until counsel says otherwise, treat any
+       model trained or fine-tuned on research-corpus text as internal-only, and do not ship it in the product.
+     - Keep an audit trail: corpus_store.training_manifest() lists every source text in a corpus (URL, license,
+       tier, evidence, content hash, fetch time, chunk count, corpus). Save the manifest next to every model
+       trained on it so its training data can be audited later.
+     - Whether AI generation counts as an adaptation, share-alike handling, and attribution wording.
+     - The Drive Mode audio courses built from Wikipedia (see the end of this file).
+
 WHY THIS EXISTS
   Salareen sells subscriptions, so everything in the product catalog must be usable
   commercially and adaptable into courses. The harvester used to accept cc-by-nc,
@@ -22,12 +60,12 @@ TIERS
                   harvest.allow_share_alike is ON (default OFF; env AOEP_HARVEST_ALLOW_SHARE_ALIKE=1
                   or harvester --allow-share-alike). Courses carry license_obligations, an
                   attribution line, a "Sources and licenses" slide, and ATTRIBUTION.txt.
-  NON_COMMERCIAL  any NC variant. Rejected.
+  NON_COMMERCIAL  any NC variant. RESEARCH corpus only (never the product).
   NO_DERIVATIVES  ND without NC. Rejected (we adapt content into courses).
   PROPRIETARY     all rights reserved, paywalled, login-walled. Rejected.
   UNKNOWN         empty, unparseable, "oer", bare "creative commons". Rejected.
-  Rejected pages may optionally go to a separate research-only corpus (harvest.research_only,
-  default OFF) that is never published, never searched by tutoring and never exported.
+  Share-alike with harvest.allow_share_alike OFF also goes to the research corpus. The research corpus is
+  switched off with AOEP_HARVEST_RESEARCH=0 or harvester --no-research (then those pages are simply skipped).
 
 HOW A PAGE IS ACCEPTED
   1. Pre-fetch: host not on the do-not-harvest list; a declared license that can never be used
@@ -48,13 +86,18 @@ HOW A PAGE IS ACCEPTED
 
 PER-SOURCE FINDINGS (primary source, retrieved 2026-10-24)
 
-  NOT USABLE COMMERCIALLY (do-not-harvest list)
+  NOT USABLE COMMERCIALLY: RESEARCH CORPUS ONLY (the page's own license decides; expected there)
   OpenStax        CC BY-NC-SA 4.0. "Request permission for commercial use" through OpenStax's
                   Content Reuse form. Formerly CC BY; the old seed (cc-by) was wrong.
                   https://help.openstax.org/s/article/Licensing-information-of-OpenStax-textbooks
                   https://openstax.org/books/intermediate-algebra-2e/pages/preface (footer + preface)
   MIT OCW         CC BY-NC-SA 4.0. "You may not use the material for commercial purposes."
                   https://ocw.mit.edu/pages/privacy-and-terms-of-use/
+  Stanford Engineering Everywhere, composingprograms.com and similar university course seeds
+                  Declared CC BY-NC-SA / CC BY-NC in the old seed file. Moved to seeds/research-only/
+                  (crawled into the research corpus).
+
+  NEVER HARVESTED, NOT EVEN FOR RESEARCH (do-not-harvest list)
   Khan Academy    CC BY-NC-SA 4.0 for materials; Terms of Service forbid scraping and using content to
                   train or fine-tune AI models. (Found through search result summaries of the support
                   pages; the TOS page itself did not render, so re-check before relying on exact wording.)
@@ -71,8 +114,6 @@ PER-SOURCE FINDINGS (primary source, retrieved 2026-10-24)
                   reuse rights; only papers whose abs page shows a CC license could qualify. The old seed
                   (cc-by for all of arXiv) was wrong.
                   https://info.arxiv.org/help/license/reuse.html
-  Stanford Engineering Everywhere, composingprograms.com and similar university course seeds
-                  Declared CC BY-NC-SA / CC BY-NC in the old seed file. Moved to seeds/research-only/.
 
   VETTED, USABLE WITH CONDITIONS
   Wikipedia, Wikibooks, Wikiversity (text)
@@ -130,6 +171,10 @@ WHAT CHANGED FOR EXISTING DATA
   Local audit of output/harvest/harvest_corpus.db on 2026-10-24: 271 sources, 10,522 courses,
   132,924 chunks. quarantine: 216 sources, 9,309 courses, 121,650 chunks. needs_review: 28 sources
   (data.gov, loc.gov), 555 courses. ok: 27 sources, 658 courses.
+  Of the 216 quarantined sources, 183 are Coursera pages (never harvested, not kept anywhere) and 33 are
+  non-commercial university pages (Stanford Engineering Everywhere, composingprograms.com, Open Textbook
+  Library, GitHub course repos): --migrate-research copies those 33 sources (5,295 text chunks, no courses)
+  into the research corpus, marked "legacy-declared (unverified)". The product database is not modified.
 
 SERVING
   Nothing from the harvester is posted to the production catalog today (output/ is git-ignored and no

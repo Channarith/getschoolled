@@ -32,7 +32,8 @@ from .objectstore import (
     pack_course,
 )
 from .quality import NearDuplicateIndex, assign_tier
-from .sources import is_allowed
+from .errors import CorpusWallError
+from .licensing import HarvestPolicy, Tier, assert_product_safe, parse_license, policy_from_env  # noqa: F401
 
 BUNDLE_FORMAT = 1
 
@@ -41,16 +42,42 @@ def _sha_file(path: Path) -> str:
     return content_sha256(path.read_bytes())
 
 
-def license_gate(license: Optional[str], *, require_commercial: bool = True) -> tuple[bool, str]:
-    """(ok, reason). Salareen sells subscriptions, so non-commercial licenses are refused by default.
+def license_gate(
+    license: Optional[str],
+    *,
+    require_commercial: bool = True,
+    policy: Optional[HarvestPolicy] = None,
+    tier: Optional[str] = None,
+    verified_by: Optional[str] = None,
+    quarantined: bool = False,
+    require_verified: bool = False,
+) -> tuple[bool, str]:
+    """(ok, reason). Salareen sells subscriptions, so only commercially usable licenses ship.
 
-    Uses sources.is_allowed() for the open-license allowlist; the NC check is explicit and local
-    so it holds even while the allowlist still contains the cc-by-nc entries."""
-    lic = (license or "").strip().lower().replace(" ", "-").replace("_", "-")
-    if not is_allowed(lic):
-        return False, f"license not allowed: {license!r}"
-    if require_commercial and ("-nc" in lic or lic.endswith("nc") or "noncommercial" in lic):
-        return False, f"non-commercial license cannot ship in a paid product: {license!r}"
+    The tier comes from the course's recorded license tier when it has one (set by the page
+    check at harvest time), otherwise from parsing the declared license string, which is only a
+    claim. Non-commercial passes only with require_commercial=False (an explicit internal-research
+    override); no-derivatives, proprietary and unknown never pass. Share-alike passes only when
+    harvest.allow_share_alike is on. Quarantined courses never pass. With require_verified, a
+    course whose license was never confirmed on the source page (made before license tiers)
+    is held back too."""
+    if quarantined:
+        return False, "quarantined by the license audit"
+    policy = policy or policy_from_env()
+    try:
+        resolved = Tier(tier) if tier else parse_license(license).tier
+    except ValueError:
+        resolved = parse_license(license).tier
+    if resolved is Tier.NON_COMMERCIAL:
+        if require_commercial:
+            return False, f"non-commercial license cannot ship in a paid product: {license!r}"
+    elif resolved is Tier.SHARE_ALIKE:
+        if not policy.allow_share_alike:
+            return False, f"share-alike license ({license!r}) and harvest.allow_share_alike is off"
+    elif resolved is not Tier.COMMERCIAL_OK:
+        return False, f"license not allowed: {license!r} ({resolved.value})"
+    if require_verified and not verified_by:
+        return False, "license was never verified on the source page (course made before license tiers); run the audit"
     return True, ""
 
 
@@ -61,15 +88,43 @@ class ExportReport:
     objects_existing: int = 0
     skipped_missing_file: int = 0
     skipped_unreadable: int = 0
+    skipped_quarantined: int = 0
+
+
+def _refuse_research_corpus(corpus_db: Path) -> None:
+    """The wall: a research corpus can never be exported, bundled or published."""
+    conn = sqlite3.connect(f"file:{corpus_db}?mode=ro", uri=True)
+    try:
+        row = conn.execute("SELECT value FROM corpus_meta WHERE key='corpus_role'").fetchone()
+    except sqlite3.Error:
+        row = None     # databases from before the wall have no role: they are product databases
+    finally:
+        conn.close()
+    if row and row[0] == "research":
+        raise CorpusWallError(f"{corpus_db} is the research corpus: it is internal-only and cannot be exported")
 
 
 def _course_rows(corpus_db: Path) -> Iterator[sqlite3.Row]:
     conn = sqlite3.connect(f"file:{corpus_db}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     try:
+        have_s = {r[1] for r in conn.execute("PRAGMA table_info(sources)")}
+        have_c = {r[1] for r in conn.execute("PRAGMA table_info(courses)")}
+
+        def col(alias: str, present: set, name: str, out: str, default: str = "NULL") -> str:
+            return f"{alias}.{name} AS {out}" if name in present else f"{default} AS {out}"
+
+        extra = ", ".join([
+            col("s", have_s, "license_tier", "source_tier"),
+            col("c", have_c, "license_tier", "course_tier"),
+            col("s", have_s, "license_verified_by", "verified_by"),
+            col("s", have_s, "quarantined", "source_quarantined", "0"),
+            col("c", have_c, "quarantined", "course_quarantined", "0"),
+            col("s", have_s, "attribution_json", "attribution_json"),
+        ])
         yield from conn.execute(
             "SELECT c.course_id, c.title, c.subject, c.composition_score, c.json_path, c.created_at, "
-            "s.url AS source_url, s.license AS license, s.source_type AS source_type "
+            "s.url AS source_url, s.license AS license, s.source_type AS source_type, " + extra + " "
             "FROM courses c LEFT JOIN sources s ON s.url_key = c.url_key ORDER BY c.course_id"
         )
     finally:
@@ -84,6 +139,7 @@ def export_bundle(
     repo_root: str | Path = ".",
     limit: Optional[int] = None,
 ) -> ExportReport:
+    _refuse_research_corpus(Path(corpus_db))
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     root = Path(repo_root)
@@ -93,6 +149,9 @@ def export_bundle(
     for row in _course_rows(Path(corpus_db)):
         if limit is not None and report.courses >= limit:
             break
+        if row["source_quarantined"] or row["course_quarantined"]:
+            report.skipped_quarantined += 1     # a license audit flagged it: it never leaves the machine
+            continue
         jp = Path(row["json_path"] or "")
         path = jp if jp.is_absolute() else root / jp
         if not path.is_file():
@@ -125,6 +184,11 @@ def export_bundle(
                 "composition_score": row["composition_score"],
                 "source_url": row["source_url"],
                 "license": row["license"],
+                "corpus": "product",
+                "license_tier": row["course_tier"] or row["source_tier"],
+                "license_verified_by": row["verified_by"],
+                "attribution": (json.loads(row["attribution_json"]).get("text", "")
+                                if row["attribution_json"] else ""),
                 "source_type": row["source_type"],
                 "machine": machine,
                 "harvested_at": row["created_at"],
@@ -155,7 +219,7 @@ INDEX_SCHEMA = """
 CREATE TABLE IF NOT EXISTS courses (
   sha256 TEXT PRIMARY KEY, course_id TEXT, title TEXT, subject TEXT, language TEXT, slides INTEGER,
   source_url TEXT, license TEXT, machine TEXT, tier INTEGER NOT NULL DEFAULT 0, tier_notes TEXT,
-  harvested_at TEXT, imported_at TEXT NOT NULL, published_at TEXT);
+  harvested_at TEXT, imported_at TEXT NOT NULL, published_at TEXT, license_tier TEXT, corpus TEXT, attribution TEXT);
 CREATE INDEX IF NOT EXISTS idx_courses_tier ON courses(tier);
 CREATE INDEX IF NOT EXISTS idx_courses_source ON courses(source_url);
 CREATE TABLE IF NOT EXISTS rejected (
@@ -163,11 +227,21 @@ CREATE TABLE IF NOT EXISTS rejected (
 """
 
 
+def migrate_index(conn: sqlite3.Connection) -> None:
+    """Add the license-wall columns to an index made before they existed."""
+    have = {r[1] for r in conn.execute("PRAGMA table_info(courses)")}
+    for name in ("license_tier", "corpus", "attribution"):
+        if name not in have:
+            conn.execute(f"ALTER TABLE courses ADD COLUMN {name} TEXT")
+    conn.commit()
+
+
 def open_index(path: str | Path) -> sqlite3.Connection:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path))
     conn.row_factory = sqlite3.Row
     conn.executescript(INDEX_SCHEMA)
+    migrate_index(conn)
     return conn
 
 
@@ -212,9 +286,16 @@ def import_bundle(
     require_commercial: bool = True,
     corroborate: Optional[Callable[[dict], bool]] = None,
     dedup: Optional[NearDuplicateIndex] = None,
+    require_verified: bool = False,
+    policy: Optional[HarvestPolicy] = None,
 ) -> ImportReport:
+    if not require_commercial:
+        raise CorpusWallError(
+            "non-commercial courses cannot be imported into the product index; they live in the research "
+            "corpus, which is internal-only and never published")
     b = Path(bundle_dir)
     report = ImportReport()
+    migrate_index(index)
     report.problems = verify_bundle(b)
     if report.problems:
         return report
@@ -225,7 +306,22 @@ def import_bundle(
             continue
         rec = json.loads(line)
         sha = rec["sha256"]
-        ok, reason = license_gate(rec.get("license"), require_commercial=require_commercial)
+        if rec.get("corpus") == "research":
+            index.execute(
+                "INSERT INTO rejected VALUES (?,?,?,?,?,?,?)",
+                (sha, rec.get("course_id"), rec.get("source_url"), rec.get("license"),
+                 "research-corpus course cannot enter the product index", b.name, now),
+            )
+            report.rejected_license += 1
+            continue
+        ok, reason = license_gate(
+            rec.get("license"),
+            require_commercial=require_commercial,
+            policy=policy,
+            tier=rec.get("license_tier"),
+            verified_by=rec.get("license_verified_by"),
+            require_verified=require_verified,
+        )
         if not ok:
             index.execute(
                 "INSERT INTO rejected VALUES (?,?,?,?,?,?,?)",
@@ -270,7 +366,8 @@ def import_bundle(
             report.near_duplicates += 1
         index.execute(
             "INSERT INTO courses (sha256,course_id,title,subject,language,slides,source_url,license,machine,"
-            "tier,tier_notes,harvested_at,imported_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "tier,tier_notes,harvested_at,imported_at,license_tier,corpus,attribution) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 sha,
                 rec.get("course_id"),
@@ -285,6 +382,9 @@ def import_bundle(
                 "; ".join(decision.failures),
                 rec.get("harvested_at"),
                 now,
+                rec.get("license_tier"),
+                rec.get("corpus") or "product",
+                rec.get("attribution"),
             ),
         )
         report.imported += 1

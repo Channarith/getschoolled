@@ -27,7 +27,7 @@ from urllib.parse import urlparse
 
 from .corpus_store import add_missing_columns, _COURSE_COLUMNS, _SOURCE_COLUMNS
 from .licensing import HarvestPolicy, Tier, parse_license
-from .vetted_sources import is_denied, is_per_item_host, vetted_for
+from .vetted_sources import is_denied, is_per_item_host, research_expected_for, vetted_for
 
 AUDIT_REASON_PREFIX = "audit:"
 BUCKET_OK, BUCKET_QUARANTINE, BUCKET_REVIEW = "ok", "quarantine", "needs_review"
@@ -62,6 +62,11 @@ def classify_source(row: Dict[str, Any], policy: Optional[HarvestPolicy] = None)
     denied = is_denied(url)
     if denied is not None:
         return f(BUCKET_QUARANTINE, f"{denied.domain}: {denied.reason}")
+    expected = research_expected_for(url)
+    if expected is not None:
+        # The seed's claim (often cc-by) is known to be wrong for this host: it is non-commercial.
+        tier = Tier.NON_COMMERCIAL
+        return f(BUCKET_QUARANTINE, f"{expected.domain}: {expected.reason}")
     if tier is Tier.NON_COMMERCIAL:
         return f(BUCKET_QUARANTINE, "non-commercial license")
     if tier is Tier.NO_DERIVATIVES:
@@ -272,3 +277,50 @@ def scan_course_files(root: str | Path, report: AuditReport, *, limit: int = 0) 
             without += 1
     return {"root": str(root), "with_provenance": with_prov, "without_provenance": without,
             "tiers_with_provenance": dict(tiers)}
+
+
+def migrate_to_research(
+    product_db: str | Path,
+    research_db: str | Path,
+    report: AuditReport,
+    policy: Optional[HarvestPolicy] = None,
+) -> Dict[str, int]:
+    """Copy research-eligible quarantine candidates into the research corpus.
+
+    Eligible: declared non-commercial (or share-alike while that switch is off) on a host that is not
+    on the do-not-harvest list. Text is copied as chunks; courses are never copied (the research
+    corpus holds source text only) and nothing is removed from the product database: the audit's
+    quarantine is what takes it out of product use. Rows are marked as legacy and unverified."""
+    from .corpus_store import HarvestCorpusStore
+
+    policy = policy or HarvestPolicy()
+    store = HarvestCorpusStore(research_db, role="research")
+    src = _connect(Path(product_db), write=False)
+    copied = skipped = chunks = 0
+    try:
+        for fnd in report.findings:
+            tier = Tier(fnd.tier)
+            if fnd.bucket != BUCKET_QUARANTINE or not policy.research_eligible(tier) or is_denied(fnd.url):
+                skipped += 1
+                continue
+            rows = src.execute("SELECT body FROM chunks WHERE url_key=? ORDER BY chunk_index", (fnd.url_key,)).fetchall()
+            if not rows:
+                skipped += 1
+                continue
+            info = parse_license(fnd.declared_license)
+            prov = {
+                "corpus": "research", "source_url": fnd.url, "declared_license": fnd.declared_license,
+                "license": {**info.to_dict(), "tier": fnd.tier,
+                            "evidence": "declared by an older seed file; never verified on the page"},
+                "license_tier": fnd.tier, "license_verified_by": "legacy-declared (unverified)",
+                "decision": "research", "migrated_from": str(product_db),
+            }
+            store.upsert_source(url=fnd.url, license=fnd.declared_license, title=fnd.url, status="research",
+                                meta={"migrated": True}, provenance=prov)
+            chunks += store.index_document(
+                url=fnd.url, title=fnd.url, text="\n\n".join(r["body"] for r in rows),
+                meta={"corpus": "research", "internal_only": True, "migrated": True})
+            copied += 1
+    finally:
+        src.close()
+    return {"sources_copied": copied, "sources_skipped": skipped, "chunks_written": chunks}
