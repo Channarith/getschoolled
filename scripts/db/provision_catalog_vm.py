@@ -21,6 +21,9 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import pg_memory_plan  # noqa: E402
+
 API = "https://api.vultr.com/v2"
 BACKUP_PCT = 0.20  # Vultr automatic backups cost 20% of the plan price
 
@@ -90,6 +93,13 @@ def main() -> int:
     print(f"Vultr whole-VM backups: ${backups:.2f}/month ({'off' if args.no_backups else '20% of the plan price'})")
     print(f"Estimated monthly total for the server: ${monthly + backups:.2f}")
     print("Not included: dump/WAL storage in the existing object storage subscription (a few GB), bandwidth inside the private network is free.")
+    try:  # the VM recomputes this from its real MemTotal at first boot; refuse a plan that cannot be safe
+        mem = pg_memory_plan.plan(int(plan["ram"]), int(plan["vcpu_count"]))
+    except pg_memory_plan.PlanError as exc:
+        print(f"memory plan refused for {args.plan}: {exc}", file=sys.stderr)
+        return 2
+    print("\nPostgres memory plan for this VM (rule: resident <= 65% of RAM, resident + page cache ~= 90%):")
+    print("  " + pg_memory_plan.render_text(mem).replace("\n", "\n  "))
     print(f"VPC {vpc['id']} ({vpc['description']}) {vpc_cidr}; SSH key {ssh['name']}; admin CIDR {args.admin_cidr}")
     print("\nRequest that --apply will send:\n  POST " + API + "/instances\n  " + json.dumps(body, indent=2).replace("\n", "\n  "))
     print("\ncloud-init (secrets redacted):\n" + "\n".join("  | " + line for line in redacted.splitlines()[:40]) + "\n  | ... (full file: render_cloud_init.py)")

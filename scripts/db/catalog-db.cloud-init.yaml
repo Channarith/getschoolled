@@ -40,6 +40,10 @@ write_files:
     permissions: "0755"
     content: |
       @EMBED:catalog_db_setup.sh@
+  - path: /usr/local/bin/catalog-db-memplan
+    permissions: "0755"
+    content: |
+      @EMBED:pg_memory_plan.py@
   - path: /usr/local/bin/catalog-db-backup
     permissions: "0755"
     content: |
