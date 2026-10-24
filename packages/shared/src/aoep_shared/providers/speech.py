@@ -44,10 +44,14 @@ class _BaseSpeechProvider(SpeechProvider):
         # Prefer in-process NLLB when transformers weights are available
         # (local Spark / GPU). Falls through to NotImplementedError so the
         # speech gateway can try phrasebook then honest passthrough.
+        from ..devices import DevicePolicyError
+
         try:
             from ..nllb import translate_text
 
             return translate_text(text, source=source, target=target)
+        except DevicePolicyError:
+            raise  # CUDA is required here: surface it, never degrade to a phrasebook or passthrough
         except Exception as exc:  # noqa: BLE001
             raise NotImplementedError(
                 f"Translation model (NLLB-200) not loaded: {exc}"
