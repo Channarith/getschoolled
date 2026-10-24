@@ -22,6 +22,7 @@ from typing import Callable, Optional, Sequence
 from .guard import (
     available_mb,
     clamp_workers,
+    worker_cap_violation,
     env_int,
     is_oom_exit,
     limit_backoff_seconds,
@@ -767,7 +768,7 @@ def cli_main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--urls-root", type=Path, default=None)
     parser.add_argument("--output-root", type=Path, default=None)
     parser.add_argument("--pool", default="", help="Comma-separated pool ids")
-    parser.add_argument("--workers", type=int, default=3)
+    parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--include-news", action="store_true")
     parser.add_argument("--min-videos", type=int, default=1)
     parser.add_argument("--max-urls", type=int, default=None)
@@ -786,6 +787,10 @@ def cli_main(argv: Optional[Sequence[str]] = None) -> int:
         output_root=args.output_root,
         cosyvoice_repo=args.cosyvoice_repo,
     )
+    cap_message = worker_cap_violation(args.workers)
+    if cap_message and not (args.status or args.stop):
+        print(f"cosyvoice_batch_ingest: {cap_message}", file=sys.stderr)
+        return 2
     if args.status:
         status_file = paths["urls_root"] / "cosyvoice_CORPUS_STATUS.txt"
         if status_file.is_file():

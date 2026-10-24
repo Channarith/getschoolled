@@ -265,8 +265,11 @@ def test_shell_scripts_parse(script):
 def test_nightly_wraps_every_long_stage_and_holds_the_lock_with_a_wait():
     text = (TRAINING / "spark_nightly.sh").read_text(encoding="utf-8")
     assert "flock -w" in text and "lib_limits.sh" in text and "gs_preflight" in text
-    for stage in ('gs_stage "train"', 'gs_stage "eval-base"', 'gs_stage "eval-adapter"'):
+    for stage in ('gs_stage "train"', 'gs_stage "eval-base"', 'gs_stage "eval-adapter"', 'gs_stage "bakeoff"'):
         assert stage in text
+    # the bake-off client once hung on a stuck server for hours holding the GPU lock: it has a timeout and an idle watchdog,
+    # and the cycle registers as a background holder so an interactive job can ask it to stop
+    assert "BAKEOFF_TIMEOUT_MIN" in text and "BAKEOFF_IDLE_S" in text and ".gs-gpu.lock.owner" in text and "background" in text
     assert "training/quality_gate.py" in text and "floors.args" in text
 
 

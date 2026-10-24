@@ -665,3 +665,26 @@ def test_khmer_asr_drops_latin_hallucinations(tmp_path, monkeypatch):
     assert report.utterances == 0
     rejected = report.stages["transcribe"]["rejected_transcript"]
     assert rejected.get("few_khmer_chars", 0) >= 1
+
+
+def test_worker_cap_refuses_hand_run_pile_ups(monkeypatch):
+    from aoep_shared.cosyvoice_ingest.guard import worker_cap_violation
+
+    monkeypatch.delenv("AOEP_INGEST_MAX_WORKERS", raising=False)
+    monkeypatch.delenv("AOEP_INGEST_FORCE", raising=False)
+    assert worker_cap_violation(1) is None
+    assert "refusing --workers 3" in worker_cap_violation(3)
+    monkeypatch.setenv("AOEP_INGEST_MAX_WORKERS", "3")
+    assert worker_cap_violation(3) is None
+    monkeypatch.setenv("AOEP_INGEST_MAX_WORKERS", "1")
+    monkeypatch.setenv("AOEP_INGEST_FORCE", "1")
+    assert worker_cap_violation(8) is None
+
+
+def test_cli_refuses_three_workers_without_force(monkeypatch, capsys):
+    from aoep_shared.cosyvoice_ingest.queue import cli_main
+
+    monkeypatch.delenv("AOEP_INGEST_MAX_WORKERS", raising=False)
+    monkeypatch.delenv("AOEP_INGEST_FORCE", raising=False)
+    assert cli_main(["--workers", "3"]) == 2
+    assert "AOEP_INGEST_MAX_WORKERS" in capsys.readouterr().err

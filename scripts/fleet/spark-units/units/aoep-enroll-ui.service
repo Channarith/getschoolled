@@ -1,0 +1,22 @@
+[Unit]
+Description=AOEP voice enrollment page (consent and recording) on 127.0.0.1:8780
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@ROOT@
+EnvironmentFile=-%h/.config/aoep/spark-units.env
+ExecStart=@ROOT@/scripts/fleet/spark-units/enroll-ui.sh
+# A small web page: it must never compete with training or the demo for memory.
+MemoryMax=2G
+MemorySwapMax=0
+Nice=5
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=15
+StandardOutput=append:%h/.local/share/aoep-train/enroll-ui.log
+StandardError=append:%h/.local/share/aoep-train/enroll-ui.log
+
+[Install]
+WantedBy=default.target

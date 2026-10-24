@@ -117,6 +117,21 @@ def clamp_workers(
     return max(1, min(wanted, fit))
 
 
+def worker_cap_violation(requested: int) -> Optional[str]:
+    """Message when a hand-run queue asks for more workers than AOEP_INGEST_MAX_WORKERS (default 1) allows.
+
+    Three hand-started workers once held about 70 GB of the Spark's shared memory and made every GPU job refuse to
+    start. AOEP_INGEST_FORCE=1 overrides on purpose.
+    """
+    cap = max(1, env_int("AOEP_INGEST_MAX_WORKERS", 1))
+    if int(requested) <= cap or os.environ.get("AOEP_INGEST_FORCE", "").strip() in {"1", "true", "yes"}:
+        return None
+    return (
+        f"refusing --workers {int(requested)}: AOEP_INGEST_MAX_WORKERS is {cap} (each worker can hold 10-35 GB on the "
+        "shared-memory Spark). Use --workers 1, raise AOEP_INGEST_MAX_WORKERS, or set AOEP_INGEST_FORCE=1 to override."
+    )
+
+
 def should_wait_for_memory(
     *,
     available: Optional[int],
