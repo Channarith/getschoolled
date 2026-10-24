@@ -203,6 +203,39 @@ def judge_file(
     except (OSError, UnicodeDecodeError, ValueError) as exc:
         row["reasons"] = [f"parse_error: {type(exc).__name__}"]
         return row
+    return _judge_parsed(row, data, lang, source_segments, langid)
+
+
+def judge_record(
+    data: Any,
+    lang: str,
+    source_segments: Optional[List[Dict[str, str]]],
+    langid: bool = False,
+    course_id: str = "",
+) -> Dict[str, Any]:
+    """Judge a translation record that is already in memory (same checks as judge_file)."""
+    row: Dict[str, Any] = {
+        "course_id": course_id or (data.get("course_id", "") if isinstance(data, dict) else ""),
+        "language": lang,
+        "path": "",
+        "bytes": 0,
+        "segments": 0,
+        "verdict": REJECT,
+        "reasons": [],
+        "counts": {},
+        "hashes": [],
+        "source": "",
+    }
+    return _judge_parsed(row, data, lang, source_segments, langid)
+
+
+def _judge_parsed(
+    row: Dict[str, Any],
+    data: Any,
+    lang: str,
+    source_segments: Optional[List[Dict[str, str]]],
+    langid: bool,
+) -> Dict[str, Any]:
     if not isinstance(data, dict) or not isinstance(data.get("segments"), list):
         row["reasons"] = ["bad_structure"]
         return row

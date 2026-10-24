@@ -156,6 +156,7 @@ data/course_translations/**/*.partial
 # (scripts/validate_translations.py, scripts/voice_dataset_convert.py) and never committed
 data/_incoming*/
 data/_staged*/
+data/_migrated*/
 data/voice/
 
 # TTS bake-off run output (audio, manifests, panels)

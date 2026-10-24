@@ -1,0 +1,125 @@
+TRANSLATION PIPELINE V2 - OUTPUT THAT CAN SHIP, WITH PROOF OF WHAT IT WAS MADE FROM
+=====================================================================================
+Plain text on purpose (repo no-markdown house rule). Machine translation stays "machine translation"
+until staff review it; v2 only makes sure what reaches review is current, clean and traceable.
+
+WHY V2
+  Validating the iBuyPower library (7013 files, 974 course folders) found that almost nothing in it
+  could ship for the 222 current audio courses:
+    - es/vi/zh and the other languages were made from the OLD padded English (one course: 102 segments
+      in the file, 10 in today's English). 221 courses per language fail segment_count_mismatch.
+    - km and th have the right segment count but only 5-7 of 221 courses pass: wrong_script (English
+      titles left in the middle of Khmer/Thai) about 250, degenerate_loop (NLLB repetition) about 215,
+      length_outlier about 175, number_mismatch about 30.
+    - the v1 batch skips a file that already exists, so stale files were kept for ever; files never
+      recorded which English they were made from.
+    - a wrong word sense that no automatic check can see: NLLB turned "fractions" into Khmer
+      "shares" (ភាគហ៊ុន), fluent and wrong.
+
+WHAT CHANGED
+  1. Provenance. Every file written by v2 has a "provenance" object: pipeline version, sha256 of the
+     English title and segments it was made from, engine, model, the retry rungs used, glossary version,
+     which glossary terms were applied, and whether the file was backfilled by the migration.
+     A file is reused only when pipeline major, sha256 and the validator ("ship") all still hold.
+     There is no skip-by-name.
+         python3 scripts/translate_catalog_v2.py --check          # list stale files, translate nothing
+  2. Quality ladder. Per passage: mask what NLLB breaks (URLs, brand words, section titles and the course
+     title mentioned inside the passage, glossary terms, and on later rungs numbers), cut the text into
+     sentence-aligned chunks (40 words, then 20, then one sentence), translate length-sorted batches,
+     put the masked text back, then run the SAME checks the validator uses. A failing passage goes to the
+     next rung:
+         r0  beams 4, no_repeat_ngram 4, repetition_penalty 1.1, output capped at 3x input tokens
+         r1  beams 5, no_repeat_ngram 3, repetition_penalty 1.2, cap 2.6x
+         r2  beams 6, repetition_penalty 1.3, numbers masked too, short chunks, cap 2.4x
+         r3  sampling (temperature 0.6, top_p 0.9, fixed seed), one sentence at a time
+         r4  sampling, nothing masked (when markers keep getting lost)
+     Failing findings: empty, degenerate_loop, wrong_script, length_outlier, number_mismatch,
+     unchanged_from_english, leftover_markup, url_mismatch, a lost or invented [[n]] marker, and a
+     glossary "avoid" form. Section titles in a passage are translated once as headings and dropped in
+     as the same translation, which removes the Latin leftovers.
+  3. Glossary (data/translation_glossary.json). Pins the approved word for domain terms in km, th, vi,
+     es, zh: fraction, equation, cell, probability, variable, algorithm, atom, molecule, derivative.
+     context_words restrict a term to passages where it has that sense ("a fraction of the people" is
+     left to the translator). "avoid" lists wrong senses seen in real output. EVERY ENTRY IS
+     UNREVIEWED. The terms were chosen by me, not by a native speaker; the Khmer algorithm word is low
+     confidence. Glossary.review_items() returns rows (term, language, proposed, avoid, status) that
+     the staff review lab can import as "please confirm this word" items; the lab endpoint for that
+     is not wired yet.
+  4. Fallback tier. A passage still failing after the ladder is NEVER written to the library. It is kept in
+     <library>/_work/<course>/<lang>.json (state, best attempt, findings) and listed by
+     fallback_work(). The paid fallback is off by default:
+         --fallback grok --fallback-cap 40 --price-per-mtok <usd>
+     It prints a token estimate first (and a cost if you give a price), stops at the cap, and its answer
+     goes through the same checks. A course is written only when every passage passes.
+  5. Catalog runner (scripts/translate_catalog_v2.py). 222 audio courses, languages in priority order:
+     km, th, vi, es, zh, then sw, id, el, cs, then the rest. Resumable (provenance makes a finished file a
+     no-op), prints per-run stats (written, reused, needs_fallback, retried segments, rungs used), then runs
+     the validator over exactly the languages it was asked for and writes output/translation_v2/summary.txt.
+  6. Migration (scripts/translation_migrate.py). Reads an old library and writes a new one; the source
+     folder is never changed.
+         keep          matches today's English (provenance), or is BACKFILLED: same segment count, every
+                       number from the English present, validator says ship. Marked backfilled in provenance.
+         stale         the course is in the current catalog but the file does not match it. Copied to
+                       OUT/_stale/ with its reason, never shipped.
+         unverifiable  no current English exists for the course. Copied to OUT/_unverified/.
+
+THE IBUYPOWER LIBRARY, RUN LOCALLY (data/_incoming_kalel, 7013 files; output in the gitignored data/_migrated/kalel)
+         LANG    KEEP   STALE  UNVERIFIED
+         km        13     232         727
+         zh        15     230         727
+         es        11     234         726
+         vi        15     230         726
+         th        15     229         724
+         cs        53     184           1
+         el        26     211           1
+         id        80     157           1
+         sw        49     188           1
+         all      378    2988        3647     (246 current courses including 24 Course Studio courses)
+  Only 378 files are provably current. The other 2988 for current courses are stale and must be
+  regenerated, which is what the catalog runner is for. The 3647 unverifiable files belong to about 727
+  course folders (alameda-..., addition_to_10, ...) that are in neither the audio catalog nor the Course
+  Studio catalog this machine can import: nothing can be checked, so none of them should ship until a
+  current English source exists for them.
+
+THROUGHPUT ESTIMATE (assumptions are marked; only the NLLB speed is measured)
+  English to translate, from the current catalog: 222 courses, 2254 passages, 13,797 sentences, 159,384
+  words, longest sentence 50 words, so one language is about 16,300 units (sentences, 2254 headings,
+  222 titles).
+  Measured: NLLB-600M on the Spark GPU, 16 sentences in 0.84 s = about 19 sentences/s (CPU: 12.7 s).
+  Assumed: real sentences (about 12 words) cost about what the 15-word test sentence did; retries
+  re-translate 15 to 25 percent of passages at up to twice the cost (beams 5 to 6, sampling); Khmer and Thai
+  output decode slower than the test.
+      one language    : 16,300 / 19 = about 14 min, about 20 min with retries
+      km th vi es zh  : about 70 min, about 1.5 to 3 hours with retries
+      all 26 languages: about 6 hours, about 8 to 12 hours with retries
+  Run it only on the GPU. On CPU the same work is about 15 times slower.
+
+WHAT WILL STILL NEED A PERSON
+  - The glossary words (native speaker review).
+  - Anything in _work/ (passages the ladder could not fix).
+  - Wrong word senses outside the glossary: no automatic check can find them.
+  - Everything is machine translation until the review lab marks it reviewed.
+
+ON THE SPARK
+  The running tmux session course-translate is the v1 batch. It skips files by name, so it keeps stale
+  files and will not fix them. Pause it before v2 runs, so nothing writes into the library while v2
+  works. Writes are atomic (temp file then rename) and per-passage partials are kept, so stopping is safe.
+      ssh nvidia@192.168.1.107
+      tmux capture-pane -p -t course-translate | tail -3     # where it is
+      PID=$(pgrep -f 'translate_courses_batch.py|translate_stage.py' | head -1); echo $PID
+      kill -STOP $PID                  # pause: nothing is lost; later  kill -CONT $PID
+      tmux send-keys -t course-translate C-c    # or stop it for good (partials stay on disk)
+  Do not delete ~/.cache/aoep/course_translations. v2 writes to a NEW folder:
+
+      cd ~/code/getschoolled && git fetch origin && git worktree add -f ~/code/gs-wt/main-$(date +%Y%m%d) origin/main
+      cd ~/code/gs-wt/main-$(date +%Y%m%d)
+      export AOEP_COURSE_TRANSLATION_DIR=$HOME/.cache/aoep/course_translations_v2
+      PY=~/code/getschoolled/.venv/bin/python
+      $PY scripts/translation_migrate.py ~/.cache/aoep/course_translations --out $AOEP_COURSE_TRANSLATION_DIR --studio
+      $PY scripts/translate_catalog_v2.py --check --tier 1
+      scripts/gs_run.sh --gpu -- $PY scripts/translate_catalog_v2.py --languages km --limit 3     # trial
+      scripts/gs_run.sh --gpu -- $PY scripts/translate_catalog_v2.py --tier 1                     # km th vi es zh
+  gs_run takes the GPU lock: if the nightly STEM run holds ~/.gs-gpu.lock it waits its turn. CUDA is
+  required on the Spark (aoep_shared.devices); the script stops with the reason if it is not available.
+  The old library is kept for comparison. Nothing from either library is shipped until the validator
+  report (output/translation_v2/summary.txt) is read and the languages are reviewed.

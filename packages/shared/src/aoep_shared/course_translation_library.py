@@ -79,6 +79,10 @@ def save_translation(record: dict[str, Any], root: Path | None = None) -> Path:
     }
     if not payload["segments"]:
         raise ValueError("a translation needs at least one segment")
+    provenance = record.get("provenance")
+    if isinstance(provenance, dict) and provenance:
+        # Which English source, engine and settings made this file (see translation_v2).
+        payload["provenance"] = provenance
     path = translation_path(course_id, language, root)
     path.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write(path, payload)
