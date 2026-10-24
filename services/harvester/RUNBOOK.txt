@@ -240,3 +240,13 @@ PART 2/3 - TEACH THE GENERATED COURSE, THEN PRESENT IT IN A MEETING
         --meeting-provider zoom --teach-engine fallback
   Smoke-test the whole chain (no keys/network/ffmpeg): make validate-pipeline
     (or: python3 scripts/validate_pipeline.py)
+
+THREE MACHINES AT SCALE (sharding, bundles, publishing)
+  Full design, measurements and decisions: docs/million-courses.txt.
+  - Run the harvester on the machines, not in the cluster. Each machine owns the hosts that hash to it
+    (config/harvest_shards.json); select it with HARVEST_MACHINE=spark|kalel|mac before starting
+    the crawl, e.g.  HARVEST_MACHINE=spark scripts/gs_run.sh ... python3 services/harvester/src/harvester/run.py --crawl ...
+  - Move finished decks: scripts/harvest_sync.py export / verify / import (content-addressed, resumable, never deletes;
+    non-commercial licenses are refused).
+  - Publish gently: scripts/harvest_publish.py --dry-run first; --min-tier 1 publishes auto-validated decks only.
+  - Measure throughput: scripts/harvest_bench.py.

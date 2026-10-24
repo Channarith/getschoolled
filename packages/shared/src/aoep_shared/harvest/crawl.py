@@ -20,6 +20,7 @@ from .generate import (
 )
 from .knowledge_bridge import default_packs_dir, facts_from_course, write_knowledge_pack
 from .queue_store import PersistentHarvestQueue
+from .shard import ShardFilter
 from .sources import SourceSpec, is_allowed
 from .themes import resolve_slide_theme
 from .worker import HarvestWorker
@@ -340,7 +341,7 @@ def open_crawl_session(
     root = repo_root or Path.cwd()
     return CrawlSession(
         corpus=corpus,
-        queue=PersistentHarvestQueue(corpus),
+        queue=PersistentHarvestQueue(corpus, ShardFilter.from_env()),
         out_dir=out,
         repo_root=root,
         with_media=with_media,

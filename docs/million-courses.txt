@@ -1,0 +1,248 @@
+MILLION COURSES: CAPACITY MODEL, PIPELINE AND DECISIONS
+=========================================================
+Plain text on purpose (repo no-markdown house rule). Written 2026-10-24.
+
+Every number below is tagged:
+  [MEASURED]   taken from this repo's real output or a benchmark run (how is stated)
+  [ASSUMED]    an estimate that has NOT been measured; replace it with a benchmark result
+Re-run scripts/harvest_bench.py on the Spark and the iBuyPower and replace each [ASSUMED] that
+it covers (commands are at the end).
+
+0. SHORT VERSION (read this first)
+----------------------------------
+- The compute to GENERATE decks is not the problem. The generator is deterministic and uses no
+  LLM: [MEASURED, Mac M-series, one core] about 0.28 s per source document gives 13 lesson decks,
+  about 100,000 decks per core-hour including hashing, gzip, storing and the quality gate.
+- The problems are, in order: (1) the supply of GOOD, LEGALLY USABLE source documents, (2) quality
+  gating and near-duplicates, (3) the production catalog, which cannot hold a million entries,
+  (4) translation and voice, which cost 100x-1000x more compute than the deck itself.
+- The existing harvest output is not close to 10,522 real courses (section 2). Treat it as a
+  prototype, not as 1% of the goal.
+- A million decks of acceptable quality is a months-long program, not a weeks-long one, and needs
+  quality tiers, a database-backed catalog and a source policy that excludes non-commercial licenses.
+
+1. DEFINITIONS
+--------------
+  source     one fetched document (page, PDF, book chapter, dump article).
+  deck       one lesson deck, about 11 slides, [MEASURED] 12.1k characters of text (about 3k tokens),
+             50 KB JSON, 4.3 KB gzipped. The harvester titles these "<title> - Lesson i of N".
+             THE CATALOG TODAY COUNTS EACH DECK AS A "COURSE" (corpus courses table, 10,522 rows).
+  course     a unit of 6-12 decks in the product sense. If a course is 8 decks, one million courses
+             is 8 million decks and every storage and time figure below is 8x larger.
+  Decision 1 (yours): is the goal 1M decks or 1M multi-lesson courses? This document gives deck
+  numbers; multiply by decks-per-course for the second reading.
+
+2. WHAT THE EXISTING HARVEST ACTUALLY CONTAINS  [MEASURED]
+---------------------------------------------------------
+Measured on /Users/cvanthin/getschoolled/output/harvest (corpus DB 662 MB, 10,522 deck rows):
+  - 271 sources produced 10,522 decks: 38.8 decks per source. 203 sources are 'ingested'.
+  - First 2,000 decks (sorted by id): only 194 distinct source URLs and 103 distinct base titles.
+    Titles include "Terms of Use | Coursera" (168 decks), "Online MBA (iMBA) | University of
+    Illinois | Coursera" (88), "Top Accounting Courses - Learn Accounting Online" (92).
+  - Subjects: 5 distinct values; 1,871 of 2,000 decks are labelled "drivers education" whatever
+    their content (the subject comes from the crawl topic, not from the page).
+  - License labels are asserted by the seed list, not verified per page: coursera.org pages are
+    labelled 'oer'. Of the 2,000 decks, 129 carry cc-by-nc / cc-by-nc-sa.
+  - Near-duplicates (MinHash over 5-word shingles, threshold 0.85): 1,389 of the 1,871 decks that
+    pass the license gate (74%) are near-duplicates of an earlier deck.
+  - Auto-validated (tier 1) after the gates in section 7: 337 of 1,871 = 18% of license-passing decks.
+  Conclusion: the 10.5k number is mostly the same pages cut into lessons several times and labelled
+  with the wrong subject. Honest unique, licensed, validated yield so far: about 1.7 tier-1 decks
+  per source URL. The harvester needs source curation before it needs scale.
+  (Another worker is fixing license tiers and provenance in harvest/sources.py and the corpus
+  schema; this PR deliberately does not touch those files. The bundle importer already refuses
+  non-commercial licenses on its own.)
+
+3. THE PIPELINE AND WHERE EACH STAGE SPENDS TIME
+-----------------------------------------------
+  seeds/dumps -> queue (SQLite, sharded by host) -> fetch (robots, rate limit) -> extract ->
+  normalize -> generate decks -> pack (canonical JSON, gzip, sha256) -> quality + near-dup gate ->
+  bundle -> sync to aggregator (license gate, dedup by hash) -> object store -> publish gently.
+
+3.1 Generate / pack / store / quality  [MEASURED, scripts/harvest_bench.py --docs 30, this Mac]
+  generate   mean 283 ms per document (p95 567 ms), 13.4 decks per 60k-char document
+  pack       0.65 ms per deck
+  store      4.0 ms per deck (local disk)
+  quality    8.2 ms per deck (metrics + MinHash)
+  end to end 103,412 decks per hour on one core; peak RSS 71 MB.
+  Spark and iBuyPower per-core speeds are [ASSUMED] at 0.5x this Mac until benchmarked.
+
+3.2 Fetch  [ASSUMED unless benchmarked]
+  Polite limit 1 request per second per host (HARVEST_MAX_RPS). One host = 86k pages/day. Sharding is
+  by HOST, so the three machines never multiply the load on one site. The recorded crawl ran 12
+  ingested sources per hour [MEASURED from crawl.log: 203 sources in 1,032 min] but that was the
+  configured --per-hour cap, not a capability limit. Bulk dumps (Wikipedia, Wikibooks, Wikiversity,
+  OpenStax, Project Gutenberg, US-government public-domain sets) remove politeness as a limit and
+  should be the main supply; page crawling is for gap-filling.
+
+3.3 LLM polish stage (optional, does not exist today)  [ASSUMED]
+  Rewriting narration with an LLM would be the first stage that needs the GPU. GB10 is memory
+  bandwidth bound (about 273 GB/s): an 8B model at 4-bit (about 4.5 GB) decodes at most about 60
+  tokens/s for one stream, realistically 30-40; batching 16 streams (vLLM or llama.cpp with parallel
+  slots) should give 400-600 tokens/s aggregate. A deck is about 3,000 tokens: 0.13-0.2 decks/s,
+  about 11,000-17,000 decks/day per Spark. The iBuyPower (RTX 5060 Ti, 8 GB) fits a 3-4B model at
+  perhaps 3,000-4,000 decks/day. Measure with: harvest_bench.py --llm-url ... (section 9).
+
+3.4 Translation multiplier  [MEASURED + ASSUMED]
+  NLLB-200 600M, 16-sentence batch, same Khmer output: [MEASURED, Spark, 2026-10-24] CPU 12.68 s vs
+  CUDA 0.84 s (about 19 sentences/s on GPU). A deck is about 100 sentences, so about 5.3 s per
+  deck-language at that batch size [ASSUMED linear; larger batches should help 2-4x]. All 27
+  languages = about 143 s per deck = about 600 decks/day per GPU (about 2,400 with 4x batching).
+  Pre-translating one million decks into 27 languages would take 1,200-4,500 GPU-days. It is not
+  feasible. Policy: translate on demand (the existing on-demand path, cached, capped) and
+  pre-translate only the most used decks and the priority languages (km, vi, th, es, zh).
+
+3.5 Voice pre-render  [ASSUMED from the PR #741 estimate]
+  A deck is about 2,000 words, about 13 minutes of speech. One million decks = about 217,000 hours
+  of audio; at a real-time factor of 0.5 that is about 108,000 GPU-hours (12 GPU-years). Voice must
+  be on demand and cached, or pre-rendered for a small head of popular decks only.
+
+3.5b Storage per deck  [MEASURED]
+  course.json 55 KB raw / 4.5 KB gzipped (12x). The harvester also writes a .pptx (60 KB) and keeps
+  chunks plus an FTS5 index in the corpus DB (62 KB per deck: 662 MB / 10,522). One million decks:
+    object store, gzipped JSON only ........ about 4.5 GB  (what we publish and keep)
+    raw JSON ................................ about 55 GB
+    pptx (do not store; regenerate) ......... about 60 GB
+    per-machine corpus DB with chunks ....... about 62 GB (prune chunks once a deck is bundled)
+  Nothing here goes in git.
+
+4. PRODUCTION CATALOG: WHAT BREAKS FIRST  [MEASURED from the code]
+-----------------------------------------------------------------
+services/curriculum/src/curriculum/main.py and catalog.py:
+  - CatalogStore.courses is an in-memory Python dict per replica; DeckStore is an in-memory dict.
+  - There are 3 curriculum replicas. A POST /courses lands on ONE replica, so the replicas diverge
+    (a user can see a course on one request and not the next).
+  - With CATALOG_PATH set, every create rewrites the entire JSON file (_autosave): O(N) per write.
+    At 100,000 courses that is a multi-hundred-MB rewrite per POST.
+  - GET /courses copies the whole dict into a list on every request and then slices it; GET /decks
+    returns every deck with no paging; /courses/search is a linear scan.
+  - POST /courses takes no course_id, so it is not idempotent; re-posting makes a duplicate.
+  - Memory: about 1-2 KB per Course object [ASSUMED] x 1M = 1-2 GB per replica x 3 replicas on nodes
+    with 3.8 GiB each, already 90%+ memory-requested. It does not fit.
+  Practical ceiling of the API as written: tens of thousands of entries, supervised. Beyond that the
+  catalog needs a database (Postgres with a trigram or full-text index, or per-language SQLite
+  shards behind a read replica) with keyset paging and a faceted search that does not scan.
+  Decision 3 (yours): which database, and who runs it (managed Postgres costs money; running it on
+  the cluster needs a 40 GB+ volume because Vultr block storage has a 40 GB minimum).
+
+5. SHARDING ACROSS THE THREE MACHINES  [IMPLEMENTED in this PR]
+--------------------------------------------------------------
+  config/harvest_shards.json: 256 virtual shards, weights spark 3, kalel 2, mac 1 (edit freely).
+  A source belongs to the machine that owns hash(host); every page of one site stays on one machine,
+  so per-host politeness is not multiplied. The map does not depend on dict order and is identical on
+  every machine. Select a machine with HARVEST_MACHINE=spark|kalel|mac (unset = unsharded). The
+  persistent queue then enqueues and loads only its own hosts (PersistentHarvestQueue(shard=...);
+  open_crawl_session reads HARVEST_MACHINE). Each machine keeps its own SQLite corpus and queue.
+  Check ownership: python3 scripts/harvest_sync.py shards https://openstax.org/ https://ocw.mit.edu/
+
+6. PUBLISHING WITHOUT FLOODING PRODUCTION  [IMPLEMENTED]
+-------------------------------------------------------
+scripts/harvest_sync.py (export, verify, import, status, shards) and scripts/harvest_publish.py.
+  - Bundles are content-addressed (courses/<aa>/<sha256>.json.gz) plus manifest.jsonl,
+    provenance.jsonl and bundle.json carrying the sha256 of both files. Objects are immutable, so
+    rsync -a --partial --ignore-existing can be re-run after any interruption.
+  - Import verifies every hash, applies the license gate (non-commercial licenses are refused
+    unless --allow-noncommercial for internal research), de-duplicates by content hash across
+    machines, assigns a tier, and never deletes anything (rejects are recorded with the reason).
+  - Publisher: token bucket (default 1 request/s), exponential backoff with jitter, Retry-After
+    honored, slows down on 429/5xx, circuit breaker (5 failures opens it for 120 s, then a single
+    probe), 401/403 stops the run, 4xx are parked as permanent failures and never retried, every
+    deck is attempted at most once per run, progress is stored per deck (published_at) so a restart
+    cannot republish or lose one. --dry-run posts nothing. Existence check by sha tag before POST
+    because the API is not idempotent.
+  - Sinks: curriculum (HTTP POST /courses, needs INTERNAL_TOKEN, small supervised batches only) and
+    objectstore (writes index records; the future database-backed catalog loads from these).
+  - Object store: LocalObjectStore (default output/object_store) and S3ObjectStore (Vultr Object
+    Storage; OBJECT_STORE_BUCKET, _ENDPOINT, _ACCESS_KEY, _SECRET_KEY, _REGION, _PREFIX).
+  Rate budget: at 1 request/s the API accepts at most 86,400 decks/day; with the cluster at about
+  60% CPU requested, 0.5 request/s (43,000/day) is the sensible starting point.
+
+7. QUALITY TIERS AND GATES  [IMPLEMENTED: aoep_shared/harvest/quality.py]
+------------------------------------------------------------------------
+  tier 0  machine-generated, unreviewed. Always labelled "machine-generated" in the catalog tags.
+  tier 1  auto-validated: at least 6 slides, 3,000 characters of text, 150 characters per slide,
+          under 2% placeholder text, under 30% repeated slides, composition score at least 300,
+          NOT a near-duplicate (MinHash 0.85) of an already accepted deck, and, when a corroboration
+          hook is supplied (aoep_shared.validation.validate_course against search engines), its
+          claims corroborated. Tagged "auto-validated". Never claims human review.
+  tier 2  human-reviewed. Set only by the staff review flow, never by this code.
+  Sampling QA: sample_for_review() picks 1% of decks per source (at least one), deterministically.
+  One million decks = 10,000 reviews; at 5 minutes each that is 833 hours, about 21 weeks of one
+  full-time reviewer, so tier 2 is for the most-used decks; automation carries the rest, with a
+  0.1% audit sample and a published error rate.
+  Source curation is the biggest quality lever: the measured tier-1 rate is 18% on the current
+  corpus and about 1.7 validated decks per source URL.
+
+8. COURSES PER DAY AND TIME TO 100K / 1M
+----------------------------------------
+Unit = tier-1 decks (published-quality, unique, licensed). Three configurations:
+
+  config                         basis                      decks/day (3 machines)   100k       1M          dominant bottleneck
+  A  today, as run               [MEASURED] 12 sources/h/   about 1,500              68 days    about 22   fetch supply and the
+     (page crawl, 1.7 tier-1/    machine x 24 h x 1.7                                             months     per-source yield
+     source)
+  B  bulk OER dumps + current    [ASSUMED] dump supply,     about 50,000 produced    2 days     about 25   QA sampling, publish rate,
+     generator, gates on         20% tier-1 yield, 250k     (publish capped at 43k             days of    and the catalog backend
+                                 raw decks/day              per day at 0.5 req/s)              production (really months: see below)
+  C  B + LLM polish on Spark     [ASSUMED] 8B 4-bit,        about 15,000 polished    7 days     about 67   GPU tokens/s (Spark);
+                                 batch 16, 3k tokens/deck   (+3,500 iBuyPower)                  days       translation and voice are separate
+Notes:
+  - B and C are production-side upper bounds. The calendar time is set by things that are not
+    compute: curating licensed sources, building the database-backed catalog (section 4), human
+    sampling QA, and the legal review of the source list. Plan on MONTHS to a million decks of
+    acceptable quality, and 100,000 first (a quarter is realistic) as the proof point.
+  - Translation and voice are not in these numbers; section 3.4 and 3.5 show they cannot be
+    pre-computed for every deck.
+  What would move the dominant bottleneck: for A, bulk dumps instead of page crawling; for B, a
+  managed database and a small paid review team; for C, a second GPU box (rental) or a faster
+  inference setup (vLLM with continuous batching, speculative decoding).
+
+9. HOW TO MEASURE (run with the ! prefix; nothing here changes data)
+-------------------------------------------------------------------
+Always under the resource wrapper if it is on that machine (scripts/gs_run.sh):
+  Mac or iBuyPower, generation pipeline on synthetic text:
+    python3 scripts/harvest_bench.py --docs 200 --out runs/bench-$(hostname).json
+  Same, using real extracted sections from a corpus DB:
+    python3 scripts/harvest_bench.py --corpus-db output/harvest/harvest_corpus.db --docs 300
+  Spark LLM polish (start a local server first, e.g. llama-server or vLLM on port 8080):
+    python3 scripts/harvest_bench.py --docs 0 --llm-url http://127.0.0.1:8080 --llm-model qwen \
+        --concurrency 1,4,8,16 --requests 32 --max-tokens 400 --out runs/bench-llm-spark.json
+  Polite fetch latency to your chosen sources:
+    python3 scripts/harvest_bench.py --docs 0 --fetch-url https://openstax.org/ --fetch-url https://en.wikibooks.org/
+On the Spark the GPU must be CUDA (see aoep_shared/devices.py policy); take the GPU lock for LLM runs.
+
+10. THE HARVESTER IN THE CLUSTER: RECOMMENDATION
+------------------------------------------------
+The harvester deployment is parked at 0/1 because harvester-checkpoint (1 Gi) is below Vultr's 40 GB
+block-storage minimum. RECOMMENDATION: do not run the harvester in the cluster. Run it on the three
+machines (sharded as in section 5), publish only validated, licensed decks to production through
+the object store and the gentle publisher. Reasons: (1) the crawl and generation need disk (tens of
+GB) and CPU that the four 2-vCPU nodes do not have to spare (they are already about 60% CPU and 71-99%
+memory requested); (2) the machines already hold the data and the GPUs; (3) a crash-looping crawler
+next to the production API is a risk with no benefit; (4) the cost of a 40 GB+ volume buys nothing
+the machines do not already provide. If you still want it in the cluster later, claim at least 40 Gi
+and give it its own node pool, not the api-pool.
+If you adopt this, retire the parked objects when you are ready (NOT done here):
+    kubectl -n aoep delete deploy harvester
+    kubectl -n aoep delete pvc harvester-checkpoint
+Keep infra/k8s/harvester.yaml in git; it costs nothing while the deployment does not exist.
+
+11. DECISIONS NEEDED FROM THE OWNER
+-----------------------------------
+  1. Unit: 1M decks or 1M courses of about 8 decks (section 1).
+  2. Source policy: commercial-use licenses only (CC0, CC BY, public domain, MIT/Apache; CC BY-SA
+     only with attribution and share-alike handled). Drop CC BY-NC and CC BY-NC-SA (MIT OCW, Khan).
+     Stop treating coursera.org and similar portals as 'oer'. Approve a per-source license
+     verification step (page-level license metadata, not a seed-level label).
+  3. Catalog backend: database choice and who hosts it (section 4).
+  4. Object storage: a Vultr Object Storage account and bucket (credentials into OBJECT_STORE_*).
+  5. Harvester location: machines, not the cluster (section 10).
+  6. Translation and voice policy: on demand plus a priority head, not full pre-computation.
+  7. Review budget: how many people and hours for tier 2 sampling.
+
+12. WHAT IS NOT DONE
+--------------------
+  - No load test of the production catalog, no database migration, no real S3 run (boto3 is imported
+    only when the s3 store is used; tests use the local store and a fake server).
+  - Spark and iBuyPower numbers are [ASSUMED] until harvest_bench.py is run there.
+  - The corroboration hook (validate_course) needs search-engine access and is optional.
