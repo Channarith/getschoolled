@@ -93,7 +93,7 @@ def render(doc: dict, run: Path | None) -> str:
     lines += ["", "LANGUAGES WITH NO EDGE VOICE (listed, never faked)"]
     for e in catalog.values():
         if e["status"] == "no_voice":
-            lines += [f"  {e['code']:<4} {e['name']}: {e['reason']}.", f"       Nearest alternative: {e['alternative']}"]
+            lines += [f"  {e['code']:<4} {e['reason']}.", f"       Nearest alternative: {e['alternative']}"]
     for code, why in doc.get("skipped_extras", {}).items():
         lines.append(f"  {code:<4} {ec.NAMES[code][0]}: {why}")
     failed = [(c, s) for c, s in status.items() if s["failed"]]
@@ -101,8 +101,17 @@ def render(doc: dict, run: Path | None) -> str:
     if not failed:
         lines.append("  none" if run else "  (no run given)")
     for code, s in failed:
-        lines.append(f"  {code}: {s['failed']} failed: " + ", ".join(s["errors"][:8]) + (" ..." if len(s["errors"]) > 8 else ""))
-        lines.append("      The service listed these voices but returned no audio ('No audio was received'); rerunning edge_all retries them.")
+        by_voice: dict[str, list[str]] = {}
+        for item in s["errors"]:
+            model, sid = item.rsplit(" ", 1)
+            by_voice.setdefault(model, []).append(sid)
+        lines.append(f"  {code}: {s['failed']} failed")
+        for model, sids in by_voice.items():
+            lines.append(f"      {model}: {', '.join(sids)}")
+    if failed:
+        lines += ["  The service lists these voices but answered 'No audio was received' for these clips, on every retry (4 attempts with backoff,",
+                  "  then two more passes of the whole set). The same voices rendered other sentences fine, so the gaps are intermittent and per voice.",
+                  "  The other default voice of the language is complete. Nothing was substituted: rerun edge_all to retry them."]
     return "\n".join(lines) + "\n"
 
 

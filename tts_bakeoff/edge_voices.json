@@ -2971,7 +2971,7 @@
    "edge_language": "eu",
    "status": "no_voice",
    "reason": "Basque: the service lists no eu voice",
-   "alternative": "none in edge-tts; a cloud TTS with Basque (Azure AI Speech lists eu-ES) would be the route. The Spanish voice must not read Basque text.",
+   "alternative": "none in edge-tts; a cloud TTS that covers Basque would be the route (not checked here). The Spanish voice must not read Basque text.",
    "default": {
     "female": null,
     "male": null
@@ -3007,7 +3007,7 @@
    "edge_language": "hy",
    "status": "no_voice",
    "reason": "Armenian: the service lists no hy voice",
-   "alternative": "none in edge-tts; use a cloud TTS (Azure AI Speech lists hy-AM).",
+   "alternative": "none in edge-tts; a cloud TTS that covers Armenian would be the route (not checked here).",
    "default": {
     "female": null,
     "male": null

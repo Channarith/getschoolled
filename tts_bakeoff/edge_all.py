@@ -81,10 +81,14 @@ def main(argv=None) -> int:
     ap.add_argument("--plan", action="store_true", help="print the plan and exit")
     ap.add_argument("--langs", help="comma separated language codes (default: all)")
     ap.add_argument("--workers", type=int, default=3)
+    ap.add_argument("--log", default="progress.log", help="progress log file name inside --out (use one per process when running several)")
     ap.add_argument("--delay", type=float, default=0.5, help="seconds each worker waits between requests (the service rate-limits)")
     args = ap.parse_args(argv)
     doc = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
-    plan, models = build_plan(doc["catalog"], load_voices(), set(args.langs.split(",")) if args.langs else None)
+    plan, models = build_plan(doc["catalog"], load_voices())  # catalog.json always describes every model, even when --langs limits this run
+    if args.langs:
+        wanted = set(args.langs.split(","))
+        plan = [j for j in plan if j["lang"] in wanted]
     kinds = {k: sum(1 for j in plan if models[j["model"]]["kind"] == k) for k in ("default", "style", "regional")}
     est = len(plan) * SEC_PER_CLIP / max(1, args.workers)
     print(f"{len(plan)} clips in {len(models)} model folders {kinds}; about {est / 60:.0f} min with {args.workers} workers", flush=True)
@@ -96,7 +100,7 @@ def main(argv=None) -> int:
     rows: dict[str, dict[tuple, dict]] = {}
     lock = threading.Lock()
     stats = {"ok": 0, "skipped": 0, "failed": 0}
-    log = (out / "progress.log").open("a", encoding="utf-8")
+    log = (out / args.log).open("a", encoding="utf-8")
 
     def flush_manifest(model: str) -> None:
         mdir = out / model

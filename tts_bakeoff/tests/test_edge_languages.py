@@ -166,6 +166,24 @@ def test_plan_can_be_limited_to_some_languages():
     assert {j["lang"] for j in plan} == {"km", "ar"}
 
 
+def test_coverage_report_lists_every_language_and_counts_a_run(tmp_path):
+    from tts_bakeoff.coverage_report import render, run_status
+
+    plan, models = build_plan(CATALOG, VOICES, {"km"})
+    model = plan[0]["model"]
+    ok = {"model": model, "lang": "km", "id": plan[0]["id"], "status": "ok", "wav": "x.wav"}
+    bad = {"model": model, "lang": "km", "id": plan[1]["id"], "status": "failed", "error": "x"}
+    (tmp_path / model).mkdir()
+    (tmp_path / model / "manifest.jsonl").write_text(json.dumps(ok) + "\n" + json.dumps(bad) + "\n", encoding="utf-8")
+    s = run_status(tmp_path, plan)["km"]
+    assert (s["planned"], s["ok"], s["failed"], s["pending"]) == (len(plan), 1, 1, len(plan) - 2)
+    text = render(DOC, tmp_path)
+    for code in ec.PLATFORM:
+        assert any(line.startswith(code + " ") for line in text.splitlines()), code
+    assert "LANGUAGES WITH NO EDGE VOICE" in text and "Basque" in text and "Nearest alternative" in text and "FAILED CLIPS" in text
+    assert "1 failed" in text and "unreviewed" in text and "Azure AI Speech" in text
+
+
 def CATALOG_LANG(v):
     return "yue" if v["locale"] == "zh-HK" else v["locale"].split("-")[0]
 

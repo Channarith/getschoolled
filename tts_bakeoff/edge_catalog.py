@@ -55,9 +55,9 @@ RTL = frozenset(code for code, (_, _, rtl) in NAMES.items() if rtl)
 
 # Languages with no edge voice that people ask about. The reason is the fact we checked; the alternative is a proposal, not a substitute.
 NO_VOICE = {
-    "eu": ("Basque: the service lists no eu voice", "none in edge-tts; a cloud TTS with Basque (Azure AI Speech lists eu-ES) would be the route. The Spanish voice must not read Basque text."),
+    "eu": ("Basque: the service lists no eu voice", "none in edge-tts; a cloud TTS that covers Basque would be the route (not checked here). The Spanish voice must not read Basque text."),
     "pa": ("Punjabi: the service lists no pa voice", "none in edge-tts; closest sibling voices are Hindi (hi-IN) and Urdu (ur-PK) but they cannot read Gurmukhi/Shahmukhi text of the same language; use a cloud TTS."),
-    "hy": ("Armenian: the service lists no hy voice", "none in edge-tts; use a cloud TTS (Azure AI Speech lists hy-AM)."),
+    "hy": ("Armenian: the service lists no hy voice", "none in edge-tts; a cloud TTS that covers Armenian would be the route (not checked here)."),
     "ha": ("Hausa: the service lists no ha voice", "none in edge-tts; no other edge voice reads Hausa."),
     "yo": ("Yoruba: the service lists no yo voice", "none in edge-tts; no other edge voice reads Yoruba."),
     "tg": ("Tajik: the service lists no tg voice", "none in edge-tts; Persian (fa-IR) is a related language but a different script and not a substitute."),
