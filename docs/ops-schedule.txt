@@ -1,0 +1,175 @@
+SALAREEN CONTINUOUS OPERATIONS: WHO DOES WHAT, WHEN
+====================================================
+Plain text on purpose (repo no-markdown house rule). Companion to docs/fleet-ops.txt (the tools).
+
+Goal: the Mac, the iBuyPower ("kalel") and the DGX Spark are always doing useful work (training,
+harvesting, translation, voice data, evaluation), never starve each other, and leave no dead processes
+or zombies behind.
+
+HOW IT WORKS IN ONE PARAGRAPH
+  Every machine runs one small worker (gs-worker). It keeps a local SQLite queue (~/.gs-queue/queue.db)
+  stocked from the job manifests in scripts/fleet/jobs/*.json, picks the most important job that fits,
+  and starts it through scripts/gs_run.sh (memory and CPU limits, GPU lock, whole-tree cleanup). Each
+  job is leased and heartbeated: if a worker dies, the lease expires and the job goes back in the queue.
+  Machines never share a database. They only agree on deterministic rules (sharding by site, one
+  time zone for windows), so a network outage never stops work and two machines never duplicate it.
+
+THE ROLES
+  DGX Spark  (Chans-Spark, GB10, 121 GB unified memory, CUDA REQUIRED)
+    LLM fine-tuning in the night window, evaluation, NLLB translation on the GPU, voice-data ingest,
+    TTS fine-tune slots. The one GPU is time-sliced by priority. Reserve: 16 GB RAM and 2 cores free.
+  iBuyPower  (Kal-el, RTX 5060 Ti 8 GB, 30 GB RAM, CUDA preferred)
+    Harvesting and scraping (network bound, the biggest share of the shards), translation overflow,
+    TTS inference for the bake-off, dataset cleaning. One GPU job at a time. Reserve: 6 GB RAM, 2 cores.
+  Mac  (coordinator, short on memory: about 7 GB free and swapping)
+    Scoring, translation validation, review exports, the daily health report, the PR and merge train.
+    It never runs GPU or heavy jobs (its GPU cap is 0). It does not need to run a worker all day.
+
+TIME ZONE RULE
+  Every window is defined in America/Los_Angeles, NOT in the machine's own clock. The Spark's clock is
+  UTC+8, the iBuyPower is Pacific. A window written as 22:00-07:00 means 22:00-07:00 Pacific on every
+  machine. All times below are Pacific.
+
+THE JOBS (scripts/fleet/jobs/*.json; the manifest is the source of truth)
+  name                   resource  machines        priority  window        preemptible  resumable
+  finetune-nightly       gpu       spark           90        22:00-07:00   no           rerun the cycle
+  frozen-eval            gpu       spark           80        22:00-07:00   no           rerun
+  translate-stage        gpu       spark, kalel    50        any           yes          yes (skips finished)
+  tts-bakeoff            gpu       spark, kalel    40        any (on demand) yes        yes (per sentence)
+  harvest-crawl          net       kalel, spark    40        any           yes          yes (durable queue)
+  voice-ingest           gpu       spark           30        any           yes          yes (per channel)
+  validate-translations  cpu       mac, kalel      20        any           yes          yes
+  Priority decides who gets the GPU. A queued job that is at least 10 points above a running
+  preemptible job stops it (gracefully; the whole job tree) and takes over. The stopped job is NOT
+  penalised: it keeps its attempt count and resumes when the GPU is free.
+  A GPU job needs the CUDA check to pass (see SAFETY). Harvesting uses the network, not the GPU, so it
+  runs beside GPU work.
+
+DAILY CALENDAR (Pacific time)
+  Spark
+    22:00  finetune-nightly becomes eligible. If voice-ingest or translate-stage holds the GPU, it is
+           stopped (preempted) and the nightly starts. The nightly may run up to 8 h.
+    22:00-07:00  night window. If the nightly ends early the GPU does not sit idle: translate-stage
+           and voice-ingest resume. On Sunday night frozen-eval (priority 80) runs after the nightly.
+    07:00-22:00  day. translate-stage (50), then tts-bakeoff on demand (40), then voice-ingest (30) share
+           the GPU one at a time. Two cores and 16 GB stay free for the desktop and ssh.
+    24 h   harvest-crawl shard (1 of 3, light: 20 pages/hour) runs on the network cap beside GPU work.
+  iBuyPower
+    24 h   harvest-crawl shards 0 and 2 (80 pages/hour), 6 h pieces, restarted daily; polite: one site
+           belongs to exactly one shard.
+    24 h   translate-stage (GPU) fills any GPU gap; tts-bakeoff on demand has the same GPU slot.
+    daily  validate-translations (CPU) checks the translation library it holds.
+  Mac
+    07:30-07:45  daily_report.sh writes output/fleet/fleet-YYYY-MM-DD.txt (launchd; runs on wake if asleep).
+    07:45  validate-translations on the Mac copy if it is awake (on demand otherwise).
+    any    review exports, scoring of bake-off runs, listening panels, PR and merge train (separate job
+           type, added by the release-train work; it plugs into the same queue).
+
+MEMORY AND COMPUTE: WHAT PROTECTS EACH MACHINE
+  1. Per job: gs_run.sh limits (MemoryMax = RAM minus the reserve, CPUQuota = cores minus the reserve,
+     nice, IO weight, TasksMax). A job that exceeds its cap is killed by the kernel, not the machine.
+  2. Per machine: the worker starts nothing when MemAvailable is below reserve + 1 GB.
+  3. Memory pressure: below 75% of the reserve for two ticks in a row (30 s), the lowest-priority
+     PREEMPTIBLE job is stopped and requeued (RAM is freed; SIGSTOP would free nothing). Non-resumable
+     jobs (finetune-nightly) are never touched; the log says so.
+  4. One GPU job per machine: the queue cap (1) plus the gs_run GPU lock (~/.gs-gpu.lock). The worker also
+     tests the lock before starting and defers if someone else (a manual run, another session) holds it.
+  5. Caps per resource class (scripts/fleet/jobs/_caps.json): Spark gpu 1 / cpu 2 / net 2,
+     iBuyPower gpu 1 / cpu 2 / net 3, Mac gpu 0 / cpu 1 / net 1.
+
+SAFETY RULES THE WORKER OBEYS
+  * CUDA on the Spark: a GPU job does not start unless a real CUDA check passes (aoep_shared.devices
+     once it is merged, else a torch.cuda matmul). No silent CPU fallback. If it fails, the worker
+     says "cuda-blocked", raises a CRIT finding in fleet_status, retries every few minutes, and keeps
+     running non-GPU work.
+  * It only ever signals processes it started: it records each runner's pid and start time, and
+     recognises it again by the name gsq-<job id>- in the command line. A reused pid, or a process with
+     another job's name, is never touched. It never touches tmux sessions, other worktrees or other
+     users' jobs (the course-translate and nllb-gateway sessions on the Spark are not ours).
+  * Every child is reaped (poll/wait): no zombies. Stopping a job signals its whole process group
+     (gs_run traps it and tears down the tree), then SIGKILLs after a grace period.
+  * It refuses to harvest while the license allowlist still contains non-commercial licenses
+     (cc-by-nc, cc-by-nc-sa): Salareen is a commercial product. The runner exits 78 (not retried).
+  * Voice-ingest builds an INTERNAL research dataset from unlicensed YouTube channels. Nothing from it
+     ships without a licensed-sources allowlist (docs/data-flow.txt).
+
+WHAT HAPPENS ON REBOOT OR POWER LOSS
+  * The worker is a systemd user service with linger enabled, so it starts at boot without a login
+     (loginctl enable-linger). boot_check.sh runs first and refuses to start only for a hard failure.
+  * Running jobs died with the machine. Their leases expire within 2 minutes; the worker then returns
+     them to the queue (and recover() stops any leftover runner it can positively identify).
+  * Jobs are designed to resume: translate skips finished course-languages, voice-ingest resumes per
+     channel, harvest has a durable crawl queue. finetune-nightly restarts its cycle (the next window).
+  * Set the BIOS option "restore on AC power loss: power on" on the Spark and the iBuyPower, or they
+     stay off after an outage. After a kernel update the NVIDIA driver may need a reboot; until it is
+     back CUDA fails, GPU jobs wait (cuda-blocked) and fleet_status shows it.
+  * A hung worker is restarted by systemd (WatchdogSec=240). A worker that keeps crashing stops after
+     5 starts in 10 minutes (no restart storm); gs-worker-revive.timer tries once an hour.
+
+LOOKING AT IT
+  scripts/gs_worker.sh status          this machine: running, waiting, blocked and why, last success per type
+  scripts/gs_worker.sh list --state dead   what gave up and why
+  scripts/fleet_status.sh              all three machines (queue summary, WORKER_DOWN, IDLE_WITH_WORK, CUDA_BLOCKED)
+  scripts/fleet/daily_report.sh --print    the daily file for all three
+  journalctl --user -u gs-worker --since today        the worker log (job logs: ~/.gs-queue/logs/)
+STEERING IT
+  scripts/gs_worker.sh pause | resume          stop or allow STARTING new jobs (running ones are not touched)
+  scripts/gs_worker.sh disable TYPE | enable TYPE      keep a job type off on this machine
+  scripts/gs_worker.sh enqueue TYPE --payload '{"model": "voxcpm2", "langs": "km,vi"}'
+  scripts/gs_worker.sh cancel ID | requeue ID
+
+FIRST-TIME SETUP, IN ORDER (Pacific times, one machine at a time; each step is checked)
+  Prerequisite: the PR with this layer is merged, so origin/main has scripts/gs_worker.sh.
+
+  DGX Spark  (do NOT switch or pull its main checkout: it sits on a feature branch with live jobs)
+    1. Make a clean checkout of main beside it:
+         ssh nvidia@192.168.1.107
+         cd ~/code/getschoolled && git fetch origin && git worktree add -f ~/code/gs-wt/main-$(date +%Y%m%d) origin/main
+         cd ~/code/gs-wt/main-$(date +%Y%m%d)
+    2. Check it:  scripts/fleet/boot_check.sh        (expect PASS lines; WARN is fine, FAIL is not)
+    3. Tell the worker what the existing sessions already do, so nothing is duplicated:
+         scripts/fleet/install-units.sh --enable-worker --disable-type translate-stage --disable-type finetune-nightly
+       The tmux sessions course-translate / nllb-gateway (translation) and the existing STEM nightly keep
+       running exactly as they are. voice-ingest, harvest-crawl, frozen-eval and tts-bakeoff are queued.
+       Edit ~/.config/gs/worker.env (BASE_MODEL=... for the nightly; HARVEST_SEEDS=...).
+    4. Verify:  scripts/gs_worker.sh status       and       systemctl --user status gs-worker
+                scripts/fleet_status.sh --host spark       (from the Mac)
+    5. Hand over later: when course-translate finishes (it is at about 1556/4662), run
+         scripts/gs_worker.sh enable translate-stage
+       and when the existing nightly is retired (ask its owner), run
+         scripts/gs_worker.sh enable finetune-nightly
+       The worker takes ~/.gs-gpu.lock, so it waits for the old nightly if both exist at once.
+    Rollback:  scripts/fleet/install-units.sh --uninstall      (the queue file stays; nothing else is touched)
+
+  iBuyPower (Kal-el; its IP changes: use FLEET_HOST_KALEL=<ip> or set a DHCP reservation in the router)
+    1. ssh cvanthin@192.168.1.118
+       cd ~/code/getschoolled && git fetch origin && git worktree add -f ~/code/gs-wt/main-$(date +%Y%m%d) origin/main
+       cd ~/code/gs-wt/main-$(date +%Y%m%d) && scripts/fleet/boot_check.sh
+    2. Put the harvest seeds in place (JSONL, one {"url": ..., "license": "cc-by"} per line). The crawl
+       refuses to start without them (exit 78) and refuses non-commercial licenses:
+         mkdir -p ~/.config/gs && ${EDITOR:-nano} ~/.config/gs/harvest-seeds.jsonl
+    3. scripts/fleet/install-units.sh --enable-worker
+    4. Verify:  scripts/gs_worker.sh status
+    Rollback:  scripts/fleet/install-units.sh --uninstall
+
+  Mac
+    No always-on worker (memory). Install only the daily report:
+         sed "s#@REPO@#$PWD#g" scripts/fleet/mac/com.salareen.fleet-daily.plist > ~/Library/LaunchAgents/com.salareen.fleet-daily.plist
+         launchctl load ~/Library/LaunchAgents/com.salareen.fleet-daily.plist
+    Run a job by hand when the Mac is idle:
+         scripts/gs_worker.sh enqueue validate-translations && scripts/gs_worker.sh --once
+    Rollback:  launchctl unload ~/Library/LaunchAgents/com.salareen.fleet-daily.plist
+
+KNOWN LIMITS AND OPEN DECISIONS
+  * The worker was tested with fake processes and a few real child processes on the Mac. It has NOT run
+     on the Spark or the iBuyPower; systemd-run limits, loginctl linger and the CUDA check need their first
+     real run there. Do the setup on one machine at a time and watch status for a day.
+  * The Spark session that owns the tmux sessions and the existing nightly was not asked; that is why the
+     first install disables translate-stage and finetune-nightly. Hand over deliberately.
+  * Harvest throughput: with the Grok or local LLM generating each course, a million courses is a
+     months-long run, not a weekend. Measure pages/hour and courses/hour per machine for a week before
+     setting --per-hour higher (the manifest defaults are modest on purpose).
+  * Harvested courses land in each machine's own corpus database. Merging them into the platform catalog
+     is a separate step (the curriculum service API) and is not done by this layer.
+  * The queue is per machine on purpose. If you want one global view, fleet_status and the daily file
+     already aggregate it; a shared database would be a single point of failure.

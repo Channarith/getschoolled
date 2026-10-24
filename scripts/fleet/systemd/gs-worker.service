@@ -1,0 +1,43 @@
+# The fleet worker: keeps this machine busy with queued jobs (scripts/fleet/queue.py worker).
+# Installed by scripts/fleet/install-units.sh --enable-worker. One per machine.
+#
+#   systemctl --user status gs-worker          journalctl --user -u gs-worker --since today
+#   scripts/gs_worker.sh status                 what it is doing and why
+#
+# Restart policy: on a crash it restarts after 30 s, at most 5 times in 10 minutes. After that the
+# unit stays failed (no restart storm) and gs-worker-revive.timer tries again once an hour.
+# Type=notify + WatchdogSec: the worker pings systemd every tick; if a tick hangs for 4 minutes
+# systemd restarts it, and recover() stops any runner it left behind.
+# Jobs run through gs_run.sh in their own systemd scopes (limits per job), so this unit's own
+# limits are small: the worker itself only polls and starts/stops processes.
+[Unit]
+Description=Salareen fleet worker (%H)
+Documentation=file://@REPO@/docs/ops-schedule.txt
+After=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+WorkingDirectory=@REPO@
+EnvironmentFile=-%h/.config/gs/worker.env
+ExecStartPre=@REPO@/scripts/fleet/boot_check.sh
+ExecStart=@REPO@/scripts/gs_worker.sh worker
+ExecStopPost=@REPO@/scripts/gs_worker.sh cleanup
+Restart=on-failure
+RestartSec=30
+WatchdogSec=240
+TimeoutStartSec=120
+TimeoutStopSec=90
+KillMode=control-group
+SendSIGKILL=yes
+MemoryMax=768M
+CPUQuota=50%
+TasksMax=256
+Nice=5
+LogRateLimitIntervalSec=30
+LogRateLimitBurst=2000
+
+[Install]
+WantedBy=default.target

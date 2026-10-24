@@ -202,3 +202,10 @@ CUDA POLICY (DGX Spark)
     scripts/fleet_cuda_check.sh nvidia@192.168.1.107   the Spark over ssh (key login)
   The translation gateway answers GET http://127.0.0.1:8002/device with the device in use, whether CUDA is
   required, free GPU memory and ok true/false (503 when the policy is violated).
+
+CONTINUOUS OPERATION (the queue layer)
+  The tools above are the safety net. docs/ops-schedule.txt describes the layer that keeps all three
+  machines busy: scripts/gs_worker.sh (worker + queue commands), scripts/fleet/jobs/*.json (job types),
+  systemd units gs-worker / gs-worker-revive / gs-queue-daily, scripts/fleet/daily_report.sh, and the
+  queue findings in fleet_status (WORKER_DOWN, QUEUE_STALE_LEASE, CUDA_BLOCKED, IDLE_WITH_WORK,
+  QUEUE_DEAD_JOBS, QUEUE_SUMMARY). Start long jobs through the queue, not by hand.

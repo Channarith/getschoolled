@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Daily fleet summary on the Mac (07:45 local). If the Mac is asleep at that time launchd runs the job
+  when it wakes, so a closed laptop does not lose the report.
+  Install:   sed "s#@REPO@#$PWD#g" scripts/fleet/mac/com.salareen.fleet-daily.plist > ~/Library/LaunchAgents/com.salareen.fleet-daily.plist
+             launchctl load ~/Library/LaunchAgents/com.salareen.fleet-daily.plist
+  Remove:    launchctl unload ~/Library/LaunchAgents/com.salareen.fleet-daily.plist && rm ~/Library/LaunchAgents/com.salareen.fleet-daily.plist
+  It only runs scripts/fleet/daily_report.sh (read-only ssh checks). Output: output/fleet/fleet-YYYY-MM-DD.txt
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.salareen.fleet-daily</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>@REPO@/scripts/fleet/daily_report.sh</string>
+  </array>
+  <key>WorkingDirectory</key><string>@REPO@</string>
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>45</integer></dict>
+  <key>StandardOutPath</key><string>/tmp/salareen-fleet-daily.log</string>
+  <key>StandardErrorPath</key><string>/tmp/salareen-fleet-daily.log</string>
+  <key>ProcessType</key><string>Background</string>
+  <key>LowPriorityIO</key><true/>
+  <key>Nice</key><integer>15</integer>
+</dict>
+</plist>

@@ -1,0 +1,8 @@
+{
+  "_comment": "Most jobs of each resource class a machine may run at once. gpu is ALWAYS at most 1 (also enforced by the gs_run GPU lock). The Mac never runs GPU or heavy jobs: it is the coordinator and is short of memory.",
+  "caps": {
+    "spark": {"gpu": 1, "cpu": 2, "net": 2},
+    "kalel": {"gpu": 1, "cpu": 2, "net": 3},
+    "mac":   {"gpu": 0, "cpu": 1, "net": 1}
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "finetune-nightly",
+  "description": "One STEM QLoRA cycle: seed export, train, evaluate, bake off, promote only if the fairness-gated gate says so (training/spark_nightly.sh). Highest priority on the Spark GPU, night window only. Not preemptible: a half-trained adapter is wasted. Set BASE_MODEL in ~/.config/gs/worker.env.",
+  "resource": "gpu",
+  "roles": ["spark"],
+  "priority": 90,
+  "window": ["22:00", "07:00"],
+  "tz": "America/Los_Angeles",
+  "every_s": 86400,
+  "needs_cuda": true,
+  "preemptible": false,
+  "timeout_s": 28800,
+  "max_attempts": 2,
+  "backoff_s": 1800,
+  "cmd": ["training/spark_nightly.sh"]
+}
