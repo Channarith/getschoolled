@@ -2869,7 +2869,8 @@ if (embedMobile) {
   const share=$("share");
   if (share) share.checked=true;
   $("vision-tools")?.removeAttribute("open");
-  setChromeHidden(true);
+  // The setup screen and the game picker live in the chrome: never hide it at load.
+  setChromeHidden(false);
   syncTouchToggle();
 }
 function pickLaunchGame() {
