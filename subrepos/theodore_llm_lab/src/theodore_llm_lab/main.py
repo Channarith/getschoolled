@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 from typing import Any, List, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -33,6 +33,13 @@ from .paths import fixture_root
 
 app = FastAPI(title="Theodore LLM Lab", version="0.1.0")
 install_live_audio_routes(app, lab_name="Theodore LLM Lab")
+
+
+def _safe_out_path(name: str) -> Path:
+    """Output stays inside LLM_LAB_OUT_DIR: a bare file name, never a client path."""
+    if not name or name != Path(name).name or name in {".", ".."} or "\x00" in name:
+        raise HTTPException(status_code=400, detail="out must be a plain file name")
+    return Path(os.environ.get("LLM_LAB_OUT_DIR", "output/llm_lab")) / name
 
 
 def _roots(include_curriculum: bool) -> List[Path]:
@@ -99,13 +106,17 @@ def health() -> dict[str, Any]:
 
 @app.post("/api/llm/assemble")
 def api_assemble(req: AssembleReq) -> dict[str, Any]:
+    out_path = _safe_out_path(req.out) if req.out else None
     report = assemble_report(_roots(req.include_curriculum))
-    written = None
-    if req.out:
+    if out_path is not None:
         examples = assemble(_roots(req.include_curriculum))
-        written = write_jsonl(examples, Path(req.out))
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            written = write_jsonl(examples, out_path)
+        except OSError as exc:
+            raise HTTPException(status_code=400, detail=f"cannot write output: {exc}") from exc
         report["written"] = written
-        report["out"] = req.out
+        report["out"] = out_path.name
     return report
 
 

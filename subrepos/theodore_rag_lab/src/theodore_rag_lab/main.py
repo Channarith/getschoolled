@@ -570,7 +570,8 @@ def api_feedback_post(req: FeedbackReq) -> dict[str, Any]:
 
 class CorpusTrainReq(BaseModel):
     force: bool = False
-    language: str = "en"
+    # Becomes part of staging file names, so only a plain language tag is accepted.
+    language: str = Field(default="en", pattern=r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,3}$")
     synth: bool = False
     ship_packs: bool = False
 

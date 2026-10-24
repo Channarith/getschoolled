@@ -54,7 +54,7 @@ from .early_learning import (
 )
 from .extract import extract_document
 from .compose import ComposeCourseRequest, compose_course_from_segments, trial_demo_plan
-from .generate import CourseBuilder
+from .generate import CourseBuilder, InvalidCourseId
 from .offline_trainer import run_offline_training
 from .quality_model import default_model_path, load_model, model_to_public_dict
 from .quality_telemetry import get_telemetry
@@ -84,6 +84,15 @@ app = FastAPI(
     description="Labeled corpus training, review comments, course build, Theodore teach/present.",
     version="0.1.0",
 )
+
+
+@app.exception_handler(InvalidCourseId)
+async def _invalid_course_id(_request: Request, exc: InvalidCourseId):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse({"detail": str(exc)}, status_code=422)
+
+
 install_live_audio_routes(
     app,
     lab_name="Theodore Course Studio",
