@@ -71,6 +71,7 @@ _PAGE = """<!doctype html>
         <div class="brand">Theodore Play Lab</div>
         <div class="score"><span id="stars">☆☆☆</span><span id="fun-score">Fun 0</span><span id="combo">Combo 0</span></div>
         <button id="mute" aria-pressed="false">🔊</button>
+        <span id="clone-voice-slot" class="clone-voice-slot"></span>
         <button id="chrome-toggle" type="button" hidden aria-pressed="false">Hide options</button>
         <div id="touch-mode" class="touch-mode" role="radiogroup" hidden aria-label="Air touch selected. Screen touch is also available.">
           <button id="touch-air" type="button" data-touch="air" role="radio" aria-checked="true">Air touch</button>

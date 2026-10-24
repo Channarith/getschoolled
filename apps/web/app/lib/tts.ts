@@ -8,6 +8,7 @@
 // human-grade audio, route narration through a neural TTS backend (XTTS / cloud
 // TTS via the speech service) — see speakNaturally's `audioUrl` hook.
 
+import { DEFAULT_VOICE_ID, cloneClipUrl, getSelectedVoice } from "./cloneVoice";
 import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
 } from "./voiceProfiles";
@@ -465,7 +466,7 @@ export function speakNaturally(text: string, opts: SpeakOptions): void {
 
   // Prefer server neural audio (ElevenLabs / edge-tts) when available; fall back
   // to the on-device voice on any failure so narration never silently stops.
-  serverTtsAvailable().then((ok) => {
+  const defaultVoice = () => serverTtsAvailable().then((ok) => {
     if (finished || _epoch !== myEpoch) return;   // cancelled before we started
     if (ok) {
       playServerAudio(text, opts, done, myEpoch).then((played) => {
@@ -475,6 +476,34 @@ export function speakNaturally(text: string, opts: SpeakOptions): void {
       speakBrowser(text, opts, done, myEpoch);
     }
   }).catch(() => { if (!finished && _epoch === myEpoch) speakBrowser(text, opts, done, myEpoch); });
+
+  // A selected company voice plays its pre-rendered clip for this exact text; no clip, no consent or any
+  // playback problem means the default voice speaks instead (never silent).
+  if (getSelectedVoice() === DEFAULT_VOICE_ID) { void defaultVoice(); return; }
+  cloneClipUrl(opts.locale, text).then((url) => {
+    if (finished || _epoch !== myEpoch) return;
+    if (!url) { void defaultVoice(); return; }
+    playCloneClip(url, opts, done, myEpoch).then((ok) => {
+      if (!ok && !finished && _epoch === myEpoch) void defaultVoice();
+    });
+  }).catch(() => { if (!finished && _epoch === myEpoch) void defaultVoice(); });
+}
+
+// Play one pre-rendered clip. Resolves true once it is playing (or was cancelled), false if it never started.
+function playCloneClip(url: string, opts: SpeakOptions, done: () => void, myEpoch: number): Promise<boolean> {
+  stopServerAudio();
+  if (_epoch !== myEpoch) return Promise.resolve(true);
+  const audio = new Audio(url);
+  _currentAudio = audio;
+  if (opts.rate && opts.rate > 0) audio.playbackRate = Math.max(0.5, Math.min(2, opts.rate));
+  return new Promise<boolean>((resolve) => {
+    let started = false;
+    const release = () => { if (_currentAudio === audio) _currentAudio = null; };
+    audio.onplaying = () => { started = true; resolve(true); };
+    audio.onended = () => { release(); done(); };
+    audio.onerror = () => { release(); if (started) done(); else resolve(false); };
+    audio.play().catch(() => { release(); if (!started) resolve(false); });
+  });
 }
 
 // On-device Web Speech narration (the natural-voice fallback).

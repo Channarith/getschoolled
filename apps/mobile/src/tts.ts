@@ -8,6 +8,7 @@
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
 import * as Speech from "expo-speech";
 
+import { cloneClipUrl } from "./cloneVoice";
 import { ensureLiveRoomNarrationRoute, liveKitAudioActive } from "./components/liveKitAudio";
 import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
@@ -259,15 +260,20 @@ export function stopSpeech(): void {
 
 async function playServerAudio(text: string, opts: SpeakOptions, myEpoch: number): Promise<boolean> {
   if (encodeURIComponent(text).length > MAX_SERVER_TTS_CHARS) return false;
+  const lang = spokenLanguageCode(opts.locale);
+  const style = opts.voiceStyle ?? "standard";
+  const uri = `${_speechBaseUrl}/tts?text=${encodeURIComponent(text)}`
+    + `&language=${encodeURIComponent(lang)}&voice_style=${encodeURIComponent(style)}`
+    + (_serverVoiceId ? `&voice=${encodeURIComponent(_serverVoiceId)}` : "")
+    + (_serverInstructor ? `&instructor=${encodeURIComponent(_serverInstructor)}` : "");
+  return playUri(uri, opts, myEpoch);
+}
+
+// Play audio from a URI (the neural TTS endpoint or a pre-rendered clip). True once playing or cancelled, false if it never started.
+async function playUri(uri: string, opts: SpeakOptions, myEpoch: number): Promise<boolean> {
   try {
     await ensureSpeechAudioSession();
     if (_speechEpoch !== myEpoch) return true;
-    const lang = spokenLanguageCode(opts.locale);
-    const style = opts.voiceStyle ?? "standard";
-    const uri = `${_speechBaseUrl}/tts?text=${encodeURIComponent(text)}`
-      + `&language=${encodeURIComponent(lang)}&voice_style=${encodeURIComponent(style)}`
-      + (_serverVoiceId ? `&voice=${encodeURIComponent(_serverVoiceId)}` : "")
-      + (_serverInstructor ? `&instructor=${encodeURIComponent(_serverInstructor)}` : "");
     const { sound, status } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
     if (_speechEpoch !== myEpoch) {
       try { await sound.unloadAsync(); } catch { /* */ }
@@ -344,6 +350,10 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
     // speaker (mute switch on, or after LiveKit/intro released the session).
     await ensureSpeechAudioSession();
     if (_speechEpoch !== myEpoch) return;
+    // A selected company voice plays its pre-rendered clip for this exact text; any miss falls through to the default voice.
+    const cloneUrl = await cloneClipUrl(opts.locale, text).catch(() => null);
+    if (_speechEpoch !== myEpoch) return;
+    if (cloneUrl && await playUri(cloneUrl, opts, myEpoch)) return;
     if (await serverTtsAvailable()) {
       if (_speechEpoch !== myEpoch) return;
       if (await playServerAudio(text, opts, myEpoch)) return;   // neural audio playing
