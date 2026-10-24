@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-24 - v0.97.2 - Driver's Ed fixes after the picture tutorial and road video landed. The studio image kept the opening video as a dangling symlink (COPY does not replace a symlink and StaticFiles will not follow one), so the video route returned 404 in production; the Dockerfile now removes the symlink first. The tutorial pictures were served as text/plain because the slim image has no mime table for .webp; it is registered now. The picture tutorial card was 12px wider than the room inside its overlay and sat off-center on 390px phones; it is centered. Order check (tutorial first, video paused behind it, lesson hidden until the video ends) passes on Chromium, iPhone 14 WebKit, Pixel 7, iPad and Firefox.
 - 2026-10-24 - v0.97.1 - scripts/record_deployment.sh records a manual production rollout on GitHub (Deployments page) so it matches what is live. Usage: scripts/record_deployment.sh <sha> "<what shipped>".
 
 [released 0.97.0 — 2026-10-24]
