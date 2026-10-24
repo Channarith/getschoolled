@@ -5,7 +5,8 @@
 
 Per language with a voice (from edge_voices.json, see edge_catalog.py):
   default female and default male .... all 10 sentences (SET10, see sentence_set.py)
-  9 character presets ............... on the default female, sentences S01 and Q01 (prosody only: rate, pitch, volume)
+  9 character presets ............... on the default female (S01 and Q01) and the default male (S01); prosody only: rate, pitch, volume
+  13 blends of professional/cute/anime  on both default voices, sentence S01 (weighted average of the presets' prosody, see voice_types.blend)
   every other voice of the language .. one sentence, id A01 (= that language's S01 text): regional accents, extra voices
 Layout: OUT/<voice or voice~preset>/<lang>/<id>.wav + manifest.jsonl + meta.json per model folder, and OUT/catalog.json
 (language entries and a model index) for the lab. Resumable: finished clips are skipped, failed ones are retried. Progress goes
@@ -23,7 +24,7 @@ from pathlib import Path
 from .adapters import get
 from .edge_catalog import SNAPSHOT, load_voices
 from .sentence_set import SET10, load10
-from .voice_types import PRESETS
+from .voice_types import BLEND_WEIGHTS, PRESETS, blend
 
 STYLE_IDS = ("S01", "Q01")
 SEC_PER_CLIP = 3.0  # measured: about 1.5-2.5 s synthesis plus the polite delay
@@ -53,10 +54,14 @@ def build_plan(catalog: dict, voices: list[dict], langs: set[str] | None = None)
             g = by_name[voice]["gender"][0]
             for sid in SET10:
                 add(voice, code, voice, sid, texts[sid], "default", f"{short(voice)} · {g} · {by_name[voice]['locale']}")
-        base = e["default"]["female"] or e["default"]["male"]
-        for preset, prosody in PRESETS.items():
-            for sid in STYLE_IDS:
-                add(f"{base}~{preset}", code, base, sid, texts[sid], "style", f"{short(base)} · {preset}", style=preset, prosody=prosody)
+        for voice in defaults:
+            female = voice == e["default"]["female"]
+            for preset, prosody in PRESETS.items():
+                for sid in (STYLE_IDS if female else ("S01",)):
+                    add(f"{voice}~{preset}", code, voice, sid, texts[sid], "style", f"{short(voice)} · {preset}", style=preset, prosody=prosody)
+            for label, weights in BLEND_WEIGHTS.items():
+                add(f"{voice}~blend-{label}", code, voice, "S01", texts["S01"], "style", f"{short(voice)} · {label}", style=f"blend-{label}",
+                    prosody=blend(weights))
         for region in e["regions"]:
             for voice in region["voices"]:
                 if voice not in defaults:

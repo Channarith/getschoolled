@@ -1,6 +1,6 @@
 """Voice types for edge-tts: accents, genders and character presets, as a listening set for the lab.
 
-  python3 -m tts_bakeoff.voice_types --out runs/2026-10-25-voices [--groups accents,styles] [--list]
+  python3 -m tts_bakeoff.voice_types --out runs/2026-10-25-voices [--groups accents,styles,blends] [--list]
 
 Accents and genders are real voices the service offers (list: edge_tts.list_voices). Character presets (professional,
 warm, cute, anime, tough, heavy, light, energetic, calm) are PROSODY shaping (rate, pitch, volume) on those voices: they
@@ -30,6 +30,32 @@ PRESETS = {  # name: (rate, pitch, volume)
     "heavy": ("-15%", "-30Hz", "+0%"),
     "light": ("+4%", "+14Hz", "-10%"),
 }
+
+BLEND_PARTS = ("professional", "cute", "anime")
+BLEND_WEIGHTS = {  # label: {preset: weight}; pairs at 25/50/75, plus all three and three leaning blends
+    **{f"{a}{w}-{b}{100 - w}": {a: w, b: 100 - w} for i, a in enumerate(BLEND_PARTS) for b in BLEND_PARTS[i + 1:] for w in (75, 50, 25)},
+    "pro34-cute33-anime33": {"professional": 34, "cute": 33, "anime": 33},
+    "pro60-cute20-anime20": {"professional": 60, "cute": 20, "anime": 20},
+    "cute60-pro20-anime20": {"cute": 60, "professional": 20, "anime": 20},
+    "anime60-pro20-cute20": {"anime": 60, "professional": 20, "cute": 20},
+}
+BLEND_VOICES = {
+    "en": [("en-US-AvaNeural", None), ("en-GB-SoniaNeural", None), ("en-US-AnaNeural", None)],
+    "ja": [("ja-JP-NanamiNeural", "こんにちは！今日のレッスンへようこそ。一緒に分数の比べ方を学びましょう。")],
+    "zh": [("zh-CN-XiaoxiaoNeural", None), ("zh-CN-XiaoyiNeural", None)],
+    "es": [("es-MX-DaliaNeural", None)],
+}
+
+
+def blend(weights: dict[str, int]) -> tuple[str, str, str]:
+    """Weighted average of the presets' rate (%), pitch (Hz) and volume (%)."""
+    total = sum(weights.values())
+    out = []
+    for i, unit in enumerate(("%", "Hz", "%")):
+        v = sum(float(PRESETS[n][i].rstrip("%Hz")) * w for n, w in weights.items()) / total
+        out.append(f"{int(round(v)):+d}{unit}")
+    return tuple(out)  # type: ignore[return-value]
+
 
 # group -> {lang code in the lab: [(voice short name, accent/label)]}
 ACCENTS = {
@@ -84,6 +110,13 @@ def jobs(groups: set[str]):
         for lang, voices in ACCENTS.items():
             for voice, label in voices:
                 yield {"model": voice, "lang": lang, "id": "A01", "voice": voice, "text": text_for(lang, voice), "label": label}
+    if "blends" in groups:
+        for lang, voices in BLEND_VOICES.items():
+            for voice, text in voices:
+                for label, weights in BLEND_WEIGHTS.items():
+                    rate, pitch, volume = blend(weights)
+                    yield {"model": f"{voice}~blend-{label}", "lang": lang, "id": "B01", "voice": voice, "rate": rate, "pitch": pitch,
+                           "volume": volume, "text": text or text_for(lang, voice), "label": f"{voice.split('-', 2)[2].replace('Neural', '')} · {label}"}
     if "styles" in groups:
         for lang, voices in STYLE_VOICES.items():
             for voice, text in voices:
