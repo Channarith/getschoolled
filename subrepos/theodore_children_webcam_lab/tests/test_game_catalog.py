@@ -331,3 +331,12 @@ def test_each_game_has_its_own_controls_and_launch_is_not_trace_letter():
     shown = css.split("body.phone-play .vision-readout{")[1].split("}")[0]
     assert "display:grid" in shown
     assert "face" in script and "distance" in script and "trail_points" in script
+
+
+def test_phone_layout_never_hides_the_setup_and_game_picker_at_load():
+    """A narrow frame (or phone) once hid the setup before play, leaving a blank page."""
+    source = _js()
+    block = source[source.index("if (embedMobile) {"):]
+    block = block[: block.index("\n}\n")]
+    assert "setChromeHidden(false)" in block
+    assert "setChromeHidden(true)" not in block
