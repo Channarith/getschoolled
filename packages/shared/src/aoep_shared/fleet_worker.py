@@ -215,15 +215,12 @@ _CUDA_SCRIPT = r"""
 import sys
 try:
     import aoep_shared.devices as d
-    for name in ("cuda_smoke_check", "smoke_check", "check_cuda", "require_cuda"):
-        fn = getattr(d, name, None)
-        if callable(fn):
-            r = fn()
-            if r is False:
-                print("devices." + name + " reported failure"); sys.exit(3)
-            print("ok devices." + name); sys.exit(0)
-except ImportError:
-    pass
+except Exception:
+    d = None
+if d is not None and callable(getattr(d, "cuda_smoke", None)):
+    ok, detail = d.cuda_smoke()  # the CUDA policy's own check: real kernels, not just is_available()
+    print(("ok " if ok else "FAIL ") + str(detail))
+    sys.exit(0 if ok else 3)
 import torch
 if not torch.cuda.is_available():
     print("torch.cuda.is_available() is False (torch %s)" % torch.__version__); sys.exit(3)
@@ -251,7 +248,7 @@ def default_cuda_check(python: str, repo: str) -> tuple[bool, str]:
         return False, "CUDA check timed out after 45s"
     except OSError as exc:
         return False, f"cannot run {python}: {exc}"
-    detail = (r.stdout.strip() or r.stderr.strip().splitlines()[-1:] or [""])[0] if r.returncode else r.stdout.strip()
+    detail = r.stdout.strip() or (r.stderr.strip().splitlines() or [""])[-1]
     return r.returncode == 0, detail[:200]
 
 

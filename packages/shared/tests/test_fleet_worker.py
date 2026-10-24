@@ -15,6 +15,7 @@ from aoep_shared.fleet_queue import JobType, Queue
 from aoep_shared.fleet_worker import (
     SubprocessRunner,
     Worker,
+    default_cuda_check,
     WorkerConfig,
     gpu_lock_free,
     kill_group,
@@ -360,3 +361,16 @@ def test_gpu_lock_free_reports_a_held_lock(tmp_path):
 def test_sd_notify_is_a_no_op_outside_systemd(monkeypatch):
     monkeypatch.delenv("NOTIFY_SOCKET", raising=False)
     sd_notify("WATCHDOG=1")  # must not raise
+
+
+def test_default_cuda_check_reports_a_clear_failure_without_cuda():
+    pytest.importorskip("aoep_shared.devices")
+    try:
+        import torch  # noqa: F401
+        if torch.cuda.is_available():
+            pytest.skip("this machine has CUDA")
+    except ImportError:
+        pass
+    repo = str(Path(__file__).resolve().parents[3])
+    ok, detail = default_cuda_check(sys.executable, repo)
+    assert ok is False and len(detail) > 10, detail  # a readable reason, not a single character
