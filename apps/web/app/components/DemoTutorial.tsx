@@ -43,7 +43,7 @@ export default function DemoTutorial({ storageKey, title, steps }: DemoTutorialP
         aria-label="How this demo works"
         title="How this demo works"
         onClick={() => setOpen(true)}
-        style={{ position: "fixed", left: 18, bottom: 18, zIndex: 50, width: 40, height: 40, borderRadius: "50%", border: "2px solid #d4af37", background: "#0b1020", color: "#fde047", fontWeight: 800, cursor: "pointer" }}
+        style={{ position: "fixed", left: 18, bottom: 18, zIndex: 1000, width: 40, height: 40, borderRadius: "50%", border: "2px solid #d4af37", background: "#0b1020", color: "#fde047", fontWeight: 800, cursor: "pointer" }}
       >?</button>
       {open && (
         <div
@@ -52,7 +52,7 @@ export default function DemoTutorial({ storageKey, title, steps }: DemoTutorialP
           aria-label={title}
           data-testid={`demo-tutorial-${storageKey}`}
           onClick={close}
-          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(5,8,20,.82)", display: "grid", placeItems: "center", padding: 16 }}
+          style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(5,8,20,.82)", display: "grid", placeItems: "center", padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: "100%", background: "#0b1020", color: "#e8ecf6", borderRadius: 18, padding: 22, border: "2px solid #d4af37" }}>
             <h2 style={{ margin: "0 0 12px", fontSize: 20 }}>{title}</h2>
