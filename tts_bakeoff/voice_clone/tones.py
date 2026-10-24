@@ -26,6 +26,7 @@ from pathlib import Path
 
 from tts_bakeoff.voice_types import BLEND_WEIGHTS, PRESETS, blend
 
+from . import clean as audio_clean
 from . import registry, synth
 
 NEUTRAL = "neutral"
@@ -197,26 +198,27 @@ def tone_adapter(model: str, speaker: str, tone: str, base: Path | None = None, 
 
 
 def render_tone_clip(speaker: str, model: str, text: str, lang: str, tone: str, mechanism: str, out_wav: Path | str,
-                     base: Path | None = None, gpu: bool = True) -> dict:
+                     base: Path | None = None, gpu: bool = True, takes: int | None = None, clean: bool | None = None) -> dict:
     """One clip of ``speaker`` in ``tone``. mechanism 'model' (style asked of the model) or 'dsp' (neutral clone, then
-    post-processing). The consent gate runs first in both. Reusable by the Say-anything flow."""
+    post-processing). The consent gate runs first in both. The neutral or model clip goes through the best-of-N + cleaning
+    stage (clean.synthesize_best_of; takes/clean as there). Reusable by the Say-anything flow."""
     if mechanism not in ("model", "dsp"):
         raise ValueError("mechanism must be 'model' or 'dsp'")
     out = Path(out_wav)
     require_tone_consent(speaker, tone, base)
     if mechanism == "model" or tone == NEUTRAL:
-        res = tone_adapter(model, speaker, tone, base, gpu).synthesize(text, lang, out)
+        res = audio_clean.synthesize_best_of(tone_adapter(model, speaker, tone, base, gpu), text, lang, out, takes=takes, clean=clean)
     else:
         with tempfile.TemporaryDirectory() as t:
             raw = Path(t) / "neutral.wav"
-            res = tone_adapter(model, speaker, NEUTRAL, base, gpu).synthesize(text, lang, raw)
+            res = audio_clean.synthesize_best_of(tone_adapter(model, speaker, NEUTRAL, base, gpu), text, lang, raw, takes=takes, clean=clean)
             apply_tone_dsp(raw, out, tone)
     res["tone"], res["mechanism"] = tone, mechanism
     return res
 
 
 def run_tones(out: Path, speakers: list[str], models: list[str], langs: list[str], tones: list[str], mechanisms: list[str],
-              limit: int | None = 1, base: Path | None = None, gpu: bool = True, model_blends: bool = False) -> dict:
+              limit: int | None = 1, base: Path | None = None, gpu: bool = True, model_blends: bool = False, takes: int | None = None, clean: bool | None = None) -> dict:
     """Listening set under ``out`` (loadable by tts_bakeoff.lab): <model>~<speaker>~<mechanism>-<tone>/<lang>/<id>.wav.
 
     The neutral clone is synthesized once per speaker/model/language/sentence and every dsp tone is derived from it, so
@@ -249,7 +251,7 @@ def run_tones(out: Path, speakers: list[str], models: list[str], langs: list[str
                     with tempfile.TemporaryDirectory() as t:
                         raw = Path(t) / "neutral.wav"
                         try:
-                            adapter.synthesize(item["text"], lang, raw)
+                            audio_clean.synthesize_best_of(adapter, item["text"], lang, raw, takes=takes, clean=clean)
                         except Exception as exc:  # noqa: BLE001
                             print(f"[{model}~{speaker}] {lang} {item['id']} neutral failed: {exc}")
                             counts["failed"] += 1
@@ -258,11 +260,11 @@ def run_tones(out: Path, speakers: list[str], models: list[str], langs: list[str
                             for mech in mechanisms:
                                 if mech == "model" and (tone == NEUTRAL or (tone in BLEND_NAMES and not model_blends)):
                                     continue
-                                _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, counts)
+                                _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, counts, takes, clean)
     return counts
 
 
-def _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, counts):
+def _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, counts, takes=None, clean=None):
     t = get_tone(tone)
     vid = f"{model}~{speaker}" if t is None else f"{model}~{speaker}~{mech}-{tone}"
     root = out / vid
@@ -278,7 +280,8 @@ def _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, coun
         elif mech == "dsp":
             apply_tone_dsp(raw, wav, tone)
         else:
-            row.update(tone_adapter(model, speaker, tone, base, gpu).synthesize(item["text"], lang, wav))
+            row.update(audio_clean.synthesize_best_of(tone_adapter(model, speaker, tone, base, gpu), item["text"], lang, wav,
+                                                      takes=takes, clean=clean))
         row["status"] = "ok"
         counts["ok"] += 1
     except Exception as exc:  # noqa: BLE001
