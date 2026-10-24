@@ -1734,7 +1734,10 @@ def homework_grade(req: GradeHomeworkRequest) -> dict:
     pass a valid X-Internal-Token header signed with INTERNAL_TOKEN_KEY
     (or set INTERNAL_TOKEN for local dev).
     """
-    assignment = HomeworkAssignment(**req.assignment)
+    try:
+        assignment = HomeworkAssignment(**req.assignment)
+    except (TypeError, ValueError) as exc:  # pydantic ValidationError is a ValueError
+        raise HTTPException(status_code=422, detail=f"invalid assignment: {exc}"[:300]) from exc
     answers = req.answers
     if req.submission_text:
         answers = segment_answers(req.submission_text)
@@ -2035,11 +2038,19 @@ def scoring_config_put(req: ScoringConfigUpdate) -> dict:
     from aoep_shared.course_scoring import ScoringConfig
 
     cur = app.state.scoring_config
+    try:
+        bands = ([(float(t), str(l)) for t, l in req.quality_bands] if req.quality_bands else None)
+        for weight in (req.quality_weights or {}).values():
+            float(weight)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="quality_bands must be [[min_score, label], ...] and quality_weights must be numbers",
+        ) from exc
     new = ScoringConfig(
         quality_weights=(req.quality_weights or dict(cur.quality_weights)),
         depth_target=(req.depth_target if req.depth_target is not None else cur.depth_target),
-        quality_bands=([(float(t), str(l)) for t, l in req.quality_bands]
-                       if req.quality_bands else list(cur.quality_bands)),
+        quality_bands=bands if bands is not None else list(cur.quality_bands),
         notes=(req.notes if req.notes is not None else cur.notes),
         updated_at=_time.time(),
     )

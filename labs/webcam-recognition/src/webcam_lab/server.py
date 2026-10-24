@@ -78,6 +78,8 @@ def health() -> Dict[str, Any]:
 
 @app.post("/sessions")
 def create_session(body: CreateSessionBody) -> Dict[str, Any]:
+    if body.class_mode.lower() not in ("solo", "group"):
+        raise HTTPException(422, "class_mode must be solo or group")
     session = TeachingSession.create(
         class_mode=body.class_mode,
         teaching_mode=body.teaching_mode,

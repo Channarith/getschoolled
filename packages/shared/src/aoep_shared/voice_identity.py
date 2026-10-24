@@ -177,9 +177,16 @@ class EncryptedVoiceGallery:
         if not os.path.isfile(self.path):
             return {}
         with open(self.path, "rb") as stream:
-            plaintext = self._fernet().decrypt(stream.read())
-        data = json.loads(plaintext)
-        return {str(key): [float(v) for v in value] for key, value in data.items()}
+            raw = stream.read()
+        try:
+            plaintext = self._fernet().decrypt(raw)
+            data = json.loads(plaintext)
+            return {str(key): [float(v) for v in value] for key, value in data.items()}
+        except VoiceIdentityUnavailable:
+            raise
+        except Exception as exc:  # wrong key after a rotation, or a damaged file
+            # Never treat this as an empty gallery: the next write would erase it.
+            raise VoiceIdentityUnavailable("voice gallery cannot be read with the current key") from exc
 
     def _write(self, data: dict[str, list[float]]) -> None:
         directory = os.path.dirname(self.path)

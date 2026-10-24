@@ -81,3 +81,15 @@ def test_speaker_match_uses_calibrated_cosine_threshold():
     mismatch = SherpaSpeakerProvider.compare([1.0, 0.0], [0.1, 0.9], threshold=0.65)
     assert match.matched is True
     assert mismatch.matched is False
+
+
+def test_gallery_read_with_wrong_key_is_unavailable_not_empty(tmp_path):
+    from aoep_shared.voice_identity import EncryptedVoiceGallery, VoiceIdentityUnavailable
+
+    path = str(tmp_path / "voiceprints.bin")
+    EncryptedVoiceGallery(path, "old-key")._write({"s1": [0.1, 0.2]})
+    rotated = EncryptedVoiceGallery(path, "new-key")
+    with pytest.raises(VoiceIdentityUnavailable):
+        rotated.remove("s1")
+    # The unreadable file is left alone rather than overwritten with an empty gallery.
+    assert EncryptedVoiceGallery(path, "old-key")._read() == {"s1": [0.1, 0.2]}
