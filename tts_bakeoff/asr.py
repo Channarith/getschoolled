@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 
 MMS_LANG = {"km": "khm", "th": "tha", "vi": "vie", "sw": "swh", "hi": "hin", "es": "spa", "en": "eng", "zh": "cmn-script_simplified"}
-WHISPER_LANG = {"km": "km", "th": "th", "vi": "vi", "sw": "sw", "hi": "hi", "es": "es", "en": "en", "zh": "zh"}
+WHISPER_LANG = {"km": "km", "th": "th", "vi": "vi", "sw": "sw", "hi": "hi", "es": "es", "en": "en", "zh": "zh", "yue": "yue"}
 
 
 class ASR:

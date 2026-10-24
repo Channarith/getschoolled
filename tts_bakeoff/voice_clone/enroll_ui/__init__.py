@@ -31,6 +31,8 @@ from pathlib import Path
 from tts_bakeoff.lab import content_type
 
 from .. import enroll, registry
+from . import voice_check
+from .i18n import CONSENT_STATUS, DRAFT_CONSENT_LANGS, UI, UI_LANGS, consent_path
 from .prompts import DRAFT_LANGS, LANG_NAMES, PROMPT_SETS, statement_for
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -44,6 +46,7 @@ SYNTH_MODELS = ("voxcpm2", "cosyvoice2")
 MIN_PROOF_S, MAX_PROOF_S = 3.0, 40.0
 MIN_TAKE_S, MAX_TAKE_S = 1.0, 40.0
 _JOBS: dict[str, dict] = {}
+_CHECKS: dict[tuple[str, str], dict] = {}
 _SAY: dict[str, dict] = {}   # this server session's "say anything" jobs, by id
 SAY_MAX_CHARS = 500
 SAY_ACTIVE = ("waiting for GPU lock", "running")
@@ -55,12 +58,19 @@ class UiError(Exception):
         self.code, self.message = code, message
 
 
-def consent_text() -> str:
-    return CONSENT_FORM.read_text(encoding="utf-8")
+def _ui_lang(lang) -> str:
+    lang = lang or "en"
+    if lang not in UI_LANGS:
+        raise UiError(400, f"unknown page language {lang!r}")
+    return lang
 
 
-def consent_text_sha256() -> str:
-    return hashlib.sha256(consent_text().encode("utf-8")).hexdigest()
+def consent_text(lang: str = "en") -> str:
+    return consent_path(_ui_lang(lang)).read_text(encoding="utf-8")
+
+
+def consent_text_sha256(lang: str = "en") -> str:
+    return hashlib.sha256(consent_text(lang).encode("utf-8")).hexdigest()
 
 
 def norm_name(name: str) -> str:
@@ -124,17 +134,20 @@ def speakers(base: Path) -> list[dict]:
 
 
 def config() -> dict:
+    texts = {k: {"text": consent_text(k), "sha256": consent_text_sha256(k), "status": CONSENT_STATUS[k], "draft": k in DRAFT_CONSENT_LANGS}
+             for k in UI_LANGS}
     return {"consent_text": consent_text(), "consent_text_sha256": consent_text_sha256(), "agreements": list(AGREEMENTS),
+            "ui_langs": UI_LANGS, "ui": UI, "consent_texts": texts,
             "roles": list(registry.ROLES), "langs": {k: LANG_NAMES[k] for k in PROMPT_SETS}, "draft_langs": list(DRAFT_LANGS),
             "prompts": PROMPT_SETS, "min_seconds": enroll.MIN_S, "max_seconds": enroll.MAX_S, "min_snr_db": enroll.MIN_SNR_DB,
             "models": list(SYNTH_MODELS), "say_max_chars": SAY_MAX_CHARS, "say_langs": say_langs(),
             "lang_names": {k: LANG_NAMES.get(k, k) for k in ("en", "es", "zh", "vi", "th", "km", "sw", "hi")}}
 
 
-def statement(name: str) -> str:
+def statement(name: str, lang: str = "en") -> str:
     if not norm_name(name):
         raise UiError(400, "enter the person's name first")
-    return statement_for(name)
+    return statement_for(name, _ui_lang(lang))
 
 
 def create_consent(base: Path, p: dict) -> dict:
@@ -151,14 +164,16 @@ def create_consent(base: Path, p: dict) -> dict:
     missing = [a for a in AGREEMENTS if agreed.get(a) is not True]
     if missing:
         raise UiError(400, "every box must be ticked: " + ", ".join(missing))
-    if p.get("text_sha256") != consent_text_sha256():
+    ui_lang = _ui_lang(p.get("ui_lang"))
+    if p.get("text_sha256") != consent_text_sha256(ui_lang):
         raise UiError(409, "the consent text changed since this page loaded: reload and read it again")
     speaker = slugify(name)
     if (registry.speaker_dir(speaker, base) / "consent.json").is_file():
         raise UiError(409, f"{name} already has a record ({speaker}). Withdraw it under Enrolled voices before starting over.")
     when = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     evidence = {"method": "web-ui", "timestamp": when, "typed_name": name, "agreements": {a: True for a in AGREEMENTS},
-                "consent_text_sha256": consent_text_sha256()}
+                "consent_text_sha256": consent_text_sha256(ui_lang), "consent_language": ui_lang,
+                "consent_text_status": CONSENT_STATUS[ui_lang], "consent_text_draft": ui_lang in DRAFT_CONSENT_LANGS}
     proof = None
     existing = (p.get("existing_form_path") or "").strip()
     with tempfile.TemporaryDirectory() as t:
@@ -175,16 +190,17 @@ def create_consent(base: Path, p: dict) -> dict:
             info = wav_info(proof)
             if not MIN_PROOF_S <= info["seconds"] <= MAX_PROOF_S or info["rms"] < 0.003:
                 raise UiError(400, f"the spoken statement must be {MIN_PROOF_S:.0f}-{MAX_PROOF_S:.0f} s of audible speech: record it again")
-            spoken = statement_for(name)
+            spoken = statement_for(name, ui_lang)
             evidence["proof_audio"] = {"file": "forms/consent-statement.wav", "sha256": hashlib.sha256(proof).hexdigest(),
                                        "seconds": info["seconds"], "statement": spoken}
             form = Path(t) / "consent-record.txt"
             form.write_text(
                 f"ELECTRONIC CONSENT RECORD (recorded in the Salareen voice enrollment page)\n"
                 f"Name: {name}\nRole: {role}\nTime: {when}\nTyped signature: {name}\n"
-                f"Agreed: {', '.join(AGREEMENTS)}\nConsent text sha256: {consent_text_sha256()}\n"
+                f"Agreed: {', '.join(AGREEMENTS)}\nConsent text language: {ui_lang} ({CONSENT_STATUS[ui_lang]})\n"
+                f"Consent text sha256: {consent_text_sha256(ui_lang)}\n"
                 f"Spoken statement ({info['seconds']} s, audio sha256 {evidence['proof_audio']['sha256']}): {spoken}\n"
-                f"\n----- CONSENT TEXT AS SHOWN -----\n{consent_text()}", encoding="utf-8")
+                f"\n----- CONSENT TEXT AS SHOWN -----\n{consent_text(ui_lang)}", encoding="utf-8")
         try:
             rec = registry.record_consent(speaker, name, role, form, base=base, evidence=evidence)
         except registry.ConsentError as exc:
@@ -275,6 +291,37 @@ def finish_enrollment(base: Path, speaker: str, lang: str) -> dict:
     transcript = " ".join(p["text"] for p in prompts)
     registry.add_sample(speaker, d / rel, transcript, lang, base, extra={"seconds": info["seconds"]})
     return {"ok": True, "file": rel, **info}
+
+
+def start_voice_check(base: Path, speaker: str, lang: str) -> dict:
+    """Run the optional pronunciation check in the background (a recognizer can take minutes on first load)."""
+    _gated(base, speaker)
+    prompts = PROMPT_SETS.get(lang)
+    if not prompts:
+        raise UiError(400, "unknown language")
+    d = registry.speaker_dir(speaker, base) / "raw" / lang
+    takes = [(p["id"], p["text"], d / f"{p['id']}.wav") for p in prompts]
+    missing = [t[0] for t in takes if not t[2].is_file()]
+    if missing:
+        raise UiError(400, "record every line first; missing " + ", ".join(missing))
+    key = (speaker, lang)
+    if _CHECKS.get(key, {}).get("state") == "running":
+        return {"state": "running"}
+    job = _CHECKS[key] = {"state": "running"}
+
+    def work():
+        try:
+            job.update(voice_check.check_takes(takes, lang))
+            job["state"] = "done"
+        except Exception as exc:  # noqa: BLE001 - never break enrollment over a recognizer problem
+            job.update({"state": "failed", "error": f"{type(exc).__name__}: {str(exc)[:160]}"})
+
+    threading.Thread(target=work, daemon=True).start()
+    return {"state": "running"}
+
+
+def voice_check_status(speaker: str, lang: str) -> dict:
+    return dict(_CHECKS.get((speaker, lang)) or {"state": "none"})
 
 
 def withdraw(base: Path, speaker: str, typed_name: str) -> dict:
@@ -489,12 +536,15 @@ def make_handler(base: Path):
                 if u.path == "/api/config":
                     return self._json(200, config())
                 if u.path == "/api/statement":
-                    return self._json(200, {"text": statement((q.get("name") or [""])[0])})
+                    return self._json(200, {"text": statement((q.get("name") or [""])[0], (q.get("lang") or ["en"])[0])})
                 if u.path == "/api/speakers":
                     return self._json(200, {"speakers": speakers(base), "cuda": cuda_host(), "root": str(base)})
                 m = re.fullmatch(r"/api/synth/([a-z0-9_-]+)", u.path)
                 if m:
                     return self._json(200, synth_status(m.group(1)))
+                m = re.fullmatch(r"/api/voicecheck/([a-z0-9_-]+)/([a-z]{2,3})", u.path)
+                if m:
+                    return self._json(200, voice_check_status(m.group(1), m.group(2)))
                 if u.path == "/api/say":
                     return self._json(200, {"jobs": say_jobs(base)})
                 m = re.fullmatch(r"/api/say/audio/([a-f0-9]{12})\.wav", u.path)
@@ -538,12 +588,15 @@ def make_handler(base: Path):
         def _post(self, path: str):
             if path == "/api/consent":
                 return self._json(200, create_consent(base, self._json_body()))
-            m = re.fullmatch(r"/api/take/([a-z0-9_-]+)/([a-z]{2})/([a-z]{2}-\d+)", path)
+            m = re.fullmatch(r"/api/take/([a-z0-9_-]+)/([a-z]{2,3})/([a-z]{2,3}-\d+)", path)
             if m:
                 return self._json(200, save_take(base, m.group(1), m.group(2), m.group(3), self._body()))
             m = re.fullmatch(r"/api/enroll/([a-z0-9_-]+)", path)
             if m:
                 return self._json(200, finish_enrollment(base, m.group(1), str(self._json_body().get("lang", ""))))
+            m = re.fullmatch(r"/api/voicecheck/([a-z0-9_-]+)/([a-z]{2,3})", path)
+            if m:
+                return self._json(200, start_voice_check(base, m.group(1), m.group(2)))
             m = re.fullmatch(r"/api/revoke/([a-z0-9_-]+)", path)
             if m:
                 return self._json(200, withdraw(base, m.group(1), str(self._json_body().get("typed_name", ""))))

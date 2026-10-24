@@ -29,6 +29,29 @@ Browser enrollment (consent and recording in one page)
   timestamp, the sha256 of the exact consent text shown and of the spoken-statement audio. Requests from other sites or
   hosts are refused (Host and Origin checks plus a custom header).
 
+Cantonese (廣東話) in the enrollment page
+  Pick "廣東話" in the Page language box (top right). The whole wizard, the consent text (CONSENT_FORM.yue.txt), the four tick
+  boxes, the spoken consent statement and the eight recording lines (written colloquial Cantonese, Hong Kong usage; line 5 is
+  the six-tone drill 詩史試時市事; final particles 啦 喇 呀 㗎 噃 咩 呢) switch together. Typed names may be Chinese. Changing the page
+  language while on the consent step clears the ticks, signature and recording, so a signature is always against the text shown.
+  The consent record stores consent_language, the sha256 of the exact text shown and consent_text_draft = true.
+  STATUS: the Cantonese consent text, statement and scripts are DRAFT TRANSLATIONS. The speaker (a native speaker) should read the
+  whole text before agreeing, and counsel must review it, exactly as for the English template. Do not treat it as reviewed.
+  Voice check: after enrolling, each recorded line is run through a speech recognizer (faster-whisper or openai-whisper large-v3,
+  language "yue") and compared with the script as a character error rate (traditional/simplified folded when opencc is installed).
+  It is WARN-ONLY: Cantonese colloquial speech is often written back as standard Chinese (嘅 -> 的) so a high error rate can be the
+  recognizer, not the speaker; a flagged line asks the speaker to re-read it and never blocks enrollment. Skipped when no recognizer
+  is installed or ENROLL_ASR=off; ENROLL_ASR=<spec> picks an engine (faster-whisper:large-v3, whisper:large-v3, fake:0 for tests).
+  Cantonese synthesis support (model cards read 2026-10-25):
+    VoxCPM2: README lists 粤语 (Cantonese) under "Chinese Dialect" among its supported languages; "input text in any of the 30
+    supported languages and synthesize directly, no language tag needed". Cloning (prompt_wav_path + prompt_text) is demonstrated
+    generally; the cards do not say it was tested on dialects, so judge a Cantonese clone by ear first. Cantonese is in the VoxCPM2
+    adapter and in scripts/run_voice_clone.sh LANGS (default en,es,zh,yue,vi,th,km,sw,hi), text from tts_bakeoff/sentences/yue.jsonl
+    (10 unreviewed machine translations). Write the sentences in Cantonese, not Mandarin.
+    CosyVoice 2 (0.5B): Cantonese is NOT listed in its README; the dialect list (Guangdong, Minnan, Sichuan, ...) belongs to
+    Fun-CosyVoice 3.0. So the adapter does not claim yue and the bake-off skips it (skipped_unsupported). Try Fun-CosyVoice 3.0 later.
+  Edge-tts has Cantonese voices (zh-HK) but cannot clone; they are only a listening reference.
+
 Cleaning (noise, clicks, hum) and best-of-N  [tts_bakeoff/voice_clone/clean.py; numpy only]
   Enrollment: the recording is high-passed (70 Hz), mains hum (50/60 Hz and harmonics) is notched, clicks are repaired and a MILD
   spectral gate is applied. The cleaned copy replaces the sample only if SNR did not fall, no clicks were added and the voice's

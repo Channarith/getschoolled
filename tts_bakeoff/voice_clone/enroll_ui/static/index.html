@@ -8,93 +8,96 @@
 </head>
 <body>
 <header>
-  <h1>Voice enrollment</h1>
+  <h1 data-i18n="page_title">Voice enrollment</h1>
   <nav>
-    <button id="tab-wizard" class="tab on" type="button">Enroll a voice</button>
-    <button id="tab-list" class="tab" type="button">Enrolled voices</button>
-    <button id="tab-say" class="tab" type="button">Say anything</button>
+    <button id="tab-wizard" class="tab on" type="button" data-i18n="tab_wizard">Enroll a voice</button>
+    <button id="tab-list" class="tab" type="button" data-i18n="tab_list">Enrolled voices</button>
+    <button id="tab-say" class="tab" type="button" data-i18n="tab_say">Say anything</button>
+    <label class="uilang"><span data-i18n="interface_language">Page language</span> <select id="ui-lang"></select></label>
   </nav>
 </header>
 <main>
   <section id="wizard">
     <ol class="steps" id="steps">
-      <li data-s="1">1 Who</li><li data-s="2">2 Consent</li><li data-s="3">3 Record</li><li data-s="4">4 Done</li>
+      <li data-s="1" data-i18n="step1">1 Who</li><li data-s="2" data-i18n="step2">2 Consent</li><li data-s="3" data-i18n="step3">3 Record</li><li data-s="4" data-i18n="step4">4 Done</li>
     </ol>
 
     <div class="card" id="s1">
-      <h2>Who is this?</h2>
-      <label>Full name <input id="name" autocomplete="off" maxlength="80" placeholder="e.g. Alice Tran"></label>
-      <label>Role
-        <select id="role"><option value="employee">Employee</option><option value="owner">Owner</option></select>
+      <h2 data-i18n="who_h">Who is this?</h2>
+      <label><span data-i18n="full_name">Full name</span> <input id="name" autocomplete="off" maxlength="80" placeholder="e.g. Alice Tran" data-i18n-ph="name_ph"></label>
+      <label><span data-i18n="role">Role</span>
+        <select id="role"><option value="employee" data-i18n="role_employee">Employee</option><option value="owner" data-i18n="role_owner">Owner</option></select>
       </label>
-      <p class="hint">Only the name is stored, nothing else. Recordings stay on this machine.</p>
-      <button id="to-consent" class="primary" type="button">Continue</button>
+      <p class="hint" data-i18n="who_hint">Only the name is stored, nothing else. Recordings stay on this machine.</p>
+      <button id="to-consent" class="primary" type="button" data-i18n="continue">Continue</button>
       <p class="err" id="e1" role="alert"></p>
     </div>
 
     <div class="card" id="s2" hidden>
-      <h2>Consent</h2>
-      <p class="hint">Read the whole text. It scrolls.</p>
+      <h2 data-i18n="consent_h">Consent</h2>
+      <p class="hint" data-i18n="consent_hint">Read the whole text. It scrolls.</p>
+      <p class="warn" id="draft-banner" role="note" hidden></p>
       <pre id="consent-text" tabindex="0"></pre>
       <fieldset id="agreements">
-        <label><input type="checkbox" data-a="commercial_use"> My voice may be used commercially, in any language.</label>
-        <label><input type="checkbox" data-a="model_training"> My recordings may be used to train and improve voice models.</label>
-        <label><input type="checkbox" data-a="course_narration"> My voice model may narrate courses and lessons.</label>
-        <label><input type="checkbox" data-a="may_withdraw"> I understand I can withdraw my consent at any time.</label>
+        <label><input type="checkbox" data-a="commercial_use"> <span data-i18n="agree_commercial_use">My voice may be used commercially, in any language.</span></label>
+        <label><input type="checkbox" data-a="model_training"> <span data-i18n="agree_model_training">My recordings may be used to train and improve voice models.</span></label>
+        <label><input type="checkbox" data-a="course_narration"> <span data-i18n="agree_course_narration">My voice model may narrate courses and lessons.</span></label>
+        <label><input type="checkbox" data-a="may_withdraw"> <span data-i18n="agree_may_withdraw">I understand I can withdraw my consent at any time.</span></label>
       </fieldset>
-      <label>Type your full name as your signature <input id="typed" autocomplete="off" maxlength="80"></label>
+      <label><span data-i18n="typed_label">Type your full name as your signature</span> <input id="typed" autocomplete="off" maxlength="80"></label>
       <div class="tabs2">
-        <button id="m-voice" class="tab on" type="button">Say it aloud (recorded)</button>
-        <button id="m-form" class="tab" type="button">I already signed a form</button>
+        <button id="m-voice" class="tab on" type="button" data-i18n="mode_voice">Say it aloud (recorded)</button>
+        <button id="m-form" class="tab" type="button" data-i18n="mode_form">I already signed a form</button>
       </div>
       <div id="proof-voice">
-        <p>Read this out loud, in your own voice:</p>
+        <p data-i18n="read_aloud">Read this out loud, in your own voice:</p>
         <blockquote id="statement"></blockquote>
         <div class="rec-row">
-          <button id="proof-rec" type="button">Record</button>
-          <button id="proof-stop" type="button" disabled>Stop</button>
+          <button id="proof-rec" type="button" data-i18n="record">Record</button>
+          <button id="proof-stop" type="button" disabled data-i18n="stop">Stop</button>
           <meter id="proof-meter" min="0" max="1" value="0"></meter>
           <span id="proof-info" class="hint"></span>
         </div>
         <audio id="proof-audio" controls hidden></audio>
       </div>
       <div id="proof-form" hidden>
-        <label>Path of the signed form on this machine (pdf, png, jpg, heic, txt)
+        <label><span data-i18n="form_path_label">Path of the signed form on this machine (pdf, png, jpg, heic, txt)</span>
           <input id="form-path" autocomplete="off" placeholder="/home/you/consents/alice-signed.pdf"></label>
-        <p class="hint">The file is copied into the voice folder and its hash recorded. The boxes and typed name above are still required.</p>
+        <p class="hint" data-i18n="form_hint">The file is copied into the voice folder and its hash recorded. The boxes and typed name above are still required.</p>
       </div>
       <div class="row">
-        <button id="back1" type="button">Back</button>
-        <button id="submit-consent" class="primary" type="button">I agree and consent</button>
+        <button id="back1" type="button" data-i18n="back">Back</button>
+        <button id="submit-consent" class="primary" type="button" data-i18n="submit_consent">I agree and consent</button>
       </div>
       <p class="err" id="e2" role="alert"></p>
     </div>
 
     <div class="card" id="s3" hidden>
-      <h2>Record your voice</h2>
+      <h2 data-i18n="record_h">Record your voice</h2>
       <div class="rec-row">
-        <label>Language <select id="lang"></select></label>
-        <span id="draft-note" class="hint" hidden>These scripts are drafts: a native speaker should check them.</span>
+        <label><span data-i18n="language">Language</span> <select id="lang"></select></label>
+        <span id="draft-note" class="hint" hidden data-i18n="draft_note">These scripts are drafts: a native speaker should check them.</span>
       </div>
-      <p class="hint">Quiet room, microphone about a hand's width away, natural speed, as if teaching a child. About one minute in total. Use the same device for every line.</p>
+      <p class="hint" data-i18n="record_tips">Quiet room, microphone about a hand's width away, natural speed, as if teaching a child. About one minute in total. Use the same device for every line.</p>
       <div class="rec-row">
-        <button id="mic-on" class="primary" type="button">Enable microphone</button>
+        <button id="mic-on" class="primary" type="button" data-i18n="enable_mic">Enable microphone</button>
         <meter id="meter" min="0" max="1" value="0"></meter>
         <span id="mic-info" class="hint"></span>
       </div>
       <ol id="lines" class="lines"></ol>
       <div class="rec-row"><strong id="total"></strong></div>
       <div class="row">
-        <button id="finish" class="primary" type="button" disabled>Check my voice</button>
+        <button id="finish" class="primary" type="button" disabled data-i18n="check_voice">Check my voice</button>
       </div>
       <p class="err" id="e3" role="alert"></p>
       <p class="ok" id="ok3" role="status"></p>
     </div>
 
     <div class="card" id="s4" hidden>
-      <h2>Done</h2>
+      <h2 data-i18n="done_h">Done</h2>
       <p id="done-msg"></p>
-      <div class="row"><button id="another" type="button">Enroll another person</button><button id="see-list" class="primary" type="button">Enrolled voices</button></div>
+      <div id="check-box" hidden><h3 data-i18n="check_h">Pronunciation check</h3><p id="check-msg" class="hint"></p><ul id="check-items" class="checks"></ul></div>
+      <div class="row"><button id="another" type="button" data-i18n="another">Enroll another person</button><button id="see-list" class="primary" type="button" data-i18n="see_list">Enrolled voices</button></div>
     </div>
   </section>
 
