@@ -21,3 +21,6 @@ os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")
 # limiter is unit-tested in packages/shared and would otherwise flake
 # busy service test suites that issue hundreds of requests per session.
 os.environ.setdefault("RATE_LIMIT_DISABLED", "1")
+
+# Shared Postgres fixtures for the catalog tests (pg_dsn, pg_store); skipped when no database is available.
+pytest_plugins = ["pgtest"]

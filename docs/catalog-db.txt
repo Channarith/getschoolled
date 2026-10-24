@@ -1,0 +1,265 @@
+CATALOG DATABASE: HOLDING 1,000,000 MULTI-LESSON COURSES
+=========================================================
+Plain text on purpose (repo no-markdown house rule). Written 2026-10-24.
+
+Decisions already made by the owner
+  1. The goal is 1,000,000 multi-lesson courses of about 8 lessons each: about 8,000,000 lessons.
+  2. We host the database ourselves.
+  3. We already have Vultr Object Storage (sjc, bucket salareen-prod, endpoint
+     https://sjc1.vultrobjects.com; the keys are in aoep-secrets as OBJECT_STORE_ACCESS_KEY and
+     OBJECT_STORE_SECRET_KEY).
+
+What is true in production today (checked against the live cluster)
+  * The curriculum service keeps its catalog in a Python dictionary per replica (3 replicas) and
+    rewrites a whole JSON file on every write. A write lands on one replica only, so replicas
+    diverge. POST /courses mints a new id every time, so a retried request creates a duplicate.
+    The practical ceiling is tens of thousands of courses.
+  * aoep-secrets has DATABASE_URL = postgresql://postgres.aoep.internal:5432/aoep, but there is NO
+    postgres deployment or statefulset in namespace aoep and no Vultr managed database. Production
+    has no relational database at all: state is Redis plus files.
+  * The cluster has four usable 2 vCPU / 4 GB nodes at about 60% CPU and 85-91% memory requested,
+    and node autoscaling does not work (Vultr's cloud controller never initializes new nodes). So
+    the database must not run inside the cluster.
+
+THE RECOMMENDATION
+  One dedicated Vultr cloud VM, outside the cluster but in the same region (sjc) and attached to the
+  cluster's private network (VPC "VKE-Network", 10.12.96.0/20), running PostgreSQL 16.
+
+      pods (curriculum x3) --private VPC--> VM: PgBouncer(6432, optional) -> PostgreSQL 16 (5432)
+              |                                   |  nightly pg_dump -> Object Storage (db-backups/)
+              |                                   |  optional WAL archive -> Object Storage
+              +--- deck bodies (obj:<sha256>) ----+--> Object Storage: courses/<aa>/<sha>.json.gz
+
+  Postgres holds METADATA ONLY: courses, the ordered lessons of each course (a pointer per lesson),
+  provenance and license per lesson, quality tier, translation status. Lesson bodies (the slides and
+  narration) stay in object storage as content-addressed gzip JSON that the harvester already writes
+  (aoep_shared.harvest.objectstore). Measured: about 4.5 KB gzipped per deck, so 8M decks is about
+  36 GB of objects. Storing bodies in Postgres would multiply the database size for no benefit.
+
+  Nothing in the running service changes until someone sets CATALOG_DATABASE_URL. Unset, the service
+  behaves exactly as before (the in-memory/JSON store).
+
+WHAT WAS MEASURED (load test, this Mac, Docker Desktop, Postgres 16, 1 GB shared_buffers)
+  Data: 1,000,000 synthetic multi-lesson courses, 8,000,000 lessons, 8,000,000 provenance rows
+  (scripts/catalog_loadtest.py; titles and categories are random but shaped like the real catalog:
+  27 languages with a heavy head, heavy-tailed popularity, ~2 KB JSON per course).
+  Size: 8.2 GB for the whole database. Lessons table 3.2 GB, courses table plus its 14 indexes
+  2.8 GB, provenance 2.6 GB. The course indexes total about 0.7 GB, so they stay in RAM on an 8 GB VM.
+  Loading: 2,700 courses/s end to end through COPY (1M courses in 6.2 minutes including generating
+  them in Python; COPY alone 3,000/s), then 40 s to build all indexes. Steady-state inserts with every
+  index in place: about 2,300-2,500 courses/s bulk, 3 ms p50 per single create_course.
+
+  Latency (200 repeats each, single client, after the search fix described below):
+      get one course by id ......................... p50 0.6 ms    p95 0.9 ms
+      browse first page (50 rows) .................. p50 2.3 ms    p95 2.5 ms
+      browse 10,000 rows deep (keyset cursor) ...... p50 2.9 ms    p95 3.7 ms
+      offset 5000 (the capped worst case) .......... p50 6.9 ms    p95 9.5 ms
+      filter by category / language / level ........ p50 3-4 ms    p95 4-5 ms
+      filter by tag ................................ p50 6.1 ms    p95 8.3 ms
+      text search, one common word ................. p50 28 ms     p95 33 ms   (was p50 64 / p95 105)
+      text search, two words ....................... p50 19 ms     p95 28 ms
+      text search, prefix (ILIKE) .................. p50 30 ms     p95 81 ms
+      count (capped at 10,000) ..................... p50 2.5-13 ms
+      home rails (about 25 queries, uncached) ...... p50 35 ms     p95 54 ms (cached 60 s per replica)
+      facet counts ................................. p50 0.6 ms
+  Mixed load, 16 threads for 30 s (50% get, 25% category pages, 15% search, 10% browse):
+      991 requests/s, 0 errors, p50 11 ms, p95 45 ms, p99 58 ms
+      (before the search fix: 338 requests/s, p95 273 ms).
+  Honest limits of these numbers: one machine for client and server (both share CPU), synthetic
+  text, no network hop, warm cache. A real VM adds about 1 ms of private-network latency and has its
+  own CPU. Treat them as "fast enough with large headroom", not as a guarantee.
+
+  What the search fix was: ranking every match of a common word (13,000 rows) cost 60-200 ms. Search
+  now takes the CATALOG_SEARCH_CANDIDATES (default 500) most popular matches and ranks those. Result
+  order is therefore "relevance among the 500 most popular matches"; a rare exact-title query still
+  finds everything because it has few matches.
+
+SIZING AND COST (prices read from the Vultr API on 2026-10-24; the monthly totals are estimates)
+  Recommended start: vc2-4c-8gb: 4 vCPU, 8 GB RAM, 160 GB NVMe ....... $40.00 / month
+  Vultr whole-VM automatic backups (20% of the plan) ................. $ 8.00 / month
+  Total for the server ................................................ $48.00 / month
+  Logical dumps and optional WAL go to the existing object storage subscription (its Premium tier is
+  $36/month with a 1 TB allowance; a few GB of dumps do not change that). Private network traffic is free.
+  Headroom: at 1M courses the database is 8.2 GB, so 160 GB of disk holds about 15M courses. Move to
+  vc2-6c-16gb ($80/month) when the course indexes no longer fit in RAM (cache hit ratio under 99% in
+  /var/lib/catalog-db/health.json) or p95 latency degrades, not before.
+  Autovacuum and popularity: bump_popularity() updates an indexed column on every view. At high
+  traffic that is write amplification; the follow-up is to count views in Redis and flush in batches.
+  Not built here; at today's traffic a single UPDATE is 1.9 ms.
+
+  Compared with Vultr Managed PostgreSQL (prices from the same API; availability in sjc for each plan
+  was not verified by this query):
+      4 vCPU / 8 GB / 160 GB, 1 node ........ $120 / month   (self-hosted equivalent: $40-48)
+      2 vCPU / 4 GB / 80 GB, 2 nodes (HA) ... $100 / month
+      2 vCPU / 4 GB / 128 GB, 2 nodes (HA) .. $120 / month
+  Managed gives you automatic failover, patching, and backups you do not maintain. Self-hosted costs
+  about a third as much for the same hardware and gives full control (pg_trgm, tuning), but YOU own
+  upgrades, security patches, backup verification and a single point of failure. Because you decided
+  to host it, this plan self-hosts; the schema and the code are plain Postgres, so moving to Managed
+  later is a pg_dump / pg_restore and one connection-string change.
+
+  Other options considered
+  * SQLite file: fine for one writer on one machine; three replicas cannot share one file safely over
+    a network volume, and block storage here is RWO. Rejected for production, kept as the dev/test store.
+  * Redis: already in the cluster, but it is a cache with no secondary indexes or full text search at
+    this scale, and holding 8M lessons in RAM costs more than a database disk. Rejected for the catalog.
+  * Postgres inside the cluster: no capacity (nodes are full), the volume claims were stuck for
+    weeks, and a node loss would take the database with it. Rejected.
+
+SECURITY
+  * No public database port. ufw allows 5432 and 6432 only from the VPC range and from your admin
+    address, SSH only from your admin address. pg_hba accepts only TLS connections (hostssl) with
+    scram-sha-256 for the catalog role from those same ranges.
+  * TLS: the VM uses its self-signed certificate; clients use sslmode=require (encrypted, not
+    server-verified). Inside a private VPC that is acceptable; for verify-full, install a CA and ship
+    its certificate to the pods as a secret.
+  * The database password is generated by the provisioning script, written only to
+    ~/.config/salareen/catalog-db-password (0600) and to the VM's /etc/catalog-db/secrets.env (0600).
+    It is never printed and never in git.
+  * The object-storage keys are placed on the VM so it can write backups. Vultr object storage keys are
+    account-wide for the subscription, so they cannot be limited to a prefix: treat that VM as holding
+    the same power as the application keys.
+  * Licensing safety net in the database layer: a course carrying a license tag that cannot serve in
+    the product (research_only, unknown, and share_alike unless CATALOG_ALLOW_SHARE_ALIKE=1) is stored
+    as publish_state 'quarantined' and is invisible to list, search and get by id. The importer rejects
+    such decks before they reach the store; this is the second wall.
+
+REACHING THE DATABASE FROM PODS
+  The cluster nodes live in VPC 8ab8adfd-19f5-456d-9d1e-de094750a7e8 (10.12.96.0/20, nodes at
+  10.12.96.4-9). The VM is created with attach_vpc for the same VPC, so it gets a private address in
+  that range and pods reach it directly over the node network (egress from pods is not restricted today;
+  confirm with one test pod before cutting over: kubectl run --rm -it pgtest --image=postgres:16 -- psql ...).
+  infra/catalog-db/catalog-db-service.yaml defines Service postgres-catalog plus Endpoints pointing at
+  the VM's private IP. The IP in the file is a placeholder that Kubernetes rejects, so the file cannot
+  be applied by accident. The URL is
+      postgresql://catalog:PASSWORD@postgres-catalog.aoep.svc.cluster.local:5432/catalog?sslmode=require
+  Do NOT reuse the existing DATABASE_URL (postgres.aoep.internal): other components reference it (the
+  nightly retention job passes it) and it points at nothing today. The new variable is CATALOG_DATABASE_URL.
+
+THE SCHEMA (packages/shared/src/aoep_shared/catalog_db/sql/, applied by scripts/catalog_migrate.py)
+  001_core: catalog_courses (one row per course: indexed columns for filtering and sorting, the full
+    pydantic Course in a JSONB column so API responses stay identical, a UNIQUE content_hash so the
+    same course posted twice returns the existing one), catalog_modules (the ordered lessons; deck_id
+    obj:<sha256> points at the body in object storage), catalog_sources (per-lesson source URL,
+    license, license tier, attribution, fetch time), catalog_translations (language, machine/reviewed
+    status, source_sha256 of the English it came from), catalog_programs.
+  002_search: a generated tsvector (weighted title, preview and description, tags; the language-neutral
+    'simple' configuration because the catalog spans 27 languages including Khmer and Thai, so there is
+    no stemming) with a GIN index, plus a trigram index for prefix and typo-tolerant title lookup.
+  003_facets: catalog_facets and catalog_refresh_facets(), so facet counts never scan 1M rows.
+  Indexes are partial (published only) and ordered (popularity DESC, course_id DESC) so a list is an
+  index walk and keyset pagination stays fast at any depth.
+  The runner is forward-only, checksums every applied file (editing an applied migration is refused),
+  takes an advisory lock so two replicas starting together are safe, and each file runs in one
+  transaction. A test fails if a .sql file is not covered by package-data (a missing data file once
+  crashed a service at startup).
+
+WHAT THE API DOES DIFFERENTLY ONCE CATALOG_DATABASE_URL IS SET
+  GET /courses            keyset paging: follow the X-Next-Cursor response header with ?cursor=...;
+                          offset still works for the first 5,000 rows. X-Total-Count is exact up to
+                          10,000 and then reads "at least this many" with X-Total-Capped: true.
+  GET /courses/search     unified list: audio, live, language and game items (a few hundred, from the
+                          in-process index) come first, then catalog courses from the database. One
+                          consistent offset/limit over both. Filters work on both sides.
+  GET /courses/{id}       adds ETag and Cache-Control; If-None-Match returns 304 with no body.
+  POST /courses           idempotent: the same title, language, subject and lessons return the
+                          existing course instead of creating a copy; safe under concurrent replicas
+                          (advisory lock on the content hash).
+  GET /courses/facets     real distinct values and counts from the database.
+  GET /decks/obj:<sha>    a harvested lesson body loaded from object storage (size capped, gzip
+                          verified against its sha256; a corrupt or tampered object is refused).
+  Read cache: each replica caches get_course for CATALOG_CACHE_TTL seconds (default 10) and home rails
+  for 60 s. A write on a replica drops its own entry; other replicas converge within the TTL. The
+  database is always the single truth, so replicas can no longer diverge permanently.
+  Old code paths that wanted "the whole catalog" (recommendations, partner feeds, the unified facets
+  index) now see a bounded hot set: the top CATALOG_LIST_CAP (default 2,000) courses by popularity.
+  That keeps them working and cheap; it also means a recommendation or partner feed is computed from the
+  popular head, not from all 1M courses. Giving them proper database queries is future work.
+  If the database is unreachable at startup the service falls back to the in-memory store and logs an
+  ERROR, unless CATALOG_DB_REQUIRED=1, which makes the replica refuse to start (recommended in
+  production, so a replica can never silently serve a diverging catalog).
+
+IMPORTING (scripts/catalog_import.py, DRY RUN unless --apply)
+  bundle <dir>   harvest bundle (scripts/harvest_sync.py export). Lessons become courses of about 8
+                 lessons: grouped by language, subject and source series (host + first two path
+                 segments), chunked deterministically; a tiny tail merges into the previous course.
+  index <db>     the harvest index (carries each deck's quality tier).
+  json <file>    an existing catalog JSON (CATALOG_PATH): courses move unchanged.
+  Rules: only product-safe licenses are imported (CC0, public domain, CC BY, MIT, Apache, BSD, owned).
+  License text, SPDX ids and license URLs are classified by aoep_shared.harvest.licensing (the harvester's
+  parser) and by a local mapping; when both know the license and disagree, the stricter tier wins.
+  NC and ND licenses, unknown, empty, and bare "oer" are rejected and counted by reason; share-alike
+  (CC BY-SA, GFDL) only with --allow-share-alike, which needs legal review first.
+  Idempotent: course ids derive from the lessons' content hashes and inserts never overwrite. Lessons
+  already in a course are skipped, so adding decks to a series later builds only NEW courses and never
+  reshuffles published ones. Resumable with --state FILE. A dry run with --dsn also asks the database
+  what is already imported.
+
+BACKUPS, RESTORE TEST, MONITORING (all on the VM, installed by cloud-init)
+  * catalog-db-backup (systemd timer, nightly 09:30 UTC): pg_dump -Fc streamed straight to
+    db-backups/catalog/dumps/ in object storage (no local temp file), refuses to call a dump good
+    under 10 KB, keeps 14 days and never deletes the newest three.
+  * catalog-db-restore-test: restores the newest dump into a scratch database, compares row counts
+    with the live tables, checks the search index works, then drops the scratch database. Run it once
+    after the first backup and monthly. A backup nobody has restored is not a backup.
+  * Optional WAL archiving (--wal-archive at provisioning) to object storage for point-in-time
+    recovery. Off by default because it needs a base backup procedure and monitoring of its own.
+  * Vultr automatic whole-VM backups (+20% of the plan) as a second, independent copy.
+  * catalog-db-health (every 5 minutes) writes /var/lib/catalog-db/health.json: postgres up, data disk
+    %, connections, database size, cache hit ratio, newest backup age; the unit fails (visible in
+    systemctl --failed and journald) when the disk is over 80%, connections over 80, or the newest
+    backup is over 36 hours old.
+
+FAILURE MODES
+  VM down or unreachable ... with CATALOG_DB_REQUIRED=1 a restarting replica will not start, already
+      running replicas return 5xx from catalog endpoints (the friendly error page shows). Everything
+      else in the product keeps working. Recovery: reboot or rebuild the VM from the Vultr backup;
+      worst case restore the last pg_dump (minutes to tens of minutes at this size).
+  Disk full ............... health unit warns at 80%; Postgres stops accepting writes at 100%. Resize
+      the disk plan or prune WAL; the catalog is 8 GB per million courses so this is a slow leak.
+  Slow queries ............ log_min_duration_statement = 500 ms; pg_stat_statements is installed.
+  Connection storms ....... 3 replicas x pool of 6 = 18 connections of 100. If replicas grow, point
+      CATALOG_DATABASE_URL at PgBouncer (:6432, transaction pooling, prepared statements enabled).
+  Bad import .............. imports never overwrite; a bad batch is removed by publish_state 'retired'
+      on its course ids (update, not delete), and the importer's rejected list is in its report.
+  Single node ............. no automatic failover. If that is not acceptable, use a Managed 2-node plan.
+
+ROLLOUT RUNBOOK (every step reversible; nothing happens until you run it)
+  0. Decide the open questions below.
+  1. Dry run:  export VULTR_API_KEY=...;  scripts/db/provision_catalog_vm.sh --admin-cidr "$(curl -s ifconfig.me)/32"
+     It prints the exact API request and the monthly cost and creates nothing.
+  2. Create:   OBJECT_STORE_ACCESS_KEY=... OBJECT_STORE_SECRET_KEY=... scripts/db/provision_catalog_vm.sh --admin-cidr x.x.x.x/32 --apply
+     Billing starts now. It refuses to run twice (same label). Rollback: delete the instance in Vultr.
+  3. Wait for cloud-init (about 3-5 minutes): ssh root@VM 'tail -f /var/log/cloud-init-output.log'.
+     Note the VM's private IP (Vultr API: internal_ip).
+  4. Schema:   scripts/catalog_migrate.py up --dsn "postgresql://catalog:PW@VM_PUBLIC_OR_PRIVATE_IP:5432/catalog?sslmode=require"
+  5. Backup check: ssh VM 'sudo catalog-db-backup && sudo catalog-db-restore-test'
+  6. Import:   scripts/catalog_import.py json <catalog.json> --dsn ... --apply   (and bundles as they arrive)
+  7. Cluster wiring: infra/catalog-db/catalog-db-service.yaml with the private IP; then the secret key
+     CATALOG_DATABASE_URL; then deploy a curriculum image that includes psycopg (requirements.txt now
+     lists it); then the env patch infra/catalog-db/curriculum-env-patch.yaml (the patch was validated
+     against the live deployment with --dry-run=server).
+  8. Verify: /courses with ?limit=5, /courses/search?q=..., /courses/facets, POST /courses twice.
+  Rollback: kubectl -n aoep set env deploy/curriculum CATALOG_DATABASE_URL- CATALOG_DB_REQUIRED-
+  puts the service back on the in-memory catalog. Data in the database is untouched.
+
+OPEN DECISIONS FOR THE OWNER
+  1. VM size: vc2-4c-8gb ($40) to start, or vc2-6c-16gb ($80) if you expect more than ~3M courses soon.
+  2. Region: sjc (same as the cluster) is the only sensible choice; confirm.
+  3. Backups: Vultr whole-VM backups (+$8) yes/no; WAL archiving for point-in-time recovery yes/no.
+  4. Share-alike (CC BY-SA / GFDL) content: needs legal review before anyone sets
+     CATALOG_ALLOW_SHARE_ALIKE=1 or passes --allow-share-alike.
+  5. Single node or two-node HA (Managed PostgreSQL, about $100-120/month): how much downtime is acceptable.
+  6. Who owns database upgrades and security patches (unattended-upgrades is on; major versions are manual).
+
+NOT DONE / NOT VERIFIED
+  * No cloud resource was created. The provisioning script was dry-run against the live Vultr API only.
+  * The cloud-init and the helper scripts (setup, backup, restore test, health) are syntax-checked
+    and the YAML parses, but they have never run on a real Ubuntu 24.04 VM. Expect to fix small things on
+    the first boot; do the first run on the VM before importing anything.
+  * Postgres ran in Docker on a laptop: no network latency, no VM noisy neighbours, no real PgBouncer.
+  * The production catalog was not loaded or load tested; the load test is synthetic.
+  * Recommendation, partner feeds and the unified facet index still work from the bounded hot set.
+  * Popularity counting is per-view UPDATE; batching through Redis is a follow-up.
+  * Translations: the table exists and indexes status; nothing writes it yet (the translation v2
+    pipeline should write source_sha256 and status).

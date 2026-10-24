@@ -1,0 +1,53 @@
+# Turns the Postgres catalog ON for the curriculum service. NOT in any kustomization.
+#
+# Order of operations (each step is reversible; see docs/catalog-db.txt):
+#   1. VM up, schema migrated:    scripts/catalog_migrate.py up --dsn "$DSN"
+#   2. data imported:             scripts/catalog_import.py json /path/catalog.json --apply --dsn "$DSN"
+#   3. service + endpoints:       infra/catalog-db/catalog-db-service.yaml
+#   4. secret key:                kubectl -n aoep patch secret aoep-secrets --type merge \
+#                                   -p '{"stringData":{"CATALOG_DATABASE_URL":"postgresql://catalog:PW@postgres-catalog.aoep.svc.cluster.local:5432/catalog?sslmode=require"}}'
+#   5. image with psycopg (curriculum requirements.txt) deployed
+#   6. this patch:                kubectl -n aoep patch deploy curriculum --type strategic --patch-file infra/catalog-db/curriculum-env-patch.yaml
+#
+# Rollback: kubectl -n aoep set env deploy/curriculum CATALOG_DATABASE_URL- CATALOG_DB_REQUIRED-
+# (the in-memory catalog starts again exactly as before).
+#
+# CATALOG_DB_REQUIRED=1 makes a replica refuse to start when the database is unreachable instead of
+# quietly serving its own in-memory catalog (which would diverge from the other replicas).
+spec:
+  template:
+    spec:
+      containers:
+        - name: curriculum
+          env:
+            - name: CATALOG_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: aoep-secrets
+                  key: CATALOG_DATABASE_URL
+            - name: CATALOG_DB_REQUIRED
+              value: "1"
+            - name: CATALOG_CACHE_TTL
+              value: "10"
+            # Deck bodies (obj:<sha256>) come from Vultr Object Storage. The endpoint and bucket are in
+            # aoep-config; the keys are already in aoep-secrets.
+            - name: OBJECT_STORE_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: aoep-config
+                  key: OBJECT_STORE_ENDPOINT
+            - name: OBJECT_STORE_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: aoep-config
+                  key: OBJECT_STORE_BUCKET
+            - name: OBJECT_STORE_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aoep-secrets
+                  key: OBJECT_STORE_ACCESS_KEY
+            - name: OBJECT_STORE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aoep-secrets
+                  key: OBJECT_STORE_SECRET_KEY

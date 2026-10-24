@@ -10,15 +10,18 @@ eventual Postgres backend.
 
 from __future__ import annotations
 
+import base64
 import enum
 import json
 import os
 import threading
 import time
 import uuid
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field, model_validator
+
+from aoep_shared.catalog_db.compose import course_content_hash
 
 
 class DeliveryMode(str, enum.Enum):
@@ -112,7 +115,35 @@ class Program(BaseModel):
         return self
 
 
+def encode_cursor(popularity: int, course_id: str) -> str:
+    """Opaque keyset cursor: the (popularity, course_id) of the last row of a page."""
+    raw = json.dumps([int(popularity), course_id], separators=(",", ":")).encode()
+    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def decode_cursor(cursor: str) -> Tuple[int, str]:
+    try:
+        raw = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4))
+        pop, cid = json.loads(raw)
+        return int(pop), str(cid)
+    except Exception as exc:
+        raise ValueError("invalid cursor") from exc
+
+
+def course_hash(course: "Course") -> str:
+    """Content identity shared by every store: title, language, subject and ordered lessons."""
+    return course_content_hash(
+        course.title, course.language, course.subject,
+        [{"title": m.title, "deck_id": m.deck_id, "scene_id": m.scene_id} for m in course.modules],
+    )
+
+
 class CatalogStore:
+    """In-memory catalog with optional JSON persistence (dev, tests, and the default in production
+    until CATALOG_DATABASE_URL is set). PgCatalogStore (catalog_pg.py) has the same surface."""
+
+    paged = False  # True on stores whose list/search must go through page_courses()
+
     def __init__(self, path: Optional[str] = None) -> None:
         self.path = path
         self.courses: Dict[str, Course] = {}
@@ -122,7 +153,14 @@ class CatalogStore:
             self.load_json(path)
 
     # --- courses ----------------------------------------------------------- #
-    def create_course(self, course: Course) -> Course:
+    def create_course(self, course: Course, *, dedupe: bool = False) -> Course:
+        """Insert or replace by course_id. With dedupe=True, identical content (same title, language,
+        subject and lessons) under another id returns the existing course instead of a copy."""
+        if dedupe:
+            h = course_hash(course)
+            for existing in self.courses.values():
+                if existing.course_id != course.course_id and course_hash(existing) == h:
+                    return existing
         self.courses[course.course_id] = course
         self._autosave()
         return course
@@ -183,6 +221,50 @@ class CatalogStore:
             if hands_on is not None and c.hands_on != hands_on:
                 continue
             out.append(c)
+        return out
+
+    # --- paging (same contract as PgCatalogStore) -------------------------- #
+    def _filtered(self, filters: Dict[str, Any]) -> List[Course]:
+        known = {
+            k: filters.get(k)
+            for k in ("q", "category", "language", "audio", "media_format", "level", "tag",
+                      "hands_on", "delivery_mode", "access_tier", "maturity")
+        }
+        out = self.search_courses(**known)
+        if filters.get("audience"):
+            want = str(filters["audience"]).lower()
+            out = [c for c in out if want in [a.lower() for a in c.audiences]]
+        if filters.get("core_skill") is not None:
+            out = [c for c in out if c.core_skill == bool(filters["core_skill"])]
+        if filters.get("source"):
+            out = [c for c in out if c.source == filters["source"]]
+        return [c for c in out if (c.lifecycle_state or "published") == "published"]
+
+    def page_courses(self, *, limit: int = 50, cursor: Optional[str] = None, offset: int = 0,
+                     **filters: Any) -> Tuple[List[Course], Optional[str]]:
+        limit = min(max(int(limit), 1), 200)
+        rows = sorted(self._filtered(filters), key=lambda c: (c.popularity, c.course_id), reverse=True)
+        if cursor:
+            pop, cid = decode_cursor(cursor)
+            rows = [c for c in rows if (c.popularity, c.course_id) < (pop, cid)]
+            offset = 0
+        offset = max(int(offset), 0)
+        window = rows[offset:offset + limit + 1]
+        more = len(window) > limit
+        window = window[:limit]
+        nxt = encode_cursor(window[-1].popularity, window[-1].course_id) if (more and window) else None
+        return window, nxt
+
+    def count_courses(self, **filters: Any) -> Tuple[int, bool]:
+        return len(self._filtered(filters)), False
+
+    def facet_counts(self) -> Dict[str, Dict[str, int]]:
+        out: Dict[str, Dict[str, int]] = {}
+        for c in self.courses.values():
+            for kind, value in (("category", c.category), ("language", c.language), ("level", c.level),
+                                ("media_format", c.media_format), ("quality_tier", "0")):
+                if value:
+                    out.setdefault(kind, {})[value] = out.setdefault(kind, {}).get(value, 0) + 1
         return out
 
     # --- discovery rails (Netflix-style home feed) ------------------------- #
@@ -298,3 +380,31 @@ class CatalogStore:
     def _autosave(self) -> None:
         if self.path:
             self.save_json(self.path)
+
+
+def make_catalog_store(path: Optional[str] = None) -> "CatalogStore":
+    """The store the service uses. CATALOG_DATABASE_URL selects Postgres; unset keeps today's
+    in-memory/JSON store exactly as before (so shipping this code changes nothing until the
+    environment variable is set). Falls back to memory, loudly, if Postgres cannot be reached and
+    CATALOG_DB_REQUIRED is not set; with CATALOG_DB_REQUIRED=1 startup fails instead of silently
+    serving a diverging in-memory catalog."""
+    dsn = (os.environ.get("CATALOG_DATABASE_URL") or "").strip()
+    if not dsn:
+        return CatalogStore(path=path)
+    try:
+        from .catalog_pg import PgCatalogStore
+
+        store = PgCatalogStore(dsn)
+        if not store.healthy():
+            raise RuntimeError("catalog database did not answer")
+        return store  # type: ignore[return-value]
+    except Exception as exc:
+        if os.environ.get("CATALOG_DB_REQUIRED") == "1":
+            raise
+        import logging
+
+        logging.getLogger("curriculum.catalog").error(
+            "CATALOG_DATABASE_URL is set but unusable (%s): serving the in-memory catalog. "
+            "Replicas will diverge until this is fixed; set CATALOG_DB_REQUIRED=1 to fail fast.", exc
+        )
+        return CatalogStore(path=path)

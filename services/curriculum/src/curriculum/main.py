@@ -52,7 +52,7 @@ from aoep_shared.validation import (
     validate_claim,
     validate_course,
 )
-from fastapi import Body, Depends, File, Form, Header, HTTPException, Response, UploadFile
+from fastapi import Body, Depends, File, Form, Header, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel
 
 from aoep_shared.internal_auth import require_internal
@@ -65,7 +65,7 @@ from aoep_shared.corrections import (
     parse_bulk,
 )
 
-from .catalog import CatalogStore, Course, DeliveryMode, Module, Program
+from .catalog import CatalogStore, Course, DeliveryMode, Module, Program, make_catalog_store
 from .decks import Deck, DeckStore, SlideSpec, parse_deck_text
 from .ingest import (
     ClassFormat,
@@ -79,7 +79,9 @@ from .ingest import (
 app = create_service("curriculum")
 app.state.decks = DeckStore()
 app.state.scenes = {}
-app.state.catalog = CatalogStore(path=os.environ.get("CATALOG_PATH") or None)
+# CATALOG_DATABASE_URL selects the shared Postgres catalog (see docs/catalog-db.txt); unset keeps
+# the in-memory/JSON store exactly as before.
+app.state.catalog = make_catalog_store(os.environ.get("CATALOG_PATH") or None)
 app.state.acquisition_queue = SQLiteAcquisitionQueue(
     os.environ.get("CATALOG_ACQUISITION_QUEUE") or "/tmp/aoep_catalog_acquisition.db"
 )
@@ -222,9 +224,28 @@ def list_decks() -> list[DeckSummary]:
     return [_summary(d) for d in app.state.decks.list()]
 
 
+def _lookup_deck(deck_id: str) -> Deck | None:
+    """A deck from the CMS, or (for ids like obj:<sha256>) a harvested body from object storage."""
+    deck = app.state.decks.get(deck_id)
+    if deck is not None or not deck_id.startswith("obj:"):
+        return deck
+    from aoep_shared.catalog_db.bodies import BodyError, BodyLoader, deck_dict_from_body, store_from_env
+
+    loader = getattr(app.state, "body_loader", None)
+    if loader is None:
+        store = store_from_env()
+        if store is None:
+            return None
+        loader = app.state.body_loader = BodyLoader(store)
+    try:
+        return Deck(**deck_dict_from_body(deck_id, loader.load(deck_id)))
+    except BodyError:
+        return None
+
+
 @app.get("/decks/{deck_id}", response_model=Deck)
 def get_deck(deck_id: str) -> Deck:
-    deck = app.state.decks.get(deck_id)
+    deck = _lookup_deck(deck_id)
     if deck is None:
         raise HTTPException(status_code=404, detail="unknown deck")
     return deck
@@ -233,7 +254,7 @@ def get_deck(deck_id: str) -> Deck:
 @app.get("/decks/{deck_id}/presentation")
 def presentation(deck_id: str) -> dict:
     """Ordered slide payload for the presentation pipeline / live class."""
-    deck = app.state.decks.get(deck_id)
+    deck = _lookup_deck(deck_id)
     if deck is None:
         raise HTTPException(status_code=404, detail="unknown deck")
     return {
@@ -404,8 +425,30 @@ def create_course(req: CreateCourseRequest) -> Course:
     return app.state.catalog.create_course(Course(**req.model_dump()))
 
 
+def _paged_headers(response: Response | None, *, total: int, capped: bool, limit: int, cursor: str | None) -> None:
+    if response is None:
+        return
+    response.headers["X-Total-Count"] = str(total)
+    response.headers["X-Limit"] = str(limit)
+    if capped:
+        response.headers["X-Total-Capped"] = "true"  # the count stopped at its cap: "at least this many"
+    if cursor:
+        response.headers["X-Next-Cursor"] = cursor
+
+
 @app.get("/courses", response_model=list[Course])
-def list_courses(limit: int = 100, offset: int = 0, response: Response = None) -> list[Course]:
+def list_courses(limit: int = 100, offset: int = 0, cursor: str | None = None, response: Response = None) -> list[Course]:
+    if getattr(app.state.catalog, "paged", False):
+        # Shared database: page through an index (keyset), never load the catalog. Follow
+        # X-Next-Cursor (?cursor=...) for any depth; offset works for the first few thousand rows.
+        bounded = min(max(limit, 1), 200)
+        try:
+            items, nxt = app.state.catalog.page_courses(limit=bounded, cursor=cursor, offset=offset)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="invalid cursor")
+        total, capped = app.state.catalog.count_courses()
+        _paged_headers(response, total=total, capped=capped, limit=bounded, cursor=nxt)
+        return items
     courses = app.state.catalog.list_courses()
     bounded_limit = min(max(limit, 1), 200)
     if response is not None:
@@ -442,6 +485,19 @@ def search_courses(
     total are echoed in ``X-Limit`` / ``X-Total-Count`` so paginating clients
     can detect the clamp instead of silently dropping rows.
     """
+    if getattr(app.state.catalog, "paged", False):
+        items, total, applied_limit, capped = _search_courses_paged(
+            q=q, category=category, language=language, audio=audio,
+            media_format=media_format, level=level, tag=tag, hands_on=hands_on,
+            delivery_mode=delivery_mode, access_tier=access_tier, maturity=maturity,
+            audience=audience, core_skill=core_skill, source=source,
+            limit=limit, offset=offset,
+        )
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Limit"] = str(applied_limit)
+        if capped:
+            response.headers["X-Total-Capped"] = "true"
+        return items
     items, total, applied_limit = _search_learnable_as_courses(
         q=q, category=category, language=language, audio=audio,
         media_format=media_format, level=level, tag=tag, hands_on=hands_on,
@@ -479,6 +535,44 @@ def _learnable_index(locale: str = "en"):
             if extra:
                 item.popularity += extra
     return items
+
+
+def _search_courses_paged(**kwargs) -> tuple[list[Course], int, int, bool]:
+    """Unified search when the catalog lives in a shared database.
+
+    Non-catalog sources (audio courses, live lessons, languages, games: a few hundred items) come
+    from the in-process learnable index; catalog courses come from the database page by page.
+    The two are served as one list (learnable items first), so offset/limit paging stays
+    consistent without ever materializing the catalog.
+    """
+    from aoep_shared.learnable import build_learnable_index, search_learnable
+
+    store = app.state.catalog
+    limit = min(max(int(kwargs.pop("limit", 100)), 1), 200)
+    offset = max(int(kwargs.pop("offset", 0)), 0)
+    audio = kwargs.pop("audio", None)
+    media_format = kwargs.pop("media_format", None)
+    delivery_mode = kwargs.pop("delivery_mode", None)
+    from curriculum.learnable_service import _curriculum_dir
+
+    index = build_learnable_index(
+        catalog_courses=[], catalog_programs=store.list_programs(), locale="en", curriculum_dir=_curriculum_dir(),
+    )
+    flt = {k: kwargs.get(k) for k in (
+        "q", "category", "language", "level", "tag", "hands_on", "access_tier", "maturity",
+        "audience", "core_skill", "source")}
+    learn_total = search_learnable(index, **flt, audio_language=audio, format=media_format, offset=0, limit=1)["total"]
+    items: list[Course] = []
+    if offset < learn_total:
+        part = search_learnable(index, **flt, audio_language=audio, format=media_format, offset=offset, limit=limit)
+        items.extend(_course_from_learnable_item(i) for i in part["items"])
+    remaining = limit - len(items)
+    pg_filters = dict(flt, audio=audio, media_format=media_format, delivery_mode=delivery_mode)
+    if remaining > 0:
+        got, _ = store.page_courses(limit=remaining, offset=max(0, offset - learn_total), **pg_filters)
+        items.extend(got)
+    pg_total, capped = store.count_courses(**pg_filters)
+    return items, learn_total + pg_total, limit, capped
 
 
 def _search_learnable_as_courses(**kwargs) -> tuple[list[Course], int, int]:
@@ -1121,6 +1215,13 @@ def course_facets() -> dict:
 
     facets = learnable_facets(_learnable_index())
     facets.setdefault("media_formats", facets.get("formats", []))
+    if getattr(app.state.catalog, "paged", False):
+        # The learnable index only sees the hot set; the database has the real distinct values.
+        counts = app.state.catalog.facet_counts()
+        for facet_key, kind in (("categories", "category"), ("languages", "language"),
+                                ("levels", "level"), ("media_formats", "media_format")):
+            facets[facet_key] = sorted(set(facets.get(facet_key, [])) | set(counts.get(kind, {})))
+        facets["catalog_counts"] = counts
     return facets
 
 
@@ -1137,12 +1238,27 @@ def _course_audiences_facet(courses) -> list[dict]:
                   key=lambda x: x["label"])
 
 
+def _etag(payload: object) -> str:
+    import hashlib
+
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
+    return 'W/"' + hashlib.sha1(raw).hexdigest()[:20] + '"'
+
+
 @app.get("/courses/{course_id}", response_model=Course)
-def get_course(course_id: str) -> Course:
+def get_course(course_id: str, request: Request, response: Response) -> Course:
     from curriculum.learnable_service import find_item
 
     course = app.state.catalog.get_course(course_id)
     if course is not None:
+        if getattr(app.state.catalog, "paged", False):
+            # Replicas share one database; the ETag lets clients and caches revalidate cheaply and
+            # converge on the same bytes after an edit.
+            tag = _etag(course.model_dump(mode="json"))
+            if request.headers.get("if-none-match") == tag:
+                return Response(status_code=304, headers={"ETag": tag})  # type: ignore[return-value]
+            response.headers["ETag"] = tag
+            response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=300"
         return course
     item = find_item(_learnable_index(), source_id=course_id) or find_item(_learnable_index(), global_id=course_id)
     if item is None:

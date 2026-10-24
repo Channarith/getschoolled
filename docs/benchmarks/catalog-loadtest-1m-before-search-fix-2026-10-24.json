@@ -1,0 +1,180 @@
+{
+  "courses_requested": 1000000,
+  "modules_per_course": 8,
+  "load": {
+    "courses": 1000000,
+    "modules": 8000000,
+    "indexes_deferred": true,
+    "generate_seconds": 37.3,
+    "copy_seconds": 334.1,
+    "total_load_seconds": 371.3,
+    "courses_per_second_copy_only": 2993,
+    "courses_per_second_end_to_end": 2693,
+    "index_rebuild_seconds": 40.0
+  },
+  "sizes": {
+    "database": "8193 MB",
+    "database_bytes": 8591417871,
+    "tables_incl_indexes_bytes": {
+      "catalog_modules": 3157082112,
+      "catalog_courses": 2775220224,
+      "catalog_sources": 2648219648,
+      "catalog_translations": 24576
+    },
+    "catalog_courses_indexes_bytes": {
+      "ux_catalog_courses_content_hash": 123854848,
+      "ix_cc_fts": 87515136,
+      "ix_cc_title_trgm": 82288640,
+      "ix_cc_cat_pop": 49758208,
+      "ix_cc_source_pop": 49758208,
+      "ix_cc_lang_pop": 49758208,
+      "ix_cc_fingerprint": 41795584,
+      "ix_cc_pop": 40640512,
+      "ix_cc_new": 40525824,
+      "catalog_courses_pkey": 31563776,
+      "ix_cc_free_pop": 28434432,
+      "ix_cc_tags": 12959744,
+      "ix_cc_handson_pop": 3276800,
+      "ix_cc_kids_pop": 2056192
+    }
+  },
+  "rows": 1000000,
+  "latency": {
+    "get_by_id": {
+      "n": 1000,
+      "p50_ms": 0.58,
+      "p95_ms": 0.93,
+      "p99_ms": 1.7,
+      "mean_ms": 0.62
+    },
+    "browse_first_page_50": {
+      "n": 200,
+      "p50_ms": 2.52,
+      "p95_ms": 3.08,
+      "p99_ms": 3.36,
+      "mean_ms": 2.64
+    },
+    "browse_deep_keyset_10k": {
+      "n": 200,
+      "p50_ms": 2.75,
+      "p95_ms": 3.26,
+      "p99_ms": 7.86,
+      "mean_ms": 2.89
+    },
+    "browse_offset_5000": {
+      "n": 200,
+      "p50_ms": 6.72,
+      "p95_ms": 8.29,
+      "p99_ms": 10.79,
+      "mean_ms": 6.88
+    },
+    "filter_category": {
+      "n": 200,
+      "p50_ms": 3.42,
+      "p95_ms": 4.25,
+      "p99_ms": 10.57,
+      "mean_ms": 3.7
+    },
+    "filter_language_km": {
+      "n": 200,
+      "p50_ms": 3.08,
+      "p95_ms": 3.71,
+      "p99_ms": 3.85,
+      "mean_ms": 3.26
+    },
+    "filter_language_en": {
+      "n": 200,
+      "p50_ms": 3.42,
+      "p95_ms": 4.02,
+      "p99_ms": 10.4,
+      "mean_ms": 3.64
+    },
+    "filter_tag": {
+      "n": 200,
+      "p50_ms": 5.83,
+      "p95_ms": 7.5,
+      "p99_ms": 8.88,
+      "mean_ms": 6.11
+    },
+    "filter_category_language_level": {
+      "n": 200,
+      "p50_ms": 3.7,
+      "p95_ms": 5.33,
+      "p99_ms": 12.53,
+      "mean_ms": 4.0
+    },
+    "search_one_word": {
+      "n": 200,
+      "p50_ms": 64.05,
+      "p95_ms": 104.98,
+      "p99_ms": 206.84,
+      "mean_ms": 71.94
+    },
+    "search_two_words": {
+      "n": 200,
+      "p50_ms": 17.66,
+      "p95_ms": 24.29,
+      "p99_ms": 54.07,
+      "mean_ms": 18.6
+    },
+    "search_prefix_like": {
+      "n": 200,
+      "p50_ms": 59.54,
+      "p95_ms": 69.23,
+      "p99_ms": 77.67,
+      "mean_ms": 60.14
+    },
+    "count_filtered_capped": {
+      "n": 200,
+      "p50_ms": 12.38,
+      "p95_ms": 19.56,
+      "p99_ms": 25.54,
+      "mean_ms": 13.28
+    },
+    "count_all_capped": {
+      "n": 200,
+      "p50_ms": 2.57,
+      "p95_ms": 3.9,
+      "p99_ms": 4.57,
+      "mean_ms": 2.76
+    },
+    "home_rails": {
+      "n": 40,
+      "p50_ms": 39.24,
+      "p95_ms": 62.65,
+      "p99_ms": 84.69,
+      "mean_ms": 43.07
+    },
+    "facet_counts": {
+      "n": 200,
+      "p50_ms": 0.6,
+      "p95_ms": 0.84,
+      "p99_ms": 1.01,
+      "mean_ms": 0.64
+    }
+  },
+  "mixed_read_load": {
+    "threads": 16,
+    "seconds": 30.1,
+    "requests": 10196,
+    "errors": 0,
+    "requests_per_second": 338,
+    "p50_ms": 13.95,
+    "p95_ms": 273.39,
+    "p99_ms": 357.0
+  },
+  "writes_with_all_indexes": {
+    "bulk_courses_per_second": 2321,
+    "bulk_inserted": 10000,
+    "single_create_p50_ms": 3.36,
+    "single_create_p95_ms": 6.09,
+    "bump_popularity": {
+      "n": 300,
+      "p50_ms": 1.82,
+      "p95_ms": 2.97,
+      "p99_ms": 3.48,
+      "mean_ms": 1.95
+    }
+  },
+  "rerun_same_courses_inserts": 0
+}
