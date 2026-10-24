@@ -154,10 +154,11 @@ class AppConfig(BaseModel):
     harvest_max_rps: float = 1.0
     harvest_seeds: str = ""
     # License policy. The PRODUCT corpus takes commercially usable sources only; share-alike
-    # (harvest.allow_share_alike) stays OFF until the owner decides (legal review). Non-commercial
+    # (harvest.allow_share_alike) is ON by decision of the owner (2026-10-24); attribution and the same-license
+    # obligation still apply and legal review is still advised. Non-commercial
     # text that is lawful to read goes to a separate RESEARCH corpus (harvest.research_enabled, ON):
     # internal experiments only, never published.
-    harvest_allow_share_alike: bool = False
+    harvest_allow_share_alike: bool = True
     harvest_research_enabled: bool = True
     speech_base_url: str = "http://speech:8100"
     vision_base_url: str = "http://perception:8200"
@@ -364,7 +365,7 @@ def load_config(
         harvest_user_agent=get("HARVEST_USER_AGENT", ""),
         harvest_max_rps=env_float(source.get("HARVEST_MAX_RPS"), 1.0),
         harvest_seeds=get("HARVEST_SEEDS", ""),
-        harvest_allow_share_alike=env_bool(source.get("AOEP_HARVEST_ALLOW_SHARE_ALIKE"), False),
+        harvest_allow_share_alike=env_bool(source.get("AOEP_HARVEST_ALLOW_SHARE_ALIKE"), True),
         harvest_research_enabled=env_bool(source.get("AOEP_HARVEST_RESEARCH"), True),
         speech_base_url=get("SPEECH_BASE_URL", "http://speech:8100"),
         vision_base_url=_native_service_url(

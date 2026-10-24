@@ -1114,6 +1114,11 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
           {!coursesLoading && experience.showCoursePicker && rows.length === 0 && (
             <p className="muted">{t("drive.noMatch")}</p>
           )}
+          {course?.attribution && (
+            <p data-testid="course-attribution" style={{ margin: "6px 2px 0", fontSize: 12, lineHeight: 1.4, color: "#9fbac2" }}>
+              {course.attribution}
+            </p>
+          )}
 
           {experience.showTimer ? (
             <button

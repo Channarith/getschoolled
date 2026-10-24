@@ -220,7 +220,7 @@ def _clean_url(raw: str) -> str:
 
 @dataclass(frozen=True)
 class HarvestPolicy:
-    allow_share_alike: bool = False     # default OFF until the owner decides (legal review)
+    allow_share_alike: bool = True      # ON by decision of the owner (2026-10-24): attribution + same-license derivative apply; legal review still advised. Off: AOEP_HARVEST_ALLOW_SHARE_ALIKE=0
     research_enabled: bool = True       # keep non-product-but-lawful text in the research corpus (ON by default)
 
     def tier_allowed(self, tier: Tier) -> bool:
@@ -247,7 +247,8 @@ def _truthy(value: Optional[str]) -> bool:
 def policy_from_env(env: Optional[dict] = None) -> HarvestPolicy:
     env = os.environ if env is None else env
     return HarvestPolicy(
-        allow_share_alike=_truthy(env.get("AOEP_HARVEST_ALLOW_SHARE_ALIKE")),
+        # On unless explicitly switched off with AOEP_HARVEST_ALLOW_SHARE_ALIKE=0 (also false/no/off).
+        allow_share_alike=(env.get("AOEP_HARVEST_ALLOW_SHARE_ALIKE", "1").strip().lower() not in {"0", "false", "no", "off"}),
         # On unless explicitly switched off with AOEP_HARVEST_RESEARCH=0.
         research_enabled=(env.get("AOEP_HARVEST_RESEARCH", "1").strip().lower() not in {"0", "false", "no", "off"}),
     )
@@ -304,6 +305,57 @@ def decide(info: LicenseInfo, policy: Optional[HarvestPolicy] = None, *, conflic
     if info.tier is Tier.SHARE_ALIKE:
         return Decision("reject", f"{info.spdx} is share-alike and harvest.allow_share_alike is off", info)
     return Decision("reject", f"{info.spdx or 'unknown license'} is {info.tier.value}", info)
+
+
+class LicenseConflictError(ValueError):
+    """The sources of one course cannot be combined under a single license we may offer."""
+
+
+def combine_course_license(infos: Iterable[LicenseInfo], policy: Optional[HarvestPolicy] = None) -> dict:
+    """The license a course built from SEVERAL sources must be offered under, or LicenseConflictError.
+
+    - every source must be commercially usable (commercial-OK or share-alike): a course that touches a
+      non-commercial, no-derivatives, proprietary or unknown source is refused;
+    - one share-alike source makes the whole course share-alike (CC BY, CC0, public-domain and permissive
+      inputs may be mixed in; the course is offered under the share-alike license);
+    - two different share-alike licenses (CC BY-SA 3.0 and 4.0, or CC BY-SA and GFDL) are not compatible
+      with each other here: refused;
+    - share-alike sources are refused when the policy switch is off.
+    Not legal advice.
+    """
+    policy = policy or HarvestPolicy()
+    items = [i for i in infos if i is not None]
+    if not items:
+        raise LicenseConflictError("a course needs at least one licensed source")
+    bad = [i for i in items if i.tier not in (Tier.COMMERCIAL_OK, Tier.SHARE_ALIKE)]
+    if bad:
+        raise LicenseConflictError(
+            "cannot combine with " + ", ".join(sorted({f"{i.spdx} ({i.tier.value})" for i in bad})) +
+            ": not usable in a product course")
+    share = [i for i in items if i.tier is Tier.SHARE_ALIKE]
+    if share and not policy.allow_share_alike:
+        raise LicenseConflictError("share-alike sources are switched off (harvest.allow_share_alike)")
+    distinct = sorted({i.spdx for i in share})
+    if len(distinct) > 1:
+        raise LicenseConflictError("incompatible share-alike licenses in one course: " + ", ".join(distinct))
+    chosen = share[0] if share else next((i for i in items if i.family not in ("cc0", "pd")), items[0])
+    return {
+        "spdx": chosen.spdx,
+        "url": chosen.url,
+        "share_alike": bool(share),
+        "inputs": sorted({i.spdx for i in items}),
+    }
+
+
+def info_from_dict(d: dict) -> LicenseInfo:
+    """Rebuild a LicenseInfo from LicenseInfo.to_dict() (as stored in provenance)."""
+    try:
+        tier = Tier(d.get("tier") or Tier.UNKNOWN.value)
+    except ValueError:
+        tier = Tier.UNKNOWN
+    return LicenseInfo(spdx=d.get("spdx") or "UNKNOWN", tier=tier, family=d.get("family") or "",
+                       version=d.get("version") or "", port=d.get("port") or "", url=d.get("url") or "",
+                       evidence=d.get("evidence") or "", kind=d.get("kind") or "declared")
 
 
 # -------------------------------------------------------- page detection

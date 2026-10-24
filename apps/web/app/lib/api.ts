@@ -1228,6 +1228,8 @@ export type AudioCourse = {
   // Actual language of the spoken body text (may differ from the requested
   // training locale when it falls back to English). Use this for TTS voice.
   body_locale?: string; locale?: string; training_locale?: string;
+  // Credit for lessons adapted from openly licensed text (CC BY-SA); empty for authored lessons.
+  source_name?: string; source_url?: string; license?: string; license_url?: string; attribution?: string;
 };
 
 export async function getAudioCategories(locale = "en"): Promise<{ category: string; count: number }[]> {

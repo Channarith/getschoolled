@@ -21,6 +21,9 @@ from aoep_shared.harvest.license_audit import (
     scan_course_files,
 )
 from aoep_shared.harvest.licensing import HarvestPolicy
+
+# These fixtures were written when share-alike was off; keep their intent (and counts) with the OFF policy.
+OFF = HarvestPolicy(allow_share_alike=False)
 from aoep_shared.harvest.serving import course_servable
 from aoep_shared.harvest.queue import url_key
 
@@ -69,14 +72,15 @@ def test_classify_rules():
     assert c("https://archive.org/details/x", "public-domain") == BUCKET_REVIEW
     assert c("https://www.nasa.gov/x", "public-domain") == BUCKET_OK            # vetted host
     assert c("https://x.example.net/a", "cc-by", license_tier="commercial_ok", license_verified_by="page") == BUCKET_OK
-    assert c("https://en.wikibooks.org/x", "cc-by-sa") == BUCKET_QUARANTINE   # share-alike is off
-    assert classify_source({"url_key": "k", "url": "https://en.wikibooks.org/x", "license": "cc-by-sa"},
-                           HarvestPolicy(allow_share_alike=True)).bucket == BUCKET_OK
+    wb = {"url_key": "k", "url": "https://en.wikibooks.org/x", "license": "cc-by-sa"}
+    assert classify_source(wb, OFF).bucket == BUCKET_QUARANTINE               # switched off: share-alike is not usable
+    assert classify_source(wb).bucket == BUCKET_OK                            # ON by default (owner decision)
+    assert classify_source(wb, HarvestPolicy(allow_share_alike=True)).bucket == BUCKET_OK
 
 
 def test_audit_counts_sources_courses_and_chunks(tmp_path):
     store = make_db(tmp_path)
-    report = audit_db(store.path)
+    report = audit_db(store.path, OFF)
     assert report.sources == 8 and report.courses == 9
     assert report.by_bucket == {BUCKET_QUARANTINE: 6, BUCKET_OK: 1, BUCKET_REVIEW: 1}
     # The orphan course has no source row, so it counts as unproven.
@@ -91,14 +95,14 @@ def test_audit_counts_sources_courses_and_chunks(tmp_path):
 def test_audit_is_read_only(tmp_path):
     store = make_db(tmp_path)
     before = store.path.read_bytes()
-    audit_db(store.path)
+    audit_db(store.path, OFF)
     assert store.path.read_bytes() == before
 
 
 def test_apply_quarantines_and_restore_undoes_it(tmp_path):
     store = make_db(tmp_path)
     assert store.search("fractions", top_k=50)
-    report = audit_db(store.path)
+    report = audit_db(store.path, OFF)
     out = apply_quarantine(store.path, report)
     assert out["sources_quarantined"] == 6 and out["courses_quarantined"] == 7      # 6 + the orphan
     conn = sqlite3.connect(store.path)
@@ -122,7 +126,7 @@ def test_restore_leaves_manual_quarantines_alone(tmp_path):
     conn.execute("UPDATE sources SET quarantined=1, quarantine_reason='owner decision' WHERE url LIKE '%data.gov%'")
     conn.commit()
     conn.close()
-    apply_quarantine(store.path, audit_db(store.path))
+    apply_quarantine(store.path, audit_db(store.path, OFF))
     restore_quarantine(store.path)
     conn = sqlite3.connect(store.path)
     assert conn.execute("SELECT quarantine_reason FROM sources WHERE url LIKE '%data.gov%'").fetchone()[0] == "owner decision"
@@ -130,7 +134,7 @@ def test_restore_leaves_manual_quarantines_alone(tmp_path):
 
 def test_include_needs_review_quarantines_unverified_sources_too(tmp_path):
     store = make_db(tmp_path)
-    report = audit_db(store.path)
+    report = audit_db(store.path, OFF)
     out = apply_quarantine(store.path, report, include=(BUCKET_QUARANTINE, BUCKET_REVIEW))
     assert out["sources_quarantined"] == 7
     m = manifest(report, include=(BUCKET_QUARANTINE, BUCKET_REVIEW))
@@ -144,7 +148,7 @@ def test_new_pipeline_rows_with_proof_are_not_flagged(tmp_path):
                  "WHERE url LIKE '%example.net%'")
     conn.commit()
     conn.close()
-    report = audit_db(store.path)
+    report = audit_db(store.path, OFF)
     verified = [f for f in report.findings if "example.net" in f.url]
     assert verified and verified[0].bucket == BUCKET_OK
 
@@ -156,7 +160,7 @@ def test_scan_course_files_separates_new_and_old_packages(tmp_path):
     (tmp_path / "b" / "y.course.json").write_text(json.dumps({"provenance": {"x": 1}, "license_tier": "commercial_ok"}))
     (tmp_path / "b" / "broken.course.json").write_text("{nope")
     store = make_db(tmp_path)
-    found = scan_course_files(tmp_path, audit_db(store.path))
+    found = scan_course_files(tmp_path, audit_db(store.path, OFF))
     assert found["with_provenance"] == 1 and found["without_provenance"] == 1
     assert found["tiers_with_provenance"] == {"commercial_ok": 1}
 
@@ -174,8 +178,8 @@ def test_script_report_apply_and_restore(tmp_path, capsys):
     script = _load_script()
     out = tmp_path / "reports"
     for argv, needle in (
-        ([str(store.path), "--out", str(out)], "read-only run; --apply would quarantine 6"),
-        ([str(store.path), "--out", str(out), "--apply"], "sources_quarantined"),
+        ([str(store.path), "--out", str(out), "--no-share-alike"], "read-only run; --apply would quarantine 6"),
+        ([str(store.path), "--out", str(out), "--no-share-alike", "--apply"], "sources_quarantined"),
         ([str(store.path), "--restore"], "sources_restored"),
     ):
         assert script.main(argv) == 0
@@ -193,7 +197,8 @@ def test_script_report_apply_and_restore(tmp_path, capsys):
     "tier,policy,ok",
     [
         ("commercial_ok", HarvestPolicy(), True),
-        ("share_alike", HarvestPolicy(), False),
+        ("share_alike", HarvestPolicy(allow_share_alike=False), False),
+        ("share_alike", HarvestPolicy(), True),                      # ON by default
         ("share_alike", HarvestPolicy(allow_share_alike=True), True),
         ("non_commercial", HarvestPolicy(allow_share_alike=True), False),
         ("no_derivatives", HarvestPolicy(), False),

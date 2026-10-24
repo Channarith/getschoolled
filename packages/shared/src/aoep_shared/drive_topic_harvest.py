@@ -73,8 +73,42 @@ def _db(path: Path = _DEFAULT_DB_PATH) -> sqlite3.Connection:
             PRIMARY KEY (topic, version)
         )
     """)
+    # Where the text came from: 'wikipedia' (adapted from the article; CC BY-SA applies) or 'authored'
+    # (our own hardcoded sections). Older rows have NULL and are treated as Wikipedia-derived.
+    cols = {row[1] for row in con.execute("PRAGMA table_info(drive_segments)")}
+    if "source" not in cols:
+        con.execute("ALTER TABLE drive_segments ADD COLUMN source TEXT")
     con.commit()
     return con
+
+
+WIKIPEDIA_LICENSE = "CC BY-SA 4.0"
+WIKIPEDIA_LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
+
+
+def wikipedia_attribution(topic: str) -> dict:
+    """Credit required by CC BY-SA for a lesson adapted from the Wikipedia article on *topic*."""
+    from urllib.parse import quote
+    url = "https://en.wikipedia.org/wiki/" + quote(topic.replace(" ", "_"))
+    text = (
+        f'Based on the Wikipedia article "{topic}" ({url}) and its contributors. '
+        f"Text available under {WIKIPEDIA_LICENSE} ({WIKIPEDIA_LICENSE_URL}). "
+        f"This lesson is an adaptation and is shared under the same license."
+    )
+    return {"source_name": "Wikipedia", "source_url": url, "license": WIKIPEDIA_LICENSE,
+            "license_url": WIKIPEDIA_LICENSE_URL, "attribution": text}
+
+
+def get_cached_source(topic: str, *, version: int = 1) -> str:
+    """'authored' when the cached lesson is our own text, else 'wikipedia' (also for rows without a marker)."""
+    try:
+        con = _db()
+        row = con.execute("SELECT source FROM drive_segments WHERE topic=? AND version=?", (topic, version)).fetchone()
+        if row and row[0] == "authored":
+            return "authored"
+    except Exception as exc:
+        logger.warning("drive_content_cache read error: %s", exc)
+    return "wikipedia"
 
 
 def get_cached_segments(topic: str, *, version: int = 1) -> Optional[List[Tuple[str, str]]]:
@@ -92,7 +126,7 @@ def get_cached_segments(topic: str, *, version: int = 1) -> Optional[List[Tuple[
     return None
 
 
-def save_segments(topic: str, segments: List[Tuple[str, str]], *, version: int = 1) -> None:
+def save_segments(topic: str, segments: List[Tuple[str, str]], *, version: int = 1, source: str = "wikipedia") -> None:
     """Persist ``segments`` for *topic* to the SQLite cache."""
     word_count = sum(len(t.split()) for _, t in segments)
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -100,9 +134,9 @@ def save_segments(topic: str, segments: List[Tuple[str, str]], *, version: int =
         con = _db()
         con.execute(
             """INSERT OR REPLACE INTO drive_segments
-               (topic, version, created_at, segments_json, word_count)
-               VALUES (?,?,?,?,?)""",
-            (topic, version, ts, json.dumps(segments), word_count),
+               (topic, version, created_at, segments_json, word_count, source)
+               VALUES (?,?,?,?,?,?)""",
+            (topic, version, ts, json.dumps(segments), word_count, source),
         )
         con.commit()
     except Exception as exc:
@@ -395,6 +429,7 @@ def harvest_topic(
 
     # Step 3 — LLM synthesis (preferred) or Wikipedia-only expansion
     segments: List[Tuple[str, str]] = []
+    source_kind = "wikipedia"
     if llm is not None and wiki_sections:
         source = wiki_sections if wiki_sections else [(h, t) for h, t in hardcoded]
         synthesised = synthesise_segments_with_llm(topic, source, llm=llm)
@@ -412,10 +447,13 @@ def harvest_topic(
     if not segments:
         # Last resort: expand the existing hardcoded sections inline
         segments = [(h, " ".join(t.replace("\n", " ").split())) for h, t in hardcoded]
+        source_kind = "authored"
         logger.info("  Hardcoded fallback: %d segments", len(segments))
+    elif not wiki_sections:
+        source_kind = "authored"
 
     if segments:
-        save_segments(topic, segments, version=version)
+        save_segments(topic, segments, version=version, source=source_kind)
 
     return segments
 

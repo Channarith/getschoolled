@@ -14,7 +14,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-from .licensing import Decision, LicenseInfo, PageScan, Tier, Verification, host_of
+from .licensing import (Decision, HarvestPolicy, LicenseInfo, PageScan, Tier, Verification,
+                        combine_course_license, host_of, info_from_dict)
 
 CREDITS_SLIDE_TITLE = "Sources and licenses"
 
@@ -184,3 +185,20 @@ def attach_to_course(course: Any, prov: Provenance) -> None:
     comp = getattr(course, "composition", None)
     if comp is not None and hasattr(comp, "add_node"):
         comp.add_node("resources", subnode=CREDITS_SLIDE_TITLE)
+
+
+def merge_course_provenance(provs: List[Provenance], policy: Optional[HarvestPolicy] = None) -> Dict[str, Any]:
+    """License block for a course made from several harvested sources.
+
+    Raises LicenseConflictError when the sources cannot be combined (for example a share-alike source with a
+    non-commercial one). Returns {"course_license": ..., "attributions": [...]} for the course JSON.
+    """
+    lic = combine_course_license([info_from_dict(p.license) for p in provs], policy)
+    return {
+        "course_license": {
+            **lic,
+            "note": ("This course is an adaptation of the credited sources and is offered under the same license."
+                     if lic["share_alike"] else ""),
+        },
+        "attributions": [dict(p.attribution) for p in provs],
+    }

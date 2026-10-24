@@ -4,8 +4,9 @@ HARVESTER RUNBOOK - 24/7 large-scale course-material ingestion (100k+)
 Runs on a SEPARATE long-lived worker agent (its own thread/pod), independent of
 the app stack. It only ingests material Salareen may use COMMERCIALLY (CC0, public
 domain, CC BY, MIT/Apache/BSD, US government works). Non-commercial (NC), no-derivatives,
-proprietary, unknown and "oer" licenses are rejected. Share-alike (CC BY-SA, GFDL) is
-rejected unless you turn on --allow-share-alike after legal review.
+proprietary, unknown and "oer" licenses are rejected. Share-alike (CC BY-SA, GFDL) is ALLOWED
+(owner decision 2026-10-24): every such course must carry the attribution and be offered under the
+same license; legal review is still advised. Turn it off with --no-share-alike.
 
 LICENSE SAFETY (read before running at scale; details in docs/harvest-sources.txt)
   - A license in a seed file is only a CLAIM. The fetched page has to show the same license
@@ -28,8 +29,8 @@ LICENSE SAFETY (read before running at scale; details in docs/harvest-sources.tx
   - Audit existing corpora on EVERY machine before trusting them:
       python3 scripts/harvest_license_audit.py            # read-only report
       python3 scripts/harvest_license_audit.py --apply    # quarantine (reversible, deletes nothing)
-  - Policy switches: AOEP_HARVEST_ALLOW_SHARE_ALIKE=1 / --allow-share-alike (default OFF, needs legal
-    review); AOEP_HARVEST_RESEARCH=0 / --no-research turns the research corpus off (default ON).
+  - Policy switches: AOEP_HARVEST_ALLOW_SHARE_ALIKE=0 / --no-share-alike turns share-alike off (default ON,
+    owner decision 2026-10-24; attribution + same-license derivative still required); AOEP_HARVEST_RESEARCH=0 / --no-research turns the research corpus off (default ON).
   - Move legacy non-commercial text into the research corpus (copies only; product DB untouched):
       python3 scripts/harvest_license_audit.py --migrate-research output/harvest/harvest_research_corpus.db
 

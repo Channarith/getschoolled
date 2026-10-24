@@ -63,7 +63,7 @@ class CrawlSession:
     expand_links: bool = True
     max_slides_per_lesson: int = MAX_SLIDES_PER_LESSON
     metrics: CrawlMetrics = field(default_factory=CrawlMetrics)
-    # License policy: harvest.allow_share_alike (default OFF) and harvest.research_enabled (default ON).
+    # License policy: harvest.allow_share_alike (default ON) and harvest.research_enabled (default ON).
     policy: HarvestPolicy = field(default_factory=policy_from_env)
     # The research corpus: a separate database for non-commercial text that is lawful to read. Internal
     # experiments only; never published, never exposed, never mixed into the product corpus.

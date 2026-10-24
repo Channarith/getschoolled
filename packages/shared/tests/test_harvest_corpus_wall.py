@@ -46,12 +46,14 @@ def test_product_corpus_refuses_non_product_text_and_courses(tmp_path):
 
 def test_product_corpus_takes_share_alike_only_with_the_switch(tmp_path):
     sa = prov("share_alike", "CC-BY-SA-4.0")
-    off = HarvestCorpusStore(tmp_path / "off.db", role="product", policy=HarvestPolicy())
+    off = HarvestCorpusStore(tmp_path / "off.db", role="product", policy=HarvestPolicy(allow_share_alike=False))
     with pytest.raises(CorpusWallError, match="share_alike"):
         off.upsert_source(url="https://sa.example.net/", status="ingested", provenance=sa)
     on = HarvestCorpusStore(tmp_path / "on.db", role="product", policy=HarvestPolicy(allow_share_alike=True))
     on.upsert_source(url="https://sa.example.net/", status="ingested", provenance=sa)
     assert on.index_document(url="https://sa.example.net/", title="A", text=TEXT) > 0
+    default = HarvestCorpusStore(tmp_path / "default.db", role="product", policy=HarvestPolicy())   # ON by default
+    default.upsert_source(url="https://sa.example.net/", status="ingested", provenance=sa)
 
 
 def test_product_corpus_accepts_commercial_text_and_legacy_rows_without_a_tier(tmp_path):
@@ -141,7 +143,8 @@ def test_default_research_path_is_separate_and_overridable(monkeypatch, tmp_path
     [
         ({"tier": "commercial_ok"}, True),
         ({"license": "cc-by"}, True),
-        ({"tier": "share_alike"}, False),
+        ({"tier": "share_alike", "policy": HarvestPolicy(allow_share_alike=False)}, False),
+        ({"tier": "share_alike"}, True),                                    # share-alike is ON by default
         ({"tier": "non_commercial"}, False),
         ({"license": "cc-by-nc"}, False),
         ({"tier": "commercial_ok", "corpus": "research"}, False),        # the corpus alone is enough
@@ -161,7 +164,7 @@ def test_assert_product_safe(kw, ok):
 def test_assert_product_safe_share_alike_follows_the_policy():
     assert_product_safe(tier="share_alike", policy=HarvestPolicy(allow_share_alike=True))
     with pytest.raises(CorpusWallError):
-        assert_product_safe(tier="share_alike", policy=HarvestPolicy())
+        assert_product_safe(tier="share_alike", policy=HarvestPolicy(allow_share_alike=False))
 
 
 def make_course(n):

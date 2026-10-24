@@ -71,19 +71,21 @@ def test_noncommercial_wins_over_other_words():
 
 
 def test_policy_tiers_and_switches():
-    off = HarvestPolicy()
+    off = HarvestPolicy(allow_share_alike=False)
     assert off.tier_allowed(Tier.COMMERCIAL_OK)
     assert not off.tier_allowed(Tier.SHARE_ALIKE)
+    assert HarvestPolicy().tier_allowed(Tier.SHARE_ALIKE)            # share-alike is ON by default (owner decision)
     assert HarvestPolicy(allow_share_alike=True).tier_allowed(Tier.SHARE_ALIKE)
     for tier in (Tier.NON_COMMERCIAL, Tier.NO_DERIVATIVES, Tier.PROPRIETARY, Tier.UNKNOWN):
         assert not HarvestPolicy(allow_share_alike=True).tier_allowed(tier)      # never in the product corpus
 
 
 def test_research_eligibility_is_narrow():
-    on = HarvestPolicy()
+    on = HarvestPolicy(allow_share_alike=False)
     assert on.research_enabled                                    # ON by default
     assert on.research_eligible(Tier.NON_COMMERCIAL)
-    assert on.research_eligible(Tier.SHARE_ALIKE)                 # share-alike while that switch is off
+    assert on.research_eligible(Tier.SHARE_ALIKE)                 # share-alike only if that switch is turned off
+    assert not HarvestPolicy().research_eligible(Tier.SHARE_ALIKE)                          # default: it is product
     assert not HarvestPolicy(allow_share_alike=True).research_eligible(Tier.SHARE_ALIKE)   # it is product then
     for tier in (Tier.NO_DERIVATIVES, Tier.PROPRIETARY, Tier.UNKNOWN, Tier.COMMERCIAL_OK):
         assert not on.research_eligible(tier)
@@ -91,9 +93,13 @@ def test_research_eligibility_is_narrow():
 
 
 def test_policy_from_env_defaults_and_switches():
-    assert policy_from_env({}) == HarvestPolicy(allow_share_alike=False, research_enabled=True)
+    assert policy_from_env({}) == HarvestPolicy(allow_share_alike=True, research_enabled=True)
+    assert HarvestPolicy().allow_share_alike is True
     p = policy_from_env({"AOEP_HARVEST_ALLOW_SHARE_ALIKE": "1", "AOEP_HARVEST_RESEARCH": "0"})
     assert p.allow_share_alike and not p.research_enabled
+    for off in ("0", "false", "False", "no", "off", " OFF "):
+        assert not policy_from_env({"AOEP_HARVEST_ALLOW_SHARE_ALIKE": off}).allow_share_alike, off
+    assert policy_from_env({"AOEP_HARVEST_ALLOW_SHARE_ALIKE": ""}).allow_share_alike          # blank = default (on)
 
 
 def test_decide_obligations_and_actions():
@@ -102,10 +108,12 @@ def test_decide_obligations_and_actions():
     pd = decide(parse_license("public domain"))
     assert pd.ingest and pd.obligations == []
     no_research = HarvestPolicy(research_enabled=False)
-    sa_off = decide(parse_license("CC BY-SA 4.0"), no_research)
+    sa_default = decide(parse_license("CC BY-SA 4.0"))
+    assert sa_default.ingest and sa_default.corpus == "product"               # share-alike is ON by default
+    sa_off = decide(parse_license("CC BY-SA 4.0"), HarvestPolicy(allow_share_alike=False, research_enabled=False))
     assert sa_off.action == "reject" and "allow_share_alike" in sa_off.reason
-    sa_research = decide(parse_license("CC BY-SA 4.0"))
-    assert sa_research.research and sa_research.corpus == "research"          # lawful to read, not for the product
+    sa_research = decide(parse_license("CC BY-SA 4.0"), HarvestPolicy(allow_share_alike=False))
+    assert sa_research.research and sa_research.corpus == "research"          # switched off: lawful to read, not for the product
     sa_on = decide(parse_license("CC BY-SA 4.0"), HarvestPolicy(allow_share_alike=True))
     assert sa_on.ingest and sa_on.corpus == "product" and any("share-alike" in o for o in sa_on.obligations)
     nc = decide(parse_license("cc-by-nc"))
@@ -212,8 +220,11 @@ def test_page_evidence_overrides_a_vetted_site():
 
 def test_share_alike_page_needs_the_policy_switch():
     sa = _page('<link rel="license" href="//creativecommons.org/licenses/by-sa/4.0/">')
-    off, _ = verify_page(declared_license=None, html=sa, url="https://x.example.net/a")
+    off, _ = verify_page(declared_license=None, html=sa, url="https://x.example.net/a",
+                         policy=HarvestPolicy(allow_share_alike=False))
     assert not off.decision.ingest
+    default, _ = verify_page(declared_license=None, html=sa, url="https://x.example.net/a")
+    assert default.decision.ingest                                           # ON by default
     on, _ = verify_page(declared_license=None, html=sa, url="https://x.example.net/a",
                         policy=HarvestPolicy(allow_share_alike=True))
     assert on.decision.ingest and on.decision.obligations

@@ -76,7 +76,7 @@ def test_only_pages_that_prove_a_commercial_license_become_courses(tmp_path, net
         "https://nd.example.net/a": page(6, "https://creativecommons.org/licenses/by-nd/4.0/"),
         "https://arr.example.net/a": page(7, footer="All rights reserved."),
     })
-    s = session(tmp_path)
+    s = session(tmp_path, HarvestPolicy(allow_share_alike=False))             # the OFF path: share-alike is research-only
     s.enqueue_seeds([
         SourceSpec("https://good.example.net/a", subject="math"),
         SourceSpec("https://nc.example.net/a", subject="math"),
@@ -143,12 +143,12 @@ def test_provenance_is_recorded_in_db_course_json_and_attribution_file(tmp_path,
 def test_share_alike_is_product_only_with_the_switch_and_carries_obligations(tmp_path, net):
     pages, _ = net
     pages["https://sa.example.net/a"] = page(1, BY_SA)
-    off = session(tmp_path / "off")
+    off = session(tmp_path / "off", HarvestPolicy(allow_share_alike=False))
     off.enqueue_seeds([SourceSpec("https://sa.example.net/a", subject="math")])
     off.run_once(max_items=5)
     assert statuses(off)["https://sa.example.net/a"]["status"] == "diverted_research"
     assert not list((tmp_path / "off" / "courses").glob("*/*"))               # no course from it
-    on = session(tmp_path / "on", HarvestPolicy(allow_share_alike=True))
+    on = session(tmp_path / "on")                                              # ON by default
     on.enqueue_seeds([SourceSpec("https://sa.example.net/a", subject="math")])
     on.run_once(max_items=5)
     assert statuses(on)["https://sa.example.net/a"]["status"] == "ingested"
@@ -156,8 +156,18 @@ def test_share_alike_is_product_only_with_the_switch_and_carries_obligations(tmp
     assert course["license_tier"] == "share_alike" and course["corpus"] == "product"
     assert any("share-alike" in o for o in course["license_obligations"])
     assert "same license" in course["attribution"]
+    # The course itself is offered under the same license, and the credit travels with it.
+    assert course["course_license"]["share_alike"] is True
+    assert course["course_license"]["spdx"] == "CC-BY-SA-4.0" and course["course_license"]["url"]
+    assert "same license" in course["course_license"]["note"]
+    assert course["attributions"] and course["attributions"][0]["license_name"] == "CC-BY-SA-4.0"
+    assert course["slides"][-1]["title"] == CREDITS_SLIDE_TITLE and "CC-BY-SA-4.0" in course["slides"][-1]["body"]
+    pkg_dir = next((tmp_path / "on" / "courses").glob("*/*.course.json")).parent
+    credit = (pkg_dir / "ATTRIBUTION.txt").read_text()
+    assert "share-alike" in credit and "CC-BY-SA-4.0" in credit
     assert course_servable(course, HarvestPolicy(allow_share_alike=True))[0]
-    assert not course_servable(course, HarvestPolicy())[0]
+    assert course_servable(course)[0]                                          # default policy: servable
+    assert not course_servable(course, HarvestPolicy(allow_share_alike=False))[0]
 
 
 def test_non_commercial_text_lands_only_in_the_research_corpus_and_is_marked(tmp_path, net):
