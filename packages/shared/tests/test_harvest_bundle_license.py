@@ -80,8 +80,10 @@ def test_unverified_courses_are_held_back_when_publishing_requires_proof(tmp_pat
 
 def test_share_alike_ships_only_with_the_policy_switch(tmp_path):
     rows = [(1, "cc-by-sa", "share_alike", "page", False)]
-    _, off, reasons, _ = run(tmp_path / "off", rows)
+    _, off, reasons, _ = run(tmp_path / "off", rows, policy=HarvestPolicy(allow_share_alike=False))
     assert off.imported == 0 and any("share-alike" in r for r in reasons)
+    _, default, _, _ = run(tmp_path / "default", rows)                       # ON by default (owner decision)
+    assert default.imported == 1
     _, on, _, _ = run(tmp_path / "on", rows, policy=HarvestPolicy(allow_share_alike=True))
     assert on.imported == 1
 

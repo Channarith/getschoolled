@@ -42,9 +42,10 @@ def test_open_seeds_are_distinct_and_never_claim_a_license_they_cannot_prove():
         gate = prefetch_decision(by_host[host], HarvestPolicy(), allow_unverified=True)
         assert gate.ok and gate.needs_detection
         assert not prefetch_decision(by_host[host], HarvestPolicy()).ok
-    # Wikibooks is CC BY-SA: share-alike, so off until the owner turns it on.
+    # Wikibooks is CC BY-SA: share-alike is allowed by default; the switch can turn it off.
     wb = by_host["en.wikibooks.org"]
-    assert not prefetch_decision(wb, HarvestPolicy()).ok
+    assert not prefetch_decision(wb, HarvestPolicy(allow_share_alike=False)).ok
+    assert prefetch_decision(wb, HarvestPolicy()).ok
     assert prefetch_decision(wb, HarvestPolicy(allow_share_alike=True)).ok
 
 

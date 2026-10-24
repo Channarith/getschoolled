@@ -506,7 +506,21 @@ class GeneratedCourse:
             d["license_tier"] = self.provenance.get("license_tier", "")
             d["license_obligations"] = list(self.provenance.get("obligations") or [])
             d["attribution"] = (self.provenance.get("attribution") or {}).get("text", "")
+            d["course_license"] = self._course_license()
+            d["attributions"] = [dict(self.provenance.get("attribution") or {})]
         return d
+
+    def _course_license(self) -> Dict:
+        """The license this course itself is offered under (share-alike sources make it share-alike)."""
+        lic = self.provenance.get("license") or {}
+        tier = self.provenance.get("license_tier", "")
+        return {
+            "spdx": lic.get("spdx", ""),
+            "url": lic.get("url", ""),
+            "share_alike": tier == "share_alike",
+            "note": ("This course is an adaptation of the credited source and is offered under the same "
+                     "license." if tier == "share_alike" else ""),
+        }
 
     def to_json(self, *, indent: int = 2) -> str:
         import json
@@ -535,6 +549,10 @@ class GeneratedCourse:
             payload["meta_license_id"] = (self.provenance.get("license") or {}).get("spdx", "")
             payload["meta_attribution"] = (self.provenance.get("attribution") or {}).get("text", "")
             payload["meta_license_obligations"] = list(self.provenance.get("obligations") or [])
+            cl = self._course_license()
+            payload["meta_course_license"] = cl["spdx"]
+            payload["meta_course_license_url"] = cl["url"]
+            payload["meta_course_license_share_alike"] = cl["share_alike"]
         return payload
 
 

@@ -68,6 +68,12 @@ class AudioCourse(BaseModel):
     drive_safe: bool = True
     segments: List[AudioSegment] = Field(default_factory=list)
     body_locale: str = "en"
+    # Credit for lessons adapted from openly licensed text (Wikipedia: CC BY-SA 4.0). Empty for authored lessons.
+    source_name: str = ""
+    source_url: str = ""
+    license: str = ""
+    license_url: str = ""
+    attribution: str = ""
 
     @property
     def word_count(self) -> int:
@@ -960,6 +966,14 @@ def _knowledge_course(
     cat_local = localize_category(category, locale)
     segs = _deepen_en_segments(title, [AudioSegment(heading=h, text=t) for h, t in source])
     slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
+    credit: dict = {}
+    if rich:
+        try:
+            from .drive_topic_harvest import get_cached_source, wikipedia_attribution
+            if get_cached_source(title) != "authored":
+                credit = wikipedia_attribution(title)
+        except Exception:
+            credit = {}
     return AudioCourse(
         id=f"audio-{slug}",
         title=f"{display_title} {audio_title_suffix(tloc)}",
@@ -970,6 +984,7 @@ def _knowledge_course(
         tags=[category.lower().split(" ")[0], "audio", "drive-safe"],
         segments=segs,
         body_locale="en",
+        **credit,
     )
 
 

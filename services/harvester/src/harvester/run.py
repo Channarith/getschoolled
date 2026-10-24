@@ -321,7 +321,7 @@ def _crawl(args: argparse.Namespace) -> int:
         raise SystemExit(f"harvester: {exc}") from exc
     env_policy = policy_from_env()
     policy = HarvestPolicy(
-        allow_share_alike=bool(getattr(args, "allow_share_alike", False)) or env_policy.allow_share_alike,
+        allow_share_alike=env_policy.allow_share_alike and not bool(getattr(args, "no_share_alike", False)),
         research_enabled=env_policy.research_enabled and not bool(getattr(args, "no_research", False)),
     )
     print(
@@ -560,8 +560,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--crawl", action="store_true",
                     help="online crawl: discover OER/search seeds, fetch, generate, RAG index")
     ap.add_argument("--allow-share-alike", action="store_true",
-                    help="also ingest CC BY-SA / GFDL pages (courses must carry the same license; needs legal review). "
-                         "Same as AOEP_HARVEST_ALLOW_SHARE_ALIKE=1")
+                    help="no-op (share-alike is ON by default); kept so older scripts keep working")
+    ap.add_argument("--no-share-alike", action="store_true",
+                    help="do not ingest CC BY-SA / GFDL pages (they are ON by default: attribution and a same-license "
+                         "course are required). Same as AOEP_HARVEST_ALLOW_SHARE_ALIKE=0")
     ap.add_argument("--no-research", action="store_true",
                     help="do not keep non-commercial text in the research corpus (it is ON by default: a separate "
                          "database for internal experiments, never published). Same as AOEP_HARVEST_RESEARCH=0")

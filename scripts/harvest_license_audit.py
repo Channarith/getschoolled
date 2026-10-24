@@ -63,7 +63,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--apply", action="store_true", help="mark quarantine candidates quarantined (reversible)")
     ap.add_argument("--include-needs-review", action="store_true", help="with --apply: also quarantine needs_review")
     ap.add_argument("--restore", action="store_true", help="undo --apply (only rows marked by this audit)")
-    ap.add_argument("--allow-share-alike", action="store_true", help="treat CC BY-SA / GFDL as usable")
+    ap.add_argument("--allow-share-alike", action="store_true", help="no-op (share-alike is usable by default)")
+    ap.add_argument("--no-share-alike", action="store_true", help="treat CC BY-SA / GFDL as NOT usable (quarantine them)")
     ap.add_argument("--migrate-research", metavar="RESEARCH_DB",
                     help="copy research-eligible (non-commercial) text into this research corpus file; "
                          "never touches the product database, courses are not copied")
@@ -75,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     if not dbs:
         print("no corpus database found; pass a path", file=sys.stderr)
         return 2
-    policy = HarvestPolicy(allow_share_alike=args.allow_share_alike)
+    policy = HarvestPolicy(allow_share_alike=not args.no_share_alike)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     include = (BUCKET_QUARANTINE, BUCKET_REVIEW) if args.include_needs_review else (BUCKET_QUARANTINE,)

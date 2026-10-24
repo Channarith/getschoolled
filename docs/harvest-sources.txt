@@ -11,11 +11,12 @@ OWNER DECISIONS (2026-10-24)
   2. Sources: "approve commercial and non commercial". Implemented as TWO SEPARATE CORPORA with a hard wall,
      because that is the only way a paid product can use non-commercial text at all:
        PRODUCT corpus   commercial-OK tier only (CC0, public domain, CC BY, MIT, Apache, BSD, US federal
-                        works). Share-alike (CC BY-SA, GFDL) stays behind harvest.allow_share_alike, default
-                        OFF pending legal review. The ONLY corpus that may be published to the catalog,
+                        works) and share-alike (CC BY-SA, GFDL): harvest.allow_share_alike is ON by
+                        decision of the owner on 2026-10-24 (attribution and a same-license course are
+                        required; legal review still advised). The ONLY corpus that may be published to the catalog,
                         translated for customers, or shown in the apps.
-       RESEARCH corpus  non-commercial text (CC BY-NC, BY-NC-SA) and share-alike text while that switch is
-                        off, that is lawful to read. ON by default. Internal model evaluation and training
+       RESEARCH corpus  non-commercial text (CC BY-NC, BY-NC-SA), and share-alike text only if that
+                        switch is turned off, that is lawful to read. ON by default. Internal model evaluation and training
                         experiments only. Never published, never behind an API, never mixed into course
                         catalogs.
      Rejected outright in both: all rights reserved, no-derivatives, unknown or empty license, login-walled or
@@ -57,14 +58,17 @@ TIERS
                   BSD, US federal government works. Ingested.
   SHARE_ALIKE     CC BY-SA, GFDL. Commercial use is allowed with attribution AND the derivative
                   course must be offered under the same license. Ingested only when
-                  harvest.allow_share_alike is ON (default OFF; env AOEP_HARVEST_ALLOW_SHARE_ALIKE=1
-                  or harvester --allow-share-alike). Courses carry license_obligations, an
+                  harvest.allow_share_alike is ON (default ON since 2026-10-24; turn off with
+                  AOEP_HARVEST_ALLOW_SHARE_ALIKE=0 or harvester --no-share-alike). A course built
+                  from any share-alike source is itself share-alike and carries course_license.
+                  A course that mixes a share-alike source with a source that is not
+                  share-alike-compatible (CC BY-compatible sources are fine) is refused. Courses carry license_obligations, an
                   attribution line, a "Sources and licenses" slide, and ATTRIBUTION.txt.
   NON_COMMERCIAL  any NC variant. RESEARCH corpus only (never the product).
   NO_DERIVATIVES  ND without NC. Rejected (we adapt content into courses).
   PROPRIETARY     all rights reserved, paywalled, login-walled. Rejected.
   UNKNOWN         empty, unparseable, "oer", bare "creative commons". Rejected.
-  Share-alike with harvest.allow_share_alike OFF also goes to the research corpus. The research corpus is
+  Share-alike with harvest.allow_share_alike turned OFF goes to the research corpus. The research corpus is
   switched off with AOEP_HARVEST_RESEARCH=0 or harvester --no-research (then those pages are simply skipped).
 
 HOW A PAGE IS ACCEPTED
@@ -182,8 +186,30 @@ SERVING
   step. scripts/present_course.py refuses courses whose provenance says the license is not usable
   (override --allow-unlicensed for private review only) and warns on courses with no provenance.
 
-OUTSIDE THE HARVESTER (needs a decision)
-  aoep_shared/drive_topic_harvest.py builds Drive Mode audio courses from Wikipedia text (CC BY-SA 4.0
-  and GFDL) with an LLM and serves them. It records no attribution or license. Wikimedia's terms require
-  attribution and share-alike for adaptations. This was not changed here because it is a product and legal
-  decision (credit line in the course, same-license offer, or replacing the source).
+COMPLIANCE GAPS (share-alike is ON since 2026-10-24; this is a checklist for counsel, not legal advice)
+  Fixed in code:
+  - Drive Mode (aoep_shared/drive_topic_harvest.py + audio_courses.py) builds audio lessons from Wikipedia text
+    (CC BY-SA 4.0 and GFDL). The cache now records whether a lesson came from Wikipedia or from our own authored
+    text (drive_segments.source; rows without the marker are treated as Wikipedia, so they are credited, not
+    hidden). Wikipedia-derived lessons carry source_name, source_url, license, license_url and an attribution
+    line ("Based on the Wikipedia article ... Text available under CC BY-SA 4.0 ... shared under the same
+    license"). The web On the Go page shows that line under the course title.
+  - Harvested courses carry course_license (spdx, url, share_alike, note), attributions[], license_obligations,
+    the "Sources and licenses" slide and ATTRIBUTION.txt; the catalog payload has meta_course_license,
+    meta_course_license_url and meta_course_license_share_alike.
+  - Mixing: combine_course_license()/merge_course_provenance() make a course share-alike when any source is,
+    accept CC BY/CC0/public-domain/permissive inputs, and REFUSE a course that mixes a share-alike source with a
+    non-commercial, no-derivatives, proprietary or unknown source, or two different share-alike licenses
+    (CC BY-SA 3.0 vs 4.0, CC BY-SA vs GFDL).
+  Still open:
+  - The credit is shown on the web On the Go page only. The mobile app has the fields in its type but does not
+    render them yet, and the narration does not speak the credit.
+  - Translated Drive Mode lessons (a translation is a further adaptation) still show the English credit line.
+  - "Offered under the same license" is recorded in the course data but no public page states the license of
+    harvested or Drive Mode courses yet (nothing harvested is published today). Salareen's own site terms and
+    footer need a line saying that Wikipedia-derived lessons are available under CC BY-SA 4.0.
+  - No code path builds one course from several harvested pages yet; the mixing rule is in place and tested for
+    when one exists.
+  - Whether AI generation counts as an adaptation, whether model weights trained on share-alike text must be
+    shared alike, and the GFDL invariant-section rules are legal questions for counsel.
+  - Images and media on Wikipedia pages carry their own licenses and are not used.
