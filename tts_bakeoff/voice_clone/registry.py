@@ -49,7 +49,7 @@ def _write(path: Path, data: dict) -> None:
 
 
 def record_consent(speaker: str, name: str, role: str, signed_form: Path | str, scopes=REQUIRED_SCOPES,
-                   base: Path | None = None, date: str | None = None) -> dict:
+                   base: Path | None = None, date: str | None = None, evidence: dict | None = None) -> dict:
     """Record that a person signed the consent form. The signed form (scan or PDF) must exist: its hash is stored."""
     if role not in ROLES:
         raise ConsentError(f"role must be one of {ROLES}")
@@ -66,6 +66,8 @@ def record_consent(speaker: str, name: str, role: str, signed_form: Path | str, 
     rec = {"speaker": speaker, "name": name, "role": role, "date": date or time.strftime("%Y-%m-%d"),
            "scopes": list(scopes), "revocable": True, "revoked": False, "form_file": kept.name,
            "form_sha256": sha256_file(kept), "samples": {}}
+    if evidence:
+        rec["evidence"] = evidence
     _write(d / "consent.json", rec)
     return rec
 
@@ -102,16 +104,25 @@ def require_consent(speaker: str, scope: str = "course_narration", base: Path | 
     return rec
 
 
-def add_sample(speaker: str, wav: Path, transcript: str, lang: str, base: Path | None = None) -> dict:
+def add_sample(speaker: str, wav: Path, transcript: str, lang: str, base: Path | None = None, extra: dict | None = None) -> dict:
     """Register an already-processed sample. Refuses without a valid consent record."""
     rec = require_consent(speaker, "model_training", base)
     d = speaker_dir(speaker, base)
     rel = f"samples/{wav.name}"
     if wav.resolve().parent != (d / "samples").resolve():
         raise ConsentError("sample must live in the speaker's samples directory")
-    rec["samples"][rel] = {"sha256": sha256_file(wav), "transcript": transcript.strip(), "lang": lang}
+    rec["samples"][rel] = {"sha256": sha256_file(wav), "transcript": transcript.strip(), "lang": lang, **(extra or {})}
     _write(d / "consent.json", rec)
     return rec
+
+
+def remove_sample(speaker: str, rel: str, base: Path | None = None) -> None:
+    """Drop one enrolled sample (record and file) so it can be replaced by a re-recording."""
+    rec = load_consent(speaker, base)
+    d = speaker_dir(speaker, base)
+    if rec["samples"].pop(rel, None) is not None:
+        (d / rel).unlink(missing_ok=True)
+        _write(d / "consent.json", rec)
 
 
 def list_speakers(base: Path | None = None) -> list[str]:
