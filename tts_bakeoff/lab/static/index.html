@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Salareen listening lab</title>
+<link rel="stylesheet" href="lab.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the grid</a>
+<header class="top">
+  <h1>Listening lab <span class="sub">compare voices by ear</span></h1>
+  <div class="actions">
+    <label class="btn" tabindex="0" id="open-folder-label">Open run folder
+      <input id="open-folder" type="file" webkitdirectory directory multiple hidden>
+    </label>
+    <label class="btn" tabindex="0" id="add-files-label">Add audio files
+      <input id="add-files" type="file" multiple accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac,.webm,.json,.jsonl" hidden>
+    </label>
+    <button class="btn" id="help-btn" type="button" aria-haspopup="dialog">Keys ?</button>
+  </div>
+</header>
+<div id="banner-demo" class="banner demo" hidden>DEMO DATA: synthetic tones, not real model output. Voice names are reused only to show the license badges.</div>
+<div id="banner-nodata" class="banner" hidden>License badges are unavailable: this page was opened without its lab_data.js. Run <code>python3 -m tts_bakeoff.lab --out RUN</code> or <code>--export DIR</code>.</div>
+
+<nav class="tabs" role="tablist" aria-label="Views">
+  <button role="tab" id="tab-grid" aria-selected="true" aria-controls="grid" data-tab="grid">Compare</button>
+  <button role="tab" id="tab-summary" aria-selected="false" aria-controls="summary" data-tab="summary">Summary</button>
+  <button role="tab" id="tab-samples" aria-selected="false" aria-controls="samples" data-tab="samples">Quick samples</button>
+</nav>
+
+<section class="toolbar" aria-label="Filters and playback">
+  <label>Language <select id="f-lang"></select></label>
+  <label>Category <select id="f-cat"><option value="">all</option></select></label>
+  <fieldset class="models" aria-label="Voices to show"><legend>Voices</legend><span id="f-models"></span></fieldset>
+  <label class="chk"><input type="checkbox" id="t-blind"> Blind (b)</label>
+  <label>Seed <input id="t-seed" type="number" value="7" min="0" step="1" aria-label="Blind shuffle seed"></label>
+  <label class="chk"><input type="checkbox" id="t-norm" checked> Match loudness</label>
+  <label class="chk"><input type="checkbox" id="t-wave"> Waveforms</label>
+  <label>Speed <select id="t-speed"><option>0.75</option><option selected>1</option><option>1.25</option></select></label>
+  <label>Rater <input id="t-rater" placeholder="your name" size="12"></label>
+  <span class="grow"></span>
+  <button class="btn small" id="x-json" type="button">Export ratings (panel JSON)</button>
+  <button class="btn small" id="x-csv" type="button">CSV</button>
+  <label class="btn small" tabindex="0">Load panel ratings<input id="load-ratings" type="file" accept=".json,application/json" multiple hidden></label>
+</section>
+
+<p id="status" class="status" role="status" aria-live="polite">Open a run folder, or drop audio files or folders anywhere on this page.</p>
+
+<main id="main">
+  <section id="grid" role="tabpanel" aria-labelledby="tab-grid"></section>
+  <section id="summary" role="tabpanel" aria-labelledby="tab-summary" hidden></section>
+  <section id="samples" role="tabpanel" aria-labelledby="tab-samples" hidden></section>
+</main>
+
+<div id="drop" class="drop" hidden><div>Drop audio files or folders to add voices</div></div>
+
+<div id="label-dlg" class="modal" role="dialog" aria-modal="true" aria-labelledby="label-title" hidden>
+  <div class="panel">
+    <h2 id="label-title">Label these clips</h2>
+    <p>The lab could not tell the voice, language or sentence from the folder and file names. Fill them in (voice = any name, e.g. <code>edge-tts</code>; sentence id like <code>S01</code>).</p>
+    <div id="label-rows" class="label-rows"></div>
+    <p class="row"><button class="btn" id="label-apply" type="button">Add clips</button> <button class="btn" id="label-skip" type="button">Skip</button></p>
+  </div>
+</div>
+
+<div id="help-dlg" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+  <div class="panel">
+    <h2 id="help-title">Keyboard</h2>
+    <dl class="keys">
+      <dt>Space</dt><dd>play or pause the selected clip</dd>
+      <dt>Arrow keys</dt><dd>move between voices (left/right) and sentences (up/down)</dd>
+      <dt>1 to 5</dt><dd>rate naturalness of the selected clip</dd>
+      <dt>Alt + 1 to 5</dt><dd>rate clarity</dd>
+      <dt>b</dt><dd>blind mode on or off</dd>
+      <dt>n / Shift+n</dt><dd>next or previous sentence</dd>
+      <dt>Shift + A, B, C ...</dt><dd>play that column (letters are the blind labels)</dd>
+      <dt>p</dt><dd>play every voice for this sentence, in order</dd>
+      <dt>l</dt><dd>loop the first two voices (A vs B), any key stops</dd>
+      <dt>Esc</dt><dd>stop playback or close this window</dd>
+    </dl>
+    <p><button class="btn" id="help-close" type="button">Close</button></p>
+  </div>
+</div>
+
+<script src="lab_data.js" onerror="window.__noLabData = true"></script>
+<script src="lab.js"></script>
+</body>
+</html>
