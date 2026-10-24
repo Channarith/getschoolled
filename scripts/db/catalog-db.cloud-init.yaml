@@ -1,0 +1,93 @@
+#cloud-config
+# Salareen catalog database VM (PostgreSQL 16 on Ubuntu 24.04). Rendered by scripts/db/render_cloud_init.py:
+# the upper-case tokens in at-signs are replaced and the helper scripts are embedded; nothing secret lives in git.
+package_update: true
+package_upgrade: false
+packages:
+  - postgresql
+  - postgresql-contrib
+  - pgbouncer
+  - rclone
+  - ufw
+  - unattended-upgrades
+  - chrony
+
+write_files:
+  - path: /etc/catalog-db/env
+    permissions: "0600"
+    owner: root:root
+    content: |
+      CATALOG_DB_NAME=catalog
+      CATALOG_DB_USER=catalog
+      VPC_CIDR=@VPC_CIDR@
+      ADMIN_CIDR=@ADMIN_CIDR@
+      OBJECT_ENDPOINT=@OBJECT_ENDPOINT@
+      OBJECT_BUCKET=@OBJECT_BUCKET@
+      OBJECT_PREFIX=db-backups/catalog
+      RETENTION_DAYS=14
+      WAL_ARCHIVE=@WAL_ARCHIVE@
+  - path: /etc/catalog-db/secrets.env
+    permissions: "0600"
+    owner: root:root
+    content: |
+      CATALOG_DB_PASSWORD=@PG_PASSWORD@
+      RCLONE_CONFIG_VULTR_TYPE=s3
+      RCLONE_CONFIG_VULTR_PROVIDER=Other
+      RCLONE_CONFIG_VULTR_ENDPOINT=@OBJECT_ENDPOINT@
+      RCLONE_CONFIG_VULTR_ACCESS_KEY_ID=@OBJECT_ACCESS_KEY@
+      RCLONE_CONFIG_VULTR_SECRET_ACCESS_KEY=@OBJECT_SECRET_KEY@
+  - path: /usr/local/bin/catalog-db-setup
+    permissions: "0755"
+    content: |
+      @EMBED:catalog_db_setup.sh@
+  - path: /usr/local/bin/catalog-db-backup
+    permissions: "0755"
+    content: |
+      @EMBED:backup_catalog.sh@
+  - path: /usr/local/bin/catalog-db-restore-test
+    permissions: "0755"
+    content: |
+      @EMBED:restore_test.sh@
+  - path: /usr/local/bin/catalog-db-health
+    permissions: "0755"
+    content: |
+      @EMBED:catalog_db_health.sh@
+  - path: /etc/systemd/system/catalog-db-backup.service
+    content: |
+      [Unit]
+      Description=Catalog database logical backup to object storage
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/catalog-db-backup
+      TimeoutStartSec=3h
+  - path: /etc/systemd/system/catalog-db-backup.timer
+    content: |
+      [Unit]
+      Description=Nightly catalog database backup
+      [Timer]
+      OnCalendar=*-*-* 09:30:00 UTC
+      RandomizedDelaySec=600
+      Persistent=true
+      [Install]
+      WantedBy=timers.target
+  - path: /etc/systemd/system/catalog-db-health.service
+    content: |
+      [Unit]
+      Description=Catalog database health snapshot
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/catalog-db-health
+  - path: /etc/systemd/system/catalog-db-health.timer
+    content: |
+      [Unit]
+      Description=Catalog database health every 5 minutes
+      [Timer]
+      OnBootSec=2min
+      OnUnitActiveSec=5min
+      [Install]
+      WantedBy=timers.target
+
+runcmd:
+  - /usr/local/bin/catalog-db-setup
+  - systemctl daemon-reload
+  - systemctl enable --now catalog-db-backup.timer catalog-db-health.timer

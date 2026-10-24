@@ -14,3 +14,5 @@ requests==2.32.3
 # Foresight recommendations (LearnerForesight uses numpy).
 numpy==2.2.6
 # Installed editable in dev: ../../packages/shared (aoep-shared)
+# Shared Postgres catalog (only used when CATALOG_DATABASE_URL is set; see docs/catalog-db.txt).
+psycopg[binary,pool]==3.3.6

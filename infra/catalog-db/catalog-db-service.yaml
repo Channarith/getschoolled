@@ -1,0 +1,43 @@
+# Points postgres-catalog.aoep.svc at the catalog database VM (outside the cluster, same VPC).
+#
+# NOT in any kustomization on purpose: nothing changes in production until someone applies this
+# AND sets CATALOG_DATABASE_URL. The address below is a deliberate placeholder, so applying the
+# file unedited is rejected by Kubernetes. Apply with the VM's private (VPC) IP:
+#
+#   PRIVATE_IP=10.12.96.20   # from: curl -s -H "Authorization: Bearer $VULTR_API_KEY" https://api.vultr.com/v2/instances/<id>
+#   sed "s/__CATALOG_DB_PRIVATE_IP__/${PRIVATE_IP}/" infra/catalog-db/catalog-db-service.yaml | kubectl apply -f -
+#   kubectl -n aoep get endpoints postgres-catalog
+#
+# Rollback: kubectl -n aoep delete service,endpoints postgres-catalog
+# The database URL then is: postgresql://catalog:<password>@postgres-catalog.aoep.svc.cluster.local:5432/catalog?sslmode=require
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-catalog
+  namespace: aoep
+  labels:
+    app: postgres-catalog
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+    - name: pgbouncer
+      port: 6432
+      targetPort: 6432
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: postgres-catalog
+  namespace: aoep
+  labels:
+    app: postgres-catalog
+subsets:
+  - addresses:
+      - ip: __CATALOG_DB_PRIVATE_IP__
+    ports:
+      - name: postgres
+        port: 5432
+      - name: pgbouncer
+        port: 6432
