@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import base64
 import io
+import logging
 import os
 import struct
 import tempfile
@@ -29,16 +30,18 @@ import wave
 from typing import Any, Iterable, List, Optional
 
 from fastapi import FastAPI, HTTPException, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+log = logging.getLogger("cosyvoice")
 
 
 class TtsRequest(BaseModel):
-    text: str
+    text: str = Field(max_length=20000)
     language: str = "en"
     speaker: str = ""
     instruct: str = ""
     mode: str = ""
-    sample_rate: int = 24000
+    sample_rate: int = Field(default=24000, ge=8000, le=48000)
     reference_audio_b64: str = ""
     speaker_wav_b64: str = ""      # alias accepted from the presenter/clone path
     prompt_text: str = ""
@@ -239,14 +242,24 @@ def build_app(model: Any = None) -> FastAPI:
 
     @app.post("/tts")
     def tts(req: TtsRequest) -> Response:
-        model = _model()
+        try:
+            model = _model()
+        except Exception as exc:  # noqa: BLE001 - weights missing / GPU or deps unavailable
+            log.warning("cosyvoice model unavailable: %s", exc)
+            raise HTTPException(status_code=503, detail="voice model is not ready yet") from exc
         prompt = None
         if req.reference_audio_b64 or req.speaker_wav_b64:
             try:
                 prompt = _load_prompt_speech(req)
             except Exception as exc:   # noqa: BLE001 - bad reference shouldn't 500
                 raise HTTPException(status_code=400, detail=f"bad reference audio: {exc}")
-        audio = synthesize(model, req, prompt_speech=prompt)
+        try:
+            audio = synthesize(model, req, prompt_speech=prompt)
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001 - e.g. unknown speaker, model error
+            log.warning("cosyvoice synthesis failed: %s", exc)
+            raise HTTPException(status_code=502, detail="voice synthesis failed") from exc
         return Response(content=audio, media_type="audio/wav",
                         headers={"Cache-Control": "no-store", "X-TTS-Engine": "cosyvoice"})
 

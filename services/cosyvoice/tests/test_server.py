@@ -122,3 +122,35 @@ def test_wav_encoder_roundtrip():
 
 def test_to_int16_clamps_and_flattens():
     assert server._to_int16([[1.5], [-2.0], [0.0]]) == [32767, -32767, 0]
+
+
+def test_model_load_failure_is_503_not_500():
+    def boom():
+        raise ImportError("cosyvoice is not installed")
+
+    app = server.build_app()
+    app.state.model = None
+    original = server._load_model
+    server._load_model = boom
+    try:
+        r = TestClient(app, raise_server_exceptions=False).post("/tts", json={"text": "hello"})
+    finally:
+        server._load_model = original
+    assert r.status_code == 503
+    assert "not ready" in r.json()["detail"]
+
+
+def test_model_error_is_502_not_500():
+    class Broken(FakeModel):
+        def inference_sft(self, text, spk, stream=False):
+            raise KeyError("unknown speaker")
+
+    r = TestClient(server.build_app(model=Broken()), raise_server_exceptions=False).post(
+        "/tts", json={"text": "hello", "speaker": "nobody"})
+    assert r.status_code == 502
+
+
+def test_bad_request_sizes_are_422():
+    client, _ = _client()
+    assert client.post("/tts", json={"text": "x" * 20001}).status_code == 422
+    assert client.post("/tts", json={"text": "hi", "sample_rate": 1}).status_code == 422

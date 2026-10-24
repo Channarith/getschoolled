@@ -19,7 +19,7 @@ import threading
 import time
 
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
-from fastapi import FastAPI, HTTPException, Path
+from fastapi import FastAPI, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
@@ -537,8 +537,19 @@ def landing() -> HTMLResponse:
 
 
 @app.post("/admin/shutdown")
-def shutdown() -> dict[str, str]:
-    """Gracefully stop the server so the port is freed. Useful when closing the lab."""
+def shutdown(request: Request) -> dict[str, str]:
+    """Gracefully stop the server so the port is freed. Useful when closing the lab.
+
+    Only the machine running the lab (loopback) or a caller holding ADMIN_SECRET may
+    stop it; anyone else on the network gets 403.
+    """
+    from aoep_shared.safe_compare import equals
+
+    host = request.client.host if request.client else ""
+    secret = os.environ.get("ADMIN_SECRET", "")
+    given = request.headers.get("x-admin-secret", "")
+    if host not in ("127.0.0.1", "::1", "localhost") and not (secret and given and equals(given, secret)):
+        raise HTTPException(status_code=403, detail="shutdown is limited to the local machine")
     threading.Thread(target=lambda: (time.sleep(0.15), os.kill(os.getpid(), _signal.SIGTERM)), daemon=True).start()
     return {"status": "shutting_down"}
 

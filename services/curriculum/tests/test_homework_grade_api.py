@@ -48,3 +48,10 @@ def test_grade_from_submission_text_segments():
         "submission_text": "1. First answer about cells.\n2. Second answer about energy.",
     }).json()
     assert len(body["items"]) == 2
+
+
+def test_grade_rejects_an_invalid_assignment_with_422():
+    bad = TestClient(app, raise_server_exceptions=False)
+    r = bad.post("/homework/grade", json={"assignment": {}, "answers": ["x"]})
+    assert r.status_code == 422
+    assert "invalid assignment" in r.json()["detail"]
