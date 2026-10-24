@@ -1,0 +1,11 @@
+[Unit]
+Description=Salareen machine health check every 10 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+RandomizedDelaySec=60
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
