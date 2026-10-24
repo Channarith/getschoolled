@@ -3,6 +3,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -317,3 +318,177 @@ def test_scripts_have_valid_bash_syntax():
         path = REPO / "scripts" / name
         assert path.exists(), name
         assert subprocess.run(["bash", "-n", str(path)], capture_output=True).returncode == 0, name
+
+
+FLOCK_SHIM = """#!/usr/bin/env python3
+import fcntl, sys
+a = sys.argv[1:]
+assert a[0] == "-n", "shim supports flock -n FD only"
+try:
+    fcntl.flock(int(a[1]), fcntl.LOCK_EX | fcntl.LOCK_NB)
+except OSError:
+    sys.exit(1)
+"""
+
+
+@pytest.fixture(params=["lockdir", "flock"])
+def lenv(request, env, tmp_path):
+    """Same jobs, once with the portable lock-directory path and once with util-linux flock semantics (a shim: the
+    lock lives on the open file description bash keeps as fd 9/8, exactly like the real tool)."""
+    if request.param == "flock":
+        shim = tmp_path / "fakebin" / "flock"
+        shim.write_text(FLOCK_SHIM)
+        shim.chmod(0o755)
+    return env
+
+
+def start(env, *args, **kw):
+    return subprocess.Popen(["bash", str(GS_RUN), "--min-free-gb", "0", "--no-systemd", *args], env=env,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, start_new_session=True, **kw)
+
+
+def stop(proc):
+    if proc.poll() is None:
+        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(timeout=40)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+
+def wait_for(path, tries=100):
+    for _ in range(tries):
+        if Path(path).exists():
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def test_a_second_copy_of_the_same_name_is_refused_at_once(lenv, tmp_path):
+    started = tmp_path / "started"
+    first = start(lenv, "--gpu", "--name", "voice-clone-x", "--", "bash", "-c", f"touch {started}; sleep 30")
+    try:
+        assert wait_for(started)
+        second = run(lenv, "--gpu", "--name", "voice-clone-x", "--", "true", timeout=20)
+        assert second.returncode == 75 and "already queued or running" in second.stderr
+        other = run(lenv, "--name", "something-else", "--", "true")
+        assert other.returncode == 0
+    finally:
+        stop(first)
+    assert run(lenv, "--name", "voice-clone-x", "--", "true").returncode == 0
+
+
+def test_a_queued_job_dies_promptly_on_sigterm(lenv, tmp_path):
+    started = tmp_path / "started"
+    holder = start(lenv, "--gpu", "--name", "holder", "--", "bash", "-c", f"touch {started}; sleep 60")
+    try:
+        assert wait_for(started)
+        waiter = start(lenv, "--gpu", "--name", "waiter", "--", "true")
+        time.sleep(1.5)
+        assert waiter.poll() is None
+        t0 = time.time()
+        waiter.send_signal(signal.SIGTERM)
+        waiter.wait(timeout=15)
+        assert time.time() - t0 < 10
+    finally:
+        stop(holder)
+
+
+def test_idle_watchdog_kills_a_hung_background_job_and_frees_the_lock(env, tmp_path):
+    env = dict(env, GS_IDLE_POLL_S="1", GS_GPU_UTIL_CMD="echo 0")
+    r = run(env, "--gpu", "--priority", "background", "--idle-timeout", "3", "--name", "hung", "--", "bash", "-c", "sleep 300",
+            timeout=60)
+    assert r.returncode == 125 and "no CPU progress" in r.stderr
+    assert records(env)[0]["state"] == "idle-killed" and records(env)[0]["priority"] == "background"
+    assert run(env, "--gpu", "--gpu-lock-timeout", "0", "--name", "next", "--", "true").returncode == 0
+
+
+def test_idle_watchdog_spares_a_job_the_gpu_is_busy_with(env):
+    env = dict(env, GS_IDLE_POLL_S="1", GS_GPU_UTIL_CMD="echo 87")
+    r = run(env, "--priority", "background", "--idle-timeout", "2", "--name", "busy", "--", "bash", "-c", "sleep 5", timeout=60)
+    assert r.returncode == 0
+
+
+def test_interactive_job_preempts_a_background_holder_after_the_wait(lenv, tmp_path):
+    lenv = dict(lenv, GS_POLL_S="1", GS_PREEMPT_GRACE_S="2", GS_IDLE_POLL_S="100")
+    started = tmp_path / "started"
+    holder = start(lenv, "--gpu", "--priority", "background", "--idle-timeout", "0", "--name", "nightly", "--", "bash", "-c",
+                   f"touch {started}; sleep 300")
+    try:
+        assert wait_for(started)
+        r = run(lenv, "--gpu", "--priority", "interactive", "--preempt-after", "2", "--name", "voice-clone", "--", "true", timeout=60)
+        assert r.returncode == 0 and "stopping background holder 'nightly'" in r.stderr
+        holder.wait(timeout=30)
+    finally:
+        stop(holder)
+
+
+def test_interactive_job_never_preempts_another_interactive_holder(lenv, tmp_path):
+    lenv = dict(lenv, GS_POLL_S="1")
+    started = tmp_path / "started"
+    holder = start(lenv, "--gpu", "--name", "demo", "--", "bash", "-c", f"touch {started}; sleep 30")
+    try:
+        assert wait_for(started)
+        r = run(lenv, "--gpu", "--gpu-lock-timeout", "5", "--preempt-after", "1", "--name", "clone", "--", "true", timeout=60)
+        assert r.returncode == 75 and holder.poll() is None
+    finally:
+        stop(holder)
+
+
+def test_priority_must_be_known(env):
+    assert run(env, "--priority", "urgent", "--", "true").returncode == 64
+
+
+GATE = REPO / "scripts" / "fleet" / "spark_gate.sh"
+
+
+def gate(env, **extra):
+    return subprocess.run(["bash", str(GATE)], capture_output=True, text=True, env=dict(env, **extra), timeout=30)
+
+
+def test_gate_lines_name_the_lock_holder_the_waiters_and_the_memory_verdict(lenv, tmp_path):
+    started = tmp_path / "started"
+    idle = gate(lenv, GS_GATE_FAKE_AVAIL_GB="40")
+    assert idle.returncode == 0
+    assert "GPU lock : free" in idle.stdout and "Queue    : nothing waiting" in idle.stdout
+    assert "40 GB available, gate 16 GB: OK" in idle.stdout
+    holder = start(lenv, "--gpu", "--priority", "background", "--idle-timeout", "0", "--name", "nightly", "--", "bash", "-c",
+                   f"touch {started}; sleep 60")
+    waiters = []
+    try:
+        assert wait_for(started)
+        waiters = [start(lenv, "--gpu", "--name", n, "--", "true") for n in ("voice-clone-voxcpm2", "voice-clone-cosyvoice2")]
+        time.sleep(2.5)
+        busy = gate(lenv, GS_GATE_FAKE_AVAIL_GB="9")
+        assert "held by 'nightly'" in busy.stdout and "background" in busy.stdout
+        assert "BLOCKED" in busy.stdout
+        assert "2 waiting" in busy.stdout and "voice-clone-voxcpm2" in busy.stdout and "voice-clone-cosyvoice2" in busy.stdout
+        assert "nightly" not in busy.stdout.split("Queue")[1]          # the holder (and its subshells) are not waiters
+    finally:
+        for w in waiters:
+            stop(w)
+        stop(holder)
+
+
+def test_gate_reports_a_lab_port_that_is_down():
+    import socket
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    s.listen(1)
+    up = s.getsockname()[1]
+    try:
+        r = subprocess.run(["bash", str(GATE)], capture_output=True, text=True, timeout=30,
+                           env={**os.environ, "GS_ENROLL_PORT": str(up), "GS_LAB_PORT": "1", "GS_GATE_FAKE_AVAIL_GB": "40"})
+    finally:
+        s.close()
+    assert f"enrollment :{up} listening" in r.stdout and "listening lab :1 DOWN" in r.stdout
+
+
+def test_fleet_status_runs_with_a_python_that_has_the_dependencies(tmp_path):
+    hosts = tmp_path / "hosts.conf"
+    hosts.write_text("mac - local\n")
+    env = dict(os.environ, FLEET_HOSTS_FILE=str(hosts), FLEET_SAMPLE_SECONDS="0", FLEET_PYTHON=sys.executable,
+               GS_JOBS_DIR=str(tmp_path / "jobs"))
+    r = subprocess.run(["bash", str(REPO / "scripts" / "fleet_status.sh"), "--local", "--no-gate"], capture_output=True, text=True,
+                       env=env, cwd=str(REPO), timeout=120)
+    assert "ModuleNotFoundError" not in r.stderr and r.stdout.splitlines()[0].startswith("HOST"), r.stdout + r.stderr

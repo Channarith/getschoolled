@@ -81,6 +81,9 @@ def test_uses_gs_run_when_present_with_its_real_options(tmp_path):
     args = log.read_text(encoding="utf-8")
     assert "--name fleet" in args and "--timeout 5" in args and "--mem-max 60" in args and "--cpus" in args
     assert "--gpu" not in args  # the nightly already holds the GPU lock
+    assert "--priority background" in args and "--idle-timeout 0" in args  # idle watchdog is opt-in per stage
+    out = run('GS_STAGE_IDLE_S=900 gs_stage bakeoff 5 true', GS_RUN=str(fake), GS_RUN_LOG=str(log), GS_FAKE_TOTAL_GB="64")
+    assert "--idle-timeout 900" in log.read_text(encoding="utf-8"), out.stdout + out.stderr
 
 
 def test_unknown_total_ram_means_no_ceiling_not_a_negative_one():
