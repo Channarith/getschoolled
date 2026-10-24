@@ -311,11 +311,32 @@ def _crawl(args: argparse.Namespace) -> int:
     except ImportError as exc:
         raise SystemExit(str(exc)) from exc
 
+    from aoep_shared.harvest.errors import HarvestConfigError
+    from aoep_shared.harvest.fetcher import _user_agent
+    from aoep_shared.harvest.licensing import HarvestPolicy, policy_from_env
+
+    try:
+        _user_agent()   # fail closed: no crawling without an identifying contact in the User-Agent
+    except HarvestConfigError as exc:
+        raise SystemExit(f"harvester: {exc}") from exc
+    env_policy = policy_from_env()
+    policy = HarvestPolicy(
+        allow_share_alike=bool(getattr(args, "allow_share_alike", False)) or env_policy.allow_share_alike,
+        research_only=bool(getattr(args, "research_only", False)) or env_policy.research_only,
+    )
+    print(
+        "License policy: commercial-use sources only"
+        + (" + share-alike (CC BY-SA, GFDL)" if policy.allow_share_alike else "")
+        + ("; non-commercial/unknown pages are kept in a separate research-only corpus, never published"
+           if policy.research_only else "; non-commercial/unknown pages are rejected"),
+        file=sys.stderr,
+    )
     session = open_crawl_session(
         out_dir=args.out_dir,
         repo_root=_REPO,
         with_media=args.with_media,
         max_slides_per_lesson=args.max_slides_per_lesson,
+        policy=policy,
     )
     topics = _collect_topics(args)
     if topics and not args.seeds_only:
@@ -537,6 +558,12 @@ def main(argv: list[str] | None = None) -> int:
                     help="export per-slide narration audio + demo-video refs (media_manifest.json)")
     ap.add_argument("--crawl", action="store_true",
                     help="online crawl: discover OER/search seeds, fetch, generate, RAG index")
+    ap.add_argument("--allow-share-alike", action="store_true",
+                    help="also ingest CC BY-SA / GFDL pages (courses must carry the same license; needs legal review). "
+                         "Same as AOEP_HARVEST_ALLOW_SHARE_ALIKE=1")
+    ap.add_argument("--research-only", action="store_true",
+                    help="keep rejected (non-commercial/unknown) pages in a separate research-only corpus that is "
+                         "never published. Same as AOEP_HARVEST_RESEARCH_ONLY=1")
     ap.add_argument("--acquire", action="store_true",
                     help="queue and process a rights-verified local catalog import")
     ap.add_argument("--import-path", default=None,

@@ -1,0 +1,144 @@
+HARVEST SOURCES AND LICENSES
+============================
+Plain text on purpose (repo no-markdown house rule). Retrieved 2026-10-24.
+
+NOT LEGAL ADVICE. This is a technical summary of what each source's own pages say.
+Share-alike, attribution wording, derivative-course handling, and whether AI generation
+counts as an adaptation all need the owner's legal review before anything ships.
+
+WHY THIS EXISTS
+  Salareen sells subscriptions, so everything in the product catalog must be usable
+  commercially and adaptable into courses. The harvester used to accept cc-by-nc,
+  cc-by-nc-sa and "oer" and trusted whatever license string the seed supplied. Several
+  seeds were also wrong (OpenStax was listed as CC BY; it is CC BY-NC-SA 4.0). The code is
+  now aoep_shared/harvest/licensing.py (tiers, parsing, page checks), vetted_sources.py
+  (registry and do-not-harvest list) and provenance.py (credit and evidence per course).
+
+TIERS
+  COMMERCIAL_OK   CC0, public domain, CC BY (any version, with attribution), MIT, Apache-2.0,
+                  BSD, US federal government works. Ingested.
+  SHARE_ALIKE     CC BY-SA, GFDL. Commercial use is allowed with attribution AND the derivative
+                  course must be offered under the same license. Ingested only when
+                  harvest.allow_share_alike is ON (default OFF; env AOEP_HARVEST_ALLOW_SHARE_ALIKE=1
+                  or harvester --allow-share-alike). Courses carry license_obligations, an
+                  attribution line, a "Sources and licenses" slide, and ATTRIBUTION.txt.
+  NON_COMMERCIAL  any NC variant. Rejected.
+  NO_DERIVATIVES  ND without NC. Rejected (we adapt content into courses).
+  PROPRIETARY     all rights reserved, paywalled, login-walled. Rejected.
+  UNKNOWN         empty, unparseable, "oer", bare "creative commons". Rejected.
+  Rejected pages may optionally go to a separate research-only corpus (harvest.research_only,
+  default OFF) that is never published, never searched by tutoring and never exported.
+
+HOW A PAGE IS ACCEPTED
+  1. Pre-fetch: host not on the do-not-harvest list; a declared license that can never be used
+     is refused before any request.
+  2. Fetch: HARVEST_USER_AGENT must name a real contact (the crawler refuses to run without
+     one); robots.txt is read, cached for 24 hours and honored including Crawl-delay (a robots.txt
+     server error blocks the host for an hour; a 404 means no restrictions); per-host minimum
+     delay (HARVEST_HOST_DELAY, default 2 s) on top of the global rate cap; every redirect hop is
+     re-checked; 401/402/403 and login/paywall URLs are refused; 20 MB cap.
+  3. Page check: the page's own license is read from link rel=license, meta license/DC.rights tags,
+     schema.org itemprop=license, JSON-LD "license", and footer text. Conflicting evidence rejects
+     the page. A seed's license is only a claim: it must agree with the page.
+     A page with no license markup is accepted only when the host is a vetted site below, or the
+     seed carries license_verified_by + license_verified_at + license_evidence.
+     noai/noindex (meta robots or X-Robots-Tag), paywall markers and JSON-LD isAccessibleForFree=false
+     reject the page.
+  4. Provenance is stored in the corpus DB, in the course JSON, and in ATTRIBUTION.txt.
+
+PER-SOURCE FINDINGS (primary source, retrieved 2026-10-24)
+
+  NOT USABLE COMMERCIALLY (do-not-harvest list)
+  OpenStax        CC BY-NC-SA 4.0. "Request permission for commercial use" through OpenStax's
+                  Content Reuse form. Formerly CC BY; the old seed (cc-by) was wrong.
+                  https://help.openstax.org/s/article/Licensing-information-of-OpenStax-textbooks
+                  https://openstax.org/books/intermediate-algebra-2e/pages/preface (footer + preface)
+  MIT OCW         CC BY-NC-SA 4.0. "You may not use the material for commercial purposes."
+                  https://ocw.mit.edu/pages/privacy-and-terms-of-use/
+  Khan Academy    CC BY-NC-SA 4.0 for materials; Terms of Service forbid scraping and using content to
+                  train or fine-tune AI models. (Found through search result summaries of the support
+                  pages; the TOS page itself did not render, so re-check before relying on exact wording.)
+                  https://support.khanacademy.org/hc/en-us/articles/42929097425037-What-s-allowed-and-not-allowed-under-Khan-Academy-s-Terms-of-Service
+  CK-12           Historically CC BY-NC-SA 3.0; now a "CK-12 Curriculum Materials License" under its Terms of
+                  Use. Not commercial. (Search summary only; the licensing page returned 404.)
+                  https://info.ck12.org/terms-of-use
+  Coursera, Udemy, edX, Skillshare, LinkedIn Learning, Quizlet, Chegg, Course Hero
+                  Proprietary platform or login-walled content. Terms of service not read for this
+                  document: UNVERIFIED, treated as not usable. Coursera pages made up 183 of the 271
+                  sources in the local corpus (see the audit).
+  YouTube, Vimeo  Captions and videos are not openly licensed course text. Do not harvest as course text.
+  arXiv           The overwhelming majority of papers use arXiv's non-exclusive license, which grants no
+                  reuse rights; only papers whose abs page shows a CC license could qualify. The old seed
+                  (cc-by for all of arXiv) was wrong.
+                  https://info.arxiv.org/help/license/reuse.html
+  Stanford Engineering Everywhere, composingprograms.com and similar university course seeds
+                  Declared CC BY-NC-SA / CC BY-NC in the old seed file. Moved to seeds/research-only/.
+
+  VETTED, USABLE WITH CONDITIONS
+  Wikipedia, Wikibooks, Wikiversity (text)
+                  CC BY-SA 4.0 and GFDL (dual). SHARE_ALIKE tier: attribution (hyperlink or URL to the
+                  article, or a list of authors) and share-alike. Images and files carry their own
+                  licenses: text only.
+                  https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use (section 7)
+  Project Gutenberg
+                  "The vast majority of Project Gutenberg eBooks are in the public domain in the US."
+                  Commercial use of the Project Gutenberg name/trademark needs a royalty, so strip the
+                  Gutenberg boilerplate. Not all items are public domain outside the US.
+                  https://www.gutenberg.org/policy/permission.html
+  NASA            "NASA content ... generally are not subject to copyright in the United States." Items
+                  marked as third-party are copyrighted; the NASA insignia is not public domain.
+                  https://www.nasa.gov/nasa-brand-center/images-and-media/
+  US federal agencies (nih.gov, medlineplus.gov, eeoc.gov, dol.gov, osha.gov, census.gov)
+                  17 U.S.C. 105: no copyright protection for works of the US Government, but the
+                  government may hold copyrights transferred to it.
+                  https://www.copyright.gov/title17/92chap1.html
+                  MedlinePlus: health topic summaries, tests and genetics pages are public domain; the
+                  A.D.A.M. encyclopedia (/ency/) and drug monographs (/druginfo/) are copyrighted and are
+                  excluded in code. Acknowledge the source ("Source: MedlinePlus, National Library of Medicine").
+                  https://medlineplus.gov/about/using/usingcontent/
+
+  PER-ITEM: NOT VETTED SITE-WIDE (the page itself must show the license)
+  LibreTexts      Each page carries its own license: CC BY, BY-NC, BY-NC-SA and others; remixed pages can
+                  be "undeclared". https://chem.libretexts.org/Courses/Remixer_University/LibreTexts_Construction_Guide_1e/03:_Basic_Editing/3.09:_Selecting_Copyright_for_Page_(Meta-Tags)
+  OER Commons     Resources carry their own Creative Commons licenses, including NonCommercial and
+                  NoDerivatives; the site's own pages are CC BY-NC-SA 4.0. (Search summary; the site
+                  returned 403 to automated fetch.) https://oercommons.org/
+  Open Textbook Library (open.umn.edu)
+                  Per-book licenses: CC BY, BY-SA, BY-NC, BY-NC-SA, GFDL; ND is excluded by the library.
+                  https://open.umn.edu/opentextbooks/faq
+  Saylor Academy  Saylor-authored content is CC BY 3.0 Unported; third-party resources inside courses
+                  carry their own (often non-commercial) licenses. https://www.saylor.org/OpenContent
+  Internet Archive
+                  Each item has its own license (licenseurl or rights metadata); most texts have no license
+                  tag at all, so "public domain" is never assumed.
+                  https://archive.org/post/1056247/how-do-i-see-the-licence-of-a-specific-file
+                  (search summaries only; the Internet Archive Terms of Use were not read directly).
+
+  UNVERIFIED (could not be read; treated as needing the page to carry a license)
+  data.gov        Federal datasets are not all public domain; many carry other licenses. The help page did
+                  not load. Seed license removed.
+  loc.gov         Library of Congress rights vary by collection. Not researched. Seed license removed.
+
+WHAT CHANGED FOR EXISTING DATA
+  scripts/harvest_license_audit.py reads a corpus DB read-only, sorts every source into ok /
+  needs_review / quarantine, and with --apply marks quarantine candidates quarantined (reversible with
+  --restore; nothing is deleted). Quarantined sources drop out of corpus search and out of RAG
+  retrieval. Run it on every machine that crawls:
+    python3 scripts/harvest_license_audit.py                      # read-only report
+    python3 scripts/harvest_license_audit.py --apply               # quarantine
+    python3 scripts/harvest_license_audit.py --restore             # undo
+  Local audit of output/harvest/harvest_corpus.db on 2026-10-24: 271 sources, 10,522 courses,
+  132,924 chunks. quarantine: 216 sources, 9,309 courses, 121,650 chunks. needs_review: 28 sources
+  (data.gov, loc.gov), 555 courses. ok: 27 sources, 658 courses.
+
+SERVING
+  Nothing from the harvester is posted to the production catalog today (output/ is git-ignored and no
+  service reads it). aoep_shared.harvest.serving.course_servable must be called by any future publish
+  step. scripts/present_course.py refuses courses whose provenance says the license is not usable
+  (override --allow-unlicensed for private review only) and warns on courses with no provenance.
+
+OUTSIDE THE HARVESTER (needs a decision)
+  aoep_shared/drive_topic_harvest.py builds Drive Mode audio courses from Wikipedia text (CC BY-SA 4.0
+  and GFDL) with an LLM and serves them. It records no attribution or license. Wikimedia's terms require
+  attribution and share-alike for adaptations. This was not changed here because it is a product and legal
+  decision (credit line in the course, same-license offer, or replacing the source).

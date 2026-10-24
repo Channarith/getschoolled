@@ -111,6 +111,9 @@ def _spec_to_dict(spec: SourceSpec) -> dict:
         "subject": spec.subject,
         "title": spec.title,
         "meta": spec.meta,
+        "license_verified_by": spec.license_verified_by,
+        "license_verified_at": spec.license_verified_at,
+        "license_evidence": spec.license_evidence,
     }
 
 
@@ -122,4 +125,7 @@ def _dict_to_spec(d: dict) -> SourceSpec:
         subject=d.get("subject"),
         title=d.get("title"),
         meta=d.get("meta") or {},
+        license_verified_by=d.get("license_verified_by", ""),
+        license_verified_at=d.get("license_verified_at", ""),
+        license_evidence=d.get("license_evidence", ""),
     )

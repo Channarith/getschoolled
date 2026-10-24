@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Optional
@@ -11,6 +12,7 @@ from typing import Dict, Optional
 from .corpus_store import HarvestCorpusStore
 from .critique import HarvestCritic
 from .discovery import discover_topic
+from .errors import HarvestConfigError
 from .extractors import extract
 from .fetcher import extract_links, fetch_url
 from .generate import (
@@ -21,7 +23,10 @@ from .generate import (
 from .knowledge_bridge import default_packs_dir, facts_from_course, write_knowledge_pack
 from .queue_store import PersistentHarvestQueue
 from .shard import ShardFilter
-from .sources import SourceSpec, is_allowed
+from .licensing import HarvestPolicy, Tier, Verification, decide, parse_license, policy_from_env, verify_page
+from .provenance import Provenance, attach_to_course, attribution_file, build_provenance
+from .sources import SourceSpec, prefetch_decision
+from .vetted_sources import vetted_for
 from .themes import resolve_slide_theme
 from .worker import HarvestWorker
 
@@ -56,6 +61,10 @@ class CrawlSession:
     expand_links: bool = True
     max_slides_per_lesson: int = MAX_SLIDES_PER_LESSON
     metrics: CrawlMetrics = field(default_factory=CrawlMetrics)
+    # Commercial-use policy (harvest.allow_share_alike / research_only, default both OFF).
+    policy: HarvestPolicy = field(default_factory=policy_from_env)
+    # Optional separate corpus for material we may read but must never publish.
+    research_corpus: Optional[HarvestCorpusStore] = None
 
     def enqueue_topic(self, topic: str, *, include_portals: bool = True) -> int:
         specs = discover_topic(topic, include_portals=include_portals)
@@ -91,8 +100,75 @@ class CrawlSession:
         spec.source_type = st
         return data
 
+    def _verify(self, spec: SourceSpec, raw: bytes) -> tuple[Verification, object]:
+        """Check the fetched page's own license. A seed's claim alone never ingests."""
+        from .licensing import Decision, LicenseInfo, UNKNOWN_LICENSE
+
+        fetch_info = getattr(spec, "fetch_info", None) or {}
+        final_url = str(fetch_info.get("final_url") or spec.url)
+        trusted: Optional[LicenseInfo] = None
+        vet = vetted_for(final_url) or vetted_for(spec.url)
+        if vet is not None:
+            trusted = vet.info()
+        elif spec.license_verified_by and spec.license_verified_at and spec.license_evidence:
+            seed = parse_license(spec.license, kind="seed-verified")
+            if seed.known:
+                trusted = seed
+        if spec.source_type == "html":
+            ver, scan = verify_page(
+                declared_license=spec.license,
+                html=raw.decode("utf-8", errors="replace"),
+                url=final_url,
+                headers=fetch_info.get("headers"),
+                policy=self.policy,
+                vetted=trusted,
+            )
+            if ver.verified_by == "vetted-site" and trusted is not None and vet is None:
+                ver.verified_by = "seed"
+            return ver, scan
+        # PDF/DOCX/PPTX carry no page-level license markup: only a vetted site or a verified seed will do.
+        if trusted is not None:
+            d = decide(trusted, self.policy)
+            return Verification(d, parse_license(spec.license), trusted, "vetted-site" if vet else "seed"), None
+        d = Decision("reject", "non-HTML source has no license markup and is not from a vetted site or verified seed",
+                     UNKNOWN_LICENSE)
+        return Verification(d, parse_license(spec.license), UNKNOWN_LICENSE, "", d.reason), None
+
+    def _reject(self, spec: SourceSpec, raw: bytes, ver: Verification, scan, prov: Provenance) -> dict:
+        """Record why a page was refused. No chunks and no course are stored for it."""
+        self.metrics.skipped_license += 1
+        self.corpus.upsert_source(
+            url=spec.url, license=spec.license, subject=spec.subject, title=spec.title,
+            source_type=spec.source_type, content_hash=prov.content_hash,
+            status="rejected_license", meta={"reason": ver.decision.reason},
+            provenance=prov.to_dict(),
+        )
+        # Read-only research copy, only when the owner turned research_only on. Never published.
+        if ver.decision.action == "research_only" and self.research_corpus is not None:
+            try:
+                doc = extract(spec.source_type, raw, default_title=spec.title or spec.url)
+                text = "\n\n".join(f"{heading}\n{body}" for heading, body in doc.nonempty_sections())
+                self.research_corpus.upsert_source(
+                    url=spec.url, license=spec.license, title=spec.title, source_type=spec.source_type,
+                    content_hash=prov.content_hash, status="research_only", provenance=prov.to_dict(),
+                )
+                self.research_corpus.index_document(
+                    url=spec.url, title=spec.title or spec.url, text=text, subject=spec.subject or "general",
+                    meta={"research_only": True},
+                )
+            except sqlite3.Error:
+                pass   # the research copy is best-effort; the rejection itself is already recorded
+        return {"status": "rejected_license", "reason": ver.decision.reason, "url": spec.url}
+
     def _process_record(self, spec: SourceSpec, raw: bytes) -> dict:
+        ver, scan = self._verify(spec, raw)
         title = spec.title or spec.url
+        prov = build_provenance(
+            spec_url=spec.url, raw=raw, verification=ver, scan=scan,
+            fetch_info=getattr(spec, "fetch_info", None), declared=spec.license or "", title=title,
+        )
+        if not ver.decision.ingest:
+            return self._reject(spec, raw, ver, scan, prov)
         doc = extract(
             spec.source_type,
             raw,
@@ -100,6 +176,7 @@ class CrawlSession:
         )
         subject = spec.subject or "general"
         base_course = generate_course(doc, subject=subject, source=spec.url)
+        attach_to_course(base_course, prov)
         report = HarvestCritic().review(base_course)
         if not report.passed and report.grade in ("D", "F"):
             return {"status": "rejected", "grade": report.grade, "url": spec.url}
@@ -128,6 +205,7 @@ class CrawlSession:
                 "composition_score": base_course.composition_score,
                 "lesson_count": len(lessons),
             },
+            provenance=prov.to_dict(),
         )
         chunks = self.corpus.index_document(
             url=spec.url,
@@ -148,6 +226,10 @@ class CrawlSession:
             )
             course_dir = self.out_dir / "courses" / lesson.course_id
             course_dir.mkdir(parents=True, exist_ok=True)
+            if not lesson.provenance:
+                attach_to_course(lesson, prov)
+            (course_dir / "ATTRIBUTION.txt").write_text(
+                attribution_file(prov, course_title=lesson.title), encoding="utf-8")
             pkg = export_course_package(
                 lesson, course_dir, write_pptx=True, with_media=self.with_media,
                 repo_root=self.repo_root,
@@ -180,6 +262,8 @@ class CrawlSession:
                 media=media_manifest,
                 tags=tags_dict,
                 full_text=lesson_text,
+                license_tier=prov.license_tier,
+                provenance=prov.to_dict(),
             )
             self.metrics.generated += 1
             lesson_out.append({
@@ -194,7 +278,12 @@ class CrawlSession:
             })
 
         # Knowledge pack once from the full source (facts don't need per-lesson split).
-        facts = facts_from_course(base_course, default_domains=(base_course.subject,))
+        # Knowledge packs feed the live knowledge base without per-fact credit lines, so only
+        # material with no share-alike obligation goes in.
+        facts = (
+            facts_from_course(base_course, default_domains=(base_course.subject,))
+            if prov.license_tier == Tier.COMMERCIAL_OK.value else []
+        )
         if facts:
             pack_dir = default_packs_dir()
             pack_dir.mkdir(parents=True, exist_ok=True)
@@ -235,6 +324,7 @@ class CrawlSession:
             fetcher=lambda s: self._fetch(s),
             extractor=lambda s, r: self._extract(s, r),
             sink=self._sink,
+            allow_unverified=True,
         )
 
     def run_once(self, *, max_items: int = 1) -> CrawlMetrics:
@@ -245,7 +335,8 @@ class CrawlSession:
             spec = self.queue.dequeue()
             if spec is None:
                 break
-            if not is_allowed(spec.license):
+            gate = prefetch_decision(spec, self.policy, allow_unverified=True)
+            if not gate.ok:
                 self.metrics.skipped_license += 1
                 self.queue.mark_done(spec, status="skipped_license")
                 processed += 1
@@ -261,17 +352,21 @@ class CrawlSession:
                             raw = self._fetch(spec)
                             html = raw.decode("utf-8", errors="replace")
                             for link in extract_links(html, base_url=spec.url, max_links=8):
+                                # A child page does not inherit its parent's license: the child
+                                # page (or its vetted site) has to carry its own.
                                 child = SourceSpec(
                                     url=link,
-                                    license=spec.license,
+                                    license=None,
                                     subject=spec.subject,
                                     source_type="html",
-                                    meta={"parent": spec.url},
+                                    meta={"parent": spec.url, "parent_license": spec.license or ""},
                                 )
                                 self.queue.enqueue(child)
                         except Exception:
                             pass
                 self.queue.mark_done(spec, status=status)
+            except HarvestConfigError:
+                raise   # crawling is not configured safely: stop, do not count it as a page error
             except Exception:
                 self.metrics.errors += 1
                 self.queue.mark_done(spec, status="error")
@@ -329,9 +424,11 @@ def open_crawl_session(
     repo_root: Optional[Path] = None,
     with_media: bool = True,
     max_slides_per_lesson: int = MAX_SLIDES_PER_LESSON,
+    policy: Optional[HarvestPolicy] = None,
 ) -> CrawlSession:
     import os
 
+    policy = policy or policy_from_env()
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     if corpus_path is None:
@@ -339,6 +436,11 @@ def open_crawl_session(
         corpus_path = Path(env) if env else out / "harvest_corpus.db"
     corpus = HarvestCorpusStore(corpus_path)
     root = repo_root or Path.cwd()
+    research = None
+    if policy.research_only:
+        # Separate file on purpose: research-only text must never share a database that is
+        # searched by tutoring or exported as courses.
+        research = HarvestCorpusStore(corpus_path.with_name(corpus_path.stem + "_research_only.db"))
     return CrawlSession(
         corpus=corpus,
         queue=PersistentHarvestQueue(corpus, ShardFilter.from_env()),
@@ -346,4 +448,6 @@ def open_crawl_session(
         repo_root=root,
         with_media=with_media,
         max_slides_per_lesson=max_slides_per_lesson,
+        policy=policy,
+        research_corpus=research,
     )

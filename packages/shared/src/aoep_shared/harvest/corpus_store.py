@@ -20,7 +20,38 @@ from typing import Any, Dict, List, Optional
 
 from .queue import url_key
 
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
+
+# Added in schema 2 (license safety + provenance). Existing databases are migrated in place
+# with ALTER TABLE ADD COLUMN, which only touches metadata, so a multi-GB corpus upgrades instantly.
+_SOURCE_COLUMNS = (
+    ("license_tier", "TEXT"), ("license_id", "TEXT"), ("license_url", "TEXT"),
+    ("license_evidence", "TEXT"), ("license_verified_by", "TEXT"), ("canonical_url", "TEXT"),
+    ("attribution_json", "TEXT"), ("robots_json", "TEXT"), ("provenance_json", "TEXT"),
+    ("quarantined", "INTEGER DEFAULT 0"), ("quarantine_reason", "TEXT"), ("quarantined_at", "TEXT"),
+)
+_COURSE_COLUMNS = (
+    ("license_tier", "TEXT"), ("provenance_json", "TEXT"),
+    ("quarantined", "INTEGER DEFAULT 0"), ("quarantine_reason", "TEXT"),
+)
+
+
+def add_missing_columns(conn: sqlite3.Connection, table: str, columns) -> None:
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    for name, ddl in columns:
+        if name not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
+
+
+def migrate_schema(conn: sqlite3.Connection) -> None:
+    """Idempotent upgrade to the current schema (safe on every open)."""
+    add_missing_columns(conn, "sources", _SOURCE_COLUMNS)
+    add_missing_columns(conn, "courses", _COURSE_COLUMNS)
+    conn.execute(
+        "INSERT INTO corpus_meta(key,value) VALUES('schema_version',?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE CAST(corpus_meta.value AS INTEGER) < ?",
+        (str(_SCHEMA_VERSION), _SCHEMA_VERSION),
+    )
 _CHUNK_SIZE = 900
 _TOKEN = re.compile(r"[a-z0-9]+")
 
@@ -179,14 +210,7 @@ class HarvestCorpusStore:
                         )
                         """
                     )
-                row = conn.execute(
-                    "SELECT value FROM corpus_meta WHERE key='schema_version'"
-                ).fetchone()
-                if row is None:
-                    conn.execute(
-                        "INSERT INTO corpus_meta(key,value) VALUES('schema_version',?)",
-                        (str(_SCHEMA_VERSION),),
-                    )
+                migrate_schema(conn)
                 conn.commit()
             finally:
                 conn.close()
@@ -202,16 +226,21 @@ class HarvestCorpusStore:
         content_hash: str = "",
         status: str = "fetched",
         meta: Optional[Dict] = None,
+        provenance: Optional[Dict] = None,
     ) -> str:
         key = url_key(url)
+        prov = provenance or {}
+        lic = prov.get("license") or {}
         with self._lock:
             conn = self._connect()
             try:
                 conn.execute(
                     """
                     INSERT INTO sources(url_key,url,license,subject,title,source_type,
-                        content_hash,status,fetched_at,meta_json)
-                    VALUES(?,?,?,?,?,?,?,?,?,?)
+                        content_hash,status,fetched_at,meta_json,
+                        license_tier,license_id,license_url,license_evidence,license_verified_by,
+                        canonical_url,attribution_json,robots_json,provenance_json,quarantined)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
                     ON CONFLICT(url_key) DO UPDATE SET
                         license=excluded.license,
                         subject=COALESCE(excluded.subject, sources.subject),
@@ -219,11 +248,25 @@ class HarvestCorpusStore:
                         content_hash=excluded.content_hash,
                         status=excluded.status,
                         fetched_at=excluded.fetched_at,
-                        meta_json=excluded.meta_json
+                        meta_json=excluded.meta_json,
+                        license_tier=COALESCE(excluded.license_tier, sources.license_tier),
+                        license_id=COALESCE(excluded.license_id, sources.license_id),
+                        license_url=COALESCE(excluded.license_url, sources.license_url),
+                        license_evidence=COALESCE(excluded.license_evidence, sources.license_evidence),
+                        license_verified_by=COALESCE(excluded.license_verified_by, sources.license_verified_by),
+                        canonical_url=COALESCE(excluded.canonical_url, sources.canonical_url),
+                        attribution_json=COALESCE(excluded.attribution_json, sources.attribution_json),
+                        robots_json=COALESCE(excluded.robots_json, sources.robots_json),
+                        provenance_json=COALESCE(excluded.provenance_json, sources.provenance_json)
                     """,
                     (
                         key, url, license, subject, title, source_type,
                         content_hash, status, _now(), json.dumps(meta or {}),
+                        lic.get("tier"), lic.get("spdx"), lic.get("url"), lic.get("evidence"),
+                        prov.get("license_verified_by"), prov.get("canonical_url"),
+                        json.dumps(prov["attribution"]) if prov.get("attribution") else None,
+                        json.dumps(prov["robots"]) if prov.get("robots") else None,
+                        json.dumps(prov) if prov else None,
                     ),
                 )
                 conn.commit()
@@ -288,6 +331,8 @@ class HarvestCorpusStore:
         media: Optional[Dict] = None,
         tags: Optional[Dict] = None,
         full_text: str = "",
+        license_tier: str = "",
+        provenance: Optional[Dict] = None,
     ) -> None:
         key = url_key(url)
         with self._lock:
@@ -296,9 +341,12 @@ class HarvestCorpusStore:
                 conn.execute(
                     """
                     INSERT INTO courses(course_id,url_key,title,subject,composition_score,
-                        json_path,pptx_path,theme_json,media_json,tags_json,created_at)
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                        json_path,pptx_path,theme_json,media_json,tags_json,created_at,
+                        license_tier,provenance_json,quarantined)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,0)
                     ON CONFLICT(course_id) DO UPDATE SET
+                        license_tier=COALESCE(excluded.license_tier, courses.license_tier),
+                        provenance_json=COALESCE(excluded.provenance_json, courses.provenance_json),
                         title=excluded.title,
                         subject=excluded.subject,
                         composition_score=excluded.composition_score,
@@ -315,6 +363,8 @@ class HarvestCorpusStore:
                         json.dumps(media or {}),
                         json.dumps(tags or {}),
                         _now(),
+                        license_tier or None,
+                        json.dumps(provenance) if provenance else None,
                     ),
                 )
                 conn.commit()
@@ -342,7 +392,7 @@ class HarvestCorpusStore:
                         "FROM chunks_fts f "
                         "JOIN chunks c ON c.chunk_id=f.chunk_id "
                         "JOIN sources s ON s.url_key=c.url_key "
-                        "WHERE chunks_fts MATCH ? "
+                        "WHERE chunks_fts MATCH ? AND COALESCE(s.quarantined,0)=0 "
                     )
                     params: List[Any] = [q]
                     if subject:
@@ -362,7 +412,7 @@ class HarvestCorpusStore:
                         "SELECT c.chunk_id, c.url_key, c.heading, c.body, c.subject, "
                         "c.course_id, c.meta_json, s.url, s.title "
                         "FROM chunks c JOIN sources s ON s.url_key=c.url_key "
-                        "WHERE c.body LIKE ? "
+                        "WHERE c.body LIKE ? AND COALESCE(s.quarantined,0)=0 "
                     )
                     params = [like]
                     if subject:

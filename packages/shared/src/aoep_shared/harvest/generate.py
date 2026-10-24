@@ -476,13 +476,16 @@ class GeneratedCourse:
     # course is lesson lesson_index of that set (both default to 1 = single lesson).
     lesson_index: int = 1
     lesson_count: int = 1
+    # Where this came from and under what license (harvest.provenance.Provenance.to_dict()).
+    # Empty for courses that were not harvested from a licensed source.
+    provenance: Dict = field(default_factory=dict)
 
     @property
     def composition_score(self) -> int:
         return self.composition.composition_score() if self.composition else 0
 
     def to_dict(self) -> Dict:
-        return {
+        d = {
             "course_id": self.course_id,
             "title": self.title,
             "subject": self.subject,
@@ -497,6 +500,12 @@ class GeneratedCourse:
             "composition": self.composition.to_dict() if self.composition else {},
             "tags": self.tags.to_dict() if self.tags else {},
         }
+        if self.provenance:
+            d["provenance"] = self.provenance
+            d["license_tier"] = self.provenance.get("license_tier", "")
+            d["license_obligations"] = list(self.provenance.get("obligations") or [])
+            d["attribution"] = (self.provenance.get("attribution") or {}).get("text", "")
+        return d
 
     def to_json(self, *, indent: int = 2) -> str:
         import json
@@ -519,6 +528,11 @@ class GeneratedCourse:
         if self.lesson_count > 1:
             payload["meta_lesson_index"] = self.lesson_index
             payload["meta_lesson_count"] = self.lesson_count
+        if self.provenance:
+            payload["meta_license_tier"] = self.provenance.get("license_tier", "")
+            payload["meta_license_id"] = (self.provenance.get("license") or {}).get("spdx", "")
+            payload["meta_attribution"] = (self.provenance.get("attribution") or {}).get("text", "")
+            payload["meta_license_obligations"] = list(self.provenance.get("obligations") or [])
         return payload
 
 
@@ -626,6 +640,7 @@ def partition_course_into_lessons(
                 presentation_mode_index=course.presentation_mode_index,
                 lesson_index=i,
                 lesson_count=lesson_count,
+                provenance=dict(course.provenance),
             )
         )
     return lessons

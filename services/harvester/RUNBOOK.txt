@@ -2,8 +2,29 @@ HARVESTER RUNBOOK - 24/7 large-scale course-material ingestion (100k+)
 ======================================================================
 
 Runs on a SEPARATE long-lived worker agent (its own thread/pod), independent of
-the app stack. It only ingests permissively-licensed / OER material: the license
-gate (aoep_shared.harvest.is_allowed) runs BEFORE any fetch.
+the app stack. It only ingests material Salareen may use COMMERCIALLY (CC0, public
+domain, CC BY, MIT/Apache/BSD, US government works). Non-commercial (NC), no-derivatives,
+proprietary, unknown and "oer" licenses are rejected. Share-alike (CC BY-SA, GFDL) is
+rejected unless you turn on --allow-share-alike after legal review.
+
+LICENSE SAFETY (read before running at scale; details in docs/harvest-sources.txt)
+  - A license in a seed file is only a CLAIM. The fetched page has to show the same license
+    (link rel=license, meta tags, schema.org, JSON-LD, footer) or the host must be a vetted site
+    (aoep_shared/harvest/vetted_sources.py). Conflicting evidence rejects the page.
+  - Do-not-harvest hosts (OpenStax, Khan Academy, MIT OCW, CK-12, Coursera, edX, Udemy, YouTube,
+    arXiv and others) are never fetched. OpenStax is CC BY-NC-SA 4.0, not CC BY.
+  - HARVEST_USER_AGENT must name a real contact, for example
+    "SalareenHarvester/1.0 (+https://www.salareen.com/contact)". The crawler refuses to start
+    without it. robots.txt, Crawl-delay, a per-host delay (HARVEST_HOST_DELAY), noai/noindex,
+    login walls and paywalls are all honored.
+  - Every course records its provenance (source URL, license evidence, tier, attribution) and
+    gets ATTRIBUTION.txt plus a "Sources and licenses" slide.
+  - Audit existing corpora on EVERY machine before trusting them:
+      python3 scripts/harvest_license_audit.py            # read-only report
+      python3 scripts/harvest_license_audit.py --apply    # quarantine (reversible, deletes nothing)
+  - Policy switches (both default OFF): AOEP_HARVEST_ALLOW_SHARE_ALIKE=1 / --allow-share-alike;
+    AOEP_HARVEST_RESEARCH_ONLY=1 / --research-only (keeps rejected pages in a separate research
+    corpus file that is never published).
 
 PIPELINE (aoep_shared/harvest)
   seeds -> HarvestQueue (URL dedup) -> HarvestWorker.process per source:
@@ -105,15 +126,13 @@ MILLION-TOPIC BACKLOG
   pages in one sitting; --per-hour still paces it.
 
   Named university courses (Stanford Engineering Everywhere, CC BY-NC-SA, and
-  Berkeley CS 61A / Data 8 materials that allow reuse) are in
-  seeds/university-courses.jsonl. Pass --seeds so they enqueue at high
-  priority, ahead of the topic backlog:
+  Berkeley CS 61A / Data 8 materials) are in seeds/research-only/university-courses.jsonl.
+  They are non-commercial, so the normal pipeline REJECTS them. They are only read with
+  --research-only, into a separate research corpus that is never published:
 
-    python3 services/harvester/src/harvester/run.py --crawl \\
-      --seeds seeds/university-courses.jsonl \\
-      --queue-topics 0 \\
-      --daemon --keep-waiting --per-hour 60 --interval 60 \\
-      --out-dir output/harvest
+    python3 services/harvester/src/harvester/run.py --crawl --research-only \\
+      --seeds seeds/research-only/university-courses.jsonl \\
+      --out-dir output/harvest-research
 
   Caltech's public courses are not in that file. Learning From Data is
   CC BY-NC-ND, and the Feynman Lectures are free to read online only. Both

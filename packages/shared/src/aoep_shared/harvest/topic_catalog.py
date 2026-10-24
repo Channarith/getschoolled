@@ -440,7 +440,7 @@ def open_seed_specs(topic: str) -> list[SourceSpec]:
     rows = (
         (
             f"https://archive.org/search?query={q}",
-            "public-domain",
+            None,  # Internet Archive license is per item (licenseurl / rights metadata), never assumed
             "Internet Archive",
         ),
         (
@@ -450,7 +450,7 @@ def open_seed_specs(topic: str) -> list[SourceSpec]:
         ),
         (
             f"https://www.oercommons.org/search?f.search={q}",
-            "cc-by",
+            None,  # OER Commons licenses are per resource, including NonCommercial ones
             "OER Commons",
         ),
     )

@@ -83,7 +83,8 @@ from .queue_store import PersistentHarvestQueue
 from .runner import Checkpoint, harvest_loop
 from .themes import SlideTheme, resolve_slide_theme
 from .section_normalize import normalize_document
-from .sources import LICENSE_ALLOWLIST, SourceSpec, is_allowed, normalize_license
+from .licensing import HarvestPolicy, LicenseInfo, Tier, parse_license, policy_from_env
+from .sources import LICENSE_ALLOWLIST, SourceSpec, is_allowed, normalize_license, prefetch_decision, spec_allowed
 from .tagging import ACCESS_TIERS, CourseTags
 from .worker import HarvestStats, HarvestWorker
 
@@ -94,6 +95,13 @@ __all__ = [
     "LICENSE_ALLOWLIST",
     "SourceSpec",
     "is_allowed",
+    "spec_allowed",
+    "prefetch_decision",
+    "HarvestPolicy",
+    "LicenseInfo",
+    "Tier",
+    "parse_license",
+    "policy_from_env",
     "normalize_license",
     "HarvestStats",
     "HarvestWorker",
