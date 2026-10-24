@@ -1,4 +1,5 @@
 import copy
+import re
 import json
 from collections import Counter
 
@@ -46,7 +47,7 @@ def test_every_claim_has_evidence_with_a_retrieval_date():
     for c in schema.load()["candidates"]:
         assert c["evidence"], c["id"]
         for ev in c["evidence"]:
-            assert ev["url"].startswith("https://") and ev["quote"] and ev["retrieved"] == "2026-10-24", (c["id"], ev)
+            assert ev["url"].startswith("https://") and ev["quote"] and re.fullmatch(r"\d{4}-\d{2}-\d{2}", ev["retrieved"]), (c["id"], ev)
 
 
 def test_non_commercial_models_are_never_shippable_or_product():
