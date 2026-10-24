@@ -95,7 +95,7 @@ export default function FriendlyError({
   const code = status ? common.status.replace("{code}", String(status)) : "";
   return (
     <div className={inline ? "sfe-inline" : "sfe-screen"} role="alert" data-testid="friendly-error" data-sfe-kind={kind}>
-      <style>{FRIENDLY_PAGE_CSS + ".sfe-inline{position:relative;display:grid;place-items:center;padding:28px 16px;background:radial-gradient(900px 500px at 50% 0%,#1d2a58 0%,#0b1020 70%);border-radius:20px;color:#eef2ff}"}</style>
+      <style dangerouslySetInnerHTML={{ __html: FRIENDLY_PAGE_CSS + ".sfe-inline{position:relative;display:grid;place-items:center;padding:28px 16px;background:radial-gradient(900px 500px at 50% 0%,#1d2a58 0%,#0b1020 70%);border-radius:20px;color:#eef2ff}" }} />
       {!inline && <div className="sfe-stars" />}
       <div className="sfe-card">
         <div aria-hidden="true" dangerouslySetInnerHTML={{ __html: FRIENDLY_ART[FRIENDLY_KIND_MOOD[kind]] }} />

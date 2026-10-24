@@ -207,3 +207,13 @@ body.phone-play .pq-top{bottom:3rem}
 .gt-card ol{margin:0;padding-left:1.2rem;display:grid;gap:.45rem;font-size:1rem}
 .gt-go{margin-top:1rem;width:100%;padding:.7rem;border:0;border-radius:.8rem;background:#d4af37;color:#0b1020;font:800 1rem/1 inherit;cursor:pointer}
 .gt-skip{margin-top:.5rem;width:100%;padding:.5rem;border:0;background:none;color:#94a3b8;cursor:pointer;text-decoration:underline}
+/* Phone mobile audit: the air/screen toggle must not sit on top of a tutorial or the win card,
+   and the controls bar lifts above the voice widget so it never hides the game picker. */
+body:has(.pq-tutorial) #touch-mode,body:has(.pq-win) #touch-mode,body:has(.gt-overlay:not([hidden])) #touch-mode{display:none!important}
+@media(min-height:560px){
+body.phone-play:has(#theodore-live-audio:not(.voice-hidden)) .controls{bottom:7.5rem}
+body.phone-play:has(#theodore-live-audio:not(.voice-hidden)) #touch-mode{bottom:calc(15rem + env(safe-area-inset-bottom))}
+}
+body.phone-play #vision-readout,body.phone-play .vision-readout{right:196px!important;overflow:hidden;font-size:.62rem;line-height:1.35}
+body.phone-play #vision-readout *,body.phone-play .vision-readout *{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
