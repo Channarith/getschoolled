@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import DemoTutorial from "../../components/DemoTutorial";
+import DemoVoiceSelect from "../../components/DemoVoiceSelect";
 import OnTheGo from "../../components/OnTheGo";
 
 // Not listed anywhere public: reached by four quick clicks on the Salareen logo. Keep it out of search results.
@@ -25,6 +26,7 @@ export default function OnTheGoDemoPage() {
           "Tap the ? button any time to see this again.",
         ]}
       />
+      <p><DemoVoiceSelect /></p>
       <OnTheGo mode="demo" />
     </main>
   );

@@ -1,0 +1,12 @@
+{
+  "voices": [
+    {
+      "id": "channarith",
+      "label": "Channarith",
+      "speaker": "channarith",
+      "model": "voxcpm2",
+      "active": true,
+      "ai_label": "AI-generated voice of Channarith"
+    }
+  ]
+}
