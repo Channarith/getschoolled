@@ -1,0 +1,8 @@
+{
+  "virtual_shards": 256,
+  "machines": {
+    "spark": {"weight": 3},
+    "kalel": {"weight": 2},
+    "mac": {"weight": 1}
+  }
+}

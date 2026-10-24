@@ -7,20 +7,28 @@ from typing import Iterable, Optional
 
 from .corpus_store import HarvestCorpusStore
 from .queue import HarvestQueue, url_key
+from .shard import ShardFilter
 from .sources import SourceSpec
 
 
 class PersistentHarvestQueue(HarvestQueue):
     """In-memory deque + SQLite persistence for 24/7 background crawls."""
 
-    def __init__(self, store: Optional[HarvestCorpusStore] = None) -> None:
+    def __init__(self, store: Optional[HarvestCorpusStore] = None,
+                 shard: Optional[ShardFilter] = None) -> None:
         super().__init__()
         self._store = store or HarvestCorpusStore()
+        # With several machines, only the owner of a host enqueues/loads its URLs.
+        self._shard = shard or ShardFilter()
+        self.skipped_not_owned = 0
 
     def _conn(self):
         return self._store._connect()
 
     def enqueue(self, spec: SourceSpec) -> bool:
+        if not self._shard.owns(spec.url):
+            self.skipped_not_owned += 1
+            return False
         key = url_key(spec.url)
         if key in self._seen:
             return False
@@ -88,6 +96,8 @@ class PersistentHarvestQueue(HarvestQueue):
                 conn.close()
         for row in rows:
             spec = _dict_to_spec(json.loads(row["spec_json"]))
+            if not self._shard.owns(spec.url):
+                continue
             if super().enqueue(spec):
                 loaded += 1
         return loaded
