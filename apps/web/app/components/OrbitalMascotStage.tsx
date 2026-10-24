@@ -1,8 +1,22 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AUTH_EVENT, getToken } from "../lib/api";
+import type { Expression } from "./mascot3d/expressions";
+import type { ClipName } from "./MascotMeshy";
+
+const LandingMascot = dynamic(() => import("./MascotMeshy"), { ssr: false });
+
+/** A feature card is asking the mascot to explain it. */
+export type MascotSpotlight = {
+  id: string;
+  title: string;
+  line: string;
+  clip: ClipName;
+  expression: Expression;
+};
 
 /**
  * DN "Dark Navy" orbital mascot stage.
@@ -123,9 +137,19 @@ const PERIOD_MS = 32000; // one full clockwise revolution (slow enough to read)
 const RADIUS_X_FRAC = 0.465; // horizontal semi-axis / stage width
 const RADIUS_Y_FRAC = 0.235; // vertical semi-axis / stage width (tilt ≈ 0.5)
 
-export default function OrbitalMascotStage() {
+export default function OrbitalMascotStage({
+  spotlight = null,
+}: {
+  /** Set while a feature card is hovered, focused, or pinned. */
+  spotlight?: MascotSpotlight | null;
+}) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const pausedRef = useRef<boolean>(false);
+  const stageHoverRef = useRef(false);
+  const spotlightRef = useRef(spotlight);
+  spotlightRef.current = spotlight;
+  const [meshReady, setMeshReady] = useState(false);
+  const markMeshReady = useCallback(() => setMeshReady(true), []);
   // Live orbit radii — recomputed from the stage's actual width whenever
   // the stage resizes (ResizeObserver). Starts at 0 and gets filled in
   // on the very first observer callback before the first rAF tick that
@@ -155,6 +179,11 @@ export default function OrbitalMascotStage() {
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
+
+  useEffect(() => {
+    if (!spotlight) setMeshReady(false);
+    pausedRef.current = stageHoverRef.current || Boolean(spotlight);
+  }, [spotlight]);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -218,12 +247,14 @@ export default function OrbitalMascotStage() {
   return (
     <div
       ref={stageRef}
-      className="dn-orbit-stage"
+      className={`dn-orbit-stage${spotlight ? " is-explaining" : ""}`}
       onMouseEnter={() => {
+        stageHoverRef.current = true;
         pausedRef.current = true;
       }}
       onMouseLeave={() => {
-        pausedRef.current = false;
+        stageHoverRef.current = false;
+        pausedRef.current = Boolean(spotlightRef.current);
       }}
       aria-label="Explore Salareen — hover a tile for a preview, click to visit"
     >
@@ -231,21 +262,63 @@ export default function OrbitalMascotStage() {
           CSS swaps the light/dark asset by data-theme. */}
       <div className="dn-stage-backdrop" aria-hidden />
 
+      {spotlight && !prefersReduced && (
+        <div className="dn-nano-motion" aria-hidden>
+          <div className="dn-nano-motion-ring" />
+        </div>
+      )}
+
       {/* Mascot — warm-gold focal point, centered on the top slab of the
           pedestal baked into the backdrop. We use the "-pedestal" variant
           whose baked cream ground halo has been recolored to the pedestal
           navy so the figure blends flush onto the top platform instead
-          of showing a bright white puck under its base. */}
+          of showing a bright white puck under its base. A feature card
+          swaps in the rigged mesh so the same character can wave, swing,
+          or strut while explaining. */}
       <div className="dn-orbit-mascot">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/bayon-mark-pedestal.webp"
           alt="Salareen mascot — kneeling golden Buddha-child with the S medallion"
           width={210}
+          className={spotlight && meshReady ? "is-covered" : undefined}
           style={{
             filter: "drop-shadow(0 24px 36px rgba(10, 22, 40, 0.55))",
           }}
         />
+        {spotlight && !prefersReduced && (
+          <div className={`dn-orbit-mascot-live${meshReady ? " is-ready" : ""}`}>
+            <LandingMascot
+              expression={spotlight.expression}
+              clip={spotlight.clip}
+              transparent
+              fill
+              onReady={markMeshReady}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="dn-mascot-speech-live" aria-live="polite">
+        {spotlight && (
+          <div
+            key={spotlight.id}
+            id="dn-mascot-speech"
+            className="dn-mascot-speech"
+            role="status"
+            data-testid="mascot-speech"
+          >
+            <strong>
+              {spotlight.title}
+              <span className="dn-mascot-speech-dots" aria-hidden>
+                <i />
+                <i />
+                <i />
+              </span>
+            </strong>
+            {spotlight.line}
+          </div>
+        )}
       </div>
 
       {/* Six orbit tiles — real <Link>s so right-click, cmd-click, and

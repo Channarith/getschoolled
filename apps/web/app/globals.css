@@ -2478,6 +2478,171 @@ textarea {
   max-width: 210px;
   height: auto;
   user-select: none;
+  transition: opacity 0.35s ease;
+}
+.dn-orbit-mascot img.is-covered {
+  opacity: 0;
+}
+/* Rigged mesh stands on the same pedestal while a feature card is active.
+   It stays invisible until the clip has actually started, so the still
+   portrait never flashes away during the GLB load. */
+.dn-orbit-mascot-live {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 250px;
+  height: 320px;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.dn-orbit-mascot-live.is-ready {
+  opacity: 1;
+}
+/* While the mascot is explaining, keep the mesh in front of the orbit
+   tiles so a front tile does not cover the character's legs. */
+.dn-orbit-stage.is-explaining .dn-orbit-mascot {
+  z-index: 7;
+}
+.dn-orbit-stage.is-explaining .dn-orbit-mascot img:not(.is-covered) {
+  animation: dn-mascot-talk 0.85s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+@keyframes dn-mascot-talk {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(2deg); }
+}
+
+/* Cyan and gold rings that spin over the baked nano-banana orbit while
+   the mascot is explaining a feature. */
+.dn-nano-motion {
+  position: absolute;
+  left: 50%;
+  top: 41%;
+  width: 88%;
+  aspect-ratio: 2.05 / 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+.dn-nano-motion-ring {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px dashed rgba(103, 232, 249, 0.65);
+  box-shadow:
+    0 0 28px rgba(103, 232, 249, 0.35),
+    inset 0 0 22px rgba(212, 184, 138, 0.28);
+  animation: dn-nano-spin 16s linear infinite;
+}
+.dn-nano-motion-ring::after {
+  content: "";
+  position: absolute;
+  inset: 11%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(212, 184, 138, 0.8);
+  box-shadow: 0 0 16px rgba(212, 184, 138, 0.35);
+  animation: dn-nano-spin 10s linear infinite reverse;
+}
+@keyframes dn-nano-spin {
+  to { transform: rotate(1turn); }
+}
+
+.dn-mascot-speech-live {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+.dn-mascot-speech {
+  position: absolute;
+  left: 3%;
+  top: 6%;
+  width: min(240px, 46%);
+  margin: 0;
+  padding: 12px 14px 13px;
+  border-radius: 18px 18px 18px 6px;
+  background: #fffaf3;
+  color: #142033;
+  border: 1px solid rgba(212, 184, 138, 0.75);
+  box-shadow:
+    0 18px 40px rgba(10, 22, 40, 0.28),
+    0 0 0 4px rgba(255, 250, 243, 0.35);
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-align: left;
+  animation: dn-speech-in 0.35s ease;
+}
+.dn-mascot-speech strong {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0a1628;
+}
+.dn-mascot-speech::after {
+  content: "";
+  position: absolute;
+  right: -7px;
+  bottom: 16px;
+  width: 14px;
+  height: 14px;
+  background: #fffaf3;
+  border-right: 1px solid rgba(212, 184, 138, 0.75);
+  border-bottom: 1px solid rgba(212, 184, 138, 0.75);
+  transform: rotate(-45deg);
+}
+.dn-mascot-speech-dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.dn-mascot-speech-dots i {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #b08948;
+  animation: dn-dot 1s ease-in-out infinite;
+}
+.dn-mascot-speech-dots i:nth-child(2) { animation-delay: 0.15s; }
+.dn-mascot-speech-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes dn-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+  40% { transform: translateY(-3px); opacity: 1; }
+}
+@keyframes dn-speech-in {
+  from { opacity: 0; translate: 0 10px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@media (max-width: 900px) {
+  .dn-mascot-speech {
+    left: 6%;
+    right: 6%;
+    top: auto;
+    bottom: 4%;
+    width: auto;
+  }
+  .dn-mascot-speech::after {
+    right: auto;
+    left: 50%;
+    bottom: auto;
+    top: -7px;
+    transform: translateX(-50%) rotate(-135deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dn-nano-motion-ring,
+  .dn-nano-motion-ring::after,
+  .dn-orbit-stage.is-explaining .dn-orbit-mascot img,
+  .dn-mascot-speech,
+  .dn-mascot-speech-dots i {
+    animation: none;
+  }
 }
 
 /* ---- Orbital tiles ------------------------------------------------------- */
@@ -2797,15 +2962,38 @@ textarea {
   }
 }
 
-.dn-landing-feature-card {
+button.dn-landing-feature-card {
   display: flex;
   align-items: flex-start;
   gap: 14px;
+  width: 100%;
   padding: 18px 20px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-card);
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.28s ease,
+    box-shadow 0.28s ease,
+    border-color 0.28s ease;
+}
+button.dn-landing-feature-card:hover,
+button.dn-landing-feature-card:focus-visible,
+button.dn-landing-feature-card.is-active {
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--border));
+  box-shadow:
+    var(--shadow-card),
+    0 12px 28px rgba(212, 184, 138, 0.28);
+}
+button.dn-landing-feature-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 .dn-landing-feature-icon {
   flex: 0 0 auto;
@@ -2862,6 +3050,15 @@ textarea {
      than the title so the heading leads the eye. */
   color: rgba(10, 22, 40, 0.78);
 }
+[data-theme="dark"] button.dn-landing-feature-card:hover,
+[data-theme="dark"] button.dn-landing-feature-card:focus-visible,
+[data-theme="dark"] button.dn-landing-feature-card.is-active {
+  border-color: #fef3c7;
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.5),
+    0 0 36px rgba(254, 243, 199, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) .dn-landing-feature-card {
     background:
@@ -2891,6 +3088,15 @@ textarea {
   }
   :root:not([data-theme]) .dn-landing-feature-body p {
     color: rgba(10, 22, 40, 0.78);
+  }
+  :root:not([data-theme]) button.dn-landing-feature-card:hover,
+  :root:not([data-theme]) button.dn-landing-feature-card:focus-visible,
+  :root:not([data-theme]) button.dn-landing-feature-card.is-active {
+    border-color: #fef3c7;
+    box-shadow:
+      0 18px 38px rgba(0, 0, 0, 0.5),
+      0 0 36px rgba(254, 243, 199, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
 }
 .dn-landing-feature-body {
