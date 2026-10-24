@@ -139,6 +139,11 @@ gs_stage "eval-adapter" "$EVAL_TIMEOUT_MIN" "$PY" training/evaluate.py --offline
   --metrics-dir "$OUT/eval/stem" --truth-log "$OUT/truth_curve.jsonl" --eval "${EXISTING[@]}"
 
 echo "== 6/6 bake-off =="
+# The 35B llama-server sleeps after 10 idle minutes and reloads on the next request. Pay that reload now, before the
+# bake-off client starts measuring (best effort: never blocks the cycle).
+if [[ -x scripts/fleet/spark-units/llama-warm.sh ]]; then
+  scripts/fleet/spark-units/llama-warm.sh --url "${SERVE_URL%/v1}" || true
+fi
 "$PY" training/nightly_candidates.py --out "$OUT" --serve-url "$SERVE_URL" --serve-model "$SERVE_MODEL" \
   --max-fairness-gap "$MAX_FAIRNESS_GAP" --min-subject-score "$MIN_SUBJECT_SCORE"
 

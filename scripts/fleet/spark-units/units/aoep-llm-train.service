@@ -1,0 +1,20 @@
+[Unit]
+Description=AOEP Spark STEM QLoRA training (continuous; pause with ~/.gs-hold/stem-train)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@ROOT@
+EnvironmentFile=-%h/.config/aoep/spark-units.env
+ExecStart=@ROOT@/scripts/fleet/spark-units/llm-forever.sh
+Nice=10
+Restart=always
+RestartSec=30
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=90
+StandardOutput=append:%h/.local/share/aoep-train/llm.log
+StandardError=append:%h/.local/share/aoep-train/llm.log
+
+[Install]
+WantedBy=default.target

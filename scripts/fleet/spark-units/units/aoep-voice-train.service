@@ -1,0 +1,20 @@
+[Unit]
+Description=AOEP Khmer CosyVoice fine-tune (continuous; held by ~/.local/share/aoep-train/hold-voice-train)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/code/gs-wt/spark-cosyvoice-khmer
+EnvironmentFile=-%h/.config/aoep/spark-units.env
+ExecStart=@ROOT@/scripts/fleet/spark-units/voice-forever.sh
+Nice=10
+Restart=always
+RestartSec=30
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=90
+StandardOutput=append:%h/.local/share/aoep-train/voice.log
+StandardError=append:%h/.local/share/aoep-train/voice.log
+
+[Install]
+WantedBy=default.target
