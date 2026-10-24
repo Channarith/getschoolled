@@ -45,7 +45,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-UNITS=(aoep-llm-train aoep-voice-train aoep-voice-ingest aoep-gpu-balance)
+UNITS=(aoep-llm-train aoep-voice-train aoep-voice-ingest aoep-gpu-balance aoep-enroll-ui aoep-listening-lab)
 [ "${LEGACY}" = 1 ] && UNITS+=(aoep-course-translate)
 RETIRED_DROPINS=("aoep-voice-ingest.service.d/gpu.conf")
 TS="$(date +%Y%m%d-%H%M%S)"

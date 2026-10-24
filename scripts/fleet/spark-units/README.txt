@@ -12,6 +12,9 @@ WHAT IS HERE
   voice-ingest-forever.sh  CosyVoice voice-data ingest; GPU ASR only when the CUDA policy passes
   gpu-balance-monitor.sh   launcher for aoep_shared/spark_balance.py (the monitor's logic and tests)
   llama-warm.sh            wake the llama-server and load its model before the bake-off (hooked into spark_nightly.sh)
+  enroll-ui.sh / aoep-enroll-ui.service     voice enrollment page, 127.0.0.1:8780, MemoryMax 2G, Restart=always
+  listening-lab.sh / aoep-listening-lab.service   voice listening lab, 127.0.0.1:8790, serves the newest runs/*-clones
+  uninstall.sh             removes the two lab units (dry run by default; training units only when named)
   translate-forever.sh     LEGACY v1 CPU translation loop; refuses to run unless AOEP_LEGACY_TRANSLATE=1
 
 HOW THE LOOPS BEHAVE
@@ -22,6 +25,27 @@ HOW THE LOOPS BEHAVE
     one starts; delete the file to resume. A frozen loop (kill -STOP PID) also pauses it, but survives no reboot.
   - Test hook: AOEP_FOREVER_ONCE=1 makes any loop stop after one iteration.
   - Overrides without editing a unit: ~/.config/aoep/spark-units.env (VAR=value lines; every unit reads it).
+
+THE GPU LOCK, PRIORITIES AND THE DEMO LABS (scripts/gs_run.sh, scripts/fleet/spark_gate.sh)
+  Problems this fixes: a stuck nightly step held ~/.gs-gpu.lock for hours at 0% GPU; the same clone job queued three
+  times behind it; a hand-started 3-worker ingest took 70 GB of the shared pool so every job refused to start.
+  - One job per --name: a second gs_run.sh with the same name exits 75 at once and names the first.
+  - Waiting is interruptible (non-blocking flock polled every 2 s), so TERM to a queued job works immediately.
+  - --priority interactive (default) or background. Background jobs get an idle watchdog: no CPU in the process tree
+    AND GPU 0% for --idle-timeout seconds (default 1800) stops the job (exit 125) and frees the lock. The nightly
+    bake-off runs under gs_stage with BAKEOFF_TIMEOUT_MIN (90) and BAKEOFF_IDLE_S (1200).
+  - An interactive job that has waited GS_PREEMPT_AFTER seconds (900; --preempt-after) for the lock sends TERM, then KILL
+    after GS_PREEMPT_GRACE_S (60), to a BACKGROUND holder registered in ~/.gs-gpu.lock.owner (gs_run.sh and
+    spark_nightly.sh both register). It never preempts an interactive holder.
+  - Hand-run ingest: cosyvoice_batch_ingest.py refuses --workers above AOEP_INGEST_MAX_WORKERS (default 1) unless
+    AOEP_INGEST_FORCE=1.
+  - Status: scripts/fleet_status.sh ends with four lines for the Spark (GPU lock holder and age, memory against the 16 GB
+    gate, lab ports, queued waiters); the same lines alone: bash scripts/fleet/spark_gate.sh. --no-gate hides them.
+  Labs: install.sh writes both lab units (never enables or starts them). To run them:
+    scripts/fleet/spark-units/install.sh --root <worktree> --apply --enable aoep-enroll-ui --enable aoep-listening-lab
+    systemctl --user start aoep-enroll-ui aoep-listening-lab
+  then from the laptop: ssh -N -L 8780:127.0.0.1:8780 -L 8790:127.0.0.1:8790 nvidia@192.168.1.107
+  Settings (no unit edit): ~/.config/aoep/spark-units.env with AOEP_LAB_OUT, AOEP_VOICES_DIR, AOEP_VENV.
 
 THE BALANCE MONITOR (aoep_shared/spark_balance.py)
   Jobs: (1) pause yt-dlp with SIGSTOP when MemAvailable is low and continue it when memory recovers;

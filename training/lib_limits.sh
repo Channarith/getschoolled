@@ -20,7 +20,8 @@
 # the watchdog is reaped; children are waited for so no zombie is left behind.
 #
 # Exit codes from gs_stage: the command's own, 124 timeout, 75 aborted to protect the host.
-# Tests shrink time: GS_TIMEOUT_SCALE=1 (seconds per "minute"), GS_KILL_AFTER=2, GS_MEM_CHECK_EVERY=1,
+# GS_STAGE_IDLE_S=<seconds> (per call) stops a stage whose process tree uses no CPU while the GPU reads 0% for that long
+# (gs_run.sh --idle-timeout; exit 125); unset or 0 = off. Tests shrink time: GS_TIMEOUT_SCALE=1 (seconds per "minute"), GS_KILL_AFTER=2, GS_MEM_CHECK_EVERY=1,
 # GS_FAKE_AVAIL_GB=<n> / GS_FAKE_TOTAL_GB=<n> to simulate memory sizes.
 
 GS_ROOT="${GS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -124,8 +125,8 @@ gs_stage() {
   trap 'gs_cleanup' EXIT
   set -m
   if [ "$mode" = "gs_run.sh" ]; then
-    "$GS_RUN" --name "$name" --timeout "$limit_s" ${GS_MEM_MAX_GB:+--mem-max "$GS_MEM_MAX_GB"} \
-      --cpus "$(( GS_CPU_QUOTA / 100 ))" -- "$@" &
+    "$GS_RUN" --name "$name" --timeout "$limit_s" --priority background --idle-timeout "${GS_STAGE_IDLE_S:-0}" \
+      ${GS_MEM_MAX_GB:+--mem-max "$GS_MEM_MAX_GB"} --cpus "$(( GS_CPU_QUOTA / 100 ))" -- "$@" &
   else
     ${runner[@]+"${runner[@]}"} "$@" &
   fi
