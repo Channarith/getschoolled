@@ -76,6 +76,8 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [fill, setFill] = useState(false);
+  const [canFullscreen, setCanFullscreen] = useState(false);
   const [error, setError] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantStatus, setAssistantStatus] = useState("");
@@ -906,6 +908,33 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     });
   }
 
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1024px)");
+    setFill(mq.matches);
+    setCanFullscreen(Boolean(document.fullscreenEnabled && document.documentElement.requestFullscreen));
+  }, []);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen?.().catch(() => {});
+      return;
+    }
+    setFill(true);
+    void document.documentElement.requestFullscreen?.().catch(() => {});
+  }
+
+  function leaveStage() {
+    if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => {});
+    if (window.history.length > 1) window.history.back();
+    else window.location.href = "/";
+  }
+
+  function onStageDoubleClick(event: React.MouseEvent) {
+    if ((event.target as HTMLElement).closest("button, a, input, select, textarea")) return;
+    if (canFullscreen) toggleFullscreen();
+    else setFill((v) => !v);
+  }
+
   const HELP_KEY = "salareen.onTheGo.voiceTutorial.v1";
   useEffect(() => {
     if (!helpOpen) return;
@@ -971,7 +1000,19 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   }
 
   return (
-    <main className="container" style={{ maxWidth: 720 }}>
+    <main
+      className={fill ? "container otg-stage otg-fill" : "container otg-stage"}
+      style={{ maxWidth: fill ? undefined : 720 }}
+      onDoubleClick={onStageDoubleClick}
+    >
+      <div className="otg-bar">
+        {canFullscreen || !fill ? (
+          <button type="button" data-testid="on-the-go-fullscreen" aria-label={t("drive.fullscreen")} title={t("drive.fullscreen")} onClick={() => (canFullscreen ? toggleFullscreen() : setFill(true))}>⛶</button>
+        ) : null}
+        {fill ? (
+          <button type="button" data-testid="on-the-go-exit" aria-label={t("drive.leave")} title={t("drive.leave")} onClick={leaveStage}>✕</button>
+        ) : null}
+      </div>
       <h1>{t("drive.pageTitle")}</h1>
       <p className="muted">{t("drive.pageIntro")}</p>
       <p className="muted" style={{ fontSize: 14 }}>

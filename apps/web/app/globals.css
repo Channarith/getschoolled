@@ -504,6 +504,19 @@ a {
   }
 }
 
+/* On the Go: fills the screen on phones and tablets (and on demand elsewhere). */
+.otg-bar { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); z-index: 1050; display: flex; gap: 8px; }
+.otg-bar button { width: 48px; height: 48px; padding: 0; border-radius: 50%; border: 2px solid #d4af37; background: #0b1020; color: #fde047; font: 800 20px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.otg-stage { position: relative; }
+.otg-fill {
+  position: fixed; inset: 0; z-index: 900; width: 100%; max-width: none !important; margin: 0 !important;
+  height: 100vh; height: 100dvh; overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
+  background: var(--bg);
+  padding: max(40px, calc(env(safe-area-inset-top) + 32px)) max(14px, env(safe-area-inset-right)) max(96px, calc(env(safe-area-inset-bottom) + 84px)) max(14px, env(safe-area-inset-left));
+}
+.otg-fill > h1, .otg-fill > p, .otg-fill > .card { max-width: 760px; margin-left: auto; margin-right: auto; }
+.otg-fill > h1 { padding-right: 110px; font-size: clamp(1.3rem, 5vw, 2rem); }
+
 /* Single-column page shell — mobile-first, compact on all viewports. */
 .page-one {
   max-width: 640px;

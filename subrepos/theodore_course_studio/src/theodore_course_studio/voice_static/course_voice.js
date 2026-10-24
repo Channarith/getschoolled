@@ -762,7 +762,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     }, 400);
   }
 
-  const TUTORIAL_KEY = "sala_demo_tutorial_seen_v1";
+  const TUTORIAL_KEY = options.demo ? "sala_demo_tutorial_seen_v2" : "sala_course_tutorial_seen_v1";
   const DEMO_TUTORIAL = [
     {
       icon: "✨", title: "Meet Sala",
@@ -795,6 +795,30 @@ export function initCourseVoiceOverlay(opts = {}) {
     },
   ];
 
+  const FULL_TUTORIAL = [
+    {
+      icon: "✨", title: "Welcome to your class",
+      lines: [
+        "Sala teaches this course out loud and you can talk back at any time.",
+        "Allow the microphone when your device asks, and find a quiet spot so Sala can hear you.",
+      ],
+    },
+    {
+      icon: "🎙️", title: "Just say it",
+      lines: ["Talk to Sala like a teacher. Try:"],
+      chips: ["pause", "next", "back", "repeat", "captions on", "full screen", "speak Spanish", "louder", "mute"],
+      after: ["Or ask any question about the lesson."],
+    },
+    {
+      icon: "👆", title: "Move through the lesson",
+      lines: [
+        "Tap the lesson to move to the next part.",
+        "Double-tap the lesson for full screen. Double-tap again to leave it.",
+        "Tap the yellow ? button any time to see this again.",
+      ],
+    },
+  ];
+
   function showDemoTutorial(startLesson) {
     document.querySelector(".sala-tutorial")?.remove();
     let step = 0;
@@ -804,12 +828,13 @@ export function initCourseVoiceOverlay(opts = {}) {
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-label", "How to use this lesson");
     const render = () => {
-      const t = DEMO_TUTORIAL[step];
-      const last = step === DEMO_TUTORIAL.length - 1;
+      const steps = options.demo ? DEMO_TUTORIAL : FULL_TUTORIAL;
+      const t = steps[step];
+      const last = step === steps.length - 1;
       const chips = t.chips ? `<ul>${t.chips.map((c) => `<li>${c}</li>`).join("")}</ul>` : "";
       overlay.innerHTML = `
         <div class="card">
-          <div class="dots">${DEMO_TUTORIAL.map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("")}</div>
+          <div class="dots">${(options.demo ? DEMO_TUTORIAL : FULL_TUTORIAL).map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("")}</div>
           <div class="icon" aria-hidden="true">${t.icon}</div>
           <h2>${t.title}</h2>
           ${t.lines.map((l) => `<p>${l}</p>`).join("")}${chips}${(t.after || []).map((l) => `<p>${l}</p>`).join("")}
@@ -824,9 +849,12 @@ export function initCourseVoiceOverlay(opts = {}) {
       const skip = overlay.querySelector(".skip");
       if (skip) skip.onclick = () => close();
     };
+    const onKey = (event) => { if (event.key === "Escape") close(); };
     const close = () => {
       try { window.localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* not kept: shows again next time */ }
+      document.removeEventListener("keydown", onKey);
       overlay.remove();
+      document.querySelector(".sala-help")?.focus?.({ preventScroll: true });
       if (startLesson) {
         goFullScreenOnPhone();
         const welcome = document.getElementById("page-welcome");
@@ -836,6 +864,8 @@ export function initCourseVoiceOverlay(opts = {}) {
     };
     render();
     mountOnTop(overlay);
+    document.addEventListener("keydown", onKey);
+    overlay.querySelector(".go")?.focus?.({ preventScroll: true });
   }
 
   function wireDemoHelp() {
@@ -845,7 +875,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     mountOnTop(help);
     let seen = false;
     try { seen = window.localStorage.getItem(TUTORIAL_KEY) === "1"; } catch { seen = false; }
-    if (!seen) showDemoTutorial(true);
+    if (!seen) showDemoTutorial(Boolean(options.demo));
   }
 
   function wireAvatarGesture() {
@@ -874,6 +904,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   renderOverlay();
   renderTypeToAsk();
   if (options.demo) wireAvatarGesture();
+  else wireDemoHelp();
   wireStageGestures();
   if (consented) startRecognizer();
 
