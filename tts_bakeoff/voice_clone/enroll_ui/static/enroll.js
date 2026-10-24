@@ -103,9 +103,10 @@
     });
   }
   function tab(which) {
-    $("wizard").hidden = which !== "wizard"; $("list").hidden = which !== "list";
-    $("tab-wizard").classList.toggle("on", which === "wizard"); $("tab-list").classList.toggle("on", which === "list");
+    $("wizard").hidden = which !== "wizard"; $("list").hidden = which !== "list"; $("say").hidden = which !== "say";
+    $("tab-wizard").classList.toggle("on", which === "wizard"); $("tab-list").classList.toggle("on", which === "list"); $("tab-say").classList.toggle("on", which === "say");
     if (which === "list") loadList();
+    if (which === "say") loadSay().catch((e) => { $("say-err").textContent = e.message; });
   }
 
   /* ---------- step 1 and 2: who and consent ---------- */
@@ -343,8 +344,62 @@
     } catch (e) { out.textContent = e.message; }
   }
 
+  /* ---------- say anything ---------- */
+  let sayTimer = null, lastSay = "";
+  async function loadSay() {
+    const data = await api("/api/speakers");
+    const ok = data.speakers.filter((s) => !s.revoked && s.samples.length);
+    const sp = $("say-speaker"), keep = sp.value;
+    sp.innerHTML = ok.map((s) => `<option value="${esc(s.speaker)}">${esc(s.name)}</option>`).join("") || '<option value="">nobody enrolled</option>';
+    if (keep) sp.value = keep;
+    $("say-model").innerHTML = cfg.models.map((m) => `<option>${esc(m)}</option>`).join("");
+    fillSayLangs();
+    $("say-go").disabled = !ok.length;
+    $("say-note").textContent = data.cuda ? "" : "This machine has no CUDA GPU: the page will show the command to run on the Spark.";
+    refreshSay();
+  }
+  function fillSayLangs() {
+    const langs = cfg.say_langs[$("say-model").value] || [], keep = $("say-lang").value;
+    $("say-lang").innerHTML = langs.map((l) => `<option value="${l}">${esc(cfg.lang_names[l] || l)}</option>`).join("");
+    if (langs.includes(keep)) $("say-lang").value = keep;
+  }
+  async function refreshSay() {
+    clearTimeout(sayTimer);
+    let r;
+    try { r = await api("/api/say"); } catch (e) { return; }
+    const box = $("say-history"), sig = JSON.stringify(r.jobs);
+    const active = r.jobs.some((j) => j.state === "running" || j.state === "waiting for GPU lock");
+    if (!active && /already/.test($("say-err").textContent)) $("say-err").textContent = "";
+    if (sig === lastSay) { if (active) sayTimer = setTimeout(refreshSay, 3000); return; }
+    lastSay = sig;
+    if (!r.jobs.length) { box.innerHTML = '<p class="hint">Nothing yet.</p>'; return; }
+    box.innerHTML = "";
+    r.jobs.forEach((j) => {
+      const d = document.createElement("div"); d.className = "say-item"; d.dataset.id = j.id; d.dataset.state = j.state;
+      d.innerHTML = `<div class="ai">${esc(j.label)}</div><div>${esc(j.text)}</div>
+        <div class="meta">${esc(j.model)} - ${esc(cfg.lang_names[j.lang] || j.lang)} - ${esc(j.created)} - <span class="state ${esc(j.state)}">${esc(j.state)}</span></div>` +
+        (j.audio ? `<audio controls preload="auto" src="${j.audio}"></audio><a href="${j.audio}" download="${esc(j.speaker)}-${esc(j.id)}.wav">Download</a>` : "") +
+        (j.log_tail ? `<pre>${esc(j.log_tail)}</pre>` : "");
+      box.appendChild(d);
+    });
+    if (active) sayTimer = setTimeout(refreshSay, 3000);
+  }
+  $("say-model").onchange = fillSayLangs;
+  $("say-text").oninput = () => { $("say-count").textContent = `${$("say-text").value.length} / ${cfg.say_max_chars}`; };
+  $("say-go").onclick = async () => {
+    $("say-err").textContent = ""; $("say-note").textContent = "";
+    $("say-go").disabled = true;
+    try {
+      const r = await api("/api/say/" + $("say-speaker").value, { method: "POST", json: { model: $("say-model").value, lang: $("say-lang").value, text: $("say-text").value } });
+      if (!r.started) $("say-note").innerHTML = `${esc(r.reason)}.<br>On the Spark, from the repo: <code>${esc(r.command)}</code>`;
+      else refreshSay();
+    } catch (e) { $("say-err").textContent = e.message; }
+    $("say-go").disabled = false;
+  };
+
   $("tab-wizard").onclick = () => tab("wizard");
   $("tab-list").onclick = () => tab("list");
+  $("tab-say").onclick = () => tab("say");
 
   api("/api/config").then((c) => {
     cfg = c;

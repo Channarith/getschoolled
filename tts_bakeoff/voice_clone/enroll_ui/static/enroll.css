@@ -42,3 +42,8 @@ code{font:.85rem ui-monospace,Menlo,monospace;background:var(--bg);padding:.1rem
 .checks{list-style:none;padding:0;margin:.4rem 0}.checks li{padding:.35rem .5rem;border-bottom:1px solid var(--line)}.checks li.warn b{color:var(--warn)}.checks li.pass b{color:var(--good)}
 pre#consent-text{font-family:system-ui,-apple-system,"PingFang HK","Noto Sans CJK HK","Noto Sans HK","Microsoft JhengHei",sans-serif}
 p.warn#draft-banner{border:1px solid var(--warn);border-radius:8px;padding:.5rem .7rem;margin:.4rem 0}
+textarea{display:block;width:100%;margin-top:.25rem;padding:.55rem .65rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
+.say-item{border:1px solid var(--line);border-radius:10px;padding:.7rem .8rem;margin:.6rem 0}
+.say-item .meta{font-size:.82rem;color:var(--mute)}.say-item .ai{font-size:.78rem;color:var(--warn);font-weight:600}
+.say-item audio{width:100%;margin:.4rem 0}.say-item .state.failed{color:var(--bad)}
+a{color:var(--acc)}

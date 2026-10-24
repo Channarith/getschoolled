@@ -19,7 +19,7 @@ DRAFT_CONSENT_LANGS = ("yue",)
 
 UI = {
     "en": {
-        "page_title": "Voice enrollment", "tab_wizard": "Enroll a voice", "tab_list": "Enrolled voices",
+        "page_title": "Voice enrollment", "tab_wizard": "Enroll a voice", "tab_list": "Enrolled voices", "tab_say": "Say anything",
         "step1": "1 Who", "step2": "2 Consent", "step3": "3 Record", "step4": "4 Done",
         "who_h": "Who is this?", "full_name": "Full name", "name_ph": "e.g. Alice Tran", "role": "Role",
         "role_employee": "Employee", "role_owner": "Owner", "interface_language": "Page language",
@@ -49,7 +49,7 @@ UI = {
         "check_ok": "All lines match the script.", "line_pass": "match", "line_warn": "check",
     },
     "yue": {
-        "page_title": "聲音登記", "tab_wizard": "登記聲音", "tab_list": "已登記嘅聲音",
+        "page_title": "聲音登記", "tab_wizard": "登記聲音", "tab_list": "已登記嘅聲音", "tab_say": "講任何嘢",
         "step1": "1 邊位", "step2": "2 同意", "step3": "3 錄音", "step4": "4 完成",
         "who_h": "邊位呀？", "full_name": "全名", "name_ph": "例如：陳大文", "role": "身份",
         "role_employee": "僱員", "role_owner": "擁有人", "interface_language": "頁面語言",

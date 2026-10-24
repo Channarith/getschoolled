@@ -12,6 +12,7 @@
   <nav>
     <button id="tab-wizard" class="tab on" type="button" data-i18n="tab_wizard">Enroll a voice</button>
     <button id="tab-list" class="tab" type="button" data-i18n="tab_list">Enrolled voices</button>
+    <button id="tab-say" class="tab" type="button" data-i18n="tab_say">Say anything</button>
     <label class="uilang"><span data-i18n="interface_language">Page language</span> <select id="ui-lang"></select></label>
   </nav>
 </header>
@@ -106,6 +107,21 @@
       <p class="hint" id="root-note"></p>
       <div id="speakers"></div>
     </div>
+  </section>
+  <section id="say" hidden>
+    <div class="card">
+      <h2>Say anything</h2>
+      <p class="hint">Type any words and hear them in an enrolled, consented voice. Every clip is labelled as an AI-generated voice and stays on this machine.</p>
+      <div class="row">
+        <label>Voice <select id="say-speaker"></select></label>
+        <label>Model <select id="say-model"></select></label>
+        <label>Language <select id="say-lang"></select></label>
+      </div>
+      <label>Words <textarea id="say-text" rows="3" maxlength="500" placeholder="Type a sentence to hear it in this voice"></textarea></label>
+      <div class="row"><button id="say-go" class="primary" type="button">Synthesize</button><span class="hint" id="say-count">0 / 500</span></div>
+      <p class="err" id="say-err"></p><p class="hint" id="say-note"></p>
+    </div>
+    <div class="card"><h2>This session</h2><div id="say-history"><p class="hint">Nothing yet.</p></div></div>
   </section>
 </main>
 <script src="enroll.js"></script>
