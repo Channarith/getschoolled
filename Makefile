@@ -73,7 +73,7 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_children_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_llm_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests tts_bakeoff/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_children_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_llm_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q
 
 # Count collected tests + map them to the 16 ecosystem sub-apps (release gate).
 # MIN ratchets the per-sub-app minimum upward over time (0 = report only).
@@ -168,11 +168,11 @@ lab-smoke:
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_children_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_llm_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q \
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests tts_bakeoff/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests subrepos/theodore_children_webcam_lab/tests subrepos/theodore_rag_lab/tests subrepos/theodore_llm_lab/tests subrepos/theodore_drive_lab/tests subrepos/theodore_homework_lab/tests subrepos/theodore_music_lab/tests labs/*/tests private/*/tests -q \
 		--cov=packages/shared/src/aoep_shared --cov-report=term-missing:skip-covered
 
 lint:
-	$(VENV_PY) -m ruff check packages/shared/src packages/sdk/src packages/vision-lab/src packages/webcam-vision/src services/*/src apps/webcam-lab/src qa training
+	$(VENV_PY) -m ruff check packages/shared/src packages/sdk/src packages/vision-lab/src packages/webcam-vision/src services/*/src apps/webcam-lab/src qa training tts_bakeoff
 
 # Stress/perf the running APIs (start services first, e.g. `make up`).
 stress:
