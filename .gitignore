@@ -157,3 +157,6 @@ data/course_translations/**/*.partial
 data/_incoming*/
 data/_staged*/
 data/voice/
+
+# TTS bake-off run output (audio, manifests, panels)
+/runs/
