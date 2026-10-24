@@ -16,6 +16,7 @@ REGISTRY = {
     "cosyvoice2": ("cosyvoice2", "CosyVoice2Adapter"),
     "fish_speech15": ("fish_speech15", "FishSpeech15Adapter"),
     "azure": ("azure", "AzureAdapter"),
+    "edge_tts": ("edge_tts", "EdgeTTSAdapter"),
 }
 
 

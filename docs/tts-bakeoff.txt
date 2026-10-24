@@ -118,3 +118,22 @@ RECOMMENDED ORDER
   5. Build panels for km, vi, th first. Pick per-language winners from the panel, with ASR as a screen.
   6. Only then decide whether fine-tuning (VoxCPM2 LoRA for Khmer is reported in the literature) is worth the
      GPU time, and whether any model needs a legal read of its data terms before launch.
+
+LISTENING LAB (hear and rate the voices side by side, on the Mac)
+  1. On the Spark, run the bake-off and the scorer (commands above). Output lands in ~/runs/<date>/.
+  2. On the Mac, copy it:  rsync -a nvidia@192.168.1.107:runs/2026-10-24/ ~/getschoolled/runs/2026-10-24/
+  3. Open the lab:         python3 -m tts_bakeoff.lab --out runs/2026-10-24            (optional: --port 8765, --no-open)
+     It serves the folder on 127.0.0.1 only (no network, no telemetry) and opens your browser.
+  Try it without any run:  python3 -m tts_bakeoff.lab --demo     (synthetic tones, 3 voices, English and Khmer)
+  Page without a server:   python3 -m tts_bakeoff.lab --export lab-page   then open lab-page/index.html and press
+                           "Open run folder" to pick the run folder.
+  Other voices (Azure, the old CosyVoice fine-tune): drag audio files or folders onto the page. Voice, language
+     and sentence id are read from OUT/<model>/<lang>/<id>.wav, or a small form asks. Dropped voices are marked
+     UNKNOWN LICENSE until they are in candidates.yaml.
+  The grid has one row per sentence and one column per voice, with ASR error, speech rate and warnings from
+  scores.jsonl. NOT SHIPPABLE voices (Fish Speech 1.5) are marked. Keys: space play/pause, arrows move, 1-5 rate
+  naturalness, Alt+1-5 clarity, b blind mode, n/N next/previous sentence, Shift+letter play that voice, ? help.
+  Blind mode shuffles the voices with a seed into A/B/C labels. Ratings are kept in the browser (localStorage).
+  "Export ratings (panel JSON)" writes one file per language with its own key, so no panel build is needed:
+    python3 -m tts_bakeoff.panel aggregate --out runs/2026-10-24 ratings_lab_*.json
+  The Summary tab shows per-voice means, head-to-head wins and a verdict template; Reveal turns blind mode off.
