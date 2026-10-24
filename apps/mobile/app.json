@@ -94,7 +94,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 9726
+      "versionCode": 9725
     },
     "extra": {
       "deployMode": "cloud",
