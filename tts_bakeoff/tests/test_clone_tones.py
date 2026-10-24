@@ -213,3 +213,18 @@ def test_cosyvoice2_instruct_switches_the_call():
     assert m.calls[-1][0] == "zero_shot"
     plain._infer(m, "hello", "es", "PROMPT")
     assert m.calls[-1][0] == "cross_lingual"
+
+
+@needs_ffmpeg
+def test_say_once_tone_needs_the_addendum(base, form, tmp_path, addendum):
+    from tts_bakeoff.voice_clone import bakeoff
+
+    _enrolled(base, form, tmp_path)
+    out = tmp_path / "say" / "x.wav"
+    bakeoff.say_once("alice", "mock", "en", "hello there", out, base, gpu=False)             # neutral: base consent is enough
+    with pytest.raises(registry.ConsentError, match="stylized_versions"):
+        bakeoff.say_once("alice", "mock", "en", "hello there", tmp_path / "say" / "y.wav", base, gpu=False, tone="cute")
+    assert not (tmp_path / "say" / "y.wav").exists()
+    registry.grant_scope("alice", "stylized_versions", addendum, base)
+    meta = bakeoff.say_once("alice", "mock", "en", "hello there", tmp_path / "say" / "y.wav", base, gpu=False, tone="cute")
+    assert meta["ai_generated"] and "cute tone" in meta["label"] and meta["tone"] == "cute" and (tmp_path / "say" / "y.wav").is_file()
