@@ -9,6 +9,9 @@ import time
 from pathlib import Path
 
 REQUIRED_SCOPES = ("commercial_use", "model_training", "course_narration")
+# Granted separately, with its own signed addendum: altered or stylized versions of the voice (cute, anime, pitch/speed
+# changes). Not implied by the required scopes, so speakers enrolled before this existed stay neutral-only.
+OPTIONAL_SCOPES = ("stylized_versions",)
 ROLES = ("owner", "employee")
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{1,40}$")
 
@@ -54,6 +57,11 @@ def record_consent(speaker: str, name: str, role: str, signed_form: Path | str, 
     if role not in ROLES:
         raise ConsentError(f"role must be one of {ROLES}")
     missing = [s for s in REQUIRED_SCOPES if s not in scopes]
+    unknown = [s for s in scopes if s not in REQUIRED_SCOPES + OPTIONAL_SCOPES]
+    if unknown:
+        raise ConsentError(f"unknown consent scope(s): {', '.join(unknown)}")
+    if "stylized_versions" in scopes:
+        raise ConsentError("stylized_versions is granted with grant_scope and its own signed addendum, not with the base form")
     if missing:
         raise ConsentError(f"consent must cover {', '.join(REQUIRED_SCOPES)}; missing {', '.join(missing)}")
     form = Path(signed_form)
@@ -70,6 +78,36 @@ def record_consent(speaker: str, name: str, role: str, signed_form: Path | str, 
         rec["evidence"] = evidence
     _write(d / "consent.json", rec)
     return rec
+
+
+def grant_scope(speaker: str, scope: str, signed_form: Path | str, base: Path | None = None, date: str | None = None,
+                addendum_version: str = "stylized-1") -> dict:
+    """Add an optional scope after the person signs its addendum. Needs an existing, valid consent record."""
+    if scope not in OPTIONAL_SCOPES:
+        raise ConsentError(f"{scope!r} is not an optional scope; choose from {OPTIONAL_SCOPES}")
+    rec = require_consent(speaker, "course_narration", base)
+    form = Path(signed_form)
+    if not form.is_file() or form.stat().st_size < 100:
+        raise ConsentError(f"signed addendum not found at {form}: get it signed first")
+    d = speaker_dir(speaker, base)
+    kept = d / "forms" / f"{scope}-{form.name}"
+    kept.write_bytes(form.read_bytes())
+    rec.setdefault("scope_grants", {})[scope] = {"date": date or time.strftime("%Y-%m-%d"), "form_file": kept.name,
+                                                  "form_sha256": sha256_file(kept), "addendum_version": addendum_version}
+    if scope not in rec["scopes"]:
+        rec["scopes"].append(scope)
+    _write(d / "consent.json", rec)
+    return rec
+
+
+def revoke_scope(speaker: str, scope: str, base: Path | None = None) -> None:
+    """Withdraw only an optional scope (the person keeps neutral-voice consent)."""
+    if scope not in OPTIONAL_SCOPES:
+        raise ConsentError(f"only optional scopes can be withdrawn on their own: {OPTIONAL_SCOPES}")
+    rec = load_consent(speaker, base)
+    rec["scopes"] = [x for x in rec.get("scopes", []) if x != scope]
+    (rec.setdefault("scope_revoked", {}))[scope] = time.strftime("%Y-%m-%d")
+    _write(speaker_dir(speaker, base) / "consent.json", rec)
 
 
 def load_consent(speaker: str, base: Path | None = None) -> dict:
@@ -94,6 +132,11 @@ def require_consent(speaker: str, scope: str = "course_narration", base: Path | 
         raise ConsentError(f"consent for {speaker!r} was revoked on {rec.get('revoked_on')}: refusing")
     if scope not in rec.get("scopes", []):
         raise ConsentError(f"consent for {speaker!r} does not cover {scope!r}")
+    if scope in OPTIONAL_SCOPES:
+        grant = (rec.get("scope_grants") or {}).get(scope)
+        gform = d / "forms" / (grant or {}).get("form_file", "")
+        if not grant or not gform.is_file() or sha256_file(gform) != grant.get("form_sha256"):
+            raise ConsentError(f"the signed addendum for {scope!r} ({speaker!r}) is missing or changed: refusing")
     form = d / "forms" / rec.get("form_file", "")
     if not form.is_file() or sha256_file(form) != rec.get("form_sha256"):
         raise ConsentError(f"signed form for {speaker!r} is missing or changed: refusing")

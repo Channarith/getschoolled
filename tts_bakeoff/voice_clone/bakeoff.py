@@ -4,6 +4,8 @@
   python3 -m tts_bakeoff.voice_clone.bakeoff enroll   --speaker alice --audio ~/alice.m4a --transcript-file ~/alice.txt --lang en
   python3 -m tts_bakeoff.voice_clone.bakeoff run      --out runs/2026-10-25-clones [--speakers alice,bob] [--models voxcpm2,cosyvoice2] [--langs en,es,zh] [--limit 3]
   python3 -m tts_bakeoff.voice_clone.bakeoff revoke   --speaker alice
+  python3 -m tts_bakeoff.voice_clone.bakeoff grant-scope --speaker alice --signed-form alice-stylized-addendum.pdf   (CONSENT_ADDENDUM_STYLIZED.txt)
+  python3 -m tts_bakeoff.voice_clone.bakeoff tones    --out runs/2026-10-25-clone-tones [--tones neutral,cute,anime,...] [--mechanisms dsp,model]
   python3 -m tts_bakeoff.voice_clone.bakeoff list
 
 Output: OUT/<model>~<speaker>/<lang>/<id>.wav + manifest.jsonl + meta.json (clone=true, consented=true) + empty scores.jsonl,
@@ -20,7 +22,7 @@ from pathlib import Path
 
 from tts_bakeoff.build_sentences import load
 
-from . import enroll, registry, synth
+from . import enroll, registry, synth, tones
 
 
 def cmd_consent(a) -> int:
@@ -96,6 +98,16 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--models", default="voxcpm2,cosyvoice2"); r.add_argument("--langs", default="en,es,zh")
     r.add_argument("--limit", type=int, default=3); r.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
     v = sub.add_parser("revoke"); v.add_argument("--speaker", required=True)
+    g = sub.add_parser("grant-scope"); g.add_argument("--speaker", required=True); g.add_argument("--signed-form", required=True)
+    g.add_argument("--scope", default="stylized_versions", choices=registry.OPTIONAL_SCOPES)
+    w = sub.add_parser("withdraw-scope"); w.add_argument("--speaker", required=True)
+    w.add_argument("--scope", default="stylized_versions", choices=registry.OPTIONAL_SCOPES)
+    t = sub.add_parser("tones"); t.add_argument("--out", required=True); t.add_argument("--speakers", default="")
+    t.add_argument("--models", default="voxcpm2"); t.add_argument("--langs", default="en,es,zh")
+    t.add_argument("--tones", default="all", help="comma list of neutral, presets, blends; 'all' = neutral + presets + blends; 'presets' = neutral + presets")
+    t.add_argument("--mechanisms", default="dsp,model", help="dsp = post-process the neutral clone (CPU); model = ask the model for the style (one GPU synthesis per tone)")
+    t.add_argument("--model-blends", action="store_true", help="also run blends through the model mechanism (22 extra GPU clips per sentence)")
+    t.add_argument("--limit", type=int, default=1); t.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
     sub.add_parser("list")
     a = ap.parse_args(argv)
     try:
@@ -109,7 +121,23 @@ def main(argv: list[str] | None = None) -> int:
             for s in registry.list_speakers():
                 rec = registry.load_consent(s); print(s, rec["role"], "REVOKED" if rec["revoked"] else "ok", f"{len(rec['samples'])} sample(s)")
             return 0
+        if a.cmd == "grant-scope":
+            rec = registry.grant_scope(a.speaker, a.scope, a.signed_form)
+            print(f"{a.scope} granted to {a.speaker} (addendum sha256 {rec['scope_grants'][a.scope]['form_sha256'][:12]}...)"); return 0
+        if a.cmd == "withdraw-scope":
+            registry.revoke_scope(a.speaker, a.scope); print(f"{a.scope} withdrawn for {a.speaker}; natural-voice consent is unchanged"); return 0
         speakers = [s for s in a.speakers.split(",") if s] or registry.list_speakers()
+        if a.cmd == "tones":
+            if a.tones == "all":
+                names = [tones.NEUTRAL, *tones.PRESET_NAMES, *tones.BLEND_NAMES]
+            elif a.tones == "presets":
+                names = [tones.NEUTRAL, *tones.PRESET_NAMES]
+            else:
+                names = [x for x in a.tones.split(",") if x]
+            counts = tones.run_tones(Path(a.out), speakers, a.models.split(","), a.langs.split(","), names, a.mechanisms.split(","),
+                                     a.limit, gpu=not a.no_gpu, model_blends=a.model_blends)
+            print(counts)
+            return 0 if counts["failed"] == 0 else 1
         counts = synthesize_all(Path(a.out), speakers, a.models.split(","), a.langs.split(","), a.limit, gpu=not a.no_gpu)
         print(counts)
         return 0 if counts["failed"] == 0 and counts["refused"] == 0 else 1
