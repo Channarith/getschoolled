@@ -113,6 +113,7 @@ class HostReport:
     lock: dict[str, str] = field(default_factory=dict)
     jobs: list[dict[str, Any]] = field(default_factory=list)
     cosyvoice: dict[str, Any] = field(default_factory=dict)
+    queue: dict[str, Any] = field(default_factory=dict)  # scripts/fleet/queue.py status --compact
     batch_logs: list[dict[str, Any]] = field(default_factory=list)
     timers: list[str] = field(default_factory=list)
     now: int = 0
@@ -277,6 +278,14 @@ def parse_report(name: str, text: str) -> HostReport:
             rep.batch_logs.append({"file": fname, "mtime": int(_num(mtime) or 0), "last": last})
         elif section == "timers":
             rep.timers.append(line.strip())
+        elif section == "queue":
+            if line.startswith("{"):
+                try:
+                    rep.queue = json.loads(line)
+                except json.JSONDecodeError:
+                    rep.queue = {"_state": "QUEUE_BAD_JSON"}
+            elif line.startswith("QUEUE_"):
+                rep.queue = {"_state": line.split()[0]}
         elif section == "owners":
             _parse_owner_line(rep, line)
         elif section == "tmux":
@@ -640,6 +649,7 @@ def analyze(rep: HostReport, budget: dict[str, str] | None = None) -> list[Findi
                            f"{b['file']}: {'finished' if finished else 'last line'} {age_h:.0f} h ago: {b['last'][:90]}", ""))
     if rep.timers:
         out.append(Finding(INFO, name, "TIMERS", f"{len(rep.timers)} relevant systemd user timer(s)", ""))
+    out.extend(queue_findings(rep))
     shown = 0
     for p in rep.procs_cpu:
         if shown >= TOP_PROC_COUNT or p.pcpu < TOP_PROC_MIN_CPU_PCT:
@@ -660,6 +670,79 @@ def analyze(rep: HostReport, budget: dict[str, str] | None = None) -> list[Findi
         out.append(Finding(INFO, name, "TOP_PROC", " | ".join(parts), ""))
         shown += 1
     out.sort(key=lambda f: _ORDER[f.severity])
+    return out
+
+
+QUEUE_WORKER_STALE_S = 300  # no worker heartbeat for 5 min
+QUEUE_IDLE_WITH_WORK_S = 1800  # idle for 30 min while eligible work is waiting
+
+
+def _age(now: float, ts: float | None) -> str:
+    if not ts:
+        return "never"
+    s = int(now - ts)
+    return f"{s // 86400} d ago" if s >= 86400 else f"{s // 3600} h ago" if s >= 3600 else f"{max(0, s) // 60} min ago"
+
+
+def queue_findings(rep: HostReport) -> list[Finding]:
+    """Findings from the machine's job queue (scripts/fleet/queue.py): worker health, stale leases,
+    CUDA-blocked GPU work, idle-with-work, dead jobs and a one-line summary."""
+    q = rep.queue
+    name = rep.name
+    if not q:
+        return []
+    state = q.get("_state")
+    if state == "QUEUE_NOT_INSTALLED":
+        return [Finding(INFO, name, "QUEUE_NOT_INSTALLED", "the fleet worker is not installed here, so nothing keeps this machine busy",
+                        "from a checkout of main: scripts/fleet/install-units.sh --enable-worker")]
+    if state == "QUEUE_NOT_STARTED":
+        return [Finding(WARN, name, "QUEUE_NOT_STARTED", "the fleet scripts are here but the worker never ran (no queue database)",
+                        "scripts/fleet/install-units.sh --enable-worker")]
+    if state:
+        return [Finding(WARN, name, state, "the queue status could not be read", "scripts/gs_worker.sh status")]
+    now = float(q.get("now") or rep.now or 0)
+    w = q.get("worker") or {}
+    out: list[Finding] = []
+    eligible = int(q.get("queued_eligible", 0))
+    running = q.get("running") or []
+    hb = w.get("heartbeat")
+    worker_down = hb is None or (now and now - hb > QUEUE_WORKER_STALE_S)
+    if worker_down and (eligible or running or q.get("stale_leases")):
+        out.append(Finding(WARN, name, "WORKER_DOWN",
+                           f"fleet worker heartbeat {_age(now, hb)}; {eligible} eligible job(s) waiting, {len(running)} recorded as running",
+                           "systemctl --user status gs-worker; systemctl --user reset-failed gs-worker && systemctl --user start gs-worker"))
+    if q.get("stale_leases"):
+        out.append(Finding(WARN, name, "QUEUE_STALE_LEASE",
+                           f"{q['stale_leases']} job lease(s) expired and not yet reclaimed (the worker is down or hung)",
+                           "systemctl --user restart gs-worker   (it returns them to the queue and stops leftover runners)"))
+    blocked = str(w.get("blocked", ""))
+    if w.get("state") == "cuda-blocked" or blocked.startswith("cuda"):
+        out.append(Finding(CRIT, name, "CUDA_BLOCKED",
+                           f"GPU jobs are NOT starting because the CUDA policy check fails: {blocked}",
+                           "check the driver/torch build: <venv>/bin/python -c 'import torch; print(torch.cuda.is_available())'; nvidia-smi; "
+                           "a kernel update may need a reboot. The worker retries every few minutes by itself."))
+    elif blocked and eligible:
+        out.append(Finding(INFO, name, "QUEUE_BLOCKED", f"eligible work is waiting but the worker is holding back: {blocked}", ""))
+    if eligible and not running and not q.get("paused") and not worker_down:
+        last_busy = q.get("last_busy") or 0
+        idle_s = now - last_busy if last_busy else q.get("oldest_eligible_age_s", 0)
+        if idle_s >= QUEUE_IDLE_WITH_WORK_S:
+            out.append(Finding(WARN, name, "IDLE_WITH_WORK",
+                               f"nothing has run for {idle_s / 60:.0f} min with {eligible} eligible job(s) waiting"
+                               + (f" ({blocked})" if blocked else ""),
+                               "scripts/gs_worker.sh status   (shows what blocks it: GPU lock, memory floor, CUDA check, paused)"))
+    if q.get("paused"):
+        out.append(Finding(INFO, name, "QUEUE_PAUSED", "the queue is paused: no new jobs start", "scripts/gs_worker.sh resume"))
+    dead = q.get("dead_24h") or []
+    if dead:
+        names = ", ".join(sorted({d.get("type", "?") for d in dead}))
+        out.append(Finding(WARN, name, "QUEUE_DEAD_JOBS", f"{len(dead)} job(s) gave up in the last 24 h ({names}): {dead[0].get('error', '')[:100]}",
+                           "scripts/gs_worker.sh list --state dead; fix the cause, then scripts/gs_worker.sh requeue <id>"))
+    succ = q.get("last_success") or {}
+    summary = (f"queue: {len(running)} running ({', '.join(r.get('type', '?') for r in running) or 'none'}), {eligible} waiting"
+               + (f", blocked: {q['queued_blocked']}" if q.get("queued_blocked") else "")
+               + "; last success " + (", ".join(f"{k} {_age(now, v)}" for k, v in sorted(succ.items())) or "none yet"))
+    out.append(Finding(INFO, name, "QUEUE_SUMMARY", summary, ""))
     return out
 
 

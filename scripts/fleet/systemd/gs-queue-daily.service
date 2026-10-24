@@ -1,0 +1,13 @@
+# Writes this machine's daily health summary to ~/.gs-queue/health/fleet-YYYY-MM-DD.txt and prunes
+# finished jobs older than 30 days. Read-only apart from the summary file and the prune.
+[Unit]
+Description=Salareen fleet daily summary (this machine)
+
+[Service]
+Type=oneshot
+WorkingDirectory=@REPO@
+ExecStart=@REPO@/scripts/gs_worker.sh report --write
+ExecStartPost=@REPO@/scripts/gs_worker.sh prune
+TimeoutStartSec=120
+Nice=15
+IOSchedulingClass=idle

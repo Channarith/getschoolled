@@ -202,5 +202,24 @@ if [ "$SAMPLE_SECONDS" -gt 0 ] && [ -n "$spin_cand" ]; then
     echo "t1 $p ${tk:-na} ${io:-na}"
   done
 fi
+echo "[queue]"
+# Where does this machine's worker run from? Ask its systemd unit; else the newest main worktree; else the usual checkouts.
+qrepo=""
+unit="$HOME_DIR/.config/systemd/user/gs-worker.service"
+if [ -f "$unit" ]; then qrepo="$(sed -n 's/^WorkingDirectory=//p' "$unit" | head -1)"; fi
+if [ -z "$qrepo" ] || [ ! -f "$qrepo/scripts/fleet/queue.py" ]; then
+  qrepo=""
+  for d in $(ls -d "$HOME_DIR"/code/gs-wt/main-* 2>/dev/null | sort -V | tail -1) "$HOME_DIR/code/getschoolled" "$HOME_DIR/getschoolled"; do
+    if [ -f "$d/scripts/fleet/queue.py" ]; then qrepo="$d"; break; fi
+  done
+fi
+if [ -n "$qrepo" ] && [ -f "$HOME_DIR/.gs-queue/queue.db" ]; then
+  python3 "$qrepo/scripts/fleet/queue.py" status --compact 2>/dev/null | head -c 6000
+  echo
+elif [ -n "$qrepo" ]; then
+  echo "QUEUE_NOT_STARTED repo=$qrepo"
+else
+  echo "QUEUE_NOT_INSTALLED"
+fi
 echo "[end]"
 exit 0

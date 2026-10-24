@@ -1,0 +1,13 @@
+{
+  "name": "validate-translations",
+  "description": "Check a translation library (structure, wrong script, loops, truncation) before anything ships. Daily on the Mac against data/_incoming_kalel; enqueue with another dir to check a different copy.",
+  "resource": "cpu",
+  "roles": ["mac", "kalel"],
+  "priority": 20,
+  "every_s": 86400,
+  "preemptible": true,
+  "timeout_s": 3600,
+  "max_attempts": 2,
+  "defaults": {"dir": "data/_incoming_kalel"},
+  "cmd": ["{python}", "scripts/validate_translations.py", "{dir}", "--out", "{state}/work/validation/{day}"]
+}

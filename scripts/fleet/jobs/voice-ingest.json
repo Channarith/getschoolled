@@ -1,0 +1,28 @@
+{
+  "name": "voice-ingest",
+  "description": "Voice-data ingest: download, denoise, transcribe on the GPU, export. Resumable per channel, so it yields the GPU to training. The sources are unlicensed YouTube channels: this builds an INTERNAL research dataset only; nothing from it ships without a licensed-sources allowlist (docs/data-flow.txt).",
+  "resource": "gpu",
+  "roles": ["spark"],
+  "priority": 30,
+  "fill": true,
+  "needs_cuda": true,
+  "preemptible": true,
+  "timeout_s": 86400,
+  "max_attempts": 5,
+  "defaults": {"pools": "km,zh,yue,zh_tw", "workers": "1"},
+  "env": {
+    "AOEP_ASR_ENGINE": "openai-whisper",
+    "AOEP_ASR_MODEL": "large-v3",
+    "AOEP_ASR_KM_ENGINE": "mms",
+    "AOEP_ASR_DETECT_LANGUAGE": "1",
+    "AOEP_ASR_DEVICE": "cuda",
+    "YT_DLP_COOKIES_FROM_BROWSER": "chromium:{home}/snap/chromium/common/chromium",
+    "YT_DLP_PLAYER_CLIENT": "web_safari",
+    "YT_DLP_SLEEP_REQUESTS": "2",
+    "AOEP_INGEST_MIN_FREE_MB": "8192",
+    "AOEP_INGEST_WORKER_MB": "6144",
+    "AOEP_ASR_MIN_FREE_MB": "4096",
+    "AOEP_ASR_SINGLE_MODEL_MB": "12288"
+  },
+  "cmd": ["{python}", "scripts/cosyvoice_batch_ingest.py", "--pool", "{pools}", "--workers", "{workers}"]
+}

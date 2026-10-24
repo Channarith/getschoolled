@@ -1,0 +1,15 @@
+{
+  "name": "harvest-crawl",
+  "description": "License-gated course-material crawl (services/harvester). Seeds are split by HOST across 3 shards (iBuyPower 2, Spark 1) so no machine duplicates another and every site is crawled politely from one place. A fresh set of shard jobs is created every day. Refuses to run while the license allowlist still contains non-commercial licenses.",
+  "resource": "net",
+  "roles": ["kalel", "spark"],
+  "priority": 40,
+  "shards": 3,
+  "preemptible": true,
+  "timeout_s": 23400,
+  "max_attempts": 4,
+  "backoff_s": 600,
+  "defaults": {"per_hour": "60"},
+  "machine_params": {"kalel": {"per_hour": "80"}, "spark": {"per_hour": "20"}},
+  "cmd": ["scripts/fleet/runners/harvest_run.sh", "{shard}", "{nshards}", "{per_hour}"]
+}

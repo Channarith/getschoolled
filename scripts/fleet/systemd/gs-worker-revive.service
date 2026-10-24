@@ -1,0 +1,9 @@
+# Hourly self-heal: if gs-worker hit its start limit and stayed failed, clear the failure and start it.
+# This is a bounded retry (once an hour), so it can never become a restart storm.
+[Unit]
+Description=Revive the Salareen fleet worker if it is down
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'systemctl --user is-active --quiet gs-worker.service || { systemctl --user reset-failed gs-worker.service; systemctl --user start gs-worker.service; }'
+TimeoutStartSec=60

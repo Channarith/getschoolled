@@ -1,0 +1,14 @@
+{
+  "name": "tts-bakeoff",
+  "description": "Synthesize the fixed sentence set with one TTS model. On demand: scripts/fleet/queue.py enqueue tts-bakeoff --payload '{\"model\": \"voxcpm2\", \"langs\": \"km,vi\"}'. Scoring and the listening panel run on the Mac.",
+  "resource": "gpu",
+  "roles": ["spark", "kalel"],
+  "priority": 40,
+  "needs_cuda": true,
+  "preemptible": true,
+  "timeout_s": 14400,
+  "max_attempts": 2,
+  "defaults": {"model": "voxcpm2", "langs": "km,vi,th,es,en", "limit": "40"},
+  "cmd": ["{python}", "-m", "tts_bakeoff.run_bakeoff", "--model", "{model}", "--langs", "{langs}", "--limit", "{limit}",
+          "--out", "{state}/work/bakeoff/{model}-{day}"]
+}

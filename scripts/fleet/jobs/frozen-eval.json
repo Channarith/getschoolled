@@ -1,0 +1,19 @@
+{
+  "name": "frozen-eval",
+  "description": "Score a base model or adapter on the frozen 200-item exam. Weekly by default; enqueue by hand to compare bases: scripts/fleet/queue.py enqueue frozen-eval --payload '{\"base_model\": \"models/weights/qwen3-8b\"}'",
+  "resource": "gpu",
+  "roles": ["spark"],
+  "priority": 80,
+  "window": ["22:00", "07:00"],
+  "tz": "America/Los_Angeles",
+  "every_s": 604800,
+  "needs_cuda": true,
+  "preemptible": false,
+  "timeout_s": 7200,
+  "max_attempts": 2,
+  "defaults": {"base_model": "models/weights/current"},
+  "env": {"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"},
+  "cmd": ["{python}", "training/evaluate.py", "--offline", "--device", "cuda", "--base-model", "{base_model}",
+          "--eval", "training/data/eval_frozen.jsonl", "--max-new-tokens", "96",
+          "--metrics-out", "{state}/work/eval/{day}-frozen.json"]
+}

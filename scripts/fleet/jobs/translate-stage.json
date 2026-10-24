@@ -1,0 +1,14 @@
+{
+  "name": "translate-stage",
+  "description": "Free NLLB-200 course translation (scripts/translate_on_machine.sh). Skips finished course-languages, so it is safe to stop and rerun. Spark takes the big European/Asian share, the iBuyPower the rest. On the Spark an existing course-translate tmux session may already be doing this: disable this type there until that session is retired.",
+  "resource": "gpu",
+  "roles": ["spark", "kalel"],
+  "priority": 50,
+  "fill": true,
+  "needs_cuda": true,
+  "preemptible": true,
+  "timeout_s": 43200,
+  "max_attempts": 5,
+  "machine_params": {"spark": {"share": "spark"}, "kalel": {"share": "ibuy"}},
+  "cmd": ["scripts/translate_on_machine.sh", "run", "{share}"]
+}

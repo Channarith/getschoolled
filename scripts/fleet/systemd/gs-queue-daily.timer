@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Salareen fleet summary
+
+[Timer]
+OnCalendar=*-*-* 07:30:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
