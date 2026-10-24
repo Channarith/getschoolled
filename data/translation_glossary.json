@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "_readme": "Approved words for domain terms in machine translation. EVERY entry is unreviewed: a native speaker must confirm it before it is treated as approved (set status to reviewed and add reviewed_by). context_words limit a term to passages where the word has this sense, so 'a fraction of the people' is left to the translator. avoid lists wrong senses seen in real output (Khmer 'shares' for fractions). confidence is my own estimate, not a review.",
+  "keep": ["Salareen", "Sala"],
+  "terms": [
+    {
+      "id": "fraction",
+      "en": ["fraction", "fractions"],
+      "context_words": ["numerator", "denominator", "decimal", "percent", "math", "mathematic", "compare", "whole number", "half", "divide", "number line", "equivalent"],
+      "targets": {
+        "km": {"text": "ប្រភាគ", "avoid": ["ភាគហ៊ុន"], "status": "unreviewed", "confidence": "medium"},
+        "th": {"text": "เศษส่วน", "status": "unreviewed", "confidence": "medium"},
+        "vi": {"text": "phân số", "status": "unreviewed", "confidence": "medium"},
+        "es": {"text": "fracción", "plural": "fracciones", "status": "unreviewed", "confidence": "high"},
+        "zh": {"text": "分数", "status": "unreviewed", "confidence": "high"}
+      }
+    },
+    {
+      "id": "equation",
+      "en": ["equation", "equations"],
+      "targets": {
+        "km": {"text": "សមីការ", "status": "unreviewed", "confidence": "medium"},
+        "th": {"text": "สมการ", "status": "unreviewed", "confidence": "medium"},
+        "vi": {"text": "phương trình", "status": "unreviewed", "confidence": "medium"},
+        "es": {"text": "ecuación", "plural": "ecuaciones", "status": "unreviewed", "confidence": "high"},
+        "zh": {"text": "方程", "status": "unreviewed", "confidence": "medium"}
+      }
+    },
+    {
+      "id": "cell",
+      "en": ["cell", "cells"],
+      "context_words": ["organism", "biolog", "tissue", "nucleus", "membrane", "dna", "bacteria", "stem cell", "blood cell", "cell division", "mitochondria", "immune"],
+      "targets": {
+        "km": {"text": "កោសិកា", "status": "unreviewed", "confidence": "medium"},
+        "th": {"text": "เซลล์", "status": "unreviewed", "confidence": "medium"},
+        "vi": {"text": "tế bào", "status": "unreviewed", "confidence": "medium"},
+        "es": {"text": "célula", "plural": "células", "status": "unreviewed", "confidence": "high"},
+        "zh": {"text": "细胞", "status": "unreviewed", "confidence": "high"}
+      }
+    },
+    {
+      "id": "probability",
+      "en": ["probability", "probabilities"],
+      "targets": {
+        "km": {"text": "ប្រូបាប៊ីលីតេ", "status": "unreviewed", "confidence": "medium"},
+        "th": {"text": "ความน่าจะเป็น", "status": "unreviewed", "confidence": "medium"},
+        "vi": {"text": "xác suất", "status": "unreviewed", "confidence": "medium"},
+        "es": {"text": "probabilidad", "plural": "probabilidades", "status": "unreviewed", "confidence": "high"},
+        "zh": {"text": "概率", "status": "unreviewed", "confidence": "medium"}
+      }
+    },
+    {
+      "id": "variable",
+      "en": ["variable", "variables"],
+      "context_words": ["equation", "algebra", "math", "program", "code", "function", "data", "experiment", "unknown"],
+      "targets": {
+        "km": {"text": "អថេរ", "status": "unreviewed", "confidence": "medium"},
+        "th": {"text": "ตัวแปร", "status": "unreviewed", "confidence": "medium"},
+        "vi": {"text": "biến", "status": "unreviewed", "confidence": "medium"},
+        "es": {"text": "variable", "plural": "variables", "status": "unreviewed", "confidence": "high"},
+        "zh": {"text": "变量", "status": "unreviewed", "confidence": "medium"}
+      }
+    },
+    {
+      "id": "algorithm",
+      "en": ["algorithm", "algorithms"],
+      "targets": {
+        "km": {"text": "ក្បួនដោះស្រាយ", "status": "unreviewed", "confidence": "low"},
+        "th": {"text": "อัลกอริทึม", "status": "unreviewed", "confidence": "medium"},
+        "vi": {"text": "thuật toán", "status": "unreviewed", "confidence": "medium"},
+        "es": {"text": "algoritmo", "plural": "algoritmos", "status": "unreviewed", "confidence": "high"},
+        "zh": {"text": "算法", "status": "unreviewed", "confidence": "medium"}
+      }
+    },
+    {
+      "id": "atom",
+      "en": ["atom", "atoms"],
+      "targets": {
+        "km": {"text": "អាតូម", "status": "unreviewed", "confidence": "medium"},
+        "th": {"text": "อะตอม", "status": "unreviewed", "confidence": "medium"},
+        "vi": {"text": "nguyên tử", "status": "unreviewed", "confidence": "medium"},
+        "es": {"text": "átomo", "plural": "átomos", "status": "unreviewed", "confidence": "high"},
+        "zh": {"text": "原子", "status": "unreviewed", "confidence": "high"}
+      }
+    },
+    {
+      "id": "molecule",
+      "en": ["molecule", "molecules"],
+      "targets": {
+        "km": {"text": "ម៉ូលេគុល", "status": "unreviewed", "confidence": "medium"},
+        "th": {"text": "โมเลกุล", "status": "unreviewed", "confidence": "medium"},
+        "vi": {"text": "phân tử", "status": "unreviewed", "confidence": "medium"},
+        "es": {"text": "molécula", "plural": "moléculas", "status": "unreviewed", "confidence": "high"},
+        "zh": {"text": "分子", "status": "unreviewed", "confidence": "high"}
+      }
+    },
+    {
+      "id": "derivative",
+      "en": ["derivative", "derivatives"],
+      "context_words": ["calculus", "slope", "rate of change", "differentiat", "tangent", "limit"],
+      "targets": {
+        "km": {"text": "ដេរីវេ", "status": "unreviewed", "confidence": "medium"},
+        "th": {"text": "อนุพันธ์", "status": "unreviewed", "confidence": "medium"},
+        "vi": {"text": "đạo hàm", "status": "unreviewed", "confidence": "medium"},
+        "es": {"text": "derivada", "plural": "derivadas", "status": "unreviewed", "confidence": "high"},
+        "zh": {"text": "导数", "status": "unreviewed", "confidence": "high"}
+      }
+    }
+  ]
+}

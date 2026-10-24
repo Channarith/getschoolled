@@ -146,6 +146,26 @@ def nllb_status() -> dict:
     return status
 
 
+_GEN_KEYS = (
+    "no_repeat_ngram_size", "repetition_penalty", "length_penalty", "do_sample",
+    "temperature", "top_p", "top_k", "early_stopping",
+)
+
+
+def _generation_kwargs(gen: Optional[dict], input_len: int, max_len: int) -> dict:
+    """Extra generate() arguments from ``gen`` (the v2 quality ladder). Empty when ``gen`` is None.
+
+    The output is capped relative to the input (``max_len_ratio``, default 3x tokens): a model that
+    loops runs to the cap, so a tight cap keeps one bad segment from producing a page of repetition.
+    """
+    if not gen:
+        return {}
+    extra = {k: gen[k] for k in _GEN_KEYS if gen.get(k) is not None}
+    ratio = float(gen.get("max_len_ratio") or 3.0)
+    extra["max_new_tokens"] = max(16, min(max_len, int(input_len * ratio) + 10))
+    return extra
+
+
 def translate_batch(
     texts: list[str],
     *,
@@ -153,11 +173,16 @@ def translate_batch(
     target: str,
     batch_size: Optional[int] = None,
     num_beams: Optional[int] = None,
+    gen: Optional[dict] = None,
 ) -> list[str]:
     """Translate many segments per generate() call, longest-first so padding stays small.
 
     The GPU only pays off when it is fed batches; one segment per call leaves it idle.
     Order of the result matches ``texts``. Empty segments stay empty.
+
+    ``gen`` carries optional generation settings (no_repeat_ngram_size, repetition_penalty,
+    length_penalty, do_sample/temperature/top_p, max_len_ratio, num_beams, seed); None keeps the
+    previous behavior exactly.
     """
     src = flores_code(source)
     tgt = flores_code(target)
@@ -167,7 +192,15 @@ def translate_batch(
     tokenizer, model = _get_model()
     max_len = int(os.environ.get("NLLB_MAX_LENGTH") or "512")
     batch = int(batch_size or os.environ.get("NLLB_BATCH_SIZE") or "16")
-    beams = int(num_beams or os.environ.get("NLLB_NUM_BEAMS") or "4")
+    beams = int((gen or {}).get("num_beams") or num_beams or os.environ.get("NLLB_NUM_BEAMS") or "4")
+    seed = (gen or {}).get("seed")
+    if seed is not None:
+        try:
+            import torch
+
+            torch.manual_seed(int(seed))
+        except ImportError:  # tests with fake models run without torch
+            pass
     if hasattr(tokenizer, "src_lang"):
         tokenizer.src_lang = src
     bos = tokenizer.convert_tokens_to_ids(tgt)
@@ -180,8 +213,12 @@ def translate_batch(
             [cleaned[i] for i in idx], return_tensors="pt", truncation=True, max_length=max_len, padding=True
         )
         encoded = {k: v.to(device) for k, v in encoded.items()}
+        extra = _generation_kwargs(gen, int(encoded["input_ids"].shape[1]), max_len) if gen else {}
+        length_args = {} if "max_new_tokens" in extra else {"max_length": max_len}
         with _inference_ctx():
-            generated = model.generate(**encoded, forced_bos_token_id=bos, max_length=max_len, num_beams=beams)
+            generated = model.generate(
+                **encoded, forced_bos_token_id=bos, num_beams=beams, **length_args, **extra
+            )
         for i, text in zip(idx, tokenizer.batch_decode(generated, skip_special_tokens=True)):
             out[i] = text.strip()
     return out
