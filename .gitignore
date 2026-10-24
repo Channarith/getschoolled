@@ -150,3 +150,10 @@ apps/web/public/downloads/latest.json
 
 # translations still being written
 data/course_translations/**/*.partial.json
+data/course_translations/**/*.partial
+
+# raw data copied from other machines (iBuyPower, Spark): local only until validated
+# (scripts/validate_translations.py, scripts/voice_dataset_convert.py) and never committed
+data/_incoming*/
+data/_staged*/
+data/voice/

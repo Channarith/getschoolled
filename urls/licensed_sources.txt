@@ -1,0 +1,11 @@
+# Sources whose audio we may ship (used by scripts/voice_dataset_convert.py).
+# Everything not listed here is treated as unlicensed: third-party YouTube and Vimeo
+# channels have no recorded license or consent, so their audio is for internal
+# experiments only and must never ship in the product.
+#
+# Columns, separated by a TAB:  source  license  note
+# source is one of: a speaker/channel slug, a URL prefix, or a dataset marker
+# that appears in the clip's source or audio path.
+# Add a line only after the license or written consent is confirmed and filed.
+#
+fleurs	CC-BY-4.0	Google FLEURS, Khmer (km_kh); credit required (see urls/cosyvoice_licensed.txt)
