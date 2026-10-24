@@ -211,8 +211,8 @@ body.phone-play .pq-top{bottom:3rem}
    and the controls bar lifts above the voice widget so it never hides the game picker. */
 body:has(.pq-tutorial) #touch-mode,body:has(.pq-win) #touch-mode,body:has(.gt-overlay:not([hidden])) #touch-mode{display:none!important}
 @media(min-height:560px){
-body.phone-play:has(#theodore-live-audio:not(.voice-hidden)) .controls{bottom:7.5rem}
-body.phone-play:has(#theodore-live-audio:not(.voice-hidden)) #touch-mode{bottom:calc(15rem + env(safe-area-inset-bottom))}
+body.phone-play:has(#theodore-live-audio.voice-open:not(.voice-hidden)) .controls{bottom:7.5rem}
+body.phone-play:has(#theodore-live-audio.voice-open:not(.voice-hidden)) #touch-mode{bottom:calc(15rem + env(safe-area-inset-bottom))}
 }
 body.phone-play #vision-readout,body.phone-play .vision-readout{right:196px!important;overflow:hidden;font-size:.62rem;line-height:1.35}
 body.phone-play #vision-readout *,body.phone-play .vision-readout *{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
