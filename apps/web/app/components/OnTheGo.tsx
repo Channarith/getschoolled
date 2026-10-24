@@ -907,6 +907,13 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   }
 
   const HELP_KEY = "salareen.onTheGo.voiceTutorial.v1";
+  useEffect(() => {
+    if (!helpOpen) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeHelp(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [helpOpen]);
   function closeHelp() {
     setHelpOpen(false);
     try { localStorage.setItem(HELP_KEY, "1"); } catch { /* private mode */ }
@@ -1125,7 +1132,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
               <li>{t("drive.tutorialStep4")}</li>
               <li>{t("drive.tutorialStep5")}</li>
             </ol>
-            <button type="button" data-testid="on-the-go-tutorial-close" onClick={() => closeHelp()}
+            <button type="button" autoFocus data-testid="on-the-go-tutorial-close" onClick={() => closeHelp()}
               style={{ marginTop: 16, width: "100%", padding: "10px 14px", borderRadius: 12, border: 0, background: "#d4af37", color: "#0b1020", fontWeight: 800, cursor: "pointer" }}>
               {t("drive.tutorialDone")}
             </button>

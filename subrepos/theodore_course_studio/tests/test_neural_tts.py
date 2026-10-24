@@ -175,3 +175,28 @@ def test_studio_tts_endpoint_survives_an_unwritable_cache(monkeypatch, tmp_path)
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "audio/mpeg"
     assert resp.content == b"ID3-en-audio"
+
+
+def test_studio_tts_without_an_engine_is_204_not_an_error(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from theodore_course_studio import main as studio_main
+
+    def nothing(*args, **kwargs):
+        raise TTSUnavailable("no engine")
+
+    monkeypatch.setattr(studio_main, "synthesize_course", nothing)
+    monkeypatch.setattr(studio_main, "synthesize_local", nothing)
+    client = TestClient(studio_main.app, raise_server_exceptions=False)
+    post = client.post("/api/studio/tts", json={"text": "Hello", "language": "en", "gender": "female"})
+    get = client.get("/api/studio/tts", params={"text": "Hello", "language": "en"})
+    assert post.status_code == 204 and post.content == b""
+    assert get.status_code == 204 and get.content == b""
+    assert "no engine" in post.headers["x-tts-unavailable"]
+
+
+def test_locked_voice_client_does_not_retry_when_no_engine():
+    from theodore_course_studio.studio_page import STUDIO_JS
+
+    assert "res.status === 204" in STUDIO_JS
+    assert "err.noEngine" in STUDIO_JS

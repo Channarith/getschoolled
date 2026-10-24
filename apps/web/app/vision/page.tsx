@@ -5,6 +5,7 @@ import {
   enrollEmbedding,
   enrollVoiceSample,
   getVoiceEnrollmentStatus,
+  getToken,
   identifyEmbedding,
   listStudents,
   type IdentifiedFace,
@@ -60,6 +61,7 @@ export default function VisionPage() {
   // Load student profile to get the canonical student ID.
   const [students, setStudents] = useState<StudentProfile[]>([]);
   useEffect(() => {
+    if (!getToken()) return; // signed out: no profile to load, and the call would 401
     listStudents().then((r) => setStudents(r.students)).catch(() => undefined);
   }, []);
 
