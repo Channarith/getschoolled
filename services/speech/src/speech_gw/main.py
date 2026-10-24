@@ -175,6 +175,16 @@ def _render_tts(text: str, *, language: str, voice_style: str,
     cfg = app.state.config
     headers = {"Cache-Control": "no-store"}
 
+    # Narration rendered offline on the Spark wins for the default voice; a chosen
+    # accent or instructor still goes through the live engines.
+    if not voice and not instructor:
+        from aoep_shared import prerender_audio
+
+        stored = prerender_audio.lookup(text, language)
+        if stored:
+            return Response(content=stored[0], media_type=stored[1],
+                            headers={"Cache-Control": "public, max-age=3600", "X-TTS-Engine": "prerendered"})
+
     from aoep_shared.voice_catalog import resolve_voice
 
     chosen = resolve_voice(voice, language=language)

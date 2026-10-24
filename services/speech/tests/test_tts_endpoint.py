@@ -198,3 +198,19 @@ def test_tts_applies_regional_slang(monkeypatch):
     assert r.status_code == 200
     # Texan dialect replaces "Nice work" -> "Good on y'all", "Welcome!" -> "Howdy ..."
     assert "Good on y'all" in captured["text"] or "Howdy" in captured["text"]
+
+
+def test_tts_serves_prerendered_audio_before_live_engines(monkeypatch, tmp_path):
+    from aoep_shared import elevenlabs_tts, prerender_audio
+
+    line = "Intro. Welcome to the lesson"
+    (tmp_path / f"{prerender_audio.audio_key(line, 'en')}.wav").write_bytes(b"RIFF" + b"x" * 400)
+    monkeypatch.setenv(prerender_audio.ENV_DIR, str(tmp_path))
+
+    def boom(*a, **k):
+        raise AssertionError("live engine used")
+
+    monkeypatch.setattr(elevenlabs_tts, "elevenlabs_configured", boom)
+    r = client.post("/tts", json={"text": line, "language": "en"})
+    assert r.status_code == 200 and r.headers["x-tts-engine"] == "prerendered"
+    assert r.headers["content-type"] == "audio/wav"
