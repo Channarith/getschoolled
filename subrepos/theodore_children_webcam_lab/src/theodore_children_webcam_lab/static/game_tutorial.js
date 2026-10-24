@@ -419,6 +419,7 @@ export function createGameTutorial(stage, doc = document) {
   function close() {
     overlay.hidden = true;
     if (game) markTutorialSeen(game);
+    if (!help.hidden) help.focus?.({preventScroll: true});
   }
   function open() {
     if (!game || OWN_TUTORIAL.has(game)) return;
@@ -447,8 +448,10 @@ export function createGameTutorial(stage, doc = document) {
     card.append(h, list, go, skip);
     overlay.append(card);
     overlay.hidden = false;
+    go.focus?.({preventScroll: true});
   }
   help.addEventListener("click", open);
+  overlay.addEventListener("keydown", (event) => { if (event.key === "Escape") { event.stopPropagation(); close(); } });
   overlay.addEventListener("click", (event) => { if (event.target === overlay) close(); });
 
   return {

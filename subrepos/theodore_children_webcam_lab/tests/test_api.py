@@ -349,3 +349,29 @@ def test_static_javascript_parses_with_node(script_name):
     assert result.returncode == 0, result.stderr
     if script_name == "app.js":
         assert script.read_text().count("let stageRect") == 1
+
+
+def test_tts_without_an_engine_is_204_not_an_error(monkeypatch):
+    from theodore_children_webcam_lab import main as lab_main
+
+    def boom(*args, **kwargs):
+        raise lab_main.tts.ProviderUnavailable("no engine")
+
+    monkeypatch.setattr(lab_main.tts, "synthesize", boom)
+    response = TestClient(lab_main.app).get("/api/tts", params={"text": "hello"})
+    assert response.status_code == 204
+    assert response.content == b""
+    assert "no engine" in response.headers["x-tts-unavailable"]
+
+
+def test_shared_stats_with_vision_telemetry_are_accepted():
+    from theodore_children_webcam_lab import main as lab_main
+
+    body = {
+        "activity_id": "idea", "age_band": "7-10", "outcome": "success", "attempts": 1,
+        "duration_ms": 4000, "fun_score": 80, "components": {},
+        "vision": {"hands": 1, "fingers": 2, "hand": True, "touch_mode": "air"},
+    }
+    response = TestClient(lab_main.app).post("/api/child/analytics", json=body)
+    assert response.status_code == 200, response.text
+    assert response.json()["accepted"] is True

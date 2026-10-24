@@ -1118,6 +1118,13 @@ def teach_voice_present(req: TeachSessionRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
 
 
+def _no_voice_response(exc: Exception) -> Response:
+    return Response(
+        status_code=204,
+        headers={"cache-control": "no-store", "x-tts-unavailable": str(exc)[:200].replace("\n", " ")},
+    )
+
+
 @app.get("/api/studio/tts/status")
 def studio_tts_status() -> dict[str, Any]:
     """Combined gateway + local neural status (probed once by the player)."""
@@ -1142,7 +1149,7 @@ def studio_tts_locked(req: CourseTtsRequest) -> Response:
     try:
         audio = synthesize_course(req.text, req.language, gender=req.gender)
     except TTSUnavailable as exc:
-        raise HTTPException(status_code=501, detail=str(exc)) from exc
+        return _no_voice_response(exc)
     return Response(
         content=audio,
         media_type="audio/mpeg",
@@ -1159,13 +1166,13 @@ def studio_tts(
 ) -> Response:
     """One narration as MP3 via local edge-tts (covers Khmer without the gateway).
 
-    501 (not 500) when nothing can render it: that is the client's cue to fall
-    back to the device voice rather than show an error.
+    204 when nothing can render it: that is the client's cue to fall back to the
+    device voice without an HTTP error in the console.
     """
     try:
         audio = synthesize_local(text, language, rate=rate, gender=gender)
     except TTSUnavailable as exc:
-        raise HTTPException(status_code=501, detail=str(exc)) from exc
+        return _no_voice_response(exc)
     return Response(
         content=audio,
         media_type="audio/mpeg",

@@ -2310,7 +2310,7 @@ async function speak(text, cue=false) {
     if(state.serverTts===null) await probeSpeech();
     if(!state.serverTts)throw new Error("device-fallback");
     const response=await fetch(`/api/tts?text=${encodeURIComponent(text)}&language=en&style=cheerful`);
-    if(!response.ok){state.serverTts=false;throw new Error(String(response.status));}
+    if(!response.ok||response.status===204){state.serverTts=false;throw new Error(String(response.status));}
     const url=URL.createObjectURL(await response.blob()),audio=new Audio(url);
     if(token!==state.speechToken){URL.revokeObjectURL(url);return;}
     state.audio=audio;

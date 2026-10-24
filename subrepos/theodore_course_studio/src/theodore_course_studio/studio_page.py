@@ -6583,13 +6583,14 @@ STUDIO_JS = """
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ text: text, language: language, gender: gender })
       }).then((res) => {
+        if (res.status === 204) { const none = new Error('no voice engine'); none.noEngine = true; throw none; }
         if (!res.ok) throw new Error('tts ' + res.status);
         return res.blob();
       }).then((blob) => {
         if (!blob || !blob.size) throw new Error('empty voice clip');
         return URL.createObjectURL(blob);
       }).catch((err) => {
-        if (n >= 2) throw err;
+        if (n >= 2 || (err && err.noEngine)) throw err;
         return new Promise((resolve) => setTimeout(resolve, 600 * (n + 1)))
           .then(() => attempt(n + 1));
       });

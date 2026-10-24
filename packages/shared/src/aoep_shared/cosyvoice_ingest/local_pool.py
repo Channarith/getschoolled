@@ -89,7 +89,7 @@ def select_local_khmer(
     chosen: List[dict] = []
     lesson_left = float(lesson_budget_sec)
     lessons = [item for item in best.values() if item[4] == "lesson"]
-    lessons.sort(key=lambda item: (item[1], -item[0]))
+    lessons.sort(key=lambda item: (item[1], -item[0], item[3].stem))
     for duration, _rank, channel, wav, _kind in lessons:
         if lesson_left <= 0:
             break
@@ -108,7 +108,7 @@ def select_local_khmer(
         lesson_left -= duration
 
     narrations = [item for item in best.values() if item[4] == "narration"]
-    narrations.sort(key=lambda item: (item[1], item[0]))
+    narrations.sort(key=lambda item: (item[1], item[0], item[3].stem))
     seen_channel_files = 0
     for duration, _rank, channel, wav, _kind in narrations:
         if seen_channel_files >= narration_files:

@@ -96,6 +96,7 @@ class AnalyticsRequest(BaseModel):
     miss_gag_id: str = ""
     theme_pack: str = ""
     seated_only: bool = False
+    vision: dict[str, Any] = Field(default_factory=dict)
 
 
 def _asset_tag() -> str:
@@ -181,7 +182,8 @@ def speak(text: str = "", language: str = "en", style: str = "cheerful") -> Resp
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except tts.ProviderUnavailable as exc:
-        raise HTTPException(status_code=501, detail=str(exc)) from exc
+        # 204, not 5xx: the page quietly uses the device voice instead of logging an HTTP error.
+        return Response(status_code=204, headers={"X-TTS-Unavailable": str(exc)[:200].replace("\n", " "), "Cache-Control": "no-store"})
     return Response(
         audio,
         media_type=mime,

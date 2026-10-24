@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type DemoTutorialProps = {
   storageKey: string;
@@ -12,6 +12,8 @@ export type DemoTutorialProps = {
 export default function DemoTutorial({ storageKey, title, steps }: DemoTutorialProps) {
   const [open, setOpen] = useState(false);
   const key = `salareen.demo.tutorial.v1.${storageKey}`;
+  const doneRef = useRef<HTMLButtonElement>(null);
+  const helpRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     try { if (!localStorage.getItem(key)) setOpen(true); } catch { /* private mode */ }
@@ -20,11 +22,22 @@ export default function DemoTutorial({ storageKey, title, steps }: DemoTutorialP
   function close() {
     setOpen(false);
     try { localStorage.setItem(key, "1"); } catch { /* private mode */ }
+    helpRef.current?.focus({ preventScroll: true });
   }
+
+  useEffect(() => {
+    if (!open) return;
+    doneRef.current?.focus({ preventScroll: true });
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   return (
     <>
       <button
+        ref={helpRef}
         type="button"
         data-testid={`demo-tutorial-help-${storageKey}`}
         aria-label="How this demo works"
@@ -46,7 +59,7 @@ export default function DemoTutorial({ storageKey, title, steps }: DemoTutorialP
             <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 8, fontSize: 15 }}>
               {steps.map((step) => <li key={step}>{step}</li>)}
             </ol>
-            <button type="button" onClick={close} style={{ marginTop: 16, width: "100%", padding: "10px 14px", borderRadius: 12, border: 0, background: "#d4af37", color: "#0b1020", fontWeight: 800, cursor: "pointer" }}>Got it</button>
+            <button ref={doneRef} type="button" onClick={close} style={{ marginTop: 16, width: "100%", padding: "10px 14px", borderRadius: 12, border: 0, background: "#d4af37", color: "#0b1020", fontWeight: 800, cursor: "pointer" }}>Got it</button>
             <button type="button" onClick={close} style={{ marginTop: 8, width: "100%", padding: 6, border: 0, background: "none", color: "#94a3b8", textDecoration: "underline", cursor: "pointer" }}>Skip</button>
           </div>
         </div>
