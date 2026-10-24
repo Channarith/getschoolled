@@ -989,31 +989,16 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
           role="timer"
           aria-live="polite"
           aria-atomic="true"
+          aria-label={demoEnded ? t("drive.demoEnded") : t("drive.freeDemo")}
           style={{
-            display: "flex", alignItems: "baseline", gap: 14,
-            margin: "14px 0 18px",
-            padding: "14px 18px",
-            borderRadius: 14,
-            border: `2px solid ${demoEnded ? "#dc2626" : playing ? "#16a34a" : "#0ea5e9"}`,
-            background: demoEnded ? "#fef2f2" : playing ? "#f0fdf4" : "#f0f9ff",
+            position: "fixed", top: 12, left: 14, zIndex: 6,
+            color: demoEnded ? "#fca5a5" : "rgba(255,255,255,.55)",
+            fontSize: 14, fontWeight: 600, lineHeight: 1,
+            fontVariantNumeric: "tabular-nums",
+            background: "transparent",
           }}
         >
-          <span style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, color: "#4b5563" }}>
-            {t("drive.freeDemo")}
-          </span>
-          <span
-            style={{
-              fontSize: 44, fontWeight: 800, lineHeight: 1,
-              fontVariantNumeric: "tabular-nums",
-              fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
-              color: demoEnded ? "#dc2626" : playing ? "#15803d" : "#0369a1",
-            }}
-          >
-            {timerLabel(secondsLeft)}
-          </span>
-          <span style={{ fontSize: 14, color: "#4b5563" }}>
-            {demoEnded ? t("drive.demoEnded") : t("drive.demoCountsWhilePlaying")}
-          </span>
+          {timerLabel(secondsLeft)}
         </div>
       )}
 
@@ -1089,17 +1074,46 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
             <p className="muted">{t("drive.noMatch")}</p>
           )}
 
-          <div
-            aria-hidden
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: "100%", minHeight: 180, margin: "16px 0",
-              borderRadius: 16, background: "#070b14",
-            }}
-          >
-            <DriveStageLook look="bars" playing={playing} />
-          </div>
+          {experience.showTimer ? (
+            <button
+              type="button"
+              aria-label={playing ? t("drive.pause") : t("drive.start")}
+              onClick={() => { void onTransport(); }}
+              disabled={demoEnded || !(pickedId || course)}
+              style={{
+                display: "grid", placeItems: "center",
+                width: "100%", minHeight: 280, margin: "8px 0 12px",
+                border: 0, background: "transparent", cursor: "pointer",
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 196, height: 196, borderRadius: "50%",
+                  display: "grid", placeItems: "center",
+                  border: "2px solid rgba(212,184,138,.85)",
+                  boxShadow: playing ? "0 0 0 10px rgba(212,184,138,.18), 0 0 28px rgba(212,184,138,.45)" : "0 0 0 8px rgba(212,184,138,.12)",
+                  animation: playing ? "sala-ring 1.1s ease-in-out infinite" : "none",
+                }}
+              >
+                <img src="/mascots/sala-gold.png" alt="" width={120} height={156} style={{ objectFit: "contain", opacity: 0.92 }} />
+              </span>
+              <style>{`@keyframes sala-ring { 50% { transform: scale(1.06); } }`}</style>
+            </button>
+          ) : (
+            <div
+              aria-hidden
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: "100%", minHeight: 180, margin: "16px 0",
+                borderRadius: 16, background: "#070b14",
+              }}
+            >
+              <DriveStageLook look="bars" playing={playing} />
+            </div>
+          )}
 
+          {!experience.showTimer && (
           <button
             type="button"
             aria-label={playing ? t("drive.pause") : t("drive.start")}
@@ -1113,6 +1127,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
           >
             {playing ? t("drive.pause") : t("drive.start")}
           </button>
+          )}
           {voiceLive && (
             <p className="muted" style={{ marginTop: 10, fontSize: 14 }}>{t("drive.voiceAgentOn")}</p>
           )}
