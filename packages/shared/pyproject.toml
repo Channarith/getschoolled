@@ -71,6 +71,7 @@ where = ["src"]
     "data/content_packs/*/*.json",
     "data/content_packs/*/*.jsonl",
     "static/*.js",
+    "static/*.json",
 ]
 
 [tool.pytest.ini_options]
