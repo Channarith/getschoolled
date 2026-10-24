@@ -1,8 +1,0 @@
-data/sessions/
-data/audio/
-__pycache__/
-*.pyc
-.pytest_cache/
-.venv/
-*.egg-info/
-.DS_Store

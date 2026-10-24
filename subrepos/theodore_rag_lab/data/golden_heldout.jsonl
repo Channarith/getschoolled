@@ -1,6 +1,0 @@
-{"query": "what is hipaa", "expected_doc_ids": ["hipaa"], "expected_answer": "The Health Insurance Portability and Accountability Act (HIPAA) was enacted by Congress in 1996.", "topic": "heldout"}
-{"query": "temperature danger zone for food", "expected_doc_ids": ["food-handler-temps"], "expected_answer": "Bacteria that cause foodborne illness multiply fastest between 41°F and 135°F, the temperature danger zone.", "topic": "heldout"}
-{"query": "convert degrees and radians", "expected_doc_ids": ["trigonometry"], "expected_answer": "To convert, use the fact that pi radians equals 180 degrees.", "topic": "heldout"}
-{"query": "what does a derivative measure", "expected_doc_ids": ["calculus-1"], "expected_answer": "The derivative measures how fast something changes.", "topic": "heldout"}
-{"query": "forklift stability triangle", "expected_doc_ids": ["osha-forklift"], "expected_answer": "When the combined center of gravity of the truck and load moves outside this triangle, the forklift will tip.", "topic": "heldout"}
-{"query": "when was osha created", "expected_doc_ids": ["osha-general-safety"], "expected_answer": "OSHA was created by the Occupational Safety and Health Act of 1970.", "topic": "heldout"}

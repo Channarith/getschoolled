@@ -1,1 +1,0 @@
-theodore_llm_lab: all-in-one education LLM training corpus + robot pack lab.

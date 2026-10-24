@@ -1,9 +1,0 @@
-from __future__ import annotations
-
-from pathlib import Path
-
-FIXTURES = Path(__file__).resolve().parent / "fixtures"
-
-
-def fixture_root() -> Path:
-    return FIXTURES
