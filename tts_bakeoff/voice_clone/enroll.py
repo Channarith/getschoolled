@@ -56,7 +56,7 @@ def snr_db(x, rate: int) -> float:
     return float(10 * np.log10(e[-d:].mean() / e[:d].mean()))
 
 
-def prepare(src: Path | str, dest: Path | str, target_dbfs: float = -20.0) -> dict:
+def prepare(src: Path | str, dest: Path | str, target_dbfs: float = -20.0, clean: bool | None = None) -> dict:
     import numpy as np
 
     from tts_bakeoff.adapters.base import write_wav
@@ -77,7 +77,24 @@ def prepare(src: Path | str, dest: Path | str, target_dbfs: float = -20.0) -> di
     snr = snr_db(x, rate)
     if snr < MIN_SNR_DB:
         raise SampleError(f"too noisy (about {snr:.0f} dB SNR, need {MIN_SNR_DB:.0f}+): re-record in a quiet room")
+    from . import clean as audio_clean
+
+    info: dict = {}
+    warnings = []
+    if (audio_clean.enabled() if clean is None else clean):
+        raw = audio_clean.raw_path(Path(dest))
+        write_wav(raw, x, rate)
+        y, rep = audio_clean.clean_reference(x, rate)
+        info.update({"cleaned": rep["kept_cleaned"], "snr_db_clean": rep["after"]["snr_db"], "clicks_fixed": max(0, rep["before"]["clicks"] - rep["after"]["clicks"])})
+        if rep["kept_cleaned"]:
+            x = y
+        else:
+            warnings.append("kept the recording as it was (cleaning would have changed the voice): " + "; ".join(rep["reasons"]))
+        if rep["before"]["clip_pct"] > 0.1:
+            warnings.append(f"{rep['before']['clip_pct']}% of samples clipped: record again a little further from the microphone")
+    if snr < MIN_SNR_DB + 5:
+        warnings.append(f"about {snr:.0f} dB SNR is usable but not great: a quieter room gives a cleaner clone")
     rms = float(np.sqrt((x**2).mean()) + 1e-9)
     x = np.clip(x * (10 ** (target_dbfs / 20) / rms), -0.99, 0.99)
     write_wav(dest, x, rate)
-    return {"seconds": round(secs, 1), "snr_db": round(snr, 1), "sample_rate": rate}
+    return {"seconds": round(secs, 1), "snr_db": round(snr, 1), "sample_rate": rate, **info, "warnings": warnings}
