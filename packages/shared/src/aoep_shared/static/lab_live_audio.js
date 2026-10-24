@@ -67,7 +67,7 @@
       @media (max-width:700px){
         :host(:not(.voice-open)) .box{display:none !important}
         :host(:not(.voice-open)) .show-again{display:inline-block}
-        .show-again{left:auto;right:12px;bottom:max(86px, calc(env(safe-area-inset-bottom) + 72px));width:44px;height:44px;min-height:44px;padding:0;
+        .show-again{left:12px;right:auto;bottom:max(132px, calc(env(safe-area-inset-bottom) + 118px));width:44px;height:44px;min-height:44px;padding:0;
           border-radius:50%;font-size:0;line-height:0;color:transparent;background:#07111ef2 center/22px 22px no-repeat;
           background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e7fbff' d='M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z'/></svg>")}
       }

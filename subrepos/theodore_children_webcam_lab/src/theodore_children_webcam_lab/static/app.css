@@ -232,3 +232,16 @@ body.phone-play #vision-readout *,body.phone-play .vision-readout *{white-space:
 @keyframes vcBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @media(prefers-reduced-motion:reduce){.vc-sala{animation:none}}
 @media(max-width:700px){#setup #start{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:5;box-shadow:0 8px 24px #000a}}
+/* Quiet redesign (quiet-v4): camera first, calm navy and gold, golden Sala as the guide. */
+body{background:radial-gradient(circle at 50% -10%,#22335f 0,#0f1830 48%,#080d1c 100%)}
+.sala-hero{flex:none;width:clamp(88px,22vw,132px);height:auto;filter:drop-shadow(0 10px 18px #0009)}
+.theodore-card{gap:clamp(.8rem,3vw,1.6rem)}
+.eyebrow{color:#e5c76b;letter-spacing:.14em}
+#setup h1{font-family:Georgia,"Times New Roman",serif;font-weight:700;color:#fff3c4}
+.privacy{background:#0d1530cc;border:1px solid #d4af3766;border-radius:16px}
+button.primary{background:linear-gradient(180deg,#f6dc8a,#d4af37);color:#1b1405;border-color:#f6dc8a;box-shadow:0 8px 22px #d4af3744}
+button.secondary{background:#101a36;border-color:#d4af3766;color:#f4e3a6}
+select,input[type=checkbox]{accent-color:#d4af37}
+select{background:#101a36;border-color:#d4af3755}
+.linklike{color:#e5c76b}
+.vc-card{border-color:#d4af37;background:#0d1530}
