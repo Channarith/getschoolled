@@ -55,6 +55,7 @@ function candidateFor(id) {
 }
 function badgeOf(voice) {
   const c = voice.cand;
+  if (!c && /Neural(~|$)/.test(voice.id)) return {cls: 'b-chk', text: 'edge-tts', title: 'edge-tts voice: counted as not shippable until the service terms are confirmed (licensed route: Azure Speech, same voice names).'};
   if (!c) return {cls: 'b-unk', text: 'UNKNOWN LICENSE', title: 'Not in the license matrix: do not assume it can ship.'};
   if (c.label === 'SHIPPABLE') return {cls: 'b-ok', text: 'SHIPPABLE', title: 'Code and weights allow commercial use (license matrix).'};
   if (c.label === 'NOT SHIPPABLE') return {cls: 'b-no', text: 'NOT SHIPPABLE', title: 'Internal reference only: license forbids commercial use.'};
@@ -252,6 +253,21 @@ function refreshFilters() {
   const cats = new Set(); (state.sentences.get(state.lang) || new Map()).forEach(s => { if (s.category) cats.add(s.category); });
   $('#f-cat').replaceChildren(h('option', {value: '', text: 'all'}), ...Array.from(cats).map(c => h('option', {value: c, text: c, selected: c === state.cat})));
   const box = $('#f-models'); box.replaceChildren();
+  const langVoices = Array.from(state.voices.values()).filter(v => hasAnyClip(state.lang, v.id)).sort((x, y) => x.name.localeCompare(y.name));
+  // A language with dozens of voices would push every clip off screen: show the first 8 until the user chooses.
+  state.capDone = state.capDone || new Set();
+  if (!state.blind && langVoices.length > 12 && !state.capDone.has(state.lang)) {
+    state.capDone.add(state.lang);
+    langVoices.slice(8).forEach(v => state.hiddenVoices.add(v.id));
+  }
+  if (!state.blind) {
+    const setAll = (show) => { langVoices.forEach(v => show ? state.hiddenVoices.delete(v.id) : state.hiddenVoices.add(v.id)); refreshFilters(); renderGrid(); };
+    box.append(h('span', {class: 'vbar'},
+      h('button', {type: 'button', onclick: () => setAll(true), text: 'All'}), ' ',
+      h('button', {type: 'button', onclick: () => setAll(false), text: 'None'}), ' ',
+      h('button', {type: 'button', onclick: () => { langVoices.forEach((v, i) => i < 8 ? state.hiddenVoices.delete(v.id) : state.hiddenVoices.add(v.id)); refreshFilters(); renderGrid(); }, text: 'First 8'}), ' ',
+      h('span', {class: 'chip', text: `${langVoices.filter(v => !state.hiddenVoices.has(v.id)).length} of ${langVoices.length} shown`})));
+  }
   if (state.blind) box.append(h('span', {class: 'chip', text: 'names hidden in blind mode'}));
   else for (const v of Array.from(state.voices.values()).sort((a, b) => a.name.localeCompare(b.name))) {
     if (!hasAnyClip(state.lang, v.id)) continue;

@@ -69,3 +69,6 @@ code{background:#0b1226;padding:0 .3rem;border-radius:4px}
 @media (prefers-contrast:more){:root{--line:#8fa0d8;--muted:#d4dbf3}}
 @media (forced-colors:active){.badge,.chip,.lbl{border:1px solid CanvasText}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.models #f-models{display:block;max-height:7.5rem;overflow:auto}
+.models .vbar{display:block;position:sticky;top:0;background:var(--bg,#0b1020);padding:.15rem 0}
+.models .vbar button{font:inherit;font-size:.72rem;padding:.05rem .5rem;border-radius:6px}
