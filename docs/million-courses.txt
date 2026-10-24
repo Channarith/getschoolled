@@ -213,8 +213,10 @@ On the Spark the GPU must be CUDA (see aoep_shared/devices.py policy); take the 
 
 10. THE HARVESTER IN THE CLUSTER: RECOMMENDATION
 ------------------------------------------------
-The harvester deployment is parked at 0/1 because harvester-checkpoint (1 Gi) is below Vultr's 40 GB
-block-storage minimum. RECOMMENDATION: do not run the harvester in the cluster. Run it on the three
+STATE ON main (v0.97.12, #777): the harvester deployment is parked at 0 replicas in
+infra/k8s-vke/capacity-vke.yaml and the 40 Gi claims are recorded as bound (the earlier Pending state
+came from the 1 Gi harvester-checkpoint being below Vultr's 40 GB block-storage minimum).
+RECOMMENDATION: keep it parked and do not run the harvester in the cluster. Run it on the three
 machines (sharded as in section 5), publish only validated, licensed decks to production through
 the object store and the gentle publisher. Reasons: (1) the crawl and generation need disk (tens of
 GB) and CPU that the four 2-vCPU nodes do not have to spare (they are already about 60% CPU and 71-99%
@@ -222,10 +224,11 @@ memory requested); (2) the machines already hold the data and the GPUs; (3) a cr
 next to the production API is a risk with no benefit; (4) the cost of a 40 GB+ volume buys nothing
 the machines do not already provide. If you still want it in the cluster later, claim at least 40 Gi
 and give it its own node pool, not the api-pool.
-If you adopt this, retire the parked objects when you are ready (NOT done here):
-    kubectl -n aoep delete deploy harvester
+If you adopt this, the bound 40 Gi claim has a recurring storage cost for nothing; release it when you
+decide (NOT done here, it is your call and the claim must be unused first):
+    kubectl -n aoep get pvc harvester-checkpoint
     kubectl -n aoep delete pvc harvester-checkpoint
-Keep infra/k8s/harvester.yaml in git; it costs nothing while the deployment does not exist.
+Keep infra/k8s/harvester.yaml in git; it costs nothing while the deployment stays at 0 replicas.
 
 11. DECISIONS NEEDED FROM THE OWNER
 -----------------------------------
