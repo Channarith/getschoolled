@@ -37,6 +37,51 @@ class Proc:
 
 
 @dataclass
+class Owner:
+    """Who a process belongs to. Filled from the probe's [owners] block; every field may be empty."""
+    pid: int
+    cwd: str = ""
+    git_top: str = ""
+    worktree: bool = False
+    branch: str = ""
+    commit: str = ""
+    subject: str = ""
+    cgroup: str = ""
+    chain: list[tuple[int, str]] = field(default_factory=list)  # pid:comm from the process up to init
+    env: dict[str, str] = field(default_factory=dict)
+    env_readable: bool = False
+    log_path: str = ""
+    log_mtime: int | None = None
+
+    @property
+    def unit(self) -> str:
+        """systemd unit or scope from the cgroup path ('' when the process is in a plain session scope)."""
+        for part in reversed(self.cgroup.split("/")):
+            if part.endswith((".service", ".scope")) and not part.startswith(("session-", "user@")):
+                return part
+        return ""
+
+
+@dataclass
+class Sock:
+    state: str
+    local_addr: str
+    local_port: int
+    peer_addr: str
+    peer_port: int
+    pids: list[int] = field(default_factory=list)
+
+
+@dataclass
+class Sample:
+    """Two readings of a process a few seconds apart: cumulative CPU ticks and read+write bytes."""
+    ticks0: int | None = None
+    ticks1: int | None = None
+    io0: int | None = None
+    io1: int | None = None
+
+
+@dataclass
 class Finding:
     severity: str
     host: str
@@ -71,6 +116,37 @@ class HostReport:
     batch_logs: list[dict[str, Any]] = field(default_factory=list)
     timers: list[str] = field(default_factory=list)
     now: int = 0
+    owners: dict[int, Owner] = field(default_factory=dict)
+    tmux_panes: list[tuple[int, str, str]] = field(default_factory=list)  # (pane shell pid, session, window)
+    sockets: list[Sock] = field(default_factory=list)
+    samples: dict[int, Sample] = field(default_factory=dict)
+    sample_interval: int = 0
+    clk_tck: int = 100
+    cur_owner: int = field(default=-1, repr=False)
+
+
+_SS_PID = re.compile(r"pid=(\d+)")
+
+
+def parse_ss_line(line: str) -> Sock | None:
+    """`ss -H -tanp` row: STATE RECV SEND LOCAL PEER [users:((\"name\",pid=N,fd=M))]."""
+    parts = line.split(None, 5)
+    if len(parts) < 5 or parts[0] not in ("LISTEN", "ESTAB"):
+        return None
+    try:
+        l_addr, _, l_port = parts[3].rpartition(":")
+        p_addr, _, p_port = parts[4].rpartition(":")
+        return Sock(parts[0], l_addr, int(l_port), p_addr, int(p_port) if p_port.isdigit() else 0,
+                    [int(m) for m in _SS_PID.findall(parts[5])] if len(parts) > 5 else [])
+    except ValueError:
+        return None
+
+
+def _int_or_none(text: str) -> int | None:
+    try:
+        return int(text)
+    except ValueError:
+        return None
 
 
 def parse_etime(text: str) -> int:
@@ -201,7 +277,73 @@ def parse_report(name: str, text: str) -> HostReport:
             rep.batch_logs.append({"file": fname, "mtime": int(_num(mtime) or 0), "last": last})
         elif section == "timers":
             rep.timers.append(line.strip())
+        elif section == "owners":
+            _parse_owner_line(rep, line)
+        elif section == "tmux":
+            parts = line.split(None, 2)
+            if len(parts) >= 2 and parts[0].isdigit():
+                rep.tmux_panes.append((int(parts[0]), parts[1], parts[2] if len(parts) > 2 else ""))
+        elif section == "sockets":
+            sock = parse_ss_line(line)
+            if sock:
+                rep.sockets.append(sock)
+        elif section == "sample":
+            _parse_sample_line(rep, line)
     return rep
+
+
+def _parse_owner_line(rep: HostReport, line: str) -> None:
+    key, _, value = line.partition("=")
+    if key == "pid":
+        pid = _int_or_none(value.strip())
+        if pid is not None:
+            rep.owners[pid] = Owner(pid=pid)
+            rep.cur_owner = pid
+        return
+    cur = rep.owners.get(rep.cur_owner)
+    if cur is None:
+        return
+    if key == "cwd":
+        cur.cwd = value
+    elif key == "git":
+        top, _, rest = value.partition("|")
+        wt, _, rest = rest.partition("|")
+        branch, _, rest = rest.partition("|")
+        commit, _, subject = rest.partition("|")
+        cur.git_top, cur.worktree, cur.branch, cur.commit, cur.subject = top, wt == "1", branch, commit, subject
+    elif key == "cgroup":
+        cur.cgroup = value.rpartition(":")[2] if ":" in value else value
+    elif key == "chain":
+        for item in value.split():
+            pid_s, _, comm = item.partition(":")
+            if pid_s.isdigit():
+                cur.chain.append((int(pid_s), comm))
+    elif key == "env":
+        state, _, rest = value.partition("|")
+        cur.env_readable = state == "readable"
+        for pair in rest.split():
+            k, _, v = pair.partition("=")
+            if k in ("NLLB_DEVICE", "CUDA_VISIBLE_DEVICES", "NVIDIA_VISIBLE_DEVICES"):
+                cur.env[k] = v
+    elif key == "log":
+        path, _, mtime = value.rpartition("|")
+        cur.log_path, cur.log_mtime = path, _int_or_none(mtime)
+
+
+def _parse_sample_line(rep: HostReport, line: str) -> None:
+    if line.startswith("interval="):
+        rep.sample_interval = int(_num(line[9:]) or 0)
+    elif line.startswith("clk_tck="):
+        rep.clk_tck = int(_num(line[8:]) or 100)
+    elif line.startswith(("t0 ", "t1 ")):
+        parts = line.split()
+        if len(parts) >= 4 and parts[1].isdigit():
+            s = rep.samples.setdefault(int(parts[1]), Sample())
+            ticks, io = _int_or_none(parts[2]), _int_or_none(parts[3])
+            if parts[0] == "t0":
+                s.ticks0, s.io0 = ticks, io
+            else:
+                s.ticks1, s.io1 = ticks, io
 
 
 def _parse_job(line: str) -> dict[str, Any]:
@@ -236,6 +378,134 @@ def _gb(kb: int) -> float:
     return kb / 1048576.0
 
 
+# ---- who owns a process, and is it working or spinning --------------------------------------
+
+SERVING_LOG_WINDOW_S = 300        # a log write this recent counts as live work
+SERVING_IO_BYTES = 256 * 1024     # more read+write than this in the sample window counts as live work
+SPINNING_MIN_CPU_PCT = 100.0      # measured CPU (not the lifetime average) needed to call it spinning
+GPU_IDLE_UTIL_PCT = 5.0
+GPU_IDLE_MIN_BUSY_CORES = 4.0
+TOP_PROC_MIN_CPU_PCT = 50.0
+TOP_PROC_COUNT = 3
+
+
+def tmux_session_for(rep: HostReport, pid: int) -> tuple[str, str] | None:
+    """(session, window) if pid or any ancestor is a tmux pane's shell; None otherwise."""
+    panes = {p: (s, w) for p, s, w in rep.tmux_panes}
+    owner = rep.owners.get(pid)
+    for anc, _comm in (owner.chain if owner else []):
+        if anc in panes:
+            return panes[anc]
+    return panes.get(pid)
+
+
+def started_via_gs_run(rep: HostReport, pid: int) -> bool:
+    """True if pid or an ancestor is the wrapper or child of a running gs_run job record."""
+    mine: set[int] = set()
+    for job in rep.jobs:
+        if job.get("state") == "running":
+            for key in ("pid", "child_pid"):
+                if isinstance(job.get(key), int):
+                    mine.add(job[key])
+    owner = rep.owners.get(pid)
+    return pid in mine or any(anc in mine for anc, _ in (owner.chain if owner else []))
+
+
+def owner_text(rep: HostReport, pid: int) -> str:
+    """One line: tmux session | worktree (branch @ commit) | unit | cwd. 'unknown' if the probe saw nothing."""
+    o = rep.owners.get(pid)
+    if o is None:
+        return "unknown (not probed)"
+    bits: list[str] = []
+    tm = tmux_session_for(rep, pid)
+    if tm:
+        bits.append(f"tmux '{tm[0]}'" + (f" window '{tm[1]}'" if tm[1] else ""))
+    if started_via_gs_run(rep, pid):
+        bits.append("started via gs_run")
+    if o.git_top:
+        name = Path(o.git_top).name
+        kind = "worktree" if o.worktree else "repo"
+        bits.append(f"{kind} {name} ({o.branch} @ {o.commit}{' ' + repr(o.subject[:40]) if o.subject else ''})")
+    if o.unit:
+        bits.append(f"unit {o.unit}")
+    if o.cwd and not o.git_top:
+        bits.append(f"cwd {o.cwd}")
+    return " | ".join(bits) if bits else "unknown (no tmux, repo or unit found)"
+
+
+def chain_text(rep: HostReport, pid: int) -> str:
+    o = rep.owners.get(pid)
+    if not o or not o.chain:
+        return ""
+    return " < ".join(f"{p}:{c}" for p, c in o.chain)
+
+
+def env_text(rep: HostReport, pid: int) -> str:
+    o = rep.owners.get(pid)
+    if not o:
+        return ""
+    if not o.env_readable:
+        return "environment unreadable (other user)"
+    return " ".join(f"{k}={o.env.get(k, '(unset)')}" for k in ("NLLB_DEVICE", "CUDA_VISIBLE_DEVICES"))
+
+
+def serving_info(rep: HostReport, pid: int) -> dict[str, Any]:
+    """Ports this pid listens on, how many ESTABLISHED clients are connected to them, last log write age."""
+    ports = sorted({s.local_port for s in rep.sockets if s.state == "LISTEN" and pid in s.pids})
+    clients = [s for s in rep.sockets if s.state == "ESTAB" and s.local_port in ports]
+    o = rep.owners.get(pid)
+    log_age = None
+    if o and o.log_mtime and rep.now:
+        log_age = max(0, rep.now - o.log_mtime)
+    return {"ports": ports, "clients": len(clients), "log_age_s": log_age}
+
+
+def measured_cpu_pct(rep: HostReport, pid: int) -> float | None:
+    s = rep.samples.get(pid)
+    if not s or s.ticks0 is None or s.ticks1 is None or rep.sample_interval <= 0:
+        return None
+    return (s.ticks1 - s.ticks0) / max(1, rep.clk_tck) / rep.sample_interval * 100.0
+
+
+def io_delta_bytes(rep: HostReport, pid: int) -> int | None:
+    s = rep.samples.get(pid)
+    if not s or s.io0 is None or s.io1 is None:
+        return None
+    return s.io1 - s.io0
+
+
+def classify_busy(rep: HostReport, pid: int) -> tuple[str, str]:
+    """('busy-serving' | 'possible-runaway' | 'unverified', reason) for a high-CPU process.
+
+    Serving evidence: connected clients, a recent log write, or real IO during the sample.
+    A runaway needs the opposite on every count AND measured CPU still high: with no sample, or
+    IO counters that cannot be read, we say 'unverified' and never suggest a kill.
+    """
+    info = serving_info(rep, pid)
+    cpu_now = measured_cpu_pct(rep, pid)
+    io = io_delta_bytes(rep, pid)
+    evidence: list[str] = []
+    if info["clients"]:
+        port = ",".join(str(p) for p in info["ports"])
+        evidence.append(f"serving {info['clients']} client(s) on port {port}")
+    if info["log_age_s"] is not None and info["log_age_s"] < SERVING_LOG_WINDOW_S:
+        evidence.append(f"last log write {info['log_age_s']} s ago")
+    if io is not None and io > SERVING_IO_BYTES:
+        evidence.append(f"{io // 1024} KB read/written in the last {rep.sample_interval} s")
+    if evidence:
+        return "busy-serving", "; ".join(evidence)
+    if cpu_now is None:
+        return "unverified", "no CPU/IO sample was taken, so working versus spinning cannot be told apart"
+    if io is None:
+        return "unverified", f"{cpu_now:.0f}% CPU now, but its IO counters are unreadable (other user), so IO growth is unknown"
+    if cpu_now >= SPINNING_MIN_CPU_PCT:
+        why = f"{cpu_now:.0f}% CPU over {rep.sample_interval} s, no clients, no IO growth ({io} bytes)"
+        if info["ports"]:
+            why += f", listening on {','.join(str(p) for p in info['ports'])} with nobody connected"
+        return "possible-runaway", why
+    return "unverified", f"only {cpu_now:.0f}% CPU in the last {rep.sample_interval} s: it has calmed down since the lifetime average was taken"
+
+
 def analyze(rep: HostReport, budget: dict[str, str] | None = None) -> list[Finding]:
     """Findings for one host, most severe first. fix is a suggestion only."""
     budget = budget or {}
@@ -268,31 +538,59 @@ def analyze(rep: HostReport, budget: dict[str, str] | None = None) -> list[Findi
         if p.pcpu > RUNAWAY_CPU_PCT and p.etime_s > RUNAWAY_MIN_SECONDS and p.pid not in seen:
             seen.add(p.pid)
             hours = p.etime_s / 3600
-            out.append(Finding(CRIT, name, "RUNAWAY",
-                               f"pid {p.pid} at {p.pcpu:.0f}% CPU for {hours:.1f} h: {p.args[:90]}",
-                               f"kill {p.pid}   (check first: ps -o pid,ppid,etime,args -p {p.pid})"))
+            kind, why = classify_busy(rep, p.pid)
+            who = owner_text(rep, p.pid)
+            base = f"pid {p.pid} at {p.pcpu:.0f}% average CPU for {hours:.1f} h: {p.args[:80]}"
+            owned = tmux_session_for(rep, p.pid) is not None or bool(rep.owners.get(p.pid) and rep.owners[p.pid].worktree)
+            if kind == "busy-serving":
+                out.append(Finding(INFO, name, "BUSY_SERVING",
+                                   f"{base}. Busy-serving: {why}. Not a kill suggestion. Owner: {who}", ""))
+            else:
+                label = "Possible runaway" if kind == "possible-runaway" else "High CPU, unverified"
+                code = "POSSIBLE_RUNAWAY" if kind == "possible-runaway" else "HIGH_CPU_UNVERIFIED"
+                guard = " --i-know-owner" if owned else ""
+                fix = (f"ask the owner first ({who}). If it is yours: scripts/fleet_reap.sh --pid {p.pid}{guard} --yes"
+                       if kind == "possible-runaway"
+                       else f"find out what it is doing first: scripts/fleet_status.sh --host {name}  (owner: {who})")
+                out.append(Finding(WARN, name, code, f"{base}. {label}: {why}. Owner: {who}", fix))
 
     for z in rep.zombies:
         parent = rep.zombie_parents.get(z.ppid)
         pdesc = f"parent pid {z.ppid} {parent.args[:70]}" if parent else f"parent pid {z.ppid}"
-        fix = ("the parent is init, which reaps it; if it stays, reboot" if z.ppid == 1
-               else f"kill -TERM {z.ppid}   (a zombie cannot be killed; its parent must exit or reap it)")
+        powner = owner_text(rep, z.ppid) if z.ppid in rep.owners else ""
+        if powner:
+            pdesc += f" [{powner}]"
+        if z.ppid == 1:
+            fix = "the parent is init, which reaps it; if it stays, reboot"
+        elif tmux_session_for(rep, z.ppid) or (z.ppid in rep.owners and rep.owners[z.ppid].worktree):
+            fix = (f"the parent belongs to someone else's session: ask the owner. "
+                   f"scripts/fleet_reap.sh --pid {z.ppid} --i-know-owner --yes only if you are sure")
+        else:
+            fix = f"kill -TERM {z.ppid}   (a zombie cannot be killed; its parent must exit or reap it)"
         out.append(Finding(WARN, name, "ZOMBIE", f"defunct pid {z.pid} ({z.args[:40]}), {pdesc}", fix))
 
     for o in rep.orphans:
         heavy = o.pcpu >= ORPHAN_MIN_CPU_PCT or o.rss_kb >= ORPHAN_MIN_RSS_KB
         if o.etime_s >= ORPHAN_MIN_SECONDS and heavy:
+            who = owner_text(rep, o.pid)
+            owned = tmux_session_for(rep, o.pid) is not None or bool(rep.owners.get(o.pid) and rep.owners[o.pid].worktree)
+            fix = (f"it belongs to a tmux session or worktree ({who}): leave it, or ask the owner" if owned
+                   else "unmanaged job: start it through scripts/gs_run.sh next time; stop with kill <pid> if unneeded")
             out.append(Finding(WARN, name, "ORPHAN",
                                f"pid {o.pid} (user {o.user}, parent 1) running {o.etime_s / 3600:.1f} h at {o.pcpu:.0f}% CPU, "
-                               f"{o.rss_kb // 1048576} GB: {o.args[:70]}",
-                               "unmanaged job: start it through scripts/gs_run.sh next time; stop with kill <pid> if unneeded"))
+                               f"{o.rss_kb // 1048576} GB: {o.args[:70]}. Owner: {who}", fix))
 
+    busy_cores = sum(p.pcpu for p in rep.procs_cpu) / 100.0
     for i, g in enumerate(rep.gpus):
         util = g.get("util")
-        if util is not None and util < 5 and rep.cpus and load1 > rep.cpus:
-            out.append(Finding(INFO, name, "GPU_IDLE_CPU_BUSY",
-                               f"GPU {g['name']} at {util:.0f}% while the CPU is saturated: the busy jobs are probably CPU-bound",
-                               "check that heavy jobs use cuda (torch.cuda.is_available(), --device cuda)"))
+        if util is not None and util < GPU_IDLE_UTIL_PCT and busy_cores >= GPU_IDLE_MIN_BUSY_CORES:
+            heavy = [p for p in rep.procs_cpu if p.pcpu >= 100][:TOP_PROC_COUNT]
+            envs = "; ".join(f"pid {p.pid}: {env_text(rep, p.pid) or 'environment not probed'}" for p in heavy)
+            out.append(Finding(WARN, name, "GPU_IDLE_CPU_BUSY",
+                               f"GPU {util:.0f}% while {busy_cores:.0f} cores busy: check NLLB_DEVICE/CUDA device settings "
+                               f"in the process environment. {envs}".strip(),
+                               "NLLB_DEVICE=cpu or CUDA_VISIBLE_DEVICES= (empty) keep a job off the GPU on purpose; "
+                               "otherwise restart it with the device unset or cuda, through scripts/gs_run.sh"))
         if g.get("mem_total_mib") is None and i == 0:
             out.append(Finding(INFO, name, "GPU_MEM_SHARED", "GPU memory is not reported (unified memory); watch system memory instead", ""))
     max_gpu_jobs = int(budget.get("gpu_jobs", "1") or 1)
@@ -342,6 +640,25 @@ def analyze(rep: HostReport, budget: dict[str, str] | None = None) -> list[Findi
                            f"{b['file']}: {'finished' if finished else 'last line'} {age_h:.0f} h ago: {b['last'][:90]}", ""))
     if rep.timers:
         out.append(Finding(INFO, name, "TIMERS", f"{len(rep.timers)} relevant systemd user timer(s)", ""))
+    shown = 0
+    for p in rep.procs_cpu:
+        if shown >= TOP_PROC_COUNT or p.pcpu < TOP_PROC_MIN_CPU_PCT:
+            break
+        info = serving_info(rep, p.pid)
+        serving = (f"listens on {','.join(map(str, info['ports']))}, serving {info['clients']} client(s)"
+                   if info["ports"] else "no listening port")
+        if info["log_age_s"] is not None:
+            serving += f", last log write {info['log_age_s']} s ago"
+        parts = [f"pid {p.pid} {p.pcpu:.0f}% CPU {p.rss_kb // 1048576} GB: {p.args[:60]}",
+                 f"owner: {owner_text(rep, p.pid)}", serving]
+        chain = chain_text(rep, p.pid)
+        if chain:
+            parts.append(f"chain: {chain}")
+        env = env_text(rep, p.pid)
+        if env:
+            parts.append(env)
+        out.append(Finding(INFO, name, "TOP_PROC", " | ".join(parts), ""))
+        shown += 1
     out.sort(key=lambda f: _ORDER[f.severity])
     return out
 
