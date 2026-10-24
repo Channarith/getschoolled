@@ -1,0 +1,30 @@
+COMPANY VOICE CLONING (owner + employees), VoxCPM2 and CosyVoice 2 on the DGX Spark
+
+Rule: no consent record, no enrollment, no synthesis. Consent, samples and models stay in ~/voices on the Spark
+(GS_VOICES_DIR), never in git (.gitignore covers /voices/ and *-clones/).
+
+Flow
+ 1. Each person signs tts_bakeoff/voice_clone/CONSENT_FORM.txt (have counsel review it; the template is not legal advice).
+ 2. Record 30-60 s of clean speech in a quiet room, reading a script, and write down exactly what was said.
+ 3. On the Spark (python3 -m tts_bakeoff.voice_clone.bakeoff ...):
+      consent --speaker alice --name "Alice Tran" --role employee --signed-form signed.pdf
+      enroll  --speaker alice --audio alice.m4a --transcript-file alice.txt --lang en
+      (consent stores the signed form's sha256; enroll trims, loudness-normalizes, checks length 20-90 s and SNR >= 20 dB)
+ 4. scripts/run_voice_clone.sh [OUT]  -> one gs_run.sh job per model (GPU lock, memory cap, CUDA required).
+ 5. python3 -m tts_bakeoff.lab --out OUT  -> clone voices are badged "CLONE: consented".
+ 6. Revoke: ... bakeoff revoke --speaker alice. Synthesis refuses at once; delete samples/models within 30 days (form clause 5).
+Every synthesis re-hashes the signed form and every sample; edited or swapped audio is refused.
+
+Models (license read 2026-10-25 from the model cards/repos recorded in tts_bakeoff/candidates.yaml)
+  VoxCPM2: Apache-2.0, "free for commercial use". Its card adds: "Strictly forbidden to use for impersonation, fraud, or
+  disinformation. AI-generated content should be clearly labeled" (so label cloned audio as AI-generated in the product). Zero-shot / "ultimate" cloning with transcript, 30 languages.
+  CosyVoice 2 0.5B: Apache-2.0 weights; code repo is Apache-2.0 but its README and model card say "for academic purposes only and is intended to demonstrate technical capabilities"
+  (a disclaimer, not a license term; ask counsel before shipping). Cloning: zero-shot (same language, needs transcript),
+  cross-lingual (nine languages plus Chinese dialects; no km/vi/th/sw/hi in the base model, so it is bake-off'd on en,es,zh).
+  Cloned voices carry the person's likeness: consent, not the model license, is the binding constraint.
+
+Later: fine-tune on a speaker's consented recordings (NOT run yet; stub)
+  Need 1-3 hours per person (not 60 s). VoxCPM2: LoRA fine-tune with the repo's training script (a Khmer LoRA paper exists:
+  arXiv 2606.26618, title only seen). CosyVoice 2: the Spark fine-tune scripts (scripts/spark_cosyvoice_km_finetune.sh)
+  are the template. Gate: consent scope model_training (already required), a held-out sentence set, listening-lab A/B
+  against the zero-shot clone, and the GPU lock via gs_run.sh. Training data never leaves the Spark.

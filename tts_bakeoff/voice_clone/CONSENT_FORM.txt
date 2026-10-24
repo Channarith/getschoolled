@@ -1,0 +1,22 @@
+VOICE RECORDING AND VOICE MODEL CONSENT (TEMPLATE - have counsel review before use)
+
+Company: ______________________   Person: ______________________   Role: [ ] owner  [ ] employee
+
+1. What I am agreeing to. I agree that the company may record my voice, create one or more synthetic voice models
+   from those recordings, and use them (a) to narrate courses and lessons, (b) in products the company sells or gives
+   away, and (c) to train and improve the company's voice models.
+2. Commercial use. I understand the synthetic voice may be used commercially, in any language, saying words I never
+   said, and may continue to exist in products already released if I later withdraw.
+3. Limits. The company will not use my voice model to impersonate me to deceive anyone, for political or
+   sexual content, for endorsements I have not approved, or to make statements presented as my own opinion.
+4. Storage. My recordings and models are stored only on company-controlled machines and are not shared with
+   third parties except cloud hosts and model providers bound to the company's data terms.
+5. Withdrawing. I may withdraw consent at any time by written notice. The company will stop creating new audio with my
+   voice, delete my recordings and models within 30 days, and exclude them from future training. Items already
+   released are not recalled.
+6. Compensation / employment. [state: no extra compensation / terms]. Agreeing or declining does not affect my employment.
+7. Recording scripts. I will read the scripts provided, in my own voice, at natural speed.
+
+Signature: ______________________   Printed name: ______________________   Date: ____________
+
+Company representative: ______________________   Date: ____________
