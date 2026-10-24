@@ -2,6 +2,7 @@
 // Base URL is configurable so the SAME UI runs against local or cloud backends.
 
 import type { MascotResolve } from "./mascot";
+import { reportFriendlyFailure } from "./friendlyStatus";
 
 // Are we running on a deployed host (not local dev)? On localhost the UI talks
 // to each service on its own port; when deployed it shares ONE origin with the
@@ -1670,6 +1671,7 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
     } else if (res.ok) {
       _consecutive401s = 0;
     }
+    reportFriendlyFailure(res.status);
     let detail = res.statusText;
     try {
       const j = (await res.json()) as { detail?: unknown };

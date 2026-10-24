@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, AppState, Image, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View,
 } from "react-native";
+import FriendlyErrorView, { friendlyKindFor } from "../components/FriendlyErrorView";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
 import { ensureCameraPermission } from "../components/cameraPermission";
@@ -43,6 +44,7 @@ export default function DemoWebScreen({
   const { t, locale } = useT();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [plays, setPlays] = useState(0);
   const webRef = useRef<WebView>(null);
   const path = demoPathWithLocale(demo.path, locale);
@@ -110,21 +112,31 @@ export default function DemoWebScreen({
         {plays > 0 ? <Text style={styles.plays} testID="demo-telemetry">{plays}</Text> : null}
       </View>
       {error ? (
-        <View style={styles.errorWrap}>
-          <Text style={styles.error}>{t("guest.webFailed")}</Text>
-          <Text style={styles.errorDetail}>{error}</Text>
-        </View>
+        <FriendlyErrorView
+          status={errorStatus}
+          kind={friendlyKindFor(errorStatus, error)}
+          details={error}
+          autoRetrySeconds={15}
+          onRetry={() => { setError(""); setErrorStatus(null); return true; }}
+          onBack={onBack}
+        />
       ) : (
         <WebView
           ref={webRef}
           testID="demo-webview"
           source={{ uri: url }}
           style={styles.web}
-          onLoadStart={() => { setError(""); setLoading(true); }}
+          onLoadStart={() => { setError(""); setErrorStatus(null); setLoading(true); }}
           onLoadEnd={() => setLoading(false)}
           onError={(event) => {
             setLoading(false);
+            setErrorStatus(null);
             setError(event.nativeEvent.description || "load failed");
+          }}
+          onHttpError={(event) => {
+            setLoading(false);
+            setErrorStatus(event.nativeEvent.statusCode);
+            setError(`HTTP ${event.nativeEvent.statusCode} ${event.nativeEvent.url || ""}`.trim());
           }}
           injectedJavaScriptBeforeContentLoaded={beforeLoad}
           injectedJavaScript={[phoneAudio, waveScript, touchScript].filter(Boolean).join("\n")}

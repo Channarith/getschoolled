@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from typing import Any, Literal
 
+from aoep_shared.friendly_errors import install_friendly_errors
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response
@@ -45,6 +46,7 @@ app = FastAPI(
     version=__version__,
     description="Private, playful browser-local face and hand learning games for ages 4 and up.",
 )
+install_friendly_errors(app, script_url="/static/friendly_error.js")
 install_live_audio_routes(
     app,
     lab_name="Theodore Children Webcam Lab",
