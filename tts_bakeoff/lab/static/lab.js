@@ -6,6 +6,8 @@ const LANG_NAMES = {km: 'Khmer', vi: 'Vietnamese', th: 'Thai', es: 'Spanish', en
 const LANG_META = {};   // code -> {code, name, native, rtl, platform, status, reason, alternative} (from the voice catalog)
 for (const l of LAB.languages || []) { LANG_META[l.code] = l; LANG_NAMES[l.code] = l.name; }
 const STYLE_ORDER = ['professional', 'warm', 'calm', 'energetic', 'cute', 'anime', 'tough', 'heavy', 'light'];
+const BLENDS = ['professional75-cute25', 'professional50-cute50', 'professional25-cute75', 'professional75-anime25', 'professional50-anime50', 'professional25-anime75', 'cute75-anime25', 'cute50-anime50', 'cute25-anime75', 'pro34-cute33-anime33', 'pro60-cute20-anime20', 'cute60-pro20-anime20', 'anime60-pro20-cute20'].map(b => 'blend-' + b);
+STYLE_ORDER.push(...BLENDS);
 const SID_RE = /^[SMLNDPVQA]\d{1,3}$/i;
 const AUDIO_RE = /\.(wav|mp3|m4a|aac|ogg|opus|flac|webm)$/i;
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -586,6 +588,7 @@ $('#help-btn').addEventListener('click', () => { $('#help-dlg').hidden = false; 
 $('#help-close').addEventListener('click', () => { $('#help-dlg').hidden = true; });
 
 /* ---------- toolbar wiring ---------- */
+{ const og = h('optgroup', {label: 'blends (professional / cute / anime)'}); for (const b of BLENDS) og.append(h('option', {value: b, text: b.replace('blend-', '')})); $('#f-type').append(og); }
 for (const [id, key] of [['f-gender', 'gender'], ['f-region', 'region'], ['f-type', 'type']]) {
   $('#' + id).addEventListener('change', e => { state[key] = e.target.value; state.vis = null; refreshFilters(); renderGrid(); renderSamples(); });
 }

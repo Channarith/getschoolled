@@ -8,7 +8,7 @@ from tts_bakeoff.build_sentences import load, ordered_ids
 from tts_bakeoff.edge_all import build_plan
 from tts_bakeoff.sentences_master import LANGS, SENTENCES
 from tts_bakeoff.snapshot_edge_voices import normalize
-from tts_bakeoff.voice_types import PRESETS
+from tts_bakeoff.voice_types import BLEND_WEIGHTS, PRESETS
 
 DOC = json.loads(ec.SNAPSHOT.read_text(encoding="utf-8"))
 VOICES = DOC["voices"]
@@ -142,7 +142,7 @@ def test_plan_counts_match_the_catalog():
     covered = {v for e in spoken for v in e["default"].values() if v}
     regional = sum(1 for e in spoken for r in e["regions"] for v in r["voices"] if v not in covered)
     kinds = {k: sum(1 for j in plan if models[j["model"]]["kind"] == k) for k in ("default", "style", "regional")}
-    assert kinds == {"default": defaults * 10, "style": len(spoken) * len(PRESETS) * 2, "regional": regional}
+    assert kinds == {"default": defaults * 10, "style": len(spoken) * len(PRESETS) * 2 + (defaults - len(spoken)) * len(PRESETS) + defaults * len(BLEND_WEIGHTS), "regional": regional}
     assert len(plan) == sum(kinds.values()) > 3000
     assert len({(j["model"], j["lang"], j["id"]) for j in plan}) == len(plan)
     assert {j["lang"] for j in plan} == set(SPOKEN)
@@ -158,7 +158,7 @@ def test_plan_has_every_voice_of_every_language_exactly_once():
         assert "NO_" not in j["model"] and j["text"].strip()
         if "~" in j["model"]:
             assert j["id"] in {"S01", "Q01"} and {"rate", "pitch", "volume"} <= set(j)
-            assert j["voice"] == CATALOG[j["lang"]]["default"]["female"]
+            assert j["voice"] in CATALOG[j["lang"]]["default"].values()
 
 
 def test_plan_can_be_limited_to_some_languages():
