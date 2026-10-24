@@ -52,6 +52,23 @@ Cantonese (廣東話) in the enrollment page
     Fun-CosyVoice 3.0. So the adapter does not claim yue and the bake-off skips it (skipped_unsupported). Try Fun-CosyVoice 3.0 later.
   Edge-tts has Cantonese voices (zh-HK) but cannot clone; they are only a listening reference.
 
+Cleaning (noise, clicks, hum) and best-of-N  [tts_bakeoff/voice_clone/clean.py; numpy only]
+  Enrollment: the recording is high-passed (70 Hz), mains hum (50/60 Hz and harmonics) is notched, clicks are repaired and a MILD
+  spectral gate is applied. The cleaned copy replaces the sample only if SNR did not fall, no clicks were added and the voice's
+  tone colour (noise-corrected band profile) moved <= 1.5 dB; otherwise the original is kept and the page says why. The recording
+  before cleaning is kept at samples/.raw/<name>.wav (removed together with the sample on re-record).
+  The hard "too noisy" gate still uses the ORIGINAL SNR, so cleaning never rescues a bad recording.
+  Synthesis: bakeoff run now makes --takes 3 per sentence (default), scores each (clicks, clipping, noise floor, gap hiss, hum;
+  optional ASR word-error-rate with GS_CLONE_ASR=1 and openai-whisper, written but not run in CI), keeps the cleanest, then
+  high-pass, hum notch, de-click, light gate, 8/25 ms fades and loudness normalize (tone-colour limit 2.5 dB). Scores per take are in
+  <lang>/.raw/<id>.clean.json; the raw chosen take is <lang>/.raw/<id>.wav. Dot folders are hidden from the listening lab.
+  Opt out: --no-clean, --takes 1, or GS_CLONE_CLEAN=0 / GS_CLONE_TAKES=1.
+  Clean existing clips in place (originals kept; safe to repeat):
+    python3 -m tts_bakeoff.voice_clone.clean --dir runs/2026-10-25-clones          # add --force to redo
+    python3 -m tts_bakeoff.voice_clone.clean --in a.wav --out a.clean.wav          # prints a before/after table
+  Limits: this removes steady hiss, hum and short clicks. It cannot remove a model artefact that is part of the word itself
+  (a mispronounced or garbled syllable): re-synthesize (best-of-N helps) or report the sentence and word.
+
 Models (license read 2026-10-25 from the model cards/repos recorded in tts_bakeoff/candidates.yaml)
   VoxCPM2: Apache-2.0, "free for commercial use". Its card adds: "Strictly forbidden to use for impersonation, fraud, or
   disinformation. AI-generated content should be clearly labeled" (so label cloned audio as AI-generated in the product). Zero-shot / "ultimate" cloning with transcript, 30 languages.

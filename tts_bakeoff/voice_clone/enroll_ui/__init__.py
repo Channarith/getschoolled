@@ -278,6 +278,10 @@ def finish_enrollment(base: Path, speaker: str, lang: str) -> dict:
         registry.remove_sample(speaker, rel, base)
     (d / "samples").mkdir(exist_ok=True)
     shutil.move(str(dest), str(d / rel))
+    held = dest.parent / ".raw" / dest.name
+    if held.exists():
+        (d / "samples" / ".raw").mkdir(parents=True, exist_ok=True)
+        shutil.move(str(held), str(d / "samples" / ".raw" / dest.name))
     transcript = " ".join(p["text"] for p in prompts)
     registry.add_sample(speaker, d / rel, transcript, lang, base, extra={"seconds": info["seconds"]})
     return {"ok": True, "file": rel, **info}

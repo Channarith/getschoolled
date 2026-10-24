@@ -7,6 +7,7 @@
 #   scripts/fleet_status.sh --json           machine-readable
 #   scripts/fleet_status.sh --raw            print the raw probe output per host
 #   scripts/fleet_status.sh --sample 0       skip the 10 s working-versus-spinning CPU/IO sample
+#   scripts/fleet_status.sh --no-gate        skip the Spark demo-gate lines (GPU lock, memory gate, labs, queue)
 #   FLEET_HOST_KALEL=192.168.1.119 scripts/fleet_status.sh    override an address (DHCP moved it)
 #
 # For every busy process it also shows the owner: tmux session, git worktree and branch, systemd
@@ -24,7 +25,7 @@ SSH_TIMEOUT="${FLEET_SSH_TIMEOUT:-6}"
 CTL_DIR="/tmp/gsf-$(id -u)"
 mkdir -p "$CTL_DIR" && chmod 700 "$CTL_DIR"
 
-only_host=""; local_only=0; as_json=0; raw=0; quiet=0
+only_host=""; local_only=0; as_json=0; raw=0; quiet=0; gate=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --local) local_only=1 ;;
@@ -32,8 +33,9 @@ while [ $# -gt 0 ]; do
     --json) as_json=1 ;;
     --raw) raw=1 ;;
     --quiet) quiet=1 ;;
+    --no-gate) gate=0 ;;
     --sample) FLEET_SAMPLE_SECONDS="${2:?--sample needs seconds (0 = no sample)}"; shift ;;
-    -h|--help) sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 64 ;;
   esac
   shift
@@ -103,8 +105,40 @@ fi
 
 fmt=()
 [ "$as_json" = 1 ] && fmt=(--json)
+# A checkout without installed dependencies (a fresh worktree, ~/code/gs-main on the Spark) cannot import aoep_shared
+# (pydantic). Use FLEET_PYTHON, else python3 when it can, else the shared venv of the main checkout.
+PYBIN="${FLEET_PYTHON:-python3}"
+if [ -z "${FLEET_PYTHON:-}" ] && ! "$PYBIN" -c 'import pydantic' >/dev/null 2>&1; then
+  for cand in "${AOEP_VENV:-$HOME/code/getschoolled/.venv}/bin/python" "$HOME/getschoolled/.venv/bin/python"; do
+    [ -x "$cand" ] && { PYBIN="$cand"; break; }
+  done
+fi
 PYTHONPATH="$ROOT/packages/shared/src${PYTHONPATH:+:$PYTHONPATH}" \
-  python3 -m aoep_shared.fleet_status render --budgets "$BUDGETS_FILE" ${fmt[@]+"${fmt[@]}"} "${args[@]}"
+  "$PYBIN" -m aoep_shared.fleet_status render --budgets "$BUDGETS_FILE" ${fmt[@]+"${fmt[@]}"} "${args[@]}"
 rc=$?
+# The Spark's demo gate: four plain lines (GPU lock holder, memory vs the 16 GB gate, lab ports, queued waiters).
+if [ "$gate" = 1 ] && [ "$as_json" = 0 ]; then
+  gate_script="$ROOT/scripts/fleet/spark_gate.sh"
+  while read -r gname guser ghost _rest; do
+    case "$gname" in ''|\#*) continue ;; esac
+    [ "$gname" = "spark" ] || continue
+    [ -n "$only_host" ] && [ "$only_host" != "spark" ] && continue
+    [ "$local_only" = 1 ] && [ "$ghost" != "local" ] && continue
+    grep -q '^FLEET_UNREACHABLE' "$work/spark.report" 2>/dev/null && continue
+    echo
+    echo "Spark demo gate"
+    envvar="FLEET_HOST_SPARK"; gaddr="${!envvar:-$ghost}"
+    if [ "$gaddr" = "local" ]; then
+      bash "$gate_script"
+    else
+      ssh -o BatchMode=yes -o ConnectTimeout="$SSH_TIMEOUT" -o ControlMaster=auto -o ControlPersist=60 -o "ControlPath=$CTL_DIR/%C" \
+        "${guser}@${gaddr}" 'bash -s' < "$gate_script" 2>/dev/null || echo "  (could not reach ${gaddr} for the gate lines)"
+    fi
+  done < "$HOSTS_FILE"
+  # Run on the Spark itself with --local: hosts.conf names it by address, so look at this machine directly.
+  if [ "$local_only" = 1 ] && [ "$(uname -s)" = "Linux" ] && [ -z "$only_host" ]; then
+    echo; echo "Spark demo gate (this machine)"; bash "$gate_script"
+  fi
+fi
 [ "$quiet" = 1 ] && [ "$rc" = 0 ] && exit 0
 exit "$rc"
