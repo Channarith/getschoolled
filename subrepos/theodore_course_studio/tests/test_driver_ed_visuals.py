@@ -44,6 +44,12 @@ def test_every_driver_ed_slide_gets_a_road_scene(program):
         assert 1 <= len(cues) <= MAX_POINTS
         persistent = [layer for layer in cues[0]["layers"] if layer.get("persistent")]
         assert len(persistent) == 1
+        if slide.title == "California driver education":
+            assert persistent[0]["kind"] == "video"
+            assert persistent[0]["url"].endswith("drivers-ed-intro.mp4")
+            assert "PERMIT" not in str(persistent[0])
+            scenes.add(timeline["scene_id"])
+            continue
         svg = persistent[0]["svg"]
         assert svg.startswith("<svg") and 'role="img"' in svg and "aria-label=" in svg and "<title>" in svg
         assert not re.search(r"https?://(?!www\.w3\.org/)", svg), slide.title

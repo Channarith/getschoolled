@@ -762,7 +762,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     }, 400);
   }
 
-  const TUTORIAL_KEY = options.demo ? "sala_demo_tutorial_seen_v2" : "sala_course_tutorial_seen_v1";
+  const TUTORIAL_KEY = options.demo ? "sala_demo_tutorial_seen_v3" : "sala_course_tutorial_seen_v2";
 
   // Driver's Ed demo opening: the page around us shows a video. Order: this tutorial first
   // (video waiting, paused, behind it), then the video, then the lesson. Until the video is
@@ -810,60 +810,42 @@ export function initCourseVoiceOverlay(opts = {}) {
       }
     }, 500);
   }
-  const DEMO_TUTORIAL = [
+  const PICTURE_STEPS = [
     {
-      icon: "✨", title: "Meet Sala",
-      lines: [
-        "Tap Sala to start. Sala giggles. Tap again to turn listening on or off.",
-        "Tap the lesson to move ahead. Double-tap the lesson for full screen.",
-        "Sala teaches out loud. Allow the microphone when your device asks.",
-      ],
+      image: "/api/studio/voice-overlay/tutorial-tap.webp",
+      title: "Tap the lesson",
+      alt: "Tap the lesson. It moves ahead.",
     },
     {
-      icon: "🎙️", title: "Just say it",
-      lines: ["Talk to Sala like a teacher. Try:"],
-      chips: ["pause", "next", "back", "repeat", "captions on", "full screen", "speak Spanish", "louder", "mute"],
-      after: ["Or ask any question about the course."],
+      image: "/api/studio/voice-overlay/tutorial-double.webp",
+      title: "Full screen",
+      alt: "Double-tap the lesson. Full screen.",
     },
     {
-      icon: "👆", title: "Tap and double-tap",
-      lines: [
-        "Tap the lesson to move to the next part.",
-        "Double-tap the lesson to go full screen. Double-tap again to leave full screen.",
-      ],
+      image: "/api/studio/voice-overlay/sala-giggle.png",
+      title: "Tap Sala",
+      alt: "Tap Sala. Sala giggles.",
+      portrait: true,
+      lines: ["Tap Sala to start. Sala giggles. Tap again to turn listening on or off."],
     },
     {
-      icon: "💡", title: "Good to know",
-      lines: [
-        "Find a quiet spot so Sala can hear you.",
-        "If you step out of the camera's view, the lesson pauses and picks up when you are back.",
-        "The free demo runs for 10 minutes.",
-      ],
+      image: "/api/studio/voice-overlay/tutorial-dance.webp",
+      title: "Sala can dance",
+      alt: "Sala can dance.",
     },
   ];
-
+  const SAY_IT = {
+    icon: "🎙️", title: "Just say it",
+    lines: ["Talk to Sala like a teacher. Captions stay off until you ask. Try:"],
+    chips: ["pause", "next", "back", "repeat", "captions on", "full screen", "speak Spanish", "louder", "mute"],
+  };
+  const DEMO_TUTORIAL = [
+    ...PICTURE_STEPS,
+    { ...SAY_IT, after: ["Or ask any question about the course. The free demo runs for 10 minutes."] },
+  ];
   const FULL_TUTORIAL = [
-    {
-      icon: "✨", title: "Welcome to your class",
-      lines: [
-        "Sala teaches this course out loud and you can talk back at any time.",
-        "Allow the microphone when your device asks, and find a quiet spot so Sala can hear you.",
-      ],
-    },
-    {
-      icon: "🎙️", title: "Just say it",
-      lines: ["Talk to Sala like a teacher. Try:"],
-      chips: ["pause", "next", "back", "repeat", "captions on", "full screen", "speak Spanish", "louder", "mute"],
-      after: ["Or ask any question about the lesson."],
-    },
-    {
-      icon: "👆", title: "Move through the lesson",
-      lines: [
-        "Tap the lesson to move to the next part.",
-        "Double-tap the lesson for full screen. Double-tap again to leave it.",
-        "Tap the yellow ? button any time to see this again.",
-      ],
-    },
+    ...PICTURE_STEPS,
+    { ...SAY_IT, after: ["Or ask any question about the lesson. Tap the yellow ? button any time to see this again."] },
   ];
 
   function showDemoTutorial(startLesson) {
@@ -880,12 +862,14 @@ export function initCourseVoiceOverlay(opts = {}) {
       const t = steps[step];
       const last = step === steps.length - 1;
       const chips = t.chips ? `<ul>${t.chips.map((c) => `<li>${c}</li>`).join("")}</ul>` : "";
+      const frame = t.image
+        ? `<img class="frame${t.portrait ? " portrait" : ""}" src="${t.image}" alt="${t.alt || t.title}">`
+        : `<div class="icon" aria-hidden="true">${t.icon}</div><h2>${t.title}</h2>`;
       overlay.innerHTML = `
-        <div class="card">
+        <div class="card${t.image ? " has-frame" : ""}">
           <div class="dots">${(options.demo ? DEMO_TUTORIAL : FULL_TUTORIAL).map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("")}</div>
-          <div class="icon" aria-hidden="true">${t.icon}</div>
-          <h2>${t.title}</h2>
-          ${t.lines.map((l) => `<p>${l}</p>`).join("")}${chips}${(t.after || []).map((l) => `<p>${l}</p>`).join("")}
+          ${frame}
+          ${(t.lines || []).map((l) => `<p>${l}</p>`).join("")}${chips}${(t.after || []).map((l) => `<p>${l}</p>`).join("")}
           <div class="actions">
             ${step > 0 ? '<button type="button" class="back">Back</button>' : '<button type="button" class="skip">Skip</button>'}
             <button type="button" class="go">${last ? (startLesson ? "Start the lesson" : "Done") : "Next"}</button>

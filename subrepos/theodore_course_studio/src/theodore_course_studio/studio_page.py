@@ -225,6 +225,8 @@ STUDIO_CSS = """
     .visual-timeline-stage[data-layout="road-scene"] { background:#dbe7f3; }
     .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-storyboard { padding:0; transform:none; }
     .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-storyboard svg { width:100%; height:100%; display:block; }
+    .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-video { padding:0; transform:none; background:#0a1628; }
+    .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-video video { width:100%; height:100%; object-fit:cover; display:block; }
     .visual-timeline-stage[data-layout="road-scene"] .visual-layer.kind-keypoints { place-items:end start; padding:3% 3.5%;
       text-align:left; pointer-events:none; }
     .road-points { max-width:min(62%, 36rem); padding:.6em .9em .7em; border-radius:14px;
@@ -485,6 +487,9 @@ STUDIO_CSS = """
     .sala-tutorial .card { box-sizing:border-box; width:min(94vw,520px); max-height:94vh; overflow:auto; padding:20px 20px 16px; border-radius:24px;
       background:linear-gradient(160deg,#312e81,#1e1b4b); border:3px solid #fde047; color:#f1f5f9; text-align:center;
       font:500 16px/1.45 system-ui,"Avenir Next","Segoe UI",sans-serif; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+    .sala-tutorial .card.has-frame { width:min(96vw,440px); padding:10px 10px 14px; background:#0a1628; }
+    .sala-tutorial img.frame { width:100%; height:auto; max-height:min(72vh,760px); object-fit:contain; display:block; border-radius:16px; background:#0a1628; }
+    .sala-tutorial img.frame.portrait { width:auto; max-width:min(52vw,220px); max-height:46vh; margin:8px auto; }
     .sala-tutorial h2 { margin:6px 0 10px; color:#fde68a; font:900 clamp(22px,6vw,30px)/1.15 system-ui,sans-serif; }
     .sala-tutorial p { margin:8px 0; }
     .sala-tutorial .icon { font-size:46px; line-height:60px; }
@@ -6896,6 +6901,19 @@ STUDIO_JS = """
             image.alt = String(layer.alt || text || '');
             image.loading = 'eager';
             el.appendChild(image);
+          } else if (kind === 'video' && url) {
+            const clip = document.createElement('video');
+            clip.src = url;
+            clip.muted = true;
+            clip.defaultMuted = true;
+            clip.autoplay = true;
+            clip.loop = true;
+            clip.playsInline = true;
+            clip.setAttribute('muted', '');
+            clip.setAttribute('playsinline', '');
+            clip.setAttribute('aria-label', String(layer.alt || 'Lesson video'));
+            el.appendChild(clip);
+            clip.play().catch(() => {});
           } else if ((kind === 'svg' || kind === 'storyboard') && String(layer.svg || layer.content || '').trim().startsWith('<svg')) {
             el.innerHTML = String(layer.svg || layer.content);
             el.setAttribute('role', 'img');

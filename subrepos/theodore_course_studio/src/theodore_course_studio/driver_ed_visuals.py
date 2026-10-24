@@ -18,6 +18,9 @@ from .types import CourseSlide
 
 ROAD_SCENE_LAYOUT = "road-scene"
 ROAD_SCENE_STYLE = "driver-road-scene"
+# The course opens on real footage. The permit cartoon is a later lesson, not the start.
+OPENING_SLIDE_TITLE = "california driver education"
+OPENING_VIDEO_URL = "/api/studio/voice-overlay/drivers-ed-intro.mp4"
 MAX_POINTS = 3
 _POINT_WORDS = 16
 _CONDITION_WORDS = frozenset(
@@ -398,6 +401,10 @@ def road_scene_timeline(
         sign = sign_for_title(scene.sign)
     points = key_points(slide)
     title = (slide.title or scene.label).strip()
+    opening = title.lower() == OPENING_SLIDE_TITLE
+    if opening:
+        scene = SceneSpec("opening-video", "Driver's Ed", (), None)
+        sign = None
     meaning = sign.meaning if sign is not None and sign.name == slide.title else " ".join(points)
     sign_words = f" Sign: {sign.name}." if sign is not None else ""
     label = f"{scene.label} diagram.{sign_words} {title}: {meaning}".strip()
@@ -415,17 +422,30 @@ def road_scene_timeline(
         end = round(duration * elapsed / total_chars, 3) if spoken else round(duration * (index + 1) / len(points), 3)
         layers: list[dict[str, Any]] = []
         if index == 0:
-            layers.append(
-                {
-                    "kind": "storyboard",
-                    "svg": svg,
-                    "alt": label,
-                    "text": scene.scene_id,
-                    "z_index": 1,
-                    "transition": "fade",
-                    "persistent": True,
-                }
-            )
+            if opening:
+                layers.append(
+                    {
+                        "kind": "video",
+                        "url": OPENING_VIDEO_URL,
+                        "alt": "Driver's Education starts with the road video.",
+                        "text": "opening-video",
+                        "z_index": 1,
+                        "transition": "fade",
+                        "persistent": True,
+                    }
+                )
+            else:
+                layers.append(
+                    {
+                        "kind": "storyboard",
+                        "svg": svg,
+                        "alt": label,
+                        "text": scene.scene_id,
+                        "z_index": 1,
+                        "transition": "fade",
+                        "persistent": True,
+                    }
+                )
         layers.append(
             {
                 "kind": "keypoints",

@@ -129,9 +129,12 @@ def test_demo_mode_is_clean_and_uses_the_logo_avatar():
 
 def test_demo_has_a_tutorial_help_button_and_goes_full_screen_on_phones():
     js = _VOICE_JS.read_text(encoding="utf-8")
-    assert "showDemoTutorial" in js and "sala_demo_tutorial_seen_v2" in js
+    assert "showDemoTutorial" in js and "sala_demo_tutorial_seen_v3" in js
     # The full course gets its own tutorial and help button, not only the demo.
-    assert "FULL_TUTORIAL" in js and "sala_course_tutorial_seen_v1" in js
+    assert "FULL_TUTORIAL" in js and "sala_course_tutorial_seen_v2" in js
+    for name in ("tutorial-tap.webp", "tutorial-double.webp", "tutorial-dance.webp"):
+        assert name in js
+        assert (_PKG_ROOT / "voice_static" / name).is_file()
     assert "else wireDemoHelp();" in js
     assert 'clickById("btn-fullscreen")' in js and "orientation" in js
     # Buttons live in the full-screen element, or they would not be drawn in full screen.
