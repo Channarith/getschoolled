@@ -17,11 +17,14 @@ INGEST_ROOMY_MB = 40960
 def ingest_workers(free_mb: int, training_alive: bool) -> int:
     """How many CosyVoice ingest workers may run.
 
-    Three workers after a reboot exhausted memory and killed the exam.
-    One worker is the cap while STEM training is alive, or while free
-    memory is under 40 GB. Two is the ceiling even when the machine is idle.
+    One ingest process grew past 60 GB beside the 35B server and the
+    kernel froze the machine to reclaim it. While STEM training is alive
+    the ingest does not start. One worker is the cap when free memory is
+    under 40 GB. Two is the ceiling even when the machine is idle.
     """
-    if training_alive or int(free_mb) < INGEST_ROOMY_MB:
+    if training_alive:
+        return 0
+    if int(free_mb) < INGEST_ROOMY_MB:
         return 1
     return 2
 

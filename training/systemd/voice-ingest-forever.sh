@@ -48,6 +48,11 @@ while true; do
   fi
   wait_for_memory
   workers="$(worker_count)"
+  if [[ "${workers}" -lt 1 ]]; then
+    echo "=== ingest held while the exam is using memory $(date -Is) ==="
+    sleep 120
+    continue
+  fi
   echo "=== voice ingest restart workers=${workers} $(date -Is) ==="
   python3 scripts/cosyvoice_batch_ingest.py --pool km,zh,yue,zh_tw --workers "$workers"
   echo "=== priority pools exit=$? $(date -Is) ==="

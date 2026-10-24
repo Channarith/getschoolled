@@ -41,6 +41,9 @@ path.write_text(text.replace(needle, needle + guard, 1))
 PY
 fi
 
+mkdir -p "$UNIT_DIR/aoep-voice-ingest.service.d"
+install -m 0644 "$REPO/training/systemd/aoep-voice-ingest.memory.conf" \
+  "$UNIT_DIR/aoep-voice-ingest.service.d/20-memory-cap.conf"
 systemctl --user daemon-reload
 systemctl --user disable --now aoep-voice-train.service
 systemctl --user enable aoep-course-translate.service

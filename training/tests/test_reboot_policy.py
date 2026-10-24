@@ -5,10 +5,12 @@ from reboot_policy import ingest_workers, voice_train_allowed
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_ingest_stays_at_one_worker_while_the_exam_is_alive():
-    assert ingest_workers(80000, True) == 1
+def test_ingest_stays_off_while_the_exam_is_alive():
+    assert ingest_workers(80000, True) == 0
     assert ingest_workers(20000, False) == 1
     assert ingest_workers(80000, False) == 2
+    script = (ROOT / "training" / "systemd" / "voice-ingest-forever.sh").read_text(encoding="utf-8")
+    assert "ingest held while the exam is using memory" in script
 
 
 def test_khmer_does_not_start_while_the_hold_file_is_present():
