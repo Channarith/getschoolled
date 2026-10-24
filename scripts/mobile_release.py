@@ -64,12 +64,21 @@ def cmd_staleness(args: argparse.Namespace) -> int:
 def cmd_manifest(args: argparse.Namespace) -> int:
     apk = Path(args.apk)
     expo = json.loads((ROOT / "apps/mobile/app.json").read_text())["expo"]
-    version = expo["version"]
-    code = int((expo.get("android") or {}).get("versionCode", 0))
+    ident = mr.apk_identity(apk.name)
+    if args.version:
+        version, code = args.version, int(args.version_code or 0)
+    elif ident:
+        version, code = ident
+    else:
+        print(f"cannot tell the version of {apk.name}: use the build filename salareen-<ver>-<code>-release.apk "
+              "or pass --version and --version-code", file=sys.stderr)
+        return 2
     sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT), text=True, capture_output=True).stdout.strip()
+    if version != expo["version"]:
+        sha = ""  # built from an older commit than this checkout: do not claim HEAD's sha
     data = mr.build_manifest(
         version=version, version_code=code, git_sha=sha, apk_url=args.url, sha256=mr.sha256_file(apk),
-        size=apk.stat().st_size, built_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        size=apk.stat().st_size, built_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(apk.stat().st_mtime)),
         min_supported=args.min_supported,
     )
     Path(args.out).write_text(json.dumps(data, indent=2) + "\n")
@@ -98,6 +107,8 @@ def main() -> int:
     m.add_argument("--apk", required=True)
     m.add_argument("--url", required=True)
     m.add_argument("--out", required=True)
+    m.add_argument("--version", default="", help="override: version of the APK (default: parsed from its filename)")
+    m.add_argument("--version-code", default="", help="override: versionCode of the APK")
     m.add_argument("--min-supported", default="")
     m.set_defaults(fn=cmd_manifest)
     pr = sub.add_parser("prune-list")

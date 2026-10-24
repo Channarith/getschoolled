@@ -11,7 +11,7 @@ import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, Tuple
 
 # Paths whose change requires a NEW NATIVE BUILD, in two tiers.
 NATIVE_PATHS = (
@@ -204,3 +204,16 @@ def update_decision(current: str, manifest: Optional[dict[str, Any]], dismissed:
     minimum = str(manifest.get("min_supported") or "")
     force = bool(minimum) and compare_versions(current, minimum) < 0
     return {"prompt": newer and (force or dismissed != latest), "force": force, "latest": latest}
+
+
+_APK_NAME = re.compile(r"^salareen-(\d+\.\d+\.\d+)-(\d+)-release\.apk$")
+
+
+def apk_identity(apk_name: str) -> Optional[Tuple[str, int]]:
+    """(version, versionCode) from a build_release filename like salareen-0.97.11-9711-release.apk, else None.
+
+    The manifest must describe the APK being published, never the checkout it happens to be published from;
+    otherwise the app is told a newer version is available than the file actually is.
+    """
+    m = _APK_NAME.match(apk_name)
+    return (m.group(1), int(m.group(2))) if m else None
