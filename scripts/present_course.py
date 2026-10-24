@@ -95,6 +95,9 @@ def main(argv: list[str] | None = None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("course_json", nargs="?", default=None, help="path to *.course.json from harvester")
     ap.add_argument("--pptx", default=None, help="optional .pptx (for ppt_trainer engine)")
+    ap.add_argument("--allow-unlicensed", action="store_true",
+                    help="present a course whose source license cannot be used commercially "
+                         "(private review only; never publish it)")
     ap.add_argument("--meeting-provider", default="local",
                     help="local|mock|google_meet|zoom|teams (default local = speak aloud)")
     ap.add_argument("--no-audio", action="store_true",
@@ -166,6 +169,16 @@ def main(argv: list[str] | None = None) -> int:
     if not args.course_json:
         ap.error("course_json is required unless --list-modes is set")
     course_path = Path(args.course_json)
+    from aoep_shared.harvest.serving import course_servable
+
+    servable, why = course_servable(json.loads(course_path.read_text(encoding="utf-8")))
+    if not servable:
+        if "unverified" in why:
+            print(f"warning: {why}. Do not publish this course until its source license is checked.", file=sys.stderr)
+        elif not args.allow_unlicensed:
+            print(f"refusing to present: {why}. Pass --allow-unlicensed only for private, internal review.",
+                  file=sys.stderr)
+            return 3
     course, theme = _load_course(course_path)
     out_dir = Path(args.out_dir or course_path.parent)
     out_dir.mkdir(parents=True, exist_ok=True)

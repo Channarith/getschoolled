@@ -9,20 +9,19 @@ from typing import Iterable, List, Optional
 
 from .sources import SourceSpec
 
-# Curated OER / public-education entry points (license-gated at fetch time).
+# Curated entry points. A "license" here is only a claim; hosts whose license varies per item
+# carry NO declared license, so each page has to show its own (see licensing.verify_page).
+# Removed because their content is not usable commercially or may not be scraped (see
+# docs/harvest-sources.txt): OpenStax (CC BY-NC-SA 4.0), Khan Academy (CC BY-NC-SA + no scraping/AI use),
+# Coursera and edX (proprietary), arXiv (most papers carry no reuse license).
 OER_PORTALS: List[dict] = [
-    {"url": "https://openstax.org/subjects", "license": "cc-by", "subject": "science", "title": "OpenStax"},
-    {"url": "https://www.oercommons.org/browse", "license": "cc-by", "subject": "general", "title": "OER Commons"},
-    {"url": "https://open.umn.edu/opentextbooks", "license": "cc-by-nc", "subject": "general", "title": "Open Textbooks"},
-    {"url": "https://www.khanacademy.org", "license": "cc-by-nc-sa", "subject": "mathematics", "title": "Khan Academy"},
-    {"url": "https://www.coursera.org/browse", "license": "oer", "subject": "technology", "title": "Coursera browse"},
-    {"url": "https://www.edx.org/search", "license": "oer", "subject": "technology", "title": "edX"},
-    {"url": "https://arxiv.org/list/cs.LG/recent", "license": "cc-by", "subject": "ai", "title": "arXiv ML"},
-    {"url": "https://data.gov", "license": "public-domain", "subject": "civics", "title": "Data.gov"},
+    {"url": "https://www.oercommons.org/browse", "license": None, "subject": "general", "title": "OER Commons"},
+    {"url": "https://open.umn.edu/opentextbooks", "license": None, "subject": "general", "title": "Open Textbooks"},
+    {"url": "https://data.gov", "license": None, "subject": "civics", "title": "Data.gov"},
     {"url": "https://www.census.gov/data.html", "license": "public-domain", "subject": "statistics", "title": "US Census"},
     {"url": "https://www.nih.gov/health-information", "license": "public-domain", "subject": "biology", "title": "NIH"},
     {"url": "https://www.nasa.gov/learning-resources/", "license": "public-domain", "subject": "science", "title": "NASA Learning"},
-    {"url": "https://www.loc.gov/education/", "license": "public-domain", "subject": "history", "title": "Library of Congress"},
+    {"url": "https://www.loc.gov/education/", "license": None, "subject": "history", "title": "Library of Congress"},
 ]
 
 # Public-sector compliance / workplace training entry points (used instead of
@@ -60,7 +59,7 @@ def portal_specs() -> List[SourceSpec]:
     return [
         SourceSpec(
             url=p["url"],
-            license=p.get("license", "cc-by"),
+            license=p.get("license"),
             subject=p.get("subject"),
             title=p.get("title"),
             source_type="html",
@@ -108,9 +107,10 @@ def discover_from_search(
                 if url.startswith("mock://"):
                     continue
                 seen.add(url)
+                # A search hit says nothing about its license: the fetched page must carry one.
                 specs.append(SourceSpec(
                     url=url,
-                    license="cc-by",
+                    license=None,
                     subject=topic[:64],
                     title=hit.title or topic,
                     source_type="html",

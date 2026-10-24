@@ -23,9 +23,15 @@ OPEN-WEIGHT MODELS (Track B / serving; when configured by the operator)
   license of any model they deploy.
 
 HARVESTED COURSE CONTENT (Workstream F)
-- The 24/7 harvester ingests ONLY permissively-licensed / OER / public-domain /
-  API-permitted sources (see aoep_shared/harvest/sources.py LICENSE_ALLOWLIST);
-  each item retains its license + attribution. Non-reusable content is blocked.
+- The 24/7 harvester ingests ONLY sources usable commercially (CC0, public domain, CC BY,
+  MIT/Apache/BSD, US government works); share-alike (CC BY-SA, GFDL) only when the owner enables
+  it. Non-commercial, no-derivatives, proprietary and unlicensed content is rejected. The page's
+  own license is verified (aoep_shared/harvest/licensing.py); each course keeps its source,
+  license evidence and attribution (provenance, ATTRIBUTION.txt, a "Sources and licenses" slide).
+  Non-commercial text that is lawful to read is kept in a separate RESEARCH corpus (internal
+  experiments only, never published); a hard wall in code keeps it out of the product. Models
+  trained on research text may carry restrictions for commercial use (legal review item).
+  See docs/harvest-sources.txt. Not legal advice.
 
 CONTENT CREDENTIALS
 - Generated content carries C2PA-style provenance/credentials

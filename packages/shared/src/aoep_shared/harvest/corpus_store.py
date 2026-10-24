@@ -18,9 +18,42 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .errors import CorpusWallError
+from .licensing import PRODUCT_CORPUS, RESEARCH_CORPUS, HarvestPolicy, Tier, policy_from_env
 from .queue import url_key
 
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
+
+# Added in schema 2 (license safety + provenance). Existing databases are migrated in place
+# with ALTER TABLE ADD COLUMN, which only touches metadata, so a multi-GB corpus upgrades instantly.
+_SOURCE_COLUMNS = (
+    ("license_tier", "TEXT"), ("license_id", "TEXT"), ("license_url", "TEXT"),
+    ("license_evidence", "TEXT"), ("license_verified_by", "TEXT"), ("canonical_url", "TEXT"),
+    ("attribution_json", "TEXT"), ("robots_json", "TEXT"), ("provenance_json", "TEXT"),
+    ("quarantined", "INTEGER DEFAULT 0"), ("quarantine_reason", "TEXT"), ("quarantined_at", "TEXT"),
+)
+_COURSE_COLUMNS = (
+    ("license_tier", "TEXT"), ("provenance_json", "TEXT"),
+    ("quarantined", "INTEGER DEFAULT 0"), ("quarantine_reason", "TEXT"),
+)
+
+
+def add_missing_columns(conn: sqlite3.Connection, table: str, columns) -> None:
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    for name, ddl in columns:
+        if name not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
+
+
+def migrate_schema(conn: sqlite3.Connection) -> None:
+    """Idempotent upgrade to the current schema (safe on every open)."""
+    add_missing_columns(conn, "sources", _SOURCE_COLUMNS)
+    add_missing_columns(conn, "courses", _COURSE_COLUMNS)
+    conn.execute(
+        "INSERT INTO corpus_meta(key,value) VALUES('schema_version',?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE CAST(corpus_meta.value AS INTEGER) < ?",
+        (str(_SCHEMA_VERSION), _SCHEMA_VERSION),
+    )
 _CHUNK_SIZE = 900
 _TOKEN = re.compile(r"[a-z0-9]+")
 
@@ -30,6 +63,20 @@ def default_corpus_path() -> Path:
     if env:
         return Path(env)
     return Path(os.path.expanduser("~")) / ".cache" / "aoep" / "harvest_corpus.db"
+
+
+def default_research_corpus_path() -> Path:
+    """The research corpus is a different file from the product corpus, always."""
+    env = os.environ.get("AOEP_HARVEST_RESEARCH_DB")
+    if env:
+        return Path(env)
+    return Path(os.path.expanduser("~")) / ".cache" / "aoep" / "harvest_research_corpus.db"
+
+
+# Tiers that may never become product-corpus content (text or courses).
+_NEVER_PRODUCT = {Tier.NON_COMMERCIAL.value, Tier.NO_DERIVATIVES.value, Tier.PROPRIETARY.value}
+# Source statuses that record a refusal or a diversion: metadata only, no text.
+_METADATA_ONLY_STATUSES = {"rejected_license", "diverted_research", "rejected"}
 
 
 def _now() -> str:
@@ -86,11 +133,55 @@ class CorpusHit:
 class HarvestCorpusStore:
     """Persistent harvest corpus with FTS-backed ``search()``."""
 
-    def __init__(self, path: Optional[Path] = None) -> None:
+    def __init__(self, path: Optional[Path] = None, *, role: Optional[str] = None,
+                 policy: Optional[HarvestPolicy] = None) -> None:
         self.path = Path(path) if path else default_corpus_path()
+        self.policy = policy      # None: read the environment each time (harvest.allow_share_alike)
         self._lock = threading.RLock()
         self._fts = False
         self._ensure()
+        # "product" (the only corpus that may ever be published) or "research" (internal experiments only).
+        # The role is stored in the file, so a research database can never be opened as the product one.
+        self.role = self._claim_role(role)
+
+    def _claim_role(self, wanted: Optional[str]) -> str:
+        if wanted not in (None, PRODUCT_CORPUS, RESEARCH_CORPUS):
+            raise ValueError(f"unknown corpus role {wanted!r}")
+        with self._lock:
+            conn = self._connect()
+            try:
+                row = conn.execute("SELECT value FROM corpus_meta WHERE key='corpus_role'").fetchone()
+                if row is None:
+                    role = wanted or PRODUCT_CORPUS    # databases from before the wall are product databases
+                    conn.execute("INSERT INTO corpus_meta(key,value) VALUES('corpus_role',?)", (role,))
+                    conn.commit()
+                    return role
+                stored = row[0]
+                if wanted and wanted != stored:
+                    raise CorpusWallError(
+                        f"{self.path} is a {stored} corpus and cannot be opened as the {wanted} corpus")
+                return stored
+            finally:
+                conn.close()
+
+    def _source_tier(self, conn: sqlite3.Connection, key: str) -> Optional[str]:
+        row = conn.execute("SELECT license_tier FROM sources WHERE url_key=?", (key,)).fetchone()
+        return row[0] if row else None
+
+    def _wall_check_tier(self, tier: Optional[str], *, what: str) -> None:
+        """Refuse content that belongs on the other side of the wall. ``what``: source | text | course."""
+        if self.role == RESEARCH_CORPUS:
+            if what == "course":
+                raise CorpusWallError("the research corpus holds source text only, never courses")
+            if tier not in (Tier.NON_COMMERCIAL.value, Tier.SHARE_ALIKE.value):
+                raise CorpusWallError(
+                    f"the research corpus only takes non-commercial or share-alike sources (this one is {tier!r}); "
+                    "product-safe material belongs in the product corpus")
+            return
+        policy = self.policy or policy_from_env()
+        if tier in _NEVER_PRODUCT or (tier == Tier.SHARE_ALIKE.value and not policy.allow_share_alike):
+            raise CorpusWallError(
+                f"a {tier} source cannot become product-corpus {what}; it belongs in the research corpus")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self.path), check_same_thread=False)
@@ -179,14 +270,7 @@ class HarvestCorpusStore:
                         )
                         """
                     )
-                row = conn.execute(
-                    "SELECT value FROM corpus_meta WHERE key='schema_version'"
-                ).fetchone()
-                if row is None:
-                    conn.execute(
-                        "INSERT INTO corpus_meta(key,value) VALUES('schema_version',?)",
-                        (str(_SCHEMA_VERSION),),
-                    )
+                migrate_schema(conn)
                 conn.commit()
             finally:
                 conn.close()
@@ -202,16 +286,28 @@ class HarvestCorpusStore:
         content_hash: str = "",
         status: str = "fetched",
         meta: Optional[Dict] = None,
+        provenance: Optional[Dict] = None,
     ) -> str:
         key = url_key(url)
+        prov = provenance or {}
+        lic = prov.get("license") or {}
+        tier = lic.get("tier")
+        if tier and status not in _METADATA_ONLY_STATUSES:
+            self._wall_check_tier(tier, what="source")
+        if self.role == RESEARCH_CORPUS and not tier:
+            raise CorpusWallError("a research source needs a verified license tier (provenance)")
+        if tier:
+            prov = {**prov, "corpus": self.role}
         with self._lock:
             conn = self._connect()
             try:
                 conn.execute(
                     """
                     INSERT INTO sources(url_key,url,license,subject,title,source_type,
-                        content_hash,status,fetched_at,meta_json)
-                    VALUES(?,?,?,?,?,?,?,?,?,?)
+                        content_hash,status,fetched_at,meta_json,
+                        license_tier,license_id,license_url,license_evidence,license_verified_by,
+                        canonical_url,attribution_json,robots_json,provenance_json,quarantined)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
                     ON CONFLICT(url_key) DO UPDATE SET
                         license=excluded.license,
                         subject=COALESCE(excluded.subject, sources.subject),
@@ -219,11 +315,25 @@ class HarvestCorpusStore:
                         content_hash=excluded.content_hash,
                         status=excluded.status,
                         fetched_at=excluded.fetched_at,
-                        meta_json=excluded.meta_json
+                        meta_json=excluded.meta_json,
+                        license_tier=COALESCE(excluded.license_tier, sources.license_tier),
+                        license_id=COALESCE(excluded.license_id, sources.license_id),
+                        license_url=COALESCE(excluded.license_url, sources.license_url),
+                        license_evidence=COALESCE(excluded.license_evidence, sources.license_evidence),
+                        license_verified_by=COALESCE(excluded.license_verified_by, sources.license_verified_by),
+                        canonical_url=COALESCE(excluded.canonical_url, sources.canonical_url),
+                        attribution_json=COALESCE(excluded.attribution_json, sources.attribution_json),
+                        robots_json=COALESCE(excluded.robots_json, sources.robots_json),
+                        provenance_json=COALESCE(excluded.provenance_json, sources.provenance_json)
                     """,
                     (
                         key, url, license, subject, title, source_type,
                         content_hash, status, _now(), json.dumps(meta or {}),
+                        lic.get("tier"), lic.get("spdx"), lic.get("url"), lic.get("evidence"),
+                        prov.get("license_verified_by"), prov.get("canonical_url"),
+                        json.dumps(prov["attribution"]) if prov.get("attribution") else None,
+                        json.dumps(prov["robots"]) if prov.get("robots") else None,
+                        json.dumps(prov) if prov else None,
                     ),
                 )
                 conn.commit()
@@ -250,6 +360,9 @@ class HarvestCorpusStore:
         with self._lock:
             conn = self._connect()
             try:
+                tier = self._source_tier(conn, key)
+                if self.role == RESEARCH_CORPUS or tier:
+                    self._wall_check_tier(tier, what="text")
                 conn.execute("DELETE FROM chunks WHERE url_key=? AND course_id IS ?",
                              (key, course_id))
                 for i, body in enumerate(chunks):
@@ -288,17 +401,27 @@ class HarvestCorpusStore:
         media: Optional[Dict] = None,
         tags: Optional[Dict] = None,
         full_text: str = "",
+        license_tier: str = "",
+        provenance: Optional[Dict] = None,
     ) -> None:
         key = url_key(url)
         with self._lock:
             conn = self._connect()
             try:
+                if self.role == RESEARCH_CORPUS:
+                    raise CorpusWallError("the research corpus holds source text only, never courses")
+                tier = self._source_tier(conn, key) or (license_tier or None)
+                if tier:     # legacy rows with no recorded tier are handled by the license audit
+                    self._wall_check_tier(tier, what="course")
                 conn.execute(
                     """
                     INSERT INTO courses(course_id,url_key,title,subject,composition_score,
-                        json_path,pptx_path,theme_json,media_json,tags_json,created_at)
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                        json_path,pptx_path,theme_json,media_json,tags_json,created_at,
+                        license_tier,provenance_json,quarantined)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,0)
                     ON CONFLICT(course_id) DO UPDATE SET
+                        license_tier=COALESCE(excluded.license_tier, courses.license_tier),
+                        provenance_json=COALESCE(excluded.provenance_json, courses.provenance_json),
                         title=excluded.title,
                         subject=excluded.subject,
                         composition_score=excluded.composition_score,
@@ -315,6 +438,8 @@ class HarvestCorpusStore:
                         json.dumps(media or {}),
                         json.dumps(tags or {}),
                         _now(),
+                        license_tier or None,
+                        json.dumps(provenance) if provenance else None,
                     ),
                 )
                 conn.commit()
@@ -326,8 +451,14 @@ class HarvestCorpusStore:
                 course_id=course_id, meta={"kind": "course"},
             )
 
-    def search(self, query: str, *, top_k: int = 8, subject: Optional[str] = None) -> List[CorpusHit]:
-        """RAG retrieval over indexed chunks."""
+    def search(self, query: str, *, top_k: int = 8, subject: Optional[str] = None,
+               internal_use: bool = False) -> List[CorpusHit]:
+        """RAG retrieval over indexed chunks.
+
+        The research corpus can only be searched by internal evaluation code that says so with
+        ``internal_use=True``; nothing user-facing may pass that flag."""
+        if self.role == RESEARCH_CORPUS and not internal_use:
+            raise CorpusWallError("the research corpus is internal: search it with internal_use=True, never from a product path")
         q = (query or "").strip()
         if not q:
             return []
@@ -342,7 +473,7 @@ class HarvestCorpusStore:
                         "FROM chunks_fts f "
                         "JOIN chunks c ON c.chunk_id=f.chunk_id "
                         "JOIN sources s ON s.url_key=c.url_key "
-                        "WHERE chunks_fts MATCH ? "
+                        "WHERE chunks_fts MATCH ? AND COALESCE(s.quarantined,0)=0 "
                     )
                     params: List[Any] = [q]
                     if subject:
@@ -362,7 +493,7 @@ class HarvestCorpusStore:
                         "SELECT c.chunk_id, c.url_key, c.heading, c.body, c.subject, "
                         "c.course_id, c.meta_json, s.url, s.title "
                         "FROM chunks c JOIN sources s ON s.url_key=c.url_key "
-                        "WHERE c.body LIKE ? "
+                        "WHERE c.body LIKE ? AND COALESCE(s.quarantined,0)=0 "
                     )
                     params = [like]
                     if subject:
@@ -472,6 +603,34 @@ class HarvestCorpusStore:
                 return topics
             finally:
                 conn.close()
+
+    def training_manifest(self) -> List[Dict[str, Any]]:
+        """One record per source text held here, so a model's training data can be audited.
+
+        Records carry the corpus, license, tier, evidence, content hash and fetch time. A model
+        trained on research-corpus text should ship this manifest next to its weights."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                cols = {r[1] for r in conn.execute("PRAGMA table_info(sources)")}
+                sel = [c for c in ("license_tier", "license_id", "license_url", "license_evidence",
+                                   "license_verified_by", "canonical_url", "attribution_json") if c in cols]
+                rows = conn.execute(
+                    "SELECT s.url, s.license, s.content_hash, s.fetched_at, s.status"
+                    + "".join(f", s.{c}" for c in sel)
+                    + ", (SELECT COUNT(*) FROM chunks c WHERE c.url_key=s.url_key) AS chunks "
+                    "FROM sources s WHERE s.status NOT IN ('rejected_license','rejected','diverted_research') "
+                    "ORDER BY s.url").fetchall()
+            finally:
+                conn.close()
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            attribution = d.pop("attribution_json", None)
+            d["attribution"] = json.loads(attribution).get("text", "") if attribution else ""
+            d["corpus"] = self.role
+            out.append(d)
+        return out
 
     def stats(self) -> Dict[str, int]:
         with self._lock:

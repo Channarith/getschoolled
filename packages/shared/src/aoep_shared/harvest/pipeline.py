@@ -13,7 +13,7 @@ import hashlib
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Set
 
-from .sources import SourceSpec, is_allowed
+from .sources import SourceSpec, spec_allowed
 
 
 def catalog_key(spec: SourceSpec) -> str:
@@ -68,7 +68,7 @@ class HarvestPipeline:
 
     def process(self, spec: SourceSpec, record: dict, batch_id: str,
                 metrics: BatchMetrics) -> str:
-        if not is_allowed(spec.license, allowlist=self._allowlist):
+        if not spec_allowed(spec, allowlist=self._allowlist):
             metrics.dropped_license += 1
             return "dropped_license"
         if self._validator is not None and not self._validator(record):

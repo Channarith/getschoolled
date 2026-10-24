@@ -149,9 +149,16 @@ class AppConfig(BaseModel):
     # Bake-off champion pointer (JSON); serving layer uses it to pick the model.
     champion_path: str = ""
     # 24/7 harvester (runs on a separate worker agent).
-    harvest_user_agent: str = "AOEP-Harvester/1.0 (+contact@example.org)"
+    # No usable default: the fetcher refuses to crawl unless HARVEST_USER_AGENT names a real contact.
+    harvest_user_agent: str = ""
     harvest_max_rps: float = 1.0
     harvest_seeds: str = ""
+    # License policy. The PRODUCT corpus takes commercially usable sources only; share-alike
+    # (harvest.allow_share_alike) stays OFF until the owner decides (legal review). Non-commercial
+    # text that is lawful to read goes to a separate RESEARCH corpus (harvest.research_enabled, ON):
+    # internal experiments only, never published.
+    harvest_allow_share_alike: bool = False
+    harvest_research_enabled: bool = True
     speech_base_url: str = "http://speech:8100"
     vision_base_url: str = "http://perception:8200"
     # Memory service base URL. Empty => the orchestrator runs the live teaching
@@ -354,9 +361,11 @@ def load_config(
         xai_voice_name=get("XAI_VOICE_NAME", "ara"),
         xai_voice_ws_url=get("XAI_VOICE_WS_URL", "wss://api.x.ai/v1/realtime"),
         champion_path=get("CHAMPION_PATH", ""),
-        harvest_user_agent=get("HARVEST_USER_AGENT", "AOEP-Harvester/1.0 (+contact@example.org)"),
+        harvest_user_agent=get("HARVEST_USER_AGENT", ""),
         harvest_max_rps=env_float(source.get("HARVEST_MAX_RPS"), 1.0),
         harvest_seeds=get("HARVEST_SEEDS", ""),
+        harvest_allow_share_alike=env_bool(source.get("AOEP_HARVEST_ALLOW_SHARE_ALIKE"), False),
+        harvest_research_enabled=env_bool(source.get("AOEP_HARVEST_RESEARCH"), True),
         speech_base_url=get("SPEECH_BASE_URL", "http://speech:8100"),
         vision_base_url=_native_service_url(
             get("VISION_BASE_URL", "http://perception:8200"), deploy_mode

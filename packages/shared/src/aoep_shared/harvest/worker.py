@@ -15,7 +15,8 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Set, Union
 
 from .queue import HarvestQueue
-from .sources import SourceSpec, is_allowed
+from .errors import HarvestConfigError
+from .sources import SourceSpec, spec_allowed
 
 RawPayload = Union[str, bytes]
 
@@ -25,6 +26,7 @@ class HarvestStats:
     fetched: int = 0
     ingested: int = 0
     skipped_license: int = 0
+    diverted_research: int = 0
     skipped_dup: int = 0
     errors: int = 0
 
@@ -43,22 +45,32 @@ class HarvestWorker:
         sink: Callable[[dict], None],
         *,
         allowlist: Optional[Set[str]] = None,
+        allow_unverified: bool = False,
     ) -> None:
         self._fetch = fetcher
         self._extract = extractor
         self._sink = sink
         self._allowlist = allowlist
+        # The online crawler lets sources with no declared license through the pre-fetch
+        # gate because it reads the page's own license before ingesting. Offline callers do not.
+        self._allow_unverified = allow_unverified
         self._content_seen: Set[str] = set()
         self.stats = HarvestStats()
 
     def process(self, spec: SourceSpec) -> str:
         """Process one source; returns a status string."""
-        if not is_allowed(spec.license, allowlist=self._allowlist):
+        if not spec_allowed(spec, allowlist=self._allowlist, allow_unverified=self._allow_unverified):
             self.stats.skipped_license += 1
             return "skipped_license"
         try:
             raw = self._fetch(spec)
             self.stats.fetched += 1
+        except HarvestConfigError:
+            raise  # a crawler without a contact User-Agent must stop, not count as an error
+        except PermissionError:
+            # robots.txt, denylist, login wall or paywall: a policy skip, not a failure.
+            self.stats.skipped_license += 1
+            return "skipped_license"
         except Exception:
             self.stats.errors += 1
             return "error"
@@ -70,6 +82,13 @@ class HarvestWorker:
         self._content_seen.add(chash)
 
         record = self._extract(spec, raw)
+        if record.get("status") == "diverted_research":
+            self.stats.diverted_research += 1      # kept in the research corpus, not the product
+            return "diverted_research"
+        if str(record.get("status", "")).startswith("rejected_"):
+            # The page's own license/robots/paywall check refused it after the fetch.
+            self.stats.skipped_license += 1
+            return "skipped_license"
         record.setdefault("source", spec.url)
         record.setdefault("license", spec.license)
         self._sink(record)

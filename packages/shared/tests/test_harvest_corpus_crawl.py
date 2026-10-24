@@ -38,9 +38,15 @@ def test_discover_topic_offline():
 
 
 def test_portal_specs_curated():
+    from aoep_shared.harvest.sources import is_allowed
+    from aoep_shared.harvest.vetted_sources import is_denied
+
     portals = portal_specs()
-    assert len(portals) >= 8
-    assert all(p.license for p in portals)
+    assert len(portals) >= 6
+    assert not any(is_denied(p.url) for p in portals), "no do-not-harvest host may be a portal"
+    # A portal either declares a commercially usable license or leaves it to the page (per-item hosts).
+    assert all(p.license is None or is_allowed(p.license) for p in portals)
+    assert {"oercommons.org", "open.umn.edu"} <= {p.url.split("/")[2].removeprefix("www.") for p in portals}
 
 
 def test_topic_search_queries():

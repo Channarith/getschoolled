@@ -14,8 +14,8 @@
   python3 scripts/harvest_sync.py shards https://openstax.org/ https://ocw.mit.edu/
 
 Defaults: store output/object_store (or OBJECT_STORE_DIR, or --store s3 using OBJECT_STORE_* env),
-index output/harvest_index.db. Non-commercial licenses are rejected unless --allow-noncommercial
-(for internal research only; such courses must never be published).
+index output/harvest_index.db. Non-commercial licenses are always rejected (they live in the research corpus, which is never bundled
+or published; --allow-noncommercial now only prints that error)
 """
 
 from __future__ import annotations
@@ -50,11 +50,19 @@ def cmd_verify(a) -> int:
 
 
 def cmd_import(a) -> int:
+    if a.allow_noncommercial:
+        raise SystemExit(
+            "harvest_sync: non-commercial courses cannot be imported into the product index. They stay in the "
+            "research corpus (internal experiments only, never published)."
+        )
     rep = import_bundle(
         a.bundle,
         open_store(a.store),
         open_index(a.index),
-        require_commercial=not a.allow_noncommercial,
+        require_commercial=True,
+        # Courses reach production through this gate, so a license that was never confirmed on the
+        # source page (courses made before license tiers) is held back unless you say otherwise.
+        require_verified=not a.allow_unverified,
     )
     print(json.dumps(rep.__dict__, indent=2))
     return 1 if rep.problems else 0
@@ -113,6 +121,9 @@ def main(argv=None) -> int:
     i.add_argument("--store")
     i.add_argument("--index", default=DEFAULT_INDEX)
     i.add_argument("--allow-noncommercial", action="store_true")
+    i.add_argument("--allow-unverified", action="store_true",
+                   help="also import courses whose license was only declared by a seed, never verified "
+                        "on the page (run scripts/harvest_license_audit.py first)")
     s = sub.add_parser("status")
     s.set_defaults(fn=cmd_status)
     s.add_argument("--index", default=DEFAULT_INDEX)
