@@ -43,6 +43,8 @@ export function courseStudioFrameSrc(opts: {
   presentation?: "audio";
   /** Public demo: just the lesson and the avatar. */
   demo?: boolean;
+  /** The page plays an intro video: the lesson stays hidden until it is done. */
+  intro?: boolean;
 }): string {
   const fromEnv = process.env.NEXT_PUBLIC_COURSE_STUDIO_URL?.trim().replace(/\/$/, "") || "";
   const url = new URL("/studio", fromEnv ? `${fromEnv}/` : "http://studio.local/");
@@ -50,6 +52,7 @@ export function courseStudioFrameSrc(opts: {
   url.searchParams.set("course", opts.course);
   if (opts.presentation === "audio") url.searchParams.set("presentation", "audio");
   if (opts.demo) url.searchParams.set("demo", "1");
+  if (opts.intro) url.searchParams.set("intro", "1");
   if (opts.access === "full") {
     url.searchParams.set("registered", "1");
     if (opts.isAdmin) url.searchParams.set("admin", "1");

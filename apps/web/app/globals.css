@@ -2910,3 +2910,13 @@ textarea {
   font-size: 14px;
   line-height: 1.45;
 }
+
+/* Driver's Ed demo opening: the video waits (paused) behind the tutorial, so the lesson frame is see-through. */
+body.drivers-ed-hold .course-stage-links { visibility: hidden; }
+body.drivers-ed-hold .course-stage .course-stage-embed iframe {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+@media (min-width: 761px) {
+  body.drivers-ed-hold .course-stage .course-stage-embed { position: relative; z-index: 3; }
+}

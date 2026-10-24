@@ -16,7 +16,7 @@ export default function DriversEdDemoPage() {
       <CourseStudioFrame
         fill
         title="Driver's Education 10-minute demo"
-        src={courseStudioFrameSrc({ access: "sample", course: "drivers-ed", demo: true })}
+        src={courseStudioFrameSrc({ access: "sample", course: "drivers-ed", demo: true, intro: true })}
       />
     </main>
   );
