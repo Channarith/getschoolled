@@ -51,6 +51,8 @@ export default function DemoWebScreen({
   const url = publicDemoUrl(WEB_APP_URL, path);
   const audioOnly = path.includes("presentation=audio");
   const studioCourse = path.includes("/studio");
+  // Full course: the lesson fills the screen. Back/Exit live in the lesson's own movable panel.
+  const cleanCourse = studioCourse && path.includes("access=full");
   const localeScript = path.includes("/children-lab") ? childrenLabLocaleScript(locale) : undefined;
   const touchScript = path.includes("/children-lab") ? childrenLabTouchScript() : undefined;
   const waveScript = audioOnly ? driverWaveScript() : undefined;
@@ -83,6 +85,7 @@ export default function DemoWebScreen({
           sensors?: { touch_mode?: string; hand?: boolean; finger?: boolean; face?: boolean; screen_touch?: boolean };
         };
       };
+      if (message.type === "salareen-exit") { onBack(); return; }
       if (message.type !== "salareen-telemetry") return;
       setPlays((count) => count + 1);
     } catch {
@@ -92,7 +95,7 @@ export default function DemoWebScreen({
 
   return (
     <AdaptiveContent style={[styles.root, { paddingBottom: overlayBottomPad }]} testID="demo-web">
-      <View style={styles.bar} collapsable={false}>
+      {cleanCourse && !error ? null : <View style={styles.bar} collapsable={false}>
         <Pressable
           onPress={onBack}
           testID="demo-web-back"
@@ -110,7 +113,7 @@ export default function DemoWebScreen({
         ) : null}
         <Text style={styles.title} numberOfLines={2}>{demo.title}</Text>
         {plays > 0 ? <Text style={styles.plays} testID="demo-telemetry">{plays}</Text> : null}
-      </View>
+      </View>}
       {error ? (
         <FriendlyErrorView
           status={errorStatus}
@@ -152,7 +155,7 @@ export default function DemoWebScreen({
         />
       )}
       {loading && !error ? (
-        <View style={styles.loading} pointerEvents="none">
+        <View style={[styles.loading, cleanCourse ? { top: 0 } : null]} pointerEvents="none">
           <ActivityIndicator color={theme.colors.accent} />
           <Text style={styles.loadingText}>{t("guest.loading")}</Text>
         </View>

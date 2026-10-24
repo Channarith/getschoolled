@@ -408,6 +408,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     locale: String(opts.locale || "en-US"),
     stageSelector: opts.stageSelector || "#teach-stage",
     demo: Boolean(opts.demo),
+    clean: Boolean(opts.clean),
   };
 
   if (!document.body) {
@@ -419,7 +420,8 @@ export function initCourseVoiceOverlay(opts = {}) {
   // STUDIO_CSS already does the heavy lifting; .aoep-voice-first just
   // re-applies it alongside tagging the mode for CSS/JS checks.
   document.body.classList.add("aoep-voice-first", "chrome-hidden");
-  if (options.demo) document.body.classList.add("demo-clean");
+  if (options.demo || options.clean) document.body.classList.add("demo-clean");
+  if (options.clean) document.body.classList.add("course-clean");
 
   const root = el("div", {
     "aria-live": "polite",
@@ -449,6 +451,12 @@ export function initCourseVoiceOverlay(opts = {}) {
 
   function reveal(reason) {
     if (options.demo) return;
+    if (options.clean) {
+      // Only an explicit request (or no voice support) brings the classic controls back.
+      if (reason !== "voice-command" && reason !== "not-supported") return;
+      document.body.classList.remove("course-clean", "demo-clean");
+      document.getElementById("course-widget")?.remove();
+    }
     document.body.classList.remove("aoep-voice-first", "chrome-hidden");
     document.body.classList.add("aoep-voice-revealed");
     announce(reason === "voice-command"
@@ -538,6 +546,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   let pillNode = null;
   function renderPill() {
     if (pillNode) pillNode.remove();
+    syncWidgetStatus();
     if (!consented) return;
     const label = !supported ? "Voice unavailable"
       : muted ? "Mic muted — tap to resume"
@@ -576,7 +585,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   function renderOverlay() {
     if (overlayNode) { overlayNode.remove(); overlayNode = null; }
     renderPill();
-    if (consented) return;
+    if (consented || options.clean) return;
     const canSpeak = supported;
     const text = canSpeak
       ? "Sala can run this course by voice. Tap once to let her listen; she'll only act on commands like \"pause\", \"next\", \"captions on\"."
@@ -731,7 +740,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     if (node.parentNode !== host) host.appendChild(node);
   }
   document.addEventListener("fullscreenchange", () => {
-    for (const node of document.querySelectorAll(".sala-help, .sala-rotate, .sala-tutorial")) mountOnTop(node);
+    for (const node of document.querySelectorAll(".sala-help, .sala-rotate, .sala-tutorial, #course-widget")) mountOnTop(node);
     showRotateHint();
   });
 
@@ -847,6 +856,18 @@ export function initCourseVoiceOverlay(opts = {}) {
     ...PICTURE_STEPS,
     { ...SAY_IT, after: ["Or ask any question about the lesson. Tap the yellow ? button any time to see this again."] },
   ];
+  // Clean full course: no Sala figure to tap and no floating ? button. One small panel holds the camera and Sala's voice.
+  const CLEAN_TUTORIAL = [
+    PICTURE_STEPS[0],
+    PICTURE_STEPS[1],
+    {
+      icon: "🎛️", title: "Your little panel",
+      lines: ["One small panel has your camera and Sala's voice. Drag it anywhere. Tap the dash to tuck it away."],
+      after: ["Tap the three dots for Help, Progress, language, captions and Exit lesson."],
+    },
+    { ...SAY_IT, after: ["Or ask any question about the lesson. Open the three dots and tap Help to see this again."] },
+  ];
+  const tutorialSteps = () => (options.demo ? DEMO_TUTORIAL : options.clean ? CLEAN_TUTORIAL : FULL_TUTORIAL);
 
   function showDemoTutorial(startLesson) {
     document.querySelector(".sala-tutorial")?.remove();
@@ -858,7 +879,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-label", "How to use this lesson");
     const render = () => {
-      const steps = options.demo ? DEMO_TUTORIAL : FULL_TUTORIAL;
+      const steps = tutorialSteps();
       const t = steps[step];
       const last = step === steps.length - 1;
       const chips = t.chips ? `<ul>${t.chips.map((c) => `<li>${c}</li>`).join("")}</ul>` : "";
@@ -867,7 +888,7 @@ export function initCourseVoiceOverlay(opts = {}) {
         : `<div class="icon" aria-hidden="true">${t.icon}</div><h2>${t.title}</h2>`;
       overlay.innerHTML = `
         <div class="card${t.image ? " has-frame" : ""}">
-          <div class="dots">${(options.demo ? DEMO_TUTORIAL : FULL_TUTORIAL).map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("")}</div>
+          <div class="dots">${tutorialSteps().map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("")}</div>
           ${frame}
           ${(t.lines || []).map((l) => `<p>${l}</p>`).join("")}${chips}${(t.after || []).map((l) => `<p>${l}</p>`).join("")}
           <div class="actions">
@@ -886,7 +907,7 @@ export function initCourseVoiceOverlay(opts = {}) {
       try { window.localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* not kept: shows again next time */ }
       document.removeEventListener("keydown", onKey);
       overlay.remove();
-      document.querySelector(".sala-help")?.focus?.({ preventScroll: true });
+      (document.querySelector(".sala-help") || document.querySelector("#course-widget .cw-menu-btn"))?.focus?.({ preventScroll: true });
       reportTutorial("closed");
       if (startLesson) {
         if (introHolding()) pendingLessonStart = true;
@@ -901,9 +922,11 @@ export function initCourseVoiceOverlay(opts = {}) {
 
   function wireDemoHelp() {
     if (document.querySelector(".sala-help")) return;
-    const help = el("button", { type: "button", class: "sala-help", "aria-label": "How to use this lesson", title: "How to use this lesson" }, ["?"]);
-    help.addEventListener("click", () => showDemoTutorial(false));
-    mountOnTop(help);
+    if (!options.clean) {
+      const help = el("button", { type: "button", class: "sala-help", "aria-label": "How to use this lesson", title: "How to use this lesson" }, ["?"]);
+      help.addEventListener("click", () => showDemoTutorial(false));
+      mountOnTop(help);
+    }
     let seen = false;
     try { seen = window.localStorage.getItem(TUTORIAL_KEY) === "1"; } catch { seen = false; }
     if (!seen) showDemoTutorial(Boolean(options.demo));
@@ -933,9 +956,247 @@ export function initCourseVoiceOverlay(opts = {}) {
     setInterval(sync, 400);
   }
 
+  // ---- Full course (course-clean): ONE movable widget ------------------------------------
+  // The lesson fills the screen. A single small panel holds the webcam preview, Sala's voice (the shared
+  // Salane Voice widget, mounted in embedded mode) and a one-line status plus a menu with Help, Progress,
+  // Captions, Language, Mute and Exit. Dragging works from the grip or the bar; the spot is remembered.
+  const CW_POS_KEY = "aoep.courseWidget.pos.v1";
+  const CW_COLLAPSE_KEY = "aoep.courseWidget.collapsed.v1";
+  const CW_HINT_KEY = "aoep.courseWidget.hint.v1";
+  let cw = null;
+  let presenceLine = "";
+
+  function readJson(key) {
+    try { return JSON.parse(window.localStorage.getItem(key) || "null"); } catch { return null; }
+  }
+  function writeJson(key, value) {
+    try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* not kept */ }
+  }
+  function safeInsets() {
+    const probe = el("div", { "aria-hidden": "true", style: {
+      position: "fixed", top: "env(safe-area-inset-top, 0px)", left: "env(safe-area-inset-left, 0px)",
+      right: "env(safe-area-inset-right, 0px)", bottom: "env(safe-area-inset-bottom, 0px)", visibility: "hidden", pointerEvents: "none",
+    } });
+    document.body.appendChild(probe);
+    const r = probe.getBoundingClientRect();
+    probe.remove();
+    return { top: Math.max(0, r.top), left: Math.max(0, r.left), right: Math.max(0, window.innerWidth - r.right), bottom: Math.max(0, window.innerHeight - r.bottom) };
+  }
+  function hintSeen() {
+    try { return window.localStorage.getItem(CW_HINT_KEY) === "1"; } catch { return false; }
+  }
+  function noteHintSeen() {
+    try { window.localStorage.setItem(CW_HINT_KEY, "1"); } catch { /* shows again next visit */ }
+    syncWidgetStatus();
+  }
+
+  function syncWidgetStatus() {
+    if (!cw) return;
+    let text;
+    let kind = "";
+    if (presenceLine) { text = presenceLine; kind = "paused"; }
+    else if (!supported) text = "Voice commands aren't supported in this browser.";
+    else if (!consented) text = hintSeen() ? "Tap the lesson to start." : "Tap to start. Say “pause” or “next”.";
+    else if (muted) text = "Mic muted.";
+    else if (listening) text = "Sala is listening.";
+    else text = "Starting Sala…";
+    cw.status.textContent = text;
+    cw.status.dataset.kind = kind;
+  }
+
+  function placeCourseWidget(left, top, persist) {
+    if (!cw) return;
+    const box = cw.root;
+    const safe = safeInsets();
+    const w = box.offsetWidth || 236;
+    const h = box.offsetHeight || 120;
+    const x = Math.max(safe.left + 8, Math.min(window.innerWidth - safe.right - w - 8, left));
+    const y = Math.max(safe.top + 8, Math.min(window.innerHeight - safe.bottom - h - 8, top));
+    box.style.left = `${Math.round(x)}px`;
+    box.style.top = `${Math.round(y)}px`;
+    if (persist) writeJson(CW_POS_KEY, { left: Math.round(x), top: Math.round(y) });
+  }
+
+  function exitLesson() {
+    try {
+      if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(JSON.stringify({ type: "salareen-exit" })); return; }
+    } catch { /* fall through */ }
+    try {
+      if (window.parent !== window) { window.parent.postMessage({ type: "sala-course-exit" }, window.location.origin); return; }
+    } catch { /* fall through */ }
+    if (window.history.length > 1) window.history.back();
+    else window.location.href = "/";
+  }
+
+  function buildCourseWidget() {
+    if (!options.clean || cw) return;
+    const root = el("aside", { id: "course-widget", role: "region", "aria-label": "Lesson panel: camera, Sala's voice and menu" });
+    const bar = el("div", { class: "cw-bar" });
+    const grip = el("button", { type: "button", class: "cw-grip", "aria-label": "Move this panel. Drag, or use the arrow keys.", title: "Drag to move" }, ["⋮⋮"]);
+    const status = el("p", { class: "cw-status", "aria-live": "polite" });
+    const collapse = el("button", { type: "button", class: "cw-btn cw-collapse", "aria-expanded": "true", "aria-label": "Tuck away camera and voice", title: "Tuck away" }, ["–"]);
+    const menuBtn = el("button", { type: "button", class: "cw-btn cw-menu-btn", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "Lesson menu", title: "Menu" }, ["⋯"]);
+    bar.append(grip, status, collapse, menuBtn);
+    const body = el("div", { class: "cw-body" });
+    const camMount = el("div", { class: "cw-cam" });
+    const voiceMount = el("div", { class: "cw-voice" });
+    body.append(camMount, voiceMount);
+    const menu = el("div", { class: "cw-menu", role: "menu", hidden: "" });
+    root.append(bar, body, menu);
+    document.body.prepend(root);
+    cw = { root, status, menu, menuBtn, collapse, camMount, voiceMount };
+
+    // Position: remembered, else the top-left corner (clear of the lesson text, which sits along the bottom).
+    const saved = readJson(CW_POS_KEY);
+    placeCourseWidget(saved && Number.isFinite(saved.left) ? saved.left : 8, saved && Number.isFinite(saved.top) ? saved.top : 8, false);
+    window.addEventListener("resize", () => placeCourseWidget(parseFloat(root.style.left) || 8, parseFloat(root.style.top) || 8, true));
+
+    // Tuck away / bring back the camera and voice (they keep running; only the view is folded).
+    const setCollapsed = (value) => {
+      root.dataset.collapsed = value ? "1" : "0";
+      collapse.setAttribute("aria-expanded", value ? "false" : "true");
+      collapse.textContent = value ? "+" : "–";
+      collapse.setAttribute("aria-label", value ? "Show camera and voice" : "Tuck away camera and voice");
+      try { window.localStorage.setItem(CW_COLLAPSE_KEY, value ? "1" : "0"); } catch { /* not kept */ }
+      requestAnimationFrame(() => placeCourseWidget(parseFloat(root.style.left) || 8, parseFloat(root.style.top) || 8, true));
+    };
+    let startCollapsed = false;
+    try { startCollapsed = window.localStorage.getItem(CW_COLLAPSE_KEY) === "1"; } catch { startCollapsed = false; }
+    setCollapsed(startCollapsed);
+    collapse.addEventListener("click", () => setCollapsed(root.dataset.collapsed !== "1"));
+
+    // Drag from the grip or any empty part of the bar; arrow keys move the grip when focused.
+    let drag = null;
+    bar.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || event.target.closest(".cw-btn")) return;
+      const rect = root.getBoundingClientRect();
+      drag = { id: event.pointerId, dx: event.clientX - rect.left, dy: event.clientY - rect.top };
+      try { bar.setPointerCapture(event.pointerId); } catch { /* not supported */ }
+      event.preventDefault();
+    });
+    bar.addEventListener("pointermove", (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      placeCourseWidget(event.clientX - drag.dx, event.clientY - drag.dy, false);
+    });
+    const endDrag = (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      drag = null;
+      placeCourseWidget(parseFloat(root.style.left) || 8, parseFloat(root.style.top) || 8, true);
+    };
+    bar.addEventListener("pointerup", endDrag);
+    bar.addEventListener("pointercancel", endDrag);
+    grip.addEventListener("keydown", (event) => {
+      const step = event.shiftKey ? 40 : 12;
+      const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+      const move = moves[event.key];
+      if (!move) return;
+      event.preventDefault();
+      placeCourseWidget((parseFloat(root.style.left) || 8) + move[0], (parseFloat(root.style.top) || 8) + move[1], true);
+    });
+
+    // Menu.
+    const closeMenu = (focusButton) => {
+      menu.hidden = true;
+      menuBtn.setAttribute("aria-expanded", "false");
+      if (focusButton) menuBtn.focus({ preventScroll: true });
+    };
+    const item = (label, onClick) => {
+      const node = el("button", { type: "button", role: "menuitem" }, [label]);
+      node.addEventListener("click", () => { closeMenu(false); onClick(); });
+      return node;
+    };
+    const buildMenu = () => {
+      menu.textContent = "";
+      menu.appendChild(item("Help", () => showDemoTutorial(false)));
+      const percent = document.getElementById("course-map-percent")?.textContent?.trim();
+      menu.appendChild(el("div", { class: "cw-info", role: "presentation" }, [`Progress: ${percent || "0%"}`]));
+      const plan = document.getElementById("course-price")?.textContent?.trim();
+      if (plan) menu.appendChild(el("div", { class: "cw-info", role: "presentation" }, [`Plan: ${plan}`]));
+      const captions = document.getElementById("btn-captions");
+      if (captions) {
+        const off = captions.classList.contains("is-off");
+        menu.appendChild(item(off ? "Captions on" : "Captions off", () => captions.click()));
+      }
+      const langSource = document.getElementById("teach-lang-stage") || document.getElementById("teach-lang");
+      if (langSource && langSource.options && langSource.options.length > 1) {
+        const select = el("select", { "aria-label": "Lesson language" });
+        for (const option of Array.from(langSource.options)) {
+          const o = el("option", { value: option.value }, [option.textContent || option.value]);
+          if (option.value === langSource.value) o.selected = true;
+          select.appendChild(o);
+        }
+        select.addEventListener("change", () => { setLanguageSelect(select.value); closeMenu(true); });
+        menu.appendChild(select);
+      }
+      if (supported && consented) menu.appendChild(item(muted ? "Unmute mic" : "Mute mic", () => setMuted(!muted)));
+      if (!supported) menu.appendChild(item("Show classic controls", () => reveal("not-supported")));
+      menu.appendChild(item("Exit lesson", exitLesson));
+    };
+    menuBtn.addEventListener("click", () => {
+      if (menu.hidden) {
+        buildMenu();
+        menu.hidden = false;
+        menuBtn.setAttribute("aria-expanded", "true");
+        menu.querySelector("[role=menuitem], select")?.focus?.({ preventScroll: true });
+      } else closeMenu(true);
+    });
+    root.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !menu.hidden) { event.stopPropagation(); closeMenu(true); }
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!menu.hidden && !root.contains(event.target)) closeMenu(false);
+    }, true);
+
+    // The camera preview and Sala's voice move into the panel as soon as they exist.
+    const adopt = () => {
+      const cam = document.getElementById("student-cam");
+      if (cam && cam.parentElement !== camMount) camMount.appendChild(cam);
+      const live = document.getElementById("theodore-live-audio");
+      if (live) {
+        live.setAttribute("data-embedded", "");
+        if (live.parentElement !== voiceMount) voiceMount.appendChild(live);
+      }
+      return Boolean(cam && live);
+    };
+    adopt();
+    let tries = 0;
+    const adoptTimer = window.setInterval(() => {
+      tries += 1;
+      if (adopt() || tries > 60) window.clearInterval(adoptTimer);
+    }, 500);
+    // Keep adopting if the page re-creates either element later (a language change reloads the voice widget).
+    new MutationObserver(() => adopt()).observe(document.body, { childList: true });
+
+    // "You left the camera" and similar notes land in the status line, not in a big banner.
+    const aside = document.getElementById("attention-aside");
+    if (aside) {
+      const mirror = () => { presenceLine = aside.hidden ? "" : (aside.textContent || "").trim(); syncWidgetStatus(); };
+      new MutationObserver(mirror).observe(aside, { attributes: true, childList: true, characterData: true, subtree: true });
+      mirror();
+    }
+    syncWidgetStatus();
+  }
+
+  function wireCleanCourse() {
+    buildCourseWidget();
+    wireDemoHelp();
+    // One gesture: the first tap on the lesson (not on the panel) starts the lesson and lets Sala listen.
+    const first = (event) => {
+      if (event.target.closest && event.target.closest("#course-widget, .sala-tutorial")) return;
+      if (document.querySelector(".sala-tutorial")) return;
+      document.removeEventListener("pointerup", first, true);
+      goFullScreenOnPhone();
+      if (!(event.target.closest && event.target.closest("#teach-stage"))) clickById("btn-start-voice");
+      if (!consented) setConsented(true);
+      noteHintSeen();
+    };
+    document.addEventListener("pointerup", first, true);
+  }
+
   renderOverlay();
   renderTypeToAsk();
   if (options.demo) wireAvatarGesture();
+  else if (options.clean) wireCleanCourse();
   else wireDemoHelp();
   wireStageGestures();
   if (consented) startRecognizer();
@@ -967,6 +1228,8 @@ export function initCourseVoiceOverlay(opts = {}) {
       typeToAsk: params.get("typemode") === "1",
       locale: params.get("lang") || "en-US",
       demo: params.get("demo") === "1",
+      // The full course (not the demo) gets the clean layout: the lesson and ONE movable widget.
+      clean: params.get("demo") !== "1" && params.get("access") === "full" && params.get("clean") !== "0",
     });
   } catch { /* defensive — never block the player on overlay boot */ }
 })();

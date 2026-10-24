@@ -472,6 +472,43 @@ STUDIO_CSS = """
       background:transparent; box-shadow:none; text-align:left; }
     html body.demo-clean #sample-clock span { font:600 14px/1 system-ui,sans-serif; color:rgba(255,255,255,.55); letter-spacing:0; }
     html body.demo-clean #sample-clock small { display:none; }
+    /* Full course (course-clean, set with demo-clean by course_voice.js when access=full): the lesson plus ONE movable
+       widget (#course-widget: Salane Voice + webcam + a small menu). Everything else is hidden. The layout rules
+       above are shared with the demo; only what differs lives here. */
+    html body.course-clean.course-clean.course-clean.course-clean .theodore-avatar-wrap,
+    body.course-clean #teach-title,
+    body.course-clean #toast,
+    body.course-clean #attention-aside,
+    body.course-clean .sala-help,
+    body.course-clean #proceed-cue { display:none !important; }
+    #course-widget { position:fixed; z-index:10030; left:8px; top:8px; width:min(236px, calc(100vw - 16px)); box-sizing:border-box;
+      background:rgba(11,16,32,.92); color:#f6efe4; border:1px solid rgba(212,175,55,.6); border-radius:16px;
+      box-shadow:0 10px 28px rgba(0,0,0,.45); font:600 13px/1.35 system-ui,sans-serif; }
+    #course-widget .cw-bar { display:flex; align-items:center; gap:4px; padding:4px 6px; }
+    #course-widget .cw-grip { flex:none; width:44px; height:44px; border:0; border-radius:12px; background:transparent; color:#d4af37;
+      font:900 18px/1 system-ui,sans-serif; letter-spacing:-2px; cursor:grab; touch-action:none; }
+    #course-widget .cw-grip:active { cursor:grabbing; }
+    #course-widget .cw-status { flex:1; min-width:0; margin:0; font-size:12px; line-height:1.3; color:#f6efe4; overflow:hidden; max-height:5.2em; }
+    #course-widget .cw-status[data-kind="paused"] { color:#fde68a; }
+    #course-widget .cw-btn { flex:none; width:44px; height:44px; border:0; border-radius:12px; background:rgba(255,255,255,.08); color:#f6efe4;
+      font:800 18px/1 system-ui,sans-serif; cursor:pointer; }
+    #course-widget .cw-btn:focus-visible, #course-widget .cw-grip:focus-visible, #course-widget .cw-menu [role="menuitem"]:focus-visible { outline:2px solid #fde047; outline-offset:2px; }
+    #course-widget .cw-body { padding:0 6px 6px; }
+    #course-widget[data-collapsed="1"] .cw-body { height:0; padding:0; overflow:hidden; opacity:0; pointer-events:none; }
+    #course-widget .cw-cam { border-radius:12px; overflow:hidden; }
+    html body.course-clean #course-widget #student-cam { position:static !important; width:100% !important; max-width:none !important;
+      left:auto !important; top:auto !important; right:auto !important; bottom:auto !important; margin:0; box-shadow:none; border-radius:12px; z-index:auto; }
+    #course-widget .cw-voice { margin-top:6px; }
+    html body.course-clean #course-widget #theodore-live-audio { position:static !important; left:auto !important; right:auto !important; top:auto !important;
+      bottom:auto !important; width:auto !important; display:block !important; pointer-events:auto; }
+    #course-widget .cw-voice:empty, #course-widget .cw-cam:empty { display:none; }
+    #course-widget .cw-menu { padding:4px 6px 8px; display:grid; gap:4px; border-top:1px solid rgba(255,255,255,.12); }
+    #course-widget .cw-menu[hidden] { display:none; }
+    #course-widget .cw-menu [role="menuitem"], #course-widget .cw-menu select, #course-widget .cw-menu .cw-info { min-height:44px; box-sizing:border-box; border:0; border-radius:10px;
+      background:rgba(255,255,255,.08); color:#f6efe4; font:700 14px/1.2 system-ui,sans-serif; text-align:left; padding:0 12px; display:flex; align-items:center; }
+    #course-widget .cw-menu .cw-info { background:transparent; color:#cbd5e1; font-weight:600; }
+    #course-widget .cw-menu select { width:100%; }
+    @media (prefers-reduced-motion: reduce) { #course-widget, #course-widget * { transition:none !important; animation:none !important; } }
     /* Demo tutorial and help button. */
     .sala-help { position:fixed; right:14px; top:92px; z-index:2147483000; width:40px; height:40px; border-radius:50%; border:0;
       background:#fde047; color:#1e1b4b; font:900 20px/1 system-ui,sans-serif; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.35); }
@@ -3639,6 +3676,7 @@ STUDIO_JS = """
       const cam = $('student-cam');
       const overlay = $('presenter-overlay');
       if (!cam || !overlay) return;
+      if (cam.closest('#course-widget')) return;
       if (presenterActive()) {
         if (cam.parentElement !== overlay) overlay.appendChild(cam);
         if (!restoreStudentCamPosition()) defaultStudentCamPosition();
@@ -3705,6 +3743,7 @@ STUDIO_JS = """
         if (document.body.classList.contains('audio-only')) return;
         if (event.button !== 0) return;
         if (event.target.closest('button, a, input, textarea, select')) return;
+        if (box.closest('#course-widget')) return;
         const rect = box.getBoundingClientRect();
         drag = {
           id: event.pointerId,
