@@ -113,3 +113,10 @@ def test_update_decision_matches_the_app_rules():
     assert mr.update_decision("0.94.0", man, dismissed="0.97.12") == {"prompt": True, "force": True, "latest": "0.97.12"}
     assert mr.update_decision("0.97.12", man)["prompt"] is False
     assert mr.update_decision("0.97.3", None)["prompt"] is False
+
+
+def test_apk_identity_comes_from_the_apk_not_the_checkout():
+    assert mr.apk_identity("salareen-0.97.11-9711-release.apk") == ("0.97.11", 9711)
+    assert mr.apk_identity("salareen-0.19.60-1960-release.apk") == ("0.19.60", 1960)
+    assert mr.apk_identity("app-release.apk") is None
+    assert mr.apk_identity("salareen-0.97.11-release.apk") is None
