@@ -44,6 +44,8 @@ type OrbitTab = {
    *  to /login (and the tile shows a small lock in the tooltip). The
    *  user's request: only "Our Story" works without an account. */
   publicForGuests: boolean;
+  /** Not released to users yet: renders as a non-interactive tile. */
+  disabled?: boolean;
 };
 
 /**
@@ -106,6 +108,7 @@ const TABS: OrbitTab[] = [
     description:
       "27-language live translation studio + fully localized courses.",
     publicForGuests: false,
+    disabled: true,
   },
 ];
 
@@ -251,6 +254,31 @@ export default function OrbitalMascotStage() {
           lies about what's accessible. Only Our Story is open to
           everyone. */}
       {TABS.map((tab) => {
+        if (tab.disabled) {
+          return (
+            <span
+              key={tab.label}
+              className="dn-orbit-tile dn-orbit-tile-disabled"
+              role="img"
+              aria-disabled="true"
+              aria-label={`${tab.label} — coming soon. ${tab.description}`}
+              tabIndex={0}
+            >
+              <span className="dn-orbit-tile-icon" aria-hidden>
+                {tab.icon}
+              </span>
+              <span className="dn-orbit-tile-label">{tab.label}</span>
+              <span className="dn-orbit-tile-tooltip" role="tooltip">
+                <strong>{tab.label}</strong>
+                <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.85 }}>
+                  Coming soon
+                </span>
+                <br />
+                {tab.description}
+              </span>
+            </span>
+          );
+        }
         const gated = !tab.publicForGuests && !loggedIn;
         const href = loggedIn && tab.authedHref ? tab.authedHref : tab.href;
         const aria = gated
