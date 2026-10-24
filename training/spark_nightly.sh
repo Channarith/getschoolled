@@ -20,6 +20,14 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 
+# Pause switch: while this file exists no new cycle starts (a cycle already running finishes). Create it to pause the
+# nightly loop, delete it to resume. Checked before the GPU lock is taken so a paused loop never holds up other GPU jobs.
+HOLD_FILE="${GS_STEM_HOLD_FILE:-${HOME}/.gs-hold/stem-train}"
+if [[ -e "$HOLD_FILE" ]]; then
+  echo "spark_nightly: paused by hold file $HOLD_FILE ($(head -c 200 "$HOLD_FILE" 2>/dev/null | tr '\n' ' ')); not starting a cycle" >&2
+  exit 0
+fi
+
 if [[ -z "${GS_GPU_LOCK_HELD:-}" ]]; then
   exec flock -w "${GS_LOCK_WAIT_SEC:-7200}" "${HOME}/.gs-gpu.lock" env GS_GPU_LOCK_HELD=1 "$0" "$@"
 fi
