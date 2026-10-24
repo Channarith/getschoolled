@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir /app/shared
 
 COPY subrepos/theodore_children_webcam_lab/pyproject.toml /app/pyproject.toml
 COPY subrepos/theodore_children_webcam_lab/src /app/src
-RUN pip install --no-cache-dir -e . "edge-tts==7.2.8"
+RUN pip install --no-cache-dir -e . "edge-tts>=7.3.1,<8"
 
 EXPOSE 8018
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
