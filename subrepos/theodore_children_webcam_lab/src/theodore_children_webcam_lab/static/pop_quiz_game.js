@@ -519,7 +519,8 @@ export function createPopQuizGame(d) {
       el.setAttribute("role", "img");
       el.setAttribute("aria-label", `Answer ${answer}`);
       el.style.left = `${(i === 0 ? 0.2 : 0.8) * 100}%`;
-      el.innerHTML = `<span class="pq-art">${ART[theme]}</span><span class="pq-label ${labelClass(answer)}">${answer}</span>`;
+      el.innerHTML = `<span class="pq-art">${ART[theme]}</span><span class="pq-label ${labelClass(answer)}"></span>`;
+      el.querySelector(".pq-label").textContent = answer;
       spriteLayer.append(el);
       return {answer, el};
     });

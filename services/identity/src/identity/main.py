@@ -161,6 +161,16 @@ def _startup_seed_accounts() -> None:
             "ADMIN_SECRET is not set — using the insecure development default. "
             "Set this environment variable before deploying."
         )
+    from .bootstrap import weak_operator_secrets
+    _weak = weak_operator_secrets()
+    if _weak and _is_production:
+        _lg.critical(
+            "Operator credentials are weak, unset or published in the repo: %s. "
+            "Rotate them (see docs) and set AOEP_ENFORCE_STRONG_SECRETS=1 to refuse to start otherwise.",
+            ", ".join(_weak),
+        )
+        if os.environ.get("AOEP_ENFORCE_STRONG_SECRETS", "").lower() in ("1", "true", "yes"):
+            raise RuntimeError("weak operator credentials: " + ", ".join(_weak))
     if "ASSESSMENT_SIGNING_KEY" in os.environ and "AUTH_SIGNING_KEY" not in os.environ:
         _lg.warning(
             "ASSESSMENT_SIGNING_KEY is set but AUTH_SIGNING_KEY is not. "
