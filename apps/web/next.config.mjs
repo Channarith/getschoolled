@@ -26,6 +26,11 @@ function serviceOrigin(name) {
 
 const nextConfig = {
   reactStrictMode: true,
+  // A real HTTP redirect with a Location header. A redirect() inside a prerendered
+  // page was cached as a 307 with no Location, which clients cannot follow.
+  async redirects() {
+    return [{ source: "/demo/course-studio", destination: "/demo/drivers-ed", permanent: false }];
+  },
   async rewrites() {
     // Production sets these at image build (see apps/web/Dockerfile). `next build`
     // freezes the rewrites, so a runtime env change does not retarget them.
