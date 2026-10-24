@@ -1,0 +1,20 @@
+[Unit]
+Description=AOEP CosyVoice language ingest queues (GPU ASR when the CUDA policy passes; restart when idle)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@ROOT@
+EnvironmentFile=-%h/.config/aoep/spark-units.env
+ExecStart=@ROOT@/scripts/fleet/spark-units/voice-ingest-forever.sh
+Nice=15
+Restart=always
+RestartSec=30
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=60
+StandardOutput=append:%h/.local/share/aoep-train/voice-ingest.log
+StandardError=append:%h/.local/share/aoep-train/voice-ingest.log
+
+[Install]
+WantedBy=default.target

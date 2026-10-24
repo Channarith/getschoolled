@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 from ..devices import DevicePolicyError, pick_device
+from ..gpu_lock import gpu_burst
 from .guard import available_mb, env_int, is_memory_error
 
 
@@ -246,6 +247,18 @@ def _transcribe_faster(
 
 
 def transcribe_wav(
+    path: Path | str,
+    *,
+    language: str = "en",
+    model: Optional[str] = None,
+    compute_type: Optional[str] = None,
+) -> TranscriptResult:
+    """Transcribe one WAV. The GPU part takes ~/.gs-gpu.lock for the burst (short wait, then proceeds: see gpu_lock)."""
+    with gpu_burst("asr"):
+        return _transcribe_wav(path, language=language, model=model, compute_type=compute_type)
+
+
+def _transcribe_wav(
     path: Path | str,
     *,
     language: str = "en",

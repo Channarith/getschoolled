@@ -1,0 +1,20 @@
+[Unit]
+Description=AOEP memory and GPU balance monitor (classifies fine-tune vs evaluation, waits for llama-server wake)
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-%h/.config/aoep/spark-units.env
+ExecStart=@ROOT@/scripts/fleet/spark-units/gpu-balance-monitor.sh
+Nice=15
+Restart=always
+RestartSec=5
+# SIGTERM runs the monitor's exit handler, which resumes every process it stopped: give it time to finish.
+KillSignal=SIGTERM
+TimeoutStopSec=20
+# The monitor writes its own rotated JSON log (balance.jsonl); stdout goes to the journal, which journald bounds.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,19 @@
+[Unit]
+Description=AOEP 222-course NLLB translation v1 (LEGACY, retired: use scripts/translate_catalog_v2.py)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/code/gs-wt/spark-eval-gates
+# The script refuses to run unless AOEP_LEGACY_TRANSLATE=1, so enabling this by accident does nothing.
+ExecStart=@ROOT@/scripts/fleet/spark-units/translate-forever.sh
+Nice=12
+Restart=on-failure
+RestartSec=30
+KillMode=control-group
+TimeoutStopSec=60
+StandardOutput=append:%h/.local/share/aoep-train/translate.log
+StandardError=append:%h/.local/share/aoep-train/translate.log
+
+[Install]
+WantedBy=default.target

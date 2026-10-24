@@ -209,3 +209,52 @@ CONTINUOUS OPERATION (the queue layer)
   systemd units gs-worker / gs-worker-revive / gs-queue-daily, scripts/fleet/daily_report.sh, and the
   queue findings in fleet_status (WORKER_DOWN, QUEUE_STALE_LEASE, CUDA_BLOCKED, IDLE_WITH_WORK,
   QUEUE_DEAD_JOBS, QUEUE_SUMMARY). Start long jobs through the queue, not by hand.
+
+SPARK SERVICES UNDER VERSION CONTROL (scripts/fleet/spark-units/)
+  The Spark's training loops were hand-made systemd USER services that lived only on that machine (a Cursor
+  session created them). They are now in the repo so changes are reviewed, tested and reversible:
+    aoep-llm-train        STEM QLoRA loop (llm-forever.sh); pause with the hold file ~/.gs-hold/stem-train
+    aoep-voice-train      Khmer CosyVoice fine-tune loop (voice-forever.sh); held by ~/.local/share/aoep-train/hold-voice-train
+    aoep-voice-ingest     CosyVoice data ingest (voice-ingest-forever.sh); GPU ASR only when the CUDA policy passes
+    aoep-gpu-balance      memory/GPU monitor (aoep_shared/spark_balance.py); pauses yt-dlp and, only when justified,
+                          stops the bake-off client
+    aoep-course-translate LEGACY v1 CPU translation. Retired (replaced by scripts/translate_catalog_v2.py); the script
+                          refuses to run unless AOEP_LEGACY_TRANSLATE=1 and the unit is only installed with
+                          --with-legacy-translate.
+  Full details, thresholds and the llama-server sleep setting are in scripts/fleet/spark-units/README.txt.
+
+  What the monitor got wrong (and what it does now)
+    1. It called ANY non-llama GPU process over 2 GiB "training", so evaluate.py (an evaluation) made it kill the
+       bake-off. Processes are now classified by command line: fine-tune, evaluation, bake-off client.
+    2. The llama-server runs with --sleep-idle-seconds 600: after 10 idle minutes it unloads its ~20 GB model and
+       reloads it on the next request. The bake-off client was that request, and the monitor measured its decode
+       rate over the first 60 seconds, which is the reload. Result: "decoded_gain=7..18 in 62s" and the client was
+       killed at every cycle, so the bake-off that gates promotion never finished. Now nothing is measured until
+       the server answers /health 200 and /slots, no kill is allowed for 600 s after a wake, and the rate window
+       starts at the first decoded token and runs 180 s.
+    3. It killed with 70 GB free. Now a starved bake-off is stopped only during a FINE-TUNE, only below a memory
+       floor (24 GB), and during an evaluation only under 6 GB (an emergency).
+    4. spark_nightly.sh now sends one tiny request to the llama-server before the bake-off stage
+       (scripts/fleet/spark-units/llama-warm.sh), so the reload is paid up front. Best effort: it never blocks a cycle.
+
+  Applying it on the Spark (never switch the main checkout: it is on a feature branch with jobs running)
+    1. A clean worktree of main, and a stable name to point the units at:
+         cd ~/code/getschoolled && git fetch -q origin
+         git worktree add -f ~/code/gs-wt/main-$(date +%Y%m%d) origin/main
+         ln -sfn ~/code/gs-wt/main-$(date +%Y%m%d) ~/code/gs-wt/main-current
+    2. See exactly what would change (dry run, writes nothing; shows a diff against each live unit):
+         ~/code/gs-wt/main-current/scripts/fleet/spark-units/install.sh --root ~/code/gs-wt/main-current
+       Compare one unit by hand if you like:
+         diff -u ~/.config/systemd/user/aoep-gpu-balance.service \
+           <(sed "s#@ROOT@#$HOME/code/gs-wt/main-current#g" ~/code/gs-wt/main-current/scripts/fleet/spark-units/units/aoep-gpu-balance.service)
+    3. Write the units (backs the live ones up first; restarts nothing, enables nothing):
+         ~/code/gs-wt/main-current/scripts/fleet/spark-units/install.sh --root ~/code/gs-wt/main-current --apply
+    4. Restart the monitor first: it only watches, and its exit handler resumes anything it stopped:
+         systemctl --user restart aoep-gpu-balance.service
+         tail -f ~/.local/share/aoep-train/balance.jsonl      (one JSON object per line, rotated)
+         cat ~/.local/share/aoep-train/balance.status.json
+    5. The others pick up the new definition when YOU restart them, at a moment you choose:
+         systemctl --user restart aoep-voice-ingest.service   (abandons the channel being ingested; the queue resumes)
+         systemctl --user restart aoep-llm-train.service      (stops the cycle that is running; a frozen loop is released)
+    Rollback: the installer prints the exact command and the backup folder (~/.local/share/aoep-train/backup-<time>/).
+    Overrides without editing a unit: put VAR=value lines in ~/.config/aoep/spark-units.env (read by every unit).
