@@ -13,6 +13,7 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
     pass
 
 
+import mimetypes
 import threading
 from pathlib import Path
 from typing import Any
@@ -127,6 +128,8 @@ app.mount(
 # The voice-first "Sala only" overlay (parser + listening pill + type-to-ask).
 # Shipped as a static JS module so the big studio_page.py template stays small
 # and the module can be unit-tested in isolation.
+# Slim images have no mime table; without this the tutorial pictures are served as text/plain.
+mimetypes.add_type("image/webp", ".webp")
 _VOICE_STATIC_DIR = Path(__file__).with_name("voice_static")
 # NOTE: must not shadow /api/studio/voice/status (CourseStudioVoiceAgent).
 # Keep the overlay bundle on a sibling path so GET /api/studio/voice/status

@@ -16,6 +16,8 @@ RUN pip install --no-cache-dir /app/packages/shared
 
 COPY subrepos/theodore_course_studio/pyproject.toml /app/pyproject.toml
 COPY subrepos/theodore_course_studio/src /app/src
+# The repo keeps this file as a symlink into apps/web; COPY would not replace it, and StaticFiles will not follow it.
+RUN rm -f /app/src/theodore_course_studio/voice_static/drivers-ed-intro.mp4
 COPY apps/web/public/video/drivers-ed-intro.mp4 /app/src/theodore_course_studio/voice_static/drivers-ed-intro.mp4
 # voices extra is edge-tts, so narration still speaks when the speech gateway
 # is down. The demo page falls back to the device voice only if that fails too.
