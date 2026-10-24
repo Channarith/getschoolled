@@ -26,6 +26,7 @@ from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
 from aoep_shared import lab_tts
+from aoep_shared.background_jobs import JobError, JobRunner, accepted_response, install_job_status_route, payload_key
 from aoep_shared.current_awareness import research_current_topic
 from aoep_shared.factory import build_factory
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
@@ -59,6 +60,13 @@ from .voice_queue import get_voice_queue
 app = FastAPI(title="Theodore RAG Lab", version="0.2.0")
 install_live_audio_routes(app, lab_name="Theodore RAG Lab")
 _FACTORY = build_factory()
+# Long bakeoffs and corpus updates run as background jobs polled at /api/rag/jobs/{id}.
+_JOBS_PATH = "/api/rag/jobs"
+_jobs = JobRunner(
+    max_workers=2,
+    store_dir=Path(os.environ.get("AOEP_JOBS_DIR") or tempfile.gettempdir()) / "aoep-rag-lab-jobs",
+)
+install_job_status_route(app, _jobs, _JOBS_PATH)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -202,15 +210,20 @@ def train_start(req: TrainStart) -> dict[str, Any]:
     return runner.start(hours=req.hours)
 
 
-@app.post("/api/rag/train/run-blocking")
-def train_blocking(req: TrainStart) -> dict[str, Any]:
-    """Short synchronous bakeoff for CI / scripts (caps rounds)."""
+@app.post("/api/rag/train/run-blocking", status_code=202)
+def train_blocking(req: TrainStart):
+    """Short capped bakeoff for CI / scripts; runs as a job, poll the status_url."""
     runner = get_runner()
     hours = min(float(req.hours), 0.05)
-    try:
-        return runner.run_blocking(hours=hours)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    def work(report):
+        report(0.1, "Running the bakeoff")
+        try:
+            return runner.run_blocking(hours=hours)
+        except RuntimeError as exc:
+            raise JobError("busy", "A training run is already active. Stop it first, then try again.") from exc
+
+    return accepted_response(_jobs.submit("rag-bakeoff", work, exclusive=True), _JOBS_PATH)
 
 
 @app.get("/api/rag/train/status")
@@ -604,14 +617,19 @@ def api_corpus_stats() -> dict[str, Any]:
     return corpus_stats()
 
 
-@app.post("/api/corpus/train-update")
-def api_corpus_train_update(req: CorpusTrainReq) -> dict[str, Any]:
-    return run_train_update(
-        force=req.force,
-        language=req.language or "en",
-        synth=req.synth,
-        ship_packs=req.ship_packs,
-    )
+@app.post("/api/corpus/train-update", status_code=202)
+def api_corpus_train_update(req: CorpusTrainReq):
+    def work(report):
+        report(0.1, "Updating the corpus")
+        return run_train_update(
+            force=req.force,
+            language=req.language or "en",
+            synth=req.synth,
+            ship_packs=req.ship_packs,
+        )
+
+    key = payload_key("corpus-update", req.model_dump())
+    return accepted_response(_jobs.submit("corpus-update", work, key=key), _JOBS_PATH)
 
 
 @app.get("/api/corpus/review")

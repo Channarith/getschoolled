@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi.testclient import TestClient
 
 from theodore_rag_lab.main import app
@@ -18,4 +20,11 @@ def test_unsafe_language_is_rejected_with_422():
 def test_plain_language_tags_are_accepted():
     for good in ("en", "km", "zh-Hans", "pt-BR"):
         r = client.post("/api/corpus/train-update", json={"language": good})
-        assert r.status_code == 200, good
+        assert r.status_code == 202, good
+        url = r.json()["status_url"]
+        for _ in range(300):
+            job = client.get(url).json()
+            if job["state"] in ("done", "failed"):
+                break
+            time.sleep(0.05)
+        assert job["state"] == "done", good

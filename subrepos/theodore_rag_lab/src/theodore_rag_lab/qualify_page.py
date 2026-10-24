@@ -387,8 +387,24 @@ _JS = """
     const text = await res.text();
     let data;
     try { data = JSON.parse(text); } catch { data = text; }
-    if (!res.ok) throw new Error((data && data.detail) || text || res.statusText);
+    if (!res.ok) throw new Error((data && (data.detail || (data.error && data.error.message))) || text || res.statusText);
+    if (res.status === 202 && data && data.job_id) return pollJob(data);
     return data;
+  }
+
+  // Slow routes answer 202 with a job; poll it with a gentle backoff until it finishes.
+  async function pollJob(started) {
+    let wait = 1000;
+    for (;;) {
+      const res = await fetch(started.status_url);
+      const job = await res.json().catch(() => ({}));
+      if (job.state === 'done') return job.result;
+      if (job.state === 'failed' || job.state === 'unknown') {
+        throw new Error((job.error && job.error.message) || job.message || 'The job did not finish');
+      }
+      await new Promise((resolve) => setTimeout(resolve, wait));
+      wait = Math.min(5000, Math.round(wait * 1.4));
+    }
   }
 
   function switchTab(name) {
