@@ -29,7 +29,7 @@ function serve(files: Record<string, unknown>) {
   (globalThis as { fetch: unknown }).fetch = async (url: string) =>
     (url in files ? { ok: true, json: async () => files[url] } : { ok: false, json: async () => ({}) });
 }
-const BASE = "https://salareen.com/voice-assets";
+const BASE = "https://salareen-prod.sjc1.vultrobjects.com/voice-assets";
 
 describe("cloneVoice", () => {
   beforeEach(() => resetCloneVoiceCacheForTests());

@@ -8,7 +8,7 @@ export const VOICE_CHOICE_KEY = "aoep_demo_voice";
 
 export type CloneVoice = { id: string; label: string; ai_label: string; active: boolean };
 
-const ASSETS = "https://salareen.com/voice-assets";   // object storage / CDN path the render script publishes to
+const ASSETS = "https://salareen-prod.sjc1.vultrobjects.com/voice-assets";   // Vultr Object Storage, published by scripts/sync_voice_assets.sh
 const WS = /[ \t\n\r\f\v\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/g;
 
 // cyrb53 over UTF-16 code units; must stay identical to tts_bakeoff/demo_voice/clip_hash.py (shared test vectors).
