@@ -3,7 +3,21 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   let cfg = null;
-  const st = { name: "", role: "employee", speaker: "", lang: "en", proof: null, mode: "voice", takes: {}, busy: false };
+  const st = { name: "", role: "employee", speaker: "", lang: "en", ui: "en", proof: null, mode: "voice", takes: {}, busy: false };
+
+  /* ---------- page language ---------- */
+  function t(key, vars) {
+    const dict = (cfg && cfg.ui && (cfg.ui[st.ui] || cfg.ui.en)) || {};
+    let out = dict[key] !== undefined ? dict[key] : ((cfg && cfg.ui && cfg.ui.en && cfg.ui.en[key]) || key);
+    Object.entries(vars || {}).forEach(([k, v]) => { out = out.split("{" + k + "}").join(String(v)); });
+    return out;
+  }
+  function applyI18n() {
+    document.documentElement.lang = st.ui === "yue" ? "zh-HK" : st.ui;
+    document.title = t("page_title");
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  }
 
   async function api(path, opts = {}) {
     const init = { method: opts.method || "GET", headers: {} };
@@ -98,13 +112,30 @@
   $("to-consent").onclick = async () => {
     $("e1").textContent = "";
     st.name = $("name").value.replace(/\s+/g, " ").trim(); st.role = $("role").value;
-    if (st.name.length < 2) { $("e1").textContent = "Enter the person's full name."; return; }
-    try { $("statement").textContent = (await api("/api/statement?name=" + encodeURIComponent(st.name))).text; }
-    catch (e) { $("e1").textContent = e.message; return; }
-    $("consent-text").textContent = cfg.consent_text;
+    if (st.name.length < 2) { $("e1").textContent = t("err_name"); return; }
+    if (!(await showConsent())) return;
+    step(2);
+  };
+  // Shows the consent text and spoken statement in the page language. Anything signed or recorded against another text is cleared.
+  async function showConsent() {
+    const ct = cfg.consent_texts[st.ui];
+    $("consent-text").textContent = ct.text;
+    $("draft-banner").hidden = !ct.draft;
+    $("draft-banner").textContent = ct.draft ? t("draft_banner") : "";
     document.querySelectorAll("#agreements input").forEach((c) => { c.checked = false; });
     $("typed").value = ""; st.proof = null; $("proof-audio").hidden = true; $("proof-info").textContent = "";
-    step(2);
+    $("proof-rec").textContent = t("record");
+    $("statement").textContent = "";
+    try { $("statement").textContent = (await api("/api/statement?name=" + encodeURIComponent(st.name) + "&lang=" + st.ui)).text; }
+    catch (e) { $("e1").textContent = e.message; return false; }
+    return true;
+  }
+  $("ui-lang").onchange = async () => {
+    st.ui = $("ui-lang").value;
+    try { localStorage.setItem("enroll-ui-lang", st.ui); } catch (e) { /* private mode */ }
+    applyI18n();
+    if (!$("s2").hidden) await showConsent();
+    if (!$("s3").hidden) buildLines();
   };
   $("back1").onclick = () => step(1);
 
@@ -121,7 +152,7 @@
     $("e2").textContent = "";
     try { await mic.enable(); } catch (e) { $("e2").textContent = e.message; return; }
     mic.meters = [$("proof-meter")]; mic.begin(); proofRec = true;
-    $("proof-rec").disabled = true; $("proof-stop").disabled = false; $("proof-info").textContent = "recording...";
+    $("proof-rec").disabled = true; $("proof-stop").disabled = false; $("proof-info").textContent = t("recording");
   };
   $("proof-stop").onclick = () => {
     if (!proofRec) return;
@@ -129,7 +160,7 @@
     const { samples, rate } = mic.end();
     const a = analyze(samples, rate);
     st.proof = encodeWav(samples, rate);
-    $("proof-rec").disabled = false; $("proof-stop").disabled = true; $("proof-rec").textContent = "Record again";
+    $("proof-rec").disabled = false; $("proof-stop").disabled = true; $("proof-rec").textContent = t("record_again");
     $("proof-audio").src = URL.createObjectURL(st.proof); $("proof-audio").hidden = false;
     $("proof-info").textContent = `${a.seconds.toFixed(1)} s` + (a.warnings.length ? " - " + a.warnings.join("; ") : " - ok");
     $("proof-meter").value = 0;
@@ -139,12 +170,12 @@
     $("e2").textContent = "";
     const agreements = {};
     document.querySelectorAll("#agreements input").forEach((c) => { agreements[c.dataset.a] = c.checked; });
-    const payload = { name: st.name, role: st.role, typed_name: $("typed").value, agreements, text_sha256: cfg.consent_text_sha256 };
+    const payload = { name: st.name, role: st.role, typed_name: $("typed").value, agreements, ui_lang: st.ui, text_sha256: cfg.consent_texts[st.ui].sha256 };
     if (st.mode === "form") {
       payload.existing_form_path = $("form-path").value;
-      if (!payload.existing_form_path.trim()) { $("e2").textContent = "Enter the path of the signed form."; return; }
+      if (!payload.existing_form_path.trim()) { $("e2").textContent = t("err_form"); return; }
     } else {
-      if (!st.proof) { $("e2").textContent = "Record the spoken statement first."; return; }
+      if (!st.proof) { $("e2").textContent = t("err_statement"); return; }
       payload.proof_wav_b64 = await toB64(st.proof);
     }
     $("submit-consent").disabled = true;
@@ -159,6 +190,7 @@
   /* ---------- step 3: record the lines ---------- */
   function startRecording(existingTakes) {
     st.takes = {};
+    if (cfg.prompts[st.ui]) st.lang = st.ui;
     (existingTakes || []).forEach((id) => { st.takes[id] = { uploaded: true }; });
     $("lang").innerHTML = Object.entries(cfg.langs).map(([k, v]) => `<option value="${k}"${k === st.lang ? " selected" : ""}>${esc(v)}</option>`).join("");
     buildLines();
@@ -168,7 +200,7 @@
   }
   $("lang").onchange = () => { st.lang = $("lang").value; st.takes = {}; buildLines(); };
   $("mic-on").onclick = async () => {
-    try { await mic.enable(); mic.meters = [$("meter")]; $("mic-info").textContent = "microphone is on: speak and watch the bar"; $("mic-on").disabled = true; }
+    try { await mic.enable(); mic.meters = [$("meter")]; $("mic-info").textContent = t("mic_on"); $("mic-on").disabled = true; }
     catch (e) { $("e3").textContent = e.message; }
   };
 
@@ -178,8 +210,8 @@
     const ol = $("lines"); ol.innerHTML = "";
     cfg.prompts[st.lang].forEach((p, i) => {
       const li = document.createElement("li"); li.id = "line-" + p.id;
-      li.innerHTML = `<div class="n">Line ${i + 1} of ${cfg.prompts[st.lang].length}</div><div class="t">${esc(p.text)}</div>
-        <div class="rec-row"><button type="button" class="r">Record</button><button type="button" class="s" disabled>Stop</button>
+      li.innerHTML = `<div class="n">${esc(t("line_n", { i: i + 1, n: cfg.prompts[st.lang].length }))}</div><div class="t">${esc(p.text)}</div>
+        <div class="rec-row"><button type="button" class="r">${esc(t("record"))}</button><button type="button" class="s" disabled>${esc(t("stop"))}</button>
         <audio class="a" controls hidden></audio><span class="hint i"></span></div><div class="warn w"></div>`;
       li.querySelector(".r").onclick = () => recLine(p.id);
       li.querySelector(".s").onclick = () => stopLine(p.id);
@@ -195,10 +227,10 @@
       li.classList.toggle("cur", !t && cur);
       if (!t && cur) cur = false;
       if (t && t.seconds) secs += t.seconds;
-      if (t && !li.querySelector(".i").textContent) li.querySelector(".i").textContent = "saved";
+      if (t && !li.querySelector(".i").textContent) li.querySelector(".i").textContent = t("saved");
     });
     const n = Object.keys(st.takes).length;
-    $("total").textContent = `${n} of ${ps.length} lines recorded` + (secs ? ` (${secs.toFixed(0)} s)` : "");
+    $("total").textContent = t("n_recorded", { n, total: ps.length }) + (secs ? ` (${secs.toFixed(0)} s)` : "");
     $("finish").disabled = n < ps.length;
   }
   async function recLine(id) {
@@ -208,7 +240,7 @@
     mic.meters = [$("meter")]; $("mic-on").disabled = true;
     recording = id; mic.begin();
     const li = $("line-" + id);
-    li.querySelector(".r").disabled = true; li.querySelector(".s").disabled = false; li.querySelector(".i").textContent = "recording...";
+    li.querySelector(".r").disabled = true; li.querySelector(".s").disabled = false; li.querySelector(".i").textContent = t("recording");
     li.querySelector(".w").textContent = "";
   }
   async function stopLine(id) {
@@ -216,16 +248,16 @@
     recording = null;
     const { samples, rate } = mic.end();
     const li = $("line-" + id), a = analyze(samples, rate);
-    li.querySelector(".r").disabled = false; li.querySelector(".r").textContent = "Re-record"; li.querySelector(".s").disabled = true;
+    li.querySelector(".r").disabled = false; li.querySelector(".r").textContent = t("re_record"); li.querySelector(".s").disabled = true;
     const blob = encodeWav(samples, rate);
     const au = li.querySelector(".a"); au.src = URL.createObjectURL(blob); au.hidden = false;
     li.querySelector(".w").textContent = a.warnings.join("; ");
-    li.querySelector(".i").textContent = `${a.seconds.toFixed(1)} s, uploading...`;
+    li.querySelector(".i").textContent = t("uploading", { s: a.seconds.toFixed(1) });
     delete st.takes[id]; refreshLines();
     try {
       const r = await api(`/api/take/${st.speaker}/${st.lang}/${id}`, { method: "POST", body: blob });
       st.takes[id] = { seconds: r.seconds, uploaded: true };
-      li.querySelector(".i").textContent = `${r.seconds.toFixed(1)} s saved`;
+      li.querySelector(".i").textContent = t("saved_s", { s: r.seconds.toFixed(1) });
       const w = (r.warnings || []).concat(a.warnings.filter((x) => !(r.warnings || []).includes(x)));
       li.querySelector(".w").textContent = w.join("; ");
     } catch (e) { li.querySelector(".i").textContent = ""; li.querySelector(".w").textContent = e.message; }
@@ -236,11 +268,25 @@
     $("finish").disabled = true;
     try {
       const r = await api("/api/enroll/" + st.speaker, { method: "POST", json: { lang: st.lang } });
-      if (!r.ok) { $("e3").textContent = "Not accepted: " + r.error + " Re-record the lines that had warnings."; $("finish").disabled = false; return; }
-      $("done-msg").textContent = `${st.name || st.speaker} is enrolled: ${r.seconds} s of speech, ${r.snr_db} dB signal-to-noise. You can now test the voice under Enrolled voices.`;
+      if (!r.ok) { $("e3").textContent = t("not_accepted", { error: r.error }); $("finish").disabled = false; return; }
+      $("done-msg").textContent = t("done_msg", { name: st.name || st.speaker, seconds: r.seconds, snr: r.snr_db });
       step(4);
+      runVoiceCheck(st.speaker, st.lang);
     } catch (e) { $("e3").textContent = e.message; $("finish").disabled = false; }
   };
+  /* ---------- optional pronunciation check (warn-only) ---------- */
+  async function runVoiceCheck(speaker, lang) {
+    const box = $("check-box"), msg = $("check-msg"), ul = $("check-items");
+    box.hidden = false; ul.innerHTML = ""; msg.textContent = t("check_running");
+    try {
+      let j = await api(`/api/voicecheck/${speaker}/${lang}`, { method: "POST", json: {} });
+      while (j.state === "running") { await new Promise((r) => setTimeout(r, 2500)); j = await api(`/api/voicecheck/${speaker}/${lang}`); }
+      if (j.state !== "done" || !j.available) { msg.textContent = t("check_unavailable"); return; }
+      const byId = Object.fromEntries(cfg.prompts[lang].map((p) => [p.id, p.text]));
+      msg.textContent = j.warnings ? t("check_warn", { n: j.warnings }) : t("check_ok");
+      ul.innerHTML = j.items.map((i) => `<li class="${i.pass === false ? "warn" : "pass"}"><span>${esc(byId[i.id] || i.id)}</span> <b>${i.pass === false ? esc(t("line_warn")) : esc(t("line_pass"))}</b>${i.cer !== undefined ? ` <span class="hint">${Math.round(i.cer * 100)}%</span>` : ""}</li>`).join("");
+    } catch (e) { msg.textContent = t("check_unavailable"); }
+  }
   $("another").onclick = () => { $("name").value = ""; step(1); };
   $("see-list").onclick = () => tab("list");
 
@@ -261,7 +307,7 @@
       const act = div.querySelector(".act"), out = div.querySelector(".out");
       if (!s.revoked) {
         const rec = document.createElement("button"); rec.textContent = "Record / re-record"; rec.className = "b-rec";
-        rec.onclick = () => { st.speaker = s.speaker; st.name = s.name; startRecording(s.takes[st.lang] || []); };
+        rec.onclick = () => { st.speaker = s.speaker; st.name = s.name; if (cfg.prompts[st.ui]) st.lang = st.ui; startRecording(s.takes[st.lang] || []); };
         const sel = document.createElement("select"); sel.style.width = "auto";
         sel.innerHTML = cfg.models.map((m) => `<option>${m}</option>`).join("");
         const syn = document.createElement("button"); syn.textContent = "Synthesize test"; syn.className = "b-synth";
@@ -300,5 +346,11 @@
   $("tab-wizard").onclick = () => tab("wizard");
   $("tab-list").onclick = () => tab("list");
 
-  api("/api/config").then((c) => { cfg = c; step(1); }).catch((e) => { $("e1").textContent = e.message; });
+  api("/api/config").then((c) => {
+    cfg = c;
+    $("ui-lang").innerHTML = Object.entries(c.ui_langs).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+    try { const saved = localStorage.getItem("enroll-ui-lang"); if (saved && c.ui_langs[saved]) st.ui = saved; } catch (e) { /* private mode */ }
+    $("ui-lang").value = st.ui;
+    applyI18n(); step(1);
+  }).catch((e) => { $("e1").textContent = e.message; });
 })();

@@ -1,4 +1,4 @@
-"""VoxCPM2 (OpenBMB), Apache-2.0, 30 languages including Khmer, Thai, Vietnamese, Swahili, Hindi.
+"""VoxCPM2 (OpenBMB), Apache-2.0, 30 languages including Khmer, Thai, Vietnamese, Swahili, Hindi, plus Chinese dialects (Cantonese listed).
 
 Written from the VoxCPM README usage; NOT run against the real weights here. Needs Python 3.10-3.12,
 torch >= 2.5 and CUDA >= 12 (or Apple MPS). Options: model_id (default openbmb/VoxCPM2),
@@ -13,7 +13,7 @@ from .base import Adapter, write_wav
 
 class VoxCPM2Adapter(Adapter):
     name = "voxcpm2"
-    languages = {"en", "es", "zh", "vi", "th", "km", "sw", "hi"}
+    languages = {"en", "es", "zh", "yue", "vi", "th", "km", "sw", "hi"}  # yue: listed under "Chinese Dialect" on the model card; text written in Cantonese, no language tag
     requires = ("voxcpm",)
 
     def load(self):

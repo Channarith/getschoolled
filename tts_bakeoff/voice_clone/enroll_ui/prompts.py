@@ -4,8 +4,8 @@ These are deliberately not the bake-off test sentences, so a reference recording
 """
 from __future__ import annotations
 
-LANG_NAMES = {"en": "English", "es": "Español", "zh": "中文", "vi": "Tiếng Việt", "th": "ไทย", "km": "ខ្មែរ"}
-DRAFT_LANGS = ("es", "zh", "vi", "th", "km")
+LANG_NAMES = {"en": "English", "es": "Español", "zh": "中文", "yue": "廣東話", "vi": "Tiếng Việt", "th": "ไทย", "km": "ខ្មែរ"}
+DRAFT_LANGS = ("es", "zh", "yue", "vi", "th", "km")
 
 _TEXT = {
     "en": [
@@ -33,6 +33,16 @@ _TEXT = {
         "如果一开始觉得很难，也不用担心。每一位伟大的科学家，都是从你现在的位置出发的。",
         "斑马、长颈鹿和大象在广阔的草原上游荡，在旱季到来之前寻找新鲜的水源。",
         "太棒了，这个答案完全正确！你学得非常认真，应该为自己感到骄傲。",
+    ],
+    "yue": [  # colloquial written Cantonese (Hong Kong usage), spoken register; line 5 is the six-tone drill (si1 si2 si3 si4 si5 si6)
+        "大家早晨，歡迎嚟到今日嘅課堂。我哋先由簡單啲嘅開始，一步一步咁學啦。",
+        "你有冇諗過，點解中午嘅天空係藍色，到日落嗰陣又會變成橙色同紅色呢？",
+        "請打開你本簿，揭去第四十七頁，寫低三個分數嘅例子，例如二分之一、三分之二，同八分之五。",
+        "如果一開始覺得好難，都唔使擔心㗎。每一位偉大嘅科學家，都係由你而家呢個位置開始嘅。",
+        "請跟我讀：詩、史、試、時、市、事。呢六個字嘅聲調唔同，意思都唔同噃。",
+        "斑馬、長頸鹿同大象喺廣闊嘅草原上面行嚟行去，喺乾季未到之前，搵啲乾淨嘅水飲。",
+        "而家深呼吸一下，慢慢再睇多一次條問題，然後話俾我聽，你覺得答案係咩呀？",
+        "嘩，答啱喇！好叻呀！你學得好用心，真係應該為自己感到驕傲㗎。",
     ],
     "vi": [
         "Chào buổi sáng, chào mừng các bạn đến với bài học hôm nay. Chúng ta sẽ bắt đầu từ những điều đơn giản, rồi tiến dần từng bước một.",
@@ -62,11 +72,14 @@ _TEXT = {
 
 PROMPT_SETS = {lang: [{"id": f"{lang}-{i + 1}", "text": t} for i, t in enumerate(texts)] for lang, texts in _TEXT.items()}
 
-CONSENT_STATEMENT = (
-    "My name is {name}. I agree that my company may record my voice, make synthetic voice models from it, and use "
-    "them commercially, for training, and for narrating courses. I understand that I can withdraw my consent at any time."
-)
+CONSENT_STATEMENTS = {
+    "en": "My name is {name}. I agree that my company may record my voice, make synthetic voice models from it, and use "
+          "them commercially, for training, and for narrating courses. I understand that I can withdraw my consent at any time.",
+    "yue": "我叫{name}。我同意我嘅公司可以錄低我把聲，用佢製作合成聲音模型，並且用於商業用途、模型訓練同埋課程旁白。"
+           "我明白我可以隨時撤回我嘅同意。",
+}
+CONSENT_STATEMENT = CONSENT_STATEMENTS["en"]
 
 
-def statement_for(name: str) -> str:
-    return CONSENT_STATEMENT.format(name=" ".join(name.split()))
+def statement_for(name: str, lang: str = "en") -> str:
+    return CONSENT_STATEMENTS[lang].format(name=" ".join(name.split()))

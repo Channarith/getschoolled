@@ -3,12 +3,12 @@
 # (memory cap, GPU lock, no orphans). Never run on the Mac.
 #
 #   scripts/run_voice_clone.sh [OUT_DIR] [extra bakeoff args...]
-#   VOICES: GS_VOICES_DIR (default ~/voices)   COSYVOICE_REPO (default ~/code/CosyVoice)   LANGS (default en,es,zh,vi,th,km,sw,hi)
+#   VOICES: GS_VOICES_DIR (default ~/voices)   COSYVOICE_REPO (default ~/code/CosyVoice)   LANGS (default en,es,zh,yue,vi,th,km,sw,hi; yue = VoxCPM2 only)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/runs/$(date +%F)-clones}"; shift || true
 EXTRA=("$@")
-LANGS="${LANGS:-en,es,zh,vi,th,km,sw,hi}"
+LANGS="${LANGS:-en,es,zh,yue,vi,th,km,sw,hi}"
 MODELS="${MODELS:-voxcpm2,cosyvoice2}"   # comma list; the enrollment UI runs one model at a time
 COSY="${COSYVOICE_REPO:-$HOME/code/CosyVoice}"
 [[ "$(uname -s)" == "Linux" ]] || { echo "GPU voice cloning runs on the Spark (Linux/CUDA), not here." >&2; exit 64; }

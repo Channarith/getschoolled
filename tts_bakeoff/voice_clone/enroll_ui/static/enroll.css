@@ -38,3 +38,7 @@ meter{width:9rem;height:1rem}
 .sp .name{font-weight:600}.sp .tag{font-size:.78rem;padding:.05rem .5rem;border-radius:999px;border:1px solid var(--good);color:var(--good);margin-left:.4rem}
 .sp .tag.bad{border-color:var(--bad);color:var(--bad)}
 code{font:.85rem ui-monospace,Menlo,monospace;background:var(--bg);padding:.1rem .3rem;border-radius:4px;word-break:break-all}
+.uilang{display:flex;gap:.4rem;align-items:center;margin:0}.uilang select{width:auto;margin:0;padding:.25rem .5rem}
+.checks{list-style:none;padding:0;margin:.4rem 0}.checks li{padding:.35rem .5rem;border-bottom:1px solid var(--line)}.checks li.warn b{color:var(--warn)}.checks li.pass b{color:var(--good)}
+pre#consent-text{font-family:system-ui,-apple-system,"PingFang HK","Noto Sans CJK HK","Noto Sans HK","Microsoft JhengHei",sans-serif}
+p.warn#draft-banner{border:1px solid var(--warn);border-radius:8px;padding:.5rem .7rem;margin:.4rem 0}
