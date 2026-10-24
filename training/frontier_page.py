@@ -280,8 +280,8 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
   <h2>What is running now</h2>
   <div class="row">
     <div>
-      <p>STEM nightly holds the GPU and keeps rescoring the same adapter. The last gate was <code>{e(str(snapshot.get("promote_reason") or "not run yet"))}</code>. Promoted: {e(str(snapshot.get("promoted")))}. A repeated win over the 12.1% base is not a kept adapter. Khmer CosyVoice is off. The hold file is in place, so a later start does not load the base weights. Translation of the 222-course catalog is running at concurrency 1 on CPU. The NLLB server on port 8002 is up. Voice ingest stays at one worker while this exam is alive.</p>
-      <p>{e(f"Batch {done}/{total}: written {written}, skipped {skipped}, failed {failed}.") if total else "The batch log has no progress line yet."} Failures in this run were empty translations while the gateway was down. The gateway is answering again.</p>
+      <p>As of this snapshot the STEM shell is still the systemd service, and it is not scoring. The last finished cycle wrote its result at 4:55 AM PT and refused promotion. The bake-off winner was <code>{e(str(snapshot.get("promote_champion") or "none"))}</code> at {_pct(snapshot.get("served_accuracy"))} on {snapshot.get("served_n") or "—"} frozen items, fairness gap {_pct(snapshot.get("served_gap"))}. That score was not kept. The adapter stayed {_pct(frozen)}. Gate: <code>{e(str(snapshot.get("promote_reason") or "not run yet"))}</code>. Promoted: {e(str(snapshot.get("promoted")))}. Khmer CosyVoice is off, and the hold file is still there.</p>
+      <p>Translation is stopped. The unit was disabled at 2:26 AM PT Saturday, and the NLLB server on port 8002 is down. {e(f"Last tally {done}/{total}: written {written}, skipped {skipped}, failed {failed}.") if total else "The batch log has no progress line yet."} Most of those failures are empty translations after the gateway refused connections. The batch does not resume on its own while the unit stays disabled.</p>
     </div>
     <div class="card">
       <h3>Why the loop is flat</h3>
@@ -417,7 +417,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
   <h2>Common scores, with our number beside the target</h2>
   <table>
     <tr><th>Score</th><th>Measured</th><th>Gate we already encode</th><th>Before a specialization is called reliable</th></tr>
-    <tr><td>Frozen token overlap</td><td>{_pct(frozen)} adapter, {_pct(snapshot.get("frozen_base"))} base</td><td>Must rise, or the adapter is not kept</td><td>70% on this frozen set</td></tr>
+    <tr><td>Frozen token overlap</td><td>{_pct(frozen)} adapter, {_pct(snapshot.get("frozen_base"))} base. Served model {_pct(snapshot.get("served_accuracy"))} on {snapshot.get("served_n") or "—"} items.</td><td>Must rise, or the adapter is not kept. The served model won the bake-off and was still not promoted.</td><td>70% on this frozen set</td></tr>
     <tr><td>Split token overlap</td><td>{_pct(split)} adapter, {_pct(snapshot.get("split_base"))} base</td><td>Reported, not sufficient to promote</td><td>Not the promotion score</td></tr>
     <tr><td>STEM exam</td><td>{_pct(stem)}, weakest {e(str(stem_weak.get("subject") or "—"))} {_pct(stem_weak.get("score"))}</td><td>Required when the nightly passes stem metrics</td><td>No subject under 70%</td></tr>
     <tr><td>Fairness gap</td><td>Frozen {_pct(snapshot.get("frozen_gap"))}. Split {_pct(snapshot.get("split_gap"))}.</td><td>Bake-off still rejects a gap above 10 points</td><td>5 points, and publish the groups</td></tr>
@@ -433,7 +433,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
   <div class="flow" aria-label="Path from clean data to a served lesson">
     <div class="step"><b>1 Clean</b><p>Script filter, dedup, and drop padded lessons.</p><em>Pipeline is built. The demo cache is still padded.</em></div>
     <div class="step"><b>2 Frozen exam</b><p>200 items, fixed, plus 96 STEM items.</p><em>Scored. Adapter {_pct(frozen)}. Not rising.</em></div>
-    <div class="step"><b>3 Train</b><p>One GPU lock. STEM is on it. Khmer is held.</p><em>Same 373 examples, same score.</em></div>
+    <div class="step"><b>3 Train</b><p>One GPU lock. Khmer is held.</p><em>The last cycle finished and the shell is stopped. Same 373 examples, same score.</em></div>
     <div class="step"><b>4 Fairness</b><p>Gap under 10 points, and no subject under {TRAINING_FLOOR:.0%}.</p><em>The gap passes. The subjects do not.</em></div>
     <div class="step"><b>5 Ground</b><p>Every claim overlaps the lesson, or the tutor abstains.</p><em>Logged at {_pct(truth.get("groundedness"))}. No human marks.</em></div>
     <div class="step"><b>6 Human sign</b><p>200-slide program, summative check, person of record.</p><em>Cards stay off.</em></div>
@@ -465,7 +465,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
     <li>Stop spending cycles on the same 373 examples. The frozen score stays {_pct(frozen)} until the training data or the objective changes. Keep an adapter only when that number rises and every subject is at least {TRAINING_FLOOR:.0%}.</li>
     <li>Add items for the subjects that set the floor. Health &amp; Wellness is {_pct(frozen_weak.get("score"))} on the frozen exam. Calculus 1 is {_pct(stem_weak.get("score"))} on the STEM exam. Python files is {_pct(weak.get("score"))} on the split. Linear algebra is {_pct(algebra)} on its 4-item STEM exam and still under 40% on the split.</li>
     <li>Have a person mark truth-log rows. Groundedness is {_pct(truth.get("groundedness"))} and abstention is {_pct(truth.get("abstain_accuracy"))}. Human agreement is blank, so the teal diagonal is still a target.</li>
-    <li>Let the 222-course batch finish. It is at {done} of {total}. Cantonese is playable for {yue_playable} courses. Rewrite Intro to Machine Learning so Mandarin, Khmer, and Cantonese match the lesson. Until then the demo speaks English.</li>
+    <li>Resume the 222-course batch. It is stopped at {done} of {total}, with {failed} failures after the gateway went down. Bring the CPU translator back, then let the run finish. Cantonese is playable for {yue_playable} courses. Rewrite Intro to Machine Learning so Mandarin, Khmer, and Cantonese match the lesson. Until then the demo speaks English.</li>
     <li>Keep Khmer CosyVoice off this GPU. The next voice run, when the exam is finished, starts from the last real checkpoint after a listening check. It does not start from the base weights.</li>
     <li>Leave outside cards off until a person of record signs a program whose weakest subject clears {ACCREDITATION_FLOOR:.0%}.</li>
   </ol>

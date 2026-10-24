@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-24 - v0.94.28 - Saturday morning frontier briefing. The frozen score is still 20.4% after days of cycles, the served model scored 31% and was not kept, and the translation batch is stopped at 2,392 of 4,662.
 - 2026-10-24 - v0.94.28 - Frontier readiness page is the full briefing again: charts, subject spread, truth curve, translation, voice, accreditation, and the ordered next steps, filled from the live exam and the 222-course log.
 - 2026-10-22 - v0.94.28 - Languages xAI's voice agent cannot speak (Dutch, Polish, Ukrainian, Hebrew, Urdu, Persian, Thai, Swahili, Greek, Czech, plus Khmer and Cantonese) stay on our own neural voice. An explicit Grok session no longer opens with an empty hint for those languages, and a language with no voice is not read as English.
 - 2026-10-22 - v0.94.28 - A reboot resumes STEM training and the 222-course translation, and it does not load Khmer from the base weights. Ingest stays at one worker while the exam is alive.

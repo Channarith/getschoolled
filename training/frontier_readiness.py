@@ -221,6 +221,7 @@ def build_snapshot(
     base = _load_json(spark_out / "eval" / "base.json")
     base_frozen = _load_json(spark_out / "eval" / "base.frozen.json")
     promote = _load_json(spark_out / "bakeoff" / "promote.json")
+    served = _load_json(spark_out / "eval" / "serving.json")
     truth = summarize_truth(_read_jsonl(spark_out / "truth_curve.jsonl"))
     stem_items = _read_jsonl(ROOT / "training" / "data" / "eval_frozen_stem.jsonl")
     stem_counts: dict[str, int] = {}
@@ -252,6 +253,11 @@ def build_snapshot(
         "truth": truth,
         "promoted": None if not promote else promote.get("promoted"),
         "promote_reason": None if not promote else promote.get("reason"),
+        "promote_champion": None if not promote else promote.get("champion"),
+        "served_accuracy": None if not served else served.get("accuracy"),
+        "served_gap": None if not served else served.get("fairness_gap"),
+        "served_n": None if not served else served.get("n"),
+        "weakest_served": _weak(served),
         "translation": translation,
         "batch": batch,
         "training_floor": TRAINING_FLOOR,
