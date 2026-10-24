@@ -15,6 +15,20 @@ Flow
  6. Revoke: ... bakeoff revoke --speaker alice. Synthesis refuses at once; delete samples/models within 30 days (form clause 5).
 Every synthesis re-hashes the signed form and every sample; edited or swapped audio is refused.
 
+Browser enrollment (consent and recording in one page)
+  On the Spark:   python3 -m tts_bakeoff.voice_clone.enroll_ui --root ~/voices        (binds 127.0.0.1:8780 only)
+  On your laptop: ssh -L 8780:127.0.0.1:8780 <spark>   then open http://localhost:8780/
+  (the microphone only works on localhost or https, so use the tunnel, not the Spark's IP address)
+  Steps: name and role -> consent text (scrolls), four tick boxes, typed signature, and either reading a short statement
+  aloud (kept as audio proof) or pointing at an already signed form on the Spark -> record 8 English lines (about 60 s;
+  es/zh/vi/th/km are draft scripts for a native speaker to check) with a level meter and noise, clipping and length warnings
+  -> the server normalizes and checks the result (20-90 s, SNR >= 20 dB) and registers it. The transcript is the script
+  text, so nobody types it. "Enrolled voices" lists everyone, withdraws consent (type the name) and runs a test synthesis
+  (VoxCPM2 or CosyVoice 2) when the host has CUDA; elsewhere it prints the exact scripts/run_voice_clone.sh command.
+  Everything goes through registry.record_consent / add_sample, so the CLI gate is unchanged. The consent record keeps the
+  timestamp, the sha256 of the exact consent text shown and of the spoken-statement audio. Requests from other sites or
+  hosts are refused (Host and Origin checks plus a custom header).
+
 Models (license read 2026-10-25 from the model cards/repos recorded in tts_bakeoff/candidates.yaml)
   VoxCPM2: Apache-2.0, "free for commercial use". Its card adds: "Strictly forbidden to use for impersonation, fraud, or
   disinformation. AI-generated content should be clearly labeled" (so label cloned audio as AI-generated in the product). Zero-shot / "ultimate" cloning with transcript, 30 languages.

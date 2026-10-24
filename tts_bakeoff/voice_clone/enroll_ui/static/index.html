@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice enrollment</title>
+<link rel="stylesheet" href="enroll.css">
+</head>
+<body>
+<header>
+  <h1>Voice enrollment</h1>
+  <nav>
+    <button id="tab-wizard" class="tab on" type="button">Enroll a voice</button>
+    <button id="tab-list" class="tab" type="button">Enrolled voices</button>
+  </nav>
+</header>
+<main>
+  <section id="wizard">
+    <ol class="steps" id="steps">
+      <li data-s="1">1 Who</li><li data-s="2">2 Consent</li><li data-s="3">3 Record</li><li data-s="4">4 Done</li>
+    </ol>
+
+    <div class="card" id="s1">
+      <h2>Who is this?</h2>
+      <label>Full name <input id="name" autocomplete="off" maxlength="80" placeholder="e.g. Alice Tran"></label>
+      <label>Role
+        <select id="role"><option value="employee">Employee</option><option value="owner">Owner</option></select>
+      </label>
+      <p class="hint">Only the name is stored, nothing else. Recordings stay on this machine.</p>
+      <button id="to-consent" class="primary" type="button">Continue</button>
+      <p class="err" id="e1" role="alert"></p>
+    </div>
+
+    <div class="card" id="s2" hidden>
+      <h2>Consent</h2>
+      <p class="hint">Read the whole text. It scrolls.</p>
+      <pre id="consent-text" tabindex="0"></pre>
+      <fieldset id="agreements">
+        <label><input type="checkbox" data-a="commercial_use"> My voice may be used commercially, in any language.</label>
+        <label><input type="checkbox" data-a="model_training"> My recordings may be used to train and improve voice models.</label>
+        <label><input type="checkbox" data-a="course_narration"> My voice model may narrate courses and lessons.</label>
+        <label><input type="checkbox" data-a="may_withdraw"> I understand I can withdraw my consent at any time.</label>
+      </fieldset>
+      <label>Type your full name as your signature <input id="typed" autocomplete="off" maxlength="80"></label>
+      <div class="tabs2">
+        <button id="m-voice" class="tab on" type="button">Say it aloud (recorded)</button>
+        <button id="m-form" class="tab" type="button">I already signed a form</button>
+      </div>
+      <div id="proof-voice">
+        <p>Read this out loud, in your own voice:</p>
+        <blockquote id="statement"></blockquote>
+        <div class="rec-row">
+          <button id="proof-rec" type="button">Record</button>
+          <button id="proof-stop" type="button" disabled>Stop</button>
+          <meter id="proof-meter" min="0" max="1" value="0"></meter>
+          <span id="proof-info" class="hint"></span>
+        </div>
+        <audio id="proof-audio" controls hidden></audio>
+      </div>
+      <div id="proof-form" hidden>
+        <label>Path of the signed form on this machine (pdf, png, jpg, heic, txt)
+          <input id="form-path" autocomplete="off" placeholder="/home/you/consents/alice-signed.pdf"></label>
+        <p class="hint">The file is copied into the voice folder and its hash recorded. The boxes and typed name above are still required.</p>
+      </div>
+      <div class="row">
+        <button id="back1" type="button">Back</button>
+        <button id="submit-consent" class="primary" type="button">I agree and consent</button>
+      </div>
+      <p class="err" id="e2" role="alert"></p>
+    </div>
+
+    <div class="card" id="s3" hidden>
+      <h2>Record your voice</h2>
+      <div class="rec-row">
+        <label>Language <select id="lang"></select></label>
+        <span id="draft-note" class="hint" hidden>These scripts are drafts: a native speaker should check them.</span>
+      </div>
+      <p class="hint">Quiet room, microphone about a hand's width away, natural speed, as if teaching a child. About one minute in total. Use the same device for every line.</p>
+      <div class="rec-row">
+        <button id="mic-on" class="primary" type="button">Enable microphone</button>
+        <meter id="meter" min="0" max="1" value="0"></meter>
+        <span id="mic-info" class="hint"></span>
+      </div>
+      <ol id="lines" class="lines"></ol>
+      <div class="rec-row"><strong id="total"></strong></div>
+      <div class="row">
+        <button id="finish" class="primary" type="button" disabled>Check my voice</button>
+      </div>
+      <p class="err" id="e3" role="alert"></p>
+      <p class="ok" id="ok3" role="status"></p>
+    </div>
+
+    <div class="card" id="s4" hidden>
+      <h2>Done</h2>
+      <p id="done-msg"></p>
+      <div class="row"><button id="another" type="button">Enroll another person</button><button id="see-list" class="primary" type="button">Enrolled voices</button></div>
+    </div>
+  </section>
+
+  <section id="list" hidden>
+    <div class="card">
+      <h2>Enrolled voices</h2>
+      <p class="hint" id="root-note"></p>
+      <div id="speakers"></div>
+    </div>
+  </section>
+</main>
+<script src="enroll.js"></script>
+</body>
+</html>
