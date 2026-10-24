@@ -50,22 +50,34 @@ if [[ ! -d "$BASE_MODEL" ]]; then
   exit 1
 fi
 
-echo "== 1/5 seed sessions =="
-"$PY" training/spark_seed_sessions.py \
+echo "== 1/5 held-out lesson pool =="
+# Exam-format rows from sections that are not in the frozen exams. The old
+# seed export always wrote the same 373 "Explain: title" rows.
+"$PY" training/train_pool.py \
   --curriculum "$ROOT/sample-curriculum" \
-  --sample "$ROOT/training/data/sample_sessions.json" \
-  --out "$SESSIONS"
-
-echo "== 2/5 export =="
-"$PY" training/export.py \
-  --in "$SESSIONS" \
-  --out "$OUT/data/train.jsonl" \
+  --frozen "$ROOT/training/data/eval_frozen.jsonl" \
+  --frozen "$ROOT/training/data/eval_frozen_stem.jsonl" \
+  --train-out "$OUT/data/train.jsonl" \
   --eval-out "$OUT/data/eval.jsonl" \
+  --fingerprint-out "$OUT/data/train.fingerprint" \
   --eval-split 0.1
 
 TRAIN_N="$(wc -l < "$OUT/data/train.jsonl" | tr -d ' ')"
 EVAL_N="$(wc -l < "$OUT/data/eval.jsonl" | tr -d ' ')"
 echo "dataset train=$TRAIN_N eval=$EVAL_N"
+
+# A finished cycle records its fingerprint. The same file does not start
+# another QLoRA run. A crash before that write leaves the file missing, so
+# the next loop retries.
+if ! "$PY" training/train_pool.py --should-train \
+    --current "$OUT/data/train.fingerprint" \
+    --previous "$OUT/last_train_fingerprint.txt" \
+    --scored "$OUT/eval/stem.frozen.json"; then
+  echo "== training set unchanged; not starting another QLoRA cycle =="
+  "$PY" training/frontier_readiness.py --record --spark-out "$OUT" \
+    || echo "WARNING: frontier readiness report failed"
+  exit 0
+fi
 
 echo "== 3/5 QLoRA stem adapter =="
 START="$(date +%s)"
@@ -248,6 +260,7 @@ else
   echo "== not promoting; frozen score did not rise or a subject is under the floor =="
 fi
 
+cp "$OUT/data/train.fingerprint" "$OUT/last_train_fingerprint.txt"
 echo "== done train_seconds=$TRAIN_SEC log=$LOG =="
 "$PY" training/frontier_readiness.py --record --spark-out "$OUT" \
   || echo "WARNING: frontier readiness report failed"

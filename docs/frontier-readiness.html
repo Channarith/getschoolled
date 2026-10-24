@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Salareen frontier readiness — 2026-10-24 10:42 AM PT</title>
+<title>Salareen frontier readiness — 2026-10-24 11:31 AM PT</title>
 <style>
   :root { color-scheme: dark; }
   body { margin:0; background:#0e141b; color:#e7ecf1; font:16px/1.45 "Iowan Old Style", Palatino, "Palatino Linotype", serif; }
@@ -53,7 +53,7 @@
   <div class="kicker">Salareen · measured on Chans-Spark</div>
   <h1>Where the model stands, and what still blocks a frontier tutor.</h1>
   <p class="lede">The frozen exam is now the score that counts, and it is stuck at 20.4%. The adapter still beats the base on the 41-item split (31.5% versus 12.1%), and the gate refuses to keep it. Cantonese text exists for 70 of 222 courses. The demo lesson still speaks English. Nothing in this stack yet earns an outside credential.</p>
-  <p class="meta">Snapshot 2026-10-24 10:42 AM PT. Rebuild with <code>python3 training/frontier_readiness.py --record</code> from the spark-eval-gates tree. Scores are token-overlap F1 unless a row says otherwise. Proposed bars are targets, drawn next to measurements so the gap is visible. They are not results.</p>
+  <p class="meta">Snapshot 2026-10-24 11:31 AM PT. Rebuild with <code>python3 training/frontier_readiness.py --record</code> from the spark-eval-gates tree. Scores are token-overlap F1 unless a row says otherwise. Proposed bars are targets, drawn next to measurements so the gap is visible. They are not results.</p>
 </header>
 <main>
   <section class="grid">
@@ -71,7 +71,7 @@
     </div>
     <div class="card">
       <h3>Why the loop is flat</h3>
-      <p>Each cycle fine-tunes the same 373 examples for one epoch, then scores the frozen 200, the 96-item STEM exam, and the 41-item split. The frozen result stays 20.4%. The split stays 31.5%. Fairness gap on the frozen exam is 2.6%. On the split it is 6.2%. The subject floor is 40%. Health &amp; Wellness, calculus 1, and the Python files item are all under it.</p>
+      <p>The cycles on the books each fine-tuned the same 373 seed rows. Those rows ask “Explain: title” and answer with the full narration, which is not the exam’s question. The trainer now builds the next file from lesson sections the frozen exams do not contain, in the exam’s passage format, and it skips QLoRA when that file’s fingerprint is unchanged. The frozen result on the books stays 20.4%. Fairness gap on the frozen exam is 2.6%. On the old split it is 6.2%. The subject floor is 40%. Health &amp; Wellness, calculus 1, and the Python files item are all under it.</p>
     </div>
   </div>
 
@@ -222,7 +222,7 @@
   <h2>Cleaning</h2>
   <table>
     <tr><th>Cleaner</th><th>What it does</th><th>What is still dirty</th></tr>
-    <tr><td>Dedup</td><td>Drops near-copy documents at Jaccard 0.8</td><td>The nightly loop still retrains the same 373 examples and lands on the same frozen score</td></tr>
+    <tr><td>Dedup</td><td>Drops near-copy documents at Jaccard 0.8, and the train file drops any section that shares an 8-word window with a frozen exam item</td><td>The scored cycles used the same 373 seed rows. The next cycle uses the held-out pool, then the same fingerprint does not train again</td></tr>
     <tr><td>Fairness guardrail</td><td>Training context is pedagogical. Race and ethnicity are excluded.</td><td>Subject collapse is now gated at 40%, and the weakest subjects fail it</td></tr>
     <tr><td>Khmer text filter</td><td>Training text must be mostly Khmer script</td><td>The demo’s stored Khmer file is the old padded lesson, so it is not served</td></tr>
     <tr><td>Translation length check</td><td>A file is served only when its segment count matches the lesson</td><td>About 73 of 222 courses are playable in the languages this machine is writing. The demo is not among the finished ones.</td></tr>
@@ -249,7 +249,7 @@
   <div class="flow" aria-label="Path from clean data to a served lesson">
     <div class="step"><b>1 Clean</b><p>Script filter, dedup, and drop padded lessons.</p><em>Pipeline is built. The demo cache is still padded.</em></div>
     <div class="step"><b>2 Frozen exam</b><p>200 items, fixed, plus 96 STEM items.</p><em>Scored. Adapter 20.4%. Not rising.</em></div>
-    <div class="step"><b>3 Train</b><p>One GPU lock. Khmer is held.</p><em>The last cycle finished and the shell is stopped. Same 373 examples, same score.</em></div>
+    <div class="step"><b>3 Train</b><p>One GPU lock. Khmer is held.</p><em>Next cycle trains held-out sections once. The same fingerprint does not start another QLoRA.</em></div>
     <div class="step"><b>4 Fairness</b><p>Gap under 10 points, and no subject under 40%.</p><em>The gap passes. The subjects do not.</em></div>
     <div class="step"><b>5 Ground</b><p>Every claim overlaps the lesson, or the tutor abstains.</p><em>Logged at 23.3%. No human marks.</em></div>
     <div class="step"><b>6 Human sign</b><p>200-slide program, summative check, person of record.</p><em>Cards stay off.</em></div>
@@ -278,14 +278,14 @@
 
   <h2>Where to go next, in order</h2>
   <ol>
-    <li>Stop spending cycles on the same 373 examples. The frozen score stays 20.4% until the training data or the objective changes. Keep an adapter only when that number rises and every subject is at least 40%.</li>
-    <li>Add items for the subjects that set the floor. Health &amp; Wellness is 10.2% on the frozen exam. Calculus 1 is 11.2% on the STEM exam. Python files is 12.9% on the split. Linear algebra is 33.6% on its 4-item STEM exam and still under 40% on the split.</li>
+    <li>Run one cycle on the held-out lesson pool. It asks the exam’s passage question, and the frozen items are not in the file. Health &amp; Wellness and the later calculus, linear algebra, and Python slides are in that pool. If the fingerprint matches the last finished cycle, do not start QLoRA again. Keep an adapter only when the frozen score rises and every subject is at least 40%.</li>
+    <li>The floor is still Health &amp; Wellness at 10.2% on the frozen exam, calculus 1 at 11.2% on the STEM exam, and Python files at 12.9% on the old split. Linear algebra is 33.6% on its 4-item STEM exam. Those subjects are in the new pool as different passages. Add more only if this cycle leaves them under 40%.</li>
     <li>Have a person mark truth-log rows. Groundedness is 23.3% and abstention is 50.7%. Human agreement is blank, so the teal diagonal is still a target.</li>
     <li>Resume the 222-course batch. It is stopped at 2392 of 4662, with 878 failures after the gateway went down. Bring the CPU translator back, then let the run finish. Cantonese is playable for 70 courses. Rewrite Intro to Machine Learning so Mandarin, Khmer, and Cantonese match the lesson. Until then the demo speaks English.</li>
     <li>Keep Khmer CosyVoice off this GPU. The next voice run, when the exam is finished, starts from the last real checkpoint after a listening check. It does not start from the base weights.</li>
     <li>Leave outside cards off until a person of record signs a program whose weakest subject clears 70%.</li>
   </ol>
-  <p>Already in place, so they are not the next move: the frozen 200 is the Spark score, a repeated promotion is refused, one weak item sets a 40% floor, groundedness and abstention are logged, Cantonese is its own translation file, languages xAI cannot speak use our neural voices, and the card flag stays false.</p>
+  <p>Already in place, so they are not the next move: the frozen 200 is the Spark score, a repeated promotion is refused, one weak item sets a 40% floor, the train file is held-out lesson sections in the exam format and an unchanged fingerprint skips QLoRA, groundedness and abstention are logged, Cantonese is its own translation file, languages xAI cannot speak use our neural voices, and the card flag stays false.</p>
 
   <h2>History</h2>
   <table>
@@ -294,7 +294,7 @@
   </table>
 </main>
 <footer>
-  <p>Sources: frozen exam <code>stem.frozen.json</code>, STEM exam <code>stem.stemfrozen.json</code>, split <code>stem.json</code>, truth log, translation cache, and the 222-course batch log. Historical charts end 22 Oct 2026, 5 AM PT. Rebuild with <code>python3 training/frontier_readiness.py --record</code>. Snapshot 2026-10-24 10:42 AM PT.</p>
+  <p>Sources: frozen exam <code>stem.frozen.json</code>, STEM exam <code>stem.stemfrozen.json</code>, split <code>stem.json</code>, truth log, translation cache, and the 222-course batch log. Historical charts end 22 Oct 2026, 5 AM PT. Rebuild with <code>python3 training/frontier_readiness.py --record</code>. Snapshot 2026-10-24 11:31 AM PT.</p>
 </footer>
 </body>
 </html>

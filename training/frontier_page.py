@@ -285,7 +285,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
     </div>
     <div class="card">
       <h3>Why the loop is flat</h3>
-      <p>Each cycle fine-tunes the same 373 examples for one epoch, then scores the frozen 200, the 96-item STEM exam, and the 41-item split. The frozen result stays {_pct(frozen)}. The split stays {_pct(split)}. Fairness gap on the frozen exam is {_pct(snapshot.get("frozen_gap"))}. On the split it is {_pct(snapshot.get("split_gap"))}. The subject floor is {TRAINING_FLOOR:.0%}. Health &amp; Wellness, calculus 1, and the Python files item are all under it.</p>
+      <p>The cycles on the books each fine-tuned the same 373 seed rows. Those rows ask “Explain: title” and answer with the full narration, which is not the exam’s question. The trainer now builds the next file from lesson sections the frozen exams do not contain, in the exam’s passage format, and it skips QLoRA when that file’s fingerprint is unchanged. The frozen result on the books stays {_pct(frozen)}. Fairness gap on the frozen exam is {_pct(snapshot.get("frozen_gap"))}. On the old split it is {_pct(snapshot.get("split_gap"))}. The subject floor is {TRAINING_FLOOR:.0%}. Health &amp; Wellness, calculus 1, and the Python files item are all under it.</p>
     </div>
   </div>
 
@@ -406,7 +406,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
   <h2>Cleaning</h2>
   <table>
     <tr><th>Cleaner</th><th>What it does</th><th>What is still dirty</th></tr>
-    <tr><td>Dedup</td><td>Drops near-copy documents at Jaccard 0.8</td><td>The nightly loop still retrains the same 373 examples and lands on the same frozen score</td></tr>
+    <tr><td>Dedup</td><td>Drops near-copy documents at Jaccard 0.8, and the train file drops any section that shares an 8-word window with a frozen exam item</td><td>The scored cycles used the same 373 seed rows. The next cycle uses the held-out pool, then the same fingerprint does not train again</td></tr>
     <tr><td>Fairness guardrail</td><td>Training context is pedagogical. Race and ethnicity are excluded.</td><td>Subject collapse is now gated at {TRAINING_FLOOR:.0%}, and the weakest subjects fail it</td></tr>
     <tr><td>Khmer text filter</td><td>Training text must be mostly Khmer script</td><td>The demo’s stored Khmer file is the old padded lesson, so it is not served</td></tr>
     <tr><td>Translation length check</td><td>A file is served only when its segment count matches the lesson</td><td>About {max((row["playable"] for row in languages), default=0)} of {courses} courses are playable in the languages this machine is writing. The demo is not among the finished ones.</td></tr>
@@ -433,7 +433,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
   <div class="flow" aria-label="Path from clean data to a served lesson">
     <div class="step"><b>1 Clean</b><p>Script filter, dedup, and drop padded lessons.</p><em>Pipeline is built. The demo cache is still padded.</em></div>
     <div class="step"><b>2 Frozen exam</b><p>200 items, fixed, plus 96 STEM items.</p><em>Scored. Adapter {_pct(frozen)}. Not rising.</em></div>
-    <div class="step"><b>3 Train</b><p>One GPU lock. Khmer is held.</p><em>The last cycle finished and the shell is stopped. Same 373 examples, same score.</em></div>
+    <div class="step"><b>3 Train</b><p>One GPU lock. Khmer is held.</p><em>Next cycle trains held-out sections once. The same fingerprint does not start another QLoRA.</em></div>
     <div class="step"><b>4 Fairness</b><p>Gap under 10 points, and no subject under {TRAINING_FLOOR:.0%}.</p><em>The gap passes. The subjects do not.</em></div>
     <div class="step"><b>5 Ground</b><p>Every claim overlaps the lesson, or the tutor abstains.</p><em>Logged at {_pct(truth.get("groundedness"))}. No human marks.</em></div>
     <div class="step"><b>6 Human sign</b><p>200-slide program, summative check, person of record.</p><em>Cards stay off.</em></div>
@@ -462,14 +462,14 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
 
   <h2>Where to go next, in order</h2>
   <ol>
-    <li>Stop spending cycles on the same 373 examples. The frozen score stays {_pct(frozen)} until the training data or the objective changes. Keep an adapter only when that number rises and every subject is at least {TRAINING_FLOOR:.0%}.</li>
-    <li>Add items for the subjects that set the floor. Health &amp; Wellness is {_pct(frozen_weak.get("score"))} on the frozen exam. Calculus 1 is {_pct(stem_weak.get("score"))} on the STEM exam. Python files is {_pct(weak.get("score"))} on the split. Linear algebra is {_pct(algebra)} on its 4-item STEM exam and still under 40% on the split.</li>
+    <li>Run one cycle on the held-out lesson pool. It asks the exam’s passage question, and the frozen items are not in the file. Health &amp; Wellness and the later calculus, linear algebra, and Python slides are in that pool. If the fingerprint matches the last finished cycle, do not start QLoRA again. Keep an adapter only when the frozen score rises and every subject is at least {TRAINING_FLOOR:.0%}.</li>
+    <li>The floor is still Health &amp; Wellness at {_pct(frozen_weak.get("score"))} on the frozen exam, calculus 1 at {_pct(stem_weak.get("score"))} on the STEM exam, and Python files at {_pct(weak.get("score"))} on the old split. Linear algebra is {_pct(algebra)} on its 4-item STEM exam. Those subjects are in the new pool as different passages. Add more only if this cycle leaves them under {TRAINING_FLOOR:.0%}.</li>
     <li>Have a person mark truth-log rows. Groundedness is {_pct(truth.get("groundedness"))} and abstention is {_pct(truth.get("abstain_accuracy"))}. Human agreement is blank, so the teal diagonal is still a target.</li>
     <li>Resume the 222-course batch. It is stopped at {done} of {total}, with {failed} failures after the gateway went down. Bring the CPU translator back, then let the run finish. Cantonese is playable for {yue_playable} courses. Rewrite Intro to Machine Learning so Mandarin, Khmer, and Cantonese match the lesson. Until then the demo speaks English.</li>
     <li>Keep Khmer CosyVoice off this GPU. The next voice run, when the exam is finished, starts from the last real checkpoint after a listening check. It does not start from the base weights.</li>
     <li>Leave outside cards off until a person of record signs a program whose weakest subject clears {ACCREDITATION_FLOOR:.0%}.</li>
   </ol>
-  <p>Already in place, so they are not the next move: the frozen 200 is the Spark score, a repeated promotion is refused, one weak item sets a {TRAINING_FLOOR:.0%} floor, groundedness and abstention are logged, Cantonese is its own translation file, languages xAI cannot speak use our neural voices, and the card flag stays false.</p>
+  <p>Already in place, so they are not the next move: the frozen 200 is the Spark score, a repeated promotion is refused, one weak item sets a {TRAINING_FLOOR:.0%} floor, the train file is held-out lesson sections in the exam format and an unchanged fingerprint skips QLoRA, groundedness and abstention are logged, Cantonese is its own translation file, languages xAI cannot speak use our neural voices, and the card flag stays false.</p>
 
   <h2>History</h2>
   <table>
