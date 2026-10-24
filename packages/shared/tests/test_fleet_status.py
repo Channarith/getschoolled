@@ -223,8 +223,8 @@ def _fleet(tmp_path, hosts_text, path_dir, extra_env=None, args=()):
 def test_fleet_status_falls_back_to_the_mdns_name_when_the_ip_moved(tmp_path):
     bin_dir, log = _fake_ssh(tmp_path, ["kal-el.local"])
     r = _fleet(tmp_path, "kalel cvanthin 192.168.1.118 Kal-el.local,kal-el.local\n", bin_dir)
-    assert r.returncode in (0, 1), r.stdout + r.stderr
-    assert "UNREACHABLE" not in r.stdout and r.stdout.splitlines()[0].startswith("HOST")
+    # The exit code depends on this machine's live memory, so only the routing is asserted.
+    assert "UNREACHABLE" not in r.stdout and r.stdout.splitlines()[0].startswith("HOST"), r.stdout + r.stderr
     tried = log.read_text().split()
     assert tried[0] == "192.168.1.118" and tried[-1] == "kal-el.local"
 
@@ -232,7 +232,7 @@ def test_fleet_status_falls_back_to_the_mdns_name_when_the_ip_moved(tmp_path):
 def test_fleet_status_env_override_is_tried_first(tmp_path):
     bin_dir, log = _fake_ssh(tmp_path, ["192.168.1.119"])
     r = _fleet(tmp_path, "kalel cvanthin 192.168.1.118\n", bin_dir, {"FLEET_HOST_KALEL": "192.168.1.119"})
-    assert r.returncode in (0, 1) and log.read_text().split()[0] == "192.168.1.119"
+    assert "UNREACHABLE" not in r.stdout and log.read_text().split()[0] == "192.168.1.119"
 
 
 def test_fleet_status_reports_unreachable_host_and_exits_2(tmp_path):
