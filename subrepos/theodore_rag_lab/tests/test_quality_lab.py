@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -66,8 +68,14 @@ def test_api_health_eval_train():
         assert p.json()["knobs"]["top_k"] == 5
 
         t = client.post("/api/rag/train/run-blocking", json={"hours": 0.01})
-        assert t.status_code == 200
-        assert t.json()["rounds_done"] >= 1
+        assert t.status_code == 202
+        job = None
+        for _ in range(300):
+            job = client.get(t.json()["status_url"]).json()
+            if job["state"] in ("done", "failed"):
+                break
+            time.sleep(0.05)
+        assert job["state"] == "done" and job["result"]["rounds_done"] >= 1
 
         c = client.get("/api/rag/champion")
         assert c.status_code == 200

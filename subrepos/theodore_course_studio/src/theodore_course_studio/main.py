@@ -13,6 +13,7 @@ except Exception:  # noqa: BLE001 — labs must still boot offline / without sha
     pass
 
 
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,9 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from aoep_shared.background_jobs import (
+    JobError, JobRunner, accepted_response, install_job_status_route, payload_key,
+)
 from aoep_shared.course_studio_access import resolve_teach_access
 
 from .course_pay import (
@@ -134,6 +138,10 @@ app.mount(
 _reviews = ReviewStore()
 _builder = CourseBuilder()
 _teach = TeachEngine(_builder)
+# Training and builds run for minutes: they are background jobs, polled at /api/studio/jobs/{id}.
+_JOBS_PATH = "/api/studio/jobs"
+_jobs = JobRunner(max_workers=2, store_dir=default_data_dir() / "jobs")
+_swap_lock = threading.Lock()
 _pay_store = CoursePayStore(_builder.data_dir / "payments" / "course_payments.json")
 
 
@@ -547,41 +555,51 @@ def get_source(source_id: str) -> dict[str, Any]:
     }
 
 
-@app.post("/api/studio/training/run")
-def training_run(req: TrainingRunRequest) -> dict[str, Any]:
-    report = run_training_pass(
-        extract_text=req.extract_text,
-        seed_page_hints=req.seed_page_hints,
-        max_docs=req.max_docs,
-    )
-    return report.model_dump(mode="json")
-
-
-@app.post("/api/studio/training/offline")
-def offline_training(req: OfflineTrainRequest) -> dict[str, Any]:
-    """Short/medium offline train from the API (long overnight runs use the CLI)."""
-    try:
-        state = run_offline_training(
-            epochs=req.epochs,
+@app.post("/api/studio/training/run", status_code=202)
+def training_run(req: TrainingRunRequest):
+    def work(report):
+        report(0.05, "Reading the corpus")
+        result = run_training_pass(
+            extract_text=req.extract_text,
+            seed_page_hints=req.seed_page_hints,
             max_docs=req.max_docs,
-            run_scan=req.run_scan and not req.resume_run_id,
-            resume_run_id=req.resume_run_id,
-            fit_passes=req.fit_passes,
-            target_score=req.target_score,
         )
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    get_telemetry().record_offline_epochs(req.epochs)
-    # Reload builder model so subsequent course builds use the new weights.
-    # Carry live teach sessions over — rebinding a fresh engine used to strand
-    # every in-flight session (their next advance/pop-quiz 404'd).
-    global _builder, _teach
-    old_teach = _teach
-    _builder = CourseBuilder()
-    _teach = TeachEngine(_builder)
-    if old_teach is not None:
-        _teach._sessions.update(old_teach._sessions)
-    return state.model_dump(mode="json")
+        return result.model_dump(mode="json")
+
+    return accepted_response(_jobs.submit("training-run", work, exclusive=True), _JOBS_PATH)
+
+
+@app.post("/api/studio/training/offline", status_code=202)
+def offline_training(req: OfflineTrainRequest):
+    """Short/medium offline train from the API (long overnight runs use the CLI)."""
+
+    def work(report):
+        global _builder, _teach
+        report(0.05, "Training")
+        try:
+            state = run_offline_training(
+                epochs=req.epochs,
+                max_docs=req.max_docs,
+                run_scan=req.run_scan and not req.resume_run_id,
+                resume_run_id=req.resume_run_id,
+                fit_passes=req.fit_passes,
+                target_score=req.target_score,
+            )
+        except FileNotFoundError as exc:
+            raise JobError("not_found", "We could not find that training run to resume.") from exc
+        get_telemetry().record_offline_epochs(req.epochs)
+        # Reload builder model so subsequent course builds use the new weights.
+        # Carry live teach sessions over: rebinding a fresh engine used to strand
+        # every in-flight session (their next advance/pop-quiz 404'd).
+        with _swap_lock:
+            old_teach = _teach
+            _builder = CourseBuilder()
+            _teach = TeachEngine(_builder)
+            if old_teach is not None:
+                _teach._sessions.update(old_teach._sessions)
+        return state.model_dump(mode="json")
+
+    return accepted_response(_jobs.submit("training-offline", work, exclusive=True), _JOBS_PATH)
 
 
 @app.get("/api/studio/training/offline/status")
@@ -784,21 +802,31 @@ def teach_trial_run(req: TrialRunRequest) -> dict[str, Any]:
     return payload
 
 
-@app.post("/api/studio/courses/build")
-def build_course(req: BuildCourseRequest) -> dict[str, Any]:
-    try:
-        course = _builder.build_from_sources(
-            source_ids=req.source_ids,
-            category=req.category,
-            title=req.title,
-            max_slides=req.max_slides,
-            only_incorporate=req.only_incorporate,
-            language=normalize_language(req.language),
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    get_telemetry().record_course_built(audience=getattr(course, "audience", "general"))
-    return course.model_dump(mode="json")
+@app.post("/api/studio/courses/build", status_code=202)
+def build_course(req: BuildCourseRequest):
+    language = normalize_language(req.language)
+
+    def work(report):
+        report(0.1, "Building your course")
+        try:
+            course = _builder.build_from_sources(
+                source_ids=req.source_ids,
+                category=req.category,
+                title=req.title,
+                max_slides=req.max_slides,
+                only_incorporate=req.only_incorporate,
+                language=language,
+            )
+        except ValueError as exc:
+            raise JobError("bad_request", str(exc)) from exc
+        get_telemetry().record_course_built(audience=getattr(course, "audience", "general"))
+        return course.model_dump(mode="json")
+
+    key = payload_key("course-build", req.model_dump(mode="json"))
+    return accepted_response(_jobs.submit("course-build", work, key=key), _JOBS_PATH)
+
+
+install_job_status_route(app, _jobs, _JOBS_PATH)
 
 
 class CoursePayRequest(BaseModel):

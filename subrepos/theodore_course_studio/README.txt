@@ -343,13 +343,14 @@ API (high level)
   GET  /api/studio/tts/url
   GET  /api/studio/corpus
   GET  /api/studio/sources/{source_id}
-  POST /api/studio/training/run
-  POST /api/studio/training/offline
+  POST /api/studio/training/run       (202 + job; poll GET /api/studio/jobs/{job_id})
+  POST /api/studio/training/offline   (202 + job; poll GET /api/studio/jobs/{job_id})
+  GET  /api/studio/jobs/{job_id}      state queued|running|done|failed, progress, result, error
   GET  /api/studio/training/offline/status
   POST /api/studio/pages/verdict
   POST /api/studio/comments
   GET  /api/studio/courses
-  POST /api/studio/courses/build
+  POST /api/studio/courses/build      (202 + job; poll GET /api/studio/jobs/{job_id})
   POST /api/studio/teach/start
   POST /api/studio/teach/advance
   POST /api/studio/teach/profile
