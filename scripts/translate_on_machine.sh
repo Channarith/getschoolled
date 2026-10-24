@@ -6,6 +6,7 @@
 #   scripts/translate_on_machine.sh run spark       # full batch, Spark share
 #   scripts/translate_on_machine.sh run ibuy        # full batch, iBuyPower share
 #   scripts/translate_on_machine.sh run all         # every language on this machine
+#   scripts/translate_on_machine.sh run langs:km,th # exactly these languages (used by scripts/fleet/work_split.py)
 #   scripts/translate_on_machine.sh status          # files written so far
 #
 # Output: $AOEP_COURSE_TRANSLATION_DIR (default ~/translations). Safe to rerun:
@@ -28,6 +29,7 @@ langs_for() {
     spark) echo "$SPARK_LANGS" ;;
     ibuy)  echo "$IBUY_LANGS" ;;
     all)   echo "$SPARK_LANGS $IBUY_LANGS" ;;
+    langs:*) echo "${1#langs:}" | tr ',' ' ' ;;
     *) echo "unknown share: $1 (spark|ibuy|all)" >&2; exit 2 ;;
   esac
 }

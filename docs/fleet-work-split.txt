@@ -1,0 +1,54 @@
+Splitting the demo work across the Spark, iBuyPower and the Mac
+================================================================
+
+Goal: the demo (machine vision, course, On the Go) speaks in the company voice, in every language, and the
+voice agent keeps training. The Spark trains first; the other two machines take the translation, voice
+rendering and validation that can run beside it. Nothing may starve a machine: every job still goes through
+scripts/gs_run.sh (memory gate, GPU lock, no orphans).
+
+Tools (all stdlib, key-based ssh only, no passwords)
+  scripts/fleet/inventory.py   read-only report of one machine: OS, GPU, does torch see CUDA, memory, disk, GPU lock held
+  scripts/fleet/work_split.py  gather | plan | apply | collect
+  scripts/translate_on_machine.sh run langs:km,th,vi    translate exactly these languages (used by the plan)
+
+Workflow
+  1. Inventory:   scripts/fleet/work_split.py gather
+                  Reads scripts/fleet/hosts.conf (iBuyPower moves by DHCP: FLEET_HOST_KALEL=192.168.1.119 overrides).
+                  A machine that does not answer is recorded as unreachable and skipped. Files go to ~/.gs-queue/inventory/.
+                  No ssh from the Mac? On a machine run:  python3 scripts/fleet/inventory.py --name kalel --out kalel.json
+                  and copy the JSON into the inventory folder.
+  2. Plan:        scripts/fleet/work_split.py plan            (prints who runs what; --json for tools)
+  3. Start:       scripts/fleet/work_split.py apply           (prints the exact commands: a dry run)
+                  scripts/fleet/work_split.py apply --yes     (starts the "now" wave on each machine)
+                  Re-run gather + plan + apply --yes whenever jobs finish: the next wave starts then.
+  4. Collect:     scripts/fleet/work_split.py collect --machine kalel          (report only)
+                  scripts/fleet/work_split.py collect --machine kalel --yes    (merge the current ones)
+
+Order (tier) and placement
+  tier 0  Spark training (finetune cycle) then its frozen exam. Pinned to the Spark, first in its GPU lane.
+  tier 1  demo translation (Khmer, Thai, Vietnamese, Spanish, Chinese, then Swahili, Indonesian, Greek, Czech),
+          the company-voice render (Spark only: the voices and consents live there), edge-tts voice renders.
+  tier 2  the other languages, voice-data ingest (resumable, yields the GPU), translation validation (Mac).
+  * One GPU job at a time per machine (the GPU lock). While the Spark trains, translation shards go to iBuyPower.
+  * CUDA jobs never go to a machine without CUDA. The Mac has none, so it takes CPU work only.
+  * CPU-only work (edge-tts renders) is kept off the Spark while another machine can take it.
+  * The "now" wave only starts jobs whose summed memory fits (available - reserve from budgets.conf), only if the
+    machine's available memory is already above its reserve, and not on a GPU whose lock is held. The rest wait
+    in plan order: the Spark has a 16 GB reserve, so a clone job is never started into a starved machine.
+  * The Spark has unified memory (CPU and GPU share one pool), so the Spark's memory budget counts GPU jobs.
+
+Merging translations without duplicates
+  collect rsyncs ~/translations from the machine into data/_incoming_<machine> (rsync -a --ignore-existing,
+  never --delete), then merges a file into the library only when translation_v2.is_current says it is the right
+  translation of today's English (source hash, pipeline version, validator) and the library does not already
+  hold a current one. Anything else is reported with its reason (source_changed, pipeline_changed,
+  fails_validator, unknown course). Without --yes nothing is written. To see how much of the library is current,
+  use translation_v2.check_library (translation v2 reused only 572 of 6939 files when last measured; the rest
+  need real GPU runs).
+
+Safety
+  * apply never runs without --yes. apply never deletes, kills or stops anything.
+  * The company-voice job needs a consent record per speaker (see docs/voice-cloning.txt); the plan only
+    schedules it on the Spark, which is where ~/voices lives.
+  * edge-tts is an unofficial client of Microsoft's Edge service: internal listening only (licensed route:
+    Azure AI Speech).

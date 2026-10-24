@@ -29,7 +29,12 @@ if [[ -e "$HOLD_FILE" ]]; then
 fi
 
 if [[ -z "${GS_GPU_LOCK_HELD:-}" ]]; then
-  exec flock -w "${GS_LOCK_WAIT_SEC:-7200}" "${HOME}/.gs-gpu.lock" env GS_GPU_LOCK_HELD=1 "$0" "$@"
+  exec flock -w "${GS_LOCK_WAIT_SEC:-7200}" "${HOME}/.gs-gpu.lock" env GS_GPU_LOCK_HELD=1 GS_NIGHTLY_OWNS_LOCK=1 "$0" "$@"
+fi
+# Register as a BACKGROUND holder so scripts/gs_run.sh --priority interactive (voice clone, demo) can ask this cycle to
+# stop after it has waited for the GPU. A stale file is harmless: readers check that the pid is alive.
+if [[ -n "${GS_NIGHTLY_OWNS_LOCK:-}" ]]; then
+  printf '%s %s %s %s %s\n' "$$" "nightly-$(date +%Y%m%d)" "spark_nightly" "$(date +%s)" background > "${HOME}/.gs-gpu.lock.owner" 2>/dev/null || true
 fi
 
 # shellcheck source=training/lib_limits.sh
@@ -56,6 +61,8 @@ MIN_SUBJECT_SCORE="${MIN_SUBJECT_SCORE:-0.40}"
 NEED_GB="${NEED_GB:-24}"                  # free RAM a 7B-14B QLoRA cycle needs on top of the reserve
 TRAIN_TIMEOUT_MIN="${TRAIN_TIMEOUT_MIN:-300}"
 EVAL_TIMEOUT_MIN="${EVAL_TIMEOUT_MIN:-120}"
+BAKEOFF_TIMEOUT_MIN="${BAKEOFF_TIMEOUT_MIN:-90}"   # a hung bake-off client once held the GPU lock for hours
+BAKEOFF_IDLE_S="${BAKEOFF_IDLE_S:-1200}"           # ...with no CPU and the GPU at 0%: stop it after this long
 
 mkdir -p "$OUT/data" "$OUT/adapters" "$OUT/eval" "$OUT/bakeoff" "$OUT/logs"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -144,7 +151,8 @@ echo "== 6/6 bake-off =="
 if [[ -x scripts/fleet/spark-units/llama-warm.sh ]]; then
   scripts/fleet/spark-units/llama-warm.sh --url "${SERVE_URL%/v1}" || true
 fi
-"$PY" training/nightly_candidates.py --out "$OUT" --serve-url "$SERVE_URL" --serve-model "$SERVE_MODEL" \
+GS_STAGE_IDLE_S="$BAKEOFF_IDLE_S" gs_stage "bakeoff" "$BAKEOFF_TIMEOUT_MIN" "$PY" training/nightly_candidates.py \
+  --out "$OUT" --serve-url "$SERVE_URL" --serve-model "$SERVE_MODEL" \
   --max-fairness-gap "$MAX_FAIRNESS_GAP" --min-subject-score "$MIN_SUBJECT_SCORE"
 
 CHAMPION="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("champion") or "")' "$OUT/bakeoff/result.json")"
