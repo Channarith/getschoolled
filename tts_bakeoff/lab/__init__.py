@@ -20,7 +20,9 @@ import urllib.parse
 from pathlib import Path
 
 from .. import schema
+from ..build_sentences import OUT as SENTENCES_DIR
 from ..build_sentences import load as load_sentences
+from ..edge_catalog import load_catalog
 
 STATIC = Path(__file__).resolve().parent / "static"
 LANGS = ("km", "vi", "th", "es", "en", "zh", "sw", "hi", "bn")
@@ -50,13 +52,19 @@ def lab_data() -> dict:
             "kind": c.get("kind"), "label": schema.label(c), "languages": [str(x) for x in c.get("languages", [])],
         })
     sentences: dict[str, list[dict]] = {}
-    for lang in LANGS:
+    for lang in sorted({*LANGS, *(p.stem for p in SENTENCES_DIR.glob("*.jsonl"))}):
         try:
             rows = load_sentences(lang, None)
         except Exception:  # noqa: BLE001 - a missing language file must not stop the lab
             continue
         sentences[lang] = [{"id": r["id"], "text": r["text"], "category": r.get("category", ""), "ref_en": r.get("ref_en", "")} for r in rows]
-    return {"version": 1, "candidates": cands, "sentences": sentences, "run": None}
+    languages = []
+    try:  # the edge-tts voice catalog: every platform and extra language, with the ones that have no voice
+        for e in load_catalog().values():
+            languages.append({k: e[k] for k in ("code", "name", "native", "rtl", "platform", "status", "reason", "alternative")})
+    except (OSError, KeyError, ValueError):
+        pass
+    return {"version": 2, "candidates": cands, "sentences": sentences, "languages": languages, "run": None}
 
 
 def lab_data_js(run_base: str | None) -> str:

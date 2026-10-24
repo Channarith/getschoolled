@@ -8,7 +8,7 @@ import webbrowser
 from pathlib import Path
 
 from . import export_standalone, serve
-from .demo import make_demo
+from .demo import make_demo, make_edge_demo
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -17,6 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-open", action="store_true", help="do not open the browser")
     ap.add_argument("--demo", action="store_true", help="generate a synthetic 3-voice run in a temp folder and serve it")
+    ap.add_argument("--demo-edge", action="store_true", help="synthetic tones in the all-languages edge-tts layout (picker, RTL and filter testing)")
     ap.add_argument("--export", metavar="DIR", help="write a standalone copy of the page (opens from disk) and exit")
     args = ap.parse_args(argv)
 
@@ -24,7 +25,10 @@ def main(argv: list[str] | None = None) -> int:
         dest = export_standalone(Path(args.export))
         print(f"wrote {dest}/index.html: open it in a browser and use 'Open run folder'")
         return 0
-    if args.demo:
+    if args.demo_edge:
+        out = make_edge_demo(Path(tempfile.mkdtemp(prefix="tts-lab-edge-demo-")))
+        print(f"demo run written to {out}")
+    elif args.demo:
         out = make_demo(Path(tempfile.mkdtemp(prefix="tts-lab-demo-")))
         print(f"demo run written to {out}")
     elif args.out:

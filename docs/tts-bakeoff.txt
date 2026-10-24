@@ -137,3 +137,13 @@ LISTENING LAB (hear and rate the voices side by side, on the Mac)
   "Export ratings (panel JSON)" writes one file per language with its own key, so no panel build is needed:
     python3 -m tts_bakeoff.panel aggregate --out runs/2026-10-24 ratings_lab_*.json
   The Summary tab shows per-voice means, head-to-head wins and a verdict template; Reveal turns blind mode off.
+
+  All platform languages plus extras (edge-tts, internal reference only; see docs/edge-voices-coverage.txt):
+    python3 -m tts_bakeoff.snapshot_edge_voices                      # refresh tts_bakeoff/edge_voices.json (network)
+    python3 -m tts_bakeoff.translate_sentences --dry-run             # cost estimate; needs XAI_API_KEY to run for real
+    python3 -m tts_bakeoff.edge_all --out runs/2026-10-25-all --plan # clip count; drop --plan to render (resumable)
+    python3 -m tts_bakeoff.lab --out runs/2026-10-25-all --port 8768
+    python3 -m tts_bakeoff.coverage_report --run runs/2026-10-25-all
+  The lab then has a searchable language picker (native names, right-to-left text for ar/he/ur/fa/ps), gender, accent and
+  voice-type filters, voice groups with the style variants nested, "Compare these voices", and a per-language count of rated
+  clips. --demo-edge serves synthetic tones in this layout without the network.

@@ -32,6 +32,9 @@ class EdgeTTSAdapter(Adapter):
     languages = set(VOICES)
     requires = ("edge_tts",)
 
+    def supports(self, lang: str) -> bool:
+        return bool(self.options.get("voice")) or lang in self.languages  # an explicit voice may read any language it has
+
     def _synth(self, text: str, lang: str, out_wav: Path) -> int:
         import edge_tts
 
