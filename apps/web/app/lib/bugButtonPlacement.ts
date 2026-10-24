@@ -3,9 +3,15 @@
 
 const IMMERSIVE = ["/demo/on-the-go", "/drive"];
 const OWN_BOTTOM_RIGHT = ["/learn", "/demo", "/class", "/live-room"];
+// The full course shows only the lesson and its one movable panel (Help is in that panel's menu).
+const COURSE_SESSION = "/learn/";
 
 export function bugButtonHidden(pathname: string): boolean {
-  return pathname === "/report-bug" || IMMERSIVE.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  return (
+    pathname === "/report-bug" ||
+    pathname.startsWith(COURSE_SESSION) ||
+    IMMERSIVE.some((p) => pathname === p || pathname.startsWith(p + "/"))
+  );
 }
 
 export function defaultBugPosition(pathname: string, viewportW: number, viewportH: number, size: number): { x: number; y: number } {

@@ -156,14 +156,9 @@ export function CourseClassGate({
 
   return (
     <main className="course-stage">
-      <p className="course-stage-links">
-        <Link href="/">← Back to Salareen</Link>
-        <span className="muted">
-          {isAdmin ? "Full course (admin)." : "Full course."}
-        </span>
-      </p>
       <CourseStudioFrame
         fill
+        clean
         title={`${title} full course`}
         src={courseStudioFrameSrc({
           access: "full",

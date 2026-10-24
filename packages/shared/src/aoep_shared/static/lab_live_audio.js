@@ -71,6 +71,13 @@
           border-radius:50%;font-size:0;line-height:0;color:transparent;background:#07111ef2 center/22px 22px no-repeat;
           background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e7fbff' d='M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z'/></svg>")}
       }
+      /* Embedded: a host page (the full course) mounts this widget inside its own movable panel and
+         sets data-embedded on the host. The box then sits in the flow, always visible, never dragged
+         or hidden by this script. */
+      :host([data-embedded]) .box,:host([data-embedded].voice-hidden) .box,:host([data-embedded]:not(.voice-open)) .box{
+        display:flex !important;position:static !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;
+        width:100% !important;min-height:0;margin:0;padding:6px;border:0;border-radius:12px;background:transparent;box-shadow:none;cursor:default;touch-action:auto}
+      :host([data-embedded]) .close,:host([data-embedded]) .show-again,:host([data-embedded].voice-hidden) .show-again,:host([data-embedded]:not(.voice-open)) .show-again{display:none !important}
     </style>
     <button class="show-again" type="button" aria-label="Show Sala voice" title="Show Sala voice">Show Sala</button>
     <div class="box" data-drag-chip="1" title="Drag Salane Voice. Tap the microphone to start or stop.">
@@ -132,6 +139,7 @@
   if (chip) {
     let drag = null;
     chip.addEventListener("pointerdown", (event) => {
+      if (host.hasAttribute("data-embedded")) return;
       if (event.button !== 0) return;
       if (event.target.closest(".close")) return;
       const rect = chip.getBoundingClientRect();

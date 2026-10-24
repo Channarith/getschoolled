@@ -6,7 +6,8 @@ test("the bug button stays out of immersive screens", () => {
   assert.equal(bugButtonHidden("/demo/on-the-go"), true);
   assert.equal(bugButtonHidden("/drive"), true);
   assert.equal(bugButtonHidden("/report-bug"), true);
-  assert.equal(bugButtonHidden("/learn/drivers-ed"), false);
+  assert.equal(bugButtonHidden("/learn/drivers-ed"), true);
+  assert.equal(bugButtonHidden("/demo/drivers-ed"), false);
   assert.equal(bugButtonHidden("/demo/on-the-goat"), false);
 });
 
