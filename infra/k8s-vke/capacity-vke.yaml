@@ -123,3 +123,290 @@ metadata:
   namespace: aoep
 spec:
   replicas: 0
+
+# --- CPU requests (v0.96.8) -------------------------------------------------
+# Only four nodes can run pods (the Vultr cloud controller never initializes new
+# ones), and they were 92-100% CPU-requested, so rollouts left pods Pending and the
+# autoscaler kept adding nodes that cannot be used. Requests are scheduling weights,
+# not caps: limits are unchanged, so a busy pod can still burst. HPA ceilings are
+# lowered to what four nodes can hold, and the CPU target is raised because the
+# same usage is now a larger share of a smaller request.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perception
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: perception
+          resources:
+            requests:
+              cpu: 100m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          resources:
+            requests:
+              cpu: 100m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speech
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: speech
+          resources:
+            requests:
+              cpu: 100m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: orchestrator
+          resources:
+            requests:
+              cpu: 100m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curriculum
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: curriculum
+          resources:
+            requests:
+              cpu: 100m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: memory
+          resources:
+            requests:
+              cpu: 75m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: identity
+          resources:
+            requests:
+              cpu: 75m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: integrations
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: integrations
+          resources:
+            requests:
+              cpu: 50m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: billing
+          resources:
+            requests:
+              cpu: 50m
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: billing
+  namespace: aoep
+spec:
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 85
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: curriculum
+  namespace: aoep
+spec:
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 85
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: identity
+  namespace: aoep
+spec:
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 85
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: integrations
+  namespace: aoep
+spec:
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 85
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: memory
+  namespace: aoep
+spec:
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 85
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: orchestrator
+  namespace: aoep
+spec:
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 85
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: perception
+  namespace: aoep
+spec:
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 85
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: speech
+  namespace: aoep
+spec:
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 85
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web
+  namespace: aoep
+spec:
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 85
