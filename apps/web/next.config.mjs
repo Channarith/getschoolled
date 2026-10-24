@@ -24,8 +24,18 @@ function serviceOrigin(name) {
   return process.env[`${name.toUpperCase()}_ORIGIN`] || `http://${name}:8000`;
 }
 
+const SECURITY_HEADERS = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+];
+
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
   async rewrites() {
     // Production sets these at image build (see apps/web/Dockerfile). `next build`
     // freezes the rewrites, so a runtime env change does not retarget them.

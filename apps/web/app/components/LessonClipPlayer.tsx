@@ -1,18 +1,12 @@
 "use client";
 
+import { sanitizeSvg } from "../lib/sanitizeSvg";
 import { useEffect, useState } from "react";
 
 type Props = {
   url: string;
   title?: string;
 };
-
-function sanitizeSvg(svg: string): string {
-  return svg
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, "")
-    .replace(/javascript:/gi, "");
-}
 
 function svgFromDataUrl(url: string): string {
   const comma = url.indexOf(",");

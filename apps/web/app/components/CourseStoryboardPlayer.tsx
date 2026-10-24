@@ -1,5 +1,6 @@
 "use client";
 
+import { sanitizeSvg } from "../lib/sanitizeSvg";
 import { useEffect, useMemo, useState } from "react";
 import { translateText } from "../lib/api";
 import { useT } from "../lib/i18n";
@@ -9,13 +10,6 @@ import { useT } from "../lib/i18n";
  * Inline SVG is required so CSS camera/cast keyframes actually play
  * (they do not run reliably when the same markup is loaded via <img>).
  */
-
-function sanitizeStoryboardSvg(svg: string): string {
-  return svg
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, "")
-    .replace(/javascript:/gi, "");
-}
 
 type Props = {
   svg: string;
@@ -100,7 +94,7 @@ export default function CourseStoryboardPlayer({
       <div
         aria-label={shownConcept || "Course storyboard animation"}
         style={{ width: "100%", lineHeight: 0 }}
-        dangerouslySetInnerHTML={{ __html: sanitizeStoryboardSvg(svg) }}
+        dangerouslySetInnerHTML={{ __html: sanitizeSvg(svg) }}
       />
       {formatName ? (
         <div data-testid="slide-modality" style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", padding: "8px 12px 0" }}>
