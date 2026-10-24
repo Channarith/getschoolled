@@ -68,7 +68,7 @@ body.phone-play.chrome-hidden .stage{height:100dvh}
 body.phone-play.stage-fill .vision-tools,body.phone-play.stage-fill .dashboard{display:none}
 body:not(.phone-play) #touch-mode{display:none!important}
 body.phone-play #touch-mode{
-  position:fixed;right:12px;left:auto;bottom:calc(136px + env(safe-area-inset-bottom));z-index:40;
+  position:fixed;right:88px;left:auto;bottom:calc(136px + env(safe-area-inset-bottom));z-index:40;
   display:inline-flex;align-items:center;gap:4px;padding:3px;min-height:44px;
   background:#111827;border:2px solid #5eead4;border-radius:999px;box-shadow:0 8px 18px #0008;
 }
@@ -89,8 +89,8 @@ body.screen-touch .stage{touch-action:none}
 .play-clock[hidden]{display:none!important}
 .play-clock span{display:block;font:800 28px/1 ui-monospace,"SFMono-Regular",Menlo,monospace;color:#99f6e4}
 .play-clock small{display:none}
-#sala-ask{position:absolute;z-index:8;right:10px;bottom:10px;width:68px;height:92px;padding:0;border:0;border-radius:0;background:url(/static/sala-gold.png) center/contain no-repeat transparent;color:transparent;font-size:0;opacity:.7;cursor:pointer}
-#sala-ask.sala-giggle{background-image:url(/static/sala-giggle.png);animation:salaGiggle .72s ease}
+#sala-ask{position:absolute;z-index:8;right:10px;bottom:10px;width:68px;height:92px;padding:0;border:0;border-radius:0;background:url(/static/sala-hero.png) center/contain no-repeat transparent;color:transparent;font-size:0;opacity:.7;cursor:pointer}
+#sala-ask.sala-giggle{background-image:url(/static/sala-giggle-hero.png);animation:salaGiggle .72s ease}
 @keyframes salaGiggle{30%{transform:scale(1.06,.92)}62%{transform:scale(.98,1.05)}}
 .play-clock.is-ended span{color:#fca5a5}
 .spoken-words{margin:0;padding:.55rem .9rem;background:#1e1b4b;color:#fef9c3;text-align:center;font-weight:900;font-size:clamp(1.15rem,2.8vw,1.7rem);line-height:1.35;max-height:4.8rem;overflow:auto}

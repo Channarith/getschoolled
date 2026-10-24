@@ -52,3 +52,10 @@ def test_quiet_redesign_uses_golden_sala_and_gold_outlines():
     assert (STATIC / "sala-hero.png").stat().st_size > 10_000
     js = (STATIC / "app.js").read_text(encoding="utf-8")
     assert 'shadowColor="rgba(246,200,80,.85)"' in js
+
+
+def test_small_sala_is_a_cutout_not_a_white_box():
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    assert "url(/static/sala-hero.png)" in css and "sala-giggle-hero.png" in css
+    for name in ("sala-hero.png", "sala-giggle-hero.png"):
+        assert (STATIC / name).stat().st_size > 10_000
