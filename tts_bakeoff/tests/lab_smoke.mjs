@@ -7,8 +7,14 @@ import { mkdirSync, readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import path from "node:path";
 
-const require = createRequire(path.join(process.cwd(), "apps/web/"));
-const { chromium, webkit } = require("playwright");
+// playwright lives in apps/web/node_modules; a git worktree has none, so also try the main checkout above .claude/worktrees/<name>
+function loadPlaywright() {
+  for (const base of [path.join(process.cwd(), "apps/web/"), path.join(process.cwd(), "../../../apps/web/")]) {
+    try { return createRequire(base)("playwright"); } catch { /* try the next place */ }
+  }
+  throw new Error("playwright not found under apps/web/node_modules (run pnpm install in apps/web)");
+}
+const { chromium, webkit } = loadPlaywright();
 const shots = process.argv[2] || "/tmp/lab-shots";
 mkdirSync(shots, { recursive: true });
 const PY = process.env.LAB_PYTHON || "python3";
@@ -45,7 +51,7 @@ async function run(engine, name, url, demoDir) {
   assert.equal(counts.voices, 3, "three demo voices");
   assert.ok(counts.cells >= 3 && counts.rows >= 1, "grid rendered: " + JSON.stringify(counts));
   assert.ok(await page.locator("#banner-demo").isVisible(), "demo banner visible");
-  const langs = await page.$$eval("#f-lang option", (o) => o.map((x) => x.value));
+  const langs = await page.evaluate(() => window.__lab.languages());
   assert.ok(langs.includes("en") && langs.includes("km"), "languages: " + langs);
   const badges = await page.$$eval(".cell .badge", (b) => b.map((x) => x.textContent));
   assert.ok(badges.includes("NOT SHIPPABLE"), "reference voice is marked NOT SHIPPABLE: " + badges);
@@ -103,7 +109,7 @@ async function run(engine, name, url, demoDir) {
 
   // add other voices by file: one is inferable from its name, one needs the label form
   await page.setInputFiles("#add-files", [
-    { name: "edge-tts_en_S01.wav", mimeType: "audio/wav", buffer: readFileSync(path.join(demoDir, "voxcpm2/en/S01.wav")) },
+    { name: "my-voice_en_S01.wav", mimeType: "audio/wav", buffer: readFileSync(path.join(demoDir, "voxcpm2/en/S01.wav")) },
     { name: "clip1.wav", mimeType: "audio/wav", buffer: readFileSync(path.join(demoDir, "voxcpm2/en/M01.wav")) },
   ]);
   await page.waitForSelector("#label-dlg:not([hidden])");
@@ -112,7 +118,8 @@ async function run(engine, name, url, demoDir) {
   await page.selectOption("#label-rows select", "en");
   await page.fill("#label-rows input[data-f=sid]", "m01");
   await page.click("#label-apply");
-  await page.selectOption("#f-lang", "en");
+  await page.click("#lang-btn");
+  await page.click("#lang-list [data-code=en]");
   await page.waitForFunction(() => window.__lab.counts().voices === 5);
   await page.waitForFunction(() => document.querySelectorAll(".cell .badge.b-unk").length >= 2, null, { timeout: 8000 });
   const badgesNow = await page.$$eval(".cell .badge", (b) => b.map((x) => x.textContent));
@@ -128,7 +135,7 @@ async function run(engine, name, url, demoDir) {
 const { proc, url, demoDir } = await startServer();
 let failed = 0;
 for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
-  try { await run(engine, name, url, demoDir); } catch (e) { failed++; console.error(`${name}: FAILED: ${e.message}`); }
+  try { await run(engine, name, url, demoDir); } catch (e) { failed++; console.error(`${name}: FAILED: ${e.message}\n${String(e.stack).split("\n").filter((l) => l.includes("lab_smoke")).join("\n")}`); }
 }
 proc.kill();
 process.exit(failed ? 1 : 0);

@@ -1,9 +1,12 @@
 /* Salareen listening lab. No network, no telemetry, no framework. All text is set with textContent. */
 (() => {
 'use strict';
-const LAB = window.LAB_DATA || {candidates: [], sentences: {}, run: null};
+const LAB = window.LAB_DATA || {candidates: [], sentences: {}, languages: [], run: null};
 const LANG_NAMES = {km: 'Khmer', vi: 'Vietnamese', th: 'Thai', es: 'Spanish', en: 'English', zh: 'Mandarin', sw: 'Swahili', hi: 'Hindi', bn: 'Bengali'};
-const SID_RE = /^[SMLNDPVQ]\d{1,3}$/i;
+const LANG_META = {};   // code -> {code, name, native, rtl, platform, status, reason, alternative} (from the voice catalog)
+for (const l of LAB.languages || []) { LANG_META[l.code] = l; LANG_NAMES[l.code] = l.name; }
+const STYLE_ORDER = ['professional', 'warm', 'calm', 'energetic', 'cute', 'anime', 'tough', 'heavy', 'light'];
+const SID_RE = /^[SMLNDPVQA]\d{1,3}$/i;
 const AUDIO_RE = /\.(wav|mp3|m4a|aac|ogg|opus|flac|webm)$/i;
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const $ = (s, r = document) => r.querySelector(s);
@@ -33,13 +36,16 @@ const state = {
   sentences: new Map(),   // lang -> Map(sid -> {id,text,ref_en,category,order})
   keyMaps: {},            // panel id -> {"id:label": voice} from panel/key.json
   external: [],           // ratings loaded from panel JSON files {lang, rater, sid, voice, nat, clr}
-  lang: '', cat: '', hiddenVoices: new Set(),
+  lang: SAVED.lang || '', cat: '', hiddenVoices: new Set(),
+  byLang: new Map(),      // lang -> Set(voice id) with at least one clip
+  langClips: new Map(),   // lang -> Set(clip key)
+  gender: '', region: '', type: '', compare: new Set(),   // voice filters; compare = base voices ticked in "Compare these voices"
   blind: !!SAVED.blind, seed: SAVED.seed ?? 7, norm: SAVED.norm !== false, wave: !!SAVED.wave, speed: SAVED.speed || 1,
   rater: SAVED.rater || '', ratings: SAVED.ratings || {},
   tab: 'grid', focus: {row: 0, col: 0}, now: null, queue: [], loop: null, rows: [], labelMaps: {},
 };
 function persist() {
-  try { store.set('ttslab.v1', JSON.stringify({blind: state.blind, seed: state.seed, norm: state.norm, wave: state.wave, speed: state.speed, rater: state.rater, ratings: state.ratings})); } catch (_) { /* quota */ }
+  try { store.set('ttslab.v1', JSON.stringify({lang: state.lang, blind: state.blind, seed: state.seed, norm: state.norm, wave: state.wave, speed: state.speed, rater: state.rater, ratings: state.ratings})); } catch (_) { /* quota */ }
 }
 function say(msg) { $('#status').textContent = msg; }
 
@@ -64,9 +70,18 @@ function ensureVoice(id, meta) {
   let v = state.voices.get(id);
   if (!v) { v = {id, name: id, meta: meta || {}, cand: candidateFor(id), dropped: !meta}; state.voices.set(id, v); }
   else if (meta) { v.meta = meta; v.dropped = false; }
-  if (v.cand && v.cand.name) v.name = v.cand.name;
+  const adapter = v.meta && (v.meta.adapter || (/^[a-z]{2,3}(-[A-Za-z]+)+Neural$/.test(baseOf(v)) ? 'edge_tts' : ''));   // Microsoft neural voice names come from edge-tts
+  if (!v.cand && adapter) v.cand = candidateFor(adapter);
+  if (v.meta && v.meta.label) v.name = v.meta.label;
+  else if (v.cand && v.cand.name) v.name = v.cand.name;
   return v;
 }
+function indexClip(clip) {
+  (state.byLang.get(clip.lang) || state.byLang.set(clip.lang, new Set()).get(clip.lang)).add(clip.voice);
+  (state.langClips.get(clip.lang) || state.langClips.set(clip.lang, new Set()).get(clip.lang)).add(`${clip.lang}|${clip.sid}|${clip.voice}`);
+}
+const baseOf = v => (v.meta && v.meta.voice) || v.id;
+const kindOf = v => (v.meta && v.meta.kind) || 'plain';
 function addSentence(lang, sid, text, extra) {
   let m = state.sentences.get(lang);
   if (!m) { m = new Map(); state.sentences.set(lang, m); }
@@ -96,8 +111,9 @@ function inferFromPath(path) {
   else if (s.length >= 2 && SID_RE.test(stem) && langs.includes(s[s.length - 2])) { lang = s[s.length - 2]; }
   else {
     const parts = stem.split(/[_\-.\s]+/);
-    const li = parts.findIndex(p => langs.includes(p.toLowerCase()));
     const si = parts.findIndex(p => SID_RE.test(p));
+    let li = -1;   // the last language code before the sentence id (short voice names such as "my-voice" or "is-it" contain codes too)
+    parts.forEach((p, i) => { if (langs.includes(p.toLowerCase()) && (si < 0 || i < si)) li = i; });
     if (li >= 0) lang = parts[li].toLowerCase();
     if (si >= 0) sid = parts[si].toUpperCase();
     if (li > 0) model = parts.slice(0, li).join('-');
@@ -113,9 +129,11 @@ async function ingest(entries) {
   const used = new Set();
   let added = 0;
   const manifests = entries.filter(e => e.name === 'manifest.jsonl');
-  for (const mf of manifests) {
+  const siblings = new Map();   // "dir/name" -> entry, so each manifest finds its meta.json and scores.jsonl without a scan
+  for (const e of entries) if (e.name === 'meta.json' || e.name === 'scores.jsonl') siblings.set(segs(e.path).join('/'), e);
+  async function loadManifest(mf) {
     const dir = segs(mf.path).slice(0, -1), model = dir[dir.length - 1] || 'voice';
-    const sibling = n => entries.find(e => e.name === n && segs(e.path).slice(0, -1).join('/') === dir.join('/'));
+    const sibling = n => siblings.get(dir.concat(n).join('/'));
     let meta = {};
     try { const m = sibling('meta.json'); if (m) meta = JSON.parse(await readText(m)); } catch (_) { /* optional */ }
     const scores = new Map();
@@ -127,11 +145,14 @@ async function ingest(entries) {
       const e = cands[0];
       if (!e) continue;
       used.add(e);
-      addSentence(r.lang, r.id, r.text);
-      state.clips.set(`${r.lang}|${r.id}|${voice.id}`, {voice: voice.id, lang: r.lang, sid: r.id, entry: e, dur: r.duration_s, score: scores.get(`${r.lang}|${r.id}`) || null, rms: null, peaks: null});
+      addSentence(r.lang, r.id, r.text, /^A/i.test(r.id) ? {category: 'accent'} : undefined);
+      const clip = {voice: voice.id, lang: r.lang, sid: r.id, entry: e, dur: r.duration_s, score: scores.get(`${r.lang}|${r.id}`) || null, rms: null, peaks: null};
+      state.clips.set(`${r.lang}|${r.id}|${voice.id}`, clip);
+      indexClip(clip);
       added++;
     }
   }
+  for (let i = 0; i < manifests.length; i += 24) await Promise.all(manifests.slice(i, i + 24).map(loadManifest));   // hundreds of voice folders: fetch in parallel batches
   for (const e of entries) {
     if (used.has(e) || !AUDIO_RE.test(e.name)) continue;
     const g = inferFromPath(e.path);
@@ -150,7 +171,9 @@ const pendingLabel = [];
 function addClipEntry(e, model, lang, sid, dropped = true) {
   const v = ensureVoice(model, dropped ? null : undefined);
   addSentence(lang, sid, '');
-  state.clips.set(`${lang}|${sid}|${v.id}`, {voice: v.id, lang, sid, entry: e, dur: null, score: null, rms: null, peaks: null});
+  const clip = {voice: v.id, lang, sid, entry: e, dur: null, score: null, rms: null, peaks: null};
+  state.clips.set(`${lang}|${sid}|${v.id}`, clip);
+  indexClip(clip);
 }
 function loadRatingsJson(data) {
   if (data && data.panels && typeof data.panels === 'object') { Object.assign(state.keyMaps, data.panels); return; }
@@ -225,40 +248,136 @@ async function loadServed() {
 }
 
 /* ---------- filters ---------- */
-function languagesWithClips() { const s = new Set(); for (const c of state.clips.values()) s.add(c.lang); return Object.keys(LANG_NAMES).filter(l => s.has(l)).concat(Array.from(s).filter(l => !LANG_NAMES[l])); }
-function voicesFor(lang) { return Array.from(state.voices.values()).filter(v => !state.hiddenVoices.has(v.id) && hasAnyClip(lang, v.id)).sort((a, b) => a.name.localeCompare(b.name)); }
-function hasAnyClip(lang, voice) { for (const c of state.clips.values()) if (c.lang === lang && c.voice === voice) return true; return false; }
+/* Languages: the catalog (27 platform languages, then extras, then those with no edge voice) plus anything else that has clips. */
+function metaFor(code) { return LANG_META[code] || {code, name: LANG_NAMES[code] || code, native: '', rtl: false, platform: false, status: 'voice', reason: '', alternative: ''}; }
+function pickerLanguages() {
+  const seen = new Set(Object.keys(LANG_META)), extra = Array.from(state.byLang.keys()).filter(l => !seen.has(l));
+  return Object.values(LANG_META).concat(extra.map(metaFor));
+}
+function clipsIn(lang) { return state.byLang.has(lang) ? state.langClips.get(lang).size : 0; }
+function rated(r) { return !!r && (r.nat != null || r.clr != null || !!r.best); }
+function progressOf(lang) { let done = 0; const keys = state.langClips.get(lang) || new Set(); for (const k of keys) if (rated(state.ratings[k])) done++; return {done, total: keys.size}; }
+const fold = s => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+/* Voice filters. A voice is one model folder: a plain voice, a regional voice, or a style variant (prosody preset) of a base voice. */
+function matchesFilters(v, skip = {}) {
+  const m = v.meta || {};
+  if (state.hiddenVoices.has(v.id)) return false;
+  if (state.gender && m.gender !== state.gender) return false;
+  if (state.region && m.locale !== state.region) return false;
+  if (!skip.type && state.type) {
+    const k = kindOf(v);
+    if (state.type === 'plain' ? k === 'style' : state.type === 'styled' ? k !== 'style' : STYLE_ORDER.includes(state.type) ? m.style !== state.type : k !== state.type) return false;
+  }
+  if (!skip.compare && state.compare.size && !state.compare.has(baseOf(v))) return false;
+  return true;
+}
+function groupRank(v) { return kindOf(v) === 'regional' ? 1 : 0; }
+function voiceOrder(a, b) {
+  const ma = a.meta || {}, mb = b.meta || {};
+  return groupRank(a) - groupRank(b) || (ma.gender === 'Female' ? 0 : 1) - (mb.gender === 'Female' ? 0 : 1) || String(ma.locale || '').localeCompare(String(mb.locale || '')) ||
+    baseOf(a).localeCompare(baseOf(b)) || (kindOf(a) === 'style' ? 1 : 0) - (kindOf(b) === 'style' ? 1 : 0) || STYLE_ORDER.indexOf(ma.style) - STYLE_ORDER.indexOf(mb.style) || a.name.localeCompare(b.name);
+}
+function computeVisible(lang, skip) {
+  return Array.from(state.byLang.get(lang) || []).map(id => state.voices.get(id)).filter(v => v && matchesFilters(v, skip)).sort(voiceOrder);
+}
+function voicesFor(lang) { return state.vis && state.vis.lang === lang ? state.vis.list : (state.vis = {lang, list: computeVisible(lang)}).list; }
+function groupsFor(lang) {
+  const groups = new Map();
+  for (const v of voicesFor(lang)) { const b = baseOf(v); (groups.get(b) || groups.set(b, {base: b, voices: []}).get(b)).voices.push(v); }
+  return Array.from(groups.values());
+}
 function sentenceList(lang) {
   const m = state.sentences.get(lang) || new Map();
   const vs = voicesFor(lang);
   return Array.from(m.values()).filter(s => (!state.cat || s.category === state.cat) && vs.some(v => state.clips.has(`${lang}|${s.id}|${v.id}`))).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
 }
+function blindLabel(i) { return i < 26 ? LETTERS[i] : LETTERS[Math.floor(i / 26) - 1] + LETTERS[i % 26]; }
 function labelMapFor(lang, sid) {
   const k = `${lang}|${sid}|${state.seed}`;
   if (!state.labelMaps[k]) {
-    const present = Array.from(state.voices.values()).filter(v => state.clips.has(`${lang}|${sid}|${v.id}`)).map(v => v.id).sort();
+    const present = Array.from(state.byLang.get(lang) || []).filter(id => state.clips.has(`${lang}|${sid}|${id}`)).sort();
     const order = shuffled(present, `${state.seed}:${lang}:${sid}`);
     const byVoice = {}, byLabel = {};
-    order.forEach((vid, i) => { byVoice[vid] = LETTERS[i] || '?'; byLabel[LETTERS[i] || '?'] = vid; });
+    order.forEach((vid, i) => { byVoice[vid] = blindLabel(i); byLabel[blindLabel(i)] = vid; });
     state.labelMaps[k] = {order, byVoice, byLabel};
   }
   return state.labelMaps[k];
 }
 
+/* ---------- language picker (searchable, keyboard friendly) ---------- */
+function langLabel(m) { return m.native && m.native !== m.name ? `${m.name} · ${m.native}` : m.name; }
+function renderLangList() {
+  const q = fold($('#lang-q').value.trim()), list = $('#lang-list'), items = [];
+  const groups = [['Platform languages', m => m.platform], ['Extra languages', m => !m.platform && m.status === 'voice'], ['No edge voice', m => m.status === 'no_voice']];
+  const all = pickerLanguages().filter(m => !q || [m.code, m.name, m.native].some(x => fold(x).includes(q)));
+  for (const [title, test] of groups) {
+    const ms = all.filter(test).sort((a, b) => a.name.localeCompare(b.name));
+    if (!ms.length) continue;
+    items.push(h('li', {class: 'lang-group', role: 'presentation', text: `${title} (${ms.length})`}));
+    for (const m of ms) {
+      const p = progressOf(m.code), n = clipsIn(m.code);
+      items.push(h('li', {role: 'option', class: 'lang-opt' + (m.status === 'no_voice' ? ' novoice' : ''), 'data-code': m.code, id: `lang-opt-${m.code}`, tabindex: '-1', 'aria-selected': String(m.code === state.lang),
+        onclick: () => chooseLang(m.code)},
+        h('span', {class: 'ln', lang: m.code === 'yue' ? 'yue-Hant' : m.code, dir: m.rtl ? 'rtl' : 'ltr', text: m.native || m.name}),
+        h('span', {class: 'le', text: `${m.name} · ${m.code}`}),
+        h('span', {class: 'lc', text: m.status === 'no_voice' ? 'no voice' : n ? `${p.done}/${p.total} rated` : 'no clips yet'})));
+    }
+  }
+  if (!items.length) items.push(h('li', {class: 'lang-group', role: 'presentation', text: 'No language matches.'}));
+  list.replaceChildren(...items);
+  const first = $('.lang-opt', list); $$('.lang-opt', list).forEach(o => o.classList.remove('active')); if (first && q) first.classList.add('active');
+}
+function openLangPop() { $('#lang-pop').hidden = false; $('#lang-btn').setAttribute('aria-expanded', 'true'); $('#lang-q').value = ''; renderLangList(); $('#lang-q').focus(); const cur = $('.lang-opt[aria-selected=true]'); if (cur) cur.scrollIntoView({block: 'center'}); }
+function closeLangPop(refocus = true) { $('#lang-pop').hidden = true; $('#lang-btn').setAttribute('aria-expanded', 'false'); if (refocus) $('#lang-btn').focus(); }
+function chooseLang(code) { state.lang = code; state.cat = ''; state.region = ''; state.compare = new Set(); persist(); closeLangPop(); refreshAll(); }
+$('#lang-btn').addEventListener('click', () => ($('#lang-pop').hidden ? openLangPop() : closeLangPop()));
+$('#lang-q').addEventListener('input', renderLangList);
+$('#lang-q').addEventListener('keydown', e => {
+  const opts = $$('.lang-opt', $('#lang-list')), cur = opts.findIndex(o => o.classList.contains('active'));
+  const go = i => { opts.forEach(o => o.classList.remove('active')); const o = opts[Math.max(0, Math.min(opts.length - 1, i))]; if (o) { o.classList.add('active'); o.scrollIntoView({block: 'nearest'}); $('#lang-q').setAttribute('aria-activedescendant', o.id); } };
+  if (e.key === 'ArrowDown') { e.preventDefault(); go(cur + 1); } else if (e.key === 'ArrowUp') { e.preventDefault(); go(cur < 0 ? 0 : cur - 1); }
+  else if (e.key === 'Enter') { e.preventDefault(); const o = opts[cur >= 0 ? cur : 0]; if (o) chooseLang(o.dataset.code); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeLangPop(); }
+});
+document.addEventListener('click', e => { if (!$('#lang-pop').hidden && !e.target.closest('#lang-wrap')) closeLangPop(false); });
+
+function updateProgress() {
+  const p = progressOf(state.lang), pct = p.total ? Math.round(100 * p.done / p.total) : 0;
+  $('#lang-progress-text').textContent = p.total ? `Rated ${p.done} of ${p.total} clips (${pct}%)` : 'No clips loaded';
+  const bar = $('#lang-progress'); bar.max = Math.max(1, p.total); bar.value = p.done;
+}
+
+function updateCompareUi() {
+  $('#cmp-count').textContent = state.compare.size ? `Comparing ${state.compare.size} voice${state.compare.size === 1 ? '' : 's'}` : 'Compare these voices';
+  $('#cmp-clear').hidden = !state.compare.size;
+  for (const cb of $$('#f-models input[type=checkbox]')) cb.checked = state.compare.has(cb.dataset.v);
+}
+
 function refreshFilters() {
-  const langs = languagesWithClips(), sel = $('#f-lang');
-  if (!langs.includes(state.lang)) state.lang = langs.includes('km') ? 'km' : (langs[0] || '');
-  sel.replaceChildren(...langs.map(l => h('option', {value: l, text: `${LANG_NAMES[l] || l} (${l})`, selected: l === state.lang})));
+  const known = pickerLanguages().map(m => m.code), withClips = known.filter(l => clipsIn(l));
+  if (!known.includes(state.lang)) state.lang = withClips.includes('km') ? 'km' : (withClips[0] || known[0] || '');
+  const m = state.lang ? metaFor(state.lang) : null;
+  $('#lang-btn-text').textContent = m ? `${langLabel(m)} (${m.code})` : 'Language';
+  $('#lang-btn-text').setAttribute('lang', m && m.code === 'yue' ? 'yue-Hant' : (m ? m.code : 'en'));
+  updateProgress();
   const cats = new Set(); (state.sentences.get(state.lang) || new Map()).forEach(s => { if (s.category) cats.add(s.category); });
   $('#f-cat').replaceChildren(h('option', {value: '', text: 'all'}), ...Array.from(cats).map(c => h('option', {value: c, text: c, selected: c === state.cat})));
+  const inLang = Array.from(state.byLang.get(state.lang) || []).map(id => state.voices.get(id)).filter(Boolean);
+  const locales = Array.from(new Set(inLang.map(v => (v.meta || {}).locale).filter(Boolean))).sort();
+  const count = loc => inLang.filter(v => (v.meta || {}).locale === loc && kindOf(v) !== 'style').length;
+  $('#f-region').replaceChildren(h('option', {value: '', text: 'all accents / regions'}), ...locales.map(l => h('option', {value: l, text: `${l} (${count(l)})`, selected: l === state.region})));
+  $('#f-gender').value = state.gender; $('#f-type').value = state.type;
   const box = $('#f-models'); box.replaceChildren();
+  const pick = computeVisible(state.lang, {compare: true, type: true}).filter(v => kindOf(v) !== 'style');
   if (state.blind) box.append(h('span', {class: 'chip', text: 'names hidden in blind mode'}));
-  else for (const v of Array.from(state.voices.values()).sort((a, b) => a.name.localeCompare(b.name))) {
-    if (!hasAnyClip(state.lang, v.id)) continue;
+  else if (!pick.length) box.append(h('span', {class: 'chip', text: 'no voices loaded for this language'}));
+  else for (const v of pick) {
     const b = badgeOf(v);
-    const cb = h('input', {type: 'checkbox', checked: !state.hiddenVoices.has(v.id), 'data-v': v.id, onchange: e => { e.target.checked ? state.hiddenVoices.delete(v.id) : state.hiddenVoices.add(v.id); renderGrid(); renderSamples(); }});
+    const cb = h('input', {type: 'checkbox', checked: state.compare.has(v.id), 'data-v': v.id, onchange: e => { e.target.checked ? state.compare.add(v.id) : state.compare.delete(v.id); state.vis = null; updateCompareUi(); renderGrid(); renderSamples(); }});
     box.append(h('label', {title: b.title}, cb, ' ', v.name, ' ', h('span', {class: 'badge ' + b.cls, text: b.text})));
   }
+  updateCompareUi();
   $('#banner-demo').hidden = !Array.from(state.voices.values()).some(v => v.meta && v.meta.demo);
   $('#banner-nodata').hidden = !window.__noLabData;
   $('#t-blind').checked = state.blind; $('#t-seed').value = state.seed; $('#t-norm').checked = state.norm; $('#t-wave').checked = state.wave; $('#t-speed').value = String(state.speed); $('#t-rater').value = state.rater;
@@ -294,7 +413,7 @@ function drawWave(clip) {
 }
 async function volumeFor(clip) {
   if (!state.norm) return 1;
-  const sibs = Array.from(state.voices.values()).map(v => state.clips.get(`${clip.lang}|${clip.sid}|${v.id}`)).filter(Boolean);
+  const sibs = voicesFor(clip.lang).map(v => state.clips.get(`${clip.lang}|${clip.sid}|${v.id}`)).filter(Boolean).slice(0, 12);   // match loudness against what is on screen, not all hundreds
   await Promise.all(sibs.map(decodeClip));
   const rs = sibs.map(c => c.rms).filter(r => r > 0);
   if (!clip.rms || !rs.length) return 1;
@@ -333,7 +452,11 @@ player.addEventListener('timeupdate', () => {
   $('.prog', cell).style.width = (100 * player.currentTime / player.duration) + '%';
 });
 player.addEventListener('play', setPlayingUI); player.addEventListener('pause', setPlayingUI);
-function rowKeys(row) { return state.blind ? labelMapFor(state.lang, row.id).order.filter(v => !state.hiddenVoices.has(v)).map(v => `${state.lang}|${row.id}|${v}`) : voicesFor(state.lang).map(v => `${state.lang}|${row.id}|${v.id}`).filter(k => state.clips.has(k)); }
+function rowKeys(row) {
+  const vis = new Set(voicesFor(state.lang).map(v => v.id));
+  if (state.blind) return labelMapFor(state.lang, row.id).order.filter(v => vis.has(v)).map(v => `${state.lang}|${row.id}|${v}`);
+  return voicesFor(state.lang).map(v => `${state.lang}|${row.id}|${v.id}`).filter(k => state.clips.has(k));
+}
 function playRowAll(row) { const keys = rowKeys(row); if (!keys.length) return; state.queue = keys.slice(1); state.loop = null; play(keys[0], {keepQueue: true, restart: true}); }
 function loopAB(row) { const keys = rowKeys(row).slice(0, 2); if (keys.length < 2) { say('Need at least two voices to loop A vs B.'); return; } state.queue = []; state.loop = {keys, i: 0}; play(keys[0], {keepQueue: true, restart: true}); say('Looping A vs B: press any key or Esc to stop.'); }
 
@@ -357,7 +480,9 @@ function buildCell(row, ri, voiceId, ci) {
   const v = state.voices.get(voiceId), lm = labelMapFor(state.lang, row.id), label = lm.byVoice[voiceId], b = badgeOf(v);
   const cell = h('div', {class: 'cell', tabindex: ci === 0 && ri === 0 ? '0' : '-1', 'data-key': key, 'data-row': ri, 'data-col': ci, role: 'group', 'aria-label': `${state.blind ? 'voice ' + label : v.name}, sentence ${row.id}`});
   const head = h('div', {class: 'cellhead'}, h('span', {class: 'lbl', text: label}));
-  if (!state.blind) head.append(h('span', {class: 'vname', text: v.name}), h('span', {class: 'badge ' + b.cls, title: b.title, text: b.text}));
+  const styled = kindOf(v) === 'style';
+  if (!state.blind) head.append(h('span', {class: 'vname', title: v.id, text: styled ? v.meta.style : v.name}));
+  if (!state.blind && !styled) head.append(h('span', {class: 'badge ' + b.cls, title: b.title, text: b.text}));
   const canvas = h('canvas', {'aria-hidden': 'true'});
   clip.canvas = canvas;
   const bar = h('div', {class: 'bar', title: 'click to seek', onclick: e => { const r = bar.getBoundingClientRect(), f = (e.clientX - r.left) / r.width; if (state.now === key && player.duration) player.currentTime = f * player.duration; else play(key).then(() => { if (player.duration) player.currentTime = f * player.duration; }); }}, canvas, h('div', {class: 'prog'}));
@@ -376,23 +501,40 @@ function buildCell(row, ri, voiceId, ci) {
 }
 function setRating(key, field, val, cell) {
   const r = ratingOf(key); r[field] = (field === 'best') ? !!val : (r[field] === val ? undefined : val);
-  persist();
+  persist(); updateProgress();
   if (cell) { for (const b of $$('.rate .line button:not(.star)', cell)) { const f = b.getAttribute('aria-label').startsWith('natural') ? 'nat' : 'clr'; b.setAttribute('aria-pressed', String(r[f] === +b.textContent)); } $('.star', cell).setAttribute('aria-pressed', String(!!r.best)); }
 }
 function fillRow(rowEl) {
   if (rowEl.dataset.filled) return; rowEl.dataset.filled = '1';
   const ri = +rowEl.dataset.ri, row = state.rows[ri]; if (!row) return;
   const cells = $('.cells', rowEl); cells.replaceChildren();
-  const order = state.blind ? labelMapFor(state.lang, row.id).order.filter(v => !state.hiddenVoices.has(v)) : voicesFor(state.lang).map(v => v.id);
-  order.forEach((vid, ci) => cells.append(buildCell(row, ri, vid, ci)));
+  let ci = 0;
+  if (state.blind) { for (const k of rowKeys(row)) cells.append(buildCell(row, ri, k.split('|')[2], ci++)); return; }
+  // One group per base voice: its plain clip first, its style variants (prosody presets) nested beside it. Same order as rowKeys().
+  for (const g of groupsFor(state.lang)) {
+    const mine = g.voices.filter(v => state.clips.has(`${state.lang}|${row.id}|${v.id}`));
+    if (!mine.length) continue;
+    const plain = mine.filter(v => kindOf(v) !== 'style'), styles = mine.filter(v => kindOf(v) === 'style');
+    const box = h('div', {class: 'vgroup' + (styles.length ? ' has-styles' : ''), 'data-base': g.base});
+    for (const v of plain) box.append(buildCell(row, ri, v.id, ci++));
+    if (styles.length) box.append(h('div', {class: 'vstyles', role: 'group', 'aria-label': 'style variants'}, ...styles.map(v => buildCell(row, ri, v.id, ci++))));
+    cells.append(box);
+  }
 }
 function renderGrid() {
   const host = $('#grid'); host.replaceChildren();
+  state.vis = null;
   state.rows = state.lang ? sentenceList(state.lang) : [];
-  if (!state.rows.length) { host.append(h('p', {class: 'status', text: state.voices.size ? 'No clips match these filters.' : 'No audio loaded yet. Use “Open run folder” or drop files here.'})); return; }
+  const meta = state.lang ? metaFor(state.lang) : null;
+  if (meta && meta.status === 'no_voice') {
+    host.append(h('div', {class: 'novoice-box', role: 'note'}, h('h2', {text: `${meta.name}: no edge-tts voice`}), h('p', {text: meta.reason}), meta.alternative ? h('p', {}, h('b', {text: 'Nearest alternative: '}), meta.alternative) : null));
+    return;
+  }
+  if (!state.rows.length) { host.append(h('p', {class: 'status', text: state.voices.size ? (clipsIn(state.lang) ? 'No clips match these filters.' : 'No clips for this language yet.') : 'No audio loaded yet. Use “Open run folder” or drop files here.'})); return; }
+  const rtl = !!(meta && meta.rtl), tag = state.lang === 'yue' ? 'yue-Hant' : state.lang;
   state.rows.forEach((row, ri) => {
     const sent = h('div', {class: 'sent'}, h('div', {}, h('span', {class: 'id', text: row.id}), h('span', {class: 'cat', text: row.category})),
-      h('div', {class: 'txt', text: row.text || '(text unknown)', dir: 'auto', lang: state.lang}), row.ref_en ? h('div', {class: 'ref', text: row.ref_en}) : null,
+      h('div', {class: 'txt', text: row.text || '(text unknown)', dir: rtl ? 'rtl' : 'auto', lang: tag}), row.ref_en ? h('div', {class: 'ref', text: row.ref_en}) : null,
       h('div', {class: 'acts'}, h('button', {class: 'btn small', type: 'button', text: 'Play all', onclick: () => playRowAll(row)}), h('button', {class: 'btn small', type: 'button', text: 'A/B loop', onclick: () => loopAB(row)})));
     const el = h('div', {class: 'row-s', 'data-ri': ri, 'data-sid': row.id}, sent, h('div', {class: 'cells'}));
     host.append(el);
@@ -414,6 +556,7 @@ function selectCell(ri, ci, focus = true) {
 document.addEventListener('keydown', e => {
   const t = e.target;
   if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && !(t.type === 'checkbox')) return;
+  if (t && t.closest && t.closest('#lang-wrap')) return;
   if (!$('#help-dlg').hidden || !$('#label-dlg').hidden) { if (e.key === 'Escape') { $('#help-dlg').hidden = true; } return; }
   if (e.ctrlKey || e.metaKey) return;
   if (state.loop && e.key !== 'l') { stopAll(); if (e.key === 'Escape') return; }
@@ -441,7 +584,10 @@ $('#help-btn').addEventListener('click', () => { $('#help-dlg').hidden = false; 
 $('#help-close').addEventListener('click', () => { $('#help-dlg').hidden = true; });
 
 /* ---------- toolbar wiring ---------- */
-$('#f-lang').addEventListener('change', e => { state.lang = e.target.value; state.cat = ''; refreshAll(); });
+for (const [id, key] of [['f-gender', 'gender'], ['f-region', 'region'], ['f-type', 'type']]) {
+  $('#' + id).addEventListener('change', e => { state[key] = e.target.value; state.vis = null; refreshFilters(); renderGrid(); renderSamples(); });
+}
+$('#cmp-clear').addEventListener('click', () => { state.compare = new Set(); state.vis = null; updateCompareUi(); renderGrid(); renderSamples(); });
 $('#f-cat').addEventListener('change', e => { state.cat = e.target.value; renderGrid(); renderSamples(); });
 $('#t-blind').addEventListener('change', e => { state.blind = e.target.checked; persist(); refreshAll(); stopAll(); say(state.blind ? 'Blind mode: voices are hidden and shuffled per sentence.' : 'Blind mode off.'); });
 $('#t-seed').addEventListener('change', e => { state.seed = Math.max(0, parseInt(e.target.value || '7', 10) || 0); state.labelMaps = {}; persist(); refreshAll(); });
@@ -539,7 +685,8 @@ function renderSamples() {
 }
 
 function refreshAll() { refreshFilters(); renderGrid(); if (state.tab === 'summary') renderSummary(); if (state.tab === 'samples') renderSamples(); }
-window.__lab = {state, player, ingest, play, stopAll, counts: () => ({voices: state.voices.size, clips: state.clips.size, cells: $$('.cell:not(.empty)').length, rows: state.rows.length})};
+window.__lab = {state, player, ingest, play, stopAll, setLang: chooseLang, languages: () => pickerLanguages().map(m => m.code),
+  counts: () => ({voices: state.voices.size, clips: state.clips.size, cells: $$('.cell:not(.empty)').length, rows: state.rows.length, languages: pickerLanguages().length})};
 refreshAll();
 loadServed();
 })();

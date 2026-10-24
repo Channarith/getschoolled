@@ -69,3 +69,46 @@ code{background:#0b1226;padding:0 .3rem;border-radius:4px}
 @media (prefers-contrast:more){:root{--line:#8fa0d8;--muted:#d4dbf3}}
 @media (forced-colors:active){.badge,.chip,.lbl{border:1px solid CanvasText}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* language picker, voice filters, grouped columns */
+.lang-wrap{position:relative;display:flex;align-items:center;gap:.4rem}.lbl-k{color:var(--muted)}
+.lang-btn{min-width:15rem;text-align:start;display:flex;justify-content:space-between;gap:.6rem}
+.lang-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:30;width:min(30rem,92vw);background:var(--panel);border:2px solid var(--gold);border-radius:10px;padding:.5rem;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.lang-pop input{width:100%;background:#0b1226;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:.4rem .5rem;font:inherit}
+.lang-list{list-style:none;margin:.4rem 0 0;padding:0;max-height:min(26rem,60vh);overflow:auto}
+.lang-group{color:var(--gold);font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:.5rem .4rem .15rem}
+.lang-opt{display:grid;grid-template-columns:minmax(7rem,1fr) 1.4fr auto;gap:.5rem;align-items:center;padding:.3rem .45rem;border-radius:6px;cursor:pointer}
+.lang-opt:hover,.lang-opt.active,.lang-opt[aria-selected=true]{background:var(--panel2)}.lang-opt[aria-selected=true]{outline:1px solid var(--gold)}
+.lang-opt .ln{font-size:1.05rem;justify-self:start}.lang-opt .le{color:var(--muted);font-size:.85rem}.lang-opt .lc{color:var(--muted);font-size:.75rem;white-space:nowrap}
+.lang-opt.novoice .lc{color:var(--warnfg)}
+.lang-progress{display:flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--muted)}.lang-progress progress{width:7rem;height:.7rem;accent-color:var(--gold)}
+details.models{border:1px solid var(--line);border-radius:8px;padding:.15rem .5rem;margin:0;position:relative}details.models summary{cursor:pointer}
+.pick-list{display:flex;flex-direction:column;gap:.2rem;max-height:18rem;overflow:auto;position:absolute;z-index:25;background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:.5rem .7rem;margin-top:.3rem;min-width:22rem}
+.cells{display:flex;flex-wrap:wrap;gap:.7rem;align-items:flex-start}
+.vgroup{display:flex;gap:.45rem;align-items:flex-start;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:.35rem;background:rgba(255,255,255,.02)}
+.vgroup>.cell{width:230px}.vstyles{display:flex;gap:.4rem;flex-wrap:wrap;border-inline-start:2px dashed var(--line);padding-inline-start:.45rem}.vstyles .cell{width:215px;background:var(--panel2)}
+.novoice-box{margin:1.2rem 0;padding:1rem 1.2rem;border:1px dashed var(--gold);border-radius:10px;max-width:46rem}.novoice-box h2{margin:.1rem 0 .5rem}
+/* script-correct fonts, picked by the lang attribute the page sets on every text */
+.sent .txt:lang(km),.ln:lang(km),#lang-btn-text:lang(km){font-family:"Noto Sans Khmer","Khmer Sangam MN","Khmer UI",system-ui,sans-serif}
+.sent .txt:lang(th),.ln:lang(th),#lang-btn-text:lang(th){font-family:"Noto Sans Thai","Thonburi","Leelawadee UI",system-ui,sans-serif}
+.sent .txt:lang(lo),.ln:lang(lo),#lang-btn-text:lang(lo){font-family:"Noto Sans Lao","Lao Sangam MN","Lao UI",system-ui,sans-serif}
+.sent .txt:lang(my),.ln:lang(my),#lang-btn-text:lang(my){font-family:"Noto Sans Myanmar","Myanmar Sangam MN","Myanmar Text",system-ui,sans-serif}
+.sent .txt:lang(ar),.sent .txt:lang(fa),.sent .txt:lang(ps),.ln:lang(ar),.ln:lang(ur),.ln:lang(fa),.ln:lang(ps){font-family:"Noto Naskh Arabic","Geeza Pro","Scheherazade New","Arial",system-ui,sans-serif}
+.sent .txt:lang(ur){font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic","Geeza Pro",system-ui,sans-serif;line-height:2}
+.sent .txt:lang(he),.ln:lang(he){font-family:"Noto Sans Hebrew","Arial Hebrew","Arial",system-ui,sans-serif}
+.sent .txt:lang(hi),.sent .txt:lang(mr),.sent .txt:lang(ne),.ln:lang(hi),.ln:lang(mr),.ln:lang(ne){font-family:"Noto Sans Devanagari","Kohinoor Devanagari","Devanagari Sangam MN",system-ui,sans-serif}
+.sent .txt:lang(bn),.ln:lang(bn){font-family:"Noto Sans Bengali","Bangla Sangam MN",system-ui,sans-serif}
+.sent .txt:lang(ta),.ln:lang(ta){font-family:"Noto Sans Tamil","Tamil Sangam MN",system-ui,sans-serif}
+.sent .txt:lang(te),.ln:lang(te){font-family:"Noto Sans Telugu","Telugu Sangam MN",system-ui,sans-serif}
+.sent .txt:lang(kn),.ln:lang(kn){font-family:"Noto Sans Kannada","Kannada Sangam MN",system-ui,sans-serif}
+.sent .txt:lang(ml),.ln:lang(ml){font-family:"Noto Sans Malayalam","Malayalam Sangam MN",system-ui,sans-serif}
+.sent .txt:lang(gu),.ln:lang(gu){font-family:"Noto Sans Gujarati","Gujarati Sangam MN",system-ui,sans-serif}
+.sent .txt:lang(si),.ln:lang(si){font-family:"Noto Sans Sinhala","Sinhala Sangam MN",system-ui,sans-serif}
+.sent .txt:lang(am),.ln:lang(am){font-family:"Noto Sans Ethiopic","Kefa","Abyssinica SIL",system-ui,sans-serif}
+.sent .txt:lang(ka),.ln:lang(ka){font-family:"Noto Sans Georgian","Georgia",system-ui,sans-serif}
+.sent .txt:lang(hy),.ln:lang(hy){font-family:"Noto Sans Armenian","Mshtakan",system-ui,sans-serif}
+.sent .txt:lang(zh),.ln:lang(zh){font-family:"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif}
+.sent .txt:lang(yue-Hant),.ln:lang(yue-Hant){font-family:"PingFang HK","Noto Sans CJK HK","Microsoft JhengHei",system-ui,sans-serif}
+.sent .txt:lang(ja),.ln:lang(ja){font-family:"Hiragino Sans","Noto Sans CJK JP","Yu Gothic",system-ui,sans-serif}
+.sent .txt:lang(ko),.ln:lang(ko){font-family:"Apple SD Gothic Neo","Noto Sans CJK KR","Malgun Gothic",system-ui,sans-serif}
+.sent .txt[dir=rtl]{text-align:start}
+@media (max-width:760px){.lang-opt{grid-template-columns:1fr auto}.lang-opt .le{display:none}.vgroup>.cell,.vstyles .cell{width:100%}}
