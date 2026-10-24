@@ -20,6 +20,7 @@ from .ratelimit import RateLimit, build_rate_limiter
 from .schemas import HealthStatus
 from .telemetry import TelemetryStore, init_external_exporters
 from .version import API_VERSION, build_info, get_version
+from .safe_compare import equals as _equals
 
 
 def create_service(
@@ -210,7 +211,6 @@ def create_service(
 
     def _require_ops(request: Request):
         """Lock metrics and error logs outside local deploys."""
-        import hmac
 
         from fastapi import HTTPException
 
@@ -226,9 +226,9 @@ def create_service(
         expected_metrics = os.environ.get("METRICS_TOKEN") or ""
         if is_internal_caller(presented):
             return
-        if expected_admin and hmac.compare_digest(admin, expected_admin):
+        if expected_admin and _equals(admin, expected_admin):
             return
-        if expected_metrics and hmac.compare_digest(metrics_token, expected_metrics):
+        if expected_metrics and _equals(metrics_token, expected_metrics):
             return
         raise HTTPException(status_code=401, detail="operator credential required")
 

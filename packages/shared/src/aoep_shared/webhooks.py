@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, List
 
 from pydantic import BaseModel, Field
+from .safe_compare import equals as _equals
 
 
 def sign_payload(body: bytes, secret: str) -> str:
@@ -23,7 +24,7 @@ def sign_payload(body: bytes, secret: str) -> str:
 
 
 def verify_signature(body: bytes, signature: str, secret: str) -> bool:
-    return hmac.compare_digest(sign_payload(body, secret), signature or "")
+    return _equals(sign_payload(body, secret), signature or "")
 
 
 class WebhookEvent(BaseModel):

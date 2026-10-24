@@ -15,6 +15,7 @@ import json
 import os
 import time
 from typing import Optional
+from .safe_compare import equals as _equals
 
 _ALGO = "pbkdf2_sha256"
 _ITERATIONS = 200_000
@@ -51,7 +52,7 @@ def verify_password(password: str, encoded: str) -> bool:
                                  _b64d(salt_b64), iterations)
     except (ValueError, TypeError):
         return False
-    return hmac.compare_digest(_b64e(dk), hash_b64)
+    return _equals(_b64e(dk), hash_b64)
 
 
 # --------------------------------------------------------------------------- #
@@ -75,8 +76,10 @@ def verify_token(token: str, key: bytes, *, now: Optional[float] = None) -> Opti
         raw, sig = token.split(".")
     except ValueError:
         return None
+    if not (raw.isascii() and sig.isascii()):
+        return None
     expected = _b64e(hmac.new(key, raw.encode("ascii"), hashlib.sha256).digest())
-    if not hmac.compare_digest(expected, sig):
+    if not _equals(expected, sig):
         return None
     try:
         body = json.loads(_b64d(raw))

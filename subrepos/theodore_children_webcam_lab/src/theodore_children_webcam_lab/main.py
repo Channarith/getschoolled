@@ -230,7 +230,12 @@ def calculate_fun(payload: dict[str, Any]) -> dict[str, Any]:
         "completed", "attempts", "duration_ms", "target_ms", "combo",
         "celebration", "smile", "kept_going", "mobility_regions", "skipped",
     }
-    return fun_score(**{key: value for key, value in payload.items() if key in allowed})
+    args = {key: value for key, value in payload.items() if key in allowed}
+    args.setdefault("completed", False)
+    try:
+        return fun_score(**args)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise HTTPException(status_code=422, detail=f"invalid fun-score input: {exc}") from exc
 
 
 @app.post("/api/child/analytics")

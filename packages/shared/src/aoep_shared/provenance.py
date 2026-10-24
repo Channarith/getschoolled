@@ -21,6 +21,7 @@ import time
 from typing import List, Optional, Union
 
 from pydantic import BaseModel, Field
+from .safe_compare import equals as _equals
 
 FORMAT = "aoep-provenance"
 FORMAT_VERSION = 1
@@ -101,7 +102,7 @@ def sign_manifest(manifest: ContentManifest, key: bytes) -> SignedManifest:
 
 def verify_manifest(signed: SignedManifest, key: bytes) -> bool:
     expected = hmac.new(key, canonical_bytes(signed.manifest), hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signed.signature)
+    return _equals(expected, signed.signature)
 
 
 def verify_against_content(
@@ -110,4 +111,4 @@ def verify_against_content(
     """Full check: signature valid AND the content still matches the manifest hash."""
     if not verify_manifest(signed, key):
         return False
-    return hmac.compare_digest(sha256_hex(content), signed.manifest.content_sha256)
+    return _equals(sha256_hex(content), signed.manifest.content_sha256)

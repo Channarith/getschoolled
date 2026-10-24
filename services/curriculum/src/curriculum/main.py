@@ -325,14 +325,14 @@ def ingest_url(req: IngestUrlRequest) -> Deck:
     try:
         import requests  # lazy/runtime
     except ImportError:
-        raise HTTPException(status_code=503, detail="requests not installed")
+        raise HTTPException(status_code=424, detail="requests not installed")
     try:
         resp = requests.get(req.url, timeout=15, headers={"User-Agent": "AOEP-scraper"}, allow_redirects=False)
         if resp.is_redirect:
             raise HTTPException(status_code=422, detail="url must not redirect")
         resp.raise_for_status()
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=f"fetch failed: {exc}")
+        raise HTTPException(status_code=424, detail=f"fetch failed: {exc}")
     result = extract_html(resp.text, default_title=req.title or req.url)
     if not result.sections:
         raise HTTPException(status_code=422, detail="no extractable text at URL")
@@ -1858,7 +1858,7 @@ async def homework_scan(
     try:
         result = ocr.read(content, hint=hint)
     except (NotImplementedError, Exception) as exc:  # noqa: BLE001
-        raise HTTPException(status_code=503, detail=f"OCR unavailable: {exc}")
+        raise HTTPException(status_code=424, detail=f"OCR unavailable: {exc}")
     sub = ocr_to_submission(result, expected=expected)
     return sub.model_dump()
 
@@ -1959,13 +1959,13 @@ def ingest_youtube(req: IngestYouTubeRequest) -> Deck:
         from youtube_transcript_api import YouTubeTranscriptApi  # lazy/runtime
     except ImportError:
         raise HTTPException(
-            status_code=503,
+            status_code=424,
             detail="youtube-transcript-api not installed (optional runtime dep)",
         )
     try:
         raw = YouTubeTranscriptApi.get_transcript(req.video_id)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=f"transcript fetch failed: {exc}")
+        raise HTTPException(status_code=424, detail=f"transcript fetch failed: {exc}")
     segs = [TranscriptSegment(start=float(r["start"]), text=r["text"]) for r in raw]
     result = extract_transcript(segs, title=req.title or req.video_id)
     deck = sections_to_deck(result, fmt=_fmt(req.fmt), source=f"youtube:{req.video_id}")
@@ -2175,10 +2175,13 @@ def scholar_search(q: str, limit: int = 5) -> dict:
 
     provider = get_scholar_provider()
     if provider is None:
-        raise HTTPException(
-            status_code=503,
-            detail="RAPIDAPI_KEY not configured; Google Scholar search unavailable",
-        )
+        return {
+            "query": q,
+            "count": 0,
+            "publications": [],
+            "available": False,
+            "detail": "RAPIDAPI_KEY not configured; Google Scholar search unavailable",
+        }
     results = provider.search_publications(q, max_results=max(1, min(limit, 20)))
     return {"query": q, "count": len(results), "publications": results}
 

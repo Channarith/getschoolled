@@ -27,11 +27,11 @@ gate ALWAYS DENIES so the homework tool can never accidentally ship
 open. Set ``INTERNAL_AUTH_DISABLED=1`` (e.g. in local tests) to bypass.
 """
 
-import hmac
 import logging
 import os
 import time
 from typing import Optional
+from .safe_compare import equals as _equals
 
 try:
     # Optional FastAPI runtime import. Keeping it optional means non-web
@@ -71,7 +71,7 @@ def _local_dev_fallback_ok(token_header: str) -> bool:
     mode = _env("DEPLOY_MODE", "local").strip().lower()
     if mode in {"cloud", "production", "prod"}:
         return False
-    return hmac.compare_digest(token_header, "dev-internal-token")
+    return _equals(token_header, "dev-internal-token")
 
 
 def is_internal_caller(token_header: Optional[str]) -> bool:
@@ -96,7 +96,7 @@ def is_internal_caller(token_header: Optional[str]) -> bool:
         return False
 
     static = _static_token()
-    if static is not None and hmac.compare_digest(static, token_header):
+    if static is not None and _equals(static, token_header):
         return True
 
     key = _shared_key()

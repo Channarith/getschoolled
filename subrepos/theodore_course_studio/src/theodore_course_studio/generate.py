@@ -22,6 +22,10 @@ from .types import CategoryId, CourseSlide, QualityLabel, StudioCourse
 _COURSE_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
+class InvalidCourseId(ValueError):
+    """A client-supplied course_id that cannot be stored safely."""
+
+
 @dataclass
 class _Candidate:
     score: float
@@ -120,7 +124,7 @@ class CourseBuilder:
     def save_course(self, course: StudioCourse) -> Path:
         safe = self._safe_course_id(course.course_id)
         if safe is None:
-            raise ValueError(f"invalid course_id for storage: {course.course_id!r}")
+            raise InvalidCourseId(f"invalid course_id for storage: {course.course_id!r}")
         path = self._courses_dir / f"{safe}.course.json"
         path.write_text(course.model_dump_json(indent=2), encoding="utf-8")
         return path

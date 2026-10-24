@@ -33,6 +33,7 @@ import uuid
 from typing import List, Optional, Tuple
 
 from pydantic import BaseModel, Field
+from .safe_compare import equals as _equals
 
 FORMAT = "aoeplx"
 FORMAT_VERSION = 1
@@ -277,12 +278,12 @@ def sign_scene(scene: Scene, key: bytes) -> SignedScene:
 
 def verify_scene(signed: SignedScene, key: bytes) -> bool:
     expected_hash = content_hash(signed.scene)
-    if not hmac.compare_digest(expected_hash, signed.content_hash):
+    if not _equals(expected_hash, signed.content_hash):
         return False
     expected_sig = hmac.new(
         key, canonical_bytes(signed.scene), hashlib.sha256
     ).hexdigest()
-    return hmac.compare_digest(expected_sig, signed.signature)
+    return _equals(expected_sig, signed.signature)
 
 
 def serialize(signed: SignedScene) -> str:

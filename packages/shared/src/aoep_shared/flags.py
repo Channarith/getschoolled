@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import enum
 import hashlib
-import hmac
 import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+from .safe_compare import equals as _equals
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -293,7 +293,7 @@ def require_admin(provided: Optional[str], expected: str) -> bool:
     """Constant-time check of an admin secret (empty secret never authorizes)."""
     if not provided or not expected:
         return False
-    return hmac.compare_digest(str(provided), str(expected))
+    return _equals(str(provided), str(expected))
 
 
 class FlagStore:
