@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-10-24 - v0.97.1 - scripts/record_deployment.sh records a manual production rollout on GitHub (Deployments page) so it matches what is live. Usage: scripts/record_deployment.sh <sha> "<what shipped>".
+
+[released 0.97.0 — 2026-10-24]
 - 2026-10-23 - v0.97.0 - Driver's Ed starts teaching on the road video, not the permit cartoon. The course tutorial shows the designed pictures: tap the lesson, double-tap for full screen, tap Sala, and Sala can dance. The gold Sala, the corner timer, the On the Go ring, and full-screen Vision Play are in this release.
 - 2026-10-24 - v0.96.9 - Driver's Ed demo opening is reordered. The tutorial now shows first, with the intro video waiting (paused on its first frame) behind it. The video starts only once the tutorial is finished or skipped, and the California learner's permit page and its text stay hidden until the video ends or is skipped. Reopening the tutorial with the ? button pauses the video again. If the tutorial was already seen, the demo goes straight to the video as before; the video still plays once per session, and with reduced motion it waits for a tap on play. Also fixed: the tutorial card was wider than a phone screen (padding added to its width) and is now cut off no more.
 - 2026-10-24 - v0.96.8 - Cluster capacity: CPU requests lowered on the nine app services (perception, web, speech, orchestrator, curriculum 250/200m to 100m; memory, identity 150m to 75m; integrations, billing 100m to 50m). Only four nodes can run pods and they were 92-100% requested, so rollouts left pods Pending. Limits are unchanged so pods can still burst. Autoscaler ceilings are lowered to 6 replicas (what four nodes can hold) with a CPU target of 85%, and the memory targets are kept.
