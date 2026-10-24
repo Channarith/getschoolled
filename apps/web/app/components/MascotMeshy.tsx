@@ -146,6 +146,8 @@ type Props = {
   /** Keep the darkened stone from the voice-check page. Expression still
    *  changes posture and motion, but not the bronze color. */
   holdStone?: boolean;
+  /** Fires once the mesh is on screen and a clip has started. */
+  onReady?: () => void;
 };
 
 /* ---------------------------------------------------------------------
@@ -579,10 +581,12 @@ function Character({
   expression,
   activeClip,
   holdStone = false,
+  onReady,
 }: {
   expression: Expression;
   activeClip: ClipName;
   holdStone?: boolean;
+  onReady?: () => void;
 }) {
   // Outer group: owns the mood posture (tilt + lean). Scale stays at 1.
   const outerRef = useRef<THREE.Group>(null);
@@ -659,15 +663,20 @@ function Character({
     if (!match) {
       // eslint-disable-next-line no-console
       console.warn(`[MascotMeshy] clip "${activeClip}" not in Mascot.glb; have:`, names);
+      onReady?.();
       return;
     }
     const action = actions[match];
-    if (!action) return;
+    if (!action) {
+      onReady?.();
+      return;
+    }
     action.reset().setLoop(THREE.LoopRepeat, Infinity).fadeIn(0.35).play();
+    onReady?.();
     return () => {
       action.fadeOut(0.35);
     };
-  }, [actions, names, activeClip]);
+  }, [actions, names, activeClip, onReady]);
 
   // Posture + pulse layer on top of the clip's own skeletal motion.
   useFrame((state) => {
@@ -773,6 +782,7 @@ export default function MascotMeshy({
   backdrop,
   paused = false,
   holdStone = false,
+  onReady,
 }: Props) {
   const activeClip = useActiveClip(motion, clip, idleRotation, rotationIntervalMs);
   const [canvasKey, setCanvasKey] = useState(0);
@@ -844,7 +854,12 @@ export default function MascotMeshy({
         <directionalLight position={[-0.4, 1.8, -2.6]} intensity={0.18} color="#f4e7cf" />
 
         <Suspense fallback={null}>
-          <Character expression={expression} activeClip={activeClip} holdStone={holdStone} />
+          <Character
+            expression={expression}
+            activeClip={activeClip}
+            holdStone={holdStone}
+            onReady={onReady}
+          />
         </Suspense>
 
         <ContactShadows
