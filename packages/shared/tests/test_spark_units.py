@@ -18,7 +18,8 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 UD = REPO / "scripts" / "fleet" / "spark-units"
 SCRIPTS = sorted(UD.glob("*.sh"))
-UNIT_NAMES = ["aoep-llm-train", "aoep-voice-train", "aoep-voice-ingest", "aoep-gpu-balance", "aoep-course-translate"]
+UNIT_NAMES = ["aoep-llm-train", "aoep-voice-train", "aoep-voice-ingest", "aoep-gpu-balance", "aoep-course-translate",
+              "aoep-enroll-ui", "aoep-listening-lab"]
 
 
 def run(cmd, env=None, timeout=60, cwd=None):
@@ -105,7 +106,7 @@ def test_apply_installs_backs_up_retires_and_never_restarts(box):
     seed_live(units)
     r = install(env, "--apply")
     assert r.returncode == 0, r.stdout + r.stderr
-    for n in ["aoep-llm-train", "aoep-voice-train", "aoep-voice-ingest", "aoep-gpu-balance"]:
+    for n in ["aoep-llm-train", "aoep-voice-train", "aoep-voice-ingest", "aoep-gpu-balance", "aoep-enroll-ui", "aoep-listening-lab"]:
         text = (units / f"{n}.service").read_text()
         assert "@ROOT@" not in text and str(REPO) in text
     assert not (units / "aoep-course-translate.service").exists()             # legacy: only with --with-legacy-translate
@@ -377,3 +378,61 @@ def test_su_run_child_returns_the_childs_status_and_sleep_is_interruptible(tmp_p
     assert "rc=7" in r.stdout
     assert "slept=0" in r.stdout or "slept=1" in r.stdout
     assert "stop=1" in r.stdout
+
+
+# ---- the two lab units ------------------------------------------------------------------------------------
+@pytest.mark.parametrize("name,port", [("aoep-enroll-ui", "8780"), ("aoep-listening-lab", "8790")])
+def test_lab_units_are_small_restarting_and_never_enabled_by_the_installer(name, port):
+    text = (UD / "units" / f"{name}.service").read_text()
+    assert "MemoryMax=2G" in text and "Restart=always" in text and "MemorySwapMax=0" in text
+    launcher = (UD / text.split("ExecStart=@ROOT@/scripts/fleet/spark-units/", 1)[1].splitlines()[0].strip()).read_text()
+    assert port in launcher and "0.0.0.0" not in launcher and "0.0.0.0" not in text
+
+
+def fake_python(tmp_path):
+    venv = tmp_path / "venv" / "bin"
+    venv.mkdir(parents=True)
+    py = venv / "python"
+    py.write_text("#!/bin/bash\necho \"ARGS: $*\" > \"$FAKE_PY_LOG\"\n")
+    py.chmod(0o755)
+    return tmp_path / "venv"
+
+
+def test_enroll_ui_launcher_serves_the_voices_dir_on_8780(tmp_path):
+    log = tmp_path / "py.log"
+    r = run(["bash", str(UD / "enroll-ui.sh")], env={"AOEP_VENV": str(fake_python(tmp_path)), "FAKE_PY_LOG": str(log),
+                                                    "AOEP_VOICES_DIR": str(tmp_path / "v"), "HOME": str(tmp_path)})
+    assert r.returncode == 0, r.stderr
+    assert f"-m tts_bakeoff.voice_clone.enroll_ui --root {tmp_path / 'v'} --port 8780" in log.read_text()
+    assert (tmp_path / "v").is_dir()
+
+
+def test_lab_launcher_serves_the_newest_clones_folder_without_opening_a_browser(tmp_path):
+    root = tmp_path / "root"
+    for d in ("2026-10-23-clones", "2026-10-25-clones", "2026-10-26-voices"):
+        (root / "runs" / d).mkdir(parents=True)
+    log = tmp_path / "py.log"
+    env = {"AOEP_VENV": str(fake_python(tmp_path)), "FAKE_PY_LOG": str(log), "AOEP_LAB_ROOT": str(root), "HOME": str(tmp_path)}
+    assert run(["bash", str(UD / "listening-lab.sh")], env=env).returncode == 0
+    args = log.read_text()
+    assert "--port 8790" in args and "--no-open" in args and f"--out {root}/runs/2026-10-25-clones" in args
+    env["AOEP_LAB_OUT"] = str(tmp_path)
+    assert run(["bash", str(UD / "listening-lab.sh")], env=env).returncode == 0
+    assert f"--out {tmp_path}" in log.read_text()
+
+
+def test_uninstall_is_a_dry_run_by_default_and_only_touches_the_lab_units(box):
+    units, state, log, env = box
+    for n in ("aoep-enroll-ui", "aoep-listening-lab", "aoep-llm-train"):
+        (units / f"{n}.service").write_text("[Service]\nExecStart=/x\n")
+    uninstall = UD / "uninstall.sh"
+    r = run(["bash", str(uninstall)], env=env)
+    assert "WOULD REMOVE aoep-enroll-ui.service" in r.stdout and "DRY RUN" in r.stdout
+    assert (units / "aoep-enroll-ui.service").exists()
+    r = run(["bash", str(uninstall), "--apply"], env=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert not (units / "aoep-enroll-ui.service").exists() and not (units / "aoep-listening-lab.service").exists()
+    assert (units / "aoep-llm-train.service").exists()                    # training is never touched by default
+    assert list(state.glob("backup-*/aoep-enroll-ui.service"))
+    calls = log.read_text().splitlines()
+    assert "stop aoep-enroll-ui.service" in calls and "disable aoep-listening-lab.service" in calls and calls[-1] == "daemon-reload"
