@@ -122,6 +122,7 @@ def remove_sample(speaker: str, rel: str, base: Path | None = None) -> None:
     d = speaker_dir(speaker, base)
     if rec["samples"].pop(rel, None) is not None:
         (d / rel).unlink(missing_ok=True)
+        (d / "samples" / ".raw" / Path(rel).name).unlink(missing_ok=True)
         _write(d / "consent.json", rec)
 
 

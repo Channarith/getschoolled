@@ -2,7 +2,7 @@
 
   python3 -m tts_bakeoff.voice_clone.bakeoff consent  --speaker alice --name "Alice Tran" --role employee --signed-form ~/Downloads/alice-signed.pdf
   python3 -m tts_bakeoff.voice_clone.bakeoff enroll   --speaker alice --audio ~/alice.m4a --transcript-file ~/alice.txt --lang en
-  python3 -m tts_bakeoff.voice_clone.bakeoff run      --out runs/2026-10-25-clones [--speakers alice,bob] [--models voxcpm2,cosyvoice2] [--langs en,es,zh] [--limit 3]
+  python3 -m tts_bakeoff.voice_clone.bakeoff run      --out runs/2026-10-25-clones [--speakers alice,bob] [--models voxcpm2,cosyvoice2] [--langs en,es,zh] [--limit 3] [--takes 3] [--no-clean]
   python3 -m tts_bakeoff.voice_clone.bakeoff say      --speaker alice --model voxcpm2 --lang en --text-file words.txt --out say/alice/one.wav
   python3 -m tts_bakeoff.voice_clone.bakeoff revoke   --speaker alice
   python3 -m tts_bakeoff.voice_clone.bakeoff list
@@ -21,6 +21,7 @@ from pathlib import Path
 
 from tts_bakeoff.build_sentences import load
 
+from . import clean as audio_clean
 from . import enroll, registry, synth
 
 
@@ -38,14 +39,14 @@ def cmd_enroll(a) -> int:
         print("a transcript of exactly what was said is required (CosyVoice 2 zero-shot needs it)", file=sys.stderr)
         return 2
     dest = d / "samples" / (Path(a.audio).stem + ".wav")
-    info = enroll.prepare(a.audio, dest)
+    info = enroll.prepare(a.audio, dest, clean=False if a.no_clean else None)
     registry.add_sample(a.speaker, dest, text, a.lang)
     print(f"enrolled {dest.name}: {info}")
     return 0
 
 
 def synthesize_all(out: Path, speakers: list[str], models: list[str], langs: list[str], limit: int | None,
-                   base: Path | None = None, gpu: bool = True) -> dict:
+                   base: Path | None = None, gpu: bool = True, takes: int | None = None, clean: bool | None = None) -> dict:
     counts = {"ok": 0, "failed": 0, "skipped_unsupported": 0, "refused": 0}
     for speaker in speakers:
         try:
@@ -74,7 +75,7 @@ def synthesize_all(out: Path, speakers: list[str], models: list[str], langs: lis
                         wav = root / lang / f"{item['id']}.wav"
                         row = {"model": vid, "lang": lang, "id": item["id"], "text": item["text"], "wav": wav.relative_to(out).as_posix()}
                         try:
-                            row.update(adapter.synthesize(item["text"], lang, wav))
+                            row.update(audio_clean.synthesize_best_of(adapter, item["text"], lang, wav, takes=takes, clean=clean))
                             row["status"] = "ok"
                             counts["ok"] += 1
                         except Exception as exc:  # noqa: BLE001 - record and carry on
@@ -118,10 +119,11 @@ def main(argv: list[str] | None = None) -> int:
     c = sub.add_parser("consent"); c.add_argument("--speaker", required=True); c.add_argument("--name", required=True)
     c.add_argument("--role", required=True, choices=registry.ROLES); c.add_argument("--signed-form", required=True)
     e = sub.add_parser("enroll"); e.add_argument("--speaker", required=True); e.add_argument("--audio", required=True)
-    e.add_argument("--lang", required=True); e.add_argument("--transcript", default=""); e.add_argument("--transcript-file")
+    e.add_argument("--lang", required=True); e.add_argument("--transcript", default=""); e.add_argument("--transcript-file"); e.add_argument("--no-clean", action="store_true", help="keep the recording exactly as imported")
     r = sub.add_parser("run"); r.add_argument("--out", required=True); r.add_argument("--speakers", default="")
     r.add_argument("--models", default="voxcpm2,cosyvoice2"); r.add_argument("--langs", default="en,es,zh")
-    r.add_argument("--limit", type=int, default=3); r.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
+    r.add_argument("--limit", type=int, default=3); r.add_argument("--takes", type=int, default=None, help="takes per sentence, cleanest kept (default 3; 1 = single take)")
+    r.add_argument("--no-clean", action="store_true", help="skip post-processing (best-of-N still applies unless --takes 1)"); r.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
     y = sub.add_parser("say"); y.add_argument("--speaker", required=True); y.add_argument("--model", required=True, choices=synth.CLONE_MODELS)
     y.add_argument("--lang", required=True); y.add_argument("--text-file", required=True); y.add_argument("--out", required=True)
     y.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
@@ -144,7 +146,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"said {len(meta['text'])} characters as {meta['label']}: {a.out}")
             return 0
         speakers = [s for s in a.speakers.split(",") if s] or registry.list_speakers()
-        counts = synthesize_all(Path(a.out), speakers, a.models.split(","), a.langs.split(","), a.limit, gpu=not a.no_gpu)
+        counts = synthesize_all(Path(a.out), speakers, a.models.split(","), a.langs.split(","), a.limit, gpu=not a.no_gpu,
+                                takes=a.takes, clean=False if a.no_clean else None)
         print(counts)
         return 0 if counts["failed"] == 0 and counts["refused"] == 0 else 1
     except (registry.ConsentError, enroll.SampleError, ValueError) as exc:
