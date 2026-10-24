@@ -262,7 +262,16 @@ def _transcribe(paths: list[Path]) -> dict[str, str]:
 
     free = available_mb()
     floor = int(os.environ.get("AOEP_EVAL_ASR_CUDA_MB", "16384") or "16384")
-    device = "cuda" if torch.cuda.is_available() and (free is None or free >= floor) else "cpu"
+    from aoep_shared.devices import allow_cpu, pick_device, require_cuda
+
+    device = pick_device("khmer-eval-asr")
+    if device == "cuda" and free is not None and free < floor:
+        if require_cuda() and not allow_cpu():
+            raise RuntimeError(
+                f"Whisper large-v3 needs about {floor} MB free but only {free} MB is available and this host "
+                "requires CUDA (no CPU fallback). Stop other jobs (fleet_status.sh shows them) and retry."
+            )
+        device = "cpu"
     print(f"loading whisper large-v3 on {device} free_mb={free}", flush=True)
     asr = whisper.load_model("large-v3", device=device)
     found: dict[str, str] = {}

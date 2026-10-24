@@ -199,11 +199,16 @@ def _load_generator(args) -> Callable[[str], str]:
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    device = (
-        args.device
-        if args.device != "auto"
-        else ("cuda" if torch.cuda.is_available() else "cpu")
-    )
+    try:
+        from aoep_shared.devices import pick_device
+    except ImportError:  # run outside the venv: old behaviour
+        device = (
+            args.device
+            if args.device != "auto"
+            else ("cuda" if torch.cuda.is_available() else "cpu")
+        )
+    else:
+        device = pick_device("evaluate", None if args.device == "auto" else args.device)
     tok = AutoTokenizer.from_pretrained(args.base_model, local_files_only=args.offline)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token

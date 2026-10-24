@@ -55,6 +55,12 @@ LOG="$OUT/logs/run-${STAMP}.log"
 exec > >(tee -a "$LOG") 2>&1
 
 echo "== spark tutor cycle $STAMP =="
+# CUDA policy (aoep_shared/devices.py): fail at the start, not hours in, when this host requires CUDA and it is unusable.
+if ! PYTHONPATH="$ROOT/packages/shared/src${PYTHONPATH:+:$PYTHONPATH}" "$PY" -c \
+  "from aoep_shared.devices import pick_device; print('device policy ok:', pick_device('nightly', 'cuda'))"; then
+  echo "ERROR: CUDA is required for the nightly cycle and is not usable; nothing was started." >&2
+  exit 3
+fi
 echo "python=$PY"
 echo "base_model=$BASE_MODEL"
 echo "out=$OUT"
