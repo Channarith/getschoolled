@@ -100,6 +100,18 @@ spec:
       maxSurge: 0
       maxUnavailable: 1
 ---
+# Harvester parked: it crawls with the license gate that still allowed non-commercial
+# sources, and the four working nodes have little spare CPU. Harvesting runs on the
+# Spark / iBuyPower machines until the license tiers ship. Its 40Gi checkpoint claim
+# is bound and kept for later.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harvester
+  namespace: aoep
+spec:
+  replicas: 0
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
