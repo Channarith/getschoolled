@@ -23,7 +23,7 @@ theodore-children-webcam-lab = "theodore_children_webcam_lab.main:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-theodore_children_webcam_lab = ["static/*"]
+theodore_children_webcam_lab = ["static/*", "static/art/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

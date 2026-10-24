@@ -20,7 +20,7 @@ test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
 # Server-rendered neural voices (edge-tts) so Khmer and every other language
 # speak even when the speech gateway is down. Without it the page falls back
 # to whatever voices the listener's OS installed (macOS has no Khmer voice).
-voices = ["edge-tts==7.2.8"]
+voices = ["edge-tts>=7.3.1,<8"]
 all = ["theodore-course-studio[pdf,pptx,test,voices]"]
 
 [tool.setuptools.packages.find]

@@ -175,8 +175,8 @@ body.pq-playing .prompt,body.pq-playing #prompt{display:none!important}
 .pq-icon{position:relative;height:4.2rem;font-size:3.4rem;line-height:4.2rem}
 .pq-icon.motion span{position:absolute;left:50%;top:0;transform:translateX(-50%);opacity:0;animation:pqStep 3s infinite}
 .pq-icon.motion .b{animation-delay:1s}.pq-icon.motion .c{animation-delay:2s}
-.pq-actions{display:flex;gap:.6rem;justify-content:center;margin-top:1rem}
-.pq-actions button{padding:.6rem 1.2rem;border:0;border-radius:99px;font:900 1rem/1 inherit;cursor:pointer;background:#e2e8f0;color:#1e1b4b;min-height:44px}
+.pq-actions{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center;margin-top:1rem}
+.pq-actions button{padding:.6rem 1.1rem;max-width:100%;border:0;border-radius:99px;font:900 1rem/1 inherit;cursor:pointer;background:#e2e8f0;color:#1e1b4b;min-height:44px}
 .pq-actions .pq-next,.pq-actions .pq-again{background:#fde047}
 .pq-stars{font-size:2.4rem;color:#fde047;letter-spacing:.2rem}.pq-next-unlock{color:#c4b5fd}
 body.phone-play .pq-top{bottom:3rem}
@@ -245,3 +245,19 @@ select,input[type=checkbox]{accent-color:#d4af37}
 select{background:#101a36;border-color:#d4af3755}
 .linklike{color:#e5c76b}
 .vc-card{border-color:#d4af37;background:#0d1530}
+/* Pop Quiz Toss: answer timer, Sala, generated art (all optional: built-in drawings remain) */
+.pq-hud::before{content:"";position:absolute;inset:0;background:var(--pq-bg,none) center/cover no-repeat;opacity:.3;pointer-events:none}
+.pq-timer{position:relative;margin:.35rem auto 0;width:min(70%,320px);height:12px;border-radius:99px;background:#334155;overflow:hidden}
+.pq-timer i{display:block;height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,#22c55e,#a3e635);transition:width .25s linear}
+.pq-timer.low i{background:linear-gradient(90deg,#f59e0b,#fb923c)}
+.pq-timer .pq-secs{position:absolute;inset:0;display:grid;place-items:center;font:900 .62rem/1 ui-rounded,system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px #000a}
+.pq-sala{position:absolute;left:.6rem;bottom:6.4rem;height:min(28vh,200px);width:auto;max-width:22vw;object-fit:contain;filter:drop-shadow(0 8px 12px #0009);pointer-events:none;transition:transform .25s}
+.pq-sala[data-pose="cheer"]{animation:pqCheer .9s ease-out}
+.pq-img,.pq-ball-img{display:block;width:100%;height:100%;object-fit:contain}
+.pq-tut-img{display:block;height:min(30vh,190px);width:auto;max-width:100%;margin:0 auto;border-radius:14px}
+.pq-icon:has(.pq-tut-img){height:auto;line-height:0;font-size:0;margin-bottom:.4rem}
+.pq-ball-img{pointer-events:none}
+.pq-card.has-art{background-size:cover;background-position:center;background-blend-mode:soft-light}
+.gt-card li strong{color:#f6dc8a}
+@media(prefers-reduced-motion:reduce){.pq-timer i{transition:none}.pq-sala[data-pose="cheer"]{animation:none}.pq-icon.motion span{animation:none;opacity:1;position:static;transform:none}}
+@media(max-height:520px){.pq-sala{display:none}}

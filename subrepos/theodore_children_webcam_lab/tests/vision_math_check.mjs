@@ -20,7 +20,9 @@ import {
   syntheticHand, tipHitsTarget, traceProgress,
 } from "../src/theodore_children_webcam_lab/static/vision_math.js";
 import {
-  answerMatches, coachHint, hasWon, levelFor, quizRound, resolveThrow, roundPoints, unlockedFor,
+  ASSIST_RATE, MIN_QUESTION_SECONDS, QUESTION_SECONDS, YOUNG_QUESTION_SECONDS,
+  answerMatches, assignHandSides, clampAssistRate, coachHint, createQuestionTimer, hasWon, levelFor, playerHandSide,
+  questionSeconds, quizRound, resolveAssistedThrow, resolveThrow, roundPoints, sideFromRelease, targetForSide, unlockedFor,
 } from "../src/theodore_children_webcam_lab/static/pop_quiz.js";
 
 
@@ -466,6 +468,147 @@ assert.ok(!answerMatches("", "Canberra"));
     assert.equal(resolveThrow(release, targets).target.answer, "R", `jittery pull aims at the right answer (seed ${seed})`);
   }
 }
+// Which hand throws picks the answer: left hand -> left target, right hand -> right target.
+{
+  const W = 1000;
+  // The lab feeds MediaPipe the RAW (unmirrored) frame and mirrors only for display, so the label is swapped:
+  // "Left" means the player's RIGHT hand when the hand is near the middle of the screen.
+  assert.equal(playerHandSide({label: "Left", wrist: {x: 500, y: 300}}, W), "right", "raw-frame 'Left' label is the player's right hand");
+  assert.equal(playerHandSide({label: "Right", wrist: {x: 500, y: 300}}, W), "left", "raw-frame 'Right' label is the player's left hand");
+  // Far to one side of the mirrored screen, position wins even if the label disagrees.
+  assert.equal(playerHandSide({label: "Left", wrist: {x: 120, y: 300}}, W), "left");
+  assert.equal(playerHandSide({label: "Right", wrist: {x: 900, y: 300}}, W), "right");
+  // No label: the half of the screen decides. A touch pointer always goes by position.
+  assert.equal(playerHandSide({wrist: {x: 480, y: 300}}, W), "left");
+  assert.equal(playerHandSide({wrist: {x: 520, y: 300}}, W), "right");
+  assert.equal(playerHandSide({screen: true, label: "Left", wrist: {x: 200, y: 300}}, W), "left");
+  assert.equal(playerHandSide({}, W), null);
+  // Two hands: the one further left on screen is the left hand, whatever the labels say.
+  const pair = assignHandSides([
+    {label: "Left", wrist: {x: 700, y: 300}}, {label: "Right", wrist: {x: 300, y: 300}},
+  ], W);
+  assert.deepEqual(pair.map((p) => [p.side, p.hand.wrist.x]), [["left", 300], ["right", 700]]);
+  // Two hands almost on top of each other fall back to one-by-one rules.
+  const stacked = assignHandSides([{label: "Left", wrist: {x: 500, y: 300}}, {label: "Right", wrist: {x: 520, y: 330}}], W);
+  assert.equal(stacked.length, 2);
+  // Targets: leftmost is the left answer.
+  const T = [{x: 800, y: 200, answer: "R"}, {x: 200, y: 200, answer: "L"}];
+  assert.equal(targetForSide("left", T).answer, "L");
+  assert.equal(targetForSide("right", T).answer, "R");
+  assert.equal(targetForSide("up", T), null);
+  // Swipe direction picks the side for touch and mouse throws.
+  assert.equal(sideFromRelease({velocity: {x: -300, y: -100}, origin: {x: 900, y: 600}}, W), "left");
+  assert.equal(sideFromRelease({velocity: {x: 300, y: -100}, origin: {x: 100, y: 600}}, W), "right");
+  assert.equal(sideFromRelease({velocity: {x: 0, y: -400}, origin: {x: 100, y: 600}}, W), "left", "an upward flick goes by the half it started in");
+  assert.equal(sideFromRelease({side: "right", velocity: {x: -300, y: 0}, origin: {x: 100, y: 600}}, W), "right", "an explicit hand side wins");
+}
+
+// The tracker remembers which hand it follows, and the release carries it.
+{
+  let tracker = newThrowTracker("left");
+  assert.equal(tracker.side, "left");
+  const hand = (at, fist, x, y) => ({at, palm: 90, fist, point: {x, y}});
+  let release = null;
+  for (let i = 0; i < 6; i += 1) { const s = advanceThrowGesture(tracker, hand(i * 33, true, 300, 560), "7-10"); tracker = s.tracker; }
+  for (let i = 1; i <= 10; i += 1) { const s = advanceThrowGesture(tracker, hand(200 + i * 33, true, 300 - i * 6, 560 + i * 14), "7-10"); tracker = s.tracker; }
+  const s = advanceThrowGesture(tracker, hand(600, false, 280, 700), "7-10");
+  release = s.release;
+  assert.ok(release, "a throw is released");
+  assert.equal(release.side, "left", "the release says which hand threw");
+}
+
+// ASSIST: about 90% of throws are steered to the answer the player CHOSE, never to the correct answer.
+{
+  const W = 1000;
+  const targets = [{x: 200, y: 200, radius: 80, answer: "L"}, {x: 800, y: 200, radius: 80, answer: "R"}];
+  assert.equal(ASSIST_RATE, 0.9);
+  assert.equal(clampAssistRate("0.5"), 0.5);
+  assert.equal(clampAssistRate(7), 1);
+  assert.equal(clampAssistRate(-1), 0);
+  assert.equal(clampAssistRate("nope"), 0.9);
+  assert.equal(clampAssistRate(null), 0.9, "no setting means the default, not zero");
+  assert.equal(clampAssistRate(""), 0.9);
+  assert.equal(clampAssistRate("0"), 0, "an explicit 0 turns the assist off");
+  // Deterministic generator so the statistics are exact.
+  let seed = 12345;
+  const rng = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+  let assisted = 0;
+  let steeredWrong = 0;
+  let naturalFollowedAim = 0;
+  let naturalCount = 0;
+  const N = 2000;
+  for (let i = 0; i < N; i += 1) {
+    // The player throws with the LEFT hand (chosen answer "L") but the correct answer is on the right ("R").
+    // Every other throw has a wild, sloppy motion that points at the right target.
+    const sloppyAtRight = i % 2 === 0;
+    const release = {side: "left", origin: {x: 500, y: 600}, velocity: sloppyAtRight ? {x: 300, y: -140} : {x: -300, y: -140}};
+    const r = resolveAssistedThrow(release, targets, {width: W, rng});
+    if (r.assisted) {
+      assisted += 1;
+      assert.equal(r.target.answer, "L", "the assist only ever steers to the answer the player chose");
+      assert.equal(r.miss, false);
+      if (r.target.answer === "L") steeredWrong += 1; // "L" is the chosen answer even though it is not the correct one
+    } else {
+      naturalCount += 1;
+      // The unassisted throw follows the measured motion: a throw aimed at the right target lands there.
+      if (sloppyAtRight && r.target?.answer === "R") naturalFollowedAim += 1;
+      if (!sloppyAtRight && r.target?.answer === "L") naturalFollowedAim += 1;
+    }
+  }
+  const rate = assisted / N;
+  assert.ok(Math.abs(rate - 0.9) <= 0.02, `assist rate over ${N} throws is ${rate}`);
+  assert.equal(steeredWrong, assisted, "assisted throws land on the chosen answer even when it is the wrong answer");
+  assert.ok(naturalFollowedAim / naturalCount > 0.95, "unassisted throws follow the measured aim");
+  // Rate 0 never assists, rate 1 always does, and a right-hand throw goes right.
+  for (let i = 0; i < 50; i += 1) {
+    assert.equal(resolveAssistedThrow({side: "left", origin: {x: 500, y: 600}, velocity: {x: -300, y: -140}}, targets, {width: W, rate: 0, rng}).assisted, false);
+    const always = resolveAssistedThrow({side: "right", origin: {x: 500, y: 600}, velocity: {x: -300, y: -140}}, targets, {width: W, rate: 1, rng});
+    assert.equal(always.assisted && always.target.answer, "R", "a right-hand throw is steered to the right answer even if the motion pointed left");
+  }
+  // A swipe on the screen picks the side by direction.
+  const swipe = resolveAssistedThrow({origin: {x: 500, y: 600}, velocity: {x: -300, y: -100}}, targets, {width: W, rate: 1, rng});
+  assert.equal(swipe.target.answer, "L");
+}
+
+// TIME: at least 10 seconds per question, more for the youngest, never burning time while paused.
+{
+  assert.equal(MIN_QUESTION_SECONDS, 10);
+  assert.equal(QUESTION_SECONDS, 12);
+  assert.equal(YOUNG_QUESTION_SECONDS, 15);
+  assert.equal(questionSeconds("7-10"), 12);
+  assert.equal(questionSeconds("adult"), 12);
+  assert.equal(questionSeconds("4-6"), 15);
+  assert.equal(questionSeconds("7-10", 3), 10, "never below 10 seconds");
+  assert.equal(questionSeconds("7-10", "8"), 10);
+  assert.equal(questionSeconds("7-10", 20), 20);
+  assert.equal(questionSeconds("7-10", 900), 60);
+  assert.equal(questionSeconds("7-10", "junk"), 12);
+  const timer = createQuestionTimer(3);
+  assert.equal(timer.totalMs, 10000, "even a 3 second request is at least 10 seconds");
+  let now = 1000;
+  timer.start(now);
+  let s = timer.state();
+  assert.equal(s.seconds, 10);
+  // 100 ms ticks for 4 s, running: 6 s left.
+  for (let i = 0; i < 40; i += 1) { now += 100; s = timer.tick(now, false); }
+  assert.ok(Math.abs(s.remainingMs - 6000) < 1, `remaining ${s.remainingMs}`);
+  // Paused for 5 s (tutorial open, ball flying, player speaking): nothing is lost.
+  for (let i = 0; i < 50; i += 1) { now += 100; s = timer.tick(now, true); }
+  assert.ok(Math.abs(s.remainingMs - 6000) < 1, "paused time is free");
+  // A hidden tab (one huge gap) burns at most 250 ms.
+  now += 60000;
+  s = timer.tick(now, false);
+  assert.ok(s.remainingMs >= 5700, "a hidden tab does not eat the question");
+  // Running on to the end expires exactly once the full time has been spent.
+  for (let i = 0; i < 70 && !s.expired; i += 1) { now += 100; s = timer.tick(now, false); }
+  assert.equal(s.expired, true);
+  assert.equal(s.remainingMs, 0);
+  // start() resets for the next question.
+  s = timer.start(now);
+  assert.equal(s.expired, false);
+  assert.equal(s.remainingMs, 10000);
+}
+
 // Coaching tips.
 assert.equal(coachHint({seen: false, msSinceSeen: 3000}), "no-hand");
 assert.equal(coachHint({seen: true, wrist: {x: 0.02, y: 0.5}, palmFraction: 0.1}), "edge");

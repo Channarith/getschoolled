@@ -213,8 +213,9 @@ export function pullAim(tracker) {
   return {origin: tracker.smooth ? {x: tracker.smooth.x, y: tracker.smooth.y} : tracker.cockPoint, dir: {x: x / length, y: y / length}};
 }
 
-export function newThrowTracker() {
+export function newThrowTracker(side = null) {
   return {
+    side,
     phase: "ready",
     grabStartedAt: 0,
     grabPoint: null,
@@ -244,7 +245,7 @@ export function advanceThrowGesture(current, rawSample, ageBand = "7-10") {
   if (!sample) {
     const missingAt = Number(rawSample?.at) || prior.lastSeenAt;
     if (missingAt - prior.lastSeenAt > 320) {
-      return {tracker: newThrowTracker(), event: "lost"};
+      return {tracker: newThrowTracker(prior.side), event: "lost"};
     }
     return {tracker: prior, event: null};
   }
@@ -285,7 +286,7 @@ export function advanceThrowGesture(current, rawSample, ageBand = "7-10") {
   }
 
   if (tracker.phase === "grabbed") {
-    if (!sample.fist) return {tracker: newThrowTracker(), event: "released-early"};
+    if (!sample.fist) return {tracker: newThrowTracker(prior.side), event: "released-early"};
     const pull = Math.hypot(
       sample.point.x - tracker.grabPoint.x,
       sample.point.y - tracker.grabPoint.y,
@@ -347,13 +348,13 @@ export function advanceThrowGesture(current, rawSample, ageBand = "7-10") {
       return {
         tracker: {...tracker, phase: "released"},
         event: "released",
-        release: {origin: sample.point, velocity: {x: dir.x * nominal, y: dir.y * nominal}, speed: Math.max(speed, speedPalmsPerSecond), reversal, assisted: !fast, history},
+        release: {origin: sample.point, velocity: {x: dir.x * nominal, y: dir.y * nominal}, speed: Math.max(speed, speedPalmsPerSecond), reversal, assisted: !fast, history, side: tracker.side || null},
       };
     }
-    return {tracker: newThrowTracker(), event: "weak-release"};
+    return {tracker: newThrowTracker(prior.side), event: "weak-release"};
   }
 
-  return {tracker: newThrowTracker(), event: null};
+  return {tracker: newThrowTracker(prior.side), event: null};
 }
 
 export function projectThrowTarget(origin, velocity, targets, fallbackRadius = 64) {

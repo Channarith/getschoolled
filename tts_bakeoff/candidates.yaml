@@ -402,6 +402,27 @@ candidates:
     evidence:
       - {claim: "voices per locale", url: "https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=tts", quote: "km-KH-SreymomNeural, km-KH-PisethNeural; th-TH-AcharaNeural; vi-VN-HoaiMyNeural; sw-KE-ZuruNeural", retrieved: "2026-10-24"}
 
+  - id: edge-tts
+    name: "edge-tts (free Microsoft Edge Read Aloud neural voices; the speech gateway fallback today)"
+    role: reference
+    kind: cloud
+    license:
+      code: {name: "LGPL-3.0 client library (edge-tts)", commercial_ok: unverified}
+      weights: {name: "n/a (hosted service reached through a third-party client); the service terms were not read, so third-party commercial use is not established", commercial_ok: unverified}
+      training_data: {commercial_ok: unverified}
+    languages: [km, th, vi, sw, hi, bn, es, zh, yue, en]
+    notes_languages: "Owner listened on 2026-10-25 and chose these voices. Khmer (Sreymom F, Piseth M), Thai, Vietnamese, Cantonese (zh-HK HiuMaan, HiuGaai, WanLung), Mandarin (CN, TW, two regional dialects), Spanish from about 20 countries, and English accents: US, UK, Australia, Singapore, India, Ireland, New Zealand, Canada, South Africa, Hong Kong, Philippines, Nigeria, Kenya, Tanzania. Character presets (cute, anime, tough, heavy, light, professional) are pitch/rate/volume shaping on these voices; a few voices carry the service's own tags (Cute, Lively, Sunshine, Professional)."
+    voice_cloning: "no"
+    size: "n/a"
+    vram_gb: "n/a"
+    hardware: {cuda: "n/a", spark_gb10_aarch64_cuda13: "n/a", apple_mps: "n/a"}
+    install: {complexity: low, note: "pip install edge-tts; needs network and ffmpeg for the wav conversion."}
+    cost_note: "Free, no key, rate limited (bursts get refused: the adapter retries with backoff)."
+    adapter: edge_tts
+    evidence:
+      - {claim: "edge-tts is a Python module for Microsoft Edge's online text-to-speech service (a third-party client, not the Azure Speech API)", url: "https://github.com/rany2/edge-tts", quote: "edge-tts is a Python module that allows you to use Microsoft Edge's online text-to-speech service from within your Python code", retrieved: "2026-10-25"}
+    shippable_note: "Counted as NOT SHIPPABLE until the service terms are confirmed: it is a third-party client of Microsoft Edge's online text-to-speech service, not Azure's licensed Speech API. The licensed route to the same neural voices is Azure AI Speech (same voice names, official API, paid per character, adds speaking styles for some voices). Switching is a small change in the speech gateway."
+
   - id: google-cloud-tts
     name: "Google Cloud Text-to-Speech (cloud)"
     role: ceiling

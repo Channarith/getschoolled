@@ -6,46 +6,27 @@
 
 import {advanceThrowGesture, newThrowTracker, pullAim} from "./vision_math.js";
 import * as Q from "./pop_quiz.js";
+import {POP_QUIZ_UI, UI, howtoLang, popQuizSteps} from "./game_howto.js";
 
-const TUTORIAL = [
-  {
-    icon: "🎯",
-    title: "Say it and throw it!",
-    lines: [
-      "A question pops up with two targets. Say the answer out loud and throw the ball at the right one.",
-      "Both right = 5 points. Just one = 2 points. Reach 100 points to win!",
-    ],
-  },
-  {
-    icon: "📷",
-    title: "Get set up",
-    lines: [
-      "Stand about two big steps back so your hand and shoulder are in the picture.",
-      "Keep your hand inside the picture. If it drifts out, the ball drops. Green tips will tell you to step closer or back.",
-      "Face a light and use a plain background. On a phone or without a camera, press and drag on the ball instead.",
-    ],
-  },
-  {
-    icon: "✊",
-    title: "Grab, pull, throw",
-    lines: [
-      "✊ Close your fist to grab the ball. Keep it closed.",
-      "↩️ Pull your fist back toward you, like a slingshot.",
-      "🖐️ Open your hand to throw. The ball flies along the yellow line, so aim the line at the answer!",
-    ],
-    motion: true,
-  },
-  {
-    icon: "💡",
-    title: "Pro tips",
-    lines: [
-      "Close is good enough. Aim toward the side of the right answer and let go.",
-      "Big, smooth arm moves work best, especially on a slower camera.",
-      "Say the answer clearly while the ball is in your hand. No microphone? You can still throw for 2 points.",
-      "Never throw a real object. This is a pretend ball!",
-    ],
-  },
+const STEP_ART = [
+  {art: "tut-stand", icon: "🧍"},
+  {art: "tut-hands", icon: "🙌"},
+  {art: "tut-throw", icon: "✊", motion: true},
+  {art: "tut-speak", icon: "🎤"},
+  {art: "tut-win", icon: "🏆"},
 ];
+
+function tutorialSteps() {
+  const lang = howtoLang();
+  return popQuizSteps(lang).map((step, i) => ({...STEP_ART[i], ...step}));
+}
+
+function freshTrackers() {
+  return {left: newThrowTracker("left"), right: newThrowTracker("right")};
+}
+
+const BALL_ART = {"⚽": "ball-soccer", "🎾": "ball-tennis", "🏀": "ball-beach"};
+const TIER_ART = [null, "ball-fire", "ball-rainbow", "ball-comet"];
 
 const FIRE = ["🔥", "✨", "💥"];
 const TRAILS = [
@@ -119,7 +100,19 @@ export function createPopQuizGame(d) {
     round: null,
     targets: [],
     ball: null,
-    tracker: newThrowTracker(),
+    trackers: freshTrackers(),
+    screenSide: null,
+    activeSide: null,
+    handPoint: null,
+    assistRate: Q.clampAssistRate(new URLSearchParams(location.search).get("assist")),
+    questionOverride: new URLSearchParams(location.search).get("qtime"),
+    rng: Math.random,
+    timer: null,
+    timerId: 0,
+    timedOut: false,
+    hearingUntil: 0,
+    art: null,
+    artLoad: null,
     voice: false,
     heard: "",
     thrown: null,
@@ -285,8 +278,10 @@ export function createPopQuizGame(d) {
       </div>
       <div class="pq-question" role="status" aria-live="polite">
         <div class="pq-q">Getting your question…</div>
+        <div class="pq-timer" aria-hidden="true"><i></i><span class="pq-secs"></span></div>
         <div class="pq-chips" aria-hidden="true"><span class="pq-chip pq-voice">🎤 Say it</span><span class="pq-chip pq-throw">🎯 Throw it</span></div>
       </div>
+      <img class="pq-sala" alt="" src="/static/sala-gold.png" draggable="false">
       <div class="pq-banner" role="status"></div>
       <div class="pq-coach" role="status" aria-live="polite"></div>
       <div class="pq-heard" aria-live="polite"></div>`;
@@ -331,6 +326,109 @@ export function createPopQuizGame(d) {
     pq.coachAt = now;
   }
 
+  // ---- art (progressive enhancement: the built-in drawings always work) ----------------------
+
+  function loadArt() {
+    if (!pq.artLoad) {
+      pq.artLoad = (async () => {
+        const names = new Set();
+        try {
+          const response = await fetch("/static/art/manifest.json");
+          if (response.ok) {
+            const manifest = await response.json();
+            for (const name of Object.keys(manifest.assets || {})) names.add(name);
+          }
+        } catch (_) {
+          // No art pack: the SVG and emoji art stay.
+        }
+        pq.art = names;
+        return names;
+      })();
+    }
+    return pq.artLoad;
+  }
+
+  function artUrl(name) {
+    return pq.art?.has(name) ? `/static/art/${name}.webp` : null;
+  }
+
+  // Put picture `name` into `el` if the art pack has it and it loads; otherwise leave `fallbackHtml`.
+  function paintArt(el, name, fallbackHtml, cls = "pq-img") {
+    el.innerHTML = fallbackHtml;
+    const url = artUrl(name);
+    if (!url) return;
+    const img = new Image();
+    img.className = cls;
+    img.alt = "";
+    img.decoding = "async";
+    img.draggable = false;
+    img.addEventListener("load", () => { el.replaceChildren(img); }, {once: true});
+    img.addEventListener("error", () => { /* keep the fallback */ }, {once: true});
+    img.src = url;
+  }
+
+  function setPose(name) {
+    const img = pq.hud?.querySelector(".pq-sala");
+    if (!img) return;
+    const url = artUrl(`sala-${name}`);
+    img.src = url || "/static/sala-gold.png";
+    img.dataset.pose = name;
+  }
+
+  // ---- time to answer ---------------------------------------------------------------------------
+
+  function renderTimer(s) {
+    const el = pq.hud?.querySelector(".pq-timer");
+    if (!el) return;
+    el.querySelector("i").style.width = `${Math.round(s.fraction * 100)}%`;
+    el.querySelector(".pq-secs").textContent = String(s.seconds);
+    el.classList.toggle("low", s.fraction < 0.25);
+  }
+
+  function timerPaused(now) {
+    return pq.phase !== "play"
+      || pq.flying
+      || now < pq.hearingUntil
+      || Boolean(d.state?.voiceAway)
+      || Boolean(window.speechSynthesis?.speaking)
+      || Boolean(stage.querySelector(".pq-tutorial"));
+  }
+
+  function stopQuestionTimer() {
+    if (pq.timerId) clearInterval(pq.timerId);
+    pq.timerId = 0;
+  }
+
+  function startQuestionTimer() {
+    stopQuestionTimer();
+    pq.timedOut = false;
+    pq.timer = Q.createQuestionTimer(Q.questionSeconds(state.age, pq.questionOverride));
+    renderTimer(pq.timer.start(performance.now()));
+    pq.timerId = setInterval(tickQuestionTimer, 100);
+  }
+
+  function tickQuestionTimer() {
+    if (!pq.timer || !pq.round || pq.resolving || !pq.active || state.game !== "pop-quiz-toss") return;
+    const now = performance.now();
+    const s = pq.timer.tick(now, timerPaused(now));
+    renderTimer(s);
+    if (s.expired) onTimeUp();
+  }
+
+  // Time is up: whatever the player already did counts; nothing is taken away, and no streak is lost.
+  function onTimeUp() {
+    if (pq.resolving || !pq.round) return;
+    stopQuestionTimer();
+    clearAim();
+    if (!pq.thrown && !pq.voice) {
+      pq.timedOut = true;
+      banner(`Time's up! It was ${pq.round.answer}`, "tip");
+      setPose("oops");
+    }
+    dropBall();
+    finish();
+  }
+
   // ---- tutorial --------------------------------------------------------------------
 
   function showTutorial(force = false) {
@@ -350,22 +448,26 @@ export function createPopQuizGame(d) {
     overlay.className = "pq-tutorial";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", "How to play Pop Quiz Toss");
+    const lang = howtoLang();
+    const words = UI[lang] || UI.en;
+    const TUTORIAL = tutorialSteps();
+    overlay.setAttribute("aria-label", (POP_QUIZ_UI[lang] || POP_QUIZ_UI.en).label);
     const render = () => {
       const s = TUTORIAL[step];
       const last = step === TUTORIAL.length - 1;
       overlay.innerHTML = `
         <div class="pq-card">
           <div class="pq-dots">${TUTORIAL.map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("")}</div>
-          <div class="pq-icon${s.motion ? " motion" : ""}" aria-hidden="true">${s.motion ? '<span class="a">✊</span><span class="b">↩️</span><span class="c">🖐️</span>' : s.icon}</div>
+          <div class="pq-icon${s.motion ? " motion" : ""}" aria-hidden="true"></div>
           <h2>${s.title}</h2>
           ${s.lines.map((l) => `<p>${l}</p>`).join("")}
           <div class="pq-actions">
-            <button type="button" class="pq-skip">${last ? "Back" : "Skip"}</button>
-            ${step > 0 ? '<button type="button" class="pq-prev">◀</button>' : ""}
-            <button type="button" class="pq-next">${last ? "Let's play!" : "Next ▶"}</button>
+            <button type="button" class="pq-skip">${last ? words.back : words.skip}</button>
+            ${step > 0 ? `<button type="button" class="pq-prev" aria-label="${words.back}">${words.prev}</button>` : ""}
+            <button type="button" class="pq-next">${last ? words.letsPlay : words.next}</button>
           </div>
         </div>`;
+      paintArt(overlay.querySelector(".pq-icon"), s.art, s.motion ? '<span class="a">✊</span><span class="b">↩️</span><span class="c">🖐️</span>' : s.icon, "pq-tut-img");
       overlay.querySelector(".pq-next").onclick = () => (last ? close() : (step += 1, render()));
       overlay.querySelector(".pq-prev")?.addEventListener("click", () => { step -= 1; render(); });
       overlay.querySelector(".pq-skip").onclick = () => (last ? (step = 0, render()) : close());
@@ -382,6 +484,8 @@ export function createPopQuizGame(d) {
       startVoice();
       d.chooseGame();
     };
+    overlay.addEventListener("keydown", (event) => { if (event.key === "Escape") { event.stopPropagation(); close(); } });
+    void loadArt().then(render);
     render();
     stage.append(overlay);
     return true;
@@ -447,6 +551,8 @@ export function createPopQuizGame(d) {
     if (window.speechSynthesis?.speaking || performance.now() - pq.startedRoundAt < 900) return;
     const said = String(text || "").trim();
     if (!said) return;
+    // The player is talking: the question clock waits.
+    pq.hearingUntil = performance.now() + 1500;
     if (!pq.voice && Q.answerMatches(said, pq.round.answer)) {
       pq.voice = true;
       const {w, h} = box();
@@ -457,8 +563,8 @@ export function createPopQuizGame(d) {
       if (pq.thrown) settle();
       else {
         banner("Now throw it for more points!", "tip");
-        // Voice only: give the throw a fair window before scoring.
-        later(() => { if (!pq.thrown && !pq.resolving) finish(); }, 9000);
+        // Voice only: the throw still gets a fair window (the question clock decides when it ends).
+        pq.timer?.ensureRemaining(4000);
       }
     } else if (isFinal) {
       const el = pq.hud?.querySelector(".pq-heard");
@@ -519,7 +625,8 @@ export function createPopQuizGame(d) {
       el.setAttribute("role", "img");
       el.setAttribute("aria-label", `Answer ${answer}`);
       el.style.left = `${(i === 0 ? 0.2 : 0.8) * 100}%`;
-      el.innerHTML = `<span class="pq-art">${ART[theme]}</span><span class="pq-label ${labelClass(answer)}"></span>`;
+      el.innerHTML = `<span class="pq-art"></span><span class="pq-label ${labelClass(answer)}"></span>`;
+      paintArt(el.querySelector(".pq-art"), `target-${theme}`, ART[theme]);
       el.querySelector(".pq-label").textContent = answer;
       spriteLayer.append(el);
       return {answer, el};
@@ -566,7 +673,9 @@ export function createPopQuizGame(d) {
     const el = document.createElement("div");
     el.className = "pq-ball";
     el.setAttribute("aria-hidden", "true");
-    el.textContent = emoji;
+    const art = TIER_ART[Q.streakTier(pq.streak).tier] || BALL_ART[emoji] || null;
+    if (art) paintArt(el, art, emoji, "pq-ball-img");
+    else el.textContent = emoji;
     spriteLayer.append(el);
     pq.ball = el;
     return el;
@@ -588,6 +697,7 @@ export function createPopQuizGame(d) {
   async function arm(roundId) {
     pq.active = true;
     ensureHud();
+    void loadArt();
     if (pq.phase === "tutorial") return;
     if (pq.phase === "idle" && showTutorial(false)) return;
     if (pq.phase === "idle") {
@@ -596,6 +706,7 @@ export function createPopQuizGame(d) {
     }
     if (pq.phase === "won") return;
     const data = await fetchRound(pq.index);
+    await loadArt();
     if (state.roundId !== roundId || state.game !== "pop-quiz-toss") return;
     if (!validRound(data)) {
       d.setPrompt("Pop Quiz Toss", "I could not load a question. Try again in a moment.");
@@ -606,25 +717,36 @@ export function createPopQuizGame(d) {
     pq.thrown = null;
     pq.flying = false;
     pq.resolving = false;
+    pq.timedOut = false;
     pq.heard = "";
-    pq.tracker = newThrowTracker();
+    pq.trackers = freshTrackers();
+    pq.activeSide = null;
+    pq.handPoint = null;
     pq.startedRoundAt = performance.now();
+    // The question is read out loud first: the clock does not start ticking until it has been heard.
+    pq.hearingUntil = performance.now() + 2500;
     pq.level = Q.levelFor(pq.progress.total);
     pq.ballEmoji = Q.ballFor(pq.index, pq.level);
     const qEl = pq.hud?.querySelector(".pq-q");
     if (qEl) qEl.textContent = data.question;
-    renderTargets(data, Q.themeFor(pq.index, pq.level));
+    const theme = Q.themeFor(pq.index, pq.level);
+    renderTargets(data, theme);
+    const bgUrl = artUrl(`bg-${theme}`);
+    if (bgUrl) stage.style.setProperty("--pq-bg", `url(${bgUrl})`);
+    else stage.style.removeProperty("--pq-bg");
+    setPose("thinking");
     dropBall();
     renderHud();
     d.setPrompt(
       data.question,
-      "Say the answer, then grab the ball with a fist, pull back, and open your hand to throw it at the right target.",
+      "Left hand for the left answer, right hand for the right answer. Close your fist, pull back, and open your hand to throw.",
       data.speak,
     );
     d.tellActivity(data.speak, {force: true});
     d.speak(data.speak);
-    // A question that nobody touches should not trap the game.
-    later(() => { if (pq.round === data && !pq.resolving && !pq.thrown && !pq.voice) skipRound(); }, 45000);
+    startQuestionTimer();
+    // A question that nobody touches should never trap the game, even if the clock is paused for a long time.
+    later(() => { if (pq.round === data && !pq.resolving && !pq.thrown && !pq.voice) skipRound(); }, 90000);
   }
 
   function skipRound() {
@@ -637,65 +759,95 @@ export function createPopQuizGame(d) {
 
   // ---- throwing -----------------------------------------------------------------------------
 
-  function handOf() {
-    return [...state.handData]
-      .filter((hand) => hand?.wrist && (hand.screen || hand.points?.length))
-      .sort((a, b) => (Number(b.scale) || 0) - (Number(a.scale) || 0))[0] || null;
-  }
-
-  function update(now = performance.now(), handOverride = null) {
-    if (state.game !== "pop-quiz-toss" || pq.phase !== "play" || !pq.round || pq.resolving || pq.flying || state.roundDone) return;
-    const hand = handOverride || handOf();
-    const b = box();
-    const minSide = Math.min(b.w, b.h) || 1;
-    const palm = hand?.screen ? Math.max(36, minSide * 0.08) : (Number(hand?.scale) || 0) * minSide;
-    if (hand) pq.lastSeen = now;
-    coach(Q.coachHint({
-      seen: Boolean(hand),
-      msSinceSeen: pq.lastSeen ? now - pq.lastSeen : 0,
-      wrist: hand?.wrist && !hand.screen ? {x: hand.wrist.x / (b.w || 1), y: hand.wrist.y / (b.h || 1)} : null,
-      palmFraction: hand && !hand.screen ? Number(hand.scale) || 0 : 0,
-    }));
-    const wasActive = pq.tracker.phase === "grabbed" || pq.tracker.phase === "cocked";
-    const step = advanceThrowGesture(
-      pq.tracker,
-      hand ? {at: now, palm: Math.max(1, palm), fist: Boolean(hand.fist), point: hand.wrist} : {at: now},
-      state.age,
-    );
-    pq.tracker = step.tracker;
-    const phase = step.tracker.phase;
-    if (window.__pqTrace) window.__pqTrace.push({at: Math.round(now), hand: Boolean(hand), fist: Boolean(hand?.fist), phase, event: step.event});
-    if (hand?.wrist && (phase === "grabbed" || phase === "cocked")) {
-      ballAt(hand.wrist);
-      aimAt(step.tracker);
-    }
-    if (step.event === "grabbed") d.setPrompt(pq.round.question, "Great grab! Keep your fist closed and pull it back.");
-    else if (step.event === "cocked") d.setPrompt(pq.round.question, "Now open your hand and throw it at the answer!");
-    else if (step.event === "released-early") banner("Keep your fist closed until you throw", "tip");
-    else if (step.event === "lost" && wasActive) { dropBall(); clearAim(); banner("Hand lost. Show your fist again", "tip"); }
-    else if (step.event === "released" && step.release) launch(step.release);
+  // Highlight the answer the active hand will throw at as soon as that hand grabs the ball.
+  function highlight(side) {
+    const target = side ? Q.targetForSide(side, targetCenters()) : null;
+    for (const el of spriteLayer.querySelectorAll(".pq-target")) el.classList.toggle("aimed", Boolean(target && target.el === el));
   }
 
   function clearAim() {
-    for (const el of spriteLayer.querySelectorAll(".pq-target.aimed")) el.classList.remove("aimed");
+    highlight(null);
   }
 
-  // While the fist is pulled back, light up the answer the throw will go to.
-  function aimAt(tracker) {
-    const aim = tracker.phase === "cocked" ? pullAim(tracker) : null;
-    const hit = aim ? Q.resolveThrow({origin: aim.origin, velocity: aim.dir}, targetCenters()) : null;
-    for (const el of spriteLayer.querySelectorAll(".pq-target")) el.classList.toggle("aimed", Boolean(hit?.target && hit.target.el === el));
+  function update(now = performance.now(), handOverride = null) {
+    // One throw per question: once a ball has landed, the answer is chosen.
+    if (state.game !== "pop-quiz-toss" || pq.phase !== "play" || !pq.round || pq.resolving || pq.flying || pq.thrown || state.roundDone) return;
+    const b = box();
+    const minSide = Math.min(b.w, b.h) || 1;
+    const hands = (handOverride ? [handOverride] : [...state.handData])
+      .filter((hand) => hand?.wrist && (hand.screen || hand.points?.length));
+    const sided = Q.assignHandSides(hands, b.w);
+    // A touch pointer keeps one tracker for the whole press, even when the swipe crosses the middle.
+    const touchEntry = sided.find((entry) => entry.hand.screen);
+    if (touchEntry) {
+      if (!pq.screenSide) pq.screenSide = touchEntry.side || "left";
+      touchEntry.side = pq.screenSide;
+    } else {
+      pq.screenSide = null;
+    }
+    const biggest = [...hands].sort((a, c) => (Number(c.scale) || 0) - (Number(a.scale) || 0))[0] || null;
+    if (biggest) pq.lastSeen = now;
+    coach(Q.coachHint({
+      seen: Boolean(biggest),
+      msSinceSeen: pq.lastSeen ? now - pq.lastSeen : 0,
+      wrist: biggest?.wrist && !biggest.screen ? {x: biggest.wrist.x / (b.w || 1), y: biggest.wrist.y / (b.h || 1)} : null,
+      palmFraction: biggest && !biggest.screen ? Number(biggest.scale) || 0 : 0,
+    }));
+    let released = null;
+    for (const side of ["left", "right"]) {
+      const hand = sided.find((entry) => entry.side === side)?.hand || null;
+      const palm = hand?.screen ? Math.max(36, minSide * 0.08) : (Number(hand?.scale) || 0) * minSide;
+      const wasActive = pq.trackers[side].phase === "grabbed" || pq.trackers[side].phase === "cocked";
+      const step = advanceThrowGesture(
+        pq.trackers[side],
+        hand ? {at: now, palm: Math.max(1, palm), fist: Boolean(hand.fist), point: hand.wrist} : {at: now},
+        state.age,
+      );
+      pq.trackers[side] = step.tracker;
+      const phase = step.tracker.phase;
+      if (window.__pqTrace) window.__pqTrace.push({at: Math.round(now), side, hand: Boolean(hand), fist: Boolean(hand?.fist), phase, event: step.event});
+      if (hand?.wrist && (phase === "grabbed" || phase === "cocked")) {
+        const other = side === "left" ? "right" : "left";
+        // The ball follows the hand that grabbed first, unless the other hand is further along.
+        if (!pq.activeSide || (phase === "cocked" && pq.trackers[other].phase !== "cocked")) pq.activeSide = side;
+        if (pq.activeSide === side) {
+          pq.handPoint = hand.wrist;
+          ballAt(hand.wrist);
+          highlight(side);
+        }
+      }
+      const mine = pq.activeSide === side;
+      if (step.event === "grabbed") d.setPrompt(pq.round.question, `Great grab with your ${side} hand! Keep your fist closed and pull it back.`);
+      else if (step.event === "cocked") d.setPrompt(pq.round.question, "Now open your hand and throw it at your answer!");
+      else if (step.event === "released-early" && mine) banner("Keep your fist closed until you throw", "tip");
+      else if (step.event === "lost" && wasActive && mine) {
+        banner("Hand lost. Show your fist again", "tip");
+      } else if (step.event === "released" && step.release && !released) {
+        // Two hands up: the first hand to let go wins. A touch pointer has no hand side: the swipe decides.
+        released = {...step.release, side: hand?.screen ? null : side, viaScreen: Boolean(hand?.screen)};
+      }
+    }
+    // Nobody is holding the ball any more: put it away.
+    const active = pq.activeSide;
+    if (active && !["grabbed", "cocked"].includes(pq.trackers[active].phase) && !released) {
+      pq.activeSide = null;
+      pq.handPoint = null;
+      clearAim();
+      if (!pq.flying) dropBall();
+    }
+    if (released) launch(released);
   }
 
   function launch(release) {
     clearAim();
+    pq.activeSide = null;
     const targets = targetCenters();
-    const result = Q.resolveThrow(release, targets);
     const b = box();
+    const result = Q.resolveAssistedThrow(release, targets, {width: b.w, rate: pq.assistRate, rng: pq.rng});
     if (result.miss || !result.target) {
       dropBall();
       banner("Throw toward one of the answers", "tip");
-      pq.tracker = newThrowTracker();
+      pq.trackers = freshTrackers();
       return;
     }
     pq.flying = true;
@@ -706,13 +858,18 @@ export function createPopQuizGame(d) {
     const ball = ensureBall(pq.ballEmoji || "⚽");
     ball.dataset.tier = String(tier);
     ball.classList.add("flying");
-    const duration = reduced ? 160 : 480;
+    // A little lob, so the ball visibly travels there instead of sliding.
+    const arc = reduced ? 0 : Math.min(120, Math.hypot(end.x - start.x, end.y - start.y) * 0.18);
+    const duration = reduced ? 160 : 520;
     const startedAt = performance.now();
     let lastTrail = 0;
     const step = () => {
       const t = Math.min(1, (performance.now() - startedAt) / duration);
       const eased = 1 - (1 - t) ** 2.2;
-      const p = {x: start.x + (end.x - start.x) * eased, y: start.y + (end.y - start.y) * eased};
+      const p = {
+        x: start.x + (end.x - start.x) * eased,
+        y: start.y + (end.y - start.y) * eased - Math.sin(Math.PI * eased) * arc,
+      };
       ball.style.left = `${p.x}px`;
       ball.style.top = `${p.y}px`;
       ball.style.setProperty("--shrink", String(1 - 0.35 * eased));
@@ -736,11 +893,13 @@ export function createPopQuizGame(d) {
     pq.flying = false;
     dropBall();
     const target = result.target;
+    // Correct means: the answer the PLAYER CHOSE (by hand or swipe) is the right one.
     const correct = target.answer === pq.round.answer;
-    pq.thrown = {correct, perfect: Boolean(result.perfect), accuracy: result.accuracy};
+    pq.thrown = {correct, perfect: Boolean(result.perfect), accuracy: result.accuracy, assisted: Boolean(result.assisted), side: result.side, chosen: target.answer};
     target.el.classList.add(correct ? "hit" : "miss");
     shockwave(end.x, end.y, correct ? "#fde047" : "#94a3b8");
     burst(end.x, end.y, correct ? pick([FIRE, ["⭐", "✨", "🎉"], ["💖", "✨", "🌟"], ["🌸", "✨", "💫"]]) : ["💨", "😅"], correct ? 14 : 5);
+    setPose(correct ? "cheer" : "oops");
     if (correct) {
       shake();
       sfx(result.perfect ? "perfect" : "ding");
@@ -752,7 +911,8 @@ export function createPopQuizGame(d) {
     settle();
   }
 
-  // After a throw: wait a moment for the spoken answer, unless it is already in or no mic.
+  // After a throw: if the answer was not said yet, the question clock keeps running (it will not drop
+  // under 3.5 seconds here), unless the answer is already in or there is no microphone.
   function settle() {
     if (pq.resolving) return;
     if (pq.voice || !pq.micOk || !pq.listening) {
@@ -760,19 +920,22 @@ export function createPopQuizGame(d) {
       return;
     }
     banner("Say the answer too for bonus points!", "tip");
-    later(() => { if (!pq.resolving) finish(); }, 3800);
+    pq.timer?.ensureRemaining(3500);
   }
 
   function finish() {
     if (pq.resolving || !pq.round) return;
     pq.resolving = true;
+    stopQuestionTimer();
+    clearAim();
     const voice = pq.voice;
     const throwHit = pq.thrown?.correct === true;
     const points = Q.roundPoints({voice, throwHit});
     const before = pq.level;
     pq.points += points;
     pq.rounds += 1;
-    pq.streak = Q.nextStreak(pq.streak, points);
+    // A question that simply ran out of time never breaks a streak.
+    pq.streak = pq.timedOut && points === 0 ? pq.streak : Q.nextStreak(pq.streak, points);
     pq.bestStreak = Math.max(pq.bestStreak, pq.streak);
     pq.progress.total += points;
     pq.progress.best = Math.max(pq.progress.best, pq.points);
@@ -791,7 +954,8 @@ export function createPopQuizGame(d) {
     } else if (points > 0) {
       floatText(w / 2, h * 0.34, `+${points}`, "good");
     } else {
-      floatText(w / 2, h * 0.34, `It was ${pq.round.answer}`, "learn");
+      floatText(w / 2, h * 0.34, pq.timedOut ? `Time's up! It was ${pq.round.answer}` : `It was ${pq.round.answer}`, "learn");
+      if (!pq.thrown) setPose("oops");
     }
     if (tier.tier > 0 && points > 0 && pq.streak % 1 === 0 && Q.streakTier(pq.streak - 1).tier !== tier.tier) {
       banner(tier.label, `tier${tier.tier}`);
@@ -852,6 +1016,13 @@ export function createPopQuizGame(d) {
         ${next ? `<p class="pq-next-unlock">${next.remaining} more points to unlock ${next.reward.ball}${next.reward.theme ? " and a new target" : ""}</p>` : '<p class="pq-next-unlock">Every ball and target unlocked!</p>'}
         <div class="pq-actions"><button type="button" class="pq-again">Play again</button></div>
       </div>`;
+    const winArt = artUrl("win-card");
+    if (winArt) {
+      const card = el.querySelector(".pq-card");
+      card.classList.add("has-art");
+      card.style.backgroundImage = `url(${winArt})`;
+    }
+    setPose("cheer");
     stage.append(el);
     el.querySelector(".pq-again").onclick = () => {
       el.remove();
@@ -870,28 +1041,29 @@ export function createPopQuizGame(d) {
 
   // ---- lifecycle ----------------------------------------------------------------------------------
 
-  // While the fist is pulled back, show the line the ball will fly along.
+  // While a fist holds the ball, show the line to the answer that hand will throw at.
   function drawGuide(ctx) {
-    const t = pq.tracker;
-    if (!ctx || pq.phase !== "play" || t?.phase !== "cocked" || !t.grabPoint || !t.cockPoint) return;
-    const dx = t.grabPoint.x - t.cockPoint.x;
-    const dy = t.grabPoint.y - t.cockPoint.y;
-    const length = Math.max(1, Math.hypot(dx, dy));
-    const b = box();
-    const reach = Math.max(b.w, b.h);
+    const side = pq.activeSide;
+    const tracker = side ? pq.trackers[side] : null;
+    if (!ctx || pq.phase !== "play" || !tracker || !pq.handPoint) return;
+    if (tracker.phase !== "grabbed" && tracker.phase !== "cocked") return;
+    const target = Q.targetForSide(side, targetCenters());
+    if (!target) return;
     ctx.save();
     ctx.strokeStyle = "#fde047";
     ctx.lineWidth = 5;
     ctx.setLineDash([12, 9]);
     ctx.beginPath();
-    ctx.moveTo(t.cockPoint.x, t.cockPoint.y);
-    ctx.lineTo(t.cockPoint.x + (dx / length) * reach, t.cockPoint.y + (dy / length) * reach);
+    ctx.moveTo(pq.handPoint.x, pq.handPoint.y);
+    ctx.lineTo(target.x, target.y);
     ctx.stroke();
     ctx.restore();
   }
 
   function cancelThrow() {
-    pq.tracker = newThrowTracker();
+    pq.trackers = freshTrackers();
+    pq.activeSide = null;
+    pq.handPoint = null;
     if (!pq.flying) dropBall();
   }
 
@@ -905,6 +1077,8 @@ export function createPopQuizGame(d) {
   function teardown() {
     pq.active = false;
     clearTimers();
+    stopQuestionTimer();
+    stage.style.removeProperty("--pq-bg");
     stopVoice();
     clearRoundVisuals();
     stage.querySelector(".pq-tutorial")?.remove();
@@ -916,6 +1090,7 @@ export function createPopQuizGame(d) {
     pq.round = null;
     pq.resolving = false;
     pq.flying = false;
+    pq.activeSide = null;
   }
 
   return {
@@ -932,6 +1107,12 @@ export function createPopQuizGame(d) {
     isActive: () => pq.active,
     // Only when a test has turned on tracing: lets a test jump near the goal.
     setPointsForTest: (points) => { if (window.__pqTrace) { pq.points = Number(points) || 0; renderHud(); } },
-    snapshot: () => ({points: pq.points, streak: pq.streak, phase: pq.phase, rounds: pq.rounds, index: pq.index, question: pq.round?.question || ""}),
+    setRngForTest: (rng) => { if (window.__pqTrace && typeof rng === "function") pq.rng = rng; },
+    setAssistForTest: (rate) => { if (window.__pqTrace) pq.assistRate = Q.clampAssistRate(rate); },
+    snapshot: () => ({
+      points: pq.points, streak: pq.streak, phase: pq.phase, rounds: pq.rounds, index: pq.index, question: pq.round?.question || "",
+      assistRate: pq.assistRate, secondsLeft: pq.timer?.state().seconds ?? null, totalSeconds: pq.timer ? pq.timer.totalMs / 1000 : null,
+      thrown: pq.thrown, activeSide: pq.activeSide,
+    }),
   };
 }
