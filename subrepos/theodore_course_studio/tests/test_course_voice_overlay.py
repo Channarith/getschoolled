@@ -144,3 +144,16 @@ def test_demo_has_a_tutorial_help_button_and_goes_full_screen_on_phones():
         assert selector in html
     # On phones the slide must not be capped to half the screen in the demo.
     assert "max-height:none !important" in html
+
+
+def test_full_course_has_one_movable_widget_switch() -> None:
+    js = _VOICE_JS.read_text(encoding="utf-8")
+    assert 'params.get("access") === "full"' in js
+    assert 'classList.add("course-clean")' in js
+    assert 'id: "course-widget"' in js or "course-widget" in js
+    assert "salareen-exit" in js and "sala-course-exit" in js
+    page = render_studio_page()
+    assert "body.course-clean" in page
+    assert "#course-widget" in page
+    # Demo behaviour is untouched: the clean switch never turns on for demo=1.
+    assert 'params.get("demo") !== "1"' in js

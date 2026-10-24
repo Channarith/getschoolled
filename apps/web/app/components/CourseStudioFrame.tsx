@@ -45,10 +45,13 @@ export function CourseStudioFrame({
   src,
   title,
   fill = false,
+  clean = false,
 }: {
   src: string;
   title: string;
   fill?: boolean;
+  /** Full course: the lesson's own movable panel owns Exit, so no ✕ button here. */
+  clean?: boolean;
 }) {
   const { locale } = useT();
   const typeToAsk = useFlag<boolean>("accessibility.typetoask_mode", false);
@@ -69,18 +72,30 @@ export function CourseStudioFrame({
     return () => window.clearInterval(timer);
   }, [localized, locale]);
 
+  const leave = () => {
+    if (window.history.length > 1) window.history.back();
+    else window.location.href = "/";
+  };
+
+  useEffect(() => {
+    if (!clean) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== frameRef.current?.contentWindow) return;
+      if ((event.data as { type?: string } | null)?.type === "sala-course-exit") leave();
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [clean]);
+
   return (
     <div className={fill ? "course-stage-embed" : undefined}>
-      {fill && (
+      {fill && !clean && (
         <button
           type="button"
           className="course-stage-exit"
           aria-label="Leave the lesson"
           title="Leave the lesson"
-          onClick={() => {
-            if (window.history.length > 1) window.history.back();
-            else window.location.href = "/";
-          }}
+          onClick={leave}
         >
           ✕
         </button>
