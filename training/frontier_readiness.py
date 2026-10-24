@@ -13,7 +13,6 @@ history row so the next run can plot the change.
 from __future__ import annotations
 
 import argparse
-import html
 import json
 import re
 import sys
@@ -240,9 +239,14 @@ def build_snapshot(
         "frozen_base": None if not base_frozen else base_frozen.get("accuracy"),
         "frozen_subject_min": subject_min((frozen or {}).get("by_category") or {}, (frozen or {}).get("by_category_n") or {}),
         "weakest_frozen": _weak(frozen),
+        "frozen_subjects": subject_rows(frozen),
+        "frozen_gap": None if not frozen else frozen.get("fairness_gap"),
         "stem_accuracy": None if not stem else stem.get("accuracy"),
         "stem_subject_min": subject_min((stem or {}).get("by_category") or {}, (stem or {}).get("by_category_n") or {}),
         "weakest_stem": _weak(stem),
+        "stem_subjects": subject_rows(stem),
+        "stem_gap": None if not stem else stem.get("fairness_gap"),
+        "split_gap": None if not split else split.get("fairness_gap"),
         "stem_exam_items": len(stem_items),
         "stem_exam_subjects": stem_counts,
         "truth": truth,
@@ -298,117 +302,9 @@ def _bar(score: float, floor: float) -> str:
 
 
 def render_html(snapshot: dict, history: list[dict]) -> str:
-    e = html.escape
-    weak = snapshot.get("weakest_split") or {}
-    frozen_weak = snapshot.get("weakest_frozen") or {}
-    stem_weak = snapshot.get("weakest_stem") or {}
-    truth = snapshot["truth"]
-    translation = snapshot.get("translation") or {}
-    batch = snapshot.get("batch")
-    subjects = snapshot["split_subjects"]
-    subject_html = []
-    for row in subjects:
-        subject_html.append(
-            "<tr><td>" + e(row["subject"]) + "</td><td>" + _pct(row["score"]) +
-            "</td><td>" + str(row["n"]) + "</td><td>" + _bar(row["score"], TRAINING_FLOOR) + "</td></tr>"
-        )
-    lang_html = []
-    for row in translation.get("languages") or []:
-        lang_html.append(
-            "<tr><td>" + e(row["code"]) + "</td><td>" + str(row["playable"]) +
-            "/" + str(row["total"]) + "</td><td>" + str(row["partial"]) + "</td></tr>"
-        )
-    demo = translation.get("demo") or {}
-    demo_bits = ", ".join(
-        f"{e(code)} {e(state)}" for code, state in demo.items() if state != "playable"
-    ) or "all playable"
-    hist_bits = []
-    for row in history[-12:]:
-        hist_bits.append(
-            "<tr><td>" + e(str(row.get("at"))) + "</td><td>" + _pct(row.get("frozen_accuracy")) +
-            "</td><td>" + _pct(row.get("split_subject_min")) + "</td><td>" +
-            _pct(row.get("groundedness")) + "</td><td>" + str(row.get("yue_playable")) +
-            "</td><td>" + e(str(row.get("promote_reason") or "")) + "</td></tr>"
-        )
-    batch_line = "The batch log has no progress line yet."
-    if batch:
-        batch_line = (
-            f"Batch {batch['done']}/{batch['total']}: written {batch['written']}, "
-            f"skipped {batch['skipped']}, failed {batch['failed']}."
-        )
-    algebra_n = snapshot["stem_exam_subjects"].get("linear-algebra", 0)
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Salareen frontier readiness — {e(snapshot["at"])}</title>
-<style>
-  :root {{ color-scheme: dark; }}
-  body {{ margin:0; background:#0e141b; color:#e7ecf1; font:16px/1.45 Palatino, "Palatino Linotype", serif; }}
-  header, main, footer {{ max-width:1080px; margin:0 auto; padding:28px 22px 8px; }}
-  h1 {{ font-size:32px; letter-spacing:-0.03em; margin:0 0 8px; }}
-  h2 {{ font-size:22px; margin:32px 0 8px; }}
-  .meta, td, th, .card span {{ font:13px/1.35 ui-sans-serif, system-ui, sans-serif; }}
-  .meta {{ color:#8b98a5; }}
-  .grid {{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }}
-  .card {{ background:#161d26; border:1px solid #2a3542; border-radius:14px; padding:14px; }}
-  .card b {{ display:block; font:22px/1.1 ui-sans-serif, system-ui, sans-serif; }}
-  .card span {{ color:#8b98a5; }}
-  table {{ width:100%; border-collapse:collapse; }}
-  th, td {{ text-align:left; padding:6px 8px; border-bottom:1px solid #2a3542; }}
-  .bar {{ position:relative; height:10px; background:#243140; border-radius:6px; }}
-  .bar span {{ display:block; height:10px; border-radius:6px; }}
-  .bar i {{ position:absolute; top:-2px; width:2px; height:14px; background:#e6b35a; }}
-  code {{ font:12px/1.4 ui-monospace, monospace; }}
-  @media (max-width:800px) {{ .grid {{ grid-template-columns:1fr; }} }}
-</style>
-</head>
-<body>
-<header>
-  <h1>Frontier readiness, measured.</h1>
-  <p class="meta">Snapshot {e(snapshot["at"])}. Rebuild with <code>python3 training/frontier_readiness.py --record</code> from the spark-eval-gates tree. The amber tick on each bar is the {TRAINING_FLOOR:.0%} training floor. Accreditation stays at {ACCREDITATION_FLOOR:.0%} and still does not print an outside card.</p>
-</header>
-<main>
-  <section class="grid">
-    <div class="card"><b>{_pct(snapshot["split_accuracy"])}</b><span>STEM adapter on the 41-item split. Base is {_pct(snapshot["split_base"])}. Weakest sampled subject: {e(str(weak.get("subject") or "—"))} {_pct(weak.get("score"))}.</span></div>
-    <div class="card"><b>{_pct(snapshot["frozen_accuracy"])}</b><span>Adapter on the frozen 200-item exam. Base {_pct(snapshot["frozen_base"])}. Target {_pct(snapshot["target_frozen_f1"])}. Weakest subject: {e(str(frozen_weak.get("subject") or "—"))} {_pct(frozen_weak.get("score"))}.</span></div>
-    <div class="card"><b>{_pct(snapshot["stem_accuracy"])}</b><span>Adapter on the frozen STEM exam ({snapshot["stem_exam_items"]} items, linear algebra n={algebra_n}). Weakest subject: {e(str(stem_weak.get("subject") or "—"))} {_pct(stem_weak.get("score"))}.</span></div>
-    <div class="card"><b>{snapshot["cards"]}</b><span>Outside cards. A person of record and a {ACCREDITATION_FLOOR:.0%} subject floor are required even to ask. Salareen does not print the card.</span></div>
-  </section>
+    from frontier_page import render_briefing
 
-  <h2>Subjects on the curriculum split</h2>
-  <p>Every sampled subject counts, including a subject with one item. Promotion needs each of them at or above {TRAINING_FLOOR:.0%}, and a higher frozen-exam score than the last kept adapter.</p>
-  <table>
-    <tr><th>Subject</th><th>Score</th><th>Items</th><th>Against the floor</th></tr>
-    {"".join(subject_html) or "<tr><td colspan=4>No split metrics yet.</td></tr>"}
-  </table>
-
-  <h2>Truth curve</h2>
-  <p>Groundedness {_pct(truth["groundedness"])} on {truth["n"]} frozen-style rows. Abstention {_pct(truth["abstain_accuracy"])}. Human agreement {_pct(truth["human_agreement"])} from {truth["human_n"]} reviews. The target for groundedness is {_pct(TARGET_GROUNDEDNESS)}. Empty human agreement means nobody has reviewed a row yet.</p>
-
-  <h2>222-course translation</h2>
-  <p>{e(batch_line)} Playable files match the lesson length. Cantonese is yue.json: {translation.get("yue_playable", 0)} playable, {translation.get("yue_partial", 0)} still partial. Demo {e(translation.get("demo_course") or DEMO_COURSE)}: {demo_bits}.</p>
-  <table>
-    <tr><th>Language</th><th>Playable</th><th>Partial</th></tr>
-    {"".join(lang_html) or "<tr><td colspan=3>Translation cache was not scanned.</td></tr>"}
-  </table>
-
-  <h2>Promotion</h2>
-  <p>Last gate: {e(str(snapshot["promote_reason"] or "not run yet"))}. Promoted: {e(str(snapshot["promoted"]))}. A repeated win over the base is not a kept adapter.</p>
-
-  <h2>History</h2>
-  <table>
-    <tr><th>When</th><th>Frozen</th><th>Weakest split</th><th>Groundedness</th><th>Cantonese playable</th><th>Gate</th></tr>
-    {"".join(hist_bits) or "<tr><td colspan=6>No history yet. This snapshot is the baseline.</td></tr>"}
-  </table>
-</main>
-<footer>
-  <p>Weekend recheck: run the command in the header and compare frozen accuracy, the weakest subject, groundedness, and Cantonese playable files with the row above.</p>
-</footer>
-</body>
-</html>
-"""
+    return render_briefing(snapshot, history)
 
 
 def _catalog_jobs():

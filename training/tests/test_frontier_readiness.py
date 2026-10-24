@@ -112,6 +112,7 @@ def test_page_names_the_weak_subject_and_the_recheck_command():
     assert "linear-algebra" in page
     assert "Health &amp; Wellness" in page
     assert "calculus-1" in page
+    assert "Where to go next, in order" in page
     assert "frontier_readiness.py --record" in page
     assert "Outside cards" in page
 
