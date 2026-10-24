@@ -248,6 +248,13 @@ def _env_for(name: str, args) -> dict:
     paths += [str(p) for p in sorted((ROOT / "services").glob("*/src"))]
     env["PYTHONPATH"] = os.pathsep.join(paths + [env.get("PYTHONPATH", "")])
     env.setdefault("AOEP_DATA_DIR", "/tmp/aoep-fuzz-data")
+    # Keep every writable cache out of the repo: a stray drive_content_cache.db inside
+    # packages/shared is read back as real audio-course content.
+    env.setdefault("DRIVE_CONTENT_DB", "/tmp/aoep-fuzz-data/drive_content_cache.db")
+    env.setdefault("LLM_LAB_OUT_DIR", "/tmp/aoep-fuzz-data/llm_lab")
+    env.setdefault("THEODORE_COURSE_STUDIO_DATA", "/tmp/aoep-fuzz-data/course_studio")
+    env.setdefault("AOEP_TRAINING_INTAKE", "/tmp/aoep-fuzz-data/intake")
+    env.setdefault("AOEP_VOICE_OUTPUT", "/tmp/aoep-fuzz-data/voice_output")
     env["RATE_LIMIT_DISABLED"] = "1"
     if args.headers or args.auth:
         env.setdefault("DEPLOY_MODE", "cloud")
@@ -261,6 +268,13 @@ def _env_for(name: str, args) -> dict:
             if app_name == name:
                 env["FUZZ_SKIP"] = frags
     return env
+
+
+def _repo_litter() -> set[str]:
+    """Untracked and ignored files, so a fuzz run that writes into the repo is visible."""
+    proc = subprocess.run(["git", "status", "--porcelain", "--ignored", "-uall"], cwd=ROOT, capture_output=True, text=True)
+    skip = ("node_modules", "__pycache__", ".pytest_cache", ".pyc", "tsbuildinfo", ".claude/")
+    return {line[3:] for line in proc.stdout.splitlines() if line[:2] in ("??", "!!") and not any(s in line for s in skip)}
 
 
 def main() -> int:
@@ -288,6 +302,7 @@ def main() -> int:
         print("unknown apps:", ", ".join(unknown), file=sys.stderr)
         return 2
     reports, failed = [], False
+    before = _repo_litter()
     for name in names:
         cmd = [sys.executable, str(Path(__file__).resolve()), "--child", name]
         cmd += [f for f, on in (("--light", args.light), ("--headers", args.headers), ("--auth", args.auth)) if on]
@@ -307,6 +322,11 @@ def main() -> int:
             if os.environ.get("FUZZ_VERBOSE"):
                 print(f"        request: {hit.get('request', '')}")
         failed = failed or report["status"] != "ok"
+    litter = sorted(_repo_litter() - before)
+    if litter:
+        print("!! the run left files inside the repo (remove them, and point the writer at a temp dir):")
+        for item in litter:
+            print("     " + item)
     if args.report:
         out = Path(args.report)
         out.parent.mkdir(parents=True, exist_ok=True)
