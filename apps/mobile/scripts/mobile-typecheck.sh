@@ -37,7 +37,9 @@ fi
 SRC_TS_COUNT="$(find src -name '*.ts' -o -name '*.tsx' 2>/dev/null | wc -l | tr -d ' ')"
 echo "    source files under src/: ${SRC_TS_COUNT} (expect ~20)"
 
-if [ "${SRC_TS_COUNT}" -gt 200 ]; then
+# The guard exists to catch a tsconfig that globs node_modules (OOM), not to cap the app's size: src/ legitimately
+# holds a few hundred files, so the ceiling is far above that and far below a runaway glob.
+if [ "${SRC_TS_COUNT}" -gt 1000 ]; then
   echo "ERROR: too many .ts files under src/" >&2
   exit 1
 fi

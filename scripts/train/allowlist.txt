@@ -1,0 +1,3 @@
+# GitHub logins whose PRs may be auto-merged WITHOUT the 'automerge' label (parallel bot workers).
+# Leave empty to require the label on every PR. All PRs in this repo come from one GitHub account, so listing
+# that login would auto-merge everything: prefer labelling PRs 'automerge' one by one.

@@ -160,3 +160,6 @@ data/voice/
 
 # TTS bake-off run output (audio, manifests, panels)
 /runs/
+
+# merge train kill switch (local state, never committed)
+scripts/train/PAUSE

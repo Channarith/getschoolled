@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Salareen merge train every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=15min
+Persistent=true
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
+import { fetchManifest } from "../../lib/androidRelease";
 
 /**
  * Same-origin Android APK download.
@@ -80,6 +81,11 @@ function apkSourceUrl(): string {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  // The published manifest wins: a staged file baked into an old image must never shadow a newer release.
+  const manifest = await fetchManifest();
+  if (manifest) {
+    return NextResponse.redirect(manifest.url, 302);
+  }
   // Prefer the staged local file. This is the path the user asked us to wire
   // up ("Download APK is broken on Get the Salareen app page") — the stage
   // script drops a real signed APK next to the Next.js public assets so the
