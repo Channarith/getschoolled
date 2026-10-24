@@ -1,8 +1,6 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import PrimaryButton from "./PrimaryButton";
-import { theme } from "../theme";
+import FriendlyErrorView from "./FriendlyErrorView";
 import { writeCrashRecord } from "../crashLog";
 
 type Props = {
@@ -54,34 +52,13 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     const { error, stack } = this.state;
     if (!error) return this.props.children;
     return (
-      <ScrollView contentContainerStyle={styles.wrap}>
-        <Text style={styles.title}>Something went wrong on this screen</Text>
-        <Text style={styles.msg}>{String(error.message || error)}</Text>
-        {stack ? (
-          <View style={styles.stackBox}>
-            <Text style={styles.stack}>{stack.trim()}</Text>
-          </View>
-        ) : null}
-        <PrimaryButton label="Go back" onPress={this.handleReset} />
-      </ScrollView>
+      <FriendlyErrorView
+        kind="oops"
+        details={`${String(error.message || error)}${stack ? `\n${stack.trim()}` : ""}`}
+        onRetry={() => { this.setState({ error: null, stack: "" }); return true; }}
+        onBack={this.handleReset}
+      />
     );
   }
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: theme.spacing.screenX,
-    gap: 12,
-  },
-  title: { color: theme.colors.text, fontSize: 20, fontWeight: "700" },
-  msg: { color: theme.colors.text, fontSize: 14, opacity: 0.9 },
-  stackBox: {
-    backgroundColor: "rgba(0,0,0,0.35)",
-    borderRadius: 10,
-    padding: 12,
-    maxHeight: 260,
-  },
-  stack: { color: "rgba(255,255,255,0.75)", fontSize: 11, fontFamily: "monospace" },
-});

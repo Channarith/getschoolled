@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator, Platform, Pressable, StyleSheet, Text, View,
 } from "react-native";
+import FriendlyErrorView, { friendlyKindFor } from "../components/FriendlyErrorView";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { WEB_APP_URL } from "../config";
 import { worldsPageUrl } from "../webAppUrl";
@@ -36,6 +37,7 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [xpEarned, setXpEarned] = useState(0);
 
   // Android hardware/gesture back leaves Worlds instead of exiting the app
@@ -62,18 +64,14 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorEmoji}>🌍</Text>
-        <Text style={styles.errorTitle}>{t("worlds.title")}</Text>
-        <Text style={styles.errorMsg}>{t("worlds.error")}</Text>
-        <Text style={styles.errorDetail}>{error}</Text>
-        <Pressable style={styles.retryBtn} onPress={() => { setError(null); setLoading(true); }}>
-          <Text style={styles.retryText}>{t("worlds.retry")}</Text>
-        </Pressable>
-        <Pressable style={styles.backBtn} onPress={onBack}>
-          <Text style={styles.backText}>{t("worlds.back")}</Text>
-        </Pressable>
-      </View>
+      <FriendlyErrorView
+        status={errorStatus}
+        kind={friendlyKindFor(errorStatus, error)}
+        details={error}
+        autoRetrySeconds={15}
+        onRetry={() => { setError(null); setErrorStatus(null); setLoading(true); return true; }}
+        onBack={onBack}
+      />
     );
   }
 
@@ -88,7 +86,7 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
         onLoadStart={() => setLoading(true)}
         onLoadEnd={() => setLoading(false)}
         onError={(e: {nativeEvent: {description: string}}) => setError(e.nativeEvent.description)}
-        onHttpError={(e: {nativeEvent: {statusCode: number; description: string}}) => setError(`HTTP ${e.nativeEvent.statusCode}: ${e.nativeEvent.description}`)}
+        onHttpError={(e: {nativeEvent: {statusCode: number; description: string}}) => { setErrorStatus(e.nativeEvent.statusCode); setError(`HTTP ${e.nativeEvent.statusCode}: ${e.nativeEvent.description}`); }}
         javaScriptEnabled
         domStorageEnabled
         allowsFullscreenVideo

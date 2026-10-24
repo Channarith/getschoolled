@@ -26,6 +26,10 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
     # Force HTTP → HTTPS once cert-manager has issued salareen-tls (already live).
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Branded mascot pages for gateway failures (HTML for browsers, JSON for API clients).
+    # Only 502/503/504: they replace the upstream body, and app-level 404/500 bodies carry detail.
+    nginx.ingress.kubernetes.io/custom-http-errors: "502,503,504"
+    nginx.ingress.kubernetes.io/default-backend: friendly-errors
     nginx.ingress.kubernetes.io/hsts: "true"
     nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
     nginx.ingress.kubernetes.io/hsts-max-age: "31536000"
@@ -240,6 +244,10 @@ metadata:
     nginx.ingress.kubernetes.io/limit-rps: "60"
     nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Branded mascot pages for gateway failures (HTML for browsers, JSON for API clients).
+    # Only 502/503/504: they replace the upstream body, and app-level 404/500 bodies carry detail.
+    nginx.ingress.kubernetes.io/custom-http-errors: "502,503,504"
+    nginx.ingress.kubernetes.io/default-backend: friendly-errors
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: nginx
