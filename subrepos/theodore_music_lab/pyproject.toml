@@ -19,7 +19,7 @@ test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
 # player falls back to whatever voices the listener's OS installed.
 # 6.1.12 and earlier get 403 from Microsoft's speech WebSocket (missing
 # Sec-MS-GEC). 7.2.8 is the current release that still works.
-voices = ["edge-tts==7.2.8"]
+voices = ["edge-tts>=7.3.1,<8"]
 # Word-level speech recognition for scripts/align_songs.py. Offline authoring
 # only: the committed data/alignment.jsonl is what the running app reads, so
 # nobody needs this to serve or test the lab.
