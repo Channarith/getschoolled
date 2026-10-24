@@ -11,9 +11,9 @@
 # Every number can be overridden: GS_RESERVE_GB, GS_RESERVE_CORES, GS_ABORT_FREE_GB.
 #
 # How a stage is limited, best first:
-#   1. $GS_RUN (default scripts/gs_run.sh) when it answers `--supports-env-contract`. The contract:
-#      it reads GS_NAME, GS_MEM_MAX_GB, GS_CPU_QUOTA, GS_TIMEOUT_MIN from the environment and runs
-#      the command after `--` under its own limits and GPU lock.
+#   1. scripts/gs_run.sh (the fleet runner) when present: it gets --name, --timeout, --mem-max and
+#      --cpus and writes the job record fleet_status.sh reads. It is NOT given --gpu here, because
+#      spark_nightly.sh already holds ~/.gs-gpu.lock (taking it twice would deadlock).
 #   2. systemd-run --user --scope with MemoryMax / MemorySwapMax=0 / CPUQuota (hard cgroup limits).
 #   3. a plain process group with timeout. The free-RAM watchdog below runs in every mode.
 # No orphans: each stage is its own process group, killed on timeout, Ctrl-C, SIGTERM or abort;
@@ -21,7 +21,7 @@
 #
 # Exit codes from gs_stage: the command's own, 124 timeout, 75 aborted to protect the host.
 # Tests shrink time: GS_TIMEOUT_SCALE=1 (seconds per "minute"), GS_KILL_AFTER=2, GS_MEM_CHECK_EVERY=1,
-# GS_FAKE_AVAIL_GB=<n> to simulate low memory.
+# GS_FAKE_AVAIL_GB=<n> / GS_FAKE_TOTAL_GB=<n> to simulate memory sizes.
 
 GS_ROOT="${GS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 GS_CHILD=""
@@ -29,7 +29,7 @@ GS_WATCH=""
 GS_INIT_DONE=""
 GS_ABORT_FLAG=""
 
-gs_total_gb() { awk '/^MemTotal:/{printf "%d", $2/1048576}' /proc/meminfo 2>/dev/null; }
+gs_total_gb() { if [ -n "${GS_FAKE_TOTAL_GB:-}" ]; then echo "$GS_FAKE_TOTAL_GB"; return; fi; awk '/^MemTotal:/{printf "%d", $2/1048576}' /proc/meminfo 2>/dev/null; }
 gs_avail_gb() { if [ -n "${GS_FAKE_AVAIL_GB:-}" ]; then echo "$GS_FAKE_AVAIL_GB"; return; fi; awk '/^MemAvailable:/{printf "%d", $2/1048576}' /proc/meminfo 2>/dev/null; }
 gs_cores() { nproc 2>/dev/null || echo 1; }
 
@@ -52,7 +52,8 @@ gs_init() {
   esac
   local cores
   cores="$(gs_cores)"
-  GS_MEM_MAX_GB="$(( ${total:-0} - GS_RESERVE_GB ))"
+  # Unknown total RAM (not Linux): no ceiling, rather than a negative one.
+  if [ -n "$total" ] && [ "$total" -gt "$GS_RESERVE_GB" ]; then GS_MEM_MAX_GB="$(( total - GS_RESERVE_GB ))"; else GS_MEM_MAX_GB=""; fi
   GS_CPU_QUOTA="$(( (cores - GS_RESERVE_CORES) * 100 ))"
   [ "$GS_CPU_QUOTA" -lt 100 ] && GS_CPU_QUOTA=100
   GS_RUN="${GS_RUN:-$GS_ROOT/scripts/gs_run.sh}"
@@ -95,7 +96,7 @@ gs_have_scope() {
 }
 
 gs_run_supported() {
-  [ -x "$GS_RUN" ] && "$GS_RUN" --supports-env-contract >/dev/null 2>&1
+  [ -x "$GS_RUN" ] && "$GS_RUN" --help 2>&1 | grep -q -- "--timeout"
 }
 
 # gs_stage NAME TIMEOUT_MINUTES command [args...]
@@ -114,17 +115,17 @@ gs_stage() {
     mode="gs_run.sh"
   elif gs_have_scope; then
     mode="systemd-scope"
-    runner=(systemd-run --user --scope --quiet --collect
-            -p "MemoryMax=${GS_MEM_MAX_GB}G" -p MemorySwapMax=0 -p "CPUQuota=${GS_CPU_QUOTA}%")
+    runner=(systemd-run --user --scope --quiet --collect -p MemorySwapMax=0 -p "CPUQuota=${GS_CPU_QUOTA}%")
+    [ -n "$GS_MEM_MAX_GB" ] && runner+=(-p "MemoryMax=${GS_MEM_MAX_GB}G")
   fi
-  echo "[$name] limits: RAM<=${GS_MEM_MAX_GB}G cpu<=${GS_CPU_QUOTA}% timeout=${tmin}m abort-if-free<${GS_ABORT_FREE_GB}G mode=$mode profile=$GS_PROFILE"
+  echo "[$name] limits: RAM<=${GS_MEM_MAX_GB:-unlimited}G cpu<=${GS_CPU_QUOTA}% timeout=${tmin}m abort-if-free<${GS_ABORT_FREE_GB}G mode=$mode profile=$GS_PROFILE"
 
   trap 'gs_cleanup; rm -rf "$tdir"; exit 143' INT TERM
   trap 'gs_cleanup' EXIT
   set -m
   if [ "$mode" = "gs_run.sh" ]; then
-    GS_NAME="$name" GS_MEM_MAX_GB="$GS_MEM_MAX_GB" GS_CPU_QUOTA="$GS_CPU_QUOTA" GS_TIMEOUT_MIN="$tmin" \
-      "$GS_RUN" -- "$@" &
+    "$GS_RUN" --name "$name" --timeout "$limit_s" ${GS_MEM_MAX_GB:+--mem-max "$GS_MEM_MAX_GB"} \
+      --cpus "$(( GS_CPU_QUOTA / 100 ))" -- "$@" &
   else
     ${runner[@]+"${runner[@]}"} "$@" &
   fi
@@ -134,6 +135,8 @@ gs_stage() {
   # Supervisor: enforces the timeout and the free-RAM floor, then stays out of the way.
   local aflag="$GS_ABORT_FLAG" floor="$GS_ABORT_FREE_GB" child="$GS_CHILD"
   local kill_after="${GS_KILL_AFTER:-60}" every="${GS_MEM_CHECK_EVERY:-10}"
+  # gs_run enforces the same timeout itself; ours is a backstop that fires only if gs_run does not.
+  [ "$mode" = "gs_run.sh" ] && limit_s="$(( limit_s + 30 ))"
   (
     start="$(date +%s)"
     i=0

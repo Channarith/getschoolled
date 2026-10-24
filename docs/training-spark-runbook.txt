@@ -75,7 +75,8 @@ RESOURCE RULES (nothing may starve a machine, nothing may be left running)
   (iBuyPower), and its own process group killed on timeout, Ctrl-C or abort. The cycle
   refuses to start if free RAM is below reserve + 24 GB. Exit 75 means "not started or
   aborted to protect the host", never a crash. No zombies: children are always waited for.
-  scripts/gs_run.sh, if it exists and answers --supports-env-contract, is used instead.
+  scripts/gs_run.sh (the fleet runner, docs/fleet-ops.txt) is used when present, so every stage also
+  shows up in scripts/fleet_status.sh. Look at all three machines first: scripts/fleet_status.sh.
 
 ORDER OF OPERATIONS ON THE SPARK (run in this order; do not skip ahead)
   Step 0. Look first (read-only).
