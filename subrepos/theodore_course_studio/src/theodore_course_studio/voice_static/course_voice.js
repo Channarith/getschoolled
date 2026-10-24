@@ -763,6 +763,53 @@ export function initCourseVoiceOverlay(opts = {}) {
   }
 
   const TUTORIAL_KEY = options.demo ? "sala_demo_tutorial_seen_v2" : "sala_course_tutorial_seen_v1";
+
+  // Driver's Ed demo opening: the page around us shows a video. Order: this tutorial first
+  // (video waiting, paused, behind it), then the video, then the lesson. Until the video is
+  // done the page carries .sala-intro-hold, so the first slide stays hidden, and starting the
+  // lesson waits too. The parent hears about the tutorial through postMessage.
+  const INTRO_SEEN_KEY = "salareen.driversEdIntro.seen.v1";
+  let tutorialState = "pending";
+  let pendingLessonStart = false;
+  const introHolding = () => document.documentElement.classList.contains("sala-intro-hold");
+  function reportTutorial(state) {
+    tutorialState = state;
+    try {
+      if (window.parent !== window) window.parent.postMessage({ type: "sala-tutorial", state }, window.location.origin);
+    } catch { /* cross-origin parent: it just will not hear us */ }
+  }
+  function startLessonNow() {
+    goFullScreenOnPhone();
+    const welcome = document.getElementById("page-welcome");
+    if (welcome && !welcome.hidden) clickById("btn-start-voice");
+    if (!consented) setConsented(true);
+  }
+  function releaseIntroHold() {
+    if (!introHolding()) return;
+    document.documentElement.classList.remove("sala-intro-hold");
+    if (pendingLessonStart) {
+      pendingLessonStart = false;
+      startLessonNow();
+    }
+  }
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin || event.source !== window.parent) return;
+    const kind = event.data && event.data.type;
+    if (kind === "sala-intro-done") releaseIntroHold();
+    else if (kind === "sala-intro-query") reportTutorial(tutorialState);
+  });
+  // Safety net if the message is missed: let go once the page has marked the video as seen.
+  if (introHolding()) {
+    const holdStarted = Date.now();
+    const holdTimer = window.setInterval(() => {
+      let seen = false;
+      try { seen = window.sessionStorage.getItem(INTRO_SEEN_KEY) === "1"; } catch { /* private mode */ }
+      if (seen || !introHolding() || Date.now() - holdStarted > 600000) {
+        window.clearInterval(holdTimer);
+        releaseIntroHold();
+      }
+    }, 500);
+  }
   const DEMO_TUTORIAL = [
     {
       icon: "✨", title: "Meet Sala",
@@ -821,6 +868,7 @@ export function initCourseVoiceOverlay(opts = {}) {
 
   function showDemoTutorial(startLesson) {
     document.querySelector(".sala-tutorial")?.remove();
+    reportTutorial("open");
     let step = 0;
     const overlay = document.createElement("div");
     overlay.className = "sala-tutorial";
@@ -855,11 +903,10 @@ export function initCourseVoiceOverlay(opts = {}) {
       document.removeEventListener("keydown", onKey);
       overlay.remove();
       document.querySelector(".sala-help")?.focus?.({ preventScroll: true });
+      reportTutorial("closed");
       if (startLesson) {
-        goFullScreenOnPhone();
-        const welcome = document.getElementById("page-welcome");
-        if (welcome && !welcome.hidden) clickById("btn-start-voice");
-        if (!consented) setConsented(true);
+        if (introHolding()) pendingLessonStart = true;
+        else startLessonNow();
       }
     };
     render();
@@ -876,6 +923,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     let seen = false;
     try { seen = window.localStorage.getItem(TUTORIAL_KEY) === "1"; } catch { seen = false; }
     if (!seen) showDemoTutorial(Boolean(options.demo));
+    else reportTutorial("closed");
   }
 
   function wireAvatarGesture() {

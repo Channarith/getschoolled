@@ -476,7 +476,13 @@ STUDIO_CSS = """
     .sala-rotate { position:fixed; left:50%; top:14px; transform:translateX(-50%); z-index:90; padding:8px 14px; border-radius:99px;
       background:rgba(15,23,42,.92); color:#fde68a; font:800 14px/1.2 system-ui,sans-serif; border:2px solid #fde047; text-align:center; max-width:88vw; }
     .sala-tutorial { position:fixed; inset:0; z-index:2147483200; display:grid; place-items:center; padding:14px; background:rgba(2,6,23,.82); }
-    .sala-tutorial .card { width:min(94vw,520px); max-height:94vh; overflow:auto; padding:20px 20px 16px; border-radius:24px;
+    /* Driver's Ed demo opening: the page that embeds us shows a video behind the tutorial and
+       holds the lesson (including the first slide, "California learner's permit") until the
+       video is done. Only the tutorial and the ? button stay visible, over a see-through page. */
+    html.sala-intro-hold, html.sala-intro-hold body { background:transparent !important; }
+    html.sala-intro-hold body > *:not(.sala-tutorial):not(.sala-help) { visibility:hidden !important; }
+    html.sala-intro-hold .sala-tutorial { background:rgba(2,6,23,.55); }
+    .sala-tutorial .card { box-sizing:border-box; width:min(94vw,520px); max-height:94vh; overflow:auto; padding:20px 20px 16px; border-radius:24px;
       background:linear-gradient(160deg,#312e81,#1e1b4b); border:3px solid #fde047; color:#f1f5f9; text-align:center;
       font:500 16px/1.45 system-ui,"Avenir Next","Segoe UI",sans-serif; box-shadow:0 20px 60px rgba(0,0,0,.6); }
     .sala-tutorial h2 { margin:6px 0 10px; color:#fde68a; font:900 clamp(22px,6vw,30px)/1.15 system-ui,sans-serif; }
@@ -7442,6 +7448,7 @@ def render_studio_page() -> str:
 </head>
 <body class="theme-study">
   <script>if(/[?&]embed=mobile(?:&|$)/.test(location.search)||matchMedia("(max-width:760px)").matches)document.body.classList.add("phone-embed");</script>
+  <script>try{if(/[?&]intro=1(?:&|$)/.test(location.search)&&/[?&]demo=1(?:&|$)/.test(location.search)&&parent!==window&&sessionStorage.getItem("salareen.driversEdIntro.seen.v1")!=="1")document.documentElement.classList.add("sala-intro-hold");}catch(e){}</script>
   <script src="/api/studio/voice-overlay/friendly_error.js" data-watch="^/api/studio/" data-ignore="/tts|/voice|/live-audio|/avatar"></script>
   <div class="study-bg" aria-hidden="true">
     <svg class="shelf shelf-left" viewBox="0 0 92 720" preserveAspectRatio="xMidYMin slice">
