@@ -11,6 +11,7 @@ import {
   SALES_DEMO_COURSES,
   SALES_DEMO_FEATURES,
   SALES_DEMO_FLAGS,
+  isHiddenDemoFeature,
 } from "../lib/salesDemo";
 
 export default function SalesDemoPage() {
@@ -26,7 +27,7 @@ export default function SalesDemoPage() {
 
   const enabled = (key: string) => !ready || flags[key] !== false;
   const demoEnabled = enabled(SALES_DEMO_FLAGS.enabled);
-  const features = SALES_DEMO_FEATURES.filter((feature) => enabled(feature.flagKey));
+  const features = SALES_DEMO_FEATURES.filter((feature) => enabled(feature.flagKey) && !isHiddenDemoFeature(feature.id));
 
   useEffect(() => {
     if (signedIn && ready && !demoEnabled && !demoOnly) router.replace("/");
@@ -84,16 +85,6 @@ export default function SalesDemoPage() {
         </p>
         <Link href="/demo/drivers-ed">
           <button type="button">Open the 10-minute driver&apos;s ed demo</button>
-        </Link>
-      </section>
-
-      <section style={{ marginTop: 34 }}>
-        <h2>On the Go</h2>
-        <p className="muted">
-          The same classes, audio only, with no camera. Ten minutes, then the trial ends.
-        </p>
-        <Link href="/demo/on-the-go">
-          <button type="button">Open the 10-minute audio demo</button>
         </Link>
       </section>
 

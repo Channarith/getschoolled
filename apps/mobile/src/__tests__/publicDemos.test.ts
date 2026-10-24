@@ -1,12 +1,16 @@
-import { PUBLIC_DEMOS, appStateScript, childrenLabTouchScript, publicDemoUrl } from "../publicDemos";
+import { HIDDEN_ON_THE_GO_DEMO, PUBLIC_DEMOS, appStateScript, childrenLabTouchScript, publicDemoUrl } from "../publicDemos";
 
 describe("public demos", () => {
   test("matches the website demo pages", () => {
     expect(PUBLIC_DEMOS.map((demo) => demo.path)).toEqual([
       "/studio?access=sample&course=drivers-ed&embed=mobile",
-      "/demo/on-the-go",
       "/children-lab?embed=mobile",
     ]);
+  });
+
+  test("keeps the audio demo out of the picker but reachable", () => {
+    expect(PUBLIC_DEMOS.some((demo) => demo.id === "on-the-go")).toBe(false);
+    expect(HIDDEN_ON_THE_GO_DEMO.path).toBe("/demo/on-the-go");
   });
 
   test("builds an absolute URL from the web app origin", () => {

@@ -17,7 +17,14 @@ export const SALES_DEMO_FLAGS = {
 export const LOGIN_OVERRIDE_PARAM = "override";
 
 /** Feature cards shown on /demo when sales_demo.exclusive (demo-only mode) is on. */
-export const DEMO_ONLY_FEATURE_IDS = ["solo", "drive", "arcade"] as const;
+export const DEMO_ONLY_FEATURE_IDS = ["solo", "arcade"] as const;
+
+/** Features that exist but are not advertised in the public demo (reached by the hidden logo taps, see secretTaps.ts). */
+export const HIDDEN_DEMO_FEATURE_IDS = ["drive"] as const;
+
+export function isHiddenDemoFeature(id: string): boolean {
+  return (HIDDEN_DEMO_FEATURE_IDS as readonly string[]).includes(id);
+}
 
 export const SALES_DEMO_COURSES = [
   {
